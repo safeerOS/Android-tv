@@ -12,8 +12,9 @@ import org.json.JSONObject
 /**
  * Most med stranjo Safeer Linka in televizorjem.
  *
- * Televizor je v Safeer Castu zaslon (prejemnik), ne posiljatelj: tu zato ni
- * posiljanja, ampak stanje povezave, seznanitev s kodo in sinhronizacija.
+ * Televizor je v Safeer Castu predvsem zaslon (prejemnik), a ne samo to: odprto stran
+ * in besedilo zna poslati tudi drugim napravam (telefonu, racunalniku). Deljenje datotek
+ * in zaslona s televizorja (se) ni - stran to izve po tem, da teh metod tu ni.
  *
  * Stran je del aplikacije (assets/link/) in most je pripet samo njenemu pogledu,
  * nikoli zavihku s spletno stranjo. Zeton naprave ostane v zasebnih nastavitvah.
@@ -117,6 +118,7 @@ class LinkMost(
                 .remove("hub_ticket_path")
                 .remove("hub_last_seen")
                 .remove(si.safeer.tv.cast.HubTls.KEY_HUB_FP)
+                .remove("seznanitve")
                 .apply()
         } catch (e: Throwable) {
             android.util.Log.w(TAG, "Nastavitev ni bilo mogoce pocistiti: ${e.message}")
@@ -220,12 +222,37 @@ class LinkMost(
     /** Televizor ne odpira svoje povezave posiljatelja; pove le, ali sprejemnik tece. */
     @JavascriptInterface
     fun poveziSe() {
-        odziv("povezava", CastReceiverService.instance != null)
+        pripniPoslusalce()
+        val storitev = CastReceiverService.instance
+        if (storitev == null && HubPairing.token(dejavnost) != null && hubUrl().isNotBlank()) {
+            try { CastReceiverService.start(dejavnost) } catch (_: Throwable) { }
+        }
+        odziv("povezava", CastReceiverService.povezan)
+        odziv("naprave", napraveZaStran(CastReceiverService.zadnjeNaprave))
     }
 
-    /** Televizor ne vodi seznama naprav -- Hub ga javlja posiljateljem. */
+    /** Seznam naprav, kot ga Hub javlja vsem povezanim; televizor je v njem tudi sam. */
     @JavascriptInterface
-    fun naprave(): String = "[]"
+    fun naprave(): String = napraveZaStran(CastReceiverService.zadnjeNaprave).toString()
+
+    private fun napraveZaStran(surovo: String): org.json.JSONArray {
+        val polje = org.json.JSONArray()
+        try {
+            val vhod = org.json.JSONArray(surovo)
+            for (i in 0 until vhod.length()) {
+                val n = vhod.optJSONObject(i) ?: continue
+                polje.put(JSONObject().apply {
+                    put("id", n.optString("id", ""))
+                    put("ime", n.optString("name", ""))
+                    put("vloga", n.optString("role", "receiver"))
+                    put("zmoznosti", n.optJSONArray("capabilities") ?: org.json.JSONArray())
+                    put("zasedenaOd", n.optString("busy_by", ""))
+                    put("zasedenaOdIme", n.optString("busy_by_name", ""))
+                })
+            }
+        } catch (_: Throwable) { }
+        return polje
+    }
 
     @JavascriptInterface
     fun trenutnaStranJson(): String {
@@ -234,21 +261,113 @@ class LinkMost(
             JSONObject().apply {
                 put("url", url)
                 put("naslov", naslov ?: "")
-                put("posljiva", false)
+                put("posljiva", url.startsWith("http://") || url.startsWith("https://"))
             }.toString()
         } catch (e: Throwable) {
             "{\"url\":\"\",\"naslov\":\"\",\"posljiva\":false}"
         }
     }
 
+    /** Poslje stran, ki je odprta na televizorju, na izbrano napravo (telefon, racunalnik). */
     @JavascriptInterface
     fun posljiTrenutno(idNaprave: String) {
-        napaka("tv_je_zaslon", "Televizor je zaslon in ne posilja.")
+        val (url, naslov) = trenutnaStran()
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            napaka("stran_ni_primerna", "Ta stran ni primerna za posiljanje.")
+            return
+        }
+        poslji(idNaprave, url, naslov ?: "")
     }
 
     @JavascriptInterface
     fun poslji(idNaprave: String, url: String, naslov: String) {
-        napaka("tv_je_zaslon", "Televizor je zaslon in ne posilja.")
+        val cist = url.trim()
+        if (!cist.startsWith("http://") && !cist.startsWith("https://")) {
+            napaka("samo_http", "Poslati je mogoce samo naslove http in https.")
+            return
+        }
+        val storitev = CastReceiverService.instance
+        if (storitev == null || !CastReceiverService.povezan) {
+            napaka("hub_ni_znan", "Hub ni znan.")
+            return
+        }
+        val id = java.util.UUID.randomUUID().toString()
+        CastReceiverService.naPotrditev = { refId, stanje, koda, sporocilo ->
+            if (refId == id) {
+                if (stanje == "accepted") odziv("poslano", JSONObject().put("naprava", idNaprave).put("url", cist))
+                else napaka(koda.ifBlank { "posiljanje_ni_uspelo" }, sporocilo.ifBlank { "Posiljanje ni uspelo." })
+            }
+        }
+        if (!storitev.posljiUrl(idNaprave, cist, naslov.ifBlank { null }, id)) {
+            napaka("posiljanje_ni_uspelo", "Posiljanje ni uspelo: povezave s Hubom ni.")
+        }
+    }
+
+    // ------------------------------------------------------------------ deljenje s televizorja
+
+    private fun zeton(): String? = HubPairing.token(dejavnost)
+
+    /** Naslov Huba za navadne zahteve HTTP (wss://x:y/cast/ws -> https://x:y). */
+    private fun hubHttp(): String = hubUrl().replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
+        .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws").trimEnd('/')
+
+    private fun httpJson(metoda: String, pot: String, telo: String): Pair<Int, String> {
+        val povezava = java.net.URL(hubHttp() + pot).openConnection() as java.net.HttpURLConnection
+        try {
+            si.safeer.tv.cast.HubTls.zavaruj(povezava, dejavnost)
+            povezava.requestMethod = metoda
+            povezava.connectTimeout = 5000
+            povezava.readTimeout = 10000
+            zeton()?.let { povezava.setRequestProperty("x-safeer-token", it) }
+            povezava.setRequestProperty("Content-Type", "application/json")
+            povezava.doOutput = true
+            povezava.outputStream.use { it.write(telo.toByteArray(Charsets.UTF_8)) }
+            val koda = povezava.responseCode
+            val tok = if (koda >= 400) povezava.errorStream else povezava.inputStream
+            return koda to (tok?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: "")
+        } finally {
+            povezava.disconnect()
+        }
+    }
+
+    private fun deljenje(vrsta: String, stanje: String, cilj: String, sporocilo: String = "", koda: String = "", zasedenaOd: String = "") {
+        odziv("deljenje", JSONObject().apply {
+            put("vrsta", vrsta)
+            put("stanje", stanje)
+            put("cilj", cilj)
+            put("ime", "")
+            put("sporocilo", sporocilo)
+            put("koda", koda)
+            put("zasedenaOd", zasedenaOd)
+        })
+    }
+
+    /** Besedilo z daljinca (ali tipkovnice) na izbrano napravo - ista pot kot na telefonu. */
+    @JavascriptInterface
+    fun posljiBesedilo(idNaprave: String, besedilo: String) {
+        val cisto = besedilo.trim()
+        if (cisto.isEmpty()) return
+        if (hubUrl().isBlank() || zeton() == null) {
+            napaka("hub_ni_znan", "Hub ni znan.")
+            return
+        }
+        deljenje("besedilo", "posiljam", idNaprave)
+        Thread {
+            try {
+                val telo = JSONObject().put("device_id", ime()).put("target", idNaprave).put("text", cisto).toString()
+                val (koda, odgovor) = httpJson("POST", "/cast/share/text", telo)
+                if (koda == 200) deljenje("besedilo", "poslano", idNaprave)
+                else {
+                    val o = try { JSONObject(odgovor) } catch (_: Throwable) { JSONObject() }
+                    deljenje("besedilo", "napaka", idNaprave,
+                        sporocilo = o.optString("napaka", "").ifBlank { o.optString("error", "") }.ifBlank { "Hub je odgovoril $koda" },
+                        koda = o.optString("koda", "").ifBlank { o.optString("error_code", "") },
+                        zasedenaOd = o.optString("busy_by_name", "").ifBlank { o.optString("busy_by", "") })
+                }
+            } catch (e: Throwable) {
+                deljenje("besedilo", "napaka", idNaprave, sporocilo = e.message ?: "posiljanje ni uspelo")
+            }
+        }.start()
     }
 
     @JavascriptInterface
@@ -389,8 +508,10 @@ class LinkMost(
      * Poslusalca pripnemo vedno na novo, ker se Hub lahko vmes ugasne in prizge.
      */
     private fun pripniPoslusalce() {
+        CastReceiverService.naSpremembeNaprav = { surovo -> odziv("naprave", napraveZaStran(surovo)) }
+        CastReceiverService.naPovezavo = { p -> odziv("povezava", p) }
         val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik ?: return
-        u.naSpremembePrijav = { odziv("hub-prijave", org.json.JSONArray(hubPrijave())) }
+        si.safeer.tv.cast.HubKrmilnik.naSpremembePrijav = { odziv("hub-prijave", org.json.JSONArray(hubPrijave())) }
         u.naSpremembeNaprav = { odziv("hub-tu", JSONObject(si.safeer.tv.cast.HubKrmilnik.stanjeJson(dejavnost))) }
     }
 
@@ -401,8 +522,11 @@ class LinkMost(
         // takrat, ko uporabnik zapre ta zaslon in gleda. Ugasne ga uporabnik sam ali
         // konec brskalnika. Odklopimo samo poslusalca, da stran ne ostane v pomnilniku.
         try {
+            CastReceiverService.naSpremembeNaprav = null
+            CastReceiverService.naPovezavo = null
+            CastReceiverService.naPotrditev = null
             val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik
-            u?.naSpremembePrijav = null
+            si.safeer.tv.cast.HubKrmilnik.naSpremembePrijav = null
             u?.naSpremembeNaprav = null
         } catch (e: Throwable) {
             android.util.Log.w(TAG, "Poslusalcev ni bilo mogoce odkljuciti: ${e.message}")

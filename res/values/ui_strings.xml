@@ -153,4 +153,7 @@
     <string name="ui_share_screen_ended">Screen sharing has ended</string>
     <string name="ui_share_file_received">File received</string>
     <string name="ui_ssl_blocked">Connection to %1$s is not secure (invalid certificate) - Safeer blocked it</string>
+    <string name="ui_link_pair_code_title">Safeer Link: new device</string>
+    <string name="ui_link_pair_code_body">Device “%1$s” wants to connect. Type this code on it:</string>
+    <string name="ui_link_pair_reject">Reject</string>
 </resources>

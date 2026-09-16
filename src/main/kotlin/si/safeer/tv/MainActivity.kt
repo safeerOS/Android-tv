@@ -529,6 +529,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onPause() {
         si.safeer.tv.cast.CastReceiverService.krmilnikVOspredju = false
+        si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = null
         silenceBackgroundMedia("onPause")
         super.onPause()
     }
@@ -536,6 +537,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun onResume() {
         super.onResume()
         si.safeer.tv.cast.CastReceiverService.krmilnikVOspredju = true
+        si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = { runOnUiThread { pokaziKodoZaSeznanitev() } }
+        pokaziKodoZaSeznanitev()
         obravnavajCastNamero(intent)
         resumeBackgroundMedia()
     }
@@ -1428,6 +1431,65 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     // ------------------------------------------------------------------
 
     private var linkOkno: Dialog? = null
+
+    // ---- Safeer Link: koda za seznanitev, ko stran Linka ni odprta ----
+    private var kodaOkno: android.app.AlertDialog? = null
+
+    /**
+     * Druga naprava se zeli povezati na Hub tega televizorja: kodo pokazemo takoj, cez karkoli
+     * gleda uporabnik. Ce je odprta stran Safeer Linka, kodo pokaze ona.
+     */
+    private fun pokaziKodoZaSeznanitev() {
+        try {
+            if (linkOkno != null) {
+                kodaOkno?.let { if (it.isShowing) it.dismiss() }
+                kodaOkno = null
+                return
+            }
+            val p = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik?.cakajocePrijave()?.lastOrNull()
+            if (p == null) {
+                kodaOkno?.let { if (it.isShowing) it.dismiss() }
+                kodaOkno = null
+                return
+            }
+            val koda = p.pin.map { it.toString() }.joinToString(" ")
+            val navodilo = UiText.get(R.string.ui_link_pair_code_body).replace("%1\$s", p.ime)
+            val obstojece = kodaOkno
+            if (obstojece != null && obstojece.isShowing && obstojece.window?.decorView?.tag == p.pairId) return
+            obstojece?.let { if (it.isShowing) it.dismiss() }
+
+            val vsebina = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(64, 32, 64, 16)
+                addView(android.widget.TextView(this@MainActivity).apply {
+                    text = navodilo
+                    textSize = 20f
+                })
+                addView(android.widget.TextView(this@MainActivity).apply {
+                    text = koda
+                    textSize = 44f
+                    setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                    gravity = android.view.Gravity.CENTER
+                    setPadding(0, 32, 0, 16)
+                })
+            }
+            val okno = android.app.AlertDialog.Builder(this)
+                .setTitle(UiText.get(R.string.ui_link_pair_code_title))
+                .setView(vsebina)
+                .setNegativeButton(UiText.get(R.string.ui_link_pair_reject)) { _, _ ->
+                    try { si.safeer.tv.cast.HubKrmilnik.usmerjevalnik?.zavrniPrijavo(p.pairId) } catch (_: Exception) { }
+                }
+                .setPositiveButton(getString(android.R.string.ok), null)
+                .create()
+            okno.setOnDismissListener { if (kodaOkno === okno) kodaOkno = null }
+            kodaOkno = okno
+            okno.show()
+            try { okno.window?.decorView?.tag = p.pairId } catch (_: Exception) { }
+            try { okno.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.requestFocus() } catch (_: Exception) { }
+        } catch (e: Exception) {
+            android.util.Log.w("SafeerLink", "Kode za seznanitev ni bilo mogoce pokazati: " + e.message)
+        }
+    }
 
     /** Odpre naslov tako, kot ga odpira brskalnik sam: v dejavnem zavihku, sicer v novem. */
     private fun odpriVZavihku(naslov: String) {

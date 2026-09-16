@@ -79,6 +79,29 @@ class CastReceiverService : Service() {
         var instance: CastReceiverService? = null
             private set
 
+        /**
+         * Zadnji seznam naprav, kot ga je javil Hub (cast.devices). Televizor ni samo zaslon:
+         * stran Safeer Linka iz njega posilja odprto stran in besedilo, zato mora vedeti, komu.
+         */
+        @Volatile
+        var zadnjeNaprave: String = "[]"
+            private set
+
+        /** Stran Safeer Linka se prijavi, da izve za nov seznam naprav in za stanje povezave. */
+        @Volatile
+        var naSpremembeNaprav: ((String) -> Unit)? = null
+
+        @Volatile
+        var naPovezavo: ((Boolean) -> Unit)? = null
+
+        /** Odgovor Huba na nase posiljanje: (ref_id, status, error_code, error). */
+        @Volatile
+        var naPotrditev: ((String, String, String, String) -> Unit)? = null
+
+        @Volatile
+        var povezan: Boolean = false
+            private set
+
         fun start(context: Context, hubUrl: String? = null, deviceName: String? = null) {
             // Brez nastavljenega vozlišča storitve sploh ne zaženemo: nobenega obvestila,
             // nobenega omrežnega prometa, nič, kar bi uporabnik brez Huba sploh opazil.
@@ -188,6 +211,8 @@ class CastReceiverService : Service() {
             override fun onOpen(ws: WebSocket, response: Response) {
                 Log.i(TAG, "Uspešno povezan s Cast Hubom!")
                 reconnectAttempts = 0
+                povezan = true
+                try { naPovezavo?.invoke(true) } catch (_: Throwable) { }
 
                 // 1. Registracija naprave kot Receiver
                 val registerMsg = JSONObject().apply {
@@ -209,11 +234,13 @@ class CastReceiverService : Service() {
 
             override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
                 Log.w(TAG, "Povezava s hubom padla: ${t.message}. Poskus ponovne povezave...")
+                odklopljen()
                 scheduleReconnect()
             }
 
             override fun onClosed(ws: WebSocket, code: Int, reason: String) {
                 Log.i(TAG, "Povezava zaprta ($code): $reason")
+                odklopljen()
                 scheduleReconnect()
             }
         })
@@ -361,7 +388,59 @@ class CastReceiverService : Service() {
         } else {
             (reconnectAttempts * 2000L).coerceAtMost(30000L)
         }
+        // Po treh neuspehih pogledamo, ali se Safeer Link javlja kje drugje: sredisce je
+        // morda prevzel telefon ali racunalnik (ali je dobilo nov naslov). Ce je bil televizor
+        // z njim ze seznanjen, HubDiscovery preklopi naslov in zeton brez nove kode.
+        if (reconnectAttempts == 3 || (reconnectAttempts > MAX_RECONNECT_ATTEMPTS && reconnectAttempts % 3 == 0)) {
+            mainHandler.postDelayed({ poisciDrugoSredisce() }, delayMs / 2)
+        }
         mainHandler.postDelayed({ connectToHub() }, delayMs)
+    }
+
+    private fun poisciDrugoSredisce() {
+        if (!isRunning) return
+        val prej = hubUrl
+        try {
+            HubDiscovery.discover(this) { naslov ->
+                if (!isRunning || naslov.isNullOrBlank()) return@discover
+                val nov = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_HUB_URL, naslov) ?: naslov
+                if (nov != prej) {
+                    // Naslov zamenjamo; ze nacrtovani ponovni poskus (scheduleReconnect) ga vzame.
+                    Log.i(TAG, "Sredisce se je preselilo: $prej -> $nov")
+                    hubUrl = nov
+                    reconnectAttempts = 0
+                }
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Iskanja drugega sredisca ni bilo mogoce zagnati: ${e.message}")
+        }
+    }
+
+    private fun odklopljen() {
+        povezan = false
+        zadnjeNaprave = "[]"
+        try { naPovezavo?.invoke(false) } catch (_: Throwable) { }
+        try { naSpremembeNaprav?.invoke("[]") } catch (_: Throwable) { }
+    }
+
+    /**
+     * Poslje odprto stran drugi napravi (telefonu, racunalniku ali drugemu zaslonu) prek Huba.
+     * Vrne false, ce povezave ni; odgovor Huba (accepted/rejected) pride kot cast.ack.
+     */
+    fun posljiUrl(cilj: String, url: String, naslov: String?, id: String = UUID.randomUUID().toString()): Boolean {
+        val ws = webSocket ?: return false
+        if (!povezan) return false
+        val sporocilo = JSONObject().apply {
+            put("id", id)
+            put("type", "cast.url")
+            put("target", cilj)
+            put("payload", JSONObject().apply {
+                put("url", url)
+                put("title", naslov ?: "")
+                put("start_position", 0.0)
+            })
+        }
+        return try { ws.send(sporocilo.toString()) } catch (_: Throwable) { false }
     }
 
     private fun handleIncomingMessage(ws: WebSocket, text: String) {
@@ -371,6 +450,23 @@ class CastReceiverService : Service() {
             val type = json.optString("type")
 
             when (type) {
+                "cast.ack" -> {
+                    if (json.optString("ref_id", "").isNotBlank()) {
+                        try {
+                            naPotrditev?.invoke(
+                                json.optString("ref_id", ""), json.optString("status", ""),
+                                json.optString("error_code", ""), json.optString("error", "")
+                            )
+                        } catch (_: Throwable) { }
+                    }
+                }
+
+                "cast.devices" -> {
+                    val naprave = json.optJSONArray("devices")?.toString() ?: "[]"
+                    zadnjeNaprave = naprave
+                    try { naSpremembeNaprav?.invoke(naprave) } catch (_: Throwable) { }
+                }
+
                 "cast.url" -> {
                     val payload = json.getJSONObject("payload")
                     val url = payload.getString("url")

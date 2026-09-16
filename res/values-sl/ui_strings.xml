@@ -153,4 +153,7 @@
     <string name="ui_share_screen_ended">Deljenje zaslona je končano</string>
     <string name="ui_share_file_received">Prejeta datoteka</string>
     <string name="ui_ssl_blocked">Povezava s %1$s ni varna (neveljavno potrdilo) - Safeer jo je ustavil</string>
+    <string name="ui_link_pair_code_title">Safeer Link: nova naprava</string>
+    <string name="ui_link_pair_code_body">Naprava »%1$s« se želi povezati. Vtipkaj to kodo nanjo:</string>
+    <string name="ui_link_pair_reject">Zavrni</string>
 </resources>

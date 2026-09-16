@@ -153,4 +153,7 @@
     <string name="ui_share_screen_ended">La pantalla compartida ha terminado</string>
     <string name="ui_share_file_received">Archivo recibido</string>
     <string name="ui_ssl_blocked">La conexión con %1$s no es segura (certificado no válido): Safeer la bloqueó</string>
+    <string name="ui_link_pair_code_title">Safeer Link: nuevo dispositivo</string>
+    <string name="ui_link_pair_code_body">El dispositivo «%1$s» quiere conectarse. Escribe este código en él:</string>
+    <string name="ui_link_pair_reject">Rechazar</string>
 </resources>

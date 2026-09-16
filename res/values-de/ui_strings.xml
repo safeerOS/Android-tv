@@ -153,4 +153,7 @@
     <string name="ui_share_screen_ended">Bildschirmfreigabe beendet</string>
     <string name="ui_share_file_received">Datei empfangen</string>
     <string name="ui_ssl_blocked">Verbindung zu %1$s ist nicht sicher (ungültiges Zertifikat) - Safeer hat sie blockiert</string>
+    <string name="ui_link_pair_code_title">Safeer Link: neues Gerät</string>
+    <string name="ui_link_pair_code_body">Gerät „%1$s“ möchte sich verbinden. Gib diesen Code dort ein:</string>
+    <string name="ui_link_pair_reject">Ablehnen</string>
 </resources>

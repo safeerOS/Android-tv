@@ -32,6 +32,21 @@ object HubKrmilnik {
     var usmerjevalnik: HubUsmerjevalnik? = null
         private set
 
+    /** Stran Safeer Linka (ce je odprta) izve za nove ali potrjene prijave. */
+    @Volatile
+    var naSpremembePrijav: (() -> Unit)? = null
+
+    /**
+     * Zaslon (MainActivity) pokaze kodo za seznanitev tudi takrat, ko stran Linka ni odprta -
+     * naprava, ki se povezuje, kodo potrebuje TAKOJ, uporabnik pa je morda sredi filma.
+     */
+    @Volatile
+    var naPrijavoZaZaslon: (() -> Unit)? = null
+
+    /** Storitev v ozadju osvezi obvestilo s kodo (telefon, ko brskalnik ni v ospredju). */
+    @Volatile
+    var naPrijavoZaObvestilo: (() -> Unit)? = null
+
     @Volatile
     var tokovi: HubTokovi? = null
         private set
@@ -76,6 +91,11 @@ object HubKrmilnik {
             return false
         }
         u.lastniOdtis = HubTls.lastniOdtis()
+        u.naSpremembePrijav = {
+            try { naSpremembePrijav?.invoke() } catch (_: Throwable) { }
+            try { naPrijavoZaZaslon?.invoke() } catch (_: Throwable) { }
+            try { naPrijavoZaObvestilo?.invoke() } catch (_: Throwable) { }
+        }
         // Vsebina (zaslon, datoteke) gre mimo usmerjevalnika, po loceni zahtevi HTTP;
         // usmerjevalnik le pove ciljni napravi, kje jo dobi.
         val t = HubTokovi(
