@@ -72,6 +72,14 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     /** PDF pregledovalnik prosi za prenos izvirnika (url, userAgent). */
     var onPdfPrenos: ((String, String?) -> Unit)? = null
+    /** Pregledovalnik PDF preda fokus brskalniku ("gor" = naslovna vrstica). */
+    var onPdfFokusVen: ((String) -> Unit)? = null
+    /**
+     * En sam primerek mostu: applyUserAgentForUrl ga ob vsaki navigaciji znova doda (tudi v
+     * onPageStarted), Chromium pa ob istem predmetu ne naredi nic - nov primerek bi staro vezavo
+     * na odprti strani razveljavil ("most.shrani is not a function").
+     */
+    private val pdfMost by lazy { PdfPregledovalnik.Most(context, { url, ua -> onPdfPrenos?.invoke(url, ua) }, { smer -> onPdfFokusVen?.invoke(smer) }) }
     var onTitleChanged: ((String) -> Unit)? = null
     var onSecurityChanged: ((Boolean) -> Unit)? = null
     var onPageLoaded: ((String, String) -> Unit)? = null
@@ -172,7 +180,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         setInitialScale(100)
 
         addJavascriptInterface(jsBridge, "SafeerBridge")
-        addJavascriptInterface(PdfPregledovalnik.Most(context) { url, ua -> onPdfPrenos?.invoke(url, ua) }, "SafeerPdf")
+        addJavascriptInterface(pdfMost, "SafeerPdf")
 
         try {
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
@@ -229,7 +237,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         } else {
             try {
                 addJavascriptInterface(jsBridge, "SafeerBridge")
-        addJavascriptInterface(PdfPregledovalnik.Most(context) { url, ua -> onPdfPrenos?.invoke(url, ua) }, "SafeerPdf")
+        addJavascriptInterface(pdfMost, "SafeerPdf")
             } catch (_: Exception) {}
         }
 

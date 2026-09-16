@@ -690,6 +690,24 @@ object GenericWebSiteProfile : SiteProfile {
             }
         }
         if (wv == null) return false
+        // Vgrajeni pregledovalnik PDF (naslov pogleda je notranji, host.activeUrl() vrne javnega):
+        // smerne tipke gredo strani (listanje, orodna vrstica), da fokus ne uide iz pogleda;
+        // OK/Enter gre naravno v pogled (klik na izbrani gumb pregledovalnika).
+        if (!host.isTopBarFocused() && PdfPregledovalnik.jePregledovalnik(wv.url)) {
+            if (!wv.hasFocus()) wv.requestFocus()
+            val smer = when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> "ArrowDown"
+                KeyEvent.KEYCODE_DPAD_UP -> "ArrowUp"
+                KeyEvent.KEYCODE_DPAD_LEFT -> "ArrowLeft"
+                KeyEvent.KEYCODE_DPAD_RIGHT -> "ArrowRight"
+                else -> null
+            }
+            if (smer != null) {
+                wv.evaluateJavascript("window.SafeerPdfTipka && window.SafeerPdfTipka('$smer');", null)
+                return true
+            }
+            return false
+        }
         if (host.isTopBarFocused()) {
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 host.hideKeyboard()

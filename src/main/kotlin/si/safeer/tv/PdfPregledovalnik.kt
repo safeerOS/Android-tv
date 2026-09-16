@@ -60,7 +60,7 @@ object PdfPregledovalnik {
         val jezik = jezik(context)
         val naslov = "$OSNOVA/pdfjs/web/viewer.html?file=" + Uri.encode("/doc/$id/$ime") +
             "&lang=" + Uri.encode(jezik) + "&z=" + zeton + "&tv=1"
-        webView.post { webView.loadUrl(naslov) }
+        webView.post { webView.loadUrl(naslov); webView.requestFocus() }
     }
 
     /** Ali je naslov nas pregledovalnik. */
@@ -176,7 +176,18 @@ object PdfPregledovalnik {
      * Most za stran pregledovalnika (window.SafeerPdf). Vsak klic mora prinesti zeton dokumenta iz
      * naslova pregledovalnika: tuja stran ga ne pozna, zato mostu ne more zlorabiti.
      */
-    class Most(private val context: Context, private val prenesi: (url: String, userAgent: String?) -> Unit) {
+    class Most(
+        private val context: Context,
+        private val prenesi: (url: String, userAgent: String?) -> Unit,
+        private val fokus: ((smer: String) -> Unit)? = null
+    ) {
+
+        /** Orodna vrstica pregledovalnika preda fokus brskalniku ("gor" = naslovna vrstica). */
+        @JavascriptInterface
+        fun fokusVen(smer: String) {
+            val f = fokus ?: return
+            android.os.Handler(android.os.Looper.getMainLooper()).post { try { f(smer) } catch (_: Throwable) { } }
+        }
 
         private fun dokumentZaZeton(zeton: String): Dokument? =
             synchronized(dokumenti) { dokumenti.values.firstOrNull { it.zeton == zeton } }

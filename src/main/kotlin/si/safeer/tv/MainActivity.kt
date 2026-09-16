@@ -991,6 +991,15 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             }
             downloadHandler.startDownload(url, userAgent, contentDisposition, mimeType)
         }
+        // Pregledovalnik PDF: "prenesi izvirnik" gre kot navaden prenos, "gor" iz orodne vrstice v naslovno vrstico.
+        wv.onPdfPrenos = { url, userAgent -> downloadHandler.startDownload(url, userAgent, null, "application/pdf") }
+        wv.onPdfFokusVen = { smer ->
+            if (smer == "gor") {
+                mobileTopBar.visibility = android.view.View.VISIBLE
+                mobileTopBar.animate().translationY(0f).setDuration(150).start()
+                editUrl.requestFocus()
+            }
+        }
 
         wv.onFullscreenToggled = { customView, callback ->
             val mode = SiteProfileResolver.fromUrl(tab.url.ifEmpty { wv.url ?: "" }).playbackMode()
