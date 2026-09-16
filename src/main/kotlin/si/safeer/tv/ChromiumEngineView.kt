@@ -69,6 +69,9 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     var onProgressUpdate: ((Int) -> Unit)? = null
     var onUrlChanged: ((String) -> Unit)? = null
+
+    /** PDF pregledovalnik prosi za prenos izvirnika (url, userAgent). */
+    var onPdfPrenos: ((String, String?) -> Unit)? = null
     var onTitleChanged: ((String) -> Unit)? = null
     var onSecurityChanged: ((Boolean) -> Unit)? = null
     var onPageLoaded: ((String, String) -> Unit)? = null
@@ -169,6 +172,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         setInitialScale(100)
 
         addJavascriptInterface(jsBridge, "SafeerBridge")
+        addJavascriptInterface(PdfPregledovalnik.Most(context) { url, ua -> onPdfPrenos?.invoke(url, ua) }, "SafeerPdf")
 
         try {
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
@@ -225,6 +229,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         } else {
             try {
                 addJavascriptInterface(jsBridge, "SafeerBridge")
+        addJavascriptInterface(PdfPregledovalnik.Most(context) { url, ua -> onPdfPrenos?.invoke(url, ua) }, "SafeerPdf")
             } catch (_: Exception) {}
         }
 
@@ -525,7 +530,8 @@ class ChromiumEngineView @JvmOverloads constructor(
                 onProgressUpdate?.invoke(newProgress)
                 if (newProgress >= 35 && earlyScriptNavGen != scriptNavGen) {
                     earlyScriptNavGen = scriptNavGen
-                    view?.let { UserScriptManager.injectEarlyScript(it, it.url) }
+                    // Vgrajeni PDF pregledovalnik ima svoje smerne tipke in videz; skript brskalnika ne dobi.
+                    view?.let { if (!PdfPregledovalnik.jePregledovalnik(it.url)) UserScriptManager.injectEarlyScript(it, it.url) }
                 }
             }
 
@@ -771,6 +777,10 @@ class ChromiumEngineView @JvmOverloads constructor(
 
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
                 val url = request?.url?.toString() ?: return null
+                // Vgrajeni PDF pregledovalnik in dokument, ki ga bere (pdf.safeer.internal).
+                if (request.url?.host == PdfPregledovalnik.GOSTITELJ) {
+                    return PdfPregledovalnik.odgovor(context, url)
+                }
                 val isMainFrame = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     request.isForMainFrame
                 } else {
@@ -858,7 +868,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                     if (it.contains("24ur", ignoreCase = true) || it.contains("hydrahd", ignoreCase = true)) {
                         UserScriptManager.injectWindowsDesktopSpoof(this@ChromiumEngineView)
                     }
-                    onUrlChanged?.invoke(it)
+                    onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                 }
             }
@@ -867,13 +877,14 @@ class ChromiumEngineView @JvmOverloads constructor(
                 super.onPageFinished(view, url)
                 url?.let {
                     view?.let { wv -> scheduleFakeBankCheck(wv, it) }
-                    onUrlChanged?.invoke(it)
+                    onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                     val pageTitle = title ?: ""
-                    onPageLoaded?.invoke(it, pageTitle)
+                    onPageLoaded?.invoke(PdfPregledovalnik.javniNaslov(it), pageTitle)
                     if (finishedScriptNavGen != scriptNavGen) {
                         finishedScriptNavGen = scriptNavGen
-                        view?.let { wv ->
+                        // Vgrajeni PDF pregledovalnik ima svoj videz in svoje tipke; skript brskalnika ne dobi.
+                        if (!PdfPregledovalnik.jePregledovalnik(it)) view?.let { wv ->
                             UserScriptManager.injectOnPageFinished(wv, isDarkMode, it)
                         }
                     }

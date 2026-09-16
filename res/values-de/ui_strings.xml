@@ -156,4 +156,6 @@
     <string name="ui_link_pair_code_title">Safeer Link: neues Gerät</string>
     <string name="ui_link_pair_code_body">Gerät „%1$s“ möchte sich verbinden. Gib diesen Code dort ein:</string>
     <string name="ui_link_pair_reject">Ablehnen</string>
+    <string name="ui_pdf_saved">Gespeichert: %1$s</string>
+    <string name="ui_pdf_save_failed">Die PDF-Datei konnte nicht gespeichert werden.</string>
 </resources>

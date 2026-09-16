@@ -984,6 +984,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
 
         wv.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+            // PDF se ne prenese, ampak odpre v vgrajenem pregledovalniku.
+            if (PdfPregledovalnik.jePdf(url, mimeType, contentDisposition)) {
+                PdfPregledovalnik.odpri(this, wv, url, userAgent, contentDisposition, mimeType)
+                return@setDownloadListener
+            }
             downloadHandler.startDownload(url, userAgent, contentDisposition, mimeType)
         }
 

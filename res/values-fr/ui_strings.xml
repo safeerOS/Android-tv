@@ -156,4 +156,6 @@
     <string name="ui_link_pair_code_title">Safeer Link : nouvel appareil</string>
     <string name="ui_link_pair_code_body">L\'appareil « %1$s » veut se connecter. Saisis ce code dessus :</string>
     <string name="ui_link_pair_reject">Refuser</string>
+    <string name="ui_pdf_saved">Enregistré : %1$s</string>
+    <string name="ui_pdf_save_failed">Le PDF n\'a pas pu être enregistré.</string>
 </resources>
