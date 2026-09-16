@@ -75,6 +75,7 @@
   <string name="ui_bookmarks_heading">⭐ Bookmarks and quick sites</string>
   <string name="ui_tab">Tab</string>
   <string name="ui_active">ACTIVE</string>
+  <string name="ui_shield_active_count">Shield active · %1$d blocked</string>
   <string name="ui_shield_active">Shield active</string>
   <string name="ui_find_hint">Find in page...</string>
   <string name="ui_bookmark_name">Bookmark name</string>
@@ -137,4 +138,19 @@
     <string name="ui_cast_ready">Ready to play from your phone and computer</string>
     <string name="ui_link_sync_unavailable">Bookmark sync is not available on the television yet.</string>
     <string name="ui_lang_auto">Automatic (device language)</string>
+    <string name="ui_popup_block_on">🚫 Pop-up windows are blocked</string>
+    <string name="ui_popup_block_off">Pop-up windows are allowed</string>
+    <string name="ui_download_dir_title">Where to save downloaded files</string>
+    <string name="ui_download_dir_set">Files will be saved to %s</string>
+    <string name="ui_dir_downloads">Download (default)</string>
+    <string name="ui_dir_documents">Documents</string>
+    <string name="ui_dir_pictures">Pictures</string>
+    <string name="ui_dir_music">Music</string>
+    <string name="ui_dir_movies">Movies</string>
+    <!-- Deljenje prek Safeer Linka -->
+    <string name="ui_share_open_link">Open link</string>
+    <string name="ui_share_screen_from">Screen from</string>
+    <string name="ui_share_screen_ended">Screen sharing has ended</string>
+    <string name="ui_share_file_received">File received</string>
+    <string name="ui_ssl_blocked">Connection to %1$s is not secure (invalid certificate) - Safeer blocked it</string>
 </resources>

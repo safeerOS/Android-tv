@@ -142,7 +142,23 @@ private fun preizkusRegistra() {
     preveriEnako("posiljatelj se registrira", "accepted", polje(odgovorPosiljatelja!!, "status"))
     preveriEnako("posiljatelj takoj dobi seznam naprav", "cast.devices", tip(telefon.zadnje()))
     preveri("v seznamu je prejemnik", telefon.zadnje().contains("\"id\":\"tv1\""))
-    preveri("v seznamu ni posiljatelja", !telefon.zadnje().contains("\"id\":\"fon1\""))
+    // Deljenje je dvosmerno: v seznamu so vse povezane naprave z vlogo zraven; kdo je zaslon,
+    // odloci vmesnik po polju role.
+    preveri("v seznamu je tudi posiljatelj, z vlogo", telefon.zadnje().contains("\"id\":\"fon1\"") &&
+        telefon.zadnje().contains("\"role\":\"sender\""))
+    preveriEnako("tudi zaslon dobi nov seznam", "cast.devices", tip(tv.zadnje()))
+
+    // ---- deljenje: besedilo gre izbrani napravi, posiljatelja vpise Hub ----
+    val deljenje = u.odgovorNa(telefon, """{"id":"d1","type":"share.text","target":"tv1","payload":{"text":"Zdravo"}}""")
+    preveriEnako("deljenje sprejeto", "accepted", polje(deljenje!!, "status"))
+    preveriEnako("potrditev je v prostoru share", "share.ack", tip(deljenje))
+    preveriEnako("zaslon dobi share.text", "share.text", tip(tv.zadnje()))
+    preveri("prejemnik vidi, kdo poslje", tv.zadnje().contains("\"sender\":\"fon1\""))
+    preveri("prejemnik vidi besedilo", tv.zadnje().contains("Zdravo"))
+    preveriEnako("deljenje neznani napravi je zavrnjeno", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"d2","type":"share.text","target":"nihce","payload":{"text":"x"}}""")!!, "status"))
+    preveriEnako("deljenje samemu sebi je zavrnjeno", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"d3","type":"share.text","target":"fon1","payload":{"text":"x"}}""")!!, "status"))
 
     preveriEnako("brez device_id zavrnjeno", "rejected",
         polje(u.odgovorNa(telefon, """{"id":"x","type":"cast.register","payload":{}}""")!!, "status"))
@@ -375,31 +391,95 @@ private fun preizkusHttp() {
     val prijava = u.odgovori(zahteva("POST", "/cast/pair/start", """{"device_id":"fon1","name":"Telefon"}"""))
     preveriEnako("prijava uspe", 200, prijava?.koda)
     val pairId = polje(prijava!!.telo, "pair_id")
-    val pin = polje(prijava.telo, "pin")
-    preveri("odgovor vsebuje kodo", pin.length == 6)
-    preveriEnako("koda na televizorju je ista", pin, u.cakajocePrijave().first().pin)
+    // Kodo pokaze gostitelj; naprava, ki se prikljucuje, je ne sme dobiti.
+    preveriEnako("odgovor NE vsebuje kode", "", polje(prijava.telo, "pin"))
+    preveriEnako("odgovor pove nacin", HubUsmerjevalnik.NACIN_SPAKE2, polje(prijava.telo, "nacin"))
+    preveriEnako("odgovor pove identiteto huba", HubUsmerjevalnik.IDENTITETA_HUBA, polje(prijava.telo, "hub_id"))
+    val pin = u.cakajocePrijave().first().pin
+    preveri("gostitelj ima sestmestno kodo", pin.length == 6)
+    preveri("nova naprava ne potrebuje potrditve na gostitelju", !u.cakajocePrijave().first().potrebujePotrditev)
 
-    val prezgodaj = u.odgovori(zahteva("POST", "/cast/pair/claim", """{"pair_id":"$pairId"}"""))
-    preveriEnako("pred potrditvijo prevzem ne uspe", "false",
-        JsonLahki.objekt(prezgodaj!!.telo)?.logicno("approved").toString())
+    // Stari poti sta zaprti: koda ne sme potovati po omrezju, potrditev brez vezave na potrdilo ne velja.
+    preveriEnako("stari verify je 410", 410,
+        u.odgovori(zahteva("POST", "/cast/pair/verify", """{"pair_id":"$pairId","pin":"$pin"}"""))?.koda)
+    preveriEnako("stari claim je 410", 410,
+        u.odgovori(zahteva("POST", "/cast/pair/claim", """{"pair_id":"$pairId"}"""))?.koda)
+    preveri("po starih poteh prijava ostane nedotaknjena", u.cakajocePrijave().any { it.pairId == pairId })
 
-    u.potrdiPrijavo(pairId)
-    val prevzem = u.odgovori(zahteva("POST", "/cast/pair/claim", """{"pair_id":"$pairId"}"""))
-    preveriEnako("po potrditvi prevzem uspe", true, JsonLahki.objekt(prevzem!!.telo)?.logicno("approved"))
-    val zeton = polje(prevzem.telo, "token")
+    // ---- SPAKE2: koda ostane na obeh zaslonih, po omrezju gredo tocke ----
+    fun seznaniSpake(pair: String, naprava: String, koda: String, odtis: String = u.lastniOdtis): Pair<Int, String> {
+        val o = Spake2.odjemalec(koda, naprava, HubUsmerjevalnik.IDENTITETA_HUBA, odtis.toByteArray(), pair.toByteArray())
+        val k1 = u.odgovori(zahteva("POST", "/cast/pair/spake",
+            """{"pair_id":"$pair","device_id":"$naprava","pb":"${HubUsmerjevalnik.bajteVHex(o.sporocilo())}"}"""))
+        if (k1?.koda != 200) return (k1?.koda ?: 0) to k1?.telo.orEmpty()
+        val pa = HubUsmerjevalnik.hexVBajte(polje(k1.telo, "pa"))!!
+        val ca = HubUsmerjevalnik.hexVBajte(polje(k1.telo, "ca"))!!
+        val cb = o.zakljuci(pa)
+        // Posten odjemalec bi ob neujemanju cA odnehal; tu igramo tudi ugibalca, ki poslje cb
+        // vseeno - Hub mora tak poskus steti in ga zavrniti.
+        preveri("hubova potrditev se ujema natanko takrat, ko je koda prava in odtis isti",
+            o.preveri(ca) == (koda == u.cakajocePrijave().firstOrNull { it.pairId == pair }?.pin && odtis == u.lastniOdtis))
+        val k2 = u.odgovori(zahteva("POST", "/cast/pair/finish",
+            """{"pair_id":"$pair","device_id":"$naprava","cb":"${HubUsmerjevalnik.bajteVHex(cb)}"}"""))
+        return (k2?.koda ?: 0) to k2?.telo.orEmpty()
+    }
+
+    preveriEnako("spake z interneta je 403", 403,
+        u.odgovori(zahteva("POST", "/cast/pair/spake", """{"pair_id":"$pairId","device_id":"fon1","pb":"04"}""", "203.0.113.5"))?.koda)
+    preveriEnako("spake brez pb je 400", 400,
+        u.odgovori(zahteva("POST", "/cast/pair/spake", """{"pair_id":"$pairId","device_id":"fon1"}"""))?.koda)
+    preveriEnako("spake z neveljavno tocko je 400", 400,
+        u.odgovori(zahteva("POST", "/cast/pair/spake", """{"pair_id":"$pairId","device_id":"fon1","pb":"${"04" + "00".repeat(64)}"}"""))?.koda)
+    preveriEnako("finish pred spake je 409", 409,
+        u.odgovori(zahteva("POST", "/cast/pair/finish", """{"pair_id":"$pairId","device_id":"fon1","cb":"00"}"""))?.koda)
+    preveriEnako("tuja naprava z istim pair_id je 404", 404,
+        u.odgovori(zahteva("POST", "/cast/pair/spake", """{"pair_id":"$pairId","device_id":"vsiljivec","pb":"04"}"""))?.koda)
+
+    val (napacnaKoda, _) = seznaniSpake(pairId, "fon1", "000000")
+    preveriEnako("napacna koda je 401", 401, napacnaKoda)
+    preveri("po napacni kodi prijava se zivi", u.cakajocePrijave().any { it.pairId == pairId })
+
+    // Napadalec v sredini: naprava je videla drugo potrdilo TLS -> potrditvi se ne ujemata, ceprav je koda prava.
+    u.lastniOdtis = "aa".repeat(32)
+    val (mitm, _) = seznaniSpake(pairId, "fon1", pin, odtis = "bb".repeat(32))
+    preveriEnako("prava koda z napacnim odtisom potrdila je 401 (clovek v sredini)", 401, mitm)
+
+    val (uspeh, teloUspeha) = seznaniSpake(pairId, "fon1", pin)
+    preveriEnako("pravilna koda in pravi odtis izdata zeton", 200, uspeh)
+    val zeton = polje(teloUspeha, "token")
     preveri("zeton ima prepoznavno predpono", zeton.startsWith("saf_tv_"))
+    preveri("zeton velja", u.jeVeljavenZeton(zeton))
+    preveri("uspesne prijave ni vec med cakajocimi", u.cakajocePrijave().none { it.pairId == pairId })
+    preveriEnako("prijava po uspehu izgine (404)", 404, seznaniSpake(pairId, "fon1", pin).first)
 
     // Dolzino zetona merimo na pravi nakljucnosti, ne na laznem generatorju iz preizkusa.
     val pravi = HubUsmerjevalnik(null, { cas })
-    val (praviPair, _) = pravi.zacniSeznanitev("fon9", "Pravi", "192.168.0.60")!!
-    pravi.potrdiPrijavo(praviPair)
-    val praviZeton = pravi.prevzemiZeton(praviPair).orEmpty()
+    val (praviPair, praviPin) = pravi.zacniSeznanitev("fon9", "Pravi", "192.168.0.60")!!
+    val o9 = Spake2.odjemalec(praviPin, "fon9", HubUsmerjevalnik.IDENTITETA_HUBA, ByteArray(0), praviPair.toByteArray())
+    val i9 = pravi.spakeKorak1(praviPair, "fon9", o9.sporocilo())
+    val praviZeton = pravi.spakeKorak2(praviPair, "fon9", o9.zakljuci(i9.pa!!)).zeton.orEmpty()
     preveri("pravi zeton je dovolj dolg", praviZeton.length >= 48)
-    preveri("dva zetona nista enaka", praviZeton != run {
-        val (drugi, _) = pravi.zacniSeznanitev("fon10", "Drugi", "192.168.0.61")!!
-        pravi.potrdiPrijavo(drugi)
-        pravi.prevzemiZeton(drugi).orEmpty()
-    })
+
+    // ---- meja poskusov: ugibanje nima smisla ----
+    val p3 = u.odgovori(zahteva("POST", "/cast/pair/start", """{"device_id":"fon3","name":"Ugibalec"}"""))
+    val pair3 = polje(p3!!.telo, "pair_id")
+    for (i in 1 until HubUsmerjevalnik.NAJVEC_POSKUSOV) {
+        preveriEnako("zgresen poskus $i je 401", 401, seznaniSpake(pair3, "fon3", "11111$i").first)
+    }
+    preveriEnako("zadnji dovoljeni zgreseni poskus konca prijavo (429)", 429, seznaniSpake(pair3, "fon3", "999999").first)
+    preveri("prijava ugibalca je odstranjena", u.cakajocePrijave().none { it.pairId == pair3 })
+    preveriEnako("po tem je vsak poskus 404", 404, seznaniSpake(pair3, "fon3", "999999").first)
+
+    // Tudi samo zacenjanje krogov brez zakljucka je omejeno (sondiranje).
+    val p4 = u.odgovori(zahteva("POST", "/cast/pair/start", """{"device_id":"fon4","name":"Sonda"}"""))
+    val pair4 = polje(p4!!.telo, "pair_id")
+    val sonda = Spake2.odjemalec("123456", "fon4", HubUsmerjevalnik.IDENTITETA_HUBA, ByteArray(0), pair4.toByteArray())
+    var zadnja = 0
+    for (i in 1..HubUsmerjevalnik.NAJVEC_POSKUSOV + 1) {
+        zadnja = u.odgovori(zahteva("POST", "/cast/pair/spake",
+            """{"pair_id":"$pair4","device_id":"fon4","pb":"${HubUsmerjevalnik.bajteVHex(sonda.sporocilo())}"}"""))?.koda ?: 0
+    }
+    preveriEnako("preveč zacetih krogov konca prijavo (429)", 429, zadnja)
 
     preveriEnako("brez zetona ni vstopnice", 401, u.odgovori(zahteva("POST", "/cast/ticket"))?.koda)
     val vstopnica = u.odgovori(zahteva("POST", "/cast/ticket", glave = mapOf("x-safeer-token" to zeton)))
@@ -465,6 +545,149 @@ private fun preizkusMeja() {
     preveri("ime gostitelja ni naslov", !HubUsmerjevalnik.jeKrajevni("zlonamerno.example.com"))
 }
 
+private fun preizkusDeljenjaPoHttp() {
+    println("\n== deljenje po HTTP: besedilo, zaslon, datoteka ==")
+    val shramba = LazniPomnilnik()
+    val u = usmerjevalnik(shramba)
+    val mapaPrenosov = java.nio.file.Files.createTempDirectory("safeer-prenosi").toFile()
+    val mapaZacasna = java.nio.file.Files.createTempDirectory("safeer-zacasno").toFile()
+    val tokovi = HubTokovi(
+        mapaPrenosov = { mapaPrenosov },
+        mapaZacasna = { mapaZacasna },
+        jeVeljavenZeton = { u.jeVeljavenZeton(it) },
+        lastniId = { "tv-gostitelj" }
+    )
+    u.tokovi = tokovi
+    val zetonTv = u.zagotoviLastniZeton("tv-gostitelj", "Safeer TV")
+    val zetonTablice = u.zagotoviLastniZeton("tablica", "Tablica")
+    val zetonPc = u.zagotoviLastniZeton("pc", "Racunalnik")
+    val glaveTablice = mapOf("x-safeer-token" to zetonTablice)
+    val glavePc = mapOf("x-safeer-token" to zetonPc)
+
+    val tv = Lazni("192.168.0.20")
+    val tablica = Lazni("192.168.0.31")
+    val pc = Lazni("192.168.0.40")
+    val fon = Lazni("192.168.0.41")
+    u.odgovorNa(tv, registracija("tv-gostitelj", "receiver"))
+    u.odgovorNa(tablica, registracija("tablica", "sender"))
+    u.odgovorNa(pc, registracija("pc", "sender"))
+    u.odgovorNa(fon, registracija("fon2", "sender"))
+    tv.pocisti(); tablica.pocisti(); pc.pocisti(); fon.pocisti()
+
+    // ---- identiteta: posiljatelj je lastnik zetona, ne tisto, kar pise v telesu ----
+    preveriEnako("zeton pripada napravi", "tablica", u.napravaZeZetona(zetonTablice))
+    preveri("neznan zeton nima naprave", u.napravaZeZetona("saf_tv_x") == null && u.napravaZeZetona(null) == null)
+
+    // ---- besedilo ----
+    preveriEnako("besedilo brez zetona je 401", 401,
+        u.odgovori(zahteva("POST", "/cast/share/text", """{"target":"tv-gostitelj","text":"Zdravo"}"""))?.koda)
+    preveriEnako("besedilo z zetonom gre skozi", 200,
+        u.odgovori(zahteva("POST", "/cast/share/text", """{"device_id":"pc","target":"tv-gostitelj","text":"Zdravo TV"}""", glave = glaveTablice))?.koda)
+    preveriEnako("cilj dobi share.text", "share.text", tip(tv.zadnje()))
+    preveri("posiljatelj je lastnik zetona, ne device_id iz telesa", tv.zadnje().contains("\"sender\":\"tablica\"") && tv.zadnje().contains("Zdravo TV"))
+    preveriEnako("prazno besedilo je 400", 400,
+        u.odgovori(zahteva("POST", "/cast/share/text", """{"target":"tv-gostitelj","text":"  "}""", glave = glaveTablice))?.koda)
+    preveriEnako("besedilo nepovezani napravi je 404", 404,
+        u.odgovori(zahteva("POST", "/cast/share/text", """{"target":"nihce","text":"x"}""", glave = glaveTablice))?.koda)
+    preveriEnako("besedilo samemu sebi je 400", 400,
+        u.odgovori(zahteva("POST", "/cast/share/text", """{"target":"tablica","text":"x"}""", glave = glaveTablice))?.koda)
+
+    // ---- zaslon: Hub sam pove cilju, kje gleda, in kdaj je konec ----
+    tv.pocisti()
+    preveriEnako("zaslon brez cilja je 400", 400,
+        u.odgovori(zahteva("POST", "/cast/share/screen/start", """{}""", glave = glaveTablice))?.koda)
+    preveriEnako("zaslon nepovezanemu cilju je 404", 404,
+        u.odgovori(zahteva("POST", "/cast/share/screen/start", """{"target":"nihce"}""", glave = glaveTablice))?.koda)
+    val zacetek = u.odgovori(zahteva("POST", "/cast/share/screen/start", """{"target":"tv-gostitelj"}""", glave = glaveTablice))
+    preveriEnako("zacetek deljenja je 200", 200, zacetek?.koda)
+    val idZaslona = polje(zacetek!!.telo, "id")
+    val potGledanja = polje(zacetek.telo, "view_path")
+    preveri("odgovor ima push_path in view_path", polje(zacetek.telo, "push_path").startsWith("/cast/screen/") && potGledanja.contains("/view?k="))
+    preveriEnako("cilj dobi share.screen", "share.screen", tip(tv.zadnje()))
+    preveri("cilj dobi action start in pot gledalca", tv.zadnje().contains("\"action\":\"start\"") && tv.zadnje().contains(potGledanja))
+    preveri("deljenje tece", tokovi.zaslonTece(idZaslona))
+
+    // ---- ena naprava naenkrat: dokler tablica deli s televizorjem, racunalnik caka ----
+    println("\n== ena naprava deli naenkrat ==")
+    preveriEnako("televizor je zaseden za tablico", "tablica", u.zasedenOd("tv-gostitelj"))
+    val zaseden = u.odgovori(zahteva("POST", "/cast/share/screen/start", """{"target":"tv-gostitelj"}""", glave = glavePc))
+    preveriEnako("racunalnik ne more deliti zaslona s televizorjem (409)", 409, zaseden?.koda)
+    preveri("odgovor pove, kdo deli", zaseden!!.telo.contains("\"busy_by\":\"tablica\"") && zaseden.telo.contains("naprava_zasedena"))
+    preveriEnako("racunalnik ne more poslati besedila televizorju (409)", 409,
+        u.odgovori(zahteva("POST", "/cast/share/text", """{"target":"tv-gostitelj","text":"x"}""", glave = glavePc))?.koda)
+    preveriEnako("tudi po WebSocketu je zavrnjeno", "naprava_zasedena",
+        polje(u.odgovorNa(pc, """{"id":"w1","type":"share.text","target":"tv-gostitelj","payload":{"text":"x"}}""")!!, "error_code"))
+    preveriEnako("tablica sama lahko televizorju se vedno poslje besedilo", 200,
+        u.odgovori(zahteva("POST", "/cast/share/text", """{"target":"tv-gostitelj","text":"se jaz"}""", glave = glaveTablice))?.koda)
+    val naTelefon = u.odgovori(zahteva("POST", "/cast/share/screen/start", """{"target":"fon2"}""", glave = glavePc))
+    preveriEnako("racunalnik pa lahko medtem deli zaslon s telefonom", 200, naTelefon?.koda)
+    preveri("seznam naprav pove, da je televizor zaseden", u.povezaniPrejemniki().contains("\"busy_by\":\"tablica\"") &&
+        u.povezaniPrejemniki().contains("\"busy_by_name\":\"Naprava tablica\""))
+    tv.pocisti()
+    preveriEnako("konec deljenja je 200", 200,
+        u.odgovori(zahteva("POST", "/cast/share/screen/stop", """{"id":"$idZaslona"}""", glave = glaveTablice))?.koda)
+    preveri("cilj dobi share.screen stop", tv.prejeto.any { tip(it) == "share.screen" && it.contains("\"action\":\"stop\"") })
+    preveri("po sprostitvi dobijo vsi nov seznam naprav", tip(tv.zadnje()) == "cast.devices" && !tv.zadnje().contains("busy_by\":\"tablica"))
+    preveri("deljenje ne tece vec", !tokovi.zaslonTece(idZaslona))
+    preveri("televizor je spet prost", u.zasedenOd("tv-gostitelj") == null)
+    val zdajPc = u.odgovori(zahteva("POST", "/cast/share/screen/start", """{"target":"tv-gostitelj"}""", glave = glavePc))
+    preveriEnako("zdaj lahko racunalnik deli s televizorjem", 200, zdajPc?.koda)
+    u.odgovori(zahteva("POST", "/cast/share/screen/stop", """{"id":"${polje(zdajPc!!.telo, "id")}"}""", glave = glavePc))
+    u.odgovori(zahteva("POST", "/cast/share/screen/stop", """{"id":"${polje(naTelefon!!.telo, "id")}"}""", glave = glavePc))
+    tv.pocisti()
+    u.odgovori(zahteva("POST", "/cast/share/screen/stop", """{"id":"$idZaslona"}""", glave = glaveTablice))
+    preveri("ponovni stop ne poslje nicesar", tv.zadnje().isEmpty())
+
+    // ---- datoteka: ko je na Hubu cela, Hub pove cilju; med prenosom je cilj zaseden ----
+    println("\n== datoteka prek Huba ==")
+    preveri("prenos zasede cilj", tokovi.zasediCilj?.invoke("fon2", "tablica") == null && u.zasedenOd("fon2") == "tablica")
+    preveri("drugi posiljatelj med prenosom ne more", tokovi.zasediCilj?.invoke("fon2", "pc") == "tablica")
+    tokovi.sprostiCilj?.invoke("fon2", "tablica")
+    preveri("po prenosu je cilj prost", u.zasedenOd("fon2") == null)
+    fon.pocisti()
+    val datoteka = HubTokovi.Datoteka("abc", "slika.jpg", 1234L, java.io.File(mapaZacasna, "x-slika.jpg"), "kljuc1",
+        "fon2", "tablica", false, cas, "deadbeef")
+    tokovi.naDatoteko?.invoke(datoteka)
+    preveriEnako("cilj dobi share.file", "share.file", tip(fon.zadnje()))
+    preveri("share.file nosi ime, pot prevzema, odtis in posiljatelja",
+        fon.zadnje().contains("\"name\":\"slika.jpg\"") && fon.zadnje().contains("/cast/file/abc?k=kljuc1") &&
+            fon.zadnje().contains("\"sender\":\"tablica\"") && fon.zadnje().contains("\"for_host\":false") &&
+            fon.zadnje().contains("\"sha256\":\"deadbeef\""))
+    preveri("tokovi vedo, kdo je povezan", tokovi.jeCiljPovezan?.invoke("tablica") == true && tokovi.jeCiljPovezan?.invoke("nihce") == false)
+    preveri("tokovi poznajo lastnika zetona", tokovi.napravaZeZetona?.invoke(zetonPc) == "pc")
+
+    // ---- imena naprav: uporabnik jih poimenuje, Hub si jih zapomni za vse ----
+    println("\n== poimenovanje naprav ==")
+    preveriEnako("preimenovanje brez zetona je 401", 401,
+        u.odgovori(zahteva("POST", "/cast/devices/rename", """{"device_id":"tv-gostitelj","name":"Dnevna soba"}"""))?.koda)
+    preveriEnako("preimenovanje z zetonom je 200", 200,
+        u.odgovori(zahteva("POST", "/cast/devices/rename", """{"device_id":"tv-gostitelj","name":"  Dnevna <soba>  "}""", glave = glaveTablice))?.koda)
+    preveriEnako("ime je ocisceno in shranjeno", "Dnevna soba", u.imeNaprave("tv-gostitelj"))
+    preveri("seznam naprav kaze novo ime, staro ostane kot own_name",
+        u.povezaniPrejemniki().contains("\"name\":\"Dnevna soba\"") && u.povezaniPrejemniki().contains("\"own_name\":\"Naprava tv-gostitelj\""))
+    preveriEnako("vsi povezani dobijo nov seznam", "cast.devices", tip(pc.zadnje()))
+    preveri("tudi seznam seznanjenih kaze vzdevek", u.seznanjeneNaprave().any { it.deviceId == "tv-gostitelj" && it.ime == "Dnevna soba" })
+    tv.pocisti()
+    u.odgovori(zahteva("POST", "/cast/share/text", """{"target":"tv-gostitelj","text":"hej"}""", glave = glavePc))
+    u.odgovori(zahteva("POST", "/cast/devices/rename", """{"device_id":"pc","name":"Matejev racunalnik"}""", glave = glavePc))
+    tv.pocisti()
+    u.odgovori(zahteva("POST", "/cast/share/text", """{"target":"tv-gostitelj","text":"hej"}""", glave = glavePc))
+    preveri("prejemnik vidi vzdevek posiljatelja", tv.zadnje().contains("\"sender_name\":\"Matejev racunalnik\""))
+    val u2 = usmerjevalnik(shramba)
+    preveriEnako("vzdevki prezivijo ponovni zagon Huba", "Matejev racunalnik", u2.imeNaprave("pc"))
+    u.odgovori(zahteva("POST", "/cast/devices/rename", """{"device_id":"pc","name":""}""", glave = glavePc))
+    preveriEnako("prazno ime vzdevek odstrani", "Naprava pc", u.imeNaprave("pc"))
+
+    // Ko cilj odide, deljenje zaslona naj se konca brez napake.
+    val zacetek2 = u.odgovori(zahteva("POST", "/cast/share/screen/start", """{"target":"tv-gostitelj"}""", glave = glaveTablice))
+    val id2 = polje(zacetek2!!.telo, "id")
+    u.odklopi(tv)
+    tokovi.koncajZaslon(id2)
+    preveri("konec po odhodu cilja ne vrze napake", !tokovi.zaslonTece(id2) && u.zasedenOd("tv-gostitelj") == null)
+
+    mapaPrenosov.deleteRecursively(); mapaZacasna.deleteRecursively()
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -473,6 +696,7 @@ fun main() {
     preizkusSeznanjanja()
     preizkusVstopnic()
     preizkusHttp()
+    preizkusDeljenjaPoHttp()
     preizkusMeja()
     println()
     if (napak == 0) {

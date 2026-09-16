@@ -39,8 +39,14 @@ object TvSite {
         return u.contains("android_asset/brave_home") || u.startsWith("file:///android_asset/brave_home")
     }
 
+    /** Stran gledalca deljenega zaslona (Safeer Link): tuj zaslon gledamo cez cel televizor. */
+    fun isSharedScreen(url: String): Boolean {
+        val u = url.lowercase()
+        return u.contains("/cast/screen/") && u.contains("/view")
+    }
+
     fun hideChrome(url: String): Boolean {
-        return isXplore(url) || isHydraPlayer(url)
+        return isXplore(url) || isHydraPlayer(url) || isSharedScreen(url)
     }
 }
 
@@ -646,6 +652,7 @@ object HydraSiteProfile : SiteProfile {
 
 object GenericWebSiteProfile : SiteProfile {
     override fun matches(url: String) = true
+    override fun hideChrome(url: String) = TvSite.isSharedScreen(url)
     override fun playbackMode() = PlaybackMode.CustomView
 
     override fun handleKey(event: KeyEvent, host: MainActivity): Boolean {

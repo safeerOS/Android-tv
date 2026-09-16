@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Preizkus bralca JSON in usmerjevalnika Safeer Huba v navadnem JVM (Androidovi razredi so v tests/stubs).
+# Preizkus bralca JSON, usmerjevalnika Safeer Huba in seznanjanja SPAKE2 v navadnem JVM
+# (Androidovi razredi so v tests/stubs; HubTls je samo za Android in tu ni vkljucen).
 #   KOTLINC=/pot/do/kotlinc tests/run_usmerjevalnik_tests.sh
 set -euo pipefail
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -16,8 +17,17 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/stubs/Log.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
+    "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
     "$TEST_DIR/UsmerjevalnikTest.kt" \
     -include-runtime -d "$OUT/usmerjevalnik.jar"
 
 java -cp "$OUT/usmerjevalnik.jar" si.safeer.tv.cast.UsmerjevalnikTestKt
+
+# Testni vektor RFC 9382 (isti kot za spake2.py v brskalniku za Linux).
+"$KOTLINC" -J-Xmx2g \
+    "$SRC/si/safeer/tv/cast/Spake2.kt" \
+    "$TEST_DIR/Spake2Test.kt" \
+    -include-runtime -d "$OUT/spake2.jar"
+java -cp "$OUT/spake2.jar" si.safeer.tv.cast.Spake2TestKt

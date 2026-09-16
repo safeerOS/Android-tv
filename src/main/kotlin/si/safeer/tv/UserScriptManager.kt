@@ -1705,7 +1705,11 @@ object UserScriptManager {
             webView.evaluateJavascript(FORCE_UNMUTE_JS, null)
         }
         webView.evaluateJavascript(GPC_AND_DNT_JS, null)
-        if (!bank) webView.evaluateJavascript(ANTI_POPUNDER_SHIELD_JS, null)
+        // Scit postavimo le, kadar je preprecevanje pojavnih oken vklopljeno; kdor ga v meniju
+        // izklopi, mora dobiti brskalnik, ki se vede povsem obicajno.
+        if (!bank && PojavnaOknaNastavitve.jeVklopljeno(webView.context)) {
+            webView.evaluateJavascript(ANTI_POPUNDER_SHIELD_JS, null)
+        }
         webView.evaluateJavascript(BACKGROUND_PLAYBACK_JS, null)
         // YouTubovi pomocniki pripadajo YouTubu; drugod so bili samo dodatno delo za televizor.
         if (isYouTubeUrl(target)) {

@@ -690,6 +690,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun onCastUrlReceived(url: String, title: String?, startPosition: Double) {
         runOnUiThread {
             try {
+                // Ce je nad brskalnikom se celozaslonski predvajalnik (npr. YouTube), ga umaknemo,
+                // sicer bi nova stran tekla pod njim in je ne bi bilo videti.
+                try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }
                 val activeTab = tabManager.getActiveTab()
                 if (activeTab != null) {
                     activeTab.webView.loadUrl(url)
@@ -710,6 +713,75 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             } catch (e: Exception) {
                 android.util.Log.w("SafeerCast", "Naslova ni bilo mogoce odpreti: " + e.message)
             }
+        }
+    }
+
+    // ---- deljenje prek Safeer Linka: besedilo, zaslon, datoteka ----
+
+    /** Besedilo z druge naprave: pokazemo ga v oknu, ki ga daljinec zapre z enim pritiskom. */
+    override fun onShareText(od: String, besedilo: String) {
+        runOnUiThread {
+            try {
+                val jePovezava = besedilo.trim().let { it.startsWith("http://") || it.startsWith("https://") } &&
+                    !besedilo.trim().contains(Regex("\\s"))
+                val okno = android.app.AlertDialog.Builder(this)
+                    .setTitle("💬 " + od)
+                    .setMessage(besedilo.take(4000))
+                    .setNegativeButton(getString(android.R.string.ok), null)
+                if (jePovezava) {
+                    okno.setPositiveButton(getString(R.string.ui_share_open_link)) { _, _ ->
+                        onCastUrlReceived(besedilo.trim(), null, 0.0)
+                    }
+                }
+                val prikazano = okno.show()
+                // Daljinec: fokus takoj na gumbu, da ga zapre en pritisk; po pol minute se
+                // umakne samo, da ne prekrije filma, ce nihce ne pritisne nicesar.
+                try { prikazano.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)?.requestFocus() } catch (_: Exception) { }
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    try { if (prikazano.isShowing) prikazano.dismiss() } catch (_: Exception) { }
+                }, 30_000L)
+            } catch (e: Exception) {
+                showTvOsd("💬 " + od, besedilo.take(120))
+            }
+        }
+    }
+
+    /** Zaslon druge naprave: odpremo stran gledalca (slika ohrani razmerje, crno ozadje). */
+    override fun onShareScreenStarted(url: String, od: String) {
+        runOnUiThread {
+            try {
+                try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }
+                val activeTab = tabManager.getActiveTab()
+                if (activeTab != null) activeTab.webView.loadUrl(url) else tabManager.createTab(this, url, true)
+                // Tuj zaslon gledamo cez cel televizor: vrstica z naslovom bi le jemala prostor.
+                mobileTopBar.visibility = View.GONE
+                showTvOsd("📱 " + getString(R.string.ui_share_screen_from), od)
+            } catch (e: Exception) {
+                android.util.Log.w("SafeerCast", "Zaslona ni bilo mogoce odpreti: " + e.message)
+            }
+        }
+    }
+
+    /** Deljenje se je koncalo: ce se gledamo ta zaslon, se vrnemo na zacetno stran. */
+    override fun onShareScreenStopped(id: String) {
+        runOnUiThread {
+            try {
+                val trenutni = activeUrl()
+                if (id.isNotBlank() && trenutni.contains("/cast/screen/" + id + "/")) {
+                    showBrowserStartPage()
+                }
+                showTvOsd(getString(R.string.ui_share_screen_ended))
+            } catch (e: Exception) {
+                android.util.Log.w("SafeerCast", "Konca deljenja ni bilo mogoce obdelati: " + e.message)
+            }
+        }
+    }
+
+    /** Datoteka je v mapi prenosov: povemo, kje. */
+    override fun onShareFileReceived(ime: String, pot: java.io.File, od: String) {
+        runOnUiThread {
+            val mapa = try { PrenosiMapa.opis(this) } catch (_: Exception) { "Download" }
+            showTvOsd("📁 " + getString(R.string.ui_share_file_received), ime + "  ·  " + mapa + "  ·  " + od, 6000L)
         }
     }
 
@@ -1454,10 +1526,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val activeTab = tabManager.getActiveTab()
         val wv = activeTab?.webView
 
-        val menuBtnBack = dialog.findViewById<Button>(R.id.menuBtnBack)
-        val menuBtnForward = dialog.findViewById<Button>(R.id.menuBtnForward)
-        val menuBtnReload = dialog.findViewById<Button>(R.id.menuBtnReload)
-        val menuBtnStar = dialog.findViewById<Button>(R.id.menuBtnStar)
+        val menuBtnBack = dialog.findViewById<ImageButton>(R.id.menuBtnBack)
+        val menuBtnForward = dialog.findViewById<ImageButton>(R.id.menuBtnForward)
+        val menuBtnReload = dialog.findViewById<ImageButton>(R.id.menuBtnReload)
+        val menuBtnStar = dialog.findViewById<ImageButton>(R.id.menuBtnStar)
 
         menuBtnBack.setOnClickListener {
             if (wv?.canGoBack() == true) wv.goBack()
@@ -1476,7 +1548,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         val curUrl = activeTab?.url ?: ""
         val isBm = repository.isBookmarked(curUrl)
-        menuBtnStar.text = if (isBm) "⭐" else "☆"
+        menuBtnStar.setImageResource(if (isBm) R.drawable.ic_m_star_filled else R.drawable.ic_m_star)
         menuBtnStar.setOnClickListener {
             if (isBm) {
                 repository.removeBookmark(curUrl)
@@ -1528,6 +1600,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             dialog.dismiss()
         }
 
+        // Stanje scita: zeleno, s stevilom groženj, ki jih je ta zagon ze ustavil.
+        val ustavljenih = ThreatBlockEngine.totalBlockedThreats.get()
+        dialog.findViewById<TextView>(R.id.tvThreatCountBadge).text =
+            if (ustavljenih > 0) UiText.get(R.string.ui_shield_active_count, ustavljenih) else UiText.get(R.string.ui_shield_active)
         // Threat Shield Status Dialog
         dialog.findViewById<LinearLayout>(R.id.rowMenuThreatStats).setOnClickListener {
             dialog.dismiss()
@@ -1602,6 +1678,51 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             ).show()
             wv?.reload()
             dialog.dismiss()
+        }
+
+        // 🚫 Preprecevanje pojavnih oken. Privzeto vklopljeno; en klik na predvajalnik naj
+        // predvaja film, ne odpira zavihka z oglasom.
+        val cbPopupBlock = dialog.findViewById<CheckBox>(R.id.cbPopupBlock)
+        cbPopupBlock.isChecked = PojavnaOknaNastavitve.jeVklopljeno(this)
+        dialog.findViewById<LinearLayout>(R.id.rowMenuPopupBlock).setOnClickListener {
+            val vklopljeno = !PojavnaOknaNastavitve.jeVklopljeno(this)
+            PojavnaOknaNastavitve.nastavi(this, vklopljeno)
+            cbPopupBlock.isChecked = vklopljeno
+            Toast.makeText(
+                this,
+                if (vklopljeno) UiText.get(R.string.ui_popup_block_on) else UiText.get(R.string.ui_popup_block_off),
+                Toast.LENGTH_SHORT
+            ).show()
+            wv?.reload()
+            dialog.dismiss()
+        }
+
+        // 📁 Kam se shranjujejo prenesene datoteke (velja tudi za datoteke prek Safeer Linka).
+        val txtPrenosiMapa = dialog.findViewById<android.widget.TextView>(R.id.txtPrenosiMapa)
+        txtPrenosiMapa.text = PrenosiMapa.opis(this)
+        dialog.findViewById<LinearLayout>(R.id.rowMenuPrenosiMapa).setOnClickListener {
+            val oznake = PrenosiMapa.VSE
+            val imena = arrayOf(
+                UiText.get(R.string.ui_dir_downloads),
+                UiText.get(R.string.ui_dir_documents),
+                UiText.get(R.string.ui_dir_pictures),
+                UiText.get(R.string.ui_dir_music),
+                UiText.get(R.string.ui_dir_movies)
+            )
+            val trenutni = oznake.indexOf(PrenosiMapa.izbranaMapa(this))
+            android.app.AlertDialog.Builder(this)
+                .setTitle(UiText.get(R.string.ui_download_dir_title))
+                .setSingleChoiceItems(imena, trenutni) { d, izbrano ->
+                    d.dismiss()
+                    dialog.dismiss()
+                    PrenosiMapa.nastaviMapo(this, oznake[izbrano])
+                    Toast.makeText(
+                        this,
+                        UiText.get(R.string.ui_download_dir_set, PrenosiMapa.opis(this)),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                .show()
         }
 
         val cbDark = dialog.findViewById<CheckBox>(R.id.cbDarkMode)
@@ -1903,6 +2024,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     internal fun handleBrowserBack() {
         val urlBefore = activeUrl()
+        // Deljen zaslon druge naprave: "nazaj" ga zapre in vrne vrstico z naslovom.
+        if (urlBefore.contains("/cast/screen/") && urlBefore.contains("/view")) {
+            showBrowserStartPage()
+            return
+        }
         val native = playback.isNativeActive()
         if (playback.isActive()) {
             playback.exit()

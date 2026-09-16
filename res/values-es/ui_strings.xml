@@ -75,6 +75,7 @@
   <string name="ui_bookmarks_heading">⭐ Marcadores y sitios rápidos</string>
   <string name="ui_tab">Pestaña</string>
   <string name="ui_active">ACTIVO</string>
+  <string name="ui_shield_active_count">Protección activa · %1$d bloqueadas</string>
   <string name="ui_shield_active">Protección activa</string>
   <string name="ui_find_hint">Buscar en la página...</string>
   <string name="ui_bookmark_name">Nombre del marcador</string>
@@ -137,4 +138,19 @@
     <string name="ui_cast_ready">Listo para reproducir desde el teléfono y el ordenador</string>
     <string name="ui_link_sync_unavailable">La sincronización de marcadores todavía no está disponible en el televisor.</string>
     <string name="ui_lang_auto">Automático (idioma del dispositivo)</string>
+    <string name="ui_popup_block_on">🚫 Las ventanas emergentes están bloqueadas</string>
+    <string name="ui_popup_block_off">Las ventanas emergentes están permitidas</string>
+    <string name="ui_download_dir_title">Dónde se guardan los archivos descargados</string>
+    <string name="ui_download_dir_set">Los archivos se guardarán en %s</string>
+    <string name="ui_dir_downloads">Descargas (Download) – predeterminado</string>
+    <string name="ui_dir_documents">Documentos (Documents)</string>
+    <string name="ui_dir_pictures">Imágenes (Pictures)</string>
+    <string name="ui_dir_music">Música (Music)</string>
+    <string name="ui_dir_movies">Vídeos (Movies)</string>
+    <!-- Deljenje prek Safeer Linka -->
+    <string name="ui_share_open_link">Abrir enlace</string>
+    <string name="ui_share_screen_from">Pantalla de</string>
+    <string name="ui_share_screen_ended">La pantalla compartida ha terminado</string>
+    <string name="ui_share_file_received">Archivo recibido</string>
+    <string name="ui_ssl_blocked">La conexión con %1$s no es segura (certificado no válido): Safeer la bloqueó</string>
 </resources>

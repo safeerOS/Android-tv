@@ -30,5 +30,11 @@ object R {
         const val ui_fake_bank_page = 40
         const val ui_sponsorblock_on = 41
         const val ui_sponsorblock_off = 42
+        // Kategorije groznje (besedila kategorij, dodana po prenovi besedil na televizorju).
+        const val ui_cat_botnet = 50
+        const val ui_cat_malware = 51
+        const val ui_cat_phishing = 52
+        const val ui_cat_adnet = 53
+        const val ui_cat_fake_shop = 54
     }
 }

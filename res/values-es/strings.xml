@@ -45,4 +45,6 @@
     <!-- Safeer Link: obvestilo storitve, ki tece tudi brez odprtega brskalnika -->
     <string name="hub_obvestilo_naslov">Safeer Link</string>
     <string name="hub_obvestilo_besedilo">Tus dispositivos pueden enviar páginas, vídeos y música a este televisor.</string>
+    <string name="menu_popup_block">Bloquear ventanas emergentes</string>
+    <string name="menu_download_dir">Carpeta de descargas</string>
 </resources>

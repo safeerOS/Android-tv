@@ -20,7 +20,15 @@ class DownloadHandler(private val context: Context) {
                 setDescription(UiText.get(R.string.ui_downloading))
                 setTitle(filename)
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
+                // Mapa, ki jo je izbral uporabnik. Ce je sistem ne dovoli, prenos vseeno stece.
+                try {
+                    setDestinationInExternalPublicDir(
+                        PrenosiMapa.sistemskoIme(PrenosiMapa.izbranaMapa(context)),
+                        PrenosiMapa.relativnaPot(context, filename)
+                    )
+                } catch (_: Throwable) {
+                    setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
+                }
                 allowScanningByMediaScanner()
             }
 

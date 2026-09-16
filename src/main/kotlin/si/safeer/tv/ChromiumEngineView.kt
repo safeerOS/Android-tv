@@ -508,7 +508,9 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // kjer je novo okno del postopka.
                 val isAuth = curUrl.contains("google") || curUrl.contains("youtube") ||
                     curUrl.contains("oauth") || curUrl.contains("signin")
-                if (isAuth) {
+                // Kdor preprecevanje v meniju izklopi, dobi obicajno vedenje brskalnika.
+                val preprecuj = PojavnaOknaNastavitve.jeVklopljeno(context)
+                if (isAuth || !preprecuj) {
                     val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
                     transport.webView = this@ChromiumEngineView
                     resultMsg.sendToTarget()
@@ -879,6 +881,12 @@ class ChromiumEngineView @JvmOverloads constructor(
             }
 
             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
+                // Safeer Link: stran z lastnega Huba ima samopodpisano potrdilo, katerega odtis je
+                // pripet ob seznanitvi. Sprejmemo samo natanko ta odtis na natanko tem naslovu.
+                if (si.safeer.tv.cast.HubTls.jeZaupanjaVredenHub(context, error)) {
+                    handler?.proceed()
+                    return
+                }
                 onSecurityChanged?.invoke(false)
                 // Prave banke: neveljaven certifikat lahko pomeni lažno banko na pravem naslovu (napad v omrežju).
                 val sslHost = try { Uri.parse(error?.url ?: "").host ?: "" } catch (_: Exception) { "" }
@@ -889,7 +897,12 @@ class ChromiumEngineView @JvmOverloads constructor(
                     handler?.cancel()
                     return
                 }
-                handler?.proceed()
+                // Neveljavno potrdilo je lahko napadalec v omrezju: povezavo prekinemo in povemo.
+                handler?.cancel()
+                val gostitelj = if (sslHost.isNotEmpty()) sslHost else pageHost
+                try {
+                    android.widget.Toast.makeText(context, context.getString(R.string.ui_ssl_blocked, gostitelj), android.widget.Toast.LENGTH_LONG).show()
+                } catch (_: Exception) { }
             }
         }
     }

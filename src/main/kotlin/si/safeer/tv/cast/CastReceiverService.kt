@@ -103,12 +103,29 @@ class CastReceiverService : Service() {
         fun onCastUrlReceived(url: String, title: String?, startPosition: Double)
         fun onCastControl(action: String, position: Double?, volume: Double?)
         fun getCurrentPlaybackState(): Map<String, Any?>
+
+        // Deljenje prek Safeer Linka (besedilo, zaslon, datoteka). Privzeto se ne zgodi nic,
+        // da starejsi krmilniki ostanejo veljavni; brskalnik na televizorju jih prepise.
+        fun onShareText(od: String, besedilo: String) {}
+        fun onShareScreenStarted(url: String, od: String) {}
+        fun onShareScreenStopped(id: String) {}
+        fun onShareFileReceived(ime: String, pot: java.io.File, od: String) {}
     }
 
-    private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(15, TimeUnit.SECONDS)
-        .build()
+    /**
+     * Odjemalec za Hub: TLS z odtisom potrdila, ki si ga je naprava zapomnila ob seznanitvi.
+     * Zgradi se ob vsaki povezavi, da po (ponovni) seznanitvi vzame nov odtis.
+     */
+    @Volatile
+    private var client: OkHttpClient = zgradiOdjemalca()
+
+    private fun zgradiOdjemalca(): OkHttpClient {
+        val g = OkHttpClient.Builder()
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .pingInterval(15, TimeUnit.SECONDS)
+        val odtis = try { HubTls.pripetiOdtis(this) } catch (_: Throwable) { null }
+        return HubTls.okhttp(g, odtis).first.build()
+    }
 
     private var webSocket: WebSocket? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -149,6 +166,12 @@ class CastReceiverService : Service() {
     private fun connectToHub() {
         if (!isRunning) return
 
+        if (!hubUrl.startsWith("wss://")) {
+            // Brez TLS bi zeton in vse, kar delimo, potovalo v cistem besedilu. Tak Hub naj se posodobi.
+            Log.w(TAG, "Hub brez TLS ($hubUrl) - povezava zavrnjena; posodobi Safeer na gostitelju.")
+            return
+        }
+        client = zgradiOdjemalca()
         Log.i(TAG, "Povezujem se na Safeer Cast Hub: $hubUrl (naprava: $deviceId)")
         zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov) }
     }
@@ -174,7 +197,7 @@ class CastReceiverService : Service() {
                         put("device_id", deviceId)
                         put("name", deviceName)
                         put("role", "receiver")
-                        put("capabilities", org.json.JSONArray(listOf("url", "media", "control", "volume", "seek")))
+                        put("capabilities", org.json.JSONArray(listOf("url", "media", "control", "volume", "seek", "text", "file", "screen")))
                     })
                 }
                 ws.send(registerMsg.toString())
@@ -386,10 +409,131 @@ class CastReceiverService : Service() {
                     }
                     ws.send(pong.toString())
                 }
+
+                "share.text" -> {
+                    val payload = json.optJSONObject("payload") ?: JSONObject()
+                    val besedilo = payload.optString("text", "")
+                    val od = imePosiljatelja(json)
+                    Log.i(TAG, "Prejeto besedilo od $od (${besedilo.length} znakov)")
+                    mainHandler.post {
+                        val krmilnik = mediaController
+                        if (krmilnik != null && krmilnikVOspredju) krmilnik.onShareText(od, besedilo)
+                        else pokaziSporocilo("💬 $od", besedilo)
+                    }
+                    sendAck(ws, msgId, "accepted")
+                }
+
+                "share.screen" -> {
+                    val payload = json.optJSONObject("payload") ?: JSONObject()
+                    val dejanje = payload.optString("action", "")
+                    val od = imePosiljatelja(json)
+                    val idDeljenja = payload.optString("id", "")
+                    if (dejanje == "start") {
+                        val pot = payload.optString("path", "")
+                        val url = if (pot.startsWith("/")) hubHttpOsnova() + pot else payload.optString("url", "")
+                        if (url.isNotBlank()) {
+                            Log.i(TAG, "Deljenje zaslona od $od: $url")
+                            mainHandler.post {
+                                val krmilnik = mediaController
+                                if (krmilnik != null && krmilnikVOspredju) krmilnik.onShareScreenStarted(url, od)
+                                else odpriVBrskalniku(url, "Zaslon: $od", 0.0)
+                            }
+                        }
+                    } else if (dejanje == "stop") {
+                        Log.i(TAG, "Deljenje zaslona $idDeljenja je koncano")
+                        mainHandler.post { mediaController?.onShareScreenStopped(idDeljenja) }
+                    }
+                    sendAck(ws, msgId, "accepted")
+                }
+
+                "share.file" -> {
+                    val payload = json.optJSONObject("payload") ?: JSONObject()
+                    val ime = payload.optString("name", "datoteka")
+                    val pot = payload.optString("path", "")
+                    val odtis = payload.optString("sha256", "")
+                    val zaGostitelja = payload.optBoolean("for_host", false)
+                    val od = imePosiljatelja(json)
+                    sendAck(ws, msgId, "accepted")
+                    if (zaGostitelja || pot.isBlank()) {
+                        // Hub tece na tej napravi: datoteka je ze v mapi prenosov.
+                        val mapa = HubKrmilnik.mapaZaPrejete(applicationContext)
+                        mainHandler.post { javiDatoteko(ime, java.io.File(mapa, ime), od) }
+                    } else {
+                        prevzemiDatoteko(hubHttpOsnova() + pot, ime, od, odtis)
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.message}", e)
         }
+    }
+
+    private fun imePosiljatelja(json: JSONObject): String {
+        val ime = json.optString("sender_name", "")
+        return if (ime.isNotBlank()) ime else json.optString("sender", "naprava")
+    }
+
+    /** Naslov Huba za navadne zahteve HTTP (ws://x:y/cast/ws -> http://x:y). */
+    private fun hubHttpOsnova(): String =
+        hubUrl.replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
+            .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws")
+            .trimEnd('/')
+
+    /** Kratko sporocilo uporabniku, kadar brskalnik ni v ospredju. */
+    private fun pokaziSporocilo(naslov: String, besedilo: String) {
+        try {
+            android.widget.Toast.makeText(this, "$naslov: ${besedilo.take(200)}", android.widget.Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Log.w(TAG, "Sporocila ni bilo mogoce pokazati: ${e.message}")
+        }
+    }
+
+    private fun javiDatoteko(ime: String, pot: java.io.File, od: String) {
+        val krmilnik = mediaController
+        if (krmilnik != null && krmilnikVOspredju) krmilnik.onShareFileReceived(ime, pot, od)
+        else pokaziSporocilo("📁 $od", "Prejeta datoteka: $ime")
+    }
+
+    /**
+     * Datoteko, ki caka na Hubu, prenesemo v mapo prenosov. V koscih, na lastni niti; ime
+     * ostane tako, kot ga je dal posiljatelj, ob trku dobi stevilko kot na namizju.
+     */
+    private fun prevzemiDatoteko(url: String, ime: String, od: String, pricakovanOdtis: String) {
+        Thread {
+            var zaBrisanje: java.io.File? = null
+            try {
+                val mapa = HubKrmilnik.mapaZaPrejete(applicationContext)
+                val cilj = HubTokovi.enolicnaPot(mapa, HubTokovi.varnoIme(ime))
+                zaBrisanje = cilj
+                val zahteva = Request.Builder().url(url).get().build()
+                client.newCall(zahteva).execute().use { odgovor ->
+                    if (!odgovor.isSuccessful) throw java.io.IOException("Hub je odgovoril ${odgovor.code}")
+                    val telo = odgovor.body ?: throw java.io.IOException("prazen odgovor")
+                    val prstni = java.security.MessageDigest.getInstance("SHA-256")
+                    telo.byteStream().use { vhod ->
+                        java.io.FileOutputStream(cilj).use { izhod ->
+                            val kos = ByteArray(64 * 1024)
+                            while (true) {
+                                val n = vhod.read(kos)
+                                if (n < 0) break
+                                izhod.write(kos, 0, n)
+                                prstni.update(kos, 0, n)
+                            }
+                        }
+                    }
+                    // Datoteka mora biti natanko taka, kot jo je Hub sprejel; sicer je ne obdrzimo.
+                    val dobljen = prstni.digest().joinToString("") { String.format("%02x", it.toInt() and 0xFF) }
+                    val pricakovan = pricakovanOdtis.ifBlank { odgovor.header("x-safeer-sha256") ?: "" }
+                    if (pricakovan.isNotBlank() && pricakovan != dobljen) throw java.io.IOException("prstni odtis se ne ujema")
+                }
+                Log.i(TAG, "Datoteka $ime je prenesena v ${cilj.parent}")
+                mainHandler.post { javiDatoteko(cilj.name, cilj, od) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Datoteke $ime ni bilo mogoce prevzeti: ${e.message}")
+                try { zaBrisanje?.delete() } catch (_: Exception) { }
+                mainHandler.post { pokaziSporocilo("📁 $od", "Datoteke $ime ni bilo mogoče prevzeti.") }
+            }
+        }.start()
     }
 
     private fun sendAck(ws: WebSocket, refId: String, status: String, error: String? = null) {

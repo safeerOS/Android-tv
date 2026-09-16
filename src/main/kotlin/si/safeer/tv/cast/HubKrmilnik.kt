@@ -2,6 +2,7 @@ package si.safeer.tv.cast
 
 import android.content.Context
 import android.util.Log
+import java.io.File
 import java.net.Inet4Address
 import java.net.NetworkInterface
 
@@ -29,6 +30,10 @@ object HubKrmilnik {
 
     @Volatile
     var usmerjevalnik: HubUsmerjevalnik? = null
+        private set
+
+    @Volatile
+    var tokovi: HubTokovi? = null
         private set
 
     fun tece(): Boolean = streznik?.teceZdaj() == true
@@ -65,10 +70,28 @@ object HubKrmilnik {
         }
 
         val u = HubUsmerjevalnik(NastavitveShramba(app))
+        // TLS: kljuc Huba iz Android KeyStore; odtis potrdila je vpleten v seznanjanje.
+        val tls = try { HubTls.streznik() } catch (e: Throwable) {
+            Log.w(TAG, "TLS Huba ni bilo mogoce pripraviti: ${e.message}")
+            return false
+        }
+        u.lastniOdtis = HubTls.lastniOdtis()
+        // Vsebina (zaslon, datoteke) gre mimo usmerjevalnika, po loceni zahtevi HTTP;
+        // usmerjevalnik le pove ciljni napravi, kje jo dobi.
+        val t = HubTokovi(
+            mapaPrenosov = { mapaZaPrejete(app) },
+            mapaZacasna = { File(app.cacheDir, "safeer-link").apply { mkdirs() } },
+            jeVeljavenZeton = { zeton -> u.jeVeljavenZeton(zeton) },
+            lastniId = { lastniId() },
+            naPrejetoDatoteko = { ime, pot -> Log.i(TAG, "Prejeta datoteka $ime -> ${pot.parent}") }
+        )
+        u.tokovi = t
         val s = HubStreznik(
             naZahtevo = { zahteva -> u.odgovori(zahteva) },
             preveriVstopnico = { zahteva -> u.preveriVstopnico(zahteva) },
-            naPovezavo = { povezava -> povezi(u, povezava) }
+            naPovezavo = { povezava -> povezi(u, povezava) },
+            naTok = { zahteva, vhod, izhod, vticnica -> t.obdelaj(zahteva, vhod, izhod, vticnica) },
+            tlsTovarna = tls
         )
         if (!s.zazeni()) {
             Log.w(TAG, "Huba ni bilo mogoce zagnati.")
@@ -76,6 +99,12 @@ object HubKrmilnik {
         }
         streznik = s
         usmerjevalnik = u
+        tokovi = t
+
+        // Televizor, ki gosti, je hkrati zaslon: sprejemnik se priklopi na lastni Hub, da ga
+        // druge naprave vidijo kot "zaslon" in mu lahko posljejo stran. Brez tega je Hub
+        // sredisce, na katerega ni mogoce nicesar poslati.
+        poveziLastniZaslon(app, u, s.vrata)
 
         HubObjava.objavi(app, s.vrata, imeHuba()) { uspelo ->
             if (!uspelo) {
@@ -95,8 +124,62 @@ object HubKrmilnik {
         streznik?.ustavi()
         streznik = null
         usmerjevalnik = null
+        tokovi = null
+        if (context != null) odklopiLastniZaslon(context.applicationContext)
         if (zapomni && context != null) zapomniZeljo(context.applicationContext, false)
         Log.i(TAG, "Safeer Hub ustavljen.")
+    }
+
+    private const val LASTNI_NASLOV_PREDPONA = "wss://127.0.0.1:"
+
+    /** Isti id, s katerim se sprejemnik televizorja prijavi Hubu (CastReceiverService). */
+    fun lastniId(): String = "tv-" + android.os.Build.MODEL.replace(Regex("\\s+"), "-").lowercase()
+
+    /**
+     * Mapa za datoteke, ki jih televizor prejme prek Safeer Linka: ista, kot jo je uporabnik
+     * izbral za prenose. Ce vanjo ni mogoce pisati (novejsi Android brez dovoljenja), gre v
+     * mapo aplikacije za prenose, ki je vedno na voljo.
+     */
+    fun mapaZaPrejete(app: Context): File {
+        val izbrana = try { si.safeer.tv.PrenosiMapa.ciljnaMapa(app) } catch (_: Throwable) { null }
+        if (izbrana != null && (izbrana.isDirectory || izbrana.mkdirs()) && izbrana.canWrite()) return izbrana
+        val nadomestna = app.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: File(app.filesDir, "prenosi")
+        nadomestna.mkdirs()
+        return nadomestna
+    }
+
+    /** Sprejemnik televizorja se priklopi na lastni Hub z zetonom, ki ga Hub izda sam sebi. */
+    private fun poveziLastniZaslon(app: Context, u: HubUsmerjevalnik, vrata: Int) {
+        try {
+            val zeton = u.zagotoviLastniZeton(lastniId(), imeHuba())
+            val naslov = LASTNI_NASLOV_PREDPONA + vrata + "/cast/ws"
+            app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString("hub_url", naslov)
+                .putString("control_token", zeton)
+                .putString("hub_ticket_path", "/cast/ticket")
+                // Lastnemu Hubu zaupamo po istem pravilu kot vsakemu drugemu: po odtisu.
+                .putString(HubTls.KEY_HUB_FP, HubTls.lastniOdtis())
+                .apply()
+            CastReceiverService.start(app, naslov, imeHuba())
+            Log.i(TAG, "Televizor je priklopljen na lastni Hub kot zaslon.")
+        } catch (e: Throwable) {
+            Log.w(TAG, "Lastnega zaslona ni bilo mogoce priklopiti: ${e.message}")
+        }
+    }
+
+    /** Ob izklopu Huba pospravimo samo to, kar je kazalo nanj; tuje seznanitve pustimo pri miru. */
+    private fun odklopiLastniZaslon(app: Context) {
+        try {
+            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val naslov = prefs.getString("hub_url", "") ?: ""
+            if (!naslov.startsWith(LASTNI_NASLOV_PREDPONA)) return
+            try {
+                app.stopService(android.content.Intent(app, CastReceiverService::class.java))
+            } catch (_: Throwable) { }
+            prefs.edit().remove("hub_url").remove("control_token").remove("hub_ticket_path").remove(HubTls.KEY_HUB_FP).apply()
+        } catch (e: Throwable) {
+            Log.w(TAG, "Lastnega zaslona ni bilo mogoce odklopiti: ${e.message}")
+        }
     }
 
     private fun povezi(u: HubUsmerjevalnik, povezava: HubStreznik.Povezava) {
@@ -116,7 +199,7 @@ object HubKrmilnik {
         val vrata = vrata()
         if (vrata == 0) return ""
         val ip = krajevniNaslov() ?: return ""
-        return "http://$ip:$vrata"
+        return "https://$ip:$vrata"
     }
 
     /**

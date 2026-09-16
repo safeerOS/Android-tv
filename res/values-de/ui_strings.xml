@@ -75,6 +75,7 @@
   <string name="ui_bookmarks_heading">⭐ Lesezeichen und Schnellzugriff</string>
   <string name="ui_tab">Tab</string>
   <string name="ui_active">AKTIV</string>
+  <string name="ui_shield_active_count">Schutz aktiv · %1$d blockiert</string>
   <string name="ui_shield_active">Schutz aktiv</string>
   <string name="ui_find_hint">Auf Seite suchen...</string>
   <string name="ui_bookmark_name">Lesezeichenname</string>
@@ -137,4 +138,19 @@
     <string name="ui_cast_ready">Bereit für die Wiedergabe von Telefon und Computer</string>
     <string name="ui_link_sync_unavailable">Die Lesezeichen-Synchronisierung ist auf dem Fernseher noch nicht verfügbar.</string>
     <string name="ui_lang_auto">Automatisch (Gerätesprache)</string>
+    <string name="ui_popup_block_on">🚫 Pop-up-Fenster werden blockiert</string>
+    <string name="ui_popup_block_off">Pop-up-Fenster sind erlaubt</string>
+    <string name="ui_download_dir_title">Speicherort für heruntergeladene Dateien</string>
+    <string name="ui_download_dir_set">Dateien werden in %s gespeichert</string>
+    <string name="ui_dir_downloads">Download (Standard)</string>
+    <string name="ui_dir_documents">Dokumente (Documents)</string>
+    <string name="ui_dir_pictures">Bilder (Pictures)</string>
+    <string name="ui_dir_music">Musik (Music)</string>
+    <string name="ui_dir_movies">Videos (Movies)</string>
+    <!-- Deljenje prek Safeer Linka -->
+    <string name="ui_share_open_link">Link öffnen</string>
+    <string name="ui_share_screen_from">Bildschirm von</string>
+    <string name="ui_share_screen_ended">Bildschirmfreigabe beendet</string>
+    <string name="ui_share_file_received">Datei empfangen</string>
+    <string name="ui_ssl_blocked">Verbindung zu %1$s ist nicht sicher (ungültiges Zertifikat) - Safeer hat sie blockiert</string>
 </resources>

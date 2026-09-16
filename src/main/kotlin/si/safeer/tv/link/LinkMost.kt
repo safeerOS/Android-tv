@@ -116,6 +116,7 @@ class LinkMost(
                 .remove("hub_url")
                 .remove("hub_ticket_path")
                 .remove("hub_last_seen")
+                .remove(si.safeer.tv.cast.HubTls.KEY_HUB_FP)
                 .apply()
         } catch (e: Throwable) {
             android.util.Log.w(TAG, "Nastavitev ni bilo mogoce pocistiti: ${e.message}")
@@ -163,22 +164,56 @@ class LinkMost(
         try {
             HubPairing.pair(
                 dejavnost, naslov, ime(), "Safeer TV (" + android.os.Build.MODEL + ")",
-                { koda -> odziv("koda", koda) },
-                { uspelo ->
-                    odziv("seznanitev", uspelo)
-                    if (uspelo) {
-                        // Sprejemnik lahko zdaj stece: televizor je od tu naprej dosegljiv.
-                        try {
-                            CastReceiverService.start(
-                                dejavnost, null,
-                                "Safeer TV (" + android.os.Build.MODEL + ")"
-                            )
-                        } catch (_: Throwable) {}
-                    }
-                }
+                { nacin, koda ->
+                    odziv("nacin", JSONObject().apply {
+                        put("nacin", nacin)
+                        put("koda", koda)
+                    })
+                },
+                { uspelo -> seznanitevKoncana(uspelo) }
             )
         } catch (e: Throwable) {
             napaka("seznanitev_ni_stekla", "Seznanitve ni bilo mogoce zaceti: ${e.message}")
+        }
+    }
+
+    /** Uporabnik je vtipkal sestmestno kodo, ki jo pokaze gostitelj. */
+    @JavascriptInterface
+    fun potrdiKodo(koda: String) {
+        try {
+            HubPairing.potrdiKodo(dejavnost, koda, ime()) { uspelo, razlog ->
+                if (uspelo) {
+                    seznanitevKoncana(true)
+                } else {
+                    odziv("kodaNiSprejeta", JSONObject().apply {
+                        put("razlog", razlog ?: "napacna_koda")
+                    })
+                }
+            }
+        } catch (e: Throwable) {
+            napaka("seznanitev_ni_stekla", "Kode ni bilo mogoce poslati: ${e.message}")
+        }
+    }
+
+    /** Uporabnik je vnos kode opustil. */
+    @JavascriptInterface
+    fun prekiniSeznanitev() {
+        try {
+            HubPairing.prekini()
+        } catch (_: Throwable) {}
+        odziv("seznanitevPrekinjena", true)
+    }
+
+    private fun seznanitevKoncana(uspelo: Boolean) {
+        odziv("seznanitev", uspelo)
+        if (uspelo) {
+            // Sprejemnik lahko zdaj stece: televizor je od tu naprej dosegljiv.
+            try {
+                CastReceiverService.start(
+                    dejavnost, null,
+                    "Safeer TV (" + android.os.Build.MODEL + ")"
+                )
+            } catch (_: Throwable) {}
         }
     }
 
@@ -277,7 +312,10 @@ class LinkMost(
         }
     }
 
-    /** Naprave, ki cakajo na potrditev: ime in sestmestna koda, ki jo naprava kaze na zaslonu. */
+    /**
+     * Naprave, ki se zelijo prikljuciti: ime in sestmestna koda, ki jo uporabnik prepise
+     * s tega zaslona na tisto napravo. Dokler je ne vtipka, se ne poveze nic.
+     */
     @JavascriptInterface
     fun hubPrijave(): String = try {
         val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik
@@ -289,6 +327,7 @@ class LinkMost(
                     put("koda", p.pin)
                     put("naslov", p.naslov)
                     put("starost", p.starostSekund)
+                    put("potrebujePotrditev", p.potrebujePotrditev)
                 })
             }
         }.toString()
