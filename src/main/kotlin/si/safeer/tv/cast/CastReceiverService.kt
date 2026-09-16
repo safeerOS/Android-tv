@@ -566,7 +566,8 @@ class CastReceiverService : Service() {
 
     private fun imePosiljatelja(json: JSONObject): String {
         val ime = json.optString("sender_name", "")
-        return if (ime.isNotBlank()) ime else json.optString("sender", "naprava")
+        val privzeto = if (ime.isNotBlank()) ime else json.optString("sender", "naprava")
+        return si.safeer.tv.link.LinkVzdevki.ime(this, json.optString("sender", ""), privzeto)
     }
 
     /** Naslov Huba za navadne zahteve HTTP (ws://x:y/cast/ws -> http://x:y). */
