@@ -292,6 +292,11 @@ class ChromiumEngineView @JvmOverloads constructor(
     }
 
     override fun loadUrl(url: String) {
+        if (PdfPregledovalnik.jeLokalni(url)) {
+            // PDF z naprave: ne nalaga ga WebView (content:// mu ni dovoljen), ampak nas pregledovalnik.
+            PdfPregledovalnik.odpriLokalno(context, this, Uri.parse(url), null)
+            return
+        }
         val sanitized = UrlSanitizer.sanitize(url)
         val target = rewriteYoutubeForTv(sanitized)
         applyUserAgentForUrl(target)
@@ -300,6 +305,11 @@ class ChromiumEngineView @JvmOverloads constructor(
     }
 
     override fun loadUrl(url: String, additionalHttpHeaders: Map<String, String>) {
+        if (PdfPregledovalnik.jeLokalni(url)) {
+            // PDF z naprave: ne nalaga ga WebView (content:// mu ni dovoljen), ampak nas pregledovalnik.
+            PdfPregledovalnik.odpriLokalno(context, this, Uri.parse(url), null)
+            return
+        }
         val sanitized = UrlSanitizer.sanitize(url)
         val target = rewriteYoutubeForTv(sanitized)
         applyUserAgentForUrl(target)

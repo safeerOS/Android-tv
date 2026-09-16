@@ -87,6 +87,14 @@
                 <data android:scheme="http" android:host="*" />
                 <data android:scheme="https" android:host="*" />
             </intent-filter>
+            <!-- Dokumenti PDF z naprave (prenosi, upravitelj datotek, e-posta) se odprejo v vgrajenem pregledovalniku -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.WEB_SEARCH" />
                 <category android:name="android.intent.category.DEFAULT" />
