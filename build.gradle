@@ -12,8 +12,8 @@ android {
         applicationId 'si.safeer.tv'
         minSdk 28
         targetSdk 34
-        versionCode 199
-        versionName '2.1.90'
+        versionCode 200
+        versionName '2.1.91'
     }
 
     sourceSets {
