@@ -35,6 +35,7 @@ class SlikaActivity : Activity() {
     private var imena: List<String> = emptyList()
     private var i = 0
     private var zeton = ""
+    private var lokalno = false
     private var odjemalec: OkHttpClient? = null
     private val ozadje = Executors.newSingleThreadExecutor()
     private val glavna = Handler(Looper.getMainLooper())
@@ -52,10 +53,13 @@ class SlikaActivity : Activity() {
         urli = intent.getStringArrayListExtra("urli") ?: arrayListOf()
         imena = intent.getStringArrayListExtra("imena") ?: arrayListOf()
         i = intent.getIntExtra("zacetek", 0).coerceIn(0, (urli.size - 1).coerceAtLeast(0))
+        lokalno = intent.getBooleanExtra("lokalno", false)
         val s = DatotekeActivity.Streznik.iz(intent.extras)
-        if (urli.isEmpty() || s == null) { finish(); return }
-        zeton = s.zeton
-        odjemalec = PripetiVir.odjemalecZaStreznik(s.odtis)
+        if (urli.isEmpty() || (!lokalno && s == null)) { finish(); return }
+        if (!lokalno) {
+            zeton = s!!.zeton
+            odjemalec = PripetiVir.odjemalecZaStreznik(s.odtis)
+        }
         nalozi()
     }
 
@@ -73,21 +77,24 @@ class SlikaActivity : Activity() {
         prekritje.visibility = View.VISIBLE
         glavna.removeCallbacks(skrij); glavna.postDelayed(skrij, 2_500)
         nalagam.visibility = View.VISIBLE
-        val k = odjemalec ?: return
+        val k = odjemalec
+        if (!lokalno && k == null) return
         val sirina = maxOf(1280, resources.displayMetrics.widthPixels)
         val visina = maxOf(720, resources.displayMetrics.heightPixels)
         ozadje.execute {
             val b: Bitmap? = try {
-                val z = Request.Builder().url(url).header("X-Safeer-Token", zeton).build()
-                k.newCall(z).execute().use { o ->
-                    if (!o.isSuccessful) null else {
-                        val bajti = o.body?.bytes() ?: ByteArray(0)
-                        val mere = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                        BitmapFactory.decodeByteArray(bajti, 0, bajti.size, mere)
-                        var vzorec = 1
-                        while (mere.outWidth / (vzorec * 2) >= sirina && mere.outHeight / (vzorec * 2) >= visina) vzorec *= 2
-                        BitmapFactory.decodeByteArray(bajti, 0, bajti.size, BitmapFactory.Options().apply { inSampleSize = vzorec })
-                    }
+                val bajti = if (lokalno) {
+                    contentResolver.openInputStream(android.net.Uri.parse(url))?.use { it.readBytes() }
+                } else {
+                    val z = Request.Builder().url(url).header("X-Safeer-Token", zeton).build()
+                    k!!.newCall(z).execute().use { o -> if (o.isSuccessful) o.body?.bytes() else null }
+                }
+                if (bajti == null) null else {
+                    val mere = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(bajti, 0, bajti.size, mere)
+                    var vzorec = 1
+                    while (mere.outWidth / (vzorec * 2) >= sirina && mere.outHeight / (vzorec * 2) >= visina) vzorec *= 2
+                    BitmapFactory.decodeByteArray(bajti, 0, bajti.size, BitmapFactory.Options().apply { inSampleSize = vzorec })
                 }
             } catch (_: Throwable) { null }
             glavna.post {

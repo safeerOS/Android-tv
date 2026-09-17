@@ -158,4 +158,5 @@
     <string name="ui_link_pair_reject">Reject</string>
     <string name="ui_pdf_saved">Saved: %1$s</string>
     <string name="ui_pdf_save_failed">The PDF could not be saved.</string>
+    <string name="ui_web_app_odprta">%1$s · press Back to leave</string>
 </resources>

@@ -20,16 +20,21 @@ object Sorodnik {
 
     data class Poverilnice(val hubUrl: String, val zeton: String, val odtis: String, val hubId: String)
 
-    fun zahtevaj(context: Context, naprej: (Poverilnice?) -> Unit) {
+    /**
+     * [dovoliZagon] = uporabnik je izbral Safeer Link: ce sredisce ne tece, ga prizgemo. Sicer
+     * poverilnice damo samo, kadar sredisce ze tece - Safeer OS sam po sebi nicesar ne prizge.
+     */
+    fun zahtevaj(context: Context, dovoliZagon: Boolean = false, naprej: (Poverilnice?) -> Unit) {
         val app = context.applicationContext
         Thread({
-            val p = try { pripravi(app) } catch (e: Throwable) { Log.w(TAG, "Poverilnic ni bilo mogoce pripraviti: ${e.message}"); null }
+            val p = try { pripravi(app, dovoliZagon) } catch (e: Throwable) { Log.w(TAG, "Poverilnic ni bilo mogoce pripraviti: ${e.message}"); null }
             Handler(Looper.getMainLooper()).post { naprej(p) }
         }, "safeer-os-sorodnik").start()
     }
 
-    private fun pripravi(app: Context): Poverilnice? {
+    private fun pripravi(app: Context, dovoliZagon: Boolean): Poverilnice? {
         if (!HubKrmilnik.tece()) {
+            if (!dovoliZagon) return null
             HubKrmilnik.zazeni(app, zapomni = true)
             HubStoritev.zagotovi(app)
         }

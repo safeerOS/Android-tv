@@ -585,8 +585,10 @@ object HydraSiteProfile : SiteProfile {
                     if (stayInKiosk) return@evaluateJavascript
                     if (result == "-1" || result == "null" || result == null) {
                         host.runOnUiThread {
-                            host.mobileTopBar.visibility = android.view.View.VISIBLE
-                            host.mobileTopBar.animate().translationY(0f).setDuration(150).start()
+                            if (host.nacinAplikacije == null) {
+                                host.mobileTopBar.visibility = android.view.View.VISIBLE
+                                host.mobileTopBar.animate().translationY(0f).setDuration(150).start()
+                            }
                             host.editUrl.requestFocus()
                         }
                     }
@@ -728,8 +730,10 @@ object GenericWebSiteProfile : SiteProfile {
                 wv.evaluateJavascript("window._safeer_navigate_spatial('UP');") { result ->
                     if (result == "-1" || result == "null" || result == null) {
                         host.runOnUiThread {
-                            host.mobileTopBar.visibility = android.view.View.VISIBLE
-                            host.mobileTopBar.animate().translationY(0f).setDuration(150).start()
+                            if (host.nacinAplikacije == null) {
+                                host.mobileTopBar.visibility = android.view.View.VISIBLE
+                                host.mobileTopBar.animate().translationY(0f).setDuration(150).start()
+                            }
                             host.editUrl.requestFocus()
                         }
                     }

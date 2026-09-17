@@ -80,12 +80,16 @@ class PredvajalnikActivity : Activity() {
 
     private fun zazeni() {
         val url = intent.getStringExtra("url") ?: run { finish(); return }
-        val s = DatotekeActivity.Streznik.iz(intent.extras) ?: run { finish(); return }
-        val vir = PripetiVir.Tovarna(s.odtis, s.zeton)
+        // Krajevna datoteka televizorja (content://) gre naravnost skozi Android; datoteka z
+        // racunalnika pa prek pripetega vira (TLS z odtisom in zetonom Safeer Controla).
+        val lokalno = intent.getBooleanExtra("lokalno", false)
+        val s = DatotekeActivity.Streznik.iz(intent.extras)
+        if (!lokalno && s == null) { finish(); return }
         val renderers = DefaultRenderersFactory(this).setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+        val tovarnaVira = if (lokalno) DefaultMediaSourceFactory(this) else DefaultMediaSourceFactory(PripetiVir.Tovarna(s!!.odtis, s.zeton))
         val p = ExoPlayer.Builder(this)
             .setRenderersFactory(renderers)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(vir))
+            .setMediaSourceFactory(tovarnaVira)
             .build()
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
             .setContentType(if (zvok) C.AUDIO_CONTENT_TYPE_MUSIC else C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)

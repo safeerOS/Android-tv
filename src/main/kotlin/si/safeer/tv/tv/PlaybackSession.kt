@@ -154,7 +154,7 @@ class WebViewCustomViewSession(private val host: MainActivity) : PlaybackSession
         host.customVideoCallback = null
         val url = host.activeUrl()
         val stayKiosk = SiteProfileResolver.fromUrl(url).hideChrome(url)
-        host.mobileTopBar.visibility = if (stayKiosk) View.GONE else View.VISIBLE
+        host.mobileTopBar.visibility = if (stayKiosk || host.nacinAplikacije != null) View.GONE else View.VISIBLE
         host.webViewContainer.visibility = View.VISIBLE
     }
 
@@ -901,7 +901,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         XploreDashCapture.reset()
         val url = host.activeUrl()
         val stayKiosk = SiteProfileResolver.fromUrl(url).hideChrome(url)
-        host.mobileTopBar.visibility = if (stayKiosk) View.GONE else View.VISIBLE
+        host.mobileTopBar.visibility = if (stayKiosk || host.nacinAplikacije != null) View.GONE else View.VISIBLE
         host.webViewContainer.visibility = View.VISIBLE
         host.activeWebView()?.evaluateJavascript(
             "window._safeer_xplore_native_player=false;",

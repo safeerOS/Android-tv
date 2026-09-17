@@ -158,4 +158,5 @@
     <string name="ui_link_pair_reject">Refuser</string>
     <string name="ui_pdf_saved">Enregistré : %1$s</string>
     <string name="ui_pdf_save_failed">Le PDF n\'a pas pu être enregistré.</string>
+    <string name="ui_web_app_odprta">%1$s · appuyez sur Retour pour quitter</string>
 </resources>

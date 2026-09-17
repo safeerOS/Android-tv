@@ -30,9 +30,36 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         private set
     var naprave: List<LinkOdjemalec.Naprava> = emptyList()
         private set
-    /** Zadnje sporocilo o stanju: "ni_brskalnika", "ni", "povezujem", "povezan". */
+    /** Zadnje sporocilo o stanju: "povezan", "povezujem", "ni", "ni_linka", "krajevni". */
     var stanje: String = "povezujem"
         private set
+
+    /** Brez Safeer Linka: Safeer OS dela samo z viri televizorja. */
+    fun jeKrajevni(): Boolean = Nacin.jeKrajevni(app)
+
+    /** Uporabnika je treba enkrat vprasati (sredisce ne tece in se ni izbral). */
+    fun vprasamoZaNacin(): Boolean = Nacin.vprasamo(app)
+
+    /** Uporabnik je izbral Safeer Link: ce sredisce ne tece, ga prizgemo, in se povezemo. */
+    fun vklopiLink() {
+        Nacin.nastavi(app, Nacin.LINK)
+        tece = false
+        zazeni()
+    }
+
+    /** Uporabnik je izbral krajevni nacin: povezave ni in je ne vzpostavljamo. */
+    fun krajevniNacin() {
+        Nacin.nastavi(app, Nacin.KRAJEVNI)
+        ustaviZares()
+        pozabiNaprave()
+        javi(false, "krajevni")
+    }
+
+    /** Naprave iz prejsnje povezave niso vec dosegljive: seznam pocistimo, da ga zasloni ne kazejo. */
+    private fun pozabiNaprave() {
+        naprave = emptyList()
+        for (p in poslusalci) p.naNaprave(naprave)
+    }
 
     private val poslusalci = CopyOnWriteArraySet<LinkOdjemalec.Poslusalec>()
     private val glavna = Handler(Looper.getMainLooper())
@@ -62,8 +89,12 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         odjemalec.ukaz(cilj, dejanje, parametri, potekMs, odgovor)
 
     private fun zazeni() {
+        // Sredisce ze tece (uporabnik ima Safeer Link vklopljen v brskalniku): vstopimo brez vprasanja.
+        // Ce ne tece, ga prizgemo samo, kadar je uporabnik Safeer Link izrecno izbral.
+        if (Nacin.jeKrajevni(app)) { tece = false; pozabiNaprave(); javi(false, "krajevni"); return }
+        if (!Nacin.linkZeTece() && !Nacin.jeLink(app)) { tece = false; pozabiNaprave(); javi(false, "ni_linka"); return }
         tece = true
-        val shranjene = Identiteta.beri(app)
+        val shranjene = if (Nacin.linkZeTece()) Identiteta.beri(app) else null
         if (shranjene != null) {
             javi(false, "povezujem")
             odjemalec.zazeni(shranjene)
@@ -82,9 +113,9 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         if (prosimZaPoverilnice) return
         prosimZaPoverilnice = true
         javi(false, "povezujem")
-        Sorodnik.zahtevaj(app) { p ->
+        Sorodnik.zahtevaj(app, dovoliZagon = Nacin.jeLink(app)) { p ->
             prosimZaPoverilnice = false
-            if (p == null) { javi(false, "ni"); return@zahtevaj }
+            if (p == null) { javi(false, if (Nacin.linkZeTece()) "ni" else "ni_linka"); return@zahtevaj }
             Identiteta.shrani(app, p)
             if (tece) odjemalec.zazeni(p)
         }

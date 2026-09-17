@@ -35,6 +35,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private lateinit var vrstaNaprave: LinearLayout
     private lateinit var napraveOpomba: TextView
     private lateinit var vrstaAplikacije: LinearLayout
+    private lateinit var vrstaSpletne: LinearLayout
     private lateinit var opombaSpodaj: TextView
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
@@ -56,6 +57,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         vrstaNaprave = findViewById(R.id.vrstaNaprave)
         napraveOpomba = findViewById(R.id.napraveOpomba)
         vrstaAplikacije = findViewById(R.id.vrstaAplikacije)
+        vrstaSpletne = findViewById(R.id.vrstaSpletne)
         opombaSpodaj = findViewById(R.id.opombaSpodaj)
         narisiZacni()
         narisiNaprave(emptyList())
@@ -65,8 +67,10 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         super.onStart()
         glavna.post(tikUre)
         narisiAplikacije()
+        narisiSpletne()
         link.dodaj(this)
         osveziScit()
+        if (link.vprasamoZaNacin()) glavna.postDelayed({ if (!isFinishing && link.vprasamoZaNacin()) vprasajZaNacin() }, 600)
     }
 
     override fun onStop() {
@@ -82,14 +86,13 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         opombaSpodaj.visibility = View.GONE
         when {
             povezan -> pokaziStanje(true, getString(R.string.os_stanje_povezan, kje))
-            sporocilo == "ni_brskalnika" -> {
-                pokaziStanje(false, getString(R.string.os_stanje_ni_brskalnika))
-                opombaSpodaj.text = getString(R.string.os_ni_brskalnika_dolgo)
-                opombaSpodaj.visibility = View.VISIBLE
-            }
+            sporocilo == "krajevni" -> pokaziStanje(false, getString(R.string.os_stanje_krajevni))
+            sporocilo == "ni_linka" -> pokaziStanje(false, getString(R.string.os_stanje_ni_linka))
             sporocilo == "ni" -> pokaziStanje(false, getString(R.string.os_stanje_ni))
             else -> pokaziStanje(false, getString(R.string.os_stanje_povezujem))
         }
+        osveziKartice()
+        if (!povezan) narisiNaprave(emptyList())
     }
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
@@ -116,19 +119,57 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     // ------------------------------------------------------------------ Zacni
 
+    private var karticaDatoteke: View? = null
+    private var karticaLink: View? = null
+
     private fun narisiZacni() {
         vrstaZacni.removeAllViews()
         dodajVeliko(R.drawable.os_ikona_splet, getString(R.string.os_splet), getString(R.string.os_splet_opis)) {
             odpriVBrskalniku(null)
         }
-        dodajVeliko(R.drawable.os_ikona_datoteke, getString(R.string.os_datoteke), getString(R.string.os_datoteke_opis)) {
+        karticaDatoteke = dodajVeliko(R.drawable.os_ikona_datoteke, getString(R.string.os_datoteke), getString(R.string.os_datoteke_opis)) {
             startActivity(Intent(this, DatotekeActivity::class.java))
         }
-        dodajVeliko(R.drawable.os_ikona_link, getString(R.string.os_link), getString(R.string.os_link_opis)) {
-            odpriLinkVBrskalniku()
+        karticaLink = dodajVeliko(R.drawable.os_ikona_link, getString(R.string.os_link), getString(R.string.os_link_opis)) {
+            if (link.povezan) odpriLinkVBrskalniku() else vprasajZaNacin()
         }
         karticaScit = dodajVeliko(R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() }
         vrstaZacni.getChildAt(0)?.requestFocus()
+        osveziKartice()
+    }
+
+    /** Opisa kartic Datoteke in Safeer Link povesta, kaj je zdaj na voljo. */
+    private fun osveziKartice() {
+        karticaDatoteke?.findViewById<TextView>(R.id.opis)?.text =
+            getString(if (link.povezan) R.string.os_datoteke_opis else R.string.os_datoteke_opis_krajevno)
+        karticaLink?.findViewById<TextView>(R.id.opis)?.text = when {
+            link.povezan -> getString(R.string.os_link_opis)
+            link.jeKrajevni() -> getString(R.string.os_link_krajevni_opis)
+            else -> getString(R.string.os_link_izklopljen_opis)
+        }
+    }
+
+    /**
+     * Ce Safeer Link ne tece, uporabnik enkrat izbere: vklopi Safeer Link (naprave, datoteke z
+     * racunalnika, daljinec) ali delaj krajevno (samo viri tega televizorja). Izbira se zapomni.
+     */
+    private fun vprasajZaNacin() {
+        if (link.povezan) { odpriLinkVBrskalniku(); return }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_nacin_naslov))
+            .setMessage(getString(R.string.os_nacin_opis))
+            .setPositiveButton(getString(R.string.os_nacin_link)) { _, _ ->
+                link.vklopiLink()
+                Toast.makeText(this, getString(R.string.os_nacin_link_vklopljen), Toast.LENGTH_SHORT).show()
+                osveziKartice()
+            }
+            .setNegativeButton(getString(R.string.os_nacin_krajevni)) { _, _ ->
+                link.krajevniNacin()
+                Toast.makeText(this, getString(R.string.os_nacin_krajevni_izbran), Toast.LENGTH_LONG).show()
+                osveziKartice()
+            }
+            .setCancelable(true)
+            .show()
     }
 
     // ------------------------------------------------------------------ Safeer Scit (filter DNS za ves televizor)
@@ -181,6 +222,11 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun narisiNaprave(naprave: List<LinkOdjemalec.Naprava>) {
         vrstaNaprave.removeAllViews()
         napraveOpomba.visibility = if (naprave.isEmpty()) View.VISIBLE else View.GONE
+        napraveOpomba.text = when {
+            link.povezan -> getString(R.string.os_ni_naprav)
+            link.jeKrajevni() -> getString(R.string.os_naprave_krajevni)
+            else -> getString(R.string.os_naprave_ni_linka)
+        }
         for (n in naprave) {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_naprava, vrstaNaprave, false)
             v.findViewById<TextView>(R.id.ime).text = n.ime.ifBlank { n.id }
@@ -200,6 +246,74 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "Safeer Control" else "Safeer Browser · PC"
         n.id.startsWith("phone-") -> "Safeer Browser · Android"
         else -> n.vloga
+    }
+
+    // ------------------------------------------------------------------ Spletne aplikacije
+    //
+    // Spletna stran, ki se obnasa kot aplikacija: svoja ikona in ime, zagon cez ves zaslon brez
+    // vrstice z naslovom. Ideja Firefox OS/Capyloon, le da tu spletna aplikacija podeduje vso
+    // zascito brskalnika (blokiranje oglasov in sledilcev, nevarne strani, Scit) in Safeer Link.
+
+    private fun narisiSpletne() {
+        vrstaSpletne.removeAllViews()
+        for (a in SpletneAplikacije.seznam(this)) {
+            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaSpletne, false)
+            v.findViewById<ImageView>(R.id.ikona).setImageDrawable(SpletneAplikacije.ikona(this, a))
+            v.findViewById<TextView>(R.id.ime).text = a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }
+            v.onFocusChangeListener = fokus
+            v.setOnClickListener { zazeniSpletno(a) }
+            v.setOnLongClickListener { odstraniSpletno(a); true }
+            vrstaSpletne.addView(v)
+        }
+        val dodaj = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaSpletne, false)
+        dodaj.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_splet)
+        dodaj.findViewById<TextView>(R.id.ime).text = getString(R.string.os_spletne_dodaj)
+        dodaj.onFocusChangeListener = fokus
+        dodaj.setOnClickListener { dodajSpletno() }
+        vrstaSpletne.addView(dodaj)
+    }
+
+    private fun zazeniSpletno(a: SpletneAplikacije.Aplikacija) {
+        val namera = Intent(this, si.safeer.tv.MainActivity::class.java)
+            .putExtra("spletna_aplikacija", a.url)
+            .putExtra("aplikacija_ime", a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try { startActivity(namera) } catch (_: Throwable) { }
+    }
+
+    private fun odstraniSpletno(a: SpletneAplikacije.Aplikacija) {
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
+            .setMessage(getString(R.string.os_spletne_odstrani_vprasanje))
+            .setPositiveButton(getString(R.string.os_spletne_odstrani)) { _, _ ->
+                SpletneAplikacije.odstrani(this, a.url); narisiSpletne()
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+    }
+
+    /**
+     * Dodajanje brez tipkanja na daljincu: ponudimo strani, ki jih ima uporabnik ze na domaci
+     * strani brskalnika ("Moje strani"). Ime in ikono nato prinese manifest spletne aplikacije.
+     */
+    private fun dodajSpletno() {
+        val ploscice = try { si.safeer.tv.HomeTilesStore.load(this) } catch (_: Throwable) { mutableListOf() }
+        val proste = ploscice.filterNot { SpletneAplikacije.jeDodana(this, it.url) }
+        if (proste.isEmpty()) {
+            Toast.makeText(this, getString(R.string.os_spletne_ni_kaj_dodati), Toast.LENGTH_LONG).show()
+            odpriVBrskalniku(null)
+            return
+        }
+        val imena = proste.map { it.title.ifBlank { SpletneAplikacije.gostitelj(it.url) } }.toTypedArray()
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_spletne_dodaj_naslov))
+            .setItems(imena) { _, i ->
+                val p = proste[i]
+                Toast.makeText(this, getString(R.string.os_spletne_dodajam), Toast.LENGTH_SHORT).show()
+                SpletneAplikacije.dodaj(this, p.url, p.title) { if (!isFinishing) narisiSpletne() }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
     }
 
     // ------------------------------------------------------------------ Aplikacije

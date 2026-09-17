@@ -158,4 +158,5 @@
     <string name="ui_link_pair_reject">Zavrni</string>
     <string name="ui_pdf_saved">Shranjeno: %1$s</string>
     <string name="ui_pdf_save_failed">PDF-ja ni bilo mogoče shraniti.</string>
+    <string name="ui_web_app_odprta">%1$s · z Nazaj izstopiš</string>
 </resources>

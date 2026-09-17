@@ -61,6 +61,7 @@ class TvChrome(private val host: MainActivity) {
 
     private fun premakniVrstico(pokazi: Boolean) {
         val vrstica = host.mobileTopBar
+        if (host.nacinAplikacije != null) { vrstica.visibility = View.GONE; return }
         vrstica.visibility = View.VISIBLE
         val visina = if (vrstica.height > 0) {
             vrstica.height
@@ -121,7 +122,8 @@ class TvChrome(private val host: MainActivity) {
 
     fun setChromeHidden(hidden: Boolean) {
         val url = host.activeUrl()
-        val stayKiosk = SiteProfileResolver.fromUrl(url).hideChrome(url)
+        // Spletna aplikacija (Safeer OS) je celozaslonska: vrstice z naslovom ne kazemo nikoli.
+        val stayKiosk = host.nacinAplikacije != null || SiteProfileResolver.fromUrl(url).hideChrome(url)
         if (hidden || stayKiosk) {
             host.mobileTopBar.visibility = View.GONE
         } else if (!host.playback.isActive()) {
@@ -135,6 +137,13 @@ class TvChrome(private val host: MainActivity) {
 
     fun applyUrlChrome(url: String) {
         host.mobileTopBar.removeCallbacks(pospraviVrstico)
+        // Spletna aplikacija Safeer OS: brez vrstice z naslovom, ne glede na stran.
+        if (host.nacinAplikacije != null) {
+            host.mobileTopBar.visibility = View.GONE
+            host.activeWebView()?.requestFocus()
+            applyPageInset(url)
+            return
+        }
         if (TvSite.isYoutubeTv(url)) {
             host.hideKeyboard()
             host.editUrl.clearFocus()

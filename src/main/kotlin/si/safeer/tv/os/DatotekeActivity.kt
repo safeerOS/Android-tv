@@ -40,7 +40,7 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
     }
 
-    data class Vnos(val id: String, val ime: String, val vrsta: String, val velikost: Long, val mime: String)
+    data class Vnos(val id: String, val ime: String, val vrsta: String, val velikost: Long, val mime: String, val pod: String = "")
 
     private data class Raven(val oznaka: String, val ime: String)
 
@@ -59,6 +59,9 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var vnosi: List<Vnos> = emptyList()
     private var nalagam = false
     private var izbiramRacunalnik = false
+    /** Krajevni vir: datoteke tega televizorja (MediaStore), brez Safeer Linka. */
+    private var krajevni = false
+    private var krajevnaZbirka = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,38 +86,93 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
         super.onStop()
     }
 
-    /** Vstop: racunalnik iz namere, edini z datotekami, ali seznam racunalnikov. */
+    /** Vstop: vir iz namere, edini racunalnik, krajevne datoteke (brez Linka) ali seznam virov. */
     private fun zacni() {
         val zeleni = intent.getStringExtra(EXTRA_RACUNALNIK)
-        val kandidati = link.racunalnikiZDatotekami()
-        val r = kandidati.firstOrNull { it.id == zeleni } ?: kandidati.singleOrNull()
+        // V krajevnem nacinu Safeer Linka ni: tudi ce je zaslon dobil racunalnik iz prejsnje
+        // povezave, odpremo datoteke tega televizorja.
+        val kandidati = if (link.jeKrajevni()) emptyList() else link.racunalnikiZDatotekami()
+        val r = kandidati.firstOrNull { it.id == zeleni }
         when {
+            intent.getBooleanExtra(EXTRA_KRAJEVNO, false) || link.jeKrajevni() -> odpriKrajevno()
             r != null -> odpriRacunalnik(r)
-            kandidati.isEmpty() -> pokaziRacunalnike(emptyList())
+            !link.povezan && kandidati.isEmpty() -> odpriKrajevno()
+            zeleni == null && kandidati.size == 1 -> odpriRacunalnik(kandidati[0])
             else -> pokaziRacunalnike(kandidati)
         }
     }
 
+    // ------------------------------------------------------------------ krajevne datoteke (ta televizor)
+
+    private fun odpriKrajevno() {
+        izbiramRacunalnik = false
+        krajevni = true
+        racunalnik = null
+        streznik = null
+        pot.clear()
+        krajevnaZbirka = ""
+        racunalnikZnacka.text = getString(R.string.os_krajevno_ta_tv)
+        racunalnikZnacka.visibility = View.VISIBLE
+        if (!KrajevneDatoteke.imamoDovoljenje(this)) {
+            nadnaslov.text = getString(R.string.os_krajevno_ta_tv)
+            naslov.text = getString(R.string.os_krajevno_koren)
+            vnosi = emptyList(); prilagojevalnik.notifyDataSetChanged()
+            pokaziSporocilo(getString(R.string.os_krajevno_dovoljenje))
+            try { requestPermissions(KrajevneDatoteke.dovoljenja(), ZAHTEVA_DOVOLJENJA) } catch (_: Throwable) { }
+            return
+        }
+        naloziKrajevno("")
+    }
+
+    private fun naloziKrajevno(zbirka: String) {
+        krajevnaZbirka = zbirka
+        nadnaslov.text = getString(R.string.os_krajevno_ta_tv)
+        naslov.text = if (zbirka.isEmpty()) getString(R.string.os_krajevno_koren) else pot.lastOrNull()?.ime.orEmpty()
+        pokaziSporocilo(getString(R.string.os_datoteke_nalagam))
+        // Branje MediaStore je lahko pocasno (USB s tisoci datotek): v ozadju.
+        Thread({
+            val novi = try {
+                if (zbirka.isEmpty()) KrajevneDatoteke.koren(this) else KrajevneDatoteke.vsebina(this, zbirka)
+            } catch (_: Throwable) { emptyList() }
+            runOnUiThread {
+                if (isFinishing || !krajevni || krajevnaZbirka != zbirka) return@runOnUiThread
+                vnosi = novi
+                prilagojevalnik.notifyDataSetChanged()
+                if (novi.isEmpty()) pokaziSporocilo(getString(R.string.os_krajevno_prazno)) else {
+                    skrijSporocilo(); seznam.requestFocus(); seznam.setSelection(0)
+                }
+            }
+        }, "safeer-os-krajevne").start()
+    }
+
+    override fun onRequestPermissionsResult(zahteva: Int, dovoljenja: Array<out String>, izidi: IntArray) {
+        super.onRequestPermissionsResult(zahteva, dovoljenja, izidi)
+        if (zahteva != ZAHTEVA_DOVOLJENJA) return
+        if (KrajevneDatoteke.imamoDovoljenje(this)) naloziKrajevno("")
+        else pokaziSporocilo(getString(R.string.os_krajevno_brez_dovoljenja))
+    }
+
     private fun pokaziRacunalnike(r: List<LinkOdjemalec.Naprava>) {
         izbiramRacunalnik = true
+        krajevni = false
         racunalnik = null
         pot.clear()
         nadnaslov.text = getString(R.string.os_datoteke)
-        naslov.text = getString(R.string.os_datoteke_racunalniki)
+        naslov.text = getString(R.string.os_datoteke_viri)
         racunalnikZnacka.visibility = View.GONE
-        vnosi = r.map { Vnos(it.id, it.ime.ifBlank { it.id }, "computer", -1, "") }
+        // Ta televizor je vedno prvi vir; racunalniki s Safeer Controlom so za njim.
+        vnosi = listOf(Vnos(KrajevneDatoteke.KOREN, getString(R.string.os_krajevno_ta_tv), "tv", -1, "")) +
+            r.map { Vnos(it.id, it.ime.ifBlank { it.id }, "computer", -1, "") }
         prilagojevalnik.notifyDataSetChanged()
-        if (r.isEmpty()) {
-            if (!link.povezan) pokaziSporocilo(getString(R.string.os_datoteke_ni_povezave))
-            else pokaziSporocilo(getString(R.string.os_datoteke_ni_racunalnika))
-        } else {
-            skrijSporocilo()
-            seznam.requestFocus(); seznam.setSelection(0)
-        }
+        if (r.isEmpty()) pokaziSporocilo(getString(
+            if (!link.povezan) R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_racunalnika))
+        else skrijSporocilo()
+        seznam.requestFocus(); seznam.setSelection(0)
     }
 
     private fun odpriRacunalnik(r: LinkOdjemalec.Naprava) {
         izbiramRacunalnik = false
+        krajevni = false
         racunalnik = r
         pot.clear()
         streznik = null
@@ -168,11 +226,12 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun izberi(i: Int) {
         val v = vnosi.getOrNull(i) ?: return
         if (izbiramRacunalnik) {
-            link.racunalnikiZDatotekami().firstOrNull { it.id == v.id }?.let { odpriRacunalnik(it) }
+            if (v.vrsta == "tv") odpriKrajevno()
+            else link.racunalnikiZDatotekami().firstOrNull { it.id == v.id }?.let { odpriRacunalnik(it) }
             return
         }
         when (v.vrsta) {
-            "folder" -> { pot.add(Raven(v.id, v.ime)); nalozi(v.id) }
+            "folder" -> { pot.add(Raven(v.id, v.ime)); if (krajevni) naloziKrajevno(v.id) else nalozi(v.id) }
             "video", "audio" -> predvajaj(v)
             "image" -> pokaziSliko(v)
             else -> Toast.makeText(this, getString(R.string.os_datoteke_neznana_vrsta), Toast.LENGTH_SHORT).show()
@@ -180,29 +239,42 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun predvajaj(v: Vnos) {
-        val s = streznik ?: return
         val namera = Intent(this, PredvajalnikActivity::class.java)
-            .putExtra("url", s.url(v.id)).putExtra("ime", v.ime).putExtra("mime", v.mime).putExtra("zvok", v.vrsta == "audio")
-        val b = Bundle(); s.vBundle(b); namera.putExtras(b)
+            .putExtra("ime", v.ime).putExtra("mime", v.mime).putExtra("zvok", v.vrsta == "audio")
+        if (krajevni) {
+            namera.putExtra("url", v.id).putExtra("lokalno", true)
+        } else {
+            val s = streznik ?: return
+            namera.putExtra("url", s.url(v.id))
+            val b = Bundle(); s.vBundle(b); namera.putExtras(b)
+        }
         startActivity(namera)
     }
 
     private fun pokaziSliko(v: Vnos) {
-        val s = streznik ?: return
         val slike = vnosi.filter { it.vrsta == "image" }
+        val s = if (krajevni) null else (streznik ?: return)
         val namera = Intent(this, SlikaActivity::class.java)
-            .putStringArrayListExtra("urli", ArrayList(slike.map { s.url(it.id) }))
+            .putStringArrayListExtra("urli", ArrayList(slike.map { if (s == null) it.id else s.url(it.id) }))
             .putStringArrayListExtra("imena", ArrayList(slike.map { it.ime }))
             .putExtra("zacetek", slike.indexOfFirst { it.id == v.id }.coerceAtLeast(0))
-        val b = Bundle(); s.vBundle(b); namera.putExtras(b)
+            .putExtra("lokalno", krajevni)
+        if (s != null) { val b = Bundle(); s.vBundle(b); namera.putExtras(b) }
         startActivity(namera)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            val viri = link.racunalnikiZDatotekami()
             when {
-                pot.isNotEmpty() -> { pot.removeAt(pot.size - 1); nalozi(pot.lastOrNull()?.oznaka ?: ""); return true }
-                racunalnik != null && link.racunalnikiZDatotekami().size > 1 -> { pokaziRacunalnike(link.racunalnikiZDatotekami()); return true }
+                pot.isNotEmpty() -> {
+                    pot.removeAt(pot.size - 1)
+                    val oznaka = pot.lastOrNull()?.oznaka ?: ""
+                    if (krajevni) naloziKrajevno(oznaka) else nalozi(oznaka)
+                    return true
+                }
+                // Na vrhu vira: nazaj na seznam virov, kadar je kaj za izbirati (racunalniki + ta televizor).
+                (krajevni || racunalnik != null) && viri.isNotEmpty() && !link.jeKrajevni() -> { pokaziRacunalnike(viri); return true }
             }
         }
         return super.onKeyDown(keyCode, event)
@@ -214,10 +286,13 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
     // ------------------------------------------------------------------ Link
 
     override fun naStanje(povezan: Boolean, sporocilo: String) {
-        if (!povezan && racunalnik == null) pokaziSporocilo(getString(R.string.os_datoteke_ni_povezave))
+        if (!povezan && racunalnik == null && !krajevni) {
+            pokaziSporocilo(getString(if (sporocilo == "ni_linka" || sporocilo == "krajevni") R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_povezave))
+        }
     }
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
+        if (krajevni) return   // uporabnik gleda datoteke televizorja; ne prekinjamo ga
         val z = link.racunalnikiZDatotekami()
         val r = racunalnik
         if (r == null) {
@@ -254,6 +329,8 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     companion object {
         const val EXTRA_RACUNALNIK = "racunalnik"
+        const val EXTRA_KRAJEVNO = "krajevno"
+        private const val ZAHTEVA_DOVOLJENJA = 7321
 
         fun ikona(vrsta: String): Int = when (vrsta) {
             "folder" -> R.drawable.os_ikona_mapa
@@ -261,6 +338,7 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
             "audio" -> R.drawable.os_ikona_glasba
             "image" -> R.drawable.os_ikona_slika
             "computer" -> R.drawable.os_ikona_racunalnik
+            "tv" -> R.drawable.os_ikona_naprava
             else -> R.drawable.os_ikona_datoteka
         }
 
@@ -271,8 +349,10 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
                 "audio" -> c.getString(R.string.os_vrsta_audio)
                 "image" -> c.getString(R.string.os_vrsta_slika)
                 "computer" -> "Safeer Control"
+                "tv" -> c.getString(R.string.os_krajevno_ta_tv_opis)
                 else -> c.getString(R.string.os_vrsta_datoteka)
             }
+            if (v.pod.isNotEmpty()) return v.pod
             return if (v.velikost >= 0) "$vrsta · ${velikost(v.velikost)}" else vrsta
         }
 

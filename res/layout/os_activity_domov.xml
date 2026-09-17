@@ -97,6 +97,26 @@
             android:layout_marginTop="10dp"
             android:orientation="horizontal"/>
 
+        <!-- Spletne aplikacije (spletna stran kot aplikacija) -->
+        <TextView
+            style="@style/Os.Nadnaslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="26dp"
+            android:text="@string/os_odsek_spletne"/>
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:scrollbars="none"
+            android:clipToPadding="false">
+            <LinearLayout
+                android:id="@+id/vrstaSpletne"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
+
         <!-- Naprave -->
         <TextView
             style="@style/Os.Nadnaslov"

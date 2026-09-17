@@ -158,4 +158,5 @@
     <string name="ui_link_pair_reject">Rifiuta</string>
     <string name="ui_pdf_saved">Salvato: %1$s</string>
     <string name="ui_pdf_save_failed">Impossibile salvare il PDF.</string>
+    <string name="ui_web_app_odprta">%1$s · premi Indietro per uscire</string>
 </resources>

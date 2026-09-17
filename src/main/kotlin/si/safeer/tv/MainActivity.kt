@@ -137,7 +137,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     private fun handlePageScroll(@Suppress("UNUSED_PARAMETER") direction: Int, @Suppress("UNUSED_PARAMETER") scrollY: Int) {
         // Toolbar occupies its own row above the WebView. Sliding it away would leave a blank band.
-        if (mobileTopBar.translationY != 0f && mobileTopBar.visibility == View.VISIBLE) {
+        if (nacinAplikacije == null && mobileTopBar.translationY != 0f && mobileTopBar.visibility == View.VISIBLE) {
             mobileTopBar.animate().translationY(0f).setDuration(180).start()
         }
     }
@@ -296,6 +296,53 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             intent.removeExtra(EXTRA_ODPRI_LINK)
             webViewContainer.post { odpriSafeerLink() }
         }
+        intent?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA)?.let { naslov ->
+            val ime = intent.getStringExtra(EXTRA_APLIKACIJA_IME).orEmpty()
+            intent.removeExtra(EXTRA_SPLETNA_APLIKACIJA)
+            webViewContainer.post { vklopiNacinAplikacije(naslov, ime) }
+        }
+    }
+
+    // ------------------------------------------------------------------ nacin aplikacije (spletne aplikacije Safeer OS)
+
+    /** Naslov spletne aplikacije, dokler tece v nacinu aplikacije; sicer null. */
+    internal var nacinAplikacije: String? = null
+        private set
+    /** Zavihek, v katerem tece spletna aplikacija; ob izhodu ga zapremo. */
+    private var zavihekAplikacije: String? = null
+
+    /**
+     * Spletna stran kot aplikacija: cez ves zaslon, brez vrstice z naslovom in brez zavihkov -
+     * uporabnik vidi samo aplikacijo. Zascita (Scit, blokiranje oglasov in nevarnih strani,
+     * preprecevanje pojavnih oken) ostane ista kot v brskalniku. Nazaj gre po zgodovini, na
+     * zacetku pa zapre aplikacijo in vrne Safeer OS.
+     */
+    internal fun vklopiNacinAplikacije(naslov: String, ime: String) {
+        nacinAplikacije = naslov
+        mobileTopBar.visibility = View.GONE
+        // Ob zagonu brskalnika se domaca stran nalozi z zamikom; aplikacijo nalozimo za njo,
+        // da ne tekmujeta za isti zavihek.
+        mainHandler.postDelayed({
+            if (nacinAplikacije != naslov) return@postDelayed
+            mobileTopBar.visibility = View.GONE
+            // Aplikacija dobi svoj zavihek: njena zgodovina se zacne pri njej, zato Nazaj na
+            // zacetku zapre aplikacijo in ne pripelje na domaco stran brskalnika.
+            zavihekAplikacije = try { tabManager.createTab(this, naslov, true).id } catch (_: Throwable) { null }
+            if (zavihekAplikacije == null) odpriVZavihku(naslov)
+            activeWebView()?.requestFocus()
+        }, 350)
+        if (ime.isNotBlank()) Toast.makeText(this, UiText.get(R.string.ui_web_app_odprta, ime), Toast.LENGTH_LONG).show()
+    }
+
+    internal fun izklopiNacinAplikacije() {
+        if (nacinAplikacije == null) return
+        nacinAplikacije = null
+        zavihekAplikacije?.let { id ->
+            zavihekAplikacije = null
+            try { tabManager.closeTab(this, id) } catch (_: Throwable) { }
+        }
+        mobileTopBar.visibility = View.VISIBLE
+        mobileTopBar.translationY = 0f
     }
 
     private var wakeLock: android.os.PowerManager.WakeLock? = null
@@ -316,6 +363,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      */
     /** Dodatek namere, s katerim Safeer OS odpre stran Safeer Link. */
     private val EXTRA_ODPRI_LINK = "odpri_link"
+    /** Dodatka, s katerima Safeer OS odpre spletno aplikacijo cez ves zaslon. */
+    private val EXTRA_SPLETNA_APLIKACIJA = "spletna_aplikacija"
+    private val EXTRA_APLIKACIJA_IME = "aplikacija_ime"
     private val SPANJE_AKTIVNEGA_MS = 10 * 60 * 1000L
     private var naZaslonu = true
     private val spanjeAktivnega = Runnable {
@@ -579,6 +629,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onResume() {
         super.onResume()
+        // Spletna aplikacija tece cez ves zaslon tudi po vrnitvi iz ozadja.
+        if (nacinAplikacije != null && ::mobileTopBar.isInitialized) mobileTopBar.visibility = View.GONE
         si.safeer.tv.cast.CastReceiverService.krmilnikVOspredju = true
         si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = { runOnUiThread { pokaziKodoZaSeznanitev() } }
         pokaziKodoZaSeznanitev()
@@ -686,6 +738,15 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             webViewContainer.post { odpriSafeerLink() }
             return
         }
+        val spletna = intent?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA)
+        if (spletna != null) {
+            val ime = intent.getStringExtra(EXTRA_APLIKACIJA_IME).orEmpty()
+            intent.removeExtra(EXTRA_SPLETNA_APLIKACIJA)
+            webViewContainer.post { vklopiNacinAplikacije(spletna, ime) }
+            return
+        }
+        // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.
+        if (nacinAplikacije != null && intent?.action == Intent.ACTION_MAIN) izklopiNacinAplikacije()
         val url = incomingBrowseUrl(intent)
         if (intent?.getBooleanExtra("exo_smoke", false) == true) {
             playback.playClearSmoke()
@@ -993,6 +1054,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     private fun showBrowserStartPage() {
+        // V nacinu spletne aplikacije domace strani ne kazemo - uporabnik je odprl aplikacijo.
+        if (nacinAplikacije != null) return
         try {
             customVideoCallback?.onCustomViewHidden()
         } catch (_: Exception) {}
@@ -1139,8 +1202,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         wv.onPdfPrenos = { url, userAgent -> downloadHandler.startDownload(url, userAgent, null, "application/pdf") }
         wv.onPdfFokusVen = { smer ->
             if (smer == "gor") {
-                mobileTopBar.visibility = android.view.View.VISIBLE
-                mobileTopBar.animate().translationY(0f).setDuration(150).start()
+                if (nacinAplikacije == null) {
+                    mobileTopBar.visibility = android.view.View.VISIBLE
+                    mobileTopBar.animate().translationY(0f).setDuration(150).start()
+                }
                 editUrl.requestFocus()
             }
         }
@@ -2312,6 +2377,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             hideKeyboard()
             editUrl.clearFocus()
             activeWebView()?.requestFocus()
+            return
+        }
+
+        // Spletna aplikacija: nazaj gre po njeni zgodovini, na zacetku pa se aplikacija zapre.
+        if (nacinAplikacije != null) {
+            val pogled = activeWebView()
+            // Domaca stran brskalnika ni del aplikacije: ce bi prisli nanjo, raje koncamo.
+            if (pogled != null && pogled.canGoBack() && !TvSite.isBrowserHome(activeUrl())) { pogled.goBack(); return }
+            izklopiNacinAplikacije()
+            silenceBackgroundMedia("backWebApp")
+            finish()
             return
         }
 

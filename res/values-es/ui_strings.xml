@@ -158,4 +158,5 @@
     <string name="ui_link_pair_reject">Rechazar</string>
     <string name="ui_pdf_saved">Guardado: %1$s</string>
     <string name="ui_pdf_save_failed">No se pudo guardar el PDF.</string>
+    <string name="ui_web_app_odprta">%1$s · pulsa Atrás para salir</string>
 </resources>
