@@ -9,6 +9,10 @@
         android:targetSdkVersion="34" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Sorodne aplikacije Safeer na istem televizorju (Safeer OS) dobijo zeton Safeer Linka samo, ce so podpisane z istim kljucem. -->
+    <permission
+        android:name="si.safeer.tv.permission.LINK"
+        android:protectionLevel="signature" />
     <!-- Safeer Link: stran ali ukaz z druge naprave odpre brskalnik, tudi ko ni v ospredju
          (Android 10+ zagon iz ozadja dovoli le prek obvestila s celozaslonsko namero). -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
@@ -133,6 +137,16 @@
             android:name="si.safeer.tv.cast.HubStoritev"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <!-- Safeer OS in druge sorodne aplikacije: vstop v Safeer Link brez kode (isti podpis) -->
+        <service
+            android:name="si.safeer.tv.cast.LinkSorodnikStoritev"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK">
+            <intent-filter>
+                <action android:name="si.safeer.tv.LINK_SORODNIK" />
+            </intent-filter>
+        </service>
 
         <receiver
             android:name="si.safeer.tv.cast.ZagonPrejemnik"

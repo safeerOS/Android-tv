@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pasica za zaganjalnik Android TV (16:9): znak Safeer na ozadju safeer.si; ime pokaze zaganjalnik. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#090D15" android:pathData="M0,0 H320 V180 H0 Z"/>
+    <path android:fillColor="#0F1A24" android:pathData="M0,124 C90,92 180,156 320,112 V180 H0 Z"/>
+    <path android:fillColor="#57D6AD" android:fillAlpha="0.16" android:pathData="M0,0 H320 V2 H0 Z"/>
+    <group android:translateX="112" android:translateY="42" android:scaleX="0.75" android:scaleY="0.75">
+        <path android:fillColor="#14231C"
+            android:pathData="M30,0 L98,0 A30,30 0 0 1 128,30 L128,98 A30,30 0 0 1 98,128 L30,128 A30,30 0 0 1 0,98 L0,30 A30,30 0 0 1 30,0 Z"/>
+        <path android:fillColor="#7EDCAB"
+            android:pathData="M64,22 L96,34 V62 C96,82 83,97 64,106 C45,97 32,82 32,62 V34 Z"/>
+        <path android:strokeColor="#142B20" android:strokeWidth="8" android:strokeLineCap="round" android:fillColor="#00000000"
+            android:pathData="M78,46 H58 C45,46 44,63 57,65 L71,67 C84,69 83,86 70,86 H50"/>
+    </group>
+    <path android:fillColor="#57D6AD" android:pathData="M136,150 h48 v3 h-48 z"/>
+</vector>

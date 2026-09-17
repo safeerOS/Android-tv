@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Barve safeer.si (docs/TV-UI.md): ozadje, kartice, mint poudarek, besedilo, mreza. -->
+<resources>
+    <color name="ozadje">#090D15</color>
+    <color name="kartica">#101821</color>
+    <color name="kartica_dvignjena">#152129</color>
+    <color name="mint">#57D6AD</color>
+    <color name="mint_temna">#0B2A20</color>
+    <color name="besedilo">#F0F4F3</color>
+    <color name="umirjeno">#B0BDC4</color>
+    <color name="crta">#29333D</color>
+    <color name="opozorilo">#F2B45C</color>
+</resources>

@@ -1,0 +1,48 @@
+// Safeer OS: televizijska lupina na Safeer Linku (samostojna aplikacija, isti podpisni kljuc kot Safeer Browser TV).
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'si.safeer.os'
+    compileSdk 34
+    buildToolsVersion '34.0.0'
+
+    defaultConfig {
+        applicationId 'si.safeer.os'
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions { jvmTarget = '1.8' }
+
+    buildTypes {
+        release { minifyEnabled false; shrinkResources false; signingConfig null }
+        debug { minifyEnabled false; signingConfig null }
+    }
+    lintOptions { abortOnError false; checkReleaseBuilds false }
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/*.kotlin_module'
+    }
+}
+
+dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+    // Isti knjiznici kot brskalnik (libs/ v korenu), gradnja ne rabi omrezja.
+    implementation files('../libs/okhttp-4.12.0.jar')
+    implementation files('../libs/okio-jvm-3.6.0.jar')
+}
+
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

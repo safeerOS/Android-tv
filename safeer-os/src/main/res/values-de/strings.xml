@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="podnaslov">Deine Geräte. Ein Bildschirm.</string>
+    <string name="odsek_zacni">Starten</string>
+    <string name="odsek_naprave">Geräte in Safeer Link</string>
+    <string name="odsek_aplikacije">Apps auf diesem Fernseher</string>
+    <string name="splet">Web</string>
+    <string name="splet_opis">Safeer Browser: weniger Werbung, mehr Privatsphäre</string>
+    <string name="datoteke">Dateien</string>
+    <string name="datoteke_opis">Videos, Musik und Fotos vom Computer</string>
+    <string name="datoteke_kmalu">Dateien vom Computer – bald</string>
+    <string name="link">Safeer Link</string>
+    <string name="link_opis">Kopplung, Geräte und Fernbedienung</string>
+    <string name="stanje_povezujem">Verbinde …</string>
+    <string name="stanje_povezan">Verbunden · %1$s</string>
+    <string name="stanje_ni">Kein Safeer Link</string>
+    <string name="stanje_ni_brskalnika">Safeer Browser für Android TV installieren</string>
+    <string name="ni_naprav">Noch kein anderes Gerät verbunden. Schalte Safeer Link am Handy oder Computer ein.</string>
+    <string name="ni_brskalnika_dolgo">Safeer OS braucht Safeer Browser für Android TV – er stellt Safeer Link auf diesem Fernseher bereit. Installiere ihn von safeer.si und öffne Safeer OS erneut.</string>
+    <string name="naprava_tv">dieser Fernseher</string>
+    <string name="odpri">Öffnen</string>
+    <string name="poslano_tv">An Safeer Browser gesendet</string>
+    <string name="prejeto_besedilo">Text von %1$s</string>
+</resources>

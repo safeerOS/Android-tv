@@ -127,7 +127,7 @@ mkdir -p "$DIR/.android"
 echo "☕ Gradle assembleRelease (Media3)..."
 cd "$DIR"
 python3 tests/check_public_package.py
-./gradlew --no-daemon assembleRelease
+./gradlew --no-daemon :assembleRelease
 
 UNSIGNED="$(find "$DIR/build/outputs/apk" -name '*.apk' | head -n 1)"
 if [[ -z "$UNSIGNED" || ! -f "$UNSIGNED" ]]; then

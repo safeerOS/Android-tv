@@ -291,6 +291,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (BuildConfig.DEBUG && intent?.getBooleanExtra("exo_smoke", false) == true) {
             webViewContainer.post { playback.playClearSmoke() }
         }
+        // Safeer OS (lupina) odpre stran Safeer Link neposredno: seznanitev, naprave, daljinec.
+        if (intent?.getBooleanExtra(EXTRA_ODPRI_LINK, false) == true) {
+            intent.removeExtra(EXTRA_ODPRI_LINK)
+            webViewContainer.post { odpriSafeerLink() }
+        }
     }
 
     private var wakeLock: android.os.PowerManager.WakeLock? = null
@@ -309,6 +314,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * v SPANJE_AKTIVNEGA_MS ne vrne. Ob vrnitvi se stran nalozi znova. Zavihek, ki predvaja,
      * ne zaspi nikoli; Safeer Link (sredisce) in daljinec delujeta ves cas.
      */
+    /** Dodatek namere, s katerim Safeer OS odpre stran Safeer Link. */
+    private val EXTRA_ODPRI_LINK = "odpri_link"
     private val SPANJE_AKTIVNEGA_MS = 10 * 60 * 1000L
     private var naZaslonu = true
     private val spanjeAktivnega = Runnable {
@@ -674,6 +681,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         super.onNewIntent(intent)
         if (intent != null) setIntent(intent)
         if (obravnavajCastNamero(intent)) return
+        if (intent?.getBooleanExtra(EXTRA_ODPRI_LINK, false) == true) {
+            intent.removeExtra(EXTRA_ODPRI_LINK)
+            webViewContainer.post { odpriSafeerLink() }
+            return
+        }
         val url = incomingBrowseUrl(intent)
         if (intent?.getBooleanExtra("exo_smoke", false) == true) {
             playback.playClearSmoke()
