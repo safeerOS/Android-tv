@@ -17,12 +17,7 @@ object Priljubljene {
     private const val PREFS = "safeer_os"
     private const val KLJUC = "priljubljene_tv"
     private const val KLJUC_PRVIC = "priljubljene_zacetne"
-
-    /**
-     * Koliko aplikacij prenesemo v priljubljene ob prvem zagonu. Stiri, ker je peta kartica v
-     * vrsti "Ostalo" - tako je na zaslonu videti cela vrsta, brez odrezane kartice na robu.
-     */
-    private const val ZACETNIH = 4
+    private const val KLJUC_OCISCENO = "priljubljene_prazne"
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -41,6 +36,18 @@ object Priljubljene {
     }
 
     fun je(c: Context, paket: String): Boolean = seznam(c).contains(paket)
+
+    /**
+     * Ena sama otoplitev za nazaj: prva razlicica je priljubljene izbrala sama (prvih nekaj
+     * aplikacij televizorja). To ni bila uporabnikova izbira, zato jo enkrat pobrisemo - domaci
+     * zaslon zacne prazen in aplikacije nanj da uporabnik sam, iz kartice "Ostalo".
+     */
+    fun pocistiSamodejne(c: Context) {
+        val p = prefs(c)
+        if (p.getBoolean(KLJUC_OCISCENO, false)) return
+        p.edit().putBoolean(KLJUC_OCISCENO, true).apply()
+        if (p.getBoolean(KLJUC_PRVIC, false)) shrani(c, emptyList())
+    }
 
     fun dodaj(c: Context, paket: String) {
         val s = seznam(c)
@@ -62,16 +69,4 @@ object Priljubljene {
         return true
     }
 
-    /**
-     * Prvi zagon po posodobitvi: uporabnik je doslej videl vse aplikacije, zato mu prvih [ZACETNIH]
-     * (po abecedi, kot so bile) prenesemo v priljubljene - domaci zaslon ostane tak, kot ga pozna,
-     * naprej pa si ga uredi sam. Naredi se natanko enkrat.
-     */
-    fun prviKrat(c: Context, vsi: List<String>) {
-        val p = prefs(c)
-        if (p.getBoolean(KLJUC_PRVIC, false)) return
-        p.edit().putBoolean(KLJUC_PRVIC, true).apply()
-        if (seznam(c).isNotEmpty() || vsi.isEmpty()) return
-        shrani(c, vsi.take(ZACETNIH))
-    }
 }

@@ -502,7 +502,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun narisiAplikacije(fokusPaket: String = "") {
         vrstaAplikacije.removeAllViews()
         val vsi = Aplikacije.seznam(this)
-        Priljubljene.prviKrat(this, Aplikacije.sistemskiVrstniRed(this).map { it.paket })
+        Priljubljene.pocistiSamodejne(this)
         val izbrani = Priljubljene.seznam(this)
         val po = izbrani.mapNotNull { paket -> vsi.firstOrNull { it.paket == paket } }
         var zeljeni: View? = null
@@ -520,7 +520,9 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         val ostalo = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaAplikacije, false)
         ostalo.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_ospredje)
-        ostalo.findViewById<TextView>(R.id.ime).text = getString(R.string.os_aplikacije_ostalo)
+        // Dokler uporabnik ni izbral nobene, kartica pove, kaj naj naredi - prazna vrsta molci.
+        ostalo.findViewById<TextView>(R.id.ime).text =
+            getString(if (po.isEmpty()) R.string.os_aplikacije_izberi else R.string.os_aplikacije_ostalo)
         ostalo.onFocusChangeListener = fokus
         ostalo.setOnClickListener { startActivity(Intent(this, AplikacijeTvActivity::class.java)) }
         vrstaAplikacije.addView(ostalo)

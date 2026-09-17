@@ -186,4 +186,5 @@
     <string name="os_aplikacije_dodana">%1$s je zdaj na domačem zaslonu.</string>
     <string name="os_aplikacije_odstranjena">%1$s ni več na domačem zaslonu.</string>
     <string name="os_aplikacije_odstrani">Umakni z domačega zaslona</string>
+    <string name="os_aplikacije_izberi">Izberi aplikacije</string>
 </resources>

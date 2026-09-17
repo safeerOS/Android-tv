@@ -186,4 +186,5 @@
     <string name="os_aplikacije_dodana">%1$s est maintenant sur l\'écran d\'accueil.</string>
     <string name="os_aplikacije_odstranjena">%1$s n\'est plus sur l\'écran d\'accueil.</string>
     <string name="os_aplikacije_odstrani">Enlever de l\'écran d\'accueil</string>
+    <string name="os_aplikacije_izberi">Choisir des applis</string>
 </resources>

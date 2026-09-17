@@ -186,4 +186,5 @@
     <string name="os_aplikacije_dodana">%1$s ya está en la pantalla de inicio.</string>
     <string name="os_aplikacije_odstranjena">%1$s ya no está en la pantalla de inicio.</string>
     <string name="os_aplikacije_odstrani">Quitar de la pantalla de inicio</string>
+    <string name="os_aplikacije_izberi">Elige apps</string>
 </resources>
