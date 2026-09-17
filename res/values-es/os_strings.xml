@@ -136,4 +136,19 @@
     <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS está activado como pantalla de inicio, pero este televisor no cede la tecla Inicio: el fabricante la lleva siempre a su propia pantalla (%1$s). Lo decide el televisor, no es un fallo de Safeer OS, y sin tocar el firmware no se puede evitar.\n\nSafeer OS se sigue abriendo desde el lanzador, desde la fila de aplicaciones y con el mando de Safeer Link. Puedes dejarlo activado (no cuesta nada) o desactivarlo.</string>
     <string name="os_zaganjalnik_izklopi_kratko">Desactivar</string>
     <string name="os_zaganjalnik_sistemske">Ajustes del televisor</string>
+    <string name="os_zagon">Iniciar al encender el televisor</string>
+    <string name="os_zagon_opis">Safeer OS es la primera pantalla al encender el televisor</string>
+    <string name="os_zagon_vprasanje">Cuando el televisor arranca, Safeer OS se abre a pantalla completa y es lo primero que ves. En el televisor no cambia nada: la tecla Inicio sigue llevando adonde lleva hoy, y puedes desactivarlo cuando quieras.</string>
+    <string name="os_zagon_kanal">Safeer OS: inicio tras encender</string>
+    <string name="os_zagon_obvestilo">Abriendo la pantalla de inicio</string>
+    <string name="os_vklopi">Activar</string>
+    <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
+    <string name="os_host_berem">Comprobando cuánta potencia hay disponible...</string>
+    <string name="os_host_ta_televizor">Este televisor: %1$s</string>
+    <string name="os_host_racunalnik">Host: %1$s</string>
+    <string name="os_host_jedra">núcleos: %1$d</string>
+    <string name="os_host_obremenitev">carga: %1$.2f</string>
+    <string name="os_host_ram">memoria: %1$s</string>
+    <string name="os_host_disk">almacenamiento: %1$s</string>
+    <string name="os_host_prosto">%1$s (%2$s libres)</string>
 </resources>

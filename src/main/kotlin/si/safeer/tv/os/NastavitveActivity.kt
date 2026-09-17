@@ -22,15 +22,17 @@ import android.widget.Toast
  *  - **Nacin delovanja**: Safeer Link (naprave, datoteke z racunalnika, daljinec) ali krajevno.
  *  - **Safeer Scit**: filter DNS za ves televizor.
  */
-class NastavitveActivity : Activity() {
+class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     private class Vrstica(val ikona: Int, val ime: String, val opis: String, val stanje: String, val ob: () -> Unit)
 
     private lateinit var koren: View
     private lateinit var seznam: ListView
     private lateinit var opomba: TextView
+    private lateinit var hostVrstica: TextView
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private var vrstice: List<Vrstica> = emptyList()
+    private var hostVPreverjanju = false
     private val prilagojevalnik = Prilagojevalnik()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,8 +42,16 @@ class NastavitveActivity : Activity() {
         seznam = findViewById(R.id.seznam)
         opomba = findViewById(R.id.opomba)
         opomba.text = getString(R.string.os_nastavitve_opomba)
+        hostVrstica = findViewById(R.id.hostVrstica)
+        hostVrstica.text = getString(R.string.os_host_berem)
         seznam.adapter = prilagojevalnik
         seznam.setOnItemClickListener { _, _, i, _ -> vrstice.getOrNull(i)?.ob?.invoke() }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Podatke o hostu dobimo po Linku; dokler smo v nastavitvah, naj povezava zivi.
+        link.dodaj(this)
     }
 
     override fun onResume() {
@@ -51,7 +61,36 @@ class NastavitveActivity : Activity() {
         narisi()
         // Scit je lahko v sosednji aplikaciji: stanje preberemo prek mostu in vrstico osvezimo.
         Scit.stanje(this) { narisi() }
+        osveziHost()
     }
+
+    override fun onStop() {
+        link.odstrani(this)
+        super.onStop()
+    }
+
+    /**
+     * Spodnja vrstica: koliko moci je na voljo. Ce je v Linku racunalnik, vprasamo njega
+     * (`host.info`); sicer povemo, kaj ima ta televizor - takrat je on ves host, ki ga imamo.
+     */
+    private fun osveziHost() {
+        if (hostVPreverjanju) return          // en ukaz naenkrat: naprave se javijo v rafalu
+        hostVPreverjanju = true
+        HostPodatki.preberi(this, link) { p ->
+            hostVPreverjanju = false
+            if (!isFinishing) hostVrstica.text = HostPodatki.vrstica(this, p)
+        }
+    }
+
+    // ------------------------------------------------------------------ Link
+
+    /** Racunalnik se je javil (ali odsel): vrstica o hostu naj pove novo stanje. */
+    override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { osveziHost() }
+
+    override fun naStanje(povezan: Boolean, sporocilo: String) {}
+    override fun naNaslov(url: String, naslov: String, od: String) {}
+    override fun naBesedilo(besedilo: String, od: String) {}
+    override fun naZavrnitev() {}
 
     /**
      * Sistemska okna (izbira domacega zaslona, dovoljenje za Scit) so na televizorju prosojna in
@@ -77,6 +116,9 @@ class NastavitveActivity : Activity() {
         vrstice = listOf(
             Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.os_zaganjalnik),
                 getString(R.string.os_zaganjalnik_opis), domaciStanje) { preklopiZaganjalnik(jeDomaci || ponujen) },
+            Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_zagon),
+                getString(R.string.os_zagon_opis),
+                getString(if (ZagonOb.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiZagon() },
             Vrstica(R.drawable.os_ikona_link, getString(R.string.os_nacin),
                 getString(R.string.os_nacin_kratko),
                 getString(if (krajevni) R.string.os_stanje_nacin_krajevni else R.string.os_stanje_nacin_link)) { preklopiNacin(krajevni) },
@@ -147,6 +189,28 @@ class NastavitveActivity : Activity() {
             Toast.makeText(this, getString(R.string.os_nacin_krajevni_izbran), Toast.LENGTH_LONG).show()
         }
         narisi()
+    }
+
+    /**
+     * Tipke Domov nam televizor morda ne da, prvi zaslon po vklopu pa smo lahko vseeno: ob zagonu
+     * sistema se Safeer OS odpre cez ves zaslon. Televizorju s tem nicesar ne spremenimo.
+     */
+    private fun preklopiZagon() {
+        val vklopljen = ZagonOb.jeVklopljen(this)
+        if (vklopljen) {
+            ZagonOb.nastavi(this, false)
+            narisi()
+            return
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_zagon))
+            .setMessage(getString(R.string.os_zagon_vprasanje))
+            .setPositiveButton(getString(R.string.os_vklopi)) { _, _ ->
+                ZagonOb.nastavi(this, true)
+                narisi()
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
     }
 
     // ------------------------------------------------------------------ host (kje je racunalniska moc)

@@ -136,4 +136,19 @@
     <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS ist als Startbildschirm eingeschaltet, aber dieser Fernseher gibt die Home-Taste nicht ab: Der Hersteller leitet sie immer auf seinen eigenen Startbildschirm (%1$s). Das entscheidet der Fernseher, es ist kein Fehler von Safeer OS, und ohne Eingriff in die Firmware lässt es sich nicht umgehen.\n\nSafeer OS öffnest du weiterhin über den Launcher, die App-Reihe und die Safeer-Link-Fernbedienung. Du kannst es eingeschaltet lassen (es kostet nichts) oder ausschalten.</string>
     <string name="os_zaganjalnik_izklopi_kratko">Ausschalten</string>
     <string name="os_zaganjalnik_sistemske">Fernseher-Einstellungen</string>
+    <string name="os_zagon">Beim Einschalten des Fernsehers starten</string>
+    <string name="os_zagon_opis">Safeer OS ist der erste Bildschirm nach dem Einschalten</string>
+    <string name="os_zagon_vprasanje">Wenn der Fernseher startet, öffnet sich Safeer OS im Vollbild und ist das Erste, was du siehst. Am Fernseher ändert sich nichts: Die Home-Taste führt weiterhin dorthin, wohin sie heute führt, und du kannst das jederzeit ausschalten.</string>
+    <string name="os_zagon_kanal">Safeer OS - Start nach dem Einschalten</string>
+    <string name="os_zagon_obvestilo">Startbildschirm wird geöffnet</string>
+    <string name="os_vklopi">Einschalten</string>
+    <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
+    <string name="os_host_berem">Ich prüfe, wie viel Leistung verfügbar ist ...</string>
+    <string name="os_host_ta_televizor">Dieser Fernseher: %1$s</string>
+    <string name="os_host_racunalnik">Host: %1$s</string>
+    <string name="os_host_jedra">Kerne: %1$d</string>
+    <string name="os_host_obremenitev">Last: %1$.2f</string>
+    <string name="os_host_ram">Arbeitsspeicher: %1$s</string>
+    <string name="os_host_disk">Speicherplatz: %1$s</string>
+    <string name="os_host_prosto">%1$s (%2$s frei)</string>
 </resources>

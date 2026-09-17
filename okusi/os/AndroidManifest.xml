@@ -51,6 +51,18 @@
             android:banner="@drawable/os_banner"
             tools:replace="android:exported,android:label,android:icon,android:banner" />
 
+        <!-- Zagon ob vklopu televizorja (privzeto nic: prejemnik najprej pogleda nastavitev). -->
+        <receiver
+            android:name="si.safeer.tv.os.ZagonPrejemnikOs"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Vrata za brskalnik: "Dodaj na domaci zaslon" iz njegovega menija pristane tukaj.
              Odprto samo aplikacijam z istim podpisom. -->
         <provider

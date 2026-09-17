@@ -68,6 +68,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onStart() {
         super.onStart()
         glavna.post(tikUre)
+        ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiAplikacije()
         narisiSpletne()
         prevzemiSpletne()

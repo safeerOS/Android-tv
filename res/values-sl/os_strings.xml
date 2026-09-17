@@ -136,4 +136,19 @@
     <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS je vklopljen kot domači zaslon, a ta televizor tipke Domov ne da naprej: proizvajalec jo vedno pelje na svoj domači zaslon (%1$s). To je odločitev televizorja, ne napaka Safeer OS, in brez posega v sistem televizorja tega ni mogoče obiti.\n\nSafeer OS še vedno odpreš iz zaganjalnika, iz vrstice aplikacij in z daljincem Safeer Linka. Lahko pustiš vklopljeno (nič ne stane) ali izklopiš.</string>
     <string name="os_zaganjalnik_izklopi_kratko">Izklopi</string>
     <string name="os_zaganjalnik_sistemske">Nastavitve televizorja</string>
+    <string name="os_zagon">Zaženi ob vklopu televizorja</string>
+    <string name="os_zagon_opis">Safeer OS je prvi zaslon, ko prižgeš televizor</string>
+    <string name="os_zagon_vprasanje">Ko se televizor zažene, se Safeer OS odpre čez ves zaslon in je prvo, kar vidiš. Na televizorju se ne spremeni nič: tipka Domov vodi tja, kamor vodi danes, to pa lahko kadarkoli izklopiš.</string>
+    <string name="os_zagon_kanal">Safeer OS - zagon po vklopu</string>
+    <string name="os_zagon_obvestilo">Odpiram domači zaslon</string>
+    <string name="os_vklopi">Vklopi</string>
+    <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
+    <string name="os_host_berem">Preverjam, koliko moči je na voljo ...</string>
+    <string name="os_host_ta_televizor">Ta televizor: %1$s</string>
+    <string name="os_host_racunalnik">Host: %1$s</string>
+    <string name="os_host_jedra">jedra: %1$d</string>
+    <string name="os_host_obremenitev">obremenitev: %1$.2f</string>
+    <string name="os_host_ram">pomnilnik: %1$s</string>
+    <string name="os_host_disk">shramba: %1$s</string>
+    <string name="os_host_prosto">%1$s (prosto %2$s)</string>
 </resources>

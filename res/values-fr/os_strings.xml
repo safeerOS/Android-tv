@@ -136,4 +136,19 @@
     <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS est activé comme écran d\'accueil, mais ce téléviseur ne cède pas la touche Accueil : le fabricant la renvoie toujours vers son propre écran (%1$s). C\'est le choix du téléviseur, pas un défaut de Safeer OS, et sans modifier son micrologiciel on ne peut pas le contourner.\n\nSafeer OS s\'ouvre toujours depuis le lanceur, la rangée d\'applications et la télécommande Safeer Link. Vous pouvez le laisser activé (cela ne coûte rien) ou le désactiver.</string>
     <string name="os_zaganjalnik_izklopi_kratko">Désactiver</string>
     <string name="os_zaganjalnik_sistemske">Réglages du téléviseur</string>
+    <string name="os_zagon">Lancer à l\'allumage du téléviseur</string>
+    <string name="os_zagon_opis">Safeer OS est le premier écran après l\'allumage</string>
+    <string name="os_zagon_vprasanje">Au démarrage du téléviseur, Safeer OS s\'ouvre en plein écran et c\'est la première chose que vous voyez. Rien n\'est modifié sur le téléviseur : la touche Accueil mène toujours là où elle mène aujourd\'hui, et vous pouvez désactiver ceci à tout moment.</string>
+    <string name="os_zagon_kanal">Safeer OS - lancement après l\'allumage</string>
+    <string name="os_zagon_obvestilo">Ouverture de l\'écran d\'accueil</string>
+    <string name="os_vklopi">Activer</string>
+    <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
+    <string name="os_host_berem">Je vérifie la puissance disponible...</string>
+    <string name="os_host_ta_televizor">Ce téléviseur : %1$s</string>
+    <string name="os_host_racunalnik">Hôte : %1$s</string>
+    <string name="os_host_jedra">cœurs : %1$d</string>
+    <string name="os_host_obremenitev">charge : %1$.2f</string>
+    <string name="os_host_ram">mémoire : %1$s</string>
+    <string name="os_host_disk">stockage : %1$s</string>
+    <string name="os_host_prosto">%1$s (%2$s libres)</string>
 </resources>

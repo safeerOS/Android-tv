@@ -137,4 +137,19 @@
     <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS is switched on as the home screen, but this television does not hand the Home key over: the manufacturer routes it to its own home screen (%1$s). That is the TV\'s doing, not a fault in Safeer OS, and without changing the TV\'s firmware it cannot be worked around.\n\nSafeer OS still opens from the launcher, from the apps row and with the Safeer Link remote. You can leave this on (it costs nothing) or switch it off.</string>
     <string name="os_zaganjalnik_izklopi_kratko">Switch off</string>
     <string name="os_zaganjalnik_sistemske">TV settings</string>
+    <string name="os_zagon">Start when the TV turns on</string>
+    <string name="os_zagon_opis">Safeer OS is the first screen after you switch the television on</string>
+    <string name="os_zagon_vprasanje">When the television starts, Safeer OS opens full screen, so it is the first thing you see. Nothing on the television is changed: the Home key still goes wherever it goes today, and you can switch this off at any time.</string>
+    <string name="os_zagon_kanal">Safeer OS - start after switching on</string>
+    <string name="os_zagon_obvestilo">Opening the home screen</string>
+    <string name="os_vklopi">Turn on</string>
+    <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
+    <string name="os_host_berem">Checking how much power is available...</string>
+    <string name="os_host_ta_televizor">This TV: %1$s</string>
+    <string name="os_host_racunalnik">Host: %1$s</string>
+    <string name="os_host_jedra">cores: %1$d</string>
+    <string name="os_host_obremenitev">load: %1$.2f</string>
+    <string name="os_host_ram">memory: %1$s</string>
+    <string name="os_host_disk">storage: %1$s</string>
+    <string name="os_host_prosto">%1$s (%2$s free)</string>
 </resources>

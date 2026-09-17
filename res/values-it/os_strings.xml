@@ -136,4 +136,19 @@
     <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS è attivo come schermata iniziale, ma questo televisore non cede il tasto Home: il produttore lo porta sempre alla propria schermata (%1$s). È una scelta del televisore, non un difetto di Safeer OS, e senza intervenire sul firmware non si può aggirare.\n\nSafeer OS si apre comunque dal launcher, dalla riga delle applicazioni e con il telecomando di Safeer Link. Puoi lasciarlo attivo (non costa nulla) o disattivarlo.</string>
     <string name="os_zaganjalnik_izklopi_kratko">Disattiva</string>
     <string name="os_zaganjalnik_sistemske">Impostazioni del televisore</string>
+    <string name="os_zagon">Avvia all\'accensione del televisore</string>
+    <string name="os_zagon_opis">Safeer OS è la prima schermata dopo l\'accensione</string>
+    <string name="os_zagon_vprasanje">All\'avvio del televisore, Safeer OS si apre a schermo intero ed è la prima cosa che vedi. Sul televisore non cambia nulla: il tasto Home porta dove porta oggi e puoi disattivarlo quando vuoi.</string>
+    <string name="os_zagon_kanal">Safeer OS - avvio dopo l\'accensione</string>
+    <string name="os_zagon_obvestilo">Apro la schermata iniziale</string>
+    <string name="os_vklopi">Attiva</string>
+    <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
+    <string name="os_host_berem">Controllo quanta potenza è disponibile...</string>
+    <string name="os_host_ta_televizor">Questo televisore: %1$s</string>
+    <string name="os_host_racunalnik">Host: %1$s</string>
+    <string name="os_host_jedra">core: %1$d</string>
+    <string name="os_host_obremenitev">carico: %1$.2f</string>
+    <string name="os_host_ram">memoria: %1$s</string>
+    <string name="os_host_disk">spazio: %1$s</string>
+    <string name="os_host_prosto">%1$s (%2$s liberi)</string>
 </resources>

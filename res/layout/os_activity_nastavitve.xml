@@ -40,4 +40,17 @@
         android:divider="@null"
         android:dividerHeight="0dp"
         android:scrollbars="none"/>
+
+    <!-- Spodnja vrstica: kaj ima host (racunalnik, ki televizorju daje moc). -->
+    <TextView
+        android:id="@+id/hostVrstica"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:paddingTop="10dp"
+        android:background="@drawable/os_crta_zgoraj"
+        android:textColor="@color/os_umirjeno"
+        android:textSize="13sp"
+        android:maxLines="2"
+        android:ellipsize="end"/>
 </LinearLayout>
