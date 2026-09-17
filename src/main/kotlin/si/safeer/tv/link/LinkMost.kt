@@ -248,6 +248,7 @@ class LinkMost(
                     put("zmoznosti", n.optJSONArray("capabilities") ?: org.json.JSONArray())
                     put("zasedenaOd", n.optString("busy_by", ""))
                     put("zasedenaOdIme", n.optString("busy_by_name", ""))
+                    put("naslov", n.optString("ip", ""))
                 })
             }
         } catch (_: Throwable) { }
