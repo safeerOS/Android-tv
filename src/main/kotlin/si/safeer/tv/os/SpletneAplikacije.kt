@@ -1,6 +1,7 @@
 package si.safeer.tv.os
 
 import android.content.Context
+import android.os.Bundle
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -38,6 +39,7 @@ object SpletneAplikacije {
     private const val TAG = "SafeerOsSpletne"
     private const val PREFS = "safeer_os"
     private const val KLJUC = "spletne_aplikacije"
+    private const val KLJUC_PREVZETO = "spletne_prevzete"
     private const val NAJVEC = 24
 
     data class Aplikacija(
@@ -83,7 +85,15 @@ object SpletneAplikacije {
         prefs(c).edit().putString(KLJUC, polje.toString()).apply()
     }
 
-    fun jeDodana(c: Context, url: String): Boolean = seznam(c).any { istaStran(it.url, url) }
+    /**
+     * Seznam vodi tisti, ki ima domaci zaslon: ce je Safeer OS namescen kot svoja aplikacija, gre
+     * vsako vprasanje in vsaka sprememba k njemu (ponudnik z dovoljenjem istega podpisa). Sicer
+     * jih vodi ta aplikacija sama.
+     */
+    fun jeDodana(c: Context, url: String): Boolean {
+        SpletnePonudnik.klic(c, SpletnePonudnik.JE_DODANA, url)?.let { return it.getBoolean("je") }
+        return seznam(c).any { istaStran(it.url, url) }
+    }
 
     /**
      * Kje naj se aplikacija odpre. Ce je uporabnik v zadnji pol ure gledal kaj znotraj nje, se vrne
@@ -91,6 +101,7 @@ object SpletneAplikacije {
      * strani, da ne obticis na vceraj odprti podstrani. Nadaljuje samo znotraj istega gostitelja.
      */
     fun nadaljevanje(c: Context, url: String): String {
+        SpletnePonudnik.klic(c, SpletnePonudnik.NADALJEVANJE, url)?.getString("url")?.let { return it }
         val a = seznam(c).firstOrNull { istaStran(it.url, url) } ?: return url
         if (a.zadnji.isBlank() || System.currentTimeMillis() - a.zadnjiCas > OKNO_MS) return url
         return if (gostitelj(a.zadnji) == gostitelj(url)) a.zadnji else url
@@ -99,6 +110,7 @@ object SpletneAplikacije {
     /** Zapomni si, kje je uporabnik koncal (ob izhodu iz aplikacije ali ob odhodu z zaslona). */
     fun zapomniMesto(c: Context, url: String, zadnji: String) {
         if (url.isBlank()) return
+        if (SpletnePonudnik.klic(c, SpletnePonudnik.ZAPOMNI, url, Bundle().apply { putString("zadnji", zadnji) }) != null) return
         val app = c.applicationContext
         val seznam = seznam(app)
         if (seznam.none { istaStran(it.url, url) }) return
@@ -113,6 +125,9 @@ object SpletneAplikacije {
      * ikono; [obKoncu] poklicemo na glavni niti, ko so podatki tu, da se domaci zaslon osvezi.
      */
     fun dodaj(c: Context, url: String, ime: String, obKoncu: (() -> Unit)? = null) {
+        if (SpletnePonudnik.klic(c, SpletnePonudnik.DODAJ, url, Bundle().apply { putString("ime", ime) }) != null) {
+            obKoncu?.invoke(); return
+        }
         val app = c.applicationContext
         if (jeDodana(app, url)) { obKoncu?.invoke(); return }
         shrani(app, seznam(app) + Aplikacija(url, ime))
@@ -127,7 +142,42 @@ object SpletneAplikacije {
         }
     }
 
+    /** Seznam v JSON (samo naslov in ime) - za prenos med aplikacijama. */
+    fun jsonSeznam(c: Context): String {
+        val polje = JSONArray()
+        for (a in seznam(c)) polje.put(JSONObject().put("url", a.url).put("ime", a.ime))
+        return polje.toString()
+    }
+
+    /**
+     * Prva pot iz brskalnika v Safeer OS: dokler sta bila eno, so spletne aplikacije zivele v
+     * brskalniku. Ko se Safeer OS prvic zazene, jih prevzame - uporabniku ni treba znova dodajati
+     * svojega domacega zaslona. Naredi se enkrat; ikone se poiscejo znova (poti v tujo aplikacijo
+     * ne moremo brati).
+     */
+    fun prevzemiOdBrskalnika(c: Context, obKoncu: (() -> Unit)? = null) {
+        val app = c.applicationContext
+        if (prefs(app).getBoolean(KLJUC_PREVZETO, false)) return
+        val paket = Sosed.brskalnik(app)
+        if (paket == null) { prefs(app).edit().putBoolean(KLJUC_PREVZETO, true).apply(); return }
+        val b = try {
+            app.contentResolver.call(SpletnePonudnik.naslov(paket), SpletnePonudnik.SEZNAM, "", null)
+        } catch (e: Throwable) { Log.w(TAG, "Brskalnik ni dal seznama: ${e.message}"); null }
+        prefs(app).edit().putBoolean(KLJUC_PREVZETO, true).apply()
+        val surovo = b?.getString("seznam") ?: return
+        val polje = try { JSONArray(surovo) } catch (_: Throwable) { return }
+        var dodanih = 0
+        for (i in 0 until polje.length()) {
+            val o = polje.optJSONObject(i) ?: continue
+            val url = o.optString("url"); if (url.isBlank() || jeDodana(app, url)) continue
+            dodaj(app, url, o.optString("ime")) { obKoncu?.invoke() }
+            dodanih++
+        }
+        if (dodanih > 0) Log.i(TAG, "Iz brskalnika prevzeto $dodanih spletnih aplikacij.")
+    }
+
     fun odstrani(c: Context, url: String) {
+        if (SpletnePonudnik.klic(c, SpletnePonudnik.ODSTRANI, url) != null) return
         val app = c.applicationContext
         seznam(app).firstOrNull { istaStran(it.url, url) }?.let { a ->
             if (a.ikona.isNotEmpty()) try { File(a.ikona).delete() } catch (_: Throwable) { }

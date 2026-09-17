@@ -10,7 +10,7 @@
     <string name="os_datoteke">Datoteke</string>
     <string name="os_datoteke_opis">Videi, glasba in slike z računalnika</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Seznanitev, naprave in daljinec</string>
+    <string name="os_link_opis">Tvoje naprave. Povezane.</string>
     <string name="os_stanje_povezujem">Povezujem …</string>
     <string name="os_stanje_povezan">Povezano · %1$s</string>
     <string name="os_stanje_ni">Ni Safeer Linka</string>
@@ -41,9 +41,9 @@
     <string name="os_scit">Ščit</string>
     <string name="os_scit_preverjam">Preverjam …</string>
     <string name="os_scit_ni_brskalnika">Potrebuje Safeer Browser za Android TV 2.1.100 ali novejši</string>
-    <string name="os_scit_vklopljen_opis">Vklopljen za ves televizor · danes blokiranih: %1$d</string>
+    <string name="os_scit_vklopljen_opis">Zaščita je vključena\n%1$d blokiranih danes</string>
     <string name="os_scit_prekinjen">Vklopljen, a prekinjen (drug VPN?) – odpri za ponovni vklop</string>
-    <string name="os_scit_izklopljen_opis">Izklopljen · vklopi za blokiranje oglasov, sledilcev in nevarnih domen v vseh aplikacijah</string>
+    <string name="os_scit_izklopljen_opis">Zaščita je izklopljena\nVklopi za vse aplikacije na televizorju</string>
     <string name="os_scit_izklopljen_kratko">Ščit je izklopljen</string>
     <string name="os_stanje_krajevni">Krajevni način · ta televizor</string>
     <string name="os_stanje_ni_linka">Safeer Link ni vklopljen</string>
@@ -107,4 +107,7 @@
     <string name="os_spletne_dodaj_gumb">Dodaj</string>
     <string name="os_spletne_neveljaven">To ni videti kot spletni naslov.</string>
     <string name="os_spletne_ze_dodana">To stran že imaš med spletnimi aplikacijami.</string>
+    <string name="os_izhod">Izhod v Android</string>
+    <string name="os_izhod_opis">Pokaži domači zaslon televizorja; Safeer OS ostane nameščen</string>
+    <string name="os_izhod_ni">Domačega zaslona televizorja ni bilo mogoče odpreti</string>
 </resources>

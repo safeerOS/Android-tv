@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Skupni del obeh aplikacij: Safeer Browser TV (si.safeer.tv) in Safeer OS (si.safeer.os).
+     Kar loci aplikaciji - ime, ikona, vnos v zaganjalniku, domaci zaslon - je v okusi/<okus>/AndroidManifest.xml. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="si.safeer.tv"
-    android:versionCode="208"
-    android:versionName="2.1.99">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-sdk
         android:minSdkVersion="28"
         android:targetSdkVersion="34" />
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Sorodne aplikacije Safeer na istem televizorju (Safeer OS) dobijo zeton Safeer Linka samo, ce so podpisane z istim kljucem. -->
-    <permission
-        android:name="si.safeer.tv.permission.LINK"
-        android:protectionLevel="signature" />
+    <!-- Sorodne aplikacije Safeer na istem televizorju (Safeer OS in brskalnik) se dosezejo samo, ce so
+         podpisane z istim kljucem. Dovoljenje napove brskalnik (okusi/brskalnik), obe aplikaciji ga uporabljata. -->
+    <uses-permission android:name="si.safeer.tv.permission.LINK" />
     <!-- Safeer Link: stran ali ukaz z druge naprave odpre brskalnik, tudi ko ni v ospredju
          (Android 10+ zagon iz ozadja dovoli le prek obvestila s celozaslonsko namero). -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
@@ -78,11 +77,8 @@
         </intent>
     </queries>
 
+    <!-- Oznaka, ikona in pasica so v okusih: vsaka aplikacija ima svoje ime in svojo ikono. -->
     <application
-        android:label="@string/app_name"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:banner="@drawable/safeer_tv_banner"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true"
         android:largeHeap="true"
@@ -90,6 +86,8 @@
         android:usesCleartextTraffic="true"
         android:supportsRtl="true">
 
+        <!-- Brskalnik. Vstopna tocka v zaganjalniku in obravnava povezav sta samo v okusu brskalnika;
+             v Safeer OS je ta dejavnost notranji pogon za spletne aplikacije, kadar brskalnik ni namescen. -->
         <activity
             android:name="si.safeer.tv.MainActivity"
             android:label="@string/app_name"
@@ -98,42 +96,7 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|density"
             android:windowSoftInputMode="adjustResize"
-            android:launchMode="singleTask">
-
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-            </intent-filter>
-
-            <!-- Default Web Browser Handlers (scheme-only: Android BROWSER role) -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" android:host="*" />
-                <data android:scheme="https" android:host="*" />
-            </intent-filter>
-            <!-- Dokumenti PDF z naprave (prenosi, upravitelj datotek, e-posta) se odprejo v vgrajenem pregledovalniku -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-                <data android:mimeType="application/pdf" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.WEB_SEARCH" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+            android:launchMode="singleTask" />
 
         <!-- Safeer Cast: sprejemnik povezav s telefona in racunalnika v domacem omrezju -->
         <service
@@ -158,7 +121,7 @@
         </service>
 
         <!-- Safeer OS: domaci zaslon za televizor (Splet, Datoteke z racunalnika, Safeer Link, Scit, naprave, aplikacije).
-             Del tega brskalnika - ena namestitev, druga vstopna tocka v zaganjalniku, svoje opravilo. -->
+             Vstopna tocka v zaganjalniku in alias domacega zaslona sta v okusu os. -->
         <activity
             android:name="si.safeer.tv.os.DomovActivity"
             android:exported="true"
@@ -167,49 +130,27 @@
             android:banner="@drawable/os_banner"
             android:theme="@style/Theme.SafeerOs"
             android:launchMode="singleTask"
-            android:taskAffinity="si.safeer.tv.os"
+            android:taskAffinity="${applicationId}.os"
             android:screenOrientation="landscape"
-            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
 
-        <!-- Safeer OS kot domaci zaslon televizorja. Privzeto ONEMOGOCEN: dokler ga uporabnik
-             sam ne vklopi, Android sploh ne ve, da bi Safeer OS lahko bil zaganjalnik, in tipka
-             Domov dela kot prej. Vklop in izklop sta v Safeer OS (os/Zaganjalnik.kt). -->
         <activity
             android:name="si.safeer.tv.os.NastavitveActivity"
             android:exported="false"
             android:label="@string/os_nastavitve"
             android:theme="@style/Theme.SafeerOs"
-            android:taskAffinity="si.safeer.tv.os"
+            android:taskAffinity="${applicationId}.os"
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
 
-        <activity-alias
-            android:name="si.safeer.tv.os.ZaganjalnikAlias"
-            android:targetActivity="si.safeer.tv.os.DomovActivity"
-            android:exported="true"
-            android:enabled="false"
-            android:label="@string/os_app_name"
-            android:icon="@mipmap/os_ic_launcher"
-            android:banner="@drawable/os_banner">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity-alias>
         <activity android:name="si.safeer.tv.os.DatotekeActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
-            android:taskAffinity="si.safeer.tv.os" android:screenOrientation="landscape"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
         <activity android:name="si.safeer.tv.os.PredvajalnikActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Predvajalnik"
-            android:taskAffinity="si.safeer.tv.os" android:screenOrientation="landscape"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
         <activity android:name="si.safeer.tv.os.SlikaActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Predvajalnik"
-            android:taskAffinity="si.safeer.tv.os" android:screenOrientation="landscape"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
 
         <!-- Safeer Scit: filter DNS za ves televizor, v lastnem procesu (mapiran nabor domen, brez kopice brskalnika) -->
@@ -252,7 +193,7 @@
 
         <provider
             android:name="si.safeer.tv.MobileFileProvider"
-            android:authorities="si.safeer.tv.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

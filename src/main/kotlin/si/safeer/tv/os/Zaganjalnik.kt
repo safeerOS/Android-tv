@@ -69,6 +69,34 @@ object Zaganjalnik {
         }
     }
 
+    /**
+     * Izhod iz lupine: pokazi domaci zaslon televizorja (Android), ne da bi karkoli spreminjali.
+     * Uporabnik, ki hoce navaden Android, ga dobi takoj - tudi kadar je Safeer OS izbran domaci
+     * zaslon. Trajno se odloci z izklopom zgoraj. Vrne true, ce je zaganjalnik odprt.
+     */
+    fun izhodVAndroid(context: Context): Boolean {
+        val namera = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val najdeni = try {
+            context.packageManager.queryIntentActivities(namera, 0)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Zaganjalnikov ni bilo mogoce presteti: ${e.message}"); emptyList()
+        }
+        for (r in najdeni) {
+            val info = r.activityInfo ?: continue
+            if (info.packageName == context.packageName) continue
+            try {
+                context.startActivity(Intent(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_HOME)
+                    .setComponent(ComponentName(info.packageName, info.name))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return true
+            } catch (e: Throwable) {
+                Log.w(TAG, "Zaganjalnika ${info.packageName} ni bilo mogoce odpreti: ${e.message}")
+            }
+        }
+        return false
+    }
+
     /** Sistemsko okno za izbiro domacega zaslona; nekateri televizorji ga nimajo. */
     fun odpriSistemskoIzbiro(context: Context): Boolean {
         for (dejanje in listOf(Settings.ACTION_HOME_SETTINGS, Settings.ACTION_SETTINGS)) {

@@ -13,8 +13,8 @@
         android:orientation="vertical"
         android:paddingStart="@dimen/os_rob"
         android:paddingEnd="@dimen/os_rob"
-        android:paddingTop="28dp"
-        android:paddingBottom="40dp">
+        android:paddingTop="18dp"
+        android:paddingBottom="24dp">
 
         <!-- Glava: znak, ime, stanje Linka, ura -->
         <LinearLayout
@@ -88,7 +88,7 @@
             style="@style/Os.Nadnaslov"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="30dp"
+            android:layout_marginTop="20dp"
             android:text="@string/os_odsek_zacni"/>
         <HorizontalScrollView
             android:layout_width="match_parent"
@@ -108,7 +108,7 @@
             style="@style/Os.Nadnaslov"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
+            android:layout_marginTop="18dp"
             android:text="@string/os_odsek_spletne"/>
         <HorizontalScrollView
             android:layout_width="match_parent"
@@ -128,7 +128,7 @@
             style="@style/Os.Nadnaslov"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
+            android:layout_marginTop="18dp"
             android:text="@string/os_odsek_naprave"/>
         <TextView
             android:id="@+id/napraveOpomba"
@@ -156,7 +156,7 @@
             style="@style/Os.Nadnaslov"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
+            android:layout_marginTop="18dp"
             android:text="@string/os_odsek_aplikacije"/>
         <HorizontalScrollView
             android:id="@+id/aplikacijeDrsnik"
@@ -176,7 +176,7 @@
             android:id="@+id/opombaSpodaj"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
+            android:layout_marginTop="18dp"
             android:textColor="@color/os_opozorilo"
             android:textSize="13sp"
             android:visibility="gone"/>

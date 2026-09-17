@@ -3,9 +3,10 @@ name: Gradnja
 # Doslej se je ta brskalnik gradil samo na enem prenosniku. Ce bi se gradnja
 # pokvarila, tega ne bi opazil nihce do naslednje izdaje.
 #
-# Ta tek zgradi NEPODPISAN APK. Podpisni kljuc ostane doma in ga tu ni:
-# build.gradle brez spremenljivke RELEASE_KEYSTORE nastavi signingConfig na null.
-# Namen ni izdelati paketa za uporabnike, ampak dokazati, da se koda prevede.
+# Ta tek zgradi NEPODPISANA APK-ja (brskalnik in Safeer OS). Podpisni kljuc ostane
+# doma in ga tu ni: build.gradle brez spremenljivke RELEASE_KEYSTORE nastavi
+# signingConfig na null. Namen ni izdelati paketa za uporabnike, ampak dokazati,
+# da se koda prevede in da sta aplikaciji res loceni.
 
 on:
   push:
@@ -34,13 +35,21 @@ jobs:
 
       - name: Povej, kaj je nastalo
         run: |
-          ls -lh build/outputs/apk/release/
-          test -s build/outputs/apk/release/tv-browser-2-release-unsigned.apk \
-            || (echo "APK ni nastal" && exit 1)
+          ls -lhR build/outputs/apk/
+          test -s build/outputs/apk/brskalnik/release/tv-browser-2-brskalnik-release-unsigned.apk \
+            || (echo "APK brskalnika ni nastal" && exit 1)
+          test -s build/outputs/apk/os/release/tv-browser-2-os-release-unsigned.apk \
+            || (echo "APK Safeer OS ni nastal" && exit 1)
+
+      - name: Loceni aplikaciji (si.safeer.tv in si.safeer.os)
+        run: |
+          python3 tests/preveri_loceni_aplikaciji.py \
+            build/outputs/apk/brskalnik/release/tv-browser-2-brskalnik-release-unsigned.apk \
+            build/outputs/apk/os/release/tv-browser-2-os-release-unsigned.apk
 
       - name: Shrani za pregled
         uses: actions/upload-artifact@v7
         with:
           name: nepodpisan-apk
-          path: build/outputs/apk/release/*.apk
+          path: build/outputs/apk/*/release/*.apk
           retention-days: 7

@@ -10,7 +10,7 @@
     <string name="os_datoteke">File</string>
     <string name="os_datoteke_opis">Video, musica e foto dal computer</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Abbinamento, dispositivi e telecomando</string>
+    <string name="os_link_opis">I tuoi dispositivi. Connessi.</string>
     <string name="os_stanje_povezujem">Connessione…</string>
     <string name="os_stanje_povezan">Connesso · %1$s</string>
     <string name="os_stanje_ni">Nessun Safeer Link</string>
@@ -41,9 +41,9 @@
     <string name="os_scit">Scudo</string>
     <string name="os_scit_preverjam">Controllo…</string>
     <string name="os_scit_ni_brskalnika">Richiede Safeer Browser per Android TV 2.1.100 o più recente</string>
-    <string name="os_scit_vklopljen_opis">Attivo per tutto il televisore · bloccati oggi: %1$d</string>
+    <string name="os_scit_vklopljen_opis">La protezione è attiva\n%1$d bloccati oggi</string>
     <string name="os_scit_prekinjen">Attivo ma interrotto (un\'altra VPN?): apri per riattivarlo</string>
-    <string name="os_scit_izklopljen_opis">Disattivato · attivalo per bloccare pubblicità, tracker e domini pericolosi in tutte le app</string>
+    <string name="os_scit_izklopljen_opis">La protezione è disattivata\nAttivala per tutte le app del televisore</string>
     <string name="os_scit_izklopljen_kratko">Scudo disattivato</string>
     <string name="os_stanje_krajevni">Modalità locale · questo televisore</string>
     <string name="os_stanje_ni_linka">Safeer Link è disattivato</string>
@@ -107,4 +107,7 @@
     <string name="os_spletne_dodaj_gumb">Aggiungi</string>
     <string name="os_spletne_neveljaven">Non sembra un indirizzo web.</string>
     <string name="os_spletne_ze_dodana">Questa pagina è già tra le tue app web.</string>
+    <string name="os_izhod">Esci in Android</string>
+    <string name="os_izhod_opis">Mostra la schermata iniziale del televisore; Safeer OS resta installato</string>
+    <string name="os_izhod_ni">Non è stato possibile aprire la schermata iniziale del televisore</string>
 </resources>

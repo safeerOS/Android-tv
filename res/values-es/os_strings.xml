@@ -10,7 +10,7 @@
     <string name="os_datoteke">Archivos</string>
     <string name="os_datoteke_opis">Vídeos, música y fotos de tu ordenador</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Emparejamiento, dispositivos y mando</string>
+    <string name="os_link_opis">Tus dispositivos. Conectados.</string>
     <string name="os_stanje_povezujem">Conectando…</string>
     <string name="os_stanje_povezan">Conectado · %1$s</string>
     <string name="os_stanje_ni">Sin Safeer Link</string>
@@ -41,9 +41,9 @@
     <string name="os_scit">Escudo</string>
     <string name="os_scit_preverjam">Comprobando…</string>
     <string name="os_scit_ni_brskalnika">Necesita Safeer Browser para Android TV 2.1.100 o más reciente</string>
-    <string name="os_scit_vklopljen_opis">Activado para todo el televisor · bloqueados hoy: %1$d</string>
+    <string name="os_scit_vklopljen_opis">La protección está activada\n%1$d bloqueados hoy</string>
     <string name="os_scit_prekinjen">Activado pero interrumpido (¿otra VPN?): abre para activarlo de nuevo</string>
-    <string name="os_scit_izklopljen_opis">Desactivado · actívalo para bloquear anuncios, rastreadores y dominios peligrosos en todas las apps</string>
+    <string name="os_scit_izklopljen_opis">La protección está desactivada\nActívala para todas las apps del televisor</string>
     <string name="os_scit_izklopljen_kratko">Escudo desactivado</string>
     <string name="os_stanje_krajevni">Modo local · este televisor</string>
     <string name="os_stanje_ni_linka">Safeer Link está desactivado</string>
@@ -107,4 +107,7 @@
     <string name="os_spletne_dodaj_gumb">Añadir</string>
     <string name="os_spletne_neveljaven">Eso no parece una dirección web.</string>
     <string name="os_spletne_ze_dodana">Esta página ya está entre tus aplicaciones web.</string>
+    <string name="os_izhod">Salir a Android</string>
+    <string name="os_izhod_opis">Muestra la pantalla de inicio del televisor; Safeer OS sigue instalado</string>
+    <string name="os_izhod_ni">No se ha podido abrir la pantalla de inicio del televisor</string>
 </resources>

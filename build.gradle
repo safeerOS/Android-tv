@@ -9,14 +9,36 @@ android {
     buildToolsVersion '34.0.0'
 
     defaultConfig {
-        applicationId 'si.safeer.tv'
         minSdk 28
         targetSdk 34
         versionCode 211
         versionName '2.1.102'
     }
 
+    // Dve loceni aplikaciji iz ene kode. Android ju vidi kot dve aplikaciji (svoje ime, ikona,
+    // vnos v zaganjalniku, svoje nastavitve in odstranitev); vzdrzujemo pa en izvorni repozitorij.
+    flavorDimensions 'aplikacija'
+
+    productFlavors {
+        brskalnik {
+            dimension 'aplikacija'
+            applicationId 'si.safeer.tv'
+        }
+        os {
+            dimension 'aplikacija'
+            applicationId 'si.safeer.os'
+            versionCode 3
+            versionName '0.2.3'
+        }
+    }
+
     sourceSets {
+        brskalnik {
+            manifest.srcFile 'okusi/brskalnik/AndroidManifest.xml'
+        }
+        os {
+            manifest.srcFile 'okusi/os/AndroidManifest.xml'
+        }
         main {
             manifest.srcFile 'AndroidManifest.xml'
             java.srcDirs = ['src/main/kotlin']

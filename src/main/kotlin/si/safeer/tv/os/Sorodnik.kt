@@ -1,6 +1,7 @@
 package si.safeer.tv.os
 
 import android.content.Context
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -8,12 +9,15 @@ import si.safeer.tv.cast.HubKrmilnik
 import si.safeer.tv.cast.HubStoritev
 import si.safeer.tv.cast.HubTls
 import si.safeer.tv.cast.HubUsmerjevalnik
+import si.safeer.tv.cast.LinkSorodnikStoritev
 
 /**
- * Poverilnice Safeer Linka za domaci zaslon Safeer OS. Safeer OS je del tega brskalnika, zato jih
- * dobi neposredno od sredisca v istem procesu (isto, kar LinkSorodnikStoritev vrne sorodnim
- * aplikacijam): naslov sredisca na tem televizorju, zeton za identiteto `<lastniId>-os`, odtis
- * potrdila. Ce Safeer Link ni prizgan, ga prizge - uporabnik je odprl Safeer OS, ki ga potrebuje.
+ * Poverilnice Safeer Linka za domaci zaslon Safeer OS.
+ *
+ *  - **Brskalnik je namescen**: zeton damo pobrati pri njem (storitev LINK_SORODNIK, dovoljenje
+ *    istega podpisa). Sredisce Safeer Linka na televizorju je eno samo in nove povezave ni -
+ *    Safeer OS vstopi vanj kot sorodnik `<id sredisca>-os`, tako kot Safeer Control na racunalniku.
+ *  - **Brskalnika ni**: Safeer OS ima isto kodo in sredisce zaene sam.
  */
 object Sorodnik {
     private const val TAG = "SafeerOsSorodnik"
@@ -21,18 +25,51 @@ object Sorodnik {
     data class Poverilnice(val hubUrl: String, val zeton: String, val odtis: String, val hubId: String)
 
     /**
-     * [dovoliZagon] = uporabnik je izbral Safeer Link: ce sredisce ne tece, ga prizgemo. Sicer
-     * poverilnice damo samo, kadar sredisce ze tece - Safeer OS sam po sebi nicesar ne prizge.
+     * [dovoliZagon] = uporabnik je izbral Safeer Link: ce sredisce ne tece, ga prizgemo (svojega ali
+     * brskalnikovega). Sicer poverilnice damo samo, kadar sredisce ze tece - Safeer OS sam po sebi
+     * nicesar ne prizge.
      */
     fun zahtevaj(context: Context, dovoliZagon: Boolean = false, naprej: (Poverilnice?) -> Unit) {
         val app = context.applicationContext
+        val brskalnik = Sosed.brskalnik(app)
+        if (brskalnik != null) {
+            prekBrskalnika(app, brskalnik, dovoliZagon, naprej)
+            return
+        }
         Thread({
-            val p = try { pripravi(app, dovoliZagon) } catch (e: Throwable) { Log.w(TAG, "Poverilnic ni bilo mogoce pripraviti: ${e.message}"); null }
+            val p = try { vProcesu(app, dovoliZagon) } catch (e: Throwable) { Log.w(TAG, "Poverilnic ni bilo mogoce pripraviti: ${e.message}"); null }
             Handler(Looper.getMainLooper()).post { naprej(p) }
         }, "safeer-os-sorodnik").start()
     }
 
-    private fun pripravi(app: Context, dovoliZagon: Boolean): Poverilnice? {
+    /**
+     * Ce je brskalnik namescen, je sredisce njegovo. Drugega ne zaganjamo niti takrat, kadar ne
+     * odgovori: dve srediscu na istem televizorju bi pomenili dve napravi v Safeer Linku.
+     */
+    private fun prekBrskalnika(app: Context, paket: String, dovoliZagon: Boolean, naprej: (Poverilnice?) -> Unit) {
+        val podatki = Bundle().apply {
+            putString("device_name", "Safeer OS")
+            putString("app", app.packageName)
+            putBoolean("ne_zaganjaj", !dovoliZagon)
+        }
+        Sosed.poslji(app, paket, LinkSorodnikStoritev.DEJANJE, LinkSorodnikStoritev.ZAHTEVA,
+            LinkSorodnikStoritev.ODGOVOR, podatki) { b ->
+            val p = izBundla(b)
+            if (p == null) Log.w(TAG, "Brskalnik ni dal zetona (ni odgovora ali je nepopoln).")
+            naprej(p)
+        }
+    }
+
+    private fun izBundla(b: Bundle?): Poverilnice? {
+        if (b == null) return null
+        val hub = b.getString("hub_url").orEmpty()
+        val zeton = b.getString("token").orEmpty()
+        val odtis = b.getString("fp").orEmpty()
+        if (!hub.startsWith("wss://") || zeton.isBlank() || odtis.isBlank()) return null
+        return Poverilnice(hub, zeton, odtis, b.getString("hub_id").orEmpty())
+    }
+
+    private fun vProcesu(app: Context, dovoliZagon: Boolean): Poverilnice? {
         if (!HubKrmilnik.tece()) {
             if (!dovoliZagon) return null
             HubKrmilnik.zazeni(app, zapomni = true)

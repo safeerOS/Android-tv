@@ -68,6 +68,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         glavna.post(tikUre)
         narisiAplikacije()
         narisiSpletne()
+        prevzemiSpletne()
         link.dodaj(this)
         osveziScit()
         // Vrsta s spletnimi aplikacijami na domacem zaslonu televizorja ostane usklajena; ko ima
@@ -150,6 +151,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         dodajVeliko(R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve), getString(R.string.os_nastavitve_opis)) {
             startActivity(Intent(this, NastavitveActivity::class.java))
         }
+        uravnajVrsto(vrstaZacni, NAJMANJSA_VELIKA_DP)
         vrstaZacni.getChildAt(0)?.requestFocus()
         osveziKartice()
     }
@@ -222,6 +224,32 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         glavna.postDelayed({ osveziScit() }, 2_500)
     }
 
+    /**
+     * Televizor ni telefon: kar pade cez rob zaslona, ni "malo zunaj", ampak odrezano besedilo -
+     * in televizorji vrh tega odrezejo se nekaj slikovnih tock (overscan). Zato sirine kartic ne
+     * ugibamo vnaprej: izracunamo jo iz sirine zaslona tako, da med robovoma stoji **cel** kos
+     * kartic. Kar je vec, se pokaze ob pomiku, nikoli pa ni na zaslonu polovica besedila.
+     */
+    private fun uravnajVrsto(vrsta: LinearLayout, najmanjDp: Int) {
+        val m = resources.displayMetrics
+        val rob = resources.getDimensionPixelSize(R.dimen.os_rob)
+        val vrzel = (16 * m.density).toInt()
+        val naVoljo = m.widthPixels - 2 * rob
+        val n = vrsta.childCount
+        if (n == 0 || naVoljo <= 0) return
+        val najmanj = (najmanjDp * m.density).toInt()
+        val kolikoGre = ((naVoljo + vrzel) / (najmanj + vrzel)).coerceAtLeast(1)
+        val k = if (kolikoGre > n) n else kolikoGre
+        val sirina = (naVoljo - (k - 1) * vrzel) / k
+        for (i in 0 until n) {
+            val v = vrsta.getChildAt(i) ?: continue
+            val lp = v.layoutParams as? LinearLayout.LayoutParams ?: continue
+            lp.width = sirina
+            lp.marginEnd = if (i == n - 1) 0 else vrzel
+            v.layoutParams = lp
+        }
+    }
+
     private fun dodajVeliko(ikona: Int, naslov: String, opis: String, ob: () -> Unit): View {
         val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_velika, vrstaZacni, false)
         v.findViewById<ImageView>(R.id.ikona).setImageResource(ikona)
@@ -255,6 +283,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
             vrstaNaprave.addView(v)
         }
+        uravnajVrsto(vrstaNaprave, NAJMANJSA_NAPRAVA_DP)
     }
 
     private fun vrstaNaprave(n: LinkOdjemalec.Naprava): String = when {
@@ -269,6 +298,15 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     // Spletna stran, ki se obnasa kot aplikacija: svoja ikona in ime, zagon cez ves zaslon brez
     // vrstice z naslovom. Ideja Firefox OS/Capyloon, le da tu spletna aplikacija podeduje vso
     // zascito brskalnika (blokiranje oglasov in sledilcev, nevarne strani, Scit) in Safeer Link.
+
+    /** Ob prvem zagonu Safeer OS prevzame spletne aplikacije, ki jih je uporabnik dodal v brskalniku. */
+    private fun prevzemiSpletne() {
+        Thread({
+            try { SpletneAplikacije.prevzemiOdBrskalnika(this) { glavna.post { narisiSpletne() } } }
+            catch (_: Throwable) { }
+            glavna.post { narisiSpletne() }
+        }, "safeer-os-prevzem").start()
+    }
 
     private fun narisiSpletne() {
         vrstaSpletne.removeAllViews()
@@ -290,7 +328,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun zazeniSpletno(a: SpletneAplikacije.Aplikacija) {
-        val namera = Intent(this, si.safeer.tv.MainActivity::class.java)
+        val namera = brskalnikNamera()
             .putExtra("spletna_aplikacija", a.url)
             .putExtra("aplikacija_ime", a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -409,9 +447,23 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (ima) (v.parent as? ViewGroup)?.let { it.requestChildFocus(v, v) }
     }
 
-    /** Brskalnik je del iste aplikacije: odpre se njegova glavna dejavnost (v svojem opravilu), po zelji z naslovom. */
+    /**
+     * Namera za splet: ce je Safeer Browser namescen kot svoja aplikacija, odpremo njega (en pogon,
+     * ena zascita, en seznam zavihkov); sicer nasega vgrajenega, ki je v Safeer OS za ta primer.
+     */
+    private fun brskalnikNamera(): Intent {
+        val paket = Sosed.brskalnik(this)
+        val namera = if (paket != null)
+            Intent().setComponent(android.content.ComponentName(paket, "si.safeer.tv.MainActivity"))
+                // Brskalnik naj ve, od kod je prisel: ob izhodu se vrne v Safeer OS, ne na Android.
+                .putExtra("iz_safeer_os", packageName)
+        else Intent(this, si.safeer.tv.MainActivity::class.java)
+        return namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    /** Odpre splet (brskalnik sosede ali vgrajenega), po zelji z naslovom. */
     private fun odpriVBrskalniku(url: String?) {
-        val namera = Intent(this, si.safeer.tv.MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val namera = brskalnikNamera()
         if (url != null) { namera.action = Intent.ACTION_VIEW; namera.data = Uri.parse(url) }
         try { startActivity(namera) } catch (e: Throwable) {
             Toast.makeText(this, e.message ?: "?", Toast.LENGTH_SHORT).show()
@@ -420,7 +472,14 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec); brskalnik pozna dodatek odpri_link. */
     private fun odpriLinkVBrskalniku() {
-        val namera = Intent(this, si.safeer.tv.MainActivity::class.java).putExtra("odpri_link", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val namera = brskalnikNamera().putExtra("odpri_link", true)
         try { startActivity(namera) } catch (_: Throwable) { }
+    }
+
+    private companion object {
+        /** Najmanjsa sirina kartice, pri kateri je opis se berljiv (velike kartice v vrsti Zacni). */
+        const val NAJMANJSA_VELIKA_DP = 200
+        /** Kartica naprave: ime in vloga v eni vrstici vsak. */
+        const val NAJMANJSA_NAPRAVA_DP = 220
     }
 }

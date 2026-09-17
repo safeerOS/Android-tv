@@ -11,7 +11,7 @@
     <ImageView
         android:id="@+id/ikona"
         android:layout_width="match_parent"
-        android:layout_height="74dp"
+        android:layout_height="92dp"
         android:scaleType="fitCenter"
         android:contentDescription="@null"/>
     <TextView
@@ -19,7 +19,7 @@
         style="@style/Os.Kartica.Naslov"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
         android:textSize="13sp"/>
 </LinearLayout>

@@ -10,7 +10,7 @@
     <string name="os_datoteke">Fichiers</string>
     <string name="os_datoteke_opis">Vidéos, musique et photos de ton ordinateur</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Jumelage, appareils et télécommande</string>
+    <string name="os_link_opis">Vos appareils. Connectés.</string>
     <string name="os_stanje_povezujem">Connexion…</string>
     <string name="os_stanje_povezan">Connecté · %1$s</string>
     <string name="os_stanje_ni">Pas de Safeer Link</string>
@@ -41,9 +41,9 @@
     <string name="os_scit">Bouclier</string>
     <string name="os_scit_preverjam">Vérification…</string>
     <string name="os_scit_ni_brskalnika">Nécessite Safeer Browser pour Android TV 2.1.100 ou plus récent</string>
-    <string name="os_scit_vklopljen_opis">Activé pour tout le téléviseur · bloqués aujourd\'hui : %1$d</string>
+    <string name="os_scit_vklopljen_opis">La protection est activée\n%1$d bloqués aujourd\'hui</string>
     <string name="os_scit_prekinjen">Activé mais interrompu (un autre VPN ?) : ouvrez pour le réactiver</string>
-    <string name="os_scit_izklopljen_opis">Désactivé · activez-le pour bloquer publicités, traqueurs et domaines dangereux dans toutes les applications</string>
+    <string name="os_scit_izklopljen_opis">La protection est désactivée\nActivez-la pour toutes les applications du téléviseur</string>
     <string name="os_scit_izklopljen_kratko">Bouclier désactivé</string>
     <string name="os_stanje_krajevni">Mode local · ce téléviseur</string>
     <string name="os_stanje_ni_linka">Safeer Link est désactivé</string>
@@ -107,4 +107,7 @@
     <string name="os_spletne_dodaj_gumb">Ajouter</string>
     <string name="os_spletne_neveljaven">Cela ne ressemble pas à une adresse web.</string>
     <string name="os_spletne_ze_dodana">Cette page est déjà parmi tes applications web.</string>
+    <string name="os_izhod">Sortir vers Android</string>
+    <string name="os_izhod_opis">Afficher l\'écran d\'accueil du téléviseur ; Safeer OS reste installé</string>
+    <string name="os_izhod_ni">Impossible d\'ouvrir l\'écran d\'accueil du téléviseur</string>
 </resources>

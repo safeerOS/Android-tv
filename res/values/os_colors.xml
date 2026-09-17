@@ -10,4 +10,6 @@
     <color name="os_umirjeno">#B0BDC4</color>
     <color name="os_crta">#29333D</color>
     <color name="os_opozorilo">#F2B45C</color>
+    <!-- Sij okrog izbrane kartice: mint pri nizki prosojnosti, da fokus "diha" in ne krici. -->
+    <color name="os_sij">#3357D6AD</color>
 </resources>

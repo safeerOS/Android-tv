@@ -129,12 +129,6 @@ cd "$DIR"
 python3 tests/check_public_package.py
 ./gradlew --no-daemon :assembleRelease
 
-UNSIGNED="$(find "$DIR/build/outputs/apk" -name '*.apk' | head -n 1)"
-if [[ -z "$UNSIGNED" || ! -f "$UNSIGNED" ]]; then
-    echo "Gradle ni naredil APK." >&2
-    exit 1
-fi
-
 echo "✍️  Podpisujem s produkcijskim ključem za TV (keystore/safeer-tv-release.jks)..."
 # Google Android Developer Console (obvezno preverjanje razvijalcev, 2027 tudi v Sloveniji) veže ime paketa na
 # podpisni ključ: TV ima svoj ključ, ki nikoli ne zapusti tega računalnika (keystore/ je v .gitignore).
@@ -167,28 +161,43 @@ if [ ! -f "$RELEASE_KEYSTORE" ]; then
         -keypass "$RELEASE_KEY_PASS" \
         -dname "CN=Safeer Browser for Android TV, OU=Safeer Security, O=Safeer, L=Ljubljana, ST=Slovenia, C=SI"
 fi
-rm -rf "$DIR/build/signed"
-mkdir -p "$DIR/build/signed"
-java -jar "$TOOLS_DIR/uber-apk-signer.jar" \
-    --apks "$UNSIGNED" \
-    --out "$DIR/build/signed" \
-    --ks "$RELEASE_KEYSTORE" \
-    --ksAlias "$RELEASE_KEY_ALIAS" \
-    --ksPass "$RELEASE_STORE_PASS" \
-    --ksKeyPass "$RELEASE_KEY_PASS" \
-    --allowResign
 
-SIGNED="$(find "$DIR/build/signed" -name '*.apk' | head -n 1)"
-if [[ -z "$SIGNED" ]]; then
-    echo "Podpisani APK manjka." >&2
-    exit 1
-fi
+# Dve aplikaciji, dva APK-ja: brskalnik (si.safeer.tv) in Safeer OS (si.safeer.os).
+podpisi() {   # podpisi <okus> <cilj.apk>
+    local okus="$1" cilj="$2" nepodpisan
+    nepodpisan="$(find "$DIR/build/outputs/apk/$okus/release" -name '*.apk' | head -n 1)"
+    if [[ -z "$nepodpisan" || ! -f "$nepodpisan" ]]; then
+        echo "Gradle ni naredil APK za okus $okus." >&2
+        exit 1
+    fi
+    rm -rf "$DIR/build/signed/$okus"
+    mkdir -p "$DIR/build/signed/$okus"
+    java -jar "$TOOLS_DIR/uber-apk-signer.jar" \
+        --apks "$nepodpisan" \
+        --out "$DIR/build/signed/$okus" \
+        --ks "$RELEASE_KEYSTORE" \
+        --ksAlias "$RELEASE_KEY_ALIAS" \
+        --ksPass "$RELEASE_STORE_PASS" \
+        --ksKeyPass "$RELEASE_KEY_PASS" \
+        --allowResign
+    local podpisan
+    podpisan="$(find "$DIR/build/signed/$okus" -name '*.apk' | head -n 1)"
+    if [[ -z "$podpisan" ]]; then
+        echo "Podpisani APK okusa $okus manjka." >&2
+        exit 1
+    fi
+    cp "$podpisan" "$cilj"
+}
+
+rm -rf "$DIR/build/signed"
+podpisi brskalnik "$RELEASE_DIR/tv-browser-2-release.apk"
+podpisi os "$RELEASE_DIR/safeer-os-release.apk"
 
 FINAL_APK="$RELEASE_DIR/tv-browser-2-release.apk"
-cp "$SIGNED" "$FINAL_APK"
 cp "$FINAL_APK" "$DIR/TV-Browser-2.apk"
 cp "$FINAL_APK" "$DIR/Safeer-Browser.apk"
 cp "$FINAL_APK" "$RELEASE_DIR/safeer-browser-release.apk"
+cp "$RELEASE_DIR/safeer-os-release.apk" "$DIR/Safeer-OS.apk"
 
 echo "🔎 Preverjam, da je Media3 v dex..."
 VERIFY_DIR="$DIR/build/dexcheck"
@@ -209,10 +218,16 @@ echo "OK: Media3 ExoPlayer + DashMediaSource sta v dex."
 
 echo "🔎 Preverjam, da javni APK nima Xplore prijave..."
 python3 "$DIR/tests/check_public_package.py" "$DIR/TV-Browser-2.apk"
+python3 "$DIR/tests/check_public_package.py" "$DIR/Safeer-OS.apk"
 echo "OK: no authentication assets in APK."
+
+echo "🔎 Preverjam, da sta aplikaciji loceni..."
+python3 "$DIR/tests/preveri_loceni_aplikaciji.py" "$DIR/TV-Browser-2.apk" "$DIR/Safeer-OS.apk"
 
 echo ""
 echo "=========================================================="
-echo "ZGRAJEN SIGNED TV BROWSER 2 APK: $DIR/TV-Browser-2.apk"
+echo "ZGRAJENA SIGNED APK-JA:"
+echo "  brskalnik: $DIR/TV-Browser-2.apk"
+echo "  Safeer OS: $DIR/Safeer-OS.apk"
 echo "=========================================================="
-ls -lh "$DIR/TV-Browser-2.apk"
+ls -lh "$DIR/TV-Browser-2.apk" "$DIR/Safeer-OS.apk"

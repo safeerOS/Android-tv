@@ -11,7 +11,7 @@
     <string name="os_datoteke">Files</string>
     <string name="os_datoteke_opis">Videos, music and photos from your computer</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Pairing, devices and remote</string>
+    <string name="os_link_opis">Your devices. Connected.</string>
     <string name="os_stanje_povezujem">Connecting…</string>
     <string name="os_stanje_povezan">Connected · %1$s</string>
     <string name="os_stanje_ni">No Safeer Link</string>
@@ -42,9 +42,9 @@
     <string name="os_scit">Shield</string>
     <string name="os_scit_preverjam">Checking…</string>
     <string name="os_scit_ni_brskalnika">Needs Safeer Browser for Android TV 2.1.100 or newer</string>
-    <string name="os_scit_vklopljen_opis">On for the whole TV · blocked today: %1$d</string>
+    <string name="os_scit_vklopljen_opis">Protection is on\n%1$d blocked today</string>
     <string name="os_scit_prekinjen">On, but interrupted (another VPN?) — open to turn on again</string>
-    <string name="os_scit_izklopljen_opis">Off · turn on to block ads, trackers and dangerous domains in every app</string>
+    <string name="os_scit_izklopljen_opis">Protection is off\nTurn on for every app on this TV</string>
     <string name="os_scit_izklopljen_kratko">Shield is off</string>
     <string name="os_stanje_krajevni">Local mode · this TV</string>
     <string name="os_stanje_ni_linka">Safeer Link is off</string>
@@ -108,4 +108,7 @@
     <string name="os_spletne_dodaj_gumb">Add</string>
     <string name="os_spletne_neveljaven">That does not look like a web address.</string>
     <string name="os_spletne_ze_dodana">You already have this page among your web apps.</string>
+    <string name="os_izhod">Exit to Android</string>
+    <string name="os_izhod_opis">Show the TV home screen; Safeer OS stays installed</string>
+    <string name="os_izhod_ni">The TV home screen could not be opened</string>
 </resources>

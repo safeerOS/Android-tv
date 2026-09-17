@@ -49,6 +49,8 @@ class NastavitveActivity : Activity() {
         // Sistemsko okno je zaprto: nas zaslon se spet pokaze.
         koren.visibility = View.VISIBLE
         narisi()
+        // Scit je lahko v sosednji aplikaciji: stanje preberemo prek mostu in vrstico osvezimo.
+        Scit.stanje(this) { narisi() }
     }
 
     /**
@@ -78,7 +80,9 @@ class NastavitveActivity : Activity() {
                 getString(if (krajevni) R.string.os_stanje_nacin_krajevni else R.string.os_stanje_nacin_link)) { preklopiNacin(krajevni) },
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
-                getString(if (si.safeer.tv.scit.Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
+                getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
+            Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_izhod),
+                getString(R.string.os_izhod_opis), "") { izhod() },
         )
         prilagojevalnik.notifyDataSetChanged()
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
@@ -122,12 +126,31 @@ class NastavitveActivity : Activity() {
         narisi()
     }
 
+    /**
+     * Scit je na televizorju eden sam. Kadar je Safeer Browser namescen, je njegov in tu ga samo
+     * preklopimo prek mostu; sistemsko okno z dovoljenjem za VPN sme odpreti samo lastnik.
+     */
     private fun preklopiScit() {
-        val namera = Intent(this, si.safeer.tv.scit.ScitActivity::class.java)
-        if (si.safeer.tv.scit.Scit.jeVklopljen(this)) namera.putExtra(si.safeer.tv.scit.ScitActivity.EXTRA_IZKLOPI, true)
-        sistemskoOkno {
-            try { startActivity(namera) } catch (_: Throwable) { koren.visibility = View.VISIBLE }
+        if (Scit.jeVklopljen(this)) {
+            Scit.izklopi(this) { narisi() }
+            return
         }
+        Scit.vklopi(this) { s ->
+            if (s.potrebujeOkno) sistemskoOkno { Scit.odpriVklop(this) } else narisi()
+        }
+    }
+
+    /**
+     * Izhod v Android. Nicesar ne izklopimo: uporabnik samo pogleda domaci zaslon televizorja in se
+     * lahko takoj vrne. Ce hoce Safeer OS odstraniti z domacega zaslona za stalno, to naredi z
+     * vrstico "Domaci zaslon televizorja" zgoraj.
+     */
+    private fun izhod() {
+        if (!Zaganjalnik.izhodVAndroid(this)) {
+            Toast.makeText(this, getString(R.string.os_izhod_ni), Toast.LENGTH_LONG).show()
+            return
+        }
+        finish()
     }
 
     private inner class Prilagojevalnik : BaseAdapter() {

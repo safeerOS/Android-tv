@@ -38,8 +38,13 @@ object DomacaVrsta {
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /**
+     * Vrsto na domacem zaslonu televizorja vodi tisti, ki ima spletne aplikacije: kadar je Safeer OS
+     * namescen kot svoja aplikacija, je njegova - brskalnik svoje ne dela, da vrsti ne bi bili dve.
+     */
     fun podprto(c: Context): Boolean =
-        Build.VERSION.SDK_INT >= 26 && c.packageManager.hasSystemFeature("android.software.leanback")
+        Build.VERSION.SDK_INT >= 26 && c.packageManager.hasSystemFeature("android.software.leanback") &&
+            Sosed.os(c) == null
 
     /**
      * Uskladi vrsto s seznamom spletnih aplikacij: kanal ustvari, ce ga se ni, in vanj zapise
@@ -159,13 +164,19 @@ object DomacaVrsta {
 
     /** Odpre spletno aplikacijo cez ves zaslon, naravnost z domacega zaslona televizorja. */
     private fun nameraAplikacije(c: Context, url: String, ime: String): String =
-        Intent(c, si.safeer.tv.MainActivity::class.java)
+        (Sosed.brskalnik(c)?.let { Intent().setComponent(android.content.ComponentName(it, "si.safeer.tv.MainActivity")) }
+            ?: Intent(c, si.safeer.tv.MainActivity::class.java))
             .putExtra("spletna_aplikacija", url)
             .putExtra("aplikacija_ime", ime)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .toUri(Intent.URI_INTENT_SCHEME)
 
+    /**
+     * Kartica "odpri aplikacijo" pri vrsti. V Safeer OS je to domaci zaslon; v brskalniku, ki je
+     * sam (brez Safeer OS), pa brskalnik - domacega zaslona nima, ker to ni njegova naloga.
+     */
     private fun nameraDomov(c: Context): String =
-        Intent(c, DomovActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        (if (Sosed.smoOs(c)) Intent(c, DomovActivity::class.java) else Intent(c, si.safeer.tv.MainActivity::class.java))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .toUri(Intent.URI_INTENT_SCHEME)
 }

@@ -10,7 +10,7 @@
     <string name="os_datoteke">Dateien</string>
     <string name="os_datoteke_opis">Videos, Musik und Fotos vom Computer</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Kopplung, Geräte und Fernbedienung</string>
+    <string name="os_link_opis">Deine Geräte. Verbunden.</string>
     <string name="os_stanje_povezujem">Verbinde …</string>
     <string name="os_stanje_povezan">Verbunden · %1$s</string>
     <string name="os_stanje_ni">Kein Safeer Link</string>
@@ -41,9 +41,9 @@
     <string name="os_scit">Schild</string>
     <string name="os_scit_preverjam">Prüfe …</string>
     <string name="os_scit_ni_brskalnika">Braucht Safeer Browser für Android TV 2.1.100 oder neuer</string>
-    <string name="os_scit_vklopljen_opis">An für den ganzen Fernseher · heute blockiert: %1$d</string>
+    <string name="os_scit_vklopljen_opis">Schutz ist an\n%1$d heute blockiert</string>
     <string name="os_scit_prekinjen">An, aber unterbrochen (anderes VPN?) – öffnen zum erneuten Einschalten</string>
-    <string name="os_scit_izklopljen_opis">Aus · einschalten, um Werbung, Tracker und gefährliche Domains in jeder App zu blockieren</string>
+    <string name="os_scit_izklopljen_opis">Schutz ist aus\nEinschalten für jede App auf diesem Fernseher</string>
     <string name="os_scit_izklopljen_kratko">Schild ist aus</string>
     <string name="os_stanje_krajevni">Lokaler Modus · dieser Fernseher</string>
     <string name="os_stanje_ni_linka">Safeer Link ist aus</string>
@@ -107,4 +107,7 @@
     <string name="os_spletne_dodaj_gumb">Hinzufügen</string>
     <string name="os_spletne_neveljaven">Das sieht nicht nach einer Webadresse aus.</string>
     <string name="os_spletne_ze_dodana">Diese Seite ist schon bei deinen Web-Apps.</string>
+    <string name="os_izhod">Zurück zu Android</string>
+    <string name="os_izhod_opis">Startbildschirm des Fernsehers zeigen; Safeer OS bleibt installiert</string>
+    <string name="os_izhod_ni">Der Startbildschirm des Fernsehers konnte nicht geöffnet werden</string>
 </resources>

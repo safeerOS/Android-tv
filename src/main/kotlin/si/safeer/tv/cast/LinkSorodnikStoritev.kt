@@ -27,7 +27,8 @@ class LinkSorodnikStoritev : Service() {
             val komu = sporocilo.replyTo
             val podatki = sporocilo.data ?: Bundle()
             val odgovor = Message.obtain(null, ODGOVOR)
-            odgovor.data = pripraviOdgovor(podatki.getString("device_name") ?: "Safeer OS", podatki.getString("app") ?: "")
+            odgovor.data = pripraviOdgovor(podatki.getString("device_name") ?: "Safeer OS",
+                podatki.getString("app") ?: "", podatki.getBoolean("ne_zaganjaj", false))
             try { komu?.send(odgovor) } catch (e: Throwable) { Log.w(TAG, "Odgovora ni bilo mogoce poslati: ${e.message}") }
         }
         true
@@ -36,11 +37,19 @@ class LinkSorodnikStoritev : Service() {
     override fun onBind(intent: Intent?): IBinder? =
         if (intent?.action == DEJANJE) odzivnik.binder else null
 
-    private fun pripraviOdgovor(imeNaprave: String, paket: String): Bundle {
+    /**
+     * [neZaganjaj] = sorodnik samo pogleda, ali sredisce ze tece (uporabnik pri njem se ni izbral
+     * Safeer Linka). Takrat ga ne prizigamo: nicesar ne vklopimo namesto uporabnika.
+     */
+    private fun pripraviOdgovor(imeNaprave: String, paket: String, neZaganjaj: Boolean): Bundle {
         val app = applicationContext
         val b = Bundle()
         try {
             if (!HubKrmilnik.tece()) {
+                if (neZaganjaj) {
+                    Log.i(TAG, "Sredisce ne tece, sorodnik ($paket) ga ni zahteval - ne zaganjam.")
+                    return b
+                }
                 HubKrmilnik.zazeni(app, zapomni = true)
                 HubStoritev.zagotovi(app)
             }

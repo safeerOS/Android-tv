@@ -301,6 +301,32 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             intent.removeExtra(EXTRA_SPLETNA_APLIKACIJA)
             webViewContainer.post { vklopiNacinAplikacije(naslov, ime) }
         }
+        zapomniIzvor(intent)
+    }
+
+    /**
+     * Ce je brskalnik odprl Safeer OS, si to zapomnimo: ob izhodu iz brskalnika se vrnemo v
+     * Safeer OS. Uporabnik, ki je v lupini, ne sme nepricakovano pristati na zaslonu Androida -
+     * iz Safeer OS se gre ven samo takrat, kadar to sam izbere (nastavitve Safeer OS).
+     */
+    private fun zapomniIzvor(namera: Intent?) {
+        val paket = namera?.getStringExtra(EXTRA_IZ_SAFEER_OS)
+        if (!paket.isNullOrBlank()) izSafeerOs = paket
+    }
+
+    /** Konec brskanja: nazaj v Safeer OS, ce je brskalnik odprl on; sicer navaden konec. */
+    private fun koncajVrniSe() {
+        val paket = izSafeerOs
+        if (paket != null && paket != packageName) {
+            try {
+                startActivity(Intent()
+                    .setComponent(android.content.ComponentName(paket, "si.safeer.tv.os.DomovActivity"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
+            } catch (e: Throwable) {
+                android.util.Log.w("SafeerTV", "V Safeer OS se ni bilo mogoce vrniti: ${e.message}")
+            }
+        }
+        finish()
     }
 
     // ------------------------------------------------------------------ nacin aplikacije (spletne aplikacije Safeer OS)
@@ -393,6 +419,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      */
     /** Dodatek namere, s katerim Safeer OS odpre stran Safeer Link. */
     private val EXTRA_ODPRI_LINK = "odpri_link"
+    /** Dodatek namere: brskalnik je odprl Safeer OS in ob izhodu se vrnemo vanj, ne na Android. */
+    private val EXTRA_IZ_SAFEER_OS = "iz_safeer_os"
+    /** Paket Safeer OS, ce je brskalnik odprl on; sicer null. */
+    private var izSafeerOs: String? = null
     /** Dodatka, s katerima Safeer OS odpre spletno aplikacijo cez ves zaslon. */
     private val EXTRA_SPLETNA_APLIKACIJA = "spletna_aplikacija"
     private val EXTRA_APLIKACIJA_IME = "aplikacija_ime"
@@ -763,6 +793,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         if (intent != null) setIntent(intent)
+        zapomniIzvor(intent)
         if (obravnavajCastNamero(intent)) return
         if (intent?.getBooleanExtra(EXTRA_ODPRI_LINK, false) == true) {
             intent.removeExtra(EXTRA_ODPRI_LINK)
@@ -2430,7 +2461,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             if (pogled != null && pogled.canGoBack() && !TvSite.isBrowserHome(activeUrl())) { pogled.goBack(); return }
             izklopiNacinAplikacije()
             silenceBackgroundMedia("backWebApp")
-            finish()
+            koncajVrniSe()
             return
         }
 
@@ -2438,7 +2469,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (TvSite.isBrowserHome(curUrl)) {
             SafeerDbg.log("H220", "MainActivity.kt:back", "leave browser", JSONObject().put("url", curUrl.take(80)))
             silenceBackgroundMedia("backHome")
-            finish()
+            koncajVrniSe()
             return
         }
 
