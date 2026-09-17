@@ -4,5 +4,5 @@
 <resources>
     <dimen name="os_rob">48dp</dimen>
     <dimen name="os_kartica_sirina">272dp</dimen>
-    <dimen name="os_kartica_visina">166dp</dimen>
+    <dimen name="os_kartica_visina">150dp</dimen>
 </resources>

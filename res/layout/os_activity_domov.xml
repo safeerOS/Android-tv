@@ -5,7 +5,10 @@
     android:layout_height="match_parent"
     android:background="@color/os_ozadje"
     android:fillViewport="true"
-    android:scrollbars="none">
+    android:scrollbars="none"
+    android:clipToPadding="false"
+    android:requiresFadingEdge="vertical"
+    android:fadingEdgeLength="56dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,7 +17,7 @@
         android:paddingStart="@dimen/os_rob"
         android:paddingEnd="@dimen/os_rob"
         android:paddingTop="10dp"
-        android:paddingBottom="24dp">
+        android:paddingBottom="56dp">
 
         <!-- Glava: znak, ime, stanje Linka, ura -->
         <LinearLayout

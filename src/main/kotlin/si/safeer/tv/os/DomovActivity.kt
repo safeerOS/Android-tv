@@ -564,8 +564,31 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     // ------------------------------------------------------------------ pomozno
 
+    /**
+     * Ko fokus pride v vrsto, jo pripeljemo na zaslon **celo**, skupaj z njenim naslovom. Brez tega
+     * je zadnja vrsta prerezana na pol - kartice so odrezane po sredini in zaslon je videti
+     * pokvarjen, ceprav se le drsi. Vrstic ne lomimo: ali je cela vidna ali pa je (mehko) ni.
+     */
+    private fun pripeljiVrsto(v: View) {
+        val vrsta = v.parent as? View ?: return              // vrsta kartic
+        val drsnikVrste = vrsta.parent as? View ?: return    // vodoravni drsnik okoli nje
+        val naslovVisina = (44 * resources.displayMetrics.density).toInt()   // naslov odseka nad vrsto
+        val zgoraj = (drsnikVrste.top - naslovVisina).coerceAtLeast(0)
+        val spodaj = drsnikVrste.bottom + (16 * resources.displayMetrics.density).toInt()
+        val kje = drsnik.scrollY
+        val visina = drsnik.height
+        if (visina <= 0) return
+        val cilj = when {
+            zgoraj < kje -> zgoraj
+            spodaj > kje + visina -> spodaj - visina
+            else -> return
+        }
+        (drsnik as? android.widget.ScrollView)?.smoothScrollTo(0, cilj.coerceAtLeast(0))
+    }
+
     private val fokus = View.OnFocusChangeListener { v, ima ->
         v.animate().scaleX(if (ima) 1.04f else 1f).scaleY(if (ima) 1.04f else 1f).setDuration(120).start()
+        if (ima) v.post { pripeljiVrsto(v) }
         if (ima) (v.parent as? ViewGroup)?.let { it.requestChildFocus(v, v) }
     }
 
