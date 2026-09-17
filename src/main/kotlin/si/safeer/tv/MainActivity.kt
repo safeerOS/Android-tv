@@ -41,6 +41,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private lateinit var btnAddTab: Button
     private lateinit var btnTabCount: Button
     private lateinit var btnMenu: Button
+    /** Meni, odprt z daljinca s telefona: tipke daljinca gredo vanj, dokler je odprt. */
+    private var meniDaljinca: Dialog? = null
     private lateinit var pageProgressBar: ProgressBar
     internal lateinit var webViewContainer: FrameLayout
     internal lateinit var virtualPointerView: VirtualPointerView
@@ -696,11 +698,19 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     showBrowserStartPage()
                     return si.safeer.tv.link.Daljinec.Izid(true, "Domov")
                 }
+                val meni = meniDaljinca?.takeIf { it.isShowing }
+                if (ime == "menu") {
+                    // Sistemske tipke MENU brskalnik ne pozna: odpre (ali zapre) se isti meni kot z gumbom v vrstici.
+                    if (meni != null) meni.dismiss() else showMobileMenu()
+                    return si.safeer.tv.link.Daljinec.Izid(true, "Meni")
+                }
                 val koda = si.safeer.tv.link.Daljinec.TIPKE[ime]
                     ?: return si.safeer.tv.link.Daljinec.Izid(false, "Neznana tipka: $ime", koda = "neznana_tipka")
                 val zdaj = android.os.SystemClock.uptimeMillis()
-                dispatchKeyEvent(KeyEvent(zdaj, zdaj, KeyEvent.ACTION_DOWN, koda, 0))
-                dispatchKeyEvent(KeyEvent(zdaj, zdaj + 40, KeyEvent.ACTION_UP, koda, 0))
+                // Odprt meni je svoje okno: tipke mora dobiti on, sicer se premika stran pod njim.
+                val cilj: (KeyEvent) -> Boolean = if (meni != null) meni::dispatchKeyEvent else this::dispatchKeyEvent
+                cilj(KeyEvent(zdaj, zdaj, KeyEvent.ACTION_DOWN, koda, 0))
+                cilj(KeyEvent(zdaj, zdaj + 40, KeyEvent.ACTION_UP, koda, 0))
                 si.safeer.tv.link.Daljinec.Izid(true, "Tipka $ime")
             }
             "scroll" -> {
@@ -1891,6 +1901,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             dialog.dismiss()
         }
 
+        // Daljinec s telefona: tipke gredo v odprti meni (svoje okno), ne v dejavnost.
+        meniDaljinca = dialog
+        dialog.setOnDismissListener { if (meniDaljinca === dialog) meniDaljinca = null }
         dialog.show()
         dialog.findViewById<View>(R.id.rowMenuNewTab)?.requestFocus()
     }
