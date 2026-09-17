@@ -26,6 +26,7 @@ class NastavitveActivity : Activity() {
 
     private class Vrstica(val ikona: Int, val ime: String, val opis: String, val stanje: String, val ob: () -> Unit)
 
+    private lateinit var koren: View
     private lateinit var seznam: ListView
     private lateinit var opomba: TextView
     private val link by lazy { LinkUpravitelj.pridobi(this) }
@@ -35,6 +36,7 @@ class NastavitveActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.os_activity_nastavitve)
+        koren = findViewById(R.id.koren)
         seznam = findViewById(R.id.seznam)
         opomba = findViewById(R.id.opomba)
         opomba.text = getString(R.string.os_nastavitve_opomba)
@@ -44,7 +46,19 @@ class NastavitveActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // Sistemsko okno je zaprto: nas zaslon se spet pokaze.
+        koren.visibility = View.VISIBLE
         narisi()
+    }
+
+    /**
+     * Sistemska okna (izbira domacega zaslona, dovoljenje za Scit) so na televizorju prosojna in
+     * nasa vsebina prosevaja skoznje - besedilo cez besedilo, neberljivo. Zato svoj zaslon skrijemo,
+     * dokler je sistemsko okno spredaj; ob vrnitvi (onResume) ga spet pokazemo.
+     */
+    private fun sistemskoOkno(odpri: () -> Unit) {
+        koren.visibility = View.INVISIBLE
+        odpri()
     }
 
     private fun narisi() {
@@ -85,8 +99,11 @@ class NastavitveActivity : Activity() {
             .setTitle(getString(R.string.os_zaganjalnik))
             .setMessage(getString(R.string.os_zaganjalnik_vprasanje))
             .setPositiveButton(getString(R.string.os_zaganjalnik_vklopi)) { _, _ ->
-                if (!Zaganjalnik.ponudi(this)) {
-                    Toast.makeText(this, getString(R.string.os_zaganjalnik_ni_nastavitev), Toast.LENGTH_LONG).show()
+                sistemskoOkno {
+                    if (!Zaganjalnik.ponudi(this)) {
+                        koren.visibility = View.VISIBLE
+                        Toast.makeText(this, getString(R.string.os_zaganjalnik_ni_nastavitev), Toast.LENGTH_LONG).show()
+                    }
                 }
                 narisi()
             }
@@ -108,7 +125,9 @@ class NastavitveActivity : Activity() {
     private fun preklopiScit() {
         val namera = Intent(this, si.safeer.tv.scit.ScitActivity::class.java)
         if (si.safeer.tv.scit.Scit.jeVklopljen(this)) namera.putExtra(si.safeer.tv.scit.ScitActivity.EXTRA_IZKLOPI, true)
-        try { startActivity(namera) } catch (_: Throwable) { }
+        sistemskoOkno {
+            try { startActivity(namera) } catch (_: Throwable) { koren.visibility = View.VISIBLE }
+        }
     }
 
     private inner class Prilagojevalnik : BaseAdapter() {

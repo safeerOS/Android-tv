@@ -100,4 +100,11 @@
     <string name="os_scit_nastavitev_opis">DNS-Filter für den ganzen Fernseher, in jeder App</string>
     <string name="os_vklopljeno">Ein</string>
     <string name="os_izklopljeno">Aus</string>
+
+    <!-- Dodajanje spletne aplikacije: poljuben naslov, vnesen z daljincem -->
+    <string name="os_spletne_vnesi">Adresse eingeben …</string>
+    <string name="os_spletne_vnesi_namig">zum Beispiel wikipedia.org</string>
+    <string name="os_spletne_dodaj_gumb">Hinzufügen</string>
+    <string name="os_spletne_neveljaven">Das sieht nicht nach einer Webadresse aus.</string>
+    <string name="os_spletne_ze_dodana">Diese Seite ist schon bei deinen Web-Apps.</string>
 </resources>

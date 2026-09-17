@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Nastavitve Safeer OS: vrstice z naslovom in trenutnim stanjem, berljive z razdalje. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/koren"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@color/os_ozadje"
-    android:paddingStart="48dp"
-    android:paddingEnd="48dp"
+    android:paddingStart="@dimen/os_rob"
+    android:paddingEnd="@dimen/os_rob"
     android:paddingTop="36dp"
     android:paddingBottom="24dp">
 

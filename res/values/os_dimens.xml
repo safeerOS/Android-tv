@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mere Safeer OS. Rob je varen pas ob robu zaslona (overscan televizorjev), sirina kartice pa
+     je stalna: vrsta drsi, zato je besedilo na kartici enako berljivo pri stirih ali osmih. -->
+<resources>
+    <dimen name="os_rob">48dp</dimen>
+    <dimen name="os_kartica_sirina">272dp</dimen>
+    <dimen name="os_kartica_visina">150dp</dimen>
+</resources>

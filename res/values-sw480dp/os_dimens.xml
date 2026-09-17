@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ozji zasloni (720p in manjsi televizorji, zasloni naprav): manjsi rob in ozja kartica,
+     da sta na zaslonu vedno vidni vsaj dve celi kartici in besedilo se ne rezhe. -->
+<resources>
+    <dimen name="os_rob">32dp</dimen>
+    <dimen name="os_kartica_sirina">232dp</dimen>
+    <dimen name="os_kartica_visina">144dp</dimen>
+</resources>

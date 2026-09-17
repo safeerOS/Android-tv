@@ -100,4 +100,11 @@
     <string name="os_scit_nastavitev_opis">Filtrado DNS para todo el televisor, en todas las apps</string>
     <string name="os_vklopljeno">Activado</string>
     <string name="os_izklopljeno">Desactivado</string>
+
+    <!-- Dodajanje spletne aplikacije: poljuben naslov, vnesen z daljincem -->
+    <string name="os_spletne_vnesi">Introducir una dirección…</string>
+    <string name="os_spletne_vnesi_namig">por ejemplo wikipedia.org</string>
+    <string name="os_spletne_dodaj_gumb">Añadir</string>
+    <string name="os_spletne_neveljaven">Eso no parece una dirección web.</string>
+    <string name="os_spletne_ze_dodana">Esta página ya está entre tus aplicaciones web.</string>
 </resources>
