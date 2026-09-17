@@ -11,8 +11,8 @@ android {
     defaultConfig {
         minSdk 28
         targetSdk 34
-        versionCode 211
-        versionName '2.1.102'
+        versionCode 212
+        versionName '2.1.103'
     }
 
     // Dve loceni aplikaciji iz ene kode. Android ju vidi kot dve aplikaciji (svoje ime, ikona,
