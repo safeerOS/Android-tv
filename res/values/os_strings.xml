@@ -155,4 +155,15 @@
     <!-- Uporabnik si vrsto spletnih aplikacij uredi sam -->
     <string name="os_spletne_levo">Move left</string>
     <string name="os_spletne_desno">Move right</string>
+    <!-- Programi racunalnika na televizorju -->
+    <string name="os_programi">Computer programs</string>
+    <string name="os_programi_naslov">What is on your computer</string>
+    <string name="os_programi_opis">Start a program on your computer with the remote</string>
+    <string name="os_programi_nalagam">Asking the computer...</string>
+    <string name="os_programi_prazno">The computer did not offer any program.</string>
+    <string name="os_programi_ni_racunalnika">No computer in Safeer Link is sharing its programs. In Safeer Control on the computer, turn on \'Programs for the TV\'.</string>
+    <string name="os_programi_ni_povezave">Safeer Link is not connected, so there is no computer to ask.</string>
+    <string name="os_programi_izklopljeno">%1$s does not share its programs. In Safeer Control on that computer, turn on \'Programs for the TV\'.</string>
+    <string name="os_programi_napaka">It did not work: %1$s</string>
+    <string name="os_programi_zagnan">%1$s is starting on %2$s - on the computer screen, not here.</string>
 </resources>

@@ -154,4 +154,15 @@
     <!-- Uporabnik si vrsto spletnih aplikacij uredi sam -->
     <string name="os_spletne_levo">Nach links verschieben</string>
     <string name="os_spletne_desno">Nach rechts verschieben</string>
+    <!-- Programi racunalnika na televizorju -->
+    <string name="os_programi">Programme des Computers</string>
+    <string name="os_programi_naslov">Was auf deinem Computer ist</string>
+    <string name="os_programi_opis">Starte mit der Fernbedienung ein Programm auf deinem Computer</string>
+    <string name="os_programi_nalagam">Ich frage den Computer ...</string>
+    <string name="os_programi_prazno">Der Computer hat kein Programm angeboten.</string>
+    <string name="os_programi_ni_racunalnika">Kein Computer in Safeer Link teilt seine Programme. Schalte in Safeer Control auf dem Computer \'Programme für den Fernseher\' ein.</string>
+    <string name="os_programi_ni_povezave">Safeer Link ist nicht verbunden, es gibt also keinen Computer zum Fragen.</string>
+    <string name="os_programi_izklopljeno">%1$s teilt seine Programme nicht. Schalte in Safeer Control auf diesem Computer \'Programme für den Fernseher\' ein.</string>
+    <string name="os_programi_napaka">Es hat nicht geklappt: %1$s</string>
+    <string name="os_programi_zagnan">%1$s startet auf %2$s - auf dem Bildschirm des Computers, nicht hier.</string>
 </resources>

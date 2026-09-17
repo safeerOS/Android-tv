@@ -154,4 +154,15 @@
     <!-- Uporabnik si vrsto spletnih aplikacij uredi sam -->
     <string name="os_spletne_levo">Premakni levo</string>
     <string name="os_spletne_desno">Premakni desno</string>
+    <!-- Programi racunalnika na televizorju -->
+    <string name="os_programi">Programi računalnika</string>
+    <string name="os_programi_naslov">Kar imaš na računalniku</string>
+    <string name="os_programi_opis">Z daljincem zaženi program na svojem računalniku</string>
+    <string name="os_programi_nalagam">Sprašujem računalnik ...</string>
+    <string name="os_programi_prazno">Računalnik ni ponudil nobenega programa.</string>
+    <string name="os_programi_ni_racunalnika">Noben računalnik v Safeer Linku ne deli svojih programov. V Safeer Controlu na računalniku vklopi \'Programi za televizor\'.</string>
+    <string name="os_programi_ni_povezave">Safeer Link ni povezan, zato ni računalnika, ki bi ga vprašali.</string>
+    <string name="os_programi_izklopljeno">%1$s svojih programov ne deli. V Safeer Controlu na tem računalniku vklopi \'Programi za televizor\'.</string>
+    <string name="os_programi_napaka">Ni šlo: %1$s</string>
+    <string name="os_programi_zagnan">%1$s se zaganja na %2$s - na zaslonu računalnika, ne tukaj.</string>
 </resources>

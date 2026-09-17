@@ -154,4 +154,15 @@
     <!-- Uporabnik si vrsto spletnih aplikacij uredi sam -->
     <string name="os_spletne_levo">Déplacer à gauche</string>
     <string name="os_spletne_desno">Déplacer à droite</string>
+    <!-- Programi racunalnika na televizorju -->
+    <string name="os_programi">Programmes de l\'ordinateur</string>
+    <string name="os_programi_naslov">Ce que tu as sur ton ordinateur</string>
+    <string name="os_programi_opis">Lance un programme de ton ordinateur avec la télécommande</string>
+    <string name="os_programi_nalagam">Je demande à l\'ordinateur...</string>
+    <string name="os_programi_prazno">L\'ordinateur n\'a proposé aucun programme.</string>
+    <string name="os_programi_ni_racunalnika">Aucun ordinateur dans Safeer Link ne partage ses programmes. Dans Safeer Control sur l\'ordinateur, active \'Programmes pour le téléviseur\'.</string>
+    <string name="os_programi_ni_povezave">Safeer Link n\'est pas connecté, il n\'y a donc aucun ordinateur à interroger.</string>
+    <string name="os_programi_izklopljeno">%1$s ne partage pas ses programmes. Dans Safeer Control sur cet ordinateur, active \'Programmes pour le téléviseur\'.</string>
+    <string name="os_programi_napaka">Ça n\'a pas marché : %1$s</string>
+    <string name="os_programi_zagnan">%1$s démarre sur %2$s - sur l\'écran de l\'ordinateur, pas ici.</string>
 </resources>

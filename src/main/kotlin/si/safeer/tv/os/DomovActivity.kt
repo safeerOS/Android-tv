@@ -116,6 +116,9 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         val kje = link.imeSredisca.ifBlank { getString(R.string.os_naprava_tv) }
         if (link.povezan) pokaziStanje(true, getString(R.string.os_stanje_povezan, kje))
         narisiNaprave(naprave.filter { it.id != Identiteta.id(this) })
+        // Racunalnik se je javil (ali odsel): vrsta Zacni dobi ali izgubi kartico s programi.
+        val programi = naprave.any { it.zmoznosti.contains("apps") && it.id != Identiteta.id(this) }
+        if (programi != imamoPrograme) { imamoPrograme = programi; narisiZacni() }
     }
 
     override fun naNaslov(url: String, naslov: String, od: String) {
@@ -138,6 +141,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     private var karticaDatoteke: View? = null
     private var karticaLink: View? = null
+    /** Ali kateri racunalnik v Linku deli svoje programe (zmoznost "apps"). */
+    private var imamoPrograme = false
 
     private fun narisiZacni() {
         vrstaZacni.removeAllViews()
@@ -151,11 +156,20 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (link.povezan) odpriLinkVBrskalniku() else vprasajZaNacin()
         }
         karticaScit = dodajVeliko(R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() }
+        // Programi racunalnika: kartico pokazemo samo, kadar jih kaksen racunalnik res deli -
+        // sicer bi obljubljala nekaj, cesar ni.
+        if (imamoPrograme) {
+            dodajVeliko(R.drawable.os_ikona_racunalnik, getString(R.string.os_programi), getString(R.string.os_programi_opis)) {
+                startActivity(Intent(this, AplikacijeHostaActivity::class.java))
+            }
+        }
         dodajVeliko(R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve), getString(R.string.os_nastavitve_opis)) {
             startActivity(Intent(this, NastavitveActivity::class.java))
         }
         uravnajVrsto(vrstaZacni, NAJMANJSA_VELIKA_DP)
-        vrstaZacni.getChildAt(0)?.requestFocus()
+        // Fokus prevzamemo samo, kadar ga nihce nima (prvi izris). Ce uporabnik ravno izbira
+        // spodaj, ga racunalnik, ki se je pravkar javil, ne sme vreci nazaj gor.
+        if (currentFocus == null) vrstaZacni.getChildAt(0)?.requestFocus()
         osveziKartice()
     }
 

@@ -222,6 +222,12 @@ object SpletneAplikacije {
         return crkaDrawable(c, a.ime.ifBlank { gostitelj(a.url) }, a.barva)
     }
 
+    /**
+     * Ista obdelava za ikono, ki ne pride s spleta (na primer ikona programa racunalnika iz
+     * `apps.list`): vrne zaobljeno ploscico enake velikosti kot pri spletnih aplikacijah.
+     */
+    fun ikonaIzSlike(c: Context, slika: Bitmap): Drawable = BitmapDrawable(c.resources, oblikuj(c, slika))
+
     /** Stranica oblikovane ikone v pikah (kartica ji da 92dp visine). */
     private fun stranica(c: Context): Int = (c.resources.displayMetrics.density * 92).toInt().coerceAtLeast(92)
 

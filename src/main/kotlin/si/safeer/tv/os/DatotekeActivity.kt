@@ -93,11 +93,13 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
         // povezave, odpremo datoteke tega televizorja.
         val kandidati = if (link.jeKrajevni()) emptyList() else link.racunalnikiZDatotekami()
         val r = kandidati.firstOrNull { it.id == zeleni }
+        // Kadar je racunalnik na voljo, uporabnika vedno najprej vprasamo, od kod hoce datoteke -
+        // s tega televizorja ali z racunalnika. Prej smo pri enem samem racunalniku to preskocili
+        // in uporabnik je padel naravnost v deljene mape, ne da bi imel izbiro.
         when {
             intent.getBooleanExtra(EXTRA_KRAJEVNO, false) || link.jeKrajevni() -> odpriKrajevno()
             r != null -> odpriRacunalnik(r)
-            !link.povezan && kandidati.isEmpty() -> odpriKrajevno()
-            zeleni == null && kandidati.size == 1 -> odpriRacunalnik(kandidati[0])
+            kandidati.isEmpty() -> odpriKrajevno()
             else -> pokaziRacunalnike(kandidati)
         }
     }
@@ -298,9 +300,11 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (r == null) {
             // Racunalnik se je pravkar prikljucil (ali odsel): seznam brez ponovnega odpiranja zaslona.
             if (izbiramRacunalnik || vnosi.isEmpty()) {
-                val edini = z.singleOrNull()
-                if (edini != null && intent.getStringExtra(EXTRA_RACUNALNIK).let { it == null || it == edini.id }) odpriRacunalnik(edini)
-                else pokaziRacunalnike(z)
+                // Racunalnik, ki ga je uporabnik ze izbral (kartica naprave na domacem zaslonu),
+                // odpremo takoj; sicer ostane izbira pri njem - tudi kadar je racunalnik en sam.
+                val zeleni = intent.getStringExtra(EXTRA_RACUNALNIK)
+                val izbran = if (zeleni != null) z.firstOrNull { it.id == zeleni } else null
+                if (izbran != null) odpriRacunalnik(izbran) else pokaziRacunalnike(z)
             }
         } else if (z.none { it.id == r.id }) {
             pokaziRacunalnike(z)

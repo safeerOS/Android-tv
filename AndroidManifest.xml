@@ -152,6 +152,9 @@
         <activity android:name="si.safeer.tv.os.DatotekeActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
             android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
         <activity android:name="si.safeer.tv.os.PredvajalnikActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Predvajalnik"
             android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
