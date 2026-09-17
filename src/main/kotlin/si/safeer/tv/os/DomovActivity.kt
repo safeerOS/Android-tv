@@ -114,7 +114,10 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (link.povezan) pokaziStanje(true, getString(R.string.os_stanje_povezan, kje))
         // Racunalnik se je javil (ali odsel): vrsta Zacni dobi ali izgubi kartico s programi.
         val programi = naprave.any { it.zmoznosti.contains("apps") && it.id != Identiteta.id(this) }
-        if (programi != imamoPrograme) { imamoPrograme = programi; narisiZacni() }
+        val zaslon = naprave.any { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        if (programi != imamoPrograme || zaslon != imamoZaslon) {
+            imamoPrograme = programi; imamoZaslon = zaslon; narisiZacni()
+        }
     }
 
     override fun naNaslov(url: String, naslov: String, od: String) {
@@ -139,6 +142,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var karticaLink: View? = null
     /** Ali kateri racunalnik v Linku deli svoje programe (zmoznost "apps"). */
     private var imamoPrograme = false
+    /** Ali kateri racunalnik v Linku deli svoj zaslon (zmoznost "desktop"). */
+    private var imamoZaslon = false
 
     /** Ena kartica v vrsti Zacni; [kljuc] se shrani v vrstni red, zato se nikoli ne spremeni. */
     private class Zacni(val kljuc: String, val ikona: Int, val naslov: String, val opis: String, val ob: () -> Unit)
@@ -166,6 +171,13 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             else vprasajZaNacin()
         })
         vse.add(Zacni("scit", R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() })
+        // Zaslon racunalnika: kartica se pokaze samo, kadar ga racunalnik res deli.
+        if (imamoZaslon) {
+            vse.add(Zacni("zaslon", R.drawable.os_ikona_ospredje, getString(R.string.os_zaslon),
+                getString(R.string.os_zaslon_opis_kakovost, ZaslonNastavitve.ime(this))) {
+                startActivity(Intent(this, ZaslonActivity::class.java))
+            })
+        }
         // Programi racunalnika: kartico pokazemo samo, kadar jih kaksen racunalnik res deli -
         // sicer bi obljubljala nekaj, cesar ni.
         if (imamoPrograme) {
@@ -203,12 +215,29 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun moznostiZacni(z: Zacni, red: List<String>) {
         val mesto = red.indexOf(z.kljuc)
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        // Pri zaslonu racunalnika je pod dolgim pritiskom se kakovost slike.
+        if (z.kljuc == "zaslon") dejanja.add(getString(R.string.os_zaslon_kakovost) to { izberiKakovostZaslona() })
         if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniZacni(z, red, -1) })
         if (mesto in 0 until red.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniZacni(z, red, 1) })
         if (dejanja.isEmpty()) return
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(z.naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+    }
+
+    /** Kakovost zrcaljenja: kar izbere uporabnik, velja pri naslednjem zagonu zaslona. */
+    private fun izberiKakovostZaslona() {
+        val imena = ZaslonNastavitve.IMENA.map { getString(it) }.toTypedArray()
+        val zdaj = ZaslonNastavitve.OZNAKE.indexOf(ZaslonNastavitve.kakovost(this))
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_zaslon_kakovost))
+            .setSingleChoiceItems(imena, zdaj) { okno, i ->
+                ZaslonNastavitve.nastavi(this, ZaslonNastavitve.OZNAKE[i])
+                okno.dismiss()
+                narisiZacni("zaslon")
+            }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .show()
     }

@@ -187,4 +187,22 @@
     <string name="os_aplikacije_odstranjena">%1$s ni več na domačem zaslonu.</string>
     <string name="os_aplikacije_odstrani">Umakni z domačega zaslona</string>
     <string name="os_aplikacije_izberi">Izberi aplikacije</string>
+    <!-- Zaslon racunalnika na televizorju -->
+    <string name="os_zaslon">Zaslon računalnika</string>
+    <string name="os_zaslon_opis">Poglej računalnik na televizorju in delaj na njem od tu</string>
+    <string name="os_zaslon_povezujem">Povezujem se z računalnikom ...</string>
+    <string name="os_zaslon_prosim">Prosim %1$s za njegov zaslon ...</string>
+    <string name="os_zaslon_ni_racunalnika">Noben računalnik v Safeer Linku ne deli zaslona. V Safeer Controlu na računalniku vklopi \'Zaslon za televizor\'.</string>
+    <string name="os_zaslon_ni_povezave">Safeer Link ni povezan, zato ni računalnika, ki bi ga vprašali.</string>
+    <string name="os_zaslon_ni_dovoljeno">%1$s zaslona ne deli. V Safeer Controlu na tem računalniku vklopi \'Zaslon za televizor\'.</string>
+    <string name="os_zaslon_napaka">Ni šlo: %1$s</string>
+    <string name="os_zaslon_koncano">Računalnik je končal sejo.</string>
+    <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f sličic/s · %4$.1f Mb/s · dekoder %5$d ms</string>
+    <string name="os_zaslon_kakovost">Kakovost slike</string>
+    <string name="os_zaslon_nizka">Nizka (720p)</string>
+    <string name="os_zaslon_srednja">Srednja (1080p 30)</string>
+    <string name="os_zaslon_visoka">Visoka (1080p 60)</string>
+    <string name="os_zaslon_najvisja">Najvišja (1080p 60, najostrejše)</string>
+    <string name="os_zaslon_ponovno">Povezava je padla. Poskušam znova ...</string>
+    <string name="os_zaslon_opis_kakovost">Poglej računalnik na televizorju in delaj na njem od tu · %1$s</string>
 </resources>

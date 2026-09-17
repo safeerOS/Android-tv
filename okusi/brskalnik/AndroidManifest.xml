@@ -71,6 +71,7 @@
         <activity android:name="si.safeer.tv.os.DomovActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.NastavitveActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.DatotekeActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.ZaslonActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.AplikacijeTvActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.NapraveActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity" tools:node="remove" />

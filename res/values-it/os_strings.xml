@@ -187,4 +187,22 @@
     <string name="os_aplikacije_odstranjena">%1$s non è più nella schermata iniziale.</string>
     <string name="os_aplikacije_odstrani">Togli dalla schermata iniziale</string>
     <string name="os_aplikacije_izberi">Scegli le app</string>
+    <!-- Zaslon racunalnika na televizorju -->
+    <string name="os_zaslon">Schermo del computer</string>
+    <string name="os_zaslon_opis">Guarda il computer sul televisore e lavoraci da qui</string>
+    <string name="os_zaslon_povezujem">Mi collego al computer...</string>
+    <string name="os_zaslon_prosim">Chiedo lo schermo a %1$s...</string>
+    <string name="os_zaslon_ni_racunalnika">Nessun computer in Safeer Link condivide lo schermo. In Safeer Control sul computer attiva \'Schermo per il televisore\'.</string>
+    <string name="os_zaslon_ni_povezave">Safeer Link non è connesso, quindi non c\'è nessun computer da interrogare.</string>
+    <string name="os_zaslon_ni_dovoljeno">%1$s non condivide lo schermo. In Safeer Control su quel computer attiva \'Schermo per il televisore\'.</string>
+    <string name="os_zaslon_napaka">Non ha funzionato: %1$s</string>
+    <string name="os_zaslon_koncano">Il computer ha terminato la sessione.</string>
+    <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f fps · %4$.1f Mb/s · decoder %5$d ms</string>
+    <string name="os_zaslon_kakovost">Qualità dell\'immagine</string>
+    <string name="os_zaslon_nizka">Bassa (720p)</string>
+    <string name="os_zaslon_srednja">Media (1080p 30)</string>
+    <string name="os_zaslon_visoka">Alta (1080p 60)</string>
+    <string name="os_zaslon_najvisja">Massima (1080p 60, più nitida)</string>
+    <string name="os_zaslon_ponovno">La connessione è caduta. Riprovo...</string>
+    <string name="os_zaslon_opis_kakovost">Guarda il computer sul televisore e lavoraci da qui · %1$s</string>
 </resources>
