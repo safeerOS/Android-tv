@@ -45,7 +45,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         pogled = findViewById(R.id.povrsina)
         sporocilo = findViewById(R.id.sporocilo)
         meritve = findViewById(R.id.meritve)
-        kakovost = intent.getStringExtra(EXTRA_KAKOVOST) ?: ZaslonNastavitve.kakovost(this)
+        // Vedno najboljse, kar zmore racunalnik: uporabniku ni treba izbirati med kakovostmi,
+        // ker za nizjo ni razloga - meritve kazejo, da ostrejsa slika skoraj nic ne stane.
+        kakovost = intent.getStringExtra(EXTRA_KAKOVOST) ?: "najvisja"
         pokazi(getString(R.string.os_zaslon_povezujem))
         pogled.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(h: SurfaceHolder) {

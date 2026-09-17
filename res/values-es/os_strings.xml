@@ -198,11 +198,5 @@
     <string name="os_zaslon_napaka">No ha funcionado: %1$s</string>
     <string name="os_zaslon_koncano">El ordenador ha terminado la sesión.</string>
     <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f fps · %4$.1f Mb/s · decodificador %5$d ms</string>
-    <string name="os_zaslon_kakovost">Calidad de imagen</string>
-    <string name="os_zaslon_nizka">Baja (720p)</string>
-    <string name="os_zaslon_srednja">Media (1080p 30)</string>
-    <string name="os_zaslon_visoka">Alta (1080p 60)</string>
-    <string name="os_zaslon_najvisja">Máxima (1080p 60, la más nítida)</string>
     <string name="os_zaslon_ponovno">Se ha cortado la conexión. Lo intento de nuevo...</string>
-    <string name="os_zaslon_opis_kakovost">Mira tu ordenador en el televisor y trabaja en él desde aquí · %1$s</string>
 </resources>

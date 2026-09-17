@@ -198,11 +198,5 @@
     <string name="os_zaslon_napaka">Es hat nicht geklappt: %1$s</string>
     <string name="os_zaslon_koncano">Der Computer hat die Sitzung beendet.</string>
     <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f Bilder/s · %4$.1f Mb/s · Dekoder %5$d ms</string>
-    <string name="os_zaslon_kakovost">Bildqualität</string>
-    <string name="os_zaslon_nizka">Niedrig (720p)</string>
-    <string name="os_zaslon_srednja">Mittel (1080p 30)</string>
-    <string name="os_zaslon_visoka">Hoch (1080p 60)</string>
-    <string name="os_zaslon_najvisja">Höchste (1080p 60, am schärfsten)</string>
     <string name="os_zaslon_ponovno">Die Verbindung ist abgebrochen. Neuer Versuch ...</string>
-    <string name="os_zaslon_opis_kakovost">Sieh deinen Computer auf dem Fernseher und arbeite von hier aus daran · %1$s</string>
 </resources>

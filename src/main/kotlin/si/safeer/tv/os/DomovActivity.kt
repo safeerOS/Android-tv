@@ -173,8 +173,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         vse.add(Zacni("scit", R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() })
         // Zaslon racunalnika: kartica se pokaze samo, kadar ga racunalnik res deli.
         if (imamoZaslon) {
-            vse.add(Zacni("zaslon", R.drawable.os_ikona_ospredje, getString(R.string.os_zaslon),
-                getString(R.string.os_zaslon_opis_kakovost, ZaslonNastavitve.ime(this))) {
+            vse.add(Zacni("zaslon", R.drawable.os_ikona_ospredje, getString(R.string.os_zaslon), getString(R.string.os_zaslon_opis)) {
                 startActivity(Intent(this, ZaslonActivity::class.java))
             })
         }
@@ -215,29 +214,12 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun moznostiZacni(z: Zacni, red: List<String>) {
         val mesto = red.indexOf(z.kljuc)
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
-        // Pri zaslonu racunalnika je pod dolgim pritiskom se kakovost slike.
-        if (z.kljuc == "zaslon") dejanja.add(getString(R.string.os_zaslon_kakovost) to { izberiKakovostZaslona() })
         if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniZacni(z, red, -1) })
         if (mesto in 0 until red.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniZacni(z, red, 1) })
         if (dejanja.isEmpty()) return
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(z.naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
-    }
-
-    /** Kakovost zrcaljenja: kar izbere uporabnik, velja pri naslednjem zagonu zaslona. */
-    private fun izberiKakovostZaslona() {
-        val imena = ZaslonNastavitve.IMENA.map { getString(it) }.toTypedArray()
-        val zdaj = ZaslonNastavitve.OZNAKE.indexOf(ZaslonNastavitve.kakovost(this))
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(getString(R.string.os_zaslon_kakovost))
-            .setSingleChoiceItems(imena, zdaj) { okno, i ->
-                ZaslonNastavitve.nastavi(this, ZaslonNastavitve.OZNAKE[i])
-                okno.dismiss()
-                narisiZacni("zaslon")
-            }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .show()
     }
