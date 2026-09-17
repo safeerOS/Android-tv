@@ -32,6 +32,8 @@
     <!-- Safeer Link: televizor strezi seznanjenim napravam v hisi tudi, ko brskalnik ni odprt.
          "connectedDevice" je edina vrsta storitve, ki jo Android dovoli zagnati po vklopu naprave. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Safeer Scit: filter DNS za ves televizor (VpnService; Android 14 zahteva tip systemExempted za VPN) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -145,6 +147,33 @@
             android:permission="si.safeer.tv.permission.LINK">
             <intent-filter>
                 <action android:name="si.safeer.tv.LINK_SORODNIK" />
+            </intent-filter>
+        </service>
+
+        <!-- Safeer Scit: filter DNS za ves televizor, v lastnem procesu (mapiran nabor domen, brez kopice brskalnika) -->
+        <service
+            android:name="si.safeer.tv.scit.ScitStoritev"
+            android:exported="false"
+            android:process=":scit"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="systemExempted">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+        <activity
+            android:name="si.safeer.tv.scit.ScitActivity"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+        <service
+            android:name="si.safeer.tv.scit.ScitSorodnikStoritev"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK">
+            <intent-filter>
+                <action android:name="si.safeer.tv.SCIT_SORODNIK" />
             </intent-filter>
         </service>
 

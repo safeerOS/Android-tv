@@ -54,6 +54,11 @@ data class PlainListSource(
      * FilterListEngine instead of being read as a host name. The threat engine ignores raw lists.
      */
     val raw: Boolean = false,
+    /**
+     * Only for Safeer Scit (the TV-wide DNS filter): ad and tracker domains that the browser's own
+     * threat engine must not treat as "dangerous" pages. The threat engine ignores these lists.
+     */
+    val dnsOnly: Boolean = false,
 ) {
     init {
         require(id.length in 1..40 && id.all { it in 'a'..'z' || it in '0'..'9' || it == '-' }) { "invalid list id" }

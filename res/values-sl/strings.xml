@@ -47,4 +47,12 @@
     <string name="hub_obvestilo_besedilo">Naprave v tvojem omrežju lahko pošljejo strani, videe in glasbo na ta televizor.</string>
     <string name="menu_popup_block">Prepreči pojavna okna</string>
     <string name="menu_download_dir">Mapa za prenose</string>
+    <string name="menu_scit">Safeer Ščit: ves televizor</string>
+    <string name="scit_ime">Safeer Ščit</string>
+    <string name="scit_obvestilo_opis">Filter DNS za ves televizor: oglasi, sledilci in nevarne domene so blokirani v vseh aplikacijah.</string>
+    <string name="scit_obvestilo_besedilo">Ščiti ves televizor · danes blokiranih: %1$d</string>
+    <string name="scit_vklopljen">🛡 Safeer Ščit je vklopljen: ves televizor je zaščiten</string>
+    <string name="scit_izklopljen">Safeer Ščit je izklopljen</string>
+    <string name="scit_napaka_dovoljenje">Safeer Ščit potrebuje tvoje dovoljenje za filtriranje DNS (sistemsko okno). Nič ni spremenjeno.</string>
+    <string name="scit_blokiranih_danes">danes blokiranih: %1$d</string>
 </resources>

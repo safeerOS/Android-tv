@@ -37,4 +37,11 @@
     <string name="predvajalnik_napaka">Wiedergabe fehlgeschlagen: %1$s</string>
     <string name="predvajalnik_namig">OK: Wiedergabe/Pause · ◀ ▶: 10 s · Zurück: schließen</string>
     <string name="slika_napaka">Bild konnte nicht geladen werden.</string>
+    <string name="scit">Schild</string>
+    <string name="scit_preverjam">Prüfe …</string>
+    <string name="scit_ni_brskalnika">Braucht Safeer Browser für Android TV 2.1.100 oder neuer</string>
+    <string name="scit_vklopljen_opis">An für den ganzen Fernseher · heute blockiert: %1$d</string>
+    <string name="scit_prekinjen">An, aber unterbrochen (anderes VPN?) – öffnen zum erneuten Einschalten</string>
+    <string name="scit_izklopljen_opis">Aus · einschalten, um Werbung, Tracker und gefährliche Domains in jeder App zu blockieren</string>
+    <string name="scit_izklopljen_kratko">Schild ist aus</string>
 </resources>

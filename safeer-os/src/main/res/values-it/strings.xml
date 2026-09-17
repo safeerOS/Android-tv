@@ -37,4 +37,11 @@
     <string name="predvajalnik_napaka">Riproduzione non riuscita: %1$s</string>
     <string name="predvajalnik_namig">OK: riproduci/pausa · ◀ ▶: 10 s · Indietro: chiudi</string>
     <string name="slika_napaka">Impossibile caricare l\'immagine.</string>
+    <string name="scit">Scudo</string>
+    <string name="scit_preverjam">Controllo…</string>
+    <string name="scit_ni_brskalnika">Richiede Safeer Browser per Android TV 2.1.100 o più recente</string>
+    <string name="scit_vklopljen_opis">Attivo per tutto il televisore · bloccati oggi: %1$d</string>
+    <string name="scit_prekinjen">Attivo ma interrotto (un\'altra VPN?): apri per riattivarlo</string>
+    <string name="scit_izklopljen_opis">Disattivato · attivalo per bloccare pubblicità, tracker e domini pericolosi in tutte le app</string>
+    <string name="scit_izklopljen_kratko">Scudo disattivato</string>
 </resources>

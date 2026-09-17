@@ -42,6 +42,11 @@ object ThreatFeedsUpdater {
             category = "Lažne trgovine in prevare", marker = "hagezi",
         ),
         PlainListSource(
+            id = "hagezi-pro", name = "HaGeZi Multi PRO (oglasi in sledenje, za Safeer Ščit)",
+            url = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt",
+            category = "Oglasi in sledenje (DNS)", marker = "hagezi", minEntries = 10000, dnsOnly = true,
+        ),
+        PlainListSource(
             id = "easylist", name = "EasyList (pravila za oglase)", url = "https://easylist.to/easylist/easylist.txt",
             category = "Oglasi (EasyList)", marker = "easylist", minEntries = 1000, raw = true,
         ),
@@ -69,8 +74,12 @@ object ThreatFeedsUpdater {
     fun start(context: Context) {
         if (agent != null) return
         val listAgent = ThreatListAgent(File(context.applicationContext.filesDir, "threat-lists"), SOURCES) { lists ->
-            ruleCount = ThreatBlockEngine.rebuildFromLists(lists.filter { !it.source.raw })
+            ruleCount = ThreatBlockEngine.rebuildFromLists(lists.filter { !it.source.raw && !it.source.dnsOnly })
             filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
+            // Safeer Scit (filter DNS za ves televizor) dobi vse domenske sezname, tudi hagezi PRO.
+            try { si.safeer.tv.scit.Scit.osveziNabor(context.applicationContext, lists) } catch (e: Throwable) {
+                android.util.Log.w("SafeerScit", "Nabora za Scit ni bilo mogoce zgraditi: ${e.message}")
+            }
             android.util.Log.i("SafeerSecurity", "Seznami v uporabi: ${lists.joinToString { "${it.source.name} (${it.entries.size})" }}" +
                 "; pravila EasyList: $filterRuleCount; pravila za skrivanje: ${AdBlockEngine.cosmeticRuleCount}")
         }
@@ -88,7 +97,7 @@ object ThreatFeedsUpdater {
     fun statusLine(): String {
         val lists = agent?.lists.orEmpty()
         if (lists.isEmpty()) return UiText.get(R.string.ui_lists_first_download)
-        return UiText.get(R.string.ui_lists_status, lists.filter { !it.source.raw }.sumOf { it.entries.size }, lists.size, SOURCES.size) +
+        return UiText.get(R.string.ui_lists_status, lists.filter { !it.source.raw && !it.source.dnsOnly }.sumOf { it.entries.size }, lists.size, SOURCES.size) +
             " · EasyList: $filterRuleCount (+${AdBlockEngine.cosmeticRuleCount})"
     }
 }

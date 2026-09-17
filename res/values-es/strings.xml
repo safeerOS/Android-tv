@@ -47,4 +47,12 @@
     <string name="hub_obvestilo_besedilo">Tus dispositivos pueden enviar páginas, vídeos y música a este televisor.</string>
     <string name="menu_popup_block">Bloquear ventanas emergentes</string>
     <string name="menu_download_dir">Carpeta de descargas</string>
+    <string name="menu_scit">Escudo Safeer: todo el televisor</string>
+    <string name="scit_ime">Escudo Safeer</string>
+    <string name="scit_obvestilo_opis">Filtro DNS para todo el televisor: anuncios, rastreadores y dominios peligrosos se bloquean en todas las apps.</string>
+    <string name="scit_obvestilo_besedilo">Protege todo el televisor · bloqueados hoy: %1$d</string>
+    <string name="scit_vklopljen">🛡 Escudo Safeer activado: todo el televisor está protegido</string>
+    <string name="scit_izklopljen">Escudo Safeer desactivado</string>
+    <string name="scit_napaka_dovoljenje">Escudo Safeer necesita tu permiso para filtrar DNS (diálogo del sistema). No se cambió nada.</string>
+    <string name="scit_blokiranih_danes">bloqueados hoy: %1$d</string>
 </resources>

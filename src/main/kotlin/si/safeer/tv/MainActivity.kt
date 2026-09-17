@@ -1918,6 +1918,20 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             dialog.dismiss()
         }
 
+        // 🛡 Safeer Scit: filter DNS za ves televizor (vse aplikacije). Vklop odpre sistemsko okno z dovoljenjem (prvic).
+        val cbScit = dialog.findViewById<CheckBox>(R.id.cbScit)
+        val scitVklopljen = si.safeer.tv.scit.Scit.jeVklopljen(this)
+        cbScit.isChecked = scitVklopljen
+        dialog.findViewById<android.widget.TextView>(R.id.txtMenuScit).text = if (scitVklopljen) {
+            UiText.get(R.string.menu_scit) + " · " + UiText.get(R.string.scit_blokiranih_danes, si.safeer.tv.scit.Scit.statistika(this).blokiranih)
+        } else UiText.get(R.string.menu_scit)
+        dialog.findViewById<LinearLayout>(R.id.rowMenuScit).setOnClickListener {
+            val namera = Intent(this, si.safeer.tv.scit.ScitActivity::class.java)
+            if (scitVklopljen) namera.putExtra(si.safeer.tv.scit.ScitActivity.EXTRA_IZKLOPI, true)
+            try { startActivity(namera) } catch (_: Throwable) { }
+            dialog.dismiss()
+        }
+
         // 📁 Kam se shranjujejo prenesene datoteke (velja tudi za datoteke prek Safeer Linka).
         val txtPrenosiMapa = dialog.findViewById<android.widget.TextView>(R.id.txtPrenosiMapa)
         txtPrenosiMapa.text = PrenosiMapa.opis(this)

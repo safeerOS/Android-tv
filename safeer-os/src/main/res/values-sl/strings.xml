@@ -37,4 +37,11 @@
     <string name="predvajalnik_napaka">Predvajanje ni uspelo: %1$s</string>
     <string name="predvajalnik_namig">OK: predvajaj/pavza · ◀ ▶: 10 s · Nazaj: zapri</string>
     <string name="slika_napaka">Slike ni bilo mogoče naložiti.</string>
+    <string name="scit">Ščit</string>
+    <string name="scit_preverjam">Preverjam …</string>
+    <string name="scit_ni_brskalnika">Potrebuje Safeer Browser za Android TV 2.1.100 ali novejši</string>
+    <string name="scit_vklopljen_opis">Vklopljen za ves televizor · danes blokiranih: %1$d</string>
+    <string name="scit_prekinjen">Vklopljen, a prekinjen (drug VPN?) – odpri za ponovni vklop</string>
+    <string name="scit_izklopljen_opis">Izklopljen · vklopi za blokiranje oglasov, sledilcev in nevarnih domen v vseh aplikacijah</string>
+    <string name="scit_izklopljen_kratko">Ščit je izklopljen</string>
 </resources>

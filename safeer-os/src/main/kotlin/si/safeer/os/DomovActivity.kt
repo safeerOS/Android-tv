@@ -64,6 +64,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         glavna.post(tikUre)
         narisiAplikacije()
         link.dodaj(this)
+        osveziScit()
     }
 
     override fun onStop() {
@@ -125,10 +126,45 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         dodajVeliko(R.drawable.ikona_link, getString(R.string.link), getString(R.string.link_opis)) {
             odpriLinkVBrskalniku()
         }
+        karticaScit = dodajVeliko(R.drawable.ikona_scit, getString(R.string.scit), getString(R.string.scit_preverjam)) { preklopiScit() }
         vrstaZacni.getChildAt(0)?.requestFocus()
     }
 
-    private fun dodajVeliko(ikona: Int, naslov: String, opis: String, ob: () -> Unit) {
+    // ------------------------------------------------------------------ Safeer Scit (filter DNS za ves televizor)
+
+    private var karticaScit: View? = null
+    private var scitStanje: Scit.Stanje? = null
+
+    private fun osveziScit() {
+        Scit.stanje(this) { pokaziScit(it) }
+    }
+
+    private fun pokaziScit(s: Scit.Stanje) {
+        scitStanje = s
+        val opis = karticaScit?.findViewById<TextView>(R.id.opis) ?: return
+        opis.text = when {
+            !s.naVoljo -> getString(R.string.scit_ni_brskalnika)
+            s.vklopljen && s.tece -> getString(R.string.scit_vklopljen_opis, s.blokiranih)
+            s.vklopljen -> getString(R.string.scit_prekinjen)
+            else -> getString(R.string.scit_izklopljen_opis)
+        }
+    }
+
+    private fun preklopiScit() {
+        val s = scitStanje
+        if (s == null || !s.naVoljo) { Toast.makeText(this, getString(R.string.scit_ni_brskalnika), Toast.LENGTH_LONG).show(); return }
+        if (s.vklopljen) {
+            Scit.izklopi(this) { pokaziScit(it); Toast.makeText(this, getString(R.string.scit_izklopljen_kratko), Toast.LENGTH_SHORT).show() }
+        } else {
+            Scit.vklopi(this) { nov ->
+                if (nov.potrebujeOkno || (!nov.vklopljen && nov.naVoljo)) Scit.odpriVklop(this) else pokaziScit(nov)
+            }
+        }
+        // Storitev se zazene ali ustavi sele trenutek kasneje: stanje preberemo se enkrat, ko je res novo.
+        glavna.postDelayed({ osveziScit() }, 2_500)
+    }
+
+    private fun dodajVeliko(ikona: Int, naslov: String, opis: String, ob: () -> Unit): View {
         val v = LayoutInflater.from(this).inflate(R.layout.kartica_velika, vrstaZacni, false)
         v.findViewById<ImageView>(R.id.ikona).setImageResource(ikona)
         v.findViewById<TextView>(R.id.naslov).text = naslov
@@ -136,6 +172,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         v.setOnClickListener { ob() }
         v.onFocusChangeListener = fokus
         vrstaZacni.addView(v)
+        return v
     }
 
     // ------------------------------------------------------------------ Naprave

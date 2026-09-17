@@ -28,5 +28,11 @@ class ZagonPrejemnik : BroadcastReceiver() {
         } catch (e: Throwable) {
             Log.w("SafeerHubZagon", "Zagona po vklopu ni bilo mogoce izvesti: ${e.message}")
         }
+        // Safeer Scit (filter DNS za ves televizor) se po vklopu / posodobitvi zazene sam, ce je vklopljen.
+        try {
+            si.safeer.tv.scit.Scit.zagotovi(app)
+        } catch (e: Throwable) {
+            Log.w("SafeerScit", "Zagona Scita po vklopu ni bilo mogoce izvesti: ${e.message}")
+        }
     }
 }

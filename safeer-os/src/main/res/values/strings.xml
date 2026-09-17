@@ -38,4 +38,11 @@
     <string name="predvajalnik_napaka">Playback failed: %1$s</string>
     <string name="predvajalnik_namig">OK: play/pause · ◀ ▶: 10 s · Back: close</string>
     <string name="slika_napaka">Couldn\'t load the picture.</string>
+    <string name="scit">Shield</string>
+    <string name="scit_preverjam">Checking…</string>
+    <string name="scit_ni_brskalnika">Needs Safeer Browser for Android TV 2.1.100 or newer</string>
+    <string name="scit_vklopljen_opis">On for the whole TV · blocked today: %1$d</string>
+    <string name="scit_prekinjen">On, but interrupted (another VPN?) — open to turn on again</string>
+    <string name="scit_izklopljen_opis">Off · turn on to block ads, trackers and dangerous domains in every app</string>
+    <string name="scit_izklopljen_kratko">Shield is off</string>
 </resources>
