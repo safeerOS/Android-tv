@@ -41,7 +41,7 @@
     <string name="os_scit">Bouclier</string>
     <string name="os_scit_preverjam">Vérification…</string>
     <string name="os_scit_ni_brskalnika">Nécessite Safeer Browser pour Android TV 2.1.100 ou plus récent</string>
-    <string name="os_scit_vklopljen_opis">La protection est activée\n%1$d bloqués aujourd\'hui</string>
+    <string name="os_scit_vklopljen_opis">La protection est activée\n%1$d publicités, traqueurs et domaines dangereux bloqués aujourd\'hui</string>
     <string name="os_scit_prekinjen">Activé mais interrompu (un autre VPN ?) : ouvrez pour le réactiver</string>
     <string name="os_scit_izklopljen_opis">La protection est désactivée\nActivez-la pour toutes les applications du téléviseur</string>
     <string name="os_scit_izklopljen_kratko">Bouclier désactivé</string>

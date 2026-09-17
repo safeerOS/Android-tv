@@ -42,7 +42,7 @@
     <string name="os_scit">Shield</string>
     <string name="os_scit_preverjam">Checking…</string>
     <string name="os_scit_ni_brskalnika">Needs Safeer Browser for Android TV 2.1.100 or newer</string>
-    <string name="os_scit_vklopljen_opis">Protection is on\n%1$d blocked today</string>
+    <string name="os_scit_vklopljen_opis">Protection is on\n%1$d ads, trackers and dangerous domains blocked today</string>
     <string name="os_scit_prekinjen">On, but interrupted (another VPN?) — open to turn on again</string>
     <string name="os_scit_izklopljen_opis">Protection is off\nTurn on for every app on this TV</string>
     <string name="os_scit_izklopljen_kratko">Shield is off</string>

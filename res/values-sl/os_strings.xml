@@ -41,7 +41,7 @@
     <string name="os_scit">Ščit</string>
     <string name="os_scit_preverjam">Preverjam …</string>
     <string name="os_scit_ni_brskalnika">Potrebuje Safeer Browser za Android TV 2.1.100 ali novejši</string>
-    <string name="os_scit_vklopljen_opis">Zaščita je vključena\n%1$d blokiranih danes</string>
+    <string name="os_scit_vklopljen_opis">Zaščita je vključena\nDanes blokiranih %1$d oglasov, sledilcev in nevarnih domen</string>
     <string name="os_scit_prekinjen">Vklopljen, a prekinjen (drug VPN?) – odpri za ponovni vklop</string>
     <string name="os_scit_izklopljen_opis">Zaščita je izklopljena\nVklopi za vse aplikacije na televizorju</string>
     <string name="os_scit_izklopljen_kratko">Ščit je izklopljen</string>

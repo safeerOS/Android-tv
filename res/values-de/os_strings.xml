@@ -41,7 +41,7 @@
     <string name="os_scit">Schild</string>
     <string name="os_scit_preverjam">Prüfe …</string>
     <string name="os_scit_ni_brskalnika">Braucht Safeer Browser für Android TV 2.1.100 oder neuer</string>
-    <string name="os_scit_vklopljen_opis">Schutz ist an\n%1$d heute blockiert</string>
+    <string name="os_scit_vklopljen_opis">Schutz ist an\nHeute %1$d Werbeanzeigen, Tracker und gefährliche Domains blockiert</string>
     <string name="os_scit_prekinjen">An, aber unterbrochen (anderes VPN?) – öffnen zum erneuten Einschalten</string>
     <string name="os_scit_izklopljen_opis">Schutz ist aus\nEinschalten für jede App auf diesem Fernseher</string>
     <string name="os_scit_izklopljen_kratko">Schild ist aus</string>

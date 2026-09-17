@@ -41,7 +41,7 @@
     <string name="os_scit">Scudo</string>
     <string name="os_scit_preverjam">Controllo…</string>
     <string name="os_scit_ni_brskalnika">Richiede Safeer Browser per Android TV 2.1.100 o più recente</string>
-    <string name="os_scit_vklopljen_opis">La protezione è attiva\n%1$d bloccati oggi</string>
+    <string name="os_scit_vklopljen_opis">La protezione è attiva\nOggi %1$d tra pubblicità, tracker e domini pericolosi bloccati</string>
     <string name="os_scit_prekinjen">Attivo ma interrotto (un\'altra VPN?): apri per riattivarlo</string>
     <string name="os_scit_izklopljen_opis">La protezione è disattivata\nAttivala per tutte le app del televisore</string>
     <string name="os_scit_izklopljen_kratko">Scudo disattivato</string>
