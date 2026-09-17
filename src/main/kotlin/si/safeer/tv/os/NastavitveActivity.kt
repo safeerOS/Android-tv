@@ -78,6 +78,9 @@ class NastavitveActivity : Activity() {
             Vrstica(R.drawable.os_ikona_link, getString(R.string.os_nacin),
                 getString(R.string.os_nacin_kratko),
                 getString(if (krajevni) R.string.os_stanje_nacin_krajevni else R.string.os_stanje_nacin_link)) { preklopiNacin(krajevni) },
+            Vrstica(R.drawable.os_ikona_racunalnik, getString(R.string.os_host),
+                getString(R.string.os_host_opis),
+                if (Host.jeOddaljen(this)) Host.gostitelj(this).orEmpty() else getString(R.string.os_host_doma)) { preklopiHost() },
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
@@ -124,6 +127,117 @@ class NastavitveActivity : Activity() {
             Toast.makeText(this, getString(R.string.os_nacin_krajevni_izbran), Toast.LENGTH_LONG).show()
         }
         narisi()
+    }
+
+    // ------------------------------------------------------------------ host (kje je racunalniska moc)
+
+    /**
+     * Host je privzeto doma. Kdor ima svoj streznik zunaj hise (najet ali v oblaku), ga tu vpise;
+     * seznanitev je enaka kot doma - koda in pripeto potrdilo - povemo pa mu naravnost, da v tem
+     * nacinu promet zapusti domace omrezje.
+     */
+    private fun preklopiHost() {
+        // Uporabnik je seznanitev ze zacel in sel po kodo na strezniku: ko se vrne, mora
+        // nadaljevati tam, kjer je ostal - ne zaceti znova z novo kodo.
+        val vTeku = Host.naslov(this)
+        if (!Host.jeOddaljen(this) && vTeku != null && si.safeer.tv.cast.HubPairing.cakaNaKodo()) {
+            vnesiKodoHosta(vTeku)
+            return
+        }
+        if (Host.jeOddaljen(this)) {
+            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.os_host))
+                .setMessage(getString(R.string.os_host_oddaljen_vprasanje, Host.gostitelj(this).orEmpty()))
+                .setPositiveButton(getString(R.string.os_host_domov)) { _, _ ->
+                    Host.domov(this)
+                    link.ponovnoPoveziSe()
+                    Toast.makeText(this, getString(R.string.os_host_spet_doma), Toast.LENGTH_LONG).show()
+                    narisi()
+                }
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .show()
+            return
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_host))
+            .setMessage(getString(R.string.os_host_vprasanje))
+            .setPositiveButton(getString(R.string.os_host_vnesi)) { _, _ -> vnesiNaslovHosta() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+    }
+
+    private fun vnesiNaslovHosta() {
+        val vnos = android.widget.EditText(this).apply {
+            setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+            hint = getString(R.string.os_host_naslov_namig)
+            setPadding(40, 30, 40, 30)
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_host_naslov))
+            .setMessage(getString(R.string.os_host_naslov_opis))
+            .setView(vnos)
+            .setPositiveButton(getString(R.string.os_naprej)) { _, _ ->
+                val url = Host.izVnosa(vnos.text?.toString().orEmpty())
+                if (url == null) {
+                    Toast.makeText(this, getString(R.string.os_host_naslov_napaka), Toast.LENGTH_LONG).show()
+                    vnesiNaslovHosta()
+                } else {
+                    zacniSeznanitevHosta(url)
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+        vnos.requestFocus()
+    }
+
+    private fun zacniSeznanitevHosta(url: String) {
+        // Ce je od prej odprta seznanitev (uporabnik je vmes zapustil zaslon), jo opustimo: stara
+        // prijava bi novo tiho zavrnila in uporabnik bi cakal na okno, ki ne bi prislo.
+        si.safeer.tv.cast.HubPairing.prekini()
+        Host.zapomniNaslov(this, url)
+        Toast.makeText(this, getString(R.string.os_host_povezujem), Toast.LENGTH_SHORT).show()
+        si.safeer.tv.cast.HubPairing.pair(this, url, Identiteta.id(this), "Safeer OS (" + android.os.Build.MODEL + ")",
+            { _, _ -> if (!isFinishing) vnesiKodoHosta(url) },
+            { uspelo -> if (!uspelo && !isFinishing) Toast.makeText(this, getString(R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show() })
+    }
+
+    private fun vnesiKodoHosta(url: String) {
+        val vnos = android.widget.EditText(this).apply {
+            setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            hint = getString(R.string.os_host_koda_namig)
+            setPadding(40, 30, 40, 30)
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_host_koda))
+            .setMessage(getString(R.string.os_host_koda_opis))
+            .setView(vnos)
+            .setPositiveButton(getString(R.string.os_host_poveziSe)) { _, _ -> potrdiKodoHosta(url, vnos.text?.toString().orEmpty()) }
+            .setNegativeButton(getString(R.string.os_preklici)) { _, _ -> si.safeer.tv.cast.HubPairing.prekini() }
+            .show()
+        vnos.requestFocus()
+    }
+
+    private fun potrdiKodoHosta(url: String, koda: String) {
+        si.safeer.tv.cast.HubPairing.potrdiKodo(this, koda, Identiteta.id(this)) { uspelo, napaka ->
+            if (isFinishing) return@potrdiKodo
+            val izid = si.safeer.tv.cast.HubPairing.zadnjaSeznanitev
+            if (uspelo && izid != null) {
+                Host.shrani(this, url, izid.zeton, izid.odtis, izid.hubId)
+                link.ponovnoPoveziSe()
+                Toast.makeText(this, getString(R.string.os_host_povezan, Host.gostitelj(this).orEmpty()), Toast.LENGTH_LONG).show()
+                narisi()
+                return@potrdiKodo
+            }
+            val sporocilo = when (napaka) {
+                "napacna_koda" -> getString(R.string.os_host_napacna_koda)
+                "prevec_poskusov" -> getString(R.string.os_host_prevec_poskusov)
+                else -> getString(R.string.os_host_ni_odgovora)
+            }
+            Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+            if (napaka == "napacna_koda") vnesiKodoHosta(url)
+        }
     }
 
     /**

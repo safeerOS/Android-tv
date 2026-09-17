@@ -110,4 +110,26 @@
     <string name="os_izhod">Salir a Android</string>
     <string name="os_izhod_opis">Muestra la pantalla de inicio del televisor; Safeer OS sigue instalado</string>
     <string name="os_izhod_ni">No se ha podido abrir la pantalla de inicio del televisor</string>
+    <string name="os_naprej">Siguiente</string>
+    <string name="os_host">Host (dónde está la potencia)</string>
+    <string name="os_host_opis">Tu red doméstica o tu propio servidor fuera de casa</string>
+    <string name="os_host_doma">Red doméstica</string>
+    <string name="os_host_vprasanje">Por defecto el host está en casa: Safeer Link se ejecuta en este televisor y los archivos vienen del ordenador de la misma casa; nada sale de tu red.\n\nTambién puedes usar tu propio servidor fuera de casa (alquilado o en la nube). Entonces el televisor se conecta a él por internet: el emparejamiento es igual que en casa (un código, con el certificado fijado), pero el tráfico (también tus archivos) sale de tu red doméstica y viaja a ese servidor. Usa solo un servidor que sea tuyo.</string>
+    <string name="os_host_vnesi">Introducir una dirección</string>
+    <string name="os_host_naslov">Dirección de tu servidor</string>
+    <string name="os_host_naslov_opis">Nombre o dirección IP, con puerto si no es el habitual. Ejemplo: mi-servidor.es o 203.0.113.7:8990</string>
+    <string name="os_host_naslov_namig">mi-servidor.es</string>
+    <string name="os_host_naslov_napaka">Eso no parece una dirección. Ejemplo: mi-servidor.es</string>
+    <string name="os_host_povezujem">Conectando con el servidor...</string>
+    <string name="os_host_koda">Código del servidor</string>
+    <string name="os_host_koda_opis">Safeer Link en ese servidor muestra un código. Escríbelo aquí. El código nunca viaja por la red; ambas partes solo demuestran que lo conocen.</string>
+    <string name="os_host_koda_namig">código de la pantalla</string>
+    <string name="os_host_poveziSe">Conectar</string>
+    <string name="os_host_povezan">Conectado con %1$s. Los archivos y las órdenes viajan ahora por internet hasta tu servidor.</string>
+    <string name="os_host_napacna_koda">Código incorrecto, o hay alguien en medio. Inténtalo de nuevo.</string>
+    <string name="os_host_prevec_poskusov">Demasiados intentos. Vuelve a iniciar el emparejamiento en el servidor.</string>
+    <string name="os_host_ni_odgovora">El servidor no ha respondido. Comprueba la dirección, que Safeer Link esté funcionando en él y que el puerto esté abierto.</string>
+    <string name="os_host_oddaljen_vprasanje">El host es %1$s, fuera de tu red doméstica. ¿Vuelvo a la red doméstica? Se olvida el token de ese servidor; puedes emparejarlo de nuevo cuando quieras.</string>
+    <string name="os_host_domov">Volver a la red doméstica</string>
+    <string name="os_host_spet_doma">El host vuelve a ser la red doméstica.</string>
 </resources>

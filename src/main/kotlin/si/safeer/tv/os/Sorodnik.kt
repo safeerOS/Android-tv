@@ -31,6 +31,9 @@ object Sorodnik {
      */
     fun zahtevaj(context: Context, dovoliZagon: Boolean = false, naprej: (Poverilnice?) -> Unit) {
         val app = context.applicationContext
+        // Uporabnik je host postavil ven iz hise (svoj strezniku v oblaku): sredisce je tam,
+        // poverilnice pa smo dobili ob seznanitvi s kodo. Doma zato nicesar ne zaganjamo.
+        Host.poverilnice(app)?.let { if (Host.jeOddaljen(app)) { naprej(it); return } }
         val brskalnik = Sosed.brskalnik(app)
         if (brskalnik != null) {
             prekBrskalnika(app, brskalnik, dovoliZagon, naprej)

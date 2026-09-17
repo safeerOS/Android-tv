@@ -111,4 +111,26 @@
     <string name="os_izhod">Exit to Android</string>
     <string name="os_izhod_opis">Show the TV home screen; Safeer OS stays installed</string>
     <string name="os_izhod_ni">The TV home screen could not be opened</string>
+    <string name="os_naprej">Next</string>
+    <string name="os_host">Host (where the computing power is)</string>
+    <string name="os_host_opis">Your home network, or your own server outside the house</string>
+    <string name="os_host_doma">Home network</string>
+    <string name="os_host_vprasanje">By default the host is at home: Safeer Link runs on this TV and the files come from your computer in the same house - nothing leaves your network.\n\nYou can also use your own server outside the house (a rented or cloud machine). Then the TV connects to it over the internet: pairing is the same as at home (a code, and the certificate is pinned), but the traffic - including your files - leaves your home network and travels to that server. Only use a server you control.</string>
+    <string name="os_host_vnesi">Enter an address</string>
+    <string name="os_host_naslov">Address of your server</string>
+    <string name="os_host_naslov_opis">Name or IP address, with a port if it is not the usual one. Example: moj-streznik.si or 203.0.113.7:8990</string>
+    <string name="os_host_naslov_namig">moj-streznik.si</string>
+    <string name="os_host_naslov_napaka">That does not look like an address. Example: moj-streznik.si</string>
+    <string name="os_host_povezujem">Connecting to the server...</string>
+    <string name="os_host_koda">Code from the server</string>
+    <string name="os_host_koda_opis">Safeer Link on that server shows a code. Type it here. The code never travels over the network; both sides only prove they know it.</string>
+    <string name="os_host_koda_namig">code from the screen</string>
+    <string name="os_host_poveziSe">Connect</string>
+    <string name="os_host_povezan">Connected to %1$s. Files and commands now travel over the internet to your server.</string>
+    <string name="os_host_napacna_koda">Wrong code, or someone else is in between. Try again.</string>
+    <string name="os_host_prevec_poskusov">Too many attempts. Start the pairing again on the server.</string>
+    <string name="os_host_ni_odgovora">The server did not answer. Check the address, that Safeer Link is running on it and that the port is open.</string>
+    <string name="os_host_oddaljen_vprasanje">The host is %1$s, outside your home network. Go back to the home network? The token for that server is forgotten; you can pair again at any time.</string>
+    <string name="os_host_domov">Back to the home network</string>
+    <string name="os_host_spet_doma">The host is the home network again.</string>
 </resources>

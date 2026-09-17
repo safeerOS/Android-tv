@@ -44,6 +44,13 @@ object HubPairing {
     /** Odprta prijava: caka na vnos kode. */
     private class Prijava(val osnova: String, val pairId: String, val hubId: String, val odtis: String)
 
+    /** Kaj je prinesla zadnja uspesna seznanitev (za klicatelja, ki si mora poverilnice shraniti sam). */
+    class Izid(val hubId: String, val odtis: String, val zeton: String)
+
+    @Volatile
+    var zadnjaSeznanitev: Izid? = null
+        private set
+
     @Volatile
     private var odprta: Prijava? = null
 
@@ -209,6 +216,7 @@ object HubPairing {
                     return@Thread
                 }
                 shraniZeton(app, zeton, p.odtis)
+                zadnjaSeznanitev = Izid(p.hubId, p.odtis, zeton)
                 tece = false
                 odprta = null
                 Log.i(TAG, "Naprava je seznanjena s Safeer Hubom; odtis potrdila pripet.")
@@ -219,6 +227,9 @@ object HubPairing {
             }
         }.start()
     }
+
+    /** Seznanitev tece in caka na kodo z gostitelja (uporabnik je sel po kodo in se vrnil). */
+    fun cakaNaKodo(): Boolean = tece && odprta != null
 
     /** Uporabnik je vnos kode opustil. */
     fun prekini() {

@@ -110,4 +110,26 @@
     <string name="os_izhod">Sortir vers Android</string>
     <string name="os_izhod_opis">Afficher l\'écran d\'accueil du téléviseur ; Safeer OS reste installé</string>
     <string name="os_izhod_ni">Impossible d\'ouvrir l\'écran d\'accueil du téléviseur</string>
+    <string name="os_naprej">Suivant</string>
+    <string name="os_host">Hôte (où se trouve la puissance)</string>
+    <string name="os_host_opis">Votre réseau domestique ou votre propre serveur hors de la maison</string>
+    <string name="os_host_doma">Réseau domestique</string>
+    <string name="os_host_vprasanje">Par défaut l\'hôte est à la maison : Safeer Link tourne sur ce téléviseur et les fichiers viennent de l\'ordinateur de la même maison ; rien ne quitte votre réseau.\n\nVous pouvez aussi utiliser votre propre serveur hors de la maison (loué ou dans le nuage). Le téléviseur s\'y connecte alors par internet : le jumelage est le même qu\'à la maison (un code, le certificat est épinglé), mais le trafic (vos fichiers compris) quitte le réseau domestique et va jusqu\'à ce serveur. N\'utilisez qu\'un serveur qui vous appartient.</string>
+    <string name="os_host_vnesi">Saisir une adresse</string>
+    <string name="os_host_naslov">Adresse de votre serveur</string>
+    <string name="os_host_naslov_opis">Nom ou adresse IP, avec le port s\'il n\'est pas habituel. Exemple : mon-serveur.fr ou 203.0.113.7:8990</string>
+    <string name="os_host_naslov_namig">mon-serveur.fr</string>
+    <string name="os_host_naslov_napaka">Cela ne ressemble pas à une adresse. Exemple : mon-serveur.fr</string>
+    <string name="os_host_povezujem">Connexion au serveur...</string>
+    <string name="os_host_koda">Code du serveur</string>
+    <string name="os_host_koda_opis">Safeer Link sur ce serveur affiche un code. Saisissez-le ici. Le code ne circule jamais sur le réseau ; les deux côtés prouvent seulement qu\'ils le connaissent.</string>
+    <string name="os_host_koda_namig">code affiché à l\'écran</string>
+    <string name="os_host_poveziSe">Connecter</string>
+    <string name="os_host_povezan">Connecté à %1$s. Les fichiers et les commandes passent maintenant par internet jusqu\'à votre serveur.</string>
+    <string name="os_host_napacna_koda">Code erroné, ou quelqu\'un se trouve au milieu. Réessayez.</string>
+    <string name="os_host_prevec_poskusov">Trop de tentatives. Relancez le jumelage sur le serveur.</string>
+    <string name="os_host_ni_odgovora">Le serveur n\'a pas répondu. Vérifiez l\'adresse, que Safeer Link y tourne et que le port est ouvert.</string>
+    <string name="os_host_oddaljen_vprasanje">L\'hôte est %1$s, hors de votre réseau domestique. Revenir au réseau domestique ? Le jeton de ce serveur est oublié ; vous pouvez le jumeler à nouveau quand vous voulez.</string>
+    <string name="os_host_domov">Revenir au réseau domestique</string>
+    <string name="os_host_spet_doma">L\'hôte est de nouveau le réseau domestique.</string>
 </resources>

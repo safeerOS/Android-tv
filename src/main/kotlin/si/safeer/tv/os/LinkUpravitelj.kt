@@ -55,6 +55,17 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         javi(false, "krajevni")
     }
 
+    /**
+     * Host se je zamenjal (domace omrezje <-> oddaljeni streznik): staro povezavo spustimo in
+     * se povezemo na novo sredisce. Seznam naprav je od prejsnjega hosta, zato ga pocistimo.
+     */
+    fun ponovnoPoveziSe() {
+        ustaviZares()
+        pozabiNaprave()
+        Nacin.nastavi(app, Nacin.LINK)
+        zazeni()
+    }
+
     /** Naprave iz prejsnje povezave niso vec dosegljive: seznam pocistimo, da ga zasloni ne kazejo. */
     private fun pozabiNaprave() {
         naprave = emptyList()
@@ -92,9 +103,11 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         // Sredisce ze tece (uporabnik ima Safeer Link vklopljen v brskalniku): vstopimo brez vprasanja.
         // Ce ne tece, ga prizgemo samo, kadar je uporabnik Safeer Link izrecno izbral.
         if (Nacin.jeKrajevni(app)) { tece = false; pozabiNaprave(); javi(false, "krajevni"); return }
-        if (!Nacin.linkZeTece() && !Nacin.jeLink(app)) { tece = false; pozabiNaprave(); javi(false, "ni_linka"); return }
+        // Oddaljeni host: sredisce je zunaj hise in poverilnice ze imamo (seznanitev s kodo).
+        val oddaljen = Host.jeOddaljen(app)
+        if (!oddaljen && !Nacin.linkZeTece() && !Nacin.jeLink(app)) { tece = false; pozabiNaprave(); javi(false, "ni_linka"); return }
         tece = true
-        val shranjene = if (Nacin.linkZeTece()) Identiteta.beri(app) else null
+        val shranjene = if (oddaljen) Host.poverilnice(app) else if (Nacin.linkZeTece()) Identiteta.beri(app) else null
         if (shranjene != null) {
             javi(false, "povezujem")
             odjemalec.zazeni(shranjene)

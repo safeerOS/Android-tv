@@ -110,4 +110,26 @@
     <string name="os_izhod">Zurück zu Android</string>
     <string name="os_izhod_opis">Startbildschirm des Fernsehers zeigen; Safeer OS bleibt installiert</string>
     <string name="os_izhod_ni">Der Startbildschirm des Fernsehers konnte nicht geöffnet werden</string>
+    <string name="os_naprej">Weiter</string>
+    <string name="os_host">Host (wo die Rechenleistung ist)</string>
+    <string name="os_host_opis">Dein Heimnetz oder dein eigener Server außerhalb des Hauses</string>
+    <string name="os_host_doma">Heimnetz</string>
+    <string name="os_host_vprasanje">Standardmäßig ist der Host zu Hause: Safeer Link läuft auf diesem Fernseher, die Dateien kommen vom Computer im selben Haus - nichts verlässt dein Netz.\n\nDu kannst auch deinen eigenen Server außerhalb des Hauses verwenden (gemietet oder in der Cloud). Dann verbindet sich der Fernseher über das Internet: Die Kopplung ist dieselbe wie zu Hause (ein Code, das Zertifikat wird angeheftet), aber der Verkehr - auch deine Dateien - verlässt das Heimnetz und geht zu diesem Server. Nimm nur einen Server, der dir gehört.</string>
+    <string name="os_host_vnesi">Adresse eingeben</string>
+    <string name="os_host_naslov">Adresse deines Servers</string>
+    <string name="os_host_naslov_opis">Name oder IP-Adresse, mit Port, falls er nicht der übliche ist. Beispiel: mein-server.de oder 203.0.113.7:8990</string>
+    <string name="os_host_naslov_namig">mein-server.de</string>
+    <string name="os_host_naslov_napaka">Das sieht nicht wie eine Adresse aus. Beispiel: mein-server.de</string>
+    <string name="os_host_povezujem">Verbinde mit dem Server ...</string>
+    <string name="os_host_koda">Code vom Server</string>
+    <string name="os_host_koda_opis">Safeer Link auf diesem Server zeigt einen Code. Tippe ihn hier ein. Der Code geht nie über das Netz; beide Seiten beweisen nur, dass sie ihn kennen.</string>
+    <string name="os_host_koda_namig">Code vom Bildschirm</string>
+    <string name="os_host_poveziSe">Verbinden</string>
+    <string name="os_host_povezan">Mit %1$s verbunden. Dateien und Befehle gehen jetzt über das Internet zu deinem Server.</string>
+    <string name="os_host_napacna_koda">Falscher Code, oder jemand ist dazwischen. Versuch es noch einmal.</string>
+    <string name="os_host_prevec_poskusov">Zu viele Versuche. Starte die Kopplung auf dem Server neu.</string>
+    <string name="os_host_ni_odgovora">Der Server hat nicht geantwortet. Prüfe die Adresse, ob Safeer Link dort läuft und ob der Port offen ist.</string>
+    <string name="os_host_oddaljen_vprasanje">Der Host ist %1$s, außerhalb deines Heimnetzes. Zurück ins Heimnetz? Das Token für diesen Server wird vergessen; du kannst dich jederzeit neu koppeln.</string>
+    <string name="os_host_domov">Zurück ins Heimnetz</string>
+    <string name="os_host_spet_doma">Der Host ist wieder das Heimnetz.</string>
 </resources>

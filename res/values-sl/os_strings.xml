@@ -110,4 +110,26 @@
     <string name="os_izhod">Izhod v Android</string>
     <string name="os_izhod_opis">Pokaži domači zaslon televizorja; Safeer OS ostane nameščen</string>
     <string name="os_izhod_ni">Domačega zaslona televizorja ni bilo mogoče odpreti</string>
+    <string name="os_naprej">Naprej</string>
+    <string name="os_host">Host (kje je računalniška moč)</string>
+    <string name="os_host_opis">Domače omrežje ali tvoj strežnik zunaj hiše</string>
+    <string name="os_host_doma">Domače omrežje</string>
+    <string name="os_host_vprasanje">Privzeto je host doma: Safeer Link teče na tem televizorju, datoteke pa pridejo z računalnika v isti hiši - nič ne zapusti tvojega omrežja.\n\nLahko pa uporabiš svoj strežnik zunaj hiše (najet ali v oblaku). Takrat se televizor poveže nanj prek interneta: seznanitev je enaka kot doma (koda, potrdilo je pripeto), promet - tudi tvoje datoteke - pa zapusti domače omrežje in gre do tistega strežnika. Uporabi samo strežnik, ki je tvoj.</string>
+    <string name="os_host_vnesi">Vnesi naslov</string>
+    <string name="os_host_naslov">Naslov tvojega strežnika</string>
+    <string name="os_host_naslov_opis">Ime ali naslov IP, z vrati, če niso običajna. Primer: moj-streznik.si ali 203.0.113.7:8990</string>
+    <string name="os_host_naslov_namig">moj-streznik.si</string>
+    <string name="os_host_naslov_napaka">To ni videti kot naslov. Primer: moj-streznik.si</string>
+    <string name="os_host_povezujem">Povezujem se s strežnikom ...</string>
+    <string name="os_host_koda">Koda s strežnika</string>
+    <string name="os_host_koda_opis">Safeer Link na tistem strežniku pokaže kodo. Vtipkaj jo sem. Koda nikoli ne potuje po omrežju; obe strani samo dokažeta, da jo poznata.</string>
+    <string name="os_host_koda_namig">koda z zaslona</string>
+    <string name="os_host_poveziSe">Poveži</string>
+    <string name="os_host_povezan">Povezano s %1$s. Datoteke in ukazi zdaj potujejo prek interneta do tvojega strežnika.</string>
+    <string name="os_host_napacna_koda">Napačna koda ali pa je vmes kdo drug. Poskusi znova.</string>
+    <string name="os_host_prevec_poskusov">Preveč poskusov. Na strežniku začni seznanitev znova.</string>
+    <string name="os_host_ni_odgovora">Strežnik se ni oglasil. Preveri naslov, da na njem teče Safeer Link in da so vrata odprta.</string>
+    <string name="os_host_oddaljen_vprasanje">Host je %1$s, zunaj domačega omrežja. Se vrnem na domače omrežje? Žeton za tisti strežnik pozabimo; seznaniš se lahko kadarkoli znova.</string>
+    <string name="os_host_domov">Nazaj na domače omrežje</string>
+    <string name="os_host_spet_doma">Host je spet domače omrežje.</string>
 </resources>
