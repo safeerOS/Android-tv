@@ -1,6 +1,30 @@
 # Safeer TV Browser (Android TV)
 
-**Trenutna različica: 2.1.87** — *Varnejši na spletu.* Vgrajen W3C Global Privacy Control (GPC), Do Not Track (DNT), kirurško čiščenje sledilnih parametrov (UrlSanitizer), zaščita pred Botnet C2 strežniki (abuse.ch Feodo Tracker / URLhaus), Xplore TV kiosk z nativnim Media3 ExoPlayerjem (DASH + Widevine) ter HydraHD D-Pad navigacija.
+**Trenutna različica: 2.1.103** (Safeer OS 0.2.3) — *Varnejši na spletu.* Vgrajen W3C Global Privacy Control (GPC), Do Not Track (DNT), kirurško čiščenje sledilnih parametrov (UrlSanitizer), zaščita pred Botnet C2 strežniki (abuse.ch Feodo Tracker / URLhaus), Xplore TV kiosk z nativnim Media3 ExoPlayerjem (DASH + Widevine) ter HydraHD D-Pad navigacija.
+
+## Dve aplikaciji iz ene kode
+
+Ta repozitorij zgradi **dva** APK-ja, ki ju Android vidi kot dve ločeni aplikaciji — vsaka s svojim
+imenom, ikono, vnosom v zaganjalniku, nastavitvami in odstranitvijo:
+
+| Aplikacija | Paket | Okus (`build.gradle`) | Rezultat gradnje |
+|---|---|---|---|
+| Safeer TV Browser | `si.safeer.tv` | `brskalnik` | `TV-Browser-2.apk` |
+| Safeer OS (domači zaslon za televizor) | `si.safeer.os` | `os` | `Safeer-OS.apk` |
+
+Skupna koda je v `src/`, kar aplikaciji loči, pa je v `okusi/brskalnik/AndroidManifest.xml` in
+`okusi/os/AndroidManifest.xml`: zaganjalniški vnosi, alias domačega zaslona (`ZaganjalnikAlias`,
+privzeto onemogočen) in ponudnik spletnih aplikacij. Brskalnik nima zaslonov Safeer OS, Safeer OS
+pa nima vnosa brskalnika.
+
+Obe aplikaciji **morata biti podpisani z istim ključem**: mostovi med njima so zaščiteni z
+dovoljenjem istega podpisa (`si.safeer.tv.permission.LINK`). Prek njih Safeer OS dobi žeton
+Safeer Linka od brskalnika (brez druge povezave), bere in preklaplja Safeer Ščit (en filter na
+televizorju), brskalnik pa preda spletno aplikacijo na domači zaslon Safeer OS
+(`content://si.safeer.os.spletne`). Brez brskalnika Safeer OS vse to opravi sam.
+
+`tests/preveri_loceni_aplikaciji.py` preveri, da ločitev drži (imeni paketov, po en vnos v
+zaganjalniku, alias samo v Safeer OS, isti podpis); teče v `build_tv_apk.sh` in v CI.
 
 ## Prenos in namestitev APK
 
