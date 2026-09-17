@@ -152,4 +152,7 @@
     <string name="os_host_ram">memory: %1$s</string>
     <string name="os_host_disk">storage: %1$s</string>
     <string name="os_host_prosto">%1$s (%2$s free)</string>
+    <!-- Uporabnik si vrsto spletnih aplikacij uredi sam -->
+    <string name="os_spletne_levo">Move left</string>
+    <string name="os_spletne_desno">Move right</string>
 </resources>

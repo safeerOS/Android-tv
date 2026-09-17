@@ -151,4 +151,7 @@
     <string name="os_host_ram">pomnilnik: %1$s</string>
     <string name="os_host_disk">shramba: %1$s</string>
     <string name="os_host_prosto">%1$s (prosto %2$s)</string>
+    <!-- Uporabnik si vrsto spletnih aplikacij uredi sam -->
+    <string name="os_spletne_levo">Premakni levo</string>
+    <string name="os_spletne_desno">Premakni desno</string>
 </resources>

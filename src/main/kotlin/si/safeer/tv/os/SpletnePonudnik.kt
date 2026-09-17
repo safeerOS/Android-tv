@@ -38,6 +38,11 @@ class SpletnePonudnik : ContentProvider() {
                     odgovor.putBoolean("je", true)
                 }
                 ODSTRANI -> SpletneAplikacije.odstrani(c, url)
+                PREMAKNI -> {
+                    val premaknjeno = SpletneAplikacije.premakni(c, url, dodatki?.getInt("zamik") ?: 0)
+                    if (premaknjeno) try { DomacaVrsta.osvezi(c) } catch (e: Throwable) { Log.w(TAG, "Vrste ni bilo mogoce osveziti: ${e.message}") }
+                    odgovor.putBoolean("je", premaknjeno)
+                }
                 else -> return null
             }
         } catch (e: Throwable) {
@@ -61,6 +66,7 @@ class SpletnePonudnik : ContentProvider() {
         const val ZAPOMNI = "zapomni"
         const val DODAJ = "dodaj"
         const val ODSTRANI = "odstrani"
+        const val PREMAKNI = "premakni"
 
         fun naslov(paket: String): Uri = Uri.parse("content://$paket.spletne")
 

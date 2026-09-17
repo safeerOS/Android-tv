@@ -176,6 +176,24 @@ object SpletneAplikacije {
         if (dodanih > 0) Log.i(TAG, "Iz brskalnika prevzeto $dodanih spletnih aplikacij.")
     }
 
+    /**
+     * Uporabnik razvrsca sam: aplikacijo premakne za [zamik] mest (-1 levo, +1 desno). Vrne true,
+     * ce se je vrstni red res spremenil (na robu vrste se ne).
+     */
+    fun premakni(c: Context, url: String, zamik: Int): Boolean {
+        SpletnePonudnik.klic(c, SpletnePonudnik.PREMAKNI, url, Bundle().apply { putInt("zamik", zamik) })
+            ?.let { return it.getBoolean("je") }
+        val app = c.applicationContext
+        val s = seznam(app).toMutableList()
+        val i = s.indexOfFirst { istaStran(it.url, url) }
+        if (i < 0) return false
+        val j = i + zamik
+        if (j < 0 || j >= s.size) return false
+        s.add(j, s.removeAt(i))
+        shrani(app, s)
+        return true
+    }
+
     fun odstrani(c: Context, url: String) {
         if (SpletnePonudnik.klic(c, SpletnePonudnik.ODSTRANI, url) != null) return
         val app = c.applicationContext
@@ -185,15 +203,107 @@ object SpletneAplikacije {
         shrani(app, seznam(app).filterNot { istaStran(it.url, url) })
     }
 
-    /** Ikona aplikacije: shranjena slika ali narisana crka v barvi strani. */
+    /**
+     * Ikona aplikacije: shranjena slika ali narisana crka v barvi strani.
+     *
+     * Ikone s spleta so razlicne - ena je poln rdec kvadrat (YouTube), druga logotip na prozornem
+     * ozadju, tretja siroka slika. Zato jih vse oblikujemo enako, kot to dela Android z ikonami
+     * aplikacij: poln kvadrat vrezemo v zaobljen kvadrat, logotip pa polozimo na zaobljeno plosco
+     * in mu pustimo zrak naokoli. Vrsta na domacem zaslonu je tako urejena, ne glede na to, kaj
+     * nam je stran dala.
+     */
     fun ikona(c: Context, a: Aplikacija): Drawable {
         if (a.ikona.isNotEmpty()) {
             try {
                 val b = BitmapFactory.decodeFile(a.ikona)
-                if (b != null) return BitmapDrawable(c.resources, b)
-            } catch (_: Throwable) { }
+                if (b != null) return BitmapDrawable(c.resources, oblikuj(c, b))
+            } catch (e: Throwable) { Log.w(TAG, "Ikone ni bilo mogoce oblikovati: ${e.message}") }
         }
         return crkaDrawable(c, a.ime.ifBlank { gostitelj(a.url) }, a.barva)
+    }
+
+    /** Stranica oblikovane ikone v pikah (kartica ji da 92dp visine). */
+    private fun stranica(c: Context): Int = (c.resources.displayMetrics.density * 92).toInt().coerceAtLeast(92)
+
+    /** Iz poljubne slike naredi ikono aplikacije: zaobljen kvadrat, vedno enako velik. */
+    private fun oblikuj(c: Context, vir: Bitmap): Bitmap {
+        val s = stranica(c)
+        val r = s * 0.22f
+        val izhod = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
+        val platno = Canvas(izhod)
+        val cel = RectF(0f, 0f, s.toFloat(), s.toFloat())
+        if (polnaSlika(vir)) {
+            // Ikona sama je ze plosca (poln kvadrat): samo zaoblimo robove, nic ne dodajamo.
+            val maska = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK }
+            platno.drawRoundRect(cel, r, r, maska)
+            maska.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+            platno.drawBitmap(vir, null, cel, maska)
+        } else {
+            // Logotip na prozornem (ali siroka slika): plosca v barvi strani in zrak naokoli.
+            val ozadje = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = plosca(vir) }
+            platno.drawRoundRect(cel, r, r, ozadje)
+            val rob = s * 0.16f
+            val prostor = s - 2 * rob
+            val merilo = minOf(prostor / vir.width, prostor / vir.height)
+            val sir = vir.width * merilo
+            val vis = vir.height * merilo
+            val levo = (s - sir) / 2f
+            val zgoraj = (s - vis) / 2f
+            platno.drawBitmap(vir, null, RectF(levo, zgoraj, levo + sir, zgoraj + vis),
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true })
+        }
+        return izhod
+    }
+
+    /**
+     * Barva plosce pod logotipom. Barve strani (theme_color) namenoma ne uporabimo: pogosto je
+     * ista kot logotip in logotip izgine. Namesto tega pogledamo, kako svetel je logotip - temen
+     * dobi svetlo plosco, svetel temno. Tako je ikona berljiva, kar nam je stran poslala.
+     */
+    private fun plosca(vir: Bitmap): Int =
+        if (svetlost(vir) < 0.55f) Color.parseColor("#F3F5F7") else Color.parseColor("#152129")
+
+    /** Povprecna svetlost neprozornih pik (0 crno, 1 belo); vzorcimo, ne beremo vsake pike. */
+    private fun svetlost(b: Bitmap): Float {
+        var vsota = 0.0
+        var stevec = 0
+        val korak = maxOf(1, minOf(b.width, b.height) / 16)
+        var y = 0
+        while (y < b.height) {
+            var x = 0
+            while (x < b.width) {
+                val p = b.getPixel(x, y)
+                if (Color.alpha(p) > 128) {
+                    vsota += (0.299 * Color.red(p) + 0.587 * Color.green(p) + 0.114 * Color.blue(p)) / 255.0
+                    stevec++
+                }
+                x += korak
+            }
+            y += korak
+        }
+        return if (stevec == 0) 1f else (vsota / stevec).toFloat()
+    }
+
+    /**
+     * Ali slika ze pokriva ves kvadrat (kot ikona YouTuba): priblizno kvadratna in neprozorna po
+     * robovih. Takrat je ne polagamo na plosco, ampak ji samo zaoblimo vogale.
+     */
+    private fun polnaSlika(b: Bitmap): Boolean {
+        val razmerje = b.width.toFloat() / b.height.toFloat()
+        if (razmerje < 0.9f || razmerje > 1.1f) return false
+        if (!b.hasAlpha()) return true
+        val x = b.width - 1
+        val y = b.height - 1
+        val tocke = listOf(
+            2 to 2, x - 2 to 2, 2 to y - 2, x - 2 to y - 2,
+            b.width / 2 to 2, b.width / 2 to y - 2, 2 to b.height / 2, x - 2 to b.height / 2,
+        )
+        var neprozornih = 0
+        for ((tx, ty) in tocke) {
+            if (tx < 0 || ty < 0) continue
+            if (Color.alpha(b.getPixel(tx, ty)) > 200) neprozornih++
+        }
+        return neprozornih >= 7
     }
 
     private fun crkaDrawable(c: Context, ime: String, barva: String): Drawable {

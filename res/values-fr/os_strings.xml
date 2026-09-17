@@ -151,4 +151,7 @@
     <string name="os_host_ram">mémoire : %1$s</string>
     <string name="os_host_disk">stockage : %1$s</string>
     <string name="os_host_prosto">%1$s (%2$s libres)</string>
+    <!-- Uporabnik si vrsto spletnih aplikacij uredi sam -->
+    <string name="os_spletne_levo">Déplacer à gauche</string>
+    <string name="os_spletne_desno">Déplacer à droite</string>
 </resources>

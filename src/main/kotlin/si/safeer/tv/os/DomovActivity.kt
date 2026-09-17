@@ -311,17 +311,21 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         }, "safeer-os-prevzem").start()
     }
 
-    private fun narisiSpletne() {
+    /** [fokusUrl]: po premiku ali odstranitvi naj fokus ostane pri isti aplikaciji. */
+    private fun narisiSpletne(fokusUrl: String = "") {
         vrstaSpletne.removeAllViews()
+        var zeljeni: View? = null
         for (a in SpletneAplikacije.seznam(this)) {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaSpletne, false)
             v.findViewById<ImageView>(R.id.ikona).setImageDrawable(SpletneAplikacije.ikona(this, a))
             v.findViewById<TextView>(R.id.ime).text = a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }
             v.onFocusChangeListener = fokus
             v.setOnClickListener { zazeniSpletno(a) }
-            v.setOnLongClickListener { odstraniSpletno(a); true }
+            v.setOnLongClickListener { moznostiSpletne(a); true }
             vrstaSpletne.addView(v)
+            if (a.url == fokusUrl) zeljeni = v
         }
+        zeljeni?.let { it.post { it.requestFocus() } }
         val dodaj = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaSpletne, false)
         dodaj.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_splet)
         dodaj.findViewById<TextView>(R.id.ime).text = getString(R.string.os_spletne_dodaj)
@@ -336,6 +340,30 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             .putExtra("aplikacija_ime", a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try { startActivity(namera) } catch (_: Throwable) { }
+    }
+
+    /**
+     * Dolg pritisk na spletno aplikacijo: uporabnik si vrsto uredi sam. Na daljincu ni vlecenja,
+     * zato premikamo po enem mestu; ponudimo samo tisto, kar je na tem mestu res mogoce.
+     */
+    private fun moznostiSpletne(a: SpletneAplikacije.Aplikacija) {
+        val seznam = SpletneAplikacije.seznam(this)
+        val mesto = seznam.indexOfFirst { it.url == a.url }
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniSpletno(a, -1) })
+        if (mesto >= 0 && mesto < seznam.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniSpletno(a, 1) })
+        dejanja.add(getString(R.string.os_spletne_odstrani) to { odstraniSpletno(a) })
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+    }
+
+    private fun premakniSpletno(a: SpletneAplikacije.Aplikacija, zamik: Int) {
+        if (!SpletneAplikacije.premakni(this, a.url, zamik)) return
+        narisiSpletne(a.url)
+        DomacaVrsta.osvezi(this)
     }
 
     private fun odstraniSpletno(a: SpletneAplikacije.Aplikacija) {
