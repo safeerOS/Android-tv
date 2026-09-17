@@ -32,11 +32,10 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private lateinit var stanjePika: View
     private lateinit var ura: TextView
     private lateinit var vrstaZacni: LinearLayout
-    private lateinit var vrstaNaprave: LinearLayout
-    private lateinit var napraveOpomba: TextView
     private lateinit var vrstaAplikacije: LinearLayout
     private lateinit var vrstaSpletne: LinearLayout
     private lateinit var opombaSpodaj: TextView
+    private lateinit var drsnik: View
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private val glavna = Handler(Looper.getMainLooper())
@@ -54,19 +53,18 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         stanjePika = findViewById(R.id.stanjePika)
         ura = findViewById(R.id.ura)
         vrstaZacni = findViewById(R.id.vrstaZacni)
-        vrstaNaprave = findViewById(R.id.vrstaNaprave)
-        napraveOpomba = findViewById(R.id.napraveOpomba)
         vrstaAplikacije = findViewById(R.id.vrstaAplikacije)
         vrstaSpletne = findViewById(R.id.vrstaSpletne)
         opombaSpodaj = findViewById(R.id.opombaSpodaj)
+        drsnik = findViewById(R.id.drsnik)
         narisiZacni()
-        narisiNaprave(emptyList())
         // Ce nas je odprla tipka Domov, smo res domaci zaslon tega televizorja.
         if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
     }
 
     override fun onStart() {
         super.onStart()
+        Tema.uporabi(this, drsnik)      // ozadje po izbiri uporabnika
         glavna.post(tikUre)
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiAplikacije()
@@ -109,13 +107,11 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             else -> pokaziStanje(false, getString(R.string.os_stanje_povezujem))
         }
         osveziKartice()
-        if (!povezan) narisiNaprave(emptyList())
     }
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
         val kje = link.imeSredisca.ifBlank { getString(R.string.os_naprava_tv) }
         if (link.povezan) pokaziStanje(true, getString(R.string.os_stanje_povezan, kje))
-        narisiNaprave(naprave.filter { it.id != Identiteta.id(this) })
         // Racunalnik se je javil (ali odsel): vrsta Zacni dobi ali izgubi kartico s programi.
         val programi = naprave.any { it.zmoznosti.contains("apps") && it.id != Identiteta.id(this) }
         if (programi != imamoPrograme) { imamoPrograme = programi; narisiZacni() }
@@ -144,33 +140,82 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Ali kateri racunalnik v Linku deli svoje programe (zmoznost "apps"). */
     private var imamoPrograme = false
 
-    private fun narisiZacni() {
+    /** Ena kartica v vrsti Zacni; [kljuc] se shrani v vrstni red, zato se nikoli ne spremeni. */
+    private class Zacni(val kljuc: String, val ikona: Int, val naslov: String, val opis: String, val ob: () -> Unit)
+
+    /**
+     * Vrsta Zacni. Kaj je v njej, dolocimo mi (in kaj je ta trenutek na voljo), v katerem vrstnem
+     * redu, pa uporabnik - dolg pritisk na kartico jo premakne levo ali desno.
+     *
+     * [fokusKljuc]: po premiku naj fokus ostane na isti kartici.
+     */
+    private fun narisiZacni(fokusKljuc: String = "") {
         vrstaZacni.removeAllViews()
-        dodajVeliko(R.drawable.os_ikona_splet, getString(R.string.os_splet), getString(R.string.os_splet_opis)) {
+        karticaDatoteke = null; karticaLink = null; karticaScit = null
+        val vse = ArrayList<Zacni>()
+        vse.add(Zacni("splet", R.drawable.os_ikona_splet, getString(R.string.os_splet), getString(R.string.os_splet_opis)) {
             odpriVBrskalniku(null)
-        }
-        karticaDatoteke = dodajVeliko(R.drawable.os_ikona_datoteke, getString(R.string.os_datoteke), getString(R.string.os_datoteke_opis)) {
+        })
+        vse.add(Zacni("datoteke", R.drawable.os_ikona_datoteke, getString(R.string.os_datoteke), getString(R.string.os_datoteke_opis)) {
             startActivity(Intent(this, DatotekeActivity::class.java))
-        }
-        karticaLink = dodajVeliko(R.drawable.os_ikona_link, getString(R.string.os_link), getString(R.string.os_link_opis)) {
-            if (link.povezan) odpriLinkVBrskalniku() else vprasajZaNacin()
-        }
-        karticaScit = dodajVeliko(R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() }
+        })
+        // Naprave so dobile svoj zaslon: na domacem je bila to se ena vrsta kartic in je jemala
+        // prostor spletnim aplikacijam, ki jih uporabnik odpira vsak dan.
+        vse.add(Zacni("naprave", R.drawable.os_ikona_link, getString(R.string.os_naprave_naslov), getString(R.string.os_link_opis)) {
+            if (link.povezan || !link.vprasamoZaNacin()) startActivity(Intent(this, NapraveActivity::class.java))
+            else vprasajZaNacin()
+        })
+        vse.add(Zacni("scit", R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() })
         // Programi racunalnika: kartico pokazemo samo, kadar jih kaksen racunalnik res deli -
         // sicer bi obljubljala nekaj, cesar ni.
         if (imamoPrograme) {
-            dodajVeliko(R.drawable.os_ikona_racunalnik, getString(R.string.os_programi), getString(R.string.os_programi_opis)) {
+            vse.add(Zacni("programi", R.drawable.os_ikona_racunalnik, getString(R.string.os_programi), getString(R.string.os_programi_opis)) {
                 startActivity(Intent(this, AplikacijeHostaActivity::class.java))
-            }
+            })
         }
-        dodajVeliko(R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve), getString(R.string.os_nastavitve_opis)) {
+        vse.add(Zacni("nastavitve", R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve), getString(R.string.os_nastavitve_opis)) {
             startActivity(Intent(this, NastavitveActivity::class.java))
+        })
+
+        val red = Vrstni.red(this, KLJUC_ZACNI, vse.map { it.kljuc })
+        var zeljeni: View? = null
+        for (kljuc in red) {
+            val z = vse.firstOrNull { it.kljuc == kljuc } ?: continue
+            val v = dodajVeliko(z.ikona, z.naslov, z.opis, z.ob)
+            v.setOnLongClickListener { moznostiZacni(z, red); true }
+            when (z.kljuc) {
+                "datoteke" -> karticaDatoteke = v
+                "naprave" -> karticaLink = v
+                "scit" -> karticaScit = v
+            }
+            if (z.kljuc == fokusKljuc) zeljeni = v
         }
         uravnajVrsto(vrstaZacni, NAJMANJSA_VELIKA_DP)
         // Fokus prevzamemo samo, kadar ga nihce nima (prvi izris). Ce uporabnik ravno izbira
         // spodaj, ga racunalnik, ki se je pravkar javil, ne sme vreci nazaj gor.
-        if (currentFocus == null) vrstaZacni.getChildAt(0)?.requestFocus()
+        if (zeljeni != null) zeljeni.post { zeljeni.requestFocus() }
+        else if (currentFocus == null) vrstaZacni.getChildAt(0)?.requestFocus()
         osveziKartice()
+        osveziScit()
+    }
+
+    /** Dolg pritisk na kartico v vrsti Zacni: uporabnik si vrsto uredi po svoje. */
+    private fun moznostiZacni(z: Zacni, red: List<String>) {
+        val mesto = red.indexOf(z.kljuc)
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniZacni(z, red, -1) })
+        if (mesto in 0 until red.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniZacni(z, red, 1) })
+        if (dejanja.isEmpty()) return
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(z.naslov)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+    }
+
+    private fun premakniZacni(z: Zacni, red: List<String>, zamik: Int) {
+        if (!Vrstni.premakni(this, KLJUC_ZACNI, red, z.kljuc, zamik)) return
+        narisiZacni(z.kljuc)
     }
 
     /** Opisa kartic Datoteke in Safeer Link povesta, kaj je zdaj na voljo. */
@@ -247,7 +292,12 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
      * ugibamo vnaprej: izracunamo jo iz sirine zaslona tako, da med robovoma stoji **cel** kos
      * kartic. Kar je vec, se pokaze ob pomiku, nikoli pa ni na zaslonu polovica besedila.
      */
-    private fun uravnajVrsto(vrsta: LinearLayout, najmanjDp: Int) {
+    /**
+     * Sirine kartic v vrsti: izracunamo jih tako, da se celo stevilo kartic natanko izide do roba
+     * zaslona. Brez tega je zadnja vidna kartica odrezana na robu in vrsta je videti pokvarjena.
+     * [najvecDp] prepreci, da bi se ob dveh ali treh karticah raztegnile cez pol zaslona.
+     */
+    private fun uravnajVrsto(vrsta: LinearLayout, najmanjDp: Int, najvecDp: Int = 0) {
         val m = resources.displayMetrics
         val rob = resources.getDimensionPixelSize(R.dimen.os_rob)
         val vrzel = (16 * m.density).toInt()
@@ -257,7 +307,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         val najmanj = (najmanjDp * m.density).toInt()
         val kolikoGre = ((naVoljo + vrzel) / (najmanj + vrzel)).coerceAtLeast(1)
         val k = if (kolikoGre > n) n else kolikoGre
-        val sirina = (naVoljo - (k - 1) * vrzel) / k
+        var sirina = (naVoljo - (k - 1) * vrzel) / k
+        if (najvecDp > 0) sirina = sirina.coerceAtMost((najvecDp * m.density).toInt())
         for (i in 0 until n) {
             val v = vrsta.getChildAt(i) ?: continue
             val lp = v.layoutParams as? LinearLayout.LayoutParams ?: continue
@@ -279,36 +330,6 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     // ------------------------------------------------------------------ Naprave
-
-    private fun narisiNaprave(naprave: List<LinkOdjemalec.Naprava>) {
-        vrstaNaprave.removeAllViews()
-        napraveOpomba.visibility = if (naprave.isEmpty()) View.VISIBLE else View.GONE
-        napraveOpomba.text = when {
-            link.povezan -> getString(R.string.os_ni_naprav)
-            link.jeKrajevni() -> getString(R.string.os_naprave_krajevni)
-            else -> getString(R.string.os_naprave_ni_linka)
-        }
-        for (n in naprave) {
-            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_naprava, vrstaNaprave, false)
-            v.findViewById<TextView>(R.id.ime).text = n.ime.ifBlank { n.id }
-            v.findViewById<TextView>(R.id.vloga).text = vrstaNaprave(n)
-            v.onFocusChangeListener = fokus
-            v.setOnClickListener {
-                // Racunalnik s Safeer Controlom, ki deli mape: naravnost v njegove datoteke; sicer stran Linka.
-                if (n.zmoznosti.contains("files")) startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
-                else odpriLinkVBrskalniku()
-            }
-            vrstaNaprave.addView(v)
-        }
-        uravnajVrsto(vrstaNaprave, NAJMANJSA_NAPRAVA_DP)
-    }
-
-    private fun vrstaNaprave(n: LinkOdjemalec.Naprava): String = when {
-        n.naslov == "127.0.0.1" || n.id.startsWith("tv-") -> "TV · Safeer Link"
-        n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "Safeer Control" else "Safeer Browser · PC"
-        n.id.startsWith("phone-") -> "Safeer Browser · Android"
-        else -> n.vloga
-    }
 
     // ------------------------------------------------------------------ Spletne aplikacije
     //
@@ -471,9 +492,21 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     // ------------------------------------------------------------------ Aplikacije
 
-    private fun narisiAplikacije() {
+    /**
+     * Aplikacije televizorja: na domacem zaslonu samo priljubljene, v vrstnem redu uporabnika.
+     * Prej so bile tu vse in vrsta se je lomila cez rob zaslona - med desetinami kartic ni bilo
+     * mogoce nic najti. Zadnja kartica ("Ostalo") pelje na vse.
+     *
+     * [fokusPaket]: po premiku naj fokus ostane pri isti aplikaciji.
+     */
+    private fun narisiAplikacije(fokusPaket: String = "") {
         vrstaAplikacije.removeAllViews()
-        for (a in Aplikacije.seznam(this)) {
+        val vsi = Aplikacije.seznam(this)
+        Priljubljene.prviKrat(this, Aplikacije.sistemskiVrstniRed(this).map { it.paket })
+        val izbrani = Priljubljene.seznam(this)
+        val po = izbrani.mapNotNull { paket -> vsi.firstOrNull { it.paket == paket } }
+        var zeljeni: View? = null
+        for (a in po) {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaAplikacije, false)
             v.findViewById<ImageView>(R.id.ikona).setImageDrawable(a.ikona)
             v.findViewById<TextView>(R.id.ime).text = a.ime
@@ -481,8 +514,39 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             v.setOnClickListener {
                 try { startActivity(a.namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) { }
             }
+            v.setOnLongClickListener { moznostiAplikacije(a, po.size); true }
             vrstaAplikacije.addView(v)
+            if (a.paket == fokusPaket) zeljeni = v
         }
+        val ostalo = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaAplikacije, false)
+        ostalo.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_ospredje)
+        ostalo.findViewById<TextView>(R.id.ime).text = getString(R.string.os_aplikacije_ostalo)
+        ostalo.onFocusChangeListener = fokus
+        ostalo.setOnClickListener { startActivity(Intent(this, AplikacijeTvActivity::class.java)) }
+        vrstaAplikacije.addView(ostalo)
+        uravnajVrsto(vrstaAplikacije, NAJMANJSA_APP_DP, NAJVECJA_APP_DP)
+        zeljeni?.let { it.post { it.requestFocus() } }
+    }
+
+    /** Dolg pritisk na priljubljeno aplikacijo: uredi vrstni red ali jo umakni z domacega zaslona. */
+    private fun moznostiAplikacije(a: Aplikacije.Vnos, koliko: Int) {
+        val mesto = Priljubljene.seznam(this).indexOf(a.paket)
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniAplikacijo(a, -1) })
+        if (mesto in 0 until koliko - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniAplikacijo(a, 1) })
+        dejanja.add(getString(R.string.os_aplikacije_odstrani) to {
+            Priljubljene.odstrani(this, a.paket); narisiAplikacije()
+        })
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(a.ime)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+    }
+
+    private fun premakniAplikacijo(a: Aplikacije.Vnos, zamik: Int) {
+        if (!Priljubljene.premakni(this, a.paket, zamik)) return
+        narisiAplikacije(a.paket)
     }
 
     // ------------------------------------------------------------------ pomozno
@@ -524,7 +588,11 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private companion object {
         /** Najmanjsa sirina kartice, pri kateri je opis se berljiv (velike kartice v vrsti Zacni). */
         const val NAJMANJSA_VELIKA_DP = 200
-        /** Kartica naprave: ime in vloga v eni vrstici vsak. */
-        const val NAJMANJSA_NAPRAVA_DP = 220
+        /** Kje je shranjen vrstni red vrste Zacni. */
+        const val KLJUC_ZACNI = "red_zacni"
+        /** Kartica aplikacije: ikona in ime; pod to sirino ime ni vec berljivo. */
+        const val NAJMANJSA_APP_DP = 150
+        /** Nad to sirino kartica aplikacije ni vec videti kot ikona, ampak kot plakat. */
+        const val NAJVECJA_APP_DP = 190
     }
 }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Programi racunalnika: glava (kateri racunalnik), mreza programov, sporocilo. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/koren"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/os_ozadje"
@@ -16,6 +17,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
         <ImageView
+            android:id="@+id/glavaIkona"
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:src="@drawable/os_ikona_racunalnik"

@@ -11,7 +11,16 @@ import android.graphics.drawable.Drawable
 object Aplikacije {
     data class Vnos(val paket: String, val ime: String, val ikona: Drawable?, val namera: Intent)
 
-    fun seznam(context: Context): List<Vnos> {
+    /**
+     * Kot jih nasteje sistem - v tem vrstnem redu jih ima televizor sam (namescanje). To vzamemo
+     * za privzeti vrstni red priljubljenih, da domaci zaslon Safeer OS zacne tam, kjer je
+     * uporabnik ze doma; naprej si jih razvrsti sam.
+     */
+    fun sistemskiVrstniRed(context: Context): List<Vnos> = najdi(context)
+
+    fun seznam(context: Context): List<Vnos> = najdi(context).sortedBy { it.ime.lowercase() }
+
+    private fun najdi(context: Context): List<Vnos> {
         val pm = context.packageManager
         val poizvedba = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
         val zadetki = try { pm.queryIntentActivities(poizvedba, 0) } catch (_: Throwable) { emptyList() }
@@ -24,8 +33,8 @@ object Aplikacije {
             val ikona = try { info.loadBanner(pm) ?: info.loadIcon(pm) } catch (_: Throwable) { null }
             vnosi.add(Vnos(info.packageName, z.loadLabel(pm)?.toString() ?: info.packageName, ikona, namera))
         }
-        // Po imenu; Safeer Browser je ista aplikacija kot Safeer OS in ima svojo kartico Splet.
-        return vnosi.sortedBy { it.ime.lowercase() }
+        // Safeer Browser je ista aplikacija kot Safeer OS in ima svojo kartico Splet, zato ga ni.
+        return vnosi
     }
 
     fun jeNamescena(context: Context, paket: String): Boolean = try {

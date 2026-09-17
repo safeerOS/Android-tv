@@ -166,4 +166,25 @@
     <string name="os_programi_izklopljeno">%1$s does not share its programs. In Safeer Control on that computer, turn on \'Programs for the TV\'.</string>
     <string name="os_programi_napaka">It did not work: %1$s</string>
     <string name="os_programi_zagnan">%1$s is starting on %2$s - on the computer screen, not here.</string>
+    <!-- Videz (ozadje) in zaslon Naprave -->
+    <string name="os_videz">Look</string>
+    <string name="os_videz_opis">Background of the Safeer OS home screen</string>
+    <string name="os_tema_brez">No picture</string>
+    <string name="os_tema_sij">Northern lights</string>
+    <string name="os_tema_gozd">Forest at dusk</string>
+    <string name="os_tema_mesto">City at night</string>
+    <string name="os_tema_zora">Dawn</string>
+    <string name="os_naprave_naslov">Devices</string>
+    <string name="os_naprave_datoteke">Files</string>
+    <string name="os_naprave_posiljanje">Send</string>
+    <string name="os_naprave_stran">Safeer Link page</string>
+    <string name="os_naprave_stran_opis">Pair a device, remote control, send a page or a file</string>
+    <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
+    <string name="os_aplikacije_ostalo">Other</string>
+    <string name="os_aplikacije_vse">All apps on this TV</string>
+    <string name="os_aplikacije_namig">OK opens an app. Hold OK to put it on the home screen (★) or take it off.</string>
+    <string name="os_aplikacije_prazno">This TV has no other apps.</string>
+    <string name="os_aplikacije_dodana">%1$s is now on the home screen.</string>
+    <string name="os_aplikacije_odstranjena">%1$s is no longer on the home screen.</string>
+    <string name="os_aplikacije_odstrani">Take off the home screen</string>
 </resources>

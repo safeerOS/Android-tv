@@ -165,4 +165,25 @@
     <string name="os_programi_izklopljeno">%1$s svojih programov ne deli. V Safeer Controlu na tem računalniku vklopi \'Programi za televizor\'.</string>
     <string name="os_programi_napaka">Ni šlo: %1$s</string>
     <string name="os_programi_zagnan">%1$s se zaganja na %2$s - na zaslonu računalnika, ne tukaj.</string>
+    <!-- Videz (ozadje) in zaslon Naprave -->
+    <string name="os_videz">Videz</string>
+    <string name="os_videz_opis">Ozadje domačega zaslona Safeer OS</string>
+    <string name="os_tema_brez">Brez slike</string>
+    <string name="os_tema_sij">Severni sij</string>
+    <string name="os_tema_gozd">Gozd ob mraku</string>
+    <string name="os_tema_mesto">Mesto ponoči</string>
+    <string name="os_tema_zora">Zora</string>
+    <string name="os_naprave_naslov">Naprave</string>
+    <string name="os_naprave_datoteke">Datoteke</string>
+    <string name="os_naprave_posiljanje">Pošiljanje</string>
+    <string name="os_naprave_stran">Stran Safeer Link</string>
+    <string name="os_naprave_stran_opis">Seznani napravo, daljinec, pošlji stran ali datoteko</string>
+    <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
+    <string name="os_aplikacije_ostalo">Ostalo</string>
+    <string name="os_aplikacije_vse">Vse aplikacije tega televizorja</string>
+    <string name="os_aplikacije_namig">OK odpre aplikacijo. Zadrži OK, da jo daš na domači zaslon (★) ali z njega.</string>
+    <string name="os_aplikacije_prazno">Ta televizor nima drugih aplikacij.</string>
+    <string name="os_aplikacije_dodana">%1$s je zdaj na domačem zaslonu.</string>
+    <string name="os_aplikacije_odstranjena">%1$s ni več na domačem zaslonu.</string>
+    <string name="os_aplikacije_odstrani">Umakni z domačega zaslona</string>
 </resources>

@@ -165,4 +165,25 @@
     <string name="os_programi_izklopljeno">%1$s ne partage pas ses programmes. Dans Safeer Control sur cet ordinateur, active \'Programmes pour le téléviseur\'.</string>
     <string name="os_programi_napaka">Ça n\'a pas marché : %1$s</string>
     <string name="os_programi_zagnan">%1$s démarre sur %2$s - sur l\'écran de l\'ordinateur, pas ici.</string>
+    <!-- Videz (ozadje) in zaslon Naprave -->
+    <string name="os_videz">Apparence</string>
+    <string name="os_videz_opis">Fond de l\'écran d\'accueil de Safeer OS</string>
+    <string name="os_tema_brez">Sans image</string>
+    <string name="os_tema_sij">Aurores boréales</string>
+    <string name="os_tema_gozd">Forêt au crépuscule</string>
+    <string name="os_tema_mesto">Ville la nuit</string>
+    <string name="os_tema_zora">Aube</string>
+    <string name="os_naprave_naslov">Appareils</string>
+    <string name="os_naprave_datoteke">Fichiers</string>
+    <string name="os_naprave_posiljanje">Envoyer</string>
+    <string name="os_naprave_stran">Page Safeer Link</string>
+    <string name="os_naprave_stran_opis">Associer un appareil, télécommande, envoyer une page ou un fichier</string>
+    <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
+    <string name="os_aplikacije_ostalo">Autres</string>
+    <string name="os_aplikacije_vse">Toutes les applis de ce téléviseur</string>
+    <string name="os_aplikacije_namig">OK ouvre une appli. Maintiens OK pour la mettre sur l\'écran d\'accueil (★) ou l\'enlever.</string>
+    <string name="os_aplikacije_prazno">Ce téléviseur n\'a pas d\'autres applis.</string>
+    <string name="os_aplikacije_dodana">%1$s est maintenant sur l\'écran d\'accueil.</string>
+    <string name="os_aplikacije_odstranjena">%1$s n\'est plus sur l\'écran d\'accueil.</string>
+    <string name="os_aplikacije_odstrani">Enlever de l\'écran d\'accueil</string>
 </resources>

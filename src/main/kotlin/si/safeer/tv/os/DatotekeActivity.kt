@@ -77,6 +77,7 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
+        Tema.uporabi(this, findViewById(R.id.koren))
         link.dodaj(this)
         if (racunalnik == null) zacni()
     }

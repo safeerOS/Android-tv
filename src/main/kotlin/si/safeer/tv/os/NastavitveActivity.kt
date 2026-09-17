@@ -50,6 +50,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
+        Tema.uporabi(this, koren)
         // Podatke o hostu dobimo po Linku; dokler smo v nastavitvah, naj povezava zivi.
         link.dodaj(this)
     }
@@ -125,6 +126,8 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_racunalnik, getString(R.string.os_host),
                 getString(R.string.os_host_opis),
                 if (Host.jeOddaljen(this)) Host.gostitelj(this).orEmpty() else getString(R.string.os_host_doma)) { preklopiHost() },
+            Vrstica(R.drawable.os_ikona_slika, getString(R.string.os_videz),
+                getString(R.string.os_videz_opis), Tema.ime(this)) { izberiTemo() },
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
@@ -133,6 +136,25 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
         )
         prilagojevalnik.notifyDataSetChanged()
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
+    }
+
+    /**
+     * Ozadje Safeer OS. Slike so nase lastne risbe; izbira je uporabnikova in se takoj vidi,
+     * zato jo uveljavimo brez ponovnega odpiranja zaslona.
+     */
+    private fun izberiTemo() {
+        val imena = Tema.VSE.map { getString(it.imeRes) }.toTypedArray()
+        val zdaj = Tema.VSE.indexOfFirst { it.oznaka == Tema.izbrana(this).oznaka }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_videz))
+            .setSingleChoiceItems(imena, zdaj) { okno, i ->
+                Tema.VSE.getOrNull(i)?.let { Tema.nastavi(this, it) }
+                Tema.uporabi(this, koren)
+                narisi()
+                okno.dismiss()
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
     }
 
     /**

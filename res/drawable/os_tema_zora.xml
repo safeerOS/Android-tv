@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ozadje Safeer OS: lastna risba in temna zavesa nad njo. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/os_ozadje"/>
+    <item android:drawable="@drawable/os_slika_zora" android:gravity="fill"/>
+    <item android:drawable="@drawable/os_zavesa"/>
+</layer-list>

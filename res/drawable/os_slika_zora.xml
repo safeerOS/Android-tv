@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zora: lastna risba (nebo, sonce nizko, dva hriba). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="270dp"
+    android:viewportWidth="960"
+    android:viewportHeight="540">
+    <path android:pathData="M0,0h960v540H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="540">
+                <item android:offset="0" android:color="#FF160E28"/>
+                <item android:offset="0.55" android:color="#FF2A1430"/>
+                <item android:offset="1" android:color="#FF0A0710"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,240 C220,196 420,268 660,226 C800,202 880,238 960,222 L960,330 L0,352 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="210" android:endX="0" android:endY="352">
+                <item android:offset="0" android:color="#66FFB36B"/>
+                <item android:offset="1" android:color="#00FFB36B"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M480,268 m-54,0 a54,54 0 1,0 108,0 a54,54 0 1,0 -108,0 Z" android:fillColor="#66FFC98A"/>
+    <path android:pathData="M0,330 C180,290 330,344 500,318 C670,292 820,336 960,312 L960,540 L0,540 Z" android:fillColor="#FF1B1226"/>
+    <path android:pathData="M0,400 C200,368 360,414 540,392 C720,370 850,406 960,388 L960,540 L0,540 Z" android:fillColor="#FF0C0812"/>
+</vector>

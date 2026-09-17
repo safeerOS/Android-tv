@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gozd ob mraku: lastna risba (nebo, meglica, dve vrsti smrek). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="270dp"
+    android:viewportWidth="960"
+    android:viewportHeight="540">
+    <path android:pathData="M0,0h960v540H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="540">
+                <item android:offset="0" android:color="#FF0A1A18"/>
+                <item android:offset="0.6" android:color="#FF0C2320"/>
+                <item android:offset="1" android:color="#FF050C0B"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,250 C240,210 420,286 660,246 C800,222 880,262 960,244 L960,340 C800,364 700,326 560,340 C360,360 200,330 0,352 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="230" android:endX="0" android:endY="360">
+                <item android:offset="0" android:color="#5957D6AD"/>
+                <item android:offset="1" android:color="#0057D6AD"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M-84,400 L-36,280 L12,400 Z M12,400 L60,280 L108,400 Z M108,400 L156,280 L204,400 Z M204,400 L252,280 L300,400 Z M300,400 L348,280 L396,400 Z M396,400 L444,280 L492,400 Z M492,400 L540,280 L588,400 Z M588,400 L636,280 L684,400 Z M684,400 L732,280 L780,400 Z M780,400 L828,280 L876,400 Z M876,400 L924,280 L972,400 Z M972,400 L1020,280 L1068,400 Z M0,400 h960 v140 H0 Z" android:fillColor="#FF07130F"/>
+    <path android:pathData="M-74,470 L-37,374 L0,470 Z M0,470 L37,374 L74,470 Z M74,470 L111,374 L148,470 Z M148,470 L185,374 L222,470 Z M222,470 L259,374 L296,470 Z M296,470 L333,374 L370,470 Z M370,470 L407,374 L444,470 Z M444,470 L481,374 L518,470 Z M518,470 L555,374 L592,470 Z M592,470 L629,374 L666,470 Z M666,470 L703,374 L740,470 Z M740,470 L777,374 L814,470 Z M814,470 L851,374 L888,470 Z M888,470 L925,374 L962,470 Z M962,470 L999,374 L1036,470 Z M0,470 h960 v70 H0 Z" android:fillColor="#FF040C09"/>
+</vector>

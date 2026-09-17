@@ -165,4 +165,25 @@
     <string name="os_programi_izklopljeno">%1$s teilt seine Programme nicht. Schalte in Safeer Control auf diesem Computer \'Programme für den Fernseher\' ein.</string>
     <string name="os_programi_napaka">Es hat nicht geklappt: %1$s</string>
     <string name="os_programi_zagnan">%1$s startet auf %2$s - auf dem Bildschirm des Computers, nicht hier.</string>
+    <!-- Videz (ozadje) in zaslon Naprave -->
+    <string name="os_videz">Aussehen</string>
+    <string name="os_videz_opis">Hintergrund des Safeer OS-Startbildschirms</string>
+    <string name="os_tema_brez">Ohne Bild</string>
+    <string name="os_tema_sij">Nordlicht</string>
+    <string name="os_tema_gozd">Wald in der Dämmerung</string>
+    <string name="os_tema_mesto">Stadt bei Nacht</string>
+    <string name="os_tema_zora">Morgenröte</string>
+    <string name="os_naprave_naslov">Geräte</string>
+    <string name="os_naprave_datoteke">Dateien</string>
+    <string name="os_naprave_posiljanje">Senden</string>
+    <string name="os_naprave_stran">Safeer Link-Seite</string>
+    <string name="os_naprave_stran_opis">Gerät koppeln, Fernbedienung, Seite oder Datei senden</string>
+    <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
+    <string name="os_aplikacije_ostalo">Weitere</string>
+    <string name="os_aplikacije_vse">Alle Apps auf diesem Fernseher</string>
+    <string name="os_aplikacije_namig">OK öffnet eine App. OK halten, um sie auf den Startbildschirm (★) zu legen oder zu entfernen.</string>
+    <string name="os_aplikacije_prazno">Dieser Fernseher hat keine weiteren Apps.</string>
+    <string name="os_aplikacije_dodana">%1$s ist jetzt auf dem Startbildschirm.</string>
+    <string name="os_aplikacije_odstranjena">%1$s ist nicht mehr auf dem Startbildschirm.</string>
+    <string name="os_aplikacije_odstrani">Vom Startbildschirm entfernen</string>
 </resources>
