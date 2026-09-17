@@ -150,6 +150,34 @@
             </intent-filter>
         </service>
 
+        <!-- Safeer OS: domaci zaslon za televizor (Splet, Datoteke z racunalnika, Safeer Link, Scit, naprave, aplikacije).
+             Del tega brskalnika - ena namestitev, druga vstopna tocka v zaganjalniku, svoje opravilo. -->
+        <activity
+            android:name="si.safeer.tv.os.DomovActivity"
+            android:exported="true"
+            android:label="@string/os_app_name"
+            android:icon="@mipmap/os_ic_launcher"
+            android:banner="@drawable/os_banner"
+            android:theme="@style/Theme.SafeerOs"
+            android:launchMode="singleTask"
+            android:taskAffinity="si.safeer.tv.os"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name="si.safeer.tv.os.DatotekeActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="si.safeer.tv.os" android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.PredvajalnikActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Predvajalnik"
+            android:taskAffinity="si.safeer.tv.os" android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.SlikaActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Predvajalnik"
+            android:taskAffinity="si.safeer.tv.os" android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+
         <!-- Safeer Scit: filter DNS za ves televizor, v lastnem procesu (mapiran nabor domen, brez kopice brskalnika) -->
         <service
             android:name="si.safeer.tv.scit.ScitStoritev"

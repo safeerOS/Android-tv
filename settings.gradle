@@ -13,5 +13,3 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "tv-browser-2"
-// Safeer OS: televizijska lupina na Safeer Linku (safeer-os/), isti podpisni kljuc kot brskalnik.
-include ':safeer-os'

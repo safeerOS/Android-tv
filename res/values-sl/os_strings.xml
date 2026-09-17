@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
+    <string name="os_podnaslov">Tvoje naprave. En zaslon.</string>
+    <string name="os_odsek_zacni">Začni</string>
+    <string name="os_odsek_naprave">Naprave v Safeer Linku</string>
+    <string name="os_odsek_aplikacije">Aplikacije na tem televizorju</string>
+    <string name="os_splet">Splet</string>
+    <string name="os_splet_opis">Safeer Browser: manj oglasov, več zasebnosti</string>
+    <string name="os_datoteke">Datoteke</string>
+    <string name="os_datoteke_opis">Videi, glasba in slike z računalnika</string>
+    <string name="os_link">Safeer Link</string>
+    <string name="os_link_opis">Seznanitev, naprave in daljinec</string>
+    <string name="os_stanje_povezujem">Povezujem …</string>
+    <string name="os_stanje_povezan">Povezano · %1$s</string>
+    <string name="os_stanje_ni">Ni Safeer Linka</string>
+    <string name="os_stanje_ni_brskalnika">Namesti Safeer Browser za Android TV</string>
+    <string name="os_ni_naprav">Nobena druga naprava še ni povezana. Vklopi Safeer Link na telefonu ali računalniku.</string>
+    <string name="os_ni_brskalnika_dolgo">Safeer OS potrebuje Safeer Browser za Android TV – ta na televizorju gosti Safeer Link. Namesti ga s safeer.si in znova odpri Safeer OS.</string>
+    <string name="os_naprava_tv">ta televizor</string>
+    <string name="os_odpri">Odpri</string>
+    <string name="os_poslano_tv">Poslano v Safeer Browser</string>
+    <string name="os_prejeto_besedilo">Besedilo od %1$s</string>
+    <string name="os_datoteke_racunalniki">Računalniki</string>
+    <string name="os_datoteke_koren">Deljene mape</string>
+    <string name="os_datoteke_ni_racunalnika">Noben računalnik še ne deli datotek.\n\nNa računalniku odpri Safeer Control → Datoteke za televizor in dodaj mapo. Safeer Control je majhna brezplačna aplikacija za Linux: safeer.si/control</string>
+    <string name="os_datoteke_prazno_racunalnik">%1$s še ne deli nobene mape.\n\nV Safeer Controlu na tem računalniku odpri Datoteke za televizor in dodaj mapo – tu se pokaže takoj.</string>
+    <string name="os_datoteke_prazna_mapa">Ta mapa je prazna.</string>
+    <string name="os_datoteke_nalagam">Nalagam …</string>
+    <string name="os_datoteke_napaka">Seznama ni bilo mogoče dobiti (%1$s).</string>
+    <string name="os_datoteke_ni_povezave">Ni povezave s Safeer Linkom.</string>
+    <string name="os_datoteke_neznana_vrsta">Te vrste datoteke televizor ne zna odpreti.</string>
+    <string name="os_vrsta_mapa">Mapa</string>
+    <string name="os_vrsta_video">Video</string>
+    <string name="os_vrsta_audio">Glasba</string>
+    <string name="os_vrsta_slika">Slika</string>
+    <string name="os_vrsta_datoteka">Datoteka</string>
+    <string name="os_predvajalnik_napaka">Predvajanje ni uspelo: %1$s</string>
+    <string name="os_predvajalnik_namig">OK: predvajaj/pavza · ◀ ▶: 10 s · Nazaj: zapri</string>
+    <string name="os_slika_napaka">Slike ni bilo mogoče naložiti.</string>
+    <string name="os_scit">Ščit</string>
+    <string name="os_scit_preverjam">Preverjam …</string>
+    <string name="os_scit_ni_brskalnika">Potrebuje Safeer Browser za Android TV 2.1.100 ali novejši</string>
+    <string name="os_scit_vklopljen_opis">Vklopljen za ves televizor · danes blokiranih: %1$d</string>
+    <string name="os_scit_prekinjen">Vklopljen, a prekinjen (drug VPN?) – odpri za ponovni vklop</string>
+    <string name="os_scit_izklopljen_opis">Izklopljen · vklopi za blokiranje oglasov, sledilcev in nevarnih domen v vseh aplikacijah</string>
+    <string name="os_scit_izklopljen_kratko">Ščit je izklopljen</string>
+</resources>

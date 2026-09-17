@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kartica: temna, s tanko crto; ob fokusu z daljinca dvignjena in z 2 dp mint obrobo (docs/TV-UI.md). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_kartica_dvignjena"/>
+            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <corners android:radius="14dp"/>
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_kartica_dvignjena"/>
+            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <corners android:radius="14dp"/>
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_kartica"/>
+            <stroke android:width="1dp" android:color="@color/os_crta"/>
+            <corners android:radius="14dp"/>
+        </shape>
+    </item>
+</selector>

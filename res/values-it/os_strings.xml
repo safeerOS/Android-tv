@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
+    <string name="os_podnaslov">I tuoi dispositivi. Uno schermo.</string>
+    <string name="os_odsek_zacni">Inizia</string>
+    <string name="os_odsek_naprave">Dispositivi in Safeer Link</string>
+    <string name="os_odsek_aplikacije">App su questo televisore</string>
+    <string name="os_splet">Web</string>
+    <string name="os_splet_opis">Safeer Browser: meno pubblicità, più privacy</string>
+    <string name="os_datoteke">File</string>
+    <string name="os_datoteke_opis">Video, musica e foto dal computer</string>
+    <string name="os_link">Safeer Link</string>
+    <string name="os_link_opis">Abbinamento, dispositivi e telecomando</string>
+    <string name="os_stanje_povezujem">Connessione…</string>
+    <string name="os_stanje_povezan">Connesso · %1$s</string>
+    <string name="os_stanje_ni">Nessun Safeer Link</string>
+    <string name="os_stanje_ni_brskalnika">Installa Safeer Browser per Android TV</string>
+    <string name="os_ni_naprav">Nessun altro dispositivo è ancora connesso. Attiva Safeer Link sul telefono o sul computer.</string>
+    <string name="os_ni_brskalnika_dolgo">Safeer OS ha bisogno di Safeer Browser per Android TV: ospita Safeer Link su questo televisore. Installalo da safeer.si e riapri Safeer OS.</string>
+    <string name="os_naprava_tv">questo televisore</string>
+    <string name="os_odpri">Apri</string>
+    <string name="os_poslano_tv">Inviato a Safeer Browser</string>
+    <string name="os_prejeto_besedilo">Testo da %1$s</string>
+    <string name="os_datoteke_racunalniki">Computer</string>
+    <string name="os_datoteke_koren">Cartelle condivise</string>
+    <string name="os_datoteke_ni_racunalnika">Nessun computer condivide ancora file.\n\nSul computer apri Safeer Control → File per il televisore e aggiungi una cartella. Safeer Control è una piccola app gratuita per Linux: safeer.si/control</string>
+    <string name="os_datoteke_prazno_racunalnik">%1$s non condivide ancora nessuna cartella.\n\nIn Safeer Control su quel computer apri File per il televisore e aggiungi una cartella: compare qui subito.</string>
+    <string name="os_datoteke_prazna_mapa">Questa cartella è vuota.</string>
+    <string name="os_datoteke_nalagam">Caricamento…</string>
+    <string name="os_datoteke_napaka">Impossibile ottenere l\'elenco (%1$s).</string>
+    <string name="os_datoteke_ni_povezave">Nessuna connessione a Safeer Link.</string>
+    <string name="os_datoteke_neznana_vrsta">Il televisore non può aprire questo tipo di file.</string>
+    <string name="os_vrsta_mapa">Cartella</string>
+    <string name="os_vrsta_video">Video</string>
+    <string name="os_vrsta_audio">Musica</string>
+    <string name="os_vrsta_slika">Immagine</string>
+    <string name="os_vrsta_datoteka">File</string>
+    <string name="os_predvajalnik_napaka">Riproduzione non riuscita: %1$s</string>
+    <string name="os_predvajalnik_namig">OK: riproduci/pausa · ◀ ▶: 10 s · Indietro: chiudi</string>
+    <string name="os_slika_napaka">Impossibile caricare l\'immagine.</string>
+    <string name="os_scit">Scudo</string>
+    <string name="os_scit_preverjam">Controllo…</string>
+    <string name="os_scit_ni_brskalnika">Richiede Safeer Browser per Android TV 2.1.100 o più recente</string>
+    <string name="os_scit_vklopljen_opis">Attivo per tutto il televisore · bloccati oggi: %1$d</string>
+    <string name="os_scit_prekinjen">Attivo ma interrotto (un\'altra VPN?): apri per riattivarlo</string>
+    <string name="os_scit_izklopljen_opis">Disattivato · attivalo per bloccare pubblicità, tracker e domini pericolosi in tutte le app</string>
+    <string name="os_scit_izklopljen_kratko">Scudo disattivato</string>
+</resources>
