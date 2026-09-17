@@ -70,6 +70,10 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         narisiSpletne()
         link.dodaj(this)
         osveziScit()
+        // Vrsta s spletnimi aplikacijami na domacem zaslonu televizorja ostane usklajena; ko ima
+        // uporabnik prvo spletno aplikacijo, ga sistem enkrat vprasa, ali jo doda na domaci zaslon.
+        DomacaVrsta.osvezi(this)
+        if (SpletneAplikacije.seznam(this).isNotEmpty()) DomacaVrsta.ponudiEnkrat(this)
         if (link.vprasamoZaNacin()) glavna.postDelayed({ if (!isFinishing && link.vprasamoZaNacin()) vprasajZaNacin() }, 600)
     }
 
@@ -286,7 +290,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setTitle(a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
             .setMessage(getString(R.string.os_spletne_odstrani_vprasanje))
             .setPositiveButton(getString(R.string.os_spletne_odstrani)) { _, _ ->
-                SpletneAplikacije.odstrani(this, a.url); narisiSpletne()
+                SpletneAplikacije.odstrani(this, a.url); narisiSpletne(); DomacaVrsta.osvezi(this)
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .show()
@@ -310,7 +314,12 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setItems(imena) { _, i ->
                 val p = proste[i]
                 Toast.makeText(this, getString(R.string.os_spletne_dodajam), Toast.LENGTH_SHORT).show()
-                SpletneAplikacije.dodaj(this, p.url, p.title) { if (!isFinishing) narisiSpletne() }
+                SpletneAplikacije.dodaj(this, p.url, p.title) {
+                    if (isFinishing) return@dodaj
+                    narisiSpletne()
+                    // Prvic ponudimo, da se spletne aplikacije pokazejo tudi na domacem zaslonu TV.
+                    DomacaVrsta.ponudiEnkrat(this)
+                }
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .show()

@@ -327,15 +327,45 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             mobileTopBar.visibility = View.GONE
             // Aplikacija dobi svoj zavihek: njena zgodovina se zacne pri njej, zato Nazaj na
             // zacetku zapre aplikacijo in ne pripelje na domaco stran brskalnika.
-            zavihekAplikacije = try { tabManager.createTab(this, naslov, true).id } catch (_: Throwable) { null }
-            if (zavihekAplikacije == null) odpriVZavihku(naslov)
+            // Nadaljujemo, kjer je uporabnik koncal (ce je bil tam pred kratkim); sicer zacetna stran.
+            val zacetni = try { si.safeer.tv.os.SpletneAplikacije.nadaljevanje(this, naslov) } catch (_: Throwable) { naslov }
+            zavihekAplikacije = try { tabManager.createTab(this, zacetni, true).id } catch (_: Throwable) { null }
+            if (zavihekAplikacije == null) odpriVZavihku(zacetni)
             activeWebView()?.requestFocus()
         }, 350)
         if (ime.isNotBlank()) Toast.makeText(this, UiText.get(R.string.ui_web_app_odprta, ime), Toast.LENGTH_LONG).show()
     }
 
+    /**
+     * Doda stran, ki je odprta, med spletne aplikacije Safeer OS. Ime in ikono poisce v ozadju
+     * (manifest spletne aplikacije); domaci zaslon jo pokaze takoj, ikona pride za njo.
+     */
+    private fun dodajTrenutnoStranMedAplikacije() {
+        val naslov = activeUrl()
+        if (naslov.isBlank() || TvSite.isBrowserHome(naslov) || !naslov.startsWith("http")) {
+            Toast.makeText(this, UiText.get(R.string.ui_aplikacija_ni_strani), Toast.LENGTH_LONG).show()
+            return
+        }
+        val ime = (tabManager.getActiveTab()?.title ?: "").ifBlank { si.safeer.tv.os.SpletneAplikacije.gostitelj(naslov) }
+        if (si.safeer.tv.os.SpletneAplikacije.jeDodana(this, naslov)) {
+            Toast.makeText(this, UiText.get(R.string.ui_aplikacija_ze_dodana, ime), Toast.LENGTH_LONG).show()
+            return
+        }
+        si.safeer.tv.os.SpletneAplikacije.dodaj(this, naslov, ime) {
+            // Kartica se pojavi tudi v vrsti Safeer na domacem zaslonu televizorja.
+            try { si.safeer.tv.os.DomacaVrsta.osvezi(this) } catch (_: Throwable) { }
+        }
+        Toast.makeText(this, UiText.get(R.string.ui_aplikacija_dodana, ime), Toast.LENGTH_LONG).show()
+    }
+
+    /** Kje je uporabnik v tej aplikaciji ostal; ob vrnitvi v pol ure ga postavimo nazaj tja. */
+    private fun zapomniMestoAplikacije(kljuc: String) {
+        try { si.safeer.tv.os.SpletneAplikacije.zapomniMesto(this, kljuc, activeUrl()) } catch (_: Throwable) { }
+    }
+
     internal fun izklopiNacinAplikacije() {
-        if (nacinAplikacije == null) return
+        val bila = nacinAplikacije ?: return
+        zapomniMestoAplikacije(bila)
         nacinAplikacije = null
         zavihekAplikacije?.let { id ->
             zavihekAplikacije = null
@@ -621,6 +651,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     override fun onPause() {
+        nacinAplikacije?.let { zapomniMestoAplikacije(it) }
         si.safeer.tv.cast.CastReceiverService.krmilnikVOspredju = false
         si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = null
         silenceBackgroundMedia("onPause")
@@ -1858,6 +1889,18 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         dialog.findViewById<LinearLayout>(R.id.rowMenuSafeerLink).setOnClickListener {
             dialog.dismiss()
             odpriSafeerLink()
+        }
+
+        // ⭐ Trenutna stran med aplikacije Safeer OS: na domacem zaslonu dobi svojo plosccico z
+        // imenom in ikono iz manifesta, odpre pa se cez ves zaslon, brez vrstice brskalnika.
+        val rowDodajAplikacijo = dialog.findViewById<LinearLayout>(R.id.rowMenuDodajAplikacijo)
+        val txtDodajAplikacijo = dialog.findViewById<android.widget.TextView>(R.id.txtMenuDodajAplikacijo)
+        val naslovZaAplikacijo = activeUrl()
+        val zeDodana = naslovZaAplikacijo.isNotBlank() && si.safeer.tv.os.SpletneAplikacije.jeDodana(this, naslovZaAplikacijo)
+        if (zeDodana) txtDodajAplikacijo.text = UiText.get(R.string.menu_dodaj_aplikacijo) + " ✓"
+        rowDodajAplikacijo.setOnClickListener {
+            dialog.dismiss()
+            dodajTrenutnoStranMedAplikacije()
         }
 
         dialog.findViewById<LinearLayout>(R.id.rowMenuBookmarks).setOnClickListener {

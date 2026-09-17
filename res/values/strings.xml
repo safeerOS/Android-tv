@@ -48,6 +48,7 @@
     <string name="menu_popup_block">Block pop-up windows</string>
     <string name="menu_download_dir">Downloads folder</string>
     <string name="menu_scit">Safeer Shield: whole TV</string>
+    <string name="menu_dodaj_aplikacijo">Add to Safeer OS apps</string>
     <string name="scit_ime">Safeer Shield</string>
     <string name="scit_obvestilo_opis">DNS filter for the whole TV: ads, trackers and dangerous domains are blocked in every app.</string>
     <string name="scit_obvestilo_besedilo">Protecting the whole TV · blocked today: %1$d</string>

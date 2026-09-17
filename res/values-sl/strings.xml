@@ -48,6 +48,7 @@
     <string name="menu_popup_block">Prepreči pojavna okna</string>
     <string name="menu_download_dir">Mapa za prenose</string>
     <string name="menu_scit">Safeer Ščit: ves televizor</string>
+    <string name="menu_dodaj_aplikacijo">Dodaj med aplikacije Safeer OS</string>
     <string name="scit_ime">Safeer Ščit</string>
     <string name="scit_obvestilo_opis">Filter DNS za ves televizor: oglasi, sledilci in nevarne domene so blokirani v vseh aplikacijah.</string>
     <string name="scit_obvestilo_besedilo">Ščiti ves televizor · danes blokiranih: %1$d</string>

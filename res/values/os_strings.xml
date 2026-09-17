@@ -63,6 +63,8 @@
     <string name="os_datoteke_ni_linka">Safeer Link is off, so no computer can share folders. This TV\'s own files work without it.</string>
     <string name="os_krajevno_ta_tv">This TV</string>
     <string name="os_krajevno_koren">On this TV</string>
+    <string name="os_vrsta_ime">Safeer web apps</string>
+    <string name="os_vrsta_opis">Web apps you added to Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Videos, music and photos on the TV and USB</string>
     <string name="os_krajevno_videi">Videos</string>
     <string name="os_krajevno_glasba">Music</string>

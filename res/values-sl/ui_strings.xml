@@ -159,4 +159,7 @@
     <string name="ui_pdf_saved">Shranjeno: %1$s</string>
     <string name="ui_pdf_save_failed">PDF-ja ni bilo mogoče shraniti.</string>
     <string name="ui_web_app_odprta">%1$s · z Nazaj izstopiš</string>
+    <string name="ui_aplikacija_dodana">%1$s dodan med aplikacije Safeer OS</string>
+    <string name="ui_aplikacija_ze_dodana">%1$s je že med aplikacijami</string>
+    <string name="ui_aplikacija_ni_strani">Najprej odpri stran, potem jo dodaj</string>
 </resources>

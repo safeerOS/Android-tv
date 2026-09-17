@@ -62,6 +62,8 @@
     <string name="os_datoteke_ni_linka">Safeer Link está desactivado, así que ningún ordenador puede compartir carpetas. Los archivos del televisor funcionan sin él.</string>
     <string name="os_krajevno_ta_tv">Este televisor</string>
     <string name="os_krajevno_koren">En este televisor</string>
+    <string name="os_vrsta_ime">Safeer · aplicaciones web</string>
+    <string name="os_vrsta_opis">Las aplicaciones web que has añadido a Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Vídeos, música y fotos del televisor y del USB</string>
     <string name="os_krajevno_videi">Vídeos</string>
     <string name="os_krajevno_glasba">Música</string>

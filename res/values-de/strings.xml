@@ -48,6 +48,7 @@
     <string name="menu_popup_block">Pop-up-Fenster blockieren</string>
     <string name="menu_download_dir">Download-Ordner</string>
     <string name="menu_scit">Safeer Schild: ganzer Fernseher</string>
+    <string name="menu_dodaj_aplikacijo">Zu Safeer-OS-Apps hinzufügen</string>
     <string name="scit_ime">Safeer Schild</string>
     <string name="scit_obvestilo_opis">DNS-Filter für den ganzen Fernseher: Werbung, Tracker und gefährliche Domains werden in jeder App blockiert.</string>
     <string name="scit_obvestilo_besedilo">Schützt den ganzen Fernseher · heute blockiert: %1$d</string>

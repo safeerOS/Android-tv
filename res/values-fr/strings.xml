@@ -48,6 +48,7 @@
     <string name="menu_popup_block">Bloquer les fenêtres pop-up</string>
     <string name="menu_download_dir">Dossier de téléchargement</string>
     <string name="menu_scit">Bouclier Safeer : tout le téléviseur</string>
+    <string name="menu_dodaj_aplikacijo">Ajouter aux applications Safeer OS</string>
     <string name="scit_ime">Bouclier Safeer</string>
     <string name="scit_obvestilo_opis">Filtre DNS pour tout le téléviseur : publicités, traqueurs et domaines dangereux bloqués dans toutes les applications.</string>
     <string name="scit_obvestilo_besedilo">Protège tout le téléviseur · bloqués aujourd\'hui : %1$d</string>

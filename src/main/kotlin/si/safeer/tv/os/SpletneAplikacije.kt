@@ -40,7 +40,21 @@ object SpletneAplikacije {
     private const val KLJUC = "spletne_aplikacije"
     private const val NAJVEC = 24
 
-    data class Aplikacija(val url: String, val ime: String, val ikona: String = "", val barva: String = "")
+    data class Aplikacija(
+        val url: String,
+        val ime: String,
+        val ikona: String = "",
+        val barva: String = "",
+        /** Naslov ikone na spletu (za kartico na domacem zaslonu televizorja). */
+        val ikonaUrl: String = "",
+        /** Kje je uporabnik nazadnje bil v tej aplikaciji (naslov znotraj nje). */
+        val zadnji: String = "",
+        /** Kdaj je bil tam; po [OKNO_MS] se aplikacija spet odpre na svoji zacetni strani. */
+        val zadnjiCas: Long = 0L,
+    )
+
+    /** Koliko casa velja »nadaljuj, kjer si koncal«: pol ure je ravno prav za prekinjen ogled. */
+    private const val OKNO_MS = 30 * 60 * 1000L
 
     private val ozadje = Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-os-spletne").also { it.isDaemon = true } }
     private val glavna = Handler(Looper.getMainLooper())
@@ -54,7 +68,8 @@ object SpletneAplikacije {
             (0 until polje.length()).mapNotNull { i ->
                 val o = polje.optJSONObject(i) ?: return@mapNotNull null
                 val url = o.optString("url"); if (url.isBlank()) null
-                else Aplikacija(url, o.optString("ime"), o.optString("ikona"), o.optString("barva"))
+                else Aplikacija(url, o.optString("ime"), o.optString("ikona"), o.optString("barva"),
+                    o.optString("ikona_url"), o.optString("zadnji"), o.optLong("zadnji_cas"))
             }
         } catch (e: Throwable) { Log.w(TAG, "Seznama ni bilo mogoce prebrati: ${e.message}"); emptyList() }
     }
@@ -62,12 +77,36 @@ object SpletneAplikacije {
     private fun shrani(c: Context, seznam: List<Aplikacija>) {
         val polje = JSONArray()
         for (a in seznam.take(NAJVEC)) {
-            polje.put(JSONObject().put("url", a.url).put("ime", a.ime).put("ikona", a.ikona).put("barva", a.barva))
+            polje.put(JSONObject().put("url", a.url).put("ime", a.ime).put("ikona", a.ikona).put("barva", a.barva)
+                .put("ikona_url", a.ikonaUrl).put("zadnji", a.zadnji).put("zadnji_cas", a.zadnjiCas))
         }
         prefs(c).edit().putString(KLJUC, polje.toString()).apply()
     }
 
     fun jeDodana(c: Context, url: String): Boolean = seznam(c).any { istaStran(it.url, url) }
+
+    /**
+     * Kje naj se aplikacija odpre. Ce je uporabnik v zadnji pol ure gledal kaj znotraj nje, se vrne
+     * tja (tako delajo aplikacije: nadaljujes, kjer si koncal); pozneje se odpre na svoji zacetni
+     * strani, da ne obticis na vceraj odprti podstrani. Nadaljuje samo znotraj istega gostitelja.
+     */
+    fun nadaljevanje(c: Context, url: String): String {
+        val a = seznam(c).firstOrNull { istaStran(it.url, url) } ?: return url
+        if (a.zadnji.isBlank() || System.currentTimeMillis() - a.zadnjiCas > OKNO_MS) return url
+        return if (gostitelj(a.zadnji) == gostitelj(url)) a.zadnji else url
+    }
+
+    /** Zapomni si, kje je uporabnik koncal (ob izhodu iz aplikacije ali ob odhodu z zaslona). */
+    fun zapomniMesto(c: Context, url: String, zadnji: String) {
+        if (url.isBlank()) return
+        val app = c.applicationContext
+        val seznam = seznam(app)
+        if (seznam.none { istaStran(it.url, url) }) return
+        val cist = if (zadnji.isBlank() || gostitelj(zadnji) != gostitelj(url)) "" else zadnji
+        shrani(app, seznam.map {
+            if (istaStran(it.url, url)) it.copy(zadnji = cist, zadnjiCas = if (cist.isBlank()) 0L else System.currentTimeMillis()) else it
+        })
+    }
 
     /**
      * Doda spletno aplikacijo takoj (z zacasnim imenom) in v ozadju poisce njeno pravo ime in
@@ -81,7 +120,7 @@ object SpletneAplikacije {
         ozadje.execute {
             val podatki = try { preberiManifest(app, url) } catch (e: Throwable) { Log.w(TAG, "Manifest: ${e.message}"); null }
             if (podatki != null) {
-                val posodobljene = seznam(app).map { if (istaStran(it.url, url)) it.copy(ime = podatki.ime.ifBlank { it.ime }, ikona = podatki.ikona, barva = podatki.barva) else it }
+                val posodobljene = seznam(app).map { if (istaStran(it.url, url)) it.copy(ime = podatki.ime.ifBlank { it.ime }, ikona = podatki.ikona, barva = podatki.barva, ikonaUrl = podatki.ikonaUrl) else it }
                 shrani(app, posodobljene)
                 glavna.post { obKoncu?.invoke() }
             }
@@ -132,7 +171,7 @@ object SpletneAplikacije {
 
     // ------------------------------------------------------------------ manifest spletne aplikacije
 
-    private class Podatki(val ime: String, val ikona: String, val barva: String)
+    private class Podatki(val ime: String, val ikona: String, val barva: String, val ikonaUrl: String)
 
     private fun odjemalec(): OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
@@ -193,7 +232,7 @@ object SpletneAplikacije {
         }
         val pot = prenesiIkono(c, k, ikonaUrl, url)
         ime = ime.replace(Regex("\\s+"), " ").take(40)
-        return Podatki(ime, pot, barva)
+        return Podatki(ime, pot, barva, ikonaUrl)
     }
 
     private fun razresi(osnova: String, pot: String): String = try { URL(URL(osnova), pot).toString() } catch (_: Throwable) { pot }

@@ -48,6 +48,7 @@
     <string name="menu_popup_block">Blocca le finestre pop-up</string>
     <string name="menu_download_dir">Cartella dei download</string>
     <string name="menu_scit">Scudo Safeer: tutto il televisore</string>
+    <string name="menu_dodaj_aplikacijo">Aggiungi alle app di Safeer OS</string>
     <string name="scit_ime">Scudo Safeer</string>
     <string name="scit_obvestilo_opis">Filtro DNS per tutto il televisore: pubblicità, tracker e domini pericolosi bloccati in tutte le app.</string>
     <string name="scit_obvestilo_besedilo">Protegge tutto il televisore · bloccati oggi: %1$d</string>

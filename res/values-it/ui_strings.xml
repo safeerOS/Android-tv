@@ -159,4 +159,7 @@
     <string name="ui_pdf_saved">Salvato: %1$s</string>
     <string name="ui_pdf_save_failed">Impossibile salvare il PDF.</string>
     <string name="ui_web_app_odprta">%1$s · premi Indietro per uscire</string>
+    <string name="ui_aplikacija_dodana">%1$s aggiunto a Safeer OS</string>
+    <string name="ui_aplikacija_ze_dodana">%1$s è già in Safeer OS</string>
+    <string name="ui_aplikacija_ni_strani">Apri prima una pagina, poi aggiungila</string>
 </resources>

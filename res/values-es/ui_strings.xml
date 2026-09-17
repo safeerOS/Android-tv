@@ -159,4 +159,7 @@
     <string name="ui_pdf_saved">Guardado: %1$s</string>
     <string name="ui_pdf_save_failed">No se pudo guardar el PDF.</string>
     <string name="ui_web_app_odprta">%1$s · pulsa Atrás para salir</string>
+    <string name="ui_aplikacija_dodana">%1$s añadido a Safeer OS</string>
+    <string name="ui_aplikacija_ze_dodana">%1$s ya está en Safeer OS</string>
+    <string name="ui_aplikacija_ni_strani">Abre primero una página y luego añádela</string>
 </resources>
