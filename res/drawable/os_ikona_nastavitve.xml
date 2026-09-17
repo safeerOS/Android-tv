@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nastavitve Safeer OS: drsnika (kaj naj Safeer OS bo), ne zobnik - na daljincu je bolj bran. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="28dp" android:height="28dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:strokeColor="#57D6AD" android:strokeWidth="1.8" android:fillColor="#00000000" android:strokeLineJoin="round" android:strokeLineCap="round"
+        android:pathData="M4,8 h16 M4,16 h16"/>
+    <path android:strokeColor="#57D6AD" android:strokeWidth="1.8" android:fillColor="#00000000" android:strokeLineJoin="round" android:strokeLineCap="round"
+        android:pathData="M9,5.6 v4.8 M15,13.6 v4.8"/>
+</vector>

@@ -77,6 +77,15 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (link.vprasamoZaNacin()) glavna.postDelayed({ if (!isFinishing && link.vprasamoZaNacin()) vprasajZaNacin() }, 600)
     }
 
+    /**
+     * Kadar je Safeer OS domaci zaslon televizorja, tipka Nazaj nima kam: zapustili bi ga in
+     * uporabnik bi ostal pred praznim zaslonom. Takrat je Nazaj brez ucinka, kot pri zaganjalniku.
+     */
+    override fun onBackPressed() {
+        if (Zaganjalnik.jeIzbran(this)) return
+        @Suppress("DEPRECATION") super.onBackPressed()
+    }
+
     override fun onStop() {
         glavna.removeCallbacks(tikUre)
         link.odstrani(this)
@@ -138,6 +147,9 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (link.povezan) odpriLinkVBrskalniku() else vprasajZaNacin()
         }
         karticaScit = dodajVeliko(R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() }
+        dodajVeliko(R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve), getString(R.string.os_nastavitve_opis)) {
+            startActivity(Intent(this, NastavitveActivity::class.java))
+        }
         vrstaZacni.getChildAt(0)?.requestFocus()
         osveziKartice()
     }

@@ -81,4 +81,24 @@
     <string name="os_preklici">Cancel</string>
     <string name="os_spletne_odstrani_vprasanje">Remove this web app from the home screen? The site itself stays untouched.</string>
     <string name="os_spletne_ni_kaj_dodati">Every site from your browser home page is already here. Add a site in the browser first (My sites → Edit).</string>
+
+    <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
+    <string name="os_nastavitve">Settings</string>
+    <string name="os_nastavitve_opis">Home screen, mode of operation, Shield</string>
+    <string name="os_nastavitve_opomba">Everything below can be turned on or off at any time.</string>
+    <string name="os_zaganjalnik">The TV\'s home screen</string>
+    <string name="os_zaganjalnik_opis">Whether Safeer OS takes over the Home button or stays an app you open for web apps</string>
+    <string name="os_zaganjalnik_izbran">Safeer OS</string>
+    <string name="os_zaganjalnik_ponujen">Offered in the system</string>
+    <string name="os_zaganjalnik_vprasanje">Safeer OS will be offered as the home screen of this television. The choice is the system\'s: a system window opens where you pick it. You can switch this off here at any time, and the TV goes back to its own launcher.</string>
+    <string name="os_zaganjalnik_vklopi">Offer as home screen</string>
+    <string name="os_zaganjalnik_izklopljen">Safeer OS is no longer the home screen; the TV took its own back.</string>
+    <string name="os_zaganjalnik_ni_nastavitev">This television does not offer a system setting for the home screen.</string>
+    <string name="os_nacin">Mode of operation</string>
+    <string name="os_nacin_kratko">Safeer Link (your devices and files from the computer) or this television alone</string>
+    <string name="os_stanje_nacin_link">Safeer Link</string>
+    <string name="os_stanje_nacin_krajevni">Local</string>
+    <string name="os_scit_nastavitev_opis">DNS filtering for the whole television, in every app</string>
+    <string name="os_vklopljeno">On</string>
+    <string name="os_izklopljeno">Off</string>
 </resources>

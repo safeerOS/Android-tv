@@ -80,4 +80,24 @@
     <string name="os_preklici">Abbrechen</string>
     <string name="os_spletne_odstrani_vprasanje">Diese Web-App vom Startbildschirm entfernen? Die Seite selbst bleibt unberührt.</string>
     <string name="os_spletne_ni_kaj_dodati">Alle Seiten der Browser-Startseite sind schon hier. Füge eine Seite zuerst im Browser hinzu (Meine Seiten → Bearbeiten).</string>
+
+    <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
+    <string name="os_nastavitve">Einstellungen</string>
+    <string name="os_nastavitve_opis">Startbildschirm, Betriebsart, Schild</string>
+    <string name="os_nastavitve_opomba">Alles hier lässt sich jederzeit ein- und ausschalten.</string>
+    <string name="os_zaganjalnik">Startbildschirm des Fernsehers</string>
+    <string name="os_zaganjalnik_opis">Ob Safeer OS die Home-Taste übernimmt oder eine App bleibt, die du für Web-Apps öffnest</string>
+    <string name="os_zaganjalnik_izbran">Safeer OS</string>
+    <string name="os_zaganjalnik_ponujen">Im System verfügbar</string>
+    <string name="os_zaganjalnik_vprasanje">Safeer OS wird als Startbildschirm dieses Fernsehers angeboten. Die Wahl trifft das System: es öffnet sich ein Systemfenster, in dem du es auswählst. Hier kannst du es jederzeit ausschalten, dann nimmt der Fernseher wieder seinen eigenen Launcher.</string>
+    <string name="os_zaganjalnik_vklopi">Als Startbildschirm anbieten</string>
+    <string name="os_zaganjalnik_izklopljen">Safeer OS ist nicht mehr der Startbildschirm; der Fernseher hat seinen eigenen zurück.</string>
+    <string name="os_zaganjalnik_ni_nastavitev">Dieser Fernseher bietet keine Systemeinstellung für den Startbildschirm.</string>
+    <string name="os_nacin">Betriebsart</string>
+    <string name="os_nacin_kratko">Safeer Link (deine Geräte und Dateien vom Computer) oder nur dieser Fernseher</string>
+    <string name="os_stanje_nacin_link">Safeer Link</string>
+    <string name="os_stanje_nacin_krajevni">Lokal</string>
+    <string name="os_scit_nastavitev_opis">DNS-Filter für den ganzen Fernseher, in jeder App</string>
+    <string name="os_vklopljeno">Ein</string>
+    <string name="os_izklopljeno">Aus</string>
 </resources>

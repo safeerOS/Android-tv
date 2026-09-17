@@ -175,6 +175,33 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Safeer OS kot domaci zaslon televizorja. Privzeto ONEMOGOCEN: dokler ga uporabnik
+             sam ne vklopi, Android sploh ne ve, da bi Safeer OS lahko bil zaganjalnik, in tipka
+             Domov dela kot prej. Vklop in izklop sta v Safeer OS (os/Zaganjalnik.kt). -->
+        <activity
+            android:name="si.safeer.tv.os.NastavitveActivity"
+            android:exported="false"
+            android:label="@string/os_nastavitve"
+            android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="si.safeer.tv.os"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+
+        <activity-alias
+            android:name="si.safeer.tv.os.ZaganjalnikAlias"
+            android:targetActivity="si.safeer.tv.os.DomovActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:label="@string/os_app_name"
+            android:icon="@mipmap/os_ic_launcher"
+            android:banner="@drawable/os_banner">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
         <activity android:name="si.safeer.tv.os.DatotekeActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
             android:taskAffinity="si.safeer.tv.os" android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />

@@ -80,4 +80,24 @@
     <string name="os_preklici">Prekliči</string>
     <string name="os_spletne_odstrani_vprasanje">Odstranim to spletno aplikacijo z domačega zaslona? Sama stran ostane nedotaknjena.</string>
     <string name="os_spletne_ni_kaj_dodati">Vse strani z domače strani brskalnika so že tu. Novo stran najprej dodaj v brskalniku (Moje strani → Uredi).</string>
+
+    <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
+    <string name="os_nastavitve">Nastavitve</string>
+    <string name="os_nastavitve_opis">Domači zaslon, način delovanja, Ščit</string>
+    <string name="os_nastavitve_opomba">Vse spodnje lahko kadarkoli vklopiš ali izklopiš.</string>
+    <string name="os_zaganjalnik">Domači zaslon televizorja</string>
+    <string name="os_zaganjalnik_opis">Ali Safeer OS prevzame tipko Domov ali ostane aplikacija, ki jo odpreš za spletne aplikacije</string>
+    <string name="os_zaganjalnik_izbran">Safeer OS</string>
+    <string name="os_zaganjalnik_ponujen">Na voljo v sistemu</string>
+    <string name="os_zaganjalnik_vprasanje">Safeer OS se ponudi kot domači zaslon tega televizorja. Izbira je sistemska: odprlo se bo sistemsko okno, kjer ga izbereš. Tukaj ga lahko kadarkoli izklopiš in televizor se vrne na svoj zaganjalnik.</string>
+    <string name="os_zaganjalnik_vklopi">Ponudi kot domači zaslon</string>
+    <string name="os_zaganjalnik_izklopljen">Safeer OS ni več domači zaslon; televizor je vzel svojega nazaj.</string>
+    <string name="os_zaganjalnik_ni_nastavitev">Ta televizor sistemske nastavitve za domači zaslon ne ponuja.</string>
+    <string name="os_nacin">Način delovanja</string>
+    <string name="os_nacin_kratko">Safeer Link (tvoje naprave in datoteke z računalnika) ali samo ta televizor</string>
+    <string name="os_stanje_nacin_link">Safeer Link</string>
+    <string name="os_stanje_nacin_krajevni">Krajevno</string>
+    <string name="os_scit_nastavitev_opis">Filtriranje DNS za ves televizor, v vseh aplikacijah</string>
+    <string name="os_vklopljeno">Vklopljeno</string>
+    <string name="os_izklopljeno">Izklopljeno</string>
 </resources>

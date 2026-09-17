@@ -80,4 +80,24 @@
     <string name="os_preklici">Cancelar</string>
     <string name="os_spletne_odstrani_vprasanje">¿Quitar esta app web de la pantalla de inicio? El sitio en sí no cambia.</string>
     <string name="os_spletne_ni_kaj_dodati">Todos los sitios de la página de inicio del navegador ya están aquí. Añade uno primero en el navegador (Mis sitios → Editar).</string>
+
+    <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
+    <string name="os_nastavitve">Ajustes</string>
+    <string name="os_nastavitve_opis">Pantalla de inicio, modo de funcionamiento, Escudo</string>
+    <string name="os_nastavitve_opomba">Todo lo de abajo se puede activar o desactivar en cualquier momento.</string>
+    <string name="os_zaganjalnik">Pantalla de inicio del televisor</string>
+    <string name="os_zaganjalnik_opis">Si Safeer OS toma el botón de Inicio o sigue siendo una app que abres para las aplicaciones web</string>
+    <string name="os_zaganjalnik_izbran">Safeer OS</string>
+    <string name="os_zaganjalnik_ponujen">Disponible en el sistema</string>
+    <string name="os_zaganjalnik_vprasanje">Safeer OS se ofrecerá como pantalla de inicio de este televisor. La elección es del sistema: se abrirá una ventana del sistema donde seleccionarlo. Aquí puedes desactivarlo cuando quieras y el televisor recupera su propio lanzador.</string>
+    <string name="os_zaganjalnik_vklopi">Ofrecer como pantalla de inicio</string>
+    <string name="os_zaganjalnik_izklopljen">Safeer OS ya no es la pantalla de inicio; el televisor ha recuperado la suya.</string>
+    <string name="os_zaganjalnik_ni_nastavitev">Este televisor no ofrece un ajuste del sistema para la pantalla de inicio.</string>
+    <string name="os_nacin">Modo de funcionamiento</string>
+    <string name="os_nacin_kratko">Safeer Link (tus dispositivos y los archivos del ordenador) o solo este televisor</string>
+    <string name="os_stanje_nacin_link">Safeer Link</string>
+    <string name="os_stanje_nacin_krajevni">Local</string>
+    <string name="os_scit_nastavitev_opis">Filtrado DNS para todo el televisor, en todas las apps</string>
+    <string name="os_vklopljeno">Activado</string>
+    <string name="os_izklopljeno">Desactivado</string>
 </resources>
