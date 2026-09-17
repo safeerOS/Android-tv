@@ -8,7 +8,6 @@
     <string name="splet_opis">Safeer Browser: manj oglasov, več zasebnosti</string>
     <string name="datoteke">Datoteke</string>
     <string name="datoteke_opis">Videi, glasba in slike z računalnika</string>
-    <string name="datoteke_kmalu">Datoteke z računalnika – kmalu</string>
     <string name="link">Safeer Link</string>
     <string name="link_opis">Seznanitev, naprave in daljinec</string>
     <string name="stanje_povezujem">Povezujem …</string>
@@ -21,4 +20,21 @@
     <string name="odpri">Odpri</string>
     <string name="poslano_tv">Poslano v Safeer Browser</string>
     <string name="prejeto_besedilo">Besedilo od %1$s</string>
+    <string name="datoteke_racunalniki">Računalniki</string>
+    <string name="datoteke_koren">Deljene mape</string>
+    <string name="datoteke_ni_racunalnika">Noben računalnik še ne deli datotek.\n\nNa računalniku odpri Safeer Control → Datoteke za televizor in dodaj mapo. Safeer Control je majhna brezplačna aplikacija za Linux: safeer.si/control</string>
+    <string name="datoteke_prazno_racunalnik">%1$s še ne deli nobene mape.\n\nV Safeer Controlu na tem računalniku odpri Datoteke za televizor in dodaj mapo – tu se pokaže takoj.</string>
+    <string name="datoteke_prazna_mapa">Ta mapa je prazna.</string>
+    <string name="datoteke_nalagam">Nalagam …</string>
+    <string name="datoteke_napaka">Seznama ni bilo mogoče dobiti (%1$s).</string>
+    <string name="datoteke_ni_povezave">Ni povezave s Safeer Linkom.</string>
+    <string name="datoteke_neznana_vrsta">Te vrste datoteke televizor ne zna odpreti.</string>
+    <string name="vrsta_mapa">Mapa</string>
+    <string name="vrsta_video">Video</string>
+    <string name="vrsta_audio">Glasba</string>
+    <string name="vrsta_slika">Slika</string>
+    <string name="vrsta_datoteka">Datoteka</string>
+    <string name="predvajalnik_napaka">Predvajanje ni uspelo: %1$s</string>
+    <string name="predvajalnik_namig">OK: predvajaj/pavza · ◀ ▶: 10 s · Nazaj: zapri</string>
+    <string name="slika_napaka">Slike ni bilo mogoče naložiti.</string>
 </resources>

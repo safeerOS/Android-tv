@@ -8,7 +8,6 @@
     <string name="splet_opis">Safeer Browser: menos anuncios, más privacidad</string>
     <string name="datoteke">Archivos</string>
     <string name="datoteke_opis">Vídeos, música y fotos de tu ordenador</string>
-    <string name="datoteke_kmalu">Archivos del ordenador – próximamente</string>
     <string name="link">Safeer Link</string>
     <string name="link_opis">Emparejamiento, dispositivos y mando</string>
     <string name="stanje_povezujem">Conectando…</string>
@@ -21,4 +20,21 @@
     <string name="odpri">Abrir</string>
     <string name="poslano_tv">Enviado a Safeer Browser</string>
     <string name="prejeto_besedilo">Texto de %1$s</string>
+    <string name="datoteke_racunalniki">Ordenadores</string>
+    <string name="datoteke_koren">Carpetas compartidas</string>
+    <string name="datoteke_ni_racunalnika">Ningún ordenador comparte archivos todavía.\n\nEn el ordenador, abre Safeer Control → Archivos para el televisor y añade una carpeta. Safeer Control es una pequeña app gratuita para Linux: safeer.si/control</string>
+    <string name="datoteke_prazno_racunalnik">%1$s aún no comparte ninguna carpeta.\n\nEn Safeer Control de ese ordenador, abre Archivos para el televisor y añade una carpeta: aparecerá aquí al momento.</string>
+    <string name="datoteke_prazna_mapa">Esta carpeta está vacía.</string>
+    <string name="datoteke_nalagam">Cargando…</string>
+    <string name="datoteke_napaka">No se pudo obtener la lista (%1$s).</string>
+    <string name="datoteke_ni_povezave">Sin conexión con Safeer Link.</string>
+    <string name="datoteke_neznana_vrsta">El televisor no puede abrir este tipo de archivo.</string>
+    <string name="vrsta_mapa">Carpeta</string>
+    <string name="vrsta_video">Vídeo</string>
+    <string name="vrsta_audio">Música</string>
+    <string name="vrsta_slika">Imagen</string>
+    <string name="vrsta_datoteka">Archivo</string>
+    <string name="predvajalnik_napaka">La reproducción falló: %1$s</string>
+    <string name="predvajalnik_namig">OK: reproducir/pausa · ◀ ▶: 10 s · Atrás: cerrar</string>
+    <string name="slika_napaka">No se pudo cargar la imagen.</string>
 </resources>

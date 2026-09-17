@@ -8,7 +8,6 @@
     <string name="splet_opis">Safeer Browser: weniger Werbung, mehr Privatsphäre</string>
     <string name="datoteke">Dateien</string>
     <string name="datoteke_opis">Videos, Musik und Fotos vom Computer</string>
-    <string name="datoteke_kmalu">Dateien vom Computer – bald</string>
     <string name="link">Safeer Link</string>
     <string name="link_opis">Kopplung, Geräte und Fernbedienung</string>
     <string name="stanje_povezujem">Verbinde …</string>
@@ -21,4 +20,21 @@
     <string name="odpri">Öffnen</string>
     <string name="poslano_tv">An Safeer Browser gesendet</string>
     <string name="prejeto_besedilo">Text von %1$s</string>
+    <string name="datoteke_racunalniki">Computer</string>
+    <string name="datoteke_koren">Freigegebene Ordner</string>
+    <string name="datoteke_ni_racunalnika">Noch kein Computer gibt Dateien frei.\n\nÖffne am Computer Safeer Control → Dateien für den Fernseher und füge einen Ordner hinzu. Safeer Control ist eine kleine kostenlose App für Linux: safeer.si/control</string>
+    <string name="datoteke_prazno_racunalnik">%1$s gibt noch keinen Ordner frei.\n\nÖffne in Safeer Control auf diesem Computer „Dateien für den Fernseher“ und füge einen Ordner hinzu – er erscheint hier sofort.</string>
+    <string name="datoteke_prazna_mapa">Dieser Ordner ist leer.</string>
+    <string name="datoteke_nalagam">Lade …</string>
+    <string name="datoteke_napaka">Liste konnte nicht geladen werden (%1$s).</string>
+    <string name="datoteke_ni_povezave">Keine Verbindung zu Safeer Link.</string>
+    <string name="datoteke_neznana_vrsta">Diesen Dateityp kann der Fernseher nicht öffnen.</string>
+    <string name="vrsta_mapa">Ordner</string>
+    <string name="vrsta_video">Video</string>
+    <string name="vrsta_audio">Musik</string>
+    <string name="vrsta_slika">Bild</string>
+    <string name="vrsta_datoteka">Datei</string>
+    <string name="predvajalnik_napaka">Wiedergabe fehlgeschlagen: %1$s</string>
+    <string name="predvajalnik_namig">OK: Wiedergabe/Pause · ◀ ▶: 10 s · Zurück: schließen</string>
+    <string name="slika_napaka">Bild konnte nicht geladen werden.</string>
 </resources>

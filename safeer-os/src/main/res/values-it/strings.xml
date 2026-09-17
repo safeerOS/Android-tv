@@ -8,7 +8,6 @@
     <string name="splet_opis">Safeer Browser: meno pubblicità, più privacy</string>
     <string name="datoteke">File</string>
     <string name="datoteke_opis">Video, musica e foto dal computer</string>
-    <string name="datoteke_kmalu">File dal computer – presto</string>
     <string name="link">Safeer Link</string>
     <string name="link_opis">Abbinamento, dispositivi e telecomando</string>
     <string name="stanje_povezujem">Connessione…</string>
@@ -21,4 +20,21 @@
     <string name="odpri">Apri</string>
     <string name="poslano_tv">Inviato a Safeer Browser</string>
     <string name="prejeto_besedilo">Testo da %1$s</string>
+    <string name="datoteke_racunalniki">Computer</string>
+    <string name="datoteke_koren">Cartelle condivise</string>
+    <string name="datoteke_ni_racunalnika">Nessun computer condivide ancora file.\n\nSul computer apri Safeer Control → File per il televisore e aggiungi una cartella. Safeer Control è una piccola app gratuita per Linux: safeer.si/control</string>
+    <string name="datoteke_prazno_racunalnik">%1$s non condivide ancora nessuna cartella.\n\nIn Safeer Control su quel computer apri File per il televisore e aggiungi una cartella: compare qui subito.</string>
+    <string name="datoteke_prazna_mapa">Questa cartella è vuota.</string>
+    <string name="datoteke_nalagam">Caricamento…</string>
+    <string name="datoteke_napaka">Impossibile ottenere l\'elenco (%1$s).</string>
+    <string name="datoteke_ni_povezave">Nessuna connessione a Safeer Link.</string>
+    <string name="datoteke_neznana_vrsta">Il televisore non può aprire questo tipo di file.</string>
+    <string name="vrsta_mapa">Cartella</string>
+    <string name="vrsta_video">Video</string>
+    <string name="vrsta_audio">Musica</string>
+    <string name="vrsta_slika">Immagine</string>
+    <string name="vrsta_datoteka">File</string>
+    <string name="predvajalnik_napaka">Riproduzione non riuscita: %1$s</string>
+    <string name="predvajalnik_namig">OK: riproduci/pausa · ◀ ▶: 10 s · Indietro: chiudi</string>
+    <string name="slika_napaka">Impossibile caricare l\'immagine.</string>
 </resources>

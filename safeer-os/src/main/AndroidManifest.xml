@@ -3,6 +3,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Predvajalnik: zaslon in omrezje ostaneta budna med predvajanjem z racunalnika. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Zeton Safeer Linka dobi od Safeer Browserja na istem televizorju (dovoljenje istega podpisa). -->
     <uses-permission android:name="si.safeer.tv.permission.LINK" />
 
@@ -18,6 +20,7 @@
     </queries>
 
     <application
+        android:name=".SafeerOs"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/banner"
@@ -36,5 +39,14 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Datoteke z racunalnika (Safeer Control deli mape), predvajalnik in slike. -->
+        <activity android:name=".DatotekeActivity" android:exported="false" android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name=".PredvajalnikActivity" android:exported="false" android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation"
+            android:theme="@style/Theme.SafeerOs.Predvajalnik" />
+        <activity android:name=".SlikaActivity" android:exported="false" android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation"
+            android:theme="@style/Theme.SafeerOs.Predvajalnik" />
     </application>
 </manifest>

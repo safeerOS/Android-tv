@@ -16,6 +16,7 @@ import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -40,6 +41,15 @@ class LinkOdjemalec(private val context: Context) {
         private set
     var imeSredisca: String = ""
         private set
+    /** Zadnji seznam naprav s sredisca (za zaslone, ki se odprejo, ko je povezava ze vzpostavljena). */
+    @Volatile var naprave: List<Naprava> = emptyList()
+        private set
+
+    /** Odgovor na ukaz daljinca: `izid` je payload sporocila control.result (ok, message, data) ali null ob napaki/poteku. */
+    fun interface Odgovor { fun na(izid: JSONObject?, napaka: String) }
+
+    private class CakajociUkaz(val odgovor: Odgovor, val potek: Runnable)
+    private val cakajoci = ConcurrentHashMap<String, CakajociUkaz>()
 
     private val glavna = Handler(Looper.getMainLooper())
     private var poverilnice: Sorodnik.Poverilnice? = null
@@ -150,6 +160,32 @@ class LinkOdjemalec(private val context: Context) {
         })
     }
 
+    /**
+     * Ukaz drugi napravi po Linku (control.command): sredisce ga posreduje, naprava odgovori s
+     * control.result (ref_id = id ukaza). Odgovor pride na glavni niti; brez njega v `potekMs` javimo potek.
+     */
+    fun ukaz(cilj: String, dejanje: String, parametri: JSONObject, potekMs: Long = 10_000, odgovor: Odgovor) {
+        val w = ws
+        if (!povezan || w == null) { glavna.post { odgovor.na(null, "ni_povezave") }; return }
+        val id = UUID.randomUUID().toString()
+        val potek = Runnable { cakajoci.remove(id)?.let { it.odgovor.na(null, "potek") } }
+        cakajoci[id] = CakajociUkaz(odgovor, potek)
+        val sporocilo = JSONObject()
+            .put("id", id)
+            .put("type", "control.command")
+            .put("target", cilj)
+            .put("payload", JSONObject().put("action", dejanje).put("params", parametri))
+        val poslano = try { w.send(sporocilo.toString()) } catch (_: Throwable) { false }
+        if (!poslano) { cakajoci.remove(id); glavna.post { odgovor.na(null, "ni_povezave") }; return }
+        glavna.postDelayed(potek, potekMs)
+    }
+
+    private fun koncajUkaz(refId: String, izid: JSONObject?, napaka: String) {
+        val c = cakajoci.remove(refId) ?: return
+        glavna.removeCallbacks(c.potek)
+        glavna.post { c.odgovor.na(izid, napaka) }
+    }
+
     private fun ponovno() {
         if (!tece) return
         val zamik = minOf(30_000L, 2_000L * (1 shl minOf(poskusov, 4)))
@@ -176,7 +212,19 @@ class LinkOdjemalec(private val context: Context) {
                 // Sredisce je naprava z loopback naslovom (tako ga prepozna tudi stran Linka).
                 imeSredisca = seznam.firstOrNull { it.naslov == "127.0.0.1" || it.naslov == "::1" }?.ime
                     ?: seznam.firstOrNull { it.id.startsWith("tv-") }?.ime ?: imeSredisca
+                naprave = seznam
                 glavna.post { poslusalec?.naNaprave(seznam) }
+            }
+            "control.result" -> {
+                val ref = json.optString("ref_id"); if (ref.isBlank()) return
+                koncajUkaz(ref, json.optJSONObject("payload") ?: JSONObject(), "")
+            }
+            "control.ack" -> {
+                // Sredisce potrdi ali zavrne posredovanje; zavrnitev (naprava ni na zvezi) je konec ukaza.
+                val ref = json.optString("ref_id"); if (ref.isBlank()) return
+                if (json.optString("status") != "accepted") {
+                    koncajUkaz(ref, null, json.optString("error_code").ifBlank { json.optString("error").ifBlank { "zavrnjeno" } })
+                }
             }
             "cast.url" -> {
                 val telo = json.optJSONObject("payload") ?: return

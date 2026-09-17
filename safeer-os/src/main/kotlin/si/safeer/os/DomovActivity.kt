@@ -35,9 +35,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private lateinit var vrstaAplikacije: LinearLayout
     private lateinit var opombaSpodaj: TextView
 
-    private val link by lazy { LinkOdjemalec(this) }
+    private val link by lazy { SafeerOs.link(this) }
     private val glavna = Handler(Looper.getMainLooper())
-    private var prosimZaPoverilnice = false
     private val tikUre = object : Runnable {
         override fun run() {
             ura.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
@@ -56,7 +55,6 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         napraveOpomba = findViewById(R.id.napraveOpomba)
         vrstaAplikacije = findViewById(R.id.vrstaAplikacije)
         opombaSpodaj = findViewById(R.id.opombaSpodaj)
-        link.poslusalec = this
         narisiZacni()
         narisiNaprave(emptyList())
     }
@@ -65,55 +63,29 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         super.onStart()
         glavna.post(tikUre)
         narisiAplikacije()
-        poveziLink()
+        link.dodaj(this)
     }
 
     override fun onStop() {
         glavna.removeCallbacks(tikUre)
-        link.ustavi()
+        link.odstrani(this)
         super.onStop()
     }
 
     // ------------------------------------------------------------------ Link
 
-    private fun poveziLink() {
-        if (!Sorodnik.jeBrskalnikNamescen(this)) {
-            pokaziStanje(false, getString(R.string.stanje_ni_brskalnika))
-            opombaSpodaj.text = getString(R.string.ni_brskalnika_dolgo)
-            opombaSpodaj.visibility = View.VISIBLE
-            return
-        }
-        opombaSpodaj.visibility = View.GONE
-        val shranjene = Identiteta.beri(this)
-        if (shranjene != null) {
-            pokaziStanje(false, getString(R.string.stanje_povezujem))
-            link.zazeni(shranjene)
-        } else {
-            zahtevajPoverilnice()
-        }
-    }
-
-    private fun zahtevajPoverilnice() {
-        if (prosimZaPoverilnice) return
-        prosimZaPoverilnice = true
-        pokaziStanje(false, getString(R.string.stanje_povezujem))
-        Sorodnik.zahtevaj(this) { p ->
-            prosimZaPoverilnice = false
-            if (p == null) {
-                pokaziStanje(false, getString(R.string.stanje_ni))
-                return@zahtevaj
-            }
-            Identiteta.shrani(this, p)
-            link.zazeni(p)
-        }
-    }
-
     override fun naStanje(povezan: Boolean, sporocilo: String) {
-        if (povezan) {
-            val kje = link.imeSredisca.ifBlank { getString(R.string.naprava_tv) }
-            pokaziStanje(true, getString(R.string.stanje_povezan, kje))
-        } else {
-            pokaziStanje(false, getString(R.string.stanje_povezujem))
+        val kje = link.imeSredisca.ifBlank { getString(R.string.naprava_tv) }
+        opombaSpodaj.visibility = View.GONE
+        when {
+            povezan -> pokaziStanje(true, getString(R.string.stanje_povezan, kje))
+            sporocilo == "ni_brskalnika" -> {
+                pokaziStanje(false, getString(R.string.stanje_ni_brskalnika))
+                opombaSpodaj.text = getString(R.string.ni_brskalnika_dolgo)
+                opombaSpodaj.visibility = View.VISIBLE
+            }
+            sporocilo == "ni" -> pokaziStanje(false, getString(R.string.stanje_ni))
+            else -> pokaziStanje(false, getString(R.string.stanje_povezujem))
         }
     }
 
@@ -132,11 +104,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         Toast.makeText(this, getString(R.string.prejeto_besedilo, od) + "\n" + besedilo.take(200), Toast.LENGTH_LONG).show()
     }
 
-    override fun naZavrnitev() {
-        // Sredisce je bilo ponastavljeno ali je Safeer OS odstranjen s seznama: vstopimo znova brez kode.
-        Identiteta.pozabi(this)
-        zahtevajPoverilnice()
-    }
+    override fun naZavrnitev() { }
 
     private fun pokaziStanje(povezan: Boolean, besedilo: String) {
         stanjeBesedilo.text = besedilo
@@ -151,8 +119,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         dodajVeliko(R.drawable.ikona_splet, getString(R.string.splet), getString(R.string.splet_opis)) {
             if (brskalnik) odpriVBrskalniku(null) else odpriVBrskalniku("https://safeer.si/browser/tv/")
         }
-        dodajVeliko(R.drawable.ikona_datoteke, getString(R.string.datoteke), getString(R.string.datoteke_kmalu)) {
-            Toast.makeText(this, getString(R.string.datoteke_kmalu), Toast.LENGTH_SHORT).show()
+        dodajVeliko(R.drawable.ikona_datoteke, getString(R.string.datoteke), getString(R.string.datoteke_opis)) {
+            startActivity(Intent(this, DatotekeActivity::class.java))
         }
         dodajVeliko(R.drawable.ikona_link, getString(R.string.link), getString(R.string.link_opis)) {
             odpriLinkVBrskalniku()
@@ -180,7 +148,11 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             v.findViewById<TextView>(R.id.ime).text = n.ime.ifBlank { n.id }
             v.findViewById<TextView>(R.id.vloga).text = vrstaNaprave(n)
             v.onFocusChangeListener = fokus
-            v.setOnClickListener { odpriLinkVBrskalniku() }
+            v.setOnClickListener {
+                // Racunalnik s Safeer Controlom, ki deli mape: naravnost v njegove datoteke; sicer stran Linka.
+                if (n.zmoznosti.contains("files")) startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
+                else odpriLinkVBrskalniku()
+            }
             vrstaNaprave.addView(v)
         }
     }

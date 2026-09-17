@@ -9,7 +9,6 @@
     <string name="splet_opis">Safeer Browser: fewer ads, more privacy</string>
     <string name="datoteke">Files</string>
     <string name="datoteke_opis">Videos, music and photos from your computer</string>
-    <string name="datoteke_kmalu">Files from your computer — coming soon</string>
     <string name="link">Safeer Link</string>
     <string name="link_opis">Pairing, devices and remote</string>
     <string name="stanje_povezujem">Connecting…</string>
@@ -22,4 +21,21 @@
     <string name="odpri">Open</string>
     <string name="poslano_tv">Sent to Safeer Browser</string>
     <string name="prejeto_besedilo">Text from %1$s</string>
+    <string name="datoteke_racunalniki">Computers</string>
+    <string name="datoteke_koren">Shared folders</string>
+    <string name="datoteke_ni_racunalnika">No computer is sharing files yet.\n\nOn your computer, open Safeer Control → Files for the TV and add a folder. Safeer Control is a small free app for Linux: safeer.si/control</string>
+    <string name="datoteke_prazno_racunalnik">%1$s isn\'t sharing any folder yet.\n\nIn Safeer Control on that computer, open Files for the TV and add a folder — it appears here right away.</string>
+    <string name="datoteke_prazna_mapa">This folder is empty.</string>
+    <string name="datoteke_nalagam">Loading…</string>
+    <string name="datoteke_napaka">Couldn\'t get the list (%1$s).</string>
+    <string name="datoteke_ni_povezave">No connection to Safeer Link.</string>
+    <string name="datoteke_neznana_vrsta">The TV can\'t open this type of file.</string>
+    <string name="vrsta_mapa">Folder</string>
+    <string name="vrsta_video">Video</string>
+    <string name="vrsta_audio">Music</string>
+    <string name="vrsta_slika">Picture</string>
+    <string name="vrsta_datoteka">File</string>
+    <string name="predvajalnik_napaka">Playback failed: %1$s</string>
+    <string name="predvajalnik_namig">OK: play/pause · ◀ ▶: 10 s · Back: close</string>
+    <string name="slika_napaka">Couldn\'t load the picture.</string>
 </resources>
