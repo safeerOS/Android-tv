@@ -34,6 +34,8 @@ class CastReceiverService : Service() {
 
     companion object {
         private const val TAG = "SafeerCastReceiver"
+        /** Domaca stran brskalnika; tipka Domov z daljinca Safeer Controla jo odpre. */
+        const val DOMACA_STRAN = "file:///android_asset/brave_home.html"
         private const val CHANNEL_ID = "safeer_cast_channel"
         private const val NOTIFICATION_ID = 4040
 
@@ -97,6 +99,10 @@ class CastReceiverService : Service() {
         /** Odgovor Huba na nase posiljanje: (ref_id, status, error_code, error). */
         @Volatile
         var naPotrditev: ((String, String, String, String) -> Unit)? = null
+
+        /** Odgovor na ukaz daljinca (control.result) ali zavrnitev sredisca (control.ack), za stran Linka. */
+        @Volatile
+        var naUkazOdziv: ((JSONObject) -> Unit)? = null
 
         @Volatile
         var povezan: Boolean = false
@@ -222,7 +228,7 @@ class CastReceiverService : Service() {
                         put("device_id", deviceId)
                         put("name", deviceName)
                         put("role", "receiver")
-                        put("capabilities", org.json.JSONArray(listOf("url", "media", "control", "volume", "seek", "text", "file", "screen")))
+                        put("capabilities", org.json.JSONArray(listOf("url", "media", "control", "volume", "seek", "text", "file", "screen", si.safeer.tv.link.Daljinec.ZMOZNOST)))
                     })
                 }
                 ws.send(registerMsg.toString())
@@ -498,6 +504,37 @@ class CastReceiverService : Service() {
                     sendAck(ws, msgId, "accepted")
                 }
 
+                "control.result", "control.ack" -> {
+                    // Odgovor naprave na nas ukaz (ali zavrnitev sredisca): naprej strani daljinca.
+                    if (type == "control.ack" && json.optString("status", "") == "accepted") return
+                    try { naUkazOdziv?.invoke(json) } catch (_: Throwable) { }
+                }
+
+                "control.command" -> {
+                    // Ukaz Safeer Controla (ali druge seznanjene naprave) prek sredisca.
+                    // Izvede se na glavni niti; odgovor gre nazaj posiljatelju kot control.result.
+                    val payload = json.optJSONObject("payload") ?: JSONObject()
+                    val posiljatelj = json.optString("sender", "")
+                    val dejanje = payload.optString("action", "")
+                    val parametri = payload.optJSONObject("params") ?: payload
+                    Log.i(TAG, "Prejet control.command od $posiljatelj: $dejanje")
+                    mainHandler.post {
+                        val krmilnik = mediaController
+                        val ospredje = if (krmilnik != null && krmilnikVOspredju) krmilnik as? si.safeer.tv.link.Daljinec.VOspredju else null
+                        val izid = si.safeer.tv.link.Daljinec.izvedi(this@CastReceiverService, dejanje, parametri, ospredje, DOMACA_STRAN) { url, naslov ->
+                            if (krmilnik != null && krmilnikVOspredju) krmilnik.onCastUrlReceived(url, naslov, 0.0)
+                            else odpriVBrskalniku(url, naslov, 0.0)
+                        }
+                        if (posiljatelj.isNotBlank()) {
+                            try {
+                                ws.send(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje, izid).toString())
+                            } catch (e: Throwable) {
+                                Log.w(TAG, "Odgovora na ukaz ni bilo mogoce poslati: ${e.message}")
+                            }
+                        }
+                    }
+                }
+
                 "cast.ping" -> {
                     val pong = JSONObject().apply {
                         put("id", msgId)
@@ -631,6 +668,13 @@ class CastReceiverService : Service() {
                 mainHandler.post { pokaziSporocilo("📁 $od", "Datoteke $ime ni bilo mogoče prevzeti.") }
             }
         }.start()
+    }
+
+    /** Poslje poljubno sporocilo sredi scu (npr. control.command s strani daljinca). */
+    fun posljiSporocilo(sporocilo: JSONObject): Boolean {
+        val ws = webSocket ?: return false
+        if (!povezan) return false
+        return try { ws.send(sporocilo.toString()) } catch (_: Throwable) { false }
     }
 
     private fun sendAck(ws: WebSocket, refId: String, status: String, error: String? = null) {

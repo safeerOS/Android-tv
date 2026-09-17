@@ -23,7 +23,8 @@ import android.widget.*
 import org.json.JSONObject
 import java.net.URLEncoder
 
-class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverService.CastMediaController {
+class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverService.CastMediaController,
+    si.safeer.tv.link.Daljinec.VOspredju {
 
     internal lateinit var mainRoot: RelativeLayout
     internal lateinit var mobileTopBar: LinearLayout
@@ -681,6 +682,77 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     /** JavaScript za vse predvajalnike v strani (video in audio). */
+    /**
+     * Daljinec Safeer Controla (prek Safeer Linka), ko je brskalnik v ospredju: tipke gredo
+     * po isti poti kot s pravega daljinca, drsenje in posnetek zaslona po dejavnem zavihku.
+     * Kar ni nasteto, izvede storitev sama (glasnost, aplikacije, ponovni zagon ...).
+     */
+    override fun izvediUkaz(dejanje: String, parametri: JSONObject): si.safeer.tv.link.Daljinec.Izid? {
+        return when (dejanje) {
+            "key" -> {
+                val ime = parametri.optString("key", "").trim().lowercase()
+                if (ime == "home") {
+                    try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }
+                    showBrowserStartPage()
+                    return si.safeer.tv.link.Daljinec.Izid(true, "Domov")
+                }
+                val koda = si.safeer.tv.link.Daljinec.TIPKE[ime]
+                    ?: return si.safeer.tv.link.Daljinec.Izid(false, "Neznana tipka: $ime", koda = "neznana_tipka")
+                val zdaj = android.os.SystemClock.uptimeMillis()
+                dispatchKeyEvent(KeyEvent(zdaj, zdaj, KeyEvent.ACTION_DOWN, koda, 0))
+                dispatchKeyEvent(KeyEvent(zdaj, zdaj + 40, KeyEvent.ACTION_UP, koda, 0))
+                si.safeer.tv.link.Daljinec.Izid(true, "Tipka $ime")
+            }
+            "scroll" -> {
+                val smer = parametri.optString("direction", "down").trim().lowercase()
+                val js = when (smer) {
+                    "up" -> "window.scrollBy({top:-Math.round(window.innerHeight*0.8),behavior:'smooth'})"
+                    "down" -> "window.scrollBy({top:Math.round(window.innerHeight*0.8),behavior:'smooth'})"
+                    "top" -> "window.scrollTo({top:0,behavior:'smooth'})"
+                    "bottom" -> "window.scrollTo({top:document.documentElement.scrollHeight,behavior:'smooth'})"
+                    else -> return si.safeer.tv.link.Daljinec.Izid(false, "Neznana smer: $smer")
+                }
+                val wv = activeWebView() ?: return si.safeer.tv.link.Daljinec.Izid(false, "Ni odprtega zavihka")
+                try { wv.evaluateJavascript(js, null) } catch (_: Exception) { }
+                si.safeer.tv.link.Daljinec.Izid(true, "Drsenje $smer")
+            }
+            "screenshot" -> posnetekZaslona()
+            "status" -> si.safeer.tv.link.Daljinec.Izid(true, "Stanje", si.safeer.tv.link.Daljinec.stanje(this,
+                JSONObject().put("url", si.safeer.tv.PdfPregledovalnik.javniNaslov(activeUrl()))
+                    .put("title", tabManager.getActiveTab()?.webView?.title ?: "")
+                    .put("playing", castState)))
+            else -> null
+        }
+    }
+
+    /** Posnetek dejavnega zavihka: pomanjsan JPEG (najvec 640 px), da gre skozi sredisce. */
+    private fun posnetekZaslona(): si.safeer.tv.link.Daljinec.Izid {
+        val pogled: View = customVideoView ?: activeWebView()
+            ?: return si.safeer.tv.link.Daljinec.Izid(false, "Ni odprtega zavihka")
+        val sirina = pogled.width
+        val visina = pogled.height
+        if (sirina <= 0 || visina <= 0) return si.safeer.tv.link.Daljinec.Izid(false, "Zaslon se ni pripravljen")
+        val merilo = minOf(1f, 640f / sirina)
+        val slika = android.graphics.Bitmap.createBitmap(
+            (sirina * merilo).toInt().coerceAtLeast(1), (visina * merilo).toInt().coerceAtLeast(1),
+            android.graphics.Bitmap.Config.RGB_565)
+        val platno = android.graphics.Canvas(slika)
+        platno.scale(merilo, merilo)
+        try {
+            pogled.draw(platno)
+        } catch (e: Throwable) {
+            slika.recycle()
+            return si.safeer.tv.link.Daljinec.Izid(false, "Posnetka ni bilo mogoce narediti: ${e.message}")
+        }
+        val izhod = java.io.ByteArrayOutputStream()
+        slika.compress(android.graphics.Bitmap.CompressFormat.JPEG, 55, izhod)
+        val (w, h) = Pair(slika.width, slika.height)
+        slika.recycle()
+        val b64 = android.util.Base64.encodeToString(izhod.toByteArray(), android.util.Base64.NO_WRAP)
+        return si.safeer.tv.link.Daljinec.Izid(true, "Posnetek zaslona",
+            JSONObject().put("image", "data:image/jpeg;base64," + b64).put("width", w).put("height", h))
+    }
+
     private fun castJs(telo: String) {
         val js = "(function(){try{var m=document.querySelectorAll('video,audio');" +
             "for(var i=0;i<m.length;i++){var v=m[i];" + telo + "}}catch(e){}})()"

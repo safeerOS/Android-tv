@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="si.safeer.tv"
-    android:versionCode="205"
-    android:versionName="2.1.96">
+    android:versionCode="206"
+    android:versionName="2.1.97">
 
     <uses-sdk
         android:minSdkVersion="28"
         android:targetSdkVersion="34" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Safeer Link: stran ali ukaz z druge naprave odpre brskalnik, tudi ko ni v ospredju
+         (Android 10+ zagon iz ozadja dovoli le prek obvestila s celozaslonsko namero). -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Za crno ozadje domacega zaslona televizorja; spremeni ga samo uporabnik v meniju. -->
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <!-- mDNS: brez tega Android na Wi-Fi zavrze multicast in Safeer Hub ni najden. -->
@@ -43,6 +46,24 @@
         android:largeScreens="true"
         android:xlargeScreens="true"
         android:anyDensity="true" />
+
+    <!-- Daljinec Safeer Linka (Safeer Control): seznam aplikacij, ki jih je mogoce zagnati,
+         in aplikacije, ki znajo odpreti spletno povezavo (npr. SmartTube za YouTube).
+         Brez tega Android 11+ seznam skrije in daljinec bi videl le sistemske aplikacije. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
 
     <application
         android:label="@string/app_name"

@@ -204,6 +204,46 @@ private fun preizkusRegistra() {
 
 // ------------------------------------------------------------ sinhronizacija
 
+private fun preizkusDaljinca() {
+    println("\n== daljinec (control.command / control.result) ==")
+    val u = usmerjevalnik()
+    val tv = Lazni("192.168.0.20")
+    val star = Lazni("192.168.0.21")
+    val control = Lazni("192.168.0.40")
+
+    u.odgovorNa(tv, registracija("tv1", "receiver", "[\"url\",\"control\",\"remote\"]"))
+    u.odgovorNa(star, registracija("tv-star", "receiver"))
+    u.odgovorNa(control, registracija("pc1", "sender", "[\"url\",\"text\"]"))
+    tv.pocisti(); control.pocisti()
+
+    val ukaz = u.odgovorNa(control, """{"id":"u1","type":"control.command","target":"tv1","payload":{"action":"key","params":{"key":"down"}}}""")
+    preveriEnako("ukaz je sprejet (posredovan)", "accepted", polje(ukaz!!, "status"))
+    preveriEnako("potrditev je v prostoru control", "control.ack", tip(ukaz))
+    preveriEnako("naprava dobi control.command", "control.command", tip(tv.zadnje()))
+    preveri("naprava vidi, kdo ukazuje", tv.zadnje().contains("\"sender\":\"pc1\""))
+    preveri("id ukaza ostane isti (ref za odgovor)", tv.zadnje().contains("\"id\":\"u1\""))
+    preveri("tovor pride cel", tv.zadnje().contains("\"key\":\"down\""))
+
+    // Odgovor gre nazaj posiljatelju ukaza, brez potrditve Huba.
+    val odgovor = u.odgovorNa(tv, """{"id":"o1","type":"control.result","target":"pc1","ref_id":"u1","payload":{"ok":true,"message":"Tipka down","action":"key"}}""")
+    preveriEnako("Hub odgovora ne potrjuje", null, odgovor)
+    preveriEnako("posiljatelj dobi control.result", "control.result", tip(control.zadnje()))
+    preveriEnako("ref_id se ohrani", "u1", polje(control.zadnje(), "ref_id"))
+    preveri("posiljatelja odgovora vpise Hub", control.zadnje().contains("\"sender\":\"tv1\""))
+
+    preveriEnako("naprava brez zmoznosti remote je zavrnjena", "rejected",
+        polje(u.odgovorNa(control, """{"id":"u2","type":"control.command","target":"tv-star","payload":{"action":"key"}}""")!!, "status"))
+    preveriEnako("... z oznako brez_daljinca", "brez_daljinca",
+        polje(u.odgovorNa(control, """{"id":"u2","type":"control.command","target":"tv-star","payload":{"action":"key"}}""")!!, "error_code"))
+    preveriEnako("ukaz neznani napravi je zavrnjen", "rejected",
+        polje(u.odgovorNa(control, """{"id":"u3","type":"control.command","target":"nihce","payload":{"action":"key"}}""")!!, "status"))
+    preveriEnako("ukaz samemu sebi je zavrnjen", "rejected",
+        polje(u.odgovorNa(control, """{"id":"u4","type":"control.command","target":"pc1","payload":{"action":"key"}}""")!!, "status"))
+    // Odgovor nepovezani napravi se ne izgubi tiho: posiljatelj dobi zavrnitev.
+    preveriEnako("odgovor neznani napravi je zavrnjen", "rejected",
+        polje(u.odgovorNa(tv, """{"id":"o2","type":"control.result","target":"nihce","ref_id":"u1","payload":{"ok":true}}""")!!, "status"))
+}
+
 private fun preizkusSinhronizacije() {
     println("\n== sinhronizacija ==")
     val u = usmerjevalnik()
@@ -692,6 +732,7 @@ fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
     preizkusRegistra()
+    preizkusDaljinca()
     preizkusSinhronizacije()
     preizkusSeznanjanja()
     preizkusVstopnic()

@@ -375,6 +375,90 @@ class LinkMost(
         napaka("tv_ne_upravlja", "Televizor je zaslon in ne upravlja drugih zaslonov.")
     }
 
+    // ------------------------------------------------------------------ daljinec (Safeer Control)
+
+    /**
+     * Ukaz daljinca drugi napravi prek sredisca (control.command). Odgovor pride kot odziv
+     * "ukaz" z istim `ref`, ki ga je dala stran; ce sredisce ukaz zavrne, prav tako.
+     */
+    @JavascriptInterface
+    fun ukaz(idNaprave: String, dejanje: String, parametriJson: String, ref: String) {
+        val storitev = CastReceiverService.instance
+        if (storitev == null || !CastReceiverService.povezan) {
+            odziv("ukaz", JSONObject().put("ref", ref).put("ok", false).put("message", "Ni povezave s Safeer Linkom."))
+            return
+        }
+        val parametri = try { JSONObject(parametriJson) } catch (_: Throwable) { JSONObject() }
+        val sporocilo = JSONObject().apply {
+            put("id", ref.ifBlank { java.util.UUID.randomUUID().toString() })
+            put("type", "control.command")
+            put("target", idNaprave)
+            put("payload", JSONObject().put("action", dejanje).put("params", parametri))
+        }
+        if (!storitev.posljiSporocilo(sporocilo)) {
+            odziv("ukaz", JSONObject().put("ref", ref).put("ok", false).put("message", "Ukaza ni bilo mogoce poslati."))
+        }
+    }
+
+    /** Odgovor naprave (control.result) ali zavrnitev sredisca (control.ack) -> stran. */
+    private fun ukazOdziv(json: JSONObject) {
+        val tovor = json.optJSONObject("payload") ?: JSONObject()
+        val o = JSONObject()
+            .put("ref", json.optString("ref_id", ""))
+            .put("naprava", json.optString("sender", ""))
+        if (json.optString("type") == "control.ack") {
+            o.put("ok", false).put("message", json.optString("error", "").ifBlank { "Sredisce je ukaz zavrnilo." })
+                .put("koda", json.optString("error_code", ""))
+        } else {
+            o.put("ok", tovor.optBoolean("ok", false)).put("message", tovor.optString("message", ""))
+                .put("action", tovor.optString("action", "")).put("koda", tovor.optString("code", ""))
+            tovor.optJSONObject("data")?.let { o.put("data", it) }
+        }
+        odziv("ukaz", o)
+    }
+
+    /** Ali se Safeer na tem televizorju sme sam odpreti, ko pride ukaz ali stran z druge naprave. */
+    @JavascriptInterface
+    fun lahkoVOspredje(): Boolean = Daljinec.lahkoVOspredje(dejavnost)
+
+    /** Odpre sistemsko stran, kjer uporabnik Safeerju dovoli prekrivanje (enkrat). */
+    @JavascriptInterface
+    fun dovoliOspredje() {
+        dejavnost.runOnUiThread {
+            try {
+                val namera = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:" + dejavnost.packageName))
+                dejavnost.startActivity(namera)
+            } catch (e: Throwable) {
+                try {
+                    dejavnost.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+                } catch (e2: Throwable) {
+                    napaka("nastavitev_ni", "Nastavitve ni bilo mogoce odpreti: ${e2.message}")
+                }
+            }
+        }
+    }
+
+    private var govor: Govor? = null
+
+    /** Ali naprava zna prepoznavati govor (mikrofon na daljincu ali telefonu). */
+    @JavascriptInterface
+    fun znaGovor(): Boolean = try { Govor(dejavnost) { }.jeNaVoljo() } catch (_: Throwable) { false }
+
+    /** Zacne poslusati; odzivi "govor" nosijo stanje (poslusam, delno, koncno, napaka) in besedilo. */
+    @JavascriptInterface
+    fun poslusaj(jezik: String) {
+        dejavnost.runOnUiThread {
+            val g = govor ?: Govor(dejavnost) { podatki -> odziv("govor", podatki) }.also { govor = it }
+            g.zacni(jezik)
+        }
+    }
+
+    @JavascriptInterface
+    fun nehajPoslusati() {
+        dejavnost.runOnUiThread { govor?.ustavi() }
+    }
+
     @JavascriptInterface
     fun zapri() {
         dejavnost.runOnUiThread { zapriZaslon() }
@@ -529,6 +613,7 @@ class LinkMost(
     private fun pripniPoslusalce() {
         CastReceiverService.naSpremembeNaprav = { surovo -> odziv("naprave", napraveZaStran(surovo)) }
         CastReceiverService.naPovezavo = { p -> odziv("povezava", p) }
+        CastReceiverService.naUkazOdziv = { json -> ukazOdziv(json) }
         val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik ?: return
         si.safeer.tv.cast.HubKrmilnik.naSpremembePrijav = { odziv("hub-prijave", org.json.JSONArray(hubPrijave())) }
         u.naSpremembeNaprav = { odziv("hub-tu", JSONObject(si.safeer.tv.cast.HubKrmilnik.stanjeJson(dejavnost))) }
@@ -544,6 +629,9 @@ class LinkMost(
             CastReceiverService.naSpremembeNaprav = null
             CastReceiverService.naPovezavo = null
             CastReceiverService.naPotrditev = null
+            CastReceiverService.naUkazOdziv = null
+            govor?.ustavi()
+            govor = null
             val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik
             si.safeer.tv.cast.HubKrmilnik.naSpremembePrijav = null
             u?.naSpremembeNaprav = null
