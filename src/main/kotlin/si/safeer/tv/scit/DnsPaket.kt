@@ -18,6 +18,7 @@ object DnsPaket {
         val dns: ByteArray,          // tovor DNS
         val ime: String,             // vprasano ime (mala crke, brez koncne pike); prazno, ce ga ni
         val vrsta: Int,              // QTYPE
+        val razred: Int,             // QCLASS (skoraj vedno 1 = IN)
         val id: Int,                 // ID transakcije
     )
 
@@ -45,13 +46,13 @@ object DnsPaket {
         val id = u16(dns, 0)
         if ((dns[2].toInt() and 0x80) != 0) return null // odgovor, ne poizvedba
         val vprasanj = u16(dns, 4)
-        var ime = ""; var vrsta = 0
+        var ime = ""; var vrsta = 0; var razred = 0
         if (vprasanj >= 1) {
             val (i, konec) = preberiIme(dns, 12) ?: return null
             ime = i
-            if (konec + 4 <= dns.size) vrsta = u16(dns, konec)
+            if (konec + 4 <= dns.size) { vrsta = u16(dns, konec); razred = u16(dns, konec + 2) }
         }
-        return Poizvedba(razlicica, izvor, cilj, izvornaVrata, ciljnaVrata, dns, ime, vrsta, id)
+        return Poizvedba(razlicica, izvor, cilj, izvornaVrata, ciljnaVrata, dns, ime, vrsta, razred, id)
     }
 
     /** Kopija tovora DNS z drugim ID-jem transakcije (navzgor posljemo svojega, ne od aplikacije). */
@@ -61,15 +62,35 @@ object DnsPaket {
         return k
     }
 
-    /**
-     * Vprasanje iz odgovora streznika: (ime, vrsta). Uporabimo ga za preverjanje, da odgovor
-     * res pripada nasi poizvedbi - sam ID transakcije za to ni dovolj.
-     */
-    fun vprasanjeOdgovora(d: ByteArray, dolzina: Int = d.size): Pair<String, Int>? {
+    /** Vprasanje v sporocilu DNS: ime, vrsta (QTYPE) in razred (QCLASS). */
+    class Vprasanje(val ime: String, val vrsta: Int, val razred: Int)
+
+    /** Prvo vprasanje iz sporocila (poizvedbe ali odgovora); null, ce ga ni ali je pokvarjeno. */
+    fun vprasanje(d: ByteArray, dolzina: Int = d.size): Vprasanje? {
         if (dolzina < 12 || u16(d, 4) < 1) return null
         val (ime, konec) = preberiIme(d, 12) ?: return null
         if (konec + 4 > dolzina) return null
-        return ime to u16(d, konec)
+        return Vprasanje(ime, u16(d, konec), u16(d, konec + 2))
+    }
+
+    /** Zastavica QR: sporocilo je odgovor, ne poizvedba. */
+    fun jeOdgovor(d: ByteArray, dolzina: Int = d.size): Boolean =
+        dolzina >= 12 && (d[2].toInt() and 0x80) != 0
+
+    /**
+     * Ali smemo [odgovor] posredovati aplikaciji kot odgovor na njeno poizvedbo [q]?
+     *
+     * Sam ID transakcije je premalo: 16 bitov lahko ugane kdorkoli v omrezju. Zahtevamo, da je
+     * odgovor prisel z naslova in vrat 53 streznika, ki smo ga vprasali ([streznik]), da nosi nas
+     * ID ([nasId]), da ima postavljeno zastavico QR in da je vprasanje v njem enako nasemu
+     * (ime, vrsta in razred). Funkcija je namenoma cista, da jo je mogoce preizkusiti brez Androida.
+     */
+    fun ustrezaOdgovor(q: Poizvedba, nasId: Int, streznik: ByteArray, izvor: ByteArray, vrata: Int,
+                       odgovor: ByteArray, dolzina: Int = odgovor.size): Boolean {
+        if (vrata != 53 || !izvor.contentEquals(streznik)) return false
+        if (dolzina < 12 || u16(odgovor, 0) != nasId || !jeOdgovor(odgovor, dolzina)) return false
+        val v = vprasanje(odgovor, dolzina) ?: return false
+        return v.ime == q.ime && v.vrsta == q.vrsta && v.razred == q.razred
     }
 
     /** Ime iz odseka vprasanja (brez kazalcev v vprasanju). Vrne (ime, odmik za imenom). */
@@ -175,7 +196,7 @@ object DnsPaket {
 
     /** Sestavi surov paket s poizvedbo (za teste): IPv4 ali IPv6 + UDP + DNS. */
     fun sestaviPaket(razlicica: Int, izvor: ByteArray, cilj: ByteArray, izvornaVrata: Int, ciljnaVrata: Int, dns: ByteArray): ByteArray {
-        val q = Poizvedba(razlicica, cilj, izvor, ciljnaVrata, izvornaVrata, dns, "", 0, 0) // zavijOdgovor zamenja smer
+        val q = Poizvedba(razlicica, cilj, izvor, ciljnaVrata, izvornaVrata, dns, "", 0, 0, 0) // zavijOdgovor zamenja smer
         return zavijOdgovor(q, dns)
     }
 }

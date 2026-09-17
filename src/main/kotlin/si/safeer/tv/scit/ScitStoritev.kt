@@ -59,8 +59,16 @@ class ScitStoritev : VpnService() {
     private val izhodKljuc = Any()
     private var izhod: FileOutputStream? = null
 
-    /** Poizvedba, poslana navzgor: cigava je, komu smo jo poslali in kdaj. */
-    private class Cakajoca(val q: DnsPaket.Poizvedba, val cas: Long, val cilj: InetAddress)
+    /**
+     * Poizvedba, poslana navzgor: cigava je, katere streznike smo ze vprasali in kdaj nazadnje.
+     * Ce prvi razreševalec molci (usmerjevalnik po prekinitvi rad neha odgovarjati), gre isto
+     * vprasanje naslednjemu; sprejmemo odgovor kateregakoli vprasanega.
+     */
+    private class Cakajoca(val q: DnsPaket.Poizvedba, val cas: Long, val strezniki: List<InetAddress>) {
+        @Volatile var naslednji = 0            // indeks streznika, ki ga bomo vprasali naslednjega
+        @Volatile var zadnji = 0L              // kdaj smo nazadnje poslali
+        val vprasani = java.util.concurrent.CopyOnWriteArrayList<InetAddress>()
+    }
 
     private val nakljucni = SecureRandom()
 
@@ -121,6 +129,8 @@ class ScitStoritev : VpnService() {
         nitOdgovorov = Thread({ zankaOdgovorov() }, "safeer-scit-odgovori").also { it.isDaemon = true; it.start() }
         val u = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-scit-urnik").also { it.isDaemon = true } }
         u.scheduleWithFixedDelay({ vzdrzuj() }, 30, 30, TimeUnit.SECONDS)
+        u.scheduleWithFixedDelay({ try { ponoviNeodgovorjene() } catch (e: Throwable) { Log.w(TAG, "Ponovitev: ${e.message}") } },
+            1, 1, TimeUnit.SECONDS)
         urnik = u
         shraniStatistiko("tece")
         Log.i(TAG, "Safeer Scit tece; DNS naprej: $upstream; domen: ${nabor?.stevilo ?: 0}")
@@ -164,28 +174,59 @@ class ScitStoritev : VpnService() {
     }
 
     private fun posreduj(q: DnsPaket.Poizvedba) {
-        val strezniki = upstream
+        val strezniki = upstream.filter { vticnicaZa(it) != null }
         if (strezniki.isEmpty()) return
-        val cilj = strezniki.firstOrNull { it is Inet4Address && vticnica4 != null } ?: strezniki.firstOrNull { it is Inet6Address && vticnica6 != null } ?: return
-        val v = if (cilj is Inet4Address) vticnica4 else vticnica6
         // Navzgor gre NAS ID, ne ID aplikacije: aplikacije si ID-je izbirajo same in se ponovijo,
         // dva hkratna vprasanja z istim ID-jem pa bi se povozila in odgovor bi dobil napacni.
-        val nasId = dodeliId(q, cilj) ?: return
-        try { v?.send(DatagramPacket(DnsPaket.zId(q.dns, nasId), q.dns.size, cilj, 53)) } catch (e: Throwable) {
-            cakajoce.remove(nasId)
-            if (tece) Log.w(TAG, "Posredovanje DNS: ${e.message}")
-        }
+        val nasId = dodeliId(q, strezniki) ?: return
+        if (!posljiNaslednjemu(nasId)) cakajoce.remove(nasId)
     }
 
+    private fun vticnicaZa(a: InetAddress): DatagramSocket? = if (a is Inet4Address) vticnica4 else vticnica6
+
     /** Prost nas ID za poizvedbo; nakljucen, da ga ni mogoce uganiti. Null, ce jih zmanjka. */
-    private fun dodeliId(q: DnsPaket.Poizvedba, cilj: InetAddress): Int? {
+    private fun dodeliId(q: DnsPaket.Poizvedba, strezniki: List<InetAddress>): Int? {
         val zdaj = System.currentTimeMillis()
         repeat(12) {
             val id = nakljucni.nextInt(65536)
-            if (cakajoce.putIfAbsent(id, Cakajoca(q, zdaj, cilj)) == null) return id
+            if (cakajoce.putIfAbsent(id, Cakajoca(q, zdaj, strezniki)) == null) return id
         }
         Log.w(TAG, "Preveč hkratnih poizvedb DNS; ta je izpuščena")
         return null
+    }
+
+    /** Poslji cakajoco poizvedbo naslednjemu se nevprasanemu strezniku. */
+    private fun posljiNaslednjemu(id: Int): Boolean {
+        val c = cakajoce[id] ?: return false
+        while (c.naslednji < c.strezniki.size) {
+            val cilj = c.strezniki[c.naslednji++]
+            val v = vticnicaZa(cilj) ?: continue
+            c.zadnji = System.currentTimeMillis()
+            c.vprasani.add(cilj)
+            try {
+                v.send(DatagramPacket(DnsPaket.zId(c.q.dns, id), c.q.dns.size, cilj, 53))
+                return true
+            } catch (e: Throwable) {
+                if (tece) Log.w(TAG, "Posredovanje DNS na $cilj: ${e.message}")
+            }
+        }
+        return false
+    }
+
+    /**
+     * Poizvedbe, na katere ni odgovora: po [PONOVITEV_MS] jih ponovimo pri naslednjem strezniku,
+     * po [POTEK_MS] pa jih opustimo. Brez tega je dovolj, da prvi razreševalec utihne, in splet
+     * na televizorju obstoji, ceprav je drugi strežnik dosegljiv.
+     */
+    private fun ponoviNeodgovorjene() {
+        if (cakajoce.isEmpty()) return
+        val zdaj = System.currentTimeMillis()
+        for ((id, c) in cakajoce) {
+            if (zdaj - c.cas > POTEK_MS) { cakajoce.remove(id, c); continue }
+            if (zdaj - c.zadnji >= PONOVITEV_MS && c.naslednji < c.strezniki.size) {
+                if (posljiNaslednjemu(id)) Log.i(TAG, "DNS brez odgovora, poskus pri naslednjem strezniku")
+            }
+        }
     }
 
     private fun zankaOdgovorov() {
@@ -206,12 +247,11 @@ class ScitStoritev : VpnService() {
             if (p.length < 12) continue
             val id = DnsPaket.u16(p.data, p.offset)
             val c = cakajoce[id] ?: continue
-            // Odgovor priznamo samo, ce je prisel od streznika, ki smo ga vprasali, z vrat 53 in
-            // ce je vprasanje v njem nase. Sam ID je premalo: 16 bitov lahko ugane kdorkoli v omrezju.
-            if (p.port != 53 || p.address != c.cilj) continue
             val odgovor = p.data.copyOfRange(p.offset, p.offset + p.length)
-            val vprasanje = DnsPaket.vprasanjeOdgovora(odgovor) ?: continue
-            if (vprasanje.first != c.q.ime || vprasanje.second != c.q.vrsta) continue
+            // Celotno preverjanje je v DnsPaket.ustrezaOdgovor (cista funkcija, pokrita s testi):
+            // pravi streznik, vrata 53, nas ID, zastavica QR in isto vprasanje (ime, vrsta, razred).
+            val izvor = p.address?.address ?: continue
+            if (c.vprasani.none { DnsPaket.ustrezaOdgovor(c.q, id, it.address, izvor, p.port, odgovor) }) continue
             if (!cakajoce.remove(id, c)) continue
             DnsPaket.put16(odgovor, 0, c.q.id)   // aplikaciji vrnemo njen ID
             zapisi(DnsPaket.zavijOdgovor(c.q, odgovor))
@@ -230,7 +270,7 @@ class ScitStoritev : VpnService() {
     private fun vzdrzuj() {
         try {
             val zdaj = System.currentTimeMillis()
-            cakajoce.entries.removeIf { zdaj - it.value.cas > 10_000 }
+            cakajoce.entries.removeIf { zdaj - it.value.cas > POTEK_MS }
             val d = danes()
             if (d != dan) { dan = d; blokiranih.set(0); poizvedb.set(0) }
             val datoteka = Scit.naborDatoteka(this)
@@ -315,6 +355,9 @@ class ScitStoritev : VpnService() {
         const val DEJANJE_USTAVI = "si.safeer.tv.scit.USTAVI"
         const val DEJANJE_OSVEZI = "si.safeer.tv.scit.OSVEZI"
         private val REZERVNI = listOf("1.1.1.1", "9.9.9.9")
+        /** Koliko cakamo na odgovor, preden vprasamo naslednji streznik, in kdaj odnehamo. */
+        private const val PONOVITEV_MS = 1_200L
+        private const val POTEK_MS = 8_000L
 
         fun zazeni(context: Context) = poslji(context, DEJANJE_ZAZENI)
         fun ustavi(context: Context) = poslji(context, DEJANJE_USTAVI)

@@ -90,34 +90,72 @@ fun paketiTest() {
 }
 
 /**
- * Preverjanje odgovorov: navzgor gre nas ID, nazaj aplikaciji njen; odgovor na drugo vprasanje
- * ali z drugim ID-jem ne sme steti kot odgovor na naso poizvedbo.
+ * Regresijski testi za preverjanje odgovorov DNS (DnsPaket.ustrezaOdgovor).
+ *
+ * To je obramba pred dvema stvarema: da odgovor dobi napacna aplikacija (dve hkratni poizvedbi z
+ * istim ID-jem) in da nam kdo v omrezju podtakne svoj odgovor. Zato tu preizkusamo natanko tisto
+ * logiko, ki jo uporablja storitev - ne le pomoznih funkcij.
  */
 fun odgovoriTest() {
-    val dns = DnsPaket.sestaviPoizvedbo(0x1234, "example.com", 1)
-    val paket = DnsPaket.sestaviPaket(4, byteArrayOf(10, 111, (222).toByte(), 1), byteArrayOf(10, 111, (222).toByte(), 2), 40000, 53, dns)
-    val q = DnsPaket.razcleni(paket) ?: throw AssertionError("poizvedbe ni")
+    val nas = byteArrayOf(10, 111, (222).toByte(), 1)
+    val navidezni = byteArrayOf(10, 111, (222).toByte(), 2)
+    val streznik = byteArrayOf((192).toByte(), (168).toByte(), 0, 1)
+    val drugStreznik = byteArrayOf((192).toByte(), (168).toByte(), 0, 135.toByte())
 
+    fun poizvedba(id: Int, ime: String, vrsta: Int = 1, vrata: Int = 40000): DnsPaket.Poizvedba =
+        DnsPaket.razcleni(DnsPaket.sestaviPaket(4, nas, navidezni, vrata, 53,
+            DnsPaket.sestaviPoizvedbo(id, ime, vrsta))) ?: throw AssertionError("poizvedbe ni")
+
+    /** Odgovor streznika: isto vprasanje, dani ID, postavljena zastavica QR. */
+    fun odgovor(nasId: Int, ime: String, vrsta: Int = 1, razred: Int = 1): ByteArray {
+        val d = DnsPaket.sestaviPoizvedbo(nasId, ime, vrsta)
+        d[2] = (d[2].toInt() or 0x80).toByte()
+        DnsPaket.put16(d, d.size - 2, razred)
+        return d
+    }
+
+    val q = poizvedba(0x1234, "example.com")
+    preveri(q.razred == 1, "razred vprasanja: ${q.razred}")
+
+    // nas ID gre navzgor, izvirna poizvedba ostane nedotaknjena
     val navzgor = DnsPaket.zId(q.dns, 0xBEEF)
-    preveri(DnsPaket.u16(navzgor, 0) == 0xBEEF, "nas ID gre navzgor")
-    preveri(DnsPaket.u16(q.dns, 0) == 0x1234, "izvirna poizvedba ostane nedotaknjena")
-    preveri(navzgor.size == q.dns.size, "dolzina poizvedbe se ne spremeni")
-    preveri(navzgor.copyOfRange(2, navzgor.size).contentEquals(q.dns.copyOfRange(2, q.dns.size)), "spremeni se samo ID")
+    preveri(DnsPaket.u16(navzgor, 0) == 0xBEEF && DnsPaket.u16(q.dns, 0) == 0x1234, "zamenjan samo ID")
+    preveri(navzgor.copyOfRange(2, navzgor.size).contentEquals(q.dns.copyOfRange(2, q.dns.size)), "ostalo enako")
 
-    // Odgovor streznika: isto vprasanje, nas ID.
-    val odgovor = DnsPaket.odgovorBlokirano(DnsPaket.razcleni(
-        DnsPaket.sestaviPaket(4, q.izvor, q.cilj, q.izvornaVrata, 53, navzgor))!!)
-    val vprasanje = DnsPaket.vprasanjeOdgovora(odgovor) ?: throw AssertionError("vprasanja v odgovoru ni")
-    preveri(vprasanje.first == "example.com" && vprasanje.second == 1, "vprasanje iz odgovora: $vprasanje")
+    val dober = odgovor(0xBEEF, "example.com")
+    preveri(DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, streznik, 53, dober), "pravi odgovor se sprejme")
 
-    // Odgovor na drugo ime se ne sme ujemati z naso poizvedbo.
-    val tuj = DnsPaket.sestaviPoizvedbo(0xBEEF, "napadalec.si", 1)
-    val tujeVprasanje = DnsPaket.vprasanjeOdgovora(tuj) ?: throw AssertionError("tujega vprasanja ni")
-    preveri(tujeVprasanje.first != vprasanje.first, "tuje ime se razlikuje")
+    // napacen posiljatelj, vrata, ID
+    preveri(!DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, drugStreznik, 53, dober), "drug streznik se zavrne")
+    preveri(!DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, streznik, 5353, dober), "druga vrata se zavrnejo")
+    preveri(!DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, streznik, 53, odgovor(0x1111, "example.com")), "drug ID se zavrne")
 
-    preveri(DnsPaket.vprasanjeOdgovora(ByteArray(8)) == null, "prekratek odgovor")
-    val brezVprasanja = odgovor.copyOf(); brezVprasanja[4] = 0; brezVprasanja[5] = 0
-    preveri(DnsPaket.vprasanjeOdgovora(brezVprasanja) == null, "odgovor brez vprasanja")
+    // podtaknjen odgovor na drugo vprasanje, drugo vrsto, drug razred
+    preveri(!DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, streznik, 53, odgovor(0xBEEF, "napadalec.si")), "drugo ime se zavrne")
+    preveri(!DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, streznik, 53, odgovor(0xBEEF, "example.com", 28)), "druga vrsta se zavrne")
+    preveri(!DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, streznik, 53, odgovor(0xBEEF, "example.com", 1, 3)), "drug razred se zavrne")
+
+    // poizvedba (brez QR) ni odgovor; prekratko sporocilo ni odgovor
+    val brezQr = DnsPaket.sestaviPoizvedbo(0xBEEF, "example.com")
+    preveri(!DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, streznik, 53, brezQr), "poizvedba se ne sprejme kot odgovor")
+    preveri(!DnsPaket.ustrezaOdgovor(q, 0xBEEF, streznik, streznik, 53, dober, 8), "prekratek odgovor se zavrne")
+
+    // dve aplikaciji z istim ID-jem: vsaka dobi samo svoj odgovor
+    val a = poizvedba(0x0007, "prva.si", vrata = 40001)
+    val b = poizvedba(0x0007, "druga.si", vrata = 40002)
+    val zaA = odgovor(0x1000, "prva.si")
+    val zaB = odgovor(0x2000, "druga.si")
+    preveri(DnsPaket.ustrezaOdgovor(a, 0x1000, streznik, streznik, 53, zaA), "A dobi svojega")
+    preveri(DnsPaket.ustrezaOdgovor(b, 0x2000, streznik, streznik, 53, zaB), "B dobi svojega")
+    preveri(!DnsPaket.ustrezaOdgovor(a, 0x1000, streznik, streznik, 53, zaB), "A ne dobi odgovora za B")
+    preveri(!DnsPaket.ustrezaOdgovor(b, 0x2000, streznik, streznik, 53, zaA), "B ne dobi odgovora za A")
+
+    // vprasanje in zastavica QR
+    val v = DnsPaket.vprasanje(dober) ?: throw AssertionError("vprasanja ni")
+    preveri(v.ime == "example.com" && v.vrsta == 1 && v.razred == 1, "vprasanje iz odgovora")
+    preveri(DnsPaket.jeOdgovor(dober) && !DnsPaket.jeOdgovor(brezQr), "zastavica QR")
+    preveri(DnsPaket.vprasanje(ByteArray(8)) == null, "prekratko sporocilo")
+
     println("odgovori: OK")
 }
 
