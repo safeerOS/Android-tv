@@ -48,3 +48,10 @@ jobs:
         env:
           KOTLINC: /tmp/kotlinc/bin/kotlinc
         run: bash tools/preveri-motor.sh
+
+      # Jedro Scita: nabor domen in paketi DNS. Tu se lovijo napake v obravnavi
+      # odgovorov, ki bi jih na televizorju opazili sele kot cudno delujoc splet.
+      - name: Jedro Safeer Scita (nabor domen, paketi DNS)
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+        run: bash tests/run_scit_tests.sh

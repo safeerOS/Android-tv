@@ -89,8 +89,41 @@ fun paketiTest() {
     println("paketi: OK")
 }
 
+/**
+ * Preverjanje odgovorov: navzgor gre nas ID, nazaj aplikaciji njen; odgovor na drugo vprasanje
+ * ali z drugim ID-jem ne sme steti kot odgovor na naso poizvedbo.
+ */
+fun odgovoriTest() {
+    val dns = DnsPaket.sestaviPoizvedbo(0x1234, "example.com", 1)
+    val paket = DnsPaket.sestaviPaket(4, byteArrayOf(10, 111, (222).toByte(), 1), byteArrayOf(10, 111, (222).toByte(), 2), 40000, 53, dns)
+    val q = DnsPaket.razcleni(paket) ?: throw AssertionError("poizvedbe ni")
+
+    val navzgor = DnsPaket.zId(q.dns, 0xBEEF)
+    preveri(DnsPaket.u16(navzgor, 0) == 0xBEEF, "nas ID gre navzgor")
+    preveri(DnsPaket.u16(q.dns, 0) == 0x1234, "izvirna poizvedba ostane nedotaknjena")
+    preveri(navzgor.size == q.dns.size, "dolzina poizvedbe se ne spremeni")
+    preveri(navzgor.copyOfRange(2, navzgor.size).contentEquals(q.dns.copyOfRange(2, q.dns.size)), "spremeni se samo ID")
+
+    // Odgovor streznika: isto vprasanje, nas ID.
+    val odgovor = DnsPaket.odgovorBlokirano(DnsPaket.razcleni(
+        DnsPaket.sestaviPaket(4, q.izvor, q.cilj, q.izvornaVrata, 53, navzgor))!!)
+    val vprasanje = DnsPaket.vprasanjeOdgovora(odgovor) ?: throw AssertionError("vprasanja v odgovoru ni")
+    preveri(vprasanje.first == "example.com" && vprasanje.second == 1, "vprasanje iz odgovora: $vprasanje")
+
+    // Odgovor na drugo ime se ne sme ujemati z naso poizvedbo.
+    val tuj = DnsPaket.sestaviPoizvedbo(0xBEEF, "napadalec.si", 1)
+    val tujeVprasanje = DnsPaket.vprasanjeOdgovora(tuj) ?: throw AssertionError("tujega vprasanja ni")
+    preveri(tujeVprasanje.first != vprasanje.first, "tuje ime se razlikuje")
+
+    preveri(DnsPaket.vprasanjeOdgovora(ByteArray(8)) == null, "prekratek odgovor")
+    val brezVprasanja = odgovor.copyOf(); brezVprasanja[4] = 0; brezVprasanja[5] = 0
+    preveri(DnsPaket.vprasanjeOdgovora(brezVprasanja) == null, "odgovor brez vprasanja")
+    println("odgovori: OK")
+}
+
 fun main() {
     naborTest()
     paketiTest()
+    odgovoriTest()
     println("SCIT TESTI: OK")
 }

@@ -16,6 +16,7 @@ import si.safeer.tv.MainActivity
 import si.safeer.tv.R
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.security.SecureRandom
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.Inet4Address
@@ -58,7 +59,10 @@ class ScitStoritev : VpnService() {
     private val izhodKljuc = Any()
     private var izhod: FileOutputStream? = null
 
-    private class Cakajoca(val q: DnsPaket.Poizvedba, val cas: Long)
+    /** Poizvedba, poslana navzgor: cigava je, komu smo jo poslali in kdaj. */
+    private class Cakajoca(val q: DnsPaket.Poizvedba, val cas: Long, val cilj: InetAddress)
+
+    private val nakljucni = SecureRandom()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -164,11 +168,24 @@ class ScitStoritev : VpnService() {
         if (strezniki.isEmpty()) return
         val cilj = strezniki.firstOrNull { it is Inet4Address && vticnica4 != null } ?: strezniki.firstOrNull { it is Inet6Address && vticnica6 != null } ?: return
         val v = if (cilj is Inet4Address) vticnica4 else vticnica6
-        cakajoce[q.id] = Cakajoca(q, System.currentTimeMillis())
-        try { v?.send(DatagramPacket(q.dns, q.dns.size, cilj, 53)) } catch (e: Throwable) {
-            cakajoce.remove(q.id)
+        // Navzgor gre NAS ID, ne ID aplikacije: aplikacije si ID-je izbirajo same in se ponovijo,
+        // dva hkratna vprasanja z istim ID-jem pa bi se povozila in odgovor bi dobil napacni.
+        val nasId = dodeliId(q, cilj) ?: return
+        try { v?.send(DatagramPacket(DnsPaket.zId(q.dns, nasId), q.dns.size, cilj, 53)) } catch (e: Throwable) {
+            cakajoce.remove(nasId)
             if (tece) Log.w(TAG, "Posredovanje DNS: ${e.message}")
         }
+    }
+
+    /** Prost nas ID za poizvedbo; nakljucen, da ga ni mogoce uganiti. Null, ce jih zmanjka. */
+    private fun dodeliId(q: DnsPaket.Poizvedba, cilj: InetAddress): Int? {
+        val zdaj = System.currentTimeMillis()
+        repeat(12) {
+            val id = nakljucni.nextInt(65536)
+            if (cakajoce.putIfAbsent(id, Cakajoca(q, zdaj, cilj)) == null) return id
+        }
+        Log.w(TAG, "Preveč hkratnih poizvedb DNS; ta je izpuščena")
+        return null
     }
 
     private fun zankaOdgovorov() {
@@ -181,12 +198,23 @@ class ScitStoritev : VpnService() {
     }
 
     private fun beriOdgovore(v: DatagramSocket, p: DatagramPacket = DatagramPacket(ByteArray(4096), 4096)) {
+        val velikost = p.data.size
         while (tece) {
+            // Brez tega bi vsak naslednji odgovor odrezali na dolzino prejsnjega.
+            p.length = velikost
             try { v.receive(p) } catch (e: Throwable) { if (tece) Log.w(TAG, "Odgovor DNS: ${e.message}"); break }
             if (p.length < 12) continue
             val id = DnsPaket.u16(p.data, p.offset)
-            val c = cakajoce.remove(id) ?: continue
-            zapisi(DnsPaket.zavijOdgovor(c.q, p.data.copyOfRange(p.offset, p.offset + p.length)))
+            val c = cakajoce[id] ?: continue
+            // Odgovor priznamo samo, ce je prisel od streznika, ki smo ga vprasali, z vrat 53 in
+            // ce je vprasanje v njem nase. Sam ID je premalo: 16 bitov lahko ugane kdorkoli v omrezju.
+            if (p.port != 53 || p.address != c.cilj) continue
+            val odgovor = p.data.copyOfRange(p.offset, p.offset + p.length)
+            val vprasanje = DnsPaket.vprasanjeOdgovora(odgovor) ?: continue
+            if (vprasanje.first != c.q.ime || vprasanje.second != c.q.vrsta) continue
+            if (!cakajoce.remove(id, c)) continue
+            DnsPaket.put16(odgovor, 0, c.q.id)   // aplikaciji vrnemo njen ID
+            zapisi(DnsPaket.zavijOdgovor(c.q, odgovor))
         }
     }
 
@@ -202,7 +230,7 @@ class ScitStoritev : VpnService() {
     private fun vzdrzuj() {
         try {
             val zdaj = System.currentTimeMillis()
-            if (cakajoce.size > 64) cakajoce.entries.removeIf { zdaj - it.value.cas > 10_000 }
+            cakajoce.entries.removeIf { zdaj - it.value.cas > 10_000 }
             val d = danes()
             if (d != dan) { dan = d; blokiranih.set(0); poizvedb.set(0) }
             val datoteka = Scit.naborDatoteka(this)

@@ -186,7 +186,7 @@ object SpletneAplikacije {
         val html = try {
             k.newCall(Request.Builder().url(url).header("User-Agent", UA).build()).execute().use { o ->
                 if (!o.isSuccessful) return null
-                o.body?.source()?.let { vir -> vir.request(200_000); vir.buffer.snapshot().utf8().take(200_000) } ?: ""
+                besedilo(o, NAJVEC_HTML)
             }
         } catch (e: Throwable) { Log.w(TAG, "Strani ni bilo mogoce prebrati: ${e.message}"); return null }
 
@@ -204,7 +204,7 @@ object SpletneAplikacije {
             try {
                 k.newCall(Request.Builder().url(manifestUrl).header("User-Agent", UA).build()).execute().use { o ->
                     if (o.isSuccessful) {
-                        val m = JSONObject(o.body?.string().orEmpty())
+                        val m = JSONObject(besedilo(o, NAJVEC_MANIFEST))
                         val mIme = m.optString("short_name").ifBlank { m.optString("name") }
                         if (mIme.isNotBlank()) ime = mIme
                         val mBarva = m.optString("theme_color").ifBlank { m.optString("background_color") }
@@ -242,9 +242,17 @@ object SpletneAplikacije {
         return try {
             k.newCall(Request.Builder().url(ikonaUrl).header("User-Agent", UA).build()).execute().use { o ->
                 if (!o.isSuccessful) return ""
-                val bajti = o.body?.bytes() ?: return ""
-                if (bajti.size > 2_000_000) return ""
-                val slika = BitmapFactory.decodeByteArray(bajti, 0, bajti.size) ?: return ""
+                // Beremo z omejitvijo: televizor ima malo pomnilnika in ikona s spleta je lahko karkoli.
+                val bajti = bajti(o, NAJVEC_IKONA) ?: return ""
+                // Najprej samo mere, sele nato dekodiranje v velikosti, ki jo res potrebujemo.
+                val mere = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bajti, 0, bajti.size, mere)
+                if (mere.outWidth <= 0 || mere.outHeight <= 0) return ""
+                if (mere.outWidth > 4096 || mere.outHeight > 4096) return ""
+                val moznosti = BitmapFactory.Options().apply {
+                    inSampleSize = vzorec(mere.outWidth, mere.outHeight, 256)
+                }
+                val slika = BitmapFactory.decodeByteArray(bajti, 0, bajti.size, moznosti) ?: return ""
                 val stran = if (slika.width > 256) Bitmap.createScaledBitmap(slika, 256, 256 * slika.height / slika.width, true) else slika
                 val mapa = File(c.applicationContext.filesDir, "os/ikone").apply { mkdirs() }
                 val datoteka = File(mapa, Integer.toHexString(stranUrl.trimEnd('/').hashCode()) + ".png")
@@ -252,6 +260,36 @@ object SpletneAplikacije {
                 datoteka.absolutePath
             }
         } catch (e: Throwable) { Log.w(TAG, "Ikone ni bilo mogoce prenesti: ${e.message}"); "" }
+    }
+
+    /** Koliko najvec preberemo: dovolj za pravo stran, premalo, da bi nam kdo napolnil pomnilnik. */
+    private const val NAJVEC_HTML = 200_000
+    private const val NAJVEC_MANIFEST = 256_000
+    private const val NAJVEC_IKONA = 2_000_000
+
+    /** Besedilo odgovora, odrezano na [najvec] bajtov (brez nalaganja celega telesa v pomnilnik). */
+    private fun besedilo(o: okhttp3.Response, najvec: Int): String {
+        val vir = o.body?.source() ?: return ""
+        vir.request(najvec.toLong() + 1)
+        return vir.buffer.snapshot().utf8().take(najvec)
+    }
+
+    /** Bajti odgovora do [najvec]; ce je odgovor vecji, ga ne vzamemo. */
+    private fun bajti(o: okhttp3.Response, najvec: Int): ByteArray? {
+        val dolzina = o.body?.contentLength() ?: -1L
+        if (dolzina > najvec) return null
+        val vir = o.body?.source() ?: return null
+        vir.request(najvec.toLong() + 1)
+        val posnetek = vir.buffer.snapshot()
+        if (posnetek.size > najvec) return null
+        return posnetek.toByteArray()
+    }
+
+    /** Potenca dvojke, pri kateri je slika se vedno vsaj [cilj] pik siroka. */
+    private fun vzorec(sirina: Int, visina: Int, cilj: Int): Int {
+        var v = 1
+        while (sirina / (v * 2) >= cilj && visina / (v * 2) >= 1) v *= 2
+        return v
     }
 
     private const val UA = "Mozilla/5.0 (Linux; Android 11; Safeer TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"

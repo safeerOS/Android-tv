@@ -49,7 +49,13 @@ def zberi_android(koren: str) -> dict[str, dict[str, set[str]]]:
                 continue
             with open(os.path.join(polna, dat), encoding="utf-8") as f:
                 vsebina = f.read()
-            kljuci = set(re.findall(r'<string\s+name="([^"]+)"', vsebina))
+            # Nizi z translatable="false" (lastna imena, oznake) se ne prevajajo:
+            # v drugih jezikih jih ne sme biti in jih zato ne stejemo.
+            kljuci = set()
+            for kljuc, atributi in re.findall(r'<string\s+name="([^"]+)"([^>]*)>', vsebina):
+                if 'translatable="false"' in atributi:
+                    continue
+                kljuci.add(kljuc)
             if kljuci:
                 najdeno.setdefault(dat, {})[jezik] = kljuci
     return najdeno

@@ -54,6 +54,24 @@ object DnsPaket {
         return Poizvedba(razlicica, izvor, cilj, izvornaVrata, ciljnaVrata, dns, ime, vrsta, id)
     }
 
+    /** Kopija tovora DNS z drugim ID-jem transakcije (navzgor posljemo svojega, ne od aplikacije). */
+    fun zId(dns: ByteArray, id: Int): ByteArray {
+        val k = dns.copyOf()
+        put16(k, 0, id)
+        return k
+    }
+
+    /**
+     * Vprasanje iz odgovora streznika: (ime, vrsta). Uporabimo ga za preverjanje, da odgovor
+     * res pripada nasi poizvedbi - sam ID transakcije za to ni dovolj.
+     */
+    fun vprasanjeOdgovora(d: ByteArray, dolzina: Int = d.size): Pair<String, Int>? {
+        if (dolzina < 12 || u16(d, 4) < 1) return null
+        val (ime, konec) = preberiIme(d, 12) ?: return null
+        if (konec + 4 > dolzina) return null
+        return ime to u16(d, konec)
+    }
+
     /** Ime iz odseka vprasanja (brez kazalcev v vprasanju). Vrne (ime, odmik za imenom). */
     fun preberiIme(d: ByteArray, zacetek: Int): Pair<String, Int>? {
         val sb = StringBuilder()
