@@ -296,9 +296,34 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var wakeLock: android.os.PowerManager.WakeLock? = null
     private var debugJsReceiver: android.content.BroadcastReceiver? = null
     private var webViewsPaused = false
+    /** Stevec utisanj: zakasnjeni onPause pogleda velja le, ce vmes ni bilo onResume. */
+    private var generacijaUtisanja = 0
     private var globalOsdView: TextView? = null
     private var screenOffOverlay: View? = null
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /**
+     * Pomnilnik v ozadju: televizor ima 2-3 GB pomnilnika in Safeer je z odprtimi stranmi
+     * njegov najvecji porabnik tudi takrat, ko uporabnik gleda kaj drugega. Ko brskalnik
+     * zapusti zaslon, zavihki v ozadju zaspijo takoj; aktivni zavihek zaspi, ce se brskalnik
+     * v SPANJE_AKTIVNEGA_MS ne vrne. Ob vrnitvi se stran nalozi znova. Zavihek, ki predvaja,
+     * ne zaspi nikoli; Safeer Link (sredisce) in daljinec delujeta ves cas.
+     */
+    private val SPANJE_AKTIVNEGA_MS = 10 * 60 * 1000L
+    private var naZaslonu = true
+    private val spanjeAktivnega = Runnable {
+        if (naZaslonu || !::tabManager.isInitialized) return@Runnable
+        try {
+            tabManager.uspavajVOzadju(tudiAktivni = true)
+            // Pogled je unicen, a Chromium in nas kup obdrzita svoje predpomnilnike, dokler ju
+            // sistem ne opozori. Opozorilo sprozimo sami: WebView (registriran kot
+            // ComponentCallbacks2) sprosti V8, slike in graficne vire, mi pa svoje.
+            try { application.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE) } catch (_: Throwable) {}
+            UserScriptManager.sprostiPredpomnilnik()
+            System.gc()
+            android.util.Log.i("SafeerPomnilnik", "Brskalnik je dolgo v ozadju; spi ${tabManager.steviloSpecih()} zavihkov, predpomnilniki sprosceni.")
+        } catch (_: Exception) {}
+    }
 
     private val hideGlobalOsdRunnable = Runnable {
         globalOsdView?.animate()?.alpha(0f)?.setDuration(250)?.withEndAction {
@@ -431,6 +456,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         """.trimIndent()
         val firstSilence = !webViewsPaused
         webViewsPaused = true
+        // Utisanje tece po klicu JS, torej z zamikom. Ce se brskalnik vmes ze vrne na zaslon
+        // (onResume), zakasneli onPause/pauseTimers NE smeta vec teci: pogled bi ostal ustavljen
+        // in slika na televizorju bi zamrznila, ceprav se stran nalozi (npr. odprtje naslova
+        // od zunaj, kratek dialog). Vsak onResume zato razveljavi cakajoce utisanje.
+        val generacija = ++generacijaUtisanja
         val anyXplore = tabs.any {
             it.url.contains("xploretv", ignoreCase = true) || it.url.contains("a1xploretv", ignoreCase = true)
         }
@@ -440,6 +470,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             try {
                 if (firstSilence) {
                     tab.webView.evaluateJavascript(js) {
+                        if (generacija != generacijaUtisanja) return@evaluateJavascript
                         try { tab.webView.onPause() } catch (_: Exception) {}
                         if (!anyXplore) {
                             try { tab.webView.pauseTimers() } catch (_: Exception) {}
@@ -447,6 +478,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     }
                 } else {
                     tab.webView.post {
+                        if (generacija != generacijaUtisanja) return@post
                         try { tab.webView.onPause() } catch (_: Exception) {}
                         if (!anyXplore) {
                             try { tab.webView.pauseTimers() } catch (_: Exception) {}
@@ -467,6 +499,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     private fun resumeBackgroundMedia() {
+        generacijaUtisanja++   // cakajoce zakasnjeno utisanje (glej silenceBackgroundMedia) ne velja vec
         if (!::tabManager.isInitialized) return
         val tabs = tabManager.getAllTabs()
         // #region agent log
@@ -546,8 +579,25 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         resumeBackgroundMedia()
     }
 
+    override fun onStart() {
+        super.onStart()
+        naZaslonu = true
+        mainHandler.removeCallbacks(spanjeAktivnega)
+        if (::tabManager.isInitialized) {
+            try { tabManager.zbudiAktivnega() } catch (_: Exception) {}
+        }
+    }
+
     override fun onStop() {
         silenceBackgroundMedia("onStop")
+        naZaslonu = false
+        if (::tabManager.isInitialized) {
+            try {
+                tabManager.uspavajVOzadju(tudiAktivni = false)
+                mainHandler.removeCallbacks(spanjeAktivnega)
+                mainHandler.postDelayed(spanjeAktivnega, SPANJE_AKTIVNEGA_MS)
+            } catch (_: Exception) {}
+        }
         super.onStop()
     }
 

@@ -6,10 +6,12 @@ import android.content.Intent
 import android.util.Log
 
 /**
- * Po vklopu televizorja znova zazene Safeer Link, ce ga je uporabnik prizgal.
+ * Po vklopu televizorja in po posodobitvi aplikacije znova zazene Safeer Link, ce ga je
+ * uporabnik prizgal.
  *
- * Brez tega bi moral uporabnik po vsakem izklopu televizorja odpreti brskalnik, preden
- * bi telefon spet nasel zaslon. Ce Link ni prizgan, ta prejemnik ne naredi nicesar.
+ * Brez tega bi moral uporabnik po vsakem izklopu televizorja (ali po namestitvi nove razlicice,
+ * ki proces ustavi) odpreti brskalnik, preden bi telefon spet nasel zaslon. Ce Link ni prizgan,
+ * ta prejemnik ne naredi nicesar.
  */
 class ZagonPrejemnik : BroadcastReceiver() {
 
@@ -17,7 +19,8 @@ class ZagonPrejemnik : BroadcastReceiver() {
         val akcija = intent?.action ?: return
         if (akcija != Intent.ACTION_BOOT_COMPLETED &&
             akcija != "android.intent.action.QUICKBOOT_POWERON" &&
-            akcija != "com.htc.intent.action.QUICKBOOT_POWERON"
+            akcija != "com.htc.intent.action.QUICKBOOT_POWERON" &&
+            akcija != Intent.ACTION_MY_PACKAGE_REPLACED
         ) return
         val app = context?.applicationContext ?: return
         try {

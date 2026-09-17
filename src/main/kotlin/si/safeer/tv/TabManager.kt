@@ -22,7 +22,12 @@ data class TabModel(
     /** Kje je uporabnik bral, ko je zavihek zaspal. */
     var spalniOdmik: Int = 0,
     /** Zavihek predvaja zvok ali sliko - tak ne sme zaspati. */
-    var predvaja: Boolean = false
+    var predvaja: Boolean = false,
+    /**
+     * Globoko spanje: stari pogled je unicen (izrisovalnik in graficni pomnilnik sta sproscena),
+     * `webView` je nov, prazen in se ni v oknu. Ob prebuditvi ga vstavimo in nalozimo stran.
+     */
+    var pogledSvez: Boolean = false
 )
 
 /**
@@ -149,8 +154,53 @@ class TabManager(
         }
     }
 
-    private fun uspavaj(tab: TabModel) {
-        if (tab.spi || tab.predvaja || tab.id == activeTabId) return
+    /**
+     * Brskalnik ni vec na zaslonu (uporabnik je sel v drugo aplikacijo ali na domaci zaslon):
+     * zavihki v ozadju zaspijo takoj, aktivni pa sele, ko klicatelj tako odloci (`tudiAktivni`,
+     * po daljsem casu v ozadju). Zavihek, ki predvaja, in stran v zivo (Xplore) ostaneta budna.
+     * Stran se ob vrnitvi nalozi znova; Safeer Link in daljinec med tem delujeta naprej.
+     */
+    fun uspavajVOzadju(tudiAktivni: Boolean) {
+        for (tab in tabs) {
+            if (tab.id == activeTabId && !tudiAktivni) continue
+            uspavaj(tab, dovoliAktivnega = tudiAktivni)
+            // Navadno spanje (prazna stran) pomnilnika na televizorju skoraj ne vrne: WebView
+            // in njegov izrisovalnik ga obdrzita. Ko brskalnika ni na zaslonu, pogled unicimo.
+            if (tab.spi && !tab.pogledSvez) sprostiPogled(tab)
+        }
+    }
+
+    private fun sprostiPogled(tab: TabModel) {
+        val stari = tab.webView
+        try { (stari.parent as? ViewGroup)?.removeView(stari) } catch (_: Exception) {}
+        try { stari.destroy() } catch (e: Exception) { Log.w(TAG, "Pogleda ni bilo mogoce sprostiti: ${e.message}") }
+        tab.webView = ustvariPogled(container.context)
+        tab.pogledSvez = true
+        Log.i(TAG, "Zavihek globoko spi (pogled sproscen): ${tab.spalniNaslov.take(60)}")
+    }
+
+    /** Ob vrnitvi na zaslon: aktivni zavihek, ki je zaspal v ozadju, se nalozi znova. */
+    fun zbudiAktivnega() {
+        val tab = tabs.find { it.id == activeTabId } ?: return
+        if (!tab.spi) return
+        zbudi(tab)
+        strojniSloj(tab.webView, true)
+        // Nov pogled se ni imel fokusa: brez tega bi daljinec po vrnitvi krmilil orodno vrstico.
+        try { tab.webView.requestFocus() } catch (_: Exception) {}
+        notifyUpdated()
+    }
+
+    /** Ali kateri zavihek spi (za dnevnik in meritve). */
+    fun steviloSpecih(): Int = tabs.count { it.spi }
+
+    private fun jeVZivo(tab: TabModel): Boolean {
+        val u = (tab.webView.url ?: tab.url)
+        return u.contains("xploretv", ignoreCase = true)
+    }
+
+    private fun uspavaj(tab: TabModel, dovoliAktivnega: Boolean = false) {
+        if (tab.spi || tab.predvaja || jeVZivo(tab)) return
+        if (tab.id == activeTabId && !dovoliAktivnega) return
         val naslov = (tab.webView.url ?: tab.url).trim()
         if (naslov.isBlank() || naslov == PRAZNA) return
         tab.spalniNaslov = naslov
@@ -181,6 +231,13 @@ class TabManager(
         tab.spi = false
         val naslov = tab.spalniNaslov
         val odmik = tab.spalniOdmik
+        if (tab.pogledSvez) {
+            tab.pogledSvez = false
+            if (tab.id == activeTabId && tab.webView.parent == null) {
+                container.removeAllViews()
+                container.addView(tab.webView)
+            }
+        }
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 tab.webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
