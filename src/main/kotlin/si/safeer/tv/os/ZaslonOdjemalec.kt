@@ -1,5 +1,9 @@
 package si.safeer.tv.os
 
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.os.Build
@@ -7,6 +11,7 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.Surface
 import org.json.JSONObject
+import java.io.DataInputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress
@@ -21,6 +26,9 @@ import javax.net.ssl.SSLSocket
  * Povezava je TLS s **pripetim** potrdilom: odtis dobimo skupaj z enkratnim zetonom v odgovoru na
  * ukaz `screen.start` po Safeer Linku. Tako ne zaupamo nobeni izdajateljski verigi in ne imenu
  * gostitelja - samo temu potrdilu.
+ *
+ * Po isti povezavi tece **zvok** (surov PCM, brez dekodiranja in brez zakasnitve) in nazaj proti
+ * racunalniku **vnos**: vsak dogodek je ena vrstica JSON (tipka, besedilo, premik, klik, kolesce).
  */
 class ZaslonOdjemalec(
     private val naslov: String,
@@ -34,11 +42,16 @@ class ZaslonOdjemalec(
 
     /** Kar lahko izmerimo na televizorju: slike, pretok in koliko casa slika stoji v dekoderju. */
     data class Statistika(val slik: Int, val naSekundo: Double, val megabitov: Double,
-                          val dekoderMs: Long, val sirina: Int, val visina: Int)
+                          val dekoderMs: Long, val sirina: Int, val visina: Int, val zvok: Boolean)
 
     @Volatile private var tece = false
     private var nit: Thread? = null
     private var vticnica: Socket? = null
+    private var izhod: OutputStream? = null
+    private var zvocnik: AudioTrack? = null
+    private val posiljalnik = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "safeer-zaslon-vnos").also { it.isDaemon = true }
+    }
 
     fun zacni(surface: Surface) {
         if (tece) return
@@ -48,8 +61,29 @@ class ZaslonOdjemalec(
 
     fun ustavi() {
         tece = false
+        try { posiljalnik.shutdownNow() } catch (_: Throwable) { }
         try { vticnica?.close() } catch (_: Throwable) { }
         nit = null
+    }
+
+    /**
+     * Dogodek s televizorja na racunalnik (tipka, besedilo, premik, klik, kolesce). Poslje se po
+     * isti povezavi; racunalnik ga odigra samo, ce je na njegovem seznamu dovoljenega.
+     *
+     * Pisanje gre na svojo nit: tipka pride z glavne niti, Android pa na njej omrezja ne dovoli
+     * (NetworkOnMainThreadException, ki v dnevniku nima niti sporocila - le "null").
+     */
+    fun posljiVnos(dogodek: JSONObject) {
+        if (izhod == null) return
+        val besedilo = dogodek.toString() + "\n"
+        try {
+            posiljalnik.execute {
+                val o = izhod ?: return@execute
+                try {
+                    synchronized(o) { o.write(besedilo.toByteArray()); o.flush() }
+                } catch (e: Throwable) { Log.w(TAG, "Vnosa ni bilo mogoce poslati: ${e.message}") }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { }
     }
 
     private fun teci(surface: Surface) {
@@ -63,15 +97,17 @@ class ZaslonOdjemalec(
             val s = tovarna.createSocket(goli, naslov, vrata, true) as SSLSocket
             s.startHandshake()
             vticnica = s
-            val izhod: OutputStream = s.outputStream
+            val izhodniTok: OutputStream = s.outputStream
             val vhod: InputStream = s.inputStream
-            izhod.write(("SAFEER-ZASLON $zeton\n").toByteArray())
-            izhod.flush()
+            izhodniTok.write(("SAFEER-ZASLON $zeton\n").toByteArray())
+            izhodniTok.flush()
+            izhod = izhodniTok
             val glava = JSONObject(preberiVrstico(vhod))
             val sirina = glava.optInt("w", 1920)
             val visina = glava.optInt("h", 1080)
             val fps = glava.optInt("fps", 30)
             kodek = pripraviKodek(surface, sirina, visina, fps)
+            glava.optJSONObject("zvok")?.let { zvocnik = pripraviZvok(it.optInt("hz", 48000), it.optInt("kanali", 2)) }
             naStanje(Stanje.TECE, "")
             crpaj(vhod, kodek, sirina, visina)
             naStanje(Stanje.KONCANO, "")
@@ -83,6 +119,9 @@ class ZaslonOdjemalec(
                 naStanje(Stanje.KONCANO, "")
             }
         } finally {
+            izhod = null
+            try { zvocnik?.pause(); zvocnik?.flush(); zvocnik?.release() } catch (_: Throwable) { }
+            zvocnik = null
             try { kodek?.stop() } catch (_: Throwable) { }
             try { kodek?.release() } catch (_: Throwable) { }
             try { vticnica?.close() } catch (_: Throwable) { }
@@ -111,31 +150,70 @@ class ZaslonOdjemalec(
     }
 
     /**
-     * Pretok razrezemo na enote NAL (zacetna koda 00 00 01 ali 00 00 00 01) in vsako predamo
-     * dekoderju. SPS in PPS gresta z zastavico CODEC_CONFIG, sicer jih dekoder ne vzame za nastavitev.
+     * Zvok je surov PCM, zato ga ni treba dekodirati - gre naravnost v AudioTrack. Medpomnilnik je
+     * majhen (okrog 100 ms), ker je cilj, da zvok ne zaostaja za sliko.
+     */
+    private fun pripraviZvok(hz: Int, kanali: Int): AudioTrack? = try {
+        val razpored = if (kanali >= 2) AudioFormat.CHANNEL_OUT_STEREO else AudioFormat.CHANNEL_OUT_MONO
+        val najmanj = AudioTrack.getMinBufferSize(hz, razpored, AudioFormat.ENCODING_PCM_16BIT)
+        val velikost = maxOf(najmanj, hz * kanali * 2 / 10)          // ~100 ms
+        AudioTrack.Builder()
+            .setAudioAttributes(AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build())
+            .setAudioFormat(AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(hz)
+                .setChannelMask(razpored).build())
+            .setBufferSizeInBytes(velikost)
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .build().also { it.play(); Log.i(TAG, "Zvok: $hz Hz, $kanali kanala, medpomnilnik $velikost B") }
+    } catch (e: Throwable) {
+        Log.w(TAG, "Zvoka ni bilo mogoce pripraviti: ${e.message}")
+        null
+    }
+
+    /**
+     * Pretok so okvirji: ena bajt vrste, styri bajti dolzine, vsebina. Slika gre v dekoder (prej jo
+     * razrezemo na enote NAL, ker MediaCodec hoce eno na medpomnilnik), zvok pa naravnost v
+     * AudioTrack. Zvok pisemo neblokirajoce: ce bi cakal, bi ustavil sliko - raje izpustimo nekaj
+     * zvoka kot da slika obstane.
      */
     private fun crpaj(vhod: InputStream, kodek: MediaCodec, sirina: Int, visina: Int) {
+        val podatkovni = DataInputStream(vhod)
         val info = MediaCodec.BufferInfo()
-        var zbrano = ByteArray(0)
-        val kos = ByteArray(64 * 1024)
+        val glava = ByteArray(5)
+        var ostanek = ByteArray(0)
         var slik = 0
         var bajtov = 0L
         var zadnjePorocilo = SystemClock.elapsedRealtime()
         var zadnjaZakasnitev = 0L
+        var imelZvok = false
         while (tece) {
-            val prebrano = vhod.read(kos)
-            if (prebrano <= 0) break
-            bajtov += prebrano
-            zbrano = zbrano + kos.copyOfRange(0, prebrano)
-            var od = zacetekNal(zbrano, 0)
-            if (od < 0) continue
-            var naslednji = zacetekNal(zbrano, od + 3)
-            while (naslednji > 0) {
-                posljiNal(kodek, zbrano, od, naslednji)
-                od = naslednji
-                naslednji = zacetekNal(zbrano, od + 3)
+            podatkovni.readFully(glava)
+            val vrsta = glava[0].toInt() and 0xff
+            val dolzina = ((glava[1].toInt() and 0xff) shl 24) or ((glava[2].toInt() and 0xff) shl 16) or
+                ((glava[3].toInt() and 0xff) shl 8) or (glava[4].toInt() and 0xff)
+            if (dolzina <= 0 || dolzina > NAJVECJI_OKVIR) break
+            val telo = ByteArray(dolzina)
+            podatkovni.readFully(telo)
+            bajtov += dolzina + glava.size
+            if (vrsta == OKVIR_ZVOK) {
+                imelZvok = true
+                try { zvocnik?.write(telo, 0, dolzina, AudioTrack.WRITE_NON_BLOCKING) } catch (_: Throwable) { }
+                continue
             }
-            zbrano = zbrano.copyOfRange(od, zbrano.size)   // ostanek je zacetek naslednje enote
+            if (vrsta != OKVIR_SLIKA) continue
+            ostanek = ostanek + telo
+            var od = zacetekNal(ostanek, 0)
+            if (od < 0) continue
+            var naslednji = zacetekNal(ostanek, od + 3)
+            while (naslednji > 0) {
+                posljiNal(kodek, ostanek, od, naslednji)
+                od = naslednji
+                naslednji = zacetekNal(ostanek, od + 3)
+            }
+            ostanek = ostanek.copyOfRange(od, ostanek.size)   // zacetek naslednje enote
 
             // Vse, kar je dekoder ze naredil, takoj na zaslon.
             while (true) {
@@ -149,8 +227,8 @@ class ZaslonOdjemalec(
             if (zdaj - zadnjePorocilo >= 1000) {
                 val sekunde = (zdaj - zadnjePorocilo) / 1000.0
                 naStatistiko(Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
-                    zadnjaZakasnitev, sirina, visina))
-                slik = 0; bajtov = 0; zadnjePorocilo = zdaj
+                    zadnjaZakasnitev, sirina, visina, imelZvok))
+                slik = 0; bajtov = 0; zadnjePorocilo = zdaj; imelZvok = false
             }
         }
     }
@@ -203,5 +281,12 @@ class ZaslonOdjemalec(
         return sb.toString()
     }
 
-    private companion object { const val TAG = "SafeerOsZaslon" }
+    private companion object {
+        const val TAG = "SafeerOsZaslon"
+        /** Vrsti okvirjev; morata biti enaki kot v core/link_zaslon.py. */
+        const val OKVIR_SLIKA = 1
+        const val OKVIR_ZVOK = 2
+        /** Vec kot toliko v enem okvirju ne posiljamo; vecje stevilo pomeni pokvarjen pretok. */
+        const val NAJVECJI_OKVIR = 8 * 1024 * 1024
+    }
 }

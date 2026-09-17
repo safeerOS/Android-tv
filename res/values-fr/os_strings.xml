@@ -199,4 +199,6 @@
     <string name="os_zaslon_koncano">L\'ordinateur a terminé la session.</string>
     <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f i/s · %4$.1f Mb/s · décodeur %5$d ms</string>
     <string name="os_zaslon_ponovno">La connexion a été coupée. Nouvel essai...</string>
+    <string name="os_zaslon_zvok">son</string>
+    <string name="os_zaslon_namig">Maintiens Retour pour terminer</string>
 </resources>

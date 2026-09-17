@@ -4,7 +4,9 @@ import si.safeer.tv.R
 
 import android.app.Activity
 import android.os.Bundle
+import android.view.InputDevice
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
@@ -19,7 +21,11 @@ import org.json.JSONObject
  * dekodira strojno.
  *
  * Kar uporabnik vidi, je resnica: dokler slike ni, pise, kaj se dogaja, in ne kaze zamrznjenega
- * okvirja. Tipka Nazaj konca sejo tudi na racunalniku (`screen.stop`), da zajem ne tece naprej v prazno.
+ * okvirja.
+ *
+ * Ta zaslon tudi **upravlja** racunalnik: tipke daljinca, tipkovnice in igralnega plosecka ter
+ * premik miske gredo po isti povezavi nazaj. Zato Nazaj tukaj ni izhod, ampak tipka za racunalnik -
+ * sejo konca **dolg pritisk** na Nazaj (`screen.stop`), da zajem ne tece naprej v prazno.
  */
 class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
@@ -36,6 +42,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var koncujem = false
     private var poskusov = 0
     private var prosim = false
+    private var odklon: Pair<Float, Float>? = null
+    private var palicaTece = false
+    private var namigPokazan = false
     private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -148,7 +157,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                     if (isFinishing) return@runOnUiThread
                     when (stanje) {
                         ZaslonOdjemalec.Stanje.POVEZUJEM -> pokazi(getString(R.string.os_zaslon_povezujem))
-                        ZaslonOdjemalec.Stanje.TECE -> { poskusov = 0; skrij() }
+                        ZaslonOdjemalec.Stanje.TECE -> {
+                            poskusov = 0; skrij()
+                            // Nazaj je zdaj tipka za racunalnik, zato uporabniku enkrat povemo, kako se konca.
+                            if (!namigPokazan) {
+                                namigPokazan = true
+                                Toast.makeText(this, getString(R.string.os_zaslon_namig), Toast.LENGTH_LONG).show()
+                            }
+                        }
                         // Prekinjena povezava ni konec seje: enkrat poskusimo znova, sele nato
                         // uporabnika vrnemo nazaj - zamrznjena slika je najslabsi mozni izid.
                         ZaslonOdjemalec.Stanje.KONCANO -> if (!koncujem) ponoviAliKoncaj(getString(R.string.os_zaslon_koncano))
@@ -159,7 +175,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             naStatistiko = { s ->
                 runOnUiThread {
                     if (!isFinishing) meritve.text = getString(R.string.os_zaslon_meritve,
-                        s.sirina, s.visina, s.naSekundo, s.megabitov, s.dekoderMs)
+                        s.sirina, s.visina, s.naSekundo, s.megabitov, s.dekoderMs) +
+                        (if (s.zvok) " · " + getString(R.string.os_zaslon_zvok) else "")
                 }
             })
         odjemalec = o
@@ -199,9 +216,66 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         link.ukaz(r.id, "screen.stop", JSONObject(), 5_000, LinkOdjemalec.Odgovor { _, _ -> })
     }
 
+    // ------------------------------------------------------------------ upravljanje racunalnika
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // Kratek Nazaj je tipka za racunalnik, dolg pritisk konca sejo.
+            event?.startTracking()
+            return true
+        }
+        // Glasnost pusti televizorju: uporabnik jo pricakuje tam, kjer je zvok.
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+            keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) return super.onKeyDown(keyCode, event)
+        val dogodek = ZaslonVnos.izTipke(keyCode, event) ?: return super.onKeyDown(keyCode, event)
+        odjemalec?.posljiVnos(dogodek)
+        return true
+    }
+
+    override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) { koncaj(); finish(); return true }
-        return super.onKeyDown(keyCode, event)
+        return super.onKeyLongPress(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event != null && !event.isCanceled && !event.isLongPress) {
+                odjemalec?.posljiVnos(org.json.JSONObject().put("vrsta", "tipka").put("tipka", "nazaj"))
+            }
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
+    }
+
+    /** Miska, prikljucena na televizor, in leva palica igralnega plosecka. */
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        ZaslonVnos.izMiske(event)?.let { odjemalec?.posljiVnos(it); return true }
+        val palica = ZaslonVnos.izPalice(event)
+        if (palica != null) { odklon = palica; zazeniPalico(); return true }
+        if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK) {
+            odklon = null
+            return true
+        }
+        return super.onGenericMotionEvent(event)
+    }
+
+    /**
+     * Palica ne poslje dogodka, dokler se premika - poslje ga le ob spremembi odklona. Zato kazalec
+     * premikamo sami, dokler je palica odklonjena, in neham, ko se vrne v mirovanje.
+     */
+    private fun zazeniPalico() {
+        if (palicaTece) return
+        palicaTece = true
+        glavna.post(object : Runnable {
+            override fun run() {
+                val o = odklon
+                if (o == null || isFinishing || koncujem) { palicaTece = false; return }
+                ZaslonVnos.premik((o.first * ZaslonVnos.HITROST_PALICE).toInt(),
+                                  (o.second * ZaslonVnos.HITROST_PALICE).toInt())
+                    ?.let { odjemalec?.posljiVnos(it) }
+                glavna.postDelayed(this, 16)
+            }
+        })
     }
 
     // ------------------------------------------------------------------ Link
