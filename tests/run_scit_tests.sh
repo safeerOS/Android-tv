@@ -15,7 +15,10 @@ trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" -J-Xmx2g \
     "$SRC/si/safeer/tv/scit/DomenskiNabor.kt" \
     "$SRC/si/safeer/tv/scit/DnsPaket.kt" \
+    "$SRC/si/safeer/tv/scit/TcpPaket.kt" \
+    "$SRC/si/safeer/tv/scit/TcpDns.kt" \
     "$TEST_DIR/ScitTest.kt" \
+    "$TEST_DIR/TcpDnsTest.kt" \
     -include-runtime -d "$OUT/scit.jar"
 
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitTestKt

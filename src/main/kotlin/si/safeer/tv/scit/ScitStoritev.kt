@@ -22,10 +22,13 @@ import java.net.DatagramSocket
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
@@ -71,6 +74,10 @@ class ScitStoritev : VpnService() {
     }
 
     private val nakljucni = SecureRandom()
+
+    /** DNS prek TCP: razreševalec ga uporabi, kadar odgovor po UDP ne gre v en paket. */
+    private val tcp = TcpDns({ paket -> zapisi(paket) }, { vprasanje, odgovor -> razresiZaTcp(vprasanje, odgovor) })
+    private var tcpIzvajalec: ExecutorService? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -127,10 +134,12 @@ class ScitStoritev : VpnService() {
         izhod = FileOutputStream(fd.fileDescriptor)
         nit = Thread({ zanka(fd) }, "safeer-scit").also { it.isDaemon = true; it.start() }
         nitOdgovorov = Thread({ zankaOdgovorov() }, "safeer-scit-odgovori").also { it.isDaemon = true; it.start() }
+        tcpIzvajalec = Executors.newFixedThreadPool(2) { r -> Thread(r, "safeer-scit-tcp").also { it.isDaemon = true } }
         val u = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-scit-urnik").also { it.isDaemon = true } }
         u.scheduleWithFixedDelay({ vzdrzuj() }, 30, 30, TimeUnit.SECONDS)
-        u.scheduleWithFixedDelay({ try { ponoviNeodgovorjene() } catch (e: Throwable) { Log.w(TAG, "Ponovitev: ${e.message}") } },
-            1, 1, TimeUnit.SECONDS)
+        u.scheduleWithFixedDelay({
+            try { ponoviNeodgovorjene(); tcp.pocisti() } catch (e: Throwable) { Log.w(TAG, "Ponovitev: ${e.message}") }
+        }, 1, 1, TimeUnit.SECONDS)
         urnik = u
         shraniStatistiko("tece")
         Log.i(TAG, "Safeer Scit tece; DNS naprej: $upstream; domen: ${nabor?.stevilo ?: 0}")
@@ -140,6 +149,8 @@ class ScitStoritev : VpnService() {
     private fun ustaviVse(stanje: String) {
         tece = false
         try { urnik?.shutdownNow() } catch (_: Throwable) { }
+        try { tcpIzvajalec?.shutdownNow() } catch (_: Throwable) { }
+        tcpIzvajalec = null
         urnik = null
         try { tunel?.close() } catch (_: Throwable) { }
         tunel = null
@@ -161,7 +172,8 @@ class ScitStoritev : VpnService() {
         while (tece) {
             val n = try { vhod.read(buf) } catch (e: Throwable) { if (tece) Log.w(TAG, "Branje tunela: ${e.message}"); break }
             if (n <= 0) continue
-            val q = DnsPaket.razcleni(buf, n) ?: continue
+            val q = DnsPaket.razcleni(buf, n)
+            if (q == null) { tcp.naPaket(buf, n); continue }   // ni UDP: morda DNS prek TCP
             poizvedb.incrementAndGet()
             val nab = nabor
             if (q.ime.isNotEmpty() && nab != null && nab.jeBlokirana(q.ime)) {
@@ -183,6 +195,57 @@ class ScitStoritev : VpnService() {
     }
 
     private fun vticnicaZa(a: InetAddress): DatagramSocket? = if (a is Inet4Address) vticnica4 else vticnica6
+
+    /**
+     * Vprasanje, ki je prislo po TCP. Blokirano domeno odgovorimo sami (tudi po TCP ni obhoda),
+     * sicer vprasamo naprej po TCP - ista pot, ki bi jo aplikacija uporabila brez Scita.
+     */
+    private fun razresiZaTcp(vprasanje: ByteArray, odgovor: (ByteArray?) -> Unit) {
+        poizvedb.incrementAndGet()
+        val ime = DnsPaket.vprasanje(vprasanje)?.ime.orEmpty()
+        Log.i(TAG, "DNS po TCP: $ime")   // redko; v dnevniku je dokaz, da ta pot res tece
+        val nab = nabor
+        if (ime.isNotEmpty() && nab != null && nab.jeBlokirana(ime)) {
+            blokiranih.incrementAndGet()
+            odgovor(DnsPaket.odgovorBlokiranoZa(vprasanje))
+            return
+        }
+        val strezniki = upstream
+        val izvajalec = tcpIzvajalec
+        if (strezniki.isEmpty() || izvajalec == null) { odgovor(null); return }
+        izvajalec.execute {
+            var rezultat: ByteArray? = null
+            for (streznik in strezniki) {
+                rezultat = try { vprasajPoTcp(streznik, vprasanje) } catch (e: Throwable) {
+                    if (tece) Log.w(TAG, "DNS po TCP ($streznik): ${e.message}"); null
+                }
+                if (rezultat != null) break
+            }
+            odgovor(rezultat)
+        }
+    }
+
+    /** Ena poizvedba DNS po TCP: dolzinska predpona, sporocilo, odgovor. */
+    private fun vprasajPoTcp(streznik: InetAddress, vprasanje: ByteArray): ByteArray? {
+        val v = Socket()
+        try {
+            protect(v)
+            v.connect(InetSocketAddress(streznik, 53), 3_000)
+            v.soTimeout = 4_000
+            val glava = ByteArray(2)
+            DnsPaket.put16(glava, 0, vprasanje.size)
+            val izh = v.getOutputStream()
+            izh.write(glava); izh.write(vprasanje); izh.flush()
+            val vh = java.io.DataInputStream(v.getInputStream())
+            val dolzina = vh.readUnsignedShort()
+            if (dolzina < 12 || dolzina > TcpDns.NAJVECJE_SPOROCILO) return null
+            val o = ByteArray(dolzina)
+            vh.readFully(o)
+            return o
+        } finally {
+            try { v.close() } catch (_: Throwable) { }
+        }
+    }
 
     /** Prost nas ID za poizvedbo; nakljucen, da ga ni mogoce uganiti. Null, ce jih zmanjka. */
     private fun dodeliId(q: DnsPaket.Poizvedba, strezniki: List<InetAddress>): Int? {
@@ -280,7 +343,10 @@ class ScitStoritev : VpnService() {
             shraniStatistiko("tece")
             val b = blokiranih.get()
             val pz = poizvedb.get()
-            if (pz != zadnjiDnevnik) { zadnjiDnevnik = pz; Log.i(TAG, "Scit: poizvedb $pz, blokiranih $b, cakajocih ${cakajoce.size}") }
+            if (pz != zadnjiDnevnik) {
+                zadnjiDnevnik = pz
+                Log.i(TAG, "Scit: poizvedb $pz, blokiranih $b, cakajocih ${cakajoce.size}, TCP ${tcp.stevilo()}")
+            }
             if (b != zadnjeObvestilo) {
                 zadnjeObvestilo = b
                 try { getSystemService(NotificationManager::class.java)?.notify(OBVESTILO, obvestilo()) } catch (_: Throwable) { }

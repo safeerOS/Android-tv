@@ -111,19 +111,22 @@ object DnsPaket {
         return sb.toString().lowercase() to i
     }
 
-    /** Odgovor NXDOMAIN na poizvedbo: isti ID in vprasanje, brez zapisov. */
-    fun odgovorBlokirano(q: Poizvedba): ByteArray {
-        val vprasanjeKonec = (preberiIme(q.dns, 12)?.second ?: 12) + 4
-        val n = minOf(vprasanjeKonec, q.dns.size)
+    /** Odgovor NXDOMAIN na surovo sporocilo DNS (ista pot za UDP in TCP). */
+    fun odgovorBlokiranoZa(dns: ByteArray): ByteArray {
+        val vprasanjeKonec = (preberiIme(dns, 12)?.second ?: 12) + 4
+        val n = minOf(vprasanjeKonec, dns.size)
         val o = ByteArray(n)
-        System.arraycopy(q.dns, 0, o, 0, n)
-        val rd = q.dns[2].toInt() and 0x01
+        System.arraycopy(dns, 0, o, 0, n)
+        val rd = if (n > 2) (dns[2].toInt() and 0x01) else 0
         o[2] = (0x80 or rd).toByte()          // QR=1, opcode 0, AA=0, TC=0, RD kot v poizvedbi
         o[3] = (0x80 or 3).toByte()           // RA=1, RCODE=3 (NXDOMAIN)
         o[4] = 0; o[5] = if (n >= 16) 1 else 0 // QDCOUNT
         o[6] = 0; o[7] = 0; o[8] = 0; o[9] = 0; o[10] = 0; o[11] = 0
         return o
     }
+
+    /** Odgovor NXDOMAIN na poizvedbo: isti ID in vprasanje, brez zapisov. */
+    fun odgovorBlokirano(q: Poizvedba): ByteArray = odgovorBlokiranoZa(q.dns)
 
     /** Zavije tovor DNS v UDP + IP paket nazaj k posiljatelju poizvedbe (naslovi in vrata zamenjani). */
     fun zavijOdgovor(q: Poizvedba, dns: ByteArray): ByteArray {
@@ -161,7 +164,7 @@ object DnsPaket {
         put16(p, odmik + 6, k)
     }
 
-    private fun sestej(b: ByteArray, od: Int, dolzina: Int): Long {
+    fun sestej(b: ByteArray, od: Int, dolzina: Int): Long {
         var s = 0L
         var i = od
         val konec = od + dolzina

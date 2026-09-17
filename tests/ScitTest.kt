@@ -163,5 +163,6 @@ fun main() {
     naborTest()
     paketiTest()
     odgovoriTest()
+    tcpDnsTest()
     println("SCIT TESTI: OK")
 }
