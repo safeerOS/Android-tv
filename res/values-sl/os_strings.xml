@@ -132,4 +132,8 @@
     <string name="os_host_oddaljen_vprasanje">Host je %1$s, zunaj domačega omrežja. Se vrnem na domače omrežje? Žeton za tisti strežnik pozabimo; seznaniš se lahko kadarkoli znova.</string>
     <string name="os_host_domov">Nazaj na domače omrežje</string>
     <string name="os_host_spet_doma">Host je spet domače omrežje.</string>
+    <string name="os_zaganjalnik_televizor_obdrzi">Televizor obdrži svojega</string>
+    <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS je vklopljen kot domači zaslon, a ta televizor tipke Domov ne da naprej: proizvajalec jo vedno pelje na svoj domači zaslon (%1$s). To je odločitev televizorja, ne napaka Safeer OS, in brez posega v sistem televizorja tega ni mogoče obiti.\n\nSafeer OS še vedno odpreš iz zaganjalnika, iz vrstice aplikacij in z daljincem Safeer Linka. Lahko pustiš vklopljeno (nič ne stane) ali izklopiš.</string>
+    <string name="os_zaganjalnik_izklopi_kratko">Izklopi</string>
+    <string name="os_zaganjalnik_sistemske">Nastavitve televizorja</string>
 </resources>

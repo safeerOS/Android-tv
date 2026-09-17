@@ -71,6 +71,12 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- Kdo je domaci zaslon televizorja: brez tega Android 11+ pokaze samo nas in bi Safeer OS
+             napacno trdil, da je domaci zaslon on, ceprav tipko Domov prestreze proizvajalec. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />

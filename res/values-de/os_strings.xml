@@ -132,4 +132,8 @@
     <string name="os_host_oddaljen_vprasanje">Der Host ist %1$s, außerhalb deines Heimnetzes. Zurück ins Heimnetz? Das Token für diesen Server wird vergessen; du kannst dich jederzeit neu koppeln.</string>
     <string name="os_host_domov">Zurück ins Heimnetz</string>
     <string name="os_host_spet_doma">Der Host ist wieder das Heimnetz.</string>
+    <string name="os_zaganjalnik_televizor_obdrzi">Der Fernseher behält seinen</string>
+    <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS ist als Startbildschirm eingeschaltet, aber dieser Fernseher gibt die Home-Taste nicht ab: Der Hersteller leitet sie immer auf seinen eigenen Startbildschirm (%1$s). Das entscheidet der Fernseher, es ist kein Fehler von Safeer OS, und ohne Eingriff in die Firmware lässt es sich nicht umgehen.\n\nSafeer OS öffnest du weiterhin über den Launcher, die App-Reihe und die Safeer-Link-Fernbedienung. Du kannst es eingeschaltet lassen (es kostet nichts) oder ausschalten.</string>
+    <string name="os_zaganjalnik_izklopi_kratko">Ausschalten</string>
+    <string name="os_zaganjalnik_sistemske">Fernseher-Einstellungen</string>
 </resources>

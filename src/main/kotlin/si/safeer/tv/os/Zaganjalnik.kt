@@ -35,14 +35,57 @@ object Zaganjalnik {
         Log.w(TAG, "Stanja ni bilo mogoce prebrati: ${e.message}"); false
     }
 
-    /** Ali je Safeer OS res izbran domaci zaslon tega televizorja. */
-    fun jeIzbran(context: Context): Boolean = try {
-        val namera = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        val r = context.packageManager.resolveActivity(namera, PackageManager.MATCH_DEFAULT_ONLY)
-        r?.activityInfo?.packageName == context.packageName
-    } catch (e: Throwable) {
-        Log.w(TAG, "Domacega zaslona ni bilo mogoce ugotoviti: ${e.message}"); false
+    /**
+     * Ali je Safeer OS res domaci zaslon tega televizorja.
+     *
+     * Zanesljiv je samo dokaz iz prakse: ce nas je sistem kdaj zagnal z namero domacega zaslona
+     * (CATEGORY_HOME), potem tipka Domov pride k nam. Razresevanje namere povemo samo kot drugo
+     * moznost - Android 11+ aplikaciji pokaze predvsem njo samo, zato bi sama po sebi lahko
+     * trdila, da je domaci zaslon, ceprav ga televizor pelje drugam.
+     */
+    fun jeIzbran(context: Context): Boolean {
+        if (nasZagonDomov(context)) return true
+        val kdo = domaciZaslon(context)
+        return kdo != null && kdo == context.packageName
     }
+
+    /** Sistem nas je zagnal kot domaci zaslon: to si zapomnimo, ker je edini trden dokaz. */
+    fun zabeleziZagonDomov(context: Context) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(KLJUC_DOMOV, true).apply()
+    }
+
+    private fun nasZagonDomov(context: Context): Boolean =
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KLJUC_DOMOV, false)
+
+    private const val PREFS = "safeer_os"
+    private const val KLJUC_DOMOV = "zaganjalnik_zagon_domov"
+
+    /**
+     * Kdo dejansko dobi tipko Domov. Nekateri televizorji (Philips: org.droidtv.homeintentresolver,
+     * Google TV: com.google.android.tvlauncher) imajo svoj sistemski prestreznik domacega zaslona
+     * in ga tuji aplikaciji ne dajo, tudi ce je vloga HOME nasa. To moramo uporabniku povedati,
+     * ne pa pustiti, da ugiba, zakaj se ob tipki Domov odpre televizorjev zaslon.
+     */
+    fun domaciZaslon(context: Context): String? = try {
+        val namera = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        context.packageManager.resolveActivity(namera, PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName
+    } catch (e: Throwable) {
+        Log.w(TAG, "Domacega zaslona ni bilo mogoce ugotoviti: ${e.message}"); null
+    }
+
+    /** Stanje za nastavitve: IZKLOPLJEN, TELEVIZOR_OBDRZI (vklopljeno, a televizor ne da) ali IZBRAN. */
+    fun stanje(context: Context): String = when {
+        jeIzbran(context) -> IZBRAN
+        jePonujen(context) -> TELEVIZOR_OBDRZI
+        else -> IZKLOPLJEN
+    }
+
+    const val IZKLOPLJEN = "izklopljen"
+    const val TELEVIZOR_OBDRZI = "televizor_obdrzi"
+    const val IZBRAN = "izbran"
 
     /**
      * Ponudi Safeer OS kot domaci zaslon. Izbira ostane sistemska: mi samo omogocimo moznost,
@@ -56,6 +99,8 @@ object Zaganjalnik {
     /** Vrni domaci zaslon televizorju: alias onemogocimo in sistem vzame svoj zaganjalnik. */
     fun opusti(context: Context) {
         nastavi(context, false)
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().remove(KLJUC_DOMOV).apply()
     }
 
     private fun nastavi(context: Context, omogocen: Boolean) {

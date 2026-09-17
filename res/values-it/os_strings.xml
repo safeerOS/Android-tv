@@ -132,4 +132,8 @@
     <string name="os_host_oddaljen_vprasanje">L\'host è %1$s, fuori dalla rete di casa. Torno alla rete di casa? Il token di quel server viene dimenticato; puoi abbinarlo di nuovo quando vuoi.</string>
     <string name="os_host_domov">Torna alla rete di casa</string>
     <string name="os_host_spet_doma">L\'host è di nuovo la rete di casa.</string>
+    <string name="os_zaganjalnik_televizor_obdrzi">Il televisore tiene il suo</string>
+    <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS è attivo come schermata iniziale, ma questo televisore non cede il tasto Home: il produttore lo porta sempre alla propria schermata (%1$s). È una scelta del televisore, non un difetto di Safeer OS, e senza intervenire sul firmware non si può aggirare.\n\nSafeer OS si apre comunque dal launcher, dalla riga delle applicazioni e con il telecomando di Safeer Link. Puoi lasciarlo attivo (non costa nulla) o disattivarlo.</string>
+    <string name="os_zaganjalnik_izklopi_kratko">Disattiva</string>
+    <string name="os_zaganjalnik_sistemske">Impostazioni del televisore</string>
 </resources>

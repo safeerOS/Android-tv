@@ -61,6 +61,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         opombaSpodaj = findViewById(R.id.opombaSpodaj)
         narisiZacni()
         narisiNaprave(emptyList())
+        // Ce nas je odprla tipka Domov, smo res domaci zaslon tega televizorja.
+        if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
     }
 
     override fun onStart() {

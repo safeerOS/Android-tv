@@ -132,4 +132,8 @@
     <string name="os_host_oddaljen_vprasanje">El host es %1$s, fuera de tu red doméstica. ¿Vuelvo a la red doméstica? Se olvida el token de ese servidor; puedes emparejarlo de nuevo cuando quieras.</string>
     <string name="os_host_domov">Volver a la red doméstica</string>
     <string name="os_host_spet_doma">El host vuelve a ser la red doméstica.</string>
+    <string name="os_zaganjalnik_televizor_obdrzi">El televisor mantiene el suyo</string>
+    <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS está activado como pantalla de inicio, pero este televisor no cede la tecla Inicio: el fabricante la lleva siempre a su propia pantalla (%1$s). Lo decide el televisor, no es un fallo de Safeer OS, y sin tocar el firmware no se puede evitar.\n\nSafeer OS se sigue abriendo desde el lanzador, desde la fila de aplicaciones y con el mando de Safeer Link. Puedes dejarlo activado (no cuesta nada) o desactivarlo.</string>
+    <string name="os_zaganjalnik_izklopi_kratko">Desactivar</string>
+    <string name="os_zaganjalnik_sistemske">Ajustes del televisor</string>
 </resources>

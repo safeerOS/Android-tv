@@ -133,4 +133,8 @@
     <string name="os_host_oddaljen_vprasanje">The host is %1$s, outside your home network. Go back to the home network? The token for that server is forgotten; you can pair again at any time.</string>
     <string name="os_host_domov">Back to the home network</string>
     <string name="os_host_spet_doma">The host is the home network again.</string>
+    <string name="os_zaganjalnik_televizor_obdrzi">The TV keeps its own</string>
+    <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS is switched on as the home screen, but this television does not hand the Home key over: the manufacturer routes it to its own home screen (%1$s). That is the TV\'s doing, not a fault in Safeer OS, and without changing the TV\'s firmware it cannot be worked around.\n\nSafeer OS still opens from the launcher, from the apps row and with the Safeer Link remote. You can leave this on (it costs nothing) or switch it off.</string>
+    <string name="os_zaganjalnik_izklopi_kratko">Switch off</string>
+    <string name="os_zaganjalnik_sistemske">TV settings</string>
 </resources>

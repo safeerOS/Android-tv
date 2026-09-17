@@ -64,11 +64,13 @@ class NastavitveActivity : Activity() {
     }
 
     private fun narisi() {
-        val jeDomaci = Zaganjalnik.jeIzbran(this)
-        val ponujen = Zaganjalnik.jePonujen(this)
-        val domaciStanje = when {
-            jeDomaci -> getString(R.string.os_zaganjalnik_izbran)
-            ponujen -> getString(R.string.os_zaganjalnik_ponujen)
+        val stanjeZaganjalnika = Zaganjalnik.stanje(this)
+        val jeDomaci = stanjeZaganjalnika == Zaganjalnik.IZBRAN
+        val ponujen = stanjeZaganjalnika != Zaganjalnik.IZKLOPLJEN
+        val domaciStanje = when (stanjeZaganjalnika) {
+            Zaganjalnik.IZBRAN -> getString(R.string.os_zaganjalnik_izbran)
+            // Vklopljeno je, a televizor tipke Domov ne da naprej (proizvajalcev prestreznik).
+            Zaganjalnik.TELEVIZOR_OBDRZI -> getString(R.string.os_zaganjalnik_televizor_obdrzi)
             else -> getString(R.string.os_izklopljeno)
         }
         val krajevni = link.jeKrajevni()
@@ -96,6 +98,24 @@ class NastavitveActivity : Activity() {
      * in odpremo sistemsko okno; izklop pa naredimo sami, da je pot nazaj vedno pri roki.
      */
     private fun preklopiZaganjalnik(jeVklopljen: Boolean) {
+        // Vklopljeno, a televizor domacega zaslona ne da: povejmo naravnost, kaj se dogaja,
+        // in ponudimo izklop - brez tega uporabnik misli, da je napaka pri nas.
+        if (jeVklopljen && Zaganjalnik.stanje(this) == Zaganjalnik.TELEVIZOR_OBDRZI) {
+            val kdo = Zaganjalnik.domaciZaslon(this).orEmpty()
+            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.os_zaganjalnik))
+                .setMessage(getString(R.string.os_zaganjalnik_televizor_obdrzi_opis, kdo))
+                .setPositiveButton(getString(R.string.os_zaganjalnik_izklopi_kratko)) { _, _ ->
+                    Zaganjalnik.opusti(this)
+                    narisi()
+                }
+                .setNeutralButton(getString(R.string.os_zaganjalnik_sistemske)) { _, _ ->
+                    sistemskoOkno { Zaganjalnik.odpriSistemskoIzbiro(this) }
+                }
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .show()
+            return
+        }
         if (jeVklopljen) {
             Zaganjalnik.opusti(this)
             Toast.makeText(this, getString(R.string.os_zaganjalnik_izklopljen), Toast.LENGTH_LONG).show()

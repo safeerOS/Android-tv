@@ -132,4 +132,8 @@
     <string name="os_host_oddaljen_vprasanje">L\'hôte est %1$s, hors de votre réseau domestique. Revenir au réseau domestique ? Le jeton de ce serveur est oublié ; vous pouvez le jumeler à nouveau quand vous voulez.</string>
     <string name="os_host_domov">Revenir au réseau domestique</string>
     <string name="os_host_spet_doma">L\'hôte est de nouveau le réseau domestique.</string>
+    <string name="os_zaganjalnik_televizor_obdrzi">Le téléviseur garde le sien</string>
+    <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS est activé comme écran d\'accueil, mais ce téléviseur ne cède pas la touche Accueil : le fabricant la renvoie toujours vers son propre écran (%1$s). C\'est le choix du téléviseur, pas un défaut de Safeer OS, et sans modifier son micrologiciel on ne peut pas le contourner.\n\nSafeer OS s\'ouvre toujours depuis le lanceur, la rangée d\'applications et la télécommande Safeer Link. Vous pouvez le laisser activé (cela ne coûte rien) ou le désactiver.</string>
+    <string name="os_zaganjalnik_izklopi_kratko">Désactiver</string>
+    <string name="os_zaganjalnik_sistemske">Réglages du téléviseur</string>
 </resources>
