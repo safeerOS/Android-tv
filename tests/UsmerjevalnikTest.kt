@@ -734,7 +734,7 @@ private fun preizkusDeljenjaPoHttp() {
 private fun preizkusSorodnika() {
     println("- sorodna naprava")
     val u = usmerjevalnik()
-    val zeton = u.zagotoviLastniZeton("pc-primer", "Safeer (uporabnik)")
+    val zeton = u.zagotoviLastniZeton("pc-primer", "Safeer (primer)")
     fun sorodnik(telo: String, glave: Map<String, String> = mapOf("x-safeer-token" to zeton), od: String = "192.168.0.50") =
         u.odgovori(zahteva("POST", "/cast/pair/sibling", telo, od, glave))
     preveriEnako("brez zetona je 401", 401, sorodnik("""{"device_id":"pc-primer-control","name":"Control"}""", emptyMap())?.koda)
@@ -742,14 +742,14 @@ private fun preizkusSorodnika() {
     preveriEnako("tuja naprava ni sorodnik", 403, sorodnik("""{"device_id":"fon-tuja"}""")?.koda)
     preveriEnako("ista naprava ni sorodnik", 403, sorodnik("""{"device_id":"pc-primer"}""")?.koda)
     preveriEnako("brez device_id je 400", 400, sorodnik("""{"name":"Control"}""")?.koda)
-    val ok = sorodnik("""{"device_id":"pc-primer-control","name":"Safeer Control (uporabnik)"}""")
+    val ok = sorodnik("""{"device_id":"pc-primer-control","name":"Safeer Control (primer)"}""")
     preveriEnako("sorodnik dobi zeton", 200, ok?.koda)
     val nov = polje(ok?.telo.orEmpty(), "token")
     preveri("nov zeton je drug in veljaven", nov.isNotEmpty() && nov != zeton && u.jeVeljavenZeton(nov))
     preveriEnako("nov zeton pripada sorodniku", "pc-primer-control", u.napravaZeZetona(nov))
     preveriEnako("odtis Huba je zraven", u.lastniOdtis, polje(ok?.telo.orEmpty(), "fp"))
     preveri("sorodnik je med seznanjenimi", u.seznanjeneNaprave().any { it.deviceId == "pc-primer-control" })
-    val ponovno = sorodnik("""{"device_id":"pc-primer-control","name":"Safeer Control (uporabnik)"}""")
+    val ponovno = sorodnik("""{"device_id":"pc-primer-control","name":"Safeer Control (primer)"}""")
     preveri("ponovna zahteva zamenja zeton, naprava ostane ena",
         ponovno?.koda == 200 && u.seznanjeneNaprave().count { it.deviceId == "pc-primer-control" } == 1 && !u.jeVeljavenZeton(nov))
     preveriEnako("GET na to pot je 405", 405, u.odgovori(zahteva("GET", "/cast/pair/sibling"))?.koda)
