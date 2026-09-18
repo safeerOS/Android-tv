@@ -182,6 +182,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
     private var lastZapAt: Long = 0L
     /** 0 = prefer AVC; 1 = already retried 720p/30fps AVC after MediaCodec 4003. */
     private var codecRetry: Int = 0
+    private var omrezniPoskus: Int = 0
 
     private val pauseWebViewJs = """
         (function(){
@@ -411,6 +412,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         override fun onPlaybackStateChanged(playbackState: Int) {
             val exo = player ?: return
             if (playbackState == Player.STATE_READY) {
+                omrezniPoskus = 0
                 spinner?.visibility = View.GONE
                 val vs = exo.videoSize
                 SafeerDbg.log(
@@ -458,6 +460,21 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
                     JSONObject().put("ch", playingChannel).put("code", error.errorCode)
                 )
                 main.post { retrySaferCodec(s) }
+                return
+            }
+            if (omrezniPoskus < 3) {
+                // Kratek izpad omrezja ne sme ubiti predvajanja: poskusimo znova,
+                // z vsakim poskusom malo pozneje, in sele nato povemo, da ne gre.
+                omrezniPoskus += 1
+                val cez = 2000L * omrezniPoskus
+                spinner?.visibility = View.VISIBLE
+                main.postDelayed({
+                    val p = player
+                    if (p != null && isActive()) {
+                        p.prepare()
+                        p.play()
+                    }
+                }, cez)
                 return
             }
             spinner?.visibility = View.GONE
@@ -760,11 +777,11 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                 if (host.channelPad.confirmOrCancel()) return true
-                if (p.isPlaying) p.pause() else p.play()
+                if (p.isPlaying) p.pause() else predvajajAliOzivi()
                 true
             }
             KeyEvent.KEYCODE_MEDIA_PLAY -> {
-                p.play()
+                predvajajAliOzivi()
                 true
             }
             KeyEvent.KEYCODE_MEDIA_PAUSE -> {
@@ -867,9 +884,21 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
             p.pause()
             showOsd(UiText.get(R.string.ui_pause), playingChannel.ifEmpty { null }, 2500L)
         } else {
-            p.play()
+            predvajajAliOzivi()
             showOsd(UiText.get(R.string.ui_playing), playingChannel.ifEmpty { null }, 2500L)
         }
+    }
+
+    /** Po napaki je predvajalnik v stanju IDLE in play() sam ne stori nicesar.
+     *  Zato pred nadaljevanjem po potrebi znova pripravimo vir. */
+    private fun predvajajAliOzivi() {
+        val p = player ?: return
+        if (p.playbackState == Player.STATE_IDLE || p.playerError != null) {
+            spinner?.visibility = View.VISIBLE
+            setStatus("")
+            p.prepare()
+        }
+        p.play()
     }
 
     fun seekBy(deltaMs: Long) {
