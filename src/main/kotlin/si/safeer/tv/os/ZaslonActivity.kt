@@ -60,6 +60,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var okDrzan = false
     /** Tipke, ki jih uporabnik ta trenutek drzi; ob odhodu jih moramo spustiti. */
     private val drzane = HashSet<Int>()
+    /**
+     * Ali racunalnik zna narediti navidezni igralni plosek. Kadar zna, gumbi plosecka ne postanejo
+     * tipke in miska, ampak gredo naravnost v racunalnik kot plosek - igra tam vidi pravi plosek.
+     */
+    private var plosekVRacunalnik = false
+    /** Gumbi plosecka, ki so ta trenutek pritisnjeni (ob odhodu jih spustimo). */
+    private val plosekDrzani = HashSet<Int>()
+    /** Nazadnje poslani odkloni palic in sprozilcev; posiljamo samo, kar se je res spremenilo. */
+    private val plosekOdkloni = HashMap<String, Float>()
     private var namigPokazan = false
     private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -144,6 +153,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 }
                 val podatki = izid.optJSONObject("data") ?: return@Odgovor
                 seja = podatki
+                plosekVRacunalnik = podatki.optBoolean("gamepad", false)
                 if (povrsinaPripravljena) zacniPretok(podatki)
             })
     }
@@ -256,6 +266,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Glasnost pusti televizorju: uporabnik jo pricakuje tam, kjer je zvok.
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
             keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) return super.onKeyDown(keyCode, event)
+        // Plosek v igro: Start in Select takrat pripadata igri, ne meniju seje.
+        if (plosekVIgro(keyCode, event, true)) return true
         if (ZaslonVnos.jePreklop(keyCode)) { odpriMeni(); return true }
         if (tipkovnica?.jeOdprta == true) {
             // Igralni plosek pise skupaj s tipkovnico: A vtipka, B brise, X presledek, Y velike.
@@ -289,11 +301,31 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         return true
     }
 
-    /** Vse drzane tipke spustimo (odhod z zaslona, konec seje). */
+    /** Vse drzane tipke in gumbe spustimo (odhod z zaslona, konec seje). */
     private fun sprostiDrzane() {
-        if (drzane.isEmpty()) return
         for (koda in drzane.toList()) ZaslonVnos.drzanje(koda, false)?.let { odjemalec?.posljiVnos(it) }
         drzane.clear()
+        for (koda in plosekDrzani.toList()) ZaslonVnos.plosekTipka(koda, false)?.let { odjemalec?.posljiVnos(it) }
+        plosekDrzani.clear()
+        for (os in plosekOdkloni.keys.toList()) {
+            if (plosekOdkloni[os] != 0f) odjemalec?.posljiVnos(ZaslonVnos.plosekOs(os, 0f))
+        }
+        plosekOdkloni.clear()
+    }
+
+    /**
+     * Gumb plosecka naravnost v racunalnik. Vrne true, kadar smo ga porabili.
+     *
+     * Nazaj pustimo televizorju: uporabnik mora imeti pot ven iz seje, tudi ko ima v rokah samo
+     * plosek. Vse drugo (vkljucno s Start in Select) gre v igro.
+     */
+    private fun plosekVIgro(koda: Int, dogodek: KeyEvent?, dol: Boolean): Boolean {
+        if (!plosekVRacunalnik || !ZaslonVnos.jeIzPlosecka(dogodek)) return false
+        if (!ZaslonVnos.jePlosekTipka(koda)) return false
+        if (dol && (dogodek?.repeatCount ?: 0) > 0) return true      // drzanje javi Android, plosek ga ze drzi
+        ZaslonVnos.plosekTipka(koda, dol)?.let { odjemalec?.posljiVnos(it) }
+        if (dol) plosekDrzani.add(koda) else plosekDrzani.remove(koda)
+        return true
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
@@ -314,6 +346,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             return true
         }
         if (tipkovnica?.jeOdprta == true) return super.onKeyUp(keyCode, event)
+        if (plosekVIgro(keyCode, event, false)) return true
         if (kazalec) {
             if (ZaslonVnos.smer(keyCode) != null) { ustaviSmer(); return true }
             if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
@@ -425,6 +458,19 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         ZaslonVnos.izMiske(event)?.let { odjemalec?.posljiVnos(it); return true }
         ZaslonVnos.izMiskinihGumbov(event)?.let { odjemalec?.posljiVnos(it); return true }
+        if (plosekVRacunalnik) {
+            val odkloni = ZaslonVnos.plosekOdkloni(event)
+            if (odkloni.isNotEmpty()) {
+                // Posljemo samo os, ki se je res premaknila: palica poslje dogodek ob vsakem
+                // drgetu, omrezje pa ni tu zato, da nosi enake stevilke.
+                for ((os, vrednost) in odkloni) {
+                    if (plosekOdkloni[os] == vrednost) continue
+                    plosekOdkloni[os] = vrednost
+                    odjemalec?.posljiVnos(ZaslonVnos.plosekOs(os, vrednost))
+                }
+                return true
+            }
+        }
         val palica = ZaslonVnos.izPalice(event)
         if (palica != null) { odklon = palica; zazeniPalico(); return true }
         if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK) {

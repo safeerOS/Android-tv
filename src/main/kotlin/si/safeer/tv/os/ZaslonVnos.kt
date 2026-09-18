@@ -104,6 +104,83 @@ object ZaslonVnos {
         else -> null
     }
 
+    // ---------------------------------------------------------------- plosek naravnost v racunalnik
+    //
+    // Kadar racunalnik zna narediti navidezni plosek (core/link_plosek.py), gumbov ne prevajamo v
+    // tipke in miskine klike, ampak jih posljemo taksne, kot so: igra na racunalniku vidi pravi
+    // plosek. Imena so nasa in jih pozna tudi racunalnik - s televizorja nikoli ne gre stevilka
+    // jedra, ampak oznaka s tega seznama.
+
+    private val PLOSEK_GUMBI = mapOf(
+        KeyEvent.KEYCODE_BUTTON_A to "a",
+        KeyEvent.KEYCODE_BUTTON_B to "b",
+        KeyEvent.KEYCODE_BUTTON_X to "x",
+        KeyEvent.KEYCODE_BUTTON_Y to "y",
+        KeyEvent.KEYCODE_BUTTON_L1 to "l1",
+        KeyEvent.KEYCODE_BUTTON_R1 to "r1",
+        KeyEvent.KEYCODE_BUTTON_L2 to "l2",
+        KeyEvent.KEYCODE_BUTTON_R2 to "r2",
+        KeyEvent.KEYCODE_BUTTON_SELECT to "izbira",
+        KeyEvent.KEYCODE_BUTTON_START to "zacni",
+        KeyEvent.KEYCODE_BUTTON_MODE to "domov",
+        KeyEvent.KEYCODE_BUTTON_THUMBL to "palica_l",
+        KeyEvent.KEYCODE_BUTTON_THUMBR to "palica_r",
+    )
+
+    /**
+     * Smerni krizec gre kot os, ne kot gumb - tako ga pricakuje vsaka igra. Beremo tipke in ne osi
+     * HAT: Android smerni krizec plosecka tako ali tako poslje tudi kot tipke, ce bi brali oboje,
+     * bi vsak pritisk sel v racunalnik dvakrat.
+     */
+    private val PLOSEK_KRIZEC = mapOf(
+        KeyEvent.KEYCODE_DPAD_LEFT to ("krizec_x" to -1f),
+        KeyEvent.KEYCODE_DPAD_RIGHT to ("krizec_x" to 1f),
+        KeyEvent.KEYCODE_DPAD_UP to ("krizec_y" to -1f),
+        KeyEvent.KEYCODE_DPAD_DOWN to ("krizec_y" to 1f),
+    )
+
+    /** Ali je dogodek prisel z igralnega plosecka (in ne z daljinca ali tipkovnice). */
+    fun jeIzPlosecka(dogodek: KeyEvent?): Boolean {
+        val vir = dogodek?.source ?: return false
+        return vir and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD ||
+            vir and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK
+    }
+
+    /** Ali to tipko plosecka znamo poslati racunalniku kot plosek. */
+    fun jePlosekTipka(koda: Int): Boolean = PLOSEK_GUMBI.containsKey(koda) || PLOSEK_KRIZEC.containsKey(koda)
+
+    /** Gumb ali smerni krizec plosecka; null, kadar tipke ne poznamo. */
+    fun plosekTipka(koda: Int, dol: Boolean): JSONObject? {
+        PLOSEK_GUMBI[koda]?.let {
+            return JSONObject().put("vrsta", "plosek_gumb").put("gumb", it).put("dol", dol)
+        }
+        PLOSEK_KRIZEC[koda]?.let { (os, odklon) ->
+            return plosekOs(os, if (dol) odklon else 0f)
+        }
+        return null
+    }
+
+    fun plosekOs(os: String, vrednost: Float): JSONObject =
+        JSONObject().put("vrsta", "plosek_os").put("os", os).put("vrednost", vrednost.toDouble())
+
+    /**
+     * Odkloni palic in sprozilcev. Palici imata mrtvi kot (palica v mirovanju nikoli ne kaze
+     * natanko nic), sprozilca ga nimata - tam je vsak odtenek pomemben (plin v dirkalni igri).
+     */
+    fun plosekOdkloni(dogodek: MotionEvent): Map<String, Float> {
+        if (dogodek.source and InputDevice.SOURCE_JOYSTICK != InputDevice.SOURCE_JOYSTICK) return emptyMap()
+        val odkloni = LinkedHashMap<String, Float>()
+        odkloni["leva_x"] = os(dogodek, MotionEvent.AXIS_X)
+        odkloni["leva_y"] = os(dogodek, MotionEvent.AXIS_Y)
+        odkloni["desna_x"] = os(dogodek, MotionEvent.AXIS_Z)
+        odkloni["desna_y"] = os(dogodek, MotionEvent.AXIS_RZ)
+        odkloni["sprozilec_l"] = maxOf(dogodek.getAxisValue(MotionEvent.AXIS_LTRIGGER),
+                                       dogodek.getAxisValue(MotionEvent.AXIS_BRAKE)).coerceIn(0f, 1f)
+        odkloni["sprozilec_r"] = maxOf(dogodek.getAxisValue(MotionEvent.AXIS_RTRIGGER),
+                                       dogodek.getAxisValue(MotionEvent.AXIS_GAS)).coerceIn(0f, 1f)
+        return odkloni
+    }
+
     /** Tipke, ki preklopijo med kazalcem in tipkami; vsak daljinec ima vsaj eno od njih. */
     fun jePreklop(koda: Int): Boolean = koda == KeyEvent.KEYCODE_MENU ||
         koda == KeyEvent.KEYCODE_INFO || koda == KeyEvent.KEYCODE_BUTTON_START ||
