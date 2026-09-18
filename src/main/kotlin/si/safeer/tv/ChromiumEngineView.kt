@@ -86,6 +86,19 @@ class ChromiumEngineView @JvmOverloads constructor(
     var onFullscreenToggled: ((View?, WebChromeClient.CustomViewCallback?) -> Unit)? = null
 
     /**
+     * Stran je zahtevala novo okno. MainActivity zanj pripravi skrit zavihek in vrne true,
+     * kadar je okno prevzel. Naslova se ne poznamo - zato okno dobi vratarja spodaj.
+     */
+    var naPojavnoOkno: ((android.os.Message) -> Boolean)? = null
+
+    /**
+     * Vratar pojavnega okna. Nastavljen je samo na pogledu, ki ga je dobilo novo okno: pove
+     * mu prvi naslov, kamor okno pelje, vratar pa odgovori, ali sme tja. Dokler vratar ne
+     * odgovori, se v tem pogledu ne nalozi nic.
+     */
+    var vratarPojavnega: ((String) -> Boolean)? = null
+
+    /**
      * Izrisovalnik strani je umrl. Prvi argument je ta pogled, drugi pove, ali je slo za
      * sesutje strani ali za to, da je sistem sprostil pomnilnik. Nastavi ga TabManager.
      */
@@ -522,22 +535,19 @@ class ChromiumEngineView @JvmOverloads constructor(
                 resultMsg: android.os.Message?
             ): Boolean {
                 if (resultMsg == null) return false
-                val curUrl = view?.url?.lowercase() ?: ""
-                // Uporabnikov klik NI vec razlog za novo okno: strani s filmi porabijo prav
-                // prvi klik na predvajalnik in z njim odprejo oglas. Ostanejo samo prijave,
-                // kjer je novo okno del postopka.
-                val isAuth = curUrl.contains("google") || curUrl.contains("youtube") ||
-                    curUrl.contains("oauth") || curUrl.contains("signin")
-                // Kdor preprecevanje v meniju izklopi, dobi obicajno vedenje brskalnika.
-                val preprecuj = PojavnaOknaNastavitve.jeVklopljeno(context)
-                if (isAuth || !preprecuj) {
+                // Uporabnikov klik sam po sebi ni razlog za novo okno: strani s filmi porabijo
+                // prav prvi klik na predvajalnik in z njim odprejo oglas. Zato ne gledamo, ali
+                // je bil klik, in tudi ne, na kateri strani smo - pomembno je edino, KAM okno
+                // pelje. Tega izvemo sele, ko okno dobi svoj pogled, zato ga preda naprej
+                // MainActivity, ki mu nastavi vratarja.
+                if (!PojavnaOknaNastavitve.jeVklopljeno(context)) {
+                    // Kdor preprecevanje v meniju izklopi, dobi obicajno vedenje brskalnika.
                     val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
                     transport.webView = this@ChromiumEngineView
                     resultMsg.sendToTarget()
                     return true
                 }
-                // 🛑 Popolna zaščita pred vsiljenimi oglasnimi pojavnimi okni
-                return false
+                return naPojavnoOkno?.invoke(resultMsg) ?: false
             }
 
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -711,6 +721,15 @@ class ChromiumEngineView @JvmOverloads constructor(
                     request.isForMainFrame
                 } else {
                     true
+                }
+
+                // 0. Novo okno: dokler ne vemo, kam pelje, se v njem ne nalozi nic. Vratar
+                //    odgovori enkrat; ce cilj ni prijava, navigacijo tu ustavimo in zavihek
+                //    izgine, ne da bi uporabnik karkoli videl.
+                val vratar = vratarPojavnega
+                if (vratar != null && isMainFrame && urlStr.startsWith("http", ignoreCase = true)) {
+                    vratarPojavnega = null
+                    if (!vratar(urlStr)) return true
                 }
 
                 // 1. Odklep nevarne domene na lastno odgovornost (iz varnostnega opozorila)

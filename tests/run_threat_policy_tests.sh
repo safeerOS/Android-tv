@@ -26,3 +26,5 @@ java -cp "$OUT/list-agent.jar" com.safeer.threatfeed.ThreatListAgentTestKt
 java -cp "$OUT/sponsorblock.jar" com.safeer.threatfeed.SponsorBlockTestKt
 "$KOTLINC" "$SRC/com/safeer/threatfeed/FilterListEngine.kt" "$TEST_DIR/FilterListEngineTest.kt" -include-runtime -d "$OUT/filter-list.jar"
 java -cp "$OUT/filter-list.jar" com.safeer.threatfeed.FilterListEngineTestKt
+"$KOTLINC" "$SRC/si/safeer/tv/PrijavnaOkna.kt" "$TEST_DIR/PrijavnaOknaTest.kt" -include-runtime -d "$OUT/prijavna-okna.jar"
+java -cp "$OUT/prijavna-okna.jar" si.safeer.tv.PrijavnaOknaTestKt

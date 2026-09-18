@@ -278,24 +278,12 @@ object UserScriptManager {
             if (window._safeer_popunder_shield_active) return;
             window._safeer_popunder_shield_active = true;
 
-            // 🚫 1. Popolna nevtralizacija window.open popunderjev
-            try {
-                var praznoOkno = {
-                    closed: true,
-                    close: function() {},
-                    focus: function() {},
-                    blur: function() {},
-                    postMessage: function() {},
-                    document: { write: function() {}, writeln: function() {}, close: function() {} },
-                    location: { href: '', replace: function() {}, assign: function() {} }
-                };
-                window.open = function(url, target, features) {
-                    console.log('[Safeer AdBlock] Preprečen window.open:', url);
-                    // Neskodljiv priklopek namesto null: nekateri predvajalniki ob null vrzejo
-                    // napako in se ustavijo, klik pa mora pognati film.
-                    return praznoOkno;
-                };
-            } catch(e) {}
+            /* 🚫 1. window.open pustimo pri miru.
+               Prej smo ga tu zamenjali z laznim oknom. To je res ustavilo oglase, hkrati pa
+               je pomenilo, da brskalnik cilja okna nikoli ne vidi - in prijava z Google,
+               Facebook ali X ni mogla odpreti svojega okna. Zdaj o oknu odloca brskalnik
+               sam, ko izve, KAM pelje (PrijavnaOkna + vratar v MainActivity): oglas se
+               ustavi, se preden se karkoli nalozi, prijava pa gre skozi. */
 
             // 🚫 2. Zaščita pred ugrabitvijo top.location iz vdelanih okvirjev (iframes)
             try {
