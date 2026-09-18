@@ -67,214 +67,10 @@ object UserScriptManager {
         }
     """
 
-    private const val XPLORE_DARK_CSS = """
-        .content-carousel, .content-carousel__container, .content-carousel__slider,
-        .item, .item--event, .item__container, .item__metadata {
-            background-color: transparent !important;
-        }
-        html, body, #root, #app, #__next, main {
-            background: #07090d !important;
-            color: #e8eef5 !important;
-            color-scheme: dark !important;
-        }
-        html.safeer-xplore-dark, html.safeer-xplore-dark body {
-            background: #07090d !important;
-            background-color: #07090d !important;
-            color: #e8eef5 !important;
-            color-scheme: dark !important;
-        }
-        html.safeer-xplore-dark .gradient-bg-white,
-        html.safeer-xplore-dark [class*="gradient-bg-white"],
-        html.safeer-xplore-dark [class*="page-content"],
-        html.safeer-xplore-dark [class*="PageContent"],
-        html.safeer-xplore-dark [class*="livetv"],
-        html.safeer-xplore-dark [class*="LiveTv"],
-        html.safeer-xplore-dark [class*="all-program"],
-        html.safeer-xplore-dark [class*="channel-list"],
-        html.safeer-xplore-dark [class*="epg"],
-        html.safeer-xplore-dark .options-wrapper,
-        html.safeer-xplore-dark [class*="options-wrapper"],
-        html.safeer-xplore-dark [class*="livetv-grid"] {
-            background: #07090d !important;
-            background-color: #07090d !important;
-            background-image: none !important;
-            color: #e8eef5 !important;
-        }
-                        html.safeer-xplore-dark .item__bg,
-                        html.safeer-xplore-dark [class*="item__bg"] {
-                            background-color: #12161e !important;
-                        }
-        html.safeer-xplore-dark .menu,
-        html.safeer-xplore-dark .menu.menu--opaque,
-        html.safeer-xplore-dark .menu.menu--fixed,
-        html.safeer-xplore-dark .menu.menu--noscroll,
-        html.safeer-xplore-dark .menu.menu--black-text,
-        html.safeer-xplore-dark .menu.menu--white-text,
-        html.safeer-xplore-dark .menu.gradient-bg-black,
-        html.safeer-xplore-dark .menu.gradient-bg-white,
-        html.safeer-xplore-dark .menu.gradient-bg-white.menu--black-text,
-        html.safeer-xplore-dark header,
-        html.safeer-xplore-dark nav {
-            background: #0b1220 !important;
-            background-color: #0b1220 !important;
-            background-image: none !important;
-            color: #f8fafc !important;
-            border-bottom: 1px solid #2a3a52 !important;
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
-            min-height: 84px !important;
-            height: 84px !important;
-            z-index: 60 !important;
-        }
-        html.safeer-xplore-dark .menu::before,
-        html.safeer-xplore-dark .menu::after {
-            display: none !important;
-            background: none !important;
-            content: none !important;
-        }
-        html.safeer-xplore-dark .menu-items-wrapper,
-        html.safeer-xplore-dark #csh__menu_bar,
-        html.safeer-xplore-dark .menu [class*="wrapper"],
-        html.safeer-xplore-dark .menu [class*="container"],
-        html.safeer-xplore-dark .menu [class*="inner"],
-        html.safeer-xplore-dark .menu [class*="bar"] {
-            display: flex !important;
-            align-items: center !important;
-            gap: 6px !important;
-            background: transparent !important;
-            background-color: transparent !important;
-            background-image: none !important;
-        }
-        html.safeer-xplore-dark .menu a,
-        html.safeer-xplore-dark .menu button,
-        html.safeer-xplore-dark .menu [role="button"],
-        html.safeer-xplore-dark .menu [role="tab"],
-        html.safeer-xplore-dark .menu .dropdown-toggle-button,
-        html.safeer-xplore-dark #csh__menu_bar a {
-            display: inline-flex !important;
-            flex-direction: row !important;
-            align-items: center !important;
-            gap: 10px !important;
-            min-height: 56px !important;
-            padding: 10px 16px !important;
-            border-radius: 12px !important;
-            font-size: 22px !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.01em !important;
-            color: #f8fafc !important;
-            -webkit-text-fill-color: #f8fafc !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            overflow: visible !important;
-            white-space: nowrap !important;
-            background: transparent !important;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7) !important;
-        }
-        html.safeer-xplore-dark .menu a span,
-        html.safeer-xplore-dark .menu button span,
-        html.safeer-xplore-dark #csh__menu_bar a span,
-        html.safeer-xplore-dark .home-link span,
-        html.safeer-xplore-dark .livetv-link span,
-        html.safeer-xplore-dark .movies-link span,
-        html.safeer-xplore-dark .library-link span,
-        html.safeer-xplore-dark .guide-link span,
-        html.safeer-xplore-dark .dropdown-toggle-button span {
-            display: inline !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            position: static !important;
-            width: auto !important;
-            max-width: none !important;
-            height: auto !important;
-            font-size: 22px !important;
-            font-weight: 700 !important;
-            color: #ffffff !important;
-            -webkit-text-fill-color: #ffffff !important;
-            clip: auto !important;
-            clip-path: none !important;
-            overflow: visible !important;
-            text-indent: 0 !important;
-            white-space: nowrap !important;
-        }
-        html.safeer-xplore-dark .menu a:not(.logo) svg,
-        html.safeer-xplore-dark .menu a:not(.logo) svg *,
-        html.safeer-xplore-dark .menu button svg,
-        html.safeer-xplore-dark .menu button svg *,
-        html.safeer-xplore-dark .menu .dropdown-toggle-button svg,
-        html.safeer-xplore-dark .menu .dropdown-toggle-button svg * {
-            fill: #f8fafc !important;
-            color: #f8fafc !important;
-            opacity: 1 !important;
-        }
-        html.safeer-xplore-dark .home-link.route--active,
-        html.safeer-xplore-dark .livetv-link.route--active,
-        html.safeer-xplore-dark .movies-link.route--active,
-        html.safeer-xplore-dark .library-link.route--active,
-        html.safeer-xplore-dark .guide-link.route--active {
-            background: rgba(0, 229, 255, 0.16) !important;
-            border-radius: 12px !important;
-            box-shadow: inset 0 -3px 0 #00e5ff !important;
-            color: #ffffff !important;
-        }
-        html.safeer-xplore-dark .menu a.safeer-active-card,
-        html.safeer-xplore-dark .menu .dropdown-toggle-button.safeer-active-card,
-        html.safeer-xplore-dark .livetv-link.safeer-active-card {
-            outline: 3px solid #00e5ff !important;
-            outline-offset: 3px !important;
-            background: rgba(0, 229, 255, 0.14) !important;
-            box-shadow: none !important;
-        }
-        html.safeer-xplore-dark .menu .logo,
-        html.safeer-xplore-dark .menu a.logo {
-            background: transparent !important;
-            outline: none !important;
-            box-shadow: none !important;
-            -webkit-text-fill-color: unset !important;
-        }
-        .content__wrapper, .content__wrapper.has-footer,
-        html.safeer-xplore-dark .content__wrapper,
-        html.safeer-xplore-dark .content__wrapper.has-footer,
-        html.safeer-xplore-dark body {
-            background: #07090d !important;
-            background-color: #07090d !important;
-        }
-        .menu--black-text, .menu--black-text a, .menu--black-text span,
-        .menu--black-text li, .menu--white-text, .menu--white-text a, .menu--white-text span {
-            color: #e8eef5 !important;
-        }
-        header, nav, footer {
-            background-color: #0b0e14 !important;
-            color: #f8fafc !important;
-        }
-        .search__query_wrapper, [class*="search__query"] {
-            background: #07090d !important;
-            background-image: none !important;
-        }
-        img, video, canvas, picture, svg,
-        [class*="poster"], [class*="thumb"], [class*="Hero"], [class*="hero"],
-        [class*="Banner"], [class*="clpp"], [class*="player"], [class*="Player"],
-        [class*="logo"], [class*="image-header"] {
-            background-color: transparent !important;
-            filter: none !important;
-        }
-        input, textarea, select {
-            background-color: #121826 !important;
-            color: #fff !important;
-            border: 1px solid #243044 !important;
-            caret-color: #93c5fd !important;
-        }
-        input:focus, textarea:focus, input:focus-visible {
-            outline: 2px solid #3b82f6 !important;
-            outline-offset: 2px !important;
-            box-shadow: 0 0 0 1px #0b0e14, 0 0 14px rgba(59, 130, 246, 0.35) !important;
-            background-color: #121826 !important;
-        }
-    """
-
     private const val ANTI_POPUNDER_SHIELD_JS = """
         /* 🛡️ Safeer Anti-Popunder, Anti-Clickjacking & Streaming Shield Engine */
         (function() {
             if ((location.href || '').indexOf('youtube.com/tv') !== -1) return;
-            if ((location.hostname || '').indexOf('xploretv.si') !== -1) return;
             if (window._safeer_popunder_shield_active) return;
             window._safeer_popunder_shield_active = true;
 
@@ -304,7 +100,6 @@ object UserScriptManager {
             // 🚫 3. Samodejno odstranjevanje lažnih opozoril, vsiljenih modalov in video oglasnih prekrivk
             function cleanAllAdOverlays() {
                 try {
-                    if ((location.hostname || '').indexOf('xploretv') !== -1) return;
                     var adSelectors = [
                         '.reward-zone', '#reward-zone', '.fc-ab-root', '.adblock-overlay', '#adblock-modal',
                         '[class*="dating-popup"]', '[id*="dating-popup"]', '[class*="fake-download"]',
@@ -380,7 +175,6 @@ object UserScriptManager {
             // ⚡ 4. Samodejno preskakovanje video oglasov (Instant Video Ad Skipper)
             function autoSkipVideoAds() {
                 try {
-                    if ((location.hostname || '').indexOf('xploretv') !== -1) return;
                     // Klikni gumb za preskok oglasa takoj ko se pojavi
                     var skipButtons = document.querySelectorAll(
                         '.videoAdUiSkipButton, .mgp_skipAdButton, .mgp_adSkip, [class*="skipAd"], ' +
@@ -525,7 +319,6 @@ object UserScriptManager {
                 // ⚡ Bliskovito pospeši predvajanje nove skladbe brez zakasnitev
                 boostPlayback: function() {
                     try {
-                        if ((location.hostname || '').indexOf('xploretv') !== -1) return;
                         var isWatchPage = location.pathname.indexOf('/watch') !== -1 || location.pathname.indexOf('/shorts') !== -1;
                         if (!isWatchPage) return;
 
@@ -766,7 +559,6 @@ object UserScriptManager {
         /* 🎵 Safeer Browser Background Audio & Lock-Screen Playback Engine */
         (function() {
             if ((location.href || '').indexOf('youtube.com/tv') !== -1) return;
-            if ((location.hostname || '').indexOf('xploretv.si') !== -1) return;
             if (window._safeer_bg_playback_installed) return;
             window._safeer_bg_playback_installed = true;
 
@@ -805,9 +597,6 @@ object UserScriptManager {
             }
 
             HTMLMediaElement.prototype.pause = function() {
-                if ((location.hostname || '').indexOf('xploretv') !== -1) {
-                    return origPause.apply(this, arguments);
-                }
                 if (window._safeer_app_bg) {
                     return origPause.apply(this, arguments);
                 }
@@ -826,9 +615,6 @@ object UserScriptManager {
             };
 
             HTMLMediaElement.prototype.play = function() {
-                if ((location.hostname || '').indexOf('xploretv') !== -1) {
-                    return origPlay.apply(this, arguments);
-                }
                 userExplicitlyPaused = false;
                 lastBgHref = location.href;
                 return origPlay.apply(this, arguments);
@@ -875,7 +661,6 @@ object UserScriptManager {
 
             // Stalni nadzornik za neprekinjeno predvajanje v ozadju
             setInterval(function() {
-                if ((location.hostname || '').indexOf('xploretv') !== -1) return;
                 if ((location.hostname || '').toLowerCase().indexOf('24ur') !== -1) return;
                 if (window._safeer_app_bg || document.hidden) return;
                 hookPlayerObject();
@@ -910,7 +695,6 @@ object UserScriptManager {
             if (window._safeer_force_unmute) return;
             var host = (location.hostname || '').toLowerCase();
             var href = (location.href || '').toLowerCase();
-            if (host.indexOf('xploretv') !== -1 || host.indexOf('a1xploretv') !== -1) return;
             if (host.indexOf('24ur') !== -1) return;
             if (href.indexOf('youtube.com/tv') !== -1) return;
             if (href.indexOf('brave_home') !== -1) return;
@@ -973,13 +757,9 @@ object UserScriptManager {
     @Volatile
     private var cachedTvSpatialJs: String? = null
     @Volatile
-    private var cachedSiteXploreJs: String? = null
-    @Volatile
     private var cachedSite24urJs: String? = null
     @Volatile
     private var cachedSiteAgentJs: String? = null
-    @Volatile
-    private var cachedXploreAuthJs: String? = null
 
     /**
      * Vbrizgane skripte hranimo v pomnilniku, ker jih beremo ob vsaki strani. Ko sistemu
@@ -987,10 +767,8 @@ object UserScriptManager {
      */
     fun sprostiPredpomnilnik() {
         cachedTvSpatialJs = null
-        cachedSiteXploreJs = null
         cachedSite24urJs = null
         cachedSiteAgentJs = null
-        cachedXploreAuthJs = null
     }
 
     private fun assetJs(webView: WebView, name: String, cache: () -> String?, store: (String) -> Unit): String {
@@ -1008,17 +786,8 @@ object UserScriptManager {
         return assetJs(webView, "tv_spatial.js", { cachedTvSpatialJs }, { cachedTvSpatialJs = it })
     }
 
-    private fun siteXploreJs(webView: WebView): String {
-        return assetJs(webView, "site_xplore.js", { cachedSiteXploreJs }, { cachedSiteXploreJs = it })
-    }
-
     private fun site24urJs(webView: WebView): String {
         return assetJs(webView, "site_24ur.js", { cachedSite24urJs }, { cachedSite24urJs = it })
-    }
-
-    private fun xploreAuthJs(): String {
-        // Public builds never load credentials from assets or a developer device.
-        return "window._safeerXploreAuth = null;"
     }
 
     private const val YOUTUBE_TV_LEANBACK_JS = """
@@ -1347,216 +1116,6 @@ object UserScriptManager {
         })();
     """
 
-    private const val XPLORE_LIVE_JS = """
-        (function() {
-            if ((location.hostname || '').indexOf('xploretv') === -1) return;
-            if (window._safeer_xplore_live_helpers) return;
-            window._safeer_xplore_live_helpers = true;
-            function paintXploreDark() {
-                try {
-                    if (window._safeer_xplore_want_play || window._safeer_xplore_playing) return;
-                    document.documentElement.classList.add('safeer-xplore-dark');
-                    try { document.documentElement.style.colorScheme = 'dark'; } catch (_) {}
-                    var painted = 0;
-                    var samples = [];
-                    var els = document.querySelectorAll('html, body, #root, #app, main, section, article, div');
-                    var i, el, bg, r, cls, m, lum, skip;
-                    for (i = 0; i < els.length; i++) {
-                        el = els[i];
-                        cls = ((el.className || '') + '').toString().toLowerCase();
-                        skip = cls.indexOf('clpp') !== -1 || cls.indexOf('player') !== -1 || cls.indexOf('poster') !== -1 ||
-                            cls.indexOf('thumb') !== -1 || cls.indexOf('logo') !== -1 || cls.indexOf('overlay') !== -1 ||
-                            el.tagName === 'VIDEO' || el.tagName === 'IMG';
-                        if (skip) continue;
-                        try { if (el.closest && el.closest('video, [class*="clpp"], [class*="player"], [class*="overlays-layer"]')) continue; } catch (_) {}
-                        r = el.getBoundingClientRect();
-                        if (r.width < 360 || r.height < 40) continue;
-                        bg = (window.getComputedStyle(el).backgroundColor || '');
-                        m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-                        if (!m) continue;
-                        lum = (parseInt(m[1], 10) + parseInt(m[2], 10) + parseInt(m[3], 10)) / 3;
-                        if (lum < 188) continue;
-                        el.style.setProperty('background-color', '#07090d', 'important');
-                        el.style.setProperty('background-image', 'none', 'important');
-                        if (cls.indexOf('options-wrapper') !== -1 || cls.indexOf('menu') !== -1) {
-                            el.style.setProperty('color', '#e8eef5', 'important');
-                        }
-                        painted++;
-                        if (samples.length < 8) samples.push({ cls: cls.slice(0, 70), bg: bg, w: Math.round(r.width), h: Math.round(r.height) });
-                    }
-                    // #region agent log
-                    try {
-                        if (window._safeerDbg && (!window._safeer_xplore_dark_logged || painted > (window._safeer_xplore_dark_n || 0))) {
-                            window._safeer_xplore_dark_logged = true;
-                            window._safeer_xplore_dark_n = painted;
-                            window._safeerDbg('H80', 'UserScriptManager.kt:paint_dark', 'painted', {
-                                painted: painted,
-                                samples: samples,
-                                body: getComputedStyle(document.body).backgroundColor,
-                                path: (location.pathname || '').slice(0, 40)
-                            });
-                        }
-                    } catch (_) {}
-                    // #endregion
-                } catch (_) {}
-            }
-            paintXploreDark();
-            window._safeer_xplore_list_live_tiles = function() {
-                var out = [];
-                var seen = {};
-                var els = document.querySelectorAll('a, [role="link"], [class*="card"], [class*="Card"], [class*="tile"], [class*="item"]');
-                var i, el, t, tl, r, key;
-                for (i = 0; i < els.length; i++) {
-                    el = els[i];
-                    t = ((el.innerText || el.textContent || '') + '').replace(/\\s+/g, ' ').trim();
-                    tl = t.toLowerCase();
-                    if (tl.indexOf('v živo') === -1 && tl.indexOf('v zivo') === -1) continue;
-                    r = el.getBoundingClientRect();
-                    if (r.width < 90 || r.height < 50) continue;
-                    key = t.slice(0, 48);
-                    if (seen[key]) continue;
-                    seen[key] = 1;
-                    el.setAttribute('data-safeer-live-idx', String(out.length));
-                    out.push({ i: out.length, t: t.slice(0, 80), w: Math.round(r.width), h: Math.round(r.height) });
-                }
-                try { if (window._safeerDbg) window._safeerDbg('H9', 'UserScriptManager.kt:live_tiles', 'live tiles', { n: out.length, tiles: out.slice(0, 12) }); } catch (_) {}
-                return out;
-            };
-            window._safeer_xplore_list_programs = function() {
-                var out = [];
-                var seen = {};
-                var els = document.querySelectorAll('.item.item--event, .item--event');
-                var i, el, t, r, key;
-                for (i = 0; i < els.length; i++) {
-                    el = els[i];
-                    r = el.getBoundingClientRect();
-                    if (r.width < 120 || r.height < 70) continue;
-                    if (r.bottom < 80 || r.top > ((window.innerHeight || 1080) - 20)) continue;
-                    t = ((el.innerText || el.textContent || '') + '').replace(/\\s+/g, ' ').trim();
-                    key = t.slice(0, 36);
-                    if (!key || seen[key]) continue;
-                    seen[key] = 1;
-                    el.setAttribute('data-safeer-prog-idx', String(out.length));
-                    out.push({ i: out.length, t: t.slice(0, 70), w: Math.round(r.width), h: Math.round(r.height) });
-                }
-                try { if (window._safeerDbg) window._safeerDbg('H9', 'UserScriptManager.kt:programs', 'program tiles', { n: out.length, tiles: out.slice(0, 12) }); } catch (_) {}
-                return out;
-            };
-            window._safeer_xplore_play_program = function(idx) {
-                try {
-                    var list = window._safeer_xplore_list_programs();
-                    var el = document.querySelector('[data-safeer-prog-idx="' + idx + '"]');
-                    var title = (list[idx] && list[idx].t) || '';
-                    try { if (window._safeerDbg) window._safeerDbg('H13', 'UserScriptManager.kt:play_program', 'play program', { idx: idx, found: !!el, t: title, n: list.length }); } catch (_) {}
-                    if (!el) return false;
-                    try { sessionStorage.setItem('safeer_xplore_autoplay', '1'); } catch (_) {}
-                    window._safeer_xplore_want_play = true;
-                    window._safeer_xplore_video_boosted = false;
-                    window._safeer_xplore_playing = false;
-                    window._safeer_xplore_playbtn_n = 0;
-                    try {
-                        var prevs = document.querySelectorAll('.safeer-active-card');
-                        var pi;
-                        for (pi = 0; pi < prevs.length; pi++) prevs[pi].classList.remove('safeer-active-card');
-                        el.classList.add('safeer-active-card');
-                    } catch (_) {}
-                    if (window._safeer_click_focused_card) {
-                        return window._safeer_click_focused_card();
-                    }
-                    try { el.click(); } catch (_) {}
-                    return true;
-                } catch (_) {}
-                return false;
-            };
-            window._safeer_xplore_play_live_tile = function(idx) {
-                try {
-                    var list = window._safeer_xplore_list_live_tiles();
-                    var el = document.querySelector('[data-safeer-live-idx="' + idx + '"]');
-                    var title = (list[idx] && list[idx].t) || '';
-                    try { if (window._safeerDbg) window._safeerDbg('H9', 'UserScriptManager.kt:play_live', 'play live tile', { idx: idx, found: !!el, t: title, n: list.length }); } catch (_) {}
-                    if (!el) return false;
-                    try { sessionStorage.setItem('safeer_xplore_autoplay', '1'); } catch (_) {}
-                    window._safeer_xplore_want_play = true;
-                    window._safeer_xplore_video_boosted = false;
-                    window._safeer_xplore_playing = false;
-                    try { el.click(); } catch (_) {}
-                    return true;
-                } catch (_) {}
-                return false;
-            };
-            window._safeer_xplore_exit_player = function() {
-                try {
-                    window._safeer_xplore_playing = false;
-                    window._safeer_xplore_want_play = false;
-                    window._safeer_xplore_video_boosted = false;
-                    window._safeer_xplore_fs_clicked = false;
-                    window._safeer_xplore_replay_clicked = false;
-                    window._safeer_xplore_player_el = null;
-                    try { document.documentElement.classList.remove('safeer-xplore-fs'); } catch (_) {}
-                    try { if (window.SafeerBridge && window.SafeerBridge.setChromeHidden) window.SafeerBridge.setChromeHidden(true); } catch (_) {}
-                    location.href = 'https://www.xploretv.si/home';
-                } catch (_) {}
-            };
-
-            window._safeer_xplore_search = function(query) {
-                query = (query || '').toString();
-                function findInput() {
-                    return document.querySelector('input[placeholder*="tipkanjem"], input[placeholder*="Isk"], input[placeholder*="iskanj"]')
-                        || document.querySelector('input[type="text"]:not([readonly])');
-                }
-                function openIcon() {
-                    var el = document.querySelector('.icon-p24_search') || document.querySelector('li.search');
-                    if (!el) return false;
-                    try { el.click(); } catch (_) {}
-                    try { if (el.parentElement) el.parentElement.click(); } catch (_) {}
-                    return true;
-                }
-                function fill() {
-                    var input = findInput();
-                    if (!input) return false;
-                    try {
-                        var native = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                        native.call(input, query);
-                    } catch (e) { input.value = query; }
-                    try {
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'a' }));
-                    } catch (_) {}
-                    try {
-                        if (window._safeerDbg) window._safeerDbg('H10', 'UserScriptManager.kt:xplore_search', 'filled', {
-                            q: query.slice(0, 40),
-                            val: (input.value || '').slice(0, 40),
-                            href: (location.href || '').slice(0, 180)
-                        });
-                    } catch (_) {}
-                    return true;
-                }
-                openIcon();
-                if (!query) {
-                    try { if (window._safeerDbg) window._safeerDbg('H10', 'UserScriptManager.kt:xplore_search', 'opened', { hasInput: !!findInput() }); } catch (_) {}
-                    return true;
-                }
-                if (fill()) return true;
-                if (!window._safeer_xplore_search_mo) {
-                    window._safeer_xplore_search_mo = new MutationObserver(function() {
-                        if (fill()) {
-                            try { window._safeer_xplore_search_mo.disconnect(); } catch (_) {}
-                            window._safeer_xplore_search_mo = null;
-                        }
-                    });
-                    try { window._safeer_xplore_search_mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
-                }
-                return true;
-            };
-        })();
-    """
-
-    private fun isXploreUrl(url: String?): Boolean {
-        val u = (url ?: "").lowercase()
-        return u.contains("xploretv") || u.contains("a1xploretv")
-    }
-
     private fun isBrowserHome(url: String?): Boolean {
         return (url ?: "").contains("brave_home", ignoreCase = true)
     }
@@ -1644,24 +1203,10 @@ object UserScriptManager {
             // NEVER inject any scripts or CSS into Google authentication, Google Search or reCAPTCHA to preserve 100% native environment
             return
         }
-        val xplore = isXploreUrl(pageUrl) || isXploreUrl(webView.url)
         val home = isBrowserHome(pageUrl) || isBrowserHome(webView.url)
         val news24 = is24urUrl(pageUrl) || is24urUrl(webView.url)
         // Prave banke: brez kozmetičnih filtrov in zaščite pred pojavnimi okni (daljinsko upravljanje ostane)
         val bank = isRealBankPage(target)
-        if (xplore) {
-            injectCss(webView, XPLORE_DARK_CSS, "tv-remote-xplore-dark")
-            webView.evaluateJavascript(
-                xploreAuthJs() + "\n" + siteAgentJs(webView) + "\n" +
-                    tvSpatialJs(webView) + "\n" + siteXploreJs(webView),
-                null
-            )
-            webView.evaluateJavascript(XPLORE_LIVE_JS, null)
-            if (finished) {
-                webView.evaluateJavascript("try{if(window._safeerSiteAgent)window._safeerSiteAgent.onPageReady()}catch(e){}", null)
-            }
-            return
-        }
         if (!home && !news24) {
             if (!bank) injectCss(webView, CosmeticFilterEngine.buildCosmeticCss(
             try { webView.url } catch (_: Exception) { null }
@@ -1732,8 +1277,6 @@ object UserScriptManager {
         val ping = """
             (function(){
                 try {
-                    var host = (location.hostname || '').toLowerCase();
-                    if (host.indexOf('xploretv') !== -1 && !window._safeer_xplore_helpers_ready) return 'need';
                     if (window._safeer_tv_remote_installed) {
                         try { if (window._safeerSiteAgent) window._safeerSiteAgent.onPageReady(); } catch (e) {}
                         return 'ok';
@@ -1744,9 +1287,8 @@ object UserScriptManager {
         """.trimIndent()
         webView.evaluateJavascript(ping) { result ->
             if (result != null && result.contains("ok")) {
-                val xplore = isXploreUrl(pageUrl) || isXploreUrl(webView.url)
                 val news24 = is24urUrl(pageUrl) || is24urUrl(webView.url)
-                if (!xplore && !news24) {
+                if (!news24) {
                     webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
                     if (!isDarkMode) removeCss(webView, "safeer-dark-mode-style")
                 } else if (news24) {
@@ -1835,15 +1377,11 @@ object UserScriptManager {
                     if ('$idStr' === 'safeer-dark-mode-style' || '$idStr' === 'safeer-cosmetic-filter') {
                         var href = (location.href || '').toLowerCase();
                         var host = (location.hostname || '').toLowerCase();
-                        if (href.indexOf('youtube.com/tv') !== -1 || host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1 || host.indexOf('xploretv.si') !== -1 || host.indexOf('24ur') !== -1 || href.indexOf('brave_home') !== -1) {
+                        if (href.indexOf('youtube.com/tv') !== -1 || host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1 || host.indexOf('24ur') !== -1 || href.indexOf('brave_home') !== -1) {
                             var existing = document.getElementById('$idStr');
                             if (existing) existing.remove();
                             return;
                         }
-                    }
-                    if ('$idStr' === 'tv-remote-xplore-dark') {
-                        var xhost = (location.hostname || '').toLowerCase();
-                        if (xhost.indexOf('xploretv') === -1) return;
                     }
                     var old = document.getElementById('$idStr');
                     if (old && !$force) return;

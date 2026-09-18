@@ -11,7 +11,7 @@ import java.net.URL
 import java.util.Locale
 import java.util.concurrent.Executors
 
-data class XploreDashSession(
+data class DashSeja(
     val mpdUrl: String,
     val licenseUrl: String,
     val licenseHeaders: Map<String, String>,
@@ -23,12 +23,50 @@ data class XploreDashSession(
 )
 
 /**
- * Observes the logged-in Xplore WebView session for DASH + Widevine license
- * requests. Cookies/headers come from the user's A1 page, not a third-party scraper.
+ * Opazuje stran, na kateri je uporabnik, in ujame njen pretok DASH z licenco Widevine, da ga
+ * lahko predvaja ExoPlayer namesto WebViewa (na televizorju je to razlika med zatikanjem in
+ * gladko sliko).
+ *
+ * Nic od tega ni vezano na doloceno stran: manifest prepoznamo po standardu DASH, licencni
+ * naslov po standardnih oznakah (Widevine, DRMtoday, ExpressPlay), piskotke in glavi Referer
+ * in Origin pa vzamemo z izvora strani, ki je odprta. Zascita vsebine ostane nedotaknjena -
+ * licenco izda ponudnikov streznik, desifrira Widevine; mi prenasamo samo uporabnikovo lastno
+ * sejo naprej.
  */
-object XploreDashCapture {
-    var listener: ((XploreDashSession) -> Unit)? = null
+object DashPrevzem {
+    var listener: ((DashSeja) -> Unit)? = null
     var onNeedPageLicense: (() -> Unit)? = null
+
+    /** Izvor strani, ki je odprta (shema in gostitelj) - od tam gredo piskotki in glavi. */
+    @Volatile
+    private var izvor: String = ""
+
+    /** Brskalnik javi vsako novo stran; od tod vemo, cigava seja je v igri. */
+    fun naStrani(url: String) {
+        izvor = izvorOf(url)
+    }
+
+    fun izvorStrani(): String = izvor
+
+    /** Ali smo na tej strani ze ujeli pretok DASH? Po tem se odloci nacin predvajanja. */
+    fun imaSejo(): Boolean = synchronized(lock) { mpdUrl.isNotEmpty() }
+
+    /** Ali ta naslov kaze na manifest, ki ga predvajamo? */
+    fun jeManifest(url: String): Boolean {
+        if (url.isEmpty()) return false
+        val trenutni = synchronized(lock) { mpdUrl }
+        if (trenutni.isNotEmpty() && sameDashStream(trenutni, url)) return true
+        return isDashManifest(url.lowercase(Locale.US))
+    }
+
+    private fun izvorOf(url: String): String = try {
+        val u = Uri.parse(url)
+        val shema = u.scheme.orEmpty().lowercase(Locale.US)
+        val gostitelj = u.host.orEmpty()
+        if (shema.startsWith("http") && gostitelj.isNotEmpty()) "$shema://$gostitelj" else ""
+    } catch (_: Exception) {
+        ""
+    }
 
     private val main = Handler(Looper.getMainLooper())
     private val io = Executors.newSingleThreadExecutor()
@@ -87,13 +125,22 @@ object XploreDashCapture {
         synchronized(lock) { lastFiredKey = "" }
     }
 
+    /**
+     * Ali zahteva pripada predvajanju (manifest, segment, licenca)? Take pustimo skozi brez
+     * filtra oglasov, sicer bi filter lahko ustavil sliko. Odlocamo po standardnih oznakah
+     * DASH in Widevine ter po gostitelju, s katerega je prisel manifest - ne po imenu strani.
+     */
     fun shouldPassthrough(url: String): Boolean {
         val u = url.lowercase(Locale.US)
-        return u.contains("xploretv") || u.contains("a1xploretv") ||
-            u.contains(".a1.si") || u.contains(".a1.net") || u.contains("a1.net/") ||
+        if (u.contains(".mpd") || u.contains(".m4s") || u.contains("/dash/") ||
             u.contains("castlabs") || u.contains("drmtoday") || u.contains("widevine") ||
-            u.contains("expressplay") || u.contains(".mpd") || u.contains("license-proxy") ||
-            u.contains("/drm/") || u.contains("__c/a1_si_")
+            u.contains("expressplay") || u.contains("license-proxy") ||
+            u.contains("/drm/") || u.contains("/license")
+        ) {
+            return true
+        }
+        val medijskiGostitelj = synchronized(lock) { if (mpdUrl.isEmpty()) "" else hostOf(mpdUrl) }
+        return medijskiGostitelj.isNotEmpty() && hostOf(url).equals(medijskiGostitelj, true)
     }
 
     fun observe(url: String, method: String, headers: Map<String, String>) {
@@ -128,7 +175,7 @@ object XploreDashCapture {
         if (isStaleChannelMpd(ch)) {
             SafeerDbg.log(
                 "H330",
-                "XploreDashCapture.kt:mpd",
+                "DashPrevzem.kt:mpd",
                 "stale mpd ignored",
                 JSONObject().put("ch", ch).put("cur", lastFiredChannel).put("prev", prevFiredChannel)
             )
@@ -158,7 +205,7 @@ object XploreDashCapture {
         if (parsed) {
             SafeerDbg.log(
                 "H330",
-                "XploreDashCapture.kt:mpd",
+                "DashPrevzem.kt:mpd",
                 "dash mpd",
                 JSONObject()
                     .put("ch", dashChannelOf(url))
@@ -180,7 +227,7 @@ object XploreDashCapture {
         if (url.startsWith("http", true) && looksLikeLicenseUrl(url.lowercase(Locale.US))) {
             SafeerDbg.log(
                 "H331",
-                "XploreDashCapture.kt:cfg",
+                "DashPrevzem.kt:cfg",
                 "page drm cfg",
                 JSONObject()
                     .put("host", hostOf(url))
@@ -197,7 +244,7 @@ object XploreDashCapture {
         }
         SafeerDbg.log(
             "H331",
-            "XploreDashCapture.kt:lic",
+            "DashPrevzem.kt:lic",
             "license hint",
             JSONObject()
                 .put("host", hostOf(url))
@@ -227,8 +274,7 @@ object XploreDashCapture {
         var h: Map<String, String> = emptyMap()
         h = mergeHeaders(h, pageLicHeaders)
         h = mergeHeaders(h, hintLicHeaders)
-        if (licUrl.isNotEmpty()) h = withCookies(licUrl, h)
-        else h = withCookies("https://www.xploretv.si/", h)
+        h = withCookies(if (licUrl.isNotEmpty()) licUrl else izvor, h)
         return h
     }
 
@@ -245,7 +291,7 @@ object XploreDashCapture {
             prevFiredChannel = lastFiredChannel
             lastFiredChannel = dashChannelOf(mpdUrl)
             lastFireAt = SystemClock.elapsedRealtime()
-            XploreDashSession(
+            DashSeja(
                 mpdUrl = mpdUrl,
                 licenseUrl = licUrl,
                 licenseHeaders = lic,
@@ -261,7 +307,7 @@ object XploreDashCapture {
         val parseMs = if (parsedElapsed > 0L) now - parsedElapsed else -1L
         SafeerDbg.log(
             "H332",
-            "XploreDashCapture.kt:fire",
+            "DashPrevzem.kt:fire",
             "start exo",
             JSONObject()
                 .put("ch", session.dashChannel)
@@ -283,8 +329,21 @@ object XploreDashCapture {
         listener?.invoke(session)
     }
 
+    /**
+     * Kljuc pretoka: po cem locimo en pretok od drugega (recimo dva programa). Vzamemo mapo
+     * manifesta, in ce datoteka nima splosnega imena, se njeno ime - tako delujeta oba
+     * obicajna nacina, mapa na program in ena mapa z vec manifesti.
+     */
     fun dashChannelOf(url: String): String {
-        return Regex("""__c/([^/]+)""").find(url)?.groupValues?.getOrNull(1) ?: ""
+        val pot = try { Uri.parse(url).path.orEmpty() } catch (_: Exception) { "" }
+        if (pot.isEmpty()) return ""
+        val deli = pot.split('/').filter { it.isNotEmpty() }
+        if (deli.isEmpty()) return ""
+        val datoteka = deli.last().lowercase(Locale.US)
+        val mapa = deli.dropLast(1).joinToString("/").lowercase(Locale.US)
+        val splosnoIme = datoteka.startsWith("manifest") || datoteka.startsWith("index") ||
+            datoteka.startsWith("stream") || datoteka.startsWith("playlist")
+        return if (splosnoIme || !datoteka.contains('.')) mapa else "$mapa/$datoteka"
     }
 
     private fun isStaleChannelMpd(ch: String): Boolean {
@@ -305,7 +364,7 @@ object XploreDashCapture {
     private fun isDashManifest(lower: String): Boolean {
         if (lower.contains(".m4s") || (lower.contains(".mp4") && !lower.contains(".mpd"))) return false
         if (lower.contains(".mpd") || lower.contains("manifest.mpd")) return true
-        return lower.contains("__op/dash") && (lower.contains("__f/") || lower.contains("manifest"))
+        return lower.contains("manifest") && (lower.contains("dash") || lower.contains("mpd"))
     }
 
     private fun sameDashStream(a: String, b: String): Boolean {
@@ -325,7 +384,6 @@ object XploreDashCapture {
             var s = 0
             if (l.contains(".mpd")) s += 4
             if (l.contains("manifest")) s += 3
-            if (l.contains("__f/")) s += 2
             if (l.contains(":443")) s -= 1
             return s
         }
@@ -368,7 +426,7 @@ object XploreDashCapture {
                     val laurl = extractLaurl(body)
                     SafeerDbg.log(
                         "H338",
-                        "XploreDashCapture.kt:mpdxml",
+                        "DashPrevzem.kt:mpdxml",
                         "mpd parsed",
                         JSONObject()
                             .put("hasLa", !laurl.isNullOrEmpty())
@@ -391,7 +449,7 @@ object XploreDashCapture {
                             }
                             SafeerDbg.log(
                                 "H338",
-                                "XploreDashCapture.kt:mpdxml",
+                                "DashPrevzem.kt:mpdxml",
                                 "clear dash",
                                 JSONObject().put("ch", dashChannelOf(mpd))
                             )
@@ -410,7 +468,7 @@ object XploreDashCapture {
             } catch (t: Throwable) {
                 SafeerDbg.log(
                     "H338",
-                    "XploreDashCapture.kt:mpdxml",
+                    "DashPrevzem.kt:mpdxml",
                     "mpd fetch fail",
                     JSONObject().put("err", t.javaClass.simpleName)
                 )
@@ -566,12 +624,9 @@ object XploreDashCapture {
         headers.forEach { (k, v) -> if (k.isNotBlank() && !skipHeader(k)) out[k] = v }
         val cm = CookieManager.getInstance()
         val cookieParts = LinkedHashSet<String>()
-        listOf(
-            url,
-            "https://www.xploretv.si/",
-            "https://xploretv.si/",
-            "https://www.a1.si/"
-        ).forEach { u ->
+        listOf(url, if (izvor.isEmpty()) "" else "$izvor/")
+            .filter { it.isNotEmpty() }
+            .forEach { u ->
             try {
                 val c = cm.getCookie(u)
                 if (!c.isNullOrBlank()) cookieParts.add(c)
@@ -583,11 +638,9 @@ object XploreDashCapture {
         if (out.keys.none { it.equals("User-Agent", true) }) {
             out["User-Agent"] = ChromiumEngineView.DESKTOP_USER_AGENT
         }
-        if (out.keys.none { it.equals("Referer", true) }) {
-            out["Referer"] = "https://www.xploretv.si/"
-        }
-        if (out.keys.none { it.equals("Origin", true) }) {
-            out["Origin"] = "https://www.xploretv.si"
+        if (izvor.isNotEmpty()) {
+            if (out.keys.none { it.equals("Referer", true) }) out["Referer"] = "$izvor/"
+            if (out.keys.none { it.equals("Origin", true) }) out["Origin"] = izvor
         }
         return out
     }

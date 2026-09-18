@@ -27,8 +27,8 @@ class ChromiumEngineView @JvmOverloads constructor(
         const val CHROME_ANDROID_USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
         const val SMART_TV_USER_AGENT = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 7.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/8.2 Chrome/106.0.5249.126 TV Safari/537.36"
         const val GOOGLE_AUTH_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
-        private val xploreSettingsLogs = java.util.concurrent.atomic.AtomicInteger(0)
-        private val xploreMediaLogs = java.util.concurrent.atomic.AtomicInteger(0)
+        private val nastavitveniDnevnik = java.util.concurrent.atomic.AtomicInteger(0)
+        private val medijskiDnevnik = java.util.concurrent.atomic.AtomicInteger(0)
         private val lastDashChannel = java.util.concurrent.atomic.AtomicReference("")
 
         fun rewriteYoutubeForTv(url: String): String {
@@ -254,49 +254,25 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         val isYoutubeTv = url.contains("youtube.com/tv", ignoreCase = true) ||
             host.contains("youtube.com") || host.contains("youtu.be")
-        val isXplore = host.contains("xploretv") || host.contains("a1xploretv")
         val skip = host.contains("music.youtube") || host.contains("studio.youtube") || host.contains("accounts.")
-        val isHome = url.contains("brave_home.html", ignoreCase = true)
-        val is24ur = host.contains("24ur")
-        if (isXplore || isHome || is24ur) {
-            settings.textZoom = 100
-            settings.useWideViewPort = true
-            settings.loadWithOverviewMode = true
-            setInitialScale(100)
-            settings.userAgentString = DESKTOP_USER_AGENT
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.databaseEnabled = true
-            settings.mediaPlaybackRequiresUserGesture = false
-            settings.setNeedInitialFocus(false)
-            if (isXplore) {
-                settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            }
-            // #region agent log
-            if (isXplore && xploreSettingsLogs.incrementAndGet() <= 3) {
-                SafeerDbg.log(
-                    "H30",
-                    "ChromiumEngineView.kt:ua",
-                    "xplore websettings",
-                    org.json.JSONObject()
-                        .put("ua", settings.userAgentString.take(90))
-                        .put("js", settings.javaScriptEnabled)
-                        .put("dom", settings.domStorageEnabled)
-                        .put("db", settings.databaseEnabled)
-                        .put("gesture", settings.mediaPlaybackRequiresUserGesture)
-                        .put("mixed", settings.mixedContentMode)
-                        .put("hwLayer", layerType)
-                )
-            }
-            // #endregion
-            return
-        }
+        // Televizor: siroka postavitev, namizni pogled in predvajanje brez dotika so pravilni
+        // povsod. Prej so te nastavitve dobile samo nastete strani, kar je pomenilo, da je
+        // brskalnik delal dobro tam, kjer smo stran poznali - zdaj jih dobi vsaka.
         settings.textZoom = 100
+        settings.useWideViewPort = true
+        settings.loadWithOverviewMode = true
         setInitialScale(100)
+        settings.javaScriptEnabled = true
+        settings.domStorageEnabled = true
+        settings.databaseEnabled = true
+        settings.mediaPlaybackRequiresUserGesture = false
+        settings.setNeedInitialFocus(false)
+        // Mesane vsebine (http v strani https) ne dovolimo nikjer: prej je bila izjema za eno
+        // stran, kar je bila luknja, ki je z njo ni imel nihce razen te strani.
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         settings.userAgentString = when {
             skip -> DESKTOP_USER_AGENT
             isYoutubeTv -> SMART_TV_USER_AGENT
-            isDesktopMode -> DESKTOP_USER_AGENT
             else -> DESKTOP_USER_AGENT
         }
     }
@@ -388,8 +364,8 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
 
         @android.webkit.JavascriptInterface
-        fun onXploreMedia(url: String?, method: String?, headersJson: String?, kind: String?) {
-            XploreDashCapture.observeJs(
+        fun onMedijskaZahteva(url: String?, method: String?, headersJson: String?, kind: String?) {
+            DashPrevzem.observeJs(
                 url ?: "",
                 method ?: "GET",
                 headersJson ?: "{}",
@@ -617,12 +593,12 @@ class ChromiumEngineView @JvmOverloads constructor(
                                     try {
                                         if (window._safeer_app_bg) return;
                                         try { if (sessionStorage.getItem('safeer_app_bg') === '1') return; } catch (eBg) {}
-                                        window._safeer_xplore_drm_ok = true;
-                                        window._safeer_xplore_drm_at = Date.now();
+                                        window._safeer_medij_drm_ok = true;
+                                        window._safeer_medij_drm_at = Date.now();
                                         if (window._safeerSiteAgent) {
                                             window._safeerSiteAgent.onDrm();
-                                        } else if (window._safeer_xplore_want_play) {
-                                            var v = window._safeer_xplore_player_el || document.querySelector('video');
+                                        } else if (window._safeer_medij_want_play) {
+                                            var v = window._safeer_medij_player_el || document.querySelector('video');
                                             var r = v ? v.getBoundingClientRect() : {width:0,height:0};
                                             if (v && v.paused && (v.videoWidth||0) >= 320 && v.readyState >= 2) {
                                                 try { v.muted = false; v.volume = 1.0; } catch (e0) {}
@@ -630,7 +606,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                                             }
                                         }
                                         if (window._safeerDbg) {
-                                            var vv = window._safeer_xplore_player_el || document.querySelector('video');
+                                            var vv = window._safeer_medij_player_el || document.querySelector('video');
                                             var rr = vv ? vv.getBoundingClientRect() : {width:0,height:0};
                                             window._safeerDbg('H101','ChromiumEngineView.kt:drm','play after drm',{
                                                 hasV:!!vv, paused:vv?!!vv.paused:true, rs:vv?vv.readyState:-1,
@@ -773,10 +749,18 @@ class ChromiumEngineView @JvmOverloads constructor(
                     return true
                 }
 
-                // Blokiraj klik na znana oglasna omrežja (popunderji) — Xplore TV predvajalnika ne prestrezaj
-                val xploreHost = host.contains("xploretv") || host.contains("a1xploretv") ||
-                    host.endsWith(".a1.si") || host == "a1.si" || host.endsWith(".a1.net")
-                if (!xploreHost && AdBlockEngine.shouldBlockUrl(urlStr)) {
+                // Blokiraj klik na znana oglasna omrežja (popunderji). Znotraj iste strani ne
+                // blokiramo nicesar: klik, ki ostane na tej strani, ni popunder, predvajalnik
+                // pa se tako ne more zatakniti - pravilo velja za vsako stran enako.
+                val domaciGostitelj = try {
+                    Uri.parse(interceptPageUrl).host?.lowercase().orEmpty()
+                } catch (_: Exception) {
+                    ""
+                }
+                val istaStran = domaciGostitelj.isNotEmpty() &&
+                    (host == domaciGostitelj || host.endsWith(".$domaciGostitelj") ||
+                        domaciGostitelj.endsWith(".$host"))
+                if (!istaStran && AdBlockEngine.shouldBlockUrl(urlStr)) {
                     return true
                 }
 
@@ -839,15 +823,15 @@ class ChromiumEngineView @JvmOverloads constructor(
                     emptyMap()
                 }
 
-                if (XploreDashCapture.shouldPassthrough(url)) {
+                if (DashPrevzem.shouldPassthrough(url)) {
                     try {
-                        XploreDashCapture.observe(url, method, reqHeaders)
+                        DashPrevzem.observe(url, method, reqHeaders)
                     } catch (_: Exception) {}
                     val lowerUrl = url.lowercase()
                     val isMedia = lowerUrl.contains(".mpd") || lowerUrl.contains("license") ||
                         lowerUrl.contains("widevine") || lowerUrl.contains("cenc") ||
                         lowerUrl.contains("/drm/") || lowerUrl.contains("drmtoday")
-                    if (isMedia && xploreMediaLogs.incrementAndGet() <= 16) {
+                    if (isMedia && medijskiDnevnik.incrementAndGet() <= 16) {
                         SafeerDbg.log(
                             "H286",
                             "ChromiumEngineView.kt:intercept",
@@ -867,7 +851,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                             org.json.JSONObject().put("ch", dashCh)
                         )
                     }
-                    if (method.equals("POST", ignoreCase = true) && xploreMediaLogs.get() <= 24) {
+                    if (method.equals("POST", ignoreCase = true) && medijskiDnevnik.get() <= 24) {
                         val host = try { Uri.parse(url).host ?: "" } catch (_: Exception) { "" }
                         SafeerDbg.log(
                             "H329",
@@ -890,12 +874,14 @@ class ChromiumEngineView @JvmOverloads constructor(
                 earlyScriptNavGen = -1
                 finishedScriptNavGen = -1
                 lastDashChannel.set("")
-                xploreMediaLogs.set(0)
+                medijskiDnevnik.set(0)
                 val page = url ?: ""
-                if (!page.contains("xploretv", ignoreCase = true) &&
-                    !page.contains("a1xploretv", ignoreCase = true)
-                ) {
-                    XploreDashCapture.resetAll()
+                // Ko gremo na drugo stran, prejsnja seja predvajanja ne velja vec. Znotraj iste
+                // strani jo obdrzimo - tam uporabnik le preklaplja med vsebinami.
+                val prejsnjiIzvor = DashPrevzem.izvorStrani()
+                DashPrevzem.naStrani(page)
+                if (DashPrevzem.izvorStrani() != prejsnjiIzvor) {
+                    DashPrevzem.resetAll()
                 }
                 url?.let {
                     applyUserAgentForUrl(it)

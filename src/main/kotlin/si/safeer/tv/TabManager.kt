@@ -219,7 +219,7 @@ class TabManager(
     /**
      * Brskalnik ni vec na zaslonu (uporabnik je sel v drugo aplikacijo ali na domaci zaslon):
      * zavihki v ozadju zaspijo takoj, aktivni pa sele, ko klicatelj tako odloci (`tudiAktivni`,
-     * po daljsem casu v ozadju). Zavihek, ki predvaja, in stran v zivo (Xplore) ostaneta budna.
+     * po daljsem casu v ozadju). Zavihek, ki predvaja, ostane buden.
      * Stran se ob vrnitvi nalozi znova; Safeer Link in daljinec med tem delujeta naprej.
      */
     fun uspavajVOzadju(tudiAktivni: Boolean) {
@@ -255,13 +255,8 @@ class TabManager(
     /** Ali kateri zavihek spi (za dnevnik in meritve). */
     fun steviloSpecih(): Int = tabs.count { it.spi }
 
-    private fun jeVZivo(tab: TabModel): Boolean {
-        val u = (tab.webView.url ?: tab.url)
-        return u.contains("xploretv", ignoreCase = true)
-    }
-
     private fun uspavaj(tab: TabModel, dovoliAktivnega: Boolean = false) {
-        if (tab.spi || tab.predvaja || jeVZivo(tab)) return
+        if (tab.spi || tab.predvaja) return
         if (tab.id == activeTabId && !dovoliAktivnega) return
         val naslov = (tab.webView.url ?: tab.url).trim()
         if (naslov.isBlank() || naslov == PRAZNA) return

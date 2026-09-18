@@ -225,7 +225,7 @@
     }
 
     function videoEl() {
-        return window._safeer_xplore_player_el || document.querySelector('video');
+        return window._safeer_medij_player_el || document.querySelector('video');
     }
 
     function overlayEl() {
@@ -276,24 +276,24 @@
     }
 
     function wantPlayNow() {
-        return !!(window._safeer_xplore_want_play || (agent && agent.wantPlay));
+        return !!(window._safeer_medij_want_play || (agent && agent.wantPlay));
     }
 
     function ensureHoldStyle() {
-        if (document.getElementById('safeer-xplore-hold-style')) return;
+        if (document.getElementById('safeer-medij-hold-style')) return;
         var st = document.createElement('style');
-        st.id = 'safeer-xplore-hold-style';
+        st.id = 'safeer-medij-hold-style';
         st.textContent =
-            'html.safeer-xplore-hold,html.safeer-xplore-hold body{background:#000!important;}' +
-            'html.safeer-xplore-hold [class*="livetv-grid"],' +
-            'html.safeer-xplore-hold .item--event,' +
-            'html.safeer-xplore-hold .menu-items-wrapper,' +
-            'html.safeer-xplore-hold #csh__menu_bar,' +
-            'html.safeer-xplore-hold header,' +
-            'html.safeer-xplore-hold #safeer-focus-target-ring' +
+            'html.safeer-medij-hold,html.safeer-medij-hold body{background:#000!important;}' +
+            'html.safeer-medij-hold [class*="livetv-grid"],' +
+            'html.safeer-medij-hold .item--event,' +
+            'html.safeer-medij-hold .menu-items-wrapper,' +
+            'html.safeer-medij-hold #csh__menu_bar,' +
+            'html.safeer-medij-hold header,' +
+            'html.safeer-medij-hold #safeer-focus-target-ring' +
             '{visibility:hidden!important;opacity:0!important;pointer-events:none!important;}' +
-            'html.safeer-xplore-hold .zw-overlays-layer,' +
-            'html.safeer-xplore-hold video' +
+            'html.safeer-medij-hold .zw-overlays-layer,' +
+            'html.safeer-medij-hold video' +
             '{visibility:visible!important;opacity:1!important;}';
         try { (document.documentElement || document.head).appendChild(st); } catch (_) {}
     }
@@ -319,16 +319,16 @@
             } catch (_) {}
             // #endregion
         }
-        var dead = document.getElementById('safeer-xplore-hold-cover');
+        var dead = document.getElementById('safeer-medij-hold-cover');
         if (dead && dead.parentNode) {
             try { dead.parentNode.removeChild(dead); } catch (_) {}
         }
         try { ensureHoldStyle(); } catch (_) {}
         var html = document.documentElement;
-        var on = html.classList.contains('safeer-xplore-hold');
+        var on = html.classList.contains('safeer-medij-hold');
         if (show) {
             if (!on) {
-                html.classList.add('safeer-xplore-hold');
+                html.classList.add('safeer-medij-hold');
                 try {
                     var ring = document.getElementById('safeer-focus-target-ring');
                     if (ring) { ring.classList.remove('active'); ring.style.display = 'none'; }
@@ -336,7 +336,7 @@
                 dbg('hold cover', { show: true, mode: 'css-grid', reason: reason, ply: overlayClass().slice(0, 70) });
             }
         } else if (on) {
-            html.classList.remove('safeer-xplore-hold');
+            html.classList.remove('safeer-medij-hold');
             dbg('hold cover', { show: false, mode: 'css-grid', reason: reason, framed: framed, vw: v ? (v.videoWidth || 0) : 0 });
         }
     }
@@ -391,17 +391,6 @@
         } catch (_) {}
     }
 
-    function warmDrm() {
-        var p = (location.pathname || '').toLowerCase();
-        if (p.indexOf('xplore') === -1 && (location.hostname || '').indexOf('xploretv') === -1) return;
-        if (window._safeer_drm_warm_started) return;
-        window._safeer_drm_warm_started = true;
-        // Android 11 WebView has a single CDM: createMediaKeys() here holds it
-        // so Castlabs cannot attach MediaKeys before the overlay times out (H283).
-        // #region agent log
-        dbg('drm warm', { ok: false, why: 'skip createMediaKeys' });
-        // #endregion
-    }
 
     var agent = {
         wantPlay: false,
@@ -423,16 +412,16 @@
             lastOkAt = 0;
             keepN = 0;
             drmClickN = 0;
-            window._safeer_xplore_want_play = true;
-            window._safeer_xplore_playbtn_n = 0;
-            window._safeer_xplore_skipbtn_logged = false;
-            window._safeer_xplore_drm_stream = false;
+            window._safeer_medij_want_play = true;
+            window._safeer_medij_playbtn_n = 0;
+            window._safeer_medij_skipbtn_logged = false;
+            window._safeer_medij_drm_stream = false;
             boostSkipLogged = false;
             window._safeer_app_bg = false;
             try { sessionStorage.removeItem('safeer_app_bg'); } catch (_) {}
             try {
                 var pWant = (location.pathname || '').toLowerCase();
-                if (pWant.indexOf('/livetv') === -1 && window._safeer_xplore_unsmash) window._safeer_xplore_unsmash();
+                if (pWant.indexOf('/livetv') === -1 && window._safeer_medij_unsmash) window._safeer_medij_unsmash();
             } catch (_) {}
             try { watchOverlay(); } catch (_) {}
             try { syncHoldCover('want'); } catch (_) {}
@@ -460,19 +449,19 @@
         clearWant: function () {
             this.wantPlay = false;
             this._reopened = false;
-            window._safeer_xplore_want_play = false;
-            window._safeer_xplore_playing = false;
-            window._safeer_xplore_video_boosted = false;
-            window._safeer_xplore_playbtn_n = 0;
-            window._safeer_xplore_fs_clicked = false;
-            window._safeer_xplore_player_el = null;
+            window._safeer_medij_want_play = false;
+            window._safeer_medij_playing = false;
+            window._safeer_medij_video_boosted = false;
+            window._safeer_medij_playbtn_n = 0;
+            window._safeer_medij_fs_clicked = false;
+            window._safeer_medij_player_el = null;
             lastPly = '';
             lastOkAt = 0;
             keepN = 0;
             drmClickN = 0;
-            window._safeer_xplore_drm_stream = false;
-            try { document.documentElement.classList.remove('safeer-xplore-fs', 'safeer-xplore-hold'); } catch (_) {}
-            try { if (window._safeer_xplore_unsmash) window._safeer_xplore_unsmash(); } catch (_) {}
+            window._safeer_medij_drm_stream = false;
+            try { document.documentElement.classList.remove('safeer-medij-fs', 'safeer-medij-hold'); } catch (_) {}
+            try { if (window._safeer_medij_unsmash) window._safeer_medij_unsmash(); } catch (_) {}
             try {
                 var ovZ = overlayEl();
                 if (ovZ && !isFramed(videoEl())) {
@@ -484,7 +473,7 @@
                 }
             } catch (_) {}
             try {
-                var hid = document.getElementById('safeer-xplore-player-hide-ui');
+                var hid = document.getElementById('safeer-medij-player-hide-ui');
                 if (hid && hid.parentNode) hid.parentNode.removeChild(hid);
             } catch (_) {}
             try {
@@ -521,7 +510,7 @@
 
         allowDrmPlay: function () {
             if (isAppBg()) return false;
-            if (!(this.wantPlay || window._safeer_xplore_want_play)) return false;
+            if (!(this.wantPlay || window._safeer_medij_want_play)) return false;
             var v = videoEl();
             if (!v || !v.paused) return false;
             return isFramed(v);
@@ -530,7 +519,7 @@
         onPageReady: function () {
             var path = (location.pathname || '').toLowerCase();
             try { bindVideoEme(); } catch (_) {}
-            try { warmDrm(); } catch (_) {}
+            try {  } catch (_) {}
             var v = videoEl();
             if (!v) {
                 dbg('page ready', { path: path.slice(0, 60), hasV: false, href: (location.href || '').slice(0, 90) });
@@ -539,7 +528,7 @@
             }
             var r = v.getBoundingClientRect();
             var framed = isFramed(v);
-            var want = this.wantPlay || !!window._safeer_xplore_want_play;
+            var want = this.wantPlay || !!window._safeer_medij_want_play;
             dbg('page ready', {
                 path: path.slice(0, 60),
                 w: Math.round(r.width || 0),
@@ -568,8 +557,8 @@
             var r = v ? v.getBoundingClientRect() : { width: 0, height: 0 };
             var didPlay = false;
             var framed = isFramed(v);
-            var want = this.wantPlay || window._safeer_xplore_want_play;
-            var streamDrm = !!window._safeer_xplore_drm_stream;
+            var want = this.wantPlay || window._safeer_medij_want_play;
+            var streamDrm = !!window._safeer_medij_drm_stream;
             var large = (r.width || 0) >= 800;
             var path = (location.pathname || '').toLowerCase();
             var onLivetv = path.indexOf('/livetv') !== -1;
@@ -583,7 +572,7 @@
                 try { v.muted = false; v.volume = 1.0; } catch (_) {}
                 try { v.play(); didPlay = true; } catch (_) {}
                 // #region agent log
-                try { if (window._safeerDbg) window._safeerDbg('H168', 'site_agent.js:hold', 'play framed', { stream: !!streamDrm, drmOk: !!window._safeer_xplore_drm_ok, livetv: onLivetv, vw: v.videoWidth || 0, w: Math.round(r.width || 0), ply: ply.slice(0, 70) }); } catch (_) {}
+                try { if (window._safeerDbg) window._safeerDbg('H168', 'site_agent.js:hold', 'play framed', { stream: !!streamDrm, drmOk: !!window._safeer_medij_drm_ok, livetv: onLivetv, vw: v.videoWidth || 0, w: Math.round(r.width || 0), ply: ply.slice(0, 70) }); } catch (_) {}
                 // #endregion
             }
             dbg('hold overlay', {
@@ -600,9 +589,9 @@
         },
 
         onDrm: function () {
-            var want = this.wantPlay || !!window._safeer_xplore_want_play;
-            window._safeer_xplore_drm_at = Date.now();
-            if (want) window._safeer_xplore_drm_stream = true;
+            var want = this.wantPlay || !!window._safeer_medij_want_play;
+            window._safeer_medij_drm_at = Date.now();
+            if (want) window._safeer_medij_drm_stream = true;
             var v = videoEl();
             var r = v ? v.getBoundingClientRect() : { width: 0, height: 0 };
             var play = this.allowDrmPlay();
@@ -614,7 +603,7 @@
                 hasV: !!v,
                 play: play,
                 want: want,
-                stream: !!window._safeer_xplore_drm_stream,
+                stream: !!window._safeer_medij_drm_stream,
                 paused: v ? !!v.paused : true,
                 rs: v ? v.readyState : -1,
                 vw: v ? (v.videoWidth || 0) : 0,
@@ -654,7 +643,7 @@
                     var foc = document.querySelector('.safeer-active-card');
                     dbg('overlay class', {
                         ply: ply.slice(0, 90),
-                        want: !!(agent.wantPlay || window._safeer_xplore_want_play),
+                        want: !!(agent.wantPlay || window._safeer_medij_want_play),
                         w: Math.round(r.width || 0),
                         vw: v ? (v.videoWidth || 0) : 0,
                         paused: v ? !!v.paused : true,
@@ -667,15 +656,15 @@
                         focus: foc ? ((foc.className || '') + '').toString().slice(0, 50) : '',
                         encN: window._safeer_eme_enc_n || 0
                     });
-                    if ((agent.wantPlay || window._safeer_xplore_want_play) &&
+                    if ((agent.wantPlay || window._safeer_medij_want_play) &&
                         (low.indexOf('player-fullwindow') !== -1 || low.indexOf('player-scaled') !== -1)) {
-                        try { document.documentElement.classList.add('safeer-xplore-waitplay'); } catch (_) {}
+                        try { document.documentElement.classList.add('safeer-medij-waitplay'); } catch (_) {}
                     }
                     if (low.indexOf('player-closed') !== -1) {
-                        try { document.documentElement.classList.remove('safeer-xplore-playing', 'safeer-xplore-waitplay'); } catch (_) {}
+                        try { document.documentElement.classList.remove('safeer-medij-playing', 'safeer-medij-waitplay'); } catch (_) {}
                         try {
                             if (!isFramed(v)) {
-                                var lastT = window._safeer_xplore_last_tile;
+                                var lastT = window._safeer_medij_last_tile;
                                 if (lastT && lastT.isConnected) lastT.classList.add('safeer-active-card');
                             }
                         } catch (_) {}

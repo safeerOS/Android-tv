@@ -47,7 +47,7 @@ object UrlSanitizer {
         // Iskanje in paginacija
         "q", "query", "search", "p", "page", "start", "limit", "offset",
 
-        // Video / Multimedija (YouTube, Xplore, streaming)
+        // Video / Multimedija (YouTube, pretocne storitve)
         "v", "list", "t", "time_continue", "index", "start_radio", "radio", "shorts",
 
         // E-trgovina in plačilni sistemi (Stripe, PayPal, Bančni portali)

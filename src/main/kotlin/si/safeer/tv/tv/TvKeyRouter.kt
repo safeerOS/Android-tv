@@ -73,7 +73,7 @@ class TvKeyRouter(private val host: MainActivity) {
                     SafeerDbg.log(
                         "H130",
                         "TvKeyRouter.kt:keyup",
-                        "consume xplore OK up",
+                        "consume OK up",
                         JSONObject().put("code", keyCode)
                     )
                 }

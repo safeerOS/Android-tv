@@ -99,14 +99,14 @@ object AdBlockEngine {
     private fun gostiteljIz(lower: String): String =
         try { Uri.parse(lower).host?.lowercase()?.trim() ?: "" } catch (_: Exception) { "" }
 
-    /** Bela lista, prave banke in Xplore veljajo tudi za pravila EasyList.
+    /** Bela lista, prave banke in strezniki za zascito vsebine veljajo tudi za EasyList.
      *  Gostitelja sprejme ze razclenjenega, da ga ni treba razclenjevati dvakrat. */
-    private fun jeZaupanjaVreden(lower: String, host: String): Boolean =
+    private fun jeZaupanjaVreden(host: String): Boolean =
         host.isEmpty() || ThreatBlockEngine.isRealBankHost(host) ||
-            whitelistTrie.matches(host) || isXploreRelated(host, lower)
+            whitelistTrie.matches(host) || jeDrmStreznik(host)
 
     // Vzorci oglasnih, sledilnih in analitičnih poti (Path Rules)
-    // Ne uporabljaj splošnih imen kot /watch.js — to pobije predvajalnike (Xplore TV).
+    // Ne uporabljaj splošnih imen kot /watch.js — to pobije predvajalnike.
     private val BLOCKED_PATH_PATTERNS = listOf(
         "/pagead/", "/api/stats/ads", "/ptracking", "/get_midroll_info",
         "/pcs/activeview", "/pagead/adview", "/pagead/interaction",
@@ -135,7 +135,6 @@ object AdBlockEngine {
             "sparkasse.si", "revolut.com", "n26.com", "delavska-hranilnica.si",
             "bks-bank.si", "unicreditbank.si", "lon.si", "gorenjska-banka.si",
             "rtvslo.si", "24ur.com", "siol.net", "github.com",
-            "xploretv.si", "a1xploretv.si", "a1.si", "a1.net",
             "widevine.com", "drmtoday.com", "castlabs.com", "expressplay.com",
             "bitmovin.com", "theoplayer.com", "akamaihd.net", "akamaized.net",
             "themoviedb.org", "tmdb.org"
@@ -197,13 +196,13 @@ object AdBlockEngine {
         return whitelistTrie.matches(host)
     }
 
-    private fun isXploreRelated(host: String, url: String): Boolean {
-        return host.contains("xploretv") || host.contains("a1xploretv") ||
-            host == "a1.si" || host.endsWith(".a1.si") ||
-            host == "a1.net" || host.endsWith(".a1.net") ||
-            host.contains("widevine") || host.contains("drmtoday") ||
-            host.contains("castlabs") || host.contains("expressplay") ||
-            url.contains("xploretv.si")
+    /**
+     * Strezniki za zascito vsebine (Widevine in podobni). Brez licence ni slike, zato jih
+     * filter nikoli ne ustavi - to ni izjema za doloceno stran, ampak za samo tehnologijo.
+     */
+    private fun jeDrmStreznik(host: String): Boolean {
+        return host.contains("widevine") || host.contains("drmtoday") ||
+            host.contains("castlabs") || host.contains("expressplay")
     }
 
     /**
@@ -231,7 +230,7 @@ object AdBlockEngine {
             return true
         }
 
-        // 2. Domene: bela lista PREJ, da predvajalnik (npr. Xplore /watch.js) ni izpraznjen
+        // 2. Domene: bela lista PREJ, da predvajalnik strani (npr. /watch.js) ni izpraznjen
         run {
             if (host.isNotEmpty()) {
                 // Prave banke in plačilna infrastruktura (katalog BankGuard) delujejo brez posegov
@@ -240,7 +239,7 @@ object AdBlockEngine {
                     return true
                 }
 
-                if (whitelistTrie.matches(host) || isXploreRelated(host, lower)) {
+                if (whitelistTrie.matches(host) || jeDrmStreznik(host)) {
                     for (p in TRUSTED_AD_PATHS) {
                         if (lower.contains(p)) return true
                     }
@@ -260,7 +259,8 @@ object AdBlockEngine {
         if (lower.contains(".m3u8") || lower.contains(".ts") || lower.contains("/hls/") || 
             lower.contains("/embed/") || lower.contains("googlevideo.com") ||
             lower.contains("youtube.com/youtubei") || lower.contains("youtube.com/s/player") ||
-            lower.contains("youtube.com/tv") || lower.contains("xploretv.si") ||
+            lower.contains("youtube.com/tv") ||
+            lower.contains(".mpd") || lower.contains(".m4s") || lower.contains("/dash/") ||
             lower.contains("youtube.com/api/") || lower.contains("youtube.com/results") || lower.contains("ytimg.com")) {
             // Če je specifičen oglasni strežnik, ga blokiraj
             if (lower.contains("googleads") || lower.contains("pagead") || lower.contains("adservice") ||
@@ -287,7 +287,7 @@ object AdBlockEngine {
         // Naslov razclenimo enkrat; oba sloja dobita isti rezultat.
         val host = gostiteljIz(lower)
         val vgrajeno = url.isNotEmpty() && vgrajenoBlokira(lower, host)
-        val poSeznamih = !vgrajeno && !isMainFrame && !jeZaupanjaVreden(lower, host) &&
+        val poSeznamih = !vgrajeno && !isMainFrame && !jeZaupanjaVreden(host) &&
             filterListBlocks(url, pageUrl, accept, isMainFrame)
 
         if (vgrajeno || poSeznamih) {
