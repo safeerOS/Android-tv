@@ -423,7 +423,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url } else null
             if (spletna != null) ikona.setImageDrawable(SpletneAplikacije.ikona(this, spletna))
             else ikona.setImageResource(ikonaZa(n.vrsta))
-            v.findViewById<TextView>(R.id.ime).text = n.ime
+            // Zaslon racunalnika je bil prej zapisan z dolgim imenom naprave in se je na kartici
+            // lomil sredi besede; ime izpisemo iz prevoda, tudi za vrstice, zapisane prej.
+            v.findViewById<TextView>(R.id.ime).text =
+                if (n.vrsta == Nadaljuj.ZASLON) getString(R.string.os_zaslon) else n.ime
             v.onFocusChangeListener = fokus
             v.setOnClickListener { odpriNadaljuj(n) }
             v.setOnLongClickListener { moznostiNadaljuj(n); true }

@@ -139,6 +139,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
+            Vrstica(R.drawable.os_ikona_datoteka, getString(R.string.os_pravno),
+                getString(R.string.os_pravno_opis), "") { pokaziPravno() },
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_izhod),
                 getString(R.string.os_izhod_opis), "") { izhod() },
         )
@@ -165,6 +167,22 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Videz: ozadje in zatemnitev sta svoj zaslon, ker se izbira vidi sele v zivo. */
+    /**
+     * Pravna pojasnila v sami aplikaciji, ne samo na spletni strani: licenca, odgovornost za to,
+     * za kaj se Safeer uporablja, in odkrito povedano, da je pri razvoju sodelovala umetna
+     * inteligenca in da koda zato lahko vsebuje napake.
+     */
+    private fun pokaziPravno() {
+        val razlicica = try {
+            packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+        } catch (_: Throwable) { "" }
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_pravno))
+            .setMessage(getString(R.string.os_pravno_besedilo, razlicica, packageName))
+            .setPositiveButton(getString(R.string.os_moc_zapri), null)
+        Kontroler.pokazi(okno.show())
+    }
+
     private fun odpriVidez() {
         startActivity(Intent(this, VidezActivity::class.java))
     }

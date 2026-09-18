@@ -8,6 +8,10 @@
     <string name="os_nadaljuj_ni_vec">%1$s ni več na voljo.</string>
     <string name="os_nadaljuj_odpiram">Odpiram %1$s …</string>
     <string name="os_nadaljuj_pocisti">Počisti vrsto Nadaljuj</string>
+    <!-- Pravno: odgovornost za uporabo in odkrita navedba, da je pri razvoju sodelovala UI. -->
+    <string name="os_pravno">Pravno in o aplikaciji</string>
+    <string name="os_pravno_opis">Licenca, odgovornost in kako je nastalo</string>
+    <string name="os_pravno_besedilo">Safeer OS %1$s (%2$s)\n\nLICENCA. Safeer je odprtokodna programska oprema po licenci Apache 2.0 in je ponujena »takšna, kot je«, brez garancije.\n\nODGOVORNOST. Za to, za kaj in kako Safeer uporabljaš, ter za vsebino, do katere prek njega dostopaš ali jo z njim odpiraš, odgovarjaš sam. Avtor ne odgovarja za škodo, ki bi nastala pri uporabi. Safeer Ščit, BankGuard in seznami groženj so pomoč, ne jamstvo: nevarno stran lahko spregledajo, varno pa včasih blokirajo.\n\nUMETNA INTELIGENCA. Pri razvoju te programske opreme je bila uporabljena umetna inteligenca. Koda je zato lahko napačna ali nepopolna; vsako izdajo preizkusimo, napak pa ne moremo izključiti. Izvorna koda je javna, da jo lahko preveriš sam: github.com/memelandfaner</string>
     <string name="os_odsek_zacni">Začni</string>
     <string name="os_odsek_naprave">Naprave v Safeer Linku</string>
     <string name="os_odsek_aplikacije">Aplikacije na tem televizorju</string>
