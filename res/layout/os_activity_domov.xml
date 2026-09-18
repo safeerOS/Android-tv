@@ -168,6 +168,17 @@
         <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_nazaj"/>
         <TextView style="@style/Os.Tipka" android:layout_marginStart="18dp" android:text="@string/os_tipka_drzi_ok"/>
         <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_uredi"/>
+        <!-- Gumbi igralnega plosecka: pokazemo jih samo, kadar je plosek res priklopljen. -->
+        <TextView
+            android:id="@+id/pomocPlosek"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp"
+            android:textColor="@color/os_umirjeno"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone"/>
         <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
         <TextView
             android:id="@+id/opombaSpodaj"

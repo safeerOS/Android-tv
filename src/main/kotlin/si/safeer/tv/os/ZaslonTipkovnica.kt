@@ -4,6 +4,7 @@ import si.safeer.tv.R
 
 import android.content.Context
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -65,12 +66,52 @@ class ZaslonTipkovnica(
     private fun narisi() {
         koren.removeAllViews()
         koren.orientation = LinearLayout.VERTICAL
+        pomoc()
         vrsta(if (simboli) SIMBOLI else STEVILKE)
         vrsta(if (simboli) SIMBOLI2 else VRSTA1)
         vrsta(if (simboli) SIMBOLI3 else VRSTA2)
         vrsta(VRSTA3)
         smerne()
         ukazi()
+    }
+
+    /**
+     * Vrstica pomoci nad tipkami: kaj naredi katera tipka. Kadar je priklopljen igralni plosek,
+     * povemo se njegove gumbe - uporabnik naj ne ugiba, kaj dela B in kaj Y.
+     */
+    private fun pomoc() {
+        val t = TextView(context)
+        t.text = context.getString(R.string.os_tipk_pomoc) +
+            (if (Kontroler.jePriklopljen()) " · " + context.getString(R.string.os_tipk_pomoc_plosek) else "")
+        t.setTextColor(context.getColor(R.color.os_umirjeno))
+        t.textSize = 12f
+        t.gravity = Gravity.CENTER_HORIZONTAL
+        val lp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        lp.bottomMargin = (4 * gostota).toInt()
+        t.layoutParams = lp
+        koren.addView(t)
+    }
+
+    /**
+     * Gumbi plosecka med odprto tipkovnico. Na PlayStationu pisanje tece prav tako: krizec vtipka,
+     * krog brise, kvadrat je presledek, trikotnik velike crke, ramena premikata kazalec.
+     */
+    fun plosek(koda: Int): Boolean {
+        if (!jeOdprta) return false
+        when (koda) {
+            KeyEvent.KEYCODE_BUTTON_A -> { koren.findFocus()?.performClick(); return true }
+            KeyEvent.KEYCODE_BUTTON_B -> { naTipko("vracalka"); return true }
+            KeyEvent.KEYCODE_BUTTON_X -> { naBesedilo(" "); return true }
+            KeyEvent.KEYCODE_BUTTON_Y -> { velike = !velike; osveziZnake(); return true }
+            KeyEvent.KEYCODE_BUTTON_L1 -> { naTipko("levo"); return true }
+            KeyEvent.KEYCODE_BUTTON_R1 -> { naTipko("desno"); return true }
+            KeyEvent.KEYCODE_BUTTON_L2 -> { naTipko("zacetek"); return true }
+            KeyEvent.KEYCODE_BUTTON_R2 -> { naTipko("konec"); return true }
+            KeyEvent.KEYCODE_BUTTON_START -> { naTipko("shrani"); return true }
+            KeyEvent.KEYCODE_BUTTON_SELECT -> { zapri(); return true }
+        }
+        return false
     }
 
     private fun vrsta(znaki: String) {
@@ -149,6 +190,10 @@ class ZaslonTipkovnica(
         t.requestFocus()
     }
 
+    private fun jePotrditev(koda: Int): Boolean = koda == KeyEvent.KEYCODE_DPAD_CENTER ||
+        koda == KeyEvent.KEYCODE_ENTER || koda == KeyEvent.KEYCODE_NUMPAD_ENTER ||
+        koda == KeyEvent.KEYCODE_BUTTON_A
+
     private fun tipka(napis: String, sirinaDp: Int, ob: () -> Unit): View {
         val t = TextView(context)
         t.text = napis
@@ -159,6 +204,11 @@ class ZaslonTipkovnica(
         t.isFocusable = true
         t.isClickable = true
         t.setOnClickListener { ob() }
+        // Drzanje OK ponavlja tipko, tako kot na pravi tipkovnici: brisanje cele besede je s tem
+        // en pritisk in ne petnajst.
+        t.setOnKeyListener { _, koda, e ->
+            if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0 && jePotrditev(koda)) { ob(); true } else false
+        }
         // Visina tipke je odmerjena tako, da vseh pet vrst skupaj z robovi ostane na zaslonu
         // 540 dp - spodnja vrsta se je prej odrezala cez rob.
         val lp = LinearLayout.LayoutParams((sirinaDp * gostota).toInt(), (42 * gostota).toInt())

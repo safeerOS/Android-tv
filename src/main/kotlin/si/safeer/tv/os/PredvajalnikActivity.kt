@@ -30,7 +30,7 @@ import java.util.Locale
  * predvajaj/pavza, levo/desno 10 s, hitro nazaj/naprej 60 s, Nazaj zapre. Prekritje z imenom,
  * potekom in casom se po treh sekundah skrije; pri glasbi ostane.
  */
-class PredvajalnikActivity : Activity() {
+class PredvajalnikActivity : OsActivity() {
 
     private lateinit var povrsina: SurfaceView
     private lateinit var prekritje: View
@@ -163,6 +163,19 @@ class PredvajalnikActivity : Activity() {
         val p = predvajalnik ?: return
         if (p.isPlaying) p.pause() else { if (p.playbackState == Player.STATE_ENDED) p.seekTo(0); p.play() }
         pokaziPrekritje(p.isPlaying)
+    }
+
+    /**
+     * Plosek pri predvajanju: A predvaja in ustavi, ramena skaceta po posnetku, palica in krizec
+     * pa delata isto kot smerne tipke daljinca. B (nazaj) pusti skupnemu prevodu.
+     */
+    override fun plosekDejanje(koda: Int): Boolean = when (koda) {
+        KeyEvent.KEYCODE_BUTTON_A -> { preklopi(); true }
+        KeyEvent.KEYCODE_BUTTON_L1 -> { premakni(-10_000); true }
+        KeyEvent.KEYCODE_BUTTON_R1 -> { premakni(10_000); true }
+        KeyEvent.KEYCODE_BUTTON_L2 -> { premakni(-60_000); true }
+        KeyEvent.KEYCODE_BUTTON_R2 -> { premakni(60_000); true }
+        else -> false
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

@@ -251,7 +251,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
             keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) return super.onKeyDown(keyCode, event)
         if (ZaslonVnos.jePreklop(keyCode)) { odpriMeni(); return true }
-        if (tipkovnica?.jeOdprta == true) return super.onKeyDown(keyCode, event)
+        if (tipkovnica?.jeOdprta == true) {
+            // Igralni plosek pise skupaj s tipkovnico: A vtipka, B brise, X presledek, Y velike.
+            if (tipkovnica?.plosek(keyCode) == true) return true
+            return super.onKeyDown(keyCode, event)
+        }
         if (kazalec) {
             // V nacinu kazalca smerne tipke vodijo misko, OK pa klika (dolg OK desni klik).
             val s = ZaslonVnos.smer(keyCode)
@@ -311,7 +315,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setTitle(getString(R.string.os_zaslon))
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     /** Bliznjice, ki jih racunalnik pozna; imena posljemo, prevede jih on. */
@@ -334,7 +338,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setTitle(getString(R.string.os_zaslon_meni_bliznjice))
             .setItems(bliznjice.map { it.first }.toTypedArray()) { _, i -> posljiTipko(bliznjice[i].second) }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     private fun posljiTipko(ime: String) {

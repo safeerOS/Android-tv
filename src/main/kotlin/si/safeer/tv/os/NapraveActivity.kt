@@ -22,7 +22,7 @@ import android.widget.TextView
  * Racunalnik, ki deli mape, pelje naravnost v svoje datoteke; vse drugo na stran Safeer Link v
  * brskalniku (seznanitev, daljinec, posiljanje).
  */
-class NapraveActivity : Activity(), LinkOdjemalec.Poslusalec {
+class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private class Vrstica(val ikona: Int, val ime: String, val opis: String, val stanje: String, val ob: () -> Unit)
 

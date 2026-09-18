@@ -287,4 +287,7 @@
     <string name="os_tipk_tabulator">Tab</string>
     <string name="os_tipk_gor">Nach oben</string>
     <string name="os_tipk_dol">Nach unten</string>
+    <string name="os_tipk_pomoc">OK tippt · OK halten wiederholt · Zurück schließt</string>
+    <string name="os_tipk_pomoc_plosek">A tippen · B ⌫ · X Leerzeichen · Y GROSS · L1/R1 Cursor · Start speichern</string>
+    <string name="os_pomoc_plosek">A Öffnen · B Zurück · X Bearbeiten · Y Startseite · Start Einstellungen</string>
 </resources>

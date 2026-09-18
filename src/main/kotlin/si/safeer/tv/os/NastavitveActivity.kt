@@ -22,7 +22,7 @@ import android.widget.Toast
  *  - **Nacin delovanja**: Safeer Link (naprave, datoteke z racunalnika, daljinec) ali krajevno.
  *  - **Safeer Scit**: filter DNS za ves televizor.
  */
-class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
+class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private class Vrstica(val ikona: Int, val ime: String, val opis: String, val stanje: String, val ob: () -> Unit)
 
@@ -161,7 +161,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setMessage(HostPodatki.podrobnosti(this, p))
             .setPositiveButton(getString(R.string.os_moc_zapri), null)
             .setNeutralButton(getString(R.string.os_moc_osvezi)) { _, _ -> mocOdprta = true; osveziHost() }
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     /** Videz: ozadje in zatemnitev sta svoj zaslon, ker se izbira vidi sele v zivo. */
@@ -189,7 +189,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
                     sistemskoOkno { Zaganjalnik.odpriSistemskoIzbiro(this) }
                 }
                 .setNegativeButton(getString(R.string.os_preklici), null)
-                .show()
+                .let { Kontroler.pokazi(it.show()) }
             return
         }
         if (jeVklopljen) {
@@ -211,7 +211,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
                 narisi()
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     private fun preklopiNacin(krajevni: Boolean) {
@@ -244,7 +244,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
                 narisi()
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     // ------------------------------------------------------------------ host (kje je racunalniska moc)
@@ -273,7 +273,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
                     narisi()
                 }
                 .setNegativeButton(getString(R.string.os_preklici), null)
-                .show()
+                .let { Kontroler.pokazi(it.show()) }
             return
         }
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -281,7 +281,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setMessage(getString(R.string.os_host_vprasanje))
             .setPositiveButton(getString(R.string.os_host_vnesi)) { _, _ -> vnesiNaslovHosta() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     private fun vnesiNaslovHosta() {
@@ -305,7 +305,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
                 }
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
         vnos.requestFocus()
     }
 
@@ -333,7 +333,7 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setView(vnos)
             .setPositiveButton(getString(R.string.os_host_poveziSe)) { _, _ -> potrdiKodoHosta(url, vnos.text?.toString().orEmpty()) }
             .setNegativeButton(getString(R.string.os_preklici)) { _, _ -> si.safeer.tv.cast.HubPairing.prekini() }
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
         vnos.requestFocus()
     }
 

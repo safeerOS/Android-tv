@@ -23,7 +23,7 @@ import java.util.concurrent.Executors
  * Datoteka se prenese po isti pripeti povezavi kot slike in videi; beremo najvec [NAJVEC] bajtov,
  * da dolg dnevnik ne pozre pomnilnika televizorja. Smerne tipke drsijo, Nazaj zapre.
  */
-class BesediloActivity : Activity() {
+class BesediloActivity : OsActivity() {
 
     private lateinit var naslov: TextView
     private lateinit var vsebina: TextView

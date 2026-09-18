@@ -288,4 +288,7 @@
     <string name="os_tipk_tabulator">Tab</string>
     <string name="os_tipk_gor">Move up</string>
     <string name="os_tipk_dol">Move down</string>
+    <string name="os_tipk_pomoc">OK types · hold OK repeats · Back closes</string>
+    <string name="os_tipk_pomoc_plosek">A type · B ⌫ · X space · Y CAPS · L1/R1 cursor · Start save</string>
+    <string name="os_pomoc_plosek">A Open · B Back · X Edit · Y Home · Start Settings</string>
 </resources>

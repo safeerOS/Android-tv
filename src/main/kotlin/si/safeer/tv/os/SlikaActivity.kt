@@ -23,7 +23,7 @@ import java.util.concurrent.Executors
  * prenese s pripetim potrdilom in zetonom, pomanjsa na velikost zaslona (velike fotografije s
  * telefona ne pozrejo pomnilnika televizorja).
  */
-class SlikaActivity : Activity() {
+class SlikaActivity : OsActivity() {
 
     private lateinit var slika: ImageView
     private lateinit var nalagam: ProgressBar
@@ -104,6 +104,18 @@ class SlikaActivity : Activity() {
                 else slika.setImageBitmap(b)
             }
         }
+    }
+
+    /** Plosek pri slikah: A pokaze in skrije napis, ramena listata po mapi. */
+    override fun plosekDejanje(koda: Int): Boolean = when (koda) {
+        KeyEvent.KEYCODE_BUTTON_A -> {
+            prekritje.visibility = if (prekritje.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            glavna.removeCallbacks(skrij)
+            true
+        }
+        KeyEvent.KEYCODE_BUTTON_L1 -> { if (urli.size > 1) { i = (i - 1 + urli.size) % urli.size; nalozi() }; true }
+        KeyEvent.KEYCODE_BUTTON_R1 -> { if (urli.size > 1) { i = (i + 1) % urli.size; nalozi() }; true }
+        else -> false
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

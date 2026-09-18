@@ -287,4 +287,7 @@
     <string name="os_tipk_tabulator">Tab</string>
     <string name="os_tipk_gor">Su</string>
     <string name="os_tipk_dol">Giù</string>
+    <string name="os_tipk_pomoc">OK digita · tieni OK per ripetere · Indietro chiude</string>
+    <string name="os_tipk_pomoc_plosek">A digita · B ⌫ · X spazio · Y MAIUSC · L1/R1 cursore · Start salva</string>
+    <string name="os_pomoc_plosek">A Apri · B Indietro · X Modifica · Y Home · Start Impostazioni</string>
 </resources>

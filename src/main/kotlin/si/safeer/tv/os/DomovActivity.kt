@@ -27,7 +27,7 @@ import java.util.Locale
  * Sredisce Linka gosti Safeer Browser na tem televizorju; Safeer OS vanj vstopi brez kode
  * (Sorodnik). Brez brskalnika lupina pove, kaj namestiti - ne vrze napake.
  */
-class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
+class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private lateinit var stanjeBesedilo: TextView
     private lateinit var stanjePika: View
@@ -36,6 +36,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private lateinit var vrstaAplikacije: LinearLayout
     private lateinit var vrstaSpletne: LinearLayout
     private lateinit var opombaSpodaj: TextView
+    private lateinit var pomocPlosek: TextView
     private lateinit var drsnik: View
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
@@ -57,6 +58,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         vrstaAplikacije = findViewById(R.id.vrstaAplikacije)
         vrstaSpletne = findViewById(R.id.vrstaSpletne)
         opombaSpodaj = findViewById(R.id.opombaSpodaj)
+        pomocPlosek = findViewById(R.id.pomocPlosek)
+        pomocPlosek.text = getString(R.string.os_pomoc_plosek)
         drsnik = findViewById(R.id.drsnik)
         narisiZacni()
         // Ce nas je odprla tipka Domov, smo res domaci zaslon tega televizorja.
@@ -66,6 +69,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onStart() {
         super.onStart()
         Ozadje.uporabi(this, drsnik)      // ozadje po izbiri uporabnika
+        // Gumbi plosecka v vrstici pomoci, kadar je plosek priklopljen; sicer je ne kazemo.
+        pomocPlosek.visibility = if (Kontroler.jePriklopljen()) View.VISIBLE else View.GONE
         glavna.post(tikUre)
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiAplikacije()
@@ -251,7 +256,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setTitle(z.naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     private fun premakniZacni(z: Zacni, red: List<String>, zamik: Int) {
@@ -282,7 +287,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
                 osveziKartice()
             }
             .setCancelable(true)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     // ------------------------------------------------------------------ Safeer Scit (filter DNS za ves televizor)
@@ -328,7 +333,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setPositiveButton(getString(
                 if (s?.vklopljen == true) R.string.os_zaganjalnik_izklopi_kratko else R.string.os_vklopi)) { _, _ -> preklopiScit() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     private fun preklopiScit() {
@@ -462,7 +467,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
                 .setMessage(getString(R.string.os_odpri_napaka, razlog))
                 .setPositiveButton(getString(R.string.os_poskusi_znova)) { _, _ -> odpriVarno(namera, ime) }
                 .setNegativeButton(getString(R.string.os_preklici), null)
-                .show()
+                .let { Kontroler.pokazi(it.show()) }
         }
     }
 
@@ -481,7 +486,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setTitle(a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     private fun premakniSpletno(a: SpletneAplikacije.Aplikacija, zamik: Int) {
@@ -498,7 +503,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
                 SpletneAplikacije.odstrani(this, a.url); narisiSpletne(); DomacaVrsta.osvezi(this)
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     /**
@@ -519,7 +524,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
                 else proste.getOrNull(i - 1)?.let { dodajSpletnoAplikacijo(it.url, it.title) }
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     /**
@@ -554,7 +559,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
                 }
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
         polje.requestFocus()
     }
 
@@ -632,7 +637,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             .setTitle(a.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     private fun premakniAplikacijo(a: Aplikacije.Vnos, zamik: Int) {

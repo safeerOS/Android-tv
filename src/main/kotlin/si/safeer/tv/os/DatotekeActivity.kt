@@ -26,7 +26,7 @@ import java.util.Locale
  * Zasloni: seznam racunalnikov (ce jih je vec) -> deljene mape -> mape in datoteke. Nazaj gre za
  * eno raven navzgor, na vrhu zapre zaslon.
  */
-class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
+class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Streznik datotek na racunalniku (naslov, odtis potrdila, zeton te naprave) iz odgovora `files.list`. */
     data class Streznik(val osnova: String, val odtis: String, val zeton: String) {

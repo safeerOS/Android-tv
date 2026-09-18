@@ -18,7 +18,7 @@ import android.widget.Toast
  * Vse aplikacije tega televizorja ("Ostalo"). Na domacem zaslonu stojijo samo priljubljene; tu so
  * vse, urejene po abecedi, in tu si uporabnik priljubljene doloci - dolg pritisk doda ali odstrani.
  */
-class AplikacijeTvActivity : Activity() {
+class AplikacijeTvActivity : OsActivity() {
 
     private lateinit var mreza: GridView
     private lateinit var sporocilo: TextView
@@ -76,7 +76,7 @@ class AplikacijeTvActivity : Activity() {
                 .setMessage(getString(R.string.os_odpri_napaka, razlog))
                 .setPositiveButton(getString(R.string.os_poskusi_znova)) { _, _ -> zazeni(a) }
                 .setNegativeButton(getString(R.string.os_preklici), null)
-                .show()
+                .let { Kontroler.pokazi(it.show()) }
         }
     }
 

@@ -28,7 +28,7 @@ import java.util.concurrent.Executors
  * majhna sliica v oknu. Uporabnik lahko doda svojo fotografijo (s tega televizorja ali z
  * racunalnika po Safeer Linku); kopijo shranimo v aplikacijo, obrezano na razmerje zaslona.
  */
-class VidezActivity : Activity() {
+class VidezActivity : OsActivity() {
 
     private lateinit var koren: View
     private lateinit var seznam: android.widget.ListView
@@ -132,7 +132,7 @@ class VidezActivity : Activity() {
                 predogled = Ozadje.izbrana(this)
                 narisi(); prilagojevalnik.notifyDataSetChanged()
             }
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     private fun poisciSliko() {

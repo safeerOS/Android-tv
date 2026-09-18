@@ -24,7 +24,7 @@ import org.json.JSONObject
  * Pomembno in pošteno povedano uporabniku: program se odpre **na zaslonu racunalnika**, ne na
  * televizorju. Zrcaljenje zaslona je naslednji korak; dokler ga ni, tega ne obljubljamo.
  */
-class AplikacijeHostaActivity : Activity(), LinkOdjemalec.Poslusalec {
+class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private class Program(val id: String, val ime: String, val opis: String, val ikona: android.graphics.drawable.Drawable?)
 

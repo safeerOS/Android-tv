@@ -287,4 +287,7 @@
     <string name="os_tipk_tabulator">Tab</string>
     <string name="os_tipk_gor">Gor</string>
     <string name="os_tipk_dol">Dol</string>
+    <string name="os_tipk_pomoc">OK vtipka · drži OK ponavlja · Nazaj zapre</string>
+    <string name="os_tipk_pomoc_plosek">A vtipka · B ⌫ · X presledek · Y VELIKE · L1/R1 kazalec · Start shrani</string>
+    <string name="os_pomoc_plosek">A Odpri · B Nazaj · X Uredi · Y Domov · Start Nastavitve</string>
 </resources>
