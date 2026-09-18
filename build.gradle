@@ -30,6 +30,14 @@ android {
             versionCode 3
             versionName '0.2.3'
         }
+        // Safeer OS Tablet: ista koda, a za dotik od blizu (tablica), ne za daljinec.
+        // V pripravi; televizorja in brskalnika se ne dotika.
+        tablica {
+            dimension 'aplikacija'
+            applicationId 'si.safeer.tablet'
+            versionCode 1
+            versionName '0.1.0'
+        }
     }
 
     sourceSets {
@@ -38,6 +46,12 @@ android {
         }
         os {
             manifest.srcFile 'okusi/os/AndroidManifest.xml'
+        }
+        tablica {
+            manifest.srcFile 'okusi/tablica/AndroidManifest.xml'
+            res.srcDirs = ['okusi/tablica/res']
+            java.srcDirs = ['src/tablica/kotlin']
+            kotlin.srcDirs = ['src/tablica/kotlin']
         }
         main {
             manifest.srcFile 'AndroidManifest.xml'

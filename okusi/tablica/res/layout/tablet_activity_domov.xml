@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Domači zaslon Safeer OS Tablet: dotik od blizu, zato velike ploščice v mreži in ne vrste s
+     fokusom. Postavitev je ena za pokončno in ležeče; mreža sama razporedi stolpce. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/koren"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/os_ozadje"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="28dp"
+        android:paddingBottom="28dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tablet_ime"
+            android:textColor="@color/os_besedilo"
+            android:textSize="28sp"
+            android:fontFamily="sans-serif-medium"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/tablet_podnaslov"
+            android:textColor="@color/os_umirjeno"
+            android:textSize="15sp"/>
+
+        <TextView
+            android:id="@+id/stanje"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:textColor="@color/os_mint"
+            android:textSize="15sp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/tablet_v_pripravi"
+            android:textColor="@color/os_umirjeno"
+            android:textSize="13sp"/>
+
+        <LinearLayout
+            android:id="@+id/ploscice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="vertical"/>
+
+    </LinearLayout>
+</ScrollView>

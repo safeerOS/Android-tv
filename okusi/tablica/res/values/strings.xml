@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS Tablet: samo napisi, ki so drugacni od televizorjevih. -->
+<resources>
+    <string name="tablet_ime">Safeer OS Tablet</string>
+    <string name="tablet_podnaslov">Your devices. One screen.</string>
+    <string name="tablet_v_pripravi">In preparation: this screen will grow into the tablet version of Safeer OS. What already works is below.</string>
+    <string name="tablet_datoteke">Files from the computer</string>
+    <string name="tablet_datoteke_opis">Videos, music, pictures and documents from your computer</string>
+    <string name="tablet_naprave">Devices</string>
+    <string name="tablet_naprave_opis">What is connected through Safeer Link</string>
+</resources>
