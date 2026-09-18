@@ -66,9 +66,9 @@ private val PRIMERI = listOf(
     Primer("https://www.rtvslo.si/slika.jpg", false, "rtvslo"),
     Primer("https://24ur.com/clanek", false, "24ur"),
     Primer("https://wikipedia.org/wiki/Slovenija", false, "wikipedija"),
-    Primer("https://xploretv.si/watch.js", false, "Xplore predvajalnik"),
+    Primer("https://tvvzivo.example/watch.js", false, "predvajalnik strani"),
     Primer("https://image.tmdb.org/t/p/w500/a.jpg", false, "plakati TMDB"),
-    Primer("https://core.streamex.sh/seg1.ts", false, "segment videa"),
+    Primer("https://core.example-cdn.net/seg1.ts", false, "segment videa"),
     Primer("https://rr1---sn-abc.googlevideo.com/videoplayback?id=1", false, "video tok"),
 
     // --- video tok, ki je v resnici oglas ---

@@ -131,6 +131,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (Host.jeOddaljen(this)) Host.gostitelj(this).orEmpty() else getString(R.string.os_host_doma)) { preklopiHost() },
             Vrstica(R.drawable.os_ikona_slika, getString(R.string.os_videz),
                 getString(R.string.os_videz_opis), Ozadje.ime(this)) { odpriVidez() },
+            Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.menu_language),
+                getString(R.string.os_jezik_opis),
+                si.safeer.tv.JezikVmesnika.imeIzbire(this)) { izberiJezik() },
             // Zmogljivost ima svojo vrstico z ikono: prej je bila ena dolga vrstica na dnu
             // zaslona, ki je sekala nastavitve nad sabo in se je odrezala sredi podatka.
             Vrstica(R.drawable.os_ikona_moc, getString(R.string.os_moc),
@@ -139,6 +142,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
+            Vrstica(R.drawable.os_ikona_datoteka, getString(R.string.os_pravno),
+                getString(R.string.os_pravno_opis), "") { pokaziPravno() },
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_izhod),
                 getString(R.string.os_izhod_opis), "") { izhod() },
         )
@@ -165,6 +170,43 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Videz: ozadje in zatemnitev sta svoj zaslon, ker se izbira vidi sele v zivo. */
+    /**
+     * Pravna pojasnila v sami aplikaciji, ne samo na spletni strani: licenca, odgovornost za to,
+     * za kaj se Safeer uporablja, in odkrito povedano, da je pri razvoju sodelovala umetna
+     * inteligenca in da koda zato lahko vsebuje napake.
+     */
+    private fun pokaziPravno() {
+        val razlicica = try {
+            packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+        } catch (_: Throwable) { "" }
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_pravno))
+            .setMessage(getString(R.string.os_pravno_besedilo, razlicica, packageName))
+            .setPositiveButton(getString(R.string.os_moc_zapri), null)
+        Kontroler.pokazi(okno.show())
+    }
+
+    /**
+     * Jezik vmesnika: isti seznam kot v brskalniku. Izbira velja takoj - zaslon narisemo znova,
+     * da uporabnik vidi ucinek brez ponovnega zagona aplikacije.
+     */
+    private fun izberiJezik() {
+        val jeziki = si.safeer.tv.JezikVmesnika.JEZIKI
+        val oznake = listOf(si.safeer.tv.JezikVmesnika.SAMODEJNO) + jeziki.map { it.first }
+        val imena = (listOf(getString(R.string.ui_lang_auto)) + jeziki.map { it.second }).toTypedArray()
+        val izbran = si.safeer.tv.JezikVmesnika.izbrani(this)
+        val kje = oznake.indexOf(izbran).let { if (it < 0) 0 else it }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.menu_language))
+            .setSingleChoiceItems(imena, kje) { okno, i ->
+                si.safeer.tv.JezikVmesnika.nastavi(this, oznake[i])
+                okno.dismiss()
+                recreate()
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
     private fun odpriVidez() {
         startActivity(Intent(this, VidezActivity::class.java))
     }

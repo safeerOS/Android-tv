@@ -165,16 +165,14 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         initViews()
         playback = HostPlayback(this)
-        XploreDashCapture.listener = { session ->
-            runOnUiThread {
-                if (!TvSite.isXplore(activeUrl())) return@runOnUiThread
-                playback.playDash(session)
-            }
+        // Ujet pretok predamo domacemu predvajalniku, na katerikoli strani smo.
+        DashPrevzem.listener = { session ->
+            runOnUiThread { playback.playDash(session) }
         }
-        XploreDashCapture.onNeedPageLicense = {
+        DashPrevzem.onNeedPageLicense = {
             runOnUiThread {
                 activeWebView()?.evaluateJavascript(
-                    "try{window._safeer_xplore_report_drm_cfg&&window._safeer_xplore_report_drm_cfg()}catch(e){}",
+                    "try{window._safeer_medij_report_drm_cfg&&window._safeer_medij_report_drm_cfg()}catch(e){}",
                     null
                 )
             }
@@ -558,8 +556,6 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // #endregion
         val js = """
             (function(){
-                var host = (location.hostname || '').toLowerCase();
-                if (host.indexOf('xploretv') !== -1 || host.indexOf('a1xploretv') !== -1) return 0;
                 window._safeer_app_bg = true;
                 try { sessionStorage.setItem('safeer_app_bg','1'); } catch (eS) {}
                 try { if (window._safeerSiteAgent && window._safeerSiteAgent.clearWant) window._safeerSiteAgent.clearWant(); } catch (e) {}
@@ -578,18 +574,16 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // in slika na televizorju bi zamrznila, ceprav se stran nalozi (npr. odprtje naslova
         // od zunaj, kratek dialog). Vsak onResume zato razveljavi cakajoce utisanje.
         val generacija = ++generacijaUtisanja
-        val anyXplore = tabs.any {
-            it.url.contains("xploretv", ignoreCase = true) || it.url.contains("a1xploretv", ignoreCase = true)
-        }
+        // Domace predvajanje tece v nasem predvajalniku in ne v strani: takrat casovnikov ne
+        // ustavljamo in budnost obdrzimo, sicer slika zamrzne. Velja za vsako stran enako.
+        val predvajaDomace = playback.isNativeActive()
         for (tab in tabs) {
-            val xplore = tab.url.contains("xploretv", ignoreCase = true) || tab.url.contains("a1xploretv", ignoreCase = true)
-            if (xplore) continue
             try {
                 if (firstSilence) {
                     tab.webView.evaluateJavascript(js) {
                         if (generacija != generacijaUtisanja) return@evaluateJavascript
                         try { tab.webView.onPause() } catch (_: Exception) {}
-                        if (!anyXplore) {
+                        if (!predvajaDomace) {
                             try { tab.webView.pauseTimers() } catch (_: Exception) {}
                         }
                     }
@@ -597,7 +591,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     tab.webView.post {
                         if (generacija != generacijaUtisanja) return@post
                         try { tab.webView.onPause() } catch (_: Exception) {}
-                        if (!anyXplore) {
+                        if (!predvajaDomace) {
                             try { tab.webView.pauseTimers() } catch (_: Exception) {}
                         }
                     }
@@ -606,7 +600,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 try { tab.webView.onPause() } catch (_: Exception) {}
             }
         }
-        if (!anyXplore) {
+        if (!predvajaDomace) {
             releaseWakeLock()
             try {
                 @Suppress("DEPRECATION")
@@ -761,7 +755,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         try { debugJsReceiver?.let { unregisterReceiver(it) } } catch (_: Exception) {}
         try { playback.release() } catch (_: Exception) {}
-        XploreDashCapture.listener = null
+        DashPrevzem.listener = null
         releaseWakeLock()
         super.onDestroy()
     }
@@ -969,7 +963,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 } else {
                     tabManager.createTab(this, url, true)
                 }
-                showTvOsd("📲 Povezava s telefona", (title ?: url).take(60))
+                showTvOsd("📲 " + UiText.get(R.string.ui_link_prejeto), (title ?: url).take(60))
                 if (startPosition > 0.5) {
                     // Počakamo, da se predvajalnik postavi, nato skočimo na zapomnjeno mesto.
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -1189,6 +1183,97 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
     }
 
+    /** Zadnje prepusceno pojavno okno; en pritisk na daljincu sprozi vec dogodkov klika. */
+    private var zadnjePojavno: Pair<String, Long> = "" to 0L
+
+    /**
+     * Stran je zahtevala novo okno. Kam pelje, se ne vemo, zato dobi zavihek v ozadju, ki ni
+     * viden in v katerem se ne nalozi nic. Ko brskalnik pove prvi naslov, se zavihek pokaze
+     * (prijava) ali tiho zapre (oglas).
+     *
+     * Okno namenoma dobi pravi pogled in ne nadomestka: brez povezave z izvorno stranjo
+     * (window.opener) prijava z Google, Facebook ali X ne more vrniti odgovora in se konca
+     * v praznem oknu.
+     */
+    private fun odpriPojavnoOkno(resultMsg: android.os.Message): Boolean {
+        val transport = resultMsg.obj as? android.webkit.WebView.WebViewTransport ?: return false
+        // Pogled se ni zavihek: dokler ne vemo, kam okno pelje, se stevec zavihkov ne
+        // premakne in noben uporabnikov zavihek se ne umakne, da bi naredil prostor.
+        val pogled = try { tabManager.pripraviPojavni(this) } catch (_: Throwable) { return false }
+        val odpiralec = tabManager.getActiveTab()?.id
+        var odloceno = false
+
+        fun zavrzi(razlog: String, naslov: String) {
+            android.util.Log.i("SafeerPojavno", "$razlog: ${naslov.take(90)}")
+            // Pogleda ne unicujemo znotraj njegovega lastnega povratnega klica - Chromium
+            // je takrat se sredi obdelave navigacije. Pospravimo ga v naslednjem obhodu.
+            pogled.post { tabManager.zavrziPojavni(pogled) }
+        }
+
+        pogled.vratarPojavnega = vratar@{ naslov ->
+            if (odloceno) return@vratar false
+            odloceno = true
+            val zdaj = android.os.SystemClock.elapsedRealtime()
+            val podvojeno = naslov == zadnjePojavno.first && zdaj - zadnjePojavno.second < 2_000L
+            when {
+                podvojeno -> {
+                    zavrzi("Podvojeno okno zaprto", naslov)
+                    false
+                }
+                !PrijavnaOkna.jePrijava(naslov) -> {
+                    zavrzi("Pojavno okno preprečeno", naslov)
+                    false
+                }
+                else -> {
+                    zadnjePojavno = naslov to zdaj
+                    // Prazna lupina je ze prikazala svojo stran; tak pogled ostane prazen,
+                    // ce ga preselimo med zavihke, zato ga zavrzemo in naslov odpremo v
+                    // novem zavihku. Okno, ki se ni nicesar prikazalo, pa sprejmemo takega,
+                    // kot je - tako ostane povezava z izvorno stranjo (window.opener).
+                    val lupina = (pogled.url ?: "") == "about:blank"
+                    if (lupina) {
+                        android.util.Log.i("SafeerPojavno", "Prijava v novem zavihku: ${naslov.take(90)}")
+                        pogled.post {
+                            tabManager.zavrziPojavni(pogled)
+                            try {
+                                // Tudi ta zavihek je pojavno okno: Nazaj ga zapre in vrne na
+                                // stran, ki ga je odprla, ne pa hodi po njegovi zgodovini.
+                                val nov = tabManager.createTab(this, naslov, true)
+                                nov.jePojavni = true
+                                nov.odpiralec = odpiralec
+                            } catch (_: Throwable) {}
+                        }
+                        false
+                    } else {
+                        pogled.post {
+                            try {
+                                tabManager.posvoji(pogled, naslov, odpiralec)
+                                android.util.Log.i("SafeerPojavno", "Prijavno okno odprto: ${naslov.take(90)}")
+                            } catch (e: Throwable) {
+                                android.util.Log.w("SafeerPojavno", "Zavihka ni bilo mogoce odpreti: ${e.message}")
+                                tabManager.zavrziPojavni(pogled)
+                            }
+                        }
+                        true
+                    }
+                }
+            }
+        }
+
+        transport.webView = pogled
+        resultMsg.sendToTarget()
+
+        // Prazna lupina, ki nikamor ne odnavigira, se po tiho pospravi.
+        pogled.postDelayed({
+            if (!odloceno) {
+                odloceno = true
+                pogled.vratarPojavnega = null
+                tabManager.zavrziPojavni(pogled)
+            }
+        }, 15_000L)
+        return true
+    }
+
     private fun attachTabListeners(tab: TabModel) {
         val wv = tab.webView
         try {
@@ -1258,10 +1343,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 PdfPregledovalnik.odpri(this, wv, url, userAgent, contentDisposition, mimeType)
                 return@setDownloadListener
             }
+            // Manifest pretoka ni datoteka za prenos - sam po sebi je neuporaben, brskalnik
+            // pa ga predvaja. Preverimo naslov in ne stanja predvajalnika: prenos se javi
+            // prej, kot se predvajalnik zazene.
+            if (DashPrevzem.jeManifest(url)) {
+                return@setDownloadListener
+            }
             downloadHandler.startDownload(url, userAgent, contentDisposition, mimeType)
         }
         // Pregledovalnik PDF: "prenesi izvirnik" gre kot navaden prenos, "gor" iz orodne vrstice v naslovno vrstico.
         wv.onPdfPrenos = { url, userAgent -> downloadHandler.startDownload(url, userAgent, null, "application/pdf") }
+        wv.naPojavnoOkno = { resultMsg -> odpriPojavnoOkno(resultMsg) }
         wv.onPdfFokusVen = { smer ->
             if (smer == "gor") {
                 if (nacinAplikacije == null) {
@@ -2410,19 +2502,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (playback.isActive()) {
             playback.exit()
             activeWebView()?.exitFullscreenVideo()
-            if (native && TvSite.isXplore(urlBefore)) {
-                val dest = if (urlBefore.contains("/livetv", ignoreCase = true)) {
-                    "https://www.xploretv.si/livetv"
-                } else {
-                    "https://www.xploretv.si/home"
-                }
-                activeWebView()?.loadUrl(dest)
+            // Po domacem predvajanju stran v ozadju pogosto obtici na svojem predvajalniku;
+            // osvezimo jo, da spet pokaze svoj seznam. Velja za vsako stran enako.
+            if (native) {
+                activeWebView()?.reload()
                 return
             }
-            if (!TvSite.isXplore(urlBefore) &&
-                !TvSite.isYoutubeTv(urlBefore) &&
-                !TvSite.isHydra(urlBefore)
-            ) {
+            if (!TvSite.isYoutubeTv(urlBefore)) {
                 return
             }
         }

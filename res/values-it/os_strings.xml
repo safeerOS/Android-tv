@@ -2,6 +2,16 @@
 <resources>
     <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
     <string name="os_podnaslov">I tuoi dispositivi. Uno schermo.</string>
+    <!-- Vrsta Nadaljuj: kar je uporabnik nazadnje odprl. -->
+    <string name="os_odsek_nadaljuj">Continua</string>
+    <string name="os_nadaljuj_odstrani">Togli da Continua</string>
+    <string name="os_nadaljuj_ni_vec">%1$s non è più disponibile.</string>
+    <string name="os_nadaljuj_odpiram">Apro %1$s …</string>
+    <string name="os_nadaljuj_pocisti">Svuota la riga Continua</string>
+    <!-- Pravno: odgovornost za uporabo in odkrita navedba, da je pri razvoju sodelovala UI. -->
+    <string name="os_pravno">Note legali e informazioni</string>
+    <string name="os_pravno_opis">Licenza, responsabilità e come è stato creato</string>
+    <string name="os_pravno_besedilo">Safeer OS %1$s (%2$s)\n\nLICENZA. Safeer è software open source con licenza Apache 2.0 ed è fornito «così com’è», senza garanzia.\n\nRESPONSABILITÀ. Sei responsabile dell’uso che fai di Safeer e dei contenuti a cui accedi o che apri con esso. L’autore non risponde dei danni derivanti dall’uso. Safeer Shield, BankGuard e gli elenchi di minacce sono un aiuto, non una garanzia: possono non vedere una pagina pericolosa e talvolta bloccarne una sicura.\n\nINTELLIGENZA ARTIFICIALE. Nello sviluppo di questo software è stata usata l’intelligenza artificiale. Il codice può quindi essere errato o incompleto; ogni versione viene testata, ma gli errori non si possono escludere. Il codice sorgente è pubblico: github.com/memelandfaner</string>
     <string name="os_odsek_zacni">Inizia</string>
     <string name="os_odsek_naprave">Dispositivi in Safeer Link</string>
     <string name="os_odsek_aplikacije">App su questo televisore</string>
@@ -85,6 +95,7 @@
     <string name="os_nastavitve">Impostazioni</string>
     <string name="os_nastavitve_opis">Schermata iniziale, modalità, Scudo</string>
     <string name="os_nastavitve_opomba">Tutto ciò che segue si può attivare o disattivare in qualsiasi momento.</string>
+    <string name="os_jezik_opis">Safeer OS nella lingua che scegli, qualunque sia quella del televisore</string>
     <string name="os_zaganjalnik">Schermata iniziale del televisore</string>
     <string name="os_zaganjalnik_opis">Se Safeer OS prende il tasto Home o resta un\'app che apri per le app web</string>
     <string name="os_zaganjalnik_izbran">Safeer OS</string>

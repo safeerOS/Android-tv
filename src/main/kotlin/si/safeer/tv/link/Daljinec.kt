@@ -77,7 +77,7 @@ object Daljinec {
         "channel_down" to android.view.KeyEvent.KEYCODE_CHANNEL_DOWN,
         "page_up" to android.view.KeyEvent.KEYCODE_PAGE_UP,
         "page_down" to android.view.KeyEvent.KEYCODE_PAGE_DOWN,
-        // Stevke: program po stevilki (Xplore TV v brskalniku jih razume kot tipke daljinca).
+        // Stevke: program po stevilki (strani v zivo jih razumejo kot tipke daljinca).
         "0" to android.view.KeyEvent.KEYCODE_0, "1" to android.view.KeyEvent.KEYCODE_1,
         "2" to android.view.KeyEvent.KEYCODE_2, "3" to android.view.KeyEvent.KEYCODE_3,
         "4" to android.view.KeyEvent.KEYCODE_4, "5" to android.view.KeyEvent.KEYCODE_5,

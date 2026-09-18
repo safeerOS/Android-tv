@@ -16,7 +16,7 @@ uporabniku izklopil Scit ali preklopil nacin delovanja. Vsi posnetki zaslona se 
 preizkusu mogoce pogledati, kako je bilo videti.
 
 Uporaba:
-    python3 tests/preizkus_os_na_tv.py 192.168.0.77:5555 [--namesti] [--mapa /pot/za/posnetke]
+    python3 tests/preizkus_os_na_tv.py 192.168.1.50:5555 [--namesti] [--mapa /pot/za/posnetke]
 """
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def v_ospredju(naprava: str) -> bool:
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Dimni preizkus Safeer OS na televizorju")
-    p.add_argument("naprava", help="naslov televizorja, npr. 192.168.0.77:5555")
+    p.add_argument("naprava", help="naslov televizorja, npr. 192.168.1.50:5555")
     p.add_argument("--namesti", action="store_true", help="pred preizkusom namesti Safeer-OS.apk iz korena")
     p.add_argument("--mapa", default=os.path.join(KOREN, "build", "preizkus-os"), help="kam s posnetki")
     a = p.parse_args()

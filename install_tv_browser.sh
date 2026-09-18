@@ -1,27 +1,37 @@
 #!/usr/bin/env bash
-# 1-klik prenos in namestitev Safeer TV Browser (Android / Android TV prek ADB)
+# One-click download and install of Safeer TV Browser (Android TV, over ADB).
 set -euo pipefail
 
-APK_URL="https://github.com/memelandfaner/Safeer-TV-Browser/raw/main/TV-Browser-2.apk"
-TEMP_APK="/tmp/TV-Browser-2.apk"
+REPO="memelandfaner/safeer-browser-tv"
+TEMP_APK="/tmp/safeer-browser-tv.apk"
 TV="${1:-}"
 
 echo "=========================================================="
-echo "Safeer TV Browser — prenos in namestitev"
+echo "Safeer TV Browser - download and install"
 echo "=========================================================="
 
-echo "Prenašam APK..."
+echo "Looking up the latest release..."
+APK_URL="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
+    | grep -o 'https://[^"]*/safeer-browser-tv-[^"]*\.apk' | head -n 1)"
+
+if [[ -z "$APK_URL" ]]; then
+    echo "Could not find an APK in the latest release. Download it by hand:"
+    echo "  https://github.com/$REPO/releases/latest"
+    exit 1
+fi
+
+echo "Downloading $APK_URL"
 curl -fL --retry 3 -o "$TEMP_APK" "$APK_URL"
 
 if [[ ! -s "$TEMP_APK" ]]; then
-    echo "Prenos APK ni uspel."
+    echo "Download failed."
     exit 1
 fi
 
 echo "APK: $(du -h "$TEMP_APK" | cut -f1)"
 
 if ! command -v adb >/dev/null 2>&1; then
-    echo "ADB ni nameščen. APK je v $TEMP_APK — namesti ga ročno na TV."
+    echo "ADB is not installed. The APK is at $TEMP_APK - install it on the TV by hand."
     exit 0
 fi
 
@@ -30,11 +40,11 @@ if [[ -n "$TV" ]]; then
 fi
 DEVICE="$(adb devices | awk '/\tdevice$/{print $1; exit}')"
 if [[ -z "$DEVICE" ]]; then
-    echo "Ni ADB naprave. APK je v $TEMP_APK"
-    echo "Primer: adb connect <TV-IP>:5555 && adb install -r $TEMP_APK"
+    echo "No ADB device. The APK is at $TEMP_APK"
+    echo "For example: adb connect <TV-IP>:5555 && adb install -r $TEMP_APK"
     exit 0
 fi
 
-echo "Nameščam na $DEVICE ..."
+echo "Installing on $DEVICE ..."
 adb -s "$DEVICE" install -r "$TEMP_APK"
-echo "Končano."
+echo "Done."

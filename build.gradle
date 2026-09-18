@@ -11,8 +11,8 @@ android {
     defaultConfig {
         minSdk 28
         targetSdk 34
-        versionCode 213
-        versionName '2.1.104'
+        versionCode 214
+        versionName '2.1.105'
     }
 
     // Dve loceni aplikaciji iz ene kode. Android ju vidi kot dve aplikaciji (svoje ime, ikona,
@@ -27,8 +27,8 @@ android {
         os {
             dimension 'aplikacija'
             applicationId 'si.safeer.os'
-            versionCode 4
-            versionName '0.2.4'
+            versionCode 5
+            versionName '0.2.5'
         }
         // Safeer OS Tablet: ista koda, a za dotik od blizu (tablica), ne za daljinec.
         // V pripravi; televizorja in brskalnika se ne dotika.

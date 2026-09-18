@@ -138,6 +138,7 @@
     <string name="ui_cast_ready">Pronto per la riproduzione da telefono e computer</string>
     <string name="ui_link_sync_unavailable">La sincronizzazione dei preferiti non è ancora disponibile sul televisore.</string>
     <string name="ui_lang_auto">Automatico (lingua del dispositivo)</string>
+    <string name="ui_link_prejeto">Inviato da un altro dispositivo</string>
     <string name="ui_popup_block_on">🚫 Le finestre pop-up sono bloccate</string>
     <string name="ui_popup_block_off">Le finestre pop-up sono consentite</string>
     <string name="ui_download_dir_title">Dove salvare i file scaricati</string>

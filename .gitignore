@@ -4,7 +4,7 @@ build/
 .gradle/
 .android-sdk/
 local.properties
-xplore_auth.local.js
+*_auth.local.js
 tv_test/
 
 # 🔒 Privacy & Security

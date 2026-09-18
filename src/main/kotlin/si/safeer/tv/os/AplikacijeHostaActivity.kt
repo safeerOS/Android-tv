@@ -333,6 +333,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     izid?.optString("message").orEmpty().ifBlank { napaka }), Toast.LENGTH_LONG).show()
                 return@Odgovor
             }
+            Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.PROGRAM, ime = p.ime,
+                racunalnik = r.id, program = p.id))
             if (zaslon) {
                 Toast.makeText(this, getString(R.string.os_programi_odpiram, p.ime), Toast.LENGTH_SHORT).show()
                 startActivity(Intent(this, ZaslonActivity::class.java)

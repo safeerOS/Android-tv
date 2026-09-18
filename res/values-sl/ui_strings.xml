@@ -138,6 +138,7 @@
     <string name="ui_cast_ready">Pripravljen na predvajanje iz telefona in računalnika</string>
     <string name="ui_link_sync_unavailable">Sinhronizacija zaznamkov na televizorju še ni na voljo.</string>
     <string name="ui_lang_auto">Samodejno (jezik naprave)</string>
+    <string name="ui_link_prejeto">Poslano z druge naprave</string>
     <string name="ui_popup_block_on">🚫 Pojavna okna so preprečena</string>
     <string name="ui_popup_block_off">Pojavna okna so dovoljena</string>
     <string name="ui_download_dir_title">Kam se shranjujejo prenesene datoteke</string>
