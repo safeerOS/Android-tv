@@ -51,9 +51,9 @@ BOOKMARK_FILES = {
     'src/main/kotlin/si/safeer/tv/HomeTilesStore.kt',
     'src/main/kotlin/si/safeer/tv/PortalManager.kt',
 }
-# Per-site scripts that still exist. Nothing may be added here without removing it first:
-# a new site_<name>.js is a recipe for one site and fails this check.
-ALLOWED_SITE_SCRIPTS = {'site_agent.js', 'site_24ur.js'}
+# The generic agent is the only site script left: it works by what a page IS, not by who
+# publishes it. A new site_<name>.js would be a recipe for one site and fails this check.
+ALLOWED_SITE_SCRIPTS = {'site_agent.js'}
 
 
 def scan_site_names(label, text):

@@ -661,7 +661,6 @@ object UserScriptManager {
 
             // Stalni nadzornik za neprekinjeno predvajanje v ozadju
             setInterval(function() {
-                if ((location.hostname || '').toLowerCase().indexOf('24ur') !== -1) return;
                 if (window._safeer_app_bg || document.hidden) return;
                 hookPlayerObject();
                 var video = document.querySelector('video');
@@ -695,7 +694,6 @@ object UserScriptManager {
             if (window._safeer_force_unmute) return;
             var host = (location.hostname || '').toLowerCase();
             var href = (location.href || '').toLowerCase();
-            if (host.indexOf('24ur') !== -1) return;
             if (href.indexOf('youtube.com/tv') !== -1) return;
             if (href.indexOf('brave_home') !== -1) return;
             window._safeer_force_unmute = true;
@@ -757,8 +755,6 @@ object UserScriptManager {
     @Volatile
     private var cachedTvSpatialJs: String? = null
     @Volatile
-    private var cachedSite24urJs: String? = null
-    @Volatile
     private var cachedSiteAgentJs: String? = null
 
     /**
@@ -767,7 +763,6 @@ object UserScriptManager {
      */
     fun sprostiPredpomnilnik() {
         cachedTvSpatialJs = null
-        cachedSite24urJs = null
         cachedSiteAgentJs = null
     }
 
@@ -784,10 +779,6 @@ object UserScriptManager {
 
     private fun tvSpatialJs(webView: WebView): String {
         return assetJs(webView, "tv_spatial.js", { cachedTvSpatialJs }, { cachedTvSpatialJs = it })
-    }
-
-    private fun site24urJs(webView: WebView): String {
-        return assetJs(webView, "site_24ur.js", { cachedSite24urJs }, { cachedSite24urJs = it })
     }
 
     private const val YOUTUBE_TV_LEANBACK_JS = """
@@ -1120,10 +1111,6 @@ object UserScriptManager {
         return (url ?: "").contains("brave_home", ignoreCase = true)
     }
 
-    private fun is24urUrl(url: String?): Boolean {
-        return (url ?: "").contains("24ur", ignoreCase = true)
-    }
-
     fun isGoogleAuthUrl(url: String?): Boolean {
         if (url.isNullOrEmpty()) return false
         val lower = url.lowercase()
@@ -1154,48 +1141,6 @@ object UserScriptManager {
                lower.contains("/recaptcha")
     }
 
-    private const val WINDOWS_CHROME_DESKTOP_JS = """
-        (function() {
-            var host = (location.hostname || '').toLowerCase();
-            if (host.indexOf('24ur') === -1) return;
-            var ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
-            function fake(key, val) {
-                try {
-                    Object.defineProperty(navigator, key, { configurable: true, enumerable: true, get: function() { return val; } });
-                } catch (e) {}
-            }
-            fake('userAgent', ua);
-            fake('appVersion', '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36');
-            fake('platform', 'Win32');
-            fake('vendor', 'Google Inc.');
-            fake('maxTouchPoints', 0);
-            try {
-                fake('userAgentData', {
-                    brands: [{ brand: 'Google Chrome', version: '133' }, { brand: 'Chromium', version: '133' }, { brand: 'Not_A Brand', version: '24' }],
-                    mobile: false,
-                    platform: 'Windows',
-                    getHighEntropyValues: function() {
-                        return Promise.resolve({ architecture: 'x86', bitness: '64', mobile: false, model: '', platform: 'Windows', platformVersion: '15.0.0', uaFullVersion: '133.0.0.0' });
-                    }
-                });
-            } catch (e2) {}
-            try { window.chrome = window.chrome || { runtime: {} }; } catch (e3) {}
-            try {
-                var vp = document.querySelector('meta[name="viewport"]');
-                if (!vp) {
-                    vp = document.createElement('meta');
-                    vp.setAttribute('name', 'viewport');
-                    (document.head || document.documentElement).appendChild(vp);
-                }
-                vp.setAttribute('content', 'width=1280, initial-scale=1');
-            } catch (e4) {}
-        })();
-    """
-
-    fun injectWindowsDesktopSpoof(webView: WebView) {
-        if (isGoogleDomain(webView.url)) return
-        webView.evaluateJavascript(WINDOWS_CHROME_DESKTOP_JS, null)
-    }
 
     private fun injectSiteScripts(webView: WebView, pageUrl: String?, isDarkMode: Boolean, finished: Boolean) {
         val target = pageUrl ?: webView.url ?: ""
@@ -1204,10 +1149,9 @@ object UserScriptManager {
             return
         }
         val home = isBrowserHome(pageUrl) || isBrowserHome(webView.url)
-        val news24 = is24urUrl(pageUrl) || is24urUrl(webView.url)
         // Prave banke: brez kozmetičnih filtrov in zaščite pred pojavnimi okni (daljinsko upravljanje ostane)
         val bank = isRealBankPage(target)
-        if (!home && !news24) {
+        if (!home) {
             if (!bank) injectCss(webView, CosmeticFilterEngine.buildCosmeticCss(
             try { webView.url } catch (_: Exception) { null }
         ), "safeer-cosmetic-filter")
@@ -1216,10 +1160,6 @@ object UserScriptManager {
             } else if (finished) {
                 removeCss(webView, "safeer-dark-mode-style")
             }
-        } else if (news24) {
-            removeCss(webView, "safeer-dark-mode-style")
-            removeCss(webView, "safeer-cosmetic-filter")
-            webView.evaluateJavascript(WINDOWS_CHROME_DESKTOP_JS, null)
         }
         webView.evaluateJavascript(GPC_AND_DNT_JS, null)
         // Scit postavimo le, kadar je preprecevanje pojavnih oken vklopljeno; kdor ga v meniju
@@ -1245,9 +1185,9 @@ object UserScriptManager {
             webView.evaluateJavascript(com.safeer.threatfeed.SponsorBlock.RUNTIME_JS, null)
         }
         webView.evaluateJavascript(siteAgentJs(webView), null)
-        webView.evaluateJavascript(tvSpatialJs(webView) + "\n" + site24urJs(webView), null)
+        webView.evaluateJavascript(tvSpatialJs(webView), null)
         if (finished) {
-            if (!news24) webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
+            webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
             webView.evaluateJavascript("try{if(window._safeerSiteAgent)window._safeerSiteAgent.onPageReady()}catch(e){}", null)
         }
     }
@@ -1287,15 +1227,8 @@ object UserScriptManager {
         """.trimIndent()
         webView.evaluateJavascript(ping) { result ->
             if (result != null && result.contains("ok")) {
-                val news24 = is24urUrl(pageUrl) || is24urUrl(webView.url)
-                if (!news24) {
-                    webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
-                    if (!isDarkMode) removeCss(webView, "safeer-dark-mode-style")
-                } else if (news24) {
-                    removeCss(webView, "safeer-dark-mode-style")
-                    removeCss(webView, "safeer-cosmetic-filter")
-                    webView.evaluateJavascript(WINDOWS_CHROME_DESKTOP_JS, null)
-                }
+                webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
+                if (!isDarkMode) removeCss(webView, "safeer-dark-mode-style")
                 return@evaluateJavascript
             }
             injectSiteScripts(webView, pageUrl, isDarkMode, finished = true)
@@ -1377,7 +1310,7 @@ object UserScriptManager {
                     if ('$idStr' === 'safeer-dark-mode-style' || '$idStr' === 'safeer-cosmetic-filter') {
                         var href = (location.href || '').toLowerCase();
                         var host = (location.hostname || '').toLowerCase();
-                        if (href.indexOf('youtube.com/tv') !== -1 || host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1 || host.indexOf('24ur') !== -1 || href.indexOf('brave_home') !== -1) {
+                        if (href.indexOf('youtube.com/tv') !== -1 || host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1 || href.indexOf('brave_home') !== -1) {
                             var existing = document.getElementById('$idStr');
                             if (existing) existing.remove();
                             return;

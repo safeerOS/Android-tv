@@ -17,9 +17,6 @@
             window._safeerDbgRun = 'lean';
             // #endregion
 
-            function is24urHost() {
-                return (location.hostname || '').toLowerCase().indexOf('24ur') !== -1;
-            }
             function isCarouselArrow(el) {
                 if (!el) return false;
                 var cls = ((el.className || '') + '').toLowerCase();
@@ -944,17 +941,6 @@
                         var homeOut = [];
                         for (var hi = 0; hi < homeEls.length; hi++) homeOut.push(homeEls[hi]);
                         if (homeOut.length) return homeOut;
-                    }
-                    if (is24urHost()) {
-                        var news = [];
-                        if (typeof window._safeer_24ur_cards === 'function') {
-                            try { news = window._safeer_24ur_cards() || []; } catch (_) { news = []; }
-                        }
-                        if (!news.length) {
-                            var rawCards = document.querySelectorAll('a.card, .submenu a, .menu__item a');
-                            for (var nc = 0; nc < rawCards.length; nc++) news.push(rawCards[nc]);
-                        }
-                        if (news.length) return news;
                     }
                 var all = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [role="tab"], [tabindex], [data-ved], [onclick], .video-play-button, [class*="card"], [class*="tile"], [class*="item"], [class*="channel"], [class*="poster"], [class*="program"], [class*="epg"], [class*="movie"], [class*="media"], [class*="slick-slide"], article, li.search, .icon-p24_search, [class*="icon-p24_search"]');
                 var raw = [];
@@ -2099,13 +2085,6 @@
                             el.setAttribute('tabindex', '0');
                         }
                     }
-                    if (is24urHost() && !window._safeer_24ur_seeded && !document.querySelector('.safeer-active-card')) {
-                        var ncard = document.querySelector('a.card');
-                        if (ncard) {
-                            highlightElement(ncard);
-                            window._safeer_24ur_seeded = true;
-                        }
-                    }
                 } catch(_) {}
             }
 
@@ -2147,10 +2126,6 @@
                     if (location.href.indexOf('brave_home') !== -1 && !getActiveElement()) {
                         var start = document.querySelector('.hero-card') || document.querySelector('.favorite-tile') || document.querySelector('.engine-chip');
                         if (start) highlightElement(start);
-                    }
-                    if (is24urHost() && !document.querySelector('.safeer-active-card')) {
-                        var newsStart = document.querySelector('a.card');
-                        if (newsStart) highlightElement(newsStart);
                     }
                 }, 80);
             } catch(_) {}

@@ -885,9 +885,6 @@ class ChromiumEngineView @JvmOverloads constructor(
                 }
                 url?.let {
                     applyUserAgentForUrl(it)
-                    if (it.contains("24ur", ignoreCase = true)) {
-                        UserScriptManager.injectWindowsDesktopSpoof(this@ChromiumEngineView)
-                    }
                     onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                 }
