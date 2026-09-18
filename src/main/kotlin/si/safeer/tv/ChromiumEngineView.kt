@@ -195,9 +195,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                     setOf(
                         "https://*.youtube.com",
                         "https://youtube.com",
-                        "https://*.googlevideo.com",
-                        "https://*.hydrahd.*",
-                        "https://*.streamex.*"
+                        "https://*.googlevideo.com"
                     )
                 )
             }
@@ -205,7 +203,7 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         isFocusable = true
         isFocusableInTouchMode = true
-        // JS spatial nav owns D-Pad. Native WebView focus would land on Hydra login/logo.
+        // JS spatial nav owns D-Pad. Native WebView focus would land on the page's own chrome.
         settings.setNeedInitialFocus(false)
     }
 
@@ -247,8 +245,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         val skip = host.contains("music.youtube") || host.contains("studio.youtube") || host.contains("accounts.")
         val isHome = url.contains("brave_home.html", ignoreCase = true)
         val is24ur = host.contains("24ur")
-        val isHydra = host.contains("hydrahd")
-        if (isXplore || isHome || is24ur || isHydra) {
+        if (isXplore || isHome || is24ur) {
             settings.textZoom = 100
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
@@ -883,7 +880,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                 }
                 url?.let {
                     applyUserAgentForUrl(it)
-                    if (it.contains("24ur", ignoreCase = true) || it.contains("hydrahd", ignoreCase = true)) {
+                    if (it.contains("24ur", ignoreCase = true)) {
                         UserScriptManager.injectWindowsDesktopSpoof(this@ChromiumEngineView)
                     }
                     onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))

@@ -65,9 +65,7 @@ class TvKeyRouter(private val host: MainActivity) {
         }
 
         if (event.action != KeyEvent.ACTION_DOWN) {
-            if (keyCode == KeyEvent.KEYCODE_BACK &&
-                (profile === YoutubeTvSiteProfile || profile === HydraSiteProfile)
-            ) {
+            if (keyCode == KeyEvent.KEYCODE_BACK && profile === YoutubeTvSiteProfile) {
                 return true
             }
             if (!chromeFocused && profile.consumeActionUp(keyCode)) {

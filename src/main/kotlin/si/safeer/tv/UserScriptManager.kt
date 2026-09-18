@@ -361,7 +361,7 @@ object UserScriptManager {
                             }
                         } catch(e) {}
 
-                        if (srcdoc != null || src.includes('srcdoc') || (isFixed && !src.includes('embed') && !src.includes('player') && !src.includes('streamex') && !src.includes('vidgod'))) {
+                        if (srcdoc != null || src.includes('srcdoc') || (isFixed && !src.includes('embed') && !src.includes('player'))) {
                             ifr.remove();
                         }
                     }
@@ -889,7 +889,6 @@ object UserScriptManager {
             setInterval(function() {
                 if ((location.hostname || '').indexOf('xploretv') !== -1) return;
                 if ((location.hostname || '').toLowerCase().indexOf('24ur') !== -1) return;
-                if ((location.hostname || '').toLowerCase().indexOf('hydrahd') !== -1) return;
                 if (window._safeer_app_bg || document.hidden) return;
                 hookPlayerObject();
                 var video = document.querySelector('video');
@@ -988,8 +987,6 @@ object UserScriptManager {
     @Volatile
     private var cachedSiteXploreJs: String? = null
     @Volatile
-    private var cachedSiteHydraJs: String? = null
-    @Volatile
     private var cachedSite24urJs: String? = null
     @Volatile
     private var cachedSiteAgentJs: String? = null
@@ -1003,7 +1000,6 @@ object UserScriptManager {
     fun sprostiPredpomnilnik() {
         cachedTvSpatialJs = null
         cachedSiteXploreJs = null
-        cachedSiteHydraJs = null
         cachedSite24urJs = null
         cachedSiteAgentJs = null
         cachedXploreAuthJs = null
@@ -1026,10 +1022,6 @@ object UserScriptManager {
 
     private fun siteXploreJs(webView: WebView): String {
         return assetJs(webView, "site_xplore.js", { cachedSiteXploreJs }, { cachedSiteXploreJs = it })
-    }
-
-    private fun siteHydraJs(webView: WebView): String {
-        return assetJs(webView, "site_hydra.js", { cachedSiteHydraJs }, { cachedSiteHydraJs = it })
     }
 
     private fun site24urJs(webView: WebView): String {
@@ -1585,10 +1577,6 @@ object UserScriptManager {
         return (url ?: "").contains("24ur", ignoreCase = true)
     }
 
-    private fun isHydraUrl(url: String?): Boolean {
-        return (url ?: "").contains("hydrahd", ignoreCase = true)
-    }
-
     fun isGoogleAuthUrl(url: String?): Boolean {
         if (url.isNullOrEmpty()) return false
         val lower = url.lowercase()
@@ -1622,7 +1610,7 @@ object UserScriptManager {
     private const val WINDOWS_CHROME_DESKTOP_JS = """
         (function() {
             var host = (location.hostname || '').toLowerCase();
-            if (host.indexOf('24ur') === -1 && host.indexOf('hydrahd') === -1) return;
+            if (host.indexOf('24ur') === -1) return;
             var ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
             function fake(key, val) {
                 try {
@@ -1671,7 +1659,6 @@ object UserScriptManager {
         val xplore = isXploreUrl(pageUrl) || isXploreUrl(webView.url)
         val home = isBrowserHome(pageUrl) || isBrowserHome(webView.url)
         val news24 = is24urUrl(pageUrl) || is24urUrl(webView.url)
-        val hydra = isHydraUrl(pageUrl) || isHydraUrl(webView.url)
         // Prave banke: brez kozmetičnih filtrov in zaščite pred pojavnimi okni (daljinsko upravljanje ostane)
         val bank = isRealBankPage(target)
         if (xplore) {
@@ -1687,7 +1674,7 @@ object UserScriptManager {
             }
             return
         }
-        if (!home && !news24 && !hydra) {
+        if (!home && !news24) {
             if (!bank) injectCss(webView, CosmeticFilterEngine.buildCosmeticCss(
             try { webView.url } catch (_: Exception) { null }
         ), "safeer-cosmetic-filter")
@@ -1696,13 +1683,10 @@ object UserScriptManager {
             } else if (finished) {
                 removeCss(webView, "safeer-dark-mode-style")
             }
-        } else if (news24 || hydra) {
+        } else if (news24) {
             removeCss(webView, "safeer-dark-mode-style")
             removeCss(webView, "safeer-cosmetic-filter")
             webView.evaluateJavascript(WINDOWS_CHROME_DESKTOP_JS, null)
-        }
-        if (hydra) {
-            webView.evaluateJavascript(FORCE_UNMUTE_JS, null)
         }
         webView.evaluateJavascript(GPC_AND_DNT_JS, null)
         // Scit postavimo le, kadar je preprecevanje pojavnih oken vklopljeno; kdor ga v meniju
@@ -1728,7 +1712,7 @@ object UserScriptManager {
             webView.evaluateJavascript(com.safeer.threatfeed.SponsorBlock.RUNTIME_JS, null)
         }
         webView.evaluateJavascript(siteAgentJs(webView), null)
-        webView.evaluateJavascript(tvSpatialJs(webView) + "\n" + siteHydraJs(webView) + "\n" + site24urJs(webView), null)
+        webView.evaluateJavascript(tvSpatialJs(webView) + "\n" + site24urJs(webView), null)
         if (finished) {
             if (!news24) webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
             webView.evaluateJavascript("try{if(window._safeerSiteAgent)window._safeerSiteAgent.onPageReady()}catch(e){}", null)
@@ -1774,15 +1758,13 @@ object UserScriptManager {
             if (result != null && result.contains("ok")) {
                 val xplore = isXploreUrl(pageUrl) || isXploreUrl(webView.url)
                 val news24 = is24urUrl(pageUrl) || is24urUrl(webView.url)
-                val hydra = isHydraUrl(pageUrl) || isHydraUrl(webView.url)
-                if (!xplore && !news24 && !hydra) {
+                if (!xplore && !news24) {
                     webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
                     if (!isDarkMode) removeCss(webView, "safeer-dark-mode-style")
-                } else if (news24 || hydra) {
+                } else if (news24) {
                     removeCss(webView, "safeer-dark-mode-style")
                     removeCss(webView, "safeer-cosmetic-filter")
                     webView.evaluateJavascript(WINDOWS_CHROME_DESKTOP_JS, null)
-                    if (hydra) webView.evaluateJavascript(FORCE_UNMUTE_JS, null)
                 }
                 return@evaluateJavascript
             }
@@ -1865,7 +1847,7 @@ object UserScriptManager {
                     if ('$idStr' === 'safeer-dark-mode-style' || '$idStr' === 'safeer-cosmetic-filter') {
                         var href = (location.href || '').toLowerCase();
                         var host = (location.hostname || '').toLowerCase();
-                        if (href.indexOf('youtube.com/tv') !== -1 || host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1 || host.indexOf('xploretv.si') !== -1 || host.indexOf('24ur') !== -1 || host.indexOf('hydrahd') !== -1 || href.indexOf('brave_home') !== -1) {
+                        if (href.indexOf('youtube.com/tv') !== -1 || host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1 || host.indexOf('xploretv.si') !== -1 || host.indexOf('24ur') !== -1 || href.indexOf('brave_home') !== -1) {
                             var existing = document.getElementById('$idStr');
                             if (existing) existing.remove();
                             return;

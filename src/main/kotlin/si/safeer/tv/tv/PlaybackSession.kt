@@ -43,7 +43,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /**
- * Playback overlay session. Hydra/generic sites use Android WebView custom-view.
+ * Playback overlay session. Generic sites use Android WebView custom-view.
  * Xplore DASH+Widevine is decoded by Media3 ExoPlayer on a SurfaceView overlay.
  */
 interface PlaybackSession {

@@ -1,9 +1,9 @@
 ---
 name: tv-browser-2-xplore-drm
 description: >-
-  Safeer TV Browser: Xplore WebView catalog + native Media3 ExoPlayer (DASH/Widevine),
-  and HydraHD D-Pad spatial nav. Activate for tv-browser-2, Xplore, livetv, DRM,
-  Media3, hydrahd, D-Pad, or build_tv_apk.sh.
+  Safeer TV Browser: Xplore WebView catalog + native Media3 ExoPlayer (DASH/Widevine)
+  and generic D-Pad spatial nav. Activate for tv-browser-2, Xplore, livetv, DRM,
+  Media3, D-Pad, or build_tv_apk.sh.
 ---
 
 # Safeer TV Browser — Xplore native Media3 playback
@@ -49,28 +49,16 @@ Xplore (`xploretv.si`) catalog, login, D-Pad and EPG stay in **WebView**. Video 
 
 Do **not** go back to WebView EME / clpp smash. Gate 1+2 (clear DASH smoke) already passed.
 
-## HydraHD D-Pad (`hydrahd.ws`) — verified 2.1.70
+## D-Pad spatial navigation
 
-Catalog stays in WebView with **JS spatial nav** (`assets/tv_spatial.js`). Do **not** turn on Chromium `--enable-spatial-navigation`: Hydra fields are not real TV focus targets.
+`assets/tv_spatial.js` provides **generic** spatial navigation that must work on any page.
+Do **not** turn on Chromium `--enable-spatial-navigation`, and do **not** add per-site
+profiles, selectors or workarounds for individual websites to this repository: the promise
+is that the remote works everywhere by the generic rules, not that the code carries a
+recipe for one site. Skip carousel arrows (`.swiper-button-*`, `.owl-prev/next`) and
+elements inside inactive carousels.
 
-HTML traps:
-
-- Hero CTA is `button.slidebtn` (inner `<a>` is tiny). Seed that, not the login icon or logo.
-- Movies/Series on home are `div.tab` with `onclick`, not `<a>` / `<button>`.
-- Posters are `a.hthis` with inline `height: 0` and `padding-top: ~150%`. `getBoundingClientRect().height` can be 0 — use padding-box (`hydraLayoutRect`) or `getActiveElement` drops the card and re-seeds Watch Now.
-- Skip header chrome (`.mynav`, `/login`, hamburger, search) and carousel arrows (`.swiper-button-*`, `.owl-prev/next`).
-- Inactive carousels (`.trendingshowz` without `.active`) must not steal focus.
-- Watch path (`/movie/`, `/tv/`, `/watch` including `/watchseries/`): seed `.video-play-button`; DOWN must reach `.seasonHeader` and `a.dynamic-ep-link`. Hide browser chrome only on player URLs (`HydraSiteProfile.hideChrome`).
-
-Native WebView:
-
-- `settings.setNeedInitialFocus(false)` so Chromium does not focus the first link (login).
-- `HydraSiteProfile.consumeActionUp` for D-Pad/OK — otherwise ACTION_UP goes to `WebView` and fights JS focus.
-- Desktop Chrome UA + `site_hydra.js`. Green remote button is pointer-mode fallback (`VirtualPointerView`), not the default catalog nav.
-
-Home path: Watch Now → Movies tab → first `a.hthis` → LEFT/RIGHT in **DOM order** inside the same `.swiper-container-featured`. Do not `scrollIntoView` inline on every poster (breaks Swiper X).
-
-Do not smash Hydra catalog omnibox. Do not inject a visible `#safeer-probe` overlay.
+Do not inject a visible `#safeer-probe` overlay.
 
 ## Do not restore
 

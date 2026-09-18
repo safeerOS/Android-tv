@@ -26,28 +26,7 @@
             function is24urHost() {
                 return (location.hostname || '').toLowerCase().indexOf('24ur') !== -1;
             }
-            function isHydraHost() {
-                return (location.hostname || '').toLowerCase().indexOf('hydrahd') !== -1;
-            }
-            function isHydraWatchPath() {
-                var p = (location.pathname || '').toLowerCase();
-                return isHydraHost() && (p.indexOf('/movie/') !== -1 || p.indexOf('/tv/') !== -1 || p.indexOf('/watch') !== -1);
-            }
-            function isHydraBrandEl(el) {
-                if (!isHydraHost() || !el) return false;
-                try {
-                    var href = ((el.getAttribute && el.getAttribute('href')) || '') + '';
-                    var t = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                    var cls = ((el.className || '') + '').toLowerCase();
-                    if (t === 'hydrahd') return true;
-                    if (cls.indexOf('logo') !== -1) return true;
-                    if (href === '/' || href.indexOf('/login') !== -1 || href.indexOf('/register') !== -1) return true;
-                    if (/hydrahd\.[a-z]+\/?$/i.test(href)) return true;
-                    if (el.closest && el.closest('.mynav a[href="/"], .mynav .logo, header .logo')) return true;
-                } catch (_) {}
-                return false;
-            }
-            function isHydraNavArrow(el) {
+            function isCarouselArrow(el) {
                 if (!el) return false;
                 var cls = ((el.className || '') + '').toLowerCase();
                 if (cls.indexOf('owl-prev') !== -1 || cls.indexOf('owl-next') !== -1) return true;
@@ -57,300 +36,6 @@
                     if (el.closest && el.closest('.owl-nav, .swiper-button-prev, .swiper-button-next, .slick-arrow')) return true;
                 } catch (_) {}
                 return false;
-            }
-            function isHydraChromeEl(el) {
-                if (!isHydraHost() || !el) return false;
-                if (isHydraBrandEl(el) || isHydraNavArrow(el)) return true;
-                try {
-                    var href = ((el.getAttribute && el.getAttribute('href')) || '') + '';
-                    var cls = ((el.className || '') + '').toLowerCase();
-                    if (href.indexOf('/login') !== -1 || href.indexOf('/register') !== -1) return true;
-                    if (cls.indexOf('navbar-toggle') !== -1 || cls.indexOf('navbar-toggler') !== -1) return true;
-                    if (cls.indexOf('hamburger') !== -1 || cls.indexOf('user-avatar') !== -1) return true;
-                    if (el.closest && el.closest('.mynav, header, .navbar, .navbar-header, .top-header')) {
-                        var tx = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                        if (tx === 'movies' || tx === 'series' || tx === 'watch now') return false;
-                        return true;
-                    }
-                } catch (_) {}
-                return false;
-            }
-            function hydraLayoutRect(el) {
-                var empty = { top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 };
-                if (!el || !el.getBoundingClientRect) return empty;
-                try {
-                    var r = el.getBoundingClientRect();
-                    var w = r.width;
-                    var h = r.height;
-                    var cs = window.getComputedStyle(el);
-                    var padT = parseFloat(cs.paddingTop) || 0;
-                    var padB = parseFloat(cs.paddingBottom) || 0;
-                    if (h < padT + padB) h = padT + padB;
-                    return { top: r.top, left: r.left, width: w, height: h, right: r.left + w, bottom: r.top + h };
-                } catch (_) {}
-                return empty;
-            }
-            function hydraIsShown(el) {
-                if (!el) return false;
-                try {
-                    var st = window.getComputedStyle(el);
-                    if (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') return false;
-                    if (el.closest) {
-                        var pop = el.closest('#popup_login, .small_modal, #backgroundPopup');
-                        if (pop) {
-                            var ps = window.getComputedStyle(pop);
-                            if (ps.display === 'none' || ps.visibility === 'hidden') return false;
-                        }
-                    }
-                } catch (_) {}
-                return true;
-            }
-            function hydraRowHidden(el) {
-                if (!el || !el.closest) return false;
-                try {
-                    var box = el.closest('.trendingmovz, .trendingshowz, .latestmovz, .latestshowz, .ratedmovz, .ratedshowz');
-                    if (!box) return false;
-                    var cls = ((box.className || '') + '').toLowerCase();
-                    if (cls.indexOf('active') === -1) return true;
-                    var st = window.getComputedStyle(box);
-                    if (st.display === 'none' || st.visibility === 'hidden') return true;
-                } catch (_) {}
-                return false;
-            }
-            function hydraOnX(el) {
-                if (!el || !hydraIsShown(el)) return false;
-                try {
-                    var r = hydraLayoutRect(el);
-                    var winW = window.innerWidth || 1920;
-                    if (r.width < 24) return false;
-                    if (r.left < -48 || r.left > winW - 20) return false;
-                    var visW = Math.min(r.right, winW) - Math.max(r.left, 0);
-                    if (visW < Math.min(r.width, 90) * 0.35) return false;
-                    return true;
-                } catch (_) {}
-                return false;
-            }
-            function hydraVisible(el) {
-                if (!el || !hydraIsShown(el)) return false;
-                try {
-                    var r = hydraLayoutRect(el);
-                    var winW = window.innerWidth || 1920;
-                    var winH = window.innerHeight || 1080;
-                    if (r.width < 24 || r.height < 14) return false;
-                    if (r.right < 12 || r.left > winW - 12) return false;
-                    if (r.left < -48) return false;
-                    var visW = Math.min(r.right, winW) - Math.max(r.left, 0);
-                    if (visW < Math.min(r.width, 90) * 0.45) return false;
-                    if (r.bottom < 8 || r.top > winH - 8) return false;
-                    return true;
-                } catch (_) {}
-                return false;
-            }
-            function hydraPlayControl() {
-                if (!isHydraHost()) return null;
-                var play = document.querySelector('.video-play-button');
-                if (play && hydraVisible(play)) return play;
-                var ifr = document.getElementById('iframePlayer');
-                if (ifr) {
-                    var ir = ifr.getBoundingClientRect();
-                    if (ir.width >= 80 && ir.height >= 80) return ifr;
-                }
-                return null;
-            }
-            function getHydraCandidates() {
-                var out = [];
-                function add(el, looseY) {
-                    if (!el || out.indexOf(el) !== -1) return;
-                    if (isHydraChromeEl(el) || isHydraNavArrow(el)) return;
-                    if (hydraRowHidden(el)) return;
-                    if (!hydraIsShown(el)) return;
-                    if (looseY) {
-                        if (!hydraOnX(el)) return;
-                    } else if (!hydraVisible(el)) return;
-                    out.push(el);
-                }
-                var i, nodes, el, r, t, href;
-                if (isHydraWatchPath()) {
-                    add(hydraPlayControl());
-                    nodes = document.querySelectorAll(
-                        '.video-play-button, .watch-now-btn, .slidebtn,' +
-                        ' .undervidbtns button, .undervidbtns a,' +
-                        ' .seasonHeader, a.dynamic-ep-link, a[data-episode], a[data-season],' +
-                        ' [id*="server"] a, [id*="server"] button, .server-list a, .server-list button,' +
-                        ' .select-server a, .select-server button,' +
-                        ' a.hthis, .swiper-slide-featured > a'
-                    );
-                    for (i = 0; i < nodes.length; i++) {
-                        el = nodes[i];
-                        if ((el.id || '') === 'shareButton') continue;
-                        href = ((el.getAttribute && el.getAttribute('href')) || '') + '';
-                        if (href.indexOf('javascript:') === 0 && ((el.getAttribute('onclick') || '') + '').indexOf('popup_login') !== -1) continue;
-                        add(el, true);
-                    }
-                    return out;
-                }
-                nodes = document.querySelectorAll('.slidebtn, button.slidebtn, a.slidebtn');
-                var bestBtn = null;
-                var bestBtnL = 1e9;
-                var winWHero = window.innerWidth || 1920;
-                for (i = 0; i < nodes.length; i++) {
-                    el = nodes[i];
-                    if (!hydraVisible(el)) continue;
-                    r = hydraLayoutRect(el);
-                    if (r.left < -8 || r.left > winWHero * 0.48) continue;
-                    if (r.left < bestBtnL) {
-                        bestBtnL = r.left;
-                        bestBtn = el;
-                    }
-                }
-                if (bestBtn) add(bestBtn);
-                nodes = document.querySelectorAll('.tab, .trendingmovies, .trendingseries, .latestmovies, .latestseries, .ratedmovies, .ratedseries');
-                for (i = 0; i < nodes.length; i++) {
-                    el = nodes[i];
-                    t = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                    if (t !== 'movies' && t !== 'series') continue;
-                    if (el.closest && el.closest('.mynav, header, .menu-links')) continue;
-                    r = hydraLayoutRect(el);
-                    if (r.width < 28 || r.width > 280 || r.height > 88) continue;
-                    add(el, true);
-                }
-                nodes = document.querySelectorAll('a.hthis, .swiper-slide-featured > a');
-                var winWPoster = window.innerWidth || 1920;
-                var winHPoster = window.innerHeight || 1080;
-                for (i = 0; i < nodes.length; i++) {
-                    el = nodes[i];
-                    if (el.closest && el.closest('.slidebtn')) continue;
-                    r = hydraLayoutRect(el);
-                    if (r.width > winWPoster * 0.45) continue;
-                    if (r.height > winHPoster * 0.55 && r.width > winWPoster * 0.34) continue;
-                    if (r.width < 48) continue;
-                    add(el, true);
-                }
-                return out;
-            }
-            function hydraSeedFocus() {
-                var cands = getHydraCandidates();
-                var best = null;
-                var bestScore = 1e15;
-                var i, el, r, cls, tx, score;
-                for (i = 0; i < cands.length; i++) {
-                    el = cands[i];
-                    r = hydraLayoutRect(el);
-                    cls = ((el.className || '') + '').toLowerCase();
-                    tx = ((el.innerText || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                    score = r.top * 2 + r.left;
-                    if (cls.indexOf('slidebtn') !== -1 || tx.indexOf('watch now') !== -1) score -= 500;
-                    if (isHydraWatchPath() && cls.indexOf('video-play-button') !== -1) score -= 600;
-                    if (score < bestScore) {
-                        bestScore = score;
-                        best = el;
-                    }
-                }
-                if (best) highlightElement(best);
-                return best;
-            }
-            function hydraPosterOf(el) {
-                if (!el) return null;
-                var cls = ((el.className || '') + '').toLowerCase();
-                if (cls.indexOf('hthis') !== -1) return el;
-                try {
-                    if (el.closest) return el.closest('a.hthis, .swiper-slide-featured > a');
-                } catch (_) {}
-                return null;
-            }
-            function hydraPostersInSameRow(el) {
-                var out = [];
-                if (!el) return out;
-                var row = null;
-                try { row = el.closest && el.closest('.swiper-container-featured'); } catch (_) {}
-                var nodes = (row || document).querySelectorAll('a.hthis');
-                var i, n;
-                for (i = 0; i < nodes.length; i++) {
-                    n = nodes[i];
-                    if (!n || out.indexOf(n) !== -1) continue;
-                    if (hydraRowHidden(n) || !hydraIsShown(n)) continue;
-                    out.push(n);
-                }
-                return out;
-            }
-function hydraRevealPoster(el) {
-    var row = el && el.closest && el.closest('.swiper-container-featured');
-    var swiper = row && row.swiper;
-    if (!swiper || swiper.destroyed) return;
-    // Focus must not invoke the site's two-card paging policy.
-    if (swiper.params.a11y) swiper.params.a11y.scrollOnFocus = false;
-    if (swiper.params.slidesPerGroup !== 1) {
-        swiper.params.slidesPerGroup = 1;
-        swiper.updateSlides();
-    }
-    var r = el.getBoundingClientRect(), rr = row.getBoundingClientRect();
-    var left = Math.max(0, rr.left) + 8;
-    var right = Math.min(window.innerWidth, rr.right) - 8;
-    var idx = Array.prototype.indexOf.call(row.querySelectorAll('a.hthis'), el);
-    var target = swiper.activeIndex;
-    if (r.left < left) target = idx;
-    else if (r.right > right) {
-        var step = r.width + (Number(swiper.params.spaceBetween) || 0);
-        target += Math.max(1, Math.ceil((r.right - right) / Math.max(step, 1)));
-    }
-    if (idx >= 0 && target !== swiper.activeIndex) swiper.slideTo(Math.max(0, target), 0, false);
-}
-
-            function hydraMovePoster(direction, current) {
-                var poster = hydraPosterOf(current);
-                if (!poster) return null;
-                var list = hydraPostersInSameRow(poster);
-                var i, idx = -1;
-                for (i = 0; i < list.length; i++) {
-                    if (list[i] === poster) { idx = i; break; }
-                }
-                if (idx < 0) return null;
-                var next = null;
-                if (direction === 'RIGHT' && list[idx + 1]) next = list[idx + 1];
-                if (direction === 'LEFT' && list[idx - 1]) next = list[idx - 1];
-                if (!next) return null;
-                hydraRevealPoster(next);
-                return next;
-            }
-            function hydraMoveTab(direction, current) {
-                if (!current) return null;
-                var cls = ((current.className || '') + '').toLowerCase();
-                if (cls.indexOf('tab') === -1 && cls.indexOf('trendingmovies') === -1 &&
-                    cls.indexOf('trendingseries') === -1 && cls.indexOf('latestmovies') === -1 &&
-                    cls.indexOf('latestseries') === -1) return null;
-                var wrap = current.parentElement;
-                if (!wrap) return null;
-                var tabs = wrap.querySelectorAll('.tab');
-                var i, idx = -1;
-                for (i = 0; i < tabs.length; i++) {
-                    if (tabs[i] === current) { idx = i; break; }
-                }
-                if (idx < 0) return null;
-                if (direction === 'RIGHT' && tabs[idx + 1]) return tabs[idx + 1];
-                if (direction === 'LEFT' && tabs[idx - 1]) return tabs[idx - 1];
-                return null;
-            }
-            function hydraFirstPosterBelow(fromEl) {
-                var root = null;
-                try { root = fromEl && fromEl.closest && fromEl.closest('.container2, .tabtrending, .tablatest, .tabrated'); } catch (_) {}
-                var nodes = (root || document).querySelectorAll('a.hthis, .swiper-slide-featured > a');
-                var best = null;
-                var bestL = 1e9;
-                var from = hydraLayoutRect(fromEl);
-                var i, n, r;
-                for (i = 0; i < nodes.length; i++) {
-                    n = nodes[i];
-                    if (hydraRowHidden(n) || !hydraIsShown(n)) continue;
-                    r = hydraLayoutRect(n);
-                    if (r.top <= from.bottom - 4) continue;
-                    if (r.width < 48) continue;
-                    if (r.left < -20) continue;
-                    if (r.left < bestL) {
-                        bestL = r.left;
-                        best = n;
-                    }
-                }
-                return best;
             }
             window._safeer_xplore_release_cdm = function () {
                 var had = false;
@@ -603,14 +288,6 @@ function hydraRevealPoster(el) {
                     }
                 `;
                 (document.head || document.documentElement).appendChild(style);
-                if (isHydraHost()) {
-                    var hydraFix = document.createElement('style');
-                    hydraFix.id = 'tv-remote-hydra-focus-fix';
-                    hydraFix.textContent = ':focus,:focus-visible{outline:none!important;box-shadow:none!important;background-color:transparent!important;transform:none!important;}' +
-                        '.safeer-active-card{outline:none!important;box-shadow:none!important;background-color:transparent!important;transform:none!important;}' +
-                        '#safeer-focus-target-ring{border:4px solid #00e5ff!important;box-shadow:0 0 0 2px #000,0 0 18px #00e5ff!important;background:transparent!important;}';
-                    (document.head || document.documentElement).appendChild(hydraFix);
-                }
                 if (isXploreHost()) {
                     window._safeer_xplore_paint_menu = function () {
                         try {
@@ -730,7 +407,6 @@ function hydraRevealPoster(el) {
                     // #endregion
                 }
 
-                /* hydra smash lives in site_hydra.js */
             } catch(e) {}
 
             // #region agent log
@@ -795,9 +471,7 @@ function hydraRevealPoster(el) {
             window._safeer_is_video_active = function() {
                 var v = document.querySelector('video');
                 var isWatch = location.pathname.indexOf('/watch') !== -1 || location.pathname.indexOf('/shorts') !== -1;
-                var hydraWatch = (location.hostname || '').toLowerCase().indexOf('hydrahd') !== -1 &&
-                    ((location.pathname || '').indexOf('/movie/') !== -1 || (location.pathname || '').indexOf('/tv/') !== -1);
-                if (isWatch || hydraWatch || document.documentElement.classList.contains('safeer-hydra-fs')) return true;
+                if (isWatch) return true;
                 if (!v) return false;
                 var r = v.getBoundingClientRect();
                 return r.width > 800 && r.height > 400 && (v.videoWidth || 0) > 0;
@@ -820,7 +494,7 @@ function hydraRevealPoster(el) {
                         return true;
                     }
 
-                    // 2. Iframe Multi-Protocol Message Broadcast (StreamNexus engine)
+                    // 2. Iframe Multi-Protocol Message Broadcast
                     var iframes = document.querySelectorAll('iframe');
                     if (iframes.length > 0) {
                         var msgs = [
@@ -863,16 +537,6 @@ function hydraRevealPoster(el) {
 
             window._safeer_toggle_fullscreen = function() {
                 try {
-                    if (window._safeer_hydra_smash && (location.hostname || '').toLowerCase().indexOf('hydrahd') !== -1) {
-                        if (document.documentElement.classList.contains('safeer-hydra-fs')) {
-                            if (window._safeer_hydra_unsmash) window._safeer_hydra_unsmash();
-                            window._safeer_show_osd('🗗 Običajen pogled', 1200);
-                        } else {
-                            window._safeer_hydra_smash();
-                            window._safeer_show_osd('⛶ Celozaslonski način', 1200);
-                        }
-                        return true;
-                    }
                     var fsBtn = document.querySelector('.ytp-fullscreen-button, button[aria-label*="celozaslon"], button[aria-label*="Fullscreen"], button[aria-label*="Full screen"], .fullscreen-button');
                     if (fsBtn) {
                         fsBtn.click();
@@ -1061,10 +725,7 @@ function hydraRevealPoster(el) {
                 if (tag === 'BUTTON' || tag === 'INPUT' || (tag === 'A' && (cls.indexOf('btn') !== -1 || text.indexOf('glej') !== -1 || text.indexOf('predvajaj') !== -1 || text.indexOf('prijava') !== -1))) {
                     return null;
                 }
-                if (isHydraHost() && (cls.indexOf('video-play-button') !== -1 || cls.indexOf('slidebtn') !== -1)) {
-                    return null;
-                }
-                if (isHydraChromeEl(el) || isHydraNavArrow(el)) {
+                if (isCarouselArrow(el)) {
                     return null;
                 }
 
@@ -1334,10 +995,7 @@ function hydraRevealPoster(el) {
                 if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT' || tag === 'HTML' || tag === 'BODY' || tag === 'SVG' || tag === 'PATH') return false;
                 var href = (el.getAttribute && el.getAttribute('href')) || '';
                 if (href.charAt(0) === '#' || (el.className && ('' + el.className).indexOf('wUrY2b') !== -1)) return false;
-                if (isHydraBrandEl(el) || isHydraChromeEl(el) || isHydraNavArrow(el)) return false;
-                var hydraCls = (el.className || '').toString().toLowerCase();
-                if (isHydraHost() && hydraCls.indexOf('video-play-button') !== -1) return true;
-                if (isHydraHost() && hydraCls.indexOf('slidebtn') !== -1) return true;
+                if (isCarouselArrow(el)) return false;
                 
                 // Izloči zgolj tekstovne elemente in časovne oznake znotraj kartic (čas je del celotnega polja vsebine)
                 if (tag === 'SPAN' || tag === 'TIME' || tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'H4' || tag === 'LABEL' || tag === 'SMALL' || tag === 'EM' || tag === 'STRONG') {
@@ -1385,7 +1043,6 @@ function hydraRevealPoster(el) {
                 if (rect.width > winW * 0.48 || rect.height > winH * 0.42) {
                     var wideTxt = ((el.innerText || el.textContent || '') + '').toLowerCase();
                     var widePlay = clsCheck.indexOf('action-list') !== -1 || wideTxt.indexOf('predvajaj') !== -1 || wideTxt.indexOf('glej zdaj') !== -1;
-                    if (isHydraHost() && clsCheck.indexOf('slidebtn') === -1 && clsCheck.indexOf('video-play-button') === -1) return false;
                     if (!widePlay && clsCheck.indexOf('item--event') === -1 && clsCheck.indexOf('content-carousel__item') === -1 && clsCheck.indexOf('channel-container') === -1) {
                         if (tag !== 'A' && tag !== 'BUTTON' && tag !== 'INPUT' && tag !== 'TEXTAREA') return false;
                     }
@@ -1450,10 +1107,6 @@ function hydraRevealPoster(el) {
                             for (var nc = 0; nc < rawCards.length; nc++) news.push(rawCards[nc]);
                         }
                         if (news.length) return news;
-                    }
-                    if (isHydraHost()) {
-                        var hydraEls = getHydraCandidates();
-                        if (hydraEls.length) return hydraEls;
                     }
                     if (isXploreHost()) {
                         var fast = [];
@@ -1578,14 +1231,8 @@ function hydraRevealPoster(el) {
                 var current = document.querySelector('.safeer-active-card');
                 if (current && current.isConnected) {
                     try {
-                        var hr = isHydraHost() ? hydraLayoutRect(current) : current.getBoundingClientRect();
+                        var hr = current.getBoundingClientRect();
                         if (hr.width >= 8 && hr.height >= 8) return current;
-                        var hKeep = ((current.className || '') + '').toLowerCase();
-                        if (isHydraHost() && (hKeep.indexOf('hthis') !== -1 || hKeep.indexOf('slidebtn') !== -1 ||
-                            hKeep.indexOf('tab') !== -1 || hKeep.indexOf('seasonheader') !== -1 ||
-                            hKeep.indexOf('video-play-button') !== -1 || hKeep.indexOf('dynamic-ep-link') !== -1)) {
-                            return current;
-                        }
                     } catch (_) {
                         return current;
                     }
@@ -1747,7 +1394,7 @@ function hydraRevealPoster(el) {
                 return null;
             };
 
-            if (isHydraHost() || location.protocol === 'file:') {
+            if (location.protocol === 'file:') {
                 var calmFocus = document.createElement('style');
                 calmFocus.id = 'safeer-calm-focus';
                 calmFocus.textContent = '.safeer-active-card{transform:none!important;transition:none!important;outline:3px solid #b5eb8d!important;outline-offset:3px!important;box-shadow:0 0 0 2px #101814!important;background-color:transparent!important}:focus,:focus-visible{outline-color:#b5eb8d!important;box-shadow:none!important}#safeer-focus-target-ring{display:none!important}.safeer-focus-badge{display:none!important}';
@@ -1767,7 +1414,7 @@ function hydraRevealPoster(el) {
 
             function updateFocusRing(el) {
                 // The outline follows the element without a second animated DOM overlay.
-                if (isHydraHost() || location.protocol === 'file:') return;
+                if (location.protocol === 'file:') return;
                 try {
                     var ring = getOrCreateFocusRing();
                     if (document.documentElement.classList.contains('safeer-xplore-fs')) {
@@ -1780,7 +1427,7 @@ function hydraRevealPoster(el) {
                         ring.classList.remove('active');
                         return;
                     }
-                    var r = isHydraHost() ? hydraLayoutRect(el) : el.getBoundingClientRect();
+                    var r = el.getBoundingClientRect();
                     if (r.width === 0 && r.height === 0) {
                         ring.classList.remove('active');
                         return;
@@ -1878,7 +1525,6 @@ function hydraRevealPoster(el) {
                 clearActive();
                 if (!el) return;
                 window._safeer_xplore_did_focus = true;
-                if (isHydraHost() && hydraPosterOf(el)) hydraRevealPoster(el);
                 el.classList.add('safeer-active-card');
                 try { if (((el.className || '') + '').indexOf('item--event') !== -1) el.tabIndex = 0; } catch (_) {}
                 var tag = (el.tagName || '').toUpperCase();
@@ -1888,13 +1534,8 @@ function hydraRevealPoster(el) {
                 } else {
                     try { el.blur(); } catch(_) {}
                 }
-                var hr = isHydraHost() ? hydraLayoutRect(el) : el.getBoundingClientRect();
-                var winHRing = window.innerHeight || 1080;
-                if (isHydraHost()) {
-                    if (hr.bottom < 64 || hr.top > winHRing - 64) {
-                        try { el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' }); } catch (_) {}
-                    }
-                } else if (hr.width < 800 && hr.height < 500) {
+                var hr = el.getBoundingClientRect();
+                if (hr.width < 800 && hr.height < 500) {
                     try { el.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }); } catch (_) {}
                 }
                 if (isXploreHost() && document.documentElement.classList.contains('safeer-xplore-fs')) updateFocusRing(null);
@@ -2203,13 +1844,6 @@ function hydraRevealPoster(el) {
                     }
 
                     if (!current) {
-                        if (isHydraHost()) {
-                            var hydraSeeded = hydraSeedFocus();
-                            if (hydraSeeded) {
-                                current = hydraSeeded;
-                                if (!(direction === 'LEFT' || direction === 'RIGHT')) return 1;
-                            }
-                        }
                         if (isXploreHost()) {
                             var seeded = window._safeer_xplore_ensure_focus && window._safeer_xplore_ensure_focus();
                             if (!seeded) seeded = pickXploreContentTile();
@@ -2266,7 +1900,7 @@ function hydraRevealPoster(el) {
                         }
                     }
 
-                    var cRect = isHydraHost() ? hydraLayoutRect(current) : current.getBoundingClientRect();
+                    var cRect = current.getBoundingClientRect();
                     var cCenterX = cRect.left + cRect.width / 2;
                     var cCenterY = cRect.top + cRect.height / 2;
 
@@ -2364,67 +1998,6 @@ function hydraRevealPoster(el) {
                         }
                     }
 
-                    if ((direction === 'LEFT' || direction === 'RIGHT') && isHydraHost() && current) {
-                        var hTabMove = hydraMoveTab(direction, current);
-                        if (hTabMove) {
-                            highlightElement(hTabMove);
-                            return 1;
-                        }
-                        var hPosterMove = hydraMovePoster(direction, current);
-                        if (hPosterMove) {
-                            highlightElement(hPosterMove);
-                            return 1;
-                        }
-                        // Stay in the row at its ends, instead of jumping to another shelf.
-                        if (hydraPosterOf(current)) return 1;
-                    }
-
-                    if (direction === 'DOWN' && isHydraHost() && current) {
-                        var hDownCls = ((current.className || '') + '').toLowerCase();
-                        var hDownTx = ((current.innerText || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                        var fromTab = hDownCls.indexOf('tab') !== -1 || hDownTx === 'movies' || hDownTx === 'series';
-                        var fromHero = hDownCls.indexOf('slidebtn') !== -1 || hDownTx.indexOf('watch now') !== -1 ||
-                            hDownCls.indexOf('video-play-button') !== -1;
-                        if (fromTab) {
-                            var tabPoster = hydraFirstPosterBelow(current);
-                            if (tabPoster) {
-                                highlightElement(tabPoster);
-                                return 1;
-                            }
-                        }
-                        if (fromHero) {
-                            function hydraNearestBelow(list) {
-                                var pick = null;
-                                var pickTop = 1e9;
-                                var qi, qEl, qR, qCls;
-                                for (qi = 0; qi < list.length; qi++) {
-                                    qEl = list[qi];
-                                    if (!qEl || qEl === current) continue;
-                                    if (current.contains && current.contains(qEl)) continue;
-                                    qCls = ((qEl.className || '') + '').toLowerCase();
-                                    if (qCls.indexOf('slidebtn') !== -1) continue;
-                                    if (hydraRowHidden(qEl) || !hydraIsShown(qEl)) continue;
-                                    qR = hydraLayoutRect(qEl);
-                                    if (qR.top <= cRect.bottom - 4) continue;
-                                    if (qR.width < 28) continue;
-                                    if (qR.top < pickTop) {
-                                        pickTop = qR.top;
-                                        pick = qEl;
-                                    }
-                                }
-                                return pick;
-                            }
-                            var hPick = hydraNearestBelow(getHydraCandidates());
-                            if (!hPick) {
-                                hPick = hydraNearestBelow(document.querySelectorAll('.tab, a.hthis, .swiper-slide-featured > a, .seasonHeader, a.dynamic-ep-link'));
-                            }
-                            if (hPick) {
-                                highlightElement(hPick);
-                                return 1;
-                            }
-                        }
-                    }
-
                     if (direction === 'UP' && cRect.top <= 80 && scrollY <= 20) {
                         if (isXploreHost()) {
                             var stay = pickXploreMenuLink(false);
@@ -2450,10 +2023,8 @@ function hydraRevealPoster(el) {
                         var el = candidates[j];
                         if (el === current || current.contains(el)) continue;
 
-                        var r = isHydraHost() ? hydraLayoutRect(el) : el.getBoundingClientRect();
-                        if (r.width < 12 || r.height < 12) {
-                            if (!(isHydraHost() && r.width >= 48)) continue;
-                        }
+                        var r = el.getBoundingClientRect();
+                        if (r.width < 12 || r.height < 12) continue;
                         var eCls = ((el.className || '') + '').toLowerCase();
                         if (isXploreHost() && isXploreFooterEl(el)) continue;
                         if (isXploreLivetvPath() && eCls.indexOf('channel-container') !== -1 && eCls.indexOf('item--event') === -1) continue;
@@ -2664,7 +2235,7 @@ function hydraRevealPoster(el) {
                         fireTileClick();
                         return;
                     }
-                    var rect = isHydraHost() ? hydraLayoutRect(el) : el.getBoundingClientRect();
+                    var rect = el.getBoundingClientRect();
                     var cx = rect.left + rect.width / 2;
                     var cy = rect.top + rect.height / 2;
                     var mouseOpts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy, screenX: cx, screenY: cy };
@@ -2695,14 +2266,6 @@ function hydraRevealPoster(el) {
                             goingEvent = ah.indexOf('event') !== -1;
                         }
                     } catch (_) {}
-                    if (isHydraWatchPath()) {
-                        var hydraPlay = hydraPlayControl();
-                        if (hydraPlay && (!target || isHydraBrandEl(target))) {
-                            highlightElement(hydraPlay);
-                            nativeTapElement(hydraPlay);
-                            return true;
-                        }
-                    }
                     if (location.hostname.indexOf('xploretv') !== -1) {
                         var menuTxt = ((target && (target.innerText || target.textContent)) || '').replace(/\s+/g, ' ').trim().toLowerCase();
                         var menuCls = ((target && target.className) || '').toString().toLowerCase();
@@ -2907,7 +2470,7 @@ function hydraRevealPoster(el) {
                     var focusables = document.querySelectorAll('a, button, input, select, textarea, [onclick], [role="button"], .card, .media-card, .item--event, .item.item--event, .tab, .seasonHeader, .video-play-button');
                     for (var i = 0; i < focusables.length; i++) {
                         var el = focusables[i];
-                        if (isHydraChromeEl(el) || isHydraNavArrow(el)) continue;
+                        if (isCarouselArrow(el)) continue;
                         if (jeSkritZaFokus(el)) continue;
                         if (!el.hasAttribute('tabindex')) {
                             el.setAttribute('tabindex', '0');
@@ -2933,23 +2496,6 @@ function hydraRevealPoster(el) {
                         if (ncard) {
                             highlightElement(ncard);
                             window._safeer_24ur_seeded = true;
-                        }
-                    }
-                    if (isHydraHost()) {
-                        var hHeld = document.querySelector('.safeer-active-card');
-                        var hHeldOk = false;
-                        try {
-                            if (hHeld) {
-                                var hb = hydraLayoutRect(hHeld);
-                                var hClsHeld = ((hHeld.className || '') + '').toLowerCase();
-                                hHeldOk = (hb.width >= 8 && hb.height >= 8) ||
-                                    hClsHeld.indexOf('hthis') !== -1 || hClsHeld.indexOf('slidebtn') !== -1 ||
-                                    hClsHeld.indexOf('tab') !== -1 || hClsHeld.indexOf('seasonheader') !== -1 ||
-                                    hClsHeld.indexOf('video-play-button') !== -1;
-                            }
-                        } catch (_) {}
-                        if (!hHeld || isHydraChromeEl(hHeld) || isHydraBrandEl(hHeld) || !hHeldOk) {
-                            hydraSeedFocus();
                         }
                     }
                 } catch(_) {}
@@ -3900,9 +3446,6 @@ function hydraRevealPoster(el) {
                     if (is24urHost() && !document.querySelector('.safeer-active-card')) {
                         var newsStart = document.querySelector('a.card');
                         if (newsStart) highlightElement(newsStart);
-                    }
-                    if (isHydraHost()) {
-                        hydraSeedFocus();
                     }
                 }, 80);
             } catch(_) {}

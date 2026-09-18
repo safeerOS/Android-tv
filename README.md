@@ -1,6 +1,6 @@
 # Safeer TV Browser (Android TV)
 
-**Trenutna različica: 2.1.103** (Safeer OS 0.2.3) — *Varnejši na spletu.* Vgrajen W3C Global Privacy Control (GPC), Do Not Track (DNT), kirurško čiščenje sledilnih parametrov (UrlSanitizer), zaščita pred Botnet C2 strežniki (abuse.ch Feodo Tracker / URLhaus), Xplore TV kiosk z nativnim Media3 ExoPlayerjem (DASH + Widevine) ter HydraHD D-Pad navigacija.
+**Trenutna različica: 2.1.103** (Safeer OS 0.2.3) — *Varnejši na spletu.* Vgrajen W3C Global Privacy Control (GPC), Do Not Track (DNT), kirurško čiščenje sledilnih parametrov (UrlSanitizer), zaščita pred Botnet C2 strežniki (abuse.ch Feodo Tracker / URLhaus), Xplore TV kiosk z nativnim Media3 ExoPlayerjem (DASH + Widevine).
 
 ## Dve aplikaciji iz ene kode
 
@@ -54,16 +54,6 @@ adb install -r TV-Browser-2.apk
 3. **Botnet C2 & Malware ščit**: Integracija $O(k)$ drevesa z bazo znanih nevarnih domen (abuse.ch Feodo Tracker, URLhaus, ThreatFox, Phishing Army).
 4. **Zaščita pred ugrabitvijo oken**: Popolna nevtralizacija neželenih popunder oken in lažnih sistemskih opozoril.
 
-## 📺 HydraHD (daljinec)
-
-Na `hydrahd.ws` D-Pad **ne** uporablja Chromiumove izvorne prostorske navigacije. Polja so `button.slidebtn` (Watch Now), `div.tab` (Movies/Series) in `a.hthis` (plakati z `height:0`). JS v `assets/tv_spatial.js` označi samo kartice, ne logotipa, logina ali puščic carousela.
-
-- Začetna stran: Watch Now → Movies → prvi plakat → levo/desno po vrsti.
-- Film / serija: Predvajaj, nato sezone in epizode.
-- Zeleni gumb na daljincu vklopi kazalec, če stran nima pravih polj.
-
-Orodna vrstica brskalnika je skrita samo na predvajalniku (`/movie/`, `/tv/`, `/watch`).
-
 ## 📡 Xplore TV
 
 Katalog, prijava in EPG ostaneta v WebView. Video je **AndroidX Media3** na SurfaceView, ne Castlabs Android SDK. Podrobnosti: skill `tv-browser-2-xplore-drm`.
@@ -73,7 +63,7 @@ Xplore gesel **ne** committaj. Lokalno: `xplore_auth.local.js` (glej `xplore_aut
 ## 🎮 Daljinec
 
 - D-Pad: prostorska izbira polj (cyan obroč)
-- GOR na vrhu strani → URL vrstica (razen Xplore kiosk / Hydra predvajalnik)
+- GOR na vrhu strani → URL vrstica (razen Xplore kiosk)
 - RDEČA / MENI → portali
 - ZELENA → kazalec
 - RUMENA → zaznamki

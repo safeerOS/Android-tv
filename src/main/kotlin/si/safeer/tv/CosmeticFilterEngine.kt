@@ -52,7 +52,7 @@ object CosmeticFilterEngine {
         "ytm-fullscreen-engagement-overlay-renderer", "ytm-companion-ad-renderer",
         "ytm-promoted-sparkles-web-renderer", "ytm-paid-content-overlay-renderer",
 
-        // 🎬 In-Video Preroll & Streaming Ad Overlays (Pornhub, HTML5, Casino)
+        // 🎬 In-Video Preroll & Streaming Ad Overlays (HTML5, Casino)
         ".mgp_adOverlay", ".mgp_adSkip", ".mgp_adMarker", ".mgp_commercial", ".mgp_adContainer",
         ".mgp_adPlaying", ".adBlockContainer", "div[class*='adOverlay']", "div[class*='adSkip']",
         ".mgp_skipAdButton", "a[class*='adLink']", "div[class*='adInformation']", ".adInformation",

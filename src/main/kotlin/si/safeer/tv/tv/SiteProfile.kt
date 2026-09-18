@@ -19,18 +19,9 @@ object TvSite {
         return url.contains("youtube.com/tv", ignoreCase = true)
     }
 
-    fun isHydra(url: String): Boolean {
-        return url.contains("hydrahd", ignoreCase = true)
-    }
-
-    fun isHydraPlayer(url: String): Boolean {
-        val u = url.lowercase()
-        return u.contains("hydrahd") && (u.contains("/movie/") || u.contains("/tv/") || u.contains("/watch"))
-    }
-
     fun isWatchPage(url: String): Boolean {
         val u = url.lowercase()
-        if (isYoutubeTv(u) || isXplore(u) || isHydraPlayer(u)) return false
+        if (isYoutubeTv(u) || isXplore(u)) return false
         return u.contains("/watch") || u.contains("/shorts/") || u.contains("youtube.com/embed")
     }
 
@@ -46,7 +37,7 @@ object TvSite {
     }
 
     fun hideChrome(url: String): Boolean {
-        return isXplore(url) || isHydraPlayer(url) || isSharedScreen(url)
+        return isXplore(url) || isSharedScreen(url)
     }
 }
 
@@ -65,7 +56,6 @@ object SiteProfileResolver {
     private val profiles = listOf(
         XploreSiteProfile,
         YoutubeTvSiteProfile,
-        HydraSiteProfile,
         GenericWebSiteProfile
     )
 
@@ -539,112 +529,6 @@ object YoutubeTvSiteProfile : SiteProfile {
             if (result != null && result.contains("exit")) {
                 host.runOnUiThread {
                     ytWv.loadUrl("file:///android_asset/brave_home.html")
-                }
-            }
-        }
-        return true
-    }
-}
-
-object HydraSiteProfile : SiteProfile {
-    override fun matches(url: String) = TvSite.isHydra(url)
-    override fun hideChrome(url: String) = TvSite.isHydraPlayer(url)
-    override fun playbackMode() = PlaybackMode.CustomView
-
-    override fun consumeActionUp(keyCode: Int): Boolean {
-        return when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> true
-            else -> false
-        }
-    }
-
-    override fun handleKey(event: KeyEvent, host: MainActivity): Boolean {
-        val wv = host.activeWebView() ?: return false
-        val keyCode = event.keyCode
-        val stayInKiosk = TvSite.isHydraPlayer(host.activeUrl())
-        if (host.isTopBarFocused()) {
-            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                host.hideKeyboard()
-                host.editUrl.clearFocus()
-                wv.requestFocus()
-                wv.evaluateJavascript("window._safeer_navigate_spatial('DOWN');", null)
-                return true
-            }
-            return false
-        }
-        if (!wv.hasFocus()) wv.requestFocus()
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                posljiSmer(wv, "DOWN", event)
-                return true
-            }
-            KeyEvent.KEYCODE_DPAD_UP -> {
-                wv.evaluateJavascript("window._safeer_navigate_spatial('UP');") { result ->
-                    if (stayInKiosk) return@evaluateJavascript
-                    if (result == "-1" || result == "null" || result == null) {
-                        host.runOnUiThread {
-                            if (host.nacinAplikacije == null) {
-                                host.mobileTopBar.visibility = android.view.View.VISIBLE
-                                host.mobileTopBar.animate().translationY(0f).setDuration(150).start()
-                            }
-                            host.editUrl.requestFocus()
-                        }
-                    }
-                }
-                return true
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                posljiSmer(wv, "LEFT", event)
-                return true
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                posljiSmer(wv, "RIGHT", event)
-                return true
-            }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                wv.evaluateJavascript("window._safeer_click_focused_card();", null)
-                return true
-            }
-            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                wv.evaluateJavascript("window._safeer_toggle_play_pause();", null)
-                return true
-            }
-            KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                wv.evaluateJavascript("window._safeer_seek(-10);", null)
-                return true
-            }
-            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                wv.evaluateJavascript("window._safeer_seek(10);", null)
-                return true
-            }
-            else -> return false
-        }
-    }
-
-    override fun handleBack(host: MainActivity): Boolean {
-        if (!TvSite.isHydraPlayer(host.activeUrl())) {
-            return GenericWebSiteProfile.handleBack(host)
-        }
-        val hv = host.activeWebView() ?: return false
-        hv.evaluateJavascript(
-            """
-            (function(){
-                window._safeer_hydra_leave = true;
-                try { if (window._safeer_hydra_unsmash) window._safeer_hydra_unsmash(); } catch (eU) {}
-                try {
-                    document.querySelectorAll('video,audio').forEach(function(m){ try { m.pause(); } catch (eP) {} });
-                } catch (eV) {}
-                return 'exit';
-            })();
-            """.trimIndent()
-        ) { _ ->
-            host.runOnUiThread {
-                if (hv.canGoBack()) {
-                    hv.goBack()
-                } else {
-                    hv.loadUrl("https://hydrahd.ws/")
                 }
             }
         }

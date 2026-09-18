@@ -138,13 +138,7 @@ object AdBlockEngine {
             "xploretv.si", "a1xploretv.si", "a1.si", "a1.net",
             "widevine.com", "drmtoday.com", "castlabs.com", "expressplay.com",
             "bitmovin.com", "theoplayer.com", "akamaihd.net", "akamaized.net",
-            "themoviedb.org", "tmdb.org",
-            "streamex.sh", "streamex.ws", "vidlink.pro", "vidsrc.me", "vidsrc.in", "vidsrc.pm",
-            "vidsrc.net", "vidsrc.to", "vidsrc.xyz", "autoembed.co", "autoembed.cc", "multiembed.mov",
-            "2embed.cc", "111movies.com", "hydrahd.ws", "ythd.org", "megacloud.tv", "rabbitstream.net",
-            "dokicloud.one", "vizcloud.online", "filemoon.sx", "streamtape.com", "vidgod.me",
-            "peach.stream", "cinemanos.com", "streamwish.to", "doodstream.com",
-            "pornhub.com", "phncdn.com", "phncdn.net"
+            "themoviedb.org", "tmdb.org"
         )
         _bela = trusted
         for (d in trusted) whitelistTrie.insert(d)
@@ -267,8 +261,7 @@ object AdBlockEngine {
             lower.contains("/embed/") || lower.contains("googlevideo.com") ||
             lower.contains("youtube.com/youtubei") || lower.contains("youtube.com/s/player") ||
             lower.contains("youtube.com/tv") || lower.contains("xploretv.si") ||
-            lower.contains("youtube.com/api/") || lower.contains("youtube.com/results") || lower.contains("ytimg.com") ||
-            lower.contains("phncdn.com") || lower.contains("phncdn.net")) {
+            lower.contains("youtube.com/api/") || lower.contains("youtube.com/results") || lower.contains("ytimg.com")) {
             // Če je specifičen oglasni strežnik, ga blokiraj
             if (lower.contains("googleads") || lower.contains("pagead") || lower.contains("adservice") ||
                 lower.contains("doubleclick") || lower.contains("ad.youtube.com") || lower.contains("ads.youtube.com") ||

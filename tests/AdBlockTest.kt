@@ -68,7 +68,7 @@ private val PRIMERI = listOf(
     Primer("https://wikipedia.org/wiki/Slovenija", false, "wikipedija"),
     Primer("https://xploretv.si/watch.js", false, "Xplore predvajalnik"),
     Primer("https://image.tmdb.org/t/p/w500/a.jpg", false, "plakati TMDB"),
-    Primer("https://core.streamex.sh/seg1.ts", false, "segment videa"),
+    Primer("https://core.example-cdn.net/seg1.ts", false, "segment videa"),
     Primer("https://rr1---sn-abc.googlevideo.com/videoplayback?id=1", false, "video tok"),
 
     // --- video tok, ki je v resnici oglas ---

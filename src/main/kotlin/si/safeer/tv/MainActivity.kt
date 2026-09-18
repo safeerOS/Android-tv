@@ -2420,8 +2420,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 return
             }
             if (!TvSite.isXplore(urlBefore) &&
-                !TvSite.isYoutubeTv(urlBefore) &&
-                !TvSite.isHydra(urlBefore)
+                !TvSite.isYoutubeTv(urlBefore)
             ) {
                 return
             }
