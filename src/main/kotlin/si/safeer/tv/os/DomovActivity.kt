@@ -65,7 +65,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
-        Tema.uporabi(this, drsnik)      // ozadje po izbiri uporabnika
+        Ozadje.uporabi(this, drsnik)      // ozadje po izbiri uporabnika
         glavna.post(tikUre)
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiAplikacije()
@@ -174,7 +174,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Ena kartica v vrsti Zacni; [kljuc] se shrani v vrstni red, zato se nikoli ne spremeni. */
-    private class Zacni(val kljuc: String, val ikona: Int, val naslov: String, val opis: String, val ob: () -> Unit)
+    private class Zacni(val kljuc: String, val ikona: Int, val naslov: String, val ob: () -> Unit)
 
     /**
      * Vrsta Zacni. Kaj je v njej, dolocimo mi (in kaj je ta trenutek na voljo), v katerem vrstnem
@@ -186,33 +186,33 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         vrstaZacni.removeAllViews()
         karticaDatoteke = null; karticaLink = null; karticaScit = null
         val vse = ArrayList<Zacni>()
-        vse.add(Zacni("splet", R.drawable.os_ikona_splet, getString(R.string.os_splet), getString(R.string.os_splet_opis)) {
+        vse.add(Zacni("splet", R.drawable.os_ikona_splet, getString(R.string.os_splet)) {
             odpriVBrskalniku(null)
         })
-        vse.add(Zacni("datoteke", R.drawable.os_ikona_datoteke, getString(R.string.os_datoteke), getString(R.string.os_datoteke_opis)) {
+        vse.add(Zacni("datoteke", R.drawable.os_ikona_datoteke, getString(R.string.os_datoteke)) {
             odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_datoteke))
         })
         // Naprave so dobile svoj zaslon: na domacem je bila to se ena vrsta kartic in je jemala
         // prostor spletnim aplikacijam, ki jih uporabnik odpira vsak dan.
-        vse.add(Zacni("naprave", R.drawable.os_ikona_link, getString(R.string.os_naprave_naslov), getString(R.string.os_link_opis)) {
+        vse.add(Zacni("naprave", R.drawable.os_ikona_link, getString(R.string.os_naprave_naslov)) {
             if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_naprave_naslov))
             else vprasajZaNacin()
         })
-        vse.add(Zacni("scit", R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() })
+        vse.add(Zacni("scit", R.drawable.os_ikona_scit, getString(R.string.os_scit)) { preklopiScit() })
         // Zaslon racunalnika: kartica se pokaze samo, kadar ga racunalnik res deli.
         if (imamoZaslon) {
-            vse.add(Zacni("zaslon", R.drawable.os_ikona_zaslon, getString(R.string.os_zaslon), getString(R.string.os_zaslon_opis)) {
+            vse.add(Zacni("zaslon", R.drawable.os_ikona_zaslon, getString(R.string.os_zaslon)) {
                 odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_zaslon))
             })
         }
         // Programi racunalnika: kartico pokazemo samo, kadar jih kaksen racunalnik res deli -
         // sicer bi obljubljala nekaj, cesar ni.
         if (imamoPrograme) {
-            vse.add(Zacni("programi", R.drawable.os_ikona_racunalnik, getString(R.string.os_programi), getString(R.string.os_programi_opis)) {
+            vse.add(Zacni("programi", R.drawable.os_ikona_racunalnik, getString(R.string.os_programi)) {
                 odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.os_programi))
             })
         }
-        vse.add(Zacni("nastavitve", R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve), getString(R.string.os_nastavitve_opis)) {
+        vse.add(Zacni("nastavitve", R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve)) {
             odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_nastavitve))
         })
 
@@ -220,7 +220,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         var zeljeni: View? = null
         for (kljuc in red) {
             val z = vse.firstOrNull { it.kljuc == kljuc } ?: continue
-            val v = dodajVeliko(z.ikona, z.naslov, z.opis, z.ob)
+            val v = dodajMalo(z.ikona, z.naslov, z.ob)
             v.tag = "zacni:" + z.kljuc
             v.setOnLongClickListener { moznostiZacni(z, red); true }
             when (z.kljuc) {
@@ -230,7 +230,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
             if (z.kljuc == fokusKljuc) zeljeni = v
         }
-        uravnajVrsto(vrstaZacni, NAJMANJSA_VELIKA_DP)
+        uravnajVrsto(vrstaZacni, NAJMANJSA_ZACNI_DP, NAJVECJA_ZACNI_DP)
         // Fokus prevzamemo samo, kadar ga nihce nima (prvi izris). Ce uporabnik ravno izbira
         // spodaj, ga racunalnik, ki se je pravkar javil, ne sme vreci nazaj gor.
         if (zeljeni != null) zeljeni.post { zeljeni.requestFocus() }
@@ -259,16 +259,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         narisiZacni(z.kljuc)
     }
 
-    /** Opisa kartic Datoteke in Safeer Link povesta, kaj je zdaj na voljo. */
-    private fun osveziKartice() {
-        karticaDatoteke?.findViewById<TextView>(R.id.opis)?.text =
-            getString(if (link.povezan) R.string.os_datoteke_opis else R.string.os_datoteke_opis_krajevno)
-        karticaLink?.findViewById<TextView>(R.id.opis)?.text = when {
-            link.povezan -> getString(R.string.os_link_opis)
-            link.jeKrajevni() -> getString(R.string.os_link_krajevni_opis)
-            else -> getString(R.string.os_link_izklopljen_opis)
-        }
-    }
+    /** Na majhnih karticah opisov ni; stanje pove samo Scit (in vrstica na vrhu zaslona). */
+    private fun osveziKartice() { }
 
     /**
      * Ce Safeer Link ne tece, uporabnik enkrat izbere: vklopi Safeer Link (naprave, datoteke z
@@ -309,10 +301,12 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
      */
     private fun pokaziScit(s: Scit.Stanje) {
         scitStanje = s
-        val opis = karticaScit?.findViewById<TextView>(R.id.opis) ?: return
+        val opis = karticaScit?.findViewById<TextView>(R.id.stanje) ?: return
+        opis.visibility = View.VISIBLE
         opis.text = when {
             !s.naVoljo -> getString(R.string.os_scit_kratko_ni)
-            s.vklopljen && s.tece -> getString(R.string.os_scit_kratko_vklopljen, s.blokiranih)
+            // Na majhni kartici je prostora za dve besedi: dolg napis se je odrezal sredi besede.
+            s.vklopljen && s.tece -> getString(R.string.os_scit_ploscica_vklopljen, s.blokiranih)
             s.vklopljen -> getString(R.string.os_scit_kratko_prekinjen)
             else -> getString(R.string.os_scit_kratko_izklopljen)
         }
@@ -383,11 +377,15 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
     }
 
-    private fun dodajVeliko(ikona: Int, naslov: String, opis: String, ob: () -> Unit): View {
-        val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_velika, vrstaZacni, false)
+    /**
+     * Kartica v vrsti Zacni: ikona in ime, brez opisa. Na zaslonu 960x540 dp so prav opisi pojedli
+     * toliko visine, da tri vrste niso sle skupaj in se je zadnja rezala. Kar je treba povedati o
+     * stanju, gre v eno kratko mint vrstico (Scit), vse ostalo pa pod zadrzan OK.
+     */
+    private fun dodajMalo(ikona: Int, naslov: String, ob: () -> Unit): View {
+        val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_mala, vrstaZacni, false)
         v.findViewById<ImageView>(R.id.ikona).setImageResource(ikona)
         v.findViewById<TextView>(R.id.naslov).text = naslov
-        v.findViewById<TextView>(R.id.opis).text = opis
         v.setOnClickListener { ob() }
         v.onFocusChangeListener = fokus
         vrstaZacni.addView(v)
@@ -416,7 +414,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         vrstaSpletne.removeAllViews()
         var zeljeni: View? = null
         for (a in SpletneAplikacije.seznam(this)) {
-            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaSpletne, false)
+            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaSpletne, false)
             v.findViewById<ImageView>(R.id.ikona).setImageDrawable(SpletneAplikacije.ikona(this, a))
             v.findViewById<TextView>(R.id.ime).text = a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }
             v.onFocusChangeListener = fokus
@@ -427,7 +425,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (a.url == fokusUrl) zeljeni = v
         }
         zeljeni?.let { it.post { it.requestFocus() } }
-        val dodaj = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaSpletne, false)
+        val dodaj = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaSpletne, false)
         dodaj.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_splet)
         dodaj.findViewById<TextView>(R.id.ime).text = getString(R.string.os_spletne_dodaj)
         dodaj.onFocusChangeListener = fokus
@@ -598,8 +596,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         val po = izbrani.mapNotNull { paket -> vsi.firstOrNull { it.paket == paket } }
         var zeljeni: View? = null
         for (a in po) {
-            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaAplikacije, false)
-            v.findViewById<ImageView>(R.id.ikona).setImageDrawable(a.ikona)
+            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
+            v.findViewById<ImageView>(R.id.ikona).setImageDrawable(Aplikacije.ikona(this, a))
             v.findViewById<TextView>(R.id.ime).text = a.ime
             v.onFocusChangeListener = fokus
             v.setOnClickListener { odpriVarno(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), a.ime) }
@@ -608,7 +606,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             vrstaAplikacije.addView(v)
             if (a.paket == fokusPaket) zeljeni = v
         }
-        val ostalo = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaAplikacije, false)
+        val ostalo = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
         ostalo.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_mreza)
         // Dokler uporabnik ni izbral nobene, kartica pove, kaj naj naredi - prazna vrsta molci.
         ostalo.findViewById<TextView>(R.id.ime).text =
@@ -701,12 +699,17 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private companion object {
         const val TAG = "SafeerOsDomov"
         /** Najmanjsa sirina kartice, pri kateri je opis se berljiv (velike kartice v vrsti Zacni). */
-        const val NAJMANJSA_VELIKA_DP = 200
+        /** Majhna kartica Zacni: sest jih gre na zaslon sirine 960 dp. */
+        /** Spletna aplikacija: stiri ploscice na zaslon. */
+        const val NAJMANJSA_SPLET_DP = 116
+        const val NAJVECJA_SPLET_DP = 140
+        const val NAJMANJSA_ZACNI_DP = 128
+        const val NAJVECJA_ZACNI_DP = 170
         /** Kje je shranjen vrstni red vrste Zacni. */
         const val KLJUC_ZACNI = "red_zacni"
         /** Kartica aplikacije: ikona in ime; pod to sirino ime ni vec berljivo. */
-        const val NAJMANJSA_APP_DP = 150
+        const val NAJMANJSA_APP_DP = 116
         /** Nad to sirino kartica aplikacije ni vec videti kot ikona, ampak kot plakat. */
-        const val NAJVECJA_APP_DP = 190
+        const val NAJVECJA_APP_DP = 140
     }
 }

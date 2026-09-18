@@ -61,6 +61,8 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var izbiramRacunalnik = false
     /** Krajevni vir: datoteke tega televizorja (MediaStore), brez Safeer Linka. */
     private var krajevni = false
+    /** Zaslon je odprt zato, da uporabnik izbere sliko (za ozadje); klik na sliko jo vrne nazaj. */
+    private var izbiramSliko = false
     private var krajevnaZbirka = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,11 +75,13 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
         sporocilo = findViewById(R.id.sporocilo)
         seznam.adapter = prilagojevalnik
         seznam.setOnItemClickListener { _, _, i, _ -> izberi(i) }
+        izbiramSliko = intent.getBooleanExtra(EXTRA_IZBERI_SLIKO, false)
+        if (izbiramSliko) sporocilo.text = getString(R.string.os_izberi_sliko)
     }
 
     override fun onStart() {
         super.onStart()
-        Tema.uporabi(this, findViewById(R.id.koren))
+        Ozadje.uporabi(this, findViewById(R.id.koren))
         link.dodaj(this)
         if (racunalnik == null) zacni()
     }
@@ -235,10 +239,82 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         when (v.vrsta) {
             "folder" -> { pot.add(Raven(v.id, v.ime)); if (krajevni) naloziKrajevno(v.id) else nalozi(v.id) }
-            "video", "audio" -> predvajaj(v)
-            "image" -> pokaziSliko(v)
-            else -> Toast.makeText(this, getString(R.string.os_datoteke_neznana_vrsta), Toast.LENGTH_SHORT).show()
+            "image" -> if (izbiramSliko) vrniSliko(v) else pokaziSliko(v)
+            "video", "audio" -> if (izbiramSliko)
+                Toast.makeText(this, getString(R.string.os_izberi_sliko), Toast.LENGTH_SHORT).show()
+                else predvajaj(v)
+            else -> odpriDrugo(v)
         }
+    }
+
+    /** Izbrano sliko vrnemo zaslonu, ki nas je odprl (Videz); prenos naredi on sam. */
+    private fun vrniSliko(v: Vnos) {
+        val namera = Intent().putExtra("lokalno", krajevni)
+        if (krajevni) namera.putExtra("url", v.id)
+        else {
+            val s = streznik ?: return
+            namera.putExtra("url", s.url(v.id))
+            val b = Bundle(); s.vBundle(b); namera.putExtras(b)
+        }
+        setResult(RESULT_OK, namera)
+        finish()
+    }
+
+    /**
+     * Datoteka, ki ni video, glasba ali slika. Besedilo (opombe, seznami, dnevniki) pokazemo kar
+     * tu - televizor zna pokazati besedilo. Vsega drugega (docx, pdf, arhiv) televizor ne zna, zna
+     * pa racunalnik: ponudimo, da jo odpre on, in - kadar deli zaslon - da jo takoj vidimo tudi na
+     * televizorju. Prej je Safeer OS samo rekel, da tega ne zna odpreti.
+     */
+    private fun odpriDrugo(v: Vnos) {
+        if (izbiramSliko) {
+            Toast.makeText(this, getString(R.string.os_izberi_sliko), Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (BesediloActivity.jeBesedilo(v.ime, v.mime)) { pokaziBesedilo(v); return }
+        if (krajevni) {
+            Toast.makeText(this, getString(R.string.os_datoteke_neznana_vrsta), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val r = racunalnik ?: return
+        val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(v.ime)
+            .setMessage(getString(R.string.os_odpri_vprasanje, r.ime.ifBlank { r.id }))
+            .setPositiveButton(getString(R.string.os_odpri_na_racunalniku)) { _, _ -> odpriNaRacunalniku(v, false) }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+        if (zaslon) okno.setNeutralButton(getString(R.string.os_odpri_in_poglej)) { _, _ -> odpriNaRacunalniku(v, true) }
+        okno.show()
+    }
+
+    private fun pokaziBesedilo(v: Vnos) {
+        val namera = Intent(this, BesediloActivity::class.java)
+            .putExtra("ime", v.ime).putExtra("lokalno", krajevni)
+        if (krajevni) namera.putExtra("url", v.id)
+        else {
+            val s = streznik ?: return
+            namera.putExtra("url", s.url(v.id))
+            val b = Bundle(); s.vBundle(b); namera.putExtras(b)
+        }
+        startActivity(namera)
+    }
+
+    /** Racunalnik odpre datoteko s svojim programom; [inPoglej] zraven odpre se zaslon racunalnika. */
+    private fun odpriNaRacunalniku(v: Vnos, inPoglej: Boolean) {
+        val r = racunalnik ?: return
+        Toast.makeText(this, getString(R.string.os_odpri_posiljam), Toast.LENGTH_SHORT).show()
+        link.ukaz(r.id, "files.open", JSONObject().put("id", v.id), 10_000, LinkOdjemalec.Odgovor { izid, napaka ->
+            if (isFinishing) return@Odgovor
+            val uspeh = izid?.optBoolean("ok") == true
+            if (!uspeh) {
+                Toast.makeText(this, getString(R.string.os_odpri_racunalnik_napaka,
+                    izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() }), Toast.LENGTH_LONG).show()
+                return@Odgovor
+            }
+            Toast.makeText(this, getString(R.string.os_odpri_poslano), Toast.LENGTH_SHORT).show()
+            if (inPoglej) startActivity(Intent(this, ZaslonActivity::class.java)
+                .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id))
+        })
     }
 
     private fun predvajaj(v: Vnos) {
@@ -334,6 +410,7 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     companion object {
         const val EXTRA_RACUNALNIK = "racunalnik"
+        const val EXTRA_IZBERI_SLIKO = "izberi_sliko"
         const val EXTRA_KRAJEVNO = "krajevno"
         private const val ZAHTEVA_DOVOLJENJA = 7321
 

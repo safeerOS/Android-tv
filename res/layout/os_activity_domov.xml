@@ -1,14 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/drsnik"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/os_ozadje">
+
+<ScrollView
+    android:id="@+id/drsnik"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
     android:background="@color/os_ozadje"
     android:fillViewport="true"
     android:scrollbars="none"
     android:clipToPadding="false"
     android:requiresFadingEdge="vertical"
-    android:fadingEdgeLength="56dp">
+    android:fadingEdgeLength="32dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -17,7 +24,7 @@
         android:paddingStart="@dimen/os_rob"
         android:paddingEnd="@dimen/os_rob"
         android:paddingTop="10dp"
-        android:paddingBottom="56dp">
+        android:paddingBottom="16dp">
 
         <!-- Glava: znak, ime, stanje Linka, ura -->
         <LinearLayout
@@ -85,7 +92,7 @@
             style="@style/Os.Nadnaslov"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="12dp"
             android:text="@string/os_odsek_zacni"/>
         <HorizontalScrollView
             android:layout_width="match_parent"
@@ -105,7 +112,7 @@
             style="@style/Os.Nadnaslov"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="14dp"
             android:text="@string/os_odsek_spletne"/>
         <HorizontalScrollView
             android:layout_width="match_parent"
@@ -125,7 +132,7 @@
             style="@style/Os.Nadnaslov"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="14dp"
             android:text="@string/os_odsek_aplikacije"/>
         <HorizontalScrollView
             android:id="@+id/aplikacijeDrsnik"
@@ -141,13 +148,35 @@
                 android:orientation="horizontal"/>
         </HorizontalScrollView>
 
-        <TextView
-            android:id="@+id/opombaSpodaj"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:textColor="@color/os_opozorilo"
-            android:textSize="13sp"
-            android:visibility="gone"/>
     </LinearLayout>
 </ScrollView>
+
+    <!-- Vrstica pomoci: kaj naredi katera tipka. Brez nje je zadrzan OK skrita funkcija. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/os_crta_zgoraj"
+        android:paddingStart="@dimen/os_rob"
+        android:paddingEnd="@dimen/os_rob"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+        <TextView style="@style/Os.Tipka" android:text="@string/os_tipka_ok"/>
+        <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_odpri"/>
+        <TextView style="@style/Os.Tipka" android:layout_marginStart="18dp" android:text="@string/os_tipka_nazaj"/>
+        <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_nazaj"/>
+        <TextView style="@style/Os.Tipka" android:layout_marginStart="18dp" android:text="@string/os_tipka_drzi_ok"/>
+        <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_uredi"/>
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+        <TextView
+            android:id="@+id/opombaSpodaj"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/os_opozorilo"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone"/>
+    </LinearLayout>
+</LinearLayout>

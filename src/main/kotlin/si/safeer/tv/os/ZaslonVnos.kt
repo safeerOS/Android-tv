@@ -63,6 +63,46 @@ object ZaslonVnos {
         KeyEvent.KEYCODE_BUTTON_R1 to "dol",
     )
 
+    /** Daljinec brez miske: kazalec se ob drzanju smerne tipke pospesuje od mirne do hitre. */
+    const val KAZALEC_ZACETNA = 5f
+    const val KAZALEC_NAJVECJA = 38f
+    const val KAZALEC_POSPESEK = 1.12f
+
+    /** Smer smerne tipke kot enotski premik; null, kadar tipka ni smerna. */
+    fun smer(koda: Int): Pair<Int, Int>? = when (koda) {
+        KeyEvent.KEYCODE_DPAD_UP -> 0 to -1
+        KeyEvent.KEYCODE_DPAD_DOWN -> 0 to 1
+        KeyEvent.KEYCODE_DPAD_LEFT -> -1 to 0
+        KeyEvent.KEYCODE_DPAD_RIGHT -> 1 to 0
+        else -> null
+    }
+
+    /** Tipke, ki preklopijo med kazalcem in tipkami; vsak daljinec ima vsaj eno od njih. */
+    fun jePreklop(koda: Int): Boolean = koda == KeyEvent.KEYCODE_MENU ||
+        koda == KeyEvent.KEYCODE_INFO || koda == KeyEvent.KEYCODE_BUTTON_START ||
+        koda == KeyEvent.KEYCODE_BUTTON_SELECT || koda == KeyEvent.KEYCODE_GUIDE
+
+    /** Gumb ali kolesce miske, prikljucene na televizor. */
+    fun izMiskinihGumbov(dogodek: MotionEvent): JSONObject? {
+        if (dogodek.source and InputDevice.SOURCE_MOUSE != InputDevice.SOURCE_MOUSE) return null
+        if (dogodek.actionMasked == MotionEvent.ACTION_SCROLL) {
+            val koliko = dogodek.getAxisValue(MotionEvent.AXIS_VSCROLL)
+            if (koliko == 0f) return null
+            return JSONObject().put("vrsta", "kolesce")
+                .put("smer", if (koliko > 0) "gor" else "dol")
+                .put("koliko", kotlin.math.abs(koliko).toInt().coerceIn(1, 5))
+        }
+        if (dogodek.actionMasked == MotionEvent.ACTION_BUTTON_PRESS) {
+            val gumb = when (dogodek.actionButton) {
+                MotionEvent.BUTTON_SECONDARY -> "desni"
+                MotionEvent.BUTTON_TERTIARY -> "srednji"
+                else -> "levi"
+            }
+            return klik(gumb)
+        }
+        return null
+    }
+
     /** Kolikor daleč gre kazalec pri polnem odklonu palice v eni stotinki sekunde. */
     const val HITROST_PALICE = 22f
     /** Pod tem odklonom palice ne stejemo - palice v mirovanju nikoli ne kazejo natanko nic. */

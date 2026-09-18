@@ -167,12 +167,7 @@
     <string name="os_programi_zagnan">%1$s démarre sur %2$s - sur l\'écran de l\'ordinateur, pas ici.</string>
     <!-- Videz (ozadje) in zaslon Naprave -->
     <string name="os_videz">Apparence</string>
-    <string name="os_videz_opis">Fond de l\'écran d\'accueil de Safeer OS</string>
-    <string name="os_tema_brez">Sans image</string>
-    <string name="os_tema_sij">Aurores boréales</string>
-    <string name="os_tema_gozd">Forêt au crépuscule</string>
-    <string name="os_tema_mesto">Ville la nuit</string>
-    <string name="os_tema_zora">Aube</string>
+    <string name="os_videz_opis">Fond d\'écran et assombrissement de l\'écran d\'accueil de Safeer OS</string>
     <string name="os_naprave_naslov">Appareils</string>
     <string name="os_naprave_datoteke">Fichiers</string>
     <string name="os_naprave_posiljanje">Envoyer</string>
@@ -212,4 +207,52 @@
     <string name="os_odpri_ni_aplikacije">l\'appli pour cela n\'est pas installée</string>
     <string name="os_odpri_ni_dovoljenja">le téléviseur ne l\'a pas permis</string>
     <string name="os_poskusi_znova">Réessayer</string>
+    <!-- Spodnja vrstica pomoci -->
+    <string name="os_tipka_ok">OK</string>
+    <string name="os_tipka_nazaj">Retour</string>
+    <string name="os_tipka_drzi_ok">Maintiens OK</string>
+    <string name="os_pomoc_odpri">Ouvrir</string>
+    <string name="os_pomoc_nazaj">Revenir</string>
+    <string name="os_pomoc_uredi">Modifier</string>
+    <string name="os_ozadje_valovi">Vagues abstraites</string>
+    <string name="os_ozadje_gore">Montagnes</string>
+    <string name="os_ozadje_gozd">Forêt brumeuse</string>
+    <string name="os_ozadje_sij">Aurores boréales</string>
+    <string name="os_ozadje_morje">Mer sombre</string>
+    <string name="os_ozadje_brez">Couleur unie</string>
+    <string name="os_ozadje_lastna">Votre photo</string>
+    <string name="os_ozadje_opis">Fond d\'écran et assombrissement de l\'écran d\'accueil de Safeer OS</string>
+    <string name="os_ozadje_izbrano">Choisi</string>
+    <string name="os_ozadje_uporabi">Utiliser cette photo</string>
+    <string name="os_ozadje_izberi_drugo">En choisir une autre</string>
+    <string name="os_ozadje_odstrani">Retirer</string>
+    <string name="os_ozadje_shranjujem">Enregistrement de l\'image…</string>
+    <string name="os_ozadje_napaka">L\'image n\'a pas pu être chargée</string>
+    <string name="os_zatemnitev">Assombrissement</string>
+    <string name="os_zatemnitev_opis">Gauche et droite modifient l\'assombrissement. Plus d\'assombrissement garde le texte lisible sur une image claire.</string>
+    <string name="os_odstotek">%1$d %%</string>
+    <string name="os_izberi_sliko">Choisissez une image pour le fond</string>
+    <string name="os_programi_kratko">Programmes</string>
+    <string name="os_scit_ploscica_vklopljen">Activé · %1$d</string>
+    <string name="os_moc">Performances</string>
+    <string name="os_moc_opis">Processeur, mémoire et espace libre — sur l\'hôte ou sur ce téléviseur</string>
+    <string name="os_moc_osvezi">Actualiser</string>
+    <string name="os_moc_zapri">Fermer</string>
+    <string name="os_moc_ime">Nom</string>
+    <string name="os_moc_sistem">Système</string>
+    <string name="os_moc_cpu">Processeur</string>
+    <string name="os_moc_ram">Mémoire</string>
+    <string name="os_moc_disk">Stockage</string>
+    <string name="os_moc_berem">Vérification…</string>
+    <string name="os_zaslon_nacin_kazalec">Pointeur · les flèches déplacent la souris, OK clique, OK long = clic droit · Menu bascule sur les touches · maintenez Retour pour quitter</string>
+    <string name="os_zaslon_nacin_tipke">Touches · les flèches et OK vont à l\'ordinateur comme touches · Menu bascule sur le pointeur · maintenez Retour pour quitter</string>
+    <string name="os_besedilo_napaka">Le fichier n\'a pas pu être lu.</string>
+    <string name="os_besedilo_prevelika">Fichier long — seul le début est affiché.</string>
+    <string name="os_besedilo_pomoc">Bas/Haut font défiler · Retour ferme</string>
+    <string name="os_odpri_vprasanje">Ce téléviseur ne peut pas ouvrir ce fichier, mais %1$s le peut.</string>
+    <string name="os_odpri_na_racunalniku">Ouvrir sur l\'ordinateur</string>
+    <string name="os_odpri_in_poglej">Ouvrir et regarder ici</string>
+    <string name="os_odpri_posiljam">Envoi à l\'ordinateur…</string>
+    <string name="os_odpri_poslano">Le fichier s\'ouvre sur l\'ordinateur</string>
+    <string name="os_odpri_racunalnik_napaka">Impossible à ouvrir : %1$s</string>
 </resources>

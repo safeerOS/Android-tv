@@ -43,7 +43,7 @@ class AplikacijeTvActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        Tema.uporabi(this, findViewById(R.id.koren))
+        Ozadje.uporabi(this, findViewById(R.id.koren))
         narisi()
     }
 
@@ -99,7 +99,8 @@ class AplikacijeTvActivity : Activity() {
                 .inflate(R.layout.os_kartica_program, roditelj, false)
             val a = vnosi[i]
             val ikona = v.findViewById<ImageView>(R.id.ikona)
-            if (a.ikona != null) ikona.setImageDrawable(a.ikona) else ikona.setImageResource(R.drawable.os_ikona_mreza)
+            val risba = Aplikacije.ikona(this@AplikacijeTvActivity, a)
+            if (risba != null) ikona.setImageDrawable(risba) else ikona.setImageResource(R.drawable.os_ikona_mreza)
             // Zvezdica pove, da je aplikacija na domacem zaslonu; z dveh metrov je vidna takoj.
             v.findViewById<TextView>(R.id.ime).text =
                 if (Priljubljene.je(this@AplikacijeTvActivity, a.paket)) "★ " + a.ime else a.ime

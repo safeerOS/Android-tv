@@ -32,6 +32,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private lateinit var pogled: SurfaceView
     private lateinit var sporocilo: TextView
     private lateinit var meritve: TextView
+    private lateinit var namig: TextView
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private var odjemalec: ZaslonOdjemalec? = null
@@ -44,6 +45,17 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var prosim = false
     private var odklon: Pair<Float, Float>? = null
     private var palicaTece = false
+    /**
+     * Daljinec ima samo smerne tipke in OK. Namizje racunalnika pa je narejeno za misko, zato
+     * privzeto smerne tipke premikajo **kazalec** (pospesujejo se, dokler tipko drzis), OK klikne,
+     * dolg OK je desni klik. Kdor upravlja program, ki se ravna po tipkah (predvajalnik, meni),
+     * preklopi na tipke z Meni/Info na daljincu ali Start na ploscku.
+     */
+    private var kazalec = true
+    private var smer: Pair<Int, Int>? = null
+    private var hitrost = ZaslonVnos.KAZALEC_ZACETNA
+    private var smerTece = false
+    private var okDrzan = false
     private var namigPokazan = false
     private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -54,6 +66,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         pogled = findViewById(R.id.povrsina)
         sporocilo = findViewById(R.id.sporocilo)
         meritve = findViewById(R.id.meritve)
+        namig = findViewById(R.id.namig)
         // Vedno najboljse, kar zmore racunalnik: uporabniku ni treba izbirati med kakovostmi,
         // ker za nizjo ni razloga - meritve kazejo, da ostrejsa slika skoraj nic ne stane.
         kakovost = intent.getStringExtra(EXTRA_KAKOVOST) ?: "najvisja"
@@ -164,6 +177,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                                 namigPokazan = true
                                 Toast.makeText(this, getString(R.string.os_zaslon_namig), Toast.LENGTH_LONG).show()
                             }
+                            // Napis o upravljanju: kaj delajo tipke zdaj, in kako se preklopi.
+                            pokaziNamig()
                         }
                         // Prekinjena povezava ni konec seje: enkrat poskusimo znova, sele nato
                         // uporabnika vrnemo nazaj - zamrznjena slika je najslabsi mozni izid.
@@ -227,6 +242,16 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Glasnost pusti televizorju: uporabnik jo pricakuje tam, kjer je zvok.
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
             keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) return super.onKeyDown(keyCode, event)
+        if (ZaslonVnos.jePreklop(keyCode)) { preklopiNacin(); return true }
+        if (kazalec) {
+            // V nacinu kazalca smerne tipke vodijo misko, OK pa klika (dolg OK desni klik).
+            val s = ZaslonVnos.smer(keyCode)
+            if (s != null) { zacniSmer(s); return true }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+                if (event?.repeatCount == 0) { okDrzan = true; event.startTracking() }
+                return true
+            }
+        }
         val dogodek = ZaslonVnos.izTipke(keyCode, event) ?: return super.onKeyDown(keyCode, event)
         odjemalec?.posljiVnos(dogodek)
         return true
@@ -234,6 +259,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) { koncaj(); finish(); return true }
+        if (kazalec && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A)) {
+            okDrzan = false
+            odjemalec?.posljiVnos(ZaslonVnos.klik("desni"))
+            return true
+        }
         return super.onKeyLongPress(keyCode, event)
     }
 
@@ -244,12 +274,66 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
             return true
         }
+        if (kazalec) {
+            if (ZaslonVnos.smer(keyCode) != null) { ustaviSmer(); return true }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
+                if (okDrzan) { okDrzan = false; odjemalec?.posljiVnos(ZaslonVnos.klik("levi")) }
+                return true
+            }
+        }
         return super.onKeyUp(keyCode, event)
+    }
+
+    /** Preklop med kazalcem in tipkami; uporabnik takoj vidi, kaj zdaj delajo tipke. */
+    private fun preklopiNacin() {
+        ustaviSmer()
+        kazalec = !kazalec
+        pokaziNamig()
+    }
+
+    /** Namig o upravljanju: pokaze se ob zacetku seje in ob preklopu, nato sam izgine. */
+    private fun pokaziNamig() {
+        namig.text = getString(
+            if (kazalec) R.string.os_zaslon_nacin_kazalec else R.string.os_zaslon_nacin_tipke)
+        namig.visibility = View.VISIBLE
+        glavna.removeCallbacks(skrijNamig)
+        glavna.postDelayed(skrijNamig, 6_000)
+    }
+
+    private val skrijNamig = Runnable { namig.visibility = View.GONE }
+
+    /**
+     * Drzanje smerne tipke premika kazalec: zacne pocasi (da zadenes gumb) in se pospesuje, dokler
+     * tipko drzis. Brez pospeska je pot cez zaslon predolga, s samo hitrim premikom pa se ne da
+     * natancno zadeti.
+     */
+    private fun zacniSmer(nova: Pair<Int, Int>) {
+        if (smer == nova) return
+        smer = nova
+        hitrost = ZaslonVnos.KAZALEC_ZACETNA
+        if (smerTece) return
+        smerTece = true
+        glavna.post(object : Runnable {
+            override fun run() {
+                val s = smer
+                if (s == null || isFinishing || koncujem) { smerTece = false; return }
+                ZaslonVnos.premik((s.first * hitrost).toInt(), (s.second * hitrost).toInt())
+                    ?.let { odjemalec?.posljiVnos(it) }
+                hitrost = (hitrost * ZaslonVnos.KAZALEC_POSPESEK).coerceAtMost(ZaslonVnos.KAZALEC_NAJVECJA)
+                glavna.postDelayed(this, 16)
+            }
+        })
+    }
+
+    private fun ustaviSmer() {
+        smer = null
+        hitrost = ZaslonVnos.KAZALEC_ZACETNA
     }
 
     /** Miska, prikljucena na televizor, in leva palica igralnega plosecka. */
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         ZaslonVnos.izMiske(event)?.let { odjemalec?.posljiVnos(it); return true }
+        ZaslonVnos.izMiskinihGumbov(event)?.let { odjemalec?.posljiVnos(it); return true }
         val palica = ZaslonVnos.izPalice(event)
         if (palica != null) { odklon = palica; zazeniPalico(); return true }
         if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK) {

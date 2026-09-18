@@ -52,7 +52,7 @@ class NapraveActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
-        Tema.uporabi(this, koren)
+        Ozadje.uporabi(this, koren)
         link.dodaj(this)
         narisi(link.naprave)
     }

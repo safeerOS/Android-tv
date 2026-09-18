@@ -98,6 +98,22 @@ object HostPodatki {
         return String.format("%.0f MB", bajti / 1024.0 / 1024.0)
     }
 
+    /**
+     * Podrobnosti za svoje okno: vsak podatek v svojo vrstico. Prej je bila vse ena sama vrstica
+     * na dnu nastavitev - dolga, odrezana in tik ob drugih moznostih.
+     */
+    fun podrobnosti(context: Context, p: Podatki): String {
+        val vrstice = ArrayList<String>()
+        vrstice.add(context.getString(R.string.os_moc_ime) + ": " +
+            (if (p.jeTelevizor) context.getString(R.string.os_host_ta_televizor, p.ime)
+             else context.getString(R.string.os_host_racunalnik, p.ime)))
+        if (p.sistem.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_sistem) + ": " + p.sistem)
+        if (p.cpu.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_cpu) + ": " + p.cpu)
+        if (p.ram.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_ram) + ": " + p.ram)
+        if (p.disk.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_disk) + ": " + p.disk)
+        return vrstice.joinToString("\n")
+    }
+
     /** Ena vrstica za nastavitve. */
     fun vrstica(context: Context, p: Podatki): String {
         val deli = ArrayList<String>()

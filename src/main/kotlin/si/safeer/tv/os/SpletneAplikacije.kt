@@ -40,7 +40,7 @@ object SpletneAplikacije {
     private const val PREFS = "safeer_os"
     private const val KLJUC = "spletne_aplikacije"
     private const val KLJUC_PREVZETO = "spletne_prevzete"
-    private const val KLJUC_IKONE = "spletne_ikone_ostro"
+    private const val KLJUC_IKONE = "spletne_ikone_ostro4"
     private const val NAJVEC = 24
 
     data class Aplikacija(
@@ -206,12 +206,18 @@ object SpletneAplikacije {
         ozadje.execute {
             var spremenjenih = 0
             for (a in seznam(app)) {
-                val sirina = try {
-                    val m = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    if (a.ikona.isNotEmpty()) BitmapFactory.decodeFile(a.ikona, m)
-                    m.outWidth
+                // Merimo logotip, ne datoteke: ikona je lahko velika slika z drobnim logotipom
+                // sredi belega roba (YouTube). Sele porezan rob pove, koliko logotipa res imamo.
+                val vsebina = try {
+                    if (a.ikona.isEmpty()) 0 else {
+                        val slika = BitmapFactory.decodeFile(a.ikona)
+                        if (slika == null) 0 else {
+                            val porezana = poreziRob(brezBelega(poreziRob(slika)))
+                            minOf(porezana.width, porezana.height)
+                        }
+                    }
                 } catch (_: Throwable) { 0 }
-                if (sirina >= NAJVECJA_IKONA_PX / 2) continue
+                if (vsebina >= DOVOLJ_OSTRA) continue
                 val podatki = try { preberiManifest(app, a.url) } catch (e: Throwable) { Log.w(TAG, "Ikona: ${e.message}"); null } ?: continue
                 if (podatki.ikona.isEmpty()) continue
                 shrani(app, seznam(app).map {
@@ -260,37 +266,180 @@ object SpletneAplikacije {
      */
     fun ikonaIzSlike(c: Context, slika: Bitmap): Drawable = BitmapDrawable(c.resources, oblikuj(c, slika))
 
+    /** Kolikokrat najvec smemo povecati sliko, preden postane mehka. */
+    private const val NAJVEC_POVECAVA = 2.2f
+
     /** Stranica oblikovane ikone v pikah (kartica ji da 92dp visine). */
     private fun stranica(c: Context): Int = (c.resources.displayMetrics.density * 92).toInt().coerceAtLeast(92)
 
+    /**
+     * Poreze prazen rob okrog logotipa: veliko strani da ikono z debelim belim (ali prozornim)
+     * robom v sami sliki. Ce takega roba ne odrezemo, logotip na nasi ploscici obvisi majhen
+     * sredi prazne ploskve - prav to se je videlo pri YouTubu. Rezemo samo enakomeren rob;
+     * kadar ni kaj rezati, vrnemo izvirnik.
+     */
+    private fun poreziRob(vir: Bitmap): Bitmap {
+        val s = vir.width
+        val v = vir.height
+        if (s < 8 || v < 8) return vir
+        val piksli = try { IntArray(s * v).also { vir.getPixels(it, 0, s, 0, 0, s, v) } } catch (_: Throwable) { return vir }
+        // Barva roba: povprecje stirih vogalov. Ce se vogali med seboj razlikujejo, roba ni.
+        val vogali = intArrayOf(piksli[0], piksli[s - 1], piksli[(v - 1) * s], piksli[v * s - 1])
+        val prozorni = vogali.all { Color.alpha(it) < 24 }
+        if (!prozorni) {
+            for (i in 1 until 4) if (razlika(vogali[0], vogali[i]) > 24) return vir
+        }
+        val rob = vogali[0]
+        fun jeRob(p: Int): Boolean =
+            if (prozorni) Color.alpha(p) < 24 else (Color.alpha(p) > 24 && razlika(p, rob) <= 24)
+        var levo = 0; var desno = s - 1; var zgoraj = 0; var spodaj = v - 1
+        while (levo < desno && (0 until v).all { jeRob(piksli[it * s + levo]) }) levo++
+        while (desno > levo && (0 until v).all { jeRob(piksli[it * s + desno]) }) desno--
+        while (zgoraj < spodaj && (0 until s).all { jeRob(piksli[zgoraj * s + it]) }) zgoraj++
+        while (spodaj > zgoraj && (0 until s).all { jeRob(piksli[spodaj * s + it]) }) spodaj--
+        val sirina = desno - levo + 1
+        val visina = spodaj - zgoraj + 1
+        if (sirina < 8 || visina < 8) return vir
+        // Manj kot desetino nima smisla rezati; vec kot to pa logotipu res vrne velikost.
+        if (sirina > s * 0.92f && visina > v * 0.92f) return vir
+        return try { Bitmap.createBitmap(vir, levo, zgoraj, sirina, visina) } catch (_: Throwable) { vir }
+    }
+
+    /** Groba razdalja med barvama (0-255), dovolj za prepoznavanje enakomernega roba. */
+    private fun razlika(a: Int, b: Int): Int = maxOf(
+        Math.abs(Color.red(a) - Color.red(b)),
+        Math.abs(Color.green(a) - Color.green(b)),
+        Math.abs(Color.blue(a) - Color.blue(b)))
+
     /** Iz poljubne slike naredi ikono aplikacije: zaobljen kvadrat, vedno enako velik. */
-    private fun oblikuj(c: Context, vir: Bitmap): Bitmap {
+    private fun oblikuj(c: Context, izvirnik: Bitmap): Bitmap {
+        val vir = poreziRob(brezBelega(poreziRob(izvirnik)))
         val s = stranica(c)
         val r = s * 0.22f
+        val maska = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; isFilterBitmap = true; isDither = true }
+        val risba = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true; isDither = true }
+        // Sirok logotip brez plosce (YouTube) naj zasede vso sirino ploscice: kadar ga vrnemo v
+        // kvadratu, ga kartica pomanjsa na visino in je videti drobcen. Zato takrat vrnemo sliko v
+        // razmerju logotipa - le ce je dovolj velika, da je povecava ne zmehca.
+        val siroko = !polnaSlika(vir) && maxOf(vir.width, vir.height) >= s * 0.6f &&
+            svetlostLogotipa(vir) >= 0.10f
+        if (siroko) {
+            val merilo = s / maxOf(vir.width, vir.height).toFloat()
+            val sir = maxOf(1, (vir.width * merilo).toInt())
+            val vis = maxOf(1, (vir.height * merilo).toInt())
+            return try { Bitmap.createScaledBitmap(vir, sir, vis, true) } catch (_: Throwable) { vir }
+        }
         val izhod = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
         val platno = Canvas(izhod)
         val cel = RectF(0f, 0f, s.toFloat(), s.toFloat())
         if (polnaSlika(vir)) {
             // Ikona sama je ze plosca (poln kvadrat): samo zaoblimo robove, nic ne dodajamo.
-            val maska = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; isFilterBitmap = true; isDither = true }
-            platno.drawRoundRect(cel, r, r, maska)
-            maska.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
-            platno.drawBitmap(vir, null, cel, maska)
+            // Drobne ikone (favicon) ne raztegujemo cez ves kvadrat - raztegnjen favicon je prav
+            // tisto zamegljeno, kar je uporabnik videl; raje jo pustimo manjso in ostro.
+            val najvec = minOf(vir.width, vir.height) * NAJVEC_POVECAVA
+            if (najvec >= s) {
+                platno.drawRoundRect(cel, r, r, maska)
+                maska.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+                platno.drawBitmap(vir, null, cel, maska)
+            } else {
+                val merilo = najvec / maxOf(vir.width, vir.height)
+                platno.drawBitmap(vir, null, sredina(s, vir, merilo), risba)
+            }
         } else {
-            // Logotip na prozornem (ali siroka slika): plosca v barvi strani in zrak naokoli.
-            val ozadje = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = plosca(vir) }
-            platno.drawRoundRect(cel, r, r, ozadje)
-            val rob = s * 0.16f
+            // Logotip na prozornem: brez plosce - na domacem zaslonu naj lebdi kot ikona na
+            // telefonu. Ploscico dobi samo logotip, ki je pretemen za temno ozadje; mocna barva
+            // (rdeca YouTubova) je na crnini dovolj vidna in plosce ne potrebuje.
+            val svetlost = svetlostLogotipa(vir)
+            val rob: Float
+            if (svetlost < 0.10f) {
+                val ozadje = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = plosca(vir) }
+                platno.drawRoundRect(cel, r, r, ozadje)
+                rob = s * 0.16f
+            } else {
+                rob = s * 0.05f
+            }
             val prostor = s - 2 * rob
-            val merilo = minOf(prostor / vir.width, prostor / vir.height)
-            val sir = vir.width * merilo
-            val vis = vir.height * merilo
-            val levo = (s - sir) / 2f
-            val zgoraj = (s - vis) / 2f
-            platno.drawBitmap(vir, null, RectF(levo, zgoraj, levo + sir, zgoraj + vis),
-                Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true; isDither = true })
+            // Logotipa ne povecujemo cez mero: majhen, a oster je boljsi od velikega in mehkega.
+            // Cisto drobcen pa tudi ne sme ostati - takrat ga raje malo povecamo, da ga je sploh
+            // videti; prava resitev (vecja ikona s strani) je zgoraj, pri iskanju kandidatov.
+            val najvecjaStran = maxOf(vir.width, vir.height).toFloat()
+            val merilo = minOf(prostor / vir.width, prostor / vir.height,
+                maxOf(NAJVEC_POVECAVA, s * 0.62f / najvecjaStran))
+            platno.drawBitmap(vir, null, sredina(s, vir, merilo), risba)
         }
         return izhod
+    }
+
+    /** Pravokotnik na sredini kvadrata stranice [s] za sliko [vir] v merilu [merilo]. */
+    private fun sredina(s: Int, vir: Bitmap, merilo: Float): RectF {
+        val sir = vir.width * merilo
+        val vis = vir.height * merilo
+        val levo = (s - sir) / 2f
+        val zgoraj = (s - vis) / 2f
+        return RectF(levo, zgoraj, levo + sir, zgoraj + vis)
+    }
+
+    /**
+     * Belo ozadje ikone postane prozorno. Mnogo strani in aplikacij da logotip na belo ploscico;
+     * na temnem domacem zaslonu je taka ploscica svetel kvadrat, ki krici bolj kot logotip sam.
+     * Pobrisemo samo belino, ki se drzi roba slike - beline znotraj logotipa se ne dotaknemo.
+     */
+    private fun brezBelega(vir: Bitmap): Bitmap {
+        val s = vir.width
+        val v = vir.height
+        if (s < 8 || v < 8 || s.toLong() * v > 1_200_000L) return vir
+        val piksli = try { IntArray(s * v).also { vir.getPixels(it, 0, s, 0, 0, s, v) } } catch (_: Throwable) { return vir }
+        fun jeBelo(p: Int): Boolean {
+            if (Color.alpha(p) < 24) return true
+            val r = Color.red(p); val g = Color.green(p); val b = Color.blue(p)
+            return r > 232 && g > 232 && b > 232 && maxOf(r, g, b) - minOf(r, g, b) < 14
+        }
+        // Zacnemo pri robu; ce rob ni bel, ni kaj brisati.
+        val sklad = ArrayDeque<Int>()
+        val obiskano = BooleanArray(s * v)
+        fun dodaj(i: Int) { if (!obiskano[i] && jeBelo(piksli[i])) { obiskano[i] = true; sklad.addLast(i) } }
+        for (x in 0 until s) { dodaj(x); dodaj((v - 1) * s + x) }
+        for (y in 0 until v) { dodaj(y * s); dodaj(y * s + s - 1) }
+        if (sklad.isEmpty()) return vir
+        var pobrisanih = 0
+        while (sklad.isNotEmpty()) {
+            val i = sklad.removeLast()
+            piksli[i] = 0
+            pobrisanih++
+            val x = i % s
+            val y = i / s
+            if (x > 0) dodaj(i - 1)
+            if (x < s - 1) dodaj(i + 1)
+            if (y > 0) dodaj(i - s)
+            if (y < v - 1) dodaj(i + s)
+        }
+        // Ce je od slike ostalo premalo, je bila najbrz vsa bela: pustimo izvirnik pri miru.
+        if (pobrisanih > s * v * 0.97f) return vir
+        return try {
+            Bitmap.createBitmap(s, v, Bitmap.Config.ARGB_8888).also { it.setPixels(piksli, 0, s, 0, 0, s, v) }
+        } catch (_: Throwable) { vir }
+    }
+
+    /** Povprecna svetlost neprozornih pik (0-1); pove, ali bi se logotip zlil s temnim ozadjem. */
+    private fun svetlostLogotipa(b: Bitmap): Float {
+        val korak = maxOf(1, minOf(b.width, b.height) / 48)
+        var vsota = 0.0
+        var stevec = 0
+        var x = 0
+        while (x < b.width) {
+            var y = 0
+            while (y < b.height) {
+                val p = b.getPixel(x, y)
+                if (Color.alpha(p) > 128) {
+                    vsota += (0.2126 * Color.red(p) + 0.7152 * Color.green(p) + 0.0722 * Color.blue(p)) / 255.0
+                    stevec++
+                }
+                y += korak
+            }
+            x += korak
+        }
+        if (stevec == 0) return 1f
+        return (vsota / stevec).toFloat()
     }
 
     /**
@@ -391,14 +540,23 @@ object SpletneAplikacije {
         var ime = Regex("<title[^>]*>([^<]{1,80})", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1)?.trim().orEmpty()
         var barva = Regex("""<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
             .find(html)?.groupValues?.get(1)?.trim().orEmpty()
-        var ikonaUrl = ""
+
+        // Ikono iscemo med vsemi, ki jih stran ponuja, in vzamemo najvecjo: na televizorju je
+        // kartica velika in 32-pikslovni favicon je na njej takoj videti zamegljen (prav to je
+        // bilo videti pri YouTubu). Kandidate uredimo po napovedani velikosti in jih prenesemo,
+        // dokler ne dobimo dovolj ostre.
+        val kandidati = ArrayList<Pair<String, Int>>()
 
         val manifestPot = Regex("""<link[^>]+rel=["'][^"']*manifest[^"']*["'][^>]+href=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
             .find(html)?.groupValues?.get(1)
             ?: Regex("""<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*manifest[^"']*["']""", RegexOption.IGNORE_CASE)
                 .find(html)?.groupValues?.get(1)
-        if (manifestPot != null) {
-            val manifestUrl = razresi(url, manifestPot)
+        // Kadar stran manifesta ne navede (YouTube ga na /tv ne), poskusimo obicajni poti:
+        // veliko strani ima manifest tam, v njem pa ikone 192 in 512 px.
+        val manifestPoti = listOfNotNull(manifestPot, "/manifest.json", "/site.webmanifest")
+        for (mp in manifestPoti) {
+            if (kandidati.isNotEmpty()) break
+            val manifestUrl = razresi(url, mp)
             try {
                 k.newCall(Request.Builder().url(manifestUrl).header("User-Agent", UA).build()).execute().use { o ->
                     if (o.isSuccessful) {
@@ -408,62 +566,128 @@ object SpletneAplikacije {
                         val mBarva = m.optString("theme_color").ifBlank { m.optString("background_color") }
                         if (mBarva.isNotBlank()) barva = mBarva
                         val ikone = m.optJSONArray("icons")
-                        if (ikone != null) {
-                            var najboljsa = ""; var najvecja = 0
-                            for (i in 0 until ikone.length()) {
-                                val o2 = ikone.optJSONObject(i) ?: continue
-                                val src = o2.optString("src"); if (src.isBlank()) continue
-                                val velikost = o2.optString("sizes").split(" ", "x").mapNotNull { it.toIntOrNull() }.maxOrNull() ?: 0
-                                // Vzamemo najvecjo razumno: kartica na televizorju je velika,
-                                // premajhna ikona pa je na njej takoj videti zamegljena.
-                                if (najboljsa.isEmpty() || (velikost in (najvecja + 1)..1024)) { najboljsa = src; najvecja = velikost }
-                            }
-                            if (najboljsa.isNotEmpty()) ikonaUrl = razresi(manifestUrl, najboljsa)
+                        if (ikone != null) for (i in 0 until ikone.length()) {
+                            val o2 = ikone.optJSONObject(i) ?: continue
+                            val src = o2.optString("src"); if (src.isBlank()) continue
+                            // SVG televizor ne odkodira; preskocimo ga, da ne zapravimo poskusa.
+                            if (src.substringBefore('?').endsWith(".svg", true)) continue
+                            val velikost = o2.optString("sizes").split(" ", "x").mapNotNull { it.toIntOrNull() }.maxOrNull() ?: 0
+                            kandidati.add(razresi(manifestUrl, src) to velikost)
                         }
                     }
                 }
             } catch (e: Throwable) { Log.w(TAG, "Manifesta ni bilo mogoce prebrati: ${e.message}") }
         }
-        if (ikonaUrl.isEmpty()) {
-            val apple = Regex("""<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]+href=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
-                .find(html)?.groupValues?.get(1)
-            ikonaUrl = if (apple != null) razresi(url, apple) else razresi(url, "/favicon.ico")
+
+        // Vse <link rel="... icon ...">: apple-touch-icon je navadno 180 px, "icon" pa ima velikost
+        // zapisano v sizes. Kar nima velikosti, damo na konec vrste.
+        kandidati.addAll(ikoneIzHtml(html, url))
+
+        // Podstrani (youtube.com/tv) ikon pogosto ne navedejo, korenska stran pa jih. Kadar doslej
+        // nismo nasli nic dovolj velikega, pogledamo se koren iste strani - nikamor drugam.
+        if (kandidati.none { it.second >= DOVOLJ_OSTRA }) {
+            val koren = razresi(url, "/")
+            if (koren != url) {
+                try {
+                    k.newCall(Request.Builder().url(koren).header("User-Agent", UA).build()).execute().use { o ->
+                        if (o.isSuccessful) kandidati.addAll(ikoneIzHtml(besedilo(o, NAJVEC_HTML), koren))
+                    }
+                } catch (e: Throwable) { Log.w(TAG, "Korenske strani ni bilo mogoce prebrati: ${e.message}") }
+            }
         }
-        val pot = prenesiIkono(c, k, ikonaUrl, url)
+        kandidati.add(razresi(url, "/apple-touch-icon.png") to 180)
+        kandidati.add(razresi(url, "/favicon.ico") to 0)
+
+        val (pot, ikonaUrl) = prenesiNajboljso(c, k, kandidati, url)
         ime = ime.replace(Regex("\\s+"), " ").take(40)
         return Podatki(ime, pot, barva, ikonaUrl)
     }
 
+    /** Ikone, ki jih stran navede v <link rel="... icon ...">, z napovedano velikostjo. */
+    private fun ikoneIzHtml(html: String, osnova: String): List<Pair<String, Int>> {
+        val najdene = ArrayList<Pair<String, Int>>()
+        for (u in Regex("""<link[^>]+>""", RegexOption.IGNORE_CASE).findAll(html).map { it.value }) {
+            val rel = Regex("""rel=["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(u)?.groupValues?.get(1)?.lowercase() ?: continue
+            if (!rel.contains("icon")) continue
+            val href = Regex("""href=["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(u)?.groupValues?.get(1) ?: continue
+            // SVG televizor ne odkodira; preskocimo ga, da ne zapravimo poskusa.
+            if (href.substringBefore('?').endsWith(".svg", true)) continue
+            val velikost = Regex("""sizes=["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(u)?.groupValues?.get(1)
+                ?.split(" ", "x")?.mapNotNull { it.toIntOrNull() }?.maxOrNull()
+                ?: if (rel.contains("apple-touch")) 180 else 0
+            najdene.add(razresi(osnova, href) to velikost)
+        }
+        return najdene
+    }
+
     private fun razresi(osnova: String, pot: String): String = try { URL(URL(osnova), pot).toString() } catch (_: Throwable) { pot }
 
-    private fun prenesiIkono(c: Context, k: OkHttpClient, ikonaUrl: String, stranUrl: String): String {
-        if (ikonaUrl.isBlank()) return ""
+    /**
+     * Prenese kandidate po vrsti (najvecji napovedani najprej) in obdrzi najostrejso sliko, ki jo
+     * dobi. Ustavi se takoj, ko je ena dovolj velika za kartico na televizorju; tako v najboljsem
+     * primeru prenesemo eno samo datoteko.
+     */
+    private fun prenesiNajboljso(c: Context, k: OkHttpClient, kandidati: List<Pair<String, Int>>, stranUrl: String): Pair<String, String> {
+        val urejeni = kandidati.distinctBy { it.first }.sortedByDescending { it.second }
+        var najboljsa: Bitmap? = null
+        var najboljsiUrl = ""
+        var najboljsaStran = 0
+        var poskusov = 0
+        for ((u, _) in urejeni) {
+            if (poskusov >= NAJVEC_POSKUSOV) break
+            poskusov++
+            val slika = prenesiSliko(k, u) ?: continue
+            // Steje logotip, ne platno: velika bela slika z drobnim znakom je slabsa od manjse,
+            // ki je vsa logotip.
+            val stran = try {
+                val vsebina = poreziRob(brezBelega(poreziRob(slika)))
+                minOf(vsebina.width, vsebina.height)
+            } catch (_: Throwable) { minOf(slika.width, slika.height) }
+            if (stran > najboljsaStran) {
+                najboljsa?.recycle(); najboljsa = slika; najboljsiUrl = u; najboljsaStran = stran
+            } else slika.recycle()
+            if (stran >= DOVOLJ_OSTRA) break
+        }
+        val zmagovalka = najboljsa ?: return "" to ""
+        val pot = shraniIkono(c, zmagovalka, stranUrl)
+        return pot to najboljsiUrl
+    }
+
+    private fun prenesiSliko(k: OkHttpClient, ikonaUrl: String): Bitmap? {
+        if (ikonaUrl.isBlank()) return null
         return try {
             k.newCall(Request.Builder().url(ikonaUrl).header("User-Agent", UA).build()).execute().use { o ->
-                if (!o.isSuccessful) return ""
+                if (!o.isSuccessful) return null
                 // Beremo z omejitvijo: televizor ima malo pomnilnika in ikona s spleta je lahko karkoli.
-                val bajti = bajti(o, NAJVEC_IKONA) ?: return ""
+                val bajti = bajti(o, NAJVEC_IKONA) ?: return null
                 // Najprej samo mere, sele nato dekodiranje v velikosti, ki jo res potrebujemo.
                 val mere = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(bajti, 0, bajti.size, mere)
-                if (mere.outWidth <= 0 || mere.outHeight <= 0) return ""
-                if (mere.outWidth > 4096 || mere.outHeight > 4096) return ""
+                if (mere.outWidth <= 0 || mere.outHeight <= 0) return null
+                if (mere.outWidth > 4096 || mere.outHeight > 4096) return null
                 val moznosti = BitmapFactory.Options().apply {
                     inSampleSize = vzorec(mere.outWidth, mere.outHeight, NAJVECJA_IKONA_PX)
                 }
-                val slika = BitmapFactory.decodeByteArray(bajti, 0, bajti.size, moznosti) ?: return ""
-                // Na televizorju je kartica velika, zato ikono hranimo v vecji locljivosti: prej smo
-                // jo zmanjsali na 256 px in je bila na zaslonu videti zamegljena.
-                val stran = if (slika.width > NAJVECJA_IKONA_PX)
-                    Bitmap.createScaledBitmap(slika, NAJVECJA_IKONA_PX, NAJVECJA_IKONA_PX * slika.height / slika.width, true)
-                else slika
-                val mapa = File(c.applicationContext.filesDir, "os/ikone").apply { mkdirs() }
-                val datoteka = File(mapa, Integer.toHexString(stranUrl.trimEnd('/').hashCode()) + ".png")
-                datoteka.outputStream().use { stran.compress(Bitmap.CompressFormat.PNG, 100, it) }
-                datoteka.absolutePath
+                BitmapFactory.decodeByteArray(bajti, 0, bajti.size, moznosti)
             }
-        } catch (e: Throwable) { Log.w(TAG, "Ikone ni bilo mogoce prenesti: ${e.message}"); "" }
+        } catch (e: Throwable) { Log.w(TAG, "Ikone ni bilo mogoce prenesti: ${e.message}"); null }
     }
+
+    private fun shraniIkono(c: Context, slika: Bitmap, stranUrl: String): String = try {
+        // Na televizorju je kartica velika, zato ikono hranimo v vecji locljivosti; vecje od
+        // zaslona pa je ne potrebujemo.
+        val stran = if (slika.width > NAJVECJA_IKONA_PX)
+            Bitmap.createScaledBitmap(slika, NAJVECJA_IKONA_PX, NAJVECJA_IKONA_PX * slika.height / slika.width, true)
+        else slika
+        val mapa = File(c.applicationContext.filesDir, "os/ikone").apply { mkdirs() }
+        val datoteka = File(mapa, Integer.toHexString(stranUrl.trimEnd('/').hashCode()) + ".png")
+        datoteka.outputStream().use { stran.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        datoteka.absolutePath
+    } catch (e: Throwable) { Log.w(TAG, "Ikone ni bilo mogoce shraniti: ${e.message}"); "" }
+
+    /** Toliko pik je dovolj, da je ikona na kartici ostra; manjso se poskusimo izboljsati. */
+    private const val DOVOLJ_OSTRA = 192
+    private const val NAJVEC_POSKUSOV = 4
 
     /** Koliko najvec preberemo: dovolj za pravo stran, premalo, da bi nam kdo napolnil pomnilnik. */
     private const val NAJVEC_HTML = 200_000

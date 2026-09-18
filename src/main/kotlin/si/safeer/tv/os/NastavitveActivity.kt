@@ -29,10 +29,12 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
     private lateinit var koren: View
     private lateinit var seznam: ListView
     private lateinit var opomba: TextView
-    private lateinit var hostVrstica: TextView
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private var vrstice: List<Vrstica> = emptyList()
     private var hostVPreverjanju = false
+    /** Zadnji prebrani podatki o moci; okno s podrobnostmi jih pokaze brez novega cakanja. */
+    private var moc: HostPodatki.Podatki? = null
+    private var mocOdprta = false
     private val prilagojevalnik = Prilagojevalnik()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,15 +44,13 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
         seznam = findViewById(R.id.seznam)
         opomba = findViewById(R.id.opomba)
         opomba.text = getString(R.string.os_nastavitve_opomba)
-        hostVrstica = findViewById(R.id.hostVrstica)
-        hostVrstica.text = getString(R.string.os_host_berem)
         seznam.adapter = prilagojevalnik
         seznam.setOnItemClickListener { _, _, i, _ -> vrstice.getOrNull(i)?.ob?.invoke() }
     }
 
     override fun onStart() {
         super.onStart()
-        Tema.uporabi(this, koren)
+        Ozadje.uporabi(this, koren)
         // Podatke o hostu dobimo po Linku; dokler smo v nastavitvah, naj povezava zivi.
         link.dodaj(this)
     }
@@ -79,7 +79,10 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
         hostVPreverjanju = true
         HostPodatki.preberi(this, link) { p ->
             hostVPreverjanju = false
-            if (!isFinishing) hostVrstica.text = HostPodatki.vrstica(this, p)
+            if (isFinishing) return@preberi
+            moc = p
+            narisi()
+            if (mocOdprta) { mocOdprta = false; pokaziMoc() }
         }
     }
 
@@ -127,7 +130,12 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
                 getString(R.string.os_host_opis),
                 if (Host.jeOddaljen(this)) Host.gostitelj(this).orEmpty() else getString(R.string.os_host_doma)) { preklopiHost() },
             Vrstica(R.drawable.os_ikona_slika, getString(R.string.os_videz),
-                getString(R.string.os_videz_opis), Tema.ime(this)) { izberiTemo() },
+                getString(R.string.os_videz_opis), Ozadje.ime(this)) { odpriVidez() },
+            // Zmogljivost ima svojo vrstico z ikono: prej je bila ena dolga vrstica na dnu
+            // zaslona, ki je sekala nastavitve nad sabo in se je odrezala sredi podatka.
+            Vrstica(R.drawable.os_ikona_moc, getString(R.string.os_moc),
+                getString(R.string.os_moc_opis),
+                moc?.ime.orEmpty().ifBlank { getString(R.string.os_moc_berem) }) { pokaziMoc() },
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
@@ -138,23 +146,27 @@ class NastavitveActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
     }
 
-    /**
-     * Ozadje Safeer OS. Slike so nase lastne risbe; izbira je uporabnikova in se takoj vidi,
-     * zato jo uveljavimo brez ponovnega odpiranja zaslona.
-     */
-    private fun izberiTemo() {
-        val imena = Tema.VSE.map { getString(it.imeRes) }.toTypedArray()
-        val zdaj = Tema.VSE.indexOfFirst { it.oznaka == Tema.izbrana(this).oznaka }
+    /** Podrobnosti o moci: svoje okno, vsak podatek v svoji vrstici. */
+    private fun pokaziMoc() {
+        val p = moc
+        if (p == null) {
+            // Se nimamo odgovora: povejmo, da beremo, in okno odprimo, ko podatki pridejo.
+            mocOdprta = true
+            Toast.makeText(this, getString(R.string.os_moc_berem), Toast.LENGTH_SHORT).show()
+            osveziHost()
+            return
+        }
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(getString(R.string.os_videz))
-            .setSingleChoiceItems(imena, zdaj) { okno, i ->
-                Tema.VSE.getOrNull(i)?.let { Tema.nastavi(this, it) }
-                Tema.uporabi(this, koren)
-                narisi()
-                okno.dismiss()
-            }
-            .setNegativeButton(getString(R.string.os_preklici), null)
+            .setTitle(getString(R.string.os_moc))
+            .setMessage(HostPodatki.podrobnosti(this, p))
+            .setPositiveButton(getString(R.string.os_moc_zapri), null)
+            .setNeutralButton(getString(R.string.os_moc_osvezi)) { _, _ -> mocOdprta = true; osveziHost() }
             .show()
+    }
+
+    /** Videz: ozadje in zatemnitev sta svoj zaslon, ker se izbira vidi sele v zivo. */
+    private fun odpriVidez() {
+        startActivity(Intent(this, VidezActivity::class.java))
     }
 
     /**

@@ -167,12 +167,7 @@
     <string name="os_programi_zagnan">%1$s si sta aprendo su %2$s - sullo schermo del computer, non qui.</string>
     <!-- Videz (ozadje) in zaslon Naprave -->
     <string name="os_videz">Aspetto</string>
-    <string name="os_videz_opis">Sfondo della schermata iniziale di Safeer OS</string>
-    <string name="os_tema_brez">Senza immagine</string>
-    <string name="os_tema_sij">Aurora boreale</string>
-    <string name="os_tema_gozd">Bosco al crepuscolo</string>
-    <string name="os_tema_mesto">Città di notte</string>
-    <string name="os_tema_zora">Alba</string>
+    <string name="os_videz_opis">Sfondo e attenuazione della schermata iniziale di Safeer OS</string>
     <string name="os_naprave_naslov">Dispositivi</string>
     <string name="os_naprave_datoteke">File</string>
     <string name="os_naprave_posiljanje">Invia</string>
@@ -212,4 +207,52 @@
     <string name="os_odpri_ni_aplikacije">l\'app per questo non è installata</string>
     <string name="os_odpri_ni_dovoljenja">il televisore non l\'ha permesso</string>
     <string name="os_poskusi_znova">Riprova</string>
+    <!-- Spodnja vrstica pomoci -->
+    <string name="os_tipka_ok">OK</string>
+    <string name="os_tipka_nazaj">Indietro</string>
+    <string name="os_tipka_drzi_ok">Tieni OK</string>
+    <string name="os_pomoc_odpri">Apri</string>
+    <string name="os_pomoc_nazaj">Torna</string>
+    <string name="os_pomoc_uredi">Modifica</string>
+    <string name="os_ozadje_valovi">Onde astratte</string>
+    <string name="os_ozadje_gore">Montagne</string>
+    <string name="os_ozadje_gozd">Bosco nebbioso</string>
+    <string name="os_ozadje_sij">Aurora boreale</string>
+    <string name="os_ozadje_morje">Mare scuro</string>
+    <string name="os_ozadje_brez">Tinta unita</string>
+    <string name="os_ozadje_lastna">Una tua foto</string>
+    <string name="os_ozadje_opis">Sfondo e attenuazione della schermata iniziale di Safeer OS</string>
+    <string name="os_ozadje_izbrano">Scelto</string>
+    <string name="os_ozadje_uporabi">Usa questa foto</string>
+    <string name="os_ozadje_izberi_drugo">Scegline un\'altra</string>
+    <string name="os_ozadje_odstrani">Rimuovi</string>
+    <string name="os_ozadje_shranjujem">Salvataggio dell\'immagine…</string>
+    <string name="os_ozadje_napaka">Non è stato possibile caricare l\'immagine</string>
+    <string name="os_zatemnitev">Attenuazione</string>
+    <string name="os_zatemnitev_opis">Sinistra e destra cambiano l\'attenuazione. Più attenuazione mantiene il testo leggibile su un\'immagine chiara.</string>
+    <string name="os_odstotek">%1$d %%</string>
+    <string name="os_izberi_sliko">Scegli un\'immagine per lo sfondo</string>
+    <string name="os_programi_kratko">Programmi</string>
+    <string name="os_scit_ploscica_vklopljen">Attivo · %1$d</string>
+    <string name="os_moc">Prestazioni</string>
+    <string name="os_moc_opis">Processore, memoria e spazio libero: sull\'host o su questo televisore</string>
+    <string name="os_moc_osvezi">Aggiorna</string>
+    <string name="os_moc_zapri">Chiudi</string>
+    <string name="os_moc_ime">Nome</string>
+    <string name="os_moc_sistem">Sistema</string>
+    <string name="os_moc_cpu">Processore</string>
+    <string name="os_moc_ram">Memoria</string>
+    <string name="os_moc_disk">Archiviazione</string>
+    <string name="os_moc_berem">Controllo…</string>
+    <string name="os_zaslon_nacin_kazalec">Puntatore · le frecce muovono il mouse, OK fa clic, OK lungo = clic destro · Menu passa ai tasti · tieni premuto Indietro per uscire</string>
+    <string name="os_zaslon_nacin_tipke">Tasti · frecce e OK vanno al computer come tasti · Menu passa al puntatore · tieni premuto Indietro per uscire</string>
+    <string name="os_besedilo_napaka">Non è stato possibile leggere il file.</string>
+    <string name="os_besedilo_prevelika">File lungo: viene mostrato solo l\'inizio.</string>
+    <string name="os_besedilo_pomoc">Giù/Su scorrono · Indietro chiude</string>
+    <string name="os_odpri_vprasanje">Il televisore non sa aprire questo file, %1$s invece sì.</string>
+    <string name="os_odpri_na_racunalniku">Apri sul computer</string>
+    <string name="os_odpri_in_poglej">Apri e guarda qui</string>
+    <string name="os_odpri_posiljam">Invio al computer…</string>
+    <string name="os_odpri_poslano">Il file si apre sul computer</string>
+    <string name="os_odpri_racunalnik_napaka">Non è stato possibile aprirlo: %1$s</string>
 </resources>

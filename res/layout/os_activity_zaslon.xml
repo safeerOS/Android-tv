@@ -22,6 +22,23 @@
         android:textSize="18sp"
         android:lineSpacingExtra="4dp"/>
 
+    <!-- Namig o upravljanju: pokaze se ob zacetku seje in ob preklopu nacina, nato izgine. -->
+    <TextView
+        android:id="@+id/namig"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_margin="18dp"
+        android:background="@drawable/os_znacka"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:gravity="center"
+        android:textColor="@color/os_besedilo"
+        android:textSize="13sp"
+        android:visibility="gone"/>
+
     <TextView
         android:id="@+id/meritve"
         android:layout_width="wrap_content"

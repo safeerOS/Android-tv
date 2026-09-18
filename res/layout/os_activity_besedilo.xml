@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Besedilna datoteka na televizorju: ime zgoraj, besedilo v drsniku, spodaj kratka pomoc. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/koren"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/os_ozadje"
+    android:paddingStart="@dimen/os_rob"
+    android:paddingEnd="@dimen/os_rob"
+    android:paddingTop="30dp"
+    android:paddingBottom="18dp">
+
+    <TextView
+        style="@style/Os.Nadnaslov"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/os_datoteke"/>
+    <TextView
+        android:id="@+id/naslov"
+        style="@style/Os.Naslov"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:maxLines="1"
+        android:ellipsize="middle"/>
+    <TextView
+        android:id="@+id/sporocilo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/os_umirjeno"
+        android:textSize="15sp"
+        android:visibility="gone"/>
+
+    <ScrollView
+        android:id="@+id/drsnik"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="12dp"
+        android:padding="14dp"
+        android:background="@drawable/os_kartica_mirna"
+        android:focusable="true"
+        android:scrollbars="vertical">
+        <TextView
+            android:id="@+id/vsebina"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/os_besedilo"
+            android:textSize="15sp"
+            android:lineSpacingExtra="3dp"
+            android:typeface="monospace"
+            android:textIsSelectable="false"/>
+    </ScrollView>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/os_umirjeno"
+        android:textSize="12sp"
+        android:text="@string/os_besedilo_pomoc"/>
+</LinearLayout>
