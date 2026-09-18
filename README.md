@@ -1,79 +1,126 @@
-# Safeer TV Browser (Android TV)
+# Safeer TV Browser
 
-**Trenutna različica: 2.1.103** (Safeer OS 0.2.3) — *Varnejši na spletu.* Vgrajen W3C Global Privacy Control (GPC), Do Not Track (DNT), kirurško čiščenje sledilnih parametrov (UrlSanitizer), zaščita pred Botnet C2 strežniki (abuse.ch Feodo Tracker / URLhaus) in nativno predvajanje DASH z Media3 ExoPlayerjem na vsaki strani, ki tak pretok ponuja.
+A privacy-first web browser for Android TV, built to be driven with a remote control —
+plus **Safeer OS**, a home screen for the same television, built from the same source.
 
-## Dve aplikaciji iz ene kode
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Android_TV_9%2B-3ddc84?style=flat-square)](#requirements)
+[![Downloads](https://img.shields.io/badge/Download-Releases-00e5ff?style=flat-square)](../../releases/latest)
 
-Ta repozitorij zgradi **dva** APK-ja, ki ju Android vidi kot dve ločeni aplikaciji — vsaka s svojim
-imenom, ikono, vnosom v zaganjalniku, nastavitvami in odstranitvijo:
-
-| Aplikacija | Paket | Okus (`build.gradle`) | Rezultat gradnje |
-|---|---|---|---|
-| Safeer TV Browser | `si.safeer.tv` | `brskalnik` | `TV-Browser-2.apk` |
-| Safeer OS (domači zaslon za televizor) | `si.safeer.os` | `os` | `Safeer-OS.apk` |
-
-Skupna koda je v `src/`, kar aplikaciji loči, pa je v `okusi/brskalnik/AndroidManifest.xml` in
-`okusi/os/AndroidManifest.xml`: zaganjalniški vnosi, alias domačega zaslona (`ZaganjalnikAlias`,
-privzeto onemogočen) in ponudnik spletnih aplikacij. Brskalnik nima zaslonov Safeer OS, Safeer OS
-pa nima vnosa brskalnika.
-
-Obe aplikaciji **morata biti podpisani z istim ključem**: mostovi med njima so zaščiteni z
-dovoljenjem istega podpisa (`si.safeer.tv.permission.LINK`). Prek njih Safeer OS dobi žeton
-Safeer Linka od brskalnika (brez druge povezave), bere in preklaplja Safeer Ščit (en filter na
-televizorju), brskalnik pa preda spletno aplikacijo na domači zaslon Safeer OS
-(`content://si.safeer.os.spletne`). Brez brskalnika Safeer OS vse to opravi sam.
-
-`tests/preveri_loceni_aplikaciji.py` preveri, da ločitev drži (imeni paketov, po en vnos v
-zaganjalniku, alias samo v Safeer OS, isti podpis); teče v `build_tv_apk.sh` in v CI.
-
-## Prenos in namestitev APK
-
-| Kaj | Povezava |
-|---|---|
-| GitHub | https://github.com/memelandfaner/Safeer-TV-Browser |
-| APK (neposredno) | https://github.com/memelandfaner/Safeer-TV-Browser/raw/main/TV-Browser-2.apk |
-| Kratka povezava (APK) | https://tinyurl.com/27w3uxob |
-| Kratka povezava (da.gd) | https://da.gd/8fziT |
-| 1-vrstica (PC → TV prek ADB) | `curl -sL https://raw.githubusercontent.com/memelandfaner/Safeer-TV-Browser/main/install_tv_browser.sh \| bash` |
-
-Na TV dovoli namestitev iz neznanih virov, nato odpri preneseni `TV-Browser-2.apk`.
-
-Ista datoteka je tudi v `Release/Artifacts/tv-browser-2-release.apk`.
-
-Imeni datotek sta se iz časov, ko se je brskalnik imenoval drugače. Ostajata nespremenjeni, ker nanju kažeta kratki povezavi zgoraj in povezava za prenos na spletni strani; izdelek sam se imenuje **Safeer TV Browser**.
-
-Paket: `si.safeer.tv` (do različice 2.1.85 `com.example.safeerbrowser` iz predloge; sprememba imena pomeni, da je treba starejšo različico odstraniti in novo namestiti na novo – nastavitve in zaznamki iz stare različice se ne prenesejo). Gradnja: `./build_tv_apk.sh`; APK podpiše produkcijski ključ `keystore/safeer-tv-release.jks` (geslo v `RELEASE_KEY_PASS` ali `keystore/.release_pass`; mapa je v `.gitignore` in ključ nikoli ne zapusti računalnika).
-
-```bash
-adb install -r TV-Browser-2.apk
-```
-
-## 🛡️ Varnost in Zasebnost (Varnejši na spletu)
-1. **W3C Global Privacy Control & Do Not Track**: Avtomatsko posredovanje `Sec-GPC: 1` in `DNT: 1` ter injiciranje v brskalniški `navigator` objekt ob zagonu vseh spletnih strani.
-2. **Čiščenje sledilnih parametrov (UrlSanitizer)**: Avtomatsko odstranjevanje nadzornih identifikatorjev (`utm_*`, `fbclid`, `gclid`, `msclkid`, `twclid`, `mc_eid` itd.) pri vseh povezavah.
-3. **Botnet C2 & Malware ščit**: Integracija $O(k)$ drevesa z bazo znanih nevarnih domen (abuse.ch Feodo Tracker, URLhaus, ThreatFox, Phishing Army).
-4. **Zaščita pred ugrabitvijo oken**: Popolna nevtralizacija neželenih popunder oken in lažnih sistemskih opozoril.
-
-## 📺 Nativno predvajanje DASH
-
-Stran, njen katalog in prijava ostanejo v WebView. Kadar brskalnik na strani zazna pretok DASH,
-ga preda **AndroidX Media3 ExoPlayerju** na SurfaceView — na televizorju je to razlika med
-zatikanjem in gladko sliko. Pravilo je splošno: manifest prepoznamo po standardu DASH, licenčni
-naslov po standardnih označbah, piškotke in glavi pa vzamemo z izvora odprte strani. Zaščita
-vsebine ostane nedotaknjena — licenco izda ponudnikov strežnik, dešifrira Widevine.
-
-Brskalnik ne nosi prijavnih podatkov za nobeno storitev; uporabnik se prijavi sam.
-
-## 🎮 Daljinec
-
-- D-Pad: prostorska izbira polj (cyan obroč)
-- GOR na vrhu strani → URL vrstica (razen med nativnim predvajanjem)
-- RDEČA / MENI → portali
-- ZELENA → kazalec
-- RUMENA → zaznamki
-- BACK med nativnim predvajanjem zapre Exo, ne `history.back()`
+Slovenian: [README.sl.md](README.sl.md) · Website: [safeer.si](https://safeer.si)
 
 ---
 
-## ⚖️ Licenca
-Projekt je izdan pod licenco [Apache License 2.0](LICENSE).
+## What it is
+
+Television browsers are usually an afterthought: a phone browser with a cursor bolted on.
+Safeer starts from the remote. Arrow keys move a visible focus ring between the things you
+can actually click, OK opens them, and Back does what you expect. Video goes to the
+television's own decoder instead of being squeezed through a web view.
+
+It blocks ads and trackers, refuses known malware and phishing hosts, and asks no one for
+permission to do it — everything runs on the device, and nothing is sent anywhere to make
+these decisions.
+
+## Two apps, one source tree
+
+| App | Package | Build flavour | Artifact |
+|---|---|---|---|
+| Safeer TV Browser | `si.safeer.tv` | `brskalnik` | `TV-Browser-2.apk` |
+| Safeer OS (television home screen) | `si.safeer.os` | `os` | `Safeer-OS.apk` |
+
+Android sees two separate applications, each with its own launcher entry, settings and
+uninstall. They must be signed with the same key: the bridges between them are guarded by a
+signature-level permission, which is how Safeer OS reads the shield state and receives web
+apps from the browser without any network hop. Either app works on its own.
+
+`tests/preveri_loceni_aplikaciji.py` enforces the separation on every build.
+
+## What it does
+
+**Remote-first navigation.** Directional keys move focus by geometry, not by the page's tab
+order, so a grid of thumbnails behaves like a grid. Where a page gives our navigation nothing
+to move to, the key falls through to the page itself — that is how you reach the buttons
+inside a cookie dialog that lives in its own frame.
+
+**Native DASH playback.** When the browser sees a DASH stream on a page, it hands the
+manifest and the licence request to AndroidX Media3 ExoPlayer on a SurfaceView. On a
+television this is the difference between stuttering and a clean picture. The rule is
+generic: the manifest is recognised by the DASH standard, the licence endpoint by the usual
+markers, and cookies and the `Referer`/`Origin` headers come from the page you are on.
+Content protection is untouched — the licence is issued by the provider's server and
+decrypted by Widevine; the browser only carries your own session forward.
+
+**Ad and tracker blocking.** An EasyList-compatible engine plus a reverse-domain trie of
+known ad, tracking and malware hosts. Cosmetic filtering hides what is left.
+
+**Threat shield.** Botnet C2, malware and phishing hosts from abuse.ch (Feodo Tracker,
+URLhaus, ThreatFox) and Phishing Army, matched locally in O(k). Lists are delivered as a
+signed bundle; a bundle that fails its Ed25519 signature is never used.
+
+**BankGuard.** Real banking and payment sites are exempt from cosmetic filtering and script
+injection, so a filter can never be the reason a payment fails.
+
+**Popup handling.** Popunders and fake system dialogs are neutralised. Sign-in windows are
+not: a `window.open` whose destination is an OAuth or sign-in URL opens as a real tab and
+keeps its `window.opener`, so signing in with Google, Facebook or X works.
+
+**Privacy defaults.** `Sec-GPC: 1` and `DNT: 1` on every request, tracking parameters
+(`utm_*`, `fbclid`, `gclid`, …) stripped from links, no telemetry.
+
+**SponsorBlock** for YouTube, on by default and switchable in settings.
+
+## No per-site recipes
+
+Safeer contains no adaptation written for one named website. Everything above works by what a
+page *is* — its markup, its stream format, its request pattern — not by who publishes it.
+A guard (`tests/check_public_package.py`) runs on every build. It fails the build if
+a new `site_<name>.js` appears, or if one of the adaptations we removed comes back under
+its old name anywhere outside the bookmark lists.
+
+This is a deliberate promise: the browser should work on your sites, not on ours.
+
+## Install
+
+Download the APK from [Releases](../../releases/latest), allow installation from unknown
+sources on the television, and open the file. Or, from a computer with ADB:
+
+```bash
+adb install -r safeer-browser-tv-<version>.apk
+```
+
+Verify what you downloaded against `SHA256SUMS` from the same release:
+
+```bash
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
+## Requirements
+
+Android TV 9 (API 28) or newer. Built against API 34.
+
+## Build from source
+
+```bash
+./build_tv_apk.sh
+```
+
+Produces both signed APKs. Release signing uses `keystore/safeer-tv-release.jks` with the
+password in `RELEASE_KEY_PASS` or `keystore/.release_pass`; that directory is git-ignored and
+the key never leaves the maintainer's machine. Without it, build the debug variants with
+Gradle.
+
+Tests:
+
+```bash
+bash tests/run_threat_policy_tests.sh
+```
+
+## Contributing
+
+Bug reports and patches are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Security issues
+go through [SECURITY.md](SECURITY.md), privately, not in a public issue.
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
