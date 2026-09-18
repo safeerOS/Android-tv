@@ -2,7 +2,7 @@
 
 Default home tiles, bookmarks and portal lists contain public services only. No pirate catalog is preselected or advertised. Users can enter their own addresses and manage their own bookmarks; this is not a website blocklist. Existing user bookmarks are retained.
 
-Production assets exclude authentication files, local developer files and screenshots. The public build cannot embed Xplore credentials. Users sign in themselves to services they subscribe to. Developer command broadcasts and diagnostic logging through SafeerDbg are disabled in release builds. Android backup is disabled for browser data. Web pages are not automatically granted camera, microphone or location access; protected-media playback remains supported.
+Production assets exclude authentication files, local developer files and screenshots. The public build cannot embed credentials for any service. Users sign in themselves to services they subscribe to. Developer command broadcasts and diagnostic logging through SafeerDbg are disabled in release builds. Android backup is disabled for browser data. Web pages are not automatically granted camera, microphone or location access; protected-media playback remains supported.
 
 ## Packages
 

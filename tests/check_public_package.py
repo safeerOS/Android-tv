@@ -36,6 +36,35 @@ PATTERNS = [
 
 TEXT_SUFFIXES = ('.js', '.html', '.css', '.json', '.md', '.kt')
 
+# A named service may appear only where the user picked it: a bookmark, a start tile or
+# a voice shortcut. Anywhere else it would mean the browser carries a recipe for that one
+# site instead of a generic rule - which is the thing this guard exists to prevent.
+SITE_NAMES = ['xplore']
+SITE_NAME_PATTERNS = [
+    (name, re.compile(r'(?<![0-9a-z])' + re.escape(name) + r'(?![0-9a-z])', re.I))
+    for name in SITE_NAMES
+]
+BOOKMARK_FILES = {
+    'assets/brave_home.html',
+    'assets/link/daljinec.js',
+    'src/main/kotlin/si/safeer/tv/BrowserRepository.kt',
+    'src/main/kotlin/si/safeer/tv/HomeTilesStore.kt',
+    'src/main/kotlin/si/safeer/tv/PortalManager.kt',
+}
+# Per-site scripts that still exist. Nothing may be added here without removing it first:
+# a new site_<name>.js is a recipe for one site and fails this check.
+ALLOWED_SITE_SCRIPTS = {'site_agent.js', 'site_24ur.js'}
+
+
+def scan_site_names(label, text):
+    if label in BOOKMARK_FILES:
+        return
+    for name, pattern in SITE_NAME_PATTERNS:
+        match = pattern.search(text)
+        assert match is None, (
+            label, name, 'site-specific adaptation outside the bookmark files',
+            text[max(0, match.start() - 60):match.end() + 60])
+
 
 def scan_text(label, text):
     for host, pattern in PATTERNS:
@@ -50,12 +79,20 @@ def scan_bytes(label, data):
 
 
 for kotlin in source.rglob('*.kt'):
-    scan_text(str(kotlin.relative_to(ROOT)), kotlin.read_text(encoding='utf-8'))
+    label = str(kotlin.relative_to(ROOT))
+    text = kotlin.read_text(encoding='utf-8')
+    scan_text(label, text)
+    scan_site_names(label, text)
 for asset in (ROOT / 'assets').rglob('*'):
     if asset.is_file():
         assert not any(part in asset.name.lower() for part in ['auth', '.local.', '.jks', '.keystore']), asset.name
+        if asset.name.startswith('site_') and asset.name.endswith('.js'):
+            assert asset.name in ALLOWED_SITE_SCRIPTS, ('new per-site script', asset.name)
         if asset.suffix.lower() in TEXT_SUFFIXES:
-            scan_text(str(asset.relative_to(ROOT)), asset.read_text(encoding='utf-8', errors='ignore'))
+            label = str(asset.relative_to(ROOT))
+            text = asset.read_text(encoding='utf-8', errors='ignore')
+            scan_text(label, text)
+            scan_site_names(label, text)
 for doc in [ROOT / 'README.md', ROOT / 'docs' / 'SKILL.md']:
     if doc.exists():
         scan_text(doc.name, doc.read_text(encoding='utf-8'))

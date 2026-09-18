@@ -44,7 +44,7 @@ import java.util.UUID
 
 /**
  * Playback overlay session. Generic sites use Android WebView custom-view.
- * Xplore DASH+Widevine is decoded by Media3 ExoPlayer on a SurfaceView overlay.
+ * DASH+Widevine is decoded by Media3 ExoPlayer on a SurfaceView overlay.
  */
 interface PlaybackSession {
     fun enter(view: View, callback: WebChromeClient.CustomViewCallback?)
@@ -70,7 +70,7 @@ class HostPlayback(private val host: MainActivity) : PlaybackSession {
 
     fun isNativeActive(): Boolean = exo.isActive()
 
-    fun playDash(session: XploreDashSession) {
+    fun playDash(session: DashSeja) {
         exo.playDash(session)
     }
 
@@ -176,7 +176,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
     private var statusLabel: TextView? = null
     private var playingChannel: String = ""
     private var surfaceSecure: Boolean = false
-    private var lastSession: XploreDashSession? = null
+    private var lastSession: DashSeja? = null
     private var surfaceBound: Boolean = false
     private var loggedEncryptedReady: Boolean = false
     private var lastZapAt: Long = 0L
@@ -185,8 +185,8 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
 
     private val pauseWebViewJs = """
         (function(){
-            window._safeer_xplore_native_player = true;
-            try { if (window._safeer_xplore_release_cdm) window._safeer_xplore_release_cdm(); } catch (e) {}
+            window._safeer_medij_native_player = true;
+            try { if (window._safeer_medij_release_cdm) window._safeer_medij_release_cdm(); } catch (e) {}
             try {
                 document.querySelectorAll('video,audio').forEach(function(m){
                     try { m.pause(); m.muted = true; m.volume = 0; } catch (e2) {}
@@ -199,7 +199,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
     /** Pause page media without releasing MediaKeys (zap / clear HEVC must not fight Exo). */
     private val pauseVideosJs = """
         (function(){
-            window._safeer_xplore_native_player = true;
+            window._safeer_medij_native_player = true;
             try {
                 document.querySelectorAll('video,audio').forEach(function(m){
                     try { m.pause(); m.muted = true; m.volume = 0; } catch (e2) {}
@@ -220,10 +220,10 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
     }
 
     override fun enter(view: View, callback: WebChromeClient.CustomViewCallback?) {
-        // Custom-view is not used for Xplore native playback.
+        // Custom-view is not used for native playback.
     }
 
-    fun playDash(session: XploreDashSession) {
+    fun playDash(session: DashSeja) {
         if (session.mpdUrl.isEmpty()) return
         main.post {
             startOnUi(session)
@@ -238,7 +238,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
             JSONObject().put("url", CLEAR_DASH_MPD)
         )
         playDash(
-            XploreDashSession(
+            DashSeja(
                 mpdUrl = CLEAR_DASH_MPD,
                 licenseUrl = "",
                 licenseHeaders = emptyMap(),
@@ -251,7 +251,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         )
     }
 
-    private fun startOnUi(session: XploreDashSession) {
+    private fun startOnUi(session: DashSeja) {
         host.mobileTopBar.visibility = View.GONE
         try {
             host.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -277,7 +277,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         }
     }
 
-    private fun attachPlayerSafe(session: XploreDashSession) {
+    private fun attachPlayerSafe(session: DashSeja) {
         try {
             Class.forName("androidx.media3.exoplayer.ExoPlayer")
         } catch (t: Throwable) {
@@ -492,7 +492,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         }
     }
 
-    private fun attachPlayer(session: XploreDashSession) {
+    private fun attachPlayer(session: DashSeja) {
         lastSession = session
         loggedEncryptedReady = false
         if (playingChannel != session.dashChannel) {
@@ -649,7 +649,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
     }
 
     /** Recreate Exo after MediaCodec 4003 so the decoder is not left in an error state. */
-    private fun retrySaferCodec(session: XploreDashSession) {
+    private fun retrySaferCodec(session: DashSeja) {
         val old = player
         player = null
         trackSelector = null
@@ -717,7 +717,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         )
     }
 
-    private fun headerNames(s: XploreDashSession?): String {
+    private fun headerNames(s: DashSeja?): String {
         return s?.licenseHeaders?.keys?.joinToString(",") ?: ""
     }
 
@@ -802,7 +802,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
     fun tuneLiveChannel(oneBased: Int) {
         if (oneBased < 1) return
         host.lastCenterClickTime = System.currentTimeMillis()
-        XploreDashCapture.markOk()
+        DashPrevzem.markOk()
         if (isActive()) {
             main.removeCallbacks(holdWebView)
             main.postDelayed(holdWebView, 4000L)
@@ -815,7 +815,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
             "tune live",
             JSONObject().put("n", oneBased).put("ch", playingChannel)
         )
-        val js = "window._safeer_xplore_tune_channel && window._safeer_xplore_tune_channel($oneBased)"
+        val js = "window._safeer_medij_tune_channel && window._safeer_medij_tune_channel($oneBased)"
         host.activeWebView()?.evaluateJavascript(js) { raw ->
             main.post {
                 val name = parseZapName(raw)
@@ -835,7 +835,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         if (now - lastZapAt < minGap) return true
         lastZapAt = now
         host.lastCenterClickTime = System.currentTimeMillis()
-        XploreDashCapture.markOk()
+        DashPrevzem.markOk()
         main.removeCallbacks(holdWebView)
         main.postDelayed(holdWebView, 4000L)
         spinner?.visibility = View.VISIBLE
@@ -846,7 +846,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
             "live zap",
             JSONObject().put("d", delta).put("ch", playingChannel)
         )
-        val js = "window._safeer_xplore_zap_channel && window._safeer_xplore_zap_channel($delta)"
+        val js = "window._safeer_medij_zap_channel && window._safeer_medij_zap_channel($delta)"
         host.activeWebView()?.evaluateJavascript(js) { raw ->
             main.post {
                 val name = parseZapName(raw)
@@ -898,13 +898,13 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         try {
             host.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } catch (_: Exception) {}
-        XploreDashCapture.reset()
+        DashPrevzem.reset()
         val url = host.activeUrl()
         val stayKiosk = SiteProfileResolver.fromUrl(url).hideChrome(url)
         host.mobileTopBar.visibility = if (stayKiosk || host.nacinAplikacije != null) View.GONE else View.VISIBLE
         host.webViewContainer.visibility = View.VISIBLE
         host.activeWebView()?.evaluateJavascript(
-            "window._safeer_xplore_native_player=false;",
+            "window._safeer_medij_native_player=false;",
             null
         )
     }

@@ -1,3 +1,0 @@
-// Copy this file to xplore_auth.local.js (gitignored).
-// Never commit the copy. GitHub / public APK builds stay without it.
-window._safeerXploreAuth = { user: "VASE_IME", pass: "VASE_GESLO" };

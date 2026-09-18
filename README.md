@@ -1,6 +1,6 @@
 # Safeer TV Browser (Android TV)
 
-**Trenutna različica: 2.1.103** (Safeer OS 0.2.3) — *Varnejši na spletu.* Vgrajen W3C Global Privacy Control (GPC), Do Not Track (DNT), kirurško čiščenje sledilnih parametrov (UrlSanitizer), zaščita pred Botnet C2 strežniki (abuse.ch Feodo Tracker / URLhaus), Xplore TV kiosk z nativnim Media3 ExoPlayerjem (DASH + Widevine).
+**Trenutna različica: 2.1.103** (Safeer OS 0.2.3) — *Varnejši na spletu.* Vgrajen W3C Global Privacy Control (GPC), Do Not Track (DNT), kirurško čiščenje sledilnih parametrov (UrlSanitizer), zaščita pred Botnet C2 strežniki (abuse.ch Feodo Tracker / URLhaus) in nativno predvajanje DASH z Media3 ExoPlayerjem na vsaki strani, ki tak pretok ponuja.
 
 ## Dve aplikaciji iz ene kode
 
@@ -54,20 +54,24 @@ adb install -r TV-Browser-2.apk
 3. **Botnet C2 & Malware ščit**: Integracija $O(k)$ drevesa z bazo znanih nevarnih domen (abuse.ch Feodo Tracker, URLhaus, ThreatFox, Phishing Army).
 4. **Zaščita pred ugrabitvijo oken**: Popolna nevtralizacija neželenih popunder oken in lažnih sistemskih opozoril.
 
-## 📡 Xplore TV
+## 📺 Nativno predvajanje DASH
 
-Katalog, prijava in EPG ostaneta v WebView. Video je **AndroidX Media3** na SurfaceView, ne Castlabs Android SDK. Podrobnosti: skill `tv-browser-2-xplore-drm`.
+Stran, njen katalog in prijava ostanejo v WebView. Kadar brskalnik na strani zazna pretok DASH,
+ga preda **AndroidX Media3 ExoPlayerju** na SurfaceView — na televizorju je to razlika med
+zatikanjem in gladko sliko. Pravilo je splošno: manifest prepoznamo po standardu DASH, licenčni
+naslov po standardnih označbah, piškotke in glavi pa vzamemo z izvora odprte strani. Zaščita
+vsebine ostane nedotaknjena — licenco izda ponudnikov strežnik, dešifrira Widevine.
 
-Xplore gesel **ne** committaj. Lokalno: `xplore_auth.local.js` (glej `xplore_auth.local.js.example`).
+Brskalnik ne nosi prijavnih podatkov za nobeno storitev; uporabnik se prijavi sam.
 
 ## 🎮 Daljinec
 
 - D-Pad: prostorska izbira polj (cyan obroč)
-- GOR na vrhu strani → URL vrstica (razen Xplore kiosk)
+- GOR na vrhu strani → URL vrstica (razen med nativnim predvajanjem)
 - RDEČA / MENI → portali
 - ZELENA → kazalec
 - RUMENA → zaznamki
-- BACK med Xplore predvajanjem zapre Exo, ne `history.back()`
+- BACK med nativnim predvajanjem zapre Exo, ne `history.back()`
 
 ---
 

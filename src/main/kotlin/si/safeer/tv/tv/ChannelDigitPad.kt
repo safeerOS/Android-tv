@@ -47,8 +47,9 @@ class ChannelDigitPad(private val host: MainActivity) {
         if (host.isChromeFocused()) return false
         if (host.editUrl.hasFocus()) return false
         if (host.playback.isNativeActive()) return host.playback.isLiveNative()
-        val url = host.activeUrl()
-        return TvSite.isXplore(url) && url.contains("/livetv", ignoreCase = true)
+        // Na spletni strani stevilke prevzamemo samo, kadar smo na njej ujeli pretok - takrat
+        // jih stran razume kot izbiro programa. Drugace gredo stevilke strani, kot gre pika.
+        return DashPrevzem.imaSejo()
     }
 
     fun hasPending(): Boolean = buf.isNotEmpty()

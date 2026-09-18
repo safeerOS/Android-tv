@@ -109,7 +109,7 @@ PROP
 ensure_sdk
 
 # Public builds never package developer login credentials.
-if [[ "${INCLUDE_XPLORE_AUTH:-}" == "1" ]]; then
+if [[ "${INCLUDE_PRIVATE_AUTH:-}" == "1" ]]; then
     echo "Private login embedding is not supported by public builds." >&2
     exit 1
 fi
@@ -216,7 +216,7 @@ if ! grep -a -q "androidx/media3/exoplayer/dash/DashMediaSource" "$VERIFY_DIR"/c
 fi
 echo "OK: Media3 ExoPlayer + DashMediaSource sta v dex."
 
-echo "🔎 Preverjam, da javni APK nima Xplore prijave..."
+echo "🔎 Preverjam javni paket (brez prijav in brez prilagoditev za posamezne strani)..."
 python3 "$DIR/tests/check_public_package.py" "$DIR/TV-Browser-2.apk"
 python3 "$DIR/tests/check_public_package.py" "$DIR/Safeer-OS.apk"
 echo "OK: no authentication assets in APK."

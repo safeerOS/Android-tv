@@ -1,10 +1,7 @@
         /* 📺 Safeer TV Remote D-Pad Navigation & Cinema OSD Engine */
         (function() {
             if ((location.href || '').indexOf('youtube.com/tv') !== -1) return;
-            var xploreReentry = !!(window._safeer_tv_remote_installed &&
-                (location.hostname || '').indexOf('xploretv') !== -1 &&
-                !window._safeer_xplore_helpers_ready);
-            if (window._safeer_tv_remote_installed && !xploreReentry) return;
+            if (window._safeer_tv_remote_installed) return;
             if (!window._safeer_tv_remote_installed) window._safeer_tv_remote_installed = true;
 
             // #region agent log
@@ -20,9 +17,6 @@
             window._safeerDbgRun = 'lean';
             // #endregion
 
-            function isXploreHost() {
-                return (location.hostname || '').indexOf('xploretv') !== -1;
-            }
             function is24urHost() {
                 return (location.hostname || '').toLowerCase().indexOf('24ur') !== -1;
             }
@@ -37,7 +31,7 @@
                 } catch (_) {}
                 return false;
             }
-            window._safeer_xplore_release_cdm = function () {
+            window._safeer_medij_release_cdm = function () {
                 var had = false;
                 try {
                     var vids = document.querySelectorAll('video');
@@ -55,7 +49,7 @@
                 } catch (_) {}
                 return had;
             };
-            window._safeer_xplore_live_program_tiles = function () {
+            window._safeer_medij_live_program_tiles = function () {
                 var nodes = document.querySelectorAll('.item.item--event, .item--event');
                 var tiles = [];
                 var i, el, cls;
@@ -78,7 +72,7 @@
                 });
                 return tiles;
             };
-            window._safeer_xplore_tile_label = function (tile) {
+            window._safeer_medij_tile_label = function (tile) {
                 var name = '';
                 try {
                     var img = tile && tile.querySelector && tile.querySelector('img[alt]');
@@ -87,19 +81,19 @@
                 if (!name && tile) name = ((tile.innerText || tile.textContent || '') + '').replace(/\s+/g, ' ').trim();
                 return (name || '').slice(0, 36);
             };
-            window._safeer_xplore_click_live_tile = function (tile, idx) {
+            window._safeer_medij_click_live_tile = function (tile, idx) {
                 if (!tile) return 0;
-                window._safeer_xplore_last_tile = tile;
-                window._safeer_xplore_zap_idx = idx;
-                try { sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (_) {}
-                window._safeer_xplore_want_play = true;
+                window._safeer_medij_last_tile = tile;
+                window._safeer_medij_zap_idx = idx;
+                try { sessionStorage.removeItem('safeer_medij_autoplay'); } catch (_) {}
+                window._safeer_medij_want_play = true;
                 try { if (typeof highlightElement === 'function') highlightElement(tile); } catch (_) {}
                 try { tile.click(); } catch (_) {}
-                return window._safeer_xplore_tile_label(tile) || 1;
+                return window._safeer_medij_tile_label(tile) || 1;
             };
-            window._safeer_xplore_tune_channel = function (num) {
+            window._safeer_medij_tune_channel = function (num) {
                 try {
-                    var tiles = window._safeer_xplore_live_program_tiles();
+                    var tiles = window._safeer_medij_live_program_tiles();
                     var idx = (num | 0) - 1;
                     if (idx < 0 || idx >= tiles.length) {
                         try {
@@ -110,7 +104,7 @@
                         } catch (_) {}
                         return '!' + tiles.length;
                     }
-                    var name = window._safeer_xplore_click_live_tile(tiles[idx], idx);
+                    var name = window._safeer_medij_click_live_tile(tiles[idx], idx);
                     try {
                         if (window._safeerDbg) window._safeerDbg('H340', 'tv_spatial.js:tune', 'tune click', {
                             i: idx,
@@ -124,18 +118,18 @@
                     return 0;
                 }
             };
-            window._safeer_xplore_zap_channel = function (delta) {
+            window._safeer_medij_zap_channel = function (delta) {
                 try {
                     var step = delta > 0 ? 1 : -1;
-                    var tiles = window._safeer_xplore_live_program_tiles();
+                    var tiles = window._safeer_medij_live_program_tiles();
                     if (!tiles.length) return 0;
-                    var cur = window._safeer_xplore_last_tile;
+                    var cur = window._safeer_medij_last_tile;
                     var idx = -1;
                     var i;
-                    if (typeof window._safeer_xplore_zap_idx === 'number' &&
-                        window._safeer_xplore_zap_idx >= 0 &&
-                        window._safeer_xplore_zap_idx < tiles.length) {
-                        idx = window._safeer_xplore_zap_idx;
+                    if (typeof window._safeer_medij_zap_idx === 'number' &&
+                        window._safeer_medij_zap_idx >= 0 &&
+                        window._safeer_medij_zap_idx < tiles.length) {
+                        idx = window._safeer_medij_zap_idx;
                     }
                     if (idx < 0) {
                         for (i = 0; i < tiles.length; i++) {
@@ -165,7 +159,7 @@
                     }
                     var tile = tiles[nextIdx];
                     if (!tile) return 0;
-                    var name = window._safeer_xplore_click_live_tile(tile, nextIdx);
+                    var name = window._safeer_medij_click_live_tile(tile, nextIdx);
                     try {
                         if (window._safeerDbg) window._safeerDbg('H339', 'tv_spatial.js:zap', 'live zap click', {
                             i: nextIdx,
@@ -179,24 +173,7 @@
                     return 0;
                 }
             };
-            if (!xploreReentry && isXploreHost()) {
-                try {
-                    var vp = document.querySelector('meta[name="viewport"]');
-                    if (!vp) {
-                        vp = document.createElement('meta');
-                        vp.setAttribute('name', 'viewport');
-                        (document.head || document.documentElement).appendChild(vp);
-                    }
-                    vp.setAttribute('content', 'width=1920, initial-scale=1');
-                    try { document.documentElement.classList.add('safeer-xplore-dark'); } catch (_) {}
-                    try {
-                        var cw = document.querySelector('.content__wrapper');
-                        if (cw) cw.style.setProperty('background-color', '#07090d', 'important');
-                    } catch (_) {}
-                } catch (_) {}
-            }
 
-            if (!xploreReentry) {
             // 1. Injektiraj kinematografske sloge za fokus in OSD HUD
             try {
                 var style = document.createElement('style');
@@ -288,124 +265,6 @@
                     }
                 `;
                 (document.head || document.documentElement).appendChild(style);
-                if (isXploreHost()) {
-                    window._safeer_xplore_paint_menu = function () {
-                        try {
-                            if (document.documentElement.classList.contains('safeer-xplore-fs')) return;
-                            document.documentElement.classList.add('safeer-xplore-dark');
-                            var cssId = 'tv-remote-xplore-menubar';
-                            var css = 'html.safeer-xplore-dark .menu,html.safeer-xplore-dark .menu.menu--opaque,html.safeer-xplore-dark .menu.menu--fixed,html.safeer-xplore-dark .menu.menu--black-text,html.safeer-xplore-dark .menu.gradient-bg-white,html.safeer-xplore-dark .menu.gradient-bg-white.menu--black-text,html.safeer-xplore-dark header,html.safeer-xplore-dark nav{background:#0b1220!important;background-color:#0b1220!important;background-image:none!important;color:#f8fafc!important;border-bottom:1px solid #2a3a52!important;box-shadow:0 10px 28px rgba(0,0,0,.45)!important;min-height:84px!important;height:84px!important;z-index:60!important;}' +
-                                'html.safeer-xplore-dark .menu::before,html.safeer-xplore-dark .menu::after{display:none!important;background:none!important;content:none!important;}' +
-                                'html.safeer-xplore-dark .menu-items-wrapper,html.safeer-xplore-dark #csh__menu_bar,html.safeer-xplore-dark .menu [class*="wrapper"],html.safeer-xplore-dark .menu [class*="container"],html.safeer-xplore-dark .menu [class*="inner"],html.safeer-xplore-dark .menu [class*="bar"]{background:transparent!important;background-image:none!important;}' +
-                                'html.safeer-xplore-dark .menu a,html.safeer-xplore-dark .menu button,html.safeer-xplore-dark .menu [role="button"],html.safeer-xplore-dark .menu .dropdown-toggle-button,html.safeer-xplore-dark #csh__menu_bar a{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:10px!important;min-height:56px!important;padding:10px 16px!important;border-radius:12px!important;font-size:22px!important;font-weight:700!important;color:#f8fafc!important;-webkit-text-fill-color:#f8fafc!important;opacity:1!important;visibility:visible!important;overflow:visible!important;white-space:nowrap!important;background:transparent!important;text-shadow:0 1px 2px rgba(0,0,0,.7)!important;}' +
-                                'html.safeer-xplore-dark .menu a span,html.safeer-xplore-dark .menu button span,html.safeer-xplore-dark #csh__menu_bar a span,html.safeer-xplore-dark .dropdown-toggle-button span{display:inline!important;opacity:1!important;visibility:visible!important;position:static!important;width:auto!important;max-width:none!important;height:auto!important;font-size:22px!important;font-weight:700!important;color:#fff!important;-webkit-text-fill-color:#fff!important;clip:auto!important;clip-path:none!important;overflow:visible!important;text-indent:0!important;white-space:nowrap!important;}' +
-                                'html.safeer-xplore-dark .menu a:not(.logo) svg,html.safeer-xplore-dark .menu a:not(.logo) svg *,html.safeer-xplore-dark .menu button svg,html.safeer-xplore-dark .menu button svg *,html.safeer-xplore-dark .menu .dropdown-toggle-button svg{fill:#f8fafc!important;color:#f8fafc!important;opacity:1!important;}' +
-                                'html.safeer-xplore-dark .home-link.route--active,html.safeer-xplore-dark .livetv-link.route--active,html.safeer-xplore-dark .movies-link.route--active,html.safeer-xplore-dark .library-link.route--active,html.safeer-xplore-dark .guide-link.route--active{background:rgba(0,229,255,.16)!important;border-radius:12px!important;box-shadow:inset 0 -3px 0 #00e5ff!important;color:#fff!important;}' +
-                                'html.safeer-xplore-dark .menu a.safeer-active-card,html.safeer-xplore-dark .menu .dropdown-toggle-button.safeer-active-card{outline:3px solid #00e5ff!important;outline-offset:3px!important;background:rgba(0,229,255,.14)!important;box-shadow:none!important;}' +
-                                'html.safeer-xplore-dark .menu .logo,html.safeer-xplore-dark .menu a.logo{background:transparent!important;outline:none!important;box-shadow:none!important;}';
-                            var st = document.getElementById(cssId);
-                            if (!st) {
-                                st = document.createElement('style');
-                                st.id = cssId;
-                                (document.head || document.documentElement).appendChild(st);
-                            }
-                            if (st.textContent !== css) st.textContent = css;
-                            function nearWhite(c) {
-                                c = ((c || '') + '').toLowerCase();
-                                if (c.indexOf('255, 255, 255') !== -1 || c === 'white' || c === '#fff' || c === '#ffffff') return true;
-                                var m = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-                                return !!(m && +m[1] > 210 && +m[2] > 210 && +m[3] > 210);
-                            }
-                            function paintBar(node) {
-                                if (!node) return;
-                                node.style.setProperty('background', '#0b1220', 'important');
-                                node.style.setProperty('background-color', '#0b1220', 'important');
-                                node.style.setProperty('background-image', 'none', 'important');
-                                node.style.setProperty('color', '#f8fafc', 'important');
-                            }
-                            var menu = document.querySelector('.menu');
-                            var roots = [];
-                            if (menu) roots.push(menu);
-                            var barEl = document.getElementById('csh__menu_bar');
-                            if (barEl) roots.push(barEl);
-                            var ri, node, par, depth, r, cs, kids, ki, texts, ti, txt, cls;
-                            for (ri = 0; ri < roots.length; ri++) {
-                                node = roots[ri];
-                                paintBar(node);
-                                par = node.parentElement;
-                                depth = 0;
-                                while (par && depth < 3) {
-                                    r = par.getBoundingClientRect();
-                                    if (r.top < 12 && r.height > 48 && r.height < 170 && r.width > 700) {
-                                        cs = getComputedStyle(par);
-                                        if (nearWhite(cs.backgroundColor) || r.top <= 2) paintBar(par);
-                                    }
-                                    par = par.parentElement;
-                                    depth++;
-                                }
-                                kids = node.querySelectorAll('div, nav, ul, header, section');
-                                for (ki = 0; ki < kids.length; ki++) {
-                                    r = kids[ki].getBoundingClientRect();
-                                    if (r.top > 110 || r.height > 150) continue;
-                                    cs = getComputedStyle(kids[ki]);
-                                    if (nearWhite(cs.backgroundColor)) {
-                                        kids[ki].style.setProperty('background', 'transparent', 'important');
-                                        kids[ki].style.setProperty('background-color', 'transparent', 'important');
-                                        kids[ki].style.setProperty('background-image', 'none', 'important');
-                                    }
-                                }
-                                texts = node.querySelectorAll('a, button, span, p, li, [role="button"], [role="tab"]');
-                                for (ti = 0; ti < texts.length; ti++) {
-                                    txt = texts[ti];
-                                    cls = ((txt.className || '') + '').toLowerCase();
-                                    if (cls.indexOf('logo') !== -1) continue;
-                                    txt.style.setProperty('color', '#f8fafc', 'important');
-                                    txt.style.setProperty('-webkit-text-fill-color', '#f8fafc', 'important');
-                                    txt.style.setProperty('opacity', '1', 'important');
-                                    txt.style.setProperty('visibility', 'visible', 'important');
-                                }
-                            }
-                        } catch (_) {}
-                    };
-                    try { window._safeer_xplore_paint_menu(); } catch (_) {}
-                    var xploreFix = document.createElement('style');
-                    xploreFix.id = 'tv-remote-xplore-layout-fix';
-                    xploreFix.textContent = ':focus,:focus-visible{outline:none!important;box-shadow:none!important;background-color:transparent!important;transform:none!important;}' +
-                        '.tv-remote-focused{transform:none!important;background-color:transparent!important;outline:5px solid #00e5ff!important;outline-offset:6px!important;box-shadow:0 0 0 3px #000,0 0 28px #00e5ff!important;}' +
-                        '.livetv-griditem,[class*="livetv-griditem"],.livetv-griditem .item.item--event,.item.item--event,.item--event,[class*="content-carousel__item"]{overflow:visible!important;}' +
-                        '.item.item--event.safeer-active-card,.item--event.safeer-active-card,[class*="content-carousel__item"].safeer-active-card{outline:6px solid #00e5ff!important;outline-offset:7px!important;box-shadow:0 0 0 4px #000,0 0 36px #00e5ff!important;background-color:transparent!important;border-radius:12px!important;z-index:auto!important;}' +
-                        '[class*="content-carousel__item"].safeer-active-card{transform:scale(1.06)!important;}' +
-                        '.item.item--event.safeer-active-card,.item--event.safeer-active-card{transform:none!important;}' +
-                        '.menu a.safeer-active-card,.livetv-link.safeer-active-card,[class*="action-list"].safeer-active-card,.promo-carousel__button.safeer-active-card,a.safeer-active-card{outline:6px solid #00e5ff!important;outline-offset:7px!important;box-shadow:0 0 0 3px #000,0 0 32px #00e5ff!important;background-color:transparent!important;transform:none!important;border-radius:12px!important;}' +
-                        '.menu .logo:focus,.menu a.logo:focus,[class*="header-logo"]:focus,#csh__logo:focus{outline:none!important;box-shadow:none!important;}' +
-                        '#safeer-focus-target-ring .safeer-focus-badge{display:none!important;}' +
-                        '#safeer-focus-target-ring{border:6px solid #00e5ff!important;outline:3px solid #fff!important;outline-offset:-9px!important;border-radius:14px!important;box-shadow:0 0 0 3px #000,0 0 38px #00e5ff!important;background:transparent!important;z-index:50000!important;}' +
-                        'html.safeer-xplore-fs #safeer-focus-target-ring{display:none!important;opacity:0!important;}' +
-                        'html.safeer-xplore-fs .safeer-active-card{box-shadow:none!important;outline:none!important;transform:none!important;}' +
-                        'input:focus,input:focus-visible,textarea:focus{outline:2px solid #3b82f6!important;box-shadow:0 0 0 1px #07090d,0 0 14px rgba(59,130,246,.35)!important;background:#121826!important;}' +
-                        '.menu,.menu--opaque,.menu--fixed,.gradient-bg-black,.menu.menu--black-text,.menu.gradient-bg-white{background:#0b0e14!important;background-image:none!important;color:#f1f5f9!important;border-bottom:1px solid #1a2230!important;z-index:40!important;min-height:76px!important;height:auto!important;}' +
-                        '.menu.menu--fixed,.menu--fixed{top:0!important;left:0!important;right:0!important;}' +
-                        '.menu a,.menu [role="tab"],#csh__menu_bar a,.menu .dropdown-toggle-button{min-height:52px!important;display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px!important;padding:8px 14px!important;font-size:20px!important;font-weight:700!important;color:#f1f5f9!important;white-space:nowrap!important;opacity:1!important;visibility:visible!important;overflow:visible!important;}' +
-                        '.menu-items-wrapper,#csh__menu_bar{display:flex!important;align-items:center!important;gap:4px!important;background:transparent!important;background-color:transparent!important;}' +
-                        '#csh__menu_bar a span,.menu a span,.home-link span,.livetv-link span,.movies-link span,.library-link span,.guide-link span,.dropdown-toggle-button span{display:inline!important;opacity:1!important;visibility:visible!important;position:static!important;width:auto!important;max-width:none!important;height:auto!important;font-size:20px!important;font-weight:700!important;color:#f1f5f9!important;clip:auto!important;clip-path:none!important;overflow:visible!important;text-indent:0!important;}' +
-                        '.home-link.route--active,.livetv-link.route--active,.movies-link.route--active,.library-link.route--active,.guide-link.route--active{background:#1e293b!important;border-radius:10px!important;box-shadow:inset 0 -3px 0 #e10600!important;}' +
-                        '.zw-overlays-layer.player-fullwindow,.zw-overlays-layer.player-scaled,[class*="overlays-layer"].player-fullwindow,[class*="overlays-layer"].player-scaled{z-index:100000!important;visibility:visible!important;opacity:1!important;}' +
-                        'html.safeer-xplore-waitplay #safeer-focus-target-ring,html.safeer-xplore-playing #safeer-focus-target-ring{display:none!important;opacity:0!important;}' +
-                        '.content__wrapper,.content__wrapper.has-footer,html.safeer-xplore-dark,html.safeer-xplore-dark body,html.safeer-xplore-dark main,html.safeer-xplore-dark .gradient-bg-white,html.safeer-xplore-dark .options-wrapper,html.safeer-xplore-dark [class*="options-wrapper"],html.safeer-xplore-dark [class*="livetv-grid"]{background:#07090d!important;background-color:#07090d!important;color:#e8eef5!important;}' +
-                        'html.safeer-xplore-dark .item__bg{background-color:#12161e!important;}' +
-                        'html.safeer-xplore-fs,html.safeer-xplore-fs body{overflow:hidden!important;background:#000!important;}' +
-                        'html.safeer-xplore-fs video{position:fixed!important;left:0!important;top:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;opacity:1!important;visibility:visible!important;display:block!important;}';
-                    (document.head || document.documentElement).appendChild(xploreFix);
-                    try { document.documentElement.style.colorScheme = 'dark'; } catch (_) {}
-                    try {
-                        if (window.SafeerBridge && window.SafeerBridge.setChromeHidden) {
-                            window.SafeerBridge.setChromeHidden(true);
-                        }
-                    } catch (_) {}
-                    // #region agent log
-                    try { window._safeerDbg('H112', 'tv_remote_nav.js:init', 'xplore kiosk chrome hidden', { path: (location.pathname || '').slice(0, 60) }); } catch (_) {}
-                    // #endregion
-                }
 
             } catch(e) {}
 
@@ -418,19 +277,8 @@
                     h: window.innerHeight,
                     sw: (document.documentElement && document.documentElement.scrollWidth) || 0,
                     sh: (document.documentElement && document.documentElement.scrollHeight) || 0,
-                    cinema: !!document.getElementById('tv-remote-cinema-style'),
-                    xplore: (location.hostname || '').indexOf('xploretv') !== -1
+                    cinema: !!document.getElementById('tv-remote-cinema-style')
                 });
-                if ((location.hostname || '').indexOf('xploretv') !== -1) {
-                    var bs = window.getComputedStyle(document.body || document.documentElement);
-                    window._safeerDbg('H8', 'UserScriptManager.kt:TV_REMOTE_init', 'xplore dark', {
-                        bodyBg: (bs.backgroundColor || ''),
-                        htmlScheme: (document.documentElement.style.colorScheme || ''),
-                        hasDark: !!document.getElementById('tv-remote-xplore-dark'),
-                        menuBg: (function(){ try { var m=document.querySelector('.menu'); return m?getComputedStyle(m).backgroundColor:''; } catch(e){ return ''; } })(),
-                        barBg: (function(){ try { var b=document.getElementById('csh__menu_bar'); return b?getComputedStyle(b).backgroundColor:''; } catch(e){ return ''; } })()
-                    });
-                }
             } catch (_) {}
             // #endregion
 
@@ -622,11 +470,11 @@
             };
 
             // 4. Inteligentna geometrijska prostorska navigacija po spletnih elementih (2D Spatial Navigation)
-            function isXploreLivetvPath() {
+            function jePotVZivo() {
                 return ((location.pathname || '').toLowerCase()).indexOf('/livetv') !== -1;
             }
 
-            function isXploreFooterEl(el) {
+            function jeNogaAliPiskotki(el) {
                 if (!el) return false;
                 try {
                     if (el.closest && el.closest('footer, .footer, [class*="cookie"], [class*="piškot"], [class*="piskot"]')) return true;
@@ -641,21 +489,21 @@
                 return false;
             }
 
-            function isXploreContentTile(el) {
+            function jeVsebinskaPloscica(el) {
                 if (!el) return false;
                 var cls = ((el.className || '') + '').toLowerCase();
                 if (cls.indexOf('item--event') !== -1) return true;
                 if (cls.indexOf('content-carousel__item') !== -1) return true;
                 if (cls.indexOf('editorial') !== -1 && cls.indexOf('item') !== -1) return true;
-                if (!isXploreLivetvPath() && cls.indexOf('channel-container') !== -1) return true;
+                if (!jePotVZivo() && cls.indexOf('channel-container') !== -1) return true;
                 try {
                     if (el.closest && el.closest('[class*="content-carousel__item"], .item.item--event, .item--event')) return true;
-                    if (!isXploreLivetvPath() && el.closest && el.closest('.channel-container, [class*="channel-container"]')) return true;
+                    if (!jePotVZivo() && el.closest && el.closest('.channel-container, [class*="channel-container"]')) return true;
                 } catch (_) {}
                 return false;
             }
 
-            function isXploreActionField(el) {
+            function jeGumbDejanja(el) {
                 if (!el) return false;
                 var cls = ((el.className || '') + '').toLowerCase();
                 if (cls.indexOf('action-list') !== -1) return true;
@@ -668,8 +516,8 @@
                     t.indexOf('posnemi') !== -1 || t.indexOf('dodaj med') !== -1;
             }
 
-            function pickXploreContentTile() {
-                var firstLive = isXploreLivetvPath() ? document.getElementById('csh__first_item') : null;
+            function izberiVsebinskoPloscico() {
+                var firstLive = jePotVZivo() ? document.getElementById('csh__first_item') : null;
                 if (firstLive) {
                     try {
                         var fr0 = firstLive.getBoundingClientRect();
@@ -686,9 +534,9 @@
                 var winW = window.innerWidth || 1920;
                 for (i = 0; i < nodes.length; i++) {
                     el = nodes[i];
-                    if (isXploreFooterEl(el)) continue;
+                    if (jeNogaAliPiskotki(el)) continue;
                     var ncls = ((el.className || '') + '').toLowerCase();
-                    if (isXploreLivetvPath() && ncls.indexOf('channel-container') !== -1 && ncls.indexOf('item--event') === -1) continue;
+                    if (jePotVZivo() && ncls.indexOf('channel-container') !== -1 && ncls.indexOf('item--event') === -1) continue;
                     r = el.getBoundingClientRect();
                     if (r.width < 120 || r.height < 70) continue;
                     if (r.width > winW * 0.72 || r.height > winH * 0.62) continue;
@@ -706,7 +554,7 @@
                     var root = null;
                     try {
                         root = best.closest && best.closest('[class*="content-carousel__item"], .item.item--event, .item--event');
-                        if (!root && !isXploreLivetvPath()) {
+                        if (!root && !jePotVZivo()) {
                             root = best.closest && best.closest('.channel-container, [class*="channel-container"]');
                         }
                     } catch (_) {}
@@ -1005,8 +853,8 @@
                 }
                 
                 var cls = (el.className || '').toString().toLowerCase();
-                if (isXploreFooterEl(el)) return false;
-                if (isXploreLivetvPath() && cls.indexOf('channel-container') !== -1 && cls.indexOf('item--event') === -1) return false;
+                if (jeNogaAliPiskotki(el)) return false;
+                if (jePotVZivo() && cls.indexOf('channel-container') !== -1 && cls.indexOf('item--event') === -1) return false;
                 if (cls.indexOf('channellists') !== -1 || cls.indexOf('icon-p24_channellist') !== -1) return false;
                 if (cls.indexOf('time') !== -1 || cls.indexOf('duration') !== -1 || cls.indexOf('badge') !== -1 || cls.indexOf('progress') !== -1 || cls.indexOf('subtitle') !== -1) {
                     if (!el.hasAttribute('onclick') && el.getAttribute('role') !== 'button') {
@@ -1108,60 +956,6 @@
                         }
                         if (news.length) return news;
                     }
-                    if (isXploreHost()) {
-                        var fast = [];
-                        function addFast(el) {
-                            if (!el || fast.indexOf(el) !== -1) return;
-                            if (isXploreFooterEl(el)) return;
-                            var acls = ((el.className || '') + '');
-                            if (!isActionable(el) && acls.indexOf('item--event') === -1 &&
-                                acls.indexOf('content-carousel__item') === -1 &&
-                                acls.indexOf('action-list') === -1 && !isXploreActionField(el)) return;
-                            var root = findCardContainer(el) || el;
-                            if (isXploreActionField(el) && ((el.className || '') + '').indexOf('action-list') !== -1) {
-                                root = el;
-                            }
-                            try {
-                                var rw = root.getBoundingClientRect();
-                                if (rw.width > 620 && !isXploreActionField(root) &&
-                                    ((root.className || '') + '').indexOf('item--event') === -1 &&
-                                    ((root.className || '') + '').indexOf('content-carousel__item') === -1) {
-                                    var inner = root.querySelector && root.querySelector('.item.item--event, .item--event, [class*="content-carousel__item"]');
-                                    if (inner) root = inner;
-                                }
-                            } catch (_) {}
-                            if (isXploreLivetvPath()) {
-                                var rc = ((root.className || '') + '').toLowerCase();
-                                if (rc.indexOf('channel-container') !== -1 && rc.indexOf('item--event') === -1) {
-                                    var prog = root.querySelector && root.querySelector('.item.item--event, .item--event');
-                                    if (prog) root = prog;
-                                    else return;
-                                }
-                            }
-                            if (fast.indexOf(root) !== -1) return;
-                            fast.push(root);
-                        }
-                        var menuFast = getXploreMenuLinks();
-                        for (var mf = 0; mf < menuFast.length; mf++) addFast(menuFast[mf]);
-                        var searchEl = document.querySelector('.icon-p24_search, [class*="icon-p24_search"], li.search a');
-                        if (searchEl) addFast(searchEl.closest && (searchEl.closest('a, li, button') || searchEl) || searchEl);
-                        var actNodes = document.querySelectorAll('[class*="action-list"], .promo-carousel__button');
-                        for (var an = 0; an < actNodes.length; an++) {
-                            var actEl = actNodes[an];
-                            var ar = actEl.getBoundingClientRect();
-                            if (ar.width < 28 || ar.height < 20) continue;
-                            if (ar.top < 40 || ar.top > ((window.innerHeight || 1080) - 20)) continue;
-                            addFast(actEl);
-                        }
-                        if (isXploreLivetvPath()) {
-                            var liveTiles = document.querySelectorAll('.item.item--event, .item--event');
-                            for (var lt = 0; lt < liveTiles.length; lt++) addFast(liveTiles[lt]);
-                        } else {
-                            var homeTiles = document.querySelectorAll('.item.item--event, .item--event, [class*="content-carousel__item"]');
-                            for (var ht = 0; ht < homeTiles.length; ht++) addFast(homeTiles[ht]);
-                        }
-                        if (fast.length) return fast;
-                    }
                 var all = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [role="tab"], [tabindex], [data-ved], [onclick], .video-play-button, [class*="card"], [class*="tile"], [class*="item"], [class*="channel"], [class*="poster"], [class*="program"], [class*="epg"], [class*="movie"], [class*="media"], [class*="slick-slide"], article, li.search, .icon-p24_search, [class*="icon-p24_search"]');
                 var raw = [];
                 for (var i = 0; i < all.length; i++) {
@@ -1208,14 +1002,14 @@
                         }
                     }
                     if (!isNested && !dropWrapper) {
-                        if (isXploreFooterEl(item)) {
+                        if (jeNogaAliPiskotki(item)) {
                             continue;
                         }
                         if (itemCls.indexOf('slick-slide') !== -1 && itemCls.indexOf('item--event') === -1 &&
                             itemCls.indexOf('content-carousel__item') === -1) {
                             continue;
                         }
-                        if (isXploreLivetvPath() && itemCls.indexOf('channel-container') !== -1 && itemCls.indexOf('item--event') === -1) {
+                        if (jePotVZivo() && itemCls.indexOf('channel-container') !== -1 && itemCls.indexOf('item--event') === -1) {
                             continue;
                         }
                         if (itemCls.indexOf('channellists') !== -1) {
@@ -1242,10 +1036,10 @@
                 return null;
             }
 
-            window._safeer_xplore_ensure_focus = function() {
+            window._safeer_medij_ensure_focus = function() {
                 try {
                     var cur = document.querySelector('.safeer-active-card') || getActiveElement();
-                    function isXploreMenuEl(el) {
+                    function jeMenijskiElement(el) {
                         if (!el) return false;
                         var cls = ((el.className || '') + '').toLowerCase();
                         if (cls.indexOf('menu-items-wrapper') !== -1) return false;
@@ -1262,22 +1056,22 @@
                     if (cur) {
                         var keepCls = ((cur.className || '') + '').toLowerCase();
                         if (keepCls.indexOf('item--event') !== -1 || keepCls.indexOf('content-carousel__item') !== -1 ||
-                            keepCls.indexOf('action-list') !== -1 || isXploreActionField(cur) || isXploreMenuEl(cur)) {
+                            keepCls.indexOf('action-list') !== -1 || jeGumbDejanja(cur) || jeMenijskiElement(cur)) {
                             highlightElement(cur);
                             return getActiveElement();
                         }
                     }
-                    if (cur && isXploreMenuEl(cur) && window._safeer_xplore_did_focus) {
+                    if (cur && jeMenijskiElement(cur) && window._safeer_medij_did_focus) {
                         // #region agent log
                         try { window._safeerDbg('H120', 'tv_remote_nav.js:ensure_focus', 'keep menu', { cls: ((cur.className || '') + '').slice(0, 60) }); } catch (_) {}
                         // #endregion
                         highlightElement(cur);
                         return getActiveElement();
                     }
-                    if (!window._safeer_xplore_did_focus) {
+                    if (!window._safeer_medij_did_focus) {
                         var pathEf = (location.pathname || '').toLowerCase();
                         if (pathEf.indexOf('/event') !== -1) {
-                            var playFirst = pickXplorePlayAction();
+                            var playFirst = izberiGumbPredvajanja();
                             if (playFirst) {
                                 highlightElement(playFirst);
                                 var playGot = getActiveElement();
@@ -1293,20 +1087,20 @@
                                 return playGot;
                             }
                         } else if (pathEf.indexOf('/livetv') === -1) {
-                            var homePlay = pickXplorePlayAction();
+                            var homePlay = izberiGumbPredvajanja();
                             if (homePlay) {
                                 highlightElement(homePlay);
                                 return getActiveElement();
                             }
                         }
                     }
-                    if (!window._safeer_xplore_did_focus && cur && isXploreMenuEl(cur)) {
+                    if (!window._safeer_medij_did_focus && cur && jeMenijskiElement(cur)) {
                         // #region agent log
                         try { window._safeerDbg('H263', 'tv_remote_nav.js:ensure_focus', 'skip initial menu', { cls: ((cur.className || '') + '').slice(0, 60) }); } catch (_) {}
                         // #endregion
                         cur = null;
                     }
-                    if (cur && isXploreFooterEl(cur)) {
+                    if (cur && jeNogaAliPiskotki(cur)) {
                         clearActive();
                         cur = null;
                     }
@@ -1326,7 +1120,7 @@
                                 cur = childEv;
                             }
                         }
-                        if (isXploreLivetvPath() && cclsMap.indexOf('channel-container') !== -1 && cclsMap.indexOf('item--event') === -1) {
+                        if (jePotVZivo() && cclsMap.indexOf('channel-container') !== -1 && cclsMap.indexOf('item--event') === -1) {
                             var mappedProg = livetvProgramFromHeader(cur);
                             // #region agent log
                             try {
@@ -1351,10 +1145,10 @@
                             ctx.indexOf('predvajaj v živo') !== -1 || ctx.indexOf('predvajaj v zivo') !== -1 ||
                             ctx.indexOf('glej zdaj') !== -1 || ctx.indexOf('glej oddajo') !== -1 ||
                             ctx.indexOf('predvajaj') === 0;
-                        var isProg = ccls.indexOf('item--event') !== -1 || isXploreContentTile(cur);
+                        var isProg = ccls.indexOf('item--event') !== -1 || jeVsebinskaPloscica(cur);
                         var isLogoOnly = ccls.indexOf('logo') !== -1 && ctx.indexOf('za vas') === -1;
                         var tooBig = cr0.width > 700 && !isProg;
-                        var off = !isXploreMenuEl(cur) && (cr0.top < 48 || cr0.bottom < 40 || cr0.top > ((window.innerHeight || 1080) - 40) || cr0.right < 40 || cr0.left > ((window.innerWidth || 1920) - 40));
+                        var off = !jeMenijskiElement(cur) && (cr0.top < 48 || cr0.bottom < 40 || cr0.top > ((window.innerHeight || 1080) - 40) || cr0.right < 40 || cr0.left > ((window.innerWidth || 1920) - 40));
                         if (isPlayAction && ctx.length <= 64) {
                             // #region agent log
                             try { window._safeerDbg('H221', 'tv_remote_nav.js:ensure_focus', 'keep play action', { cls: ccls.slice(0, 70) }); } catch (_) {}
@@ -1362,7 +1156,7 @@
                             highlightElement(cur);
                             return getActiveElement();
                         }
-                        if (isLogoOnly || (!isProg && !isXploreMenuEl(cur)) || tooBig || off) {
+                        if (isLogoOnly || (!isProg && !jeMenijskiElement(cur)) || tooBig || off) {
                             clearActive();
                             cur = null;
                         }
@@ -1387,7 +1181,7 @@
                         break;
                     }
                     if (!pick) pick = document.getElementById('csh__first_item') || (els[0] || null);
-                    if (!pick) pick = pickXploreContentTile();
+                    if (!pick) pick = izberiVsebinskoPloscico();
                     if (pick) highlightElement(pick);
                     return getActiveElement();
                 } catch (_) {}
@@ -1417,7 +1211,7 @@
                 if (location.protocol === 'file:') return;
                 try {
                     var ring = getOrCreateFocusRing();
-                    if (document.documentElement.classList.contains('safeer-xplore-fs')) {
+                    if (document.documentElement.classList.contains('safeer-medij-fs')) {
                         ring.classList.remove('active');
                         ring.style.display = 'none';
                         return;
@@ -1432,7 +1226,7 @@
                         ring.classList.remove('active');
                         return;
                     }
-                    var pad = isXploreHost() ? 10 : 4;
+                    var pad = 4;
                     ring.style.top = (r.top - pad) + 'px';
                     ring.style.left = (r.left - pad) + 'px';
                     ring.style.width = (r.width + pad * 2) + 'px';
@@ -1524,7 +1318,7 @@
                 }
                 clearActive();
                 if (!el) return;
-                window._safeer_xplore_did_focus = true;
+                window._safeer_medij_did_focus = true;
                 el.classList.add('safeer-active-card');
                 try { if (((el.className || '') + '').indexOf('item--event') !== -1) el.tabIndex = 0; } catch (_) {}
                 var tag = (el.tagName || '').toUpperCase();
@@ -1538,7 +1332,7 @@
                 if (hr.width < 800 && hr.height < 500) {
                     try { el.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }); } catch (_) {}
                 }
-                if (isXploreHost() && document.documentElement.classList.contains('safeer-xplore-fs')) updateFocusRing(null);
+                if (document.documentElement.classList.contains('safeer-medij-fs')) updateFocusRing(null);
                 else updateFocusRing(el);
                 // #region agent log
                 try {
@@ -1573,7 +1367,7 @@
                 if (curr) updateFocusRing(curr);
             }, { passive: true });
 
-            function isXploreChannel(el) {
+            function jeProgramskaPloscica(el) {
                 if (!el) return false;
                 var cls = ((el.className || '') + '').toLowerCase();
                 if (cls.indexOf('item--event') !== -1) return false;
@@ -1625,7 +1419,7 @@
                 return null;
             }
 
-            function pickXploreChannelHeader() {
+            function izberiGlavoPrograma() {
                 var nodes = document.querySelectorAll('.channel-container, [class*="channel-container"]');
                 var i, a, r, pick = null, bestLeft = 1e9;
                 for (i = 0; i < nodes.length; i++) {
@@ -1641,7 +1435,7 @@
                 return pick;
             }
 
-            function isXploreMenuLabel(t) {
+            function jeMenijskaOznaka(t) {
                 t = (t || '').replace(/\s+/g, ' ').trim().toLowerCase();
                 if (!t || t.length > 28) return false;
                 if (t === 'za vas' || t === 'tv v živo' || t === 'tv v zivo' || t === 'filmi' ||
@@ -1651,7 +1445,7 @@
                 return false;
             }
 
-            function isXploreMenuLink(el) {
+            function jeMenijskaPovezava(el) {
                 if (!el) return false;
                 var cls = ((el.className || '') + '').toLowerCase();
                 if (cls.indexOf('menu-items-wrapper') !== -1) return false;
@@ -1662,13 +1456,13 @@
                 } catch (_) { return false; }
                 var t = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
                 if (t.length > 28) return false;
-                if (isXploreMenuLabel(t)) return true;
+                if (jeMenijskaOznaka(t)) return true;
                 var href = ((el.getAttribute && el.getAttribute('href')) || '') + '';
-                if (isXploreMenuLabel(t) && /\/livetv|\/movies|\/library|\/gridguide|\/home/.test(href)) return true;
+                if (jeMenijskaOznaka(t) && /\/livetv|\/movies|\/library|\/gridguide|\/home/.test(href)) return true;
                 return false;
             }
 
-            function getXploreMenuLinks() {
+            function poberiMenijskePovezave() {
                 var nodes = document.querySelectorAll('.menu a, #csh__menu_bar a, .menu-items-wrapper a, a.livetv-link, a.home-link, li.menu-item a');
                 var out = [];
                 var seen = {};
@@ -1680,7 +1474,7 @@
                     var t = ((a.innerText || a.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
                     var cls = ((a.className || '') + '').toLowerCase();
                     if (cls.indexOf('logo') !== -1 && t.indexOf('za vas') === -1) continue;
-                    if (!isXploreMenuLabel(t)) continue;
+                    if (!jeMenijskaOznaka(t)) continue;
                     var href = ((a.getAttribute('href') || '') + '').toLowerCase();
                     var key = href + '|' + t;
                     if (seen[key]) continue;
@@ -1693,7 +1487,7 @@
                 return out;
             }
 
-            function pickXplorePlayAction() {
+            function izberiGumbPredvajanja() {
                 var needles = ['predvajaj v živo', 'predvajaj v zivo', 'glej zdaj', 'glej oddajo od začetka', 'glej oddajo'];
                 var nodes = document.querySelectorAll('button, a, [role="button"], [class*="action-list"]');
                 var best = null;
@@ -1719,8 +1513,8 @@
                 return best;
             }
 
-            function pickXploreMenuLink(preferLive, fromEl) {
-                var links = getXploreMenuLinks();
+            function izberiMenijskoPovezavo(preferLive, fromEl) {
+                var links = poberiMenijskePovezave();
                 if (!links.length) return null;
                 var i, href, t;
                 if (preferLive) {
@@ -1755,8 +1549,8 @@
                 return links[0];
             }
 
-            function moveXploreMenu(direction) {
-                var links = getXploreMenuLinks();
+            function premakniPoMeniju(direction) {
+                var links = poberiMenijskePovezave();
                 if (links.length < 2) return false;
                 var cur = getActiveElement();
                 var idx = -1;
@@ -1804,7 +1598,7 @@
                     var scrollEase = 'auto';
 
                     var current = getActiveElement();
-                    if (isXploreLivetvPath() && current && isXploreChannel(current)) {
+                    if (jePotVZivo() && current && jeProgramskaPloscica(current)) {
                         var fromLogo = livetvProgramFromHeader(current);
                         // #region agent log
                         try {
@@ -1844,28 +1638,6 @@
                     }
 
                     if (!current) {
-                        if (isXploreHost()) {
-                            var seeded = window._safeer_xplore_ensure_focus && window._safeer_xplore_ensure_focus();
-                            if (!seeded) seeded = pickXploreContentTile();
-                            if (seeded) {
-                                // #region agent log
-                                try {
-                                    window._safeerDbg('H264', 'tv_remote_nav.js:spatial', 'seed', {
-                                        dir: direction,
-                                        cls: ((seeded.className || '') + '').slice(0, 60),
-                                        t: ((seeded.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40)
-                                    });
-                                } catch (_) {}
-                                // #endregion
-                                highlightElement(seeded);
-                                current = seeded;
-                                // UP/DOWN land on the seeded tile. Livetv LEFT/RIGHT then keep
-                                // moving so the first RIGHT changes channel instead of staying on SLO 1.
-                                if (!(isXploreLivetvPath() && (direction === 'LEFT' || direction === 'RIGHT'))) {
-                                    return 1;
-                                }
-                            }
-                        }
                         if (!current) {
                         var best = null;
                         var bestDist = Infinity;
@@ -1921,18 +1693,18 @@
                         }
                     }
 
-                    if ((direction === 'LEFT' || direction === 'RIGHT') && isXploreHost() && current && isXploreMenuLink(current)) {
-                        if (moveXploreMenu(direction)) return 1;
+                    if ((direction === 'LEFT' || direction === 'RIGHT') && current && jeMenijskaPovezava(current)) {
+                        if (premakniPoMeniju(direction)) return 1;
                     }
 
-                    if (direction === 'UP' && isXploreHost()) {
+                    if (direction === 'UP') {
                         var curTxt = ((current.innerText || current.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
                         var curCls = ((current.className || '') + '').toLowerCase();
                         var onPlayBtn = curCls.indexOf('promo-carousel__button') !== -1 || curCls.indexOf('action-list') !== -1 ||
                             curTxt === 'glej zdaj' || curTxt.indexOf('glej zdaj') === 0 ||
                             curTxt.indexOf('predvajaj v živo') !== -1 || curTxt.indexOf('predvajaj v zivo') !== -1;
                         if (onPlayBtn) {
-                            var menuFromPlay = pickXploreMenuLink(false, current);
+                            var menuFromPlay = izberiMenijskoPovezavo(false, current);
                             if (menuFromPlay) {
                                 highlightElement(menuFromPlay);
                                 // #region agent log
@@ -1941,10 +1713,10 @@
                                 return 1;
                             }
                         }
-                        if (current && isXploreMenuLink(current)) {
+                        if (current && jeMenijskaPovezava(current)) {
                             /* stay in menu; spatial LEFT/RIGHT above */
                         } else {
-                            var playHit = pickXplorePlayAction();
+                            var playHit = izberiGumbPredvajanja();
                             if (playHit && playHit !== current) {
                                 var playTop = playHit.getBoundingClientRect().top;
                                 if (playTop < cRect.top - 8) {
@@ -1955,13 +1727,13 @@
                                     return 1;
                                 }
                             }
-                            var menuHit = pickXploreMenuLink(!!isXploreLivetvPath(), current);
+                            var menuHit = izberiMenijskoPovezavo(!!jePotVZivo(), current);
                             if (menuHit && menuHit !== current) {
                                 var onTopRow = cRect.top < 320;
                                 if (onTopRow) {
                                     highlightElement(menuHit);
                                     // #region agent log
-                                    try { window._safeerDbg('H40', 'tv_remote_nav.js:up', 'snap menu', { t: ((menuHit.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40), href: ((menuHit.getAttribute('href') || '') + '').slice(0, 40), n: getXploreMenuLinks().length }); } catch (_) {}
+                                    try { window._safeerDbg('H40', 'tv_remote_nav.js:up', 'snap menu', { t: ((menuHit.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40), href: ((menuHit.getAttribute('href') || '') + '').slice(0, 40), n: poberiMenijskePovezave().length }); } catch (_) {}
                                     // #endregion
                                     return 1;
                                 }
@@ -1969,7 +1741,7 @@
                         }
                     }
 
-                    if (direction === 'DOWN' && isXploreHost() && current && isXploreMenuLink(current)) {
+                    if (direction === 'DOWN' && current && jeMenijskaPovezava(current)) {
                         var mHref = ((current.getAttribute && current.getAttribute('href')) || '').toLowerCase();
                         var mTxt = ((current.innerText || current.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
                         var pth = (location.pathname || '').toLowerCase();
@@ -1977,17 +1749,17 @@
                             // #region agent log
                             try { window._safeerDbg('H252', 'tv_remote_nav.js:down', 'open livetv', { from: pth.slice(0, 40) }); } catch (_) {}
                             // #endregion
-                            try { window._safeer_xplore_want_play = false; sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (_) {}
-                            location.href = 'https://www.xploretv.si/livetv';
+                            try { window._safeer_medij_want_play = false; sessionStorage.removeItem('safeer_medij_autoplay'); } catch (_) {}
+                            try { current.click(); } catch (_) { if (mHref) location.href = mHref; }
                             return 1;
                         }
-                        var tileDown = pickXploreContentTile();
+                        var tileDown = izberiVsebinskoPloscico();
                         if (tileDown) {
                             highlightElement(tileDown);
                             return 1;
                         }
                         if (pth.indexOf('/event') !== -1) {
-                            var playDown = pickXplorePlayAction();
+                            var playDown = izberiGumbPredvajanja();
                             if (playDown) {
                                 highlightElement(playDown);
                                 // #region agent log
@@ -1999,14 +1771,6 @@
                     }
 
                     if (direction === 'UP' && cRect.top <= 80 && scrollY <= 20) {
-                        if (isXploreHost()) {
-                            var stay = pickXploreMenuLink(false);
-                            if (stay) {
-                                highlightElement(stay);
-                                return 1;
-                            }
-                            return 1;
-                        }
                         clearActive();
                         return -1; // Izstop v iskalno vrstico (omnibox)
                     }
@@ -2026,8 +1790,8 @@
                         var r = el.getBoundingClientRect();
                         if (r.width < 12 || r.height < 12) continue;
                         var eCls = ((el.className || '') + '').toLowerCase();
-                        if (isXploreHost() && isXploreFooterEl(el)) continue;
-                        if (isXploreLivetvPath() && eCls.indexOf('channel-container') !== -1 && eCls.indexOf('item--event') === -1) continue;
+                        if (jeNogaAliPiskotki(el)) continue;
+                        if (jePotVZivo() && eCls.indexOf('channel-container') !== -1 && eCls.indexOf('item--event') === -1) continue;
 
                         var eCenterX = r.left + r.width / 2;
                         var eCenterY = r.top + r.height / 2;
@@ -2043,7 +1807,7 @@
                             if (dy < -12) { valid = true; mainDist = -dy; crossDist = Math.abs(dx); }
                         } else if (direction === 'RIGHT') {
                             if (dx > 12) { valid = true; mainDist = dx; crossDist = Math.abs(dy); }
-                            if (isXploreHost() && r.top > cRect.bottom - 10) {
+                            if (r.top > cRect.bottom - 10) {
                                 var wy = r.top;
                                 var wx = r.left;
                                 if (wy < wrapY - 10 || (Math.abs(wy - wrapY) < 10 && wx < wrapX)) {
@@ -2054,7 +1818,7 @@
                             }
                         } else if (direction === 'LEFT') {
                             if (dx < -12) { valid = true; mainDist = -dx; crossDist = Math.abs(dy); }
-                            if (isXploreHost() && r.bottom < cRect.top + 10) {
+                            if (r.bottom < cRect.top + 10) {
                                 var wy2 = -r.top;
                                 var wx2 = -r.right;
                                 if (wy2 < wrapY - 10 || (Math.abs(wy2 - wrapY) < 10 && wx2 < wrapX)) {
@@ -2066,12 +1830,12 @@
                         }
 
                         if (valid) {
-                            var rowTol = isXploreLivetvPath() ? 88 : 72;
-                            var colTol = isXploreLivetvPath() ? 150 : 130;
+                            var rowTol = jePotVZivo() ? 88 : 72;
+                            var colTol = jePotVZivo() ? 150 : 130;
                             var sameAxis = (direction === 'LEFT' || direction === 'RIGHT') ? (crossDist < rowTol) : (crossDist < colTol);
                             var score = mainDist + crossDist * (sameAxis ? 0.12 : 1.45);
-                            if (isXploreHost() && isXploreContentTile(el) && isXploreContentTile(current) && sameAxis) score -= 80;
-                            if (isXploreHost() && isXploreActionField(el) && isXploreActionField(current) && sameAxis) score -= 60;
+                            if (jeVsebinskaPloscica(el) && jeVsebinskaPloscica(current) && sameAxis) score -= 80;
+                            if (jeGumbDejanja(el) && jeGumbDejanja(current) && sameAxis) score -= 60;
                             if (sameAxis && score < bestAxisScore) {
                                 bestAxisScore = score;
                                 bestAxis = el;
@@ -2098,14 +1862,6 @@
                         }
                         else if (direction === 'UP') {
                             if (drsajNotranjiVsebnik(current, -1)) return 1;
-                            if (isXploreHost()) {
-                                var menuMiss = pickXploreMenuLink(false, current);
-                                if (menuMiss) {
-                                    highlightElement(menuMiss);
-                                    return 1;
-                                }
-                                return 1;
-                            }
                             if (scrollY <= 20) {
                                 clearActive();
                                 return -1;
@@ -2173,11 +1929,11 @@
                 try {
                     var host = (location.hostname || '').toLowerCase();
                     var clsTap = ((el.className || '') + '').toLowerCase();
-                    var xploreTile = host.indexOf('xploretv') !== -1 && (
+                    var jeProgramskaKartica = (
                         clsTap.indexOf('item--event') !== -1 ||
                         !!(el.closest && el.closest('.item--event, .item.item--event'))
                     );
-                    if (xploreTile) {
+                    if (jeProgramskaKartica) {
                         if (window._safeerSiteAgent && !window._safeerSiteAgent.acceptOk()) return;
                         var tile = (el.closest && el.closest('.item--event, .item.item--event')) || el;
                         var ovTap = document.querySelector('.zw-overlays-layer, [class*="overlays-layer"]');
@@ -2187,12 +1943,12 @@
                         var framedTap = !!(vTap && (vTap.videoWidth || 0) >= 320 && vTap.readyState >= 2);
                         if (overlayOnTap && framedTap) return;
                         try { if (window._safeerSiteAgent) window._safeerSiteAgent.markWantPlay(); } catch (_) {}
-                        try { window._safeer_xplore_last_tile = tile; } catch (_) {}
-                        window._safeer_xplore_player_el = null;
-                        window._safeer_xplore_video_boosted = false;
-                        window._safeer_xplore_fs_clicked = false;
-                        window._safeer_xplore_playing = false;
-                        try { if (overlayOnTap && !framedTap && window._safeer_xplore_unsmash) window._safeer_xplore_unsmash(); } catch (_) {}
+                        try { window._safeer_medij_last_tile = tile; } catch (_) {}
+                        window._safeer_medij_player_el = null;
+                        window._safeer_medij_video_boosted = false;
+                        window._safeer_medij_fs_clicked = false;
+                        window._safeer_medij_playing = false;
+                        try { if (overlayOnTap && !framedTap && window._safeer_medij_unsmash) window._safeer_medij_unsmash(); } catch (_) {}
                         function fireTileClick() {
                             var rectT = tile.getBoundingClientRect();
                             var clickN = 0;
@@ -2206,7 +1962,7 @@
                             try { tile.click(); } catch (_) {}
                             try { document.removeEventListener('click', onCapClick, true); } catch (_) {}
                             try {
-                                window._safeerDbg('H97', 'tv_remote_nav.js:click', 'xplore tile pointer', {
+                                window._safeerDbg('H97', 'tv_remote_nav.js:click', 'tile pointer', {
                                     id: (tile.id || '').slice(0, 40),
                                     first: (tile.id || '') === 'csh__first_item',
                                     t: ((tile.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 50),
@@ -2266,102 +2022,6 @@
                             goingEvent = ah.indexOf('event') !== -1;
                         }
                     } catch (_) {}
-                    if (location.hostname.indexOf('xploretv') !== -1) {
-                        var menuTxt = ((target && (target.innerText || target.textContent)) || '').replace(/\s+/g, ' ').trim().toLowerCase();
-                        var menuCls = ((target && target.className) || '').toString().toLowerCase();
-                        var hrefMenu = '';
-                        try { hrefMenu = ((target && target.getAttribute && (target.getAttribute('href') || '')) + '').toLowerCase(); } catch (_) {}
-                        var isHomeNav = menuCls.indexOf('home-link') !== -1 || menuTxt === 'za vas' ||
-                            (hrefMenu.indexOf('/home') !== -1 && menuTxt.indexOf('za vas') !== -1);
-                        var isLiveNav = menuCls.indexOf('livetv-link') !== -1 || ((menuTxt === 'tv v živo' || menuTxt === 'tv v zivo') && menuCls.indexOf('menu-items-wrapper') === -1);
-                        var inMenu = false;
-                        try { inMenu = !!(target && target.closest && target.closest('.menu, #csh__menu_bar, .menu-items-wrapper')); } catch (_) {}
-                        if (isHomeNav) {
-                            window._safeer_xplore_want_play = false;
-                            try { sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (_) {}
-                            try { window._safeerDbg('H342', 'tv_remote_nav.js:click', 'za vas no play', { path: path.slice(0, 40) }); } catch (_) {}
-                            if (path.indexOf('/home') !== -1 || path === '/' || path === '') return true;
-                            location.href = 'https://www.xploretv.si/home';
-                            return true;
-                        }
-                        if (isLiveNav) {
-                            window._safeer_xplore_want_play = false;
-                            try { sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (_) {}
-                            if (path.indexOf('/livetv') !== -1) {
-                                var stayLive = pickXploreContentTile();
-                                if (stayLive) highlightElement(stayLive);
-                                return true;
-                            }
-                            location.href = 'https://www.xploretv.si/livetv';
-                            return true;
-                        }
-                        if (inMenu) {
-                            window._safeer_xplore_want_play = false;
-                            try { sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (_) {}
-                            nativeTapElement(target);
-                            return true;
-                        }
-                        try {
-                            if (target && target.closest && target.closest('.item--event, .item.item--event')) goingEvent = true;
-                        } catch (_) {}
-                        if (path.indexOf('/livetv') !== -1) {
-                            goingEvent = false;
-                            window._safeer_xplore_want_play = true;
-                            window._safeer_xplore_play_n = (window._safeer_xplore_play_n || 0) + 1;
-                            try { sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (_) {}
-                            // #region agent log
-                            try { window._safeerDbg('H272', 'tv_remote_nav.js:click', 'livetv tile play', { n: window._safeer_xplore_play_n, cls: ((target && target.className) || '').toString().slice(0, 70) }); } catch (_) {}
-                            // #endregion
-                        }
-                        var clsHit = ((target && target.className) || '').toString().toLowerCase();
-                        var isSearchHit = clsHit.indexOf('search') !== -1 || (target && target.querySelector && target.querySelector('.icon-p24_search'));
-                        if (!isSearchHit && goingEvent) {
-                            try { sessionStorage.setItem('safeer_xplore_autoplay', '1'); } catch (_) {}
-                            window._safeer_xplore_want_play = true;
-                            window._safeer_xplore_video_boosted = false;
-                            window._safeer_xplore_playing = false;
-                            var eventRoot = (target && target.closest) ? target.closest('.item--event, .item.item--event') : null;
-                            if (eventRoot) target = eventRoot;
-                        }
-                        if (!isSearchHit && !goingEvent) {
-                            window._safeer_xplore_want_play = true;
-                            window._safeer_xplore_video_boosted = false;
-                            window._safeer_xplore_playing = false;
-                        }
-                        if (onEvent && typeof window._safeer_xplore_play_from_start === 'function') {
-                            var actTxt = ((target && (target.innerText || target.textContent)) || '').replace(/\s+/g, ' ').trim().toLowerCase();
-                            var actCls = ((target && target.className) || '').toString().toLowerCase();
-                            var isPlayAction = actCls.indexOf('action-list') !== -1 ||
-                                actTxt.indexOf('glej oddajo') !== -1 ||
-                                actTxt.indexOf('predvajaj') !== -1 ||
-                                actTxt.indexOf('glej zdaj') !== -1 ||
-                                actTxt.indexOf('na začetek') !== -1 ||
-                                actTxt.indexOf('na zacetek') !== -1 ||
-                                actTxt.indexOf('priljubljen') !== -1 ||
-                                actTxt.indexOf('posnemi') !== -1 ||
-                                actTxt.indexOf('dodaj med') !== -1;
-                            var relatedTile = null;
-                            try { relatedTile = target && target.closest ? target.closest('.item--event, .item.item--event') : null; } catch (_) {}
-                            if (relatedTile && !isPlayAction) {
-                                try { sessionStorage.setItem('safeer_xplore_autoplay', '1'); } catch (_) {}
-                                nativeTapElement(relatedTile);
-                                return true;
-                            }
-                            if (isPlayAction) {
-                                var wantLive = actTxt.indexOf('predvajaj') !== -1 || actTxt.indexOf('glej zdaj') !== -1 || actTxt.indexOf('glej oddajo') !== -1;
-                                if (wantLive) {
-                                    window._safeer_xplore_want_play = true;
-                                    window._safeer_xplore_video_boosted = false;
-                                    window._safeer_xplore_playing = false;
-                                }
-                                try { sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (_) {}
-                                nativeTapElement(target);
-                                return true;
-                            }
-                            try { sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (_) {}
-                            return window._safeer_xplore_play_from_start();
-                        }
-                    }
                     // #region agent log
                     try {
                         window._safeerDbg('H60', 'tv_remote_nav.js:click', 'ok click target', {
@@ -2369,45 +2029,20 @@
                             cls: ((target && target.className) || '').toString().slice(0, 90),
                             goingEvent: !!goingEvent,
                             onEvent: !!onEvent,
-                            want: !!window._safeer_xplore_want_play,
-                            auto: (function(){ try { return sessionStorage.getItem('safeer_xplore_autoplay') || ''; } catch(e){ return ''; } })()
+                            want: !!window._safeer_medij_want_play,
+                            auto: (function(){ try { return sessionStorage.getItem('safeer_medij_autoplay') || ''; } catch(e){ return ''; } })()
                         });
                     } catch (_) {}
                     // #endregion
                     if (target) {
                         var clickable = target;
-                        if (location.hostname.indexOf('xploretv') === -1) {
-                            clickable = target.querySelector('a[href], button, [class*="play"], [class*="watch"], [class*="thumb"], [class*="image"], img, [role="button"]') || target;
-                        }
+                        clickable = target.querySelector('a[href], button, [class*="play"], [class*="watch"], [class*="thumb"], [class*="image"], img, [role="button"]') || target;
                         nativeTapElement(clickable);
-                        if (location.hostname.indexOf('xploretv') === -1 && clickable !== target) nativeTapElement(target);
-                        if (location.hostname.indexOf('xploretv') !== -1 && !goingEvent && path.indexOf('/livetv') === -1) {
-                            try { if (window._safeerSiteAgent && window._safeerSiteAgent.allowBoost()) window._safeer_xplore_boost(); } catch (_) {}
+                        if (clickable !== target) nativeTapElement(target);
+                        if (!goingEvent && path.indexOf('/livetv') === -1) {
+                            try { if (window._safeerSiteAgent && window._safeerSiteAgent.allowBoost()) window._safeer_medij_boost(); } catch (_) {}
                         }
                         // #region agent log
-                        if (location.hostname.indexOf('xploretv') !== -1) {
-                            setTimeout(function() {
-                                try {
-                                    var v = document.querySelector('video');
-                                    var r = v ? v.getBoundingClientRect() : { width: 0, height: 0 };
-                                    var ply = document.querySelector('[class*="overlays-layer"], [class*="clpp"]');
-                                    window._safeerDbg('H63', 'tv_remote_nav.js:click', 'player 4s after ok', {
-                                        path: (location.pathname || '').slice(0, 80),
-                                        hasV: !!v,
-                                        w: Math.round(r.width || 0),
-                                        h: Math.round(r.height || 0),
-                                        vw: v ? (v.videoWidth || 0) : 0,
-                                        rs: v ? v.readyState : -1,
-                                        paused: v ? !!v.paused : true,
-                                        playing: !!window._safeer_xplore_playing,
-                                        boosted: !!window._safeer_xplore_video_boosted,
-                                        fs: document.documentElement.classList.contains('safeer-xplore-fs'),
-                                        ply: ply ? ((ply.className || '') + '').slice(0, 70) : '',
-                                        ph: ply ? Math.round(ply.getBoundingClientRect().height || 0) : 0
-                                    });
-                                } catch (_) {}
-                            }, 4000);
-                        }
                         // #endregion
 
                         setTimeout(function() {
@@ -2455,18 +2090,6 @@
             function makeElementsFocusable() {
                 try {
                     autoDismissGdpr();
-                    if (isXploreHost()) {
-                        var ovPlay = document.querySelector('.zw-overlays-layer, [class*="overlays-layer"]');
-                        var ovCls = ovPlay ? ((ovPlay.className || '') + '').toLowerCase() : '';
-                        if (ovCls.indexOf('player-fullwindow') !== -1 || ovCls.indexOf('player-scaled') !== -1) {
-                            return;
-                        }
-                        var vWant = document.querySelector('video');
-                        var framedWant = !!(vWant && (vWant.videoWidth || 0) >= 320 && vWant.readyState >= 2);
-                        if (window._safeer_xplore_want_play && !framedWant) {
-                            return;
-                        }
-                    }
                     var focusables = document.querySelectorAll('a, button, input, select, textarea, [onclick], [role="button"], .card, .media-card, .item--event, .item.item--event, .tab, .seasonHeader, .video-play-button');
                     for (var i = 0; i < focusables.length; i++) {
                         var el = focusables[i];
@@ -2474,21 +2097,6 @@
                         if (jeSkritZaFokus(el)) continue;
                         if (!el.hasAttribute('tabindex')) {
                             el.setAttribute('tabindex', '0');
-                        }
-                    }
-                    if (isXploreHost()) {
-                        var pnow = (location.pathname || '');
-                        if (pnow !== window._safeer_xplore_last_path) {
-                            window._safeer_xplore_last_path = pnow;
-                            window._safeer_xplore_did_focus = false;
-                        }
-                        var held = document.querySelector('.safeer-active-card');
-                        var heldOk = false;
-                        try { heldOk = !!(held && held.getBoundingClientRect().width >= 8); } catch (_) {}
-                        if (heldOk) window._safeer_xplore_did_focus = true;
-                        if (!window._safeer_xplore_did_focus) {
-                            var got = window._safeer_xplore_ensure_focus && window._safeer_xplore_ensure_focus();
-                            if (got) window._safeer_xplore_did_focus = true;
                         }
                     }
                     if (is24urHost() && !window._safeer_24ur_seeded && !document.querySelector('.safeer-active-card')) {
@@ -2502,8 +2110,7 @@
             }
 
             document.addEventListener('DOMContentLoaded', makeElementsFocusable);
-            setInterval(makeElementsFocusable, isXploreHost() ? 4000 : 4500);
-            if (!isXploreHost()) {
+            setInterval(makeElementsFocusable, 4500);
                 var focusMoTimer = 0;
                 try {
                     var focusMo = new MutationObserver(function () {
@@ -2515,909 +2122,7 @@
                     });
                     focusMo.observe(document.documentElement, { childList: true, subtree: true });
                 } catch (_) {}
-            }
-            }
 
-            // 6. 📡 A1 Xplore TV: prijava, gumb Glej oddajo od začetka, celozaslonski predvajalnik
-            if ((location.hostname || '').indexOf('xploretv') !== -1 && !window._safeer_xplore_helpers_ready) {
-                window._safeer_xplore_helpers_ready = true;
-                try {
-                    document.documentElement.classList.add('safeer-xplore-dark');
-                    var vpH = document.querySelector('meta[name="viewport"]');
-                    if (!vpH) {
-                        vpH = document.createElement('meta');
-                        vpH.setAttribute('name', 'viewport');
-                        (document.head || document.documentElement).appendChild(vpH);
-                    }
-                    vpH.setAttribute('content', 'width=1920, initial-scale=1');
-                    if (!document.getElementById('tv-remote-xplore-layout-fix')) {
-                        var xploreFixH = document.createElement('style');
-                        xploreFixH.id = 'tv-remote-xplore-layout-fix';
-                        xploreFixH.textContent = 'html.safeer-xplore-fs,html.safeer-xplore-fs body{overflow:hidden!important;background:#000!important;}' +
-                            'html.safeer-xplore-fs video{position:fixed!important;left:0!important;top:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;opacity:1!important;visibility:visible!important;display:block!important;}' +
-                            '.livetv-griditem,[class*="livetv-griditem"],.livetv-griditem .item.item--event,.item.item--event,.item--event,[class*="content-carousel__item"]{overflow:visible!important;}' +
-                            '.item.item--event.safeer-active-card,.item--event.safeer-active-card,[class*="content-carousel__item"].safeer-active-card{outline:6px solid #00e5ff!important;outline-offset:7px!important;box-shadow:0 0 0 4px #000,0 0 36px #00e5ff!important;border-radius:12px!important;z-index:auto!important;}' +
-                            '[class*="content-carousel__item"].safeer-active-card{transform:scale(1.06)!important;}' +
-                            '.item.item--event.safeer-active-card,.item--event.safeer-active-card{transform:none!important;}' +
-                            'html.safeer-xplore-fs #safeer-focus-target-ring{display:none!important;opacity:0!important;}' +
-                            'html.safeer-xplore-fs .safeer-active-card{box-shadow:none!important;outline:none!important;transform:none!important;}' +
-                            '.action-list.safeer-active-card,[class*="action-list"].safeer-active-card,.promo-carousel__button.safeer-active-card{outline:6px solid #00e5ff!important;outline-offset:7px!important;box-shadow:0 0 0 3px #000,0 0 32px #00e5ff!important;}' +
-                            '#safeer-focus-target-ring .safeer-focus-badge{display:none!important;}' +
-                            '#safeer-focus-target-ring{border:6px solid #00e5ff!important;outline:3px solid #fff!important;outline-offset:-9px!important;border-radius:14px!important;box-shadow:0 0 0 3px #000,0 0 38px #00e5ff!important;background:transparent!important;z-index:50000!important;}' +
-                            '.zw-overlays-layer.player-fullwindow,.zw-overlays-layer.player-scaled,[class*="overlays-layer"].player-fullwindow,[class*="overlays-layer"].player-scaled{z-index:100000!important;visibility:visible!important;opacity:1!important;}' +
-                            'html.safeer-xplore-waitplay #safeer-focus-target-ring,html.safeer-xplore-playing #safeer-focus-target-ring{display:none!important;opacity:0!important;}';
-                        (document.head || document.documentElement).appendChild(xploreFixH);
-                    }
-                    if (window.SafeerBridge && window.SafeerBridge.setChromeHidden) window.SafeerBridge.setChromeHidden(true);
-                } catch (_) {}
-                function dismissXploreTutorials() {
-                    try {
-                        var joyrideClose = document.querySelector('.joyride-tooltip__close, [aria-label*="close"], [class*="close-button"], button[aria-label*="Zapri"], button[aria-label*="Close"]');
-                        if (joyrideClose) joyrideClose.click();
-                    } catch(_) {}
-                }
-
-                function setReactInputValue(input, val) {
-                    if (!input) return;
-                    try {
-                        input.focus();
-                        var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                        nativeInputValueSetter.call(input, val);
-                    } catch(e) {
-                        input.value = val;
-                    }
-                    try {
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'a' }));
-                        input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'a' }));
-                    } catch(_) {}
-                }
-
-                var xploreLoginAttempted = false;
-                function findUserInput() {
-                    return document.querySelector(
-                        'input[type="text"], input[type="email"], input[name*="user"], input[name*="login"], ' +
-                        'input[id*="user"], input[id*="login"], input[placeholder*="ime"], ' +
-                        'input[placeholder*="Ime"], input[autocomplete="username"]'
-                    );
-                }
-                function findPassInput() {
-                    return document.querySelector(
-                        'input[type="password"], input[name*="pass"], input[id*="pass"], ' +
-                        'input[placeholder*="geslo"], input[placeholder*="Geslo"], input[autocomplete="current-password"]'
-                    );
-                }
-                function runXploreAuth() {
-                    dismissXploreTutorials();
-                    var path = (location.pathname || '').toLowerCase();
-                    var onLogin = path.indexOf('login') !== -1 || path.indexOf('prijava') !== -1 || !!findPassInput();
-                    if (!onLogin) {
-                        window._safeerXploreLoginAttempted = false;
-                        return;
-                    }
-                    if (window._safeerXploreLoginAttempted) return;
-                    // Auth asset is injected in a separate evaluateJavascript; wait until it lands.
-                    if (typeof window._safeerXploreAuth === 'undefined') return;
-
-                    var uInput = findUserInput();
-                    var pInput = findPassInput();
-                    if (!uInput && !pInput) return;
-                    var submitBtn = document.querySelector('button[type="submit"], input[type="submit"], .btn-primary');
-                    if (!submitBtn) {
-                        var btns = document.querySelectorAll('button, a.btn, [role="button"]');
-                        for (var j = 0; j < btns.length; j++) {
-                            var btxt = (btns[j].textContent || btns[j].value || '').trim().toLowerCase();
-                            if (btxt.indexOf('prijava') !== -1 || btxt.indexOf('prijavi') !== -1 ||
-                                btxt.indexOf('login') !== -1 || btxt.indexOf('vstop') !== -1 || btxt.indexOf('sign in') !== -1) {
-                                submitBtn = btns[j];
-                                break;
-                            }
-                        }
-                    }
-                    var auth = window._safeerXploreAuth;
-                    var user = auth && (auth.user || auth.username || '');
-                    var pass = auth && (auth.pass || auth.password || '');
-                    if (user && pass && uInput && pInput) {
-                        setReactInputValue(uInput, user);
-                        setReactInputValue(pInput, pass);
-                        window._safeerXploreLoginAttempted = true;
-                        if (submitBtn) {
-                            setTimeout(function() {
-                                try { submitBtn.click(); } catch (_) {}
-                            }, 500);
-                        }
-                        return;
-                    }
-                    window._safeerXploreLoginAttempted = true;
-                    try {
-                        var seed = submitBtn || uInput;
-                        if (seed && !document.querySelector('.safeer-active-card')) highlightElement(seed);
-                    } catch (_) {}
-                }
-
-                function findXplorePlayFromStart() {
-                    var needles = [
-                        { k: 'predvajaj v živo', p: 0 },
-                        { k: 'predvajaj v zivo', p: 0 },
-                        { k: 'glej zdaj', p: 0 },
-                        { k: 'na začetek', p: 2 },
-                        { k: 'na zacetek', p: 2 },
-                        { k: 'od začetka', p: 2 },
-                        { k: 'od zacetka', p: 2 },
-                        { k: 'glej oddajo od začetka', p: 2 },
-                        { k: 'glej oddajo od zacetka', p: 2 },
-                        { k: 'glej oddajo', p: 1 },
-                        { k: 'watch now', p: 0 },
-                        { k: 'predvajaj', p: 3 }
-                    ];
-                    var nodes = document.querySelectorAll('button, a, [role="button"], [class*="action-list"], li.action-list, .action-list span');
-                    var best = null;
-                    var bestPri = 99;
-                    var bestArea = 999999999;
-                    var i, el, t, r, area, n, pri;
-                    for (i = 0; i < nodes.length; i++) {
-                        el = nodes[i];
-                        t = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                        if (!t || t.length < 3 || t.length > 64) continue;
-                        if (t.indexOf('posnemi') !== -1 || t.indexOf('priljubljene') !== -1) continue;
-                        pri = 99;
-                        for (n = 0; n < needles.length; n++) {
-                            if (t.indexOf(needles[n].k) !== -1 && needles[n].p < pri) pri = needles[n].p;
-                        }
-                        if (pri === 99) continue;
-                        r = el.getBoundingClientRect();
-                        if (r.width < 10 || r.height < 10) continue;
-                        area = r.width * r.height;
-                        if (pri < bestPri || (pri === bestPri && area < bestArea)) {
-                            bestPri = pri;
-                            bestArea = area;
-                            best = el;
-                        }
-                    }
-                    return best;
-                }
-
-                function xploreAppBg() {
-                    try {
-                        return !!(window._safeer_app_bg || document.hidden || sessionStorage.getItem('safeer_app_bg') === '1');
-                    } catch (_) {
-                        return !!(window._safeer_app_bg || document.hidden);
-                    }
-                }
-
-                function keepXploreAudio() {
-                    if (xploreAppBg()) return;
-                    try {
-                        var vids = document.querySelectorAll('video');
-                        for (var i = 0; i < vids.length; i++) {
-                            vids[i].muted = false;
-                            vids[i].volume = 1.0;
-                        }
-                    } catch(_) {}
-                }
-
-                function collectXploreVideos() {
-                    var out = [];
-                    function grab(root, src) {
-                        if (!root) return;
-                        var vs = root.querySelectorAll('video');
-                        var i, v, r;
-                        for (i = 0; i < vs.length; i++) {
-                            v = vs[i];
-                            r = v.getBoundingClientRect();
-                            out.push({
-                                src: src,
-                                rs: v.readyState,
-                                dur: v.duration || 0,
-                                vw: v.videoWidth || 0,
-                                vh: v.videoHeight || 0,
-                                paused: !!v.paused,
-                                w: Math.round(r.width),
-                                h: Math.round(r.height),
-                                t: Math.round(r.top),
-                                l: Math.round(r.left)
-                            });
-                        }
-                    }
-                    grab(document, 'main');
-                    var frames = document.querySelectorAll('iframe');
-                    var fi;
-                    for (fi = 0; fi < frames.length; fi++) {
-                        try {
-                            if (frames[fi].contentDocument) grab(frames[fi].contentDocument, 'iframe' + fi);
-                        } catch (_) {}
-                    }
-                    return { iframes: frames.length, videos: out };
-                }
-
-                function xploreLivetvPath() {
-                    return (location.pathname || '').toLowerCase().indexOf('/livetv') !== -1;
-                }
-
-                function xploreOverlayOn() {
-                    try {
-                        var ov = document.querySelector('.zw-overlays-layer, [class*="overlays-layer"]');
-                        var oc = ov ? ((ov.className || '') + '').toLowerCase() : '';
-                        return oc.indexOf('player-fullwindow') !== -1 || oc.indexOf('player-scaled') !== -1;
-                    } catch (_) {}
-                    return false;
-                }
-
-                function xploreVideoEl() {
-                    var vids = document.querySelectorAll('video');
-                    var i, v, framed = null, last = null;
-                    for (i = 0; i < vids.length; i++) {
-                        v = vids[i];
-                        last = v;
-                        if ((v.videoWidth || 0) >= 320 && v.readyState >= 2) framed = v;
-                    }
-                    return framed || last || window._safeer_xplore_player_el || null;
-                }
-
-                function resumeXploreIfPaused() {
-                    try {
-                        if (xploreAppBg()) return false;
-                        if (!window._safeer_xplore_want_play) return false;
-                        var v = xploreVideoEl();
-                        if (!v || !v.paused) return false;
-                        if ((v.videoWidth || 0) < 320 || v.readyState < 2) return false;
-                        if (xploreLivetvPath() && !xploreOverlayOn()) return false;
-                        var r = v.getBoundingClientRect();
-                        try { v.muted = false; v.volume = 1.0; } catch (_) {}
-                        try { v.play(); } catch (_) {}
-                        window._safeer_xplore_player_el = v;
-                        if (!xploreLivetvPath() && (r.width < 800 || r.height < 450)) {
-                            try { applyXploreVideoFullscreen(v); } catch (_) {}
-                        }
-                        // #region agent log
-                        try {
-                            window._safeerDbg('H94', 'tv_remote_nav.js:resume', 'unpause', {
-                                rs: v.readyState,
-                                vw: v.videoWidth || 0,
-                                w: Math.round(r.width || 0),
-                                ct: v.currentTime,
-                                stillPaused: !!v.paused
-                            });
-                        } catch (_) {}
-                        // #endregion
-                        return true;
-                    } catch (_) {}
-                    return false;
-                }
-
-                function hideXplorePlayerChrome() {
-                    window._safeer_xplore_playing = true;
-                    try { clearActive(); } catch(_) {}
-                    var ring = document.getElementById('safeer-focus-target-ring');
-                    if (ring) {
-                        ring.classList.remove('active');
-                        ring.style.display = 'none';
-                    }
-                    try {
-                        if (window.SafeerBridge && window.SafeerBridge.setChromeHidden) {
-                            window.SafeerBridge.setChromeHidden(true);
-                        }
-                    } catch(_) {}
-                    try {
-                        if (!document.getElementById('safeer-xplore-player-hide-ui')) {
-                            var st = document.createElement('style');
-                            st.id = 'safeer-xplore-player-hide-ui';
-                            st.textContent = '.clpp-control-bar,.clpp-controls,.clpp-ui .clpp-button,.clpp-fullscreen{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}';
-                            (document.documentElement || document.head).appendChild(st);
-                        }
-                    } catch(_) {}
-                        try {
-                            var pv = window._safeer_xplore_player_el || document.querySelector('video');
-                            if (pv && pv.paused && (pv.videoWidth || 0) >= 320 && pv.readyState >= 2) pv.play();
-                        } catch(_) {}
-                    // #region agent log
-                    try { window._safeerDbg('H6', 'UserScriptManager.kt:boost', 'overlays hidden', { playing: true }); } catch (_) {}
-                    // #endregion
-                }
-
-                function markSmashEl(el) {
-                    try { if (el && el.setAttribute) el.setAttribute('data-safeer-smash', '1'); } catch (_) {}
-                }
-                function unsmashXplorePlayer() {
-                    try { document.documentElement.classList.remove('safeer-xplore-fs', 'safeer-xplore-playing', 'safeer-xplore-hold', 'safeer-xplore-waitplay'); } catch (_) {}
-                    try {
-                        var smashed = document.querySelectorAll('[data-safeer-smash]');
-                        var props = ['position', 'left', 'top', 'width', 'height', 'max-width', 'max-height', 'z-index', 'object-fit', 'background', 'opacity', 'visibility', 'display', 'transform', 'filter', 'overflow'];
-                        for (var i = 0; i < smashed.length; i++) {
-                            var el = smashed[i];
-                            try { el.removeAttribute('data-safeer-smash'); } catch (_) {}
-                            for (var p = 0; p < props.length; p++) {
-                                try { el.style.removeProperty(props[p]); } catch (_) {}
-                            }
-                            try {
-                                if (el.tagName === 'VIDEO') {
-                                    el.removeAttribute('width');
-                                    el.removeAttribute('height');
-                                }
-                            } catch (_) {}
-                        }
-                    } catch (_) {}
-                    try {
-                        var hid = document.getElementById('safeer-xplore-player-hide-ui');
-                        if (hid && hid.parentNode) hid.parentNode.removeChild(hid);
-                    } catch (_) {}
-                    try {
-                        if (window.SafeerBridge && window.SafeerBridge.setChromeHidden) {
-                            var onXplore = (location.hostname || '').indexOf('xploretv') !== -1;
-                            window.SafeerBridge.setChromeHidden(!!onXplore);
-                            // #region agent log
-                            try { window._safeerDbg('H293', 'tv_remote_nav.js:unsmash', 'chrome kiosk', { onXplore: !!onXplore, hidden: !!onXplore }); } catch (_) {}
-                            // #endregion
-                        }
-                    } catch (_) {}
-                }
-                window._safeer_xplore_unsmash = unsmashXplorePlayer;
-
-                function applyXploreVideoFullscreen(v) {
-                    if (!v) return;
-                    // Livetv: Castlabs already goes fullscreen. Smash/FS CSS on a
-                    // still-opening overlay tears the player (BUFFERING -> PAUSED).
-                    if (xploreLivetvPath()) return;
-                    try { document.documentElement.classList.add('safeer-xplore-fs'); } catch (_) {}
-                    try {
-                        v.width = Math.max(v.videoWidth || 0, 1920);
-                        v.height = Math.max(v.videoHeight || 0, 1080);
-                    } catch (_) {}
-                    markSmashEl(v);
-                    try {
-                        v.style.setProperty('position', 'fixed', 'important');
-                        v.style.setProperty('left', '0px', 'important');
-                        v.style.setProperty('top', '0px', 'important');
-                        v.style.setProperty('width', '100vw', 'important');
-                        v.style.setProperty('height', '100vh', 'important');
-                        v.style.setProperty('max-width', 'none', 'important');
-                        v.style.setProperty('max-height', 'none', 'important');
-                        v.style.setProperty('z-index', '2147483646', 'important');
-                        v.style.setProperty('object-fit', 'contain', 'important');
-                        v.style.setProperty('background', '#000', 'important');
-                        v.style.setProperty('opacity', '1', 'important');
-                        v.style.setProperty('visibility', 'visible', 'important');
-                        v.style.setProperty('display', 'block', 'important');
-                        v.style.setProperty('transform', 'none', 'important');
-                    } catch (_) {}
-                    try {
-                        var el = v.parentElement;
-                        var n = 0;
-                        while (el && n < 10 && el !== document.body && el !== document.documentElement) {
-                            markSmashEl(el);
-                            el.style.setProperty('transform', 'none', 'important');
-                            el.style.setProperty('filter', 'none', 'important');
-                            el.style.setProperty('opacity', '1', 'important');
-                            el.style.setProperty('visibility', 'visible', 'important');
-                            el.style.setProperty('display', 'block', 'important');
-                            el.style.setProperty('overflow', 'visible', 'important');
-                            el.style.setProperty('width', '100vw', 'important');
-                            el.style.setProperty('height', '100vh', 'important');
-                            el.style.setProperty('max-width', 'none', 'important');
-                            el.style.setProperty('max-height', 'none', 'important');
-                            el.style.setProperty('position', 'fixed', 'important');
-                            el.style.setProperty('left', '0px', 'important');
-                            el.style.setProperty('top', '0px', 'important');
-                            el.style.setProperty('z-index', String(2147483645 - n), 'important');
-                            el = el.parentElement;
-                            n++;
-                        }
-                    } catch (_) {}
-                }
-
-                function maybeHideWhenReady(v) {
-                    try {
-                        if (!v || !window._safeer_xplore_want_play) return;
-                        var hasFrames = (v.videoWidth || 0) >= 320 && v.readyState >= 2;
-                        if (!hasFrames) return;
-                        var r = v.getBoundingClientRect();
-                        if (xploreLivetvPath()) {
-                            if (v.paused) {
-                                try { v.muted = false; v.volume = 1.0; } catch (_) {}
-                                try { v.play(); } catch (_) {}
-                            }
-                            window._safeer_xplore_player_el = v;
-                            if (r.width >= 800 && r.height >= 450) {
-                                window._safeer_xplore_video_boosted = true;
-                                hideXplorePlayerChrome();
-                            }
-                            return;
-                        }
-                        if (r.width < 800 || r.height < 450) {
-                            applyXploreVideoFullscreen(v);
-                            if (!window._safeer_xplore_fs_clicked) {
-                                var fsBtn = document.querySelector('.clpp-fullscreen, [class*="clpp"] [class*="fullscreen"], button[class*="fullscreen"]');
-                                if (fsBtn) {
-                                    window._safeer_xplore_fs_clicked = true;
-                                    try { fsBtn.click(); } catch (_) {}
-                                    // #region agent log
-                                    try { window._safeerDbg('H28', 'tv_remote_nav.js:maybeHide', 'fs click after 0x0', { found: true }); } catch (_) {}
-                                    // #endregion
-                                }
-                            }
-                            window._safeer_xplore_player_el = v;
-                            // #region agent log
-                            try { window._safeerDbg('H71', 'tv_remote_nav.js:boost', 'recover 0x0', { w0: Math.round(r.width || 0), h0: Math.round(r.height || 0), vw: v.videoWidth || 0, rs: v.readyState }); } catch (_) {}
-                            // #endregion
-                        }
-                        var r2 = v.getBoundingClientRect();
-                        var large = r2.width >= 800 && r2.height >= 450;
-                        if (large) {
-                            window._safeer_xplore_player_el = v;
-                            window._safeer_xplore_video_boosted = true;
-                            hideXplorePlayerChrome();
-                        }
-                        // #region agent log
-                        try {
-                            window._safeerDbg('H16', 'UserScriptManager.kt:boost', 'maybe hide', {
-                                w: Math.round(r.width || 0),
-                                w1: Math.round(r2.width || 0),
-                                vw: v.videoWidth || 0,
-                                rs: v.readyState,
-                                hid: !!large
-                            });
-                            window._safeerDbg('H32', 'UserScriptManager.kt:boost', 'inline fs applied', {
-                                w0: Math.round(r.width || 0),
-                                w1: Math.round(r2.width || 0),
-                                h1: Math.round(r2.height || 0),
-                                vw: v.videoWidth || 0,
-                                hasFs: document.documentElement.classList.contains('safeer-xplore-fs')
-                            });
-                        } catch (_) {}
-                        // #endregion
-                    } catch (_) {}
-                }
-
-                function nudgeXplorePlayer() {
-                    try {
-                        if (xploreAppBg()) return;
-                        if (!window._safeer_xplore_want_play) return;
-                        if (window._safeer_xplore_playing) {
-                            resumeXploreIfPaused();
-                            return;
-                        }
-                        var v = window._safeer_xplore_player_el;
-                        if (!v || !v.parentNode) {
-                            var vids = document.querySelectorAll('video');
-                            var i, cand = null, cr;
-                            for (i = 0; i < vids.length; i++) {
-                                cr = vids[i].getBoundingClientRect();
-                                if ((cr.width >= 800 && cr.height >= 450) || ((vids[i].videoWidth || 0) >= 320 && vids[i].readyState >= 2)) {
-                                    cand = vids[i];
-                                    break;
-                                }
-                            }
-                            if (cand) {
-                                v = cand;
-                                window._safeer_xplore_player_el = v;
-                            }
-                        }
-                        if (!v) return;
-                        v.muted = false;
-                        v.volume = 1.0;
-                        if (v.paused && (v.videoWidth || 0) >= 320 && v.readyState >= 2) {
-                            try { v.play(); } catch(_) {}
-                        }
-                        var vr = v.getBoundingClientRect();
-                        // #region agent log
-                        try {
-                            window._safeerDbgNudgeN = (window._safeerDbgNudgeN || 0) + 1;
-                            if (window._safeerDbgNudgeN <= 6) {
-                                window._safeerDbg('H25', 'UserScriptManager.kt:nudge', 'catchup nudge', {
-                                    rs: v.readyState,
-                                    vw: v.videoWidth || 0,
-                                    w: Math.round(vr.width),
-                                    paused: !!v.paused
-                                });
-                            }
-                        } catch (_) {}
-                        // #endregion
-                        maybeHideWhenReady(v);
-                    } catch (_) {}
-                }
-
-                function boostXploreVideoOnce() {
-                    if (xploreAppBg()) return;
-                    if (!window._safeer_xplore_want_play) return;
-                    if (window._safeer_xplore_video_boosted) return;
-                    try {
-                        var snap = collectXploreVideos();
-                        // #region agent log
-                        try {
-                            window._safeerDbgBoostN = (window._safeerDbgBoostN || 0) + 1;
-                            if (window._safeerDbgBoostN <= 4) {
-                                window._safeerDbg('H3', 'UserScriptManager.kt:boost', 'video inventory', snap);
-                            }
-                        } catch (_) {}
-                        // #endregion
-                        var vids = document.querySelectorAll('video');
-                        var i, v, best = null, bestScore = -1, r, traps = 0, framed = false, bestFramed = false;
-                        for (i = 0; i < vids.length; i++) {
-                            v = vids[i];
-                            r = v.getBoundingClientRect();
-                            var area = (r.width || 0) * (r.height || 0);
-                            framed = (v.videoWidth || 0) >= 320 && v.readyState >= 2;
-                            var score = framed ? Math.max(area, 1920 * 1080) : area;
-                            if (score >= bestScore) {
-                                bestScore = score;
-                                best = v;
-                                bestFramed = framed;
-                            }
-                        }
-                        if (!best || !bestFramed) return;
-                        v = best;
-                        v.muted = false;
-                        v.volume = 1.0;
-                        // #region agent log
-                        try {
-                            var br0 = v.getBoundingClientRect();
-                            window._safeerDbg('H61', 'tv_remote_nav.js:boost', 'boost before play', {
-                                paused: !!v.paused,
-                                rs: v.readyState,
-                                vw: v.videoWidth || 0,
-                                w: Math.round(br0.width),
-                                h: Math.round(br0.height),
-                                want: !!window._safeer_xplore_want_play,
-                                framed: !!bestFramed
-                            });
-                        } catch (_) {}
-                        // #endregion
-                        if (v.paused && bestFramed && (!xploreLivetvPath() || xploreOverlayOn())) {
-                            try { v.play(); } catch(_) {}
-                        }
-                        var after = v.getBoundingClientRect();
-                        var large = after.width >= 800 && after.height >= 450;
-                        if (bestFramed && !large && !xploreLivetvPath()) {
-                            applyXploreVideoFullscreen(v);
-                            after = v.getBoundingClientRect();
-                            large = after.width >= 800 && after.height >= 450;
-                            // #region agent log
-                            try { window._safeerDbg('H71', 'tv_remote_nav.js:boost', 'boost recover 0x0', { w: Math.round(after.width), h: Math.round(after.height), vw: v.videoWidth || 0 }); } catch (_) {}
-                            // #endregion
-                        }
-                        var fsBtn = document.querySelector('.clpp-fullscreen, [class*="clpp"] [class*="fullscreen"], button[class*="fullscreen"]');
-                        if (fsBtn && !window._safeer_xplore_fs_clicked && bestFramed && !large && !xploreLivetvPath()) {
-                            window._safeer_xplore_fs_clicked = true;
-                            try { fsBtn.click(); } catch(_) {}
-                            after = v.getBoundingClientRect();
-                            large = after.width >= 800 && after.height >= 450;
-                            // #region agent log
-                            try { window._safeerDbg('H28', 'UserScriptManager.kt:boost', 'fs click pip', { w: Math.round(after.width), large: !!large }); } catch (_) {}
-                            // #endregion
-                        } else if (fsBtn && !window._safeer_xplore_fs_clicked && bestFramed && large) {
-                            window._safeer_xplore_fs_clicked = true;
-                            // #region agent log
-                            try { window._safeerDbg('H28', 'UserScriptManager.kt:boost', 'fs skip already large', { w: Math.round(after.width) }); } catch (_) {}
-                            // #endregion
-                        }
-                        if (large) {
-                            window._safeer_xplore_player_el = v;
-                            try {
-                                var ring = document.getElementById('safeer-focus-target-ring');
-                                if (ring) {
-                                    ring.classList.remove('active');
-                                    ring.style.display = 'none';
-                                }
-                            } catch(_) {}
-                            if ((v.videoWidth || 0) >= 320 && v.readyState >= 2) {
-                                window._safeer_xplore_video_boosted = true;
-                                hideXplorePlayerChrome();
-                            }
-                        }
-                        // #region agent log
-                        try {
-                            window._safeerDbg('H3', 'UserScriptManager.kt:boost', 'video boosted', {
-                                w: Math.round(after.width),
-                                h: Math.round(after.height),
-                                paused: !!v.paused,
-                                rs: v.readyState,
-                                vw: v.videoWidth || 0,
-                                large: large,
-                                traps: 0
-                            });
-                        } catch (_) {}
-                        try {
-                            window._safeerDbg('H7', 'UserScriptManager.kt:boost', 'containing blocks', { traps: 0, hasFsClass: false, skipped: true });
-                        } catch (_) {}
-                        try {
-                            window._safeerDbg('H16', 'UserScriptManager.kt:boost', 'chrome hide decision', {
-                                large: !!large,
-                                vw: v.videoWidth || 0,
-                                rs: v.readyState,
-                                paused: !!v.paused,
-                                boosted: !!window._safeer_xplore_video_boosted,
-                                hid: !!window._safeer_xplore_playing
-                            });
-                        } catch (_) {}
-                        // #endregion
-                        return;
-                    } catch(_) {}
-                }
-
-                window._safeer_xplore_play_from_start = function() {
-                    try {
-                        console.log('SafeerXplore: play from start');
-                        var btn = findXplorePlayFromStart();
-                        // #region agent log
-                        try {
-                            var br = btn ? btn.getBoundingClientRect() : { width: 0, height: 0 };
-                            var txt = btn ? ((btn.innerText || btn.textContent || '') + '').replace(/\s+/g, ' ').trim() : '';
-                            window._safeerDbg('H2', 'UserScriptManager.kt:play_from_start', 'play target', {
-                                found: !!btn,
-                                tag: btn ? btn.tagName : '',
-                                w: Math.round(br.width),
-                                h: Math.round(br.height),
-                                t: txt.slice(0, 80)
-                            });
-                        } catch (_) {}
-                        // #endregion
-                        if (!btn) return false;
-                        try {
-                            var ov = document.querySelector('.zw-overlays-layer, [class*="overlays-layer"]');
-                            var oc = ov ? ((ov.className || '') + '').toLowerCase() : '';
-                            if (oc.indexOf('player-fullwindow') !== -1 || oc.indexOf('player-scaled') !== -1) {
-                                // #region agent log
-                                try { window._safeerDbg('H222', 'tv_remote_nav.js:play', 'skip dup click overlay open', { ply: oc.slice(0, 70) }); } catch (_) {}
-                                // #endregion
-                                return true;
-                            }
-                        } catch (_) {}
-                        window._safeer_xplore_want_play = true;
-                        window._safeer_xplore_video_boosted = false;
-                        window._safeer_xplore_fs_clicked = false;
-                        window._safeer_xplore_replay_clicked = false;
-                        window._safeer_xplore_player_el = null;
-                        try { btn.click(); } catch(_) {}
-                        boostXploreVideoOnce();
-                        return true;
-                    } catch(_) {}
-                    return false;
-                };
-
-                window._safeer_xplore_boost = boostXploreVideoOnce;
-
-                document.addEventListener('loadedmetadata', function(ev) {
-                    try {
-                        if (ev.target && ev.target.tagName === 'VIDEO') {
-                            if (window._safeer_xplore_video_boosted) {
-                                maybeHideWhenReady(ev.target);
-                            } else {
-                                var framed = (ev.target.videoWidth || 0) >= 320 && ev.target.readyState >= 2;
-                                var allow = framed;
-                                try { if (window._safeerSiteAgent) allow = !!window._safeerSiteAgent.allowBoost(); } catch (_) {}
-                                if (allow) boostXploreVideoOnce();
-                            }
-                        }
-                    } catch (_) {}
-                }, true);
-                document.addEventListener('playing', function(ev) {
-                    try {
-                        if (ev.target && ev.target.tagName === 'VIDEO') maybeHideWhenReady(ev.target);
-                    } catch (_) {}
-                }, true);
-                document.addEventListener('pause', function(ev) {
-                    try {
-                        if (ev.target && ev.target.tagName === 'VIDEO') {
-                            // #region agent log
-                            try {
-                                window._safeerDbg('H94', 'tv_remote_nav.js:pause', 'video paused', {
-                                    vw: ev.target.videoWidth || 0,
-                                    rs: ev.target.readyState,
-                                    playing: !!window._safeer_xplore_playing,
-                                    want: !!window._safeer_xplore_want_play
-                                });
-                            } catch (_) {}
-                            // #endregion
-                            resumeXploreIfPaused();
-                        }
-                    } catch (_) {}
-                }, true);
-                document.addEventListener('loadeddata', function(ev) {
-                    try {
-                        if (ev.target && ev.target.tagName === 'VIDEO') maybeHideWhenReady(ev.target);
-                    } catch (_) {}
-                }, true);
-                document.addEventListener('canplay', function(ev) {
-                    try {
-                        if (ev.target && ev.target.tagName === 'VIDEO') {
-                            if ((ev.target.videoWidth || 0) >= 320 && ev.target.readyState >= 2) {
-                                window._safeer_xplore_player_el = ev.target;
-                            }
-                            maybeHideWhenReady(ev.target);
-                        }
-                    } catch (_) {}
-                }, true);
-                if (!window._safeer_xplore_mo) {
-                    var lastMoAt = 0;
-                    window._safeer_xplore_mo = new MutationObserver(function() {
-                        var nowMo = Date.now();
-                        if (nowMo - lastMoAt < 280) return;
-                        lastMoAt = nowMo;
-                        if (window._safeer_xplore_playing && window._safeer_xplore_video_boosted) {
-                            var vKeep = window._safeer_xplore_player_el || document.querySelector('video');
-                            if (vKeep) {
-                                var rk = vKeep.getBoundingClientRect();
-                                if (rk.width >= 800 && rk.height >= 450 && !vKeep.paused) return;
-                                maybeHideWhenReady(vKeep);
-                                if (vKeep.paused) resumeXploreIfPaused();
-                            }
-                            return;
-                        }
-                        if (window._safeer_xplore_want_play && !window._safeer_xplore_video_boosted) {
-                            var allowBoost = true;
-                            try {
-                                if (window._safeerSiteAgent && !window._safeerSiteAgent.allowBoost()) allowBoost = false;
-                            } catch (_) {}
-                            if (allowBoost) boostXploreVideoOnce();
-                        } else if (window._safeer_xplore_want_play && window._safeer_xplore_playing) {
-                            resumeXploreIfPaused();
-                        } else if (window._safeer_xplore_want_play && window._safeer_xplore_video_boosted && !window._safeer_xplore_playing) {
-                            nudgeXplorePlayer();
-                        }
-                        try {
-                            var pnow = (location.pathname || '').toLowerCase();
-                            if (pnow.indexOf('/event') !== -1 && sessionStorage.getItem('safeer_xplore_autoplay') === '1') {
-                                if (window._safeer_xplore_play_from_start()) {
-                                    window._safeer_xplore_want_play = true;
-                                    sessionStorage.removeItem('safeer_xplore_autoplay');
-                                    try { if (window._safeerDbg) window._safeerDbg('H13', 'UserScriptManager.kt:autoplay_mo', 'event autoplay ok', { path: pnow.slice(0, 80) }); } catch (_) {}
-                                }
-                            } else if (window._safeer_xplore_want_play && !window._safeer_xplore_playing && (window._safeer_xplore_playbtn_n || 0) < 2) {
-                                var pEvent = pnow.indexOf('/event') !== -1;
-                                var allowBtn = pEvent;
-                                try { if (window._safeerSiteAgent && !window._safeerSiteAgent.allowPlayButtonClick()) allowBtn = false; } catch (_) {}
-                                if (!allowBtn) {
-                                    // #region agent log
-                                    try {
-                                        if (!window._safeer_xplore_skipbtn_logged) {
-                                            window._safeer_xplore_skipbtn_logged = true;
-                                            window._safeerDbg('H265', 'tv_remote_nav.js:mo', 'skip playbtn', { path: pnow.slice(0, 40), want: true });
-                                        }
-                                    } catch (_) {}
-                                    // #endregion
-                                }
-                                if (allowBtn) {
-                                var vs2 = document.querySelectorAll('video');
-                                var framed2 = false;
-                                var vi;
-                                for (vi = 0; vi < vs2.length; vi++) {
-                                    if ((vs2[vi].videoWidth || 0) >= 320 && vs2[vi].readyState >= 2) { framed2 = true; break; }
-                                }
-                                if (!framed2) {
-                                    var liveBtn = findXplorePlayFromStart();
-                                    var lbr = liveBtn ? liveBtn.getBoundingClientRect() : { width: 0, height: 0 };
-                                    if (liveBtn && lbr.width >= 40 && lbr.height >= 20) {
-                                        window._safeer_xplore_playbtn_n = (window._safeer_xplore_playbtn_n || 0) + 1;
-                                        try { if (window._safeerDbg) window._safeerDbg('H72', 'tv_remote_nav.js:mo', 'livetv playbtn', { n: window._safeer_xplore_playbtn_n, t: ((liveBtn.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40) }); } catch (_) {}
-                                        window._safeer_xplore_play_from_start();
-                                    }
-                                }
-                                }
-                            }
-                        } catch (_) {}
-                    });
-                    try {
-                        window._safeer_xplore_mo.observe(document.documentElement, { childList: true, subtree: true });
-                    } catch (_) {}
-                }
-                if (!window._safeer_xplore_play_watch) {
-                    window._safeer_xplore_play_watch = true;
-                    setInterval(function () {
-                        try {
-                            if (!window._safeer_xplore_want_play) return;
-                            if (window._safeer_app_bg) return;
-                            var vw = xploreVideoEl();
-                            if (!vw) return;
-                            if ((vw.videoWidth || 0) >= 320 && vw.readyState >= 2) window._safeer_xplore_player_el = vw;
-                            if (vw.paused) resumeXploreIfPaused();
-                            if ((vw.videoWidth || 0) < 320 || vw.readyState < 2) return;
-                            maybeHideWhenReady(vw);
-                            if (!window._safeer_xplore_video_boosted) boostXploreVideoOnce();
-                        } catch (_) {}
-                    }, 900);
-                }
-                try {
-                    if (sessionStorage.getItem('safeer_xplore_autoplay') === '1') {
-                        var p0 = (location.pathname || '').toLowerCase();
-                        if (p0.indexOf('/event') !== -1) {
-                            if (window._safeer_xplore_play_from_start()) {
-                                sessionStorage.removeItem('safeer_xplore_autoplay');
-                                try { if (window._safeerDbg) window._safeerDbg('H13', 'UserScriptManager.kt:autoplay_init', 'event autoplay init ok', { path: p0.slice(0, 80) }); } catch (_) {}
-                            }
-                        }
-                    }
-                } catch (_) {}
-                window._safeer_xplore_last_path = location.pathname || '';
-                window._safeer_xplore_report = function (why) {
-                    try {
-                        var el = document.querySelector('.safeer-active-card');
-                        var v = document.querySelector('video');
-                        var r = v ? v.getBoundingClientRect() : { width: 0, height: 0 };
-                        var ov = document.querySelector('.zw-overlays-layer, [class*="overlays-layer"]');
-                        var play = pickXplorePlayAction();
-                        var links = getXploreMenuLinks();
-                        var titles = [];
-                        var li;
-                        for (li = 0; li < links.length && li < 8; li++) {
-                            titles.push(((links[li].innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 20));
-                        }
-                        window._safeerDbg('H250', 'tv_remote_nav.js:watch', why || 'snap', {
-                            path: (location.pathname || '').slice(0, 60),
-                            focus: el ? ((el.className || '') + '').slice(0, 50) : '',
-                            ft: el ? ((el.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40) : '',
-                            play: play ? ((play.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40) : '',
-                            ply: ov ? ((ov.className || '') + '').slice(0, 70) : '',
-                            w: Math.round(r.width || 0),
-                            vw: v ? (v.videoWidth || 0) : 0,
-                            rs: v ? v.readyState : -1,
-                            paused: v ? !!v.paused : true,
-                            want: !!window._safeer_xplore_want_play,
-                            auto: (function () { try { return sessionStorage.getItem('safeer_xplore_autoplay') || ''; } catch (eA) { return ''; } })(),
-                            menu: links.length,
-                            mt: titles.join('|')
-                        });
-                    } catch (_) {}
-                };
-                if (!window._safeer_xplore_pathwatch) {
-                    window._safeer_xplore_pathwatch = true;
-                    window._safeer_xplore_last_watch_path = (location.pathname || '').toLowerCase();
-                    window._safeer_xplore_watch_n = 0;
-                    window._safeer_xplore_watch_key = '';
-                    setInterval(function () {
-                        try {
-                            var p = (location.pathname || '').toLowerCase();
-                            var changed = p !== (window._safeer_xplore_last_watch_path || '');
-                            if (changed) {
-                                window._safeer_xplore_last_watch_path = p;
-                                window._safeer_xplore_playbtn_n = 0;
-                                window._safeer_xplore_playing = false;
-                                window._safeer_xplore_video_boosted = false;
-                                window._safeer_xplore_player_el = null;
-                                window._safeer_xplore_did_focus = false;
-                                try { if (window._safeer_xplore_unsmash) window._safeer_xplore_unsmash(); } catch (eU2) {}
-                            }
-                            if (p.indexOf('/event') !== -1) {
-                                var auto = '';
-                                try { auto = sessionStorage.getItem('safeer_xplore_autoplay') || ''; } catch (eS) {}
-                                if (auto === '1' && window._safeer_xplore_play_from_start) {
-                                    if (window._safeer_xplore_play_from_start()) {
-                                        window._safeer_xplore_want_play = true;
-                                        try { sessionStorage.removeItem('safeer_xplore_autoplay'); } catch (eR) {}
-                                        // #region agent log
-                                        try { window._safeerDbg('H251', 'tv_remote_nav.js:watch', 'autoplay path', { path: p.slice(0, 80) }); } catch (_) {}
-                                        // #endregion
-                                    }
-                                }
-                            }
-                            var ov2 = document.querySelector('.zw-overlays-layer, [class*="overlays-layer"]');
-                            var oc2 = ov2 ? ((ov2.className || '') + '') : '';
-                            var el2 = document.querySelector('.safeer-active-card');
-                            var key = p + '|' + oc2.slice(0, 40) + '|' + (el2 ? ((el2.className || '') + '').slice(0, 30) : '');
-                            window._safeer_xplore_watch_n = (window._safeer_xplore_watch_n || 0) + 1;
-                            try { if (window._safeer_xplore_paint_menu) window._safeer_xplore_paint_menu(); } catch (_) {}
-                            if (changed || key !== window._safeer_xplore_watch_key) {
-                                window._safeer_xplore_watch_key = key;
-                                window._safeer_xplore_report(changed ? 'path' : 'state');
-                            } else if (window._safeer_xplore_watch_n <= 20 && window._safeer_xplore_watch_n % 5 === 0) {
-                                window._safeer_xplore_report('tick');
-                            }
-                        } catch (_) {}
-                    }, 700);
-                }
-                if (!window._safeer_xplore_auth_watch) {
-                    window._safeer_xplore_auth_watch = true;
-                    setInterval(runXploreAuth, 1200);
-                }
-                // #region agent log
-                try {
-                    window._safeerDbg('H4', 'UserScriptManager.kt:xplore_block', 'helpers ready', {
-                        hasPlay: typeof window._safeer_xplore_play_from_start === 'function',
-                        path: location.pathname
-                    });
-                } catch (_) {}
-                // #endregion
-            }
                         // 7. Real-time scroll listener za samodejno skrivanje/prikaz orodne vrstice
             var lastScrollPos = window.scrollY || 0;
             window.addEventListener('scroll', function() {
