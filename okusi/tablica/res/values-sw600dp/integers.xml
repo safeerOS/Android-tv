@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tablica: sirsi zaslon prenese tri ploscice v vrsti, ne da bi bile besede prerezane. -->
+<resources>
+    <integer name="tablet_stolpci">3</integer>
+</resources>

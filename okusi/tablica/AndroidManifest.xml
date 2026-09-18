@@ -38,6 +38,27 @@
             </intent-filter>
         </activity>
 
+        <!-- Skupni zasloni so na televizorju zaklenjeni v lezeco lego, ker je televizor vedno
+             lezec. Tablico uporabnik drzi, kakor hoce: zasukati mu je ne smemo. Zato tu samo
+             odklenemo lego; koda zaslonov ostane ista.
+
+             Izjema je zaslon racunalnika: namizje je 16:9 in pokoncno bi bilo trak sredi crnine,
+             zato ostane lezec (a v obe smeri, da ga lahko obrnes). -->
+        <activity android:name="si.safeer.tv.os.DatotekeActivity"
+            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.NapraveActivity"
+            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity"
+            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.BesediloActivity"
+            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.SlikaActivity"
+            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.PredvajalnikActivity"
+            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.ZaslonActivity"
+            android:screenOrientation="sensorLandscape" tools:replace="android:screenOrientation" />
+
         <!-- Brskalniski pogon je tu samo notranji (spletne aplikacije), brez vnosa v zaganjalnik. -->
         <activity
             android:name="si.safeer.tv.MainActivity"

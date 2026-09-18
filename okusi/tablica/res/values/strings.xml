@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Safeer OS Tablet: samo napisi, ki so drugacni od televizorjevih. -->
 <resources>
     <string name="tablet_ime">Safeer OS Tablet</string>
-    <string name="tablet_podnaslov">Your devices. One screen.</string>
-    <string name="tablet_v_pripravi">In preparation: this screen will grow into the tablet version of Safeer OS. What already works is below.</string>
-    <string name="tablet_datoteke">Files from the computer</string>
-    <string name="tablet_datoteke_opis">Videos, music, pictures and documents from your computer</string>
+    <string name="tablet_podnaslov">Your computer in your hands.</string>
+    <string name="tablet_v_pripravi">In progress. What is below works; what is not here yet is not promised. A tile appears only once the computer really shares that — you pick folders, programs and the screen in Safeer Control on the computer.</string>
+    <string name="tablet_datoteke">Files</string>
+    <string name="tablet_datoteke_opis">Videos, music, photos and documents from your computer</string>
     <string name="tablet_naprave">Devices</string>
     <string name="tablet_naprave_opis">What is connected through Safeer Link</string>
+    <string name="tablet_programi">Computer programs</string>
+    <string name="tablet_programi_opis">Sorted into groups, with search; start them from here</string>
+    <string name="tablet_zaslon">Computer screen</string>
+    <string name="tablet_zaslon_opis">The picture and sound of your computer, on the tablet</string>
+    <string name="tablet_ni_racunalnika">No computer is connected yet. Start Safeer Control on your computer and join Safeer Link; it will show up here by itself.</string>
+    <string name="tablet_ni_linka">This tablet is not in Safeer Link yet. Open Devices and connect it — then your files, programs and computer screen appear here.</string>
 </resources>

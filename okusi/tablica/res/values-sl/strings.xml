@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tablet_ime">Safeer OS Tablet</string>
-    <string name="tablet_podnaslov">Tvoje naprave. En zaslon.</string>
-    <string name="tablet_v_pripravi">V pripravi: ta zaslon bo zrasel v tablično različico Safeer OS. Spodaj je to, kar že deluje.</string>
-    <string name="tablet_datoteke">Datoteke z računalnika</string>
+    <string name="tablet_podnaslov">Tvoj računalnik v rokah.</string>
+    <string name="tablet_v_pripravi">V pripravi. Kar je spodaj, dela; česar še ni, tu ne obljubljamo. Ploščica se pokaže šele, ko računalnik to res deli — v Safeer Controlu na računalniku izbereš mape, programe in zaslon.</string>
+    <string name="tablet_datoteke">Datoteke</string>
     <string name="tablet_datoteke_opis">Videi, glasba, slike in dokumenti s tvojega računalnika</string>
     <string name="tablet_naprave">Naprave</string>
     <string name="tablet_naprave_opis">Kaj je povezano prek Safeer Linka</string>
+    <string name="tablet_programi">Programi računalnika</string>
+    <string name="tablet_programi_opis">Po skupinah in z iskanjem; zaženeš jih od tod</string>
+    <string name="tablet_zaslon">Zaslon računalnika</string>
+    <string name="tablet_zaslon_opis">Slika in zvok računalnika na tablici</string>
+    <string name="tablet_ni_racunalnika">Noben računalnik še ni povezan. Na računalniku zaženi Safeer Control in ga poveži v Safeer Link; tu se bo pojavil sam.</string>
+    <string name="tablet_ni_linka">Ta tablica še ni v Safeer Linku. Odpri Naprave in jo poveži — potem se tu pojavijo datoteke, programi in zaslon tvojega računalnika.</string>
 </resources>
