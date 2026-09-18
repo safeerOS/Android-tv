@@ -263,28 +263,25 @@ class DatotekeActivity : Activity(), LinkOdjemalec.Poslusalec {
     /**
      * Datoteka, ki ni video, glasba ali slika. Besedilo (opombe, seznami, dnevniki) pokazemo kar
      * tu - televizor zna pokazati besedilo. Vsega drugega (docx, pdf, arhiv) televizor ne zna, zna
-     * pa racunalnik: ponudimo, da jo odpre on, in - kadar deli zaslon - da jo takoj vidimo tudi na
-     * televizorju. Prej je Safeer OS samo rekel, da tega ne zna odpreti.
+     * pa racunalnik: odpre jo on, in kadar deli zaslon, jo takoj vidimo tudi na televizorju. Brez
+     * vprasanj in opozoril - uporabnik je datoteko odprl, ne prosil za razlago, zakaj ne gre.
      */
     private fun odpriDrugo(v: Vnos) {
         if (izbiramSliko) {
             Toast.makeText(this, getString(R.string.os_izberi_sliko), Toast.LENGTH_SHORT).show()
             return
         }
+        // Kar zna televizor, odpre televizor: besedilo tu, videe, glasbo in slike pa ze prej.
         if (BesediloActivity.jeBesedilo(v.ime, v.mime)) { pokaziBesedilo(v); return }
         if (krajevni) {
             Toast.makeText(this, getString(R.string.os_datoteke_neznana_vrsta), Toast.LENGTH_SHORT).show()
             return
         }
+        // Vsega drugega (dokumenti, preglednice, arhivi) televizor ne zna - zna pa racunalnik.
+        // Brez vprasanja: datoteko odpre on, in kadar deli zaslon, jo takoj vidimo tudi tu.
         val r = racunalnik ?: return
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(v.ime)
-            .setMessage(getString(R.string.os_odpri_vprasanje, r.ime.ifBlank { r.id }))
-            .setPositiveButton(getString(R.string.os_odpri_na_racunalniku)) { _, _ -> odpriNaRacunalniku(v, false) }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-        if (zaslon) okno.setNeutralButton(getString(R.string.os_odpri_in_poglej)) { _, _ -> odpriNaRacunalniku(v, true) }
-        okno.show()
+        odpriNaRacunalniku(v, zaslon)
     }
 
     private fun pokaziBesedilo(v: Vnos) {
