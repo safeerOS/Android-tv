@@ -22,6 +22,19 @@
         android:textSize="18sp"
         android:lineSpacingExtra="4dp"/>
 
+    <!-- Navidezna tipkovnica: prizge se na zahtevo, sicer je ni. Prosojna podlaga, da se vidi,
+         kam pisemo. -->
+    <LinearLayout
+        android:id="@+id/tipkovnica"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:orientation="vertical"
+        android:background="@drawable/os_tipkovnica_podlaga"
+        android:padding="8dp"
+        android:visibility="gone"/>
+
     <!-- Namig o upravljanju: pokaze se ob zacetku seje in ob preklopu nacina, nato izgine. -->
     <TextView
         android:id="@+id/namig"

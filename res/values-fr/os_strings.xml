@@ -244,8 +244,8 @@
     <string name="os_moc_ram">Mémoire</string>
     <string name="os_moc_disk">Stockage</string>
     <string name="os_moc_berem">Vérification…</string>
-    <string name="os_zaslon_nacin_kazalec">Pointeur · les flèches déplacent la souris, OK clique, OK long = clic droit · Menu bascule sur les touches · maintenez Retour pour quitter</string>
-    <string name="os_zaslon_nacin_tipke">Touches · les flèches et OK vont à l\'ordinateur comme touches · Menu bascule sur le pointeur · maintenez Retour pour quitter</string>
+    <string name="os_zaslon_nacin_kazalec">Pointeur · les flèches déplacent la souris, OK clique, OK long = clic droit · Menu ouvre le menu (clavier, touches, enregistrer) · maintenez Retour pour quitter</string>
+    <string name="os_zaslon_nacin_tipke">Touches · les flèches et OK vont à l\'ordinateur comme touches · Menu ouvre le menu (clavier, pointeur, enregistrer) · maintenez Retour pour quitter</string>
     <string name="os_besedilo_napaka">Le fichier n\'a pas pu être lu.</string>
     <string name="os_besedilo_prevelika">Fichier long — seul le début est affiché.</string>
     <string name="os_besedilo_pomoc">Bas/Haut font défiler · Retour ferme</string>
@@ -255,4 +255,31 @@
     <string name="os_odpri_posiljam">Envoi à l\'ordinateur…</string>
     <string name="os_odpri_poslano">Le fichier s\'ouvre sur l\'ordinateur</string>
     <string name="os_odpri_racunalnik_napaka">Impossible à ouvrir : %1$s</string>
+    <string name="os_tipk_male">abc</string>
+    <string name="os_tipk_velike">ABC</string>
+    <string name="os_tipk_crke">ABC</string>
+    <string name="os_tipk_simboli">!#1</string>
+    <string name="os_tipk_presledek">Espace</string>
+    <string name="os_tipk_vracalka">Effacer</string>
+    <string name="os_tipk_vnasalka">Entrée</string>
+    <string name="os_tipk_shrani">Enregistrer</string>
+    <string name="os_tipk_zapri">Fermer</string>
+    <string name="os_zaslon_meni_tipkovnica">Clavier</string>
+    <string name="os_zaslon_meni_tipke">Passer aux touches</string>
+    <string name="os_zaslon_meni_kazalec">Passer au pointeur</string>
+    <string name="os_zaslon_meni_shrani">Enregistrer (Ctrl+S)</string>
+    <string name="os_zaslon_meni_bliznjice">Raccourcis</string>
+    <string name="os_zaslon_meni_koncaj">Terminer la session</string>
+    <string name="os_bliznjica_shrani">Enregistrer</string>
+    <string name="os_bliznjica_shrani_kot">Enregistrer sous</string>
+    <string name="os_bliznjica_izberi_vse">Tout sélectionner</string>
+    <string name="os_bliznjica_kopiraj">Copier</string>
+    <string name="os_bliznjica_prilepi">Coller</string>
+    <string name="os_bliznjica_izrezi">Couper</string>
+    <string name="os_bliznjica_razveljavi">Annuler</string>
+    <string name="os_bliznjica_ponovi">Rétablir</string>
+    <string name="os_bliznjica_krepko">Gras</string>
+    <string name="os_bliznjica_lezece">Italique</string>
+    <string name="os_bliznjica_podcrtano">Souligné</string>
+    <string name="os_bliznjica_isci">Rechercher</string>
 </resources>

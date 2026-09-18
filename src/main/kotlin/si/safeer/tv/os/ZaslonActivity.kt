@@ -33,6 +33,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private lateinit var sporocilo: TextView
     private lateinit var meritve: TextView
     private lateinit var namig: TextView
+    private lateinit var tipkovnicaPogled: android.widget.LinearLayout
+    private var tipkovnica: ZaslonTipkovnica? = null
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private var odjemalec: ZaslonOdjemalec? = null
@@ -67,6 +69,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         sporocilo = findViewById(R.id.sporocilo)
         meritve = findViewById(R.id.meritve)
         namig = findViewById(R.id.namig)
+        tipkovnicaPogled = findViewById(R.id.tipkovnica)
+        tipkovnica = ZaslonTipkovnica(this, tipkovnicaPogled,
+            naBesedilo = { z -> odjemalec?.posljiVnos(JSONObject().put("vrsta", "besedilo").put("besedilo", z)) },
+            naTipko = { t -> odjemalec?.posljiVnos(JSONObject().put("vrsta", "tipka").put("tipka", t)) })
         // Vedno najboljse, kar zmore racunalnik: uporabniku ni treba izbirati med kakovostmi,
         // ker za nizjo ni razloga - meritve kazejo, da ostrejsa slika skoraj nic ne stane.
         kakovost = intent.getStringExtra(EXTRA_KAKOVOST) ?: "najvisja"
@@ -235,14 +241,17 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            // Kratek Nazaj je tipka za racunalnik, dolg pritisk konca sejo.
+            // Odprta tipkovnica se zapre; sicer je kratek Nazaj tipka za racunalnik,
+            // dolg pritisk pa konca sejo.
+            if (tipkovnica?.jeOdprta == true) { tipkovnica?.zapri(); return true }
             event?.startTracking()
             return true
         }
         // Glasnost pusti televizorju: uporabnik jo pricakuje tam, kjer je zvok.
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
             keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) return super.onKeyDown(keyCode, event)
-        if (ZaslonVnos.jePreklop(keyCode)) { preklopiNacin(); return true }
+        if (ZaslonVnos.jePreklop(keyCode)) { odpriMeni(); return true }
+        if (tipkovnica?.jeOdprta == true) return super.onKeyDown(keyCode, event)
         if (kazalec) {
             // V nacinu kazalca smerne tipke vodijo misko, OK pa klika (dolg OK desni klik).
             val s = ZaslonVnos.smer(keyCode)
@@ -274,6 +283,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
             return true
         }
+        if (tipkovnica?.jeOdprta == true) return super.onKeyUp(keyCode, event)
         if (kazalec) {
             if (ZaslonVnos.smer(keyCode) != null) { ustaviSmer(); return true }
             if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
@@ -282,6 +292,53 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
         }
         return super.onKeyUp(keyCode, event)
+    }
+
+    /**
+     * Meni seje na tipki Meni (na ploscku Start): vse, kar med gledanjem racunalnika potrebujes,
+     * na enem mestu - tipkovnica, nacin tipk, shranjevanje in konec seje. Brez njega bi morali
+     * vsako stvar obesiti na svojo tipko, ki je daljinec nima.
+     */
+    private fun odpriMeni() {
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        dejanja.add(getString(R.string.os_zaslon_meni_tipkovnica) to { tipkovnica?.odpri() })
+        dejanja.add(getString(
+            if (kazalec) R.string.os_zaslon_meni_tipke else R.string.os_zaslon_meni_kazalec) to { preklopiNacin() })
+        dejanja.add(getString(R.string.os_zaslon_meni_shrani) to { posljiTipko("shrani") })
+        dejanja.add(getString(R.string.os_zaslon_meni_bliznjice) to { odpriBliznjice() })
+        dejanja.add(getString(R.string.os_zaslon_meni_koncaj) to { koncaj(); finish() })
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_zaslon))
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+    }
+
+    /** Bliznjice, ki jih racunalnik pozna; imena posljemo, prevede jih on. */
+    private fun odpriBliznjice() {
+        val bliznjice = listOf(
+            getString(R.string.os_bliznjica_shrani) to "shrani",
+            getString(R.string.os_bliznjica_shrani_kot) to "shrani_kot",
+            getString(R.string.os_bliznjica_izberi_vse) to "izberi_vse",
+            getString(R.string.os_bliznjica_kopiraj) to "kopiraj",
+            getString(R.string.os_bliznjica_prilepi) to "prilepi",
+            getString(R.string.os_bliznjica_izrezi) to "izrezi",
+            getString(R.string.os_bliznjica_razveljavi) to "razveljavi",
+            getString(R.string.os_bliznjica_ponovi) to "ponovi",
+            getString(R.string.os_bliznjica_krepko) to "krepko",
+            getString(R.string.os_bliznjica_lezece) to "lezece",
+            getString(R.string.os_bliznjica_podcrtano) to "podcrtano",
+            getString(R.string.os_bliznjica_isci) to "isci",
+        )
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_zaslon_meni_bliznjice))
+            .setItems(bliznjice.map { it.first }.toTypedArray()) { _, i -> posljiTipko(bliznjice[i].second) }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
+    }
+
+    private fun posljiTipko(ime: String) {
+        odjemalec?.posljiVnos(JSONObject().put("vrsta", "tipka").put("tipka", ime))
     }
 
     /** Preklop med kazalcem in tipkami; uporabnik takoj vidi, kaj zdaj delajo tipke. */
