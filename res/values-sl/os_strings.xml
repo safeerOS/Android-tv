@@ -282,4 +282,9 @@
     <string name="os_bliznjica_lezece">Ležeče</string>
     <string name="os_bliznjica_podcrtano">Podčrtano</string>
     <string name="os_bliznjica_isci">Išči</string>
+    <string name="os_tipk_zacetek">Začetek</string>
+    <string name="os_tipk_konec">Konec</string>
+    <string name="os_tipk_tabulator">Tab</string>
+    <string name="os_tipk_gor">Gor</string>
+    <string name="os_tipk_dol">Dol</string>
 </resources>

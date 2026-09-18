@@ -282,4 +282,9 @@
     <string name="os_bliznjica_lezece">Kursiv</string>
     <string name="os_bliznjica_podcrtano">Unterstrichen</string>
     <string name="os_bliznjica_isci">Suchen</string>
+    <string name="os_tipk_zacetek">Anfang</string>
+    <string name="os_tipk_konec">Ende</string>
+    <string name="os_tipk_tabulator">Tab</string>
+    <string name="os_tipk_gor">Nach oben</string>
+    <string name="os_tipk_dol">Nach unten</string>
 </resources>

@@ -283,4 +283,9 @@
     <string name="os_bliznjica_lezece">Italic</string>
     <string name="os_bliznjica_podcrtano">Underline</string>
     <string name="os_bliznjica_isci">Find</string>
+    <string name="os_tipk_zacetek">Home</string>
+    <string name="os_tipk_konec">End</string>
+    <string name="os_tipk_tabulator">Tab</string>
+    <string name="os_tipk_gor">Move up</string>
+    <string name="os_tipk_dol">Move down</string>
 </resources>

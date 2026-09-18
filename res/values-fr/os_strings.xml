@@ -282,4 +282,9 @@
     <string name="os_bliznjica_lezece">Italique</string>
     <string name="os_bliznjica_podcrtano">Souligné</string>
     <string name="os_bliznjica_isci">Rechercher</string>
+    <string name="os_tipk_zacetek">Début</string>
+    <string name="os_tipk_konec">Fin</string>
+    <string name="os_tipk_tabulator">Tab</string>
+    <string name="os_tipk_gor">En haut</string>
+    <string name="os_tipk_dol">En bas</string>
 </resources>

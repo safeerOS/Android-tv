@@ -26,6 +26,8 @@ class ZaslonTipkovnica(
 
     private var velike = false
     private var simboli = false
+    /** Tipkovnica je lahko spodaj ali zgoraj: ne sme zakriti mesta, kamor uporabnik pise. */
+    private var zgoraj = false
     private val gostota = context.resources.displayMetrics.density
 
     /** Prva vrsta je ali stevilke ali simboli; crkovne vrste ostajajo enake. */
@@ -41,12 +43,23 @@ class ZaslonTipkovnica(
 
     fun odpri() {
         narisi()
+        premakni()
         koren.visibility = View.VISIBLE
         koren.post { koren.getChildAt(1)?.let { (it as? LinearLayout)?.getChildAt(0)?.requestFocus() } }
     }
 
     fun zapri() {
         koren.visibility = View.GONE
+    }
+
+    /** Prestavi ploscico gor ali dol; besedilo, ki ga pises, mora ostati vidno. */
+    private fun premakni() {
+        val lp = koren.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
+        lp.gravity = (if (zgoraj) Gravity.TOP else Gravity.BOTTOM) or Gravity.CENTER_HORIZONTAL
+        val rob = (20 * gostota).toInt()
+        lp.topMargin = if (zgoraj) rob else 0
+        lp.bottomMargin = if (zgoraj) 0 else rob
+        koren.layoutParams = lp
     }
 
     private fun narisi() {
@@ -56,6 +69,7 @@ class ZaslonTipkovnica(
         vrsta(if (simboli) SIMBOLI2 else VRSTA1)
         vrsta(if (simboli) SIMBOLI3 else VRSTA2)
         vrsta(VRSTA3)
+        smerne()
         ukazi()
     }
 
@@ -67,6 +81,28 @@ class ZaslonTipkovnica(
             val znak = if (velike && !simboli) z.uppercaseChar() else z
             v.addView(tipka(znak.toString(), 54) { naBesedilo(znak.toString()) })
         }
+        koren.addView(v)
+    }
+
+    /**
+     * Vrsta za premikanje po besedilu. Smerne tipke daljinca med odprto tipkovnico izbirajo tipke,
+     * zato mora biti premikanje kazalca v besedilu tu - sicer uporabnik ne more popraviti besede
+     * dve vrstici visje.
+     */
+    private fun smerne() {
+        val v = LinearLayout(context)
+        v.orientation = LinearLayout.HORIZONTAL
+        v.gravity = Gravity.CENTER_HORIZONTAL
+        v.addView(tipka("←", 66) { naTipko("levo") })
+        v.addView(tipka("↑", 66) { naTipko("gor") })
+        v.addView(tipka("↓", 66) { naTipko("dol") })
+        v.addView(tipka("→", 66) { naTipko("desno") })
+        v.addView(tipka(context.getString(R.string.os_tipk_zacetek), 84) { naTipko("zacetek") })
+        v.addView(tipka(context.getString(R.string.os_tipk_konec), 84) { naTipko("konec") })
+        v.addView(tipka(context.getString(R.string.os_tipk_tabulator), 84) { naTipko("tabulator") })
+        v.addView(tipka(context.getString(if (zgoraj) R.string.os_tipk_dol else R.string.os_tipk_gor), 104) {
+            zgoraj = !zgoraj; premakni(); osveziZnake()
+        })
         koren.addView(v)
     }
 

@@ -282,4 +282,9 @@
     <string name="os_bliznjica_lezece">Corsivo</string>
     <string name="os_bliznjica_podcrtano">Sottolineato</string>
     <string name="os_bliznjica_isci">Trova</string>
+    <string name="os_tipk_zacetek">Inizio</string>
+    <string name="os_tipk_konec">Fine</string>
+    <string name="os_tipk_tabulator">Tab</string>
+    <string name="os_tipk_gor">Su</string>
+    <string name="os_tipk_dol">Giù</string>
 </resources>

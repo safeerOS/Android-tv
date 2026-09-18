@@ -282,4 +282,9 @@
     <string name="os_bliznjica_lezece">Cursiva</string>
     <string name="os_bliznjica_podcrtano">Subrayado</string>
     <string name="os_bliznjica_isci">Buscar</string>
+    <string name="os_tipk_zacetek">Inicio</string>
+    <string name="os_tipk_konec">Fin</string>
+    <string name="os_tipk_tabulator">Tab</string>
+    <string name="os_tipk_gor">Arriba</string>
+    <string name="os_tipk_dol">Abajo</string>
 </resources>
