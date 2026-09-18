@@ -17,6 +17,7 @@ import android.view.View
 import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 
 /**
  * Domaci zaslon Safeer OS Tablet.
@@ -104,6 +105,25 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 val namera = Intent(this, ZaslonActivity::class.java)
                 if (r != null) namera.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
                 startActivity(namera)
+            }
+        }
+        // Brez Safeer Linka tablica ne vidi racunalnika. Televizor ima vklop na svojem domacem
+        // zaslonu in v nastavitvah, tablica pa doslej ni imela nikjer - zato je tu prva ploscica
+        // prav vklop. Krajevnega nacina tablici ne ponujamo: brez racunalnika ta zaslon nima cesa
+        // pokazati, zato bi bila izbira samo videz izbire.
+        if (!link.povezan && (link.vprasamoZaNacin() || link.jeKrajevni() || sporociloStanja == "ni_linka")) {
+            dodaj(R.drawable.os_ikona_link, R.string.tablet_vklopi, R.string.tablet_vklopi_opis) {
+                link.vklopiLink()
+                Toast.makeText(this, getString(R.string.tablet_vklopljen), Toast.LENGTH_LONG).show()
+                pokaziStanje()
+                narisi()
+            }
+        } else if (!link.povezan && sporociloStanja == "ni") {
+            // Sredisce tece, povezave pa ni: poskus od zacetka je edino, kar uporabnik lahko stori.
+            dodaj(R.drawable.os_ikona_link, R.string.tablet_znova, R.string.tablet_znova_opis) {
+                link.ponovnoPoveziSe()
+                pokaziStanje()
+                narisi()
             }
         }
         // Naprave so vedno na voljo: tam se naprave seznanijo in tam se vidi, kaj manjka.

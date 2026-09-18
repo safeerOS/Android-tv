@@ -56,4 +56,7 @@
     <string name="scit_izklopljen">Safeer Shield is off</string>
     <string name="scit_napaka_dovoljenje">Safeer Shield needs your permission to filter DNS (the system dialog). Nothing was changed.</string>
     <string name="scit_blokiranih_danes">blocked today: %1$d</string>
+    <!-- Kako se ta naprava predstavi drugim v Safeer Linku. Okus tablica to povozi:
+         ime vidijo sosedje v hisi, zato mora biti resnicno. -->
+    <string name="os_ime_vrste">Safeer TV</string>
 </resources>

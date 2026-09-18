@@ -13,4 +13,14 @@
     <string name="tablet_zaslon_opis">The picture and sound of your computer, on the tablet</string>
     <string name="tablet_ni_racunalnika">No computer is connected yet. Start Safeer Control on your computer and join Safeer Link; it will show up here by itself.</string>
     <string name="tablet_ni_linka">This tablet is not in Safeer Link yet. Open Devices and connect it — then your files, programs and computer screen appear here.</string>
+    <string name="tablet_vklopi">Turn on Safeer Link</string>
+    <string name="tablet_vklopi_opis">The tablet joins your home network; then your computer can share files, programs and its screen</string>
+    <string name="tablet_vklopljen">Safeer Link is on. On the computer, open Safeer Control and pair it with this tablet.</string>
+    <string name="tablet_znova">Connect again</string>
+    <string name="tablet_znova_opis">Safeer Link is on, but the connection is not up. Try again.</string>
+    <string name="os_ime_vrste">Safeer Tablet</string>
+    <string name="os_naprava_tv">this tablet</string>
+    <string name="os_krajevno_koren">On this tablet</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS needs permission to read the files on this tablet.</string>
+    <string name="os_odsek_aplikacije">Apps on this tablet</string>
 </resources>

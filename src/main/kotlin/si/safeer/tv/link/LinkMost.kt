@@ -126,6 +126,10 @@ class LinkMost(
         odziv("pozabljeno", true)
     }
 
+    /** Kako se ta naprava predstavi v Safeer Linku (televizor, tablica ...). */
+    private fun imeTeNaprave(): String =
+        dejavnost.getString(si.safeer.tv.R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")"
+
     @JavascriptInterface
     fun stanje(): String {
         return try {
@@ -133,7 +137,7 @@ class LinkMost(
                 put("hub", hubUrl())
                 put("znan", hubUrl().isNotBlank())
                 put("seznanjen", HubPairing.token(dejavnost) != null)
-                put("naprava", "Safeer TV (" + android.os.Build.MODEL + ")")
+                put("naprava", imeTeNaprave())
                 put("id", ime())
                 put("videnZadnjic", nastavitve().getLong("hub_last_seen", 0L))
             }.toString()
@@ -165,7 +169,7 @@ class LinkMost(
         }
         try {
             HubPairing.pair(
-                dejavnost, naslov, ime(), "Safeer TV (" + android.os.Build.MODEL + ")",
+                dejavnost, naslov, ime(), imeTeNaprave(),
                 { nacin, koda ->
                     odziv("nacin", JSONObject().apply {
                         put("nacin", nacin)
@@ -213,7 +217,7 @@ class LinkMost(
             try {
                 CastReceiverService.start(
                     dejavnost, null,
-                    "Safeer TV (" + android.os.Build.MODEL + ")"
+                    imeTeNaprave()
                 )
             } catch (_: Throwable) {}
         }

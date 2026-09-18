@@ -221,14 +221,30 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             LinearLayout.LayoutParams.WRAP_CONTENT)
         mere.marginEnd = (8 * resources.displayMetrics.density).toInt()
         t.layoutParams = mere
-        t.setOnClickListener {
-            izbranaSkupina = kljuc
-            for (i in 0 until skupineVrsta.childCount) {
-                skupineVrsta.getChildAt(i).isActivated = skupineVrsta.getChildAt(i) === t
+        t.setOnClickListener { izberiSkupino(kljuc, t) }
+        // Z daljincem se po vrstici skupin potuje s smernimi tipkami. Doslej je skupino zamenjal
+        // sele OK, zato je bila oznacena ena skupina, spodaj pa programi druge - videti je bilo,
+        // kot da vrstica ne dela. Zdaj skupino zamenja ze premik fokusa, tako kot uporabnik
+        // pricakuje, klik pa dela naprej (miska, dotik).
+        t.setOnFocusChangeListener { _, ima ->
+            if (ima) {
+                izberiSkupino(kljuc, t)
+                // Izbrana skupina mora ostati vidna, tudi ko jih je vec, kot gre na zaslon.
+                skupineDrsnik.post { skupineDrsnik.requestChildRectangleOnScreen(t,
+                    android.graphics.Rect(0, 0, t.width, t.height), false) }
             }
-            osveziSeznam()
         }
         return t
+    }
+
+    /** Skupina, ki jo uporabnik gleda: oznaci gumb in prerise seznam programov. */
+    private fun izberiSkupino(kljuc: String, gumb: View) {
+        if (izbranaSkupina == kljuc) return
+        izbranaSkupina = kljuc
+        for (i in 0 until skupineVrsta.childCount) {
+            skupineVrsta.getChildAt(i).isActivated = skupineVrsta.getChildAt(i) === gumb
+        }
+        osveziSeznam()
     }
 
     private fun pripraviIskanje() {

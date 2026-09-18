@@ -126,7 +126,7 @@ object HubKrmilnik {
         // sredisce, na katerega ni mogoce nicesar poslati.
         poveziLastniZaslon(app, u, s.vrata)
 
-        HubObjava.objavi(app, s.vrata, imeHuba()) { uspelo ->
+        HubObjava.objavi(app, s.vrata, imeHuba(app)) { uspelo ->
             if (!uspelo) {
                 // Brez oglasa Hub se vedno dela; naprava, ki ga je ze videla, pozna naslov.
                 Log.i(TAG, "Hub tece, oglas v omrezju pa ni uspel.")
@@ -171,7 +171,7 @@ object HubKrmilnik {
     /** Sprejemnik televizorja se priklopi na lastni Hub z zetonom, ki ga Hub izda sam sebi. */
     private fun poveziLastniZaslon(app: Context, u: HubUsmerjevalnik, vrata: Int) {
         try {
-            val zeton = u.zagotoviLastniZeton(lastniId(), imeHuba())
+            val zeton = u.zagotoviLastniZeton(lastniId(), imeHuba(app))
             val naslov = LASTNI_NASLOV_PREDPONA + vrata + "/cast/ws"
             app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("hub_url", naslov)
@@ -180,7 +180,7 @@ object HubKrmilnik {
                 // Lastnemu Hubu zaupamo po istem pravilu kot vsakemu drugemu: po odtisu.
                 .putString(HubTls.KEY_HUB_FP, HubTls.lastniOdtis())
                 .apply()
-            CastReceiverService.start(app, naslov, imeHuba())
+            CastReceiverService.start(app, naslov, imeHuba(app))
             Log.i(TAG, "Televizor je priklopljen na lastni Hub kot zaslon.")
         } catch (e: Throwable) {
             Log.w(TAG, "Lastnega zaslona ni bilo mogoce priklopiti: ${e.message}")
@@ -212,7 +212,8 @@ object HubKrmilnik {
         povezava.naZaprtje = { u.odklopi(odjemalec) }
     }
 
-    private fun imeHuba(): String = "Safeer TV (" + android.os.Build.MODEL + ")"
+    private fun imeHuba(context: Context): String =
+        context.getString(si.safeer.tv.R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")"
 
     /** Naslov, na katerem je Hub dosegljiv; prazen, ce ne tece ali ce ni omrezja. */
     fun naslov(): String {
@@ -254,7 +255,7 @@ object HubKrmilnik {
             .logicno("tece", tece())
             .logicno("zazelen", jeZazelen(context))
             .niz("naslov", naslov())
-            .niz("ime", if (HubObjava.objavljenoIme.isNotBlank()) HubObjava.objavljenoIme else imeHuba())
+            .niz("ime", if (HubObjava.objavljenoIme.isNotBlank()) HubObjava.objavljenoIme else imeHuba(context))
             .logicno("objavljen", HubObjava.jeObjavljen())
             .stevilo("naprav", (u?.steviloNaprav() ?: 0).toDouble())
             .stevilo("cakajocih", (u?.cakajocePrijave()?.size ?: 0).toDouble())

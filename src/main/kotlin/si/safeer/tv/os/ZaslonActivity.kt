@@ -209,11 +209,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 }
             },
             naStatistiko = { s ->
-                runOnUiThread {
-                    if (!isFinishing) meritve.text = getString(R.string.os_zaslon_meritve,
-                        s.sirina, s.visina, s.naSekundo, s.megabitov, s.dekoderMs) +
-                        (if (s.zvok) " · " + getString(R.string.os_zaslon_zvok) else "")
-                }
+                // Gledalcu stevilke o hitrosti prenosa nic ne povedo in mu le stojijo cez sliko;
+                // ostanejo v dnevniku, kjer jih potrebujemo, kadar iscemo vzrok tezave.
+                android.util.Log.d("SafeerZaslon",
+                    "${s.sirina}x${s.visina} ${s.naSekundo} sl/s ${s.megabitov} Mb/s " +
+                    "dekoder ${s.dekoderMs} ms zvok=${s.zvok}")
             })
         odjemalec = o
         o.zacni(pogled.holder.surface)
@@ -239,7 +239,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     private fun skrij() {
         sporocilo.visibility = View.GONE
-        meritve.visibility = View.VISIBLE
+        // Meritve ostanejo skrite: med gledanjem racunalnika na zaslonu ni stevilk.
+        meritve.visibility = View.GONE
     }
 
     /** Konec seje: ustavimo tudi zajem na racunalniku, da ne tece v prazno. */

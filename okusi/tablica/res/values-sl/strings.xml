@@ -13,4 +13,13 @@
     <string name="tablet_zaslon_opis">Slika in zvok računalnika na tablici</string>
     <string name="tablet_ni_racunalnika">Noben računalnik še ni povezan. Na računalniku zaženi Safeer Control in ga poveži v Safeer Link; tu se bo pojavil sam.</string>
     <string name="tablet_ni_linka">Ta tablica še ni v Safeer Linku. Odpri Naprave in jo poveži — potem se tu pojavijo datoteke, programi in zaslon tvojega računalnika.</string>
+    <string name="tablet_vklopi">Vklopi Safeer Link</string>
+    <string name="tablet_vklopi_opis">Tablica se pridruži domačemu omrežju; nato lahko računalnik deli datoteke, programe in svoj zaslon</string>
+    <string name="tablet_vklopljen">Safeer Link je vklopljen. Na računalniku odpri Safeer Control in ga seznani s to tablico.</string>
+    <string name="tablet_znova">Poveži znova</string>
+    <string name="tablet_znova_opis">Safeer Link je vklopljen, povezave pa ni. Poskusi znova.</string>
+    <string name="os_naprava_tv">ta tablica</string>
+    <string name="os_krajevno_koren">Na tej tablici</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS potrebuje dovoljenje za branje datotek na tej tablici.</string>
+    <string name="os_odsek_aplikacije">Aplikacije na tej tablici</string>
 </resources>
