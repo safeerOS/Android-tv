@@ -133,16 +133,15 @@ object ZaslonVnos {
     /** Odklon leve palice plosecka; vrne null, kadar je palica v mirovanju. */
     fun izPalice(dogodek: MotionEvent): Pair<Float, Float>? {
         if (dogodek.source and InputDevice.SOURCE_JOYSTICK != InputDevice.SOURCE_JOYSTICK) return null
-        val x = os(dogodek, MotionEvent.AXIS_X, MotionEvent.AXIS_HAT_X)
-        val y = os(dogodek, MotionEvent.AXIS_Y, MotionEvent.AXIS_HAT_Y)
+        // Samo prava palica: smerni krizec pride tudi kot smerna tipka in bi kazalec premaknil dvakrat.
+        val x = os(dogodek, MotionEvent.AXIS_X)
+        val y = os(dogodek, MotionEvent.AXIS_Y)
         return if (x == 0f && y == 0f) null else (x to y)
     }
 
-    private fun os(d: MotionEvent, glavna: Int, nadomestna: Int): Float {
-        val v = d.getAxisValue(glavna).let { if (kotlin.math.abs(it) < MRTVI_KOT) 0f else it }
-        if (v != 0f) return v
-        val n = d.getAxisValue(nadomestna)
-        return if (kotlin.math.abs(n) < MRTVI_KOT) 0f else n
+    private fun os(d: MotionEvent, glavna: Int): Float {
+        val v = d.getAxisValue(glavna)
+        return if (kotlin.math.abs(v) < MRTVI_KOT) 0f else v
     }
 
     fun premik(dx: Int, dy: Int): JSONObject? =

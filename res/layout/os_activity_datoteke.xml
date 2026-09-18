@@ -67,6 +67,16 @@
         android:fadingEdgeLength="24dp"
         android:requiresFadingEdge="vertical"/>
 
+    <!-- Namig o zadrzanem OK: brez njega je odpiranje na racunalniku skrita moznost. -->
+    <TextView
+        android:id="@+id/namigDrzi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="@color/os_umirjeno"
+        android:textSize="12sp"
+        android:visibility="gone"/>
+
     <TextView
         android:id="@+id/sporocilo"
         android:layout_width="match_parent"

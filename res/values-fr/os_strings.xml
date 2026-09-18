@@ -290,4 +290,10 @@
     <string name="os_tipk_pomoc">OK tape · maintenir OK répète · Retour ferme</string>
     <string name="os_tipk_pomoc_plosek">A taper · B ⌫ · X espace · Y MAJ · L1/R1 curseur · Start enregistrer</string>
     <string name="os_pomoc_plosek">A Ouvrir · B Retour · X Modifier · Y Accueil · Start Réglages</string>
+    <string name="os_moc_kje">Où</string>
+    <string name="os_host_racunalnik_kratko">Ordinateur (hôte)</string>
+    <string name="os_moc_gpu">Graphismes</string>
+    <string name="os_moc_gpu_strojno">encodage vidéo matériel</string>
+    <string name="os_moc_gpu_brez">sans encodage matériel</string>
+    <string name="os_datoteke_pomoc_drzi">Maintenez OK · ouvrir sur l\'ordinateur</string>
 </resources>

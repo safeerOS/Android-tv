@@ -49,6 +49,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var nadnaslov: TextView
     private lateinit var racunalnikZnacka: TextView
     private lateinit var sporocilo: TextView
+    private lateinit var namigDrzi: TextView
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private val prilagojevalnik = Prilagojevalnik()
@@ -73,10 +74,15 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         nadnaslov = findViewById(R.id.nadnaslov)
         racunalnikZnacka = findViewById(R.id.racunalnik)
         sporocilo = findViewById(R.id.sporocilo)
+        namigDrzi = findViewById(R.id.namigDrzi)
+        namigDrzi.text = getString(R.string.os_datoteke_pomoc_drzi)
         seznam.adapter = prilagojevalnik
         seznam.setOnItemClickListener { _, _, i, _ -> izberi(i) }
+        seznam.setOnItemLongClickListener { _, _, i, _ -> moznosti(i); true }
         izbiramSliko = intent.getBooleanExtra(EXTRA_IZBERI_SLIKO, false)
-        if (izbiramSliko) sporocilo.text = getString(R.string.os_izberi_sliko)
+        // Napis v sporocilu je nalaganje takoj prepisalo, zato povemo z obvestilom: uporabnik mora
+        // vedeti, zakaj se mu je odprl seznam datotek.
+        if (izbiramSliko) Toast.makeText(this, getString(R.string.os_izberi_sliko), Toast.LENGTH_LONG).show()
     }
 
     override fun onStart() {
@@ -114,6 +120,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun odpriKrajevno() {
         izbiramRacunalnik = false
         krajevni = true
+        namigDrzi.visibility = View.GONE
         racunalnik = null
         streznik = null
         pot.clear()
@@ -162,6 +169,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun pokaziRacunalnike(r: List<LinkOdjemalec.Naprava>) {
         izbiramRacunalnik = true
         krajevni = false
+        namigDrzi.visibility = View.GONE
         racunalnik = null
         pot.clear()
         nadnaslov.text = getString(R.string.os_datoteke)
@@ -180,6 +188,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun odpriRacunalnik(r: LinkOdjemalec.Naprava) {
         izbiramRacunalnik = false
         krajevni = false
+        // Datoteke racunalnika zna odpreti tudi racunalnik sam; povejmo, kako.
+        namigDrzi.visibility = if (izbiramSliko) View.GONE else View.VISIBLE
         racunalnik = r
         pot.clear()
         streznik = null
@@ -258,6 +268,25 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         setResult(RESULT_OK, namera)
         finish()
+    }
+
+    /**
+     * Zadrzan OK na datoteki racunalnika: video, glasbo ali sliko zna televizor predvajati sam,
+     * lahko pa jo odpre racunalnik s svojim programom - in kadar deli zaslon, to takoj vidimo tudi
+     * tu. Kratek OK ostane, kar je bil: predvajaj na televizorju.
+     */
+    private fun moznosti(i: Int) {
+        val v = vnosi.getOrNull(i) ?: return
+        if (izbiramSliko || izbiramRacunalnik || krajevni) return
+        if (v.vrsta == "folder" || v.vrsta == "computer" || v.vrsta == "tv") return
+        val r = racunalnik ?: return
+        val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(v.ime)
+            .setPositiveButton(getString(R.string.os_odpri_na_racunalniku)) { _, _ -> odpriNaRacunalniku(v, false) }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+        if (zaslon) okno.setNeutralButton(getString(R.string.os_odpri_in_poglej)) { _, _ -> odpriNaRacunalniku(v, true) }
+        Kontroler.pokazi(okno.show())
     }
 
     /**

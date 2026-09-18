@@ -52,6 +52,8 @@ object Kontroler {
         if (!jePlosek(dogodek)) return false
         val koda = dogodek.keyCode
         if (dogodek.action != KeyEvent.ACTION_DOWN) return koda in GUMBI
+        // Drzanje gumba ne sme sprozati dejanja znova in znova: A bi tako odprl aplikacijo desetkrat.
+        if (dogodek.repeatCount > 0) return koda in GUMBI
         if (dodatno(koda)) return true
         val fokus: View? = a.currentFocus
         when (koda) {
@@ -134,8 +136,10 @@ object Kontroler {
 
         fun dogodek(e: MotionEvent): Boolean {
             if (e.source and InputDevice.SOURCE_JOYSTICK != InputDevice.SOURCE_JOYSTICK) return false
-            val x = os(e, MotionEvent.AXIS_X, MotionEvent.AXIS_HAT_X)
-            val y = os(e, MotionEvent.AXIS_Y, MotionEvent.AXIS_HAT_Y)
+            // Samo prava palica: smerni krizec (HAT) Android sam prevede v smerne tipke, zato bi
+            // ga tu steli dvakrat in bi izbira preskakovala po dve kartici.
+            val x = os(e, MotionEvent.AXIS_X)
+            val y = os(e, MotionEvent.AXIS_Y)
             val nova = when {
                 kotlin.math.abs(x) >= kotlin.math.abs(y) && x <= -MRTVI_KOT -> View.FOCUS_LEFT
                 kotlin.math.abs(x) >= kotlin.math.abs(y) && x >= MRTVI_KOT -> View.FOCUS_RIGHT
@@ -171,11 +175,9 @@ object Kontroler {
             v.focusSearch(s)?.requestFocus()
         }
 
-        private fun os(e: MotionEvent, glavnaOs: Int, nadomestna: Int): Float {
+        private fun os(e: MotionEvent, glavnaOs: Int): Float {
             val v = e.getAxisValue(glavnaOs)
-            if (kotlin.math.abs(v) >= MRTVI_KOT) return v
-            val n = e.getAxisValue(nadomestna)
-            return if (kotlin.math.abs(n) >= MRTVI_KOT) n else 0f
+            return if (kotlin.math.abs(v) >= MRTVI_KOT) v else 0f
         }
     }
 }

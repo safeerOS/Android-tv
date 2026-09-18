@@ -290,4 +290,10 @@
     <string name="os_tipk_pomoc">OK tippt · OK halten wiederholt · Zurück schließt</string>
     <string name="os_tipk_pomoc_plosek">A tippen · B ⌫ · X Leerzeichen · Y GROSS · L1/R1 Cursor · Start speichern</string>
     <string name="os_pomoc_plosek">A Öffnen · B Zurück · X Bearbeiten · Y Startseite · Start Einstellungen</string>
+    <string name="os_moc_kje">Wo</string>
+    <string name="os_host_racunalnik_kratko">Computer (Host)</string>
+    <string name="os_moc_gpu">Grafik</string>
+    <string name="os_moc_gpu_strojno">Hardware-Videokodierung</string>
+    <string name="os_moc_gpu_brez">ohne Hardwarekodierung</string>
+    <string name="os_datoteke_pomoc_drzi">OK halten · auf dem Computer öffnen</string>
 </resources>

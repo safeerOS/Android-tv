@@ -94,8 +94,11 @@ class BesediloActivity : OsActivity() {
     }
 
     companion object {
-        /** Najvec besedila, kolikor pokazemo naenkrat (dolg dnevnik odrezemo in to povemo). */
-        private const val NAJVEC = 512 * 1024
+        /**
+         * Najvec besedila, kolikor pokazemo naenkrat. Vec kot toliko en sam TextView na televizorju
+         * ne izrise tekoce - drsenje po pol megabajta besedila je bilo trzajoce.
+         */
+        private const val NAJVEC = 160 * 1024
         private const val KORAK = 160
 
         /** Ali zna televizor to datoteko pokazati kot besedilo. */

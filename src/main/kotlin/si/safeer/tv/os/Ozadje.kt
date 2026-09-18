@@ -100,6 +100,7 @@ object Ozadje {
         return try {
             FileOutputStream(datoteka(c)).use { obrezana.compress(Bitmap.CompressFormat.JPEG, 90, it) }
             if (obrezana !== slika) slika.recycle()
+            lastnaSlika = null      // nova fotografija: stara predpomnjena ne velja vec
             true
         } catch (_: Throwable) {
             false
@@ -108,6 +109,7 @@ object Ozadje {
 
     fun pozabiLastno(c: Context) {
         try { datoteka(c).delete() } catch (_: Throwable) { }
+        lastnaSlika = null
     }
 
     private fun odkodiraj(bajti: ByteArray): Bitmap? = try {
@@ -144,11 +146,22 @@ object Ozadje {
         else -> try { c.getDrawable(izbira.risba) } catch (_: Throwable) { null }
     }
 
+    /** Uporabnikova fotografija, pomanjsana in shranjena v pomnilniku: seznam jo risje pogosto. */
+    private var lastnaSlika: Bitmap? = null
+    private var lastnaSlikaCas = 0L
+
     private fun lastnaRisba(c: Context): Drawable? {
         val d = datoteka(c)
-        if (!d.isFile) return null
+        if (!d.isFile) { lastnaSlika = null; return null }
+        val cas = d.lastModified()
+        lastnaSlika?.let { if (cas == lastnaSlikaCas) return BitmapDrawable(c.resources, it) }
         return try {
-            val slika = BitmapFactory.decodeFile(d.absolutePath) ?: return null
+            // Fotografija je velika kot zaslon; za predogled in ozadje je dovolj polovica, in
+            // televizor je ne odkodira znova ob vsakem izrisu vrstice.
+            val slika = BitmapFactory.decodeFile(d.absolutePath, BitmapFactory.Options().apply { inSampleSize = 2 })
+                ?: return null
+            lastnaSlika = slika
+            lastnaSlikaCas = cas
             BitmapDrawable(c.resources, slika)
         } catch (_: Throwable) { null }
     }

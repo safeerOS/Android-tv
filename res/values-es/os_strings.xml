@@ -290,4 +290,10 @@
     <string name="os_tipk_pomoc">OK escribe · mantener OK repite · Atrás cierra</string>
     <string name="os_tipk_pomoc_plosek">A escribe · B ⌫ · X espacio · Y MAYÚS · L1/R1 cursor · Start guardar</string>
     <string name="os_pomoc_plosek">A Abrir · B Atrás · X Editar · Y Inicio · Start Ajustes</string>
+    <string name="os_moc_kje">Dónde</string>
+    <string name="os_host_racunalnik_kratko">Ordenador (host)</string>
+    <string name="os_moc_gpu">Gráficos</string>
+    <string name="os_moc_gpu_strojno">codificación de vídeo por hardware</string>
+    <string name="os_moc_gpu_brez">sin codificación por hardware</string>
+    <string name="os_datoteke_pomoc_drzi">Mantén OK · abrir en el ordenador</string>
 </resources>

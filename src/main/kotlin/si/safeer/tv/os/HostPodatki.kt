@@ -18,7 +18,8 @@ import si.safeer.tv.R
 object HostPodatki {
     private const val TAG = "SafeerOsHostPodatki"
 
-    class Podatki(val ime: String, val sistem: String, val cpu: String, val ram: String, val disk: String, val jeTelevizor: Boolean)
+    class Podatki(val ime: String, val sistem: String, val cpu: String, val ram: String, val disk: String,
+                  val jeTelevizor: Boolean, val grafika: String = "")
 
     /**
      * Vpraša računalnik v Safeer Linku; ce ga ni (ali ne odgovori), vrne podatke televizorja.
@@ -57,6 +58,20 @@ object HostPodatki {
             if (jedra > 0) append(context.getString(R.string.os_host_jedra, jedra))
             if (obremenitev >= 0) append(" · ").append(context.getString(R.string.os_host_obremenitev, obremenitev))
         }
+        // Graficna kartica: od nje je odvisno, kako tekoca je slika racunalnika na televizorju,
+        // zato zraven povemo tudi, ali zna sliko kodirati strojno.
+        val gpu = p.optJSONObject("gpu")
+        val grafika = buildString {
+            val model = gpu?.optString("model").orEmpty().replace(" Corporation", "")
+            if (model.isNotBlank()) append(model)
+            val gonilnik = gpu?.optString("gonilnik").orEmpty()
+            if (gonilnik.isNotBlank()) { if (isNotEmpty()) append(" · "); append(gonilnik) }
+            if (gpu != null && gpu.has("strojno")) {
+                if (isNotEmpty()) append(" · ")
+                append(context.getString(
+                    if (gpu.optBoolean("strojno")) R.string.os_moc_gpu_strojno else R.string.os_moc_gpu_brez))
+            }
+        }
         return Podatki(
             ime = p.optString("hostname").ifBlank { imeNaprave },
             sistem = p.optString("sistem"),
@@ -64,6 +79,7 @@ object HostPodatki {
             ram = paraBajtov(context, ram?.optLong("skupaj", 0L) ?: 0L, ram?.optLong("prosto", -1L) ?: -1L),
             disk = paraBajtov(context, disk?.optLong("skupaj", 0L) ?: 0L, disk?.optLong("prosto", -1L) ?: -1L),
             jeTelevizor = false,
+            grafika = grafika,
         )
     }
 
@@ -79,8 +95,14 @@ object HostPodatki {
             paraBajtov(context, s.blockCountLong * s.blockSizeLong, s.availableBlocksLong * s.blockSizeLong)
         } catch (e: Throwable) { Log.w(TAG, "Prostora ni bilo mogoce prebrati: ${e.message}"); "" }
         val jedra = Runtime.getRuntime().availableProcessors()
+        // Grafika televizorja: razlicica OpenGL ES in ime strojne osnove - vec Android ne pove.
+        val grafika = try {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val gles = am.deviceConfigurationInfo.glEsVersion
+            listOf("OpenGL ES " + gles, android.os.Build.HARDWARE).filter { it.isNotBlank() }.joinToString(" · ")
+        } catch (e: Throwable) { Log.w(TAG, "Grafike ni bilo mogoce prebrati: ${e.message}"); "" }
         return Podatki(android.os.Build.MODEL, "Android " + android.os.Build.VERSION.RELEASE,
-            context.getString(R.string.os_host_jedra, jedra), ram, disk, true)
+            context.getString(R.string.os_host_jedra, jedra), ram, disk, true, grafika)
     }
 
     /** "7,6 GB (prosto 2,1 GB)"; ce prostega ne vemo, samo skupno. */
@@ -104,11 +126,13 @@ object HostPodatki {
      */
     fun podrobnosti(context: Context, p: Podatki): String {
         val vrstice = ArrayList<String>()
-        vrstice.add(context.getString(R.string.os_moc_ime) + ": " +
-            (if (p.jeTelevizor) context.getString(R.string.os_host_ta_televizor, p.ime)
-             else context.getString(R.string.os_host_racunalnik, p.ime)))
+        // Samo ime naprave; "Host:" je ze v oznaki vrstice, dvojni napis je bil videti kot napaka.
+        vrstice.add(context.getString(R.string.os_moc_ime) + ": " + p.ime)
+        vrstice.add(context.getString(R.string.os_moc_kje) + ": " + context.getString(
+            if (p.jeTelevizor) R.string.os_krajevno_ta_tv else R.string.os_host_racunalnik_kratko))
         if (p.sistem.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_sistem) + ": " + p.sistem)
         if (p.cpu.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_cpu) + ": " + p.cpu)
+        if (p.grafika.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_gpu) + ": " + p.grafika)
         if (p.ram.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_ram) + ": " + p.ram)
         if (p.disk.isNotBlank()) vrstice.add(context.getString(R.string.os_moc_disk) + ": " + p.disk)
         return vrstice.joinToString("\n")

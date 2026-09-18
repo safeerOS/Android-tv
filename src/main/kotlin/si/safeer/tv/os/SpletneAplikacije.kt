@@ -252,13 +252,26 @@ object SpletneAplikacije {
      */
     fun ikona(c: Context, a: Aplikacija): Drawable {
         if (a.ikona.isNotEmpty()) {
+            // Oblikovanje ni poceni (porezan rob, odstranjena belina, pomanjsanje), domaci zaslon
+            // pa se izrise ob vsaki spremembi naprav. Zato si gotovo ikono zapomnimo; kljuc nosi
+            // cas datoteke, da se osvezena ikona takoj pozna.
+            val kljuc = a.ikona + ":" + (try { File(a.ikona).lastModified() } catch (_: Throwable) { 0L })
+            oblikovane[kljuc]?.let { return BitmapDrawable(c.resources, it) }
             try {
                 val b = BitmapFactory.decodeFile(a.ikona)
-                if (b != null) return BitmapDrawable(c.resources, oblikuj(c, b))
+                if (b != null) {
+                    val gotova = oblikuj(c, b)
+                    if (oblikovane.size > 32) oblikovane.clear()
+                    oblikovane[kljuc] = gotova
+                    return BitmapDrawable(c.resources, gotova)
+                }
             } catch (e: Throwable) { Log.w(TAG, "Ikone ni bilo mogoce oblikovati: ${e.message}") }
         }
         return crkaDrawable(c, a.ime.ifBlank { gostitelj(a.url) }, a.barva)
     }
+
+    /** Ze oblikovane ikone; kljuc je pot datoteke in njen cas spremembe. */
+    private val oblikovane = HashMap<String, Bitmap>()
 
     /**
      * Ista obdelava za ikono, ki ne pride s spleta (na primer ikona programa racunalnika iz

@@ -291,4 +291,10 @@
     <string name="os_tipk_pomoc">OK types · hold OK repeats · Back closes</string>
     <string name="os_tipk_pomoc_plosek">A type · B ⌫ · X space · Y CAPS · L1/R1 cursor · Start save</string>
     <string name="os_pomoc_plosek">A Open · B Back · X Edit · Y Home · Start Settings</string>
+    <string name="os_moc_kje">Where</string>
+    <string name="os_host_racunalnik_kratko">Computer (host)</string>
+    <string name="os_moc_gpu">Graphics</string>
+    <string name="os_moc_gpu_strojno">hardware video encoding</string>
+    <string name="os_moc_gpu_brez">no hardware encoding</string>
+    <string name="os_datoteke_pomoc_drzi">Hold OK · open on the computer</string>
 </resources>

@@ -290,4 +290,10 @@
     <string name="os_tipk_pomoc">OK digita · tieni OK per ripetere · Indietro chiude</string>
     <string name="os_tipk_pomoc_plosek">A digita · B ⌫ · X spazio · Y MAIUSC · L1/R1 cursore · Start salva</string>
     <string name="os_pomoc_plosek">A Apri · B Indietro · X Modifica · Y Home · Start Impostazioni</string>
+    <string name="os_moc_kje">Dove</string>
+    <string name="os_host_racunalnik_kratko">Computer (host)</string>
+    <string name="os_moc_gpu">Grafica</string>
+    <string name="os_moc_gpu_strojno">codifica video hardware</string>
+    <string name="os_moc_gpu_brez">senza codifica hardware</string>
+    <string name="os_datoteke_pomoc_drzi">Tieni premuto OK · apri sul computer</string>
 </resources>
