@@ -149,15 +149,29 @@ object ZaslonVnos {
     /** Ali to tipko plosecka znamo poslati racunalniku kot plosek. */
     fun jePlosekTipka(koda: Int): Boolean = PLOSEK_GUMBI.containsKey(koda) || PLOSEK_KRIZEC.containsKey(koda)
 
-    /** Gumb ali smerni krizec plosecka; null, kadar tipke ne poznamo. */
-    fun plosekTipka(koda: Int, dol: Boolean): JSONObject? {
+    /**
+     * Gumb ali smerni krizec plosecka; null, kadar tipke ne poznamo.
+     *
+     * Krizec je pri ploscekih dvojen: eni ga posljejo kot tipke (DPAD), drugi kot os HAT, tretji
+     * kot oboje. Kadar plosek ima os HAT, tipk krizca ne posiljamo - sicer bi vsak pritisk sel v
+     * igro dvakrat in bi se lik premaknil za dva koraka.
+     */
+    fun plosekTipka(koda: Int, dol: Boolean, dogodek: KeyEvent? = null): JSONObject? {
         PLOSEK_GUMBI[koda]?.let {
             return JSONObject().put("vrsta", "plosek_gumb").put("gumb", it).put("dol", dol)
         }
         PLOSEK_KRIZEC[koda]?.let { (os, odklon) ->
+            if (imaOsKrizca(dogodek)) return null
             return plosekOs(os, if (dol) odklon else 0f)
         }
         return null
+    }
+
+    /** Ali ta plosek smerni krizec ze posilja kot os (HAT). */
+    private fun imaOsKrizca(dogodek: KeyEvent?): Boolean {
+        val naprava = dogodek?.device ?: return false
+        return naprava.getMotionRange(MotionEvent.AXIS_HAT_X) != null ||
+            naprava.getMotionRange(MotionEvent.AXIS_HAT_Y) != null
     }
 
     fun plosekOs(os: String, vrednost: Float): JSONObject =
@@ -178,6 +192,14 @@ object ZaslonVnos {
                                        dogodek.getAxisValue(MotionEvent.AXIS_BRAKE)).coerceIn(0f, 1f)
         odkloni["sprozilec_r"] = maxOf(dogodek.getAxisValue(MotionEvent.AXIS_RTRIGGER),
                                        dogodek.getAxisValue(MotionEvent.AXIS_GAS)).coerceIn(0f, 1f)
+        // Smerni krizec kot os: ploscki, ki ga posiljajo tako, brez tega v igri ne premaknejo nic.
+        val naprava = dogodek.device
+        if (naprava?.getMotionRange(MotionEvent.AXIS_HAT_X) != null) {
+            odkloni["krizec_x"] = dogodek.getAxisValue(MotionEvent.AXIS_HAT_X).coerceIn(-1f, 1f)
+        }
+        if (naprava?.getMotionRange(MotionEvent.AXIS_HAT_Y) != null) {
+            odkloni["krizec_y"] = dogodek.getAxisValue(MotionEvent.AXIS_HAT_Y).coerceIn(-1f, 1f)
+        }
         return odkloni
     }
 

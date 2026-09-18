@@ -322,4 +322,18 @@
     <string name="os_moc_gpu_strojno">hardware video encoding</string>
     <string name="os_moc_gpu_brez">no hardware encoding</string>
     <string name="os_datoteke_pomoc_drzi">Hold OK · open on the computer</string>
+    <string name="os_program_zapri">Close on the computer</string>
+    <string name="os_program_zaprt">%1$s is closing on the computer.</string>
+    <string name="os_program_ne_tece">%1$s is not running on the computer.</string>
+    <string name="os_plosek_preizkus">Test the buttons</string>
+    <string name="os_plosek_preizkus_opis">What the TV receives from the gamepad, and what it would send to the computer</string>
+    <string name="os_plosek_opis">Press buttons and move the sticks. This shows what the TV really receives — and what of it we can send to the computer. Nothing is sent from here; press Back to leave.</string>
+    <string name="os_plosek_ni">No gamepad is connected. Pair it with the TV (Bluetooth or cable) and it will appear here.</string>
+    <string name="os_plosek_naprava">• %1$s\n   axes: %2$s</string>
+    <string name="os_plosek_drzane">Held buttons: %1$s</string>
+    <string name="os_plosek_osi">Axes:\n   %1$s</string>
+    <string name="os_plosek_zadnja">%1$s (%2$d) — %3$s</string>
+    <string name="os_plosek_kot_gumb">goes to the computer as button “%1$s”</string>
+    <string name="os_plosek_kot_os">goes to the computer as axis “%1$s”</string>
+    <string name="os_plosek_ne_poslje">this button is not sent to the computer</string>
 </resources>

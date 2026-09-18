@@ -136,6 +136,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 si.safeer.tv.JezikVmesnika.imeIzbire(this)) { izberiJezik() },
             // Zmogljivost ima svojo vrstico z ikono: prej je bila ena dolga vrstica na dnu
             // zaslona, ki je sekala nastavitve nad sabo in se je odrezala sredi podatka.
+            Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_plosek_preizkus),
+                getString(R.string.os_plosek_preizkus_opis), "") {
+                startActivity(android.content.Intent(this, PlosekActivity::class.java))
+            },
             Vrstica(R.drawable.os_ikona_moc, getString(R.string.os_moc),
                 getString(R.string.os_moc_opis),
                 moc?.ime.orEmpty().ifBlank { getString(R.string.os_moc_berem) }) { pokaziMoc() },

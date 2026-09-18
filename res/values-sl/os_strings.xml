@@ -321,4 +321,18 @@
     <string name="os_moc_gpu_strojno">strojno kodiranje slike</string>
     <string name="os_moc_gpu_brez">brez strojnega kodiranja</string>
     <string name="os_datoteke_pomoc_drzi">Drži OK · odpri na računalniku</string>
+    <string name="os_program_zapri">Zapri na računalniku</string>
+    <string name="os_program_zaprt">%1$s se zapira na računalniku.</string>
+    <string name="os_program_ne_tece">%1$s na računalniku ne teče.</string>
+    <string name="os_plosek_preizkus">Preizkusi tipke</string>
+    <string name="os_plosek_preizkus_opis">Kaj televizor dobi od igralnega ploščka in kaj bi poslal računalniku</string>
+    <string name="os_plosek_opis">Pritiskaj tipke in premikaj palice. Tu se vidi, kaj televizor zares dobi — in kaj od tega znamo poslati računalniku. Nič se ne pošlje; za izhod pritisni Nazaj.</string>
+    <string name="os_plosek_ni">Noben igralni plošček ni priklopljen. Poveži ga s televizorjem (Bluetooth ali kabel) in pokazal se bo tukaj.</string>
+    <string name="os_plosek_naprava">• %1$s\n   osi: %2$s</string>
+    <string name="os_plosek_drzane">Držane tipke: %1$s</string>
+    <string name="os_plosek_osi">Osi:\n   %1$s</string>
+    <string name="os_plosek_zadnja">%1$s (%2$d) — %3$s</string>
+    <string name="os_plosek_kot_gumb">gre v računalnik kot gumb »%1$s«</string>
+    <string name="os_plosek_kot_os">gre v računalnik kot os »%1$s«</string>
+    <string name="os_plosek_ne_poslje">te tipke računalniku ne pošljemo</string>
 </resources>

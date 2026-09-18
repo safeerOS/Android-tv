@@ -333,7 +333,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (!plosekVRacunalnik || !ZaslonVnos.jeIzPlosecka(dogodek)) return false
         if (!ZaslonVnos.jePlosekTipka(koda)) return false
         if (dol && (dogodek?.repeatCount ?: 0) > 0) return true      // drzanje javi Android, plosek ga ze drzi
-        ZaslonVnos.plosekTipka(koda, dol)?.let { odjemalec?.posljiVnos(it) }
+        // Kadar plosek krizec posilja kot os, tipke krizca ne posiljamo (sla bi dvojno) in jih
+        // tudi ne pozremo - naj jih dobi, kdor jih zna uporabiti.
+        val ukaz = ZaslonVnos.plosekTipka(koda, dol, dogodek) ?: return false
+        odjemalec?.posljiVnos(ukaz)
         if (dol) plosekDrzani.add(koda) else plosekDrzani.remove(koda)
         return true
     }

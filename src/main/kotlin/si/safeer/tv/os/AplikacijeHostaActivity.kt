@@ -80,6 +80,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         naslov.text = getString(R.string.os_programi_naslov)
         mreza.adapter = prilagojevalnik
         mreza.setOnItemClickListener { _, _, i, _ -> vidni.getOrNull(i)?.let { zazeni(it) } }
+        // Dolg pritisk OK: program, ki tece na racunalniku, je mogoce od tu tudi zapreti.
+        mreza.setOnItemLongClickListener { _, _, i, _ ->
+            vidni.getOrNull(i)?.let { moznosti(it) }
+            true
+        }
         pripraviIskanje()
         // Ob vstopu mora biti viden seznam, ne tipkovnica: ta se odpre sele, ko uporabnik izbere
         // iskalno polje in pritisne OK. (Mreza je ob vstopu se prazna, zato fokus pristane na
@@ -323,6 +328,28 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * nanj, da uporabnik to, kar je odprl, vidi in upravlja tu. Prej je ostal na seznamu in je
      * program tekel nekje, kjer ga ni videl - pri igri ali predvajalniku je bilo to neuporabno.
      */
+    /** Kaj lahko naredimo s programom: zaprem ga na racunalniku (zagon je navaden pritisk OK). */
+    private fun moznosti(p: Program) {
+        val r = racunalnik ?: return
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(p.ime)
+            .setPositiveButton(getString(R.string.os_program_zapri)) { _, _ ->
+                link.ukaz(r.id, "apps.close", JSONObject().put("app", p.id), 10_000,
+                    LinkOdjemalec.Odgovor { izid, napaka ->
+                        if (isFinishing) return@Odgovor
+                        val ok = izid?.optBoolean("ok") == true
+                        val sporocilo = when {
+                            ok -> getString(R.string.os_program_zaprt, p.ime)
+                            izid?.optString("code") == "ne_tece" -> getString(R.string.os_program_ne_tece, p.ime)
+                            else -> izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() }
+                        }
+                        if (sporocilo.isNotBlank()) Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+                    })
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+        Kontroler.pokazi(okno.show())
+    }
+
     private fun zazeni(p: Program) {
         val r = racunalnik ?: return
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }

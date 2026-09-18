@@ -459,7 +459,27 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 zZapomnjenimFokusom { narisiNadaljuj() }
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
+        // Program, zagnan s televizorja, je doslej ostal odprt na racunalniku in jemal pomnilnik;
+        // zapreti ga je bilo mogoce samo tam. Zdaj to gre z istega mesta, kjer si ga zagnal.
+        if (n.vrsta == Nadaljuj.PROGRAM && n.program.isNotBlank() && n.racunalnik.isNotBlank()) {
+            okno.setNeutralButton(getString(R.string.os_program_zapri)) { _, _ -> zapriProgram(n) }
+        }
         Kontroler.pokazi(okno.show())
+    }
+
+    /** Vljudno zapre program na racunalniku (kot bi kliknil X); ce ne tece, to posteno pove. */
+    private fun zapriProgram(n: Nadaljuj.Vnos) {
+        link.ukaz(n.racunalnik, "apps.close", org.json.JSONObject().put("app", n.program), 10_000,
+            LinkOdjemalec.Odgovor { izid, napaka ->
+                if (isFinishing) return@Odgovor
+                val ok = izid?.optBoolean("ok") == true
+                val sporocilo = when {
+                    ok -> getString(R.string.os_program_zaprt, n.ime)
+                    izid?.optString("code") == "ne_tece" -> getString(R.string.os_program_ne_tece, n.ime)
+                    else -> izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() }
+                }
+                if (sporocilo.isNotBlank()) Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+            })
     }
 
     /**
