@@ -95,6 +95,7 @@
     <string name="os_nastavitve">Nastavitve</string>
     <string name="os_nastavitve_opis">Domači zaslon, način delovanja, Ščit</string>
     <string name="os_nastavitve_opomba">Vse spodnje lahko kadarkoli vklopiš ali izklopiš.</string>
+    <string name="os_jezik_opis">Safeer OS v jeziku, ki ga izbereš, ne glede na nastavitev televizorja</string>
     <string name="os_zaganjalnik">Domači zaslon televizorja</string>
     <string name="os_zaganjalnik_opis">Ali Safeer OS prevzame tipko Domov ali ostane aplikacija, ki jo odpreš za spletne aplikacije</string>
     <string name="os_zaganjalnik_izbran">Safeer OS</string>

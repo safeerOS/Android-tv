@@ -963,7 +963,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 } else {
                     tabManager.createTab(this, url, true)
                 }
-                showTvOsd("📲 Povezava s telefona", (title ?: url).take(60))
+                showTvOsd("📲 " + UiText.get(R.string.ui_link_prejeto), (title ?: url).take(60))
                 if (startPosition > 0.5) {
                     // Počakamo, da se predvajalnik postavi, nato skočimo na zapomnjeno mesto.
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({

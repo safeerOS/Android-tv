@@ -138,6 +138,7 @@
     <string name="ui_cast_ready">Ready to play from your phone and computer</string>
     <string name="ui_link_sync_unavailable">Bookmark sync is not available on the television yet.</string>
     <string name="ui_lang_auto">Automatic (device language)</string>
+    <string name="ui_link_prejeto">Sent from another device</string>
     <string name="ui_popup_block_on">🚫 Pop-up windows are blocked</string>
     <string name="ui_popup_block_off">Pop-up windows are allowed</string>
     <string name="ui_download_dir_title">Where to save downloaded files</string>

@@ -95,6 +95,7 @@
     <string name="os_nastavitve">Ajustes</string>
     <string name="os_nastavitve_opis">Pantalla de inicio, modo, Escudo</string>
     <string name="os_nastavitve_opomba">Todo lo de abajo se puede activar o desactivar en cualquier momento.</string>
+    <string name="os_jezik_opis">Safeer OS en el idioma que elijas, sea cual sea el del televisor</string>
     <string name="os_zaganjalnik">Pantalla de inicio del televisor</string>
     <string name="os_zaganjalnik_opis">Si Safeer OS toma el botón de Inicio o sigue siendo una app que abres para las aplicaciones web</string>
     <string name="os_zaganjalnik_izbran">Safeer OS</string>

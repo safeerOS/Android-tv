@@ -95,6 +95,7 @@
     <string name="os_nastavitve">Impostazioni</string>
     <string name="os_nastavitve_opis">Schermata iniziale, modalità, Scudo</string>
     <string name="os_nastavitve_opomba">Tutto ciò che segue si può attivare o disattivare in qualsiasi momento.</string>
+    <string name="os_jezik_opis">Safeer OS nella lingua che scegli, qualunque sia quella del televisore</string>
     <string name="os_zaganjalnik">Schermata iniziale del televisore</string>
     <string name="os_zaganjalnik_opis">Se Safeer OS prende il tasto Home o resta un\'app che apri per le app web</string>
     <string name="os_zaganjalnik_izbran">Safeer OS</string>

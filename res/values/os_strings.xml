@@ -96,6 +96,7 @@
     <string name="os_nastavitve">Settings</string>
     <string name="os_nastavitve_opis">Home screen, mode, Shield</string>
     <string name="os_nastavitve_opomba">Everything below can be turned on or off at any time.</string>
+    <string name="os_jezik_opis">Safeer OS in the language you pick, whatever the TV itself is set to</string>
     <string name="os_zaganjalnik">The TV\'s home screen</string>
     <string name="os_zaganjalnik_opis">Whether Safeer OS takes over the Home button or stays an app you open for web apps</string>
     <string name="os_zaganjalnik_izbran">Safeer OS</string>

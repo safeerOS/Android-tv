@@ -29,6 +29,10 @@ import org.json.JSONObject
  */
 class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(si.safeer.tv.JezikVmesnika.vKontekstu(newBase))
+    }
+
     private lateinit var pogled: SurfaceView
     private lateinit var sporocilo: TextView
     private lateinit var meritve: TextView
