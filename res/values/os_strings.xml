@@ -3,6 +3,12 @@
     <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
     <string name="os_app_name" translatable="false">Safeer OS</string>
     <string name="os_podnaslov">Your devices. One screen.</string>
+    <!-- Vrsta Nadaljuj: kar je uporabnik nazadnje odprl. -->
+    <string name="os_odsek_nadaljuj">Continue</string>
+    <string name="os_nadaljuj_odstrani">Remove from Continue</string>
+    <string name="os_nadaljuj_ni_vec">%1$s is not available any more.</string>
+    <string name="os_nadaljuj_odpiram">Opening %1$s …</string>
+    <string name="os_nadaljuj_pocisti">Clear the Continue row</string>
     <string name="os_odsek_zacni">Start</string>
     <string name="os_odsek_naprave">Devices in Safeer Link</string>
     <string name="os_odsek_aplikacije">Apps on this TV</string>

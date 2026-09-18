@@ -2,6 +2,12 @@
 <resources>
     <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
     <string name="os_podnaslov">Deine Geräte. Ein Bildschirm.</string>
+    <!-- Vrsta Nadaljuj: kar je uporabnik nazadnje odprl. -->
+    <string name="os_odsek_nadaljuj">Weiter</string>
+    <string name="os_nadaljuj_odstrani">Aus „Weiter“ entfernen</string>
+    <string name="os_nadaljuj_ni_vec">%1$s ist nicht mehr verfügbar.</string>
+    <string name="os_nadaljuj_odpiram">%1$s wird geöffnet …</string>
+    <string name="os_nadaljuj_pocisti">Zeile „Weiter“ leeren</string>
     <string name="os_odsek_zacni">Starten</string>
     <string name="os_odsek_naprave">Geräte in Safeer Link</string>
     <string name="os_odsek_aplikacije">Apps auf diesem Fernseher</string>

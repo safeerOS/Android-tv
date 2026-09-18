@@ -314,6 +314,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun pokaziBesedilo(v: Vnos) {
+        zapomniSi(v, Nadaljuj.BESEDILO)
         val namera = Intent(this, BesediloActivity::class.java)
             .putExtra("ime", v.ime).putExtra("lokalno", krajevni)
         if (krajevni) namera.putExtra("url", v.id)
@@ -344,6 +345,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun predvajaj(v: Vnos) {
+        zapomniSi(v, if (v.vrsta == "audio") Nadaljuj.GLASBA else Nadaljuj.VIDEO)
         val namera = Intent(this, PredvajalnikActivity::class.java)
             .putExtra("ime", v.ime).putExtra("mime", v.mime).putExtra("zvok", v.vrsta == "audio")
         if (krajevni) {
@@ -357,6 +359,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun pokaziSliko(v: Vnos) {
+        zapomniSi(v, Nadaljuj.SLIKA)
         val slike = vnosi.filter { it.vrsta == "image" }
         val s = if (krajevni) null else (streznik ?: return)
         val namera = Intent(this, SlikaActivity::class.java)
@@ -366,6 +369,17 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .putExtra("lokalno", krajevni)
         if (s != null) { val b = Bundle(); s.vBundle(b); namera.putExtras(b) }
         startActivity(namera)
+    }
+
+    /**
+      * Zapomnimo si, kaj je uporabnik odprl, da mu domaci zaslon to ponudi v vrsti Nadaljuj.
+      * Shranimo samo oznako datoteke in id racunalnika - zetona in naslova streznika ne, ker
+      * velja samo, dokler seja tece.
+      */
+    private fun zapomniSi(v: Vnos, vrsta: String) {
+        Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = vrsta, ime = v.ime,
+            racunalnik = if (krajevni) "" else racunalnik?.id.orEmpty(),
+            id = v.id, mime = v.mime, krajevno = krajevni))
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

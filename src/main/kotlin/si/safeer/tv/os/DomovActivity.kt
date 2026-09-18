@@ -33,6 +33,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var stanjePika: View
     private lateinit var ura: TextView
     private lateinit var vrstaZacni: LinearLayout
+    private lateinit var vrstaNadaljuj: LinearLayout
+    private lateinit var naslovNadaljuj: TextView
+    private lateinit var drsnikNadaljuj: View
     private lateinit var vrstaAplikacije: LinearLayout
     private lateinit var vrstaSpletne: LinearLayout
     private lateinit var opombaSpodaj: TextView
@@ -55,6 +58,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         stanjePika = findViewById(R.id.stanjePika)
         ura = findViewById(R.id.ura)
         vrstaZacni = findViewById(R.id.vrstaZacni)
+        vrstaNadaljuj = findViewById(R.id.vrstaNadaljuj)
+        naslovNadaljuj = findViewById(R.id.naslovNadaljuj)
+        drsnikNadaljuj = findViewById(R.id.drsnikNadaljuj)
         vrstaAplikacije = findViewById(R.id.vrstaAplikacije)
         vrstaSpletne = findViewById(R.id.vrstaSpletne)
         opombaSpodaj = findViewById(R.id.opombaSpodaj)
@@ -73,6 +79,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         pomocPlosek.visibility = if (Kontroler.jePriklopljen()) View.VISIBLE else View.GONE
         glavna.post(tikUre)
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
+        narisiNadaljuj()
         narisiAplikacije()
         narisiSpletne()
         prevzemiSpletne()
@@ -169,7 +176,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun najdiPoOznaki(oznaka: String): View? {
-        for (vrsta in listOf(vrstaZacni, vrstaSpletne, vrstaAplikacije)) {
+        for (vrsta in listOf(vrstaNadaljuj, vrstaZacni, vrstaSpletne, vrstaAplikacije)) {
             for (i in 0 until vrsta.childCount) {
                 val v = vrsta.getChildAt(i) ?: continue
                 if (v.tag == oznaka) return v
@@ -397,6 +404,127 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         return v
     }
 
+    // ------------------------------------------------------------------ Nadaljuj
+    //
+    // Pot do filma je na televizorju dolga: Datoteke, racunalnik, mapa, mapa, datoteka. Kdor je
+    // vceraj gledal film, ga hoce danes odpreti takoj - zato je prva vrsta domacega zaslona to,
+    // kar je nazadnje odprl. Vrsta se pokaze samo, kadar kaj je; prazne vrste ne kazemo.
+
+    private fun narisiNadaljuj() {
+        val vnosi = Nadaljuj.seznam(this)
+        vrstaNadaljuj.removeAllViews()
+        val vidno = if (vnosi.isEmpty()) View.GONE else View.VISIBLE
+        naslovNadaljuj.visibility = vidno
+        drsnikNadaljuj.visibility = vidno
+        for (n in vnosi) {
+            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaNadaljuj, false)
+            val ikona = v.findViewById<ImageView>(R.id.ikona)
+            val spletna = if (n.vrsta == Nadaljuj.SPLETNA)
+                SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url } else null
+            if (spletna != null) ikona.setImageDrawable(SpletneAplikacije.ikona(this, spletna))
+            else ikona.setImageResource(ikonaZa(n.vrsta))
+            v.findViewById<TextView>(R.id.ime).text = n.ime
+            v.onFocusChangeListener = fokus
+            v.setOnClickListener { odpriNadaljuj(n) }
+            v.setOnLongClickListener { moznostiNadaljuj(n); true }
+            v.tag = "nadaljuj:" + n.kljuc()
+            vrstaNadaljuj.addView(v)
+        }
+    }
+
+    private fun ikonaZa(vrsta: String): Int = when (vrsta) {
+        Nadaljuj.VIDEO -> R.drawable.os_ikona_video
+        Nadaljuj.GLASBA -> R.drawable.os_ikona_glasba
+        Nadaljuj.SLIKA -> R.drawable.os_ikona_slika
+        Nadaljuj.BESEDILO -> R.drawable.os_ikona_datoteka
+        Nadaljuj.SPLETNA -> R.drawable.os_ikona_splet
+        Nadaljuj.ZASLON -> R.drawable.os_ikona_zaslon
+        else -> R.drawable.os_ikona_racunalnik
+    }
+
+    private fun moznostiNadaljuj(n: Nadaljuj.Vnos) {
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(n.ime)
+            .setPositiveButton(getString(R.string.os_nadaljuj_odstrani)) { _, _ ->
+                Nadaljuj.odstrani(this, n)
+                zZapomnjenimFokusom { narisiNadaljuj() }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+        Kontroler.pokazi(okno.show())
+    }
+
+    /**
+     * Odpre, kar je uporabnik nazadnje gledal. Zetona in naslova streznika ne hranimo (velja samo,
+     * dokler seja tece), zato ga za datoteke z racunalnika znova vprasamo - in ce racunalnika ni,
+     * to posteno povemo, namesto da bi kartica tiho ne naredila nicesar.
+     */
+    private fun odpriNadaljuj(n: Nadaljuj.Vnos) {
+        when (n.vrsta) {
+            Nadaljuj.SPLETNA -> {
+                val a = SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url }
+                if (a != null) zazeniSpletno(a) else odpriVBrskalniku(n.url)
+            }
+            Nadaljuj.ZASLON -> odpriVarno(Intent(this, ZaslonActivity::class.java)
+                .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.racunalnik), getString(R.string.os_zaslon))
+            Nadaljuj.PROGRAM -> zazeniProgram(n)
+            else -> if (n.krajevno) odpriDatoteko(n, null) else odpriZRacunalnika(n)
+        }
+    }
+
+    private fun racunalnikZa(n: Nadaljuj.Vnos): LinkOdjemalec.Naprava? =
+        link.naprave.firstOrNull { it.id == n.racunalnik }
+
+    private fun zazeniProgram(n: Nadaljuj.Vnos) {
+        val r = racunalnikZa(n) ?: run { niVec(n); return }
+        Toast.makeText(this, getString(R.string.os_nadaljuj_odpiram, n.ime), Toast.LENGTH_SHORT).show()
+        val zaslon = r.zmoznosti.contains("desktop")
+        link.ukaz(r.id, "apps.launch", org.json.JSONObject().put("app", n.program), 10_000,
+            LinkOdjemalec.Odgovor { izid, _ ->
+                if (isFinishing) return@Odgovor
+                if (izid?.optBoolean("ok") != true) { niVec(n); return@Odgovor }
+                if (zaslon) odpriVarno(Intent(this, ZaslonActivity::class.java)
+                    .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id), getString(R.string.os_zaslon))
+            })
+    }
+
+    /** Datoteka z racunalnika: najprej si od njega izprosimo svezo sejo, sele nato odpremo. */
+    private fun odpriZRacunalnika(n: Nadaljuj.Vnos) {
+        val r = racunalnikZa(n) ?: run { niVec(n); return }
+        Toast.makeText(this, getString(R.string.os_nadaljuj_odpiram, n.ime), Toast.LENGTH_SHORT).show()
+        link.ukaz(r.id, "files.list", org.json.JSONObject().put("folder", ""), 12_000,
+            LinkOdjemalec.Odgovor { izid, _ ->
+                if (isFinishing) return@Odgovor
+                val streznik = izid?.optJSONObject("data")?.optJSONObject("server")
+                if (izid?.optBoolean("ok") != true || streznik == null) { niVec(n); return@Odgovor }
+                odpriDatoteko(n, DatotekeActivity.Streznik(
+                    streznik.optString("base_url").trimEnd('/'),
+                    streznik.optString("fp"), streznik.optString("token")))
+            })
+    }
+
+    private fun odpriDatoteko(n: Nadaljuj.Vnos, s: DatotekeActivity.Streznik?) {
+        val naslovDatoteke = if (s == null) n.id else s.url(n.id)
+        val namera = when (n.vrsta) {
+            Nadaljuj.SLIKA -> Intent(this, SlikaActivity::class.java)
+                .putStringArrayListExtra("urli", arrayListOf(naslovDatoteke))
+                .putStringArrayListExtra("imena", arrayListOf(n.ime))
+                .putExtra("zacetek", 0)
+            Nadaljuj.BESEDILO -> Intent(this, BesediloActivity::class.java)
+                .putExtra("url", naslovDatoteke).putExtra("ime", n.ime)
+            else -> Intent(this, PredvajalnikActivity::class.java)
+                .putExtra("url", naslovDatoteke).putExtra("ime", n.ime)
+                .putExtra("mime", n.mime).putExtra("zvok", n.vrsta == Nadaljuj.GLASBA)
+        }
+        namera.putExtra("lokalno", s == null)
+        if (s != null) { val b = Bundle(); s.vBundle(b); namera.putExtras(b) }
+        odpriVarno(namera, n.ime)
+    }
+
+    /** Kar je bilo, ni vec dosegljivo: povejmo in kartico ponudimo v odstranitev. */
+    private fun niVec(n: Nadaljuj.Vnos) {
+        Toast.makeText(this, getString(R.string.os_nadaljuj_ni_vec, n.ime), Toast.LENGTH_LONG).show()
+    }
+
     // ------------------------------------------------------------------ Naprave
 
     // ------------------------------------------------------------------ Spletne aplikacije
@@ -440,6 +568,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun zazeniSpletno(a: SpletneAplikacije.Aplikacija) {
+        Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA,
+            ime = a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }, url = a.url))
         val namera = brskalnikNamera()
             .putExtra("spletna_aplikacija", a.url)
             .putExtra("aplikacija_ime", a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })

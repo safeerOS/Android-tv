@@ -154,6 +154,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 val podatki = izid.optJSONObject("data") ?: return@Odgovor
                 seja = podatki
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)
+                // Zaslon racunalnika je ena najpogostejsih poti; naj bo na domacem zaslonu takoj pri roki.
+                // Ime kartice je 'Zaslon racunalnika', ne dolgo ime naprave: na kartici se je
+                // lomilo sredi besede in uporabniku ni povedalo nic vec.
+                Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.ZASLON,
+                    ime = getString(R.string.os_zaslon), racunalnik = r.id))
                 if (povrsinaPripravljena) zacniPretok(podatki)
             })
     }

@@ -87,6 +87,30 @@
                 android:fontFamily="sans-serif-medium"/>
         </LinearLayout>
 
+        <!-- Nadaljuj: kar je uporabnik nazadnje odprl. Vrsta se pokaze samo, kadar kaj je. -->
+        <TextView
+            android:id="@+id/naslovNadaljuj"
+            style="@style/Os.Nadnaslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/os_odsek_nadaljuj"
+            android:visibility="gone"/>
+        <HorizontalScrollView
+            android:id="@+id/drsnikNadaljuj"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:scrollbars="none"
+            android:clipToPadding="false"
+            android:visibility="gone">
+            <LinearLayout
+                android:id="@+id/vrstaNadaljuj"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
+
         <!-- Zacni -->
         <TextView
             style="@style/Os.Nadnaslov"
