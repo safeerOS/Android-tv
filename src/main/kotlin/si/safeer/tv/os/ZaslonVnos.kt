@@ -63,6 +63,33 @@ object ZaslonVnos {
         KeyEvent.KEYCODE_BUTTON_R1 to "dol",
     )
 
+    /**
+     * Tipke, ki jih je smiselno **drzati**, ne le pritisniti: igra pospesuje, dokler drzis, seznam
+     * se pomika, dokler drzis. Za te posljemo pritisk in spust locena dogodka; racunalnik tipko
+     * drzi natanko tako, kot bi jo prst na tipkovnici (za ponavljanje poskrbi X sam).
+     *
+     * Bliznjic s krmilkami (ctrl+s) tu ni: teh nihce ne drzi, ob prekinjeni povezavi pa bi
+     * krmilka ostala pritisnjena.
+     */
+    private val DRZLJIVE = setOf(
+        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER,
+        KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_TAB,
+        KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_PAGE_DOWN,
+        KeyEvent.KEYCODE_BUTTON_A,
+    )
+
+    /** Ali za to tipko posljemo pritisk in spust (in ne kratkega pritiska). */
+    fun jeDrzljiva(koda: Int): Boolean = koda in DRZLJIVE && TIPKE.containsKey(koda)
+
+    /** Pritisk ([dol] = true) ali spust drzane tipke; null, kadar tipke ne poznamo. */
+    fun drzanje(koda: Int, dol: Boolean): JSONObject? {
+        if (!jeDrzljiva(koda)) return null
+        val ime = TIPKE[koda] ?: return null
+        return JSONObject().put("vrsta", if (dol) "tipka_dol" else "tipka_gor").put("tipka", ime)
+    }
+
     /** Daljinec brez miske: kazalec se ob drzanju smerne tipke pospesuje od mirne do hitre. */
     const val KAZALEC_ZACETNA = 5f
     const val KAZALEC_NAJVECJA = 38f

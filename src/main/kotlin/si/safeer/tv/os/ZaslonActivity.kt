@@ -58,6 +58,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var hitrost = ZaslonVnos.KAZALEC_ZACETNA
     private var smerTece = false
     private var okDrzan = false
+    /** Tipke, ki jih uporabnik ta trenutek drzi; ob odhodu jih moramo spustiti. */
+    private val drzane = HashSet<Int>()
     private var namigPokazan = false
     private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -97,6 +99,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onStop() {
+        // Uporabnik je odsel (Domov, klic, ugasnjen zaslon): kar je drzal, mora gor - sicer bi
+        // tipka na racunalniku ostala pritisnjena.
+        sprostiDrzane()
         link.odstrani(this)
         super.onStop()
     }
@@ -231,6 +236,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun koncaj() {
         if (koncujem) return
         koncujem = true
+        sprostiDrzane()
         odjemalec?.ustavi()
         odjemalec = null
         val r = racunalnik ?: return
@@ -265,9 +271,29 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 return true
             }
         }
+        // Kar je smiselno drzati (smerne tipke, OK, presledek), posljemo kot pritisk in spust:
+        // igra pospesuje, dokler drzis, in seznam se pomika, dokler drzis. Prej je vsako drzanje
+        // razpadlo na vrsto kratkih pritiskov in igra je sunkovito poskakovala.
+        if (ZaslonVnos.jeDrzljiva(keyCode)) {
+            val ponovitev = event?.repeatCount ?: 0
+            // Prvi pritisk drzimo; med drzanjem vsako sekundo javimo, da je se zivo (racunalnik
+            // pozabljene tipke sam spusti, ce televizor utihne).
+            if (ponovitev == 0 || ponovitev % PONOVI_DRZANJE == 0) {
+                ZaslonVnos.drzanje(keyCode, true)?.let { odjemalec?.posljiVnos(it) }
+            }
+            drzane.add(keyCode)
+            return true
+        }
         val dogodek = ZaslonVnos.izTipke(keyCode, event) ?: return super.onKeyDown(keyCode, event)
         odjemalec?.posljiVnos(dogodek)
         return true
+    }
+
+    /** Vse drzane tipke spustimo (odhod z zaslona, konec seje). */
+    private fun sprostiDrzane() {
+        if (drzane.isEmpty()) return
+        for (koda in drzane.toList()) ZaslonVnos.drzanje(koda, false)?.let { odjemalec?.posljiVnos(it) }
+        drzane.clear()
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
@@ -294,6 +320,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 if (okDrzan) { okDrzan = false; odjemalec?.posljiVnos(ZaslonVnos.klik("levi")) }
                 return true
             }
+        }
+        if (drzane.remove(keyCode)) {
+            ZaslonVnos.drzanje(keyCode, false)?.let { odjemalec?.posljiVnos(it) }
+            return true
         }
         return super.onKeyUp(keyCode, event)
     }
@@ -436,5 +466,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     companion object {
         const val EXTRA_KAKOVOST = "kakovost"
+        /**
+         * Na koliko ponovitev drzanja znova javimo, da je tipka se vedno drzana. Android ponavlja
+         * priblizno dvajsetkrat na sekundo, racunalnik pa pozabljeno tipko spusti po petih
+         * sekundah - enkrat na sekundo je torej varno in skoraj zastonj.
+         */
+        private const val PONOVI_DRZANJE = 20
     }
 }
