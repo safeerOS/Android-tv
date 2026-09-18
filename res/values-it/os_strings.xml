@@ -6,7 +6,7 @@
     <string name="os_odsek_naprave">Dispositivi in Safeer Link</string>
     <string name="os_odsek_aplikacije">App su questo televisore</string>
     <string name="os_splet">Web</string>
-    <string name="os_splet_opis">Safeer Browser: meno pubblicità, più privacy</string>
+    <string name="os_splet_opis">Meno pubblicità, più privacy</string>
     <string name="os_datoteke">File</string>
     <string name="os_datoteke_opis">Video, musica e foto dal computer</string>
     <string name="os_link">Safeer Link</string>
@@ -49,8 +49,8 @@
     <string name="os_stanje_ni_linka">Safeer Link è disattivato</string>
     <string name="os_naprave_krajevni">Modalità locale: Safeer OS usa solo questo televisore. Attiva Safeer Link per vedere gli altri dispositivi.</string>
     <string name="os_naprave_ni_linka">Safeer Link è disattivato. Attivalo (scheda Safeer Link) e qui compariranno telefono e computer.</string>
-    <string name="os_datoteke_opis_krajevno">Video, musica e foto su questo televisore e sulla USB</string>
-    <string name="os_link_izklopljen_opis">Disattivato · attivalo per i dispositivi, i file dal computer e il telecomando</string>
+    <string name="os_datoteke_opis_krajevno">Video, musica e foto dal televisore e USB</string>
+    <string name="os_link_izklopljen_opis">Disattivato · attiva per dispositivi e file</string>
     <string name="os_link_krajevni_opis">Modalità locale · apri per attivare Safeer Link</string>
     <string name="os_nacin_naslov">Come deve funzionare Safeer OS?</string>
     <string name="os_nacin_opis">Con Safeer Link si aggiungono telefono e computer: file dal computer, invio di pagine, telecomando. Senza, Safeer OS funziona da solo, con questo televisore: il web, i suoi file e la USB, le app e lo Scudo. Puoi cambiare quando vuoi.</string>
@@ -83,7 +83,7 @@
 
     <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
     <string name="os_nastavitve">Impostazioni</string>
-    <string name="os_nastavitve_opis">Schermata iniziale, modo di funzionamento, Scudo</string>
+    <string name="os_nastavitve_opis">Schermata iniziale, modalità, Scudo</string>
     <string name="os_nastavitve_opomba">Tutto ciò che segue si può attivare o disattivare in qualsiasi momento.</string>
     <string name="os_zaganjalnik">Schermata iniziale del televisore</string>
     <string name="os_zaganjalnik_opis">Se Safeer OS prende il tasto Home o resta un\'app che apri per le app web</string>
@@ -157,7 +157,7 @@
     <!-- Programi racunalnika na televizorju -->
     <string name="os_programi">Programmi del computer</string>
     <string name="os_programi_naslov">Quello che hai sul computer</string>
-    <string name="os_programi_opis">Avvia un programma del tuo computer con il telecomando</string>
+    <string name="os_programi_opis">Avvia un programma del computer</string>
     <string name="os_programi_nalagam">Sto chiedendo al computer...</string>
     <string name="os_programi_prazno">Il computer non ha offerto nessun programma.</string>
     <string name="os_programi_ni_racunalnika">Nessun computer in Safeer Link condivide i suoi programmi. In Safeer Control sul computer attiva \'Programmi per il televisore\'.</string>
@@ -189,7 +189,7 @@
     <string name="os_aplikacije_izberi">Scegli le app</string>
     <!-- Zaslon racunalnika na televizorju -->
     <string name="os_zaslon">Schermo del computer</string>
-    <string name="os_zaslon_opis">Guarda il computer sul televisore e lavoraci da qui</string>
+    <string name="os_zaslon_opis">Guarda e controlla il computer</string>
     <string name="os_zaslon_povezujem">Mi collego al computer...</string>
     <string name="os_zaslon_prosim">Chiedo lo schermo a %1$s...</string>
     <string name="os_zaslon_ni_racunalnika">Nessun computer in Safeer Link condivide lo schermo. In Safeer Control sul computer attiva \'Schermo per il televisore\'.</string>
@@ -201,4 +201,15 @@
     <string name="os_zaslon_ponovno">La connessione è caduta. Riprovo...</string>
     <string name="os_zaslon_zvok">audio</string>
     <string name="os_zaslon_namig">Tieni premuto Indietro per terminare</string>
+    <!-- Scit: kratko na kartici, podrobnosti posebej -->
+    <string name="os_scit_kratko_vklopljen">Attivo · %1$d bloccati oggi</string>
+    <string name="os_scit_kratko_izklopljen">Disattivato</string>
+    <string name="os_scit_kratko_prekinjen">Interrotto (un\'altra VPN?)</string>
+    <string name="os_scit_kratko_ni">Non disponibile</string>
+    <string name="os_scit_podrobnosti">Dettagli</string>
+    <!-- Odpiranje, ki ne utihne -->
+    <string name="os_odpri_napaka">Non si è aperto: %1$s</string>
+    <string name="os_odpri_ni_aplikacije">l\'app per questo non è installata</string>
+    <string name="os_odpri_ni_dovoljenja">il televisore non l\'ha permesso</string>
+    <string name="os_poskusi_znova">Riprova</string>
 </resources>

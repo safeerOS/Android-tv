@@ -7,7 +7,7 @@
     <string name="os_odsek_naprave">Devices in Safeer Link</string>
     <string name="os_odsek_aplikacije">Apps on this TV</string>
     <string name="os_splet">Web</string>
-    <string name="os_splet_opis">Safeer Browser: fewer ads, more privacy</string>
+    <string name="os_splet_opis">Fewer ads, more privacy</string>
     <string name="os_datoteke">Files</string>
     <string name="os_datoteke_opis">Videos, music and photos from your computer</string>
     <string name="os_link">Safeer Link</string>
@@ -51,7 +51,7 @@
     <string name="os_naprave_krajevni">Local mode: Safeer OS uses only this TV. Turn on Safeer Link to see your other devices.</string>
     <string name="os_naprave_ni_linka">Safeer Link is off. Turn it on (the Safeer Link card) to see your phone and computer here.</string>
     <string name="os_datoteke_opis_krajevno">Videos, music and photos on this TV and USB</string>
-    <string name="os_link_izklopljen_opis">Off · turn on for devices, files from your computer and the remote</string>
+    <string name="os_link_izklopljen_opis">Off · turn on for devices and files</string>
     <string name="os_link_krajevni_opis">Local mode · open to turn Safeer Link on</string>
     <string name="os_nacin_naslov">How should Safeer OS work?</string>
     <string name="os_nacin_opis">With Safeer Link your phone and computer join this TV: files from your computer, sending pages, the remote. Without it Safeer OS works on its own, with this TV only: the web, its files and USB, apps and the Shield. You can change this at any time.</string>
@@ -84,7 +84,7 @@
 
     <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
     <string name="os_nastavitve">Settings</string>
-    <string name="os_nastavitve_opis">Home screen, mode of operation, Shield</string>
+    <string name="os_nastavitve_opis">Home screen, mode, Shield</string>
     <string name="os_nastavitve_opomba">Everything below can be turned on or off at any time.</string>
     <string name="os_zaganjalnik">The TV\'s home screen</string>
     <string name="os_zaganjalnik_opis">Whether Safeer OS takes over the Home button or stays an app you open for web apps</string>
@@ -158,7 +158,7 @@
     <!-- Programi racunalnika na televizorju -->
     <string name="os_programi">Computer programs</string>
     <string name="os_programi_naslov">What is on your computer</string>
-    <string name="os_programi_opis">Start a program on your computer with the remote</string>
+    <string name="os_programi_opis">Start a program on your computer</string>
     <string name="os_programi_nalagam">Asking the computer...</string>
     <string name="os_programi_prazno">The computer did not offer any program.</string>
     <string name="os_programi_ni_racunalnika">No computer in Safeer Link is sharing its programs. In Safeer Control on the computer, turn on \'Programs for the TV\'.</string>
@@ -190,7 +190,7 @@
     <string name="os_aplikacije_izberi">Choose apps</string>
     <!-- Zaslon racunalnika na televizorju -->
     <string name="os_zaslon">Computer screen</string>
-    <string name="os_zaslon_opis">See your computer on the TV and work on it from here</string>
+    <string name="os_zaslon_opis">See and control your computer</string>
     <string name="os_zaslon_povezujem">Connecting to the computer...</string>
     <string name="os_zaslon_prosim">Asking %1$s for its screen...</string>
     <string name="os_zaslon_ni_racunalnika">No computer in Safeer Link is sharing its screen. In Safeer Control on the computer, turn on \'Screen for the TV\'.</string>
@@ -202,4 +202,15 @@
     <string name="os_zaslon_ponovno">The connection dropped. Trying again...</string>
     <string name="os_zaslon_zvok">sound</string>
     <string name="os_zaslon_namig">Long press Back to end</string>
+    <!-- Scit: kratko na kartici, podrobnosti posebej -->
+    <string name="os_scit_kratko_vklopljen">On · %1$d blocked today</string>
+    <string name="os_scit_kratko_izklopljen">Off</string>
+    <string name="os_scit_kratko_prekinjen">Interrupted (another VPN?)</string>
+    <string name="os_scit_kratko_ni">Not available</string>
+    <string name="os_scit_podrobnosti">Details</string>
+    <!-- Odpiranje, ki ne utihne -->
+    <string name="os_odpri_napaka">It did not open: %1$s</string>
+    <string name="os_odpri_ni_aplikacije">the app for this is not installed</string>
+    <string name="os_odpri_ni_dovoljenja">the TV did not allow it</string>
+    <string name="os_poskusi_znova">Try again</string>
 </resources>

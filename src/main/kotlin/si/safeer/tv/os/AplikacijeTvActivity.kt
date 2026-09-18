@@ -33,7 +33,7 @@ class AplikacijeTvActivity : Activity() {
         findViewById<TextView>(R.id.nadnaslov).text = getString(R.string.os_odsek_aplikacije)
         findViewById<TextView>(R.id.naslov).text = getString(R.string.os_aplikacije_vse)
         findViewById<TextView>(R.id.racunalnik).visibility = View.GONE
-        findViewById<ImageView>(R.id.glavaIkona)?.setImageResource(R.drawable.os_ikona_ospredje)
+        findViewById<ImageView>(R.id.glavaIkona)?.setImageResource(R.drawable.os_ikona_mreza)
         mreza.adapter = prilagojevalnik
         mreza.setOnItemClickListener { _, _, i, _ -> vnosi.getOrNull(i)?.let { zazeni(it) } }
         mreza.setOnItemLongClickListener { _, _, i, _ ->
@@ -60,8 +60,24 @@ class AplikacijeTvActivity : Activity() {
         }
     }
 
+    /** Odpiranje, ki ne utihne: ce ne gre, povemo zakaj in ponudimo ponovni poskus. */
     private fun zazeni(a: Aplikacije.Vnos) {
-        try { startActivity(a.namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) { }
+        val namera = Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(namera)
+        } catch (e: Throwable) {
+            val razlog = when (e) {
+                is android.content.ActivityNotFoundException -> getString(R.string.os_odpri_ni_aplikacije)
+                is SecurityException -> getString(R.string.os_odpri_ni_dovoljenja)
+                else -> e.message.orEmpty().ifBlank { e.javaClass.simpleName }
+            }
+            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(a.ime)
+                .setMessage(getString(R.string.os_odpri_napaka, razlog))
+                .setPositiveButton(getString(R.string.os_poskusi_znova)) { _, _ -> zazeni(a) }
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .show()
+        }
     }
 
     /** Dolg pritisk: aplikacija gre na domaci zaslon ali z njega. */
@@ -83,7 +99,7 @@ class AplikacijeTvActivity : Activity() {
                 .inflate(R.layout.os_kartica_program, roditelj, false)
             val a = vnosi[i]
             val ikona = v.findViewById<ImageView>(R.id.ikona)
-            if (a.ikona != null) ikona.setImageDrawable(a.ikona) else ikona.setImageResource(R.drawable.os_ikona_ospredje)
+            if (a.ikona != null) ikona.setImageDrawable(a.ikona) else ikona.setImageResource(R.drawable.os_ikona_mreza)
             // Zvezdica pove, da je aplikacija na domacem zaslonu; z dveh metrov je vidna takoj.
             v.findViewById<TextView>(R.id.ime).text =
                 if (Priljubljene.je(this@AplikacijeTvActivity, a.paket)) "★ " + a.ime else a.ime

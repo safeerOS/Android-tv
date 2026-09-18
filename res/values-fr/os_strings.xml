@@ -6,11 +6,11 @@
     <string name="os_odsek_naprave">Appareils dans Safeer Link</string>
     <string name="os_odsek_aplikacije">Applications sur ce téléviseur</string>
     <string name="os_splet">Web</string>
-    <string name="os_splet_opis">Safeer Browser : moins de pubs, plus de confidentialité</string>
+    <string name="os_splet_opis">Moins de pubs, plus de vie privée</string>
     <string name="os_datoteke">Fichiers</string>
-    <string name="os_datoteke_opis">Vidéos, musique et photos de ton ordinateur</string>
+    <string name="os_datoteke_opis">Vidéos, musique et photos de l\'ordinateur</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Vos appareils. Connectés.</string>
+    <string name="os_link_opis">Tes appareils. Connectés.</string>
     <string name="os_stanje_povezujem">Connexion…</string>
     <string name="os_stanje_povezan">Connecté · %1$s</string>
     <string name="os_stanje_ni">Pas de Safeer Link</string>
@@ -49,9 +49,9 @@
     <string name="os_stanje_ni_linka">Safeer Link est désactivé</string>
     <string name="os_naprave_krajevni">Mode local : Safeer OS n\'utilise que ce téléviseur. Activez Safeer Link pour voir vos autres appareils.</string>
     <string name="os_naprave_ni_linka">Safeer Link est désactivé. Activez-le (carte Safeer Link) : votre téléphone et votre ordinateur apparaîtront ici.</string>
-    <string name="os_datoteke_opis_krajevno">Vidéos, musique et photos de ce téléviseur et de l\'USB</string>
-    <string name="os_link_izklopljen_opis">Désactivé · activez-le pour les appareils, les fichiers de l\'ordinateur et la télécommande</string>
-    <string name="os_link_krajevni_opis">Mode local · ouvrez pour activer Safeer Link</string>
+    <string name="os_datoteke_opis_krajevno">Vidéos, musique et photos du téléviseur et USB</string>
+    <string name="os_link_izklopljen_opis">Désactivé · active pour les appareils et fichiers</string>
+    <string name="os_link_krajevni_opis">Mode local · ouvre pour activer Safeer Link</string>
     <string name="os_nacin_naslov">Comment Safeer OS doit-il fonctionner ?</string>
     <string name="os_nacin_opis">Avec Safeer Link, votre téléphone et votre ordinateur rejoignent ce téléviseur : fichiers de l\'ordinateur, envoi de pages, télécommande. Sans lui, Safeer OS fonctionne seul, avec ce téléviseur uniquement : le web, ses fichiers et l\'USB, les applications et le Bouclier. Vous pouvez changer à tout moment.</string>
     <string name="os_nacin_link">Activer Safeer Link</string>
@@ -83,7 +83,7 @@
 
     <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
     <string name="os_nastavitve">Réglages</string>
-    <string name="os_nastavitve_opis">Écran d\'accueil, mode de fonctionnement, Bouclier</string>
+    <string name="os_nastavitve_opis">Écran d\'accueil, mode, Bouclier</string>
     <string name="os_nastavitve_opomba">Tout ce qui suit peut être activé ou désactivé à tout moment.</string>
     <string name="os_zaganjalnik">Écran d\'accueil du téléviseur</string>
     <string name="os_zaganjalnik_opis">Si Safeer OS prend la touche Accueil ou reste une application que tu ouvres pour les applications web</string>
@@ -157,7 +157,7 @@
     <!-- Programi racunalnika na televizorju -->
     <string name="os_programi">Programmes de l\'ordinateur</string>
     <string name="os_programi_naslov">Ce que tu as sur ton ordinateur</string>
-    <string name="os_programi_opis">Lance un programme de ton ordinateur avec la télécommande</string>
+    <string name="os_programi_opis">Lance un programme de l\'ordinateur</string>
     <string name="os_programi_nalagam">Je demande à l\'ordinateur...</string>
     <string name="os_programi_prazno">L\'ordinateur n\'a proposé aucun programme.</string>
     <string name="os_programi_ni_racunalnika">Aucun ordinateur dans Safeer Link ne partage ses programmes. Dans Safeer Control sur l\'ordinateur, active \'Programmes pour le téléviseur\'.</string>
@@ -189,7 +189,7 @@
     <string name="os_aplikacije_izberi">Choisir des applis</string>
     <!-- Zaslon racunalnika na televizorju -->
     <string name="os_zaslon">Écran de l\'ordinateur</string>
-    <string name="os_zaslon_opis">Vois ton ordinateur sur le téléviseur et travaille dessus d\'ici</string>
+    <string name="os_zaslon_opis">Vois et pilote ton ordinateur</string>
     <string name="os_zaslon_povezujem">Connexion à l\'ordinateur...</string>
     <string name="os_zaslon_prosim">Je demande son écran à %1$s...</string>
     <string name="os_zaslon_ni_racunalnika">Aucun ordinateur dans Safeer Link ne partage son écran. Dans Safeer Control sur l\'ordinateur, active \'Écran pour le téléviseur\'.</string>
@@ -201,4 +201,15 @@
     <string name="os_zaslon_ponovno">La connexion a été coupée. Nouvel essai...</string>
     <string name="os_zaslon_zvok">son</string>
     <string name="os_zaslon_namig">Maintiens Retour pour terminer</string>
+    <!-- Scit: kratko na kartici, podrobnosti posebej -->
+    <string name="os_scit_kratko_vklopljen">Activé · %1$d bloqués aujourd\'hui</string>
+    <string name="os_scit_kratko_izklopljen">Désactivé</string>
+    <string name="os_scit_kratko_prekinjen">Interrompu (autre VPN ?)</string>
+    <string name="os_scit_kratko_ni">Non disponible</string>
+    <string name="os_scit_podrobnosti">Détails</string>
+    <!-- Odpiranje, ki ne utihne -->
+    <string name="os_odpri_napaka">Ça ne s\'est pas ouvert : %1$s</string>
+    <string name="os_odpri_ni_aplikacije">l\'appli pour cela n\'est pas installée</string>
+    <string name="os_odpri_ni_dovoljenja">le téléviseur ne l\'a pas permis</string>
+    <string name="os_poskusi_znova">Réessayer</string>
 </resources>

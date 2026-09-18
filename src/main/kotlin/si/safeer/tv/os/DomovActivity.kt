@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -70,6 +71,9 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         narisiAplikacije()
         narisiSpletne()
         prevzemiSpletne()
+        // Ikone, shranjene s prejsnjo razlicico, so bile premajhne in zato zamegljene; enkrat jih
+        // poiscemo v vecji locljivosti.
+        SpletneAplikacije.osveziIkone(this) { zZapomnjenimFokusom { narisiSpletne() } }
         link.dodaj(this)
         osveziScit()
         // Vrsta s spletnimi aplikacijami na domacem zaslonu televizorja ostane usklajena; ko ima
@@ -116,7 +120,8 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         val programi = naprave.any { it.zmoznosti.contains("apps") && it.id != Identiteta.id(this) }
         val zaslon = naprave.any { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
         if (programi != imamoPrograme || zaslon != imamoZaslon) {
-            imamoPrograme = programi; imamoZaslon = zaslon; narisiZacni()
+            imamoPrograme = programi; imamoZaslon = zaslon
+            zZapomnjenimFokusom { narisiZacni() }
         }
     }
 
@@ -145,6 +150,29 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Ali kateri racunalnik v Linku deli svoj zaslon (zmoznost "desktop"). */
     private var imamoZaslon = false
 
+    /**
+     * Fokus mora preziveti osvezitev. Vrste se ponovno izrisejo same od sebe (racunalnik se javi,
+     * spletna aplikacija dobi ikono, Scit odgovori), pri tem pa se poglede zavrze skupaj s fokusom
+     * in ta skoci na zacetek - sredi tipkanja z daljincem je to zoprno. Zato vsaka kartica nosi
+     * svojo oznako, pred izrisom si jo zapomnimo in jo po izrisu poiscemo nazaj.
+     */
+    private fun zZapomnjenimFokusom(kaj: () -> Unit) {
+        val oznaka = currentFocus?.tag as? String
+        kaj()
+        if (oznaka.isNullOrEmpty()) return
+        drsnik.post { najdiPoOznaki(oznaka)?.takeIf { !it.hasFocus() }?.requestFocus() }
+    }
+
+    private fun najdiPoOznaki(oznaka: String): View? {
+        for (vrsta in listOf(vrstaZacni, vrstaSpletne, vrstaAplikacije)) {
+            for (i in 0 until vrsta.childCount) {
+                val v = vrsta.getChildAt(i) ?: continue
+                if (v.tag == oznaka) return v
+            }
+        }
+        return null
+    }
+
     /** Ena kartica v vrsti Zacni; [kljuc] se shrani v vrstni red, zato se nikoli ne spremeni. */
     private class Zacni(val kljuc: String, val ikona: Int, val naslov: String, val opis: String, val ob: () -> Unit)
 
@@ -162,30 +190,30 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             odpriVBrskalniku(null)
         })
         vse.add(Zacni("datoteke", R.drawable.os_ikona_datoteke, getString(R.string.os_datoteke), getString(R.string.os_datoteke_opis)) {
-            startActivity(Intent(this, DatotekeActivity::class.java))
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_datoteke))
         })
         // Naprave so dobile svoj zaslon: na domacem je bila to se ena vrsta kartic in je jemala
         // prostor spletnim aplikacijam, ki jih uporabnik odpira vsak dan.
         vse.add(Zacni("naprave", R.drawable.os_ikona_link, getString(R.string.os_naprave_naslov), getString(R.string.os_link_opis)) {
-            if (link.povezan || !link.vprasamoZaNacin()) startActivity(Intent(this, NapraveActivity::class.java))
+            if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_naprave_naslov))
             else vprasajZaNacin()
         })
         vse.add(Zacni("scit", R.drawable.os_ikona_scit, getString(R.string.os_scit), getString(R.string.os_scit_preverjam)) { preklopiScit() })
         // Zaslon racunalnika: kartica se pokaze samo, kadar ga racunalnik res deli.
         if (imamoZaslon) {
-            vse.add(Zacni("zaslon", R.drawable.os_ikona_ospredje, getString(R.string.os_zaslon), getString(R.string.os_zaslon_opis)) {
-                startActivity(Intent(this, ZaslonActivity::class.java))
+            vse.add(Zacni("zaslon", R.drawable.os_ikona_zaslon, getString(R.string.os_zaslon), getString(R.string.os_zaslon_opis)) {
+                odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_zaslon))
             })
         }
         // Programi racunalnika: kartico pokazemo samo, kadar jih kaksen racunalnik res deli -
         // sicer bi obljubljala nekaj, cesar ni.
         if (imamoPrograme) {
             vse.add(Zacni("programi", R.drawable.os_ikona_racunalnik, getString(R.string.os_programi), getString(R.string.os_programi_opis)) {
-                startActivity(Intent(this, AplikacijeHostaActivity::class.java))
+                odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.os_programi))
             })
         }
         vse.add(Zacni("nastavitve", R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve), getString(R.string.os_nastavitve_opis)) {
-            startActivity(Intent(this, NastavitveActivity::class.java))
+            odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_nastavitve))
         })
 
         val red = Vrstni.red(this, KLJUC_ZACNI, vse.map { it.kljuc })
@@ -193,6 +221,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         for (kljuc in red) {
             val z = vse.firstOrNull { it.kljuc == kljuc } ?: continue
             val v = dodajVeliko(z.ikona, z.naslov, z.opis, z.ob)
+            v.tag = "zacni:" + z.kljuc
             v.setOnLongClickListener { moznostiZacni(z, red); true }
             when (z.kljuc) {
                 "datoteke" -> karticaDatoteke = v
@@ -214,6 +243,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun moznostiZacni(z: Zacni, red: List<String>) {
         val mesto = red.indexOf(z.kljuc)
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        if (z.kljuc == "scit") dejanja.add(getString(R.string.os_scit_podrobnosti) to { podrobnostiScita() })
         if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniZacni(z, red, -1) })
         if (mesto in 0 until red.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniZacni(z, red, 1) })
         if (dejanja.isEmpty()) return
@@ -272,15 +302,39 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         Scit.stanje(this) { pokaziScit(it) }
     }
 
+    /**
+     * Na kartici je samo stanje in stevilka - dolgo besedilo se je na televizorju odrezalo na robu.
+     * Vse ostalo (kaj Scit sploh blokira, zakaj je prekinjen, kaj potrebuje) je pod "Podrobnosti",
+     * ki jih uporabnik odpre z zadrzanim OK.
+     */
     private fun pokaziScit(s: Scit.Stanje) {
         scitStanje = s
         val opis = karticaScit?.findViewById<TextView>(R.id.opis) ?: return
         opis.text = when {
+            !s.naVoljo -> getString(R.string.os_scit_kratko_ni)
+            s.vklopljen && s.tece -> getString(R.string.os_scit_kratko_vklopljen, s.blokiranih)
+            s.vklopljen -> getString(R.string.os_scit_kratko_prekinjen)
+            else -> getString(R.string.os_scit_kratko_izklopljen)
+        }
+    }
+
+    /** Celotna razlaga Scita; na kartici je ni, ker je predolga. */
+    private fun podrobnostiScita() {
+        val s = scitStanje
+        val besedilo = when {
+            s == null -> getString(R.string.os_scit_preverjam)
             !s.naVoljo -> getString(R.string.os_scit_ni_brskalnika)
             s.vklopljen && s.tece -> getString(R.string.os_scit_vklopljen_opis, s.blokiranih)
             s.vklopljen -> getString(R.string.os_scit_prekinjen)
             else -> getString(R.string.os_scit_izklopljen_opis)
         }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_scit))
+            .setMessage(besedilo + "\n\n" + getString(R.string.os_scit_nastavitev_opis))
+            .setPositiveButton(getString(
+                if (s?.vklopljen == true) R.string.os_zaganjalnik_izklopi_kratko else R.string.os_vklopi)) { _, _ -> preklopiScit() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .show()
     }
 
     private fun preklopiScit() {
@@ -351,9 +405,9 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Ob prvem zagonu Safeer OS prevzame spletne aplikacije, ki jih je uporabnik dodal v brskalniku. */
     private fun prevzemiSpletne() {
         Thread({
-            try { SpletneAplikacije.prevzemiOdBrskalnika(this) { glavna.post { narisiSpletne() } } }
-            catch (_: Throwable) { }
-            glavna.post { narisiSpletne() }
+            try { SpletneAplikacije.prevzemiOdBrskalnika(this) { glavna.post { zZapomnjenimFokusom { narisiSpletne() } } } }
+            catch (e: Throwable) { Log.w(TAG, "Prevzem spletnih aplikacij: ${e.message}") }
+            glavna.post { zZapomnjenimFokusom { narisiSpletne() } }
         }, "safeer-os-prevzem").start()
     }
 
@@ -368,6 +422,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             v.onFocusChangeListener = fokus
             v.setOnClickListener { zazeniSpletno(a) }
             v.setOnLongClickListener { moznostiSpletne(a); true }
+            v.tag = "splet:" + a.url
             vrstaSpletne.addView(v)
             if (a.url == fokusUrl) zeljeni = v
         }
@@ -377,6 +432,7 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
         dodaj.findViewById<TextView>(R.id.ime).text = getString(R.string.os_spletne_dodaj)
         dodaj.onFocusChangeListener = fokus
         dodaj.setOnClickListener { dodajSpletno() }
+        dodaj.tag = "splet:+"
         vrstaSpletne.addView(dodaj)
     }
 
@@ -385,7 +441,31 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             .putExtra("spletna_aplikacija", a.url)
             .putExtra("aplikacija_ime", a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try { startActivity(namera) } catch (_: Throwable) { }
+        odpriVarno(namera, a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
+    }
+
+    /**
+     * Odpiranje, ki ne utihne. Doslej smo napako pri startActivity tiho pozrli in uporabnik je
+     * pritisnil OK, pa se ni zgodilo nic - brez pojasnila in brez poti naprej. Zdaj pove, kaj je
+     * slo narobe, in ponudi ponovni poskus.
+     */
+    private fun odpriVarno(namera: Intent, ime: String) {
+        try {
+            startActivity(namera)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Odpiranje ni uspelo ($ime): ${e.message}")
+            val razlog = when (e) {
+                is android.content.ActivityNotFoundException -> getString(R.string.os_odpri_ni_aplikacije)
+                is SecurityException -> getString(R.string.os_odpri_ni_dovoljenja)
+                else -> e.message.orEmpty().ifBlank { e.javaClass.simpleName }
+            }
+            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(ime)
+                .setMessage(getString(R.string.os_odpri_napaka, razlog))
+                .setPositiveButton(getString(R.string.os_poskusi_znova)) { _, _ -> odpriVarno(namera, ime) }
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .show()
+        }
     }
 
     /**
@@ -522,20 +602,20 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
             v.findViewById<ImageView>(R.id.ikona).setImageDrawable(a.ikona)
             v.findViewById<TextView>(R.id.ime).text = a.ime
             v.onFocusChangeListener = fokus
-            v.setOnClickListener {
-                try { startActivity(a.namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) { }
-            }
+            v.setOnClickListener { odpriVarno(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), a.ime) }
             v.setOnLongClickListener { moznostiAplikacije(a, po.size); true }
+            v.tag = "app:" + a.paket
             vrstaAplikacije.addView(v)
             if (a.paket == fokusPaket) zeljeni = v
         }
         val ostalo = LayoutInflater.from(this).inflate(R.layout.os_kartica_app, vrstaAplikacije, false)
-        ostalo.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_ospredje)
+        ostalo.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_mreza)
         // Dokler uporabnik ni izbral nobene, kartica pove, kaj naj naredi - prazna vrsta molci.
         ostalo.findViewById<TextView>(R.id.ime).text =
             getString(if (po.isEmpty()) R.string.os_aplikacije_izberi else R.string.os_aplikacije_ostalo)
         ostalo.onFocusChangeListener = fokus
-        ostalo.setOnClickListener { startActivity(Intent(this, AplikacijeTvActivity::class.java)) }
+        ostalo.setOnClickListener { odpriVarno(Intent(this, AplikacijeTvActivity::class.java), getString(R.string.os_aplikacije_vse)) }
+        ostalo.tag = "app:+"
         vrstaAplikacije.addView(ostalo)
         uravnajVrsto(vrstaAplikacije, NAJMANJSA_APP_DP, NAJVECJA_APP_DP)
         zeljeni?.let { it.post { it.requestFocus() } }
@@ -610,18 +690,16 @@ class DomovActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun odpriVBrskalniku(url: String?) {
         val namera = brskalnikNamera()
         if (url != null) { namera.action = Intent.ACTION_VIEW; namera.data = Uri.parse(url) }
-        try { startActivity(namera) } catch (e: Throwable) {
-            Toast.makeText(this, e.message ?: "?", Toast.LENGTH_SHORT).show()
-        }
+        odpriVarno(namera, getString(R.string.os_splet))
     }
 
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec); brskalnik pozna dodatek odpri_link. */
     private fun odpriLinkVBrskalniku() {
-        val namera = brskalnikNamera().putExtra("odpri_link", true)
-        try { startActivity(namera) } catch (_: Throwable) { }
+        odpriVarno(brskalnikNamera().putExtra("odpri_link", true), getString(R.string.os_link))
     }
 
     private companion object {
+        const val TAG = "SafeerOsDomov"
         /** Najmanjsa sirina kartice, pri kateri je opis se berljiv (velike kartice v vrsti Zacni). */
         const val NAJMANJSA_VELIKA_DP = 200
         /** Kje je shranjen vrstni red vrste Zacni. */

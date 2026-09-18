@@ -40,6 +40,7 @@ object SpletneAplikacije {
     private const val PREFS = "safeer_os"
     private const val KLJUC = "spletne_aplikacije"
     private const val KLJUC_PREVZETO = "spletne_prevzete"
+    private const val KLJUC_IKONE = "spletne_ikone_ostro"
     private const val NAJVEC = 24
 
     data class Aplikacija(
@@ -194,6 +195,37 @@ object SpletneAplikacije {
         return true
     }
 
+    /**
+     * Ikone, shranjene s prejsnjo razlicico, so bile omejene na 256 px in so na televizorju videti
+     * zamegljene. Enkrat jih poiscemo znova - samo tiste, ki so premajhne ali jih ni.
+     */
+    fun osveziIkone(c: Context, obKoncu: (() -> Unit)? = null) {
+        val app = c.applicationContext
+        if (prefs(app).getBoolean(KLJUC_IKONE, false)) return
+        prefs(app).edit().putBoolean(KLJUC_IKONE, true).apply()
+        ozadje.execute {
+            var spremenjenih = 0
+            for (a in seznam(app)) {
+                val sirina = try {
+                    val m = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    if (a.ikona.isNotEmpty()) BitmapFactory.decodeFile(a.ikona, m)
+                    m.outWidth
+                } catch (_: Throwable) { 0 }
+                if (sirina >= NAJVECJA_IKONA_PX / 2) continue
+                val podatki = try { preberiManifest(app, a.url) } catch (e: Throwable) { Log.w(TAG, "Ikona: ${e.message}"); null } ?: continue
+                if (podatki.ikona.isEmpty()) continue
+                shrani(app, seznam(app).map {
+                    if (istaStran(it.url, a.url)) it.copy(ikona = podatki.ikona, ikonaUrl = podatki.ikonaUrl) else it
+                })
+                spremenjenih++
+            }
+            if (spremenjenih > 0) {
+                Log.i(TAG, "Osvezenih ikon: $spremenjenih")
+                glavna.post { obKoncu?.invoke() }
+            }
+        }
+    }
+
     fun odstrani(c: Context, url: String) {
         if (SpletnePonudnik.klic(c, SpletnePonudnik.ODSTRANI, url) != null) return
         val app = c.applicationContext
@@ -240,7 +272,7 @@ object SpletneAplikacije {
         val cel = RectF(0f, 0f, s.toFloat(), s.toFloat())
         if (polnaSlika(vir)) {
             // Ikona sama je ze plosca (poln kvadrat): samo zaoblimo robove, nic ne dodajamo.
-            val maska = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK }
+            val maska = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; isFilterBitmap = true; isDither = true }
             platno.drawRoundRect(cel, r, r, maska)
             maska.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
             platno.drawBitmap(vir, null, cel, maska)
@@ -256,7 +288,7 @@ object SpletneAplikacije {
             val levo = (s - sir) / 2f
             val zgoraj = (s - vis) / 2f
             platno.drawBitmap(vir, null, RectF(levo, zgoraj, levo + sir, zgoraj + vis),
-                Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true })
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true; isDither = true })
         }
         return izhod
     }
@@ -382,8 +414,9 @@ object SpletneAplikacije {
                                 val o2 = ikone.optJSONObject(i) ?: continue
                                 val src = o2.optString("src"); if (src.isBlank()) continue
                                 val velikost = o2.optString("sizes").split(" ", "x").mapNotNull { it.toIntOrNull() }.maxOrNull() ?: 0
-                                // Prevelike ikone so za telefone; na kartici je dovolj ~192 px.
-                                if (najboljsa.isEmpty() || (velikost in (najvecja + 1)..512)) { najboljsa = src; najvecja = velikost }
+                                // Vzamemo najvecjo razumno: kartica na televizorju je velika,
+                                // premajhna ikona pa je na njej takoj videti zamegljena.
+                                if (najboljsa.isEmpty() || (velikost in (najvecja + 1)..1024)) { najboljsa = src; najvecja = velikost }
                             }
                             if (najboljsa.isNotEmpty()) ikonaUrl = razresi(manifestUrl, najboljsa)
                         }
@@ -416,10 +449,14 @@ object SpletneAplikacije {
                 if (mere.outWidth <= 0 || mere.outHeight <= 0) return ""
                 if (mere.outWidth > 4096 || mere.outHeight > 4096) return ""
                 val moznosti = BitmapFactory.Options().apply {
-                    inSampleSize = vzorec(mere.outWidth, mere.outHeight, 256)
+                    inSampleSize = vzorec(mere.outWidth, mere.outHeight, NAJVECJA_IKONA_PX)
                 }
                 val slika = BitmapFactory.decodeByteArray(bajti, 0, bajti.size, moznosti) ?: return ""
-                val stran = if (slika.width > 256) Bitmap.createScaledBitmap(slika, 256, 256 * slika.height / slika.width, true) else slika
+                // Na televizorju je kartica velika, zato ikono hranimo v vecji locljivosti: prej smo
+                // jo zmanjsali na 256 px in je bila na zaslonu videti zamegljena.
+                val stran = if (slika.width > NAJVECJA_IKONA_PX)
+                    Bitmap.createScaledBitmap(slika, NAJVECJA_IKONA_PX, NAJVECJA_IKONA_PX * slika.height / slika.width, true)
+                else slika
                 val mapa = File(c.applicationContext.filesDir, "os/ikone").apply { mkdirs() }
                 val datoteka = File(mapa, Integer.toHexString(stranUrl.trimEnd('/').hashCode()) + ".png")
                 datoteka.outputStream().use { stran.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -432,6 +469,8 @@ object SpletneAplikacije {
     private const val NAJVEC_HTML = 200_000
     private const val NAJVEC_MANIFEST = 256_000
     private const val NAJVEC_IKONA = 2_000_000
+    /** Koliko pik hranimo za ikono: kartica na televizorju je velika in 256 px je bilo premalo. */
+    private const val NAJVECJA_IKONA_PX = 512
 
     /** Besedilo odgovora, odrezano na [najvec] bajtov (brez nalaganja celega telesa v pomnilnik). */
     private fun besedilo(o: okhttp3.Response, najvec: Int): String {
