@@ -192,6 +192,12 @@ podpisi() {   # podpisi <okus> <cilj.apk>
 rm -rf "$DIR/build/signed"
 podpisi brskalnik "$RELEASE_DIR/tv-browser-2-release.apk"
 podpisi os "$RELEASE_DIR/safeer-os-release.apk"
+# Safeer OS Tablet (okus tablica) je v pripravi na svoji veji: podpisemo ga samo, kadar ga je
+# Gradle res naredil. Na veji main tega okusa ni in ta pogoj ne stori nicesar.
+if [ -d "$DIR/build/outputs/apk/tablica/release" ]; then
+    podpisi tablica "$RELEASE_DIR/safeer-os-tablet-release.apk"
+    cp "$RELEASE_DIR/safeer-os-tablet-release.apk" "$DIR/Safeer-OS-Tablet.apk"
+fi
 
 FINAL_APK="$RELEASE_DIR/tv-browser-2-release.apk"
 cp "$FINAL_APK" "$DIR/TV-Browser-2.apk"
