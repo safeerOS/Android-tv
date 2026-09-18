@@ -224,6 +224,14 @@ echo "OK: no authentication assets in APK."
 echo "🔎 Preverjam, da sta aplikaciji loceni..."
 python3 "$DIR/tests/preveri_loceni_aplikaciji.py" "$DIR/TV-Browser-2.apk" "$DIR/Safeer-OS.apk"
 
+# Kontrolne vsote: zapisemo jih tu, ob vsaki gradnji, za vse tri datoteke. Prej je SHA256SUMS
+# ostajal iz stare izdaje in je za nove APK-je navajal napacno vsoto - to uporabniku sporoca, da je
+# paket spremenjen ali pokvarjen, kar ni bilo res.
+echo "🔎 Zapisujem kontrolne vsote (SHA256SUMS)..."
+( cd "$DIR" && sha256sum TV-Browser-2.apk Safeer-Browser.apk Safeer-OS.apk > SHA256SUMS )
+( cd "$DIR" && sha256sum -c --quiet SHA256SUMS )
+echo "OK: SHA256SUMS ustreza zgrajenim APK-jem."
+
 echo ""
 echo "=========================================================="
 echo "ZGRAJENA SIGNED APK-JA:"

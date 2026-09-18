@@ -4,6 +4,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Cesar Safeer OS ne potrebuje, tudi ne zahteva. Mikrofon in risanje cez druge aplikacije
+         uporablja samo brskalnik (glasovno iskanje, daljinec); v skupnem manifestu sta zato, ker ga
+         obe aplikaciji delita. Uporabnik naj ob namestitvi Safeer OS vidi samo tisto, kar ta res
+         potrebuje. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
+
     <!-- Safeer OS mora videti brskalnik: od njega dobi vstop v Safeer Link, Scit in odpiranje spleta. -->
     <queries>
         <package android:name="si.safeer.tv" />
@@ -13,7 +20,9 @@
         android:label="@string/os_app_name"
         android:icon="@mipmap/os_ic_launcher"
         android:roundIcon="@mipmap/os_ic_launcher"
-        android:banner="@drawable/os_banner">
+        android:banner="@drawable/os_banner"
+        android:largeHeap="false"
+        tools:replace="android:largeHeap">
 
         <!-- Vstopna tocka v zaganjalniku televizorja -->
         <activity android:name="si.safeer.tv.os.DomovActivity">
