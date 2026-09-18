@@ -54,12 +54,55 @@
             android:textSize="12sp"/>
     </LinearLayout>
 
+    <!-- Iskanje po imenu in skupine: sto programov brez tega ni seznam, ampak iskanje igle. -->
+    <LinearLayout
+        android:id="@+id/orodja"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/iskanje"
+            android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:background="@drawable/os_iskanje"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:inputType="text"
+            android:imeOptions="actionSearch"
+            android:hint="@string/os_programi_isci"
+            android:textColorHint="@color/os_umirjeno"
+            android:textColor="@color/os_besedilo"
+            android:textCursorDrawable="@null"
+            android:textSize="14sp"/>
+
+        <HorizontalScrollView
+            android:id="@+id/skupineDrsnik"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:scrollbars="none">
+            <LinearLayout
+                android:id="@+id/skupine"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
+    </LinearLayout>
+
     <GridView
         android:id="@+id/mreza"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="18dp"
+        android:layout_marginTop="14dp"
         android:numColumns="6"
         android:horizontalSpacing="12dp"
         android:verticalSpacing="12dp"

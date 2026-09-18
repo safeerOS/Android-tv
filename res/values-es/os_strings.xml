@@ -157,6 +157,20 @@
     <!-- Programi racunalnika na televizorju -->
     <string name="os_programi">Programas del ordenador</string>
     <string name="os_programi_naslov">Lo que tienes en el ordenador</string>
+    <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
+    <string name="os_programi_isci">Buscar por nombre</string>
+    <string name="os_programi_ni_zadetka">Ningún programa coincide con «%1$s».</string>
+    <string name="os_programi_odpiram">Abriendo %1$s en el ordenador…</string>
+    <string name="os_skupina_vse">Todo</string>
+    <string name="os_skupina_igre">Juegos</string>
+    <string name="os_skupina_pisarna">Oficina</string>
+    <string name="os_skupina_splet">Web</string>
+    <string name="os_skupina_predstavnost">Multimedia</string>
+    <string name="os_skupina_programiranje">Programación</string>
+    <string name="os_skupina_ucenje">Aprendizaje</string>
+    <string name="os_skupina_orodja">Herramientas</string>
+    <string name="os_skupina_drugo">Otros</string>
+    <string name="os_skupina_s_stevilom">%1$s · %2$d</string>
     <string name="os_programi_opis">Inicia un programa del ordenador</string>
     <string name="os_programi_nalagam">Preguntando al ordenador...</string>
     <string name="os_programi_prazno">El ordenador no ha ofrecido ningún programa.</string>
