@@ -1016,7 +1016,7 @@ object UserScriptManager {
         return assetJs(webView, "site_24ur.js", { cachedSite24urJs }, { cachedSite24urJs = it })
     }
 
-    private fun xploreAuthJs(webView: WebView): String {
+    private fun xploreAuthJs(): String {
         // Public builds never load credentials from assets or a developer device.
         return "window._safeerXploreAuth = null;"
     }
@@ -1652,7 +1652,7 @@ object UserScriptManager {
         if (xplore) {
             injectCss(webView, XPLORE_DARK_CSS, "tv-remote-xplore-dark")
             webView.evaluateJavascript(
-                xploreAuthJs(webView) + "\n" + siteAgentJs(webView) + "\n" +
+                xploreAuthJs() + "\n" + siteAgentJs(webView) + "\n" +
                     tvSpatialJs(webView) + "\n" + siteXploreJs(webView),
                 null
             )

@@ -27,7 +27,11 @@ data class TabModel(
      * Globoko spanje: stari pogled je unicen (izrisovalnik in graficni pomnilnik sta sproscena),
      * `webView` je nov, prazen in se ni v oknu. Ob prebuditvi ga vstavimo in nalozimo stran.
      */
-    var pogledSvez: Boolean = false
+    var pogledSvez: Boolean = false,
+    /** Zavihek je nastal kot pojavno okno (prijava); Nazaj ga zapre, ne pelje na prazno stran. */
+    var jePojavni: Boolean = false,
+    /** Zavihek, ki je to okno odprl - tja se vrnemo, ko ga zapremo. */
+    var odpiralec: String? = null
 )
 
 /**
@@ -79,13 +83,71 @@ class TabManager(
         return pogled
     }
 
-    fun createTab(context: Context, url: String = "https://www.google.com", makeActive: Boolean = true): TabModel {
+    /** Naredi prostor za nov zavihek, kadar jih je ze NAJVEC_ZAVIHKOV. */
+    private fun sprostiProstor() {
         while (tabs.size >= NAJVEC_ZAVIHKOV) {
             val victim = tabs.firstOrNull { it.id != activeTabId } ?: tabs.firstOrNull() ?: break
             val idx = tabs.indexOf(victim)
             try { victim.webView.destroy() } catch (_: Exception) {}
             if (idx >= 0) tabs.removeAt(idx)
         }
+    }
+
+    /**
+     * Pogled za pojavno okno, ki (se) ni zavihek. Dokler ne vemo, kam okno pelje, ga med
+     * zavihke ne vpisemo - sicer bi oglasno okno na polnem brskalniku zaprlo enega od
+     * uporabnikovih zavihkov, ceprav ga cez trenutek sami zavrzemo.
+     */
+    fun pripraviPojavni(context: Context): ChromiumEngineView {
+        val pogled = ustvariPogled(context)
+        // Pogled, ki ni v oknu, ne izvede naslova, ki mu ga stran nastavi naknadno
+        // (window.open('about:blank'), nato location = ...). Zato ga pritrdimo takoj -
+        // a skritega in velikosti 1x1, da uporabnik o njem ne ve nicesar.
+        pogled.layoutParams = FrameLayout.LayoutParams(1, 1)
+        pogled.visibility = android.view.View.INVISIBLE
+        try { container.addView(pogled) } catch (e: Exception) {
+            Log.w(TAG, "Pojavnega pogleda ni bilo mogoce pripeti: ${e.message}")
+        }
+        return pogled
+    }
+
+    /** Okno se je izkazalo za pravo (prijava): pogled sprejmemo med zavihke in ga pokazemo. */
+    fun posvoji(pogled: ChromiumEngineView, naslov: String, odpiralec: String? = null): TabModel {
+        sprostiProstor()
+        pogled.layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        pogled.visibility = android.view.View.VISIBLE
+        val tab = TabModel(
+            webView = pogled, title = "Nov zavihek", url = naslov,
+            jePojavni = true, odpiralec = odpiralec
+        )
+        tabs.add(tab)
+        switchTab(tab.id)
+        return tab
+    }
+
+    /**
+     * Zapre pojavni zavihek in se vrne na zavihek, ki ga je odprl. Pojavno okno nima
+     * zgodovine, v katero bi se lahko vrnilo: Nazaj v njem pomeni "zapri to okno".
+     */
+    fun zapriPojavni(context: Context, tab: TabModel) {
+        val nazaj = tab.odpiralec
+        closeTab(context, tab.id)
+        if (nazaj != null && tabs.any { it.id == nazaj }) switchTab(nazaj)
+    }
+
+    /** Okno je bilo oglas: pogled zavrzemo, zavihkov se nismo dotaknili. */
+    fun zavrziPojavni(pogled: ChromiumEngineView) {
+        try { (pogled.parent as? ViewGroup)?.removeView(pogled) } catch (_: Exception) {}
+        try { pogled.destroy() } catch (e: Exception) {
+            Log.w(TAG, "Pojavnega pogleda ni bilo mogoce pospraviti: ${e.message}")
+        }
+    }
+
+    fun createTab(context: Context, url: String = "https://www.google.com", makeActive: Boolean = true): TabModel {
+        sprostiProstor()
         val webView = ustvariPogled(context)
 
         val tab = TabModel(

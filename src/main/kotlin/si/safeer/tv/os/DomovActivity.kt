@@ -72,11 +72,17 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
     }
 
+    /** Vrstica z gumbi ploscka se pokaze takoj, ko uporabnik plosek prvic uporabi. */
+    override fun plosekZaznan() {
+        pomocPlosek.visibility =
+            if (Kontroler.jePriklopljen(this)) View.VISIBLE else View.GONE
+    }
+
     override fun onStart() {
         super.onStart()
         Ozadje.uporabi(this, drsnik)      // ozadje po izbiri uporabnika
-        // Gumbi plosecka v vrstici pomoci, kadar je plosek priklopljen; sicer je ne kazemo.
-        pomocPlosek.visibility = if (Kontroler.jePriklopljen()) View.VISIBLE else View.GONE
+        // Gumbi plosecka v vrstici pomoci, kadar je plosek v rabi; sicer je ne kazemo.
+        plosekZaznan()
         glavna.post(tikUre)
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiNadaljuj()

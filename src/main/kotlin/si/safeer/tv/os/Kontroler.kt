@@ -1,6 +1,7 @@
 package si.safeer.tv.os
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
@@ -35,14 +36,86 @@ object Kontroler {
     /** Koliko korakov naredi L2/R2 (stran gor, stran dol). */
     private const val STRAN = 5
 
-    fun jePriklopljen(): Boolean = try {
-        InputDevice.getDeviceIds().any { id ->
-            val d = InputDevice.getDevice(id)
-            d != null && !d.isVirtual && (
-                d.sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD ||
-                d.sources and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK)
-        }
-    } catch (_: Throwable) { false }
+    private const val NASTAVITVE = "safeer_os"
+    private const val KLJUC_PLOSEK = "plosek_naprava"
+
+    /** Zapomnjen zapis, da za vsako izrisano vrstico ne beremo nastavitev znova. */
+    private var znanaNaprava: String? = null
+
+    private fun zapis(context: Context): String {
+        znanaNaprava?.let { return it }
+        val v = try {
+            context.applicationContext
+                .getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+                .getString(KLJUC_PLOSEK, "").orEmpty()
+        } catch (_: Throwable) { "" }
+        znanaNaprava = v
+        return v
+    }
+
+    /**
+     * Ali uporabnik na tej napravi res ima igralni plosek?
+     *
+     * Po seznamu naprav tega ni mogoce povedati: televizijski daljinci se javijo kot
+     * "Android Gamepad" in jedro jim pripise tudi tipke A, B, X in Y, ceprav jih na daljincu ni.
+     * Vrstica pomoci nasteje prav te gumbe, zato zahtevamo dvoje: da je nekdo s ploscka res
+     * pritisnil gumb, ki ga daljinec nima, in da je prav tisti plosek se zdaj prikljucen. Ko ga
+     * uporabnik izklopi, vrstica spet izgine - obljubimo samo tisto, kar drzi.
+     */
+    fun jePriklopljen(context: Context): Boolean {
+        val zapomnjen = zapis(context)
+        if (zapomnjen.isEmpty()) return false
+        return try {
+            InputDevice.getDeviceIds().any { id ->
+                val d = InputDevice.getDevice(id)
+                d != null && !d.isVirtual && d.descriptor == zapomnjen
+            }
+        } catch (_: Throwable) { false }
+    }
+
+    /**
+     * Zabelezi plosek, ki je poslal dokazni dogodek. Vrne true samo ob spremembi - takrat zaslon
+     * osvezi vrstico pomoci. Navideznih naprav ne stejemo: vbrizgan dogodek ni dokaz, da plosek je.
+     */
+    fun zabelezi(context: Context, naprava: InputDevice?): Boolean {
+        if (naprava == null || naprava.isVirtual) return false
+        val opis = naprava.descriptor.orEmpty()
+        if (opis.isEmpty() || zapis(context) == opis) return false
+        znanaNaprava = opis
+        try {
+            context.applicationContext
+                .getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+                .edit().putString(KLJUC_PLOSEK, opis).apply()
+        } catch (_: Throwable) {}
+        return true
+    }
+
+    /**
+     * Gumbi, ki jih televizijski daljinec nima: sele ti so dokaz, da je na napravi pravi plosek.
+     * A in B sta izpuscena namenoma - nekateri daljinci OK in Nazaj posljeta prav pod tema kodama.
+     */
+    private val DOKAZ = setOf(
+        KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y,
+        KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
+        KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2,
+        KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BUTTON_SELECT,
+        KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR)
+
+    /** Je ta pritisk dokaz, da je plosek priklopljen? */
+    fun jeDokazPloska(dogodek: KeyEvent): Boolean =
+        dogodek.action == KeyEvent.ACTION_DOWN && jePlosek(dogodek) && dogodek.keyCode in DOKAZ
+
+    /**
+     * Je palica res odklonjena? Dogodek pri mirovanju ni dokaz - poslje ga lahko tudi naprava,
+     * ki se le javi kot plosek.
+     */
+    fun jeOdklon(e: MotionEvent): Boolean {
+        if (e.source and InputDevice.SOURCE_JOYSTICK != InputDevice.SOURCE_JOYSTICK) return false
+        return try {
+            kotlin.math.abs(e.getAxisValue(MotionEvent.AXIS_X)) >= MRTVI_KOT ||
+                kotlin.math.abs(e.getAxisValue(MotionEvent.AXIS_Y)) >= MRTVI_KOT
+        } catch (_: Throwable) { false }
+    }
 
     /**
      * Gumb plosecka v dejanje. Vrne true, kadar smo dogodek porabili - takrat ga zaslon ne dobi se

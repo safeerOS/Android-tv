@@ -652,8 +652,28 @@ object GenericWebSiteProfile : SiteProfile {
         }
     }
 
+    /**
+     * Ali ima Nazaj kam iti? Prva stran pojavnega okna je prazna lupina, zato bi obicajen
+     * Nazaj uporabnika pustil na praznem zaslonu namesto da bi okno zaprl.
+     */
+    private fun jeSmiselnoNazaj(pogled: android.webkit.WebView): Boolean {
+        if (!pogled.canGoBack()) return false
+        return try {
+            val seznam = pogled.copyBackForwardList()
+            val prejsnji = seznam.getItemAtIndex(seznam.currentIndex - 1)?.url.orEmpty()
+            prejsnji.isNotBlank() && !prejsnji.startsWith("about:")
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
     override fun handleBack(host: MainActivity): Boolean {
         val tab = host.tabManager.getActiveTab()
+        // Pojavno okno (prijava): Nazaj ga zapre in nas vrne na stran, ki ga je odprla.
+        if (tab != null && tab.jePojavni && !jeSmiselnoNazaj(tab.webView)) {
+            host.tabManager.zapriPojavni(host, tab)
+            return true
+        }
         if (TvSite.isWatchPage(host.activeUrl())) {
             if (tab?.webView?.canGoBack() == true) {
                 tab.webView.goBack()
