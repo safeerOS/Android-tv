@@ -11,8 +11,8 @@ android {
     defaultConfig {
         minSdk 28
         targetSdk 34
-        versionCode 212
-        versionName '2.1.103'
+        versionCode 213
+        versionName '2.1.104'
     }
 
     // Dve loceni aplikaciji iz ene kode. Android ju vidi kot dve aplikaciji (svoje ime, ikona,
@@ -27,8 +27,8 @@ android {
         os {
             dimension 'aplikacija'
             applicationId 'si.safeer.os'
-            versionCode 3
-            versionName '0.2.3'
+            versionCode 4
+            versionName '0.2.4'
         }
     }
 
