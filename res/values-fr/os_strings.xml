@@ -350,4 +350,7 @@
     <string name="os_zaslon_meni_povecava">Zoom</string>
     <string name="os_zaslon_meni_povecava_izklopi">Désactiver le zoom</string>
     <string name="os_zaslon_vlecem">Glissement – déplacez le pointeur et appuyez sur OK pour déposer</string>
+    <string name="os_seznanitev_naslov">Nouvel appareil</string>
+    <string name="os_seznanitev_opis">%1$s veut rejoindre Safeer Link sur ce téléviseur. Saisissez ce code sur l\'appareil :</string>
+    <string name="os_seznanitev_zavrni">Refuser</string>
 </resources>

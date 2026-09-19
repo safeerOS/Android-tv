@@ -350,4 +350,7 @@
     <string name="os_zaslon_meni_povecava">Vergrößern</string>
     <string name="os_zaslon_meni_povecava_izklopi">Vergrößerung aus</string>
     <string name="os_zaslon_vlecem">Ziehen – Zeiger bewegen und OK drücken zum Loslassen</string>
+    <string name="os_seznanitev_naslov">Neues Gerät</string>
+    <string name="os_seznanitev_opis">%1$s möchte sich mit Safeer Link auf diesem Fernseher verbinden. Gib dort diesen Code ein:</string>
+    <string name="os_seznanitev_zavrni">Ablehnen</string>
 </resources>

@@ -30,6 +30,20 @@ class LinkSorodnikStoritev : Service() {
             odgovor.data = pripraviOdgovor(podatki.getString("device_name") ?: "Safeer OS",
                 podatki.getString("app") ?: "", podatki.getBoolean("ne_zaganjaj", false))
             try { komu?.send(odgovor) } catch (e: Throwable) { Log.w(TAG, "Odgovora ni bilo mogoce poslati: ${e.message}") }
+        } else if (sporocilo.what == PRIJAVE) {
+            // Safeer OS na tem televizorju pokaze kodo za seznanitev nove naprave (glej KodaSeznanitve).
+            val seznam = try { HubKrmilnik.usmerjevalnik?.cakajocePrijave().orEmpty() } catch (_: Throwable) { emptyList() }
+            val odgovor = Message.obtain(null, PRIJAVE_ODGOVOR)
+            odgovor.data = Bundle().apply {
+                putStringArray("pair_id", seznam.map { it.pairId }.toTypedArray())
+                putStringArray("ime", seznam.map { it.ime }.toTypedArray())
+                putStringArray("pin", seznam.map { it.pin }.toTypedArray())
+            }
+            try { sporocilo.replyTo?.send(odgovor) } catch (_: Throwable) { }
+        } else if (sporocilo.what == ZAVRNI) {
+            val id = sporocilo.data?.getString("pair_id").orEmpty()
+            if (id.isNotBlank()) try { HubKrmilnik.usmerjevalnik?.zavrniPrijavo(id) } catch (_: Throwable) { }
+            try { sporocilo.replyTo?.send(Message.obtain(null, ZAVRNI_ODGOVOR)) } catch (_: Throwable) { }
         }
         true
     })
@@ -79,6 +93,10 @@ class LinkSorodnikStoritev : Service() {
         const val DEJANJE = "si.safeer.tv.LINK_SORODNIK"
         const val ZAHTEVA = 1
         const val ODGOVOR = 2
+        const val PRIJAVE = 3
+        const val PRIJAVE_ODGOVOR = 4
+        const val ZAVRNI = 5
+        const val ZAVRNI_ODGOVOR = 6
         private const val TAG = "SafeerLinkSorodnik"
     }
 }

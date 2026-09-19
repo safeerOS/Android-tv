@@ -350,4 +350,7 @@
     <string name="os_zaslon_meni_povecava">Povečava</string>
     <string name="os_zaslon_meni_povecava_izklopi">Izklopi povečavo</string>
     <string name="os_zaslon_vlecem">Vlečeš – premakni kazalec in pritisni OK, da spustiš</string>
+    <string name="os_seznanitev_naslov">Nova naprava</string>
+    <string name="os_seznanitev_opis">%1$s se želi povezati v Safeer Link tega televizorja. Na njej vtipkaj to kodo:</string>
+    <string name="os_seznanitev_zavrni">Zavrni</string>
 </resources>

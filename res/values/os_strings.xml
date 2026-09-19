@@ -351,4 +351,7 @@
     <string name="os_zaslon_meni_povecava">Zoom in</string>
     <string name="os_zaslon_meni_povecava_izklopi">Zoom out</string>
     <string name="os_zaslon_vlecem">Dragging – move the pointer and press OK to drop</string>
+    <string name="os_seznanitev_naslov">New device</string>
+    <string name="os_seznanitev_opis">%1$s wants to join Safeer Link on this TV. Type this code on it:</string>
+    <string name="os_seznanitev_zavrni">Decline</string>
 </resources>

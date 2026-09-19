@@ -38,7 +38,72 @@ open class OsActivity : Activity() {
         return super.onGenericMotionEvent(dogodek)
     }
 
+    // ------------------------------------------------------------------ koda za novo napravo
+
+    private val glavnaNit = android.os.Handler(android.os.Looper.getMainLooper())
+    private var naZaslonu = false
+    private var kodaOkno: android.app.AlertDialog? = null
+    private var kodaId: String? = null
+
+    private val preveriKodo = object : Runnable {
+        override fun run() {
+            if (!naZaslonu) return
+            KodaSeznanitve.poglej(this@OsActivity) { seznam ->
+                if (!naZaslonu) return@poglej
+                pokaziKodo(seznam.lastOrNull())
+                glavnaNit.postDelayed(this, 2_000)
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        naZaslonu = true
+        glavnaNit.removeCallbacks(preveriKodo)
+        glavnaNit.post(preveriKodo)
+    }
+
+    /** Nova naprava se povezuje: kodo pokazemo velike stevke, cez karkoli je na zaslonu. */
+    private fun pokaziKodo(p: KodaSeznanitve.Prijava?) {
+        if (p == null) {
+            kodaOkno?.let { if (it.isShowing) it.dismiss() }
+            kodaOkno = null; kodaId = null
+            return
+        }
+        if (kodaId == p.pairId && kodaOkno?.isShowing == true) return
+        kodaOkno?.let { if (it.isShowing) it.dismiss() }
+        val vsebina = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(64, 24, 64, 8)
+            addView(android.widget.TextView(this@OsActivity).apply {
+                text = getString(si.safeer.tv.R.string.os_seznanitev_opis, p.ime)
+                textSize = 18f
+            })
+            addView(android.widget.TextView(this@OsActivity).apply {
+                text = p.pin.map { it.toString() }.joinToString(" ")
+                textSize = 44f
+                setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, 28, 0, 12)
+            })
+        }
+        val id = p.pairId
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(si.safeer.tv.R.string.os_seznanitev_naslov))
+            .setView(vsebina)
+            .setNegativeButton(getString(si.safeer.tv.R.string.os_seznanitev_zavrni)) { _, _ -> KodaSeznanitve.zavrni(this, id) }
+            .setPositiveButton(getString(android.R.string.ok), null)
+            .create()
+        kodaOkno = okno; kodaId = id
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
     override fun onPause() {
+        naZaslonu = false
+        glavnaNit.removeCallbacks(preveriKodo)
+        kodaOkno?.let { if (it.isShowing) it.dismiss() }
+        kodaOkno = null; kodaId = null
         palica.ustavi()
         super.onPause()
     }

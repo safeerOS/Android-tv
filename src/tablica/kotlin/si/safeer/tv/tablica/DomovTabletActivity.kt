@@ -3,6 +3,7 @@ package si.safeer.tv.tablica
 import si.safeer.tv.R
 import si.safeer.tv.os.AplikacijeHostaActivity
 import si.safeer.tv.os.DatotekeActivity
+import si.safeer.tv.os.Host
 import si.safeer.tv.os.Identiteta
 import si.safeer.tv.os.LinkOdjemalec
 import si.safeer.tv.os.LinkUpravitelj
@@ -51,6 +52,10 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var imamoPrograme = false
     private var imamoZaslon = false
 
+    /** Druga sredisca v tej hisi (televizor ...), ki jim se tablica lahko pridruzi. */
+    private var hubi: List<IskanjeHubov.Hub> = emptyList()
+    private var iscem = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.tablet_activity_domov)
@@ -70,6 +75,90 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         link.dodaj(this)
         pokaziStanje()
         narisi()
+        isci()
+    }
+
+    /**
+     * Racunalnik je seznanjen s srediscem na televizorju, tablica pa ima svoje, prazno. Zato
+     * poiscemo sredisca v hisi in ponudimo, da se tablica pridruzi tistemu, kjer so naprave.
+     */
+    private fun isci() {
+        if (iscem || imamoDatoteke || imamoPrograme || imamoZaslon) return
+        iscem = true
+        IskanjeHubov.najdi(this) { najdeni ->
+            iscem = false
+            if (isFinishing) return@najdi
+            // Sredisce, s katerim smo ze povezani, ni ponudba.
+            hubi = najdeni.filter { !(link.povezan && it.ime == link.imeSredisca) }
+            slediSredisculu(najdeni)
+            narisi()
+        }
+    }
+
+    /**
+     * Televizor je dobil nov naslov IP (usmerjevalnik ga dodeli znova): sredisce prepoznamo po
+     * odtisu potrdila in naslov popravimo sami - brez nove kode.
+     */
+    private fun slediSredisculu(najdeni: List<IskanjeHubov.Hub>) {
+        val p = Host.poverilnice(this) ?: return
+        if (!Host.jeOddaljen(this) || link.povezan) return
+        val isti = najdeni.firstOrNull { it.odtis.isNotBlank() && it.odtis.equals(p.odtis, ignoreCase = true) } ?: return
+        if (isti.naslov == p.hubUrl) return
+        Host.shrani(this, isti.naslov, p.zeton, p.odtis, p.hubId)
+        link.ponovnoPoveziSe()
+    }
+
+    /** Seznanitev s srediscem: kodo pokaze sredisce na svojem zaslonu, uporabnik jo vtipka tu. */
+    private fun seznani(hub: IskanjeHubov.Hub) {
+        si.safeer.tv.cast.HubPairing.prekini()
+        Host.zapomniNaslov(this, hub.naslov)
+        Toast.makeText(this, getString(R.string.tablet_povezujem, hub.ime), Toast.LENGTH_SHORT).show()
+        si.safeer.tv.cast.HubPairing.pair(this, hub.naslov, Identiteta.id(this),
+            getString(R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")",
+            { _, _ -> if (!isFinishing) vnesiKodo(hub) },
+            { uspelo -> if (!uspelo && !isFinishing)
+                Toast.makeText(this, getString(R.string.tablet_ni_odgovora, hub.ime), Toast.LENGTH_LONG).show() })
+    }
+
+    private fun vnesiKodo(hub: IskanjeHubov.Hub) {
+        val vnos = android.widget.EditText(this).apply {
+            setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            textSize = 28f
+            gravity = android.view.Gravity.CENTER
+            setPadding(40, 30, 40, 30)
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.tablet_koda_naslov, hub.ime))
+            .setMessage(getString(R.string.tablet_koda_opis, hub.ime))
+            .setView(vnos)
+            .setPositiveButton(getString(R.string.tablet_poveziSe)) { _, _ -> potrdi(hub, vnos.text?.toString().orEmpty()) }
+            .setNegativeButton(android.R.string.cancel) { _, _ -> si.safeer.tv.cast.HubPairing.prekini() }
+            .show()
+        vnos.requestFocus()
+    }
+
+    private fun potrdi(hub: IskanjeHubov.Hub, koda: String) {
+        si.safeer.tv.cast.HubPairing.potrdiKodo(this, koda, Identiteta.id(this)) { uspelo, napaka ->
+            if (isFinishing) return@potrdiKodo
+            val izid = si.safeer.tv.cast.HubPairing.zadnjaSeznanitev
+            if (uspelo && izid != null) {
+                Host.shrani(this, hub.naslov, izid.zeton, izid.odtis, izid.hubId)
+                link.ponovnoPoveziSe()
+                hubi = emptyList()
+                Toast.makeText(this, getString(R.string.tablet_povezana, hub.ime), Toast.LENGTH_LONG).show()
+                pokaziStanje()
+                narisi()
+                return@potrdiKodo
+            }
+            val sporocilo = when (napaka) {
+                "napacna_koda" -> getString(R.string.tablet_napacna_koda)
+                "prevec_poskusov" -> getString(R.string.tablet_prevec_poskusov)
+                else -> getString(R.string.tablet_ni_odgovora, hub.ime)
+            }
+            Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+            if (napaka == "napacna_koda") vnesiKodo(hub)
+        }
     }
 
     override fun onStop() {
@@ -126,23 +215,32 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 narisi()
             }
         }
+        // Sredisca v hisi: tablica se pridruzi tistemu, s katerim je seznanjen racunalnik.
+        if (!imamoDatoteke && !imamoPrograme && !imamoZaslon) {
+            for (h in hubi) dodajBesedilo(R.drawable.os_ikona_link, getString(R.string.tablet_pridruzi, h.ime),
+                getString(R.string.tablet_pridruzi_opis, h.ime)) { seznani(h) }
+        }
         // Naprave so vedno na voljo: tam se naprave seznanijo in tam se vidi, kaj manjka.
         dodaj(R.drawable.os_ikona_link, R.string.tablet_naprave, R.string.tablet_naprave_opis) {
             startActivity(Intent(this, NapraveActivity::class.java))
         }
         opomba.text = when {
             imamoDatoteke || imamoPrograme || imamoZaslon -> getString(R.string.tablet_v_pripravi)
+            hubi.isNotEmpty() -> getString(R.string.tablet_pridruzi_namig)
             // Dokler tablica ni v Linku, ji racunalnika ne manjka - manjka ji seznanitev.
             !link.povezan -> getString(R.string.tablet_ni_linka)
             else -> getString(R.string.tablet_ni_racunalnika)
         }
     }
 
-    private fun dodaj(ikona: Int, ime: Int, opis: Int, ob: () -> Unit) {
+    private fun dodaj(ikona: Int, ime: Int, opis: Int, ob: () -> Unit) =
+        dodajBesedilo(ikona, getString(ime), getString(opis), ob)
+
+    private fun dodajBesedilo(ikona: Int, ime: String, opis: String, ob: () -> Unit) {
         val v: View = LayoutInflater.from(this).inflate(R.layout.tablet_ploscica, ploscice, false)
         v.findViewById<ImageView>(R.id.ikona).setImageResource(ikona)
-        v.findViewById<TextView>(R.id.ime).setText(ime)
-        v.findViewById<TextView>(R.id.opis).setText(opis)
+        v.findViewById<TextView>(R.id.ime).text = ime
+        v.findViewById<TextView>(R.id.opis).text = opis
         v.setOnClickListener { ob() }
         // Enako siroki stolpci: sirino doloci utez, ne vsebina ploscice.
         val mere = GridLayout.LayoutParams(GridLayout.spec(GridLayout.UNDEFINED),
@@ -171,6 +269,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         sporociloStanja = sporocilo
         pokaziStanje()
         narisi()
+        if (!povezan && sporocilo == "ni") isci()
     }
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
@@ -179,6 +278,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         val programi = racunalnik("apps") != null
         val zaslon = racunalnik("desktop") != null
         if (datoteke != imamoDatoteke || programi != imamoPrograme || zaslon != imamoZaslon) narisi()
+        // Racunalnika ni: morda je v drugem srediscu v hisi (ali je televizor dobil nov naslov).
+        if (!datoteke && !programi && !zaslon) isci()
     }
 
     override fun naNaslov(url: String, naslov: String, od: String) { }

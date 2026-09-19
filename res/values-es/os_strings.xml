@@ -350,4 +350,7 @@
     <string name="os_zaslon_meni_povecava">Ampliar</string>
     <string name="os_zaslon_meni_povecava_izklopi">Quitar ampliación</string>
     <string name="os_zaslon_vlecem">Arrastrando: mueve el puntero y pulsa OK para soltar</string>
+    <string name="os_seznanitev_naslov">Nuevo dispositivo</string>
+    <string name="os_seznanitev_opis">%1$s quiere unirse a Safeer Link en este televisor. Escribe este código en él:</string>
+    <string name="os_seznanitev_zavrni">Rechazar</string>
 </resources>

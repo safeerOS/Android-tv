@@ -123,6 +123,26 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         findViewById<android.widget.FrameLayout>(R.id.koren).addView(okvir, 1,
             android.widget.FrameLayout.LayoutParams(0, 0))
+        // Tablica: prst je miska (dotik klikne tam, kamor pokaze), meni seje pa je gumb v kotu,
+        // ker tablica nima tipke Meni in ne dolgega Nazaj.
+        if (naDotik()) {
+            pogled.setOnTouchListener { _, e -> dotik(e) }
+            val gumb = TextView(this).apply {
+                text = "\u2630"
+                textSize = 20f
+                setTextColor(getColor(R.color.os_besedilo))
+                setBackgroundResource(R.drawable.os_znacka)
+                gravity = android.view.Gravity.CENTER
+                alpha = 0.85f
+                contentDescription = getString(R.string.os_zaslon)
+                setOnClickListener { odpriMeni() }
+            }
+            val velikost = (48 * gostota).toInt()
+            val lpGumb = android.widget.FrameLayout.LayoutParams(velikost, velikost)
+            lpGumb.gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
+            lpGumb.setMargins(0, 0, (14 * gostota).toInt(), (14 * gostota).toInt())
+            findViewById<android.widget.FrameLayout>(R.id.koren).addView(gumb, lpGumb)
+        }
         tipkovnica = ZaslonTipkovnica(this, tipkovnicaPogled,
             naBesedilo = { z -> poslji(JSONObject().put("vrsta", "besedilo").put("besedilo", z)) },
             naTipko = { t -> poslji(JSONObject().put("vrsta", "tipka").put("tipka", t)) })
@@ -727,6 +747,96 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (okvir.visibility == View.VISIBLE && vrsta != "fokus" && vrsta != "povecava" && vrsta != "klik")
             okvir.visibility = View.GONE
         odjemalec?.posljiVnos(d)
+    }
+
+    // ------------------------------------------------------------------ dotik (tablica)
+
+    private fun naDotik(): Boolean =
+        packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN) &&
+            (getSystemService(UI_MODE_SERVICE) as? android.app.UiModeManager)?.currentModeType !=
+            android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+
+    private var dotikX = 0f
+    private var dotikY = 0f
+    private var vlecemDotik = false
+    private var dolgiDotik = false
+    private var dvaPrsta = false
+    private var dvaPrstaY = 0f
+
+    /** Drzi prst: desni klik tam (kot na telefonu dolg pritisk odpre meni). */
+    private val dolgPritisk = Runnable {
+        if (!vlecemDotik && !dvaPrsta) {
+            dolgiDotik = true
+            posljiTocko(dotikX, dotikY)
+            poslji(ZaslonVnos.klik("desni"))
+        }
+    }
+
+    private fun posljiTocko(x: Float, y: Float) {
+        if (slikaW <= 0 || slikaH <= 0 || pogled.width <= 0 || pogled.height <= 0) return
+        val sx = (x / pogled.width * slikaW).toInt().coerceIn(0, slikaW - 1)
+        val sy = (y / pogled.height * slikaH).toInt().coerceIn(0, slikaH - 1)
+        poslji(JSONObject().put("vrsta", "tocka").put("x", sx).put("y", sy))
+    }
+
+    private fun gumbLevi(dol: Boolean) = poslji(JSONObject().put("vrsta", "gumb").put("gumb", "levi").put("dol", dol))
+
+    /**
+     * Dotik: kratek dotik je klik tam, kamor pokazes; vlecenje s prstom vlece (oznaci besedilo,
+     * premakne okno); drzanje je desni klik; dva prsta drsita vsebino gor in dol.
+     */
+    private fun dotik(e: MotionEvent): Boolean {
+        val gostota = resources.displayMetrics.density
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                dotikX = e.x; dotikY = e.y
+                vlecemDotik = false; dolgiDotik = false; dvaPrsta = false
+                glavna.postDelayed(dolgPritisk, 550)
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                glavna.removeCallbacks(dolgPritisk)
+                if (vlecemDotik) { gumbLevi(false); vlecemDotik = false }
+                dvaPrsta = true
+                dvaPrstaY = if (e.pointerCount >= 2) (e.getY(0) + e.getY(1)) / 2 else e.y
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (dvaPrsta) {
+                    if (e.pointerCount >= 2) {
+                        val y = (e.getY(0) + e.getY(1)) / 2
+                        val d = y - dvaPrstaY
+                        val korak = 36 * gostota
+                        if (kotlin.math.abs(d) >= korak) {
+                            val n = (kotlin.math.abs(d) / korak).toInt()
+                            // Prsta gor = vsebina gor, kot na telefonu (kolesce navzdol).
+                            poslji(JSONObject().put("vrsta", "kolesce").put("smer", if (d < 0) "dol" else "gor").put("koliko", n))
+                            dvaPrstaY += (if (d < 0) -1 else 1) * n * korak
+                        }
+                    }
+                } else if (!dolgiDotik) {
+                    if (!vlecemDotik && kotlin.math.hypot(e.x - dotikX, e.y - dotikY) > 12 * gostota) {
+                        glavna.removeCallbacks(dolgPritisk)
+                        vlecemDotik = true
+                        posljiTocko(dotikX, dotikY)
+                        gumbLevi(true)
+                    }
+                    if (vlecemDotik) posljiTocko(e.x, e.y)
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                glavna.removeCallbacks(dolgPritisk)
+                if (vlecemDotik) {
+                    posljiTocko(e.x, e.y); gumbLevi(false); vlecemDotik = false
+                } else if (!dvaPrsta && !dolgiDotik) {
+                    posljiTocko(e.x, e.y)
+                    poslji(ZaslonVnos.klik("levi"))
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                glavna.removeCallbacks(dolgPritisk)
+                if (vlecemDotik) { gumbLevi(false); vlecemDotik = false }
+            }
+        }
+        return true
     }
 
     private fun barva(koda: Int): String? = when (koda) {

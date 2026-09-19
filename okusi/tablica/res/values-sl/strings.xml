@@ -22,4 +22,15 @@
     <string name="os_krajevno_koren">Na tej tablici</string>
     <string name="os_krajevno_dovoljenje">Safeer OS potrebuje dovoljenje za branje datotek na tej tablici.</string>
     <string name="os_odsek_aplikacije">Aplikacije na tej tablici</string>
+    <string name="tablet_pridruzi">Pridruži se: %1$s</string>
+    <string name="tablet_pridruzi_opis">Safeer Link v tej hiši. Na zaslonu naprave »%1$s« se pokaže koda; vtipkaš jo tukaj</string>
+    <string name="tablet_povezujem">Povezujem se z »%1$s« …</string>
+    <string name="tablet_ni_odgovora">»%1$s« se ne odziva. Preveri, ali je naprava prižgana in v istem omrežju.</string>
+    <string name="tablet_koda_naslov">Koda z »%1$s«</string>
+    <string name="tablet_koda_opis">Na zaslonu naprave »%1$s« se je pokazala šestmestna koda. Vtipkaj jo tukaj.</string>
+    <string name="tablet_poveziSe">Poveži</string>
+    <string name="tablet_povezana">Tablica je povezana z »%1$s«.</string>
+    <string name="tablet_napacna_koda">Koda se ne ujema. Preveri jo na zaslonu in poskusi znova.</string>
+    <string name="tablet_prevec_poskusov">Preveč napačnih kod. Začni znova s ploščice.</string>
+    <string name="tablet_pridruzi_namig">V tej hiši je Safeer Link še na drugi napravi. Pridruži se mu s ploščico zgoraj; na njenem zaslonu se pokaže koda.</string>
 </resources>
