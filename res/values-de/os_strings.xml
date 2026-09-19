@@ -341,4 +341,6 @@
     <string name="os_zaprtih">Geschlossene Programme: %1$d</string>
     <string name="os_zaslon_meni_start">Startmenü</string>
     <string name="os_zaslon_naslednji">Nächstes Programm</string>
+    <string name="os_zaslon_meni_plosek_igra">Controller als Gamepad</string>
+    <string name="os_zaslon_meni_plosek_namizje">Controller als Tastatur und Maus</string>
 </resources>

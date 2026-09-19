@@ -79,6 +79,32 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         nadnaslov.text = getString(R.string.os_programi)
         naslov.text = getString(R.string.os_programi_naslov)
         mreza.adapter = prilagojevalnik
+        // Izbrani program je bil komaj viden (bled izbor) in zgornja vrsta je pod glavo bledela, kot
+        // da je odrezana. Zdaj: svetel okvir cez kartico, kartica se rahlo poveca, brez bledenja.
+        val d = resources.displayMetrics.density
+        mreza.selector = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = 14 * d
+            setColor(android.graphics.Color.parseColor("#222DD4BF"))
+            setStroke((3 * d).toInt(), android.graphics.Color.parseColor("#2DD4BF"))
+        }
+        mreza.setDrawSelectorOnTop(true)
+        mreza.isVerticalFadingEdgeEnabled = false
+        mreza.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            private var prejsnji: View? = null
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, i: Int, id: Long) {
+                prejsnji?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(100)?.start()
+                v?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(100)?.start()
+                prejsnji = v
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {
+                prejsnji?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(100)?.start()
+                prejsnji = null
+            }
+        }
+        mreza.setOnFocusChangeListener { _, ima ->
+            if (!ima) mreza.selectedView?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(100)?.start()
+            else mreza.selectedView?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(100)?.start()
+        }
         // Vrsta skupin in daljinec: skupina sledi fokusu samo, ko se uporabnik premika LEVO in
         // DESNO po vrsti. Ce pride v vrsto od spodaj (iz programov) ali od iskanja, fokus pristane
         // na izbrani skupini in seznam ostane, kakrsen je - sicer bi ze en pritisk Gor sredi

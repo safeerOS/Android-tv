@@ -341,4 +341,6 @@
     <string name="os_zaprtih">Programmes fermés : %1$d</string>
     <string name="os_zaslon_meni_start">Menu Démarrer</string>
     <string name="os_zaslon_naslednji">Programme suivant</string>
+    <string name="os_zaslon_meni_plosek_igra">Manette comme manette de jeu</string>
+    <string name="os_zaslon_meni_plosek_namizje">Manette comme clavier et souris</string>
 </resources>

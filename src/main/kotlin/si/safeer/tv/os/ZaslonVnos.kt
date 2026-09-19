@@ -233,6 +233,8 @@ object ZaslonVnos {
     const val HITROST_PALICE = 22f
     /** Pod tem odklonom palice ne stejemo - palice v mirovanju nikoli ne kazejo natanko nic. */
     const val MRTVI_KOT = 0.18f
+    /** Desna palica premika misko s to hitrostjo glede na levo. */
+    const val DESNA_PALICA = 0.4f
 
     /** Dogodek za tipko ali null, kadar je ne poznamo (takrat je ne posiljamo). */
     fun izTipke(koda: Int, dogodek: KeyEvent?): JSONObject? {
@@ -260,8 +262,9 @@ object ZaslonVnos {
     fun izPalice(dogodek: MotionEvent): Pair<Float, Float>? {
         if (dogodek.source and InputDevice.SOURCE_JOYSTICK != InputDevice.SOURCE_JOYSTICK) return null
         // Samo prava palica: smerni krizec pride tudi kot smerna tipka in bi kazalec premaknil dvakrat.
-        val x = os(dogodek, MotionEvent.AXIS_X)
-        val y = os(dogodek, MotionEvent.AXIS_Y)
+        // Obe palici premikata misko: leva hitro, desna pocasneje - za natancen zadetek gumba.
+        val x = os(dogodek, MotionEvent.AXIS_X) + DESNA_PALICA * os(dogodek, MotionEvent.AXIS_Z)
+        val y = os(dogodek, MotionEvent.AXIS_Y) + DESNA_PALICA * os(dogodek, MotionEvent.AXIS_RZ)
         return if (x == 0f && y == 0f) null else (x to y)
     }
 

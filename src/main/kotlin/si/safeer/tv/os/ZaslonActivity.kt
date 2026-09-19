@@ -76,6 +76,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      * tipke in miska, ampak gredo naravnost v racunalnik kot plosek - igra tam vidi pravi plosek.
      */
     private var plosekVRacunalnik = false
+    /** Uporabnik je izbral, da gre plosek na racunalnik kot igralni plosek (sicer tipkovnica in miska). */
+    private var plosekKotPlosek = false
+    private fun plosekVIgri() = plosekVRacunalnik && plosekKotPlosek
     /** Gumbi plosecka, ki so ta trenutek pritisnjeni (ob odhodu jih spustimo). */
     private val plosekDrzani = HashSet<Int>()
     /** Nazadnje poslani odkloni palic in sprozilcev; posiljamo samo, kar se je res spremenilo. */
@@ -176,6 +179,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                     nastavitve.getBoolean("tipke:$program", false)
                 else igra || podatki.optBoolean("game", false)
                 if (tipke) { ustaviSmer(); kazalec = false }
+                // Plosek: privzeto tipkovnica in miska; igralni plosek, ce si ga tu tako pustil.
+                plosekKotPlosek = program.isNotEmpty() && nastavitve.getBoolean("plosek:$program", false)
                 android.util.Log.i("SafeerZaslon", "seja: navidezni plosek na racunalniku = $plosekVRacunalnik")
                 // Zaslon racunalnika je ena najpogostejsih poti; naj bo na domacem zaslonu takoj pri roki.
                 // Ime kartice je 'Zaslon racunalnika', ne dolgo ime naprave: na kartici se je
@@ -305,6 +310,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Plosek v igro: Start in Select takrat pripadata igri, ne meniju seje.
         if (plosekVIgro(keyCode, event, true)) return true
         if (ZaslonVnos.jePreklop(keyCode)) { odpriMeni(); return true }
+        // Krizec na plosecku so puscice na tipkovnici (drzane), tudi ko daljinec vodi kazalec.
+        if (tipkovnica?.jeOdprta != true && ZaslonVnos.jeIzPlosecka(event) && ZaslonVnos.smer(keyCode) != null) {
+            val ponovitev = event?.repeatCount ?: 0
+            if (ponovitev == 0 || ponovitev % PONOVI_DRZANJE == 0) {
+                ZaslonVnos.drzanje(keyCode, true)?.let { odjemalec?.posljiVnos(it) }
+            }
+            drzane.add(keyCode)
+            return true
+        }
         if (tipkovnica?.jeOdprta == true) {
             // Igralni plosek pise skupaj s tipkovnico: A vtipka, B brise, X presledek, Y velike.
             if (tipkovnica?.plosek(keyCode) == true) return true
@@ -357,7 +371,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      * plosek. Vse drugo (vkljucno s Start in Select) gre v igro.
      */
     private fun plosekVIgro(koda: Int, dogodek: KeyEvent?, dol: Boolean): Boolean {
-        if (!plosekVRacunalnik || !ZaslonVnos.jeIzPlosecka(dogodek)) return false
+        if (!plosekVIgri() || !ZaslonVnos.jeIzPlosecka(dogodek)) return false
+        if (tipkovnica?.jeOdprta == true) return false        // krizec takrat premika po tipkovnici
         if (!ZaslonVnos.jePlosekTipka(koda)) return false
         if (dol && (dogodek?.repeatCount ?: 0) > 0) return true      // drzanje javi Android, plosek ga ze drzi
         // Kadar plosek krizec posilja kot os, tipke krizca ne posiljamo (sla bi dvojno) in jih
@@ -387,6 +402,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         if (tipkovnica?.jeOdprta == true) return super.onKeyUp(keyCode, event)
         if (plosekVIgro(keyCode, event, false)) return true
+        if (ZaslonVnos.jeIzPlosecka(event) && ZaslonVnos.smer(keyCode) != null && drzane.remove(keyCode)) {
+            ZaslonVnos.drzanje(keyCode, false)?.let { odjemalec?.posljiVnos(it) }
+            return true
+        }
         if (kazalec) {
             if (ZaslonVnos.smer(keyCode) != null) { ustaviSmer(); return true }
             if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
@@ -416,6 +435,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         dejanja.add(getString(R.string.os_zaslon_meni_tipkovnica) to { tipkovnica?.odpri() })
         dejanja.add(getString(
             if (kazalec) R.string.os_zaslon_meni_tipke else R.string.os_zaslon_meni_kazalec) to { preklopiNacin() })
+        if (plosekVRacunalnik) dejanja.add(getString(
+            if (plosekKotPlosek) R.string.os_zaslon_meni_plosek_namizje else R.string.os_zaslon_meni_plosek_igra) to {
+            sprostiDrzane()
+            plosekKotPlosek = !plosekKotPlosek
+            if (program.isNotEmpty()) getSharedPreferences("safeer_os", MODE_PRIVATE).edit()
+                .putBoolean("plosek:$program", plosekKotPlosek).apply()
+        })
         dejanja.add(getString(R.string.os_zaslon_meni_shrani) to { posljiTipko("shrani") })
         dejanja.add(getString(R.string.os_zaslon_meni_bliznjice) to { odpriBliznjice() })
         dejanja.add(getString(R.string.os_zaslon_meni_koncaj) to { koncaj(); finish() })
@@ -506,7 +532,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         ZaslonVnos.izMiske(event)?.let { odjemalec?.posljiVnos(it); return true }
         ZaslonVnos.izMiskinihGumbov(event)?.let { odjemalec?.posljiVnos(it); return true }
-        if (plosekVRacunalnik) {
+        // Odprta zaslonska tipkovnica: plosek je daljinec - krizec in palica premikata po tipkah.
+        // Dogodka ne porabimo, zato ga Android sam spremeni v smerne tipke za fokus.
+        if (tipkovnica?.jeOdprta == true &&
+            event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK) {
+            spustiKrizec()
+            odklon = null
+            return super.onGenericMotionEvent(event)
+        }
+        if (plosekVIgri()) {
             val odkloni = ZaslonVnos.plosekOdkloni(event)
             if (odkloni.isNotEmpty()) {
                 // Posljemo samo os, ki se je res premaknila: palica poslje dogodek ob vsakem
@@ -521,8 +555,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK) {
             // Namizni nacin (racunalnik plosecka ne ponuja): vsak del plosecka nekaj naredi.
+            // Desna palica zdaj premika misko (izPalice); po strani drsita L1 in R1.
             namizniKrizec(event)
-            namiznaDesnaPalica(event)
             namizniSprozilci(event)
         }
         val palica = ZaslonVnos.izPalice(event)

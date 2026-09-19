@@ -341,4 +341,6 @@
     <string name="os_zaprtih">Zaprtih programov: %1$d</string>
     <string name="os_zaslon_meni_start">Meni Start</string>
     <string name="os_zaslon_naslednji">Naslednji program</string>
+    <string name="os_zaslon_meni_plosek_igra">Plošček kot igralni plošček</string>
+    <string name="os_zaslon_meni_plosek_namizje">Plošček kot tipkovnica in miška</string>
 </resources>
