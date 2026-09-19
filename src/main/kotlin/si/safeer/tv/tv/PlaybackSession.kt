@@ -466,7 +466,9 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
                 main.post { retrySaferCodec(s) }
                 return
             }
-            if (omrezniPoskus < 3) {
+            // Napaka DRM (licenca) se s ponovnim poskusom ne popravi; takoj jo predamo strani.
+            val drmNapaka = error.errorCode in 6000..6999
+            if (!drmNapaka && omrezniPoskus < 3) {
                 // Kratek izpad omrezja ne sme ubiti predvajanja: poskusimo znova,
                 // z vsakim poskusom malo pozneje, in sele nato povemo, da ne gre.
                 omrezniPoskus += 1
@@ -481,6 +483,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
                 }, cez)
                 return
             }
+            if (s != null && predajStrani(s)) return
             spinner?.visibility = View.GONE
             setStatus(UiText.get(R.string.ui_play_failed))
         }
@@ -944,6 +947,29 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
 
     override fun isActive(): Boolean = overlay?.parent != null
 
+    /**
+     * Domaci predvajalnik tega toka ne zmore. Namesto sporocila o napaki ga vrnemo strani: njen
+     * predvajalnik v WebViewu ima svojo licenco in svoje nastavitve. Stran nalozimo znova, ker smo
+     * ji ob prevzemu ustavili video in sprostili kljuce. Isti tok predamo samo enkrat - ce ne gre
+     * niti tam, ostane sporocilo o napaki.
+     */
+    private fun predajStrani(s: DashSeja): Boolean {
+        if (DashPrevzem.jePrepuscen(s.mpdUrl)) return false
+        DashPrevzem.prepustiStrani(s.mpdUrl)
+        SafeerDbg.log(
+            "H342",
+            "ExoPlayerSession.kt:predaj",
+            "native -> webview",
+            JSONObject().put("ch", playingChannel).put("enc", s.encrypted)
+        )
+        main.post {
+            exit()
+            host.showTvOsd(UiText.get(R.string.ui_play_in_page), null, 4000L)
+            host.activeWebView()?.reload()
+        }
+        return true
+    }
+
     fun release() {
         exit()
     }
@@ -986,10 +1012,10 @@ private class JsonWrapDrmCallback(
 
     /** Odgovor streznika licenc (nekateri ga zavijejo v JSON); media3 od 1.9 ga vraca kot Response. */
     private fun kljuc(request: ExoMediaDrm.KeyRequest): ByteArray {
-        val challenge = request.data ?: ByteArray(0)
+        val challenge = request.data
         val b64 = Base64.encodeToString(challenge, Base64.NO_WRAP)
         val json = JSONObject().put(wrapKey, b64).toString()
-        val url = request.licenseServerUrl?.takeIf { it.isNotEmpty() } ?: licenseUrl
+        val url = request.licenseServerUrl.takeIf { it.isNotEmpty() } ?: licenseUrl
         val dataSource = dataSourceFactory.createDataSource()
         val spec = DataSpec.Builder()
             .setUri(url)

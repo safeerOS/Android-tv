@@ -51,6 +51,7 @@
   <string name="ui_screen_on">☀️ Slika vklopljena</string>
   <string name="ui_quality_fallback">Druga kakovost (H.264) …</string>
   <string name="ui_play_failed">Predvajanje ni uspelo. NAZAJ za spored.</string>
+  <string name="ui_play_in_page">Vgrajeni predvajalnik tega posnetka ne zmore – predvaja ga stran.</string>
   <string name="ui_playback">Predvajanje</string>
   <string name="ui_pause">⏸ Pavza</string>
   <string name="ui_playing">▶ Predvajanje</string>

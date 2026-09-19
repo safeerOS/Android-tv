@@ -51,6 +51,7 @@
   <string name="ui_screen_on">☀️ Schermo acceso</string>
   <string name="ui_quality_fallback">Qualità alternativa (H.264) …</string>
   <string name="ui_play_failed">Riproduzione non riuscita. INDIETRO per la guida.</string>
+  <string name="ui_play_in_page">Il lettore integrato non riesce a riprodurre questo video: lo riproduce la pagina.</string>
   <string name="ui_playback">Riproduzione</string>
   <string name="ui_pause">⏸ In pausa</string>
   <string name="ui_playing">▶ Riproduzione</string>

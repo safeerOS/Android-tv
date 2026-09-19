@@ -51,6 +51,7 @@
   <string name="ui_screen_on">☀️ Screen on</string>
   <string name="ui_quality_fallback">Alternative quality (H.264) …</string>
   <string name="ui_play_failed">Playback failed. BACK for the guide.</string>
+  <string name="ui_play_in_page">The built-in player can\'t play this video – the page plays it instead.</string>
   <string name="ui_playback">Playback</string>
   <string name="ui_pause">⏸ Paused</string>
   <string name="ui_playing">▶ Playing</string>

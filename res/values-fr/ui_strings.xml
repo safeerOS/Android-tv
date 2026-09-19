@@ -51,6 +51,7 @@
   <string name="ui_screen_on">☀️ Écran allumé</string>
   <string name="ui_quality_fallback">Autre qualité (H.264) …</string>
   <string name="ui_play_failed">Échec de lecture. RETOUR pour le guide.</string>
+  <string name="ui_play_in_page">Le lecteur intégré ne peut pas lire cette vidéo – la page la lit à sa place.</string>
   <string name="ui_playback">Lecture</string>
   <string name="ui_pause">⏸ En pause</string>
   <string name="ui_playing">▶ Lecture</string>

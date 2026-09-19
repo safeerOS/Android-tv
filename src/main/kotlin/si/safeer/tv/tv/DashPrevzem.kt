@@ -49,7 +49,18 @@ object DashPrevzem {
     fun izvorStrani(): String = izvor
 
     /** Ali smo na tej strani ze ujeli pretok DASH? Po tem se odloci nacin predvajanja. */
-    fun imaSejo(): Boolean = synchronized(lock) { mpdUrl.isNotEmpty() }
+    fun imaSejo(): Boolean = synchronized(lock) { mpdUrl.isNotEmpty() && !prepuscenBrezZaklepa(mpdUrl) }
+
+    /** Tokovi, ki jih predvaja stran sama (glej [PredajaStrani]); velja do odhoda na drug izvor. */
+    private val samoStran = PredajaStrani { a, b -> sameDashStream(a, b) }
+
+    fun prepustiStrani(mpd: String) {
+        synchronized(lock) { samoStran.prepusti(mpd) }
+    }
+
+    fun jePrepuscen(mpd: String): Boolean = synchronized(lock) { prepuscenBrezZaklepa(mpd) }
+
+    private fun prepuscenBrezZaklepa(mpd: String): Boolean = samoStran.jePrepuscen(mpd)
 
     /** Ali ta naslov kaze na manifest, ki ga predvajamo? */
     fun jeManifest(url: String): Boolean {
@@ -115,6 +126,7 @@ object DashPrevzem {
 
     fun resetAll() {
         synchronized(lock) {
+            samoStran.pocisti()
             pageLicUrl = ""
             pageLicHeaders = emptyMap()
         }
@@ -281,6 +293,7 @@ object DashPrevzem {
     private fun fireNow() {
         val session = synchronized(lock) {
             if (mpdUrl.isEmpty()) return
+            if (prepuscenBrezZaklepa(mpdUrl)) return
             if (!allowClear && !needsDrm) return
             val licUrl = if (needsDrm) resolvedLicenseUrl() else ""
             val lic = if (needsDrm) resolvedLicenseHeaders(licUrl) else emptyMap()

@@ -51,6 +51,7 @@
   <string name="ui_screen_on">☀️ Bildschirm eingeschaltet</string>
   <string name="ui_quality_fallback">Alternative Qualität (H.264) …</string>
   <string name="ui_play_failed">Wiedergabe fehlgeschlagen. ZURÜCK zum Programm.</string>
+  <string name="ui_play_in_page">Der integrierte Player kann dieses Video nicht abspielen – die Seite spielt es ab.</string>
   <string name="ui_playback">Wiedergabe</string>
   <string name="ui_pause">⏸ Pausiert</string>
   <string name="ui_playing">▶ Wiedergabe</string>

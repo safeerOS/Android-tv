@@ -51,6 +51,7 @@
   <string name="ui_screen_on">☀️ Pantalla encendida</string>
   <string name="ui_quality_fallback">Calidad alternativa (H.264) …</string>
   <string name="ui_play_failed">Error de reproducción. ATRÁS para la guía.</string>
+  <string name="ui_play_in_page">El reproductor integrado no puede reproducir este vídeo; lo reproduce la página.</string>
   <string name="ui_playback">Reproducción</string>
   <string name="ui_pause">⏸ En pausa</string>
   <string name="ui_playing">▶ Reproduciendo</string>
