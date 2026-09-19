@@ -12,4 +12,14 @@
     <color name="os_opozorilo">#F2B45C</color>
     <!-- Sij okrog izbrane kartice: mint pri nizki prosojnosti, da fokus "diha" in ne krici. -->
     <color name="os_sij">#3357D6AD</color>
+
+    <!-- Nov izgled domačega zaslona: prosojne steklene kartice, stranski meni in spodnje plošče -->
+    <color name="os_kartica_steklo">#BF101A26</color>
+    <color name="os_kartica_steklo_fokus">#E6182B3D</color>
+    <color name="os_kartica_obroba">#26364A</color>
+    <color name="os_meni_ozadje">#E6090F19</color>
+    <color name="os_meni_izbran_ozadje">#1C2F3F</color>
+    <color name="os_meni_fokus_ozadje">#22384C</color>
+    <color name="os_siva_pika">#64748B</color>
+    <color name="os_ploscica_app_ozadje">#B3101925</color>
 </resources>

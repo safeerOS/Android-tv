@@ -30,9 +30,30 @@ import java.util.Locale
  */
 class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
+    private lateinit var koren: View
     private lateinit var stanjeBesedilo: TextView
     private lateinit var stanjePika: View
     private lateinit var ura: TextView
+    private lateinit var datum: TextView
+    private lateinit var meniDomov: View
+    private lateinit var meniAplikacije: View
+    private lateinit var meniZaslon: View
+    private lateinit var meniDatoteke: View
+    private lateinit var meniNaprave: View
+    private lateinit var meniNastavitve: View
+    private lateinit var karticaBrskalnik: View
+    private lateinit var karticaZaslon: View
+    private lateinit var karticaProgrami: View
+    private lateinit var ploscaNaprave: View
+    private lateinit var seznamPloscaNaprave: LinearLayout
+    private lateinit var hitriWeb: View
+    private lateinit var hitriRacunalnik: View
+    private lateinit var hitriDatoteke: View
+    private lateinit var hitriNastavitve: View
+    private lateinit var ploscaScit: View
+    private lateinit var scitStatusPika: View
+    private lateinit var scitStatusBesedilo: TextView
+    private lateinit var scitStevecBesedilo: TextView
     private lateinit var vrstaZacni: LinearLayout
     private lateinit var vrstaNadaljuj: LinearLayout
     private lateinit var naslovNadaljuj: TextView
@@ -50,7 +71,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val glavna = Handler(Looper.getMainLooper())
     private val tikUre = object : Runnable {
         override fun run() {
-            ura.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            val zdaj = Date()
+            ura.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(zdaj)
+            val dFormat = SimpleDateFormat("EEE, d. MMM", Locale.getDefault())
+            datum.text = dFormat.format(zdaj).replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
             glavna.postDelayed(this, 30_000)
         }
     }
@@ -58,9 +82,35 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.os_activity_domov)
+        koren = findViewById(R.id.koren)
         stanjeBesedilo = findViewById(R.id.stanjeBesedilo)
         stanjePika = findViewById(R.id.stanjePika)
         ura = findViewById(R.id.ura)
+        datum = findViewById(R.id.datum)
+        meniDomov = findViewById(R.id.meniDomov)
+        meniAplikacije = findViewById(R.id.meniAplikacije)
+        meniZaslon = findViewById(R.id.meniZaslon)
+        meniDatoteke = findViewById(R.id.meniDatoteke)
+        meniNaprave = findViewById(R.id.meniNaprave)
+        meniNastavitve = findViewById(R.id.meniNastavitve)
+        meniDomov.isActivated = true
+        meniDomov.isSelected = true
+        pripraviStranskiMeni()
+        karticaBrskalnik = findViewById(R.id.karticaBrskalnik)
+        karticaZaslon = findViewById(R.id.karticaZaslon)
+        karticaProgrami = findViewById(R.id.karticaProgrami)
+        pripraviVelikeKartice()
+        ploscaNaprave = findViewById(R.id.ploscaNaprave)
+        seznamPloscaNaprave = findViewById(R.id.seznamPloscaNaprave)
+        hitriWeb = findViewById(R.id.hitriWeb)
+        hitriRacunalnik = findViewById(R.id.hitriRacunalnik)
+        hitriDatoteke = findViewById(R.id.hitriDatoteke)
+        hitriNastavitve = findViewById(R.id.hitriNastavitve)
+        ploscaScit = findViewById(R.id.ploscaScit)
+        scitStatusPika = findViewById(R.id.scitStatusPika)
+        scitStatusBesedilo = findViewById(R.id.scitStatusBesedilo)
+        scitStevecBesedilo = findViewById(R.id.scitStevecBesedilo)
+        pripraviSpodnjePlosce()
         vrstaZacni = findViewById(R.id.vrstaZacni)
         vrstaNadaljuj = findViewById(R.id.vrstaNadaljuj)
         naslovNadaljuj = findViewById(R.id.naslovNadaljuj)
@@ -77,6 +127,244 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
     }
 
+    private fun pripraviVelikeKartice() {
+        karticaBrskalnik.onFocusChangeListener = fokus
+        karticaBrskalnik.setOnClickListener {
+            odpriVBrskalniku(null)
+        }
+        karticaBrskalnik.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    meniDomov.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    prvaSpodaj()?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        karticaZaslon.onFocusChangeListener = fokus
+        karticaZaslon.setOnClickListener {
+            if (imamoZaslon) {
+                odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_zaslon))
+            } else {
+                pokaziOknoNiPovezano(getString(R.string.os_zaslon))
+            }
+        }
+        karticaZaslon.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                prvaSpodaj()?.requestFocus()
+                true
+            } else false
+        }
+
+        karticaProgrami.onFocusChangeListener = fokus
+        karticaProgrami.setOnClickListener {
+            if (imamoPrograme) {
+                odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.os_programi))
+            } else {
+                pokaziOknoNiPovezano(getString(R.string.os_programi))
+            }
+        }
+        karticaProgrami.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                prvaSpodaj()?.requestFocus()
+                true
+            } else false
+        }
+    }
+
+    private fun pripraviSpodnjePlosce() {
+        ploscaNaprave.onFocusChangeListener = fokus
+        ploscaNaprave.setOnClickListener {
+            if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
+            else vprasajZaNacin()
+        }
+        ploscaNaprave.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    meniNaprave.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    hitriWeb.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    prvaSpodaj()?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        hitriWeb.onFocusChangeListener = fokus
+        hitriWeb.setOnClickListener { odpriVBrskalniku(null) }
+        hitriWeb.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    ploscaNaprave.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount / 3).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        hitriRacunalnik.onFocusChangeListener = fokus
+        hitriRacunalnik.setOnClickListener {
+            if (imamoZaslon) {
+                odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_zaslon))
+            } else {
+                pokaziOknoNiPovezano(getString(R.string.os_zaslon))
+            }
+        }
+        hitriRacunalnik.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount / 2).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        hitriDatoteke.onFocusChangeListener = fokus
+        hitriDatoteke.setOnClickListener {
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_meni_datoteke))
+        }
+        hitriDatoteke.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount * 2 / 3).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        hitriNastavitve.onFocusChangeListener = fokus
+        hitriNastavitve.setOnClickListener {
+            odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
+        }
+        hitriNastavitve.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    ploscaScit.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount - 1).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        ploscaScit.onFocusChangeListener = fokus
+        ploscaScit.setOnClickListener { podrobnostiScita() }
+        ploscaScit.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    hitriNastavitve.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount - 1).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    true
+                } else false
+            } else false
+        }
+    }
+
+    private fun osveziPloscoNaprave(naprave: List<LinkOdjemalec.Naprava>) {
+        if (!::seznamPloscaNaprave.isInitialized) return
+        seznamPloscaNaprave.removeAllViews()
+        // Na domacem zaslonu dve, da glavni del ostane cel na zaslonu; vse so pod "›" (Naprave).
+        val druge = naprave.filter { it.id != Identiteta.id(this) }.take(2)
+        if (druge.isEmpty()) {
+            val prazno = TextView(this)
+            prazno.text = getString(R.string.os_plosca_naprave_prazno)
+            prazno.setTextColor(resources.getColor(R.color.os_umirjeno, null))
+            prazno.textSize = 12f
+            prazno.setPadding(0, 12, 0, 12)
+            seznamPloscaNaprave.addView(prazno)
+            return
+        }
+        val infl = LayoutInflater.from(this)
+        for (n in druge) {
+            val v = infl.inflate(R.layout.os_vrstica_naprava, seznamPloscaNaprave, false)
+            val ikona = v.findViewById<ImageView>(R.id.ikonaNaprave)
+            val ime = v.findViewById<TextView>(R.id.imeNaprave)
+            val pika = v.findViewById<View>(R.id.pikaNaprave)
+            val stanje = v.findViewById<TextView>(R.id.stanjeNaprave)
+
+            val jeTelefon = n.vloga == "phone" || n.vloga == "telefon"
+            ikona.setImageResource(if (jeTelefon) R.drawable.os_ikona_telefon else R.drawable.os_ikona_zaslon)
+            ime.text = n.ime.ifBlank { n.id }
+            pika.alpha = if (link.povezan) 1f else 0.35f
+            stanje.text = getString(if (link.povezan) R.string.os_plosca_naprava_povezana else R.string.os_plosca_naprava_pripravljenost)
+            seznamPloscaNaprave.addView(v)
+        }
+    }
+
+    private fun pokaziOknoNiPovezano(naslov: String) {
+        if (isFinishing) return
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(naslov)
+            .setMessage(getString(R.string.os_kartica_ni_povezano_opis))
+            .setPositiveButton(getString(android.R.string.ok), null)
+            .setNeutralButton(getString(R.string.os_meni_naprave)) { _, _ ->
+                odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
+            }
+        Kontroler.pokazi(okno.show())
+    }
+
+    private fun pripraviStranskiMeni() {
+        meniDomov.setOnClickListener {
+            (drsnik as? android.widget.ScrollView)?.smoothScrollTo(0, 0)
+            fokusVsebine()
+        }
+        meniAplikacije.setOnClickListener {
+            odpriVarno(Intent(this, AplikacijeTvActivity::class.java), getString(R.string.os_meni_aplikacije))
+        }
+        meniZaslon.setOnClickListener {
+            odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_meni_zaslon))
+        }
+        meniDatoteke.setOnClickListener {
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_meni_datoteke))
+        }
+        meniNaprave.setOnClickListener {
+            if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
+            else vprasajZaNacin()
+        }
+        meniNastavitve.setOnClickListener {
+            odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
+        }
+
+        val menijskePostavke = listOf(meniDomov, meniAplikacije, meniZaslon, meniDatoteke, meniNaprave, meniNastavitve)
+        for (postavka in menijskePostavke) {
+            postavka.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    fokusVsebine()
+                    true
+                } else false
+            }
+        }
+    }
+
+    private fun fokusVsebine() {
+        if (::karticaBrskalnik.isInitialized && karticaBrskalnik.visibility == View.VISIBLE) {
+            karticaBrskalnik.requestFocus()
+            return
+        }
+        for (vrsta in listOf(vrstaNadaljuj, vrstaZacni, vrstaSpletne, vrstaAplikacije)) {
+            if (vrsta.visibility == View.VISIBLE && vrsta.childCount > 0) {
+                val prvi = vrsta.getChildAt(0)
+                if (prvi != null && prvi.visibility == View.VISIBLE) {
+                    prvi.requestFocus()
+                    return
+                }
+            }
+        }
+    }
+
     /** Vrstica z gumbi ploscka se pokaze takoj, ko uporabnik plosek prvic uporabi. */
     override fun plosekZaznan() {
         pomocPlosek.visibility =
@@ -85,7 +373,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
-        Ozadje.uporabi(this, drsnik)      // ozadje po izbiri uporabnika
+        Ozadje.uporabi(this, koren)      // ozadje po izbiri uporabnika na celotnem zaslonu
         // Gumbi plosecka v vrstici pomoci, kadar je plosek v rabi; sicer je ne kazemo.
         plosekZaznan()
         glavna.post(tikUre)
@@ -99,6 +387,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         SpletneAplikacije.osveziIkone(this) { zZapomnjenimFokusom { narisiSpletne() } }
         link.dodaj(this)
         osveziScit()
+        osveziPloscoNaprave(link.naprave)
         // Vrsta s spletnimi aplikacijami na domacem zaslonu televizorja ostane usklajena; ko ima
         // uporabnik prvo spletno aplikacijo, ga sistem enkrat vprasa, ali jo doda na domaci zaslon.
         DomacaVrsta.osvezi(this)
@@ -110,9 +399,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Kadar je Safeer OS domaci zaslon televizorja, tipka Nazaj nima kam: zapustili bi ga in
      * uporabnik bi ostal pred praznim zaslonom. Takrat je Nazaj brez ucinka, kot pri zaganjalniku.
      */
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         if (Zaganjalnik.jeIzbran(this)) return
-        @Suppress("DEPRECATION") super.onBackPressed()
+        super.onBackPressed()
     }
 
     override fun onStop() {
@@ -134,11 +424,13 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             else -> pokaziStanje(false, getString(R.string.os_stanje_povezujem))
         }
         osveziKartice()
+        osveziPloscoNaprave(link.naprave)
     }
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
         val kje = link.imeSredisca.ifBlank { getString(R.string.os_naprava_tv) }
         if (link.povezan) pokaziStanje(true, getString(R.string.os_stanje_povezan, kje))
+        osveziPloscoNaprave(naprave)
         // Racunalnik se je javil (ali odsel): vrsta Zacni dobi ali izgubi kartico s programi.
         val programi = naprave.any { it.zmoznosti.contains("apps") && it.id != Identiteta.id(this) }
         val zaslon = naprave.any { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
@@ -331,14 +623,42 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      */
     private fun pokaziScit(s: Scit.Stanje) {
         scitStanje = s
-        val opis = karticaScit?.findViewById<TextView>(R.id.stanje) ?: return
-        opis.visibility = View.VISIBLE
-        opis.text = when {
+        val opis = karticaScit?.findViewById<TextView>(R.id.stanje)
+        opis?.visibility = View.VISIBLE
+        opis?.text = when {
             !s.naVoljo -> getString(R.string.os_scit_kratko_ni)
             // Na majhni kartici je prostora za dve besedi: dolg napis se je odrezal sredi besede.
             s.vklopljen && s.tece -> getString(R.string.os_scit_ploscica_vklopljen, s.blokiranih)
             s.vklopljen -> getString(R.string.os_scit_kratko_prekinjen)
             else -> getString(R.string.os_scit_kratko_izklopljen)
+        }
+        if (::scitStatusBesedilo.isInitialized && ::scitStevecBesedilo.isInitialized && ::scitStatusPika.isInitialized) {
+            when {
+                !s.naVoljo -> {
+                    scitStatusBesedilo.text = getString(R.string.os_plosca_scit_izklopljen)
+                    scitStatusPika.alpha = 0.35f
+                    scitStevecBesedilo.text = getString(R.string.os_scit_ni_brskalnika)
+                }
+                s.vklopljen && s.tece -> {
+                    scitStatusBesedilo.text = getString(R.string.os_plosca_scit_vklopljen)
+                    scitStatusPika.alpha = 1f
+                    scitStevecBesedilo.text = if (s.blokiranih > 0)
+                        getString(R.string.os_plosca_scit_stanje_blokiranih, s.blokiranih)
+                    else getString(R.string.os_plosca_scit_aktivna)
+                }
+                s.vklopljen -> {
+                    scitStatusBesedilo.text = getString(R.string.os_plosca_scit_prekinjen)
+                    scitStatusPika.alpha = 0.5f
+                    scitStevecBesedilo.text = getString(R.string.os_scit_prekinjen)
+                }
+                else -> {
+                    scitStatusBesedilo.text = getString(R.string.os_plosca_scit_izklopljen)
+                    scitStatusPika.alpha = 0.35f
+                    scitStevecBesedilo.text = getString(R.string.os_scit_izklopljen_kratko)
+                }
+            }
+            // Zelena pika pomeni, da Scit dela; izklopljen ali prekinjen ima sivo, ne zbledelo zeleno.
+            scitStatusPika.backgroundTintList = if (s.naVoljo && s.vklopljen && s.tece) null else android.content.res.ColorStateList.valueOf(getColor(R.color.os_siva_pika))
         }
     }
 
@@ -430,42 +750,38 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun narisiNadaljuj() {
         val vnosi = Nadaljuj.seznam(this)
+        // Na domacem zaslonu je ta vrsta samo za programe, ki ta trenutek tecejo na racunalniku:
+        // z njo jih zapres s televizorja (krizec, Zapri vse). Ko nic ne tece - ali tega se ne vemo - je ni.
+        val odprti = vnosi.filter { jeProgram(it) && tecejo?.contains(it.kljuc()) == true }
         vrstaNadaljuj.removeAllViews()
-        val vidno = if (vnosi.isEmpty()) View.GONE else View.VISIBLE
+        val vidno = if (odprti.isEmpty()) View.GONE else View.VISIBLE
         glavaNadaljuj.visibility = vidno
         drsnikNadaljuj.visibility = vidno
-        for (n in vnosi) {
+        naslovNadaljuj.text = getString(R.string.os_odprto_na_racunalniku)
+        for ((indeks, n) in odprti.withIndex()) {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaNadaljuj, false)
             val ikona = v.findViewById<ImageView>(R.id.ikona)
-            val spletna = if (n.vrsta == Nadaljuj.SPLETNA)
-                SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url } else null
-            val risba = when {
-                spletna != null -> SpletneAplikacije.ikona(this, spletna)
-                n.vrsta == Nadaljuj.PROGRAM -> ikonaPrograma(n)
-                else -> null
-            }
+            val risba = ikonaPrograma(n)
             if (risba != null) ikona.setImageDrawable(risba) else ikona.setImageResource(ikonaZa(n.vrsta))
-            // Zaslon racunalnika je bil prej zapisan z dolgim imenom naprave in se je na kartici
-            // lomil sredi besede; ime izpisemo iz prevoda, tudi za vrstice, zapisane prej.
-            v.findViewById<TextView>(R.id.ime).text =
-                if (n.vrsta == Nadaljuj.ZASLON) getString(R.string.os_zaslon) else n.ime
+            v.findViewById<TextView>(R.id.ime).text = n.ime
             v.onFocusChangeListener = fokus
             v.setOnClickListener { zadnjaOznaka = "nadaljuj:" + n.kljuc(); odpriNadaljuj(n) }
             v.setOnLongClickListener { moznostiNadaljuj(n); true }
-            if (jeProgram(n) && tece(n)) {
-                // Program, zagnan s televizorja, tece na racunalniku: krizec to pove na prvi pogled,
-                // tipka X na plosku (ali drzan OK) ga zapre - kot v vsaki aplikaciji z zavihki.
-                dodajKrizec(ikona)
-                v.setOnKeyListener { _, koda, dogodek ->
-                    if (koda == KeyEvent.KEYCODE_BUTTON_X || koda == KeyEvent.KEYCODE_DEL) {
-                        if (dogodek.action == KeyEvent.ACTION_UP) zapriProgram(n)
-                        true
-                    } else false
-                }
+            dodajKrizec(ikona)
+            val jePrvi = indeks == 0
+            v.setOnKeyListener { _, koda, dogodek ->
+                if (koda == KeyEvent.KEYCODE_BUTTON_X || koda == KeyEvent.KEYCODE_DEL) {
+                    if (dogodek.action == KeyEvent.ACTION_UP) zapriProgram(n)
+                    true
+                } else if (dogodek.action == KeyEvent.ACTION_DOWN && jePrvi && koda == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    meniDomov.requestFocus()
+                    true
+                } else false
             }
             v.tag = "nadaljuj:" + n.kljuc()
             vrstaNadaljuj.addView(v)
         }
+
         // Zapri vse: ena tipka za vse programe, ki jih je televizor zagnal na racunalniku. Je v
         // naslovu vrste (desno), ne na koncu vrste - tam jo je rob zaslona odrezal na pol.
         val vsiProgrami = vnosi.filter { jeProgram(it) }
@@ -1084,12 +1400,19 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * je zadnja vrsta prerezana na pol - kartice so odrezane po sredini in zaslon je videti
      * pokvarjen, ceprav se le drsi. Vrstic ne lomimo: ali je cela vidna ali pa je (mehko) ni.
      */
+    /** Prva kartica pod velikimi karticami: odprt program, sicer prva spletna aplikacija. */
+    private fun prvaSpodaj(): View? =
+        (if (drsnikNadaljuj.visibility == View.VISIBLE) vrstaNadaljuj.getChildAt(0) else null)
+            ?: vrstaSpletne.getChildAt(0)
+
     private fun pripeljiVrsto(v: View) {
         val vrsta = v.parent as? View ?: return              // vrsta kartic
         val drsnikVrste = vrsta.parent as? View ?: return    // vodoravni drsnik okoli nje
         val naslovVisina = (44 * resources.displayMetrics.density).toInt()   // naslov odseka nad vrsto
-        val zgoraj = if (drsnikVrste === drsnikNadaljuj) 0 else (drsnikVrste.top - naslovVisina).coerceAtLeast(0)
-        val spodaj = drsnikVrste.bottom + (16 * resources.displayMetrics.density).toInt()
+        val okvir = android.graphics.Rect(0, 0, drsnikVrste.width, drsnikVrste.height)
+        (drsnik as? ViewGroup)?.offsetDescendantRectToMyCoords(drsnikVrste, okvir) ?: return
+        val zgoraj = if (drsnikVrste === drsnikNadaljuj) 0 else (okvir.top - naslovVisina).coerceAtLeast(0)
+        val spodaj = okvir.bottom + (16 * resources.displayMetrics.density).toInt()
         val kje = drsnik.scrollY
         val visina = drsnik.height
         if (visina <= 0) return
@@ -1105,6 +1428,21 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         v.animate().scaleX(if (ima) 1.04f else 1f).scaleY(if (ima) 1.04f else 1f).setDuration(120).start()
         if (ima) v.post { pripeljiVrsto(v) }
         if (ima) (v.parent as? ViewGroup)?.let { it.requestChildFocus(v, v) }
+        if (ima) v.post { pokaziCeloPlosco(v) }
+    }
+
+    /**
+     * Izbira v spodnji vrstici (naprave, hitri dostop, Scit): ScrollView pokaze samo izbrani gumb,
+     * plosca okoli njega pa je ostala odrezana pod vrstico pomoci. Pokazemo celo plosco.
+     */
+    private fun pokaziCeloPlosco(v: View) {
+        val vrsta = findViewById<View>(R.id.vrstaSpodnjePlosce) ?: return
+        val dostop = findViewById<View>(R.id.ploscaDostop)
+        var p: View? = v
+        while (p != null && p.parent !== vrsta && p !== dostop) p = p.parent as? View
+        if (p == null || !p.isAttachedToWindow) return
+        val rob = (16 * resources.displayMetrics.density).toInt()
+        p.requestRectangleOnScreen(android.graphics.Rect(0, 0, p.width, p.height + rob), false)
     }
 
     /**
@@ -1130,11 +1468,34 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec); brskalnik pozna dodatek odpri_link. */
     private fun odpriLinkVBrskalniku() {
-        odpriVarno(brskalnikNamera().putExtra("odpri_link", true), getString(R.string.os_link))
+        // Link je del Safeer OS: stran naj ima ozadje sistema in se ob zaprtju vrne v Safeer OS.
+        val namera = brskalnikNamera().putExtra("odpri_link", true)
+            .putExtra("iz_safeer_os", packageName)
+            .putExtra("os_ozadje", Ozadje.izbrana(this).oznaka)
+            .putExtra("os_zatemnitev", Ozadje.zatemnitev(this))
+        odpriVarno(namera, getString(R.string.os_link))
+    }
+
+    /**
+     * Brskalnik po zaprtju strani Safeer Link odpre ta zaslon (singleTask pocisti vse nad njim);
+     * dodatek pove, od kod je uporabnik prisel, da ga vrnemo tja in ne na zacetek.
+     */
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        vrniSeKamorJeBil(intent)
+    }
+
+    private fun vrniSeKamorJeBil(namera: Intent?) {
+        if (namera?.getStringExtra(EXTRA_VRNI) != VRNI_NAPRAVE) return
+        namera.removeExtra(EXTRA_VRNI)
+        try { startActivity(Intent(this, NapraveActivity::class.java)) } catch (_: Throwable) { }
     }
 
     private companion object {
         const val TAG = "SafeerOsDomov"
+        /** Dodatek, ki ga brskalnik vrne ob zaprtju strani Safeer Link (glej NapraveActivity). */
+        const val EXTRA_VRNI = "os_vrni"
+        const val VRNI_NAPRAVE = "naprave"
         /** Najmanjsa sirina kartice, pri kateri je opis se berljiv (velike kartice v vrsti Zacni). */
         /** Majhna kartica Zacni: sest jih gre na zaslon sirine 960 dp. */
         /** Spletna aplikacija: stiri ploscice na zaslon. */

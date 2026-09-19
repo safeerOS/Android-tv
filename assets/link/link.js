@@ -18,6 +18,9 @@
 (function () {
   "use strict";
 
+  // Odprto iz Safeer OS (?os=1): stran lezi na ozadju sistema, ki ga narise aplikacija pod njo.
+  try { if (/[?&]os=1\b/.test(location.search)) document.documentElement.classList.add("os"); } catch (e) {}
+
   var most = window.SafeerLink || null;
   // Odprt daljinec (daljinec.js) prekrije vse drugo; glej pokaziDaljinec.
   var daljinecOdprt = false;
@@ -1348,8 +1351,10 @@
     pokazi("hubStikalo", podpiraHub);
     var vklopi = el("gumbHubVklopi");
     var izklopi = el("gumbHubIzklopi");
-    if (vklopi) vklopi.disabled = tuSredisce;
-    if (izklopi) izklopi.disabled = !tuSredisce;
+    // Kazemo samo gumb, ki kaj naredi: onemogocen "Vklopi" je bil videti kot glavni gumb, fokus
+    // pa je zato pristal na "Izklopi" - en nehoten OK je izklopil Link za vse naprave.
+    if (vklopi) { vklopi.disabled = tuSredisce; vklopi.hidden = tuSredisce; }
+    if (izklopi) { izklopi.disabled = !tuSredisce; izklopi.hidden = !tuSredisce; }
     besedilo("opombaHubVklop", tuSredisce ? "" : t(stanje.televizor ? "tuOpisTv" : "tuOpis"));
     besedilo("naslovHubTu", t(stanje.televizor ? "tuNaslovTv" : "tuNaslov"));
     narisiStanje();
@@ -2425,8 +2430,9 @@
       try { potrdi.focus(); } catch (err) {}
       return;
     }
-    var kandidati = ["gumbSeznani", "gumbPoisci", "gumbHubVklopi", "gumbHubIzklopi",
-                     "gumbOsvezi", "gumbHubOsvezi"];
+    // Izklop je zadnji: ne sme biti prvo, kar OK na daljincu pritisne ob odprtju.
+    var kandidati = ["gumbSeznani", "gumbPoisci", "gumbHubVklopi",
+                     "gumbOsvezi", "gumbHubOsvezi", "gumbHubIzklopi"];
     // Onemogocen gumb ni cilj za daljinec.
     for (var i = 0; i < kandidati.length; i++) {
       var e = el(kandidati[i]);

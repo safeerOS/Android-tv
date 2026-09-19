@@ -53,12 +53,34 @@
             android:textSize="12sp"/>
     </LinearLayout>
 
+    <!-- Iskanje po imenu v trenutni mapi (enako kot pri Aplikacijah). -->
+    <EditText
+        android:id="@+id/iskanje"
+        android:importantForAutofill="no"
+        android:layout_width="280dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/os_iskanje"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="9dp"
+        android:paddingBottom="9dp"
+        android:singleLine="true"
+        android:maxLines="1"
+        android:inputType="text"
+        android:imeOptions="actionSearch"
+        android:hint="@string/os_programi_isci"
+        android:textColorHint="@color/os_umirjeno"
+        android:textColor="@color/os_besedilo"
+        android:textCursorDrawable="@null"
+        android:textSize="14sp"/>
+
     <ListView
         android:id="@+id/seznam"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="14dp"
         android:divider="@null"
         android:dividerHeight="4dp"
         android:listSelector="@drawable/os_izbor_vrstice"

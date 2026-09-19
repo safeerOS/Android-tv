@@ -1177,7 +1177,10 @@
             if (location.protocol === 'file:') {
                 var calmFocus = document.createElement('style');
                 calmFocus.id = 'safeer-calm-focus';
-                calmFocus.textContent = '.safeer-active-card{transform:none!important;transition:none!important;outline:3px solid #b5eb8d!important;outline-offset:3px!important;box-shadow:0 0 0 2px #101814!important;background-color:transparent!important}:focus,:focus-visible{outline-color:#b5eb8d!important;box-shadow:none!important}#safeer-focus-target-ring{display:none!important}.safeer-focus-badge{display:none!important}';
+                var jeSafeerDomov = /brave_home\.html$/i.test(location.pathname || '');
+                calmFocus.textContent = jeSafeerDomov
+                    ? '.safeer-active-card{outline:3px solid #5de0b0!important;outline-offset:2px!important;box-shadow:0 0 0 1px rgba(93,224,176,.22),0 0 24px rgba(93,224,176,.2)!important}:focus,:focus-visible{outline-color:#5de0b0!important}#safeer-focus-target-ring{display:none!important}.safeer-focus-badge{display:none!important}'
+                    : '.safeer-active-card{transform:none!important;transition:none!important;outline:3px solid #b5eb8d!important;outline-offset:3px!important;box-shadow:0 0 0 2px #101814!important;background-color:transparent!important}:focus,:focus-visible{outline-color:#b5eb8d!important;box-shadow:none!important}#safeer-focus-target-ring{display:none!important}.safeer-focus-badge{display:none!important}';
                 (document.head || document.documentElement).appendChild(calmFocus);
             }
 

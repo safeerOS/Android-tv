@@ -117,7 +117,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             else -> getString(R.string.os_izklopljeno)
         }
         val krajevni = link.jeKrajevni()
-        vrstice = listOf(
+        val vse = listOf(
             Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.os_zaganjalnik),
                 getString(R.string.os_zaganjalnik_opis), domaciStanje) { preklopiZaganjalnik(jeDomaci || ponujen) },
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_zagon),
@@ -151,6 +151,13 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_izhod),
                 getString(R.string.os_izhod_opis), "") { izhod() },
         )
+        // Tablica si deli te nastavitve s televizorjem, a nekatere veljajo samo za televizor:
+        // domaci zaslon in zagon ob vklopu TV, preizkus igralnega ploscka (tablica ga ne podpira),
+        // krajevni nacin (brez naprav tablica nima cesa pokazati) in izhod v sistem televizorja.
+        val skrij = if (packageName.endsWith(".tablet")) setOf(getString(R.string.os_zaganjalnik),
+            getString(R.string.os_zagon), getString(R.string.os_nacin), getString(R.string.os_plosek_preizkus),
+            getString(R.string.os_izhod)) else emptySet()
+        vrstice = vse.filter { it.ime !in skrij }
         prilagojevalnik.notifyDataSetChanged()
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
     }
