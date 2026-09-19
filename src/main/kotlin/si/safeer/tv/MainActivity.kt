@@ -294,6 +294,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Safeer OS (lupina) odpre stran Safeer Link neposredno: seznanitev, naprave, daljinec.
         if (intent?.getBooleanExtra(EXTRA_ODPRI_LINK, false) == true) {
             intent.removeExtra(EXTRA_ODPRI_LINK)
+            zapomniLinkIzOs(intent)
             webViewContainer.post { odpriSafeerLink() }
         }
         intent?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA)?.let { naslov ->
@@ -312,6 +313,31 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private fun zapomniIzvor(namera: Intent?) {
         val paket = namera?.getStringExtra(EXTRA_IZ_SAFEER_OS)
         if (!paket.isNullOrBlank()) izSafeerOs = paket
+    }
+
+    /** Safeer OS je odprl stran Link: zapomnimo si, da mora biti videti in se obnasati kot del sistema. */
+    private fun zapomniLinkIzOs(namera: Intent) {
+        linkIzOs = !namera.getStringExtra(EXTRA_IZ_SAFEER_OS).isNullOrBlank()
+        linkOsOzadje = namera.getStringExtra(EXTRA_OS_OZADJE)
+        linkOsVrni = namera.getStringExtra("os_vrni")
+        linkOsZatemnitev = namera.getIntExtra(EXTRA_OS_ZATEMNITEV, si.safeer.tv.os.Ozadje.PRIVZETA_ZATEMNITEV)
+    }
+
+    /**
+     * Zaprta stran Link, ki jo je odprl Safeer OS: nazaj v Safeer OS. Brskalnika ne koncamo, kadar
+     * je Safeer OS drug paket - morda ima uporabnik v njem odprte zavihke; samo Safeer OS pride naprej.
+     */
+    private fun vrniVOsPoLinku() {
+        val paket = izSafeerOs
+        if (paket == null || paket == packageName) { finish(); return }
+        // Samo NEW_TASK, brez CLEAR_TOP: Android prinese obstojeco nalogo Safeer OS v ospredje tocno
+        // tam, kjer je uporabnik bil (Naprave ali Domov), namesto da bi jo pocistil.
+        try {
+            startActivity(Intent()
+                .setComponent(android.content.ComponentName(paket, "si.safeer.tv.os.DomovActivity"))
+                .putExtra("os_vrni", linkOsVrni)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Throwable) { android.util.Log.w("SafeerLink", "Nazaj v Safeer OS ni slo: ${e.message}") }
     }
 
     /** Konec brskanja: nazaj v Safeer OS, ce je brskalnik odprl on; sicer navaden konec. */
@@ -421,8 +447,19 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private val EXTRA_ODPRI_LINK = "odpri_link"
     /** Dodatek namere: brskalnik je odprl Safeer OS in ob izhodu se vrnemo vanj, ne na Android. */
     private val EXTRA_IZ_SAFEER_OS = "iz_safeer_os"
+    /** Ozadje in zatemnitev Safeer OS, da stran Link lezi na istem ozadju kot sistem. */
+    private val EXTRA_OS_OZADJE = "os_ozadje"
+    private val EXTRA_OS_ZATEMNITEV = "os_zatemnitev"
     /** Paket Safeer OS, ce je brskalnik odprl on; sicer null. */
     private var izSafeerOs: String? = null
+    /** Stran Safeer Link je odprl Safeer OS: ima videz sistema, ob zaprtju gremo nazaj v Safeer OS. */
+    private var linkIzOs = false
+    private var linkOsOzadje: String? = null
+    private var linkOsZatemnitev = si.safeer.tv.os.Ozadje.PRIVZETA_ZATEMNITEV
+    /** Uporabnik je s strani Link odprl spletno stran: takrat ostanemo v brskalniku. */
+    private var linkOdprlZavihek = false
+    /** Kam v Safeer OS se vrnemo po zaprtju strani Link (npr. "naprave"); prazno = domaci zaslon. */
+    private var linkOsVrni: String? = null
     /** Dodatka, s katerima Safeer OS odpre spletno aplikacijo cez ves zaslon. */
     private val EXTRA_SPLETNA_APLIKACIJA = "spletna_aplikacija"
     private val EXTRA_APLIKACIJA_IME = "aplikacija_ime"
@@ -793,6 +830,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (obravnavajCastNamero(intent)) return
         if (intent?.getBooleanExtra(EXTRA_ODPRI_LINK, false) == true) {
             intent.removeExtra(EXTRA_ODPRI_LINK)
+            zapomniLinkIzOs(intent)
             webViewContainer.post { odpriSafeerLink() }
             return
         }
@@ -1903,7 +1941,26 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             pogled.isFocusableInTouchMode = true
 
             val okno = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-            okno.setContentView(pogled)
+            val izOs = linkIzOs
+            linkIzOs = false
+            linkOdprlZavihek = false
+            if (izOs) {
+                // Odprl ga je Safeer OS: stran lezi na ozadju Safeer OS in je videti kot del sistema,
+                // ne kot okno brskalnika. Lastne fotografije Safeer OS brskalnik ne vidi (je v drugi
+                // aplikaciji), zato takrat vzamemo privzeto ozadje.
+                pogled.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                val izbira = if (izSafeerOs == packageName) si.safeer.tv.os.Ozadje.izbrana(this)
+                    else si.safeer.tv.os.Ozadje.VSE.firstOrNull {
+                        it.oznaka == linkOsOzadje && it.oznaka != si.safeer.tv.os.Ozadje.LASTNA
+                    } ?: si.safeer.tv.os.Ozadje.VSE[0]
+                val podlaga = android.widget.FrameLayout(this)
+                podlaga.background = si.safeer.tv.os.Ozadje.sestavi(this, izbira, linkOsZatemnitev)
+                podlaga.addView(pogled, android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                okno.setContentView(podlaga)
+            } else {
+                okno.setContentView(pogled)
+            }
 
             // Naslov strani preberemo tu, na glavni niti: most ga bo vprasal z druge,
             // kjer WebView svojih metod ne da brati.
@@ -1917,7 +1974,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 pogled,
                 { Pair(naslovStrani, imeStrani) },
                 { okno.dismiss() },
-                { naslov -> odpriVZavihku(naslov) }
+                { naslov -> linkOdprlZavihek = true; odpriVZavihku(naslov) }
             )
             pogled.addJavascriptInterface(most, "SafeerLink")
 
@@ -1931,6 +1988,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     if (naslov.startsWith("file:///android_asset/link/")) return false
                     okno.dismiss()
                     if (naslov.startsWith("http://") || naslov.startsWith("https://")) {
+                        linkOdprlZavihek = true
                         odpriVZavihku(naslov)
                     }
                     return true
@@ -1957,9 +2015,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 try { most.pospravi() } catch (_: Exception) {}
                 try { pogled.destroy() } catch (_: Exception) {}
                 linkOkno = null
+                if (izOs && !linkOdprlZavihek) vrniVOsPoLinku()
             }
 
-            pogled.loadUrl("file:///android_asset/link/index.html")
+            pogled.loadUrl("file:///android_asset/link/index.html" + if (izOs) "?os=1" else "")
             linkOkno = okno
             okno.show()
         } catch (e: Exception) {

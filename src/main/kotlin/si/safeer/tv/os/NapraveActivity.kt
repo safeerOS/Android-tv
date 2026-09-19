@@ -109,6 +109,11 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 .putExtra("iz_safeer_os", packageName)
         else Intent(this, si.safeer.tv.MainActivity::class.java)
         namera.putExtra("odpri_link", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Link je del Safeer OS: stran naj ima ozadje sistema in se ob zaprtju vrne sem.
+        namera.putExtra("iz_safeer_os", packageName)
+            .putExtra("os_ozadje", Ozadje.izbrana(this).oznaka)
+            .putExtra("os_zatemnitev", Ozadje.zatemnitev(this))
+            .putExtra("os_vrni", "naprave")
         try { startActivity(namera) } catch (_: Throwable) { }
     }
 

@@ -1468,11 +1468,34 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec); brskalnik pozna dodatek odpri_link. */
     private fun odpriLinkVBrskalniku() {
-        odpriVarno(brskalnikNamera().putExtra("odpri_link", true), getString(R.string.os_link))
+        // Link je del Safeer OS: stran naj ima ozadje sistema in se ob zaprtju vrne v Safeer OS.
+        val namera = brskalnikNamera().putExtra("odpri_link", true)
+            .putExtra("iz_safeer_os", packageName)
+            .putExtra("os_ozadje", Ozadje.izbrana(this).oznaka)
+            .putExtra("os_zatemnitev", Ozadje.zatemnitev(this))
+        odpriVarno(namera, getString(R.string.os_link))
+    }
+
+    /**
+     * Brskalnik po zaprtju strani Safeer Link odpre ta zaslon (singleTask pocisti vse nad njim);
+     * dodatek pove, od kod je uporabnik prisel, da ga vrnemo tja in ne na zacetek.
+     */
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        vrniSeKamorJeBil(intent)
+    }
+
+    private fun vrniSeKamorJeBil(namera: Intent?) {
+        if (namera?.getStringExtra(EXTRA_VRNI) != VRNI_NAPRAVE) return
+        namera.removeExtra(EXTRA_VRNI)
+        try { startActivity(Intent(this, NapraveActivity::class.java)) } catch (_: Throwable) { }
     }
 
     private companion object {
         const val TAG = "SafeerOsDomov"
+        /** Dodatek, ki ga brskalnik vrne ob zaprtju strani Safeer Link (glej NapraveActivity). */
+        const val EXTRA_VRNI = "os_vrni"
+        const val VRNI_NAPRAVE = "naprave"
         /** Najmanjsa sirina kartice, pri kateri je opis se berljiv (velike kartice v vrsti Zacni). */
         /** Majhna kartica Zacni: sest jih gre na zaslon sirine 960 dp. */
         /** Spletna aplikacija: stiri ploscice na zaslon. */

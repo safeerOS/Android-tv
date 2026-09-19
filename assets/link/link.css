@@ -458,3 +458,29 @@ svg[aria-hidden] { display: inline-block; fill: none; stroke: currentColor; stro
 .panel.opozoriloOspredje { border-left: 4px solid var(--rumena); padding-left: 14px; }
 .panel.opozoriloOspredje .pojasnilo { margin-bottom: 4px; }
 .panel.opozoriloOspredje button.drugotni.tanek { margin-top: 8px; }
+
+/* ---------- odprto iz Safeer OS ---------- */
+/* Stran je del sistema: prozorna podlaga (spodaj je ozadje Safeer OS), plosce rahlo prosojne,
+   nad naslovom nadnaslov kot na drugih zaslonih Safeer OS. */
+html.os { --plosca: rgba(17, 25, 36, 0.80); --ploscaSvetla: rgba(21, 30, 42, 0.86); }
+html.os, html.os body { background: transparent; }
+/* Glava ostane na vrhu tudi med drsenjem, zato mora biti dovolj polna, da se vsebina ne vidi skozi. */
+html.os .glava {
+  background: rgba(10, 16, 24, 0.94);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  padding-top: 26px;
+  border-bottom: 1px solid rgba(145, 187, 198, 0.12);
+}
+html.os main { padding-top: 12px; }
+/* "Poslji to stran" velja za stran, odprto v brskalniku; v Safeer OS take strani ni. */
+html.os #panelCast { display: none !important; }
+html.os .glava h1::before {
+  content: "SAFEER OS";
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--zelena);
+}
