@@ -58,5 +58,5 @@
     <string name="scit_blokiranih_danes">blocked today: %1$d</string>
     <!-- Kako se ta naprava predstavi drugim v Safeer Linku. Okus tablica to povozi:
          ime vidijo sosedje v hisi, zato mora biti resnicno. -->
-    <string name="os_ime_vrste">Safeer TV</string>
+    <string name="os_ime_vrste" translatable="false">Safeer TV</string>
 </resources>

@@ -321,4 +321,24 @@
     <string name="os_moc_gpu_strojno">Hardware-Videokodierung</string>
     <string name="os_moc_gpu_brez">ohne Hardwarekodierung</string>
     <string name="os_datoteke_pomoc_drzi">OK halten · auf dem Computer öffnen</string>
+    <string name="os_zaslon_program_zaprt">Das Programm auf dem Computer wurde geschlossen.</string>
+    <string name="os_zaslon_ni_okna">Das Programm hat sich auf dem Computer nicht geöffnet.</string>
+    <string name="os_program_zapri">Auf dem Computer schließen</string>
+    <string name="os_program_zaprt">%1$s wird auf dem Computer geschlossen.</string>
+    <string name="os_program_ne_tece">%1$s läuft nicht auf dem Computer.</string>
+    <string name="os_plosek_preizkus">Tasten testen</string>
+    <string name="os_plosek_preizkus_opis">Was der Fernseher vom Gamepad empfängt und was er an den Computer senden würde</string>
+    <string name="os_plosek_opis">Drücke Tasten und bewege die Sticks. Hier siehst du, was der Fernseher wirklich empfängt – und was davon wir an den Computer senden können. Von hier wird nichts gesendet; mit Zurück verlässt du die Ansicht.</string>
+    <string name="os_plosek_ni">Kein Gamepad verbunden. Kopple es mit dem Fernseher (Bluetooth oder Kabel), dann erscheint es hier.</string>
+    <string name="os_plosek_naprava">• %1$s\n   Achsen: %2$s</string>
+    <string name="os_plosek_drzane">Gehaltene Tasten: %1$s</string>
+    <string name="os_plosek_osi">Achsen:\n   %1$s</string>
+    <string name="os_plosek_zadnja">%1$s (%2$d) — %3$s</string>
+    <string name="os_plosek_kot_gumb">geht als Taste „%1$s“ an den Computer</string>
+    <string name="os_plosek_kot_os">geht als Achse „%1$s“ an den Computer</string>
+    <string name="os_plosek_ne_poslje">diese Taste wird nicht an den Computer gesendet</string>
+    <string name="os_zapri_vse">Alle schließen (%1$d)</string>
+    <string name="os_zaprtih">Geschlossene Programme: %1$d</string>
+    <string name="os_zaslon_meni_start">Startmenü</string>
+    <string name="os_zaslon_naslednji">Nächstes Programm</string>
 </resources>

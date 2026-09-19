@@ -321,4 +321,24 @@
     <string name="os_moc_gpu_strojno">codificación de vídeo por hardware</string>
     <string name="os_moc_gpu_brez">sin codificación por hardware</string>
     <string name="os_datoteke_pomoc_drzi">Mantén OK · abrir en el ordenador</string>
+    <string name="os_zaslon_program_zaprt">El programa del ordenador se ha cerrado.</string>
+    <string name="os_zaslon_ni_okna">El programa no se abrió en el ordenador.</string>
+    <string name="os_program_zapri">Cerrar en el ordenador</string>
+    <string name="os_program_zaprt">%1$s se está cerrando en el ordenador.</string>
+    <string name="os_program_ne_tece">%1$s no se está ejecutando en el ordenador.</string>
+    <string name="os_plosek_preizkus">Probar los botones</string>
+    <string name="os_plosek_preizkus_opis">Lo que el televisor recibe del mando y lo que enviaría al ordenador</string>
+    <string name="os_plosek_opis">Pulsa botones y mueve las palancas. Aquí ves lo que el televisor recibe de verdad y qué parte podemos enviar al ordenador. Desde aquí no se envía nada; pulsa Atrás para salir.</string>
+    <string name="os_plosek_ni">No hay ningún mando conectado. Vincúlalo con el televisor (Bluetooth o cable) y aparecerá aquí.</string>
+    <string name="os_plosek_naprava">• %1$s\n   ejes: %2$s</string>
+    <string name="os_plosek_drzane">Botones pulsados: %1$s</string>
+    <string name="os_plosek_osi">Ejes:\n   %1$s</string>
+    <string name="os_plosek_zadnja">%1$s (%2$d) — %3$s</string>
+    <string name="os_plosek_kot_gumb">va al ordenador como botón “%1$s”</string>
+    <string name="os_plosek_kot_os">va al ordenador como eje “%1$s”</string>
+    <string name="os_plosek_ne_poslje">este botón no se envía al ordenador</string>
+    <string name="os_zapri_vse">Cerrar todo (%1$d)</string>
+    <string name="os_zaprtih">Programas cerrados: %1$d</string>
+    <string name="os_zaslon_meni_start">Menú Inicio</string>
+    <string name="os_zaslon_naslednji">Siguiente programa</string>
 </resources>

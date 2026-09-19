@@ -321,4 +321,24 @@
     <string name="os_moc_gpu_strojno">encodage vidéo matériel</string>
     <string name="os_moc_gpu_brez">sans encodage matériel</string>
     <string name="os_datoteke_pomoc_drzi">Maintenez OK · ouvrir sur l\'ordinateur</string>
+    <string name="os_zaslon_program_zaprt">Le programme sur l\'ordinateur s\'est fermé.</string>
+    <string name="os_zaslon_ni_okna">Le programme ne s\'est pas ouvert sur l\'ordinateur.</string>
+    <string name="os_program_zapri">Fermer sur l\'ordinateur</string>
+    <string name="os_program_zaprt">%1$s se ferme sur l\'ordinateur.</string>
+    <string name="os_program_ne_tece">%1$s ne tourne pas sur l\'ordinateur.</string>
+    <string name="os_plosek_preizkus">Tester les boutons</string>
+    <string name="os_plosek_preizkus_opis">Ce que le téléviseur reçoit de la manette et ce qu\'il enverrait à l\'ordinateur</string>
+    <string name="os_plosek_opis">Appuie sur les boutons et bouge les sticks. Tu vois ici ce que le téléviseur reçoit vraiment, et ce que nous pouvons en envoyer à l\'ordinateur. Rien n\'est envoyé d\'ici ; appuie sur Retour pour quitter.</string>
+    <string name="os_plosek_ni">Aucune manette n\'est connectée. Associe-la au téléviseur (Bluetooth ou câble) et elle apparaîtra ici.</string>
+    <string name="os_plosek_naprava">• %1$s\n   axes : %2$s</string>
+    <string name="os_plosek_drzane">Boutons maintenus : %1$s</string>
+    <string name="os_plosek_osi">Axes :\n   %1$s</string>
+    <string name="os_plosek_zadnja">%1$s (%2$d) — %3$s</string>
+    <string name="os_plosek_kot_gumb">va à l\'ordinateur comme bouton « %1$s »</string>
+    <string name="os_plosek_kot_os">va à l\'ordinateur comme axe « %1$s »</string>
+    <string name="os_plosek_ne_poslje">ce bouton n\'est pas envoyé à l\'ordinateur</string>
+    <string name="os_zapri_vse">Tout fermer (%1$d)</string>
+    <string name="os_zaprtih">Programmes fermés : %1$d</string>
+    <string name="os_zaslon_meni_start">Menu Démarrer</string>
+    <string name="os_zaslon_naslednji">Programme suivant</string>
 </resources>

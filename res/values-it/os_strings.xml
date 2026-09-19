@@ -321,4 +321,24 @@
     <string name="os_moc_gpu_strojno">codifica video hardware</string>
     <string name="os_moc_gpu_brez">senza codifica hardware</string>
     <string name="os_datoteke_pomoc_drzi">Tieni premuto OK · apri sul computer</string>
+    <string name="os_zaslon_program_zaprt">Il programma sul computer si è chiuso.</string>
+    <string name="os_zaslon_ni_okna">Il programma non si è aperto sul computer.</string>
+    <string name="os_program_zapri">Chiudi sul computer</string>
+    <string name="os_program_zaprt">%1$s si sta chiudendo sul computer.</string>
+    <string name="os_program_ne_tece">%1$s non è in esecuzione sul computer.</string>
+    <string name="os_plosek_preizkus">Prova i tasti</string>
+    <string name="os_plosek_preizkus_opis">Cosa riceve il televisore dal gamepad e cosa invierebbe al computer</string>
+    <string name="os_plosek_opis">Premi i tasti e muovi le levette. Qui vedi cosa riceve davvero il televisore e cosa possiamo inviarne al computer. Da qui non viene inviato nulla; premi Indietro per uscire.</string>
+    <string name="os_plosek_ni">Nessun gamepad collegato. Associalo al televisore (Bluetooth o cavo) e comparirà qui.</string>
+    <string name="os_plosek_naprava">• %1$s\n   assi: %2$s</string>
+    <string name="os_plosek_drzane">Tasti premuti: %1$s</string>
+    <string name="os_plosek_osi">Assi:\n   %1$s</string>
+    <string name="os_plosek_zadnja">%1$s (%2$d) — %3$s</string>
+    <string name="os_plosek_kot_gumb">va al computer come tasto “%1$s”</string>
+    <string name="os_plosek_kot_os">va al computer come asse “%1$s”</string>
+    <string name="os_plosek_ne_poslje">questo tasto non viene inviato al computer</string>
+    <string name="os_zapri_vse">Chiudi tutto (%1$d)</string>
+    <string name="os_zaprtih">Programmi chiusi: %1$d</string>
+    <string name="os_zaslon_meni_start">Menu Start</string>
+    <string name="os_zaslon_naslednji">Programma successivo</string>
 </resources>
