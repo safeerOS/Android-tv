@@ -229,13 +229,16 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         ZaslonOdjemalec.Stanje.POVEZUJEM -> pokazi(getString(R.string.os_zaslon_povezujem))
                         ZaslonOdjemalec.Stanje.TECE -> {
                             poskusov = 0; skrij()
-                            // Nazaj je zdaj tipka za racunalnik, zato uporabniku enkrat povemo, kako se konca.
-                            if (!namigPokazan) {
-                                namigPokazan = true
+                            // Napisa (kako se konca, kaj delajo tipke) sta za zacetnika. Kdor ju je videl ze
+                            // enkrat, ga ob vsakem programu samo motita - takrat ju ne kazemo vec.
+                            val nast = getSharedPreferences("safeer_os", MODE_PRIVATE)
+                            val videno = nast.getInt("zaslon_namigov", 0)
+                            if (!namigPokazan && videno < 1) {
+                                nast.edit().putInt("zaslon_namigov", videno + 1).apply()
                                 Toast.makeText(this, getString(R.string.os_zaslon_namig), Toast.LENGTH_LONG).show()
+                                pokaziNamig()          // prvic polnih 6 s
+                                namigPokazan = true
                             }
-                            // Napis o upravljanju: kaj delajo tipke zdaj, in kako se preklopi.
-                            pokaziNamig()
                         }
                         // Prekinjena povezava ni konec seje: enkrat poskusimo znova, sele nato
                         // uporabnika vrnemo nazaj - zamrznjena slika je najslabsi mozni izid.
@@ -489,6 +492,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     /** Preklop med kazalcem in tipkami; uporabnik takoj vidi, kaj zdaj delajo tipke. */
     private fun preklopiNacin() {
+        namigPokazan = true
         ustaviSmer()
         kazalec = !kazalec
         // Izbiro si zapomnimo za ta program: naslednjic se odpre tako, kot si ga pustil.
@@ -503,7 +507,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (kazalec) R.string.os_zaslon_nacin_kazalec else R.string.os_zaslon_nacin_tipke)
         namig.visibility = View.VISIBLE
         glavna.removeCallbacks(skrijNamig)
-        glavna.postDelayed(skrijNamig, 6_000)
+        // Kratko: uporabnik je nacin pravkar preklopil sam in hoce le potrditev.
+        glavna.postDelayed(skrijNamig, if (namigPokazan) 2_500L else 6_000L)
     }
 
     private val skrijNamig = Runnable { namig.visibility = View.GONE }
