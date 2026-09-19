@@ -917,11 +917,11 @@
                     android:layout_height="wrap_content"
                     android:visibility="gone"
                     android:orientation="vertical">
-                    <LinearLayout android:id="@+id/vrstaZacni" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-                    <LinearLayout android:id="@+id/vrstaSpletne" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    <LinearLayout android:id="@+id/vrstaZacni" android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    <LinearLayout android:id="@+id/vrstaSpletne" android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                     <TextView android:id="@+id/naslovAplikacije" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                     <HorizontalScrollView android:id="@+id/aplikacijeDrsnik" android:layout_width="match_parent" android:layout_height="wrap_content">
-                        <LinearLayout android:id="@+id/vrstaAplikacije" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                        <LinearLayout android:id="@+id/vrstaAplikacije" android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                     </HorizontalScrollView>
                 </LinearLayout>
 

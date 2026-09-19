@@ -2,22 +2,23 @@
 <resources>
     <string name="tablet_ime">Safeer OS Tablet</string>
     <string name="tablet_podnaslov">Il tuo computer nelle tue mani.</string>
-    <string name="tablet_v_pripravi">In lavorazione. Ciò che c’è qui sotto funziona; ciò che manca non lo promettiamo. Un riquadro appare solo quando il computer lo condivide davvero: cartelle, programmi e schermo li scegli in Safeer Control sul computer.</string>
+    <string name="tablet_v_pripravi">In lavorazione. Ciò che c’è qui sotto funziona; ciò che manca non lo promettiamo. Un riquadro appare solo quando il dispositivo lo condivide davvero: cartelle, programmi e schermo li scegli in Safeer Control.</string>
     <string name="tablet_datoteke">File</string>
-    <string name="tablet_datoteke_opis">Video, musica, foto e documenti dal tuo computer</string>
+    <string name="tablet_datoteke_opis">Video, musica, foto e documenti dei dispositivi connessi</string>
     <string name="tablet_naprave">Dispositivi</string>
     <string name="tablet_naprave_opis">Ciò che è collegato tramite Safeer Link</string>
-    <string name="tablet_programi">Programmi del computer</string>
-    <string name="tablet_programi_opis">Divisi in gruppi, con ricerca; avviali da qui</string>
+    <string name="tablet_programi">Programmi</string>
+    <string name="tablet_programi_opis">Avvia i programmi dei dispositivi connessi</string>
     <string name="tablet_zaslon">Schermo del computer</string>
-    <string name="tablet_zaslon_opis">Immagine e audio del tuo computer sul tablet</string>
-    <string name="tablet_ni_racunalnika">Nessun computer è ancora collegato. Avvia Safeer Control sul computer e collegalo a Safeer Link; comparirà qui da solo.</string>
-    <string name="tablet_ni_linka">Questo tablet non è ancora in Safeer Link. Apri Dispositivi e collegalo: qui compariranno i tuoi file, i programmi e lo schermo del computer.</string>
+    <string name="tablet_zaslon_opis">Immagine e audio dei dispositivi connessi sul tablet</string>
+    <string name="tablet_ni_racunalnika">Nessun dispositivo è ancora collegato. Avvia Safeer Control su un dispositivo e collegalo a Safeer Link; comparirà qui da solo.</string>
+    <string name="tablet_ni_linka">Questo tablet non è ancora in Safeer Link. Apri Dispositivi e collegalo: qui compariranno i tuoi file, i programmi e lo schermo dei dispositivi connessi.</string>
     <string name="tablet_vklopi">Attiva Safeer Link</string>
-    <string name="tablet_vklopi_opis">Il tablet entra nella tua rete domestica; poi il computer può condividere file, programmi e il suo schermo</string>
-    <string name="tablet_vklopljen">Safeer Link è attivo. Sul computer apri Safeer Control e abbinalo a questo tablet.</string>
+    <string name="tablet_vklopi_opis">Il tablet entra nella tua rete domestica; poi i dispositivi connessi possono condividere file, programmi e il loro schermo</string>
+    <string name="tablet_vklopljen">Safeer Link è attivo. In Safeer Control, abbina questo tablet ai tuoi dispositivi.</string>
     <string name="tablet_znova">Ricollega</string>
     <string name="tablet_znova_opis">Safeer Link è attivo, ma la connessione non c’è. Riprova.</string>
+    <string name="os_ime_vrste">Tablet Safeer</string>
     <string name="os_naprava_tv">questo tablet</string>
     <string name="os_krajevno_koren">Su questo tablet</string>
     <string name="os_krajevno_dovoljenje">Safeer OS ha bisogno del permesso di leggere i file su questo tablet.</string>
@@ -39,4 +40,8 @@
     <string name="os_vir_tv">Tablet</string>
     <string name="tablet_nova_koda">Nuovo codice</string>
     <string name="tablet_stanje_ni_tv">Non ancora collegato a un televisore</string>
+    <string name="tablet_iskanje_namig">Cerca app, file o sul web …</string>
+    <string name="tablet_prikazi_vse">Mostra tutto ›</string>
+    <string name="tablet_odklopi">Disconnetti</string>
+    <string name="tablet_povezano_z">Connesso a %1$s</string>
 </resources>

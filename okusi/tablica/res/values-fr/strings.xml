@@ -2,22 +2,23 @@
 <resources>
     <string name="tablet_ime">Safeer OS Tablet</string>
     <string name="tablet_podnaslov">Ton ordinateur entre tes mains.</string>
-    <string name="tablet_v_pripravi">En cours. Ce qui est ci-dessous fonctionne ; ce qui manque encore n’est pas promis. Une tuile n’apparaît que lorsque l’ordinateur partage vraiment cela – tu choisis les dossiers, les programmes et l’écran dans Safeer Control sur l’ordinateur.</string>
+    <string name="tablet_v_pripravi">En cours. Ce qui est ci-dessous fonctionne ; ce qui manque encore n’est pas promis. Une tuile n’apparaît que lorsque l’appareil partage vraiment cela – tu choisis les dossiers, les programmes et l’écran dans Safeer Control.</string>
     <string name="tablet_datoteke">Fichiers</string>
-    <string name="tablet_datoteke_opis">Vidéos, musique, photos et documents de ton ordinateur</string>
+    <string name="tablet_datoteke_opis">Vidéos, musique, photos et documents des appareils connectés</string>
     <string name="tablet_naprave">Appareils</string>
     <string name="tablet_naprave_opis">Ce qui est connecté par Safeer Link</string>
-    <string name="tablet_programi">Programmes de l’ordinateur</string>
-    <string name="tablet_programi_opis">Classés par groupes, avec recherche ; lance-les d’ici</string>
+    <string name="tablet_programi">Programmes</string>
+    <string name="tablet_programi_opis">Lancer les programmes des appareils connectés</string>
     <string name="tablet_zaslon">Écran de l’ordinateur</string>
-    <string name="tablet_zaslon_opis">L’image et le son de ton ordinateur sur la tablette</string>
-    <string name="tablet_ni_racunalnika">Aucun ordinateur n’est encore connecté. Lance Safeer Control sur ton ordinateur et rejoins Safeer Link ; il apparaîtra ici tout seul.</string>
-    <string name="tablet_ni_linka">Cette tablette n’est pas encore dans Safeer Link. Ouvre Appareils et connecte-la – tes fichiers, programmes et l’écran de l’ordinateur apparaîtront ici.</string>
+    <string name="tablet_zaslon_opis">L’image et le son des appareils connectés sur la tablette</string>
+    <string name="tablet_ni_racunalnika">Aucun appareil n’est encore connecté. Lancez Safeer Control sur un appareil et rejoignez Safeer Link ; il apparaîtra ici tout seul.</string>
+    <string name="tablet_ni_linka">Cette tablette n’est pas encore dans Safeer Link. Ouvrez Appareils et connectez-la – vos fichiers, programmes et l’écran des appareils connectés apparaîtront ici.</string>
     <string name="tablet_vklopi">Activer Safeer Link</string>
-    <string name="tablet_vklopi_opis">La tablette rejoint ton réseau domestique ; ton ordinateur peut alors partager des fichiers, des programmes et son écran</string>
-    <string name="tablet_vklopljen">Safeer Link est activé. Sur l’ordinateur, ouvre Safeer Control et associe-le à cette tablette.</string>
+    <string name="tablet_vklopi_opis">La tablette rejoint ton réseau domestique ; vos appareils peuvent alors partager des fichiers, des programmes et leur écran</string>
+    <string name="tablet_vklopljen">Safeer Link est activé. Dans Safeer Control, associez cette tablette à vos appareils.</string>
     <string name="tablet_znova">Se reconnecter</string>
     <string name="tablet_znova_opis">Safeer Link est activé, mais la connexion n’est pas établie. Réessaie.</string>
+    <string name="os_ime_vrste">Tablette Safeer</string>
     <string name="os_naprava_tv">cette tablette</string>
     <string name="os_krajevno_koren">Sur cette tablette</string>
     <string name="os_krajevno_dovoljenje">Safeer OS a besoin de l’autorisation de lire les fichiers de cette tablette.</string>
@@ -39,4 +40,8 @@
     <string name="os_vir_tv">Tablette</string>
     <string name="tablet_nova_koda">Nouveau code</string>
     <string name="tablet_stanje_ni_tv">Pas encore connectée à un téléviseur</string>
+    <string name="tablet_iskanje_namig">Rechercher des applications, des fichiers ou sur le Web …</string>
+    <string name="tablet_prikazi_vse">Tout afficher ›</string>
+    <string name="tablet_odklopi">Déconnecter</string>
+    <string name="tablet_povezano_z">Connecté à %1$s</string>
 </resources>
