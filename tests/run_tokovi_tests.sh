@@ -17,6 +17,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
+    "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
     "$TEST_DIR/TokoviTest.kt" \
     -include-runtime -d "$OUT/tokovi.jar"

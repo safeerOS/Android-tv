@@ -457,7 +457,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (base64.isBlank()) return null
         return try {
             val bajti = Base64.decode(base64, Base64.DEFAULT)
-            val slika = BitmapFactory.decodeByteArray(bajti, 0, bajti.size) ?: return null
+            val slika = VarnaSlika.izBajtov(bajti) ?: return null
             SpletneAplikacije.ikonaIzSlike(this, slika)
         } catch (_: Throwable) { null }
     }

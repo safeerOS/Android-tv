@@ -262,7 +262,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 // Samo za pravo namizje: program s televizorja (locen zaslon) ima v Nadaljuj svojo
                 // kartico. Prej je vsak zagnan program na vrh potisnil se "Zaslon racunalnika", ki pa
                 // odpre namizje - ne programa, ki ga je uporabnik imel odprtega.
-                if (!naDrugem) Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.ZASLON,
+                if (OsPravila.zapisiZaslon(naDrugem)) Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.ZASLON,
                     ime = getString(R.string.os_zaslon), racunalnik = r.id))
                 if (povrsinaPripravljena) zacniPretok(podatki)
             })

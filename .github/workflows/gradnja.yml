@@ -41,6 +41,13 @@ jobs:
           test -s build/outputs/apk/os/release/tv-browser-2-os-release-unsigned.apk \
             || (echo "APK Safeer OS ni nastal" && exit 1)
 
+      # Android Lint je zdaj zapora: 455 starih napak je zapisanih v lint-baseline.xml (popravljamo
+      # jih postopoma), vsaka NOVA napaka v skupni kodi pa ta tek ustavi. Lint tece na razlicici
+      # brskalnika, ker ta vsebuje vso skupno kodo (tudi Safeer OS); okusa os in tablica imata
+      # le svoje manifeste.
+      - name: Android Lint (nove napake ustavijo tek)
+        run: ./gradlew --no-daemon lintBrskalnikRelease
+
       - name: Loceni aplikaciji (si.safeer.tv in si.safeer.os)
         run: |
           python3 tests/preveri_loceni_aplikaciji.py \

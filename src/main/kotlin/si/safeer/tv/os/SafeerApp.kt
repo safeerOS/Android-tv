@@ -151,7 +151,7 @@ object SafeerAppi {
         val bila = seznam.removeAll { it.kljuc == app.kljuc }
         if (!bila) {
             var pot = ""
-            if (ikonaPng != null) try {
+            if (ikonaPng != null && ikonaPng.size <= 512 * 1024) try {
                 val mapa = File(c.filesDir, "ikone").apply { mkdirs() }
                 val f = File(mapa, Integer.toHexString(app.kljuc.hashCode()) + ".png")
                 f.writeBytes(ikonaPng)
@@ -177,7 +177,7 @@ object SafeerAppi {
     fun ikona(c: Context, p: Priljubljen): Drawable? {
         if (p.ikona.isBlank()) return null
         return try {
-            val slika = BitmapFactory.decodeFile(p.ikona) ?: return null
+            val slika = VarnaSlika.izDatoteke(p.ikona) ?: return null
             SpletneAplikacije.ikonaIzSlike(c, slika)
         } catch (_: Throwable) { null }
     }

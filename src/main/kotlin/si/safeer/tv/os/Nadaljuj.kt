@@ -89,14 +89,7 @@ object Nadaljuj {
     /** Doda na vrh; ista stvar se ne podvoji, ampak se le premakne naprej. */
     fun zapisi(c: Context, v: Vnos) {
         if (v.ime.isBlank() && v.url.isBlank()) return
-        val nov = ArrayList<Vnos>()
-        nov.add(v)
-        for (star in seznam(c)) {
-            if (star.kljuc() == v.kljuc()) continue
-            nov.add(star)
-            if (nov.size >= NAJVEC) break
-        }
-        shrani(c, nov)
+        shrani(c, OsPravila.naVrh(v, seznam(c), NAJVEC) { it.kljuc() })
     }
 
     fun odstrani(c: Context, v: Vnos) {
@@ -116,8 +109,7 @@ object Nadaljuj {
 
     private fun mapaIkon(c: Context) = java.io.File(c.applicationContext.filesDir, "nadaljuj-ikone")
 
-    private fun datotekaIkone(c: Context, v: Vnos) =
-        java.io.File(mapaIkon(c), Integer.toHexString(v.kljuc().hashCode()) + ".png")
+    private fun datotekaIkone(c: Context, v: Vnos) = java.io.File(mapaIkon(c), OsPravila.imeIkone(v.kljuc()))
 
     fun shraniIkono(c: Context, v: Vnos, png: ByteArray) {
         if (png.isEmpty() || png.size > 512 * 1024) return
@@ -133,16 +125,16 @@ object Nadaljuj {
         val f = datotekaIkone(c, v)
         if (!f.isFile) return null
         return try {
-            val slika = android.graphics.BitmapFactory.decodeFile(f.absolutePath) ?: return null
+            val slika = VarnaSlika.izDatoteke(f.absolutePath) ?: return null
             SpletneAplikacije.ikonaIzSlike(c, slika)
         } catch (_: Throwable) { null }
     }
 
     /** Ikone vrstic, ki jih ni vec: mapa nikoli ne zraste cez NAJVEC datotek. */
     private fun pocistiIkone(c: Context, vnosi: List<Vnos>) {
-        val ostanejo = vnosi.map { datotekaIkone(c, it).name }.toSet()
         try {
-            mapaIkon(c).listFiles()?.forEach { if (it.name !in ostanejo) it.delete() }
+            val datoteke = mapaIkon(c).listFiles()?.map { it.name } ?: return
+            for (ime in OsPravila.odvecneIkone(datoteke, vnosi.map { it.kljuc() })) java.io.File(mapaIkon(c), ime).delete()
         } catch (_: Throwable) { }
     }
 

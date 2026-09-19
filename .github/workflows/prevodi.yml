@@ -55,3 +55,37 @@ jobs:
         env:
           KOTLINC: /tmp/kotlinc/bin/kotlinc
         run: bash tests/run_scit_tests.sh
+
+      # Vsi ostali preizkusi v JVM (od kroga 27 obvezni): Hub in seznanjanje SPAKE2 (tudi preklic
+      # prijave), tokovi, podpisani seznami groženj, pravila groženj, domene, blokiranje oglasov
+      # in pravila Safeer OS (varne mere ikon, vrstica Nadaljuj). Prej so tekli samo doma.
+      - name: Safeer OS (mere ikon, vrstica Nadaljuj, kartica Zaslon)
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+        run: bash tests/run_os_tests.sh
+
+      - name: Hub, usmerjevalnik in seznanjanje (SPAKE2, preklic prijave)
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+        run: |
+          bash tests/run_hub_tests.sh
+          bash tests/run_usmerjevalnik_tests.sh
+
+      - name: Tokovi Huba (zaslon, datoteke)
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+        run: bash tests/run_tokovi_tests.sh
+
+      - name: Podpisani seznami in pravila groženj
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+        run: |
+          bash tests/run_signed_feed_tests.sh
+          bash tests/run_threat_policy_tests.sh
+
+      - name: Domene in blokiranje oglasov
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+        run: |
+          bash tests/run_domene_tests.sh
+          bash tests/run_adblock_tests.sh

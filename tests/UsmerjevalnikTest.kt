@@ -385,6 +385,39 @@ private fun preizkusSeznanjanja() {
     preveri("zavrnjene ni mogoce prevzeti", u5.prevzemiZeton(zaZavreci) == null)
 }
 
+// ------------------------------------------------------------ preklic prijave (Safeer OS 0.3.1)
+
+private fun preizkusPreklica() {
+    println("\n== preklic prijave ==")
+    val u = usmerjevalnik()
+    val (pairId, _) = u.zacniSeznanitev("tab1", "Tablica", "192.168.0.87")!!
+    preveri("tuja naprava ne more preklicati", !u.prekliciPrijavo(pairId, "tuja"))
+    preveriEnako("prijava po tujem preklicu ostane", 1, u.cakajocePrijave().size)
+    preveri("izmisljen pair_id ne preklice nicesar", !u.prekliciPrijavo("izmisljen", "tab1"))
+    preveri("naprava, ki je prijavo zacela, jo preklice", u.prekliciPrijavo(pairId, "tab1"))
+    preveriEnako("po preklicu ni prijave (koda izgine z zaslona)", 0, u.cakajocePrijave().size)
+    preveri("drugic preklic ne uspe", !u.prekliciPrijavo(pairId, "tab1"))
+
+    // Ze potrjena prijava: preklic je ne sme vec vzeti (zeton je ze izdan).
+    val (potrjena, _) = u.zacniSeznanitev("tab2", "Tablica 2", "192.168.0.88")!!
+    preveri("potrditev uspe", u.potrdiPrijavo(potrjena))
+    preveri("potrjene ni mogoce preklicati", !u.prekliciPrijavo(potrjena, "tab2"))
+    preveri("potrjena se vedno prevzame zeton", u.prevzemiZeton(potrjena) != null)
+
+    // Po HTTP: samo v krajevnem omrezju, z obema poljema.
+    val (p3, _) = u.zacniSeznanitev("tab3", "Tablica 3", "192.168.0.89")!!
+    preveriEnako("z interneta preklic ni mogoc", 403,
+        u.odgovori(zahteva("POST", "/cast/pair/cancel", """{"pair_id":"$p3","device_id":"tab3"}""", "203.0.113.5"))?.koda)
+    preveriEnako("brez device_id je napaka", 400,
+        u.odgovori(zahteva("POST", "/cast/pair/cancel", """{"pair_id":"$p3"}"""))?.koda)
+    val tuj = u.odgovori(zahteva("POST", "/cast/pair/cancel", """{"pair_id":"$p3","device_id":"tuja"}"""))
+    preveriEnako("tuj preklic po HTTP: 200, a nic preklicano", "false", tuj?.telo?.let { JsonLahki.objekt(it)?.let { o -> o.logicno("cancelled")?.toString() } })
+    preveri("prijava po tujem HTTP preklicu ostane", u.cakajocePrijave().any { it.pairId == p3 })
+    val pravi = u.odgovori(zahteva("POST", "/cast/pair/cancel", """{"pair_id":"$p3","device_id":"tab3"}"""))
+    preveriEnako("pravi preklic po HTTP", "true", pravi?.telo?.let { JsonLahki.objekt(it)?.let { o -> o.logicno("cancelled")?.toString() } })
+    preveri("po pravem preklicu prijave ni", u.cakajocePrijave().none { it.pairId == p3 })
+}
+
 // ------------------------------------------------------------ vstopnice
 
 private fun preizkusVstopnic() {
@@ -762,6 +795,7 @@ fun main() {
     preizkusDaljinca()
     preizkusSinhronizacije()
     preizkusSeznanjanja()
+    preizkusPreklica()
     preizkusSorodnika()
     preizkusVstopnic()
     preizkusHttp()
