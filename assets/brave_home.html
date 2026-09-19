@@ -290,8 +290,18 @@
 
     function letterMark(title) {
         var t = String(title || '').replace(/^[^A-Za-z0-9ČčŠšŽž]+/, '');
-        var ch = t.charAt(0) || String(title || '?').charAt(0) || '?';
-        return ch.toUpperCase();
+        var words = t.split(/\s+/).filter(Boolean);
+        if (!words.length) return '?';
+        if (/^\d/.test(words[0])) return words[0].slice(0, 2).toUpperCase();
+        return words.slice(0, 2).map(function(word) { return word.charAt(0); }).join('').toUpperCase();
+    }
+
+    function hostLabel(url) {
+        try {
+            return new URL(url).hostname.replace(/^www\./, '');
+        } catch (e) {
+            return '';
+        }
     }
 
     function bindOpen(el, url) {
@@ -314,12 +324,24 @@
             el.tabIndex = 0;
             var art = document.createElement('div');
             art.className = 'art';
-            art.textContent = isAdd ? '+' : letterMark(tile.title);
+            var mark = document.createElement('span');
+            mark.className = 'hero-mark';
+            mark.textContent = isAdd ? '+' : letterMark(tile.title);
+            art.appendChild(mark);
             var lab = document.createElement('div');
             lab.className = 'hero-label';
             lab.textContent = isAdd ? homeText('add') : tile.title;
+            var domain = document.createElement('div');
+            domain.className = 'hero-domain';
+            domain.textContent = isAdd ? '' : hostLabel(tile.url);
+            var arrow = document.createElement('span');
+            arrow.className = 'hero-arrow';
+            arrow.textContent = '›';
             el.appendChild(art);
             el.appendChild(lab);
+            el.appendChild(domain);
+            if (!isAdd) el.appendChild(arrow);
+            el.setAttribute('aria-label', isAdd ? homeText('add') : tile.title);
             if (isAdd) el.addEventListener('click', addTile);
             else bindOpen(el, tile.url);
             heroRow.appendChild(el);
@@ -344,6 +366,7 @@
             name.textContent = isAdd ? homeText('add') : tile.title;
             el.appendChild(wrap);
             el.appendChild(name);
+            el.setAttribute('aria-label', isAdd ? homeText('add') : tile.title);
             if (isAdd) el.addEventListener('click', addTile);
             else bindOpen(el, tile.url);
             miniRow.appendChild(el);
