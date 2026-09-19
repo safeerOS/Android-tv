@@ -2,7 +2,7 @@
 # One-click download and install of Safeer TV Browser (Android TV, over ADB).
 set -euo pipefail
 
-REPO="memelandfaner/safeer-browser-tv"
+REPO="safeerOS/Android-tv"
 TEMP_APK="/tmp/safeer-browser-tv.apk"
 TV="${1:-}"
 
