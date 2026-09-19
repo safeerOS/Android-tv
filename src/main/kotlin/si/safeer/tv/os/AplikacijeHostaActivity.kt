@@ -544,8 +544,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     izid?.optString("message").orEmpty().ifBlank { napaka }), Toast.LENGTH_LONG).show()
                 return@Odgovor
             }
-            Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.PROGRAM, ime = p.ime,
-                racunalnik = r.id, program = p.cilj, igra = p.skupina == "igre"))
+            val vnos = Nadaljuj.Vnos(vrsta = Nadaljuj.PROGRAM, ime = p.ime,
+                racunalnik = r.id, program = p.cilj, igra = p.skupina == "igre")
+            Nadaljuj.zapisi(this, vnos)
+            ikonePng[p.kljuc]?.let { png ->
+                try { Nadaljuj.shraniIkono(this, vnos, Base64.decode(png, Base64.DEFAULT)) } catch (_: Throwable) { }
+            }
             if (zaslon) {
                 Toast.makeText(this, getString(R.string.os_programi_odpiram, p.ime), Toast.LENGTH_SHORT).show()
                 startActivity(Intent(this, ZaslonActivity::class.java)

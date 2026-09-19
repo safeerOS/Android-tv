@@ -36,4 +36,5 @@
     <string name="tablet_koda_potekla">Koda je potekla. Za novo znova pritisni ploščico.</string>
     <string name="os_vir_tv">Tablica</string>
     <string name="tablet_nova_koda">Nova koda</string>
+    <string name="tablet_stanje_ni_tv">Še ni povezana s televizorjem</string>
 </resources>

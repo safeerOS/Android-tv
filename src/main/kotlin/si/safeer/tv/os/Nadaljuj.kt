@@ -105,6 +105,45 @@ object Nadaljuj {
 
     fun pocisti(c: Context) {
         prefs(c).edit().remove(KLJUC).apply()
+        pocistiIkone(c, emptyList())
+    }
+
+    // ------------------------------------------------------------------ ikone programov
+    //
+    // Program z racunalnika je imel v Nadaljuj splosno ikono racunalnika: sest enakih kartic, ki jih
+    // loci samo napis. Ikono, ki jo racunalnik poslje s seznamom programov, zato ob zagonu shranimo
+    // k vrstici; ko vrstica izpade iz seznama, izbrisemo tudi njeno ikono.
+
+    private fun mapaIkon(c: Context) = java.io.File(c.applicationContext.filesDir, "nadaljuj-ikone")
+
+    private fun datotekaIkone(c: Context, v: Vnos) =
+        java.io.File(mapaIkon(c), Integer.toHexString(v.kljuc().hashCode()) + ".png")
+
+    fun shraniIkono(c: Context, v: Vnos, png: ByteArray) {
+        if (png.isEmpty() || png.size > 512 * 1024) return
+        try {
+            mapaIkon(c).mkdirs()
+            datotekaIkone(c, v).writeBytes(png)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Ikone ni bilo mogoce shraniti: ${e.message}")
+        }
+    }
+
+    fun ikona(c: Context, v: Vnos): android.graphics.drawable.Drawable? {
+        val f = datotekaIkone(c, v)
+        if (!f.isFile) return null
+        return try {
+            val slika = android.graphics.BitmapFactory.decodeFile(f.absolutePath) ?: return null
+            SpletneAplikacije.ikonaIzSlike(c, slika)
+        } catch (_: Throwable) { null }
+    }
+
+    /** Ikone vrstic, ki jih ni vec: mapa nikoli ne zraste cez NAJVEC datotek. */
+    private fun pocistiIkone(c: Context, vnosi: List<Vnos>) {
+        val ostanejo = vnosi.map { datotekaIkone(c, it).name }.toSet()
+        try {
+            mapaIkon(c).listFiles()?.forEach { if (it.name !in ostanejo) it.delete() }
+        } catch (_: Throwable) { }
     }
 
     private fun shrani(c: Context, vnosi: List<Vnos>) {
@@ -116,5 +155,6 @@ object Nadaljuj {
                 .put("krajevno", v.krajevno).put("url", v.url).put("program", v.program).put("igra", v.igra))
         }
         prefs(c).edit().putString(KLJUC, polje.toString()).apply()
+        pocistiIkone(c, vnosi.take(NAJVEC))
     }
 }

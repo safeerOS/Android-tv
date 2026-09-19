@@ -42,7 +42,8 @@ object HubPairing {
     private var tece = false
 
     /** Odprta prijava: caka na vnos kode. */
-    private class Prijava(val osnova: String, val pairId: String, val hubId: String, val odtis: String)
+    private class Prijava(val osnova: String, val pairId: String, val hubId: String, val odtis: String,
+                          val deviceId: String = "")
 
     /** Kaj je prinesla zadnja uspesna seznanitev (za klicatelja, ki si mora poverilnice shraniti sam). */
     class Izid(val hubId: String, val odtis: String, val zeton: String)
@@ -143,7 +144,7 @@ object HubPairing {
                     glavna.post { koncano(false) }
                     return@Thread
                 }
-                odprta = Prijava(osnova, pairId, hubId, odtis)
+                odprta = Prijava(osnova, pairId, hubId, odtis, deviceId)
                 Log.i(TAG, "Cakam, da uporabnik vtipka kodo z gostitelja (odtis ${odtis.take(12)}…).")
                 glavna.post { nacinZnan(NACIN_KODA_NA_GOSTITELJU, "") }
             } catch (e: Exception) {
@@ -231,9 +232,24 @@ object HubPairing {
     /** Seznanitev tece in caka na kodo z gostitelja (uporabnik je sel po kodo in se vrnil). */
     fun cakaNaKodo(): Boolean = tece && odprta != null
 
-    /** Uporabnik je vnos kode opustil. */
+    /**
+     * Uporabnik je vnos kode opustil. Sredisce to izve, da koda na njegovem zaslonu ne visi do
+     * poteka (starejse sredisce te poti ne pozna - takrat koda potece sama kot doslej).
+     */
     fun prekini() {
+        val p = odprta
         tece = false
         odprta = null
+        if (p == null || p.deviceId.isBlank()) return
+        Thread {
+            try {
+                post(odjemalecPripet(p.odtis), "${p.osnova}/cast/pair/cancel", JSONObject().apply {
+                    put("pair_id", p.pairId)
+                    put("device_id", p.deviceId)
+                })
+            } catch (e: Exception) {
+                Log.i(TAG, "Preklica prijave ni bilo mogoce sporociti: ${e.message}")
+            }
+        }.start()
     }
 }

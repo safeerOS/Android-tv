@@ -147,6 +147,7 @@ object SafeerAppi {
             return !bila
         }
         val seznam = priljubljeni(c).toMutableList()
+        seznam.filter { it.kljuc == app.kljuc }.forEach { pobrisiIkono(it) }
         val bila = seznam.removeAll { it.kljuc == app.kljuc }
         if (!bila) {
             var pot = ""
@@ -163,7 +164,14 @@ object SafeerAppi {
     }
 
     fun odstrani(c: Context, kljuc: String) {
-        shrani(c, priljubljeni(c).filterNot { it.kljuc == kljuc })
+        val seznam = priljubljeni(c)
+        seznam.filter { it.kljuc == kljuc }.forEach { pobrisiIkono(it) }
+        shrani(c, seznam.filterNot { it.kljuc == kljuc })
+    }
+
+    /** Odstranjena kartica ne pusti ikone v shrambi televizorja. */
+    private fun pobrisiIkono(p: Priljubljen) {
+        if (p.ikona.isNotBlank()) try { File(p.ikona).delete() } catch (_: Throwable) { }
     }
 
     fun ikona(c: Context, p: Priljubljen): Drawable? {

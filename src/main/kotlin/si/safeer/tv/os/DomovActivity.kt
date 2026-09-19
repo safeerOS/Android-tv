@@ -435,8 +435,12 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val ikona = v.findViewById<ImageView>(R.id.ikona)
             val spletna = if (n.vrsta == Nadaljuj.SPLETNA)
                 SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url } else null
-            if (spletna != null) ikona.setImageDrawable(SpletneAplikacije.ikona(this, spletna))
-            else ikona.setImageResource(ikonaZa(n.vrsta))
+            val risba = when {
+                spletna != null -> SpletneAplikacije.ikona(this, spletna)
+                n.vrsta == Nadaljuj.PROGRAM -> ikonaPrograma(n)
+                else -> null
+            }
+            if (risba != null) ikona.setImageDrawable(risba) else ikona.setImageResource(ikonaZa(n.vrsta))
             // Zaslon racunalnika je bil prej zapisan z dolgim imenom naprave in se je na kartici
             // lomil sredi besede; ime izpisemo iz prevoda, tudi za vrstice, zapisane prej.
             v.findViewById<TextView>(R.id.ime).text =
@@ -694,6 +698,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             LinkOdjemalec.Odgovor { izid, _ ->
                 if (isFinishing) return@Odgovor
                 if (izid?.optBoolean("ok") != true) { niVec(n); return@Odgovor }
+                // Zagon s pripete kartice (ali znova iz Nadaljuj) naj velja enako kot zagon s seznama
+                // programov: program gre na vrh vrste Nadaljuj in ga od tam lahko zapres (✕).
+                Nadaljuj.zapisi(this, n.copy(kdaj = System.currentTimeMillis()))
+                if (!zaslon) zZapomnjenimFokusom { narisiNadaljuj() }
                 if (zaslon) odpriVarno(Intent(this, ZaslonActivity::class.java)
                     .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
                     .putExtra(ZaslonActivity.EXTRA_ZASLON, "apps")
@@ -735,9 +743,29 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         odpriVarno(namera, n.ime)
     }
 
-    /** Kar je bilo, ni vec dosegljivo: povejmo in kartico ponudimo v odstranitev. */
+    /** Prava ikona programa: shranjena ob zagonu, sicer tista s pripete kartice, sicer nic. */
+    private fun ikonaPrograma(n: Nadaljuj.Vnos): android.graphics.drawable.Drawable? =
+        Nadaljuj.ikona(this, n) ?: SafeerAppi.priljubljeni(this).firstOrNull {
+            it.vir == AppVir.RACUNALNIK && it.cilj == n.program && it.racunalnik == n.racunalnik
+        }?.let { SafeerAppi.ikona(this, it) }
+
+    /**
+     * Kar je bilo, ni vec dosegljivo: povejmo z oknom (obvestilo na dnu televizorja hitro spregledas)
+     * in kartico ponudimo v odstranitev. Privzeto ostane - racunalnik je morda le ugasnjen.
+     */
     private fun niVec(n: Nadaljuj.Vnos) {
-        Toast.makeText(this, getString(R.string.os_nadaljuj_ni_vec, n.ime), Toast.LENGTH_LONG).show()
+        if (isFinishing) return
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(n.ime)
+            .setMessage(getString(R.string.os_nadaljuj_ni_vec, n.ime))
+            .setPositiveButton(getString(android.R.string.ok), null)
+        if (Nadaljuj.seznam(this).any { it.kljuc() == n.kljuc() }) {
+            okno.setNegativeButton(getString(R.string.os_nadaljuj_odstrani)) { _, _ ->
+                Nadaljuj.odstrani(this, n)
+                zZapomnjenimFokusom { narisiNadaljuj() }
+            }
+        }
+        Kontroler.pokazi(okno.show())
     }
 
     // ------------------------------------------------------------------ Naprave

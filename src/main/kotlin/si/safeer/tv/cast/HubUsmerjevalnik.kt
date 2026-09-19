@@ -516,6 +516,15 @@ class HubUsmerjevalnik(
         }
     }
 
+    /** Naprava, ki je prijavo zacela, jo je opustila: koda na zaslonu ne sme viseti do poteka. */
+    fun prekliciPrijavo(pairId: String, deviceId: String): Boolean = synchronized(kljucnica) {
+        val prijava = prijave[pairId] ?: return false
+        if (prijava.deviceId != deviceId || prijava.potrjena) return false
+        prijave.remove(pairId)
+        naSpremembePrijav?.invoke()
+        return true
+    }
+
     fun zavrniPrijavo(pairId: String): Boolean = synchronized(kljucnica) {
         val odstranjena = prijave.remove(pairId) != null
         if (odstranjena) naSpremembePrijav?.invoke()
@@ -1024,6 +1033,20 @@ class HubUsmerjevalnik(
                     .stevilo("expires_in_seconds", (PIN_VELJA_MS / 1000).toDouble())
                     .toString()
             )
+        }
+
+        if (pot == "/cast/pair/cancel" && zahteva.metoda == "POST") {
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Seznanjanje je mogoče samo v krajevnem omrežju.", "samo_krajevno"))
+            val telo = JsonLahki.objekt(zahteva.telo)
+            val pairId = (telo?.niz("pair_id") ?: "").trim()
+            val deviceId = (telo?.niz("device_id") ?: "").trim().take(NAJVEC_IMENA)
+            if (pairId.isEmpty() || deviceId.isEmpty()) {
+                return HubStreznik.Odgovor(400, napakaJson("Manjka pair_id ali device_id.", "manjka_pair_id"))
+            }
+            // Preklice lahko samo naprava, ki je prijavo zacela: pozna njen pair_id in svoj device_id.
+            // Preklic nicesar ne odpre in ne izda - le skrije kodo, ki je nihce vec ne potrebuje.
+            val preklicana = prekliciPrijavo(pairId, deviceId)
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("cancelled", preklicana).toString())
         }
 
         if (pot == "/cast/pair/sibling" && zahteva.metoda == "POST") {

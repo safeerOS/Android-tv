@@ -37,4 +37,5 @@
     <string name="tablet_koda_potekla">The code has expired. Tap the tile again for a new one.</string>
     <string name="os_vir_tv">Tablet</string>
     <string name="tablet_nova_koda">New code</string>
+    <string name="tablet_stanje_ni_tv">Not connected to a TV yet</string>
 </resources>

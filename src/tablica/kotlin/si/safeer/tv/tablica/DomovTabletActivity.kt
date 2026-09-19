@@ -242,6 +242,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             !link.povezan -> getString(R.string.tablet_ni_linka)
             else -> getString(R.string.tablet_ni_racunalnika)
         }
+        pokaziStanje()
     }
 
     private fun dodaj(ikona: Int, ime: Int, opis: Int, ob: () -> Unit) =
@@ -266,6 +267,10 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun pokaziStanje() {
         val kje = link.imeSredisca.ifBlank { getString(R.string.os_naprava_tv) }
         stanje.text = when {
+            // Tablica je povezana samo s svojim, praznim srediscem: to ni "povezano" v smislu, ki
+            // uporabnika zanima (televizor, racunalnik), zato tega ne trdimo.
+            link.povezan && !Host.jeOddaljen(this) && !imamoDatoteke && !imamoPrograme && !imamoZaslon ->
+                getString(R.string.tablet_stanje_ni_tv)
             link.povezan -> getString(R.string.os_stanje_povezan, kje)
             sporociloStanja == "krajevni" -> getString(R.string.os_stanje_krajevni)
             sporociloStanja == "ni_linka" -> getString(R.string.os_stanje_ni_linka)
