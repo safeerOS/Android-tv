@@ -657,7 +657,8 @@ class ChromiumEngineView @JvmOverloads constructor(
             }
         }
 
-        webViewClient = object : WebViewClient() {
+        // onRenderProcessGone je spodaj; Lint ga v anonimnem razredu Kotlina ne najde.
+        webViewClient = @Suppress("MissingOnRenderProcessGone") object : WebViewClient() {
             /**
              * Stran se izrisuje v svojem procesu. Ko sistemu zmanjka pomnilnika, ubije tega -
              * in ce tu vrnemo false, Android ubije se cel brskalnik. Zato vrnemo true in

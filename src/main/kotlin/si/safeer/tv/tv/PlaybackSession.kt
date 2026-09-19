@@ -975,14 +975,17 @@ private class JsonWrapDrmCallback(
     override fun executeProvisionRequest(
         uuid: UUID,
         request: ExoMediaDrm.ProvisionRequest
-    ): ByteArray {
+    ): MediaDrmCallback.Response {
         return inner.executeProvisionRequest(uuid, request)
     }
 
     override fun executeKeyRequest(
         uuid: UUID,
         request: ExoMediaDrm.KeyRequest
-    ): ByteArray {
+    ): MediaDrmCallback.Response = MediaDrmCallback.Response(kljuc(request))
+
+    /** Odgovor streznika licenc (nekateri ga zavijejo v JSON); media3 od 1.9 ga vraca kot Response. */
+    private fun kljuc(request: ExoMediaDrm.KeyRequest): ByteArray {
         val challenge = request.data ?: ByteArray(0)
         val b64 = Base64.encodeToString(challenge, Base64.NO_WRAP)
         val json = JSONObject().put(wrapKey, b64).toString()

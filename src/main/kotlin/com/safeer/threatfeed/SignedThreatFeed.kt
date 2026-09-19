@@ -280,12 +280,11 @@ internal object FeedText {
     fun epochSeconds(value: String): Long {
         val m = TIME.matcher(value)
         if (!m.matches()) throw FeedVerificationException("invalid timestamp")
-        if (m.group(1).toInt() < 1970) throw FeedVerificationException("invalid timestamp")
+        // Matcher.group je lahko null (neobvezna skupina); tu so vse skupine obvezne, a ne zaupamo slepo.
+        fun del(i: Int): Int = m.group(i)?.toIntOrNull() ?: throw FeedVerificationException("invalid timestamp")
+        if (del(1) < 1970) throw FeedVerificationException("invalid timestamp")
         return try {
-            LocalDateTime.of(
-                m.group(1).toInt(), m.group(2).toInt(), m.group(3).toInt(),
-                m.group(4).toInt(), m.group(5).toInt(), m.group(6).toInt()
-            ).toEpochSecond(ZoneOffset.UTC)
+            LocalDateTime.of(del(1), del(2), del(3), del(4), del(5), del(6)).toEpochSecond(ZoneOffset.UTC)
         } catch (e: DateTimeException) {
             throw FeedVerificationException("invalid timestamp")
         }

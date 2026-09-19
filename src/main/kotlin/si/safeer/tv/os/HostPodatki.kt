@@ -115,9 +115,10 @@ object HostPodatki {
 
     private fun velikost(bajti: Long): String {
         val gb = bajti / 1024.0 / 1024.0 / 1024.0
-        if (gb >= 10) return String.format("%.0f GB", gb)
-        if (gb >= 1) return String.format("%.1f GB", gb)
-        return String.format("%.0f MB", bajti / 1024.0 / 1024.0)
+        val jezik = java.util.Locale.getDefault()
+        if (gb >= 10) return String.format(jezik, "%.0f GB", gb)
+        if (gb >= 1) return String.format(jezik, "%.1f GB", gb)
+        return String.format(jezik, "%.0f MB", bajti / 1024.0 / 1024.0)
     }
 
     /**

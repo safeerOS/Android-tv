@@ -41,7 +41,8 @@
                 <data android:scheme="http" />
                 <data android:scheme="https" />
             </intent-filter>
-            <intent-filter>
+            <!-- Brskalnik odpira vse naslove; App Link (autoVerify) je za posamezne domene. -->
+            <intent-filter tools:ignore="AppLinkWarning">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />

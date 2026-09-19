@@ -1,18 +1,24 @@
 plugins {
-    id 'com.android.application' version '7.4.2'
-    id 'org.jetbrains.kotlin.android' version '1.8.22'
+    id 'com.android.application' version '8.13.2'
+    id 'org.jetbrains.kotlin.android' version '2.2.21'
 }
 
 android {
     namespace 'si.safeer.tv'
-    compileSdk 34
-    buildToolsVersion '34.0.0'
+    // compileSdk 36: media3 1.11 in webkit 1.17 ga zahtevata za prevod. targetSdk ostane 34, zato
+    // se vedenje aplikacije na napravah ne spremeni.
+    compileSdk 36
 
     defaultConfig {
         minSdk 28
         targetSdk 34
         versionCode 224
         versionName '2.1.115'
+    }
+
+    // AGP 8 BuildConfig privzeto izklopi; koda ga rabi (DEBUG, razlicica).
+    buildFeatures {
+        buildConfig true
     }
 
     // Dve loceni aplikaciji iz ene kode. Android ju vidi kot dve aplikaciji (svoje ime, ikona,
@@ -68,11 +74,6 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    kotlinOptions {
-        jvmTarget = '1.8'
-        freeCompilerArgs += ['-opt-in=androidx.media3.common.util.UnstableApi']
-    }
-
     signingConfigs {
         storeRelease {
             if (System.getenv('RELEASE_KEYSTORE')) {
@@ -96,7 +97,7 @@ android {
         }
     }
 
-    lintOptions {
+    lint {
         // Izdaje lint ne ustavi (checkReleaseBuilds false): CI ga pozene kot svoj korak.
         // Obstojeca opozorila so zapisana v lint-baseline.xml; vsaka NOVA napaka ustavi CI.
         abortOnError true
@@ -104,22 +105,28 @@ android {
         baseline file("lint-baseline.xml")
     }
 
-    packagingOptions {
-        exclude 'META-INF/DEPENDENCIES'
-        exclude 'META-INF/LICENSE'
-        exclude 'META-INF/LICENSE.txt'
-        exclude 'META-INF/NOTICE'
-        exclude 'META-INF/NOTICE.txt'
-        exclude 'META-INF/*.kotlin_module'
+    packaging {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt',
+                         'META-INF/NOTICE', 'META-INF/NOTICE.txt', 'META-INF/*.kotlin_module']
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        // UnstableApi ni vec oznaka Kotlina za opt-in (preverja jo Lint); datoteke, ki jo rabijo,
+        // imajo @file:OptIn(UnstableApi::class).
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
     }
 }
 
 dependencies {
-    implementation 'androidx.media3:media3-exoplayer:1.4.1'
-    implementation 'androidx.media3:media3-exoplayer-dash:1.4.1'
-    implementation 'androidx.media3:media3-datasource:1.4.1'
-    implementation 'androidx.webkit:webkit:1.11.0'
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+    implementation 'androidx.media3:media3-exoplayer:1.11.1'
+    implementation 'androidx.media3:media3-exoplayer-dash:1.11.1'
+    implementation 'androidx.media3:media3-datasource:1.11.1'
+    implementation 'androidx.webkit:webkit:1.17.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.2.21'
     // Ed25519 verification for the signed Safeer Threat Intelligence feed (see libs/README.md)
     implementation files('libs/bcprov-ed25519-1.78.1.jar')
     // WebSocket povezava sprejemnika Safeer Cast (knjiznici sta v libs/, gradnja ne rabi omrezja)

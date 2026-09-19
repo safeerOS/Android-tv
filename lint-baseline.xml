@@ -1,48 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 7.4.2" type="baseline" client="gradle" dependencies="false" name="AGP (7.4.2)" variant="all" version="7.4.2">
+<issues format="6" by="lint 8.13.2" type="baseline" client="gradle" dependencies="false" name="AGP (8.13.2)" variant="all" version="8.13.2">
 
     <issue
-        id="GradleDependency"
-        message="A newer version of androidx.media3:media3-exoplayer than 1.4.1 is available: 1.11.1"
-        errorLine1="    implementation &apos;androidx.media3:media3-exoplayer:1.4.1&apos;"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="OldTargetApi"
+        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
+        errorLine1="        targetSdk 34"
+        errorLine2="        ~~~~~~~~~~~~">
         <location
             file="build.gradle"
-            line="118"
-            column="20"/>
+            line="14"
+            column="9"/>
     </issue>
 
     <issue
-        id="GradleDependency"
-        message="A newer version of androidx.media3:media3-exoplayer-dash than 1.4.1 is available: 1.11.1"
-        errorLine1="    implementation &apos;androidx.media3:media3-exoplayer-dash:1.4.1&apos;"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="SelectedPhotoAccess"
+        message="Your app is currently not handling Selected Photos Access introduced in Android 14+"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.READ_MEDIA_VIDEO&quot; />"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="build.gradle"
-            line="119"
-            column="20"/>
+            file="AndroidManifest.xml"
+            line="46"
+            column="36"/>
     </issue>
 
     <issue
-        id="GradleDependency"
-        message="A newer version of androidx.media3:media3-datasource than 1.4.1 is available: 1.11.1"
-        errorLine1="    implementation &apos;androidx.media3:media3-datasource:1.4.1&apos;"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="SelectedPhotoAccess"
+        message="Your app is currently not handling Selected Photos Access introduced in Android 14+"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.READ_MEDIA_IMAGES&quot; />"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="build.gradle"
-            line="120"
-            column="20"/>
+            file="AndroidManifest.xml"
+            line="48"
+            column="36"/>
     </issue>
 
     <issue
-        id="GradleDependency"
-        message="A newer version of androidx.webkit:webkit than 1.11.0 is available: 1.17.0"
-        errorLine1="    implementation &apos;androidx.webkit:webkit:1.11.0&apos;"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        id="AndroidGradlePluginVersion"
+        message="A newer version of com.android.application than 8.13.2 is available: 9.4.1"
+        errorLine1="    id &apos;com.android.application&apos; version &apos;8.13.2&apos;"
+        errorLine2="                                         ~~~~~~~~">
         <location
             file="build.gradle"
-            line="121"
-            column="20"/>
+            line="2"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.android than 2.2.21 is available: 2.4.20"
+        errorLine1="    id &apos;org.jetbrains.kotlin.android&apos; version &apos;2.2.21&apos;"
+        errorLine2="                                              ~~~~~~~~">
+        <location
+            file="build.gradle"
+            line="3"
+            column="47"/>
     </issue>
 
 </issues>

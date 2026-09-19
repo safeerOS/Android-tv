@@ -281,7 +281,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             if (Build.VERSION.SDK_INT >= 33) {
                 registerReceiver(debugJsReceiver, debugFilter, Context.RECEIVER_EXPORTED)
             } else {
-                @Suppress("DEPRECATION")
+                // Samo razvojna gradnja (BuildConfig.DEBUG); pred Androidom 13 zastavice ni.
+                @Suppress("DEPRECATION", "UnspecifiedRegisterReceiverFlag")
                 registerReceiver(debugJsReceiver, debugFilter)
             }
         } catch (_: Exception) {}
@@ -1173,7 +1174,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     private fun setupTabManager() {
         tabManager = TabManager(webViewContainer) { count, activeTab ->
-            btnTabCount.text = count.toString()
+            btnTabCount.text = String.format(java.util.Locale.getDefault(), "%d", count)
             if (activeTab != null) {
                 activeTab.webView.isDarkMode = isDarkModeActive
                 attachTabListeners(activeTab)
@@ -1919,7 +1920,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             )
             pogled.addJavascriptInterface(most, "SafeerLink")
 
-            pogled.webViewClient = object : android.webkit.WebViewClient() {
+            // onRenderProcessGone je spodaj; Lint ga v anonimnem razredu Kotlina ne najde.
+            pogled.webViewClient = @Suppress("MissingOnRenderProcessGone") object : android.webkit.WebViewClient() {
                 override fun shouldOverrideUrlLoading(
                     view: android.webkit.WebView?,
                     request: android.webkit.WebResourceRequest?
@@ -1936,6 +1938,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     view?.requestFocus()
+                }
+
+                // Ce sistem ubije izrisovalnik (malo pomnilnika) in tu vrnemo false, Android zapre
+                // ves brskalnik. Zapremo samo okno Safeer Link; pogled unici poslusalec ob zaprtju.
+                override fun onRenderProcessGone(
+                    view: android.webkit.WebView?,
+                    detail: android.webkit.RenderProcessGoneDetail?
+                ): Boolean {
+                    android.util.Log.w("SafeerLink", "Izrisovalnik okna Safeer Link je koncal; zapiram okno.")
+                    webViewContainer.post { try { okno.dismiss() } catch (_: Exception) {} }
+                    return true
                 }
             }
 
@@ -2423,7 +2436,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private fun velikostVBesedi(bajtov: Long): String {
         if (bajtov <= 0) return ""
         val mb = bajtov / 1048576.0
-        return if (mb >= 1) String.format("%.1f MB", mb) else String.format("%.0f kB", bajtov / 1024.0)
+        val jezik = java.util.Locale.getDefault()
+        return if (mb >= 1) String.format(jezik, "%.1f MB", mb) else String.format(jezik, "%.0f kB", bajtov / 1024.0)
     }
 
     /** Odpre preneseno datoteko s programom, ki jo zna odpreti; ce ga ni, to jasno povemo. */

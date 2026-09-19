@@ -3,8 +3,9 @@
      Vse skupno je v AndroidManifest.xml v korenu; tu je samo, kar velja za tablico. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="MissingLeanbackLauncher,UnsupportedTvHardware">
-    <!-- Tablica ni aplikacija za televizor: brez vnosa LEANBACK_LAUNCHER in z obveznim zaslonom na dotik. -->
+    tools:ignore="MissingLeanbackLauncher,UnsupportedTvHardware,UnnecessaryRequiredFeature,DiscouragedApi">
+    <!-- Tablica ni aplikacija za televizor: brez vnosa LEANBACK_LAUNCHER in z obveznim zaslonom na dotik.
+         Zasloni so zaenkrat v fiksni usmeritvi (targetSdk 34); vrtenje zaslona je naloga za tablico 0.3. -->
 
     <!-- Tablica ni televizor: nicesar ne zahtevamo od leanback okolja. -->
     <uses-feature android:name="android.software.leanback" android:required="false" tools:node="replace" />
