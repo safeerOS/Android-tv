@@ -2,7 +2,6 @@
 <resources>
     <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
     <!-- Vrsta Nadaljuj: kar je uporabnik nazadnje odprl. -->
-    <string name="os_odsek_nadaljuj">Weiter</string>
     <string name="os_nadaljuj_odstrani">Aus „Weiter“ entfernen</string>
     <string name="os_nadaljuj_ni_vec">%1$s ist nicht mehr verfügbar.</string>
     <string name="os_nadaljuj_ni_racunalnika">Der Computer ist nicht verbunden – schalte ihn ein und verbinde ihn mit Safeer Link oder mach am Fernseher weiter.</string>
@@ -11,7 +10,6 @@
     <string name="os_pravno">Rechtliches und Info</string>
     <string name="os_pravno_opis">Lizenz, Haftung und wie es entstanden ist</string>
     <string name="os_pravno_besedilo">Safeer OS %1$s (%2$s)\n\nLIZENZ. Safeer ist quelloffene Software unter der Apache-2.0-Lizenz und wird „wie besehen“ ohne Gewährleistung bereitgestellt.\n\nHAFTUNG. Wofür und wie du Safeer nutzt und welche Inhalte du damit öffnest, liegt in deiner Verantwortung. Der Autor haftet nicht für Schäden aus der Nutzung. Safeer Shield, BankGuard und die Bedrohungslisten sind eine Hilfe, keine Garantie: Sie können eine gefährliche Seite übersehen und eine sichere manchmal blockieren.\n\nKÜNSTLICHE INTELLIGENZ. Bei der Entwicklung dieser Software wurde künstliche Intelligenz eingesetzt. Der Code kann daher fehlerhaft oder unvollständig sein; jede Version wird getestet, Fehler sind aber nicht auszuschließen. Der Quellcode ist öffentlich: github.com/memelandfaner</string>
-    <string name="os_odsek_zacni">Starten</string>
     <string name="os_odsek_aplikacije">Apps auf diesem Fernseher</string>
     <string name="os_splet">Web</string>
     <string name="os_datoteke">Dateien</string>
@@ -351,14 +349,12 @@
     <string name="os_pozdrav_naslov">Willkommen zurück!</string>
     <string name="os_pozdrav_podnaslov">Alle deine Geräte, Apps und Inhalte – an einem Ort.</string>
     <string name="os_noge_podpis">Safeer OS | Offene Welt. Ohne Grenzen.</string>
-    <string name="os_poganja_opis">Verbindet deine Geräte</string>
 <string name="os_brskalnik_naslov">Webbrowser</string>
     <string name="os_brskalnik_opis">Schnell, sicher, werbefrei</string>
-    <string name="os_zaslon_opis">Deinen Computer anzeigen und steuern</string>
-    <string name="os_programi_opis">Programme deines Computers starten</string>
+    <string name="os_zaslon_opis">Dein Computer am TV</string>
+    <string name="os_programi_opis">Vom Computer</string>
     <string name="os_nedavno_uporabljeno">Zuletzt verwendet</string>
     <string name="os_dodaj_aplikacijo">App hinzufügen</string>
-    <string name="os_kartica_ni_povezano_naslov">Gerät nicht verbunden</string>
     <string name="os_kartica_ni_povezano_opis">Verbinde dein Gerät mit Safeer Link und aktiviere die Freigabe in Safeer Control.</string>
     <string name="os_plosca_naprave_naslov">Verbundene Geräte</string>
     <string name="os_plosca_naprave_prazno">Keine Geräte verbunden</string>
@@ -375,4 +371,6 @@
     <string name="os_plosca_scit_prekinjen">Pausiert</string>
     <string name="os_plosca_scit_aktivna">Netzwerkschutz aktiv</string>
     <string name="os_plosca_scit_stanje_blokiranih">Blockiert: %1$d</string>
+    <string name="os_poganja">Betrieben mit</string>
+    <string name="os_puscica">›</string>
 </resources>

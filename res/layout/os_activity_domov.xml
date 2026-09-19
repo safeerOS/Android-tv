@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- tools:ignore: en zaslon, narisan enkrat; utezi in globina so namerna mreza kartic. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/koren"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    tools:ignore="NestedWeights,TooManyViews,TooDeepLayout,UseCompoundDrawables">
 
     <!-- Glavno območje: levi stranski meni + desna vsebina -->
-    <LinearLayout
+    <LinearLayout android:baselineAligned="false"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -262,9 +265,9 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Powered by"
+                    android:text="@string/os_poganja"
                     android:textColor="@color/os_umirjeno"
-                    android:textSize="10sp"/>
+                    android:textSize="11sp"/>
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -391,7 +394,7 @@
                 </LinearLayout>
 
                 <!-- Tri velike primarne kartice (Spletni brskalnik, Zaslon računalnika, Programi) -->
-                <LinearLayout
+                <LinearLayout android:baselineAligned="false"
                     android:id="@+id/vrstaVelikeKartice"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -449,7 +452,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
-                            android:text="›"
+                            android:text="@string/os_puscica"
                             android:textColor="@color/os_umirjeno"
                             android:textSize="20sp"
                             android:fontFamily="sans-serif-medium"/>
@@ -506,7 +509,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
-                            android:text="›"
+                            android:text="@string/os_puscica"
                             android:textColor="@color/os_umirjeno"
                             android:textSize="20sp"
                             android:fontFamily="sans-serif-medium"/>
@@ -562,7 +565,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
-                            android:text="›"
+                            android:text="@string/os_puscica"
                             android:textColor="@color/os_umirjeno"
                             android:textSize="20sp"
                             android:fontFamily="sans-serif-medium"/>
@@ -593,7 +596,7 @@
                 </HorizontalScrollView>
 
                 <!-- Tri spodnje plošče: Povezane naprave, Hitri dostop, Ščit -->
-                <LinearLayout
+                <LinearLayout android:baselineAligned="false"
                     android:id="@+id/vrstaSpodnjePlosce"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -634,7 +637,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="›"
+                                android:text="@string/os_puscica"
                                 android:textColor="@color/os_umirjeno"
                                 android:textSize="18sp"
                                 android:fontFamily="sans-serif-medium"/>
@@ -680,13 +683,13 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="›"
+                                android:text="@string/os_puscica"
                                 android:textColor="@color/os_umirjeno"
                                 android:textSize="18sp"
                                 android:fontFamily="sans-serif-medium"/>
                         </LinearLayout>
 
-                        <LinearLayout
+                        <LinearLayout android:baselineAligned="false"
                             android:layout_width="match_parent"
                             android:layout_height="0dp"
                             android:layout_weight="1"
@@ -845,7 +848,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="›"
+                                android:text="@string/os_puscica"
                                 android:textColor="@color/os_umirjeno"
                                 android:textSize="18sp"
                                 android:fontFamily="sans-serif-medium"/>
@@ -911,19 +914,56 @@
 
                 </LinearLayout>
 
-                <!-- Skrite opustele vrste za ohranjanje združljivosti -->
-                <LinearLayout
+                <!-- Spletne aplikacije uporabnika (RTV SLO, YouTube ...): ostanejo na domacem zaslonu. -->
+                <TextView
+                    style="@style/Os.Nadnaslov"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/os_odsek_spletne"/>
+                <HorizontalScrollView
+                    android:id="@+id/drsnikSpletne"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:visibility="gone"
-                    android:orientation="vertical">
-                    <LinearLayout android:id="@+id/vrstaZacni" android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-                    <LinearLayout android:id="@+id/vrstaSpletne" android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-                    <TextView android:id="@+id/naslovAplikacije" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-                    <HorizontalScrollView android:id="@+id/aplikacijeDrsnik" android:layout_width="match_parent" android:layout_height="wrap_content">
-                        <LinearLayout android:id="@+id/vrstaAplikacije" android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-                    </HorizontalScrollView>
-                </LinearLayout>
+                    android:layout_marginTop="10dp"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+                    <LinearLayout
+                        android:id="@+id/vrstaSpletne"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"/>
+                </HorizontalScrollView>
+
+                <!-- Priljubljene aplikacije televizorja in programi racunalnika, ki jih je uporabnik pripel. -->
+                <TextView
+                    android:id="@+id/naslovAplikacije"
+                    style="@style/Os.Nadnaslov"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"/>
+                <HorizontalScrollView
+                    android:id="@+id/aplikacijeDrsnik"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="16dp"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+                    <LinearLayout
+                        android:id="@+id/vrstaAplikacije"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"/>
+                </HorizontalScrollView>
+
+                <!-- Vrsta Zacni: njene poti so zdaj v stranskem meniju in na ploscah, koda jo se polni. -->
+                <LinearLayout
+                    android:id="@+id/vrstaZacni"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:visibility="gone"/>
 
             </LinearLayout>
         </ScrollView>

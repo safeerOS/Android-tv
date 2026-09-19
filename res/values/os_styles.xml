@@ -73,10 +73,4 @@
         <item name="android:fontFamily">sans-serif</item>
     </style>
 
-    <style name="Os.Plosca.Naslov" parent="">
-        <item name="android:textColor">@color/os_besedilo</item>
-        <item name="android:textSize">15sp</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
-    </style>
 </resources>

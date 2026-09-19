@@ -656,6 +656,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     scitStevecBesedilo.text = getString(R.string.os_scit_izklopljen_kratko)
                 }
             }
+            // Zelena pika pomeni, da Scit dela; izklopljen ali prekinjen ima sivo, ne zbledelo zeleno.
+            scitStatusPika.backgroundTintList = if (s.naVoljo && s.vklopljen && s.tece) null else android.content.res.ColorStateList.valueOf(getColor(R.color.os_siva_pika))
         }
     }
 

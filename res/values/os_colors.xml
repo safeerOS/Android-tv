@@ -17,14 +17,9 @@
     <color name="os_kartica_steklo">#BF101A26</color>
     <color name="os_kartica_steklo_fokus">#E6182B3D</color>
     <color name="os_kartica_obroba">#26364A</color>
-    <color name="os_kartica_obroba_fokus">#57D6AD</color>
     <color name="os_meni_ozadje">#E6090F19</color>
     <color name="os_meni_izbran_ozadje">#1C2F3F</color>
     <color name="os_meni_fokus_ozadje">#22384C</color>
-    <color name="os_meni_neizbran">#94A3B8</color>
-    <color name="os_zelena_pika">#10B981</color>
     <color name="os_siva_pika">#64748B</color>
-    <color name="os_plosca_ozadje">#BF0C1420</color>
-    <color name="os_plosca_obroba">#1C2A3A</color>
     <color name="os_ploscica_app_ozadje">#B3101925</color>
 </resources>

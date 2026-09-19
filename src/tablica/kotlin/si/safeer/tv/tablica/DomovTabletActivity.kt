@@ -222,7 +222,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             odpriVBrskalniku(null)
         }
         mNastavitve?.setOnClickListener {
-            odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_nastavitve))
+            odpriVarno(Intent(this, si.safeer.tv.os.NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
         }
     }
 
@@ -308,7 +308,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
         }
         hitriNastavitve?.setOnClickListener {
-            odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_nastavitve))
+            odpriVarno(Intent(this, si.safeer.tv.os.NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
         }
         ploscaScit?.setOnClickListener {
             podrobnostiScita()
@@ -704,6 +704,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 stevec.text = getString(R.string.os_scit_kratko_izklopljen)
             }
         }
+        // Zelena pika pomeni, da Scit dela; izklopljen ali prekinjen ima sivo, ne zbledelo zeleno.
+        pika.backgroundTintList = if (s.naVoljo && s.vklopljen && s.tece) null else android.content.res.ColorStateList.valueOf(getColor(R.color.os_siva_pika))
     }
 
     private fun podrobnostiScita() {

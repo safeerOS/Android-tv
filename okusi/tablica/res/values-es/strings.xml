@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tablet_ime">Safeer OS Tablet</string>
-    <string name="tablet_podnaslov">Tu ordenador en tus manos.</string>
-    <string name="tablet_v_pripravi">En preparación. Lo de abajo funciona; lo que aún no está, no lo prometemos. Un mosaico aparece solo cuando el ordenador realmente lo comparte: eliges carpetas, programas y la pantalla en Safeer Control en el ordenador.</string>
     <string name="tablet_datoteke">Archivos</string>
-    <string name="tablet_datoteke_opis">Vídeos, música, fotos y documentos de tu ordenador</string>
     <string name="tablet_naprave">Dispositivos</string>
-    <string name="tablet_naprave_opis">Lo que está conectado mediante Safeer Link</string>
     <string name="tablet_programi">Programas</string>
-    <string name="tablet_programi_opis">Ordenados por grupos, con búsqueda; ábrelos desde aquí</string>
+    <string name="tablet_programi_opis">Abre los programas de tu ordenador</string>
     <string name="tablet_zaslon">Pantalla del ordenador</string>
     <string name="tablet_zaslon_opis">La imagen y el sonido de tu ordenador en la tableta</string>
     <string name="tablet_ni_racunalnika">Todavía no hay ningún ordenador conectado. Abre Safeer Control en tu ordenador y únete a Safeer Link; aparecerá aquí solo.</string>
@@ -18,7 +14,6 @@
     <string name="tablet_vklopljen">Safeer Link está activado. En el ordenador, abre Safeer Control y vincúlalo con esta tableta.</string>
     <string name="tablet_znova">Volver a conectar</string>
     <string name="tablet_znova_opis">Safeer Link está activado, pero no hay conexión. Inténtalo de nuevo.</string>
-    <string name="os_ime_vrste">Tableta Safeer</string>
     <string name="os_naprava_tv">esta tableta</string>
     <string name="os_krajevno_koren">En esta tableta</string>
     <string name="os_krajevno_dovoljenje">Safeer OS necesita permiso para leer los archivos de esta tableta.</string>
@@ -26,7 +21,6 @@
     <string name="os_krajevno_ta_tv_opis">Vídeos, música y fotos de la tableta y el USB</string>
     <string name="os_odsek_aplikacije">Aplicaciones de esta tableta</string>
     <string name="tablet_pridruzi">Unirse a %1$s</string>
-    <string name="tablet_pridruzi_opis">Safeer Link en esta casa. Aparece un código en la pantalla de «%1$s»; lo escribes aquí</string>
     <string name="tablet_povezujem">Conectando con «%1$s»…</string>
     <string name="tablet_ni_odgovora">«%1$s» no responde. Comprueba que el dispositivo esté encendido y en la misma red.</string>
     <string name="tablet_koda_naslov">Código de «%1$s»</string>
@@ -35,7 +29,6 @@
     <string name="tablet_povezana">La tableta está conectada a «%1$s».</string>
     <string name="tablet_napacna_koda">El código no coincide. Compruébalo en la pantalla e inténtalo de nuevo.</string>
     <string name="tablet_prevec_poskusov">Demasiados códigos incorrectos. Empieza de nuevo desde el mosaico.</string>
-    <string name="tablet_pridruzi_namig">En esta casa hay Safeer Link en otro dispositivo. Únete con el mosaico de arriba; aparecerá un código en su pantalla.</string>
     <string name="tablet_koda_potekla">El código ha caducado. Toca el mosaico otra vez para obtener uno nuevo.</string>
     <string name="os_vir_tv">Tableta</string>
     <string name="tablet_nova_koda">Nuevo código</string>
@@ -44,4 +37,7 @@
     <string name="tablet_prikazi_vse">Mostrar todo ›</string>
     <string name="tablet_odklopi">Desconectar</string>
     <string name="tablet_povezano_z">Conectado a %1$s</string>
+    <string name="os_scit_nastavitev_opis">Filtrado DNS para toda la tableta, en todas las apps</string>
+    <string name="os_jezik_opis">Safeer OS en el idioma que elijas, sea cual sea el de la tableta</string>
+    <string name="os_moc_opis">Procesador, memoria y espacio libre: en el host o en esta tableta</string>
 </resources>

@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- tools:ignore: en zaslon, narisan enkrat; utezi in globina so namerna mreza kartic. -->
+<LinearLayout android:baselineAligned="false" xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/koren"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:background="@color/os_ozadje">
+    
+    tools:ignore="NestedWeights,TooManyViews,TooDeepLayout,UseCompoundDrawables">
 
     <!-- Pokončni stranski meni (ozka tirnica z ikonami za dotik) -->
     <LinearLayout
@@ -213,7 +215,7 @@
             android:paddingBottom="24dp">
 
             <!-- Glava: iskalna vrstica in stanje Linka -->
-            <LinearLayout
+            <LinearLayout android:baselineAligned="false"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -358,7 +360,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:text="›"
+                        android:text="@string/os_puscica"
                         android:textColor="@color/os_umirjeno"
                         android:textSize="20sp"
                         android:fontFamily="sans-serif-medium"/>
@@ -410,7 +412,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:text="›"
+                        android:text="@string/os_puscica"
                         android:textColor="@color/os_umirjeno"
                         android:textSize="20sp"
                         android:fontFamily="sans-serif-medium"/>
@@ -461,7 +463,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:text="›"
+                        android:text="@string/os_puscica"
                         android:textColor="@color/os_umirjeno"
                         android:textSize="20sp"
                         android:fontFamily="sans-serif-medium"/>
@@ -552,7 +554,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="›"
+                            android:text="@string/os_puscica"
                             android:textColor="@color/os_umirjeno"
                             android:textSize="18sp"
                             android:fontFamily="sans-serif-medium"/>
@@ -597,13 +599,13 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="›"
+                            android:text="@string/os_puscica"
                             android:textColor="@color/os_umirjeno"
                             android:textSize="18sp"
                             android:fontFamily="sans-serif-medium"/>
                     </LinearLayout>
 
-                    <LinearLayout
+                    <LinearLayout android:baselineAligned="false"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
@@ -760,7 +762,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="›"
+                            android:text="@string/os_puscica"
                             android:textColor="@color/os_umirjeno"
                             android:textSize="18sp"
                             android:fontFamily="sans-serif-medium"/>
@@ -824,7 +826,7 @@
                         android:layout_marginTop="4dp"
                         android:text="@string/os_scit_nastavitev_opis"
                         android:textColor="@color/os_umirjeno"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:maxLines="1"
                         android:ellipsize="end"/>
 

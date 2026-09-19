@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tablet_ime">Safeer OS Tablet</string>
-    <string name="tablet_podnaslov">Il tuo computer nelle tue mani.</string>
-    <string name="tablet_v_pripravi">In lavorazione. Ciò che c’è qui sotto funziona; ciò che manca non lo promettiamo. Un riquadro appare solo quando il computer lo condivide davvero: cartelle, programmi e schermo li scegli in Safeer Control sul computer.</string>
     <string name="tablet_datoteke">File</string>
-    <string name="tablet_datoteke_opis">Video, musica, foto e documenti dal tuo computer</string>
     <string name="tablet_naprave">Dispositivi</string>
-    <string name="tablet_naprave_opis">Ciò che è collegato tramite Safeer Link</string>
     <string name="tablet_programi">Programmi</string>
-    <string name="tablet_programi_opis">Divisi in gruppi, con ricerca; avviali da qui</string>
+    <string name="tablet_programi_opis">Avvia i programmi del computer</string>
     <string name="tablet_zaslon">Schermo del computer</string>
     <string name="tablet_zaslon_opis">Immagine e audio del tuo computer sul tablet</string>
     <string name="tablet_ni_racunalnika">Nessun computer è ancora collegato. Avvia Safeer Control sul computer e collegalo a Safeer Link; comparirà qui da solo.</string>
@@ -18,7 +14,6 @@
     <string name="tablet_vklopljen">Safeer Link è attivo. Sul computer apri Safeer Control e abbinalo a questo tablet.</string>
     <string name="tablet_znova">Ricollega</string>
     <string name="tablet_znova_opis">Safeer Link è attivo, ma la connessione non c’è. Riprova.</string>
-    <string name="os_ime_vrste">Tablet Safeer</string>
     <string name="os_naprava_tv">questo tablet</string>
     <string name="os_krajevno_koren">Su questo tablet</string>
     <string name="os_krajevno_dovoljenje">Safeer OS ha bisogno del permesso di leggere i file su questo tablet.</string>
@@ -26,7 +21,6 @@
     <string name="os_krajevno_ta_tv_opis">Video, musica e foto sul tablet e su USB</string>
     <string name="os_odsek_aplikacije">App su questo tablet</string>
     <string name="tablet_pridruzi">Unisciti a %1$s</string>
-    <string name="tablet_pridruzi_opis">Safeer Link in questa casa. Sullo schermo di «%1$s» appare un codice; lo digiti qui</string>
     <string name="tablet_povezujem">Connessione a «%1$s»…</string>
     <string name="tablet_ni_odgovora">«%1$s» non risponde. Controlla che il dispositivo sia acceso e nella stessa rete.</string>
     <string name="tablet_koda_naslov">Codice da «%1$s»</string>
@@ -35,7 +29,6 @@
     <string name="tablet_povezana">Il tablet è collegato a «%1$s».</string>
     <string name="tablet_napacna_koda">Il codice non corrisponde. Controllalo sullo schermo e riprova.</string>
     <string name="tablet_prevec_poskusov">Troppi codici errati. Ricomincia dal riquadro.</string>
-    <string name="tablet_pridruzi_namig">In questa casa c’è Safeer Link su un altro dispositivo. Unisciti con il riquadro qui sopra; sul suo schermo apparirà un codice.</string>
     <string name="tablet_koda_potekla">Il codice è scaduto. Tocca di nuovo il riquadro per averne uno nuovo.</string>
     <string name="os_vir_tv">Tablet</string>
     <string name="tablet_nova_koda">Nuovo codice</string>
@@ -44,4 +37,7 @@
     <string name="tablet_prikazi_vse">Mostra tutto ›</string>
     <string name="tablet_odklopi">Disconnetti</string>
     <string name="tablet_povezano_z">Connesso a %1$s</string>
+    <string name="os_scit_nastavitev_opis">Filtro DNS per tutto il tablet, in ogni app</string>
+    <string name="os_jezik_opis">Safeer OS nella lingua che scegli, qualunque sia quella del tablet</string>
+    <string name="os_moc_opis">Processore, memoria e spazio libero: sull\'host o su questo tablet</string>
 </resources>
