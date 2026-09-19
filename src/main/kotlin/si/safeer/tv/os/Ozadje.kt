@@ -50,8 +50,9 @@ object Ozadje {
     class Izbira(val oznaka: String, val imeRes: Int, val risba: Int)
 
     val VSE = listOf(
+        Izbira("gore", R.string.os_ozadje_gore, R.drawable.os_slika_gore_foto),
         Izbira("valovi", R.string.os_ozadje_valovi, R.drawable.os_slika_valovi),
-        Izbira("gore", R.string.os_ozadje_gore, R.drawable.os_slika_gore),
+        Izbira("gore_risba", R.string.os_ozadje_gore_risba, R.drawable.os_slika_gore),
         Izbira("gozd", R.string.os_ozadje_gozd, R.drawable.os_slika_gozd),
         Izbira("sij", R.string.os_ozadje_sij, R.drawable.os_slika_sij),
         Izbira("morje", R.string.os_ozadje_morje, R.drawable.os_slika_morje),
@@ -61,7 +62,7 @@ object Ozadje {
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** Privzeto so abstraktni valovi: barve znamke, brez motenj pod karticami. */
+    /** Privzeto so gore (gorsko jezero): mirno ozadje, barve narave in znamke. */
     fun izbrana(c: Context): Izbira {
         val oznaka = prefs(c).getString(KLJUC, null) ?: return VSE[0]
         val i = VSE.firstOrNull { it.oznaka == oznaka } ?: return VSE[0]
