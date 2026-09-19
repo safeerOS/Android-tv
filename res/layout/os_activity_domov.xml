@@ -592,67 +592,338 @@
                         android:orientation="horizontal"/>
                 </HorizontalScrollView>
 
-                <!-- Zacni -->
-                <TextView
-                    style="@style/Os.Nadnaslov"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/os_odsek_zacni"/>
-                <HorizontalScrollView
+                <!-- Tri spodnje plošče: Povezane naprave, Hitri dostop, Ščit -->
+                <LinearLayout
+                    android:id="@+id/vrstaSpodnjePlosce"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:scrollbars="none"
-                    android:clipToPadding="false">
-                    <LinearLayout
-                        android:id="@+id/vrstaZacni"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"/>
-                </HorizontalScrollView>
+                    android:layout_marginTop="20dp"
+                    android:orientation="horizontal">
 
-                <!-- Spletne aplikacije -->
-                <TextView
-                    style="@style/Os.Nadnaslov"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/os_odsek_spletne"/>
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:scrollbars="none"
-                    android:clipToPadding="false">
+                    <!-- 1. Povezane naprave -->
                     <LinearLayout
-                        android:id="@+id/vrstaSpletne"
-                        android:layout_width="wrap_content"
+                        android:id="@+id/ploscaNaprave"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"/>
-                </HorizontalScrollView>
+                        android:layout_weight="1"
+                        android:layout_marginEnd="14dp"
+                        android:minHeight="146dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:background="@drawable/os_kartica_steklo"
+                        android:orientation="vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="14dp"
+                        android:paddingBottom="14dp">
 
-                <!-- Aplikacije -->
-                <TextView
-                    android:id="@+id/naslovAplikacije"
-                    style="@style/Os.Nadnaslov"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/os_odsek_aplikacije"/>
-                <HorizontalScrollView
-                    android:id="@+id/aplikacijeDrsnik"
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/os_plosca_naprave_naslov"
+                                android:textColor="@color/os_besedilo"
+                                android:textSize="15sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textStyle="bold"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="›"
+                                android:textColor="@color/os_umirjeno"
+                                android:textSize="18sp"
+                                android:fontFamily="sans-serif-medium"/>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/seznamPloscaNaprave"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:orientation="vertical"/>
+                    </LinearLayout>
+
+                    <!-- 2. Hitri dostop -->
+                    <LinearLayout
+                        android:id="@+id/ploscaHitri"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="14dp"
+                        android:minHeight="146dp"
+                        android:background="@drawable/os_kartica_steklo"
+                        android:orientation="vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="14dp"
+                        android:paddingBottom="14dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/os_plosca_hitri_naslov"
+                                android:textColor="@color/os_besedilo"
+                                android:textSize="15sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textStyle="bold"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="›"
+                                android:textColor="@color/os_umirjeno"
+                                android:textSize="18sp"
+                                android:fontFamily="sans-serif-medium"/>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
+                            android:layout_marginTop="10dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <!-- Web -->
+                            <LinearLayout
+                                android:id="@+id/hitriWeb"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:focusable="true"
+                                android:clickable="true"
+                                android:background="@drawable/os_hitri_gumb"
+                                android:orientation="vertical"
+                                android:gravity="center"
+                                android:paddingTop="10dp"
+                                android:paddingBottom="10dp">
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/os_ikona_splet"
+                                    android:contentDescription="@null"/>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="6dp"
+                                    android:text="@string/os_hitri_splet"
+                                    android:textColor="@color/os_besedilo"
+                                    android:textSize="11sp"
+                                    android:fontFamily="sans-serif-medium"/>
+                            </LinearLayout>
+
+                            <!-- Računalnik -->
+                            <LinearLayout
+                                android:id="@+id/hitriRacunalnik"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:focusable="true"
+                                android:clickable="true"
+                                android:background="@drawable/os_hitri_gumb"
+                                android:orientation="vertical"
+                                android:gravity="center"
+                                android:paddingTop="10dp"
+                                android:paddingBottom="10dp">
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/os_ikona_zaslon"
+                                    android:contentDescription="@null"/>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="6dp"
+                                    android:text="@string/os_hitri_zaslon"
+                                    android:textColor="@color/os_besedilo"
+                                    android:textSize="11sp"
+                                    android:fontFamily="sans-serif-medium"/>
+                            </LinearLayout>
+
+                            <!-- Datoteke -->
+                            <LinearLayout
+                                android:id="@+id/hitriDatoteke"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:focusable="true"
+                                android:clickable="true"
+                                android:background="@drawable/os_hitri_gumb"
+                                android:orientation="vertical"
+                                android:gravity="center"
+                                android:paddingTop="10dp"
+                                android:paddingBottom="10dp">
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/os_ikona_datoteke"
+                                    android:contentDescription="@null"/>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="6dp"
+                                    android:text="@string/os_hitri_datoteke"
+                                    android:textColor="@color/os_besedilo"
+                                    android:textSize="11sp"
+                                    android:fontFamily="sans-serif-medium"/>
+                            </LinearLayout>
+
+                            <!-- Nastavitve -->
+                            <LinearLayout
+                                android:id="@+id/hitriNastavitve"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:focusable="true"
+                                android:clickable="true"
+                                android:background="@drawable/os_hitri_gumb"
+                                android:orientation="vertical"
+                                android:gravity="center"
+                                android:paddingTop="10dp"
+                                android:paddingBottom="10dp">
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/os_ikona_nastavitve"
+                                    android:contentDescription="@null"/>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="6dp"
+                                    android:text="@string/os_hitri_nastavitve"
+                                    android:textColor="@color/os_besedilo"
+                                    android:textSize="11sp"
+                                    android:fontFamily="sans-serif-medium"/>
+                            </LinearLayout>
+
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- 3. Ščit -->
+                    <LinearLayout
+                        android:id="@+id/ploscaScit"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="146dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:background="@drawable/os_kartica_steklo"
+                        android:orientation="vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="14dp"
+                        android:paddingBottom="14dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/os_plosca_scit_naslov"
+                                android:textColor="@color/os_besedilo"
+                                android:textSize="15sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textStyle="bold"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="›"
+                                android:textColor="@color/os_umirjeno"
+                                android:textSize="18sp"
+                                android:fontFamily="sans-serif-medium"/>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
+                            android:layout_marginTop="10dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <ImageView
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:src="@drawable/os_ikona_scit"
+                                android:contentDescription="@null"/>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="14dp"
+                                android:orientation="vertical">
+
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical">
+                                    <View
+                                        android:id="@+id/scitStatusPika"
+                                        android:layout_width="8dp"
+                                        android:layout_height="8dp"
+                                        android:background="@drawable/os_pika"/>
+                                    <TextView
+                                        android:id="@+id/scitStatusBesedilo"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="6dp"
+                                        android:text="@string/os_plosca_scit_vklopljen"
+                                        android:textColor="@color/os_besedilo"
+                                        android:textSize="13sp"
+                                        android:fontFamily="sans-serif-medium"/>
+                                </LinearLayout>
+
+                                <TextView
+                                    android:id="@+id/scitStevecBesedilo"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="4dp"
+                                    android:text="@string/os_plosca_scit_aktivna"
+                                    android:textColor="@color/os_umirjeno"
+                                    android:textSize="12sp"
+                                    android:maxLines="2"
+                                    android:ellipsize="end"/>
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Skrite opustele vrste za ohranjanje združljivosti -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:scrollbars="none"
-                    android:clipToPadding="false">
-                    <LinearLayout
-                        android:id="@+id/vrstaAplikacije"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"/>
-                </HorizontalScrollView>
+                    android:visibility="gone"
+                    android:orientation="vertical">
+                    <LinearLayout android:id="@+id/vrstaZacni" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    <LinearLayout android:id="@+id/vrstaSpletne" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    <TextView android:id="@+id/naslovAplikacije" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    <HorizontalScrollView android:id="@+id/aplikacijeDrsnik" android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <LinearLayout android:id="@+id/vrstaAplikacije" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    </HorizontalScrollView>
+                </LinearLayout>
 
             </LinearLayout>
         </ScrollView>

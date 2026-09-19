@@ -360,5 +360,20 @@
     <string name="os_nedavno_uporabljeno">Recently used</string>
     <string name="os_dodaj_aplikacijo">Add app</string>
     <string name="os_kartica_ni_povezano_naslov">Device not connected</string>
-    <string name="os_kartica_ni_povezano_opis">Connect your computer to Safeer Link and enable sharing in Safeer Control.</string>
+    <string name="os_kartica_ni_povezano_opis">Connect your device to Safeer Link and enable sharing in Safeer Control.</string>
+    <string name="os_plosca_naprave_naslov">Connected devices</string>
+    <string name="os_plosca_naprave_prazno">No devices connected</string>
+    <string name="os_plosca_naprava_povezana">Connected</string>
+    <string name="os_plosca_naprava_pripravljenost">Standby</string>
+    <string name="os_plosca_hitri_naslov">Quick access</string>
+    <string name="os_hitri_splet">Web</string>
+    <string name="os_hitri_zaslon">Desktop</string>
+    <string name="os_hitri_datoteke">Files</string>
+    <string name="os_hitri_nastavitve">Settings</string>
+    <string name="os_plosca_scit_naslov">Shield</string>
+    <string name="os_plosca_scit_vklopljen">Active</string>
+    <string name="os_plosca_scit_izklopljen">Disabled</string>
+    <string name="os_plosca_scit_prekinjen">Paused</string>
+    <string name="os_plosca_scit_aktivna">Network protection active</string>
+    <string name="os_plosca_scit_stanje_blokiranih">%1$d blocked threats</string>
 </resources>

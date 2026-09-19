@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vrstica ene naprave v spodnji plošči "Povezane naprave" -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <ImageView
+        android:id="@+id/ikonaNaprave"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/os_ikona_zaslon"
+        android:contentDescription="@null"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/imeNaprave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/os_besedilo"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium"
+            android:singleLine="true"
+            android:ellipsize="end"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <View
+                android:id="@+id/pikaNaprave"
+                android:layout_width="7dp"
+                android:layout_height="7dp"
+                android:background="@drawable/os_pika"/>
+
+            <TextView
+                android:id="@+id/stanjeNaprave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:textColor="@color/os_umirjeno"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif-medium"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

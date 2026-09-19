@@ -359,5 +359,20 @@
     <string name="os_nedavno_uporabljeno">Usado recientemente</string>
     <string name="os_dodaj_aplikacijo">Añadir aplicación</string>
     <string name="os_kartica_ni_povezano_naslov">Dispositivo no conectado</string>
-    <string name="os_kartica_ni_povezano_opis">Conecta tu ordenador a Safeer Link y activa el uso compartido en Safeer Control.</string>
+    <string name="os_kartica_ni_povezano_opis">Conecta tu dispositivo a Safeer Link y activa el uso compartido en Safeer Control.</string>
+    <string name="os_plosca_naprave_naslov">Dispositivos conectados</string>
+    <string name="os_plosca_naprave_prazno">No hay dispositivos conectados</string>
+    <string name="os_plosca_naprava_povezana">Conectado</string>
+    <string name="os_plosca_naprava_pripravljenost">En espera</string>
+    <string name="os_plosca_hitri_naslov">Acceso rápido</string>
+    <string name="os_hitri_splet">Web</string>
+    <string name="os_hitri_zaslon">Escritorio</string>
+    <string name="os_hitri_datoteke">Archivos</string>
+    <string name="os_hitri_nastavitve">Ajustes</string>
+    <string name="os_plosca_scit_naslov">Escudo</string>
+    <string name="os_plosca_scit_vklopljen">Activado</string>
+    <string name="os_plosca_scit_izklopljen">Desactivado</string>
+    <string name="os_plosca_scit_prekinjen">Pausado</string>
+    <string name="os_plosca_scit_aktivna">Protección de red activa</string>
+    <string name="os_plosca_scit_stanje_blokiranih">%1$d amenazas bloqueadas</string>
 </resources>

@@ -44,6 +44,16 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var karticaBrskalnik: View
     private lateinit var karticaZaslon: View
     private lateinit var karticaProgrami: View
+    private lateinit var ploscaNaprave: View
+    private lateinit var seznamPloscaNaprave: LinearLayout
+    private lateinit var hitriWeb: View
+    private lateinit var hitriRacunalnik: View
+    private lateinit var hitriDatoteke: View
+    private lateinit var hitriNastavitve: View
+    private lateinit var ploscaScit: View
+    private lateinit var scitStatusPika: View
+    private lateinit var scitStatusBesedilo: TextView
+    private lateinit var scitStevecBesedilo: TextView
     private lateinit var vrstaZacni: LinearLayout
     private lateinit var vrstaNadaljuj: LinearLayout
     private lateinit var naslovNadaljuj: TextView
@@ -90,6 +100,17 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         karticaZaslon = findViewById(R.id.karticaZaslon)
         karticaProgrami = findViewById(R.id.karticaProgrami)
         pripraviVelikeKartice()
+        ploscaNaprave = findViewById(R.id.ploscaNaprave)
+        seznamPloscaNaprave = findViewById(R.id.seznamPloscaNaprave)
+        hitriWeb = findViewById(R.id.hitriWeb)
+        hitriRacunalnik = findViewById(R.id.hitriRacunalnik)
+        hitriDatoteke = findViewById(R.id.hitriDatoteke)
+        hitriNastavitve = findViewById(R.id.hitriNastavitve)
+        ploscaScit = findViewById(R.id.ploscaScit)
+        scitStatusPika = findViewById(R.id.scitStatusPika)
+        scitStatusBesedilo = findViewById(R.id.scitStatusBesedilo)
+        scitStevecBesedilo = findViewById(R.id.scitStevecBesedilo)
+        pripraviSpodnjePlosce()
         vrstaZacni = findViewById(R.id.vrstaZacni)
         vrstaNadaljuj = findViewById(R.id.vrstaNadaljuj)
         naslovNadaljuj = findViewById(R.id.naslovNadaljuj)
@@ -151,6 +172,134 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 vrstaNadaljuj.getChildAt(0)?.requestFocus()
                 true
             } else false
+        }
+    }
+
+    private fun pripraviSpodnjePlosce() {
+        ploscaNaprave.onFocusChangeListener = fokus
+        ploscaNaprave.setOnClickListener {
+            if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
+            else vprasajZaNacin()
+        }
+        ploscaNaprave.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    meniNaprave.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    hitriWeb.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt(0)?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        hitriWeb.onFocusChangeListener = fokus
+        hitriWeb.setOnClickListener { odpriVBrskalniku(null) }
+        hitriWeb.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    ploscaNaprave.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount / 3).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        hitriRacunalnik.onFocusChangeListener = fokus
+        hitriRacunalnik.setOnClickListener {
+            if (imamoZaslon) {
+                odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_zaslon))
+            } else {
+                pokaziOknoNiPovezano(getString(R.string.os_zaslon))
+            }
+        }
+        hitriRacunalnik.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount / 2).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        hitriDatoteke.onFocusChangeListener = fokus
+        hitriDatoteke.setOnClickListener {
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_meni_datoteke))
+        }
+        hitriDatoteke.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount * 2 / 3).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        hitriNastavitve.onFocusChangeListener = fokus
+        hitriNastavitve.setOnClickListener {
+            odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
+        }
+        hitriNastavitve.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    ploscaScit.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount - 1).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else false
+            } else false
+        }
+
+        ploscaScit.onFocusChangeListener = fokus
+        ploscaScit.setOnClickListener { podrobnostiScita() }
+        ploscaScit.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    hitriNastavitve.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    vrstaNadaljuj.getChildAt((vrstaNadaljuj.childCount - 1).coerceAtLeast(0))?.requestFocus()
+                    true
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    true
+                } else false
+            } else false
+        }
+    }
+
+    private fun osveziPloscoNaprave(naprave: List<LinkOdjemalec.Naprava>) {
+        if (!::seznamPloscaNaprave.isInitialized) return
+        seznamPloscaNaprave.removeAllViews()
+        val druge = naprave.filter { it.id != Identiteta.id(this) }.take(3)
+        if (druge.isEmpty()) {
+            val prazno = TextView(this)
+            prazno.text = getString(R.string.os_plosca_naprave_prazno)
+            prazno.setTextColor(resources.getColor(R.color.os_umirjeno, null))
+            prazno.textSize = 12f
+            prazno.setPadding(0, 12, 0, 12)
+            seznamPloscaNaprave.addView(prazno)
+            return
+        }
+        val infl = LayoutInflater.from(this)
+        for (n in druge) {
+            val v = infl.inflate(R.layout.os_vrstica_naprava, seznamPloscaNaprave, false)
+            val ikona = v.findViewById<ImageView>(R.id.ikonaNaprave)
+            val ime = v.findViewById<TextView>(R.id.imeNaprave)
+            val pika = v.findViewById<View>(R.id.pikaNaprave)
+            val stanje = v.findViewById<TextView>(R.id.stanjeNaprave)
+
+            val jeTelefon = n.vloga == "phone" || n.vloga == "telefon"
+            ikona.setImageResource(if (jeTelefon) R.drawable.os_ikona_telefon else R.drawable.os_ikona_zaslon)
+            ime.text = n.ime.ifBlank { n.id }
+            pika.alpha = if (link.povezan) 1f else 0.35f
+            stanje.text = getString(if (link.povezan) R.string.os_plosca_naprava_povezana else R.string.os_plosca_naprava_pripravljenost)
+            seznamPloscaNaprave.addView(v)
         }
     }
 
@@ -237,6 +386,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         SpletneAplikacije.osveziIkone(this) { zZapomnjenimFokusom { narisiSpletne() } }
         link.dodaj(this)
         osveziScit()
+        osveziPloscoNaprave(link.naprave)
         // Vrsta s spletnimi aplikacijami na domacem zaslonu televizorja ostane usklajena; ko ima
         // uporabnik prvo spletno aplikacijo, ga sistem enkrat vprasa, ali jo doda na domaci zaslon.
         DomacaVrsta.osvezi(this)
@@ -273,11 +423,13 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             else -> pokaziStanje(false, getString(R.string.os_stanje_povezujem))
         }
         osveziKartice()
+        osveziPloscoNaprave(link.naprave)
     }
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
         val kje = link.imeSredisca.ifBlank { getString(R.string.os_naprava_tv) }
         if (link.povezan) pokaziStanje(true, getString(R.string.os_stanje_povezan, kje))
+        osveziPloscoNaprave(naprave)
         // Racunalnik se je javil (ali odsel): vrsta Zacni dobi ali izgubi kartico s programi.
         val programi = naprave.any { it.zmoznosti.contains("apps") && it.id != Identiteta.id(this) }
         val zaslon = naprave.any { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
@@ -470,14 +622,40 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      */
     private fun pokaziScit(s: Scit.Stanje) {
         scitStanje = s
-        val opis = karticaScit?.findViewById<TextView>(R.id.stanje) ?: return
-        opis.visibility = View.VISIBLE
-        opis.text = when {
+        val opis = karticaScit?.findViewById<TextView>(R.id.stanje)
+        opis?.visibility = View.VISIBLE
+        opis?.text = when {
             !s.naVoljo -> getString(R.string.os_scit_kratko_ni)
             // Na majhni kartici je prostora za dve besedi: dolg napis se je odrezal sredi besede.
             s.vklopljen && s.tece -> getString(R.string.os_scit_ploscica_vklopljen, s.blokiranih)
             s.vklopljen -> getString(R.string.os_scit_kratko_prekinjen)
             else -> getString(R.string.os_scit_kratko_izklopljen)
+        }
+        if (::scitStatusBesedilo.isInitialized && ::scitStevecBesedilo.isInitialized && ::scitStatusPika.isInitialized) {
+            when {
+                !s.naVoljo -> {
+                    scitStatusBesedilo.text = getString(R.string.os_plosca_scit_izklopljen)
+                    scitStatusPika.alpha = 0.35f
+                    scitStevecBesedilo.text = getString(R.string.os_scit_ni_brskalnika)
+                }
+                s.vklopljen && s.tece -> {
+                    scitStatusBesedilo.text = getString(R.string.os_plosca_scit_vklopljen)
+                    scitStatusPika.alpha = 1f
+                    scitStevecBesedilo.text = if (s.blokiranih > 0)
+                        getString(R.string.os_plosca_scit_stanje_blokiranih, s.blokiranih)
+                    else getString(R.string.os_plosca_scit_aktivna)
+                }
+                s.vklopljen -> {
+                    scitStatusBesedilo.text = getString(R.string.os_plosca_scit_prekinjen)
+                    scitStatusPika.alpha = 0.5f
+                    scitStevecBesedilo.text = getString(R.string.os_scit_prekinjen)
+                }
+                else -> {
+                    scitStatusBesedilo.text = getString(R.string.os_plosca_scit_izklopljen)
+                    scitStatusPika.alpha = 0.35f
+                    scitStevecBesedilo.text = getString(R.string.os_scit_izklopljen_kratko)
+                }
+            }
         }
     }
 
@@ -606,6 +784,14 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                         } else if (koda == KeyEvent.KEYCODE_DPAD_UP) {
                             karticaBrskalnik.requestFocus()
                             true
+                        } else if (koda == KeyEvent.KEYCODE_DPAD_DOWN) {
+                            val cilj = when {
+                                indeks < 2 -> ploscaNaprave
+                                indeks < 4 -> hitriWeb
+                                else -> ploscaScit
+                            }
+                            cilj.requestFocus()
+                            true
                         } else false
                     } else false
                 }
@@ -641,6 +827,14 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                         } else if (koda == KeyEvent.KEYCODE_DPAD_UP) {
                             karticaBrskalnik.requestFocus()
                             true
+                        } else if (koda == KeyEvent.KEYCODE_DPAD_DOWN) {
+                            val cilj = when {
+                                indeks < 2 -> ploscaNaprave
+                                indeks < 4 -> hitriWeb
+                                else -> ploscaScit
+                            }
+                            cilj.requestFocus()
+                            true
                         } else false
                     } else false
                 }
@@ -661,6 +855,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     true
                 } else if (koda == KeyEvent.KEYCODE_DPAD_UP) {
                     karticaProgrami.requestFocus()
+                    true
+                } else if (koda == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    ploscaScit.requestFocus()
                     true
                 } else false
             } else false

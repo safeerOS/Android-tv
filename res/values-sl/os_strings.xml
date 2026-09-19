@@ -359,5 +359,20 @@
     <string name="os_nedavno_uporabljeno">Nedavno uporabljeno</string>
     <string name="os_dodaj_aplikacijo">Dodaj aplikacijo</string>
     <string name="os_kartica_ni_povezano_naslov">Naprava ni povezana</string>
-    <string name="os_kartica_ni_povezano_opis">Poveži računalnik v Safeer Link in omogoči deljenje v Safeer Controlu.</string>
+    <string name="os_kartica_ni_povezano_opis">Poveži napravo v Safeer Link in omogoči deljenje v Safeer Controlu.</string>
+    <string name="os_plosca_naprave_naslov">Povezane naprave</string>
+    <string name="os_plosca_naprave_prazno">Nobena naprava ni povezana</string>
+    <string name="os_plosca_naprava_povezana">Povezano</string>
+    <string name="os_plosca_naprava_pripravljenost">V pripravljenosti</string>
+    <string name="os_plosca_hitri_naslov">Hitri dostop</string>
+    <string name="os_hitri_splet">Splet</string>
+    <string name="os_hitri_zaslon">Zaslon</string>
+    <string name="os_hitri_datoteke">Datoteke</string>
+    <string name="os_hitri_nastavitve">Nastavitve</string>
+    <string name="os_plosca_scit_naslov">Ščit</string>
+    <string name="os_plosca_scit_vklopljen">Vklopljen</string>
+    <string name="os_plosca_scit_izklopljen">Izklopljen</string>
+    <string name="os_plosca_scit_prekinjen">Prekinjen</string>
+    <string name="os_plosca_scit_aktivna">Zaščita omrežja aktivna</string>
+    <string name="os_plosca_scit_stanje_blokiranih">%1$d blokiranih groženj</string>
 </resources>
