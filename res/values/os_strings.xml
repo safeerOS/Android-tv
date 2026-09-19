@@ -218,6 +218,8 @@
     <string name="os_zaslon_ni_dovoljeno">%1$s does not share its screen. In Safeer Control on that computer, turn on \'Screen for the TV\'.</string>
     <string name="os_zaslon_napaka">It did not work: %1$s</string>
     <string name="os_zaslon_koncano">The computer ended the session.</string>
+    <string name="os_zaslon_program_zaprt">The program on the computer has closed.</string>
+    <string name="os_zaslon_ni_okna">The program did not open on the computer.</string>
     <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f fps · %4$.1f Mb/s · decoder %5$d ms</string>
     <string name="os_zaslon_ponovno">The connection dropped. Trying again...</string>
     <string name="os_zaslon_zvok">sound</string>

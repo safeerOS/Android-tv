@@ -38,7 +38,8 @@ class ZaslonOdjemalec(
     private val naStanje: (Stanje, String) -> Unit,
     private val naStatistiko: (Statistika) -> Unit,
 ) {
-    enum class Stanje { POVEZUJEM, TECE, KONCANO, NAPAKA }
+    /** PRAZNO: racunalnik javi, da na locenem zaslonu ni vec programa (besedilo = razlog). */
+    enum class Stanje { POVEZUJEM, TECE, KONCANO, NAPAKA, PRAZNO }
 
     /** Kar lahko izmerimo na televizorju: slike, pretok in koliko casa slika stoji v dekoderju. */
     data class Statistika(val slik: Int, val naSekundo: Double, val megabitov: Double,
@@ -203,6 +204,11 @@ class ZaslonOdjemalec(
                 try { zvocnik?.write(telo, 0, dolzina, AudioTrack.WRITE_NON_BLOCKING) } catch (_: Throwable) { }
                 continue
             }
+            if (vrsta == OKVIR_OBVESTILO) {
+                val konec = try { JSONObject(String(telo, Charsets.UTF_8)).optString("konec") } catch (_: Throwable) { "" }
+                if (konec.isNotEmpty()) { naStanje(Stanje.PRAZNO, konec); tece = false; break }
+                continue
+            }
             if (vrsta != OKVIR_SLIKA) continue
             ostanek = ostanek + telo
             var od = zacetekNal(ostanek, 0)
@@ -286,6 +292,7 @@ class ZaslonOdjemalec(
         /** Vrsti okvirjev; morata biti enaki kot v core/link_zaslon.py. */
         const val OKVIR_SLIKA = 1
         const val OKVIR_ZVOK = 2
+        const val OKVIR_OBVESTILO = 3
         /** Vec kot toliko v enem okvirju ne posiljamo; vecje stevilo pomeni pokvarjen pretok. */
         const val NAJVECJI_OKVIR = 8 * 1024 * 1024
     }

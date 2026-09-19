@@ -221,6 +221,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         // uporabnika vrnemo nazaj - zamrznjena slika je najslabsi mozni izid.
                         ZaslonOdjemalec.Stanje.KONCANO -> if (!koncujem) ponoviAliKoncaj(getString(R.string.os_zaslon_koncano))
                         ZaslonOdjemalec.Stanje.NAPAKA -> ponoviAliKoncaj(getString(R.string.os_zaslon_napaka, besedilo))
+                        // Na locenem zaslonu ni vec programa (igra se je zaprla ob Esc ...): temen
+                        // prazen zaslon je slepa ulica, zato gremo takoj nazaj v Safeer OS.
+                        ZaslonOdjemalec.Stanje.PRAZNO -> {
+                            Toast.makeText(this, getString(if (besedilo == "ni_okna") R.string.os_zaslon_ni_okna
+                                else R.string.os_zaslon_program_zaprt), Toast.LENGTH_LONG).show()
+                            koncaj(); finish()
+                        }
                     }
                 }
             },
