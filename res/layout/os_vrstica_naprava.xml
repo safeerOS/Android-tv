@@ -5,8 +5,8 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp">
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
 
     <ImageView
         android:id="@+id/ikonaNaprave"
