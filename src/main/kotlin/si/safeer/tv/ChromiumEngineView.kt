@@ -129,21 +129,25 @@ class ChromiumEngineView @JvmOverloads constructor(
         UserScriptManager.injectDarkModeToggle(this, enable)
     }
 
+    /** V androidx.webkit 1.11 je ta zastavica se oznacena kot interna; podporo preverimo prej. */
+    @Suppress("RestrictedApi")
+    private fun brezGlaveRequestedWith() {
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+            androidx.webkit.WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
+        }
+    }
+
     private fun setupSettings() {
         setLayerType(View.LAYER_TYPE_HARDWARE, null)
         overScrollMode = View.OVER_SCROLL_NEVER
         isHapticFeedbackEnabled = false
         isScrollbarFadingEnabled = true
         scrollBarStyle = View.SCROLLBARS_OUTSIDE_OVERLAY
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
-        }
+        setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
 
         val cm = CookieManager.getInstance()
         cm.setAcceptCookie(true)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            cm.setAcceptThirdPartyCookies(this, true)
-        }
+        cm.setAcceptThirdPartyCookies(this, true)
         try {
             cm.setCookie(".youtube.com", "SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAnNsIAEaBgiA_LyaBg; path=/; domain=.youtube.com; SameSite=Lax")
             cm.setCookie(".youtube.com", "CONSENT=YES+cb.20230531-04-p0.sl+FX+999; path=/; domain=.youtube.com")
@@ -159,9 +163,7 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         // 1. Strip X-Requested-With header to bypass Google OAuth WebView block
         try {
-            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-                androidx.webkit.WebSettingsCompat.setRequestedWithHeaderOriginAllowList(settings, emptySet())
-            }
+            brezGlaveRequestedWith()
         } catch (_: Exception) {}
 
         settings.apply {
@@ -182,12 +184,8 @@ class ChromiumEngineView @JvmOverloads constructor(
             textZoom = 100
             cacheMode = WebSettings.LOAD_DEFAULT
             userAgentString = DESKTOP_USER_AGENT
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                offscreenPreRaster = true
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                safeBrowsingEnabled = false
-            }
+            offscreenPreRaster = true
+            safeBrowsingEnabled = false
         }
 
         setInitialScale(100)
@@ -669,7 +667,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                 view: WebView?,
                 detail: android.webkit.RenderProcessGoneDetail?
             ): Boolean {
-                val sesul = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail?.didCrash() == true
+                val sesul = detail?.didCrash() == true
                 android.util.Log.w(
                     "SafeerPomnilnik",
                     if (sesul) "Izrisovalnik strani se je sesul; obnavljam zavihek."
@@ -693,11 +691,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                 val uri = request?.url ?: return false
                 val urlStr = uri.toString()
                 applyUserAgentForUrl(urlStr)
-                val isMainFrame = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    request.isForMainFrame
-                } else {
-                    true
-                }
+                val isMainFrame = request.isForMainFrame
 
                 // 0. Novo okno: dokler ne vemo, kam pelje, se v njem ne nalozi nic. Vratar
                 //    odgovori enkrat; ce cilj ni prijava, navigacijo tu ustavimo in zavihek
@@ -799,11 +793,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                 if (request.url?.host == PdfPregledovalnik.GOSTITELJ) {
                     return PdfPregledovalnik.odgovor(context, url)
                 }
-                val isMainFrame = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    request.isForMainFrame
-                } else {
-                    false
-                }
+                val isMainFrame = request.isForMainFrame
                 // Threat Shield pred vsemi izjemami: besedilo v URL-ju (npr. ".mpd", "recaptcha") ne sme obiti preverjanja.
                 val threatResponse = ThreatBlockEngine.handleThreatIntercept(url, isMainFrame)
                 if (threatResponse != null) {
@@ -812,16 +802,8 @@ class ChromiumEngineView @JvmOverloads constructor(
                 if (UserScriptManager.isGoogleDomain(url) || url.contains("recaptcha") || url.contains("gstatic.com")) {
                     return null
                 }
-                val method = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    request.method ?: "GET"
-                } else {
-                    "GET"
-                }
-                val reqHeaders: Map<String, String> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    request.requestHeaders ?: emptyMap()
-                } else {
-                    emptyMap()
-                }
+                val method = request.method ?: "GET"
+                val reqHeaders: Map<String, String> = request.requestHeaders ?: emptyMap()
 
                 if (DashPrevzem.shouldPassthrough(url)) {
                     try {
@@ -908,6 +890,9 @@ class ChromiumEngineView @JvmOverloads constructor(
                 }
             }
 
+            // Nadaljujemo SAMO pri lastnem Hubu s pripetim odtisom (HubTls.jeZaupanjaVredenHub); vse
+            // drugo se zavrne kot doslej.
+            @Suppress("WebViewClientOnReceivedSslError")
             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
                 // Safeer Link: stran z lastnega Huba ima samopodpisano potrdilo, katerega odtis je
                 // pripet ob seznanitvi. Sprejmemo samo natanko ta odtis na natanko tem naslovu.

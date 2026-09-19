@@ -27,7 +27,7 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:background="@drawable/bg_mobile_icon_button"
-            android:text="✕"
+            android:text="@string/sym_zapri"
             android:textColor="@color/text_primary"
             android:textSize="14sp" />
     </LinearLayout>

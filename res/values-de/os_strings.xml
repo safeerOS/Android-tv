@@ -1,37 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
-    <string name="os_podnaslov">Deine Geräte. Ein Bildschirm.</string>
     <!-- Vrsta Nadaljuj: kar je uporabnik nazadnje odprl. -->
     <string name="os_odsek_nadaljuj">Weiter</string>
     <string name="os_nadaljuj_odstrani">Aus „Weiter“ entfernen</string>
     <string name="os_nadaljuj_ni_vec">%1$s ist nicht mehr verfügbar.</string>
+    <string name="os_nadaljuj_ni_racunalnika">Der Computer ist nicht verbunden – schalte ihn ein und verbinde ihn mit Safeer Link oder mach am Fernseher weiter.</string>
     <string name="os_nadaljuj_odpiram">%1$s wird geöffnet …</string>
-    <string name="os_nadaljuj_pocisti">Zeile „Weiter“ leeren</string>
     <!-- Pravno: odgovornost za uporabo in odkrita navedba, da je pri razvoju sodelovala UI. -->
     <string name="os_pravno">Rechtliches und Info</string>
     <string name="os_pravno_opis">Lizenz, Haftung und wie es entstanden ist</string>
     <string name="os_pravno_besedilo">Safeer OS %1$s (%2$s)\n\nLIZENZ. Safeer ist quelloffene Software unter der Apache-2.0-Lizenz und wird „wie besehen“ ohne Gewährleistung bereitgestellt.\n\nHAFTUNG. Wofür und wie du Safeer nutzt und welche Inhalte du damit öffnest, liegt in deiner Verantwortung. Der Autor haftet nicht für Schäden aus der Nutzung. Safeer Shield, BankGuard und die Bedrohungslisten sind eine Hilfe, keine Garantie: Sie können eine gefährliche Seite übersehen und eine sichere manchmal blockieren.\n\nKÜNSTLICHE INTELLIGENZ. Bei der Entwicklung dieser Software wurde künstliche Intelligenz eingesetzt. Der Code kann daher fehlerhaft oder unvollständig sein; jede Version wird getestet, Fehler sind aber nicht auszuschließen. Der Quellcode ist öffentlich: github.com/memelandfaner</string>
     <string name="os_odsek_zacni">Starten</string>
-    <string name="os_odsek_naprave">Geräte in Safeer Link</string>
     <string name="os_odsek_aplikacije">Apps auf diesem Fernseher</string>
     <string name="os_splet">Web</string>
-    <string name="os_splet_opis">Weniger Werbung, mehr Privatsphäre</string>
     <string name="os_datoteke">Dateien</string>
-    <string name="os_datoteke_opis">Videos, Musik und Bilder vom Computer</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Deine Geräte. Verbunden.</string>
     <string name="os_stanje_povezujem">Verbinde …</string>
     <string name="os_stanje_povezan">Verbunden · %1$s</string>
     <string name="os_stanje_ni">Kein Safeer Link</string>
-    <string name="os_stanje_ni_brskalnika">Safeer Browser für Android TV installieren</string>
     <string name="os_ni_naprav">Noch kein anderes Gerät verbunden. Schalte Safeer Link am Handy oder Computer ein.</string>
-    <string name="os_ni_brskalnika_dolgo">Safeer OS braucht Safeer Browser für Android TV – er stellt Safeer Link auf diesem Fernseher bereit. Installiere ihn von safeer.si und öffne Safeer OS erneut.</string>
     <string name="os_naprava_tv">dieser Fernseher</string>
-    <string name="os_odpri">Öffnen</string>
     <string name="os_poslano_tv">An Safeer Browser gesendet</string>
     <string name="os_prejeto_besedilo">Text von %1$s</string>
-    <string name="os_datoteke_racunalniki">Computer</string>
     <string name="os_datoteke_koren">Freigegebene Ordner</string>
     <string name="os_datoteke_ni_racunalnika">Noch kein Computer gibt Dateien frei.\n\nÖffne am Computer Safeer Control → Dateien für den Fernseher und füge einen Ordner hinzu. Safeer Control ist eine kleine kostenlose App für Linux: safeer.si/control</string>
     <string name="os_datoteke_prazno_racunalnik">%1$s gibt noch keinen Ordner frei.\n\nÖffne in Safeer Control auf diesem Computer „Dateien für den Fernseher“ und füge einen Ordner hinzu – er erscheint hier sofort.</string>
@@ -51,7 +42,7 @@
     <string name="os_scit">Schild</string>
     <string name="os_scit_preverjam">Prüfe …</string>
     <string name="os_scit_ni_brskalnika">Braucht Safeer Browser für Android TV 2.1.100 oder neuer</string>
-    <string name="os_scit_vklopljen_opis">Schutz ist an\nHeute %1$d Werbeanzeigen, Tracker und gefährliche Domains blockiert</string>
+    <string name="os_scit_vklopljen_opis">Schutz ist an\nHeute blockiert (Werbung, Tracker, gefährliche Domains): %1$d</string>
     <string name="os_scit_prekinjen">An, aber unterbrochen (anderes VPN?) – öffnen zum erneuten Einschalten</string>
     <string name="os_scit_izklopljen_opis">Schutz ist aus\nEinschalten für jede App auf diesem Fernseher</string>
     <string name="os_scit_izklopljen_kratko">Schild ist aus</string>
@@ -59,9 +50,6 @@
     <string name="os_stanje_ni_linka">Safeer Link ist aus</string>
     <string name="os_naprave_krajevni">Lokaler Modus: Safeer OS nutzt nur diesen Fernseher. Schalte Safeer Link ein, um andere Geräte zu sehen.</string>
     <string name="os_naprave_ni_linka">Safeer Link ist aus. Schalte ihn ein (Karte Safeer Link), dann erscheinen Handy und Computer hier.</string>
-    <string name="os_datoteke_opis_krajevno">Videos, Musik und Bilder vom Fernseher und USB</string>
-    <string name="os_link_izklopljen_opis">Aus · einschalten für Geräte und Dateien</string>
-    <string name="os_link_krajevni_opis">Lokaler Modus · öffnen, um Safeer Link einzuschalten</string>
     <string name="os_nacin_naslov">Wie soll Safeer OS arbeiten?</string>
     <string name="os_nacin_opis">Mit Safeer Link kommen Handy und Computer dazu: Dateien vom Computer, Seiten senden, die Fernbedienung. Ohne ihn arbeitet Safeer OS allein, nur mit diesem Fernseher: Web, seine Dateien und USB, Apps und das Schild. Du kannst das jederzeit ändern.</string>
     <string name="os_nacin_link">Safeer Link einschalten</string>
@@ -78,7 +66,7 @@
     <string name="os_krajevno_videi">Videos</string>
     <string name="os_krajevno_glasba">Musik</string>
     <string name="os_krajevno_slike">Bilder</string>
-    <string name="os_krajevno_stevilo">%1$d Dateien</string>
+    <string name="os_krajevno_stevilo">Dateien: %1$d</string>
     <string name="os_krajevno_prazno">Hier ist noch nichts. Dateien auf dem Fernseher oder auf einem USB-Stick erscheinen automatisch.</string>
     <string name="os_krajevno_dovoljenje">Safeer OS braucht die Erlaubnis, die Dateien dieses Fernsehers zu lesen.</string>
     <string name="os_krajevno_brez_dovoljenja">Ohne diese Erlaubnis können die Dateien des Fernsehers nicht gezeigt werden. Du kannst sie in den Android-Einstellungen unter Apps → Safeer → Berechtigungen erteilen.</string>
@@ -89,17 +77,14 @@
     <string name="os_spletne_odstrani">Entfernen</string>
     <string name="os_preklici">Abbrechen</string>
     <string name="os_spletne_odstrani_vprasanje">Diese Web-App vom Startbildschirm entfernen? Die Seite selbst bleibt unberührt.</string>
-    <string name="os_spletne_ni_kaj_dodati">Alle Seiten der Browser-Startseite sind schon hier. Füge eine Seite zuerst im Browser hinzu (Meine Seiten → Bearbeiten).</string>
 
     <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
     <string name="os_nastavitve">Einstellungen</string>
-    <string name="os_nastavitve_opis">Startbildschirm, Modus, Schild</string>
     <string name="os_nastavitve_opomba">Alles hier lässt sich jederzeit ein- und ausschalten.</string>
     <string name="os_jezik_opis">Safeer OS in der Sprache Ihrer Wahl, unabhängig von der Spracheinstellung des Fernsehers</string>
     <string name="os_zaganjalnik">Startbildschirm des Fernsehers</string>
     <string name="os_zaganjalnik_opis">Ob Safeer OS die Home-Taste übernimmt oder eine App bleibt, die du für Web-Apps öffnest</string>
     <string name="os_zaganjalnik_izbran">Safeer OS</string>
-    <string name="os_zaganjalnik_ponujen">Im System verfügbar</string>
     <string name="os_zaganjalnik_vprasanje">Safeer OS wird als Startbildschirm dieses Fernsehers angeboten. Die Wahl trifft das System: es öffnet sich ein Systemfenster, in dem du es auswählst. Hier kannst du es jederzeit ausschalten, dann nimmt der Fernseher wieder seinen eigenen Launcher.</string>
     <string name="os_zaganjalnik_vklopi">Als Startbildschirm anbieten</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS ist nicht mehr der Startbildschirm; der Fernseher hat seinen eigenen zurück.</string>
@@ -131,7 +116,7 @@
     <string name="os_host_naslov_opis">Name oder IP-Adresse, mit Port, falls er nicht der übliche ist. Beispiel: mein-server.de oder 203.0.113.7:8990</string>
     <string name="os_host_naslov_namig">mein-server.de</string>
     <string name="os_host_naslov_napaka">Das sieht nicht wie eine Adresse aus. Beispiel: mein-server.de</string>
-    <string name="os_host_povezujem">Verbinde mit dem Server ...</string>
+    <string name="os_host_povezujem">Verbinde mit dem Server …</string>
     <string name="os_host_koda">Code vom Server</string>
     <string name="os_host_koda_opis">Safeer Link auf diesem Server zeigt einen Code. Tippe ihn hier ein. Der Code geht nie über das Netz; beide Seiten beweisen nur, dass sie ihn kennen.</string>
     <string name="os_host_koda_namig">Code vom Bildschirm</string>
@@ -154,7 +139,6 @@
     <string name="os_zagon_obvestilo">Startbildschirm wird geöffnet</string>
     <string name="os_vklopi">Einschalten</string>
     <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
-    <string name="os_host_berem">Ich prüfe, wie viel Leistung verfügbar ist ...</string>
     <string name="os_host_ta_televizor">Dieser Fernseher: %1$s</string>
     <string name="os_host_racunalnik">Host: %1$s</string>
     <string name="os_host_jedra">Kerne: %1$d</string>
@@ -182,8 +166,7 @@
     <string name="os_skupina_orodja">Werkzeuge</string>
     <string name="os_skupina_drugo">Anderes</string>
     <string name="os_skupina_s_stevilom">%1$s · %2$d</string>
-    <string name="os_programi_opis">Ein Programm des Computers starten</string>
-    <string name="os_programi_nalagam">Ich frage den Computer ...</string>
+    <string name="os_programi_nalagam">Ich frage den Computer …</string>
     <string name="os_programi_prazno">Der Computer hat kein Programm angeboten.</string>
     <string name="os_programi_ni_racunalnika">Kein Computer in Safeer Link teilt seine Programme. Schalte in Safeer Control auf dem Computer \'Programme für den Fernseher\' ein.</string>
     <string name="os_programi_ni_povezave">Safeer Link ist nicht verbunden, es gibt also keinen Computer zum Fragen.</string>
@@ -199,7 +182,6 @@
     <string name="os_naprave_stran">Safeer Link-Seite</string>
     <string name="os_naprave_stran_opis">Gerät koppeln, Fernbedienung, Seite oder Datei senden</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
-    <string name="os_aplikacije_ostalo">Weitere</string>
     <string name="os_aplikacije_vse">Alle Apps auf diesem Fernseher</string>
     <string name="os_aplikacije_namig">OK öffnet eine App. OK halten, um sie auf den Startbildschirm (★) zu legen oder zu entfernen.</string>
     <string name="os_aplikacije_prazno">Dieser Fernseher hat keine weiteren Apps.</string>
@@ -209,20 +191,16 @@
     <string name="os_aplikacije_izberi">Apps wählen</string>
     <!-- Zaslon racunalnika na televizorju -->
     <string name="os_zaslon">Computerbildschirm</string>
-    <string name="os_zaslon_opis">Computer sehen und steuern</string>
-    <string name="os_zaslon_povezujem">Verbinde mit dem Computer ...</string>
-    <string name="os_zaslon_prosim">Frage %1$s nach seinem Bildschirm ...</string>
+    <string name="os_zaslon_povezujem">Verbinde mit dem Computer …</string>
+    <string name="os_zaslon_prosim">Frage %1$s nach seinem Bildschirm …</string>
     <string name="os_zaslon_ni_racunalnika">Kein Computer in Safeer Link teilt seinen Bildschirm. Schalte in Safeer Control auf dem Computer \'Bildschirm für den Fernseher\' ein.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link ist nicht verbunden, es gibt also keinen Computer zum Fragen.</string>
     <string name="os_zaslon_ni_dovoljeno">%1$s teilt seinen Bildschirm nicht. Schalte in Safeer Control auf diesem Computer \'Bildschirm für den Fernseher\' ein.</string>
     <string name="os_zaslon_napaka">Es hat nicht geklappt: %1$s</string>
     <string name="os_zaslon_koncano">Der Computer hat die Sitzung beendet.</string>
-    <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f Bilder/s · %4$.1f Mb/s · Dekoder %5$d ms</string>
-    <string name="os_zaslon_ponovno">Die Verbindung ist abgebrochen. Neuer Versuch ...</string>
-    <string name="os_zaslon_zvok">Ton</string>
-    <string name="os_zaslon_namig">Zum Beenden Zurück gedrückt halten</string>
+    <string name="os_zaslon_ponovno">Die Verbindung ist abgebrochen. Neuer Versuch …</string>
+    <string name="os_zaslon_namig">Zum Beenden die Zurück-Taste gedrückt halten</string>
     <!-- Scit: kratko na kartici, podrobnosti posebej -->
-    <string name="os_scit_kratko_vklopljen">Ein · %1$d heute blockiert</string>
     <string name="os_scit_kratko_izklopljen">Aus</string>
     <string name="os_scit_kratko_prekinjen">Unterbrochen (anderes VPN?)</string>
     <string name="os_scit_kratko_ni">Nicht verfügbar</string>
@@ -257,7 +235,6 @@
     <string name="os_zatemnitev_opis">Links und rechts ändern die Abdunklung. Mehr Abdunklung hält den Text auch auf hellen Bildern gut lesbar.</string>
     <string name="os_odstotek">%1$d %%</string>
     <string name="os_izberi_sliko">Bild für den Hintergrund wählen</string>
-    <string name="os_programi_kratko">Programme</string>
     <string name="os_scit_ploscica_vklopljen">Ein · %1$d</string>
     <string name="os_moc">Leistung</string>
     <string name="os_moc_opis">Prozessor, Arbeitsspeicher und freier Platz — auf dem Host oder auf diesem Fernseher</string>
@@ -274,7 +251,6 @@
     <string name="os_besedilo_napaka">Die Datei konnte nicht gelesen werden.</string>
     <string name="os_besedilo_prevelika">Lange Datei — nur der Anfang wird gezeigt.</string>
     <string name="os_besedilo_pomoc">Ab/Auf scrollen · Zurück schließt</string>
-    <string name="os_odpri_vprasanje">Dieser Fernseher kann die Datei nicht öffnen, %1$s schon.</string>
     <string name="os_odpri_na_racunalniku">Auf dem Computer öffnen</string>
     <string name="os_odpri_in_poglej">Öffnen und hier ansehen</string>
     <string name="os_odpri_posiljam">Wird an den Computer gesendet …</string>

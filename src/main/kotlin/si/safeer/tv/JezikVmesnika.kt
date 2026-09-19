@@ -50,6 +50,8 @@ object JezikVmesnika {
      * Vrne kontekst z izbranim jezikom. Pri "auto" vrne prvotnega, da ostane v veljavi
      * nastavitev naprave (tudi ce jo uporabnik spremeni, ko brskalnik ze tece).
      */
+    // Brskalnik se deli kot APK z vsemi jeziki (ne kot App Bundle), zato jezikov ni treba prenasati.
+    @Suppress("AppBundleLocaleChanges")
     fun vKontekstu(osnovni: Context): Context {
         val izbran = izbrani(osnovni)
         if (izbran == SAMODEJNO) return osnovni

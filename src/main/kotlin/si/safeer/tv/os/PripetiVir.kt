@@ -1,3 +1,7 @@
+// Media3 oznacuje del API-ja kot @UnstableApi (se lahko spremeni med razlicicami). Uporabljamo ga
+// namerno (DASH, lasten vir podatkov); ob posodobitvi Media3 to datoteko preverimo.
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package si.safeer.tv.os
 
 import si.safeer.tv.R

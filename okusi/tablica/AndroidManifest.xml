@@ -2,7 +2,9 @@
 <!-- Safeer OS Tablet (si.safeer.tablet): ista koda kot televizor, a za dotik od blizu.
      Vse skupno je v AndroidManifest.xml v korenu; tu je samo, kar velja za tablico. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingLeanbackLauncher,UnsupportedTvHardware">
+    <!-- Tablica ni aplikacija za televizor: brez vnosa LEANBACK_LAUNCHER in z obveznim zaslonom na dotik. -->
 
     <!-- Tablica ni televizor: nicesar ne zahtevamo od leanback okolja. -->
     <uses-feature android:name="android.software.leanback" android:required="false" tools:node="replace" />
@@ -11,6 +13,7 @@
     <!-- Cesar tablicna lupina ne potrebuje: mikrofon in risanje cez druge aplikacije sta
          brskalnikova (glasovno iskanje, daljinec). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
 
     <queries>
@@ -30,6 +33,7 @@
             android:name="si.safeer.tv.tablica.DomovTabletActivity"
             android:exported="true"
             android:label="@string/tablet_ime"
+            tools:ignore="RedundantLabel"
             android:screenOrientation="unspecified"
             android:configChanges="orientation|screenSize|keyboardHidden|navigation">
             <intent-filter>
@@ -66,7 +70,8 @@
             android:label="@string/tablet_ime"
             android:icon="@mipmap/os_ic_launcher"
             android:banner="@drawable/os_banner"
-            tools:replace="android:exported,android:label,android:icon,android:banner" />
+            tools:replace="android:exported,android:label,android:icon,android:banner"
+            tools:ignore="RedundantLabel" />
 
     </application>
 </manifest>

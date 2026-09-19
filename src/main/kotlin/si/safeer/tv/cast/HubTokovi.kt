@@ -272,7 +272,11 @@ class HubTokovi(
         }
         val mapa = if (zaGostitelja) mapaPrenosov() else mapaZacasna()
         try { mapa.mkdirs() } catch (_: Exception) { }
-        if (mapa.usableSpace in 1 until dolzina + REZERVA_PROSTORA) {
+        // usableSpace je tu prava mera: datoteko pisemo v svojo mapo in je ne smemo zapisati na racun
+        // predpomnilnika drugih aplikacij (preizkus tece tudi v JVM, brez StorageManagerja).
+        @Suppress("UsableSpace")
+        val prosto = mapa.usableSpace
+        if (prosto in 1 until dolzina + REZERVA_PROSTORA) {
             odgovori(izhod, 507, "{\"napaka\":\"ni dovolj prostora\"}")
             return
         }

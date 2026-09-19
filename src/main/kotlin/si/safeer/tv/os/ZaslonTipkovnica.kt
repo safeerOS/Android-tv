@@ -81,8 +81,9 @@ class ZaslonTipkovnica(
      */
     private fun pomoc() {
         val t = TextView(context)
-        t.text = context.getString(R.string.os_tipk_pomoc) +
-            (if (Kontroler.jePriklopljen(context)) " · " + context.getString(R.string.os_tipk_pomoc_plosek) else "")
+        val pomoc = context.getString(R.string.os_tipk_pomoc)
+        t.text = if (Kontroler.jePriklopljen(context))
+            context.getString(R.string.fmt_locilo, pomoc, context.getString(R.string.os_tipk_pomoc_plosek)) else pomoc
         t.setTextColor(context.getColor(R.color.os_umirjeno))
         t.textSize = 12f
         t.gravity = Gravity.CENTER_HORIZONTAL

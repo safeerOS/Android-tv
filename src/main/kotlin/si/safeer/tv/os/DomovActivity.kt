@@ -292,8 +292,12 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Ce Safeer Link ne tece, uporabnik enkrat izbere: vklopi Safeer Link (naprave, datoteke z
      * racunalnika, daljinec) ali delaj krajevno (samo viri tega televizorja). Izbira se zapomni.
      */
+    /** Odprto okno izbire nacina; onStart (npr. po ugasnjenem zaslonu) ga ne sme odpreti se enkrat. */
+    private var nacinOkno: android.app.AlertDialog? = null
+
     private fun vprasajZaNacin() {
         if (link.povezan) { odpriLinkVBrskalniku(); return }
+        if (nacinOkno?.isShowing == true) return
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_nacin_naslov))
             .setMessage(getString(R.string.os_nacin_opis))
@@ -308,7 +312,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 osveziKartice()
             }
             .setCancelable(true)
-            .let { Kontroler.pokazi(it.show()) }
+            .let { val o = it.show(); nacinOkno = o; Kontroler.pokazi(o) }
     }
 
     // ------------------------------------------------------------------ Safeer Scit (filter DNS za ves televizor)
@@ -468,7 +472,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val programi = vsiProgrami.filter { tece(it) }
         osveziTecejo(vsiProgrami)
         gumbZapriVse.visibility = if (programi.isEmpty()) View.GONE else View.VISIBLE
-        gumbZapriVse.text = "\u2715  " + getString(R.string.os_zapri_vse, programi.size)
+        gumbZapriVse.text = getString(R.string.fmt_ikona_besedilo_2, "\u2715", getString(R.string.os_zapri_vse, programi.size))
         gumbZapriVse.setOnClickListener { zapriVse(programi) }
         // Vrsto smo narisali na novo in izbrana kartica je izginila z njo: uporabnik, ki se vraca
         // iz seje, bi sicer ostal brez izbire (prvi pritisk nekam, kamor ni hotel).
@@ -691,7 +695,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         link.naprave.firstOrNull { it.id == n.racunalnik }
 
     private fun zazeniProgram(n: Nadaljuj.Vnos) {
-        val r = racunalnikZa(n) ?: run { niVec(n); return }
+        val r = racunalnikZa(n) ?: run { niVec(n, racunalnikaNi = true); return }
         Toast.makeText(this, getString(R.string.os_nadaljuj_odpiram, n.ime), Toast.LENGTH_SHORT).show()
         val zaslon = r.zmoznosti.contains("desktop")
         link.ukaz(r.id, "apps.launch", org.json.JSONObject().put("app", n.program), 10_000,
@@ -712,7 +716,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Datoteka z racunalnika: najprej si od njega izprosimo svezo sejo, sele nato odpremo. */
     private fun odpriZRacunalnika(n: Nadaljuj.Vnos) {
-        val r = racunalnikZa(n) ?: run { niVec(n); return }
+        val r = racunalnikZa(n) ?: run { niVec(n, racunalnikaNi = true); return }
         Toast.makeText(this, getString(R.string.os_nadaljuj_odpiram, n.ime), Toast.LENGTH_SHORT).show()
         link.ukaz(r.id, "files.list", org.json.JSONObject().put("folder", ""), 12_000,
             LinkOdjemalec.Odgovor { izid, _ ->
@@ -753,11 +757,15 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Kar je bilo, ni vec dosegljivo: povejmo z oknom (obvestilo na dnu televizorja hitro spregledas)
      * in kartico ponudimo v odstranitev. Privzeto ostane - racunalnik je morda le ugasnjen.
      */
-    private fun niVec(n: Nadaljuj.Vnos) {
+    private fun niVec(n: Nadaljuj.Vnos, racunalnikaNi: Boolean = false) {
         if (isFinishing) return
+        // Racunalnika ni v Linku (ugasnjen, spi, Control ne tece): povejmo, kaj lahko uporabnik
+        // naredi - "ni vec na voljo" bi zvenelo, kot da je program izginil.
+        val sporocilo = if (racunalnikaNi) getString(R.string.os_nadaljuj_ni_racunalnika)
+            else getString(R.string.os_nadaljuj_ni_vec, n.ime)
         val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(n.ime)
-            .setMessage(getString(R.string.os_nadaljuj_ni_vec, n.ime))
+            .setMessage(sporocilo)
             .setPositiveButton(getString(android.R.string.ok), null)
         if (OsPravila.ponudiOdstranitev(n.kljuc(), Nadaljuj.seznam(this).map { it.kljuc() })) {
             okno.setNegativeButton(getString(R.string.os_nadaljuj_odstrani)) { _, _ ->

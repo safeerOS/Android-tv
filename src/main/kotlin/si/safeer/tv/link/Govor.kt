@@ -44,8 +44,7 @@ class Govor(private val dejavnost: Activity, private val odziv: (JSONObject) -> 
     } catch (_: Throwable) { false }
 
     private fun imaDovoljenje(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-            dejavnost.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        dejavnost.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
     /** Zacne poslusati; klice se na glavni niti. Odzivi: {stanje: poslusam|delno|koncno|napaka, besedilo, koda}. */
     fun zacni(jezik: String) {
@@ -55,9 +54,7 @@ class Govor(private val dejavnost: Activity, private val odziv: (JSONObject) -> 
         }
         if (!imaDovoljenje()) {
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    dejavnost.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), ZAHTEVA_DOVOLJENJA)
-                }
+                dejavnost.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), ZAHTEVA_DOVOLJENJA)
             } catch (e: Throwable) {
                 Log.w(TAG, "Dovoljenja za mikrofon ni bilo mogoce zahtevati: ${e.message}")
             }

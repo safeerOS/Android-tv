@@ -4,14 +4,13 @@
     <string name="url_hint">Recherche sécurisée ou URL</string>
     <string name="btn_home">Accueil</string>
     <string name="btn_back">Retour</string>
+    <string name="btn_forward">Suivant</string>
     <string name="btn_add_tab">Nouvel onglet</string>
     <string name="btn_menu">Menu</string>
-    <string name="btn_clear">Effacer</string>
     
     <!-- Menu Items -->
     <string name="menu_new_tab">Nouvel onglet</string>
     <string name="menu_bookmarks">Favoris</string>
-    <string name="menu_add_bookmark">Ajouter aux favoris</string>
     <string name="menu_downloads">Téléchargements</string>
     <string name="menu_history">Historique</string>
     <string name="menu_desktop_site">Version pour ordinateur</string>
@@ -19,9 +18,6 @@
     <string name="menu_sponsorblock">SponsorBlock : passer les sponsors sur YouTube</string>
     <string name="menu_adblock">AdBlock &amp; Bouclier Botnet intégré</string>
     <string name="menu_threat_stats">Bouclier de sécurité (Feodo/URLhaus)</string>
-    <string name="menu_share">Partager la page</string>
-    <string name="menu_settings">Paramètres</string>
-    <string name="menu_find_in_page">Rechercher dans la page</string>
     
     <!-- Tab Switcher -->
     <string name="tabs_title">Onglets ouverts</string>
@@ -29,14 +25,10 @@
     <string name="tabs_new_tab">+ Nouvel onglet</string>
     
     <!-- Search Engines -->
-    <string name="search_google">Google</string>
-    <string name="search_duckduckgo">DuckDuckGo</string>
     
     <!-- Notifications -->
     <string name="toast_bookmark_added">⭐ Ajouté aux favoris</string>
     <string name="toast_bookmark_removed">🗑️ Retiré des favoris</string>
-    <string name="toast_link_copied">📋 Lien copié dans le presse-papiers</string>
-    <string name="toast_download_started">📥 Téléchargement démarré</string>
   <string name="btn_favorite">Favoris</string>
   <string name="btn_reload">Actualiser</string>
     <string name="menu_tv_wallpaper">Fond noir sur l’écran d’accueil du TV</string>

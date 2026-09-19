@@ -14,13 +14,8 @@ object UiText {
         get() {
             val ctx = appContext
             return if (ctx != null) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                    val locales = ctx.resources.configuration.locales
-                    if (!locales.isEmpty) locales[0].language else Locale.getDefault().language
-                } else {
-                    @Suppress("DEPRECATION")
-                    ctx.resources.configuration.locale.language
-                }
+                val locales = ctx.resources.configuration.locales
+                if (!locales.isEmpty) locales[0].language else Locale.getDefault().language
             } else {
                 Locale.getDefault().language
             }

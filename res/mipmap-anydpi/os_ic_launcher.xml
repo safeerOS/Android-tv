@@ -2,4 +2,6 @@
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/os_ikona_ozadje"/>
     <foreground android:drawable="@drawable/os_ikona_ospredje"/>
+    <!-- Enobarvna ikona (Android 13+, tablica in telefon): isti znak, sistem ga obarva sam. -->
+    <monochrome android:drawable="@drawable/os_ikona_ospredje"/>
 </adaptive-icon>

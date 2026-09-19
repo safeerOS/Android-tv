@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Temno morje: lastna risba (nebo tik pred nocjo, mirna gladina, odsev na vodi). Brez tujih slik. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
+<vector tools:ignore="VectorRaster" xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="480dp"
     android:height="270dp"

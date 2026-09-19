@@ -126,7 +126,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Tablica: prst je miska (dotik klikne tam, kamor pokaze), meni seje pa je gumb v kotu,
         // ker tablica nima tipke Meni in ne dolgega Nazaj.
         if (naDotik()) {
-            pogled.setOnTouchListener { _, e -> dotik(e) }
+            dotikNaPovrsini()
             val gumb = TextView(this).apply {
                 text = "\u2630"
                 textSize = 20f
@@ -828,6 +828,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         polje.setSelection(polje.text.length)
         (getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
             ?.showSoftInput(polje, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /**
+     * Dotik na sliki racunalnika je miska na racunalniku (klik, vlecenje, desni klik), ne klik na
+     * ta pogled - zato performClick tu nima pomena. Dostopnost ima meni seje (gumb v kotu).
+     */
+    @Suppress("ClickableViewAccessibility")
+    private fun dotikNaPovrsini() {
+        pogled.setOnTouchListener { _, e -> dotik(e) }
     }
 
     private fun naDotik(): Boolean =

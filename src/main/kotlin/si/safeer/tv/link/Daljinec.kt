@@ -167,26 +167,20 @@ object Daljinec {
     }
 
     private fun jeUtisano(am: AudioManager): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) am.isStreamMute(AudioManager.STREAM_MUSIC)
-        else am.getStreamVolume(AudioManager.STREAM_MUSIC) == 0
+        am.isStreamMute(AudioManager.STREAM_MUSIC)
 
     private fun utisaj(am: AudioManager, utisano: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            am.adjustStreamVolume(
-                AudioManager.STREAM_MUSIC,
-                if (utisano) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE,
-                AudioManager.FLAG_SHOW_UI
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            am.setStreamMute(AudioManager.STREAM_MUSIC, utisano)
-        }
+        am.adjustStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            if (utisano) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE,
+            AudioManager.FLAG_SHOW_UI
+        )
     }
 
     /** Namera za zagon aplikacije po imenu paketa (na televizorju najprej Leanback). */
     fun nameraZaZagon(context: Context, paket: String): Intent? {
         val pm = context.packageManager
-        val namera = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) pm.getLeanbackLaunchIntentForPackage(paket) else null)
+        val namera = pm.getLeanbackLaunchIntentForPackage(paket)
             ?: pm.getLaunchIntentForPackage(paket) ?: return null
         namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         return namera
@@ -218,18 +212,16 @@ object Daljinec {
     private fun prebudiZNamero(context: Context, namera: Intent, ime: String) {
         try {
             val upravitelj = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && upravitelj.getNotificationChannel(KANAL_ZAGON) == null) {
+            if (upravitelj.getNotificationChannel(KANAL_ZAGON) == null) {
                 val kanal = android.app.NotificationChannel(KANAL_ZAGON, "Safeer Link - zagon aplikacij",
                     android.app.NotificationManager.IMPORTANCE_HIGH)
                 kanal.description = "Odpre aplikacijo, ki jo izbere seznanjena naprava."
                 kanal.setShowBadge(false)
                 upravitelj.createNotificationChannel(kanal)
             }
-            var zastavice = PendingIntent.FLAG_UPDATE_CURRENT
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) zastavice = zastavice or PendingIntent.FLAG_IMMUTABLE
+            val zastavice = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             val cakajoca = PendingIntent.getActivity(context, OBVESTILO_ZAGON, namera, zastavice)
-            val gradnik = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) android.app.Notification.Builder(context, KANAL_ZAGON)
-            else @Suppress("DEPRECATION") android.app.Notification.Builder(context)
+            val gradnik = android.app.Notification.Builder(context, KANAL_ZAGON)
             val obvestilo = gradnik
                 .setContentTitle("Safeer Link")
                 .setContentText(ime)
@@ -271,9 +263,7 @@ object Daljinec {
     fun aplikacije(context: Context, zIkonami: Boolean = false): JSONArray {
         val pm = context.packageManager
         val najdene = LinkedHashMap<String, String>()
-        val kategorije = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-            listOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)
-        else listOf(Intent.CATEGORY_LAUNCHER)
+        val kategorije = listOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)
         for (kategorija in kategorije) {
             val namera = Intent(Intent.ACTION_MAIN).addCategory(kategorija)
             val seznam = try { pm.queryIntentActivities(namera, 0) } catch (_: Throwable) { emptyList() }
@@ -315,8 +305,7 @@ object Daljinec {
         val namera = nameraZaZagon(context, context.packageName)
             ?: return Izid(false, "Ponovni zagon ni mogoc")
         try {
-            var zastavice = PendingIntent.FLAG_CANCEL_CURRENT
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) zastavice = zastavice or PendingIntent.FLAG_IMMUTABLE
+            val zastavice = PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
             val cakajoca = PendingIntent.getActivity(context, 4047, namera, zastavice)
             val budilka = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
             budilka.set(android.app.AlarmManager.RTC, System.currentTimeMillis() + 700, cakajoca)

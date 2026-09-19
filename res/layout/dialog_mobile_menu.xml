@@ -17,6 +17,7 @@
 
         <ImageButton
             android:id="@+id/menuBtnBack"
+            android:contentDescription="@string/btn_back"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
@@ -28,6 +29,7 @@
 
         <ImageButton
             android:id="@+id/menuBtnForward"
+            android:contentDescription="@string/btn_forward"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
@@ -39,6 +41,7 @@
 
         <ImageButton
             android:id="@+id/menuBtnReload"
+            android:contentDescription="@string/btn_reload"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
@@ -50,6 +53,7 @@
 
         <ImageButton
             android:id="@+id/menuBtnStar"
+            android:contentDescription="@string/ui_bookmark"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"

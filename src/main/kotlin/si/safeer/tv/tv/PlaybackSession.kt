@@ -1,3 +1,7 @@
+// Media3 oznacuje del API-ja kot @UnstableApi (se lahko spremeni med razlicicami). Uporabljamo ga
+// namerno (DASH, lasten vir podatkov); ob posodobitvi Media3 to datoteko preverimo.
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package si.safeer.tv
 
 import android.graphics.Color
@@ -350,7 +354,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
             val sv = SurfaceView(host)
             sv.holder.setFormat(PixelFormat.OPAQUE)
             sv.setZOrderMediaOverlay(true)
-            if (secure && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            if (secure) {
                 sv.setSecure(true)
             }
             surfaceSecure = secure

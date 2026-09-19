@@ -121,7 +121,7 @@ class ScitStoritev : VpnService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) b.setMetered(false)
         try {
             val namera = Intent(this, MainActivity::class.java)
-            val zastavice = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
+            val zastavice = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             b.setConfigureIntent(PendingIntent.getActivity(this, 0, namera, zastavice))
         } catch (_: Throwable) { }
         val fd = try { b.establish() } catch (e: Throwable) { Log.w(TAG, "Tunela ni mogoce vzpostaviti: ${e.message}"); null } ?: return false
@@ -161,8 +161,7 @@ class ScitStoritev : VpnService() {
         cakajoce.clear()
         shraniStatistiko(stanje)
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE)
-            else @Suppress("DEPRECATION") stopForeground(true)
+            stopForeground(STOP_FOREGROUND_REMOVE)
         } catch (_: Throwable) { }
     }
 
@@ -390,7 +389,6 @@ class ScitStoritev : VpnService() {
     // ------------------------------------------------------------------ obvestilo
 
     private fun pripraviKanal() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val u = getSystemService(NotificationManager::class.java) ?: return
         if (u.getNotificationChannel(KANAL) != null) return
         val k = NotificationChannel(KANAL, getString(R.string.scit_ime), NotificationManager.IMPORTANCE_LOW)
@@ -400,14 +398,14 @@ class ScitStoritev : VpnService() {
     }
 
     private fun obvestilo(): Notification {
-        val g = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, KANAL) else @Suppress("DEPRECATION") Notification.Builder(this)
+        val g = Notification.Builder(this, KANAL)
         g.setContentTitle(getString(R.string.scit_ime))
             .setContentText(getString(R.string.scit_obvestilo_besedilo, blokiranih.get()))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
         try {
-            val zastavice = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
+            val zastavice = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             g.setContentIntent(PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), zastavice))
         } catch (_: Throwable) { }
         return g.build()
@@ -433,7 +431,7 @@ class ScitStoritev : VpnService() {
             val app = context.applicationContext
             val namera = Intent(app, ScitStoritev::class.java).setAction(dejanje)
             try {
-                if (dejanje == DEJANJE_ZAZENI && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) app.startForegroundService(namera)
+                if (dejanje == DEJANJE_ZAZENI) app.startForegroundService(namera)
                 else app.startService(namera)
             } catch (e: Throwable) { Log.w(TAG, "Storitve ni mogoce naslovit ($dejanje): ${e.message}") }
         }

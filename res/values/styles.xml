@@ -11,4 +11,8 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
     </style>
+    <!-- Brskalnik: okno je ze crno, zato ga postavitev ne rise se enkrat (Lint: Overdraw). -->
+    <style name="AppTheme.Brskalnik">
+        <item name="android:windowBackground">@color/bg_pure_black</item>
+    </style>
 </resources>

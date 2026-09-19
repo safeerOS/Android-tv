@@ -2,37 +2,28 @@
 <resources>
     <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
     <string name="os_app_name" translatable="false">Safeer OS</string>
-    <string name="os_podnaslov">Your devices. One screen.</string>
     <!-- Vrsta Nadaljuj: kar je uporabnik nazadnje odprl. -->
     <string name="os_odsek_nadaljuj">Continue</string>
     <string name="os_nadaljuj_odstrani">Remove from Continue</string>
     <string name="os_nadaljuj_ni_vec">%1$s is not available any more.</string>
+    <string name="os_nadaljuj_ni_racunalnika">The computer is not connected – turn it on and connect it to Safeer Link, or carry on with the TV.</string>
     <string name="os_nadaljuj_odpiram">Opening %1$s …</string>
-    <string name="os_nadaljuj_pocisti">Clear the Continue row</string>
     <!-- Pravno: odgovornost za uporabo in odkrita navedba, da je pri razvoju sodelovala UI. -->
     <string name="os_pravno">Legal and about</string>
     <string name="os_pravno_opis">Licence, liability and how this was made</string>
     <string name="os_pravno_besedilo">Safeer OS %1$s (%2$s)\n\nLICENCE. Safeer is open-source software under the Apache 2.0 licence, provided “as is”, without warranty.\n\nLIABILITY. You are responsible for what you use Safeer for and how, and for the content you reach or open with it. The author is not liable for any damage arising from its use. Safeer Shield, BankGuard and the threat lists are help, not a guarantee: they can miss a dangerous page and sometimes block a safe one.\n\nARTIFICIAL INTELLIGENCE. Artificial intelligence was used in developing this software. The code may therefore be wrong or incomplete; every release is tested, but errors cannot be ruled out. The source code is public so you can check it yourself: github.com/memelandfaner</string>
     <string name="os_odsek_zacni">Start</string>
-    <string name="os_odsek_naprave">Devices in Safeer Link</string>
     <string name="os_odsek_aplikacije">Apps on this TV</string>
     <string name="os_splet">Web</string>
-    <string name="os_splet_opis">Fewer ads, more privacy</string>
     <string name="os_datoteke">Files</string>
-    <string name="os_datoteke_opis">Videos, music and photos from your computer</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Your devices. Connected.</string>
     <string name="os_stanje_povezujem">Connecting…</string>
     <string name="os_stanje_povezan">Connected · %1$s</string>
     <string name="os_stanje_ni">No Safeer Link</string>
-    <string name="os_stanje_ni_brskalnika">Install Safeer Browser for Android TV</string>
     <string name="os_ni_naprav">No other devices are connected yet. Turn on Safeer Link on your phone or computer.</string>
-    <string name="os_ni_brskalnika_dolgo">Safeer OS needs Safeer Browser for Android TV — it hosts Safeer Link on this TV. Install it from safeer.si and open Safeer OS again.</string>
     <string name="os_naprava_tv">this TV</string>
-    <string name="os_odpri">Open</string>
     <string name="os_poslano_tv">Sent to Safeer Browser</string>
     <string name="os_prejeto_besedilo">Text from %1$s</string>
-    <string name="os_datoteke_racunalniki">Computers</string>
     <string name="os_datoteke_koren">Shared folders</string>
     <string name="os_datoteke_ni_racunalnika">No computer is sharing files yet.\n\nOn your computer, open Safeer Control → Files for the TV and add a folder. Safeer Control is a small free app for Linux: safeer.si/control</string>
     <string name="os_datoteke_prazno_racunalnik">%1$s isn\'t sharing any folder yet.\n\nIn Safeer Control on that computer, open Files for the TV and add a folder — it appears here right away.</string>
@@ -52,7 +43,7 @@
     <string name="os_scit">Shield</string>
     <string name="os_scit_preverjam">Checking…</string>
     <string name="os_scit_ni_brskalnika">Needs Safeer Browser for Android TV 2.1.100 or newer</string>
-    <string name="os_scit_vklopljen_opis">Protection is on\n%1$d ads, trackers and dangerous domains blocked today</string>
+    <string name="os_scit_vklopljen_opis">Protection is on\nBlocked today (ads, trackers, dangerous domains): %1$d</string>
     <string name="os_scit_prekinjen">On, but interrupted (another VPN?) — open to turn on again</string>
     <string name="os_scit_izklopljen_opis">Protection is off\nTurn on for every app on this TV</string>
     <string name="os_scit_izklopljen_kratko">Shield is off</string>
@@ -60,9 +51,6 @@
     <string name="os_stanje_ni_linka">Safeer Link is off</string>
     <string name="os_naprave_krajevni">Local mode: Safeer OS uses only this TV. Turn on Safeer Link to see your other devices.</string>
     <string name="os_naprave_ni_linka">Safeer Link is off. Turn it on (the Safeer Link card) to see your phone and computer here.</string>
-    <string name="os_datoteke_opis_krajevno">Videos, music and photos on this TV and USB</string>
-    <string name="os_link_izklopljen_opis">Off · turn on for devices and files</string>
-    <string name="os_link_krajevni_opis">Local mode · open to turn Safeer Link on</string>
     <string name="os_nacin_naslov">How should Safeer OS work?</string>
     <string name="os_nacin_opis">With Safeer Link your phone and computer join this TV: files from your computer, sending pages, the remote. Without it Safeer OS works on its own, with this TV only: the web, its files and USB, apps and the Shield. You can change this at any time.</string>
     <string name="os_nacin_link">Turn on Safeer Link</string>
@@ -79,7 +67,7 @@
     <string name="os_krajevno_videi">Videos</string>
     <string name="os_krajevno_glasba">Music</string>
     <string name="os_krajevno_slike">Pictures</string>
-    <string name="os_krajevno_stevilo">%1$d files</string>
+    <string name="os_krajevno_stevilo">Files: %1$d</string>
     <string name="os_krajevno_prazno">Nothing here yet. Files you copy to the TV or plug in on a USB stick appear automatically.</string>
     <string name="os_krajevno_dovoljenje">Safeer OS needs permission to read the files on this TV.</string>
     <string name="os_krajevno_brez_dovoljenja">Without that permission the TV\'s own files cannot be shown. You can allow it in Android settings, under Apps → Safeer → Permissions.</string>
@@ -90,17 +78,14 @@
     <string name="os_spletne_odstrani">Remove</string>
     <string name="os_preklici">Cancel</string>
     <string name="os_spletne_odstrani_vprasanje">Remove this web app from the home screen? The site itself stays untouched.</string>
-    <string name="os_spletne_ni_kaj_dodati">Every site from your browser home page is already here. Add a site in the browser first (My sites → Edit).</string>
 
     <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
     <string name="os_nastavitve">Settings</string>
-    <string name="os_nastavitve_opis">Home screen, mode, Shield</string>
     <string name="os_nastavitve_opomba">Everything below can be turned on or off at any time.</string>
     <string name="os_jezik_opis">Safeer OS in the language you pick, whatever the TV itself is set to</string>
     <string name="os_zaganjalnik">The TV\'s home screen</string>
     <string name="os_zaganjalnik_opis">Whether Safeer OS takes over the Home button or stays an app you open for web apps</string>
     <string name="os_zaganjalnik_izbran">Safeer OS</string>
-    <string name="os_zaganjalnik_ponujen">Offered in the system</string>
     <string name="os_zaganjalnik_vprasanje">Safeer OS will be offered as the home screen of this television. The choice is the system\'s: a system window opens where you pick it. You can switch this off here at any time, and the TV goes back to its own launcher.</string>
     <string name="os_zaganjalnik_vklopi">Offer as home screen</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS is no longer the home screen; the TV took its own back.</string>
@@ -132,7 +117,7 @@
     <string name="os_host_naslov_opis">Name or IP address, with a port if it is not the usual one. Example: moj-streznik.si or 203.0.113.7:8990</string>
     <string name="os_host_naslov_namig">moj-streznik.si</string>
     <string name="os_host_naslov_napaka">That does not look like an address. Example: moj-streznik.si</string>
-    <string name="os_host_povezujem">Connecting to the server...</string>
+    <string name="os_host_povezujem">Connecting to the server…</string>
     <string name="os_host_koda">Code from the server</string>
     <string name="os_host_koda_opis">Safeer Link on that server shows a code. Type it here. The code never travels over the network; both sides only prove they know it.</string>
     <string name="os_host_koda_namig">code from the screen</string>
@@ -155,7 +140,6 @@
     <string name="os_zagon_obvestilo">Opening the home screen</string>
     <string name="os_vklopi">Turn on</string>
     <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
-    <string name="os_host_berem">Checking how much power is available...</string>
     <string name="os_host_ta_televizor">This TV: %1$s</string>
     <string name="os_host_racunalnik">Host: %1$s</string>
     <string name="os_host_jedra">cores: %1$d</string>
@@ -183,8 +167,7 @@
     <string name="os_skupina_orodja">Tools</string>
     <string name="os_skupina_drugo">Other</string>
     <string name="os_skupina_s_stevilom">%1$s · %2$d</string>
-    <string name="os_programi_opis">Start a program on your computer</string>
-    <string name="os_programi_nalagam">Asking the computer...</string>
+    <string name="os_programi_nalagam">Asking the computer…</string>
     <string name="os_programi_prazno">The computer did not offer any program.</string>
     <string name="os_programi_ni_racunalnika">No computer in Safeer Link is sharing its programs. In Safeer Control on the computer, turn on \'Programs for the TV\'.</string>
     <string name="os_programi_ni_povezave">Safeer Link is not connected, so there is no computer to ask.</string>
@@ -200,7 +183,6 @@
     <string name="os_naprave_stran">Safeer Link page</string>
     <string name="os_naprave_stran_opis">Pair a device, remote control, send a page or a file</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
-    <string name="os_aplikacije_ostalo">Other</string>
     <string name="os_aplikacije_vse">All apps on this TV</string>
     <string name="os_aplikacije_namig">OK opens an app. Hold OK to put it on the home screen (★) or take it off.</string>
     <string name="os_aplikacije_prazno">This TV has no other apps.</string>
@@ -210,9 +192,8 @@
     <string name="os_aplikacije_izberi">Choose apps</string>
     <!-- Zaslon racunalnika na televizorju -->
     <string name="os_zaslon">Computer screen</string>
-    <string name="os_zaslon_opis">See and control your computer</string>
-    <string name="os_zaslon_povezujem">Connecting to the computer...</string>
-    <string name="os_zaslon_prosim">Asking %1$s for its screen...</string>
+    <string name="os_zaslon_povezujem">Connecting to the computer…</string>
+    <string name="os_zaslon_prosim">Asking %1$s for its screen…</string>
     <string name="os_zaslon_ni_racunalnika">No computer in Safeer Link is sharing its screen. In Safeer Control on the computer, turn on \'Screen for the TV\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link is not connected, so there is no computer to ask.</string>
     <string name="os_zaslon_ni_dovoljeno">%1$s does not share its screen. In Safeer Control on that computer, turn on \'Screen for the TV\'.</string>
@@ -220,12 +201,9 @@
     <string name="os_zaslon_koncano">The computer ended the session.</string>
     <string name="os_zaslon_program_zaprt">The program on the computer has closed.</string>
     <string name="os_zaslon_ni_okna">The program did not open on the computer.</string>
-    <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f fps · %4$.1f Mb/s · decoder %5$d ms</string>
-    <string name="os_zaslon_ponovno">The connection dropped. Trying again...</string>
-    <string name="os_zaslon_zvok">sound</string>
+    <string name="os_zaslon_ponovno">The connection dropped. Trying again…</string>
     <string name="os_zaslon_namig">Long press Back to end</string>
     <!-- Scit: kratko na kartici, podrobnosti posebej -->
-    <string name="os_scit_kratko_vklopljen">On · %1$d blocked today</string>
     <string name="os_scit_kratko_izklopljen">Off</string>
     <string name="os_scit_kratko_prekinjen">Interrupted (another VPN?)</string>
     <string name="os_scit_kratko_ni">Not available</string>
@@ -260,7 +238,6 @@
     <string name="os_zatemnitev_opis">Left and right change the dimming. More dimming means text stays easy to read on a bright picture.</string>
     <string name="os_odstotek">%1$d %%</string>
     <string name="os_izberi_sliko">Choose a picture for the background</string>
-    <string name="os_programi_kratko">Programs</string>
     <string name="os_scit_ploscica_vklopljen">On · %1$d</string>
     <string name="os_moc">Performance</string>
     <string name="os_moc_opis">Processor, memory and free space — on the host or on this TV</string>
@@ -277,7 +254,6 @@
     <string name="os_besedilo_napaka">The file could not be read.</string>
     <string name="os_besedilo_prevelika">Long file — showing the first part only.</string>
     <string name="os_besedilo_pomoc">Down/Up scroll · Back closes</string>
-    <string name="os_odpri_vprasanje">This TV cannot open this file, but %1$s can.</string>
     <string name="os_odpri_na_racunalniku">Open on the computer</string>
     <string name="os_odpri_in_poglej">Open and watch here</string>
     <string name="os_odpri_posiljam">Sending to the computer…</string>

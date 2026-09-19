@@ -122,7 +122,7 @@ object PortalManager {
                 }
 
                 val titleTv = TextView(activity).apply {
-                    text = "${item.title}\n(${item.url})"
+                    text = activity.getString(R.string.fmt_dve_vrstici_oklepaj, item.title, item.url)
                     setTextColor(Color.parseColor("#F8FAFC"))
                     textSize = 14f
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -187,7 +187,7 @@ object PortalManager {
 
         // Reset Defaults Button
         val btnReset = Button(activity).apply {
-            text = "🔄 " + UiText.get(R.string.ui_defaults) + ""
+            text = UiText.get(R.string.fmt_ikona_besedilo, "🔄", UiText.get(R.string.ui_defaults))
             setTextColor(Color.parseColor("#94A3B8"))
             textSize = 14f
             setBackgroundResource(R.drawable.bg_mobile_omnibox)
@@ -213,7 +213,7 @@ object PortalManager {
 
         // Close Button
         val btnClose = Button(activity).apply {
-            text = "" + UiText.get(R.string.ui_close) + " ✕"
+            text = UiText.get(R.string.fmt_ikona_besedilo, UiText.get(R.string.ui_close), "✕")
             setTextColor(Color.parseColor("#F8FAFC"))
             textSize = 14f
             setBackgroundResource(R.drawable.bg_mobile_omnibox)

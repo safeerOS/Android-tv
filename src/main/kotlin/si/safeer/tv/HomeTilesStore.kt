@@ -131,7 +131,7 @@ object HomeTilesStore {
                     layoutParams = lp
                 }
                 row.addView(TextView(activity).apply {
-                    text = "${item.title}\n${item.url}"
+                    text = activity.getString(R.string.fmt_dve_vrstici, item.title, item.url)
                     setTextColor(Color.parseColor("#F8FAFC"))
                     textSize = 15f
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)

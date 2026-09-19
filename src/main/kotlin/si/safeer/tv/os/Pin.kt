@@ -17,6 +17,8 @@ import javax.net.ssl.X509TrustManager
  * nobenemu imenu gostitelja (naslov je 127.0.0.1 ali naslov v domacem omrezju).
  */
 object Pin {
+    // Lastni zaupnik je namen: zaupamo samo pripetemu odtisu sredisca, nobeni verigi izdajateljev.
+    @Suppress("CustomX509TrustManager")
     class Zaupnik(private val odtis: String) : X509TrustManager {
         override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) =
             throw java.security.cert.CertificateException("Odjemalska potrdila niso v rabi.")

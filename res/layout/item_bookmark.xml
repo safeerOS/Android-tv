@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="52dp"
     android:background="@drawable/bg_mobile_icon_button"
@@ -12,7 +13,7 @@
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:gravity="center"
-        android:text="⭐"
+        android:text="@string/sym_zvezdica"
         android:textSize="16sp" />
 
     <LinearLayout
@@ -39,7 +40,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:singleLine="true"
-            android:text="https://example.com"
+            tools:text="https://example.com"
             android:textColor="@color/text_dim"
             android:textSize="11sp" />
     </LinearLayout>
@@ -49,7 +50,7 @@
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:background="@drawable/bg_mobile_icon_button"
-        android:text="🗑️"
+        android:text="@string/sym_kos"
         android:textSize="12sp" />
 
 </LinearLayout>

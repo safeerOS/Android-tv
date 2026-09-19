@@ -51,7 +51,12 @@ object TvOzadje {
         }
     }
 
-    /** Shrani trenutno ozadje, dokler ga se nismo zamenjali. Naredi se natanko enkrat. */
+    /**
+     * Shrani trenutno ozadje, dokler ga se nismo zamenjali. Naredi se natanko enkrat.
+     * Novejsi Android branje tujega ozadja brez posebnega dovoljenja zavrne (SecurityException);
+     * to ujamemo in ozadje samo zamenjamo brez kopije - dovoljenja za to ne zahtevamo.
+     */
+    @Suppress("MissingPermission")
     private fun shraniPrvotno(ctx: Context) {
         val datoteka = File(ctx.filesDir, SHRANJENO)
         if (datoteka.exists()) return

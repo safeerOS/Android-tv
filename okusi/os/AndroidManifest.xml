@@ -9,6 +9,10 @@
          obe aplikaciji delita. Uporabnik naj ob namestitvi Safeer OS vidi samo tisto, kar ta res
          potrebuje. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <!-- Enako kot v skupnem delu; ponovljeno, ker Lint ta del preverja posebej. -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
 
     <!-- Safeer OS mora videti brskalnik: od njega dobi vstop v Safeer Link, Scit in odpiranje spleta. -->
@@ -25,7 +29,7 @@
         tools:replace="android:largeHeap">
 
         <!-- Vstopna tocka v zaganjalniku televizorja -->
-        <activity android:name="si.safeer.tv.os.DomovActivity">
+        <activity android:name="si.safeer.tv.os.DomovActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
@@ -58,7 +62,8 @@
             android:label="@string/os_app_name"
             android:icon="@mipmap/os_ic_launcher"
             android:banner="@drawable/os_banner"
-            tools:replace="android:exported,android:label,android:icon,android:banner" />
+            tools:replace="android:exported,android:label,android:icon,android:banner"
+            tools:ignore="RedundantLabel" />
 
         <!-- Zagon ob vklopu televizorja (privzeto nic: prejemnik najprej pogleda nastavitev). -->
         <receiver

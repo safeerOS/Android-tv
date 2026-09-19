@@ -2,7 +2,8 @@
 <!-- Abstraktni valovi: lastna risba v barvah Safeerja (mint in modrozelena cez temno modro).
      Trakovi tecejo z leve navzdol proti desni, levi rob ostane temen, da so naslovi odsekov
      berljivi tudi brez zatemnitve. Brez tujih slik in brez tujih pravic. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
+<vector tools:ignore="VectorRaster" xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="480dp"
     android:height="270dp"

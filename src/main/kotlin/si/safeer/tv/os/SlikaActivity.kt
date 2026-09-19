@@ -73,7 +73,7 @@ class SlikaActivity : OsActivity() {
         val g = ++generacija
         val url = urli[i]
         ime.text = imena.getOrNull(i).orEmpty()
-        stevec.text = "${i + 1} / ${urli.size}"
+        stevec.text = getString(R.string.fmt_stevec, i + 1, urli.size)
         prekritje.visibility = View.VISIBLE
         glavna.removeCallbacks(skrij); glavna.postDelayed(skrij, 2_500)
         nalagam.visibility = View.VISIBLE

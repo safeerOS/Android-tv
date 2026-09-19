@@ -4,16 +4,15 @@
     <string name="url_hint">Varno iskanje ali URL</string>
     <string name="btn_home">Domov</string>
     <string name="btn_back">Nazaj</string>
+    <string name="btn_forward">Naprej</string>
     <string name="btn_add_tab">Nov zavihek</string>
     <string name="btn_menu">Meni</string>
-    <string name="btn_clear">Počisti</string>
     <string name="btn_favorite">Priljubljene</string>
     <string name="btn_reload">Osveži</string>
     
     <!-- Menu Items -->
     <string name="menu_new_tab">Nov zavihek</string>
     <string name="menu_bookmarks">Zaznamki</string>
-    <string name="menu_add_bookmark">Dodaj med zaznamke</string>
     <string name="menu_downloads">Prenosi</string>
     <string name="menu_history">Zgodovina</string>
     <string name="menu_desktop_site">Namizno spletno mesto</string>
@@ -21,9 +20,6 @@
     <string name="menu_sponsorblock">SponsorBlock: preskoči sponzorje na YouTubu</string>
     <string name="menu_adblock">Vgrajeni AdBlock &amp; Botnet Ščit</string>
     <string name="menu_threat_stats">Varnostni ščit (Feodo/URLhaus)</string>
-    <string name="menu_share">Deli stran</string>
-    <string name="menu_settings">Nastavitve</string>
-    <string name="menu_find_in_page">Najdi na strani</string>
     
     <!-- Tab Switcher -->
     <string name="tabs_title">Odprti zavihki</string>
@@ -31,14 +27,10 @@
     <string name="tabs_new_tab">+ Nov zavihek</string>
     
     <!-- Search Engines -->
-    <string name="search_google">Google</string>
-    <string name="search_duckduckgo">DuckDuckGo</string>
     
     <!-- Notifications -->
     <string name="toast_bookmark_added">⭐ Dodano med zaznamke</string>
     <string name="toast_bookmark_removed">🗑️ Odstranjeno iz zaznamkov</string>
-    <string name="toast_link_copied">📋 Povezava kopirana v odložišče</string>
-    <string name="toast_download_started">📥 Prenos se je začel</string>
     <string name="menu_tv_wallpaper">Črno ozadje domačega zaslona TV</string>
     <string name="menu_language">Jezik vmesnika</string>
     <string name="menu_safeer_link">Safeer Link</string>

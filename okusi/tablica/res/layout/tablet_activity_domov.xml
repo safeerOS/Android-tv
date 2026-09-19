@@ -3,7 +3,9 @@
      Zato ni fokusnih vrst, ampak mreza velikih ploscic, ki se prilagodi sirini zaslona
      (@integer/tablet_stolpci: dva stolpca pokoncno, trije na sirokem zaslonu). -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/koren"
+    tools:ignore="Overdraw"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/os_ozadje"

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/tabCardRoot"
     android:layout_width="match_parent"
     android:layout_height="180dp"
@@ -19,7 +20,7 @@
             android:id="@+id/tvTabFavicon"
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:text="🌐"
+            android:text="@string/sym_splet"
             android:textSize="13sp"
             android:gravity="center" />
 
@@ -43,7 +44,7 @@
             android:layout_height="24dp"
             android:background="@drawable/bg_mobile_icon_button"
             android:gravity="center"
-            android:text="✕"
+            android:text="@string/sym_zapri"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
     </LinearLayout>
@@ -65,7 +66,7 @@
             android:layout_gravity="top"
             android:ellipsize="end"
             android:maxLines="2"
-            android:text="https://google.com"
+            tools:text="https://google.com"
             android:textColor="@color/text_dim"
             android:textSize="11sp" />
 
@@ -79,7 +80,7 @@
             android:paddingVertical="2dp"
             android:text="@string/ui_active"
             android:textColor="@color/accent_cyan"
-            android:textSize="9sp"
+            android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
     </FrameLayout>

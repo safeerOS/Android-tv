@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tablet_ime">Safeer OS Tablet</string>
+    <string name="tablet_podnaslov">Il tuo computer nelle tue mani.</string>
+    <string name="tablet_v_pripravi">In lavorazione. Ciò che c’è qui sotto funziona; ciò che manca non lo promettiamo. Un riquadro appare solo quando il computer lo condivide davvero: cartelle, programmi e schermo li scegli in Safeer Control sul computer.</string>
+    <string name="tablet_datoteke">File</string>
+    <string name="tablet_datoteke_opis">Video, musica, foto e documenti dal tuo computer</string>
+    <string name="tablet_naprave">Dispositivi</string>
+    <string name="tablet_naprave_opis">Ciò che è collegato tramite Safeer Link</string>
+    <string name="tablet_programi">Programmi del computer</string>
+    <string name="tablet_programi_opis">Divisi in gruppi, con ricerca; avviali da qui</string>
+    <string name="tablet_zaslon">Schermo del computer</string>
+    <string name="tablet_zaslon_opis">Immagine e audio del tuo computer sul tablet</string>
+    <string name="tablet_ni_racunalnika">Nessun computer è ancora collegato. Avvia Safeer Control sul computer e collegalo a Safeer Link; comparirà qui da solo.</string>
+    <string name="tablet_ni_linka">Questo tablet non è ancora in Safeer Link. Apri Dispositivi e collegalo: qui compariranno i tuoi file, i programmi e lo schermo del computer.</string>
+    <string name="tablet_vklopi">Attiva Safeer Link</string>
+    <string name="tablet_vklopi_opis">Il tablet entra nella tua rete domestica; poi il computer può condividere file, programmi e il suo schermo</string>
+    <string name="tablet_vklopljen">Safeer Link è attivo. Sul computer apri Safeer Control e abbinalo a questo tablet.</string>
+    <string name="tablet_znova">Ricollega</string>
+    <string name="tablet_znova_opis">Safeer Link è attivo, ma la connessione non c’è. Riprova.</string>
+    <string name="os_naprava_tv">questo tablet</string>
+    <string name="os_krajevno_koren">Su questo tablet</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS ha bisogno del permesso di leggere i file su questo tablet.</string>
+    <string name="os_odsek_aplikacije">App su questo tablet</string>
+    <string name="tablet_pridruzi">Unisciti a %1$s</string>
+    <string name="tablet_pridruzi_opis">Safeer Link in questa casa. Sullo schermo di «%1$s» appare un codice; lo digiti qui</string>
+    <string name="tablet_povezujem">Connessione a «%1$s»…</string>
+    <string name="tablet_ni_odgovora">«%1$s» non risponde. Controlla che il dispositivo sia acceso e nella stessa rete.</string>
+    <string name="tablet_koda_naslov">Codice da «%1$s»</string>
+    <string name="tablet_koda_opis">Sullo schermo di «%1$s» (in Safeer OS) è apparso un codice di sei cifre. Digitalo qui.</string>
+    <string name="tablet_poveziSe">Collega</string>
+    <string name="tablet_povezana">Il tablet è collegato a «%1$s».</string>
+    <string name="tablet_napacna_koda">Il codice non corrisponde. Controllalo sullo schermo e riprova.</string>
+    <string name="tablet_prevec_poskusov">Troppi codici errati. Ricomincia dal riquadro.</string>
+    <string name="tablet_pridruzi_namig">In questa casa c’è Safeer Link su un altro dispositivo. Unisciti con il riquadro qui sopra; sul suo schermo apparirà un codice.</string>
+    <string name="tablet_koda_potekla">Il codice è scaduto. Tocca di nuovo il riquadro per averne uno nuovo.</string>
+    <string name="os_vir_tv">Tablet</string>
+    <string name="tablet_nova_koda">Nuovo codice</string>
+    <string name="tablet_stanje_ni_tv">Non ancora collegato a un televisore</string>
+</resources>

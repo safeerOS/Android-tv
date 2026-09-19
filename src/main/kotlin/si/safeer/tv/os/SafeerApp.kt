@@ -62,8 +62,7 @@ object SafeerAppi {
     private fun skupinaAplikacije(c: Context, paket: String): String {
         val info = try { c.packageManager.getApplicationInfo(paket, 0) } catch (_: Throwable) { return "drugo" }
         if (info.flags and ApplicationInfo.FLAG_IS_GAME != 0) return "igre"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return when (info.category) {
+        return when (info.category) {
                 ApplicationInfo.CATEGORY_GAME -> "igre"
                 ApplicationInfo.CATEGORY_AUDIO, ApplicationInfo.CATEGORY_VIDEO,
                 ApplicationInfo.CATEGORY_IMAGE -> "predstavnost"
@@ -74,8 +73,6 @@ object SafeerAppi {
                 ApplicationInfo.CATEGORY_MAPS -> "orodja"
                 else -> skupinaPoImenu(paket)
             }
-        }
-        return skupinaPoImenu(paket)
     }
 
     /** Ko aplikacija o sebi nic ne pove: pretocne storitve so skoraj vse predstavnost. */

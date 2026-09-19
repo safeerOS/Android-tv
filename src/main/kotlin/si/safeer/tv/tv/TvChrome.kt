@@ -196,11 +196,7 @@ class TvChrome(private val host: MainActivity) {
         for (item in portals) {
             val btn = Button(host).apply {
                 text = item.title
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    setTextColor(host.resources.getColorStateList(R.color.color_portal_chip_text, host.theme))
-                } else {
-                    setTextColor(Color.parseColor("#00E5FF"))
-                }
+                setTextColor(host.resources.getColorStateList(R.color.color_portal_chip_text, host.theme))
                 textSize = 13f
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
                 setBackgroundResource(R.drawable.bg_portal_chip)
@@ -257,12 +253,8 @@ class TvChrome(private val host: MainActivity) {
         }
 
         val editBtn = Button(host).apply {
-            text = "⚙️ " + UiText.get(R.string.ui_edit) + ""
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                setTextColor(host.resources.getColorStateList(R.color.color_portal_chip_text, host.theme))
-            } else {
-                setTextColor(Color.parseColor("#94A3B8"))
-            }
+            text = UiText.get(R.string.fmt_ikona_besedilo, "⚙️", UiText.get(R.string.ui_edit))
+            setTextColor(host.resources.getColorStateList(R.color.color_portal_chip_text, host.theme))
             textSize = 13f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setBackgroundResource(R.drawable.bg_portal_chip)

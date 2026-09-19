@@ -43,7 +43,7 @@ object DomacaVrsta {
      * namescen kot svoja aplikacija, je njegova - brskalnik svoje ne dela, da vrsti ne bi bili dve.
      */
     fun podprto(c: Context): Boolean =
-        Build.VERSION.SDK_INT >= 26 && c.packageManager.hasSystemFeature("android.software.leanback") &&
+        c.packageManager.hasSystemFeature("android.software.leanback") &&
             Sosed.os(c) == null
 
     /**

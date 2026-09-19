@@ -1551,7 +1551,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
             for (item in list) {
                 val tv = TextView(this).apply {
-                    text = "🔍  $item"
+                    text = context.getString(R.string.fmt_ikona_besedilo_2, "🔍", item)
                     setTextColor(Color.parseColor("#F8FAFC"))
                     textSize = 14f
                     setBackgroundResource(R.drawable.bg_mobile_omnibox)
@@ -1884,6 +1884,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * Pogled je locen od zavihkov in nalozi samo stran iz aplikacije, zato njegov most
      * ni dosegljiv nobeni spletni strani. Ta pogled tudi ne sme nikamor navigirati.
      */
+    // JavaScript potrebuje sama stran Safeer Linka iz aplikacije; pogled ne nalozi nicesar drugega.
+    @Suppress("SetJavaScriptEnabled")
     private fun odpriSafeerLink() {
         try {
             val pogled = android.webkit.WebView(this)
@@ -2020,7 +2022,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val txtDodajAplikacijo = dialog.findViewById<android.widget.TextView>(R.id.txtMenuDodajAplikacijo)
         val naslovZaAplikacijo = activeUrl()
         val zeDodana = naslovZaAplikacijo.isNotBlank() && si.safeer.tv.os.SpletneAplikacije.jeDodana(this, naslovZaAplikacijo)
-        if (zeDodana) txtDodajAplikacijo.text = UiText.get(R.string.menu_dodaj_aplikacijo) + " ✓"
+        if (zeDodana) txtDodajAplikacijo.text = UiText.get(R.string.fmt_ikona_besedilo, UiText.get(R.string.menu_dodaj_aplikacijo), "✓")
         rowDodajAplikacijo.setOnClickListener {
             dialog.dismiss()
             dodajTrenutnoStranMedAplikacije()

@@ -57,18 +57,15 @@ object ZagonOb {
     private fun prekOObvestila(app: Context, namera: Intent) {
         try {
             val upravitelj = app.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && upravitelj.getNotificationChannel(KANAL) == null) {
+            if (upravitelj.getNotificationChannel(KANAL) == null) {
                 val kanal = android.app.NotificationChannel(KANAL, app.getString(R.string.os_zagon_kanal),
                     android.app.NotificationManager.IMPORTANCE_HIGH)
                 kanal.setShowBadge(false)
                 upravitelj.createNotificationChannel(kanal)
             }
-            var zastavice = PendingIntent.FLAG_UPDATE_CURRENT
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) zastavice = zastavice or PendingIntent.FLAG_IMMUTABLE
+            val zastavice = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             val cakajoca = PendingIntent.getActivity(app, OBVESTILO, namera, zastavice)
-            val gradnik = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                android.app.Notification.Builder(app, KANAL)
-            else @Suppress("DEPRECATION") android.app.Notification.Builder(app)
+            val gradnik = android.app.Notification.Builder(app, KANAL)
             upravitelj.notify(OBVESTILO, gradnik
                 .setContentTitle(app.getString(R.string.os_app_name))
                 .setContentText(app.getString(R.string.os_zagon_obvestilo))

@@ -120,11 +120,7 @@ class CastReceiverService : Service() {
                 putExtra(EXTRA_HUB_URL, hubUrl)
                 putExtra(EXTRA_DEVICE_NAME, deviceName)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            context.startForegroundService(intent)
         }
     }
 
@@ -275,18 +271,10 @@ class CastReceiverService : Service() {
         }
         pripraviKanalZaPrebujanje()
         try {
-            var zastavice = android.app.PendingIntent.FLAG_UPDATE_CURRENT
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                zastavice = zastavice or android.app.PendingIntent.FLAG_IMMUTABLE
-            }
+            val zastavice = android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
             val cakajoca = android.app.PendingIntent.getActivity(
                 this, WAKE_NOTIFICATION_ID, namera, zastavice)
-            val gradnik = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                android.app.Notification.Builder(this, WAKE_CHANNEL_ID)
-            } else {
-                @Suppress("DEPRECATION")
-                android.app.Notification.Builder(this)
-            }
+            val gradnik = android.app.Notification.Builder(this, WAKE_CHANNEL_ID)
             val obvestilo = gradnik
                 .setContentTitle("Safeer Cast")
                 .setContentText(if (title.isNullOrBlank()) url else title)
@@ -308,7 +296,6 @@ class CastReceiverService : Service() {
      * Kanal storitve v ospredju ostane tih, da med gledanjem ne moti.
      */
     private fun pripraviKanalZaPrebujanje() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         try {
             val upravitelj = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             if (upravitelj.getNotificationChannel(WAKE_CHANNEL_ID) != null) return
@@ -717,7 +704,7 @@ class CastReceiverService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        run {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Safeer Cast Receiver",
@@ -731,11 +718,7 @@ class CastReceiverService : Service() {
     }
 
     private fun buildForegroundNotification(): Notification {
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            Notification.Builder(this)
-        }
+        val builder = Notification.Builder(this, CHANNEL_ID)
         return builder
             .setContentTitle("Safeer Cast Receiver")
             .setContentText(getString(si.safeer.tv.R.string.ui_cast_ready))

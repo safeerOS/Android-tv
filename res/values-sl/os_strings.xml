@@ -1,37 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
-    <string name="os_podnaslov">Tvoje naprave. En zaslon.</string>
     <!-- Vrsta Nadaljuj: kar je uporabnik nazadnje odprl. -->
     <string name="os_odsek_nadaljuj">Nadaljuj</string>
     <string name="os_nadaljuj_odstrani">Odstrani iz Nadaljuj</string>
     <string name="os_nadaljuj_ni_vec">%1$s ni več na voljo.</string>
+    <string name="os_nadaljuj_ni_racunalnika">Računalnik ni povezan – prižgi ga in ga poveži v Safeer Link ali nadaljuj na televizorju.</string>
     <string name="os_nadaljuj_odpiram">Odpiram %1$s …</string>
-    <string name="os_nadaljuj_pocisti">Počisti vrsto Nadaljuj</string>
     <!-- Pravno: odgovornost za uporabo in odkrita navedba, da je pri razvoju sodelovala UI. -->
     <string name="os_pravno">Pravno in o aplikaciji</string>
     <string name="os_pravno_opis">Licenca, odgovornost in kako je nastalo</string>
     <string name="os_pravno_besedilo">Safeer OS %1$s (%2$s)\n\nLICENCA. Safeer je odprtokodna programska oprema po licenci Apache 2.0 in je ponujena »takšna, kot je«, brez garancije.\n\nODGOVORNOST. Za to, za kaj in kako Safeer uporabljaš, ter za vsebino, do katere prek njega dostopaš ali jo z njim odpiraš, odgovarjaš sam. Avtor ne odgovarja za škodo, ki bi nastala pri uporabi. Safeer Ščit, BankGuard in seznami groženj so pomoč, ne jamstvo: nevarno stran lahko spregledajo, varno pa včasih blokirajo.\n\nUMETNA INTELIGENCA. Pri razvoju te programske opreme je bila uporabljena umetna inteligenca. Koda je zato lahko napačna ali nepopolna; vsako izdajo preizkusimo, napak pa ne moremo izključiti. Izvorna koda je javna, da jo lahko preveriš sam: github.com/memelandfaner</string>
     <string name="os_odsek_zacni">Začni</string>
-    <string name="os_odsek_naprave">Naprave v Safeer Linku</string>
     <string name="os_odsek_aplikacije">Aplikacije na tem televizorju</string>
     <string name="os_splet">Splet</string>
-    <string name="os_splet_opis">Manj oglasov, več zasebnosti</string>
     <string name="os_datoteke">Datoteke</string>
-    <string name="os_datoteke_opis">Videi, glasba in slike z računalnika</string>
     <string name="os_link">Safeer Link</string>
-    <string name="os_link_opis">Tvoje naprave. Povezane.</string>
     <string name="os_stanje_povezujem">Povezujem …</string>
     <string name="os_stanje_povezan">Povezano · %1$s</string>
     <string name="os_stanje_ni">Ni Safeer Linka</string>
-    <string name="os_stanje_ni_brskalnika">Namesti Safeer Browser za Android TV</string>
     <string name="os_ni_naprav">Nobena druga naprava še ni povezana. Vklopi Safeer Link na telefonu ali računalniku.</string>
-    <string name="os_ni_brskalnika_dolgo">Safeer OS potrebuje Safeer Browser za Android TV – ta na televizorju gosti Safeer Link. Namesti ga s safeer.si in znova odpri Safeer OS.</string>
     <string name="os_naprava_tv">ta televizor</string>
-    <string name="os_odpri">Odpri</string>
     <string name="os_poslano_tv">Poslano v Safeer Browser</string>
     <string name="os_prejeto_besedilo">Besedilo od %1$s</string>
-    <string name="os_datoteke_racunalniki">Računalniki</string>
     <string name="os_datoteke_koren">Deljene mape</string>
     <string name="os_datoteke_ni_racunalnika">Noben računalnik še ne deli datotek.\n\nNa računalniku odpri Safeer Control → Datoteke za televizor in dodaj mapo. Safeer Control je majhna brezplačna aplikacija za Linux: safeer.si/control</string>
     <string name="os_datoteke_prazno_racunalnik">%1$s še ne deli nobene mape.\n\nV Safeer Controlu na tem računalniku odpri Datoteke za televizor in dodaj mapo – tu se pokaže takoj.</string>
@@ -51,7 +42,7 @@
     <string name="os_scit">Ščit</string>
     <string name="os_scit_preverjam">Preverjam …</string>
     <string name="os_scit_ni_brskalnika">Potrebuje Safeer Browser za Android TV 2.1.100 ali novejši</string>
-    <string name="os_scit_vklopljen_opis">Zaščita je vključena\nDanes blokiranih %1$d oglasov, sledilcev in nevarnih domen</string>
+    <string name="os_scit_vklopljen_opis">Zaščita je vključena\nDanes blokirano (oglasi, sledilci, nevarne domene): %1$d</string>
     <string name="os_scit_prekinjen">Vklopljen, a prekinjen (drug VPN?) – odpri za ponovni vklop</string>
     <string name="os_scit_izklopljen_opis">Zaščita je izklopljena\nVklopi za vse aplikacije na televizorju</string>
     <string name="os_scit_izklopljen_kratko">Ščit je izklopljen</string>
@@ -59,9 +50,6 @@
     <string name="os_stanje_ni_linka">Safeer Link ni vklopljen</string>
     <string name="os_naprave_krajevni">Krajevni način: Safeer OS uporablja samo ta televizor. Za druge naprave vklopi Safeer Link.</string>
     <string name="os_naprave_ni_linka">Safeer Link ni vklopljen. Vklopi ga (kartica Safeer Link) in tu bosta telefon in računalnik.</string>
-    <string name="os_datoteke_opis_krajevno">Videi, glasba in slike s televizorja in USB</string>
-    <string name="os_link_izklopljen_opis">Izklopljen · vklopi za naprave in datoteke</string>
-    <string name="os_link_krajevni_opis">Krajevni način · odpri za vklop Linka</string>
     <string name="os_nacin_naslov">Kako naj Safeer OS deluje?</string>
     <string name="os_nacin_opis">S Safeer Linkom se telefonu in računalniku pridruži ta televizor: datoteke z računalnika, pošiljanje strani, daljinec. Brez njega Safeer OS deluje sam, samo s tem televizorjem: splet, njegove datoteke in USB, aplikacije in Ščit. Izbiro lahko kadarkoli spremeniš.</string>
     <string name="os_nacin_link">Vklopi Safeer Link</string>
@@ -78,7 +66,7 @@
     <string name="os_krajevno_videi">Videi</string>
     <string name="os_krajevno_glasba">Glasba</string>
     <string name="os_krajevno_slike">Slike</string>
-    <string name="os_krajevno_stevilo">%1$d datotek</string>
+    <string name="os_krajevno_stevilo">Datoteke: %1$d</string>
     <string name="os_krajevno_prazno">Tu še ni ničesar. Datoteke, ki jih preneseš na televizor ali priklopiš na USB, se pokažejo same.</string>
     <string name="os_krajevno_dovoljenje">Safeer OS potrebuje dovoljenje za branje datotek na tem televizorju.</string>
     <string name="os_krajevno_brez_dovoljenja">Brez tega dovoljenja datotek televizorja ni mogoče pokazati. Dovoliš ga v nastavitvah Androida, pri Aplikacije → Safeer → Dovoljenja.</string>
@@ -89,17 +77,14 @@
     <string name="os_spletne_odstrani">Odstrani</string>
     <string name="os_preklici">Prekliči</string>
     <string name="os_spletne_odstrani_vprasanje">Odstranim to spletno aplikacijo z domačega zaslona? Sama stran ostane nedotaknjena.</string>
-    <string name="os_spletne_ni_kaj_dodati">Vse strani z domače strani brskalnika so že tu. Novo stran najprej dodaj v brskalniku (Moje strani → Uredi).</string>
 
     <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
     <string name="os_nastavitve">Nastavitve</string>
-    <string name="os_nastavitve_opis">Domači zaslon, način delovanja, Ščit</string>
     <string name="os_nastavitve_opomba">Vse spodnje lahko kadarkoli vklopiš ali izklopiš.</string>
     <string name="os_jezik_opis">Safeer OS v jeziku, ki ga izbereš, ne glede na nastavitev televizorja</string>
     <string name="os_zaganjalnik">Domači zaslon televizorja</string>
     <string name="os_zaganjalnik_opis">Ali Safeer OS prevzame tipko Domov ali ostane aplikacija, ki jo odpreš za spletne aplikacije</string>
     <string name="os_zaganjalnik_izbran">Safeer OS</string>
-    <string name="os_zaganjalnik_ponujen">Na voljo v sistemu</string>
     <string name="os_zaganjalnik_vprasanje">Safeer OS se ponudi kot domači zaslon tega televizorja. Izbira je sistemska: odprlo se bo sistemsko okno, kjer ga izbereš. Tukaj ga lahko kadarkoli izklopiš in televizor se vrne na svoj zaganjalnik.</string>
     <string name="os_zaganjalnik_vklopi">Ponudi kot domači zaslon</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS ni več domači zaslon; televizor je vzel svojega nazaj.</string>
@@ -131,7 +116,7 @@
     <string name="os_host_naslov_opis">Ime ali naslov IP, z vrati, če niso običajna. Primer: moj-streznik.si ali 203.0.113.7:8990</string>
     <string name="os_host_naslov_namig">moj-streznik.si</string>
     <string name="os_host_naslov_napaka">To ni videti kot naslov. Primer: moj-streznik.si</string>
-    <string name="os_host_povezujem">Povezujem se s strežnikom ...</string>
+    <string name="os_host_povezujem">Povezujem se s strežnikom …</string>
     <string name="os_host_koda">Koda s strežnika</string>
     <string name="os_host_koda_opis">Safeer Link na tistem strežniku pokaže kodo. Vtipkaj jo sem. Koda nikoli ne potuje po omrežju; obe strani samo dokažeta, da jo poznata.</string>
     <string name="os_host_koda_namig">koda z zaslona</string>
@@ -154,7 +139,6 @@
     <string name="os_zagon_obvestilo">Odpiram domači zaslon</string>
     <string name="os_vklopi">Vklopi</string>
     <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
-    <string name="os_host_berem">Preverjam, koliko moči je na voljo ...</string>
     <string name="os_host_ta_televizor">Ta televizor: %1$s</string>
     <string name="os_host_racunalnik">Host: %1$s</string>
     <string name="os_host_jedra">jedra: %1$d</string>
@@ -182,8 +166,7 @@
     <string name="os_skupina_orodja">Orodja</string>
     <string name="os_skupina_drugo">Drugo</string>
     <string name="os_skupina_s_stevilom">%1$s · %2$d</string>
-    <string name="os_programi_opis">Zaženi program računalnika</string>
-    <string name="os_programi_nalagam">Sprašujem računalnik ...</string>
+    <string name="os_programi_nalagam">Sprašujem računalnik …</string>
     <string name="os_programi_prazno">Računalnik ni ponudil nobenega programa.</string>
     <string name="os_programi_ni_racunalnika">Noben računalnik v Safeer Linku ne deli svojih programov. V Safeer Controlu na računalniku vklopi \'Programi za televizor\'.</string>
     <string name="os_programi_ni_povezave">Safeer Link ni povezan, zato ni računalnika, ki bi ga vprašali.</string>
@@ -199,7 +182,6 @@
     <string name="os_naprave_stran">Stran Safeer Link</string>
     <string name="os_naprave_stran_opis">Seznani napravo, daljinec, pošlji stran ali datoteko</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
-    <string name="os_aplikacije_ostalo">Ostalo</string>
     <string name="os_aplikacije_vse">Vse aplikacije tega televizorja</string>
     <string name="os_aplikacije_namig">OK odpre aplikacijo. Zadrži OK, da jo daš na domači zaslon (★) ali z njega.</string>
     <string name="os_aplikacije_prazno">Ta televizor nima drugih aplikacij.</string>
@@ -209,9 +191,8 @@
     <string name="os_aplikacije_izberi">Izberi aplikacije</string>
     <!-- Zaslon racunalnika na televizorju -->
     <string name="os_zaslon">Zaslon računalnika</string>
-    <string name="os_zaslon_opis">Poglej in upravljaj računalnik</string>
-    <string name="os_zaslon_povezujem">Povezujem se z računalnikom ...</string>
-    <string name="os_zaslon_prosim">Prosim %1$s za njegov zaslon ...</string>
+    <string name="os_zaslon_povezujem">Povezujem se z računalnikom …</string>
+    <string name="os_zaslon_prosim">Prosim %1$s za njegov zaslon …</string>
     <string name="os_zaslon_ni_racunalnika">Noben računalnik v Safeer Linku ne deli zaslona. V Safeer Controlu na računalniku vklopi \'Zaslon za televizor\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link ni povezan, zato ni računalnika, ki bi ga vprašali.</string>
     <string name="os_zaslon_ni_dovoljeno">%1$s zaslona ne deli. V Safeer Controlu na tem računalniku vklopi \'Zaslon za televizor\'.</string>
@@ -219,12 +200,9 @@
     <string name="os_zaslon_koncano">Računalnik je končal sejo.</string>
     <string name="os_zaslon_program_zaprt">Program na računalniku se je zaprl.</string>
     <string name="os_zaslon_ni_okna">Program se na računalniku ni odprl.</string>
-    <string name="os_zaslon_meritve">%1$d×%2$d · %3$.0f sličic/s · %4$.1f Mb/s · dekoder %5$d ms</string>
-    <string name="os_zaslon_ponovno">Povezava je padla. Poskušam znova ...</string>
-    <string name="os_zaslon_zvok">zvok</string>
+    <string name="os_zaslon_ponovno">Povezava je padla. Poskušam znova …</string>
     <string name="os_zaslon_namig">Za konec zadrži Nazaj</string>
     <!-- Scit: kratko na kartici, podrobnosti posebej -->
-    <string name="os_scit_kratko_vklopljen">Vklopljeno · %1$d blokiranih danes</string>
     <string name="os_scit_kratko_izklopljen">Izklopljeno</string>
     <string name="os_scit_kratko_prekinjen">Prekinjeno (drug VPN?)</string>
     <string name="os_scit_kratko_ni">Ni na voljo</string>
@@ -259,7 +237,6 @@
     <string name="os_zatemnitev_opis">Levo in desno spreminjata zatemnitev. Več zatemnitve pomeni, da besedilo ostane berljivo tudi na svetli sliki.</string>
     <string name="os_odstotek">%1$d %%</string>
     <string name="os_izberi_sliko">Izberi sliko za ozadje</string>
-    <string name="os_programi_kratko">Programi</string>
     <string name="os_scit_ploscica_vklopljen">Vklopljeno · %1$d</string>
     <string name="os_moc">Zmogljivost</string>
     <string name="os_moc_opis">Procesor, pomnilnik in prostor — na hostu ali na tem televizorju</string>
@@ -276,7 +253,6 @@
     <string name="os_besedilo_napaka">Datoteke ni bilo mogoče prebrati.</string>
     <string name="os_besedilo_prevelika">Dolga datoteka — prikazan je začetek.</string>
     <string name="os_besedilo_pomoc">Dol/Gor drsita · Nazaj zapre</string>
-    <string name="os_odpri_vprasanje">Televizor te datoteke ne zna odpreti, %1$s pa jo zna.</string>
     <string name="os_odpri_na_racunalniku">Odpri na računalniku</string>
     <string name="os_odpri_in_poglej">Odpri in poglej tu</string>
     <string name="os_odpri_posiljam">Pošiljam računalniku …</string>

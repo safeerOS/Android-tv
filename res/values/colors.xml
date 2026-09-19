@@ -16,8 +16,6 @@
     <!-- Neon Accents -->
     <color name="accent_cyan">#54D6A5</color>
     <color name="accent_cyan_glow">#4054D6A5</color>
-    <color name="accent_blue">#3B82F6</color>
-    <color name="accent_purple">#8B5CF6</color>
     <color name="accent_gold">#FBBF24</color>
     
     <!-- Text Colors -->
@@ -27,17 +25,14 @@
     
     <!-- Badges & Status -->
     <color name="security_green">#10B981</color>
-    <color name="warning_orange">#F59E0B</color>
     <color name="danger_red">#EF4444</color>
     
     <!-- Tab Badge -->
     <color name="badge_tab_bg">#111924</color>
     <color name="badge_tab_border">#54D6A5</color>
-    <color name="badge_tab_text">#54D6A5</color>
     
     <!-- Touch Ripples & Overlays -->
     <color name="ripple_color">#2654D6A5</color>
-    <color name="overlay_backdrop">#CC04060A</color>
 
     <!-- Meni in Safeer Link: ista podoba kot na safeer.si (temna podlaga, mint zelena, crtne ikone) -->
     <color name="menu_icon">#DCE6EA</color>

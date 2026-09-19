@@ -3,6 +3,4 @@
      da sta na zaslonu vedno vidni vsaj dve celi kartici in besedilo se ne rezhe. -->
 <resources>
     <dimen name="os_rob">32dp</dimen>
-    <dimen name="os_kartica_sirina">232dp</dimen>
-    <dimen name="os_kartica_visina">142dp</dimen>
 </resources>

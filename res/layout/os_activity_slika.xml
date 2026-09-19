@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Slika cez ves zaslon; spodaj ime in stevec (skrijeta se sama). Levo/desno: prejsnja/naslednja. -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#000000">
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
     <ImageView
         android:id="@+id/slika"
         android:layout_width="match_parent"
@@ -44,4 +41,4 @@
             android:layout_marginStart="14dp"
             android:textSize="13sp"/>
     </LinearLayout>
-</FrameLayout>
+</merge>

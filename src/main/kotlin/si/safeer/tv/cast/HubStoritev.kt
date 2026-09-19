@@ -69,8 +69,7 @@ class HubStoritev : Service() {
         private fun zazeniStoritev(app: Context, akcija: String) {
             val namera = Intent(app, HubStoritev::class.java).apply { action = akcija }
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) app.startForegroundService(namera)
-                else app.startService(namera)
+                app.startForegroundService(namera)
             } catch (e: Throwable) {
                 // Android lahko zagon iz ozadja zavrne (npr. tik pred ugasnjenjem naprave).
                 // Hub v tem primeru tece naprej v procesu brskalnika, dokler ta zivi.
@@ -118,14 +117,12 @@ class HubStoritev : Service() {
 
     private fun ustaviOspredje() {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE)
-            else @Suppress("DEPRECATION") stopForeground(true)
+            stopForeground(STOP_FOREGROUND_REMOVE)
         } catch (_: Throwable) {
         }
     }
 
     private fun pripraviKanal() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val upravitelj = getSystemService(NotificationManager::class.java) ?: return
         if (upravitelj.getNotificationChannel(KANAL) != null) return
         val kanal = NotificationChannel(
@@ -139,11 +136,7 @@ class HubStoritev : Service() {
     }
 
     private fun obvestilo(): Notification {
-        val gradnik = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, KANAL)
-        } else {
-            @Suppress("DEPRECATION") Notification.Builder(this)
-        }
+        val gradnik = Notification.Builder(this, KANAL)
         return gradnik
             .setContentTitle(getString(R.string.hub_obvestilo_naslov))
             .setContentText(getString(R.string.hub_obvestilo_besedilo))

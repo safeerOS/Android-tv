@@ -112,6 +112,9 @@ object HubTls {
      * Zaupnik, ki Hub prepozna po odtisu. `pripeti` = null pomeni "se ne poznam" (samo
      * med seznanitvijo); takrat sprejme katerokoli potrdilo in si zapomni njegov odtis.
      */
+    // Lastni zaupnik je namen: Hub ima samopodpisano potrdilo, zaupamo samo pripetemu odtisu
+    // (med seznanitvijo pa SPAKE2 veze odtis na kodo, zato napadalec v sredini pade).
+    @Suppress("CustomX509TrustManager")
     class Zaupnik(private val pripeti: String?) : X509TrustManager {
         @Volatile
         var videni: String? = null

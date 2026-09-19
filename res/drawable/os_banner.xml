@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Pasica za zaganjalnik Android TV (16:9): znak Safeer na ozadju safeer.si; ime pokaze zaganjalnik. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
+<vector tools:ignore="VectorRaster" xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:width="320dp" android:height="180dp"
     android:viewportWidth="320" android:viewportHeight="180">
     <path android:fillColor="#090D15" android:pathData="M0,0 H320 V180 H0 Z"/>

@@ -274,9 +274,7 @@ class TabManager(
             // Zavihek, ki ga nihce ne gleda, ne potrebuje strojnega sloja: ta je na
             // televizorju cel zaslon velika slika v graficnem pomnilniku.
             strojniSloj(tab.webView, false)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                tab.webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
-            }
+            tab.webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
         } catch (e: Exception) {
             Log.w(TAG, "Zavihka ni bilo mogoce uspavati: ${e.message}")
         }
@@ -296,9 +294,7 @@ class TabManager(
             }
         }
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                tab.webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
-            }
+            tab.webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
             tab.webView.onResume()
             if (naslov.isNotBlank()) tab.webView.loadUrl(naslov)
             if (odmik > 0) {
