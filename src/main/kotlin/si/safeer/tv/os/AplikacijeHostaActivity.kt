@@ -370,12 +370,14 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 return@Odgovor
             }
             Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.PROGRAM, ime = p.ime,
-                racunalnik = r.id, program = p.id))
+                racunalnik = r.id, program = p.id, igra = p.skupina == "igre"))
             if (zaslon) {
                 Toast.makeText(this, getString(R.string.os_programi_odpiram, p.ime), Toast.LENGTH_SHORT).show()
                 startActivity(Intent(this, ZaslonActivity::class.java)
                     .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
-                    .putExtra(ZaslonActivity.EXTRA_ZASLON, "apps"))
+                    .putExtra(ZaslonActivity.EXTRA_ZASLON, "apps")
+                    .putExtra(ZaslonActivity.EXTRA_PROGRAM, p.id)
+                    .putExtra(ZaslonActivity.EXTRA_IGRA, p.skupina == "igre"))
             } else {
                 Toast.makeText(this, getString(R.string.os_programi_zagnan, p.ime,
                     r.ime.ifBlank { r.id }), Toast.LENGTH_LONG).show()

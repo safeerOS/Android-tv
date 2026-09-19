@@ -37,6 +37,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var vrstaNadaljuj: LinearLayout
     private lateinit var naslovNadaljuj: TextView
     private lateinit var drsnikNadaljuj: View
+    /** Naslov vrste Nadaljuj skupaj z gumbom Zapri vse (ta je v naslovu, da ga rob zaslona ne odreze). */
+    private lateinit var glavaNadaljuj: View
+    private lateinit var gumbZapriVse: TextView
     private lateinit var vrstaAplikacije: LinearLayout
     private lateinit var vrstaSpletne: LinearLayout
     private lateinit var opombaSpodaj: TextView
@@ -62,6 +65,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         vrstaNadaljuj = findViewById(R.id.vrstaNadaljuj)
         naslovNadaljuj = findViewById(R.id.naslovNadaljuj)
         drsnikNadaljuj = findViewById(R.id.drsnikNadaljuj)
+        pripraviGlavoNadaljuj()
         vrstaAplikacije = findViewById(R.id.vrstaAplikacije)
         vrstaSpletne = findViewById(R.id.vrstaSpletne)
         opombaSpodaj = findViewById(R.id.opombaSpodaj)
@@ -421,7 +425,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val vnosi = Nadaljuj.seznam(this)
         vrstaNadaljuj.removeAllViews()
         val vidno = if (vnosi.isEmpty()) View.GONE else View.VISIBLE
-        naslovNadaljuj.visibility = vidno
+        glavaNadaljuj.visibility = vidno
         drsnikNadaljuj.visibility = vidno
         for (n in vnosi) {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaNadaljuj, false)
@@ -451,17 +455,58 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.tag = "nadaljuj:" + n.kljuc()
             vrstaNadaljuj.addView(v)
         }
-        // Zapri vse: ena tipka za vse programe, ki jih je televizor zagnal na racunalniku.
+        // Zapri vse: ena tipka za vse programe, ki jih je televizor zagnal na racunalniku. Je v
+        // naslovu vrste (desno), ne na koncu vrste - tam jo je rob zaslona odrezal na pol.
         val programi = vnosi.filter { jeProgram(it) }
-        if (programi.isNotEmpty()) {
-            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaNadaljuj, false)
-            v.findViewById<ImageView>(R.id.ikona).setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-            v.findViewById<TextView>(R.id.ime).text = getString(R.string.os_zapri_vse, programi.size)
-            v.onFocusChangeListener = fokus
-            v.setOnClickListener { zapriVse(programi) }
-            v.tag = "nadaljuj:zapri_vse"
-            vrstaNadaljuj.addView(v)
+        gumbZapriVse.visibility = if (programi.isEmpty()) View.GONE else View.VISIBLE
+        gumbZapriVse.text = "\u2715  " + getString(R.string.os_zapri_vse, programi.size)
+        gumbZapriVse.setOnClickListener { zapriVse(programi) }
+        // Desno od zadnje kartice ni nicesar vec: fokus ostane v vrsti in ne skoci v vrsto spodaj.
+        if (vrstaNadaljuj.childCount > 0) {
+            val zadnja = vrstaNadaljuj.getChildAt(vrstaNadaljuj.childCount - 1)
+            if (zadnja.id == View.NO_ID) zadnja.id = View.generateViewId()
+            zadnja.nextFocusRightId = zadnja.id
         }
+    }
+
+    /** Naslov vrste Nadaljuj postane vrstica: naslov levo, gumb Zapri vse desno. */
+    private fun pripraviGlavoNadaljuj() {
+        val d = resources.displayMetrics.density
+        val stars = naslovNadaljuj.parent as ViewGroup
+        val mesto = stars.indexOfChild(naslovNadaljuj)
+        val mere = naslovNadaljuj.layoutParams
+        stars.removeView(naslovNadaljuj)
+        val vrstica = LinearLayout(this)
+        vrstica.orientation = LinearLayout.HORIZONTAL
+        vrstica.gravity = android.view.Gravity.CENTER_VERTICAL
+        // Vidnost zdaj vodi vrstica; naslov sam je v postavitvi lahko skrit (prej ga je prizgala vrsta).
+        naslovNadaljuj.visibility = View.VISIBLE
+        vrstica.addView(naslovNadaljuj, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val gumb = TextView(this)
+        gumb.setTextColor(android.graphics.Color.WHITE)
+        gumb.textSize = 14f
+        gumb.isFocusable = true
+        gumb.isClickable = true
+        gumb.setPadding((14 * d).toInt(), (6 * d).toInt(), (14 * d).toInt(), (6 * d).toInt())
+        val ozadje = android.graphics.drawable.GradientDrawable()
+        ozadje.cornerRadius = 18 * d
+        ozadje.setColor(android.graphics.Color.parseColor("#33CC2B3A"))
+        ozadje.setStroke((2 * d).toInt(), android.graphics.Color.TRANSPARENT)
+        gumb.background = ozadje
+        gumb.onFocusChangeListener = View.OnFocusChangeListener { v, ima ->
+            ozadje.setStroke((2 * d).toInt(), if (ima) android.graphics.Color.WHITE else android.graphics.Color.TRANSPARENT)
+            ozadje.setColor(android.graphics.Color.parseColor(if (ima) "#CC2B3A" else "#33CC2B3A"))
+            v.animate().scaleX(if (ima) 1.06f else 1f).scaleY(if (ima) 1.06f else 1f).setDuration(120).start()
+            if (ima) (drsnik as? android.widget.ScrollView)?.smoothScrollTo(0, 0)
+        }
+        gumb.visibility = View.GONE
+        vrstica.addView(gumb, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            .apply { marginEnd = (24 * d).toInt() })
+        // Vrstica mora biti siroka kot zaslon, sicer naslov (utez 1) dobi sirino 0 in izgine.
+        mere.width = ViewGroup.LayoutParams.MATCH_PARENT
+        stars.addView(vrstica, mesto, mere)
+        glavaNadaljuj = vrstica
+        gumbZapriVse = gumb
     }
 
     private fun jeProgram(n: Nadaljuj.Vnos) =
@@ -589,7 +634,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (izid?.optBoolean("ok") != true) { niVec(n); return@Odgovor }
                 if (zaslon) odpriVarno(Intent(this, ZaslonActivity::class.java)
                     .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
-                    .putExtra(ZaslonActivity.EXTRA_ZASLON, "apps"), getString(R.string.os_zaslon))
+                    .putExtra(ZaslonActivity.EXTRA_ZASLON, "apps")
+                    .putExtra(ZaslonActivity.EXTRA_PROGRAM, n.program)
+                    .putExtra(ZaslonActivity.EXTRA_IGRA, n.igra), getString(R.string.os_zaslon))
             })
     }
 
@@ -892,7 +939,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val vrsta = v.parent as? View ?: return              // vrsta kartic
         val drsnikVrste = vrsta.parent as? View ?: return    // vodoravni drsnik okoli nje
         val naslovVisina = (44 * resources.displayMetrics.density).toInt()   // naslov odseka nad vrsto
-        val zgoraj = (drsnikVrste.top - naslovVisina).coerceAtLeast(0)
+        val zgoraj = if (drsnikVrste === drsnikNadaljuj) 0 else (drsnikVrste.top - naslovVisina).coerceAtLeast(0)
         val spodaj = drsnikVrste.bottom + (16 * resources.displayMetrics.density).toInt()
         val kje = drsnik.scrollY
         val visina = drsnik.height

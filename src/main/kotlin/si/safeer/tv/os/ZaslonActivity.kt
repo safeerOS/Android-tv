@@ -50,6 +50,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var cilj = "desktop"
     /** Racunalnik je potrdil, da ta seja kaze locen zaslon s programi (ne namizja). */
     private var naDrugem = false
+    /** Program, zaradi katerega smo tu (za zapomnjeni nacin tipk), in ali je igra. */
+    private var program = ""
+    private var igra = false
     private var koncujem = false
     private var poskusov = 0
     private var prosim = false
@@ -96,6 +99,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // ker za nizjo ni razloga - meritve kazejo, da ostrejsa slika skoraj nic ne stane.
         kakovost = intent.getStringExtra(EXTRA_KAKOVOST) ?: "najvisja"
         cilj = intent.getStringExtra(EXTRA_ZASLON) ?: "desktop"
+        program = intent.getStringExtra(EXTRA_PROGRAM).orEmpty()
+        igra = intent.getBooleanExtra(EXTRA_IGRA, false)
         pokazi(getString(R.string.os_zaslon_povezujem))
         pogled.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(h: SurfaceHolder) {
@@ -164,6 +169,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 seja = podatki
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)
                 naDrugem = podatki.optString("screen") == "apps"
+                // V igri so puscice puscice: igra, v kateri daljinec premika misko, se ne da igrati.
+                // Uporabnikova izbira za ta program ima prednost; sicer igra (s seznama ali od racunalnika).
+                val nastavitve = getSharedPreferences("safeer_os", MODE_PRIVATE)
+                val tipke = if (program.isNotEmpty() && nastavitve.contains("tipke:$program"))
+                    nastavitve.getBoolean("tipke:$program", false)
+                else igra || podatki.optBoolean("game", false)
+                if (tipke) { ustaviSmer(); kazalec = false }
                 android.util.Log.i("SafeerZaslon", "seja: navidezni plosek na racunalniku = $plosekVRacunalnik")
                 // Zaslon racunalnika je ena najpogostejsih poti; naj bo na domacem zaslonu takoj pri roki.
                 // Ime kartice je 'Zaslon racunalnika', ne dolgo ime naprave: na kartici se je
@@ -445,6 +457,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun preklopiNacin() {
         ustaviSmer()
         kazalec = !kazalec
+        // Izbiro si zapomnimo za ta program: naslednjic se odpre tako, kot si ga pustil.
+        if (program.isNotEmpty()) getSharedPreferences("safeer_os", MODE_PRIVATE).edit()
+            .putBoolean("tipke:$program", !kazalec).apply()
         pokaziNamig()
     }
 
@@ -622,6 +637,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         const val EXTRA_KAKOVOST = "kakovost"
         /** `apps`, kadar zaslon odpremo po zagonu programa (locen zaslon na racunalniku). */
         const val EXTRA_ZASLON = "zaslon"
+        /** Oznaka programa (app:...desktop) in ali je igra - za nacin tipk ob zacetku. */
+        const val EXTRA_PROGRAM = "program"
+        const val EXTRA_IGRA = "igra"
         /**
          * Na koliko ponovitev drzanja znova javimo, da je tipka se vedno drzana. Android ponavlja
          * priblizno dvajsetkrat na sekundo, racunalnik pa pozabljeno tipko spusti po petih

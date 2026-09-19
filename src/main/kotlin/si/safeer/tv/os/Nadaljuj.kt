@@ -51,6 +51,8 @@ object Nadaljuj {
         val krajevno: Boolean = false,
         val url: String = "",
         val program: String = "",
+        /** Program je igra (skupina igre): zaslon se odpre v nacinu tipk. */
+        val igra: Boolean = false,
     ) {
         /** Dve vrstici sta ista stvar, kadar se ujemata vrsta in to, kar odpreta. */
         fun kljuc(): String = vrsta + "|" + racunalnik + "|" + (id.ifBlank { url.ifBlank { program } })
@@ -75,6 +77,7 @@ object Nadaljuj {
                     krajevno = o.optBoolean("krajevno"),
                     url = o.optString("url"),
                     program = o.optString("program"),
+                    igra = o.optBoolean("igra"),
                 )
             }
         } catch (e: Throwable) {
@@ -110,7 +113,7 @@ object Nadaljuj {
             polje.put(JSONObject()
                 .put("vrsta", v.vrsta).put("ime", v.ime).put("kdaj", v.kdaj)
                 .put("racunalnik", v.racunalnik).put("id", v.id).put("mime", v.mime)
-                .put("krajevno", v.krajevno).put("url", v.url).put("program", v.program))
+                .put("krajevno", v.krajevno).put("url", v.url).put("program", v.program).put("igra", v.igra))
         }
         prefs(c).edit().putString(KLJUC, polje.toString()).apply()
     }

@@ -1,0 +1,16 @@
+# Safeer Browser for Android TV 2.1.107 · Safeer OS 0.2.7
+
+**Safeer OS: computer programs get their own screen, the controller really works, and programs close from the TV.**
+
+- **A separate screen for programs from the computer.** A program you start from Safeer OS opens on a separate, invisible screen on the computer (Safeer Control 2.0.3 with `sway` and `wf-recorder` installed), so whoever sits at the computer keeps their desktop. "Computer screen" still shows the whole desktop.
+- **More than one program:** "Next program" in the session menu switches between them. When the last program closes (for example a game that quits on Escape), Safeer OS returns to its home screen and says so, instead of leaving a dark screen.
+- **Close programs from the TV.** Programs in the Continue row carry a visible ✕, and a "Close all" button next to the row's title closes every program started from the TV on the computer.
+- **Better controller support.** The D-pad, the right stick and the L2/R2 triggers now work on the computer's desktop (arrow keys, scrolling, left and right click), buttons reach games through the computer's virtual gamepad, and a new "Test the buttons" screen in Settings shows each connected controller and what every button and stick sends.
+- **Games start with the arrows as arrows.** A game from the computer opens in key mode, so the remote's arrows move the piece or the player instead of the mouse; if you switch the mode for a program, Safeer OS remembers it for next time.
+- **Start menu** is the first item in the session menu on the computer's desktop.
+- **Search in "Apps on this TV"**, and moving between categories in computer programs no longer jumps when you come back up from the list.
+- Transfer-speed numbers are no longer shown over the computer's picture.
+- The home screen's top line stays visible when you move into the Continue row, and moving right past its last card no longer drops you into the row below.
+- Safeer Browser for Android TV has no functional changes in this release.
+
+Slovensko: **programi z računalnika dobijo svoj zaslon.** Program, ki ga zaženeš iz Safeer OS, se odpre na ločenem, nevidnem zaslonu računalnika (Safeer Control 2.0.3 z nameščenima `sway` in `wf-recorder`), zato kdor sedi za računalnikom, obdrži svoje namizje; »Zaslon računalnika« še vedno pokaže celo namizje. Med več programi preklopiš z »Naslednji program« v meniju seje, in ko se zadnji program zapre (npr. igra ob Esc), se Safeer OS vrne na domači zaslon namesto na temen zaslon. **Programe zapreš s televizorja:** v vrstici Nadaljuj imajo viden ✕, gumb »Zapri vse« ob naslovu vrste pa zapre vse, kar je bilo zagnano s televizorja. **Boljša podpora kontrolerju:** smerni gumbi, desna palica in sprožilca L2/R2 delujejo na namizju računalnika (puščice, drsenje, levi in desni klik), gumbi pridejo v igre prek navideznega ploščka, novi zaslon »Preizkusi tipke« v nastavitvah pa pokaže vsak povezan kontroler in kaj pošlje vsak gumb. **Igre se odprejo v načinu tipk** (puščice daljinca so puščice, ne miška), izbiro načina pa si Safeer OS zapomni za vsak program. **Meni Start** je prvi v meniju seje, **iskanje** v »Aplikacije na tem televizorju«, premik med kategorijami programov ne skače več, številk o hitrosti prenosa čez sliko ni več. Brskalnik za Android TV v tej izdaji nima funkcionalnih sprememb.
