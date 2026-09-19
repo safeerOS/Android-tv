@@ -18,6 +18,12 @@ open class OsActivity : Activity() {
 
     private val palica by lazy { Kontroler.Palica(this) }
 
+    /** Po setContentView: vsebina se odmakne od sistemskih vrstic (Android 15+, glej [Robovi]). */
+    override fun onContentChanged() {
+        super.onContentChanged()
+        Robovi.uporabi(this)
+    }
+
     /** Zaslon lahko gumb prevzame; privzeto ga prepusti skupnemu prevodu. */
     open fun plosekDejanje(koda: Int): Boolean = false
 

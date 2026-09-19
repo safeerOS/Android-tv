@@ -41,11 +41,11 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <!-- Safeer OS, krajevne datoteke televizorja (videi, glasba, slike; tudi USB) prek MediaStore -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <!-- Brskanje po datotekah televizorja in USB rabi cel dostop. Ce uporabnik na Androidu 14
-         izbere omejen dostop, ga sistem (targetSdk 34) da za cas seje; izbirnika fotografij ne rabimo. -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 14+: uporabnik lahko dovoli samo izbrane slike in videe; pokazemo tiste. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- Vrsta s spletnimi aplikacijami na domacem zaslonu televizorja (kanal predogleda). -->
     <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
 
@@ -96,7 +96,8 @@
         android:allowBackup="false"
         android:dataExtractionRules="@xml/izvoz_podatkov"
         android:fullBackupContent="@xml/varnostna_kopija"
-        tools:targetApi="31"
+        tools:targetApi="33"
+        android:enableOnBackInvokedCallback="false"
         android:usesCleartextTraffic="true"
         android:supportsRtl="true">
 

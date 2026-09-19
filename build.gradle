@@ -5,13 +5,13 @@ plugins {
 
 android {
     namespace 'si.safeer.tv'
-    // compileSdk 36: media3 1.11 in webkit 1.17 ga zahtevata za prevod. targetSdk ostane 34, zato
-    // se vedenje aplikacije na napravah ne spremeni.
+    // compileSdk 36: media3 1.11 in webkit 1.17 ga zahtevata za prevod. targetSdk 36: robovi
+    // (Robovi.kt), gumb Nazaj ostane klasicen (enableOnBackInvokedCallback=false v manifestu).
     compileSdk 36
 
     defaultConfig {
         minSdk 28
-        targetSdk 34
+        targetSdk 36
         versionCode 224
         versionName '2.1.115'
     }

@@ -59,6 +59,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.tablet_activity_domov)
+        si.safeer.tv.os.Robovi.uporabi(this)
         naslov = findViewById(R.id.naslov)
         podnaslov = findViewById(R.id.podnaslov)
         stanje = findViewById(R.id.stanje)

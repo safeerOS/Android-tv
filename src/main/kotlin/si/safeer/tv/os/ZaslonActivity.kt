@@ -105,6 +105,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.os_activity_zaslon)
+        Robovi.uporabi(this)
         pogled = findViewById(R.id.povrsina)
         sporocilo = findViewById(R.id.sporocilo)
         meritve = findViewById(R.id.meritve)

@@ -26,12 +26,21 @@ object KrajevneDatoteke {
 
     fun jeKrajevna(oznaka: String): Boolean = oznaka.startsWith(KOREN) || oznaka.startsWith("content://")
 
-    fun dovoljenja(): Array<String> =
-        if (Build.VERSION.SDK_INT >= 33) arrayOf(
+    /** Na Androidu 14+ ponudimo tudi omejen dostop (samo izbrane slike in videi). */
+    fun dovoljenja(): Array<String> = when {
+        Build.VERSION.SDK_INT >= 34 -> arrayOf(
+            "android.permission.READ_MEDIA_VIDEO", "android.permission.READ_MEDIA_AUDIO", "android.permission.READ_MEDIA_IMAGES",
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
+        Build.VERSION.SDK_INT >= 33 -> arrayOf(
             "android.permission.READ_MEDIA_VIDEO", "android.permission.READ_MEDIA_AUDIO", "android.permission.READ_MEDIA_IMAGES")
-        else arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        else -> arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
 
-    fun imamoDovoljenje(context: Context): Boolean = dovoljenja().all {
+    /**
+     * Ali lahko kaj pokazemo. Dovolj je katerokoli od dovoljenj: ob omejenem dostopu MediaStore vrne
+     * samo izbrane slike in videe, brez dovoljenja za glasbo pa je glasbena zbirka prazna.
+     */
+    fun imamoDovoljenje(context: Context): Boolean = dovoljenja().any {
         context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
     }
 

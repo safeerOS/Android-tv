@@ -154,6 +154,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // tako sledijo izbiri uporabnika, ne da bi zadrzali Activity v pomnilniku.
         UiText.init(JezikVmesnika.vKontekstu(applicationContext))
         setContentView(R.layout.activity_main)
+        si.safeer.tv.os.Robovi.uporabi(this)
 
         window.statusBarColor = Color.parseColor("#06090F")
         window.navigationBarColor = Color.parseColor("#000000")

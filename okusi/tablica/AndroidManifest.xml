@@ -3,9 +3,9 @@
      Vse skupno je v AndroidManifest.xml v korenu; tu je samo, kar velja za tablico. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="MissingLeanbackLauncher,UnsupportedTvHardware,UnnecessaryRequiredFeature,DiscouragedApi">
-    <!-- Tablica ni aplikacija za televizor: brez vnosa LEANBACK_LAUNCHER in z obveznim zaslonom na dotik.
-         Zasloni so zaenkrat v fiksni usmeritvi (targetSdk 34); vrtenje zaslona je naloga za tablico 0.3. -->
+    tools:ignore="MissingLeanbackLauncher,UnsupportedTvHardware,UnnecessaryRequiredFeature">
+    <!-- Tablica ni aplikacija za televizor: brez vnosa LEANBACK_LAUNCHER in z obveznim zaslonom na dotik
+         (vmesnik tablice je narejen za dotik, zato ga zahtevamo namenoma). -->
 
     <!-- Tablica ni televizor: nicesar ne zahtevamo od leanback okolja. -->
     <uses-feature android:name="android.software.leanback" android:required="false" tools:node="replace" />
@@ -35,7 +35,6 @@
             android:exported="true"
             android:label="@string/tablet_ime"
             tools:ignore="RedundantLabel"
-            android:screenOrientation="unspecified"
             android:configChanges="orientation|screenSize|keyboardHidden|navigation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -44,25 +43,26 @@
         </activity>
 
         <!-- Skupni zasloni so na televizorju zaklenjeni v lezeco lego, ker je televizor vedno
-             lezec. Tablico uporabnik drzi, kakor hoce: zasukati mu je ne smemo. Zato tu samo
-             odklenemo lego; koda zaslonov ostane ista.
+             lezec. Tablico uporabnik drzi, kakor hoce: zasukati mu je ne smemo. Zato tu lego
+             odstranimo (tools:remove); koda zaslonov ostane ista.
 
              Izjema je zaslon racunalnika: namizje je 16:9 in pokoncno bi bilo trak sredi crnine,
              zato ostane lezec (a v obe smeri, da ga lahko obrnes). -->
         <activity android:name="si.safeer.tv.os.DatotekeActivity"
-            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+            tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.NapraveActivity"
-            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+            tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity"
-            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+            tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.BesediloActivity"
-            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+            tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.SlikaActivity"
-            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+            tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.PredvajalnikActivity"
-            android:screenOrientation="unspecified" tools:replace="android:screenOrientation" />
+            tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.ZaslonActivity"
-            android:screenOrientation="sensorLandscape" tools:replace="android:screenOrientation" />
+            android:screenOrientation="sensorLandscape" tools:replace="android:screenOrientation"
+            tools:ignore="DiscouragedApi" />
 
         <!-- Brskalniski pogon je tu samo notranji (spletne aplikacije), brez vnosa v zaganjalnik. -->
         <activity
