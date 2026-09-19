@@ -210,7 +210,7 @@ class CastReceiverService : Service() {
         val request = Request.Builder().url(naslov).build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(ws: WebSocket, response: Response) {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.i(TAG, "Uspešno povezan s Cast Hubom!")
                 reconnectAttempts = 0
                 povezan = true
@@ -227,20 +227,20 @@ class CastReceiverService : Service() {
                         put("capabilities", org.json.JSONArray(listOf("url", "media", "control", "volume", "seek", "text", "file", "screen", si.safeer.tv.link.Daljinec.ZMOZNOST)))
                     })
                 }
-                ws.send(registerMsg.toString())
+                webSocket.send(registerMsg.toString())
             }
 
-            override fun onMessage(ws: WebSocket, text: String) {
-                handleIncomingMessage(ws, text)
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                handleIncomingMessage(webSocket, text)
             }
 
-            override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.w(TAG, "Povezava s hubom padla: ${t.message}. Poskus ponovne povezave...")
                 odklopljen()
                 scheduleReconnect()
             }
 
-            override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.i(TAG, "Povezava zaprta ($code): $reason")
                 odklopljen()
                 scheduleReconnect()

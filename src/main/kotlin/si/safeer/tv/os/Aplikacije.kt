@@ -37,7 +37,7 @@ object Aplikacije {
             // ploscici na domacem zaslonu postane neberljiv drobiz - prav to se je videlo pri
             // Safeer Browserju in SmartTubu. Kvadratna ikona aplikacije je vedno citljiva.
             val ikona = try { info.loadIcon(pm) ?: info.loadBanner(pm) } catch (_: Throwable) { null }
-            vnosi.add(Vnos(info.packageName, z.loadLabel(pm)?.toString() ?: info.packageName, ikona, namera))
+            vnosi.add(Vnos(info.packageName, z.loadLabel(pm).toString().ifBlank { info.packageName }, ikona, namera))
         }
         // Safeer Browser je ista aplikacija kot Safeer OS in ima svojo kartico Splet, zato ga ni.
         return vnosi

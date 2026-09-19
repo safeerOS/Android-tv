@@ -508,7 +508,7 @@ class HubUsmerjevalnik(
     }
 
     /** Zabelezi, da naprava caka po starem, da ji vmesnik ponudi gumb Potrdi. */
-    private fun oznaciStaroNapravo(pairId: String) = synchronized(kljucnica) {
+    private fun oznaciStaroNapravo(pairId: String): Unit = synchronized(kljucnica) {
         val prijava = prijave[pairId] ?: return
         if (!prijava.staroPovprasevanje) {
             prijava.staroPovprasevanje = true

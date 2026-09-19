@@ -157,13 +157,13 @@ class PlosekActivity : OsActivity(), InputManager.InputDeviceListener {
         narisi()
     }
 
-    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
-        val odkloni = ZaslonVnos.plosekOdkloni(event)
+    override fun onGenericMotionEvent(dogodek: MotionEvent): Boolean {
+        val odkloni = ZaslonVnos.plosekOdkloni(dogodek)
         if (odkloni.isNotEmpty()) {
             zadnjeOsi.putAll(odkloni)
             narisi()
             return true
         }
-        return super.onGenericMotionEvent(event)
+        return super.onGenericMotionEvent(dogodek)
     }
 }
