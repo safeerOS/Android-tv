@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ena kartica programa racunalnika v mrezi. -->
+<!-- Ena kartica aplikacije/programa v mrezi. Tako nizka, da gredo na 1080p televizorju tri
+     vrste v celoti nad namig na dnu - prej je bila tretja vrsta odrezana. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/os_kartica"
-    android:padding="10dp">
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="9dp"
+    android:paddingBottom="7dp">
     <ImageView
         android:id="@+id/ikona"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
+        android:layout_height="50dp"
         android:scaleType="fitCenter"
         android:contentDescription="@null"/>
     <TextView
@@ -17,9 +21,10 @@
         style="@style/Os.Kartica.Naslov"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="6dp"
         android:gravity="center"
         android:maxLines="2"
         android:ellipsize="end"
+        android:includeFontPadding="false"
         android:textSize="12sp"/>
 </LinearLayout>
