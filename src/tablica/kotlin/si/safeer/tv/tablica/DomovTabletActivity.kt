@@ -550,6 +550,32 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         val infl = LayoutInflater.from(this)
         val druge = link.naprave.filter { it.id != Identiteta.id(this) }
 
+        // Brez Safeer Linka tablica ne vidi nobene naprave, vklopa pa drugje nima: zato je na
+        // domacem zaslonu. Krajevnega nacina tablici ne ponujamo - brez naprav ta zaslon nima cesa
+        // pokazati. Kadar Link tece, povezave pa ni, je edino smiselno dejanje poskus znova.
+        val vklop = !link.povezan && (link.vprasamoZaNacin() || link.jeKrajevni() || sporociloStanja == "ni_linka")
+        val znova = !link.povezan && !vklop && sporociloStanja == "ni"
+        if (vklop || znova) {
+            val v = infl.inflate(R.layout.os_vrstica_naprava, seznam, false)
+            v.findViewById<ImageView>(R.id.ikonaNaprave)?.setImageResource(R.drawable.os_ikona_link)
+            v.findViewById<TextView>(R.id.imeNaprave)?.text =
+                getString(if (vklop) R.string.tablet_vklopi else R.string.tablet_znova)
+            v.findViewById<View>(R.id.pikaNaprave)?.setBackgroundResource(R.drawable.os_pika_rumena)
+            v.findViewById<TextView>(R.id.stanjeNaprave)?.text =
+                getString(if (vklop) R.string.tablet_vklopi_opis else R.string.tablet_znova_opis)
+            v.setOnClickListener {
+                if (vklop) {
+                    link.vklopiLink()
+                    Toast.makeText(this, getString(R.string.tablet_vklopljen), Toast.LENGTH_LONG).show()
+                } else {
+                    link.ponovnoPoveziSe()
+                }
+                pokaziStanje()
+                narisi()
+            }
+            seznam.addView(v)
+        }
+
         if (druge.isNotEmpty()) {
             for (n in druge.take(3)) {
                 val v = infl.inflate(R.layout.os_vrstica_naprava, seznam, false)
@@ -584,7 +610,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 v.setOnClickListener { seznani(h) }
                 seznam.addView(v)
             }
-        } else {
+        } else if (!vklop && !znova) {
             val prazno = TextView(this).apply {
                 text = getString(if (!link.povezan) R.string.tablet_ni_linka else R.string.tablet_ni_racunalnika)
                 setTextColor(getColor(R.color.os_umirjeno))
