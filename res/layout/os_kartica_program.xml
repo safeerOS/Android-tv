@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Ena kartica aplikacije/programa v mrezi. Tako nizka, da gredo na 1080p televizorju tri
-     vrste v celoti nad namig na dnu - prej je bila tretja vrsta odrezana. -->
+     vrste v celoti nad namig na dnu - prej je bila tretja vrsta odrezana.
+     Brez temne ploskve: ikone stojijo naravnost na ozadju (temni pravokotniki so ga trgali).
+     Izbiro z daljincem narise izbirnik mreze (mint okvir), zato ploskev ni potrebna.
+     Senca pod imenom ohrani besedilo berljivo tudi na svetlem delu ozadja. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/os_kartica"
+    android:background="@android:color/transparent"
     android:paddingStart="8dp"
     android:paddingEnd="8dp"
     android:paddingTop="9dp"
@@ -26,5 +29,9 @@
         android:maxLines="2"
         android:ellipsize="end"
         android:includeFontPadding="false"
+        android:shadowColor="#CC000000"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="4"
         android:textSize="12sp"/>
 </LinearLayout>
