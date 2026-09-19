@@ -759,7 +759,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .setTitle(n.ime)
             .setMessage(getString(R.string.os_nadaljuj_ni_vec, n.ime))
             .setPositiveButton(getString(android.R.string.ok), null)
-        if (Nadaljuj.seznam(this).any { it.kljuc() == n.kljuc() }) {
+        if (OsPravila.ponudiOdstranitev(n.kljuc(), Nadaljuj.seznam(this).map { it.kljuc() })) {
             okno.setNegativeButton(getString(R.string.os_nadaljuj_odstrani)) { _, _ ->
                 Nadaljuj.odstrani(this, n)
                 zZapomnjenimFokusom { narisiNadaljuj() }

@@ -151,7 +151,7 @@ object SafeerAppi {
         val bila = seznam.removeAll { it.kljuc == app.kljuc }
         if (!bila) {
             var pot = ""
-            if (ikonaPng != null && ikonaPng.size <= 512 * 1024) try {
+            if (ikonaPng != null && OsPravila.shraniIkono(ikonaPng.size)) try {
                 val mapa = File(c.filesDir, "ikone").apply { mkdirs() }
                 val f = File(mapa, Integer.toHexString(app.kljuc.hashCode()) + ".png")
                 f.writeBytes(ikonaPng)

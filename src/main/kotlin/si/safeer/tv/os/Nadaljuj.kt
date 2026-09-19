@@ -112,7 +112,7 @@ object Nadaljuj {
     private fun datotekaIkone(c: Context, v: Vnos) = java.io.File(mapaIkon(c), OsPravila.imeIkone(v.kljuc()))
 
     fun shraniIkono(c: Context, v: Vnos, png: ByteArray) {
-        if (png.isEmpty() || png.size > 512 * 1024) return
+        if (!OsPravila.shraniIkono(png.size)) return
         try {
             mapaIkon(c).mkdirs()
             datotekaIkone(c, v).writeBytes(png)

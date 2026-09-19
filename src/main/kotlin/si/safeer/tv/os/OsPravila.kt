@@ -28,6 +28,12 @@ object OsPravila {
         return v
     }
 
+    /** Najvecja shranjena ikona (PNG, ki ga poslje racunalnik); vecje ne shranimo. */
+    const val NAJVEC_IKONA_BAJTOV = 512 * 1024
+
+    /** Ali ikono s temi bajti shranimo na disk televizorja. */
+    fun shraniIkono(bajtov: Int): Boolean = bajtov in 1..NAJVEC_IKONA_BAJTOV
+
     // ------------------------------------------------------------------ vrstica Nadaljuj
 
     /** Nov vnos gre na vrh; isti (po kljucu) se ne podvoji, ampak premakne; najvec [najvec] vnosov. */
@@ -56,4 +62,10 @@ object OsPravila {
      * televizorja (locen zaslon), ima svojo kartico; zaslon bi odprl namizje, ne programa.
      */
     fun zapisiZaslon(naLocenemZaslonu: Boolean): Boolean = !naLocenemZaslonu
+
+    /**
+     * Okno "ni vec na voljo" ponudi odstranitev samo, kadar je kartica res v vrstici Nadaljuj
+     * (pripeta kartica na domacem zaslonu ima svojo odstranitev).
+     */
+    fun ponudiOdstranitev(kljuc: String, vNadaljuj: List<String>): Boolean = kljuc in vNadaljuj
 }

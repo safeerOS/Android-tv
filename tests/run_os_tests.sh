@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Pravila Safeer OS (mere ikon, vrstica Nadaljuj, kartica Zaslon) v navadnem JVM, brez Androida.
+# Pravila Safeer OS (mere ikon, vrstica Nadaljuj, kartica Zaslon) in varno dekodiranje ikon
+# v navadnem JVM, brez Androida (BitmapFactory je nadomestek v tests/stubs).
 #   KOTLINC=/pot/do/kotlinc tests/run_os_tests.sh
 set -euo pipefail
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -13,8 +14,12 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx1g \
+    "$TEST_DIR/stubs/BitmapFactory.kt" \
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
+    "$SRC/si/safeer/tv/os/VarnaSlika.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
+    "$TEST_DIR/VarnaSlikaTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.VarnaSlikaTestKt
