@@ -69,7 +69,8 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val datoteke = n.zmoznosti.contains("files")
             nove.add(Vrstica(
                 if (datoteke) R.drawable.os_ikona_racunalnik else R.drawable.os_ikona_naprava,
-                n.ime.ifBlank { n.id },
+                // "Safeer Control (janez-pc)" -> "janez-pc": ime programa je ze v podnapisu.
+                DatotekeActivity.lepoIme(n.ime).ifBlank { n.id },
                 opisNaprave(n),
                 getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_posiljanje),
             ) {
@@ -95,7 +96,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun opisNaprave(n: LinkOdjemalec.Naprava): String = when {
         n.naslov == "127.0.0.1" || n.id.startsWith("tv-") -> "TV · Safeer Link"
-        n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "Safeer Control" else "Safeer Browser · PC"
+        n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
         n.id.startsWith("phone-") -> "Safeer Browser · Android"
         else -> n.vloga
     }

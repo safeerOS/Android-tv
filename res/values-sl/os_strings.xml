@@ -61,6 +61,7 @@
     <string name="os_vrsta_ime">Safeer · spletne aplikacije</string>
     <string name="os_vrsta_opis">Spletne aplikacije, ki si jih dodal v Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Videi, glasba in slike na televizorju in USB</string>
+    <string name="os_datoteke_racunalnik_opis">Deljene mape na tem računalniku</string>
     <string name="os_krajevno_videi">Videi</string>
     <string name="os_krajevno_glasba">Glasba</string>
     <string name="os_krajevno_slike">Slike</string>

@@ -61,6 +61,7 @@
     <string name="os_vrsta_ime">Safeer · aplicaciones web</string>
     <string name="os_vrsta_opis">Las aplicaciones web que has añadido a Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Vídeos, música y fotos del televisor y del USB</string>
+    <string name="os_datoteke_racunalnik_opis">Carpetas compartidas de este ordenador</string>
     <string name="os_krajevno_videi">Vídeos</string>
     <string name="os_krajevno_glasba">Música</string>
     <string name="os_krajevno_slike">Imágenes</string>

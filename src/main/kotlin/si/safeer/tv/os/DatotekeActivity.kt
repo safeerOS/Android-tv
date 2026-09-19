@@ -177,7 +177,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         racunalnikZnacka.visibility = View.GONE
         // Ta televizor je vedno prvi vir; racunalniki s Safeer Controlom so za njim.
         vnosi = listOf(Vnos(KrajevneDatoteke.KOREN, getString(R.string.os_krajevno_ta_tv), "tv", -1, "")) +
-            r.map { Vnos(it.id, it.ime.ifBlank { it.id }, "computer", -1, "") }
+            r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, "computer", -1, "") }
         prilagojevalnik.notifyDataSetChanged()
         if (r.isEmpty()) pokaziSporocilo(getString(
             if (!link.povezan) R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_racunalnika))
@@ -193,7 +193,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         racunalnik = r
         pot.clear()
         streznik = null
-        racunalnikZnacka.text = r.ime.ifBlank { r.id }
+        racunalnikZnacka.text = lepoIme(r.ime).ifBlank { r.id }
         racunalnikZnacka.visibility = View.VISIBLE
         nalozi("")
     }
@@ -203,7 +203,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         nalagam = true
         vnosi = emptyList()
         prilagojevalnik.notifyDataSetChanged()
-        nadnaslov.text = r.ime.ifBlank { getString(R.string.os_datoteke) }
+        nadnaslov.text = lepoIme(r.ime).ifBlank { getString(R.string.os_datoteke) }
         naslov.text = if (pot.isEmpty()) getString(R.string.os_datoteke_koren) else pot.joinToString(" / ") { it.ime }
         pokaziSporocilo(getString(R.string.os_datoteke_nalagam))
         link.ukaz(r.id, "files.list", JSONObject().put("folder", oznaka), 12_000, LinkOdjemalec.Odgovor { izid, napaka ->
@@ -464,13 +464,20 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             else -> R.drawable.os_ikona_datoteka
         }
 
+        /**
+         * Ime racunalnika brez imena programa: "Safeer Control (janez-pc)" -> "janez-pc". Ime
+         * programa je ze v podnapisu vrstice in ga ni treba brati dvakrat.
+         */
+        fun lepoIme(ime: String): String =
+            Regex("^Safeer (?:Control|Link) \\((.+)\\)$").find(ime.trim())?.groupValues?.get(1) ?: ime
+
         fun opis(c: Context, v: Vnos): String {
             val vrsta = when (v.vrsta) {
                 "folder" -> c.getString(R.string.os_vrsta_mapa)
                 "video" -> c.getString(R.string.os_vrsta_video)
                 "audio" -> c.getString(R.string.os_vrsta_audio)
                 "image" -> c.getString(R.string.os_vrsta_slika)
-                "computer" -> "Safeer Control"
+                "computer" -> c.getString(R.string.os_datoteke_racunalnik_opis)
                 "tv" -> c.getString(R.string.os_krajevno_ta_tv_opis)
                 else -> c.getString(R.string.os_vrsta_datoteka)
             }

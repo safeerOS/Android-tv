@@ -341,12 +341,12 @@ object SpletneAplikacije {
             val sir = maxOf(1, (vir.width * merilo).toInt())
             val vis = maxOf(1, (vir.height * merilo).toInt())
             val pomanjsan = try { Bitmap.createScaledBitmap(vir, sir, vis, true) } catch (_: Throwable) { vir }
-            // Sirok logotip s temnimi deli (crn napis BRSKALNIK ob rdecem krogu) na temnem ozadju
-            // izgine - svetli deli ga ne resijo. Android TV tak logotip kaze na beli pasici in je
-            // jasen; enako storimo mi: svetla zaobljena podlaga v razmerju logotipa. Svetel sirok
-            // logotip (rdec NETFLIX) ostane brez podlage.
-            if (vir.width < vir.height * 1.4f || delezTemnih(pomanjsan) < 0.15f) return pomanjsan
-            return naSvetliPodlagi(pomanjsan)
+            // Sirok logotip brez podlage (NETFLIX, BRSKALNIK) na ozadju lebdi, temni deli pa v njem
+            // izginejo. Android TV tak logotip kaze na pasici in je jasen; enako storimo mi:
+            // zaobljena podlaga v razmerju logotipa - svetla za temen ali barven logotip, temna za
+            // bel. Kvadraten logotip na prozornem ostane brez podlage (tak je videti kot ikona).
+            if (vir.width < vir.height * 1.4f) return pomanjsan
+            return naPodlagi(pomanjsan, plosca(pomanjsan))
         }
         val izhod = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
         val platno = Canvas(izhod)
@@ -389,30 +389,8 @@ object SpletneAplikacije {
         return izhod
     }
 
-    /** Delez temnih neprozornih pik (0-1): koliko logotipa bi se zlilo s temnim ozadjem. */
-    private fun delezTemnih(b: Bitmap): Float {
-        val korak = maxOf(1, minOf(b.width, b.height) / 32)
-        var temnih = 0
-        var vseh = 0
-        var y = 0
-        while (y < b.height) {
-            var x = 0
-            while (x < b.width) {
-                val p = b.getPixel(x, y)
-                if (Color.alpha(p) > 128) {
-                    vseh++
-                    val l = (0.2126 * Color.red(p) + 0.7152 * Color.green(p) + 0.0722 * Color.blue(p)) / 255.0
-                    if (l < 0.22) temnih++
-                }
-                x += korak
-            }
-            y += korak
-        }
-        return if (vseh == 0) 0f else temnih.toFloat() / vseh
-    }
-
-    /** Sirok logotip na svetli zaobljeni podlagi z zrakom naokoli (kot pasica na Android TV). */
-    private fun naSvetliPodlagi(logo: Bitmap): Bitmap {
+    /** Sirok logotip na zaobljeni podlagi barve [barva] z zrakom naokoli (kot pasica na Android TV). */
+    private fun naPodlagi(logo: Bitmap, barva: Int): Bitmap {
         val rob = maxOf(4, (logo.height * 0.22f).toInt())
         val w = logo.width + 2 * rob
         val h = logo.height + 2 * rob
@@ -421,7 +399,7 @@ object SpletneAplikacije {
             val platno = Canvas(izhod)
             val r = minOf(w, h) * 0.2f
             platno.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), r, r,
-                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F3F5F7") })
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = barva })
             platno.drawBitmap(logo, rob.toFloat(), rob.toFloat(),
                 Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true })
             izhod
