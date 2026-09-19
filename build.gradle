@@ -1,48 +1,61 @@
+// AGP 9 ima Kotlin vgrajen (vtica org.jetbrains.kotlin.android ne deklariramo). Privzeti prevajalnik
+// je KGP 2.2.10; novejsega izberemo tako, kot pise v opombah AGP 9: na classpath skripte gradnje.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.20'
+    }
+}
+
 plugins {
-    id 'com.android.application' version '8.13.2'
-    id 'org.jetbrains.kotlin.android' version '2.2.21'
+    id 'com.android.application' version '9.4.1'
 }
 
 android {
-    namespace 'si.safeer.tv'
-    // compileSdk 36: media3 1.11 in webkit 1.17 ga zahtevata za prevod. targetSdk 36: robovi
-    // (Robovi.kt), gumb Nazaj ostane klasicen (enableOnBackInvokedCallback=false v manifestu).
-    compileSdk 36
+    namespace = 'si.safeer.tv'
+    // compileSdk doloca samo, katere API-je vidi prevajalnik; vedenja aplikacije ne spremeni.
+    // targetSdk 36: robovi (Robovi.kt), gumb Nazaj ostane klasicen (enableOnBackInvokedCallback=false).
+    // targetSdk 37 je namenoma loceni korak: Android 17 zahteva dovoljenje ACCESS_LOCAL_NETWORK za
+    // vsak promet v domacem omrezju (Safeer Link, Cast) in utrdi zvok v ozadju - to rabi svoj preizkus.
+    compileSdk = 37
 
     defaultConfig {
-        minSdk 28
-        targetSdk 36
-        versionCode 224
-        versionName '2.1.115'
+        minSdk = 28
+        targetSdk = 36
+        versionCode = 224
+        versionName = '2.1.115'
     }
 
-    // AGP 8 BuildConfig privzeto izklopi; koda ga rabi (DEBUG, razlicica).
+    // BuildConfig je privzeto izklopljen; koda ga rabi (DEBUG, razlicica).
     buildFeatures {
-        buildConfig true
+        buildConfig = true
     }
 
     // Dve loceni aplikaciji iz ene kode. Android ju vidi kot dve aplikaciji (svoje ime, ikona,
     // vnos v zaganjalniku, svoje nastavitve in odstranitev); vzdrzujemo pa en izvorni repozitorij.
-    flavorDimensions 'aplikacija'
+    flavorDimensions = ['aplikacija']
 
     productFlavors {
         brskalnik {
-            dimension 'aplikacija'
-            applicationId 'si.safeer.tv'
+            dimension = 'aplikacija'
+            applicationId = 'si.safeer.tv'
         }
         os {
-            dimension 'aplikacija'
-            applicationId 'si.safeer.os'
-            versionCode 15
-            versionName '0.3.3'
+            dimension = 'aplikacija'
+            applicationId = 'si.safeer.os'
+            versionCode = 15
+            versionName = '0.3.3'
         }
         // Safeer OS Tablet: ista koda, a za dotik od blizu (tablica), ne za daljinec.
         // V pripravi; televizorja in brskalnika se ne dotika.
         tablica {
-            dimension 'aplikacija'
-            applicationId 'si.safeer.tablet'
-            versionCode 4
-            versionName '0.2.2'
+            dimension = 'aplikacija'
+            applicationId = 'si.safeer.tablet'
+            versionCode = 4
+            versionName = '0.2.2'
         }
     }
 
@@ -69,40 +82,41 @@ android {
         }
     }
 
+    // Vgrajeni Kotlin vzame jvmTarget od tu (kotlin.compilerOptions ni treba nastavljati).
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     signingConfigs {
         storeRelease {
             if (System.getenv('RELEASE_KEYSTORE')) {
-                storeFile file(System.getenv('RELEASE_KEYSTORE'))
-                storePassword System.getenv('RELEASE_KEY_PASS')
-                keyAlias System.getenv('RELEASE_KEY_ALIAS') ?: 'safeer-browser'
-                keyPassword System.getenv('RELEASE_KEY_PASS')
+                storeFile = file(System.getenv('RELEASE_KEYSTORE'))
+                storePassword = System.getenv('RELEASE_KEY_PASS')
+                keyAlias = System.getenv('RELEASE_KEY_ALIAS') ?: 'safeer-browser'
+                keyPassword = System.getenv('RELEASE_KEY_PASS')
             }
         }
     }
 
     buildTypes {
         release {
-            minifyEnabled false
-            shrinkResources false
-            signingConfig System.getenv('RELEASE_KEYSTORE') ? signingConfigs.storeRelease : null
+            minifyEnabled = false
+            shrinkResources = false
+            signingConfig = System.getenv('RELEASE_KEYSTORE') ? signingConfigs.storeRelease : null
         }
         debug {
-            minifyEnabled false
-            signingConfig null
+            minifyEnabled = false
+            signingConfig = null
         }
     }
 
     lint {
         // Izdaje lint ne ustavi (checkReleaseBuilds false): CI ga pozene kot svoj korak.
         // Obstojeca opozorila so zapisana v lint-baseline.xml; vsaka NOVA napaka ustavi CI.
-        abortOnError true
-        checkReleaseBuilds false
-        baseline file("lint-baseline.xml")
+        abortOnError = true
+        checkReleaseBuilds = false
+        baseline = file("lint-baseline.xml")
     }
 
     packaging {
@@ -113,20 +127,11 @@ android {
     }
 }
 
-kotlin {
-    compilerOptions {
-        // UnstableApi ni vec oznaka Kotlina za opt-in (preverja jo Lint); datoteke, ki jo rabijo,
-        // imajo @file:OptIn(UnstableApi::class).
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
-    }
-}
-
 dependencies {
     implementation 'androidx.media3:media3-exoplayer:1.11.1'
     implementation 'androidx.media3:media3-exoplayer-dash:1.11.1'
     implementation 'androidx.media3:media3-datasource:1.11.1'
     implementation 'androidx.webkit:webkit:1.17.0'
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.2.21'
     // Ed25519 verification for the signed Safeer Threat Intelligence feed (see libs/README.md)
     implementation files('libs/bcprov-ed25519-1.78.1.jar')
     // WebSocket povezava sprejemnika Safeer Cast (knjiznici sta v libs/, gradnja ne rabi omrezja)
