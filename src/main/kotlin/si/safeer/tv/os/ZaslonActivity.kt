@@ -50,6 +50,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var cilj = "desktop"
     /** Racunalnik je potrdil, da ta seja kaze locen zaslon s programi (ne namizja). */
     private var naDrugem = false
+    /** Racunalnik zna na locenem zaslonu skociti na naslednji gumb (krizec v programih). */
+    private var fokusPodprt = false
     /** Program, zaradi katerega smo tu (za zapomnjeni nacin tipk), in ali je igra. */
     private var program = ""
     private var igra = false
@@ -172,6 +174,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 seja = podatki
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)
                 naDrugem = podatki.optString("screen") == "apps"
+                fokusPodprt = podatki.optBoolean("focus", false)
                 // V igri so puscice puscice: igra, v kateri daljinec premika misko, se ne da igrati.
                 // Uporabnikova izbira za ta program ima prednost; sicer igra (s seznama ali od racunalnika).
                 val nastavitve = getSharedPreferences("safeer_os", MODE_PRIVATE)
@@ -313,6 +316,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Krizec na plosecku so puscice na tipkovnici (drzane), tudi ko daljinec vodi kazalec.
         if (tipkovnica?.jeOdprta != true && ZaslonVnos.jeIzPlosecka(event) && ZaslonVnos.smer(keyCode) != null) {
             val ponovitev = event?.repeatCount ?: 0
+            // V programu (nacin kazalca na locenem zaslonu) krizec skoci na naslednji gumb ali polje.
+            if (naDrugem && kazalec && fokusPodprt) {
+                if (ponovitev == 0 || ponovitev % 4 == 0) posljiFokus(keyCode)
+                return true
+            }
             if (ponovitev == 0 || ponovitev % PONOVI_DRZANJE == 0) {
                 ZaslonVnos.drzanje(keyCode, true)?.let { odjemalec?.posljiVnos(it) }
             }
@@ -585,6 +593,20 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun namizniKrizec(e: MotionEvent) {
         val x = Math.round(e.getAxisValue(MotionEvent.AXIS_HAT_X))
         val y = Math.round(e.getAxisValue(MotionEvent.AXIS_HAT_Y))
+        if (naDrugem && kazalec && fokusPodprt) {
+            // Program: skok po gumbih, dokler drzis pa se ponavlja.
+            val nova = when {
+                x < 0 -> KeyEvent.KEYCODE_DPAD_LEFT; x > 0 -> KeyEvent.KEYCODE_DPAD_RIGHT
+                y < 0 -> KeyEvent.KEYCODE_DPAD_UP; y > 0 -> KeyEvent.KEYCODE_DPAD_DOWN
+                else -> 0
+            }
+            if (nova != fokusSmer) {
+                fokusSmer = nova
+                glavna.removeCallbacks(ponoviFokus)
+                if (nova != 0) { posljiFokus(nova); glavna.postDelayed(ponoviFokus, 450) }
+            }
+            return
+        }
         if (x != krizecX) {
             smernaTipka(if (krizecX < 0) "levo" else "desno", false, krizecX != 0)
             smernaTipka(if (x < 0) "levo" else "desno", true, x != 0)
@@ -594,6 +616,25 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             smernaTipka(if (krizecY < 0) "gor" else "dol", false, krizecY != 0)
             smernaTipka(if (y < 0) "gor" else "dol", true, y != 0)
             krizecY = y
+        }
+    }
+
+    /** Skok na naslednji gumb/polje v smeri (racunalnik ga najde; v igri gre kot smerna tipka). */
+    private fun posljiFokus(koda: Int) {
+        val smer = when (koda) {
+            KeyEvent.KEYCODE_DPAD_UP -> "gor"; KeyEvent.KEYCODE_DPAD_DOWN -> "dol"
+            KeyEvent.KEYCODE_DPAD_LEFT -> "levo"; KeyEvent.KEYCODE_DPAD_RIGHT -> "desno"
+            else -> return
+        }
+        odjemalec?.posljiVnos(org.json.JSONObject().put("vrsta", "fokus").put("smer", smer))
+    }
+
+    private var fokusSmer = 0
+    private val ponoviFokus = object : Runnable {
+        override fun run() {
+            if (fokusSmer == 0 || isFinishing || koncujem) return
+            posljiFokus(fokusSmer)
+            glavna.postDelayed(this, 180)
         }
     }
 
@@ -635,6 +676,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         smernaTipka(if (krizecX < 0) "levo" else "desno", false, krizecX != 0)
         smernaTipka(if (krizecY < 0) "gor" else "dol", false, krizecY != 0)
         krizecX = 0; krizecY = 0; pomik = 0f; r2Pritisnjen = false; l2Pritisnjen = false
+        fokusSmer = 0; glavna.removeCallbacks(ponoviFokus)
     }
 
     /**
