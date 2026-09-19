@@ -750,6 +750,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         vrstaNadaljuj.removeAllViews()
         glavaNadaljuj.visibility = View.VISIBLE
         drsnikNadaljuj.visibility = View.VISIBLE
+        // Brez zgodovine vrsta ponudi spletne aplikacije: te niso bile "nedavno uporabljene".
+        naslovNadaljuj.text = getString(if (vnosi.isNotEmpty()) R.string.os_nedavno_uporabljeno else R.string.os_meni_aplikacije)
 
         if (vnosi.isNotEmpty()) {
             for ((indeks, n) in vnosi.withIndex()) {

@@ -355,7 +355,7 @@
 <string name="os_brskalnik_naslov">Webbrowser</string>
     <string name="os_brskalnik_opis">Schnell, sicher, werbefrei</string>
     <string name="os_zaslon_opis">Deinen Computer anzeigen und steuern</string>
-    <string name="os_programi_opis">Programme verbundener Geräte starten</string>
+    <string name="os_programi_opis">Programme deines Computers starten</string>
     <string name="os_nedavno_uporabljeno">Zuletzt verwendet</string>
     <string name="os_dodaj_aplikacijo">App hinzufügen</string>
     <string name="os_kartica_ni_povezano_naslov">Gerät nicht verbunden</string>
@@ -374,5 +374,5 @@
     <string name="os_plosca_scit_izklopljen">Deaktiviert</string>
     <string name="os_plosca_scit_prekinjen">Pausiert</string>
     <string name="os_plosca_scit_aktivna">Netzwerkschutz aktiv</string>
-    <string name="os_plosca_scit_stanje_blokiranih">%1$d blockierte Bedrohungen</string>
+    <string name="os_plosca_scit_stanje_blokiranih">Blockiert: %1$d</string>
 </resources>

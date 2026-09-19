@@ -355,7 +355,7 @@
 <string name="os_brskalnik_naslov">Navegador web</string>
     <string name="os_brskalnik_opis">Rápido, seguro, sin anuncios</string>
     <string name="os_zaslon_opis">Muestra y controla tu ordenador</string>
-    <string name="os_programi_opis">Ejecuta programas de los dispositivos conectados</string>
+    <string name="os_programi_opis">Abre los programas de tu ordenador</string>
     <string name="os_nedavno_uporabljeno">Usado recientemente</string>
     <string name="os_dodaj_aplikacijo">Añadir aplicación</string>
     <string name="os_kartica_ni_povezano_naslov">Dispositivo no conectado</string>
@@ -374,5 +374,5 @@
     <string name="os_plosca_scit_izklopljen">Desactivado</string>
     <string name="os_plosca_scit_prekinjen">Pausado</string>
     <string name="os_plosca_scit_aktivna">Protección de red activa</string>
-    <string name="os_plosca_scit_stanje_blokiranih">%1$d amenazas bloqueadas</string>
+    <string name="os_plosca_scit_stanje_blokiranih">Bloqueados: %1$d</string>
 </resources>
