@@ -335,4 +335,7 @@
     <string name="os_plosek_kot_gumb">gre v računalnik kot gumb »%1$s«</string>
     <string name="os_plosek_kot_os">gre v računalnik kot os »%1$s«</string>
     <string name="os_plosek_ne_poslje">te tipke računalniku ne pošljemo</string>
+    <string name="os_zapri_vse">Zapri vse (%1$d)</string>
+    <string name="os_zaprtih">Zaprtih programov: %1$d</string>
+    <string name="os_zaslon_meni_start">Meni Start</string>
 </resources>

@@ -46,6 +46,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var povrsinaPripravljena = false
     private var seja: JSONObject? = null
     private var kakovost = "srednja"
+    /** Kaj televizor gleda: `desktop` = namizje racunalnika, `apps` = locen zaslon s programi s televizorja. */
+    private var cilj = "desktop"
     private var koncujem = false
     private var poskusov = 0
     private var prosim = false
@@ -91,6 +93,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Vedno najboljse, kar zmore racunalnik: uporabniku ni treba izbirati med kakovostmi,
         // ker za nizjo ni razloga - meritve kazejo, da ostrejsa slika skoraj nic ne stane.
         kakovost = intent.getStringExtra(EXTRA_KAKOVOST) ?: "najvisja"
+        cilj = intent.getStringExtra(EXTRA_ZASLON) ?: "desktop"
         pokazi(getString(R.string.os_zaslon_povezujem))
         pogled.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(h: SurfaceHolder) {
@@ -144,7 +147,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         racunalnik = r
         prosim = true
         pokazi(getString(R.string.os_zaslon_prosim, r.ime.ifBlank { r.id }))
-        link.ukaz(r.id, "screen.start", JSONObject().put("quality", kakovost), 15_000,
+        link.ukaz(r.id, "screen.start", JSONObject().put("quality", kakovost).put("screen", cilj), 15_000,
             LinkOdjemalec.Odgovor { izid, napaka ->
                 prosim = false
                 if (isFinishing) return@Odgovor
@@ -158,6 +161,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 val podatki = izid.optJSONObject("data") ?: return@Odgovor
                 seja = podatki
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)
+                android.util.Log.i("SafeerZaslon", "seja: navidezni plosek na racunalniku = $plosekVRacunalnik")
                 // Zaslon racunalnika je ena najpogostejsih poti; naj bo na domacem zaslonu takoj pri roki.
                 // Ime kartice je 'Zaslon racunalnika', ne dolgo ime naprave: na kartici se je
                 // lomilo sredi besede in uporabniku ni povedalo nic vec.
@@ -315,6 +319,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun sprostiDrzane() {
         for (koda in drzane.toList()) ZaslonVnos.drzanje(koda, false)?.let { odjemalec?.posljiVnos(it) }
         drzane.clear()
+        spustiKrizec()
         for (koda in plosekDrzani.toList()) ZaslonVnos.plosekTipka(koda, false)?.let { odjemalec?.posljiVnos(it) }
         plosekDrzani.clear()
         for (os in plosekOdkloni.keys.toList()) {
@@ -381,6 +386,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      */
     private fun odpriMeni() {
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        // Meni Start: tipka Super na racunalniku. Daljinec je nima, do spodnjega roba zaslona pa je
+        // s kazalcem dolga pot - zato je prvi v meniju.
+        dejanja.add(getString(R.string.os_zaslon_meni_start) to { posljiTipko("domov") })
         dejanja.add(getString(R.string.os_zaslon_meni_tipkovnica) to { tipkovnica?.odpri() })
         dejanja.add(getString(
             if (kazalec) R.string.os_zaslon_meni_tipke else R.string.os_zaslon_meni_kazalec) to { preklopiNacin() })
@@ -484,6 +492,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 return true
             }
         }
+        if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK) {
+            // Namizni nacin (racunalnik plosecka ne ponuja): vsak del plosecka nekaj naredi.
+            namizniKrizec(event)
+            namiznaDesnaPalica(event)
+            namizniSprozilci(event)
+        }
         val palica = ZaslonVnos.izPalice(event)
         if (palica != null) { odklon = palica; zazeniPalico(); return true }
         if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK) {
@@ -491,6 +505,75 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             return true
         }
         return super.onGenericMotionEvent(event)
+    }
+
+    // ------------------------------------------------------------------ plosek kot miska in tipke
+    //
+    // Nekateri ploscki (tudi Redragon v nacinu Android) smerni krizec posljejo SAMO kot os HAT,
+    // sprozilca kot os (GAS/BRAKE) in desno palico kot Z/RZ. Brez navideznega plosecka na
+    // racunalniku so ti deli doslej tiho izginili. Zdaj: krizec so smerne tipke (drzane, kot na
+    // tipkovnici), desna palica pomika vsebino, R2 je levi in L2 desni klik.
+
+    private var krizecX = 0
+    private var krizecY = 0
+    private var pomikTece = false
+    private var pomik = 0f
+    private var r2Pritisnjen = false
+    private var l2Pritisnjen = false
+
+    private fun namizniKrizec(e: MotionEvent) {
+        val x = Math.round(e.getAxisValue(MotionEvent.AXIS_HAT_X))
+        val y = Math.round(e.getAxisValue(MotionEvent.AXIS_HAT_Y))
+        if (x != krizecX) {
+            smernaTipka(if (krizecX < 0) "levo" else "desno", false, krizecX != 0)
+            smernaTipka(if (x < 0) "levo" else "desno", true, x != 0)
+            krizecX = x
+        }
+        if (y != krizecY) {
+            smernaTipka(if (krizecY < 0) "gor" else "dol", false, krizecY != 0)
+            smernaTipka(if (y < 0) "gor" else "dol", true, y != 0)
+            krizecY = y
+        }
+    }
+
+    private fun smernaTipka(ime: String, dol: Boolean, velja: Boolean) {
+        if (!velja) return
+        odjemalec?.posljiVnos(org.json.JSONObject()
+            .put("vrsta", if (dol) "tipka_dol" else "tipka_gor").put("tipka", ime))
+    }
+
+    private fun namiznaDesnaPalica(e: MotionEvent) {
+        val y = e.getAxisValue(MotionEvent.AXIS_RZ)
+        pomik = if (kotlin.math.abs(y) < 0.25f) 0f else y
+        if (pomik == 0f || pomikTece) return
+        pomikTece = true
+        glavna.post(object : Runnable {
+            override fun run() {
+                val p = pomik
+                if (p == 0f || isFinishing || koncujem) { pomikTece = false; return }
+                odjemalec?.posljiVnos(org.json.JSONObject().put("vrsta", "kolesce")
+                    .put("smer", if (p < 0) "gor" else "dol").put("koliko", 1))
+                // Bolj ko je palica odklonjena, hitreje se pomika.
+                glavna.postDelayed(this, (220 - 170 * kotlin.math.abs(p)).toLong().coerceAtLeast(40))
+            }
+        })
+    }
+
+    private fun namizniSprozilci(e: MotionEvent) {
+        val r2 = maxOf(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS))
+        val l2 = maxOf(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE))
+        // Histereza: klik ob pritisku cez 0.6, ponovno sele, ko je sprozilec spet pod 0.3.
+        if (!r2Pritisnjen && r2 > 0.6f) { r2Pritisnjen = true; odjemalec?.posljiVnos(ZaslonVnos.klik("levi")) }
+        else if (r2Pritisnjen && r2 < 0.3f) r2Pritisnjen = false
+        if (!l2Pritisnjen && l2 > 0.6f) { l2Pritisnjen = true; odjemalec?.posljiVnos(ZaslonVnos.klik("desni")) }
+        else if (l2Pritisnjen && l2 < 0.3f) l2Pritisnjen = false
+    }
+
+    /** Ob odhodu ali menjavi nacina spustimo smerne tipke, ki jih drzi krizec. */
+    private fun spustiKrizec() {
+        smernaTipka(if (krizecX < 0) "levo" else "desno", false, krizecX != 0)
+        smernaTipka(if (krizecY < 0) "gor" else "dol", false, krizecY != 0)
+        krizecX = 0; krizecY = 0; pomik = 0f; r2Pritisnjen = false; l2Pritisnjen = false
     }
 
     /**
@@ -525,6 +608,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     companion object {
         const val EXTRA_KAKOVOST = "kakovost"
+        /** `apps`, kadar zaslon odpremo po zagonu programa (locen zaslon na racunalniku). */
+        const val EXTRA_ZASLON = "zaslon"
         /**
          * Na koliko ponovitev drzanja znova javimo, da je tipka se vedno drzana. Android ponavlja
          * priblizno dvajsetkrat na sekundo, racunalnik pa pozabljeno tipko spusti po petih

@@ -13,6 +13,11 @@ import android.widget.GridView
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.EditText
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.KeyEvent
+import android.view.inputmethod.InputMethodManager
 
 /**
  * Vse aplikacije tega televizorja ("Ostalo"). Na domacem zaslonu stojijo samo priljubljene; tu so
@@ -24,6 +29,9 @@ class AplikacijeTvActivity : OsActivity() {
     private lateinit var sporocilo: TextView
     private val prilagojevalnik = Prilagojevalnik()
     private var vnosi: List<Aplikacije.Vnos> = emptyList()
+    /** Vse aplikacije; [vnosi] so tiste, ki ustrezajo iskanju. */
+    private var vse: List<Aplikacije.Vnos> = emptyList()
+    private lateinit var iskanje: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +43,23 @@ class AplikacijeTvActivity : OsActivity() {
         findViewById<TextView>(R.id.racunalnik).visibility = View.GONE
         findViewById<ImageView>(R.id.glavaIkona)?.setImageResource(R.drawable.os_ikona_mreza)
         mreza.adapter = prilagojevalnik
+        // Iskanje po imenu: aplikacij na televizorju je hitro petdeset, abeceda pa ni iskanje.
+        findViewById<View>(R.id.orodja).visibility = View.VISIBLE
+        findViewById<View>(R.id.skupineDrsnik).visibility = View.GONE
+        iskanje = findViewById(R.id.iskanje)
+        iskanje.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
+            override fun afterTextChanged(s: Editable?) { filtriraj() }
+        })
+        iskanje.setOnKeyListener { _, koda, dogodek ->
+            if (dogodek.action == KeyEvent.ACTION_DOWN &&
+                (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
+                odpriTipkovnico(); true
+            } else false
+        }
+        iskanje.setOnClickListener { odpriTipkovnico() }
+        iskanje.showSoftInputOnFocus = false
         mreza.setOnItemClickListener { _, _, i, _ -> vnosi.getOrNull(i)?.let { zazeni(it) } }
         mreza.setOnItemLongClickListener { _, _, i, _ ->
             vnosi.getOrNull(i)?.let { preklopiPriljubljeno(it) }; true
@@ -47,9 +72,26 @@ class AplikacijeTvActivity : OsActivity() {
         narisi()
     }
 
-    private fun narisi() {
-        vnosi = Aplikacije.seznam(this)
+    private fun odpriTipkovnico() {
+        iskanje.requestFocus()
+        (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.showSoftInput(iskanje, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /** Sumnike poenostavimo, da "cit" najde "Čitalnik". */
+    private fun poenostavi(s: String): String =
+        java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+
+    private fun filtriraj() {
+        val iskano = poenostavi(iskanje.text?.toString().orEmpty().trim())
+        vnosi = if (iskano.isEmpty()) vse else vse.filter { poenostavi(it.ime).contains(iskano) }
         prilagojevalnik.notifyDataSetChanged()
+    }
+
+    private fun narisi() {
+        vse = Aplikacije.seznam(this)
+        filtriraj()
         if (vnosi.isEmpty()) {
             sporocilo.text = getString(R.string.os_aplikacije_prazno)
             sporocilo.visibility = View.VISIBLE

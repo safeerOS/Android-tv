@@ -79,6 +79,21 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         nadnaslov.text = getString(R.string.os_programi)
         naslov.text = getString(R.string.os_programi_naslov)
         mreza.adapter = prilagojevalnik
+        // Vrsta skupin in daljinec: skupina sledi fokusu samo, ko se uporabnik premika LEVO in
+        // DESNO po vrsti. Ce pride v vrsto od spodaj (iz programov) ali od iskanja, fokus pristane
+        // na izbrani skupini in seznam ostane, kakrsen je - sicer bi ze en pritisk Gor sredi
+        // brskanja zamenjal skupino pod prstom.
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { stari, novi ->
+            if (novi == null || novi.parent !== skupineVrsta) return@addOnGlobalFocusChangeListener
+            val poVrsti = stari != null && stari.parent === skupineVrsta
+            if (poVrsti) {
+                (novi.tag as? String)?.let { izberiSkupino(it, novi) }
+            } else {
+                val izbrana = (0 until skupineVrsta.childCount).map { skupineVrsta.getChildAt(it) }
+                    .firstOrNull { it.isActivated }
+                if (izbrana != null && izbrana !== novi) izbrana.post { izbrana.requestFocus() }
+            }
+        }
         mreza.setOnItemClickListener { _, _, i, _ -> vidni.getOrNull(i)?.let { zazeni(it) } }
         // Dolg pritisk OK: program, ki tece na racunalniku, je mogoce od tu tudi zapreti.
         mreza.setOnItemLongClickListener { _, _, i, _ ->
@@ -227,17 +242,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         mere.marginEnd = (8 * resources.displayMetrics.density).toInt()
         t.layoutParams = mere
         t.setOnClickListener { izberiSkupino(kljuc, t) }
-        // Z daljincem se po vrstici skupin potuje s smernimi tipkami. Doslej je skupino zamenjal
-        // sele OK, zato je bila oznacena ena skupina, spodaj pa programi druge - videti je bilo,
-        // kot da vrstica ne dela. Zdaj skupino zamenja ze premik fokusa, tako kot uporabnik
-        // pricakuje, klik pa dela naprej (miska, dotik).
+        t.tag = kljuc
+        // Skupina, ki ima fokus, mora ostati vidna, tudi ko jih je vec, kot gre na zaslon.
         t.setOnFocusChangeListener { _, ima ->
-            if (ima) {
-                izberiSkupino(kljuc, t)
-                // Izbrana skupina mora ostati vidna, tudi ko jih je vec, kot gre na zaslon.
-                skupineDrsnik.post { skupineDrsnik.requestChildRectangleOnScreen(t,
-                    android.graphics.Rect(0, 0, t.width, t.height), false) }
-            }
+            if (ima) skupineDrsnik.post { skupineDrsnik.requestChildRectangleOnScreen(t,
+                android.graphics.Rect(0, 0, t.width, t.height), false) }
         }
         return t
     }
@@ -365,7 +374,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (zaslon) {
                 Toast.makeText(this, getString(R.string.os_programi_odpiram, p.ime), Toast.LENGTH_SHORT).show()
                 startActivity(Intent(this, ZaslonActivity::class.java)
-                    .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id))
+                    .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
+                    .putExtra(ZaslonActivity.EXTRA_ZASLON, "apps"))
             } else {
                 Toast.makeText(this, getString(R.string.os_programi_zagnan, p.ime,
                     r.ime.ifBlank { r.id }), Toast.LENGTH_LONG).show()

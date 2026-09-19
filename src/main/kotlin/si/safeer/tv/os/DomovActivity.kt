@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.view.KeyEvent
 import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -436,8 +437,78 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.onFocusChangeListener = fokus
             v.setOnClickListener { odpriNadaljuj(n) }
             v.setOnLongClickListener { moznostiNadaljuj(n); true }
+            if (jeProgram(n)) {
+                // Program, zagnan s televizorja, tece na racunalniku: krizec to pove na prvi pogled,
+                // tipka X na plosku (ali drzan OK) ga zapre - kot v vsaki aplikaciji z zavihki.
+                dodajKrizec(ikona)
+                v.setOnKeyListener { _, koda, dogodek ->
+                    if (koda == KeyEvent.KEYCODE_BUTTON_X || koda == KeyEvent.KEYCODE_DEL) {
+                        if (dogodek.action == KeyEvent.ACTION_UP) zapriProgram(n)
+                        true
+                    } else false
+                }
+            }
             v.tag = "nadaljuj:" + n.kljuc()
             vrstaNadaljuj.addView(v)
+        }
+        // Zapri vse: ena tipka za vse programe, ki jih je televizor zagnal na racunalniku.
+        val programi = vnosi.filter { jeProgram(it) }
+        if (programi.isNotEmpty()) {
+            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaNadaljuj, false)
+            v.findViewById<ImageView>(R.id.ikona).setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+            v.findViewById<TextView>(R.id.ime).text = getString(R.string.os_zapri_vse, programi.size)
+            v.onFocusChangeListener = fokus
+            v.setOnClickListener { zapriVse(programi) }
+            v.tag = "nadaljuj:zapri_vse"
+            vrstaNadaljuj.addView(v)
+        }
+    }
+
+    private fun jeProgram(n: Nadaljuj.Vnos) =
+        n.vrsta == Nadaljuj.PROGRAM && n.program.isNotBlank() && n.racunalnik.isNotBlank()
+
+    /** Majhen krizec v kotu ikone: ta program tece na racunalniku in ga lahko zapres. */
+    private fun dodajKrizec(ikona: ImageView) {
+        val stars = ikona.parent as? android.view.ViewGroup ?: return
+        val mesto = stars.indexOfChild(ikona)
+        val mere = ikona.layoutParams
+        stars.removeView(ikona)
+        val okvir = android.widget.FrameLayout(this)
+        okvir.layoutParams = mere
+        okvir.addView(ikona, android.widget.FrameLayout.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT))
+        val d = resources.displayMetrics.density
+        val krizec = TextView(this)
+        krizec.text = "\u2715"
+        krizec.setTextColor(android.graphics.Color.WHITE)
+        krizec.textSize = 11f
+        krizec.gravity = android.view.Gravity.CENTER
+        val ozadje = android.graphics.drawable.GradientDrawable()
+        ozadje.shape = android.graphics.drawable.GradientDrawable.OVAL
+        ozadje.setColor(android.graphics.Color.parseColor("#CC2B3A"))
+        krizec.background = ozadje
+        val vel = (20 * d).toInt()
+        okvir.addView(krizec, android.widget.FrameLayout.LayoutParams(vel, vel,
+            android.view.Gravity.TOP or android.view.Gravity.END))
+        stars.addView(okvir, mesto)
+    }
+
+    /** Zapre vse programe, ki jih je zagnal televizor, in jih pospravi iz vrste Nadaljuj. */
+    private fun zapriVse(programi: List<Nadaljuj.Vnos>) {
+        var odgovorov = 0
+        var zaprtih = 0
+        for (n in programi) {
+            link.ukaz(n.racunalnik, "apps.close", org.json.JSONObject().put("app", n.program), 10_000,
+                LinkOdjemalec.Odgovor { izid, _ ->
+                    odgovorov++
+                    if (izid?.optBoolean("ok") == true) zaprtih++
+                    // Tudi program, ki ze ne tece, v vrsti ne sodi vec med odprte.
+                    if (izid?.optBoolean("ok") == true || izid?.optString("code") == "ne_tece") Nadaljuj.odstrani(this, n)
+                    if (odgovorov == programi.size && !isFinishing) {
+                        Toast.makeText(this, getString(R.string.os_zaprtih, zaprtih), Toast.LENGTH_LONG).show()
+                        zZapomnjenimFokusom { narisiNadaljuj() }
+                    }
+                })
         }
     }
 
@@ -473,6 +544,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             LinkOdjemalec.Odgovor { izid, napaka ->
                 if (isFinishing) return@Odgovor
                 val ok = izid?.optBoolean("ok") == true
+                // Zaprt program ne sodi vec v vrsto odprtih.
+                if (ok || izid?.optString("code") == "ne_tece") {
+                    Nadaljuj.odstrani(this, n)
+                    zZapomnjenimFokusom { narisiNadaljuj() }
+                }
                 val sporocilo = when {
                     ok -> getString(R.string.os_program_zaprt, n.ime)
                     izid?.optString("code") == "ne_tece" -> getString(R.string.os_program_ne_tece, n.ime)
@@ -512,7 +588,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (isFinishing) return@Odgovor
                 if (izid?.optBoolean("ok") != true) { niVec(n); return@Odgovor }
                 if (zaslon) odpriVarno(Intent(this, ZaslonActivity::class.java)
-                    .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id), getString(R.string.os_zaslon))
+                    .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
+                    .putExtra(ZaslonActivity.EXTRA_ZASLON, "apps"), getString(R.string.os_zaslon))
             })
     }
 

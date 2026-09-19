@@ -336,4 +336,7 @@
     <string name="os_plosek_kot_gumb">goes to the computer as button “%1$s”</string>
     <string name="os_plosek_kot_os">goes to the computer as axis “%1$s”</string>
     <string name="os_plosek_ne_poslje">this button is not sent to the computer</string>
+    <string name="os_zapri_vse">Close all (%1$d)</string>
+    <string name="os_zaprtih">Programs closed: %1$d</string>
+    <string name="os_zaslon_meni_start">Start menu</string>
 </resources>
