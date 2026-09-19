@@ -1508,6 +1508,20 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         v.animate().scaleX(if (ima) 1.04f else 1f).scaleY(if (ima) 1.04f else 1f).setDuration(120).start()
         if (ima) v.post { pripeljiVrsto(v) }
         if (ima) (v.parent as? ViewGroup)?.let { it.requestChildFocus(v, v) }
+        if (ima) v.post { pokaziCeloPlosco(v) }
+    }
+
+    /**
+     * Izbira v spodnji vrstici (naprave, hitri dostop, Scit): ScrollView pokaze samo izbrani gumb,
+     * plosca okoli njega pa je ostala odrezana pod vrstico pomoci. Pokazemo celo plosco.
+     */
+    private fun pokaziCeloPlosco(v: View) {
+        val vrsta = findViewById<View>(R.id.vrstaSpodnjePlosce) ?: return
+        var p: View? = v
+        while (p != null && p.parent !== vrsta) p = p.parent as? View
+        if (p == null || !p.isAttachedToWindow) return
+        val rob = (16 * resources.displayMetrics.density).toInt()
+        p.requestRectangleOnScreen(android.graphics.Rect(0, 0, p.width, p.height + rob), false)
     }
 
     /**

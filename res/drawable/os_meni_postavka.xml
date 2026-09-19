@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Menijska postavka stranskega menija Safeer OS.
-     Ob izbiri ali fokusu z daljinca dobi poudarjeno ozadje in mint obrobo. -->
+     Mint obrobo ima samo izbira z daljinca (fokus); trenutna stran ima le rahlo ozadje,
+     da nista na zaslonu dve enaki oznaki hkrati. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
@@ -12,14 +13,12 @@
     <item android:state_selected="true">
         <shape android:shape="rectangle">
             <solid android:color="@color/os_meni_izbran_ozadje"/>
-            <stroke android:width="1.5dp" android:color="@color/os_mint"/>
             <corners android:radius="@dimen/os_kot_meni"/>
         </shape>
     </item>
     <item android:state_activated="true">
         <shape android:shape="rectangle">
             <solid android:color="@color/os_meni_izbran_ozadje"/>
-            <stroke android:width="1.5dp" android:color="@color/os_mint"/>
             <corners android:radius="@dimen/os_kot_meni"/>
         </shape>
     </item>
