@@ -32,6 +32,9 @@ object ZaslonVnos {
         KeyEvent.KEYCODE_ESCAPE to "ubezna",
         KeyEvent.KEYCODE_PAGE_UP to "stran_gor",
         KeyEvent.KEYCODE_PAGE_DOWN to "stran_dol",
+        // Daljinec nima tipk za stran, ima pa program gor/dol: na racunalniku sta to stran gor/dol.
+        KeyEvent.KEYCODE_CHANNEL_UP to "stran_gor",
+        KeyEvent.KEYCODE_CHANNEL_DOWN to "stran_dol",
         KeyEvent.KEYCODE_MOVE_HOME to "zacetek",
         KeyEvent.KEYCODE_MOVE_END to "konec",
         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE to "predvajaj",

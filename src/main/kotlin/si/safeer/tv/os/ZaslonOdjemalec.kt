@@ -37,6 +37,8 @@ class ZaslonOdjemalec(
     private val zeton: String,
     private val naStanje: (Stanje, String) -> Unit,
     private val naStatistiko: (Statistika) -> Unit,
+    /** Obvestila racunalnika med sejo (okvir izbire, kazalec za povecavo, tipkovnica ...). */
+    private val naObvestilo: (JSONObject) -> Unit = {},
 ) {
     /** PRAZNO: racunalnik javi, da na locenem zaslonu ni vec programa (besedilo = razlog). */
     enum class Stanje { POVEZUJEM, TECE, KONCANO, NAPAKA, PRAZNO }
@@ -205,8 +207,10 @@ class ZaslonOdjemalec(
                 continue
             }
             if (vrsta == OKVIR_OBVESTILO) {
-                val konec = try { JSONObject(String(telo, Charsets.UTF_8)).optString("konec") } catch (_: Throwable) { "" }
+                val obvestilo = try { JSONObject(String(telo, Charsets.UTF_8)) } catch (_: Throwable) { null }
+                val konec = obvestilo?.optString("konec").orEmpty()
                 if (konec.isNotEmpty()) { naStanje(Stanje.PRAZNO, konec); tece = false; break }
+                if (obvestilo != null) try { naObvestilo(obvestilo) } catch (_: Throwable) { }
                 continue
             }
             if (vrsta != OKVIR_SLIKA) continue

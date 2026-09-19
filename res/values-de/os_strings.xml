@@ -343,4 +343,11 @@
     <string name="os_zaslon_naslednji">Nächstes Programm</string>
     <string name="os_zaslon_meni_plosek_igra">Controller als Gamepad</string>
     <string name="os_zaslon_meni_plosek_namizje">Controller als Tastatur und Maus</string>
+    <string name="os_zaslon_brez_gumbov">Dieses Programm verrät nicht, wo seine Schaltflächen sind – die Pfeiltasten bewegen die Maus</string>
+    <string name="os_zaslon_profil_brskalnik">Browser · Rot zurück · Grün vor · Gelb neu laden · Blau neuer Tab</string>
+    <string name="os_zaslon_meni_vleci">Ziehen</string>
+    <string name="os_zaslon_meni_spusti">Loslassen</string>
+    <string name="os_zaslon_meni_povecava">Vergrößern</string>
+    <string name="os_zaslon_meni_povecava_izklopi">Vergrößerung aus</string>
+    <string name="os_zaslon_vlecem">Ziehen – Zeiger bewegen und OK drücken zum Loslassen</string>
 </resources>

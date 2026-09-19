@@ -343,4 +343,11 @@
     <string name="os_zaslon_naslednji">Programme suivant</string>
     <string name="os_zaslon_meni_plosek_igra">Manette comme manette de jeu</string>
     <string name="os_zaslon_meni_plosek_namizje">Manette comme clavier et souris</string>
+    <string name="os_zaslon_brez_gumbov">Ce programme n\'indique pas où sont ses boutons – les flèches déplacent la souris</string>
+    <string name="os_zaslon_profil_brskalnik">Navigateur · rouge retour · vert suivant · jaune actualiser · bleu nouvel onglet</string>
+    <string name="os_zaslon_meni_vleci">Glisser</string>
+    <string name="os_zaslon_meni_spusti">Déposer</string>
+    <string name="os_zaslon_meni_povecava">Zoom</string>
+    <string name="os_zaslon_meni_povecava_izklopi">Désactiver le zoom</string>
+    <string name="os_zaslon_vlecem">Glissement – déplacez le pointeur et appuyez sur OK pour déposer</string>
 </resources>

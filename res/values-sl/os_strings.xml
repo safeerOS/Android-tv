@@ -343,4 +343,11 @@
     <string name="os_zaslon_naslednji">Naslednji program</string>
     <string name="os_zaslon_meni_plosek_igra">Plošček kot igralni plošček</string>
     <string name="os_zaslon_meni_plosek_namizje">Plošček kot tipkovnica in miška</string>
+    <string name="os_zaslon_brez_gumbov">Ta program ne pove, kje so njegovi gumbi – puščice premikajo miško</string>
+    <string name="os_zaslon_profil_brskalnik">Brskalnik · rdeča nazaj · zelena naprej · rumena osveži · modra nov zavihek</string>
+    <string name="os_zaslon_meni_vleci">Vleci</string>
+    <string name="os_zaslon_meni_spusti">Spusti</string>
+    <string name="os_zaslon_meni_povecava">Povečava</string>
+    <string name="os_zaslon_meni_povecava_izklopi">Izklopi povečavo</string>
+    <string name="os_zaslon_vlecem">Vlečeš – premakni kazalec in pritisni OK, da spustiš</string>
 </resources>

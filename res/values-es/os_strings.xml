@@ -343,4 +343,11 @@
     <string name="os_zaslon_naslednji">Siguiente programa</string>
     <string name="os_zaslon_meni_plosek_igra">Mando como mando de juego</string>
     <string name="os_zaslon_meni_plosek_namizje">Mando como teclado y ratón</string>
+    <string name="os_zaslon_brez_gumbov">Este programa no indica dónde están sus botones: las flechas mueven el ratón</string>
+    <string name="os_zaslon_profil_brskalnik">Navegador · rojo atrás · verde adelante · amarillo recargar · azul nueva pestaña</string>
+    <string name="os_zaslon_meni_vleci">Arrastrar</string>
+    <string name="os_zaslon_meni_spusti">Soltar</string>
+    <string name="os_zaslon_meni_povecava">Ampliar</string>
+    <string name="os_zaslon_meni_povecava_izklopi">Quitar ampliación</string>
+    <string name="os_zaslon_vlecem">Arrastrando: mueve el puntero y pulsa OK para soltar</string>
 </resources>

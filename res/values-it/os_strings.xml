@@ -343,4 +343,11 @@
     <string name="os_zaslon_naslednji">Programma successivo</string>
     <string name="os_zaslon_meni_plosek_igra">Controller come gamepad</string>
     <string name="os_zaslon_meni_plosek_namizje">Controller come tastiera e mouse</string>
+    <string name="os_zaslon_brez_gumbov">Questo programma non indica dove sono i suoi pulsanti: le frecce muovono il mouse</string>
+    <string name="os_zaslon_profil_brskalnik">Browser · rosso indietro · verde avanti · giallo ricarica · blu nuova scheda</string>
+    <string name="os_zaslon_meni_vleci">Trascina</string>
+    <string name="os_zaslon_meni_spusti">Rilascia</string>
+    <string name="os_zaslon_meni_povecava">Ingrandisci</string>
+    <string name="os_zaslon_meni_povecava_izklopi">Disattiva ingrandimento</string>
+    <string name="os_zaslon_vlecem">Trascinamento: muovi il puntatore e premi OK per rilasciare</string>
 </resources>

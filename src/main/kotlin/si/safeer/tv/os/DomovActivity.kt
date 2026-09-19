@@ -146,6 +146,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             imamoPrograme = programi; imamoZaslon = zaslon
             zZapomnjenimFokusom { narisiZacni() }
         }
+        // Ob vstopu Link navadno se ni povezan in vprasanje, kaj tece, ostane brez odgovora:
+        // vprasamo znova, ko se racunalnik javi.
+        if (programi) osveziTecejo(Nadaljuj.seznam(this).filter { jeProgram(it) })
     }
 
     override fun naNaslov(url: String, naslov: String, od: String) {
@@ -439,9 +442,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.findViewById<TextView>(R.id.ime).text =
                 if (n.vrsta == Nadaljuj.ZASLON) getString(R.string.os_zaslon) else n.ime
             v.onFocusChangeListener = fokus
-            v.setOnClickListener { odpriNadaljuj(n) }
+            v.setOnClickListener { zadnjaOznaka = "nadaljuj:" + n.kljuc(); odpriNadaljuj(n) }
             v.setOnLongClickListener { moznostiNadaljuj(n); true }
-            if (jeProgram(n)) {
+            if (jeProgram(n) && tece(n)) {
                 // Program, zagnan s televizorja, tece na racunalniku: krizec to pove na prvi pogled,
                 // tipka X na plosku (ali drzan OK) ga zapre - kot v vsaki aplikaciji z zavihki.
                 dodajKrizec(ikona)
@@ -457,10 +460,23 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         // Zapri vse: ena tipka za vse programe, ki jih je televizor zagnal na racunalniku. Je v
         // naslovu vrste (desno), ne na koncu vrste - tam jo je rob zaslona odrezal na pol.
-        val programi = vnosi.filter { jeProgram(it) }
+        val vsiProgrami = vnosi.filter { jeProgram(it) }
+        val programi = vsiProgrami.filter { tece(it) }
+        osveziTecejo(vsiProgrami)
         gumbZapriVse.visibility = if (programi.isEmpty()) View.GONE else View.VISIBLE
         gumbZapriVse.text = "\u2715  " + getString(R.string.os_zapri_vse, programi.size)
         gumbZapriVse.setOnClickListener { zapriVse(programi) }
+        // Vrsto smo narisali na novo in izbrana kartica je izginila z njo: uporabnik, ki se vraca
+        // iz seje, bi sicer ostal brez izbire (prvi pritisk nekam, kamor ni hotel).
+        val f = currentFocus
+        val zadnja = zadnjaOznaka
+        if (zadnja != null && (f == null || !f.isAttachedToWindow || f.parent !== vrstaNadaljuj)) {
+            // Enkratno: le ob vrnitvi s kartice, ki jo je uporabnik odprl; kasneje fokusa ne jemljemo.
+            zadnjaOznaka = null
+            drsnik.postDelayed({
+                if (!isFinishing) (najdiPoOznaki(zadnja) ?: vrstaNadaljuj.getChildAt(0))?.requestFocus()
+            }, 60)
+        }
         // Desno od zadnje kartice ni nicesar vec: fokus ostane v vrsti in ne skoci v vrsto spodaj.
         if (vrstaNadaljuj.childCount > 0) {
             val zadnja = vrstaNadaljuj.getChildAt(vrstaNadaljuj.childCount - 1)
@@ -511,6 +527,52 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun jeProgram(n: Nadaljuj.Vnos) =
         n.vrsta == Nadaljuj.PROGRAM && n.program.isNotBlank() && n.racunalnik.isNotBlank()
+
+    /**
+     * Kateri programi res tecejo (kljuc vnosa). null = ne vemo (starejsi Control, racunalnik ni
+     * dosegljiv): takrat krizec kazemo pri vseh, kot prej. Program, ki ne tece vec, ostane v vrsti
+     * (z enim klikom ga znova odpres), le krizca in stetja v Zapri vse nima.
+     */
+    private var tecejo: Set<String>? = null
+    /** Kartica, ki jo je uporabnik nazadnje odprl: ob vrnitvi (konec seje) je izbira spet na njej. */
+    private var zadnjaOznaka: String? = null
+    private var sprasujem = false
+
+    private fun tece(n: Nadaljuj.Vnos) = tecejo?.contains(n.kljuc()) ?: true
+
+    private fun osveziTecejo(programi: List<Nadaljuj.Vnos>) {
+        if (sprasujem || programi.isEmpty()) return
+        val poRacunalnikih = programi.groupBy { it.racunalnik }
+        val zbrano = HashSet<String>()
+        var cakam = poRacunalnikih.size
+        var znano = true
+        sprasujem = true
+        for ((racunalnik, vnosi) in poRacunalnikih) {
+            val polje = org.json.JSONArray()
+            vnosi.forEach { polje.put(it.program) }
+            link.ukaz(racunalnik, "apps.running", org.json.JSONObject().put("apps", polje), 8_000,
+                LinkOdjemalec.Odgovor { izid, _ ->
+                    runOnUiThread {
+                        val podatki = izid?.optJSONObject("data")
+                        if (izid?.optBoolean("ok") == true && podatki != null) {
+                            val t = podatki.optJSONArray("running")
+                            val imena = HashSet<String>()
+                            if (t != null) for (i in 0 until t.length()) imena.add(t.optString(i))
+                            vnosi.filter { it.program in imena }.forEach { zbrano.add(it.kljuc()) }
+                        } else znano = false
+                        cakam--
+                        if (cakam == 0) {
+                            sprasujem = false
+                            val novo: Set<String>? = if (znano) zbrano else null
+                            if (novo != tecejo && !isFinishing) {
+                                tecejo = novo
+                                zZapomnjenimFokusom { narisiNadaljuj() }
+                            }
+                        }
+                    }
+                })
+        }
+    }
 
     /** Majhen krizec v kotu ikone: ta program tece na racunalniku in ga lahko zapres. */
     private fun dodajKrizec(ikona: ImageView) {

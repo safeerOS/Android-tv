@@ -344,4 +344,11 @@
     <string name="os_zaslon_naslednji">Next program</string>
     <string name="os_zaslon_meni_plosek_igra">Controller as a gamepad</string>
     <string name="os_zaslon_meni_plosek_namizje">Controller as keyboard and mouse</string>
+    <string name="os_zaslon_brez_gumbov">This program doesn\'t say where its buttons are – the arrows move the mouse</string>
+    <string name="os_zaslon_profil_brskalnik">Browser · red back · green forward · yellow reload · blue new tab</string>
+    <string name="os_zaslon_meni_vleci">Drag</string>
+    <string name="os_zaslon_meni_spusti">Drop</string>
+    <string name="os_zaslon_meni_povecava">Zoom in</string>
+    <string name="os_zaslon_meni_povecava_izklopi">Zoom out</string>
+    <string name="os_zaslon_vlecem">Dragging – move the pointer and press OK to drop</string>
 </resources>
