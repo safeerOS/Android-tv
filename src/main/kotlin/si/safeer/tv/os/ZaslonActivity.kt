@@ -107,6 +107,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         setContentView(R.layout.os_activity_zaslon)
         Robovi.uporabi(this)
         pogled = findViewById(R.id.povrsina)
+        // Mere slike smo racunali le ob zacetku pretoka. Ko se okno spremeni (vrtenje tablice - Android
+        // 16 na velikem zaslonu fiksne lege ne uposteva vec - ali deljen zaslon), bi ostale mere
+        // lezecega zaslona in namizje bi bilo levo in desno odrezano. Zato ga ob vsaki spremembi
+        // velikosti znova umestimo v celoti.
+        findViewById<View>(R.id.koren).addOnLayoutChangeListener { _, l, t, r, b, sl, st, sr, sb ->
+            if ((r - l != sr - sl || b - t != sb - st) && !povecava) uravnajRazmerje(slikaW, slikaH)
+        }
         sporocilo = findViewById(R.id.sporocilo)
         meritve = findViewById(R.id.meritve)
         namig = findViewById(R.id.namig)
