@@ -20,6 +20,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
     "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
+    "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
     "$TEST_DIR/UsmerjevalnikTest.kt" \
     -include-runtime -d "$OUT/usmerjevalnik.jar"
 

@@ -788,6 +788,99 @@ private fun preizkusSorodnika() {
     preveriEnako("GET na to pot je 405", 405, u.odgovori(zahteva("GET", "/cast/pair/sibling"))?.koda)
 }
 
+// ------------------------------------------------------------ krog zaupanja
+
+private fun parKljucev(): java.security.KeyPair =
+    java.security.KeyPairGenerator.getInstance("EC").apply { initialize(java.security.spec.ECGenParameterSpec("secp256r1")) }.generateKeyPair()
+
+private fun b64(b: ByteArray): String = java.util.Base64.getEncoder().encodeToString(b)
+
+private fun podpisi(par: java.security.KeyPair, podatki: ByteArray): String {
+    val s = java.security.Signature.getInstance("SHA256withECDSA")
+    s.initSign(par.private); s.update(podatki)
+    return b64(s.sign())
+}
+
+private fun preizkusKroga() {
+    println("\nKrog zaupanja")
+    val shramba = LazniPomnilnik()
+    val u = usmerjevalnik(shramba)
+    u.lastniOdtis = "ABCDEF0123"
+    val hub = parKljucev()
+    u.vpisiLastniKljuc("tv-hub", "Dnevna soba", b64(hub.public.encoded), "tv")
+    preveriEnako("hub je prvi clan kroga", 1, u.krog.stevilo())
+    preveri("krog je v trajni shrambi", shramba.vsebina.containsKey(KrogZaupanja.KLJUC_SHRAMBE))
+
+    // Prehod: naprava s starim zetonom vpise svoj kljuc - brez nove kode.
+    val zeton = u.zagotoviLastniZeton("tel-1", "Telefon")
+    val tel = parKljucev()
+    val brez = u.odgovori(zahteva("POST", "/cast/trust/enroll", """{"pubkey":"${b64(tel.public.encoded)}"}"""))
+    preveriEnako("vpis brez zetona je 401", 401, brez?.koda)
+    val vpis = u.odgovori(zahteva("POST", "/cast/trust/enroll", """{"pubkey":"${b64(tel.public.encoded)}","name":"Moj telefon","platform":"phone"}""",
+        glave = mapOf("x-safeer-token" to zeton)))
+    preveriEnako("vpis z zetonom uspe", 200, vpis?.koda)
+    preveriEnako("vpisana je naprava zetona, ne tista iz telesa", "tel-1", polje(vpis?.telo.orEmpty(), "device_id"))
+    preveriEnako("krog ima dva clana", 2, u.krog.stevilo())
+    preveriEnako("ime iz vpisa", "Moj telefon", u.krog.clan("tel-1")?.ime)
+    val slab = u.odgovori(zahteva("POST", "/cast/trust/enroll", """{"pubkey":"bm9uc2Vuc2U="}""", glave = mapOf("x-safeer-token" to zeton)))
+    preveriEnako("neveljaven kljuc je 400", 400, slab?.koda)
+
+    // Prijava s podpisom: izziv -> podpis -> vstopnica.
+    val neznan = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tuja"}"""))
+    preveriEnako("izziv za napravo zunaj kroga je 401", 401, neznan?.koda)
+    val izziv = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1"}"""))
+    preveriEnako("izziv za clana uspe", 200, izziv?.koda)
+    val nonce = polje(izziv?.telo.orEmpty(), "nonce")
+    preveri("izziv ima nonce", nonce.isNotBlank())
+    preveriEnako("izziv nosi odtis huba", "ABCDEF0123", polje(izziv?.telo.orEmpty(), "fp"))
+    val napacen = u.odgovori(zahteva("POST", "/cast/auth/ticket",
+        """{"device_id":"tel-1","nonce":"$nonce","signature":"${podpisi(parKljucev(), u.podatkiZaPodpis("tel-1", nonce))}"}"""))
+    preveriEnako("podpis z drugim kljucem je 401", 401, napacen?.koda)
+    val izziv2 = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1"}"""))
+    val nonce2 = polje(izziv2?.telo.orEmpty(), "nonce")
+    preveri("porabljen izziv ne velja vec", nonce2 != nonce)
+    val pravi = u.odgovori(zahteva("POST", "/cast/auth/ticket",
+        """{"device_id":"tel-1","nonce":"$nonce2","signature":"${podpisi(tel, u.podatkiZaPodpis("tel-1", nonce2))}"}"""))
+    preveriEnako("pravi podpis da vstopnico", 200, pravi?.koda)
+    val vstopnica = polje(pravi?.telo.orEmpty(), "ticket")
+    preveri("vstopnica je uporabna za WebSocket", u.porabiVstopnico(vstopnica))
+    preveri("odgovor prinese krog", JsonLahki.objekt(pravi?.telo.orEmpty())?.objekt("ring")?.objekt("clani")?.ima("tel-1") == true)
+    val znova = u.odgovori(zahteva("POST", "/cast/auth/ticket",
+        """{"device_id":"tel-1","nonce":"$nonce2","signature":"${podpisi(tel, u.podatkiZaPodpis("tel-1", nonce2))}"}"""))
+    preveriEnako("isti izziv drugic ne velja", 401, znova?.koda)
+    val tujOdtis = "safeer-link-auth\nffff\n$nonce2\ntel-1".toByteArray()
+    preveri("podpis je vezan na odtis huba", !u.krog.preveriPodpis("tel-1", u.podatkiZaPodpis("tel-1", nonce2), podpisi(tel, tujOdtis)))
+
+    // Ob prijavi po WebSocketu dobi naprava krog; ob spremembi kroga ga dobijo vsi.
+    val o = Lazni()
+    u.obdelaj(o, registracija("tel-1", "sender"))
+    preveri("naprava ob prijavi dobi trust.update", o.prejeto.any { tip(it) == "trust.update" })
+    o.pocisti()
+    u.krog.umakni("tuja-naprava", "tv-hub")   // umik neznane naprave nicesar ne spremeni
+    preveri("umik neznane naprave ne razposilja", o.prejeto.none { tip(it) == "trust.update" })
+    u.krog.umakni("tel-1", "tv-hub")
+    preveri("umik clana gre vsem", o.prejeto.any { tip(it) == "trust.update" })
+    preveriEnako("umaknjeni ni vec clan", false, u.krog.jeClan("tel-1"))
+    preveriEnako("umaknjeni ne dobi izziva", 401, u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1"}"""))?.koda)
+
+    // Zdruzevanje je deterministicno in umik prezivi zdruzitev s starim krogom.
+    val star = KrogZaupanja()
+    star.zdruzi(u.krog.json())
+    val drug = KrogZaupanja()
+    drug.dodaj(KrogZaupanja.Clan("tel-1", b64(tel.public.encoded), "Telefon", "phone", 1.0, "tv-hub"))
+    drug.zdruzi(star.json())
+    preveriEnako("star vnos ne ozivi umaknjene naprave", false, drug.jeClan("tel-1"))
+    val vrnjen = KrogZaupanja.Clan("tel-1", b64(tel.public.encoded), "Telefon", "phone", KrogZaupanja.zdaj() + 10, "tv-hub")
+    drug.dodaj(vrnjen)
+    preveriEnako("ponovna seznanitev (novejsi vnos) napravo vrne", true, drug.jeClan("tel-1"))
+    star.zdruzi(drug.json())
+    preveriEnako("vrnitev preide tudi v drugi krog", true, star.jeClan("tel-1"))
+    preveriEnako("oba kroga sta enaka", star.json(), drug.json())
+    preveri("pokvarjen zapis kroga ne spremeni nicesar", !star.zdruzi("{\"clani\":{\"x\":{\"kljuc\":\"???\"}}}"))
+    preveriEnako("id iz kljuca je stabilen", KrogZaupanja.idIzKljuca(b64(tel.public.encoded)), KrogZaupanja.idIzKljuca(b64(tel.public.encoded)))
+    preveri("id iz kljuca ima predpono n- in 16 znakov", KrogZaupanja.idIzKljuca(b64(tel.public.encoded)).matches(Regex("n-[0-9a-f]{16}")))
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -801,6 +894,7 @@ fun main() {
     preizkusHttp()
     preizkusDeljenjaPoHttp()
     preizkusMeja()
+    preizkusKroga()
     println()
     if (napak == 0) {
         println("Vse v redu.")

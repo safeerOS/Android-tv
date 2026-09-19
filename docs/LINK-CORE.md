@@ -42,9 +42,10 @@ Posledica: drug hub = druga seznanitev za vsako napravo. Naprave si med seboj ne
 
 Po prenovi je zaupanje **medsebojno**:
 
-- **Ključ naprave.** Vsaka naprava ob prvem zagonu naredi par ključev Ed25519 (`bcprov-ed25519` je že v
-  paketu; na Linuxu `cryptography`). `device_id` je izpeljan iz javnega ključa (prvih 16 hex SHA-256), ne
-  več iz modela; ime naprave ostane človeško. Zasebni ključ je v zasebni shrambi aplikacije (kot danes žetoni).
+- **Ključ naprave.** Na Androidu je to ključ EC P-256 v AndroidKeyStore, ki ga `HubTls` že dela za TLS
+  potrdilo huba (strojno varovan, nikoli ne zapusti KeyStore; `HubTls.javniKljucB64()`, `HubTls.podpisi()`);
+  na Linuxu ključ EC v `cryptography`. Obstoječe naprave obdržijo svoj `device_id` (krog veže id na ključ);
+  nove naprave dobijo id iz javnega ključa (`KrogZaupanja.idIzKljuca`, `n-` + 16 hex SHA-256).
 - **Krog zaupanja** (`krog.json`): seznam `{device_id, pubkey, ime, platforma, dodano, dodal}` in
   nadgrobnikov `{device_id, umaknjeno, umaknil}`. Vsaka naprava hrani cel krog. Združevanje je unija po
   `device_id`, umik (nadgrobnik) ima prednost pred vnosom, novejši zapis pred starejšim.
@@ -68,6 +69,17 @@ Po prenovi je zaupanje **medsebojno**:
    (`seznanjeneNaprave()`) je vir za `dodal`.
 4. Nenadgrajene naprave delajo naprej z žetonom, dokler jih uporabnik ne posodobi; hub žetone
    odstrani šele, ko je vsak njihov lastnik v krogu.
+
+### Stanje (20. 9. 2026, veja `prenova-link`)
+
+Narejeno na TV: `cast/KrogZaupanja.kt` (krog, združevanje, podpisi; JVM), `cast/KrogNaprave.kt`
+(krog na odjemalcu), hub: `POST /cast/trust/enroll` (z žetonom vpiše ključ), `POST /cast/auth/challenge`
+in `POST /cast/auth/ticket` (prijava s podpisom, podpis vezan na odtis huba in enkratni izziv),
+`GET /cast/trust/ring`, sporočilo `trust.update` vsem ob prijavi in ob vsaki spremembi; Safeer OS
+(`LinkOdjemalec`) se ob prvem stiku vpiše z žetonom, potem prihaja s podpisom, ob neuspehu pade nazaj
+na žeton. Preizkušeno v živo na Philips TV: prehod brez kode. Preizkusi v `tests/UsmerjevalnikTest.kt`
+(`preizkusKroga`). Še ne: brskalnik TV kot odjemalec tujega huba, telefon, Linux Control (koda in
+prijava s podpisom), vezava `device_id` v `cast.register` na ključ (pride s korakom 3).
 
 ## 3. Izločitev Link Core iz brskalnika (osnutek)
 

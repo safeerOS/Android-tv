@@ -91,6 +91,10 @@ object HubKrmilnik {
             return false
         }
         u.lastniOdtis = HubTls.lastniOdtis()
+        // Hub je prvi clan kroga zaupanja: njegov kljuc je kljuc potrdila TLS.
+        try { u.vpisiLastniKljuc(lastniId(), imeHuba(app), HubTls.javniKljucB64(), "tv") } catch (e: Throwable) {
+            Log.w(TAG, "Kljuca huba ni bilo mogoce vpisati v krog: ${e.message}")
+        }
         u.naSpremembePrijav = {
             try { naSpremembePrijav?.invoke() } catch (_: Throwable) { }
             try { naPrijavoZaZaslon?.invoke() } catch (_: Throwable) { }

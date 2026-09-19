@@ -251,9 +251,50 @@ class HubUsmerjevalnik(
         return true
     }
 
+    // ------------------------------------------------------------------ krog zaupanja
+    //
+    // Kljuci naprav (KrogZaupanja). Hub ga hrani in razposilja; naprava, ki se izkaze s starim
+    // zetonom, vanj vpise svoj kljuc in od takrat naprej pride s podpisom - brez nove kode.
+
+    val krog = KrogZaupanja(shramba)
+
+    /** Id in odtis TLS tega huba; nastavi krmilnik. Podpis prijave je vezan na odtis, da ga ni mogoce prenesti na drug hub. */
+    @Volatile
+    var lastniId: String = ""
+
+    /** Odprti izzivi za prijavo s podpisom: nonce -> (device_id, izdan). */
+    private val izzivi = LinkedHashMap<String, Pair<String, Long>>()
+
     init {
         naloziZetone()
         naloziVzdevke()
+        krog.naSpremembo = { objaviKrog() }
+    }
+
+    private fun objaviKrog() {
+        val sporocilo = sporociloKroga()
+        val kopija = synchronized(kljucnica) { naprave.values.mapNotNull { it.povezava } }
+        for (povezava in kopija) posljiVarno(povezava, sporocilo)
+    }
+
+    private fun sporociloKroga(): String = ovojnica("trust.update").surovo("payload", krog.json()).toString()
+
+    /** Hub sam je clan kroga: krmilnik vpise njegov kljuc ob zagonu. */
+    fun vpisiLastniKljuc(deviceId: String, ime: String, kljucB64: String, platforma: String) {
+        lastniId = deviceId
+        val obstojeci = krog.clan(deviceId)
+        if (obstojeci != null && obstojeci.kljuc == kljucB64 && obstojeci.ime == ime) return
+        krog.dodaj(KrogZaupanja.Clan(deviceId, kljucB64, ime, platforma, KrogZaupanja.zdaj(), deviceId))
+    }
+
+    /** Kaj naprava podpise ob prijavi: vezano na ta hub (odtis) in na izziv, zato podpis drugje ne velja. */
+    fun podatkiZaPodpis(deviceId: String, nonce: String): ByteArray =
+        "safeer-link-auth\n${lastniOdtis.lowercase()}\n$nonce\n$deviceId".toByteArray(Charsets.UTF_8)
+
+    private fun pocistiIzzive() {
+        val zdaj = ura()
+        val potekli = izzivi.filterValues { zdaj - it.second > IZZIV_VELJA_MS }.keys.toList()
+        for (k in potekli) izzivi.remove(k)
     }
 
     // ------------------------------------------------------------------ zetoni naprav
@@ -818,6 +859,8 @@ class HubUsmerjevalnik(
         // Vsaka nova naprava spremeni seznam za vse: tudi posiljatelj je zdaj mozen cilj deljenja.
         objaviNaprave()
         naSpremembeNaprav?.invoke()
+        // Krog zaupanja dobi vsaka naprava ob prijavi, da ga ima tudi takrat, ko hub ugasne.
+        if (krog.stevilo() > 0) posljiVarno(od, sporociloKroga())
         return potrditev(id, "accepted")
     }
 
@@ -1258,6 +1301,64 @@ class HubUsmerjevalnik(
             return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("stopped", true).toString())
         }
 
+        if (pot == "/cast/trust/enroll" && zahteva.metoda == "POST") {
+            // Prehod z zetona na kljuc: naprava z veljavnim zetonom vpise svoj kljuc v krog.
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+            val deviceId = napravaZeZetona(zahteva.glave["x-safeer-token"])
+                ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
+            val telo = JsonLahki.objekt(zahteva.telo)
+            val kljuc = telo?.niz("pubkey")?.trim().orEmpty()
+            if (kljuc.isEmpty() || KrogZaupanja.dekodirajKljuc(kljuc) == null) {
+                return HubStreznik.Odgovor(400, napakaJson("Manjka ali neveljaven javni ključ.", "neveljaven_kljuc"))
+            }
+            val ime = (telo?.niz("name")?.takeIf { it.isNotBlank() } ?: imeNaprave(deviceId)).take(NAJVEC_IMENA)
+            krog.dodaj(KrogZaupanja.Clan(deviceId, kljuc, ime, telo?.nizAli("platform").orEmpty().take(16), KrogZaupanja.zdaj(), lastniId))
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis().niz("device_id", deviceId).surovo("ring", krog.json()).toString())
+        }
+
+        if (pot == "/cast/auth/challenge" && zahteva.metoda == "POST") {
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+            val deviceId = (JsonLahki.objekt(zahteva.telo)?.niz("device_id") ?: "").trim()
+            if (deviceId.isEmpty() || !krog.jeClan(deviceId)) {
+                return HubStreznik.Odgovor(401, napakaJson("Naprava ni v krogu zaupanja.", "naprava_ni_v_krogu"))
+            }
+            val nonce = nakljucni(24)
+            synchronized(kljucnica) {
+                pocistiIzzive()
+                if (izzivi.size >= NAJVEC_VSTOPNIC) izzivi.remove(izzivi.keys.first())
+                izzivi[nonce] = Pair(deviceId, ura())
+            }
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis().niz("nonce", nonce).niz("hub_id", lastniId).niz("fp", lastniOdtis)
+                .stevilo("expires_in_seconds", (IZZIV_VELJA_MS / 1000).toDouble()).toString())
+        }
+
+        if (pot == "/cast/auth/ticket" && zahteva.metoda == "POST") {
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+            val telo = JsonLahki.objekt(zahteva.telo)
+            val deviceId = (telo?.niz("device_id") ?: "").trim()
+            val nonce = (telo?.niz("nonce") ?: "").trim()
+            val podpis = (telo?.niz("signature") ?: "").trim()
+            val izziv = synchronized(kljucnica) { pocistiIzzive(); if (nonce.isEmpty()) null else izzivi.remove(nonce) }
+            if (izziv == null || izziv.first != deviceId) {
+                return HubStreznik.Odgovor(401, napakaJson("Izziv ni veljaven ali je potekel.", "neveljaven_izziv"))
+            }
+            if (!krog.preveriPodpis(deviceId, podatkiZaPodpis(deviceId, nonce), podpis)) {
+                return HubStreznik.Odgovor(401, napakaJson("Podpis se ne ujema s ključem naprave.", "napacen_podpis"))
+            }
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis()
+                .niz("ticket", izdajVstopnico())
+                .stevilo("expires_in_seconds", (VSTOPNICA_VELJA_MS / 1000).toDouble())
+                .surovo("ring", krog.json())
+                .toString())
+        }
+
+        if (pot == "/cast/trust/ring" && zahteva.metoda == "GET") {
+            if (!krajevni || !jeVeljavenZeton(zahteva.glave["x-safeer-token"])) {
+                return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
+            }
+            return HubStreznik.Odgovor(200, krog.json())
+        }
+
         if (pot == "/cast/ticket" && zahteva.metoda == "POST") {
             if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
             if (!jeVeljavenZeton(zahteva.glave["x-safeer-token"])) {
@@ -1331,8 +1432,11 @@ class HubUsmerjevalnik(
         private const val KLJUC_VZDEVKOV = "cast_vzdevki"
 
         private val ZNANE_POTI = setOf(
-            "/cast/pair/start", "/cast/pair/claim", "/cast/pair/sibling", "/cast/ticket", "/cast/devices", "/cast/health"
+            "/cast/pair/start", "/cast/pair/claim", "/cast/pair/sibling", "/cast/ticket", "/cast/devices", "/cast/health",
+            "/cast/trust/enroll", "/cast/trust/ring", "/cast/auth/challenge", "/cast/auth/ticket"
         )
+        /** Izziv za prijavo s podpisom velja minuto: dovolj za en krog po omrezju, premalo za zbiranje. */
+        private const val IZZIV_VELJA_MS = 60_000L
 
         private val CAST_POSREDOVANJE = setOf("cast.url", "cast.media", "cast.control")
         private val SYNC_POSREDOVANJE = setOf("sync.request", "sync.data", "sync.status")
