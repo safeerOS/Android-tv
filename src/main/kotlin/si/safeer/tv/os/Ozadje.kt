@@ -50,9 +50,10 @@ object Ozadje {
     class Izbira(val oznaka: String, val imeRes: Int, val risba: Int)
 
     val VSE = listOf(
-        Izbira("gore", R.string.os_ozadje_gore, R.drawable.os_slika_gore_foto),
+        // Nova fotografija ima svojo oznako: kdor je prej izbral risbo "gore", jo obdrzi.
+        Izbira("gore_foto", R.string.os_ozadje_gore, R.drawable.os_slika_gore_foto),
         Izbira("valovi", R.string.os_ozadje_valovi, R.drawable.os_slika_valovi),
-        Izbira("gore_risba", R.string.os_ozadje_gore_risba, R.drawable.os_slika_gore),
+        Izbira("gore", R.string.os_ozadje_gore_risba, R.drawable.os_slika_gore),
         Izbira("gozd", R.string.os_ozadje_gozd, R.drawable.os_slika_gozd),
         Izbira("sij", R.string.os_ozadje_sij, R.drawable.os_slika_sij),
         Izbira("morje", R.string.os_ozadje_morje, R.drawable.os_slika_morje),
