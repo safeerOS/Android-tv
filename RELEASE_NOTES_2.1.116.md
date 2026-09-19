@@ -1,0 +1,11 @@
+# Safeer Browser for Android TV 2.1.116 · Safeer OS 0.3.4 · Safeer OS Tablet 0.2.3 (beta)
+
+**A newer video player, a fallback when it cannot play, and a tablet that uses the whole screen.**
+
+- **Newer video player.** The built-in player (Media3) is updated from 1.4.1 to 1.11.1: two years of playback fixes. Tested on an Android 11 TV: adaptive DASH rises to 1920×1080 at 8 Mbit/s.
+- **When the built-in player cannot play a video, the page plays it.** Some pages hand the licence for protected video only to their own player. Before, you saw "Playback failed"; now Safeer reloads the page and the page's own player plays the video. This happens at most twice per site, so a page can never keep reloading.
+- **Ready for new Android versions (targetSdk 36).** On Android 15 and newer the app is drawn to the screen edges; buttons stay clear of the system bars and the keyboard. The Back button on the remote and on the tablet works exactly as before.
+- **Tablet: the computer screen fills the tablet.** The navigation bar hides while you watch the computer screen, a video or a photo (swipe from the edge to bring it back). When you rotate the tablet, the whole desktop stays visible instead of being cut off on the sides. In Files, the tablet's own files are now labelled "This tablet", not "This TV".
+- Under the hood: new build tools (Android Gradle Plugin 9.4, Gradle 9.6, Kotlin 2.4). Android 11 remains supported.
+
+Slovensko: **Novejši predvajalnik** (Media3 1.4.1 → 1.11.1, dve leti popravkov predvajanja; na televizorju z Androidom 11 preizkušeno do 1920×1080 pri 8 Mbit/s). **Ko vgrajeni predvajalnik posnetka ne zmore, ga predvaja stran:** nekatere strani licenco za zaščiten video dajo samo svojemu predvajalniku; namesto »Predvajanje ni uspelo« Safeer stran naloži znova in video predvaja njen predvajalnik – največ dvakrat na stran, zato se stran nikoli ne nalaga v nedogled. **Pripravljeno na nove Androide (targetSdk 36):** na Androidu 15+ gumbi ostanejo izven sistemskih vrstic in tipkovnice; gumb Nazaj na daljincu in tablici deluje kot prej. **Tablica:** zaslon računalnika, video in slika uporabijo ves zaslon (navigacijska vrstica se skrije, poteg od roba jo pokaže); ob vrtenju ostane namizje celo; v Datotekah »Ta tablica« namesto »Ta televizor«. Nova orodja za gradnjo; Android 11 ostaja podprt.

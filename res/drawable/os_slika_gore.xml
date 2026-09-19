@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gore: lastna risba (nocno nebo, tri vrste grebenov, megla v dolini). Brez tujih slik. -->
+<vector tools:ignore="VectorRaster" xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="270dp"
+    android:viewportWidth="960"
+    android:viewportHeight="540">
+    <path android:pathData="M0,0h960v540H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="540">
+                <item android:offset="0" android:color="#FF0A1422"/>
+                <item android:offset="0.5" android:color="#FF122234"/>
+                <item android:offset="1" android:color="#FF060B12"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- najbolj oddaljeni greben -->
+    <path android:pathData="M0,300 L150,206 L268,286 L410,168 L560,290 L690,214 L820,296 L960,236 L960,540 L0,540 Z" android:fillColor="#FF1B2E42"/>
+    <!-- snezna kapa na najvisjem vrhu -->
+    <path android:pathData="M410,168 L452,202 L430,196 L410,208 L388,196 L368,202 Z" android:fillColor="#FF33506B"/>
+    <path android:pathData="M0,356 L130,286 L262,362 L392,270 L520,368 L660,288 L800,372 L960,310 L960,540 L0,540 Z" android:fillColor="#FF111E2C"/>
+    <!-- megla v dolini -->
+    <path android:pathData="M0,368 C220,340 340,392 540,360 C720,332 840,380 960,352 L960,430 L0,430 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="340" android:endX="0" android:endY="436">
+                <item android:offset="0" android:color="#3C8FB6C9"/>
+                <item android:offset="1" android:color="#008FB6C9"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,428 L160,372 L300,436 L440,366 L600,442 L760,380 L960,444 L960,540 L0,540 Z" android:fillColor="#FF070D15"/>
+</vector>

@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Skupni del obeh aplikacij: Safeer Browser TV (si.safeer.tv) in Safeer OS (si.safeer.os).
+     Kar loci aplikaciji - ime, ikona, vnos v zaganjalniku, domaci zaslon - je v okusi/<okus>/AndroidManifest.xml. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingLeanbackLauncher">
+    <!-- Vnos LEANBACK_LAUNCHER je v okusih (brskalnik in Safeer OS imata vsak svojega), zato ga
+         skupni del nima; Lint preverja samo ta del. -->
+
+    <!-- minSdk in targetSdk sta v build.gradle (tu bi ju Gradle tako ali tako prepisal). -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Sorodne aplikacije Safeer na istem televizorju (Safeer OS in brskalnik) se dosezejo samo, ce so
+         podpisane z istim kljucem. Dovoljenje napove brskalnik (okusi/brskalnik), obe aplikaciji ga uporabljata. -->
+    <uses-permission android:name="si.safeer.tv.permission.LINK" />
+    <!-- Safeer Link: stran ali ukaz z druge naprave odpre brskalnik, tudi ko ni v ospredju
+         (Android 10+ zagon iz ozadja dovoli le prek obvestila s celozaslonsko namero). -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Za crno ozadje domacega zaslona televizorja; spremeni ga samo uporabnik v meniju. -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- mDNS: brez tega Android na Wi-Fi zavrze multicast in Safeer Hub ni najden. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Safeer Cast: sprejemnik tece kot storitev v ospredju, da povezava z vozliscem zdrzi -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Samo za prebujanje brskalnika, ko telefon poslje povezavo (Safeer Cast).
+         Android 11 brez tega zagon dejavnosti iz ozadja zavrne. Dodeli ga uporabnik. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Safeer Link: televizor strezi seznanjenim napravam v hisi tudi, ko brskalnik ni odprt.
+         "connectedDevice" je edina vrsta storitve, ki jo Android dovoli zagnati po vklopu naprave. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Safeer Scit: filter DNS za ves televizor (VpnService; Android 14 zahteva tip systemExempted za VPN) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- Safeer OS, krajevne datoteke televizorja (videi, glasba, slike; tudi USB) prek MediaStore -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 14+: uporabnik lahko dovoli samo izbrane slike in videe; pokazemo tiste. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <!-- Vrsta s spletnimi aplikacijami na domacem zaslonu televizorja (kanal predogleda). -->
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
+
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.type.television" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Wi-Fi rabimo le za iskanje naprav (multicast); televizor na kablu deluje prav tako. -->
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+
+    <supports-screens
+        android:smallScreens="true"
+        android:normalScreens="true"
+        android:largeScreens="true"
+        android:xlargeScreens="true"
+        android:anyDensity="true" />
+
+    <!-- Daljinec Safeer Linka (Safeer Control): seznam aplikacij, ki jih je mogoce zagnati,
+         in aplikacije, ki znajo odpreti spletno povezavo (npr. YouTube).
+         Brez tega Android 11+ seznam skrije in daljinec bi videl le sistemske aplikacije. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- Kdo je domaci zaslon televizorja: brez tega Android 11+ pokaze samo nas in bi Safeer OS
+             napacno trdil, da je domaci zaslon on, ceprav tipko Domov prestreze proizvajalec. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <!-- Oznaka, ikona in pasica so v okusih: vsaka aplikacija ima svoje ime in svojo ikono. -->
+    <application
+        android:theme="@style/AppTheme"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/izvoz_podatkov"
+        android:fullBackupContent="@xml/varnostna_kopija"
+        tools:targetApi="33"
+        android:enableOnBackInvokedCallback="false"
+        android:usesCleartextTraffic="true"
+        android:supportsRtl="true">
+
+        <!-- Brskalnik. Vstopna tocka v zaganjalniku in obravnava povezav sta samo v okusu brskalnika;
+             v Safeer OS je ta dejavnost notranji pogon za spletne aplikacije, kadar brskalnik ni namescen. -->
+        <activity
+            android:name="si.safeer.tv.MainActivity"
+            android:theme="@style/AppTheme.Brskalnik"
+            android:label="@string/app_name"
+            android:icon="@mipmap/ic_launcher"
+            android:banner="@drawable/safeer_tv_banner"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|density"
+            android:windowSoftInputMode="adjustResize"
+            android:launchMode="singleTask" />
+
+        <!-- Safeer Cast: sprejemnik povezav s telefona in racunalnika v domacem omrezju -->
+        <service
+            android:name="si.safeer.tv.cast.CastReceiverService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Safeer Link (Hub): tece, dokler ga uporabnik ne ugasne, ne le med odprtim brskalnikom -->
+        <service
+            android:name="si.safeer.tv.cast.HubStoritev"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <!-- Safeer OS in druge sorodne aplikacije: vstop v Safeer Link brez kode (isti podpis) -->
+        <service
+            android:name="si.safeer.tv.cast.LinkSorodnikStoritev"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK">
+            <intent-filter>
+                <action android:name="si.safeer.tv.LINK_SORODNIK" />
+            </intent-filter>
+        </service>
+
+        <!-- Safeer OS: domaci zaslon za televizor (Splet, Datoteke z racunalnika, Safeer Link, Scit, naprave, aplikacije).
+             Vstopna tocka v zaganjalniku in alias domacega zaslona sta v okusu os. -->
+        <activity
+            android:name="si.safeer.tv.os.DomovActivity"
+            android:exported="true"
+            android:label="@string/os_app_name"
+            android:icon="@mipmap/os_ic_launcher"
+            android:banner="@drawable/os_banner"
+            android:theme="@style/Theme.SafeerOs"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.os"
+            android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+
+        <activity
+            android:name="si.safeer.tv.os.NastavitveActivity"
+            android:exported="false"
+            android:label="@string/os_nastavitve"
+            android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="${applicationId}.os"
+            android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+
+        <activity android:name="si.safeer.tv.os.BesediloActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.VidezActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.DatotekeActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.ZaslonActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Predvajalnik"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.AplikacijeTvActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.PlosekActivity" android:exported="false"
+            android:theme="@style/Theme.SafeerOs" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
+        <activity android:name="si.safeer.tv.os.NapraveActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.PredvajalnikActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Predvajalnik"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.SlikaActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Predvajalnik"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+
+        <!-- Safeer Scit: filter DNS za ves televizor, v lastnem procesu (mapiran nabor domen, brez kopice brskalnika) -->
+        <service
+            android:name="si.safeer.tv.scit.ScitStoritev"
+            android:exported="false"
+            android:process=":scit"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="systemExempted"
+            tools:ignore="ForegroundServicePermission">
+            <!-- systemExempted je dovoljen aplikacijam VPN (Scit je VpnService); dovoljenje
+                 FOREGROUND_SERVICE_SYSTEM_EXEMPTED je zgoraj, alarmov ne rabimo. -->
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+        <activity
+            android:name="si.safeer.tv.scit.ScitActivity"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+        <service
+            android:name="si.safeer.tv.scit.ScitSorodnikStoritev"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK">
+            <intent-filter>
+                <action android:name="si.safeer.tv.SCIT_SORODNIK" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name="si.safeer.tv.cast.ZagonPrejemnik"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:name="si.safeer.tv.MobileFileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+</manifest>

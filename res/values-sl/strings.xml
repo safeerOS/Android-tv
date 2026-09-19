@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Safeer TV Browser</string>
+    <string name="url_hint">Varno iskanje ali URL</string>
+    <string name="btn_home">Domov</string>
+    <string name="btn_back">Nazaj</string>
+    <string name="btn_forward">Naprej</string>
+    <string name="btn_add_tab">Nov zavihek</string>
+    <string name="btn_menu">Meni</string>
+    <string name="btn_favorite">Priljubljene</string>
+    <string name="btn_reload">Osveži</string>
+    
+    <!-- Menu Items -->
+    <string name="menu_new_tab">Nov zavihek</string>
+    <string name="menu_bookmarks">Zaznamki</string>
+    <string name="menu_downloads">Prenosi</string>
+    <string name="menu_history">Zgodovina</string>
+    <string name="menu_desktop_site">Namizno spletno mesto</string>
+    <string name="menu_dark_mode">AMOLED Temni način</string>
+    <string name="menu_sponsorblock">SponsorBlock: preskoči sponzorje na YouTubu</string>
+    <string name="menu_adblock">Vgrajeni AdBlock &amp; Botnet Ščit</string>
+    <string name="menu_threat_stats">Varnostni ščit (Feodo/URLhaus)</string>
+    
+    <!-- Tab Switcher -->
+    <string name="tabs_title">Odprti zavihki</string>
+    <string name="tabs_close_all">Zapri vse zavihke</string>
+    <string name="tabs_new_tab">+ Nov zavihek</string>
+    
+    <!-- Search Engines -->
+    
+    <!-- Notifications -->
+    <string name="toast_bookmark_added">⭐ Dodano med zaznamke</string>
+    <string name="toast_bookmark_removed">🗑️ Odstranjeno iz zaznamkov</string>
+    <string name="menu_tv_wallpaper">Črno ozadje domačega zaslona TV</string>
+    <string name="menu_language">Jezik vmesnika</string>
+    <string name="menu_safeer_link">Safeer Link</string>
+    <!-- Safeer Link: obvestilo storitve, ki tece tudi brez odprtega brskalnika -->
+    <string name="hub_obvestilo_naslov">Safeer Link</string>
+    <string name="hub_obvestilo_besedilo">Naprave v tvojem omrežju lahko pošljejo strani, videe in glasbo na ta televizor.</string>
+    <string name="menu_popup_block">Prepreči pojavna okna</string>
+    <string name="menu_download_dir">Mapa za prenose</string>
+    <string name="menu_scit">Safeer Ščit: ves televizor</string>
+    <string name="menu_dodaj_aplikacijo">Dodaj med aplikacije Safeer OS</string>
+    <string name="scit_ime">Safeer Ščit</string>
+    <string name="scit_obvestilo_opis">Filter DNS za ves televizor: oglasi, sledilci in nevarne domene so blokirani v vseh aplikacijah.</string>
+    <string name="scit_obvestilo_besedilo">Ščiti ves televizor · danes blokiranih: %1$d</string>
+    <string name="scit_vklopljen">🛡 Safeer Ščit je vklopljen: ves televizor je zaščiten</string>
+    <string name="scit_izklopljen">Safeer Ščit je izklopljen</string>
+    <string name="scit_napaka_dovoljenje">Safeer Ščit potrebuje tvoje dovoljenje za filtriranje DNS (sistemsko okno). Nič ni spremenjeno.</string>
+    <string name="scit_blokiranih_danes">danes blokiranih: %1$d</string>
+</resources>

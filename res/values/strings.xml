@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Safeer TV Browser</string>
+    <string name="url_hint">Safe Search or URL</string>
+    <string name="btn_home">Home</string>
+    <string name="btn_back">Back</string>
+    <string name="btn_forward">Forward</string>
+    <string name="btn_add_tab">New Tab</string>
+    <string name="btn_menu">Menu</string>
+    
+    <!-- Menu Items -->
+    <string name="menu_new_tab">New Tab</string>
+    <string name="menu_bookmarks">Bookmarks</string>
+    <string name="menu_safeer_link">Safeer Link</string>
+    <string name="menu_downloads">Downloads</string>
+    <string name="menu_history">History</string>
+    <string name="menu_desktop_site">Desktop Site</string>
+    <string name="menu_dark_mode">AMOLED Dark Mode</string>
+    <string name="menu_sponsorblock">SponsorBlock: skip sponsors on YouTube</string>
+    <string name="menu_adblock">Built-in AdBlock &amp; Botnet Shield</string>
+    <string name="menu_threat_stats">Security Shield (Feodo/URLhaus)</string>
+    
+    <!-- Tab Switcher -->
+    <string name="tabs_title">Open Tabs</string>
+    <string name="tabs_close_all">Close All Tabs</string>
+    <string name="tabs_new_tab">+ New Tab</string>
+    
+    <!-- Search Engines -->
+    
+    <!-- Notifications -->
+    <string name="toast_bookmark_added">⭐ Added to Bookmarks</string>
+    <string name="toast_bookmark_removed">🗑️ Removed from Bookmarks</string>
+    <string name="btn_favorite">Favorites</string>
+    <string name="btn_reload">Reload</string>
+    <string name="menu_tv_wallpaper">Black TV home screen</string>
+    <string name="menu_language">Interface language</string>
+    <!-- Safeer Link: obvestilo storitve, ki tece tudi brez odprtega brskalnika -->
+    <string name="hub_obvestilo_naslov">Safeer Link</string>
+    <string name="hub_obvestilo_besedilo">Your devices can send pages, videos and music to this TV.</string>
+    <string name="menu_popup_block">Block pop-up windows</string>
+    <string name="menu_download_dir">Downloads folder</string>
+    <string name="menu_scit">Safeer Shield: whole TV</string>
+    <string name="menu_dodaj_aplikacijo">Add to Safeer OS apps</string>
+    <string name="scit_ime">Safeer Shield</string>
+    <string name="scit_obvestilo_opis">DNS filter for the whole TV: ads, trackers and dangerous domains are blocked in every app.</string>
+    <string name="scit_obvestilo_besedilo">Protecting the whole TV · blocked today: %1$d</string>
+    <string name="scit_vklopljen">🛡 Safeer Shield is on: the whole TV is protected</string>
+    <string name="scit_izklopljen">Safeer Shield is off</string>
+    <string name="scit_napaka_dovoljenje">Safeer Shield needs your permission to filter DNS (the system dialog). Nothing was changed.</string>
+    <string name="scit_blokiranih_danes">blocked today: %1$d</string>
+    <!-- Kako se ta naprava predstavi drugim v Safeer Linku. Okus tablica to povozi:
+         ime vidijo sosedje v hisi, zato mora biti resnicno. -->
+    <string name="os_ime_vrste" translatable="false">Safeer TV</string>
+</resources>

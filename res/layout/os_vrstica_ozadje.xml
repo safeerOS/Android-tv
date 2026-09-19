@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vrstica ozadja: predogled slike, ime in kljukica pri izbrani. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+    <ImageView
+        android:id="@+id/predogled"
+        android:layout_width="96dp"
+        android:layout_height="54dp"
+        android:scaleType="fitXY"
+        android:background="@drawable/os_okvir_predogled"
+        android:contentDescription="@null"/>
+    <TextView
+        android:id="@+id/ime"
+        style="@style/Os.Kartica.Naslov"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textSize="17sp"/>
+    <TextView
+        android:id="@+id/stanje"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:maxLines="1"
+        android:textColor="@color/os_mint"
+        android:textSize="14sp"/>
+</LinearLayout>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Safeer Browser</title>
+<style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        html, body {
+            height: 100%;
+            background: #000000;
+            color: #f4f7fb;
+            font-family: "Segoe UI", Roboto, "Noto Sans", sans-serif;
+        }
+        body {
+            overflow: hidden;
+            background-color: #000000;
+            background-image: none;
+        }
+        .stage {
+            width: min(1680px, calc(100vw - 80px));
+            margin: 0 auto;
+            padding: 88px 0 28px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-card { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 28px; }
+        .search-bar-wrapper {
+            width: 720px;
+            max-width: 100%;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 10px 0 22px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+        }
+        .search-bar-wrapper:focus-within,
+        .search-bar-wrapper.safeer-active-card {
+            border-color: rgba(0, 229, 255, 0.85);
+            background: rgba(0, 229, 255, 0.08);
+            box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.22), 0 18px 50px rgba(0, 0, 0, 0.28);
+            outline: none;
+        }
+        .search-glyph { width: 22px; height: 22px; opacity: 0.7; flex-shrink: 0; }
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 500;
+        }
+        .search-input::placeholder { color: rgba(155, 170, 188, 0.9); }
+        .search-btn {
+            width: 48px;
+            height: 48px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.10);
+            color: #fff;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+        }
+        .search-btn:focus,
+        .search-btn.safeer-active-card {
+            background: #00e5ff;
+            color: #041016;
+            box-shadow: 0 0 28px rgba(0, 229, 255, 0.55);
+        }
+        .engine-chips { display: flex; gap: 12px; }
+        .engine-chip {
+            font-size: 16px;
+            font-weight: 650;
+            padding: 10px 20px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #9aacbf;
+            outline: none;
+        }
+        .engine-chip.active {
+            color: #eaf6ff;
+            background: rgba(255, 255, 255, 0.10);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+        .engine-chip:focus,
+        .engine-chip.safeer-active-card {
+            color: #041016;
+            background: #00e5ff;
+            border-color: #00e5ff;
+            box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.25), 0 0 28px rgba(0, 229, 255, 0.4);
+            outline: none;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0 0 14px 4px;
+        }
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            color: rgba(154, 172, 191, 0.9);
+            margin: 0;
+        }
+        .edit-chip {
+            font-size: 16px;
+            font-weight: 700;
+            padding: 8px 18px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #c9d6e4;
+            outline: none;
+        }
+        .edit-chip:focus,
+        .edit-chip.safeer-active-card {
+            color: #041016;
+            background: #00e5ff;
+            border-color: #00e5ff;
+            box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.25);
+        }
+        .hero-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 28px;
+            contain: layout;
+        }
+        .hero-card {
+            position: relative;
+            height: 210px;
+            border-radius: 22px;
+            overflow: hidden;
+            outline: none;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+            transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+        }
+        .hero-card .art {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 42px;
+        }
+        .hero-card .art svg { width: 72px; height: 72px; opacity: 0.95; }
+        .hero-card .hero-label {
+            position: absolute; left: 22px; right: 22px; bottom: 18px;
+            font-size: 26px; font-weight: 750; letter-spacing: 0.2px;
+            text-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+        }
+        .hero-card.tone-0 .art { background: linear-gradient(145deg, #0d1f14 0%, #1c3a24 58%, #2c5a38 100%); }
+        .hero-card.tone-1 .art { background: linear-gradient(145deg, #0b1a12 0%, #17331f 55%, #245231 100%); }
+        .hero-card.tone-2 .art { background: linear-gradient(145deg, #062a38 0%, #0277a3 55%, #00d2ff 100%); }
+        .hero-card.tone-3 .art { background: linear-gradient(145deg, #0a2040 0%, #1256a8 58%, #3d8bff 100%); }
+        .hero-card.tone-4 .art { background: linear-gradient(145deg, #123018 0%, #1b7a45 58%, #4ade80 100%); }
+        .hero-card.tone-5 .art { background: linear-gradient(145deg, #2a1840 0%, #6d28d9 58%, #c4b5fd 100%); }
+        .hero-card:focus,
+        .hero-card.safeer-active-card {
+            transform: scale(1.035);
+            border-color: #00e5ff;
+            box-shadow: 0 0 0 4px #00e5ff, 0 0 36px rgba(0, 229, 255, 0.45);
+            z-index: 2;
+        }
+
+        .more-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            flex: 1;
+        }
+        .favorite-tile.mini {
+            height: 118px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.045);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            outline: none;
+        }
+        .favorite-tile.mini .tile-icon-wrapper {
+            width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            background: transparent; border: none; box-shadow: none;
+        }
+        .favorite-tile.mini .tile-icon-wrapper svg { width: 32px; height: 32px; }
+        .favorite-tile.mini .tile-name {
+            font-size: 16px;
+            font-weight: 650;
+            color: #dbe6f2;
+            max-width: none;
+        }
+        .favorite-tile.mini:focus,
+        .favorite-tile.mini.safeer-active-card {
+            background: rgba(0, 229, 255, 0.12);
+            border-color: #00e5ff;
+            box-shadow: 0 0 0 4px #00e5ff, 0 0 28px rgba(0, 229, 255, 0.35);
+            transform: none;
+        }
+        .mini-add { border-style: dashed; border-color: rgba(255, 255, 255, 0.18); background: transparent; }
+        .mini-add .tile-name { color: #9aacbf; }
+        .hero-card.mini-add .art { background: rgba(255, 255, 255, 0.04); }
+        .hero-card.mini-add .hero-label { color: #9aacbf; font-weight: 650; }
+    </style>
+<link href="safeer-home.css" rel="stylesheet"/>
+</head>
+<body>
+<div class="stage">
+<header class="safeer-brand"><img alt="" height="56" src="safeer-mark.svg" width="56"/><div><h1>Safeer</h1><p><span data-home-text="home_tagline">Your web. On the big screen.</span></p></div><span class="edition">TV Browser</span></header>
+<div class="search-card">
+<form class="search-bar-wrapper" id="searchForm" onsubmit="return handleSearch(event)">
+<svg class="search-glyph" fill="none" stroke="#c9d6e4" stroke-width="2" viewbox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.2-3.2"></path></svg>
+<input autocomplete="off" autocorrect="off" class="search-input" data-home-placeholder="home_search" id="searchInput" placeholder="Search or enter an address..." tabindex="-1" type="text"/>
+<button aria-label="Search" class="search-btn" data-home-label="search" tabindex="0" type="submit">→</button>
+</form>
+<div class="engine-chips">
+<div class="engine-chip active" onclick="setEngine('google', this)" role="button" tabindex="0">Google</div>
+<div class="engine-chip" onclick="setEngine('duckduckgo', this)" role="button" tabindex="0">DuckDuckGo</div>
+<div class="engine-chip" onclick="setEngine('brave', this)" role="button" tabindex="0">Brave Search</div>
+</div>
+<div style="font-size: 13px; color: rgba(148, 163, 184, 0.75); letter-spacing: 0.8px; margin-top: -4px; font-weight: 600;"><span data-home-text="safer">🛡️ Safer browsing · Safeer Browser</span></div>
+</div>
+<div class="section-head">
+<div class="section-title"><span data-home-text="my_sites">My websites</span></div>
+<div class="edit-chip" onclick="editTiles()" role="button" tabindex="0"><span data-home-text="edit">Edit</span></div>
+</div>
+<div class="hero-row" id="heroRow"></div>
+<div class="section-head">
+<div class="section-title"><span data-home-text="more_sites">More websites</span></div>
+<div class="edit-chip" onclick="addTile()" role="button" tabindex="0"><span data-home-text="add">Add</span></div>
+</div>
+<div class="more-row" id="favoritesGrid"></div>
+<footer class="remote-help"><span><b>OK</b><span data-home-text="open">Open</span></span><span><b><span data-home-text="back">Back</span></b><span data-home-text="return">Go back</span></span><span><i class="remote-red"></i><span data-home-text="sites">Quick sites</span></span><span><i class="remote-green"></i><span data-home-text="pointer">Pointer</span></span></footer>
+</div>
+<script src="home-language.js"></script><script>
+    var currentEngine = 'google';
+    var DEFAULT_TILES = [
+        { title: 'Xplore TV', url: 'https://www.xploretv.si/livetv' },
+        { title: 'YouTube Music', url: 'https://www.youtube.com/tv#/browse?c=FEtopics_music' },
+        { title: '24ur', url: 'https://www.24ur.com' },
+        { title: 'RTV SLO', url: 'https://www.rtvslo.si' },
+        { title: 'Google', url: 'https://www.google.com' },
+        { title: 'ChatGPT', url: 'https://chatgpt.com' },
+        { title: 'Kripto', url: 'https://cryptoquant.com' },
+        { title: 'Wikipedija', url: 'https://sl.wikipedia.org' }
+    ];
+
+    function loadTiles() {
+        try {
+            if (window.SafeerBridge && typeof window.SafeerBridge.getHomeTiles === 'function') {
+                var raw = window.SafeerBridge.getHomeTiles();
+                var parsed = JSON.parse(raw);
+                if (parsed && parsed.length) return popraviBliznjice(parsed);
+            }
+        } catch (e) {}
+        return popraviBliznjice(DEFAULT_TILES.slice());
+    }
+
+    /* Ze shranjena bliznjica YouTube naj odpre glasbeni zavihek, ne domace strani. */
+    var YT_STARE = [
+        'https://www.youtube.com/tv', 'https://www.youtube.com/tv/',
+        'http://www.youtube.com/tv', 'https://youtube.com/tv', 'https://m.youtube.com/tv'
+    ];
+    function popraviBliznjice(tiles) {
+        for (var i = 0; i < tiles.length; i++) {
+            var u = String((tiles[i] && tiles[i].url) || '');
+            if (YT_STARE.indexOf(u) !== -1) {
+                tiles[i].url = 'https://www.youtube.com/tv#/browse?c=FEtopics_music';
+                tiles[i].title = 'YouTube Music';
+            }
+        }
+        return tiles;
+    }
+
+    function letterMark(title) {
+        var t = String(title || '').replace(/^[^A-Za-z0-9ČčŠšŽž]+/, '');
+        var ch = t.charAt(0) || String(title || '?').charAt(0) || '?';
+        return ch.toUpperCase();
+    }
+
+    function bindOpen(el, url) {
+        el.addEventListener('click', function() { openUrl(url); });
+    }
+
+    function renderTiles() {
+        var tiles = loadTiles();
+        var heroes = tiles.slice(0, 4);
+        var rest = tiles.slice(4);
+        var heroRow = document.getElementById('heroRow');
+        var miniRow = document.getElementById('favoritesGrid');
+        heroRow.innerHTML = '';
+        miniRow.innerHTML = '';
+
+        function addHero(tile, index, isAdd) {
+            var el = document.createElement('div');
+            el.className = isAdd ? 'favorite-tile hero-card mini-add' : ('favorite-tile hero-card tone-' + (index % 6));
+            el.setAttribute('role', 'button');
+            el.tabIndex = 0;
+            var art = document.createElement('div');
+            art.className = 'art';
+            art.textContent = isAdd ? '+' : letterMark(tile.title);
+            var lab = document.createElement('div');
+            lab.className = 'hero-label';
+            lab.textContent = isAdd ? homeText('add') : tile.title;
+            el.appendChild(art);
+            el.appendChild(lab);
+            if (isAdd) el.addEventListener('click', addTile);
+            else bindOpen(el, tile.url);
+            heroRow.appendChild(el);
+        }
+
+        for (var i = 0; i < heroes.length; i++) addHero(heroes[i], i, false);
+        if (heroes.length < 4) addHero({ title: homeText('add'), url: '' }, 0, true);
+
+        function addMini(tile, isAdd) {
+            var el = document.createElement('div');
+            el.className = isAdd ? 'favorite-tile mini mini-add' : 'favorite-tile mini';
+            el.setAttribute('role', 'button');
+            el.tabIndex = 0;
+            var wrap = document.createElement('div');
+            wrap.className = 'tile-icon-wrapper';
+            wrap.textContent = isAdd ? '+' : letterMark(tile.title);
+            wrap.style.fontSize = '22px';
+            wrap.style.fontWeight = '800';
+            wrap.style.color = '#dbe6f2';
+            var name = document.createElement('div');
+            name.className = 'tile-name';
+            name.textContent = isAdd ? homeText('add') : tile.title;
+            el.appendChild(wrap);
+            el.appendChild(name);
+            if (isAdd) el.addEventListener('click', addTile);
+            else bindOpen(el, tile.url);
+            miniRow.appendChild(el);
+        }
+
+        for (var j = 0; j < rest.length; j++) addMini(rest[j], false);
+        addMini({ title: homeText('add'), url: '' }, true);
+    }
+
+    function editTiles() {
+        if (window.SafeerBridge && window.SafeerBridge.openHomeTilesEditor) window.SafeerBridge.openHomeTilesEditor();
+    }
+    function addTile() {
+        if (window.SafeerBridge && window.SafeerBridge.addHomeTile) window.SafeerBridge.addHomeTile();
+    }
+
+    function setEngine(engine, el) {
+        currentEngine = engine;
+        document.querySelectorAll('.engine-chip').forEach(function(c) { c.classList.remove('active'); });
+        if (el) el.classList.add('active');
+        var input = document.getElementById('searchInput');
+        if (engine === 'duckduckgo') input.placeholder = homeText('private_search');
+        else if (engine === 'brave') input.placeholder = homeText('brave_search');
+        else input.placeholder = homeText('home_search');
+        try { input.blur(); } catch (e) {}
+    }
+
+    function handleSearch(e) {
+        if (e) e.preventDefault();
+        var q = document.getElementById('searchInput').value.trim();
+        if (!q) return false;
+        var targetUrl = '';
+        if (q.indexOf('http://') === 0 || q.indexOf('https://') === 0) targetUrl = q;
+        else if (q.indexOf('.') !== -1 && q.indexOf(' ') === -1) targetUrl = 'https://' + q;
+        else if (currentEngine === 'duckduckgo') targetUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(q);
+        else if (currentEngine === 'brave') targetUrl = 'https://search.brave.com/search?q=' + encodeURIComponent(q);
+        else targetUrl = 'https://www.google.com/search?q=' + encodeURIComponent(q);
+        openUrl(targetUrl);
+        return false;
+    }
+
+    function openUrl(url) {
+        if (window.SafeerBridge && typeof window.SafeerBridge.navigate === 'function') window.SafeerBridge.navigate(url);
+        else window.location.href = url;
+    }
+
+    function bootTiles() {
+        renderTiles();
+        if (!window.SafeerBridge) setTimeout(renderTiles, 150);
+    }
+    bootTiles();
+</script>
+</body>
+</html>

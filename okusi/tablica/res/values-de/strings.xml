@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tablet_ime">Safeer OS Tablet</string>
+    <string name="tablet_podnaslov">Dein Computer in deinen Händen.</string>
+    <string name="tablet_v_pripravi">In Arbeit. Was unten steht, funktioniert; was noch fehlt, versprechen wir nicht. Eine Kachel erscheint erst, wenn der Computer das wirklich freigibt – Ordner, Programme und Bildschirm wählst du in Safeer Control auf dem Computer.</string>
+    <string name="tablet_datoteke">Dateien</string>
+    <string name="tablet_datoteke_opis">Videos, Musik, Fotos und Dokumente von deinem Computer</string>
+    <string name="tablet_naprave">Geräte</string>
+    <string name="tablet_naprave_opis">Was über Safeer Link verbunden ist</string>
+    <string name="tablet_programi">Computerprogramme</string>
+    <string name="tablet_programi_opis">Nach Gruppen sortiert, mit Suche; von hier aus starten</string>
+    <string name="tablet_zaslon">Computerbildschirm</string>
+    <string name="tablet_zaslon_opis">Bild und Ton deines Computers auf dem Tablet</string>
+    <string name="tablet_ni_racunalnika">Noch kein Computer verbunden. Starte Safeer Control auf deinem Computer und verbinde ihn mit Safeer Link; er erscheint dann von selbst hier.</string>
+    <string name="tablet_ni_linka">Dieses Tablet ist noch nicht in Safeer Link. Öffne Geräte und verbinde es – dann erscheinen hier deine Dateien, Programme und dein Computerbildschirm.</string>
+    <string name="tablet_vklopi">Safeer Link einschalten</string>
+    <string name="tablet_vklopi_opis">Das Tablet tritt deinem Heimnetz bei; dann kann dein Computer Dateien, Programme und seinen Bildschirm freigeben</string>
+    <string name="tablet_vklopljen">Safeer Link ist an. Öffne auf dem Computer Safeer Control und kopple ihn mit diesem Tablet.</string>
+    <string name="tablet_znova">Erneut verbinden</string>
+    <string name="tablet_znova_opis">Safeer Link ist an, aber die Verbindung steht nicht. Versuche es erneut.</string>
+    <string name="os_naprava_tv">dieses Tablet</string>
+    <string name="os_krajevno_koren">Auf diesem Tablet</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS braucht die Berechtigung, die Dateien auf diesem Tablet zu lesen.</string>
+    <string name="os_krajevno_ta_tv">Dieses Tablet</string>
+    <string name="os_krajevno_ta_tv_opis">Videos, Musik und Fotos auf dem Tablet und USB</string>
+    <string name="os_odsek_aplikacije">Apps auf diesem Tablet</string>
+    <string name="tablet_pridruzi">%1$s beitreten</string>
+    <string name="tablet_pridruzi_opis">Safeer Link in diesem Zuhause. Auf dem Bildschirm von „%1$s“ erscheint ein Code; du gibst ihn hier ein</string>
+    <string name="tablet_povezujem">Verbinde mit „%1$s“ …</string>
+    <string name="tablet_ni_odgovora">„%1$s“ antwortet nicht. Prüfe, ob das Gerät eingeschaltet und im selben Netz ist.</string>
+    <string name="tablet_koda_naslov">Code von „%1$s“</string>
+    <string name="tablet_koda_opis">Auf dem Bildschirm von „%1$s“ (in Safeer OS) ist ein sechsstelliger Code erschienen. Gib ihn hier ein.</string>
+    <string name="tablet_poveziSe">Verbinden</string>
+    <string name="tablet_povezana">Das Tablet ist mit „%1$s“ verbunden.</string>
+    <string name="tablet_napacna_koda">Der Code stimmt nicht. Prüfe ihn auf dem Bildschirm und versuche es erneut.</string>
+    <string name="tablet_prevec_poskusov">Zu viele falsche Codes. Beginne erneut über die Kachel.</string>
+    <string name="tablet_pridruzi_namig">In diesem Zuhause gibt es Safeer Link auf einem anderen Gerät. Tritt ihm über die Kachel oben bei; auf seinem Bildschirm erscheint ein Code.</string>
+    <string name="tablet_koda_potekla">Der Code ist abgelaufen. Tippe erneut auf die Kachel für einen neuen.</string>
+    <string name="os_vir_tv">Tablet</string>
+    <string name="tablet_nova_koda">Neuer Code</string>
+    <string name="tablet_stanje_ni_tv">Noch nicht mit einem Fernseher verbunden</string>
+</resources>

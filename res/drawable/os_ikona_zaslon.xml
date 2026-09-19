@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zaslon racunalnika na televizorju: monitor s puscico predvajanja. Ista debelina in barva
+     poteze kot pri drugih ikonah, da je v vrsti Zacni enako velika. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:strokeColor="#57D6AD" android:strokeWidth="1.8" android:fillColor="#00000000"
+        android:strokeLineJoin="round" android:strokeLineCap="round"
+        android:pathData="M2,4 h20 v13 H2 Z M8,21 h8 M12,17 v4"/>
+    <path android:fillColor="#57D6AD" android:pathData="M10,7.5 L15.5,10.5 L10,13.5 Z"/>
+</vector>

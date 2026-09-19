@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Slika cez ves zaslon; spodaj ime in stevec (skrijeta se sama). Levo/desno: prejsnja/naslednja. -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+    <ImageView
+        android:id="@+id/slika"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:contentDescription="@null"/>
+    <ProgressBar
+        android:id="@+id/nalagam"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center"
+        android:indeterminateTint="@color/os_mint"/>
+    <LinearLayout
+        android:id="@+id/prekritje"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="48dp"
+        android:layout_marginBottom="36dp"
+        android:background="@drawable/os_prekritje"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp">
+        <TextView
+            android:id="@+id/ime"
+            style="@style/Os.Kartica.Naslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="600dp"/>
+        <TextView
+            android:id="@+id/stevec"
+            style="@style/Os.Kartica.Opis"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:textSize="13sp"/>
+    </LinearLayout>
+</merge>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oznaka tipke v spodnji vrstici pomoci (OK, Nazaj, Drzi OK). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/os_kartica_dvignjena"/>
+    <stroke android:width="1dp" android:color="@color/os_crta"/>
+    <corners android:radius="6dp"/>
+</shape>
