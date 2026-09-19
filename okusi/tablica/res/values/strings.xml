@@ -34,4 +34,5 @@
     <string name="tablet_napacna_koda">The code does not match. Check it on the screen and try again.</string>
     <string name="tablet_prevec_poskusov">Too many wrong codes. Start again from the tile.</string>
     <string name="tablet_pridruzi_namig">There is Safeer Link on another device in this home. Join it with the tile above; a code appears on its screen.</string>
+    <string name="tablet_koda_potekla">The code has expired. Tap the tile again for a new one.</string>
 </resources>

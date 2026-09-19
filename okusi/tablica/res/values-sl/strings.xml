@@ -33,4 +33,5 @@
     <string name="tablet_napacna_koda">Koda se ne ujema. Preveri jo na zaslonu in poskusi znova.</string>
     <string name="tablet_prevec_poskusov">Preveč napačnih kod. Začni znova s ploščice.</string>
     <string name="tablet_pridruzi_namig">V tej hiši je Safeer Link še na drugi napravi. Pridruži se mu s ploščico zgoraj; na njenem zaslonu se pokaže koda.</string>
+    <string name="tablet_koda_potekla">Koda je potekla. Za novo znova pritisni ploščico.</string>
 </resources>

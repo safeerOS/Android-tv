@@ -518,7 +518,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Na locenem zaslonu menija Start ni; tam je prvi preklop med odprtimi programi.
         if (naDrugem) dejanja.add(getString(R.string.os_zaslon_naslednji) to { posljiTipko("preklopi_okno") })
         else dejanja.add(getString(R.string.os_zaslon_meni_start) to { posljiTipko("domov") })
-        dejanja.add(getString(R.string.os_zaslon_meni_tipkovnica) to { tipkovnica?.odpri() })
+        dejanja.add(getString(R.string.os_zaslon_meni_tipkovnica) to { odpriTipkovnico() })
         if (naDrugem && fokusPodprt) {
             dejanja.add(getString(if (vlecem) R.string.os_zaslon_meni_spusti else R.string.os_zaslon_meni_vleci) to
                 { preklopiVlecenje() })
@@ -751,6 +751,63 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     // ------------------------------------------------------------------ dotik (tablica)
 
+    /**
+     * Na tablici je prava tipkovnica tista, ki jo uporabnik pozna: sistemska. Nevidno polje ujame,
+     * kar natipka, in to takoj poslje racunalniku (crke kot besedilo, brisanje in Enter kot tipki).
+     * Predlogi so izklopljeni: sestavljanje besede bi racunalniku poslalo polovicne crke.
+     */
+    private var sistemskoPolje: android.widget.EditText? = null
+
+    private fun odpriTipkovnico() {
+        if (!naDotik()) { tipkovnica?.odpri(); return }
+        val polje = sistemskoPolje ?: android.widget.EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
+                android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            imeOptions = android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI or
+                android.view.inputmethod.EditorInfo.IME_ACTION_NONE
+            setText(" ")
+            alpha = 0f
+            addTextChangedListener(object : android.text.TextWatcher {
+                private var ponastavljam = false
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    if (ponastavljam || s == null) return
+                    val t = s.toString()
+                    when {
+                        t.isEmpty() -> poslji(JSONObject().put("vrsta", "tipka").put("tipka", "vracalka"))
+                        t.length > 1 -> {
+                            val novo = t.substring(1)
+                            val brezNove = novo.replace("\n", "")
+                            if (brezNove.isNotEmpty()) poslji(JSONObject().put("vrsta", "besedilo").put("besedilo", brezNove))
+                            if (novo.contains('\n')) poslji(JSONObject().put("vrsta", "tipka").put("tipka", "vnasalka"))
+                        }
+                        else -> return
+                    }
+                    ponastavljam = true
+                    s.replace(0, s.length, " ")
+                    setSelection(1)
+                    ponastavljam = false
+                }
+            })
+            setOnKeyListener { _, koda, e ->
+                if (e.action == KeyEvent.ACTION_DOWN && (koda == KeyEvent.KEYCODE_ENTER || koda == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                    poslji(JSONObject().put("vrsta", "tipka").put("tipka", "vnasalka")); true
+                } else if (e.action == KeyEvent.ACTION_DOWN && koda == KeyEvent.KEYCODE_DEL && text.length <= 1) {
+                    poslji(JSONObject().put("vrsta", "tipka").put("tipka", "vracalka")); true
+                } else false
+            }
+            findViewById<android.widget.FrameLayout>(R.id.koren).addView(this,
+                android.widget.FrameLayout.LayoutParams(1, 1))
+            sistemskoPolje = this
+        }
+        polje.requestFocus()
+        polje.setSelection(polje.text.length)
+        (getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+            ?.showSoftInput(polje, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
     private fun naDotik(): Boolean =
         packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN) &&
             (getSystemService(UI_MODE_SERVICE) as? android.app.UiModeManager)?.currentModeType !=
@@ -869,7 +926,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 pokaziNamigBesedilo(getString(R.string.os_zaslon_profil_brskalnik), 6_000)
             }
         }
-        if (o.optBoolean("tipkovnica") && tipkovnica?.jeOdprta != true) tipkovnica?.odpri()
+        if (o.optBoolean("tipkovnica") && tipkovnica?.jeOdprta != true) odpriTipkovnico()
         o.optJSONArray("kazalec")?.let { k -> if (povecava && k.length() == 2) premakniPovecavo(k.optInt(0), k.optInt(1)) }
     }
 

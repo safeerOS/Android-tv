@@ -154,6 +154,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             val sporocilo = when (napaka) {
                 "napacna_koda" -> getString(R.string.tablet_napacna_koda)
                 "prevec_poskusov" -> getString(R.string.tablet_prevec_poskusov)
+                "prijava_ne_obstaja", "seznanitev_ne_tece" -> getString(R.string.tablet_koda_potekla)
                 else -> getString(R.string.tablet_ni_odgovora, hub.ime)
             }
             Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
