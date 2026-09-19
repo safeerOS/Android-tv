@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ploščica aplikacije (Nadaljuj / Nedavno uporabljeno): zaobljena kartica z ikono in imenom.
+     Ob fokusu z daljinca dobi poudarjeno mint obrobo kot na predlogi. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_kartica_steklo_fokus"/>
+            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <corners android:radius="@dimen/os_kot_ploscica"/>
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_kartica_steklo_fokus"/>
+            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <corners android:radius="@dimen/os_kot_ploscica"/>
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_ploscica_app_ozadje"/>
+            <stroke android:width="1dp" android:color="@color/os_kartica_obroba"/>
+            <corners android:radius="@dimen/os_kot_ploscica"/>
+        </shape>
+    </item>
+</selector>

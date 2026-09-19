@@ -37,4 +37,6 @@
     <!-- Meni in Safeer Link: ista podoba kot na safeer.si (temna podlaga, mint zelena, crtne ikone) -->
     <color name="menu_icon">#DCE6EA</color>
     <color name="menu_icon_accent">#54D6A5</color>
+    <color name="bg_glass">#1AFFFFFF</color>
+    <color name="border_glass">#2A3B4D</color>
 </resources>

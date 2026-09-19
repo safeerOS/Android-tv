@@ -3,4 +3,12 @@
      je stalna: vrsta drsi, zato je besedilo na kartici enako berljivo pri stirih ali osmih. -->
 <resources>
     <dimen name="os_rob">48dp</dimen>
+    <dimen name="os_meni_sirina">220dp</dimen>
+    <dimen name="os_kot_kartica">14dp</dimen>
+    <dimen name="os_kot_ploscica">14dp</dimen>
+    <dimen name="os_kot_plosca">16dp</dimen>
+    <dimen name="os_kot_meni">12dp</dimen>
+    <dimen name="os_ploscica_ikona_velikost">48dp</dimen>
+    <dimen name="os_ploscica_sirina">104dp</dimen>
+    <dimen name="os_ploscica_visina">104dp</dimen>
 </resources>
