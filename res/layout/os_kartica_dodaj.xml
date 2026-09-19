@@ -1,34 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ploščica aplikacije / vsebine Safeer OS s polprosojnim ozadjem in poudarjenim mint fokusom -->
+<!-- Ploščica za dodajanje aplikacije v vrsti Nedavno uporabljeno / Nadaljuj -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="108dp"
     android:layout_height="104dp"
-    android:layout_marginEnd="14dp"
     android:orientation="vertical"
     android:gravity="center"
     android:background="@drawable/os_ploscica_app"
     android:paddingStart="8dp"
     android:paddingEnd="8dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
     android:focusable="true"
     android:focusableInTouchMode="false"
     android:clickable="true">
+
     <ImageView
         android:id="@+id/ikona"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:scaleType="fitCenter"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/os_ikona_plus"
+        android:scaleType="centerInside"
         android:contentDescription="@null"/>
+
     <TextView
         android:id="@+id/ime"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
         android:singleLine="true"
         android:ellipsize="end"
-        android:textColor="@color/os_besedilo"
+        android:text="@string/os_dodaj_aplikacijo"
+        android:textColor="@color/os_umirjeno"
         android:textSize="11sp"
         android:fontFamily="sans-serif-medium"/>
 </LinearLayout>

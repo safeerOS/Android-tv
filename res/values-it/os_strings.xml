@@ -150,7 +150,7 @@
     <string name="os_spletne_levo">Sposta a sinistra</string>
     <string name="os_spletne_desno">Sposta a destra</string>
     <!-- Programi racunalnika na televizorju -->
-    <string name="os_programi">Programmi del computer</string>
+    <string name="os_programi">Programmi</string>
     <string name="os_programi_naslov">Quello che hai sul computer</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Cerca per nome</string>
@@ -340,4 +340,24 @@
     <string name="os_priljubljen_odstrani">Rimuovi dalla schermata Home</string>
     <string name="os_odsek_priljubljene">App preferite</string>
     <string name="os_vse_kartica">Tutte le app</string>
+<!-- Glava in stranski meni -->
+    <string name="os_meni_domov">Home</string>
+    <string name="os_meni_aplikacije">Applicazioni</string>
+    <string name="os_meni_zaslon">Schermo</string>
+    <string name="os_meni_datoteke">File</string>
+    <string name="os_meni_naprave">Dispositivi</string>
+    <string name="os_meni_nastavitve">Impostazioni</string>
+    <string name="os_podnaslov_app">Il tuo computer nelle tue mani.</string>
+    <string name="os_pozdrav_naslov">Bentornato!</string>
+    <string name="os_pozdrav_podnaslov">Tutti i tuoi dispositivi, app e contenuti in un unico posto.</string>
+    <string name="os_noge_podpis">Safeer OS | Mondo aperto. Senza limiti.</string>
+    <string name="os_poganja_opis">Collega i tuoi dispositivi</string>
+<string name="os_brskalnik_naslov">Browser web</string>
+    <string name="os_brskalnik_opis">Veloce, sicuro, senza pubblicità</string>
+    <string name="os_zaslon_opis">Visualizza e controlla il tuo computer</string>
+    <string name="os_programi_opis">Avvia i programmi dei dispositivi collegati</string>
+    <string name="os_nedavno_uporabljeno">Usato di recente</string>
+    <string name="os_dodaj_aplikacijo">Aggiungi applicazione</string>
+    <string name="os_kartica_ni_povezano_naslov">Dispositivo non collegato</string>
+    <string name="os_kartica_ni_povezano_opis">Collega il tuo computer a Safeer Link e abilita la condivisione in Safeer Control.</string>
 </resources>

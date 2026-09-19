@@ -151,7 +151,7 @@
     <string name="os_spletne_levo">Move left</string>
     <string name="os_spletne_desno">Move right</string>
     <!-- Programi racunalnika na televizorju -->
-    <string name="os_programi">Computer programs</string>
+    <string name="os_programi">Programs</string>
     <string name="os_programi_naslov">What is on your computer</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Search by name</string>
@@ -341,4 +341,24 @@
     <string name="os_priljubljen_odstrani">Remove from the home screen</string>
     <string name="os_odsek_priljubljene">Favourite apps</string>
     <string name="os_vse_kartica">All apps</string>
+<!-- Glava in stranski meni -->
+    <string name="os_meni_domov">Home</string>
+    <string name="os_meni_aplikacije">Apps</string>
+    <string name="os_meni_zaslon">Screen</string>
+    <string name="os_meni_datoteke">Files</string>
+    <string name="os_meni_naprave">Devices</string>
+    <string name="os_meni_nastavitve">Settings</string>
+    <string name="os_podnaslov_app">Your computer in your hands.</string>
+    <string name="os_pozdrav_naslov">Welcome back!</string>
+    <string name="os_pozdrav_podnaslov">All your devices, apps and content – in one place.</string>
+    <string name="os_noge_podpis">Safeer OS | Open world. No limits.</string>
+    <string name="os_poganja_opis">Connects your devices</string>
+<string name="os_brskalnik_naslov">Web Browser</string>
+    <string name="os_brskalnik_opis">Fast, secure, ad-free</string>
+    <string name="os_zaslon_opis">View and control your computer</string>
+    <string name="os_programi_opis">Launch programs from connected devices</string>
+    <string name="os_nedavno_uporabljeno">Recently used</string>
+    <string name="os_dodaj_aplikacijo">Add app</string>
+    <string name="os_kartica_ni_povezano_naslov">Device not connected</string>
+    <string name="os_kartica_ni_povezano_opis">Connect your computer to Safeer Link and enable sharing in Safeer Control.</string>
 </resources>

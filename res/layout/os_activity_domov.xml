@@ -390,23 +390,201 @@
                         android:text="@string/os_pozdrav_podnaslov"/>
                 </LinearLayout>
 
-                <!-- Nadaljuj: kar je uporabnik nazadnje odprl. -->
+                <!-- Tri velike primarne kartice (Spletni brskalnik, Zaslon računalnika, Programi) -->
+                <LinearLayout
+                    android:id="@+id/vrstaVelikeKartice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:orientation="horizontal">
+
+                    <!-- 1. Spletni brskalnik -->
+                    <LinearLayout
+                        android:id="@+id/karticaBrskalnik"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="14dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:background="@drawable/os_kartica_steklo"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="14dp"
+                        android:paddingBottom="14dp">
+                        <ImageView
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/os_ikona_splet"
+                            android:contentDescription="@null"/>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/os_brskalnik_naslov"
+                                android:textColor="@color/os_besedilo"
+                                android:textSize="16sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:text="@string/os_brskalnik_opis"
+                                android:textColor="@color/os_umirjeno"
+                                android:textSize="12sp"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                        </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="›"
+                            android:textColor="@color/os_umirjeno"
+                            android:textSize="20sp"
+                            android:fontFamily="sans-serif-medium"/>
+                    </LinearLayout>
+
+                    <!-- 2. Zaslon računalnika -->
+                    <LinearLayout
+                        android:id="@+id/karticaZaslon"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="14dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:background="@drawable/os_kartica_steklo"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="14dp"
+                        android:paddingBottom="14dp">
+                        <ImageView
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/os_ikona_zaslon"
+                            android:contentDescription="@null"/>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/os_zaslon"
+                                android:textColor="@color/os_besedilo"
+                                android:textSize="16sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:text="@string/os_zaslon_opis"
+                                android:textColor="@color/os_umirjeno"
+                                android:textSize="12sp"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                        </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="›"
+                            android:textColor="@color/os_umirjeno"
+                            android:textSize="20sp"
+                            android:fontFamily="sans-serif-medium"/>
+                    </LinearLayout>
+
+                    <!-- 3. Programi (povezanih naprav) -->
+                    <LinearLayout
+                        android:id="@+id/karticaProgrami"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:background="@drawable/os_kartica_steklo"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="14dp"
+                        android:paddingBottom="14dp">
+                        <ImageView
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/os_ikona_aplikacije"
+                            android:contentDescription="@null"/>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/os_programi"
+                                android:textColor="@color/os_besedilo"
+                                android:textSize="16sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:text="@string/os_programi_opis"
+                                android:textColor="@color/os_umirjeno"
+                                android:textSize="12sp"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                        </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="›"
+                            android:textColor="@color/os_umirjeno"
+                            android:textSize="20sp"
+                            android:fontFamily="sans-serif-medium"/>
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Nadaljuj / Nedavno uporabljeno -->
                 <TextView
                     android:id="@+id/naslovNadaljuj"
                     style="@style/Os.Nadnaslov"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    android:text="@string/os_odsek_nadaljuj"
-                    android:visibility="gone"/>
+                    android:layout_marginTop="22dp"
+                    android:text="@string/os_nedavno_uporabljeno"/>
                 <HorizontalScrollView
                     android:id="@+id/drsnikNadaljuj"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
                     android:scrollbars="none"
-                    android:clipToPadding="false"
-                    android:visibility="gone">
+                    android:clipToPadding="false">
                     <LinearLayout
                         android:id="@+id/vrstaNadaljuj"
                         android:layout_width="wrap_content"

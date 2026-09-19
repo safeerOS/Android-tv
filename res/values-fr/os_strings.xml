@@ -150,7 +150,7 @@
     <string name="os_spletne_levo">Déplacer à gauche</string>
     <string name="os_spletne_desno">Déplacer à droite</string>
     <!-- Programi racunalnika na televizorju -->
-    <string name="os_programi">Programmes de l\'ordinateur</string>
+    <string name="os_programi">Programmes</string>
     <string name="os_programi_naslov">Ce que tu as sur ton ordinateur</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Rechercher par nom</string>
@@ -340,4 +340,24 @@
     <string name="os_priljubljen_odstrani">Retirer de l\'écran d\'accueil</string>
     <string name="os_odsek_priljubljene">Applications favorites</string>
     <string name="os_vse_kartica">Toutes les applis</string>
+<!-- Glava in stranski meni -->
+    <string name="os_meni_domov">Accueil</string>
+    <string name="os_meni_aplikacije">Applications</string>
+    <string name="os_meni_zaslon">Écran</string>
+    <string name="os_meni_datoteke">Fichiers</string>
+    <string name="os_meni_naprave">Appareils</string>
+    <string name="os_meni_nastavitve">Paramètres</string>
+    <string name="os_podnaslov_app">Votre ordinateur entre vos mains.</string>
+    <string name="os_pozdrav_naslov">Bon retour !</string>
+    <string name="os_pozdrav_podnaslov">Tous vos appareils, applications et contenus – au même endroit.</string>
+    <string name="os_noge_podpis">Safeer OS | Monde ouvert. Sans limites.</string>
+    <string name="os_poganja_opis">Connecte vos appareils</string>
+<string name="os_brskalnik_naslov">Navigateur Web</string>
+    <string name="os_brskalnik_opis">Rapide, sécurisé, sans publicité</string>
+    <string name="os_zaslon_opis">Afficher et contrôler votre ordinateur</string>
+    <string name="os_programi_opis">Lancer les programmes des appareils connectés</string>
+    <string name="os_nedavno_uporabljeno">Récemment utilisé</string>
+    <string name="os_dodaj_aplikacijo">Ajouter une application</string>
+    <string name="os_kartica_ni_povezano_naslov">Appareil non connecté</string>
+    <string name="os_kartica_ni_povezano_opis">Connectez votre ordinateur à Safeer Link et activez le partage dans Safeer Control.</string>
 </resources>

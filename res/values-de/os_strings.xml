@@ -150,7 +150,7 @@
     <string name="os_spletne_levo">Nach links verschieben</string>
     <string name="os_spletne_desno">Nach rechts verschieben</string>
     <!-- Programi racunalnika na televizorju -->
-    <string name="os_programi">Programme des Computers</string>
+    <string name="os_programi">Programme</string>
     <string name="os_programi_naslov">Was auf deinem Computer ist</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Nach Namen suchen</string>
@@ -340,4 +340,24 @@
     <string name="os_priljubljen_odstrani">Vom Startbildschirm entfernen</string>
     <string name="os_odsek_priljubljene">Lieblings-Apps</string>
     <string name="os_vse_kartica">Alle Apps</string>
+<!-- Glava in stranski meni -->
+    <string name="os_meni_domov">Startseite</string>
+    <string name="os_meni_aplikacije">Apps</string>
+    <string name="os_meni_zaslon">Bildschirm</string>
+    <string name="os_meni_datoteke">Dateien</string>
+    <string name="os_meni_naprave">Geräte</string>
+    <string name="os_meni_nastavitve">Einstellungen</string>
+    <string name="os_podnaslov_app">Dein Computer in deinen Händen.</string>
+    <string name="os_pozdrav_naslov">Willkommen zurück!</string>
+    <string name="os_pozdrav_podnaslov">Alle deine Geräte, Apps und Inhalte – an einem Ort.</string>
+    <string name="os_noge_podpis">Safeer OS | Offene Welt. Ohne Grenzen.</string>
+    <string name="os_poganja_opis">Verbindet deine Geräte</string>
+<string name="os_brskalnik_naslov">Webbrowser</string>
+    <string name="os_brskalnik_opis">Schnell, sicher, werbefrei</string>
+    <string name="os_zaslon_opis">Deinen Computer anzeigen und steuern</string>
+    <string name="os_programi_opis">Programme verbundener Geräte starten</string>
+    <string name="os_nedavno_uporabljeno">Zuletzt verwendet</string>
+    <string name="os_dodaj_aplikacijo">App hinzufügen</string>
+    <string name="os_kartica_ni_povezano_naslov">Gerät nicht verbunden</string>
+    <string name="os_kartica_ni_povezano_opis">Verbinde deinen Computer mit Safeer Link und aktiviere die Freigabe in Safeer Control.</string>
 </resources>

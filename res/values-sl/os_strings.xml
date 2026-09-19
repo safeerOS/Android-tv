@@ -150,7 +150,7 @@
     <string name="os_spletne_levo">Premakni levo</string>
     <string name="os_spletne_desno">Premakni desno</string>
     <!-- Programi racunalnika na televizorju -->
-    <string name="os_programi">Programi računalnika</string>
+    <string name="os_programi">Programi</string>
     <string name="os_programi_naslov">Kar imaš na računalniku</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Išči po imenu</string>
@@ -340,4 +340,24 @@
     <string name="os_priljubljen_odstrani">Z domačega zaslona</string>
     <string name="os_odsek_priljubljene">Priljubljene aplikacije</string>
     <string name="os_vse_kartica">Vse aplikacije</string>
+<!-- Glava in stranski meni -->
+    <string name="os_meni_domov">Domov</string>
+    <string name="os_meni_aplikacije">Aplikacije</string>
+    <string name="os_meni_zaslon">Zaslon</string>
+    <string name="os_meni_datoteke">Datoteke</string>
+    <string name="os_meni_naprave">Naprave</string>
+    <string name="os_meni_nastavitve">Nastavitve</string>
+    <string name="os_podnaslov_app">Tvoj računalnik v rokah.</string>
+    <string name="os_pozdrav_naslov">Dobrodošel nazaj!</string>
+    <string name="os_pozdrav_podnaslov">Vse tvoje naprave, aplikacije in vsebine – na enem mestu.</string>
+    <string name="os_noge_podpis">Safeer OS | Odprt svet. Brez omejitev.</string>
+    <string name="os_poganja_opis">Povezuje tvoje naprave</string>
+<string name="os_brskalnik_naslov">Spletni brskalnik</string>
+    <string name="os_brskalnik_opis">Hiter, varen, brez oglasov</string>
+    <string name="os_zaslon_opis">Prikaži in upravljaj svoj računalnik</string>
+    <string name="os_programi_opis">Zaženi programe povezanih naprav</string>
+    <string name="os_nedavno_uporabljeno">Nedavno uporabljeno</string>
+    <string name="os_dodaj_aplikacijo">Dodaj aplikacijo</string>
+    <string name="os_kartica_ni_povezano_naslov">Naprava ni povezana</string>
+    <string name="os_kartica_ni_povezano_opis">Poveži računalnik v Safeer Link in omogoči deljenje v Safeer Controlu.</string>
 </resources>
