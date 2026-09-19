@@ -30,9 +30,17 @@ import java.util.Locale
  */
 class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
+    private lateinit var koren: View
     private lateinit var stanjeBesedilo: TextView
     private lateinit var stanjePika: View
     private lateinit var ura: TextView
+    private lateinit var datum: TextView
+    private lateinit var meniDomov: View
+    private lateinit var meniAplikacije: View
+    private lateinit var meniZaslon: View
+    private lateinit var meniDatoteke: View
+    private lateinit var meniNaprave: View
+    private lateinit var meniNastavitve: View
     private lateinit var vrstaZacni: LinearLayout
     private lateinit var vrstaNadaljuj: LinearLayout
     private lateinit var naslovNadaljuj: TextView
@@ -50,7 +58,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val glavna = Handler(Looper.getMainLooper())
     private val tikUre = object : Runnable {
         override fun run() {
-            ura.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            val zdaj = Date()
+            ura.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(zdaj)
+            val dFormat = SimpleDateFormat("EEE, d. MMM", Locale.getDefault())
+            datum.text = dFormat.format(zdaj).replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
             glavna.postDelayed(this, 30_000)
         }
     }
@@ -58,9 +69,20 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.os_activity_domov)
+        koren = findViewById(R.id.koren)
         stanjeBesedilo = findViewById(R.id.stanjeBesedilo)
         stanjePika = findViewById(R.id.stanjePika)
         ura = findViewById(R.id.ura)
+        datum = findViewById(R.id.datum)
+        meniDomov = findViewById(R.id.meniDomov)
+        meniAplikacije = findViewById(R.id.meniAplikacije)
+        meniZaslon = findViewById(R.id.meniZaslon)
+        meniDatoteke = findViewById(R.id.meniDatoteke)
+        meniNaprave = findViewById(R.id.meniNaprave)
+        meniNastavitve = findViewById(R.id.meniNastavitve)
+        meniDomov.isActivated = true
+        meniDomov.isSelected = true
+        pripraviStranskiMeni()
         vrstaZacni = findViewById(R.id.vrstaZacni)
         vrstaNadaljuj = findViewById(R.id.vrstaNadaljuj)
         naslovNadaljuj = findViewById(R.id.naslovNadaljuj)
@@ -77,6 +99,51 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
     }
 
+    private fun pripraviStranskiMeni() {
+        meniDomov.setOnClickListener {
+            (drsnik as? android.widget.ScrollView)?.smoothScrollTo(0, 0)
+            fokusVsebine()
+        }
+        meniAplikacije.setOnClickListener {
+            odpriVarno(Intent(this, AplikacijeTvActivity::class.java), getString(R.string.os_meni_aplikacije))
+        }
+        meniZaslon.setOnClickListener {
+            odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_meni_zaslon))
+        }
+        meniDatoteke.setOnClickListener {
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_meni_datoteke))
+        }
+        meniNaprave.setOnClickListener {
+            if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
+            else vprasajZaNacin()
+        }
+        meniNastavitve.setOnClickListener {
+            odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
+        }
+
+        val menijskePostavke = listOf(meniDomov, meniAplikacije, meniZaslon, meniDatoteke, meniNaprave, meniNastavitve)
+        for (postavka in menijskePostavke) {
+            postavka.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    fokusVsebine()
+                    true
+                } else false
+            }
+        }
+    }
+
+    private fun fokusVsebine() {
+        for (vrsta in listOf(vrstaNadaljuj, vrstaZacni, vrstaSpletne, vrstaAplikacije)) {
+            if (vrsta.visibility == View.VISIBLE && vrsta.childCount > 0) {
+                val prvi = vrsta.getChildAt(0)
+                if (prvi != null && prvi.visibility == View.VISIBLE) {
+                    prvi.requestFocus()
+                    return
+                }
+            }
+        }
+    }
+
     /** Vrstica z gumbi ploscka se pokaze takoj, ko uporabnik plosek prvic uporabi. */
     override fun plosekZaznan() {
         pomocPlosek.visibility =
@@ -85,7 +152,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
-        Ozadje.uporabi(this, drsnik)      // ozadje po izbiri uporabnika
+        Ozadje.uporabi(this, koren)      // ozadje po izbiri uporabnika na celotnem zaslonu
         // Gumbi plosecka v vrstici pomoci, kadar je plosek v rabi; sicer je ne kazemo.
         plosekZaznan()
         glavna.post(tikUre)
@@ -110,9 +177,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Kadar je Safeer OS domaci zaslon televizorja, tipka Nazaj nima kam: zapustili bi ga in
      * uporabnik bi ostal pred praznim zaslonom. Takrat je Nazaj brez ucinka, kot pri zaganjalniku.
      */
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
         if (Zaganjalnik.jeIzbran(this)) return
-        @Suppress("DEPRECATION") super.onBackPressed()
+        super.onBackPressed()
     }
 
     override fun onStop() {

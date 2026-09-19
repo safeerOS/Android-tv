@@ -1,181 +1,486 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/koren"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-<ScrollView
-    android:id="@+id/drsnik"
-    android:layout_width="match_parent"
-    android:layout_height="0dp"
-    android:layout_weight="1"
-    android:background="@color/os_ozadje"
-    android:fillViewport="true"
-    android:scrollbars="none"
-    android:clipToPadding="false"
-    android:requiresFadingEdge="vertical"
-    android:fadingEdgeLength="32dp">
-
+    <!-- Glavno območje: levi stranski meni + desna vsebina -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="@dimen/os_rob"
-        android:paddingEnd="@dimen/os_rob"
-        android:paddingTop="10dp"
-        android:paddingBottom="16dp">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
 
-        <!-- Glava: znak, ime, stanje Linka, ura -->
+        <!-- Levi stranski meni -->
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-            <ImageView
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:src="@drawable/os_znak"
-                android:contentDescription="@null"/>
+            android:id="@+id/stranskiMeni"
+            android:layout_width="@dimen/os_meni_sirina"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="@color/os_meni_ozadje"
+            android:paddingStart="20dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="16dp">
+
+            <!-- Znak in naslov -->
             <LinearLayout
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:orientation="vertical">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/os_app_name"
-                    android:textColor="@color/os_besedilo"
-                    android:textSize="16sp"
-                    android:letterSpacing="0.08"
-                    android:fontFamily="sans-serif-medium"/>
-            </LinearLayout>
-            <LinearLayout
-                android:id="@+id/stanjeOkvir"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/os_znacka"
-                android:paddingStart="10dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp">
-                <View
-                    android:id="@+id/stanjePika"
-                    android:layout_width="8dp"
-                    android:layout_height="8dp"
-                    android:background="@drawable/os_pika"/>
+                android:gravity="center_vertical">
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/os_znak"
+                    android:contentDescription="@null"/>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/os_app_name"
+                        android:textColor="@color/os_besedilo"
+                        android:textSize="18sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textStyle="bold"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/os_podnaslov_app"
+                        android:textColor="@color/os_umirjeno"
+                        android:textSize="11sp"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Menijske postavke -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:orientation="vertical">
+
+                <!-- Domov -->
+                <LinearLayout
+                    android:id="@+id/meniDomov"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:background="@drawable/os_meni_postavka"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:layout_marginBottom="6dp">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/os_ikona_domov"
+                        android:contentDescription="@null"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="@string/os_meni_domov"
+                        android:textColor="@color/os_besedilo"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
+
+                <!-- Aplikacije -->
+                <LinearLayout
+                    android:id="@+id/meniAplikacije"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:background="@drawable/os_meni_postavka"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:layout_marginBottom="6dp">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/os_ikona_aplikacije"
+                        android:contentDescription="@null"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="@string/os_meni_aplikacije"
+                        android:textColor="@color/os_besedilo"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
+
+                <!-- Zaslon -->
+                <LinearLayout
+                    android:id="@+id/meniZaslon"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:background="@drawable/os_meni_postavka"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:layout_marginBottom="6dp">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/os_ikona_zaslon"
+                        android:contentDescription="@null"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="@string/os_meni_zaslon"
+                        android:textColor="@color/os_besedilo"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
+
+                <!-- Datoteke -->
+                <LinearLayout
+                    android:id="@+id/meniDatoteke"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:background="@drawable/os_meni_postavka"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:layout_marginBottom="6dp">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/os_ikona_datoteke"
+                        android:contentDescription="@null"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="@string/os_meni_datoteke"
+                        android:textColor="@color/os_besedilo"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
+
+                <!-- Naprave -->
+                <LinearLayout
+                    android:id="@+id/meniNaprave"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:background="@drawable/os_meni_postavka"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:layout_marginBottom="6dp">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/os_ikona_link"
+                        android:contentDescription="@null"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="@string/os_meni_naprave"
+                        android:textColor="@color/os_besedilo"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
+
+                <!-- Nastavitve -->
+                <LinearLayout
+                    android:id="@+id/meniNastavitve"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:background="@drawable/os_meni_postavka"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp">
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/os_ikona_nastavitve"
+                        android:contentDescription="@null"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="@string/os_meni_nastavitve"
+                        android:textColor="@color/os_besedilo"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"/>
+
+            <!-- Safeer Link status/info na dnu menija -->
+            <LinearLayout
+                android:id="@+id/meniLinkInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="10dp">
                 <TextView
-                    android:id="@+id/stanjeBesedilo"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/os_stanje_povezujem"
-                    android:textColor="@color/os_besedilo"
-                    android:textSize="12sp"/>
+                    android:text="Powered by"
+                    android:textColor="@color/os_umirjeno"
+                    android:textSize="10sp"/>
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/os_ikona_link"
+                        android:contentDescription="@null"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/os_link"
+                        android:textColor="@color/os_mint"
+                        android:textSize="13sp"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
             </LinearLayout>
-            <TextView
-                android:id="@+id/ura"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="14dp"
-                android:textColor="@color/os_umirjeno"
-                android:textSize="13sp"
-                android:fontFamily="sans-serif-medium"/>
+
         </LinearLayout>
 
-        <!-- Nadaljuj: kar je uporabnik nazadnje odprl. Vrsta se pokaze samo, kadar kaj je. -->
-        <TextView
-            android:id="@+id/naslovNadaljuj"
-            style="@style/Os.Nadnaslov"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/os_odsek_nadaljuj"
-            android:visibility="gone"/>
-        <HorizontalScrollView
-            android:id="@+id/drsnikNadaljuj"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+        <!-- Desna vsebina v drsniku -->
+        <ScrollView
+            android:id="@+id/drsnik"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fillViewport="true"
             android:scrollbars="none"
             android:clipToPadding="false"
-            android:visibility="gone">
-            <LinearLayout
-                android:id="@+id/vrstaNadaljuj"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"/>
-        </HorizontalScrollView>
+            android:requiresFadingEdge="vertical"
+            android:fadingEdgeLength="32dp">
 
-        <!-- Zacni -->
-        <TextView
-            style="@style/Os.Nadnaslov"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/os_odsek_zacni"/>
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:scrollbars="none"
-            android:clipToPadding="false">
             <LinearLayout
-                android:id="@+id/vrstaZacni"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"/>
-        </HorizontalScrollView>
+                android:orientation="vertical"
+                android:paddingStart="24dp"
+                android:paddingEnd="@dimen/os_rob"
+                android:paddingTop="18dp"
+                android:paddingBottom="16dp">
 
-        <!-- Spletne aplikacije (spletna stran kot aplikacija) -->
-        <TextView
-            style="@style/Os.Nadnaslov"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="@string/os_odsek_spletne"/>
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:scrollbars="none"
-            android:clipToPadding="false">
-            <LinearLayout
-                android:id="@+id/vrstaSpletne"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"/>
-        </HorizontalScrollView>
+                <!-- Glava: stanje Linka (kapsula) in ura z datumom -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1"/>
+                    <LinearLayout
+                        android:id="@+id/stanjeOkvir"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/os_znacka"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="14dp"
+                        android:paddingTop="6dp"
+                        android:paddingBottom="6dp">
+                        <View
+                            android:id="@+id/stanjePika"
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
+                            android:background="@drawable/os_pika"/>
+                        <TextView
+                            android:id="@+id/stanjeBesedilo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="@string/os_stanje_povezujem"
+                            android:textColor="@color/os_besedilo"
+                            android:textSize="13sp"
+                            android:fontFamily="sans-serif-medium"/>
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:orientation="vertical"
+                        android:gravity="end">
+                        <TextView
+                            android:id="@+id/ura"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/os_besedilo"
+                            android:textSize="16sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:textStyle="bold"/>
+                        <TextView
+                            android:id="@+id/datum"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/os_umirjeno"
+                            android:textSize="12sp"/>
+                    </LinearLayout>
+                </LinearLayout>
 
-        <!-- Aplikacije -->
-        <TextView
-            android:id="@+id/naslovAplikacije"
-            style="@style/Os.Nadnaslov"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="@string/os_odsek_aplikacije"/>
-        <HorizontalScrollView
-            android:id="@+id/aplikacijeDrsnik"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:scrollbars="none"
-            android:clipToPadding="false">
-            <LinearLayout
-                android:id="@+id/vrstaAplikacije"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"/>
-        </HorizontalScrollView>
+                <!-- Pozdrav: Dobrodošel nazaj! -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/naslovPozdrav"
+                        style="@style/Os.Pozdrav.Naslov"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/os_pozdrav_naslov"/>
+                    <TextView
+                        android:id="@+id/podnaslovPozdrav"
+                        style="@style/Os.Pozdrav.Podnaslov"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/os_pozdrav_podnaslov"/>
+                </LinearLayout>
 
+                <!-- Nadaljuj: kar je uporabnik nazadnje odprl. -->
+                <TextView
+                    android:id="@+id/naslovNadaljuj"
+                    style="@style/Os.Nadnaslov"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/os_odsek_nadaljuj"
+                    android:visibility="gone"/>
+                <HorizontalScrollView
+                    android:id="@+id/drsnikNadaljuj"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:scrollbars="none"
+                    android:clipToPadding="false"
+                    android:visibility="gone">
+                    <LinearLayout
+                        android:id="@+id/vrstaNadaljuj"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"/>
+                </HorizontalScrollView>
+
+                <!-- Zacni -->
+                <TextView
+                    style="@style/Os.Nadnaslov"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/os_odsek_zacni"/>
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+                    <LinearLayout
+                        android:id="@+id/vrstaZacni"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"/>
+                </HorizontalScrollView>
+
+                <!-- Spletne aplikacije -->
+                <TextView
+                    style="@style/Os.Nadnaslov"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/os_odsek_spletne"/>
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+                    <LinearLayout
+                        android:id="@+id/vrstaSpletne"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"/>
+                </HorizontalScrollView>
+
+                <!-- Aplikacije -->
+                <TextView
+                    android:id="@+id/naslovAplikacije"
+                    style="@style/Os.Nadnaslov"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/os_odsek_aplikacije"/>
+                <HorizontalScrollView
+                    android:id="@+id/aplikacijeDrsnik"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+                    <LinearLayout
+                        android:id="@+id/vrstaAplikacije"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"/>
+                </HorizontalScrollView>
+
+            </LinearLayout>
+        </ScrollView>
     </LinearLayout>
-</ScrollView>
 
-    <!-- Vrstica pomoci: kaj naredi katera tipka. Brez nje je zadrzan OK skrita funkcija. -->
+    <!-- Vrstica pomoči na dnu zaslona -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -192,7 +497,6 @@
         <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_nazaj"/>
         <TextView style="@style/Os.Tipka" android:layout_marginStart="18dp" android:text="@string/os_tipka_drzi_ok"/>
         <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_uredi"/>
-        <!-- Gumbi igralnega plosecka: pokazemo jih samo, kadar je plosek res priklopljen. -->
         <TextView
             android:id="@+id/pomocPlosek"
             android:layout_width="wrap_content"
@@ -205,9 +509,16 @@
             android:visibility="gone"/>
         <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
         <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/os_noge_podpis"
+            android:textColor="@color/os_umirjeno"
+            android:textSize="11sp"/>
+        <TextView
             android:id="@+id/opombaSpodaj"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
             android:textColor="@color/os_opozorilo"
             android:textSize="12sp"
             android:maxLines="1"
