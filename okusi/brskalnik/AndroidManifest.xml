@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Browser TV (si.safeer.tv): kar ima samo brskalnik.
+     Vse skupno je v AndroidManifest.xml v korenu. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Dovoljenje istega podpisa napove brskalnik; Safeer OS ga uporablja (uses-permission v skupnem delu).
+         Tako ga na televizorju napoveduje ena sama aplikacija in namestitev druge nikoli ne trci ob njo. -->
+    <permission
+        android:name="si.safeer.tv.permission.LINK"
+        android:protectionLevel="signature" />
+
+    <!-- Brskalnik mora videti Safeer OS, da mu preda spletno aplikacijo za domaci zaslon. -->
+    <queries>
+        <package android:name="si.safeer.os" />
+    </queries>
+
+    <!-- Enako kot v skupnem delu; ponovljeno, ker Lint ta del preverja posebej. -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:banner="@drawable/safeer_tv_banner">
+
+        <activity android:name="si.safeer.tv.MainActivity" android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+
+            <!-- Privzeti brskalnik (Android BROWSER role) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+            </intent-filter>
+            <!-- Brskalnik odpira vse naslove; App Link (autoVerify) je za posamezne domene. -->
+            <intent-filter tools:ignore="AppLinkWarning">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="*" />
+            </intent-filter>
+            <!-- Dokumenti PDF z naprave (prenosi, upravitelj datotek, e-posta) v vgrajenem pregledovalniku -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.WEB_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Vrata za Safeer OS: ob prvi namestitvi prevzame spletne aplikacije, ki jih je
+             uporabnik dodal, dokler sta bila brskalnik in Safeer OS ena aplikacija. -->
+        <provider
+            android:name="si.safeer.tv.os.SpletnePonudnik"
+            android:authorities="${applicationId}.spletne"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK" />
+
+        <!-- Domaci zaslon televizorja je Safeer OS, svoja aplikacija. Brskalnik je brskalnik:
+             teh zaslonov nima, tudi skritih ne. -->
+        <activity android:name="si.safeer.tv.os.DomovActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.NastavitveActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.DatotekeActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.ZaslonActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.AplikacijeTvActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.NapraveActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.PredvajalnikActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.SlikaActivity" tools:node="remove" />
+
+    </application>
+</manifest>

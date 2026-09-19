@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS (si.safeer.os): svoja aplikacija s svojim imenom, ikono in vnosom v zaganjalniku.
+     Vse skupno je v AndroidManifest.xml v korenu. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Cesar Safeer OS ne potrebuje, tudi ne zahteva. Mikrofon in risanje cez druge aplikacije
+         uporablja samo brskalnik (glasovno iskanje, daljinec); v skupnem manifestu sta zato, ker ga
+         obe aplikaciji delita. Uporabnik naj ob namestitvi Safeer OS vidi samo tisto, kar ta res
+         potrebuje. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <!-- Enako kot v skupnem delu; ponovljeno, ker Lint ta del preverja posebej. -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
+
+    <!-- Safeer OS mora videti brskalnik: od njega dobi vstop v Safeer Link, Scit in odpiranje spleta. -->
+    <queries>
+        <package android:name="si.safeer.tv" />
+    </queries>
+
+    <application
+        android:label="@string/os_app_name"
+        android:icon="@mipmap/os_ic_launcher"
+        android:roundIcon="@mipmap/os_ic_launcher"
+        android:banner="@drawable/os_banner"
+        android:largeHeap="false"
+        tools:replace="android:largeHeap">
+
+        <!-- Vstopna tocka v zaganjalniku televizorja -->
+        <activity android:name="si.safeer.tv.os.DomovActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Safeer OS kot domaci zaslon televizorja. Privzeto ONEMOGOCEN: dokler ga uporabnik
+             sam ne vklopi, Android sploh ne ve, da bi Safeer OS lahko bil zaganjalnik, in tipka
+             Domov dela kot prej. Vklop in izklop sta v nastavitvah (os/Zaganjalnik.kt). -->
+        <activity-alias
+            android:name="si.safeer.tv.os.ZaganjalnikAlias"
+            android:targetActivity="si.safeer.tv.os.DomovActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:label="@string/os_app_name"
+            android:icon="@mipmap/os_ic_launcher"
+            android:banner="@drawable/os_banner">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Brskalnik je v tej aplikaciji samo notranji pogon za spletne aplikacije, kadar
+             Safeer Browser ni namescen: brez vnosa v zaganjalniku in brez obravnave povezav. -->
+        <activity
+            android:name="si.safeer.tv.MainActivity"
+            android:exported="false"
+            android:label="@string/os_app_name"
+            android:icon="@mipmap/os_ic_launcher"
+            android:banner="@drawable/os_banner"
+            tools:replace="android:exported,android:label,android:icon,android:banner"
+            tools:ignore="RedundantLabel" />
+
+        <!-- Zagon ob vklopu televizorja (privzeto nic: prejemnik najprej pogleda nastavitev). -->
+        <receiver
+            android:name="si.safeer.tv.os.ZagonPrejemnikOs"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Vrata za brskalnik: "Dodaj na domaci zaslon" iz njegovega menija pristane tukaj.
+             Odprto samo aplikacijam z istim podpisom. -->
+        <provider
+            android:name="si.safeer.tv.os.SpletnePonudnik"
+            android:authorities="${applicationId}.spletne"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK" />
+
+    </application>
+</manifest>

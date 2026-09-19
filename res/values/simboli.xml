@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Znaki na gumbih in oblike sestavljenih napisov. Niso besedilo za prevod, zato so tu enkrat
+     za vse jezike (Lint: HardcodedText, SetTextI18n). -->
+<resources>
+    <string name="sym_nazaj" translatable="false">⬅</string>
+    <string name="sym_osvezi" translatable="false">🔄</string>
+    <string name="sym_kljucavnica" translatable="false">🔒</string>
+    <string name="sym_zapri" translatable="false">✕</string>
+    <string name="sym_isci" translatable="false">🔍</string>
+    <string name="sym_zvezdica_prazna" translatable="false">☆</string>
+    <string name="sym_miska" translatable="false">🖱️</string>
+    <string name="sym_plus" translatable="false">➕</string>
+    <string name="sym_ena" translatable="false">1</string>
+    <string name="sym_meni" translatable="false">⋮</string>
+    <string name="sym_nic_od_nic" translatable="false">0/0</string>
+    <string name="sym_gor" translatable="false">▲</string>
+    <string name="sym_dol" translatable="false">▼</string>
+    <string name="sym_zvezdica" translatable="false">⭐</string>
+    <string name="sym_kos" translatable="false">🗑️</string>
+    <string name="sym_splet" translatable="false">🌐</string>
+    <string name="fmt_ikona_besedilo" translatable="false">%1$s %2$s</string>
+    <string name="fmt_ikona_besedilo_2" translatable="false">%1$s  %2$s</string>
+    <string name="fmt_dve_vrstici" translatable="false">%1$s\n%2$s</string>
+    <string name="fmt_dve_vrstici_oklepaj" translatable="false">%1$s\n(%2$s)</string>
+    <string name="fmt_stevec" translatable="false">%1$d / %2$d</string>
+    <string name="fmt_locilo" translatable="false">%1$s · %2$s</string>
+</resources>

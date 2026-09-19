@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Koliko ploscic gre v vrsto. Ozek zaslon (telefon, tablica pokoncno) dva, sirok trije. -->
+<resources>
+    <integer name="tablet_stolpci">2</integer>
+</resources>

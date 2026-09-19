@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Safeer TV Browser</string>
+    <string name="url_hint">Sichere Suche oder URL</string>
+    <string name="btn_home">Startseite</string>
+    <string name="btn_back">Zurück</string>
+    <string name="btn_forward">Vorwärts</string>
+    <string name="btn_add_tab">Neuer Tab</string>
+    <string name="btn_menu">Menü</string>
+    
+    <!-- Menu Items -->
+    <string name="menu_new_tab">Neuer Tab</string>
+    <string name="menu_bookmarks">Lesezeichen</string>
+    <string name="menu_downloads">Downloads</string>
+    <string name="menu_history">Verlauf</string>
+    <string name="menu_desktop_site">Desktop-Website</string>
+    <string name="menu_dark_mode">AMOLED Dunkelmodus</string>
+    <string name="menu_sponsorblock">SponsorBlock: Sponsoren auf YouTube überspringen</string>
+    <string name="menu_adblock">Integrierter AdBlock &amp; Botnetz-Schutz</string>
+    <string name="menu_threat_stats">Sicherheitsschild (Feodo/URLhaus)</string>
+    
+    <!-- Tab Switcher -->
+    <string name="tabs_title">Offene Tabs</string>
+    <string name="tabs_close_all">Alle Tabs schließen</string>
+    <string name="tabs_new_tab">+ Neuer Tab</string>
+    
+    <!-- Search Engines -->
+    
+    <!-- Notifications -->
+    <string name="toast_bookmark_added">⭐ Zu Lesezeichen hinzugefügt</string>
+    <string name="toast_bookmark_removed">🗑️ Aus Lesezeichen entfernt</string>
+  <string name="btn_favorite">Favoriten</string>
+  <string name="btn_reload">Neu laden</string>
+    <string name="menu_tv_wallpaper">Schwarzer TV-Startbildschirm</string>
+    <string name="menu_language">Sprache der Oberfläche</string>
+    <string name="menu_safeer_link">Safeer Link</string>
+    <!-- Safeer Link: obvestilo storitve, ki tece tudi brez odprtega brskalnika -->
+    <string name="hub_obvestilo_naslov">Safeer Link</string>
+    <string name="hub_obvestilo_besedilo">Deine Geräte können Seiten, Videos und Musik an diesen Fernseher senden.</string>
+    <string name="menu_popup_block">Pop-up-Fenster blockieren</string>
+    <string name="menu_download_dir">Download-Ordner</string>
+    <string name="menu_scit">Safeer Schild: ganzer Fernseher</string>
+    <string name="menu_dodaj_aplikacijo">Zu Safeer-OS-Apps hinzufügen</string>
+    <string name="scit_ime">Safeer Schild</string>
+    <string name="scit_obvestilo_opis">DNS-Filter für den ganzen Fernseher: Werbung, Tracker und gefährliche Domains werden in jeder App blockiert.</string>
+    <string name="scit_obvestilo_besedilo">Schützt den ganzen Fernseher · heute blockiert: %1$d</string>
+    <string name="scit_vklopljen">🛡 Safeer Schild ist an: der ganze Fernseher ist geschützt</string>
+    <string name="scit_izklopljen">Safeer Schild ist aus</string>
+    <string name="scit_napaka_dovoljenje">Safeer Schild braucht deine Erlaubnis zum DNS-Filtern (Systemdialog). Nichts wurde geändert.</string>
+    <string name="scit_blokiranih_danes">heute blockiert: %1$d</string>
+</resources>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Safeer TV Browser</string>
+    <string name="url_hint">Búsqueda segura o URL</string>
+    <string name="btn_home">Inicio</string>
+    <string name="btn_back">Atrás</string>
+    <string name="btn_forward">Adelante</string>
+    <string name="btn_add_tab">Nueva pestaña</string>
+    <string name="btn_menu">Menú</string>
+    
+    <!-- Menu Items -->
+    <string name="menu_new_tab">Nueva pestaña</string>
+    <string name="menu_bookmarks">Marcadores</string>
+    <string name="menu_downloads">Descargas</string>
+    <string name="menu_history">Historial</string>
+    <string name="menu_desktop_site">Sitio para ordenador</string>
+    <string name="menu_dark_mode">Modo oscuro AMOLED</string>
+    <string name="menu_sponsorblock">SponsorBlock: omitir patrocinios en YouTube</string>
+    <string name="menu_adblock">AdBlock y Escudo Botnet integrado</string>
+    <string name="menu_threat_stats">Escudo de seguridad (Feodo/URLhaus)</string>
+    
+    <!-- Tab Switcher -->
+    <string name="tabs_title">Pestañas abiertas</string>
+    <string name="tabs_close_all">Cerrar todas las pestañas</string>
+    <string name="tabs_new_tab">+ Nueva pestaña</string>
+    
+    <!-- Search Engines -->
+    
+    <!-- Notifications -->
+    <string name="toast_bookmark_added">⭐ Añadido a marcadores</string>
+    <string name="toast_bookmark_removed">🗑️ Eliminado de marcadores</string>
+  <string name="btn_favorite">Favoritos</string>
+  <string name="btn_reload">Recargar</string>
+    <string name="menu_tv_wallpaper">Fondo negro en la pantalla de inicio del TV</string>
+    <string name="menu_language">Idioma de la interfaz</string>
+    <string name="menu_safeer_link">Safeer Link</string>
+    <!-- Safeer Link: obvestilo storitve, ki tece tudi brez odprtega brskalnika -->
+    <string name="hub_obvestilo_naslov">Safeer Link</string>
+    <string name="hub_obvestilo_besedilo">Tus dispositivos pueden enviar páginas, vídeos y música a este televisor.</string>
+    <string name="menu_popup_block">Bloquear ventanas emergentes</string>
+    <string name="menu_download_dir">Carpeta de descargas</string>
+    <string name="menu_scit">Escudo Safeer: todo el televisor</string>
+    <string name="menu_dodaj_aplikacijo">Añadir a las aplicaciones de Safeer OS</string>
+    <string name="scit_ime">Escudo Safeer</string>
+    <string name="scit_obvestilo_opis">Filtro DNS para todo el televisor: anuncios, rastreadores y dominios peligrosos se bloquean en todas las apps.</string>
+    <string name="scit_obvestilo_besedilo">Protege todo el televisor · bloqueados hoy: %1$d</string>
+    <string name="scit_vklopljen">🛡 Escudo Safeer activado: todo el televisor está protegido</string>
+    <string name="scit_izklopljen">Escudo Safeer desactivado</string>
+    <string name="scit_napaka_dovoljenje">Escudo Safeer necesita tu permiso para filtrar DNS (diálogo del sistema). No se cambió nada.</string>
+    <string name="scit_blokiranih_danes">bloqueados hoy: %1$d</string>
+</resources>

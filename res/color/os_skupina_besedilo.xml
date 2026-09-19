@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Napis na gumbu skupine: pod fokusom temen (na mint podlagi), izbran mint, sicer umirjen. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="@color/os_ozadje"/>
+    <item android:state_activated="true" android:color="@color/os_mint"/>
+    <item android:color="@color/os_umirjeno"/>
+</selector>

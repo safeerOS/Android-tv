@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Full-bleed container; top padding (TvChrome) keeps pages out from under the toolbar. -->
+    <FrameLayout
+        android:id="@+id/webViewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentBottom="true"
+        android:background="@color/bg_pure_black" />
+
+    <!-- Mobile Top Navigation Toolbar (Chrome / Opera Hybrid) -->
+    <LinearLayout
+        android:id="@+id/mobileTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_alignParentTop="true"
+        android:background="@color/bg_primary"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="6dp"
+        android:elevation="12dp">
+
+        <!-- 0. Back Button -->
+        <Button
+            android:id="@+id/btnBack"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_nazaj"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusRight="@+id/btnHome"
+            android:nextFocusDown="@+id/webViewContainer"
+            android:contentDescription="@string/btn_back" />
+
+        <!-- 1. Home Button -->
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_gumb_domov"
+            android:text=""
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/btnBack"
+            android:nextFocusRight="@+id/btnReload"
+            android:nextFocusDown="@+id/webViewContainer"
+            android:contentDescription="@string/btn_home" />
+
+        <!-- 1.5. Reload Button -->
+        <Button
+            android:id="@+id/btnReload"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_osvezi"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/btnHome"
+            android:nextFocusRight="@+id/editUrl"
+            android:nextFocusDown="@+id/webViewContainer"
+            android:contentDescription="@string/btn_reload" />
+
+        <!-- 2. Modern Wide Omnibox URL Bar -->
+        <LinearLayout
+            android:id="@+id/omniboxContainer"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/bg_mobile_omnibox"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="10dp"
+            android:focusable="false">
+
+            <!-- Security SSL Indicator -->
+            <TextView
+                android:id="@+id/tvSecurityLock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="@string/sym_kljucavnica"
+                android:textColor="@color/security_green"
+                android:textSize="12sp" />
+
+            <!-- Omnibox Text Input -->
+            <EditText
+                android:id="@+id/editUrl"
+                tools:ignore="NestedWeights"
+                android:importantForAutofill="no"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:ellipsize="end"
+                android:hint="@string/url_hint"
+                android:imeOptions="actionGo"
+                android:inputType="textUri|textWebEditText"
+                android:paddingVertical="0dp"
+                android:singleLine="true"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_dim"
+                android:textSize="14sp"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusLeft="@+id/btnReload"
+                android:nextFocusRight="@+id/btnFavorite"
+                android:nextFocusDown="@+id/webViewContainer" />
+
+            <!-- Clear Text Button -->
+            <TextView
+                android:id="@+id/btnClearUrl"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:gravity="center"
+                android:text="@string/sym_zapri"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:visibility="gone"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusLeft="@+id/editUrl"
+                android:nextFocusRight="@+id/btnSearchTrigger"
+                android:nextFocusDown="@+id/webViewContainer"
+                android:background="@drawable/bg_mobile_icon_button" />
+
+            <!-- Search / Voice Trigger -->
+            <TextView
+                android:id="@+id/btnSearchTrigger"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_marginStart="2dp"
+                android:gravity="center"
+                android:text="@string/sym_isci"
+                android:textColor="@color/accent_cyan"
+                android:textSize="13sp"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusLeft="@+id/editUrl"
+                android:nextFocusRight="@+id/btnFavorite"
+                android:nextFocusDown="@+id/webViewContainer"
+                android:background="@drawable/bg_mobile_icon_button" />
+        </LinearLayout>
+
+        <!-- 2.5. Favorite / Bookmark Button -->
+        <Button
+            android:id="@+id/btnFavorite"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_zvezdica_prazna"
+            android:textColor="@color/accent_gold"
+            android:textSize="18sp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/editUrl"
+            android:nextFocusRight="@+id/btnPointerToggle"
+            android:nextFocusDown="@+id/webViewContainer"
+            android:contentDescription="@string/btn_favorite" />
+
+        <!-- 3. TV Remote Virtual Pointer Toggle Button -->
+        <Button
+            android:id="@+id/btnPointerToggle"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_miska"
+            android:textColor="@color/accent_cyan"
+            android:textSize="16sp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/btnFavorite"
+            android:nextFocusRight="@+id/btnAddTab"
+            android:nextFocusDown="@+id/webViewContainer"
+            android:contentDescription="@string/ui_pointer" />
+
+        <!-- 4. Add Tab (+) Button -->
+        <Button
+            android:id="@+id/btnAddTab"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_plus"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/btnPointerToggle"
+            android:nextFocusRight="@+id/btnTabCount"
+            android:nextFocusDown="@+id/webViewContainer"
+            android:contentDescription="@string/btn_add_tab" />
+
+        <!-- 5. Tab Switcher Badge [ 1 ] -->
+        <Button
+            android:id="@+id/btnTabCount"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_mobile_tab_badge"
+            android:text="@string/sym_ena"
+            android:textColor="@color/accent_cyan"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/btnAddTab"
+            android:nextFocusRight="@+id/btnMenu"
+            android:nextFocusDown="@+id/webViewContainer"
+            android:padding="0dp" />
+
+        <!-- 6. 3-Dots Menu (⋮) Button -->
+        <Button
+            android:id="@+id/btnMenu"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_meni"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/btnTabCount"
+            android:nextFocusDown="@+id/webViewContainer"
+            android:contentDescription="@string/btn_menu" />
+    </LinearLayout>
+
+    <!-- Page Loading Progress Bar -->
+    <ProgressBar
+        android:id="@+id/pageProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="2.5dp"
+        android:layout_below="@id/mobileTopBar"
+        android:progressDrawable="@color/accent_cyan"
+        android:visibility="gone" />
+
+    <!-- Search Suggestions & Quick TV Portals Overlay -->
+    <LinearLayout
+        android:id="@+id/searchSuggestionsOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/mobileTopBar"
+        android:background="#0A101D"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone"
+        android:elevation="25dp">
+
+        <!-- Quick TV Portals Bar -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:focusable="false"
+            android:descendantFocusability="afterDescendants"
+            android:layout_marginBottom="8dp">
+
+            <LinearLayout
+                android:id="@+id/portalChipsContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:focusable="false"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <!-- Dynamic Suggestion Items Container -->
+        <LinearLayout
+            android:id="@+id/suggestionsListContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+
+    <!-- Find In Page Bar (Optional overlay) -->
+    <LinearLayout
+        android:id="@+id/findInPageBar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_below="@id/mobileTopBar"
+        android:background="@color/bg_secondary"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:visibility="gone"
+        android:elevation="8dp">
+
+        <EditText
+            android:id="@+id/editFindText"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_mobile_omnibox"
+            android:hint="@string/ui_find_hint"
+            android:paddingHorizontal="12dp"
+            android:singleLine="true"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_dim"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/tvFindMatches"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="@color/accent_cyan"
+            android:textSize="12sp"
+            android:text="@string/sym_nic_od_nic" />
+
+        <Button
+            android:id="@+id/btnFindPrev"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_gor"
+            android:textColor="@color/text_primary"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btnFindNext"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_dol"
+            android:textColor="@color/text_primary"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btnFindClose"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_mobile_icon_button"
+            android:text="@string/sym_zapri"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Tab Switcher Grid Overlay -->
+    <RelativeLayout
+        android:id="@+id/tabSwitcherOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/bg_pure_black"
+        android:visibility="gone"
+        android:elevation="20dp">
+
+        <!-- Header of Tab Switcher -->
+        <LinearLayout
+            android:id="@+id/tabSwitcherHeader"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_alignParentTop="true"
+            android:background="@color/bg_primary"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp">
+
+            <TextView
+                android:id="@+id/tvTabsTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/tabs_title"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnNewTabInSwitcher"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_mobile_omnibox"
+                android:paddingHorizontal="14dp"
+                android:text="@string/tabs_new_tab"
+                android:textColor="@color/accent_cyan"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnCloseTabsSwitcher"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_mobile_icon_button"
+                android:text="@string/sym_zapri"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <!-- Grid of Tabs -->
+        <GridView
+            android:id="@+id/tabsGridView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/tabSwitcherHeader"
+            android:layout_above="@+id/tabSwitcherFooter"
+            android:numColumns="2"
+            android:horizontalSpacing="12dp"
+            android:verticalSpacing="12dp"
+            android:padding="14dp"
+            android:clipToPadding="false"
+            android:scrollbars="vertical" />
+
+        <!-- Footer -->
+        <LinearLayout
+            android:id="@+id/tabSwitcherFooter"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_alignParentBottom="true"
+            android:background="@color/bg_primary"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnCloseAllTabs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tabs_close_all"
+                android:textColor="@color/danger_red"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:padding="8dp" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- TV Remote Virtual Pointer Overlay Layer -->
+    <si.safeer.tv.VirtualPointerView
+        android:id="@+id/virtualPointerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="50dp" />
+
+</RelativeLayout>

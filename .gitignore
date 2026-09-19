@@ -1,0 +1,38 @@
+build/
+*.tmp
+.DS_Store
+.gradle/
+.android-sdk/
+local.properties
+*_auth.local.js
+tv_test/
+
+# 🔒 Privacy & Security
+*.env*
+*.key
+*.keystore
+*.jks
+keystore/
+*.token
+*secret*
+*credential*
+
+# 🧪 Test scripts, test directories & temporary benchmarks
+test_*.py
+yt_*/
+
+# 📸 Media and Screenshots
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.webm
+!res/**/*.png
+!docs/**/*.png
+
+# Preizkusi, ki so del izdelka (ne zacasne skripte):
+# zaznavalnika obeh popravkov in pravi posnetki zaslona, na katerih ju merimo.
+!tests/test_zaznaj.py
+!tests/vzorci/
+!tests/vzorci/*.png
+__pycache__/

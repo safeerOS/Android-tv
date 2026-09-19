@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Safeer TV Browser</string>
+    <string name="url_hint">Recherche sécurisée ou URL</string>
+    <string name="btn_home">Accueil</string>
+    <string name="btn_back">Retour</string>
+    <string name="btn_forward">Suivant</string>
+    <string name="btn_add_tab">Nouvel onglet</string>
+    <string name="btn_menu">Menu</string>
+    
+    <!-- Menu Items -->
+    <string name="menu_new_tab">Nouvel onglet</string>
+    <string name="menu_bookmarks">Favoris</string>
+    <string name="menu_downloads">Téléchargements</string>
+    <string name="menu_history">Historique</string>
+    <string name="menu_desktop_site">Version pour ordinateur</string>
+    <string name="menu_dark_mode">Mode sombre AMOLED</string>
+    <string name="menu_sponsorblock">SponsorBlock : passer les sponsors sur YouTube</string>
+    <string name="menu_adblock">AdBlock &amp; Bouclier Botnet intégré</string>
+    <string name="menu_threat_stats">Bouclier de sécurité (Feodo/URLhaus)</string>
+    
+    <!-- Tab Switcher -->
+    <string name="tabs_title">Onglets ouverts</string>
+    <string name="tabs_close_all">Fermer tous les onglets</string>
+    <string name="tabs_new_tab">+ Nouvel onglet</string>
+    
+    <!-- Search Engines -->
+    
+    <!-- Notifications -->
+    <string name="toast_bookmark_added">⭐ Ajouté aux favoris</string>
+    <string name="toast_bookmark_removed">🗑️ Retiré des favoris</string>
+  <string name="btn_favorite">Favoris</string>
+  <string name="btn_reload">Actualiser</string>
+    <string name="menu_tv_wallpaper">Fond noir sur l’écran d’accueil du TV</string>
+    <string name="menu_language">Langue de l\'interface</string>
+    <string name="menu_safeer_link">Safeer Link</string>
+    <!-- Safeer Link: obvestilo storitve, ki tece tudi brez odprtega brskalnika -->
+    <string name="hub_obvestilo_naslov">Safeer Link</string>
+    <string name="hub_obvestilo_besedilo">Vos appareils peuvent envoyer des pages, des vidéos et de la musique vers ce téléviseur.</string>
+    <string name="menu_popup_block">Bloquer les fenêtres pop-up</string>
+    <string name="menu_download_dir">Dossier de téléchargement</string>
+    <string name="menu_scit">Bouclier Safeer : tout le téléviseur</string>
+    <string name="menu_dodaj_aplikacijo">Ajouter aux applications Safeer OS</string>
+    <string name="scit_ime">Bouclier Safeer</string>
+    <string name="scit_obvestilo_opis">Filtre DNS pour tout le téléviseur : publicités, traqueurs et domaines dangereux bloqués dans toutes les applications.</string>
+    <string name="scit_obvestilo_besedilo">Protège tout le téléviseur · bloqués aujourd\'hui : %1$d</string>
+    <string name="scit_vklopljen">🛡 Bouclier Safeer activé : tout le téléviseur est protégé</string>
+    <string name="scit_izklopljen">Bouclier Safeer désactivé</string>
+    <string name="scit_napaka_dovoljenje">Le Bouclier Safeer a besoin de votre autorisation pour filtrer le DNS (fenêtre système). Rien n\'a été modifié.</string>
+    <string name="scit_blokiranih_danes">bloqués aujourd\'hui : %1$d</string>
+</resources>

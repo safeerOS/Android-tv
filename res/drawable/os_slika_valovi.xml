@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Abstraktni valovi: lastna risba v barvah Safeerja (mint in modrozelena cez temno modro).
+     Trakovi tecejo z leve navzdol proti desni, levi rob ostane temen, da so naslovi odsekov
+     berljivi tudi brez zatemnitve. Brez tujih slik in brez tujih pravic. -->
+<vector tools:ignore="VectorRaster" xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="270dp"
+    android:viewportWidth="960"
+    android:viewportHeight="540">
+    <path android:pathData="M0,0h960v540H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="960" android:endY="540">
+                <item android:offset="0" android:color="#FF070C16"/>
+                <item android:offset="0.55" android:color="#FF0A1622"/>
+                <item android:offset="1" android:color="#FF071A22"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- najsirsi trak, najbolj zadaj -->
+    <path android:pathData="M0,352 C220,268 420,470 640,356 C790,278 880,318 960,296 L960,540 L0,540 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="120" android:startY="300" android:endX="960" android:endY="540">
+                <item android:offset="0" android:color="#2657D6AD"/>
+                <item android:offset="1" android:color="#0F2F7F76"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,400 C200,330 400,498 620,398 C780,326 880,362 960,344 L960,540 L0,540 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="200" android:startY="340" android:endX="960" android:endY="540">
+                <item android:offset="0" android:color="#4057D6AD"/>
+                <item android:offset="1" android:color="#1A1F6A63"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,452 C210,392 400,522 640,440 C790,390 880,404 960,392 L960,540 L0,540 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="240" android:startY="400" android:endX="960" android:endY="540">
+                <item android:offset="0" android:color="#7357D6AD"/>
+                <item android:offset="1" android:color="#2E18544F"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- tanka svetla crta na robu vala: povzame potezo iz znaka Safeer -->
+    <path android:strokeWidth="3" android:fillColor="#00000000"
+        android:pathData="M0,452 C210,392 400,522 640,440 C790,390 880,404 960,392">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="120" android:startY="0" android:endX="960" android:endY="0">
+                <item android:offset="0" android:color="#0057D6AD"/>
+                <item android:offset="0.45" android:color="#B357D6AD"/>
+                <item android:offset="1" android:color="#3357D6AD"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- zgornji, komaj viden lok: slika ni prazna, a ne moti vrstic s karticami -->
+    <path android:pathData="M380,0 C560,60 700,18 960,96 L960,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="380" android:startY="0" android:endX="960" android:endY="110">
+                <item android:offset="0" android:color="#0057D6AD"/>
+                <item android:offset="1" android:color="#3357D6AD"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

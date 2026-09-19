@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Temno morje: lastna risba (nebo tik pred nocjo, mirna gladina, odsev na vodi). Brez tujih slik. -->
+<vector tools:ignore="VectorRaster" xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="270dp"
+    android:viewportWidth="960"
+    android:viewportHeight="540">
+    <path android:pathData="M0,0h960v300H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="300">
+                <item android:offset="0" android:color="#FF08111F"/>
+                <item android:offset="0.62" android:color="#FF16304A"/>
+                <item android:offset="1" android:color="#FF2C4A62"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,300h960v240H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="300" android:endX="0" android:endY="540">
+                <item android:offset="0" android:color="#FF1D3950"/>
+                <item android:offset="0.45" android:color="#FF102438"/>
+                <item android:offset="1" android:color="#FF070E18"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- svetloba tik nad obzorjem -->
+    <path android:pathData="M0,250h960v50H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="250" android:endX="0" android:endY="300">
+                <item android:offset="0" android:color="#004E7C8F"/>
+                <item android:offset="1" android:color="#8C7FB0BE"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- odsev in mirni valovi -->
+    <path android:pathData="M560,304 C600,318 660,318 700,304 C660,300 600,300 560,304 Z" android:fillColor="#59A9CBD6"/>
+    <path android:pathData="M520,336 C580,352 700,352 760,336 C700,330 580,330 520,336 Z" android:fillColor="#38A9CBD6"/>
+    <path android:pathData="M470,382 C560,402 730,402 820,382 C730,374 560,374 470,382 Z" android:fillColor="#26A9CBD6"/>
+    <path android:pathData="M0,322 C160,312 260,332 420,322 L420,330 C260,340 160,320 0,330 Z" android:fillColor="#1FA9CBD6"/>
+    <path android:pathData="M0,436 C220,418 380,452 620,432 C780,418 880,440 960,430 L960,540 L0,540 Z" android:fillColor="#FF060C15"/>
+</vector>

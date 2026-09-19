@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+<ScrollView
+    android:id="@+id/drsnik"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:background="@color/os_ozadje"
+    android:fillViewport="true"
+    android:scrollbars="none"
+    android:clipToPadding="false"
+    android:requiresFadingEdge="vertical"
+    android:fadingEdgeLength="32dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/os_rob"
+        android:paddingEnd="@dimen/os_rob"
+        android:paddingTop="10dp"
+        android:paddingBottom="16dp">
+
+        <!-- Glava: znak, ime, stanje Linka, ura -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:src="@drawable/os_znak"
+                android:contentDescription="@null"/>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/os_app_name"
+                    android:textColor="@color/os_besedilo"
+                    android:textSize="16sp"
+                    android:letterSpacing="0.08"
+                    android:fontFamily="sans-serif-medium"/>
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/stanjeOkvir"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/os_znacka"
+                android:paddingStart="10dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp">
+                <View
+                    android:id="@+id/stanjePika"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/os_pika"/>
+                <TextView
+                    android:id="@+id/stanjeBesedilo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/os_stanje_povezujem"
+                    android:textColor="@color/os_besedilo"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+            <TextView
+                android:id="@+id/ura"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:textColor="@color/os_umirjeno"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif-medium"/>
+        </LinearLayout>
+
+        <!-- Nadaljuj: kar je uporabnik nazadnje odprl. Vrsta se pokaze samo, kadar kaj je. -->
+        <TextView
+            android:id="@+id/naslovNadaljuj"
+            style="@style/Os.Nadnaslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/os_odsek_nadaljuj"
+            android:visibility="gone"/>
+        <HorizontalScrollView
+            android:id="@+id/drsnikNadaljuj"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:scrollbars="none"
+            android:clipToPadding="false"
+            android:visibility="gone">
+            <LinearLayout
+                android:id="@+id/vrstaNadaljuj"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
+
+        <!-- Zacni -->
+        <TextView
+            style="@style/Os.Nadnaslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/os_odsek_zacni"/>
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:scrollbars="none"
+            android:clipToPadding="false">
+            <LinearLayout
+                android:id="@+id/vrstaZacni"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
+
+        <!-- Spletne aplikacije (spletna stran kot aplikacija) -->
+        <TextView
+            style="@style/Os.Nadnaslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/os_odsek_spletne"/>
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:scrollbars="none"
+            android:clipToPadding="false">
+            <LinearLayout
+                android:id="@+id/vrstaSpletne"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
+
+        <!-- Aplikacije -->
+        <TextView
+            android:id="@+id/naslovAplikacije"
+            style="@style/Os.Nadnaslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/os_odsek_aplikacije"/>
+        <HorizontalScrollView
+            android:id="@+id/aplikacijeDrsnik"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:scrollbars="none"
+            android:clipToPadding="false">
+            <LinearLayout
+                android:id="@+id/vrstaAplikacije"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
+
+    </LinearLayout>
+</ScrollView>
+
+    <!-- Vrstica pomoci: kaj naredi katera tipka. Brez nje je zadrzan OK skrita funkcija. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/os_crta_zgoraj"
+        android:paddingStart="@dimen/os_rob"
+        android:paddingEnd="@dimen/os_rob"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+        <TextView style="@style/Os.Tipka" android:text="@string/os_tipka_ok"/>
+        <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_odpri"/>
+        <TextView style="@style/Os.Tipka" android:layout_marginStart="18dp" android:text="@string/os_tipka_nazaj"/>
+        <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_nazaj"/>
+        <TextView style="@style/Os.Tipka" android:layout_marginStart="18dp" android:text="@string/os_tipka_drzi_ok"/>
+        <TextView style="@style/Os.Pomoc" android:text="@string/os_pomoc_uredi"/>
+        <!-- Gumbi igralnega plosecka: pokazemo jih samo, kadar je plosek res priklopljen. -->
+        <TextView
+            android:id="@+id/pomocPlosek"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp"
+            android:textColor="@color/os_umirjeno"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone"/>
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+        <TextView
+            android:id="@+id/opombaSpodaj"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/os_opozorilo"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone"/>
+    </LinearLayout>
+</LinearLayout>

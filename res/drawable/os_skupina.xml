@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gumb skupine programov (Vse, Igre, Pisarna ...): izbrana je obrobljena, izbira pod fokusom je polna. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_mint"/>
+            <corners android:radius="999dp"/>
+        </shape>
+    </item>
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_mint_temna"/>
+            <stroke android:width="1dp" android:color="@color/os_mint"/>
+            <corners android:radius="999dp"/>
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/os_kartica"/>
+            <stroke android:width="1dp" android:color="@color/os_crta"/>
+            <corners android:radius="999dp"/>
+        </shape>
+    </item>
+</selector>
