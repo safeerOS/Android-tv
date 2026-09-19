@@ -48,6 +48,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var kakovost = "srednja"
     /** Kaj televizor gleda: `desktop` = namizje racunalnika, `apps` = locen zaslon s programi s televizorja. */
     private var cilj = "desktop"
+    /** Racunalnik je potrdil, da ta seja kaze locen zaslon s programi (ne namizja). */
+    private var naDrugem = false
     private var koncujem = false
     private var poskusov = 0
     private var prosim = false
@@ -161,6 +163,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 val podatki = izid.optJSONObject("data") ?: return@Odgovor
                 seja = podatki
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)
+                naDrugem = podatki.optString("screen") == "apps"
                 android.util.Log.i("SafeerZaslon", "seja: navidezni plosek na racunalniku = $plosekVRacunalnik")
                 // Zaslon racunalnika je ena najpogostejsih poti; naj bo na domacem zaslonu takoj pri roki.
                 // Ime kartice je 'Zaslon racunalnika', ne dolgo ime naprave: na kartici se je
@@ -388,7 +391,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
         // Meni Start: tipka Super na racunalniku. Daljinec je nima, do spodnjega roba zaslona pa je
         // s kazalcem dolga pot - zato je prvi v meniju.
-        dejanja.add(getString(R.string.os_zaslon_meni_start) to { posljiTipko("domov") })
+        // Na locenem zaslonu menija Start ni; tam je prvi preklop med odprtimi programi.
+        if (naDrugem) dejanja.add(getString(R.string.os_zaslon_naslednji) to { posljiTipko("preklopi_okno") })
+        else dejanja.add(getString(R.string.os_zaslon_meni_start) to { posljiTipko("domov") })
         dejanja.add(getString(R.string.os_zaslon_meni_tipkovnica) to { tipkovnica?.odpri() })
         dejanja.add(getString(
             if (kazalec) R.string.os_zaslon_meni_tipke else R.string.os_zaslon_meni_kazalec) to { preklopiNacin() })

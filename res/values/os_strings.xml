@@ -339,4 +339,5 @@
     <string name="os_zapri_vse">Close all (%1$d)</string>
     <string name="os_zaprtih">Programs closed: %1$d</string>
     <string name="os_zaslon_meni_start">Start menu</string>
+    <string name="os_zaslon_naslednji">Next program</string>
 </resources>

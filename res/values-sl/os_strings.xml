@@ -338,4 +338,5 @@
     <string name="os_zapri_vse">Zapri vse (%1$d)</string>
     <string name="os_zaprtih">Zaprtih programov: %1$d</string>
     <string name="os_zaslon_meni_start">Meni Start</string>
+    <string name="os_zaslon_naslednji">Naslednji program</string>
 </resources>
