@@ -21,6 +21,8 @@
     <string name="os_naprava_tv">esta tableta</string>
     <string name="os_krajevno_koren">En esta tableta</string>
     <string name="os_krajevno_dovoljenje">Safeer OS necesita permiso para leer los archivos de esta tableta.</string>
+    <string name="os_krajevno_ta_tv">Esta tableta</string>
+    <string name="os_krajevno_ta_tv_opis">Vídeos, música y fotos de la tableta y el USB</string>
     <string name="os_odsek_aplikacije">Aplicaciones de esta tableta</string>
     <string name="tablet_pridruzi">Unirse a %1$s</string>
     <string name="tablet_pridruzi_opis">Safeer Link en esta casa. Aparece un código en la pantalla de «%1$s»; lo escribes aquí</string>

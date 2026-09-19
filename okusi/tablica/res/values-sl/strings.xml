@@ -21,6 +21,8 @@
     <string name="os_naprava_tv">ta tablica</string>
     <string name="os_krajevno_koren">Na tej tablici</string>
     <string name="os_krajevno_dovoljenje">Safeer OS potrebuje dovoljenje za branje datotek na tej tablici.</string>
+    <string name="os_krajevno_ta_tv">Ta tablica</string>
+    <string name="os_krajevno_ta_tv_opis">Videi, glasba in slike na tablici in USB</string>
     <string name="os_odsek_aplikacije">Aplikacije na tej tablici</string>
     <string name="tablet_pridruzi">Pridruži se: %1$s</string>
     <string name="tablet_pridruzi_opis">Safeer Link v tej hiši. Na zaslonu naprave »%1$s« se pokaže koda; vtipkaš jo tukaj</string>

@@ -23,6 +23,8 @@
     <string name="os_naprava_tv">this tablet</string>
     <string name="os_krajevno_koren">On this tablet</string>
     <string name="os_krajevno_dovoljenje">Safeer OS needs permission to read the files on this tablet.</string>
+    <string name="os_krajevno_ta_tv">This tablet</string>
+    <string name="os_krajevno_ta_tv_opis">Videos, music and photos on the tablet and USB</string>
     <string name="os_odsek_aplikacije">Apps on this tablet</string>
     <string name="tablet_pridruzi">Join %1$s</string>
     <string name="tablet_pridruzi_opis">Safeer Link in this home. A code appears on the screen of “%1$s”; you type it here</string>
