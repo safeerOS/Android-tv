@@ -156,12 +156,35 @@ object Kontroler {
     }
 
     private fun premakni(a: Activity, smer: Int, kolikokrat: Int) {
-        var v = a.currentFocus ?: return
-        repeat(kolikokrat) {
-            val naslednji = v.focusSearch(smer) ?: return
-            if (!naslednji.requestFocus()) return
-            v = naslednji
+        repeat(kolikokrat) { if (!korak(a, smer)) return }
+    }
+
+    /**
+     * En korak izbire, natanko tako kot pritisk smerne tipke na daljincu.
+     *
+     * Prej je plosek iskal naslednji pogled sam (focusSearch). To dela med gumbi, ne pa v mrezi
+     * programov: mreza je en sam pogled, ki izbiro med karticami premika sama ob smerni tipki.
+     * Palica je zato iz mreze skocila naravnost na vrsto skupin in druga vrsta programov je bila
+     * s ploscka nedosegljiva, z daljincem pa je delala. Zdaj posljemo smerno tipko, kot bi jo
+     * daljinec: mreza, seznam ali zaslon jo obdela po svoje; sele ce je nihce ne porabi (rob
+     * mreze, navaden gumb), poiscemo sosednji pogled sami.
+     */
+    fun korak(a: Activity, smer: Int): Boolean {
+        val koda = when (smer) {
+            View.FOCUS_LEFT -> KeyEvent.KEYCODE_DPAD_LEFT
+            View.FOCUS_RIGHT -> KeyEvent.KEYCODE_DPAD_RIGHT
+            View.FOCUS_UP -> KeyEvent.KEYCODE_DPAD_UP
+            View.FOCUS_DOWN -> KeyEvent.KEYCODE_DPAD_DOWN
+            else -> return false
         }
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        val obdelan = try {
+            a.dispatchKeyEvent(KeyEvent(zdaj, zdaj, KeyEvent.ACTION_DOWN, koda, 0))
+        } catch (_: Throwable) { false }
+        try { a.dispatchKeyEvent(KeyEvent(zdaj, zdaj, KeyEvent.ACTION_UP, koda, 0)) } catch (_: Throwable) {}
+        if (obdelan) return true
+        val v = a.currentFocus ?: return false
+        return v.focusSearch(smer)?.requestFocus() == true
     }
 
     /** Y pelje na domaci zaslon Safeer OS, kjerkoli si - kot gumb PS na ploscku. */
@@ -209,10 +232,12 @@ object Kontroler {
 
         fun dogodek(e: MotionEvent): Boolean {
             if (e.source and InputDevice.SOURCE_JOYSTICK != InputDevice.SOURCE_JOYSTICK) return false
-            // Samo prava palica: smerni krizec (HAT) Android sam prevede v smerne tipke, zato bi
-            // ga tu steli dvakrat in bi izbira preskakovala po dve kartici.
-            val x = os(e, MotionEvent.AXIS_X)
-            val y = os(e, MotionEvent.AXIS_Y)
+            // Smerni krizec, ki se javi kot HAT, in leva palica. Dogodek porabimo (true), zato ga
+            // Android ne prevede se enkrat v smerne tipke - izbira se premakne natanko enkrat.
+            val hx = os(e, MotionEvent.AXIS_HAT_X)
+            val hy = os(e, MotionEvent.AXIS_HAT_Y)
+            val x = if (hx != 0f || hy != 0f) hx else os(e, MotionEvent.AXIS_X)
+            val y = if (hx != 0f || hy != 0f) hy else os(e, MotionEvent.AXIS_Y)
             val nova = when {
                 kotlin.math.abs(x) >= kotlin.math.abs(y) && x <= -MRTVI_KOT -> View.FOCUS_LEFT
                 kotlin.math.abs(x) >= kotlin.math.abs(y) && x >= MRTVI_KOT -> View.FOCUS_RIGHT
@@ -244,8 +269,7 @@ object Kontroler {
         private fun korak() {
             val s = smer
             if (s == 0) return
-            val v = dejavnost.currentFocus ?: return
-            v.focusSearch(s)?.requestFocus()
+            Kontroler.korak(dejavnost, s)
         }
 
         private fun os(e: MotionEvent, glavnaOs: Int): Float {

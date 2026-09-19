@@ -70,6 +70,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var smer: Pair<Int, Int>? = null
     private var hitrost = ZaslonVnos.KAZALEC_ZACETNA
     private var smerTece = false
+    private var smerOd = 0L
     private var okDrzan = false
     /** Tipke, ki jih uporabnik ta trenutek drzi; ob odhodu jih moramo spustiti. */
     private val drzane = HashSet<Int>()
@@ -135,7 +136,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onDestroy() {
-        koncaj()
+        // Uporabnik je sejo zapustil (tudi z Y ali domacim zaslonom Safeer OS): program zapremo.
+        koncaj(zapriPrograme = isFinishing)
         super.onDestroy()
     }
 
@@ -290,14 +292,18 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Konec seje: ustavimo tudi zajem na racunalniku, da ne tece v prazno. */
-    private fun koncaj() {
+    private fun koncaj(zapriPrograme: Boolean = false) {
         if (koncujem) return
         koncujem = true
         sprostiDrzane()
         odjemalec?.ustavi()
         odjemalec = null
         val r = racunalnik ?: return
-        link.ukaz(r.id, "screen.stop", JSONObject(), 5_000, LinkOdjemalec.Odgovor { _, _ -> })
+        // Konec seje programa (drzi Nazaj ali "Koncaj") zapre program tudi na racunalniku - prej
+        // je tekel naprej na nevidnem zaslonu. Kdor ga hoce pustiti odprtega, pritisne Domov.
+        val zahteva = JSONObject()
+        if (zapriPrograme && naDrugem) zahteva.put("close_apps", true)
+        link.ukaz(r.id, "screen.stop", zahteva, 5_000, LinkOdjemalec.Odgovor { _, _ -> })
     }
 
     // ------------------------------------------------------------------ upravljanje racunalnika
@@ -338,7 +344,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (kazalec) {
             // V nacinu kazalca smerne tipke vodijo misko, OK pa klika (dolg OK desni klik).
             val s = ZaslonVnos.smer(keyCode)
-            if (s != null) { zacniSmer(s); return true }
+            if (s != null) { zacniSmer(s, keyCode); return true }
             if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A) {
                 if (event?.repeatCount == 0) { okDrzan = true; event.startTracking() }
                 return true
@@ -395,7 +401,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK) { koncaj(); finish(); return true }
+        if (keyCode == KeyEvent.KEYCODE_BACK) { koncaj(zapriPrograme = true); finish(); return true }
         if (kazalec && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A)) {
             okDrzan = false
             odjemalec?.posljiVnos(ZaslonVnos.klik("desni"))
@@ -455,7 +461,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         })
         dejanja.add(getString(R.string.os_zaslon_meni_shrani) to { posljiTipko("shrani") })
         dejanja.add(getString(R.string.os_zaslon_meni_bliznjice) to { odpriBliznjice() })
-        dejanja.add(getString(R.string.os_zaslon_meni_koncaj) to { koncaj(); finish() })
+        dejanja.add(getString(R.string.os_zaslon_meni_koncaj) to { koncaj(zapriPrograme = true); finish() })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_zaslon))
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
@@ -518,16 +524,27 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      * tipko drzis. Brez pospeska je pot cez zaslon predolga, s samo hitrim premikom pa se ne da
      * natancno zadeti.
      */
-    private fun zacniSmer(nova: Pair<Int, Int>) {
+    private fun zacniSmer(nova: Pair<Int, Int>, koda: Int) {
         if (smer == nova) return
         smer = nova
         hitrost = ZaslonVnos.KAZALEC_ZACETNA
+        // Kratek pritisk je en natancen korak. Prej je kazalec ze ob kratkem pritisku zdrsel
+        // mimo gumba in do zelenega mesta ni bilo mogoce priti. V programu na locenem zaslonu
+        // kratek pritisk skoci na naslednji gumb, povezavo ali polje - kot na Androidu; kjer jih
+        // program ne pozna, racunalnik kazalec le rahlo premakne. Drzanje kazalec vodi prosto.
+        if (naDrugem && fokusPodprt) posljiFokus(koda, true)
+        else ZaslonVnos.premik(nova.first * ZaslonVnos.KAZALEC_KORAK, nova.second * ZaslonVnos.KAZALEC_KORAK)
+            ?.let { odjemalec?.posljiVnos(it) }
+        smerOd = android.os.SystemClock.uptimeMillis()
         if (smerTece) return
         smerTece = true
         glavna.post(object : Runnable {
             override fun run() {
                 val s = smer
                 if (s == null || isFinishing || koncujem) { smerTece = false; return }
+                if (android.os.SystemClock.uptimeMillis() - smerOd < ZaslonVnos.KAZALEC_ZAMIK) {
+                    glavna.postDelayed(this, 16); return
+                }
                 ZaslonVnos.premik((s.first * hitrost).toInt(), (s.second * hitrost).toInt())
                     ?.let { odjemalec?.posljiVnos(it) }
                 hitrost = (hitrost * ZaslonVnos.KAZALEC_POSPESEK).coerceAtMost(ZaslonVnos.KAZALEC_NAJVECJA)
@@ -625,13 +642,16 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Skok na naslednji gumb/polje v smeri (racunalnik ga najde; v igri gre kot smerna tipka). */
-    private fun posljiFokus(koda: Int) {
+    private fun posljiFokus(koda: Int, daljinec: Boolean = false) {
         val smer = when (koda) {
             KeyEvent.KEYCODE_DPAD_UP -> "gor"; KeyEvent.KEYCODE_DPAD_DOWN -> "dol"
             KeyEvent.KEYCODE_DPAD_LEFT -> "levo"; KeyEvent.KEYCODE_DPAD_RIGHT -> "desno"
             else -> return
         }
-        odjemalec?.posljiVnos(org.json.JSONObject().put("vrsta", "fokus").put("smer", smer))
+        val d = org.json.JSONObject().put("vrsta", "fokus").put("smer", smer)
+        // Daljinec vodi kazalec: kjer polj ni, naj se kazalec le malo premakne (ne smerna tipka).
+        if (daljinec) d.put("sicer", "kazalec")
+        odjemalec?.posljiVnos(d)
     }
 
     private var fokusSmer = 0

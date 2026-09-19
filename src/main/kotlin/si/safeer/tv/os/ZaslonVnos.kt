@@ -91,7 +91,10 @@ object ZaslonVnos {
     }
 
     /** Daljinec brez miske: kazalec se ob drzanju smerne tipke pospesuje od mirne do hitre. */
-    const val KAZALEC_ZACETNA = 5f
+    const val KAZALEC_ZACETNA = 4f
+    /** Kratek pritisk: en majhen, natancen korak. Kazalec zdrsi sele, ko tipko drzis dlje. */
+    const val KAZALEC_KORAK = 12
+    const val KAZALEC_ZAMIK = 320L
     const val KAZALEC_NAJVECJA = 38f
     const val KAZALEC_POSPESEK = 1.12f
 
