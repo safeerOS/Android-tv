@@ -28,7 +28,7 @@ android {
             dimension 'aplikacija'
             applicationId 'si.safeer.os'
             versionCode 12
-            versionName '0.2.12'
+            versionName '0.3.0'
         }
         // Safeer OS Tablet: ista koda, a za dotik od blizu (tablica), ne za daljinec.
         // V pripravi; televizorja in brskalnika se ne dotika.
