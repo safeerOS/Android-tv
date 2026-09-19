@@ -28,7 +28,7 @@
     <string name="tablet_povezujem">Connecting to “%1$s” …</string>
     <string name="tablet_ni_odgovora">“%1$s” is not answering. Check that the device is on and in the same network.</string>
     <string name="tablet_koda_naslov">Code from “%1$s”</string>
-    <string name="tablet_koda_opis">A six-digit code has appeared on the screen of “%1$s”. Type it here.</string>
+    <string name="tablet_koda_opis">A six-digit code has appeared on the screen of “%1$s” (in Safeer OS). Type it here.</string>
     <string name="tablet_poveziSe">Connect</string>
     <string name="tablet_povezana">The tablet is connected to “%1$s”.</string>
     <string name="tablet_napacna_koda">The code does not match. Check it on the screen and try again.</string>
@@ -36,4 +36,5 @@
     <string name="tablet_pridruzi_namig">There is Safeer Link on another device in this home. Join it with the tile above; a code appears on its screen.</string>
     <string name="tablet_koda_potekla">The code has expired. Tap the tile again for a new one.</string>
     <string name="os_vir_tv">Tablet</string>
+    <string name="tablet_nova_koda">New code</string>
 </resources>

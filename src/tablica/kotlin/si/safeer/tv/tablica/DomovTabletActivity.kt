@@ -128,14 +128,24 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             gravity = android.view.Gravity.CENTER
             setPadding(40, 30, 40, 30)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.tablet_koda_naslov, hub.ime))
             .setMessage(getString(R.string.tablet_koda_opis, hub.ime))
             .setView(vnos)
             .setPositiveButton(getString(R.string.tablet_poveziSe)) { _, _ -> potrdi(hub, vnos.text?.toString().orEmpty()) }
             .setNegativeButton(android.R.string.cancel) { _, _ -> si.safeer.tv.cast.HubPairing.prekini() }
+            // Kode ni na televizorju (potekla, TV je bil ugasnjen): nova prijava, nova koda.
+            .setNeutralButton(getString(R.string.tablet_nova_koda)) { _, _ -> seznani(hub) }
             .show()
         vnos.requestFocus()
+        // Koda velja pet minut; potem okno ne sme vec cakati na nekaj, cesar ni.
+        ploscice.postDelayed({
+            if (okno.isShowing) {
+                okno.dismiss()
+                si.safeer.tv.cast.HubPairing.prekini()
+                Toast.makeText(this, getString(R.string.tablet_koda_potekla), Toast.LENGTH_LONG).show()
+            }
+        }, 290_000)
     }
 
     private fun potrdi(hub: IskanjeHubov.Hub, koda: String) {

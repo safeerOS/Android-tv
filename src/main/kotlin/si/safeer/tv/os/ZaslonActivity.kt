@@ -172,10 +172,29 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (seja == null) zahtevajSejo()
     }
 
+    /** Koda za novo napravo (tablica, telefon) se pokaze tudi cez sliko racunalnika. */
+    private val koda by lazy { KodaNaZaslonu(this) }
+
+    override fun onResume() {
+        super.onResume()
+        koda.zacni()
+    }
+
+    override fun onPause() {
+        koda.ustavi()
+        super.onPause()
+    }
+
     override fun onStop() {
         // Uporabnik je odsel (Domov, klic, ugasnjen zaslon): kar je drzal, mora gor - sicer bi
         // tipka na racunalniku ostala pritisnjena.
         sprostiDrzane()
+        // Program s televizorja: kdor sejo zapusti (tudi s tipko Domov ali ko ugasne televizor),
+        // ga ne zeli pustiti teci na nevidnem zaslonu racunalnika.
+        if (naDrugem && !isChangingConfigurations && !isFinishing) {
+            koncaj(zapriPrograme = true)
+            finish()
+        }
         link.odstrani(this)
         super.onStop()
     }
