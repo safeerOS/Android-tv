@@ -35,4 +35,5 @@
     <string name="tablet_prevec_poskusov">Too many wrong codes. Start again from the tile.</string>
     <string name="tablet_pridruzi_namig">There is Safeer Link on another device in this home. Join it with the tile above; a code appears on its screen.</string>
     <string name="tablet_koda_potekla">The code has expired. Tap the tile again for a new one.</string>
+    <string name="os_vir_tv">Tablet</string>
 </resources>

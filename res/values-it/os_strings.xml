@@ -353,4 +353,14 @@
     <string name="os_seznanitev_naslov">Nuovo dispositivo</string>
     <string name="os_seznanitev_opis">%1$s vuole unirsi a Safeer Link su questo televisore. Digita questo codice sul dispositivo:</string>
     <string name="os_seznanitev_zavrni">Rifiuta</string>
+    <string name="os_vse_nadnaslov">App</string>
+    <string name="os_vse_naslov">Tutto ciò che puoi aprire</string>
+    <string name="os_vir_vse">Tutto</string>
+    <string name="os_vir_tv">Televisore</string>
+    <string name="os_vir_splet">Web</string>
+    <string name="os_vir_racunalnik">Computer</string>
+    <string name="os_priljubljen_dodaj">Aggiungi alla schermata Home</string>
+    <string name="os_priljubljen_odstrani">Rimuovi dalla schermata Home</string>
+    <string name="os_odsek_priljubljene">App preferite</string>
+    <string name="os_vse_kartica">Tutte le app</string>
 </resources>

@@ -27,23 +27,22 @@ import org.json.JSONObject
 import java.util.Locale
 
 /**
- * Programi racunalnika na televizorju: kar ima uporabnik na svojem racunalniku, vidi tudi tu in
- * lahko zazene z daljincem. Seznam pride po Safeer Linku (ukaz `apps.list`, core/link_programi.py),
- * zagon gre nazaj po isti poti (`apps.launch`).
+ * Aplikacije: vse, kar lahko uporabnik odpre - aplikacije televizorja, spletne aplikacije in
+ * programe z racunalnika - na enem zaslonu, z istimi skupinami in istim iskanjem.
  *
- * Racunalnik ima hitro sto programov in abecedna mreza je bila zato seznam, po katerem se je bilo
- * treba prebijati. Zato sta tu **skupine** (igre, pisarna, splet, predstavnost, programiranje,
- * ucenje, orodja) - iste, kot jih uporabnik pozna iz menija svojega namizja - in **iskanje po
- * imenu**, ki seznam ozi ze med tipkanjem.
+ * Isti zaslon je tudi "Programi racunalnika" ([EXTRA_VIR] = racunalnik): takrat kaze samo
+ * racunalnik, tako kot doslej. Seznam programov pride po Safeer Linku (`apps.list`), zagon gre nazaj
+ * po isti poti (`apps.launch`).
+ *
+ * Skupine (igre, pisarna, splet, predstavnost, programiranje, ucenje, orodja) so iste, kot jih
+ * uporabnik pozna iz menija svojega namizja; aplikacijam televizorja jih pove sistem, spletnim jih
+ * dolocimo po naslovu. Iskanje po imenu seznam ozi ze med tipkanjem.
  *
  * Program se odpre na zaslonu racunalnika. Kadar racunalnik svoj zaslon deli, Safeer OS takoj
  * preklopi nanj, da uporabnik to, kar je odprl, tudi vidi in upravlja; kadar ga ne deli, to
  * posteno pove in nicesar ne obljublja.
  */
 class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
-
-    private class Program(val id: String, val ime: String, val opis: String, val skupina: String,
-                          val ikona: android.graphics.drawable.Drawable?)
 
     private lateinit var mreza: GridView
     private lateinit var naslov: TextView
@@ -53,11 +52,21 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var iskanje: EditText
     private lateinit var skupineVrsta: LinearLayout
     private lateinit var skupineDrsnik: HorizontalScrollView
+    private var viriVrsta: LinearLayout? = null
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private val prilagojevalnik = Prilagojevalnik()
-    private var programi: List<Program> = emptyList()
-    private var vidni: List<Program> = emptyList()
+
+    /** Kaj ta zaslon kaze: "vse", "tv", "splet" ali "racunalnik" (privzeto, kot doslej). */
+    private var nacin = AppVir.RACUNALNIK.kljuc
+    /** Izbrani vir v nacinu "vse"; null = vsi. */
+    private var izbraniVir: AppVir? = null
+
+    private var krajevni: List<SafeerApp> = emptyList()
+    private var oddaljeni: List<SafeerApp> = emptyList()
+    private var vidni: List<SafeerApp> = emptyList()
+    /** Ikone programov racunalnika (PNG, base64) - za kartico na domacem zaslonu. */
+    private val ikonePng = HashMap<String, String>()
     private var izbranaSkupina = ""          // prazno = vse skupine
     private var racunalnik: LinkOdjemalec.Naprava? = null
     private var nalagam = false
@@ -65,9 +74,19 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Koliko programov (z ikonami) prosimo naenkrat; en kos mora ostati krepko pod 256 kB. */
     private val STRAN = 18
 
+    private fun zVirom(v: AppVir) = nacin == "vse" || nacin == v.kljuc
+
+    /** Vse aplikacije tega zaslona; v nacinu "vse" po abecedi, sicer v vrstnem redu vira. */
+    private val programi: List<SafeerApp>
+        get() {
+            val vsi = krajevni + oddaljeni
+            return if (nacin == "vse") vsi.sortedBy { it.ime.lowercase(Locale.getDefault()) } else vsi
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.os_activity_programi)
+        nacin = intent.getStringExtra(EXTRA_VIR) ?: AppVir.RACUNALNIK.kljuc
         mreza = findViewById(R.id.mreza)
         naslov = findViewById(R.id.naslov)
         nadnaslov = findViewById(R.id.nadnaslov)
@@ -76,8 +95,18 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         iskanje = findViewById(R.id.iskanje)
         skupineVrsta = findViewById(R.id.skupine)
         skupineDrsnik = findViewById(R.id.skupineDrsnik)
-        nadnaslov.text = getString(R.string.os_programi)
-        naslov.text = getString(R.string.os_programi_naslov)
+        when (nacin) {
+            AppVir.RACUNALNIK.kljuc -> {
+                nadnaslov.text = getString(R.string.os_programi)
+                naslov.text = getString(R.string.os_programi_naslov)
+            }
+            else -> {
+                nadnaslov.text = getString(R.string.os_vse_nadnaslov)
+                naslov.text = getString(R.string.os_vse_naslov)
+                findViewById<ImageView>(R.id.glavaIkona)?.setImageResource(R.drawable.os_ikona_mreza)
+                znacka.visibility = View.GONE
+            }
+        }
         mreza.adapter = prilagojevalnik
         // Izbrani program je bil komaj viden (bled izbor) in zgornja vrsta je pod glavo bledela, kot
         // da je odrezana. Zdaj: svetel okvir cez kartico, kartica se rahlo poveca, brez bledenja.
@@ -121,7 +150,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
         }
         mreza.setOnItemClickListener { _, _, i, _ -> vidni.getOrNull(i)?.let { zazeni(it) } }
-        // Dolg pritisk OK: program, ki tece na racunalniku, je mogoce od tu tudi zapreti.
+        // Dolg pritisk OK: na domaci zaslon ali z njega, program z racunalnika pa se da tudi zapreti.
         mreza.setOnItemLongClickListener { _, _, i, _ ->
             vidni.getOrNull(i)?.let { moznosti(it) }
             true
@@ -137,12 +166,25 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onStart()
         Ozadje.uporabi(this, findViewById(R.id.koren))
         link.dodaj(this)
-        if (programi.isEmpty()) nalozi()
+        naloziKrajevne()
+        if (zVirom(AppVir.RACUNALNIK) && oddaljeni.isEmpty()) nalozi()
     }
 
     override fun onStop() {
         link.odstrani(this)
         super.onStop()
+    }
+
+    /** Aplikacije televizorja in spletne aplikacije: na tej napravi, zato takoj. */
+    private fun naloziKrajevne() {
+        val novi = ArrayList<SafeerApp>()
+        if (zVirom(AppVir.TV)) novi.addAll(SafeerAppi.naTelevizorju(this))
+        if (zVirom(AppVir.SPLET)) novi.addAll(SafeerAppi.spletne(this))
+        val prvi = programi.isEmpty() && novi.isNotEmpty()
+        krajevni = novi
+        narisiSkupine()
+        osveziSeznam()
+        if (prvi) { mreza.requestFocus(); mreza.setSelection(0) }
     }
 
     /** Racunalnik, ki programe deli (zmoznost "apps"); brez njega ni kaj pokazati. */
@@ -153,6 +195,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (nalagam) return
         val r = racunalnikSProgrami()
         if (r == null) {
+            // Na zaslonu vseh aplikacij racunalnik ni nujen: brez njega so tu ostale.
+            if (nacin != AppVir.RACUNALNIK.kljuc) return
             znacka.visibility = View.GONE
             pokaziOrodja(false)
             pokaziSporocilo(getString(
@@ -160,12 +204,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return
         }
         racunalnik = r
-        znacka.text = r.ime.ifBlank { r.id }
-        znacka.visibility = View.VISIBLE
-        programi = emptyList()
-        vidni = emptyList()
+        if (nacin == AppVir.RACUNALNIK.kljuc) {
+            znacka.text = r.ime.ifBlank { r.id }
+            znacka.visibility = View.VISIBLE
+        }
+        oddaljeni = emptyList()
         prilagojevalnik.notifyDataSetChanged()
-        pokaziSporocilo(getString(R.string.os_programi_nalagam))
+        if (programi.isEmpty()) pokaziSporocilo(getString(R.string.os_programi_nalagam))
         naloziStran(r, 0)
     }
 
@@ -187,15 +232,18 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 koncajSSporocilom(getString(R.string.os_programi_izklopljeno, r.ime.ifBlank { r.id })); return@Odgovor
             }
             val polje = podatki.optJSONArray("items")
-            val novi = ArrayList<Program>(programi)
+            val novi = ArrayList<SafeerApp>(oddaljeni)
             if (polje != null) for (i in 0 until polje.length()) {
                 val o = polje.optJSONObject(i) ?: continue
                 val id = o.optString("id"); if (id.isBlank()) continue
-                novi.add(Program(id, o.optString("name"), o.optString("comment"),
-                    o.optString("group").ifBlank { DRUGO }, ikona(o.optString("icon_png"))))
+                val png = o.optString("icon_png")
+                val kljuc = "racunalnik:" + r.id + ":" + id
+                if (png.isNotBlank()) ikonePng[kljuc] = png
+                novi.add(SafeerApp(kljuc, o.optString("name"), o.optString("comment"),
+                    o.optString("group").ifBlank { DRUGO }, ikona(png), AppVir.RACUNALNIK, id, r.id))
             }
             val prvi = programi.isEmpty() && novi.isNotEmpty()
-            programi = novi
+            oddaljeni = novi
             narisiSkupine()
             osveziSeznam()
             if (prvi) { mreza.requestFocus(); mreza.setSelection(0) }
@@ -203,21 +251,21 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val prejeto = polje?.length() ?: 0
             when {
                 novi.size < skupaj && prejeto > 0 -> naloziStran(r, od + prejeto)
-                novi.isEmpty() -> pokaziSporocilo(getString(R.string.os_programi_prazno))
+                programi.isEmpty() -> pokaziSporocilo(getString(R.string.os_programi_prazno))
             }
         })
     }
 
     /** Napaka sredi nalaganja: ce smo kaj ze pokazali, pustimo to in samo povemo, kaj je slo narobe. */
     private fun koncajSSporocilom(b: String) {
-        pokaziSporocilo(b)
+        // Na zaslonu vseh aplikacij so ostale se tu; napaka racunalnika jih ne sme prekriti.
+        if (nacin == AppVir.RACUNALNIK.kljuc || programi.isEmpty()) pokaziSporocilo(b)
     }
 
-    // ------------------------------------------------------------------ skupine in iskanje
+    // ------------------------------------------------------------------ skupine, viri in iskanje
 
     /** Skupine v vrstnem redu, kot jih uporabnik pricakuje; kar racunalnik doda novega, pade v "drugo". */
-    private val vrstniRedSkupin = listOf("igre", "pisarna", "splet", "predstavnost",
-                                         "programiranje", "ucenje", "orodja", DRUGO)
+    private val vrstniRedSkupin = SafeerAppi.SKUPINE
 
     private fun imeSkupine(kljuc: String): String = when (kljuc) {
         "igre" -> getString(R.string.os_skupina_igre)
@@ -230,14 +278,31 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         else -> getString(R.string.os_skupina_drugo)
     }
 
+    private fun imeVira(v: AppVir?): String = when (v) {
+        null -> getString(R.string.os_vir_vse)
+        AppVir.TV -> getString(R.string.os_vir_tv)
+        AppVir.SPLET -> getString(R.string.os_vir_splet)
+        AppVir.RACUNALNIK -> getString(R.string.os_vir_racunalnik)
+    }
+
+    /** Kljuci priljubljenih z racunalnika (zvezdica); preberemo jih enkrat na izris, ne za vsako kartico. */
+    private var priljubljeni: Set<String> = emptySet()
+
+    private fun jePriljubljena(p: SafeerApp): Boolean =
+        if (p.vir == AppVir.TV) Priljubljene.je(this, p.cilj) else p.kljuc in priljubljeni
+
+    private fun poViru(): List<SafeerApp> = izbraniVir?.let { v -> programi.filter { it.vir == v } } ?: programi
+
     /**
-     * Gumbi skupin. Pokazemo samo tiste, ki na tem racunalniku res kaj vsebujejo - prazna skupina
-     * bi obljubljala programe, ki jih ni. Ob vsaki je stevilo, da se takoj vidi, kje je kaj.
+     * Gumbi skupin. Pokazemo samo tiste, ki res kaj vsebujejo - prazna skupina bi obljubljala
+     * programe, ki jih ni. Ob vsaki je stevilo, da se takoj vidi, kje je kaj.
      */
     private fun narisiSkupine() {
+        narisiVire()
+        val seznam = poViru()
         val stevila = LinkedHashMap<String, Int>()
         for (kljuc in vrstniRedSkupin) {
-            val n = programi.count { it.skupina == kljuc }
+            val n = seznam.count { it.skupina == kljuc }
             if (n > 0) stevila[kljuc] = n
         }
         // Ena sama skupina ni razvrstitev: takrat gumbov ne kazemo, ker ne povedo nicesar.
@@ -247,13 +312,46 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (!kaziSkupine) { izbranaSkupina = ""; return }
         if (izbranaSkupina.isNotEmpty() && !stevila.containsKey(izbranaSkupina)) izbranaSkupina = ""
         skupineVrsta.removeAllViews()
-        skupineVrsta.addView(gumbSkupine("", getString(R.string.os_skupina_vse), programi.size))
+        skupineVrsta.addView(gumbSkupine("", getString(R.string.os_skupina_vse), seznam.size))
         for ((kljuc, n) in stevila) skupineVrsta.addView(gumbSkupine(kljuc, imeSkupine(kljuc), n))
     }
 
-    private fun gumbSkupine(kljuc: String, ime: String, koliko: Int): View {
+    /**
+     * Viri na zaslonu vseh aplikacij (Vse, Televizor, Splet, Racunalnik) - v glavi, desno, samo
+     * kadar je virov vec. Vir se zamenja z OK (ne ze s premikom), ker zamenja celo mrezo.
+     */
+    private fun narisiVire() {
+        if (nacin != "vse") return
+        val prisotni = AppVir.values().filter { v -> programi.any { it.vir == v } }
+        var vrsta = viriVrsta
+        if (vrsta == null) {
+            vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            (znacka.parent as? ViewGroup)?.addView(vrsta)
+            viriVrsta = vrsta
+        }
+        vrsta.removeAllViews()
+        if (prisotni.size < 2) { vrsta.visibility = View.GONE; izbraniVir = null; return }
+        vrsta.visibility = View.VISIBLE
+        if (izbraniVir != null && izbraniVir !in prisotni) izbraniVir = null
+        for (v in listOf<AppVir?>(null) + prisotni) {
+            val n = if (v == null) programi.size else programi.count { it.vir == v }
+            val g = gumb(getString(R.string.os_skupina_s_stevilom, imeVira(v), n), v == izbraniVir)
+            g.setOnClickListener {
+                if (izbraniVir == v) return@setOnClickListener
+                izbraniVir = v
+                izbranaSkupina = ""
+                narisiSkupine()
+                osveziSeznam()
+                viriVrsta?.let { r -> (0 until r.childCount).map { r.getChildAt(it) }.firstOrNull { it.isActivated } }
+                    ?.requestFocus()
+            }
+            vrsta.addView(g)
+        }
+    }
+
+    private fun gumb(besedilo: String, aktiven: Boolean): TextView {
         val t = TextView(this)
-        t.text = getString(R.string.os_skupina_s_stevilom, ime, koliko)
+        t.text = besedilo
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         t.setTextColor(getColorStateList(R.color.os_skupina_besedilo))
         t.setBackgroundResource(R.drawable.os_skupina)
@@ -262,11 +360,16 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val navpicno = (9 * resources.displayMetrics.density).toInt()
         t.setPadding(vodoravno, navpicno, vodoravno, navpicno)
         t.isFocusable = true
-        t.isActivated = kljuc == izbranaSkupina
+        t.isActivated = aktiven
         val mere = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT)
         mere.marginEnd = (8 * resources.displayMetrics.density).toInt()
         t.layoutParams = mere
+        return t
+    }
+
+    private fun gumbSkupine(kljuc: String, ime: String, koliko: Int): View {
+        val t = gumb(getString(R.string.os_skupina_s_stevilom, ime, koliko), kljuc == izbranaSkupina)
         t.setOnClickListener { izberiSkupino(kljuc, t) }
         t.tag = kljuc
         // Skupina, ki ima fokus, mora ostati vidna, tudi ko jih je vec, kot gre na zaslon.
@@ -334,8 +437,9 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun osveziSeznam() {
+        priljubljeni = SafeerAppi.priljubljeni(this).map { it.kljuc }.toSet()
         val iskano = poenostavi(iskanje.text?.toString().orEmpty().trim())
-        vidni = programi.filter { p ->
+        vidni = poViru().filter { p ->
             (izbranaSkupina.isEmpty() || p.skupina == izbranaSkupina) &&
                 (iskano.isEmpty() || poenostavi(p.ime).contains(iskano) || poenostavi(p.opis).contains(iskano))
         }
@@ -358,37 +462,82 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         } catch (_: Throwable) { null }
     }
 
-    /**
-     * Zagon. Program se odpre na racunalniku; kadar racunalnik deli svoj zaslon, takoj preklopimo
-     * nanj, da uporabnik to, kar je odprl, vidi in upravlja tu. Prej je ostal na seznamu in je
-     * program tekel nekje, kjer ga ni videl - pri igri ali predvajalniku je bilo to neuporabno.
-     */
-    /** Kaj lahko naredimo s programom: zaprem ga na racunalniku (zagon je navaden pritisk OK). */
-    private fun moznosti(p: Program) {
-        val r = racunalnik ?: return
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+    // ------------------------------------------------------------------ zagon in moznosti
+
+    /** Dolg pritisk: na domaci zaslon ali z njega; program z racunalnika se da tudi zapreti. */
+    private fun moznosti(p: SafeerApp) {
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        val na = SafeerAppi.jePriljubljena(this, p)
+        if (p.vir != AppVir.SPLET) dejanja.add(getString(if (na) R.string.os_priljubljen_odstrani else R.string.os_priljubljen_dodaj) to {
+            val png = ikonePng[p.kljuc]?.let { try { Base64.decode(it, Base64.DEFAULT) } catch (_: Throwable) { null } }
+            val zdaj = SafeerAppi.preklopi(this, p, png)
+            priljubljeni = SafeerAppi.priljubljeni(this).map { it.kljuc }.toSet()
+            prilagojevalnik.notifyDataSetChanged()
+            Toast.makeText(this, getString(
+                if (zdaj) R.string.os_aplikacije_dodana else R.string.os_aplikacije_odstranjena, p.ime),
+                Toast.LENGTH_SHORT).show()
+        })
+        if (p.vir == AppVir.RACUNALNIK) dejanja.add(getString(R.string.os_program_zapri) to { zapri(p) })
+        if (dejanja.isEmpty()) return
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(p.ime)
-            .setPositiveButton(getString(R.string.os_program_zapri)) { _, _ ->
-                link.ukaz(r.id, "apps.close", JSONObject().put("app", p.id), 10_000,
-                    LinkOdjemalec.Odgovor { izid, napaka ->
-                        if (isFinishing) return@Odgovor
-                        val ok = izid?.optBoolean("ok") == true
-                        val sporocilo = when {
-                            ok -> getString(R.string.os_program_zaprt, p.ime)
-                            izid?.optString("code") == "ne_tece" -> getString(R.string.os_program_ne_tece, p.ime)
-                            else -> izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() }
-                        }
-                        if (sporocilo.isNotBlank()) Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
-                    })
-            }
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-        Kontroler.pokazi(okno.show())
+            .let { Kontroler.pokazi(it.show()) }
     }
 
-    private fun zazeni(p: Program) {
-        val r = racunalnik ?: return
+    private fun zapri(p: SafeerApp) {
+        link.ukaz(p.racunalnik, "apps.close", JSONObject().put("app", p.cilj), 10_000,
+            LinkOdjemalec.Odgovor { izid, napaka ->
+                if (isFinishing) return@Odgovor
+                val ok = izid?.optBoolean("ok") == true
+                val sporocilo = when {
+                    ok -> getString(R.string.os_program_zaprt, p.ime)
+                    izid?.optString("code") == "ne_tece" -> getString(R.string.os_program_ne_tece, p.ime)
+                    else -> izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() }
+                }
+                if (sporocilo.isNotBlank()) Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+            })
+    }
+
+    private fun zazeni(p: SafeerApp) {
+        when (p.vir) {
+            AppVir.TV -> p.namera?.let { odpriVarno(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), p.ime) }
+            AppVir.SPLET -> {
+                Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = p.ime, url = p.cilj))
+                odpriVarno(Brskalnik.spletnaAplikacija(this, p.cilj, p.ime), p.ime)
+            }
+            AppVir.RACUNALNIK -> zazeniProgram(p)
+        }
+    }
+
+    /** Odpiranje, ki ne utihne: ce ne gre, povemo zakaj in ponudimo ponovni poskus. */
+    private fun odpriVarno(namera: Intent, ime: String) {
+        try {
+            startActivity(namera)
+        } catch (e: Throwable) {
+            val razlog = when (e) {
+                is android.content.ActivityNotFoundException -> getString(R.string.os_odpri_ni_aplikacije)
+                is SecurityException -> getString(R.string.os_odpri_ni_dovoljenja)
+                else -> e.message.orEmpty().ifBlank { e.javaClass.simpleName }
+            }
+            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(ime)
+                .setMessage(getString(R.string.os_odpri_napaka, razlog))
+                .setPositiveButton(getString(R.string.os_poskusi_znova)) { _, _ -> odpriVarno(namera, ime) }
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .let { Kontroler.pokazi(it.show()) }
+        }
+    }
+
+    /**
+     * Zagon programa. Program se odpre na racunalniku; kadar racunalnik deli svoj zaslon, takoj
+     * preklopimo nanj, da uporabnik to, kar je odprl, vidi in upravlja tu.
+     */
+    private fun zazeniProgram(p: SafeerApp) {
+        val r = link.naprave.firstOrNull { it.id == p.racunalnik } ?: racunalnik ?: return
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
-        link.ukaz(r.id, "apps.launch", JSONObject().put("app", p.id), 10_000, LinkOdjemalec.Odgovor { izid, napaka ->
+        link.ukaz(r.id, "apps.launch", JSONObject().put("app", p.cilj), 10_000, LinkOdjemalec.Odgovor { izid, napaka ->
             if (isFinishing) return@Odgovor
             if (izid?.optBoolean("ok") != true) {
                 Toast.makeText(this, getString(R.string.os_programi_napaka,
@@ -396,13 +545,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 return@Odgovor
             }
             Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.PROGRAM, ime = p.ime,
-                racunalnik = r.id, program = p.id, igra = p.skupina == "igre"))
+                racunalnik = r.id, program = p.cilj, igra = p.skupina == "igre"))
             if (zaslon) {
                 Toast.makeText(this, getString(R.string.os_programi_odpiram, p.ime), Toast.LENGTH_SHORT).show()
                 startActivity(Intent(this, ZaslonActivity::class.java)
                     .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
                     .putExtra(ZaslonActivity.EXTRA_ZASLON, "apps")
-                    .putExtra(ZaslonActivity.EXTRA_PROGRAM, p.id)
+                    .putExtra(ZaslonActivity.EXTRA_PROGRAM, p.cilj)
                     .putExtra(ZaslonActivity.EXTRA_IGRA, p.skupina == "igre"))
             } else {
                 Toast.makeText(this, getString(R.string.os_programi_zagnan, p.ime,
@@ -412,13 +561,14 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /**
-     * Nazaj najprej pocisti iskanje in skupino: uporabnik, ki je iskal, si najbrz zeli nazaj cel
-     * seznam, ne ven z zaslona. Drugi Nazaj zapre zaslon kot obicajno.
+     * Nazaj najprej pocisti iskanje, skupino in vir: uporabnik, ki je iskal, si najbrz zeli nazaj
+     * cel seznam, ne ven z zaslona. Drugi Nazaj zapre zaslon kot obicajno.
      */
     override fun onBackPressed() {
-        if (iskanje.text?.isNotEmpty() == true || izbranaSkupina.isNotEmpty()) {
+        if (iskanje.text?.isNotEmpty() == true || izbranaSkupina.isNotEmpty() || izbraniVir != null) {
             iskanje.setText("")
             izbranaSkupina = ""
+            izbraniVir = null
             narisiSkupine()
             osveziSeznam()
             if (vidni.isNotEmpty()) { mreza.requestFocus(); mreza.setSelection(0) }
@@ -441,7 +591,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     // ------------------------------------------------------------------ Link
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
-        if (programi.isEmpty() && !nalagam) nalozi()
+        if (zVirom(AppVir.RACUNALNIK) && oddaljeni.isEmpty() && !nalagam) nalozi()
     }
 
     override fun naStanje(povezan: Boolean, sporocilo: String) { }
@@ -458,13 +608,18 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 .inflate(R.layout.os_kartica_program, roditelj, false)
             val p = vidni[i]
             val ikona = v.findViewById<ImageView>(R.id.ikona)
-            if (p.ikona != null) ikona.setImageDrawable(p.ikona) else ikona.setImageResource(R.drawable.os_ikona_racunalnik)
-            v.findViewById<TextView>(R.id.ime).text = p.ime
+            if (p.ikona != null) ikona.setImageDrawable(p.ikona)
+            else ikona.setImageResource(if (p.vir == AppVir.RACUNALNIK) R.drawable.os_ikona_racunalnik else R.drawable.os_ikona_mreza)
+            // Zvezdica pove, da je na domacem zaslonu; z dveh metrov je vidna takoj.
+            v.findViewById<TextView>(R.id.ime).text =
+                if (p.vir != AppVir.SPLET && jePriljubljena(p)) "★ " + p.ime else p.ime
             return v
         }
     }
 
     companion object {
+        /** Kaj zaslon kaze: "vse", "tv", "splet" ali "racunalnik" (privzeto). */
+        const val EXTRA_VIR = "vir"
         /** Oznaka skupine za program, ki svoje kategorije nima (ista beseda kot v core/link_programi.py). */
         private const val DRUGO = "drugo"
     }

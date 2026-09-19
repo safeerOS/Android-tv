@@ -353,4 +353,14 @@
     <string name="os_seznanitev_naslov">Nova naprava</string>
     <string name="os_seznanitev_opis">%1$s se želi povezati v Safeer Link tega televizorja. Na njej vtipkaj to kodo:</string>
     <string name="os_seznanitev_zavrni">Zavrni</string>
+    <string name="os_vse_nadnaslov">Aplikacije</string>
+    <string name="os_vse_naslov">Vse, kar lahko odpreš</string>
+    <string name="os_vir_vse">Vse</string>
+    <string name="os_vir_tv">Televizor</string>
+    <string name="os_vir_splet">Splet</string>
+    <string name="os_vir_racunalnik">Računalnik</string>
+    <string name="os_priljubljen_dodaj">Na domači zaslon</string>
+    <string name="os_priljubljen_odstrani">Z domačega zaslona</string>
+    <string name="os_odsek_priljubljene">Priljubljene aplikacije</string>
+    <string name="os_vse_kartica">Vse aplikacije</string>
 </resources>

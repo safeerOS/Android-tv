@@ -153,6 +153,7 @@
 
         <!-- Aplikacije -->
         <TextView
+            android:id="@+id/naslovAplikacije"
             style="@style/Os.Nadnaslov"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

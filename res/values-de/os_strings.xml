@@ -353,4 +353,14 @@
     <string name="os_seznanitev_naslov">Neues Gerät</string>
     <string name="os_seznanitev_opis">%1$s möchte sich mit Safeer Link auf diesem Fernseher verbinden. Gib dort diesen Code ein:</string>
     <string name="os_seznanitev_zavrni">Ablehnen</string>
+    <string name="os_vse_nadnaslov">Apps</string>
+    <string name="os_vse_naslov">Alles, was du öffnen kannst</string>
+    <string name="os_vir_vse">Alle</string>
+    <string name="os_vir_tv">Fernseher</string>
+    <string name="os_vir_splet">Web</string>
+    <string name="os_vir_racunalnik">Computer</string>
+    <string name="os_priljubljen_dodaj">Zum Startbildschirm</string>
+    <string name="os_priljubljen_odstrani">Vom Startbildschirm entfernen</string>
+    <string name="os_odsek_priljubljene">Lieblings-Apps</string>
+    <string name="os_vse_kartica">Alle Apps</string>
 </resources>

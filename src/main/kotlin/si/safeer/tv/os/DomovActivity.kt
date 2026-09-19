@@ -950,23 +950,71 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.findViewById<ImageView>(R.id.ikona).setImageDrawable(Aplikacije.ikona(this, a))
             v.findViewById<TextView>(R.id.ime).text = a.ime
             v.onFocusChangeListener = fokus
-            v.setOnClickListener { odpriVarno(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), a.ime) }
+            v.setOnClickListener {
+                zadnjaOznaka = "app:" + a.paket
+                odpriVarno(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), a.ime)
+            }
             v.setOnLongClickListener { moznostiAplikacije(a, po.size); true }
             v.tag = "app:" + a.paket
             vrstaAplikacije.addView(v)
             if (a.paket == fokusPaket) zeljeni = v
         }
+        // Priljubljeni programi z racunalnika: v isti vrsti kot aplikacije televizorja - uporabnik
+        // ne loci, kje kaj tece. Ikono imamo shranjeno, zato je kartica tu tudi brez racunalnika.
+        val oddaljeni = SafeerAppi.priljubljeni(this).filter { it.vir == AppVir.RACUNALNIK }
+        for (p in oddaljeni) {
+            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
+            val ikona = v.findViewById<ImageView>(R.id.ikona)
+            SafeerAppi.ikona(this, p)?.let { ikona.setImageDrawable(it) } ?: ikona.setImageResource(R.drawable.os_ikona_racunalnik)
+            v.findViewById<TextView>(R.id.ime).text = p.ime
+            v.onFocusChangeListener = fokus
+            v.setOnClickListener {
+                zadnjaOznaka = "app:" + p.kljuc
+                zazeniProgram(Nadaljuj.Vnos(vrsta = Nadaljuj.PROGRAM, ime = p.ime, racunalnik = p.racunalnik,
+                    program = p.cilj, igra = p.skupina == "igre"))
+            }
+            v.setOnLongClickListener {
+                android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle(p.ime)
+                    .setItems(arrayOf(getString(R.string.os_priljubljen_odstrani))) { _, _ ->
+                        val mesto = vrstaAplikacije.indexOfChild(v)
+                        SafeerAppi.odstrani(this, p.kljuc); narisiAplikacije()
+                        // Izbira ostane v vrsti (na sosednji kartici), ne skoci na vrh zaslona.
+                        vrstaAplikacije.post {
+                            vrstaAplikacije.getChildAt(mesto.coerceAtMost(vrstaAplikacije.childCount - 1))?.requestFocus()
+                        }
+                    }
+                    .setNegativeButton(getString(R.string.os_preklici), null)
+                    .let { Kontroler.pokazi(it.show()) }
+                true
+            }
+            v.tag = "app:" + p.kljuc
+            vrstaAplikacije.addView(v)
+        }
+        findViewById<TextView>(R.id.naslovAplikacije)?.setText(
+            if (oddaljeni.isEmpty()) R.string.os_odsek_aplikacije else R.string.os_odsek_priljubljene)
         val ostalo = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
         ostalo.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_mreza)
         // Dokler uporabnik ni izbral nobene, kartica pove, kaj naj naredi - prazna vrsta molci.
         ostalo.findViewById<TextView>(R.id.ime).text =
-            getString(if (po.isEmpty()) R.string.os_aplikacije_izberi else R.string.os_aplikacije_ostalo)
+            getString(if (po.isEmpty() && oddaljeni.isEmpty()) R.string.os_aplikacije_izberi else R.string.os_vse_kartica)
         ostalo.onFocusChangeListener = fokus
-        ostalo.setOnClickListener { odpriVarno(Intent(this, AplikacijeTvActivity::class.java), getString(R.string.os_aplikacije_vse)) }
+        // Vse, kar lahko odpres: aplikacije televizorja, spletne in programi racunalnika na enem mestu.
+        ostalo.setOnClickListener { zadnjaOznaka = "app:+"; odpriVarno(Intent(this, AplikacijeHostaActivity::class.java)
+            .putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse"), getString(R.string.os_aplikacije_vse)) }
         ostalo.tag = "app:+"
         vrstaAplikacije.addView(ostalo)
         uravnajVrsto(vrstaAplikacije, NAJMANJSA_APP_DP, NAJVECJA_APP_DP)
         zeljeni?.let { it.post { it.requestFocus() } }
+        // Vrnitev iz aplikacije, odprte s te vrste: izbira je spet na njeni kartici.
+        val zadnja = zadnjaOznaka
+        if (zeljeni == null && zadnja != null && zadnja.startsWith("app:")) {
+            zadnjaOznaka = null
+            drsnik.postDelayed({
+                val f = currentFocus
+                if (!isFinishing && (f == null || !f.isAttachedToWindow)) najdiPoOznaki(zadnja)?.requestFocus()
+            }, 80)
+        }
     }
 
     /** Dolg pritisk na priljubljeno aplikacijo: uredi vrstni red ali jo umakni z domacega zaslona. */
@@ -977,6 +1025,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (mesto in 0 until koliko - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniAplikacijo(a, 1) })
         dejanja.add(getString(R.string.os_aplikacije_odstrani) to {
             Priljubljene.odstrani(this, a.paket); narisiAplikacije()
+            vrstaAplikacije.post {
+                vrstaAplikacije.getChildAt(mesto.coerceIn(0, vrstaAplikacije.childCount - 1))?.requestFocus()
+            }
         })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(a.ime)

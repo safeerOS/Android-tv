@@ -354,4 +354,14 @@
     <string name="os_seznanitev_naslov">New device</string>
     <string name="os_seznanitev_opis">%1$s wants to join Safeer Link on this TV. Type this code on it:</string>
     <string name="os_seznanitev_zavrni">Decline</string>
+    <string name="os_vse_nadnaslov">Apps</string>
+    <string name="os_vse_naslov">Everything you can open</string>
+    <string name="os_vir_vse">All</string>
+    <string name="os_vir_tv">TV</string>
+    <string name="os_vir_splet">Web</string>
+    <string name="os_vir_racunalnik">Computer</string>
+    <string name="os_priljubljen_dodaj">Add to the home screen</string>
+    <string name="os_priljubljen_odstrani">Remove from the home screen</string>
+    <string name="os_odsek_priljubljene">Favourite apps</string>
+    <string name="os_vse_kartica">All apps</string>
 </resources>
