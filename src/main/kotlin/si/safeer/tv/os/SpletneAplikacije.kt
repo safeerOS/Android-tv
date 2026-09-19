@@ -340,7 +340,13 @@ object SpletneAplikacije {
             val merilo = s / maxOf(vir.width, vir.height).toFloat()
             val sir = maxOf(1, (vir.width * merilo).toInt())
             val vis = maxOf(1, (vir.height * merilo).toInt())
-            return try { Bitmap.createScaledBitmap(vir, sir, vis, true) } catch (_: Throwable) { vir }
+            val pomanjsan = try { Bitmap.createScaledBitmap(vir, sir, vis, true) } catch (_: Throwable) { vir }
+            // Sirok logotip brez podlage (NETFLIX, BRSKALNIK) na ozadju lebdi, temni deli pa v njem
+            // izginejo. Android TV tak logotip kaze na pasici in je jasen; enako storimo mi:
+            // zaobljena podlaga v razmerju logotipa - svetla za temen ali barven logotip, temna za
+            // bel. Kvadraten logotip na prozornem ostane brez podlage (tak je videti kot ikona).
+            if (vir.width < vir.height * 1.4f) return pomanjsan
+            return naPodlagi(pomanjsan, plosca(pomanjsan))
         }
         val izhod = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
         val platno = Canvas(izhod)
@@ -381,6 +387,23 @@ object SpletneAplikacije {
             platno.drawBitmap(vir, null, sredina(s, vir, merilo), risba)
         }
         return izhod
+    }
+
+    /** Sirok logotip na zaobljeni podlagi barve [barva] z zrakom naokoli (kot pasica na Android TV). */
+    private fun naPodlagi(logo: Bitmap, barva: Int): Bitmap {
+        val rob = maxOf(4, (logo.height * 0.22f).toInt())
+        val w = logo.width + 2 * rob
+        val h = logo.height + 2 * rob
+        return try {
+            val izhod = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val platno = Canvas(izhod)
+            val r = minOf(w, h) * 0.2f
+            platno.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), r, r,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = barva })
+            platno.drawBitmap(logo, rob.toFloat(), rob.toFloat(),
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true })
+            izhod
+        } catch (_: Throwable) { logo }
     }
 
     /** Pravokotnik na sredini kvadrata stranice [s] za sliko [vir] v merilu [merilo]. */

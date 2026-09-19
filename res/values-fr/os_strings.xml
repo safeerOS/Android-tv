@@ -2,7 +2,6 @@
 <resources>
     <!-- Safeer OS (domaci zaslon za televizor), del tega brskalnika; imena z os_ -->
     <!-- Vrsta Nadaljuj: kar je uporabnik nazadnje odprl. -->
-    <string name="os_odsek_nadaljuj">Reprendre</string>
     <string name="os_nadaljuj_odstrani">Retirer de Reprendre</string>
     <string name="os_nadaljuj_ni_vec">%1$s n’est plus disponible.</string>
     <string name="os_nadaljuj_ni_racunalnika">L’ordinateur n’est pas connecté – allume-le et connecte-le à Safeer Link, ou continue sur la télévision.</string>
@@ -11,7 +10,6 @@
     <string name="os_pravno">Mentions légales et à propos</string>
     <string name="os_pravno_opis">Licence, responsabilité et comment cela a été fait</string>
     <string name="os_pravno_besedilo">Safeer OS %1$s (%2$s)\n\nLICENCE. Safeer est un logiciel libre sous licence Apache 2.0, fourni « en l’état », sans garantie.\n\nRESPONSABILITÉ. L’usage que tu fais de Safeer et les contenus auxquels tu accèdes ou que tu ouvres avec lui relèvent de ta responsabilité. L’auteur n’est pas responsable des dommages résultant de son utilisation. Safeer Shield, BankGuard et les listes de menaces sont une aide, pas une garantie : elles peuvent manquer une page dangereuse et parfois bloquer une page sûre.\n\nINTELLIGENCE ARTIFICIELLE. L’intelligence artificielle a été utilisée pour développer ce logiciel. Le code peut donc être erroné ou incomplet ; chaque version est testée, mais les erreurs ne peuvent être exclues. Le code source est public : github.com/safeerOS</string>
-    <string name="os_odsek_zacni">Commencer</string>
     <string name="os_odsek_aplikacije">Applications sur ce téléviseur</string>
     <string name="os_splet">Web</string>
     <string name="os_datoteke">Fichiers</string>
@@ -63,6 +61,7 @@
     <string name="os_vrsta_ime">Safeer · applications web</string>
     <string name="os_vrsta_opis">Les applications web que tu as ajoutées à Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Vidéos, musique et photos du téléviseur et de l\'USB</string>
+    <string name="os_datoteke_racunalnik_opis">Dossiers partagés de cet ordinateur</string>
     <string name="os_krajevno_videi">Vidéos</string>
     <string name="os_krajevno_glasba">Musique</string>
     <string name="os_krajevno_slike">Images</string>
@@ -150,7 +149,7 @@
     <string name="os_spletne_levo">Déplacer à gauche</string>
     <string name="os_spletne_desno">Déplacer à droite</string>
     <!-- Programi racunalnika na televizorju -->
-    <string name="os_programi">Programmes de l\'ordinateur</string>
+    <string name="os_programi">Programmes</string>
     <string name="os_programi_naslov">Ce que tu as sur ton ordinateur</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Rechercher par nom</string>
@@ -219,6 +218,7 @@
     <string name="os_pomoc_uredi">Modifier</string>
     <string name="os_ozadje_valovi">Vagues abstraites</string>
     <string name="os_ozadje_gore">Montagnes</string>
+    <string name="os_ozadje_gore_risba">Montagnes (dessin)</string>
     <string name="os_ozadje_gozd">Forêt brumeuse</string>
     <string name="os_ozadje_sij">Aurores boréales</string>
     <string name="os_ozadje_morje">Mer sombre</string>
@@ -339,4 +339,40 @@
     <string name="os_priljubljen_odstrani">Retirer de l\'écran d\'accueil</string>
     <string name="os_odsek_priljubljene">Applications favorites</string>
     <string name="os_vse_kartica">Toutes les applis</string>
+<!-- Glava in stranski meni -->
+    <string name="os_meni_domov">Accueil</string>
+    <string name="os_meni_aplikacije">Applications</string>
+    <string name="os_meni_zaslon">Écran</string>
+    <string name="os_meni_datoteke">Fichiers</string>
+    <string name="os_meni_naprave">Appareils</string>
+    <string name="os_meni_nastavitve">Paramètres</string>
+    <string name="os_podnaslov_app">Votre ordinateur entre vos mains.</string>
+    <string name="os_pozdrav_naslov">Bon retour !</string>
+    <string name="os_pozdrav_podnaslov">Tous vos appareils, applications et contenus – au même endroit.</string>
+    <string name="os_noge_podpis">Safeer OS | Monde ouvert. Sans limites.</string>
+<string name="os_brskalnik_naslov">Navigateur Web</string>
+    <string name="os_brskalnik_opis">Rapide, sécurisé, sans publicité</string>
+    <string name="os_zaslon_opis">Ton PC sur la TV</string>
+    <string name="os_programi_opis">Depuis ton ordinateur</string>
+    <string name="os_nedavno_uporabljeno">Récemment utilisé</string>
+    <string name="os_dodaj_aplikacijo">Ajouter une application</string>
+    <string name="os_kartica_ni_povezano_opis">Connectez votre appareil à Safeer Link et activez le partage dans Safeer Control.</string>
+    <string name="os_plosca_naprave_naslov">Appareils connectés</string>
+    <string name="os_plosca_naprave_prazno">Aucun appareil connecté</string>
+    <string name="os_plosca_naprava_povezana">Connecté</string>
+    <string name="os_plosca_naprava_pripravljenost">En attente</string>
+    <string name="os_plosca_hitri_naslov">Accès rapide</string>
+    <string name="os_hitri_splet">Web</string>
+    <string name="os_hitri_zaslon">Bureau</string>
+    <string name="os_hitri_datoteke">Fichiers</string>
+    <string name="os_hitri_nastavitve">Paramètres</string>
+    <string name="os_plosca_scit_naslov">Bouclier</string>
+    <string name="os_plosca_scit_vklopljen">Activé</string>
+    <string name="os_plosca_scit_izklopljen">Désactivé</string>
+    <string name="os_plosca_scit_prekinjen">Suspendu</string>
+    <string name="os_plosca_scit_aktivna">Protection réseau active</string>
+    <string name="os_plosca_scit_stanje_blokiranih">Bloqués : %1$d</string>
+    <string name="os_poganja">Propulsé par</string>
+    <string name="os_puscica">›</string>
+    <string name="os_odprto_na_racunalniku">Ouvert sur l\'ordinateur</string>
 </resources>

@@ -69,7 +69,8 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val datoteke = n.zmoznosti.contains("files")
             nove.add(Vrstica(
                 if (datoteke) R.drawable.os_ikona_racunalnik else R.drawable.os_ikona_naprava,
-                n.ime.ifBlank { n.id },
+                // "Safeer Control (janez-pc)" -> "janez-pc": ime programa je ze v podnapisu.
+                DatotekeActivity.lepoIme(n.ime).ifBlank { n.id },
                 opisNaprave(n),
                 getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_posiljanje),
             ) {
@@ -95,7 +96,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun opisNaprave(n: LinkOdjemalec.Naprava): String = when {
         n.naslov == "127.0.0.1" || n.id.startsWith("tv-") -> "TV · Safeer Link"
-        n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "Safeer Control" else "Safeer Browser · PC"
+        n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
         n.id.startsWith("phone-") -> "Safeer Browser · Android"
         else -> n.vloga
     }
@@ -108,6 +109,11 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 .putExtra("iz_safeer_os", packageName)
         else Intent(this, si.safeer.tv.MainActivity::class.java)
         namera.putExtra("odpri_link", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Link je del Safeer OS: stran naj ima ozadje sistema in se ob zaprtju vrne sem.
+        namera.putExtra("iz_safeer_os", packageName)
+            .putExtra("os_ozadje", Ozadje.izbrana(this).oznaka)
+            .putExtra("os_zatemnitev", Ozadje.zatemnitev(this))
+            .putExtra("os_vrni", "naprave")
         try { startActivity(namera) } catch (_: Throwable) { }
     }
 

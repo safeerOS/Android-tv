@@ -3,4 +3,8 @@
      da sta na zaslonu vedno vidni vsaj dve celi kartici in besedilo se ne rezhe. -->
 <resources>
     <dimen name="os_rob">32dp</dimen>
+    <dimen name="os_meni_sirina">180dp</dimen>
+    <dimen name="os_kot_kartica">12dp</dimen>
+    <dimen name="os_kot_ploscica">12dp</dimen>
+    <dimen name="os_kot_meni">10dp</dimen>
 </resources>

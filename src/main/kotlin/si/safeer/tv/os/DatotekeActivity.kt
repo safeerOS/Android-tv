@@ -11,6 +11,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.EditText
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
@@ -57,7 +61,22 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private var racunalnik: LinkOdjemalec.Naprava? = null
     private val pot = ArrayList<Raven>()
     private var streznik: Streznik? = null
-    private var vnosi: List<Vnos> = emptyList()
+    /** Vse vrstice trenutne ravni; [vnosi] so tiste, ki ustrezajo iskanju po imenu. */
+    private var vsi: List<Vnos> = emptyList()
+    private var vidni: List<Vnos> = emptyList()
+    private var iskano = ""
+    private lateinit var iskanje: EditText
+    /**
+     * Seznam, ki ga zaslon kaze. Nov seznam (druga mapa, drug vir) pocisti iskanje: iskalni niz je
+     * veljal za prejsnjo mapo, v novi bi skril vse in uporabnik ne bi vedel zakaj.
+     */
+    private var vnosi: List<Vnos>
+        get() = vidni
+        set(v) {
+            vsi = v
+            if (iskano.isNotEmpty() && ::iskanje.isInitialized) { iskano = ""; iskanje.setText("") }
+            vidni = filtrirano()
+        }
     private var nalagam = false
     private var izbiramRacunalnik = false
     /** Krajevni vir: datoteke tega televizorja (MediaStore), brez Safeer Linka. */
@@ -77,6 +96,32 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         namigDrzi = findViewById(R.id.namigDrzi)
         namigDrzi.text = getString(R.string.os_datoteke_pomoc_drzi)
         seznam.adapter = prilagojevalnik
+        // Iskanje po imenu: v domaci mapi je hitro sto map, puscica dol do prave pa je dolga pot.
+        iskanje = findViewById(R.id.iskanje)
+        iskanje.showSoftInputOnFocus = false
+        iskanje.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
+            override fun afterTextChanged(s: Editable?) {
+                iskano = poenostavi(s?.toString().orEmpty().trim())
+                vidni = filtrirano()
+                prilagojevalnik.notifyDataSetChanged()
+            }
+        })
+        iskanje.setOnKeyListener { _, koda, dogodek ->
+            if (dogodek.action == KeyEvent.ACTION_DOWN &&
+                (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
+                odpriTipkovnico(); true
+            } else false
+        }
+        iskanje.setOnClickListener { odpriTipkovnico() }
+        // Tipka za iskanje na tipkovnici: tipkovnica se zapre, izbira skoci na prvi zadetek.
+        iskanje.setOnEditorActionListener { _, _, _ ->
+            (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
+                ?.hideSoftInputFromWindow(iskanje.windowToken, 0)
+            if (vidni.isNotEmpty()) { seznam.requestFocus(); seznam.setSelection(0) }
+            true
+        }
         seznam.setOnItemClickListener { _, _, i, _ -> izberi(i) }
         seznam.setOnItemLongClickListener { _, _, i, _ -> moznosti(i); true }
         izbiramSliko = intent.getBooleanExtra(EXTRA_IZBERI_SLIKO, false)
@@ -125,8 +170,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         streznik = null
         pot.clear()
         krajevnaZbirka = ""
-        racunalnikZnacka.text = getString(R.string.os_krajevno_ta_tv)
-        racunalnikZnacka.visibility = View.VISIBLE
+        // Znacka bi ponovila nadnaslov ("Ta televizor"), zato je ne kazemo.
+        racunalnikZnacka.visibility = View.GONE
         if (!KrajevneDatoteke.imamoDovoljenje(this)) {
             nadnaslov.text = getString(R.string.os_krajevno_ta_tv)
             naslov.text = getString(R.string.os_krajevno_koren)
@@ -177,7 +222,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         racunalnikZnacka.visibility = View.GONE
         // Ta televizor je vedno prvi vir; racunalniki s Safeer Controlom so za njim.
         vnosi = listOf(Vnos(KrajevneDatoteke.KOREN, getString(R.string.os_krajevno_ta_tv), "tv", -1, "")) +
-            r.map { Vnos(it.id, it.ime.ifBlank { it.id }, "computer", -1, "") }
+            r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, "computer", -1, "") }
         prilagojevalnik.notifyDataSetChanged()
         if (r.isEmpty()) pokaziSporocilo(getString(
             if (!link.povezan) R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_racunalnika))
@@ -193,8 +238,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         racunalnik = r
         pot.clear()
         streznik = null
-        racunalnikZnacka.text = r.ime.ifBlank { r.id }
-        racunalnikZnacka.visibility = View.VISIBLE
+        // Ime racunalnika je ze v nadnaslovu; znacka bi ga le ponovila.
+        racunalnikZnacka.visibility = View.GONE
         nalozi("")
     }
 
@@ -203,7 +248,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         nalagam = true
         vnosi = emptyList()
         prilagojevalnik.notifyDataSetChanged()
-        nadnaslov.text = r.ime.ifBlank { getString(R.string.os_datoteke) }
+        nadnaslov.text = lepoIme(r.ime).ifBlank { getString(R.string.os_datoteke) }
         naslov.text = if (pot.isEmpty()) getString(R.string.os_datoteke_koren) else pot.joinToString(" / ") { it.ime }
         pokaziSporocilo(getString(R.string.os_datoteke_nalagam))
         link.ukaz(r.id, "files.list", JSONObject().put("folder", oznaka), 12_000, LinkOdjemalec.Odgovor { izid, napaka ->
@@ -382,8 +427,28 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             id = v.id, mime = v.mime, krajevno = krajevni))
     }
 
+    private fun odpriTipkovnico() {
+        iskanje.requestFocus()
+        (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.showSoftInput(iskanje, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /** Sumnike poenostavimo, da "dok" najde "Dokumenti" in "cis" "Čiščenje". */
+    private fun poenostavi(s: String): String =
+        java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+
+    private fun filtrirano(): List<Vnos> =
+        if (iskano.isEmpty()) vsi else vsi.filter { poenostavi(it.ime).contains(iskano) }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // Nazaj najprej pocisti iskanje: kdor je iskal, hoce nazaj celo mapo, ne raven vise.
+            if (iskano.isNotEmpty()) {
+                iskanje.setText("")
+                seznam.requestFocus(); seznam.setSelection(0)
+                return true
+            }
             val viri = link.racunalnikiZDatotekami()
             when {
                 pot.isNotEmpty() -> {
@@ -464,13 +529,20 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             else -> R.drawable.os_ikona_datoteka
         }
 
+        /**
+         * Ime racunalnika brez imena programa: "Safeer Control (janez-pc)" -> "janez-pc". Ime
+         * programa je ze v podnapisu vrstice in ga ni treba brati dvakrat.
+         */
+        fun lepoIme(ime: String): String =
+            Regex("^Safeer (?:Control|Link) \\((.+)\\)$").find(ime.trim())?.groupValues?.get(1) ?: ime
+
         fun opis(c: Context, v: Vnos): String {
             val vrsta = when (v.vrsta) {
                 "folder" -> c.getString(R.string.os_vrsta_mapa)
                 "video" -> c.getString(R.string.os_vrsta_video)
                 "audio" -> c.getString(R.string.os_vrsta_audio)
                 "image" -> c.getString(R.string.os_vrsta_slika)
-                "computer" -> "Safeer Control"
+                "computer" -> c.getString(R.string.os_datoteke_racunalnik_opis)
                 "tv" -> c.getString(R.string.os_krajevno_ta_tv_opis)
                 else -> c.getString(R.string.os_vrsta_datoteka)
             }

@@ -2,6 +2,8 @@ build/
 *.tmp
 .DS_Store
 .gradle/
+.android/
+.kotlin/
 .android-sdk/
 local.properties
 *_auth.local.js
