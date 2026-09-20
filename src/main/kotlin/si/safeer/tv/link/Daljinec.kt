@@ -40,8 +40,13 @@ object Daljinec {
         "apps.list", "apps.launch",
         // Vnos z racunalnika na zaslon, ki ga naprava deli (Safeer Vnos, storitev dostopnosti):
         // dotik in poteg v delezih zaslona, sistemska tipka, besedilo v polje s fokusom.
-        "input.tap", "input.swipe", "input.key", "input.text", "input.enable"
+        "input.tap", "input.swipe", "input.key", "input.text", "input.enable",
+        // Zvok racunalnika na tej napravi (Safeer OS za racunalnik: Zvok -> Predvajaj tukaj).
+        "audio.play", "audio.stop"
     )
+
+    /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
+    const val ZMOZNOST_ZVOK = "audio"
 
     /** Izid ukaza: `ok`, kratko sporocilo za uporabnika in neobvezni podatki. */
     class Izid(val ok: Boolean, val sporocilo: String, val podatki: JSONObject? = null, val koda: String = "") {
@@ -119,6 +124,9 @@ object Daljinec {
         }
         // Vnos z racunalnika ne potrebuje brskalnika v ospredju: gre v aplikacijo, ki je na zaslonu.
         if (d.startsWith("input.")) return vnos(context, d, parametri)
+        // Zvok z racunalnika igra ne glede na to, kaj je na zaslonu.
+        if (d == "audio.play") return ZvokSprejemnik.zacni(context, parametri)
+        if (d == "audio.stop") return ZvokSprejemnik.ustavi()
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {

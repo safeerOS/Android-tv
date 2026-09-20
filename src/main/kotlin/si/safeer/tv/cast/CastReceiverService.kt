@@ -325,7 +325,8 @@ class CastReceiverService : Service() {
                         put("device_id", deviceId)
                         put("name", deviceName)
                         put("role", "receiver")
-                        put("capabilities", org.json.JSONArray(listOf("url", "media", "control", "volume", "seek", "text", "file", "screen", si.safeer.tv.link.Daljinec.ZMOZNOST)))
+                        put("capabilities", org.json.JSONArray(listOf("url", "media", "control", "volume", "seek", "text", "file", "screen", si.safeer.tv.link.Daljinec.ZMOZNOST,
+                            si.safeer.tv.link.Daljinec.ZMOZNOST_ZVOK)))
                         // Protocol v1: model naprave in katalog aplikacij, ki jih zna ta zaslon zagnati.
                         HubKrmilnik.poljaV1(this@CastReceiverService, "screen", this, HubKrmilnik.prioriteta(this@CastReceiverService))
                         val katalog = try { si.safeer.tv.link.Daljinec.katalog(this@CastReceiverService) } catch (_: Throwable) { null }
@@ -814,6 +815,7 @@ class CastReceiverService : Service() {
         webSocket = null
         mainHandler.removeCallbacksAndMessages(null)
         if (instance === this) instance = null
+        try { si.safeer.tv.link.ZvokSprejemnik.ustavi() } catch (_: Throwable) { }
         mediaController = null
     }
 
