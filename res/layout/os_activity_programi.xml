@@ -53,6 +53,22 @@
             android:textSize="12sp"/>
     </LinearLayout>
 
+    <!-- Naprave (Vse, racunalnik, telefon, tablica ...) v svoji vrsti, ki drsi vodoravno: v glavi so
+         dolga imena naprav naslov stisnila v nic in ga raztegnila cez pol zaslona (tablica pokoncno). -->
+    <HorizontalScrollView
+        android:id="@+id/napraveDrsnik"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:scrollbars="none"
+        android:visibility="gone">
+        <LinearLayout
+            android:id="@+id/naprave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"/>
+    </HorizontalScrollView>
+
     <!-- Iskanje po imenu in skupine: sto programov brez tega ni seznam, ampak iskanje igle. -->
     <LinearLayout
         android:id="@+id/orodja"

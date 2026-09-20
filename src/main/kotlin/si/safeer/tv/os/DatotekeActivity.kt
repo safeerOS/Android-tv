@@ -222,7 +222,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         racunalnikZnacka.visibility = View.GONE
         // Ta televizor je vedno prvi vir; racunalniki s Safeer Controlom so za njim.
         vnosi = listOf(Vnos(KrajevneDatoteke.KOREN, getString(R.string.os_krajevno_ta_tv), "tv", -1, "")) +
-            r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, "computer", -1, "") }
+            r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, vrstaNaprave(it), -1, "") }
         prilagojevalnik.notifyDataSetChanged()
         if (r.isEmpty()) pokaziSporocilo(getString(
             if (!link.povezan) R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_racunalnika))
@@ -230,11 +230,15 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         seznam.requestFocus(); seznam.setSelection(0)
     }
 
+    /** Vrsta vira za ikono in podnapis: telefon, tablica ali racunalnik (Safeer Control). */
+    private fun vrstaNaprave(n: LinkOdjemalec.Naprava): String =
+        when (n.platforma) { "phone" -> "phone"; "tablet" -> "tablet"; else -> "computer" }
+
     private fun odpriRacunalnik(r: LinkOdjemalec.Naprava) {
         izbiramRacunalnik = false
         krajevni = false
-        // Datoteke racunalnika zna odpreti tudi racunalnik sam; povejmo, kako.
-        namigDrzi.visibility = if (izbiramSliko) View.GONE else View.VISIBLE
+        // Datoteke racunalnika zna odpreti tudi racunalnik sam (namizje); telefon in tablica tega nimata.
+        namigDrzi.visibility = if (izbiramSliko || !r.zmoznosti.contains("desktop")) View.GONE else View.VISIBLE
         racunalnik = r
         pot.clear()
         streznik = null
@@ -267,14 +271,28 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 streznik = Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"))
             }
             if (!podatki.optBoolean("shared", true)) {
-                pokaziSporocilo(getString(R.string.os_datoteke_prazno_racunalnik, r.ime.ifBlank { r.id }))
+                // Telefon in tablica povesta, zakaj ne delita: brez dovoljenja za medije ali izklopljeno.
+                val ime = lepoIme(r.ime).ifBlank { r.id }
+                pokaziSporocilo(getString(when (podatki.optString("reason")) {
+                    "permission" -> R.string.os_datoteke_naprava_dovoljenje
+                    "off" -> R.string.os_datoteke_naprava_izklop
+                    else -> R.string.os_datoteke_prazno_racunalnik
+                }, ime))
                 return@Odgovor
             }
             val polje = podatki.optJSONArray("items")
             val nov = ArrayList<Vnos>()
             if (polje != null) for (i in 0 until polje.length()) {
                 val v = polje.optJSONObject(i) ?: continue
-                nov.add(Vnos(v.optString("id"), v.optString("name"), v.optString("type", "file"), v.optLong("size", -1), v.optString("mime")))
+                val id = v.optString("id")
+                // Zbirke telefona in tablice (media:video ...) poimenujemo v jeziku televizorja, ne naprave.
+                val ime = when (id) {
+                    "media:video" -> getString(R.string.os_krajevno_videi)
+                    "media:audio" -> getString(R.string.os_krajevno_glasba)
+                    "media:image" -> getString(R.string.os_krajevno_slike)
+                    else -> v.optString("name")
+                }
+                nov.add(Vnos(id, ime, v.optString("type", "file"), v.optLong("size", -1), v.optString("mime")))
             }
             vnosi = nov
             prilagojevalnik.notifyDataSetChanged()
@@ -323,7 +341,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun moznosti(i: Int) {
         val v = vnosi.getOrNull(i) ?: return
         if (izbiramSliko || izbiramRacunalnik || krajevni) return
-        if (v.vrsta == "folder" || v.vrsta == "computer" || v.vrsta == "tv") return
+        if (v.vrsta == "folder" || v.vrsta == "computer" || v.vrsta == "phone" || v.vrsta == "tablet" || v.vrsta == "tv") return
         val r = racunalnik ?: return
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
         val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -525,6 +543,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             "audio" -> R.drawable.os_ikona_glasba
             "image" -> R.drawable.os_ikona_slika
             "computer" -> R.drawable.os_ikona_racunalnik
+            "phone" -> R.drawable.os_ikona_telefon
+            "tablet" -> R.drawable.os_ikona_naprava
             "tv" -> R.drawable.os_ikona_naprava
             else -> R.drawable.os_ikona_datoteka
         }
@@ -543,6 +563,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 "audio" -> c.getString(R.string.os_vrsta_audio)
                 "image" -> c.getString(R.string.os_vrsta_slika)
                 "computer" -> c.getString(R.string.os_datoteke_racunalnik_opis)
+                "phone" -> c.getString(R.string.os_datoteke_telefon_opis)
+                "tablet" -> c.getString(R.string.os_datoteke_tablica_opis)
                 "tv" -> c.getString(R.string.os_krajevno_ta_tv_opis)
                 else -> c.getString(R.string.os_vrsta_datoteka)
             }

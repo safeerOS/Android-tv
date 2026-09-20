@@ -31,6 +31,8 @@ class SpletnePonudnik : ContentProvider() {
                 JE_DODANA -> odgovor.putBoolean("je", SpletneAplikacije.jeDodana(c, url))
                 NADALJEVANJE -> odgovor.putString("url", SpletneAplikacije.nadaljevanje(c, url))
                 ZAPOMNI -> SpletneAplikacije.zapomniMesto(c, url, dodatki?.getString("zadnji").orEmpty())
+                // Brskalnik ob vklopu televizorja vprasa, ali naj odpre Safeer OS (os/VklopTelevizorja).
+                ZAGON_OB_VKLOPU -> odgovor.putBoolean("je", ZagonOb.jeVklopljen(c))
                 DODAJ -> {
                     SpletneAplikacije.dodaj(c, url, dodatki?.getString("ime").orEmpty()) {
                         try { DomacaVrsta.osvezi(c) } catch (e: Throwable) { Log.w(TAG, "Vrste ni bilo mogoce osveziti: ${e.message}") }
@@ -67,6 +69,7 @@ class SpletnePonudnik : ContentProvider() {
         const val DODAJ = "dodaj"
         const val ODSTRANI = "odstrani"
         const val PREMAKNI = "premakni"
+        const val ZAGON_OB_VKLOPU = "zagon_ob_vklopu"
 
         fun naslov(paket: String): Uri = Uri.parse("content://$paket.spletne")
 

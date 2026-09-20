@@ -173,7 +173,7 @@ class ChromiumEngineView @JvmOverloads constructor(
             allowFileAccess = true
             allowContentAccess = true
             mediaPlaybackRequiresUserGesture = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             setSupportMultipleWindows(true)
             javaScriptCanOpenWindowsAutomatically = true
             setSupportZoom(false)
@@ -265,9 +265,10 @@ class ChromiumEngineView @JvmOverloads constructor(
         settings.databaseEnabled = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.setNeedInitialFocus(false)
-        // Mesane vsebine (http v strani https) ne dovolimo nikjer: prej je bila izjema za eno
-        // stran, kar je bila luknja, ki je z njo ni imel nihce razen te strani.
-        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        // Mesane vsebine kot v Chromu: skripte in okvirji po http v strani https so prepovedani,
+        // slike, zvok in video pa se nalozijo (Chromium jih po moznosti nadgradi na https).
+        // NEVER_ALLOW je na televizorju pobral sicer veljavne slike (npr. sličice na YouTube TV).
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         settings.userAgentString = when {
             skip -> DESKTOP_USER_AGENT
             isYoutubeTv -> SMART_TV_USER_AGENT

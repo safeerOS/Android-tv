@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prijavno okno Safeer OS (PrijavaActivity). -->
+<resources>
+    <string name="os_prijava_naslov">Poveži naprave</string>
+    <string name="os_prijava_podnaslov">Telefon, tablica in računalnik se pridružijo temu televizorju.</string>
+    <string name="os_prijava_qr_naslov">Skeniraj s telefonom</string>
+    <string name="os_prijava_qr_opis">Usmeri kamero telefona v kodo. S Safeer Browserjem se odpre v aplikaciji, brez njega v brskalniku – nič ni treba namestiti.</string>
+    <string name="os_prijava_qr_pripravljam">Pripravljam kodo …</string>
+    <string name="os_prijava_qr_napaka">Koda še ni pripravljena. Poskušam znova …</string>
+    <string name="os_prijava_ali">ali</string>
+    <string name="os_prijava_koda_naslov">6-mestna koda</string>
+    <string name="os_prijava_koda_opis">Na telefonu odpri Safeer → Safeer Link → Poveži s Safeer Link. Koda se pokaže tukaj – prepiši jo v telefon.</string>
+    <string name="os_prijava_koda_za">Koda za %1$s</string>
+    <string name="os_prijava_brez">Nadaljuj brez povezave naprav</string>
+    <string name="os_prijava_zapri">Zapri</string>
+    <string name="os_prijava_povezano">✓ %1$s je povezan.</string>
+    <string name="os_naprave_povezi">Poveži novo napravo</string>
+    <string name="os_naprave_povezi_opis">Skeniraj kodo s telefonom (deluje tudi brez Safeerja) ali vpiši 6-mestno kodo</string>
+</resources>

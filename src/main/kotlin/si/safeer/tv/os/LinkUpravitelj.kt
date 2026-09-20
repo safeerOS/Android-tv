@@ -92,12 +92,26 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         if (poslusalci.isEmpty()) glavna.postDelayed(ustavitev, 6_000)
     }
 
-    /** Racunalniki v Linku, ki delijo datoteke (Safeer Control z izbranimi mapami). */
+    /** Naprave v Linku, ki delijo datoteke (Safeer Control z mapami, telefon in tablica z mediji) - brez te naprave. */
     fun racunalnikiZDatotekami(): List<LinkOdjemalec.Naprava> =
-        naprave.filter { it.zmoznosti.contains("files") && it.id != Identiteta.id(app) }
+        naprave.filter { it.zmoznosti.contains("files") && !jeTaNaprava(it) }
+
+    /**
+     * Ali je to odjemalec na tej napravi: mi sami, brskalnik na tem televizorju (sredisce mu pripise
+     * loopback naslov, kadar tece tu) ali kdorkoli z nasim naslovom v omrezju.
+     */
+    fun jeTaNaprava(n: LinkOdjemalec.Naprava): Boolean {
+        if (n.id == Identiteta.id(app)) return true
+        if (odjemalec.srediceJeTu && n.naslov in setOf("127.0.0.1", "::1", "localhost")) return true
+        val moj = try { si.safeer.tv.cast.PridruzitevSredisca.krajevniNaslov() } catch (_: Throwable) { null }
+        return moj != null && n.naslov.isNotBlank() && n.naslov == moj
+    }
 
     fun ukaz(cilj: String, dejanje: String, parametri: JSONObject, potekMs: Long = 10_000, odgovor: LinkOdjemalec.Odgovor) =
         odjemalec.ukaz(cilj, dejanje, parametri, potekMs, odgovor)
+
+    /** Novo ime naprave za vse naprave v Linku (hrani ga sredisce). */
+    fun preimenuj(id: String, ime: String, naprej: (Boolean, String) -> Unit) = odjemalec.preimenuj(id, ime, naprej)
 
     private fun zazeni() {
         // Sredisce ze tece (uporabnik ima Safeer Link vklopljen v brskalniku): vstopimo brez vprasanja.
@@ -159,6 +173,13 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
 
     override fun naZavrnitev() {
         // Sredisce je bilo ponastavljeno ali je Safeer OS odstranjen s seznama: vstopimo znova brez kode.
+        Identiteta.pozabi(app)
+        zahtevajPoverilnice()
+    }
+
+    override fun naIzgubo() {
+        // Sredisca ni vec: lastni hub se je morda umaknil izvoljenemu (drug clan kroga) - poverilnice
+        // vzamemo znova, Sorodnik nas takrat usmeri tja, s podpisom kljuca.
         Identiteta.pozabi(app)
         zahtevajPoverilnice()
     }

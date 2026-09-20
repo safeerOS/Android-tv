@@ -98,12 +98,18 @@ class HubStoritev : Service() {
         } catch (e: Throwable) {
             Log.w(TAG, "Obvestila ni bilo mogoce prikazati: ${e.message}")
         }
-        if (!HubKrmilnik.tece() && !HubKrmilnik.zazeni(applicationContext, zapomni = false)) {
+        si.safeer.tv.os.VklopTelevizorja.namesti(applicationContext)
+        // Naprava, ki se je umaknila izvoljenemu hubu, je njegov odjemalec: huba tu ne zaganjamo znova
+        // (prej je storitev, zagnana tik po vklopu, hub prizgala se enkrat in izvolitev se je ponovila).
+        // Ce izvoljeni hub izgine, gosti naprava spet sama (HubKrmilnik.izvoljeniHubIzgubljen).
+        val odjemalecIzvoljenega = HubKrmilnik.izvoljeniHub(applicationContext) != null
+        if (!HubKrmilnik.tece() && !odjemalecIzvoljenega && !HubKrmilnik.zazeni(applicationContext, zapomni = false)) {
             Log.w(TAG, "Huba ni bilo mogoce zagnati; storitev koncujem.")
             ustaviOspredje()
             stopSelf()
             return START_NOT_STICKY
         }
+        if (odjemalecIzvoljenega) HubKrmilnik.poveziNaIzvoljeni(applicationContext)
         // START_STICKY: ce Android storitev ubije zaradi pomnilnika, naj jo po sprostitvi
         // zazene znova - uporabnik je povedal, da naj bo televizor dosegljiv.
         return START_STICKY

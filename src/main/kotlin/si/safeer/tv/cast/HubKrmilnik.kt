@@ -28,6 +28,10 @@ object HubKrmilnik {
     @Volatile
     private var streznik: HubStreznik? = null
 
+    /** Spletni odjemalec (naprava brez Safeerja): goli HTTP na svojih vratih, samo domace omrezje. */
+    @Volatile
+    private var spletniStreznik: HubStreznik? = null
+
     @Volatile
     var usmerjevalnik: HubUsmerjevalnik? = null
         private set
@@ -54,6 +58,9 @@ object HubKrmilnik {
     fun tece(): Boolean = streznik?.teceZdaj() == true
 
     fun vrata(): Int = streznik?.vrata ?: 0
+
+    /** Vrata spletnega odjemalca (0, ce ne tece). */
+    fun vrataSplet(): Int = spletniStreznik?.vrata ?: 0
 
     /** Ali je uporabnik Hub prizgal (tudi ce trenutno ne tece, npr. pred zagonom brskalnika). */
     fun jeZazelen(context: Context): Boolean =
@@ -91,6 +98,10 @@ object HubKrmilnik {
             return false
         }
         u.lastniOdtis = HubTls.lastniOdtis()
+        // Hub je prvi clan kroga zaupanja: njegov kljuc je kljuc potrdila TLS.
+        try { u.vpisiLastniKljuc(lastniId(), imeHuba(app), HubTls.javniKljucB64(), "tv") } catch (e: Throwable) {
+            Log.w(TAG, "Kljuca huba ni bilo mogoce vpisati v krog: ${e.message}")
+        }
         u.naSpremembePrijav = {
             try { naSpremembePrijav?.invoke() } catch (_: Throwable) { }
             try { naPrijavoZaZaslon?.invoke() } catch (_: Throwable) { }
@@ -121,28 +132,179 @@ object HubKrmilnik {
         usmerjevalnik = u
         tokovi = t
 
+        // Spletni odjemalec: ista logika huba, goli HTTP na svojih vratih (brskalnik na telefonu brez
+        // Safeerja ne sprejme nasega samopodpisanega potrdila); samo krajevno omrezje in ozek izbor poti.
+        u.beriSredstvo = { ime ->
+            try { app.assets.open("link-web/$ime").bufferedReader(Charsets.UTF_8).use { it.readText() } } catch (_: Throwable) { null }
+        }
+        val w = HubStreznik(
+            zeljenaVrata = HubUsmerjevalnik.SPLETNA_VRATA,
+            naZahtevo = { zahteva -> u.odgovoriSplet(zahteva) },
+            preveriVstopnico = { zahteva -> u.preveriVstopnico(zahteva) },
+            naPovezavo = { povezava -> povezi(u, povezava) },
+            tlsTovarna = null
+        )
+        if (w.zazeni()) { spletniStreznik = w; u.spletnaVrata = w.vrata } else Log.w(TAG, "Spletnih vrat ni bilo mogoce odpreti; spletni odjemalec ni na voljo.")
+
         // Televizor, ki gosti, je hkrati zaslon: sprejemnik se priklopi na lastni Hub, da ga
         // druge naprave vidijo kot "zaslon" in mu lahko posljejo stran. Brez tega je Hub
         // sredisce, na katerega ni mogoce nicesar poslati.
         poveziLastniZaslon(app, u, s.vrata)
 
-        HubObjava.objavi(app, s.vrata, imeHuba(app)) { uspelo ->
+        HubObjava.objavi(app, s.vrata, imeHuba(app), prioriteta(app), lastniId()) { uspelo ->
             if (!uspelo) {
                 // Brez oglasa Hub se vedno dela; naprava, ki ga je ze videla, pozna naslov.
                 Log.i(TAG, "Hub tece, oglas v omrezju pa ni uspel.")
             }
         }
         if (zapomni) zapomniZeljo(app, true)
-        Log.i(TAG, "Safeer Hub tece na ${naslov()}")
+        pozabiIzvoljeni(app)
+        Log.i(TAG, "Safeer Hub tece na ${naslov()} (prioriteta ${prioriteta(app)})")
+        // Izvolitev: ce v hisi ze gosti boljsi clan kroga, se mu umaknemo. Poteka v ozadju, hub
+        // medtem tece - naprave, ki so pripete nanj, ob umiku najdejo izvoljenega prek mDNS.
+        nacrtujIzvolitev(app, PRVA_IZVOLITEV_MS)
         return true
+    }
+
+    // ------------------------------------------------------------------ izvolitev huba
+
+    const val KLJUC_PRIORITETA = "hub_prioriteta"
+    const val KLJUC_IZVOLJENI_URL = "izvoljeni_hub_url"
+    const val KLJUC_IZVOLJENI_ODTIS = "izvoljeni_hub_fp"
+    const val KLJUC_IZVOLJENI_ID = "izvoljeni_hub_id"
+    private const val PRVA_IZVOLITEV_MS = 1_500L
+    private const val PONOVNA_IZVOLITEV_MS = 90_000L
+
+    private val glavna by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+    private var izvolitevNacrtovana: Runnable? = null
+
+    /** Platforma te naprave v krogu zaupanja: tablica ali TV (isti Gradle projekt, razlicna okusa). */
+    fun platforma(context: Context): String = if (context.packageName.endsWith(".tablet")) "tablet" else "tv"
+
+    /** Prioriteta pri izvolitvi: uporabnikova (nastavitev hub_prioriteta) ali privzeta po platformi. */
+    fun prioriteta(context: Context): Int {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KLJUC_PRIORITETA, 0)
+        return if (p > 0) p else IzvolitevHuba.privzetaPrioriteta(platforma(context))
+    }
+
+    /** Razlicica te aplikacije (versionName) ali prazno. */
+    fun razlicica(context: Context): String =
+        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() } catch (_: Throwable) { "" }
+
+    /**
+     * Protocol v1: model naprave v tovoru cast.register (protocol, platform, kind, version, priority).
+     * [vrsta] pove, kaj ta odjemalec je: "screen" (zaslon, ki lahko gosti hub), "os" (Safeer OS),
+     * "handheld", "computer". Prioriteto poslje le, kdor lahko gosti hub (drugi 0 = izpusceno).
+     */
+    fun poljaV1(context: Context, vrsta: String, tovor: org.json.JSONObject, prioriteta: Int = 0): org.json.JSONObject {
+        tovor.put("protocol", HubUsmerjevalnik.PROTOKOL_V1)
+            .put("platform", platforma(context))
+            .put("kind", vrsta)
+        razlicica(context).takeIf { it.isNotBlank() }?.let { tovor.put("version", it) }
+        if (prioriteta > 0) tovor.put("priority", prioriteta)
+        return tovor
+    }
+
+    /** Hub, ki smo se mu umaknili (naslov, odtis, id), ali null, ce gostimo sami oz. nismo v Linku. */
+    fun izvoljeniHub(context: Context): HubDiscovery.NajdeniHub? {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val naslov = p.getString(KLJUC_IZVOLJENI_URL, "") ?: ""
+        val id = p.getString(KLJUC_IZVOLJENI_ID, "") ?: ""
+        if (naslov.isBlank() || id.isBlank()) return null
+        return HubDiscovery.NajdeniHub(naslov, p.getString(KLJUC_IZVOLJENI_ODTIS, "") ?: "", id, 0, "")
+    }
+
+    private fun pozabiIzvoljeni(app: Context) {
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .remove(KLJUC_IZVOLJENI_URL).remove(KLJUC_IZVOLJENI_ODTIS).remove(KLJUC_IZVOLJENI_ID).apply()
+    }
+
+    private fun nacrtujIzvolitev(app: Context, cez: Long) {
+        izvolitevNacrtovana?.let { glavna.removeCallbacks(it) }
+        val r = Runnable { izvolitevNacrtovana = null; if (tece()) izvolitev(app) }
+        izvolitevNacrtovana = r
+        glavna.postDelayed(r, cez)
+    }
+
+    /**
+     * Pogleda, kdo v hisi gosti, in se umakne boljsemu clanu kroga (IzvolitevHuba). Tuj oglas brez
+     * mesta v krogu zaupanja ne steje. Ce ostanemo hub, preverimo znova cez nekaj minut.
+     */
+    fun izvolitev(app: Context) {
+        HubDiscovery.poisciVse(app) { hubi ->
+            if (!tece()) return@poisciVse
+            val krog = KrogNaprave.krog(app)
+            val jaz = IzvolitevHuba.Kandidat(lastniId(), prioriteta(app))
+            // Clan kroga: po id-ju ali - pri id-ju iz kljuca - po kljucu (id, ki ga se nismo videli, a kljuc poznamo).
+            val kandidati = hubi.filter { it.id.isNotBlank() && it.id != jaz.id && krog.clanZaId(it.id) != null }
+                .map { IzvolitevHuba.Kandidat(it.id, it.prioriteta, it.naslov, it.odtis, it.ime) }
+            val tuji = hubi.filter { it.id.isBlank() || (it.id != jaz.id && krog.clanZaId(it.id) == null) }
+            if (tuji.isNotEmpty()) Log.i(TAG, "Izvolitev: ${tuji.size} hub(ov) zunaj kroga zaupanja ne steje.")
+            val umik = IzvolitevHuba.komuSeUmaknem(jaz, kandidati)
+            if (umik == null) {
+                Log.i(TAG, "Izvolitev: ostajam hub (${jaz.id}, prioriteta ${jaz.prioriteta}; drugih v krogu: ${kandidati.size}).")
+                nacrtujIzvolitev(app, PONOVNA_IZVOLITEV_MS)
+                return@poisciVse
+            }
+            Log.i(TAG, "Izvolitev: umikam se hubu ${umik.id} (prioriteta ${umik.prioriteta} > ${jaz.prioriteta}) na ${umik.naslov}.")
+            umakniSe(app, umik)
+        }
+    }
+
+    /** Ugasne lastni hub in televizor priklopi na izvoljenega kot odjemalca (prijava s podpisom, zaupanje po krogu). */
+    @Synchronized
+    private fun umakniSe(app: Context, hub: IzvolitevHuba.Kandidat) {
+        ustavi(app, zapomni = false)
+        Seznanitve.zapomniTrenutno(app)
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KLJUC_IZVOLJENI_URL, hub.naslov).putString(KLJUC_IZVOLJENI_ODTIS, hub.odtis).putString(KLJUC_IZVOLJENI_ID, hub.id)
+            .putString("hub_url", hub.naslov).putString("hub_ticket_path", "/cast/ticket")
+            .putString(HubTls.KEY_HUB_FP, hub.odtis)
+            // Zeton velja samo za lastni hub; pri izvoljenem se prijavimo s podpisom kljuca (krog zaupanja).
+            .putString("control_token", Seznanitve.zeton(app, hub.odtis) ?: "")
+            .apply()
+        try { CastReceiverService.start(app, hub.naslov, imeHuba(app)) } catch (e: Throwable) {
+            Log.w(TAG, "Sprejemnika ni bilo mogoce priklopiti na izvoljeni hub: ${e.message}")
+        }
+    }
+
+    /**
+     * Izvoljenega huba ni vec (sprejemnik ga ne doseze): ce je uporabnik Link prizgal, spet gostimo
+     * sami - izvolitev po zagonu pove, ali je medtem prevzel kdo drug.
+     */
+    @Synchronized
+    fun izvoljeniHubIzgubljen(context: Context) {
+        val app = context.applicationContext
+        if (izvoljeniHub(app) == null || tece() || !jeZazelen(app)) return
+        Log.i(TAG, "Izvoljeni hub se ne oglasa; gostim spet sam.")
+        pozabiIzvoljeni(app)
+        zazeni(app, zapomni = false)
+    }
+
+    /**
+     * Po ponovnem zagonu (namestitev, vklop naprave), ko smo se ze prej umaknili izvoljenemu hubu:
+     * huba ne zaganjamo, zaslon pa priklopimo na izvoljenega. Ce se ta ne oglasi, sprejemnik po
+     * treh neuspehih poklice izvoljeniHubIzgubljen in naprava spet gosti sama.
+     */
+    fun poveziNaIzvoljeni(context: Context) {
+        val app = context.applicationContext
+        val hub = izvoljeniHub(app) ?: return
+        if (tece() || CastReceiverService.povezan) return
+        try { CastReceiverService.start(app, hub.naslov, imeHuba(app)) } catch (e: Throwable) {
+            Log.w(TAG, "Sprejemnika ni bilo mogoce priklopiti na izvoljeni hub: ${e.message}")
+        }
     }
 
     /** Ugasne Hub. `zapomni` naj bo true samo, kadar je tako odlocil uporabnik. */
     @Synchronized
     fun ustavi(context: Context?, zapomni: Boolean = true) {
+        izvolitevNacrtovana?.let { glavna.removeCallbacks(it) }
+        izvolitevNacrtovana = null
         HubObjava.umakni()
         streznik?.ustavi()
         streznik = null
+        spletniStreznik?.ustavi()
+        spletniStreznik = null
         usmerjevalnik = null
         tokovi = null
         if (context != null) odklopiLastniZaslon(context.applicationContext)
@@ -152,8 +314,15 @@ object HubKrmilnik {
 
     private const val LASTNI_NASLOV_PREDPONA = "wss://127.0.0.1:"
 
-    /** Isti id, s katerim se sprejemnik televizorja prijavi Hubu (CastReceiverService). */
-    fun lastniId(): String = "tv-" + android.os.Build.MODEL.replace(Regex("\\s+"), "-").lowercase()
+    /**
+     * Id te naprave: iz njenega kljuca (`n-…`, KrogNaprave.lastniId) - isti na vseh hubih in po menjavi
+     * huba. Isti id uporabi sprejemnik (CastReceiverService), oglas mDNS in sorodniki (`-os`). Stari id
+     * po modelu (`tv-…`) ostane v krogih kot alias; hub ga ob prvi prijavi s podpisom sam poveze z novim.
+     */
+    fun lastniId(): String = KrogNaprave.lastniId(nadomestni = { stariId() })
+
+    /** Id po modelu naprave, kot je veljal pred prehodom na id iz kljuca (samo se kot nadomestek in alias). */
+    fun stariId(): String = "tv-" + android.os.Build.MODEL.replace(Regex("\\s+"), "-").lowercase()
 
     /**
      * Mapa za datoteke, ki jih televizor prejme prek Safeer Linka: ista, kot jo je uporabnik
@@ -205,6 +374,7 @@ object HubKrmilnik {
     private fun povezi(u: HubUsmerjevalnik, povezava: HubStreznik.Povezava) {
         val odjemalec = object : HubUsmerjevalnik.Odjemalec {
             override val naslov: String = povezava.naslov
+            override val vstopnica: String? = povezava.zahteva.poizvedba["ticket"]
             override fun poslji(besedilo: String) = povezava.poslji(besedilo)
             override fun zapri(koda: Int, razlog: String) = povezava.zapri(koda, razlog)
         }
@@ -260,6 +430,8 @@ object HubKrmilnik {
             .stevilo("naprav", (u?.steviloNaprav() ?: 0).toDouble())
             .stevilo("cakajocih", (u?.cakajocePrijave()?.size ?: 0).toDouble())
             .stevilo("seznanjenih", (u?.seznanjeneNaprave()?.size ?: 0).toDouble())
+            // Umaknili smo se izvoljenemu hubu: Safeer Link je vklopljen, tece pa na tej napravi (id).
+            .niz("izvoljeni", if (tece()) "" else izvoljeniHub(context)?.id.orEmpty())
             .toString()
     }
 

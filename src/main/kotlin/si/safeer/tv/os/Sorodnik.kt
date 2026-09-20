@@ -53,6 +53,8 @@ object Sorodnik {
         val podatki = Bundle().apply {
             putString("device_name", "Safeer OS")
             putString("app", app.packageName)
+            // Nas id iz nasega kljuca (drug proces, drug kljuc kot brskalnik): zeton naj bo izdan njemu.
+            putString("device_id", Identiteta.id(app))
             putBoolean("ne_zaganjaj", !dovoliZagon)
         }
         Sosed.poslji(app, paket, LinkSorodnikStoritev.DEJANJE, LinkSorodnikStoritev.ZAHTEVA,
@@ -68,12 +70,15 @@ object Sorodnik {
         val hub = b.getString("hub_url").orEmpty()
         val zeton = b.getString("token").orEmpty()
         val odtis = b.getString("fp").orEmpty()
-        if (!hub.startsWith("wss://") || zeton.isBlank() || odtis.isBlank()) return null
+        // Zeton je lahko prazen: pri izvoljenem hubu (drug clan kroga) se prijavimo s podpisom kljuca.
+        if (!hub.startsWith("wss://") || odtis.isBlank() || (zeton.isBlank() && b.getString("hub_id").isNullOrBlank())) return null
         return Poverilnice(hub, zeton, odtis, b.getString("hub_id").orEmpty())
     }
 
     private fun vProcesu(app: Context, dovoliZagon: Boolean): Poverilnice? {
         if (!HubKrmilnik.tece()) {
+            // Umaknili smo se izvoljenemu hubu: tja, s podpisom kljuca (zeton ni potreben).
+            HubKrmilnik.izvoljeniHub(app)?.let { return Poverilnice(it.naslov, "", it.odtis, it.id) }
             if (!dovoliZagon) return null
             HubKrmilnik.zazeni(app, zapomni = true)
             HubStoritev.zagotovi(app)
@@ -81,7 +86,7 @@ object Sorodnik {
         val u = HubKrmilnik.usmerjevalnik ?: return null
         val vrata = HubKrmilnik.vrata()
         if (vrata == 0) return null
-        val id = HubKrmilnik.lastniId() + "-os"
+        val id = Identiteta.id(app)
         val zeton = u.zagotoviLastniZeton(id, "Safeer OS (" + android.os.Build.MODEL + ")")
         return Poverilnice("wss://127.0.0.1:$vrata/cast/ws", zeton, HubTls.lastniOdtis(), HubUsmerjevalnik.IDENTITETA_HUBA)
     }

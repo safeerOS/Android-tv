@@ -3,6 +3,9 @@ package si.safeer.tv.os
 import si.safeer.tv.R
 
 import android.content.Context
+import si.safeer.tv.cast.HubKrmilnik
+import si.safeer.tv.cast.HubTls
+import si.safeer.tv.cast.KrogNaprave
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -27,7 +30,9 @@ import java.util.concurrent.TimeUnit
  */
 class LinkOdjemalec(private val context: Context) {
 
-    data class Naprava(val id: String, val ime: String, val vloga: String, val zmoznosti: List<String>, val naslov: String)
+    data class Naprava(val id: String, val ime: String, val vloga: String, val zmoznosti: List<String>, val naslov: String,
+                       /** "tv", "tablet", "phone", "linux" ... - kot se naprava predstavi hubu; prazno pri starih. */
+                       val platforma: String = "")
 
     interface Poslusalec {
         fun naStanje(povezan: Boolean, sporocilo: String)
@@ -36,6 +41,8 @@ class LinkOdjemalec(private val context: Context) {
         fun naBesedilo(besedilo: String, od: String)
         /** Sredisce te naprave ne pozna vec: zeton je treba dobiti znova. */
         fun naZavrnitev()
+        /** Sredisca ni vec (vec zaporednih neuspehov): morda se je lastni hub umaknil izvoljenemu - poverilnice znova. */
+        fun naIzgubo() {}
     }
 
     var poslusalec: Poslusalec? = null
@@ -45,6 +52,8 @@ class LinkOdjemalec(private val context: Context) {
         private set
     /** Zadnji seznam naprav s sredisca (za zaslone, ki se odprejo, ko je povezava ze vzpostavljena). */
     @Volatile var naprave: List<Naprava> = emptyList()
+    /** Sredisce tece na tej napravi (loopback ali nas naslov): njegov brskalnik se hubu javi s 127.0.0.1. */
+    @Volatile var srediceJeTu: Boolean = false
         private set
 
     /** Odgovor na ukaz daljinca: `izid` je payload sporocila control.result (ok, message, data) ali null ob napaki/poteku. */
@@ -60,12 +69,18 @@ class LinkOdjemalec(private val context: Context) {
     private var tece = false
     private var poskusov = 0
     private val idNaprave: String by lazy { Identiteta.id(context) }
+    /** Sejni zeton s prijave s podpisom: z njim gredo zahteve HTTP (preimenovanje), ko zetona seznanitve ni. */
+    @Volatile private var sejniZeton = ""
 
     fun zazeni(p: Sorodnik.Poverilnice) {
         poverilnice = p
         tece = true
         poskusov = 0
-        odjemalec = zgradi(p.odtis)
+        // Nova generacija: ponovni poskusi prejsnje povezave (ze nacrtovani na glavni niti) ne veljajo vec,
+        // sicer bi ob vsakem novem zagonu tekla se ena zanka poskusov vzporedno s staro.
+        generacija++
+        izgubaJavljena = false
+        odjemalec = zgradi(p)
         povezi()
     }
 
@@ -76,8 +91,11 @@ class LinkOdjemalec(private val context: Context) {
         povezan = false
     }
 
-    private fun zgradi(odtis: String): OkHttpClient {
-        val (tovarna, zaupnik) = Pin.tovarna(odtis)
+    private fun zgradi(p: Sorodnik.Poverilnice): OkHttpClient {
+        // Izvoljeni hub (drug clan kroga, brez zetona): potrdilo mora poleg odtisa iz oglasa nositi
+        // njegov kljuc iz kroga zaupanja - oglas mDNS sam po sebi ne dobi nobenega zaupanja.
+        val kljucKroga = if (p.zeton.isBlank() && p.hubId.isNotBlank()) KrogNaprave.kljucHuba(context, p.hubId) else null
+        val (tovarna, zaupnik) = if (kljucKroga != null) HubTls.odjemalec(p.odtis, kljucKroga) else Pin.tovarna(p.odtis)
         return OkHttpClient.Builder()
             .sslSocketFactory(tovarna, zaupnik)
             .hostnameVerifier(Pin.brezImena)
@@ -90,41 +108,104 @@ class LinkOdjemalec(private val context: Context) {
     private fun osnovaHttp(wsUrl: String): String =
         wsUrl.replace(Regex("^wss"), "https").substringBefore("/cast/ws").trimEnd('/')
 
-    private fun povezi() {
+    /** En klic HTTP na sredisce; [naprej] dobi kodo in telo (ali -1 in razlog ob napaki omrezja). */
+    private fun klic(pot: String, telo: JSONObject?, zeton: String?, naprej: (Int, String) -> Unit) {
         val p = poverilnice ?: return
         val k = odjemalec ?: return
-        if (!tece) return
-        val zahteva = Request.Builder()
-            .url(osnovaHttp(p.hubUrl) + "/cast/ticket")
-            .addHeader("X-Safeer-Token", p.zeton)
-            .post("".toRequestBody("application/json".toMediaTypeOrNull()))
-            .build()
-        k.newCall(zahteva).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: java.io.IOException) {
-                Log.w(TAG, "Vstopnice ni: ${e.message}")
-                javiStanje(false, "")
-                ponovno()
-            }
-
+        val z = Request.Builder().url(osnovaHttp(p.hubUrl) + pot)
+        if (zeton != null) z.addHeader("X-Safeer-Token", zeton)
+        z.post((telo?.toString() ?: "").toRequestBody("application/json".toMediaTypeOrNull()))
+        k.newCall(z.build()).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: java.io.IOException) { naprej(-1, e.message.orEmpty()) }
             override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    if (it.code == 401 || it.code == 403) {
-                        Log.w(TAG, "Sredisce zetona ne sprejme (${it.code}).")
-                        tece = false
-                        glavna.post { poslusalec?.naZavrnitev() }
-                        return
-                    }
-                    val vstopnica = try { JSONObject(it.body?.string().orEmpty()).optString("ticket") } catch (_: Throwable) { "" }
-                    if (!it.isSuccessful || vstopnica.isBlank()) {
-                        javiStanje(false, "")
-                        ponovno()
-                        return
-                    }
-                    val locilo = if (p.hubUrl.contains("?")) "&" else "?"
-                    odpri("${p.hubUrl}${locilo}ticket=$vstopnica")
-                }
+                response.use { naprej(it.code, it.body?.string().orEmpty()) }
             }
         })
+    }
+
+    /**
+     * Prijava na sredisce. Naprava, ki je ze v krogu zaupanja, se prijavi s podpisom (izziv ->
+     * podpis -> vstopnica); ce sredisce tega ne zna ali naprave ne pozna, gre po starem z zetonom.
+     * Naprava, ki pride z zetonom in se ni v krogu, v isti seji vpise svoj kljuc (prehod brez kode).
+     */
+    private fun povezi() {
+        val p = poverilnice ?: return
+        if (!tece) return
+        // S podpisom tudi, ce je nas kljuc v krogu pod starim id-jem: hub nov id sam vpise kot alias.
+        if (KrogNaprave.lahkoSPodpisom(context, idNaprave)) poveziSPodpisom(p) else poveziZZetonom(p)
+    }
+
+    private fun poveziSPodpisom(p: Sorodnik.Poverilnice) {
+        klic("/cast/auth/challenge", JSONObject().put("device_id", idNaprave), null) { koda, telo ->
+            val nonce = try { JSONObject(telo).optString("nonce") } catch (_: Throwable) { "" }
+            if (koda != 200 || nonce.isBlank()) {
+                // Staro sredisce (404/405) ali sredisce, ki nas nima v krogu (401): zeton se vedno velja.
+                Log.i(TAG, "Prijava s podpisom ni mogoca ($koda); z zetonom.")
+                poveziZZetonom(p); return@klic
+            }
+            val podpis = try { KrogNaprave.podpisPrijave(idNaprave, p.odtis, nonce) } catch (e: Throwable) {
+                Log.w(TAG, "Podpisa ni bilo mogoce narediti: ${e.message}"); poveziZZetonom(p); return@klic
+            }
+            val zahteva = JSONObject().put("device_id", idNaprave).put("nonce", nonce).put("signature", podpis)
+                .put("name", imeVKrogu()).put("platform", HubKrmilnik.platforma(context))
+            klic("/cast/auth/ticket", zahteva, null) { koda2, telo2 ->
+                val j = try { JSONObject(telo2) } catch (_: Throwable) { JSONObject() }
+                val vstopnica = j.optString("ticket")
+                if (koda2 != 200 || vstopnica.isBlank()) { poveziZZetonom(p); return@klic }
+                j.optJSONObject("ring")?.let { KrogNaprave.sprejmi(context, it.toString()) }
+                sejniZeton = j.optString("session_token", "")
+                Log.i(TAG, "Prijava s podpisom kljuca naprave.")
+                odpriZVstopnico(p, vstopnica)
+            }
+        }
+    }
+
+    private fun poveziZZetonom(p: Sorodnik.Poverilnice) {
+        klic("/cast/ticket", null, p.zeton) { koda, telo ->
+            if (koda == 401 || koda == 403) {
+                Log.w(TAG, "Sredisce zetona ne sprejme ($koda).")
+                tece = false
+                glavna.post { poslusalec?.naZavrnitev() }
+                return@klic
+            }
+            val vstopnica = try { JSONObject(telo).optString("ticket") } catch (_: Throwable) { "" }
+            if (koda != 200 || vstopnica.isBlank()) {
+                if (koda < 0) Log.w(TAG, "Vstopnice ni: $telo")
+                javiStanje(false, "")
+                ponovno()
+                return@klic
+            }
+            // Prehod: zeton velja, kljuca pa v krogu se ni - vpisemo ga, da naslednjic pridemo s podpisom.
+            if (!KrogNaprave.jeVpisana(context, idNaprave)) vpisiVKrog(p)
+            odpriZVstopnico(p, vstopnica)
+        }
+    }
+
+    private fun vpisiVKrog(p: Sorodnik.Poverilnice) {
+        val kljuc = try { HubTls.javniKljucB64() } catch (e: Throwable) {
+            Log.w(TAG, "Kljuca naprave ni: ${e.message}"); return
+        }
+        val telo = JSONObject().put("pubkey", kljuc).put("name", imeVKrogu()).put("platform", HubKrmilnik.platforma(context))
+        klic("/cast/trust/enroll", telo, p.zeton) { koda, odgovor ->
+            if (koda != 200) { Log.i(TAG, "Sredisce kroga zaupanja ne pozna ($koda)."); return@klic }
+            val ring = try { JSONObject(odgovor).optJSONObject("ring") } catch (_: Throwable) { null }
+            if (KrogNaprave.sprejmi(context, ring?.toString())) Log.i(TAG, "Kljuc naprave vpisan v krog zaupanja.")
+        }
+    }
+
+    /** Ime, kot ga vidijo druge naprave v krogu: tablica je tablica, ne TV. */
+    private fun imeVKrogu(): String =
+        (try { context.getString(si.safeer.tv.R.string.os_ime_vrste) } catch (_: Throwable) { "Safeer OS" }) +
+            " (" + android.os.Build.MODEL + ")"
+
+    private fun odpriZVstopnico(p: Sorodnik.Poverilnice, vstopnica: String) {
+        val locilo = if (p.hubUrl.contains("?")) "&" else "?"
+        srediceJeTu = try {
+            val gostitelj = java.net.URI(p.hubUrl).host.orEmpty().trim('[', ']')
+            val naslov = java.net.InetAddress.getByName(gostitelj)
+            naslov.isLoopbackAddress || java.net.NetworkInterface.getByInetAddress(naslov) != null
+        } catch (_: Throwable) { false }
+        odpri("${p.hubUrl}${locilo}ticket=$vstopnica")
     }
 
     private fun odpri(naslov: String) {
@@ -136,11 +217,11 @@ class LinkOdjemalec(private val context: Context) {
                 val prijava = JSONObject()
                     .put("id", UUID.randomUUID().toString())
                     .put("type", "cast.register")
-                    .put("payload", JSONObject()
+                    .put("payload", si.safeer.tv.cast.HubKrmilnik.poljaV1(context, "os", JSONObject()
                         .put("device_id", idNaprave)
                         .put("name", "Safeer OS")
                         .put("role", "sender")
-                        .put("capabilities", JSONArray(listOf("url", "text"))))
+                        .put("capabilities", JSONArray(listOf("url", "text")))))
                 webSocket.send(prijava.toString())
                 javiStanje(true, "")
             }
@@ -182,6 +263,27 @@ class LinkOdjemalec(private val context: Context) {
         glavna.postDelayed(potek, potekMs)
     }
 
+    /**
+     * Poimenuje napravo (tudi to) za vse naprave v Linku; ime hrani sredisce, prazno ime vrne prvotnega.
+     * Sredisce na tej napravi preimenuje brez omrezja. [naprej] (uspeh, novo ime) pride na glavni niti.
+     */
+    fun preimenuj(id: String, ime: String, naprej: (Boolean, String) -> Unit) {
+        val u = HubKrmilnik.usmerjevalnik
+        if (u != null && srediceJeTu) {
+            u.preimenuj(id, ime)
+            val novo = u.imeNaprave(id)
+            glavna.post { naprej(true, novo) }
+            return
+        }
+        val p = poverilnice
+        val zeton = sejniZeton.ifBlank { p?.zeton.orEmpty() }
+        if (p == null || zeton.isBlank()) { glavna.post { naprej(false, "") }; return }
+        klic("/cast/devices/rename", JSONObject().put("device_id", id).put("name", ime.trim()), zeton) { koda, telo ->
+            val novo = try { JSONObject(telo).optString("name", "") } catch (_: Throwable) { "" }
+            glavna.post { naprej(koda == 200, novo) }
+        }
+    }
+
     private fun koncajUkaz(refId: String, izid: JSONObject?, napaka: String) {
         val c = cakajoci.remove(refId) ?: return
         glavna.removeCallbacks(c.potek)
@@ -192,8 +294,15 @@ class LinkOdjemalec(private val context: Context) {
         if (!tece) return
         val zamik = minOf(30_000L, 2_000L * (1 shl minOf(poskusov, 4)))
         poskusov++
-        glavna.postDelayed({ if (tece && !povezan) povezi() }, zamik)
+        // Izgubo sredisca javimo enkrat na povezavo (po treh neuspehih); upravitelj takrat vzame
+        // poverilnice znova - ce vodijo k istemu srediscu, tu mirno poskusamo naprej.
+        if (poskusov == 3 && !izgubaJavljena) { izgubaJavljena = true; glavna.post { poslusalec?.naIzgubo() } }
+        val gen = generacija
+        glavna.postDelayed({ if (tece && !povezan && gen == generacija) povezi() }, zamik)
     }
+
+    private var generacija = 0
+    private var izgubaJavljena = false
 
     private fun javiStanje(povezan: Boolean, sporocilo: String) {
         glavna.post { poslusalec?.naStanje(povezan, sporocilo) }
@@ -209,7 +318,8 @@ class LinkOdjemalec(private val context: Context) {
                     val d = polje.optJSONObject(i) ?: continue
                     val z = d.optJSONArray("capabilities") ?: JSONArray()
                     val zmoznosti = (0 until z.length()).map { z.optString(it) }
-                    seznam.add(Naprava(d.optString("id"), d.optString("name"), d.optString("role", "receiver"), zmoznosti, d.optString("ip")))
+                    seznam.add(Naprava(d.optString("id"), d.optString("name"), d.optString("role", "receiver"), zmoznosti, d.optString("ip"),
+                        d.optString("platform")))
                 }
                 // Sredisce je naprava z loopback naslovom (tako ga prepozna tudi stran Linka).
                 imeSredisca = seznam.firstOrNull { it.naslov == "127.0.0.1" || it.naslov == "::1" }?.ime
@@ -240,6 +350,10 @@ class LinkOdjemalec(private val context: Context) {
                 val od = json.optString("sender_name").ifBlank { json.optString("sender") }
                 potrdi(json)
                 glavna.post { poslusalec?.naBesedilo(telo.optString("text"), od) }
+            }
+            "trust.update" -> {
+                // Krog zaupanja s sredisca: hranimo ga sami, da prezivimo menjavo sredisca.
+                json.optJSONObject("payload")?.let { KrogNaprave.sprejmi(context, it.toString()) }
             }
         }
     }

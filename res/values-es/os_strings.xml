@@ -62,6 +62,10 @@
     <string name="os_vrsta_opis">Las aplicaciones web que has añadido a Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Vídeos, música y fotos del televisor y del USB</string>
     <string name="os_datoteke_racunalnik_opis">Carpetas compartidas de este ordenador</string>
+    <string name="os_datoteke_telefon_opis">Vídeos, música y fotos de este teléfono</string>
+    <string name="os_datoteke_tablica_opis">Vídeos, música y fotos de esta tableta</string>
+    <string name="os_datoteke_naprava_dovoljenje">%1$s aún no ha permitido el acceso a sus vídeos, música y fotos.\n\nEn ese dispositivo, abre Safeer Link y toca «Vídeos, música y fotos» para permitir el acceso: aparecerán aquí al momento.</string>
+    <string name="os_datoteke_naprava_izklop">%1$s no comparte sus vídeos, música y fotos.\n\nEn ese dispositivo, abre Safeer Link y activa «Vídeos, música y fotos».</string>
     <string name="os_krajevno_videi">Vídeos</string>
     <string name="os_krajevno_glasba">Música</string>
     <string name="os_krajevno_slike">Imágenes</string>
@@ -150,7 +154,7 @@
     <string name="os_spletne_desno">Mover a la derecha</string>
     <!-- Programi racunalnika na televizorju -->
     <string name="os_programi">Programas</string>
-    <string name="os_programi_naslov">Lo que tienes en el ordenador</string>
+    <string name="os_programi_naslov">De todos tus dispositivos</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Buscar por nombre</string>
     <string name="os_programi_ni_zadetka">Ningún programa coincide con «%1$s».</string>
@@ -180,6 +184,14 @@
     <string name="os_naprave_posiljanje">Enviar</string>
     <string name="os_naprave_stran">Página de Safeer Link</string>
     <string name="os_naprave_stran_opis">Vincula un dispositivo, mando, envía una página o un archivo</string>
+    <string name="os_naprave_ta">Este dispositivo</string>
+    <string name="os_naprave_preimenuj">Renombrar dispositivo</string>
+    <string name="os_naprave_preimenuj_kratko">Renombrar</string>
+    <string name="os_naprave_preimenuj_opis">El nuevo nombre lo ven todos los dispositivos en Safeer Link. Vacío restaura el nombre original.</string>
+    <string name="os_naprave_preimenuj_namig">Nombre del dispositivo…</string>
+    <string name="os_naprave_shrani">Guardar</string>
+    <string name="os_naprave_preimenovano">Nombre guardado: lo ven todos los dispositivos.</string>
+    <string name="os_naprave_preimenovanje_napaka">No se pudo guardar el nombre. ¿Está Safeer Link en marcha?</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">Todas las apps de este televisor</string>
     <string name="os_aplikacije_namig">OK abre una app. Mantén OK para ponerla en la pantalla de inicio (★) o quitarla.</string>
@@ -353,7 +365,9 @@
 <string name="os_brskalnik_naslov">Navegador web</string>
     <string name="os_brskalnik_opis">Rápido, seguro, sin anuncios</string>
     <string name="os_zaslon_opis">Tu ordenador en la TV</string>
-    <string name="os_programi_opis">Desde tu ordenador</string>
+    <string name="os_programi_opis">De tus dispositivos</string>
+    <string name="os_programi_naprav">Dispositivos: %d</string>
+    <string name="os_programi_zagnan_naprava">%1$s se está abriendo en %2$s.</string>
     <string name="os_nedavno_uporabljeno">Usado recientemente</string>
     <string name="os_dodaj_aplikacijo">Añadir aplicación</string>
     <string name="os_kartica_ni_povezano_opis">Conecta tu dispositivo a Safeer Link y activa el uso compartido en Safeer Control.</string>

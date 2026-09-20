@@ -28,7 +28,8 @@ class LinkSorodnikStoritev : Service() {
             val podatki = sporocilo.data ?: Bundle()
             val odgovor = Message.obtain(null, ODGOVOR)
             odgovor.data = pripraviOdgovor(podatki.getString("device_name") ?: "Safeer OS",
-                podatki.getString("app") ?: "", podatki.getBoolean("ne_zaganjaj", false))
+                podatki.getString("app") ?: "", podatki.getBoolean("ne_zaganjaj", false),
+                podatki.getString("device_id").orEmpty())
             try { komu?.send(odgovor) } catch (e: Throwable) { Log.w(TAG, "Odgovora ni bilo mogoce poslati: ${e.message}") }
         } else if (sporocilo.what == PRIJAVE) {
             // Safeer OS na tem televizorju pokaze kodo za seznanitev nove naprave (glej KodaSeznanitve).
@@ -44,6 +45,24 @@ class LinkSorodnikStoritev : Service() {
             val id = sporocilo.data?.getString("pair_id").orEmpty()
             if (id.isNotBlank()) try { HubKrmilnik.usmerjevalnik?.zavrniPrijavo(id) } catch (_: Throwable) { }
             try { sporocilo.replyTo?.send(Message.obtain(null, ZAVRNI_ODGOVOR)) } catch (_: Throwable) { }
+        } else if (sporocilo.what == PRIDRUZITEV) {
+            // Prijavno okno Safeer OS: QR koda, s katero se telefon pridruzi (PridruzitevSredisca).
+            val odgovor = Message.obtain(null, PRIDRUZITEV_ODGOVOR)
+            odgovor.data = PridruzitevSredisca.nova(applicationContext, sporocilo.data?.getString("preklici").orEmpty())
+            try { sporocilo.replyTo?.send(odgovor) } catch (_: Throwable) { }
+        } else if (sporocilo.what == PRIDRUZITEV_STANJE) {
+            val odgovor = Message.obtain(null, PRIDRUZITEV_STANJE_ODGOVOR)
+            odgovor.data = Bundle().apply {
+                PridruzitevSredisca.zadnja?.let { putLong("cas", it.first); putString("ime", it.second) }
+            }
+            try { sporocilo.replyTo?.send(odgovor) } catch (_: Throwable) { }
+        } else if (sporocilo.what == PRIDRUZITEV_KONEC) {
+            // Okno se zapira: koda ne sme veljati naprej; ob »brez povezave« ugasnemo sredisce, ce smo ga
+            // prizgali samo zanjo.
+            val d = sporocilo.data ?: Bundle()
+            PridruzitevSredisca.preklici(d.getString("qr_id").orEmpty())
+            if (d.getBoolean("brez_povezave", false)) PridruzitevSredisca.izklopiCeSamoZaKodo(applicationContext)
+            try { sporocilo.replyTo?.send(Message.obtain(null, PRIDRUZITEV_KONEC_ODGOVOR)) } catch (_: Throwable) { }
         }
         true
     })
@@ -55,11 +74,22 @@ class LinkSorodnikStoritev : Service() {
      * [neZaganjaj] = sorodnik samo pogleda, ali sredisce ze tece (uporabnik pri njem se ni izbral
      * Safeer Linka). Takrat ga ne prizigamo: nicesar ne vklopimo namesto uporabnika.
      */
-    private fun pripraviOdgovor(imeNaprave: String, paket: String, neZaganjaj: Boolean): Bundle {
+    private fun pripraviOdgovor(imeNaprave: String, paket: String, neZaganjaj: Boolean, zeleniId: String = ""): Bundle {
         val app = applicationContext
         val b = Bundle()
         try {
             if (!HubKrmilnik.tece()) {
+                // Umaknili smo se izvoljenemu hubu (drug clan kroga): sorodnik gre tja, s podpisom svojega kljuca.
+                HubKrmilnik.izvoljeniHub(app)?.let { izvoljeni ->
+                    val pripona = if (paket.endsWith(".os")) "os" else paket.substringAfterLast('.').ifBlank { "app" }
+                    b.putString("hub_url", izvoljeni.naslov)
+                    b.putString("token", "")
+                    b.putString("fp", izvoljeni.odtis)
+                    b.putString("hub_id", izvoljeni.id)
+                    b.putString("device_id", zeleniId.ifBlank { HubKrmilnik.lastniId() + "-" + pripona })
+                    Log.i(TAG, "Sorodna aplikacija $paket gre na izvoljeni hub ${izvoljeni.id}.")
+                    return b
+                }
                 if (neZaganjaj) {
                     Log.i(TAG, "Sredisce ne tece, sorodnik ($paket) ga ni zahteval - ne zaganjam.")
                     return b
@@ -74,7 +104,9 @@ class LinkSorodnikStoritev : Service() {
                 return b
             }
             val pripona = if (paket.endsWith(".os")) "os" else paket.substringAfterLast('.').ifBlank { "app" }
-            val id = HubKrmilnik.lastniId() + "-" + pripona
+            // Sorodnik v svojem procesu ima svoj kljuc in zato svoj id iz kljuca (n-...-os): zeton izdamo temu
+            // id-ju, ki ga pove sam. Starejsi sorodnik brez id-ja dobi id po starem (id sredisca + pripona).
+            val id = zeleniId.take(HubUsmerjevalnik.NAJVEC_IMENA).ifBlank { HubKrmilnik.lastniId() + "-" + pripona }
             val ime = "$imeNaprave (" + android.os.Build.MODEL + ")"
             val zeton = u.zagotoviLastniZeton(id, ime)
             b.putString("hub_url", "wss://127.0.0.1:$vrata/cast/ws")
@@ -97,6 +129,12 @@ class LinkSorodnikStoritev : Service() {
         const val PRIJAVE_ODGOVOR = 4
         const val ZAVRNI = 5
         const val ZAVRNI_ODGOVOR = 6
+        const val PRIDRUZITEV = 7
+        const val PRIDRUZITEV_ODGOVOR = 8
+        const val PRIDRUZITEV_STANJE = 9
+        const val PRIDRUZITEV_STANJE_ODGOVOR = 10
+        const val PRIDRUZITEV_KONEC = 11
+        const val PRIDRUZITEV_KONEC_ODGOVOR = 12
         private const val TAG = "SafeerLinkSorodnik"
     }
 }

@@ -40,4 +40,6 @@
     <string name="os_scit_nastavitev_opis">Filtriranje DNS za vso tablico, v vseh aplikacijah</string>
     <string name="os_jezik_opis">Safeer OS v jeziku, ki ga izbereš, ne glede na nastavitev tablice</string>
     <string name="os_moc_opis">Procesor, pomnilnik in prostor — na hostu ali na tej tablici</string>
+    <string name="vnos_ime">Safeer Vnos</string>
+    <string name="vnos_opis">Računalnik (Safeer Control) sme na tej tablici tapniti, podrsati ter pritisniti Nazaj ali Domov, medtem ko tablica deli svoj zaslon. Safeer Vnos zaslona ne bere in ničesar ne pošilja nikamor; izvede samo, kar zahteva naprava, ki si jo seznanil v Safeer Linku.</string>
 </resources>
