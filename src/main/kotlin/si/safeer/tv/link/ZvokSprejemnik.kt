@@ -34,6 +34,9 @@ object ZvokSprejemnik {
     private const val OKVIR_ZVOK = 2
     private const val OKVIR_OBVESTILO = 3
     private const val NAJVECJI_OKVIR = 1 shl 20
+    /** Zacetna rezerva za tresenje omrezja; ob podteku zraste do [NAJVECJI_CILJ_MS]. */
+    private const val ZACETNI_CILJ_MS = 60L
+    private const val NAJVECJI_CILJ_MS = 300L
 
     @Volatile private var seja = 0
     @Volatile private var vticnica: Socket? = null
@@ -92,7 +95,7 @@ object ZvokSprejemnik {
             racunalnik = ime
             obvesti(context, "🔊 $ime")
             Log.i(TAG, "Zvok z racunalnika $ime tece")
-            crpaj(DataInputStream(vhod), zvocnik, moja)
+            crpaj(DataInputStream(vhod), zvocnik, moja, zv.optInt("hz", 48000), maxOf(1, zv.optInt("kanali", 2)))
         } catch (e: java.io.EOFException) {
             Log.i(TAG, "Racunalnik je zvok koncal")
         } catch (e: java.net.SocketException) {
@@ -126,13 +129,13 @@ object ZvokSprejemnik {
     }
 
     /**
-     * Medpomnilnik ~200 ms: brez slike ni cesa dohitevati, zato raje malo vec rezerve za tresenje
-     * Wi-Fi kot pa prekinitve. Pisemo blokirajoce - zvok je edini tok in ne sme izgubljati vzorcev.
+     * Medpomnilnik je velik (~400 ms), da ima zakasnitev prostor za rast na slabem omrezju; koliko
+     * ga res zapolnimo, doloca [crpaj].
      */
     private fun pripravi(hz: Int, kanali: Int): AudioTrack? = try {
         val razpored = if (kanali >= 2) AudioFormat.CHANNEL_OUT_STEREO else AudioFormat.CHANNEL_OUT_MONO
         val najmanj = AudioTrack.getMinBufferSize(hz, razpored, AudioFormat.ENCODING_PCM_16BIT)
-        val velikost = maxOf(najmanj * 2, hz * maxOf(1, kanali) * 2 / 5)
+        val velikost = maxOf(najmanj * 2, hz * maxOf(1, kanali) * 2 * 2 / 5)
         AudioTrack.Builder()
             .setAudioAttributes(AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -149,9 +152,23 @@ object ZvokSprejemnik {
         null
     }
 
-    private fun crpaj(vhod: DataInputStream, zvocnik: AudioTrack, moja: Int) {
+    /**
+     * Zakasnitev drzimo nizko sami. AudioTrack zacne igrati sele, ko je njegov medpomnilnik poln, in
+     * vsak zvok v njem caka - zato mu nastavimo majhno uporabno velikost ([ciljMs], najmanj kar
+     * naprava dovoli) in pisemo neblokirajoce: kar ne gre vec noter, izpustimo (dohitevanje), da se
+     * zakasnitev ne nabira na racunalniku. Ce zvok kdaj zmanjka (podtek), rezervo povecamo za 40 ms,
+     * najvec do [NAJVECJI_CILJ_MS]. Na dobrem omrezju je zvok cim hitrejsi, na slabem brez prekinitev.
+     */
+    private fun crpaj(vhod: DataInputStream, zvocnik: AudioTrack, moja: Int, hz: Int, kanali: Int) {
         val glava = ByteArray(5)
         var telo = ByteArray(4096)
+        val slicicaB = 2 * kanali
+        var ciljMs = ZACETNI_CILJ_MS
+        nastaviRezervo(zvocnik, hz, ciljMs)
+        var podtekov = -1
+        var zapisanih = 0L
+        var izpuscenih = 0
+        var zadnjiDnevnik = android.os.SystemClock.elapsedRealtime()
         while (moja == seja) {
             vhod.readFully(glava)
             val vrsta = glava[0].toInt() and 0xff
@@ -161,12 +178,40 @@ object ZvokSprejemnik {
             if (telo.size < dolzina) telo = ByteArray(dolzina)
             vhod.readFully(telo, 0, dolzina)
             when (vrsta) {
-                OKVIR_ZVOK -> zvocnik.write(telo, 0, dolzina)
+                OKVIR_ZVOK -> {
+                    val n = zvocnik.write(telo, 0, dolzina, AudioTrack.WRITE_NON_BLOCKING)
+                    if (n in 0 until dolzina) izpuscenih++
+                    if (n > 0) zapisanih += n / slicicaB
+                    val zdajPodtekov = try { zvocnik.underrunCount } catch (_: Throwable) { 0 }
+                    if (podtekov < 0 || zapisanih < hz / 2) {
+                        podtekov = zdajPodtekov            // prazen zacetek ni podtek
+                    } else if (zdajPodtekov > podtekov && ciljMs < NAJVECJI_CILJ_MS) {
+                        podtekov = zdajPodtekov
+                        ciljMs = minOf(NAJVECJI_CILJ_MS, ciljMs + 40)
+                        nastaviRezervo(zvocnik, hz, ciljMs)
+                    }
+                    val zdaj = android.os.SystemClock.elapsedRealtime()
+                    if (zdaj - zadnjiDnevnik >= 10_000) {
+                        zadnjiDnevnik = zdaj
+                        val rezervaMs = try { zvocnik.bufferSizeInFrames * 1000L / hz } catch (_: Throwable) { -1L }
+                        Log.i(TAG, "rezerva $rezervaMs ms (cilj $ciljMs), podtekov $zdajPodtekov, izpuscenih okvirjev $izpuscenih")
+                    }
+                }
                 OKVIR_OBVESTILO -> {
                     val o = try { JSONObject(String(telo, 0, dolzina, Charsets.UTF_8)) } catch (_: Throwable) { null }
                     if (!o?.optString("konec").isNullOrEmpty()) break
                 }
             }
+        }
+    }
+
+    /** Uporabna velikost medpomnilnika (in s tem prag zacetka predvajanja) v milisekundah. */
+    private fun nastaviRezervo(zvocnik: AudioTrack, hz: Int, ms: Long) {
+        try {
+            val dobljeno = zvocnik.setBufferSizeInFrames((hz * ms / 1000).toInt())
+            Log.i(TAG, "rezerva nastavljena: ${dobljeno * 1000L / hz} ms")
+        } catch (e: Throwable) {
+            Log.w(TAG, "Rezerve ni bilo mogoce nastaviti: ${e.message}")
         }
     }
 
