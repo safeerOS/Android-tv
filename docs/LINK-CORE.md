@@ -327,3 +327,38 @@ sistemsko okno »Deli zaslon«; po potrditvi je deljenje steklo, hub pa ga je za
 povezan - pričakovano. Celoten krog preveri Matej z odprtim Safeer Control.
 
 Omejitev Androida: dovoljenje za zajem zaslona je treba potrditi na napravi za vsako deljenje.
+
+## 8. Prijavno okno Safeer OS: QR koda, 6-mestna koda, nadaljuj brez povezave (20. 9.)
+
+Isto okno na računalniku (Safeer Control, pozneje Safeer OS za računalnik) in na televizorju (Safeer OS).
+»Nadaljuj brez povezave naprav« ni dokončno: naprave se povežejo kadarkoli pozneje (računalnik:
+»Poveži naprave«; televizor: Naprave → »Poveži novo napravo«). Obstajata dve smeri QR kode:
+
+**A. Računalnik se prijavi (koda na računalniku, dovoli telefon ali tablica v Linku)** - `/cast/pair/qr/*`
+
+| pot | kdo | kaj |
+|---|---|---|
+| `start` | računalnik | `device_id`, `name`, `platform`, `secret_sha256`, `poll_secret` → `qr_id`, `fp` |
+| `info` / `approve` | član Linka (`x-safeer-token`) | `qr_id`, `secret` → ime računalnika / žeton nastane |
+| `status` | računalnik | `qr_id`, `device_id`, `poll_secret` → `approved`, enkrat `token` |
+| `cancel` | računalnik | koda ne velja več |
+
+QR: `https://safeer.si/p#i=<qr_id>&s=<skrivnost>&f=<16 znakov odtisa, ki ga je videl računalnik>`.
+Hub pozna le SHA-256 skrivnosti; žeton prevzame samo računalnik (`poll_secret`, ki ga v QR ni). Telefon
+pred »Dovoli« preveri, da se `f` ujema s potrdilom huba, ki mu zaupa (sicer »Ta koda ni za tvoj Safeer
+Link«). Računalnik v krogu zaupanja okna ne dobi: poišče središče in se prijavi s podpisom.
+
+**B. Telefon se pridruži televizorju (koda na središču)** - `/cast/pair/qr/join`
+
+QR: `https://safeer.si/p#j=<id>&s=<skrivnost>&f=<cel odtis središča>&a=<ip:vrata>`. Ustvari jo samo proces
+središča (`HubUsmerjevalnik.ustvariPridruzitev`, Safeer OS prek `LinkSorodnikStoritev` 7–12); kdor vidi
+zaslon, se sme pridružiti - enako kot 6-mestna koda. Telefon govori s središčem že od prve zahteve samo
+prek potrdila z odtisom iz kode (`HubPairing.pridruziSQr`), zato vsiljivec v sredini pade. Koda velja
+enkrat in 5 minut, ugibanje je omejeno; zaslon nato pokaže »✓ … je povezan« in novo kodo.
+
+Kamera odpre povezavo v aplikaciji Safeer (filter za `safeer://link/qr` in `https://safeer.si/p`;
+Safeer kot privzeti brskalnik jo prestreže sam). Za kamero, ki odpre drug brskalnik, je potrebna še
+stran `safeer.si/p` z gumbom »Odpri v Safeer« (objava strani s potrditvijo).
+
+Preverjeno: JVM (`UsmerjevalnikTest`: prijava 26 + pridružitev 11 preverb), v živo A: računalnik →
+TV hub → tablica Dovoli → žeton → vstopnica 200.

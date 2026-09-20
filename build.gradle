@@ -132,6 +132,8 @@ dependencies {
     implementation 'androidx.media3:media3-exoplayer-dash:1.11.1'
     implementation 'androidx.media3:media3-datasource:1.11.1'
     implementation 'androidx.webkit:webkit:1.17.0'
+    // QR koda v prijavnem oknu Safeer OS (os/PrijavaActivity): samo kodirnik, cista Java, brez Googlovih storitev
+    implementation 'com.google.zxing:core:3.5.3'
     // Ed25519 verification for the signed Safeer Threat Intelligence feed (see libs/README.md)
     implementation files('libs/bcprov-ed25519-1.78.1.jar')
     // WebSocket povezava sprejemnika Safeer Cast (knjiznici sta v libs/, gradnja ne rabi omrezja)

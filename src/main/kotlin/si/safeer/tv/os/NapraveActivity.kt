@@ -79,6 +79,10 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 else odpriLinkVBrskalniku()
             })
         }
+        // Nova naprava: prijavno okno (QR s kamero telefona ali 6-mestna koda) - tudi po »brez povezave«.
+        nove.add(Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_naprave_povezi),
+            getString(R.string.os_naprave_povezi_opis), "") {
+            startActivity(Intent(this, PrijavaActivity::class.java)) })
         // Zadnja vrstica je vedno pot naprej: stran Safeer Link, kjer se naprave seznanijo.
         nove.add(Vrstica(R.drawable.os_ikona_link, getString(R.string.os_naprave_stran),
             getString(R.string.os_naprave_stran_opis), "") { odpriLinkVBrskalniku() })

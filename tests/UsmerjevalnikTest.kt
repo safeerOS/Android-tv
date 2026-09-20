@@ -1112,6 +1112,38 @@ private fun preizkusQrPrijave() {
         qr("start", """{"device_id":"n-poplava-x","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")?.koda)
 }
 
+private fun preizkusPridruzitve() {
+    println("- pridruzitev s QR kodo sredisca")
+    val u = usmerjevalnik(LazniPomnilnik())
+    var pridruzen = ""
+    u.naPridruzitev = { id, _ -> pridruzen = id }
+    val (id, skrivnost) = u.ustvariPridruzitev()
+    fun pridruzi(telo: String, od: String = "192.168.0.50") = u.odgovori(zahteva("POST", "/cast/pair/qr/join", telo, od))
+    preveriEnako("z interneta je 403", 403,
+        pridruzi("""{"qr_id":"$id","secret":"$skrivnost","device_id":"fon-nov","name":"Telefon"}""", "203.0.113.5")?.koda)
+    preveriEnako("brez device_id je 400", 400, pridruzi("""{"qr_id":"$id","secret":"$skrivnost"}""")?.koda)
+    preveriEnako("napacna skrivnost je 404", 404, pridruzi("""{"qr_id":"$id","secret":"ugibam","device_id":"fon-nov"}""")?.koda)
+    preveri("po zgresku se ni seznanjen", u.seznanjeneNaprave().none { it.deviceId == "fon-nov" })
+    val ok = pridruzi("""{"qr_id":"$id","secret":"$skrivnost","device_id":"fon-nov","name":"Telefon"}""")
+    val zeton = polje(ok?.telo.orEmpty(), "token")
+    preveri("telefon dobi zeton", ok?.koda == 200 && zeton.startsWith("saf_tv_") && u.napravaZeZetona(zeton) == "fon-nov")
+    preveriEnako("odtis sredisca je v odgovoru", u.lastniOdtis, polje(ok?.telo.orEmpty(), "fp"))
+    preveriEnako("sredisce izve, kdo se je pridruzil", "fon-nov", pridruzen)
+    preveriEnako("koda velja samo enkrat", 404,
+        pridruzi("""{"qr_id":"$id","secret":"$skrivnost","device_id":"fon-drug","name":"Drug"}""")?.koda)
+    val (id2, s2) = u.ustvariPridruzitev()
+    var zadnja = 0
+    repeat(HubUsmerjevalnik.NAJVEC_POSKUSOV) { zadnja = pridruzi("""{"qr_id":"$id2","secret":"ugib-$it","device_id":"fon-x"}""")?.koda ?: 0 }
+    preveriEnako("ugibanje je omejeno", 429, zadnja)
+    preveriEnako("po padcu prava skrivnost ne gre", 404, pridruzi("""{"qr_id":"$id2","secret":"$s2","device_id":"fon-x"}""")?.koda)
+    val (id3, s3) = u.ustvariPridruzitev()
+    cas += HubUsmerjevalnik.PIN_VELJA_MS + 1000
+    preveriEnako("po poteku koda ne velja", 404, pridruzi("""{"qr_id":"$id3","secret":"$s3","device_id":"fon-y"}""")?.koda)
+    val (id4, s4) = u.ustvariPridruzitev()
+    u.prekliciPridruzitev(id4)
+    preveriEnako("preklicana koda ne velja", 404, pridruzi("""{"qr_id":"$id4","secret":"$s4","device_id":"fon-z"}""")?.koda)
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1129,6 +1161,7 @@ fun main() {
     preizkusProtokolaV1()
     preizkusIdaIzKljuca()
     preizkusQrPrijave()
+    preizkusPridruzitve()
     println()
     if (napak == 0) {
         println("Vse v redu.")

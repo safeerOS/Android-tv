@@ -45,6 +45,24 @@ class LinkSorodnikStoritev : Service() {
             val id = sporocilo.data?.getString("pair_id").orEmpty()
             if (id.isNotBlank()) try { HubKrmilnik.usmerjevalnik?.zavrniPrijavo(id) } catch (_: Throwable) { }
             try { sporocilo.replyTo?.send(Message.obtain(null, ZAVRNI_ODGOVOR)) } catch (_: Throwable) { }
+        } else if (sporocilo.what == PRIDRUZITEV) {
+            // Prijavno okno Safeer OS: QR koda, s katero se telefon pridruzi (PridruzitevSredisca).
+            val odgovor = Message.obtain(null, PRIDRUZITEV_ODGOVOR)
+            odgovor.data = PridruzitevSredisca.nova(applicationContext, sporocilo.data?.getString("preklici").orEmpty())
+            try { sporocilo.replyTo?.send(odgovor) } catch (_: Throwable) { }
+        } else if (sporocilo.what == PRIDRUZITEV_STANJE) {
+            val odgovor = Message.obtain(null, PRIDRUZITEV_STANJE_ODGOVOR)
+            odgovor.data = Bundle().apply {
+                PridruzitevSredisca.zadnja?.let { putLong("cas", it.first); putString("ime", it.second) }
+            }
+            try { sporocilo.replyTo?.send(odgovor) } catch (_: Throwable) { }
+        } else if (sporocilo.what == PRIDRUZITEV_KONEC) {
+            // Okno se zapira: koda ne sme veljati naprej; ob »brez povezave« ugasnemo sredisce, ce smo ga
+            // prizgali samo zanjo.
+            val d = sporocilo.data ?: Bundle()
+            PridruzitevSredisca.preklici(d.getString("qr_id").orEmpty())
+            if (d.getBoolean("brez_povezave", false)) PridruzitevSredisca.izklopiCeSamoZaKodo(applicationContext)
+            try { sporocilo.replyTo?.send(Message.obtain(null, PRIDRUZITEV_KONEC_ODGOVOR)) } catch (_: Throwable) { }
         }
         true
     })
@@ -111,6 +129,12 @@ class LinkSorodnikStoritev : Service() {
         const val PRIJAVE_ODGOVOR = 4
         const val ZAVRNI = 5
         const val ZAVRNI_ODGOVOR = 6
+        const val PRIDRUZITEV = 7
+        const val PRIDRUZITEV_ODGOVOR = 8
+        const val PRIDRUZITEV_STANJE = 9
+        const val PRIDRUZITEV_STANJE_ODGOVOR = 10
+        const val PRIDRUZITEV_KONEC = 11
+        const val PRIDRUZITEV_KONEC_ODGOVOR = 12
         private const val TAG = "SafeerLinkSorodnik"
     }
 }

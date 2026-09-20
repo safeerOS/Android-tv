@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prijavno okno Safeer OS (PrijavaActivity). -->
+<resources>
+    <string name="os_prijava_naslov">Conectar dispositivos</string>
+    <string name="os_prijava_podnaslov">Tu móvil, tableta y ordenador se unen a este televisor.</string>
+    <string name="os_prijava_qr_naslov">Escanea con el móvil</string>
+    <string name="os_prijava_qr_opis">Abre la cámara de un móvil o tableta con Safeer y apunta al código.</string>
+    <string name="os_prijava_qr_pripravljam">Preparando el código …</string>
+    <string name="os_prijava_qr_napaka">El código aún no está listo. Reintentando …</string>
+    <string name="os_prijava_ali">o</string>
+    <string name="os_prijava_koda_naslov">Código de 6 cifras</string>
+    <string name="os_prijava_koda_opis">En el móvil abre Safeer → Safeer Link → Conectar con Safeer Link. El código aparece aquí: escríbelo en el móvil.</string>
+    <string name="os_prijava_koda_za">Código para %1$s</string>
+    <string name="os_prijava_brez">Continuar sin conectar dispositivos</string>
+    <string name="os_prijava_zapri">Cerrar</string>
+    <string name="os_prijava_povezano">✓ %1$s está conectado.</string>
+    <string name="os_naprave_povezi">Conectar un dispositivo nuevo</string>
+    <string name="os_naprave_povezi_opis">Escanea el código con el móvil o introduce un código de 6 cifras</string>
+</resources>

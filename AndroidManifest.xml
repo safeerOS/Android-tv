@@ -128,6 +128,13 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
+        <!-- Safeer OS: prijavno okno (QR koda, 6-mestna koda, nadaljuj brez povezave naprav). -->
+        <activity
+            android:name="si.safeer.tv.os.PrijavaActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SafeerOs"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+
         <!-- Safeer Link: »pretoci aplikacijo« - nevidna dejavnost vprasa za zajem zaslona, zazene deljenje
              proti napravi, ki je vprasala, in odpre aplikacijo. -->
         <activity
