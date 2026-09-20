@@ -150,14 +150,15 @@ class CastReceiverService : Service() {
             .pingInterval(15, TimeUnit.SECONDS)
         val odtis = try { HubTls.pripetiOdtis(this) } catch (_: Throwable) { null }
         // Izvoljeni hub (drug clan kroga): poleg odtisa iz oglasa mora potrdilo nositi njegov kljuc iz kroga.
-        val kljuc = try { HubKrmilnik.izvoljeniHub(this)?.let { KrogNaprave.krog(this).clan(it.id)?.kljuc } } catch (_: Throwable) { null }
+        val kljuc = try { HubKrmilnik.izvoljeniHub(this)?.let { KrogNaprave.kljucHuba(this, it.id) } } catch (_: Throwable) { null }
         return HubTls.okhttp(g, odtis, kljuc).first.build()
     }
 
     private var webSocket: WebSocket? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var hubUrl: String = DEFAULT_HUB_URL
-    private var deviceId: String = "tv-" + Build.MODEL.replace("\\s+".toRegex(), "-").lowercase()
+    /** Id iz kljuca naprave (HubKrmilnik.lastniId); isti, kot ga hub te naprave vpise v krog in oglasa po mDNS. */
+    private val deviceId: String by lazy { HubKrmilnik.lastniId() }
     private var deviceName: String = "Android TV"
     private var isRunning = false
     private var reconnectAttempts = 0
@@ -200,7 +201,8 @@ class CastReceiverService : Service() {
         }
         client = zgradiOdjemalca()
         Log.i(TAG, "Povezujem se na Safeer Cast Hub: $hubUrl (naprava: $deviceId)")
-        val vpisan = try { KrogNaprave.jeVpisana(this, deviceId) } catch (_: Throwable) { false }
+        // S podpisom tudi, ce je nas kljuc v krogu pod starim id-jem: hub nov id sam vpise kot alias.
+        val vpisan = try { KrogNaprave.lahkoSPodpisom(this, deviceId) } catch (_: Throwable) { false }
         if (vpisan) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov) }
         else {
             // Nas kljuc je v krogu pod drugim id (npr. Safeer OS iste naprave): ta id vpisemo kot alias

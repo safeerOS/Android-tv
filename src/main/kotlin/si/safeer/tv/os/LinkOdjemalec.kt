@@ -3,6 +3,7 @@ package si.safeer.tv.os
 import si.safeer.tv.R
 
 import android.content.Context
+import si.safeer.tv.cast.HubKrmilnik
 import si.safeer.tv.cast.HubTls
 import si.safeer.tv.cast.KrogNaprave
 import android.os.Handler
@@ -87,7 +88,7 @@ class LinkOdjemalec(private val context: Context) {
     private fun zgradi(p: Sorodnik.Poverilnice): OkHttpClient {
         // Izvoljeni hub (drug clan kroga, brez zetona): potrdilo mora poleg odtisa iz oglasa nositi
         // njegov kljuc iz kroga zaupanja - oglas mDNS sam po sebi ne dobi nobenega zaupanja.
-        val kljucKroga = if (p.zeton.isBlank() && p.hubId.isNotBlank()) KrogNaprave.krog(context).clan(p.hubId)?.kljuc else null
+        val kljucKroga = if (p.zeton.isBlank() && p.hubId.isNotBlank()) KrogNaprave.kljucHuba(context, p.hubId) else null
         val (tovarna, zaupnik) = if (kljucKroga != null) HubTls.odjemalec(p.odtis, kljucKroga) else Pin.tovarna(p.odtis)
         return OkHttpClient.Builder()
             .sslSocketFactory(tovarna, zaupnik)
@@ -124,7 +125,8 @@ class LinkOdjemalec(private val context: Context) {
     private fun povezi() {
         val p = poverilnice ?: return
         if (!tece) return
-        if (KrogNaprave.jeVpisana(context, idNaprave)) poveziSPodpisom(p) else poveziZZetonom(p)
+        // S podpisom tudi, ce je nas kljuc v krogu pod starim id-jem: hub nov id sam vpise kot alias.
+        if (KrogNaprave.lahkoSPodpisom(context, idNaprave)) poveziSPodpisom(p) else poveziZZetonom(p)
     }
 
     private fun poveziSPodpisom(p: Sorodnik.Poverilnice) {
@@ -139,6 +141,7 @@ class LinkOdjemalec(private val context: Context) {
                 Log.w(TAG, "Podpisa ni bilo mogoce narediti: ${e.message}"); poveziZZetonom(p); return@klic
             }
             val zahteva = JSONObject().put("device_id", idNaprave).put("nonce", nonce).put("signature", podpis)
+                .put("name", imeVKrogu()).put("platform", HubKrmilnik.platforma(context))
             klic("/cast/auth/ticket", zahteva, null) { koda2, telo2 ->
                 val j = try { JSONObject(telo2) } catch (_: Throwable) { JSONObject() }
                 val vstopnica = j.optString("ticket")
@@ -175,17 +178,18 @@ class LinkOdjemalec(private val context: Context) {
         val kljuc = try { HubTls.javniKljucB64() } catch (e: Throwable) {
             Log.w(TAG, "Kljuca naprave ni: ${e.message}"); return
         }
-        // Ime in platforma, kot ju vidijo druge naprave v krogu: tablica je tablica, ne TV.
-        val tablica = context.packageName.endsWith(".tablet")
-        val ime = try { context.getString(si.safeer.tv.R.string.os_ime_vrste) } catch (_: Throwable) { "Safeer OS" } +
-            " (" + android.os.Build.MODEL + ")"
-        val telo = JSONObject().put("pubkey", kljuc).put("name", ime).put("platform", if (tablica) "tablet" else "tv")
+        val telo = JSONObject().put("pubkey", kljuc).put("name", imeVKrogu()).put("platform", HubKrmilnik.platforma(context))
         klic("/cast/trust/enroll", telo, p.zeton) { koda, odgovor ->
             if (koda != 200) { Log.i(TAG, "Sredisce kroga zaupanja ne pozna ($koda)."); return@klic }
             val ring = try { JSONObject(odgovor).optJSONObject("ring") } catch (_: Throwable) { null }
             if (KrogNaprave.sprejmi(context, ring?.toString())) Log.i(TAG, "Kljuc naprave vpisan v krog zaupanja.")
         }
     }
+
+    /** Ime, kot ga vidijo druge naprave v krogu: tablica je tablica, ne TV. */
+    private fun imeVKrogu(): String =
+        (try { context.getString(si.safeer.tv.R.string.os_ime_vrste) } catch (_: Throwable) { "Safeer OS" }) +
+            " (" + android.os.Build.MODEL + ")"
 
     private fun odpriZVstopnico(p: Sorodnik.Poverilnice, vstopnica: String) {
         val locilo = if (p.hubUrl.contains("?")) "&" else "?"

@@ -28,7 +28,8 @@ class LinkSorodnikStoritev : Service() {
             val podatki = sporocilo.data ?: Bundle()
             val odgovor = Message.obtain(null, ODGOVOR)
             odgovor.data = pripraviOdgovor(podatki.getString("device_name") ?: "Safeer OS",
-                podatki.getString("app") ?: "", podatki.getBoolean("ne_zaganjaj", false))
+                podatki.getString("app") ?: "", podatki.getBoolean("ne_zaganjaj", false),
+                podatki.getString("device_id").orEmpty())
             try { komu?.send(odgovor) } catch (e: Throwable) { Log.w(TAG, "Odgovora ni bilo mogoce poslati: ${e.message}") }
         } else if (sporocilo.what == PRIJAVE) {
             // Safeer OS na tem televizorju pokaze kodo za seznanitev nove naprave (glej KodaSeznanitve).
@@ -55,7 +56,7 @@ class LinkSorodnikStoritev : Service() {
      * [neZaganjaj] = sorodnik samo pogleda, ali sredisce ze tece (uporabnik pri njem se ni izbral
      * Safeer Linka). Takrat ga ne prizigamo: nicesar ne vklopimo namesto uporabnika.
      */
-    private fun pripraviOdgovor(imeNaprave: String, paket: String, neZaganjaj: Boolean): Bundle {
+    private fun pripraviOdgovor(imeNaprave: String, paket: String, neZaganjaj: Boolean, zeleniId: String = ""): Bundle {
         val app = applicationContext
         val b = Bundle()
         try {
@@ -67,7 +68,7 @@ class LinkSorodnikStoritev : Service() {
                     b.putString("token", "")
                     b.putString("fp", izvoljeni.odtis)
                     b.putString("hub_id", izvoljeni.id)
-                    b.putString("device_id", HubKrmilnik.lastniId() + "-" + pripona)
+                    b.putString("device_id", zeleniId.ifBlank { HubKrmilnik.lastniId() + "-" + pripona })
                     Log.i(TAG, "Sorodna aplikacija $paket gre na izvoljeni hub ${izvoljeni.id}.")
                     return b
                 }
@@ -85,7 +86,9 @@ class LinkSorodnikStoritev : Service() {
                 return b
             }
             val pripona = if (paket.endsWith(".os")) "os" else paket.substringAfterLast('.').ifBlank { "app" }
-            val id = HubKrmilnik.lastniId() + "-" + pripona
+            // Sorodnik v svojem procesu ima svoj kljuc in zato svoj id iz kljuca (n-...-os): zeton izdamo temu
+            // id-ju, ki ga pove sam. Starejsi sorodnik brez id-ja dobi id po starem (id sredisca + pripona).
+            val id = zeleniId.take(HubUsmerjevalnik.NAJVEC_IMENA).ifBlank { HubKrmilnik.lastniId() + "-" + pripona }
             val ime = "$imeNaprave (" + android.os.Build.MODEL + ")"
             val zeton = u.zagotoviLastniZeton(id, ime)
             b.putString("hub_url", "wss://127.0.0.1:$vrata/cast/ws")

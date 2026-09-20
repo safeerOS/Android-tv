@@ -919,6 +919,66 @@ private fun preizkusKroga() {
     preveri("id iz kljuca ima predpono n- in 16 znakov", KrogZaupanja.idIzKljuca(b64(tel.public.encoded)).matches(Regex("n-[0-9a-f]{16}")))
 }
 
+// ------------------------------------------------------------ id iz kljuca: prehod brez nove seznanitve
+
+private fun preizkusIdaIzKljuca() {
+    println()
+    println("Id iz kljuca")
+    preveri("n- + 16 hex je id iz kljuca", KrogZaupanja.jeIdIzKljuca("n-0123456789abcdef"))
+    preveri("s pripono sorodnika tudi", KrogZaupanja.jeIdIzKljuca("n-0123456789abcdef-os"))
+    preveri("stari id ni id iz kljuca", !KrogZaupanja.jeIdIzKljuca("tv-philips-os") && !KrogZaupanja.jeIdIzKljuca("n-0123456789abcdeg"))
+    preveri("brez locila pred pripono ni", !KrogZaupanja.jeIdIzKljuca("n-0123456789abcdefos"))
+    val u = HubUsmerjevalnik()
+    u.lastniOdtis = "ABCDEF0123"
+    // Krog s starim id-jem in kljucem naprave (kot po prehodu na krog zaupanja, pred id-ji iz kljuca).
+    val tel = parKljucev()
+    val kljuc = b64(tel.public.encoded)
+    u.krog.dodaj(KrogZaupanja.Clan("tv-stari", kljuc, "Stari TV", "tv", 1.0, "hub"))
+    val novi = KrogZaupanja.idIzKljuca(kljuc)
+    preveriEnako("clanZaId najde stari vnos po kljucu", "tv-stari", u.krog.clanZaId(novi)?.id)
+    preveriEnako("tudi za sorodnika z istim kljucem", "tv-stari", u.krog.clanZaId("$novi-os")?.id)
+    preveriEnako("neznan kljuc ne najde nikogar", null, u.krog.clanZaId(KrogZaupanja.idIzKljuca(b64(parKljucev().public.encoded))))
+    // Prijava s podpisom pod novim id-jem: hub sprejme podpis s starim kljucem in nov id vpise kot alias.
+    val izziv = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"$novi"}"""))
+    preveriEnako("izziv za id iz kljuca, ki je v krogu pod starim id-jem, uspe", 200, izziv?.koda)
+    val nonce = polje(izziv?.telo.orEmpty(), "nonce")
+    val tuj = u.odgovori(zahteva("POST", "/cast/auth/ticket",
+        """{"device_id":"$novi","nonce":"$nonce","signature":"${podpisi(parKljucev(), u.podatkiZaPodpis(novi, nonce))}"}"""))
+    preveriEnako("tuj podpis pod novim id je 401", 401, tuj?.koda)
+    preveriEnako("neuspeh ne vpise aliasa", null, u.krog.clan(novi))
+    val izziv2 = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"$novi"}"""))
+    val nonce2 = polje(izziv2?.telo.orEmpty(), "nonce")
+    val pravi = u.odgovori(zahteva("POST", "/cast/auth/ticket",
+        """{"device_id":"$novi","nonce":"$nonce2","signature":"${podpisi(tel, u.podatkiZaPodpis(novi, nonce2))}","name":"Novi TV","platform":"tv"}"""))
+    preveriEnako("pravi podpis pod novim id da vstopnico", 200, pravi?.koda)
+    preveriEnako("nov id je v krogu z istim kljucem", kljuc, u.krog.clan(novi)?.kljuc)
+    preveriEnako("nov id ima ime iz prijave", "Novi TV", u.krog.clan(novi)?.ime)
+    preveriEnako("nov id je dodal stari id", "tv-stari", u.krog.clan(novi)?.dodal)
+    preveriEnako("stari id ostane (seznanitev prezivi)", kljuc, u.krog.clan("tv-stari")?.kljuc)
+    preveri("odgovor prinese krog z obema", JsonLahki.objekt(pravi?.telo.orEmpty())?.objekt("ring")?.objekt("clani")?.ima("tv-stari") == true)
+    // Vstopnica, izdana staremu id-ju, velja za prijavo pod novim (isti kljuc) - in obratno.
+    val izziv3 = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tv-stari"}"""))
+    val nonce3 = polje(izziv3?.telo.orEmpty(), "nonce")
+    val stara = u.odgovori(zahteva("POST", "/cast/auth/ticket",
+        """{"device_id":"tv-stari","nonce":"$nonce3","signature":"${podpisi(tel, u.podatkiZaPodpis("tv-stari", nonce3))}"}"""))
+    val vstopnica = polje(stara?.telo.orEmpty(), "ticket")
+    preveri("vstopnica staremu id-ju", u.porabiVstopnico(vstopnica))
+    val prijava = Lazni(vstopnica = vstopnica)
+    u.obdelaj(prijava, registracija(novi, "receiver"))
+    preveriEnako("prijava pod novim id z vstopnico starega uspe", "accepted", polje(prijava.zadnje(), "status"))
+    val drugKljuc = b64(parKljucev().public.encoded)
+    u.krog.dodaj(KrogZaupanja.Clan("tel-drugi", drugKljuc, "Drugi", "phone", 1.0, "hub"))
+    val vstopnica2 = polje(u.odgovori(zahteva("POST", "/cast/auth/ticket", run {
+        val i = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tv-stari"}"""))
+        val n = polje(i?.telo.orEmpty(), "nonce")
+        """{"device_id":"tv-stari","nonce":"$n","signature":"${podpisi(tel, u.podatkiZaPodpis("tv-stari", n))}"}"""
+    }))?.telo.orEmpty(), "ticket")
+    preveri("se ena vstopnica", u.porabiVstopnico(vstopnica2))
+    val tujec = Lazni(vstopnica = vstopnica2)
+    u.obdelaj(tujec, registracija("tel-drugi", "sender"))
+    preveri("z vstopnico enega kljuca se ni mogoce prijaviti kot drug kljuc", polje(tujec.zadnje(), "error_code") == "napacen_device_id")
+}
+
 // ------------------------------------------------------------ Protocol v1: model naprave in katalog aplikacij
 
 private fun preizkusProtokolaV1() {
@@ -973,6 +1033,7 @@ fun main() {
     preizkusMeja()
     preizkusKroga()
     preizkusProtokolaV1()
+    preizkusIdaIzKljuca()
     println()
     if (napak == 0) {
         println("Vse v redu.")

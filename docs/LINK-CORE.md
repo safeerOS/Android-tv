@@ -216,7 +216,36 @@ Preizkusi: JVM `tests/UsmerjevalnikTest.kt` (`preizkusProtokolaV1`: prijava v1, 
 `apps.announce`, meje kataloga), Linux `tests/test_link_protokol_v1.py`; v živo `tests/test_link_naprave_zivo.py`
 izpiše polja v1 vsake prijavljene naprave.
 
-Odloženo (namenoma ne v tem koraku): **id naprave iz ključa** (`n-…`, `KrogZaupanja.idIzKljuca` je
-pripravljen). Današnji id-ji (`tv-…`, `pc-…-control`) so v seznanitvah, dnevnikih, aliasih in v uporabnikovih
-nastavitvah; zamenjava mora obstoječe seznanitve preživeti (alias stari id → novi), zato gre kot ločena
-sprememba z lastnim prehodom, ne mimogrede v protokol.
+## 6. Id naprave iz ključa (narejeno, 20. 9.)
+
+Identiteta naprave je njen ključ; id je le ime zanj. Id je zato izpeljan iz ključa:
+`n-` + prvih 16 šestnajstiških znakov SHA-256 zapisa SPKI (`KrogZaupanja.idIzKljuca`,
+`link_krog.id_iz_kljuca`). Sorodnik z istim ključem doda pripono: `n-…-os` (Safeer OS na tablici),
+`n-…-control` (Safeer Control). Safeer OS na televizorju teče v svojem procesu in ima svoj ključ v KeyStore,
+zato svoj `n-…-os` (id pove brskalniku v zahtevi za žeton, `LinkSorodnikStoritev` ga izda temu id-ju).
+Isti ključ → isti id na vseh hubih in po vsaki menjavi huba; model naprave ali ime računalnika ne odločata več.
+
+### Prehod: seznanitve preživijo, brez kode
+
+- Stari id-ji (`tv-<model>`, `tv-<model>-os`, `phone-<model>`, `pc-<ime>-control`) ostanejo v krogih z istim
+  ključem. Nič se ne briše.
+- `KrogZaupanja.clanZaId(id)` (Linux `Krog.clan_za_id`): za id iz ključa najde člana po ključu, tudi če je ta
+  v krogu pod starim id-jem. Hub tako sprejme **izziv in podpis za nov id**, ki ga še ni videl, kadar ključ
+  pozna: podpis dokazuje isti ključ, zato hub nov id **sam vpiše kot alias** starega (`/cast/auth/ticket`,
+  `dodal` = stari id) in vrne krog z obema. Odjemalcu ni treba vedeti za `/cast/trust/alias`.
+- Odjemalec gre s podpisom tudi, kadar je njegov ključ v krogu pod drugim id-jem (`KrogNaprave.lahkoSPodpisom`,
+  `link_krog.lahko_s_podpisom`); brez ključa v krogu gre po starem z žetonom.
+- Vstopnica, izdana enemu id-ju, velja za prijavo drugega z **istim ključem** (`istiKljuc` v `registriraj`);
+  z drugim ključem ostane `napacen_device_id`.
+- Izvolitev: kandidat je hub, katerega id iz oglasa mDNS najde člana po id-ju **ali po ključu**
+  (`clanZaId`); pripenjanje potrdila izvoljenega huba (`KrogNaprave.kljucHuba`) enako. Tako naprava zaupa
+  hubu, ki je dobil nov id, še preden je videla nov krog.
+- Če ključa ni mogoče dobiti (KeyStore odpove), naprava obdrži stari id (`HubKrmilnik.stariId`,
+  `link_hub.stari_id_naprave`).
+
+Kaj se za uporabnika spremeni: v seznamih naprav so id-ji `n-…` namesto `tv-…`; imena ostanejo. Vzdevki,
+ki jih je uporabnik dal starim id-jem na hubu, se ne prenesejo na nove (odprto, majhno).
+
+Preizkusi: JVM `preizkusIdaIzKljuca` (oblika id-ja, `clanZaId`, samodejni alias ob prijavi, tuj podpis 401,
+vstopnica čez oba id-ja istega ključa, ne čez dva ključa), Linux `tests/test_link_protokol_v1.py::IdIzKljuca`.
+V živo (spodaj).

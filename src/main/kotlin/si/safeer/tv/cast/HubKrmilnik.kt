@@ -214,9 +214,10 @@ object HubKrmilnik {
             if (!tece()) return@poisciVse
             val krog = KrogNaprave.krog(app)
             val jaz = IzvolitevHuba.Kandidat(lastniId(), prioriteta(app))
-            val kandidati = hubi.filter { it.id.isNotBlank() && it.id != jaz.id && krog.jeClan(it.id) }
+            // Clan kroga: po id-ju ali - pri id-ju iz kljuca - po kljucu (id, ki ga se nismo videli, a kljuc poznamo).
+            val kandidati = hubi.filter { it.id.isNotBlank() && it.id != jaz.id && krog.clanZaId(it.id) != null }
                 .map { IzvolitevHuba.Kandidat(it.id, it.prioriteta, it.naslov, it.odtis, it.ime) }
-            val tuji = hubi.filter { it.id.isBlank() || (it.id != jaz.id && !krog.jeClan(it.id)) }
+            val tuji = hubi.filter { it.id.isBlank() || (it.id != jaz.id && krog.clanZaId(it.id) == null) }
             if (tuji.isNotEmpty()) Log.i(TAG, "Izvolitev: ${tuji.size} hub(ov) zunaj kroga zaupanja ne steje.")
             val umik = IzvolitevHuba.komuSeUmaknem(jaz, kandidati)
             if (umik == null) {
@@ -276,8 +277,15 @@ object HubKrmilnik {
 
     private const val LASTNI_NASLOV_PREDPONA = "wss://127.0.0.1:"
 
-    /** Isti id, s katerim se sprejemnik televizorja prijavi Hubu (CastReceiverService). */
-    fun lastniId(): String = "tv-" + android.os.Build.MODEL.replace(Regex("\\s+"), "-").lowercase()
+    /**
+     * Id te naprave: iz njenega kljuca (`n-…`, KrogNaprave.lastniId) - isti na vseh hubih in po menjavi
+     * huba. Isti id uporabi sprejemnik (CastReceiverService), oglas mDNS in sorodniki (`-os`). Stari id
+     * po modelu (`tv-…`) ostane v krogih kot alias; hub ga ob prvi prijavi s podpisom sam poveze z novim.
+     */
+    fun lastniId(): String = KrogNaprave.lastniId(nadomestni = { stariId() })
+
+    /** Id po modelu naprave, kot je veljal pred prehodom na id iz kljuca (samo se kot nadomestek in alias). */
+    fun stariId(): String = "tv-" + android.os.Build.MODEL.replace(Regex("\\s+"), "-").lowercase()
 
     /**
      * Mapa za datoteke, ki jih televizor prejme prek Safeer Linka: ista, kot jo je uporabnik

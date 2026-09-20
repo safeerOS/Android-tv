@@ -53,6 +53,8 @@ object Sorodnik {
         val podatki = Bundle().apply {
             putString("device_name", "Safeer OS")
             putString("app", app.packageName)
+            // Nas id iz nasega kljuca (drug proces, drug kljuc kot brskalnik): zeton naj bo izdan njemu.
+            putString("device_id", Identiteta.id(app))
             putBoolean("ne_zaganjaj", !dovoliZagon)
         }
         Sosed.poslji(app, paket, LinkSorodnikStoritev.DEJANJE, LinkSorodnikStoritev.ZAHTEVA,
@@ -84,7 +86,7 @@ object Sorodnik {
         val u = HubKrmilnik.usmerjevalnik ?: return null
         val vrata = HubKrmilnik.vrata()
         if (vrata == 0) return null
-        val id = HubKrmilnik.lastniId() + "-os"
+        val id = Identiteta.id(app)
         val zeton = u.zagotoviLastniZeton(id, "Safeer OS (" + android.os.Build.MODEL + ")")
         return Poverilnice("wss://127.0.0.1:$vrata/cast/ws", zeton, HubTls.lastniOdtis(), HubUsmerjevalnik.IDENTITETA_HUBA)
     }
