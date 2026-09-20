@@ -709,6 +709,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             // Android ne dovoli tihega brisanja ali spreminjanja tujih fotografij: vprasanje se
             // pokaze na napravi, kjer slika je, in uporabnik ga potrdi tam.
             "potrebna_potrditev" -> c.getString(R.string.os_ur_n_potrdi_na_napravi)
+            "zavrnjeno" -> c.getString(R.string.os_ur_n_zavrnjeno)
             "ni_mogoce_na_napravi" -> c.getString(R.string.os_ur_n_ni_na_napravi)
             "prevelika_slika" -> c.getString(R.string.os_ur_n_prevelika)
             else -> c.getString(R.string.os_ur_n_drugo, koda)

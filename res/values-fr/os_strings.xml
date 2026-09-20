@@ -419,6 +419,7 @@
     <string name="os_ur_pomoc_drzi_naprava">Maintiens OK · options (pivoter, supprimer)</string>
     <string name="os_ur_slika_pomoc">Maintiens OK · pivoter, renommer, supprimer</string>
     <string name="os_ur_n_potrdi_na_napravi">Confirmez sur l\'appareil qui contient la photo : Android ne l\'autorise pas à distance.</string>
+    <string name="os_ur_n_zavrnjeno">L\'action n\'a pas été autorisée sur l\'appareil.</string>
     <string name="os_ur_n_ni_na_napravi">Impossible sur cet appareil.</string>
     <string name="os_ur_n_prevelika">La photo est trop grande pour être pivotée sur cet appareil.</string>
     <string name="os_ur_kanal">Safeer : confirmation</string>
