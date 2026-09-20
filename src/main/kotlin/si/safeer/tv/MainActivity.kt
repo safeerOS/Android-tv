@@ -458,6 +458,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var linkOsZatemnitev = si.safeer.tv.os.Ozadje.PRIVZETA_ZATEMNITEV
     /** Uporabnik je s strani Link odprl spletno stran: takrat ostanemo v brskalniku. */
     private var linkOdprlZavihek = false
+    /** Deljenje zaslona iz strani Link: komu (id, ime) in most, ki mu povemo izid dovoljenja. */
+    private var linkZaslonCilj = ""
+    private var linkZaslonIme = ""
+    /**
+     * Brskalnik je na zaslon prisel samo zato, ker je druga naprava zacela deliti zaslon. Ko deljenje
+     * konca, se umakne in televizor pokaze tisto, kar je bilo prej (Safeer OS, program ...).
+     */
+    private var deljenjeOdprloBrskalnik = false
+    private var linkMost: si.safeer.tv.link.LinkMost? = null
+    /** Koda zahteve za sistemsko okno »Zacni zajem zaslona«. */
+    private val ZAHTEVA_ZAJEM_ZASLONA = 4711
     /** Kam v Safeer OS se vrnemo po zaprtju strani Link (npr. "naprave"); prazno = domaci zaslon. */
     private var linkOsVrni: String? = null
     /** Dodatka, s katerima Safeer OS odpre spletno aplikacijo cez ves zaslon. */
@@ -817,6 +828,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val url = namera?.getStringExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_URL)
         if (url.isNullOrEmpty()) return false
         namera.removeExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_URL)
+        deljenjeOdprloBrskalnik = url.contains("/cast/screen/")
         val naslov = namera.getStringExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_TITLE)
         val mesto = namera.getDoubleExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_POSITION, 0.0)
         onCastUrlReceived(url, naslov, mesto)
@@ -882,10 +894,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         try {
             si.safeer.tv.cast.CastReceiverService.mediaController = this
             val zazeni = {
+                // Isto ime kot Safeer OS in hub (os_ime_vrste): ena naprava, eno ime v Linku.
                 si.safeer.tv.cast.CastReceiverService.start(
                     this,
                     null,
-                    getString(R.string.app_name) + " (" + android.os.Build.MODEL + ")"
+                    getString(R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")"
                 )
             }
             // Ob zagonu NIKOLI ne sprozimo seznanjanja -- brskalnik je najprej brskalnik.
@@ -1071,10 +1084,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         runOnUiThread {
             try {
                 val trenutni = activeUrl()
-                if (id.isNotBlank() && trenutni.contains("/cast/screen/" + id + "/")) {
+                val gledamoTega = id.isNotBlank() && trenutni.contains("/cast/screen/" + id + "/")
+                if (gledamoTega) {
                     showBrowserStartPage()
                 }
                 showTvOsd(getString(R.string.ui_share_screen_ended))
+                if (gledamoTega && deljenjeOdprloBrskalnik) {
+                    // Brskalnika ni odprl uporabnik: vrnemo ga tja, kjer je bil, sicer ostane na zaslonu
+                    // (tudi po izklopu in vklopu televizorja) namesto Safeer OS.
+                    deljenjeOdprloBrskalnik = false
+                    moveTaskToBack(true)
+                }
             } catch (e: Exception) {
                 android.util.Log.w("SafeerCast", "Konca deljenja ni bilo mogoce obdelati: " + e.message)
             }
@@ -1919,6 +1939,58 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     /**
+     * Sistemsko vprasanje za zajem zaslona (MediaProjection); odgovor pride v onActivityResult.
+     * Od Androida 14 vprasamo samo za cel zaslon: eno vprasanje, brez izbire med aplikacijami.
+     */
+    private fun zahtevajZajemZaslona(cilj: String, ime: String) {
+        linkZaslonCilj = cilj
+        linkZaslonIme = ime
+        try {
+            val upravitelj = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+            val namera = try {
+                if (android.os.Build.VERSION.SDK_INT >= 34) {
+                    val razredNastavitve = Class.forName("android.media.projection.MediaProjectionConfig")
+                    val nastavitev = razredNastavitve.getMethod("createConfigForDefaultDisplay").invoke(null)
+                    upravitelj.javaClass.getMethod("createScreenCaptureIntent", razredNastavitve)
+                        .invoke(upravitelj, nastavitev) as android.content.Intent
+                } else upravitelj.createScreenCaptureIntent()
+            } catch (_: Throwable) {
+                upravitelj.createScreenCaptureIntent()
+            }
+            @Suppress("DEPRECATION")
+            startActivityForResult(namera, ZAHTEVA_ZAJEM_ZASLONA)
+        } catch (e: Exception) {
+            linkZaslonCilj = ""
+            linkZaslonIme = ""
+            linkMost?.zajemZavrnjen(cilj)
+        }
+    }
+
+    @Deprecated("Activity.onActivityResult - dejavnost ni ComponentActivity")
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != ZAHTEVA_ZAJEM_ZASLONA) return
+        val cilj = linkZaslonCilj
+        val ime = linkZaslonIme
+        linkZaslonCilj = ""
+        linkZaslonIme = ""
+        if (resultCode == android.app.Activity.RESULT_OK && data != null && cilj.isNotBlank()) {
+            val most = linkMost
+            if (most != null) most.zajemDovoljen(resultCode, data, cilj, ime)
+            else si.safeer.tv.link.LinkMost.zazeniDeljenje(this, resultCode, data, cilj, ime)
+        } else if (cilj.isNotBlank()) {
+            linkMost?.zajemZavrnjen(cilj)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // Stran Linka je vprasala za dovoljenje za medije; naj se izrise s pravim stanjem.
+        linkMost?.naDovoljenje(requestCode)
+    }
+
+    /**
      * Odpre Safeer Link v svojem pogledu.
      *
      * Pogled je locen od zavihkov in nalozi samo stran iz aplikacije, zato njegov most
@@ -1974,8 +2046,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 pogled,
                 { Pair(naslovStrani, imeStrani) },
                 { okno.dismiss() },
-                { naslov -> linkOdprlZavihek = true; odpriVZavihku(naslov) }
+                { naslov -> linkOdprlZavihek = true; odpriVZavihku(naslov) },
+                { cilj, ime -> zahtevajZajemZaslona(cilj, ime) }
             )
+            linkMost = most
             pogled.addJavascriptInterface(most, "SafeerLink")
 
             // onRenderProcessGone je spodaj; Lint ga v anonimnem razredu Kotlina ne najde.

@@ -62,6 +62,10 @@
     <string name="os_vrsta_opis">Web-Apps, die du zu Safeer OS hinzugefügt hast.</string>
     <string name="os_krajevno_ta_tv_opis">Videos, Musik und Fotos auf dem Fernseher und USB</string>
     <string name="os_datoteke_racunalnik_opis">Freigegebene Ordner auf diesem Computer</string>
+    <string name="os_datoteke_telefon_opis">Videos, Musik und Fotos auf diesem Telefon</string>
+    <string name="os_datoteke_tablica_opis">Videos, Musik und Fotos auf diesem Tablet</string>
+    <string name="os_datoteke_naprava_dovoljenje">%1$s hat den Zugriff auf seine Videos, Musik und Fotos noch nicht erlaubt.\n\nÖffne auf diesem Gerät Safeer Link und tippe auf „Videos, Musik und Fotos“, um den Zugriff zu erlauben – sie erscheinen hier sofort.</string>
+    <string name="os_datoteke_naprava_izklop">%1$s gibt seine Videos, Musik und Fotos nicht frei.\n\nÖffne auf diesem Gerät Safeer Link und schalte „Videos, Musik und Fotos“ ein.</string>
     <string name="os_krajevno_videi">Videos</string>
     <string name="os_krajevno_glasba">Musik</string>
     <string name="os_krajevno_slike">Bilder</string>
@@ -150,7 +154,7 @@
     <string name="os_spletne_desno">Nach rechts verschieben</string>
     <!-- Programi racunalnika na televizorju -->
     <string name="os_programi">Programme</string>
-    <string name="os_programi_naslov">Was auf deinem Computer ist</string>
+    <string name="os_programi_naslov">Von all deinen Geräten</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Nach Namen suchen</string>
     <string name="os_programi_ni_zadetka">Kein Programm passt zu „%1$s“.</string>
@@ -180,6 +184,14 @@
     <string name="os_naprave_posiljanje">Senden</string>
     <string name="os_naprave_stran">Safeer Link-Seite</string>
     <string name="os_naprave_stran_opis">Gerät koppeln, Fernbedienung, Seite oder Datei senden</string>
+    <string name="os_naprave_ta">Dieses Gerät</string>
+    <string name="os_naprave_preimenuj">Gerät umbenennen</string>
+    <string name="os_naprave_preimenuj_kratko">Umbenennen</string>
+    <string name="os_naprave_preimenuj_opis">Den neuen Namen sehen alle Geräte in Safeer Link. Leer stellt den ursprünglichen Namen wieder her.</string>
+    <string name="os_naprave_preimenuj_namig">Gerätename …</string>
+    <string name="os_naprave_shrani">Speichern</string>
+    <string name="os_naprave_preimenovano">Name gespeichert – alle Geräte sehen ihn.</string>
+    <string name="os_naprave_preimenovanje_napaka">Der Name konnte nicht gespeichert werden. Läuft Safeer Link?</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">Alle Apps auf diesem Fernseher</string>
     <string name="os_aplikacije_namig">OK öffnet eine App. OK halten, um sie auf den Startbildschirm (★) zu legen oder zu entfernen.</string>
@@ -353,7 +365,9 @@
 <string name="os_brskalnik_naslov">Webbrowser</string>
     <string name="os_brskalnik_opis">Schnell, sicher, werbefrei</string>
     <string name="os_zaslon_opis">Dein Computer am TV</string>
-    <string name="os_programi_opis">Vom Computer</string>
+    <string name="os_programi_opis">Von deinen Geräten</string>
+    <string name="os_programi_naprav">Geräte: %d</string>
+    <string name="os_programi_zagnan_naprava">%1$s wird auf %2$s geöffnet.</string>
     <string name="os_nedavno_uporabljeno">Zuletzt verwendet</string>
     <string name="os_dodaj_aplikacijo">App hinzufügen</string>
     <string name="os_kartica_ni_povezano_opis">Verbinde dein Gerät mit Safeer Link und aktiviere die Freigabe in Safeer Control.</string>

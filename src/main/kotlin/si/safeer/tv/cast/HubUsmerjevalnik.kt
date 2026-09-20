@@ -44,6 +44,8 @@ class HubUsmerjevalnik(
     /** Ena povezana naprava, kakor jo vidi usmerjevalnik. */
     interface Odjemalec {
         val naslov: String
+        /** Vstopnica, s katero je bila povezava odprta (poizvedba ?ticket=); veze prijavo na napravo. */
+        val vstopnica: String? get() = null
         fun poslji(besedilo: String)
         fun zapri(koda: Int, razlog: String)
     }
@@ -55,7 +57,15 @@ class HubUsmerjevalnik(
         var zmoznosti: List<String>,
         var naslov: String,
         var zadnjic: Double,
-        var povezava: Odjemalec?
+        var povezava: Odjemalec?,
+        // Protocol v1: model naprave. Prazno pri odjemalcih protokola 0.2.
+        var protokol: String = "",
+        var platforma: String = "",
+        var vrsta: String = "",
+        var razlicica: String = "",
+        var prioriteta: Int = 0,
+        /** Katalog aplikacij naprave: JSON objekt {"<id>": {"name": ..., "kind": ...}} ali prazno. */
+        var aplikacije: String = ""
     )
 
     private class Prijava(
@@ -116,7 +126,13 @@ class HubUsmerjevalnik(
     private val posiljatelji = LinkedHashSet<Odjemalec>()
     private val prijave = LinkedHashMap<String, Prijava>()
     private val zetoni = LinkedHashMap<String, SeznanjenaNaprava>()
-    private val vstopnice = LinkedHashMap<String, Long>()
+    /** Vstopnica za WebSocket: kdaj je bila izdana in kateri napravi (zeton ali podpis), ce je znano. */
+    private class Vstopnica(val izdana: Long, val deviceId: String?)
+
+    private val vstopnice = LinkedHashMap<String, Vstopnica>()
+
+    /** Porabljene vstopnice, vezane na napravo: vstopnica -> device_id, dokler se povezava ne prijavi. */
+    private val vezaneVstopnice = LinkedHashMap<String, String>()
     private val sinhronizacija = LinkedHashMap<String, Kategorija>()
 
     /** Klice se, ko se seznam cakajocih prijav spremeni, da vmesnik pokaze kodo brez spraševanja. */
@@ -212,7 +228,7 @@ class HubUsmerjevalnik(
 
     // ------------------------------------------------------------------ imena naprav
     //
-    // Uporabnik lahko napravo poimenuje po svoje ("Dnevna soba", "Anina tablica"). Ime
+    // Uporabnik lahko napravo poimenuje po svoje ("Dnevna soba", "Matejeva tablica"). Ime
     // hrani Hub, zato ga vidijo vse naprave enako, ne glede na to, kaj naprava trdi o sebi.
 
     private val vzdevki = HashMap<String, String>()
@@ -251,9 +267,50 @@ class HubUsmerjevalnik(
         return true
     }
 
+    // ------------------------------------------------------------------ krog zaupanja
+    //
+    // Kljuci naprav (KrogZaupanja). Hub ga hrani in razposilja; naprava, ki se izkaze s starim
+    // zetonom, vanj vpise svoj kljuc in od takrat naprej pride s podpisom - brez nove kode.
+
+    val krog = KrogZaupanja(shramba)
+
+    /** Id in odtis TLS tega huba; nastavi krmilnik. Podpis prijave je vezan na odtis, da ga ni mogoce prenesti na drug hub. */
+    @Volatile
+    var lastniId: String = ""
+
+    /** Odprti izzivi za prijavo s podpisom: nonce -> (device_id, izdan). */
+    private val izzivi = LinkedHashMap<String, Pair<String, Long>>()
+
     init {
         naloziZetone()
         naloziVzdevke()
+        krog.naSpremembo = { objaviKrog() }
+    }
+
+    private fun objaviKrog() {
+        val sporocilo = sporociloKroga()
+        val kopija = synchronized(kljucnica) { naprave.values.mapNotNull { it.povezava } }
+        for (povezava in kopija) posljiVarno(povezava, sporocilo)
+    }
+
+    private fun sporociloKroga(): String = ovojnica("trust.update").surovo("payload", krog.json()).toString()
+
+    /** Hub sam je clan kroga: krmilnik vpise njegov kljuc ob zagonu. */
+    fun vpisiLastniKljuc(deviceId: String, ime: String, kljucB64: String, platforma: String) {
+        lastniId = deviceId
+        val obstojeci = krog.clan(deviceId)
+        if (obstojeci != null && obstojeci.kljuc == kljucB64 && obstojeci.ime == ime) return
+        krog.dodaj(KrogZaupanja.Clan(deviceId, kljucB64, ime, platforma, KrogZaupanja.zdaj(), deviceId))
+    }
+
+    /** Kaj naprava podpise ob prijavi: vezano na ta hub (odtis) in na izziv, zato podpis drugje ne velja. */
+    fun podatkiZaPodpis(deviceId: String, nonce: String): ByteArray =
+        "safeer-link-auth\n${lastniOdtis.lowercase()}\n$nonce\n$deviceId".toByteArray(Charsets.UTF_8)
+
+    private fun pocistiIzzive() {
+        val zdaj = ura()
+        val potekli = izzivi.filterValues { zdaj - it.second > IZZIV_VELJA_MS }.keys.toList()
+        for (k in potekli) izzivi.remove(k)
     }
 
     // ------------------------------------------------------------------ zetoni naprav
@@ -323,7 +380,41 @@ class HubUsmerjevalnik(
         synchronized(kljucnica) {
             for (znani in zetoni.keys) if (enaka(znani, zeton)) return true
         }
-        return false
+        return napravaSeje(zeton) != null
+    }
+
+    // ------------------------------------------------------------------ seje (krog zaupanja)
+
+    /** Sejni zeton -> (naprava, potece). Izda ga prijava s podpisom; velja za HTTP kot zeton seznanitve. */
+    private val seje = LinkedHashMap<String, Pair<String, Long>>()
+
+    /**
+     * Sejni zeton za napravo, ki se je prijavila s podpisom kljuca (krog zaupanja). Brez njega bi
+     * naprava, ki se je umaknila izvoljenemu hubu, lahko odprla WebSocket, ne pa poslala datoteke ali
+     * deliti zaslona (te gredo po HTTP z zetonom). Zeton zivi v pomnilniku huba: ob novem hubu se
+     * naprava prijavi znova in dobi novega.
+     */
+    fun izdajSejo(deviceId: String): String = synchronized(kljucnica) {
+        pocistiSeje()
+        while (seje.size >= NAJVEC_SEJ) seje.remove(seje.keys.first())
+        val zeton = "saf_seja_" + nakljucni(24)
+        seje[zeton] = Pair(deviceId, ura() + SEJA_VELJA_MS)
+        zeton
+    }
+
+    private fun pocistiSeje() {
+        val zdaj = ura()
+        val potekle = seje.filterValues { it.second < zdaj }.keys.toList()
+        for (k in potekle) seje.remove(k)
+    }
+
+    /** Naprava sejnega zetona, ce je zeton veljaven in je naprava se v krogu (umik iz kroga sejo ubije). */
+    private fun napravaSeje(zeton: String): String? {
+        val naprava = synchronized(kljucnica) {
+            pocistiSeje()
+            seje.entries.firstOrNull { enaka(it.key, zeton) }?.value?.first
+        } ?: return null
+        return if (krog.clanZaId(naprava) != null) naprava else null
     }
 
     /**
@@ -335,7 +426,7 @@ class HubUsmerjevalnik(
         synchronized(kljucnica) {
             for ((znani, naprava) in zetoni) if (enaka(znani, zeton)) return naprava.deviceId
         }
-        return null
+        return napravaSeje(zeton)
     }
 
     // ------------------------------------------------------------------ seznanjanje
@@ -554,6 +645,193 @@ class HubUsmerjevalnik(
         return zeton
     }
 
+    // ------------------------------------------------------------------ prijava s QR kodo
+
+    /**
+     * Prijava s QR kodo (Safeer OS in Safeer Control na racunalniku): naprava pokaze QR, uporabnik ga
+     * poskenira s telefonom ali tablico, ki sta ze v Safeer Linku, in tam potrdi »Dovoli«.
+     *
+     * - V QR je skrivnost; hub pozna samo njen SHA-256, zato je ne more izdati niti sam.
+     * - Dovoli lahko samo ze seznanjena naprava (njen zeton) in samo, kdor QR vidi (skrivnost).
+     * - Zeton prevzame samo naprava, ki je prijavo zacela: za prevzem ima drugo skrivnost, ki je v QR
+     *   ni. Kdor QR fotografira, z njim zetona ne dobi.
+     * - Ugibanja ni: po NAJVEC_POSKUSOV napacnih skrivnostih prijava pade; velja PIN_VELJA_MS.
+     */
+    private class QrPrijava(
+        val qrId: String,
+        val deviceId: String,
+        val ime: String,
+        val platforma: String,
+        /** SHA-256 (hex) skrivnosti iz QR. */
+        val odtisSkrivnosti: String,
+        /** Skrivnost za prevzem zetona; pozna jo samo naprava, ki je prijavo zacela. */
+        val prevzem: String,
+        var nastala: Long,
+        var zeton: String? = null,
+        var odobril: String = "",
+        var poskusov: Int = 0
+    )
+
+    private val qrPrijave = LinkedHashMap<String, QrPrijava>()
+
+    /** Kar naprava, ki dovoljuje, pokaze uporabniku, preden potrdi. */
+    data class QrPodatki(val deviceId: String, val ime: String, val platforma: String)
+
+    private fun pocistiQr() {
+        val zdaj = ura()
+        qrPrijave.entries.removeAll { zdaj - it.value.nastala > (if (it.value.zeton != null) PREVZEM_VELJA_MS else PIN_VELJA_MS) }
+    }
+
+    /** Odpre prijavo s QR kodo. Vrne qr_id ali napako (prevec_prijav, neveljavno). */
+    fun zacniQr(deviceId: String, ime: String, platforma: String, odtisSkrivnosti: String, prevzem: String): Pair<String?, String?> =
+        synchronized(kljucnica) {
+            if (!Regex("^[0-9a-f]{64}$").matches(odtisSkrivnosti) || prevzem.length !in 16..128) return null to "neveljavno"
+            pocistiQr()
+            qrPrijave.entries.removeAll { it.value.deviceId == deviceId }
+            if (qrPrijave.size >= NAJVEC_CAKAJOCIH) return null to "prevec_prijav"
+            val p = QrPrijava(nakljucni(12), deviceId, if (ime.isBlank()) deviceId else ime,
+                platforma.take(16), odtisSkrivnosti, prevzem, ura())
+            qrPrijave[p.qrId] = p
+            return p.qrId to null
+        }
+
+    /** Prijava, ce skrivnost iz QR drzi; sicer napaka (qr_ne_obstaja, prevec_poskusov). Klice se pod kljucnico. */
+    private fun qrZaSkrivnost(qrId: String, skrivnost: String): Pair<QrPrijava?, String?> {
+        pocistiQr()
+        val p = qrPrijave[qrId] ?: return null to "qr_ne_obstaja"
+        if (!enaka(sha256Hex(skrivnost), p.odtisSkrivnosti)) {
+            p.poskusov += 1
+            if (p.poskusov >= NAJVEC_POSKUSOV) {
+                qrPrijave.remove(qrId)
+                return null to "prevec_poskusov"
+            }
+            return null to "qr_ne_obstaja"
+        }
+        return p to null
+    }
+
+    /** Kdo se zeli prijaviti - za vprasanje na napravi, ki dovoljuje. */
+    fun qrPodatki(qrId: String, skrivnost: String): Pair<QrPodatki?, String?> = synchronized(kljucnica) {
+        val (p, napaka) = qrZaSkrivnost(qrId, skrivnost)
+        if (p == null) return null to napaka
+        return QrPodatki(p.deviceId, p.ime, p.platforma) to null
+    }
+
+    /**
+     * Seznanjena naprava [odobril] dovoli prijavo. Zeton nastane takoj (kot pri kodi), prevzame
+     * ga naprava, ki je prijavo zacela. Ponovna potrditev iste prijave nicesar ne spremeni.
+     */
+    fun odobriQr(qrId: String, skrivnost: String, odobril: String): Pair<QrPodatki?, String?> {
+        val izid = synchronized(kljucnica) {
+            val (p, napaka) = qrZaSkrivnost(qrId, skrivnost)
+            if (p == null) return null to napaka
+            if (p.deviceId == odobril) return null to "ista_naprava"
+            if (p.zeton == null) {
+                if (jePolno(p.deviceId)) return null to "prevec_naprav"
+                val zeton = "saf_tv_" + nakljucni(24)
+                vpisiZeton(zeton, SeznanjenaNaprava(p.deviceId, p.ime, ura() / 1000.0))
+                shraniZetone()
+                p.zeton = zeton
+                p.odobril = odobril
+                p.nastala = ura()
+            }
+            QrPodatki(p.deviceId, p.ime, p.platforma)
+        }
+        naSpremembeNaprav?.invoke()
+        return izid to null
+    }
+
+    /**
+     * Naprava, ki je prijavo zacela, vprasa za izid: ("caka", null), ("odobreno", zeton) natanko enkrat,
+     * ali ("qr_ne_obstaja", null) - tudi ob napacni skrivnosti za prevzem, da ne izdamo, kaj obstaja.
+     */
+    fun prevzemiQr(qrId: String, deviceId: String, prevzem: String): Pair<String, String?> = synchronized(kljucnica) {
+        pocistiQr()
+        val p = qrPrijave[qrId] ?: return "qr_ne_obstaja" to null
+        if (p.deviceId != deviceId || !enaka(p.prevzem, prevzem)) return "qr_ne_obstaja" to null
+        val zeton = p.zeton ?: return "caka" to null
+        qrPrijave.remove(qrId)
+        return "odobreno" to zeton
+    }
+
+    /** Naprava je okno zaprla ali QR osvezila: stara prijava ne sme viseti do poteka. */
+    fun prekliciQr(qrId: String, deviceId: String, prevzem: String): Boolean = synchronized(kljucnica) {
+        val p = qrPrijave[qrId] ?: return false
+        if (p.deviceId != deviceId || !enaka(p.prevzem, prevzem) || p.zeton != null) return false
+        qrPrijave.remove(qrId)
+        return true
+    }
+
+    // ------------------------------------------------------------------ pridruzitev s QR kodo sredisca
+
+    /**
+     * QR, ki ga pokaze SREDISCE (prijavno okno Safeer OS na televizorju): telefon ali tablica ga poskenira
+     * in se pridruzi. Velja enako kot 6-mestna koda: pridruzi se lahko samo, kdor vidi zaslon sredisca.
+     * V kodi je celoten odtis potrdila sredisca, zato telefon ze prvo povezavo pripne nanj (vsiljivec v
+     * sredini z drugim potrdilom pade). Skrivnost ima 128 bitov, velja PIN_VELJA_MS, porabi se enkrat,
+     * ugibanje je omejeno. Kodo ustvari proces sredisca (zaslon) ali seznanjena naprava v krajevnem
+     * omrezju (/cast/pair/qr/invite, »Poveži novo napravo« na racunalniku) - nikoli tujec.
+     */
+    private class Pridruzitev(val id: String, val odtisSkrivnosti: String, val nastala: Long, var poskusov: Int = 0)
+
+    private val pridruzitve = LinkedHashMap<String, Pridruzitev>()
+
+    /** Koda -> ime naprave, ki se je z njo pridruzila (za »povezano« na napravi, ki je kodo pokazala). */
+    private val pridruzeni = LinkedHashMap<String, String>()
+
+    /** Sredisce izve, kdo se je pridruzil (device_id, ime) - zaslon pokaze »povezano« in novo kodo. */
+    @Volatile
+    var naPridruzitev: ((String, String) -> Unit)? = null
+
+    private fun pocistiPridruzitve() {
+        val zdaj = ura()
+        pridruzitve.entries.removeAll { zdaj - it.value.nastala > PIN_VELJA_MS }
+    }
+
+    /** Nova koda za zaslon sredisca: (id, skrivnost). Klice se samo v procesu. */
+    fun ustvariPridruzitev(): Pair<String, String> = synchronized(kljucnica) {
+        pocistiPridruzitve()
+        while (pridruzitve.size >= NAJVEC_CAKAJOCIH) pridruzitve.remove(pridruzitve.keys.first())
+        val id = nakljucni(12)
+        val skrivnost = nakljucni(16)
+        pridruzitve[id] = Pridruzitev(id, sha256Hex(skrivnost), ura())
+        id to skrivnost
+    }
+
+    /** Zaslon je kodo zamenjal ali zaprl. */
+    fun prekliciPridruzitev(id: String): Unit = synchronized(kljucnica) { pridruzitve.remove(id) }
+
+    /** Naprava s skrivnostjo iz QR se pridruzi: (zeton, null) ali (null, napaka). Koda velja enkrat. */
+    fun pridruzi(id: String, skrivnost: String, deviceId: String, ime: String): Pair<String?, String?> {
+        val zeton = synchronized(kljucnica) {
+            pocistiPridruzitve()
+            val p = pridruzitve[id] ?: return null to "qr_ne_obstaja"
+            if (!enaka(sha256Hex(skrivnost), p.odtisSkrivnosti)) {
+                p.poskusov += 1
+                if (p.poskusov >= NAJVEC_POSKUSOV) {
+                    pridruzitve.remove(id)
+                    return null to "prevec_poskusov"
+                }
+                return null to "qr_ne_obstaja"
+            }
+            if (jePolno(deviceId)) return null to "prevec_naprav"
+            pridruzitve.remove(id)
+            while (pridruzeni.size >= NAJVEC_CAKAJOCIH) pridruzeni.remove(pridruzeni.keys.first())
+            pridruzeni[id] = if (ime.isBlank()) deviceId else ime
+            val nov = "saf_tv_" + nakljucni(24)
+            vpisiZeton(nov, SeznanjenaNaprava(deviceId, if (ime.isBlank()) deviceId else ime, ura() / 1000.0))
+            shraniZetone()
+            nov
+        }
+        naSpremembeNaprav?.invoke()
+        try { naPridruzitev?.invoke(deviceId, ime) } catch (_: Throwable) { }
+        return zeton to null
+    }
+
+    private fun sha256Hex(niz: String): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(niz.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
     fun seznanjeneNaprave(): List<SeznanjenaNaprava> = synchronized(kljucnica) {
         zetoni.values.map { n -> vzdevki[n.deviceId]?.let { n.copy(ime = it) } ?: n }
     }
@@ -579,38 +857,73 @@ class HubUsmerjevalnik(
         return koliko
     }
 
+    /**
+     * Naprava sama zapusti Safeer Link (»Odjavi ta racunalnik«, nezaupan racunalnik ob koncu prijave):
+     * odvzamemo zetone in jo umaknemo iz kroga zaupanja - z njo vred vse id-je z istim kljucem (ista
+     * naprava pod drugim imenom, npr. Control in brskalnik na istem racunalniku). Druge naprave ostanejo.
+     * Vrne id-je, ki so odsli.
+     */
+    fun odidi(deviceId: String): List<String> {
+        val kljuc = krog.clanZaId(deviceId)?.kljuc
+        val idji = LinkedHashSet<String>()
+        idji.add(deviceId)
+        if (kljuc != null) for (c in krog.clani()) if (c.kljuc == kljuc && c.id != lastniId) idji.add(c.id)
+        for (id in idji) {
+            prekliciNapravo(id)
+            // Umik mora biti novejsi od vpisa (vpis v isti milisekundi bi ga sicer preglasil).
+            val dodano = krog.clan(id)?.dodano ?: 0.0
+            if (id != lastniId) krog.umakni(id, deviceId, maxOf(KrogZaupanja.zdaj(), dodano + 0.001))
+        }
+        synchronized(kljucnica) { seje.entries.removeAll { it.value.first in idji } }
+        naSpremembeNaprav?.invoke()
+        return idji.toList()
+    }
+
     // ------------------------------------------------------------------ vstopnice
 
     /**
      * Enokratna vstopnica za WebSocket, kratke veljavnosti. Povezava brez nje sploh ne nastane -
      * enako kot na racunalniku, kjer jo izda Controlov SessionManager.
      */
-    fun izdajVstopnico(): String = synchronized(kljucnica) {
+    fun izdajVstopnico(deviceId: String? = null): String = synchronized(kljucnica) {
         pocistiVstopnice()
         if (vstopnice.size >= NAJVEC_VSTOPNIC) {
             // Najstarejsa pade ven; drugace bi jih nekdo lahko naracal poljubno veliko.
             vstopnice.remove(vstopnice.keys.first())
         }
         val vstopnica = nakljucni(16)
-        vstopnice[vstopnica] = ura()
+        vstopnice[vstopnica] = Vstopnica(ura(), deviceId?.takeIf { it.isNotBlank() })
         return vstopnica
     }
 
     private fun pocistiVstopnice() {
         val zdaj = ura()
-        val potekle = vstopnice.filterValues { zdaj - it > VSTOPNICA_VELJA_MS }.keys.toList()
+        val potekle = vstopnice.filterValues { zdaj - it.izdana > VSTOPNICA_VELJA_MS }.keys.toList()
         for (kljuc in potekle) vstopnice.remove(kljuc)
     }
 
-    /** Porabi vstopnico; druga uporaba iste ne uspe. */
+    /**
+     * Porabi vstopnico; druga uporaba iste ne uspe. Vstopnica, izdana znani napravi (zeton ali
+     * podpis), ostane vezana nanjo, da se povezava po njej ne more prijaviti pod tujim device_id.
+     */
     fun porabiVstopnico(vstopnica: String?): Boolean {
         if (vstopnica.isNullOrEmpty()) return false
         synchronized(kljucnica) {
             pocistiVstopnice()
             val najdena = vstopnice.keys.firstOrNull { enaka(it, vstopnica) } ?: return false
-            vstopnice.remove(najdena)
+            val v = vstopnice.remove(najdena)
+            if (v?.deviceId != null) {
+                if (vezaneVstopnice.size >= NAJVEC_VSTOPNIC) vezaneVstopnice.remove(vezaneVstopnice.keys.first())
+                vezaneVstopnice[najdena] = v.deviceId
+            }
             return true
         }
+    }
+
+    /** Naprava, ki ji je bila vstopnica izdana, ali null, ce vstopnica ni bila vezana (ali je ni). */
+    fun napravaVstopnice(vstopnica: String?): String? {
+        if (vstopnica.isNullOrEmpty()) return null
+        return synchronized(kljucnica) { vezaneVstopnice.entries.firstOrNull { enaka(it.key, vstopnica) }?.value }
     }
 
     // ------------------------------------------------------------------ register naprav
@@ -633,6 +946,13 @@ class HubUsmerjevalnik(
             .niz("ip", naprava.naslov)
             .nic("port")
             .stevilo("last_seen", naprava.zadnjic)
+        // Protocol v1: model naprave in katalog aplikacij, samo kadar ju naprava pove.
+        if (naprava.protokol.isNotBlank()) zapis.niz("protocol", naprava.protokol)
+        if (naprava.platforma.isNotBlank()) zapis.niz("platform", naprava.platforma)
+        if (naprava.vrsta.isNotBlank()) zapis.niz("kind", naprava.vrsta)
+        if (naprava.razlicica.isNotBlank()) zapis.niz("version", naprava.razlicica)
+        if (naprava.prioriteta > 0) zapis.stevilo("priority", naprava.prioriteta.toDouble())
+        if (naprava.aplikacije.isNotBlank()) zapis.surovo("apps", naprava.aplikacije)
         val z = zasedeno[naprava.id]
         if (z != null) {
             zapis.niz("busy_by", z.posiljatelj)
@@ -785,14 +1105,45 @@ class HubUsmerjevalnik(
 
         if (tip == "cast.ack") return null
 
+        if (tip == "apps.announce") {
+            // Protocol v1: naprava (ponudnik) naknadno objavi ali osvezi svoj katalog aplikacij.
+            // Hub ga hrani in razposlje v cast.devices; vsebine ne razlaga.
+            val katalog = sporocilo.objekt("payload")?.surovo("apps")
+                ?: return potrditev(id, "rejected", "Manjka apps.", "apps", "manjka_apps")
+            val preverjen = preveriKatalog(katalog)
+            val spremenjeno = synchronized(kljucnica) {
+                val n = idPovezave(od)?.let { naprave[it] } ?: return potrditev(id, "rejected", "Naprava ni prijavljena.", "apps", "ni_prijavljena")
+                if (n.aplikacije == preverjen) false else { n.aplikacije = preverjen; true }
+            }
+            if (spremenjeno) { objaviNaprave(); naSpremembeNaprav?.invoke() }
+            return potrditev(id, "accepted", null, "apps")
+        }
+
         // Kar ni na seznamu, se ne posreduje nikamor. Dovoljenja se ne smejo siriti po nesreci.
         return potrditev(id, "error", "Neznan tip sporočila: '$tip'", prostor, koda = "neznan_tip")
+    }
+
+    /**
+     * Ista naprava pod dvema id-jema (stari id in id iz kljuca, ali sorodnika z istim kljucem): vstopnica,
+     * izdana enemu, velja za prijavo drugega. Kljuc je identiteta, id je le ime zanjo.
+     */
+    private fun istiKljuc(a: String, b: String): Boolean {
+        val ka = krog.clanZaId(a)?.kljuc ?: return false
+        val kb = krog.clanZaId(b)?.kljuc ?: return false
+        return ka == kb
     }
 
     private fun registriraj(od: Odjemalec, sporocilo: JsonLahki.Pogled, id: String): String {
         val tovor = sporocilo.objekt("payload")
         val deviceId = tovor?.niz("device_id")
         if (deviceId.isNullOrBlank()) return potrditev(id, "rejected", "Manjka device_id.", koda = "manjka_device_id")
+        // Vstopnica je bila izdana znani napravi (po zetonu ali podpisu): prijava pod drugim id ne velja.
+        // Tako je device_id vezan na zeton oz. kljuc, ne le na to, kar naprava trdi o sebi.
+        val vezana = napravaVstopnice(od.vstopnica)
+        if (vezana != null && vezana != deviceId && !istiKljuc(vezana, deviceId)) {
+            return potrditev(id, "rejected", "device_id se ne ujema z napravo, ki ji je bila izdana vstopnica.", koda = "napacen_device_id")
+        }
+        od.vstopnica?.let { v -> synchronized(kljucnica) { vezaneVstopnice.keys.firstOrNull { enaka(it, v) }?.let { vezaneVstopnice.remove(it) } } }
 
         val vloga = tovor.niz("role") ?: "receiver"
         val zmoznosti = tovor.nizi("capabilities").ifEmpty { listOf("url", "control") }
@@ -809,6 +1160,13 @@ class HubUsmerjevalnik(
             naprava.ime = (tovor.niz("name")?.takeIf { it.isNotBlank() } ?: deviceId).take(NAJVEC_IMENA)
             naprava.vloga = vloga
             naprava.zmoznosti = zmoznosti
+            // Protocol v1: model naprave (odjemalec 0.2 teh polj nima - ostanejo prazna).
+            naprava.protokol = tovor.nizAli("protocol").take(8)
+            naprava.platforma = tovor.nizAli("platform").take(16)
+            naprava.vrsta = tovor.nizAli("kind").take(16)
+            naprava.razlicica = tovor.nizAli("version").take(32)
+            naprava.prioriteta = (tovor.stevilo("priority") ?: 0.0).toInt().coerceIn(0, 1000)
+            tovor.surovo("apps")?.let { naprava.aplikacije = preveriKatalog(it) }
             // Naslov vzamemo iz vticnice, ne iz tega, kar naprava trdi o sebi.
             naprava.naslov = od.naslov
             naprava.zadnjic = ura() / 1000.0
@@ -818,7 +1176,34 @@ class HubUsmerjevalnik(
         // Vsaka nova naprava spremeni seznam za vse: tudi posiljatelj je zdaj mozen cilj deljenja.
         objaviNaprave()
         naSpremembeNaprav?.invoke()
+        // Krog zaupanja dobi vsaka naprava ob prijavi, da ga ima tudi takrat, ko hub ugasne.
+        if (krog.stevilo() > 0) posljiVarno(od, sporociloKroga())
         return potrditev(id, "accepted")
+    }
+
+    /**
+     * Katalog aplikacij, kot ga sme hub hraniti: JSON objekt {"<id>": {"name": "...", "kind": "..."}},
+     * najvec NAJVEC_APLIKACIJ vnosov, kratka imena. Kar ne ustreza, odpade - naprava z malo
+     * pomnilnika ne sme hraniti tujega smetja. Vrne ociscen zapis ali prazno.
+     */
+    fun preveriKatalog(surovo: String): String {
+        if (surovo.length > NAJVEC_KATALOG_BAJTOV) return ""
+        val pogled = JsonLahki.objekt(surovo) ?: return ""
+        val zapis = JsonLahki.Zapis()
+        var stevilo = 0
+        for (idApp in pogled.kljuci()) {
+            if (stevilo >= NAJVEC_APLIKACIJ) break
+            val a = pogled.objekt(idApp) ?: continue
+            val cistId = idApp.take(NAJVEC_IMENA)
+            if (cistId.isBlank()) continue
+            val vnos = JsonLahki.Zapis()
+                .niz("name", a.nizAli("name", cistId).take(NAJVEC_IMENA))
+                .niz("kind", a.nizAli("kind").take(16))
+            a.niz("icon")?.let { if (it.length <= 256) vnos.niz("icon", it) }
+            zapis.surovo(cistId, vnos.toString())
+            stevilo++
+        }
+        return if (stevilo == 0) "" else zapis.toString()
     }
 
     private fun usmeriSinhronizacijo(
@@ -1174,6 +1559,11 @@ class HubUsmerjevalnik(
             )
         }
 
+        if (pot.startsWith("/cast/pair/qr/") && zahteva.metoda == "POST") {
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Seznanjanje je mogoče samo v krajevnem omrežju.", "samo_krajevno"))
+            return odgovorQr(pot, zahteva)
+        }
+
         if (pot == "/cast/share/screen/start" && zahteva.metoda == "POST") {
             if (!krajevni || !jeVeljavenZeton(zahteva.glave["x-safeer-token"])) {
                 return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
@@ -1236,6 +1626,16 @@ class HubUsmerjevalnik(
             else HubStreznik.Odgovor(404, napakaJson("Ciljna naprava '$cilj' ni povezana.", "naprava_ni_povezana"))
         }
 
+        if (pot == "/cast/devices/leave" && zahteva.metoda == "POST") {
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+            // Odide lahko samo naprava sama: kdo je, pove njen zeton, ne telo zahteve.
+            val deviceId = napravaZeZetona(zahteva.glave["x-safeer-token"])
+                ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
+            val odsli = odidi(deviceId)
+            val z = JsonLahki.Zapis().logicno("left", true)
+            return HubStreznik.Odgovor(200, z.stevilo("count", odsli.size.toDouble()).toString())
+        }
+
         if (pot == "/cast/devices/rename" && zahteva.metoda == "POST") {
             if (!krajevni || !jeVeljavenZeton(zahteva.glave["x-safeer-token"])) {
                 return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
@@ -1258,15 +1658,110 @@ class HubUsmerjevalnik(
             return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("stopped", true).toString())
         }
 
-        if (pot == "/cast/ticket" && zahteva.metoda == "POST") {
+        if (pot == "/cast/trust/enroll" && zahteva.metoda == "POST") {
+            // Prehod z zetona na kljuc: naprava z veljavnim zetonom vpise svoj kljuc v krog.
             if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
-            if (!jeVeljavenZeton(zahteva.glave["x-safeer-token"])) {
+            val deviceId = napravaZeZetona(zahteva.glave["x-safeer-token"])
+                ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
+            val telo = JsonLahki.objekt(zahteva.telo)
+            val kljuc = telo?.niz("pubkey")?.trim().orEmpty()
+            if (kljuc.isEmpty() || KrogZaupanja.dekodirajKljuc(kljuc) == null) {
+                return HubStreznik.Odgovor(400, napakaJson("Manjka ali neveljaven javni ključ.", "neveljaven_kljuc"))
+            }
+            val ime = (telo?.niz("name")?.takeIf { it.isNotBlank() } ?: imeNaprave(deviceId)).take(NAJVEC_IMENA)
+            krog.dodaj(KrogZaupanja.Clan(deviceId, kljuc, ime, telo?.nizAli("platform").orEmpty().take(16), KrogZaupanja.zdaj(), lastniId))
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis().niz("device_id", deviceId).surovo("ring", krog.json()).toString())
+        }
+
+        if (pot == "/cast/auth/challenge" && zahteva.metoda == "POST") {
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+            val deviceId = (JsonLahki.objekt(zahteva.telo)?.niz("device_id") ?: "").trim()
+            // Id iz kljuca (n-...) velja tudi, ce je ta kljuc v krogu pod starim id-jem: naprava je ista.
+            if (deviceId.isEmpty() || krog.clanZaId(deviceId) == null) {
+                return HubStreznik.Odgovor(401, napakaJson("Naprava ni v krogu zaupanja.", "naprava_ni_v_krogu"))
+            }
+            val nonce = nakljucni(24)
+            synchronized(kljucnica) {
+                pocistiIzzive()
+                if (izzivi.size >= NAJVEC_VSTOPNIC) izzivi.remove(izzivi.keys.first())
+                izzivi[nonce] = Pair(deviceId, ura())
+            }
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis().niz("nonce", nonce).niz("hub_id", lastniId).niz("fp", lastniOdtis)
+                .stevilo("expires_in_seconds", (IZZIV_VELJA_MS / 1000).toDouble()).toString())
+        }
+
+        if (pot == "/cast/auth/ticket" && zahteva.metoda == "POST") {
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+            val telo = JsonLahki.objekt(zahteva.telo)
+            val deviceId = (telo?.niz("device_id") ?: "").trim()
+            val nonce = (telo?.niz("nonce") ?: "").trim()
+            val podpis = (telo?.niz("signature") ?: "").trim()
+            val izziv = synchronized(kljucnica) { pocistiIzzive(); if (nonce.isEmpty()) null else izzivi.remove(nonce) }
+            if (izziv == null || izziv.first != deviceId) {
+                return HubStreznik.Odgovor(401, napakaJson("Izziv ni veljaven ali je potekel.", "neveljaven_izziv"))
+            }
+            val clan = krog.clanZaId(deviceId)
+            if (clan == null || !KrogZaupanja.preveriPodpisSKljucem(clan.kljuc, podatkiZaPodpis(deviceId, nonce), podpis)) {
+                return HubStreznik.Odgovor(401, napakaJson("Podpis se ne ujema s ključem naprave.", "napacen_podpis"))
+            }
+            if (clan.id != deviceId) {
+                // Prehod na id iz kljuca: podpis dokazuje isti kljuc, zato nov id vpisemo kot alias starega.
+                // Seznanitev prezivi - nic novega ne vstopi v krog.
+                val ime = (telo?.niz("name")?.takeIf { it.isNotBlank() } ?: clan.ime).take(NAJVEC_IMENA)
+                val platforma = telo?.nizAli("platform")?.take(16)?.ifBlank { clan.platforma } ?: clan.platforma
+                krog.dodaj(KrogZaupanja.Clan(deviceId, clan.kljuc, ime, platforma, KrogZaupanja.zdaj(), clan.id))
+            }
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis()
+                .niz("ticket", izdajVstopnico(deviceId))
+                .niz("session_token", izdajSejo(deviceId))
+                .stevilo("expires_in_seconds", (VSTOPNICA_VELJA_MS / 1000).toDouble())
+                .surovo("ring", krog.json())
+                .toString())
+        }
+
+        if (pot == "/cast/trust/alias" && zahteva.metoda == "POST") {
+            // Ista naprava, drug id (TV brskalnik + Safeer OS, tablica + njen zaslon, Control + brskalnik):
+            // clan kroga s podpisom svojega kljuca (izziv za znani id) vpise se svoj drugi id z istim kljucem.
+            // Nic novega ne vstopi v krog - le se eno ime za kljuc, ki mu ze zaupamo.
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+            val telo = JsonLahki.objekt(zahteva.telo)
+            val deviceId = (telo?.niz("device_id") ?: "").trim()
+            val nonce = (telo?.niz("nonce") ?: "").trim()
+            val podpis = (telo?.niz("signature") ?: "").trim()
+            val alias = (telo?.niz("alias") ?: "").trim().take(NAJVEC_IMENA)
+            if (alias.isEmpty() || alias == deviceId) return HubStreznik.Odgovor(400, napakaJson("Manjka alias.", "manjka_alias"))
+            val izziv = synchronized(kljucnica) { pocistiIzzive(); if (nonce.isEmpty()) null else izzivi.remove(nonce) }
+            if (izziv == null || izziv.first != deviceId) {
+                return HubStreznik.Odgovor(401, napakaJson("Izziv ni veljaven ali je potekel.", "neveljaven_izziv"))
+            }
+            if (!krog.preveriPodpis(deviceId, podatkiZaPodpis(deviceId, nonce), podpis)) {
+                return HubStreznik.Odgovor(401, napakaJson("Podpis se ne ujema s ključem naprave.", "napacen_podpis"))
+            }
+            val clan = krog.clan(deviceId) ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni v krogu zaupanja.", "naprava_ni_v_krogu"))
+            val obstojeci = krog.clan(alias)
+            if (obstojeci != null && obstojeci.kljuc != clan.kljuc) {
+                return HubStreznik.Odgovor(409, napakaJson("Ta id ima v krogu drug ključ.", "alias_zaseden"))
+            }
+            val ime = (telo?.niz("name")?.takeIf { it.isNotBlank() } ?: alias).take(NAJVEC_IMENA)
+            krog.dodaj(KrogZaupanja.Clan(alias, clan.kljuc, ime, telo?.nizAli("platform")?.ifBlank { clan.platforma } ?: clan.platforma, KrogZaupanja.zdaj(), deviceId))
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis().niz("device_id", alias).surovo("ring", krog.json()).toString())
+        }
+
+        if (pot == "/cast/trust/ring" && zahteva.metoda == "GET") {
+            if (!krajevni || !jeVeljavenZeton(zahteva.glave["x-safeer-token"])) {
                 return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
             }
+            return HubStreznik.Odgovor(200, krog.json())
+        }
+
+        if (pot == "/cast/ticket" && zahteva.metoda == "POST") {
+            if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+            val lastnikZetona = napravaZeZetona(zahteva.glave["x-safeer-token"])
+                ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
             return HubStreznik.Odgovor(
                 200,
                 JsonLahki.Zapis()
-                    .niz("ticket", izdajVstopnico())
+                    .niz("ticket", izdajVstopnico(lastnikZetona))
                     .stevilo("expires_in_seconds", (VSTOPNICA_VELJA_MS / 1000).toDouble())
                     .toString()
             )
@@ -1308,6 +1803,137 @@ class HubUsmerjevalnik(
         return null
     }
 
+    /** Prijava s QR kodo po HTTP (glej [zacniQr]); klicatelj je ze preveril, da je zahteva krajevna. */
+    private fun odgovorQr(pot: String, zahteva: HubStreznik.Zahteva): HubStreznik.Odgovor {
+        val telo = JsonLahki.objekt(zahteva.telo)
+        val qrId = (telo?.niz("qr_id") ?: "").trim().take(64)
+        val deviceId = (telo?.niz("device_id") ?: "").trim().take(NAJVEC_IMENA)
+        val skrivnost = (telo?.niz("secret") ?: "").trim().take(128)
+        val prevzem = (telo?.niz("poll_secret") ?: "").trim().take(128)
+        fun napaka(koda: String?): HubStreznik.Odgovor = when (koda) {
+            "prevec_prijav" -> HubStreznik.Odgovor(429, napakaJson("Preveč čakajočih prijav; poskusite čez nekaj minut.", koda))
+            "prevec_poskusov" -> HubStreznik.Odgovor(429, napakaJson("Preveč poskusov. Na računalniku se je pokazala nova koda.", koda))
+            "prevec_naprav" -> HubStreznik.Odgovor(409, napakaJson("Preveč seznanjenih naprav.", koda))
+            "ista_naprava" -> HubStreznik.Odgovor(409, napakaJson("Naprava ne more dovoliti sama sebi.", koda))
+            "neveljavno" -> HubStreznik.Odgovor(400, napakaJson("Neveljavna zahteva.", koda))
+            else -> HubStreznik.Odgovor(404, napakaJson("Koda je potekla. Na računalniku se je pokazala nova.", "qr_ne_obstaja"))
+        }
+        fun podatki(p: QrPodatki) = JsonLahki.Zapis().niz("device_id", p.deviceId).niz("name", p.ime).niz("platform", p.platforma)
+        when (pot) {
+            "/cast/pair/qr/start" -> {
+                if (deviceId.isEmpty()) return HubStreznik.Odgovor(400, napakaJson("Manjka device_id.", "manjka_device_id"))
+                val ime = (telo?.niz("name") ?: "").trim().take(NAJVEC_IMENA)
+                val platforma = (telo?.niz("platform") ?: "").trim()
+                val (id, n) = zacniQr(deviceId, ime, platforma, (telo?.niz("secret_sha256") ?: "").trim().lowercase(), prevzem)
+                if (id == null) return napaka(n)
+                return HubStreznik.Odgovor(200, JsonLahki.Zapis()
+                    .niz("qr_id", id)
+                    .niz("hub_id", IDENTITETA_HUBA)
+                    .niz("fp", lastniOdtis)
+                    .stevilo("expires_in_seconds", (PIN_VELJA_MS / 1000).toDouble())
+                    .toString())
+            }
+            "/cast/pair/qr/info", "/cast/pair/qr/approve" -> {
+                // Samo naprava, ki je ze v Safeer Linku (telefon, tablica), vidi in dovoli prijavo.
+                val odobril = napravaZeZetona(zahteva.glave["x-safeer-token"])
+                    ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
+                if (qrId.isEmpty() || skrivnost.isEmpty()) return napaka("qr_ne_obstaja")
+                val (p, n) = if (pot.endsWith("/info")) qrPodatki(qrId, skrivnost) else odobriQr(qrId, skrivnost, odobril)
+                if (p == null) return napaka(n)
+                val z = podatki(p)
+                if (pot.endsWith("/approve")) z.logicno("approved", true)
+                return HubStreznik.Odgovor(200, z.toString())
+            }
+            "/cast/pair/qr/status" -> {
+                val (stanje, zeton) = prevzemiQr(qrId, deviceId, prevzem)
+                if (stanje == "qr_ne_obstaja") return napaka(stanje)
+                val z = JsonLahki.Zapis().logicno("approved", zeton != null)
+                if (zeton != null) z.niz("token", zeton).niz("hub_id", IDENTITETA_HUBA).niz("fp", lastniOdtis)
+                return HubStreznik.Odgovor(200, z.toString())
+            }
+            "/cast/pair/qr/join" -> {
+                // Pridruzitev s QR kodo sredisca: skrivnost iz kode je dovolj (kot koda z zaslona).
+                if (deviceId.isEmpty()) return HubStreznik.Odgovor(400, napakaJson("Manjka device_id.", "manjka_device_id"))
+                if (qrId.isEmpty() || skrivnost.isEmpty()) return napaka("qr_ne_obstaja")
+                val ime = (telo?.niz("name") ?: "").trim().take(NAJVEC_IMENA)
+                val (zeton, n) = pridruzi(qrId, skrivnost, deviceId, ime)
+                if (zeton == null) return napaka(n)
+                return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("approved", true).niz("token", zeton)
+                    .niz("hub_id", IDENTITETA_HUBA).niz("fp", lastniOdtis).toString())
+            }
+            "/cast/pair/qr/cancel" -> {
+                return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("cancelled", prekliciQr(qrId, deviceId, prevzem)).toString())
+            }
+            "/cast/pair/qr/invite" -> {
+                // »Poveži novo napravo« na napravi, ki je ze v Safeer Linku (npr. racunalnik): sredisce ustvari
+                // enkratno kodo za pridruzitev, kot jo sicer pokaze na svojem zaslonu. Samo za seznanjeno
+                // napravo v krajevnem omrezju - taka lahko novo napravo ze zdaj dovoli s QR prijavo.
+                napravaZeZetona(zahteva.glave["x-safeer-token"])
+                    ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
+                if (qrId.isNotEmpty()) prekliciPridruzitev(qrId)
+                val (id, s) = ustvariPridruzitev()
+                return HubStreznik.Odgovor(200, JsonLahki.Zapis().niz("qr_id", id).niz("secret", s).niz("fp", lastniOdtis)
+                    .stevilo("expires_in_seconds", (PIN_VELJA_MS / 1000).toDouble())
+                    // Spletni odjemalec: naprava, ki pokaze kodo, jo zgradi kot http://<sredisce>:<web_port>/#...
+                    .stevilo("web_port", spletnaVrata.toDouble()).toString())
+            }
+            "/cast/pair/qr/invite/status" -> {
+                napravaZeZetona(zahteva.glave["x-safeer-token"])
+                    ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
+                val (caka, ime) = synchronized(kljucnica) {
+                    pocistiPridruzitve()
+                    (pridruzitve.containsKey(qrId)) to pridruzeni[qrId]
+                }
+                val z = JsonLahki.Zapis().logicno("pending", caka).logicno("joined", ime != null)
+                if (ime != null) z.niz("name", ime)
+                return HubStreznik.Odgovor(200, z.toString())
+            }
+            "/cast/pair/qr/invite/cancel" -> {
+                napravaZeZetona(zahteva.glave["x-safeer-token"])
+                    ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
+                prekliciPridruzitev(qrId)
+                return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("cancelled", true).toString())
+            }
+        }
+        return HubStreznik.Odgovor(404, napakaJson("Ni te poti.", "ni_poti"))
+    }
+
+
+    // ------------------------------------------------------------------ spletni odjemalec (naprava brez Safeerja)
+
+    /** Datoteke spletnega odjemalca (assets/link-web/...); nastavi krmilnik. Brez tega spletna vrata vracajo 404. */
+    @Volatile var beriSredstvo: ((String) -> String?)? = null
+
+    /** Vrata spletnega odjemalca, kot jih je odprl krmilnik (0 = ni na voljo); gredo v vabilo za novo napravo. */
+    @Volatile var spletnaVrata: Int = 0
+
+    /**
+     * Zahteve na spletnih vratih (goli HTTP, samo domace omrezje): stran spletnega odjemalca in ozek izbor
+     * poti huba, ki jih ta potrebuje. Telefon brez Safeerja tako iz navadnega brskalnika poslje povezavo
+     * ali besedilo in upravlja televizor. Datotek, zaslona in kroga zaupanja po tej poti ni - to je
+     * namenoma samo za tisto, kar sme teci brez sifriranja v domacem omrezju.
+     */
+    fun odgovoriSplet(zahteva: HubStreznik.Zahteva): HubStreznik.Odgovor? {
+        if (!jeKrajevni(zahteva.odjemalec)) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
+        val pot = zahteva.pot
+        if (zahteva.metoda == "GET" && (pot == "/" || pot == "/index.html" || pot.startsWith("/web/"))) {
+            val ime = if (pot == "/" || pot == "/index.html") "index.html" else pot.removePrefix("/web/")
+            if (ime.isBlank() || ime.contains("..") || ime.contains('/')) return HubStreznik.Odgovor(404, napakaJson("Ni te poti.", "ni_poti"))
+            val vsebina = beriSredstvo?.invoke(ime) ?: return HubStreznik.Odgovor(404, napakaJson("Ni te poti.", "ni_poti"))
+            val vrsta = when (ime.substringAfterLast('.', "")) {
+                "html" -> "text/html; charset=utf-8"
+                "js" -> "application/javascript; charset=utf-8"
+                "css" -> "text/css; charset=utf-8"
+                "svg" -> "image/svg+xml"
+                "json" -> "application/json; charset=utf-8"
+                else -> "text/plain; charset=utf-8"
+            }
+            return HubStreznik.Odgovor(200, vsebina, vrsta)
+        }
+        if (pot in SPLETNE_POTI) return odgovori(zahteva)
+        return HubStreznik.Odgovor(404, napakaJson("Ni te poti.", "ni_poti"))
+    }
+
     /**
      * Nadgradnja v WebSocket je dovoljena samo iz krajevnega omrezja in samo z veljavno
      * enokratno vstopnico. Vrne razlog zavrnitve ali null, ce je vse v redu.
@@ -1325,14 +1951,25 @@ class HubUsmerjevalnik(
     companion object {
         const val RAZLICICA_PROTOKOLA = "0.2"
         const val VSEM = "all"
+        /** Vrata spletnega odjemalca (goli HTTP; ce so zasedena, jih streznik izbere sam in QR koda nosi prava). */
+        const val SPLETNA_VRATA = 8991
+        /** Poti huba, ki jih spletni odjemalec sme klicati: pridruzitev, vstopnica, naprave, besedilo, odhod, preimenovanje. */
+        val SPLETNE_POTI = setOf("/cast/pair/qr/join", "/cast/ticket", "/cast/devices", "/cast/share/text", "/cast/health", "/cast/devices/leave",
+            "/cast/devices/rename")
         const val ZMOZNOST_SYNC = "sync"
 
         private const val KLJUC_ZETONOV = "cast_naprave"
         private const val KLJUC_VZDEVKOV = "cast_vzdevki"
 
         private val ZNANE_POTI = setOf(
-            "/cast/pair/start", "/cast/pair/claim", "/cast/pair/sibling", "/cast/ticket", "/cast/devices", "/cast/health"
+            "/cast/pair/start", "/cast/pair/claim", "/cast/pair/sibling", "/cast/ticket", "/cast/devices", "/cast/health",
+            "/cast/trust/enroll", "/cast/trust/ring", "/cast/trust/alias", "/cast/auth/challenge", "/cast/auth/ticket",
+            "/cast/pair/qr/start", "/cast/pair/qr/info", "/cast/pair/qr/approve", "/cast/pair/qr/status", "/cast/pair/qr/cancel",
+            "/cast/pair/qr/join", "/cast/pair/qr/invite", "/cast/pair/qr/invite/status", "/cast/pair/qr/invite/cancel",
+            "/cast/devices/leave"
         )
+        /** Izziv za prijavo s podpisom velja minuto: dovolj za en krog po omrezju, premalo za zbiranje. */
+        private const val IZZIV_VELJA_MS = 60_000L
 
         private val CAST_POSREDOVANJE = setOf("cast.url", "cast.media", "cast.control")
         private val SYNC_POSREDOVANJE = setOf("sync.request", "sync.data", "sync.status")
@@ -1352,6 +1989,14 @@ class HubUsmerjevalnik(
         const val NAJVECJA_KATEGORIJA = 192 * 1024
         const val NAJVEC_SKUPAJ_SYNC = 512 * 1024
         const val NAJVEC_IMENA = 64
+        /** Protocol v1: katalog aplikacij ene naprave (vnosov in bajtov). */
+        const val NAJVEC_APLIKACIJ = 200
+        const val NAJVEC_KATALOG_BAJTOV = 32 * 1024
+        /** Razlicica protokola, ki jo odjemalci v1 povedo v cast.register (`protocol`). */
+        const val PROTOKOL_V1 = "1.0"
+        /** Sejni zetoni (prijava s podpisom): najvec hkrati in koliko casa veljajo. */
+        const val NAJVEC_SEJ = 64
+        const val SEJA_VELJA_MS = 12 * 60 * 60 * 1000L
         /** Najvec znakov besedila v enem deljenju (share.text po HTTP). */
         const val NAJVEC_BESEDILA = 20_000
 

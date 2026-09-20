@@ -590,6 +590,12 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun vprasajZaNacin() {
         if (link.povezan) { odpriLinkVBrskalniku(); return }
         if (nacinOkno?.isShowing == true) return
+        // Prijavno okno Safeer OS (enako kot na racunalniku): QR koda, 6-mestna koda ali nadaljuj brez
+        // povezave. Staro vprasanje »Link / krajevno« ostane le, ce okna ni mogoce odpreti.
+        try {
+            startActivity(android.content.Intent(this, PrijavaActivity::class.java).putExtra(PrijavaActivity.EXTRA_PRVI_ZAGON, true))
+            return
+        } catch (_: Throwable) { }
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_nacin_naslov))
             .setMessage(getString(R.string.os_nacin_opis))

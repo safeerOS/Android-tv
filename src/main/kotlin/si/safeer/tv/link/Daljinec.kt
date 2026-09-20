@@ -34,8 +34,21 @@ object Daljinec {
     /** Vsa dejanja, ki jih ta naprava razume; Control jih dobi v odgovoru na `status`. */
     val DEJANJA = listOf(
         "key", "scroll", "open_url", "volume", "launch_app", "open_in_app", "apps",
-        "restart", "clear_cache", "status", "screenshot"
+        "restart", "clear_cache", "status", "screenshot",
+        // Protocol v1: ista imena kot pri ponudniku na racunalniku (Safeer Control), da odjemalec
+        // (Safeer OS, Control) aplikacije katere koli naprave nasteje in zazene na en nacin.
+        "apps.list", "apps.launch",
+        // Vnos z racunalnika na zaslon, ki ga naprava deli (Safeer Vnos, storitev dostopnosti):
+        // dotik in poteg v delezih zaslona, sistemska tipka, besedilo v polje s fokusom.
+        "input.tap", "input.swipe", "input.key", "input.text", "input.enable",
+        // Zvok racunalnika na tej napravi (Safeer OS za racunalnik: Zvok -> Predvajaj tukaj).
+        "audio.play", "audio.stop",
+        // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control.
+        "files.list"
     )
+
+    /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
+    const val ZMOZNOST_ZVOK = "audio"
 
     /** Izid ukaza: `ok`, kratko sporocilo za uporabnika in neobvezni podatki. */
     class Izid(val ok: Boolean, val sporocilo: String, val podatki: JSONObject? = null, val koda: String = "") {
@@ -100,6 +113,26 @@ object Daljinec {
     ): Izid {
         val d = dejanje.trim().lowercase()
         if (d !in DEJANJA) return Izid(false, "Neznano dejanje: $d", koda = "neznano_dejanje")
+        // Protocol v1: apps.list / apps.launch sta enotni imeni; `app` je id iz kataloga (tu ime paketa).
+        if (d == "apps.list") return seznamV1(context, parametri)
+        if (d == "apps.launch") {
+            val paket = parametri.optString("app", "").ifBlank { parametri.optString("package", "") }
+            // `stream: true` = pretoci aplikacijo napravi, ki je vprasala (slika na hub, vnos z Safeer Vnos).
+            // Posiljatelja doda CastReceiverService iz sporocila huba (`_posiljatelj`), ne iz parametrov.
+            if (parametri.optBoolean("stream", false)) {
+                return pretociAplikacijo(context, paket, parametri.optString(PARAM_POSILJATELJ, ""))
+            }
+            return zazeniAplikacijo(context, paket)
+        }
+        // Vnos z racunalnika ne potrebuje brskalnika v ospredju: gre v aplikacijo, ki je na zaslonu.
+        if (d.startsWith("input.")) return vnos(context, d, parametri)
+        // Zvok z racunalnika igra ne glede na to, kaj je na zaslonu.
+        if (d == "audio.play") return ZvokSprejemnik.zacni(context, parametri)
+        if (d == "audio.stop") return ZvokSprejemnik.ustavi()
+        if (d == "files.list") {
+            val podatki = DatotekeStreznik.seznam(context, parametri.optString("folder", ""), parametri.optString(PARAM_POSILJATELJ, ""))
+            return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)
+        }
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {
@@ -206,6 +239,28 @@ object Daljinec {
         return Izid(true, "Odpiram $ime", JSONObject().put("package", paket).put("label", ime))
     }
 
+    /** Kljuc, pod katerim CastReceiverService doda id posiljatelja ukaza (vedno prepise, kar pride od zunaj). */
+    const val PARAM_POSILJATELJ = "_posiljatelj"
+
+    /**
+     * Pretoci aplikacijo [paket] napravi [cilj]: nevidna dejavnost vprasa za zajem zaslona (uporabnik ga
+     * potrdi na tej napravi), zazene deljenje in odpre aplikacijo. Odgovor pride takoj; slika pride, ko
+     * uporabnik potrdi.
+     */
+    private fun pretociAplikacijo(context: Context, paket: String, cilj: String): Izid {
+        if (!Regex("^[A-Za-z0-9_.]+$").matches(paket)) return Izid(false, "Neveljavno ime paketa")
+        if (cilj.isBlank()) return Izid(false, "Ni znano, komu pretociti", koda = "ni_posiljatelja")
+        if (nameraZaZagon(context, paket) == null) return Izid(false, "Aplikacija $paket ni namescena", koda = "ni_namescena")
+        val ime = try {
+            context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(paket, 0)).toString()
+        } catch (_: Throwable) { paket }
+        val namera = PretociActivity.namera(context, cilj, paket)
+        try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Pretakanja ni bilo mogoce zaceti: ${e.message}") }
+        prebudiZNamero(context, namera, ime)
+        return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
+            JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
+    }
+
     private const val KANAL_ZAGON = "safeer_link_zagon"
     private const val OBVESTILO_ZAGON = 4046
 
@@ -283,6 +338,84 @@ object Daljinec {
             polje.put(zapis)
         }
         return polje
+    }
+
+    /**
+     * Dotik, poteg, sistemska tipka ali besedilo z racunalnika (Safeer Vnos). Ce storitev dostopnosti
+     * ni vklopljena, uporabnik dobi jasno sporocilo; `input.enable` odpre nastavitve, kjer jo vklopi.
+     */
+    private fun vnos(context: Context, d: String, p: JSONObject): Izid {
+        if (d == "input.enable") {
+            if (VnosStoritev.aktivna()) return Izid(true, "Safeer Vnos je ze vklopljen.")
+            return try {
+                // Uporabnik naj ne isce: odpremo nastavitve dostopnosti, kjer je mogoce oznacimo Safeer Vnos
+                // (Samsung ga da pod »Nameščene aplikacije«), in povemo, kam tapniti.
+                val komponenta = android.content.ComponentName(context, VnosStoritev::class.java).flattenToString()
+                val oznaci = android.os.Bundle().apply { putString(":settings:fragment_args_key", komponenta) }
+                val namera = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .putExtra(":settings:fragment_args_key", komponenta)
+                    .putExtra(":settings:show_fragment_args", oznaci)
+                context.startActivity(namera)
+                val sl = try { context.resources.configuration.locales[0].language == "sl" } catch (_: Throwable) { false }
+                val pot = if (sl) "Tapni »Nameščene aplikacije« → »Safeer Vnos« → vklopi."
+                    else "Tap “Installed apps” → “Safeer Vnos” → turn it on."
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    try { android.widget.Toast.makeText(context.applicationContext, pot, android.widget.Toast.LENGTH_LONG).show() } catch (_: Throwable) { }
+                }, 700)
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    try { android.widget.Toast.makeText(context.applicationContext, pot, android.widget.Toast.LENGTH_LONG).show() } catch (_: Throwable) { }
+                }, 4400)
+                Izid(true, "Na tablici se odpirajo nastavitve dostopnosti: $pot")
+            } catch (e: Throwable) {
+                Izid(false, "Nastavitev ni bilo mogoce odpreti: ${e.message}")
+            }
+        }
+        if (!VnosStoritev.aktivna()) {
+            return Izid(false, "Na tej napravi vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
+        }
+        val uspelo = when (d) {
+            "input.tap" -> VnosStoritev.dotik(p.optDouble("x", -1.0), p.optDouble("y", -1.0), p.optLong("ms", 60))
+            "input.swipe" -> VnosStoritev.poteg(p.optDouble("x1", -1.0), p.optDouble("y1", -1.0),
+                p.optDouble("x2", -1.0), p.optDouble("y2", -1.0), p.optLong("ms", 300))
+            "input.key" -> VnosStoritev.tipka(p.optString("key", ""))
+            "input.text" -> VnosStoritev.besedilo(p.optString("text", "").take(2000))
+            else -> false
+        }
+        return if (uspelo) Izid(true, "Vnos izveden") else Izid(false, "Vnosa ni bilo mogoce izvesti", koda = "vnos_ni_uspel")
+    }
+
+    /**
+     * Odgovor na `apps.list` v obliki, ki jo pozna tudi ponudnik na racunalniku:
+     * {"enabled": true, "items": [{"id", "name", "icon"?}], "total", "offset"}. `icon` je data URL.
+     */
+    private fun seznamV1(context: Context, parametri: JSONObject): Izid {
+        val zIkonami = parametri.optBoolean("icons", false)
+        val polje = aplikacije(context, zIkonami)
+        val elementi = JSONArray()
+        for (i in 0 until polje.length()) {
+            val z = polje.optJSONObject(i) ?: continue
+            val e = JSONObject().put("id", z.optString("package")).put("name", z.optString("label"))
+            if (z.has("icon")) e.put("icon", z.optString("icon"))
+            elementi.put(e)
+        }
+        val podatki = JSONObject().put("enabled", true).put("items", elementi)
+            .put("total", elementi.length()).put("offset", 0)
+        return Izid(true, "Seznam aplikacij", podatki)
+    }
+
+    /**
+     * Katalog aplikacij za Protocol v1 (cast.register `apps` / apps.announce): objekt po imenu paketa,
+     * {"<paket>": {"name": "...", "kind": "android"}}. Brez ikon - hub jih ne hrani; daljinec jih
+     * vzame z ukazom `apps` z icons=true, ko jih potrebuje.
+     */
+    fun katalog(context: Context): JSONObject {
+        val k = JSONObject()
+        val seznam = aplikacije(context)
+        for (i in 0 until seznam.length()) {
+            val z = seznam.optJSONObject(i) ?: continue
+            k.put(z.optString("package"), JSONObject().put("name", z.optString("label")).put("kind", "android"))
+        }
+        return k
     }
 
     /** Ikona aplikacije kot data URL (WebP, 48 px); null, ce je ni mogoce narisati. */

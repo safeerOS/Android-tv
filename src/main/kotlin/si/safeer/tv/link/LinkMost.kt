@@ -24,20 +24,33 @@ class LinkMost(
     private val pogled: WebView,
     private val trenutnaStran: () -> Pair<String, String?>,
     private val zapriZaslon: () -> Unit,
-    private val odpriVBrskalniku: (String) -> Unit
+    private val odpriVBrskalniku: (String) -> Unit,
+    /** Vprasa za dovoljenje za zajem zaslona; dejavnost nato zazene DeljenjeZaslonaStoritev. */
+    private val zahtevajZajemZaslona: ((String, String) -> Unit)? = null
 ) {
 
     companion object {
         private const val TAG = "SafeerLink"
         const val PREFS = "safeer_cast_prefs"
+        /** requestPermissions za medije (videi, glasba, slike za druge naprave). */
+        const val ZAHTEVA_DATOTEKE = 7322
+
+        /** Dovoljenje je prislo, ko strani Link ni bilo vec: storitev zazenemo brez nje. */
+        fun zazeniDeljenje(context: Context, resultCode: Int, data: android.content.Intent, cilj: String, ime: String) {
+            val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val hub = (p.getString("hub_url", "") ?: "").replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
+                .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws").trimEnd('/')
+            DeljenjeZaslonaStoritev.zazeni(context, resultCode, data, cilj, ime, hub,
+                HubPairing.token(context) ?: "", si.safeer.tv.cast.HubKrmilnik.lastniId())
+        }
     }
 
     private fun nastavitve() = dejavnost.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     private fun hubUrl(): String = nastavitve().getString("hub_url", "") ?: ""
 
-    private fun ime(): String =
-        "tv-" + android.os.Build.MODEL.replace(Regex("\\s+"), "-").lowercase()
+    /** Id te naprave (iz kljuca, HubKrmilnik.lastniId) - isti, s katerim se zaslon prijavi hubu. */
+    private fun ime(): String = si.safeer.tv.cast.HubKrmilnik.lastniId()
 
     private fun odziv(vrsta: String, podatki: Any) {
         val telo = when (podatki) {
@@ -87,6 +100,31 @@ class LinkMost(
             si.safeer.tv.UiText.get(si.safeer.tv.R.string.ui_link_sync_unavailable)
                 .ifBlank { "Bookmark sync is not available on the television yet." }
         )
+    }
+
+    /** Videi, glasba in slike te naprave za druge naprave v Linku (DatotekeStreznik). */
+    @JavascriptInterface
+    fun datotekeStanje(): String = DatotekeStreznik.stanje(dejavnost).toString()
+
+    /**
+     * Vklop najprej vprasa za dovoljenje za medije (izid pride prek [naDovoljenje]); brez njega
+     * naprava ne deli nicesar. Izklop velja takoj.
+     */
+    @JavascriptInterface
+    fun nastaviDatoteke(vklop: Boolean) {
+        DatotekeStreznik.nastavi(dejavnost, vklop)
+        if (vklop && !DatotekeStreznik.imamoDovoljenje(dejavnost)) {
+            dejavnost.runOnUiThread {
+                try { dejavnost.requestPermissions(DatotekeStreznik.dovoljenja(), ZAHTEVA_DATOTEKE) } catch (_: Throwable) { }
+            }
+            return
+        }
+        odziv("datoteke", DatotekeStreznik.stanje(dejavnost))
+    }
+
+    /** Dejavnost sporoci izid vprasanja za dovoljenje; stran se nato izrise znova. */
+    fun naDovoljenje(koda: Int) {
+        if (koda == ZAHTEVA_DATOTEKE) odziv("datoteke", DatotekeStreznik.stanje(dejavnost))
     }
 
 
@@ -375,6 +413,59 @@ class LinkMost(
         }.start()
     }
 
+    // ------------------------------------------------------------------ deljenje zaslona
+
+    /** Zacne deljenje zaslona: dejavnost vprasa za dovoljenje (sistemsko okno) in zazene storitev. */
+    @JavascriptInterface
+    fun zacniDeljenjeZaslona(idNaprave: String, imeNaprave: String) {
+        val zahteva = zahtevajZajemZaslona
+        if (zahteva == null) {
+            napaka("ni_zajema", "Deljenje zaslona tu ni na voljo.")
+            return
+        }
+        if (hubUrl().isBlank() || zeton().isNullOrBlank()) {
+            napaka("hub_ni_znan", "Hub ni znan.")
+            return
+        }
+        DeljenjeZaslonaStoritev.naSpremembo = { javiZaslon() }
+        dejavnost.runOnUiThread { zahteva(idNaprave, imeNaprave) }
+    }
+
+    /** Dovoljenje je dano: zazene storitev, ki deli zaslon, dokler je uporabnik ne prekine. */
+    fun zajemDovoljen(resultCode: Int, data: android.content.Intent, idNaprave: String, imeNaprave: String) {
+        DeljenjeZaslonaStoritev.naSpremembo = { javiZaslon() }
+        DeljenjeZaslonaStoritev.zazeni(dejavnost, resultCode, data, idNaprave, imeNaprave, hubHttp(), zeton() ?: "", ime())
+        deljenje("zaslon", "zaganjam", idNaprave)
+    }
+
+    fun zajemZavrnjen(idNaprave: String) {
+        deljenje("zaslon", "koncano", idNaprave, sporocilo = "dovoljenje ni bilo dano", koda = "dovoljenje_zavrnjeno")
+    }
+
+    @JavascriptInterface
+    fun koncajDeljenjeZaslona() {
+        // Stran je lahko nova (Link je bil vmes zaprt): poslusalca pripnemo znova, da izve za konec.
+        DeljenjeZaslonaStoritev.naSpremembo = { javiZaslon() }
+        DeljenjeZaslonaStoritev.ustavi(dejavnost)
+    }
+
+    /** Stanje deljenja zaslona za izris (tudi ce je bil zaslon Linka vmes zaprt). */
+    @JavascriptInterface
+    fun deljenjeZaslonaStanje(): String = JSONObject().apply {
+        DeljenjeZaslonaStoritev.naSpremembo = { javiZaslon() }
+        put("tece", DeljenjeZaslonaStoritev.tece)
+        put("cilj", DeljenjeZaslonaStoritev.cilj)
+        put("ime", DeljenjeZaslonaStoritev.imeCilja)
+        put("napaka", DeljenjeZaslonaStoritev.zadnjaNapaka)
+    }.toString()
+
+    private fun javiZaslon() {
+        val tece = DeljenjeZaslonaStoritev.tece
+        deljenje("zaslon", if (tece) "tece" else "koncano", DeljenjeZaslonaStoritev.cilj,
+            sporocilo = DeljenjeZaslonaStoritev.zadnjaNapaka, koda = DeljenjeZaslonaStoritev.zadnjaKoda,
+            zasedenaOd = DeljenjeZaslonaStoritev.zadnjaZasedenaOd)
+    }
+
     @JavascriptInterface
     fun nadzor(idNaprave: String, ukaz: String, vrednost: Double) {
         napaka("tv_ne_upravlja", "Televizor je zaslon in ne upravlja drugih zaslonov.")
@@ -598,6 +689,36 @@ class LinkMost(
         } catch (e: Throwable) {
             android.util.Log.w(TAG, "Vzdevka ni bilo mogoce shraniti: ${e.message}")
         }
+    }
+
+    /**
+     * Poimenuje napravo (tudi to) za vse naprave v hisi; ime hrani sredisce, prazno ime vrne prvotnega.
+     * Ce je sredisce ta televizor, gre brez omrezja; sicer po HTTP z zetonom kot na telefonu.
+     */
+    @JavascriptInterface
+    fun preimenujNapravo(idNaprave: String, ime: String) {
+        val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik
+        if (u != null) {
+            u.preimenuj(idNaprave, ime)
+            odziv("preimenovano", JSONObject().put("id", idNaprave).put("ime", u.imeNaprave(idNaprave)))
+            return
+        }
+        if (hubUrl().isBlank() || zeton() == null) {
+            napaka("hub_ni_znan", "Hub ni znan.")
+            return
+        }
+        Thread {
+            try {
+                val telo = JSONObject().put("device_id", idNaprave).put("name", ime.trim()).toString()
+                val (koda, odgovor) = httpJson("POST", "/cast/devices/rename", telo)
+                if (koda == 200) {
+                    val novo = try { JSONObject(odgovor).optString("name", "") } catch (_: Throwable) { "" }
+                    odziv("preimenovano", JSONObject().put("id", idNaprave).put("ime", novo))
+                } else napaka("preimenovanje_ni_uspelo", "Preimenovanje ni uspelo ($koda).")
+            } catch (e: Throwable) {
+                napaka("preimenovanje_ni_uspelo", "Preimenovanje ni uspelo: ${e.message}")
+            }
+        }.start()
     }
 
     @JavascriptInterface

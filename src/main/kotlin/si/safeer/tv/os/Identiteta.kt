@@ -13,8 +13,12 @@ import android.content.Context
 object Identiteta {
     private const val PREFS = "safeer_os_link"
 
-    fun id(context: Context): String =
-        "tv-" + android.os.Build.MODEL.replace(Regex("\\s+"), "-").lowercase() + "-os"
+    /**
+     * Id iz kljuca TE aplikacije (`n-…-os`): Safeer OS v svojem procesu ima svoj kljuc v KeyStore, zato svoj
+     * id; na tablici (ista aplikacija kot brskalnik) je to id sredisca + "-os". Stari `tv-…-os` ostane v krogu
+     * kot alias - hub ga ob prvi prijavi s podpisom poveze z novim.
+     */
+    fun id(context: Context): String = si.safeer.tv.cast.HubKrmilnik.lastniId() + "-os"
 
     fun beri(context: Context): Sorodnik.Poverilnice? {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

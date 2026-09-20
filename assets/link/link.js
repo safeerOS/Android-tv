@@ -9,7 +9,7 @@
  * (window.SafeerLink), ki ga aplikacija pripne samo temu pogledu. Odgovori pridejo
  * nazaj v window.safeerLinkOdziv, ker most ne sme cakati na omrezje.
  *
- * Nacela vmesnika:
+ * Nacela vmesnika (Matejeve smernice):
  *  - uporabnik ne vidi ne IP-jev ne vrat ne nastavitev,
  *  - stanje je barva: zelena povezano, siva ni Safeer Linka, rumena tezava,
  *  - imena naprav so cloveska, nikoli tehnicni ID,
@@ -141,6 +141,12 @@
       mapeOdstrani: "Odstrani",
       mapeStandardne: "Deli Videi, Glasba in Slike",
       syncPrivzeto: "Sinhronizacija se vklopi, ko jo potrdiš — do takrat se ne pošlje nič.",
+      datoteke: "Videi, glasba in slike",
+      datotekeDeljeno: "Deljeno",
+      datotekeNiDeljeno: "Ni deljeno",
+      datotekeOpisDeli: "Druge naprave v Safeer Linku jih vidijo v Datotekah in predvajajo naravnost s te naprave.",
+      datotekeOpisDovoli: "Dotakni se in dovoli dostop do medijev – šele nato jih druge naprave vidijo.",
+      datotekeOpisIzklop: "Dotakni se, da jih deliš z napravami v Safeer Linku.",
       zaznamki: "Zaznamki",
       syncVklopljena: "Vklopljeno",
       syncIzklopljena: "Izklopljeno",
@@ -253,6 +259,12 @@
       mapeOdstrani: "Remove",
       mapeStandardne: "Share Videos, Music and Pictures",
       syncPrivzeto: "Sync starts once you confirm it — until then nothing is sent.",
+      datoteke: "Videos, music and photos",
+      datotekeDeljeno: "Shared",
+      datotekeNiDeljeno: "Not shared",
+      datotekeOpisDeli: "Other devices in Safeer Link see them in Files and play them straight from this device.",
+      datotekeOpisDovoli: "Tap to allow access to media – only then can other devices see them.",
+      datotekeOpisIzklop: "Tap to share them with the devices in Safeer Link.",
       zaznamki: "Bookmarks",
       syncVklopljena: "On",
       syncIzklopljena: "Off",
@@ -365,6 +377,12 @@
       mapeOdstrani: "Entfernen",
       mapeStandardne: "Videos, Musik und Bilder freigeben",
       syncPrivzeto: "Die Synchronisierung startet, sobald du sie bestätigst — bis dahin wird nichts gesendet.",
+      datoteke: "Videos, Musik und Fotos",
+      datotekeDeljeno: "Freigegeben",
+      datotekeNiDeljeno: "Nicht freigegeben",
+      datotekeOpisDeli: "Andere Geräte im Safeer Link sehen sie unter Dateien und spielen sie direkt von diesem Gerät ab.",
+      datotekeOpisDovoli: "Antippen und Zugriff auf Medien erlauben – erst dann sehen andere Geräte sie.",
+      datotekeOpisIzklop: "Antippen, um sie mit den Geräten im Safeer Link zu teilen.",
       zaznamki: "Lesezeichen",
       syncVklopljena: "Ein",
       syncIzklopljena: "Aus",
@@ -477,6 +495,12 @@
       mapeOdstrani: "Quitar",
       mapeStandardne: "Compartir Vídeos, Música e Imágenes",
       syncPrivzeto: "La sincronización empieza cuando la confirmes; hasta entonces no se envía nada.",
+      datoteke: "Vídeos, música y fotos",
+      datotekeDeljeno: "Compartido",
+      datotekeNiDeljeno: "No compartido",
+      datotekeOpisDeli: "Los demás dispositivos de Safeer Link los ven en Archivos y los reproducen directamente desde este dispositivo.",
+      datotekeOpisDovoli: "Toca y permite el acceso a los medios; solo entonces los verán los demás dispositivos.",
+      datotekeOpisIzklop: "Toca para compartirlos con los dispositivos de Safeer Link.",
       zaznamki: "Marcadores",
       syncVklopljena: "Activada",
       syncIzklopljena: "Desactivada",
@@ -589,6 +613,12 @@
       mapeOdstrani: "Retirer",
       mapeStandardne: "Partager Vidéos, Musique et Images",
       syncPrivzeto: "La synchronisation démarre dès que tu la confirmes — jusque-là rien n\'est envoyé.",
+      datoteke: "Vidéos, musique et photos",
+      datotekeDeljeno: "Partagé",
+      datotekeNiDeljeno: "Non partagé",
+      datotekeOpisDeli: "Les autres appareils du Safeer Link les voient dans Fichiers et les lisent directement depuis cet appareil.",
+      datotekeOpisDovoli: "Touchez et autorisez l\'accès aux médias : ce n\'est qu\'ensuite que les autres appareils les voient.",
+      datotekeOpisIzklop: "Touchez pour les partager avec les appareils du Safeer Link.",
       zaznamki: "Favoris",
       syncVklopljena: "Activée",
       syncIzklopljena: "Désactivée",
@@ -701,6 +731,12 @@
       mapeOdstrani: "Rimuovi",
       mapeStandardne: "Condividi Video, Musica e Immagini",
       syncPrivzeto: "La sincronizzazione parte quando la confermi: fino ad allora non viene inviato nulla.",
+      datoteke: "Video, musica e foto",
+      datotekeDeljeno: "Condiviso",
+      datotekeNiDeljeno: "Non condiviso",
+      datotekeOpisDeli: "Gli altri dispositivi del Safeer Link li vedono in File e li riproducono direttamente da questo dispositivo.",
+      datotekeOpisDovoli: "Tocca e consenti l\'accesso ai media: solo allora gli altri dispositivi li vedono.",
+      datotekeOpisIzklop: "Tocca per condividerli con i dispositivi del Safeer Link.",
       zaznamki: "Preferiti",
       syncVklopljena: "Attiva",
       syncIzklopljena: "Disattivata",
@@ -1053,6 +1089,7 @@
   var BESEDILA_HUB = {
     sl: {
       tuOpis: "Začni povezovanje tukaj: vklopi Safeer Link, nato na drugi napravi vtipkaj kodo, ki jo pokaže ta naprava.",
+      tuDrugje: "Safeer Link je vklopljen in teče na napravi {ime}. Če ta ugasne, ga prevzame ta naprava.",
       tuOpisTv: "Če telefona ali računalnika nimaš pri roki, začni kar na tem televizorju.",
       vklopiLink: "Vklopi Safeer Link",
       izklopiLink: "Izklopi Safeer Link",
@@ -1073,6 +1110,7 @@
     },
     en: {
       tuOpis: "Start connecting here: switch on Safeer Link, then on the other device type the code this device shows.",
+      tuDrugje: "Safeer Link is on and runs on {ime}. If it switches off, this device takes over.",
       tuOpisTv: "If no phone or computer is at hand, start right here on this television.",
       vklopiLink: "Turn on Safeer Link",
       izklopiLink: "Turn off Safeer Link",
@@ -1093,6 +1131,7 @@
     },
     de: {
       tuOpis: "Beginne hier: Schalte Safeer Link ein und gib dann auf dem anderen Gerät den Code ein, den dieses Gerät anzeigt.",
+      tuDrugje: "Safeer Link ist eingeschaltet und läuft auf {ime}. Wird es ausgeschaltet, übernimmt dieses Gerät.",
       tuOpisTv: "Wenn kein Telefon oder Computer zur Hand ist, beginne einfach auf diesem Fernseher.",
       vklopiLink: "Safeer Link einschalten",
       izklopiLink: "Safeer Link ausschalten",
@@ -1113,6 +1152,7 @@
     },
     es: {
       tuOpis: "Empieza a conectar aquí: activa Safeer Link y, en el otro dispositivo, escribe el código que muestra este.",
+      tuDrugje: "Safeer Link está activado y funciona en {ime}. Si se apaga, este dispositivo toma el relevo.",
       tuOpisTv: "Si no tienes el teléfono ni el ordenador a mano, empieza aquí mismo, en este televisor.",
       vklopiLink: "Activar Safeer Link",
       izklopiLink: "Desactivar Safeer Link",
@@ -1133,6 +1173,7 @@
     },
     fr: {
       tuOpis: "Commence ici : active Safeer Link, puis saisis sur l’autre appareil le code affiché par celui-ci.",
+      tuDrugje: "Safeer Link est activé et fonctionne sur {ime}. S’il s’éteint, cet appareil prend le relais.",
       tuOpisTv: "S’il n’y a ni téléphone ni ordinateur sous la main, commence directement sur ce téléviseur.",
       vklopiLink: "Activer Safeer Link",
       izklopiLink: "Désactiver Safeer Link",
@@ -1153,6 +1194,7 @@
     },
     it: {
       tuOpis: "Inizia a collegare da qui: accendi Safeer Link, poi sull’altro dispositivo digita il codice mostrato da questo.",
+      tuDrugje: "Safeer Link è acceso e funziona su {ime}. Se si spegne, subentra questo dispositivo.",
       tuOpisTv: "Se non hai a portata di mano telefono o computer, inizia direttamente da questo televisore.",
       vklopiLink: "Attiva Safeer Link",
       izklopiLink: "Disattiva Safeer Link",
@@ -1353,9 +1395,16 @@
     var izklopi = el("gumbHubIzklopi");
     // Kazemo samo gumb, ki kaj naredi: onemogocen "Vklopi" je bil videti kot glavni gumb, fokus
     // pa je zato pristal na "Izklopi" - en nehoten OK je izklopil Link za vse naprave.
-    if (vklopi) { vklopi.disabled = tuSredisce; vklopi.hidden = tuSredisce; }
-    if (izklopi) { izklopi.disabled = !tuSredisce; izklopi.hidden = !tuSredisce; }
-    besedilo("opombaHubVklop", tuSredisce ? "" : t(stanje.televizor ? "tuOpisTv" : "tuOpis"));
+    // Umik izvoljenemu hubu (druga naprava z visjo prioriteto): Link je vklopljen, le tece drugje.
+    var drugje = !tuSredisce && !!stanje.izvoljeni;
+    var vklopljen = tuSredisce || drugje;
+    if (vklopi) { vklopi.disabled = vklopljen; vklopi.hidden = vklopljen; }
+    if (izklopi) { izklopi.disabled = !vklopljen; izklopi.hidden = !vklopljen; }
+    var izvoljena = null;
+    for (var iz = 0; drugje && iz < stanje.naprave.length; iz++) if (stanje.naprave[iz].id === stanje.izvoljeni) izvoljena = stanje.naprave[iz];
+    besedilo("opombaHubVklop", tuSredisce ? ""
+      : drugje ? t("tuDrugje", { ime: izvoljena ? prijaznoIme(izvoljena) : t("televizor") })
+      : t(stanje.televizor ? "tuOpisTv" : "tuOpis"));
     besedilo("naslovHubTu", t(stanje.televizor ? "tuNaslovTv" : "tuNaslov"));
     narisiStanje();
     osveziOpozoriloOspredje();
@@ -1548,6 +1597,20 @@
       } : null
     ));
 
+    // Videi, glasba in slike te naprave za druge naprave v Linku (Datoteke na televizorju).
+    // Deli sele, ko uporabnik dovoli dostop do medijev; dotik na vrstico vklopi/izklopi.
+    if (most && most.datotekeStanje) {
+      var dat = { deli: false, vklopljeno: true, dovoljenje: false };
+      try { dat = JSON.parse(most.datotekeStanje()) || dat; } catch (e) {}
+      var datPod = dat.deli ? t("datotekeOpisDeli")
+                 : (dat.vklopljeno ? t("datotekeOpisDovoli") : t("datotekeOpisIzklop"));
+      seznam.appendChild(vrstica(
+        "mapa", t("datoteke"), datPod, dat.deli ? t("datotekeDeljeno") : t("datotekeNiDeljeno"),
+        dat.deli ? "zivo" : "",
+        function () { if (most.nastaviDatoteke) most.nastaviDatoteke(!dat.deli); }
+      ));
+    }
+
     [
       { ikona: "nastavitve", ime: t("nastavitve"), pod: t("nastavitveOpis") },
       { ikona: "scit", ime: t("filtri"), pod: t("filtriOpis") }
@@ -1611,6 +1674,7 @@
     try {
       var s = JSON.parse(most.hubStanje() || "{}");
       stanje.hubTece = !!s.tece;
+      stanje.izvoljeni = s.izvoljeni || "";
       stanje.hubPovezanih = s.naprav || 0;
     } catch (e) {}
     try {
@@ -1796,6 +1860,7 @@
         }
       } else if (vrsta === "hub-tu") {
         stanje.hubTece = !!(podatki && podatki.tece);
+        stanje.izvoljeni = (podatki && podatki.izvoljeni) || "";
         stanje.hubPovezanih = (podatki && podatki.naprav) || 0;
         hubPodpis = "";
         hubOsvezi();
@@ -1883,6 +1948,8 @@
         stanje.seznanjen = false;
         stanje.povezan = false;
         narisiVse();
+      } else if (vrsta === "datoteke") {
+        narisiSync();
       } else if (vrsta === "sinhronizacija") {
         narisiSync();
         if (podatki && podatki.vklopljena) {
