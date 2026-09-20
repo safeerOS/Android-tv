@@ -461,6 +461,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** Deljenje zaslona iz strani Link: komu (id, ime) in most, ki mu povemo izid dovoljenja. */
     private var linkZaslonCilj = ""
     private var linkZaslonIme = ""
+    /**
+     * Brskalnik je na zaslon prisel samo zato, ker je druga naprava zacela deliti zaslon. Ko deljenje
+     * konca, se umakne in televizor pokaze tisto, kar je bilo prej (Safeer OS, program ...).
+     */
+    private var deljenjeOdprloBrskalnik = false
     private var linkMost: si.safeer.tv.link.LinkMost? = null
     /** Koda zahteve za sistemsko okno »Zacni zajem zaslona«. */
     private val ZAHTEVA_ZAJEM_ZASLONA = 4711
@@ -823,6 +828,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val url = namera?.getStringExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_URL)
         if (url.isNullOrEmpty()) return false
         namera.removeExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_URL)
+        deljenjeOdprloBrskalnik = url.contains("/cast/screen/")
         val naslov = namera.getStringExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_TITLE)
         val mesto = namera.getDoubleExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_POSITION, 0.0)
         onCastUrlReceived(url, naslov, mesto)
@@ -1077,10 +1083,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         runOnUiThread {
             try {
                 val trenutni = activeUrl()
-                if (id.isNotBlank() && trenutni.contains("/cast/screen/" + id + "/")) {
+                val gledamoTega = id.isNotBlank() && trenutni.contains("/cast/screen/" + id + "/")
+                if (gledamoTega) {
                     showBrowserStartPage()
                 }
                 showTvOsd(getString(R.string.ui_share_screen_ended))
+                if (gledamoTega && deljenjeOdprloBrskalnik) {
+                    // Brskalnika ni odprl uporabnik: vrnemo ga tja, kjer je bil, sicer ostane na zaslonu
+                    // (tudi po izklopu in vklopu televizorja) namesto Safeer OS.
+                    deljenjeOdprloBrskalnik = false
+                    moveTaskToBack(true)
+                }
             } catch (e: Exception) {
                 android.util.Log.w("SafeerCast", "Konca deljenja ni bilo mogoce obdelati: " + e.message)
             }

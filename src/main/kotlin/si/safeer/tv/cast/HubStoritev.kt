@@ -98,6 +98,7 @@ class HubStoritev : Service() {
         } catch (e: Throwable) {
             Log.w(TAG, "Obvestila ni bilo mogoce prikazati: ${e.message}")
         }
+        si.safeer.tv.os.VklopTelevizorja.namesti(applicationContext)
         // Naprava, ki se je umaknila izvoljenemu hubu, je njegov odjemalec: huba tu ne zaganjamo znova
         // (prej je storitev, zagnana tik po vklopu, hub prizgala se enkrat in izvolitev se je ponovila).
         // Ce izvoljeni hub izgine, gosti naprava spet sama (HubKrmilnik.izvoljeniHubIzgubljen).

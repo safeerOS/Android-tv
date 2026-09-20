@@ -166,6 +166,8 @@ class CastReceiverService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // Vklop televizorja iz pripravljenosti: Safeer OS naj bo prvo, kar se vidi (os/VklopTelevizorja).
+        si.safeer.tv.os.VklopTelevizorja.namesti(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
