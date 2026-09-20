@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Preizkus tokov Safeer Huba (deljenje zaslona, prenos datotek) v navadnem JVM.
-#   KOTLINC=/pot/do/kotlinc tests/run_tokovi_tests.sh
+# Meritev ozkega grla huba (vihar prijav, zataknjena naprava) v navadnem JVM.
 set -euo pipefail
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$TEST_DIR")"
@@ -9,8 +8,8 @@ TOOLS_DIR="${SAFEER_TOOLS_DIR:-$HOME/Namizje/Neimenovana mapa/streamN-TV2/androi
 KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 
-OUT="$(mktemp -d)"
-trap 'rm -rf "$OUT"' EXIT
+OUT="${OBREMENITEV_OUT:-$(mktemp -d)}"
+mkdir -p "$OUT"
 
 "$KOTLINC" -J-Xmx2g \
     "$TEST_DIR/stubs/Log.kt" \
@@ -21,7 +20,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
     "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
     "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
-    "$TEST_DIR/TokoviTest.kt" \
-    -include-runtime -d "$OUT/tokovi.jar"
+    "$TEST_DIR/ObremenitevTest.kt" \
+    -include-runtime -d "$OUT/obremenitev.jar"
 
-java -cp "$OUT/tokovi.jar" si.safeer.tv.cast.TokoviTestKt
+java -cp "$OUT/obremenitev.jar" si.safeer.tv.cast.ObremenitevTest
