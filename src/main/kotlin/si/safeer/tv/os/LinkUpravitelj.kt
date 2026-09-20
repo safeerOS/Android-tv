@@ -110,6 +110,9 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
     fun ukaz(cilj: String, dejanje: String, parametri: JSONObject, potekMs: Long = 10_000, odgovor: LinkOdjemalec.Odgovor) =
         odjemalec.ukaz(cilj, dejanje, parametri, potekMs, odgovor)
 
+    /** Novo ime naprave za vse naprave v Linku (hrani ga sredisce). */
+    fun preimenuj(id: String, ime: String, naprej: (Boolean, String) -> Unit) = odjemalec.preimenuj(id, ime, naprej)
+
     private fun zazeni() {
         // Sredisce ze tece (uporabnik ima Safeer Link vklopljen v brskalniku): vstopimo brez vprasanja.
         // Ce ne tece, ga prizgemo samo, kadar je uporabnik Safeer Link izrecno izbral.

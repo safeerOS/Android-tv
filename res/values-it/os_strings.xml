@@ -184,6 +184,14 @@
     <string name="os_naprave_posiljanje">Invia</string>
     <string name="os_naprave_stran">Pagina Safeer Link</string>
     <string name="os_naprave_stran_opis">Associa un dispositivo, telecomando, invia una pagina o un file</string>
+    <string name="os_naprave_ta">Questo dispositivo</string>
+    <string name="os_naprave_preimenuj">Rinomina dispositivo</string>
+    <string name="os_naprave_preimenuj_kratko">Rinomina</string>
+    <string name="os_naprave_preimenuj_opis">Il nuovo nome lo vedono tutti i dispositivi in Safeer Link. Vuoto ripristina il nome originale.</string>
+    <string name="os_naprave_preimenuj_namig">Nome del dispositivo…</string>
+    <string name="os_naprave_shrani">Salva</string>
+    <string name="os_naprave_preimenovano">Nome salvato: lo vedono tutti i dispositivi.</string>
+    <string name="os_naprave_preimenovanje_napaka">Impossibile salvare il nome. Safeer Link è attivo?</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">Tutte le app di questo televisore</string>
     <string name="os_aplikacije_namig">OK apre un\'app. Tieni premuto OK per metterla nella schermata iniziale (★) o togliela.</string>

@@ -184,6 +184,14 @@
     <string name="os_naprave_posiljanje">Pošiljanje</string>
     <string name="os_naprave_stran">Stran Safeer Link</string>
     <string name="os_naprave_stran_opis">Seznani napravo, daljinec, pošlji stran ali datoteko</string>
+    <string name="os_naprave_ta">Ta naprava</string>
+    <string name="os_naprave_preimenuj">Preimenuj napravo</string>
+    <string name="os_naprave_preimenuj_kratko">Preimenuj</string>
+    <string name="os_naprave_preimenuj_opis">Novo ime vidijo vse naprave v Safeer Linku. Prazno vrne prvotno ime.</string>
+    <string name="os_naprave_preimenuj_namig">Ime naprave …</string>
+    <string name="os_naprave_shrani">Shrani</string>
+    <string name="os_naprave_preimenovano">Ime je shranjeno – vidijo ga vse naprave.</string>
+    <string name="os_naprave_preimenovanje_napaka">Imena ni bilo mogoče shraniti. Ali Safeer Link teče?</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">Vse aplikacije tega televizorja</string>
     <string name="os_aplikacije_namig">OK odpre aplikacijo. Zadrži OK, da jo daš na domači zaslon (★) ali z njega.</string>

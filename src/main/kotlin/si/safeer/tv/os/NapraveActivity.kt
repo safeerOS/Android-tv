@@ -13,6 +13,7 @@ import android.widget.BaseAdapter
 import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
 
 /**
  * Naprave v Safeer Linku na svojem zaslonu. Na domacem zaslonu je bila to se ena vrsta kartic in
@@ -20,11 +21,12 @@ import android.widget.TextView
  * takrat, ko hoce kaj poslati ali odpreti datoteke z racunalnika.
  *
  * Racunalnik, ki deli mape, pelje naravnost v svoje datoteke; vse drugo na stran Safeer Link v
- * brskalniku (seznanitev, daljinec, posiljanje).
+ * brskalniku (seznanitev, daljinec, posiljanje). Dolg pritisk na napravo (ali OK na vrstici »Ta
+ * naprava«) jo preimenuje: ime hrani sredisce in ga vidijo vse naprave.
  */
 class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
-    private class Vrstica(val ikona: Int, val ime: String, val opis: String, val stanje: String, val ob: () -> Unit)
+    private class Vrstica(val ikona: Int, val ime: String, val opis: String, val stanje: String, val id: String = "", val ob: () -> Unit)
 
     private lateinit var koren: View
     private lateinit var seznam: ListView
@@ -48,6 +50,11 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         naslov.text = getString(R.string.os_naprave_naslov)
         seznam.adapter = prilagojevalnik
         seznam.setOnItemClickListener { _, _, i, _ -> vrstice.getOrNull(i)?.ob?.invoke() }
+        // Dolg pritisk (OK na daljincu, prst na tablici): preimenuj napravo v vrstici.
+        seznam.setOnItemLongClickListener { _, _, i, _ ->
+            val v = vrstice.getOrNull(i)
+            if (v != null && v.id.isNotBlank()) { preimenuj(v.id, v.ime); true } else false
+        }
     }
 
     override fun onStart() {
@@ -63,8 +70,12 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun narisi(naprave: List<LinkOdjemalec.Naprava>) {
+        val jaz = naprave.firstOrNull { it.id == Identiteta.id(this) }
         val tuje = naprave.filter { it.id != Identiteta.id(this) }
         val nove = ArrayList<Vrstica>()
+        // Ta naprava: ime, kot ga vidijo druge naprave; OK jo preimenuje.
+        if (jaz != null) nove.add(Vrstica(R.drawable.os_ikona_naprava, jaz.ime.ifBlank { jaz.id },
+            getString(R.string.os_naprave_ta), getString(R.string.os_naprave_preimenuj), jaz.id) { preimenuj(jaz.id, jaz.ime) })
         for (n in tuje) {
             val datoteke = n.zmoznosti.contains("files")
             nove.add(Vrstica(
@@ -73,6 +84,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 DatotekeActivity.lepoIme(n.ime).ifBlank { n.id },
                 opisNaprave(n),
                 getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_posiljanje),
+                n.id,
             ) {
                 if (datoteke) startActivity(Intent(this, DatotekeActivity::class.java)
                     .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
@@ -103,6 +115,35 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
         n.id.startsWith("phone-") -> "Safeer Browser · Android"
         else -> n.vloga
+    }
+
+    /**
+     * Novo ime naprave: shrani ga sredisce in ga vidijo vse naprave (telefon, racunalnik, televizor).
+     * Prazno ime vrne prvotnega. Ime racunalnika pokazemo brez imena programa, shranimo pa celo.
+     */
+    private fun preimenuj(id: String, trenutno: String) {
+        val vnos = android.widget.EditText(this).apply {
+            setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            hint = getString(R.string.os_naprave_preimenuj_namig)
+            setText(trenutno)
+            setSelection(text?.length ?: 0)
+            setPadding(40, 30, 40, 30)
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_naprave_preimenuj))
+            .setMessage(getString(R.string.os_naprave_preimenuj_opis))
+            .setView(vnos)
+            .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
+                link.preimenuj(id, vnos.text?.toString().orEmpty()) { ok, _ ->
+                    if (isFinishing) return@preimenuj
+                    Toast.makeText(this, getString(if (ok) R.string.os_naprave_preimenovano else R.string.os_naprave_preimenovanje_napaka),
+                        Toast.LENGTH_SHORT).show()
+                    if (ok) narisi(link.naprave)
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec). */

@@ -691,6 +691,36 @@ class LinkMost(
         }
     }
 
+    /**
+     * Poimenuje napravo (tudi to) za vse naprave v hisi; ime hrani sredisce, prazno ime vrne prvotnega.
+     * Ce je sredisce ta televizor, gre brez omrezja; sicer po HTTP z zetonom kot na telefonu.
+     */
+    @JavascriptInterface
+    fun preimenujNapravo(idNaprave: String, ime: String) {
+        val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik
+        if (u != null) {
+            u.preimenuj(idNaprave, ime)
+            odziv("preimenovano", JSONObject().put("id", idNaprave).put("ime", u.imeNaprave(idNaprave)))
+            return
+        }
+        if (hubUrl().isBlank() || zeton() == null) {
+            napaka("hub_ni_znan", "Hub ni znan.")
+            return
+        }
+        Thread {
+            try {
+                val telo = JSONObject().put("device_id", idNaprave).put("name", ime.trim()).toString()
+                val (koda, odgovor) = httpJson("POST", "/cast/devices/rename", telo)
+                if (koda == 200) {
+                    val novo = try { JSONObject(odgovor).optString("name", "") } catch (_: Throwable) { "" }
+                    odziv("preimenovano", JSONObject().put("id", idNaprave).put("ime", novo))
+                } else napaka("preimenovanje_ni_uspelo", "Preimenovanje ni uspelo ($koda).")
+            } catch (e: Throwable) {
+                napaka("preimenovanje_ni_uspelo", "Preimenovanje ni uspelo: ${e.message}")
+            }
+        }.start()
+    }
+
     @JavascriptInterface
     fun hubPreklici(idNaprave: String) {
         val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik

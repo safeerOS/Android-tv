@@ -184,6 +184,14 @@
     <string name="os_naprave_posiljanje">Senden</string>
     <string name="os_naprave_stran">Safeer Link-Seite</string>
     <string name="os_naprave_stran_opis">Gerät koppeln, Fernbedienung, Seite oder Datei senden</string>
+    <string name="os_naprave_ta">Dieses Gerät</string>
+    <string name="os_naprave_preimenuj">Gerät umbenennen</string>
+    <string name="os_naprave_preimenuj_kratko">Umbenennen</string>
+    <string name="os_naprave_preimenuj_opis">Den neuen Namen sehen alle Geräte in Safeer Link. Leer stellt den ursprünglichen Namen wieder her.</string>
+    <string name="os_naprave_preimenuj_namig">Gerätename …</string>
+    <string name="os_naprave_shrani">Speichern</string>
+    <string name="os_naprave_preimenovano">Name gespeichert – alle Geräte sehen ihn.</string>
+    <string name="os_naprave_preimenovanje_napaka">Der Name konnte nicht gespeichert werden. Läuft Safeer Link?</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">Alle Apps auf diesem Fernseher</string>
     <string name="os_aplikacije_namig">OK öffnet eine App. OK halten, um sie auf den Startbildschirm (★) zu legen oder zu entfernen.</string>

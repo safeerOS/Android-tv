@@ -69,6 +69,8 @@ class LinkOdjemalec(private val context: Context) {
     private var tece = false
     private var poskusov = 0
     private val idNaprave: String by lazy { Identiteta.id(context) }
+    /** Sejni zeton s prijave s podpisom: z njim gredo zahteve HTTP (preimenovanje), ko zetona seznanitve ni. */
+    @Volatile private var sejniZeton = ""
 
     fun zazeni(p: Sorodnik.Poverilnice) {
         poverilnice = p
@@ -151,6 +153,7 @@ class LinkOdjemalec(private val context: Context) {
                 val vstopnica = j.optString("ticket")
                 if (koda2 != 200 || vstopnica.isBlank()) { poveziZZetonom(p); return@klic }
                 j.optJSONObject("ring")?.let { KrogNaprave.sprejmi(context, it.toString()) }
+                sejniZeton = j.optString("session_token", "")
                 Log.i(TAG, "Prijava s podpisom kljuca naprave.")
                 odpriZVstopnico(p, vstopnica)
             }
@@ -258,6 +261,27 @@ class LinkOdjemalec(private val context: Context) {
         val poslano = try { w.send(sporocilo.toString()) } catch (_: Throwable) { false }
         if (!poslano) { cakajoci.remove(id); glavna.post { odgovor.na(null, "ni_povezave") }; return }
         glavna.postDelayed(potek, potekMs)
+    }
+
+    /**
+     * Poimenuje napravo (tudi to) za vse naprave v Linku; ime hrani sredisce, prazno ime vrne prvotnega.
+     * Sredisce na tej napravi preimenuje brez omrezja. [naprej] (uspeh, novo ime) pride na glavni niti.
+     */
+    fun preimenuj(id: String, ime: String, naprej: (Boolean, String) -> Unit) {
+        val u = HubKrmilnik.usmerjevalnik
+        if (u != null && srediceJeTu) {
+            u.preimenuj(id, ime)
+            val novo = u.imeNaprave(id)
+            glavna.post { naprej(true, novo) }
+            return
+        }
+        val p = poverilnice
+        val zeton = sejniZeton.ifBlank { p?.zeton.orEmpty() }
+        if (p == null || zeton.isBlank()) { glavna.post { naprej(false, "") }; return }
+        klic("/cast/devices/rename", JSONObject().put("device_id", id).put("name", ime.trim()), zeton) { koda, telo ->
+            val novo = try { JSONObject(telo).optString("name", "") } catch (_: Throwable) { "" }
+            glavna.post { naprej(koda == 200, novo) }
+        }
     }
 
     private fun koncajUkaz(refId: String, izid: JSONObject?, napaka: String) {

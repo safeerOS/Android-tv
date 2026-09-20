@@ -185,6 +185,14 @@
     <string name="os_naprave_posiljanje">Send</string>
     <string name="os_naprave_stran">Safeer Link page</string>
     <string name="os_naprave_stran_opis">Pair a device, remote control, send a page or a file</string>
+    <string name="os_naprave_ta">This device</string>
+    <string name="os_naprave_preimenuj">Rename device</string>
+    <string name="os_naprave_preimenuj_kratko">Rename</string>
+    <string name="os_naprave_preimenuj_opis">New name that all devices will see. Leave empty to restore the original name.</string>
+    <string name="os_naprave_preimenuj_namig">Device name …</string>
+    <string name="os_naprave_shrani">Save</string>
+    <string name="os_naprave_preimenovano">Name saved – all devices see it.</string>
+    <string name="os_naprave_preimenovanje_napaka">The name could not be saved. Is Safeer Link running?</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">All apps on this TV</string>
     <string name="os_aplikacije_namig">OK opens an app. Hold OK to put it on the home screen (★) or take it off.</string>

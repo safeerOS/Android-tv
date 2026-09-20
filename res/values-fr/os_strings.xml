@@ -184,6 +184,14 @@
     <string name="os_naprave_posiljanje">Envoyer</string>
     <string name="os_naprave_stran">Page Safeer Link</string>
     <string name="os_naprave_stran_opis">Associer un appareil, télécommande, envoyer une page ou un fichier</string>
+    <string name="os_naprave_ta">Cet appareil</string>
+    <string name="os_naprave_preimenuj">Renommer l’appareil</string>
+    <string name="os_naprave_preimenuj_kratko">Renommer</string>
+    <string name="os_naprave_preimenuj_opis">Le nouveau nom est visible par tous les appareils de Safeer Link. Vide rétablit le nom d’origine.</string>
+    <string name="os_naprave_preimenuj_namig">Nom de l’appareil…</string>
+    <string name="os_naprave_shrani">Enregistrer</string>
+    <string name="os_naprave_preimenovano">Nom enregistré : tous les appareils le voient.</string>
+    <string name="os_naprave_preimenovanje_napaka">Le nom n’a pas pu être enregistré. Safeer Link est-il actif ?</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">Toutes les applis de ce téléviseur</string>
     <string name="os_aplikacije_namig">OK ouvre une appli. Maintiens OK pour la mettre sur l\'écran d\'accueil (★) ou l\'enlever.</string>
