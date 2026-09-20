@@ -399,6 +399,7 @@
     <string name="os_ur_moznosti">Options du fichier</string>
     <string name="os_ur_izbrisi_vprasanje">Supprimer « %1$s » ?</string>
     <string name="os_ur_izbrisi_opis">Il va dans la corbeille de l\'ordinateur, d\'où tu peux le restaurer.</string>
+    <string name="os_ur_izbrisi_opis_naprava">Android peut demander une confirmation sur l\'appareil qui contient le fichier.</string>
     <string name="os_ur_koncnica_ostane">L\'extension %1$s est conservée.</string>
     <string name="os_ur_tv_vir_opis">Vidéos, musique et images sur ce téléviseur</string>
     <string name="os_ur_ime_namig">Nouveau nom</string>
@@ -415,5 +416,14 @@
     <string name="os_ur_n_ni_pillow">l\'ordinateur ne peut pas pivoter cette image (Pillow manque)</string>
     <string name="os_ur_n_drugo">erreur %1$s</string>
     <string name="os_ur_pomoc_drzi">Maintiens OK · options (ouvrir sur l\'ordinateur, renommer, déplacer, supprimer)</string>
+    <string name="os_ur_pomoc_drzi_naprava">Maintiens OK · options (pivoter, supprimer)</string>
     <string name="os_ur_slika_pomoc">Maintiens OK · pivoter, renommer, supprimer</string>
+    <string name="os_ur_n_potrdi_na_napravi">Confirmez sur l\'appareil qui contient la photo : Android ne l\'autorise pas à distance.</string>
+    <string name="os_ur_n_ni_na_napravi">Impossible sur cet appareil.</string>
+    <string name="os_ur_n_prevelika">La photo est trop grande pour être pivotée sur cet appareil.</string>
+    <string name="os_ur_kanal">Safeer : confirmation</string>
+    <string name="os_ur_kanal_opis">Demandes à confirmer sur cet appareil.</string>
+    <string name="os_ur_obv_brisanje">Confirmer la suppression de la photo</string>
+    <string name="os_ur_obv_vrtenje">Confirmer la rotation de la photo</string>
+    <string name="os_ur_obv_opis">La demande vient de Safeer Link. Touchez pour confirmer.</string>
 </resources>

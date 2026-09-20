@@ -399,6 +399,7 @@
     <string name="os_ur_moznosti">Opzioni del file</string>
     <string name="os_ur_izbrisi_vprasanje">Eliminare «%1$s»?</string>
     <string name="os_ur_izbrisi_opis">Va nel Cestino del computer, da cui puoi ripristinarlo.</string>
+    <string name="os_ur_izbrisi_opis_naprava">Android potrebbe chiedere conferma sul dispositivo che contiene il file.</string>
     <string name="os_ur_koncnica_ostane">L\'estensione %1$s resta.</string>
     <string name="os_ur_tv_vir_opis">Video, musica e immagini su quel televisore</string>
     <string name="os_ur_ime_namig">Nuovo nome</string>
@@ -415,5 +416,14 @@
     <string name="os_ur_n_ni_pillow">il computer non può ruotare questa immagine (manca Pillow)</string>
     <string name="os_ur_n_drugo">errore %1$s</string>
     <string name="os_ur_pomoc_drzi">Tieni premuto OK · opzioni (apri sul computer, rinomina, sposta, elimina)</string>
+    <string name="os_ur_pomoc_drzi_naprava">Tieni premuto OK · opzioni (ruota, elimina)</string>
     <string name="os_ur_slika_pomoc">Tieni premuto OK · ruota, rinomina, elimina</string>
+    <string name="os_ur_n_potrdi_na_napravi">Conferma sul dispositivo che contiene la foto: Android non lo consente da altrove.</string>
+    <string name="os_ur_n_ni_na_napravi">Non è possibile su questo dispositivo.</string>
+    <string name="os_ur_n_prevelika">La foto è troppo grande per essere ruotata su questo dispositivo.</string>
+    <string name="os_ur_kanal">Safeer: conferma</string>
+    <string name="os_ur_kanal_opis">Richieste da confermare su questo dispositivo.</string>
+    <string name="os_ur_obv_brisanje">Conferma l\'eliminazione della foto</string>
+    <string name="os_ur_obv_vrtenje">Conferma la rotazione della foto</string>
+    <string name="os_ur_obv_opis">La richiesta arriva da Safeer Link. Tocca per confermare.</string>
 </resources>
