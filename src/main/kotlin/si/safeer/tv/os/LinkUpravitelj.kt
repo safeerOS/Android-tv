@@ -92,9 +92,20 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         if (poslusalci.isEmpty()) glavna.postDelayed(ustavitev, 6_000)
     }
 
-    /** Racunalniki v Linku, ki delijo datoteke (Safeer Control z izbranimi mapami). */
+    /** Naprave v Linku, ki delijo datoteke (Safeer Control z mapami, telefon in tablica z mediji) - brez te naprave. */
     fun racunalnikiZDatotekami(): List<LinkOdjemalec.Naprava> =
-        naprave.filter { it.zmoznosti.contains("files") && it.id != Identiteta.id(app) }
+        naprave.filter { it.zmoznosti.contains("files") && !jeTaNaprava(it) }
+
+    /**
+     * Ali je to odjemalec na tej napravi: mi sami, brskalnik na tem televizorju (sredisce mu pripise
+     * loopback naslov, kadar tece tu) ali kdorkoli z nasim naslovom v omrezju.
+     */
+    fun jeTaNaprava(n: LinkOdjemalec.Naprava): Boolean {
+        if (n.id == Identiteta.id(app)) return true
+        if (odjemalec.srediceJeTu && n.naslov in setOf("127.0.0.1", "::1", "localhost")) return true
+        val moj = try { si.safeer.tv.cast.PridruzitevSredisca.krajevniNaslov() } catch (_: Throwable) { null }
+        return moj != null && n.naslov.isNotBlank() && n.naslov == moj
+    }
 
     fun ukaz(cilj: String, dejanje: String, parametri: JSONObject, potekMs: Long = 10_000, odgovor: LinkOdjemalec.Odgovor) =
         odjemalec.ukaz(cilj, dejanje, parametri, potekMs, odgovor)

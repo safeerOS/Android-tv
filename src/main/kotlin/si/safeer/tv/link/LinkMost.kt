@@ -32,6 +32,8 @@ class LinkMost(
     companion object {
         private const val TAG = "SafeerLink"
         const val PREFS = "safeer_cast_prefs"
+        /** requestPermissions za medije (videi, glasba, slike za druge naprave). */
+        const val ZAHTEVA_DATOTEKE = 7322
 
         /** Dovoljenje je prislo, ko strani Link ni bilo vec: storitev zazenemo brez nje. */
         fun zazeniDeljenje(context: Context, resultCode: Int, data: android.content.Intent, cilj: String, ime: String) {
@@ -98,6 +100,31 @@ class LinkMost(
             si.safeer.tv.UiText.get(si.safeer.tv.R.string.ui_link_sync_unavailable)
                 .ifBlank { "Bookmark sync is not available on the television yet." }
         )
+    }
+
+    /** Videi, glasba in slike te naprave za druge naprave v Linku (DatotekeStreznik). */
+    @JavascriptInterface
+    fun datotekeStanje(): String = DatotekeStreznik.stanje(dejavnost).toString()
+
+    /**
+     * Vklop najprej vprasa za dovoljenje za medije (izid pride prek [naDovoljenje]); brez njega
+     * naprava ne deli nicesar. Izklop velja takoj.
+     */
+    @JavascriptInterface
+    fun nastaviDatoteke(vklop: Boolean) {
+        DatotekeStreznik.nastavi(dejavnost, vklop)
+        if (vklop && !DatotekeStreznik.imamoDovoljenje(dejavnost)) {
+            dejavnost.runOnUiThread {
+                try { dejavnost.requestPermissions(DatotekeStreznik.dovoljenja(), ZAHTEVA_DATOTEKE) } catch (_: Throwable) { }
+            }
+            return
+        }
+        odziv("datoteke", DatotekeStreznik.stanje(dejavnost))
+    }
+
+    /** Dejavnost sporoci izid vprasanja za dovoljenje; stran se nato izrise znova. */
+    fun naDovoljenje(koda: Int) {
+        if (koda == ZAHTEVA_DATOTEKE) odziv("datoteke", DatotekeStreznik.stanje(dejavnost))
     }
 
 

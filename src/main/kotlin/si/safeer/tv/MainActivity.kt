@@ -894,10 +894,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         try {
             si.safeer.tv.cast.CastReceiverService.mediaController = this
             val zazeni = {
+                // Isto ime kot Safeer OS in hub (os_ime_vrste): ena naprava, eno ime v Linku.
                 si.safeer.tv.cast.CastReceiverService.start(
                     this,
                     null,
-                    getString(R.string.app_name) + " (" + android.os.Build.MODEL + ")"
+                    getString(R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")"
                 )
             }
             // Ob zagonu NIKOLI ne sprozimo seznanjanja -- brskalnik je najprej brskalnik.
@@ -1981,6 +1982,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         } else if (cilj.isNotBlank()) {
             linkMost?.zajemZavrnjen(cilj)
         }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // Stran Linka je vprasala za dovoljenje za medije; naj se izrise s pravim stanjem.
+        linkMost?.naDovoljenje(requestCode)
     }
 
     /**

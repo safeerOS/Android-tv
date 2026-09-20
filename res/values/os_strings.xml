@@ -63,6 +63,10 @@
     <string name="os_vrsta_opis">Web apps you added to Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Videos, music and photos on the TV and USB</string>
     <string name="os_datoteke_racunalnik_opis">Shared folders on this computer</string>
+    <string name="os_datoteke_telefon_opis">Videos, music and photos on this phone</string>
+    <string name="os_datoteke_tablica_opis">Videos, music and photos on this tablet</string>
+    <string name="os_datoteke_naprava_dovoljenje">%1$s hasn\'t allowed access to its videos, music and photos yet.\n\nOn that device, open Safeer Link and tap “Videos, music and photos” to allow access — they appear here right away.</string>
+    <string name="os_datoteke_naprava_izklop">%1$s isn\'t sharing its videos, music and photos.\n\nOn that device, open Safeer Link and turn on “Videos, music and photos”.</string>
     <string name="os_krajevno_videi">Videos</string>
     <string name="os_krajevno_glasba">Music</string>
     <string name="os_krajevno_slike">Pictures</string>

@@ -209,7 +209,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         return link.naprave.filter {
             it.id != jaz && (it.zmoznosti.contains("apps") || it.zmoznosti.contains("remote")) &&
                 (mojNaslov == null || it.naslov.isBlank() || it.naslov != mojNaslov) &&
-                !(link.odjemalec.srediceJeTu && it.naslov in loopback)
+                !(link.odjemalec.srediceJeTu && it.naslov in loopback) && !link.jeTaNaprava(it)
         }
     }
 

@@ -30,7 +30,9 @@ import java.util.concurrent.TimeUnit
  */
 class LinkOdjemalec(private val context: Context) {
 
-    data class Naprava(val id: String, val ime: String, val vloga: String, val zmoznosti: List<String>, val naslov: String)
+    data class Naprava(val id: String, val ime: String, val vloga: String, val zmoznosti: List<String>, val naslov: String,
+                       /** "tv", "tablet", "phone", "linux" ... - kot se naprava predstavi hubu; prazno pri starih. */
+                       val platforma: String = "")
 
     interface Poslusalec {
         fun naStanje(povezan: Boolean, sporocilo: String)
@@ -292,7 +294,8 @@ class LinkOdjemalec(private val context: Context) {
                     val d = polje.optJSONObject(i) ?: continue
                     val z = d.optJSONArray("capabilities") ?: JSONArray()
                     val zmoznosti = (0 until z.length()).map { z.optString(it) }
-                    seznam.add(Naprava(d.optString("id"), d.optString("name"), d.optString("role", "receiver"), zmoznosti, d.optString("ip")))
+                    seznam.add(Naprava(d.optString("id"), d.optString("name"), d.optString("role", "receiver"), zmoznosti, d.optString("ip"),
+                        d.optString("platform")))
                 }
                 // Sredisce je naprava z loopback naslovom (tako ga prepozna tudi stran Linka).
                 imeSredisca = seznam.firstOrNull { it.naslov == "127.0.0.1" || it.naslov == "::1" }?.ime

@@ -62,6 +62,10 @@
     <string name="os_vrsta_opis">Le app web che hai aggiunto a Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Video, musica e foto sul televisore e sulla USB</string>
     <string name="os_datoteke_racunalnik_opis">Cartelle condivise di questo computer</string>
+    <string name="os_datoteke_telefon_opis">Video, musica e foto di questo telefono</string>
+    <string name="os_datoteke_tablica_opis">Video, musica e foto di questo tablet</string>
+    <string name="os_datoteke_naprava_dovoljenje">%1$s non ha ancora consentito l\'accesso ai suoi video, musica e foto.\n\nSu quel dispositivo apri Safeer Link e tocca «Video, musica e foto» per consentire l\'accesso: compaiono qui subito.</string>
+    <string name="os_datoteke_naprava_izklop">%1$s non condivide i suoi video, musica e foto.\n\nSu quel dispositivo apri Safeer Link e attiva «Video, musica e foto».</string>
     <string name="os_krajevno_videi">Video</string>
     <string name="os_krajevno_glasba">Musica</string>
     <string name="os_krajevno_slike">Immagini</string>
