@@ -138,6 +138,29 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- Safeer Link: prijava racunalnika s QR kodo. Kamera odpre kodo iz prijavnega okna Safeer OS /
+             Safeer Control; ta naprava (ze v Safeer Linku) po uporabnikovem »Dovoli« prijavo potrdi. -->
+        <activity
+            android:name="si.safeer.tv.link.QrPrijavaActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="safeer" android:host="link" android:path="/qr" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="safeer.si" android:path="/p" />
+                <data android:scheme="https" android:host="safeer.si" android:path="/p/" />
+            </intent-filter>
+        </activity>
+
         <!-- Safeer Link (Hub): tece, dokler ga uporabnik ne ugasne, ne le med odprtim brskalnikom -->
         <service
             android:name="si.safeer.tv.cast.HubStoritev"

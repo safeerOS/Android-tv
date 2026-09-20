@@ -1030,6 +1030,88 @@ private fun preizkusProtokolaV1() {
     preveri("vnos brez imena dobi id kot ime", u.preveriKatalog("""{"kodi":{}}""").contains("\"name\":\"kodi\""))
 }
 
+// ------------------------------------------------------------ prijava s QR kodo
+
+private fun sha256(s: String): String =
+    java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+private fun preizkusQrPrijave() {
+    println("- prijava s QR kodo")
+    val shramba = LazniPomnilnik()
+    val u = usmerjevalnik(shramba)
+    val telefon = u.zagotoviLastniZeton("fon-matej", "Telefon")
+    val skrivnost = "qr-skrivnost-0123456789abcdef"
+    val prevzem = "prevzem-samo-racunalnik-42"
+    fun qr(pot: String, telo: String, glave: Map<String, String> = emptyMap(), od: String = "192.168.0.50") =
+        u.odgovori(zahteva("POST", "/cast/pair/qr/$pot", telo, od, glave))
+    val zTel = mapOf("x-safeer-token" to telefon)
+
+    preveriEnako("z interneta je 403", 403,
+        qr("start", """{"device_id":"n-pc","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""", od = "203.0.113.5")?.koda)
+    preveriEnako("brez odtisa skrivnosti je 400", 400, qr("start", """{"device_id":"n-pc","poll_secret":"$prevzem"}""")?.koda)
+    preveriEnako("prekratka skrivnost za prevzem je 400", 400,
+        qr("start", """{"device_id":"n-pc","secret_sha256":"${sha256(skrivnost)}","poll_secret":"kratka"}""")?.koda)
+    val start = qr("start", """{"device_id":"n-pc","name":"Računalnik","platform":"linux","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")
+    preveriEnako("prijava se odpre", 200, start?.koda)
+    val qrId = polje(start?.telo.orEmpty(), "qr_id")
+    preveri("qr_id in odtis huba sta v odgovoru", qrId.isNotEmpty() && polje(start?.telo.orEmpty(), "fp") == u.lastniOdtis)
+    preveri("skrivnosti hub ne vrne", !start?.telo.orEmpty().contains(skrivnost) && !start?.telo.orEmpty().contains(prevzem))
+
+    fun stanje(pr: String = prevzem, id: String = "n-pc") =
+        qr("status", """{"qr_id":"$qrId","device_id":"$id","poll_secret":"$pr"}""")
+    preveri("pred potrditvijo caka", stanje()?.koda == 200 && stanje()?.telo.orEmpty().contains("\"approved\":false"))
+    preveriEnako("napacna skrivnost za prevzem = ni prijave", 404, stanje(pr = "ugibam-ugibam-ugibam")?.koda)
+    preveriEnako("tuja naprava ne vidi prijave", 404, stanje(id = "n-tuj")?.koda)
+
+    preveriEnako("podatke vidi samo seznanjena naprava", 401, qr("info", """{"qr_id":"$qrId","secret":"$skrivnost"}""")?.koda)
+    preveriEnako("potrdi samo seznanjena naprava", 401, qr("approve", """{"qr_id":"$qrId","secret":"$skrivnost"}""")?.koda)
+    preveriEnako("s tujim zetonom ne gre", 401,
+        qr("approve", """{"qr_id":"$qrId","secret":"$skrivnost"}""", mapOf("x-safeer-token" to "saf_tv_ponarejen"))?.koda)
+    val info = qr("info", """{"qr_id":"$qrId","secret":"$skrivnost"}""", zTel)
+    preveri("telefon vidi ime in platformo", info?.koda == 200 && polje(info.telo, "name") == "Računalnik" && polje(info.telo, "platform") == "linux")
+    preveriEnako("napacna skrivnost iz QR je 404", 404, qr("approve", """{"qr_id":"$qrId","secret":"napacna"}""", zTel)?.koda)
+    preveri("racunalnik po zgresku se ni seznanjen", u.seznanjeneNaprave().none { it.deviceId == "n-pc" })
+
+    val ok = qr("approve", """{"qr_id":"$qrId","secret":"$skrivnost"}""", zTel)
+    preveri("telefon dovoli", ok?.koda == 200 && ok.telo.contains("\"approved\":true"))
+    preveri("racunalnik je med seznanjenimi", u.seznanjeneNaprave().any { it.deviceId == "n-pc" })
+    preveri("zeton je shranjen", shramba.vsebina.values.any { it.contains("n-pc") })
+    preveriEnako("ponovna potrditev ne naredi drugega zetona", 1,
+        run { qr("approve", """{"qr_id":"$qrId","secret":"$skrivnost"}""", zTel); u.seznanjeneNaprave().count { it.deviceId == "n-pc" } })
+    val prevzeto = stanje()
+    val zeton = polje(prevzeto?.telo.orEmpty(), "token")
+    preveri("racunalnik prevzame zeton", prevzeto?.koda == 200 && zeton.startsWith("saf_tv_") && u.napravaZeZetona(zeton) == "n-pc")
+    preveriEnako("zeton se prevzame samo enkrat", 404, stanje()?.koda)
+
+    // Ugibanje skrivnosti iz QR: po NAJVEC_POSKUSOV prijava pade.
+    val s2 = qr("start", """{"device_id":"n-pc2","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")
+    val qr2 = polje(s2?.telo.orEmpty(), "qr_id")
+    var zadnja = 0
+    repeat(HubUsmerjevalnik.NAJVEC_POSKUSOV) { zadnja = qr("info", """{"qr_id":"$qr2","secret":"ugib-$it"}""", zTel)?.koda ?: 0 }
+    preveriEnako("po preveč poskusih je 429", 429, zadnja)
+    preveriEnako("prava skrivnost po padcu ne gre vec", 404, qr("approve", """{"qr_id":"$qr2","secret":"$skrivnost"}""", zTel)?.koda)
+
+    // Potek in preklic.
+    val s3 = qr("start", """{"device_id":"n-pc3","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")
+    val qr3 = polje(s3?.telo.orEmpty(), "qr_id")
+    cas += HubUsmerjevalnik.PIN_VELJA_MS + 1000
+    preveriEnako("po poteku koda ne velja", 404, qr("approve", """{"qr_id":"$qr3","secret":"$skrivnost"}""", zTel)?.koda)
+    val s4 = qr("start", """{"device_id":"n-pc4","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")
+    val qr4 = polje(s4?.telo.orEmpty(), "qr_id")
+    preveri("tuj preklic ne velja", qr("cancel", """{"qr_id":"$qr4","device_id":"n-pc4","poll_secret":"ugibam-ugibam-ugibam"}""")?.telo.orEmpty().contains("\"cancelled\":false"))
+    preveri("preklic naprave velja", qr("cancel", """{"qr_id":"$qr4","device_id":"n-pc4","poll_secret":"$prevzem"}""")?.telo.orEmpty().contains("\"cancelled\":true"))
+    preveriEnako("po preklicu ni prijave", 404, qr("info", """{"qr_id":"$qr4","secret":"$skrivnost"}""", zTel)?.koda)
+    val s5 = qr("start", """{"device_id":"fon-matej","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")
+    preveriEnako("naprava ne dovoli sama sebi", 409,
+        qr("approve", """{"qr_id":"${polje(s5?.telo.orEmpty(), "qr_id")}","secret":"$skrivnost"}""", zTel)?.koda)
+    preveriEnako("GET na pot QR je 405", 405, u.odgovori(zahteva("GET", "/cast/pair/qr/start"))?.koda)
+    repeat(HubUsmerjevalnik.NAJVEC_CAKAJOCIH) {
+        qr("start", """{"device_id":"n-poplava-$it","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")
+    }
+    preveriEnako("čakajočih prijav je omejeno", 429,
+        qr("start", """{"device_id":"n-poplava-x","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")?.koda)
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1046,6 +1128,7 @@ fun main() {
     preizkusKroga()
     preizkusProtokolaV1()
     preizkusIdaIzKljuca()
+    preizkusQrPrijave()
     println()
     if (napak == 0) {
         println("Vse v redu.")

@@ -332,10 +332,26 @@ object Daljinec {
      */
     private fun vnos(context: Context, d: String, p: JSONObject): Izid {
         if (d == "input.enable") {
+            if (VnosStoritev.aktivna()) return Izid(true, "Safeer Vnos je ze vklopljen.")
             return try {
+                // Uporabnik naj ne isce: odpremo nastavitve dostopnosti, kjer je mogoce oznacimo Safeer Vnos
+                // (Samsung ga da pod »Nameščene aplikacije«), in povemo, kam tapniti.
+                val komponenta = android.content.ComponentName(context, VnosStoritev::class.java).flattenToString()
+                val oznaci = android.os.Bundle().apply { putString(":settings:fragment_args_key", komponenta) }
                 val namera = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .putExtra(":settings:fragment_args_key", komponenta)
+                    .putExtra(":settings:show_fragment_args", oznaci)
                 context.startActivity(namera)
-                Izid(true, "Na tablici se odpirajo nastavitve dostopnosti: vklopi Safeer Vnos.")
+                val sl = try { context.resources.configuration.locales[0].language == "sl" } catch (_: Throwable) { false }
+                val pot = if (sl) "Tapni »Nameščene aplikacije« → »Safeer Vnos« → vklopi."
+                    else "Tap “Installed apps” → “Safeer Vnos” → turn it on."
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    try { android.widget.Toast.makeText(context.applicationContext, pot, android.widget.Toast.LENGTH_LONG).show() } catch (_: Throwable) { }
+                }, 700)
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    try { android.widget.Toast.makeText(context.applicationContext, pot, android.widget.Toast.LENGTH_LONG).show() } catch (_: Throwable) { }
+                }, 4400)
+                Izid(true, "Na tablici se odpirajo nastavitve dostopnosti: $pot")
             } catch (e: Throwable) {
                 Izid(false, "Nastavitev ni bilo mogoce odpreti: ${e.message}")
             }
