@@ -389,4 +389,31 @@
     <string name="os_poganja">Impulsado por</string>
     <string name="os_puscica">›</string>
     <string name="os_odprto_na_racunalniku">Abierto en el ordenador</string>
+
+    <!-- Urejanje datotek racunalnika z naprave (Safeer Control 2.1.0+) -->
+    <string name="os_ur_zavrti_levo">Girar a la izquierda</string>
+    <string name="os_ur_zavrti_desno">Girar a la derecha</string>
+    <string name="os_ur_preimenuj">Cambiar nombre</string>
+    <string name="os_ur_premakni">Mover a carpeta</string>
+    <string name="os_ur_izbrisi">Eliminar</string>
+    <string name="os_ur_moznosti">Opciones del archivo</string>
+    <string name="os_ur_izbrisi_vprasanje">¿Eliminar «%1$s»?</string>
+    <string name="os_ur_izbrisi_opis">Va a la Papelera del ordenador, desde donde puedes restaurarlo.</string>
+    <string name="os_ur_koncnica_ostane">La extensión %1$s se mantiene.</string>
+    <string name="os_ur_tv_vir_opis">Vídeos, música e imágenes en ese televisor</string>
+    <string name="os_ur_ime_namig">Nuevo nombre</string>
+    <string name="os_ur_kam">Mover «%1$s» a</string>
+    <string name="os_ur_nadrejena">Carpeta superior</string>
+    <string name="os_ur_izbrisano">Eliminado (en la Papelera del ordenador)</string>
+    <string name="os_ur_preimenovano">Nombre cambiado</string>
+    <string name="os_ur_premaknjeno">Movido</string>
+    <string name="os_ur_zavrteno">Girado y guardado en el ordenador</string>
+    <string name="os_ur_napaka">No se hizo: %1$s</string>
+    <string name="os_ur_n_obstaja">ya existe un archivo con ese nombre</string>
+    <string name="os_ur_n_ni_dovoljeno">el ordenador no lo permite</string>
+    <string name="os_ur_n_ni_povezave">sin conexión con el ordenador</string>
+    <string name="os_ur_n_ni_pillow">el ordenador no puede girar esta imagen (falta Pillow)</string>
+    <string name="os_ur_n_drugo">error %1$s</string>
+    <string name="os_ur_pomoc_drzi">Mantén OK · opciones (abrir en el ordenador, renombrar, mover, eliminar)</string>
+    <string name="os_ur_slika_pomoc">Mantén OK · girar, renombrar, eliminar</string>
 </resources>
