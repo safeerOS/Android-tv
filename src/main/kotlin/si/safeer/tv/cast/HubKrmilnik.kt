@@ -28,6 +28,10 @@ object HubKrmilnik {
     @Volatile
     private var streznik: HubStreznik? = null
 
+    /** Spletni odjemalec (naprava brez Safeerja): goli HTTP na svojih vratih, samo domace omrezje. */
+    @Volatile
+    private var spletniStreznik: HubStreznik? = null
+
     @Volatile
     var usmerjevalnik: HubUsmerjevalnik? = null
         private set
@@ -54,6 +58,9 @@ object HubKrmilnik {
     fun tece(): Boolean = streznik?.teceZdaj() == true
 
     fun vrata(): Int = streznik?.vrata ?: 0
+
+    /** Vrata spletnega odjemalca (0, ce ne tece). */
+    fun vrataSplet(): Int = spletniStreznik?.vrata ?: 0
 
     /** Ali je uporabnik Hub prizgal (tudi ce trenutno ne tece, npr. pred zagonom brskalnika). */
     fun jeZazelen(context: Context): Boolean =
@@ -124,6 +131,20 @@ object HubKrmilnik {
         streznik = s
         usmerjevalnik = u
         tokovi = t
+
+        // Spletni odjemalec: ista logika huba, goli HTTP na svojih vratih (brskalnik na telefonu brez
+        // Safeerja ne sprejme nasega samopodpisanega potrdila); samo krajevno omrezje in ozek izbor poti.
+        u.beriSredstvo = { ime ->
+            try { app.assets.open("link-web/$ime").bufferedReader(Charsets.UTF_8).use { it.readText() } } catch (_: Throwable) { null }
+        }
+        val w = HubStreznik(
+            zeljenaVrata = HubUsmerjevalnik.SPLETNA_VRATA,
+            naZahtevo = { zahteva -> u.odgovoriSplet(zahteva) },
+            preveriVstopnico = { zahteva -> u.preveriVstopnico(zahteva) },
+            naPovezavo = { povezava -> povezi(u, povezava) },
+            tlsTovarna = null
+        )
+        if (w.zazeni()) { spletniStreznik = w; u.spletnaVrata = w.vrata } else Log.w(TAG, "Spletnih vrat ni bilo mogoce odpreti; spletni odjemalec ni na voljo.")
 
         // Televizor, ki gosti, je hkrati zaslon: sprejemnik se priklopi na lastni Hub, da ga
         // druge naprave vidijo kot "zaslon" in mu lahko posljejo stran. Brez tega je Hub
@@ -282,6 +303,8 @@ object HubKrmilnik {
         HubObjava.umakni()
         streznik?.ustavi()
         streznik = null
+        spletniStreznik?.ustavi()
+        spletniStreznik = null
         usmerjevalnik = null
         tokovi = null
         if (context != null) odklopiLastniZaslon(context.applicationContext)

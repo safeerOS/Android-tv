@@ -11,8 +11,10 @@ import java.net.NetworkInterface
  * Safeer OS). Tece v procesu sredisca (brskalnik ali Safeer OS brez brskalnika); Safeer OS jo dobi
  * prek LinkSorodnikStoritev (dovoljenje istega podpisa), nikoli po omrezju.
  *
- * Povezava v kodi: https://safeer.si/p#j=<id>&s=<skrivnost>&f=<odtis potrdila>&a=<naslov:vrata>
- * (skrivnost je za #, zato je streznik strani nikoli ne vidi).
+ * Povezava v kodi: http://<naslov>:<spletna vrata>/#j=<id>&s=<skrivnost>&f=<odtis potrdila>&a=<naslov:vrata>
+ * - stran spletnega odjemalca na tem srediscu (telefon brez Safeerja dela v brskalniku, telefon s Safeerjem
+ * jo odpre v aplikaciji). Skrivnost je za #, zato je streznik nikoli ne vidi. Brez spletnih vrat (zasedena)
+ * ostane stara oblika https://safeer.si/p#..., ki jo razume samo aplikacija.
  */
 object PridruzitevSredisca {
     private const val TAG = "SafeerPridruzitev"
@@ -48,13 +50,18 @@ object PridruzitevSredisca {
             }
             val (id, skrivnost) = u.ustvariPridruzitev()
             b.putString("qr_id", id)
-            b.putString("povezava", "https://safeer.si/p#j=$id&s=$skrivnost&f=${HubTls.lastniOdtis()}&a=$ip:$vrata")
+            b.putString("povezava", povezavaZaKodo(ip, vrata, HubKrmilnik.vrataSplet(), id, skrivnost))
             b.putLong("velja_ms", HubUsmerjevalnik.PIN_VELJA_MS)
         } catch (e: Throwable) {
             Log.w(TAG, "Kode ni bilo mogoce pripraviti: ${e.message}")
             b.putString("napaka", "ni_sredisca")
         }
         return b
+    }
+
+    fun povezavaZaKodo(ip: String, vrata: Int, spletnaVrata: Int, id: String, skrivnost: String): String {
+        val rep = "#j=$id&s=$skrivnost&f=${HubTls.lastniOdtis()}&a=$ip:$vrata"
+        return if (spletnaVrata > 0) "http://$ip:$spletnaVrata/$rep" else "https://safeer.si/p$rep"
     }
 
     fun preklici(id: String) {
