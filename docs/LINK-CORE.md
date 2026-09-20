@@ -313,5 +313,17 @@ v delež zaslona; vlečenje → poteg, kolešček → poteg ±25 %, desni klik/E
 → `input.text` (zbrano 250 ms). Ukaz gre napravi, katere zaslon gledamo (`SafeerLink.gledani_zaslon`).
 Preverjeno v živo (`safeer-lms/tests/test_link_vnos_zivo.py`): tablica odgovori `vnos_ni_vklopljen`.
 
-Naslednje: »pretoči aplikacijo« = `apps.launch` + deljenje zaslona proti napravi, ki je vprašala.
+### Pretoči aplikacijo: Android → računalnik
+
+`apps.launch` z `"stream": true` (Android): `Daljinec` odpre nevidno `PretociActivity`, ta vpraša za zajem
+zaslona, zažene deljenje proti **pošiljatelju ukaza** in nato odpre aplikacijo. Odgovor pride takoj:
+`ok`, `data.stream = "pending"`. Pošiljatelja vpiše `CastReceiverService` iz polja `sender` huba
+(`Daljinec.PARAM_POSILJATELJ`); vrednost iz parametrov se vedno zavrže, zato naprava ne more preusmeriti
+slike na tretjo napravo. Če uporabnik zajem zavrne, se aplikacija ne odpre.
+Safeer Control: v Daljincu pri aplikacijah izbira »Odpri na tem računalniku« (samo na namizju in pri
+napravi z `apps.launch`); slika pride v okno gledalca, miška in tipkovnica gredo prek Safeer Vnosa.
+Preverjeno v živo (`safeer-lms/tests/test_link_pretoci_zivo.py`): odgovor `pending`, na tablici se pokaže
+sistemsko okno »Deli zaslon«; po potrditvi je deljenje steklo, hub pa ga je zavrnil (404), ker Control ni bil
+povezan - pričakovano. Celoten krog preveri Matej z odprtim Safeer Control.
+
 Omejitev Androida: dovoljenje za zajem zaslona je treba potrditi na napravi za vsako deljenje.

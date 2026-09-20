@@ -614,7 +614,10 @@ class CastReceiverService : Service() {
                     val payload = json.optJSONObject("payload") ?: JSONObject()
                     val posiljatelj = json.optString("sender", "")
                     val dejanje = payload.optString("action", "")
-                    val parametri = payload.optJSONObject("params") ?: payload
+                    val parametri = JSONObject((payload.optJSONObject("params") ?: payload).toString())
+                    // Komu gre odgovor ali pretakanje, pove hub (sender), nikoli parametri ukaza.
+                    parametri.remove(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ)
+                    if (posiljatelj.isNotBlank()) parametri.put(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ, posiljatelj)
                     Log.i(TAG, "Prejet control.command od $posiljatelj: $dejanje")
                     mainHandler.post {
                         val krmilnik = mediaController

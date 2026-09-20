@@ -109,7 +109,13 @@ object Daljinec {
         // Protocol v1: apps.list / apps.launch sta enotni imeni; `app` je id iz kataloga (tu ime paketa).
         if (d == "apps.list") return seznamV1(context, parametri)
         if (d == "apps.launch") {
-            return zazeniAplikacijo(context, parametri.optString("app", "").ifBlank { parametri.optString("package", "") })
+            val paket = parametri.optString("app", "").ifBlank { parametri.optString("package", "") }
+            // `stream: true` = pretoci aplikacijo napravi, ki je vprasala (slika na hub, vnos z Safeer Vnos).
+            // Posiljatelja doda CastReceiverService iz sporocila huba (`_posiljatelj`), ne iz parametrov.
+            if (parametri.optBoolean("stream", false)) {
+                return pretociAplikacijo(context, paket, parametri.optString(PARAM_POSILJATELJ, ""))
+            }
+            return zazeniAplikacijo(context, paket)
         }
         // Vnos z racunalnika ne potrebuje brskalnika v ospredju: gre v aplikacijo, ki je na zaslonu.
         if (d.startsWith("input.")) return vnos(context, d, parametri)
@@ -217,6 +223,28 @@ object Daljinec {
         }
         prebudiZNamero(context, namera, ime)
         return Izid(true, "Odpiram $ime", JSONObject().put("package", paket).put("label", ime))
+    }
+
+    /** Kljuc, pod katerim CastReceiverService doda id posiljatelja ukaza (vedno prepise, kar pride od zunaj). */
+    const val PARAM_POSILJATELJ = "_posiljatelj"
+
+    /**
+     * Pretoci aplikacijo [paket] napravi [cilj]: nevidna dejavnost vprasa za zajem zaslona (uporabnik ga
+     * potrdi na tej napravi), zazene deljenje in odpre aplikacijo. Odgovor pride takoj; slika pride, ko
+     * uporabnik potrdi.
+     */
+    private fun pretociAplikacijo(context: Context, paket: String, cilj: String): Izid {
+        if (!Regex("^[A-Za-z0-9_.]+$").matches(paket)) return Izid(false, "Neveljavno ime paketa")
+        if (cilj.isBlank()) return Izid(false, "Ni znano, komu pretociti", koda = "ni_posiljatelja")
+        if (nameraZaZagon(context, paket) == null) return Izid(false, "Aplikacija $paket ni namescena", koda = "ni_namescena")
+        val ime = try {
+            context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(paket, 0)).toString()
+        } catch (_: Throwable) { paket }
+        val namera = PretociActivity.namera(context, cilj, paket)
+        try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Pretakanja ni bilo mogoce zaceti: ${e.message}") }
+        prebudiZNamero(context, namera, ime)
+        return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
+            JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
     }
 
     private const val KANAL_ZAGON = "safeer_link_zagon"

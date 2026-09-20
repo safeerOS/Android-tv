@@ -128,6 +128,16 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
+        <!-- Safeer Link: »pretoci aplikacijo« - nevidna dejavnost vprasa za zajem zaslona, zazene deljenje
+             proti napravi, ki je vprasala, in odpre aplikacijo. -->
+        <activity
+            android:name="si.safeer.tv.link.PretociActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="false"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- Safeer Link (Hub): tece, dokler ga uporabnik ne ugasne, ne le med odprtim brskalnikom -->
         <service
             android:name="si.safeer.tv.cast.HubStoritev"
