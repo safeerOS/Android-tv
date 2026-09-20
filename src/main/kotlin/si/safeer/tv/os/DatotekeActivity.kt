@@ -702,7 +702,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
 
         /**
-         * Ime racunalnika brez imena programa: "Safeer Control (janez-pc)" -> "janez-pc". Ime
+         * Ime racunalnika brez imena programa: "Safeer Control (dnevna-soba)" -> "dnevna-soba". Ime
          * programa je ze v podnapisu vrstice in ga ni treba brati dvakrat.
          */
         fun lepoIme(ime: String): String =
