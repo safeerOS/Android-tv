@@ -249,3 +249,31 @@ ki jih je uporabnik dal starim id-jem na hubu, se ne prenesejo na nove (odprto, 
 Preizkusi: JVM `preizkusIdaIzKljuca` (oblika id-ja, `clanZaId`, samodejni alias ob prijavi, tuj podpis 401,
 vstopnica čez oba id-ja istega ključa, ne čez dva ključa), Linux `tests/test_link_protokol_v1.py::IdIzKljuca`.
 V živo (spodaj).
+
+## 7. Korak 6: računalnik in Android kot ponudnika aplikacij (začeto, 20. 9.)
+
+Ponudnik je naprava, ki drugim pove, katere aplikacije ima, in jih na ukaz zažene. Za odjemalca
+(Safeer OS na TV/tablici, pozneje na računalniku; Safeer Control) je vseeno, ali je ponudnik
+Linux ali Android - uporablja iste ukaze in isto obliko.
+
+| ukaz (`control.command`) | parametri | odgovor `data` |
+|---|---|---|
+| `apps.list` | `icons` (bool), pri Linuxu še `offset`/`limit` | `{"enabled", "items": [{"id", "name", "icon"? / "icon_png"?}], "total", "offset"}` |
+| `apps.launch` | `app` = id iz kataloga (Android: ime paketa; Linux: `app:<vnos>.desktop`) | `ok` + sporočilo |
+
+- Katalog brez ikon gre ob prijavi v `cast.register.apps` (Protocol v1) in je viden v `cast.devices`;
+  ikone da `apps.list`, ko jih odjemalec res potrebuje (hub hrani največ 200 vnosov / 32 KiB).
+- **Linux (Safeer Control)**: `link_programi.Programi.katalog_v1()` - samo če je uporabnik programe za
+  televizor dovolil (privzeto izklopljeno); ob vklopu/izklopu se Control znova prijavi s svežim katalogom.
+  `Povezava.objavi_katalog()` pošlje `apps.announce` brez ponovne prijave. `apps.list/launch/close/running`
+  sta že obstajala.
+- **Android (TV, tablica, telefon)**: `Daljinec` razume `apps.list` in `apps.launch` (stara `apps` in
+  `launch_app` ostaneta za obstoječe odjemalce); katalog v prijavi zaslona pošilja `CastReceiverService`.
+
+Preverjeno v živo (`safeer-lms/tests/test_link_ponudnik_zivo.py`): računalnik se prijavi s katalogom, hub
+ga pokaže v `/cast/devices`; isti odjemalec pošlje zaslonu `apps.list` in dobi 16 aplikacij v enotni obliki.
+Enote: `tests/test_link_ponudnik.py` (katalog prazen brez dovoljenja, meje huba).
+
+Naslednje: odjemalec Safeer OS (TV/tablica) bere katalog iz `cast.devices` namesto posebnega klica, in
+pretakanje aplikacije Android → računalnik (slika + vnos; obratna smer PC → TV že obstaja), ki je pogoj za
+Safeer OS na računalniku.
