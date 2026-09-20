@@ -41,4 +41,6 @@ java -cp "$OUT/spake2.jar" si.safeer.tv.cast.Spake2TestKt
 java -cp "$OUT/izvolitev.jar" si.safeer.tv.cast.IzvolitevTestKt
 
 # Link Core: kopija na telefonu mora biti enaka viru (ce je telefon na tem racunalniku).
-[[ -d "$PROJECT_DIR/../safeer-browser" ]] && bash "$PROJECT_DIR/tools/link-core-sync.sh" --preveri "$PROJECT_DIR/../safeer-browser"
+if [[ -d "$PROJECT_DIR/../safeer-browser" ]]; then
+    bash "$PROJECT_DIR/tools/link-core-sync.sh" --preveri "$PROJECT_DIR/../safeer-browser"
+fi
