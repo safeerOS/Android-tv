@@ -166,7 +166,11 @@ class LinkOdjemalec(private val context: Context) {
         val kljuc = try { HubTls.javniKljucB64() } catch (e: Throwable) {
             Log.w(TAG, "Kljuca naprave ni: ${e.message}"); return
         }
-        val telo = JSONObject().put("pubkey", kljuc).put("name", "Safeer OS").put("platform", "tv")
+        // Ime in platforma, kot ju vidijo druge naprave v krogu: tablica je tablica, ne TV.
+        val tablica = context.packageName.endsWith(".tablet")
+        val ime = try { context.getString(si.safeer.tv.R.string.os_ime_vrste) } catch (_: Throwable) { "Safeer OS" } +
+            " (" + android.os.Build.MODEL + ")"
+        val telo = JSONObject().put("pubkey", kljuc).put("name", ime).put("platform", if (tablica) "tablet" else "tv")
         klic("/cast/trust/enroll", telo, p.zeton) { koda, odgovor ->
             if (koda != 200) { Log.i(TAG, "Sredisce kroga zaupanja ne pozna ($koda)."); return@klic }
             val ring = try { JSONObject(odgovor).optJSONObject("ring") } catch (_: Throwable) { null }

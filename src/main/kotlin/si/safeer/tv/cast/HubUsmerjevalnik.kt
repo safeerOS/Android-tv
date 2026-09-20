@@ -44,6 +44,8 @@ class HubUsmerjevalnik(
     /** Ena povezana naprava, kakor jo vidi usmerjevalnik. */
     interface Odjemalec {
         val naslov: String
+        /** Vstopnica, s katero je bila povezava odprta (poizvedba ?ticket=); veze prijavo na napravo. */
+        val vstopnica: String? get() = null
         fun poslji(besedilo: String)
         fun zapri(koda: Int, razlog: String)
     }
@@ -116,7 +118,13 @@ class HubUsmerjevalnik(
     private val posiljatelji = LinkedHashSet<Odjemalec>()
     private val prijave = LinkedHashMap<String, Prijava>()
     private val zetoni = LinkedHashMap<String, SeznanjenaNaprava>()
-    private val vstopnice = LinkedHashMap<String, Long>()
+    /** Vstopnica za WebSocket: kdaj je bila izdana in kateri napravi (zeton ali podpis), ce je znano. */
+    private class Vstopnica(val izdana: Long, val deviceId: String?)
+
+    private val vstopnice = LinkedHashMap<String, Vstopnica>()
+
+    /** Porabljene vstopnice, vezane na napravo: vstopnica -> device_id, dokler se povezava ne prijavi. */
+    private val vezaneVstopnice = LinkedHashMap<String, String>()
     private val sinhronizacija = LinkedHashMap<String, Kategorija>()
 
     /** Klice se, ko se seznam cakajocih prijav spremeni, da vmesnik pokaze kodo brez spraševanja. */
@@ -626,32 +634,45 @@ class HubUsmerjevalnik(
      * Enokratna vstopnica za WebSocket, kratke veljavnosti. Povezava brez nje sploh ne nastane -
      * enako kot na racunalniku, kjer jo izda Controlov SessionManager.
      */
-    fun izdajVstopnico(): String = synchronized(kljucnica) {
+    fun izdajVstopnico(deviceId: String? = null): String = synchronized(kljucnica) {
         pocistiVstopnice()
         if (vstopnice.size >= NAJVEC_VSTOPNIC) {
             // Najstarejsa pade ven; drugace bi jih nekdo lahko naracal poljubno veliko.
             vstopnice.remove(vstopnice.keys.first())
         }
         val vstopnica = nakljucni(16)
-        vstopnice[vstopnica] = ura()
+        vstopnice[vstopnica] = Vstopnica(ura(), deviceId?.takeIf { it.isNotBlank() })
         return vstopnica
     }
 
     private fun pocistiVstopnice() {
         val zdaj = ura()
-        val potekle = vstopnice.filterValues { zdaj - it > VSTOPNICA_VELJA_MS }.keys.toList()
+        val potekle = vstopnice.filterValues { zdaj - it.izdana > VSTOPNICA_VELJA_MS }.keys.toList()
         for (kljuc in potekle) vstopnice.remove(kljuc)
     }
 
-    /** Porabi vstopnico; druga uporaba iste ne uspe. */
+    /**
+     * Porabi vstopnico; druga uporaba iste ne uspe. Vstopnica, izdana znani napravi (zeton ali
+     * podpis), ostane vezana nanjo, da se povezava po njej ne more prijaviti pod tujim device_id.
+     */
     fun porabiVstopnico(vstopnica: String?): Boolean {
         if (vstopnica.isNullOrEmpty()) return false
         synchronized(kljucnica) {
             pocistiVstopnice()
             val najdena = vstopnice.keys.firstOrNull { enaka(it, vstopnica) } ?: return false
-            vstopnice.remove(najdena)
+            val v = vstopnice.remove(najdena)
+            if (v?.deviceId != null) {
+                if (vezaneVstopnice.size >= NAJVEC_VSTOPNIC) vezaneVstopnice.remove(vezaneVstopnice.keys.first())
+                vezaneVstopnice[najdena] = v.deviceId
+            }
             return true
         }
+    }
+
+    /** Naprava, ki ji je bila vstopnica izdana, ali null, ce vstopnica ni bila vezana (ali je ni). */
+    fun napravaVstopnice(vstopnica: String?): String? {
+        if (vstopnica.isNullOrEmpty()) return null
+        return synchronized(kljucnica) { vezaneVstopnice.entries.firstOrNull { enaka(it.key, vstopnica) }?.value }
     }
 
     // ------------------------------------------------------------------ register naprav
@@ -834,6 +855,13 @@ class HubUsmerjevalnik(
         val tovor = sporocilo.objekt("payload")
         val deviceId = tovor?.niz("device_id")
         if (deviceId.isNullOrBlank()) return potrditev(id, "rejected", "Manjka device_id.", koda = "manjka_device_id")
+        // Vstopnica je bila izdana znani napravi (po zetonu ali podpisu): prijava pod drugim id ne velja.
+        // Tako je device_id vezan na zeton oz. kljuc, ne le na to, kar naprava trdi o sebi.
+        val vezana = napravaVstopnice(od.vstopnica)
+        if (vezana != null && vezana != deviceId) {
+            return potrditev(id, "rejected", "device_id se ne ujema z napravo, ki ji je bila izdana vstopnica.", koda = "napacen_device_id")
+        }
+        od.vstopnica?.let { v -> synchronized(kljucnica) { vezaneVstopnice.keys.firstOrNull { enaka(it, v) }?.let { vezaneVstopnice.remove(it) } } }
 
         val vloga = tovor.niz("role") ?: "receiver"
         val zmoznosti = tovor.nizi("capabilities").ifEmpty { listOf("url", "control") }
@@ -1346,7 +1374,7 @@ class HubUsmerjevalnik(
                 return HubStreznik.Odgovor(401, napakaJson("Podpis se ne ujema s ključem naprave.", "napacen_podpis"))
             }
             return HubStreznik.Odgovor(200, JsonLahki.Zapis()
-                .niz("ticket", izdajVstopnico())
+                .niz("ticket", izdajVstopnico(deviceId))
                 .stevilo("expires_in_seconds", (VSTOPNICA_VELJA_MS / 1000).toDouble())
                 .surovo("ring", krog.json())
                 .toString())
@@ -1361,13 +1389,12 @@ class HubUsmerjevalnik(
 
         if (pot == "/cast/ticket" && zahteva.metoda == "POST") {
             if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
-            if (!jeVeljavenZeton(zahteva.glave["x-safeer-token"])) {
-                return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
-            }
+            val lastnikZetona = napravaZeZetona(zahteva.glave["x-safeer-token"])
+                ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
             return HubStreznik.Odgovor(
                 200,
                 JsonLahki.Zapis()
-                    .niz("ticket", izdajVstopnico())
+                    .niz("ticket", izdajVstopnico(lastnikZetona))
                     .stevilo("expires_in_seconds", (VSTOPNICA_VELJA_MS / 1000).toDouble())
                     .toString()
             )

@@ -209,6 +209,7 @@ object HubKrmilnik {
     private fun povezi(u: HubUsmerjevalnik, povezava: HubStreznik.Povezava) {
         val odjemalec = object : HubUsmerjevalnik.Odjemalec {
             override val naslov: String = povezava.naslov
+            override val vstopnica: String? = povezava.zahteva.poizvedba["ticket"]
             override fun poslji(besedilo: String) = povezava.poslji(besedilo)
             override fun zapri(koda: Int, razlog: String) = povezava.zapri(koda, razlog)
         }

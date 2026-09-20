@@ -26,7 +26,7 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) {
 
 // ------------------------------------------------------------ pomozni odjemalec
 
-private class Lazni(override val naslov: String = "192.168.0.50") : HubUsmerjevalnik.Odjemalec {
+private class Lazni(override val naslov: String = "192.168.0.50", override val vstopnica: String? = null) : HubUsmerjevalnik.Odjemalec {
     val prejeto = ArrayList<String>()
     var zaprt = false
     var zapriKodo = 0
@@ -844,6 +844,24 @@ private fun preizkusKroga() {
     preveriEnako("pravi podpis da vstopnico", 200, pravi?.koda)
     val vstopnica = polje(pravi?.telo.orEmpty(), "ticket")
     preveri("vstopnica je uporabna za WebSocket", u.porabiVstopnico(vstopnica))
+    // Vstopnica je vezana na napravo, ki ji je bila izdana: prijava pod tujim id ne velja.
+    preveriEnako("vstopnica s podpisom je vezana na napravo", "tel-1", u.napravaVstopnice(vstopnica))
+    val tujec = Lazni(vstopnica = vstopnica)
+    u.obdelaj(tujec, registracija("tuja-naprava", "sender"))
+    preveri("prijava pod tujim id z vezano vstopnico je zavrnjena", polje(tujec.zadnje(), "error_code") == "napacen_device_id")
+    val pravi2 = Lazni(vstopnica = vstopnica)
+    u.obdelaj(pravi2, registracija("tel-1", "sender"))
+    preveriEnako("prijava pod svojim id uspe", "accepted", polje(pravi2.zadnje(), "status"))
+    preveriEnako("po prijavi vezava odpade", null, u.napravaVstopnice(vstopnica))
+    // Vstopnica z zetonom je vezana na lastnika zetona.
+    val zZetonom = u.odgovori(zahteva("POST", "/cast/ticket", "", glave = mapOf("x-safeer-token" to zeton)))
+    val vstopnicaZ = polje(zZetonom?.telo.orEmpty(), "ticket")
+    preveri("vstopnica z zetonom je porabljiva", u.porabiVstopnico(vstopnicaZ))
+    preveriEnako("vstopnica z zetonom je vezana na lastnika zetona", "tel-1", u.napravaVstopnice(vstopnicaZ))
+    // Povezava brez vstopnice (preizkusi, stari tok) se prijavi po starem.
+    val brezVstopnice = Lazni()
+    u.obdelaj(brezVstopnice, registracija("tel-9", "sender"))
+    preveriEnako("prijava brez vezane vstopnice gre po starem", "accepted", polje(brezVstopnice.zadnje(), "status"))
     preveri("odgovor prinese krog", JsonLahki.objekt(pravi?.telo.orEmpty())?.objekt("ring")?.objekt("clani")?.ima("tel-1") == true)
     val znova = u.odgovori(zahteva("POST", "/cast/auth/ticket",
         """{"device_id":"tel-1","nonce":"$nonce2","signature":"${podpisi(tel, u.podatkiZaPodpis("tel-1", nonce2))}"}"""))

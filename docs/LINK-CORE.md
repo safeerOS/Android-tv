@@ -100,13 +100,31 @@ Brskalnik in Control na istem računalniku imata isti ključ in isti krog, a raz
 njiju označiti kot sorodnika. Preizkusi: `tests/test_link_krog.py` (brez huba) in
 `tests/test_link_krog_zivo.py` (proti pravemu hubu; prva prijava z žetonom vpiše ključ, druga gre s podpisom).
 
-## 3. Izločitev Link Core iz brskalnika (osnutek)
+## 3. Izločitev Link Core iz brskalnika (narejeno, 20. 9.)
 
-Danes je hub v `si.safeer.tv.cast.*` znotraj brskalnika TV (in podvojen na telefonu v
-`com.safeer.mobile.browser.cast.*`). Cilj: en modul `link-core` (Kotlin, brez Android UI odvisnosti razen
-Context), ki ga vgradijo brskalnik TV, Safeer OS, tablica in telefon; na Linuxu ostane Python (`core/`)
-s istim protokolom. Podvojena koda telefona se zamenja z modulom. Merilo uspeha: `tests/UsmerjevalnikTest.kt`
-in `HubStreznikTest.kt` tečejo nad modulom brez sprememb v pričakovanjih.
+Hub je bil v `si.safeer.tv.cast.*` znotraj brskalnika TV in podvojen (z zamikom: brez kroga, brez
+`pair/cancel`) na telefonu v `com.safeer.mobile.browser.cast.*`. Ker telefon gradi s kotlinc brez Gradla,
+bi Gradle modul zahteval prenovo obeh gradenj; izbrana je enostavnejša pot z istim učinkom:
+
+- **En vir**: `tv-browser-2/src/main/kotlin/si/safeer/tv/cast/` (12 datotek brez odvisnosti od aplikacije:
+  `HubDiscovery`, `HubObjava`, `HubPairing`, `HubStreznik`, `HubTls`, `HubTokovi`, `HubUsmerjevalnik`,
+  `JsonLahki`, `KrogNaprave`, `KrogZaupanja`, `Seznanitve`, `Spake2`). Krmilnik, storitev in
+  sprejemnik/odjemalec ostanejo v vsaki aplikaciji svoji (TV: `HubKrmilnik`, `HubStoritev`,
+  `CastReceiverService`, `LinkSorodnikStoritev`; telefon: `HubKrmilnik`, `HubStoritev`, `CastSenderClient`).
+- **Kopija na telefonu** nastane samo s `tools/link-core-sync.sh` (zamenja paket, doda glavo). Gradnja
+  telefona (`build_mobile_apk.sh`) požene `--preveri` in pade, če se kopija razlikuje od vira; spremembe
+  se torej ne morejo več razit. Safeer OS in tablica sta okusa istega Gradle projekta in vir delita že zdaj.
+- **Vezava `device_id` na žeton/ključ** (`cast.register`): vstopnica za WebSocket, izdana z žetonom ali s
+  podpisom, je vezana na napravo (`izdajVstopnico(deviceId)`, `vezaneVstopnice`); povezava, odprta s tako
+  vstopnico, se sme prijaviti samo pod tem `device_id` (sicer `napacen_device_id`). Povezava brez vezane
+  vstopnice (preizkusi, stari tok) se prijavi po starem. Preverjeno: JVM (302 preverb) in v živo - TV
+  sam (receiver), Safeer OS, tablica (`tv-sm-x210-os`, po vpisu ključa) in Linux Control se prijavijo
+  z vezano vstopnico in dobijo `accepted` (`tests/test_link_naprave_zivo.py`).
+- Hub na telefonu zdaj pozna krog (isti vir) in ob zagonu vpiše svoj ključ (`vpisiLastniKljuc(...,
+  "phone")`). Preizkus telefona kot huba čaka na Matejev telefon (testni ni seznanjen).
+
+Odprto za korak 5: id naprave iz ključa (`n-…`) za nove naprave in oznaka sorodnika (brskalnik + Control
+na istem računalniku, TV + OS na istem televizorju delijo ključ, a imajo ločene id-je).
 
 ## 4. Izvolitev huba (dogovorjeno)
 
