@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos: samo izvajanje potez in sistemskih tipk z racunalnika (Safeer Link). Dogodkov ne
+     beremo (samo tip, ki ga sistem zahteva), vsebino okna samo za vnos besedila v polje s fokusom. -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/vnos_opis"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="1000"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:accessibilityFlags="flagDefault" />

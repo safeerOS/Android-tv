@@ -294,7 +294,24 @@ pravega žetona seznanitve. JVM: 6 novih preverb v `preizkusIdaIzKljuca`.
 Stran Link na tablici/TV ponudi »Zaslon« pri vsaki napravi; sistemsko okno »Deli celoten zaslon« se pokaže
 enkrat na deljenje. Preverjeno v živo: tablica deli zaslon na TV (TV kaže »Zasedeno«), prekinitev z gumba.
 
-Naslednje za Safeer OS na računalniku: gledalec v aplikaciji Safeer Control (obstaja za deljene zaslone),
-vnos z miške/tipkovnice nazaj na Android (AccessibilityService: dotik, poteg, Nazaj/Domov; uporabnik ga
-vklopi enkrat) in »pretoči aplikacijo« = `apps.launch` + deljenje zaslona proti napravi, ki je vprašala.
+### Safeer Vnos: miška in tipkovnica z računalnika na tablico
+
+`si.safeer.tv.link.VnosStoritev` (storitev dostopnosti, samo okus tablica): uporabnik jo enkrat vklopi v
+Nastavitve → Dostopnost → Safeer Vnos. Vsebine zaslona ne bere; izvede samo ukaze seznanjene naprave:
+
+| ukaz | parametri | kaj naredi |
+|---|---|---|
+| `input.tap` | `x`, `y` (delež 0..1), `ms` | dotik (dolg pritisk: `ms` 700) |
+| `input.swipe` | `x1`, `y1`, `x2`, `y2`, `ms` | poteg |
+| `input.key` | `key` = back / home / recents / notifications | sistemska tipka |
+| `input.text` | `text` (≤ 2000) | doda besedilo v polje s fokusom |
+| `input.enable` | - | na tablici odpre nastavitve dostopnosti |
+
+Ko storitev ni vklopljena, odgovor `ok: false`, `code: "vnos_ni_vklopljen"`.
+Računalnik: okno gledalca v Safeer Control (`_odpri_gledalca`) preslika klik na sliko (`object-fit: contain`)
+v delež zaslona; vlečenje → poteg, kolešček → poteg ±25 %, desni klik/Esc → Nazaj, Home → Domov, tipkanje
+→ `input.text` (zbrano 250 ms). Ukaz gre napravi, katere zaslon gledamo (`SafeerLink.gledani_zaslon`).
+Preverjeno v živo (`safeer-lms/tests/test_link_vnos_zivo.py`): tablica odgovori `vnos_ni_vklopljen`.
+
+Naslednje: »pretoči aplikacijo« = `apps.launch` + deljenje zaslona proti napravi, ki je vprašala.
 Omejitev Androida: dovoljenje za zajem zaslona je treba potrditi na napravi za vsako deljenje.

@@ -37,7 +37,10 @@ object Daljinec {
         "restart", "clear_cache", "status", "screenshot",
         // Protocol v1: ista imena kot pri ponudniku na racunalniku (Safeer Control), da odjemalec
         // (Safeer OS, Control) aplikacije katere koli naprave nasteje in zazene na en nacin.
-        "apps.list", "apps.launch"
+        "apps.list", "apps.launch",
+        // Vnos z racunalnika na zaslon, ki ga naprava deli (Safeer Vnos, storitev dostopnosti):
+        // dotik in poteg v delezih zaslona, sistemska tipka, besedilo v polje s fokusom.
+        "input.tap", "input.swipe", "input.key", "input.text", "input.enable"
     )
 
     /** Izid ukaza: `ok`, kratko sporocilo za uporabnika in neobvezni podatki. */
@@ -108,6 +111,8 @@ object Daljinec {
         if (d == "apps.launch") {
             return zazeniAplikacijo(context, parametri.optString("app", "").ifBlank { parametri.optString("package", "") })
         }
+        // Vnos z racunalnika ne potrebuje brskalnika v ospredju: gre v aplikacijo, ki je na zaslonu.
+        if (d.startsWith("input.")) return vnos(context, d, parametri)
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {
@@ -291,6 +296,34 @@ object Daljinec {
             polje.put(zapis)
         }
         return polje
+    }
+
+    /**
+     * Dotik, poteg, sistemska tipka ali besedilo z racunalnika (Safeer Vnos). Ce storitev dostopnosti
+     * ni vklopljena, uporabnik dobi jasno sporocilo; `input.enable` odpre nastavitve, kjer jo vklopi.
+     */
+    private fun vnos(context: Context, d: String, p: JSONObject): Izid {
+        if (d == "input.enable") {
+            return try {
+                val namera = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(namera)
+                Izid(true, "Na tablici se odpirajo nastavitve dostopnosti: vklopi Safeer Vnos.")
+            } catch (e: Throwable) {
+                Izid(false, "Nastavitev ni bilo mogoce odpreti: ${e.message}")
+            }
+        }
+        if (!VnosStoritev.aktivna()) {
+            return Izid(false, "Na tej napravi vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
+        }
+        val uspelo = when (d) {
+            "input.tap" -> VnosStoritev.dotik(p.optDouble("x", -1.0), p.optDouble("y", -1.0), p.optLong("ms", 60))
+            "input.swipe" -> VnosStoritev.poteg(p.optDouble("x1", -1.0), p.optDouble("y1", -1.0),
+                p.optDouble("x2", -1.0), p.optDouble("y2", -1.0), p.optLong("ms", 300))
+            "input.key" -> VnosStoritev.tipka(p.optString("key", ""))
+            "input.text" -> VnosStoritev.besedilo(p.optString("text", "").take(2000))
+            else -> false
+        }
+        return if (uspelo) Izid(true, "Vnos izveden") else Izid(false, "Vnosa ni bilo mogoce izvesti", koda = "vnos_ni_uspel")
     }
 
     /**

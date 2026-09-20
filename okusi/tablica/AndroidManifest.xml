@@ -74,5 +74,18 @@
             tools:replace="android:exported,android:label,android:icon,android:banner"
             tools:ignore="RedundantLabel" />
 
+        <!-- Safeer Vnos: dotik in tipke z racunalnika na tablici (upravljanje aplikacije, ki jo tablica
+             deli na racunalnik). Samo na tablici; uporabnik ga vklopi sam v nastavitvah dostopnosti. -->
+        <service
+            android:name="si.safeer.tv.link.VnosStoritev"
+            android:label="@string/vnos_ime"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/safeer_vnos" />
+        </service>
+
     </application>
 </manifest>
