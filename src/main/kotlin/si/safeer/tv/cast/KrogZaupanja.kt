@@ -178,13 +178,15 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
         } catch (_: Throwable) { null }
 
         /** Ali je [podpisB64] podpis [podatkov] z javnim kljucem [kljucB64] (SHA256withECDSA, DER podpis). */
-        fun preveriPodpisSKljucem(kljucB64: String, podatki: ByteArray, podpisB64: String): Boolean = try {
+        fun preveriPodpisSKljucem(kljucB64: String, podatki: ByteArray, podpisB64: String): Boolean {
             val kljuc = dekodirajKljuc(kljucB64) ?: return false
-            val s = Signature.getInstance("SHA256withECDSA")
-            s.initVerify(kljuc)
-            s.update(podatki)
-            s.verify(Base64.getDecoder().decode(podpisB64))
-        } catch (_: Throwable) { false }
+            return try {
+                val s = Signature.getInstance("SHA256withECDSA")
+                s.initVerify(kljuc)
+                s.update(podatki)
+                s.verify(Base64.getDecoder().decode(podpisB64))
+            } catch (_: Throwable) { false }
+        }
 
         /** Id naprave iz javnega kljuca: prvih 16 sestnajstiskih znakov SHA-256 zapisa SPKI. */
         fun idIzKljuca(kljucB64: String): String {
