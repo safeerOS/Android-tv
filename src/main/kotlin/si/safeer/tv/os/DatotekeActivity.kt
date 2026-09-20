@@ -240,7 +240,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         racunalnikZnacka.visibility = View.GONE
         // Ta televizor je vedno prvi vir; racunalniki s Safeer Controlom so za njim.
         vnosi = listOf(Vnos(KrajevneDatoteke.KOREN, getString(R.string.os_krajevno_ta_tv), "tv", -1, "")) +
-            r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, vrstaNaprave(it), -1, "") }
+            r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, vrstaNaprave(it), -1, "",
+                pod = if (vrstaNaprave(it) == "tv") getString(R.string.os_ur_tv_vir_opis) else "") }
         prilagojevalnik.notifyDataSetChanged()
         if (r.isEmpty()) pokaziSporocilo(getString(
             if (!link.povezan) R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_racunalnika))
@@ -404,20 +405,22 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun preimenujDatoteko(v: Vnos) {
         val s = streznik ?: return
+        // Polje kaze ime brez koncnice; koncnica se ob shranjevanju doda sama (ce je uporabnik ne vpise).
+        val (deblo, koncnica) = razdeliIme(v.ime, v.vrsta == "folder")
         val vnos = EditText(this).apply {
             setSingleLine()
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             hint = getString(R.string.os_ur_ime_namig)
-            setText(v.ime)
-            // Izbrano je ime brez koncnice: tipkanje zamenja ime, koncnica ostane.
+            setText(deblo)
+            setSelection(deblo.length)
             setPadding(40, 30, 40, 30)
         }
-        val pika = if (v.vrsta == "folder") -1 else v.ime.lastIndexOf('.')
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_ur_preimenuj))
+            .setMessage(if (koncnica.isEmpty()) null else getString(R.string.os_ur_koncnica_ostane, koncnica))
             .setView(vnos)
             .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
-                val ime = vnos.text?.toString().orEmpty().trim()
+                val ime = zdruziIme(vnos.text?.toString().orEmpty(), koncnica)
                 if (ime.isEmpty() || ime == v.ime) return@setPositiveButton
                 UrejanjeDatotek.preimenuj(s, v.id, ime) { izid ->
                     if (isFinishing) return@preimenuj
@@ -426,7 +429,6 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
-        izberiIme(vnos, if (pika > 0) pika else v.ime.length)
     }
 
     /** Cilj premika: podmape te mape in nadrejena mapa (znotraj deljene mape). */
@@ -665,16 +667,17 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         /** Pregledovalnik slik je datoteko spremenil: seznam se ob vrnitvi osvezi. */
         @Volatile var osveziPoVrnitvi = false
 
-        /**
-         * V oknu za preimenovanje je izbrano ime brez koncnice: tipkanje zamenja ime, koncnica ostane.
-         * EditText ob vsakem prejemu fokusa (prikaz okna, tipkovnica) premakne kazalec na konec, zato
-         * izbiro nastavimo ob prvem fokusu in se enkrat, ko se odpre tipkovnica.
-         */
-        fun izberiIme(vnos: EditText, konec: Int) {
-            var stevec = 0
-            val izberi = Runnable { if (vnos.text != null && konec <= vnos.text.length) vnos.setSelection(0, konec) }
-            vnos.post(izberi)
-            vnos.setOnFocusChangeListener { _, f -> if (f && stevec++ < 2) vnos.post(izberi) }
+        /** "dopust.jpg" -> ("dopust", ".jpg"); mape in imena brez pike ostanejo cela. */
+        fun razdeliIme(ime: String, mapa: Boolean): Pair<String, String> {
+            val pika = if (mapa) -1 else ime.lastIndexOf('.')
+            return if (pika > 0) ime.substring(0, pika) to ime.substring(pika) else ime to ""
+        }
+
+        /** Novo ime iz polja + stara koncnica; kdor vpise svojo (ime s piko), obdrzi svojo. */
+        fun zdruziIme(vneseno: String, koncnica: String): String {
+            val ime = vneseno.trim().trimEnd('.')
+            if (ime.isEmpty()) return ""
+            return if (koncnica.isNotEmpty() && !ime.contains('.')) ime + koncnica else ime
         }
 
         /** Kratka koda napake Controla -> besedilo za uporabnika. */

@@ -399,6 +399,8 @@
     <string name="os_ur_moznosti">Options du fichier</string>
     <string name="os_ur_izbrisi_vprasanje">Supprimer « %1$s » ?</string>
     <string name="os_ur_izbrisi_opis">Il va dans la corbeille de l\'ordinateur, d\'où tu peux le restaurer.</string>
+    <string name="os_ur_koncnica_ostane">L\'extension %1$s est conservée.</string>
+    <string name="os_ur_tv_vir_opis">Vidéos, musique et images sur ce téléviseur</string>
     <string name="os_ur_ime_namig">Nouveau nom</string>
     <string name="os_ur_kam">Déplacer « %1$s » vers</string>
     <string name="os_ur_nadrejena">Dossier parent</string>

@@ -399,6 +399,8 @@
     <string name="os_ur_moznosti">Možnosti datoteke</string>
     <string name="os_ur_izbrisi_vprasanje">Izbrišem »%1$s«?</string>
     <string name="os_ur_izbrisi_opis">Datoteka gre v Smeti računalnika, od koder jo lahko obnoviš.</string>
+    <string name="os_ur_koncnica_ostane">Končnica %1$s ostane.</string>
+    <string name="os_ur_tv_vir_opis">Videoposnetki, glasba in slike na tistem televizorju</string>
     <string name="os_ur_ime_namig">Novo ime</string>
     <string name="os_ur_kam">Premakni »%1$s« v</string>
     <string name="os_ur_nadrejena">Nadrejena mapa</string>

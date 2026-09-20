@@ -164,19 +164,21 @@ class SlikaActivity : OsActivity() {
         val s = streznik ?: return
         val id = oznake.getOrNull(i) ?: return
         val staro = imena.getOrNull(i).orEmpty()
+        val (deblo, koncnica) = DatotekeActivity.razdeliIme(staro, false)
         val vnos = EditText(this).apply {
             setSingleLine()
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             hint = getString(R.string.os_ur_ime_namig)
-            setText(staro)
+            setText(deblo)
+            setSelection(deblo.length)
             setPadding(40, 30, 40, 30)
         }
-        val pika = staro.lastIndexOf('.')
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_ur_preimenuj))
+            .setMessage(if (koncnica.isEmpty()) null else getString(R.string.os_ur_koncnica_ostane, koncnica))
             .setView(vnos)
             .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
-                val novo = vnos.text?.toString().orEmpty().trim()
+                val novo = DatotekeActivity.zdruziIme(vnos.text?.toString().orEmpty(), koncnica)
                 if (novo.isEmpty() || novo == staro) return@setPositiveButton
                 UrejanjeDatotek.preimenuj(s, id, novo) { izid ->
                     if (isFinishing) return@preimenuj
@@ -195,7 +197,6 @@ class SlikaActivity : OsActivity() {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
-        DatotekeActivity.izberiIme(vnos, if (pika > 0) pika else staro.length)
     }
 
     private fun potrdiBrisanje() {

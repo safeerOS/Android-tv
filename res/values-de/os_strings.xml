@@ -399,6 +399,8 @@
     <string name="os_ur_moznosti">Dateioptionen</string>
     <string name="os_ur_izbrisi_vprasanje">„%1$s“ löschen?</string>
     <string name="os_ur_izbrisi_opis">Sie kommt in den Papierkorb des Computers, wo du sie wiederherstellen kannst.</string>
+    <string name="os_ur_koncnica_ostane">Die Endung %1$s bleibt.</string>
+    <string name="os_ur_tv_vir_opis">Videos, Musik und Bilder auf diesem Fernseher</string>
     <string name="os_ur_ime_namig">Neuer Name</string>
     <string name="os_ur_kam">„%1$s“ verschieben nach</string>
     <string name="os_ur_nadrejena">Übergeordneter Ordner</string>

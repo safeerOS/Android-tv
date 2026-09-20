@@ -403,6 +403,8 @@
     <string name="os_ur_moznosti">File options</string>
     <string name="os_ur_izbrisi_vprasanje">Delete “%1$s”?</string>
     <string name="os_ur_izbrisi_opis">It goes to the computer\'s Trash, where you can restore it.</string>
+    <string name="os_ur_koncnica_ostane">The extension %1$s stays.</string>
+    <string name="os_ur_tv_vir_opis">Videos, music and pictures on that TV</string>
     <string name="os_ur_ime_namig">New name</string>
     <string name="os_ur_kam">Move “%1$s” to</string>
     <string name="os_ur_nadrejena">Parent folder</string>

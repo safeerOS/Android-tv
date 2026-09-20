@@ -399,6 +399,8 @@
     <string name="os_ur_moznosti">Opzioni del file</string>
     <string name="os_ur_izbrisi_vprasanje">Eliminare «%1$s»?</string>
     <string name="os_ur_izbrisi_opis">Va nel Cestino del computer, da cui puoi ripristinarlo.</string>
+    <string name="os_ur_koncnica_ostane">L\'estensione %1$s resta.</string>
+    <string name="os_ur_tv_vir_opis">Video, musica e immagini su quel televisore</string>
     <string name="os_ur_ime_namig">Nuovo nome</string>
     <string name="os_ur_kam">Sposta «%1$s» in</string>
     <string name="os_ur_nadrejena">Cartella superiore</string>
