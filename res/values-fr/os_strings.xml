@@ -389,4 +389,31 @@
     <string name="os_poganja">Propulsé par</string>
     <string name="os_puscica">›</string>
     <string name="os_odprto_na_racunalniku">Ouvert sur l\'ordinateur</string>
+
+    <!-- Urejanje datotek racunalnika z naprave (Safeer Control 2.1.0+) -->
+    <string name="os_ur_zavrti_levo">Pivoter à gauche</string>
+    <string name="os_ur_zavrti_desno">Pivoter à droite</string>
+    <string name="os_ur_preimenuj">Renommer</string>
+    <string name="os_ur_premakni">Déplacer vers un dossier</string>
+    <string name="os_ur_izbrisi">Supprimer</string>
+    <string name="os_ur_moznosti">Options du fichier</string>
+    <string name="os_ur_izbrisi_vprasanje">Supprimer « %1$s » ?</string>
+    <string name="os_ur_izbrisi_opis">Il va dans la corbeille de l\'ordinateur, d\'où tu peux le restaurer.</string>
+    <string name="os_ur_koncnica_ostane">L\'extension %1$s est conservée.</string>
+    <string name="os_ur_tv_vir_opis">Vidéos, musique et images sur ce téléviseur</string>
+    <string name="os_ur_ime_namig">Nouveau nom</string>
+    <string name="os_ur_kam">Déplacer « %1$s » vers</string>
+    <string name="os_ur_nadrejena">Dossier parent</string>
+    <string name="os_ur_izbrisano">Supprimé (dans la corbeille de l\'ordinateur)</string>
+    <string name="os_ur_preimenovano">Renommé</string>
+    <string name="os_ur_premaknjeno">Déplacé</string>
+    <string name="os_ur_zavrteno">Pivoté et enregistré sur l\'ordinateur</string>
+    <string name="os_ur_napaka">Non effectué : %1$s</string>
+    <string name="os_ur_n_obstaja">un fichier de ce nom existe déjà</string>
+    <string name="os_ur_n_ni_dovoljeno">l\'ordinateur ne le permet pas</string>
+    <string name="os_ur_n_ni_povezave">pas de connexion à l\'ordinateur</string>
+    <string name="os_ur_n_ni_pillow">l\'ordinateur ne peut pas pivoter cette image (Pillow manque)</string>
+    <string name="os_ur_n_drugo">erreur %1$s</string>
+    <string name="os_ur_pomoc_drzi">Maintiens OK · options (ouvrir sur l\'ordinateur, renommer, déplacer, supprimer)</string>
+    <string name="os_ur_slika_pomoc">Maintiens OK · pivoter, renommer, supprimer</string>
 </resources>
