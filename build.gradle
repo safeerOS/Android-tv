@@ -25,8 +25,8 @@ android {
     defaultConfig {
         minSdk = 28
         targetSdk = 36
-        versionCode = 226
-        versionName = '2.1.117'
+        versionCode = 227
+        versionName = '2.1.118'
     }
 
     // BuildConfig je privzeto izklopljen; koda ga rabi (DEBUG, razlicica).
@@ -46,16 +46,16 @@ android {
         os {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.os'
-            versionCode = 17
-            versionName = '0.4.0'
+            versionCode = 18
+            versionName = '0.4.1'
         }
         // Safeer OS Tablet: ista koda, a za dotik od blizu (tablica), ne za daljinec.
         // V pripravi; televizorja in brskalnika se ne dotika.
         tablica {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.tablet'
-            versionCode = 6
-            versionName = '0.3.0'
+            versionCode = 7
+            versionName = '0.3.1'
         }
     }
 
