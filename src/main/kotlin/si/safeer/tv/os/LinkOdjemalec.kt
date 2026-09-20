@@ -38,6 +38,8 @@ class LinkOdjemalec(private val context: Context) {
         fun naBesedilo(besedilo: String, od: String)
         /** Sredisce te naprave ne pozna vec: zeton je treba dobiti znova. */
         fun naZavrnitev()
+        /** Sredisca ni vec (vec zaporednih neuspehov): morda se je lastni hub umaknil izvoljenemu - poverilnice znova. */
+        fun naIzgubo() {}
     }
 
     var poslusalec: Poslusalec? = null
@@ -67,7 +69,11 @@ class LinkOdjemalec(private val context: Context) {
         poverilnice = p
         tece = true
         poskusov = 0
-        odjemalec = zgradi(p.odtis)
+        // Nova generacija: ponovni poskusi prejsnje povezave (ze nacrtovani na glavni niti) ne veljajo vec,
+        // sicer bi ob vsakem novem zagonu tekla se ena zanka poskusov vzporedno s staro.
+        generacija++
+        izgubaJavljena = false
+        odjemalec = zgradi(p)
         povezi()
     }
 
@@ -78,8 +84,11 @@ class LinkOdjemalec(private val context: Context) {
         povezan = false
     }
 
-    private fun zgradi(odtis: String): OkHttpClient {
-        val (tovarna, zaupnik) = Pin.tovarna(odtis)
+    private fun zgradi(p: Sorodnik.Poverilnice): OkHttpClient {
+        // Izvoljeni hub (drug clan kroga, brez zetona): potrdilo mora poleg odtisa iz oglasa nositi
+        // njegov kljuc iz kroga zaupanja - oglas mDNS sam po sebi ne dobi nobenega zaupanja.
+        val kljucKroga = if (p.zeton.isBlank() && p.hubId.isNotBlank()) KrogNaprave.krog(context).clan(p.hubId)?.kljuc else null
+        val (tovarna, zaupnik) = if (kljucKroga != null) HubTls.odjemalec(p.odtis, kljucKroga) else Pin.tovarna(p.odtis)
         return OkHttpClient.Builder()
             .sslSocketFactory(tovarna, zaupnik)
             .hostnameVerifier(Pin.brezImena)
@@ -248,8 +257,15 @@ class LinkOdjemalec(private val context: Context) {
         if (!tece) return
         val zamik = minOf(30_000L, 2_000L * (1 shl minOf(poskusov, 4)))
         poskusov++
-        glavna.postDelayed({ if (tece && !povezan) povezi() }, zamik)
+        // Izgubo sredisca javimo enkrat na povezavo (po treh neuspehih); upravitelj takrat vzame
+        // poverilnice znova - ce vodijo k istemu srediscu, tu mirno poskusamo naprej.
+        if (poskusov == 3 && !izgubaJavljena) { izgubaJavljena = true; glavna.post { poslusalec?.naIzgubo() } }
+        val gen = generacija
+        glavna.postDelayed({ if (tece && !povezan && gen == generacija) povezi() }, zamik)
     }
+
+    private var generacija = 0
+    private var izgubaJavljena = false
 
     private fun javiStanje(povezan: Boolean, sporocilo: String) {
         glavna.post { poslusalec?.naStanje(povezan, sporocilo) }

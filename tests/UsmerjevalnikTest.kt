@@ -863,6 +863,26 @@ private fun preizkusKroga() {
     u.obdelaj(brezVstopnice, registracija("tel-9", "sender"))
     preveriEnako("prijava brez vezane vstopnice gre po starem", "accepted", polje(brezVstopnice.zadnje(), "status"))
     preveri("odgovor prinese krog", JsonLahki.objekt(pravi?.telo.orEmpty())?.objekt("ring")?.objekt("clani")?.ima("tel-1") == true)
+    // Alias: ista naprava (isti kljuc) vpise se svoj drugi id - dokaz je podpis za znani id.
+    val izzivA = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1"}"""))
+    val nonceA = polje(izzivA?.telo.orEmpty(), "nonce")
+    val aliasTuj = u.odgovori(zahteva("POST", "/cast/trust/alias",
+        """{"device_id":"tel-1","nonce":"$nonceA","signature":"${podpisi(parKljucev(), u.podatkiZaPodpis("tel-1", nonceA))}","alias":"tel-1-os"}"""))
+    preveriEnako("alias s tujim podpisom je 401", 401, aliasTuj?.koda)
+    val izzivB = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1"}"""))
+    val nonceB = polje(izzivB?.telo.orEmpty(), "nonce")
+    val aliasOk = u.odgovori(zahteva("POST", "/cast/trust/alias",
+        """{"device_id":"tel-1","nonce":"$nonceB","signature":"${podpisi(tel, u.podatkiZaPodpis("tel-1", nonceB))}","alias":"tel-1-os","name":"Telefon OS"}"""))
+    preveriEnako("alias s pravim podpisom uspe", 200, aliasOk?.koda)
+    preveriEnako("alias ima isti kljuc", b64(tel.public.encoded), u.krog.clan("tel-1-os")?.kljuc)
+    preveriEnako("alias ima svoje ime", "Telefon OS", u.krog.clan("tel-1-os")?.ime)
+    val izzivC = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1-os"}"""))
+    preveriEnako("alias dobi izziv", 200, izzivC?.koda)
+    val izzivD = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1"}"""))
+    val nonceD = polje(izzivD?.telo.orEmpty(), "nonce")
+    val aliasZaseden = u.odgovori(zahteva("POST", "/cast/trust/alias",
+        """{"device_id":"tel-1","nonce":"$nonceD","signature":"${podpisi(tel, u.podatkiZaPodpis("tel-1", nonceD))}","alias":"tv-hub"}"""))
+    preveriEnako("alias na id z drugim kljucem je 409", 409, aliasZaseden?.koda)
     val znova = u.odgovori(zahteva("POST", "/cast/auth/ticket",
         """{"device_id":"tel-1","nonce":"$nonce2","signature":"${podpisi(tel, u.podatkiZaPodpis("tel-1", nonce2))}"}"""))
     preveriEnako("isti izziv drugic ne velja", 401, znova?.koda)

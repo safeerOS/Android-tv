@@ -126,7 +126,7 @@ bi Gradle modul zahteval prenovo obeh gradenj; izbrana je enostavnejša pot z is
 Odprto za korak 5: id naprave iz ključa (`n-…`) za nove naprave in oznaka sorodnika (brskalnik + Control
 na istem računalniku, TV + OS na istem televizorju delijo ključ, a imajo ločene id-je).
 
-## 4. Izvolitev huba (dogovorjeno)
+## 4. Izvolitev huba (narejeno, 20. 9.)
 
 - Vsaka naprava prek mDNS objavi `hub_priority` in `device_id`.
 - Hub je naprava z najvišjo prioriteto; pri enaki odloči `device_id` (leksikografsko manjši). Vsi pridejo
@@ -137,3 +137,37 @@ na istem računalniku, TV + OS na istem televizorju delijo ključ, a imajo loče
   tablica 40, telefon 20. Uporabnik jih lahko spremeni v nastavitvah.
 - Hub dela samo odkrivanje, katalog naprav, zmožnosti in dogovor o seji; mediji tečejo neposredno (1.), zato
   seja preživi menjavo huba.
+
+### Kako je narejeno
+
+- `cast/IzvolitevHuba.kt` (jedro, JVM, `tests/IzvolitevTest.kt`): prioritete strežnik 100 / Linux 80 / TV 60 /
+  tablica 40 / telefon 20 (`privzetaPrioriteta`), `jePred` (višja prioriteta, pri enaki manjši id),
+  `komuSeUmaknem(jaz, videni)`. Oglas mDNS nosi `prio` in `id` (`HubObjava`), `HubDiscovery.poisciVse` zbere
+  vse žive hube brez spreminjanja nastavitev.
+- `HubKrmilnik` (TV/tablica): po zagonu huba čez 1,5 s izvolitev, nato vsakih 90 s; kandidati so samo člani
+  kroga zaupanja (tuj oglas nima glasu). Umik: lastni hub ugasne, `izvoljeni_hub_*` v nastavitvah,
+  sprejemnik (`CastReceiverService`) gre na izvoljeni hub s **podpisom ključa** (`/cast/auth/challenge` →
+  `/cast/auth/ticket`); zaupanje potrdilu: odtis iz oglasa **in** javni ključ v potrdilu = ključ tega člana v
+  krogu (`HubTls.Zaupnik(pripeti, pripetiKljuc)`). Sorodniki (Safeer OS, tablica) dobijo prek
+  `LinkSorodnikStoritev`/`Sorodnik` poverilnice izvoljenega huba brez žetona in se prijavijo s podpisom.
+  Ko izvoljeni hub izgine (3 neuspehi sprejemnika), naprava spet gosti sama (`izvoljeniHubIzgubljen`),
+  če je uporabnik Link prižgal.
+- **Alias v krogu** (`POST /cast/trust/alias`): ista naprava ima več id-jev z istim ključem (TV brskalnik +
+  Safeer OS, tablica + njen zaslon, Control + brskalnik). Član z izzivom za znani id podpiše in vpiše svoj
+  drugi id z istim ključem; drug ključ pod tem id je 409. Tako je tablica po umiku na TV-ju prisotna kot
+  `tv-sm-x210-os` (sender) in `tv-sm-x210` (receiver).
+- Linux (`safeer-lms`): `poisci_hube_mdns` bere `id`; `poisci_hub_z_odtisom` prepozna hub iz kroga
+  (`link_tls.potrdilo_huba` → ključ v potrdilu = ključ člana; `krog=True`), `safeer_link` se nanj poveže brez
+  žetona s podpisom (`link_krog.je_vpisan`). Preizkus `tests/test_link_izvolitev.py`.
+- Telefon: hub oglaša `prio=20` in `id`; izvolitve (umika) telefon še ne izvaja - telefon gosti le, ko ni
+  nikogar drugega, in TV/tablica se telefonu ne umakneta (nižja prioriteta).
+
+### Preverjeno v živo (tablica ↔ TV)
+
+1. Tablica v domačem načinu zažene svoj hub (40), zagleda TV (60), se umakne, njen OS-odjemalec in zaslon
+   se prijavita na TV s podpisom (zaslon prek aliasa). `/cast/devices` na TV: TV, Control, `tv-sm-x210-os`,
+   `tv-sm-x210`.
+2. TV ugasne: tablica po ~7 s spet gosti sama; OS-odjemalec se poveže na lastni hub s podpisom.
+3. TV se vrne: TV gosti (60), tablica se ob naslednji izvolitvi (≤ 90 s) spet umakne.
+
+Odprto: izvolitev na telefonu (umik) in `safeer-core` brez GUI (prioriteta 100) - korak 6.

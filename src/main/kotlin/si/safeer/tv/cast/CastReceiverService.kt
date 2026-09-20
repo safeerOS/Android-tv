@@ -149,7 +149,9 @@ class CastReceiverService : Service() {
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .pingInterval(15, TimeUnit.SECONDS)
         val odtis = try { HubTls.pripetiOdtis(this) } catch (_: Throwable) { null }
-        return HubTls.okhttp(g, odtis).first.build()
+        // Izvoljeni hub (drug clan kroga): poleg odtisa iz oglasa mora potrdilo nositi njegov kljuc iz kroga.
+        val kljuc = try { HubKrmilnik.izvoljeniHub(this)?.let { KrogNaprave.krog(this).clan(it.id)?.kljuc } } catch (_: Throwable) { null }
+        return HubTls.okhttp(g, odtis, kljuc).first.build()
     }
 
     private var webSocket: WebSocket? = null
@@ -198,7 +200,89 @@ class CastReceiverService : Service() {
         }
         client = zgradiOdjemalca()
         Log.i(TAG, "Povezujem se na Safeer Cast Hub: $hubUrl (naprava: $deviceId)")
-        zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov) }
+        val vpisan = try { KrogNaprave.jeVpisana(this, deviceId) } catch (_: Throwable) { false }
+        if (vpisan) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov) }
+        else {
+            // Nas kljuc je v krogu pod drugim id (npr. Safeer OS iste naprave): ta id vpisemo kot alias
+            // s podpisom, nato pridemo s podpisom tudi sami. Sicer po starem, z zetonom.
+            val znani = try { KrogNaprave.znaniIdZaNasKljuc(this) } catch (_: Throwable) { null }
+            if (znani != null && HubKrmilnik.izvoljeniHub(this) != null) vpisiAlias(hubUrl, znani) { uspelo ->
+                if (uspelo) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov) }
+                else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov) }
+            } else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov) }
+        }
+    }
+
+    /** V krog izvoljenega huba vpise ta id kot alias id-ja [znani] (isti kljuc, dokazan s podpisom). */
+    private fun vpisiAlias(wsUrl: String, znani: String, naprej: (Boolean) -> Unit) {
+        klic("/cast/auth/challenge", JSONObject().put("device_id", znani)) { koda, telo ->
+            val j = try { JSONObject(telo) } catch (_: Throwable) { JSONObject() }
+            val nonce = j.optString("nonce")
+            if (koda != 200 || nonce.isBlank()) { naprej(false); return@klic }
+            val odtisHuba = j.optString("fp").ifBlank { HubTls.pripetiOdtis(this).orEmpty() }
+            val podpis = try { KrogNaprave.podpisPrijave(znani, odtisHuba, nonce) } catch (_: Throwable) { naprej(false); return@klic }
+            val telo2 = JSONObject().put("device_id", znani).put("nonce", nonce).put("signature", podpis)
+                .put("alias", deviceId).put("name", deviceName).put("platform", HubKrmilnik.platforma(this))
+            klic("/cast/trust/alias", telo2) { koda2, odgovor ->
+                if (koda2 != 200) { Log.i(TAG, "Aliasa v krogu ni bilo mogoce vpisati ($koda2)."); naprej(false); return@klic }
+                try { JSONObject(odgovor).optJSONObject("ring")?.let { KrogNaprave.sprejmi(this, it.toString()) } } catch (_: Throwable) { }
+                Log.i(TAG, "Id $deviceId vpisan v krog kot alias id-ja $znani.")
+                naprej(true)
+            }
+        }
+    }
+
+    private fun osnova(wsUrl: String): String =
+        wsUrl.replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
+            .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws").trimEnd('/')
+
+    /** POST JSON na hub; naprej(koda, telo), napaka omrezja = koda 0. */
+    private fun klic(pot: String, telo: JSONObject?, naprej: (Int, String) -> Unit) {
+        val z = Request.Builder().url("${osnova(hubUrl)}$pot")
+            .post((telo?.toString() ?: "").toRequestBody("application/json".toMediaTypeOrNull()))
+        client.newCall(z.build()).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: java.io.IOException) { naprej(0, "") }
+            override fun onResponse(call: Call, response: Response) { response.use { naprej(it.code, it.body?.string().orEmpty()) } }
+        })
+    }
+
+    /**
+     * Vstopnica s podpisom kljuca naprave (krog zaupanja): izziv -> podpis -> vstopnica. Tako se
+     * televizor prijavi tudi izvoljenemu hubu, s katerim ni bil nikoli seznanjen s kodo. Ce hub
+     * kroga ne pozna ali nas v njem nima, gre po starem z zetonom.
+     */
+    private fun zVstopnicoSPodpisom(wsUrl: String, naprej: (String) -> Unit) {
+        klic("/cast/auth/challenge", JSONObject().put("device_id", deviceId)) { koda, telo ->
+            val j = try { JSONObject(telo) } catch (_: Throwable) { JSONObject() }
+            val nonce = j.optString("nonce")
+            if (koda != 200 || nonce.isBlank()) {
+                // Izvoljeni hub nas pod tem id ne pozna (401), nas kljuc pa ima pod drugim id (npr. Safeer OS
+                // te naprave): vpisemo alias in poskusimo znova. Lastni krog tu ne steje - odloca hubov.
+                val znani = if (koda == 401 && HubKrmilnik.izvoljeniHub(this) != null) try { KrogNaprave.znaniIdZaNasKljuc(this, razen = deviceId) } catch (_: Throwable) { null } else null
+                if (znani != null) {
+                    vpisiAlias(wsUrl, znani) { uspelo -> if (uspelo) zVstopnicoSPodpisom(wsUrl, naprej) else zVstopnico(wsUrl, controlToken(), naprej) }
+                    return@klic
+                }
+                Log.i(TAG, "Prijava s podpisom ni mogoca ($koda); z zetonom.")
+                zVstopnico(wsUrl, controlToken(), naprej); return@klic
+            }
+            val odtisHuba = j.optString("fp").ifBlank { HubTls.pripetiOdtis(this).orEmpty() }
+            val podpis = try { KrogNaprave.podpisPrijave(deviceId, odtisHuba, nonce) } catch (e: Throwable) {
+                Log.w(TAG, "Podpisa ni bilo mogoce narediti: ${e.message}"); zVstopnico(wsUrl, controlToken(), naprej); return@klic
+            }
+            klic("/cast/auth/ticket", JSONObject().put("device_id", deviceId).put("nonce", nonce).put("signature", podpis)) { koda2, telo2 ->
+                val j2 = try { JSONObject(telo2) } catch (_: Throwable) { JSONObject() }
+                val vstopnica = j2.optString("ticket")
+                if (koda2 != 200 || vstopnica.isBlank()) {
+                    Log.w(TAG, "Hub podpisa ni sprejel ($koda2); z zetonom.")
+                    zVstopnico(wsUrl, controlToken(), naprej); return@klic
+                }
+                j2.optJSONObject("ring")?.let { KrogNaprave.sprejmi(this, it.toString()) }
+                Log.i(TAG, "Prijava s podpisom kljuca naprave.")
+                val locilo = if (wsUrl.contains("?")) "&" else "?"
+                naprej("$wsUrl${locilo}ticket=$vstopnica")
+            }
+        }
     }
 
     /** Zeton za Safeer Control; nastavi se ob seznanitvi televizorja. */
@@ -337,6 +421,8 @@ class CastReceiverService : Service() {
         client.newCall(zahteva).enqueue(object : Callback {
             override fun onFailure(call: Call, e: java.io.IOException) {
                 Log.w(TAG, "Vstopnice ni bilo mogoce dobiti: ${e.message}")
+                // Brez tega bi sprejemnik po padlem hubu obtical brez ponovnega poskusa (in brez izvolitve).
+                mainHandler.post { odklopljen(); scheduleReconnect() }
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -344,6 +430,7 @@ class CastReceiverService : Service() {
                     val telo = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
                         Log.w(TAG, "Control je zavrnil zahtevo za vstopnico (${it.code}).")
+                        mainHandler.post { odklopljen(); scheduleReconnect() }
                         return
                     }
                     val vstopnica = try {
@@ -385,7 +472,12 @@ class CastReceiverService : Service() {
         // morda prevzel telefon ali racunalnik (ali je dobilo nov naslov). Ce je bil televizor
         // z njim ze seznanjen, HubDiscovery preklopi naslov in zeton brez nove kode.
         if (reconnectAttempts == 3 || (reconnectAttempts > MAX_RECONNECT_ATTEMPTS && reconnectAttempts % 3 == 0)) {
-            mainHandler.postDelayed({ poisciDrugoSredisce() }, delayMs / 2)
+            // Izvoljeni hub je izginil: ce je uporabnik Link prizgal, televizor spet gosti sam.
+            if (HubKrmilnik.izvoljeniHub(this) != null && HubKrmilnik.jeZazelen(this)) {
+                mainHandler.postDelayed({ HubKrmilnik.izvoljeniHubIzgubljen(this) }, delayMs / 2)
+            } else {
+                mainHandler.postDelayed({ poisciDrugoSredisce() }, delayMs / 2)
+            }
         }
         mainHandler.postDelayed({ connectToHub() }, delayMs)
     }

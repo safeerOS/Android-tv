@@ -21,7 +21,7 @@ PAKET_TEL="com.safeer.mobile.browser.cast"
 # Skupne datoteke (brez odvisnosti od aplikacije). Krmilnik, storitev, sprejemnik/odjemalec
 # ostanejo v vsaki aplikaciji svoji.
 DATOTEKE=(HubDiscovery.kt HubObjava.kt HubPairing.kt HubStreznik.kt HubTls.kt HubTokovi.kt
-          HubUsmerjevalnik.kt JsonLahki.kt KrogNaprave.kt KrogZaupanja.kt Seznanitve.kt Spake2.kt)
+          HubUsmerjevalnik.kt IzvolitevHuba.kt JsonLahki.kt KrogNaprave.kt KrogZaupanja.kt Seznanitve.kt Spake2.kt)
 
 GLAVA="// Preneseno iz brskalnika za televizor (si.safeer.tv.cast) brez sprememb v logiki:
 // gostitelj Safeer Linka mora biti enak na vseh napravah, sicer se protokol razide.

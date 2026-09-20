@@ -60,6 +60,17 @@ class LinkSorodnikStoritev : Service() {
         val b = Bundle()
         try {
             if (!HubKrmilnik.tece()) {
+                // Umaknili smo se izvoljenemu hubu (drug clan kroga): sorodnik gre tja, s podpisom svojega kljuca.
+                HubKrmilnik.izvoljeniHub(app)?.let { izvoljeni ->
+                    val pripona = if (paket.endsWith(".os")) "os" else paket.substringAfterLast('.').ifBlank { "app" }
+                    b.putString("hub_url", izvoljeni.naslov)
+                    b.putString("token", "")
+                    b.putString("fp", izvoljeni.odtis)
+                    b.putString("hub_id", izvoljeni.id)
+                    b.putString("device_id", HubKrmilnik.lastniId() + "-" + pripona)
+                    Log.i(TAG, "Sorodna aplikacija $paket gre na izvoljeni hub ${izvoljeni.id}.")
+                    return b
+                }
                 if (neZaganjaj) {
                     Log.i(TAG, "Sredisce ne tece, sorodnik ($paket) ga ni zahteval - ne zaganjam.")
                     return b

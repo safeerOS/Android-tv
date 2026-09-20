@@ -68,12 +68,15 @@ object Sorodnik {
         val hub = b.getString("hub_url").orEmpty()
         val zeton = b.getString("token").orEmpty()
         val odtis = b.getString("fp").orEmpty()
-        if (!hub.startsWith("wss://") || zeton.isBlank() || odtis.isBlank()) return null
+        // Zeton je lahko prazen: pri izvoljenem hubu (drug clan kroga) se prijavimo s podpisom kljuca.
+        if (!hub.startsWith("wss://") || odtis.isBlank() || (zeton.isBlank() && b.getString("hub_id").isNullOrBlank())) return null
         return Poverilnice(hub, zeton, odtis, b.getString("hub_id").orEmpty())
     }
 
     private fun vProcesu(app: Context, dovoliZagon: Boolean): Poverilnice? {
         if (!HubKrmilnik.tece()) {
+            // Umaknili smo se izvoljenemu hubu: tja, s podpisom kljuca (zeton ni potreben).
+            HubKrmilnik.izvoljeniHub(app)?.let { return Poverilnice(it.naslov, "", it.odtis, it.id) }
             if (!dovoliZagon) return null
             HubKrmilnik.zazeni(app, zapomni = true)
             HubStoritev.zagotovi(app)

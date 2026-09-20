@@ -130,20 +130,122 @@ object HubKrmilnik {
         // sredisce, na katerega ni mogoce nicesar poslati.
         poveziLastniZaslon(app, u, s.vrata)
 
-        HubObjava.objavi(app, s.vrata, imeHuba(app)) { uspelo ->
+        HubObjava.objavi(app, s.vrata, imeHuba(app), prioriteta(app), lastniId()) { uspelo ->
             if (!uspelo) {
                 // Brez oglasa Hub se vedno dela; naprava, ki ga je ze videla, pozna naslov.
                 Log.i(TAG, "Hub tece, oglas v omrezju pa ni uspel.")
             }
         }
         if (zapomni) zapomniZeljo(app, true)
-        Log.i(TAG, "Safeer Hub tece na ${naslov()}")
+        pozabiIzvoljeni(app)
+        Log.i(TAG, "Safeer Hub tece na ${naslov()} (prioriteta ${prioriteta(app)})")
+        // Izvolitev: ce v hisi ze gosti boljsi clan kroga, se mu umaknemo. Poteka v ozadju, hub
+        // medtem tece - naprave, ki so pripete nanj, ob umiku najdejo izvoljenega prek mDNS.
+        nacrtujIzvolitev(app, PRVA_IZVOLITEV_MS)
         return true
+    }
+
+    // ------------------------------------------------------------------ izvolitev huba
+
+    const val KLJUC_PRIORITETA = "hub_prioriteta"
+    const val KLJUC_IZVOLJENI_URL = "izvoljeni_hub_url"
+    const val KLJUC_IZVOLJENI_ODTIS = "izvoljeni_hub_fp"
+    const val KLJUC_IZVOLJENI_ID = "izvoljeni_hub_id"
+    private const val PRVA_IZVOLITEV_MS = 1_500L
+    private const val PONOVNA_IZVOLITEV_MS = 90_000L
+
+    private val glavna by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+    private var izvolitevNacrtovana: Runnable? = null
+
+    /** Platforma te naprave v krogu zaupanja: tablica ali TV (isti Gradle projekt, razlicna okusa). */
+    fun platforma(context: Context): String = if (context.packageName.endsWith(".tablet")) "tablet" else "tv"
+
+    /** Prioriteta pri izvolitvi: uporabnikova (nastavitev hub_prioriteta) ali privzeta po platformi. */
+    fun prioriteta(context: Context): Int {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KLJUC_PRIORITETA, 0)
+        return if (p > 0) p else IzvolitevHuba.privzetaPrioriteta(platforma(context))
+    }
+
+    /** Hub, ki smo se mu umaknili (naslov, odtis, id), ali null, ce gostimo sami oz. nismo v Linku. */
+    fun izvoljeniHub(context: Context): HubDiscovery.NajdeniHub? {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val naslov = p.getString(KLJUC_IZVOLJENI_URL, "") ?: ""
+        val id = p.getString(KLJUC_IZVOLJENI_ID, "") ?: ""
+        if (naslov.isBlank() || id.isBlank()) return null
+        return HubDiscovery.NajdeniHub(naslov, p.getString(KLJUC_IZVOLJENI_ODTIS, "") ?: "", id, 0, "")
+    }
+
+    private fun pozabiIzvoljeni(app: Context) {
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .remove(KLJUC_IZVOLJENI_URL).remove(KLJUC_IZVOLJENI_ODTIS).remove(KLJUC_IZVOLJENI_ID).apply()
+    }
+
+    private fun nacrtujIzvolitev(app: Context, cez: Long) {
+        izvolitevNacrtovana?.let { glavna.removeCallbacks(it) }
+        val r = Runnable { izvolitevNacrtovana = null; if (tece()) izvolitev(app) }
+        izvolitevNacrtovana = r
+        glavna.postDelayed(r, cez)
+    }
+
+    /**
+     * Pogleda, kdo v hisi gosti, in se umakne boljsemu clanu kroga (IzvolitevHuba). Tuj oglas brez
+     * mesta v krogu zaupanja ne steje. Ce ostanemo hub, preverimo znova cez nekaj minut.
+     */
+    fun izvolitev(app: Context) {
+        HubDiscovery.poisciVse(app) { hubi ->
+            if (!tece()) return@poisciVse
+            val krog = KrogNaprave.krog(app)
+            val jaz = IzvolitevHuba.Kandidat(lastniId(), prioriteta(app))
+            val kandidati = hubi.filter { it.id.isNotBlank() && it.id != jaz.id && krog.jeClan(it.id) }
+                .map { IzvolitevHuba.Kandidat(it.id, it.prioriteta, it.naslov, it.odtis, it.ime) }
+            val tuji = hubi.filter { it.id.isBlank() || (it.id != jaz.id && !krog.jeClan(it.id)) }
+            if (tuji.isNotEmpty()) Log.i(TAG, "Izvolitev: ${tuji.size} hub(ov) zunaj kroga zaupanja ne steje.")
+            val umik = IzvolitevHuba.komuSeUmaknem(jaz, kandidati)
+            if (umik == null) {
+                Log.i(TAG, "Izvolitev: ostajam hub (${jaz.id}, prioriteta ${jaz.prioriteta}; drugih v krogu: ${kandidati.size}).")
+                nacrtujIzvolitev(app, PONOVNA_IZVOLITEV_MS)
+                return@poisciVse
+            }
+            Log.i(TAG, "Izvolitev: umikam se hubu ${umik.id} (prioriteta ${umik.prioriteta} > ${jaz.prioriteta}) na ${umik.naslov}.")
+            umakniSe(app, umik)
+        }
+    }
+
+    /** Ugasne lastni hub in televizor priklopi na izvoljenega kot odjemalca (prijava s podpisom, zaupanje po krogu). */
+    @Synchronized
+    private fun umakniSe(app: Context, hub: IzvolitevHuba.Kandidat) {
+        ustavi(app, zapomni = false)
+        Seznanitve.zapomniTrenutno(app)
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KLJUC_IZVOLJENI_URL, hub.naslov).putString(KLJUC_IZVOLJENI_ODTIS, hub.odtis).putString(KLJUC_IZVOLJENI_ID, hub.id)
+            .putString("hub_url", hub.naslov).putString("hub_ticket_path", "/cast/ticket")
+            .putString(HubTls.KEY_HUB_FP, hub.odtis)
+            // Zeton velja samo za lastni hub; pri izvoljenem se prijavimo s podpisom kljuca (krog zaupanja).
+            .putString("control_token", Seznanitve.zeton(app, hub.odtis) ?: "")
+            .apply()
+        try { CastReceiverService.start(app, hub.naslov, imeHuba(app)) } catch (e: Throwable) {
+            Log.w(TAG, "Sprejemnika ni bilo mogoce priklopiti na izvoljeni hub: ${e.message}")
+        }
+    }
+
+    /**
+     * Izvoljenega huba ni vec (sprejemnik ga ne doseze): ce je uporabnik Link prizgal, spet gostimo
+     * sami - izvolitev po zagonu pove, ali je medtem prevzel kdo drug.
+     */
+    @Synchronized
+    fun izvoljeniHubIzgubljen(context: Context) {
+        val app = context.applicationContext
+        if (izvoljeniHub(app) == null || tece() || !jeZazelen(app)) return
+        Log.i(TAG, "Izvoljeni hub se ne oglasa; gostim spet sam.")
+        pozabiIzvoljeni(app)
+        zazeni(app, zapomni = false)
     }
 
     /** Ugasne Hub. `zapomni` naj bo true samo, kadar je tako odlocil uporabnik. */
     @Synchronized
     fun ustavi(context: Context?, zapomni: Boolean = true) {
+        izvolitevNacrtovana?.let { glavna.removeCallbacks(it) }
+        izvolitevNacrtovana = null
         HubObjava.umakni()
         streznik?.ustavi()
         streznik = null

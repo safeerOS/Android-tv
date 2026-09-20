@@ -32,3 +32,13 @@ java -cp "$OUT/usmerjevalnik.jar" si.safeer.tv.cast.UsmerjevalnikTestKt
     "$TEST_DIR/Spake2Test.kt" \
     -include-runtime -d "$OUT/spake2.jar"
 java -cp "$OUT/spake2.jar" si.safeer.tv.cast.Spake2TestKt
+
+# Izvolitev huba (prioritete, izenacenje po id, umik).
+"$KOTLINC" -J-Xmx2g \
+    "$SRC/si/safeer/tv/cast/IzvolitevHuba.kt" \
+    "$TEST_DIR/IzvolitevTest.kt" \
+    -include-runtime -d "$OUT/izvolitev.jar"
+java -cp "$OUT/izvolitev.jar" si.safeer.tv.cast.IzvolitevTestKt
+
+# Link Core: kopija na telefonu mora biti enaka viru (ce je telefon na tem racunalniku).
+[[ -d "$PROJECT_DIR/../safeer-browser" ]] && bash "$PROJECT_DIR/tools/link-core-sync.sh" --preveri "$PROJECT_DIR/../safeer-browser"

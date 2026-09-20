@@ -162,4 +162,11 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         Identiteta.pozabi(app)
         zahtevajPoverilnice()
     }
+
+    override fun naIzgubo() {
+        // Sredisca ni vec: lastni hub se je morda umaknil izvoljenemu (drug clan kroga) - poverilnice
+        // vzamemo znova, Sorodnik nas takrat usmeri tja, s podpisom kljuca.
+        Identiteta.pozabi(app)
+        zahtevajPoverilnice()
+    }
 }
