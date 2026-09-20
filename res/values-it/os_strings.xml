@@ -419,6 +419,7 @@
     <string name="os_ur_pomoc_drzi_naprava">Tieni premuto OK · opzioni (ruota, elimina)</string>
     <string name="os_ur_slika_pomoc">Tieni premuto OK · ruota, rinomina, elimina</string>
     <string name="os_ur_n_potrdi_na_napravi">Conferma sul dispositivo che contiene la foto: Android non lo consente da altrove.</string>
+    <string name="os_ur_n_zavrnjeno">L\'azione non è stata consentita sul dispositivo.</string>
     <string name="os_ur_n_ni_na_napravi">Non è possibile su questo dispositivo.</string>
     <string name="os_ur_n_prevelika">La foto è troppo grande per essere ruotata su questo dispositivo.</string>
     <string name="os_ur_kanal">Safeer: conferma</string>

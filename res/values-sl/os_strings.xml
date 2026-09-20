@@ -419,6 +419,7 @@
     <string name="os_ur_pomoc_drzi_naprava">Drži OK · možnosti (zavrti, izbriši)</string>
     <string name="os_ur_slika_pomoc">Drži OK · zavrti, preimenuj, izbriši</string>
     <string name="os_ur_n_potrdi_na_napravi">Potrdi na napravi, kjer je slika – Android tega ne dovoli od drugod.</string>
+    <string name="os_ur_n_zavrnjeno">Na napravi dejanje ni bilo dovoljeno.</string>
     <string name="os_ur_n_ni_na_napravi">Tega na tej napravi ni mogoče.</string>
     <string name="os_ur_n_prevelika">Slika je prevelika za vrtenje na tej napravi.</string>
     <string name="os_ur_kanal">Safeer: potrditev</string>

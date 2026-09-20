@@ -45,7 +45,11 @@ object UrejanjeDatotek {
     private fun ukaz(s: DatotekeActivity.Streznik, id: String, telo: JSONObject, naprej: (Izid) -> Unit) {
         ozadje.execute {
             val izid = try {
-                val k: OkHttpClient = PripetiVir.odjemalecZaStreznik(s.odtis)
+                // Naprava (telefon, tablica) zahtevo zadrzi, dokler lastnik ne odgovori na
+                // sistemsko vprasanje, zato tu cakamo dlje kot pri navadnem prenosu.
+                val k: OkHttpClient = PripetiVir.odjemalecZaStreznik(s.odtis).newBuilder()
+                    .readTimeout(40, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
                 val z = Request.Builder().url(s.url(id)).header("X-Safeer-Token", s.zeton)
                     .post(telo.toString().toRequestBody(json)).build()
                 k.newCall(z).execute().use { o ->

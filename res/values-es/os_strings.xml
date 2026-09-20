@@ -419,6 +419,7 @@
     <string name="os_ur_pomoc_drzi_naprava">Mantén OK · opciones (girar, eliminar)</string>
     <string name="os_ur_slika_pomoc">Mantén OK · girar, renombrar, eliminar</string>
     <string name="os_ur_n_potrdi_na_napravi">Confirma en el dispositivo que tiene la foto: Android no lo permite desde otro sitio.</string>
+    <string name="os_ur_n_zavrnjeno">La acción no se ha permitido en el dispositivo.</string>
     <string name="os_ur_n_ni_na_napravi">No es posible en este dispositivo.</string>
     <string name="os_ur_n_prevelika">La foto es demasiado grande para girarla en ese dispositivo.</string>
     <string name="os_ur_kanal">Safeer: confirmación</string>
