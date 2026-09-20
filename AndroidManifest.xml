@@ -251,6 +251,14 @@
                 <action android:name="android.net.VpnService" />
             </intent-filter>
         </service>
+        <!-- Sistemsko vprasanje, kadar Android za brisanje ali vrtenje fotografije zahteva
+             privolitev uporabnika. Brez svojega vmesnika: prosojno, brez zgodovine, ni v nedavnih. -->
+        <activity
+            android:name="si.safeer.tv.link.PotrditevActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
         <activity
             android:name="si.safeer.tv.scit.ScitActivity"
             android:exported="true"

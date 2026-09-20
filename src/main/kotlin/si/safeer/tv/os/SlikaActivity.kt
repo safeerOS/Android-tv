@@ -25,9 +25,10 @@ import java.util.concurrent.Executors
  * telefona ne pozrejo pomnilnika televizorja) in obrne po oznaki EXIF, da je pokoncna fotografija
  * pokoncna tudi tu.
  *
- * Kadar racunalnik dovoli urejanje (Safeer Control 2.1.0+): zadrzan OK (na tablici gumbi v
- * prekritju) zavrti sliko v levo ali desno - shrani se na racunalniku -, jo preimenuje ali izbrise
- * (v Smeti racunalnika).
+ * Kadar vir dovoli urejanje (Safeer Control 2.1.0+): zadrzan OK (na tablici gumbi v prekritju)
+ * zavrti sliko v levo ali desno - shrani se pri viru -, jo preimenuje ali izbrise (v Smeti
+ * racunalnika). Kadar sliko streze naprava (telefon, tablica, televizor), preimenovanja ni,
+ * vrtenje in brisanje pa potrdi uporabnik na tisti napravi - tako zahteva Android.
  */
 class SlikaActivity : OsActivity() {
 
@@ -45,6 +46,8 @@ class SlikaActivity : OsActivity() {
     private var zeton = ""
     private var lokalno = false
     private var urejanje = false
+    /** Sliko streze naprava (telefon, tablica, televizor): tam ni preimenovanja. */
+    private var naprava = false
     private var streznik: DatotekeActivity.Streznik? = null
     private var odjemalec: OkHttpClient? = null
     private val ozadje = Executors.newSingleThreadExecutor()
@@ -76,6 +79,7 @@ class SlikaActivity : OsActivity() {
             odjemalec = PripetiVir.odjemalecZaStreznik(s.odtis)
         }
         urejanje = intent.getBooleanExtra("urejanje", false) && !lokalno && oznake.size == urli.size
+        naprava = intent.getBooleanExtra("naprava", false)
         // Na tablici (dotik) so dejanja gumbi v prekritju; na televizorju jih odpre zadrzan OK.
         val dotik = packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)
         gumbi.visibility = if (urejanje && dotik) View.VISIBLE else View.GONE
@@ -133,12 +137,12 @@ class SlikaActivity : OsActivity() {
 
     private fun moznosti() {
         if (!urejanje) return
-        val dejanja = listOf(
-            getString(R.string.os_ur_zavrti_levo) to { zavrti(false) },
-            getString(R.string.os_ur_zavrti_desno) to { zavrti(true) },
-            getString(R.string.os_ur_preimenuj) to { preimenuj() },
-            getString(R.string.os_ur_izbrisi) to { potrdiBrisanje() },
-        )
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        dejanja.add(getString(R.string.os_ur_zavrti_levo) to { zavrti(false) })
+        dejanja.add(getString(R.string.os_ur_zavrti_desno) to { zavrti(true) })
+        // Naprave hranijo slike v zbirki (MediaStore), kjer je ime del zapisa: preimenovanja ni.
+        if (!naprava) dejanja.add(getString(R.string.os_ur_preimenuj) to { preimenuj() })
+        dejanja.add(getString(R.string.os_ur_izbrisi) to { potrdiBrisanje() })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(imena.getOrNull(i).orEmpty())
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja.getOrNull(k)?.second?.invoke() }
@@ -156,6 +160,7 @@ class SlikaActivity : OsActivity() {
             if (izid.ok) nalozi() else {
                 nalagam.visibility = View.GONE
                 Toast.makeText(this, getString(R.string.os_ur_napaka, DatotekeActivity.opisNapake(this, izid.napaka)), Toast.LENGTH_LONG).show()
+                if (izid.napaka == "potrebna_potrditev") DatotekeActivity.osveziPoVrnitvi = true
             }
         }
     }
@@ -204,12 +209,13 @@ class SlikaActivity : OsActivity() {
         val id = oznake.getOrNull(i) ?: return
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_ur_izbrisi_vprasanje, imena.getOrNull(i).orEmpty()))
-            .setMessage(getString(R.string.os_ur_izbrisi_opis))
+            .setMessage(getString(if (naprava) R.string.os_ur_izbrisi_opis_naprava else R.string.os_ur_izbrisi_opis))
             .setPositiveButton(getString(R.string.os_ur_izbrisi)) { _, _ ->
                 UrejanjeDatotek.izbrisi(s, id) { izid ->
                     if (isFinishing) return@izbrisi
                     if (!izid.ok) {
                         Toast.makeText(this, getString(R.string.os_ur_napaka, DatotekeActivity.opisNapake(this, izid.napaka)), Toast.LENGTH_LONG).show()
+                        if (izid.napaka == "potrebna_potrditev") DatotekeActivity.osveziPoVrnitvi = true
                         return@izbrisi
                     }
                     DatotekeActivity.osveziPoVrnitvi = true
