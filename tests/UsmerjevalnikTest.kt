@@ -1189,6 +1189,28 @@ private fun preizkusVabilaInOdhoda() {
         u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"n-pc-control"}"""))?.koda)
 }
 
+private fun preizkusDvojnePovezave() {
+    println("- nova povezava iste naprave zamenja staro")
+    val u = usmerjevalnik(LazniPomnilnik())
+    val stara = Lazni("192.168.0.70")
+    u.obdelaj(stara, registracija("pc-1", "sender"))
+    val nova = Lazni("192.168.0.70")
+    u.obdelaj(nova, registracija("pc-1", "sender"))
+    preveri("stara povezava je zaprta", stara.zaprt)
+    preveri("nova povezava je prijavljena", u.povezaniPrejemniki().contains("\"id\":\"pc-1\""))
+    // Zaprtje stare (njen bralec to javi kasneje) ne sme izbrisati nove.
+    u.odklopi(stara)
+    preveri("po zaprtju stare naprava ostane prijavljena", u.povezaniPrejemniki().contains("\"id\":\"pc-1\""))
+    // Sonda registracije: ukaz sami sebi - prijavljena naprava dobi isti_naprava, osirotela naprava_ni_povezana.
+    nova.pocisti()
+    u.obdelaj(nova, """{"id":"sonda-1","type":"control.command","target":"pc-1","payload":{"action":"status","params":{}}}""")
+    preveriEnako("prijavljena naprava dobi isti_naprava", "isti_naprava", polje(nova.zadnje(), "error_code"))
+    u.odklopi(nova)
+    stara.pocisti()
+    u.obdelaj(stara, """{"id":"sonda-2","type":"control.command","target":"pc-1","payload":{"action":"status","params":{}}}""")
+    preveriEnako("osirotela povezava dobi naprava_ni_povezana", "naprava_ni_povezana", polje(stara.zadnje(), "error_code"))
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1208,6 +1230,7 @@ fun main() {
     preizkusQrPrijave()
     preizkusPridruzitve()
     preizkusVabilaInOdhoda()
+    preizkusDvojnePovezave()
     println()
     if (napak == 0) {
         println("Vse v redu.")
