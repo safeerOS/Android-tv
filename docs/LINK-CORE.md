@@ -44,7 +44,9 @@ Po prenovi je zaupanje **medsebojno**:
 
 - **Ključ naprave.** Na Androidu je to ključ EC P-256 v AndroidKeyStore, ki ga `HubTls` že dela za TLS
   potrdilo huba (strojno varovan, nikoli ne zapusti KeyStore; `HubTls.javniKljucB64()`, `HubTls.podpisi()`);
-  na Linuxu ključ EC v `cryptography`. Obstoječe naprave obdržijo svoj `device_id` (krog veže id na ključ);
+  na Linuxu ključ EC P-256, ki ga Safeer Control že dela za svoje TLS potrdilo (`core/link_datoteke.py`,
+  openssl; podpis prek `openssl dgst`, brez nove odvisnosti - `core/link_krog.py`). Obstoječe naprave
+  obdržijo svoj `device_id` (krog veže id na ključ);
   nove naprave dobijo id iz javnega ključa (`KrogZaupanja.idIzKljuca`, `n-` + 16 hex SHA-256).
 - **Krog zaupanja** (`krog.json`): seznam `{device_id, pubkey, ime, platforma, dodano, dodal}` in
   nadgrobnikov `{device_id, umaknjeno, umaknil}`. Vsaka naprava hrani cel krog. Združevanje je unija po
@@ -80,6 +82,23 @@ in `POST /cast/auth/ticket` (prijava s podpisom, podpis vezan na odtis huba in e
 na žeton. Preizkušeno v živo na Philips TV: prehod brez kode. Preizkusi v `tests/UsmerjevalnikTest.kt`
 (`preizkusKroga`). Še ne: brskalnik TV kot odjemalec tujega huba, telefon, Linux Control (koda in
 prijava s podpisom), vezava `device_id` v `cast.register` na ključ (pride s korakom 3).
+
+**Popravek (20. 9., pozneje):** JVM preizkus kroga, pognan zares (kotlinc v zabojniku), je pokazal, da
+hub *vsak* podpis zavrne: `KrogZaupanja.preveriPodpis(id, …)` je zaradi enakega podpisa metode klical
+samega sebe namesto funkcije spremljevalca (ključ kot id → ni člana → 401). Safeer OS je zato v resnici
+vedno padel nazaj na žeton, česar dnevnik ni razkril. Popravljeno (`preveriPodpisSKljucem`), poleg tega
+`umakni` neznane naprave ne pušča nadgrobnika in `json()` je urejen po id (isti krog = isti niz na vsaki
+napravi). `tests/run_usmerjevalnik_tests.sh` zdaj gre skozi (46 preverb kroga). Nauk: JVM preizkuse
+poganjati lokalno, ne čakati na CI.
+
+**Linux (`safeer-lms`, veja `prenova-link`):** `core/link_krog.py` (isti zapis in pravila kot
+`KrogZaupanja.kt`, ključ = Controlov TLS ključ), `core/link_hub.py`: `vzemi_vstopnico_s_podpisom`
+(izziv → podpis → vstopnica) in `vpisi_v_krog` (z žetonom vpiše ključ); `Povezava._odpri` gre najprej s
+podpisom, sicer z žetonom in se vpiše; `trust.update` se shrani v `~/.config/safeer-browser/krog.json`.
+Brskalnik in Control na istem računalniku imata isti ključ in isti krog, a različna id-ja (`pc-x`,
+`pc-x-control`) - krog to dopušča (id → ključ), ob prehodu na id iz ključa (korak 3/5) bo treba enega od
+njiju označiti kot sorodnika. Preizkusi: `tests/test_link_krog.py` (brez huba) in
+`tests/test_link_krog_zivo.py` (proti pravemu hubu; prva prijava z žetonom vpiše ključ, druga gre s podpisom).
 
 ## 3. Izločitev Link Core iz brskalnika (osnutek)
 

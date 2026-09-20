@@ -80,10 +80,12 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
         return spremenjeno
     }
 
-    /** Umakne napravo iz kroga (nadgrobnik ostane, da umik preide na vse naprave). */
+    /** Umakne napravo iz kroga (nadgrobnik ostane, da umik preide na vse naprave). Naprava, ki je
+     *  ni v krogu, ne spremeni nicesar - sicer bi vsak tuj id pustil nadgrobnik in razposlal krog. */
     fun umakni(id: String, kdo: String, ob: Double = zdaj()): Boolean {
         val spremenjeno = synchronized(kljucnica) {
-            if (!clani.containsKey(id) && umiki.containsKey(id)) return@synchronized false
+            val c = clani[id] ?: return@synchronized false
+            if (umiki[id]?.let { it.umaknjeno > c.dodano } == true) return@synchronized false
             umiki[id] = Umik(id, ob, kdo)
             true
         }
@@ -134,15 +136,16 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
         return spremenjeno
     }
 
+    /** Zapis kroga; clani in umiki po id, da je isti krog na vsaki napravi tudi isti niz. */
     fun json(): String = synchronized(kljucnica) {
         val c = JsonLahki.Zapis()
-        for (clan in clani.values) {
+        for (clan in clani.values.sortedBy { it.id }) {
             c.surovo(clan.id, JsonLahki.Zapis()
                 .niz("kljuc", clan.kljuc).niz("ime", clan.ime).niz("platforma", clan.platforma)
                 .stevilo("dodano", clan.dodano).niz("dodal", clan.dodal).toString())
         }
         val u = JsonLahki.Zapis()
-        for (umik in umiki.values) {
+        for (umik in umiki.values.sortedBy { it.id }) {
             u.surovo(umik.id, JsonLahki.Zapis().stevilo("umaknjeno", umik.umaknjeno).niz("umaknil", umik.umaknil).toString())
         }
         JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", c.toString()).surovo("umiki", u.toString()).toString()
@@ -154,7 +157,9 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
      */
     fun preveriPodpis(id: String, podatki: ByteArray, podpisB64: String): Boolean {
         val clan = clan(id) ?: return false
-        return preveriPodpis(clan.kljuc, podatki, podpisB64)
+        // Izrecno funkcija spremljevalca: ta metoda ima isti podpis in bi sicer poklicala samo sebe
+        // (kljuc kot id -> ni clana -> false). Zato je JVM preizkus nekoc padel s 401.
+        return preveriPodpisSKljucem(clan.kljuc, podatki, podpisB64)
     }
 
     private fun jeVeljaven(c: Clan): Boolean = umiki[c.id]?.let { it.umaknjeno > c.dodano } != true
@@ -172,7 +177,8 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
             KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(Base64.getDecoder().decode(b64)))
         } catch (_: Throwable) { null }
 
-        fun preveriPodpis(kljucB64: String, podatki: ByteArray, podpisB64: String): Boolean = try {
+        /** Ali je [podpisB64] podpis [podatkov] z javnim kljucem [kljucB64] (SHA256withECDSA, DER podpis). */
+        fun preveriPodpisSKljucem(kljucB64: String, podatki: ByteArray, podpisB64: String): Boolean = try {
             val kljuc = dekodirajKljuc(kljucB64) ?: return false
             val s = Signature.getInstance("SHA256withECDSA")
             s.initVerify(kljuc)
