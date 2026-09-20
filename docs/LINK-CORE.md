@@ -362,3 +362,26 @@ stran `safeer.si/p` z gumbom »Odpri v Safeer« (objava strani s potrditvijo).
 
 Preverjeno: JVM (`UsmerjevalnikTest`: prijava 26 + pridružitev 11 preverb), v živo A: računalnik →
 TV hub → tablica Dovoli → žeton → vstopnica 200.
+
+## 9. Zaupanje računalniku, nova naprava z računalnika, odjava in programi z vseh naprav (20. 9.)
+
+**Zaupanje (Safeer Control / Safeer OS na računalniku, `core/link_seja.py`).** Računalnik lahko uporablja več
+ljudi, zato povezava privzeto velja do konca prijave v računalnik (boot_id + prikazovalna seja logind). Ob
+novi prijavi Control pozabi žeton, pokliče `/cast/devices/leave` in pokaže prijavno okno. Kljukica
+»Zaupaj temu računalniku« naredi povezavo trajno (kot doslej); nezaupan računalnik se ne vpiše v krog in
+se ne prijavlja s podpisom. Stare seznanitve ostanejo zaupane.
+
+**`POST /cast/pair/qr/invite`** (žeton seznanjene naprave, samo krajevno): središče ustvari isto enkratno
+kodo za pridružitev, kot jo sicer pokaže na svojem zaslonu (`ustvariPridruzitev`). Odgovor: `qr_id`,
+`secret`, `fp`, `expires_in_seconds`; računalnik iz tega sestavi `https://safeer.si/p#j=…&s=…&f=…&a=…`.
+`…/invite/status` pove `pending` in `joined` + `name`, `…/invite/cancel` kodo prekliče. Tujec kode ne dobi:
+žeton je obvezen, zahteva mora priti iz domačega omrežja.
+
+**`POST /cast/devices/leave`** (žeton ali sejni žeton): naprava sama zapusti Link. Središče ji odvzame
+žetone, zapre povezavo, izbriše seje in jo umakne iz kroga zaupanja - z vsemi id-ji z istim ključem (Control
+in brskalnik na istem računalniku). Uporabi ga »Odjavi ta računalnik« in nezaupan računalnik ob novi prijavi.
+
+**Programi z vseh naprav (Safeer OS, zaslon Programi).** Seznam se naloži z vseh naprav z zmožnostjo `apps`
+(računalnik, po kosih) ali `remote` (Android, `apps.list` z ikonami naenkrat), brez te naprave in brez
+procesov z istim naslovom IP. Zgoraj je izbira naprave (Vse · računalnik · tablica …); zagon gre z
+`apps.launch` na napravo, ki ima program. Besedila: »Iz vseh tvojih naprav« / »Iz povezanih naprav«.

@@ -150,7 +150,7 @@
     <string name="os_spletne_desno">Nach rechts verschieben</string>
     <!-- Programi racunalnika na televizorju -->
     <string name="os_programi">Programme</string>
-    <string name="os_programi_naslov">Was auf deinem Computer ist</string>
+    <string name="os_programi_naslov">Von all deinen Geräten</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Nach Namen suchen</string>
     <string name="os_programi_ni_zadetka">Kein Programm passt zu „%1$s“.</string>
@@ -353,7 +353,9 @@
 <string name="os_brskalnik_naslov">Webbrowser</string>
     <string name="os_brskalnik_opis">Schnell, sicher, werbefrei</string>
     <string name="os_zaslon_opis">Dein Computer am TV</string>
-    <string name="os_programi_opis">Vom Computer</string>
+    <string name="os_programi_opis">Von deinen Geräten</string>
+    <string name="os_programi_naprav">Geräte: %d</string>
+    <string name="os_programi_zagnan_naprava">%1$s wird auf %2$s geöffnet.</string>
     <string name="os_nedavno_uporabljeno">Zuletzt verwendet</string>
     <string name="os_dodaj_aplikacijo">App hinzufügen</string>
     <string name="os_kartica_ni_povezano_opis">Verbinde dein Gerät mit Safeer Link und aktiviere die Freigabe in Safeer Control.</string>

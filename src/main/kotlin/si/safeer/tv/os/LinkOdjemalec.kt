@@ -50,6 +50,8 @@ class LinkOdjemalec(private val context: Context) {
         private set
     /** Zadnji seznam naprav s sredisca (za zaslone, ki se odprejo, ko je povezava ze vzpostavljena). */
     @Volatile var naprave: List<Naprava> = emptyList()
+    /** Sredisce tece na tej napravi (loopback ali nas naslov): njegov brskalnik se hubu javi s 127.0.0.1. */
+    @Volatile var srediceJeTu: Boolean = false
         private set
 
     /** Odgovor na ukaz daljinca: `izid` je payload sporocila control.result (ok, message, data) ali null ob napaki/poteku. */
@@ -193,6 +195,11 @@ class LinkOdjemalec(private val context: Context) {
 
     private fun odpriZVstopnico(p: Sorodnik.Poverilnice, vstopnica: String) {
         val locilo = if (p.hubUrl.contains("?")) "&" else "?"
+        srediceJeTu = try {
+            val gostitelj = java.net.URI(p.hubUrl).host.orEmpty().trim('[', ']')
+            val naslov = java.net.InetAddress.getByName(gostitelj)
+            naslov.isLoopbackAddress || java.net.NetworkInterface.getByInetAddress(naslov) != null
+        } catch (_: Throwable) { false }
         odpri("${p.hubUrl}${locilo}ticket=$vstopnica")
     }
 

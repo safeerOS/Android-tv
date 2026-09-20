@@ -150,7 +150,7 @@
     <string name="os_spletne_desno">Sposta a destra</string>
     <!-- Programi racunalnika na televizorju -->
     <string name="os_programi">Programmi</string>
-    <string name="os_programi_naslov">Quello che hai sul computer</string>
+    <string name="os_programi_naslov">Da tutti i tuoi dispositivi</string>
     <!-- Programi racunalnika: iskanje po imenu in skupine (kot v meniju namizja). -->
     <string name="os_programi_isci">Cerca per nome</string>
     <string name="os_programi_ni_zadetka">Nessun programma corrisponde a «%1$s».</string>
@@ -353,7 +353,9 @@
     <string name="os_brskalnik_naslov">Browser web</string>
     <string name="os_brskalnik_opis">Veloce, sicuro, senza pubblicità</string>
     <string name="os_zaslon_opis">Il tuo computer sulla TV</string>
-    <string name="os_programi_opis">Dal computer</string>
+    <string name="os_programi_opis">Dai tuoi dispositivi</string>
+    <string name="os_programi_naprav">Dispositivi: %d</string>
+    <string name="os_programi_zagnan_naprava">%1$s si sta aprendo su %2$s.</string>
     <string name="os_nedavno_uporabljeno">Usato di recente</string>
     <string name="os_dodaj_aplikacijo">Aggiungi applicazione</string>
     <string name="os_kartica_ni_povezano_opis">Connetti il tuo dispositivo a Safeer Link e abilita la condivisione in Safeer Control.</string>

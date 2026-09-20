@@ -1144,6 +1144,51 @@ private fun preizkusPridruzitve() {
     preveriEnako("preklicana koda ne velja", 404, pridruzi("""{"qr_id":"$id4","secret":"$s4","device_id":"fon-z"}""")?.koda)
 }
 
+private fun preizkusVabilaInOdhoda() {
+    println("- vabilo nove naprave in odhod naprave")
+    val u = usmerjevalnik(LazniPomnilnik())
+    u.lastniOdtis = "ABCDEF0123"
+    val hub = parKljucev()
+    u.vpisiLastniKljuc("tv-hub", "Dnevna soba", b64(hub.public.encoded), "tv")
+    val pc = u.zagotoviLastniZeton("n-pc-control", "Racunalnik")
+    fun post(pot: String, telo: String, zeton: String? = pc, od: String = "192.168.0.50") =
+        u.odgovori(zahteva("POST", pot, telo, od, glave = if (zeton != null) mapOf("x-safeer-token" to zeton) else emptyMap()))
+
+    preveriEnako("vabilo brez zetona je 401", 401, post("/cast/pair/qr/invite", "{}", null)?.koda)
+    preveriEnako("vabilo z interneta je 403", 403, post("/cast/pair/qr/invite", "{}", od = "203.0.113.5")?.koda)
+    val v = post("/cast/pair/qr/invite", "{}")
+    preveriEnako("seznanjena naprava dobi vabilo", 200, v?.koda)
+    val qr = polje(v?.telo.orEmpty(), "qr_id"); val sk = polje(v?.telo.orEmpty(), "secret")
+    preveriEnako("vabilo nosi odtis sredisca", "ABCDEF0123", polje(v?.telo.orEmpty(), "fp"))
+    preveri("vabilo caka", post("/cast/pair/qr/invite/status", """{"qr_id":"$qr"}""")?.telo.orEmpty().contains("\"pending\":true"))
+    val j = post("/cast/pair/qr/join", """{"qr_id":"$qr","secret":"$sk","device_id":"fon-novi","name":"Novi telefon"}""", null)
+    preveriEnako("telefon se pridruzi z vabilom", 200, j?.koda)
+    val st = post("/cast/pair/qr/invite/status", """{"qr_id":"$qr"}""")?.telo.orEmpty()
+    preveri("racunalnik izve, da se je pridruzil", st.contains("\"joined\":true") && polje(st, "name") == "Novi telefon")
+    preveriEnako("vabilo velja enkrat", 404, post("/cast/pair/qr/join", """{"qr_id":"$qr","secret":"$sk","device_id":"fon-x"}""", null)?.koda)
+    val v2 = post("/cast/pair/qr/invite", "{}")
+    val qr2 = polje(v2?.telo.orEmpty(), "qr_id")
+    post("/cast/pair/qr/invite/cancel", """{"qr_id":"$qr2"}""")
+    preveriEnako("preklicano vabilo ne velja", 404,
+        post("/cast/pair/qr/join", """{"qr_id":"$qr2","secret":"${polje(v2?.telo.orEmpty(), "secret")}","device_id":"fon-y"}""", null)?.koda)
+
+    // Odhod: racunalnik z dvema id-jema (Control in brskalnik, isti kljuc) zapusti Link; telefon ostane.
+    val kljucPc = parKljucev()
+    preveriEnako("vpis racunalnika v krog", 200, post("/cast/trust/enroll", """{"pubkey":"${b64(kljucPc.public.encoded)}"}""")?.koda)
+    val brsk = u.zagotoviLastniZeton("n-pc", "Brskalnik")
+    post("/cast/trust/enroll", """{"pubkey":"${b64(kljucPc.public.encoded)}"}""", brsk)
+    val zTel = polje(j?.telo.orEmpty(), "token")
+    preveriEnako("odhod brez zetona je 401", 401, post("/cast/devices/leave", "{}", null)?.koda)
+    val o = post("/cast/devices/leave", "{}")
+    preveriEnako("odhod uspe", 200, o?.koda)
+    preveri("odsla sta oba id-ja racunalnika (${o?.telo})", Regex("\"count\":2(\\.0)?[,}]").containsMatchIn(o?.telo.orEmpty()))
+    preveri("zeton racunalnika ne velja vec", u.napravaZeZetona(pc) == null && u.napravaZeZetona(brsk) == null)
+    preveri("racunalnik ni vec v krogu", u.krog.clan("n-pc-control") == null && u.krog.clan("n-pc") == null)
+    preveri("telefon in sredisce ostaneta", u.napravaZeZetona(zTel) == "fon-novi" && u.krog.clan("tv-hub") != null)
+    preveriEnako("izziv za odslo napravo je 401", 401,
+        u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"n-pc-control"}"""))?.koda)
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1162,6 +1207,7 @@ fun main() {
     preizkusIdaIzKljuca()
     preizkusQrPrijave()
     preizkusPridruzitve()
+    preizkusVabilaInOdhoda()
     println()
     if (napak == 0) {
         println("Vse v redu.")
