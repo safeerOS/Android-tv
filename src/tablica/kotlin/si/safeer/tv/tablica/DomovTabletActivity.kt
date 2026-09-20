@@ -103,6 +103,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         nastaviPostavitev()
+        // Brez dovoljenja za obvestila naprava ne more vprasati lastnika, kadar Android za
+        // brisanje ali vrtenje fotografije zahteva njegovo privolitev (PotrditevActivity).
+        si.safeer.tv.link.Obvestila.zaprosiEnkrat(this)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

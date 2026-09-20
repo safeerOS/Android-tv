@@ -292,7 +292,11 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             urejanje = podatki.optBoolean("edit", false) && streznik != null
             if (!izbiramSliko) {
                 val namizje = r.zmoznosti.contains("desktop")
-                namigDrzi.text = getString(if (urejanje) R.string.os_ur_pomoc_drzi else R.string.os_datoteke_pomoc_drzi)
+                namigDrzi.text = getString(when {
+                    urejanje && jeNaprava() -> R.string.os_ur_pomoc_drzi_naprava
+                    urejanje -> R.string.os_ur_pomoc_drzi
+                    else -> R.string.os_datoteke_pomoc_drzi
+                })
                 namigDrzi.visibility = if (urejanje || namizje) View.VISIBLE else View.GONE
             }
             if (!podatki.optBoolean("shared", true)) {
@@ -372,7 +376,9 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val mapa = v.vrsta == "folder"
         // Dejanja: odpiranje na racunalniku (ne za mape), potem urejanje, ce ga racunalnik dovoli.
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
-        if (!mapa) {
+        // Telefon, tablica in televizor znajo medije le nasteti in postreci (files.list);
+        // ukaza files.open nimajo, zato odpiranja pri njih sploh ne ponudimo.
+        if (!mapa && !jeNaprava()) {
             dejanja.add(getString(R.string.os_odpri_na_racunalniku) to { odpriNaRacunalniku(v, false) })
             if (zaslon) dejanja.add(getString(R.string.os_odpri_in_poglej) to { odpriNaRacunalniku(v, true) })
         }
@@ -381,8 +387,12 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 dejanja.add(getString(R.string.os_ur_zavrti_levo) to { zavrti(v, false) })
                 dejanja.add(getString(R.string.os_ur_zavrti_desno) to { zavrti(v, true) })
             }
-            dejanja.add(getString(R.string.os_ur_preimenuj) to { preimenujDatoteko(v) })
-            dejanja.add(getString(R.string.os_ur_premakni) to { premakniDatoteko(v) })
+            // Telefon in tablica hranita medije v zbirki (MediaStore): tam ni map, ime pa je del
+            // zapisa. Preimenovanja in premika zato ne ponujamo - bolje nic kot moznost, ki pade.
+            if (!jeNaprava()) {
+                dejanja.add(getString(R.string.os_ur_preimenuj) to { preimenujDatoteko(v) })
+                dejanja.add(getString(R.string.os_ur_premakni) to { premakniDatoteko(v) })
+            }
             dejanja.add(getString(R.string.os_ur_izbrisi) to { potrdiBrisanje(v) })
         }
         if (dejanja.isEmpty()) return
@@ -394,6 +404,13 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     // ------------------------------------------------------------------ urejanje datotek racunalnika
+
+    /** Ali datoteke streze naprava (telefon, tablica, televizor) in ne racunalnik? */
+    private fun jeNaprava(): Boolean {
+        val id = racunalnik?.id ?: return false
+        val n = link.naprave.firstOrNull { it.id == id } ?: return false
+        return n.platforma == "phone" || n.platforma == "tablet" || n.platforma == "tv"
+    }
 
     private fun zavrti(v: Vnos, vDesno: Boolean) {
         val s = streznik ?: return
@@ -458,7 +475,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val s = streznik ?: return
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_ur_izbrisi_vprasanje, v.ime))
-            .setMessage(getString(R.string.os_ur_izbrisi_opis))
+            .setMessage(getString(if (jeNaprava()) R.string.os_ur_izbrisi_opis_naprava else R.string.os_ur_izbrisi_opis))
             .setPositiveButton(getString(R.string.os_ur_izbrisi)) { _, _ ->
                 UrejanjeDatotek.izbrisi(s, v.id) { izid ->
                     if (isFinishing) return@izbrisi
@@ -473,6 +490,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun javiIzid(izid: UrejanjeDatotek.Izid, uspeh: Int): Boolean {
         Toast.makeText(this, if (izid.ok) getString(uspeh) else getString(R.string.os_ur_napaka, opisNapake(this, izid.napaka)),
             if (izid.ok) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
+        // Naprava potrditev pokaze pri sebi in nam izida ne javi; seznam osvezimo ob vrnitvi.
+        if (izid.napaka == "potrebna_potrditev") osveziPoVrnitvi = true
         return izid.ok
     }
 
@@ -556,6 +575,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .putExtra("zacetek", slike.indexOfFirst { it.id == v.id }.coerceAtLeast(0))
             .putExtra("lokalno", krajevni)
             .putExtra("urejanje", urejanje && !krajevni)
+            .putExtra("naprava", jeNaprava())
         if (s != null) { val b = Bundle(); s.vBundle(b); namera.putExtras(b) }
         startActivity(namera)
     }
@@ -680,12 +700,17 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return if (koncnica.isNotEmpty() && !ime.contains('.')) ime + koncnica else ime
         }
 
-        /** Kratka koda napake Controla -> besedilo za uporabnika. */
+        /** Kratka koda napake racunalnika ali naprave -> besedilo za uporabnika. */
         fun opisNapake(c: Context, koda: String): String = when (koda) {
             "obstaja" -> c.getString(R.string.os_ur_n_obstaja)
             "ni_dovoljeno", "napacno_ime", "ni_mape", "ni_datoteke" -> c.getString(R.string.os_ur_n_ni_dovoljeno)
             "ni_povezave" -> c.getString(R.string.os_ur_n_ni_povezave)
             "ni_pillow" -> c.getString(R.string.os_ur_n_ni_pillow)
+            // Android ne dovoli tihega brisanja ali spreminjanja tujih fotografij: vprasanje se
+            // pokaze na napravi, kjer slika je, in uporabnik ga potrdi tam.
+            "potrebna_potrditev" -> c.getString(R.string.os_ur_n_potrdi_na_napravi)
+            "ni_mogoce_na_napravi" -> c.getString(R.string.os_ur_n_ni_na_napravi)
+            "prevelika_slika" -> c.getString(R.string.os_ur_n_prevelika)
             else -> c.getString(R.string.os_ur_n_drugo, koda)
         }
 

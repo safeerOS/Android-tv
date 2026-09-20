@@ -400,6 +400,7 @@
     <string name="os_ur_moznosti">File options</string>
     <string name="os_ur_izbrisi_vprasanje">Delete “%1$s”?</string>
     <string name="os_ur_izbrisi_opis">It goes to the computer\'s Trash, where you can restore it.</string>
+    <string name="os_ur_izbrisi_opis_naprava">Android may ask you to confirm on the device that holds the file.</string>
     <string name="os_ur_koncnica_ostane">The extension %1$s stays.</string>
     <string name="os_ur_tv_vir_opis">Videos, music and pictures on that TV</string>
     <string name="os_ur_ime_namig">New name</string>
@@ -416,5 +417,14 @@
     <string name="os_ur_n_ni_pillow">the computer cannot rotate this image (Pillow is missing)</string>
     <string name="os_ur_n_drugo">error %1$s</string>
     <string name="os_ur_pomoc_drzi">Hold OK · options (open on the computer, rename, move, delete)</string>
+    <string name="os_ur_pomoc_drzi_naprava">Hold OK · options (rotate, delete)</string>
     <string name="os_ur_slika_pomoc">Hold OK · rotate, rename, delete</string>
+    <string name="os_ur_n_potrdi_na_napravi">Confirm on the device that holds the photo – Android does not allow this from elsewhere.</string>
+    <string name="os_ur_n_ni_na_napravi">That is not possible on this device.</string>
+    <string name="os_ur_n_prevelika">The photo is too large to rotate on that device.</string>
+    <string name="os_ur_kanal">Safeer: confirmation</string>
+    <string name="os_ur_kanal_opis">Requests that must be confirmed on this device.</string>
+    <string name="os_ur_obv_brisanje">Confirm deleting the photo</string>
+    <string name="os_ur_obv_vrtenje">Confirm rotating the photo</string>
+    <string name="os_ur_obv_opis">The request comes from Safeer Link. Tap to confirm.</string>
 </resources>

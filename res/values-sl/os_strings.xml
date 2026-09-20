@@ -399,6 +399,7 @@
     <string name="os_ur_moznosti">Možnosti datoteke</string>
     <string name="os_ur_izbrisi_vprasanje">Izbrišem »%1$s«?</string>
     <string name="os_ur_izbrisi_opis">Datoteka gre v Smeti računalnika, od koder jo lahko obnoviš.</string>
+    <string name="os_ur_izbrisi_opis_naprava">Android bo morda zahteval potrditev na napravi, kjer je datoteka.</string>
     <string name="os_ur_koncnica_ostane">Končnica %1$s ostane.</string>
     <string name="os_ur_tv_vir_opis">Videoposnetki, glasba in slike na tistem televizorju</string>
     <string name="os_ur_ime_namig">Novo ime</string>
@@ -415,5 +416,14 @@
     <string name="os_ur_n_ni_pillow">računalnik te slike ne zna zavrteti (manjka Pillow)</string>
     <string name="os_ur_n_drugo">napaka %1$s</string>
     <string name="os_ur_pomoc_drzi">Drži OK · možnosti (odpri na računalniku, preimenuj, premakni, izbriši)</string>
+    <string name="os_ur_pomoc_drzi_naprava">Drži OK · možnosti (zavrti, izbriši)</string>
     <string name="os_ur_slika_pomoc">Drži OK · zavrti, preimenuj, izbriši</string>
+    <string name="os_ur_n_potrdi_na_napravi">Potrdi na napravi, kjer je slika – Android tega ne dovoli od drugod.</string>
+    <string name="os_ur_n_ni_na_napravi">Tega na tej napravi ni mogoče.</string>
+    <string name="os_ur_n_prevelika">Slika je prevelika za vrtenje na tej napravi.</string>
+    <string name="os_ur_kanal">Safeer: potrditev</string>
+    <string name="os_ur_kanal_opis">Vprašanja, ki jih mora uporabnik potrditi na tej napravi.</string>
+    <string name="os_ur_obv_brisanje">Potrdi izbris slike</string>
+    <string name="os_ur_obv_vrtenje">Potrdi vrtenje slike</string>
+    <string name="os_ur_obv_opis">Ukaz prihaja iz Safeer Linka. Dotakni se za potrditev.</string>
 </resources>

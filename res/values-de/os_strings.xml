@@ -399,6 +399,7 @@
     <string name="os_ur_moznosti">Dateioptionen</string>
     <string name="os_ur_izbrisi_vprasanje">„%1$s“ löschen?</string>
     <string name="os_ur_izbrisi_opis">Sie kommt in den Papierkorb des Computers, wo du sie wiederherstellen kannst.</string>
+    <string name="os_ur_izbrisi_opis_naprava">Android fragt eventuell auf dem Gerät mit der Datei nach einer Bestätigung.</string>
     <string name="os_ur_koncnica_ostane">Die Endung %1$s bleibt.</string>
     <string name="os_ur_tv_vir_opis">Videos, Musik und Bilder auf diesem Fernseher</string>
     <string name="os_ur_ime_namig">Neuer Name</string>
@@ -415,5 +416,14 @@
     <string name="os_ur_n_ni_pillow">der Computer kann dieses Bild nicht drehen (Pillow fehlt)</string>
     <string name="os_ur_n_drugo">Fehler %1$s</string>
     <string name="os_ur_pomoc_drzi">OK halten · Optionen (am Computer öffnen, umbenennen, verschieben, löschen)</string>
+    <string name="os_ur_pomoc_drzi_naprava">OK halten · Optionen (drehen, löschen)</string>
     <string name="os_ur_slika_pomoc">OK halten · drehen, umbenennen, löschen</string>
+    <string name="os_ur_n_potrdi_na_napravi">Auf dem Gerät mit dem Foto bestätigen – Android erlaubt dies nicht von anderswo.</string>
+    <string name="os_ur_n_ni_na_napravi">Auf diesem Gerät nicht möglich.</string>
+    <string name="os_ur_n_prevelika">Das Foto ist zu groß zum Drehen auf diesem Gerät.</string>
+    <string name="os_ur_kanal">Safeer: Bestätigung</string>
+    <string name="os_ur_kanal_opis">Anfragen, die auf diesem Gerät bestätigt werden müssen.</string>
+    <string name="os_ur_obv_brisanje">Löschen des Fotos bestätigen</string>
+    <string name="os_ur_obv_vrtenje">Drehen des Fotos bestätigen</string>
+    <string name="os_ur_obv_opis">Die Anfrage kommt von Safeer Link. Zum Bestätigen tippen.</string>
 </resources>
