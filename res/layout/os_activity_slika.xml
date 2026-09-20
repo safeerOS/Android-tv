@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Slika cez ves zaslon; spodaj ime in stevec (skrijeta se sama). Levo/desno: prejsnja/naslednja. -->
+<!-- Slika cez ves zaslon; spodaj ime in stevec (skrijeta se sama). Levo/desno: prejsnja/naslednja.
+     Zgoraj desno gumbi za urejanje (samo na zaslonu na dotik, kadar racunalnik dovoli urejanje). -->
 <merge xmlns:android="http://schemas.android.com/apk/res/android">
     <ImageView
         android:id="@+id/slika"
@@ -40,5 +41,47 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
             android:textSize="13sp"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/gumbi"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginTop="24dp"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/zavrtiLevo"
+            style="@style/Os.Kartica.Naslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/os_prekritje"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="14dp"
+            android:text="@string/os_ur_zavrti_levo"/>
+        <TextView
+            android:id="@+id/zavrtiDesno"
+            style="@style/Os.Kartica.Naslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/os_prekritje"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="14dp"
+            android:text="@string/os_ur_zavrti_desno"/>
+        <TextView
+            android:id="@+id/izbrisi"
+            style="@style/Os.Kartica.Naslov"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/os_prekritje"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="14dp"
+            android:text="@string/os_ur_izbrisi"/>
     </LinearLayout>
 </merge>

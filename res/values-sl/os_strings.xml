@@ -389,4 +389,29 @@
     <string name="os_poganja">Poganja</string>
     <string name="os_puscica">›</string>
     <string name="os_odprto_na_racunalniku">Odprto na računalniku</string>
+
+    <!-- Urejanje datotek racunalnika z naprave (Safeer Control 2.1.0+) -->
+    <string name="os_ur_zavrti_levo">Zavrti v levo</string>
+    <string name="os_ur_zavrti_desno">Zavrti v desno</string>
+    <string name="os_ur_preimenuj">Preimenuj</string>
+    <string name="os_ur_premakni">Premakni v mapo</string>
+    <string name="os_ur_izbrisi">Izbriši</string>
+    <string name="os_ur_moznosti">Možnosti datoteke</string>
+    <string name="os_ur_izbrisi_vprasanje">Izbrišem »%1$s«?</string>
+    <string name="os_ur_izbrisi_opis">Datoteka gre v Smeti računalnika, od koder jo lahko obnoviš.</string>
+    <string name="os_ur_ime_namig">Novo ime</string>
+    <string name="os_ur_kam">Premakni »%1$s« v</string>
+    <string name="os_ur_nadrejena">Nadrejena mapa</string>
+    <string name="os_ur_izbrisano">Izbrisano (v Smeteh računalnika)</string>
+    <string name="os_ur_preimenovano">Preimenovano</string>
+    <string name="os_ur_premaknjeno">Premaknjeno</string>
+    <string name="os_ur_zavrteno">Zavrteno in shranjeno na računalniku</string>
+    <string name="os_ur_napaka">Ni uspelo: %1$s</string>
+    <string name="os_ur_n_obstaja">datoteka s tem imenom že obstaja</string>
+    <string name="os_ur_n_ni_dovoljeno">računalnik tega ne dovoli</string>
+    <string name="os_ur_n_ni_povezave">ni povezave z računalnikom</string>
+    <string name="os_ur_n_ni_pillow">računalnik te slike ne zna zavrteti (manjka Pillow)</string>
+    <string name="os_ur_n_drugo">napaka %1$s</string>
+    <string name="os_ur_pomoc_drzi">Drži OK · možnosti (odpri na računalniku, preimenuj, premakni, izbriši)</string>
+    <string name="os_ur_slika_pomoc">Drži OK · zavrti, preimenuj, izbriši</string>
 </resources>

@@ -84,6 +84,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Zaslon je odprt zato, da uporabnik izbere sliko (za ozadje); klik na sliko jo vrne nazaj. */
     private var izbiramSliko = false
     private var krajevnaZbirka = ""
+    /** Racunalnik dovoli urejanje datotek te mape (`edit` v odgovoru `files.list`; Safeer Control 2.1.0+). */
+    private var urejanje = false
+    /** Po vrnitvi iz pregledovalnika slik je treba seznam osveziti, ko je Link spet povezan. */
+    private var cakamOsvezitev = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -135,6 +139,20 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         Ozadje.uporabi(this, findViewById(R.id.koren))
         link.dodaj(this)
         if (racunalnik == null) zacni()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Pregledovalnik slik je datoteko izbrisal ali preimenoval: seznam mape osvezimo - takoj,
+        // ce je Link ze povezan, sicer ko se povezava po vrnitvi vzpostavi (naStanje).
+        if (osveziPoVrnitvi) { osveziPoVrnitvi = false; cakamOsvezitev = true }
+        osveziCeTreba()
+    }
+
+    private fun osveziCeTreba() {
+        if (!cakamOsvezitev || racunalnik == null || krajevni || !link.povezan) return
+        cakamOsvezitev = false
+        nalozi(pot.lastOrNull()?.oznaka ?: "")
     }
 
     override fun onStop() {
@@ -232,7 +250,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Vrsta vira za ikono in podnapis: telefon, tablica ali racunalnik (Safeer Control). */
     private fun vrstaNaprave(n: LinkOdjemalec.Naprava): String =
-        when (n.platforma) { "phone" -> "phone"; "tablet" -> "tablet"; else -> "computer" }
+        when (n.platforma) { "phone" -> "phone"; "tablet" -> "tablet"; "tv" -> "tv"; else -> "computer" }
 
     private fun odpriRacunalnik(r: LinkOdjemalec.Naprava) {
         izbiramRacunalnik = false
@@ -270,6 +288,12 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             podatki.optJSONObject("server")?.let {
                 streznik = Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"))
             }
+            urejanje = podatki.optBoolean("edit", false) && streznik != null
+            if (!izbiramSliko) {
+                val namizje = r.zmoznosti.contains("desktop")
+                namigDrzi.text = getString(if (urejanje) R.string.os_ur_pomoc_drzi else R.string.os_datoteke_pomoc_drzi)
+                namigDrzi.visibility = if (urejanje || namizje) View.VISIBLE else View.GONE
+            }
             if (!podatki.optBoolean("shared", true)) {
                 // Telefon in tablica povesta, zakaj ne delita: brez dovoljenja za medije ali izklopljeno.
                 val ime = lepoIme(r.ime).ifBlank { r.id }
@@ -306,7 +330,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun izberi(i: Int) {
         val v = vnosi.getOrNull(i) ?: return
         if (izbiramRacunalnik) {
-            if (v.vrsta == "tv") odpriKrajevno()
+            if (v.id == KrajevneDatoteke.KOREN) odpriKrajevno()
             else link.racunalnikiZDatotekami().firstOrNull { it.id == v.id }?.let { odpriRacunalnik(it) }
             return
         }
@@ -341,15 +365,113 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun moznosti(i: Int) {
         val v = vnosi.getOrNull(i) ?: return
         if (izbiramSliko || izbiramRacunalnik || krajevni) return
-        if (v.vrsta == "folder" || v.vrsta == "computer" || v.vrsta == "phone" || v.vrsta == "tablet" || v.vrsta == "tv") return
+        if (v.vrsta == "computer" || v.vrsta == "phone" || v.vrsta == "tablet" || v.vrsta == "tv") return
         val r = racunalnik ?: return
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
+        val mapa = v.vrsta == "folder"
+        // Dejanja: odpiranje na racunalniku (ne za mape), potem urejanje, ce ga racunalnik dovoli.
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        if (!mapa) {
+            dejanja.add(getString(R.string.os_odpri_na_racunalniku) to { odpriNaRacunalniku(v, false) })
+            if (zaslon) dejanja.add(getString(R.string.os_odpri_in_poglej) to { odpriNaRacunalniku(v, true) })
+        }
+        if (urejanje) {
+            if (v.vrsta == "image") {
+                dejanja.add(getString(R.string.os_ur_zavrti_levo) to { zavrti(v, false) })
+                dejanja.add(getString(R.string.os_ur_zavrti_desno) to { zavrti(v, true) })
+            }
+            dejanja.add(getString(R.string.os_ur_preimenuj) to { preimenujDatoteko(v) })
+            dejanja.add(getString(R.string.os_ur_premakni) to { premakniDatoteko(v) })
+            dejanja.add(getString(R.string.os_ur_izbrisi) to { potrdiBrisanje(v) })
+        }
+        if (dejanja.isEmpty()) return
         val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(v.ime)
-            .setPositiveButton(getString(R.string.os_odpri_na_racunalniku)) { _, _ -> odpriNaRacunalniku(v, false) }
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja.getOrNull(k)?.second?.invoke() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-        if (zaslon) okno.setNeutralButton(getString(R.string.os_odpri_in_poglej)) { _, _ -> odpriNaRacunalniku(v, true) }
         Kontroler.pokazi(okno.show())
+    }
+
+    // ------------------------------------------------------------------ urejanje datotek racunalnika
+
+    private fun zavrti(v: Vnos, vDesno: Boolean) {
+        val s = streznik ?: return
+        UrejanjeDatotek.zavrti(s, v.id, vDesno) { izid ->
+            if (isFinishing) return@zavrti
+            javiIzid(izid, R.string.os_ur_zavrteno)
+        }
+    }
+
+    private fun preimenujDatoteko(v: Vnos) {
+        val s = streznik ?: return
+        val vnos = EditText(this).apply {
+            setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            hint = getString(R.string.os_ur_ime_namig)
+            setText(v.ime)
+            // Izbrano je ime brez koncnice: tipkanje zamenja ime, koncnica ostane.
+            setPadding(40, 30, 40, 30)
+        }
+        val pika = if (v.vrsta == "folder") -1 else v.ime.lastIndexOf('.')
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_ur_preimenuj))
+            .setView(vnos)
+            .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
+                val ime = vnos.text?.toString().orEmpty().trim()
+                if (ime.isEmpty() || ime == v.ime) return@setPositiveButton
+                UrejanjeDatotek.preimenuj(s, v.id, ime) { izid ->
+                    if (isFinishing) return@preimenuj
+                    if (javiIzid(izid, R.string.os_ur_preimenovano)) nalozi(pot.lastOrNull()?.oznaka ?: "")
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+        izberiIme(vnos, if (pika > 0) pika else v.ime.length)
+    }
+
+    /** Cilj premika: podmape te mape in nadrejena mapa (znotraj deljene mape). */
+    private fun premakniDatoteko(v: Vnos) {
+        val s = streznik ?: return
+        val cilji = ArrayList<Pair<String, String>>()
+        if (pot.size >= 2) cilji.add(getString(R.string.os_ur_nadrejena) to pot[pot.size - 2].oznaka)
+        for (m in vsi) if (m.vrsta == "folder" && m.id != v.id) cilji.add(m.ime to m.id)
+        if (cilji.isEmpty()) {
+            Toast.makeText(this, getString(R.string.os_ur_napaka, getString(R.string.os_ur_n_ni_dovoljeno)), Toast.LENGTH_SHORT).show()
+            return
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_ur_kam, v.ime))
+            .setItems(cilji.map { it.first }.toTypedArray()) { _, k ->
+                val cilj = cilji.getOrNull(k)?.second ?: return@setItems
+                UrejanjeDatotek.premakni(s, v.id, cilj) { izid ->
+                    if (isFinishing) return@premakni
+                    if (javiIzid(izid, R.string.os_ur_premaknjeno)) nalozi(pot.lastOrNull()?.oznaka ?: "")
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    private fun potrdiBrisanje(v: Vnos) {
+        val s = streznik ?: return
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_ur_izbrisi_vprasanje, v.ime))
+            .setMessage(getString(R.string.os_ur_izbrisi_opis))
+            .setPositiveButton(getString(R.string.os_ur_izbrisi)) { _, _ ->
+                UrejanjeDatotek.izbrisi(s, v.id) { izid ->
+                    if (isFinishing) return@izbrisi
+                    if (javiIzid(izid, R.string.os_ur_izbrisano)) nalozi(pot.lastOrNull()?.oznaka ?: "")
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Obvestilo o izidu; vrne true ob uspehu. */
+    private fun javiIzid(izid: UrejanjeDatotek.Izid, uspeh: Int): Boolean {
+        Toast.makeText(this, if (izid.ok) getString(uspeh) else getString(R.string.os_ur_napaka, opisNapake(this, izid.napaka)),
+            if (izid.ok) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
+        return izid.ok
     }
 
     /**
@@ -428,8 +550,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val namera = Intent(this, SlikaActivity::class.java)
             .putStringArrayListExtra("urli", ArrayList(slike.map { if (s == null) it.id else s.url(it.id) }))
             .putStringArrayListExtra("imena", ArrayList(slike.map { it.ime }))
+            .putStringArrayListExtra("oznake", ArrayList(slike.map { it.id }))
             .putExtra("zacetek", slike.indexOfFirst { it.id == v.id }.coerceAtLeast(0))
             .putExtra("lokalno", krajevni)
+            .putExtra("urejanje", urejanje && !krajevni)
         if (s != null) { val b = Bundle(); s.vBundle(b); namera.putExtras(b) }
         startActivity(namera)
     }
@@ -488,6 +612,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     // ------------------------------------------------------------------ Link
 
     override fun naStanje(povezan: Boolean, sporocilo: String) {
+        if (povezan) osveziCeTreba()
         if (!povezan && racunalnik == null && !krajevni) {
             pokaziSporocilo(getString(if (sporocilo == "ni_linka" || sporocilo == "krajevni") R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_povezave))
         }
@@ -495,6 +620,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
         if (krajevni) return   // uporabnik gleda datoteke televizorja; ne prekinjamo ga
+        osveziCeTreba()
         val z = link.racunalnikiZDatotekami()
         val r = racunalnik
         if (r == null) {
@@ -536,6 +662,29 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         const val EXTRA_IZBERI_SLIKO = "izberi_sliko"
         const val EXTRA_KRAJEVNO = "krajevno"
         private const val ZAHTEVA_DOVOLJENJA = 7321
+        /** Pregledovalnik slik je datoteko spremenil: seznam se ob vrnitvi osvezi. */
+        @Volatile var osveziPoVrnitvi = false
+
+        /**
+         * V oknu za preimenovanje je izbrano ime brez koncnice: tipkanje zamenja ime, koncnica ostane.
+         * EditText ob vsakem prejemu fokusa (prikaz okna, tipkovnica) premakne kazalec na konec, zato
+         * izbiro nastavimo ob prvem fokusu in se enkrat, ko se odpre tipkovnica.
+         */
+        fun izberiIme(vnos: EditText, konec: Int) {
+            var stevec = 0
+            val izberi = Runnable { if (vnos.text != null && konec <= vnos.text.length) vnos.setSelection(0, konec) }
+            vnos.post(izberi)
+            vnos.setOnFocusChangeListener { _, f -> if (f && stevec++ < 2) vnos.post(izberi) }
+        }
+
+        /** Kratka koda napake Controla -> besedilo za uporabnika. */
+        fun opisNapake(c: Context, koda: String): String = when (koda) {
+            "obstaja" -> c.getString(R.string.os_ur_n_obstaja)
+            "ni_dovoljeno", "napacno_ime", "ni_mape", "ni_datoteke" -> c.getString(R.string.os_ur_n_ni_dovoljeno)
+            "ni_povezave" -> c.getString(R.string.os_ur_n_ni_povezave)
+            "ni_pillow" -> c.getString(R.string.os_ur_n_ni_pillow)
+            else -> c.getString(R.string.os_ur_n_drugo, koda)
+        }
 
         fun ikona(vrsta: String): Int = when (vrsta) {
             "folder" -> R.drawable.os_ikona_mapa

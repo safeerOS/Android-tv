@@ -389,4 +389,29 @@
     <string name="os_poganja">Basato su</string>
     <string name="os_puscica">›</string>
     <string name="os_odprto_na_racunalniku">Aperto sul computer</string>
+
+    <!-- Urejanje datotek racunalnika z naprave (Safeer Control 2.1.0+) -->
+    <string name="os_ur_zavrti_levo">Ruota a sinistra</string>
+    <string name="os_ur_zavrti_desno">Ruota a destra</string>
+    <string name="os_ur_preimenuj">Rinomina</string>
+    <string name="os_ur_premakni">Sposta in una cartella</string>
+    <string name="os_ur_izbrisi">Elimina</string>
+    <string name="os_ur_moznosti">Opzioni del file</string>
+    <string name="os_ur_izbrisi_vprasanje">Eliminare «%1$s»?</string>
+    <string name="os_ur_izbrisi_opis">Va nel Cestino del computer, da cui puoi ripristinarlo.</string>
+    <string name="os_ur_ime_namig">Nuovo nome</string>
+    <string name="os_ur_kam">Sposta «%1$s» in</string>
+    <string name="os_ur_nadrejena">Cartella superiore</string>
+    <string name="os_ur_izbrisano">Eliminato (nel Cestino del computer)</string>
+    <string name="os_ur_preimenovano">Rinominato</string>
+    <string name="os_ur_premaknjeno">Spostato</string>
+    <string name="os_ur_zavrteno">Ruotato e salvato sul computer</string>
+    <string name="os_ur_napaka">Non eseguito: %1$s</string>
+    <string name="os_ur_n_obstaja">esiste già un file con questo nome</string>
+    <string name="os_ur_n_ni_dovoljeno">il computer non lo permette</string>
+    <string name="os_ur_n_ni_povezave">nessuna connessione con il computer</string>
+    <string name="os_ur_n_ni_pillow">il computer non può ruotare questa immagine (manca Pillow)</string>
+    <string name="os_ur_n_drugo">errore %1$s</string>
+    <string name="os_ur_pomoc_drzi">Tieni premuto OK · opzioni (apri sul computer, rinomina, sposta, elimina)</string>
+    <string name="os_ur_slika_pomoc">Tieni premuto OK · ruota, rinomina, elimina</string>
 </resources>
