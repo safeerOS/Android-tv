@@ -277,3 +277,24 @@ Enote: `tests/test_link_ponudnik.py` (katalog prazen brez dovoljenja, meje huba)
 Naslednje: odjemalec Safeer OS (TV/tablica) bere katalog iz `cast.devices` namesto posebnega klica, in
 pretakanje aplikacije Android → računalnik (slika + vnos; obratna smer PC → TV že obstaja), ki je pogoj za
 Safeer OS na računalniku.
+
+### Sejni žeton (prijava s podpisom)
+
+Naprava, ki se je umaknila izvoljenemu hubu, se prijavi s podpisom in nima žetona seznanitve za ta hub.
+WebSocket to ne moti, HTTP pa (deljenje zaslona, datotek in besedila gre po HTTP z `x-safeer-token`).
+`/cast/auth/ticket` zato vrne še `session_token` (`saf_seja_…`): velja 12 ur, samo v pomnilniku huba,
+vezan na napravo (`napravaZeZetona`), največ 64 hkrati; umik naprave iz kroga ga takoj razveljavi.
+`CastReceiverService` ga shrani kot žeton za trenutni hub samo pri izvoljenem hubu in nikoli ne prepiše
+pravega žetona seznanitve. JVM: 6 novih preverb v `preizkusIdaIzKljuca`.
+
+### Deljenje zaslona s tablice in televizorja (prvi del pretakanja na računalnik)
+
+`si.safeer.tv.link.DeljenjeZaslonaStoritev` - ista storitev kot na telefonu (MediaProjection → JPEG ~8/s →
+`/cast/share/screen/*` na hubu), z zaupanjem po krogu (pri izvoljenem hubu potrdilo nosi ključ iz kroga).
+Stran Link na tablici/TV ponudi »Zaslon« pri vsaki napravi; sistemsko okno »Deli celoten zaslon« se pokaže
+enkrat na deljenje. Preverjeno v živo: tablica deli zaslon na TV (TV kaže »Zasedeno«), prekinitev z gumba.
+
+Naslednje za Safeer OS na računalniku: gledalec v aplikaciji Safeer Control (obstaja za deljene zaslone),
+vnos z miške/tipkovnice nazaj na Android (AccessibilityService: dotik, poteg, Nazaj/Domov; uporabnik ga
+vklopi enkrat) in »pretoči aplikacijo« = `apps.launch` + deljenje zaslona proti napravi, ki je vprašala.
+Omejitev Androida: dovoljenje za zajem zaslona je treba potrditi na napravi za vsako deljenje.

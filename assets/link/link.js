@@ -1053,6 +1053,7 @@
   var BESEDILA_HUB = {
     sl: {
       tuOpis: "Začni povezovanje tukaj: vklopi Safeer Link, nato na drugi napravi vtipkaj kodo, ki jo pokaže ta naprava.",
+      tuDrugje: "Safeer Link je vklopljen in teče na napravi {ime}. Če ta ugasne, ga prevzame ta naprava.",
       tuOpisTv: "Če telefona ali računalnika nimaš pri roki, začni kar na tem televizorju.",
       vklopiLink: "Vklopi Safeer Link",
       izklopiLink: "Izklopi Safeer Link",
@@ -1073,6 +1074,7 @@
     },
     en: {
       tuOpis: "Start connecting here: switch on Safeer Link, then on the other device type the code this device shows.",
+      tuDrugje: "Safeer Link is on and runs on {ime}. If it switches off, this device takes over.",
       tuOpisTv: "If no phone or computer is at hand, start right here on this television.",
       vklopiLink: "Turn on Safeer Link",
       izklopiLink: "Turn off Safeer Link",
@@ -1093,6 +1095,7 @@
     },
     de: {
       tuOpis: "Beginne hier: Schalte Safeer Link ein und gib dann auf dem anderen Gerät den Code ein, den dieses Gerät anzeigt.",
+      tuDrugje: "Safeer Link ist eingeschaltet und läuft auf {ime}. Wird es ausgeschaltet, übernimmt dieses Gerät.",
       tuOpisTv: "Wenn kein Telefon oder Computer zur Hand ist, beginne einfach auf diesem Fernseher.",
       vklopiLink: "Safeer Link einschalten",
       izklopiLink: "Safeer Link ausschalten",
@@ -1113,6 +1116,7 @@
     },
     es: {
       tuOpis: "Empieza a conectar aquí: activa Safeer Link y, en el otro dispositivo, escribe el código que muestra este.",
+      tuDrugje: "Safeer Link está activado y funciona en {ime}. Si se apaga, este dispositivo toma el relevo.",
       tuOpisTv: "Si no tienes el teléfono ni el ordenador a mano, empieza aquí mismo, en este televisor.",
       vklopiLink: "Activar Safeer Link",
       izklopiLink: "Desactivar Safeer Link",
@@ -1133,6 +1137,7 @@
     },
     fr: {
       tuOpis: "Commence ici : active Safeer Link, puis saisis sur l’autre appareil le code affiché par celui-ci.",
+      tuDrugje: "Safeer Link est activé et fonctionne sur {ime}. S’il s’éteint, cet appareil prend le relais.",
       tuOpisTv: "S’il n’y a ni téléphone ni ordinateur sous la main, commence directement sur ce téléviseur.",
       vklopiLink: "Activer Safeer Link",
       izklopiLink: "Désactiver Safeer Link",
@@ -1153,6 +1158,7 @@
     },
     it: {
       tuOpis: "Inizia a collegare da qui: accendi Safeer Link, poi sull’altro dispositivo digita il codice mostrato da questo.",
+      tuDrugje: "Safeer Link è acceso e funziona su {ime}. Se si spegne, subentra questo dispositivo.",
       tuOpisTv: "Se non hai a portata di mano telefono o computer, inizia direttamente da questo televisore.",
       vklopiLink: "Attiva Safeer Link",
       izklopiLink: "Disattiva Safeer Link",
@@ -1353,9 +1359,16 @@
     var izklopi = el("gumbHubIzklopi");
     // Kazemo samo gumb, ki kaj naredi: onemogocen "Vklopi" je bil videti kot glavni gumb, fokus
     // pa je zato pristal na "Izklopi" - en nehoten OK je izklopil Link za vse naprave.
-    if (vklopi) { vklopi.disabled = tuSredisce; vklopi.hidden = tuSredisce; }
-    if (izklopi) { izklopi.disabled = !tuSredisce; izklopi.hidden = !tuSredisce; }
-    besedilo("opombaHubVklop", tuSredisce ? "" : t(stanje.televizor ? "tuOpisTv" : "tuOpis"));
+    // Umik izvoljenemu hubu (druga naprava z visjo prioriteto): Link je vklopljen, le tece drugje.
+    var drugje = !tuSredisce && !!stanje.izvoljeni;
+    var vklopljen = tuSredisce || drugje;
+    if (vklopi) { vklopi.disabled = vklopljen; vklopi.hidden = vklopljen; }
+    if (izklopi) { izklopi.disabled = !vklopljen; izklopi.hidden = !vklopljen; }
+    var izvoljena = null;
+    for (var iz = 0; drugje && iz < stanje.naprave.length; iz++) if (stanje.naprave[iz].id === stanje.izvoljeni) izvoljena = stanje.naprave[iz];
+    besedilo("opombaHubVklop", tuSredisce ? ""
+      : drugje ? t("tuDrugje", { ime: izvoljena ? prijaznoIme(izvoljena) : t("televizor") })
+      : t(stanje.televizor ? "tuOpisTv" : "tuOpis"));
     besedilo("naslovHubTu", t(stanje.televizor ? "tuNaslovTv" : "tuNaslov"));
     narisiStanje();
     osveziOpozoriloOspredje();
@@ -1611,6 +1624,7 @@
     try {
       var s = JSON.parse(most.hubStanje() || "{}");
       stanje.hubTece = !!s.tece;
+      stanje.izvoljeni = s.izvoljeni || "";
       stanje.hubPovezanih = s.naprav || 0;
     } catch (e) {}
     try {
@@ -1796,6 +1810,7 @@
         }
       } else if (vrsta === "hub-tu") {
         stanje.hubTece = !!(podatki && podatki.tece);
+        stanje.izvoljeni = (podatki && podatki.izvoljeni) || "";
         stanje.hubPovezanih = (podatki && podatki.naprav) || 0;
         hubPodpis = "";
         hubOsvezi();

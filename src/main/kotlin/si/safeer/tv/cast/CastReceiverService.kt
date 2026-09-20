@@ -280,11 +280,24 @@ class CastReceiverService : Service() {
                     zVstopnico(wsUrl, controlToken(), naprej); return@klic
                 }
                 j2.optJSONObject("ring")?.let { KrogNaprave.sprejmi(this, it.toString()) }
+                shraniSejo(j2.optString("session_token"))
                 Log.i(TAG, "Prijava s podpisom kljuca naprave.")
                 val locilo = if (wsUrl.contains("?")) "&" else "?"
                 naprej("$wsUrl${locilo}ticket=$vstopnica")
             }
         }
+    }
+
+    /**
+     * Sejni zeton izvoljenega huba (prijava s podpisom) shranimo kot zeton za trenutni hub: z njim
+     * naprava po HTTP deli zaslon, datoteke in besedilo, kot bi bila s hubom seznanjena s kodo.
+     * Pravega zetona seznanitve (lasten hub, seznanitev s kodo) nikoli ne prepisemo.
+     */
+    private fun shraniSejo(seja: String) {
+        if (seja.isBlank() || HubKrmilnik.izvoljeniHub(this) == null) return
+        val trenutni = controlToken().orEmpty()
+        if (trenutni.isNotBlank() && !trenutni.startsWith("saf_seja_")) return
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_CONTROL_TOKEN, seja).apply()
     }
 
     /** Zeton za Safeer Control; nastavi se ob seznanitvi televizorja. */

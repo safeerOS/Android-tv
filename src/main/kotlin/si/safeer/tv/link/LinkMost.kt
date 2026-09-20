@@ -24,20 +24,31 @@ class LinkMost(
     private val pogled: WebView,
     private val trenutnaStran: () -> Pair<String, String?>,
     private val zapriZaslon: () -> Unit,
-    private val odpriVBrskalniku: (String) -> Unit
+    private val odpriVBrskalniku: (String) -> Unit,
+    /** Vprasa za dovoljenje za zajem zaslona; dejavnost nato zazene DeljenjeZaslonaStoritev. */
+    private val zahtevajZajemZaslona: ((String, String) -> Unit)? = null
 ) {
 
     companion object {
         private const val TAG = "SafeerLink"
         const val PREFS = "safeer_cast_prefs"
+
+        /** Dovoljenje je prislo, ko strani Link ni bilo vec: storitev zazenemo brez nje. */
+        fun zazeniDeljenje(context: Context, resultCode: Int, data: android.content.Intent, cilj: String, ime: String) {
+            val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val hub = (p.getString("hub_url", "") ?: "").replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
+                .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws").trimEnd('/')
+            DeljenjeZaslonaStoritev.zazeni(context, resultCode, data, cilj, ime, hub,
+                HubPairing.token(context) ?: "", si.safeer.tv.cast.HubKrmilnik.lastniId())
+        }
     }
 
     private fun nastavitve() = dejavnost.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     private fun hubUrl(): String = nastavitve().getString("hub_url", "") ?: ""
 
-    private fun ime(): String =
-        "tv-" + android.os.Build.MODEL.replace(Regex("\\s+"), "-").lowercase()
+    /** Id te naprave (iz kljuca, HubKrmilnik.lastniId) - isti, s katerim se zaslon prijavi hubu. */
+    private fun ime(): String = si.safeer.tv.cast.HubKrmilnik.lastniId()
 
     private fun odziv(vrsta: String, podatki: Any) {
         val telo = when (podatki) {
@@ -373,6 +384,59 @@ class LinkMost(
                 deljenje("besedilo", "napaka", idNaprave, sporocilo = e.message ?: "posiljanje ni uspelo")
             }
         }.start()
+    }
+
+    // ------------------------------------------------------------------ deljenje zaslona
+
+    /** Zacne deljenje zaslona: dejavnost vprasa za dovoljenje (sistemsko okno) in zazene storitev. */
+    @JavascriptInterface
+    fun zacniDeljenjeZaslona(idNaprave: String, imeNaprave: String) {
+        val zahteva = zahtevajZajemZaslona
+        if (zahteva == null) {
+            napaka("ni_zajema", "Deljenje zaslona tu ni na voljo.")
+            return
+        }
+        if (hubUrl().isBlank() || zeton().isNullOrBlank()) {
+            napaka("hub_ni_znan", "Hub ni znan.")
+            return
+        }
+        DeljenjeZaslonaStoritev.naSpremembo = { javiZaslon() }
+        dejavnost.runOnUiThread { zahteva(idNaprave, imeNaprave) }
+    }
+
+    /** Dovoljenje je dano: zazene storitev, ki deli zaslon, dokler je uporabnik ne prekine. */
+    fun zajemDovoljen(resultCode: Int, data: android.content.Intent, idNaprave: String, imeNaprave: String) {
+        DeljenjeZaslonaStoritev.naSpremembo = { javiZaslon() }
+        DeljenjeZaslonaStoritev.zazeni(dejavnost, resultCode, data, idNaprave, imeNaprave, hubHttp(), zeton() ?: "", ime())
+        deljenje("zaslon", "zaganjam", idNaprave)
+    }
+
+    fun zajemZavrnjen(idNaprave: String) {
+        deljenje("zaslon", "koncano", idNaprave, sporocilo = "dovoljenje ni bilo dano", koda = "dovoljenje_zavrnjeno")
+    }
+
+    @JavascriptInterface
+    fun koncajDeljenjeZaslona() {
+        // Stran je lahko nova (Link je bil vmes zaprt): poslusalca pripnemo znova, da izve za konec.
+        DeljenjeZaslonaStoritev.naSpremembo = { javiZaslon() }
+        DeljenjeZaslonaStoritev.ustavi(dejavnost)
+    }
+
+    /** Stanje deljenja zaslona za izris (tudi ce je bil zaslon Linka vmes zaprt). */
+    @JavascriptInterface
+    fun deljenjeZaslonaStanje(): String = JSONObject().apply {
+        DeljenjeZaslonaStoritev.naSpremembo = { javiZaslon() }
+        put("tece", DeljenjeZaslonaStoritev.tece)
+        put("cilj", DeljenjeZaslonaStoritev.cilj)
+        put("ime", DeljenjeZaslonaStoritev.imeCilja)
+        put("napaka", DeljenjeZaslonaStoritev.zadnjaNapaka)
+    }.toString()
+
+    private fun javiZaslon() {
+        val tece = DeljenjeZaslonaStoritev.tece
+        deljenje("zaslon", if (tece) "tece" else "koncano", DeljenjeZaslonaStoritev.cilj,
+            sporocilo = DeljenjeZaslonaStoritev.zadnjaNapaka, koda = DeljenjeZaslonaStoritev.zadnjaKoda,
+            zasedenaOd = DeljenjeZaslonaStoritev.zadnjaZasedenaOd)
     }
 
     @JavascriptInterface

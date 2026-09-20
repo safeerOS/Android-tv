@@ -29,6 +29,8 @@
          Android 11 brez tega zagon dejavnosti iz ozadja zavrne. Dodeli ga uporabnik. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Safeer Link: deljenje zaslona te naprave (tablica, TV) na drugo napravo (MediaProjection). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- Safeer Link: televizor strezi seznanjenim napravam v hisi tudi, ko brskalnik ni odprt.
          "connectedDevice" je edina vrsta storitve, ki jo Android dovoli zagnati po vklopu naprave. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
@@ -119,6 +121,12 @@
             android:name="si.safeer.tv.cast.CastReceiverService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Safeer Link: deljenje zaslona; tece, dokler ga uporabnik ne prekine (obvestilo z gumbom) -->
+        <service
+            android:name="si.safeer.tv.link.DeljenjeZaslonaStoritev"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <!-- Safeer Link (Hub): tece, dokler ga uporabnik ne ugasne, ne le med odprtim brskalnikom -->
         <service

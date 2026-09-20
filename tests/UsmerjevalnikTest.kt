@@ -977,6 +977,18 @@ private fun preizkusIdaIzKljuca() {
     val tujec = Lazni(vstopnica = vstopnica2)
     u.obdelaj(tujec, registracija("tel-drugi", "sender"))
     preveri("z vstopnico enega kljuca se ni mogoce prijaviti kot drug kljuc", polje(tujec.zadnje(), "error_code") == "napacen_device_id")
+
+    // Sejni zeton: prijava s podpisom da tudi zeton za HTTP (datoteke, zaslon), vezan na napravo.
+    val seja = polje(pravi?.telo.orEmpty(), "session_token")
+    preveri("prijava s podpisom vrne sejni zeton", seja.startsWith("saf_seja_"))
+    preveri("sejni zeton velja kot zeton", u.jeVeljavenZeton(seja))
+    preveriEnako("sejni zeton pove napravo", novi, u.napravaZeZetona(seja))
+    preveri("izmisljen sejni zeton ne velja", !u.jeVeljavenZeton("saf_seja_izmisljen"))
+    val vstopnicaSeje = u.odgovori(zahteva("POST", "/cast/ticket", "", glave = mapOf("x-safeer-token" to seja)))
+    preveriEnako("s sejnim zetonom se dobi vstopnica", 200, vstopnicaSeje?.koda)
+    u.krog.umakni(novi, "hub")
+    u.krog.umakni("tv-stari", "hub")
+    preveri("umik iz kroga ubije sejo", !u.jeVeljavenZeton(seja))
 }
 
 // ------------------------------------------------------------ Protocol v1: model naprave in katalog aplikacij

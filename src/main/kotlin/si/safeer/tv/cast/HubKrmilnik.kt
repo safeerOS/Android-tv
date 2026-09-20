@@ -260,6 +260,20 @@ object HubKrmilnik {
         zazeni(app, zapomni = false)
     }
 
+    /**
+     * Po ponovnem zagonu (namestitev, vklop naprave), ko smo se ze prej umaknili izvoljenemu hubu:
+     * huba ne zaganjamo, zaslon pa priklopimo na izvoljenega. Ce se ta ne oglasi, sprejemnik po
+     * treh neuspehih poklice izvoljeniHubIzgubljen in naprava spet gosti sama.
+     */
+    fun poveziNaIzvoljeni(context: Context) {
+        val app = context.applicationContext
+        val hub = izvoljeniHub(app) ?: return
+        if (tece() || CastReceiverService.povezan) return
+        try { CastReceiverService.start(app, hub.naslov, imeHuba(app)) } catch (e: Throwable) {
+            Log.w(TAG, "Sprejemnika ni bilo mogoce priklopiti na izvoljeni hub: ${e.message}")
+        }
+    }
+
     /** Ugasne Hub. `zapomni` naj bo true samo, kadar je tako odlocil uporabnik. */
     @Synchronized
     fun ustavi(context: Context?, zapomni: Boolean = true) {
@@ -393,6 +407,8 @@ object HubKrmilnik {
             .stevilo("naprav", (u?.steviloNaprav() ?: 0).toDouble())
             .stevilo("cakajocih", (u?.cakajocePrijave()?.size ?: 0).toDouble())
             .stevilo("seznanjenih", (u?.seznanjeneNaprave()?.size ?: 0).toDouble())
+            // Umaknili smo se izvoljenemu hubu: Safeer Link je vklopljen, tece pa na tej napravi (id).
+            .niz("izvoljeni", if (tece()) "" else izvoljeniHub(context)?.id.orEmpty())
             .toString()
     }
 
