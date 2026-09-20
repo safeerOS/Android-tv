@@ -919,6 +919,45 @@ private fun preizkusKroga() {
     preveri("id iz kljuca ima predpono n- in 16 znakov", KrogZaupanja.idIzKljuca(b64(tel.public.encoded)).matches(Regex("n-[0-9a-f]{16}")))
 }
 
+// ------------------------------------------------------------ Protocol v1: model naprave in katalog aplikacij
+
+private fun preizkusProtokolaV1() {
+    println()
+    println("Protocol v1")
+    val u = HubUsmerjevalnik()
+    val pc = Lazni("192.168.0.60")
+    val katalog = """{"firefox":{"name":"Firefox","kind":"app"},"vlc":{"name":"VLC","kind":"app","icon":"data:x"}}"""
+    val odgovor = u.odgovorNa(pc, """{"id":"r1","type":"cast.register","payload":{"device_id":"pc-1","name":"Racunalnik","role":"sender",
+        "capabilities":["url","apps"],"protocol":"1.0","platform":"linux","kind":"computer","version":"1.0.14","priority":80,"apps":$katalog}}""")
+    preveriEnako("prijava v1 sprejeta", "accepted", polje(odgovor!!, "status"))
+    val tv = Lazni("192.168.0.61")
+    u.obdelaj(tv, registracija("tv-1", "receiver"))
+    val seznam = tv.prejeto.map { JsonLahki.objekt(it) }.lastOrNull { it?.niz("type") == "cast.devices" }
+    preveriEnako("tv dobi cast.devices", "cast.devices", seznam?.niz("type"))
+    val naprave = seznam?.surovo("devices").orEmpty()
+    preveri("v seznamu je model naprave v1", naprave.contains("\"platform\":\"linux\"") && naprave.contains("\"kind\":\"computer\"")
+        && naprave.contains("\"version\":\"1.0.14\"") && naprave.contains("\"priority\":80") && naprave.contains("\"protocol\":\"1.0\""))
+    preveri("v seznamu je katalog aplikacij", naprave.contains("\"apps\":{") && naprave.contains("\"firefox\":{\"name\":\"Firefox\"") && naprave.contains("\"icon\":\"data:x\""))
+    preveri("naprava 0.2 nima polj v1", !naprave.substringAfter("\"id\":\"tv-1\"").contains("\"platform\""))
+    // Naknadna objava kataloga.
+    tv.pocisti()
+    val objava = u.odgovorNa(pc, """{"id":"a1","type":"apps.announce","payload":{"apps":{"gimp":{"name":"GIMP","kind":"app"}}}}""")
+    preveriEnako("apps.announce sprejet", "accepted", polje(objava!!, "status"))
+    val novi = tv.prejeto.lastOrNull { it.contains("cast.devices") }.orEmpty()
+    preveri("po objavi dobijo vsi nov seznam", novi.contains("\"gimp\":{\"name\":\"GIMP\"") && !novi.contains("firefox"))
+    preveriEnako("ista objava drugic ne razposilja", "accepted", polje(u.odgovorNa(pc, """{"id":"a2","type":"apps.announce","payload":{"apps":{"gimp":{"name":"GIMP","kind":"app"}}}}""")!!, "status"))
+    val neprijavljen = Lazni("192.168.0.62")
+    preveriEnako("apps.announce brez prijave je zavrnjen", "rejected", polje(u.odgovorNa(neprijavljen, """{"id":"a3","type":"apps.announce","payload":{"apps":{"x":{"name":"X"}}}}""")!!, "status"))
+    // Meje kataloga.
+    preveriEnako("pokvarjen katalog odpade", "", u.preveriKatalog("[1,2]"))
+    preveriEnako("prazen katalog odpade", "", u.preveriKatalog("{}"))
+    val velik = (1..300).joinToString(",", "{", "}") { "\"a$it\":{\"name\":\"App $it\"}" }
+    val ociscen = JsonLahki.objekt(u.preveriKatalog(velik))
+    preveriEnako("katalog je omejen na NAJVEC_APLIKACIJ", HubUsmerjevalnik.NAJVEC_APLIKACIJ, ociscen?.kljuci()?.size)
+    preveriEnako("predolg katalog odpade", "", u.preveriKatalog("x".repeat(HubUsmerjevalnik.NAJVEC_KATALOG_BAJTOV + 1)))
+    preveri("vnos brez imena dobi id kot ime", u.preveriKatalog("""{"kodi":{}}""").contains("\"name\":\"kodi\""))
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -933,6 +972,7 @@ fun main() {
     preizkusDeljenjaPoHttp()
     preizkusMeja()
     preizkusKroga()
+    preizkusProtokolaV1()
     println()
     if (napak == 0) {
         println("Vse v redu.")

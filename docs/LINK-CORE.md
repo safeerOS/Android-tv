@@ -171,3 +171,52 @@ na istem računalniku, TV + OS na istem televizorju delijo ključ, a imajo loče
 3. TV se vrne: TV gosti (60), tablica se ob naslednji izvolitvi (≤ 90 s) spet umakne.
 
 Odprto: izvolitev na telefonu (umik) in `safeer-core` brez GUI (prioriteta 100) - korak 6.
+
+## 5. Protocol v1: model naprave in katalog aplikacij (narejeno, 20. 9.)
+
+Protokol ostaja 0.2 v obliki (ista sporočila, isti `cast.register`); v1 doda **polja**, ki jih hub 0.2
+prezre in odjemalec 0.2 ne pošilja. Nič se ne podre v nobeni smeri - stari in novi se mešajo.
+
+### Model naprave (`cast.register.payload`)
+
+| polje | pomen | vrednosti |
+|---|---|---|
+| `protocol` | različica protokola odjemalca | `"1.0"` (`HubUsmerjevalnik.PROTOKOL_V1`) |
+| `platform` | platforma | `tv`, `tablet`, `phone`, `linux`, pozneje `windows`, `server` |
+| `kind` | kaj je ta odjemalec | `screen` (zaslon, ki lahko gosti hub), `os` (Safeer OS), `handheld` (telefon), `computer` (brskalnik na računalniku), `control` (Safeer Control) |
+| `version` | različica aplikacije (`versionName` / `APP_VERSION`) | niz |
+| `priority` | prioriteta pri izvolitvi huba - pošlje le, kdor lahko gosti hub | 1-1000 |
+| `apps` | katalog aplikacij naprave (glej spodaj) | objekt |
+
+Hub polja shrani ob napravi (`Naprava.protokol/platforma/vrsta/razlicica/prioriteta/aplikacije`, omejene
+dolžine) in jih vrne v `cast.devices` in `GET /cast/devices` **samo, kadar jih naprava pove** - seznam za
+odjemalce 0.2 je nespremenjen.
+
+### Katalog aplikacij
+
+`apps` je objekt po id-ju aplikacije: `{"<id>": {"name": "...", "kind": "...", "icon": "..."?}}`.
+Hub vsebine ne razlaga; hrani največ `NAJVEC_APLIKACIJ` (200) vnosov in `NAJVEC_KATALOG_BAJTOV` (32 KiB),
+imena ≤ 64 znakov, `icon` ≤ 256 znakov (torej URL ali ime, ne slika - ikone daljinec vzame z ukazom `apps`).
+Kar meje presega, hub zavrže (`preveriKatalog`). Katalog gre ob prijavi (`apps` v `cast.register`) ali
+naknadno s sporočilom **`apps.announce`** `{"type":"apps.announce","payload":{"apps":{…}}}`; hub odgovori
+`apps.ack` (`accepted`, ali `rejected` z `ni_prijavljena`/`manjka_apps`) in ob spremembi vsem razpošlje nov
+`cast.devices`. Ista objava dvakrat ne razpošilja.
+
+### Kdo kaj pošlje
+
+- TV/tablica zaslon (`CastReceiverService`): `screen`, prioriteta (`HubKrmilnik.prioriteta`), `apps` =
+  aplikacije, ki jih zaslon zna zagnati (`Daljinec.katalog`, `kind: "android"`, po imenu paketa - isti id,
+  kot ga sprejme ukaz `launch_app`).
+- Safeer OS (`LinkOdjemalec`): `os`, brez prioritete (hub gosti zaslon).
+- Telefon (`CastSenderClient`): `handheld`, platforma `phone`, brez prioritete.
+- Linux (`link_hub.model_naprave_v1`): `linux`, `control` za Safeer Control (id `…-control`) oz. `computer`
+  za brskalnik; brez prioritete, dokler računalnik huba ne gosti (korak 6).
+
+Preizkusi: JVM `tests/UsmerjevalnikTest.kt` (`preizkusProtokolaV1`: prijava v1, seznam, mešanje z 0.2,
+`apps.announce`, meje kataloga), Linux `tests/test_link_protokol_v1.py`; v živo `tests/test_link_naprave_zivo.py`
+izpiše polja v1 vsake prijavljene naprave.
+
+Odloženo (namenoma ne v tem koraku): **id naprave iz ključa** (`n-…`, `KrogZaupanja.idIzKljuca` je
+pripravljen). Današnji id-ji (`tv-…`, `pc-…-control`) so v seznanitvah, dnevnikih, aliasih in v uporabnikovih
+nastavitvah; zamenjava mora obstoječe seznanitve preživeti (alias stari id → novi), zato gre kot ločena
+sprememba z lastnim prehodom, ne mimogrede v protokol.

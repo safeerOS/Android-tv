@@ -201,11 +201,11 @@ class LinkOdjemalec(private val context: Context) {
                 val prijava = JSONObject()
                     .put("id", UUID.randomUUID().toString())
                     .put("type", "cast.register")
-                    .put("payload", JSONObject()
+                    .put("payload", si.safeer.tv.cast.HubKrmilnik.poljaV1(context, "os", JSONObject()
                         .put("device_id", idNaprave)
                         .put("name", "Safeer OS")
                         .put("role", "sender")
-                        .put("capabilities", JSONArray(listOf("url", "text"))))
+                        .put("capabilities", JSONArray(listOf("url", "text")))))
                 webSocket.send(prijava.toString())
                 javiStanje(true, "")
             }

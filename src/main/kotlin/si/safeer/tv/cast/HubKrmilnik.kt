@@ -166,6 +166,24 @@ object HubKrmilnik {
         return if (p > 0) p else IzvolitevHuba.privzetaPrioriteta(platforma(context))
     }
 
+    /** Razlicica te aplikacije (versionName) ali prazno. */
+    fun razlicica(context: Context): String =
+        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() } catch (_: Throwable) { "" }
+
+    /**
+     * Protocol v1: model naprave v tovoru cast.register (protocol, platform, kind, version, priority).
+     * [vrsta] pove, kaj ta odjemalec je: "screen" (zaslon, ki lahko gosti hub), "os" (Safeer OS),
+     * "handheld", "computer". Prioriteto poslje le, kdor lahko gosti hub (drugi 0 = izpusceno).
+     */
+    fun poljaV1(context: Context, vrsta: String, tovor: org.json.JSONObject, prioriteta: Int = 0): org.json.JSONObject {
+        tovor.put("protocol", HubUsmerjevalnik.PROTOKOL_V1)
+            .put("platform", platforma(context))
+            .put("kind", vrsta)
+        razlicica(context).takeIf { it.isNotBlank() }?.let { tovor.put("version", it) }
+        if (prioriteta > 0) tovor.put("priority", prioriteta)
+        return tovor
+    }
+
     /** Hub, ki smo se mu umaknili (naslov, odtis, id), ali null, ce gostimo sami oz. nismo v Linku. */
     fun izvoljeniHub(context: Context): HubDiscovery.NajdeniHub? {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

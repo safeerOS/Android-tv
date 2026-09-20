@@ -285,6 +285,21 @@ object Daljinec {
         return polje
     }
 
+    /**
+     * Katalog aplikacij za Protocol v1 (cast.register `apps` / apps.announce): objekt po imenu paketa,
+     * {"<paket>": {"name": "...", "kind": "android"}}. Brez ikon - hub jih ne hrani; daljinec jih
+     * vzame z ukazom `apps` z icons=true, ko jih potrebuje.
+     */
+    fun katalog(context: Context): JSONObject {
+        val k = JSONObject()
+        val seznam = aplikacije(context)
+        for (i in 0 until seznam.length()) {
+            val z = seznam.optJSONObject(i) ?: continue
+            k.put(z.optString("package"), JSONObject().put("name", z.optString("label")).put("kind", "android"))
+        }
+        return k
+    }
+
     /** Ikona aplikacije kot data URL (WebP, 48 px); null, ce je ni mogoce narisati. */
     private fun ikonaAplikacije(pm: PackageManager, paket: String): String? = try {
         val risba = pm.getApplicationIcon(paket)
