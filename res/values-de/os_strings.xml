@@ -430,4 +430,6 @@
     <string name="os_premakni">Verschieben</string>
     <string name="os_premakni_namig">◀ ▶ verschieben · OK fertig</string>
     <string name="os_zaslon_ni_vec">Das gewählte Gerät ist nicht mehr verbunden. Wähle einen anderen Bildschirm.</string>
+    <string name="os_zaslon_nacin_predvajalnik">Player · OK Wiedergabe/Pause · ◀ ▶ 10 s spulen (halten für schneller) · ▲ ▼ zeigt die Leiste · Menü öffnet das Menü · Zurück halten zum Beenden</string>
+    <string name="os_zaslon_meni_predvajalnik">Als Player steuern</string>
 </resources>

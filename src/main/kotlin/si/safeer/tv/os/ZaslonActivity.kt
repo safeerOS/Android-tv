@@ -52,6 +52,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var naDrugem = false
     /** Racunalnik zna na locenem zaslonu skociti na naslednji gumb (krizec v programih). */
     private var fokusPodprt = false
+    /** Profil programa od racunalnika ("predvajalnik") in ali ga ta trenutek upravljamo kot predvajalnik. */
+    private var profil = ""
+    private var predvajalnik = false
+    private lateinit var predvajalnikPas: ZaslonPredvajalnik
+    /** Od kdaj se povezava vraca (0 = slika tece). Program na racunalniku medtem tece naprej. */
+    private var ponovnoOd = 0L
     /** Program, zaradi katerega smo tu (za zapomnjeni nacin tipk), in ali je igra. */
     private var program = ""
     private var igra = false
@@ -131,6 +137,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         findViewById<android.widget.FrameLayout>(R.id.koren).addView(okvir, 1,
             android.widget.FrameLayout.LayoutParams(0, 0))
+        predvajalnikPas = ZaslonPredvajalnik(this, findViewById(R.id.koren)) { d -> poslji(d) }
         // Tablica: prst je miska (dotik klikne tam, kamor pokaze), meni seje pa je gumb v kotu,
         // ker tablica nima tipke Meni in ne dolgega Nazaj.
         if (naDotik()) {
@@ -210,6 +217,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onDestroy() {
         // Uporabnik je sejo zapustil (tudi z Y ali domacim zaslonom Safeer OS): program zapremo.
         koncaj(zapriPrograme = isFinishing)
+        predvajalnikPas.ustavi()
         super.onDestroy()
     }
 
@@ -231,6 +239,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun zahtevajSejo() {
         if (prosim) return
         val r = racunalnikZZaslonom()
+        // Povezava se vraca (izpad Wi-Fi): racunalnika se ni nazaj v Linku - cakamo naprej.
+        if (r == null && ponovnoOd != 0L) { ponoviAliKoncaj(getString(R.string.os_zaslon_ni_povezave)); return }
         if (r == null && ponudiDrugega()) return
         if (r == null) {
             pokazi(getString(
@@ -244,6 +254,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             LinkOdjemalec.Odgovor { izid, napaka ->
                 prosim = false
                 if (isFinishing) return@Odgovor
+                if (izid == null && ponovnoOd != 0L) { ponoviAliKoncaj(getString(R.string.os_zaslon_napaka, napaka)); return@Odgovor }
                 if (izid == null) { pokazi(getString(R.string.os_zaslon_napaka, napaka)); return@Odgovor }
                 if (!izid.optBoolean("ok")) {
                     val koda = izid.optString("code")
@@ -268,6 +279,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                     nastavitve.getBoolean("tipke:$program", false)
                 else igra || podatki.optBoolean("game", false)
                 if (tipke) { ustaviSmer(); kazalec = false }
+                // Predvajalnik (VLC, Celluloid ...): OK predvajaj/pavza, levo/desno previj - razen ce je
+                // uporabnik za ta program izbral drug nacin.
+                profil = podatki.optString("profile")
+                predvajalnik = profil == "predvajalnik" &&
+                    nastavitve.getString("nacin:$program", "predvajalnik") == "predvajalnik"
+                if (predvajalnik) { ustaviSmer(); kazalec = false }
                 // Plosek: privzeto tipkovnica in miska; igralni plosek, ce si ga tu tako pustil.
                 plosekKotPlosek = program.isNotEmpty() && nastavitve.getBoolean("plosek:$program", false)
                 android.util.Log.i("SafeerZaslon", "seja: navidezni plosek na racunalniku = $plosekVRacunalnik")
@@ -325,7 +342,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                     when (stanje) {
                         ZaslonOdjemalec.Stanje.POVEZUJEM -> pokazi(getString(R.string.os_zaslon_povezujem))
                         ZaslonOdjemalec.Stanje.TECE -> {
-                            poskusov = 0; skrij()
+                            poskusov = 0; ponovnoOd = 0L; skrij()
                             // Napisa (kako se konca, kaj delajo tipke) sta za zacetnika. Kdor ju je videl ze
                             // enkrat, ga ob vsakem programu samo motita - takrat ju ne kazemo vec.
                             val nast = getSharedPreferences("safeer_os", MODE_PRIVATE)
@@ -363,16 +380,28 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         o.zacni(pogled.holder.surface)
     }
 
-    /** Po prekinitvi enkrat sam od sebe poskusimo znova; sele ce tudi to ne gre, koncamo. */
+    /**
+     * Prekinjena povezava ni konec seje. Izpad Wi-Fi ali kratka motnja traja nekaj sekund, program na
+     * racunalniku pa ta cas tece naprej (racunalnik ga zapre sele, ce televizorja ni vec 90 s). Zato
+     * poskusamo do PONOVNO_NAJVEC_MS, vsakic malo pocasneje, in se vrnemo v isti program; sele nato
+     * uporabnika vrnemo nazaj. Ko se Link vrne, sejo zahteva tudi naNaprave.
+     */
     private fun ponoviAliKoncaj(razlog: String) {
         if (koncujem) return
-        if (poskusov >= 1) { pokazi(razlog); glavna.postDelayed({ if (!isFinishing) { koncaj(); finish() } }, 2500); return }
-        poskusov++
-        pokazi(getString(R.string.os_zaslon_ponovno))
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        if (ponovnoOd == 0L) ponovnoOd = zdaj
         seja = null
         odjemalec?.ustavi()
         odjemalec = null
-        glavna.postDelayed({ if (!isFinishing && !koncujem) zahtevajSejo() }, 1200)
+        if (zdaj - ponovnoOd >= PONOVNO_NAJVEC_MS) {
+            pokazi(razlog)
+            glavna.postDelayed({ if (!isFinishing) { koncaj(); finish() } }, 2500)
+            return
+        }
+        poskusov++
+        pokazi(getString(R.string.os_zaslon_ponovno))
+        glavna.postDelayed({ if (!isFinishing && !koncujem && seja == null && !prosim) zahtevajSejo() },
+            (1000L * poskusov).coerceAtMost(5000L))
     }
 
     /** Okno z drugimi zasloni smo ze pokazali (enkrat na izbiro). */
@@ -453,6 +482,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Plosek v igro: Start in Select takrat pripadata igri, ne meniju seje.
         if (plosekVIgro(keyCode, event, true)) return true
         if (ZaslonVnos.jePreklop(keyCode)) { odpriMeni(); return true }
+        // Predvajalnik: OK predvajaj/pavza, levo/desno previj, gor/dol pas - tudi s plosecka.
+        if (predvajalnik && tipkovnica?.jeOdprta != true &&
+            predvajalnikPas.tipka(keyCode, event?.repeatCount ?: 0)) return true
         // Krizec na plosecku so puscice na tipkovnici (drzane), tudi ko daljinec vodi kazalec.
         if (tipkovnica?.jeOdprta != true && ZaslonVnos.jeIzPlosecka(event) && ZaslonVnos.smer(keyCode) != null) {
             val ponovitev = event?.repeatCount ?: 0
@@ -544,6 +576,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // Predvajalnik: prvi Nazaj samo skrije pas (kot na televizorju), ne gre v program.
+            if (predvajalnik && predvajalnikPas.jeViden && event != null && !event.isLongPress) {
+                predvajalnikPas.skrij(); return true
+            }
             if (event != null && !event.isCanceled && !event.isLongPress) {
                 poslji(org.json.JSONObject().put("vrsta", "tipka").put("tipka", "nazaj"))
             }
@@ -551,6 +587,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         if (barva(keyCode) != null && naDrugem && fokusPodprt) return true
         if (tipkovnica?.jeOdprta == true) return super.onKeyUp(keyCode, event)
+        if (predvajalnik && predvajalnikPas.jeNjegova(keyCode)) return true
         if (plosekVIgro(keyCode, event, false)) return true
         if (ZaslonVnos.jeIzPlosecka(event) && ZaslonVnos.smer(keyCode) != null && drzane.remove(keyCode)) {
             ZaslonVnos.drzanje(keyCode, false)?.let { poslji(it) }
@@ -589,7 +626,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             dejanja.add(getString(if (povecava) R.string.os_zaslon_meni_povecava_izklopi
                 else R.string.os_zaslon_meni_povecava) to { preklopiPovecavo() })
         }
-        dejanja.add(getString(
+        // Predvajalnik ima svoj nacin; iz njega gre uporabnik na kazalec (in nazaj), kot pri drugih.
+        if (profil == "predvajalnik" && !predvajalnik)
+            dejanja.add(getString(R.string.os_zaslon_meni_predvajalnik) to { nastaviPredvajalnik(true) })
+        if (predvajalnik) dejanja.add(getString(R.string.os_zaslon_meni_kazalec) to { nastaviPredvajalnik(false) })
+        else dejanja.add(getString(
             if (kazalec) R.string.os_zaslon_meni_tipke else R.string.os_zaslon_meni_kazalec) to { preklopiNacin() })
         if (plosekVRacunalnik) dejanja.add(getString(
             if (plosekKotPlosek) R.string.os_zaslon_meni_plosek_namizje else R.string.os_zaslon_meni_plosek_igra) to {
@@ -635,6 +676,18 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         poslji(JSONObject().put("vrsta", "tipka").put("tipka", ime))
     }
 
+    /** Nacin predvajalnika vklop/izklop (izklop: kazalec); izbira velja za ta program. */
+    private fun nastaviPredvajalnik(vkljuci: Boolean) {
+        namigPokazan = true
+        ustaviSmer()
+        predvajalnik = vkljuci
+        kazalec = !vkljuci
+        if (!vkljuci) predvajalnikPas.skrij()
+        if (program.isNotEmpty()) getSharedPreferences("safeer_os", MODE_PRIVATE).edit()
+            .putString("nacin:$program", if (vkljuci) "predvajalnik" else "drugo").apply()
+        pokaziNamig()
+    }
+
     /** Preklop med kazalcem in tipkami; uporabnik takoj vidi, kaj zdaj delajo tipke. */
     private fun preklopiNacin() {
         namigPokazan = true
@@ -648,8 +701,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     /** Namig o upravljanju: pokaze se ob zacetku seje in ob preklopu, nato sam izgine. */
     private fun pokaziNamig() {
-        namig.text = getString(
-            if (kazalec) R.string.os_zaslon_nacin_kazalec else R.string.os_zaslon_nacin_tipke)
+        namig.text = getString(when {
+            predvajalnik -> R.string.os_zaslon_nacin_predvajalnik
+            kazalec -> R.string.os_zaslon_nacin_kazalec
+            else -> R.string.os_zaslon_nacin_tipke
+        })
         namig.visibility = View.VISIBLE
         glavna.removeCallbacks(skrijNamig)
         // Kratko: uporabnik je nacin pravkar preklopil sam in hoce le potrditev.
@@ -980,6 +1036,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Obvestilo racunalnika (na glavni niti). Stari racunalnik jih ne posilja - takrat nic. */
     private fun obvestilo(o: JSONObject) {
         if (isFinishing) return
+        if (o.has("medij")) predvajalnikPas.stanje(o.optJSONObject("medij"))
         if (o.has("izbira")) {
             val a = o.optJSONArray("izbira")
             if (a != null && a.length() == 4) pokaziOkvir(a.optInt(0), a.optInt(1), a.optInt(2), a.optInt(3))
@@ -1138,5 +1195,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
          * sekundah - enkrat na sekundo je torej varno in skoraj zastonj.
          */
         private const val PONOVI_DRZANJE = 20
+        /** Kako dolgo se po izpadu povezave poskusamo vrniti v isti program (Wi-Fi, kratka motnja). */
+        private const val PONOVNO_NAJVEC_MS = 30_000L
     }
 }

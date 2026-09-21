@@ -170,6 +170,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     }
 
+    /** Tablica se zasuka brez novega zaslona (configChanges): stevilo stolpcev prilagodimo sami. */
+    override fun onConfigurationChanged(novo: android.content.res.Configuration) {
+        super.onConfigurationChanged(novo)
+        mreza.numColumns = resources.getInteger(R.integer.os_stolpci_programov)
+    }
+
     override fun onStart() {
         super.onStart()
         Ozadje.uporabi(this, findViewById(R.id.koren))

@@ -430,4 +430,6 @@
     <string name="os_premakni">Sposta</string>
     <string name="os_premakni_namig">◀ ▶ sposta · OK fatto</string>
     <string name="os_zaslon_ni_vec">Il dispositivo scelto non è più collegato. Scegli un altro schermo.</string>
+    <string name="os_zaslon_nacin_predvajalnik">Lettore · OK riproduci/pausa · ◀ ▶ salta 10 s (tieni premuto per andare più veloce) · ▲ ▼ mostra la barra · Menu apre il menu · tieni premuto Indietro per uscire</string>
+    <string name="os_zaslon_meni_predvajalnik">Controlla come lettore</string>
 </resources>
