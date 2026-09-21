@@ -499,6 +499,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="3dp"
+                                android:id="@+id/karticaZaslonOpis"
                                 android:text="@string/os_zaslon_opis"
                                 android:textColor="@color/os_umirjeno"
                                 android:textSize="12sp"
