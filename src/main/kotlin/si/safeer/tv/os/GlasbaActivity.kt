@@ -29,7 +29,7 @@ import java.util.concurrent.Executors
 
 /**
  * Glasba brez oglasov: Jamendo (skladbe neodvisnih izvajalcev, razvrscene po priljubljenosti,
- * iskanje po izvajalcih) in internetni radio ([Radio]). Predvaja [GlasbaStoritev], zato glasba igra naprej,
+ * iskanje po izvajalcih), internetni radio ([Radio]) in video s PeerTuba ([PeerTube]). Predvaja [GlasbaStoritev], zato glasba igra naprej,
  * ko zaslon zapustis.
  *
  * Nacin poslusanja: ko glasba igra in se daljinca 30 s nihce ne dotakne, se zaslon zatemni -
@@ -59,6 +59,7 @@ class GlasbaActivity : OsActivity() {
     private lateinit var temaUra: TextView
 
     private var zavihek = 0
+    private companion object { const val VIDEO = 2; const val ISKANJE = 3 }
     private var nalaganje = 0
     private var seznam: List<Jamendo.Skladba> = emptyList()
     private val poslusalec: () -> Unit = { glavna.post { osveziZdaj() } }
@@ -123,7 +124,7 @@ class GlasbaActivity : OsActivity() {
 
         // Zavihki: Priljubljeno, Radio, Iskanje
         val vrstaZ = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        zavihki = listOf(R.string.os_glasba_priljubljeno, R.string.os_glasba_radio, R.string.os_glasba_iskanje).mapIndexed { i, id ->
+        zavihki = listOf(R.string.os_glasba_priljubljeno, R.string.os_glasba_radio, R.string.os_glasba_video, R.string.os_glasba_iskanje).mapIndexed { i, id ->
             besedilo(this, 16f, beli, true).apply {
                 text = getString(id)
                 this.id = View.generateViewId()
@@ -239,11 +240,12 @@ class GlasbaActivity : OsActivity() {
     private fun izberiZavihek(i: Int) {
         zavihek = i
         zavihki.forEachIndexed { j, t -> t.isSelected = j == i; t.setTextColor(getColor(if (j == i) R.color.os_mint else R.color.os_besedilo)) }
-        iskalnik.visibility = if (i == 2) View.VISIBLE else View.GONE
+        iskalnik.visibility = if (i == ISKANJE) View.VISIBLE else View.GONE
         when (i) {
             0 -> nalozi({ Jamendo.priljubljene() }) { pokaziSkladbe(it) }
             1 -> nalozi({ Radio.postaje() }) { pokaziSkladbe(it) }
-            2 -> { mreza.removeAllViews(); stanje.text = getString(R.string.os_glasba_isci_navodilo); iskalnik.requestFocus() }
+            VIDEO -> nalozi({ PeerTube.priljubljeni() }) { pokaziVideo(it, getString(R.string.os_glasba_video_opis)) }
+            ISKANJE -> { mreza.removeAllViews(); stanje.text = getString(R.string.os_glasba_isci_navodilo); iskalnik.requestFocus() }
         }
     }
 
@@ -251,9 +253,12 @@ class GlasbaActivity : OsActivity() {
         val beseda = iskalnik.text.toString().trim()
         if (beseda.length < 2) return
         (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(iskalnik.windowToken, 0)
-        nalozi({ Jamendo.isciIzvajalce(beseda) }) { izvajalci ->
+        // Eno iskanje za vse vire: izvajalci z Jamenda in video s PeerTuba.
+        nalozi({ Jamendo.isciIzvajalce(beseda) to PeerTube.isci(beseda) }) { (izvajalci, videi) ->
             mreza.removeAllViews()
-            stanje.text = if (izvajalci.isEmpty()) getString(R.string.os_glasba_prazno) else getString(R.string.os_glasba_izvajalci, izvajalci.size)
+            stanje.text = if (izvajalci.isEmpty() && videi.isEmpty()) getString(R.string.os_glasba_prazno)
+                else getString(R.string.os_glasba_zadetki, izvajalci.size, videi.size)
+            dodajVideo(videi)
             izvajalci.forEach { iz ->
                 mreza.addView(ploscica(iz.ime, getString(R.string.os_glasba_izvajalec), iz.slika) {
                     nalozi({ Jamendo.odIzvajalca(iz.id) }) { pokaziSkladbe(it, iz.ime) }
@@ -286,6 +291,27 @@ class GlasbaActivity : OsActivity() {
         }
         s.forEachIndexed { i, sk -> mreza.addView(ploscica(sk.naslov, sk.izvajalec, sk.slika) { predvajaj(i) }) }
         if (!iskalnik.hasFocus() || izvajalec != null) mreza.getChildAt(0)?.requestFocus()
+    }
+
+    private fun pokaziVideo(v: List<PeerTube.Video>, opis: String) {
+        mreza.removeAllViews()
+        stanje.text = if (v.isEmpty()) getString(R.string.os_glasba_prazno) else opis
+        dodajVideo(v)
+        mreza.getChildAt(0)?.requestFocus()
+    }
+
+    private fun dodajVideo(v: List<PeerTube.Video>) {
+        v.forEach { video -> mreza.addView(ploscica(video.naslov, video.kanal.ifBlank { video.streznik }, video.slika) { odpriVideo(video) }) }
+    }
+
+    /** Video predvaja obstojeci predvajalnik Safeer OS; glasba se medtem ustavi (pavza). */
+    private fun odpriVideo(v: PeerTube.Video) {
+        nalozi({ PeerTube.datoteka(v) }) { url ->
+            if (url == null) { stanje.text = getString(R.string.os_glasba_napaka); return@nalozi }
+            GlasbaStoritev.predvajalnik?.pause()
+            startActivity(android.content.Intent(this, PredvajalnikActivity::class.java)
+                .putExtra("url", url).putExtra("ime", v.naslov).putExtra("lokalno", true).putExtra("mime", "video/mp4"))
+        }
     }
 
     private fun predvajaj(i: Int) {
@@ -361,6 +387,15 @@ class GlasbaActivity : OsActivity() {
             }
         }
         return super.dispatchKeyEvent(dogodek)
+    }
+
+    override fun dispatchTouchEvent(dogodek: android.view.MotionEvent): Boolean {
+        budilka()
+        if (tema.visibility == View.VISIBLE) {
+            if (dogodek.action == android.view.MotionEvent.ACTION_UP) pokaziTemo(false)
+            return true
+        }
+        return super.dispatchTouchEvent(dogodek)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

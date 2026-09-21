@@ -183,6 +183,36 @@
                     android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
 
+            <!-- Mediji: glasba in video -->
+            <LinearLayout
+                android:id="@+id/meniGlasba"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:clickable="true"
+                android:background="@drawable/os_meni_postavka"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:layout_marginBottom="6dp">
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@drawable/os_ikona_glasba"
+                    android:contentDescription="@null"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/os_meni_glasba"
+                    android:textColor="@color/os_besedilo"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif-medium"/>
+            </LinearLayout>
+
             <!-- Povezane naprave -->
             <LinearLayout
                 android:id="@+id/meniNaprave"

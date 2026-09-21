@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Safeer OS: zaslon Glasba (GlasbaActivity, GlasbaStoritev). -->
 <resources>
-    <string name="os_meni_glasba">Musique</string>
-    <string name="os_glasba_naslov">Musique</string>
+    <string name="os_meni_glasba">Médias</string>
+    <string name="os_glasba_naslov">Musique et vidéo</string>
     <string name="os_glasba_podnaslov">Artistes indépendants de Jamendo sans publicité · radio internet</string>
     <string name="os_glasba_priljubljeno">Populaire</string>
     <string name="os_glasba_radio">Radio</string>
     <string name="os_glasba_iskanje">Recherche</string>
-    <string name="os_glasba_isci_namig">Nom de l’artiste</string>
-    <string name="os_glasba_isci_navodilo">Saisis le nom d’un artiste et appuie sur Rechercher.</string>
+    <string name="os_glasba_isci_namig">Artiste ou vidéo</string>
+    <string name="os_glasba_isci_navodilo">Saisis un artiste ou un sujet de vidéo et appuie sur Rechercher.</string>
     <string name="os_glasba_nalagam">Chargement…</string>
     <string name="os_glasba_napaka">Impossible de charger la musique. Vérifie la connexion et réessaie.</string>
     <string name="os_glasba_prazno">Aucun résultat.</string>
@@ -19,4 +19,7 @@
     <string name="os_glasba_po_priljubljenosti">Les plus écoutés d’abord</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
     <string name="os_glasba_namig">OK lit · OK sur la barre du bas : pause · OK maintenu : arrêt · la musique continue quand tu quittes l’écran</string>
+    <string name="os_glasba_video">Vidéo</string>
+    <string name="os_glasba_video_opis">Vidéos PeerTube · sans publicité ni pistage, les plus vues d’abord</string>
+    <string name="os_glasba_zadetki">Artistes : %1$d · vidéos : %2$d</string>
 </resources>

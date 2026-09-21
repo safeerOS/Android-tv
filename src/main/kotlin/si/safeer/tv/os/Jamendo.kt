@@ -33,7 +33,9 @@ object Jamendo {
     data class Izvajalec(val id: String, val ime: String, val slika: String)
 
     /** Najbolj poslusane skladbe (razvrscene po priljubljenosti). */
-    fun priljubljene(stevilo: Int = 48): List<Skladba> = skladbe("order=popularity_total&limit=$stevilo")
+    fun priljubljene(stevilo: Int = 48): List<Skladba> =
+        // Jamendo obcasno vrne prazen seznam (preverjeno na tablici 21. 9. 2026); drugi poskus ga dobi.
+        skladbe("order=popularity_total&limit=$stevilo").ifEmpty { Thread.sleep(800); skladbe("order=popularity_total&limit=$stevilo") }
 
     /** Skladbe izvajalca, najbolj poslusane najprej. */
     fun odIzvajalca(id: String): List<Skladba> =

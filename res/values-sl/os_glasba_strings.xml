@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Safeer OS: zaslon Glasba (GlasbaActivity, GlasbaStoritev). -->
 <resources>
-    <string name="os_meni_glasba">Glasba</string>
-    <string name="os_glasba_naslov">Glasba</string>
+    <string name="os_meni_glasba">Mediji</string>
+    <string name="os_glasba_naslov">Glasba in video</string>
     <string name="os_glasba_podnaslov">Neodvisni izvajalci z Jamenda brez oglasov · internetni radio</string>
     <string name="os_glasba_priljubljeno">Priljubljeno</string>
     <string name="os_glasba_radio">Radio</string>
     <string name="os_glasba_iskanje">Iskanje</string>
-    <string name="os_glasba_isci_namig">Ime izvajalca</string>
-    <string name="os_glasba_isci_navodilo">Vpiši ime izvajalca in pritisni Išči.</string>
+    <string name="os_glasba_isci_namig">Izvajalec ali video</string>
+    <string name="os_glasba_isci_navodilo">Vpiši izvajalca ali temo videa in pritisni Išči.</string>
     <string name="os_glasba_nalagam">Nalagam …</string>
     <string name="os_glasba_napaka">Glasbe ni bilo mogoče naložiti. Preveri povezavo in poskusi znova.</string>
     <string name="os_glasba_prazno">Nič nisem našel.</string>
@@ -19,4 +19,7 @@
     <string name="os_glasba_po_priljubljenosti">Najbolj poslušano najprej</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
     <string name="os_glasba_namig">OK predvaja · OK na vrstici spodaj: pavza · zadržan OK: ustavi · glasba igra naprej, tudi ko zapustiš zaslon</string>
+    <string name="os_glasba_video">Video</string>
+    <string name="os_glasba_video_opis">Video s PeerTuba · brez oglasov in sledenja, najbolj gledano najprej</string>
+    <string name="os_glasba_zadetki">Izvajalci: %1$d · videi: %2$d</string>
 </resources>
