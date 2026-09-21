@@ -78,8 +78,6 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Izbrana naprava v vrsti naprav; null = vse. */
     private var izbranaNaprava: String? = null
 
-    /** Koliko programov (z ikonami) prosimo naenkrat; en kos mora ostati krepko pod 256 kB. */
-    private val STRAN = 18
 
     private fun zVirom(v: AppVir) = nacin == "vse" || nacin == v.kljuc
 
@@ -93,7 +91,10 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.os_activity_programi)
-        nacin = intent.getStringExtra(EXTRA_VIR) ?: AppVir.RACUNALNIK.kljuc
+        // En zaslon za vse aplikacije: tudi kartica Programi odpre Vse aplikacije (izbira naprave je
+        // v vrsti zgoraj). Dva skoraj enaka zaslona sta uporabnika samo spraševala, katerega naj odpre.
+        nacin = intent.getStringExtra(EXTRA_VIR) ?: "vse"
+        spremljajSpomin(applicationContext)
         mreza = findViewById(R.id.mreza)
         naslov = findViewById(R.id.naslov)
         nadnaslov = findViewById(R.id.nadnaslov)
@@ -173,6 +174,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onStart()
         Ozadje.uporabi(this, findViewById(R.id.koren))
         link.dodaj(this)
+        if (zVirom(AppVir.RACUNALNIK)) izShrambe()
         naloziKrajevne()
         if (zVirom(AppVir.RACUNALNIK)) nalozi()
     }
@@ -187,34 +189,22 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val novi = ArrayList<SafeerApp>()
         if (zVirom(AppVir.TV)) novi.addAll(SafeerAppi.naTelevizorju(this))
         if (zVirom(AppVir.SPLET)) novi.addAll(SafeerAppi.spletne(this))
-        val prvi = programi.isEmpty() && novi.isNotEmpty()
-        krajevni = novi
-        narisiSkupine()
-        osveziSeznam()
-        if (prvi && !premaknil) { mreza.requestFocus(); mreza.setSelection(0) }
-    }
-
-    /**
-     * Naprave, katerih programe ali aplikacije lahko pokazemo: racunalnik, ki programe deli (zmoznost
-     * "apps"), in naprave z daljincem ("remote" - Android, isti ukaz `apps.list`). Brez te naprave
-     * same in brez drugih procesov na njej (isti naslov IP: brskalnik na tem televizorju) - te
-     * aplikacije so ze med aplikacijami televizorja.
-     */
-    private fun napraveSProgrami(): List<LinkOdjemalec.Naprava> {
-        val jaz = Identiteta.id(this)
-        val mojNaslov = try { si.safeer.tv.cast.PridruzitevSredisca.krajevniNaslov() } catch (_: Throwable) { null }
-        // Sredisce vsakemu odjemalcu na svoji napravi pripise 127.0.0.1: kadar sredisce tece tu, so to
-        // nasi procesi (brskalnik na tem televizorju) - njegove aplikacije so ze med aplikacijami televizorja.
-        val loopback = setOf("127.0.0.1", "::1", "localhost")
-        return link.naprave.filter {
-            it.id != jaz && (it.zmoznosti.contains("apps") || it.zmoznosti.contains("remote")) &&
-                (mojNaslov == null || it.naslov.isBlank() || it.naslov != mojNaslov) &&
-                !(link.odjemalec.srediceJeTu && it.naslov in loopback) && !link.jeTaNaprava(it)
+        // Na zaslonu vseh aplikacij bi aplikacije televizorja prisle prve, cez trenutek pa bi jih
+        // seznami naprav po abecedi razmetali. Kadar naprave so in njihovih seznamov se nimamo,
+        // pocakamo nanje (najdlje CAKAJ_DRUGE_MS) in narisemo vse naenkrat - kot na zaslonu Programi.
+        if (nacin == "vse" && oddaljeni.isEmpty() && napraveSProgrami(this).isNotEmpty()) {
+            krajevni = novi
+            zadrzano = true
+            pokaziSporocilo(getString(R.string.os_programi_nalagam))
+            mreza.removeCallbacks(izprazni)
+            mreza.postDelayed(izprazni, CAKAJ_DRUGE_MS)
+            return
         }
+        prerisi { krajevni = novi }
     }
 
     private fun nalozi() {
-        val naprave = napraveSProgrami()
+        val naprave = napraveSProgrami(this)
         if (naprave.isEmpty()) {
             // Na zaslonu vseh aplikacij naprava ni nujna: brez nje so tu ostale.
             if (nacin != AppVir.RACUNALNIK.kljuc || oddaljeni.isNotEmpty()) return
@@ -229,8 +219,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (r.id in nalagam || r.id in nalozene) continue
             imenaNaprav[r.id] = r.ime.ifBlank { r.id }
             if (!r.zmoznosti.contains("apps")) androidNaprave.add(r.id)
+            // Seznam je svez (domaci zaslon ga je pravkar pripravil ali smo ga pravkar pokazali):
+            // ne vprasamo naprave se enkrat - brez dvojnega nalaganja.
+            if (jeSvez(shramba[r.id]?.cas)) { nalozene.add(r.id); continue }
             if (programi.isEmpty()) pokaziSporocilo(getString(R.string.os_programi_nalagam))
-            naloziStran(r, 0)
+            naloziStran(r)
         }
         if (nacin == AppVir.RACUNALNIK.kljuc) {
             znacka.text = if (imenaNaprav.size == 1) imenaNaprav.values.first()
@@ -240,64 +233,138 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /**
-     * Seznam pride po kosih. Ikone so slike in racunalnik jih ima lahko sto: celoten odgovor bi
-     * presegel omejitev sporocila v Linku (256 kB) in bi tiho padel skozi - uporabnik bi cakal v
-     * prazno. Zato prosimo za [STRAN] programov naenkrat in jih sproti dodajamo v mrezo. Android
-     * vrne cel seznam naenkrat (ikone so majhne, 48 px WebP).
+     * Seznam naprave (cel, tudi ce pride po kosih) gre v mrezo naenkrat. Prenos sam je v
+     * [prenesi], da ga lahko domaci zaslon opravi ze v ozadju, preden uporabnik zaslon odpre.
      */
-    private fun naloziStran(r: LinkOdjemalec.Naprava, od: Int) {
+    private fun naloziStran(r: LinkOdjemalec.Naprava) {
         nalagam.add(r.id)
-        val android = r.id in androidNaprave
-        val zahteva = JSONObject().put("offset", od).put("limit", STRAN).put("icons", true)
-        link.ukaz(r.id, "apps.list", zahteva, 25_000, LinkOdjemalec.Odgovor { izid, napaka ->
+        prenesi(this, r) { s, napaka ->
             nalagam.remove(r.id)
-            if (isFinishing) return@Odgovor
-            if (izid == null || !izid.optBoolean("ok")) {
-                nalozene.add(r.id)
-                // Napaka ene naprave ne sme prekriti ostalih.
-                if (oddaljeni.none { it.racunalnik == r.id }) {
-                    imenaNaprav.remove(r.id)
-                    koncajSSporocilom(getString(R.string.os_programi_napaka,
-                        izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() }))
-                }
-                return@Odgovor
-            }
-            val podatki = izid.optJSONObject("data") ?: JSONObject()
-            if (!podatki.optBoolean("enabled", false)) {
-                nalozene.add(r.id)
-                imenaNaprav.remove(r.id)
-                koncajSSporocilom(getString(R.string.os_programi_izklopljeno, r.ime.ifBlank { r.id })); return@Odgovor
-            }
-            val polje = podatki.optJSONArray("items")
-            val novi = ArrayList<SafeerApp>(oddaljeni)
-            if (polje != null) for (i in 0 until polje.length()) {
-                val o = polje.optJSONObject(i) ?: continue
-                val id = o.optString("id"); if (id.isBlank()) continue
-                // Racunalnik: icon_png (base64); Android: icon (data URL, WebP).
-                val png = o.optString("icon_png").ifBlank { o.optString("icon").substringAfter("base64,", "") }
-                val kljuc = "racunalnik:" + r.id + ":" + id
-                if (novi.any { it.kljuc == kljuc }) continue
-                if (png.isNotBlank()) ikonePng[kljuc] = png
-                val skupina = o.optString("group").ifBlank { if (android) skupinaPaketa(id) else DRUGO }
-                novi.add(SafeerApp(kljuc, o.optString("name").ifBlank { id }, o.optString("comment"),
-                    skupina, ikona(png), AppVir.RACUNALNIK, id, r.id))
-            }
-            val prvi = programi.isEmpty() && novi.isNotEmpty()
-            oddaljeni = novi
-            narisiSkupine()
-            osveziSeznam()
-            if (prvi && !premaknil) { mreza.requestFocus(); mreza.setSelection(0) }
-            val skupaj = podatki.optInt("total", novi.size)
-            val prejeto = polje?.length() ?: 0
-            val tega = novi.count { it.racunalnik == r.id }
+            if (isFinishing) return@prenesi
+            nalozene.add(r.id)
             when {
-                !android && tega < skupaj && prejeto > 0 -> naloziStran(r, od + prejeto)
+                s == null -> {
+                    // Napaka ene naprave ne sme prekriti ostalih.
+                    if (oddaljeni.none { it.racunalnik == r.id }) {
+                        imenaNaprav.remove(r.id)
+                        koncajSSporocilom(getString(R.string.os_programi_napaka, napaka.orEmpty()))
+                    }
+                    if (nalagam.isEmpty()) izprazniCakajoce()
+                }
+                !s.omogoceno -> {
+                    shramba.remove(r.id)
+                    cakajoce.remove(r.id)
+                    if (oddaljeni.any { it.racunalnik == r.id }) prerisi { oddaljeni = oddaljeni.filter { it.racunalnik != r.id } }
+                    imenaNaprav.remove(r.id)
+                    koncajSSporocilom(getString(R.string.os_programi_izklopljeno, r.ime.ifBlank { r.id }))
+                    if (nalagam.isEmpty()) izprazniCakajoce()
+                }
                 else -> {
-                    nalozene.add(r.id)
+                    objavi(r.id, pretvori(r.id, s))
                     if (programi.isEmpty() && nalagam.isEmpty()) pokaziSporocilo(getString(R.string.os_programi_prazno))
                 }
             }
-        })
+        }
+    }
+
+    /** Surov seznam naprave v aplikacije za mrezo; ikone dekodiramo tu, enkrat. */
+    private fun pretvori(naprava: String, s: Surovo): List<SafeerApp> {
+        val novi = ArrayList<SafeerApp>()
+        val videni = HashSet<String>()
+        for (o in s.predmeti) {
+            val id = o.optString("id"); if (id.isBlank()) continue
+            val kljuc = "racunalnik:$naprava:$id"
+            if (!videni.add(kljuc)) continue
+            // Racunalnik: icon_png (base64); Android: icon (data URL, WebP).
+            val png = o.optString("icon_png").ifBlank { o.optString("icon").substringAfter("base64,", "") }
+            if (png.isNotBlank()) ikonePng[kljuc] = png
+            val skupina = o.optString("group").ifBlank { if (s.android) skupinaPaketa(id) else DRUGO }
+            novi.add(SafeerApp(kljuc, o.optString("name").ifBlank { id }, o.optString("comment"),
+                skupina, ikona(png), AppVir.RACUNALNIK, id, naprava))
+        }
+        return novi
+    }
+
+    /**
+     * Cel seznam ene naprave gre v mrezo naenkrat. Prej je vsak kos (18 programov) mrezo na novo
+     * razvrstil in na novo narisal skupine - zaslon se je nekaj sekund premikal pod uporabnikom
+     * (21. 9. 2026). Enak seznam, kot ga ze kazemo (iz shrambe), mreze sploh ne premakne.
+     */
+    private fun objavi(naprava: String, seznam: List<SafeerApp>) {
+        val predpona = "racunalnik:$naprava:"
+        shramba[naprava] = Shranjeno(imenaNaprav[naprava].orEmpty(), naprava in androidNaprave,
+            ArrayList(seznam), ikonePng.filterKeys { it.startsWith(predpona) }, zdaj())
+        val prej = oddaljeni.filter { it.racunalnik == naprava }
+        if (enako(prej, seznam)) { if (nalagam.isEmpty()) izprazniCakajoce(); return }
+        cakajoce[naprava] = seznam
+        if (nalagam.isEmpty()) izprazniCakajoce()
+        else { mreza.removeCallbacks(izprazni); mreza.postDelayed(izprazni, CAKAJ_DRUGE_MS) }
+    }
+
+    /**
+     * Seznami naprav, ki so ze prisli, medtem ko se druge se nalagajo. Vsaka naprava je mrezo
+     * razvrstila na novo (racunalnik, nato tablica, nato telefon) - zaslon je poskocil enkrat za
+     * vsako napravo. Zdaj gredo vse v mrezo z enim izrisom; najdlje [CAKAJ_DRUGE_MS] za pocasno.
+     */
+    private val cakajoce = LinkedHashMap<String, List<SafeerApp>>()
+    private val izprazni = Runnable { izprazniCakajoce() }
+    /** Aplikacije televizorja so nalozene, a se niso narisane (cakajo na naprave). */
+    private var zadrzano = false
+
+    private fun izprazniCakajoce() {
+        mreza.removeCallbacks(izprazni)
+        if ((cakajoce.isEmpty() && !zadrzano) || isFinishing) return
+        zadrzano = false
+        val prispele = LinkedHashMap(cakajoce)
+        cakajoce.clear()
+        prerisi { oddaljeni = oddaljeni.filter { it.racunalnik !in prispele.keys } + prispele.values.flatten() }
+    }
+
+    private fun enako(a: List<SafeerApp>, b: List<SafeerApp>): Boolean {
+        if (a.size != b.size) return false
+        val po = a.associateBy { it.kljuc }
+        return b.all { n -> po[n.kljuc]?.let { it.ime == n.ime && it.skupina == n.skupina && it.opis == n.opis } == true }
+    }
+
+    /**
+     * Sprememba seznama med gledanjem: izbira ostane na isti aplikaciji in fokus na istem cipu -
+     * nic ne skoci pod prstom. Pred prvim premikom pa se fokus postavi na prvo aplikacijo.
+     */
+    private fun prerisi(spremeni: () -> Unit) {
+        val bilPrazen = vidni.isEmpty()
+        val izbran = if (mreza.hasFocus()) vidni.getOrNull(mreza.selectedItemPosition)?.kljuc else null
+        val fokus = currentFocus
+        val vrsta = fokus?.parent?.takeIf { it === skupineVrsta || it === viriVrsta } as? ViewGroup
+        spremeni()
+        narisiSkupine()
+        osveziSeznam()
+        when {
+            izbran != null -> vidni.indexOfFirst { it.kljuc == izbran }.takeIf { it >= 0 }?.let { mreza.setSelection(it) }
+            vrsta != null -> vrsta.post {
+                (0 until vrsta.childCount).map { vrsta.getChildAt(it) }.firstOrNull { it.isActivated }?.requestFocus()
+            }
+            bilPrazen && programi.isNotEmpty() && !premaknil -> { mreza.requestFocus(); mreza.setSelection(0) }
+        }
+    }
+
+    /** Zadnji seznami naprav, ki so zdaj v Linku: mreza je ob odprtju takoj cela. */
+    private fun izShrambe() {
+        val naprave = napraveSProgrami(this).map { it.id }.toSet()
+        for ((id, sur) in HashMap(surovi)) {
+            surovi.remove(id)
+            if (id !in naprave || (shramba[id]?.cas ?: -1L) >= sur.cas) continue
+            val seznam = pretvori(id, sur)
+            shramba[id] = Shranjeno(sur.ime, sur.android, seznam, ikonePng.filterKeys { it.startsWith("racunalnik:$id:") }, sur.cas)
+        }
+        val iz = ArrayList<SafeerApp>()
+        for ((id, s) in shramba) {
+            if (id !in naprave || oddaljeni.any { it.racunalnik == id }) continue
+            imenaNaprav[id] = s.ime.ifBlank { id }
+            if (s.android) androidNaprave.add(id)
+            ikonePng.putAll(s.ikone)
+            iz.addAll(s.aplikacije)
+        }
+        if (iz.isNotEmpty()) oddaljeni = oddaljeni + iz
     }
 
     /** Napaka sredi nalaganja: ce smo kaj ze pokazali, pustimo to in samo povemo, kaj je slo narobe. */
@@ -370,25 +437,37 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun narisiVire() {
         if (nacin == AppVir.RACUNALNIK.kljuc) { narisiNaprave(); return }
         if (nacin != "vse") return
-        val prisotni = AppVir.values().filter { v -> programi.any { it.vir == v } }
+        // Vir in naprava v enem: "Racunalnik" je prej zdruzil vse naprave (racunalnik, tablico,
+        // telefon) - uporabnik ni vedel, kaj je kje. Zdaj ima vsaka naprava svoj cip, kot na Programih.
+        val izbire = ArrayList<Pair<AppVir?, String?>>()
+        izbire.add(null to null)
+        for (v in listOf(AppVir.TV, AppVir.SPLET)) if (programi.any { it.vir == v }) izbire.add(v to null)
+        for (id in imenaNaprav.keys) if (oddaljeni.any { it.racunalnik == id }) izbire.add(AppVir.RACUNALNIK to id)
         val vrsta = findViewById<LinearLayout>(R.id.naprave)
         val drsnik = findViewById<View>(R.id.napraveDrsnik)
         viriVrsta = vrsta
         vrsta.removeAllViews()
-        if (prisotni.size < 2) { drsnik.visibility = View.GONE; izbraniVir = null; return }
+        if (izbire.size < 3) { drsnik.visibility = View.GONE; izbraniVir = null; izbranaNaprava = null; return }
         drsnik.visibility = View.VISIBLE
-        if (izbraniVir != null && izbraniVir !in prisotni) izbraniVir = null
-        for (v in listOf<AppVir?>(null) + prisotni) {
-            val n = if (v == null) programi.size else programi.count { it.vir == v }
-            val g = gumb(getString(R.string.os_skupina_s_stevilom, imeVira(v), n), v == izbraniVir)
+        if ((izbraniVir to izbranaNaprava) !in izbire) { izbraniVir = null; izbranaNaprava = null }
+        for ((v, id) in izbire) {
+            val n = when {
+                v == null -> programi.size
+                id != null -> oddaljeni.count { it.racunalnik == id }
+                else -> programi.count { it.vir == v }
+            }
+            val ime = if (id != null) imenaNaprav[id].orEmpty() else imeVira(v)
+            val g = gumb(getString(R.string.os_skupina_s_stevilom, ime, n), v == izbraniVir && id == izbranaNaprava)
             g.setOnClickListener {
-                if (izbraniVir == v) return@setOnClickListener
+                if (izbraniVir == v && izbranaNaprava == id) return@setOnClickListener
                 izbraniVir = v
+                izbranaNaprava = id
                 izbranaSkupina = ""
                 narisiSkupine()
                 osveziSeznam()
                 obdrziFokusNaCipu()
             }
+            g.setOnFocusChangeListener { _, ima -> if (ima) (drsnik as HorizontalScrollView).requestChildRectangleOnScreen(g, android.graphics.Rect(0, 0, g.width, g.height), false) }
             vrsta.addView(g)
         }
     }
@@ -738,6 +817,112 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         const val EXTRA_VIR = "vir"
         /** Oznaka skupine za program, ki svoje kategorije nima (ista beseda kot v core/link_programi.py). */
         private const val DRUGO = "drugo"
+        /** Koliko najdlje pocakamo pocasnejso napravo, preden mrezo izrisemo brez nje. */
+        private const val CAKAJ_DRUGE_MS = 2000L
+        /** Koliko programov (z ikonami) prosimo naenkrat; en kos mora ostati krepko pod 256 kB. */
+        private const val STRAN = 18
+
+        /**
+         * Naprave, katerih programe ali aplikacije lahko pokazemo: racunalnik, ki programe deli (zmoznost
+         * "apps"), in naprave z daljincem ("remote" - Android, isti ukaz `apps.list`). Brez te naprave
+         * same in brez drugih procesov na njej (isti naslov IP: brskalnik na tem televizorju) - te
+         * aplikacije so ze med aplikacijami televizorja.
+         */
+        fun napraveSProgrami(ctx: android.content.Context): List<LinkOdjemalec.Naprava> {
+            val link = LinkUpravitelj.pridobi(ctx)
+            val jaz = Identiteta.id(ctx)
+            val mojNaslov = try { si.safeer.tv.cast.PridruzitevSredisca.krajevniNaslov() } catch (_: Throwable) { null }
+            // Sredisce vsakemu odjemalcu na svoji napravi pripise 127.0.0.1: kadar sredisce tece tu, so to
+            // nasi procesi (brskalnik na tem televizorju) - njegove aplikacije so ze med aplikacijami televizorja.
+            val loopback = setOf("127.0.0.1", "::1", "localhost")
+            return link.naprave.filter {
+                it.id != jaz && (it.zmoznosti.contains("apps") || it.zmoznosti.contains("remote")) &&
+                    (mojNaslov == null || it.naslov.isBlank() || it.naslov != mojNaslov) &&
+                    !(link.odjemalec.srediceJeTu && it.naslov in loopback) && !link.jeTaNaprava(it)
+            }
+        }
+
+        /** Seznam naprave, kot pride po Linku - ikone se niso dekodirane (to je delo zaslona). */
+        class Surovo(val ime: String, val android: Boolean, val predmeti: List<JSONObject>, val omogoceno: Boolean,
+                     val cas: Long = zdaj())
+
+        /** Koliko casa je seznam naprave svez: v tem casu ga ne vprasamo znova (2 min). */
+        private const val SVEZE_MS = 120_000L
+        private fun zdaj() = android.os.SystemClock.elapsedRealtime()
+        private fun jeSvez(cas: Long?) = cas != null && zdaj() - cas < SVEZE_MS
+
+        /**
+         * Cel seznam naprave. Ikone so slike in racunalnik jih ima lahko sto: celoten odgovor bi
+         * presegel omejitev sporocila v Linku (256 kB) in bi tiho padel skozi. Zato prosimo za
+         * [STRAN] programov naenkrat; Android vrne cel seznam naenkrat (ikone so majhne, 48 px WebP).
+         * [konec] dobi seznam ali, ob napaki, null in razlog.
+         */
+        fun prenesi(ctx: android.content.Context, r: LinkOdjemalec.Naprava, konec: (Surovo?, String?) -> Unit) {
+            val link = LinkUpravitelj.pridobi(ctx)
+            val android = !r.zmoznosti.contains("apps")
+            val zbrano = ArrayList<JSONObject>()
+            val ime = r.ime.ifBlank { r.id }
+            fun stran(od: Int) {
+                val zahteva = JSONObject().put("offset", od).put("limit", STRAN).put("icons", true)
+                link.ukaz(r.id, "apps.list", zahteva, 25_000, LinkOdjemalec.Odgovor { izid, napaka ->
+                    if (izid == null || !izid.optBoolean("ok")) {
+                        konec(null, izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() })
+                        return@Odgovor
+                    }
+                    val podatki = izid.optJSONObject("data") ?: JSONObject()
+                    if (!podatki.optBoolean("enabled", false)) { konec(Surovo(ime, android, emptyList(), false), null); return@Odgovor }
+                    val polje = podatki.optJSONArray("items")
+                    if (polje != null) for (i in 0 until polje.length()) polje.optJSONObject(i)?.let { zbrano.add(it) }
+                    val skupaj = podatki.optInt("total", zbrano.size)
+                    val prejeto = polje?.length() ?: 0
+                    if (!android && zbrano.size < skupaj && prejeto > 0) { stran(od + prejeto); return@Odgovor }
+                    konec(Surovo(ime, android, zbrano, true), null)
+                })
+            }
+            stran(0)
+        }
+
+        /** Seznami, ki jih je domaci zaslon prenesel v ozadju (se brez ikon v spominu kot slike). */
+        private val surovi = HashMap<String, Surovo>()
+        private val prenasam = HashSet<String>()
+
+        /**
+         * Domaci zaslon (in tablica) pripravi sezname naprav, preden uporabnik odpre Vse aplikacije:
+         * zaslon je ob kliku takoj poln, brez praznega čakanja. Kar je ze pripravljeno, ne prenasamo znova.
+         */
+        fun predhodno(ctx: android.content.Context) {
+            val c = ctx.applicationContext
+            spremljajSpomin(c)
+            for (r in napraveSProgrami(c)) {
+                if (r.id in prenasam || jeSvez(surovi[r.id]?.cas) || jeSvez(shramba[r.id]?.cas)) continue
+                prenasam.add(r.id)
+                prenesi(c, r) { s, _ ->
+                    prenasam.remove(r.id)
+                    if (s != null && s.omogoceno) surovi[r.id] = s
+                }
+            }
+        }
+
+        /** Zadnji cel seznam vsake naprave, dokler tece proces (nekaj MB ikon). */
+        private class Shranjeno(val ime: String, val android: Boolean, val aplikacije: List<SafeerApp>,
+                                val ikone: Map<String, String>, val cas: Long)
+        private val shramba = HashMap<String, Shranjeno>()
+        private var spominSpremljam = false
+
+        /** Ko sistemu zmanjkuje spomina, shrambo spustimo - seznam se takrat nalozi znova. */
+        private fun spremljajSpomin(ctx: android.content.Context) {
+            if (spominSpremljam) return
+            spominSpremljam = true
+            ctx.registerComponentCallbacks(object : android.content.ComponentCallbacks2 {
+                override fun onTrimMemory(raven: Int) {
+                    if (raven == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+                        raven == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+                        raven >= android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE) { shramba.clear(); surovi.clear() }
+                }
+                override fun onConfigurationChanged(c: android.content.res.Configuration) { }
+                override fun onLowMemory() { shramba.clear(); surovi.clear() }
+            })
+        }
 
         /** Groba skupina aplikacije z Androida po imenu paketa (tuja naprava kategorije ne poslje). */
         fun skupinaPaketa(paket: String): String {

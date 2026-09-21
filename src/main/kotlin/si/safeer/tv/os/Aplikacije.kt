@@ -29,11 +29,18 @@ object Aplikacije {
     private fun najdi(context: Context): List<Vnos> {
         val pm = context.packageManager
         val poizvedba = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
-        val zadetki = try { pm.queryIntentActivities(poizvedba, 0) } catch (_: Throwable) { emptyList() }
+        val zadetki = ArrayList(try { pm.queryIntentActivities(poizvedba, 0) } catch (_: Throwable) { emptyList() })
+        // Tablica (naprava brez leanbacka): aplikacije za televizor ima le redka - Safeer OS Tablet je
+        // na zaslonu aplikacij pokazal 7 od 50. Tam stejejo aplikacije obicajnega zaganjalnika.
+        if (!pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+            val obicajne = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            try { zadetki.addAll(pm.queryIntentActivities(obicajne, 0)) } catch (_: Throwable) { }
+        }
+        val videni = HashSet<String>()
         val vnosi = ArrayList<Vnos>()
         for (z in zadetki) {
             val info = z.activityInfo ?: continue
-            if (info.packageName == context.packageName) continue
+            if (info.packageName == context.packageName || !videni.add(info.packageName)) continue
             val namera = pm.getLeanbackLaunchIntentForPackage(info.packageName)
                 ?: pm.getLaunchIntentForPackage(info.packageName) ?: continue
             // Ikona pred plakatom: plakat (banner) je sirok 320x180 in v majhni kvadratni
