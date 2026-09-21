@@ -159,6 +159,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             } else false
         }
 
+        // Aplikacije vseh naprav so v stranski vrstici (Aplikacije): druga kartica z isto vsebino bi
+        // uporabnika samo spraševala, katero naj izbere.
+        karticaProgrami.visibility = View.GONE
         karticaProgrami.onFocusChangeListener = fokus
         karticaProgrami.setOnClickListener {
             if (imamoPrograme) {
@@ -322,7 +325,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             fokusVsebine()
         }
         meniAplikacije.setOnClickListener {
-            odpriVarno(Intent(this, AplikacijeTvActivity::class.java), getString(R.string.os_meni_aplikacije))
+            // En zaslon za vse aplikacije (izbira naprave je v vrsti zgoraj).
+            odpriVarno(Intent(this, AplikacijeHostaActivity::class.java)
+                .putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse"), getString(R.string.os_meni_aplikacije))
         }
         meniZaslon.setOnClickListener {
             odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_meni_zaslon))
@@ -388,6 +393,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         link.dodaj(this)
         osveziScit()
         osveziPloscoNaprave(link.naprave)
+        AplikacijeHostaActivity.predhodno(this)
         // Vrsta s spletnimi aplikacijami na domacem zaslonu televizorja ostane usklajena; ko ima
         // uporabnik prvo spletno aplikacijo, ga sistem enkrat vprasa, ali jo doda na domaci zaslon.
         DomacaVrsta.osvezi(this)
@@ -441,6 +447,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Ob vstopu Link navadno se ni povezan in vprasanje, kaj tece, ostane brez odgovora:
         // vprasamo znova, ko se racunalnik javi.
         if (programi) osveziTecejo(Nadaljuj.seznam(this).filter { jeProgram(it) })
+        AplikacijeHostaActivity.predhodno(this)
     }
 
     override fun naNaslov(url: String, naslov: String, od: String) {
@@ -525,11 +532,6 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         // Programi racunalnika: kartico pokazemo samo, kadar jih kaksen racunalnik res deli -
         // sicer bi obljubljala nekaj, cesar ni.
-        if (imamoPrograme) {
-            vse.add(Zacni("programi", R.drawable.os_ikona_racunalnik, getString(R.string.os_programi)) {
-                odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.os_programi))
-            })
-        }
         vse.add(Zacni("nastavitve", R.drawable.os_ikona_nastavitve, getString(R.string.os_nastavitve)) {
             odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_nastavitve))
         })
@@ -1351,6 +1353,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         findViewById<TextView>(R.id.naslovAplikacije)?.setText(
             if (oddaljeni.isEmpty()) R.string.os_odsek_aplikacije else R.string.os_odsek_priljubljene)
+        // Ploscica "Izberi aplikacije" samo, dokler je vrsta prazna: sicer bi bila druga pot do
+        // istega zaslona kot Aplikacije v stranski vrstici.
         val ostalo = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
         ostalo.findViewById<ImageView>(R.id.ikona).setImageResource(R.drawable.os_ikona_mreza)
         // Dokler uporabnik ni izbral nobene, kartica pove, kaj naj naredi - prazna vrsta molci.
@@ -1361,7 +1365,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         ostalo.setOnClickListener { zadnjaOznaka = "app:+"; odpriVarno(Intent(this, AplikacijeHostaActivity::class.java)
             .putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse"), getString(R.string.os_aplikacije_vse)) }
         ostalo.tag = "app:+"
-        vrstaAplikacije.addView(ostalo)
+        if (po.isEmpty() && oddaljeni.isEmpty()) vrstaAplikacije.addView(ostalo)
         uravnajVrsto(vrstaAplikacije, NAJMANJSA_APP_DP, NAJVECJA_APP_DP)
         zeljeni?.let { it.post { it.requestFocus() } }
         // Vrnitev iz aplikacije, odprte s te vrste: izbira je spet na njeni kartici.
