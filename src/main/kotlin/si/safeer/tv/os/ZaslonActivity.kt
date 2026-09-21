@@ -231,6 +231,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun zahtevajSejo() {
         if (prosim) return
         val r = racunalnikZZaslonom()
+        if (r == null && ponudiDrugega()) return
         if (r == null) {
             pokazi(getString(
                 if (!link.povezan) R.string.os_zaslon_ni_povezave else R.string.os_zaslon_ni_racunalnika))
@@ -372,6 +373,33 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         odjemalec?.ustavi()
         odjemalec = null
         glavna.postDelayed({ if (!isFinishing && !koncujem) zahtevajSejo() }, 1200)
+    }
+
+    /** Okno z drugimi zasloni smo ze pokazali (enkrat na izbiro). */
+    private var ponujeno = false
+
+    /**
+     * Izbrana naprava ni vec v Linku, druge pa delijo zaslon: povemo to po imenu in ponudimo druge,
+     * namesto splosnega "noben racunalnik ne deli zaslona".
+     */
+    private fun ponudiDrugega(): Boolean {
+        val zeleni = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
+        if (zeleni.isNullOrBlank() || !link.povezan || ponujeno) return false
+        val drugi = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        if (drugi.isEmpty()) return false
+        ponujeno = true
+        pokazi(getString(R.string.os_zaslon_ni_vec))
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_zaslon_ni_vec))
+            .setItems(drugi.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i ->
+                intent.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, drugi[i].id)
+                ponujeno = false
+                zahtevajSejo()
+            }
+            .setNegativeButton(getString(R.string.os_preklici)) { _, _ -> finish() }
+            .setOnCancelListener { finish() }
+            .let { Kontroler.pokazi(it.show()) }
+        return true
     }
 
     private fun pokazi(besedilo: String) {

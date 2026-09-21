@@ -795,8 +795,16 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     // ------------------------------------------------------------------ Link
 
     override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
-        // Nova naprava v Linku (npr. tablica se je prizgala): dodamo njene aplikacije.
-        if (zVirom(AppVir.RACUNALNIK)) nalozi()
+        // Nova naprava v Linku (npr. tablica se je prizgala): dodamo njene aplikacije. Naprava, ki je
+        // odsla, gre s seznama - njenih aplikacij se ne da odpreti. (Prazen seznam = Link se ravno
+        // povezuje; takrat ne brisemo nicesar.)
+        if (!zVirom(AppVir.RACUNALNIK)) return
+        if (naprave.isNotEmpty()) {
+            val zdaj = napraveSProgrami(this).map { it.id }.toSet()
+            nalozene.retainAll(zdaj)
+            if (oddaljeni.any { it.racunalnik !in zdaj }) prerisi { oddaljeni = oddaljeni.filter { it.racunalnik in zdaj } }
+        }
+        nalozi()
     }
 
     override fun naStanje(povezan: Boolean, sporocilo: String) { }
@@ -895,6 +903,9 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         /** Seznami, ki jih je domaci zaslon prenesel v ozadju (se brez ikon v spominu kot slike). */
         private val surovi = HashMap<String, Surovo>()
         private val prenasam = HashSet<String>()
+        /** Naprave, ki niso odgovorile: ne sprasujemo jih znova vsak trenutek. */
+        private val neuspeli = HashMap<String, Long>()
+        private const val HKRATI = 2
 
         /**
          * Domaci zaslon (in tablica) pripravi sezname naprav, preden uporabnik odpre Vse aplikacije:
@@ -903,12 +914,15 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         fun predhodno(ctx: android.content.Context) {
             val c = ctx.applicationContext
             spremljajSpomin(c)
+            // Najvec dve napravi naenkrat: pri petih ali vec bi hub hkrati nosil vse sezname z ikonami.
             for (r in napraveSProgrami(c)) {
-                if (r.id in prenasam || jeSvez(surovi[r.id]?.cas) || jeSvez(shramba[r.id]?.cas)) continue
+                if (prenasam.size >= HKRATI) break
+                if (r.id in prenasam || jeSvez(surovi[r.id]?.cas) || jeSvez(shramba[r.id]?.cas) || jeSvez(neuspeli[r.id])) continue
                 prenasam.add(r.id)
                 prenesi(c, r) { s, _ ->
                     prenasam.remove(r.id)
-                    if (s != null && s.omogoceno) surovi[r.id] = s
+                    if (s != null && s.omogoceno) surovi[r.id] = s else neuspeli[r.id] = zdaj()
+                    predhodno(c)
                 }
             }
         }

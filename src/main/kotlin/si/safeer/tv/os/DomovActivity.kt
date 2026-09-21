@@ -323,6 +323,16 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Povezani zasloni: naprave v Safeer Linku, ki delijo svoj zaslon. Ena sama se odpre takoj
      * (brez odvecnega koraka); kadar jih je vec, uporabnik izbere, katero gleda na televizorju.
      */
+    /** Kartica Povezani zasloni ze na domacem zaslonu pove, katere naprave lahko gledas. */
+    private fun osveziOpisZaslona(naprave: List<LinkOdjemalec.Naprava>) {
+        val t = findViewById<TextView>(R.id.karticaZaslonOpis) ?: return
+        val jaz = Identiteta.id(this)
+        val imena = naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }.map { it.ime.ifBlank { it.id } }
+        t.maxLines = 1
+        t.ellipsize = android.text.TextUtils.TruncateAt.END
+        t.text = if (imena.isEmpty()) getString(R.string.os_zaslon_opis) else imena.joinToString(" · ")
+    }
+
     private fun odpriZaslon() {
         val jaz = Identiteta.id(this)
         val naprave = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }
@@ -470,6 +480,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Ob vstopu Link navadno se ni povezan in vprasanje, kaj tece, ostane brez odgovora:
         // vprasamo znova, ko se racunalnik javi.
         if (programi) osveziTecejo(Nadaljuj.seznam(this).filter { jeProgram(it) })
+        osveziOpisZaslona(naprave)
         AplikacijeHostaActivity.predhodno(this)
     }
 

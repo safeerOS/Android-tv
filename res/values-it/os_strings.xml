@@ -429,4 +429,5 @@
     <string name="os_ur_obv_opis">La richiesta arriva da Safeer Link. Tocca per confermare.</string>
     <string name="os_premakni">Sposta</string>
     <string name="os_premakni_namig">◀ ▶ sposta · OK fatto</string>
+    <string name="os_zaslon_ni_vec">Il dispositivo scelto non è più collegato. Scegli un altro schermo.</string>
 </resources>
