@@ -1,7 +1,6 @@
 package si.safeer.tv.tablica
 
 import si.safeer.tv.HomeTilesStore
-import si.safeer.tv.MainActivity
 import si.safeer.tv.R
 import si.safeer.tv.os.AplikacijeHostaActivity
 import si.safeer.tv.os.DatotekeActivity
@@ -338,18 +337,13 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
     }
 
-    private fun brskalnikNamera(): Intent {
-        val paket = Sosed.brskalnik(this)
-        val namera = if (paket != null)
-            Intent().setComponent(android.content.ComponentName(paket, "si.safeer.tv.MainActivity"))
-                .putExtra("iz_safeer_os", packageName)
-        else Intent(this, MainActivity::class.java)
-        return namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
+    /** Splet na tablici: mobilni Safeer, ce je namescen (os/Brskalnik), sicer vgrajeni. */
+    private fun brskalnikNamera(): Intent = si.safeer.tv.os.Brskalnik.namera(this)
 
     private fun odpriVBrskalniku(url: String?) {
-        val namera = brskalnikNamera()
-        if (url != null) { namera.action = Intent.ACTION_VIEW; namera.data = Uri.parse(url) }
+        val namera = url?.let { si.safeer.tv.os.Brskalnik.mobilniNaslov(this, it) } ?: brskalnikNamera().also {
+            if (url != null) { it.action = Intent.ACTION_VIEW; it.data = Uri.parse(url) }
+        }
         odpriVarno(namera, getString(R.string.os_splet))
     }
 
@@ -517,6 +511,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun zazeniSpletno(a: SpletneAplikacije.Aplikacija) {
+        si.safeer.tv.os.Brskalnik.mobilniNaslov(this, a.url)?.let {
+            odpriVarno(it, a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }); return
+        }
         val namera = brskalnikNamera()
             .setAction(Intent.ACTION_VIEW)
             .setData(Uri.parse(a.url))

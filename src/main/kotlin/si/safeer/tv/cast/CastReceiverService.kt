@@ -383,7 +383,12 @@ class CastReceiverService : Service() {
      * celozaslonsko namero -- tega sistem odpre sam.
      */
     private fun odpriVBrskalniku(url: String, title: String?, startPos: Double) {
-        val namera = Intent().apply {
+        // Tablica: poslana stran gre v mobilni Safeer. Deljen zaslon (stran s Huba) ostane v vgrajenem,
+        // ki zaupa potrdilu Huba.
+        val hub = hubHttpOsnova()
+        val mobilna = if (hub.isNotEmpty() && url.startsWith(hub)) null
+            else si.safeer.tv.os.Brskalnik.mobilniNaslov(this, url)
+        val namera = mobilna ?: Intent().apply {
             setClassName(packageName, "si.safeer.tv.MainActivity")
             action = ACTION_OPEN_CAST
             putExtra(EXTRA_CAST_URL, url)
