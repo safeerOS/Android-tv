@@ -60,6 +60,12 @@
             tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.PredvajalnikActivity"
             tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.NastavitveActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.VidezActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.AplikacijeTvActivity"
+            tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.ZaslonActivity"
             android:screenOrientation="sensorLandscape" tools:replace="android:screenOrientation"
             tools:ignore="DiscouragedApi" />
