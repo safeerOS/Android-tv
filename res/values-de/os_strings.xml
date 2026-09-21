@@ -429,4 +429,5 @@
     <string name="os_ur_obv_opis">Die Anfrage kommt von Safeer Link. Zum Bestätigen tippen.</string>
     <string name="os_premakni">Verschieben</string>
     <string name="os_premakni_namig">◀ ▶ verschieben · OK fertig</string>
+    <string name="os_zaslon_ni_vec">Das gewählte Gerät ist nicht mehr verbunden. Wähle einen anderen Bildschirm.</string>
 </resources>
