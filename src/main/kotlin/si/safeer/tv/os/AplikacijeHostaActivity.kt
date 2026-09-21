@@ -103,6 +103,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         iskanje = findViewById(R.id.iskanje)
         skupineVrsta = findViewById(R.id.skupine)
         skupineDrsnik = findViewById(R.id.skupineDrsnik)
+        prilagodiSirini()
         when (nacin) {
             AppVir.RACUNALNIK.kljuc -> {
                 nadnaslov.text = getString(R.string.os_programi)
@@ -170,10 +171,32 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     }
 
-    /** Tablica se zasuka brez novega zaslona (configChanges): stevilo stolpcev prilagodimo sami. */
+    /** Tablica se zasuka brez novega zaslona (configChanges): mrezo in orodja prilagodimo sami. */
     override fun onConfigurationChanged(novo: android.content.res.Configuration) {
         super.onConfigurationChanged(novo)
-        mreza.numColumns = resources.getInteger(R.integer.os_stolpci_programov)
+        prilagodiSirini()
+    }
+
+    /**
+     * Stolpci po sirini zaslona, ne po usmerjenosti: kartica naj bo siroka vsaj 120 dp, da ime ne
+     * razpade sredi besede. Televizor in lezeca tablica imata 6 stolpcev, pokoncna tablica 5,
+     * telefon pokonci 3 (prej 4 in imena kot "AdGuar d"). Na ozkem zaslonu je iskanje cez vso
+     * sirino, skupine pa v svoji vrsti pod njim - prej jih je iskanje potisnilo z zaslona.
+     */
+    private fun prilagodiSirini() {
+        val c = resources.configuration
+        val gostota = resources.displayMetrics.density
+        val sirina = c.screenWidthDp - 2 * resources.getDimension(R.dimen.os_rob) / gostota
+        mreza.numColumns = ((sirina + RAZMIK_DP) / (KARTICA_DP + RAZMIK_DP)).toInt().coerceIn(3, 6)
+        val ozko = c.screenWidthDp < 600
+        fun dp(v: Int) = (v * gostota).toInt()
+        findViewById<LinearLayout>(R.id.orodja).orientation =
+            if (ozko) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        iskanje.layoutParams = LinearLayout.LayoutParams(if (ozko) -1 else dp(240), -2)
+        skupineDrsnik.layoutParams = LinearLayout.LayoutParams(if (ozko) -1 else 0, -2, if (ozko) 0f else 1f).apply {
+            if (ozko) topMargin = dp(10) else marginStart = dp(14)
+        }
+        naslov.maxLines = if (ozko) 2 else 1
     }
 
     override fun onStart() {
@@ -837,6 +860,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     companion object {
+        private const val KARTICA_DP = 120f
+        private const val RAZMIK_DP = 12f
         /** Kaj zaslon kaze: "vse", "tv", "splet" ali "racunalnik" (privzeto). */
         const val EXTRA_VIR = "vir"
         /** Oznaka skupine za program, ki svoje kategorije nima (ista beseda kot v core/link_programi.py). */

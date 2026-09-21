@@ -64,6 +64,10 @@ class GlasbaActivity : OsActivity() {
     private lateinit var meniMediji: View
     private lateinit var naslov: TextView
     private lateinit var geslo: TextView
+    /** Stranski meni in njegova besedila: na ozkem zaslonu (telefon pokonci) ostanejo samo ikone. */
+    private lateinit var meni: LinearLayout
+    private val besedilaMenija = ArrayList<View>()
+    private lateinit var desnoOkvir: LinearLayout
     private lateinit var iskanjeGumb: View
     private lateinit var vsebina: LinearLayout
     private lateinit var drsnik: ScrollView
@@ -85,6 +89,7 @@ class GlasbaActivity : OsActivity() {
         super.onCreate(savedInstanceState)
         odprta = true
         setContentView(zgradi())
+        prilagodiMeni()
         izberi(DOMOV)
         drsnik.post { if (window.decorView.findFocus() == null || razdelek == DOMOV) vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus() }
         iskanjeIzNamena()
@@ -166,6 +171,26 @@ class GlasbaActivity : OsActivity() {
         layoutParams = LinearLayout.LayoutParams(dp(vel), dp(vel)).apply { marginEnd = dp(6) }
     }
 
+    /** Telefon pokonci: prostor gre vsebini, meni ostane kot stolpec ikon (prej je vzel dve tretjini). */
+    private fun ozekZaslon() = resources.configuration.screenWidthDp < 600
+
+    private fun prilagodiMeni() {
+        val ozek = ozekZaslon()
+        meni.layoutParams = (meni.layoutParams as LinearLayout.LayoutParams).apply {
+            width = if (ozek) dp(68) else resources.getDimensionPixelSize(R.dimen.os_meni_sirina)
+        }
+        meni.setPadding(dp(if (ozek) 10 else 16), dp(24), dp(if (ozek) 10 else 12), dp(16))
+        for (v in besedilaMenija) v.visibility = if (ozek) View.GONE else View.VISIBLE
+        desnoOkvir.setPadding(dp(if (ozek) 14 else 28), dp(10), dp(if (ozek) 14 else 28), dp(8))
+    }
+
+    /** Zasuk brez novega zaslona (configChanges): meni in trenutni razdelek narisemo za novo sirino. */
+    override fun onConfigurationChanged(novo: android.content.res.Configuration) {
+        super.onConfigurationChanged(novo)
+        prilagodiMeni()
+        if (razdelek != ISKANJE) izberi(razdelek)
+    }
+
     private fun zgradi(): View {
         val beli = getColor(R.color.os_besedilo)
         val k = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setBackgroundColor(getColor(R.color.os_ozadje)) }
@@ -173,6 +198,7 @@ class GlasbaActivity : OsActivity() {
         k.addView(stranskiMeni(), LinearLayout.LayoutParams(resources.getDimensionPixelSize(R.dimen.os_meni_sirina), -1))
 
         val desno = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(28), dp(10), dp(28), dp(8)) }
+        desnoOkvir = desno
 
         // Glava: naslov in opis razdelka, desno geslo in iskanje
         val glava = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -227,12 +253,14 @@ class GlasbaActivity : OsActivity() {
             setPadding(dp(16), dp(24), dp(12), dp(16))
             setBackgroundColor(getColor(R.color.os_meni_ozadje))
         }
+        meni = m
         val znak = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), 0, 0, dp(22)) }
         znak.addView(ikona(R.drawable.os_znak, 32))
         val imeOs = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, 0, 0) }
         imeOs.addView(besedilo(18f, beli, true).apply { text = getString(R.string.os_app_name) })
         imeOs.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_podnaslov_app); maxLines = 2 })
         znak.addView(imeOs)
+        besedilaMenija.add(imeOs)
         m.addView(znak)
 
         fun postavka(res: Int, ime: String, opis: String? = null, klik: () -> Unit): View = LinearLayout(this).apply {
@@ -247,6 +275,7 @@ class GlasbaActivity : OsActivity() {
             t.addView(besedilo(14f, beli, true).apply { text = ime; maxLines = 2 })
             if (opis != null) t.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = opis; maxLines = 2 })
             addView(t)
+            besedilaMenija.add(t)
             m.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
         }
         fun odpri(i: Intent) { try { startActivity(i) } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() } }
@@ -261,10 +290,12 @@ class GlasbaActivity : OsActivity() {
         postavka(R.drawable.os_ikona_link, getString(R.string.os_meni_naprave)) { odpri(Intent(this, NapraveActivity::class.java)) }
         postavka(R.drawable.os_ikona_nastavitve, getString(R.string.os_meni_nastavitve)) { odpri(Intent(this, NastavitveActivity::class.java)) }
         m.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
-        m.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_poganja); setPadding(dp(4), 0, 0, 0) })
+        m.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_poganja); setPadding(dp(4), 0, 0, 0)
+            besedilaMenija.add(this) })
         val link = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), dp(4), 0, 0) }
         link.addView(ikona(R.drawable.os_ikona_link, 16, getColor(R.color.os_mint)))
-        link.addView(besedilo(13f, getColor(R.color.os_mint), true).apply { text = getString(R.string.os_link); setPadding(dp(6), 0, 0, 0) })
+        link.addView(besedilo(13f, getColor(R.color.os_mint), true).apply { text = getString(R.string.os_link); setPadding(dp(6), 0, 0, 0)
+            besedilaMenija.add(this) })
         m.addView(link)
         return m
     }
@@ -419,7 +450,7 @@ class GlasbaActivity : OsActivity() {
             GLASBA -> R.string.os_mediji_glasba; RADIO -> R.string.os_glasba_radio; VIDEO -> R.string.os_glasba_video
             VIRI -> R.string.os_mediji_viri; ISKANJE -> R.string.os_glasba_iskanje; else -> R.string.os_media_naslov
         })
-        geslo.visibility = if (i == DOMOV) View.VISIBLE else View.GONE
+        geslo.visibility = if (i == DOMOV && !ozekZaslon()) View.VISIBLE else View.GONE
         iskalnik = if (i == ISKANJE) novIskalnik() else null
         // Na plosci je velik "zdaj se predvaja"; mala vrstica spodaj je samo v razdelkih.
         vrstica.visibility = if (i == DOMOV || GlasbaStoritev.trenutna() == null) View.GONE else View.VISIBLE
@@ -508,14 +539,16 @@ class GlasbaActivity : OsActivity() {
     private fun glavaRazdelka(i: Int): List<View> = if (i != DOMOV) emptyList() else listOfNotNull(kategorije(), zdajPlosca())
 
     private fun kategorije(): View {
-        // Na ozkem zaslonu (tablica pokonci) dve vrsti po dve kartici, da opisi niso odrezani.
-        val ozko = resources.configuration.screenWidthDp < 900
+        // Na ozkem zaslonu (tablica pokonci) dve vrsti po dve kartici, na telefonu pokonci ena kartica
+        // v vrsti - da opisi niso odrezani.
+        val sirina = resources.configuration.screenWidthDp
+        val naVrsto = if (sirina < 600) 1 else if (sirina < 900) 2 else 4
         val okvir = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(6), 0, dp(2)) }
-        val vrsti = List(if (ozko) 2 else 1) { LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }.also {
+        val vrsti = List(4 / naVrsto) { LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }.also {
             okvir.addView(it, LinearLayout.LayoutParams(-1, -2).apply { if (okvir.childCount > 0) topMargin = dp(10) }) } }
         var stevec = 0
         fun kat(kljuc: String, res: Int, barva: Int, ime: Int, opis: Int, klik: () -> Unit) {
-            val v = vrsti[if (ozko) stevec / 2 else 0]
+            val v = vrsti[stevec / naVrsto]
             stevec++
             v.addView(LinearLayout(this).apply {
                 tag = kljuc

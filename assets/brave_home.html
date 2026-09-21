@@ -217,6 +217,15 @@
         .mini-add .tile-name { color: #9aacbf; }
         .hero-card.mini-add .art { background: rgba(255, 255, 255, 0.04); }
         .hero-card.mini-add .hero-label { color: #9aacbf; font-weight: 650; }
+        /* Ozek zaslon na dotik (Safeer OS Tablet na telefonu): dve kartici v vrsti, brez namigov za
+           daljinec. Isto velja v safeer-home.css; tu za primer, ko se ta ne nalozi. */
+        @media (max-width: 600px) {
+            .stage { width: calc(100% - 28px); }
+            .hero-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+            .hero-card { height: 136px; }
+            .more-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        }
+        html.dotik .remote-help { display: none; }
     </style>
 <link href="safeer-home.css" rel="stylesheet"/>
 </head>
@@ -248,7 +257,7 @@
 <div class="more-row" id="favoritesGrid"></div>
 <footer class="remote-help"><span><b>OK</b><span data-home-text="open">Open</span></span><span><b><span data-home-text="back">Back</span></b><span data-home-text="return">Go back</span></span><span><i class="remote-red"></i><span data-home-text="sites">Quick sites</span></span><span><i class="remote-green"></i><span data-home-text="pointer">Pointer</span></span></footer>
 </div>
-<script src="home-language.js"></script><script>
+<script>if (navigator.maxTouchPoints > 0) document.documentElement.classList.add("dotik");</script><script src="home-language.js"></script><script>
     var currentEngine = 'google';
     var DEFAULT_TILES = [
         { title: 'Xplore TV', url: 'https://www.xploretv.si/livetv' },
