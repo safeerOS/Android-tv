@@ -21,10 +21,9 @@
     <string name="os_mediji_kartica_opis">Sin anuncios</string>
     <string name="os_mediji_domov">Inicio</string>
     <string name="os_mediji_glasba">Música</string>
-    <string name="os_mediji_naprave">Mis dispositivos</string>
     <string name="os_mediji_viri">Mis fuentes</string>
     <string name="os_mediji_naprave_opis">Música y vídeo en el televisor y dispositivos de Safeer Link</string>
-    <string name="os_mediji_viri_opis">Servidores PeerTube, emisiones y sitios web que añadiste tú</string>
+    <string name="os_mediji_viri_opis">Mantén OK para poner una fuente en el panel o quitarla</string>
     <string name="os_mediji_vrsta_glasba">Música más escuchada</string>
     <string name="os_mediji_vrsta_radio">Radio</string>
     <string name="os_mediji_vrsta_video">Vídeo</string>
@@ -42,7 +41,6 @@
     <string name="os_mediji_odstrani_vprasanje">¿Quitar esta fuente?</string>
     <string name="os_mediji_odstrani">Quitar</string>
     <string name="os_mediji_izvajalci">Artistas</string>
-    <string name="os_mediji_naprave_kartica">El televisor y los dispositivos de Safeer Link</string>
     <string name="os_mediji_namig_predvajanje">OK: pausa · izquierda/derecha: 10 s · abajo: favoritos, búsqueda y más · mantén OK: detener · Atrás: sigue sonando en segundo plano</string>
     <string name="os_mediji_zadetki">Vídeos: %1$d · artistas: %2$d · emisoras: %3$d · fuentes: %4$d</string>
     <string name="os_mediji_nedavna">Búsquedas recientes</string>
@@ -101,8 +99,6 @@
     <string name="os_media_ta_tv_opis">Archivos y USB</string>
     <string name="os_media_link">Dispositivos en Safeer Link</string>
     <string name="os_media_link_opis">Ordenadores y móviles</string>
-    <string name="os_media_tokovi">Streams de internet</string>
-    <string name="os_media_stevilo_virov">Fuentes: %1$d</string>
     <string name="os_media_stevilo_prilj">Favoritas: %1$d</string>
     <string name="os_media_stevilo_streznikov">Servidores: %1$d</string>
     <string name="os_media_prilj_radio">Emisoras favoritas</string>
@@ -115,4 +111,9 @@
     <string name="os_media_isci_splet">«%1$s» en la web</string>
     <string name="os_media_isci_splet_opis">Google · vídeos</string>
     <string name="os_media_ta_naprava">Este dispositivo</string>
+    <string name="os_media_na_plosco">Mostrar en el panel</string>
+    <string name="os_media_s_plosce">Quitar del panel</string>
+    <string name="os_media_vsi_viri">Todas las fuentes</string>
+    <string name="os_media_izberi_vire">Elegir fuentes</string>
+    <string name="os_media_izbrisi_vir">Eliminar fuente</string>
 </resources>
