@@ -21,10 +21,9 @@
     <string name="os_mediji_kartica_opis">Senza pubblicità</string>
     <string name="os_mediji_domov">Home</string>
     <string name="os_mediji_glasba">Musica</string>
-    <string name="os_mediji_naprave">I miei dispositivi</string>
     <string name="os_mediji_viri">Le mie fonti</string>
     <string name="os_mediji_naprave_opis">Musica e video sulla TV e sui dispositivi di Safeer Link</string>
-    <string name="os_mediji_viri_opis">Server PeerTube, flussi e siti web aggiunti da te</string>
+    <string name="os_mediji_viri_opis">Tieni premuto OK per mettere una fonte nella dashboard o toglierla</string>
     <string name="os_mediji_vrsta_glasba">Musica più ascoltata</string>
     <string name="os_mediji_vrsta_radio">Radio</string>
     <string name="os_mediji_vrsta_video">Video</string>
@@ -42,7 +41,6 @@
     <string name="os_mediji_odstrani_vprasanje">Rimuovere questa fonte?</string>
     <string name="os_mediji_odstrani">Rimuovi</string>
     <string name="os_mediji_izvajalci">Artisti</string>
-    <string name="os_mediji_naprave_kartica">La TV e i dispositivi di Safeer Link</string>
     <string name="os_mediji_namig_predvajanje">OK: pausa · sinistra/destra: 10 s · giù: preferiti, ricerca e altro · tieni premuto OK: stop · Indietro: la riproduzione continua in background</string>
     <string name="os_mediji_zadetki">Video: %1$d · artisti: %2$d · stazioni: %3$d · fonti: %4$d</string>
     <string name="os_mediji_nedavna">Ricerche recenti</string>
@@ -101,8 +99,6 @@
     <string name="os_media_ta_tv_opis">File e USB</string>
     <string name="os_media_link">Dispositivi in Safeer Link</string>
     <string name="os_media_link_opis">Computer e telefoni</string>
-    <string name="os_media_tokovi">Stream internet</string>
-    <string name="os_media_stevilo_virov">Fonti: %1$d</string>
     <string name="os_media_stevilo_prilj">Preferiti: %1$d</string>
     <string name="os_media_stevilo_streznikov">Server: %1$d</string>
     <string name="os_media_prilj_radio">Stazioni preferite</string>
@@ -115,4 +111,9 @@
     <string name="os_media_isci_splet">«%1$s» sul web</string>
     <string name="os_media_isci_splet_opis">Google · video</string>
     <string name="os_media_ta_naprava">Questo dispositivo</string>
+    <string name="os_media_na_plosco">Mostra nella dashboard</string>
+    <string name="os_media_s_plosce">Togli dalla dashboard</string>
+    <string name="os_media_vsi_viri">Tutte le fonti</string>
+    <string name="os_media_izberi_vire">Scegli le fonti</string>
+    <string name="os_media_izbrisi_vir">Elimina fonte</string>
 </resources>

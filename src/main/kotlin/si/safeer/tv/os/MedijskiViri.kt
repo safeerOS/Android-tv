@@ -126,7 +126,47 @@ object MedijskiViri {
     fun streznikiPeerTube(ctx: Context): List<String> =
         (PeerTube.VGRAJENI + vsi(ctx).filter { it.jePeerTube }.map { it.naslov }).distinct()
 
-    fun odstrani(ctx: Context, vir: Vir) = shrani(ctx, vsi(ctx).filterNot { it == vir })
+    fun odstrani(ctx: Context, vir: Vir) {
+        shrani(ctx, vsi(ctx).filterNot { it == vir })
+        pripeti(ctx).let { p -> if (kljucPripetega(vir) in p) pisi(ctx, PRIPETI, JSONArray(p - kljucPripetega(vir)).toString()) }
+    }
+
+    // ------------------------------------------------------------------ viri na plosci
+
+    /**
+     * Viri na plosci Safeer Media delujejo kot priljubljene aplikacije na domacem zaslonu: uporabnik
+     * jih izbere sam (zadrzan OK v Mojih virih) in uredi njihov red. Kljuci: vgrajeni ("tv", "link",
+     * "radio", "peertube") ali dodani ("u:<naslov>").
+     */
+    private const val PRIPETI = "pripeti_viri"
+    /** Dokler uporabnik ne izbere sam: ta naprava, naprave v Safeer Linku in radijske postaje. */
+    private val PRIVZETO_PRIPETI = listOf("tv", "link", "radio")
+
+    fun kljucPripetega(v: Vir) = "u:" + v.naslov
+
+    fun pripeti(ctx: Context): List<String> {
+        val s = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(PRIPETI, null) ?: return PRIVZETO_PRIPETI
+        return try { JSONArray(s).let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() } } } catch (_: Exception) { PRIVZETO_PRIPETI }
+    }
+
+    /** Na plosco ali z nje; vrne, ali je vir zdaj na plosci. */
+    fun preklopiPripet(ctx: Context, kljuc: String): Boolean {
+        val zdaj = pripeti(ctx)
+        val nova = if (kljuc in zdaj) zdaj - kljuc else zdaj + kljuc
+        pisi(ctx, PRIPETI, JSONArray(nova).toString())
+        return kljuc in nova
+    }
+
+    /** Premik za [zamik] mest (-1 levo, +1 desno); vrne true, ce se je red res spremenil. */
+    fun premakniPripet(ctx: Context, kljuc: String, zamik: Int): Boolean {
+        val s = pripeti(ctx).toMutableList()
+        val i = s.indexOf(kljuc)
+        val j = i + zamik
+        if (i < 0 || j !in s.indices) return false
+        s.add(j, s.removeAt(i))
+        pisi(ctx, PRIPETI, JSONArray(s).toString())
+        return true
+    }
 
     /**
      * Preveri naslov in ga doda. Najprej PeerTube (vpisano ime streznika ali naslov strani), nato
