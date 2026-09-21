@@ -427,4 +427,6 @@
     <string name="os_ur_obv_brisanje">Confirmer la suppression de la photo</string>
     <string name="os_ur_obv_vrtenje">Confirmer la rotation de la photo</string>
     <string name="os_ur_obv_opis">La demande vient de Safeer Link. Touchez pour confirmer.</string>
+    <string name="os_premakni">Déplacer</string>
+    <string name="os_premakni_namig">◀ ▶ déplacer · OK terminé</string>
 </resources>
