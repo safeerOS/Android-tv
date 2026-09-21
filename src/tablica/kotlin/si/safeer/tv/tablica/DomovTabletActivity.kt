@@ -52,6 +52,20 @@ import java.net.URLEncoder
  */
 class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
+    /** Domaci zaslon tablice govori jezik, ki ga je uporabnik izbral (prej je ostal v jeziku sistema). */
+    override fun attachBaseContext(newBase: android.content.Context) {
+        jezikOb = si.safeer.tv.JezikVmesnika.izbrani(newBase)
+        super.attachBaseContext(si.safeer.tv.JezikVmesnika.vKontekstu(newBase))
+    }
+
+    private var jezikOb: String? = null
+
+    /** Jezik je bil v Nastavitvah zamenjan: domaci zaslon se ob vrnitvi narise v novem. */
+    override fun onResume() {
+        super.onResume()
+        if (jezikOb != null && si.safeer.tv.JezikVmesnika.izbrani(this) != jezikOb) recreate()
+    }
+
     private var koren: View? = null
     private var drsnik: ScrollView? = null
     private var vnosIskanje: EditText? = null

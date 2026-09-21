@@ -637,20 +637,30 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     // ------------------------------------------------------------------ zagon in moznosti
 
     /** Dolg pritisk: na domaci zaslon ali z njega; program z racunalnika se da tudi zapreti. */
+    /**
+     * Dolg pritisk: med priljubljene ali iz njih - takoj, brez okna in brez obvestila. Zvezdica na
+     * kartici in kratek utrip povesta dovolj; siv zaslon z oknom za eno samo moznost je bil odvec.
+     * Samo program z racunalnika ima se drugo moznost (zapri), zato tam ostane izbira.
+     */
     private fun moznosti(p: SafeerApp) {
-        val dejanja = ArrayList<Pair<String, () -> Unit>>()
         val na = SafeerAppi.jePriljubljena(this, p)
-        if (p.vir != AppVir.SPLET) dejanja.add(getString(if (na) R.string.os_priljubljen_odstrani else R.string.os_priljubljen_dodaj) to {
+        val preklopi = {
             val png = ikonePng[p.kljuc]?.let { try { Base64.decode(it, Base64.DEFAULT) } catch (_: Throwable) { null } }
-            val zdaj = SafeerAppi.preklopi(this, p, png)
+            SafeerAppi.preklopi(this, p, png)
             priljubljeni = SafeerAppi.priljubljeni(this).map { it.kljuc }.toSet()
             prilagojevalnik.notifyDataSetChanged()
-            Toast.makeText(this, getString(
-                if (zdaj) R.string.os_aplikacije_dodana else R.string.os_aplikacije_odstranjena, p.ime),
-                Toast.LENGTH_SHORT).show()
-        })
+            mreza.selectedView?.let { v ->
+                v.animate().scaleX(1.15f).scaleY(1.15f).setDuration(110).withEndAction {
+                    v.animate().scaleX(1.05f).scaleY(1.05f).setDuration(140).start()
+                }.start()
+            }
+            Unit
+        }
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        if (p.vir != AppVir.SPLET) dejanja.add(getString(if (na) R.string.os_priljubljen_odstrani else R.string.os_priljubljen_dodaj) to preklopi)
         if (p.vir == AppVir.RACUNALNIK && p.racunalnik !in androidNaprave) dejanja.add(getString(R.string.os_program_zapri) to { zapri(p) })
         if (dejanja.isEmpty()) return
+        if (dejanja.size == 1) { dejanja[0].second(); return }
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(p.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }

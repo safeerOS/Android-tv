@@ -427,4 +427,6 @@
     <string name="os_ur_obv_brisanje">Löschen des Fotos bestätigen</string>
     <string name="os_ur_obv_vrtenje">Drehen des Fotos bestätigen</string>
     <string name="os_ur_obv_opis">Die Anfrage kommt von Safeer Link. Zum Bestätigen tippen.</string>
+    <string name="os_premakni">Verschieben</string>
+    <string name="os_premakni_namig">◀ ▶ verschieben · OK fertig</string>
 </resources>
