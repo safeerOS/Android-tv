@@ -1270,6 +1270,47 @@
 
             setInterval(spremljajCiljObroca, 250);
 
+            // Pritrjene vrstice strani (glava, spodnja vrstica z gumbi) pokrijejo del pogleda; scrollIntoView
+            // zanje ne ve, zato bi izbrani element obstal pod njimi (npr. 24ur.com). Izmerimo, kaj pri vrhu
+            // in dnu pogleda stoji pritrjeno, in element pomaknemo v prosti del med njima.
+            function pritrjeniRobovi() {
+                var w = window.innerWidth || 1920, h = window.innerHeight || 1080;
+                var zgoraj = 0, spodaj = h;
+                function pritrjenPrednik(e) {
+                    var g = 0;
+                    while (e && e.nodeType === 1 && g < 25) {
+                        try {
+                            var p = window.getComputedStyle(e).position;
+                            if (p === 'fixed' || p === 'sticky') return e;
+                        } catch (_) {}
+                        e = e.parentElement; g++;
+                    }
+                    return null;
+                }
+                var xs = [0.15, 0.5, 0.85];
+                for (var i = 0; i < xs.length; i++) {
+                    var x = Math.round(w * xs[i]);
+                    var pg = pritrjenPrednik(document.elementFromPoint(x, 2));
+                    var pd = pritrjenPrednik(document.elementFromPoint(x, h - 3));
+                    if (pg) { var r1 = pg.getBoundingClientRect(); if (r1.top <= 2 && r1.height < h * 0.35) zgoraj = Math.max(zgoraj, r1.bottom); }
+                    if (pd) { var r2 = pd.getBoundingClientRect(); if (r2.bottom >= h - 3 && r2.height < h * 0.35) spodaj = Math.min(spodaj, r2.top); }
+                }
+                return { zgoraj: zgoraj, spodaj: spodaj };
+            }
+
+            function odmakniOdPritrjenih(el) {
+                try {
+                    if (jePritrjen(el)) return;
+                    var r = el.getBoundingClientRect(), p = pritrjeniRobovi(), rob = 10;
+                    if (r.height > p.spodaj - p.zgoraj - 2 * rob) return;
+                    var dy = 0;
+                    if (r.bottom > p.spodaj - rob) dy = r.bottom - (p.spodaj - rob);
+                    else if (r.top < p.zgoraj + rob) dy = r.top - (p.zgoraj + rob);
+                    if (dy) window.scrollBy(0, dy);
+                } catch (_) {}
+            }
+            window._safeer_odmakni = odmakniOdPritrjenih;
+
             function highlightElement(el) {
                 window._safeerCandCache = null;
                 if (el && jeZunajPogleda(el)) {
@@ -1321,6 +1362,7 @@
                 var hr = el.getBoundingClientRect();
                 if (hr.width < 800 && hr.height < 500) {
                     try { el.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }); } catch (_) {}
+                    odmakniOdPritrjenih(el);
                 }
                 if (document.documentElement.classList.contains('safeer-medij-fs')) updateFocusRing(null);
                 else updateFocusRing(el);

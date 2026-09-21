@@ -44,7 +44,7 @@ object Daljinec {
         // Zvok racunalnika na tej napravi (Safeer OS za racunalnik: Zvok -> Predvajaj tukaj).
         "audio.play", "audio.stop",
         // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control.
-        "files.list"
+        "files.list", "files.search"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -129,6 +129,10 @@ object Daljinec {
         // Zvok z racunalnika igra ne glede na to, kaj je na zaslonu.
         if (d == "audio.play") return ZvokSprejemnik.zacni(context, parametri)
         if (d == "audio.stop") return ZvokSprejemnik.ustavi()
+        if (d == "files.search") {
+            val podatki = DatotekeStreznik.isci(context, parametri.optString("q", ""), parametri.optString(PARAM_POSILJATELJ, ""))
+            return Izid(true, "${podatki.optJSONArray("items")?.length() ?: 0} zadetkov", podatki)
+        }
         if (d == "files.list") {
             val podatki = DatotekeStreznik.seznam(context, parametri.optString("folder", ""), parametri.optString(PARAM_POSILJATELJ, ""))
             return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)

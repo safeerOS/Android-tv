@@ -18,7 +18,7 @@ object MedijskiViri {
     private const val PRILJUBLJENE = "priljubljene"
     private const val SEZNAMI = "seznami"
     private const val NEDAVNO = "nedavno"
-    private const val MAX_NEDAVNO = 12
+    private const val MAX_NEDAVNO = 6
 
     data class Vir(val tip: String, val ime: String, val naslov: String) {
         val jePeerTube get() = tip == PEERTUBE

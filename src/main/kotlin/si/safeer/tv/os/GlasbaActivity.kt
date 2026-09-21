@@ -62,7 +62,7 @@ class GlasbaActivity : OsActivity() {
     private val delavec = Executors.newFixedThreadPool(4)
     // Omrezno iskanje ima lasten omejen pool. Prejsnje iskanje preklicemo, da pocasni
     // strezniki ne zasedajo CPU/omrezja se dolgo po novem vnosu.
-    private val iskanjeDelavec = Executors.newFixedThreadPool(4)
+    private val iskanjeDelavec = Executors.newFixedThreadPool(6)
     private val iskanjeNiti = mutableListOf<Future<*>>()
     private val slikeVTeKu = ConcurrentHashMap.newKeySet<String>()
     private val glavna = Handler(Looper.getMainLooper())
@@ -115,9 +115,20 @@ class GlasbaActivity : OsActivity() {
         odpriIskanje(beseda)
     }
 
+    /** Safeer Link je med odprto Safeer Media povezan: enotno iskanje vprasa tudi naprave v Linku. */
+    private val link by lazy { LinkUpravitelj.pridobi(this) }
+    private val linkPoslusalec = object : LinkOdjemalec.Poslusalec {
+        override fun naStanje(povezan: Boolean, sporocilo: String) { }
+        override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { }
+        override fun naNaslov(url: String, naslov: String, od: String) { }
+        override fun naBesedilo(besedilo: String, od: String) { }
+        override fun naZavrnitev() { }
+    }
+
     override fun onStart() {
         super.onStart()
         Ozadje.uporabi(this, koren)
+        if (!link.jeKrajevni()) link.dodaj(linkPoslusalec)
         GlasbaStoritev.poslusalci.add(poslusalec)
         glavna.post(tik)
         // Ob vrnitvi (npr. iz predvajanja) sta se nedavno in stanje predvajanja lahko spremenila.
@@ -126,6 +137,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     override fun onStop() {
+        link.odstrani(linkPoslusalec)
         GlasbaStoritev.poslusalci.remove(poslusalec)
         glavna.removeCallbacks(tik)
         super.onStop()
@@ -199,7 +211,7 @@ class GlasbaActivity : OsActivity() {
         }
         meni.setPadding(dp(if (ozek) 10 else 16), dp(24), dp(if (ozek) 10 else 12), dp(16))
         for (v in besedilaMenija) v.visibility = if (ozek) View.GONE else View.VISIBLE
-        desnoOkvir.setPadding(dp(if (ozek) 14 else 28), dp(10), dp(if (ozek) 14 else 28), dp(8))
+        desnoOkvir.setPadding(dp(if (ozek) 14 else if (jeSirokTv()) 30 else 28), dp(10), dp(if (ozek) 14 else if (jeSirokTv()) 30 else 28), dp(8))
     }
 
     /** Zasuk brez novega zaslona (configChanges): meni in trenutni razdelek narisemo za novo sirino. */
@@ -1188,8 +1200,10 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
-     * Isce hkrati po vseh virih - videi (PeerTube), izvajalci (Jamendo), radijske postaje in moji
-     * viri - in pokaze vse naenkrat; fokus gre na prvi zadetek, da lahko takoj izberes.
+     * Enotno iskanje (»dodaj vir in pozabi nanj«): hkrati ta naprava, naprave v Safeer Linku (racunalnik,
+     * telefon), dodani viri, Jamendo, PeerTube in radio. Zadetke zdruzimo, odstranimo dvojnike in
+     * razvrstimo po ujemanju ([Relevantnost]); vsak pove svoj izvor. Splet ponudimo samo, ce lastni
+     * viri nimajo dovolj dobrih zadetkov. Fokus gre na prvi zadetek.
      */
     private fun isci(beseda: String) {
         if (beseda.length < 2) return
@@ -1200,20 +1214,25 @@ class GlasbaActivity : OsActivity() {
         stanje.text = getString(R.string.os_glasba_nalagam)
         val strezniki = MedijskiViri.streznikiPeerTube(this)
         val mali = beseda.lowercase()
-        val viri = MedijskiViri.vsi(this).filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) }
+        val viri = MedijskiViri.vsi(this).filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) ||
+            Relevantnost.ocena(beseda, it.ime, "", it.naslov) >= Relevantnost.DOBER }
+        val naprave = if (link.jeKrajevni() || !link.povezan) emptyList() else link.racunalnikiZDatotekami()
+        val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(4)
+        val rezultati = arrayOfNulls<Any>(6)
         val opravila = listOf<() -> Any>(
             { try { Jamendo.isciSkladbe(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try { PeerTube.isci(strezniki, beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try { Radio.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
-            { try { Jamendo.isciIzvajalce(beseda) } catch (_: Exception) { emptyList<Jamendo.Izvajalec>() } }
+            { try { Jamendo.isciIzvajalce(beseda) } catch (_: Exception) { emptyList<Jamendo.Izvajalec>() } },
+            { try { KrajevneDatoteke.najdi(this, beseda) } catch (_: Exception) { emptyList<KrajevneDatoteke.Najdeno>() } },
+            { isciNaNapravah(naprave, beseda) },
         )
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = f() } }
         synchronized(iskanjeNiti) { iskanjeNiti.addAll(futures) }
         Thread {
-            // TV ne sme 25 s delovati zamrznjeno zaradi enega pocasnega vira.
+            // TV ne sme dolgo delovati zamrznjeno zaradi enega pocasnega vira.
             val rok = System.currentTimeMillis() + 12_000
             futures.forEach { f ->
                 val ostanek = rok - System.currentTimeMillis()
@@ -1224,33 +1243,116 @@ class GlasbaActivity : OsActivity() {
             @Suppress("UNCHECKED_CAST") val videi = rezultati[1] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val postaje = rezultati[2] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val izvajalci = rezultati[3] as? List<Jamendo.Izvajalec> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val krajevno = rezultati[4] as? List<KrajevneDatoteke.Najdeno> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val vLinku = rezultati[5] as? List<Relevantnost.Zadetek<Jamendo.Skladba>> ?: emptyList()
+            // Vsi zadetki v eni skupni lestvici; prednost odloca med dvojniki (ta naprava pred racunalnikom ...).
+            val vsi = ArrayList<Relevantnost.Zadetek<*>>()
+            krajevno.forEach { n ->
+                val (naslov, izvajalec) = Relevantnost.razdeli(n.naslov, n.izvajalec)
+                val sk = Jamendo.Skladba("krajevno:" + n.uri(), naslov, izvajalec, "", n.uri().toString(), "",
+                    video = n.zbirka == "video", mime = n.mime)
+                vsi.add(Relevantnost.Zadetek(sk, naslov, izvajalec, taNaprava, 0, n.mapa + " " + n.ime))
+            }
+            vsi.addAll(vLinku)
+            viri.forEach { v -> MedijskiViri.kotSkladba(v).let { vsi.add(Relevantnost.Zadetek(it, v.ime, "", v.ime, 2, v.naslov)) } }
+            glasba.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Jamendo", 3)) }
+            videi.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "PeerTube", 4)) }
+            postaje.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_glasba_radio), 5)) }
+            val lestvica = Relevantnost.razvrsti(beseda, vsi)
+            val najboljsi = lestvica.filter { it.second >= Relevantnost.SPODNJA }.take(12)
+            val prikazani = najboljsi.map { (it.first.stvar as Jamendo.Skladba).id }.toSet()
+            val splet = Relevantnost.potrebujemSplet(lestvica)
             glavna.post {
                 if (moje != nalaganje || isFinishing) return@post
-                val splet = Vrsta(getString(R.string.os_media_na_spletu), listOf(Kartica(getString(R.string.os_media_isci_splet, beseda),
+                val spletVrsta = Vrsta(getString(R.string.os_media_na_spletu), listOf(Kartica(getString(R.string.os_media_isci_splet, beseda),
                     getString(R.string.os_media_isci_splet_opis), "", { odpriSplet(beseda) }, ikona = R.drawable.os_ikona_splet)))
-                val nicNasli = glasba.isEmpty() && videi.isEmpty() && izvajalci.isEmpty() && postaje.isEmpty() && viri.isEmpty()
+                val nicNasli = lestvica.isEmpty() && izvajalci.isEmpty()
+                fun ostali(s: List<Jamendo.Skladba>) = s.filterNot { it.id in prikazani }
                 val vrste = listOfNotNull(
-                    splet.takeIf { nicNasli },
-                    Vrsta(getString(R.string.os_mediji_glasba), skladbe(glasba, beseda)),
-                    Vrsta(getString(R.string.os_glasba_video), videi(videi, beseda), video = true),
+                    spletVrsta.takeIf { nicNasli },
+                    Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first) }),
+                    Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(glasba), beseda)),
+                    Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi), beseda), video = true),
                     Vrsta(getString(R.string.os_mediji_izvajalci), izvajalci.map { iz ->
                         Kartica(iz.ime, getString(R.string.os_glasba_izvajalec), iz.slika, { odpriIzvajalca(iz) }) }),
-                    Vrsta(getString(R.string.os_mediji_postaje), skladbe(postaje, beseda)),
-                    Vrsta(getString(R.string.os_mediji_viri), skladbe(viri.map { MedijskiViri.kotSkladba(it) }) +
-                        MedijskiViri.vsi(this).filter { it.jeSplet }.map { vir ->
-                            Kartica(vir.ime, getString(R.string.os_media_isci_v_viru, beseda), "", {
-                                odpriIskanjeVViru(vir, beseda)
-                            }, ikona = R.drawable.os_ikona_splet)
-                        }),
-                    splet.takeUnless { nicNasli },
+                    Vrsta(getString(R.string.os_mediji_postaje), skladbe(ostali(postaje), beseda)),
+                    // Dodane spletne strani: iskanje znotraj vira (stran nima skupnega vmesnika za iskanje).
+                    Vrsta(getString(R.string.os_mediji_viri), MedijskiViri.vsi(this).filter { it.jeSplet }.map { vir ->
+                        Kartica(vir.ime, getString(R.string.os_media_isci_v_viru, beseda), "", {
+                            odpriIskanjeVViru(vir, beseda)
+                        }, ikona = R.drawable.os_ikona_splet)
+                    }),
+                    spletVrsta.takeIf { splet && !nicNasli },
                 )
                 zadetki = vrste
-                opisZadetkov = getString(R.string.os_mediji_zadetki, videi.size, izvajalci.size, postaje.size, viri.size)
+                // Koliko in kje: »5 zadetkov · janez-PC, Jamendo, PeerTube«.
+                val izvori = lestvica.map { it.first.izvor }.distinct()
+                opisZadetkov = if (izvori.isEmpty()) getString(R.string.os_media_ni_zadetkov_vir)
+                    else getString(R.string.os_media_zadetki_izvori, lestvica.size, izvori.joinToString(", "))
                 if (razdelek != ISKANJE) return@post
                 narisi(vrste, opisZadetkov)
                 fokusNaPrvo()
             }
         }.start()
+    }
+
+    /** Streznik datotek naprave v Linku za zadetek (predvajanje s pripetim potrdilom). */
+    private val strezniki = ConcurrentHashMap<String, DatotekeActivity.Streznik>()
+
+    /** Kartica zadetka enotnega iskanja: podnaslov pove izvajalca in izvor (npr. »Pink Floyd · Matej-PC«). */
+    private fun kartica(z: Relevantnost.Zadetek<*>): Kartica {
+        val sk = z.stvar as Jamendo.Skladba
+        val podnaslov = listOf(sk.izvajalec, z.izvor).filter { it.isNotBlank() }.distinct().joinToString(" · ")
+        val klik: (View) -> Unit = {
+            val s = strezniki[sk.id]
+            when {
+                sk.mime == MedijskiViri.STRAN -> odpriStran(sk.zvok, sk.naslov)
+                s != null -> {
+                    GlasbaStoritev.predvajaj(this, listOf(sk), 0, s)
+                    if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
+                }
+                else -> predvajaj(listOf(sk), 0)
+            }
+        }
+        val ikona = when { sk.mime == MedijskiViri.STRAN -> R.drawable.os_ikona_splet; sk.radio -> R.drawable.os_ikona_radio
+            sk.video -> R.drawable.os_ikona_video; else -> R.drawable.os_ikona_glasba }
+        return Kartica(sk.naslov, podnaslov, sk.slika, klik, { meni(sk, listOf(sk), "", null) }, ikona = ikona)
+    }
+
+    /**
+     * Glasba in videi naprav v Safeer Linku (`files.search`): vsaka naprava odgovori sama, najdlje 8 s;
+     * naprava, ki ukaza se ne pozna, preprosto ne prispeva zadetkov.
+     */
+    private fun isciNaNapravah(naprave: List<LinkOdjemalec.Naprava>, beseda: String): List<Relevantnost.Zadetek<Jamendo.Skladba>> {
+        if (naprave.isEmpty()) return emptyList()
+        val izid = java.util.Collections.synchronizedList(ArrayList<Relevantnost.Zadetek<Jamendo.Skladba>>())
+        val cakam = java.util.concurrent.CountDownLatch(naprave.size)
+        for (n in naprave) {
+            link.ukaz(n.id, "files.search", org.json.JSONObject().put("q", beseda), 8_000, LinkOdjemalec.Odgovor { odgovor, _ ->
+                try {
+                    val podatki = odgovor?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
+                    val sv = podatki?.optJSONObject("server")
+                    val items = podatki?.optJSONArray("items")
+                    if (sv != null && items != null) {
+                        val s = DatotekeActivity.Streznik(sv.optString("base_url").trimEnd('/'), sv.optString("fp"), sv.optString("token"))
+                        val izvor = DatotekeActivity.lepoIme(n.ime).ifBlank { n.ime }
+                        for (i in 0 until items.length()) {
+                            val e = items.optJSONObject(i) ?: continue
+                            val vrsta = e.optString("type")
+                            if (vrsta != "audio" && vrsta != "video") continue
+                            val ime = e.optString("name")
+                            val (naslov, izvajalec) = Relevantnost.razdeli(e.optString("title").ifBlank { ime }, e.optString("artist"))
+                            val sk = Jamendo.Skladba("link:${n.id}:${e.optString("id")}", naslov, izvajalec, "",
+                                s.url(e.optString("id")), "", video = vrsta == "video", mime = e.optString("mime"))
+                            strezniki[sk.id] = s
+                            izid.add(Relevantnost.Zadetek(sk, naslov, sk.izvajalec, izvor, 1, e.optString("path") + " " + ime))
+                        }
+                    }
+                } finally { cakam.countDown() }
+            })
+        }
+        try { cakam.await(9, java.util.concurrent.TimeUnit.SECONDS) } catch (_: InterruptedException) { }
+        return ArrayList(izid)
     }
 
     /** Uporabnikov spletni vir ostane "dodaj in pozabi": pri globalnem iskanju ponudimo

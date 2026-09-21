@@ -120,6 +120,29 @@ object DatotekeStreznik {
         return o
     }
 
+    /**
+     * Odgovor na `files.search` (enotno iskanje Safeer Media na drugi napravi): glasba in videi te
+     * naprave, v katerih so vse besede poizvedbe - ista oblika kot `files.list`, predvajanje prek istega
+     * streznika z zetonom. Deli samo, ce deli tudi `files.list` (stikalo in dovoljenje).
+     */
+    fun isci(context: Context, poizvedba: String, idNaprave: String): JSONObject {
+        appContext = context.applicationContext
+        val o = JSONObject()
+        if (!vklopljeno(context) || !imamoDovoljenje(context)) return o.put("items", JSONArray()).put("shared", false)
+        val vnosi = JSONArray()
+        for (n in si.safeer.tv.os.KrajevneDatoteke.najdi(context, poizvedba, 30)) {
+            vnosi.put(JSONObject().put("id", "$PREDPONA${n.zbirka}:${n.vrstica}").put("name", n.ime).put("type", n.zbirka)
+                .put("mime", n.mime).put("title", n.naslov).put("artist", n.izvajalec).put("path", n.mapa.trimEnd('/')))
+        }
+        o.put("items", vnosi).put("shared", true)
+        val naslov = krajevniNaslov()
+        if (vnosi.length() > 0 && zazeni() && naslov != null) {
+            o.put("server", JSONObject().put("base_url", "https://$naslov:$vrata")
+                .put("fp", si.safeer.tv.cast.HubTls.lastniOdtis()).put("token", zetonZa(idNaprave)))
+        }
+        return o
+    }
+
     private fun imeZbirke(context: Context, zbirka: String): String {
         val ime = when (zbirka) { "audio" -> "os_krajevno_glasba"; "image" -> "os_krajevno_slike"; else -> "os_krajevno_videi" }
         val id = context.resources.getIdentifier(ime, "string", context.packageName)

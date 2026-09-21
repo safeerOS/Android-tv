@@ -97,4 +97,46 @@ object KrajevneDatoteke {
         }
         return vnosi
     }
+
+    /** Zadetek iskanja po zbirki naprave: [zbirka] "audio" ali "video", [vrstica] _ID v MediaStore. */
+    data class Najdeno(val zbirka: String, val vrstica: Long, val naslov: String, val izvajalec: String,
+                       val ime: String, val mime: String, val mapa: String) {
+        fun uri(): Uri = ContentUris.withAppendedId(zbirkaUri(if (zbirka == "audio") AUDIO else VIDEO), vrstica)
+    }
+
+    /**
+     * Glasba in videi te naprave, v katerih imenu, naslovu, izvajalcu, albumu ali mapi so vse besede
+     * poizvedbe (enotno iskanje Safeer Media; enako odgovori napravam v Linku - DatotekeStreznik.isci).
+     */
+    fun najdi(context: Context, beseda: String, najvec: Int = 40): List<Najdeno> {
+        val besede = beseda.trim().split(Regex("\\s+")).filter { it.length >= 2 }.take(6)
+        if (besede.isEmpty() || !imamoDovoljenje(context)) return emptyList()
+        val izid = ArrayList<Najdeno>()
+        for (zbirka in listOf("audio", "video")) {
+            val glasba = zbirka == "audio"
+            val stolpci = mutableListOf(MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.TITLE)
+            if (glasba) { stolpci.add(MediaStore.Audio.AudioColumns.ARTIST); stolpci.add(MediaStore.Audio.AudioColumns.ALBUM) }
+            if (Build.VERSION.SDK_INT >= 29) stolpci.add(MediaStore.MediaColumns.RELATIVE_PATH)
+            // Vsaka beseda mora biti v enem od stolpcev: (ime LIKE ? OR naslov LIKE ? ...) AND (...)
+            val pogoj = besede.joinToString(" AND ") { "(" + stolpci.joinToString(" OR ") { "$it LIKE ?" } + ")" }
+            val argumenti = besede.flatMap { b -> List(stolpci.size) { "%" + b.replace("%", "").replace("_", "") + "%" } }.toTypedArray()
+            val branje = (listOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.MIME_TYPE) + stolpci).toTypedArray()
+            try {
+                context.contentResolver.query(zbirkaUri(if (glasba) AUDIO else VIDEO), branje, pogoj, argumenti, null)?.use { k ->
+                    fun niz(stolpec: String): String = k.getColumnIndex(stolpec).let { if (it >= 0) k.getString(it).orEmpty() else "" }
+                    while (k.moveToNext() && izid.size < najvec) {
+                        val ime = niz(MediaStore.MediaColumns.DISPLAY_NAME)
+                        if (ime.isBlank()) continue
+                        val izvajalec = if (glasba) niz(MediaStore.Audio.AudioColumns.ARTIST).takeUnless { it == "<unknown>" }.orEmpty() else ""
+                        izid.add(Najdeno(zbirka, k.getLong(0), niz(MediaStore.MediaColumns.TITLE).ifBlank { ime }, izvajalec, ime,
+                            niz(MediaStore.MediaColumns.MIME_TYPE),
+                            if (Build.VERSION.SDK_INT >= 29) niz(MediaStore.MediaColumns.RELATIVE_PATH) else ""))
+                    }
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "Iskanje po zbirki ni uspelo: ${e.message}")
+            }
+        }
+        return izid
+    }
 }
