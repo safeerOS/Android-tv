@@ -5,8 +5,8 @@
     <string name="tablet_naprave">Devices</string>
     <string name="tablet_programi">Programs</string>
     <string name="tablet_programi_opis">Start programs from your computer</string>
-    <string name="tablet_zaslon">Computer screen</string>
-    <string name="tablet_zaslon_opis">The picture and sound of your computer, on the tablet</string>
+    <string name="tablet_zaslon">Connected screens</string>
+    <string name="tablet_zaslon_opis">Choose which device to watch on the tablet</string>
     <string name="tablet_ni_racunalnika">No computer is connected yet. Start Safeer Control on your computer and join Safeer Link; it will show up here by itself.</string>
     <string name="tablet_ni_linka">This tablet is not in Safeer Link yet. Open Devices and connect it — then your files, programs and computer screen appear here.</string>
     <string name="tablet_vklopi">Turn on Safeer Link</string>

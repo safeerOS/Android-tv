@@ -201,7 +201,7 @@
     <string name="os_aplikacije_odstrani">Umakni z domačega zaslona</string>
     <string name="os_aplikacije_izberi">Izberi aplikacije</string>
     <!-- Zaslon racunalnika na televizorju -->
-    <string name="os_zaslon">Zaslon računalnika</string>
+    <string name="os_zaslon">Povezani zasloni</string>
     <string name="os_zaslon_povezujem">Povezujem se z računalnikom …</string>
     <string name="os_zaslon_prosim">Prosim %1$s za njegov zaslon …</string>
     <string name="os_zaslon_ni_racunalnika">Noben računalnik v Safeer Linku ne deli zaslona. V Safeer Controlu na računalniku vklopi \'Zaslon za televizor\'.</string>
@@ -364,7 +364,7 @@
     <string name="os_noge_podpis">Safeer OS | Odprt svet. Brez omejitev.</string>
 <string name="os_brskalnik_naslov">Spletni brskalnik</string>
     <string name="os_brskalnik_opis">Hiter, varen, brez oglasov</string>
-    <string name="os_zaslon_opis">Tvoj računalnik na TV</string>
+    <string name="os_zaslon_opis">Izberi, katero napravo gledaš na TV</string>
     <string name="os_programi_opis">Iz povezanih naprav</string>
     <string name="os_programi_naprav">Naprave: %d</string>
     <string name="os_programi_zagnan_naprava">%1$s se odpira na napravi %2$s.</string>
