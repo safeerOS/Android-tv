@@ -21,10 +21,9 @@
     <string name="os_mediji_kartica_opis">Sans publicité</string>
     <string name="os_mediji_domov">Accueil</string>
     <string name="os_mediji_glasba">Musique</string>
-    <string name="os_mediji_naprave">Mes appareils</string>
     <string name="os_mediji_viri">Mes sources</string>
     <string name="os_mediji_naprave_opis">Musique et vidéo sur la TV et les appareils de Safeer Link</string>
-    <string name="os_mediji_viri_opis">Serveurs PeerTube, flux et sites web que tu as ajoutés</string>
+    <string name="os_mediji_viri_opis">Maintiens OK pour mettre une source sur le tableau de bord ou l\'en retirer</string>
     <string name="os_mediji_vrsta_glasba">Musique la plus écoutée</string>
     <string name="os_mediji_vrsta_radio">Radio</string>
     <string name="os_mediji_vrsta_video">Vidéo</string>
@@ -42,7 +41,6 @@
     <string name="os_mediji_odstrani_vprasanje">Retirer cette source ?</string>
     <string name="os_mediji_odstrani">Retirer</string>
     <string name="os_mediji_izvajalci">Artistes</string>
-    <string name="os_mediji_naprave_kartica">La TV et les appareils de Safeer Link</string>
     <string name="os_mediji_namig_predvajanje">OK : pause · gauche/droite : 10 s · bas : favoris, recherche et plus · OK maintenu : arrêt · Retour : la lecture continue en arrière-plan</string>
     <string name="os_mediji_zadetki">Vidéos : %1$d · artistes : %2$d · stations : %3$d · sources : %4$d</string>
     <string name="os_mediji_nedavna">Recherches récentes</string>
@@ -101,8 +99,6 @@
     <string name="os_media_ta_tv_opis">Fichiers et USB</string>
     <string name="os_media_link">Appareils dans Safeer Link</string>
     <string name="os_media_link_opis">Ordinateurs et téléphones</string>
-    <string name="os_media_tokovi">Flux internet</string>
-    <string name="os_media_stevilo_virov">Sources : %1$d</string>
     <string name="os_media_stevilo_prilj">Favoris : %1$d</string>
     <string name="os_media_stevilo_streznikov">Serveurs : %1$d</string>
     <string name="os_media_prilj_radio">Stations favorites</string>
@@ -115,4 +111,9 @@
     <string name="os_media_isci_splet">« %1$s » sur le web</string>
     <string name="os_media_isci_splet_opis">Google · vidéos</string>
     <string name="os_media_ta_naprava">Cet appareil</string>
+    <string name="os_media_na_plosco">Afficher sur le tableau de bord</string>
+    <string name="os_media_s_plosce">Retirer du tableau de bord</string>
+    <string name="os_media_vsi_viri">Toutes les sources</string>
+    <string name="os_media_izberi_vire">Choisir des sources</string>
+    <string name="os_media_izbrisi_vir">Supprimer la source</string>
 </resources>

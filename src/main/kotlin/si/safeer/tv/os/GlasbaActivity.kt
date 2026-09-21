@@ -50,7 +50,8 @@ import java.util.concurrent.Executors
 class GlasbaActivity : OsActivity() {
 
     /** Vrsta kartic; [pogled] je posebna vrsta (npr. tvoji viri), ki se narise tako, kot je. */
-    private data class Vrsta(val naslov: String, val kartice: List<Kartica>, val video: Boolean = false, val pogled: View? = null, val mala: Boolean = false)
+    private data class Vrsta(val naslov: String, val kartice: List<Kartica>, val video: Boolean = false, val pogled: View? = null, val mala: Boolean = false,
+                             val mreza: Boolean = false)
     /** Podatki vrste brez zaslona - samo to gre v predpomnilnik (kartice drzijo zaslon). */
     private data class Podatki(val naslov: String, val skladbe: List<Jamendo.Skladba>, val video: Boolean = false)
     private data class Kartica(val naslov: String, val podnaslov: String, val slika: String, val klik: (View) -> Unit,
@@ -284,8 +285,8 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Kartica; [mala] je za nedavno na plosci (manjsa, samo naslov), da vrsta ostane na zaslonu. */
-    private fun kartica(k: Kartica, video: Boolean, prva: Boolean, kljuc: String, mala: Boolean = false): View {
-        val sirina = dp(if (mala) 96 else if (video) 224 else 150)
+    private fun kartica(k: Kartica, video: Boolean, prva: Boolean, kljuc: String, mala: Boolean = false, velikostDp: Int = 0): View {
+        val sirina = dp(if (velikostDp > 0) velikostDp else if (mala) 96 else if (video) 224 else 150)
         val visina = if (video) sirina * 9 / 16 else sirina
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -301,6 +302,8 @@ class GlasbaActivity : OsActivity() {
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 setBackgroundColor(getColor(R.color.os_kartica))
                 setImageResource(k.ikona)
+                // Kartica brez slike: ikona zmerne velikosti na sredini, ne cez vso kartico.
+                if (k.slika.isBlank()) { scaleType = ImageView.ScaleType.FIT_CENTER; val r = minOf(sirina, visina) / 4; setPadding(r, r, r, r) }
             }
             addView(slika, LinearLayout.LayoutParams(sirina, visina))
             addView(besedilo(if (mala) 11f else 14f, getColor(R.color.os_besedilo), true).apply { text = k.naslov; setPadding(dp(2), dp(if (mala) 2 else 8), 0, 0) },
@@ -336,6 +339,20 @@ class GlasbaActivity : OsActivity() {
                 vsebina.addView(besedilo(if (tesno) 16f else 18f, getColor(R.color.os_besedilo), true).apply {
                     text = v.naslov; tag = NASLOV_VRSTE; setPadding(dp(4), dp(if (tesno) 5 else 14), 0, dp(if (tesno) 3 else 8)) })
             if (v.pogled != null) { vsebina.addView(v.pogled); continue }
+            if (v.mreza) {
+                // Mreza (Moji viri): toliko kartic v vrsto, kolikor jih gre celih, ostale v naslednjo vrsto.
+                val korak = dp(MREZA_DP + 12 + 14)
+                val n = ((vsebina.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels * 3 / 4)) / korak).coerceAtLeast(1)
+                v.kartice.chunked(n).forEachIndexed { r, del ->
+                    vsebina.addView(LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL; tag = MREZA_VRSTA
+                        del.forEachIndexed { i, k ->
+                            addView(kartica(k, false, i == 0, "k:${v.naslov}#${r * n + i}", velikostDp = MREZA_DP), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(14); bottomMargin = dp(14) })
+                        }
+                    })
+                }
+                continue
+            }
             val niz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             v.kartice.forEachIndexed { i, k ->
                 niz.addView(kartica(k, v.video, i == 0, "k:${v.naslov}#$i", v.mala), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(if (v.mala) 10 else 14) })
@@ -372,7 +389,7 @@ class GlasbaActivity : OsActivity() {
                     val v = vsebina.getChildAt(i)
                     if (v.bottom <= vidno) continue
                     // Samo vrste kartic (in njihove naslove); plosce na vrhu ostanejo, kot so.
-                    if (v !is HorizontalScrollView && v.tag != NASLOV_VRSTE) return
+                    if (v !is HorizontalScrollView && v.tag != NASLOV_VRSTE && v.tag != MREZA_VRSTA) return
                     val zacetek = if (i > 0 && vsebina.getChildAt(i - 1).tag == NASLOV_VRSTE) i - 1 else i
                     val vrh = vsebina.getChildAt(zacetek).top
                     if (zacetek > 0 && vrh < vidno) vsebina.addView(View(this@GlasbaActivity), zacetek, LinearLayout.LayoutParams(-1, vidno - vrh))
@@ -721,58 +738,208 @@ class GlasbaActivity : OsActivity() {
         else String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60)
     }
 
-    /** Tvoji viri: ta televizor, naprave v Safeer Linku, internetni tokovi, radio, PeerTube, dodaj vir. */
-    private fun tvojiViri(): View {
-        val v = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val viri = MedijskiViri.vsi(this)
-        val prilj = MedijskiViri.priljubljene(this)
-        fun vir(kljuc: String, res: Int, barva: Int, ime: String, opis: String, klik: () -> Unit) {
-            v.addView(LinearLayout(this).apply {
-                tag = kljuc
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                isFocusable = true; isClickable = true
-                setBackgroundResource(R.drawable.os_kartica_steklo)
-                setPadding(dp(12), dp(7), dp(14), dp(7))
-                setOnClickListener { klik() }
-                if (v.childCount == 0) nextFocusLeftId = meniMediji.id
-                addView(ikona(res, 24, barva))
-                val t = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, 0, 0) }
-                t.addView(besedilo(13f, getColor(R.color.os_besedilo), true).apply { text = ime })
-                t.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = opis })
-                addView(t)
-            }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
-        }
+    /** Vir medijev: vgrajen (ta naprava, Safeer Link, postaje, PeerTube) ali dodan ([dodan]). */
+    private class Vir(val kljuc: String, val ikona: Int, val barva: Int, val ime: String, val opis: String,
+                      val odpri: () -> Unit, val dodan: MedijskiViri.Vir? = null)
+
+    /** Vsi viri na enem mestu (Moji viri); na plosci so tisti, ki jih uporabnik pripne. */
+    private fun vsiViri(): List<Vir> {
         val datoteke = { startActivity(Intent(this, DatotekeActivity::class.java)) }
         val televizor = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
-        vir("k:v:tv", if (televizor) R.drawable.os_ikona_zaslon else R.drawable.os_ikona_naprava, getColor(R.color.os_mint),
-            getString(if (televizor) R.string.os_media_ta_tv else R.string.os_media_ta_naprava), getString(R.string.os_media_ta_tv_opis), datoteke)
-        vir("k:v:link", R.drawable.os_ikona_racunalnik, 0xFF8FA8FF.toInt(), getString(R.string.os_media_link), getString(R.string.os_media_link_opis), datoteke)
-        vir("k:v:tokovi", R.drawable.os_ikona_splet, 0xFF7FB2FF.toInt(), getString(R.string.os_media_tokovi),
-            getString(R.string.os_media_stevilo_virov, viri.count { !it.jePeerTube })) { fokusVVsebino = true; izberi(VIRI) }
-        vir("k:v:radio", R.drawable.os_ikona_radio, 0xFFFF9580.toInt(), getString(R.string.os_mediji_postaje),
-            getString(R.string.os_media_stevilo_prilj, prilj.count { it.radio })) { fokusVVsebino = true; izberi(RADIO) }
-        vir("k:v:peertube", R.drawable.os_ikona_video, 0xFFFF9580.toInt(), "PeerTube",
-            getString(R.string.os_media_stevilo_streznikov, MedijskiViri.streznikiPeerTube(this).size)) { fokusVVsebino = true; izberi(VIDEO) }
-        vir("k:v:dodaj", R.drawable.os_ikona_plus, getColor(R.color.os_besedilo), getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis)) { dodajVir() }
-        return HorizontalScrollView(this).apply { addView(v); isHorizontalScrollBarEnabled = false; clipToPadding = false }
+        fun razdelek(i: Int): () -> Unit = { fokusVVsebino = true; izberi(i) }
+        return listOf(
+            Vir("tv", if (televizor) R.drawable.os_ikona_zaslon else R.drawable.os_ikona_naprava, getColor(R.color.os_mint),
+                getString(if (televizor) R.string.os_media_ta_tv else R.string.os_media_ta_naprava), getString(R.string.os_media_ta_tv_opis), datoteke),
+            Vir("link", R.drawable.os_ikona_racunalnik, 0xFF8FA8FF.toInt(), getString(R.string.os_media_link), getString(R.string.os_media_link_opis), datoteke),
+            Vir("radio", R.drawable.os_ikona_radio, 0xFFFF9580.toInt(), getString(R.string.os_mediji_postaje),
+                getString(R.string.os_media_stevilo_prilj, MedijskiViri.priljubljene(this).count { it.radio }), razdelek(RADIO)),
+            Vir("peertube", R.drawable.os_ikona_video, 0xFFFF9580.toInt(), "PeerTube",
+                getString(R.string.os_media_stevilo_streznikov, MedijskiViri.streznikiPeerTube(this).size), razdelek(VIDEO)),
+        ) + MedijskiViri.vsi(this).map { v ->
+            Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet -> R.drawable.os_ikona_splet; else -> R.drawable.os_ikona_glasba },
+                0xFF7FB2FF.toInt(), v.ime, if (v.jePeerTube) "PeerTube · ${v.naslov}" else v.naslov.removePrefix("https://").removePrefix("http://"), {
+                    when {
+                        v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
+                        // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
+                        v.jeSplet -> odpriStran(v.naslov, v.ime)
+                        else -> predvajaj(listOf(MedijskiViri.kotSkladba(v)), 0)
+                    }
+                }, v)
+        }
     }
 
-    /** Moji viri (razdelek Viri): dodaj vir in vsi uporabnikovi viri. */
-    private fun viriVrste(): List<Vrsta> = listOf(Vrsta("", listOf(
-        Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus)) +
-        MedijskiViri.vsi(this).map { v ->
-            Kartica(v.ime, if (v.jePeerTube) "PeerTube · ${v.naslov}" else v.naslov.removePrefix("https://").removePrefix("http://"), "",
-                { when {
-                    v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
-                    // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
-                    v.jeSplet -> odpriStran(v.naslov, v.ime)
-                    else -> predvajaj(listOf(MedijskiViri.kotSkladba(v)), 0)
-                } },
-                { odstraniVir(v) },
-                ikona = when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet -> R.drawable.os_ikona_splet; else -> R.drawable.os_ikona_glasba })
-        }),
-        Vrsta(getString(R.string.os_mediji_naprave), listOf(Kartica(getString(R.string.os_meni_datoteke), getString(R.string.os_mediji_naprave_kartica), "",
-            { startActivity(Intent(this, DatotekeActivity::class.java)) }, ikona = R.drawable.os_ikona_naprava))))
+    private fun cip(kljuc: String, res: Int, barva: Int, ime: String, opis: String, klik: () -> Unit) = LinearLayout(this).apply {
+        tag = kljuc
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        isFocusable = true; isClickable = true
+        setBackgroundResource(R.drawable.os_kartica_steklo)
+        setPadding(dp(12), dp(7), dp(14), dp(7))
+        setOnClickListener { klik() }
+        addView(ikona(res, 24, barva))
+        val t = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, 0, 0) }
+        t.addView(besedilo(13f, getColor(R.color.os_besedilo), true).apply { text = ime })
+        t.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = opis })
+        addView(t)
+    }
+
+    /**
+     * Tvoji viri na plosci - kot priljubljene aplikacije na domacem zaslonu: samo pripeti, v uporabnikovem
+     * redu. Kar ne gre celo na zaslon, je pod zadnjo kartico "Vsi viri" - nobena kartica ni prerezana.
+     */
+    private fun tvojiViri(): View {
+        val vsi = vsiViri().associateBy { it.kljuc }
+        val pripeti = MedijskiViri.pripeti(this).mapNotNull { vsi[it] }
+        val vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        fun lp() = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) }
+        for (v in pripeti) vrsta.addView(cip("k:v:" + v.kljuc, v.ikona, v.barva, v.ime, v.opis, v.odpri).apply {
+            setOnLongClickListener { moznostiPripetega(v); true } }, lp())
+        val vec = cip(KLJUC_VSI_VIRI, R.drawable.os_ikona_mreza, getColor(R.color.os_besedilo),
+            getString(if (pripeti.isEmpty()) R.string.os_media_izberi_vire else R.string.os_media_vsi_viri),
+            getString(R.string.os_mediji_viri)) { fokusVVsebino = true; izberi(VIRI) }
+        vec.visibility = if (pripeti.isEmpty()) View.VISIBLE else View.GONE
+        vrsta.addView(vec, lp())
+        vrsta.getChildAt(0)?.nextFocusLeftId = meniMediji.id
+        val okvir = HorizontalScrollView(this).apply {
+            addView(vrsta); isHorizontalScrollBarEnabled = false
+            setPadding(dp(4), dp(4), dp(4), dp(4)); clipToPadding = false
+        }
+        // Po postavitvi izmerimo: zadnje kartice, ki ne gredo cele na zaslon, se umaknejo pod "Vsi viri".
+        okvir.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                okvir.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                val sirina = okvir.width - okvir.paddingLeft - okvir.paddingRight
+                if (sirina <= 0 || pripeti.isEmpty()) return
+                val prosto = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                fun w(v: View) = v.run { measure(prosto, prosto); measuredWidth + dp(10) }
+                val kartice = (0 until vrsta.childCount).map { vrsta.getChildAt(it) }.filter { it !== vec }
+                var skupaj = kartice.sumOf { w(it) }
+                if (skupaj <= sirina) return
+                vec.visibility = View.VISIBLE
+                var skritih = 0
+                for (k in kartice.asReversed()) {
+                    if (skupaj + w(vec) <= sirina) break
+                    skupaj -= w(k); k.visibility = View.GONE; skritih++
+                }
+                ((vec as LinearLayout).getChildAt(1) as LinearLayout).getChildAt(1).let { (it as TextView).text = "+$skritih" }
+            }
+        })
+        return okvir
+    }
+
+    /** Vidni viri na plosci, v redu z zaslona (brez "Vsi viri"). */
+    private fun vidniPripeti(): List<String> = vsebina.findViewWithTag<View>(KLJUC_VSI_VIRI)?.parent.let { it as? LinearLayout }?.let { v ->
+        (0 until v.childCount).map { v.getChildAt(it) }.filter { it.visibility == View.VISIBLE && it.tag != KLJUC_VSI_VIRI }
+            .mapNotNull { (it.tag as? String)?.removePrefix("k:v:") }
+    } ?: emptyList()
+
+    /**
+     * Zadrzan OK na viru na plosci: Premakni (puscici levo/desno ga neseta po vrsti, OK konca) ali umakni
+     * s plosce - enako kot priljubljena aplikacija na domacem zaslonu. Na dotik (tablica) premikamo po mestu.
+     */
+    private fun moznostiPripetega(v: Vir) {
+        val vidni = vidniPripeti()
+        val mesto = vidni.indexOf(v.kljuc)
+        val daljinec = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        if (daljinec && vidni.size > 1) dejanja.add(getString(R.string.os_premakni) to { zacniPremik(v.kljuc) })
+        if (!daljinec && mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniPripetega(v.kljuc, -1) })
+        if (!daljinec && mesto in 0 until vidni.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniPripetega(v.kljuc, 1) })
+        dejanja.add(getString(R.string.os_media_s_plosce) to {
+            val sosed = vidni.getOrNull(mesto + 1) ?: vidni.getOrNull(mesto - 1)
+            MedijskiViri.preklopiPripet(this, v.kljuc)
+            izberi(DOMOV)
+            drsnik.post { vsebina.findViewWithTag<View>(if (sosed != null) "k:v:$sosed" else KLJUC_VSI_VIRI)?.requestFocus() }
+            Unit
+        })
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(v.ime)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Vir, ki ga uporabnik ta trenutek premika po plosci (null = ne premika). */
+    private var premikam: String? = null
+    /** Tipka, ki je premikanje koncala: njen dvig ne sme se odpreti vira. */
+    private var pogoltniGor = -1
+
+    private fun zacniPremik(kljuc: String) {
+        premikam = kljuc
+        drsnik.post { oznaciPremik() }
+    }
+
+    private fun oznaciPremik() {
+        val v = vsebina.findViewWithTag<View>("k:v:" + (premikam ?: return)) ?: return
+        v.requestFocus()
+        v.animate().scaleX(1.05f).scaleY(1.05f).setDuration(120).start()
+        // Kot pri priljubljenih aplikacijah: puscici ob imenu povesta, da se kartica premika.
+        (((v as? LinearLayout)?.getChildAt(1) as? LinearLayout)?.getChildAt(0) as? TextView)?.let { it.text = "◀  " + it.text + "  ▶" }
+        stanje.text = getString(R.string.os_premakni_namig)
+    }
+
+    /** Premik samo med vidnimi viri: vir ne sme izginiti pod "Vsi viri". */
+    private fun premakniPripetega(kljuc: String, zamik: Int) {
+        val vidni = vidniPripeti()
+        if (vidni.indexOf(kljuc) + zamik !in vidni.indices) return
+        if (!MedijskiViri.premakniPripet(this, kljuc, zamik)) return
+        izberi(DOMOV)
+        drsnik.post { if (premikam != null) oznaciPremik() else vsebina.findViewWithTag<View>("k:v:$kljuc")?.requestFocus() }
+    }
+
+    private fun koncajPremik() {
+        premikam = null
+        izberi(DOMOV)
+    }
+
+    /** Med premikanjem gredo tipke samo premikanju: levo/desno premakne, vse ostalo konca. */
+    override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        val k = premikam
+        if (k != null) {
+            if (dogodek.action == KeyEvent.ACTION_DOWN) when (dogodek.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> premakniPripetega(k, -1)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> premakniPripetega(k, 1)
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> { }
+                else -> { pogoltniGor = dogodek.keyCode; koncajPremik() }
+            }
+            return true
+        }
+        if (dogodek.action == KeyEvent.ACTION_UP && dogodek.keyCode == pogoltniGor) { pogoltniGor = -1; return true }
+        return super.dispatchKeyEvent(dogodek)
+    }
+
+    /**
+     * Moji viri: dodaj vir in vsi viri. Zadrzan OK da vir na plosco ali ga umakne - takoj, brez okna
+     * (zvezdica in utrip povesta dovolj), kot pri aplikacijah. Dodan vir ima se "Izbrisi", zato tam izbira.
+     */
+    private fun viriVrste(): List<Vrsta> {
+        val pripeti = MedijskiViri.pripeti(this)
+        return listOf(Vrsta("", listOf(
+            Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus)) +
+            vsiViri().map { v -> Kartica((if (v.kljuc in pripeti) "★ " else "") + v.ime, v.opis, "", { v.odpri() }, { dolgoNaViru(v) }, ikona = v.ikona) },
+            mreza = true))
+    }
+
+    private fun dolgoNaViru(v: Vir) {
+        val preklopi = {
+            MedijskiViri.preklopiPripet(this, v.kljuc)
+            izberi(VIRI)
+            drsnik.post {
+                window.decorView.findFocus()?.let { f ->
+                    f.animate().scaleX(1.12f).scaleY(1.12f).setDuration(110).withEndAction { f.animate().scaleX(1f).scaleY(1f).setDuration(140).start() }.start()
+                }
+            }
+            Unit
+        }
+        val dodan = v.dodan ?: return preklopi()
+        val na = v.kljuc in MedijskiViri.pripeti(this)
+        val dejanja = listOf(getString(if (na) R.string.os_media_s_plosce else R.string.os_media_na_plosco) to preklopi,
+            getString(R.string.os_media_izbrisi_vir) to { odstraniVir(dodan) })
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(v.ime)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
 
     private fun izmenicno(seznami: List<List<Jamendo.Skladba>>) =
         (0 until (seznami.maxOfOrNull { it.size } ?: 0)).flatMap { i -> seznami.mapNotNull { it.getOrNull(i) } }
@@ -940,8 +1107,9 @@ class GlasbaActivity : OsActivity() {
     /** Fokus na prvo kartico prve vrste (za iskalnim poljem). */
     private fun fokusNaPrvo() {
         for (i in 0 until vsebina.childCount) {
-            val v = vsebina.getChildAt(i) as? HorizontalScrollView ?: continue
-            ((v.getChildAt(0) as? LinearLayout)?.getChildAt(0))?.requestFocus()
+            val v = vsebina.getChildAt(i)
+            val vrsta = (if (v.tag == MREZA_VRSTA) v else (v as? HorizontalScrollView)?.getChildAt(0)) as? LinearLayout ?: continue
+            vrsta.getChildAt(0)?.requestFocus()
             return
         }
     }
@@ -982,7 +1150,7 @@ class GlasbaActivity : OsActivity() {
                         SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO)
                         izberi(VIRI)
                         // Fokus na pravkar dodani vir: takoj ga lahko odpres.
-                        drsnik.post { (((0 until vsebina.childCount).map { vsebina.getChildAt(it) }.firstOrNull { it is HorizontalScrollView } as? HorizontalScrollView)?.getChildAt(0) as? LinearLayout)?.let { it.getChildAt(it.childCount - 1)?.requestFocus() } }
+                        drsnik.post { vsebina.findViewWithTag<View>("k:#${vsiViri().size}")?.requestFocus() }
                     }
                 }
             }
@@ -1067,8 +1235,12 @@ class GlasbaActivity : OsActivity() {
         private const val VIDEO = 4; private const val VIRI = 6; private const val ISKANJE = 7
         private const val GLAS = 41
         private const val NASLOV_VRSTE = "naslov-vrste"
+        private const val MREZA_VRSTA = "mreza-vrsta"
+        /** Kartica v mrezi Mojih virov: dve vrsti gresta na prvi zaslon televizorja. */
+        private const val MREZA_DP = 116
         private const val KLJUC_GLASBA = "k:kat:glasba"; private const val KLJUC_VIDEO = "k:kat:video"
         private const val KLJUC_RADIO = "k:kat:radio"; private const val KLJUC_VIRI = "k:kat:viri"
+        private const val KLJUC_VSI_VIRI = "k:v:vsi"
         private val HITROSTI = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
         private val CASOVNIK = intArrayOf(15, 30, 60, 90)
 

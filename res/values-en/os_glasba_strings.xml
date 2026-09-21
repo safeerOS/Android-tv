@@ -21,10 +21,9 @@
     <string name="os_mediji_kartica_opis">No ads</string>
     <string name="os_mediji_domov">Home</string>
     <string name="os_mediji_glasba">Music</string>
-    <string name="os_mediji_naprave">My devices</string>
     <string name="os_mediji_viri">My sources</string>
     <string name="os_mediji_naprave_opis">Music and video on the TV and devices in Safeer Link</string>
-    <string name="os_mediji_viri_opis">PeerTube servers, streams and websites you added yourself</string>
+    <string name="os_mediji_viri_opis">Hold OK to put a source on the dashboard or take it off</string>
     <string name="os_mediji_vrsta_glasba">Most played music</string>
     <string name="os_mediji_vrsta_radio">Radio</string>
     <string name="os_mediji_vrsta_video">Video</string>
@@ -42,7 +41,6 @@
     <string name="os_mediji_odstrani_vprasanje">Remove this source?</string>
     <string name="os_mediji_odstrani">Remove</string>
     <string name="os_mediji_izvajalci">Artists</string>
-    <string name="os_mediji_naprave_kartica">The TV and devices in Safeer Link</string>
     <string name="os_mediji_namig_predvajanje">OK: pause · left/right: 10 s · down: favourites, search and more · hold OK: stop · Back: keeps playing in the background</string>
     <string name="os_mediji_zadetki">Videos: %1$d · artists: %2$d · stations: %3$d · sources: %4$d</string>
     <string name="os_mediji_nedavna">Recent searches</string>
@@ -101,8 +99,6 @@
     <string name="os_media_ta_tv_opis">Files and USB</string>
     <string name="os_media_link">Devices in Safeer Link</string>
     <string name="os_media_link_opis">Computers and phones</string>
-    <string name="os_media_tokovi">Internet streams</string>
-    <string name="os_media_stevilo_virov">Sources: %1$d</string>
     <string name="os_media_stevilo_prilj">Favourites: %1$d</string>
     <string name="os_media_stevilo_streznikov">Servers: %1$d</string>
     <string name="os_media_prilj_radio">Favourite stations</string>
@@ -115,4 +111,9 @@
     <string name="os_media_isci_splet">“%1$s” on the web</string>
     <string name="os_media_isci_splet_opis">Google · videos</string>
     <string name="os_media_ta_naprava">This device</string>
+    <string name="os_media_na_plosco">Show on the dashboard</string>
+    <string name="os_media_s_plosce">Take off the dashboard</string>
+    <string name="os_media_vsi_viri">All sources</string>
+    <string name="os_media_izberi_vire">Choose sources</string>
+    <string name="os_media_izbrisi_vir">Delete source</string>
 </resources>

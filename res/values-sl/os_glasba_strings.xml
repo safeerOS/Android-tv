@@ -21,10 +21,9 @@
     <string name="os_mediji_kartica_opis">Brez oglasov</string>
     <string name="os_mediji_domov">Domov</string>
     <string name="os_mediji_glasba">Glasba</string>
-    <string name="os_mediji_naprave">Moje naprave</string>
     <string name="os_mediji_viri">Moji viri</string>
     <string name="os_mediji_naprave_opis">Glasba in video na televizorju in napravah v Safeer Linku</string>
-    <string name="os_mediji_viri_opis">Strežniki PeerTube, tokovi in spletne strani, ki si jih dodal sam</string>
+    <string name="os_mediji_viri_opis">Zadržan OK: vir daš na ploščo ali ga umakneš z nje</string>
     <string name="os_mediji_vrsta_glasba">Najbolj poslušana glasba</string>
     <string name="os_mediji_vrsta_radio">Radio</string>
     <string name="os_mediji_vrsta_video">Video</string>
@@ -42,7 +41,6 @@
     <string name="os_mediji_odstrani_vprasanje">Odstranim ta vir?</string>
     <string name="os_mediji_odstrani">Odstrani</string>
     <string name="os_mediji_izvajalci">Izvajalci</string>
-    <string name="os_mediji_naprave_kartica">Televizor in naprave v Safeer Linku</string>
     <string name="os_mediji_namig_predvajanje">OK: pavza · levo/desno: 10 s · dol: priljubljeno, iskanje in več · zadržan OK: ustavi · Nazaj: predvajanje teče naprej v ozadju</string>
     <string name="os_mediji_zadetki">Videi: %1$d · izvajalci: %2$d · postaje: %3$d · viri: %4$d</string>
     <string name="os_mediji_nedavna">Nedavna iskanja</string>
@@ -101,8 +99,6 @@
     <string name="os_media_ta_tv_opis">Datoteke in USB</string>
     <string name="os_media_link">Naprave v Safeer Linku</string>
     <string name="os_media_link_opis">Računalniki in telefoni</string>
-    <string name="os_media_tokovi">Internetni tokovi</string>
-    <string name="os_media_stevilo_virov">Viri: %1$d</string>
     <string name="os_media_stevilo_prilj">Priljubljene: %1$d</string>
     <string name="os_media_stevilo_streznikov">Strežniki: %1$d</string>
     <string name="os_media_prilj_radio">Priljubljene postaje</string>
@@ -115,4 +111,9 @@
     <string name="os_media_isci_splet">»%1$s« na spletu</string>
     <string name="os_media_isci_splet_opis">Google · videoposnetki</string>
     <string name="os_media_ta_naprava">Ta naprava</string>
+    <string name="os_media_na_plosco">Pokaži na plošči</string>
+    <string name="os_media_s_plosce">Umakni s plošče</string>
+    <string name="os_media_vsi_viri">Vsi viri</string>
+    <string name="os_media_izberi_vire">Izberi vire</string>
+    <string name="os_media_izbrisi_vir">Izbriši vir</string>
 </resources>
