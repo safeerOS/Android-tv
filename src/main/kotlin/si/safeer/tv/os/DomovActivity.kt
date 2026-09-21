@@ -1155,9 +1155,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * pritisnil OK, pa se ni zgodilo nic - brez pojasnila in brez poti naprej. Zdaj pove, kaj je
      * slo narobe, in ponudi ponovni poskus.
      */
-    private fun odpriVarno(namera: Intent, ime: String) {
+    private fun odpriVarno(namera: Intent, ime: String, moznosti: android.os.Bundle? = null) {
         try {
-            startActivity(namera)
+            startActivity(namera, moznosti)
         } catch (e: Throwable) {
             Log.w(TAG, "Odpiranje ni uspelo ($ime): ${e.message}")
             val razlog = when (e) {
@@ -1310,7 +1310,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.onFocusChangeListener = fokus
             v.setOnClickListener {
                 zadnjaOznaka = "app:" + a.paket
-                odpriVarno(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), a.ime)
+                odpriVarno(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), a.ime, izPloscice(v))
             }
             v.setOnLongClickListener { moznostiAplikacije(a, po.size); true }
             v.tag = "app:" + a.paket

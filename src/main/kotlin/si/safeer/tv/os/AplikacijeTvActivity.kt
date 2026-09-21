@@ -60,7 +60,7 @@ class AplikacijeTvActivity : OsActivity() {
         }
         iskanje.setOnClickListener { odpriTipkovnico() }
         iskanje.showSoftInputOnFocus = false
-        mreza.setOnItemClickListener { _, _, i, _ -> vnosi.getOrNull(i)?.let { zazeni(it) } }
+        mreza.setOnItemClickListener { _, v, i, _ -> vnosi.getOrNull(i)?.let { zazeni(it, v) } }
         mreza.setOnItemLongClickListener { _, _, i, _ ->
             vnosi.getOrNull(i)?.let { preklopiPriljubljeno(it) }; true
         }
@@ -103,10 +103,10 @@ class AplikacijeTvActivity : OsActivity() {
     }
 
     /** Odpiranje, ki ne utihne: ce ne gre, povemo zakaj in ponudimo ponovni poskus. */
-    private fun zazeni(a: Aplikacije.Vnos) {
+    private fun zazeni(a: Aplikacije.Vnos, izvor: android.view.View? = null) {
         val namera = Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
-            startActivity(namera)
+            startActivity(namera, izPloscice(izvor))
         } catch (e: Throwable) {
             val razlog = when (e) {
                 is android.content.ActivityNotFoundException -> getString(R.string.os_odpri_ni_aplikacije)
