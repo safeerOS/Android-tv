@@ -749,6 +749,11 @@ class ChromiumEngineView @JvmOverloads constructor(
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
                 val urlStr = uri.toString()
+                // Odhod z Googla (zadetek iskanja, tudi prek preusmeritve google.com/goto): spodaj
+                // zamenjamo User-Agent in most JS - ta menjava sredi navigacije jo je tiho prekinila in
+                // noben zadetek se ni odprl (21. 9. 2026). Tako navigacijo na koncu sprozimo znova.
+                val zGoogla = request.isForMainFrame && urlStr.startsWith("http", ignoreCase = true) &&
+                    UserScriptManager.isGoogleDomain(view?.url) && !UserScriptManager.isGoogleDomain(urlStr)
                 applyUserAgentForUrl(urlStr)
                 val isMainFrame = request.isForMainFrame
 
@@ -842,6 +847,10 @@ class ChromiumEngineView @JvmOverloads constructor(
                     return true
                 }
 
+                if (zGoogla) {
+                    view?.loadUrl(urlStr)
+                    return true
+                }
                 // Za vsa legitimna spletna mesta dovoli normalno odpiranje
                 return false
             }

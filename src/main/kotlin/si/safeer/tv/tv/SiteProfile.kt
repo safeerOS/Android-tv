@@ -58,6 +58,46 @@ object SiteProfileResolver {
     }
 }
 
+private const val FOKUS_Y = "(function(){var e=document.activeElement;if(!e||e===document.body)return '-';var r=e.getBoundingClientRect();var p=(r.bottom>0&&r.top<innerHeight)?document.elementFromPoint(r.left+r.width/2,r.top+r.height/2):e;return (!p||!(p===e||e.contains(p))||e.matches('input,textarea,[contenteditable=\"true\"]')||e.closest('form,[role=\"search\"]')||r.width<8||r.height<8?'v':'')+Math.round(r.top+window.scrollY)+':'+Math.round(r.bottom+window.scrollY);})()"
+
+/**
+ * OK na Googlu: fokus na povezavo v fokusiranem elementu (ovoj zadetka je DIV), nato pravi Enter.
+ * Pravi Enter odpre povezavo kot uporabnik (tudi prek preusmeritve google.com/goto).
+ */
+private const val KLIK_FOKUSA = "(function(){var e=document.activeElement;if(!e||e===document.body)return 0;var a=e.matches('a[href]')?e:e.querySelector('a[href]');if(!a)return 0;a.focus({preventScroll:true});return document.activeElement===a?'f':0;})()"
+
+/**
+ * Pred korakanjem: ce je fokus nad Googlovim iskalnim obrazcem, ga postavimo na zadnji gumb v obrazcu
+ * (mikrofon) - ze bezen Tab cez iskalno polje odpre Googlov predlog cez zadetke (21. 9. 2026). Sicer
+ * na zadnji element iste vrstice: vrsta zavihkov je 23 korakov Tab (1,3 s), tako en sam.
+ */
+private const val PRESKOK_OBRAZCA = "(function(){var e=document.activeElement;var f=document.querySelector('form[role=\"search\"],form[action=\"/search\"]');if(f&&(!e||e===document.body||e===document.documentElement||(!f.contains(e)&&(e.compareDocumentPosition(f)&4)))){var b=f.querySelectorAll('button,[role=\"button\"],a[href],[tabindex]:not([tabindex=\"-1\"])');for(var i=b.length-1;i>=0;i--){var c=b[i];if(c.matches('input,textarea'))continue;var r=c.getBoundingClientRect();if(r.width>=8&&r.height>=8){c.focus({preventScroll:true});return 'obrazec';}}}if(!e||e===document.body)return 0;var L=[].slice.call(document.querySelectorAll('a[href],button,input,textarea,select,[tabindex]'));var k=L.indexOf(e);if(k<0)return 0;var er=e.getBoundingClientRect(),z=null;function vidno(x,q){var cy=q.top+q.height/2;if(cy<0||cy>innerHeight)return true;var p=document.elementFromPoint(q.left+q.width/2,cy);return !!p&&(p===x||x.contains(p));}for(var j=k+1;j<L.length&&j<k+400;j++){var x=L[j],q=x.getBoundingClientRect();if(q.width<1||q.height<1||q.bottom<=er.top+4)continue;if(q.top<er.bottom-4){if(!x.matches('input,textarea'))z=x;continue;}if(vidno(x,q))break;}if(z){z.focus({preventScroll:true});return 'vrstica';}return 0;})()"
+
+private fun dolNaGooglu(wv: android.webkit.WebView, event: KeyEvent) {
+    wv.evaluateJavascript(PRESKOK_OBRAZCA) { vrsticaNizje(wv, event, null, 0) }
+}
+
+/**
+ * DOL na Googlovih rezultatih: Tab, dokler fokus ne pride v nizjo vrstico (najvec 30 korakov).
+ * Tab sam je sel cez meni, iskalno polje in vsak zavihek posebej - do prvega zadetka ~20 pritiskov
+ * (video Mateja 21. 9. 2026). Iskalni obrazec (polje, X, mikrofon) preskocimo: fokus na polje odpre
+ * Googlov predlog cez zadetke. Nevidne povezave "preskoci na vsebino" (1 px ali odrezane) tudi.
+ * Tab (ne programski fokus) zato, ker Google okvir fokusa kaze samo pri tipkovnici.
+ */
+private fun vrsticaNizje(wv: android.webkit.WebView, event: KeyEvent, od: Int?, korak: Int) {
+    wv.evaluateJavascript(FOKUS_Y) { r ->
+        val s = (r ?: "").trim('"')
+        // "v" = preskoci; nato zgornji:spodnji rob elementa na strani.
+        val mere = s.removePrefix("v").split(':')
+        val vrh = mere.getOrNull(0)?.toIntOrNull()
+        // Nova vrstica: element se zacne pod spodnjim robom zacetnega (logotip in Prijava sta ena vrstica).
+        if (korak > 0 && !s.startsWith("v") && vrh != null && (od == null || vrh >= od - 4)) return@evaluateJavascript
+        if (korak >= 30) return@evaluateJavascript
+        nativnaTipka(wv, event)
+        wv.postDelayed({ vrsticaNizje(wv, event, if (korak == 0) mere.getOrNull(1)?.toIntOrNull() else od, korak + 1) }, 40)
+    }
+}
+
 /**
  * Smerno tipko najprej ponudimo nasi navigaciji. Ce ta pove, da ni imela kam (-1), tipko
  * dobi stran sama. Tako pridemo do gumbov v oknih, ki tecejo v svojem okvirju in jih nasa
@@ -68,6 +108,8 @@ private fun posljiSmer(wv: android.webkit.WebView, smer: String, event: KeyEvent
     // reCAPTCHA povsem izvirni. Tam torej nase navigacije ni in tipka gre naravnost strani -
     // sicer bi se izgubila in uporabnik ne bi mogel niti do gumbov v oknu o piskotkih.
     if (si.safeer.tv.UserScriptManager.isGoogleDomain(wv.url)) {
+        // Rezultati iskanja: DOL gre v naslednjo vrstico, ne na naslednji zavihek ([vrsticaNizje]).
+        if (smer == "DOWN" && jeGoogleIskanje(wv)) { dolNaGooglu(wv, event); return }
         nativnaTipka(wv, event)
         return
     }
@@ -83,21 +125,24 @@ private fun posljiSmer(wv: android.webkit.WebView, smer: String, event: KeyEvent
     }
 }
 
+private fun jeGoogleIskanje(wv: android.webkit.WebView) =
+    si.safeer.tv.UserScriptManager.isGoogleDomain(wv.url) && (wv.url ?: "").contains("/search?")
+
 /**
  * Premakne fokus po strani sami. Smerne tipke spletna vsebina ne pozna (daljinec je iznajdba
  * televizorja), zna pa vsaka stran vrstni red s tipko Tab - in brskalnik nov fokus sam
  * pridrsa v pogled. Navzgor in levo gresta nazaj (Shift+Tab).
  */
-private fun nativnaTipka(wv: android.webkit.WebView, event: KeyEvent) {
+private fun nativnaTipka(wv: android.webkit.WebView, event: KeyEvent, tipka: Int = KeyEvent.KEYCODE_TAB) {
     try {
         val nazaj = event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT
-        val meta = if (nazaj) KeyEvent.META_SHIFT_ON else 0
+        val meta = if (nazaj && tipka == KeyEvent.KEYCODE_TAB) KeyEvent.META_SHIFT_ON else 0
         val zdaj = android.os.SystemClock.uptimeMillis()
         wv.dispatchKeyEvent(
-            KeyEvent(zdaj, zdaj, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_TAB, 0, meta)
+            KeyEvent(zdaj, zdaj, KeyEvent.ACTION_DOWN, tipka, 0, meta)
         )
         wv.dispatchKeyEvent(
-            KeyEvent(zdaj, zdaj + 1, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_TAB, 0, meta)
+            KeyEvent(zdaj, zdaj + 1, KeyEvent.ACTION_UP, tipka, 0, meta)
         )
     } catch (_: Exception) {}
 }
@@ -296,7 +341,9 @@ object GenericWebSiteProfile : SiteProfile {
                 host.hideKeyboard()
                 host.editUrl.clearFocus()
                 wv.requestFocus()
-                wv.evaluateJavascript("window._safeer_navigate_spatial('DOWN');", null)
+                // Na Googlu nase navigacije ni: iz naslovne vrstice v prvo vrstico strani.
+                if (jeGoogleIskanje(wv)) dolNaGooglu(wv, event)
+                else wv.evaluateJavascript("window._safeer_navigate_spatial('DOWN');", null)
                 return true
             }
             return false
@@ -330,6 +377,13 @@ object GenericWebSiteProfile : SiteProfile {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                // Na Googlu nase skripte ni, zato OK ni naredil nicesar (zadetka ni bilo mogoce odpreti):
+                // tam gre Enter strani sami.
+                if (si.safeer.tv.UserScriptManager.isGoogleDomain(wv.url)) {
+                    // Fokus je pogosto na ovoju zadetka (DIV): najprej na povezavo v njem, nato Enter strani.
+                    wv.evaluateJavascript(KLIK_FOKUSA) { nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER) }
+                    return true
+                }
                 wv.evaluateJavascript("window._safeer_click_focused_card();", null)
                 return true
             }
