@@ -23,4 +23,11 @@ object Brskalnik {
     /** Spletna aplikacija v svojem oknu brskalnika (kot s kartice na domacem zaslonu). */
     fun spletnaAplikacija(c: Context, url: String, ime: String): Intent =
         namera(c).putExtra("spletna_aplikacija", url).putExtra("aplikacija_ime", ime)
+
+    /** Uporabnikov vir glasbe ali videa: kot spletna aplikacija, zvok pa ob tipki Domov igra naprej. */
+    fun medijskaStran(c: Context, url: String, ime: String): Intent =
+        izMedijev(spletnaAplikacija(c, url, ime).putExtra("zvok_v_ozadju", true))
+
+    /** Brskalnik, odprt iz Safeer Media: ob izhodu se vrne v Safeer Media, ne na zacetni zaslon. */
+    fun izMedijev(i: Intent): Intent = i.putExtra("os_ohrani_mesto", true)
 }
