@@ -39,8 +39,8 @@ object Daljinec {
         // (Safeer OS, Control) aplikacije katere koli naprave nasteje in zazene na en nacin.
         "apps.list", "apps.launch",
         // Vnos z racunalnika na zaslon, ki ga naprava deli (Safeer Vnos, storitev dostopnosti):
-        // dotik in poteg v delezih zaslona, sistemska tipka, besedilo v polje s fokusom.
-        "input.tap", "input.swipe", "input.key", "input.text", "input.enable",
+        // dotik in poteg v delezih zaslona, tipka (sistemska ali tipkovnice), kolesce, besedilo v polje s fokusom.
+        "input.tap", "input.swipe", "input.key", "input.text", "input.enable", "input.scroll",
         // Zvok racunalnika na tej napravi (Safeer OS za racunalnik: Zvok -> Predvajaj tukaj).
         "audio.play", "audio.stop",
         // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control.
@@ -378,6 +378,7 @@ object Daljinec {
             "input.swipe" -> VnosStoritev.poteg(p.optDouble("x1", -1.0), p.optDouble("y1", -1.0),
                 p.optDouble("x2", -1.0), p.optDouble("y2", -1.0), p.optLong("ms", 300))
             "input.key" -> VnosStoritev.tipka(p.optString("key", ""))
+            "input.scroll" -> VnosStoritev.kolesce(p.optDouble("x", 0.5), p.optDouble("y", 0.5), p.optInt("steps", 1))
             "input.text" -> VnosStoritev.besedilo(p.optString("text", "").take(2000))
             else -> false
         }
