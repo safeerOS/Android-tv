@@ -20,11 +20,26 @@ object PeerTube {
     fun najboljGledani(streznik: String, stevilo: Int = 24): List<Jamendo.Skladba> =
         seznam(streznik, "/api/v1/videos?sort=-views&count=$stevilo&nsfw=false&isLocal=true")
 
-    fun isci(strezniki: List<String>, beseda: String): List<Jamendo.Skladba> = strezniki.flatMap { s ->
-        try {
-            seznam(s, "/api/v1/search/videos?search=${URLEncoder.encode(beseda, "UTF-8")}&sort=-views&nsfw=false&count=18&searchTarget=local")
-        } catch (_: Exception) { emptyList() }
-    }.distinctBy { it.id }
+    /**
+     * Iskanje po streznikih. PeerTube isce ohlapno ("Eminem" je 21. 9. 2026 vrnil videe o bananah),
+     * zato obdrzimo samo posnetke, pri katerih so vse besede iskanja v naslovu, kanalu, opisu ali oznakah.
+     */
+    fun isci(strezniki: List<String>, beseda: String): List<Jamendo.Skladba> {
+        val besede = normaliziraj(beseda).split(' ').filter { it.length >= 2 }
+        return strezniki.flatMap { s ->
+            try {
+                seznam(s, "/api/v1/search/videos?search=${URLEncoder.encode(beseda, "UTF-8")}&sort=-views&nsfw=false&count=30&searchTarget=local") { v ->
+                    val besedilo = normaliziraj(listOf(v.optString("name"), v.optJSONObject("channel")?.optString("displayName").orEmpty(),
+                        v.optJSONObject("account")?.optString("displayName").orEmpty(), v.optString("description"), v.optString("truncatedDescription"),
+                        v.optJSONArray("tags")?.join(" ").orEmpty()).joinToString(" "))
+                    besede.all { besedilo.contains(it) }
+                }
+            } catch (_: Exception) { emptyList() }
+        }.distinctBy { it.id }
+    }
+
+    private fun normaliziraj(s: String) = java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "").replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
 
     /** Ali na tem naslovu tece PeerTube; vrne ime streznika ali null. */
     fun imeStreznika(streznik: String): String? = try {
@@ -80,10 +95,10 @@ object PeerTube {
             .distinctBy { it.id }.filter { it.id != v.id }.take(20)
     }
 
-    private fun seznam(streznik: String, pot: String): List<Jamendo.Skladba> {
+    private fun seznam(streznik: String, pot: String, ustreza: (JSONObject) -> Boolean = { true }): List<Jamendo.Skladba> {
         val r = JSONObject(beri("https://$streznik$pot")).optJSONArray("data") ?: return emptyList()
         return (0 until r.length()).map { r.getJSONObject(it) }.mapNotNull { v ->
-            if (v.optBoolean("nsfw") || v.optBoolean("isLive")) return@mapNotNull null
+            if (v.optBoolean("nsfw") || v.optBoolean("isLive") || !ustreza(v)) return@mapNotNull null
             val stran = v.optString("url")
             val slika = v.optString("previewPath").ifBlank { v.optString("thumbnailPath") }
             Jamendo.Skladba(v.optString("uuid"), v.optString("name"),

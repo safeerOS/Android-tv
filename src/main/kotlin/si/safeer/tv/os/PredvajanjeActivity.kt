@@ -122,6 +122,30 @@ class PredvajanjeActivity : OsActivity() {
         osvezi()
         glavna.post(tik)
         zbudi()
+        // S plosce Safeer Media: takoj zatemni (samo zvok).
+        if (intent.getBooleanExtra(ZATEMNI, false)) {
+            intent.removeExtra(ZATEMNI)
+            if (!jeVideo()) { glavna.removeCallbacks(zatemni); tema.visibility = View.VISIBLE; osveziCas() }
+        }
+    }
+
+    /**
+     * Nazaj vedno vodi v Safeer Media - tudi ce je bilo predvajanje odprto s kartice na zacetnem
+     * zaslonu ali iz obvestila (prej je vrglo na zacetni zaslon Safeer OS). Zvok igra naprej.
+     */
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    override fun onBackPressed() {
+        if (!GlasbaActivity.odprta) startActivity(android.content.Intent(this, GlasbaActivity::class.java))
+        super.onBackPressed()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
+    companion object {
+        const val ZATEMNI = "zatemni"
     }
 
     override fun onDestroy() { delavec.shutdownNow(); super.onDestroy() }
@@ -146,7 +170,7 @@ class PredvajanjeActivity : OsActivity() {
             p.setVideoSurfaceView(povrsina); p.addListener(velikost); pripet = p
         }
         povrsina.visibility = if (sk.video) View.VISIBLE else View.INVISIBLE
-        naslovnica.visibility = if (sk.video) View.GONE else View.VISIBLE
+        naslovnica.visibility = if (sk.video || predlogiOdprti()) View.GONE else View.VISIBLE
         if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
         naslov.text = sk.naslov
         izvajalec.text = sk.izvajalec
@@ -205,6 +229,8 @@ class PredvajanjeActivity : OsActivity() {
     private fun odpriPredloge() {
         val sk = GlasbaStoritev.trenutna() ?: return
         predlogi.visibility = View.VISIBLE
+        // Naslovnica bi prekrila besedilo nad vrsto; ko se vrsta zapre, jo osvezi() vrne.
+        naslovnica.visibility = View.GONE
         zbudi()
         if (predlogiZa != sk.id) {
             predlogiZa = sk.id
@@ -225,6 +251,7 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun zapriPredloge() {
         predlogi.visibility = View.GONE
+        osvezi()
         zbudi()
     }
 
@@ -255,6 +282,32 @@ class PredvajanjeActivity : OsActivity() {
                 MedijskiViri.shraniSeznam(this, ime, vrsta)?.let {
                     android.widget.Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, it.ime), android.widget.Toast.LENGTH_SHORT).show()
                 }
+            })
+        }
+        val p = GlasbaStoritev.predvajalnik
+        if (!video && p != null && vrsta.size > 1) {
+            val i = predlogiNiz.childCount
+            predlogiNiz.addView(kartica(getString(R.string.os_mediji_nakljucno),
+                getString(if (p.shuffleModeEnabled) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno), "",
+                R.drawable.os_ikona_nakljucno, video) {
+                p.shuffleModeEnabled = !p.shuffleModeEnabled
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
+            })
+        }
+        if (!video && p != null && zdaj?.radio != true) {
+            val i = predlogiNiz.childCount
+            predlogiNiz.addView(kartica(getString(R.string.os_mediji_ponavljanje), getString(when (p.repeatMode) {
+                    androidx.media3.common.Player.REPEAT_MODE_ALL -> R.string.os_mediji_ponavljaj_vse
+                    androidx.media3.common.Player.REPEAT_MODE_ONE -> R.string.os_mediji_ponavljaj_eno
+                    else -> R.string.os_mediji_izklopljeno }), "",
+                R.drawable.os_ikona_ponavljaj, video) {
+                // Izklopljeno -> vse -> ena skladba -> izklopljeno
+                p.repeatMode = when (p.repeatMode) {
+                    androidx.media3.common.Player.REPEAT_MODE_OFF -> androidx.media3.common.Player.REPEAT_MODE_ALL
+                    androidx.media3.common.Player.REPEAT_MODE_ALL -> androidx.media3.common.Player.REPEAT_MODE_ONE
+                    else -> androidx.media3.common.Player.REPEAT_MODE_OFF
+                }
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             })
         }
         dejanj = predlogiNiz.childCount

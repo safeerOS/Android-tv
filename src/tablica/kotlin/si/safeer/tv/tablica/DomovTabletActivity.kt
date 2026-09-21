@@ -188,9 +188,15 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         SpletneAplikacije.osveziIkone(this) {
             glavna.post { narisiAplikacije() }
         }
+        si.safeer.tv.os.GlasbaStoritev.poslusalci.add(medijiPoslusalec)
+        si.safeer.tv.os.GlasbaStoritev.osveziKartico(this)
     }
 
+    /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju). */
+    private val medijiPoslusalec: () -> Unit = { runOnUiThread { si.safeer.tv.os.GlasbaStoritev.osveziKartico(this) } }
+
     override fun onStop() {
+        si.safeer.tv.os.GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
         link.odstrani(this)
         super.onStop()
     }
@@ -233,7 +239,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
         }
         findViewById<View>(R.id.karticaMediji)?.setOnClickListener {
-            odpriVarno(Intent(this, si.safeer.tv.os.GlasbaActivity::class.java), getString(R.string.os_mediji_kartica))
+            odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
         }
         mNaprave?.setOnClickListener {
             odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.tablet_naprave))

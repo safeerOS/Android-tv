@@ -569,6 +569,7 @@
                     android:paddingTop="14dp"
                     android:paddingBottom="14dp">
                     <ImageView
+                            android:id="@+id/medijiIkona"
                         android:layout_width="38dp"
                         android:layout_height="38dp"
                         android:src="@drawable/os_ikona_glasba"
@@ -580,6 +581,7 @@
                         android:layout_marginStart="14dp"
                         android:orientation="vertical">
                         <TextView
+                            android:id="@+id/medijiNaslov"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/os_mediji_kartica"
@@ -590,6 +592,7 @@
                             android:maxLines="1"
                             android:ellipsize="end"/>
                         <TextView
+                            android:id="@+id/medijiOpis"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="3dp"

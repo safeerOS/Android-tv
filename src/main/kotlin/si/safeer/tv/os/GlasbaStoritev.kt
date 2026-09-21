@@ -48,7 +48,11 @@ class GlasbaStoritev : Service() {
         p.setWakeMode(C.WAKE_MODE_NETWORK)
         p.setHandleAudioBecomingNoisy(true)
         p.addListener(object : Player.Listener {
-            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = osvezi()
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                // Nedavno predvajano (plosca Safeer Media): shranljive skladbe, postaje in videi.
+                trenutna()?.let { MedijskiViri.zapomniNedavno(this@GlasbaStoritev, it) }
+                osvezi()
+            }
             override fun onIsPlayingChanged(isPlaying: Boolean) = osvezi()
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) konec() else osvezi()
@@ -179,7 +183,46 @@ class GlasbaStoritev : Service() {
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
         }
 
+        /**
+         * Kartica Mediji na zacetnem zaslonu (televizor in tablica): med predvajanjem pokaze, kaj
+         * igra - kot "zdaj se predvaja" - sicer je obicajna kartica Glasba in video.
+         */
+        fun osveziKartico(a: android.app.Activity) {
+            val naslov = a.findViewById<android.widget.TextView>(R.id.medijiNaslov) ?: return
+            val opis = a.findViewById<android.widget.TextView>(R.id.medijiOpis) ?: return
+            val ikona = a.findViewById<android.widget.ImageView>(R.id.medijiIkona) ?: return
+            val sk = trenutna(); val p = predvajalnik
+            if (sk == null || p == null) {
+                naslov.setText(R.string.os_mediji_kartica); opis.setText(R.string.os_mediji_kartica_opis)
+                ikona.setImageResource(R.drawable.os_ikona_glasba); return
+            }
+            naslov.text = sk.naslov
+            opis.text = listOf(a.getString(if (p.isPlaying) R.string.os_mediji_zdaj else R.string.os_mediji_pavza), sk.izvajalec)
+                .filter { it.isNotBlank() }.joinToString(" · ")
+            ikona.setImageResource(if (p.isPlaying) R.drawable.os_ikona_predvajaj else R.drawable.os_ikona_pavza)
+        }
+
+        /** Klik na kartico: med predvajanjem naravnost na predvajanje, sicer v Medije. */
+        fun namenKartice(ctx: Context): Intent =
+            Intent(ctx, if (trenutna() != null) PredvajanjeActivity::class.java else GlasbaActivity::class.java)
+
+        /** Casovnik izklopa: ob izteku predvajanje ustavimo (za zaspance pred televizorjem). */
+        private var izklopOb = 0L
+        private val ura = android.os.Handler(android.os.Looper.getMainLooper())
+        private val izklopi = Runnable { izklopOb = 0L; predvajalnik?.pause(); poslusalci.toList().forEach { it() } }
+
+        /** Nastavi casovnik v minutah; 0 ga izklopi. */
+        fun nastaviCasovnik(minut: Int) {
+            ura.removeCallbacks(izklopi)
+            izklopOb = if (minut > 0) System.currentTimeMillis() + minut * 60_000L else 0L
+            if (minut > 0) ura.postDelayed(izklopi, minut * 60_000L)
+        }
+
+        /** Preostale minute casovnika (zaokrozeno navzgor), 0 = izklopljen. */
+        fun casovnikMinut(): Int = if (izklopOb == 0L) 0 else ((izklopOb - System.currentTimeMillis() + 59_999) / 60_000).toInt().coerceAtLeast(1)
+
         fun ustavi(ctx: Context) {
+            nastaviCasovnik(0)
             ctx.stopService(Intent(ctx, GlasbaStoritev::class.java))
         }
     }

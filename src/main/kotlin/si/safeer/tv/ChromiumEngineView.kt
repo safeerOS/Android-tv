@@ -67,6 +67,37 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     var isDarkMode: Boolean = true
 
+    /**
+     * Siroka postavitev za spletne vire iz Safeer Media: stran dobi sirino [namiznaSirina] (npr.
+     * 1280) kot na racunalniku in se pomanjsa na zaslon. Pri 960 tockah televizorja je vecina
+     * strani v postavitvi za tablico - ogromne ikone in spodnja vrstica, ki prekrije vsebino
+     * (21. 9. 2026, rtvslo.si/radio). 0 = obicajno, kot vse ostale strani.
+     */
+    var namiznaSirina = 0
+        set(v) {
+            field = v
+            if (v <= 0 || namiznaSkripta) return
+            namiznaSkripta = true
+            val js = namiznaJs(v)
+            try {
+                if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT))
+                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, setOf("*"))
+            } catch (_: Exception) {}
+        }
+    private var namiznaSkripta = false
+
+    /** Povecava, pri kateri je stran sirine [namiznaSirina] cela na zaslonu (v odstotkih). */
+    private fun namiznaPovecava(): Int {
+        val d = resources.displayMetrics
+        val sirinaDp = (if (width > 0) width else d.widthPixels) / d.density
+        return (sirinaDp * 100 / namiznaSirina).toInt().coerceIn(30, 100)
+    }
+
+    private fun namiznaJs(w: Int) = """(function(){var c='width=$w';function s(){var m=document.querySelector('meta[name="viewport"]');
+        if(!m){if(!document.head)return;m=document.createElement('meta');m.name='viewport';document.head.appendChild(m);}
+        if(m.content!==c)m.content=c;}s();var o=new MutationObserver(s);o.observe(document.documentElement,{childList:true,subtree:true});
+        document.addEventListener('DOMContentLoaded',function(){s();setTimeout(function(){o.disconnect();s();},3000);});})();"""
+
     var onProgressUpdate: ((Int) -> Unit)? = null
     var onUrlChanged: ((String) -> Unit)? = null
 
@@ -259,7 +290,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         settings.textZoom = 100
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
-        setInitialScale(100)
+        setInitialScale(if (namiznaSirina > 0) namiznaPovecava() else 100)
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
