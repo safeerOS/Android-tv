@@ -2671,8 +2671,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     internal var lastCenterClickTime: Long = 0L
 
+    private val TIPKE_POTRDI = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
+        KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A)
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) ChromiumEngineView.oznaciTipko()
+        // Samo tipka OK sme dovoliti en sinteticni dotik (triggerNativeTap); puscice ne.
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode in TIPKE_POTRDI) ChromiumEngineView.oznaciTipko()
         return keyRouter.dispatch(event)
     }
 
