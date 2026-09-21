@@ -147,7 +147,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         karticaZaslon.onFocusChangeListener = fokus
         karticaZaslon.setOnClickListener {
             if (imamoZaslon) {
-                odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_zaslon))
+                odpriZaslon()
             } else {
                 pokaziOknoNiPovezano(getString(R.string.os_zaslon))
             }
@@ -216,7 +216,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         hitriRacunalnik.onFocusChangeListener = fokus
         hitriRacunalnik.setOnClickListener {
             if (imamoZaslon) {
-                odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_zaslon))
+                odpriZaslon()
             } else {
                 pokaziOknoNiPovezano(getString(R.string.os_zaslon))
             }
@@ -319,6 +319,26 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         Kontroler.pokazi(okno.show())
     }
 
+    /**
+     * Povezani zasloni: naprave v Safeer Linku, ki delijo svoj zaslon. Ena sama se odpre takoj
+     * (brez odvecnega koraka); kadar jih je vec, uporabnik izbere, katero gleda na televizorju.
+     */
+    private fun odpriZaslon() {
+        val jaz = Identiteta.id(this)
+        val naprave = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }
+        fun odpri(r: LinkOdjemalec.Naprava?) {
+            val namera = Intent(this, ZaslonActivity::class.java)
+            r?.let { namera.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, it.id) }
+            odpriVarno(namera, getString(R.string.os_zaslon))
+        }
+        if (naprave.size < 2) { odpri(naprave.firstOrNull()); return }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_zaslon))
+            .setItems(naprave.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i -> odpri(naprave[i]) }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
     private fun pripraviStranskiMeni() {
         meniDomov.setOnClickListener {
             (drsnik as? android.widget.ScrollView)?.smoothScrollTo(0, 0)
@@ -329,8 +349,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             odpriVarno(Intent(this, AplikacijeHostaActivity::class.java)
                 .putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse"), getString(R.string.os_meni_aplikacije))
         }
+        // Zasloni so na domacem zaslonu (kartica Povezani zasloni ob spletnem brskalniku); isti
+        // gumb v stranski vrstici bi bil druga pot do istega.
+        meniZaslon.visibility = View.GONE
         meniZaslon.setOnClickListener {
-            odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_meni_zaslon))
+            odpriZaslon()
         }
         meniDatoteke.setOnClickListener {
             odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_meni_datoteke))
@@ -527,7 +550,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Zaslon racunalnika: kartica se pokaze samo, kadar ga racunalnik res deli.
         if (imamoZaslon) {
             vse.add(Zacni("zaslon", R.drawable.os_ikona_zaslon, getString(R.string.os_zaslon)) {
-                odpriVarno(Intent(this, ZaslonActivity::class.java), getString(R.string.os_zaslon))
+                odpriZaslon()
             })
         }
         // Programi racunalnika: kartico pokazemo samo, kadar jih kaksen racunalnik res deli -
@@ -1351,8 +1374,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.tag = "app:" + p.kljuc
             vrstaAplikacije.addView(v)
         }
-        findViewById<TextView>(R.id.naslovAplikacije)?.setText(
-            if (oddaljeni.isEmpty()) R.string.os_odsek_aplikacije else R.string.os_odsek_priljubljene)
+        // Vrsta so aplikacije, ki si jih je uporabnik izbral; vse ostale so pod Aplikacije.
+        findViewById<TextView>(R.id.naslovAplikacije)?.setText(R.string.os_odsek_priljubljene)
         // Ploscica "Izberi aplikacije" samo, dokler je vrsta prazna: sicer bi bila druga pot do
         // istega zaslona kot Aplikacije v stranski vrstici.
         val ostalo = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)

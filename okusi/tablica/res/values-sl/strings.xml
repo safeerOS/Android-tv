@@ -5,8 +5,8 @@
     <string name="tablet_naprave">Naprave</string>
     <string name="tablet_programi">Programi</string>
     <string name="tablet_programi_opis">Zaženi programe z računalnika</string>
-    <string name="tablet_zaslon">Zaslon računalnika</string>
-    <string name="tablet_zaslon_opis">Slika in zvok računalnika na tablici</string>
+    <string name="tablet_zaslon">Povezani zasloni</string>
+    <string name="tablet_zaslon_opis">Izberi, katero napravo gledaš na tablici</string>
     <string name="tablet_ni_racunalnika">Noben računalnik še ni povezan. Na računalniku zaženi Safeer Control in ga poveži v Safeer Link; tu se bo pojavil sam.</string>
     <string name="tablet_ni_linka">Ta tablica še ni v Safeer Linku. Odpri Naprave in jo poveži — potem se tu pojavijo datoteke, programi in zaslon tvojega računalnika.</string>
     <string name="tablet_vklopi">Vklopi Safeer Link</string>

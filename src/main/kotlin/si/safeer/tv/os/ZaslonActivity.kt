@@ -213,9 +213,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         super.onDestroy()
     }
 
-    /** Racunalnik, ki deli zaslon (zmoznost `desktop`). */
-    private fun racunalnikZZaslonom(): LinkOdjemalec.Naprava? =
-        link.naprave.firstOrNull { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+    /**
+     * Naprava, ki deli zaslon (zmoznost `desktop`): tista, ki jo je uporabnik izbral (Povezani
+     * zasloni, Datoteke, Aplikacije), sicer prva. Prej je sel zaslon vedno k prvemu racunalniku.
+     */
+    private fun racunalnikZZaslonom(): LinkOdjemalec.Naprava? {
+        val vsi = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        val zeleni = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
+        return if (zeleni.isNullOrBlank()) vsi.firstOrNull() else vsi.firstOrNull { it.id == zeleni }
+    }
 
     /**
      * Ena sama zahteva naenkrat. Brez tega zaslon ob vstopu prosi dvakrat (onStart in takoj za njim

@@ -5,8 +5,8 @@
     <string name="tablet_naprave">Appareils</string>
     <string name="tablet_programi">Programmes</string>
     <string name="tablet_programi_opis">Lance les programmes de ton ordinateur</string>
-    <string name="tablet_zaslon">Écran de l’ordinateur</string>
-    <string name="tablet_zaslon_opis">L’image et le son de ton ordinateur sur la tablette</string>
+    <string name="tablet_zaslon">Écrans connectés</string>
+    <string name="tablet_zaslon_opis">Choisis l’appareil à regarder sur la tablette</string>
     <string name="tablet_ni_racunalnika">Aucun ordinateur n’est encore connecté. Lance Safeer Control sur ton ordinateur et rejoins Safeer Link ; il apparaîtra ici tout seul.</string>
     <string name="tablet_ni_linka">Cette tablette n’est pas encore dans Safeer Link. Ouvre Appareils et connecte-la – tes fichiers, programmes et l’écran de l’ordinateur apparaîtront ici.</string>
     <string name="tablet_vklopi">Activer Safeer Link</string>

@@ -5,8 +5,8 @@
     <string name="tablet_naprave">Dispositivi</string>
     <string name="tablet_programi">Programmi</string>
     <string name="tablet_programi_opis">Avvia i programmi del computer</string>
-    <string name="tablet_zaslon">Schermo del computer</string>
-    <string name="tablet_zaslon_opis">Immagine e audio del tuo computer sul tablet</string>
+    <string name="tablet_zaslon">Schermi collegati</string>
+    <string name="tablet_zaslon_opis">Scegli quale dispositivo guardare sul tablet</string>
     <string name="tablet_ni_racunalnika">Nessun computer è ancora collegato. Avvia Safeer Control sul computer e collegalo a Safeer Link; comparirà qui da solo.</string>
     <string name="tablet_ni_linka">Questo tablet non è ancora in Safeer Link. Apri Dispositivi e collegalo: qui compariranno i tuoi file, i programmi e lo schermo del computer.</string>
     <string name="tablet_vklopi">Attiva Safeer Link</string>

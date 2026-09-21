@@ -201,7 +201,7 @@
     <string name="os_aplikacije_odstrani">Vom Startbildschirm entfernen</string>
     <string name="os_aplikacije_izberi">Apps wählen</string>
     <!-- Zaslon racunalnika na televizorju -->
-    <string name="os_zaslon">Computerbildschirm</string>
+    <string name="os_zaslon">Verbundene Bildschirme</string>
     <string name="os_zaslon_povezujem">Verbinde mit dem Computer …</string>
     <string name="os_zaslon_prosim">Frage %1$s nach seinem Bildschirm …</string>
     <string name="os_zaslon_ni_racunalnika">Kein Computer in Safeer Link teilt seinen Bildschirm. Schalte in Safeer Control auf dem Computer \'Bildschirm für den Fernseher\' ein.</string>
@@ -364,7 +364,7 @@
     <string name="os_noge_podpis">Safeer OS | Offene Welt. Ohne Grenzen.</string>
 <string name="os_brskalnik_naslov">Webbrowser</string>
     <string name="os_brskalnik_opis">Schnell, sicher, werbefrei</string>
-    <string name="os_zaslon_opis">Dein Computer am TV</string>
+    <string name="os_zaslon_opis">Wähle, welches Gerät du auf dem TV siehst</string>
     <string name="os_programi_opis">Von deinen Geräten</string>
     <string name="os_programi_naprav">Geräte: %d</string>
     <string name="os_programi_zagnan_naprava">%1$s wird auf %2$s geöffnet.</string>

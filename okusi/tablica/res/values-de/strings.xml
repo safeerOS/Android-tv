@@ -5,8 +5,8 @@
     <string name="tablet_naprave">Geräte</string>
     <string name="tablet_programi">Programme</string>
     <string name="tablet_programi_opis">Programme deines Computers starten</string>
-    <string name="tablet_zaslon">Computerbildschirm</string>
-    <string name="tablet_zaslon_opis">Bild und Ton deines Computers auf dem Tablet</string>
+    <string name="tablet_zaslon">Verbundene Bildschirme</string>
+    <string name="tablet_zaslon_opis">Wähle, welches Gerät du auf dem Tablet siehst</string>
     <string name="tablet_ni_racunalnika">Noch kein Computer verbunden. Starte Safeer Control auf deinem Computer und verbinde ihn mit Safeer Link; er erscheint dann von selbst hier.</string>
     <string name="tablet_ni_linka">Dieses Tablet ist noch nicht in Safeer Link. Öffne Geräte und verbinde es – dann erscheinen hier deine Dateien, Programme und dein Computerbildschirm.</string>
     <string name="tablet_vklopi">Safeer Link einschalten</string>
