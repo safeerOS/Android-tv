@@ -178,6 +178,7 @@ class CastReceiverService : Service() {
 
         // Naslov vozlišča: 1. iz namere, 2. iz shranjenih nastavitev, 3. privzeti.
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prejsnjiNaslov = hubUrl
         val fromIntent = intent?.getStringExtra(EXTRA_HUB_URL)
         hubUrl = when {
             !fromIntent.isNullOrBlank() -> fromIntent.also { prefs.edit().putString(KEY_HUB_URL, it).apply() }
@@ -188,14 +189,21 @@ class CastReceiverService : Service() {
 
         startForeground(NOTIFICATION_ID, buildForegroundNotification())
         si.safeer.tv.link.DatotekeStreznik.pripravi(this)
+        // Ze odprte povezave na isti naslov ne odpiramo znova: druga povezava iste naprave bi na hubu
+        // zamenjala prvo, prva pa bi obvisela in cez pol minute sprozila nov krog zamenjav.
+        val zePovezan = isRunning && povezan && webSocket != null && prejsnjiNaslov == hubUrl
         isRunning = true
-        connectToHub()
+        if (!zePovezan) connectToHub()
 
         return START_STICKY
     }
 
     private fun connectToHub() {
         if (!isRunning) return
+        // Nov rod povezave: prejsnjo zapremo, njeni pozni klici (padec, zaprtje) nic vec ne spremenijo.
+        val moj = ++rod
+        webSocket?.cancel()
+        webSocket = null
 
         if (!hubUrl.startsWith("wss://")) {
             // Brez TLS bi zeton in vse, kar delimo, potovalo v cistem besedilu. Tak Hub naj se posodobi.
@@ -206,15 +214,15 @@ class CastReceiverService : Service() {
         Log.i(TAG, "Povezujem se na Safeer Cast Hub: $hubUrl (naprava: $deviceId)")
         // S podpisom tudi, ce je nas kljuc v krogu pod starim id-jem: hub nov id sam vpise kot alias.
         val vpisan = try { KrogNaprave.lahkoSPodpisom(this, deviceId) } catch (_: Throwable) { false }
-        if (vpisan) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov) }
+        if (vpisan) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov, moj) }
         else {
             // Nas kljuc je v krogu pod drugim id (npr. Safeer OS iste naprave): ta id vpisemo kot alias
             // s podpisom, nato pridemo s podpisom tudi sami. Sicer po starem, z zetonom.
             val znani = try { KrogNaprave.znaniIdZaNasKljuc(this) } catch (_: Throwable) { null }
             if (znani != null && HubKrmilnik.izvoljeniHub(this) != null) vpisiAlias(hubUrl, znani) { uspelo ->
-                if (uspelo) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov) }
-                else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov) }
-            } else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov) }
+                if (uspelo) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov, moj) }
+                else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
+            } else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
         }
     }
 
@@ -307,12 +315,17 @@ class CastReceiverService : Service() {
     fun controlToken(): String? =
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_CONTROL_TOKEN, null)
 
-    private fun odpriPovezavo(naslov: String) {
-        if (!isRunning) return
+    /** Rod trenutne povezave; povecan ob vsakem connectToHub. */
+    @Volatile
+    private var rod = 0
+
+    private fun odpriPovezavo(naslov: String, moj: Int) {
+        if (!isRunning || moj != rod) return
         val request = Request.Builder().url(naslov).build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                if (moj != rod) { webSocket.cancel(); return }
                 Log.i(TAG, "Uspešno povezan s Cast Hubom!")
                 reconnectAttempts = 0
                 povezan = true
@@ -338,16 +351,25 @@ class CastReceiverService : Service() {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                if (moj != rod) return
                 handleIncomingMessage(webSocket, text)
             }
 
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                // Hub zapira (npr. ker je ista naprava prisla z novo povezavo): odgovorimo, sicer
+                // OkHttp povezave ne zapre in cez pol minute javi manjkajoci pong.
+                webSocket.close(1000, null)
+            }
+
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (moj != rod) return
                 Log.w(TAG, "Povezava s hubom padla: ${t.message}. Poskus ponovne povezave...")
                 odklopljen()
                 scheduleReconnect()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (moj != rod) return
                 Log.i(TAG, "Povezava zaprta ($code): $reason")
                 odklopljen()
                 scheduleReconnect()
