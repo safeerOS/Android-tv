@@ -326,6 +326,28 @@ body::before {
     .more-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
+/* Telefon pokonci (Safeer OS Tablet na telefonu): dve kartici v vrsti namesto stirih, da se imena
+   in oznake strani ne odrezejo (prej "XT", "YM", "X."). */
+@media (max-width: 600px) {
+    .stage { width: calc(100% - 28px); padding-top: 12px; }
+    .safeer-brand { flex-wrap: wrap; gap: 12px; }
+    .safeer-brand h1 { font-size: 24px; }
+    .safeer-brand p { font-size: 14px; }
+    .edition { margin-left: 0; padding: 6px 12px; font-size: 11px; }
+    .hero-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .hero-card { height: 136px; }
+    .hero-card .art { padding: 14px 16px; }
+    .hero-mark { min-width: 40px; height: 40px; padding: 0 9px; border-radius: 12px; font-size: 18px; }
+    .hero-card .hero-label { left: 16px; right: 16px; font-size: 17px; }
+    .hero-domain { left: 16px; }
+    .more-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .favorite-tile.mini { height: 64px; padding: 0 12px; }
+}
+
+/* Na zaslonu na dotik (tablica, telefon) ni daljinca: namigi za tipke OK, Nazaj in barvne tipke
+   bi bili samo odvec (in so se na ozkem zaslonu odrezali). */
+html.dotik .remote-help { display: none; }
+
 @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
 }
