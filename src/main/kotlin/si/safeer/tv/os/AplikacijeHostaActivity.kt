@@ -640,10 +640,10 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun osveziSeznam() {
         priljubljeni = SafeerAppi.priljubljeni(this).map { it.kljuc }.toSet()
         val iskano = poenostavi(iskanje.text?.toString().orEmpty().trim())
-        vidni = poViru().filter { p ->
+        vidni = najboljsi(poViru().filter { p ->
             (izbranaSkupina.isEmpty() || p.skupina == izbranaSkupina) &&
                 (iskano.isEmpty() || poenostavi(p.ime).contains(iskano) || poenostavi(p.opis).contains(iskano))
-        }
+        })
         prilagojevalnik.notifyDataSetChanged()
         when {
             vidni.isNotEmpty() -> skrijSporocilo()
@@ -651,6 +651,22 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             iskano.isNotEmpty() -> pokaziSporocilo(getString(R.string.os_programi_ni_zadetka, iskanje.text.toString().trim()))
             else -> pokaziSporocilo(getString(R.string.os_programi_prazno))
         }
+    }
+
+    /**
+     * Ista aplikacija na vec napravah v Linku je ena kartica (Matej, 21. 9. 2026: najhitrejsi in
+     * najmocnejsi ima prednost). Aplikacija te naprave ostane vedno (brez omrezja, na tem zaslonu);
+     * med napravami ima prednost racunalnik pred telefonom in tablico, med enakimi tista, ki je
+     * hitreje odgovorila. Ko uporabnik izbere napravo v vrsti zgoraj, vidi vse njene aplikacije.
+     */
+    private fun najboljsi(s: List<SafeerApp>): List<SafeerApp> {
+        if (izbranaNaprava != null) return s
+        val tu = s.filter { it.racunalnik.isEmpty() }.map { poenostavi(it.ime) }.toSet()
+        val izbrane = s.filter { it.racunalnik.isNotEmpty() && poenostavi(it.ime) !in tu }
+            .groupBy { poenostavi(it.ime) }
+            .mapValues { (_, g) -> g.sortedWith(compareBy({ if (it.racunalnik in androidNaprave) 1 else 0 },
+                { odziv[it.racunalnik] ?: Long.MAX_VALUE })).first() }
+        return s.filter { it.racunalnik.isEmpty() || izbrane[poenostavi(it.ime)] === it }
     }
 
     /** Ikona programa: PNG v base64 iz odgovora, oblikovan enako kot ikone spletnih aplikacij. */
@@ -911,6 +927,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val android = !r.zmoznosti.contains("apps")
             val zbrano = ArrayList<JSONObject>()
             val ime = r.ime.ifBlank { r.id }
+            val zacetek = zdaj()
             fun stran(od: Int) {
                 val zahteva = JSONObject().put("offset", od).put("limit", STRAN).put("icons", true)
                 link.ukaz(r.id, "apps.list", zahteva, 25_000, LinkOdjemalec.Odgovor { izid, napaka ->
@@ -918,6 +935,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                         konec(null, izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() })
                         return@Odgovor
                     }
+                    if (od == 0) odziv[r.id] = zdaj() - zacetek
                     val podatki = izid.optJSONObject("data") ?: JSONObject()
                     if (!podatki.optBoolean("enabled", false)) { konec(Surovo(ime, android, emptyList(), false), null); return@Odgovor }
                     val polje = podatki.optJSONArray("items")
@@ -930,6 +948,9 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             stran(0)
         }
+
+        /** Koliko ms je naprava potrebovala za prvi odgovor na apps.list (hitrejsa ima prednost). */
+        private val odziv = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
         /** Seznami, ki jih je domaci zaslon prenesel v ozadju (se brez ikon v spominu kot slike). */
         private val surovi = HashMap<String, Surovo>()
