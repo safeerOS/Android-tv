@@ -156,7 +156,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (izbrana != null && izbrana !== novi) izbrana.post { izbrana.requestFocus() }
             }
         }
-        mreza.setOnItemClickListener { _, _, i, _ -> vidni.getOrNull(i)?.let { zazeni(it) } }
+        mreza.setOnItemClickListener { _, v, i, _ -> vidni.getOrNull(i)?.let { zazeni(it, v) } }
         // Dolg pritisk OK: na domaci zaslon ali z njega, program z racunalnika pa se da tudi zapreti.
         mreza.setOnItemLongClickListener { _, _, i, _ ->
             vidni.getOrNull(i)?.let { moznosti(it) }
@@ -191,7 +191,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         krajevni = novi
         narisiSkupine()
         osveziSeznam()
-        if (prvi) { mreza.requestFocus(); mreza.setSelection(0) }
+        if (prvi && !premaknil) { mreza.requestFocus(); mreza.setSelection(0) }
     }
 
     /**
@@ -286,7 +286,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             oddaljeni = novi
             narisiSkupine()
             osveziSeznam()
-            if (prvi) { mreza.requestFocus(); mreza.setSelection(0) }
+            if (prvi && !premaknil) { mreza.requestFocus(); mreza.setSelection(0) }
             val skupaj = podatki.optInt("total", novi.size)
             val prejeto = polje?.length() ?: 0
             val tega = novi.count { it.racunalnik == r.id }
@@ -387,8 +387,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 izbranaSkupina = ""
                 narisiSkupine()
                 osveziSeznam()
-                viriVrsta?.let { r -> (0 until r.childCount).map { r.getChildAt(it) }.firstOrNull { it.isActivated } }
-                    ?.requestFocus()
+                obdrziFokusNaCipu()
             }
             vrsta.addView(g)
         }
@@ -418,8 +417,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 izbranaSkupina = ""
                 narisiSkupine()
                 osveziSeznam()
-                viriVrsta?.let { r -> (0 until r.childCount).map { r.getChildAt(it) }.firstOrNull { it.isActivated } }
-                    ?.requestFocus()
+                obdrziFokusNaCipu()
             }
             g.setOnFocusChangeListener { _, ima -> if (ima) (drsnik as HorizontalScrollView).requestChildRectangleOnScreen(g, android.graphics.Rect(0, 0, g.width, g.height), false) }
             vrsta.addView(g)
@@ -443,6 +441,24 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         mere.marginEnd = (8 * resources.displayMetrics.density).toInt()
         t.layoutParams = mere
         return t
+    }
+
+    /**
+     * Po izbiri vira ali naprave ostane fokus na izbranem cipu. Vrsta se ravnokar na novo izrise in
+     * fokus je sicer skocil na prvo ploscico - ze naslednji OK je odprl aplikacijo, ki je uporabnik
+     * ni izbral (21. 9. 2026: brskalnik). Zato fokus postavimo sele, ko je nova vrsta na zaslonu.
+     */
+    private fun obdrziFokusNaCipu() {
+        val r = viriVrsta ?: return
+        r.post { (0 until r.childCount).map { r.getChildAt(it) }.firstOrNull { it.isActivated }?.requestFocus() }
+    }
+
+    /** Uporabnik je ze pritisnil tipko: nalaganje mu ne sme vec premikati fokusa in izbire. */
+    private var premaknil = false
+
+    override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        if (dogodek.action == KeyEvent.ACTION_DOWN) premaknil = true
+        return super.dispatchKeyEvent(dogodek)
     }
 
     private fun gumbSkupine(kljuc: String, ime: String, koliko: Int): View {
@@ -577,9 +593,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             })
     }
 
-    private fun zazeni(p: SafeerApp) {
+    private fun zazeni(p: SafeerApp, izvor: android.view.View? = null) {
         when (p.vir) {
-            AppVir.TV -> p.namera?.let { odpriVarno(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), p.ime) }
+            AppVir.TV -> p.namera?.let {
+                odpriVarno(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), p.ime, izPloscice(izvor))
+            }
             AppVir.SPLET -> {
                 Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = p.ime, url = p.cilj))
                 odpriVarno(Brskalnik.spletnaAplikacija(this, p.cilj, p.ime), p.ime)
@@ -589,9 +607,9 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Odpiranje, ki ne utihne: ce ne gre, povemo zakaj in ponudimo ponovni poskus. */
-    private fun odpriVarno(namera: Intent, ime: String) {
+    private fun odpriVarno(namera: Intent, ime: String, moznosti: android.os.Bundle? = null) {
         try {
-            startActivity(namera)
+            startActivity(namera, moznosti)
         } catch (e: Throwable) {
             val razlog = when (e) {
                 is android.content.ActivityNotFoundException -> getString(R.string.os_odpri_ni_aplikacije)

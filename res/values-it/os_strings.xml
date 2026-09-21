@@ -10,7 +10,7 @@
     <string name="os_pravno">Note legali e informazioni</string>
     <string name="os_pravno_opis">Licenza, responsabilità e come è stato creato</string>
     <string name="os_pravno_besedilo">Safeer OS %1$s (%2$s)\n\nLICENZA. Safeer è software open source con licenza Apache 2.0 ed è fornito «così com’è», senza garanzia.\n\nRESPONSABILITÀ. Sei responsabile dell’uso che fai di Safeer e dei contenuti a cui accedi o che apri con esso. L’autore non risponde dei danni derivanti dall’uso. Safeer Shield, BankGuard e gli elenchi di minacce sono un aiuto, non una garanzia: possono non vedere una pagina pericolosa e talvolta bloccarne una sicura.\n\nINTELLIGENZA ARTIFICIALE. Nello sviluppo di questo software è stata usata l’intelligenza artificiale. Il codice può quindi essere errato o incompleto; ogni versione viene testata, ma gli errori non si possono escludere. Il codice sorgente è pubblico: github.com/safeerOS</string>
-    <string name="os_odsek_aplikacije">App su questo televisore</string>
+    <string name="os_odsek_aplikacije">App di Safeer OS</string>
     <string name="os_splet">Web</string>
     <string name="os_datoteke">File</string>
     <string name="os_link">Safeer Link</string>
