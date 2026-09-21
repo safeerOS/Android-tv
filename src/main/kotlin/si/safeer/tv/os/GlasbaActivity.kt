@@ -583,7 +583,13 @@ class GlasbaActivity : OsActivity() {
             }
             addView(slika, FrameLayout.LayoutParams(-1, -1))
         }
-        telo.addView(okvir, LinearLayout.LayoutParams(dp(104), dp(104)))
+        // Naslovnica je visoka kot stolpec z besedilom in tipkami ob njej (kvadrat): cim vecja,
+        // plosca pa zaradi nje ne zraste - prostor za vrste spodaj ostane (izmerjeno 21. 9. 2026).
+        okvir.addOnLayoutChangeListener { v, _, t, _, b, _, _, _, _ ->
+            val h = b - t
+            if (h > 0 && v.layoutParams.width != h) v.post { v.layoutParams = LinearLayout.LayoutParams(h, -1); v.requestLayout() }
+        }
+        telo.addView(okvir, LinearLayout.LayoutParams(dp(104), -1))
         val desno = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), 0, 0, 0) }
         desno.addView(besedilo(11f, getColor(R.color.os_mint), true).apply { text = oznaka.uppercase(Locale.getDefault()); letterSpacing = 0.08f })
         pIzvajalec = besedilo(14f, getColor(R.color.os_umirjeno)).also { desno.addView(it) }
