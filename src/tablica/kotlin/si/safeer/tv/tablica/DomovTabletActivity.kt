@@ -199,6 +199,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         mAplikacije?.setOnClickListener {
             odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.tablet_programi))
         }
+        // Zaslon in Splet sta kartici na domacem zaslonu; v stranski vrstici bi ju podvojila.
+        mZaslon?.visibility = View.GONE
+        mSplet?.visibility = View.GONE
         mZaslon?.setOnClickListener {
             val r = racunalnik("desktop")
             if (r != null) {
@@ -256,15 +259,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         karticaBrskalnik?.setOnClickListener {
             odpriVBrskalniku(null)
         }
-        karticaZaslon?.setOnClickListener {
-            val r = racunalnik("desktop")
-            if (r != null) {
-                val namera = Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
-                odpriVarno(namera, getString(R.string.tablet_zaslon))
-            } else {
-                pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
-            }
-        }
+        karticaZaslon?.setOnClickListener { odpriZaslon() }
+        // Hitri dostop je ponavljal kartice in stransko vrstico (Splet, Zaslon, Datoteke, Nastavitve).
+        ploscaHitri?.visibility = View.GONE
         // Isto vsebino odpre Aplikacije v stranski vrstici - druga kartica ali "Prikazi vse" bi jo podvojila.
         karticaProgrami?.visibility = View.GONE
         gumbVseAplikacije?.visibility = View.GONE
@@ -438,6 +435,27 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     // ------------------------------------------------------------------ Prikaz vsebine in stanja
+
+    /**
+     * Povezani zasloni: ena naprava, ki deli zaslon, se odpre takoj; kadar jih je vec, uporabnik
+     * izbere, katero gleda na tablici.
+     */
+    private fun odpriZaslon() {
+        val naprave = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        fun odpri(r: LinkOdjemalec.Naprava) {
+            odpriVarno(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id),
+                getString(R.string.tablet_zaslon))
+        }
+        when (naprave.size) {
+            0 -> pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
+            1 -> odpri(naprave[0])
+            else -> AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.tablet_zaslon))
+                .setItems(naprave.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i -> odpri(naprave[i]) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
 
     private fun racunalnik(zmoznost: String): LinkOdjemalec.Naprava? =
         link.naprave.firstOrNull { it.zmoznosti.contains(zmoznost) && it.id != Identiteta.id(this) }
