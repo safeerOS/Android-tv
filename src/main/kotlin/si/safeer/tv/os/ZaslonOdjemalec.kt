@@ -111,6 +111,9 @@ class ZaslonOdjemalec(
             val fps = glava.optInt("fps", 30)
             kodek = pripraviKodek(surface, sirina, visina, fps)
             glava.optJSONObject("zvok")?.let { zvocnik = pripraviZvok(it.optInt("hz", 48000), it.optInt("kanali", 2)) }
+            // Slika in zvok tecejo ves cas (tudi med pavzo). Ce 10 s ne pride nic, povezave ni vec
+            // (izpad Wi-Fi ne zapre vticnice) - branje pade in seja se vrne sama, namesto zamrznjene slike.
+            s.soTimeout = TISINA_MS
             naStanje(Stanje.TECE, "")
             crpaj(vhod, kodek, sirina, visina)
             naStanje(Stanje.KONCANO, "")
@@ -292,6 +295,8 @@ class ZaslonOdjemalec(
     }
 
     private companion object {
+        /** Najdaljsa tisina povezave, preden jo razglasimo za prekinjeno. */
+        const val TISINA_MS = 10_000
         const val TAG = "SafeerOsZaslon"
         /** Vrsti okvirjev; morata biti enaki kot v core/link_zaslon.py. */
         const val OKVIR_SLIKA = 1
