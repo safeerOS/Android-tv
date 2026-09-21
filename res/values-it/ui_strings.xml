@@ -147,4 +147,7 @@
     <string name="ui_aplikacija_dodana">%1$s aggiunto a Safeer OS</string>
     <string name="ui_aplikacija_ze_dodana">%1$s è già in Safeer OS</string>
     <string name="ui_aplikacija_ni_strani">Apri prima una pagina, poi aggiungila</string>
+    <string name="ui_link_zagon_odpri">Apri %1$s</string>
+    <string name="ui_link_zagon_pretok">Condividi lo schermo e apri %1$s sul computer</string>
+    <string name="ui_link_zagon_tapni">Safeer Link · tocca per continuare</string>
 </resources>

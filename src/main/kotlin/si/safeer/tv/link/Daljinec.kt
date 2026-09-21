@@ -256,7 +256,7 @@ object Daljinec {
         } catch (_: Throwable) { paket }
         val namera = PretociActivity.namera(context, cilj, paket)
         try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Pretakanja ni bilo mogoce zaceti: ${e.message}") }
-        prebudiZNamero(context, namera, ime)
+        prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_pretok)
         return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
             JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
     }
@@ -264,7 +264,19 @@ object Daljinec {
     private const val KANAL_ZAGON = "safeer_link_zagon"
     private const val OBVESTILO_ZAGON = 4046
 
-    private fun prebudiZNamero(context: Context, namera: Intent, ime: String) {
+    /** Obvestilo za zagon ni vec potrebno (dejavnost se je odprla neposredno). */
+    fun pospraviObvestiloZagona(context: Context) {
+        try {
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).cancel(OBVESTILO_ZAGON)
+        } catch (_: Throwable) {}
+    }
+
+    /**
+     * Ce Android zagon iz ozadja zavrne (Android 10+, strozje od 14), uporabnik tapne to obvestilo. Zato
+     * pove, kaj se bo zgodilo, ne samo ime aplikacije.
+     */
+    private fun prebudiZNamero(context: Context, namera: Intent, ime: String,
+                               besedilo: Int = si.safeer.tv.R.string.ui_link_zagon_odpri) {
         try {
             val upravitelj = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             if (upravitelj.getNotificationChannel(KANAL_ZAGON) == null) {
@@ -278,8 +290,9 @@ object Daljinec {
             val cakajoca = PendingIntent.getActivity(context, OBVESTILO_ZAGON, namera, zastavice)
             val gradnik = android.app.Notification.Builder(context, KANAL_ZAGON)
             val obvestilo = gradnik
-                .setContentTitle("Safeer Link")
-                .setContentText(ime)
+                .setContentTitle(si.safeer.tv.UiText.get(besedilo, ime).ifBlank { context.getString(besedilo, ime) })
+                .setContentText(si.safeer.tv.UiText.get(si.safeer.tv.R.string.ui_link_zagon_tapni)
+                    .ifBlank { context.getString(si.safeer.tv.R.string.ui_link_zagon_tapni) })
                 .setSmallIcon(android.R.drawable.ic_menu_send)
                 .setContentIntent(cakajoca)
                 .setFullScreenIntent(cakajoca, true)
