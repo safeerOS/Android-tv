@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS: zaslon Glasba (GlasbaActivity, GlasbaStoritev). -->
+<resources>
+    <string name="os_meni_glasba">Musik</string>
+    <string name="os_glasba_naslov">Musik</string>
+    <string name="os_glasba_podnaslov">Unabhängige Künstler von Jamendo ohne Werbung · Internetradio</string>
+    <string name="os_glasba_priljubljeno">Beliebt</string>
+    <string name="os_glasba_radio">Radio</string>
+    <string name="os_glasba_iskanje">Suche</string>
+    <string name="os_glasba_isci_namig">Name des Künstlers</string>
+    <string name="os_glasba_isci_navodilo">Gib den Namen eines Künstlers ein und drücke Suchen.</string>
+    <string name="os_glasba_nalagam">Wird geladen …</string>
+    <string name="os_glasba_napaka">Musik konnte nicht geladen werden. Prüfe die Verbindung und versuche es erneut.</string>
+    <string name="os_glasba_prazno">Nichts gefunden.</string>
+    <string name="os_glasba_izvajalci">Künstler: %1$d</string>
+    <string name="os_glasba_izvajalec">Künstler</string>
+    <string name="os_glasba_od_izvajalca">%1$s · meistgehört zuerst</string>
+    <string name="os_glasba_radiji">Internetradio · meistgehörte Sender, lokale zuerst</string>
+    <string name="os_glasba_po_priljubljenosti">Meistgehört zuerst</string>
+    <string name="os_glasba_vir">Jamendo · %1$s</string>
+    <string name="os_glasba_namig">OK spielt ab · OK auf der Leiste unten: Pause · OK halten: Stopp · Musik läuft weiter, wenn du den Bildschirm verlässt</string>
+</resources>
