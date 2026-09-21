@@ -21,6 +21,25 @@ class ChromiumEngineView @JvmOverloads constructor(
 ) : WebView(context, attrs, defStyleAttr) {
 
     companion object {
+        /**
+         * Cas zadnje tipke daljinca (tudi ukazov s telefona, ki gredo skozi dispatchKeyEvent). Most
+         * `triggerNativeTap` je dosegljiv vsaki strani; brez te meje bi stran sama sprozila prave
+         * dotike (npr. na gumb v tujem iframu). Dovolimo en dotik kratko po tipki.
+         */
+        @Volatile private var zadnjaTipka = 0L
+        private const val DOTIK_PO_TIPKI_MS = 1500L
+
+        fun oznaciTipko() { zadnjaTipka = SystemClock.uptimeMillis() }
+
+        /** En dotik na tipko: po uporabi se dovoljenje porabi. */
+        @Synchronized
+        internal fun porabiDotik(): Boolean {
+            val t = zadnjaTipka
+            if (t == 0L || SystemClock.uptimeMillis() - t > DOTIK_PO_TIPKI_MS) return false
+            zadnjaTipka = 0L
+            return true
+        }
+
 
         const val MOBILE_USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36"
         const val DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
@@ -201,7 +220,9 @@ class ChromiumEngineView @JvmOverloads constructor(
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
-            allowFileAccess = true
+            // Brskalnik sprejema naslove od drugod (Link, telefon): dostop do datotecnega sistema ostane
+            // izklopljen. Nase strani v file:///android_asset delujejo tudi tako (WebSettings.setAllowFileAccess).
+            allowFileAccess = false
             allowContentAccess = true
             mediaPlaybackRequiresUserGesture = false
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
@@ -405,11 +426,12 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         @android.webkit.JavascriptInterface
         fun getStats(): String {
+            // Samo resnicne stevilke; ocena prihranka enaka kot na telefonu (45 KB na oglas, 120 KB na groznjo).
             val ads = AdBlockEngine.blockedAdsCount.get()
             val threats = ThreatBlockEngine.totalBlockedThreats.get()
-            val dataMb = String.format(java.util.Locale.US, "%.1f", ((ads * 140L + threats * 220L) / 1024.0 / 1024.0) + 21.4)
-            val timeMin = String.format(java.util.Locale.US, "%.1f", ((ads * 1.4 + threats * 2.0) / 60.0) + 1.6)
-            return "{\"ads\": ${ads + 1430}, \"threats\": $threats, \"dataMb\": \"$dataMb MB\", \"timeMin\": \"$timeMin min\"}"
+            val dataMb = String.format(java.util.Locale.US, "%.1f", (ads * 45L + threats * 120L) / 1024.0)
+            val timeMin = String.format(java.util.Locale.US, "%.1f", (ads * 1.0 + threats * 1.5) / 60.0)
+            return "{\"ads\": $ads, \"threats\": $threats, \"dataMb\": \"$dataMb MB\", \"timeMin\": \"$timeMin min\"}"
         }
 
         @android.webkit.JavascriptInterface
@@ -471,6 +493,10 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         @android.webkit.JavascriptInterface
         fun triggerNativeTap(x: Float, y: Float) {
+            if (!porabiDotik()) {
+                android.util.Log.w("SafeerBridge", "Zavrnjen triggerNativeTap brez tipke daljinca.")
+                return
+            }
             (context as? android.app.Activity)?.runOnUiThread {
                 try {
                     val scale = webView.scale

@@ -2672,6 +2672,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal var lastCenterClickTime: Long = 0L
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) ChromiumEngineView.oznaciTipko()
         return keyRouter.dispatch(event)
     }
 
