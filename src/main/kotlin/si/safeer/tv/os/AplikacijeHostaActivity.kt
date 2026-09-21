@@ -80,6 +80,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Koliko programov (z ikonami) prosimo naenkrat; en kos mora ostati krepko pod 256 kB. */
     private val STRAN = 18
+    /** Kosi seznama naprave, ki se se nalaga; v mrezo gre sele cel seznam naenkrat. */
+    private val zbiram = HashMap<String, ArrayList<SafeerApp>>()
 
     private fun zVirom(v: AppVir) = nacin == "vse" || nacin == v.kljuc
 
@@ -94,6 +96,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.os_activity_programi)
         nacin = intent.getStringExtra(EXTRA_VIR) ?: AppVir.RACUNALNIK.kljuc
+        spremljajSpomin(applicationContext)
         mreza = findViewById(R.id.mreza)
         naslov = findViewById(R.id.naslov)
         nadnaslov = findViewById(R.id.nadnaslov)
@@ -173,6 +176,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onStart()
         Ozadje.uporabi(this, findViewById(R.id.koren))
         link.dodaj(this)
+        if (zVirom(AppVir.RACUNALNIK)) izShrambe()
         naloziKrajevne()
         if (zVirom(AppVir.RACUNALNIK)) nalozi()
     }
@@ -187,11 +191,18 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val novi = ArrayList<SafeerApp>()
         if (zVirom(AppVir.TV)) novi.addAll(SafeerAppi.naTelevizorju(this))
         if (zVirom(AppVir.SPLET)) novi.addAll(SafeerAppi.spletne(this))
-        val prvi = programi.isEmpty() && novi.isNotEmpty()
-        krajevni = novi
-        narisiSkupine()
-        osveziSeznam()
-        if (prvi && !premaknil) { mreza.requestFocus(); mreza.setSelection(0) }
+        // Na zaslonu vseh aplikacij bi aplikacije televizorja prisle prve, cez trenutek pa bi jih
+        // seznami naprav po abecedi razmetali. Kadar naprave so in njihovih seznamov se nimamo,
+        // pocakamo nanje (najdlje CAKAJ_DRUGE_MS) in narisemo vse naenkrat - kot na zaslonu Programi.
+        if (nacin == "vse" && oddaljeni.isEmpty() && napraveSProgrami().isNotEmpty()) {
+            krajevni = novi
+            zadrzano = true
+            pokaziSporocilo(getString(R.string.os_programi_nalagam))
+            mreza.removeCallbacks(izprazni)
+            mreza.postDelayed(izprazni, CAKAJ_DRUGE_MS)
+            return
+        }
+        prerisi { krajevni = novi }
     }
 
     /**
@@ -254,22 +265,29 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (isFinishing) return@Odgovor
             if (izid == null || !izid.optBoolean("ok")) {
                 nalozene.add(r.id)
+                zbiram.remove(r.id)
                 // Napaka ene naprave ne sme prekriti ostalih.
                 if (oddaljeni.none { it.racunalnik == r.id }) {
                     imenaNaprav.remove(r.id)
                     koncajSSporocilom(getString(R.string.os_programi_napaka,
                         izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() }))
                 }
+                if (nalagam.isEmpty()) izprazniCakajoce()
                 return@Odgovor
             }
             val podatki = izid.optJSONObject("data") ?: JSONObject()
             if (!podatki.optBoolean("enabled", false)) {
                 nalozene.add(r.id)
+                zbiram.remove(r.id)
+                shramba.remove(r.id)
+                if (oddaljeni.any { it.racunalnik == r.id }) prerisi { oddaljeni = oddaljeni.filter { it.racunalnik != r.id } }
                 imenaNaprav.remove(r.id)
-                koncajSSporocilom(getString(R.string.os_programi_izklopljeno, r.ime.ifBlank { r.id })); return@Odgovor
+                koncajSSporocilom(getString(R.string.os_programi_izklopljeno, r.ime.ifBlank { r.id }))
+                if (nalagam.isEmpty()) izprazniCakajoce()
+                return@Odgovor
             }
             val polje = podatki.optJSONArray("items")
-            val novi = ArrayList<SafeerApp>(oddaljeni)
+            val novi = zbiram.getOrPut(r.id) { ArrayList() }
             if (polje != null) for (i in 0 until polje.length()) {
                 val o = polje.optJSONObject(i) ?: continue
                 val id = o.optString("id"); if (id.isBlank()) continue
@@ -282,22 +300,90 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 novi.add(SafeerApp(kljuc, o.optString("name").ifBlank { id }, o.optString("comment"),
                     skupina, ikona(png), AppVir.RACUNALNIK, id, r.id))
             }
-            val prvi = programi.isEmpty() && novi.isNotEmpty()
-            oddaljeni = novi
-            narisiSkupine()
-            osveziSeznam()
-            if (prvi && !premaknil) { mreza.requestFocus(); mreza.setSelection(0) }
             val skupaj = podatki.optInt("total", novi.size)
             val prejeto = polje?.length() ?: 0
-            val tega = novi.count { it.racunalnik == r.id }
-            when {
-                !android && tega < skupaj && prejeto > 0 -> naloziStran(r, od + prejeto)
-                else -> {
-                    nalozene.add(r.id)
-                    if (programi.isEmpty() && nalagam.isEmpty()) pokaziSporocilo(getString(R.string.os_programi_prazno))
-                }
-            }
+            if (!android && novi.size < skupaj && prejeto > 0) { naloziStran(r, od + prejeto); return@Odgovor }
+            zbiram.remove(r.id)
+            nalozene.add(r.id)
+            objavi(r.id, novi)
+            if (programi.isEmpty() && nalagam.isEmpty()) pokaziSporocilo(getString(R.string.os_programi_prazno))
         })
+    }
+
+    /**
+     * Cel seznam ene naprave gre v mrezo naenkrat. Prej je vsak kos (18 programov) mrezo na novo
+     * razvrstil in na novo narisal skupine - zaslon se je nekaj sekund premikal pod uporabnikom
+     * (21. 9. 2026). Enak seznam, kot ga ze kazemo (iz shrambe), mreze sploh ne premakne.
+     */
+    private fun objavi(naprava: String, seznam: List<SafeerApp>) {
+        val predpona = "racunalnik:$naprava:"
+        shramba[naprava] = Shranjeno(imenaNaprav[naprava].orEmpty(), naprava in androidNaprave,
+            ArrayList(seznam), ikonePng.filterKeys { it.startsWith(predpona) })
+        val prej = oddaljeni.filter { it.racunalnik == naprava }
+        if (enako(prej, seznam)) { if (nalagam.isEmpty()) izprazniCakajoce(); return }
+        cakajoce[naprava] = seznam
+        if (nalagam.isEmpty()) izprazniCakajoce()
+        else { mreza.removeCallbacks(izprazni); mreza.postDelayed(izprazni, CAKAJ_DRUGE_MS) }
+    }
+
+    /**
+     * Seznami naprav, ki so ze prisli, medtem ko se druge se nalagajo. Vsaka naprava je mrezo
+     * razvrstila na novo (racunalnik, nato tablica, nato telefon) - zaslon je poskocil enkrat za
+     * vsako napravo. Zdaj gredo vse v mrezo z enim izrisom; najdlje [CAKAJ_DRUGE_MS] za pocasno.
+     */
+    private val cakajoce = LinkedHashMap<String, List<SafeerApp>>()
+    private val izprazni = Runnable { izprazniCakajoce() }
+    /** Aplikacije televizorja so nalozene, a se niso narisane (cakajo na naprave). */
+    private var zadrzano = false
+
+    private fun izprazniCakajoce() {
+        mreza.removeCallbacks(izprazni)
+        if ((cakajoce.isEmpty() && !zadrzano) || isFinishing) return
+        zadrzano = false
+        val prispele = LinkedHashMap(cakajoce)
+        cakajoce.clear()
+        prerisi { oddaljeni = oddaljeni.filter { it.racunalnik !in prispele.keys } + prispele.values.flatten() }
+    }
+
+    private fun enako(a: List<SafeerApp>, b: List<SafeerApp>): Boolean {
+        if (a.size != b.size) return false
+        val po = a.associateBy { it.kljuc }
+        return b.all { n -> po[n.kljuc]?.let { it.ime == n.ime && it.skupina == n.skupina && it.opis == n.opis } == true }
+    }
+
+    /**
+     * Sprememba seznama med gledanjem: izbira ostane na isti aplikaciji in fokus na istem cipu -
+     * nic ne skoci pod prstom. Pred prvim premikom pa se fokus postavi na prvo aplikacijo.
+     */
+    private fun prerisi(spremeni: () -> Unit) {
+        val bilPrazen = vidni.isEmpty()
+        val izbran = if (mreza.hasFocus()) vidni.getOrNull(mreza.selectedItemPosition)?.kljuc else null
+        val fokus = currentFocus
+        val vrsta = fokus?.parent?.takeIf { it === skupineVrsta || it === viriVrsta } as? ViewGroup
+        spremeni()
+        narisiSkupine()
+        osveziSeznam()
+        when {
+            izbran != null -> vidni.indexOfFirst { it.kljuc == izbran }.takeIf { it >= 0 }?.let { mreza.setSelection(it) }
+            vrsta != null -> vrsta.post {
+                (0 until vrsta.childCount).map { vrsta.getChildAt(it) }.firstOrNull { it.isActivated }?.requestFocus()
+            }
+            bilPrazen && programi.isNotEmpty() && !premaknil -> { mreza.requestFocus(); mreza.setSelection(0) }
+        }
+    }
+
+    /** Zadnji seznami naprav, ki so zdaj v Linku: mreza je ob odprtju takoj cela. */
+    private fun izShrambe() {
+        val naprave = napraveSProgrami().map { it.id }.toSet()
+        val iz = ArrayList<SafeerApp>()
+        for ((id, s) in shramba) {
+            if (id !in naprave || oddaljeni.any { it.racunalnik == id }) continue
+            imenaNaprav[id] = s.ime.ifBlank { id }
+            if (s.android) androidNaprave.add(id)
+            ikonePng.putAll(s.ikone)
+            iz.addAll(s.aplikacije)
+        }
+        if (iz.isNotEmpty()) oddaljeni = oddaljeni + iz
     }
 
     /** Napaka sredi nalaganja: ce smo kaj ze pokazali, pustimo to in samo povemo, kaj je slo narobe. */
@@ -370,25 +456,37 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun narisiVire() {
         if (nacin == AppVir.RACUNALNIK.kljuc) { narisiNaprave(); return }
         if (nacin != "vse") return
-        val prisotni = AppVir.values().filter { v -> programi.any { it.vir == v } }
+        // Vir in naprava v enem: "Racunalnik" je prej zdruzil vse naprave (racunalnik, tablico,
+        // telefon) - uporabnik ni vedel, kaj je kje. Zdaj ima vsaka naprava svoj cip, kot na Programih.
+        val izbire = ArrayList<Pair<AppVir?, String?>>()
+        izbire.add(null to null)
+        for (v in listOf(AppVir.TV, AppVir.SPLET)) if (programi.any { it.vir == v }) izbire.add(v to null)
+        for (id in imenaNaprav.keys) if (oddaljeni.any { it.racunalnik == id }) izbire.add(AppVir.RACUNALNIK to id)
         val vrsta = findViewById<LinearLayout>(R.id.naprave)
         val drsnik = findViewById<View>(R.id.napraveDrsnik)
         viriVrsta = vrsta
         vrsta.removeAllViews()
-        if (prisotni.size < 2) { drsnik.visibility = View.GONE; izbraniVir = null; return }
+        if (izbire.size < 3) { drsnik.visibility = View.GONE; izbraniVir = null; izbranaNaprava = null; return }
         drsnik.visibility = View.VISIBLE
-        if (izbraniVir != null && izbraniVir !in prisotni) izbraniVir = null
-        for (v in listOf<AppVir?>(null) + prisotni) {
-            val n = if (v == null) programi.size else programi.count { it.vir == v }
-            val g = gumb(getString(R.string.os_skupina_s_stevilom, imeVira(v), n), v == izbraniVir)
+        if ((izbraniVir to izbranaNaprava) !in izbire) { izbraniVir = null; izbranaNaprava = null }
+        for ((v, id) in izbire) {
+            val n = when {
+                v == null -> programi.size
+                id != null -> oddaljeni.count { it.racunalnik == id }
+                else -> programi.count { it.vir == v }
+            }
+            val ime = if (id != null) imenaNaprav[id].orEmpty() else imeVira(v)
+            val g = gumb(getString(R.string.os_skupina_s_stevilom, ime, n), v == izbraniVir && id == izbranaNaprava)
             g.setOnClickListener {
-                if (izbraniVir == v) return@setOnClickListener
+                if (izbraniVir == v && izbranaNaprava == id) return@setOnClickListener
                 izbraniVir = v
+                izbranaNaprava = id
                 izbranaSkupina = ""
                 narisiSkupine()
                 osveziSeznam()
                 obdrziFokusNaCipu()
             }
+            g.setOnFocusChangeListener { _, ima -> if (ima) (drsnik as HorizontalScrollView).requestChildRectangleOnScreen(g, android.graphics.Rect(0, 0, g.width, g.height), false) }
             vrsta.addView(g)
         }
     }
@@ -738,6 +836,29 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         const val EXTRA_VIR = "vir"
         /** Oznaka skupine za program, ki svoje kategorije nima (ista beseda kot v core/link_programi.py). */
         private const val DRUGO = "drugo"
+        /** Koliko najdlje pocakamo pocasnejso napravo, preden mrezo izrisemo brez nje. */
+        private const val CAKAJ_DRUGE_MS = 2000L
+
+        /** Zadnji cel seznam vsake naprave, dokler tece proces (nekaj MB ikon). */
+        private class Shranjeno(val ime: String, val android: Boolean, val aplikacije: List<SafeerApp>,
+                                val ikone: Map<String, String>)
+        private val shramba = HashMap<String, Shranjeno>()
+        private var spominSpremljam = false
+
+        /** Ko sistemu zmanjkuje spomina, shrambo spustimo - seznam se takrat nalozi znova. */
+        private fun spremljajSpomin(ctx: android.content.Context) {
+            if (spominSpremljam) return
+            spominSpremljam = true
+            ctx.registerComponentCallbacks(object : android.content.ComponentCallbacks2 {
+                override fun onTrimMemory(raven: Int) {
+                    if (raven == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+                        raven == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+                        raven >= android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE) shramba.clear()
+                }
+                override fun onConfigurationChanged(c: android.content.res.Configuration) { }
+                override fun onLowMemory() { shramba.clear() }
+            })
+        }
 
         /** Groba skupina aplikacije z Androida po imenu paketa (tuja naprava kategorije ne poslje). */
         fun skupinaPaketa(paket: String): String {
