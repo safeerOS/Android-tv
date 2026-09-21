@@ -299,8 +299,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         intent?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA)?.let { naslov ->
             val ime = intent.getStringExtra(EXTRA_APLIKACIJA_IME).orEmpty()
+            val ozadje = intent.getBooleanExtra(EXTRA_ZVOK_V_OZADJU, false)
             intent.removeExtra(EXTRA_SPLETNA_APLIKACIJA)
-            webViewContainer.post { vklopiNacinAplikacije(naslov, ime) }
+            webViewContainer.post { zvokVOzadju = ozadje; vklopiNacinAplikacije(naslov, ime) }
         }
         zapomniIzvor(intent)
     }
@@ -312,8 +313,18 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      */
     private fun zapomniIzvor(namera: Intent?) {
         val paket = namera?.getStringExtra(EXTRA_IZ_SAFEER_OS)
-        if (!paket.isNullOrBlank()) izSafeerOs = paket
+        if (!paket.isNullOrBlank()) {
+            izSafeerOs = paket
+            ohraniMestoVOs = namera?.getBooleanExtra(EXTRA_OS_OHRANI_MESTO, false) == true
+        }
     }
+
+    /**
+     * Brskalnik je odprl zaslon globlje v Safeer OS (Safeer Media): ob izhodu se vrnemo tja, ne na
+     * zacetni zaslon (21. 9. 2026: Nazaj z Googla ali spletnega vira je vrglo iz Safeer Media).
+     */
+    private var ohraniMestoVOs = false
+    private val EXTRA_OS_OHRANI_MESTO = "os_ohrani_mesto"
 
     /** Safeer OS je odprl stran Link: zapomnimo si, da mora biti videti in se obnasati kot del sistema. */
     private fun zapomniLinkIzOs(namera: Intent) {
@@ -343,7 +354,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** Konec brskanja: nazaj v Safeer OS, ce je brskalnik odprl on; sicer navaden konec. */
     private fun koncajVrniSe() {
         val paket = izSafeerOs
-        if (paket != null && paket != packageName) {
+        // Iz Safeer Media: samo koncamo - Android vrne na zaslon, ki nas je odprl. Zacetni zaslon
+        // Safeer OS bi (ker je en sam v nalogi) pobrisal vse nad sabo, tudi Safeer Media.
+        if (paket != null && paket != packageName && !ohraniMestoVOs) {
             try {
                 startActivity(Intent()
                     .setComponent(android.content.ComponentName(paket, "si.safeer.tv.os.DomovActivity"))
@@ -381,7 +394,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             // zacetku zapre aplikacijo in ne pripelje na domaco stran brskalnika.
             // Nadaljujemo, kjer je uporabnik koncal (ce je bil tam pred kratkim); sicer zacetna stran.
             val zacetni = try { si.safeer.tv.os.SpletneAplikacije.nadaljevanje(this, naslov) } catch (_: Throwable) { naslov }
-            zavihekAplikacije = try { tabManager.createTab(this, zacetni, true).id } catch (_: Throwable) { null }
+            zavihekAplikacije = try {
+                tabManager.createTab(this, zacetni, true).also { t ->
+                    // Vir iz Safeer Media: stran kot na racunalniku (sirina 1280), pomanjsana na zaslon.
+                    // Skripta velja od naslednjega nalaganja, zato prvo nalaganje ponovimo.
+                    if (zvokVOzadju) { t.webView.namiznaSirina = 1280; t.webView.loadUrl(zacetni) }
+                }.id
+            } catch (_: Throwable) { null }
             if (zavihekAplikacije == null) odpriVZavihku(zacetni)
             activeWebView()?.requestFocus()
         }, 350)
@@ -419,6 +438,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val bila = nacinAplikacije ?: return
         zapomniMestoAplikacije(bila)
         nacinAplikacije = null
+        zvokVOzadju = false
         zavihekAplikacije?.let { id ->
             zavihekAplikacije = null
             try { tabManager.closeTab(this, id) } catch (_: Throwable) { }
@@ -430,6 +450,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var wakeLock: android.os.PowerManager.WakeLock? = null
     private var debugJsReceiver: android.content.BroadcastReceiver? = null
     private var webViewsPaused = false
+    /**
+     * Stran iz Safeer OS Medijev (uporabnikov vir glasbe ali videa): ko uporabnik pritisne Domov,
+     * zvok strani igra naprej v ozadju (proces drzi storitev v ospredju, budnost drzimo mi).
+     * Nazaj stran zapre in s tem tudi zvok. Velja samo za tak nacin aplikacije.
+     */
+    private var zvokVOzadju = false
     /** Stevec utisanj: zakasnjeni onPause pogleda velja le, ce vmes ni bilo onResume. */
     private var generacijaUtisanja = 0
     private var globalOsdView: TextView? = null
@@ -473,6 +499,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var linkOsVrni: String? = null
     /** Dodatka, s katerima Safeer OS odpre spletno aplikacijo cez ves zaslon. */
     private val EXTRA_SPLETNA_APLIKACIJA = "spletna_aplikacija"
+    private val EXTRA_ZVOK_V_OZADJU = "zvok_v_ozadju"
     private val EXTRA_APLIKACIJA_IME = "aplikacija_ime"
     private val SPANJE_AKTIVNEGA_MS = 10 * 60 * 1000L
     private var naZaslonu = true
@@ -592,6 +619,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     private fun silenceBackgroundMedia(reason: String) {
         if (!::tabManager.isInitialized) return
+        // Vir iz Medijev: ob odhodu na Domov (onPause/onStop) stran igra naprej; Nazaj jo ustavi.
+        if (zvokVOzadju && nacinAplikacije != null && (reason == "onPause" || reason == "onStop")) {
+            acquireWakeLock()
+            return
+        }
         val tabs = tabManager.getAllTabs()
         // #region agent log
         SafeerDbg.log(
@@ -759,7 +791,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             try {
                 tabManager.uspavajVOzadju(tudiAktivni = false)
                 mainHandler.removeCallbacks(spanjeAktivnega)
-                mainHandler.postDelayed(spanjeAktivnega, SPANJE_AKTIVNEGA_MS)
+                // Stran, ki igra v ozadju, ne sme zaspati.
+                if (!zvokVOzadju) mainHandler.postDelayed(spanjeAktivnega, SPANJE_AKTIVNEGA_MS)
             } catch (_: Exception) {}
         }
         super.onStop()
@@ -849,8 +882,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val spletna = intent?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA)
         if (spletna != null) {
             val ime = intent.getStringExtra(EXTRA_APLIKACIJA_IME).orEmpty()
+            val ozadje = intent.getBooleanExtra(EXTRA_ZVOK_V_OZADJU, false)
             intent.removeExtra(EXTRA_SPLETNA_APLIKACIJA)
-            webViewContainer.post { vklopiNacinAplikacije(spletna, ime) }
+            webViewContainer.post { zvokVOzadju = ozadje; vklopiNacinAplikacije(spletna, ime) }
             return
         }
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.

@@ -144,6 +144,15 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             } else false
         }
 
+        // Mediji (glasba in video) ob spletnem brskalniku: ena pot, ne podvojena v stranskem meniju.
+        findViewById<View>(R.id.karticaMediji)?.let { m ->
+            m.onFocusChangeListener = fokus
+            m.setOnClickListener { odpriVarno(GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica)) }
+            m.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) { prvaSpodaj()?.requestFocus(); true } else false
+            }
+        }
+
         karticaZaslon.onFocusChangeListener = fokus
         karticaZaslon.setOnClickListener {
             if (imamoZaslon) {
@@ -432,7 +441,12 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         DomacaVrsta.osvezi(this)
         if (SpletneAplikacije.seznam(this).isNotEmpty()) DomacaVrsta.ponudiEnkrat(this)
         if (link.vprasamoZaNacin()) glavna.postDelayed({ if (!isFinishing && link.vprasamoZaNacin()) vprasajZaNacin() }, 600)
+        GlasbaStoritev.poslusalci.add(medijiPoslusalec)
+        GlasbaStoritev.osveziKartico(this)
     }
+
+    /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju). */
+    private val medijiPoslusalec: () -> Unit = { runOnUiThread { GlasbaStoritev.osveziKartico(this) } }
 
     /**
      * Kadar je Safeer OS domaci zaslon televizorja, tipka Nazaj nima kam: zapustili bi ga in
@@ -445,6 +459,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onStop() {
+        GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
         glavna.removeCallbacks(tikUre)
         link.odstrani(this)
         super.onStop()

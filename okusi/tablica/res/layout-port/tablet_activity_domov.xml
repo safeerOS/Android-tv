@@ -366,6 +366,65 @@
                         android:fontFamily="sans-serif-medium"/>
                 </LinearLayout>
 
+                <!-- Safeer Media: glasba, video in radio (ob spletnem brskalniku, kot v lezeci postavitvi) -->
+                <LinearLayout
+                    android:id="@+id/karticaMediji"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:background="@drawable/os_kartica_steklo"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp">
+                    <ImageView
+                        android:id="@+id/medijiIkona"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
+                        android:src="@drawable/os_ikona_glasba"
+                        android:contentDescription="@null"/>
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="14dp"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/medijiNaslov"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/os_mediji_kartica"
+                            android:textColor="@color/os_besedilo"
+                            android:textSize="15sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:textStyle="bold"
+                            android:maxLines="1"
+                            android:ellipsize="end"/>
+                        <TextView
+                            android:id="@+id/medijiOpis"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/os_mediji_kartica_opis"
+                            android:textColor="@color/os_umirjeno"
+                            android:textSize="12sp"
+                            android:maxLines="1"
+                            android:ellipsize="end"/>
+                    </LinearLayout>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/os_puscica"
+                        android:textColor="@color/os_umirjeno"
+                        android:textSize="20sp"
+                        android:fontFamily="sans-serif-medium"/>
+                </LinearLayout>
+
                 <!-- 2. Zaslon -->
                 <LinearLayout
                     android:id="@+id/karticaZaslon"

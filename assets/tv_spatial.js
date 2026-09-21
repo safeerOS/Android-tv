@@ -176,22 +176,22 @@
                 var style = document.createElement('style');
                 style.id = 'tv-remote-cinema-style';
                 style.textContent = `
-                    :focus, :focus-visible, .tv-remote-focused {
+                    /* En sam okvir: izbrani element oznaci plavajoci obroc (#safeer-focus-target-ring),
+                       ki ga vsebnik strani ne more odrezati. Obroba na elementu in se obroba strani
+                       ob njem sta dajali dvojni okvir (21. 9. 2026, rtvslo.si). Obroba ostane samo
+                       elementu s fokusom, ki ni izbran z daljincem (npr. polje za vnos). */
+                    :focus:not(.safeer-active-card):not(.safeer-active-card *),
+                    :focus-visible:not(.safeer-active-card):not(.safeer-active-card *), .tv-remote-focused {
                         outline: 4px solid #00e5ff !important;
                         outline-offset: 4px !important;
-                        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 229, 255, 0.7) !important;
                         border-radius: 10px !important;
-                        background-color: rgba(0, 229, 255, 0.10) !important;
-                        transition: outline-color 0.1s ease, box-shadow 0.1s ease !important;
+                        transition: outline-color 0.1s ease !important;
+                    }
+                    .safeer-active-card, .safeer-active-card :focus, .safeer-active-card :focus-visible {
+                        outline: none !important;
                     }
                     .safeer-active-card {
-                        outline: 4px solid #00e5ff !important;
-                        outline-offset: 4px !important;
-                        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 229, 255, 0.85) !important;
-                        border-radius: 12px !important;
-                        background-color: rgba(0, 229, 255, 0.12) !important;
-                        transform: scale(1.03) !important;
-                        transition: transform 0.12s ease, outline-color 0.1s ease, box-shadow 0.1s ease !important;
+                        background-color: rgba(0, 229, 255, 0.10) !important;
                         z-index: 9999 !important;
                     }
                     #safeer-focus-target-ring {
@@ -209,6 +209,7 @@
                         opacity: 1;
                     }
                     .safeer-focus-badge {
+                        display: none !important;
                         position: absolute;
                         top: -14px;
                         right: -12px;
