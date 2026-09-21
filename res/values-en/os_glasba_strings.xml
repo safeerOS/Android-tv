@@ -1,25 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Safeer OS: zaslon Glasba (GlasbaActivity, GlasbaStoritev). -->
+<!-- Safeer OS: Mediji (GlasbaActivity, PredvajanjeActivity, GlasbaStoritev). -->
 <resources>
-    <string name="os_meni_glasba">Media</string>
     <string name="os_glasba_naslov">Music &amp; video</string>
-    <string name="os_glasba_podnaslov">Independent artists from Jamendo, no ads · internet radio</string>
-    <string name="os_glasba_priljubljeno">Popular</string>
+    <string name="os_glasba_podnaslov">Independent artists from Jamendo, no ads · internet radio · video from PeerTube</string>
     <string name="os_glasba_radio">Radio</string>
+    <string name="os_glasba_video">Video</string>
     <string name="os_glasba_iskanje">Search</string>
     <string name="os_glasba_isci_namig">Artist or video</string>
     <string name="os_glasba_isci_navodilo">Type an artist or a video topic and press Search.</string>
     <string name="os_glasba_nalagam">Loading…</string>
-    <string name="os_glasba_napaka">Could not load music. Check the connection and try again.</string>
+    <string name="os_glasba_napaka">Could not load. Check the connection and try again.</string>
     <string name="os_glasba_prazno">Nothing found.</string>
-    <string name="os_glasba_izvajalci">Artists: %1$d</string>
     <string name="os_glasba_izvajalec">Artist</string>
     <string name="os_glasba_od_izvajalca">%1$s · most played first</string>
-    <string name="os_glasba_radiji">Internet radio · most listened stations, local first</string>
+    <string name="os_glasba_radiji">Internet radio · most listened stations</string>
     <string name="os_glasba_po_priljubljenosti">Most played first</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
-    <string name="os_glasba_namig">OK plays · OK on the bar below: pause · hold OK: stop · music keeps playing when you leave this screen</string>
-    <string name="os_glasba_video">Video</string>
     <string name="os_glasba_video_opis">Video from PeerTube · no ads, no tracking, most watched first</string>
     <string name="os_glasba_zadetki">Artists: %1$d · videos: %2$d</string>
+    <string name="os_mediji_kartica">Music &amp; video</string>
+    <string name="os_mediji_kartica_opis">No ads</string>
+    <string name="os_mediji_domov">Home</string>
+    <string name="os_mediji_glasba">Music</string>
+    <string name="os_mediji_naprave">My devices</string>
+    <string name="os_mediji_viri">My sources</string>
+    <string name="os_mediji_naprave_opis">Music and video on the TV and devices in Safeer Link</string>
+    <string name="os_mediji_viri_opis">PeerTube servers, streams and websites you added yourself</string>
+    <string name="os_mediji_vrsta_glasba">Most played music</string>
+    <string name="os_mediji_vrsta_radio">Radio</string>
+    <string name="os_mediji_vrsta_video">Video</string>
+    <string name="os_mediji_se">More popular</string>
+    <string name="os_mediji_domace">Local stations</string>
+    <string name="os_mediji_svet">Stations worldwide</string>
+    <string name="os_mediji_dodaj">Add source</string>
+    <string name="os_mediji_dodaj_opis">Server, stream or website</string>
+    <string name="os_mediji_dodaj_namig">e.g. tilvids.com or https://…/stream.mp3</string>
+    <string name="os_mediji_dodaj_razlaga">Enter a PeerTube server, the address of a radio stream or video, or a website with music and video. Safeer checks what is at the address; a website opens in the Safeer browser.</string>
+    <string name="os_mediji_dodaj_gumb">Add</string>
+    <string name="os_mediji_preverjam">Checking source…</string>
+    <string name="os_mediji_ni_vira">There is no music or video at this address that Safeer can play.</string>
+    <string name="os_mediji_dodano">Added: %1$s</string>
+    <string name="os_mediji_odstrani_vprasanje">Remove this source?</string>
+    <string name="os_mediji_odstrani">Remove</string>
+    <string name="os_mediji_izvajalci">Artists</string>
+    <string name="os_mediji_naprave_kartica">The TV and devices in Safeer Link</string>
+    <string name="os_mediji_namig_predvajanje">OK: pause · left/right: 10 s · hold OK: stop · Back: playback continues in the background</string>
 </resources>

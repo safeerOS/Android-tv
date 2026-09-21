@@ -189,36 +189,6 @@
                         android:fontFamily="sans-serif-medium"/>
                 </LinearLayout>
 
-                <!-- Glasba -->
-                <LinearLayout
-                    android:id="@+id/meniGlasba"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:focusable="true"
-                    android:clickable="true"
-                    android:background="@drawable/os_meni_postavka"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:paddingTop="10dp"
-                    android:paddingBottom="10dp"
-                    android:layout_marginBottom="6dp">
-                    <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/os_ikona_glasba"
-                        android:contentDescription="@null"/>
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_glasba"
-                        android:textColor="@color/os_besedilo"
-                        android:textSize="14sp"
-                        android:fontFamily="sans-serif-medium"/>
-                </LinearLayout>
-
                 <!-- Naprave -->
                 <LinearLayout
                     android:id="@+id/meniNaprave"
@@ -473,6 +443,63 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="3dp"
                                 android:text="@string/os_brskalnik_opis"
+                                android:textColor="@color/os_umirjeno"
+                                android:textSize="12sp"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                        </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="@string/os_puscica"
+                            android:textColor="@color/os_umirjeno"
+                            android:textSize="20sp"
+                            android:fontFamily="sans-serif-medium"/>
+                    </LinearLayout>
+
+                    <!-- Mediji: glasba in video (ob spletnem brskalniku) -->
+                    <LinearLayout
+                        android:id="@+id/karticaMediji"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="14dp"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:background="@drawable/os_kartica_steklo"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="11dp"
+                        android:paddingBottom="11dp">
+                        <ImageView
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/os_ikona_glasba"
+                            android:contentDescription="@null"/>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="14dp"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/os_mediji_kartica"
+                                android:textColor="@color/os_besedilo"
+                                android:textSize="16sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="end"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:text="@string/os_mediji_kartica_opis"
                                 android:textColor="@color/os_umirjeno"
                                 android:textSize="12sp"
                                 android:maxLines="1"

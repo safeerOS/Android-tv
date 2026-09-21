@@ -230,9 +230,12 @@
         <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
             android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
-        <!-- Safeer OS Glasba: glasba brez oglasov (Jamendo, radio); predvajanje v ozadju tece v GlasbaStoritev. -->
+        <!-- Safeer OS Mediji: glasba, radio in video brez oglasov; predvajanje (tudi v ozadju) tece v GlasbaStoritev. -->
         <activity android:name="si.safeer.tv.os.GlasbaActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
             android:launchMode="singleTop" android:windowSoftInputMode="adjustPan"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <activity android:name="si.safeer.tv.os.PredvajanjeActivity" android:exported="false"
+            android:theme="@style/Theme.SafeerOs.Predvajalnik" android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
         <service
             android:name="si.safeer.tv.os.GlasbaStoritev"

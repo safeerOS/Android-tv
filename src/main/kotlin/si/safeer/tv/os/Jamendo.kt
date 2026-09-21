@@ -19,7 +19,7 @@ object Jamendo {
     private const val OSNOVA = "https://api.jamendo.com/v3.0"
     private const val KLJUC = "8d37f069"
 
-    /** Ena skladba ali radio; povezava je stran na Jamendu (zahteva pogojev). */
+    /** Ena enota za predvajanje: skladba, radijska postaja, video ali datoteka z naprave. */
     data class Skladba(
         val id: String,
         val naslov: String,
@@ -28,6 +28,11 @@ object Jamendo {
         val zvok: String,
         val povezava: String,
         val radio: Boolean = false,
+        /** Video (slika na zaslonu); pri PeerTubu je [zvok] prazen, dokler ga ne razresimo. */
+        val video: Boolean = false,
+        val mime: String = "",
+        /** Streznik PeerTube, pri katerem vprasamo za datoteko videa. */
+        val streznik: String = "",
     )
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

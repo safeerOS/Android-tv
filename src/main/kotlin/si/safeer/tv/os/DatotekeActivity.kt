@@ -550,18 +550,19 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         })
     }
 
+    /**
+     * Glasba in video z naprave gresta skozi skupni predvajalnik Safeer OS ([GlasbaStoritev]): igrata
+     * tudi v ozadju, pri glasbi se v vrsto uvrstijo vse skladbe v tej mapi (naprej/nazaj na daljincu).
+     */
     private fun predvajaj(v: Vnos) {
         zapomniSi(v, if (v.vrsta == "audio") Nadaljuj.GLASBA else Nadaljuj.VIDEO)
-        val namera = Intent(this, PredvajalnikActivity::class.java)
-            .putExtra("ime", v.ime).putExtra("mime", v.mime).putExtra("zvok", v.vrsta == "audio")
-        if (krajevni) {
-            namera.putExtra("url", v.id).putExtra("lokalno", true)
-        } else {
-            val s = streznik ?: return
-            namera.putExtra("url", s.url(v.id))
-            val b = Bundle(); s.vBundle(b); namera.putExtras(b)
+        val s = if (krajevni) null else (streznik ?: return)
+        val izbor = if (v.vrsta == "audio") vnosi.filter { it.vrsta == "audio" } else listOf(v)
+        val seznam = izbor.map { e ->
+            Jamendo.Skladba(e.id, e.ime, "", "", if (s == null) e.id else s.url(e.id), "", video = e.vrsta != "audio", mime = e.mime)
         }
-        startActivity(namera)
+        GlasbaStoritev.predvajaj(this, seznam, izbor.indexOf(v).coerceAtLeast(0), s)
+        startActivity(Intent(this, PredvajanjeActivity::class.java))
     }
 
     private fun pokaziSliko(v: Vnos) {

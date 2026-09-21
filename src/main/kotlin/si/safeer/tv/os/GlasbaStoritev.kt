@@ -1,3 +1,6 @@
+// Media3: DefaultMediaSourceFactory s pripetim virom je oznacen kot @UnstableApi (kot v PredvajalnikActivity).
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package si.safeer.tv.os
 
 import android.app.Notification
@@ -27,7 +30,9 @@ import si.safeer.tv.R
  * zato glasba igra naprej, ko uporabnik zapusti zaslon Glasba. Sistemska seja (MediaSession) sprejme
  * tipke daljinca za predvajaj/pavza/naprej/nazaj/ustavi tudi takrat, ko Safeer OS ni v ospredju.
  *
- * Zaslon Glasba predvajalnik bere neposredno ([predvajalnik], [trenutna]) - isti proces.
+ * En predvajalnik za glasbo, radio in video: zaslon [PredvajanjeActivity] mu le pripne sliko, zato
+ * zvok igra naprej, ko zaslon zapustis (predvajanje v ozadju). Zasloni ga berejo neposredno
+ * ([predvajalnik], [trenutna]) - isti proces.
  */
 class GlasbaStoritev : Service() {
 
@@ -39,7 +44,7 @@ class GlasbaStoritev : Service() {
         super.onCreate()
         val p = ExoPlayer.Builder(this).build()
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(), true)
+            .setContentType(C.AUDIO_CONTENT_TYPE_UNKNOWN).build(), true)
         p.setWakeMode(C.WAKE_MODE_NETWORK)
         p.setHandleAudioBecomingNoisy(true)
         p.addListener(object : Player.Listener {
@@ -71,20 +76,25 @@ class GlasbaStoritev : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         zacniVOspredju()
-        cakajoci?.let { (seznam, od) -> cakajoci = null; nalozi(seznam, od) }
+        cakajoci?.let { (seznam, od, s) -> cakajoci = null; nalozi(seznam, od, s) }
         return START_NOT_STICKY
     }
 
     /** Zaustavitev iz povratnega klica predvajalnika: storitev ustavimo sele po njem. */
     private fun konec() { android.os.Handler(mainLooper).post { stopSelf() } }
 
-    private fun nalozi(seznam: List<Jamendo.Skladba>, od: Int) {
+    private fun nalozi(seznam: List<Jamendo.Skladba>, od: Int, s: DatotekeActivity.Streznik?) {
         val p = predvajalnik ?: return
         vrsta = seznam
-        p.setMediaItems(seznam.map { s ->
-            MediaItem.Builder().setMediaId(s.id).setUri(s.zvok)
-                .setMediaMetadata(M3Metadata.Builder().setTitle(s.naslov).setArtist(s.izvajalec).build())
-                .build()
+        // Datoteke z racunalnika gredo skozi pripeti vir (TLS z odtisom in zetonom Safeer Controla),
+        // vse ostalo (splet, datoteke televizorja) skozi obicajnega.
+        val tovarna = if (s != null) androidx.media3.exoplayer.source.DefaultMediaSourceFactory(PripetiVir.Tovarna(s.odtis, s.zeton))
+            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(this)
+        p.setMediaSources(seznam.map { sk ->
+            tovarna.createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
+                .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
+                .setMediaMetadata(M3Metadata.Builder().setTitle(sk.naslov).setArtist(sk.izvajalec).build())
+                .build())
         }, od.coerceIn(0, (seznam.size - 1).coerceAtLeast(0)), 0L)
         p.prepare()
         p.play()
@@ -102,7 +112,7 @@ class GlasbaStoritev : Service() {
             nm.createNotificationChannel(NotificationChannel(KANAL, getString(R.string.os_glasba_naslov), NotificationManager.IMPORTANCE_LOW))
         }
         val s = trenutna()
-        val odpri = PendingIntent.getActivity(this, 0, Intent(this, GlasbaActivity::class.java)
+        val odpri = PendingIntent.getActivity(this, 0, Intent(this, PredvajanjeActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val b = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, KANAL) else @Suppress("DEPRECATION") Notification.Builder(this)
         return b.setSmallIcon(R.drawable.os_ikona_glasba)
@@ -148,7 +158,7 @@ class GlasbaStoritev : Service() {
         @Volatile var predvajalnik: ExoPlayer? = null
             private set
         private var vrsta: List<Jamendo.Skladba> = emptyList()
-        private var cakajoci: Pair<List<Jamendo.Skladba>, Int>? = null
+        private var cakajoci: Triple<List<Jamendo.Skladba>, Int, DatotekeActivity.Streznik?>? = null
 
         /** Zaslon se prijavi, da izve za spremembe (nova skladba, pavza, konec). */
         val poslusalci = mutableSetOf<() -> Unit>()
@@ -159,9 +169,9 @@ class GlasbaStoritev : Service() {
         }
 
         /** Predvajaj seznam od izbrane skladbe naprej; storitev se zazene, ce se ne tece. */
-        fun predvajaj(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int) {
+        fun predvajaj(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int, streznik: DatotekeActivity.Streznik? = null) {
             if (seznam.isEmpty()) return
-            cakajoci = seznam to od
+            cakajoci = Triple(seznam, od, streznik)
             val namen = Intent(ctx, GlasbaStoritev::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
         }

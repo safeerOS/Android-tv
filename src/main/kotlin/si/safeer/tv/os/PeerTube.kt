@@ -1,49 +1,42 @@
 package si.safeer.tv.os
 
 import android.net.Uri
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
 /**
- * Video s PeerTuba: odprtokodno, brez oglasov in brez sledenja. Zacnemo z izbranimi strezniki
- * (preverjeno 21. 9. 2026: tilvids.com, framatube.org), samo javni posnetki brez obcutljive vsebine.
- * Iskanje na streznikih zajame tudi posnetke iz povezanih streznikov (federacija); datoteko
- * vedno vprasamo pri izvornem strezniku.
+ * Video s PeerTuba: odprtokodno, brez oglasov in brez sledenja. Vgrajeni strezniki (preverjeno
+ * 21. 9. 2026: tilvids.com, framatube.org) in strezniki, ki jih uporabnik doda sam ([MedijskiViri]).
+ * Samo javni posnetki brez obcutljive vsebine in brez prenosov v zivo. Iskanje na strezniku zajame
+ * tudi povezane streznike (federacija); za datoteko vedno vprasamo izvorni streznik.
  */
 object PeerTube {
-    private val STREZNIKI = listOf("tilvids.com", "framatube.org")
+    val VGRAJENI = listOf("tilvids.com", "framatube.org")
 
-    data class Video(
-        val uuid: String,
-        val naslov: String,
-        val kanal: String,
-        val slika: String,
-        val stran: String,
-        val streznik: String,
-        val ogledi: Int,
-    )
+    /** Najbolj gledani posnetki enega streznika. */
+    fun najboljGledani(streznik: String, stevilo: Int = 24): List<Jamendo.Skladba> =
+        seznam(streznik, "/api/v1/videos?sort=-views&count=$stevilo&nsfw=false&isLocal=true")
 
-    /** Najbolj gledani s vsakega streznika, izmenicno - en velik streznik ne sme zasesti vsega. */
-    fun priljubljeni(): List<Video> = izmenicno(STREZNIKI.map { s ->
-        try { seznam(s, "/api/v1/videos?sort=-views&count=24&nsfw=false&isLocal=true") } catch (_: Exception) { emptyList() }
-    })
-
-    private fun izmenicno(seznami: List<List<Video>>): List<Video> =
-        (0 until (seznami.maxOfOrNull { it.size } ?: 0)).flatMap { i -> seznami.mapNotNull { it.getOrNull(i) } }
-
-    fun isci(beseda: String): List<Video> = STREZNIKI.flatMap { s ->
+    fun isci(strezniki: List<String>, beseda: String): List<Jamendo.Skladba> = strezniki.flatMap { s ->
         try {
             seznam(s, "/api/v1/search/videos?search=${URLEncoder.encode(beseda, "UTF-8")}&sort=-views&nsfw=false&count=18&searchTarget=local")
         } catch (_: Exception) { emptyList() }
-    }.distinctBy { it.uuid }.sortedByDescending { it.ogledi }
+    }.distinctBy { it.id }
 
-    /** Naslov datoteke za predvajanje: najboljsa kakovost do 1080p (samostojna datoteka MP4, brez HLS). */
-    fun datoteka(v: Video): String? {
-        val j = JSONObject(beri("https://${v.streznik}/api/v1/videos/${v.uuid}"))
+    /** Ali na tem naslovu tece PeerTube; vrne ime streznika ali null. */
+    fun imeStreznika(streznik: String): String? = try {
+        val j = JSONObject(beri("https://$streznik/api/v1/config"))
+        j.optJSONObject("instance")?.optString("name")?.ifBlank { streznik }
+    } catch (_: Exception) { null }
+
+    /** Datoteka za predvajanje: najboljsa kakovost do 1080p (samostojna MP4, brez HLS). */
+    fun razresi(v: Jamendo.Skladba): Jamendo.Skladba? {
+        val j = JSONObject(beri("https://${v.streznik}/api/v1/videos/${v.id}"))
         val datoteke = mutableListOf<Pair<Int, String>>()
-        fun dodaj(a: org.json.JSONArray?) {
+        fun dodaj(a: JSONArray?) {
             if (a == null) return
             for (i in 0 until a.length()) {
                 val f = a.getJSONObject(i)
@@ -55,21 +48,21 @@ object PeerTube {
         dodaj(j.optJSONArray("files"))
         val seznami = j.optJSONArray("streamingPlaylists")
         if (seznami != null) for (i in 0 until seznami.length()) dodaj(seznami.getJSONObject(i).optJSONArray("files"))
-        return datoteke.maxByOrNull { it.first }?.second
+        val url = datoteke.maxByOrNull { it.first }?.second ?: return null
+        return v.copy(zvok = url, mime = "video/mp4")
     }
 
-    private fun seznam(streznik: String, pot: String): List<Video> {
+    private fun seznam(streznik: String, pot: String): List<Jamendo.Skladba> {
         val r = JSONObject(beri("https://$streznik$pot")).optJSONArray("data") ?: return emptyList()
         return (0 until r.length()).map { r.getJSONObject(it) }.mapNotNull { v ->
             if (v.optBoolean("nsfw") || v.optBoolean("isLive")) return@mapNotNull null
             val stran = v.optString("url")
-            val izvor = Uri.parse(stran).host ?: streznik
             val slika = v.optString("previewPath").ifBlank { v.optString("thumbnailPath") }
-            Video(v.optString("uuid"), v.optString("name"),
-                v.optJSONObject("channel")?.optString("displayName").orEmpty(),
+            Jamendo.Skladba(v.optString("uuid"), v.optString("name"),
+                v.optJSONObject("channel")?.optString("displayName").orEmpty().ifBlank { streznik },
                 if (slika.startsWith("/")) "https://$streznik$slika" else slika,
-                stran, izvor, v.optInt("views"))
-        }.filter { it.uuid.isNotBlank() && it.naslov.isNotBlank() }
+                "", stran, video = true, streznik = Uri.parse(stran).host ?: streznik)
+        }.filter { it.id.isNotBlank() && it.naslov.isNotBlank() }
     }
 
     private fun beri(naslov: String): String {

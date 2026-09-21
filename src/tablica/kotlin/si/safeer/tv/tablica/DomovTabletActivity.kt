@@ -232,8 +232,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 pokaziOknoNiPovezano(getString(R.string.tablet_datoteke))
             }
         }
-        findViewById<View>(R.id.meniGlasba)?.setOnClickListener {
-            odpriVarno(Intent(this, si.safeer.tv.os.GlasbaActivity::class.java), getString(R.string.os_meni_glasba))
+        findViewById<View>(R.id.karticaMediji)?.setOnClickListener {
+            odpriVarno(Intent(this, si.safeer.tv.os.GlasbaActivity::class.java), getString(R.string.os_mediji_kartica))
         }
         mNaprave?.setOnClickListener {
             odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.tablet_naprave))

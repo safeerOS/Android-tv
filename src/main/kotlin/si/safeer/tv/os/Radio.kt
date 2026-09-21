@@ -17,11 +17,12 @@ import java.util.Locale
 object Radio {
     private const val OSNOVA = "https://de1.api.radio-browser.info/json/stations/search"
 
-    fun postaje(): List<Jamendo.Skladba> {
+    /** Domace postaje (drzava televizorja) in najbolj poslusane na svetu, brez podvojenih. */
+    fun postajeLocene(): Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>> {
         val drzava = Locale.getDefault().country.takeIf { it.length == 2 }
-        val domace = drzava?.let { try { iskanje("countrycode=${it.lowercase(Locale.ROOT)}&limit=24") } catch (_: Exception) { emptyList() } }.orEmpty()
-        val svet = iskanje("limit=60")
-        return (domace + svet).distinctBy { it.zvok }.take(60)
+        val domace = drzava?.let { try { iskanje("countrycode=${it.lowercase(Locale.ROOT)}&limit=30") } catch (_: Exception) { emptyList() } }.orEmpty()
+        val svet = iskanje("limit=60").filterNot { s -> domace.any { it.zvok == s.zvok } }
+        return domace.distinctBy { it.zvok } to svet.distinctBy { it.zvok }
     }
 
     private fun iskanje(filter: String): List<Jamendo.Skladba> {

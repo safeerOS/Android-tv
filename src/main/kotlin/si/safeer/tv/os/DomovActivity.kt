@@ -39,7 +39,6 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var meniAplikacije: View
     private lateinit var meniZaslon: View
     private lateinit var meniDatoteke: View
-    private lateinit var meniGlasba: View
     private lateinit var meniNaprave: View
     private lateinit var meniNastavitve: View
     private lateinit var karticaBrskalnik: View
@@ -92,7 +91,6 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         meniAplikacije = findViewById(R.id.meniAplikacije)
         meniZaslon = findViewById(R.id.meniZaslon)
         meniDatoteke = findViewById(R.id.meniDatoteke)
-        meniGlasba = findViewById(R.id.meniGlasba)
         meniNaprave = findViewById(R.id.meniNaprave)
         meniNastavitve = findViewById(R.id.meniNastavitve)
         meniDomov.isActivated = true
@@ -144,6 +142,15 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     true
                 } else false
             } else false
+        }
+
+        // Mediji (glasba in video) ob spletnem brskalniku: ena pot, ne podvojena v stranskem meniju.
+        findViewById<View>(R.id.karticaMediji)?.let { m ->
+            m.onFocusChangeListener = fokus
+            m.setOnClickListener { odpriVarno(Intent(this, GlasbaActivity::class.java), getString(R.string.os_mediji_kartica)) }
+            m.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) { prvaSpodaj()?.requestFocus(); true } else false
+            }
         }
 
         karticaZaslon.onFocusChangeListener = fokus
@@ -370,9 +377,6 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         meniDatoteke.setOnClickListener {
             odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_meni_datoteke))
         }
-        meniGlasba.setOnClickListener {
-            odpriVarno(Intent(this, GlasbaActivity::class.java), getString(R.string.os_meni_glasba))
-        }
         meniNaprave.setOnClickListener {
             if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
             else vprasajZaNacin()
@@ -381,7 +385,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
         }
 
-        val menijskePostavke = listOf(meniDomov, meniAplikacije, meniZaslon, meniDatoteke, meniGlasba, meniNaprave, meniNastavitve)
+        val menijskePostavke = listOf(meniDomov, meniAplikacije, meniZaslon, meniDatoteke, meniNaprave, meniNastavitve)
         for (postavka in menijskePostavke) {
             postavka.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
