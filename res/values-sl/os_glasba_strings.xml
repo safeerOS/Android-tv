@@ -116,4 +116,17 @@
     <string name="os_media_vsi_viri">Vsi viri</string>
     <string name="os_media_izberi_vire">Izberi vire</string>
     <string name="os_media_izbrisi_vir">Izbriši vir</string>
+    <string name="os_media_popularno">Trenutno priljubljeno</string>
+    <string name="os_media_zvrst_rock">Rock</string>
+    <string name="os_media_zvrst_pop">Pop</string>
+    <string name="os_media_zvrst_electronic">Elektronska</string>
+    <string name="os_media_zvrst_jazz">Jazz</string>
+    <string name="os_media_zvrst_classical">Klasična</string>
+    <string name="os_media_zvrst_hiphop">Hip-hop</string>
+    <string name="os_media_pocisti_nedavno">Počisti nedavno</string>
+    <string name="os_media_pocisti_nedavno_opis">Odstrani zgodovino predvajanja</string>
+    <string name="os_media_pocisti_nedavno_potrdi">Odstranim vse elemente iz Nedavno?</string>
+    <string name="os_media_odstrani_nedavno">Odstrani iz Nedavno</string>
+    <string name="os_media_gl_isci_opis">Priljubljena glasba po zvrsteh</string>
+    <string name="os_media_isci_v_viru">Išči »%1$s« v tem viru</string>
 </resources>

@@ -116,4 +116,17 @@
     <string name="os_media_vsi_viri">Tutte le fonti</string>
     <string name="os_media_izberi_vire">Scegli le fonti</string>
     <string name="os_media_izbrisi_vir">Elimina fonte</string>
+    <string name="os_media_popularno">Popular now</string>
+    <string name="os_media_zvrst_rock">Rock</string>
+    <string name="os_media_zvrst_pop">Pop</string>
+    <string name="os_media_zvrst_electronic">Electronic</string>
+    <string name="os_media_zvrst_jazz">Jazz</string>
+    <string name="os_media_zvrst_classical">Classical</string>
+    <string name="os_media_zvrst_hiphop">Hip-hop</string>
+    <string name="os_media_pocisti_nedavno">Clear recent</string>
+    <string name="os_media_pocisti_nedavno_opis">Remove recent history</string>
+    <string name="os_media_pocisti_nedavno_potrdi">Remove all items from Recent?</string>
+    <string name="os_media_odstrani_nedavno">Remove from Recent</string>
+    <string name="os_media_gl_isci_opis">Popular music by genre</string>
+    <string name="os_media_isci_v_viru">Search “%1$s” in this source</string>
 </resources>

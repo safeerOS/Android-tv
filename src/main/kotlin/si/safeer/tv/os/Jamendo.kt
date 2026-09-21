@@ -42,11 +42,31 @@ object Jamendo {
     /** Najbolj poslusane skladbe (razvrscene po priljubljenosti). */
     fun priljubljene(stevilo: Int = 48): List<Skladba> =
         // Jamendo obcasno vrne prazen seznam (preverjeno na tablici 21. 9. 2026); drugi poskus ga dobi.
-        skladbe("order=popularity_total&limit=$stevilo").ifEmpty { Thread.sleep(800); skladbe("order=popularity_total&limit=$stevilo") }
+        skladbe("order=popularity_total&limit=$stevilo").ifEmpty { Thread.sleep(800); skladbe("order=popularity_total&limit=$stevilo") }.distinctBy { it.id }.take(stevilo)
+
+
+    /** Popularna glasba po zvrsti. Jamendo tags uporablja kot vsebinski signal; ce zvrst nima rezultatov, vrne prazen seznam. */
+    fun poZvrsti(zvrst: String, stevilo: Int = 18): List<Skladba> =
+        try { skladbe("tags=${kodiraj(zvrst)}&order=popularity_total&limit=$stevilo").distinctBy { it.id }.take(stevilo) }
+        catch (_: Exception) { emptyList() }
 
     /** Skladbe izvajalca, najbolj poslusane najprej. */
     fun odIzvajalca(id: String): List<Skladba> =
         skladbe("artist_id=${kodiraj(id)}&order=popularity_total&limit=48")
+
+    /**
+     * Iskanje dejanskih skladb. Jamendo pri nekaterih poizvedbah/kljucih vrne prazen
+     * `namesearch`, zato poskusimo se splosni `search`. Rezultate zdruzimo po id-ju.
+     * Tako razdelek Iskanje ne prikazuje samo izvajalcev, ampak tudi skladbe za predvajanje.
+     */
+    fun isciSkladbe(beseda: String, stevilo: Int = 36): List<Skladba> {
+        val q = beseda.trim()
+        if (q.length < 2) return emptyList()
+        val poImenu = try { skladbe("namesearch=${kodiraj(q)}&order=popularity_total&limit=$stevilo") } catch (_: Exception) { emptyList() }
+        if (poImenu.size >= stevilo) return poImenu.take(stevilo)
+        val splosno = try { skladbe("search=${kodiraj(q)}&order=popularity_total&limit=$stevilo") } catch (_: Exception) { emptyList() }
+        return (poImenu + splosno).distinctBy { it.id }.take(stevilo)
+    }
 
     fun isciIzvajalce(beseda: String): List<Izvajalec> {
         val j = zahteva("/artists/?namesearch=${kodiraj(beseda)}&order=popularity_total&limit=36")

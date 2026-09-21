@@ -18,6 +18,7 @@ object MedijskiViri {
     private const val PRILJUBLJENE = "priljubljene"
     private const val SEZNAMI = "seznami"
     private const val NEDAVNO = "nedavno"
+    private const val MAX_NEDAVNO = 12
 
     data class Vir(val tip: String, val ime: String, val naslov: String) {
         val jePeerTube get() = tip == PEERTUBE
@@ -104,12 +105,17 @@ object MedijskiViri {
     }
 
     /** Nedavno predvajano (najnovejse prvo), samo na tej napravi. */
-    fun nedavno(ctx: Context): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, NEDAVNO))
+    fun nedavno(ctx: Context): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }.take(MAX_NEDAVNO)
+
+    fun odstraniNedavno(ctx: Context, s: Jamendo.Skladba) =
+        pisi(ctx, NEDAVNO, pisiSkladbe(nedavno(ctx).filterNot { it.id == s.id }))
+
+    fun pocistiNedavno(ctx: Context) = pisi(ctx, NEDAVNO, "[]")
 
     fun zapomniNedavno(ctx: Context, s: Jamendo.Skladba) {
         if (!shranljiva(s)) return
         val z = zaShranjevanje(s)
-        pisi(ctx, NEDAVNO, pisiSkladbe((listOf(z) + nedavno(ctx).filterNot { it.id == z.id }).take(20)))
+        pisi(ctx, NEDAVNO, pisiSkladbe((listOf(z) + nedavno(ctx).filterNot { it.id == z.id }).distinctBy { it.id }.take(MAX_NEDAVNO)))
     }
 
     /** Nedavna iskanja (najnovejse prvo), samo na tej napravi. */
