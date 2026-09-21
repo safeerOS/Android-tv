@@ -6,6 +6,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.speech.RecognizerIntent
 import android.text.InputType
 import android.text.TextUtils
 import android.util.LruCache
@@ -68,6 +69,20 @@ class GlasbaActivity : OsActivity() {
         setContentView(zgradi())
         izberi(DOMOV)
         razdelki[DOMOV].requestFocus()
+        iskanjeIzNamena()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        iskanjeIzNamena()
+    }
+
+    /** Iskanje, odprto od drugod (zaslon predvajanja, tipka Isci): razdelek Iskanje, polje pripravljeno. */
+    private fun iskanjeIzNamena() {
+        val beseda = intent.getStringExtra(ISKANJE_BESEDA) ?: return
+        intent.removeExtra(ISKANJE_BESEDA)
+        odpriIskanje(beseda)
     }
 
     override fun onStart() {
@@ -105,7 +120,7 @@ class GlasbaActivity : OsActivity() {
             setBackgroundColor(getColor(R.color.os_meni_ozadje))
         }
         meni.addView(besedilo(22f, beli, true).apply { text = getString(R.string.os_glasba_naslov); setPadding(dp(8), 0, 0, dp(18)) })
-        razdelki = listOf(R.string.os_mediji_domov, R.string.os_mediji_glasba, R.string.os_glasba_radio, R.string.os_glasba_video,
+        razdelki = listOf(R.string.os_mediji_domov, R.string.os_mediji_priljubljene, R.string.os_mediji_glasba, R.string.os_glasba_radio, R.string.os_glasba_video,
             R.string.os_mediji_naprave, R.string.os_mediji_viri, R.string.os_glasba_iskanje).mapIndexed { i, id ->
             besedilo(16f, beli, true).apply {
                 text = getString(id)
@@ -175,11 +190,11 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
-    private fun narisi(vrste: List<Vrsta>, opis: String) {
+    private fun narisi(vrste: List<Vrsta>, opis: String, prazno: String = getString(R.string.os_glasba_prazno)) {
         // Fokus iz vsebine, ki jo bomo zamenjali, na razdelek - sicer pade na prvi razdelek in ga odpre.
         if (vsebina.hasFocus()) razdelki[razdelek].requestFocus()
         vsebina.removeAllViews()
-        stanje.text = if (vrste.all { it.kartice.isEmpty() }) getString(R.string.os_glasba_prazno) else opis
+        stanje.text = if (vrste.all { it.kartice.isEmpty() }) prazno else opis
         iskalnik?.let { vsebina.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
         for (v in vrste) {
             if (v.kartice.isEmpty()) continue
@@ -193,6 +208,8 @@ class GlasbaActivity : OsActivity() {
             })
         }
         drsnik.scrollTo(0, 0)
+        // Po zaprtem oknu (Dodaj vir, Odstrani) fokus ne sme ostati nikjer - daljinec bi sicer skocil na Domov.
+        drsnik.post { if (window.decorView.findFocus() == null) razdelki[razdelek].requestFocus() }
     }
 
     // ------------------------------------------------------------------ slike
@@ -213,12 +230,15 @@ class GlasbaActivity : OsActivity() {
         razdelek = i
         razdelki.forEachIndexed { j, t -> t.setTextColor(getColor(if (j == i) R.color.os_mint else R.color.os_besedilo)) }
         iskalnik = if (i == ISKANJE) novIskalnik() else null
+        // Desno z razdelka Iskanje gre naravnost v polje za iskanje.
+        razdelki[ISKANJE].nextFocusRightId = iskalnik?.id ?: View.NO_ID
         val moje = ++nalaganje
         val predpomnjeno = SEZNAMI[i]
-        if (predpomnjeno != null) { narisi(vVrste(predpomnjeno), opis(i)); return }
+        if (predpomnjeno != null) { prikazi(i, predpomnjeno); return }
         if (i == VIRI || i == NAPRAVE) { narisi(posebne(i), opis(i)); return }
+        if (i == PRILJUBLJENE) { narisi(priljubljeneVrste(), opis(i), getString(R.string.os_mediji_prilj_prazno)); return }
         vsebina.removeAllViews()
-        iskalnik?.let { vsebina.addView(it); stanje.text = getString(R.string.os_glasba_isci_navodilo); return }
+        if (i == ISKANJE) { zadetki?.let { narisi(it, opisZadetkov) } ?: narisi(predIskanjem(), getString(R.string.os_glasba_isci_navodilo)); return }
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
             val podatki = try { podatkiRazdelka(i) } catch (_: Exception) { null }
@@ -227,12 +247,17 @@ class GlasbaActivity : OsActivity() {
                 if (podatki == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
                 // Prazen odgovor (Jamendo obcasno) ne ostane v predpomnilniku - ob naslednji izbiri poskusimo znova.
                 if (podatki.filterNot { it.naprave }.all { it.skladbe.isNotEmpty() }) SEZNAMI[i] = podatki
-                narisi(vVrste(podatki), opis(i))
+                prikazi(i, podatki)
             }
         }
     }
 
+    /** Domov ima na vrhu se priljubljene (vedno sveze, ne iz predpomnilnika). */
+    private fun prikazi(i: Int, podatki: List<Podatki>) =
+        narisi((if (i == DOMOV) priljubljeneVrste() else emptyList()) + vVrste(podatki), opis(i))
+
     private fun opis(i: Int) = when (i) {
+        PRILJUBLJENE -> getString(R.string.os_mediji_priljubljene_opis)
         GLASBA -> getString(R.string.os_glasba_po_priljubljenosti)
         RADIO -> getString(R.string.os_glasba_radiji)
         VIDEO -> getString(R.string.os_glasba_video_opis)
@@ -251,7 +276,7 @@ class GlasbaActivity : OsActivity() {
                 Podatki(getString(R.string.os_mediji_vrsta_video), izmenicno(MedijskiViri.streznikiPeerTube(this).map { s ->
                     try { PeerTube.najboljGledani(s, 12) } catch (_: Exception) { emptyList() } }), video = true),
                 Podatki(getString(R.string.os_mediji_naprave), emptyList(), naprave = true),
-                MedijskiViri.vsi(this).filterNot { it.jePeerTube || it.jeSplet }.takeIf { it.isNotEmpty() }?.let { viri ->
+                MedijskiViri.vsi(this).filterNot { it.jePeerTube }.takeIf { it.isNotEmpty() }?.let { viri ->
                     Podatki(getString(R.string.os_mediji_viri), viri.map { MedijskiViri.kotSkladba(it) }) },
             )
         }
@@ -266,7 +291,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun vVrste(p: List<Podatki>) = p.map { d ->
         if (d.naprave) Vrsta(d.naslov, napraveKartice())
-        else Vrsta(d.naslov, if (d.video) videi(d.skladbe) else skladbe(d.skladbe), d.video)
+        else Vrsta(d.naslov, if (d.video) videi(d.skladbe, d.naslov) else skladbe(d.skladbe, d.naslov), d.video)
     }
 
     /** Razdelka, ki se ne predpomnita (hitra, krajevna). */
@@ -279,7 +304,7 @@ class GlasbaActivity : OsActivity() {
                     { when {
                         v.jePeerTube -> razdelki[VIDEO].requestFocus()
                         // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
-                        v.jeSplet -> startActivity(Brskalnik.spletnaAplikacija(this, v.naslov, v.ime))
+                        v.jeSplet -> odpriStran(v.naslov, v.ime)
                         else -> predvajaj(listOf(MedijskiViri.kotSkladba(v)), 0)
                     } },
                     { odstraniVir(v) },
@@ -291,11 +316,61 @@ class GlasbaActivity : OsActivity() {
     private fun izmenicno(seznami: List<List<Jamendo.Skladba>>) =
         (0 until (seznami.maxOfOrNull { it.size } ?: 0)).flatMap { i -> seznami.mapNotNull { it.getOrNull(i) } }
 
-    private fun skladbe(s: List<Jamendo.Skladba>) = s.mapIndexed { i, sk ->
-        Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(s, i) })
+    /** Kartice skladb vrste; zadrzan OK odpre meni (priljubljeno, shrani vrsto kot seznam). */
+    private fun skladbe(s: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null) = s.map { sk ->
+        if (sk.mime == MedijskiViri.STRAN) Kartica(sk.naslov, sk.izvajalec, "", { odpriStran(sk.zvok, sk.naslov) }, { meni(sk, s, vrsta, seznam) }, ikona = R.drawable.os_ikona_splet)
+        else Kartica(sk.naslov, sk.izvajalec, sk.slika, { s.filterNot { it.mime == MedijskiViri.STRAN }.let { p -> predvajaj(p, p.indexOf(sk)) } },
+            { meni(sk, s, vrsta, seznam) })
     }
 
-    private fun videi(v: List<Jamendo.Skladba>) = v.map { sk -> Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }) }
+    /** Spletno stran odpre brskalnik Safeer (predvaja vse); nasa glasba se ustavi, zvok strani ob Domov igra naprej. */
+    private fun odpriStran(url: String, ime: String) {
+        GlasbaStoritev.predvajalnik?.pause()
+        startActivity(Brskalnik.medijskaStran(this, url, ime))
+    }
+
+    private fun videi(v: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null) = v.map { sk ->
+        Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, { meni(sk, v, vrsta, seznam) }) }
+
+    // ------------------------------------------------------------------ priljubljene
+
+    /** Priljubljene skladbe in postaje, videi in shranjeni seznami (vsak svoja vrsta). */
+    private fun priljubljeneVrste(): List<Vrsta> {
+        val p = MedijskiViri.priljubljene(this)
+        return listOf(
+            Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filterNot { it.video })),
+            Vrsta(getString(R.string.os_mediji_prilj_video), videi(p.filter { it.video }), video = true),
+        ) + MedijskiViri.seznami(this).map { sz ->
+            val video = sz.skladbe.all { it.video }
+            Vrsta("≡  " + sz.ime, if (video) videi(sz.skladbe, sz.ime, sz) else skladbe(sz.skladbe, sz.ime, sz), video)
+        }
+    }
+
+    private fun meni(sk: Jamendo.Skladba, vrsta: List<Jamendo.Skladba>, ime: String, seznam: MedijskiViri.Seznam?) {
+        val dejanja = mutableListOf<Pair<String, () -> Unit>>()
+        if (MedijskiViri.shranljiva(sk)) {
+            val je = MedijskiViri.jePriljubljena(this, sk)
+            dejanja += getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj) to {
+                val zdaj = MedijskiViri.preklopiPriljubljeno(this, sk)
+                Toast.makeText(this, if (zdaj) R.string.os_mediji_dodano_prilj else R.string.os_mediji_odstranjeno_prilj, Toast.LENGTH_SHORT).show()
+                osveziPriljubljene()
+            }
+        }
+        if (seznam != null) dejanja += getString(R.string.os_mediji_odstrani_seznam) to {
+            MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene()
+        } else if (vrsta.count { MedijskiViri.shranljiva(it) } > 1) dejanja += getString(R.string.os_mediji_shrani_seznam) to {
+            val sz = MedijskiViri.shraniSeznam(this, ime.ifBlank { sk.izvajalec.ifBlank { getString(R.string.os_mediji_moja_vrsta) } }, vrsta)
+            if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
+            osveziPriljubljene()
+        }
+        if (dejanja.isEmpty()) return
+        AlertDialog.Builder(this).setTitle(sk.naslov)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja[k].second() }
+            .setNegativeButton(android.R.string.cancel, null).show()
+    }
+
+    /** Priljubljene so na zaslonu v razdelkih Domov in Priljubljene - tam jih narisemo znova. */
+    private fun osveziPriljubljene() { if (razdelek == DOMOV || razdelek == PRILJUBLJENE) izberi(razdelek) }
 
     private fun napraveKartice() = listOf(
         Kartica(getString(R.string.os_meni_datoteke), getString(R.string.os_mediji_naprave_kartica), "",
@@ -303,34 +378,110 @@ class GlasbaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ iskanje
 
+    /** Zadnji zadetki in beseda: ob vrnitvi na Iskanje so se tam. */
+    private var zadetki: List<Vrsta>? = null
+    private var zadnjaBeseda = ""
+    private var opisZadetkov = ""
+
     private fun novIskalnik() = EditText(this).apply {
+        id = View.generateViewId()
         hint = getString(R.string.os_glasba_isci_namig)
+        setText(zadnjaBeseda)
         setTextColor(getColor(R.color.os_besedilo)); setHintTextColor(getColor(R.color.os_umirjeno))
         setSingleLine(); imeOptions = EditorInfo.IME_ACTION_SEARCH; inputType = InputType.TYPE_CLASS_TEXT
-        background = GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(getColor(R.color.os_kartica)); setStroke(dp(1), getColor(R.color.os_crta)) }
-        setPadding(dp(16), dp(10), dp(16), dp(10))
+        setBackgroundResource(R.drawable.os_iskanje)
+        setPadding(dp(20), dp(10), dp(20), dp(10))
         nextFocusLeftId = razdelki[ISKANJE].id
         setOnEditorActionListener { _, a, _ ->
             if (a == EditorInfo.IME_ACTION_SEARCH || a == EditorInfo.IME_ACTION_DONE) { isci(text.toString().trim()); true } else false
         }
     }
 
+    /** Pred iskanjem: glasovno iskanje in nedavna iskanja. */
+    private fun predIskanjem() = listOf(
+        Vrsta(getString(R.string.os_mediji_nedavna), listOf(
+            Kartica(getString(R.string.os_mediji_glasovno), getString(R.string.os_mediji_glasovno_opis), "", { glasovno() }, ikona = R.drawable.os_ikona_mikrofon)) +
+            MedijskiViri.iskanja(this).map { b -> Kartica(b, getString(R.string.os_glasba_iskanje), "", { odpriIskanje(b) }, ikona = R.drawable.os_ikona_isci) }))
+
+    /** Odpre razdelek Iskanje; z besedo takoj isce, sicer pripravi polje za tipkanje. */
+    private fun odpriIskanje(beseda: String) {
+        if (razdelek != ISKANJE) { razdelki[ISKANJE].requestFocus(); if (razdelek != ISKANJE) izberi(ISKANJE) }
+        val polje = iskalnik ?: return
+        if (beseda.isNotBlank()) { polje.setText(beseda); isci(beseda); return }
+        polje.requestFocus()
+        polje.post { (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(polje, 0) }
+    }
+
+    private var glasZacetek = 0L
+
+    private fun glasovno() {
+        val namen = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.os_mediji_glasovno_opis))
+        glasZacetek = System.currentTimeMillis()
+        try { @Suppress("DEPRECATION") startActivityForResult(namen, GLAS) }
+        catch (_: Exception) { Toast.makeText(this, R.string.os_mediji_ni_glasovnega, Toast.LENGTH_LONG).show() }
+    }
+
+    @Deprecated("Activity API")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != GLAS) return
+        // Takojsnja zavrnitev pomeni, da glasovni vnos na tej napravi ne dela (npr. daljinec brez mikrofona).
+        if (resultCode != RESULT_OK) {
+            if (System.currentTimeMillis() - glasZacetek < 1_500) Toast.makeText(this, R.string.os_mediji_ni_glasovnega, Toast.LENGTH_LONG).show()
+            return
+        }
+        data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { odpriIskanje(it) }
+    }
+
+    /**
+     * Isce hkrati po vseh virih - videi (PeerTube), izvajalci (Jamendo), radijske postaje in moji
+     * viri - in pokaze vse naenkrat; fokus gre na prvi zadetek, da lahko takoj izberes.
+     */
     private fun isci(beseda: String) {
         if (beseda.length < 2) return
         iskalnik?.let { (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(it.windowToken, 0) }
+        MedijskiViri.zapomniIskanje(this, beseda)
+        zadnjaBeseda = beseda
         val moje = ++nalaganje
         stanje.text = getString(R.string.os_glasba_nalagam)
-        delavec.execute {
-            val izvajalci = try { Jamendo.isciIzvajalce(beseda) } catch (_: Exception) { emptyList() }
-            val videi = PeerTube.isci(MedijskiViri.streznikiPeerTube(this), beseda)
+        val strezniki = MedijskiViri.streznikiPeerTube(this)
+        val mali = beseda.lowercase()
+        val viri = MedijskiViri.vsi(this).filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) }
+        Thread {
+            val iskanja = listOf<() -> List<Jamendo.Skladba>>({ PeerTube.isci(strezniki, beseda) }, { Radio.isci(beseda) })
+            var izvajalci = emptyList<Jamendo.Izvajalec>()
+            val izid = arrayOfNulls<List<Jamendo.Skladba>>(iskanja.size)
+            val niti = iskanja.mapIndexed { i, f -> Thread { izid[i] = try { f() } catch (_: Exception) { null } } } +
+                Thread { izvajalci = try { Jamendo.isciIzvajalce(beseda) } catch (_: Exception) { emptyList() } }
+            niti.forEach { it.start() }
+            niti.forEach { it.join(25_000) }
+            val videi = izid[0].orEmpty(); val postaje = izid[1].orEmpty()
             glavna.post {
                 if (moje != nalaganje || isFinishing) return@post
-                narisi(listOf(
+                val vrste = listOf(
+                    Vrsta(getString(R.string.os_glasba_video), videi(videi, beseda), video = true),
                     Vrsta(getString(R.string.os_mediji_izvajalci), izvajalci.map { iz ->
                         Kartica(iz.ime, getString(R.string.os_glasba_izvajalec), iz.slika, { odpriIzvajalca(iz) }) }),
-                    Vrsta(getString(R.string.os_glasba_video), videi(videi), video = true),
-                ), getString(R.string.os_glasba_zadetki, izvajalci.size, videi.size))
+                    Vrsta(getString(R.string.os_mediji_postaje), skladbe(postaje, beseda)),
+                    Vrsta(getString(R.string.os_mediji_viri), skladbe(viri.map { MedijskiViri.kotSkladba(it) })),
+                )
+                zadetki = vrste
+                opisZadetkov = getString(R.string.os_mediji_zadetki, videi.size, izvajalci.size, postaje.size, viri.size)
+                if (razdelek != ISKANJE) return@post
+                narisi(vrste, opisZadetkov)
+                fokusNaPrvo()
             }
+        }.start()
+    }
+
+    /** Fokus na prvo kartico prve vrste (za iskalnim poljem). */
+    private fun fokusNaPrvo() {
+        for (i in 0 until vsebina.childCount) {
+            val v = vsebina.getChildAt(i) as? HorizontalScrollView ?: continue
+            ((v.getChildAt(0) as? LinearLayout)?.getChildAt(0))?.requestFocus()
+            return
         }
     }
 
@@ -341,8 +492,8 @@ class GlasbaActivity : OsActivity() {
             glavna.post {
                 if (isFinishing) return@post
                 if (s == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
-                narisi(listOf(Vrsta(iz.ime, skladbe(s))), getString(R.string.os_glasba_od_izvajalca, iz.ime))
-                (vsebina.getChildAt(if (iskalnik != null) 2 else 1) as? HorizontalScrollView)?.getChildAt(0)?.let { (it as LinearLayout).getChildAt(0)?.requestFocus() }
+                narisi(listOf(Vrsta(iz.ime, skladbe(s, iz.ime))), getString(R.string.os_glasba_od_izvajalca, iz.ime))
+                fokusNaPrvo()
             }
         }
     }
@@ -369,6 +520,8 @@ class GlasbaActivity : OsActivity() {
                         Toast.makeText(this, getString(R.string.os_mediji_dodano, vir.ime), Toast.LENGTH_SHORT).show()
                         SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO)
                         izberi(VIRI)
+                        // Fokus na pravkar dodani vir: takoj ga lahko odpres.
+                        drsnik.post { ((vsebina.getChildAt(1) as? HorizontalScrollView)?.getChildAt(0) as? LinearLayout)?.let { it.getChildAt(it.childCount - 1)?.requestFocus() } }
                     }
                 }
             }
@@ -401,11 +554,11 @@ class GlasbaActivity : OsActivity() {
         }
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
-            val r = try { PeerTube.razresi(sk) } catch (_: Exception) { null }
+            val r = try { PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this)) } catch (_: Exception) { null }
             glavna.post {
                 if (isFinishing) return@post
                 if (r == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
-                stanje.text = opis(razdelek)
+                stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
                 startActivity(Intent(this, PredvajanjeActivity::class.java))
             }
@@ -431,16 +584,21 @@ class GlasbaActivity : OsActivity() {
             KeyEvent.KEYCODE_MEDIA_NEXT -> { if (p?.hasNextMediaItem() == true) p.seekToNextMediaItem(); return true }
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { p?.seekToPreviousMediaItem(); return true }
             KeyEvent.KEYCODE_MEDIA_STOP -> { GlasbaStoritev.ustavi(this); return true }
+            KeyEvent.KEYCODE_SEARCH -> { odpriIskanje(""); return true }
         }
         return super.onKeyDown(keyCode, event)
     }
 
-    private companion object {
-        const val DOMOV = 0; const val GLASBA = 1; const val RADIO = 2; const val VIDEO = 3
-        const val NAPRAVE = 4; const val VIRI = 5; const val ISKANJE = 6
+    companion object {
+        /** Beseda za iskanje ob odprtju (prazna: samo odpri iskanje), npr. z zaslona predvajanja. */
+        const val ISKANJE_BESEDA = "iskanje"
+
+        private const val DOMOV = 0; private const val PRILJUBLJENE = 1; private const val GLASBA = 2; private const val RADIO = 3
+        private const val VIDEO = 4; private const val NAPRAVE = 5; private const val VIRI = 6; private const val ISKANJE = 7
+        private const val GLAS = 41
 
         /** Seznami razdelkov za cas delovanja aplikacije (ponovna izbira je takojsnja). */
-        val SEZNAMI = HashMap<Int, List<Podatki>>()
-        val SLIKE = LruCache<String, android.graphics.Bitmap>(120)
+        private val SEZNAMI = HashMap<Int, List<Podatki>>()
+        private val SLIKE = LruCache<String, android.graphics.Bitmap>(120)
     }
 }

@@ -14,6 +14,9 @@ import java.net.URL
 object MedijskiViri {
     private const val NASTAVITVE = "safeer_mediji"
     private const val KLJUC = "viri"
+    private const val ISKANJA = "iskanja"
+    private const val PRILJUBLJENE = "priljubljene"
+    private const val SEZNAMI = "seznami"
 
     data class Vir(val tip: String, val ime: String, val naslov: String) {
         val jePeerTube get() = tip == PEERTUBE
@@ -28,6 +31,86 @@ object MedijskiViri {
     fun vsi(ctx: Context): List<Vir> {
         val a = try { JSONArray(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(KLJUC, "[]")) } catch (_: Exception) { JSONArray() }
         return (0 until a.length()).map { a.getJSONObject(it) }.map { Vir(it.optString("tip"), it.optString("ime"), it.optString("naslov")) }
+    }
+
+    // ------------------------------------------------------------------ priljubljene
+
+    /** Seznam predvajanja, ki si ga je uporabnik shranil med priljubljene. */
+    data class Seznam(val ime: String, val skladbe: List<Jamendo.Skladba>)
+
+    /**
+     * Ali skladbo lahko shranimo: splet, radio, Jamendo, PeerTube (datoteko ob predvajanju vprasamo
+     * znova). Datoteke z naprav ne - njihov naslov velja samo za trenutno povezavo Safeer Linka.
+     */
+    fun shranljiva(s: Jamendo.Skladba): Boolean {
+        val naprava = s.mime.isNotBlank() && s.mime != STRAN && s.streznik.isBlank()
+        return !naprava && (s.zvok.startsWith("https://") || (s.video && s.streznik.isNotBlank()))
+    }
+
+    private fun zaShranjevanje(s: Jamendo.Skladba) = if (s.video && s.streznik.isNotBlank()) s.copy(zvok = "", mime = "") else s
+
+    fun priljubljene(ctx: Context): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, PRILJUBLJENE))
+
+    fun jePriljubljena(ctx: Context, s: Jamendo.Skladba) = priljubljene(ctx).any { it.id == s.id }
+
+    /** Doda ali odstrani; vrne, ali je skladba zdaj med priljubljenimi. */
+    fun preklopiPriljubljeno(ctx: Context, s: Jamendo.Skladba): Boolean {
+        val zdaj = priljubljene(ctx)
+        val nova = if (zdaj.any { it.id == s.id }) zdaj.filterNot { it.id == s.id } else listOf(zaShranjevanje(s)) + zdaj
+        pisi(ctx, PRILJUBLJENE, pisiSkladbe(nova.take(300)))
+        return nova.any { it.id == s.id }
+    }
+
+    fun seznami(ctx: Context): List<Seznam> {
+        val a = try { JSONArray(beri(ctx, SEZNAMI)) } catch (_: Exception) { JSONArray() }
+        return (0 until a.length()).map { a.getJSONObject(it) }.map { Seznam(it.optString("ime"), beriSkladbe(it.optJSONArray("skladbe")?.toString() ?: "[]")) }
+            .filter { it.ime.isNotBlank() && it.skladbe.isNotEmpty() }
+    }
+
+    /** Shrani seznam (isto ime zamenja); vrne shranjeni seznam ali null, ce v njem ni nicesar shranljivega. */
+    fun shraniSeznam(ctx: Context, ime: String, skladbe: List<Jamendo.Skladba>): Seznam? {
+        val sz = Seznam(ime, skladbe.filter { shranljiva(it) }.map { zaShranjevanje(it) }.distinctBy { it.id }.take(200))
+        if (sz.skladbe.isEmpty()) return null
+        pisiSeznami(ctx, listOf(sz) + seznami(ctx).filterNot { it.ime == ime })
+        return sz
+    }
+
+    fun odstraniSeznam(ctx: Context, ime: String) = pisiSeznami(ctx, seznami(ctx).filterNot { it.ime == ime })
+
+    private fun pisiSeznami(ctx: Context, s: List<Seznam>) {
+        val a = JSONArray()
+        s.take(30).forEach { a.put(JSONObject().put("ime", it.ime).put("skladbe", JSONArray(pisiSkladbe(it.skladbe)))) }
+        pisi(ctx, SEZNAMI, a.toString())
+    }
+
+    private fun beri(ctx: Context, kljuc: String) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(kljuc, "[]") ?: "[]"
+    private fun pisi(ctx: Context, kljuc: String, v: String) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(kljuc, v).apply()
+
+    private fun pisiSkladbe(s: List<Jamendo.Skladba>): String {
+        val a = JSONArray()
+        s.forEach { a.put(JSONObject().put("id", it.id).put("naslov", it.naslov).put("izvajalec", it.izvajalec).put("slika", it.slika)
+            .put("zvok", it.zvok).put("povezava", it.povezava).put("radio", it.radio).put("video", it.video).put("mime", it.mime)
+            .put("streznik", it.streznik).put("kanal", it.kanal)) }
+        return a.toString()
+    }
+
+    private fun beriSkladbe(json: String): List<Jamendo.Skladba> {
+        val a = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
+        return (0 until a.length()).map { a.getJSONObject(it) }.map {
+            Jamendo.Skladba(it.optString("id"), it.optString("naslov"), it.optString("izvajalec"), it.optString("slika"), it.optString("zvok"),
+                it.optString("povezava"), it.optBoolean("radio"), it.optBoolean("video"), it.optString("mime"), it.optString("streznik"), it.optString("kanal"))
+        }.filter { it.id.isNotBlank() }
+    }
+
+    /** Nedavna iskanja (najnovejse prvo), samo na tej napravi. */
+    fun iskanja(ctx: Context): List<String> {
+        val a = try { JSONArray(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(ISKANJA, "[]")) } catch (_: Exception) { JSONArray() }
+        return (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() }
+    }
+
+    fun zapomniIskanje(ctx: Context, beseda: String) {
+        val nova = (listOf(beseda) + iskanja(ctx).filterNot { it.equals(beseda, ignoreCase = true) }).take(8)
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(ISKANJA, JSONArray(nova).toString()).apply()
     }
 
     fun streznikiPeerTube(ctx: Context): List<String> =
@@ -53,7 +136,11 @@ object MedijskiViri {
     }
 
     fun kotSkladba(v: Vir) = Jamendo.Skladba("vir:" + v.naslov, v.ime, v.naslov.removePrefix("https://").removePrefix("http://"),
-        "", v.naslov, v.naslov, radio = !v.tip.endsWith("video"), video = v.tip.endsWith("video"))
+        "", v.naslov, v.naslov, radio = !v.tip.endsWith("video"), video = v.tip.endsWith("video"),
+        mime = if (v.jeSplet) STRAN else "")
+
+    /** Oznaka enote, ki je spletna stran (odpre jo brskalnik, ne nas predvajalnik). */
+    const val STRAN = "text/html"
 
     /** Naslov toka in ali je video; seznam .m3u/.pls razpakira v prvi naslov. */
     private fun tok(naslov: String, globina: Int = 0): Pair<String, Boolean>? {

@@ -163,6 +163,9 @@ class GlasbaStoritev : Service() {
         /** Zaslon se prijavi, da izve za spremembe (nova skladba, pavza, konec). */
         val poslusalci = mutableSetOf<() -> Unit>()
 
+        /** Ves seznam, ki se predvaja (za "v vrsti" na zaslonu predvajanja). */
+        fun vrsta(): List<Jamendo.Skladba> = if (predvajalnik == null) emptyList() else vrsta
+
         fun trenutna(): Jamendo.Skladba? {
             val p = predvajalnik ?: return null
             return vrsta.getOrNull(p.currentMediaItemIndex)

@@ -33,6 +33,8 @@ object Jamendo {
         val mime: String = "",
         /** Streznik PeerTube, pri katerem vprasamo za datoteko videa. */
         val streznik: String = "",
+        /** Kanal PeerTube (ime@streznik) za "se s tega kanala"; znan po razresitvi. */
+        val kanal: String = "",
     )
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

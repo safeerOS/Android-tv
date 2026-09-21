@@ -1,5 +1,6 @@
 package si.safeer.tv.os
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -14,6 +15,7 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -29,8 +31,9 @@ import java.util.Locale
  * Zdaj se predvaja: celozaslonski prikaz za glasbo, radio in video iz [GlasbaStoritev].
  * Zaslon predvajalniku le pripne sliko - ko ga zapustis (Nazaj, Domov), zvok igra naprej v ozadju.
  *
- * Daljinec: OK pavza/predvajaj, levo/desno 10 s, gor/dol pokaze podatke, zadrzan OK ali Stop
- * ustavi predvajanje, Nazaj pusti predvajanje v ozadju. Pri glasbi se po 30 s brez daljinca
+ * Daljinec: OK pavza/predvajaj, levo/desno 10 s, dol odpre vrsto "se za ogled" (video s tega kanala
+ * in o isti temi) oziroma "v vrsti" (glasba, radio) s kartico Isci na zacetku, tipka Isci odpre
+ * iskanje, zadrzan OK ali Stop ustavi predvajanje, Nazaj pusti predvajanje v ozadju. Pri glasbi se po 30 s brez daljinca
  * zaslon zatemni (nacin poslusanja); pri videu ne.
  */
 class PredvajanjeActivity : OsActivity() {
@@ -47,12 +50,18 @@ class PredvajanjeActivity : OsActivity() {
     private lateinit var tema: FrameLayout
     private lateinit var temaUra: TextView
     private lateinit var temaNaslov: TextView
+    private lateinit var predlogi: LinearLayout
+    private lateinit var predlogiNaslov: TextView
+    private lateinit var predlogiNiz: LinearLayout
+    /** Za kateri posnetek so predlogi nalozeni (ob novem posnetku jih nalozimo znova). */
+    private var predlogiZa = ""
+    private val delavec = java.util.concurrent.Executors.newFixedThreadPool(3)
 
     private var pripet: Player? = null
     private var zadnjaSlika = ""
     private val poslusalec: () -> Unit = { glavna.post { osvezi() } }
     private val tik = object : Runnable { override fun run() { osveziCas(); glavna.postDelayed(this, 1_000) } }
-    private val skrij = Runnable { if (jeVideo()) prekritje.animate().alpha(0f).setDuration(300).start() }
+    private val skrij = Runnable { if (jeVideo() && !predlogiOdprti()) prekritje.animate().alpha(0f).setDuration(300).start() }
     private val zatemni = Runnable { if (!jeVideo() && GlasbaStoritev.predvajalnik?.isPlaying == true) tema.visibility = View.VISIBLE; osveziCas() }
     private val velikost = object : Player.Listener {
         override fun onVideoSizeChanged(videoSize: VideoSize) = prilagodi(videoSize)
@@ -89,6 +98,12 @@ class PredvajanjeActivity : OsActivity() {
         prekritje.addView(naslov); prekritje.addView(izvajalec); prekritje.addView(vir)
         prekritje.addView(potek, LinearLayout.LayoutParams(-1, dp(5)).apply { topMargin = dp(12); bottomMargin = dp(6) })
         prekritje.addView(cas); prekritje.addView(namig)
+        predlogi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        predlogiNaslov = besedilo(17f, getColor(R.color.os_besedilo), true).apply { setPadding(0, dp(14), 0, dp(8)) }
+        predlogiNiz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        predlogi.addView(predlogiNaslov)
+        predlogi.addView(HorizontalScrollView(this).apply { addView(predlogiNiz); isHorizontalScrollBarEnabled = false; clipToPadding = false })
+        prekritje.addView(predlogi)
         koren.addView(prekritje, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
 
         tema = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); visibility = View.GONE }
@@ -108,6 +123,8 @@ class PredvajanjeActivity : OsActivity() {
         glavna.post(tik)
         zbudi()
     }
+
+    override fun onDestroy() { delavec.shutdownNow(); super.onDestroy() }
 
     override fun onStop() {
         GlasbaStoritev.poslusalci.remove(poslusalec)
@@ -130,6 +147,7 @@ class PredvajanjeActivity : OsActivity() {
         }
         povrsina.visibility = if (sk.video) View.VISIBLE else View.INVISIBLE
         naslovnica.visibility = if (sk.video) View.GONE else View.VISIBLE
+        if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
         naslov.text = sk.naslov
         izvajalec.text = sk.izvajalec
         temaNaslov.text = listOf(sk.naslov, sk.izvajalec).filter { it.isNotBlank() }.joinToString(" · ")
@@ -179,6 +197,127 @@ class PredvajanjeActivity : OsActivity() {
         povrsina.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
     }
 
+    // ------------------------------------------------------------------ predlogi in iskanje
+
+    private fun predlogiOdprti() = predlogi.visibility == View.VISIBLE
+
+    /** Dol: vrsta s karticami pod posnetkom. Karta Isci je vedno prva, zato je iskanje en klik stran. */
+    private fun odpriPredloge() {
+        val sk = GlasbaStoritev.trenutna() ?: return
+        predlogi.visibility = View.VISIBLE
+        zbudi()
+        if (predlogiZa != sk.id) {
+            predlogiZa = sk.id
+            if (sk.video) {
+                predlogiNaslov.text = getString(R.string.os_mediji_se_za_ogled)
+                napolni(emptyList(), true)
+                delavec.execute {
+                    val seznam = try { PeerTube.predlogi(sk) } catch (_: Exception) { emptyList() }
+                    glavna.post { if (!isFinishing && predlogiZa == sk.id) napolni(seznam, true) }
+                }
+            } else {
+                predlogiNaslov.text = getString(R.string.os_mediji_v_vrsti)
+                napolni(GlasbaStoritev.vrsta(), false)
+            }
+        }
+        prvaKartica()
+    }
+
+    private fun zapriPredloge() {
+        predlogi.visibility = View.GONE
+        zbudi()
+    }
+
+    private var zadnjiPredlogi: Pair<List<Jamendo.Skladba>, Boolean> = emptyList<Jamendo.Skladba>() to false
+
+    /** Kartice: Isci, Priljubljeno (♡), Shrani vrsto (glasba, radio), nato predlogi. */
+    private fun napolni(seznam: List<Jamendo.Skladba>, video: Boolean, fokusNa: Int = -1) {
+        zadnjiPredlogi = seznam to video
+        val fokus = predlogiNiz.findFocus() != null
+        predlogiNiz.removeAllViews()
+        predlogiNiz.addView(kartica(getString(R.string.os_mediji_isci_kartica), getString(R.string.os_mediji_isci_kartica_opis), "",
+            R.drawable.os_ikona_isci, video) { odpriIskanje() })
+        val vrsta = GlasbaStoritev.vrsta()
+        val zdaj = GlasbaStoritev.trenutna()
+        if (zdaj != null && MedijskiViri.shranljiva(zdaj)) {
+            val je = MedijskiViri.jePriljubljena(this, zdaj)
+            predlogiNiz.addView(kartica(getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj), zdaj.naslov, "",
+                R.drawable.os_ikona_srce, video) {
+                val da = MedijskiViri.preklopiPriljubljeno(this, zdaj)
+                android.widget.Toast.makeText(this, if (da) R.string.os_mediji_dodano_prilj else R.string.os_mediji_odstranjeno_prilj, android.widget.Toast.LENGTH_SHORT).show()
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, 1)
+            })
+        }
+        if (!video && vrsta.count { MedijskiViri.shranljiva(it) } > 1) {
+            predlogiNiz.addView(kartica(getString(R.string.os_mediji_shrani_vrsto), getString(R.string.os_mediji_shrani_vrsto_opis), "",
+                R.drawable.os_ikona_plus, video) {
+                val ime = vrsta.map { it.izvajalec }.distinct().singleOrNull()?.takeIf { it.isNotBlank() } ?: getString(R.string.os_mediji_moja_vrsta)
+                MedijskiViri.shraniSeznam(this, ime, vrsta)?.let {
+                    android.widget.Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, it.ime), android.widget.Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+        dejanj = predlogiNiz.childCount
+        seznam.forEach { sk ->
+            predlogiNiz.addView(kartica(sk.naslov, sk.izvajalec, sk.slika, if (sk.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba, video) {
+                if (video) predvajajVideo(sk) else GlasbaStoritev.predvajalnik?.let { p ->
+                    vrsta.indexOfFirst { it.id == sk.id }.takeIf { it >= 0 }?.let { p.seekTo(it, 0L); p.play() }
+                }
+            })
+        }
+        if (fokusNa >= 0) predlogiNiz.getChildAt(fokusNa)?.requestFocus()
+        else if (fokus) prvaKartica()
+    }
+
+    /** Stevilo kartic z dejanji pred predlogi. */
+    private var dejanj = 1
+
+    /** Fokus na prvi predlog, ce ga ni, na prvo dejanje. */
+    private fun prvaKartica() = (predlogiNiz.getChildAt(dejanj) ?: predlogiNiz.getChildAt(0))?.requestFocus()
+
+    private fun kartica(naslov: String, podnaslov: String, slika: String, ikona: Int, video: Boolean, klik: () -> Unit): View {
+        val sirina = dp(if (video) 200 else 120)
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(5), dp(5), dp(5), dp(6))
+            setBackgroundResource(R.drawable.os_ploscica_app)
+            isFocusable = true; isClickable = true
+            setOnClickListener { klik() }
+            val pogled = ImageView(this@PredvajanjeActivity).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(getColor(R.color.os_kartica)); setImageResource(ikona)
+            }
+            addView(pogled, LinearLayout.LayoutParams(sirina, if (video) sirina * 9 / 16 else sirina))
+            addView(besedilo(13f, getColor(R.color.os_besedilo), true).apply { text = naslov; maxLines = 1; setPadding(dp(2), dp(6), 0, 0) },
+                LinearLayout.LayoutParams(sirina, -2))
+            addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = podnaslov; maxLines = 1; setPadding(dp(2), 0, 0, 0) },
+                LinearLayout.LayoutParams(sirina, -2))
+            if (slika.startsWith("https://")) delavec.execute {
+                val b = Jamendo.bajti(slika)?.let { VarnaSlika.izBajtov(it, 320) } ?: return@execute
+                glavna.post { pogled.setImageBitmap(b) }
+            }
+        }.also { it.layoutParams = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(12) } }
+    }
+
+    /** Video iz predlogov: razresimo datoteko in ga predvajamo tu - zaslon ostane odprt. */
+    private fun predvajajVideo(sk: Jamendo.Skladba) {
+        zapriPredloge()
+        naslov.text = sk.naslov; izvajalec.text = getString(R.string.os_glasba_nalagam)
+        delavec.execute {
+            val r = try { PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this)) } catch (_: Exception) { null }
+            glavna.post {
+                if (isFinishing) return@post
+                if (r == null) { izvajalec.text = getString(R.string.os_glasba_napaka); return@post }
+                GlasbaStoritev.predvajaj(this, listOf(r), 0)
+            }
+        }
+    }
+
+    /** Iskanje v Medijih; predvajanje igra naprej v ozadju. */
+    private fun odpriIskanje() {
+        startActivity(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, "")
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+    }
+
     /** Pokaze podatke in odmakne zatemnitev. */
     private fun zbudi() {
         tema.visibility = View.GONE
@@ -204,7 +343,10 @@ class PredvajanjeActivity : OsActivity() {
     override fun dispatchTouchEvent(dogodek: MotionEvent): Boolean {
         val budna = tema.visibility != View.VISIBLE && prekritje.alpha > 0.5f
         zbudi()
+        if (predlogiOdprti()) return super.dispatchTouchEvent(dogodek)
         if (!budna) return true
+        // Dotik spodnje cetrtine odpre predloge (tablica nima tipke dol).
+        if (dogodek.action == MotionEvent.ACTION_UP && dogodek.y > resources.displayMetrics.heightPixels * 0.75f) { odpriPredloge(); return true }
         if (dogodek.action == MotionEvent.ACTION_UP) preklopi()
         return true
     }
@@ -213,6 +355,13 @@ class PredvajanjeActivity : OsActivity() {
         val budna = tema.visibility != View.VISIBLE
         zbudi()
         if (!budna && dogodek.keyCode != KeyEvent.KEYCODE_BACK) return true
+        if (predlogiOdprti()) when (dogodek.keyCode) {
+            KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) zapriPredloge(); return true }
+            // V vrsti predlogov gredo tipke naravnost zaslonu (fokus, OK izbere kartico), mimo pavze in previjanja.
+            KeyEvent.KEYCODE_DPAD_UP -> { if (dogodek.action == KeyEvent.ACTION_DOWN) zapriPredloge(); return true }
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> return window.superDispatchKeyEvent(dogodek)
+        }
         return super.dispatchKeyEvent(dogodek)
     }
 
@@ -231,7 +380,9 @@ class PredvajanjeActivity : OsActivity() {
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { p?.seekToPreviousMediaItem(); return true }
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> { premakni(-10_000); return true }
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { premakni(10_000); return true }
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> return true
+            KeyEvent.KEYCODE_DPAD_DOWN -> { odpriPredloge(); return true }
+            KeyEvent.KEYCODE_DPAD_UP -> return true
+            KeyEvent.KEYCODE_SEARCH -> { odpriIskanje(); return true }
         }
         return super.onKeyDown(keyCode, event)
     }

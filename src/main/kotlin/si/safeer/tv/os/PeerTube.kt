@@ -32,9 +32,21 @@ object PeerTube {
         j.optJSONObject("instance")?.optString("name")?.ifBlank { streznik }
     } catch (_: Exception) { null }
 
-    /** Datoteka za predvajanje: najboljsa kakovost do 1080p (samostojna MP4, brez HLS). */
-    fun razresi(v: Jamendo.Skladba): Jamendo.Skladba? {
-        val j = JSONObject(beri("https://${v.streznik}/api/v1/videos/${v.id}"))
+    /**
+     * Datoteka za predvajanje: najboljsa kakovost do 1080p (samostojna MP4, brez HLS). Najprej
+     * vprasamo izvorni streznik, nato streznike, kjer smo video nasli - izvor je vcasih nedosegljiv
+     * (preverjeno 21. 9. 2026: tinkerbetter.tube), povezani streznik pa pozna iste datoteke.
+     */
+    fun razresi(v: Jamendo.Skladba, rezervni: List<String> = VGRAJENI): Jamendo.Skladba? {
+        for (s in (listOf(v.streznik) + rezervni).filter { it.isNotBlank() }.distinct()) {
+            val r = try { razresiPri(s, v) } catch (_: Exception) { null }
+            if (r != null) return r
+        }
+        return null
+    }
+
+    private fun razresiPri(streznik: String, v: Jamendo.Skladba): Jamendo.Skladba? {
+        val j = JSONObject(beri("https://$streznik/api/v1/videos/${v.id}"))
         val datoteke = mutableListOf<Pair<Int, String>>()
         fun dodaj(a: JSONArray?) {
             if (a == null) return
@@ -49,7 +61,23 @@ object PeerTube {
         val seznami = j.optJSONArray("streamingPlaylists")
         if (seznami != null) for (i in 0 until seznami.length()) dodaj(seznami.getJSONObject(i).optJSONArray("files"))
         val url = datoteke.maxByOrNull { it.first }?.second ?: return null
-        return v.copy(zvok = url, mime = "video/mp4")
+        val kanal = j.optJSONObject("channel")?.let { "${it.optString("name")}@${it.optString("host")}" }.orEmpty()
+        return v.copy(zvok = url, mime = "video/mp4", kanal = kanal, streznik = streznik)
+    }
+
+    /**
+     * Predlogi pod videom: najbolj gledani s tega kanala in posnetki o isti temi (najdaljsa beseda
+     * naslova), izmenicno, brez tega videa. Preverjeno 21. 9. 2026 na tilvids.com in framatube.org.
+     */
+    fun predlogi(v: Jamendo.Skladba): List<Jamendo.Skladba> {
+        val s = v.streznik.ifBlank { return emptyList() }
+        val kanal = try {
+            if (v.kanal.contains('@')) seznam(s, "/api/v1/video-channels/${v.kanal}/videos?sort=-views&count=12&nsfw=false") else emptyList()
+        } catch (_: Exception) { emptyList() }
+        val beseda = v.naslov.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.length >= 4 }.maxByOrNull { it.length }
+        val tema = beseda?.let { isci(listOf(s), it) }.orEmpty()
+        return (0 until maxOf(kanal.size, tema.size)).flatMap { listOfNotNull(kanal.getOrNull(it), tema.getOrNull(it)) }
+            .distinctBy { it.id }.filter { it.id != v.id }.take(20)
     }
 
     private fun seznam(streznik: String, pot: String): List<Jamendo.Skladba> {

@@ -25,6 +25,10 @@ object Radio {
         return domace.distinctBy { it.zvok } to svet.distinctBy { it.zvok }
     }
 
+    /** Postaje po imenu, najbolj poslusane najprej; dolga "imena" so seznami oznak za iskalnike, ne postaje. */
+    fun isci(beseda: String): List<Jamendo.Skladba> =
+        iskanje("name=${java.net.URLEncoder.encode(beseda, "UTF-8")}&limit=40").filter { it.naslov.length <= 60 }.distinctBy { it.zvok }.take(24)
+
     private fun iskanje(filter: String): List<Jamendo.Skladba> {
         val p = URL("$OSNOVA?order=clickcount&reverse=true&hidebroken=true&is_https=true&$filter").openConnection() as HttpURLConnection
         p.connectTimeout = 10_000; p.readTimeout = 15_000
