@@ -431,4 +431,6 @@
     <string name="os_premakni">Move</string>
     <string name="os_premakni_namig">◀ ▶ move · OK done</string>
     <string name="os_zaslon_ni_vec">The chosen device is no longer connected. Choose another screen.</string>
+    <string name="os_zaslon_nacin_predvajalnik">Player · OK play/pause · ◀ ▶ skip 10 s (hold to skip faster) · ▲ ▼ show the bar · Menu opens the menu · hold Back to exit</string>
+    <string name="os_zaslon_meni_predvajalnik">Control as a player</string>
 </resources>

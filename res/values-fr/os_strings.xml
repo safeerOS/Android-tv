@@ -430,4 +430,6 @@
     <string name="os_premakni">Déplacer</string>
     <string name="os_premakni_namig">◀ ▶ déplacer · OK terminé</string>
     <string name="os_zaslon_ni_vec">L\'appareil choisi n\'est plus connecté. Choisissez un autre écran.</string>
+    <string name="os_zaslon_nacin_predvajalnik">Lecteur · OK lecture/pause · ◀ ▶ avancer de 10 s (maintenez pour aller plus vite) · ▲ ▼ affiche la barre · Menu ouvre le menu · maintenez Retour pour quitter</string>
+    <string name="os_zaslon_meni_predvajalnik">Contrôler comme un lecteur</string>
 </resources>

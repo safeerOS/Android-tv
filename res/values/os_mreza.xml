@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Stolpci mreze Aplikacij: televizor in lezeca tablica 6, pokoncna tablica 4 (sicer imena
+         aplikacij razpadejo na crko ali dve). -->
+    <integer name="os_stolpci_programov">6</integer>
+</resources>

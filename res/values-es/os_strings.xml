@@ -430,4 +430,6 @@
     <string name="os_premakni">Mover</string>
     <string name="os_premakni_namig">◀ ▶ mover · OK listo</string>
     <string name="os_zaslon_ni_vec">El dispositivo elegido ya no está conectado. Elige otra pantalla.</string>
+    <string name="os_zaslon_nacin_predvajalnik">Reproductor · OK reproducir/pausa · ◀ ▶ saltar 10 s (mantén para ir más rápido) · ▲ ▼ muestra la barra · Menú abre el menú · mantén Atrás para salir</string>
+    <string name="os_zaslon_meni_predvajalnik">Controlar como reproductor</string>
 </resources>

@@ -430,4 +430,6 @@
     <string name="os_premakni">Premakni</string>
     <string name="os_premakni_namig">◀ ▶ premakni · OK končaj</string>
     <string name="os_zaslon_ni_vec">Izbrana naprava ni več povezana. Izberi drug zaslon.</string>
+    <string name="os_zaslon_nacin_predvajalnik">Predvajalnik · OK predvajaj/pavza · ◀ ▶ previj 10 s (drži za hitreje) · ▲ ▼ pokaže pas · Meni odpre meni · drži Nazaj za izhod</string>
+    <string name="os_zaslon_meni_predvajalnik">Upravljaj kot predvajalnik</string>
 </resources>
