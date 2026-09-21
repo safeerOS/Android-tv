@@ -431,4 +431,6 @@
     <string name="os_ur_obv_brisanje">Confirm deleting the photo</string>
     <string name="os_ur_obv_vrtenje">Confirm rotating the photo</string>
     <string name="os_ur_obv_opis">The request comes from Safeer Link. Tap to confirm.</string>
+    <string name="os_premakni">Move</string>
+    <string name="os_premakni_namig">◀ ▶ move · OK done</string>
 </resources>

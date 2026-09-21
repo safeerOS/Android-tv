@@ -17,8 +17,15 @@ open class OsActivity : Activity() {
     /** Vsi zasloni Safeer OS govorijo jezik, ki ga je uporabnik izbral
      *  (enako kot brskalnik); pri "samodejno" ostane jezik televizorja. */
     override fun attachBaseContext(newBase: android.content.Context) {
+        jezikOb = si.safeer.tv.JezikVmesnika.izbrani(newBase)
         super.attachBaseContext(si.safeer.tv.JezikVmesnika.vKontekstu(newBase))
     }
+
+    /**
+     * Jezik, v katerem je zaslon narisan. Ko uporabnik v Nastavitvah izbere drugega, se zasloni za
+     * njimi (domaci zaslon) ob vrnitvi narisejo znova - prej so ostali v starem jeziku.
+     */
+    private var jezikOb: String? = null
 
     private val palica by lazy { Kontroler.Palica(this) }
 
@@ -56,6 +63,7 @@ open class OsActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (jezikOb != null && si.safeer.tv.JezikVmesnika.izbrani(this) != jezikOb) { recreate(); return }
         viden = SystemClock.uptimeMillis()
         pritisnjene.clear()
         koda.zacni()

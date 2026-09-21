@@ -40,7 +40,10 @@ object JezikVmesnika {
     fun imeIzbire(context: Context): String {
         val izbran = izbrani(context)
         if (izbran == SAMODEJNO) {
-            val samodejno = UiText.get(R.string.ui_lang_auto)
+            // Iz konteksta zaslona (v izbranem jeziku): UiText je pripravljen le v brskalniku, zato je
+            // v Safeer OS tu pisalo "Automatic" tudi na slovenskem zaslonu.
+            val samodejno = (try { context.getString(R.string.ui_lang_auto) } catch (_: Exception) { "" })
+                .ifBlank { UiText.get(R.string.ui_lang_auto) }
             return if (samodejno.isNotBlank()) samodejno else "Automatic"
         }
         return JEZIKI.firstOrNull { it.first == izbran }?.second ?: izbran

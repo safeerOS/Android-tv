@@ -1328,6 +1328,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val izbrani = Priljubljene.seznam(this)
         val po = izbrani.mapNotNull { paket -> vsi.firstOrNull { it.paket == paket } }
         var zeljeni: View? = null
+        val kartice = LinkedHashMap<String, View>()
         for (a in po) {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
             v.findViewById<ImageView>(R.id.ikona).setImageDrawable(Aplikacije.ikona(this, a))
@@ -1337,9 +1338,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 zadnjaOznaka = "app:" + a.paket
                 odpriVarno(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), a.ime, izPloscice(v))
             }
-            v.setOnLongClickListener { moznostiAplikacije(a, po.size); true }
+            v.setOnLongClickListener {
+                moznostiPriljubljene("app:" + a.paket, a.ime) { Priljubljene.odstrani(this, a.paket) }; true
+            }
             v.tag = "app:" + a.paket
-            vrstaAplikacije.addView(v)
+            kartice["app:" + a.paket] = v
             if (a.paket == fokusPaket) zeljeni = v
         }
         // Priljubljeni programi z racunalnika: v isti vrsti kot aplikacije televizorja - uporabnik
@@ -1357,22 +1360,17 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     program = p.cilj, igra = p.skupina == "igre"))
             }
             v.setOnLongClickListener {
-                android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle(p.ime)
-                    .setItems(arrayOf(getString(R.string.os_priljubljen_odstrani))) { _, _ ->
-                        val mesto = vrstaAplikacije.indexOfChild(v)
-                        SafeerAppi.odstrani(this, p.kljuc); narisiAplikacije()
-                        // Izbira ostane v vrsti (na sosednji kartici), ne skoci na vrh zaslona.
-                        vrstaAplikacije.post {
-                            vrstaAplikacije.getChildAt(mesto.coerceAtMost(vrstaAplikacije.childCount - 1))?.requestFocus()
-                        }
-                    }
-                    .setNegativeButton(getString(R.string.os_preklici), null)
-                    .let { Kontroler.pokazi(it.show()) }
-                true
+                moznostiPriljubljene("app:" + p.kljuc, p.ime) { SafeerAppi.odstrani(this, p.kljuc) }; true
             }
             v.tag = "app:" + p.kljuc
-            vrstaAplikacije.addView(v)
+            kartice["app:" + p.kljuc] = v
+        }
+        // En vrstni red za vse priljubljene (televizor in druge naprave skupaj), kot ga uredi uporabnik.
+        for (o in Vrstni.red(this, KLJUC_PRILJUBLJENE, kartice.keys.toList())) kartice[o]?.let { vrstaAplikacije.addView(it) }
+        // Vec, kot gre na zaslon: vrsta se drsi, mehak rob na desni pove, da je se kaj.
+        (vrstaAplikacije.parent as? android.widget.HorizontalScrollView)?.let {
+            it.isHorizontalFadingEdgeEnabled = true
+            it.setFadingEdgeLength((48 * resources.displayMetrics.density).toInt())
         }
         // Vrsta so aplikacije, ki si jih je uporabnik izbral; vse ostale so pod Aplikacije.
         findViewById<TextView>(R.id.naslovAplikacije)?.setText(R.string.os_odsek_priljubljene)
@@ -1402,28 +1400,79 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
     }
 
-    /** Dolg pritisk na priljubljeno aplikacijo: uredi vrstni red ali jo umakni z domacega zaslona. */
-    private fun moznostiAplikacije(a: Aplikacije.Vnos, koliko: Int) {
-        val mesto = Priljubljene.seznam(this).indexOf(a.paket)
+    /**
+     * Dolg pritisk na priljubljeno: Premakni (puscici levo/desno jo neseta po vrsti, OK konca) ali
+     * Odstrani. Prej je bil vsak korak svoje okno ("Premakni levo") - za peto mesto petkrat.
+     */
+    private fun moznostiPriljubljene(oznaka: String, ime: String, odstrani: () -> Unit) {
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
-        if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniAplikacijo(a, -1) })
-        if (mesto in 0 until koliko - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniAplikacijo(a, 1) })
+        if (oznakePriljubljenih().size > 1) dejanja.add(getString(R.string.os_premakni) to { zacniPremik(oznaka) })
         dejanja.add(getString(R.string.os_aplikacije_odstrani) to {
-            Priljubljene.odstrani(this, a.paket); narisiAplikacije()
+            val mesto = oznakePriljubljenih().indexOf(oznaka)
+            odstrani(); narisiAplikacije()
             vrstaAplikacije.post {
                 vrstaAplikacije.getChildAt(mesto.coerceIn(0, vrstaAplikacije.childCount - 1))?.requestFocus()
             }
         })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(a.ime)
+            .setTitle(ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
     }
 
-    private fun premakniAplikacijo(a: Aplikacije.Vnos, zamik: Int) {
-        if (!Priljubljene.premakni(this, a.paket, zamik)) return
-        narisiAplikacije(a.paket)
+    private fun oznakePriljubljenih(): List<String> =
+        (0 until vrstaAplikacije.childCount).mapNotNull { vrstaAplikacije.getChildAt(it)?.tag as? String }
+            .filter { it != "app:+" }
+
+    /** Kartica, ki jo uporabnik ta trenutek premika po vrsti priljubljenih (null = ne premika). */
+    private var premikam: String? = null
+    /** Tipka, ki je premikanje koncala: njen dvig ne sme se odpreti aplikacije. */
+    private var pogoltniGor = -1
+
+    private fun zacniPremik(oznaka: String) {
+        premikam = oznaka
+        vrstaAplikacije.post { oznaciPremik() }
+    }
+
+    private fun oznaciPremik() {
+        val o = premikam ?: return
+        val v = najdiPoOznaki(o) ?: return
+        v.requestFocus()
+        v.animate().scaleX(1.12f).scaleY(1.12f).setDuration(120).start()
+        v.findViewById<TextView>(R.id.ime)?.let { it.text = "◀  " + it.text + "  ▶" }
+        opombaSpodaj.text = getString(R.string.os_premakni_namig)
+        opombaSpodaj.visibility = View.VISIBLE
+    }
+
+    private fun koncajPremik() {
+        val o = premikam ?: return
+        premikam = null
+        opombaSpodaj.visibility = View.GONE
+        narisiAplikacije()
+        vrstaAplikacije.post { najdiPoOznaki(o)?.requestFocus() }
+    }
+
+    private fun premakniPriljubljeno(zamik: Int) {
+        val o = premikam ?: return
+        if (!Vrstni.premakni(this, KLJUC_PRILJUBLJENE, oznakePriljubljenih(), o, zamik)) return
+        narisiAplikacije()
+        oznaciPremik()
+    }
+
+    /** Med premikanjem gredo tipke samo premikanju: levo/desno premakne, vse ostalo konca. */
+    override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        if (premikam != null) {
+            if (dogodek.action == KeyEvent.ACTION_DOWN) when (dogodek.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> premakniPriljubljeno(-1)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> premakniPriljubljeno(1)
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> { }
+                else -> { pogoltniGor = dogodek.keyCode; koncajPremik() }
+            }
+            return true
+        }
+        if (dogodek.action == KeyEvent.ACTION_UP && dogodek.keyCode == pogoltniGor) { pogoltniGor = -1; return true }
+        return super.dispatchKeyEvent(dogodek)
     }
 
     // ------------------------------------------------------------------ pomozno
@@ -1538,6 +1587,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         const val NAJVECJA_ZACNI_DP = 170
         /** Kje je shranjen vrstni red vrste Zacni. */
         const val KLJUC_ZACNI = "red_zacni"
+        /** Vrstni red priljubljenih aplikacij na domacem zaslonu (televizor in druge naprave skupaj). */
+        const val KLJUC_PRILJUBLJENE = "red_priljubljene"
         /** Kartica aplikacije: ikona in ime; pod to sirino ime ni vec berljivo. */
         const val NAJMANJSA_APP_DP = 116
         /** Nad to sirino kartica aplikacije ni vec videti kot ikona, ampak kot plakat. */
