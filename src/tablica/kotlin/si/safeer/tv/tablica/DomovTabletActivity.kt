@@ -195,12 +195,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         mDomov?.setOnClickListener {
             drsnik?.smoothScrollTo(0, 0)
         }
+        // En vstop do vseh aplikacij (tablice in povezanih naprav); deluje tudi brez racunalnika.
         mAplikacije?.setOnClickListener {
-            if (imamoPrograme) {
-                odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.tablet_programi))
-            } else {
-                pokaziOknoNiPovezano(getString(R.string.tablet_programi))
-            }
+            odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.tablet_programi))
         }
         mZaslon?.setOnClickListener {
             val r = racunalnik("desktop")
@@ -268,6 +265,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
             }
         }
+        // Isto vsebino odpre Aplikacije v stranski vrstici - druga kartica ali "Prikazi vse" bi jo podvojila.
+        karticaProgrami?.visibility = View.GONE
+        gumbVseAplikacije?.visibility = View.GONE
         karticaProgrami?.setOnClickListener {
             if (imamoPrograme) {
                 odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.tablet_programi))
@@ -761,6 +761,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (datoteke != imamoDatoteke || programi != imamoPrograme || zaslon != imamoZaslon) narisi()
         else narisiNaprave()
         if (!datoteke && !programi && !zaslon) isci()
+        si.safeer.tv.os.AplikacijeHostaActivity.predhodno(this)
     }
 
     override fun naNaslov(url: String, naslov: String, od: String) { }
