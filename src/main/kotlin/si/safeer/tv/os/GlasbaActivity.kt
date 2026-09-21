@@ -62,7 +62,8 @@ class GlasbaActivity : OsActivity() {
     private val delavec = Executors.newFixedThreadPool(4)
     // Omrezno iskanje ima lasten omejen pool. Prejsnje iskanje preklicemo, da pocasni
     // strezniki ne zasedajo CPU/omrezja se dolgo po novem vnosu.
-    private val iskanjeDelavec = Executors.newFixedThreadPool(6)
+    // Brez zgornje meje: omrezna zahteva se ob preklicu ne ustavi takoj, novo iskanje pa ne sme cakati v vrsti.
+    private val iskanjeDelavec = Executors.newCachedThreadPool()
     private val iskanjeNiti = mutableListOf<Future<*>>()
     private val slikeVTeKu = ConcurrentHashMap.newKeySet<String>()
     private val glavna = Handler(Looper.getMainLooper())
@@ -1231,14 +1232,8 @@ class GlasbaActivity : OsActivity() {
         )
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = f() } }
         synchronized(iskanjeNiti) { iskanjeNiti.addAll(futures) }
-        Thread {
-            // TV ne sme dolgo delovati zamrznjeno zaradi enega pocasnega vira.
-            val rok = System.currentTimeMillis() + 12_000
-            futures.forEach { f ->
-                val ostanek = rok - System.currentTimeMillis()
-                if (ostanek > 0) try { f.get(ostanek, java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { f.cancel(true) }
-                else f.cancel(true)
-            }
+        /** Narise zadetke, ki so ze prispeli; [koncno] = vsi viri so odgovorili ali je rok potekel. */
+        fun prikazi(koncno: Boolean, prvic: Boolean): Boolean {
             @Suppress("UNCHECKED_CAST") val glasba = rezultati[0] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val videi = rezultati[1] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val postaje = rezultati[2] as? List<Jamendo.Skladba> ?: emptyList()
@@ -1262,6 +1257,7 @@ class GlasbaActivity : OsActivity() {
             val najboljsi = lestvica.filter { it.second >= Relevantnost.SPODNJA }.take(12)
             val prikazani = najboljsi.map { (it.first.stvar as Jamendo.Skladba).id }.toSet()
             val splet = Relevantnost.potrebujemSplet(lestvica)
+            if (!koncno && lestvica.isEmpty() && izvajalci.isEmpty()) return false
             glavna.post {
                 if (moje != nalaganje || isFinishing) return@post
                 val spletVrsta = Vrsta(getString(R.string.os_media_na_spletu), listOf(Kartica(getString(R.string.os_media_isci_splet, beseda),
@@ -1269,7 +1265,7 @@ class GlasbaActivity : OsActivity() {
                 val nicNasli = lestvica.isEmpty() && izvajalci.isEmpty()
                 fun ostali(s: List<Jamendo.Skladba>) = s.filterNot { it.id in prikazani }
                 val vrste = listOfNotNull(
-                    spletVrsta.takeIf { nicNasli },
+                    spletVrsta.takeIf { nicNasli && koncno },
                     Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first) }),
                     Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(glasba), beseda)),
                     Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi), beseda), video = true),
@@ -1282,7 +1278,7 @@ class GlasbaActivity : OsActivity() {
                             odpriIskanjeVViru(vir, beseda)
                         }, ikona = R.drawable.os_ikona_splet)
                     }),
-                    spletVrsta.takeIf { splet && !nicNasli },
+                    spletVrsta.takeIf { splet && !nicNasli && koncno },
                 )
                 zadetki = vrste
                 // Koliko in kje: »5 zadetkov · janez-PC, Jamendo, PeerTube«.
@@ -1290,9 +1286,25 @@ class GlasbaActivity : OsActivity() {
                 opisZadetkov = if (izvori.isEmpty()) getString(R.string.os_media_ni_zadetkov_vir)
                     else getString(R.string.os_media_zadetki_izvori, lestvica.size, izvori.joinToString(", "))
                 if (razdelek != ISKANJE) return@post
-                narisi(vrste, opisZadetkov)
-                fokusNaPrvo()
+                narisi(vrste, if (koncno) opisZadetkov else opisZadetkov + " · " + getString(R.string.os_glasba_nalagam))
+                if (prvic) fokusNaPrvo()
             }
+            return true
+        }
+        Thread {
+            // Prikaz po delih: kar prispe v 2,5 s, se takoj pokaze; pocasnejsi viri dopolnijo isti zaslon
+            // (narisi obdrzi fokus na isti kartici). Po 8 s ne cakamo vec.
+            val zacetek = System.currentTimeMillis()
+            var narisanih = -1
+            while (moje == nalaganje && !isFinishing) {
+                val gotovih = futures.count { it.isDone }
+                val cas = System.currentTimeMillis() - zacetek
+                val konec = gotovih == futures.size || cas >= 8_000
+                if ((konec || (gotovih != narisanih && cas >= 2_500)) && prikazi(konec, narisanih < 0)) narisanih = gotovih
+                if (konec) break
+                try { Thread.sleep(100) } catch (_: InterruptedException) { break }
+            }
+            futures.forEach { if (!it.isDone) it.cancel(true) }
         }.start()
     }
 
@@ -1328,7 +1340,7 @@ class GlasbaActivity : OsActivity() {
         val izid = java.util.Collections.synchronizedList(ArrayList<Relevantnost.Zadetek<Jamendo.Skladba>>())
         val cakam = java.util.concurrent.CountDownLatch(naprave.size)
         for (n in naprave) {
-            link.ukaz(n.id, "files.search", org.json.JSONObject().put("q", beseda), 8_000, LinkOdjemalec.Odgovor { odgovor, _ ->
+            link.ukaz(n.id, "files.search", org.json.JSONObject().put("q", beseda), 6_000, LinkOdjemalec.Odgovor { odgovor, _ ->
                 try {
                     val podatki = odgovor?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
                     val sv = podatki?.optJSONObject("server")
@@ -1351,7 +1363,7 @@ class GlasbaActivity : OsActivity() {
                 } finally { cakam.countDown() }
             })
         }
-        try { cakam.await(9, java.util.concurrent.TimeUnit.SECONDS) } catch (_: InterruptedException) { }
+        try { cakam.await(7, java.util.concurrent.TimeUnit.SECONDS) } catch (_: InterruptedException) { }
         return ArrayList(izid)
     }
 

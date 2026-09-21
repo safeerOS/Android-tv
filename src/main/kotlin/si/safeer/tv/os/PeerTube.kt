@@ -26,7 +26,10 @@ object PeerTube {
      */
     fun isci(strezniki: List<String>, beseda: String): List<Jamendo.Skladba> {
         val besede = normaliziraj(beseda).split(' ').filter { it.length >= 2 }
-        return strezniki.flatMap { s ->
+        // Strezniki hkrati in z rokom 5 s: tilvids.com je 21. 9. 2026 odgovoril v 14 s ali sploh ne,
+        // framatube.org v 1,7 s - pocasen streznik ne sme zadrzati ostalih.
+        val bazen = java.util.concurrent.Executors.newCachedThreadPool()
+        val opravila = strezniki.map { s -> bazen.submit<List<Jamendo.Skladba>> {
             try {
                 seznam(s, "/api/v1/search/videos?search=${URLEncoder.encode(beseda, "UTF-8")}&sort=-views&nsfw=false&count=30&searchTarget=local") { v ->
                     val besedilo = normaliziraj(listOf(v.optString("name"), v.optJSONObject("channel")?.optString("displayName").orEmpty(),
@@ -35,6 +38,12 @@ object PeerTube {
                     besede.all { besedilo.contains(it) }
                 }
             } catch (_: Exception) { emptyList() }
+        } }
+        bazen.shutdown()
+        val rok = System.currentTimeMillis() + 5_000
+        return opravila.flatMap { f ->
+            try { f.get((rok - System.currentTimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) }
+            catch (_: Exception) { f.cancel(true); emptyList() }
         }.distinctBy { it.id }
     }
 
