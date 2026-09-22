@@ -241,6 +241,8 @@ class LinkOdjemalec(private val context: Context) {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 poskusov = 0
                 povezan = true
+                val u = webSocket.request().url
+                if (prekReleja && !si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)) prekReleja = false
                 if (prekReleja) glavna.postDelayed(nazajVLan, 300_000L)
                 val prijava = JSONObject()
                     .put("id", UUID.randomUUID().toString())
@@ -358,8 +360,15 @@ class LinkOdjemalec(private val context: Context) {
         val p = poverilnice
         if (poskusov == 2 && !prekReleja && p != null && si.safeer.tv.link.GlobalLink.vklopljen(context) &&
             si.safeer.tv.link.GlobalLink.osnovniId(p.hubId) != null) {
-            Log.i(TAG, "Domaci hub ni v tem omrezju; poskusim prek Global Linka.")
-            prekReleja = true
+            // Samo ce v tem omrezju ni nobenega huba; sicer ostanemo v LAN (naIzgubo prinese novega).
+            try {
+                si.safeer.tv.cast.HubDiscovery.discover(context, 4000L) { naslov ->
+                    if (tece && !prekReleja && naslov.isNullOrBlank()) {
+                        Log.i(TAG, "Domaci hub ni v tem omrezju; poskusim prek Global Linka.")
+                        prekReleja = true
+                    }
+                }
+            } catch (e: Throwable) { Log.w(TAG, "Iskanje huba v LAN: ${e.message}") }
         }
         if (poskusov == 3 && !izgubaJavljena) { izgubaJavljena = true; glavna.post { poslusalec?.naIzgubo() } }
         val gen = generacija

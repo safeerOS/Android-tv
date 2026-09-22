@@ -533,5 +533,10 @@ in se vrne domov.
 - Nastavitve (Android): Global Link vklopljen privzeto; "Preizkus: tudi doma prek interneta" za preizkus.
 - Preizkuseno: zacasna naprava s PC prek link.safeer.si do Controla (HTTP 200, 0,9 s, potrdilo iz
   huba), tujec zavrnjen; tablica prek releja prijavljena s podpisom in prejema ukaze prek huba.
-- Se ni: hub na Androidu (TV/tablica kot hub prek releja), Linux kot odjemalec tujega huba prek releja,
-  neposredne povezave naprava-naprava (datoteke, zaslon) prek releja - te gredo zdaj samo v LAN.
+- Hub na Androidu (`GlobalLink.AgentHuba`, zagon v CastReceiverService): kadar TV, tablica ali telefon
+  gosti hub, se objavi enako kot Control. Preizkuseno: Control ustavljen, hub prevzame Android naprava,
+  racunalnik pride do nje samo prek link.safeer.si v ~20 s (odgovor huba cez TLS od konca do konca).
+- Hub, ki ga rele ne pozna (404, npr. ugasnjen): naprava ga minuto ne klice vec in ostane na LAN, kjer
+  volitve najdejo novega (varuje dnevno kvoto Workerja); ob uspehu prek LAN se odjemalec vrne na LAN.
+- Se ni: Linux kot odjemalec tujega huba prek releja, neposredne povezave naprava-naprava (datoteke,
+  zaslon) prek releja - te gredo zdaj samo v LAN.

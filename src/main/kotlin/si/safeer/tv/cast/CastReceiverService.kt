@@ -209,6 +209,8 @@ class CastReceiverService : Service() {
         instance = this
 
         startForeground(NOTIFICATION_ID, buildForegroundNotification())
+        // Global Link: ko ta naprava gosti hub, je dosegljiv tudi svojim napravam zunaj doma.
+        si.safeer.tv.link.GlobalLink.AgentHuba.zazeni(this)
         si.safeer.tv.link.DatotekeStreznik.pripravi(this)
         // Ze odprte povezave na isti naslov ne odpiramo znova: druga povezava iste naprave bi na hubu
         // zamenjala prvo, prva pa bi obvisela in cez pol minute sprozila nov krog zamenjav.
@@ -360,6 +362,9 @@ class CastReceiverService : Service() {
                 if (moj != rod) { webSocket.cancel(); return }
                 Log.i(TAG, if (aktivniUrl() != hubUrl) "Uspešno povezan s Cast Hubom prek Global Linka." else "Uspešno povezan s Cast Hubom!")
                 reconnectAttempts = 0
+                // Uspeh prek LAN (npr. hub se je zamenjal, rele ga ne pozna): naslednjic spet najprej LAN.
+                val u = webSocket.request().url
+                if (prekReleja && !si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)) prekReleja = false
                 if (prekReleja) { mainHandler.removeCallbacks(nazajVLan); mainHandler.postDelayed(nazajVLan, 300_000L) }
                 povezan = true
                 try { naPovezavo?.invoke(true) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPovezavo(true)", e) }
@@ -575,11 +580,22 @@ class CastReceiverService : Service() {
             }
         }
         // Global Link: po dveh neuspehih v LAN poskusimo domaci hub prek link.safeer.si (preden bi naprava
-        // razglasila izvoljeni hub za izgubljenega in zacela gostiti sama).
+        // razglasila izvoljeni hub za izgubljenega in zacela gostiti sama) - a samo, ce v tem omrezju ni
+        // nobenega huba. Ce je (npr. hub se je preselil), ostanemo v LAN in gremo nanj.
         if (reconnectAttempts == 2 && !prekReleja && si.safeer.tv.link.GlobalLink.vklopljen(this) &&
             si.safeer.tv.link.GlobalLink.osnovniId(HubKrmilnik.izvoljeniHub(this)?.id) != null) {
-            Log.i(TAG, "Domaci hub ni v tem omrezju; poskusim prek Global Linka.")
-            prekReleja = true
+            try {
+                HubDiscovery.discover(this, 4000L) { naslov ->
+                    if (!isRunning || prekReleja) return@discover
+                    if (naslov.isNullOrBlank()) {
+                        Log.i(TAG, "Domaci hub ni v tem omrezju; poskusim prek Global Linka.")
+                        prekReleja = true
+                    } else {
+                        val nov = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_HUB_URL, naslov) ?: naslov
+                        if (nov != hubUrl) { Log.i(TAG, "Hub je v tem omrezju na novem naslovu: $nov"); hubUrl = nov; reconnectAttempts = 0 }
+                    }
+                }
+            } catch (e: Throwable) { Log.w(TAG, "Iskanje huba v LAN: ${e.message}") }
         }
         mainHandler.postDelayed({ connectToHub() }, delayMs)
     }

@@ -19,6 +19,12 @@ import java.net.URI
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
+import org.json.JSONArray
+import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import si.safeer.tv.cast.HubKrmilnik
+import si.safeer.tv.cast.KrogNaprave
 
 /**
  * Global Link na Androidu: kadar domaci hub (npr. racunalnik) ni v istem omrezju, gre povezava do njega
@@ -44,6 +50,14 @@ object GlobalLink {
     /** En rele na hub (sprejemnik in Safeer OS lahko hkrati uporabljata istega; drug drugemu ga ne zapreta). */
     private val releji = HashMap<String, Rele>()
 
+    /** Hubi, ki jih rele ne pozna (404: ne objavlja se vec): minuto jih ne klicemo in ostanemo na LAN. */
+    private val odsotni = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private const val PREMOR_ODSOTNEGA_MS = 60_000L
+    fun hubOdsoten(id: String?): Boolean {
+        val cilj = osnovniId(id) ?: return false
+        return System.currentTimeMillis() - (odsotni[cilj] ?: 0L) < PREMOR_ODSOTNEGA_MS
+    }
+
     /** Osnovni id huba iz kljuca (`n-<16 hex>`, brez pripone sorodnika) ali null. */
     fun osnovniId(id: String?): String? {
         val s = id ?: return null
@@ -60,12 +74,18 @@ object GlobalLink {
         val lokalno = try { InetAddress.getByName(URI(hubUrl).host).isLoopbackAddress } catch (_: Throwable) { false }
         if (lokalno) return hubUrl
         val cilj = osnovniId(hubId) ?: return hubUrl
+        // Hub se ne objavlja (npr. ugasnjen): nazaj na LAN, kjer volitve najdejo novega; brez klicev releja.
+        if (hubOdsoten(cilj) && !samoRele(c)) return hubUrl
         val r = synchronized(this) {
             releji[cilj]?.takeIf { it.tece } ?: Rele(c.applicationContext, cilj).also { releji[cilj] = it }
         }
         val pot = try { URI(hubUrl).rawPath.orEmpty() } catch (_: Throwable) { "" }
         return "wss://127.0.0.1:${r.vrata}$pot"
     }
+
+    /** Ali povezava na [host]:[port] tece skozi enega od nasih relejev (sicer je LAN ali lastni hub). */
+    fun jeRele(host: String, port: Int): Boolean =
+        host == "127.0.0.1" && synchronized(this) { releji.values.any { it.tece && it.vrata == port } }
 
     fun izklopi() = synchronized(this) { releji.values.forEach { it.zapri() }; releji.clear() }
 
@@ -104,40 +124,14 @@ object GlobalLink {
         }
 
         private fun kanal(tcp: Socket) {
+            if (hubOdsoten(cilj)) { try { tcp.close() } catch (_: Throwable) { }; return }
             val kanal = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
             val pot = "/v1/connect?to=$cilj&kanal=$kanal"
             val z = Request.Builder().url("https://$GOSTITELJ$pot").header("User-Agent", "SafeerLink/1.0")
             try { podpisaneGlave("GET", pot).forEach { (k, v) -> z.header(k, v) } } catch (e: Throwable) {
                 Log.w(TAG, "Podpisa ni: ${e.message}"); try { tcp.close() } catch (_: Throwable) { }; return
             }
-            http.newWebSocket(z.build(), object : WebSocketListener() {
-                override fun onMessage(webSocket: WebSocket, text: String) {
-                    if (text != "ready") return
-                    // Hub je sprejel kanal: bajti iz lokalne povezave gredo v rele (z omejitvijo vrste).
-                    Thread({
-                        val buf = ByteArray(16 * 1024)
-                        try {
-                            val vhod = tcp.getInputStream()
-                            while (true) {
-                                val n = vhod.read(buf)
-                                if (n < 0) break
-                                while (webSocket.queueSize() > 1_000_000) Thread.sleep(10)
-                                if (!webSocket.send(buf.toByteString(0, n))) break
-                            }
-                        } catch (_: Throwable) { }
-                        webSocket.close(1000, "konec")
-                    }, "safeer-global-link-tx").apply { isDaemon = true }.start()
-                }
-                override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                    try { tcp.getOutputStream().write(bytes.toByteArray()) } catch (_: Throwable) { webSocket.close(1000, "konec") }
-                }
-                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { zapriTcp() ; webSocket.close(1000, null) }
-                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = zapriTcp()
-                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    Log.i(TAG, "Kanal releja ni uspel (${response?.code ?: t.message})"); zapriTcp()
-                }
-                private fun zapriTcp() { try { tcp.close() } catch (_: Throwable) { } }
-            })
+            http.newWebSocket(z.build(), cev(tcp, takoj = false, cilj = cilj))
         }
 
         fun zapri() {
@@ -145,5 +139,127 @@ object GlobalLink {
             try { streznik.close() } catch (_: Throwable) { }
             http.dispatcher.executorService.shutdown()
         }
+    }
+
+    // ------------------------------------------------------------------ hub na tej napravi
+
+    /**
+     * Kadar ta naprava (TV, tablica, telefon) gosti hub, je ta dosegljiv napravam iz njenega kroga tudi
+     * zunaj doma - enako kot Control na racunalniku (core/link_rele.py AgentHuba). Objavi, kdo sme do
+     * njega (clani kroga), poslusa na /v1/listen in vsak kanal (/v1/accept) poveze z lokalnim hubom.
+     */
+    object AgentHuba {
+        @Volatile private var nit: Thread? = null
+        private val http = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(30, TimeUnit.SECONDS).build()
+
+        fun zazeni(c: Context) {
+            if (nit != null) return
+            val app = c.applicationContext
+            nit = Thread({ zanka(app) }, "safeer-global-link-hub").apply { isDaemon = true; start() }
+        }
+
+        private fun objavi(c: Context): Boolean {
+            val nas = KrogZaupanja.idIzKljuca(HubTls.javniKljucB64())
+            val dovoljeni = JSONArray()
+            KrogNaprave.krog(c).clani().mapNotNull { runCatching { KrogZaupanja.idIzKljuca(it.kljuc) }.getOrNull() }
+                .filter { it != nas }.distinct().take(256).forEach { dovoljeni.put(it) }
+            val telo = JSONObject().put("allow", dovoljeni).put("ttl", 120).toString().toByteArray()
+            val z = Request.Builder().url("https://$GOSTITELJ/v1/presence").header("User-Agent", "SafeerLink/1.0")
+                .post(telo.toRequestBody("application/json".toMediaType()))
+            podpisaneGlave("POST", "/v1/presence", telo).forEach { (k, v) -> z.header(k, v) }
+            return http.newCall(z.build()).execute().use { it.isSuccessful }
+        }
+
+        private fun zanka(c: Context) {
+            var cakaj = 5_000L
+            while (true) {
+                if (!(vklopljen(c) && HubKrmilnik.tece() && HubKrmilnik.vrata() > 0)) { Thread.sleep(15_000); continue }
+                try {
+                    if (!objavi(c)) throw IllegalStateException("prisotnost zavrnjena")
+                    val konec = java.util.concurrent.CountDownLatch(1)
+                    val z = Request.Builder().url("https://$GOSTITELJ/v1/listen").header("User-Agent", "SafeerLink/1.0")
+                    podpisaneGlave("GET", "/v1/listen").forEach { (k, v) -> z.header(k, v) }
+                    val ws = http.newWebSocket(z.build(), object : WebSocketListener() {
+                        override fun onOpen(webSocket: WebSocket, response: Response) { Log.i(TAG, "Hub te naprave je dosegljiv prek $GOSTITELJ") }
+                        override fun onMessage(webSocket: WebSocket, text: String) {
+                            val j = try { JSONObject(text) } catch (_: Throwable) { return }
+                            val kanal = j.optString("kanal")
+                            if (j.optString("type") == "incoming" && kanal.length == 32) Thread({ sprejmi(kanal) }, "safeer-global-link-kanal").apply { isDaemon = true }.start()
+                        }
+                        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = konec.countDown()
+                        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                            Log.i(TAG, "Poslusanje prekinjeno (${response?.code ?: t.message})"); konec.countDown()
+                        }
+                    })
+                    cakaj = 5_000L
+                    // Vsakih 10 s preverimo, ali hub se tece (sicer takoj nehamo sprejemati kanale);
+                    // prisotnost obnovimo vsako minuto.
+                    var krog = 0
+                    while (!konec.await(10, TimeUnit.SECONDS)) {
+                        if (!(vklopljen(c) && HubKrmilnik.tece())) { ws.close(1000, "izklop"); break }
+                        if (++krog % 6 == 0) try { objavi(c) } catch (_: Throwable) { }
+                    }
+                } catch (e: Throwable) {
+                    Log.i(TAG, "Global Link huba: ${e.message}; znova cez ${cakaj / 1000} s")
+                    Thread.sleep(cakaj)
+                    cakaj = (cakaj * 2).coerceAtMost(300_000L)
+                }
+            }
+        }
+
+        private fun sprejmi(kanal: String) {
+            val tcp = try { Socket("127.0.0.1", HubKrmilnik.vrata()) } catch (_: Throwable) { return }
+            val pot = "/v1/accept?kanal=$kanal"
+            val z = Request.Builder().url("https://$GOSTITELJ$pot").header("User-Agent", "SafeerLink/1.0")
+            try { podpisaneGlave("GET", pot).forEach { (k, v) -> z.header(k, v) } } catch (_: Throwable) { tcp.close(); return }
+            http.newWebSocket(z.build(), cev(tcp, takoj = true))
+        }
+    }
+
+    /** Poslusalec, ki bajte kanala prenasa v lokalno TCP povezavo in nazaj ([takoj]: brez cakanja na "ready"). */
+    internal fun cev(tcp: Socket, takoj: Boolean, cilj: String? = null): WebSocketListener = object : WebSocketListener() {
+        private fun posiljaj(webSocket: WebSocket) {
+            Thread({
+                val buf = ByteArray(16 * 1024)
+                try {
+                    val vhod = tcp.getInputStream()
+                    while (true) {
+                        val n = vhod.read(buf)
+                        if (n < 0) break
+                        while (webSocket.queueSize() > 1_000_000) Thread.sleep(10)
+                        if (!webSocket.send(buf.toByteString(0, n))) break
+                    }
+                } catch (_: Throwable) { }
+                webSocket.close(1000, "konec")
+            }, "safeer-global-link-tx").apply { isDaemon = true }.start()
+        }
+        @Volatile private var pripravljen = takoj
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            if (takoj) { posiljaj(webSocket); return }
+            // Hub mora kanal sprejeti v 20 s; sicer ga ni (npr. ravno nehal gostiti) - ne cakamo v nedogled.
+            Thread({
+                Thread.sleep(20_000)
+                if (!pripravljen) {
+                    Log.i(TAG, "Hub kanala ni sprejel v 20 s")
+                    if (cilj != null) odsotni[cilj] = System.currentTimeMillis()
+                    webSocket.cancel(); zapri()
+                }
+            }, "safeer-global-link-rok").apply { isDaemon = true }.start()
+        }
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            if (!takoj && text == "ready" && !pripravljen) { pripravljen = true; posiljaj(webSocket) }
+        }
+        override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+            try { tcp.getOutputStream().write(bytes.toByteArray()) } catch (_: Throwable) { webSocket.close(1000, "konec") }
+        }
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { zapri(); webSocket.close(1000, null) }
+        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = zapri()
+        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+            Log.i(TAG, "Kanal releja ni uspel (${response?.code ?: t.message})")
+            if (response?.code == 404 && cilj != null) odsotni[cilj] = System.currentTimeMillis()
+            zapri()
+        }
+        private fun zapri() { try { tcp.close() } catch (_: Throwable) { } }
     }
 }
