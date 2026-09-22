@@ -591,7 +591,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         val seznam = seznamPloscaNaprave ?: return
         seznam.removeAllViews()
         val infl = LayoutInflater.from(this)
-        val druge = link.naprave.filter { it.id != Identiteta.id(this) }
+        val druge = LinkOdjemalec.drugeZaPrikaz(link.naprave, Identiteta.id(this))
 
         // Brez Safeer Linka tablica ne vidi nobene naprave, vklopa pa drugje nima: zato je na
         // domacem zaslonu. Krajevnega nacina tablici ne ponujamo - brez naprav ta zaslon nima cesa

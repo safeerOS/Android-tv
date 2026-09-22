@@ -1211,6 +1211,81 @@ private fun preizkusDvojnePovezave() {
     preveriEnako("osirotela povezava dobi naprava_ni_povezana", "naprava_ni_povezana", polje(stara.zadnje(), "error_code"))
 }
 
+// ------------------------------------------------------------ identiteta naprave = kljuc
+
+private fun preizkusIdentitete() {
+    println()
+    println("Identiteta naprave (kljuc)")
+    val u = usmerjevalnik()
+    val pc = parKljucev()
+    val k = b64(pc.public.encoded)
+    val jedro = KrogZaupanja.idIzKljuca(k)
+    u.krog.dodaj(KrogZaupanja.Clan("pc-x", k, "Safeer (x)", "linux", 1.0, "hub"))
+    u.krog.dodaj(KrogZaupanja.Clan("pc-x-control", k, "Safeer Control (x)", "linux", 1.0, "pc-x"))
+    preveriEnako("brskalnik ima napravo iz kljuca", jedro, u.napravaIzKljuca("pc-x"))
+    preveriEnako("Control na istem racunalniku ima isto napravo", jedro, u.napravaIzKljuca("pc-x-control"))
+    preveriEnako("nov id iz kljuca s pripono tudi", jedro, u.napravaIzKljuca("$jedro-control"))
+    preveriEnako("naprava brez kljuca v krogu je nima", null, u.napravaIzKljuca("fon-stari"))
+    val tel = parKljucev()
+    u.krog.dodaj(KrogZaupanja.Clan("fon-1", b64(tel.public.encoded), "Telefon", "phone", 1.0, "hub"))
+    preveri("drug kljuc je druga naprava", u.napravaIzKljuca("fon-1") != jedro)
+
+    val a = Lazni(); u.obdelaj(a, registracija("pc-x", "sender"))
+    val b = Lazni(); u.obdelaj(b, registracija("pc-x-control", "sender"))
+    val c = Lazni(); u.obdelaj(c, registracija("fon-stari", "sender"))
+    val seznam = u.povezaniPrejemniki()
+    preveriEnako("oba sorodnika v seznamu nosita isto napravo", 2, seznam.split("\"device\":\"$jedro\"").size - 1)
+    val stari = JsonLahki.objekt("{\"s\":$seznam}")
+    preveri("naprava brez kljuca je v seznamu brez polja device", seznam.contains("\"id\":\"fon-stari\"") &&
+        !Regex("\"id\":\"fon-stari\"[^}]*\"device\"").containsMatchIn(seznam) && stari != null)
+
+    u.preimenuj("pc-x-control", "Matejev racunalnik")
+    preveriEnako("vzdevek velja za celo napravo (brskalnik)", "Matejev racunalnik", u.imeNaprave("pc-x"))
+    preveriEnako("vzdevek velja za nov id iz kljuca", "Matejev racunalnik", u.imeNaprave("$jedro-control"))
+    preveri("seznam kaze vzdevek pri obeh", u.povezaniPrejemniki().split("\"name\":\"Matejev racunalnik\"").size - 1 == 2)
+    u.preimenuj("pc-x", "Delovni")
+    preveriEnako("novo ime zamenja staro za vse id-je", "Delovni", u.imeNaprave("pc-x-control"))
+    u.preimenuj("pc-x", "")
+    preveriEnako("prazno ime odstrani vzdevek naprave", "Naprava pc-x-control", u.imeNaprave("pc-x-control"))
+    preveriEnako("telefon ni dobil vzdevka racunalnika", "Telefon", u.imeNaprave("fon-1").let { if (it == "fon-1") "Telefon" else it })
+
+    // Vzdevek, dan staremu id-ju pred krogom, velja tudi za nov id iz kljuca (prej se je izgubil).
+    val shramba = LazniPomnilnik()
+    val u2 = usmerjevalnik(shramba)
+    u2.preimenuj("tv-stari", "Dnevna soba")
+    val tv = parKljucev()
+    val k2 = b64(tv.public.encoded)
+    u2.krog.dodaj(KrogZaupanja.Clan("tv-stari", k2, "TV", "tv", 1.0, "hub"))
+    preveriEnako("stari vzdevek velja za nov id", "Dnevna soba", u2.imeNaprave(KrogZaupanja.idIzKljuca(k2)))
+    val u3 = usmerjevalnik(shramba)
+    preveriEnako("in prezivi ponovni zagon huba", "Dnevna soba", u3.imeNaprave(KrogZaupanja.idIzKljuca(k2)))
+}
+
+// ------------------------------------------------------------ dnevnik brez skrivnosti
+
+private fun preizkusDnevnika() {
+    println()
+    println("SafeerLog")
+    val zapisano = ArrayList<String>()
+    val prej = SafeerLog.izhod
+    SafeerLog.izhod = { zapisano.add(it) }
+    SafeerLog.napaka("Preizkus", "zeton saf_seja_abcdef123456 in {\"token\":\"skrivno123\",\"ticket\":\"t-9\"}",
+        IllegalStateException("http://192.168.0.5:8080/#j=q1&s=zelo-skrivno&f=AB"))
+    SafeerLog.napaka("Preizkus", "podpis MEUCIQDk3x9yZb0Qf1a2b3c4d5e6f7g8h9i0jKLMNOPQRSTUVWXYZ==")
+    SafeerLog.izhod = prej
+    val vse = zapisano.joinToString("\n")
+    preveriEnako("zapisa sta dva", 2, zapisano.size)
+    preveri("sejni zeton ni v dnevniku", !vse.contains("abcdef123456"))
+    preveri("token in ticket nista v dnevniku", !vse.contains("skrivno123") && !vse.contains("t-9"))
+    preveri("skrivnost iz QR ni v dnevniku", !vse.contains("zelo-skrivno"))
+    preveri("dolg podpis ni v dnevniku", !vse.contains("MEUCIQDk3x9"))
+    preveri("vrsta napake in oznaka ostaneta", vse.contains("IllegalStateException") && vse.contains("SafeerLink/Preizkus"))
+    SafeerLog.izhod = { throw RuntimeException("izhod odpove") }
+    SafeerLog.napaka("Preizkus", "ne sme vreci")
+    SafeerLog.izhod = prej
+    preveri("dnevnik ne vrze, tudi ko izhod odpove", true)
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1231,6 +1306,8 @@ fun main() {
     preizkusPridruzitve()
     preizkusVabilaInOdhoda()
     preizkusDvojnePovezave()
+    preizkusIdentitete()
+    preizkusDnevnika()
     println()
     if (napak == 0) {
         println("Vse v redu.")

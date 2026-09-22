@@ -32,7 +32,30 @@ class LinkOdjemalec(private val context: Context) {
 
     data class Naprava(val id: String, val ime: String, val vloga: String, val zmoznosti: List<String>, val naslov: String,
                        /** "tv", "tablet", "phone", "linux" ... - kot se naprava predstavi hubu; prazno pri starih. */
-                       val platforma: String = "")
+                       val platforma: String = "",
+                       /** Fizicna naprava (id iz kljuca, polje `device`): sorodniki z istim kljucem imajo isto; prazno brez kljuca. */
+                       val naprava: String = "")
+
+    companion object {
+        private const val TAG = "SafeerOsLink"
+
+        /**
+         * Druge naprave za prikaz uporabniku. Sorodniki z istim kljucem (brskalnik in Safeer Control na istem
+         * racunalniku, Safeer OS in zaslon iste tablice) so ena naprava: ostane tisti z vec zmoznostmi, da dejanja
+         * (datoteke, zaslon) gredo pravemu. Lastna naprava izpade v celoti, tudi njeni sorodniki.
+         */
+        fun drugeZaPrikaz(naprave: List<Naprava>, jaz: String): List<Naprava> {
+            val moja = naprave.firstOrNull { it.id == jaz }?.naprava.orEmpty()
+            val izhod = LinkedHashMap<String, Naprava>()
+            for (n in naprave) {
+                if (n.id == jaz || (moja.isNotBlank() && n.naprava == moja)) continue
+                val kljuc = n.naprava.ifBlank { "id:" + n.id }
+                val prej = izhod[kljuc]
+                if (prej == null || n.zmoznosti.size > prej.zmoznosti.size) izhod[kljuc] = n
+            }
+            return izhod.values.toList()
+        }
+    }
 
     interface Poslusalec {
         fun naStanje(povezan: Boolean, sporocilo: String)
@@ -319,7 +342,7 @@ class LinkOdjemalec(private val context: Context) {
                     val z = d.optJSONArray("capabilities") ?: JSONArray()
                     val zmoznosti = (0 until z.length()).map { z.optString(it) }
                     seznam.add(Naprava(d.optString("id"), d.optString("name"), d.optString("role", "receiver"), zmoznosti, d.optString("ip"),
-                        d.optString("platform")))
+                        d.optString("platform"), d.optString("device")))
                 }
                 // Sredisce je naprava z loopback naslovom (tako ga prepozna tudi stran Linka).
                 imeSredisca = seznam.firstOrNull { it.naslov == "127.0.0.1" || it.naslov == "::1" }?.ime
@@ -366,5 +389,5 @@ class LinkOdjemalec(private val context: Context) {
         } catch (_: Throwable) { }
     }
 
-    companion object { private const val TAG = "SafeerOsLink" }
+
 }

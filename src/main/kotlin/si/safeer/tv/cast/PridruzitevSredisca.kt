@@ -65,14 +65,14 @@ object PridruzitevSredisca {
     }
 
     fun preklici(id: String) {
-        try { if (id.isNotBlank()) HubKrmilnik.usmerjevalnik?.prekliciPridruzitev(id) } catch (_: Throwable) { }
+        try { if (id.isNotBlank()) HubKrmilnik.usmerjevalnik?.prekliciPridruzitev(id) } catch (e: Throwable) { SafeerLog.napaka("Pridruzitev", "preklic kode", e) }
     }
 
     /** Uporabnik je izbral »brez povezave«: sredisce, ki smo ga prizgali samo za kodo, ugasnemo. */
     fun izklopiCeSamoZaKodo(context: Context) {
         if (!zagnanoZaKodo) return
         zagnanoZaKodo = false
-        try { HubStoritev.izklopi(context.applicationContext) } catch (_: Throwable) { }
+        try { HubStoritev.izklopi(context.applicationContext) } catch (e: Throwable) { SafeerLog.napaka("Pridruzitev", "sredisce ni izklopljeno", e) }
     }
 
     /** IPv4 naslov televizorja v domacem omrezju (telefon ga uporabi kot namig; odtis potrdi sredisce). */

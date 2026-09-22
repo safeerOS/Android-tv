@@ -103,9 +103,9 @@ object HubKrmilnik {
             Log.w(TAG, "Kljuca huba ni bilo mogoce vpisati v krog: ${e.message}")
         }
         u.naSpremembePrijav = {
-            try { naSpremembePrijav?.invoke() } catch (_: Throwable) { }
-            try { naPrijavoZaZaslon?.invoke() } catch (_: Throwable) { }
-            try { naPrijavoZaObvestilo?.invoke() } catch (_: Throwable) { }
+            try { naSpremembePrijav?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naSpremembePrijav", e) }
+            try { naPrijavoZaZaslon?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naPrijavoZaZaslon", e) }
+            try { naPrijavoZaObvestilo?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naPrijavoZaObvestilo", e) }
         }
         // Vsebina (zaslon, datoteke) gre mimo usmerjevalnika, po loceni zahtevi HTTP;
         // usmerjevalnik le pove ciljni napravi, kje jo dobi.

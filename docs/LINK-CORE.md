@@ -385,3 +385,44 @@ in brskalnik na istem računalniku). Uporabi ga »Odjavi ta računalnik« in nez
 (računalnik, po kosih) ali `remote` (Android, `apps.list` z ikonami naenkrat), brez te naprave in brez
 procesov z istim naslovom IP. Zgoraj je izbira naprave (Vse · računalnik · tablica …); zagon gre z
 `apps.launch` na napravo, ki ima program. Besedila: »Iz vseh tvojih naprav« / »Iz povezanih naprav«.
+
+## 10. v8: ena naprava = en ključ, dnevnik brez skrivnosti (22. 9.)
+
+**Identiteta naprave, dokončno.** Naprava je njen ključ; id-ji so le imena zanj (`pc-x` in `pc-x-control`
+za brskalnik in Safeer Control na istem računalniku, `tv-sm-x210` in `tv-sm-x210-os` za zaslon in Safeer OS
+na tablici, stari `tv-…` in novi `n-…`). Odprto vprašanje iz 2. in 3. poglavja (»enega bo treba označiti kot
+sorodnika«) je rešeno brez novega zapisa v krogu:
+
+- Hub (`HubUsmerjevalnik.napravaIzKljuca`, Linux `Hub.naprava_iz_kljuca`) vsaki napravi v `cast.devices` in
+  `GET /cast/devices` doda polje **`device`** = id iz ključa (`n-<16 hex>`) njenega člana v krogu. Sorodniki
+  imajo isto vrednost; naprava brez ključa v krogu (odjemalec 0.2) polja nima. Dodatno polje - stari
+  odjemalci ga prezrejo.
+- **Vzdevek velja za napravo, ne za id.** Preimenovanje naprave s ključem shrani ime pod `device` in odstrani
+  vzdevke njenih posameznih id-jev; vzdevek, dan staremu id-ju pred krogom, velja tudi za nov id iz ključa
+  (prej se je izgubil - odprto iz 6. poglavja).
+- Safeer OS (`LinkOdjemalec.drugeZaPrikaz`): seznami naprav (Naprave, plošča na domačem zaslonu TV in
+  tablice) pokažejo sorodnike kot eno napravo; ostane tisti z več zmožnostmi, da gredo dejanja (datoteke,
+  zaslon) pravemu. Lastna naprava izpade z vsemi sorodniki - tablica sebe ne vidi več kot »povezano napravo«.
+
+Preizkusi: JVM `preizkusIdentitete` (15 preverb), Linux `tests/test_link_hub_streznik.py::NapravaIzKljuca`.
+Preverjeno v živo (tablica, hub TV in hub računalnika): tablica na domačem zaslonu ne kaže več sebe
+(»Safeer OS Tablet«) kot povezane naprave.
+
+Še odprto: vzdevki živijo v posameznem hubu (TV jih hrani, hub računalnika jih nima), zato ima po
+menjavi huba ista naprava lahko drugo ime (v živo: »Dnevna soba« na hubu TV, »Safeer TV (…)« na hubu
+računalnika). Rešitev: ime naprave s ključem v krogu zaupanja (`trust.update` ga razpošlje vsem hubom).
+
+**Dnevnik brez skrivnosti (`cast/SafeerLog.kt`, del Link Core).** Prazni `catch {}` na mestih, kjer uporabnik
+ostane brez odziva (povratni klici vmesnika, odgovori Safeer OS, prejeta datoteka, krog iz prijave), zdaj
+zapišejo napako. Vsako besedilo gre skozi `ocisti`: žetoni `saf_…`, polja token/ticket/secret/nonce/signature,
+skrivnosti iz povezave QR (`#j=…&s=…`) in dolgi base64/hex nizi ne pridejo v dnevnik. Pospravljanje
+(brisanje začasnih datotek, zapiranje vtičnic) ostane tiho. Preizkus: `preizkusDnevnika`.
+
+**QR za telefon brez aplikacije - znana omejitev.** Koda B (8.) ima danes, kadar središče streže spletnega
+odjemalca, obliko `http://<ip>:<vrata>/#j=…&s=…&f=…&a=…` (sicer `https://safeer.si/p#…`). Aplikacija Safeer
+govori s središčem samo prek potrdila z odtisom `f`, zato je varna. Telefon **brez** aplikacije pa odpre stran
+spletnega odjemalca po navadnem HTTP: kdor bi v domačem omrežju v 5 minutah veljavnosti stal vmes (ARP), bi
+lahko podtaknil stran in prebral enkratno skrivnost. Ublažitve danes: koda velja enkrat in 5 minut, ugibanje je
+omejeno, središče pokaže »✓ … je povezan« (neznana naprava je vidna) in jo uporabnik lahko odstrani. Popravek
+brez spremembe protokola ni mogoč (brskalnik ne zaupa samopodpisanemu potrdilu); prava rešitev je stran
+`safeer.si/p`, ki telefon brez aplikacije pošlje po aplikacijo, namesto da odpre HTTP odjemalca.

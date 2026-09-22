@@ -40,29 +40,29 @@ class LinkSorodnikStoritev : Service() {
                 putStringArray("ime", seznam.map { it.ime }.toTypedArray())
                 putStringArray("pin", seznam.map { it.pin }.toTypedArray())
             }
-            try { sporocilo.replyTo?.send(odgovor) } catch (_: Throwable) { }
+            try { sporocilo.replyTo?.send(odgovor) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "odgovor Safeer OS ni poslan", e) }
         } else if (sporocilo.what == ZAVRNI) {
             val id = sporocilo.data?.getString("pair_id").orEmpty()
-            if (id.isNotBlank()) try { HubKrmilnik.usmerjevalnik?.zavrniPrijavo(id) } catch (_: Throwable) { }
-            try { sporocilo.replyTo?.send(Message.obtain(null, ZAVRNI_ODGOVOR)) } catch (_: Throwable) { }
+            if (id.isNotBlank()) try { HubKrmilnik.usmerjevalnik?.zavrniPrijavo(id) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "zavrnitev prijave", e) }
+            try { sporocilo.replyTo?.send(Message.obtain(null, ZAVRNI_ODGOVOR)) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "odgovor na zavrnitev", e) }
         } else if (sporocilo.what == PRIDRUZITEV) {
             // Prijavno okno Safeer OS: QR koda, s katero se telefon pridruzi (PridruzitevSredisca).
             val odgovor = Message.obtain(null, PRIDRUZITEV_ODGOVOR)
             odgovor.data = PridruzitevSredisca.nova(applicationContext, sporocilo.data?.getString("preklici").orEmpty())
-            try { sporocilo.replyTo?.send(odgovor) } catch (_: Throwable) { }
+            try { sporocilo.replyTo?.send(odgovor) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "odgovor Safeer OS ni poslan", e) }
         } else if (sporocilo.what == PRIDRUZITEV_STANJE) {
             val odgovor = Message.obtain(null, PRIDRUZITEV_STANJE_ODGOVOR)
             odgovor.data = Bundle().apply {
                 PridruzitevSredisca.zadnja?.let { putLong("cas", it.first); putString("ime", it.second) }
             }
-            try { sporocilo.replyTo?.send(odgovor) } catch (_: Throwable) { }
+            try { sporocilo.replyTo?.send(odgovor) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "odgovor Safeer OS ni poslan", e) }
         } else if (sporocilo.what == PRIDRUZITEV_KONEC) {
             // Okno se zapira: koda ne sme veljati naprej; ob »brez povezave« ugasnemo sredisce, ce smo ga
             // prizgali samo zanjo.
             val d = sporocilo.data ?: Bundle()
             PridruzitevSredisca.preklici(d.getString("qr_id").orEmpty())
             if (d.getBoolean("brez_povezave", false)) PridruzitevSredisca.izklopiCeSamoZaKodo(applicationContext)
-            try { sporocilo.replyTo?.send(Message.obtain(null, PRIDRUZITEV_KONEC_ODGOVOR)) } catch (_: Throwable) { }
+            try { sporocilo.replyTo?.send(Message.obtain(null, PRIDRUZITEV_KONEC_ODGOVOR)) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "konec pridruzitve", e) }
         }
         true
     })

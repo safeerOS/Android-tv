@@ -289,7 +289,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (!::seznamPloscaNaprave.isInitialized) return
         seznamPloscaNaprave.removeAllViews()
         // Na domacem zaslonu dve, da glavni del ostane cel na zaslonu; vse so pod "›" (Naprave).
-        val druge = naprave.filter { it.id != Identiteta.id(this) }.take(2)
+        val druge = LinkOdjemalec.drugeZaPrikaz(naprave, Identiteta.id(this)).take(2)
         if (druge.isEmpty()) {
             val prazno = TextView(this)
             prazno.text = getString(R.string.os_plosca_naprave_prazno)

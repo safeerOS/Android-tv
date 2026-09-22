@@ -238,7 +238,7 @@ class CastReceiverService : Service() {
                 .put("alias", deviceId).put("name", deviceName).put("platform", HubKrmilnik.platforma(this))
             klic("/cast/trust/alias", telo2) { koda2, odgovor ->
                 if (koda2 != 200) { Log.i(TAG, "Aliasa v krogu ni bilo mogoce vpisati ($koda2)."); naprej(false); return@klic }
-                try { JSONObject(odgovor).optJSONObject("ring")?.let { KrogNaprave.sprejmi(this, it.toString()) } } catch (_: Throwable) { }
+                try { JSONObject(odgovor).optJSONObject("ring")?.let { KrogNaprave.sprejmi(this, it.toString()) } } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "krog iz prijave ni shranjen", e) }
                 Log.i(TAG, "Id $deviceId vpisan v krog kot alias id-ja $znani.")
                 naprej(true)
             }
@@ -329,7 +329,7 @@ class CastReceiverService : Service() {
                 Log.i(TAG, "Uspešno povezan s Cast Hubom!")
                 reconnectAttempts = 0
                 povezan = true
-                try { naPovezavo?.invoke(true) } catch (_: Throwable) { }
+                try { naPovezavo?.invoke(true) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPovezavo(true)", e) }
 
                 // 1. Registracija naprave kot Receiver
                 val registerMsg = JSONObject().apply {
@@ -554,8 +554,8 @@ class CastReceiverService : Service() {
     private fun odklopljen() {
         povezan = false
         zadnjeNaprave = "[]"
-        try { naPovezavo?.invoke(false) } catch (_: Throwable) { }
-        try { naSpremembeNaprav?.invoke("[]") } catch (_: Throwable) { }
+        try { naPovezavo?.invoke(false) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPovezavo(false)", e) }
+        try { naSpremembeNaprav?.invoke("[]") } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naSpremembeNaprav([])", e) }
     }
 
     /**
@@ -592,14 +592,14 @@ class CastReceiverService : Service() {
                                 json.optString("ref_id", ""), json.optString("status", ""),
                                 json.optString("error_code", ""), json.optString("error", "")
                             )
-                        } catch (_: Throwable) { }
+                        } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPotrditev", e) }
                     }
                 }
 
                 "cast.devices" -> {
                     val naprave = json.optJSONArray("devices")?.toString() ?: "[]"
                     zadnjeNaprave = naprave
-                    try { naSpremembeNaprav?.invoke(naprave) } catch (_: Throwable) { }
+                    try { naSpremembeNaprav?.invoke(naprave) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naSpremembeNaprav", e) }
                 }
 
                 "cast.url" -> {
@@ -636,7 +636,7 @@ class CastReceiverService : Service() {
                 "control.result", "control.ack" -> {
                     // Odgovor naprave na nas ukaz (ali zavrnitev sredisca): naprej strani daljinca.
                     if (type == "control.ack" && json.optString("status", "") == "accepted") return
-                    try { naUkazOdziv?.invoke(json) } catch (_: Throwable) { }
+                    try { naUkazOdziv?.invoke(json) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naUkazOdziv", e) }
                 }
 
                 "control.command" -> {

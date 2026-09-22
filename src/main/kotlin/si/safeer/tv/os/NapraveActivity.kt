@@ -71,7 +71,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun narisi(naprave: List<LinkOdjemalec.Naprava>) {
         val jaz = naprave.firstOrNull { it.id == Identiteta.id(this) }
-        val tuje = naprave.filter { it.id != Identiteta.id(this) }
+        val tuje = LinkOdjemalec.drugeZaPrikaz(naprave, Identiteta.id(this))
         val nove = ArrayList<Vrstica>()
         // Ta naprava: ime, kot ga vidijo druge naprave; OK jo preimenuje.
         if (jaz != null) nove.add(Vrstica(R.drawable.os_ikona_naprava, jaz.ime.ifBlank { jaz.id },
