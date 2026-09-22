@@ -283,7 +283,21 @@ class ChromiumEngineView @JvmOverloads constructor(
     private fun jePrijavaAliPlacilo(url: String): Boolean =
         Regex("""(?i)(^|[/.?&=_-])(login|log-in|signin|sign-in|signon|oauth2?|openid|sso|auth|authorize|account|accounts|checkout|payment|payments|pay|3ds|acs)([/.?&=_-]|$)""").containsMatchIn(url.substringAfter("://"))
 
+    /**
+     * Pogled je unicen (zaprt zavihek, sproscen izrisovalnik). Chromium na unicenem pogledu ob
+     * nastavljanju User-Agenta ali mostu JS ne vrne napake, ampak ustavi ves proces (SIGTRAP), Android
+     * pa nato ponudi odstranitev posodobitev WebViewa. Zato po unicenju ne nastavljamo nicesar vec.
+     */
+    @Volatile
+    private var uniceno = false
+
+    override fun destroy() {
+        uniceno = true
+        super.destroy()
+    }
+
     private fun applyUserAgentForUrl(url: String) {
+        if (uniceno) return
         // Most sme premikati brskalnik in brati domace ploscice samo na domacih straneh.
         jsBridge.krajevnaStran = url.isBlank() ||
             url.startsWith("file:///android_asset/") ||
