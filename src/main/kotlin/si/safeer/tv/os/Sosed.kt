@@ -42,16 +42,24 @@ object Sosed {
     /**
      * Ena naprava = ena naprava v Safeer Linku. Na telefonu in tablici Safeer Link vodi Safeer OS za to
      * napravo (telefon: si.safeer.phone, tablica: si.safeer.tablet; ce je namescen le drugi, ta). Vrne ta
-     * paket ali null (televizor - tam velja dogovor brskalnik/Safeer OS - ali Safeer OS na dotik ni namescen).
+     * paket ali null (Safeer OS na dotik ni namescen). Na televizorju Safeer OS, brez njega Safeer Browser TV.
      * Drug Safeer na isti napravi (npr. TV brskalnik na telefonu) zato ne gosti svojega sredisca in se na
      * seznamu ne pokaze kot se ena naprava ("Safeer TV (telefon)").
      */
     fun lastnikLinka(context: Context): String? {
-        if (jeTelevizor(context)) return null
+        // Televizor: Safeer Link vodi Safeer OS (vgrajen brskalnik, razsiritve); Safeer Browser TV je
+        // njegov predhodnik in Link vodi samo, kadar Safeer OS ni namescen.
+        if (jeTelevizor(context)) return if (context.packageName == OS || namescen(context, OS)) OS else BRSKALNIK
         val tablica = try { context.resources.configuration.smallestScreenWidthDp >= 600 } catch (_: Throwable) { false }
         val vrstni = if (tablica) listOf(TABLICA, TELEFON) else listOf(TELEFON, TABLICA)
         return vrstni.firstOrNull { it == context.packageName || namescen(context, it) }
     }
+
+    /** Ali ta aplikacija vodi Safeer Link te naprave (ena naprava = eno sredisce, en odjemalec v Linku). */
+    fun vodimLink(context: Context): Boolean = lastnikLinka(context).let { it == null || it == context.packageName }
+
+    /** Brskalnik, ki mu Safeer OS preda Safeer Link - samo, ce Link ne vodimo sami (starejsa postavitev). */
+    fun linkBrskalnik(context: Context): String? = if (vodimLink(context)) null else brskalnik(context)
 
     fun namescen(context: Context, paket: String): Boolean = try {
         context.packageManager.getPackageInfo(paket, 0); true

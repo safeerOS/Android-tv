@@ -19,7 +19,7 @@ object KodaSeznanitve {
 
     fun poglej(context: Context, naprej: (List<Prijava>) -> Unit) {
         val app = context.applicationContext
-        val brskalnik = Sosed.brskalnik(app)
+        val brskalnik = Sosed.linkBrskalnik(app)
         if (brskalnik == null) {
             val seznam = try {
                 HubKrmilnik.cakajocePrijave().map { Prijava(it.pairId, it.ime, it.pin) }
@@ -33,7 +33,7 @@ object KodaSeznanitve {
 
     fun zavrni(context: Context, pairId: String) {
         val app = context.applicationContext
-        val brskalnik = Sosed.brskalnik(app)
+        val brskalnik = Sosed.linkBrskalnik(app)
         if (brskalnik == null) {
             try { HubKrmilnik.zavrniPrijavo(pairId) } catch (_: Throwable) { }
             return

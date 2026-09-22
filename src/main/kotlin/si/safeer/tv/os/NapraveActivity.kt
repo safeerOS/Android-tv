@@ -153,7 +153,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec). */
     private fun odpriLinkVBrskalniku() {
-        val paket = Sosed.brskalnik(this)
+        val paket = Sosed.linkBrskalnik(this)
         val namera = if (paket != null)
             Intent().setComponent(ComponentName(paket, "si.safeer.tv.MainActivity"))
                 .putExtra("iz_safeer_os", packageName)

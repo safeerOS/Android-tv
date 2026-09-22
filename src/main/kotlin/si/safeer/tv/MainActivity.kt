@@ -2066,6 +2066,15 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     // JavaScript potrebuje sama stran Safeer Linka iz aplikacije; pogled ne nalozi nicesar drugega.
     @Suppress("SetJavaScriptEnabled")
     private fun odpriSafeerLink() {
+        // Safeer Link vodi Safeer OS (Safeer Browser TV je predhodnik): stran Linka je tam.
+        if (!si.safeer.tv.os.Sosed.vodimLink(this)) {
+            try {
+                startActivity(android.content.Intent().setComponent(android.content.ComponentName(si.safeer.tv.os.Sosed.OS,
+                    "si.safeer.tv.os.DomovActivity")).putExtra("os_vrni", "naprave")
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            } catch (_: Throwable) { }
+        }
         try {
             val pogled = android.webkit.WebView(this)
             pogled.settings.javaScriptEnabled = true

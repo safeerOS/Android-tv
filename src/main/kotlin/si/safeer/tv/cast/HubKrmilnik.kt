@@ -352,6 +352,16 @@ object HubKrmilnik {
         }
     }
 
+    /**
+     * Safeer Link te naprave vodi druga Safeer aplikacija (na televizorju Safeer OS): nase sredisce in
+     * nas sprejemnik ugasnemo, da je televizor v Linku ena naprava. Zelje uporabnika ne spremenimo.
+     */
+    fun predajLinkLastniku(context: Context) {
+        val app = context.applicationContext
+        if (tece()) ustavi(app, zapomni = false)
+        try { app.stopService(android.content.Intent(app, CastReceiverService::class.java)) } catch (_: Throwable) { }
+    }
+
     /** Ugasne Hub. `zapomni` naj bo true samo, kadar je tako odlocil uporabnik. */
     @Synchronized
     fun ustavi(context: Context?, zapomni: Boolean = true) {

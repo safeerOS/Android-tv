@@ -179,7 +179,7 @@
     <!-- Videz (ozadje) in zaslon Naprave -->
     <string name="os_videz">Videz</string>
     <string name="os_videz_opis">Ozadje in zatemnitev domačega zaslona Safeer OS</string>
-    <string name="os_naprave_naslov">Naprave</string>
+    <string name="os_naprave_naslov">Safeer Link</string>
     <string name="os_naprave_datoteke">Datoteke</string>
     <string name="os_naprave_posiljanje">Pošiljanje</string>
     <string name="os_naprave_stran">Stran Safeer Link</string>
@@ -356,7 +356,7 @@
     <string name="os_meni_aplikacije">Aplikacije</string>
     <string name="os_meni_zaslon">Zaslon</string>
     <string name="os_meni_datoteke">Datoteke</string>
-    <string name="os_meni_naprave">Naprave</string>
+    <string name="os_meni_naprave">Safeer Link</string>
     <string name="os_meni_nastavitve">Nastavitve</string>
     <string name="os_podnaslov_app">Tvoj računalnik v rokah.</string>
     <string name="os_pozdrav_naslov">Dobrodošel nazaj!</string>

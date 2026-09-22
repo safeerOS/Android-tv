@@ -55,6 +55,9 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var kodaStevilke: TextView
     private lateinit var kodaZa: TextView
     private lateinit var gumb: Button
+    /** Kartica QR in »ALI«: skrijemo ju, kadar je sredisce Linka na drugi napravi (tam QR se ne gre). */
+    private var karticaQr: View? = null
+    private var aliOznaka: View? = null
 
     private fun dp(v: Float): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics).toInt()
 
@@ -128,9 +131,11 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         stanjeQr = besedilo(getString(R.string.os_prijava_qr_pripravljam), 13f, zelena).apply { setPadding(0, dp(8f), 0, 0) }
         levo.addView(stanjeQr)
         vrsta.addView(levo, LinearLayout.LayoutParams(sirinaKartice, LinearLayout.LayoutParams.WRAP_CONTENT))
+        karticaQr = levo
 
         vrsta.addView(besedilo(getString(R.string.os_prijava_ali).uppercase(), 12f, medla).apply {
             if (ozek) setPadding(0, dp(12f), 0, dp(12f)) else setPadding(dp(18f), 0, dp(18f), 0)
+            aliOznaka = this
         })
 
         val desno = kartica()
@@ -223,6 +228,13 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         PridruzitevKoda.nova(this, qrId) { b ->
             if (konec) { PridruzitevKoda.konec(this, b.getString("qr_id").orEmpty(), false); return@nova }
             val povezava = b.getString("povezava").orEmpty()
+            if (b.getString("napaka") == "drugo_sredisce") {
+                // Sredisce je druga naprava (npr. Safeer Control): nova naprava se pridruzi s 6-mestno kodo,
+                // ki se pokaze tukaj. QR ne bi delal - ne kazemo ga in ne ponavljamo.
+                karticaQr?.visibility = View.GONE
+                aliOznaka?.visibility = View.GONE
+                return@nova
+            }
             if (povezava.isBlank()) {
                 slikaQr.setImageDrawable(null)
                 stanjeQr.text = getString(R.string.os_prijava_qr_napaka)

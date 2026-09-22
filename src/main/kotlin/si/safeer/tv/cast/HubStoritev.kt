@@ -43,6 +43,7 @@ class HubStoritev : Service() {
          */
         fun vklopi(context: Context): Boolean {
             val app = context.applicationContext
+            if (!si.safeer.tv.os.Sosed.vodimLink(app)) return false
             val uspelo = HubKrmilnik.zazeni(app, zapomni = true)
             if (uspelo) zazeniStoritev(app, AKCIJA_ZACNI)
             return uspelo
@@ -62,6 +63,7 @@ class HubStoritev : Service() {
          */
         fun zagotovi(context: Context) {
             val app = context.applicationContext
+            if (!si.safeer.tv.os.Sosed.vodimLink(app)) { HubKrmilnik.predajLinkLastniku(app); return }
             if (!HubKrmilnik.jeZazelen(app)) return
             zazeniStoritev(app, AKCIJA_ZACNI)
         }
@@ -81,7 +83,7 @@ class HubStoritev : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == AKCIJA_KONCAJ) {
+        if (intent?.action == AKCIJA_KONCAJ || !si.safeer.tv.os.Sosed.vodimLink(this)) {
             HubKrmilnik.ustavi(applicationContext, zapomni = false)
             ustaviOspredje()
             stopSelf()

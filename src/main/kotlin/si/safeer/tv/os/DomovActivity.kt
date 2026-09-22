@@ -1577,7 +1577,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec); brskalnik pozna dodatek odpri_link. */
     private fun odpriLinkVBrskalniku() {
         // Link je del Safeer OS: stran naj ima ozadje sistema in se ob zaprtju vrne v Safeer OS.
-        val namera = brskalnikNamera().putExtra("odpri_link", true)
+        // Link vodi Safeer OS sam (vgrajen brskalnik z isto stranjo), ne Safeer Browser TV.
+        val paket = Sosed.linkBrskalnik(this)
+        val namera = (if (paket != null) brskalnikNamera()
+            else Intent(this, si.safeer.tv.MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            .putExtra("odpri_link", true)
             .putExtra("iz_safeer_os", packageName)
             .putExtra("os_ozadje", Ozadje.izbrana(this).oznaka)
             .putExtra("os_zatemnitev", Ozadje.zatemnitev(this))

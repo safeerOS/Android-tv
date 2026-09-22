@@ -180,7 +180,7 @@
     <!-- Videz (ozadje) in zaslon Naprave -->
     <string name="os_videz">Look</string>
     <string name="os_videz_opis">Wallpaper and dimming of the Safeer OS home screen</string>
-    <string name="os_naprave_naslov">Devices</string>
+    <string name="os_naprave_naslov">Safeer Link</string>
     <string name="os_naprave_datoteke">Files</string>
     <string name="os_naprave_posiljanje">Send</string>
     <string name="os_naprave_stran">Safeer Link page</string>
@@ -357,7 +357,7 @@
     <string name="os_meni_aplikacije">Apps</string>
     <string name="os_meni_zaslon">Screen</string>
     <string name="os_meni_datoteke">Files</string>
-    <string name="os_meni_naprave">Devices</string>
+    <string name="os_meni_naprave">Safeer Link</string>
     <string name="os_meni_nastavitve">Settings</string>
     <string name="os_podnaslov_app">Your computer in your hands.</string>
     <string name="os_pozdrav_naslov">Welcome back!</string>

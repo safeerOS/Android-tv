@@ -14,7 +14,7 @@ object PridruzitevKoda {
     /** [naprej] dobi Bundle s "povezava", "qr_id", "velja_ms" ali "napaka". */
     fun nova(context: Context, preklici: String, naprej: (Bundle) -> Unit) {
         val app = context.applicationContext
-        val brskalnik = Sosed.brskalnik(app)
+        val brskalnik = Sosed.linkBrskalnik(app)
         if (brskalnik == null) {
             Thread { val b = PridruzitevSredisca.nova(app, preklici); android.os.Handler(android.os.Looper.getMainLooper()).post { naprej(b) } }.start()
             return
@@ -28,7 +28,7 @@ object PridruzitevKoda {
     /** Zadnja pridruzitev (cas ms, ime) ali null. */
     fun zadnja(context: Context, naprej: (Pair<Long, String>?) -> Unit) {
         val app = context.applicationContext
-        val brskalnik = Sosed.brskalnik(app)
+        val brskalnik = Sosed.linkBrskalnik(app)
         if (brskalnik == null) { naprej(PridruzitevSredisca.zadnja); return }
         Sosed.poslji(app, brskalnik, LinkSorodnikStoritev.DEJANJE, LinkSorodnikStoritev.PRIDRUZITEV_STANJE,
             LinkSorodnikStoritev.PRIDRUZITEV_STANJE_ODGOVOR, null, 2_000) { b ->
@@ -40,7 +40,7 @@ object PridruzitevKoda {
     /** Okno se zapira; [brezPovezave] = uporabnik je izbral »Nadaljuj brez povezave naprav«. */
     fun konec(context: Context, qrId: String, brezPovezave: Boolean) {
         val app = context.applicationContext
-        val brskalnik = Sosed.brskalnik(app)
+        val brskalnik = Sosed.linkBrskalnik(app)
         if (brskalnik == null) {
             PridruzitevSredisca.preklici(qrId)
             if (brezPovezave) PridruzitevSredisca.izklopiCeSamoZaKodo(app)

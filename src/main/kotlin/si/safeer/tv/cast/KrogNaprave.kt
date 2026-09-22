@@ -53,6 +53,23 @@ object KrogNaprave {
     fun kljucHuba(context: Context, hubId: String): String? =
         if (hubId.isBlank()) null else krog(context).clanZaId(hubId)?.kljuc
 
+    /**
+     * Safeer OS je na televizorju prevzel Safeer Link od Safeer Browser TV (predhodnika): prevzame tudi ime,
+     * ki ga je uporabnik dal televizorju (npr. "Dnevna soba"). Brskalnik je Safeer OS dodal v krog kot
+     * sorodnika, zato ga najdemo po polju `dodal`. Ime, ki ga je uporabnik dal Safeer OS, ima prednost.
+     */
+    fun prevzemiImeTelevizorja(context: Context) {
+        val k = krog(context)
+        val nas = try { HubTls.javniKljucB64() } catch (_: Throwable) { return }
+        val clani = k.clani()
+        val nasi = clani.filter { it.kljuc == nas }
+        if (nasi.isEmpty() || nasi.any { it.imenovano > 0 }) return
+        val brskalnik = nasi.firstNotNullOfOrNull { n -> clani.firstOrNull { it.id == n.dodal && it.kljuc != nas && it.platforma == "tv" } } ?: return
+        val ime = clani.filter { it.kljuc == brskalnik.kljuc && (it.imenovano > 0 || !it.ime.startsWith("Safeer")) }
+            .maxByOrNull { it.imenovano }?.ime ?: return
+        for (n in nasi) k.preimenuj(n.id, ime)
+    }
+
     /** Kateri koli id (razen [razen]), pod katerim je nas kljuc ze v krogu (ista naprava, drug id), ali null. */
     fun znaniIdZaNasKljuc(context: Context, razen: String = ""): String? {
         val kljuc = try { HubTls.javniKljucB64() } catch (_: Throwable) { return null }

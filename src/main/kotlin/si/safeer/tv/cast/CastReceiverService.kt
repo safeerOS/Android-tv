@@ -111,6 +111,11 @@ class CastReceiverService : Service() {
             private set
 
         fun start(context: Context, hubUrl: String? = null, deviceName: String? = null) {
+            // Na televizorju s Safeer OS je sprejemnik v Safeer OS; Safeer Browser TV ne sme biti druga naprava v Linku.
+            if (!si.safeer.tv.os.Sosed.vodimLink(context)) {
+                Log.i(TAG, "Safeer Link te naprave vodi druga Safeer aplikacija - sprejemnika ne zaganjam.")
+                return
+            }
             // Brez nastavljenega vozlišča storitve sploh ne zaženemo: nobenega obvestila,
             // nobenega omrežnega prometa, nič, kar bi uporabnik brez Huba sploh opazil.
             if (hubUrl.isNullOrBlank() && !isConfigured(context)) {
@@ -186,7 +191,7 @@ class CastReceiverService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
+        if (intent?.action == ACTION_STOP || !si.safeer.tv.os.Sosed.vodimLink(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -394,6 +399,7 @@ class CastReceiverService : Service() {
                 mediaSync = SafeerMediaSync(this@CastReceiverService) { msg -> try { webSocket.send(msg.toString()) } catch (_: Throwable) { false } }
                 mediaSync?.requestLatest()
                 // Imena naprav iz nasega kroga (npr. dana na drugem hubu): hub vzame samo imena znanih clanov.
+                if (packageName == si.safeer.tv.os.Sosed.OS) try { KrogNaprave.prevzemiImeTelevizorja(this@CastReceiverService) } catch (_: Throwable) { }
                 try {
                     webSocket.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "trust.names")
                         .put("payload", JSONObject(KrogNaprave.krog(this@CastReceiverService).json())).toString())

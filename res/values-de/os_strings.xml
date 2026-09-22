@@ -179,7 +179,7 @@
     <!-- Videz (ozadje) in zaslon Naprave -->
     <string name="os_videz">Aussehen</string>
     <string name="os_videz_opis">Hintergrund und Abdunklung des Safeer OS-Startbildschirms</string>
-    <string name="os_naprave_naslov">Geräte</string>
+    <string name="os_naprave_naslov">Safeer Link</string>
     <string name="os_naprave_datoteke">Dateien</string>
     <string name="os_naprave_posiljanje">Senden</string>
     <string name="os_naprave_stran">Safeer Link-Seite</string>
@@ -356,7 +356,7 @@
     <string name="os_meni_aplikacije">Apps</string>
     <string name="os_meni_zaslon">Bildschirm</string>
     <string name="os_meni_datoteke">Dateien</string>
-    <string name="os_meni_naprave">Geräte</string>
+    <string name="os_meni_naprave">Safeer Link</string>
     <string name="os_meni_nastavitve">Einstellungen</string>
     <string name="os_podnaslov_app">Dein Computer in deinen Händen.</string>
     <string name="os_pozdrav_naslov">Willkommen zurück!</string>
