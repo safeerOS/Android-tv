@@ -179,7 +179,11 @@ object HubKrmilnik {
     private var izvolitevNacrtovana: Runnable? = null
 
     /** Platforma te naprave v krogu zaupanja: tablica ali TV (isti Gradle projekt, razlicna okusa). */
-    fun platforma(context: Context): String = if (context.packageName.endsWith(".tablet")) "tablet" else "tv"
+    fun platforma(context: Context): String = when {
+        context.packageName.endsWith(".phone") -> "phone"
+        context.packageName.endsWith(".tablet") -> "tablet"
+        else -> "tv"
+    }
 
     /** Prioriteta pri izvolitvi: uporabnikova (nastavitev hub_prioriteta) ali privzeta po platformi. */
     fun prioriteta(context: Context): Int {

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS Mobile: vse vire (postavitve, prevode) deli s tablico (okusi/tablica/res);
+     tu je le ime aplikacije. -->
+<resources>
+    <string name="telefon_ime" translatable="false">Safeer OS Mobile</string>
+</resources>

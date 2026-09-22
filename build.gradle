@@ -46,16 +46,23 @@ android {
         os {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.os'
-            versionCode = 24
-            versionName = '0.4.7'
+            versionCode = 25
+            versionName = '0.5.0'
         }
         // Safeer OS Tablet: ista koda, a za dotik od blizu (tablica), ne za daljinec.
         // V pripravi; televizorja in brskalnika se ne dotika.
         tablica {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.tablet'
-            versionCode = 13
-            versionName = '0.3.7'
+            versionCode = 25
+            versionName = '0.5.0'
+        }
+        // Safeer OS Mobile: telefonska lupina nad istim Safeer OS jedrom.
+        telefon {
+            dimension = 'aplikacija'
+            applicationId = 'si.safeer.phone'
+            versionCode = 25
+            versionName = '0.5.0'
         }
     }
 
@@ -69,6 +76,14 @@ android {
         tablica {
             manifest.srcFile 'okusi/tablica/AndroidManifest.xml'
             res.srcDirs = ['okusi/tablica/res']
+            java.srcDirs = ['src/tablica/kotlin']
+            kotlin.srcDirs = ['src/tablica/kotlin']
+        }
+        telefon {
+            manifest.srcFile 'okusi/telefon/AndroidManifest.xml'
+            // Viri tablice + telefonsko ime; postavitve in prevodi se ne podvajajo.
+            res.srcDirs = ['okusi/tablica/res', 'okusi/telefon/res']
+            // Prvi mobile korak namenoma ponovno uporabi preverjeno tablicno lupino.
             java.srcDirs = ['src/tablica/kotlin']
             kotlin.srcDirs = ['src/tablica/kotlin']
         }

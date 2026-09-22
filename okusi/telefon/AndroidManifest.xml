@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS Mobile (si.safeer.phone): ista koda kot televizor, a za dotik od blizu.
+     Vse skupno je v AndroidManifest.xml v korenu; tu je samo, kar velja za tablico. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingLeanbackLauncher,UnsupportedTvHardware,UnnecessaryRequiredFeature">
+
+    <!-- Navadno dovoljenje: Safeer lahko zahteva cellular Network tudi ob aktivnem Wi-Fi. -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <!-- Tablica ni aplikacija za televizor: brez vnosa LEANBACK_LAUNCHER in z obveznim zaslonom na dotik
+         (vmesnik tablice je narejen za dotik, zato ga zahtevamo namenoma). -->
+
+    <!-- Tablica ni televizor: nicesar ne zahtevamo od leanback okolja. -->
+    <uses-feature android:name="android.software.leanback" android:required="false" tools:node="replace" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="true" tools:node="replace" />
+
+    <!-- Cesar tablicna lupina ne potrebuje: mikrofon in risanje cez druge aplikacije sta
+         brskalnikova (glasovno iskanje, daljinec). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
+
+    <queries>
+        <package android:name="si.safeer.tv" />
+        <package android:name="com.safeer.mobile.browser" />
+    </queries>
+
+    <application
+        android:label="@string/telefon_ime"
+        android:icon="@mipmap/os_ic_launcher"
+        android:roundIcon="@mipmap/os_ic_launcher"
+        android:largeHeap="false"
+        tools:replace="android:largeHeap">
+
+        <!-- Vstopna tocka: navaden vnos v predalu aplikacij, pokoncno in lezece. -->
+        <activity
+            android:name="si.safeer.tv.tablica.DomovTabletActivity"
+            android:exported="true"
+            android:label="@string/telefon_ime"
+            tools:ignore="RedundantLabel"
+            android:configChanges="orientation|screenSize|keyboardHidden|navigation">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Skupni zasloni so na televizorju zaklenjeni v lezeco lego, ker je televizor vedno
+             lezec. Tablico uporabnik drzi, kakor hoce: zasukati mu je ne smemo. Zato tu lego
+             odstranimo (tools:remove); koda zaslonov ostane ista.
+
+             Izjema je zaslon racunalnika: namizje je 16:9 in pokoncno bi bilo trak sredi crnine,
+             zato ostane lezec (a v obe smeri, da ga lahko obrnes). -->
+        <activity android:name="si.safeer.tv.os.DatotekeActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.NapraveActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.BesediloActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.SlikaActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.PredvajalnikActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.NastavitveActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.VidezActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.AplikacijeTvActivity"
+            tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.ZaslonActivity"
+            android:screenOrientation="sensorLandscape" tools:replace="android:screenOrientation"
+            tools:ignore="DiscouragedApi" />
+
+        <!-- Brskalniski pogon je tu samo notranji (spletne aplikacije), brez vnosa v zaganjalnik. -->
+        <activity
+            android:name="si.safeer.tv.MainActivity"
+            android:exported="false"
+            android:label="@string/telefon_ime"
+            android:icon="@mipmap/os_ic_launcher"
+            android:banner="@drawable/os_banner"
+            tools:replace="android:exported,android:label,android:icon,android:banner"
+            tools:ignore="RedundantLabel" />
+
+        <!-- Safeer Vnos: dotik in tipke z racunalnika na tablici (upravljanje aplikacije, ki jo tablica
+             deli na racunalnik). Samo na tablici; uporabnik ga vklopi sam v nastavitvah dostopnosti. -->
+        <service
+            android:name="si.safeer.tv.link.VnosStoritev"
+            android:label="@string/vnos_ime"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/safeer_vnos" />
+        </service>
+
+    </application>
+</manifest>

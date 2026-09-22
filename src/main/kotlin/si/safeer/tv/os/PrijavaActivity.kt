@@ -87,10 +87,17 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         koren = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#090D15")) }
         val stolpec = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(16f), dp(16f), dp(16f), dp(16f))
         }
-        koren.addView(stolpec, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        // Nizek zaslon (telefon lezece) drsi; ozek (telefon pokonci) ima kartici eno pod drugo.
+        // Na TV in tablici vsebina pade v zaslon in je sredinsko poravnana kot prej.
+        val ozek = resources.configuration.screenWidthDp < 720
+        koren.addView(android.widget.ScrollView(this).apply {
+            isFillViewport = true
+            addView(stolpec, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+        }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        val sirinaKartice = if (ozek) LinearLayout.LayoutParams.MATCH_PARENT else dp(330f)
 
         // Znak in naslov
         val znak = LinearLayout(this).apply {
@@ -106,7 +113,9 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         stolpec.addView(besedilo(getString(R.string.os_prijava_podnaslov), 14f, medla).apply { setPadding(0, 0, 0, dp(18f)) })
 
         // Dve moznosti
-        val vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        val vrsta = LinearLayout(this).apply {
+            orientation = if (ozek) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+        }
         val levo = kartica()
         slikaQr = ImageView(this).apply {
             setBackgroundColor(Color.WHITE); setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
@@ -118,9 +127,11 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         levo.addView(besediloQr)
         stanjeQr = besedilo(getString(R.string.os_prijava_qr_pripravljam), 13f, zelena).apply { setPadding(0, dp(8f), 0, 0) }
         levo.addView(stanjeQr)
-        vrsta.addView(levo, LinearLayout.LayoutParams(dp(330f), LinearLayout.LayoutParams.WRAP_CONTENT))
+        vrsta.addView(levo, LinearLayout.LayoutParams(sirinaKartice, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        vrsta.addView(besedilo(getString(R.string.os_prijava_ali).uppercase(), 12f, medla).apply { setPadding(dp(18f), 0, dp(18f), 0) })
+        vrsta.addView(besedilo(getString(R.string.os_prijava_ali).uppercase(), 12f, medla).apply {
+            if (ozek) setPadding(0, dp(12f), 0, dp(12f)) else setPadding(dp(18f), 0, dp(18f), 0)
+        })
 
         val desno = kartica()
         desno.addView(besedilo(getString(R.string.os_prijava_koda_naslov), 16f, bela, true).apply { setPadding(0, dp(4f), 0, dp(6f)) })
@@ -134,7 +145,7 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         desno.addView(kodaStevilke)
         kodaZa = besedilo("", 13f, zelena)
         desno.addView(kodaZa)
-        vrsta.addView(desno, LinearLayout.LayoutParams(dp(330f), LinearLayout.LayoutParams.WRAP_CONTENT))
+        vrsta.addView(desno, LinearLayout.LayoutParams(sirinaKartice, LinearLayout.LayoutParams.WRAP_CONTENT))
         stolpec.addView(vrsta)
 
         // Spodaj: nadaljuj brez povezave (prvi zagon) ali zapri

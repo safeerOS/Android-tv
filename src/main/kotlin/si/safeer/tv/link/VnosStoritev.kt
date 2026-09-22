@@ -78,6 +78,50 @@ class VnosStoritev : AccessibilityService() {
             }
         }
 
+        // ---- Opcijski touch-gamepad. Koordinate so lokalni, omejeni profil (ne pridejo iz omrezja).
+        // Privzeti MOBA profil je namenoma generičen in ga bo mogoce kasneje umeriti v UI.
+        private var lx = 0.0
+        private var ly = 0.0
+        private val gumbi = mapOf(
+            "a" to (0.86 to 0.78), "b" to (0.78 to 0.84), "x" to (0.78 to 0.70), "y" to (0.87 to 0.66),
+            "r1" to (0.93 to 0.55), "r2" to (0.91 to 0.88), "l1" to (0.67 to 0.55), "l2" to (0.66 to 0.88),
+            "zacni" to (0.54 to 0.08), "izbira" to (0.46 to 0.08)
+        )
+
+        /** Imena z racunalnika (Linux evdev, angleska) -> imena telefonskega ploscka (slovenska). */
+        private val sopomenke = mapOf(
+            "start" to "zacni", "select" to "izbira",
+            "left_x" to "leva_x", "left_y" to "leva_y", "right_x" to "desna_x", "right_y" to "desna_y",
+            "dpad_x" to "krizec_x", "dpad_y" to "krizec_y"
+        )
+        private fun kanonsko(s: String) = s.lowercase().let { sopomenke[it] ?: it }
+
+        fun igralniGumb(ime: String, dol: Boolean): Boolean {
+            if (!dol) return true // dotik je kratek; release je idempotenten
+            val p = gumbi[kanonsko(ime)] ?: return false
+            return dotik(p.first, p.second, 55)
+        }
+
+        fun igralnaOs(os: String, vrednost: Double): Boolean {
+            val v = vrednost.coerceIn(-1.0, 1.0)
+            when (kanonsko(os)) {
+                // krizec premika kot leva palica (profil nima locenih smernih tipk)
+                "leva_x", "krizec_x" -> lx = v
+                "leva_y", "krizec_y" -> ly = v
+                // desna palica je kamera: kratek relativni poteg po desni polovici zaslona
+                "desna_x" -> return if (kotlin.math.abs(v) < .08) true else poteg(.70, .48, (.70 + v*.12).coerceIn(.56,.84), .48, 70)
+                "desna_y" -> return if (kotlin.math.abs(v) < .08) true else poteg(.70, .48, .70, (.48 + v*.12).coerceIn(.30,.66), 70)
+                else -> return false
+            }
+            if (kotlin.math.abs(lx) < .08 && kotlin.math.abs(ly) < .08) return true
+            // Gibalna palica: kratek ponovljiv poteg iz lokalnega centra. Naslednja izdaja lahko
+            // uporabi nadaljevane multi-touch StrokeDescription za igre, ki zahtevajo stalen dotik.
+            val cx=.18; val cy=.78
+            return poteg(cx, cy, (cx + lx*.10).coerceIn(.06,.30), (cy + ly*.10).coerceIn(.64,.92), 90)
+        }
+
+        fun igralniSprosti(): Boolean { lx=0.0; ly=0.0; return true }
+
         /** Kolesce miske na delezu zaslona: [korakov] > 0 navzdol (vsebina gre gor), < 0 navzgor. */
         fun kolesce(x: Double, y: Double, korakov: Int): Boolean {
             val s = instanca ?: return false

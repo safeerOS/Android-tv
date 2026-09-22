@@ -13,6 +13,9 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.CheckBox
 
 /**
  * Nastavitve Safeer OS: kar uporabnik lahko kadarkoli vklopi in izklopi.
@@ -146,6 +149,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
+            Vrstica(R.drawable.os_ikona_link, "Internet prek Safeer Linka",
+                "Telefon lahko zaupanim Safeer napravam posreduje internet prek Wi-Fi ali dovoljenega mobilnega omrezja.",
+                if (getSharedPreferences("safeer_internet_gateway", MODE_PRIVATE).getBoolean("gateway_enabled", false)) getString(R.string.os_vklopljeno) else getString(R.string.os_izklopljeno)) { nastaviInternetGateway() },
             Vrstica(R.drawable.os_ikona_datoteka, getString(R.string.os_pravno),
                 getString(R.string.os_pravno_opis), "") { pokaziPravno() },
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_izhod),
@@ -154,12 +160,31 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Tablica si deli te nastavitve s televizorjem, a nekatere veljajo samo za televizor:
         // domaci zaslon in zagon ob vklopu TV, preizkus igralnega ploscka (tablica ga ne podpira),
         // krajevni nacin (brez naprav tablica nima cesa pokazati) in izhod v sistem televizorja.
-        val skrij = if (packageName.endsWith(".tablet")) setOf(getString(R.string.os_zaganjalnik),
+        val skrij = if (packageName.endsWith(".tablet") || packageName.endsWith(".phone")) setOf(getString(R.string.os_zaganjalnik),
             getString(R.string.os_zagon), getString(R.string.os_nacin), getString(R.string.os_plosek_preizkus),
             getString(R.string.os_izhod)) else emptySet()
-        vrstice = vse.filter { it.ime !in skrij }
+        vrstice = vse.filter { it.ime !in skrij && (packageName.endsWith(".phone") || it.ime != "Internet prek Safeer Linka") }
         prilagojevalnik.notifyDataSetChanged()
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
+    }
+
+    private fun nastaviInternetGateway() {
+        val p = getSharedPreferences("safeer_internet_gateway", MODE_PRIVATE)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 8) }
+        val gateway = CheckBox(this).apply { text = "Deli internet z zaupanimi Safeer napravami"; isChecked = p.getBoolean("gateway_enabled", false) }
+        val mobile = CheckBox(this).apply { text = "Dovoli mobilne podatke (4G/5G)"; isChecked = p.getBoolean("allow_cellular", false) }
+        val roaming = CheckBox(this).apply { text = "Dovoli roaming"; isChecked = p.getBoolean("allow_roaming", false) }
+        val limit = EditText(this).apply { hint = "Mesecna omejitev mobilnih podatkov v MB (0 = brez omejitve)"; inputType = 2; val b=p.getLong("cellular_limit",0L); if(b>0) setText((b/1024/1024).toString()) }
+        box.addView(gateway); box.addView(mobile); box.addView(roaming); box.addView(limit)
+        android.app.AlertDialog.Builder(this).setTitle("Safeer Internet Gateway").setView(box)
+            .setPositiveButton("Shrani") { _, _ ->
+                val mb = limit.text.toString().toLongOrNull()?.coerceAtLeast(0) ?: 0L
+                p.edit().putBoolean("gateway_enabled", gateway.isChecked).putBoolean("allow_cellular", mobile.isChecked)
+                    .putBoolean("allow_roaming", roaming.isChecked && mobile.isChecked).putLong("cellular_limit", mb * 1024L * 1024L).apply()
+                val i = Intent(this, si.safeer.tv.cast.CastReceiverService::class.java).apply { action = si.safeer.tv.cast.CastReceiverService.ACTION_GATEWAY_CHANGED }
+                try { startService(i) } catch (_: Throwable) { }
+                narisi()
+            }.setNegativeButton(android.R.string.cancel, null).show()
     }
 
     /** Podrobnosti o moci: svoje okno, vsak podatek v svoji vrstici. */

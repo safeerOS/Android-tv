@@ -1346,6 +1346,34 @@ private fun preizkusImenVKrogu() {
         """{"clani":{"fon-9":{"kljuc":"${prihodnost.clan("fon-9")!!.kljuc}","ime":"Z","imenovano":${KrogZaupanja.zdaj() + 10 * 86400}}}}"""))
 }
 
+private fun preizkusPredajeInGatewaya() {
+    println("\n== handoff.request in internet gateway (RC1) ==")
+    val u = usmerjevalnik()
+    val tv = Lazni("192.168.0.20")
+    val telefon = Lazni("192.168.0.30")
+    u.odgovorNa(tv, registracija("tv1", "receiver"))
+    u.odgovorNa(telefon, registracija("fon1", "sender", "[\"url\",\"internet.gateway\"]"))
+
+    tv.pocisti()
+    val predaja = u.odgovorNa(telefon, """{"id":"h1","type":"handoff.request","target":"tv1","sender":"ponarejen","payload":{"surface":"media","url":"https://safeer.si/v.mp4","title":"Film","position":42.5}}""")!!
+    preveriEnako("predaja sprejeta", "accepted", polje(predaja, "status"))
+    preveriEnako("zaslon dobi handoff.request", "handoff.request", tip(tv.zadnje()))
+    preveri("hub vpise pravega posiljatelja", tv.zadnje().contains("\"sender\":\"fon1\"") && !tv.zadnje().contains("ponarejen"))
+    preveri("tovor ostane (url, polozaj)", tv.zadnje().contains("https://safeer.si/v.mp4") && tv.zadnje().contains("42.5"))
+    preveriEnako("predaja neznani napravi zavrnjena", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"h2","type":"handoff.request","target":"nihce","payload":{"url":"https://x.si"}}""")!!, "status"))
+    preveriEnako("predaja sebi zavrnjena", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"h3","type":"handoff.request","target":"fon1","payload":{"url":"https://x.si"}}""")!!, "status"))
+    preveriEnako("predaja brez tovora zavrnjena", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"h4","type":"handoff.request","target":"tv1"}""")!!, "status"))
+
+    telefon.pocisti()
+    u.odgovorNa(tv, """{"id":"g1","type":"internet.open","target":"fon1","sender":"ponarejen","stream_id":"tok-12345678","host":"safeer.si","port":443}""")
+    preveriEnako("gateway dobi internet.open", "internet.open", tip(telefon.zadnje()))
+    preveri("internet.open: posiljatelja vpise hub", telefon.zadnje().contains("\"sender\":\"tv1\"") && !telefon.zadnje().contains("ponarejen"))
+    preveri("internet.open: vrata ostanejo", telefon.zadnje().contains("\"port\":443"))
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1369,6 +1397,7 @@ fun main() {
     preizkusIdentitete()
     preizkusDnevnika()
     preizkusImenVKrogu()
+    preizkusPredajeInGatewaya()
     println()
     if (napak == 0) {
         println("Vse v redu.")

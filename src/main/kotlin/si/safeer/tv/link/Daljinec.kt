@@ -44,7 +44,9 @@ object Daljinec {
         // Zvok racunalnika na tej napravi (Safeer OS za racunalnik: Zvok -> Predvajaj tukaj).
         "audio.play", "audio.stop",
         // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control.
-        "files.list", "files.search"
+        "files.list", "files.search",
+        // Opcijski telefonski gamepad za Android aplikacijo, ki tece na tej napravi.
+        "gamepad.button", "gamepad.axis", "gamepad.release"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -126,6 +128,7 @@ object Daljinec {
         }
         // Vnos z racunalnika ne potrebuje brskalnika v ospredju: gre v aplikacijo, ki je na zaslonu.
         if (d.startsWith("input.")) return vnos(context, d, parametri)
+        if (d.startsWith("gamepad.")) return igralniPloskek(context, d, parametri)
         // Zvok z racunalnika igra ne glede na to, kaj je na zaslonu.
         if (d == "audio.play") return ZvokSprejemnik.zacni(context, parametri)
         if (d == "audio.stop") return ZvokSprejemnik.ustavi()
@@ -400,6 +403,26 @@ object Daljinec {
             else -> false
         }
         return if (uspelo) Izid(true, "Vnos izveden") else Izid(false, "Vnosa ni bilo mogoce izvesti", koda = "vnos_ni_uspel")
+    }
+
+
+    /**
+     * Telefonski igralni plosek -> dotiki na Android gostitelju. To ni sistemski gamepad in ne
+     * zahteva roota: Safeer Vnos (AccessibilityService), ki ga uporabnik sam vklopi, pretvori
+     * omejen nabor gamepad dogodkov v geste. Profil je lokalna nastavitev gostitelja; oddaljena
+     * naprava ne sme poslati poljubnih koordinat. Tako telefon ne dobi splosnega dostopa do zaslona.
+     */
+    private fun igralniPloskek(context: Context, d: String, p: JSONObject): Izid {
+        if (!VnosStoritev.aktivna()) return Izid(false,
+            "Na napravi z igro vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
+        val ok = when (d) {
+            "gamepad.button" -> VnosStoritev.igralniGumb(p.optString("button", ""), p.optBoolean("down", false))
+            "gamepad.axis" -> VnosStoritev.igralnaOs(p.optString("axis", ""), p.optDouble("value", 0.0))
+            "gamepad.release" -> VnosStoritev.igralniSprosti()
+            else -> false
+        }
+        return if (ok) Izid(true, "Igralni vnos izveden", JSONObject().put("controller", "phone-touch-gamepad"))
+        else Izid(false, "Igralnega vnosa ni bilo mogoce izvesti", koda = "gamepad_ni_uspel")
     }
 
     /**

@@ -445,3 +445,40 @@ lahko podtaknil stran in prebral enkratno skrivnost. Ublažitve danes: koda velj
 omejeno, središče pokaže »✓ … je povezan« (neznana naprava je vidna) in jo uporabnik lahko odstrani. Popravek
 brez spremembe protokola ni mogoč (brskalnik ne zaupa samopodpisanemu potrdilu); prava rešitev je stran
 `safeer.si/p`, ki telefon brez aplikacije pošlje po aplikacijo, namesto da odpre HTTP odjemalca.
+
+## 11. RC1 (veja `rc1`, 22. 9. 2026)
+
+Prevzeto iz RC1 paketov (TV, tablica, telefon, Linux), pregledano in popravljeno pred vgradnjo.
+
+**Novo**
+- Okus `telefon` (`si.safeer.phone`, Safeer OS Mobile): koda tablice (`src/tablica`), viri tablice
+  (`okusi/tablica/res`) + `okusi/telefon/res` (samo ime) in svoj manifest (`CHANGE_NETWORK_STATE`).
+  Platforma v krogu `phone`, prioriteta 20. OS, tablica in telefon: 0.5.0 (25).
+- `handoff.request` (Nadaljuj na): izrecna predaja strani/predvajanja izbrani napravi. Oba huba (Kotlin in
+  Python) vpiseta pravega posiljatelja; Kotlin hub tovor omeji na 8 KiB. Sprejemnik odpre URL (Android:
+  `onCastUrlReceived` s polozajem; Linux: nov zavihek). Safeer OS za Linux: stran Safeer Media, gumbi
+  "Nadaljuj na" ob predvajanju (MPRIS/playerctl).
+- Continuity v3, Workspace v1, Media Sync v1.1: kategorije `sync.data` (`safeer.continuity.v3`,
+  `safeer.workspace.v1`, `safeer.media.v1`). Vedno pasivno: nikoli ne odpre strani ali aplikacije.
+  Android objavi kontinuiteto ob novem viru/stanju predvajanja, sicer najvec na 30 s. Uporabniskega vmesnika
+  za "nadaljuj, kjer si koncal" se ni; Android naprave brez zmoznosti `sync` sirjenja ne prejmejo (samo
+  odgovor na `sync.request`).
+- Igralni plosek na telefonskem daljincu (`gamepad.button/axis/release`). Imena so slovenska
+  (`leva_x`, `desna_y`, `krizec_x`, `izbira`, `zacni`); Android sprejme tudi angleska imena z Linux evdev
+  (`left_x`, `start`, `dpad_x` ...). Android: geste prek Safeer Vnos (dostopnost), profil je lokalen;
+  Linux: uinput, samo ko oddaljena seja ze tece. `MultiInputRouter` (Linux) se nikoli ne vklopi sam.
+- Internet gateway (samo telefon, privzeto izklopljen): `internet.open/opened/data/close/error`.
+  Glej `docs/INTERNET-GATEWAY.md`. Ponudnik je narejen, odjemalca (TV/Linux, ki bi gateway uporabil) se ni.
+
+**Popravljeno ob prevzemu**
+- Gateway: kosi toka so se pisali vzporedno (vec niti) in so lahko prisli v socket v napacnem vrstnem redu;
+  zdaj ena pisalna nit na tok. Mesecna omejitev mobilnih podatkov se ni nikoli ponastavila; zdaj ob novem
+  mesecu. Filter ciljev dopolnjen (0/8, 198.18/15, 240/4, broadcast, TEST-NET, 2001:db8::/32) in vrata SMTP
+  (25, 465, 587) zaprta; politika je v `InternetPoti.kt` in ima JVM test (`tests/run_gateway_tests.sh`).
+  Mobilna pot se ob zagonu storitve znova zahteva, ce jo je uporabnik dovolil.
+- Plosek: telefon je posiljal `leva_x`/`izbira`, Android je pricakoval `left_x`/`select` - palici, krizec,
+  SELECT in START niso delovali.
+- TV hub je `handoff.request` zavrnil (`neznan_tip`).
+- Linux: `safeer_link.py` je Link module uvazal brez `core.` (Control se ne bi zagnal); namestitveni tovor
+  Controla ni vseboval novih modulov; Safeer Media v `os.js` je bil zunaj glavne funkcije in ni videl
+  `klic`, `el`, `S` (stran ne bi delala); pytest testi so zdaj tudi unittest.
