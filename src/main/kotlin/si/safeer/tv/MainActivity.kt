@@ -2385,6 +2385,16 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             UiText.get(R.string.menu_scit) + " · " + UiText.get(R.string.scit_blokiranih_danes, si.safeer.tv.scit.Scit.statistika(this).blokiranih)
         } else UiText.get(R.string.menu_scit)
         dialog.findViewById<LinearLayout>(R.id.rowMenuScit).setOnClickListener {
+            // Scit vodi Safeer OS (kot Safeer Link): tam se tudi vklopi in izklopi.
+            if (!si.safeer.tv.os.Sosed.vodimLink(this)) {
+                try {
+                    dialog.dismiss()
+                    startActivity(android.content.Intent().setComponent(android.content.ComponentName(
+                        si.safeer.tv.os.Sosed.OS, "si.safeer.tv.os.DomovActivity"))
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    return@setOnClickListener
+                } catch (_: Throwable) { }
+            }
             val namera = Intent(this, si.safeer.tv.scit.ScitActivity::class.java)
             if (scitVklopljen) namera.putExtra(si.safeer.tv.scit.ScitActivity.EXTRA_IZKLOPI, true)
             try { startActivity(namera) } catch (_: Throwable) { }
