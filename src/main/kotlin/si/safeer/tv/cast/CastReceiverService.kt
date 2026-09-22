@@ -166,6 +166,12 @@ class CastReceiverService : Service() {
     private var mediaSync: SafeerMediaSync? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var hubUrl: String = DEFAULT_HUB_URL
+    /** Global Link: domaci hub ni v tem omrezju, povezava gre prek link.safeer.si (LAN ostane prvi). */
+    @Volatile private var prekReleja = false
+
+    /** Naslov za povezavo: LAN ali lokalna vrata releja do izvoljenega huba. */
+    private fun aktivniUrl(): String =
+        si.safeer.tv.link.GlobalLink.naslov(this, hubUrl, HubKrmilnik.izvoljeniHub(this)?.id, prekReleja)
     /** Id iz kljuca naprave (HubKrmilnik.lastniId); isti, kot ga hub te naprave vpise v krog in oglasa po mDNS. */
     private val deviceId: String by lazy { HubKrmilnik.lastniId() }
     private var deviceName: String = "Android TV"
@@ -226,18 +232,19 @@ class CastReceiverService : Service() {
             return
         }
         client = zgradiOdjemalca()
-        Log.i(TAG, "Povezujem se na Safeer Cast Hub: $hubUrl (naprava: $deviceId)")
+        val naslovHuba = aktivniUrl()
+        Log.i(TAG, "Povezujem se na Safeer Cast Hub: $naslovHuba (naprava: $deviceId)")
         // S podpisom tudi, ce je nas kljuc v krogu pod starim id-jem: hub nov id sam vpise kot alias.
         val vpisan = try { KrogNaprave.lahkoSPodpisom(this, deviceId) } catch (_: Throwable) { false }
-        if (vpisan) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov, moj) }
+        if (vpisan) zVstopnicoSPodpisom(naslovHuba) { naslov -> odpriPovezavo(naslov, moj) }
         else {
             // Nas kljuc je v krogu pod drugim id (npr. Safeer OS iste naprave): ta id vpisemo kot alias
             // s podpisom, nato pridemo s podpisom tudi sami. Sicer po starem, z zetonom.
             val znani = try { KrogNaprave.znaniIdZaNasKljuc(this) } catch (_: Throwable) { null }
-            if (znani != null && HubKrmilnik.izvoljeniHub(this) != null) vpisiAlias(hubUrl, znani) { uspelo ->
-                if (uspelo) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov, moj) }
-                else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
-            } else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
+            if (znani != null && HubKrmilnik.izvoljeniHub(this) != null) vpisiAlias(naslovHuba, znani) { uspelo ->
+                if (uspelo) zVstopnicoSPodpisom(naslovHuba) { naslov -> odpriPovezavo(naslov, moj) }
+                else zVstopnico(naslovHuba, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
+            } else zVstopnico(naslovHuba, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
         }
     }
 
@@ -266,7 +273,7 @@ class CastReceiverService : Service() {
 
     /** POST JSON na hub; naprej(koda, telo), napaka omrezja = koda 0. */
     private fun klic(pot: String, telo: JSONObject?, naprej: (Int, String) -> Unit) {
-        val z = Request.Builder().url("${osnova(hubUrl)}$pot")
+        val z = Request.Builder().url("${osnova(aktivniUrl())}$pot")
             .post((telo?.toString() ?: "").toRequestBody("application/json".toMediaTypeOrNull()))
         client.newCall(z.build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: java.io.IOException) { naprej(0, "") }
@@ -351,8 +358,9 @@ class CastReceiverService : Service() {
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 if (moj != rod) { webSocket.cancel(); return }
-                Log.i(TAG, "Uspešno povezan s Cast Hubom!")
+                Log.i(TAG, if (aktivniUrl() != hubUrl) "Uspešno povezan s Cast Hubom prek Global Linka." else "Uspešno povezan s Cast Hubom!")
                 reconnectAttempts = 0
+                if (prekReleja) { mainHandler.removeCallbacks(nazajVLan); mainHandler.postDelayed(nazajVLan, 300_000L) }
                 povezan = true
                 try { naPovezavo?.invoke(true) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPovezavo(true)", e) }
 
@@ -566,7 +574,31 @@ class CastReceiverService : Service() {
                 mainHandler.postDelayed({ poisciDrugoSredisce() }, delayMs / 2)
             }
         }
+        // Global Link: po dveh neuspehih v LAN poskusimo domaci hub prek link.safeer.si (preden bi naprava
+        // razglasila izvoljeni hub za izgubljenega in zacela gostiti sama).
+        if (reconnectAttempts == 2 && !prekReleja && si.safeer.tv.link.GlobalLink.vklopljen(this) &&
+            si.safeer.tv.link.GlobalLink.osnovniId(HubKrmilnik.izvoljeniHub(this)?.id) != null) {
+            Log.i(TAG, "Domaci hub ni v tem omrezju; poskusim prek Global Linka.")
+            prekReleja = true
+        }
         mainHandler.postDelayed({ connectToHub() }, delayMs)
+    }
+
+    /** Na releju: vsakih 5 min preverimo, ali je domaci hub spet v LAN; ce je, gremo domov (hitreje, brez releja). */
+    private val nazajVLan = object : Runnable {
+        override fun run() {
+            if (!isRunning || !prekReleja) return
+            Thread({
+                if (si.safeer.tv.link.GlobalLink.lanDosegljiv(hubUrl)) mainHandler.post {
+                    if (!prekReleja) return@post
+                    Log.i(TAG, "Domaci hub je spet v omrezju; zapuscam Global Link.")
+                    prekReleja = false
+                    si.safeer.tv.link.GlobalLink.izklopi()
+                    reconnectAttempts = 0
+                    connectToHub()
+                } else mainHandler.postDelayed(this, 300_000L)
+            }, "safeer-global-link-lan").apply { isDaemon = true }.start()
+        }
     }
 
     private fun poisciDrugoSredisce() {
@@ -809,7 +841,7 @@ class CastReceiverService : Service() {
 
     /** Naslov Huba za navadne zahteve HTTP (ws://x:y/cast/ws -> http://x:y). */
     private fun hubHttpOsnova(): String =
-        hubUrl.replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
+        aktivniUrl().replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
             .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws")
             .trimEnd('/')
 

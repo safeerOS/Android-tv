@@ -149,6 +149,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
+            Vrstica(R.drawable.os_ikona_link, "Global Link",
+                "Tvoje naprave se dosežejo tudi zunaj doma (link.safeer.si). Vidi jih samo tvoj krog zaupanja.",
+                getString(if (si.safeer.tv.link.GlobalLink.vklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { nastaviGlobalLink() },
             Vrstica(R.drawable.os_ikona_link, "Internet prek Safeer Linka",
                 "Telefon lahko zaupanim Safeer napravam posreduje internet prek Wi-Fi ali dovoljenega mobilnega omrezja.",
                 if (getSharedPreferences("safeer_internet_gateway", MODE_PRIVATE).getBoolean("gateway_enabled", false)) getString(R.string.os_vklopljeno) else getString(R.string.os_izklopljeno)) { nastaviInternetGateway() },
@@ -166,6 +169,21 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         vrstice = vse.filter { it.ime !in skrij && (packageName.endsWith(".phone") || it.ime != "Internet prek Safeer Linka") }
         prilagojevalnik.notifyDataSetChanged()
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
+    }
+
+    private fun nastaviGlobalLink() {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 8) }
+        val vklop = CheckBox(this).apply { text = "Dostop do mojih naprav od kjerkoli"; isChecked = si.safeer.tv.link.GlobalLink.vklopljen(this@NastavitveActivity) }
+        val preizkus = CheckBox(this).apply { text = "Preizkus: tudi doma prek interneta"; isChecked = si.safeer.tv.link.GlobalLink.samoRele(this@NastavitveActivity) }
+        box.addView(vklop); box.addView(preizkus)
+        android.app.AlertDialog.Builder(this).setTitle("Global Link").setView(box)
+            .setPositiveButton("Shrani") { _, _ ->
+                si.safeer.tv.link.GlobalLink.nastavi(this, vklop.isChecked, preizkus.isChecked)
+                si.safeer.tv.link.GlobalLink.izklopi()
+                val i = Intent(this, si.safeer.tv.cast.CastReceiverService::class.java).apply { action = si.safeer.tv.cast.CastReceiverService.ACTION_GATEWAY_CHANGED }
+                try { startService(i) } catch (_: Throwable) { }
+                narisi()
+            }.setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun nastaviInternetGateway() {

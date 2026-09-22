@@ -513,3 +513,25 @@ v odjemalcih, E2EE vezan na kljuce naprav, prehod Wi-Fi <-> mobilno in preizkus 
 
 **Datoteke na tablici in telefonu:** meni Datoteke se odpre vedno. Brez racunalnika pokaze videe, glasbo
 in slike te naprave (`DatotekeActivity` krajevni nacin), s povezanim racunalnikom ponudi izbiro vira.
+
+### 12.1 Rele (vklopljeno, 22. 9. 2026)
+
+Naprava zunaj doma se poveze na **najmocnejso napravo doma** (izvoljeni hub, obicajno racunalnik s
+prioriteto 80); ta usmerja naprej do vseh ostalih in vraca odgovore, kot v LAN. Vedno najprej LAN:
+Android poskusi LAN dvakrat in sele nato rele; na releju vsakih 5 min preveri, ali je hub spet v LAN,
+in se vrne domov.
+
+- Hub (racunalnik, `core/link_rele.py` `AgentHuba` v Controlu): objavi prisotnost z `allow` = clani
+  kroga, drzi `/v1/listen` in za vsak kanal odpre `/v1/accept` ter ga poveze z lokalnim hubom.
+- Naprava (Android, `link/GlobalLink.kt`): lokalna vrata 127.0.0.1 (IPv4 - `getLoopbackAddress()` je na
+  Androidu ::1), vsaka povezava je kanal `/v1/connect?to=<hub>`; sprejemnik (CastReceiverService) in
+  Safeer OS (LinkOdjemalec) si delita en rele na hub. TLS Safeer Linka gre skozi nespremenjen (pripet
+  odtis huba), rele vidi samo sifrirane bajte.
+- Worker: en Durable Object na hub, WebSocket Hibernation (mirujoce povezave ne porabljajo casa),
+  najvec 32 kanalov, prisotnost v SQLite objekta. Cloudflare zavrne `Python-urllib` (403), zato
+  `User-Agent: SafeerLink/1.0`.
+- Nastavitve (Android): Global Link vklopljen privzeto; "Preizkus: tudi doma prek interneta" za preizkus.
+- Preizkuseno: zacasna naprava s PC prek link.safeer.si do Controla (HTTP 200, 0,9 s, potrdilo iz
+  huba), tujec zavrnjen; tablica prek releja prijavljena s podpisom in prejema ukaze prek huba.
+- Se ni: hub na Androidu (TV/tablica kot hub prek releja), Linux kot odjemalec tujega huba prek releja,
+  neposredne povezave naprava-naprava (datoteke, zaslon) prek releja - te gredo zdaj samo v LAN.

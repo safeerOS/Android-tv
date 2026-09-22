@@ -91,6 +91,10 @@ class LinkOdjemalec(private val context: Context) {
     private var ws: WebSocket? = null
     private var tece = false
     private var poskusov = 0
+    /** Global Link: domaci hub ni v tem omrezju, povezava gre prek link.safeer.si (LAN ostane prvi). */
+    @Volatile private var prekReleja = false
+    private fun naslovHuba(p: Sorodnik.Poverilnice): String =
+        si.safeer.tv.link.GlobalLink.naslov(context, p.hubUrl, p.hubId, prekReleja)
     private val idNaprave: String by lazy { Identiteta.id(context) }
     /** Sejni zeton s prijave s podpisom: z njim gredo zahteve HTTP (preimenovanje), ko zetona seznanitve ni. */
     @Volatile private var sejniZeton = ""
@@ -135,7 +139,7 @@ class LinkOdjemalec(private val context: Context) {
     private fun klic(pot: String, telo: JSONObject?, zeton: String?, naprej: (Int, String) -> Unit) {
         val p = poverilnice ?: return
         val k = odjemalec ?: return
-        val z = Request.Builder().url(osnovaHttp(p.hubUrl) + pot)
+        val z = Request.Builder().url(osnovaHttp(naslovHuba(p)) + pot)
         if (zeton != null) z.addHeader("X-Safeer-Token", zeton)
         z.post((telo?.toString() ?: "").toRequestBody("application/json".toMediaTypeOrNull()))
         k.newCall(z.build()).enqueue(object : Callback {
@@ -228,7 +232,7 @@ class LinkOdjemalec(private val context: Context) {
             val naslov = java.net.InetAddress.getByName(gostitelj)
             naslov.isLoopbackAddress || java.net.NetworkInterface.getByInetAddress(naslov) != null
         } catch (_: Throwable) { false }
-        odpri("${p.hubUrl}${locilo}ticket=$vstopnica")
+        odpri("${naslovHuba(p)}${locilo}ticket=$vstopnica")
     }
 
     private fun odpri(naslov: String) {
@@ -237,6 +241,7 @@ class LinkOdjemalec(private val context: Context) {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 poskusov = 0
                 povezan = true
+                if (prekReleja) glavna.postDelayed(nazajVLan, 300_000L)
                 val prijava = JSONObject()
                     .put("id", UUID.randomUUID().toString())
                     .put("type", "cast.register")
@@ -349,12 +354,37 @@ class LinkOdjemalec(private val context: Context) {
         poskusov++
         // Izgubo sredisca javimo enkrat na povezavo (po treh neuspehih); upravitelj takrat vzame
         // poverilnice znova - ce vodijo k istemu srediscu, tu mirno poskusamo naprej.
+        // Global Link: po dveh neuspehih v LAN poskusimo domaci hub prek link.safeer.si, preden javimo izgubo.
+        val p = poverilnice
+        if (poskusov == 2 && !prekReleja && p != null && si.safeer.tv.link.GlobalLink.vklopljen(context) &&
+            si.safeer.tv.link.GlobalLink.osnovniId(p.hubId) != null) {
+            Log.i(TAG, "Domaci hub ni v tem omrezju; poskusim prek Global Linka.")
+            prekReleja = true
+        }
         if (poskusov == 3 && !izgubaJavljena) { izgubaJavljena = true; glavna.post { poslusalec?.naIzgubo() } }
         val gen = generacija
         glavna.postDelayed({ if (tece && !povezan && gen == generacija) povezi() }, zamik)
     }
 
     private var generacija = 0
+
+    /** Na releju: vsakih 5 min preverimo, ali je domaci hub spet v LAN; ce je, gremo domov. */
+    private val nazajVLan: Runnable = Runnable {
+        val p = poverilnice
+        if (!tece || !prekReleja || p == null) return@Runnable
+        Thread({
+            val doma = si.safeer.tv.link.GlobalLink.lanDosegljiv(p.hubUrl)
+            glavna.post {
+                if (!prekReleja) return@post
+                if (doma) {
+                    Log.i(TAG, "Domaci hub je spet v omrezju; zapuscam Global Link.")
+                    prekReleja = false
+                    si.safeer.tv.link.GlobalLink.izklopi()
+                    try { ws?.cancel() } catch (_: Throwable) { }
+                } else glavna.postDelayed(nazajVLan, 300_000L)
+            }
+        }, "safeer-global-link-lan").apply { isDaemon = true }.start()
+    }
     private var izgubaJavljena = false
 
     private fun javiStanje(povezan: Boolean, sporocilo: String) {
