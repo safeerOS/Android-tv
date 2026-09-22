@@ -23,12 +23,18 @@ object MedijskiViri {
     data class Vir(val tip: String, val ime: String, val naslov: String) {
         val jePeerTube get() = tip == PEERTUBE
         val jeSplet get() = tip == SPLET
+        val jeSeznam get() = tip == SEZNAM
+        val jePodkast get() = tip == PODKAST
     }
 
     const val PEERTUBE = "peertube"
     const val TOK = "tok"
     /** Spletna stran z glasbo ali videom: odpre jo brskalnik Safeer (jedro Safeer OS), ki predvaja vse. */
     const val SPLET = "splet"
+    /** Seznam .m3u/.pls z vec skladbami: ob dodajanju ga preberemo, skladbe najde tudi iskanje. */
+    const val SEZNAM = "seznam"
+    /** RSS podkasta: klik odpre epizode. */
+    const val PODKAST = "podkast"
 
     fun vsi(ctx: Context): List<Vir> {
         val a = try { JSONArray(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(KLJUC, "[]")) } catch (_: Exception) { JSONArray() }
@@ -134,6 +140,7 @@ object MedijskiViri {
 
     fun odstrani(ctx: Context, vir: Vir) {
         shrani(ctx, vsi(ctx).filterNot { it == vir })
+        if (vir.jeSeznam) ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().remove(kljucSeznama(vir.naslov)).apply()
         pripeti(ctx).let { p -> if (kljucPripetega(vir) in p) pisi(ctx, PRIPETI, JSONArray(p - kljucPripetega(vir)).toString()) }
     }
 
@@ -176,8 +183,9 @@ object MedijskiViri {
 
     /**
      * Preveri naslov in ga doda. Najprej PeerTube (vpisano ime streznika ali naslov strani), nato
-     * neposreden tok: odgovor mora biti zvok ali video (ali seznam .m3u/.pls, iz katerega vzamemo
-     * prvi naslov). Vrne dodani vir ali null, ce na naslovu ni nicesar, kar bi znali predvajati.
+     * vsebina na naslovu: zvok ali video, tok HLS (.m3u8), seznam .m3u/.pls (cel seznam - skladbe
+     * najde tudi iskanje), RSS podkasta ali spletna stran. Vrne dodani vir ali null, ce na naslovu ni
+     * nicesar, kar bi znali predvajati.
      */
     fun dodaj(ctx: Context, vnos: String): Vir? {
         val cisto = vnos.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
@@ -185,21 +193,86 @@ object MedijskiViri {
         val jePot = try { URL(cisto).path.trim('/').isNotEmpty() } catch (_: Exception) { false }
         val vir = PeerTube.imeStreznika(gostitelj)?.takeIf { !jePot || cisto.contains("/videos") || cisto.contains("/c/") || cisto.contains("/a/") }
             ?.let { Vir(PEERTUBE, it, gostitelj) }
-            ?: tok(cisto)?.let { (url, video) -> Vir(if (video) "$TOK-video" else TOK, gostitelj, url) }
-            ?: if (jeStran(cisto)) Vir(SPLET, gostitelj.removePrefix("www."), cisto) else return null
+            ?: razvrsti(ctx, cisto, gostitelj)
+            ?: return null
         shrani(ctx, vsi(ctx).filterNot { it.naslov == vir.naslov } + vir)
         return vir
     }
 
-    fun kotSkladba(v: Vir) = Jamendo.Skladba("vir:" + v.naslov, v.ime, v.naslov.removePrefix("https://").removePrefix("http://"),
-        "", v.naslov, v.naslov, radio = !v.tip.endsWith("video"), video = v.tip.endsWith("video"),
-        mime = if (v.jeSplet) STRAN else "")
+    /** Enota za vir: seznam in podkast se odpreta kot seznam (klik), ostalo predvaja predvajalnik ali brskalnik. */
+    fun kotSkladba(v: Vir): Jamendo.Skladba = when {
+        v.jePodkast -> Podkasti.oddaja(v.naslov, v.ime, v.naslov.removePrefix("https://").substringBefore('/'), "")
+        else -> Jamendo.Skladba((if (v.jeSeznam) PREDPONA_SEZNAMA else "vir:") + v.naslov, v.ime,
+            v.naslov.removePrefix("https://").removePrefix("http://"), "", v.naslov, v.naslov,
+            radio = !v.tip.endsWith("video") && !v.jeSeznam, video = v.tip.endsWith("video"),
+            mime = when { v.jeSplet -> STRAN; v.tip.contains("hls") -> MIME_HLS; else -> "" })
+    }
 
     /** Oznaka enote, ki je spletna stran (odpre jo brskalnik, ne nas predvajalnik). */
     const val STRAN = "text/html"
+    /** Tok HLS (.m3u8): predvajalnik ga predvaja z modulom Media3 HLS. */
+    const val MIME_HLS = "application/x-mpegURL"
+    /** Id enote, ki odpre dodani seznam .m3u/.pls. */
+    const val PREDPONA_SEZNAMA = "vir-seznam:"
 
-    /** Naslov toka in ali je video; seznam .m3u/.pls razpakira v prvi naslov. */
-    private fun tok(naslov: String, globina: Int = 0): Pair<String, Boolean>? {
+    // ------------------------------------------------------------------ dodani seznami .m3u/.pls
+
+    private fun kljucSeznama(naslov: String) = "seznam:$naslov"
+
+    /** Skladbe dodanega seznama, kot so bile ob zadnjem branju (brez omrezja - za iskanje). */
+    fun skladbeSeznama(ctx: Context, naslov: String): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, kljucSeznama(naslov)))
+
+    /** Seznam prebere znova (ob odprtju); ce naslov ne odgovori, ostane zadnji znani. */
+    fun osveziSeznam(ctx: Context, naslov: String): List<Jamendo.Skladba> {
+        val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return skladbeSeznama(ctx, naslov) }
+        p.connectTimeout = 8_000; p.readTimeout = 10_000
+        p.setRequestProperty("User-Agent", "SafeerOS")
+        val nove = try {
+            if (p.responseCode in 200..299) beriSeznam(p.inputStream.bufferedReader().use { it.readText().take(2_000_000) }, naslov) else emptyList()
+        } catch (_: Exception) { emptyList() } finally { p.disconnect() }
+        if (nove.isNotEmpty()) pisi(ctx, kljucSeznama(naslov), pisiSkladbe(nove.take(1000)))
+        return nove.ifEmpty { skladbeSeznama(ctx, naslov) }
+    }
+
+    /** Skladbe iz dodanih seznamov, ki ustrezajo iskanju (z virom, ki pove izvor). */
+    fun iskanjeVSeznamih(ctx: Context, beseda: String): List<Pair<Vir, Jamendo.Skladba>> =
+        vsi(ctx).filter { it.jeSeznam }.flatMap { v ->
+            skladbeSeznama(ctx, v.naslov).filter { Relevantnost.ocena(beseda, it.naslov, it.izvajalec) >= Relevantnost.SPODNJA }.map { v to it }
+        }
+
+    /** Vnosi .m3u (#EXTINF: ime, nato naslov) ali .pls (FileN / TitleN); relativni naslovi glede na seznam. */
+    fun beriSeznam(telo: String, osnova: String): List<Jamendo.Skladba> {
+        fun polni(n: String) = try { URL(URL(osnova), n.trim()).toString() } catch (_: Exception) { "" }
+        val pari = ArrayList<Pair<String, String>>()
+        if (telo.trimStart().startsWith("[playlist]", ignoreCase = true)) {
+            val datoteke = HashMap<String, String>(); val imena = HashMap<String, String>()
+            telo.lines().forEach { l ->
+                Regex("""(?i)^File(\d+)=(.+)$""").find(l.trim())?.let { datoteke[it.groupValues[1]] = it.groupValues[2] }
+                Regex("""(?i)^Title(\d+)=(.+)$""").find(l.trim())?.let { imena[it.groupValues[1]] = it.groupValues[2] }
+            }
+            datoteke.keys.sortedBy { it.toIntOrNull() ?: 0 }.forEach { k -> pari += imena[k].orEmpty() to polni(datoteke[k]!!) }
+        } else {
+            var ime = ""
+            telo.lines().map { it.trim() }.forEach { l ->
+                when {
+                    l.startsWith("#EXTINF", ignoreCase = true) -> ime = l.substringAfter(',', "").trim()
+                    l.isEmpty() || l.startsWith("#") -> {}
+                    else -> { pari += ime to polni(l); ime = "" }
+                }
+            }
+        }
+        return pari.filter { it.second.startsWith("http://") || it.second.startsWith("https://") }.map { (ime, url) ->
+            val (naslov, izvajalec) = Relevantnost.razdeli(ime.ifBlank { url.substringAfterLast('/').substringBefore('?') }, "")
+            Jamendo.Skladba("seznam:$url", naslov, izvajalec, "", url, osnova,
+                mime = if (url.substringBefore('?').lowercase().endsWith(".m3u8")) MIME_HLS else "")
+        }.distinctBy { it.zvok }
+    }
+
+    private val KONCNICE = listOf(".mp3", ".ogg", ".oga", ".opus", ".m4a", ".aac", ".flac", ".wav", ".mp4", ".mkv", ".webm", ".m3u8")
+    private fun jeDatoteka(url: String) = url.substringBefore('?').lowercase().let { u -> KONCNICE.any { u.endsWith(it) } }
+
+    /** Kaj je na naslovu: zvok, video, HLS, seznam, podkast ali stran (eno branje). */
+    private fun razvrsti(ctx: Context, naslov: String, gostitelj: String, globina: Int = 0): Vir? {
         if (globina > 1) return null
         val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return null }
         p.connectTimeout = 8_000; p.readTimeout = 8_000
@@ -208,24 +281,34 @@ object MedijskiViri {
         return try {
             if (p.responseCode !in 200..299) return null
             val vrsta = (p.contentType ?: "").lowercase()
+            val pot = naslov.lowercase().substringBefore('?')
+            val seznam = vrsta.contains("mpegurl") || vrsta.contains("scpls") || pot.endsWith(".m3u") || pot.endsWith(".m3u8") || pot.endsWith(".pls")
             when {
-                vrsta.contains("mpegurl") || vrsta.contains("scpls") || naslov.endsWith(".m3u") || naslov.endsWith(".pls") -> {
-                    val telo = p.inputStream.bufferedReader().use { it.readText().take(20_000) }
-                    val prvi = Regex("""(https?://\S+)""").find(telo)?.value?.trim() ?: return null
-                    if (prvi.contains(".m3u8")) null else tok(prvi, globina + 1)
+                seznam -> {
+                    val telo = p.inputStream.bufferedReader().use { it.readText().take(2_000_000) }
+                    if (telo.contains("#EXT-X-")) return Vir(if (telo.contains("RESOLUTION=")) "$TOK-hls-video" else "$TOK-hls", gostitelj, naslov)
+                    val vnosi = beriSeznam(telo, naslov)
+                    // Radijski .pls ima pogosto vec zrcal istega toka (brez koncnice): to je ena postaja.
+                    // Seznam je, kadar so vnosi vsaj v polovici datoteke (.mp3, .m3u8 kanali ...).
+                    val datotek = vnosi.count { jeDatoteka(it.zvok) }
+                    when {
+                        vnosi.size > 1 && datotek * 2 >= vnosi.size -> {
+                            pisi(ctx, kljucSeznama(naslov), pisiSkladbe(vnosi.take(1000)))
+                            val ime = pot.substringAfterLast('/').substringBeforeLast('.').ifBlank { gostitelj }
+                            Vir(SEZNAM, "$ime (${vnosi.size})", naslov)
+                        }
+                        vnosi.isNotEmpty() -> razvrsti(ctx, vnosi[0].zvok, gostitelj, globina + 1)?.let { it.copy(ime = gostitelj) }
+                        else -> null
+                    }
                 }
-                vrsta.startsWith("audio/") || vrsta == "application/ogg" -> naslov to false
-                vrsta.startsWith("video/") -> naslov to true
+                vrsta.startsWith("audio/") || vrsta == "application/ogg" -> Vir(TOK, gostitelj, naslov)
+                vrsta.startsWith("video/") -> Vir("$TOK-video", gostitelj, naslov)
+                vrsta.contains("xml") || vrsta.contains("rss") -> Podkasti.imeOddaje(naslov)?.let { Vir(PODKAST, it, naslov) }
+                vrsta.contains("text/html") -> Vir(SPLET, gostitelj.removePrefix("www."), naslov)
                 else -> null
             }
         } catch (_: Exception) { null } finally { p.disconnect() }
     }
-
-    private fun jeStran(naslov: String): Boolean = try {
-        val p = URL(naslov).openConnection() as HttpURLConnection
-        p.connectTimeout = 8_000; p.readTimeout = 8_000; p.setRequestProperty("User-Agent", "SafeerOS")
-        try { p.responseCode in 200..399 && (p.contentType ?: "").lowercase().contains("text/html") } finally { p.disconnect() }
-    } catch (_: Exception) { false }
 
     private fun shrani(ctx: Context, viri: List<Vir>) {
         val a = JSONArray()

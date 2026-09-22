@@ -130,6 +130,7 @@
     <string name="os_media_gl_isci_opis">Popular music by genre</string>
     <string name="os_media_isci_v_viru">Search “%1$s” in this source</string>
     <string name="os_media_najboljsi">Meilleurs résultats</string>
+    <string name="os_media_podkasti">Podcasts</string>
     <string name="os_media_zadetki_izvori">%1$d résultats · %2$s</string>
     <string name="os_media_ni_zadetkov_vir">Rien dans tes sources</string>
 </resources>

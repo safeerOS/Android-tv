@@ -46,12 +46,14 @@ object Radio {
         } finally { p.disconnect() }
         val a = JSONArray(telo)
         return (0 until a.length()).map { a.getJSONObject(it) }
-            .filter { it.optInt("hls") == 0 && it.optString("url_resolved").startsWith("https://") }
+            // HLS predvajalnik zdaj zna (Media3 HLS), zato tudi te postaje.
+            .filter { it.optString("url_resolved").startsWith("https://") }
             .map {
                 val opis = listOf(it.optString("country"), it.optString("tags").split(',').firstOrNull().orEmpty())
                     .filter { s -> s.isNotBlank() }.joinToString(" · ")
                 Jamendo.Skladba(it.optString("stationuuid"), it.optString("name").trim(), opis, it.optString("favicon"),
-                    it.optString("url_resolved"), it.optString("homepage"), radio = true)
+                    it.optString("url_resolved"), it.optString("homepage"), radio = true,
+                    mime = if (it.optInt("hls") == 1) MedijskiViri.MIME_HLS else "")
             }
             .filter { it.naslov.isNotBlank() }
     }

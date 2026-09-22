@@ -57,7 +57,7 @@ object PeerTube {
     } catch (_: Exception) { null }
 
     /**
-     * Datoteka za predvajanje: najboljsa kakovost do 1080p (samostojna MP4, brez HLS). Najprej
+     * Datoteka za predvajanje: najboljsa kakovost do 1080p (samostojna MP4, sicer HLS). Najprej
      * vprasamo izvorni streznik, nato streznike, kjer smo video nasli - izvor je vcasih nedosegljiv
      * (preverjeno 21. 9. 2026: tinkerbetter.tube), povezani streznik pa pozna iste datoteke.
      */
@@ -84,9 +84,13 @@ object PeerTube {
         dodaj(j.optJSONArray("files"))
         val seznami = j.optJSONArray("streamingPlaylists")
         if (seznami != null) for (i in 0 until seznami.length()) dodaj(seznami.getJSONObject(i).optJSONArray("files"))
-        val url = datoteke.maxByOrNull { it.first }?.second ?: return null
         val kanal = j.optJSONObject("channel")?.let { "${it.optString("name")}@${it.optString("host")}" }.orEmpty()
-        return v.copy(zvok = url, mime = "video/mp4", kanal = kanal, streznik = streznik)
+        val url = datoteke.maxByOrNull { it.first }?.second
+        if (url != null) return v.copy(zvok = url, mime = "video/mp4", kanal = kanal, streznik = streznik)
+        // Samo HLS (brez samostojne MP4): predvajalnik ga zna z modulom Media3 HLS.
+        val hls = seznami?.let { s -> (0 until s.length()).map { s.getJSONObject(it).optString("playlistUrl") } }
+            ?.firstOrNull { it.startsWith("https://") } ?: return null
+        return v.copy(zvok = hls, mime = MedijskiViri.MIME_HLS, kanal = kanal, streznik = streznik)
     }
 
     /**

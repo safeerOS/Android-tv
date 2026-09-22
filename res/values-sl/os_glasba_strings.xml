@@ -130,6 +130,7 @@
     <string name="os_media_gl_isci_opis">Priljubljena glasba po zvrsteh</string>
     <string name="os_media_isci_v_viru">Išči »%1$s« v tem viru</string>
     <string name="os_media_najboljsi">Najboljši zadetki</string>
+    <string name="os_media_podkasti">Podkasti</string>
     <string name="os_media_zadetki_izvori">Zadetkov: %1$d · %2$s</string>
     <string name="os_media_ni_zadetkov_vir">Tvoji viri tega nimajo</string>
 </resources>
