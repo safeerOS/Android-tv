@@ -96,7 +96,7 @@
   <string name="ui_bankguard_status">Protección contra bancos online falsos: los bancos reales funcionan con normalidad</string>
   <string name="ui_downloads_title">📥 Descargas</string>
   <string name="ui_downloads_empty">No hay archivos descargados.</string>
-  <string name="ui_downloads_cannot_open">Ninguna aplicación de este televisor puede abrir este archivo. Está guardado en Descargas.</string>
+  <string name="ui_downloads_cannot_open">Ninguna app de este dispositivo puede abrir este archivo. Está guardado en la carpeta Descargas.</string>
   <string name="ui_downloads_running">descargando</string>
   <string name="ui_downloads_failed">error de descarga</string>
   <string name="ui_ok">Aceptar</string>
@@ -119,8 +119,8 @@
     <string name="ui_sb_sponsor">Patrocinio omitido</string>
     <string name="ui_sb_selfpromo">Autopromoción omitida</string>
     <string name="ui_sb_interaction">Aviso omitido</string>
-    <string name="ui_cast_ready">Listo para reproducir desde el teléfono y el ordenador</string>
-    <string name="ui_link_sync_unavailable">La sincronización de marcadores todavía no está disponible en el televisor.</string>
+    <string name="ui_cast_ready">Listo para reproducir desde tus otros dispositivos</string>
+    <string name="ui_link_sync_unavailable">La sincronización de marcadores todavía no está disponible.</string>
     <string name="ui_lang_auto">Automático (idioma del dispositivo)</string>
     <string name="ui_link_prejeto">Enviado desde otro dispositivo</string>
     <string name="ui_popup_block_on">🚫 Las ventanas emergentes están bloqueadas</string>

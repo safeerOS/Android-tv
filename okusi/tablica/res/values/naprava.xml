@@ -15,7 +15,7 @@
     <string name="os_odsek_aplikacije">Apps on this tablet</string>
     <string name="tablet_povezana">The tablet is connected to “%1$s”.</string>
     <string name="os_vir_tv">Tablet</string>
-    <string name="tablet_stanje_ni_tv">Not connected to a TV yet</string>
+    <string name="tablet_stanje_ni_tv">In Safeer Link; no device is sharing anything yet</string>
     <string name="os_scit_nastavitev_opis">DNS filtering for the whole tablet, in every app</string>
     <string name="os_jezik_opis">Safeer OS in the language you pick, whatever the tablet itself is set to</string>
     <string name="os_moc_opis">Processor, memory and free space — on the host or on this tablet</string>

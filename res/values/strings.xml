@@ -39,12 +39,12 @@
     <string name="hub_obvestilo_besedilo">Your devices can send pages, videos and music to this TV.</string>
     <string name="menu_popup_block">Block pop-up windows</string>
     <string name="menu_download_dir">Downloads folder</string>
-    <string name="menu_scit">Safeer Shield: whole TV</string>
+    <string name="menu_scit">Safeer Shield: every app</string>
     <string name="menu_dodaj_aplikacijo">Add to Safeer OS apps</string>
     <string name="scit_ime">Safeer Shield</string>
-    <string name="scit_obvestilo_opis">DNS filter for the whole TV: ads, trackers and dangerous domains are blocked in every app.</string>
+    <string name="scit_obvestilo_opis">DNS filter for every app: ads, trackers and dangerous domains are blocked.</string>
     <string name="scit_obvestilo_besedilo">Protecting the whole TV · blocked today: %1$d</string>
-    <string name="scit_vklopljen">🛡 Safeer Shield is on: the whole TV is protected</string>
+    <string name="scit_vklopljen">🛡 Safeer Shield is on: every app is protected</string>
     <string name="scit_izklopljen">Safeer Shield is off</string>
     <string name="scit_napaka_dovoljenje">Safeer Shield needs your permission to filter DNS (the system dialog). Nothing was changed.</string>
     <string name="scit_blokiranih_danes">blocked today: %1$d</string>

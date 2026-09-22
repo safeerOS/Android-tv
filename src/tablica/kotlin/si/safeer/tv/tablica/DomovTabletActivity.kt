@@ -641,8 +641,14 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 val pika = v.findViewById<View>(R.id.pikaNaprave)
                 val stanje = v.findViewById<TextView>(R.id.stanjeNaprave)
 
-                val jeTelefon = n.vloga == "phone" || n.vloga == "telefon"
-                ikona?.setImageResource(if (jeTelefon) R.drawable.os_ikona_telefon else R.drawable.os_ikona_zaslon)
+                // Ikona pove, kaj naprava je: telefon, televizor, racunalnik ali zaslon (tablica).
+                val jeTelefon = n.vloga == "phone" || n.vloga == "telefon" || n.platforma == "phone"
+                ikona?.setImageResource(when {
+                    jeTelefon -> R.drawable.os_ikona_telefon
+                    n.platforma == "tv" -> R.drawable.os_ikona_naprava
+                    n.platforma == "linux" || n.platforma == "windows" -> R.drawable.os_ikona_racunalnik
+                    else -> R.drawable.os_ikona_zaslon
+                })
                 ime?.text = n.ime.ifBlank { n.id }
                 pika?.setBackgroundResource(R.drawable.os_pika)
                 pika?.alpha = if (link.povezan) 1f else 0.35f

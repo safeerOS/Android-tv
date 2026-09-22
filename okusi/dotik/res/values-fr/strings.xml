@@ -13,7 +13,7 @@
     <string name="tablet_povezujem">Connexion à « %1$s » …</string>
     <string name="tablet_ni_odgovora">« %1$s » ne répond pas. Vérifie que l’appareil est allumé et sur le même réseau.</string>
     <string name="tablet_koda_naslov">Code de « %1$s »</string>
-    <string name="tablet_koda_opis">Un code à six chiffres est apparu sur la télévision et les autres appareils de ton Safeer Link (« %1$s »). Saisis-le ici.</string>
+    <string name="tablet_koda_opis">Un code à six chiffres est apparu sur les autres appareils de ton Safeer Link (« %1$s »). Saisis-le ici.</string>
     <string name="tablet_poveziSe">Connecter</string>
     <string name="tablet_napacna_koda">Le code ne correspond pas. Vérifie-le à l’écran et réessaie.</string>
     <string name="tablet_prevec_poskusov">Trop de codes erronés. Recommence depuis la tuile.</string>

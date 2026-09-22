@@ -17,7 +17,7 @@
     <string name="os_stanje_povezujem">Conectando…</string>
     <string name="os_stanje_povezan">Conectado · %1$s</string>
     <string name="os_stanje_ni">Sin Safeer Link</string>
-    <string name="os_ni_naprav">Aún no hay otros dispositivos conectados. Activa Safeer Link en el móvil o el ordenador.</string>
+    <string name="os_ni_naprav">Todavía no hay otros dispositivos conectados. Activa Safeer Link en otro dispositivo.</string>
     <string name="os_naprava_tv">este televisor</string>
     <string name="os_poslano_tv">Enviado a Safeer Browser</string>
     <string name="os_prejeto_besedilo">Texto de %1$s</string>
@@ -28,7 +28,7 @@
     <string name="os_datoteke_nalagam">Cargando…</string>
     <string name="os_datoteke_napaka">No se pudo obtener la lista (%1$s).</string>
     <string name="os_datoteke_ni_povezave">Sin conexión con Safeer Link.</string>
-    <string name="os_datoteke_neznana_vrsta">El televisor no puede abrir este tipo de archivo.</string>
+    <string name="os_datoteke_neznana_vrsta">Este dispositivo no puede abrir este tipo de archivo.</string>
     <string name="os_vrsta_mapa">Carpeta</string>
     <string name="os_vrsta_video">Vídeo</string>
     <string name="os_vrsta_audio">Música</string>
@@ -39,15 +39,15 @@
     <string name="os_slika_napaka">No se pudo cargar la imagen.</string>
     <string name="os_scit">Escudo</string>
     <string name="os_scit_preverjam">Comprobando…</string>
-    <string name="os_scit_ni_brskalnika">Necesita Safeer Browser para Android TV 2.1.100 o más reciente</string>
+    <string name="os_scit_ni_brskalnika">Requiere Safeer 2.1.100 o posterior</string>
     <string name="os_scit_vklopljen_opis">La protección está activada\nBloqueados hoy (anuncios, rastreadores, dominios peligrosos): %1$d</string>
     <string name="os_scit_prekinjen">Activado pero interrumpido (¿otra VPN?): abre para activarlo de nuevo</string>
-    <string name="os_scit_izklopljen_opis">La protección está desactivada\nActívala para todas las apps del televisor</string>
+    <string name="os_scit_izklopljen_opis">La protección está desactivada\nActívala para todas las apps de este dispositivo</string>
     <string name="os_scit_izklopljen_kratko">Escudo desactivado</string>
     <string name="os_stanje_krajevni">Modo local · este televisor</string>
     <string name="os_stanje_ni_linka">Safeer Link está desactivado</string>
     <string name="os_naprave_krajevni">Modo local: Safeer OS usa solo este televisor. Activa Safeer Link para ver tus otros dispositivos.</string>
-    <string name="os_naprave_ni_linka">Safeer Link está desactivado. Actívalo (tarjeta Safeer Link) y aquí aparecerán tu teléfono y tu ordenador.</string>
+    <string name="os_naprave_ni_linka">Safeer Link está desactivado. Actívalo (la tarjeta Safeer Link) y aquí verás tus dispositivos.</string>
     <string name="os_nacin_naslov">¿Cómo debe funcionar Safeer OS?</string>
     <string name="os_nacin_opis">Con Safeer Link se suman tu teléfono y tu ordenador: archivos del ordenador, enviar páginas, el mando. Sin él, Safeer OS funciona solo, con este televisor: la web, sus archivos y el USB, las apps y el Escudo. Puedes cambiarlo cuando quieras.</string>
     <string name="os_nacin_link">Activar Safeer Link</string>
@@ -55,14 +55,14 @@
     <string name="os_nacin_link_vklopljen">Safeer Link está activado</string>
     <string name="os_nacin_krajevni_izbran">Modo local: Safeer OS usa solo este televisor. Puedes activar Safeer Link más tarde en su tarjeta.</string>
     <string name="os_datoteke_viri">¿Desde dónde?</string>
-    <string name="os_datoteke_ni_linka">Safeer Link está desactivado, así que ningún ordenador puede compartir carpetas. Los archivos del televisor funcionan sin él.</string>
+    <string name="os_datoteke_ni_linka">Safeer Link está desactivado, así que ningún ordenador puede compartir carpetas. Los archivos de este dispositivo funcionan sin él.</string>
     <string name="os_krajevno_ta_tv">Este televisor</string>
     <string name="os_krajevno_koren">En este televisor</string>
     <string name="os_vrsta_ime">Safeer · aplicaciones web</string>
     <string name="os_vrsta_opis">Las aplicaciones web que has añadido a Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Vídeos, música y fotos del televisor y del USB</string>
     <string name="os_datoteke_racunalnik_opis">Carpetas compartidas de este ordenador</string>
-    <string name="os_datoteke_telefon_opis">Vídeos, música y fotos de este teléfono</string>
+    <string name="os_datoteke_telefon_opis">Vídeos, música y fotos del teléfono</string>
     <string name="os_datoteke_tablica_opis">Vídeos, música y fotos de esta tableta</string>
     <string name="os_datoteke_naprava_dovoljenje">%1$s aún no ha permitido el acceso a sus vídeos, música y fotos.\n\nEn ese dispositivo, abre Safeer Link y toca «Vídeos, música y fotos» para permitir el acceso: aparecerán aquí al momento.</string>
     <string name="os_datoteke_naprava_izklop">%1$s no comparte sus vídeos, música y fotos.\n\nEn ese dispositivo, abre Safeer Link y activa «Vídeos, música y fotos».</string>
@@ -70,9 +70,9 @@
     <string name="os_krajevno_glasba">Música</string>
     <string name="os_krajevno_slike">Imágenes</string>
     <string name="os_krajevno_stevilo">Archivos: %1$d</string>
-    <string name="os_krajevno_prazno">Aquí todavía no hay nada. Los archivos que copies al televisor o conectes por USB aparecen solos.</string>
+    <string name="os_krajevno_prazno">Aquí todavía no hay nada. Los archivos que copies a este dispositivo o conectes por USB aparecen solos.</string>
     <string name="os_krajevno_dovoljenje">Safeer OS necesita permiso para leer los archivos de este televisor.</string>
-    <string name="os_krajevno_brez_dovoljenja">Sin ese permiso no se pueden mostrar los archivos del televisor. Puedes concederlo en los ajustes de Android, en Aplicaciones → Safeer → Permisos.</string>
+    <string name="os_krajevno_brez_dovoljenja">Sin este permiso no se pueden mostrar los archivos de este dispositivo. Concédelo en los ajustes de Android, en Apps → Safeer → Permisos.</string>
     <string name="os_odsek_spletne">Apps web</string>
     <string name="os_spletne_dodaj">Añadir</string>
     <string name="os_spletne_dodaj_naslov">¿Qué sitio debe convertirse en app?</string>
@@ -113,7 +113,7 @@
     <string name="os_host">Host (dónde está la potencia)</string>
     <string name="os_host_opis">Tu red doméstica o tu propio servidor fuera de casa</string>
     <string name="os_host_doma">Red doméstica</string>
-    <string name="os_host_vprasanje">Por defecto el host está en casa: Safeer Link se ejecuta en este televisor y los archivos vienen del ordenador de la misma casa; nada sale de tu red.\n\nTambién puedes usar tu propio servidor fuera de casa (alquilado o en la nube). Entonces el televisor se conecta a él por internet: el emparejamiento es igual que en casa (un código, con el certificado fijado), pero el tráfico (también tus archivos) sale de tu red doméstica y viaja a ese servidor. Usa solo un servidor que sea tuyo.</string>
+    <string name="os_host_vprasanje">Por defecto el host está en casa: Safeer Link se ejecuta en este dispositivo y los archivos vienen del ordenador de la misma casa; nada sale de tu red.\n\nTambién puedes usar tu propio servidor fuera de casa (alquilado o en la nube). Entonces el dispositivo se conecta a él por internet: el emparejamiento es igual que en casa (un código, con el certificado fijado), pero el tráfico (también tus archivos) sale de tu red doméstica y viaja a ese servidor. Usa solo un servidor que sea tuyo.</string>
     <string name="os_host_vnesi">Introducir una dirección</string>
     <string name="os_host_naslov">Dirección de tu servidor</string>
     <string name="os_host_naslov_opis">Nombre o dirección IP, con puerto si no es el habitual. Ejemplo: mi-servidor.es o 203.0.113.7:8990</string>
@@ -219,7 +219,7 @@
     <!-- Odpiranje, ki ne utihne -->
     <string name="os_odpri_napaka">No se ha abierto: %1$s</string>
     <string name="os_odpri_ni_aplikacije">la app para esto no está instalada</string>
-    <string name="os_odpri_ni_dovoljenja">el televisor no lo ha permitido</string>
+    <string name="os_odpri_ni_dovoljenja">el dispositivo no lo permitió</string>
     <string name="os_poskusi_znova">Reintentar</string>
     <!-- Spodnja vrstica pomoci -->
     <string name="os_tipka_ok">OK</string>
@@ -339,7 +339,7 @@
     <string name="os_zaslon_meni_povecava_izklopi">Quitar ampliación</string>
     <string name="os_zaslon_vlecem">Arrastrando: mueve el puntero y pulsa OK para soltar</string>
     <string name="os_seznanitev_naslov">Nuevo dispositivo</string>
-    <string name="os_seznanitev_opis">%1$s quiere unirse a Safeer Link en este televisor. Escribe este código en él:</string>
+    <string name="os_seznanitev_opis">%1$s quiere unirse a tu Safeer Link. Escribe este código en él:</string>
     <string name="os_seznanitev_zavrni">Rechazar</string>
     <string name="os_vse_nadnaslov">Aplicaciones</string>
     <string name="os_vse_naslov">Todo lo que puedes abrir</string>

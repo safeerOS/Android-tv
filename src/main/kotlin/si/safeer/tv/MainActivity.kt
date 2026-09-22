@@ -2325,6 +2325,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         val cbTvOzadje = dialog.findViewById<CheckBox>(R.id.cbTvOzadje)
         cbTvOzadje.isChecked = TvOzadje.jeCrno(this)
+        // Ozadje domacega zaslona televizorja: na telefonu in tablici te vrstice ni.
+        dialog.findViewById<LinearLayout>(R.id.rowMenuTvOzadje).visibility =
+            if (si.safeer.tv.os.Sosed.jeTelevizor(this)) View.VISIBLE else View.GONE
         dialog.findViewById<LinearLayout>(R.id.rowMenuTvOzadje).setOnClickListener {
             if (!TvOzadje.podprto(this)) {
                 Toast.makeText(this, UiText.get(R.string.ui_tv_wallpaper_failed), Toast.LENGTH_LONG).show()

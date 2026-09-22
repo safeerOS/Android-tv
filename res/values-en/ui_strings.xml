@@ -96,7 +96,7 @@
   <string name="ui_bankguard_status">Fake online bank protection: real banks work normally</string>
   <string name="ui_downloads_title">📥 Downloads</string>
   <string name="ui_downloads_empty">No downloaded files.</string>
-  <string name="ui_downloads_cannot_open">No app on this television can open this file. It is saved in the Downloads folder.</string>
+  <string name="ui_downloads_cannot_open">No app on this device can open this file. It is saved in the Downloads folder.</string>
   <string name="ui_downloads_running">downloading</string>
   <string name="ui_downloads_failed">download failed</string>
   <string name="ui_ok">OK</string>
@@ -119,8 +119,8 @@
     <string name="ui_sb_sponsor">Sponsor skipped</string>
     <string name="ui_sb_selfpromo">Self-promotion skipped</string>
     <string name="ui_sb_interaction">Prompt skipped</string>
-    <string name="ui_cast_ready">Ready to play from your phone and computer</string>
-    <string name="ui_link_sync_unavailable">Bookmark sync is not available on the television yet.</string>
+    <string name="ui_cast_ready">Ready to play from your other devices</string>
+    <string name="ui_link_sync_unavailable">Bookmark sync is not available yet.</string>
     <string name="ui_lang_auto">Automatic (device language)</string>
     <string name="ui_link_prejeto">Sent from another device</string>
     <string name="ui_popup_block_on">🚫 Pop-up windows are blocked</string>

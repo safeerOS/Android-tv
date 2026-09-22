@@ -3,17 +3,17 @@
 <resources>
     <string name="os_prijava_naslov">Collega dispositivi</string>
     <string name="os_prijava_podnaslov">Telefono, tablet e computer si uniscono a questo televisore.</string>
-    <string name="os_prijava_qr_naslov">Scansiona con il telefono</string>
-    <string name="os_prijava_qr_opis">Inquadra il codice con la fotocamera del telefono. Con Safeer Browser si apre nell\'app, senza nel browser: niente da installare.</string>
+    <string name="os_prijava_qr_naslov">Scansiona con la fotocamera</string>
+    <string name="os_prijava_qr_opis">Inquadra il codice con la fotocamera dell\'altro dispositivo. Con Safeer si apre nell\'app, altrimenti nel browser: non serve installare nulla.</string>
     <string name="os_prijava_qr_pripravljam">Preparo il codice …</string>
     <string name="os_prijava_qr_napaka">Il codice non è ancora pronto. Riprovo …</string>
     <string name="os_prijava_ali">oppure</string>
     <string name="os_prijava_koda_naslov">Codice di 6 cifre</string>
-    <string name="os_prijava_koda_opis">Sul telefono apri Safeer → Safeer Link → Collegati a Safeer Link. Il codice appare qui: scrivilo nel telefono.</string>
+    <string name="os_prijava_koda_opis">Sul dispositivo che si unisce apri Safeer → Dispositivi connessi → Unisciti. Il codice appare qui: digitalo lì.</string>
     <string name="os_prijava_koda_za">Codice per %1$s</string>
     <string name="os_prijava_brez">Continua senza collegare dispositivi</string>
     <string name="os_prijava_zapri">Chiudi</string>
     <string name="os_prijava_povezano">✓ %1$s è collegato.</string>
     <string name="os_naprave_povezi">Collega un nuovo dispositivo</string>
-    <string name="os_naprave_povezi_opis">Scansiona il codice con il telefono (anche senza Safeer) o inserisci un codice di 6 cifre</string>
+    <string name="os_naprave_povezi_opis">Scansiona il codice con la fotocamera dell\'altro dispositivo (funziona anche senza Safeer) o digita il codice a 6 cifre</string>
 </resources>

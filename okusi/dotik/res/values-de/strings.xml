@@ -13,7 +13,7 @@
     <string name="tablet_povezujem">Verbinde mit „%1$s“ …</string>
     <string name="tablet_ni_odgovora">„%1$s“ antwortet nicht. Prüfe, ob das Gerät eingeschaltet und im selben Netz ist.</string>
     <string name="tablet_koda_naslov">Code von „%1$s“</string>
-    <string name="tablet_koda_opis">Ein sechsstelliger Code ist auf dem Fernseher und anderen Geräten in deinem Safeer Link erschienen („%1$s“). Gib ihn hier ein.</string>
+    <string name="tablet_koda_opis">Ein sechsstelliger Code ist auf den anderen Geräten in deinem Safeer Link erschienen („%1$s“). Gib ihn hier ein.</string>
     <string name="tablet_poveziSe">Verbinden</string>
     <string name="tablet_napacna_koda">Der Code stimmt nicht. Prüfe ihn auf dem Bildschirm und versuche es erneut.</string>
     <string name="tablet_prevec_poskusov">Zu viele falsche Codes. Beginne erneut über die Kachel.</string>

@@ -74,12 +74,12 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val tuje = LinkOdjemalec.drugeZaPrikaz(naprave, Identiteta.id(this))
         val nove = ArrayList<Vrstica>()
         // Ta naprava: ime, kot ga vidijo druge naprave; OK jo preimenuje.
-        if (jaz != null) nove.add(Vrstica(R.drawable.os_ikona_naprava, jaz.ime.ifBlank { jaz.id },
+        if (jaz != null) nove.add(Vrstica(ikonaNaprave(jaz.platforma), jaz.ime.ifBlank { jaz.id },
             getString(R.string.os_naprave_ta), getString(R.string.os_naprave_preimenuj), jaz.id) { preimenuj(jaz.id, jaz.ime) })
         for (n in tuje) {
             val datoteke = n.zmoznosti.contains("files")
             nove.add(Vrstica(
-                if (datoteke) R.drawable.os_ikona_racunalnik else R.drawable.os_ikona_naprava,
+                if (datoteke) R.drawable.os_ikona_racunalnik else ikonaNaprave(n.platforma),
                 // "Safeer Control (janez-pc)" -> "janez-pc": ime programa je ze v podnapisu.
                 DatotekeActivity.lepoIme(n.ime).ifBlank { n.id },
                 opisNaprave(n),
@@ -108,6 +108,14 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         sporocilo.visibility = if (sporocilo.text.isNullOrBlank()) View.GONE else View.VISIBLE
         if (currentFocus == null) seznam.requestFocus()
+    }
+
+    /** Ikona po vrsti naprave: telefon je telefon, tablica in racunalniski zaslon zaslon, televizor televizor. */
+    private fun ikonaNaprave(platforma: String): Int = when (platforma) {
+        "phone" -> R.drawable.os_ikona_telefon
+        "tablet" -> R.drawable.os_ikona_zaslon
+        "linux", "windows" -> R.drawable.os_ikona_racunalnik
+        else -> R.drawable.os_ikona_naprava
     }
 
     private fun opisNaprave(n: LinkOdjemalec.Naprava): String = when {

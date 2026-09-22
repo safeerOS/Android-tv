@@ -13,7 +13,7 @@
     <string name="tablet_povezujem">Connecting to “%1$s” …</string>
     <string name="tablet_ni_odgovora">“%1$s” is not answering. Check that the device is on and in the same network.</string>
     <string name="tablet_koda_naslov">Code from “%1$s”</string>
-    <string name="tablet_koda_opis">A six-digit code has appeared on the TV and other devices in your Safeer Link (“%1$s”). Type it here.</string>
+    <string name="tablet_koda_opis">A six-digit code has appeared on the other devices in your Safeer Link (“%1$s”). Type it here.</string>
     <string name="tablet_poveziSe">Connect</string>
     <string name="tablet_napacna_koda">The code does not match. Check it on the screen and try again.</string>
     <string name="tablet_prevec_poskusov">Too many wrong codes. Start again from the tile.</string>

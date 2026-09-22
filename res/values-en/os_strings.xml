@@ -21,7 +21,7 @@
     <string name="os_stanje_povezujem">Connecting…</string>
     <string name="os_stanje_povezan">Connected · %1$s</string>
     <string name="os_stanje_ni">No Safeer Link</string>
-    <string name="os_ni_naprav">No other devices are connected yet. Turn on Safeer Link on your phone or computer.</string>
+    <string name="os_ni_naprav">No other devices are connected yet. Turn on Safeer Link on another device.</string>
     <string name="os_naprava_tv">this TV</string>
     <string name="os_poslano_tv">Sent to Safeer Browser</string>
     <string name="os_prejeto_besedilo">Text from %1$s</string>
@@ -32,7 +32,7 @@
     <string name="os_datoteke_nalagam">Loading…</string>
     <string name="os_datoteke_napaka">Couldn\'t get the list (%1$s).</string>
     <string name="os_datoteke_ni_povezave">No connection to Safeer Link.</string>
-    <string name="os_datoteke_neznana_vrsta">The TV can\'t open this type of file.</string>
+    <string name="os_datoteke_neznana_vrsta">This device can\'t open this type of file.</string>
     <string name="os_vrsta_mapa">Folder</string>
     <string name="os_vrsta_video">Video</string>
     <string name="os_vrsta_audio">Music</string>
@@ -43,15 +43,15 @@
     <string name="os_slika_napaka">Couldn\'t load the picture.</string>
     <string name="os_scit">Shield</string>
     <string name="os_scit_preverjam">Checking…</string>
-    <string name="os_scit_ni_brskalnika">Needs Safeer Browser for Android TV 2.1.100 or newer</string>
+    <string name="os_scit_ni_brskalnika">Needs Safeer 2.1.100 or newer</string>
     <string name="os_scit_vklopljen_opis">Protection is on\nBlocked today (ads, trackers, dangerous domains): %1$d</string>
     <string name="os_scit_prekinjen">On, but interrupted (another VPN?) — open to turn on again</string>
-    <string name="os_scit_izklopljen_opis">Protection is off\nTurn on for every app on this TV</string>
+    <string name="os_scit_izklopljen_opis">Protection is off\nTurn it on for every app on this device</string>
     <string name="os_scit_izklopljen_kratko">Shield is off</string>
     <string name="os_stanje_krajevni">Local mode · this TV</string>
     <string name="os_stanje_ni_linka">Safeer Link is off</string>
     <string name="os_naprave_krajevni">Local mode: Safeer OS uses only this TV. Turn on Safeer Link to see your other devices.</string>
-    <string name="os_naprave_ni_linka">Safeer Link is off. Turn it on (the Safeer Link card) to see your phone and computer here.</string>
+    <string name="os_naprave_ni_linka">Safeer Link is off. Turn it on (the Safeer Link card) to see your devices here.</string>
     <string name="os_nacin_naslov">How should Safeer OS work?</string>
     <string name="os_nacin_opis">With Safeer Link your phone and computer join this TV: files from your computer, sending pages, the remote. Without it Safeer OS works on its own, with this TV only: the web, its files and USB, apps and the Shield. You can change this at any time.</string>
     <string name="os_nacin_link">Turn on Safeer Link</string>
@@ -59,14 +59,14 @@
     <string name="os_nacin_link_vklopljen">Safeer Link is on</string>
     <string name="os_nacin_krajevni_izbran">Local mode: Safeer OS uses this TV only. Open the Safeer Link card to turn Link on later.</string>
     <string name="os_datoteke_viri">Where from?</string>
-    <string name="os_datoteke_ni_linka">Safeer Link is off, so no computer can share folders. This TV\'s own files work without it.</string>
+    <string name="os_datoteke_ni_linka">Safeer Link is off, so no computer can share folders. This device\'s own files work without it.</string>
     <string name="os_krajevno_ta_tv">This TV</string>
     <string name="os_krajevno_koren">On this TV</string>
     <string name="os_vrsta_ime">Safeer web apps</string>
     <string name="os_vrsta_opis">Web apps you added to Safeer OS.</string>
     <string name="os_krajevno_ta_tv_opis">Videos, music and photos on the TV and USB</string>
     <string name="os_datoteke_racunalnik_opis">Shared folders on this computer</string>
-    <string name="os_datoteke_telefon_opis">Videos, music and photos on this phone</string>
+    <string name="os_datoteke_telefon_opis">Videos, music and photos on the phone</string>
     <string name="os_datoteke_tablica_opis">Videos, music and photos on this tablet</string>
     <string name="os_datoteke_naprava_dovoljenje">%1$s hasn\'t allowed access to its videos, music and photos yet.\n\nOn that device, open Safeer Link and tap “Videos, music and photos” to allow access — they appear here right away.</string>
     <string name="os_datoteke_naprava_izklop">%1$s isn\'t sharing its videos, music and photos.\n\nOn that device, open Safeer Link and turn on “Videos, music and photos”.</string>
@@ -74,9 +74,9 @@
     <string name="os_krajevno_glasba">Music</string>
     <string name="os_krajevno_slike">Pictures</string>
     <string name="os_krajevno_stevilo">Files: %1$d</string>
-    <string name="os_krajevno_prazno">Nothing here yet. Files you copy to the TV or plug in on a USB stick appear automatically.</string>
+    <string name="os_krajevno_prazno">Nothing here yet. Files you copy to this device or plug in on a USB stick appear automatically.</string>
     <string name="os_krajevno_dovoljenje">Safeer OS needs permission to read the files on this TV.</string>
-    <string name="os_krajevno_brez_dovoljenja">Without that permission the TV\'s own files cannot be shown. You can allow it in Android settings, under Apps → Safeer → Permissions.</string>
+    <string name="os_krajevno_brez_dovoljenja">Without this permission the files on this device can\'t be shown. Grant it in Android settings under Apps → Safeer → Permissions.</string>
     <string name="os_odsek_spletne">Web apps</string>
     <string name="os_spletne_dodaj">Add</string>
     <string name="os_spletne_dodaj_naslov">Which site should become an app?</string>
@@ -117,7 +117,7 @@
     <string name="os_host">Host (where the computing power is)</string>
     <string name="os_host_opis">Your home network, or your own server outside the house</string>
     <string name="os_host_doma">Home network</string>
-    <string name="os_host_vprasanje">By default the host is at home: Safeer Link runs on this TV and the files come from your computer in the same house - nothing leaves your network.\n\nYou can also use your own server outside the house (a rented or cloud machine). Then the TV connects to it over the internet: pairing is the same as at home (a code, and the certificate is pinned), but the traffic - including your files - leaves your home network and travels to that server. Only use a server you control.</string>
+    <string name="os_host_vprasanje">By default the host is at home: Safeer Link runs on this device and the files come from your computer in the same house - nothing leaves your network.\n\nYou can also use your own server outside the house (a rented or cloud machine). Then the device connects to it over the internet: pairing is the same as at home (a code, and the certificate is pinned), but the traffic - including your files - leaves your home network and travels to that server. Only use a server you control.</string>
     <string name="os_host_vnesi">Enter an address</string>
     <string name="os_host_naslov">Address of your server</string>
     <string name="os_host_naslov_opis">Name or IP address, with a port if it is not the usual one. Example: moj-streznik.si or 203.0.113.7:8990</string>
@@ -225,7 +225,7 @@
     <!-- Odpiranje, ki ne utihne -->
     <string name="os_odpri_napaka">It did not open: %1$s</string>
     <string name="os_odpri_ni_aplikacije">the app for this is not installed</string>
-    <string name="os_odpri_ni_dovoljenja">the TV did not allow it</string>
+    <string name="os_odpri_ni_dovoljenja">the device did not allow it</string>
     <string name="os_poskusi_znova">Try again</string>
     <!-- Spodnja vrstica pomoci -->
     <string name="os_tipka_ok">OK</string>
@@ -343,7 +343,7 @@
     <string name="os_zaslon_meni_povecava_izklopi">Zoom out</string>
     <string name="os_zaslon_vlecem">Dragging – move the pointer and press OK to drop</string>
     <string name="os_seznanitev_naslov">New device</string>
-    <string name="os_seznanitev_opis">%1$s wants to join Safeer Link on this TV. Type this code on it:</string>
+    <string name="os_seznanitev_opis">%1$s wants to join your Safeer Link. Type this code on it:</string>
     <string name="os_seznanitev_zavrni">Decline</string>
     <string name="os_vse_nadnaslov">Apps</string>
     <string name="os_vse_naslov">Everything you can open</string>

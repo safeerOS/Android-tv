@@ -13,7 +13,7 @@
     <string name="tablet_povezujem">Povezujem se z »%1$s« …</string>
     <string name="tablet_ni_odgovora">»%1$s« se ne odziva. Preveri, ali je naprava prižgana in v istem omrežju.</string>
     <string name="tablet_koda_naslov">Koda z »%1$s«</string>
-    <string name="tablet_koda_opis">Šestmestna koda se je pokazala na televizorju in drugih napravah v tvojem Safeer Linku (»%1$s«). Vtipkaj jo tukaj.</string>
+    <string name="tablet_koda_opis">Šestmestna koda se je pokazala na drugih napravah v tvojem Safeer Linku (»%1$s«). Vtipkaj jo tukaj.</string>
     <string name="tablet_poveziSe">Poveži</string>
     <string name="tablet_napacna_koda">Koda se ne ujema. Preveri jo na zaslonu in poskusi znova.</string>
     <string name="tablet_prevec_poskusov">Preveč napačnih kod. Začni znova s ploščice.</string>

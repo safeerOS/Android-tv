@@ -14,7 +14,7 @@
     <string name="os_odsek_aplikacije">Apps auf diesem Handy</string>
     <string name="tablet_povezana">Das Handy ist mit „%1$s“ verbunden.</string>
     <string name="os_vir_tv">Handy</string>
-    <string name="tablet_stanje_ni_tv">Noch nicht mit einem Fernseher verbunden</string>
+    <string name="tablet_stanje_ni_tv">In Safeer Link; noch teilt kein Gerät etwas</string>
     <string name="os_scit_nastavitev_opis">DNS-Filter für das ganze Handy, in jeder App</string>
     <string name="os_jezik_opis">Safeer OS in der Sprache Ihrer Wahl, unabhängig von der Spracheinstellung des Handys</string>
     <string name="os_moc_opis">Prozessor, Arbeitsspeicher und freier Platz — auf dem Host oder auf diesem Handy</string>

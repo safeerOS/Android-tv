@@ -39,12 +39,12 @@
     <string name="hub_obvestilo_besedilo">Vos appareils peuvent envoyer des pages, des vidéos et de la musique vers ce téléviseur.</string>
     <string name="menu_popup_block">Bloquer les fenêtres pop-up</string>
     <string name="menu_download_dir">Dossier de téléchargement</string>
-    <string name="menu_scit">Bouclier Safeer : tout le téléviseur</string>
+    <string name="menu_scit">Bouclier Safeer : toutes les applis</string>
     <string name="menu_dodaj_aplikacijo">Ajouter aux applications Safeer OS</string>
     <string name="scit_ime">Bouclier Safeer</string>
-    <string name="scit_obvestilo_opis">Filtre DNS pour tout le téléviseur : publicités, traqueurs et domaines dangereux bloqués dans toutes les applications.</string>
+    <string name="scit_obvestilo_opis">Filtre DNS pour toutes les applis : publicités, traqueurs et domaines dangereux sont bloqués.</string>
     <string name="scit_obvestilo_besedilo">Protège tout le téléviseur · bloqués aujourd\'hui : %1$d</string>
-    <string name="scit_vklopljen">🛡 Bouclier Safeer activé : tout le téléviseur est protégé</string>
+    <string name="scit_vklopljen">🛡 Le Bouclier Safeer est actif : toutes les applis sont protégées</string>
     <string name="scit_izklopljen">Bouclier Safeer désactivé</string>
     <string name="scit_napaka_dovoljenje">Le Bouclier Safeer a besoin de votre autorisation pour filtrer le DNS (fenêtre système). Rien n\'a été modifié.</string>
     <string name="scit_blokiranih_danes">bloqués aujourd\'hui : %1$d</string>

@@ -3,17 +3,17 @@
 <resources>
     <string name="os_prijava_naslov">Geräte verbinden</string>
     <string name="os_prijava_podnaslov">Handy, Tablet und Computer verbinden sich mit diesem Fernseher.</string>
-    <string name="os_prijava_qr_naslov">Mit dem Handy scannen</string>
-    <string name="os_prijava_qr_opis">Richte die Handykamera auf den Code. Mit Safeer Browser öffnet er sich in der App, ohne im Browser – nichts zu installieren.</string>
+    <string name="os_prijava_qr_naslov">Mit der Kamera scannen</string>
+    <string name="os_prijava_qr_opis">Richte die Kamera des anderen Geräts auf den Code. Mit Safeer öffnet er sich in der App, sonst im Browser – nichts zu installieren.</string>
     <string name="os_prijava_qr_pripravljam">Code wird vorbereitet …</string>
     <string name="os_prijava_qr_napaka">Der Code ist noch nicht bereit. Neuer Versuch …</string>
     <string name="os_prijava_ali">oder</string>
     <string name="os_prijava_koda_naslov">6-stelliger Code</string>
-    <string name="os_prijava_koda_opis">Öffne auf dem Handy Safeer → Safeer Link → Mit Safeer Link verbinden. Der Code erscheint hier – gib ihn im Handy ein.</string>
+    <string name="os_prijava_koda_opis">Öffne auf dem beitretenden Gerät Safeer → Verbundene Geräte → Beitreten. Der Code erscheint hier – gib ihn dort ein.</string>
     <string name="os_prijava_koda_za">Code für %1$s</string>
     <string name="os_prijava_brez">Ohne Geräteverbindung fortfahren</string>
     <string name="os_prijava_zapri">Schließen</string>
     <string name="os_prijava_povezano">✓ %1$s ist verbunden.</string>
     <string name="os_naprave_povezi">Neues Gerät verbinden</string>
-    <string name="os_naprave_povezi_opis">Code mit dem Handy scannen (auch ohne Safeer) oder 6-stelligen Code eingeben</string>
+    <string name="os_naprave_povezi_opis">Scanne den Code mit der Kamera des anderen Geräts (geht auch ohne Safeer) oder gib den 6-stelligen Code ein</string>
 </resources>

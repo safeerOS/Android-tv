@@ -14,7 +14,7 @@
     <string name="os_odsek_aplikacije">Aplicaciones de este móvil</string>
     <string name="tablet_povezana">El móvil está conectado a «%1$s».</string>
     <string name="os_vir_tv">Móvil</string>
-    <string name="tablet_stanje_ni_tv">Aún no conectado a un televisor</string>
+    <string name="tablet_stanje_ni_tv">En Safeer Link; ningún dispositivo comparte nada todavía</string>
     <string name="os_scit_nastavitev_opis">Filtrado DNS para todo el móvil, en todas las apps</string>
     <string name="os_jezik_opis">Safeer OS en el idioma que elijas, sea cual sea el del móvil</string>
     <string name="os_moc_opis">Procesador, memoria y espacio libre: en el host o en este móvil</string>
