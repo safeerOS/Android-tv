@@ -408,9 +408,19 @@ Preizkusi: JVM `preizkusIdentitete` (15 preverb), Linux `tests/test_link_hub_str
 Preverjeno v živo (tablica, hub TV in hub računalnika): tablica na domačem zaslonu ne kaže več sebe
 (»Safeer OS Tablet«) kot povezane naprave.
 
-Še odprto: vzdevki živijo v posameznem hubu (TV jih hrani, hub računalnika jih nima), zato ima po
-menjavi huba ista naprava lahko drugo ime (v živo: »Dnevna soba« na hubu TV, »Safeer TV (…)« na hubu
-računalnika). Rešitev: ime naprave s ključem v krogu zaupanja (`trust.update` ga razpošlje vsem hubom).
+**Ime naprave je v krogu zaupanja.** V živo se je pokazalo, da ima po menjavi huba ista naprava drugo ime
+(»Dnevna soba« na hubu TV, »Safeer TV (…)« na hubu računalnika), ker so vzdevki živeli v posameznem hubu.
+Zdaj preimenovanje naprave s ključem zapiše ime k vsem njenim članom v krogu (novejši `dodano` zmaga pri
+združevanju); `trust.update` ga ponese vsem napravam in s tem vsakemu prihodnjemu hubu. Hub računalnika
+ime vzame iz kroga (`Hub.ime_v_krogu`). Nov id istega ključa (alias, prehod na `n-…`) podeduje ime naprave;
+hub ob zagonu ne povozi imena, ki ga je dal uporabnik. Lokalni vzdevki naprav s ključem se ob prvem zagonu
+prenesejo v krog; lokalno ostanejo samo za naprave brez ključa. Preizkusi: `preizkusIdentitete` (+3),
+Linux `NapravaIzKljuca.test_ime_iz_kroga`. Hub računalnika preimenovanja (`/cast/devices/rename`) še ne
+ponuja - takrat preimenuj na TV ali tablici.
+
+**Razbitje `HubUsmerjevalnik`.** HTTP končne točke (seznanitev, deljenje, naprave, zaupanje, prijava,
+stanje, QR; 517 vrstic) so v `cast/HubHttp.kt` kot razširitve usmerjevalnika - logika nespremenjena,
+člani, ki jih rabijo, so `internal`. `HubUsmerjevalnik.kt` ima zdaj ~1560 vrstic (prej 2024).
 
 **Dnevnik brez skrivnosti (`cast/SafeerLog.kt`, del Link Core).** Prazni `catch {}` na mestih, kjer uporabnik
 ostane brez odziva (povratni klici vmesnika, odgovori Safeer OS, prejeta datoteka, krog iz prijave), zdaj
