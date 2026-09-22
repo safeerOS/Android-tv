@@ -33,7 +33,7 @@ class LinkSorodnikStoritev : Service() {
             try { komu?.send(odgovor) } catch (e: Throwable) { Log.w(TAG, "Odgovora ni bilo mogoce poslati: ${e.message}") }
         } else if (sporocilo.what == PRIJAVE) {
             // Safeer OS na tem televizorju pokaze kodo za seznanitev nove naprave (glej KodaSeznanitve).
-            val seznam = try { HubKrmilnik.usmerjevalnik?.cakajocePrijave().orEmpty() } catch (_: Throwable) { emptyList() }
+            val seznam = try { HubKrmilnik.cakajocePrijave() } catch (_: Throwable) { emptyList() }
             val odgovor = Message.obtain(null, PRIJAVE_ODGOVOR)
             odgovor.data = Bundle().apply {
                 putStringArray("pair_id", seznam.map { it.pairId }.toTypedArray())
@@ -43,7 +43,7 @@ class LinkSorodnikStoritev : Service() {
             try { sporocilo.replyTo?.send(odgovor) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "odgovor Safeer OS ni poslan", e) }
         } else if (sporocilo.what == ZAVRNI) {
             val id = sporocilo.data?.getString("pair_id").orEmpty()
-            if (id.isNotBlank()) try { HubKrmilnik.usmerjevalnik?.zavrniPrijavo(id) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "zavrnitev prijave", e) }
+            if (id.isNotBlank()) try { HubKrmilnik.zavrniPrijavo(id) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "zavrnitev prijave", e) }
             try { sporocilo.replyTo?.send(Message.obtain(null, ZAVRNI_ODGOVOR)) } catch (e: Throwable) { SafeerLog.napaka("Sorodnik", "odgovor na zavrnitev", e) }
         } else if (sporocilo.what == PRIDRUZITEV) {
             // Prijavno okno Safeer OS: QR koda, s katero se telefon pridruzi (PridruzitevSredisca).

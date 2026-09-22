@@ -443,6 +443,10 @@ class LinkOdjemalec(private val context: Context) {
                 potrdi(json)
                 glavna.post { poslusalec?.naBesedilo(telo.optString("text"), od) }
             }
+            "pair.code", "pair.done" -> si.safeer.tv.cast.HubKrmilnik.sporociloPrijave(json.optString("type"), json.optJSONObject("payload")) { id ->
+                try { ws?.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "pair.reject")
+                    .put("payload", JSONObject().put("pair_id", id)).toString()) } catch (_: Throwable) { }
+            }
             "trust.update" -> {
                 // Krog zaupanja s sredisca: hranimo ga sami, da prezivimo menjavo sredisca.
                 json.optJSONObject("payload")?.let { KrogNaprave.sprejmi(context, it.toString()) }

@@ -1950,7 +1950,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 kodaOkno = null
                 return
             }
-            val p = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik?.cakajocePrijave()?.lastOrNull()
+            val p = si.safeer.tv.cast.HubKrmilnik.cakajocePrijave().lastOrNull()
             if (p == null) {
                 kodaOkno?.let { if (it.isShowing) it.dismiss() }
                 kodaOkno = null
@@ -1981,7 +1981,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 .setTitle(UiText.get(R.string.ui_link_pair_code_title))
                 .setView(vsebina)
                 .setNegativeButton(UiText.get(R.string.ui_link_pair_reject)) { _, _ ->
-                    try { si.safeer.tv.cast.HubKrmilnik.usmerjevalnik?.zavrniPrijavo(p.pairId) } catch (_: Exception) { }
+                    try { si.safeer.tv.cast.HubKrmilnik.zavrniPrijavo(p.pairId) } catch (_: Exception) { }
                 }
                 .setPositiveButton(getString(android.R.string.ok), null)
                 .create()

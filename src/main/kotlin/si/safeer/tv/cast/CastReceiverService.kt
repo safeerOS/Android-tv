@@ -683,6 +683,11 @@ class CastReceiverService : Service() {
             val type = json.optString("type")
 
             if (type.startsWith("internet.") && internetGateway?.obdelaj(json) == true) return
+            // Nova naprava se pridruzuje Linku: kodo pokaze tudi ta zaslon, ceprav sredisce ni tu.
+            if (type.startsWith("pair.") && HubKrmilnik.sporociloPrijave(type, json.optJSONObject("payload")) { id ->
+                    try { ws.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "pair.reject")
+                        .put("payload", JSONObject().put("pair_id", id)).toString()) } catch (_: Throwable) { }
+                }) return
             if (type == "sync.data") {
                 val payload = json.optJSONObject("payload") ?: JSONObject()
                 workspace?.accept(payload) // passive only; never steals focus

@@ -55,6 +55,54 @@ object HubKrmilnik {
     var tokovi: HubTokovi? = null
         private set
 
+    /** Prijava nove naprave, ki jo je sporocil hub na DRUGI napravi (pair.code): koda se pokaze tudi tu. */
+    private class Oddaljena(val prijava: HubUsmerjevalnik.CakajocaPrijava, val poteceOb: Long, val zavrni: () -> Unit)
+    private val oddaljene = java.util.concurrent.ConcurrentHashMap<String, Oddaljena>()
+
+    private fun javiPrijave() {
+        try { naSpremembePrijav?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naSpremembePrijav", e) }
+        try { naPrijavoZaZaslon?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naPrijavoZaZaslon", e) }
+        try { naPrijavoZaObvestilo?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naPrijavoZaObvestilo", e) }
+    }
+
+    /**
+     * Sporocilo s sredisca (pair.code / pair.done), ki ga dobi odjemalec Linka na tej napravi.
+     * [zavrni] poslje sredisce pair.reject (uporabnik je tu pritisnil Zavrni). Vrne true, ce je bilo nase.
+     */
+    fun sporociloPrijave(tip: String, tovor: org.json.JSONObject?, zavrni: (String) -> Unit): Boolean {
+        val pairId = tovor?.optString("pair_id").orEmpty()
+        if (pairId.isBlank()) return tip == "pair.code" || tip == "pair.done"
+        when (tip) {
+            "pair.code" -> {
+                val koda = tovor?.optString("code").orEmpty()
+                if (koda.length != 6 || !koda.all { it.isDigit() }) return true
+                val velja = (tovor?.optDouble("expires_in_seconds", 300.0) ?: 300.0).coerceIn(10.0, 600.0)
+                oddaljene[pairId] = Oddaljena(HubUsmerjevalnik.CakajocaPrijava(pairId, tovor?.optString("name").orEmpty().take(64), koda, "", 0),
+                    System.currentTimeMillis() + (velja * 1000).toLong()) { zavrni(pairId) }
+            }
+            "pair.done" -> if (oddaljene.remove(pairId) == null) return true
+            else -> return false
+        }
+        javiPrijave()
+        return true
+    }
+
+    /** Cakajoce prijave za zaslon: tiste na tem sredisci in tiste, ki jih je sporocilo drugo sredisce. */
+    fun cakajocePrijave(): List<HubUsmerjevalnik.CakajocaPrijava> {
+        val zdaj = System.currentTimeMillis()
+        oddaljene.entries.removeAll { it.value.poteceOb < zdaj }
+        val tu = try { usmerjevalnik?.cakajocePrijave().orEmpty() } catch (_: Throwable) { emptyList() }
+        return tu + oddaljene.values.map { it.prijava }.filter { o -> tu.none { it.pairId == o.pairId } }
+    }
+
+    fun zavrniPrijavo(pairId: String): Boolean {
+        if (try { usmerjevalnik?.zavrniPrijavo(pairId) == true } catch (_: Throwable) { false }) return true
+        val o = oddaljene.remove(pairId) ?: return false
+        try { o.zavrni() } catch (_: Throwable) { }
+        javiPrijave()
+        return true
+    }
+
     fun tece(): Boolean = streznik?.teceZdaj() == true
 
     fun vrata(): Int = streznik?.vrata ?: 0
@@ -109,9 +157,8 @@ object HubKrmilnik {
             Log.w(TAG, "Kljuca huba ni bilo mogoce vpisati v krog: ${e.message}")
         }
         u.naSpremembePrijav = {
-            try { naSpremembePrijav?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naSpremembePrijav", e) }
-            try { naPrijavoZaZaslon?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naPrijavoZaZaslon", e) }
-            try { naPrijavoZaObvestilo?.invoke() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naPrijavoZaObvestilo", e) }
+            javiPrijave()
+            try { u.razposljiKode() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "razposljiKode", e) }
         }
         // Vsebina (zaslon, datoteke) gre mimo usmerjevalnika, po loceni zahtevi HTTP;
         // usmerjevalnik le pove ciljni napravi, kje jo dobi.

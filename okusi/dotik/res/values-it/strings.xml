@@ -13,7 +13,7 @@
     <string name="tablet_povezujem">Connessione a «%1$s»…</string>
     <string name="tablet_ni_odgovora">«%1$s» non risponde. Controlla che il dispositivo sia acceso e nella stessa rete.</string>
     <string name="tablet_koda_naslov">Codice da «%1$s»</string>
-    <string name="tablet_koda_opis">Sullo schermo di «%1$s» (in Safeer OS) è apparso un codice di sei cifre. Digitalo qui.</string>
+    <string name="tablet_koda_opis">Un codice di sei cifre è apparso sul televisore e sugli altri dispositivi del tuo Safeer Link («%1$s»). Digitalo qui.</string>
     <string name="tablet_poveziSe">Collega</string>
     <string name="tablet_napacna_koda">Il codice non corrisponde. Controllalo sullo schermo e riprova.</string>
     <string name="tablet_prevec_poskusov">Troppi codici errati. Ricomincia dal riquadro.</string>

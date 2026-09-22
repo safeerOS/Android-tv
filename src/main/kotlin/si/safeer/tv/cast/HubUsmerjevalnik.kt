@@ -329,6 +329,29 @@ class HubUsmerjevalnik(
         for (povezava in register.povezanePovezave()) posljiVarno(povezava, sporocilo)
     }
 
+    /** Kode, ki smo jih razposlali clanom (pair.code); ko prijave ni vec, jim povemo (pair.done). */
+    private val razposlaneKode = mutableSetOf<String>()
+
+    /**
+     * Koda za novo napravo se pokaze na VSEH napravah Linka (televizor, tablica, racunalnik), ne samo
+     * na tej: uporabnik jo prebere tam, kjer je. Clani so v krogu zaupanja; nova naprava je ne dobi.
+     */
+    fun razposljiKode() {
+        val povezave = register.povezanePovezave()
+        val sporocila = synchronized(kljucnica) {
+            pocistiPrijave()
+            val zdaj = prijave.values.filter { !it.potrjena }
+            val nove = zdaj.filter { razposlaneKode.add(it.pairId) }.map { p ->
+                ovojnica("pair.code").surovo("payload", JsonLahki.Zapis().niz("pair_id", p.pairId).niz("name", p.ime)
+                    .niz("code", p.pin).stevilo("expires_in_seconds", ((PIN_VELJA_MS - (ura() - p.nastala)) / 1000).toDouble()).toString()).toString()
+            }
+            val koncane = razposlaneKode.filter { k -> zdaj.none { it.pairId == k } }
+            razposlaneKode.removeAll(koncane.toSet())
+            nove + koncane.map { ovojnica("pair.done").surovo("payload", JsonLahki.Zapis().niz("pair_id", it).toString()).toString() }
+        }
+        for (s in sporocila) for (p in povezave) posljiVarno(p, s)
+    }
+
     private fun sporociloKroga(): String = ovojnica("trust.update").surovo("payload", krog.json()).toString()
 
     /** Hub sam je clan kroga: krmilnik vpise njegov kljuc ob zagonu. */
@@ -1156,6 +1179,13 @@ class HubUsmerjevalnik(
             val tovor = sporocilo.surovo("payload") ?: return potrditev(id, "rejected", "Manjka krog.", "trust", "manjka_krog")
             if (krog.zdruziImena(tovor)) { objaviNaprave(); naSpremembeNaprav?.invoke() }
             return potrditev(id, "accepted", null, "trust")
+        }
+
+        if (tip == "pair.reject") {
+            // Uporabnik je kodo zavrnil na drugi napravi v Linku (koda je bila pokazana povsod).
+            if (register.najdi(idPovezave(od)) == null) return potrditev(id, "rejected", "Naprava ni prijavljena.", "pair", "ni_prijavljena")
+            zavrniPrijavo(sporocilo.objekt("payload")?.niz("pair_id").orEmpty())
+            return potrditev(id, "accepted", null, "pair")
         }
 
         if (tip == "apps.announce") {
