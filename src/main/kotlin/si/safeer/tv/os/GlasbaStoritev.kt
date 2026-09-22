@@ -93,7 +93,7 @@ class GlasbaStoritev : Service() {
         // Datoteke z racunalnika gredo skozi pripeti vir (TLS z odtisom in zetonom Safeer Controla),
         // vse ostalo (splet, datoteke televizorja) skozi obicajnega.
         val tovarna = if (s != null) androidx.media3.exoplayer.source.DefaultMediaSourceFactory(PripetiVir.Tovarna(s.odtis, s.zeton))
-            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(this)
+            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(SpletniVir.virPodatkov(this))
         p.setMediaSources(seznam.map { sk ->
             tovarna.createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
                 .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
@@ -192,14 +192,53 @@ class GlasbaStoritev : Service() {
             val opis = a.findViewById<android.widget.TextView>(R.id.medijiOpis) ?: return
             val ikona = a.findViewById<android.widget.ImageView>(R.id.medijiIkona) ?: return
             val sk = trenutna(); val p = predvajalnik
+            val kartica = a.findViewById<android.widget.LinearLayout>(R.id.karticaMediji)
+            val tipke = kartica?.let { tipkeKartice(a, it) }
+            val puscica = kartica?.getChildAt(kartica.childCount - 1) as? android.widget.TextView
             if (sk == null || p == null) {
                 naslov.setText(R.string.os_mediji_kartica); opis.setText(R.string.os_mediji_kartica_opis)
-                ikona.setImageResource(R.drawable.os_ikona_glasba); return
+                ikona.setImageResource(R.drawable.os_ikona_glasba)
+                tipke?.visibility = android.view.View.GONE; puscica?.visibility = android.view.View.VISIBLE; return
+            }
+            // Upravljanje kar na kartici: predvajanje v ozadju brez odpiranja predvajalnika.
+            tipke?.let {
+                it.visibility = android.view.View.VISIBLE; puscica?.visibility = android.view.View.GONE
+                (it.getChildAt(0) as android.widget.ImageView).setImageResource(if (p.isPlaying) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
+                it.getChildAt(1).visibility = if (p.hasNextMediaItem()) android.view.View.VISIBLE else android.view.View.GONE
             }
             naslov.text = sk.naslov
             opis.text = listOf(a.getString(if (p.isPlaying) R.string.os_mediji_zdaj else R.string.os_mediji_pavza), sk.izvajalec)
                 .filter { it.isNotBlank() }.joinToString(" · ")
-            ikona.setImageResource(if (p.isPlaying) R.drawable.os_ikona_predvajaj else R.drawable.os_ikona_pavza)
+            // S tipkami na kartici bi ikona stanja delovala kot se ena tipka: ostane nota.
+            ikona.setImageResource(if (tipke != null) R.drawable.os_ikona_glasba else if (p.isPlaying) R.drawable.os_ikona_predvajaj else R.drawable.os_ikona_pavza)
+        }
+
+        /** Tipki pavza/naprej na kartici Mediji; ustvarimo ju enkrat, pred puscico. */
+        private fun tipkeKartice(a: android.app.Activity, kartica: android.widget.LinearLayout): android.widget.LinearLayout {
+            kartica.findViewWithTag<android.widget.LinearLayout>("tipkeKartice")?.let { return it }
+            val g = a.resources.displayMetrics.density
+            fun tipka(res: Int, klik: () -> Unit) = android.widget.ImageView(a).apply {
+                setImageResource(res); isFocusable = true; isClickable = true
+                imageTintList = android.content.res.ColorStateList.valueOf(a.getColor(R.color.os_besedilo))
+                val r = (10 * g).toInt(); setPadding(r, r, r, r)
+                background = android.graphics.drawable.StateListDrawable().apply {
+                    addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.OVAL
+                        setColor(a.getColor(R.color.os_kartica_dvignjena)); setStroke((2 * g).toInt(), a.getColor(R.color.os_mint)) })
+                    addState(intArrayOf(android.R.attr.state_pressed), android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(a.getColor(R.color.os_kartica_dvignjena)) })
+                }
+                setOnClickListener { klik() }
+                layoutParams = android.widget.LinearLayout.LayoutParams((44 * g).toInt(), (44 * g).toInt())
+            }
+            val v = android.widget.LinearLayout(a).apply {
+                tag = "tipkeKartice"; orientation = android.widget.LinearLayout.HORIZONTAL
+                addView(tipka(R.drawable.os_ikona_pavza) { predvajalnik?.let { if (it.isPlaying) it.pause() else it.play() } })
+                addView(tipka(R.drawable.os_ikona_naslednja) { predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() } }
+                    .apply { contentDescription = a.getString(R.string.os_naprej) })
+            }
+            kartica.addView(v, (kartica.childCount - 1).coerceAtLeast(0))
+            return v
         }
 
         /** Klik na kartico: med predvajanjem naravnost na predvajanje, sicer v Medije. */

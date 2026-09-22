@@ -31,6 +31,8 @@ object MedijskiViri {
     const val TOK = "tok"
     /** Spletna stran z glasbo ali videom: odpre jo brskalnik Safeer (jedro Safeer OS), ki predvaja vse. */
     const val SPLET = "splet"
+    /** Uporabnikov API za iskanje (naslov z {q}, po zelji "| Glava: vrednost"). */
+    const val API = "api"
     /** Seznam .m3u/.pls z vec skladbami: ob dodajanju ga preberemo, skladbe najde tudi iskanje. */
     const val SEZNAM = "seznam"
     /** RSS podkasta: klik odpre epizode. */
@@ -187,13 +189,19 @@ object MedijskiViri {
      * najde tudi iskanje), RSS podkasta ali spletna stran. Vrne dodani vir ali null, ce na naslovu ni
      * nicesar, kar bi znali predvajati.
      */
-    fun dodaj(ctx: Context, vnos: String): Vir? {
+    fun dodaj(ctx: Context, vnos: String, ime: String? = null): Vir? {
+        if (vnos.contains("{q}") || vnos.contains("{searchTerms}")) {
+            val g = try { URL(vnos.substringBefore('|').trim()).host } catch (_: Exception) { return null }
+            val v = Vir(API, ime?.takeIf { it.isNotBlank() } ?: g.removePrefix("www.").removePrefix("api."), vnos.trim())
+            shrani(ctx, vsi(ctx).filterNot { it.naslov == v.naslov } + v)
+            return v
+        }
         val cisto = vnos.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
         val gostitelj = try { URL(cisto).host } catch (_: Exception) { return null }
         val jePot = try { URL(cisto).path.trim('/').isNotEmpty() } catch (_: Exception) { false }
         val vir = PeerTube.imeStreznika(gostitelj)?.takeIf { !jePot || cisto.contains("/videos") || cisto.contains("/c/") || cisto.contains("/a/") }
             ?.let { Vir(PEERTUBE, it, gostitelj) }
-            ?: razvrsti(ctx, cisto, gostitelj)
+            ?: razvrsti(ctx, cisto, gostitelj)?.let { v -> if (ime.isNullOrBlank()) v else v.copy(ime = ime) }
             ?: return null
         shrani(ctx, vsi(ctx).filterNot { it.naslov == vir.naslov } + vir)
         return vir

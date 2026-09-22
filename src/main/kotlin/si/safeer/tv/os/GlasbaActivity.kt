@@ -856,11 +856,13 @@ class GlasbaActivity : OsActivity() {
                 getString(R.string.os_media_stevilo_streznikov, MedijskiViri.streznikiPeerTube(this).size), razdelek(VIDEO)),
         ) + MedijskiViri.vsi(this).map { v ->
             Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet -> R.drawable.os_ikona_splet; else -> R.drawable.os_ikona_glasba },
-                0xFF7FB2FF.toInt(), v.ime, if (v.jePeerTube) "PeerTube · ${v.naslov}" else v.naslov.removePrefix("https://").removePrefix("http://"), {
+                0xFF7FB2FF.toInt(), v.ime, if (v.jePeerTube) "PeerTube · ${v.naslov}" else if (v.tip == MedijskiViri.API) "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" }) else v.naslov.removePrefix("https://").removePrefix("http://"), {
                     when {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
                         // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
                         v.jeSplet -> odpriStran(v.naslov, v.ime)
+                        // API: iscemo po njem skupaj z vsemi viri.
+                        v.tip == MedijskiViri.API -> odpriIskanje("")
                         else -> predvajaj(listOf(MedijskiViri.kotSkladba(v)), 0)
                     }
                 }, v)
@@ -1221,13 +1223,14 @@ class GlasbaActivity : OsActivity() {
         stanje.text = getString(R.string.os_glasba_nalagam)
         val strezniki = MedijskiViri.streznikiPeerTube(this)
         val mali = beseda.lowercase()
-        val viri = MedijskiViri.vsi(this).filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) ||
+        val viri = MedijskiViri.vsi(this).filter { it.tip != MedijskiViri.API }.filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) ||
             Relevantnost.ocena(beseda, it.ime, "", it.naslov) >= Relevantnost.DOBER }
         val naprave = if (link.jeKrajevni() || !link.povezan) emptyList() else link.racunalnikiZDatotekami()
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(8)
+        val rezultati = arrayOfNulls<Any>(9)
+        val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
         val izSeznamov = MedijskiViri.iskanjeVSeznamih(this, beseda)
         val opravila = listOf<() -> Any>(
             { try { Jamendo.isciSkladbe(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
@@ -1238,6 +1241,7 @@ class GlasbaActivity : OsActivity() {
             { isciNaNapravah(naprave, beseda) },
             { try { Podkasti.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try { Arhiv.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { SpletniVir.isciVse(this, spletniViri, beseda) },
         )
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = f() } }
         synchronized(iskanjeNiti) { iskanjeNiti.addAll(futures) }
@@ -1251,6 +1255,7 @@ class GlasbaActivity : OsActivity() {
             @Suppress("UNCHECKED_CAST") val vLinku = rezultati[5] as? List<Relevantnost.Zadetek<Jamendo.Skladba>> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val podkasti = rezultati[6] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val arhiv = rezultati[7] as? List<Jamendo.Skladba> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val izSpleta = rezultati[8] as? List<Pair<MedijskiViri.Vir, Jamendo.Skladba>> ?: emptyList()
             // Vsi zadetki v eni skupni lestvici; prednost odloca med dvojniki (ta naprava pred racunalnikom ...).
             val vsi = ArrayList<Relevantnost.Zadetek<*>>()
             krajevno.forEach { n ->
@@ -1262,6 +1267,7 @@ class GlasbaActivity : OsActivity() {
             vsi.addAll(vLinku)
             viri.forEach { v -> MedijskiViri.kotSkladba(v).let { vsi.add(Relevantnost.Zadetek(it, v.ime, "", v.ime, 2, v.naslov)) } }
             izSeznamov.forEach { (v, s) -> vsi.add(Relevantnost.Zadetek(s, s.naslov, s.izvajalec, v.ime, 2)) }
+            izSpleta.forEach { (v, s) -> vsi.add(Relevantnost.Zadetek(s, s.naslov, s.izvajalec, v.ime, 2)) }
             arhiv.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Archive.org", 6)) }
             glasba.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Jamendo", 3)) }
             videi.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "PeerTube", 4)) }
@@ -1287,8 +1293,10 @@ class GlasbaActivity : OsActivity() {
                     Vrsta(getString(R.string.os_mediji_postaje), skladbe(ostali(postaje), beseda)),
                     Vrsta(getString(R.string.os_media_podkasti), skladbe(podkasti, beseda)),
                     Vrsta("Archive.org", skladbe(ostali(arhiv), beseda)),
+                    // Vsak uporabnikov vir (spletna aplikacija, API) ima svojo vrsto zadetkov.
+                    *izSpleta.groupBy { it.first }.map { (v, l) -> Vrsta(v.ime, skladbe(ostali(l.map { it.second }).filter { Relevantnost.ocena(beseda, it.naslov, it.izvajalec) >= Relevantnost.SPODNJA }, beseda)) }.toTypedArray(),
                     // Dodane spletne strani: iskanje znotraj vira (stran nima skupnega vmesnika za iskanje).
-                    Vrsta(getString(R.string.os_mediji_viri), MedijskiViri.vsi(this).filter { it.jeSplet }.map { vir ->
+                    Vrsta(getString(R.string.os_mediji_viri), spletniViri.filter { v -> v.jeSplet && koncno && izSpleta.none { it.first == v } }.map { vir ->
                         Kartica(vir.ime, getString(R.string.os_media_isci_v_viru, beseda), "", {
                             odpriIskanjeVViru(vir, beseda)
                         }, ikona = R.drawable.os_ikona_splet)
@@ -1439,6 +1447,21 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /**
+     * Zadetek iz uporabnikove spletne aplikacije: tok ujamemo in ga predvaja nas predvajalnik. Ce ga ni
+     * (zaklenjena vsebina), zadetek odpre aplikacija sama - zvok ob tipki Domov igra naprej.
+     */
+    private fun razresiSplet(sk: Jamendo.Skladba) {
+        stanje.text = getString(R.string.os_glasba_nalagam)
+        SpletniVir.razresi(this, sk) { r ->
+            if (isFinishing) return@razresi
+            stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
+            if (r == null) { odpriStran(sk.povezava, sk.naslov); return@razresi }
+            GlasbaStoritev.predvajaj(this, listOf(r), 0)
+            if (r.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
+        }
+    }
+
     private fun odpriIzvajalca(iz: Jamendo.Izvajalec) {
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
@@ -1455,6 +1478,20 @@ class GlasbaActivity : OsActivity() {
     // ------------------------------------------------------------------ viri
 
     private fun dodajVir() {
+        val zeViri = MedijskiViri.vsi(this).map { it.naslov }
+        val aplikacije = try { SpletneAplikacije.seznam(this) } catch (_: Throwable) { emptyList() }.filterNot { it.url in zeViri }
+        if (aplikacije.isEmpty()) { vpisiVir(); return }
+        val imena = aplikacije.map { it.ime.ifBlank { SpletneAplikacije.gostitelj(it.url) } }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.os_mediji_dodaj)
+            .setItems((imena + getString(R.string.os_mediji_vpisi_naslov)).toTypedArray()) { _, i ->
+                aplikacije.getOrNull(i)?.let { dodajVNozadju(it.url, imena[i]) } ?: vpisiVir()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun vpisiVir() {
         val polje = EditText(this).apply {
             hint = getString(R.string.os_mediji_dodaj_namig); setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
         }
@@ -1465,9 +1502,16 @@ class GlasbaActivity : OsActivity() {
             .setPositiveButton(R.string.os_mediji_dodaj_gumb) { _, _ ->
                 val vnos = polje.text.toString()
                 if (vnos.isBlank()) return@setPositiveButton
+                dodajVNozadju(vnos, null)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun dodajVNozadju(vnos: String, ime: String?) {
                 stanje.text = getString(R.string.os_mediji_preverjam)
                 delavec.execute {
-                    val vir = MedijskiViri.dodaj(this, vnos)
+                    val vir = MedijskiViri.dodaj(this, vnos, ime)
                     glavna.post {
                         if (isFinishing) return@post
                         if (vir == null) { stanje.text = getString(R.string.os_mediji_ni_vira); return@post }
@@ -1478,9 +1522,6 @@ class GlasbaActivity : OsActivity() {
                         drsnik.post { vsebina.findViewWithTag<View>("k:#${vsiViri().size}")?.requestFocus() }
                     }
                 }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
     }
 
     private fun odstraniVir(v: MedijskiViri.Vir) {
@@ -1505,6 +1546,7 @@ class GlasbaActivity : OsActivity() {
         if (Podkasti.jeOddaja(sk)) { odpriSeznam(sk.naslov, sk.izvajalec) { Podkasti.epizode(sk.povezava).second }; return }
         if (sk.id.startsWith(MedijskiViri.PREDPONA_SEZNAMA)) { odpriSeznam(sk.naslov, sk.izvajalec) { MedijskiViri.osveziSeznam(this, sk.zvok) }; return }
         if (Arhiv.jeEnota(sk)) { razresiArhiv(sk); return }
+        if (SpletniVir.jeEnota(sk)) { razresiSplet(sk); return }
         if (!sk.video || sk.zvok.isNotBlank()) {
             GlasbaStoritev.predvajaj(this, seznam, i)
             if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))

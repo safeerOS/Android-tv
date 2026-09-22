@@ -33,7 +33,7 @@
     <string name="os_mediji_dodaj">Dodaj vir</string>
     <string name="os_mediji_dodaj_opis">Strežnik, tok ali spletna stran</string>
     <string name="os_mediji_dodaj_namig">npr. tilvids.com ali https://…/stream.mp3</string>
-    <string name="os_mediji_dodaj_razlaga">Vpiši strežnik PeerTube, naslov radijskega toka ali videa ali spletno stran z glasbo in videom. Safeer preveri, kaj je na naslovu; spletno stran odpre brskalnik Safeer.</string>
+    <string name="os_mediji_dodaj_razlaga">Vpiši strežnik PeerTube, radijski tok ali video, spletno stran z glasbo in videom ali svoj API za iskanje (naslov z {q}, po želji | Glava: vrednost za ključ). Safeer preveri, kaj je na naslovu.</string>
     <string name="os_mediji_dodaj_gumb">Dodaj</string>
     <string name="os_mediji_preverjam">Preverjam vir …</string>
     <string name="os_mediji_ni_vira">Na tem naslovu ni glasbe ali videa, ki bi ga Safeer znal predvajati.</string>
@@ -133,4 +133,5 @@
     <string name="os_media_podkasti">Podkasti</string>
     <string name="os_media_zadetki_izvori">Zadetkov: %1$d · %2$s</string>
     <string name="os_media_ni_zadetkov_vir">Tvoji viri tega nimajo</string>
+    <string name="os_mediji_vpisi_naslov">Vpiši naslov …</string>
 </resources>

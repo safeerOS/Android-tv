@@ -33,7 +33,7 @@
     <string name="os_mediji_dodaj">Añadir fuente</string>
     <string name="os_mediji_dodaj_opis">Servidor, emisión o sitio web</string>
     <string name="os_mediji_dodaj_namig">p. ej. tilvids.com o https://…/stream.mp3</string>
-    <string name="os_mediji_dodaj_razlaga">Escribe un servidor PeerTube, la dirección de una emisión de radio o vídeo, o un sitio web con música y vídeo. Safeer comprueba la dirección; un sitio web se abre en el navegador Safeer.</string>
+    <string name="os_mediji_dodaj_razlaga">Escribe un servidor PeerTube, una emisión de radio o vídeo, un sitio web con música y vídeo, o tu propia API de búsqueda (dirección con {q}, opcionalmente | Cabecera: valor para una clave). Safeer comprueba la dirección.</string>
     <string name="os_mediji_dodaj_gumb">Añadir</string>
     <string name="os_mediji_preverjam">Comprobando la fuente…</string>
     <string name="os_mediji_ni_vira">En esta dirección no hay música ni vídeo que Safeer pueda reproducir.</string>
@@ -133,4 +133,5 @@
     <string name="os_media_podkasti">Pódcasts</string>
     <string name="os_media_zadetki_izvori">%1$d resultados · %2$s</string>
     <string name="os_media_ni_zadetkov_vir">Nada en tus fuentes</string>
+    <string name="os_mediji_vpisi_naslov">Escribir una dirección…</string>
 </resources>
