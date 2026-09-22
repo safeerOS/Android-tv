@@ -546,3 +546,53 @@ in se vrne domov.
   Preizkuseno 22. 9.: Control prek link.safeer.si na TV-hub v <10 s, 4 zaporedni zagoni pod systemd.
 - Neuspel podpis brez zetona ni vec "zavrnitev" (samo izrecen 401/403): prej je zamuda releja izbrisala
   odtis huba in naprava je ostala brez povezave.
+
+## 22. 9. 2026 — pridružitev pri katerikoli napravi, podpisani vnosi, Safeer OS kot lastnik Linka
+
+**Seznanitev s kodo tudi na hubu računalnika.** Hub v Safeer Controlu doslej ni znal seznaniti nove
+naprave (`/cast/pair/start` je vrnil 404), zato se telefon ni mogel pridružiti, kadar je bil hub tam.
+Zdaj zna `/cast/pair/start|spake|finish|cancel` (SPAKE2, iste napake in meje kot `HubUsmerjevalnik`:
+5 poskusov, koda velja 5 minut, največ 8 čakajočih), `/cast/ticket` z žetonom seznanitve in
+`/cast/trust/enroll`. Žetoni seznanitve se shranijo (0600), zato naprava, ki še ni vpisala ključa,
+po ponovnem zagonu Controla ne ostane zunaj. Preizkusi: `SeznanitevSKodo` (8), `ZetoniPrezivijo`.
+
+**Koda se pokaže na vseh napravah v Linku.** Središče (Android in Control) ob novi prijavi razpošlje
+`pair.code` (ime naprave, koda, veljavnost) vsem članom in `pair.done`, ko prijave ni več; naprava s
+zaslonom kodo pokaže, »Zavrni« pošlje `pair.reject`. Tako uporabnik kodo prebere tam, kjer je, ne
+glede na to, katera naprava je središče. Na računalniku se pokaže tudi kot obvestilo (`notify-send`).
+
+**QR kodo lahko pokaže katerakoli naprava.** Član pošlje `pair.invite`, središče ustvari enkratno
+skrivnost (hrani samo SHA-256), vrne `qr_id`, skrivnost, svoj naslov in odtis potrdila; naprava kodo
+samo nariše (`PridruzitevSredisca.povezavaZaTujeSredisce`). Nova naprava se pridruži prek
+`/cast/pair/qr/join` (zdaj tudi na Controlu). `pair.invite.cancel` kodo prekliče. Preverjeno v živo
+22. 9.: televizor je pokazal QR za hub računalnika (`a=192.168.0.135:8990`, odtis Controla).
+
+**Podpisani vnosi v krogu zaupanja (pogoj za P2P).** Vsak član in umik, ki ga naredi naprava, je
+podpisan z njenim ključem: `KrogZaupanja.podatkiClana` / `link_krog.podatki_clana` in `podatkiUmika` /
+`podatki_umika`. `zdruzi(preveriPodpise=true)` — to je krog, ki ne pride od našega huba, ampak od
+naprave ali prek releja — sprejme nov ali spremenjen ključ in umik samo s podpisom člana, ki ga že
+poznamo. Krog od huba velja kot doslej, zato starejše naprave delajo naprej. Preizkusi:
+`preizkusPodpisanegaKroga` (JVM), `PodpisaniVnosi` (Linux).
+
+**Naprava po seznanitvi takoj vpiše ključ v krog.** `CastReceiverService` po prijavi z žetonom pokliče
+`/cast/trust/enroll`, zato se odslej prijavlja s podpisom na katerem koli hubu. `/cast/auth/challenge`
+na računalniku vrne 401 za napravo zunaj kroga (kot na Androidu), da naprava ve, da mora vpisati ključ
+ali iti na žeton.
+
+**Ena povezava naenkrat.** `LinkOdjemalec` je ob ponovnem zagonu odprl novo povezavo, staro pa pustil;
+središče je vsako novo povezavo iste naprave zamenjalo s prejšnjo, zato je telefon vsakih ~20 s izgubil
+zvezo. Zdaj se stara povezava zapre, dogodki zamenjane povezave se ne štejejo, po zavrnitvi je premor
+(2 s → 1 min), hub, ki nas ne sprejme, pa 10 minut ni kandidat za izvolitev (`hubNasJeZavrnil`).
+
+**Safeer Link na televizorju vodi Safeer OS.** `Sosed.lastnikLinka` na televizorju vrne Safeer OS, če
+je nameščen (Safeer Browser TV je predhodnik in Link vodi samo brez njega). Brskalnik ob Safeer OS ne
+zažene ne središča ne sprejemnika, obstoječa ugasne in stran Linka preda Safeer OS; Safeer OS vstopi z
+istim ključem (brez nove kode) in prevzame ime televizorja iz kroga. Ščit gre za Linkom: vodi ga ista
+aplikacija, ob prevzemu sosedovega ugasne (Android da tunel eni sami aplikaciji).
+
+**Besedila in ikone.** Na telefonu in tablici zasloni ne govorijo več o televizorju (22 besedil v
+šestih jezikih), navodilo za 6-mestno kodo opisuje pravo pot (Povezane naprave → Pridruži se), ikone
+pa ločijo telefon, televizor, računalnik in zaslon.
+
+**Naslednji korak:** `docs/P2P-NACRT.md` — Safeer Data Transport (LAN_DIRECT → INTERNET_DIRECT →
+SAFEER_RELAY), šifriranje od konca do konca, prenos datotek po kosih z nadaljevanjem in deljenje zaslona.
