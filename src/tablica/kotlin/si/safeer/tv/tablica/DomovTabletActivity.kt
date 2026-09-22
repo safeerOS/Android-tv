@@ -250,12 +250,10 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
             }
         }
+        // Datoteke so vedno na voljo: brez racunalnika se odprejo videi, glasba in slike te naprave,
+        // s povezanim racunalnikom pa DatotekeActivity ponudi izbiro vira (ta naprava ali racunalnik).
         mDatoteke?.setOnClickListener {
-            if (imamoDatoteke) {
-                odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
-            } else {
-                pokaziOknoNiPovezano(getString(R.string.tablet_datoteke))
-            }
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
         }
         findViewById<View>(R.id.karticaMediji)?.setOnClickListener {
             odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
@@ -345,11 +343,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
         }
         hitriDatoteke?.setOnClickListener {
-            if (imamoDatoteke) {
-                odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
-            } else {
-                pokaziOknoNiPovezano(getString(R.string.tablet_datoteke))
-            }
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
         }
         hitriNastavitve?.setOnClickListener {
             odpriVarno(Intent(this, si.safeer.tv.os.NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))

@@ -485,3 +485,29 @@ Prevzeto iz RC1 paketov (TV, tablica, telefon, Linux), pregledano in popravljeno
 - Linux: `safeer_link.py` je Link module uvazal brez `core.` (Control se ne bi zagnal); namestitveni tovor
   Controla ni vseboval novih modulov; Safeer Media v `os.js` je bil zunaj glavne funkcije in ni videl
   `klic`, `el`, `S` (stran ne bi delala); pytest testi so zdaj tudi unittest.
+
+## 12. Global Mesh / Global Link (temelj, izklopljeno)
+
+Prevzeto iz Global Mesh v0.24 in Global Link v0.25. Cilj: seznanjena naprava je dosegljiva tudi zunaj
+domacega omrezja (drug Wi-Fi, mobilni podatki). Pot je vedno `LOCAL -> DIRECT_INTERNET -> RELAY -> OFFLINE`:
+LAN zmaga vedno, internet in rele sta izrecna izbira, neseznanjena naprava ali naprava brez odtisa kljuca ni
+dosegljiva nikoli. Rele vidi samo sifrirano vsebino; brez samodejnega odpiranja vrat na usmerjevalniku.
+
+- Politika: `link/GlobalMesh.kt` (tv-browser-2) in `core/global_mesh.py` (safeer-lms), enaka logika,
+  JVM in Python test. Remote Link v0.23 (`RemoteLinkTransport`) je delal isto drugace poimenovano; ena
+  politika namesto dveh.
+- Koordinacija: `services/coordination/safeer_coordination.py` (safeer-lms) - samo prisotnost (odtis kljuca,
+  namigi kandidatov, TTL najvec 120 s) in signali za vzpostavitev povezave, nikoli kljuci ali vsebina.
+  Brez skrivnosti zavrne vse. Popravljeno ob prevzemu: shebang, neveljaven `ttl` ni vec napaka 500, najvec
+  64 signalov na prejemnika, ne sebi, zaklep, omejeno stevilo naprav. Zivi test na racunalniku
+  (`tests/_ziv_koordinacija.py`): prisotnost, iskanje, signal, zavrnitev tujca.
+- Postavitev: `deploy/docker-compose.global-mesh.yml` (koordinacija samo na 127.0.0.1 za TLS posredovalnik,
+  brez root, samo za branje; coturn z zaprtimi zasebnimi omrezji `--denied-peer-ip`).
+
+Se manjka, preden se vklopi: javni streznik (HTTPS/WSS, DNS), kratkotrajna TURN poverila po Safeer
+avtentikaciji, preverba, da sta napravi v istem krogu zaupanja (tudi pri branju prisotnosti), ICE/WebRTC
+v odjemalcih, E2EE vezan na kljuce naprav, prehod Wi-Fi <-> mobilno in preizkus cez locena omrezja/CGNAT.
+`SAFEER_GLOBAL_LINK_ENABLED` ostane `false`.
+
+**Datoteke na tablici in telefonu:** meni Datoteke se odpre vedno. Brez racunalnika pokaze videe, glasbo
+in slike te naprave (`DatotekeActivity` krajevni nacin), s povezanim racunalnikom ponudi izbiro vira.
