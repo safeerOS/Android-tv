@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Besedila, ki imenujejo napravo (tablica). Telefon ima svoja v okusi/telefon/res. -->
+<resources>
+    <string name="tablet_ime">Safeer OS Tablet</string>
+    <string name="tablet_zaslon_opis">Izberi, katero napravo gledaš na tablici</string>
+    <string name="tablet_ni_linka">Ta tablica še ni v Safeer Linku. Odpri Naprave in jo poveži — potem se tu pojavijo datoteke, programi in zaslon tvojega računalnika.</string>
+    <string name="tablet_vklopi_opis">Tablica se pridruži domačemu omrežju; nato lahko računalnik deli datoteke, programe in svoj zaslon</string>
+    <string name="tablet_vklopljen">Safeer Link je vklopljen. Na računalniku odpri Safeer Control in ga seznani s to tablico.</string>
+    <string name="os_naprava_tv">ta tablica</string>
+    <string name="os_krajevno_koren">Na tej tablici</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS potrebuje dovoljenje za branje datotek na tej tablici.</string>
+    <string name="os_krajevno_ta_tv">Ta tablica</string>
+    <string name="os_krajevno_ta_tv_opis">Videoposnetki, glasba in slike na tablici in USB</string>
+    <string name="os_odsek_aplikacije">Aplikacije na tej tablici</string>
+    <string name="tablet_povezana">Tablica je povezana z »%1$s«.</string>
+    <string name="os_vir_tv">Tablica</string>
+    <string name="tablet_stanje_ni_tv">Še ni povezana s televizorjem</string>
+    <string name="os_scit_nastavitev_opis">Filtriranje DNS za vso tablico, v vseh aplikacijah</string>
+    <string name="os_jezik_opis">Safeer OS v jeziku, ki ga izbereš, ne glede na nastavitev tablice</string>
+    <string name="os_moc_opis">Procesor, pomnilnik in prostor — na hostu ali na tej tablici</string>
+    <string name="vnos_opis">Računalnik (Safeer Control) sme na tej tablici tapniti, podrsati ter pritisniti Nazaj ali Domov, medtem ko tablica deli svoj zaslon. Safeer Vnos zaslona ne bere in ničesar ne pošilja nikamor; izvede samo, kar zahteva naprava, ki si jo seznanil v Safeer Linku.</string>
+    <string name="os_prijava_podnaslov">Telefon, računalnik in televizor se pridružijo tej tablici.</string>
+    <string name="os_stanje_krajevni">Krajevni način · ta tablica</string>
+    <string name="os_naprave_krajevni">Krajevni način: Safeer OS uporablja samo to tablico. Za druge naprave vklopi Safeer Link.</string>
+    <string name="os_nacin_krajevni_izbran">Krajevni način: Safeer OS uporablja samo to tablico. Safeer Link lahko pozneje vklopiš na njegovi kartici.</string>
+</resources>

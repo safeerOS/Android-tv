@@ -1,45 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="tablet_ime">Safeer OS Tablet</string>
     <string name="tablet_datoteke">Datoteke</string>
     <string name="tablet_naprave">Naprave</string>
     <string name="tablet_programi">Programi</string>
     <string name="tablet_programi_opis">Zaženi programe z računalnika</string>
     <string name="tablet_zaslon">Povezani zasloni</string>
-    <string name="tablet_zaslon_opis">Izberi, katero napravo gledaš na tablici</string>
     <string name="tablet_ni_racunalnika">Noben računalnik še ni povezan. Na računalniku zaženi Safeer Control in ga poveži v Safeer Link; tu se bo pojavil sam.</string>
-    <string name="tablet_ni_linka">Ta tablica še ni v Safeer Linku. Odpri Naprave in jo poveži — potem se tu pojavijo datoteke, programi in zaslon tvojega računalnika.</string>
     <string name="tablet_vklopi">Vklopi Safeer Link</string>
-    <string name="tablet_vklopi_opis">Tablica se pridruži domačemu omrežju; nato lahko računalnik deli datoteke, programe in svoj zaslon</string>
-    <string name="tablet_vklopljen">Safeer Link je vklopljen. Na računalniku odpri Safeer Control in ga seznani s to tablico.</string>
     <string name="tablet_znova">Poveži znova</string>
     <string name="tablet_znova_opis">Safeer Link je vklopljen, povezave pa ni. Poskusi znova.</string>
-    <string name="os_naprava_tv">ta tablica</string>
-    <string name="os_krajevno_koren">Na tej tablici</string>
-    <string name="os_krajevno_dovoljenje">Safeer OS potrebuje dovoljenje za branje datotek na tej tablici.</string>
-    <string name="os_krajevno_ta_tv">Ta tablica</string>
-    <string name="os_krajevno_ta_tv_opis">Videoposnetki, glasba in slike na tablici in USB</string>
-    <string name="os_odsek_aplikacije">Aplikacije na tej tablici</string>
     <string name="tablet_pridruzi">Pridruži se: %1$s</string>
     <string name="tablet_povezujem">Povezujem se z »%1$s« …</string>
     <string name="tablet_ni_odgovora">»%1$s« se ne odziva. Preveri, ali je naprava prižgana in v istem omrežju.</string>
     <string name="tablet_koda_naslov">Koda z »%1$s«</string>
     <string name="tablet_koda_opis">Na zaslonu naprave »%1$s« (v Safeer OS) se je pokazala šestmestna koda. Vtipkaj jo tukaj.</string>
     <string name="tablet_poveziSe">Poveži</string>
-    <string name="tablet_povezana">Tablica je povezana z »%1$s«.</string>
     <string name="tablet_napacna_koda">Koda se ne ujema. Preveri jo na zaslonu in poskusi znova.</string>
     <string name="tablet_prevec_poskusov">Preveč napačnih kod. Začni znova s ploščice.</string>
     <string name="tablet_koda_potekla">Koda je potekla. Za novo znova pritisni ploščico.</string>
-    <string name="os_vir_tv">Tablica</string>
     <string name="tablet_nova_koda">Nova koda</string>
-    <string name="tablet_stanje_ni_tv">Še ni povezana s televizorjem</string>
     <string name="tablet_iskanje_namig">Poišči aplikacije, datoteke ali na spletu …</string>
     <string name="tablet_prikazi_vse">Prikaži vse ›</string>
     <string name="tablet_odklopi">Odklopi</string>
     <string name="tablet_povezano_z">Povezano z: %1$s</string>
-    <string name="os_scit_nastavitev_opis">Filtriranje DNS za vso tablico, v vseh aplikacijah</string>
-    <string name="os_jezik_opis">Safeer OS v jeziku, ki ga izbereš, ne glede na nastavitev tablice</string>
-    <string name="os_moc_opis">Procesor, pomnilnik in prostor — na hostu ali na tej tablici</string>
     <string name="vnos_ime">Safeer Vnos</string>
-    <string name="vnos_opis">Računalnik (Safeer Control) sme na tej tablici tapniti, podrsati ter pritisniti Nazaj ali Domov, medtem ko tablica deli svoj zaslon. Safeer Vnos zaslona ne bere in ničesar ne pošilja nikamor; izvede samo, kar zahteva naprava, ki si jo seznanil v Safeer Linku.</string>
 </resources>

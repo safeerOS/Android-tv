@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Besedila, ki imenujejo napravo (telefon). Vse drugo deli s tablico (okusi/dotik/res). -->
+<resources>
+    <string name="tablet_ime">Safeer OS Mobile</string>
+    <string name="tablet_zaslon_opis">Izberi, katero napravo gledaš na telefonu</string>
+    <string name="tablet_ni_linka">Ta telefon še ni v Safeer Linku. Odpri Naprave in ga poveži — potem se tu pojavijo datoteke, programi in zaslon tvojega računalnika.</string>
+    <string name="tablet_vklopi_opis">Telefon se pridruži domačemu omrežju; nato lahko računalnik deli datoteke, programe in svoj zaslon</string>
+    <string name="tablet_vklopljen">Safeer Link je vklopljen. Na računalniku odpri Safeer Control in ga seznani s tem telefonom.</string>
+    <string name="os_naprava_tv">ta telefon</string>
+    <string name="os_krajevno_koren">Na tem telefonu</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS potrebuje dovoljenje za branje datotek na tem telefonu.</string>
+    <string name="os_krajevno_ta_tv">Ta telefon</string>
+    <string name="os_krajevno_ta_tv_opis">Videoposnetki, glasba in slike na telefonu in USB</string>
+    <string name="os_odsek_aplikacije">Aplikacije na tem telefonu</string>
+    <string name="tablet_povezana">Telefon je povezan z »%1$s«.</string>
+    <string name="os_vir_tv">Telefon</string>
+    <string name="tablet_stanje_ni_tv">Še ni povezan s televizorjem</string>
+    <string name="os_scit_nastavitev_opis">Filtriranje DNS za ves telefon, v vseh aplikacijah</string>
+    <string name="os_jezik_opis">Safeer OS v jeziku, ki ga izbereš, ne glede na nastavitev telefona</string>
+    <string name="os_moc_opis">Procesor, pomnilnik in prostor — na hostu ali na tem telefonu</string>
+    <string name="vnos_opis">Računalnik (Safeer Control) sme na tem telefonu tapniti, podrsati ter pritisniti Nazaj ali Domov, medtem ko telefon deli svoj zaslon. Safeer Vnos zaslona ne bere in ničesar ne pošilja nikamor; izvede samo, kar zahteva naprava, ki si jo seznanil v Safeer Linku.</string>
+    <string name="os_prijava_podnaslov">Tablica, računalnik in televizor se pridružijo temu telefonu.</string>
+    <string name="os_stanje_krajevni">Krajevni način · ta telefon</string>
+    <string name="os_naprave_krajevni">Krajevni način: Safeer OS uporablja samo ta telefon. Za druge naprave vklopi Safeer Link.</string>
+    <string name="os_nacin_krajevni_izbran">Krajevni način: Safeer OS uporablja samo ta telefon. Safeer Link lahko pozneje vklopiš na njegovi kartici.</string>
+</resources>

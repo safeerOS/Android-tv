@@ -1,19 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Besedila, ki imenujejo napravo (tablica). Telefon ima svoja v okusi/telefon/res. -->
 <resources>
     <string name="tablet_ime">Safeer OS Tablet</string>
-    <string name="tablet_datoteke">Files</string>
-    <string name="tablet_naprave">Devices</string>
-    <string name="tablet_programi">Programs</string>
-    <string name="tablet_programi_opis">Start programs from your computer</string>
-    <string name="tablet_zaslon">Connected screens</string>
     <string name="tablet_zaslon_opis">Choose which device to watch on the tablet</string>
-    <string name="tablet_ni_racunalnika">No computer is connected yet. Start Safeer Control on your computer and join Safeer Link; it will show up here by itself.</string>
     <string name="tablet_ni_linka">This tablet is not in Safeer Link yet. Open Devices and connect it — then your files, programs and computer screen appear here.</string>
-    <string name="tablet_vklopi">Turn on Safeer Link</string>
     <string name="tablet_vklopi_opis">The tablet joins your home network; then your computer can share files, programs and its screen</string>
     <string name="tablet_vklopljen">Safeer Link is on. On the computer, open Safeer Control and pair it with this tablet.</string>
-    <string name="tablet_znova">Connect again</string>
-    <string name="tablet_znova_opis">Safeer Link is on, but the connection is not up. Try again.</string>
     <string name="os_ime_vrste" translatable="false">Safeer OS Tablet</string>
     <string name="os_naprava_tv">this tablet</string>
     <string name="os_krajevno_koren">On this tablet</string>
@@ -21,26 +13,15 @@
     <string name="os_krajevno_ta_tv">This tablet</string>
     <string name="os_krajevno_ta_tv_opis">Videos, music and photos on the tablet and USB</string>
     <string name="os_odsek_aplikacije">Apps on this tablet</string>
-    <string name="tablet_pridruzi">Join %1$s</string>
-    <string name="tablet_povezujem">Connecting to “%1$s” …</string>
-    <string name="tablet_ni_odgovora">“%1$s” is not answering. Check that the device is on and in the same network.</string>
-    <string name="tablet_koda_naslov">Code from “%1$s”</string>
-    <string name="tablet_koda_opis">A six-digit code has appeared on the screen of “%1$s” (in Safeer OS). Type it here.</string>
-    <string name="tablet_poveziSe">Connect</string>
     <string name="tablet_povezana">The tablet is connected to “%1$s”.</string>
-    <string name="tablet_napacna_koda">The code does not match. Check it on the screen and try again.</string>
-    <string name="tablet_prevec_poskusov">Too many wrong codes. Start again from the tile.</string>
-    <string name="tablet_koda_potekla">The code has expired. Tap the tile again for a new one.</string>
     <string name="os_vir_tv">Tablet</string>
-    <string name="tablet_nova_koda">New code</string>
     <string name="tablet_stanje_ni_tv">Not connected to a TV yet</string>
-    <string name="tablet_iskanje_namig">Search apps, files or the web …</string>
-    <string name="tablet_prikazi_vse">Show all ›</string>
-    <string name="tablet_odklopi">Disconnect</string>
-    <string name="tablet_povezano_z">Connected to %1$s</string>
     <string name="os_scit_nastavitev_opis">DNS filtering for the whole tablet, in every app</string>
     <string name="os_jezik_opis">Safeer OS in the language you pick, whatever the tablet itself is set to</string>
     <string name="os_moc_opis">Processor, memory and free space — on the host or on this tablet</string>
-    <string name="vnos_ime">Safeer Input</string>
     <string name="vnos_opis">Lets your computer (Safeer Control) tap, swipe and press Back or Home on this tablet while the tablet shares its screen. Safeer Input does not read your screen and sends nothing anywhere; it only performs what a device you paired in Safeer Link asks for.</string>
+    <string name="os_prijava_podnaslov">Your phone, computer and TV join this tablet.</string>
+    <string name="os_stanje_krajevni">Local mode · this tablet</string>
+    <string name="os_naprave_krajevni">Local mode: Safeer OS uses only this tablet. Turn on Safeer Link to see your other devices.</string>
+    <string name="os_nacin_krajevni_izbran">Local mode: Safeer OS uses this tablet only. Open the Safeer Link card to turn Link on later.</string>
 </resources>

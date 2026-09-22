@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Besedila, ki imenujejo napravo (telefon). Vse drugo deli s tablico (okusi/dotik/res). -->
+<resources>
+    <string name="tablet_ime">Safeer OS Mobile</string>
+    <string name="tablet_zaslon_opis">Wähle, welches Gerät du auf dem Handy siehst</string>
+    <string name="tablet_ni_linka">Dieses Handy ist noch nicht in Safeer Link. Öffne Geräte und verbinde es – dann erscheinen hier deine Dateien, Programme und dein Computerbildschirm.</string>
+    <string name="tablet_vklopi_opis">Das Handy tritt deinem Heimnetz bei; dann kann dein Computer Dateien, Programme und seinen Bildschirm freigeben</string>
+    <string name="tablet_vklopljen">Safeer Link ist an. Öffne auf dem Computer Safeer Control und kopple ihn mit diesem Handy.</string>
+    <string name="os_naprava_tv">dieses Handy</string>
+    <string name="os_krajevno_koren">Auf diesem Handy</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS braucht die Berechtigung, die Dateien auf diesem Handy zu lesen.</string>
+    <string name="os_krajevno_ta_tv">Dieses Handy</string>
+    <string name="os_krajevno_ta_tv_opis">Videos, Musik und Fotos auf dem Handy und USB</string>
+    <string name="os_odsek_aplikacije">Apps auf diesem Handy</string>
+    <string name="tablet_povezana">Das Handy ist mit „%1$s“ verbunden.</string>
+    <string name="os_vir_tv">Handy</string>
+    <string name="tablet_stanje_ni_tv">Noch nicht mit einem Fernseher verbunden</string>
+    <string name="os_scit_nastavitev_opis">DNS-Filter für das ganze Handy, in jeder App</string>
+    <string name="os_jezik_opis">Safeer OS in der Sprache Ihrer Wahl, unabhängig von der Spracheinstellung des Handys</string>
+    <string name="os_moc_opis">Prozessor, Arbeitsspeicher und freier Platz — auf dem Host oder auf diesem Handy</string>
+    <string name="os_prijava_podnaslov">Tablet, Computer und Fernseher verbinden sich mit diesem Handy.</string>
+    <string name="os_stanje_krajevni">Lokaler Modus · dieses Handy</string>
+    <string name="os_naprave_krajevni">Lokaler Modus: Safeer OS nutzt nur dieses Handy. Schalte Safeer Link ein, um andere Geräte zu sehen.</string>
+    <string name="os_nacin_krajevni_izbran">Lokaler Modus: Safeer OS nutzt nur dieses Handy. Safeer Link kannst du später auf seiner Karte einschalten.</string>
+</resources>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Besedila, ki imenujejo napravo (telefon). Vse drugo deli s tablico (okusi/dotik/res). -->
+<resources>
+    <string name="tablet_ime">Safeer OS Mobile</string>
+    <string name="tablet_zaslon_opis">Elige qué dispositivo ver en el móvil</string>
+    <string name="tablet_ni_linka">Este móvil aún no está en Safeer Link. Abre Dispositivos y conéctalo; entonces aparecerán aquí tus archivos, programas y la pantalla del ordenador.</string>
+    <string name="tablet_vklopi_opis">El móvil se une a tu red doméstica; después tu ordenador puede compartir archivos, programas y su pantalla</string>
+    <string name="tablet_vklopljen">Safeer Link está activado. En el ordenador, abre Safeer Control y vincúlalo con este móvil.</string>
+    <string name="os_naprava_tv">este móvil</string>
+    <string name="os_krajevno_koren">En este móvil</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS necesita permiso para leer los archivos de este móvil.</string>
+    <string name="os_krajevno_ta_tv">Este móvil</string>
+    <string name="os_krajevno_ta_tv_opis">Vídeos, música y fotos del móvil y el USB</string>
+    <string name="os_odsek_aplikacije">Aplicaciones de este móvil</string>
+    <string name="tablet_povezana">El móvil está conectado a «%1$s».</string>
+    <string name="os_vir_tv">Móvil</string>
+    <string name="tablet_stanje_ni_tv">Aún no conectado a un televisor</string>
+    <string name="os_scit_nastavitev_opis">Filtrado DNS para todo el móvil, en todas las apps</string>
+    <string name="os_jezik_opis">Safeer OS en el idioma que elijas, sea cual sea el del móvil</string>
+    <string name="os_moc_opis">Procesador, memoria y espacio libre: en el host o en este móvil</string>
+    <string name="os_prijava_podnaslov">Tu tableta, ordenador y televisor se unen a este móvil.</string>
+    <string name="os_stanje_krajevni">Modo local · este móvil</string>
+    <string name="os_naprave_krajevni">Modo local: Safeer OS usa solo este móvil. Activa Safeer Link para ver tus otros dispositivos.</string>
+    <string name="os_nacin_krajevni_izbran">Modo local: Safeer OS usa solo este móvil. Puedes activar Safeer Link más tarde en su tarjeta.</string>
+</resources>

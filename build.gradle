@@ -75,14 +75,15 @@ android {
         }
         tablica {
             manifest.srcFile 'okusi/tablica/AndroidManifest.xml'
-            res.srcDirs = ['okusi/tablica/res']
+            // Lupina na dotik (postavitve, prevodi) je skupna s telefonom; tu so le besedila o tablici.
+            res.srcDirs = ['okusi/dotik/res', 'okusi/tablica/res']
             java.srcDirs = ['src/tablica/kotlin']
             kotlin.srcDirs = ['src/tablica/kotlin']
         }
         telefon {
             manifest.srcFile 'okusi/telefon/AndroidManifest.xml'
-            // Viri tablice + telefonsko ime; postavitve in prevodi se ne podvajajo.
-            res.srcDirs = ['okusi/tablica/res', 'okusi/telefon/res']
+            // Skupna lupina na dotik + besedila o telefonu (namesto tablice).
+            res.srcDirs = ['okusi/dotik/res', 'okusi/telefon/res']
             // Prvi mobile korak namenoma ponovno uporabi preverjeno tablicno lupino.
             java.srcDirs = ['src/tablica/kotlin']
             kotlin.srcDirs = ['src/tablica/kotlin']

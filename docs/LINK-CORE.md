@@ -451,9 +451,12 @@ brez spremembe protokola ni mogoč (brskalnik ne zaupa samopodpisanemu potrdilu)
 Prevzeto iz RC1 paketov (TV, tablica, telefon, Linux), pregledano in popravljeno pred vgradnjo.
 
 **Novo**
-- Okus `telefon` (`si.safeer.phone`, Safeer OS Mobile): koda tablice (`src/tablica`), viri tablice
-  (`okusi/tablica/res`) + `okusi/telefon/res` (samo ime) in svoj manifest (`CHANGE_NETWORK_STATE`).
-  Platforma v krogu `phone`, prioriteta 20. OS, tablica in telefon: 0.5.0 (25).
+- Okus `telefon` (`si.safeer.phone`, Safeer OS Mobile): koda tablice (`src/tablica`) in svoj manifest
+  (`CHANGE_NETWORK_STATE`). Viri: skupna lupina na dotik `okusi/dotik/res` (postavitve, prevodi) +
+  `okusi/<tablica|telefon>/res/values*/naprava.xml` (besedila, ki imenujejo napravo, v vseh 6 jezikih).
+  Telefon pokonci: iskanje cez vso sirino, stanje pod njim; vrstica nastavitev na ozkem zaslonu ima
+  stanje pod razlago (`res/layout`, siroki zasloni `res/layout-w600dp`). Platforma v krogu `phone`,
+  prioriteta 20. OS, tablica in telefon: 0.5.0 (25).
 - `handoff.request` (Nadaljuj na): izrecna predaja strani/predvajanja izbrani napravi. Oba huba (Kotlin in
   Python) vpiseta pravega posiljatelja; Kotlin hub tovor omeji na 8 KiB. Sprejemnik odpre URL (Android:
   `onCastUrlReceived` s polozajem; Linux: nov zavihek). Safeer OS za Linux: stran Safeer Media, gumbi

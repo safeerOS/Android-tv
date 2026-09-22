@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Besedila, ki imenujejo napravo (tablica). Telefon ima svoja v okusi/telefon/res. -->
+<resources>
+    <string name="tablet_ime">Safeer OS Tablet</string>
+    <string name="tablet_zaslon_opis">Scegli quale dispositivo guardare sul tablet</string>
+    <string name="tablet_ni_linka">Questo tablet non è ancora in Safeer Link. Apri Dispositivi e collegalo: qui compariranno i tuoi file, i programmi e lo schermo del computer.</string>
+    <string name="tablet_vklopi_opis">Il tablet entra nella tua rete domestica; poi il computer può condividere file, programmi e il suo schermo</string>
+    <string name="tablet_vklopljen">Safeer Link è attivo. Sul computer apri Safeer Control e abbinalo a questo tablet.</string>
+    <string name="os_naprava_tv">questo tablet</string>
+    <string name="os_krajevno_koren">Su questo tablet</string>
+    <string name="os_krajevno_dovoljenje">Safeer OS ha bisogno del permesso di leggere i file su questo tablet.</string>
+    <string name="os_krajevno_ta_tv">Questo tablet</string>
+    <string name="os_krajevno_ta_tv_opis">Video, musica e foto sul tablet e su USB</string>
+    <string name="os_odsek_aplikacije">App su questo tablet</string>
+    <string name="tablet_povezana">Il tablet è collegato a «%1$s».</string>
+    <string name="os_vir_tv">Tablet</string>
+    <string name="tablet_stanje_ni_tv">Non ancora collegato a un televisore</string>
+    <string name="os_scit_nastavitev_opis">Filtro DNS per tutto il tablet, in ogni app</string>
+    <string name="os_jezik_opis">Safeer OS nella lingua che scegli, qualunque sia quella del tablet</string>
+    <string name="os_moc_opis">Processore, memoria e spazio libero: sull\'host o su questo tablet</string>
+    <string name="os_prijava_podnaslov">Telefono, computer e televisore si uniscono a questo tablet.</string>
+    <string name="os_stanje_krajevni">Modalità locale · questo tablet</string>
+    <string name="os_naprave_krajevni">Modalità locale: Safeer OS usa solo questo tablet. Attiva Safeer Link per vedere gli altri dispositivi.</string>
+    <string name="os_nacin_krajevni_izbran">Modalità locale: Safeer OS usa solo questo tablet. Puoi attivare Safeer Link più tardi dalla sua scheda.</string>
+</resources>

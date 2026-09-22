@@ -474,7 +474,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.findViewById<ImageView>(R.id.ikona).setImageResource(vr.ikona)
             v.findViewById<TextView>(R.id.ime).text = vr.ime
             v.findViewById<TextView>(R.id.opis).text = vr.opis
-            v.findViewById<TextView>(R.id.stanje).text = vr.stanje
+            v.findViewById<TextView>(R.id.stanje).apply {
+                text = vr.stanje; visibility = if (vr.stanje.isBlank()) View.GONE else View.VISIBLE
+            }
             v.setBackgroundResource(R.drawable.os_izbor_vrstice)
             return v
         }

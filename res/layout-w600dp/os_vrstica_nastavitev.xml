@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Vrstica nastavitve na ozkem zaslonu (telefon): stanje je pod razlago, da naslov ostane cel.
-     Siroki zasloni (TV, tablica) uporabijo layout-w600dp: stanje na desni. -->
+<!-- Vrstica nastavitve: naslov, kratka razlaga in trenutno stanje na desni. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -33,17 +32,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:maxLines="3"
+            android:maxLines="2"
             android:ellipsize="end"
             android:textSize="13sp"/>
-        <TextView
-            android:id="@+id/stanje"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:textColor="@color/os_mint"
-            android:textSize="14sp"/>
     </LinearLayout>
+    <TextView
+        android:id="@+id/stanje"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="18dp"
+        android:maxLines="1"
+        android:textColor="@color/os_mint"
+        android:textSize="14sp"/>
 </LinearLayout>

@@ -126,6 +126,25 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         nastaviPostavitev()
     }
 
+    /**
+     * Telefon pokonci (ozek zaslon): iskanje dobi vso sirino, kapsula stanja gre pod njo.
+     * Sicer bi kapsula iskalno polje stisnila na nekaj crk.
+     */
+    private fun glavaZaOzekZaslon() {
+        if (resources.configuration.screenWidthDp >= 600) return
+        val iskanje = findViewById<View>(R.id.iskalnaVrsticaOkvir) ?: return
+        val stanje = stanjeOkvir ?: return
+        val glava = iskanje.parent as? android.widget.LinearLayout ?: return
+        glava.orientation = android.widget.LinearLayout.VERTICAL
+        glava.gravity = android.view.Gravity.START
+        iskanje.layoutParams = (iskanje.layoutParams as android.widget.LinearLayout.LayoutParams).apply {
+            width = android.widget.LinearLayout.LayoutParams.MATCH_PARENT; weight = 0f; marginEnd = 0
+        }
+        stanje.layoutParams = (stanje.layoutParams as android.widget.LinearLayout.LayoutParams).apply {
+            topMargin = (10 * resources.displayMetrics.density).toInt()
+        }
+    }
+
     private fun nastaviPostavitev() {
         setContentView(R.layout.tablet_activity_domov)
         Robovi.uporabi(this)
@@ -136,6 +155,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         drsnik = findViewById(R.id.drsnik)
         vnosIskanje = findViewById(R.id.vnosIskanje)
         stanjeOkvir = findViewById(R.id.stanjeOkvir)
+        glavaZaOzekZaslon()
         stanjePika = findViewById(R.id.stanjePika)
         stanjeBesedilo = findViewById(R.id.stanjeBesedilo)
         naslovPozdrav = findViewById(R.id.naslovPozdrav)

@@ -1,43 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="tablet_ime">Safeer OS Tablet</string>
     <string name="tablet_datoteke">Dateien</string>
     <string name="tablet_naprave">Geräte</string>
     <string name="tablet_programi">Programme</string>
     <string name="tablet_programi_opis">Programme deines Computers starten</string>
     <string name="tablet_zaslon">Verbundene Bildschirme</string>
-    <string name="tablet_zaslon_opis">Wähle, welches Gerät du auf dem Tablet siehst</string>
     <string name="tablet_ni_racunalnika">Noch kein Computer verbunden. Starte Safeer Control auf deinem Computer und verbinde ihn mit Safeer Link; er erscheint dann von selbst hier.</string>
-    <string name="tablet_ni_linka">Dieses Tablet ist noch nicht in Safeer Link. Öffne Geräte und verbinde es – dann erscheinen hier deine Dateien, Programme und dein Computerbildschirm.</string>
     <string name="tablet_vklopi">Safeer Link einschalten</string>
-    <string name="tablet_vklopi_opis">Das Tablet tritt deinem Heimnetz bei; dann kann dein Computer Dateien, Programme und seinen Bildschirm freigeben</string>
-    <string name="tablet_vklopljen">Safeer Link ist an. Öffne auf dem Computer Safeer Control und kopple ihn mit diesem Tablet.</string>
     <string name="tablet_znova">Erneut verbinden</string>
     <string name="tablet_znova_opis">Safeer Link ist an, aber die Verbindung steht nicht. Versuche es erneut.</string>
-    <string name="os_naprava_tv">dieses Tablet</string>
-    <string name="os_krajevno_koren">Auf diesem Tablet</string>
-    <string name="os_krajevno_dovoljenje">Safeer OS braucht die Berechtigung, die Dateien auf diesem Tablet zu lesen.</string>
-    <string name="os_krajevno_ta_tv">Dieses Tablet</string>
-    <string name="os_krajevno_ta_tv_opis">Videos, Musik und Fotos auf dem Tablet und USB</string>
-    <string name="os_odsek_aplikacije">Apps auf diesem Tablet</string>
     <string name="tablet_pridruzi">%1$s beitreten</string>
     <string name="tablet_povezujem">Verbinde mit „%1$s“ …</string>
     <string name="tablet_ni_odgovora">„%1$s“ antwortet nicht. Prüfe, ob das Gerät eingeschaltet und im selben Netz ist.</string>
     <string name="tablet_koda_naslov">Code von „%1$s“</string>
     <string name="tablet_koda_opis">Auf dem Bildschirm von „%1$s“ (in Safeer OS) ist ein sechsstelliger Code erschienen. Gib ihn hier ein.</string>
     <string name="tablet_poveziSe">Verbinden</string>
-    <string name="tablet_povezana">Das Tablet ist mit „%1$s“ verbunden.</string>
     <string name="tablet_napacna_koda">Der Code stimmt nicht. Prüfe ihn auf dem Bildschirm und versuche es erneut.</string>
     <string name="tablet_prevec_poskusov">Zu viele falsche Codes. Beginne erneut über die Kachel.</string>
     <string name="tablet_koda_potekla">Der Code ist abgelaufen. Tippe erneut auf die Kachel für einen neuen.</string>
-    <string name="os_vir_tv">Tablet</string>
     <string name="tablet_nova_koda">Neuer Code</string>
-    <string name="tablet_stanje_ni_tv">Noch nicht mit einem Fernseher verbunden</string>
     <string name="tablet_iskanje_namig">Apps, Dateien oder im Web suchen …</string>
     <string name="tablet_prikazi_vse">Alle anzeigen ›</string>
     <string name="tablet_odklopi">Trennen</string>
     <string name="tablet_povezano_z">Verbunden mit %1$s</string>
-    <string name="os_scit_nastavitev_opis">DNS-Filter für das ganze Tablet, in jeder App</string>
-    <string name="os_jezik_opis">Safeer OS in der Sprache Ihrer Wahl, unabhängig von der Spracheinstellung des Tablets</string>
-    <string name="os_moc_opis">Prozessor, Arbeitsspeicher und freier Platz — auf dem Host oder auf diesem Tablet</string>
 </resources>
