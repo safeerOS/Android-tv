@@ -38,7 +38,8 @@ import java.util.concurrent.atomic.AtomicReference
  *  - zadetke preberemo z izrisane strani (povezave s sliko in naslovom);
  *  - tok ujamemo, ko ga stran sama zahteva (HLS, DASH ali datoteka) - v nevidnem WebViewu, z
  *    uporabnikovo ze odobreno storitvijo (njegovi piskotki, njegova prijava).
- * Zaklenjene vsebine (DRM) ne odklepamo: kar se ne da ujeti, predvaja aplikacija sama, zvok v ozadju.
+ * Zascitene vsebine ne odklepamo: kar se ne da ujeti, predvaja stran sama v skritem pogledu, upravlja
+ * pa jo nas predvajalnik ([SpletniIgralec]).
  */
 object SpletniVir {
     private const val PREDPONA = "splet:"
@@ -61,7 +62,39 @@ object SpletniVir {
 
     private fun isci(a: Activity, vir: MedijskiViri.Vir, beseda: String, rok: Long): List<Jamendo.Skladba> {
         val predloga = predloga(a, vir.naslov) ?: return emptyList()
-        val url = predloga.replace("{searchTerms}", URLEncoder.encode(beseda, "UTF-8"))
+        return beriStran(a, vir, predloga.replace("{searchTerms}", URLEncoder.encode(beseda, "UTF-8")), rok)
+    }
+
+    /**
+     * Priljubljeno v uporabnikovih virih (gumb Video/Glasba brez iskanja): zacetna stran vsake spletne
+     * aplikacije pokaze, kar je pri njej priljubljeno. Zdruzimo izmenicno, brez dvojnikov po naslovu;
+     * vsaka enota ohrani oznako vira. Klice se z delovne niti.
+     */
+    fun priljubljeno(a: Activity, viri: List<MedijskiViri.Vir>, rok: Long = 8_000): List<Jamendo.Skladba> {
+        val po = java.util.concurrent.ConcurrentHashMap<String, List<Jamendo.Skladba>>()
+        val niti = viri.filter { it.jeSplet }.take(6).map { v -> Thread {
+            try { po[v.naslov] = beriStran(a, v, v.naslov, rok).map { it.copy(izvajalec = v.ime) } } catch (_: Exception) { }
+        }.apply { start() } }
+        try { niti.forEach { it.join(rok + 500) } } catch (_: InterruptedException) { }
+        val seznami = viri.mapNotNull { po[it.naslov] }
+        val videni = HashSet<String>()
+        return (0 until (seznami.maxOfOrNull { it.size } ?: 0)).flatMap { i -> seznami.mapNotNull { it.getOrNull(i) } }
+            .filter { videni.add(it.naslov.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "")) }
+    }
+
+    /** Film ali serija po splosnih oznakah v naslovu enote (brez receptov za strani); null = ne vemo. */
+    fun vrstaVsebine(s: Jamendo.Skladba): String? {
+        val u = s.povezava.lowercase()
+        return when {
+            Regex("[/_-](series|serie|serija|serije|shows?|tv-?shows?|episodes?|epizod[ae]|seasons?|sezon[ae])([/_?-]|$)|s\\d{1,2}e\\d{1,3}").containsMatchIn(u) -> SERIJA
+            Regex("[/_-](movies?|films?|filmi)([/_?-]|$)").containsMatchIn(u) -> FILM
+            else -> null
+        }
+    }
+    const val FILM = "film"
+    const val SERIJA = "serija"
+
+    private fun beriStran(a: Activity, vir: MedijskiViri.Vir, url: String, rok: Long): List<Jamendo.Skladba> {
         val izid = AtomicReference("[]")
         val gotovo = CountDownLatch(1)
         val wv = AtomicReference<WebView?>()
@@ -69,6 +102,7 @@ object SpletniVir {
         glavna.post {
             if (a.isFinishing) { gotovo.countDown(); return@post }
             val w = nevidni(a); wv.set(w); w.loadUrl(url)
+            glavna.postDelayed({ wv.get()?.evaluateJavascript(SOGLASJE_JS, null) }, 1_200)
             var prej = -1
             fun poglej() {
                 val ziv = wv.get() ?: return
@@ -76,7 +110,9 @@ object SpletniVir {
                     val n = try { JSONArray(r ?: "[]").length() } catch (_: Exception) { 0 }
                     if (n > 0) izid.set(r)
                     // Stran je izrisana, ko se stevilo zadetkov ustali (dinamicne strani rastejo).
-                    if ((n >= 4 && n == prej) || System.currentTimeMillis() - zacetek > rok - 700) gotovo.countDown()
+                    if ((n >= 4 && n == prej) || System.currentTimeMillis() - zacetek > rok - 700) {
+                        gotovo.countDown()
+                    }
                     else { prej = n; glavna.postDelayed({ poglej() }, 700) }
                 }
             }
@@ -85,6 +121,7 @@ object SpletniVir {
         try { gotovo.await(rok, TimeUnit.MILLISECONDS) } catch (_: InterruptedException) { }
         glavna.post { wv.getAndSet(null)?.let { odstrani(it) } }
         val d = try { JSONArray(izid.get()) } catch (_: Exception) { return emptyList() }
+        android.util.Log.i("SafeerSplet", "${java.net.URL(url).host}: ${d.length()} zadetkov v ${System.currentTimeMillis() - zacetek} ms")
         return (0 until d.length()).mapNotNull { d.optJSONObject(it) }.map { o ->
             val (naslov, izvajalec) = Relevantnost.razdeli(o.optString("t"), "")
             Jamendo.Skladba(PREDPONA + o.optString("h"), naslov, izvajalec.ifBlank { vir.ime }, o.optString("i"), "",
@@ -213,7 +250,7 @@ object SpletniVir {
                 if (req.method == "GET") vrstaToka(u)?.let { m -> glavna.post { zakljuci(u, m) } }
                 return null
             }
-            override fun onPageFinished(view: WebView?, url: String?) { view?.evaluateJavascript(ZACNI_JS, null) }
+            override fun onPageFinished(view: WebView?, url: String?) { view?.evaluateJavascript(SOGLASJE_JS, null); view?.evaluateJavascript(ZACNI_JS, null) }
         }
         var krog = 0
         fun poglej() {
@@ -221,7 +258,11 @@ object SpletniVir {
             if (++krog > 20) { zakljuci(null, ""); return }
             w.evaluateJavascript(MEDIJ_JS) { r ->
                 val src = r?.trim('"').orEmpty()
-                if (src.startsWith("http")) zakljuci(src, vrstaToka(src) ?: "") else glavna.postDelayed({ poglej() }, 750)
+                when {
+                    src.startsWith("http") -> zakljuci(src, vrstaToka(src) ?: "")
+                    src == "blob" -> zakljuci(null, "")
+                    else -> glavna.postDelayed({ poglej() }, 750)
+                }
             }
         }
         w.loadUrl(sk.povezava)
@@ -275,6 +316,9 @@ object SpletniVir {
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         ua = settings.userAgentString
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+        // Brskalnik ob odhodu v ozadje ustavi casovnike JS za VSE poglede procesa (pauseTimers);
+        // brez njih se strani ne izrisejo. Ko delamo, jih zazenemo.
+        resumeTimers()
         (a.window.decorView as ViewGroup).addView(this, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     }
 
@@ -312,13 +356,24 @@ object SpletniVir {
         var uh='';try{uh=new URL(u).hostname.replace(/^www\./,'');}catch(e){continue;}
         if(uh.indexOf(h)<0&&h.indexOf(uh)<0)continue;
         if(/[?&](q|query|search|search_query)=|\/(search|login|signin|signup|register|account|settings|help|about|privacy|terms|cookies?|download|premium)(\/|\?|$)/i.test(u))continue;
-        var z=po[u];if(!z){z=po[u]={h:u,t:'',i:'',v:false};red.push(z);}
+        var z=po[u];if(!z){z=po[u]={h:u,t:'',n:'',i:'',v:false};red.push(z);}
+        var ti=a.querySelector('h1,h2,h3,h4,[class*=title],[id*=title]')||(a.matches('[class*=title],[id*=title]')?a:null);
+        var tn=ti?(ti.innerText||ti.getAttribute('title')||'').replace(/\s+/g,' ').trim():'';if(!z.n&&smiselno(tn))z.n=tn.slice(0,140);
         var t=besedilo(a);if(smiselno(t)&&t.length>z.t.length)z.t=t.slice(0,140);
         if(!z.i){var k=a,img=null;for(var j=0;j<3&&k&&!img;j++){img=k.querySelector('img');k=k.parentElement;}
           if(img){var r=img.getBoundingClientRect(),s=img.currentSrc||img.src||'';
             if(r.width>=48&&r.height>=32&&/^https?:/.test(s)){z.i=s;z.v=r.width/r.height>1.3;if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
       }
-      return red.filter(function(z){return z.i&&z.t;}).slice(0,24);}catch(e){return [];}})()"""
+      return red.filter(function(z){return z.i&&(z.n||z.t);}).map(function(z){if(z.n)z.t=z.n;return z;}).slice(0,24);}catch(e){return [];}})()"""
+
+    /**
+     * Okno za piskotke/soglasje zapre predvajanje: izberemo najbolj zasebno moznost (zavrni, nadaljuj
+     * brez sprejemanja) - po besedilu gumba, za vsako stran enako. Tudi v okvirjih istega izvora.
+     */
+    internal const val SOGLASJE_JS = """(function(){try{var vz=/continue without accepting|reject all|reject|decline|refuse|only necessary|necessary only|use necessary|zavrni|nadaljuj brez|samo nujn|ablehnen|refuser|rifiuta|rechazar/i;
+      function isci(d){var b=[].slice.call(d.querySelectorAll('button,[role=button],a'));for(var i=0;i<b.length;i++){var t=(b[i].innerText||b[i].getAttribute('aria-label')||'').trim();
+        if(t.length<40&&vz.test(t)){b[i].click();return true;}}var f=d.querySelectorAll('iframe');for(var j=0;j<f.length;j++){try{if(isci(f[j].contentDocument))return true;}catch(e){}}return false;}
+      var n=0;(function k(){if(!isci(document)&&++n<8)setTimeout(k,1000);})();}catch(e){}})()"""
 
     /** Utisaj stran in jo prosi za predvajanje: najprej medij sam, sicer najvecji gumb »play«. */
     private const val ZACNI_JS = """(function(){try{
@@ -334,7 +389,8 @@ object SpletniVir {
 
     /** Neposreden naslov medija, ce ga stran ima (blob: ni naslov - tega ujamemo med zahtevami). */
     private const val MEDIJ_JS = """(function(){var m=document.querySelectorAll('video,audio');
-      for(var i=0;i<m.length;i++){var s=m[i].currentSrc||m[i].src||'';if(/^https?:/.test(s))return s;}return '';})()"""
+      for(var i=0;i<m.length;i++){var s=m[i].currentSrc||m[i].src||'';if(/^https?:/.test(s))return s;
+        if(/^blob:/.test(s)&&m[i].readyState>=2)return 'blob';}return '';})()"""
 
     /** Kaj igra: MediaSession strani, sicer Open Graph in naslov strani; video ali samo zvok. */
     private const val OPIS_JS = """(function(){try{

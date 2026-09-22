@@ -134,4 +134,7 @@
     <string name="os_media_zadetki_izvori">%1$d risultati · %2$s</string>
     <string name="os_media_ni_zadetkov_vir">Niente nelle tue fonti</string>
     <string name="os_mediji_vpisi_naslov">Inserisci un indirizzo…</string>
+    <string name="os_media_prilj_v_virih">Popolari nelle tue fonti</string>
+    <string name="os_media_filmi">Film</string>
+    <string name="os_media_serije">Serie</string>
 </resources>

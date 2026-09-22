@@ -134,4 +134,7 @@
     <string name="os_media_zadetki_izvori">Zadetkov: %1$d · %2$s</string>
     <string name="os_media_ni_zadetkov_vir">Tvoji viri tega nimajo</string>
     <string name="os_mediji_vpisi_naslov">Vpiši naslov …</string>
+    <string name="os_media_prilj_v_virih">Priljubljeno v tvojih virih</string>
+    <string name="os_media_filmi">Filmi</string>
+    <string name="os_media_serije">Serije</string>
 </resources>

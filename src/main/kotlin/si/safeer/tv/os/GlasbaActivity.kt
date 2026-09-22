@@ -545,6 +545,9 @@ class GlasbaActivity : OsActivity() {
             val uporabljeni = mutableSetOf<String>()
             fun unikatne(s: List<Jamendo.Skladba>, meja: Int = 18) = s.filter { uporabljeni.add(it.id) }.take(meja)
             val vrste = mutableListOf<Podatki>()
+            SpletniVir.priljubljeno(this, MedijskiViri.vsi(this)).filterNot { it.video }.takeIf { it.isNotEmpty() }?.let {
+                vrste += Podatki(getString(R.string.os_media_prilj_v_virih), it)
+            }
             unikatne(Jamendo.priljubljene(24), 18).takeIf { it.isNotEmpty() }?.let {
                 vrste += Podatki(getString(R.string.os_media_popularno), it)
             }
@@ -562,8 +565,15 @@ class GlasbaActivity : OsActivity() {
         }
         RADIO -> Radio.postajeLocene().let { (domace, svet) ->
             listOf(Podatki(getString(R.string.os_mediji_domace), domace), Podatki(getString(R.string.os_mediji_svet), svet)) }
-        VIDEO -> MedijskiViri.streznikiPeerTube(this).map { s ->
-            Podatki(s, try { PeerTube.najboljGledani(s, 24) } catch (_: Exception) { emptyList() }, video = true) }
+        VIDEO -> {
+            val izVirov = SpletniVir.priljubljeno(this, MedijskiViri.vsi(this)).filter { it.video }
+            listOf(
+                Podatki(getString(R.string.os_media_prilj_v_virih), izVirov, video = true),
+                Podatki(getString(R.string.os_media_filmi), izVirov.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.FILM }, video = true),
+                Podatki(getString(R.string.os_media_serije), izVirov.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.SERIJA }, video = true),
+            ).filter { it.skladbe.isNotEmpty() } + MedijskiViri.streznikiPeerTube(this).map { s ->
+                Podatki(s, try { PeerTube.najboljGledani(s, 24) } catch (_: Exception) { emptyList() }, video = true) }
+        }
         else -> emptyList()
     }
 
@@ -1448,15 +1458,20 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
-     * Zadetek iz uporabnikove spletne aplikacije: tok ujamemo in ga predvaja nas predvajalnik. Ce ga ni
-     * (zaklenjena vsebina), zadetek odpre aplikacija sama - zvok ob tipki Domov igra naprej.
+     * Zadetek iz uporabnikove spletne aplikacije: tok ujamemo in ga predvaja nas predvajalnik. Zascitenega
+     * toka ne ujamemo - takrat igra stran v skritem pogledu, upravlja pa jo nas predvajalnik ([SpletniIgralec]).
      */
     private fun razresiSplet(sk: Jamendo.Skladba) {
         stanje.text = getString(R.string.os_glasba_nalagam)
         SpletniVir.razresi(this, sk) { r ->
             if (isFinishing) return@razresi
             stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
-            if (r == null) { odpriStran(sk.povezava, sk.naslov); return@razresi }
+            if (r == null) {
+                SpletniIgralec.zadnja = java.lang.ref.WeakReference(this)
+                GlasbaStoritev.predvajajSplet(this, sk)
+                if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
+                return@razresi
+            }
             GlasbaStoritev.predvajaj(this, listOf(r), 0)
             if (r.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
         }

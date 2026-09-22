@@ -155,6 +155,7 @@ class PredvajanjeActivity : OsActivity() {
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
         // Sliko odpnemo, zvok igra naprej (predvajanje v ozadju).
         pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost) }
+        (pripet as? SpletniIgralec)?.skrij()
         pripet = null
         super.onStop()
     }
@@ -170,6 +171,7 @@ class PredvajanjeActivity : OsActivity() {
             p.setVideoSurfaceView(povrsina); p.addListener(velikost); pripet = p
         }
         povrsina.visibility = if (sk.video) View.VISIBLE else View.INVISIBLE
+        (p as? SpletniIgralec)?.let { if (sk.video) it.pokazi(povrsina) else it.skrij() }
         naslovnica.visibility = if (sk.video || predlogiOdprti()) View.GONE else View.VISIBLE
         if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
         naslov.text = sk.naslov
