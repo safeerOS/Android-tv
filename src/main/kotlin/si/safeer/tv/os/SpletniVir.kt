@@ -50,11 +50,23 @@ object SpletniVir {
 
     // ------------------------------------------------------------------ iskanje
 
-    /** Vsi spletni viri hkrati; klice se z delovne niti, najdlje [rok] ms. */
-    fun isciVse(a: Activity, viri: List<MedijskiViri.Vir>, beseda: String, rok: Long = 7_500): List<Pair<MedijskiViri.Vir, Jamendo.Skladba>> {
+    /**
+     * Vsi uporabnikovi viri; klice se z delovne niti, najdlje [rok] ms. API-ji (brez WebViewa) tecejo
+     * hkrati, spletne aplikacije pa najvec dve naenkrat (televizor z 2 GB ne zmore sestih skritih
+     * Chromiumov hkrati - 22. 9. 2026 so vsi potekli). Naslednji vir dobi le preostanek roka.
+     */
+    fun isciVse(a: Activity, viri: List<MedijskiViri.Vir>, beseda: String, rok: Long = 11_000): List<Pair<MedijskiViri.Vir, Jamendo.Skladba>> {
         val izid = java.util.Collections.synchronizedList(ArrayList<Pair<MedijskiViri.Vir, Jamendo.Skladba>>())
+        val konec = System.currentTimeMillis() + rok
+        val mesta = java.util.concurrent.Semaphore(2)
         val niti = viri.take(6).map { v -> Thread { try {
-            (if (v.tip == MedijskiViri.API) isciApi(a, v, beseda) else isci(a, v, beseda, rok)).forEach { izid.add(v to it) }
+            if (v.tip == MedijskiViri.API) isciApi(a, v, beseda).forEach { izid.add(v to it) }
+            else if (mesta.tryAcquire(konec - System.currentTimeMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                try {
+                    val ostane = konec - System.currentTimeMillis()
+                    if (ostane > 2_500) isci(a, v, beseda, ostane).forEach { izid.add(v to it) }
+                } finally { mesta.release() }
+            }
         } catch (_: Exception) { } }.apply { start() } }
         try { niti.forEach { it.join(rok + 500) } } catch (_: InterruptedException) { }
         return ArrayList(izid)
@@ -153,6 +165,9 @@ object SpletniVir {
                     if (n > 0) izid.set(r)
                     // Stran je izrisana, ko se stevilo zadetkov ustali (dinamicne strani rastejo).
                     if ((n >= 4 && n == prej) || System.currentTimeMillis() - zacetek > rok - 700) {
+                        // Prazen vir: ena vrstica v dnevnik, kje je stran obstala (soglasje, prijava, drugacna stran).
+                        if (n == 0) ziv.evaluateJavascript("(function(){return location.href+' | '+document.readyState+' | a='+document.querySelectorAll('a[href]').length+' img='+document.images.length;})()") {
+                            android.util.Log.i("SafeerSplet", "prazno: $it") }
                         gotovo.countDown()
                     }
                     else { prej = n; glavna.postDelayed({ poglej() }, 700) }
@@ -175,21 +190,34 @@ object SpletniVir {
     }
 
     /**
-     * Naslov iskanja v viru (predloga s {searchTerms}), enkrat poiskan in zapomnjen: OpenSearch,
-     * nato obrazec GET z iskalnim poljem, nato obicajna pot /search?q=.
+     * Naslov iskanja v viru (predloga s {searchTerms}): OpenSearch, nato obrazec GET z iskalnim poljem;
+     * mobilna poddomena (m.) ju pogosto nima, zato poskusimo se glavno domeno. Najdeno si zapomnimo.
+     * Ce ni nicesar, ugibamo /search?q= - a tega si ne zapomnimo (22. 9. 2026: m.youtube.com je tako
+     * obvisel na prazni strani).
      */
     private fun predloga(c: Context, naslov: String): String? {
-        val kljuc = "iskanje:$naslov"
+        val kljuc = "iskanje2:$naslov"
         val nast = c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
         nast.getString(kljuc, null)?.let { return it }
         val osnova = try { URL(naslov) } catch (_: Exception) { return null }
-        val html = beri(c, naslov) ?: ""
+        val najdena = najdiPredlogo(c, naslov)
+            ?: osnova.host.takeIf { it.startsWith("m.") }?.let { najdiPredlogo(c, "${osnova.protocol}://www.${it.removePrefix("m.")}/") }
+        if (najdena != null) { nast.edit().putString(kljuc, najdena).apply(); return najdena }
+        return "${osnova.protocol}://${osnova.host}/search?q={searchTerms}"
+    }
+
+    /** OpenSearch ali iskalni obrazec GET na naslovu; null, ce ju stran nima. */
+    private fun najdiPredlogo(c: Context, naslov: String): String? {
+        val osnova = try { URL(naslov) } catch (_: Exception) { return null }
+        // Namizni UA: mobilne razlicice strani (m.) opisa OpenSearch v glavi pogosto nimajo.
+        val namizni = si.safeer.tv.ChromiumEngineView.DESKTOP_USER_AGENT
+        val html = beri(c, naslov, null, namizni) ?: ""
         fun atr(oznaka: String, ime: String) =
             Regex("""(?i)\b$ime\s*=\s*["']([^"']*)["']""").find(oznaka)?.groupValues?.get(1)?.replace("&amp;", "&")
         fun polni(n: String) = try { URL(osnova, n).toString() } catch (_: Exception) { null }
         val openSearch = Regex("""(?i)<link[^>]+>""").findAll(html).map { it.value }
             .firstOrNull { atr(it, "rel")?.lowercase() == "search" }?.let { atr(it, "href") }?.let { polni(it) }
-            ?.let { beri(c, it) }?.let { xml ->
+            ?.let { beri(c, it, null, namizni) }?.let { xml ->
                 Regex("""(?i)<Url[^>]+>""").findAll(xml).map { it.value }
                     .firstOrNull { atr(it, "type")?.lowercase() == "text/html" }?.let { atr(it, "template") }
             }?.replace(Regex("""\{[^}]*\?\}"""), "")
@@ -203,9 +231,7 @@ object SpletniVir {
             val cilj = polni(atr(glava, "action").orEmpty().ifBlank { osnova.path }) ?: return@firstNotNullOfOrNull null
             cilj.substringBefore('#') + (if (cilj.contains('?')) "&" else "?") + ime + "={searchTerms}"
         }
-        val izid = (obrazec ?: "${osnova.protocol}://${osnova.host}/search?q={searchTerms}").takeIf { it.contains("{searchTerms}") } ?: return null
-        nast.edit().putString(kljuc, izid).apply()
-        return izid
+        return obrazec?.takeIf { it.contains("{searchTerms}") }
     }
 
     // ------------------------------------------------------------------ uporabnikov API
@@ -355,6 +381,8 @@ object SpletniVir {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.mediaPlaybackRequiresUserGesture = false
+        // Enaka stran na TV in tablici: telefonski Chrome (televizijski UA dobi drugacne, TV strani).
+        settings.userAgentString = si.safeer.tv.ChromiumEngineView.MOBILE_USER_AGENT
         isFocusable = false
         webViewClient = Zaprt()
         alpha = 0f
@@ -377,11 +405,11 @@ object SpletniVir {
         try { w.stopLoading(); w.loadUrl("about:blank"); (w.parent as? ViewGroup)?.removeView(w); w.destroy() } catch (_: Exception) { }
     }
 
-    private fun beri(c: Context, naslov: String, glava: Pair<String, String>? = null): String? {
+    private fun beri(c: Context, naslov: String, glava: Pair<String, String>? = null, agent: String? = null): String? {
         val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return null }
         p.connectTimeout = 5_000; p.readTimeout = 6_000
         if (ua.isBlank()) ua = try { WebSettings.getDefaultUserAgent(c) } catch (_: Exception) { "" }
-        p.setRequestProperty("User-Agent", ua)
+        p.setRequestProperty("User-Agent", agent ?: ua)
         glava?.let { p.setRequestProperty(it.first, it.second) }
         return try { if (p.responseCode in 200..299) p.inputStream.bufferedReader().use { it.readText().take(1_000_000) } else null }
         catch (_: Exception) { null } finally { p.disconnect() }

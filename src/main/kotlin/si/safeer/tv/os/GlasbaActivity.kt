@@ -1370,13 +1370,13 @@ class GlasbaActivity : OsActivity() {
         }
         Thread {
             // Prikaz po delih: kar prispe v 2,5 s, se takoj pokaze; pocasnejsi viri dopolnijo isti zaslon
-            // (narisi obdrzi fokus na isti kartici). Po 8 s ne cakamo vec.
+            // (narisi obdrzi fokus na isti kartici). Po 12 s ne cakamo vec (spletni viri na TV potrebujejo cas).
             val zacetek = System.currentTimeMillis()
             var narisanih = -1
             while (moje == nalaganje && !isFinishing) {
                 val gotovih = futures.count { it.isDone }
                 val cas = System.currentTimeMillis() - zacetek
-                val konec = gotovih == futures.size || cas >= 8_000
+                val konec = gotovih == futures.size || cas >= 12_000
                 if ((konec || (gotovih != narisanih && cas >= 2_500)) && prikazi(konec, narisanih < 0)) narisanih = gotovih
                 if (konec) break
                 try { Thread.sleep(100) } catch (_: InterruptedException) { break }
