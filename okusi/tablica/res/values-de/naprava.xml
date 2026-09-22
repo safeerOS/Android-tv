@@ -22,4 +22,6 @@
     <string name="os_stanje_krajevni">Lokaler Modus · dieses Tablet</string>
     <string name="os_naprave_krajevni">Lokaler Modus: Safeer OS nutzt nur dieses Tablet. Schalte Safeer Link ein, um andere Geräte zu sehen.</string>
     <string name="os_nacin_krajevni_izbran">Lokaler Modus: Safeer OS nutzt nur dieses Tablet. Safeer Link kannst du später auf seiner Karte einschalten.</string>
+    <string name="scit_obvestilo_besedilo">Schützt das ganze Tablet · heute blockiert: %1$d</string>
+    <string name="hub_obvestilo_besedilo">Deine Geräte können Seiten, Videos und Musik an dieses Tablet senden.</string>
 </resources>

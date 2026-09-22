@@ -23,4 +23,6 @@
     <string name="os_stanje_krajevni">Krajevni način · ta tablica</string>
     <string name="os_naprave_krajevni">Krajevni način: Safeer OS uporablja samo to tablico. Za druge naprave vklopi Safeer Link.</string>
     <string name="os_nacin_krajevni_izbran">Krajevni način: Safeer OS uporablja samo to tablico. Safeer Link lahko pozneje vklopiš na njegovi kartici.</string>
+    <string name="scit_obvestilo_besedilo">Ščiti vso tablico · danes blokiranih: %1$d</string>
+    <string name="hub_obvestilo_besedilo">Naprave v tvojem omrežju lahko pošljejo strani, videe in glasbo na to tablico.</string>
 </resources>

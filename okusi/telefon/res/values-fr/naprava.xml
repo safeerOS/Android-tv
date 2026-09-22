@@ -22,4 +22,6 @@
     <string name="os_stanje_krajevni">Mode local · ce téléphone</string>
     <string name="os_naprave_krajevni">Mode local : Safeer OS n\'utilise que ce téléphone. Activez Safeer Link pour voir vos autres appareils.</string>
     <string name="os_nacin_krajevni_izbran">Mode local : Safeer OS n\'utilise que ce téléphone. Vous pourrez activer Safeer Link plus tard sur sa carte.</string>
+    <string name="scit_obvestilo_besedilo">Protège tout le téléphone · bloqués aujourd\'hui : %1$d</string>
+    <string name="hub_obvestilo_besedilo">Vos appareils peuvent envoyer des pages, des vidéos et de la musique vers ce téléphone.</string>
 </resources>

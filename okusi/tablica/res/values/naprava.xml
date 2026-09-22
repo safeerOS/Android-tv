@@ -24,4 +24,6 @@
     <string name="os_stanje_krajevni">Local mode · this tablet</string>
     <string name="os_naprave_krajevni">Local mode: Safeer OS uses only this tablet. Turn on Safeer Link to see your other devices.</string>
     <string name="os_nacin_krajevni_izbran">Local mode: Safeer OS uses this tablet only. Open the Safeer Link card to turn Link on later.</string>
+    <string name="scit_obvestilo_besedilo">Protecting the whole tablet · blocked today: %1$d</string>
+    <string name="hub_obvestilo_besedilo">Your devices can send pages, videos and music to this tablet.</string>
 </resources>

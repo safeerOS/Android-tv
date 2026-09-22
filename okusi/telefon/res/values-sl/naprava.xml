@@ -23,4 +23,6 @@
     <string name="os_stanje_krajevni">Krajevni način · ta telefon</string>
     <string name="os_naprave_krajevni">Krajevni način: Safeer OS uporablja samo ta telefon. Za druge naprave vklopi Safeer Link.</string>
     <string name="os_nacin_krajevni_izbran">Krajevni način: Safeer OS uporablja samo ta telefon. Safeer Link lahko pozneje vklopiš na njegovi kartici.</string>
+    <string name="scit_obvestilo_besedilo">Ščiti ves telefon · danes blokiranih: %1$d</string>
+    <string name="hub_obvestilo_besedilo">Naprave v tvojem omrežju lahko pošljejo strani, videe in glasbo na ta telefon.</string>
 </resources>
