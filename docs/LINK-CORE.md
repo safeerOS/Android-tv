@@ -538,5 +538,11 @@ in se vrne domov.
   racunalnik pride do nje samo prek link.safeer.si v ~20 s (odgovor huba cez TLS od konca do konca).
 - Hub, ki ga rele ne pozna (404, npr. ugasnjen): naprava ga minuto ne klice vec in ostane na LAN, kjer
   volitve najdejo novega (varuje dnevno kvoto Workerja); ob uspehu prek LAN se odjemalec vrne na LAN.
-- Se ni: Linux kot odjemalec tujega huba prek releja, neposredne povezave naprava-naprava (datoteke,
-  zaslon) prek releja - te gredo zdaj samo v LAN.
+- Racunalnik (Control, `core/safeer_link.py` `_poskusi_rele`): ko v LAN ni huba, pred samostojnim
+  gostovanjem poskusi clane kroga prek releja (`link_rele.najdi_hub_prek_releja`); zaupa samo potrdilu, ki
+  nosi kljuc tega clana iz kroga. Na releju ne gosti (dva otoka), vsakih 90 s pogleda, ali je v LAN spet
+  hub. Neuspela povezava prek releja se ponovi (iskanje v ozadju), po treh neuspehih nov krog iskanja
+  cez minuto. Preizkus: `global_link_preizkus` v ~/.config/safeer-control/link.json (samo rele).
+  Preizkuseno 22. 9.: Control prek link.safeer.si na TV-hub v <10 s, 4 zaporedni zagoni pod systemd.
+- Neuspel podpis brez zetona ni vec "zavrnitev" (samo izrecen 401/403): prej je zamuda releja izbrisala
+  odtis huba in naprava je ostala brez povezave.
