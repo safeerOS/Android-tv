@@ -496,16 +496,18 @@ dosegljiva nikoli. Rele vidi samo sifrirano vsebino; brez samodejnega odpiranja 
 - Politika: `link/GlobalMesh.kt` (tv-browser-2) in `core/global_mesh.py` (safeer-lms), enaka logika,
   JVM in Python test. Remote Link v0.23 (`RemoteLinkTransport`) je delal isto drugace poimenovano; ena
   politika namesto dveh.
-- Koordinacija: `services/coordination/safeer_coordination.py` (safeer-lms) - samo prisotnost (odtis kljuca,
-  namigi kandidatov, TTL najvec 120 s) in signali za vzpostavitev povezave, nikoli kljuci ali vsebina.
-  Brez skrivnosti zavrne vse. Popravljeno ob prevzemu: shebang, neveljaven `ttl` ni vec napaka 500, najvec
-  64 signalov na prejemnika, ne sebi, zaklep, omejeno stevilo naprav. Zivi test na racunalniku
-  (`tests/_ziv_koordinacija.py`): prisotnost, iskanje, signal, zavrnitev tujca.
-- Postavitev: `deploy/docker-compose.global-mesh.yml` (koordinacija samo na 127.0.0.1 za TLS posredovalnik,
-  brez root, samo za branje; coturn z zaprtimi zasebnimi omrezji `--denied-peer-ip`).
+- Koordinacija: `services/coordination` (safeer-lms) - Cloudflare Worker + en Durable Object (SQLite,
+  brezplacen nacrt: 100.000 zahtev/dan) na `link.safeer.si`. Samo prisotnost (namigi kandidatov, TTL najvec
+  120 s) in kratki signali; nic ne shrani trajno, nikoli kljuci ali vsebina. Brez skupne skrivnosti: vsaka
+  zahteva je podpisana s kljucem naprave (ECDSA P-256 iz kroga zaupanja, id = `n-` + SHA-256(SPKI)), cas
+  +-120 s. Prisotnost vidi in signal poslje samo naprava s seznama `allow`, ki ga objavi naprava sama (njen
+  krog); tujec ne izve, ali naprava obstaja. Najvec 64 signalov na prejemnika. Test: `node test.mjs`
+  (pravi podpisi DER kot Java). Referencni Python streznik in Docker postavitev iz v0.25 sta s tem odvec.
+- STUN: `stun.cloudflare.com` (brezplacen); TURN: Cloudflare Realtime TURN (1000 GB brezplacno, nato
+  0,05 USD/GB) - samo kot zadnja moznost.
 
-Se manjka, preden se vklopi: javni streznik (HTTPS/WSS, DNS), kratkotrajna TURN poverila po Safeer
-avtentikaciji, preverba, da sta napravi v istem krogu zaupanja (tudi pri branju prisotnosti), ICE/WebRTC
+Se manjka, preden se vklopi: postavitev Workerja (`npx wrangler deploy`), kratkotrajna TURN poverila,
+objava prisotnosti s podpisom v odjemalcih (Android, Linux), ICE/WebRTC
 v odjemalcih, E2EE vezan na kljuce naprav, prehod Wi-Fi <-> mobilno in preizkus cez locena omrezja/CGNAT.
 `SAFEER_GLOBAL_LINK_ENABLED` ostane `false`.
 
