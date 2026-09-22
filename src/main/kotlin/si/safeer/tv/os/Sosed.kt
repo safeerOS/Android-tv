@@ -30,7 +30,28 @@ import android.util.Log
 object Sosed {
     const val BRSKALNIK = "si.safeer.tv"
     const val OS = "si.safeer.os"
+    const val TELEFON = "si.safeer.phone"
+    const val TABLICA = "si.safeer.tablet"
     private const val TAG = "SafeerSosed"
+
+    /** Televizor (Android TV / Google TV); vse drugo je naprava na dotik (telefon, tablica). */
+    fun jeTelevizor(context: Context): Boolean = try {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+    } catch (_: Throwable) { false }
+
+    /**
+     * Ena naprava = ena naprava v Safeer Linku. Na telefonu in tablici Safeer Link vodi Safeer OS za to
+     * napravo (telefon: si.safeer.phone, tablica: si.safeer.tablet; ce je namescen le drugi, ta). Vrne ta
+     * paket ali null (televizor - tam velja dogovor brskalnik/Safeer OS - ali Safeer OS na dotik ni namescen).
+     * Drug Safeer na isti napravi (npr. TV brskalnik na telefonu) zato ne gosti svojega sredisca in se na
+     * seznamu ne pokaze kot se ena naprava ("Safeer TV (telefon)").
+     */
+    fun lastnikLinka(context: Context): String? {
+        if (jeTelevizor(context)) return null
+        val tablica = try { context.resources.configuration.smallestScreenWidthDp >= 600 } catch (_: Throwable) { false }
+        val vrstni = if (tablica) listOf(TABLICA, TELEFON) else listOf(TELEFON, TABLICA)
+        return vrstni.firstOrNull { it == context.packageName || namescen(context, it) }
+    }
 
     fun namescen(context: Context, paket: String): Boolean = try {
         context.packageManager.getPackageInfo(paket, 0); true
@@ -40,6 +61,8 @@ object Sosed {
     /** Paket brskalnika, kadar je to **druga**, namescena aplikacija; sicer null (smo brskalnik ali ga ni). */
     fun brskalnik(context: Context): String? {
         if (context.packageName == BRSKALNIK) return null
+        // Na telefonu in tablici je Safeer Link Safeer OS-a te naprave, ne TV brskalnika (ce je namescen).
+        if (!jeTelevizor(context)) return null
         return if (namescen(context, BRSKALNIK)) BRSKALNIK else null
     }
 

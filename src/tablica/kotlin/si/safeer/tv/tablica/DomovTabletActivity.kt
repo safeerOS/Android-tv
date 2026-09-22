@@ -680,7 +680,10 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     private fun pokaziStanje() {
         val kje = link.imeSredisca.ifBlank { getString(R.string.os_naprava_tv) }
+        // Povezan samo sam s sabo (lastno sredisce, nobene druge naprave): ne "Povezano", ker to zavaja.
+        val sami = link.povezan && LinkOdjemalec.drugeZaPrikaz(link.naprave, Identiteta.id(this)).isEmpty()
         val besedilo = when {
+            sami -> getString(R.string.os_stanje_krajevni)
             link.povezan && !Host.jeOddaljen(this) && !imamoDatoteke && !imamoPrograme && !imamoZaslon ->
                 getString(R.string.tablet_stanje_ni_tv)
             link.povezan -> getString(R.string.os_stanje_povezan, kje)
@@ -691,7 +694,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         stanjeBesedilo?.text = besedilo
         stanjePika?.let { pika ->
-            if (link.povezan) {
+            if (link.povezan && !sami) {
                 pika.setBackgroundResource(R.drawable.os_pika)
                 pika.alpha = 1f
             } else {

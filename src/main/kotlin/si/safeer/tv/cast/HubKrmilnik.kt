@@ -90,6 +90,12 @@ object HubKrmilnik {
             if (zapomni) zapomniZeljo(app, true)
             return true
         }
+        val lastnik = si.safeer.tv.os.Sosed.lastnikLinka(app)
+        if (lastnik != null && lastnik != app.packageName) {
+            // Na tej napravi Safeer Link vodi druga Safeer aplikacija: drugo sredisce bi bilo "se ena naprava".
+            Log.i(TAG, "Sredisca ne zaganjam: Safeer Link te naprave vodi $lastnik.")
+            return false
+        }
 
         val u = HubUsmerjevalnik(NastavitveShramba(app))
         // TLS: kljuc Huba iz Android KeyStore; odtis potrdila je vpleten v seznanjanje.
