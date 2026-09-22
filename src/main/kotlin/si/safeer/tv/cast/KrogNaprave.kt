@@ -25,7 +25,13 @@ object KrogNaprave {
 
     @Synchronized
     fun krog(context: Context): KrogZaupanja =
-        krog ?: KrogZaupanja(Shramba(context.applicationContext)).also { krog = it }
+        krog ?: KrogZaupanja(Shramba(context.applicationContext)).also { k ->
+            // Vnose, ki jih v krog dodamo mi, podpisemo s kljucem te naprave: tako jih druge naprave
+            // preverijo tudi, kadar krog ne pride od huba (naprava, rele, internet).
+            k.lastniKljuc = try { HubTls.javniKljucB64() } catch (_: Throwable) { null }
+            k.podpisnik = { podatki -> try { HubTls.podpisi(podatki) } catch (_: Throwable) { null } }
+            krog = k
+        }
 
     /** Ali je ta naprava (s tem id) v krogu s SVOJIM trenutnim kljucem. */
     fun jeVpisana(context: Context, id: String): Boolean {

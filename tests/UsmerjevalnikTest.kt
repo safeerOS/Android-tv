@@ -920,6 +920,60 @@ private fun preizkusKroga() {
     preveri("id iz kljuca ima predpono n- in 16 znakov", KrogZaupanja.idIzKljuca(b64(tel.public.encoded)).matches(Regex("n-[0-9a-f]{16}")))
 }
 
+// ------------------------------------------------------------ podpisani vnosi v krogu (P2P)
+
+private fun preizkusPodpisanegaKroga() {
+    println()
+    println("Podpisani vnosi v krogu")
+    val hub = parKljucev()
+    val telefon = parKljucev()
+    val vsiljivec = parKljucev()
+    val hubId = KrogZaupanja.idIzKljuca(b64(hub.public.encoded))
+
+    // Hub doda telefon in vnos podpise (kot naprava, ki v krog doda drugo napravo).
+    val krogHuba = KrogZaupanja()
+    krogHuba.lastniKljuc = b64(hub.public.encoded)
+    krogHuba.podpisnik = { podatki -> podpisi(hub, podatki) }
+    krogHuba.dodaj(KrogZaupanja.Clan(hubId, b64(hub.public.encoded), "TV", "tv", 100.0, hubId))
+    krogHuba.dodaj(KrogZaupanja.Clan("tel-1", b64(telefon.public.encoded), "Telefon", "phone", 200.0, hubId))
+    preveri("vnos, ki ga dodamo mi, je podpisan", krogHuba.json().contains("podpis"))
+
+    // Druga naprava, ki huba ze pozna, podpisan vnos sprejme tudi brez huba (npr. prek releja).
+    val krogTablice = KrogZaupanja()
+    krogTablice.zdruzi(JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", JsonLahki.Zapis().surovo(hubId,
+        JsonLahki.Zapis().niz("kljuc", b64(hub.public.encoded)).niz("ime", "TV").niz("platforma", "tv")
+            .stevilo("dodano", 100.0).niz("dodal", hubId).toString()).toString()).toString())
+    preveriEnako("podpisan vnos sprejmemo", true, krogTablice.zdruzi(krogHuba.json(), preveriPodpise = true))
+    preveriEnako("telefon je v krogu", true, krogTablice.jeClan("tel-1"))
+
+    // Nepodpisan ali ponarejen vnos tuje naprave ne pride noter.
+    val ponaredek = JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", JsonLahki.Zapis().surovo("vsiljivec",
+        JsonLahki.Zapis().niz("kljuc", b64(vsiljivec.public.encoded)).niz("ime", "Vsiljivec").niz("platforma", "linux")
+            .stevilo("dodano", 300.0).niz("dodal", hubId).toString()).toString()).toString()
+    preveriEnako("nepodpisan vnos ne pride v krog", false, krogTablice.zdruzi(ponaredek, preveriPodpise = true))
+    preveriEnako("vsiljivca ni v krogu", false, krogTablice.jeClan("vsiljivec"))
+    val tujPodpis = podpisi(vsiljivec, KrogZaupanja.podatkiClana("vsiljivec", b64(vsiljivec.public.encoded), "linux", 300.0, hubId))
+    val ponaredek2 = JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", JsonLahki.Zapis().surovo("vsiljivec",
+        JsonLahki.Zapis().niz("kljuc", b64(vsiljivec.public.encoded)).niz("ime", "Vsiljivec").niz("platforma", "linux")
+            .stevilo("dodano", 300.0).niz("dodal", hubId).niz("podpis", tujPodpis).toString()).toString()).toString()
+    preveriEnako("podpis z drugim kljucem ne velja", false, krogTablice.zdruzi(ponaredek2, preveriPodpise = true))
+
+    // Brez preverjanja (krog od nasega huba) velja kot doslej - stare naprave se naprej delajo.
+    preveriEnako("krog od huba sprejmemo tudi brez podpisov", true, krogTablice.zdruzi(ponaredek))
+
+    // Umik mora biti podpisan.
+    val krogDrugi = KrogZaupanja()
+    krogDrugi.zdruzi(krogHuba.json())
+    val laznjivUmik = JsonLahki.Zapis().stevilo("v", 1.0).surovo("umiki", JsonLahki.Zapis().surovo("tel-1",
+        JsonLahki.Zapis().stevilo("umaknjeno", 400.0).niz("umaknil", "vsiljivec").toString()).toString()).toString()
+    preveriEnako("nepodpisan umik ne umakne naprave", false, krogDrugi.zdruzi(laznjivUmik, preveriPodpise = true))
+    preveriEnako("telefon ostane v krogu", true, krogDrugi.jeClan("tel-1"))
+    krogHuba.umakni("tel-1", hubId, 500.0)
+    preveri("nas umik je podpisan", krogHuba.json().contains("umiki") && krogHuba.json().contains("podpis"))
+    preveriEnako("podpisan umik sprejmemo", true, krogDrugi.zdruzi(krogHuba.json(), preveriPodpise = true))
+    preveriEnako("telefon ni vec v krogu", false, krogDrugi.jeClan("tel-1"))
+}
+
 // ------------------------------------------------------------ id iz kljuca: prehod brez nove seznanitve
 
 private fun preizkusIdaIzKljuca() {
@@ -1390,6 +1444,7 @@ fun main() {
     preizkusKroga()
     preizkusProtokolaV1()
     preizkusIdaIzKljuca()
+    preizkusPodpisanegaKroga()
     preizkusQrPrijave()
     preizkusPridruzitve()
     preizkusVabilaInOdhoda()
