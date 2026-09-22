@@ -536,6 +536,11 @@ class CastReceiverService : Service() {
                     val telo = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
                         Log.w(TAG, "Control je zavrnil zahtevo za vstopnico (${it.code}).")
+                        // Izvoljeni hub nas ne pozna (ne podpisa ne zetona): ne vrtimo se v izvolitvah.
+                        if (it.code == 401 && HubKrmilnik.izvoljeniHub(this@CastReceiverService) != null) {
+                            mainHandler.post { odklopljen(); HubKrmilnik.hubNasJeZavrnil(this@CastReceiverService) }
+                            return
+                        }
                         mainHandler.post { odklopljen(); scheduleReconnect() }
                         return
                     }

@@ -79,6 +79,36 @@ class LinkOdjemalec(private val context: Context) {
     @Volatile var srediceJeTu: Boolean = false
         private set
 
+    /** Povabilo sredisca za QR kodo (pair.invite.ok): kar naprava potrebuje, da kodo narise. */
+    data class Povabilo(val qrId: String, val skrivnost: String, val odtis: String, val naslov: String, val veljaMs: Long)
+
+    @Volatile private var naPovabilo: ((Povabilo?) -> Unit)? = null
+
+    /**
+     * Prosi sredisce za QR kodo, s katero se nova naprava pridruzi Linku. Tako lahko kodo pokaze
+     * KATERAKOLI naprava v Linku, ne samo tista, na kateri tece sredisce. [naprej] dobi null, ce ne gre.
+     */
+    fun zahtevajPovabilo(preklici: String, naprej: (Povabilo?) -> Unit) {
+        val w = ws
+        if (!povezan || w == null) { glavna.post { naprej(null) }; return }
+        naPovabilo = naprej
+        val poslano = try {
+            w.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "pair.invite")
+                .put("payload", JSONObject().put("preklici", preklici)).toString())
+        } catch (_: Throwable) { false }
+        if (!poslano) { naPovabilo = null; glavna.post { naprej(null) }; return }
+        glavna.postDelayed({ naPovabilo?.let { naPovabilo = null; it(null) } }, 8_000)
+    }
+
+    /** Koda, ki jo je pokazala ta naprava, ni vec potrebna. */
+    fun prekliciPovabilo(qrId: String) {
+        if (qrId.isBlank()) return
+        try {
+            ws?.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "pair.invite.cancel")
+                .put("payload", JSONObject().put("qr_id", qrId)).toString())
+        } catch (_: Throwable) { }
+    }
+
     /** Odgovor na ukaz daljinca: `izid` je payload sporocila control.result (ok, message, data) ali null ob napaki/poteku. */
     fun interface Odgovor { fun na(izid: JSONObject?, napaka: String) }
 
@@ -88,7 +118,7 @@ class LinkOdjemalec(private val context: Context) {
     private val glavna = Handler(Looper.getMainLooper())
     private var poverilnice: Sorodnik.Poverilnice? = null
     private var odjemalec: OkHttpClient? = null
-    private var ws: WebSocket? = null
+    @Volatile private var ws: WebSocket? = null
     private var tece = false
     private var poskusov = 0
     /** Global Link: domaci hub ni v tem omrezju, povezava gre prek link.safeer.si (LAN ostane prvi). */
@@ -107,6 +137,9 @@ class LinkOdjemalec(private val context: Context) {
         // sicer bi ob vsakem novem zagonu tekla se ena zanka poskusov vzporedno s staro.
         generacija++
         izgubaJavljena = false
+        // Stara povezava mora pasti: dve hkratni povezavi iste naprave si pri srediscu izmenjujeta mesto
+        // (vsaka nova zamenja prejsnjo), zato je povezava padala na ~20 s.
+        ws?.let { stara -> ws = null; try { stara.cancel() } catch (_: Throwable) { } }
         odjemalec = zgradi(p)
         povezi()
     }
@@ -237,8 +270,11 @@ class LinkOdjemalec(private val context: Context) {
 
     private fun odpri(naslov: String) {
         val k = odjemalec ?: return
+        // Ena povezava hkrati: prejsnja (npr. iz vzporednega poskusa) se zapre, preden odpremo novo.
+        ws?.let { stara -> ws = null; try { stara.cancel() } catch (_: Throwable) { } }
         ws = k.newWebSocket(Request.Builder().url(naslov).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                if (webSocket !== ws) { webSocket.cancel(); return }
                 poskusov = 0
                 povezan = true
                 val u = webSocket.request().url
@@ -256,9 +292,11 @@ class LinkOdjemalec(private val context: Context) {
                 javiStanje(true, "")
             }
 
-            override fun onMessage(webSocket: WebSocket, text: String) = obdelaj(text)
+            override fun onMessage(webSocket: WebSocket, text: String) { if (webSocket === ws) obdelaj(text) }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                // Zamenjana ali ustavljena povezava: njen konec ne sme sprozit novega poskusa (sicer tecejo dve).
+                if (webSocket !== ws) return
                 Log.w(TAG, "Povezava padla: ${t.message}")
                 povezan = false
                 javiStanje(false, "")
@@ -266,6 +304,7 @@ class LinkOdjemalec(private val context: Context) {
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (webSocket !== ws) return
                 povezan = false
                 javiStanje(false, "")
                 ponovno()
@@ -442,6 +481,14 @@ class LinkOdjemalec(private val context: Context) {
                 val od = json.optString("sender_name").ifBlank { json.optString("sender") }
                 potrdi(json)
                 glavna.post { poslusalec?.naBesedilo(telo.optString("text"), od) }
+            }
+            "pair.invite.ok" -> {
+                val t = json.optJSONObject("payload") ?: JSONObject()
+                val p = Povabilo(t.optString("qr_id"), t.optString("secret"), t.optString("fp"), t.optString("address"),
+                    (t.optDouble("expires_in_seconds", 300.0) * 1000).toLong())
+                val naprej = naPovabilo
+                naPovabilo = null
+                if (naprej != null) glavna.post { naprej(if (p.qrId.isBlank() || p.skrivnost.isBlank()) null else p) }
             }
             "pair.code", "pair.done" -> si.safeer.tv.cast.HubKrmilnik.sporociloPrijave(json.optString("type"), json.optJSONObject("payload")) { id ->
                 try { ws?.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "pair.reject")

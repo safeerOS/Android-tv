@@ -157,6 +157,7 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
     // -------------------------------------------------------------- iz odjemalca (glavna nit)
 
     override fun naStanje(povezan: Boolean, sporocilo: String) {
+        if (povezan) zavrnitev = 0
         imeSredisca = odjemalec.imeSredisca
         javi(povezan, if (povezan) "povezan" else "povezujem")
     }
@@ -174,13 +175,27 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
     override fun naZavrnitev() {
         // Sredisce je bilo ponastavljeno ali je Safeer OS odstranjen s seznama: vstopimo znova brez kode.
         Identiteta.pozabi(app)
-        zahtevajPoverilnice()
+        znovaPoPremoru()
     }
 
     override fun naIzgubo() {
         // Sredisca ni vec: lastni hub se je morda umaknil izvoljenemu (drug clan kroga) - poverilnice
         // vzamemo znova, Sorodnik nas takrat usmeri tja, s podpisom kljuca.
         Identiteta.pozabi(app)
-        zahtevajPoverilnice()
+        znovaPoPremoru()
+    }
+
+    /** Koliko zapored nas je sredisce zavrnilo; premor med poskusi raste (2 s -> 1 min). */
+    private var zavrnitev = 0
+
+    /**
+     * Sredisce nas je zavrnilo. Brez premora bi tekla zanka - poverilnice, zavrnitev, spet poverilnice -
+     * nekajkrat na sekundo (tako je telefon po izgubljenem zetonu obremenjeval sebe in sredisce).
+     */
+    private fun znovaPoPremoru() {
+        zavrnitev++
+        val zamik = minOf(60_000L, 2_000L * (1L shl minOf(zavrnitev, 5)))
+        javi(false, "povezujem")
+        glavna.postDelayed({ if (tece) zahtevajPoverilnice() }, zamik)
     }
 }

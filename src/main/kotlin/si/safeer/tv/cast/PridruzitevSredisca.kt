@@ -64,6 +64,10 @@ object PridruzitevSredisca {
         return if (spletnaVrata > 0) "http://$ip:$spletnaVrata/$rep" else "https://safeer.si/p$rep"
     }
 
+    /** Povezava za kodo TUJEGA sredisca (naslov in odtis dobimo od njega): kodo lahko pokaze vsaka naprava. */
+    fun povezavaZaTujeSredisce(naslov: String, odtis: String, id: String, skrivnost: String): String =
+        "https://safeer.si/p#j=$id&s=$skrivnost&f=$odtis&a=$naslov"
+
     fun preklici(id: String) {
         try { if (id.isNotBlank()) HubKrmilnik.usmerjevalnik?.prekliciPridruzitev(id) } catch (e: Throwable) { SafeerLog.napaka("Pridruzitev", "preklic kode", e) }
     }

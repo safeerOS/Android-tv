@@ -184,6 +184,9 @@ object HubKrmilnik {
         streznik = s
         usmerjevalnik = u
         tokovi = t
+        // Naslov za QR kodo, ki jo pokaze DRUGA naprava v Linku (televizor, tablica): brez njega bi
+        // naprava, ki se pridruzuje, imela le odtis in ne bi vedela, kam naj se poveze.
+        u.naslovZaQr = try { krajevniNaslov()?.let { "$it:${s.vrata}" }.orEmpty() } catch (_: Throwable) { "" }
 
         // Spletni odjemalec: ista logika huba, goli HTTP na svojih vratih (brskalnik na telefonu brez
         // Safeerja ne sprejme nasega samopodpisanega potrdila); samo krajevno omrezje in ozek izbor poti.
@@ -293,10 +296,12 @@ object HubKrmilnik {
             val krog = KrogNaprave.krog(app)
             val jaz = IzvolitevHuba.Kandidat(lastniId(), prioriteta(app))
             // Clan kroga: po id-ju ali - pri id-ju iz kljuca - po kljucu (id, ki ga se nismo videli, a kljuc poznamo).
-            val kandidati = hubi.filter { it.id.isNotBlank() && it.id != jaz.id && krog.clanZaId(it.id) != null }
+            val zavrnili = zavrnjeniHubi()
+            val kandidati = hubi.filter { it.id.isNotBlank() && it.id != jaz.id && krog.clanZaId(it.id) != null && it.id !in zavrnili }
                 .map { IzvolitevHuba.Kandidat(it.id, it.prioriteta, it.naslov, it.odtis, it.ime) }
             val tuji = hubi.filter { it.id.isBlank() || (it.id != jaz.id && krog.clanZaId(it.id) == null) }
             if (tuji.isNotEmpty()) Log.i(TAG, "Izvolitev: ${tuji.size} hub(ov) zunaj kroga zaupanja ne steje.")
+            if (zavrnili.isNotEmpty()) Log.i(TAG, "Izvolitev: hub(i), ki nas ne sprejmejo, ne stejejo: $zavrnili")
             val umik = IzvolitevHuba.komuSeUmaknem(jaz, kandidati)
             if (umik == null) {
                 Log.i(TAG, "Izvolitev: ostajam hub (${jaz.id}, prioriteta ${jaz.prioriteta}; drugih v krogu: ${kandidati.size}).")
@@ -323,6 +328,26 @@ object HubKrmilnik {
         try { CastReceiverService.start(app, hub.naslov, imeHuba(app)) } catch (e: Throwable) {
             Log.w(TAG, "Sprejemnika ni bilo mogoce priklopiti na izvoljeni hub: ${e.message}")
         }
+    }
+
+    /**
+     * Izvoljeni hub nas je zavrnil (401: nase naprave nima v svojem krogu - npr. seznanitev se ni zakljucila).
+     * Takemu hubu se 10 minut ne umikamo vec: sicer bi se naprava umikala, bila zavrnjena in spet gostila v
+     * zanki na nekaj sekund. Uporabnik se mu medtem lahko pridruzi s kodo (Pridruzi se).
+     */
+    private val zavrnitve = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    fun hubNasJeZavrnil(context: Context) {
+        val hub = izvoljeniHub(context.applicationContext) ?: return
+        zavrnitve[hub.id] = System.currentTimeMillis()
+        Log.i(TAG, "Izvoljeni hub ${hub.id} nas ne sprejme; 10 minut se mu ne umikamo.")
+        izvoljeniHubIzgubljen(context)
+    }
+
+    private fun zavrnjeniHubi(): Set<String> {
+        val meja = System.currentTimeMillis() - 600_000L
+        zavrnitve.entries.removeAll { it.value < meja }
+        return zavrnitve.keys.toSet()
     }
 
     /**

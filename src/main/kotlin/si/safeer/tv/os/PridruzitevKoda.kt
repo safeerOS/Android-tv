@@ -16,12 +16,38 @@ object PridruzitevKoda {
         val app = context.applicationContext
         val brskalnik = Sosed.linkBrskalnik(app)
         if (brskalnik == null) {
-            Thread { val b = PridruzitevSredisca.nova(app, preklici); android.os.Handler(android.os.Looper.getMainLooper()).post { naprej(b) } }.start()
+            Thread {
+                val b = PridruzitevSredisca.nova(app, preklici)
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    // Sredisce je na drugi napravi (npr. Safeer Control): kodo naredi ono, mi jo le pokazemo.
+                    if (b.getString("napaka") == "drugo_sredisce") odTujegaSredisca(app, preklici, naprej) else naprej(b)
+                }
+            }.start()
             return
         }
         Sosed.poslji(app, brskalnik, LinkSorodnikStoritev.DEJANJE, LinkSorodnikStoritev.PRIDRUZITEV,
             LinkSorodnikStoritev.PRIDRUZITEV_ODGOVOR, Bundle().apply { putString("preklici", preklici) }, 8_000) { b ->
             naprej(b ?: Bundle().apply { putString("napaka", "ni_sredisca") })
+        }
+    }
+
+    /**
+     * QR koda sredisca, ki tece na DRUGI napravi v Linku: povabilo zahtevamo po Safeer Linku
+     * (pair.invite), sredisce vrne enkratno skrivnost, svoj naslov in odtis potrdila.
+     */
+    private fun odTujegaSredisca(app: Context, preklici: String, naprej: (Bundle) -> Unit) {
+        val link = LinkUpravitelj.pridobi(app)
+        if (preklici.isNotBlank()) link.odjemalec.prekliciPovabilo(preklici)
+        link.odjemalec.zahtevajPovabilo(preklici) { p ->
+            val b = Bundle()
+            if (p == null || p.naslov.isBlank() || p.odtis.isBlank()) {
+                b.putString("napaka", "drugo_sredisce")
+            } else {
+                b.putString("qr_id", p.qrId)
+                b.putString("povezava", PridruzitevSredisca.povezavaZaTujeSredisce(p.naslov, p.odtis, p.qrId, p.skrivnost))
+                b.putLong("velja_ms", p.veljaMs)
+            }
+            naprej(b)
         }
     }
 
@@ -43,6 +69,8 @@ object PridruzitevKoda {
         val brskalnik = Sosed.linkBrskalnik(app)
         if (brskalnik == null) {
             PridruzitevSredisca.preklici(qrId)
+            // Koda tujega sredisca (drugo napravo v Linku) preklicemo po Safeer Linku.
+            try { LinkUpravitelj.pridobi(app).odjemalec.prekliciPovabilo(qrId) } catch (_: Throwable) { }
             if (brezPovezave) PridruzitevSredisca.izklopiCeSamoZaKodo(app)
             return
         }

@@ -229,8 +229,8 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (konec) { PridruzitevKoda.konec(this, b.getString("qr_id").orEmpty(), false); return@nova }
             val povezava = b.getString("povezava").orEmpty()
             if (b.getString("napaka") == "drugo_sredisce") {
-                // Sredisce je druga naprava (npr. Safeer Control): nova naprava se pridruzi s 6-mestno kodo,
-                // ki se pokaze tukaj. QR ne bi delal - ne kazemo ga in ne ponavljamo.
+                // Sredisce je druga naprava in povabila ni dalo (staro sredisce ali ni povezave):
+                // ostane 6-mestna koda, ki se pokaze tukaj. QR brez povabila ne bi delal.
                 karticaQr?.visibility = View.GONE
                 aliOznaka?.visibility = View.GONE
                 return@nova

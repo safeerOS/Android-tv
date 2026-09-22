@@ -329,6 +329,12 @@ class HubUsmerjevalnik(
         for (povezava in register.povezanePovezave()) posljiVarno(povezava, sporocilo)
     }
 
+    /** "ip:vrata" tega huba za QR kodo, ki jo pokaze druga naprava v Linku; prazno, ce naslova ne vemo. */
+    @Volatile
+    var naslovZaQr: String = ""
+
+    private fun krajevniNaslovHuba(): String = naslovZaQr
+
     /** Kode, ki smo jih razposlali clanom (pair.code); ko prijave ni vec, jim povemo (pair.done). */
     private val razposlaneKode = mutableSetOf<String>()
 
@@ -1179,6 +1185,24 @@ class HubUsmerjevalnik(
             val tovor = sporocilo.surovo("payload") ?: return potrditev(id, "rejected", "Manjka krog.", "trust", "manjka_krog")
             if (krog.zdruziImena(tovor)) { objaviNaprave(); naSpremembeNaprav?.invoke() }
             return potrditev(id, "accepted", null, "trust")
+        }
+
+        if (tip == "pair.invite") {
+            // Naprava v Linku pokaze QR kodo za novo napravo; skrivnost naredi sredisce, naprava jo le narise.
+            if (register.najdi(idPovezave(od)) == null) return potrditev(id, "rejected", "Naprava ni prijavljena.", "pair", "ni_prijavljena")
+            sporocilo.objekt("payload")?.niz("preklici")?.takeIf { it.isNotBlank() }?.let { prekliciPridruzitev(it) }
+            val (qrId, skrivnost) = ustvariPridruzitev()
+            val naslov = krajevniNaslovHuba()
+            posljiVarno(od, ovojnica("pair.invite.ok").surovo("payload", JsonLahki.Zapis()
+                .niz("qr_id", qrId).niz("secret", skrivnost).niz("fp", lastniOdtis).niz("address", naslov)
+                .stevilo("expires_in_seconds", (PIN_VELJA_MS / 1000).toDouble()).toString()).toString())
+            return potrditev(id, "accepted", null, "pair")
+        }
+
+        if (tip == "pair.invite.cancel") {
+            if (register.najdi(idPovezave(od)) == null) return potrditev(id, "rejected", "Naprava ni prijavljena.", "pair", "ni_prijavljena")
+            sporocilo.objekt("payload")?.niz("qr_id")?.takeIf { it.isNotBlank() }?.let { prekliciPridruzitev(it) }
+            return potrditev(id, "accepted", null, "pair")
         }
 
         if (tip == "pair.reject") {
