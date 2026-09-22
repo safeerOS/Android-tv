@@ -348,6 +348,11 @@ class CastReceiverService : Service() {
                     })
                 }
                 webSocket.send(registerMsg.toString())
+                // Imena naprav iz nasega kroga (npr. dana na drugem hubu): hub vzame samo imena znanih clanov.
+                try {
+                    webSocket.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "trust.names")
+                        .put("payload", JSONObject(KrogNaprave.krog(this@CastReceiverService).json())).toString())
+                } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "trust.names", e) }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {

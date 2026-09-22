@@ -1293,6 +1293,59 @@ private fun preizkusDnevnika() {
     preveri("dnevnik ne vrze, tudi ko izhod odpove", true)
 }
 
+private fun preizkusImenVKrogu() {
+    println()
+    println("Imena v krogu in trust.names")
+    val u = usmerjevalnik()
+    val tv = parKljucev()
+    val k = b64(tv.public.encoded)
+    u.krog.dodaj(KrogZaupanja.Clan("tv-1", k, "Safeer TV", "tv", 100.0, "hub"))
+    u.preimenuj("tv-1", "Dnevna soba")
+    preveriEnako("preimenovanje ne premakne casa vpisa", 100.0, u.krog.clan("tv-1")?.dodano)
+    val star = KrogZaupanja()
+    star.dodaj(KrogZaupanja.Clan("a-1", k, "Isto ime", "tv", 1.0, "hub"))
+    preveri("enako ime brez casa imena se potrdi", star.preimenuj("a-1", "Isto ime") && (star.clan("a-1")?.imenovano ?: 0.0) > 0.0)
+    preveri("enako ime s casom imena se ne ponovi", !star.preimenuj("a-1", "Isto ime"))
+    preveri("preimenovanje ima svoj cas", (u.krog.clan("tv-1")?.imenovano ?: 0.0) > 0.0)
+
+    // Ponovni vpis iste naprave (novejsi dodano) ohrani ime, ki ga je dal uporabnik.
+    val tuj = KrogZaupanja()
+    tuj.dodaj(KrogZaupanja.Clan("tv-1", k, "Safeer TV", "tv", 200.0, "hub"))
+    u.krog.zdruzi(tuj.json())
+    preveriEnako("novejsi vpis ohrani uporabnikovo ime", "Dnevna soba", u.krog.clan("tv-1")?.ime)
+
+    // trust.names z naprave: hub vzame ime znanega clana z istim kljucem.
+    val odjemalec = KrogZaupanja()
+    odjemalec.zdruzi(u.krog.json())
+    odjemalec.preimenuj("tv-1", "Spalnica", KrogZaupanja.zdaj() + 10)
+    val n = Lazni(); u.obdelaj(n, registracija("fon-9", "sender"))
+    n.pocisti()
+    u.obdelaj(n, """{"id":"i1","type":"trust.names","payload":${odjemalec.json()}}""")
+    preveriEnako("trust.names je sprejet", "accepted", polje(n.prejeto.firstOrNull { tip(it) == "trust.ack" } ?: "", "status"))
+    preveriEnako("hub prevzame ime z naprave", "Spalnica", u.imeNaprave("tv-1"))
+    preveri("hub razposlje nov krog", n.prejeto.any { tip(it) == "trust.update" })
+
+    // Varnost: po tej poti ne pride nov clan, drug kljuc ali obujena naprava.
+    val vsiljivec = parKljucev()
+    val ponarejen = """{"v":1,"clani":{"tuj-1":{"kljuc":"${b64(vsiljivec.public.encoded)}","ime":"Tujec","platforma":"x","dodano":1.0,"dodal":"x","imenovano":${KrogZaupanja.zdaj() + 20}},""" +
+        """"tv-1":{"kljuc":"${b64(vsiljivec.public.encoded)}","ime":"Ugrabljen","platforma":"tv","dodano":100.0,"dodal":"hub","imenovano":${KrogZaupanja.zdaj() + 30}}},"umiki":{}}"""
+    u.obdelaj(n, """{"id":"i2","type":"trust.names","payload":$ponarejen}""")
+    preveri("nov clan po trust.names ne vstopi", u.krog.clan("tuj-1") == null)
+    preveriEnako("ime z drugim kljucem se ne prime", "Spalnica", u.imeNaprave("tv-1"))
+    preveriEnako("kljuc clana ostane isti", k, u.krog.clan("tv-1")?.kljuc)
+    u.krog.umakni("tv-1", "hub", KrogZaupanja.zdaj() + 40)
+    odjemalec.preimenuj("tv-1", "Obujen", KrogZaupanja.zdaj() + 50)
+    u.obdelaj(n, """{"id":"i3","type":"trust.names","payload":${odjemalec.json()}}""")
+    preveri("umaknjena naprava se s preimenovanjem ne vrne", u.krog.clan("tv-1") == null)
+    val neprijavljen = Lazni()
+    u.obdelaj(neprijavljen, """{"id":"i4","type":"trust.names","payload":${odjemalec.json()}}""")
+    preveriEnako("brez prijave trust.names ni sprejet", "rejected", polje(neprijavljen.zadnje(), "status"))
+    val prihodnost = KrogZaupanja()
+    prihodnost.dodaj(KrogZaupanja.Clan("fon-9", b64(parKljucev().public.encoded), "F", "phone", 1.0, "hub"))
+    preveri("ime iz daljne prihodnosti se ne prime", !prihodnost.zdruziImena(
+        """{"clani":{"fon-9":{"kljuc":"${prihodnost.clan("fon-9")!!.kljuc}","ime":"Z","imenovano":${KrogZaupanja.zdaj() + 10 * 86400}}}}"""))
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1315,6 +1368,7 @@ fun main() {
     preizkusDvojnePovezave()
     preizkusIdentitete()
     preizkusDnevnika()
+    preizkusImenVKrogu()
     println()
     if (napak == 0) {
         println("Vse v redu.")

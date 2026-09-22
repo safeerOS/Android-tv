@@ -300,11 +300,41 @@ class LinkOdjemalec(private val context: Context) {
         }
         val p = poverilnice
         val zeton = sejniZeton.ifBlank { p?.zeton.orEmpty() }
-        if (p == null || zeton.isBlank()) { glavna.post { naprej(false, "") }; return }
-        klic("/cast/devices/rename", JSONObject().put("device_id", id).put("name", ime.trim()), zeton) { koda, telo ->
-            val novo = try { JSONObject(telo).optString("name", "") } catch (_: Throwable) { "" }
-            glavna.post { naprej(koda == 200, novo) }
+        if (p == null || zeton.isBlank()) {
+            val ok = preimenujPrekoKroga(id, ime)
+            glavna.post { naprej(ok, if (ok) ime.trim() else "") }
+            return
         }
+        klic("/cast/devices/rename", JSONObject().put("device_id", id).put("name", ime.trim()), zeton) { koda, telo ->
+            Log.i(TAG, "Preimenovanje na srediscu: HTTP $koda")
+            if (koda == 200) {
+                val novo = try { JSONObject(telo).optString("name", "") } catch (_: Throwable) { "" }
+                glavna.post { naprej(true, novo) }
+            } else {
+                // Hub brez HTTP preimenovanja (racunalnik): ime gre prek kroga zaupanja.
+                val ok = preimenujPrekoKroga(id, ime)
+                glavna.post { naprej(ok, if (ok) ime.trim() else "") }
+            }
+        }
+    }
+
+    /**
+     * Ime zapisemo v svoj krog (vsem id-jem istega kljuca) in ga ponudimo hubu kot trust.names; hub vzame
+     * samo imena clanov, ki jih ze pozna z istim kljucem, in jih razposlje vsem. Prazno ime po tej poti ne gre.
+     */
+    private fun preimenujPrekoKroga(id: String, ime: String): Boolean {
+        val w = ws ?: run { Log.w(TAG, "Preimenovanje prek kroga: ni povezave s srediscem."); return false }
+        val cisto = ime.trim()
+        if (cisto.isEmpty()) return false
+        val krog = KrogNaprave.krog(context)
+        val clan = krog.clanZaId(id) ?: run { Log.w(TAG, "Preimenovanje prek kroga: $id ni v krogu (${krog.stevilo()} clanov)."); return false }
+        Log.i(TAG, "Preimenovanje prek kroga: ${clan.id} in sorodniki.")
+        val zdaj = si.safeer.tv.cast.KrogZaupanja.zdaj()
+        krog.clani().filter { it.kljuc == clan.kljuc }.forEach { krog.preimenuj(it.id, cisto, maxOf(zdaj, it.imenovano + 0.001)) }
+        return try {
+            w.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "trust.names")
+                .put("payload", JSONObject(krog.json())).toString())
+        } catch (_: Throwable) { false }
     }
 
     private fun koncajUkaz(refId: String, izid: JSONObject?, napaka: String) {

@@ -415,8 +415,17 @@ združevanju); `trust.update` ga ponese vsem napravam in s tem vsakemu prihodnje
 ime vzame iz kroga (`Hub.ime_v_krogu`). Nov id istega ključa (alias, prehod na `n-…`) podeduje ime naprave;
 hub ob zagonu ne povozi imena, ki ga je dal uporabnik. Lokalni vzdevki naprav s ključem se ob prvem zagonu
 prenesejo v krog; lokalno ostanejo samo za naprave brez ključa. Preizkusi: `preizkusIdentitete` (+3),
-Linux `NapravaIzKljuca.test_ime_iz_kroga`. Hub računalnika preimenovanja (`/cast/devices/rename`) še ne
-ponuja - takrat preimenuj na TV ali tablici.
+Linux `NapravaIzKljuca.test_ime_iz_kroga`.
+
+**Ime ima svoj čas (`imenovano`), `dodano` ostane.** Preimenovanje tako ne more obuditi umaknjene naprave
+(prej bi novejši `dodano` premagal nadgrobnik). Starejše naprave polje prezrejo.
+
+**`trust.names` - ime z naprave na hub.** Naprava po prijavi (zaslon TV/tablice, Control) ponudi imena iz
+svojega kroga; hub (TV in računalnik) vzame **samo ime** članov, ki jih že pozna z istim ključem, niso umaknjeni
+in imajo novejši `imenovano` (ne več kot dan v prihodnost). Nov član, drug ključ ali umik po tej poti ne
+pride. Hub ob spremembi razpošlje `trust.update`. Safeer OS preimenuje tako, kadar hub nima HTTP poti
+(hub računalnika). Preverjeno v živo 22. 9.: tablica se je na hubu računalnika preimenovala, ime je v krogu
+pri vseh štirih id-jih tablice. Preizkusi: JVM `preizkusImenVKrogu`, Linux `ImenaVKrogu` (6).
 
 **Razbitje `HubUsmerjevalnik`.** HTTP končne točke (seznanitev, deljenje, naprave, zaupanje, prijava,
 stanje, QR; 517 vrstic) so v `cast/HubHttp.kt` kot razširitve usmerjevalnika - logika nespremenjena,

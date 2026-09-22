@@ -111,6 +111,11 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun opisNaprave(n: LinkOdjemalec.Naprava): String = when {
+        // Platforma, kot jo pove naprava (Protocol v1); sredisce je lahko tudi racunalnik.
+        n.platforma == "linux" -> if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
+        n.platforma == "tv" -> "TV · Safeer Link"
+        n.platforma == "tablet" -> "Tablica · Safeer OS"
+        n.platforma == "phone" -> "Safeer Browser · Android"
         n.naslov == "127.0.0.1" || n.id.startsWith("tv-") -> "TV · Safeer Link"
         n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
         n.id.startsWith("phone-") -> "Safeer Browser · Android"
