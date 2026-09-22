@@ -34,6 +34,7 @@ import si.safeer.tv.ChromiumEngineView
 class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBasePlayer(Looper.getMainLooper()) {
 
     val pogled: ChromiumEngineView = ChromiumEngineView(ctx).apply {
+        mobilniPogled = true
         settings.mediaPlaybackRequiresUserGesture = false
         isFocusable = false
         val d = resources.displayMetrics

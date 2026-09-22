@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Safeer TV Browser</string>
-    <string name="url_hint">Safe Search or URL</string>
+    <string name="url_hint">Search or enter web address</string>
     <string name="btn_home">Home</string>
     <string name="btn_back">Back</string>
     <string name="btn_forward">Forward</string>
@@ -48,4 +48,5 @@
     <string name="scit_izklopljen">Safeer Shield is off</string>
     <string name="scit_napaka_dovoljenje">Safeer Shield needs your permission to filter DNS (the system dialog). Nothing was changed.</string>
     <string name="scit_blokiranih_danes">blocked today: %1$d</string>
+    <string name="omnibox_iskalnik">Search engine</string>
 </resources>

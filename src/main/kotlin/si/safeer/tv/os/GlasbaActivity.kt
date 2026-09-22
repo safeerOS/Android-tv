@@ -1454,12 +1454,19 @@ class GlasbaActivity : OsActivity() {
             "https://www.google.com/search?q=" + java.net.URLEncoder.encode(q, "UTF-8"), vir.ime))
     }
 
-    /** Iskanje na spletu: Google, zavihek Videoposnetki, v brskalniku Safeer. */
+    /** Iskalnik, ki ga je uporabnik izbral v brskalniku; pri Googlu zavihek Videoposnetki. */
+    private fun spletnoIskanje(beseda: String): String {
+        val i = si.safeer.tv.SmartOmnibox.iskalnik(this)
+        return if (i == si.safeer.tv.SmartOmnibox.Iskalnik.GOOGLE) "https://www.google.com/search?tbm=vid&q=" + java.net.URLEncoder.encode(beseda, "UTF-8")
+        else si.safeer.tv.SmartOmnibox.iskanje(this, beseda, i)
+    }
+
+    /** Iskanje na spletu v brskalniku Safeer (izbrani iskalnik). */
     private fun odpriSplet(beseda: String) {
         GlasbaStoritev.predvajalnik?.pause()
         try {
             startActivity(Brskalnik.izMedijev(Brskalnik.namera(this)).setAction(Intent.ACTION_VIEW)
-                .setData(android.net.Uri.parse("https://www.google.com/search?tbm=vid&q=" + java.net.URLEncoder.encode(beseda, "UTF-8"))))
+                .setData(android.net.Uri.parse(spletnoIskanje(beseda))))
         } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() }
     }
 

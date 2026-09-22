@@ -50,6 +50,13 @@ class ChromiumEngineView @JvmOverloads constructor(
         private val medijskiDnevnik = java.util.concurrent.atomic.AtomicInteger(0)
         private val lastDashChannel = java.util.concurrent.atomic.AtomicReference("")
 
+        /**
+         * Naprava z dotikom (Safeer OS Tablet brez Safeer Mobile Browserja): vgrajeni brskalnik se
+         * vede kot mobilni - User-Agent Chroma za Android (tablicne strani), obicajna povecava, pravi
+         * YouTube namesto youtube.com/tv in brez navigacije z daljincem (Matej, 22. 9. 2026).
+         */
+        fun naDotik(c: Context): Boolean = !c.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+
         fun rewriteYoutubeForTv(url: String): String {
             val lower = url.lowercase()
             if (!lower.contains("youtube.com") && !lower.contains("youtu.be")) return url
@@ -85,6 +92,14 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
 
     var isDarkMode: Boolean = true
+
+    /**
+     * Pogled, ki mora biti mobilni tudi na televizorju: spletni predvajalnik Safeer Media (SpletniIgralec)
+     * kaze samo video strani, zato potrebuje obicajno stran z videom - ne youtube.com/tv, ki odpre svoj
+     * domaci zaslon in ga daljinec na tem skritem pogledu ne upravlja.
+     */
+    var mobilniPogled = false
+    val dotik: Boolean get() = mobilniPogled || naDotik(context)
 
     /**
      * Siroka postavitev za spletne vire iz Safeer Media: stran dobi sirino [namiznaSirina] (npr.
@@ -197,19 +212,9 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         val cm = CookieManager.getInstance()
         cm.setAcceptCookie(true)
-        cm.setAcceptThirdPartyCookies(this, true)
-        try {
-            cm.setCookie(".youtube.com", "SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAnNsIAEaBgiA_LyaBg; path=/; domain=.youtube.com; SameSite=Lax")
-            cm.setCookie(".youtube.com", "CONSENT=YES+cb.20230531-04-p0.sl+FX+999; path=/; domain=.youtube.com")
-            // Expire any stale hardcoded 2023 consent cookies on .google.com/.google.si
-            cm.setCookie(".google.com", "CONSENT=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.google.com")
-            cm.setCookie(".google.com", "SOCS=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.google.com")
-            cm.setCookie(".google.si", "CONSENT=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.google.si")
-            cm.setCookie(".google.si", "SOCS=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.google.si")
-            Thread {
-                try { CookieManager.getInstance().flush() } catch (_: Exception) {}
-            }.start()
-        } catch (_: Exception) {}
+        // Piskotki tretjih strani le tam, kjer jih potrebuje prijava ali placilo (glej applyUserAgentForUrl).
+        // Soglasij (YouTube SOCS/CONSENT) ne vsiljujemo vec: format se spreminja, stran vprasa sama enkrat.
+        cm.setAcceptThirdPartyCookies(this, false)
 
         // 1. Strip X-Requested-With header to bypass Google OAuth WebView block
         try {
@@ -224,10 +229,13 @@ class ChromiumEngineView @JvmOverloads constructor(
             // izklopljen. Nase strani v file:///android_asset delujejo tudi tako (WebSettings.setAllowFileAccess).
             allowFileAccess = false
             allowContentAccess = true
-            mediaPlaybackRequiresUserGesture = false
+            // Samodejno predvajanje: na dotik le po uporabnikovem dotiku; na televizorju dovoljeno, ker
+            // sinteticni klik daljinca za Chromium ni uporabnikova gesta (YouTube TV sicer ne zacne).
+            mediaPlaybackRequiresUserGesture = dotik
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            // Nova okna sprejemamo (lastna logika pojavnih oken), samodejnih brez klika pa ne.
             setSupportMultipleWindows(true)
-            javaScriptCanOpenWindowsAutomatically = true
+            javaScriptCanOpenWindowsAutomatically = false
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
@@ -236,8 +244,9 @@ class ChromiumEngineView @JvmOverloads constructor(
             textZoom = 100
             cacheMode = WebSettings.LOAD_DEFAULT
             userAgentString = DESKTOP_USER_AGENT
-            offscreenPreRaster = true
-            safeBrowsingEnabled = false
+            // Televizor (2 GB): brez pripravljanja vsebine izven vidnega obmocja.
+            offscreenPreRaster = BrowserMemoryPolicy.za(context).predRaster
+            safeBrowsingEnabled = true
         }
 
         setInitialScale(100)
@@ -270,6 +279,10 @@ class ChromiumEngineView @JvmOverloads constructor(
         settings.setNeedInitialFocus(false)
     }
 
+    /** Stran za prijavo ali placilo po splosnih oznakah v naslovu (ne po imenu strani). */
+    private fun jePrijavaAliPlacilo(url: String): Boolean =
+        Regex("""(?i)(^|[/.?&=_-])(login|log-in|signin|sign-in|signon|oauth2?|openid|sso|auth|authorize|account|accounts|checkout|payment|payments|pay|3ds|acs)([/.?&=_-]|$)""").containsMatchIn(url.substringAfter("://"))
+
     private fun applyUserAgentForUrl(url: String) {
         // Most sme premikati brskalnik in brati domace ploscice samo na domacih straneh.
         jsBridge.krajevnaStran = url.isBlank() ||
@@ -284,6 +297,11 @@ class ChromiumEngineView @JvmOverloads constructor(
             url.contains("signin/v2", ignoreCase = true) || url.contains("signin/challenge", ignoreCase = true) ||
             url.contains("v3/signin", ignoreCase = true) || url.contains("signin/identifier", ignoreCase = true))
 
+        // Prijava, placilo in pravi bancni strezniki: piskotki tretjih strani in samodejna okna
+        // (OAuth, 3-D Secure). Drugod ne - manj sledenja in manj nezelenih oken.
+        val prijava = isGoogle || mobilniPogled || jePrijavaAliPlacilo(url) || ThreatBlockEngine.isRealBankHost(host)
+        try { CookieManager.getInstance().setAcceptThirdPartyCookies(this, prijava) } catch (_: Exception) {}
+        settings.javaScriptCanOpenWindowsAutomatically = prijava
         if (isGoogle) {
             try {
                 removeJavascriptInterface("SafeerBridge")
@@ -315,17 +333,19 @@ class ChromiumEngineView @JvmOverloads constructor(
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
-        settings.mediaPlaybackRequiresUserGesture = false
+        settings.mediaPlaybackRequiresUserGesture = dotik && !mobilniPogled
         settings.setNeedInitialFocus(false)
         // Mesane vsebine kot v Chromu: skripte in okvirji po http v strani https so prepovedani,
         // slike, zvok in video pa se nalozijo (Chromium jih po moznosti nadgradi na https).
         // NEVER_ALLOW je na televizorju pobral sicer veljavne slike (npr. sličice na YouTube TV).
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         settings.userAgentString = when {
+            dotik -> CHROME_ANDROID_USER_AGENT
             skip -> DESKTOP_USER_AGENT
             isYoutubeTv -> SMART_TV_USER_AGENT
             else -> DESKTOP_USER_AGENT
         }
+        if (dotik && namiznaSirina <= 0) setInitialScale(0)
     }
 
     override fun loadUrl(url: String) {
@@ -335,7 +355,7 @@ class ChromiumEngineView @JvmOverloads constructor(
             return
         }
         val sanitized = UrlSanitizer.sanitize(url)
-        val target = rewriteYoutubeForTv(sanitized)
+        val target = if (dotik) sanitized else rewriteYoutubeForTv(sanitized)
         applyUserAgentForUrl(target)
         val privacyHeaders = mapOf("Sec-GPC" to "1", "DNT" to "1")
         super.loadUrl(target, privacyHeaders)
@@ -348,7 +368,7 @@ class ChromiumEngineView @JvmOverloads constructor(
             return
         }
         val sanitized = UrlSanitizer.sanitize(url)
-        val target = rewriteYoutubeForTv(sanitized)
+        val target = if (dotik) sanitized else rewriteYoutubeForTv(sanitized)
         applyUserAgentForUrl(target)
         val combinedHeaders = additionalHttpHeaders.toMutableMap()
         combinedHeaders["Sec-GPC"] = "1"
@@ -444,6 +464,18 @@ class ChromiumEngineView @JvmOverloads constructor(
             if (!samoDomaca("navigate")) return
             (context as? android.app.Activity)?.runOnUiThread {
                 webView.loadUrl(url)
+            }
+        }
+
+        /** Polje na domaci strani: isti razresevalnik kot vrstica z naslovom (naslov ali iskanje). */
+        @android.webkit.JavascriptInterface
+        fun isci(vnos: String, iskalnik: String?) {
+            if (!samoDomaca("isci")) return
+            val izbran = SmartOmnibox.Iskalnik.values().firstOrNull { it.oznaka == iskalnik && it != SmartOmnibox.Iskalnik.GOOGLE }
+            (context as? android.app.Activity)?.runOnUiThread {
+                val ma = context as? MainActivity
+                if (ma != null) ma.performNavigation(vnos, izbran)
+                else SmartOmnibox.razresi(context, vnos, izbran ?: SmartOmnibox.iskalnik(context))?.let { webView.loadUrl(it.url) }
             }
         }
 
@@ -789,7 +821,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // 2. Blokiraj le resnične botnet/malware grožnje in znane oglasne domene
                 val host = uri.host?.lowercase()?.trim() ?: ""
 
-                if (isMainFrame && (host.contains("youtube.com") || host.contains("youtu.be"))) {
+                if (isMainFrame && !dotik && (host.contains("youtube.com") || host.contains("youtu.be"))) {
                     val rewritten = rewriteYoutubeForTv(urlStr)
                     if (rewritten != urlStr) {
                         view?.loadUrl(rewritten)
@@ -978,15 +1010,39 @@ class ChromiumEngineView @JvmOverloads constructor(
                     handler?.cancel()
                     return
                 }
-                // Neveljavno potrdilo je lahko napadalec v omrezju: povezavo prekinemo in povemo.
-                handler?.cancel()
-                val gostitelj = if (sslHost.isNotEmpty()) sslHost else pageHost
+                // Neveljavno potrdilo: odloci uporabnik (kot "Nadaljuj" v Chromu). Safeer ga se naprej
+                // varuje pred znanimi groznjami; odlocitev velja za gostitelja do konca seje.
+                val gostitelj = (if (sslHost.isNotEmpty()) sslHost else pageHost).lowercase()
+                if (gostitelj in dovoljeniSsl) { handler?.proceed(); return }
+                if (handler == null) return
+                cakajociSsl.getOrPut(gostitelj) { mutableListOf() }.let { cakajo ->
+                    cakajo.add(handler)
+                    if (cakajo.size > 1) return
+                }
+                fun odloci(da: Boolean) {
+                    if (da) dovoljeniSsl.add(gostitelj)
+                    cakajociSsl.remove(gostitelj)?.forEach { if (da) it.proceed() else it.cancel() }
+                }
                 try {
-                    android.widget.Toast.makeText(context, context.getString(R.string.ui_ssl_blocked, gostitelj), android.widget.Toast.LENGTH_LONG).show()
-                } catch (_: Exception) { }
+                    android.app.AlertDialog.Builder(context)
+                        .setMessage(context.getString(R.string.ui_ssl_vprasanje, gostitelj))
+                        .setPositiveButton(R.string.ui_ssl_odpri) { _, _ -> odloci(true) }
+                        .setNegativeButton(android.R.string.cancel) { _, _ -> odloci(false) }
+                        .setOnCancelListener { odloci(false) }
+                        .show().getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.requestFocus()
+                } catch (_: Exception) {
+                    odloci(false)
+                    try {
+                        android.widget.Toast.makeText(context, context.getString(R.string.ui_ssl_blocked, gostitelj), android.widget.Toast.LENGTH_LONG).show()
+                    } catch (_: Exception) { }
+                }
             }
         }
     }
+
+    /** Gostitelji z neveljavnim potrdilom, ki jih je uporabnik v tej seji odprl; in cakajoci na odlocitev. */
+    private val dovoljeniSsl = mutableSetOf<String>()
+    private val cakajociSsl = mutableMapOf<String, MutableList<SslErrorHandler>>()
 
     // 🏦 BankGuard: preverjanje naložene strani (lokalno, po naložitvi, brez vpliva na hitrost nalaganja)
     private var bankCheckGeneration = 0

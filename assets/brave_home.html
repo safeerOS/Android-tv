@@ -226,12 +226,16 @@
             .more-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
         }
         html.dotik .remote-help { display: none; }
+/* Tablica brez Safeer Mobile Browserja: vgrajeni brskalnik ni vec TV Browser za velik zaslon. */
+.dotik .edition, .dotik .samo-tv { display: none; }
+.samo-dotik { display: none; }
+.dotik .samo-dotik { display: inline; }
     </style>
 <link href="safeer-home.css" rel="stylesheet"/>
 </head>
 <body>
 <div class="stage">
-<header class="safeer-brand"><img alt="" height="56" src="safeer-mark.svg" width="56"/><div><h1>Safeer</h1><p><span data-home-text="home_tagline">Your web. On the big screen.</span></p></div><span class="edition">TV Browser</span></header>
+<header class="safeer-brand"><img alt="" height="56" src="safeer-mark.svg" width="56"/><div><h1>Safeer</h1><p><span class="samo-tv" data-home-text="home_tagline">Your web. On the big screen.</span><span class="samo-dotik" data-home-text="home_tagline_touch">Your web. Safe and ad-free.</span></p></div><span class="edition">TV Browser</span></header>
 <div class="search-card">
 <form class="search-bar-wrapper" id="searchForm" onsubmit="return handleSearch(event)">
 <svg class="search-glyph" fill="none" stroke="#c9d6e4" stroke-width="2" viewbox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.2-3.2"></path></svg>
@@ -407,6 +411,7 @@
         if (e) e.preventDefault();
         var q = document.getElementById('searchInput').value.trim();
         if (!q) return false;
+        if (window.SafeerBridge && typeof window.SafeerBridge.isci === 'function') { window.SafeerBridge.isci(q, currentEngine); return false; }
         var targetUrl = '';
         if (q.indexOf('http://') === 0 || q.indexOf('https://') === 0) targetUrl = q;
         else if (q.indexOf('.') !== -1 && q.indexOf(' ') === -1) targetUrl = 'https://' + q;

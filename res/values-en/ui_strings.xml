@@ -150,4 +150,6 @@
     <string name="ui_link_zagon_odpri">Open %1$s</string>
     <string name="ui_link_zagon_pretok">Share screen and open %1$s on the computer</string>
     <string name="ui_link_zagon_tapni">Safeer Link · tap to continue</string>
+    <string name="ui_ssl_vprasanje">The certificate of %1$s is not valid, so the connection may not be private. Safeer still protects you from known threats. Open anyway?</string>
+    <string name="ui_ssl_odpri">Open anyway</string>
 </resources>

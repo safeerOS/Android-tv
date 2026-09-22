@@ -52,9 +52,6 @@ class TabManager(
     companion object {
         private const val TAG = "SafeerZavihki"
         private const val PRAZNA = "about:blank"
-        /** Koliko zavihkov v ozadju sme ostati budnih (poleg aktivnega). */
-        private const val BUDNIH_V_OZADJU = 1
-        private const val NAJVEC_ZAVIHKOV = 5
         /** V tem casu drugo sesutje iste strani stejemo za ponovitev. */
         private const val PONOVITEV_MS = 60_000L
         private const val DOMACA = "file:///android_asset/brave_home.html"
@@ -63,8 +60,11 @@ class TabManager(
     private val tabs = mutableListOf<TabModel>()
     private var activeTabId: String? = null
 
-    /** Zadnji zavihek, ki ga je uporabnik zapustil; ta se sme ostati buden. */
+    /** Zadnji zavihek, ki ga je uporabnik zapustil. */
     private var prejsnjiId: String? = null
+
+    /** Zavihki po zadnji uporabi (najnovejsi prvi): budni ostanejo prvi, zapremo zadnjega. */
+    private val nedavni = ArrayDeque<String>()
 
     /** Zadnja smrt izrisovalnika po zavihkih: naslov in cas. Proti zankam sesutja. */
     private val zadnjaSmrt = HashMap<String, Pair<String, Long>>()
@@ -83,10 +83,15 @@ class TabManager(
         return pogled
     }
 
-    /** Naredi prostor za nov zavihek, kadar jih je ze NAJVEC_ZAVIHKOV. */
+    /** Naredi prostor za nov zavihek, kadar jih je ze toliko, kot jih dovoli [BrowserMemoryPolicy]. */
     private fun sprostiProstor() {
-        while (tabs.size >= NAJVEC_ZAVIHKOV) {
-            val victim = tabs.firstOrNull { it.id != activeTabId } ?: tabs.firstOrNull() ?: break
+        val najvec = BrowserMemoryPolicy.za(container.context).najvecZavihkov
+        while (tabs.size >= najvec) {
+            // Zapremo najdlje neuporabljenega (ne aktivnega).
+            val victim = tabs.filter { it.id != activeTabId }
+                .maxByOrNull { nedavni.indexOf(it.id).let { i -> if (i < 0) Int.MAX_VALUE else i } }
+                ?: tabs.firstOrNull() ?: break
+            nedavni.remove(victim.id)
             val idx = tabs.indexOf(victim)
             try { victim.webView.destroy() } catch (_: Exception) {}
             if (idx >= 0) tabs.removeAt(idx)
@@ -171,6 +176,7 @@ class TabManager(
         val target = tabs.find { it.id == tabId } ?: return
         if (activeTabId != null && activeTabId != tabId) prejsnjiId = activeTabId
         activeTabId = tabId
+        nedavni.remove(tabId); nedavni.addFirst(tabId)
 
         container.removeAllViews()
         if (target.webView.parent != null) {
@@ -192,14 +198,17 @@ class TabManager(
 
     // ------------------------------------------------------------------ spanje zavihkov
 
-    /** Zavihki v ozadju, ki niso na vrsti, zaspijo; zadnji zapusceni sme se ostati buden. */
+    /** Nazadnje uporabljeni zavihki v ozadju, ki smejo ostati budni (TV 1, tablica 3; ob pritisku 0). */
+    private fun budniVOzadju(): Set<String> {
+        val n = BrowserMemoryPolicy.budnihZdaj(container.context)
+        return nedavni.filter { it != activeTabId }.take(n).toSet()
+    }
+
+    /** Zavihki v ozadju, ki niso na vrsti, zaspijo; nazadnje uporabljeni smejo ostati budni. */
     private fun pospraviOzadje() {
-        if (BUDNIH_V_OZADJU <= 0) {
-            uspavajOzadje(true)
-            return
-        }
+        val budni = budniVOzadju()
         for (tab in tabs) {
-            if (tab.id == activeTabId || tab.id == prejsnjiId) continue
+            if (tab.id == activeTabId || tab.id in budni) continue
             uspavaj(tab)
         }
     }
@@ -211,7 +220,7 @@ class TabManager(
     fun uspavajOzadje(vse: Boolean) {
         for (tab in tabs) {
             if (tab.id == activeTabId) continue
-            if (!vse && tab.id == prejsnjiId) continue
+            if (!vse && tab.id in budniVOzadju()) continue
             uspavaj(tab)
         }
     }
@@ -401,6 +410,7 @@ class TabManager(
         val tabToClose = tabs[idx]
         tabToClose.webView.destroy()
         tabs.removeAt(idx)
+        nedavni.remove(tabId)
         if (prejsnjiId == tabId) prejsnjiId = null
 
         if (tabs.isEmpty()) {
@@ -418,6 +428,7 @@ class TabManager(
             tab.webView.destroy()
         }
         tabs.clear()
+        nedavni.clear()
         prejsnjiId = null
         container.removeAllViews()
         createTab(context, "https://www.google.com", true)

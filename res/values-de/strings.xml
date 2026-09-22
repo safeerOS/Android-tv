@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Safeer TV Browser</string>
-    <string name="url_hint">Sichere Suche oder URL</string>
+    <string name="url_hint">Suchen oder Webadresse eingeben</string>
     <string name="btn_home">Startseite</string>
     <string name="btn_back">Zurück</string>
     <string name="btn_forward">Vorwärts</string>
@@ -48,4 +48,5 @@
     <string name="scit_izklopljen">Safeer Schild ist aus</string>
     <string name="scit_napaka_dovoljenje">Safeer Schild braucht deine Erlaubnis zum DNS-Filtern (Systemdialog). Nichts wurde geändert.</string>
     <string name="scit_blokiranih_danes">heute blockiert: %1$d</string>
+    <string name="omnibox_iskalnik">Suchmaschine</string>
 </resources>

@@ -100,7 +100,7 @@
                 android:textSize="12sp" />
 
             <!-- Omnibox Text Input -->
-            <EditText
+            <si.safeer.tv.OmniboxPolje
                 android:id="@+id/editUrl"
                 tools:ignore="NestedWeights"
                 android:importantForAutofill="no"
@@ -110,7 +110,7 @@
                 android:background="@android:color/transparent"
                 android:ellipsize="end"
                 android:hint="@string/url_hint"
-                android:imeOptions="actionGo"
+                android:imeOptions="actionGo|flagNoExtractUi"
                 android:inputType="textUri|textWebEditText"
                 android:paddingVertical="0dp"
                 android:singleLine="true"

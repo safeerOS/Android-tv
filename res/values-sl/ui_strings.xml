@@ -150,4 +150,6 @@
     <string name="ui_link_zagon_odpri">Odpri %1$s</string>
     <string name="ui_link_zagon_pretok">Deli zaslon in odpri %1$s na računalniku</string>
     <string name="ui_link_zagon_tapni">Safeer Link · tapni za nadaljevanje</string>
+    <string name="ui_ssl_vprasanje">Potrdilo za %1$s ni veljavno, zato povezava morda ni zasebna. Safeer vas še vedno varuje pred znanimi grožnjami. Vseeno odprem?</string>
+    <string name="ui_ssl_odpri">Vseeno odpri</string>
 </resources>

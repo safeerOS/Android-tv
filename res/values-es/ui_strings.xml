@@ -150,4 +150,6 @@
     <string name="ui_link_zagon_odpri">Abrir %1$s</string>
     <string name="ui_link_zagon_pretok">Compartir pantalla y abrir %1$s en el ordenador</string>
     <string name="ui_link_zagon_tapni">Safeer Link · toca para continuar</string>
+    <string name="ui_ssl_vprasanje">El certificado de %1$s no es válido, por lo que la conexión puede no ser privada. Safeer te sigue protegiendo de amenazas conocidas. ¿Abrir de todos modos?</string>
+    <string name="ui_ssl_odpri">Abrir de todos modos</string>
 </resources>

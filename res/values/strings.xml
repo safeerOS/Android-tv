@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Safeer TV Browser</string>
-    <string name="url_hint">Safe Search or URL</string>
+    <string name="url_hint">Search or enter web address</string>
     <string name="btn_home">Home</string>
     <string name="btn_back">Back</string>
     <string name="btn_forward">Forward</string>
@@ -51,4 +51,5 @@
     <!-- Kako se ta naprava predstavi drugim v Safeer Linku. Okus tablica to povozi:
          ime vidijo sosedje v hisi, zato mora biti resnicno. -->
     <string name="os_ime_vrste" translatable="false">Safeer TV</string>
+    <string name="omnibox_iskalnik">Search engine</string>
 </resources>

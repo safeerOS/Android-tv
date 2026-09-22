@@ -269,12 +269,14 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
         imm?.hideSoftInputFromWindow(vnosIskanje?.windowToken, 0)
         vnosIskanje?.clearFocus()
-        val url = when {
-            niz.startsWith("http://", ignoreCase = true) || niz.startsWith("https://", ignoreCase = true) -> niz
-            niz.contains(".") && !niz.contains(" ") -> "https://$niz"
-            else -> "https://www.google.com/search?q=" + URLEncoder.encode(niz, "UTF-8")
-        }
-        odpriVBrskalniku(url)
+        // Isto pravilo kot vrstica brskalnika: naslov ali iskanje; neobstojeca domena gre v iskanje.
+        val odl = si.safeer.tv.SmartOmnibox.razresi(this, niz) ?: return
+        val gostitelj = odl.preveri
+        if (gostitelj == null) { odpriVBrskalniku(odl.url); return }
+        Thread {
+            val url = if (si.safeer.tv.SmartOmnibox.obstaja(gostitelj)) odl.url else si.safeer.tv.SmartOmnibox.iskanje(this, niz)
+            runOnUiThread { if (!isFinishing) odpriVBrskalniku(url) }
+        }.start()
     }
 
     private fun pripraviVelikeKartice() {

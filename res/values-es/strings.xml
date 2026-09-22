@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Safeer TV Browser</string>
-    <string name="url_hint">Búsqueda segura o URL</string>
+    <string name="url_hint">Busca o escribe una dirección web</string>
     <string name="btn_home">Inicio</string>
     <string name="btn_back">Atrás</string>
     <string name="btn_forward">Adelante</string>
@@ -48,4 +48,5 @@
     <string name="scit_izklopljen">Escudo Safeer desactivado</string>
     <string name="scit_napaka_dovoljenje">Escudo Safeer necesita tu permiso para filtrar DNS (diálogo del sistema). No se cambió nada.</string>
     <string name="scit_blokiranih_danes">bloqueados hoy: %1$d</string>
+    <string name="omnibox_iskalnik">Motor de búsqueda</string>
 </resources>
