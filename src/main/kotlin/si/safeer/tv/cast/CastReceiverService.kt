@@ -591,8 +591,15 @@ class CastReceiverService : Service() {
                         Log.i(TAG, "Domaci hub ni v tem omrezju; poskusim prek Global Linka.")
                         prekReleja = true
                     } else {
-                        val nov = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_HUB_URL, naslov) ?: naslov
-                        if (nov != hubUrl) { Log.i(TAG, "Hub je v tem omrezju na novem naslovu: $nov"); hubUrl = nov; reconnectAttempts = 0 }
+                        if (HubKrmilnik.izvoljeniHub(this) != null && HubKrmilnik.jeZazelen(this)) {
+                            // Hub se je zamenjal: samo naslov ne zadostuje (pripet je kljuc starega huba),
+                            // zato takoj izvolitev - ta nastavi naslov, id in kljuc novega huba skupaj.
+                            Log.i(TAG, "V tem omrezju je drug hub; nova izvolitev.")
+                            HubKrmilnik.izvoljeniHubIzgubljen(this)
+                        } else {
+                            val nov = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_HUB_URL, naslov) ?: naslov
+                            if (nov != hubUrl) { Log.i(TAG, "Hub je v tem omrezju na novem naslovu: $nov"); hubUrl = nov; reconnectAttempts = 0 }
+                        }
                     }
                 }
             } catch (e: Throwable) { Log.w(TAG, "Iskanje huba v LAN: ${e.message}") }
