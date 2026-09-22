@@ -35,6 +35,14 @@ object Jamendo {
         val streznik: String = "",
         /** Kanal PeerTube (ime@streznik) za "se s tega kanala"; znan po razresitvi. */
         val kanal: String = "",
+        /** Strukturirani podatki spletnega vira (schema.org/JSON-LD), kadar jih stran objavi. */
+        val mediaType: String = "",
+        val genres: List<String> = emptyList(),
+        val year: Int = 0,
+        val season: Int = 0,
+        val episode: Int = 0,
+        val imdbId: String = "",
+        val tmdbId: String = "",
     )
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

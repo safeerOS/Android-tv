@@ -217,14 +217,32 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
          * Samo video strani cez ves pogled, ostala stran nevidna (splosen slog, za vsako stran). Cilj je
          * video vrhnje strani, sicer najvecji okvir (predvajalnik v iframu).
          */
-        private const val KINO_JS = """(function(){var s=document.getElementById('safeer-kino');if(!s){s=document.createElement('style');s.id='safeer-kino';
-          s.textContent='html,body{background:#000!important;overflow:hidden!important}body *{visibility:hidden!important}'+
-          '[data-safeer-kino]{visibility:visible!important;position:fixed!important;left:0!important;top:0!important;width:100vw!important;height:100vh!important;'+
-          'max-width:none!important;max-height:none!important;object-fit:contain!important;z-index:2147483647!important;background:#000!important;transform:none!important;border:0!important}';
-          (document.head||document.documentElement).appendChild(s);}
-          var c=document.querySelector('video');if(!c){var f=[].slice.call(document.querySelectorAll('iframe'));
-            f.sort(function(a,b){return (b.clientWidth*b.clientHeight)-(a.clientWidth*a.clientHeight);});c=f[0];}
-          var st=document.querySelector('[data-safeer-kino]');if(st&&st!==c)st.removeAttribute('data-safeer-kino');
-          if(c)c.setAttribute('data-safeer-kino','1');})()"""
+        private const val KINO_JS = """(function(){try{
+          var c=[].slice.call(document.querySelectorAll('video')).filter(function(x){var r=x.getBoundingClientRect();return r.width>80&&r.height>45;})
+            .sort(function(a,b){var ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return br.width*br.height-ar.width*ar.height;})[0];
+          if(!c){var f=[].slice.call(document.querySelectorAll('iframe')).filter(function(x){var r=x.getBoundingClientRect();return r.width>160&&r.height>90;});
+            f.sort(function(a,b){var ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return br.width*br.height-ar.width*ar.height;});c=f[0];}
+          if(!c)return false;
+          // Pomembno: samo visibility:hidden ni dovolj. Ko ponovno pokazemo prednike videa, lahko njihovi
+          // drugi otroci (YouTube glava, priporocila, komentarji) postanejo vidni. Zato oznacimo tocno pot
+          // do predvajalnika in na vsakem predniku skrijemo VSE sorojence te poti.
+          [].slice.call(document.querySelectorAll('[data-safeer-path],[data-safeer-player],[data-safeer-hidden]')).forEach(function(x){
+            x.removeAttribute('data-safeer-path');x.removeAttribute('data-safeer-player');x.removeAttribute('data-safeer-hidden');});
+          c.setAttribute('data-safeer-player','1');
+          var child=c,p=c.parentElement;
+          while(p&&p!==document.documentElement){
+            p.setAttribute('data-safeer-path','1');
+            [].slice.call(p.children).forEach(function(x){if(x!==child)x.setAttribute('data-safeer-hidden','1');});
+            child=p;p=p.parentElement;
+          }
+          var st=document.getElementById('safeer-kino');if(!st){st=document.createElement('style');st.id='safeer-kino';(document.head||document.documentElement).appendChild(st);}
+          st.textContent='html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;background:#000!important;overflow:hidden!important}'+
+            '[data-safeer-hidden]{display:none!important}'+
+            // Predniki ohranijo velikost (sesut okvir skrije video); odstranimo le, kar bi fiksnemu videu
+            // spremenilo izhodisce (transform/filter/contain) ali ga obrezalo.
+            '[data-safeer-path]{transform:none!important;filter:none!important;contain:none!important;overflow:visible!important;visibility:visible!important;opacity:1!important}'+
+            '[data-safeer-player]{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;'+
+            'object-fit:contain!important;z-index:2147483647!important;background:#000!important;transform:none!important;border:0!important;margin:0!important;padding:0!important}';
+          return true;}catch(e){return false;}})()"""
     }
 }

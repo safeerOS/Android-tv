@@ -1,9 +1,7 @@
 package si.safeer.tv.os
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 
 /**
@@ -19,28 +17,19 @@ object Brskalnik {
      * Na napravi z dotikom (Safeer OS Tablet) splet odpre mobilni Safeer: brskalnik za televizor je
      * narejen za daljinec (fokus, namizne strani) in se na dotik ne obnasa prav. Na televizorju null.
      */
-    fun mobilni(c: Context): String? {
-        if (c.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) return null
-        return if (Sosed.namescen(c, MOBILNI)) MOBILNI else null
-    }
+    fun mobilni(c: Context): String? = null
 
     /** Naslov v mobilnem Safeerju (ali null, ce ga na tej napravi ne uporabljamo). */
     fun mobilniNaslov(c: Context, url: String): Intent? = mobilni(c)?.let {
         Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
-    fun namera(c: Context): Intent {
-        mobilni(c)?.let { p ->
-            c.packageManager.getLaunchIntentForPackage(p)?.let { return it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-        }
-        val paket = Sosed.brskalnik(c)
-        val namera = if (paket != null)
-            Intent().setComponent(ComponentName(paket, "si.safeer.tv.MainActivity"))
-                // Brskalnik naj ve, od kod je prisel: ob izhodu se vrne v Safeer OS, ne na Android.
-                .putExtra("iz_safeer_os", c.packageName)
-        else Intent(c, si.safeer.tv.MainActivity::class.java)
-        return namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
+    fun namera(c: Context): Intent =
+        // Safeer OS ze vsebuje isti brskalniski pogon. Ne zaganjamo vec locenega Safeer Browser APK-ja:
+        // TV in tablica ostaneta v enem procesu, prehod nazaj je takojšen in ni podvojenih WebViewev.
+        Intent(c, si.safeer.tv.MainActivity::class.java)
+            .putExtra("iz_safeer_os", c.packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /** Spletna aplikacija v svojem oknu brskalnika (kot s kartice na domacem zaslonu). */
     fun spletnaAplikacija(c: Context, url: String, ime: String): Intent =

@@ -93,10 +93,23 @@ class GlasbaStoritev : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            AKCIJA_TOGGLE -> { predvajalnik?.let { if (it.isPlaying) it.pause() else it.play() }; return START_NOT_STICKY }
+            AKCIJA_NAPREJ -> { predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }; return START_NOT_STICKY }
+            AKCIJA_USTAVI -> { ustaviPredvajanje(); return START_NOT_STICKY }
+        }
         zacniVOspredju()
         cakajoci?.let { (seznam, od, s) -> cakajoci = null; nalozi(seznam, od, s) }
         cakajociSplet?.let { cakajociSplet = null; zacniSplet(it) }
         return START_NOT_STICKY
+    }
+
+    /** Stop pomeni konec seje, ne pavze: sprostimo tudi skriti spletni predvajalnik/WebView. */
+    private fun ustaviPredvajanje() {
+        predvajalnik?.stop()
+        exo?.clearMediaItems()
+        koncajSplet()
+        android.os.Handler(mainLooper).post { stopSelf() }
     }
 
     /** Zaustavitev iz povratnega klica predvajalnika: storitev ustavimo sele po njem. */
@@ -163,12 +176,21 @@ class GlasbaStoritev : Service() {
         val odpri = PendingIntent.getActivity(this, 0, Intent(this, PredvajanjeActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val b = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, KANAL) else @Suppress("DEPRECATION") Notification.Builder(this)
-        return b.setSmallIcon(R.drawable.os_ikona_glasba)
+        fun dejanje(akcija: String, koda: Int): PendingIntent = PendingIntent.getService(
+            this, koda, Intent(this, GlasbaStoritev::class.java).setAction(akcija),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        b.setSmallIcon(R.drawable.os_ikona_glasba)
             .setContentTitle(s?.naslov ?: getString(R.string.os_glasba_naslov))
             .setContentText(s?.izvajalec ?: "")
             .setContentIntent(odpri)
-            .setOngoing(true)
-            .build()
+            .addAction(Notification.Action.Builder(
+                android.graphics.drawable.Icon.createWithResource(this, if (predvajalnik?.isPlaying == true) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj),
+                if (predvajalnik?.isPlaying == true) "Pavza" else "Predvajaj", dejanje(AKCIJA_TOGGLE, 11)).build())
+        if (predvajalnik?.hasNextMediaItem() == true) b.addAction(Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_naslednja), "Naprej", dejanje(AKCIJA_NAPREJ, 12)).build())
+        b.addAction(Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_ustavi), "Ustavi", dejanje(AKCIJA_USTAVI, 13)).build())
+        return b.setOngoing(true).build()
     }
 
     private fun osvezi() {
@@ -203,6 +225,9 @@ class GlasbaStoritev : Service() {
     companion object {
         private const val ID = 4711
         private const val KANAL = "safeer_glasba"
+        private const val AKCIJA_TOGGLE = "si.safeer.media.TOGGLE"
+        private const val AKCIJA_NAPREJ = "si.safeer.media.NEXT"
+        private const val AKCIJA_USTAVI = "si.safeer.media.STOP"
 
         /** Predvajalnik, dokler storitev tece; sicer null. */
         @Volatile var predvajalnik: Player? = null
@@ -290,6 +315,8 @@ class GlasbaStoritev : Service() {
                 addView(tipka(R.drawable.os_ikona_pavza) { predvajalnik?.let { if (it.isPlaying) it.pause() else it.play() } })
                 addView(tipka(R.drawable.os_ikona_naslednja) { predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() } }
                     .apply { contentDescription = a.getString(R.string.os_naprej) })
+                addView(tipka(R.drawable.os_ikona_ustavi) { ustavi(a) }
+                    .apply { contentDescription = a.getString(R.string.os_media_ustavi) })
             }
             kartica.addView(v, (kartica.childCount - 1).coerceAtLeast(0))
             return v

@@ -72,10 +72,14 @@ object SpletniVir {
      */
     fun priljubljeno(a: Activity, viri: List<MedijskiViri.Vir>, rok: Long = 8_000): List<Jamendo.Skladba> {
         val po = java.util.concurrent.ConcurrentHashMap<String, List<Jamendo.Skladba>>()
-        val niti = viri.filter { it.jeSplet }.take(6).map { v -> Thread {
-            try { po[v.naslov] = beriStran(a, v, v.naslov, rok).map { it.copy(izvajalec = v.ime) } } catch (_: Exception) { }
-        }.apply { start() } }
-        try { niti.forEach { it.join(rok + 500) } } catch (_: InterruptedException) { }
+        // TV z 2 GB RAM-a ne sme hkrati odpreti 6 skritih Chromium/WebView instanc. Vire obdelamo
+        // po dva: odziv ostane vzporeden, vrh porabe pomnilnika in zatikanje UI pa sta bistveno nizja.
+        viri.filter { it.jeSplet }.take(6).chunked(2).forEach { skupina ->
+            val niti = skupina.map { v -> Thread {
+                try { po[v.naslov] = beriStran(a, v, v.naslov, rok).map { it.copy(izvajalec = v.ime) } } catch (_: Exception) { }
+            }.apply { start() } }
+            try { niti.forEach { it.join(rok + 500) } } catch (_: InterruptedException) { return@forEach }
+        }
         val seznami = viri.mapNotNull { po[it.naslov] }
         val videni = HashSet<String>()
         return (0 until (seznami.maxOfOrNull { it.size } ?: 0)).flatMap { i -> seznami.mapNotNull { it.getOrNull(i) } }
@@ -84,6 +88,10 @@ object SpletniVir {
 
     /** Film ali serija po splosnih oznakah v naslovu enote (brez receptov za strani); null = ne vemo. */
     fun vrstaVsebine(s: Jamendo.Skladba): String? {
+        when (s.mediaType.lowercase()) {
+            "movie", "film" -> return FILM
+            "tvseries", "tvseason", "tvepisode", "series" -> return SERIJA
+        }
         val u = s.povezava.lowercase()
         return when {
             Regex("[/_-](series|serie|serija|serije|shows?|tv-?shows?|episodes?|epizod[ae]|seasons?|sezon[ae])([/_?-]|$)|s\\d{1,2}e\\d{1,3}").containsMatchIn(u) -> SERIJA
@@ -93,6 +101,40 @@ object SpletniVir {
     }
     const val FILM = "film"
     const val SERIJA = "serija"
+
+    /** Groba, ponudniku neodvisna zvrst iz naslova/URL-ja. Vir ostane avtoriteta; ne ugibamo, ce ni signala. */
+    fun zvrstVsebine(s: Jamendo.Skladba): String? {
+        val strukturirana = s.genres.asSequence().map { it.lowercase() }.mapNotNull { g ->
+            when {
+                "comedy" in g || "komed" in g -> "Komedija"
+                "horror" in g || "grozljiv" in g -> "Grozljivke"
+                "drama" in g -> "Drama"
+                "action" in g || "akcij" in g -> "Akcija"
+                "fantasy" in g || "sci-fi" in g || "science fiction" in g || "fantast" in g -> "Fantastika"
+                "crime" in g || "thriller" in g || "kriminal" in g -> "Kriminalke"
+                "documentary" in g || "dokument" in g -> "Dokumentarci"
+                "animation" in g || "anime" in g || "animacij" in g -> "Animacija"
+                "family" in g || "druz" in g || "children" in g || "kids" in g -> "Druzinski"
+                "romance" in g || "romantik" in g -> "Romantika"
+                else -> null
+            }
+        }.firstOrNull()
+        if (strukturirana != null) return strukturirana
+        val t = (s.naslov + " " + s.povezava).lowercase()
+        val zvrsti = listOf(
+            "Komedija" to Regex("comedy|komedij|sitcom"),
+            "Grozljivke" to Regex("horror|grozljiv|slasher"),
+            "Drama" to Regex("drama|dramatic"),
+            "Akcija" to Regex("action|akcij|martial"),
+            "Fantastika" to Regex("fantasy|fantastik|sci[- ]?fi|science[- ]?fiction"),
+            "Kriminalke" to Regex("crime|kriminal|detective|thriller"),
+            "Dokumentarci" to Regex("documentary|dokumentar"),
+            "Animacija" to Regex("animation|animated|anime|animacij"),
+            "Druzinski" to Regex("family|druzinsk|kids|children"),
+            "Romantika" to Regex("romance|romantic|romantik")
+        )
+        return zvrsti.firstOrNull { it.second.containsMatchIn(t) }?.first
+    }
 
     private fun beriStran(a: Activity, vir: MedijskiViri.Vir, url: String, rok: Long): List<Jamendo.Skladba> {
         val izid = AtomicReference("[]")
@@ -124,8 +166,11 @@ object SpletniVir {
         android.util.Log.i("SafeerSplet", "${java.net.URL(url).host}: ${d.length()} zadetkov v ${System.currentTimeMillis() - zacetek} ms")
         return (0 until d.length()).mapNotNull { d.optJSONObject(it) }.map { o ->
             val (naslov, izvajalec) = Relevantnost.razdeli(o.optString("t"), "")
+            val genres = o.optJSONArray("g")?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } } ?: emptyList()
             Jamendo.Skladba(PREDPONA + o.optString("h"), naslov, izvajalec.ifBlank { vir.ime }, o.optString("i"), "",
-                o.optString("h"), video = o.optBoolean("v"))
+                o.optString("h"), video = o.optBoolean("v"), mediaType = o.optString("mt"), genres = genres,
+                year = o.optInt("y"), season = o.optInt("sn"), episode = o.optInt("en"),
+                imdbId = o.optString("imdb"), tmdbId = o.optString("tmdb"))
         }
     }
 
@@ -347,6 +392,22 @@ object SpletniVir {
     /** Zadetki izrisane strani: povezave na istem mestu z opazno sliko in besedilom, brez navigacije. */
     private const val ZADETKI_JS = """(function(){try{
       var po={},red=[],h=location.hostname.replace(/^www\./,'');
+      function arr(x){return x==null?[]:(Array.isArray(x)?x:[x]);}
+      function abs(u){try{return new URL(u,location.href).href.split('#')[0];}catch(e){return '';}}
+      function tip(x){var t=x&&x['@type'];return Array.isArray(t)?(t[0]||''):(t||'');}
+      function idji(x){var r={imdb:'',tmdb:''},v=[]; arr(x&&x.sameAs).forEach(function(z){if(typeof z==='string')v.push(z);});
+        arr(x&&x.identifier).forEach(function(z){if(typeof z==='string')v.push(z);else if(z){var p=(z.propertyID||z.name||'')+':'+(z.value||'');v.push(p);}});
+        v.forEach(function(z){var m=(''+z).match(/(?:imdb\.com\/title\/|IMDb:?)\s*(tt\d+)/i);if(m)r.imdb=m[1];
+          m=(''+z).match(/(?:themoviedb\.org\/(?:movie|tv)\/|TMDB:?)\s*(\d+)/i);if(m)r.tmdb=m[1];});return r;}
+      var strukturirani={};
+      function dodajLD(x){if(!x||typeof x!=='object')return;if(Array.isArray(x)){x.forEach(dodajLD);return;}if(x['@graph'])dodajLD(x['@graph']);
+        var mt=tip(x),u=abs(x.url||(x.mainEntityOfPage&&x.mainEntityOfPage['@id'])||x['@id']||'');
+        if(u&&/Movie|TVSeries|TVSeason|TVEpisode|VideoObject/i.test(mt)){var ids=idji(x),g=arr(x.genre).map(function(q){return typeof q==='string'?q:(q&&q.name)||'';}).filter(Boolean);
+          var d=x.datePublished||'',yy=parseInt((''+d).slice(0,4))||0,sn=parseInt(x.seasonNumber||(x.partOfSeason&&x.partOfSeason.seasonNumber))||0,en=parseInt(x.episodeNumber)||0;
+          strukturirani[u]={mt:mt,g:g,y:yy,sn:sn,en:en,imdb:ids.imdb,tmdb:ids.tmdb};}
+        ['itemListElement','mainEntity','subjectOf','video','episode','partOfSeries'].forEach(function(k){if(x[k]&&typeof x[k]==='object')dodajLD(x[k]);});}
+      document.querySelectorAll('script[type="application/ld+json"]').forEach(function(e){try{dodajLD(JSON.parse(e.textContent));}catch(q){}});
+      function meta(u){if(strukturirani[u])return strukturirani[u];var best=null;Object.keys(strukturirani).some(function(k){if(k.split('?')[0]===u.split('?')[0]){best=strukturirani[k];return true;}});return best||{};}
       function besedilo(a){return (a.getAttribute('title')||a.getAttribute('aria-label')||a.innerText||'').replace(/\s+/g,' ').trim();}
       function smiselno(t){return t.length>=2&&!/^[\d:\s.,]+$/.test(t);}
       var as=document.querySelectorAll('a[href]');
@@ -356,13 +417,13 @@ object SpletniVir {
         var uh='';try{uh=new URL(u).hostname.replace(/^www\./,'');}catch(e){continue;}
         if(uh.indexOf(h)<0&&h.indexOf(uh)<0)continue;
         if(/[?&](q|query|search|search_query)=|\/(search|login|signin|signup|register|account|settings|help|about|privacy|terms|cookies?|download|premium)(\/|\?|$)/i.test(u))continue;
-        var z=po[u];if(!z){z=po[u]={h:u,t:'',n:'',i:'',v:false};red.push(z);}
+        var z=po[u];if(!z){var m=meta(u);z=po[u]={h:u,t:'',n:'',i:'',v:false,mt:m.mt||'',g:m.g||[],y:m.y||0,sn:m.sn||0,en:m.en||0,imdb:m.imdb||'',tmdb:m.tmdb||''};red.push(z);}
         var ti=a.querySelector('h1,h2,h3,h4,[class*=title],[id*=title]')||(a.matches('[class*=title],[id*=title]')?a:null);
         var tn=ti?(ti.innerText||ti.getAttribute('title')||'').replace(/\s+/g,' ').trim():'';if(!z.n&&smiselno(tn))z.n=tn.slice(0,140);
         var t=besedilo(a);if(smiselno(t)&&t.length>z.t.length)z.t=t.slice(0,140);
         if(!z.i){var k=a,img=null;for(var j=0;j<3&&k&&!img;j++){img=k.querySelector('img');k=k.parentElement;}
-          if(img){var r=img.getBoundingClientRect(),s=img.currentSrc||img.src||'';
-            if(r.width>=48&&r.height>=32&&/^https?:/.test(s)){z.i=s;z.v=r.width/r.height>1.3;if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
+          if(img){var r=img.getBoundingClientRect(),ss=img.currentSrc||img.src||'';
+            if(r.width>=48&&r.height>=32&&/^https?:/.test(ss)){z.i=ss;z.v=r.width/r.height>1.3;if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
       }
       return red.filter(function(z){return z.i&&(z.n||z.t);}).map(function(z){if(z.n)z.t=z.n;return z;}).slice(0,24);}catch(e){return [];}})()"""
 
