@@ -219,6 +219,36 @@ object HubKrmilnik {
             .remove(KLJUC_IZVOLJENI_URL).remove(KLJUC_IZVOLJENI_ODTIS).remove(KLJUC_IZVOLJENI_ID).apply()
     }
 
+    /**
+     * Pozabi izvoljenega huba, ker se je izkazal za nedosegljivega (glej izvoljeniDosegljiv). Javno,
+     * ker to potrebujejo tudi poti do sredisca zunaj tega razreda (LinkSorodnikStoritev, Sorodnik,
+     * PridruzitevSredisca) - klicoci nato sam odloci, ali namesto njega gostiti (zazeni).
+     */
+    fun pozabiIzvoljenegaHuba(context: Context) = pozabiIzvoljeni(context.applicationContext)
+
+    /**
+     * Hitro preveri, ali je izvoljeni hub (ce ga imamo) sploh se dosegljiv na omrezju. Izvoljenega
+     * huba smo doslej zaupali za vedno, tudi ko ga zdavnaj ni vec - to je vzrok, da je pridruzitev
+     * nove naprave (QR ali 6-mestna koda) na napravi, ki se je umaknila hubu, ki ga ni vec, obticala
+     * v neskoncnem "Koda se se ne pripravlja, poskusam znova ...". Kratka povezava po TCP (brez TLS
+     * rokovanja) je dovolj: zanima nas samo, ali na tistem naslovu in vratih sploh se kdo poslusa.
+     */
+    fun izvoljeniDosegljiv(context: Context, casOmejitevMs: Int = 800): Boolean {
+        val hub = izvoljeniHub(context) ?: return false
+        return try {
+            val brezSheme = hub.naslov.substringAfter("://")
+            val gostitelj = brezSheme.substringBeforeLast(':')
+            val vrata = brezSheme.substringAfterLast(':').toIntOrNull() ?: return false
+            java.net.Socket().use { vticnica ->
+                vticnica.connect(java.net.InetSocketAddress(gostitelj, vrata), casOmejitevMs)
+            }
+            true
+        } catch (e: Throwable) {
+            Log.i(TAG, "Izvoljeni hub ${hub.id} (${hub.naslov}) ni dosegljiv: ${e.message}")
+            false
+        }
+    }
+
     private fun nacrtujIzvolitev(app: Context, cez: Long) {
         izvolitevNacrtovana?.let { glavna.removeCallbacks(it) }
         val r = Runnable { izvolitevNacrtovana = null; if (tece()) izvolitev(app) }

@@ -79,8 +79,10 @@ class LinkSorodnikStoritev : Service() {
         val b = Bundle()
         try {
             if (!HubKrmilnik.tece()) {
-                // Umaknili smo se izvoljenemu hubu (drug clan kroga): sorodnik gre tja, s podpisom svojega kljuca.
-                HubKrmilnik.izvoljeniHub(app)?.let { izvoljeni ->
+                // Umaknili smo se izvoljenemu hubu (drug clan kroga): sorodnik gre tja, s podpisom svojega kljuca -
+                // a samo, ce se ta izvoljeni hub se sploh oglasa (glej izvoljeniDosegljiv).
+                val izvoljeni = HubKrmilnik.izvoljeniHub(app)
+                if (izvoljeni != null && HubKrmilnik.izvoljeniDosegljiv(app)) {
                     val pripona = if (paket.endsWith(".os")) "os" else paket.substringAfterLast('.').ifBlank { "app" }
                     b.putString("hub_url", izvoljeni.naslov)
                     b.putString("token", "")
@@ -89,6 +91,12 @@ class LinkSorodnikStoritev : Service() {
                     b.putString("device_id", zeleniId.ifBlank { HubKrmilnik.lastniId() + "-" + pripona })
                     Log.i(TAG, "Sorodna aplikacija $paket gre na izvoljeni hub ${izvoljeni.id}.")
                     return b
+                }
+                if (izvoljeni != null) {
+                    // Izvoljeni hub se ne oglasa vec: kazalca nase ne obdrzimo za vedno, sicer sorodnik
+                    // (in z njim pridruzitev nove naprave) obtici v neskoncni zanki.
+                    Log.w(TAG, "Izvoljeni hub ${izvoljeni.id} (${izvoljeni.naslov}) ni dosegljiv; pozabljam in gostim sam.")
+                    HubKrmilnik.pozabiIzvoljenegaHuba(app)
                 }
                 if (neZaganjaj) {
                     Log.i(TAG, "Sredisce ne tece, sorodnik ($paket) ga ni zahteval - ne zaganjam.")

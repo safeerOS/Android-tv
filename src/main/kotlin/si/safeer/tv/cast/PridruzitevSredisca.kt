@@ -31,9 +31,16 @@ object PridruzitevSredisca {
         val b = Bundle()
         try {
             if (!HubKrmilnik.tece()) {
-                if (HubKrmilnik.izvoljeniHub(app) != null) {
-                    // Sredisce je na drugi napravi (clan kroga): pridruzitev gre tam.
-                    b.putString("napaka", "drugo_sredisce"); return b
+                val izvoljeni = HubKrmilnik.izvoljeniHub(app)
+                if (izvoljeni != null) {
+                    if (HubKrmilnik.izvoljeniDosegljiv(app)) {
+                        // Sredisce je na drugi napravi (clan kroga) in se oglasa: pridruzitev gre tja.
+                        b.putString("napaka", "drugo_sredisce"); return b
+                    }
+                    // Izvoljeni hub se ne oglasa vec (npr. racunalnik je ugasnjen): stalnega kazalca
+                    // ne zaupamo vecno, ampak gostimo sami, da pridruzitev sploh lahko uspe.
+                    Log.w(TAG, "Izvoljeni hub ${izvoljeni.id} (${izvoljeni.naslov}) ni dosegljiv; gostim sam.")
+                    HubKrmilnik.pozabiIzvoljenegaHuba(app)
                 }
                 HubKrmilnik.zazeni(app, zapomni = true)
                 HubStoritev.zagotovi(app)
