@@ -78,6 +78,9 @@
     <string name="os_spletne_dodaj_naslov">Katera stran naj postane aplikacija?</string>
     <string name="os_spletne_dodajam">Dodajam … berem ime in ikono</string>
     <string name="os_spletne_odstrani">Odstrani</string>
+    <string name="os_spletne_uporabi_vir">Uporabi kot vir za Glasbo in video</string>
+    <string name="os_spletne_odstrani_vir">Ne uporabljaj več kot vir za Glasbo in video</string>
+    <string name="os_spletne_vir_odstranjen">Odstranjeno iz virov za Glasbo in video</string>
     <string name="os_preklici">Prekliči</string>
     <string name="os_spletne_odstrani_vprasanje">Odstranim to spletno aplikacijo z domačega zaslona? Sama stran ostane nedotaknjena.</string>
 

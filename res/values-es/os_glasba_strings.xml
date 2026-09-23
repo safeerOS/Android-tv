@@ -16,7 +16,8 @@
     <string name="os_glasba_radiji">Radio por internet · emisoras más escuchadas</string>
     <string name="os_glasba_po_priljubljenosti">Lo más escuchado primero</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
-    <string name="os_glasba_video_opis">Vídeos de PeerTube · sin anuncios ni rastreo, lo más visto primero</string>
+    <string name="os_glasba_video_opis">Tus películas, series y vídeos musicales · bien organizados en un solo lugar</string>
+    <string name="os_media_zate">Para ti</string>
     <string name="os_mediji_kartica">Música y vídeo</string>
     <string name="os_mediji_kartica_opis">Sin anuncios</string>
     <string name="os_mediji_domov">Inicio</string>
@@ -38,6 +39,7 @@
     <string name="os_mediji_preverjam">Comprobando la fuente…</string>
     <string name="os_mediji_ni_vira">En esta dirección no hay música ni vídeo que Safeer pueda reproducir.</string>
     <string name="os_mediji_dodano">Añadido: %1$s</string>
+    <string name="os_mediji_vir_ze_dodan">Fuente ya añadida: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">¿Quitar esta fuente?</string>
     <string name="os_mediji_odstrani">Quitar</string>
     <string name="os_mediji_izvajalci">Artistas</string>
@@ -137,4 +139,14 @@
     <string name="os_media_prilj_v_virih">Popular en tus fuentes</string>
     <string name="os_media_filmi">Películas</string>
     <string name="os_media_serije">Series</string>
+    <string name="os_media_videospoti">Vídeos musicales</string>
+    <string name="os_media_film">Película</string>
+    <string name="os_media_serija">Serie</string>
+    <string name="os_media_videospot">Vídeo musical</string>
+    <string name="os_media_razvrsti">Ordenar resultados</string>
+    <string name="os_media_razvrsti_priporoceno">Recomendado</string>
+    <string name="os_media_razvrsti_najnovejse">Más recientes</string>
+    <string name="os_media_razvrsti_ime">Nombre A–Z</string>
+    <string name="os_media_prikazani_viri">Fuentes mostradas temporalmente</string>
+    <string name="os_media_ni_video_virov">No se han añadido fuentes de vídeo web.</string>
 </resources>

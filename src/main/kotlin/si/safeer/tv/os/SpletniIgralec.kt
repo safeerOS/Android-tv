@@ -43,11 +43,14 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
             if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))
                 WebViewCompat.addDocumentStartJavaScript(this, POSREDNIK_JS, setOf("*"))
         } catch (_: Exception) { }
-        onPageLoaded = { _, _ ->
+        onPageLoaded = nalozeno@ { _, _ ->
+            if (sproscen) return@nalozeno
             evaluateJavascript(POSREDNIK_JS, null)
             evaluateJavascript(SpletniVir.SOGLASJE_JS, null)
-            ukaz("play"); ura.postDelayed({ ukaz("play") }, 3_000); ura.postDelayed({ if (igra && !pripravljeno) ukaz("play") }, 7_000)
-            if (kino) evaluateJavascript(KINO_JS, null)
+            ukaz("play")
+            ura.postDelayed({ if (!sproscen) ukaz("play") }, 3_000)
+            ura.postDelayed({ if (!sproscen && igra && !pripravljeno) ukaz("play") }, 7_000)
+            if (kino) vklopiKino()
         }
         loadUrl(sk.povezava)
     }
@@ -65,16 +68,27 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
     private var koncano = 0
     private var naslov = sk.naslov
     private var izvajalec = sk.izvajalec
+    private var sproscen = false
 
     private fun ukaz(c: String, t: Double = 0.0) =
         pogled.evaluateJavascript("(function(){try{window.postMessage({safeer:'ukaz',c:'$c',t:$t},'*');}catch(e){}})()", null)
 
+    /** Vrhnja stran izreze najvecji iframe/video, vsak notranji okvir pa samo svoj dejanski video. */
+    private fun vklopiKino() {
+        ukaz("kino")
+        pogled.evaluateJavascript(KINO_JS) { r ->
+            if (kino && r == "true") ura.postDelayed({ if (kino) pogled.alpha = 1f }, 120)
+        }
+    }
+
     private val tik = object : Runnable {
         override fun run() {
-            if (kino) pogled.evaluateJavascript(KINO_JS, null)
+            if (sproscen) return
+            if (kino) vklopiKino()
             // Casovniki JS so skupni vsem pogledom procesa; ce jih je brskalnik ustavil, stran ne tece.
             if (zelja) pogled.resumeTimers()
             pogled.evaluateJavascript(STANJE_JS) { r ->
+                if (sproscen) return@evaluateJavascript
                 val o = try { JSONObject(r ?: "{}") } catch (_: Exception) { JSONObject() }
                 if (o.has("t")) {
                     pripravljeno = o.optInt("r") >= 2
@@ -135,6 +149,7 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
     }
 
     override fun handleRelease(): ListenableFuture<*> {
+        sproscen = true
         zelja = false
         skrij()
         ura.removeCallbacksAndMessages(null)
@@ -147,15 +162,18 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
         val stars = nad.parent as? ViewGroup ?: return
         if (pogled.parent === stars) return
         kino = true
+        pogled.alpha = 0f
+        pogled.setBackgroundColor(android.graphics.Color.BLACK)
         (pogled.parent as? ViewGroup)?.removeView(pogled)
         stars.addView(pogled, stars.indexOfChild(nad) + 1, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         kino = true
-        pogled.evaluateJavascript(KINO_JS, null)
+        vklopiKino()
     }
 
     /** Zaslon predvajanja je zaprt: pogled odpnemo, zvok igra naprej. */
     fun skrij() {
         kino = false
+        pogled.alpha = 0f
         (pogled.parent as? ViewGroup)?.removeView(pogled)
         zadnja?.get()?.let { gostuj(it) }
         if (zelja) ura.postDelayed({ ukaz("play") }, 400)
@@ -200,6 +218,12 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
             if(d.c==='play'){window._safeer_app_bg=false;if(m){if(m.paused){try{m.play();}catch(x){}}}else if(document.querySelector('button,[role=button]'))gumb();}
             else if(d.c==='pause'&&m){window._safeer_app_bg=true;try{m.pause();}catch(x){}}
             else if(d.c==='seek'&&m){try{m.currentTime=d.t;}catch(x){}}
+            else if(d.c==='kino'){
+              var v=[].slice.call(document.querySelectorAll('video')).filter(function(x){var r=x.getBoundingClientRect();return r.width>40&&r.height>24;})
+                .sort(function(a,b){return b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight;})[0];
+              if(v){v.setAttribute('data-safeer-only-video','1');var s=document.getElementById('safeer-only-video');if(!s){s=document.createElement('style');s.id='safeer-only-video';(document.head||document.documentElement).appendChild(s);}
+                s.textContent='html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;background:#000!important;overflow:hidden!important}body>*:not([data-safeer-only-video]){visibility:hidden!important}video[data-safeer-only-video]{visibility:visible!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:contain!important;background:#000!important;z-index:2147483647!important}';}
+            }
             for(var i=0;i<window.frames.length;i++){try{window.frames[i].postMessage(d,'*');}catch(x){}}});
           if(window.top!==window){setInterval(function(){var m=glavni();if(m){try{window.top.postMessage({safeer:'stanje',
             p:!m.paused,t:m.currentTime||0,d:m.duration||0,r:m.readyState,e:!!m.ended},'*');}catch(x){}}},1000);}

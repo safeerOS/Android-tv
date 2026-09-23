@@ -43,6 +43,10 @@ object Jamendo {
         val episode: Int = 0,
         val imdbId: String = "",
         val tmdbId: String = "",
+        /** Najvisja kakovost, ki jo vir izrecno objavi (npr. 1080 ali 2160); 0 pomeni neznano. */
+        val quality: Int = 0,
+        /** Ocena vsebine, ce jo spletna aplikacija objavi; 0 pomeni neznano. */
+        val rating: Double = 0.0,
     )
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

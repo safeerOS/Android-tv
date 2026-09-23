@@ -29,6 +29,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.media3.common.Player
 import si.safeer.tv.R
+import java.lang.ref.WeakReference
+import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -60,7 +62,8 @@ class GlasbaActivity : OsActivity() {
     /** Podatki vrste brez zaslona - samo to gre v predpomnilnik (kartice drzijo zaslon). */
     private data class Podatki(val naslov: String, val skladbe: List<Jamendo.Skladba>, val video: Boolean = false)
     private data class Kartica(val naslov: String, val podnaslov: String, val slika: String, val klik: (View) -> Unit,
-                               val dolgo: ((View) -> Unit)? = null, val ikona: Int = R.drawable.os_ikona_glasba)
+                               val dolgo: ((View) -> Unit)? = null, val ikona: Int = R.drawable.os_ikona_glasba,
+                               val oznaka: String = "", val kakovost: String = "", val ocena: String = "")
 
     private val delavec = Executors.newFixedThreadPool(4)
     // Omrezno iskanje ima lasten omejen pool. Prejsnje iskanje preklicemo, da pocasni
@@ -69,6 +72,8 @@ class GlasbaActivity : OsActivity() {
     private val iskanjeDelavec = Executors.newCachedThreadPool()
     private val iskanjeNiti = mutableListOf<Future<*>>()
     private val slikeVTeKu = ConcurrentHashMap.newKeySet<String>()
+    /** Pogledi, ki cakajo isto naslovnico; tako ob prihodu slike ne prehodimo celotnega zaslona. */
+    private val cakajoceSlike = ConcurrentHashMap<String, MutableList<WeakReference<ImageView>>>()
     private val glavna = Handler(Looper.getMainLooper())
 
     private lateinit var koren: View
@@ -88,6 +93,10 @@ class GlasbaActivity : OsActivity() {
     private lateinit var zdajIzvajalec: TextView
     private lateinit var zdajCas: TextView
     private var razdelek = DOMOV
+    /** 0 = osebno/priporoceno, 1 = najnovejse, 2 = naslov A-Z. */
+    private var videoRazvrstitev = 0
+    /** Zacasno skriti viri veljajo samo v tej odprti seji Safeer Media; vira ne izbrisemo. */
+    private val zacasnoSkritiVideoViri = mutableSetOf<String>()
     private var nalaganje = 0
     private var iskalnik: EditText? = null
     /** Po izbiri kartice razdelka gre fokus na prvo kartico vsebine, ko se narise. */
@@ -351,8 +360,11 @@ class GlasbaActivity : OsActivity() {
 
     /** Kartica; [mala] je za nedavno na plosci (manjsa, samo naslov), da vrsta ostane na zaslonu. */
     private fun kartica(k: Kartica, video: Boolean, prva: Boolean, kljuc: String, mala: Boolean = false, velikostDp: Int = 0): View {
-        val sirina = dp(if (velikostDp > 0) velikostDp else if (mala) 96 else if (video) 224 else 150)
-        val visina = if (video) sirina * 9 / 16 else sirina
+        // Video katalog na televizorju uporablja pokoncne plakate: vec naslovov je
+        // hkrati vidnih, slika pa ni odrezana v sirok 16:9 trak. Majhne kartice "Nedavno" ostanejo 16:9.
+        val plakat = video && !mala && velikostDp == 0
+        val sirina = dp(if (velikostDp > 0) velikostDp else if (mala) 96 else if (plakat) 112 else 150)
+        val visina = if (mala && video) sirina * 9 / 16 else if (plakat) sirina * 3 / 2 else sirina
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             tag = kljuc
@@ -370,10 +382,31 @@ class GlasbaActivity : OsActivity() {
                 // Kartica brez slike: ikona zmerne velikosti na sredini, ne cez vso kartico.
                 if (k.slika.isBlank()) { scaleType = ImageView.ScaleType.FIT_CENTER; val r = minOf(sirina, visina) / 4; setPadding(r, r, r, r) }
             }
-            addView(slika, LinearLayout.LayoutParams(sirina, visina))
-            addView(besedilo(if (mala) 11f else 14f, getColor(R.color.os_besedilo), true).apply { text = k.naslov; setPadding(dp(2), dp(if (mala) 2 else 8), 0, 0) },
+            if (plakat) {
+                addView(FrameLayout(this@GlasbaActivity).apply {
+                    addView(slika, FrameLayout.LayoutParams(-1, -1))
+                    fun znacka(text: String, barva: Int, spodaj: Int) {
+                        if (text.isBlank()) return
+                        addView(besedilo(10f, barva, true).apply {
+                            this.text = text.uppercase(Locale.getDefault())
+                            setPadding(dp(8), dp(4), dp(8), dp(4))
+                            background = GradientDrawable().apply {
+                                cornerRadius = dp(7).toFloat(); setColor(0xD9181D26.toInt()); setStroke(dp(1), barva)
+                            }
+                        }, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { leftMargin = dp(8); topMargin = dp(spodaj) })
+                    }
+                    znacka(k.oznaka, if (k.oznaka == getString(R.string.os_media_serija)) 0xFFA878FF.toInt() else getColor(R.color.os_mint), 9)
+                    znacka(k.kakovost, 0xFF1CE6F2.toInt(), if (k.oznaka.isBlank()) 9 else 42)
+                }, LinearLayout.LayoutParams(sirina, visina))
+            } else addView(slika, LinearLayout.LayoutParams(sirina, visina))
+            addView(besedilo(if (mala) 11f else 14f, getColor(R.color.os_besedilo), true).apply {
+                text = k.naslov; maxLines = if (plakat) 2 else 1; setPadding(dp(2), dp(if (mala) 2 else 8), 0, 0)
+            },
                 LinearLayout.LayoutParams(sirina, -2))
-            if (!mala) addView(besedilo(12f, getColor(R.color.os_umirjeno)).apply { text = k.podnaslov; setPadding(dp(2), 0, 0, 0) },
+            if (!mala) addView(besedilo(12f, getColor(R.color.os_umirjeno)).apply {
+                text = listOf(k.podnaslov, k.ocena.takeIf { it.isNotBlank() }?.let { "★ $it" }.orEmpty()).filter { it.isNotBlank() }.joinToString("   ")
+                setPadding(dp(2), dp(2), 0, 0)
+            },
                 LinearLayout.LayoutParams(sirina, -2))
             naloziSliko(k.slika, slika)
         }
@@ -402,7 +435,8 @@ class GlasbaActivity : OsActivity() {
             val tesno = v.mala || razdelek == DOMOV
             if (v.naslov.isNotBlank())
                 vsebina.addView(besedilo(if (tesno) 16f else 18f, getColor(R.color.os_besedilo), true).apply {
-                    text = v.naslov; tag = NASLOV_VRSTE; setPadding(dp(4), dp(if (tesno) 5 else 14), 0, dp(if (tesno) 3 else 8)) })
+                    text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
+                    setPadding(dp(4), dp(if (tesno) 5 else 14), 0, dp(if (tesno) 3 else 8)) })
             if (v.pogled != null) { vsebina.addView(v.pogled); continue }
             if (v.mreza) {
                 // Mreza (Moji viri): toliko kartic v vrsto, kolikor jih gre celih, ostale v naslednjo vrsto.
@@ -454,8 +488,8 @@ class GlasbaActivity : OsActivity() {
                     val v = vsebina.getChildAt(i)
                     if (v.bottom <= vidno) continue
                     // Samo vrste kartic (in njihove naslove); plosce na vrhu ostanejo, kot so.
-                    if (v !is HorizontalScrollView && v.tag != NASLOV_VRSTE && v.tag != MREZA_VRSTA) return
-                    val zacetek = if (i > 0 && vsebina.getChildAt(i - 1).tag == NASLOV_VRSTE) i - 1 else i
+                    if (v !is HorizontalScrollView && v.contentDescription != NASLOV_VRSTE && v.tag != MREZA_VRSTA) return
+                    val zacetek = if (i > 0 && vsebina.getChildAt(i - 1).contentDescription == NASLOV_VRSTE) i - 1 else i
                     val vrh = vsebina.getChildAt(zacetek).top
                     if (zacetek > 0 && vrh < vidno) vsebina.addView(View(this@GlasbaActivity), zacetek, LinearLayout.LayoutParams(-1, vidno - vrh))
                     return
@@ -470,22 +504,29 @@ class GlasbaActivity : OsActivity() {
         if (!naslov.startsWith("https://")) return
         SLIKE.get(naslov)?.let { v.setImageBitmap(it); return }
         v.tag = naslov
+        cakajoceSlike.computeIfAbsent(naslov) {
+            Collections.synchronizedList(ArrayList<WeakReference<ImageView>>())
+        }.add(WeakReference(v))
         // Vec kartic lahko uporablja isto naslovnico. Prenesi/dekodiraj jo samo enkrat.
         if (!slikeVTeKu.add(naslov)) return
         delavec.execute {
             try {
                 // 280 px je dovolj za TV kartice, hkrati pa precej zmanjsa heap in GC sunke na 2 GB TV.
-                val b = Jamendo.bajti(naslov)?.let { VarnaSlika.izBajtov(it, 280) } ?: return@execute
+                val b = (SpletniVir.bajtiSlike(this, naslov) ?: Jamendo.bajti(naslov))
+                    ?.let { VarnaSlika.izBajtov(it, 280) } ?: return@execute
                 SLIKE.put(naslov, b)
-                // Zaslon se med prenosom lahko narise znova (iskanje po delih): sliko dobijo vse kartice s tem naslovom.
-                glavna.post { if (!isFinishing) { if (v.tag == naslov) v.setImageBitmap(b); postaviSliko(window.decorView, naslov, b) } }
-            } finally { slikeVTeKu.remove(naslov) }
+                val cakajoci = cakajoceSlike.remove(naslov)
+                val pogledi = cakajoci?.let { synchronized(it) { it.toList() } }.orEmpty()
+                glavna.post {
+                    if (!isFinishing) pogledi.forEach { ref ->
+                        ref.get()?.takeIf { it.tag == naslov }?.setImageBitmap(b)
+                    }
+                }
+            } finally {
+                slikeVTeKu.remove(naslov)
+                cakajoceSlike.remove(naslov)
+            }
         }
-    }
-
-    private fun postaviSliko(pogled: View, naslov: String, b: android.graphics.Bitmap) {
-        if (pogled is ImageView && pogled.tag == naslov) pogled.setImageBitmap(b)
-        else if (pogled is android.view.ViewGroup) for (i in 0 until pogled.childCount) postaviSliko(pogled.getChildAt(i), naslov, b)
     }
 
     // ------------------------------------------------------------------ razdelki
@@ -569,25 +610,35 @@ class GlasbaActivity : OsActivity() {
         RADIO -> Radio.postajeLocene().let { (domace, svet) ->
             listOf(Podatki(getString(R.string.os_mediji_domace), domace), Podatki(getString(R.string.os_mediji_svet), svet)) }
         VIDEO -> {
-            val izVirov = SpletniVir.priljubljeno(this, MedijskiViri.vsi(this)).filter { it.video }
+            val medijskiViri = MedijskiViri.vsi(this).filterNot { it.naslov in zacasnoSkritiVideoViri }
+            android.util.Log.i("SafeerOsMedia", "viri=${medijskiViri.size}, spletni=${medijskiViri.count { it.jeSplet }}")
+            val surovi = SpletniVir.priljubljeno(this, medijskiViri).filter { it.video }
+            val izVirov = when (videoRazvrstitev) {
+                1 -> surovi.sortedWith(compareByDescending<Jamendo.Skladba> { it.year }.thenBy { it.naslov.lowercase(Locale.getDefault()) })
+                2 -> surovi.sortedBy { it.naslov.lowercase(Locale.getDefault()) }
+                else -> surovi
+            }
             val filmi = izVirov.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.FILM }
             val serije = izVirov.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.SERIJA }
+            val videospoti = izVirov.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.VIDEOSPOT }
             val vrste = mutableListOf<Podatki>()
             // Osebni izbor ostane povsem lokalen: zgodovina ne zapusti naprave, kandidati pa so samo
             // vsebine iz virov, ki jih je uporabnik sam dodal. Ce se Safeer se ni nic naucil, vrstice
             // ne podvajamo in uporabniku najprej pokazemo priljubljeno v njegovih virih.
             val priporocila = MediaPriporocila.uredi(this, izVirov)
             if (MediaNapredek.seznam(this).isNotEmpty() || MedijskiViri.priljubljene(this).any { it.video } || MedijskiViri.nedavno(this).any { it.video }) {
-                priporocila.zate.takeIf { it.isNotEmpty() }?.let { vrste += Podatki("Zate", it, video = true) }
+                priporocila.zate.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_zate), it, video = true) }
             }
             izVirov.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_prilj_v_virih), it, video = true) }
             filmi.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_filmi), it, video = true) }
             serije.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_serije), it, video = true) }
+            videospoti.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_videospoti), it, video = true) }
             // Zvrsti so dodatne police znotraj uporabnikovih virov. Ne zahtevajo novega API-ja in se
             // prikazejo samo, kadar vir sam v naslovu/URL-ju poda dovolj mocan signal.
             listOf("Komedija", "Grozljivke", "Drama", "Akcija", "Fantastika", "Kriminalke", "Dokumentarci", "Animacija", "Druzinski", "Romantika").forEach { z ->
                 izVirov.filter { SpletniVir.zvrstVsebine(it) == z }.takeIf { it.size >= MIN_KARTIC_KATEGORIJE }?.let { vrste += Podatki(z, it, video = true) }
             }
+            android.util.Log.i("SafeerOsMedia", "enote=${izVirov.size}, z_vrsto=${filmi.size + serije.size + videospoti.size}, police=${vrste.size}, prag=$MIN_KARTIC_KATEGORIJE")
             vrste + MedijskiViri.streznikiPeerTube(this).mapNotNull { s ->
                 val vsebina = try { PeerTube.najboljGledani(s, 24) } catch (_: Exception) { emptyList() }
                 vsebina.takeIf { it.isNotEmpty() }?.let { Podatki(s, it, video = true) }
@@ -636,7 +687,77 @@ class GlasbaActivity : OsActivity() {
     // ------------------------------------------------------------------ nadzorna plosca
 
     /** Pogledi nad vrstami: na plosci kartice razdelkov ter "zdaj se predvaja" s hitrimi dejanji. */
-    private fun glavaRazdelka(i: Int): List<View> = if (i != DOMOV) emptyList() else listOfNotNull(kategorije(), zdajPlosca())
+    private fun glavaRazdelka(i: Int): List<View> = when (i) {
+        DOMOV -> listOfNotNull(kategorije(), zdajPlosca())
+        VIDEO -> listOf(videoKategorije())
+        else -> emptyList()
+    }
+
+    /** Hitra zgornja navigacija video kataloga; ne razkriva virov, skoci neposredno na polico. */
+    private fun videoKategorije(): View {
+        val niz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(8), dp(16), dp(8)) }
+        val kategorije = listOf(
+            "🔥 " + getString(R.string.os_media_zate) to getString(R.string.os_media_zate),
+            "🎬 " + getString(R.string.os_media_filmi) to getString(R.string.os_media_filmi),
+            "📺 " + getString(R.string.os_media_serije) to getString(R.string.os_media_serije),
+            "🎵 " + getString(R.string.os_media_videospoti) to getString(R.string.os_media_videospoti)
+        )
+        kategorije.forEachIndexed { i, (napis, cilj) ->
+            niz.addView(besedilo(14f, getColor(R.color.os_besedilo), true).apply {
+                text = napis; isFocusable = true; isClickable = true
+                setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
+                if (i == 0) nextFocusLeftId = meniMediji.id
+                setOnClickListener {
+                    val v = vsebina.findViewWithTag<View>("polica:$cilj")
+                    if (v != null) { drsnik.smoothScrollTo(0, v.top.coerceAtLeast(0)); v.nextFocusDownId = View.NO_ID }
+                }
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
+        }
+        fun dejanje(napis: String, klik: () -> Unit) {
+            niz.addView(besedilo(14f, getColor(R.color.os_mint), true).apply {
+                text = napis; isFocusable = true; isClickable = true
+                setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_kartica_steklo)
+                setOnClickListener { klik() }
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(6); marginEnd = dp(8) })
+        }
+        val red = when (videoRazvrstitev) {
+            1 -> getString(R.string.os_media_razvrsti_najnovejse)
+            2 -> getString(R.string.os_media_razvrsti_ime)
+            else -> getString(R.string.os_media_razvrsti_priporoceno)
+        }
+        dejanje("↕  $red") { izberiRazvrstitevVidea() }
+        val skritih = zacasnoSkritiVideoViri.size
+        dejanje("☷  " + getString(R.string.os_media_izberi_vire) + if (skritih > 0) " ($skritih)" else "") { izberiVideoVire() }
+        return HorizontalScrollView(this).apply { addView(niz); isHorizontalScrollBarEnabled = false; clipToPadding = false }
+    }
+
+    private fun izberiRazvrstitevVidea() {
+        val moznosti = arrayOf(
+            getString(R.string.os_media_razvrsti_priporoceno),
+            getString(R.string.os_media_razvrsti_najnovejse),
+            getString(R.string.os_media_razvrsti_ime)
+        )
+        AlertDialog.Builder(this).setTitle(R.string.os_media_razvrsti)
+            .setSingleChoiceItems(moznosti, videoRazvrstitev) { d, i ->
+                videoRazvrstitev = i; SEZNAMI.remove(VIDEO); d.dismiss(); izberi(VIDEO)
+            }.setNegativeButton(android.R.string.cancel, null).let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Upravljanje prikaza, ne nastavitev vira: sprememba se ob zaprtju zaslona pozabi. */
+    private fun izberiVideoVire() {
+        val viri = MedijskiViri.vsi(this).filter { it.jeSplet }
+        if (viri.isEmpty()) { Toast.makeText(this, R.string.os_media_ni_video_virov, Toast.LENGTH_SHORT).show(); return }
+        val izbrani = BooleanArray(viri.size) { viri[it].naslov !in zacasnoSkritiVideoViri }
+        AlertDialog.Builder(this).setTitle(R.string.os_media_prikazani_viri)
+            .setMultiChoiceItems(viri.map { it.ime }.toTypedArray(), izbrani) { _, i, da -> izbrani[i] = da }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                zacasnoSkritiVideoViri.clear()
+                viri.forEachIndexed { i, vir -> if (!izbrani[i]) zacasnoSkritiVideoViri += vir.naslov }
+                SEZNAMI.remove(VIDEO); izberi(VIDEO)
+            }.setNeutralButton(R.string.os_media_vsi_viri) { _, _ ->
+                zacasnoSkritiVideoViri.clear(); SEZNAMI.remove(VIDEO); izberi(VIDEO)
+            }.setNegativeButton(android.R.string.cancel, null).let { Kontroler.pokazi(it.show()) }
+    }
 
     private fun kategorije(): View {
         // Televizor (16:9) ima kategorije vedno v eni vrsti; na ozkem zaslonu (tablica pokonci) dve vrsti
@@ -841,7 +962,7 @@ class GlasbaActivity : OsActivity() {
         val sk = GlasbaStoritev.trenutna() ?: zadnja ?: MedijskiViri.nedavno(this).firstOrNull() ?: return
         val p = GlasbaStoritev.predvajalnik
         pNaslov?.text = sk.naslov
-        pIzvajalec?.text = sk.izvajalec
+        pIzvajalec?.text = if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec
         pVir?.text = when {
             sk.radio -> getString(R.string.os_media_v_zivo)
             sk.video && sk.streznik.isNotBlank() -> "PeerTube · ${sk.streznik}"
@@ -955,7 +1076,7 @@ class GlasbaActivity : OsActivity() {
                     if (skupaj + w(vec) <= sirina) break
                     skupaj -= w(k); k.visibility = View.GONE; skritih++
                 }
-                ((vec as LinearLayout).getChildAt(1) as LinearLayout).getChildAt(1).let { (it as TextView).text = "+$skritih" }
+                (vec.getChildAt(1) as LinearLayout).getChildAt(1).let { (it as TextView).text = "+$skritih" }
             }
         })
         return okvir
@@ -984,7 +1105,6 @@ class GlasbaActivity : OsActivity() {
             MedijskiViri.preklopiPripet(this, v.kljuc)
             izberi(DOMOV)
             drsnik.post { vsebina.findViewWithTag<View>(if (sosed != null) "k:v:$sosed" else KLJUC_VSI_VIRI)?.requestFocus() }
-            Unit
         })
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(v.ime)
@@ -1092,26 +1212,33 @@ class GlasbaActivity : OsActivity() {
         startActivity(Brskalnik.medijskaStran(this, url, ime))
     }
 
-    /** Isti naslov iz vec spletnih virov je ena kartica. Ob kliku uporabnik izbere vir; en sam vir se zazene takoj. */
+    /** Isti naslov iz vec virov je ena kartica; Safeer sam izbere vir in ga uporabniku ne izpostavlja. */
     private fun videi(v: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null): List<Kartica> {
-        fun k(s: Jamendo.Skladba): String {
-            if (s.imdbId.isNotBlank()) return "imdb:${s.imdbId.lowercase()}"
-            if (s.tmdbId.isNotBlank()) return "tmdb:${s.tmdbId}:${SpletniVir.vrstaVsebine(s).orEmpty()}"
-            val n = s.naslov.lowercase().replace(Regex("\\b(19|20)\\d{2}\\b"), "").replace(Regex("[^\\p{L}\\p{N}]"), "")
-            return "$n:${s.year.takeIf { it > 0 } ?: "?"}:${SpletniVir.vrstaVsebine(s).orEmpty()}"
-        }
-        return v.groupBy { k(it) }.values.map { moznosti ->
-            val sk = moznosti.first()
-            val odpri: (View) -> Unit = {
-                if (moznosti.size == 1) predvajaj(listOf(sk), 0)
-                else AlertDialog.Builder(this).setTitle(sk.naslov)
-                    .setItems(moznosti.map { it.izvajalec.ifBlank { getString(R.string.os_mediji_viri) } }.toTypedArray()) { _, i ->
-                        predvajaj(listOf(moznosti.getOrElse(i) { sk }), 0)
-                    }.setNegativeButton(android.R.string.cancel, null).show()
-                Unit
+        val skupine = SpletniVir.zdruziEnako(v)
+        val podvojene = skupine.count { it.size > 1 }
+        if (podvojene > 0) android.util.Log.i("SafeerOsMedia",
+            "zdruzevanje: kandidati=${v.size}, kartice=${skupine.size}, podvojene_skupine=$podvojene, odstranjeni=${v.size - skupine.size}")
+        return skupine.map { urejene ->
+            val sk = urejene.first()
+            val podnaslov = sk.year.takeIf { it > 0 }?.toString().orEmpty()
+            val tip = when (SpletniVir.vrstaVsebine(sk)) {
+                SpletniVir.FILM -> getString(R.string.os_media_film)
+                SpletniVir.SERIJA -> getString(R.string.os_media_serija)
+                SpletniVir.VIDEOSPOT -> getString(R.string.os_media_videospot)
+                else -> getString(R.string.os_glasba_video)
             }
-            Kartica(sk.naslov, if (moznosti.size > 1) "${sk.izvajalec}  ·  ${moznosti.size} virov" else sk.izvajalec,
-                sk.slika, odpri, { meni(sk, v, vrsta, seznam) })
+            val signal = (sk.naslov + " " + sk.povezava).lowercase(Locale.ROOT)
+            val kakovost = when {
+                sk.quality >= 2160 || Regex("(?:2160p?|4k|uhd)").containsMatchIn(signal) -> "4K UHD"
+                sk.quality >= 1080 || Regex("1080p?|full[- ]?hd|fhd").containsMatchIn(signal) -> "HD 1080P"
+                sk.quality >= 720 || Regex("720p?|\\bhd\\b").containsMatchIn(signal) -> "HD"
+                else -> ""
+            }
+            Kartica(sk.naslov, podnaslov, sk.slika, {
+                // Uporabnik vidi eno kartico. V ozadju ostanejo vse razlicice, urejene od najboljse.
+                if (SpletniVir.jeEnota(sk)) razresiSplet(sk, urejene.drop(1)) else predvajaj(listOf(sk), 0)
+            }, { meni(sk, v, vrsta, seznam) }, oznaka = tip, kakovost = kakovost,
+                ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty())
         }
     }
 
@@ -1321,7 +1448,7 @@ class GlasbaActivity : OsActivity() {
             vsi.addAll(vLinku)
             viri.forEach { v -> MedijskiViri.kotSkladba(v).let { vsi.add(Relevantnost.Zadetek(it, v.ime, "", v.ime, 2, v.naslov)) } }
             izSeznamov.forEach { (v, s) -> vsi.add(Relevantnost.Zadetek(s, s.naslov, s.izvajalec, v.ime, 2)) }
-            izSpleta.forEach { (v, s) -> vsi.add(Relevantnost.Zadetek(s, s.naslov, s.izvajalec, v.ime, 2)) }
+            izSpleta.forEach { (_, s) -> vsi.add(Relevantnost.Zadetek(s, s.naslov, s.izvajalec, getString(R.string.os_media_tvoji_viri), 2)) }
             arhiv.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Archive.org", 6)) }
             glasba.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Jamendo", 3)) }
             videi.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "PeerTube", 4)) }
@@ -1340,21 +1467,13 @@ class GlasbaActivity : OsActivity() {
                 val vrste = listOfNotNull(
                     spletVrsta.takeIf { nicNasli && koncno },
                     Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first) }),
-                    Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(glasba), beseda)),
-                    Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi), beseda), video = true),
+                    Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(glasba + izSpleta.map { it.second }.filterNot { it.video }), beseda)),
+                    Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi + izSpleta.map { it.second }.filter { it.video }), beseda), video = true),
                     Vrsta(getString(R.string.os_mediji_izvajalci), izvajalci.map { iz ->
                         Kartica(iz.ime, getString(R.string.os_glasba_izvajalec), iz.slika, { odpriIzvajalca(iz) }) }),
                     Vrsta(getString(R.string.os_mediji_postaje), skladbe(ostali(postaje), beseda)),
                     Vrsta(getString(R.string.os_media_podkasti), skladbe(podkasti, beseda)),
                     Vrsta("Archive.org", skladbe(ostali(arhiv), beseda)),
-                    // Vsak uporabnikov vir (spletna aplikacija, API) ima svojo vrsto zadetkov.
-                    *izSpleta.groupBy { it.first }.map { (v, l) -> Vrsta(v.ime, skladbe(ostali(l.map { it.second }).filter { Relevantnost.ocena(beseda, it.naslov, it.izvajalec) >= Relevantnost.SPODNJA }, beseda)) }.toTypedArray(),
-                    // Dodane spletne strani: iskanje znotraj vira (stran nima skupnega vmesnika za iskanje).
-                    Vrsta(getString(R.string.os_mediji_viri), spletniViri.filter { v -> v.jeSplet && koncno && izSpleta.none { it.first == v } }.map { vir ->
-                        Kartica(vir.ime, getString(R.string.os_media_isci_v_viru, beseda), "", {
-                            odpriIskanjeVViru(vir, beseda)
-                        }, ikona = R.drawable.os_ikona_splet)
-                    }),
                     spletVrsta.takeIf { splet && !nicNasli && koncno },
                 )
                 zadetki = vrste
@@ -1388,10 +1507,11 @@ class GlasbaActivity : OsActivity() {
     /** Streznik datotek naprave v Linku za zadetek (predvajanje s pripetim potrdilom). */
     private val strezniki = ConcurrentHashMap<String, DatotekeActivity.Streznik>()
 
-    /** Kartica zadetka enotnega iskanja: podnaslov pove izvajalca in izvor (npr. »Pink Floyd · Matej-PC«). */
+    /** Kartica iskanja: spletni vir je notranja podrobnost, zato ga na kartici ne razkrivamo. */
     private fun kartica(z: Relevantnost.Zadetek<*>): Kartica {
         val sk = z.stvar as Jamendo.Skladba
-        val podnaslov = listOf(sk.izvajalec, z.izvor).filter { it.isNotBlank() }.distinct().joinToString(" · ")
+        val podnaslov = if (SpletniVir.jeEnota(sk)) sk.year.takeIf { it > 0 }?.toString().orEmpty()
+            else listOf(sk.izvajalec, z.izvor).filter { it.isNotBlank() }.distinct().joinToString(" · ")
         val klik: (View) -> Unit = {
             val s = strezniki[sk.id]
             when {
@@ -1512,12 +1632,18 @@ class GlasbaActivity : OsActivity() {
      * Zadetek iz uporabnikove spletne aplikacije: tok ujamemo in ga predvaja nas predvajalnik. Zascitenega
      * toka ne ujamemo - takrat igra stran v skritem pogledu, upravlja pa jo nas predvajalnik ([SpletniIgralec]).
      */
-    private fun razresiSplet(sk: Jamendo.Skladba) {
+    private fun razresiSplet(sk: Jamendo.Skladba, rezervni: List<Jamendo.Skladba> = emptyList()) {
         stanje.text = getString(R.string.os_glasba_nalagam)
         SpletniVir.razresi(this, sk) { r ->
             if (isFinishing) return@razresi
             stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
             if (r == null) {
+                // Ce najboljsa stran sploh ne more odpreti predvajanja, poskusimo naslednji enakovreden
+                // vir. Zasciten oziroma blob video pa se se vedno lahko predvaja prek spletnega igralca.
+                val naslednji = rezervni.firstOrNull { it.povezava != sk.povezava }
+                if (naslednji != null && sk.povezava.isBlank()) {
+                    razresiSplet(naslednji, rezervni.drop(1)); return@razresi
+                }
                 SpletniIgralec.zadnja = java.lang.ref.WeakReference(this)
                 GlasbaStoritev.predvajajSplet(this, sk)
                 if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
@@ -1545,8 +1671,8 @@ class GlasbaActivity : OsActivity() {
     // ------------------------------------------------------------------ viri
 
     private fun dodajVir() {
-        val zeViri = MedijskiViri.vsi(this).map { it.naslov }
-        val aplikacije = try { SpletneAplikacije.seznam(this) } catch (_: Throwable) { emptyList() }.filterNot { it.url in zeViri }
+        val aplikacije = try { SpletneAplikacije.seznam(this) } catch (_: Throwable) { emptyList() }
+            .filter { MedijskiViri.obstojeciVir(this, it.url) == null }
         if (aplikacije.isEmpty()) { vpisiVir(); return }
         val imena = aplikacije.map { it.ime.ifBlank { SpletneAplikacije.gostitelj(it.url) } }
         AlertDialog.Builder(this)
@@ -1576,6 +1702,10 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun dodajVNozadju(vnos: String, ime: String?) {
+                MedijskiViri.obstojeciVir(this, vnos)?.let {
+                    Toast.makeText(this, getString(R.string.os_mediji_vir_ze_dodan, it.ime), Toast.LENGTH_SHORT).show()
+                    return
+                }
                 stanje.text = getString(R.string.os_mediji_preverjam)
                 delavec.execute {
                     val vir = MedijskiViri.dodaj(this, vnos, ime)
@@ -1652,7 +1782,7 @@ class GlasbaActivity : OsActivity() {
         if (sk == null || p == null) return
         if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0))
         zdajNaslov.text = sk.naslov
-        zdajIzvajalec.text = sk.izvajalec
+        zdajIzvajalec.text = if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec
         zdajCas.text = if (p.isPlaying) "▶" else "❚❚"
     }
 
@@ -1694,5 +1824,12 @@ class GlasbaActivity : OsActivity() {
         /** Seznami razdelkov za cas delovanja aplikacije (ponovna izbira je takojsnja). */
         private val SEZNAMI = HashMap<Int, List<Podatki>>()
         private val SLIKE = LruCache<String, android.graphics.Bitmap>(48)
+
+        /** Sprememba virov mora ob naslednjem odprtju znova sestaviti spletne police. */
+        fun pocistiSpletniPredpomnilnik() {
+            SEZNAMI.remove(DOMOV)
+            SEZNAMI.remove(GLASBA)
+            SEZNAMI.remove(VIDEO)
+        }
     }
 }

@@ -16,7 +16,8 @@
     <string name="os_glasba_radiji">Internetradio · meistgehörte Sender</string>
     <string name="os_glasba_po_priljubljenosti">Meistgehört zuerst</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
-    <string name="os_glasba_video_opis">Videos von PeerTube · ohne Werbung und Tracking, meistgesehen zuerst</string>
+    <string name="os_glasba_video_opis">Deine Filme, Serien und Musikvideos · schön geordnet an einem Ort</string>
+    <string name="os_media_zate">Für dich</string>
     <string name="os_mediji_kartica">Musik &amp; Video</string>
     <string name="os_mediji_kartica_opis">Ohne Werbung</string>
     <string name="os_mediji_domov">Start</string>
@@ -38,6 +39,7 @@
     <string name="os_mediji_preverjam">Quelle wird geprüft …</string>
     <string name="os_mediji_ni_vira">Unter dieser Adresse gibt es keine Musik und kein Video, das Safeer abspielen kann.</string>
     <string name="os_mediji_dodano">Hinzugefügt: %1$s</string>
+    <string name="os_mediji_vir_ze_dodan">Quelle bereits hinzugefügt: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Diese Quelle entfernen?</string>
     <string name="os_mediji_odstrani">Entfernen</string>
     <string name="os_mediji_izvajalci">Künstler</string>
@@ -137,4 +139,14 @@
     <string name="os_media_prilj_v_virih">Beliebt in deinen Quellen</string>
     <string name="os_media_filmi">Filme</string>
     <string name="os_media_serije">Serien</string>
+    <string name="os_media_videospoti">Musikvideos</string>
+    <string name="os_media_film">Film</string>
+    <string name="os_media_serija">Serie</string>
+    <string name="os_media_videospot">Musikvideo</string>
+    <string name="os_media_razvrsti">Ergebnisse sortieren</string>
+    <string name="os_media_razvrsti_priporoceno">Empfohlen</string>
+    <string name="os_media_razvrsti_najnovejse">Neueste zuerst</string>
+    <string name="os_media_razvrsti_ime">Name A–Z</string>
+    <string name="os_media_prikazani_viri">Vorübergehend angezeigte Quellen</string>
+    <string name="os_media_ni_video_virov">Es wurden keine Webvideo-Quellen hinzugefügt.</string>
 </resources>

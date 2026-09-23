@@ -16,7 +16,8 @@
     <string name="os_glasba_radiji">Radio internet · stations les plus écoutées</string>
     <string name="os_glasba_po_priljubljenosti">Les plus écoutés d’abord</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
-    <string name="os_glasba_video_opis">Vidéos PeerTube · sans publicité ni pistage, les plus vues d’abord</string>
+    <string name="os_glasba_video_opis">Vos films, séries et clips musicaux · bien organisés au même endroit</string>
+    <string name="os_media_zate">Pour vous</string>
     <string name="os_mediji_kartica">Musique et vidéo</string>
     <string name="os_mediji_kartica_opis">Sans publicité</string>
     <string name="os_mediji_domov">Accueil</string>
@@ -38,6 +39,7 @@
     <string name="os_mediji_preverjam">Vérification de la source…</string>
     <string name="os_mediji_ni_vira">Il n’y a à cette adresse aucune musique ni vidéo que Safeer sache lire.</string>
     <string name="os_mediji_dodano">Ajouté : %1$s</string>
+    <string name="os_mediji_vir_ze_dodan">Source déjà ajoutée : %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Retirer cette source ?</string>
     <string name="os_mediji_odstrani">Retirer</string>
     <string name="os_mediji_izvajalci">Artistes</string>
@@ -137,4 +139,14 @@
     <string name="os_media_prilj_v_virih">Populaire dans tes sources</string>
     <string name="os_media_filmi">Films</string>
     <string name="os_media_serije">Séries</string>
+    <string name="os_media_videospoti">Clips musicaux</string>
+    <string name="os_media_film">Film</string>
+    <string name="os_media_serija">Série</string>
+    <string name="os_media_videospot">Clip musical</string>
+    <string name="os_media_razvrsti">Trier les résultats</string>
+    <string name="os_media_razvrsti_priporoceno">Recommandé</string>
+    <string name="os_media_razvrsti_najnovejse">Plus récents d’abord</string>
+    <string name="os_media_razvrsti_ime">Nom A–Z</string>
+    <string name="os_media_prikazani_viri">Sources affichées temporairement</string>
+    <string name="os_media_ni_video_virov">Aucune source vidéo Web n’a été ajoutée.</string>
 </resources>

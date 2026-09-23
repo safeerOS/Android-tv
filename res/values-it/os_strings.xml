@@ -78,6 +78,9 @@
     <string name="os_spletne_dodaj_naslov">Quale sito deve diventare un\'app?</string>
     <string name="os_spletne_dodajam">Aggiungo… leggo nome e icona</string>
     <string name="os_spletne_odstrani">Rimuovi</string>
+    <string name="os_spletne_uporabi_vir">Usa come fonte Musica e video</string>
+    <string name="os_spletne_odstrani_vir">Non usare più come fonte Musica e video</string>
+    <string name="os_spletne_vir_odstranjen">Rimosso dalle fonti Musica e video</string>
     <string name="os_preklici">Annulla</string>
     <string name="os_spletne_odstrani_vprasanje">Rimuovere questa app web dalla schermata iniziale? Il sito resta invariato.</string>
 

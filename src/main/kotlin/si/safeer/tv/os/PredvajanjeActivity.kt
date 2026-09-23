@@ -175,10 +175,12 @@ class PredvajanjeActivity : OsActivity() {
         naslovnica.visibility = if (sk.video || predlogiOdprti()) View.GONE else View.VISIBLE
         if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
         naslov.text = sk.naslov
-        izvajalec.text = sk.izvajalec
-        temaNaslov.text = listOf(sk.naslov, sk.izvajalec).filter { it.isNotBlank() }.joinToString(" · ")
+        val skritiVir = SpletniVir.jeEnota(sk)
+        izvajalec.text = if (skritiVir) "" else sk.izvajalec
+        temaNaslov.text = if (skritiVir) sk.naslov else listOf(sk.naslov, sk.izvajalec).filter { it.isNotBlank() }.joinToString(" · ")
         val stran = sk.povezava.removePrefix("https://").removePrefix("http://").removePrefix("www.").trimEnd('/')
         vir.text = when {
+            skritiVir -> ""
             sk.zvok.startsWith("https://prod-1.storage.jamendo.com") || sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, stran)
             else -> stran
         }
@@ -186,7 +188,7 @@ class PredvajanjeActivity : OsActivity() {
             zadnjaSlika = sk.slika
             naslovnica.setImageResource(R.drawable.os_ikona_glasba)
             if (sk.slika.startsWith("https://")) Thread {
-                val b = Jamendo.bajti(sk.slika)?.let { VarnaSlika.izBajtov(it, 600) }
+                val b = (SpletniVir.bajtiSlike(this, sk.slika) ?: Jamendo.bajti(sk.slika))?.let { VarnaSlika.izBajtov(it, 600) }
                 if (b != null) glavna.post { if (zadnjaSlika == sk.slika) naslovnica.setImageBitmap(b) }
             }.start()
         }
@@ -314,7 +316,7 @@ class PredvajanjeActivity : OsActivity() {
         }
         dejanj = predlogiNiz.childCount
         seznam.forEach { sk ->
-            predlogiNiz.addView(kartica(sk.naslov, sk.izvajalec, sk.slika, if (sk.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba, video) {
+            predlogiNiz.addView(kartica(sk.naslov, if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec, sk.slika, if (sk.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba, video) {
                 if (video) predvajajVideo(sk) else GlasbaStoritev.predvajalnik?.let { p ->
                     vrsta.indexOfFirst { it.id == sk.id }.takeIf { it >= 0 }?.let { p.seekTo(it, 0L); p.play() }
                 }

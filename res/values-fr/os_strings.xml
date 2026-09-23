@@ -78,6 +78,9 @@
     <string name="os_spletne_dodaj_naslov">Quel site doit devenir une application ?</string>
     <string name="os_spletne_dodajam">Ajout… récupération du nom et de l\'icône</string>
     <string name="os_spletne_odstrani">Retirer</string>
+    <string name="os_spletne_uporabi_vir">Utiliser comme source Musique et vidéo</string>
+    <string name="os_spletne_odstrani_vir">Ne plus utiliser comme source Musique et vidéo</string>
+    <string name="os_spletne_vir_odstranjen">Retiré des sources Musique et vidéo</string>
     <string name="os_preklici">Annuler</string>
     <string name="os_spletne_odstrani_vprasanje">Retirer cette application web de l\'écran d\'accueil ? Le site lui-même reste intact.</string>
 

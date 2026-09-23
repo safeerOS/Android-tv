@@ -16,7 +16,8 @@
     <string name="os_glasba_radiji">Radio internet · stazioni più ascoltate</string>
     <string name="os_glasba_po_priljubljenosti">I più ascoltati prima</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
-    <string name="os_glasba_video_opis">Video da PeerTube · senza pubblicità né tracciamento, i più visti prima</string>
+    <string name="os_glasba_video_opis">I tuoi film, serie e video musicali · ben organizzati in un unico posto</string>
+    <string name="os_media_zate">Per te</string>
     <string name="os_mediji_kartica">Musica e video</string>
     <string name="os_mediji_kartica_opis">Senza pubblicità</string>
     <string name="os_mediji_domov">Home</string>
@@ -38,6 +39,7 @@
     <string name="os_mediji_preverjam">Verifica della fonte…</string>
     <string name="os_mediji_ni_vira">A questo indirizzo non c’è musica né video che Safeer possa riprodurre.</string>
     <string name="os_mediji_dodano">Aggiunto: %1$s</string>
+    <string name="os_mediji_vir_ze_dodan">Fonte già aggiunta: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Rimuovere questa fonte?</string>
     <string name="os_mediji_odstrani">Rimuovi</string>
     <string name="os_mediji_izvajalci">Artisti</string>
@@ -137,4 +139,14 @@
     <string name="os_media_prilj_v_virih">Popolari nelle tue fonti</string>
     <string name="os_media_filmi">Film</string>
     <string name="os_media_serije">Serie</string>
+    <string name="os_media_videospoti">Video musicali</string>
+    <string name="os_media_film">Film</string>
+    <string name="os_media_serija">Serie</string>
+    <string name="os_media_videospot">Video musicale</string>
+    <string name="os_media_razvrsti">Ordina i risultati</string>
+    <string name="os_media_razvrsti_priporoceno">Consigliati</string>
+    <string name="os_media_razvrsti_najnovejse">Più recenti</string>
+    <string name="os_media_razvrsti_ime">Nome A–Z</string>
+    <string name="os_media_prikazani_viri">Fonti mostrate temporaneamente</string>
+    <string name="os_media_ni_video_virov">Non sono state aggiunte fonti video Web.</string>
 </resources>

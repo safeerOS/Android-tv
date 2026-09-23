@@ -16,7 +16,8 @@
     <string name="os_glasba_radiji">Internet radio · most listened stations</string>
     <string name="os_glasba_po_priljubljenosti">Most played first</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
-    <string name="os_glasba_video_opis">Video from PeerTube · no ads, no tracking, most watched first</string>
+    <string name="os_glasba_video_opis">Your movies, series and music videos · beautifully organised in one place</string>
+    <string name="os_media_zate">For you</string>
     <string name="os_mediji_kartica">Music &amp; video</string>
     <string name="os_mediji_kartica_opis">No ads</string>
     <string name="os_mediji_domov">Home</string>
@@ -38,6 +39,7 @@
     <string name="os_mediji_preverjam">Checking source…</string>
     <string name="os_mediji_ni_vira">There is no music or video at this address that Safeer can play.</string>
     <string name="os_mediji_dodano">Added: %1$s</string>
+    <string name="os_mediji_vir_ze_dodan">Source already added: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Remove this source?</string>
     <string name="os_mediji_odstrani">Remove</string>
     <string name="os_mediji_izvajalci">Artists</string>
@@ -137,4 +139,14 @@
     <string name="os_media_prilj_v_virih">Popular in your sources</string>
     <string name="os_media_filmi">Movies</string>
     <string name="os_media_serije">Series</string>
+    <string name="os_media_videospoti">Music videos</string>
+    <string name="os_media_film">Movie</string>
+    <string name="os_media_serija">Series</string>
+    <string name="os_media_videospot">Music video</string>
+    <string name="os_media_razvrsti">Sort results</string>
+    <string name="os_media_razvrsti_priporoceno">Recommended</string>
+    <string name="os_media_razvrsti_najnovejse">Newest first</string>
+    <string name="os_media_razvrsti_ime">Name A–Z</string>
+    <string name="os_media_prikazani_viri">Temporarily shown sources</string>
+    <string name="os_media_ni_video_virov">No web video sources have been added.</string>
 </resources>

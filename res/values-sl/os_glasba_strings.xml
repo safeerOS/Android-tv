@@ -16,7 +16,8 @@
     <string name="os_glasba_radiji">Internetni radio · najbolj poslušane postaje</string>
     <string name="os_glasba_po_priljubljenosti">Najbolj poslušano najprej</string>
     <string name="os_glasba_vir">Jamendo · %1$s</string>
-    <string name="os_glasba_video_opis">Video s PeerTuba · brez oglasov in sledenja, najbolj gledano najprej</string>
+    <string name="os_glasba_video_opis">Tvoji filmi, serije in videospoti · lepo urejeni na enem mestu</string>
+    <string name="os_media_zate">Zate</string>
     <string name="os_mediji_kartica">Glasba in video</string>
     <string name="os_mediji_kartica_opis">Brez oglasov</string>
     <string name="os_mediji_domov">Domov</string>
@@ -38,6 +39,7 @@
     <string name="os_mediji_preverjam">Preverjam vir …</string>
     <string name="os_mediji_ni_vira">Na tem naslovu ni glasbe ali videa, ki bi ga Safeer znal predvajati.</string>
     <string name="os_mediji_dodano">Dodano: %1$s</string>
+    <string name="os_mediji_vir_ze_dodan">Vir je že dodan: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Odstranim ta vir?</string>
     <string name="os_mediji_odstrani">Odstrani</string>
     <string name="os_mediji_izvajalci">Izvajalci</string>
@@ -137,4 +139,14 @@
     <string name="os_media_prilj_v_virih">Priljubljeno v tvojih virih</string>
     <string name="os_media_filmi">Filmi</string>
     <string name="os_media_serije">Serije</string>
+    <string name="os_media_videospoti">Videospoti</string>
+    <string name="os_media_film">Film</string>
+    <string name="os_media_serija">Serija</string>
+    <string name="os_media_videospot">Videospot</string>
+    <string name="os_media_razvrsti">Razvrsti rezultate</string>
+    <string name="os_media_razvrsti_priporoceno">Priporočeno</string>
+    <string name="os_media_razvrsti_najnovejse">Najnovejše</string>
+    <string name="os_media_razvrsti_ime">Ime A–Ž</string>
+    <string name="os_media_prikazani_viri">Začasno prikazani viri</string>
+    <string name="os_media_ni_video_virov">Ni dodanih spletnih video virov.</string>
 </resources>

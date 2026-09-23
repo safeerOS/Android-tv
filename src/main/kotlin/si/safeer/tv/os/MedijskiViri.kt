@@ -43,6 +43,48 @@ object MedijskiViri {
         return (0 until a.length()).map { a.getJSONObject(it) }.map { Vir(it.optString("tip"), it.optString("ime"), it.optString("naslov")) }
     }
 
+    /** Spletna aplikacija je lahko tudi vir Safeer Media, vendar seznama ostajata locena. */
+    fun spletniVir(ctx: Context, naslov: String): Vir? =
+        vsi(ctx).firstOrNull { it.jeSplet && istaSpletnaStran(it.naslov, naslov) }
+
+    /** Obstojeci vnos za isti vir, tudi ce je naslov zapisan z www/m, / ali parametri. */
+    fun obstojeciVir(ctx: Context, naslov: String): Vir? {
+        val cisto = naslov.trim().substringBefore('|').trim().let {
+            if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it"
+        }
+        return vsi(ctx).firstOrNull { v ->
+            if (v.jeSplet) istaSpletnaStran(v.naslov, cisto)
+            else kanonicniNaslov(v.naslov) == kanonicniNaslov(cisto)
+        }
+    }
+
+    /** Spletno aplikacijo brez ponovnega omreznega preverjanja vklopi kot medijski vir. */
+    fun dodajSpletniVir(ctx: Context, naslov: String, ime: String): Vir? {
+        val cisto = naslov.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
+        val gostitelj = try { URL(cisto).host } catch (_: Exception) { return null }
+        spletniVir(ctx, cisto)?.let { return it }
+        val vir = Vir(SPLET, ime.ifBlank { gostitelj.removePrefix("www.") }, cisto)
+        shrani(ctx, vsi(ctx) + vir)
+        return vir
+    }
+
+    private fun gostiteljVira(url: String): String = try {
+        URL(url).host.lowercase().removePrefix("www.").removePrefix("m.").trimEnd('.')
+    } catch (_: Exception) { "" }
+
+    /** Pri spletni aplikaciji je vir domena, ne posamezna podstran ali sledilni parameter. */
+    private fun istaSpletnaStran(a: String, b: String): Boolean {
+        val x = gostiteljVira(a); val y = gostiteljVira(b)
+        return x.isNotBlank() && x == y
+    }
+
+    private fun kanonicniNaslov(url: String): String = try {
+        val u = URL(url)
+        val host = u.host.lowercase().removePrefix("www.").removePrefix("m.").trimEnd('.')
+        val vrata = u.port.takeIf { it > 0 && it != u.defaultPort }?.let { ":$it" }.orEmpty()
+        "$host$vrata${u.path.trimEnd('/')}" + u.query?.let { "?$it" }.orEmpty()
+    } catch (_: Exception) { url.trim().trimEnd('/').lowercase() }
+
     // ------------------------------------------------------------------ priljubljene
 
     /** Seznam predvajanja, ki si ga je uporabnik shranil med priljubljene. */
@@ -190,6 +232,7 @@ object MedijskiViri {
      * nicesar, kar bi znali predvajati.
      */
     fun dodaj(ctx: Context, vnos: String, ime: String? = null): Vir? {
+        obstojeciVir(ctx, vnos)?.let { return it }
         if (vnos.contains("{q}") || vnos.contains("{searchTerms}")) {
             val g = try { URL(vnos.substringBefore('|').trim()).host } catch (_: Exception) { return null }
             val v = Vir(API, ime?.takeIf { it.isNotBlank() } ?: g.removePrefix("www.").removePrefix("api."), vnos.trim())
@@ -203,7 +246,12 @@ object MedijskiViri {
             ?.let { Vir(PEERTUBE, it, gostitelj) }
             ?: razvrsti(ctx, cisto, gostitelj)?.let { v -> if (ime.isNullOrBlank()) v else v.copy(ime = ime) }
             ?: return null
-        shrani(ctx, vsi(ctx).filterNot { it.naslov == vir.naslov } + vir)
+        val obstojeci = vsi(ctx).firstOrNull { v ->
+            (v.jeSplet && vir.jeSplet && istaSpletnaStran(v.naslov, vir.naslov)) ||
+                (!v.jeSplet && !vir.jeSplet && kanonicniNaslov(v.naslov) == kanonicniNaslov(vir.naslov))
+        }
+        if (obstojeci != null) return obstojeci
+        shrani(ctx, vsi(ctx) + vir)
         return vir
     }
 

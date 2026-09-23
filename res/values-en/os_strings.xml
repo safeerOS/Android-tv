@@ -82,6 +82,9 @@
     <string name="os_spletne_dodaj_naslov">Which site should become an app?</string>
     <string name="os_spletne_dodajam">Adding… fetching the name and icon</string>
     <string name="os_spletne_odstrani">Remove</string>
+    <string name="os_spletne_uporabi_vir">Use as a Music &amp; video source</string>
+    <string name="os_spletne_odstrani_vir">Stop using as a Music &amp; video source</string>
+    <string name="os_spletne_vir_odstranjen">Removed from Music &amp; video sources</string>
     <string name="os_preklici">Cancel</string>
     <string name="os_spletne_odstrani_vprasanje">Remove this web app from the home screen? The site itself stays untouched.</string>
 

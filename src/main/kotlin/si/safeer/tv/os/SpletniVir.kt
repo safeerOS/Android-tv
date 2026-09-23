@@ -11,6 +11,7 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -44,7 +45,11 @@ import java.util.concurrent.atomic.AtomicReference
 object SpletniVir {
     private const val PREDPONA = "splet:"
     private const val NASTAVITVE = "safeer_mediji"
+    private const val TAG = "SafeerSpletniVir"
+    private const val KATALOG_VELJA_MS = 15 * 60 * 1000L
+    private const val PRAZEN_KATALOG_VELJA_MS = 5 * 60 * 1000L
     private val glavna = Handler(Looper.getMainLooper())
+    private val straniSlik = ConcurrentHashMap<String, String>()
 
     fun jeEnota(s: Jamendo.Skladba) = s.id.startsWith(PREDPONA)
 
@@ -82,37 +87,90 @@ object SpletniVir {
      * aplikacije pokaze, kar je pri njej priljubljeno. Zdruzimo izmenicno, brez dvojnikov po naslovu;
      * vsaka enota ohrani oznako vira. Klice se z delovne niti.
      */
-    fun priljubljeno(a: Activity, viri: List<MedijskiViri.Vir>, rok: Long = 8_000): List<Jamendo.Skladba> {
+    fun priljubljeno(a: Activity, viri: List<MedijskiViri.Vir>, rok: Long = 15_000): List<Jamendo.Skladba> {
         val po = java.util.concurrent.ConcurrentHashMap<String, List<Jamendo.Skladba>>()
-        // TV z 2 GB RAM-a ne sme hkrati odpreti 6 skritih Chromium/WebView instanc. Vire obdelamo
-        // po dva: odziv ostane vzporeden, vrh porabe pomnilnika in zatikanje UI pa sta bistveno nizja.
-        viri.filter { it.jeSplet }.take(6).chunked(2).forEach { skupina ->
-            val niti = skupina.map { v -> Thread {
-                try { po[v.naslov] = beriStran(a, v, v.naslov, rok).map { it.copy(izvajalec = v.ime) } } catch (_: Exception) { }
-            }.apply { start() } }
-            try { niti.forEach { it.join(rok + 500) } } catch (_: InterruptedException) { return@forEach }
+        val konec = System.currentTimeMillis() + rok
+        // Android TV z malo pomnilnika: natanko en zacasni WebView naenkrat. Novejsi uporabnikovi
+        // viri imajo prednost pri prvem branju; naslednja odprtja so hitra zaradi predpomnilnika.
+        viri.filter { it.jeSplet }.takeLast(6).asReversed().forEach { v ->
+            if (Thread.currentThread().isInterrupted) return@forEach
+            val ostane = konec - System.currentTimeMillis()
+            if (ostane < 700) return@forEach
+            try {
+                val enote = beriStran(a, v, v.naslov, ostane).map { it.copy(izvajalec = v.ime) }
+                po[v.naslov] = enote
+                android.util.Log.i(TAG, "vir=${v.ime}, enote=${enote.size}")
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "vir=${v.ime}, napaka=${e.javaClass.simpleName}")
+            }
         }
         val seznami = viri.mapNotNull { po[it.naslov] }
-        val videni = HashSet<String>()
+        // Dvojnikov tu namenoma se ne zavrzemo. GlasbaActivity jih zdruzi po IMDb/TMDB oziroma
+        // normaliziranem naslovu in letu, pri tem pa potrebuje vse kandidate, da lahko izbere
+        // najkakovostnejsi vir. Enako stran istega vira vseeno obdrzimo samo enkrat.
         return (0 until (seznami.maxOfOrNull { it.size } ?: 0)).flatMap { i -> seznami.mapNotNull { it.getOrNull(i) } }
-            .filter { videni.add(it.naslov.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "")) }
+            .distinctBy { it.povezava }
     }
 
-    /** Film ali serija po splosnih oznakah v naslovu enote (brez receptov za strani); null = ne vemo. */
+    /** Ocena kandidata za isto vsebino. Vec pomeni bolj neposreden, kakovosten in dobro opisan vir. */
+    fun ocenaKandidata(s: Jamendo.Skladba): Int {
+        val vse = (s.naslov + " " + s.povezava + " " + s.zvok).lowercase()
+        val q = when {
+            s.quality > 0 -> s.quality
+            Regex("(?:2160p?|4k|uhd)").containsMatchIn(vse) -> 2160
+            Regex("(?:1440p?|2k)").containsMatchIn(vse) -> 1440
+            Regex("1080p?|full[- ]?hd|fhd").containsMatchIn(vse) -> 1080
+            Regex("720p?|\bhd\b").containsMatchIn(vse) -> 720
+            Regex("480p?|\bsd\b").containsMatchIn(vse) -> 480
+            else -> 0
+        }
+        return q * 10 +
+            (if (s.zvok.isNotBlank()) 900 else 0) +
+            (if (s.mime.contains("dash") || s.mime.contains("mpegurl")) 500 else 0) +
+            (if (s.povezava.startsWith("https://")) 120 else 0) +
+            (if (s.imdbId.isNotBlank() || s.tmdbId.isNotBlank()) 90 else 0) +
+            (if (s.mediaType.isNotBlank()) 60 else 0) +
+            (if (s.slika.isNotBlank()) 30 else 0)
+    }
+
+    fun najboljsiKandidati(v: List<Jamendo.Skladba>): List<Jamendo.Skladba> =
+        v.distinctBy { it.povezava }.sortedByDescending(::ocenaKandidata)
+
+    /** Stabilni kljuc iste vsebine med razlicnimi viri; epizod iste serije ne zdruzi med seboj. */
+    fun kljucVsebine(s: Jamendo.Skladba): String {
+        if (s.imdbId.isNotBlank()) return "imdb:${s.imdbId.lowercase()}"
+        if (s.tmdbId.isNotBlank()) return "tmdb:${s.tmdbId}:${vrstaVsebine(s).orEmpty()}"
+        val n = s.naslov.lowercase()
+            .replace(Regex("\\b(19|20)\\d{2}\\b"), "")
+            .replace(Regex("(?i)\\b(4k|uhd|fhd|full.?hd|1080p?|720p?|hd|watch|online)\\b"), "")
+            .replace(Regex("[^\\p{L}\\p{N}]"), "")
+        val ep = if (s.season > 0 || s.episode > 0) ":s${s.season}e${s.episode}" else ""
+        return "$n:${s.year.takeIf { it > 0 } ?: "?"}:${vrstaVsebine(s).orEmpty()}$ep"
+    }
+
+    /** Ena skupina na vsebino; znotraj skupine je najkakovostnejsi vir vedno prvi. */
+    fun zdruziEnako(v: List<Jamendo.Skladba>): List<List<Jamendo.Skladba>> =
+        v.groupBy(::kljucVsebine).values.map(::najboljsiKandidati)
+
+    /** Film, serija ali videospot po standardnih oznakah in naslovu; null = ne vemo. */
     fun vrstaVsebine(s: Jamendo.Skladba): String? {
         when (s.mediaType.lowercase()) {
             "movie", "film" -> return FILM
             "tvseries", "tvseason", "tvepisode", "series" -> return SERIJA
+            "musicvideoobject", "musicvideo", "music video" -> return VIDEOSPOT
         }
         val u = s.povezava.lowercase()
         return when {
             Regex("[/_-](series|serie|serija|serije|shows?|tv-?shows?|episodes?|epizod[ae]|seasons?|sezon[ae])([/_?-]|$)|s\\d{1,2}e\\d{1,3}").containsMatchIn(u) -> SERIJA
             Regex("[/_-](movies?|films?|filmi)([/_?-]|$)").containsMatchIn(u) -> FILM
+            Regex("[/_-](music[-_ ]?videos?|videospoti?|official[-_ ]?videos?)([/_?-]|$)").containsMatchIn(u) ||
+                Regex("\\bofficial (music )?video\\b", RegexOption.IGNORE_CASE).containsMatchIn(s.naslov) -> VIDEOSPOT
             else -> null
         }
     }
     const val FILM = "film"
     const val SERIJA = "serija"
+    const val VIDEOSPOT = "videospot"
 
     /** Groba, ponudniku neodvisna zvrst iz naslova/URL-ja. Vir ostane avtoriteta; ne ugibamo, ce ni signala. */
     fun zvrstVsebine(s: Jamendo.Skladba): String? {
@@ -148,44 +206,82 @@ object SpletniVir {
         return zvrsti.firstOrNull { it.second.containsMatchIn(t) }?.first
     }
 
+    @Synchronized
     private fun beriStran(a: Activity, vir: MedijskiViri.Vir, url: String, rok: Long): List<Jamendo.Skladba> {
+        val nast = a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        val kljuc = "katalog5:" + url
+        val casKljuc = "katalog5_cas:" + url
+        val shranjeno = nast.getString(kljuc, null)
+        val veljavnost = if (shranjeno != null && try { JSONArray(shranjeno).length() == 0 } catch (_: Exception) { false })
+            PRAZEN_KATALOG_VELJA_MS else KATALOG_VELJA_MS
+        if (shranjeno != null && System.currentTimeMillis() - nast.getLong(casKljuc, 0L) < veljavnost) {
+            android.util.Log.i(TAG, "${URL(url).host}: predpomnilnik")
+            return pretvori(vir, shranjeno)
+        }
         val izid = AtomicReference("[]")
         val gotovo = CountDownLatch(1)
         val wv = AtomicReference<WebView?>()
         val zacetek = System.currentTimeMillis()
         glavna.post {
             if (a.isFinishing) { gotovo.countDown(); return@post }
-            val w = nevidni(a); wv.set(w); w.loadUrl(url)
+            val w = nevidni(a) { gotovo.countDown() }; wv.set(w); w.loadUrl(url)
             glavna.postDelayed({ wv.get()?.evaluateJavascript(SOGLASJE_JS, null) }, 1_200)
             var prej = -1
+            var mirujeOd = 0L
             fun poglej() {
                 val ziv = wv.get() ?: return
                 ziv.evaluateJavascript(ZADETKI_JS) { r ->
                     val n = try { JSONArray(r ?: "[]").length() } catch (_: Exception) { 0 }
                     if (n > 0) izid.set(r)
-                    // Stran je izrisana, ko se stevilo zadetkov ustali (dinamicne strani rastejo).
-                    if ((n >= 4 && n == prej) || System.currentTimeMillis() - zacetek > rok - 700) {
+                    val zdaj = System.currentTimeMillis()
+                    if (n != prej) mirujeOd = zdaj else if (mirujeOd == 0L) mirujeOd = zdaj
+                    // Dinamicna stran je pripravljena po 1,5 s brez spremembe stevila kartic,
+                    // vendar nikoli ne cakamo dlje od roka.
+                    if ((n > 0 && zdaj - mirujeOd >= 1_500) || (n == 0 && zdaj - mirujeOd >= 4_000) || zdaj - zacetek > rok - 700) {
                         // Prazen vir: ena vrstica v dnevnik, kje je stran obstala (soglasje, prijava, drugacna stran).
                         if (n == 0) ziv.evaluateJavascript("(function(){return location.href+' | '+document.readyState+' | a='+document.querySelectorAll('a[href]').length+' img='+document.images.length;})()") {
-                            android.util.Log.i("SafeerSplet", "prazno: $it") }
+                            android.util.Log.i(TAG, "prazno: $it") }
                         gotovo.countDown()
                     }
-                    else { prej = n; glavna.postDelayed({ poglej() }, 700) }
+                    else { prej = n; glavna.postDelayed({ poglej() }, 500) }
                 }
             }
             glavna.postDelayed({ poglej() }, 1_500)
         }
-        try { gotovo.await(rok, TimeUnit.MILLISECONDS) } catch (_: InterruptedException) { }
+        var prekinjeno = false
+        try { gotovo.await(rok, TimeUnit.MILLISECONDS) } catch (_: InterruptedException) {
+            prekinjeno = true
+            Thread.currentThread().interrupt()
+        }
         glavna.post { wv.getAndSet(null)?.let { odstrani(it) } }
-        val d = try { JSONArray(izid.get()) } catch (_: Exception) { return emptyList() }
-        android.util.Log.i("SafeerSplet", "${java.net.URL(url).host}: ${d.length()} zadetkov v ${System.currentTimeMillis() - zacetek} ms")
+        // Prekinjen pregled (uporabnik je zaprl ali zamenjal zaslon) ne sme zapisati praznega
+        // predpomnilnika in nato nadaljevati skozi ostale vire.
+        if (prekinjeno) return emptyList()
+        val surovo = izid.get()
+        val d = try { JSONArray(surovo) } catch (_: Exception) { return emptyList() }
+        nast.edit().putString(kljuc, surovo).putLong(casKljuc, System.currentTimeMillis()).apply()
+        android.util.Log.i(TAG, "${java.net.URL(url).host}: ${d.length()} zadetkov v ${System.currentTimeMillis() - zacetek} ms")
+        return pretvori(vir, surovo)
+    }
+
+    private fun pretvori(vir: MedijskiViri.Vir, surovo: String): List<Jamendo.Skladba> {
+        val d = try { JSONArray(surovo) } catch (_: Exception) { return emptyList() }
         return (0 until d.length()).mapNotNull { d.optJSONObject(it) }.map { o ->
-            val (naslov, izvajalec) = Relevantnost.razdeli(o.optString("t"), "")
+            val (surovNaslov, izvajalec) = Relevantnost.razdeli(o.optString("t"), "")
+            // Odstranimo splosni SEO ovoj strani; uporabnik vidi naslov vsebine, ne spletnega oglasa.
+            val naslov = surovNaslov
+                .replace(Regex("(?i)^\\s*(watch|stream|play)\\s+"), "")
+                .replace(Regex("(?i)\\s+(watch|stream)\\s+online(?:\\s+(?:HD|FHD|4K|UHD))?\\s*$"), "")
+                .replace(Regex("(?i)\\s+online(?:\\s+(?:HD|FHD|4K|UHD))?\\s*$"), "")
+                .trim().ifBlank { surovNaslov }
             val genres = o.optJSONArray("g")?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } } ?: emptyList()
-            Jamendo.Skladba(PREDPONA + o.optString("h"), naslov, izvajalec.ifBlank { vir.ime }, o.optString("i"), "",
+            val slika = o.optString("i")
+            if (slika.isNotBlank()) straniSlik[slika] = o.optString("h").ifBlank { vir.naslov }
+            Jamendo.Skladba(PREDPONA + o.optString("h"), naslov, izvajalec.ifBlank { vir.ime }, slika, "",
                 o.optString("h"), video = o.optBoolean("v"), mediaType = o.optString("mt"), genres = genres,
                 year = o.optInt("y"), season = o.optInt("sn"), episode = o.optInt("en"),
-                imdbId = o.optString("imdb"), tmdbId = o.optString("tmdb"))
+                imdbId = o.optString("imdb"), tmdbId = o.optString("tmdb"),
+                quality = o.optInt("q"), rating = o.optDouble("r"))
         }
     }
 
@@ -302,6 +398,24 @@ object SpletniVir {
     fun razresi(a: Activity, sk: Jamendo.Skladba, koncano: (Jamendo.Skladba?) -> Unit) {
         val w = nevidni(a)
         var konec = false
+        val tokovi = ConcurrentHashMap<String, String>()
+        var izbiraNacrtovana = false
+        fun ocenaToka(u: String): Int {
+            val l = u.lowercase()
+            return when {
+                Regex("(?:2160p?|4k|uhd)").containsMatchIn(l) -> 21600
+                Regex("(?:1440p?|2k)").containsMatchIn(l) -> 14400
+                Regex("1080p?|full[-_ ]?hd|fhd").containsMatchIn(l) -> 10800
+                Regex("720p?|\bhd\b").containsMatchIn(l) -> 7200
+                Regex("480p?|\bsd\b").containsMatchIn(l) -> 4800
+                else -> 0
+            } + when {
+                l.substringBefore('?').endsWith(".mpd") -> 700
+                l.substringBefore('?').endsWith(".m3u8") -> 650
+                l.substringBefore('?').endsWith(".mp4") -> 400
+                else -> 0
+            }
+        }
         fun zakljuci(tok: String?, mime: String) {
             if (konec) return
             konec = true
@@ -311,14 +425,35 @@ object SpletniVir {
                 if (tok == null) { koncano(null); return@evaluateJavascript }
                 glaveDomene[domena(tok)] = mapOf("Referer" to sk.povezava)
                 val (naslov, izvajalec) = Relevantnost.razdeli(o.optString("t").ifBlank { sk.naslov }, o.optString("a"))
+                val q = when {
+                    tok.contains(Regex("(?:2160p?|4k|uhd)", RegexOption.IGNORE_CASE)) -> 2160
+                    tok.contains(Regex("(?:1440p?|2k)", RegexOption.IGNORE_CASE)) -> 1440
+                    tok.contains(Regex("1080p?|full[-_ ]?hd|fhd", RegexOption.IGNORE_CASE)) -> 1080
+                    tok.contains(Regex("720p?", RegexOption.IGNORE_CASE)) -> 720
+                    else -> sk.quality
+                }
                 koncano(sk.copy(naslov = naslov, izvajalec = izvajalec.ifBlank { sk.izvajalec }, slika = o.optString("i").ifBlank { sk.slika },
-                    zvok = tok, video = o.optBoolean("v", sk.video), mime = mime))
+                    zvok = tok, video = o.optBoolean("v", sk.video), mime = mime, quality = q))
             }
         }
-        w.webViewClient = object : Zaprt() {
+        fun izberiTok() {
+            if (konec) return
+            val najboljsi = tokovi.keys.maxByOrNull(::ocenaToka)
+            zakljuci(najboljsi, najboljsi?.let { tokovi[it] }.orEmpty())
+        }
+        fun kandidat(u: String, mime: String) {
+            tokovi[u] = mime
+            if (!izbiraNacrtovana) {
+                izbiraNacrtovana = true
+                // Stran pogosto najprej zahteva 480p ali oglasni nadomestek, nato adaptivni/HD tok.
+                // Kratek zbirni interval omogoci izbiro dejansko najboljsega toka brez vidne zamude.
+                glavna.postDelayed({ izberiTok() }, 2_200)
+            }
+        }
+        w.webViewClient = object : Zaprt({ if (!konec) { konec = true; koncano(null) } }) {
             override fun shouldInterceptRequest(view: WebView?, req: WebResourceRequest?): WebResourceResponse? {
                 val u = req?.url?.toString() ?: return null
-                if (req.method == "GET") vrstaToka(u)?.let { m -> glavna.post { zakljuci(u, m) } }
+                if (req.method == "GET") vrstaToka(u)?.let { m -> glavna.post { kandidat(u, m) } }
                 return null
             }
             override fun onPageFinished(view: WebView?, url: String?) { view?.evaluateJavascript(SOGLASJE_JS, null); view?.evaluateJavascript(ZACNI_JS, null) }
@@ -330,8 +465,8 @@ object SpletniVir {
             w.evaluateJavascript(MEDIJ_JS) { r ->
                 val src = r?.trim('"').orEmpty()
                 when {
-                    src.startsWith("http") -> zakljuci(src, vrstaToka(src) ?: "")
-                    src == "blob" -> zakljuci(null, "")
+                    src.startsWith("http") -> { kandidat(src, vrstaToka(src) ?: ""); glavna.postDelayed({ poglej() }, 500) }
+                    src == "blob" && tokovi.isEmpty() -> zakljuci(null, "")
                     else -> glavna.postDelayed({ poglej() }, 750)
                 }
             }
@@ -373,18 +508,29 @@ object SpletniVir {
         }
     }
 
+    /** Slika spletnega vira z enakim kontekstom kot stran (Referer, piskotki, brskalniski UA). */
+    fun bajtiSlike(c: Context, naslov: String): ByteArray? = try {
+        val p = URL(naslov).openConnection() as HttpURLConnection
+        p.connectTimeout = 8_000; p.readTimeout = 10_000
+        if (ua.isBlank()) ua = try { WebSettings.getDefaultUserAgent(c) } catch (_: Exception) { "SafeerOS" }
+        p.setRequestProperty("User-Agent", ua)
+        straniSlik[naslov]?.let { p.setRequestProperty("Referer", it) }
+        try { CookieManager.getInstance().getCookie(naslov) } catch (_: Exception) { null }?.let { p.setRequestProperty("Cookie", it) }
+        try { if (p.responseCode in 200..299) p.inputStream.use { it.readBytes() } else null } finally { p.disconnect() }
+    } catch (_: Exception) { null }
+
     // ------------------------------------------------------------------ nevidni WebView
 
     /** WebView pod vsebino zaslona (prosojen): stran tece kot vidna, uporabnik je ne vidi in ne doseze. */
     @SuppressLint("SetJavaScriptEnabled")
-    private fun nevidni(a: Activity): WebView = WebView(a).apply {
+    private fun nevidni(a: Activity, obZrusitvi: (() -> Unit)? = null): WebView = WebView(a).apply {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.mediaPlaybackRequiresUserGesture = false
         // Enaka stran na TV in tablici: telefonski Chrome (televizijski UA dobi drugacne, TV strani).
         settings.userAgentString = si.safeer.tv.ChromiumEngineView.MOBILE_USER_AGENT
         isFocusable = false
-        webViewClient = Zaprt()
+        webViewClient = Zaprt(obZrusitvi)
         alpha = 0f
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         ua = settings.userAgentString
@@ -396,9 +542,17 @@ object SpletniVir {
     }
 
     /** Vse ostane v nevidnem pogledu: sheme, ki niso http (intent:, aplikacije), se ne odprejo nikjer. */
-    private open class Zaprt : WebViewClient() {
+    private open class Zaprt(private val obZrusitvi: (() -> Unit)? = null) : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView?, req: WebResourceRequest?): Boolean =
             req?.url?.scheme?.startsWith("http") != true
+
+        override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+            // Chromium lahko na televizorju z malo pomnilnika zapre izrisovalnik. Dogodek obravnavamo,
+            // odstranimo mrtvi pogled in klicatelju omogocimo takoj zakljuciti namesto zrusitve aplikacije.
+            try { (view?.parent as? ViewGroup)?.removeView(view); view?.destroy() } catch (_: Exception) { }
+            obZrusitvi?.invoke()
+            return true
+        }
     }
 
     private fun odstrani(w: WebView) {
@@ -430,7 +584,7 @@ object SpletniVir {
       var strukturirani={};
       function dodajLD(x){if(!x||typeof x!=='object')return;if(Array.isArray(x)){x.forEach(dodajLD);return;}if(x['@graph'])dodajLD(x['@graph']);
         var mt=tip(x),u=abs(x.url||(x.mainEntityOfPage&&x.mainEntityOfPage['@id'])||x['@id']||'');
-        if(u&&/Movie|TVSeries|TVSeason|TVEpisode|VideoObject/i.test(mt)){var ids=idji(x),g=arr(x.genre).map(function(q){return typeof q==='string'?q:(q&&q.name)||'';}).filter(Boolean);
+        if(u&&/Movie|TVSeries|TVSeason|TVEpisode|VideoObject|MusicVideoObject/i.test(mt)){var ids=idji(x),g=arr(x.genre).map(function(q){return typeof q==='string'?q:(q&&q.name)||'';}).filter(Boolean);
           var d=x.datePublished||'',yy=parseInt((''+d).slice(0,4))||0,sn=parseInt(x.seasonNumber||(x.partOfSeason&&x.partOfSeason.seasonNumber))||0,en=parseInt(x.episodeNumber)||0;
           strukturirani[u]={mt:mt,g:g,y:yy,sn:sn,en:en,imdb:ids.imdb,tmdb:ids.tmdb};}
         ['itemListElement','mainEntity','subjectOf','video','episode','partOfSeries'].forEach(function(k){if(x[k]&&typeof x[k]==='object')dodajLD(x[k]);});}
@@ -445,15 +599,30 @@ object SpletniVir {
         var uh='';try{uh=new URL(u).hostname.replace(/^www\./,'');}catch(e){continue;}
         if(uh.indexOf(h)<0&&h.indexOf(uh)<0)continue;
         if(/[?&](q|query|search|search_query)=|\/(search|login|signin|signup|register|account|settings|help|about|privacy|terms|cookies?|download|premium)(\/|\?|$)/i.test(u))continue;
-        var z=po[u];if(!z){var m=meta(u);z=po[u]={h:u,t:'',n:'',i:'',v:false,mt:m.mt||'',g:m.g||[],y:m.y||0,sn:m.sn||0,en:m.en||0,imdb:m.imdb||'',tmdb:m.tmdb||''};red.push(z);}
+        var z=po[u];if(!z){var m=meta(u),pot='';try{pot=new URL(u).pathname;}catch(e){}
+          var mt=m.mt||'',vid=/Movie|TVSeries|TVSeason|TVEpisode|VideoObject|MusicVideoObject/i.test(mt)||/(^|\/)(movie|movies|film|films|tv|series|shows?|watch|video|videos|episode|episodes|music-video|music-videos)(\/|$)/i.test(pot);
+          z=po[u]={h:u,t:'',n:'',i:'',v:vid,mt:mt,g:m.g||[],y:m.y||0,sn:m.sn||0,en:m.en||0,imdb:m.imdb||'',tmdb:m.tmdb||'',q:0,r:0};red.push(z);}
+        var card=a.closest('article,li,[class*=card],[class*=item],[class*=movie],[class*=poster]')||a,ct=(card.innerText||'').replace(/\s+/g,' ');
+        var qm=ct.match(/(?:2160p?|4k|uhd|1440p?|2k|1080p?|full\s*hd|fhd|720p?|480p?)/i);if(qm){var q=(''+qm[0]).toLowerCase();z.q=/2160|4k|uhd/.test(q)?2160:/1440|2k/.test(q)?1440:/1080|full|fhd/.test(q)?1080:/720/.test(q)?720:480;}
+        if(!z.y){var ym=ct.match(/\b(19\d{2}|20\d{2})\b/);if(ym)z.y=parseInt(ym[1])||0;}
+        var rm=ct.match(/(?:★|⭐|rating\s*:?)\s*(10(?:\.0)?|[0-9](?:\.[0-9])?)/i);if(rm)z.r=parseFloat(rm[1])||0;
         var ti=a.querySelector('h1,h2,h3,h4,[class*=title],[id*=title]')||(a.matches('[class*=title],[id*=title]')?a:null);
         var tn=ti?(ti.innerText||ti.getAttribute('title')||'').replace(/\s+/g,' ').trim():'';if(!z.n&&smiselno(tn))z.n=tn.slice(0,140);
         var t=besedilo(a);if(smiselno(t)&&t.length>z.t.length)z.t=t.slice(0,140);
         if(!z.i){var k=a,img=null;for(var j=0;j<3&&k&&!img;j++){img=k.querySelector('img');k=k.parentElement;}
-          if(img){var r=img.getBoundingClientRect(),ss=img.currentSrc||img.src||'';
-            if(r.width>=48&&r.height>=32&&/^https?:/.test(ss)){z.i=ss;z.v=r.width/r.height>1.3;if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
+          if(img){var r=img.getBoundingClientRect(),set=img.getAttribute('srcset')||img.getAttribute('data-srcset')||'',
+            ss=img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||img.getAttribute('data-original')||img.getAttribute('data-poster')||img.getAttribute('data-image')||'';
+            if(!ss&&set)ss=set.split(',').pop().trim().split(/\s+/)[0];if(!ss){var bg=getComputedStyle(img).backgroundImage.match(/url\(["']?([^"')]+)/);ss=(bg&&bg[1])||img.currentSrc||img.src||'';}ss=abs(ss);
+            if(r.width>=48&&r.height>=32&&/^https?:/.test(ss)){z.i=ss;z.v=z.v||r.width/r.height>1.3;if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
       }
-      return red.filter(function(z){return z.i&&(z.n||z.t);}).map(function(z){if(z.n)z.t=z.n;return z;}).slice(0,24);}catch(e){return [];}})()"""
+      var vse=red.filter(function(z){return z.i&&(z.n||z.t);}).map(function(z){if(z.n)z.t=z.n;return z;});
+      function skupina(z){var p='';try{p=new URL(z.h).pathname;}catch(e){}
+        if(/TVSeries|TVSeason|TVEpisode/i.test(z.mt)||/(^|\/)(tv|series|shows?|episodes?)(\/|$)/i.test(p))return 1;
+        if(/MusicVideo/i.test(z.mt)||/(^|\/)(music-video|music-videos|videospoti?)(\/|$)/i.test(p))return 2;
+        if(/Movie/i.test(z.mt)||/(^|\/)(movie|movies|film|films)(\/|$)/i.test(p))return 0;return 3;}
+      var g=[[],[],[],[]];vse.forEach(function(z){g[skupina(z)].push(z);});var ven=[];
+      for(var k=0;ven.length<48;k++){var kaj=false;for(var q=0;q<g.length&&ven.length<48;q++)if(g[q][k]){ven.push(g[q][k]);kaj=true;}if(!kaj)break;}
+      return ven;}catch(e){return [];}})()"""
 
     /**
      * Okno za piskotke/soglasje zapre predvajanje: izberemo najbolj zasebno moznost (zavrni, nadaljuj

@@ -1235,6 +1235,17 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
         if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniSpletno(a, -1) })
         if (mesto >= 0 && mesto < seznam.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniSpletno(a, 1) })
+        val medijskiVir = MedijskiViri.spletniVir(this, a.url)
+        if (medijskiVir == null) dejanja.add(getString(R.string.os_spletne_uporabi_vir) to {
+            val vir = MedijskiViri.dodajSpletniVir(this, a.url, a.ime)
+            Toast.makeText(this, if (vir == null) getString(R.string.os_mediji_ni_vira)
+                else getString(R.string.os_mediji_dodano, vir.ime), Toast.LENGTH_SHORT).show()
+            GlasbaActivity.pocistiSpletniPredpomnilnik()
+        }) else dejanja.add(getString(R.string.os_spletne_odstrani_vir) to {
+            MedijskiViri.odstrani(this, medijskiVir)
+            GlasbaActivity.pocistiSpletniPredpomnilnik()
+            Toast.makeText(this, R.string.os_spletne_vir_odstranjen, Toast.LENGTH_SHORT).show()
+        })
         dejanja.add(getString(R.string.os_spletne_odstrani) to { odstraniSpletno(a) })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })

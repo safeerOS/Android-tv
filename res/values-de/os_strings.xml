@@ -78,6 +78,9 @@
     <string name="os_spletne_dodaj_naslov">Welche Seite soll eine App werden?</string>
     <string name="os_spletne_dodajam">Wird hinzugefügt … Name und Symbol werden geholt</string>
     <string name="os_spletne_odstrani">Entfernen</string>
+    <string name="os_spletne_uporabi_vir">Als Quelle für Musik &amp; Video verwenden</string>
+    <string name="os_spletne_odstrani_vir">Nicht mehr als Musik- &amp; Videoquelle verwenden</string>
+    <string name="os_spletne_vir_odstranjen">Aus den Musik- &amp; Videoquellen entfernt</string>
     <string name="os_preklici">Abbrechen</string>
     <string name="os_spletne_odstrani_vprasanje">Diese Web-App vom Startbildschirm entfernen? Die Seite selbst bleibt unberührt.</string>
 
