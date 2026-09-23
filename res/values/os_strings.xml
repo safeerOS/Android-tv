@@ -193,6 +193,18 @@
     <string name="os_naprave_shrani">Save</string>
     <string name="os_naprave_preimenovano">Name saved – all devices see it.</string>
     <string name="os_naprave_preimenovanje_napaka">The name could not be saved. Is Safeer Link running?</string>
+    <!-- Vnos 6-mestne kode z druge naprave in deljenje datotek s te naprave (zaslon Naprave) -->
+    <string name="os_naprave_vpisi_kodo">Enter a code</string>
+    <string name="os_naprave_vpisi_kodo_opis">Type the 6-digit code shown on the other device to join it.</string>
+    <string name="os_naprave_koda_napacna_dolzina">The code has 6 digits.</string>
+    <string name="os_naprave_iskanje_naprave">Looking for the device…</string>
+    <string name="os_naprave_naprava_ni_najdena">No device with that code was found nearby. Check the code, or enter the host\'s address in Settings.</string>
+    <string name="os_naprave_uspesno_povezano">Connected to %1$s.</string>
+    <string name="os_naprave_odpri_datoteke">Open files</string>
+    <string name="os_naprave_deljenje_datotek">Share files from this device</string>
+    <string name="os_naprave_deljenje_opis">Other devices in Safeer Link can open shared folders here</string>
+    <string name="os_naprave_deljenje_vklopljeno">File sharing turned on</string>
+    <string name="os_naprave_deljenje_izklopljeno">File sharing turned off</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">All apps on this TV</string>
     <string name="os_aplikacije_namig">OK opens an app. Hold OK to put it on the home screen (★) or take it off.</string>
