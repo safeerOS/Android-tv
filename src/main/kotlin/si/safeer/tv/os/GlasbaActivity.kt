@@ -501,7 +501,11 @@ class GlasbaActivity : OsActivity() {
     // ------------------------------------------------------------------ slike
 
     private fun naloziSliko(naslov: String, v: ImageView) {
-        if (!naslov.startsWith("https://")) return
+        // Krajevni medijski strezniki (NAS, Jellyfin, uporabnikova spletna aplikacija) pogosto
+        // ponujajo naslovnice prek navadnega HTTP-ja. Safeer jih ze varno prenese v SpletniVir;
+        // tukaj jih ne smemo zavreci samo zato, ker niso HTTPS. Druge sheme ostanejo prepovedane.
+        val shema = runCatching { android.net.Uri.parse(naslov).scheme?.lowercase(java.util.Locale.ROOT) }.getOrNull()
+        if (shema != "https" && shema != "http") return
         SLIKE.get(naslov)?.let { v.setImageBitmap(it); return }
         v.tag = naslov
         cakajoceSlike.computeIfAbsent(naslov) {
