@@ -192,6 +192,18 @@
     <string name="os_naprave_shrani">Shrani</string>
     <string name="os_naprave_preimenovano">Ime je shranjeno – vidijo ga vse naprave.</string>
     <string name="os_naprave_preimenovanje_napaka">Imena ni bilo mogoče shraniti. Ali Safeer Link teče?</string>
+    <!-- Vnos 6-mestne kode z druge naprave in deljenje datotek s te naprave (zaslon Naprave) -->
+    <string name="os_naprave_vpisi_kodo">Vpiši kodo</string>
+    <string name="os_naprave_vpisi_kodo_opis">Vtipkaj 6-mestno kodo, ki jo pokaže druga naprava, da se z njo povežeš.</string>
+    <string name="os_naprave_koda_napacna_dolzina">Koda ima 6 številk.</string>
+    <string name="os_naprave_iskanje_naprave">Iščem napravo …</string>
+    <string name="os_naprave_naprava_ni_najdena">V bližini ni bilo mogoče najti naprave s to kodo. Preveri kodo ali v Nastavitvah vnesi naslov hosta.</string>
+    <string name="os_naprave_uspesno_povezano">Povezano z %1$s.</string>
+    <string name="os_naprave_odpri_datoteke">Odpri datoteke</string>
+    <string name="os_naprave_deljenje_datotek">Deli datoteke s te naprave</string>
+    <string name="os_naprave_deljenje_opis">Druge naprave v Safeer Linku lahko tu odprejo deljene mape</string>
+    <string name="os_naprave_deljenje_vklopljeno">Deljenje datotek je vklopljeno</string>
+    <string name="os_naprave_deljenje_izklopljeno">Deljenje datotek je izklopljeno</string>
     <!-- Priljubljene aplikacije televizorja in zaslon Ostalo -->
     <string name="os_aplikacije_vse">Vse aplikacije tega televizorja</string>
     <string name="os_aplikacije_namig">OK odpre aplikacijo. Zadrži OK, da jo daš na domači zaslon (★) ali z njega.</string>
