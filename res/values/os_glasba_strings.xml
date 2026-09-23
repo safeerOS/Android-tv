@@ -149,4 +149,14 @@
     <string name="os_media_razvrsti_ime">Name A–Z</string>
     <string name="os_media_prikazani_viri">Temporarily shown sources</string>
     <string name="os_media_ni_video_virov">No web video sources have been added.</string>
+    <string name="os_media_razmerje">Aspect ratio</string>
+    <string name="os_media_razmerje_fit">Original (Fit)</string>
+    <string name="os_media_razmerje_fill">Zoom (Fill)</string>
+    <string name="os_media_razmerje_stretch">Stretch (16:9)</string>
+    <string name="os_media_nadaljuj_gledanje">Continue watching</string>
+    <string name="os_media_odstrani_nadaljuj">Remove from Continue watching</string>
+    <string name="os_media_odstranjeno_nadaljuj">Removed from Continue watching</string>
+    <string name="os_media_pocisti_nadaljuj">Clear continue watching</string>
+    <string name="os_media_pocisti_nadaljuj_opis">Remove all watch progress</string>
+    <string name="os_media_pocisti_nadaljuj_potrdi">Remove all items from Continue watching?</string>
 </resources>

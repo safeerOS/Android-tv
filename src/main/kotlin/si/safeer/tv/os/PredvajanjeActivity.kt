@@ -63,8 +63,20 @@ class PredvajanjeActivity : OsActivity() {
     private val tik = object : Runnable { override fun run() { osveziCas(); glavna.postDelayed(this, 1_000) } }
     private val skrij = Runnable { if (jeVideo() && !predlogiOdprti()) prekritje.animate().alpha(0f).setDuration(300).start() }
     private val zatemni = Runnable { if (!jeVideo() && GlasbaStoritev.predvajalnik?.isPlaying == true) tema.visibility = View.VISIBLE; osveziCas() }
+    private var nacinRazmerja = 0
+    private var zadnjaVelikost: VideoSize? = null
     private val velikost = object : Player.Listener {
         override fun onVideoSizeChanged(videoSize: VideoSize) = prilagodi(videoSize)
+        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+            val sk = GlasbaStoritev.trenutna()
+            if (sk != null && SpletniVir.jeEnota(sk) && sk.zvok.isNotBlank()) {
+                SpletniIgralec.zadnja = java.lang.ref.WeakReference(this@PredvajanjeActivity)
+                GlasbaStoritev.predvajajSplet(this@PredvajanjeActivity, sk.copy(zvok = ""))
+            } else {
+                izvajalec.text = getString(R.string.os_glasba_napaka)
+                zbudi()
+            }
+        }
     }
 
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
@@ -215,13 +227,32 @@ class PredvajanjeActivity : OsActivity() {
         else String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60)
     }
 
-    private fun prilagodi(v: VideoSize) {
-        if (v.width <= 0 || v.height <= 0) return
-        val sirina = (povrsina.parent as View).width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
-        val visina = (povrsina.parent as View).height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
-        val razmerje = v.width * v.pixelWidthHeightRatio / v.height
-        var w = sirina; var h = (sirina / razmerje).toInt()
-        if (h > visina) { h = visina; w = (visina * razmerje).toInt() }
+    private fun prilagodi(v: VideoSize? = zadnjaVelikost) {
+        val velikost = v ?: zadnjaVelikost ?: return
+        if (velikost.width <= 0 || velikost.height <= 0) return
+        zadnjaVelikost = velikost
+        val stars = povrsina.parent as? View ?: return
+        val sirina = stars.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val visina = stars.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val razmerje = (velikost.width * velikost.pixelWidthHeightRatio / velikost.height).takeIf { it > 0f } ?: (16f / 9f)
+        val (w, h) = when (nacinRazmerja) {
+            1 -> {
+                // Fill (zoom): zapolni celoten zaslon brez robov
+                var wFill = sirina; var hFill = (sirina / razmerje).toInt()
+                if (hFill < visina) { hFill = visina; wFill = (visina * razmerje).toInt() }
+                wFill to hFill
+            }
+            2 -> {
+                // Raztegni na celoten zaslon
+                sirina to visina
+            }
+            else -> {
+                // Fit (privzeto): ohrani izvirno razmerje
+                var wFit = sirina; var hFit = (sirina / razmerje).toInt()
+                if (hFit > visina) { hFit = visina; wFit = (visina * razmerje).toInt() }
+                wFit to hFit
+            }
+        }
         povrsina.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
     }
 
@@ -314,6 +345,19 @@ class PredvajanjeActivity : OsActivity() {
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             })
         }
+        if (video) {
+            val i = predlogiNiz.childCount
+            val opis = when (nacinRazmerja) {
+                1 -> getString(R.string.os_media_razmerje_fill)
+                2 -> getString(R.string.os_media_razmerje_stretch)
+                else -> getString(R.string.os_media_razmerje_fit)
+            }
+            predlogiNiz.addView(kartica(getString(R.string.os_media_razmerje), opis, "", R.drawable.os_ikona_video, video) {
+                nacinRazmerja = (nacinRazmerja + 1) % 3
+                prilagodi()
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
+            })
+        }
         dejanj = predlogiNiz.childCount
         seznam.forEach { sk ->
             predlogiNiz.addView(kartica(sk.naslov, if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec, sk.slika, if (sk.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba, video) {
@@ -349,7 +393,7 @@ class PredvajanjeActivity : OsActivity() {
             addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = podnaslov; maxLines = 1; setPadding(dp(2), 0, 0, 0) },
                 LinearLayout.LayoutParams(sirina, -2))
             if (slika.startsWith("https://")) delavec.execute {
-                val b = Jamendo.bajti(slika)?.let { VarnaSlika.izBajtov(it, 320) } ?: return@execute
+                val b = (SpletniVir.bajtiSlike(this@PredvajanjeActivity, slika) ?: Jamendo.bajti(slika))?.let { VarnaSlika.izBajtov(it, 320) } ?: return@execute
                 glavna.post { pogled.setImageBitmap(b) }
             }
         }.also { it.layoutParams = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(12) } }
@@ -359,12 +403,24 @@ class PredvajanjeActivity : OsActivity() {
     private fun predvajajVideo(sk: Jamendo.Skladba) {
         zapriPredloge()
         naslov.text = sk.naslov; izvajalec.text = getString(R.string.os_glasba_nalagam)
-        delavec.execute {
-            val r = try { PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this)) } catch (_: Exception) { null }
-            glavna.post {
-                if (isFinishing) return@post
-                if (r == null) { izvajalec.text = getString(R.string.os_glasba_napaka); return@post }
+        if (SpletniVir.jeEnota(sk)) {
+            SpletniVir.razresi(this, sk) { r ->
+                if (isFinishing) return@razresi
+                if (r == null) {
+                    SpletniIgralec.zadnja = java.lang.ref.WeakReference(this)
+                    GlasbaStoritev.predvajajSplet(this, sk)
+                    return@razresi
+                }
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
+            }
+        } else {
+            delavec.execute {
+                val r = try { PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this)) } catch (_: Exception) { null }
+                glavna.post {
+                    if (isFinishing) return@post
+                    if (r == null) { izvajalec.text = getString(R.string.os_glasba_napaka); return@post }
+                    GlasbaStoritev.predvajaj(this, listOf(r), 0)
+                }
             }
         }
     }
@@ -440,6 +496,13 @@ class PredvajanjeActivity : OsActivity() {
             KeyEvent.KEYCODE_DPAD_DOWN -> { odpriPredloge(); return true }
             KeyEvent.KEYCODE_DPAD_UP -> return true
             KeyEvent.KEYCODE_SEARCH -> { odpriIskanje(); return true }
+            KeyEvent.KEYCODE_WINDOW, KeyEvent.KEYCODE_PROG_GREEN -> {
+                if (jeVideo()) {
+                    nacinRazmerja = (nacinRazmerja + 1) % 3
+                    prilagodi()
+                    return true
+                }
+            }
         }
         return super.onKeyDown(keyCode, event)
     }
@@ -463,6 +526,13 @@ class PredvajanjeActivity : OsActivity() {
         KeyEvent.KEYCODE_BUTTON_A -> { preklopi(); true }
         KeyEvent.KEYCODE_BUTTON_L1 -> { premakni(-10_000); true }
         KeyEvent.KEYCODE_BUTTON_R1 -> { premakni(10_000); true }
+        KeyEvent.KEYCODE_BUTTON_Y -> {
+            if (jeVideo()) {
+                nacinRazmerja = (nacinRazmerja + 1) % 3
+                prilagodi()
+                true
+            } else false
+        }
         else -> false
     }
 }

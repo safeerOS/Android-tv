@@ -18,7 +18,7 @@ object MedijskiViri {
     private const val PRILJUBLJENE = "priljubljene"
     private const val SEZNAMI = "seznami"
     private const val NEDAVNO = "nedavno"
-    private const val MAX_NEDAVNO = 6
+    private const val MAX_NEDAVNO = 5
 
     data class Vir(val tip: String, val ime: String, val naslov: String) {
         val jePeerTube get() = tip == PEERTUBE
@@ -38,9 +38,69 @@ object MedijskiViri {
     /** RSS podkasta: klik odpre epizode. */
     const val PODKAST = "podkast"
 
-    fun vsi(ctx: Context): List<Vir> {
+    private const val ODSTRANJENI_VIRI = "odstranjeni_viri"
+
+    fun odstranjeni(ctx: Context): Set<String> {
+        val s = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(ODSTRANJENI_VIRI, "[]") ?: "[]"
+        return try {
+            val a = JSONArray(s)
+            (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() }.toSet()
+        } catch (_: Exception) { emptySet() }
+    }
+
+    private fun zapomniOdstranjen(ctx: Context, naslov: String) {
+        val g = gostiteljVira(naslov)
+        if (g.isBlank()) return
+        val zdaj = odstranjeni(ctx) + g
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit()
+            .putString(ODSTRANJENI_VIRI, JSONArray(zdaj.toList()).toString()).apply()
+    }
+
+    private fun prekliciOdstranjen(ctx: Context, naslov: String) {
+        val g = gostiteljVira(naslov)
+        if (g.isBlank()) return
+        val zdaj = odstranjeni(ctx) - g
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit()
+            .putString(ODSTRANJENI_VIRI, JSONArray(zdaj.toList()).toString()).apply()
+    }
+
+    private fun rocni(ctx: Context): List<Vir> {
         val a = try { JSONArray(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(KLJUC, "[]")) } catch (_: Exception) { JSONArray() }
         return (0 until a.length()).map { a.getJSONObject(it) }.map { Vir(it.optString("tip"), it.optString("ime"), it.optString("naslov")) }
+    }
+
+    /**
+     * Vsi viri za Safeer Media: ročno dodani viri + samodejno prebrane spletne aplikacije,
+     * ki jih uporabnik doda v Safeer OS. Dvojniki po gostitelju so izločeni.
+     */
+    fun vsi(ctx: Context): List<Vir> {
+        val shranjeni = rocni(ctx)
+        val spletne = try { SpletneAplikacije.seznam(ctx) } catch (_: Throwable) { emptyList() }
+        val prepovedani = odstranjeni(ctx)
+        val samodejni = spletne.mapNotNull { app ->
+            val url = app.url.trim()
+            if (url.isBlank() || !url.startsWith("http")) null
+            else {
+                val g = gostiteljVira(url)
+                if (g.isBlank() || g in prepovedani) null
+                else Vir(SPLET, app.ime.ifBlank { g }, url)
+            }
+        }
+        val vsiZbrani = mutableListOf<Vir>()
+        val videneDomene = mutableSetOf<String>()
+        for (v in shranjeni) {
+            val g = gostiteljVira(v.naslov)
+            if (g.isNotBlank()) videneDomene += g
+            vsiZbrani += v
+        }
+        for (v in samodejni) {
+            val g = gostiteljVira(v.naslov)
+            if (g.isNotBlank() && g !in videneDomene) {
+                videneDomene += g
+                vsiZbrani += v
+            }
+        }
+        return vsiZbrani
     }
 
     /** Spletna aplikacija je lahko tudi vir Safeer Media, vendar seznama ostajata locena. */
@@ -62,9 +122,10 @@ object MedijskiViri {
     fun dodajSpletniVir(ctx: Context, naslov: String, ime: String): Vir? {
         val cisto = naslov.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
         val gostitelj = try { URL(cisto).host } catch (_: Exception) { return null }
+        prekliciOdstranjen(ctx, cisto)
         spletniVir(ctx, cisto)?.let { return it }
         val vir = Vir(SPLET, ime.ifBlank { gostitelj.removePrefix("www.") }, cisto)
-        shrani(ctx, vsi(ctx) + vir)
+        shrani(ctx, rocni(ctx).filterNot { istaSpletnaStran(it.naslov, cisto) } + vir)
         return vir
     }
 
@@ -183,7 +244,8 @@ object MedijskiViri {
         (PeerTube.VGRAJENI + vsi(ctx).filter { it.jePeerTube }.map { it.naslov }).distinct()
 
     fun odstrani(ctx: Context, vir: Vir) {
-        shrani(ctx, vsi(ctx).filterNot { it == vir })
+        zapomniOdstranjen(ctx, vir.naslov)
+        shrani(ctx, rocni(ctx).filterNot { it.naslov == vir.naslov || istaSpletnaStran(it.naslov, vir.naslov) })
         if (vir.jeSeznam) ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().remove(kljucSeznama(vir.naslov)).apply()
         pripeti(ctx).let { p -> if (kljucPripetega(vir) in p) pisi(ctx, PRIPETI, JSONArray(p - kljucPripetega(vir)).toString()) }
     }
@@ -233,13 +295,14 @@ object MedijskiViri {
      */
     fun dodaj(ctx: Context, vnos: String, ime: String? = null): Vir? {
         obstojeciVir(ctx, vnos)?.let { return it }
+        val cisto = vnos.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
+        prekliciOdstranjen(ctx, cisto)
         if (vnos.contains("{q}") || vnos.contains("{searchTerms}")) {
             val g = try { URL(vnos.substringBefore('|').trim()).host } catch (_: Exception) { return null }
             val v = Vir(API, ime?.takeIf { it.isNotBlank() } ?: g.removePrefix("www.").removePrefix("api."), vnos.trim())
-            shrani(ctx, vsi(ctx).filterNot { it.naslov == v.naslov } + v)
+            shrani(ctx, rocni(ctx).filterNot { it.naslov == v.naslov } + v)
             return v
         }
-        val cisto = vnos.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
         val gostitelj = try { URL(cisto).host } catch (_: Exception) { return null }
         val jePot = try { URL(cisto).path.trim('/').isNotEmpty() } catch (_: Exception) { false }
         val vir = PeerTube.imeStreznika(gostitelj)?.takeIf { !jePot || cisto.contains("/videos") || cisto.contains("/c/") || cisto.contains("/a/") }
@@ -251,7 +314,7 @@ object MedijskiViri {
                 (!v.jeSplet && !vir.jeSplet && kanonicniNaslov(v.naslov) == kanonicniNaslov(vir.naslov))
         }
         if (obstojeci != null) return obstojeci
-        shrani(ctx, vsi(ctx) + vir)
+        shrani(ctx, rocni(ctx) + vir)
         return vir
     }
 

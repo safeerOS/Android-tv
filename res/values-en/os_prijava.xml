@@ -11,9 +11,22 @@
     <string name="os_prijava_koda_naslov">6-digit code</string>
     <string name="os_prijava_koda_opis">On the joining device open Safeer → Connected devices → Join. The code appears here – type it there.</string>
     <string name="os_prijava_koda_za">Code for %1$s</string>
+    <string name="os_prijava_koda_velja">Valid for 5 minutes · enter on joining device</string>
     <string name="os_prijava_brez">Continue without connecting devices</string>
     <string name="os_prijava_zapri">Close</string>
     <string name="os_prijava_povezano">✓ %1$s is connected.</string>
     <string name="os_naprave_povezi">Connect a new device</string>
     <string name="os_naprave_povezi_opis">Scan the code with the other device\'s camera (works without Safeer too) or enter a 6-digit code</string>
+    <string name="os_naprave_vpisi_kodo">Enter 6-digit code</string>
+    <string name="os_naprave_vpisi_kodo_opis">Connect using the 6-digit code shown on another device in Safeer Link</string>
+    <string name="os_naprave_deljenje_datotek">File sharing</string>
+    <string name="os_naprave_deljenje_opis">Allow other devices in Safeer Link to access videos, music, and images on this device</string>
+    <string name="os_naprave_deljenje_vklopljeno">File sharing is enabled</string>
+    <string name="os_naprave_deljenje_izklopljeno">File sharing is disabled</string>
+    <string name="os_naprave_odpri_datoteke">Open files</string>
+    <string name="os_naprave_koda_napacna_dolzina">The code must contain 6 digits.</string>
+    <string name="os_naprave_iskanje_naprave">Searching for device on local network …</string>
+    <string name="os_naprave_uspesno_povezano">Successfully connected to %1$s.</string>
+    <string name="os_naprave_naprava_ni_najdena">No device found. Make sure both devices are connected to the same Wi-Fi network.</string>
+    <string name="os_prijava_vpisi_gumb">Enter code from another device</string>
 </resources>

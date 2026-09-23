@@ -40,18 +40,25 @@ object PridruzitevSredisca {
                 zagnanoZaKodo = true
             }
             val u = HubKrmilnik.usmerjevalnik
-            val vrata = HubKrmilnik.vrata()
-            val ip = krajevniNaslov()
-            if (u == null || vrata == 0 || ip == null) { b.putString("napaka", "ni_sredisca"); return b }
+            if (u == null) { b.putString("napaka", "ni_sredisca"); return b }
             if (preklici.isNotBlank()) u.prekliciPridruzitev(preklici)
             u.naPridruzitev = { id, ime ->
                 zadnja = System.currentTimeMillis() to ime
                 Log.i(TAG, "Naprava $id se je pridruzila s QR kodo.")
             }
-            val (id, skrivnost) = u.ustvariPridruzitev()
+            val (id, skrivnost, pin) = u.ustvariPridruzitev()
             b.putString("qr_id", id)
-            b.putString("povezava", povezavaZaKodo(ip, vrata, HubKrmilnik.vrataSplet(), id, skrivnost))
+            b.putString("pin", pin)
+            b.putString("code", pin)
             b.putLong("velja_ms", HubUsmerjevalnik.PIN_VELJA_MS)
+
+            val vrata = HubKrmilnik.vrata()
+            val ip = krajevniNaslov()
+            if (vrata > 0 && ip != null) {
+                b.putString("povezava", povezavaZaKodo(ip, vrata, HubKrmilnik.vrataSplet(), id, skrivnost))
+            } else {
+                b.putString("napaka", "ni_sredisca")
+            }
         } catch (e: Throwable) {
             Log.w(TAG, "Kode ni bilo mogoce pripraviti: ${e.message}")
             b.putString("napaka", "ni_sredisca")

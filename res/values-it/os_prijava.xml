@@ -11,9 +11,22 @@
     <string name="os_prijava_koda_naslov">Codice di 6 cifre</string>
     <string name="os_prijava_koda_opis">Sul dispositivo che si unisce apri Safeer → Dispositivi connessi → Unisciti. Il codice appare qui: digitalo lì.</string>
     <string name="os_prijava_koda_za">Codice per %1$s</string>
+    <string name="os_prijava_koda_velja">Valido per 5 minuti · inserire sul nuovo dispositivo</string>
     <string name="os_prijava_brez">Continua senza collegare dispositivi</string>
     <string name="os_prijava_zapri">Chiudi</string>
     <string name="os_prijava_povezano">✓ %1$s è collegato.</string>
     <string name="os_naprave_povezi">Collega un nuovo dispositivo</string>
     <string name="os_naprave_povezi_opis">Scansiona il codice con la fotocamera dell\'altro dispositivo (funziona anche senza Safeer) o digita il codice a 6 cifre</string>
+    <string name="os_naprave_vpisi_kodo">Inserisci codice a 6 cifre</string>
+    <string name="os_naprave_vpisi_kodo_opis">Connettiti usando il codice a 6 cifre mostrato su un altro dispositivo in Safeer Link</string>
+    <string name="os_naprave_deljenje_datotek">Condivisione file</string>
+    <string name="os_naprave_deljenje_opis">Consenti ad altri dispositivi in Safeer Link di accedere a video, musica e immagini su questo dispositivo</string>
+    <string name="os_naprave_deljenje_vklopljeno">La condivisione file è attiva</string>
+    <string name="os_naprave_deljenje_izklopljeno">La condivisione file è disattivata</string>
+    <string name="os_naprave_odpri_datoteke">Apri file</string>
+    <string name="os_naprave_koda_napacna_dolzina">Il codice deve contenere 6 cifre.</string>
+    <string name="os_naprave_iskanje_naprave">Ricerca del dispositivo sulla rete locale …</string>
+    <string name="os_naprave_uspesno_povezano">Connesso con successo a %1$s.</string>
+    <string name="os_naprave_naprava_ni_najdena">Nessun dispositivo trovato. Assicurati che entrambi i dispositivi siano sulla stessa rete Wi-Fi.</string>
+    <string name="os_prijava_vpisi_gumb">Inserisci codice da un altro dispositivo</string>
 </resources>

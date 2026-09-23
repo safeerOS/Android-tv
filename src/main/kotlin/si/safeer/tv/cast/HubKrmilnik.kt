@@ -95,6 +95,8 @@ object HubKrmilnik {
         return tu + oddaljene.values.map { it.prijava }.filter { o -> tu.none { it.pairId == o.pairId } }
     }
 
+    fun aktivniPin(): String? = try { usmerjevalnik?.aktivniPin() } catch (_: Throwable) { null }
+
     fun zavrniPrijavo(pairId: String): Boolean {
         if (try { usmerjevalnik?.zavrniPrijavo(pairId) == true } catch (_: Throwable) { false }) return true
         val o = oddaljene.remove(pairId) ?: return false

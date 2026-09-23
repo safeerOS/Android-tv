@@ -149,4 +149,14 @@
     <string name="os_media_razvrsti_ime">Name A–Z</string>
     <string name="os_media_prikazani_viri">Vorübergehend angezeigte Quellen</string>
     <string name="os_media_ni_video_virov">Es wurden keine Webvideo-Quellen hinzugefügt.</string>
+    <string name="os_media_razmerje">Seitenverhältnis</string>
+    <string name="os_media_razmerje_fit">Original (Fit)</string>
+    <string name="os_media_razmerje_fill">Zoomen (Fill)</string>
+    <string name="os_media_razmerje_stretch">Dehnen (16:9)</string>
+    <string name="os_media_nadaljuj_gledanje">Weiterschauen</string>
+    <string name="os_media_odstrani_nadaljuj">Aus Weiterschauen entfernen</string>
+    <string name="os_media_odstranjeno_nadaljuj">Aus Weiterschauen entfernt</string>
+    <string name="os_media_pocisti_nadaljuj">Weiterschauen leeren</string>
+    <string name="os_media_pocisti_nadaljuj_opis">Gesamten Wiedergabeverlauf entfernen</string>
+    <string name="os_media_pocisti_nadaljuj_potrdi">Alle Einträge aus Weiterschauen entfernen?</string>
 </resources>

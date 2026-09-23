@@ -513,15 +513,19 @@ class HubUsmerjevalnik(
     fun zacniSeznanitev(deviceId: String, ime: String, naslov: String): Pair<String, String>? {
         synchronized(kljucnica) {
             pocistiPrijave()
+            pocistiPridruzitve()
             // Ista naprava, ki poskusa znova, naj ne kopici prijav.
             val stare = prijave.filterValues { it.deviceId == deviceId }.keys.toList()
             for (kljuc in stare) prijave.remove(kljuc)
             if (prijave.size >= NAJVEC_CAKAJOCIH) return null
+            // Politika A: ce je naprava v krogu ze odprla povabilo (pairing host),
+            // uporabimo ze prikazano kodo, da jo uporabnik le prepise z zaslona.
+            val aktivnaKoda = pridruzitve.values.lastOrNull()?.pin ?: pin()
             val prijava = Prijava(
                 pairId = nakljucni(8),
                 deviceId = deviceId,
                 ime = if (ime.isBlank()) deviceId else ime,
-                pin = pin(),
+                pin = aktivnaKoda,
                 naslov = naslov,
                 nastala = ura()
             )
@@ -640,7 +644,7 @@ class HubUsmerjevalnik(
      * Drugi korak: naprava poslje svojo potrditev cB. Ujemanje pomeni, da pozna isto kodo
      * in da je videla isto potrdilo TLS - takrat dobi zeton. Sicer steje kot zgresena koda.
      */
-    fun spakeKorak2(pairId: String, deviceId: String, cb: ByteArray): IzidKode = synchronized(kljucnica) {
+    fun spakeKorak2(pairId: String, deviceId: String, cb: ByteArray, pubkey: String = "", platform: String = ""): IzidKode = synchronized(kljucnica) {
         pocistiPrijave()
         val prijava = prijave[pairId] ?: return IzidKode(null, "prijava_ne_obstaja")
         if (prijava.deviceId != deviceId) return IzidKode(null, "prijava_ne_obstaja")
@@ -660,8 +664,15 @@ class HubUsmerjevalnik(
         val zeton = "saf_tv_" + nakljucni(24)
         vpisiZeton(zeton, SeznanjenaNaprava(prijava.deviceId, prijava.ime, ura() / 1000.0))
         shraniZetone()
+        // Krog zaupanja: ce je nova naprava poslala svoj javni kljuc, jo takoj vpisemo v krog
+        if (pubkey.isNotBlank() && KrogZaupanja.dekodirajKljuc(pubkey) != null) {
+            krog.dodaj(KrogZaupanja.Clan(prijava.deviceId, pubkey, prijava.ime,
+                platform.take(16).ifBlank { "unknown" }, KrogZaupanja.zdaj(), lastniId))
+        }
         prijave.remove(pairId)
+        pridruzitve.entries.removeAll { it.value.pin == prijava.pin }
         naSpremembePrijav?.invoke()
+        naSpremembeNaprav?.invoke()
         return IzidKode(zeton, null)
     }
 
@@ -839,7 +850,9 @@ class HubUsmerjevalnik(
      * ugibanje je omejeno. Kodo ustvari proces sredisca (zaslon) ali seznanjena naprava v krajevnem
      * omrezju (/cast/pair/qr/invite, »Poveži novo napravo« na racunalniku) - nikoli tujec.
      */
-    internal class Pridruzitev(val id: String, val odtisSkrivnosti: String, val nastala: Long, var poskusov: Int = 0)
+    internal class Pridruzitev(val id: String, val odtisSkrivnosti: String, val pin: String, val nastala: Long, var poskusov: Int = 0)
+
+    data class PridruzitevIzid(val id: String, val skrivnost: String, val pin: String)
 
     internal val pridruzitve = LinkedHashMap<String, Pridruzitev>()
 
@@ -855,21 +868,28 @@ class HubUsmerjevalnik(
         pridruzitve.entries.removeAll { zdaj - it.value.nastala > PIN_VELJA_MS }
     }
 
-    /** Nova koda za zaslon sredisca: (id, skrivnost). Klice se samo v procesu. */
-    fun ustvariPridruzitev(): Pair<String, String> = synchronized(kljucnica) {
+    /** Nova koda za zaslon sredisca: (id, skrivnost, pin). Klice se samo v procesu ali ob povabilu. */
+    fun ustvariPridruzitev(): PridruzitevIzid = synchronized(kljucnica) {
         pocistiPridruzitve()
         while (pridruzitve.size >= NAJVEC_CAKAJOCIH) pridruzitve.remove(pridruzitve.keys.first())
         val id = nakljucni(12)
         val skrivnost = nakljucni(16)
-        pridruzitve[id] = Pridruzitev(id, sha256Hex(skrivnost), ura())
-        id to skrivnost
+        val koda = pin()
+        pridruzitve[id] = Pridruzitev(id, sha256Hex(skrivnost), koda, ura())
+        PridruzitevIzid(id, skrivnost, koda)
     }
 
     /** Zaslon je kodo zamenjal ali zaprl. */
     fun prekliciPridruzitev(id: String): Unit = synchronized(kljucnica) { pridruzitve.remove(id) }
 
+    /** Aktivni PIN za seznanitev (ce je koda ze odprta). */
+    fun aktivniPin(): String? = synchronized(kljucnica) {
+        pocistiPridruzitve()
+        pridruzitve.values.lastOrNull()?.pin
+    }
+
     /** Naprava s skrivnostjo iz QR se pridruzi: (zeton, null) ali (null, napaka). Koda velja enkrat. */
-    fun pridruzi(id: String, skrivnost: String, deviceId: String, ime: String): Pair<String?, String?> {
+    fun pridruzi(id: String, skrivnost: String, deviceId: String, ime: String, pubkey: String = "", platform: String = ""): Pair<String?, String?> {
         val zeton = synchronized(kljucnica) {
             pocistiPridruzitve()
             val p = pridruzitve[id] ?: return null to "qr_ne_obstaja"
@@ -884,10 +904,14 @@ class HubUsmerjevalnik(
             if (jePolno(deviceId)) return null to "prevec_naprav"
             pridruzitve.remove(id)
             while (pridruzeni.size >= NAJVEC_CAKAJOCIH) pridruzeni.remove(pridruzeni.keys.first())
-            pridruzeni[id] = if (ime.isBlank()) deviceId else ime
+            val cistoIme = if (ime.isBlank()) deviceId else ime
+            pridruzeni[id] = cistoIme
             val nov = "saf_tv_" + nakljucni(24)
-            vpisiZeton(nov, SeznanjenaNaprava(deviceId, if (ime.isBlank()) deviceId else ime, ura() / 1000.0))
+            vpisiZeton(nov, SeznanjenaNaprava(deviceId, cistoIme, ura() / 1000.0))
             shraniZetone()
+            if (pubkey.isNotBlank() && KrogZaupanja.dekodirajKljuc(pubkey) != null) {
+                krog.dodaj(KrogZaupanja.Clan(deviceId, pubkey, cistoIme, platform.take(16).ifBlank { "unknown" }, KrogZaupanja.zdaj(), lastniId))
+            }
             nov
         }
         naSpremembeNaprav?.invoke()
@@ -1188,13 +1212,14 @@ class HubUsmerjevalnik(
         }
 
         if (tip == "pair.invite") {
-            // Naprava v Linku pokaze QR kodo za novo napravo; skrivnost naredi sredisce, naprava jo le narise.
+            // Naprava v Linku pokaze QR kodo in 6-mestno kodo za novo napravo; kodo naredi sredisce, naprava jo le pokaze.
             if (register.najdi(idPovezave(od)) == null) return potrditev(id, "rejected", "Naprava ni prijavljena.", "pair", "ni_prijavljena")
             sporocilo.objekt("payload")?.niz("preklici")?.takeIf { it.isNotBlank() }?.let { prekliciPridruzitev(it) }
-            val (qrId, skrivnost) = ustvariPridruzitev()
+            val (qrId, skrivnost, pin) = ustvariPridruzitev()
             val naslov = krajevniNaslovHuba()
             posljiVarno(od, ovojnica("pair.invite.ok").surovo("payload", JsonLahki.Zapis()
                 .niz("qr_id", qrId).niz("secret", skrivnost).niz("fp", lastniOdtis).niz("address", naslov)
+                .niz("pin", pin).niz("code", pin)
                 .stevilo("expires_in_seconds", (PIN_VELJA_MS / 1000).toDouble()).toString()).toString())
             return potrditev(id, "accepted", null, "pair")
         }

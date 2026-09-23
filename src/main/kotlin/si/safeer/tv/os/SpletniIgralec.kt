@@ -50,7 +50,10 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
             ukaz("play")
             ura.postDelayed({ if (!sproscen) ukaz("play") }, 3_000)
             ura.postDelayed({ if (!sproscen && igra && !pripravljeno) ukaz("play") }, 7_000)
-            if (kino) vklopiKino()
+            if (kino) {
+                vklopiKino()
+                ura.postDelayed({ if (!sproscen && kino) pogled.alpha = 1f }, 1_000)
+            }
         }
         loadUrl(sk.povezava)
     }
@@ -77,7 +80,7 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
     private fun vklopiKino() {
         ukaz("kino")
         pogled.evaluateJavascript(KINO_JS) { r ->
-            if (kino && r == "true") ura.postDelayed({ if (kino) pogled.alpha = 1f }, 120)
+            if (kino && (r == "true" || r?.contains("true") == true)) ura.postDelayed({ if (kino) pogled.alpha = 1f }, 120)
         }
     }
 
@@ -102,6 +105,9 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
                     if (!o.optBoolean("e")) igra = o.optBoolean("p")
                     val zdaj = System.currentTimeMillis()
                     if (zelja && !igra && !o.optBoolean("e") && zdaj - zadnjiZagon > 2_500) { zadnjiZagon = zdaj; ukaz("play") }
+                    if (kino && pogled.alpha < 1f && (igra || pripravljeno || polozaj > 0)) {
+                        pogled.alpha = 1f
+                    }
                 }
                 invalidateState()
                 ura.postDelayed(this, 1_000)
@@ -207,6 +213,11 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
          * sporoci stanje vrhnji strani ({safeer:'stanje'}).
          */
         private const val POSREDNIK_JS = """(function(){if(window.__safeerAgent)return;window.__safeerAgent=1;
+          try{var origPlay=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){this.muted=false;this.volume=1.0;return origPlay.apply(this,arguments);};}catch(x){}
+          function odtisni(el){if(!el)return;try{el.muted=false;el.volume=1.0;}catch(x){}
+            var ub=[].slice.call(document.querySelectorAll('button,[role=button],.ytp-mute-button')).filter(function(b){
+              var n=(b.getAttribute('aria-label')||b.getAttribute('title')||b.className||'')+'';return /unmute|vklopi zvok|odtisni/i.test(n);});
+            if(ub[0])try{ub[0].click();}catch(x){}}
           function glavni(){var m=[].slice.call(document.querySelectorAll('video,audio'));
             return m.filter(function(x){return !x.paused;})[0]||m.sort(function(a,b){return (b.clientWidth*b.clientHeight)-(a.clientWidth*a.clientHeight);})[0];}
           function gumb(){var g=[].slice.call(document.querySelectorAll('button,[role=button]')).filter(function(b){
@@ -215,13 +226,13 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
             g.sort(function(x,y){var a=x.getBoundingClientRect(),b=y.getBoundingClientRect();return b.width*b.height-a.width*a.height;});
             if(g[0])g[0].click();}
           window.addEventListener('message',function(e){var d=e.data;if(!d||d.safeer!=='ukaz')return;var m=glavni();
-            if(d.c==='play'){window._safeer_app_bg=false;if(m){if(m.paused){try{m.play();}catch(x){}}}else if(document.querySelector('button,[role=button]'))gumb();}
+            if(d.c==='play'){window._safeer_app_bg=false;if(m){odtisni(m);if(m.paused){try{m.play();}catch(x){}}}else if(document.querySelector('button,[role=button]'))gumb();}
             else if(d.c==='pause'&&m){window._safeer_app_bg=true;try{m.pause();}catch(x){}}
             else if(d.c==='seek'&&m){try{m.currentTime=d.t;}catch(x){}}
             else if(d.c==='kino'){
               var v=[].slice.call(document.querySelectorAll('video')).filter(function(x){var r=x.getBoundingClientRect();return r.width>40&&r.height>24;})
-                .sort(function(a,b){return b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight;})[0];
-              if(v){v.setAttribute('data-safeer-only-video','1');var s=document.getElementById('safeer-only-video');if(!s){s=document.createElement('style');s.id='safeer-only-video';(document.head||document.documentElement).appendChild(s);}
+                .sort(function(a,b){return b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight;})[0]||document.querySelector('video');
+              if(v){odtisni(v);v.setAttribute('data-safeer-only-video','1');var s=document.getElementById('safeer-only-video');if(!s){s=document.createElement('style');s.id='safeer-only-video';(document.head||document.documentElement).appendChild(s);}
                 s.textContent='html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;background:#000!important;overflow:hidden!important}body>*:not([data-safeer-only-video]){visibility:hidden!important}video[data-safeer-only-video]{visibility:visible!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:contain!important;background:#000!important;z-index:2147483647!important}';}
             }
             for(var i=0;i<window.frames.length;i++){try{window.frames[i].postMessage(d,'*');}catch(x){}}});
@@ -247,6 +258,7 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
             .sort(function(a,b){var ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return br.width*br.height-ar.width*ar.height;})[0];
           if(!c){var f=[].slice.call(document.querySelectorAll('iframe')).filter(function(x){var r=x.getBoundingClientRect();return r.width>160&&r.height>90;});
             f.sort(function(a,b){var ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return br.width*br.height-ar.width*ar.height;});c=f[0];}
+          if(!c){c=document.querySelector('video')||document.querySelector('iframe');}
           if(!c)return false;
           // Pomembno: samo visibility:hidden ni dovolj. Ko ponovno pokazemo prednike videa, lahko njihovi
           // drugi otroci (YouTube glava, priporocila, komentarji) postanejo vidni. Zato oznacimo tocno pot

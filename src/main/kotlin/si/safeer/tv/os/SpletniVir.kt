@@ -125,12 +125,59 @@ object SpletniVir {
             else -> 0
         }
         return q * 10 +
+            (if (s.video) 1500 else 0) +
             (if (s.zvok.isNotBlank()) 900 else 0) +
             (if (s.mime.contains("dash") || s.mime.contains("mpegurl")) 500 else 0) +
             (if (s.povezava.startsWith("https://")) 120 else 0) +
             (if (s.imdbId.isNotBlank() || s.tmdbId.isNotBlank()) 90 else 0) +
             (if (s.mediaType.isNotBlank()) 60 else 0) +
             (if (s.slika.isNotBlank()) 30 else 0)
+    }
+
+    fun cistNaslov(t: String): String = t.lowercase()
+        .replace(Regex("(?i)\\[.*?\\]|\\(.*?\\)"), " ")
+        .replace(Regex("\\b(19|20)\\d{2}\\b"), "")
+        .replace(Regex("(?i)\\b(4k|uhd|fhd|full.?hd|1080p?|720p?|hd|watch|online|official|music|video|videospot|audio|lyrics?|lyric|remastered|live|clip)\\b"), "")
+        .replace(Regex("[^\\p{L}\\p{N}]"), "")
+        .trim()
+
+    fun zdruzljiva(a: Jamendo.Skladba, b: Jamendo.Skladba): Boolean {
+        if (a.povezava == b.povezava) return true
+        if (a.imdbId.isNotBlank() && b.imdbId.isNotBlank()) return a.imdbId.equals(b.imdbId, ignoreCase = true)
+        if (a.tmdbId.isNotBlank() && b.tmdbId.isNotBlank()) return a.tmdbId.equals(b.tmdbId, ignoreCase = true)
+
+        val aEp = if (a.season > 0 || a.episode > 0) "s${a.season}e${a.episode}" else ""
+        val bEp = if (b.season > 0 || b.episode > 0) "s${b.season}e${b.episode}" else ""
+        if (aEp.isNotBlank() && bEp.isNotBlank() && aEp != bEp) return false
+
+        val ta = vrstaVsebine(a)
+        val tb = vrstaVsebine(b)
+        // Film in serija se nikoli ne združita med seboj ali z glasbo
+        if (ta == FILM && tb != null && tb != FILM) return false
+        if (tb == FILM && ta != null && ta != FILM) return false
+        if (ta == SERIJA && tb != null && tb != SERIJA) return false
+        if (tb == SERIJA && ta != null && ta != SERIJA) return false
+
+        val na = cistNaslov(a.naslov)
+        val nb = cistNaslov(b.naslov)
+        val izvajalecA = cistNaslov(a.izvajalec)
+        val izvajalecB = cistNaslov(b.izvajalec)
+
+        val ujemataNaslov = (na.isNotBlank() && na == nb) ||
+            (izvajalecA.isNotBlank() && cistNaslov("${a.izvajalec} ${a.naslov}") == nb) ||
+            (izvajalecB.isNotBlank() && na == cistNaslov("${b.izvajalec} ${b.naslov}")) ||
+            (izvajalecA.isNotBlank() && izvajalecB.isNotBlank() &&
+             cistNaslov("${a.izvajalec} ${a.naslov}") == cistNaslov("${b.izvajalec} ${b.naslov}"))
+
+        if (!ujemataNaslov) return false
+
+        if (izvajalecA.isNotBlank() && izvajalecB.isNotBlank() && izvajalecA != izvajalecB) return false
+
+        val ya = a.year
+        val yb = b.year
+        if (ya > 0 && yb > 0 && Math.abs(ya - yb) > 1) return false
+
+        return true
     }
 
     fun najboljsiKandidati(v: List<Jamendo.Skladba>): List<Jamendo.Skladba> =
@@ -140,17 +187,47 @@ object SpletniVir {
     fun kljucVsebine(s: Jamendo.Skladba): String {
         if (s.imdbId.isNotBlank()) return "imdb:${s.imdbId.lowercase()}"
         if (s.tmdbId.isNotBlank()) return "tmdb:${s.tmdbId}:${vrstaVsebine(s).orEmpty()}"
-        val n = s.naslov.lowercase()
-            .replace(Regex("\\b(19|20)\\d{2}\\b"), "")
-            .replace(Regex("(?i)\\b(4k|uhd|fhd|full.?hd|1080p?|720p?|hd|watch|online)\\b"), "")
-            .replace(Regex("[^\\p{L}\\p{N}]"), "")
+        val vrsta = vrstaVsebine(s)
+        val krovnaVrsta = if (vrsta == VIDEOSPOT || !s.video) "glasba" else vrsta.orEmpty()
+        val izvajalecDel = if (s.izvajalec.isNotBlank()) "${cistNaslov(s.izvajalec)}:" else ""
+        val n = cistNaslov(s.naslov)
         val ep = if (s.season > 0 || s.episode > 0) ":s${s.season}e${s.episode}" else ""
-        return "$n:${s.year.takeIf { it > 0 } ?: "?"}:${vrstaVsebine(s).orEmpty()}$ep"
+        val y = if (s.year > 0) s.year.toString() else "?"
+        return "$izvajalecDel$n:$y:$krovnaVrsta$ep"
     }
 
-    /** Ena skupina na vsebino; znotraj skupine je najkakovostnejsi vir vedno prvi. */
-    fun zdruziEnako(v: List<Jamendo.Skladba>): List<List<Jamendo.Skladba>> =
-        v.groupBy(::kljucVsebine).values.map(::najboljsiKandidati)
+    /** Ena skupina na vsebino; znotraj skupine je najkakovostnejsi vir vedno prvi z zdruzenimi metapodatki. */
+    fun zdruziEnako(v: List<Jamendo.Skladba>): List<List<Jamendo.Skladba>> {
+        val grupe = mutableListOf<MutableList<Jamendo.Skladba>>()
+        for (item in v) {
+            val obstojeca = grupe.firstOrNull { g -> g.any { zdruzljiva(it, item) } }
+            if (obstojeca != null) {
+                if (obstojeca.none { it.povezava == item.povezava }) {
+                    obstojeca.add(item)
+                }
+            } else {
+                grupe.add(mutableListOf(item))
+            }
+        }
+        return grupe.map { kandidati ->
+            val urejeni = najboljsiKandidati(kandidati)
+            val glava = urejeni.first()
+            val jeVideo = urejeni.any { it.video } || vrstaVsebine(glava) == FILM || vrstaVsebine(glava) == SERIJA
+            val najboljsa = glava.copy(
+                video = jeVideo,
+                year = if (glava.year > 0) glava.year else urejeni.firstNotNullOfOrNull { it.year.takeIf { y -> y > 0 } } ?: 0,
+                rating = if (glava.rating > 0.0) glava.rating else urejeni.firstNotNullOfOrNull { it.rating.takeIf { r -> r > 0.0 } } ?: 0.0,
+                quality = maxOf(glava.quality, urejeni.maxOfOrNull { it.quality } ?: 0),
+                genres = if (glava.genres.isNotEmpty()) glava.genres else urejeni.firstOrNull { it.genres.isNotEmpty() }?.genres ?: emptyList(),
+                imdbId = glava.imdbId.ifBlank { urejeni.firstOrNull { it.imdbId.isNotBlank() }?.imdbId.orEmpty() },
+                tmdbId = glava.tmdbId.ifBlank { urejeni.firstOrNull { it.tmdbId.isNotBlank() }?.tmdbId.orEmpty() },
+                slika = glava.slika.ifBlank { urejeni.firstOrNull { it.slika.isNotBlank() }?.slika.orEmpty() },
+                izvajalec = glava.izvajalec.ifBlank { urejeni.firstOrNull { it.izvajalec.isNotBlank() }?.izvajalec.orEmpty() },
+                mediaType = if (urejeni.any { vrstaVsebine(it) == VIDEOSPOT }) "MusicVideo" else glava.mediaType
+            )
+            listOf(najboljsa) + urejeni.drop(1)
+        }
+    }
 
     /** Film, serija ali videospot po standardnih oznakah in naslovu; null = ne vemo. */
     fun vrstaVsebine(s: Jamendo.Skladba): String? {
@@ -159,12 +236,22 @@ object SpletniVir {
             "tvseries", "tvseason", "tvepisode", "series" -> return SERIJA
             "musicvideoobject", "musicvideo", "music video" -> return VIDEOSPOT
         }
+        if (s.season > 0 || s.episode > 0) return SERIJA
         val u = s.povezava.lowercase()
+        val n = s.naslov.lowercase()
         return when {
-            Regex("[/_-](series|serie|serija|serije|shows?|tv-?shows?|episodes?|epizod[ae]|seasons?|sezon[ae])([/_?-]|$)|s\\d{1,2}e\\d{1,3}").containsMatchIn(u) -> SERIJA
-            Regex("[/_-](movies?|films?|filmi)([/_?-]|$)").containsMatchIn(u) -> FILM
-            Regex("[/_-](music[-_ ]?videos?|videospoti?|official[-_ ]?videos?)([/_?-]|$)").containsMatchIn(u) ||
-                Regex("\\bofficial (music )?video\\b", RegexOption.IGNORE_CASE).containsMatchIn(s.naslov) -> VIDEOSPOT
+            // Izrecna pot za filme v URL (/movie/ ali /film/)
+            Regex("(?i)(?:^|[/_?&=.-])(?:movies?|films?|filmi)(?:[/_?&=.-]|$)").containsMatchIn(u) -> FILM
+            // Serije po domeni (watchseries), URL-ju (/tv/, /series/, /shows/) ali oznakah sezone/epizode
+            u.contains("watchseries") || u.contains("watch-series") ||
+                Regex("(?i)(?:^|[/_?&=.-])(?:tv|series|serie|serija|serije|shows?|watch[-_]?tv|tv[-_]?series|tv-?shows?|episodes?|epizod[ae]|seasons?|sezon[ae])(?:[/_?&=.-]|$)").containsMatchIn(u) ||
+                Regex("(?i)s\\d{1,2}(?:e\\d{1,3})?|\\b(?:season|sezona|series)\\s*\\d+|\\b(?:episode|epizoda|del)\\s*\\d+").containsMatchIn(u) ||
+                Regex("(?i)s\\d{1,2}(?:e\\d{1,3})?|\\b(?:season|sezona|series)\\s*\\d+|\\b(?:episode|epizoda|del)\\s*\\d+").containsMatchIn(n) -> SERIJA
+            // Videospoti po poti ali naslovu
+            Regex("(?i)(?:^|[/_?&=.-])(?:music[-_ ]?videos?|videospoti?|official[-_ ]?videos?)(?:[/_?&=.-]|$)").containsMatchIn(u) ||
+                Regex("(?i)\\bofficial (?:music )?video\\b|\\bvideospot\\b").containsMatchIn(n) -> VIDEOSPOT
+            // Filmi z letnico v naslovu (ob odsotnosti oznak sezone)
+            Regex("\\b(19\\d{2}|20\\d{2})\\b").containsMatchIn(n) && !Regex("(?i)s\\d{1,2}|\\b(?:season|sezona)\\b").containsMatchIn(n) -> FILM
             else -> null
         }
     }
@@ -209,8 +296,8 @@ object SpletniVir {
     @Synchronized
     private fun beriStran(a: Activity, vir: MedijskiViri.Vir, url: String, rok: Long): List<Jamendo.Skladba> {
         val nast = a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
-        val kljuc = "katalog5:" + url
-        val casKljuc = "katalog5_cas:" + url
+        val kljuc = "katalog6:" + url
+        val casKljuc = "katalog6_cas:" + url
         val shranjeno = nast.getString(kljuc, null)
         val veljavnost = if (shranjeno != null && try { JSONArray(shranjeno).length() == 0 } catch (_: Exception) { false })
             PRAZEN_KATALOG_VELJA_MS else KATALOG_VELJA_MS
@@ -277,11 +364,15 @@ object SpletniVir {
             val genres = o.optJSONArray("g")?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } } ?: emptyList()
             val slika = o.optString("i")
             if (slika.isNotBlank()) straniSlik[slika] = o.optString("h").ifBlank { vir.naslov }
-            Jamendo.Skladba(PREDPONA + o.optString("h"), naslov, izvajalec.ifBlank { vir.ime }, slika, "",
+            val sk = Jamendo.Skladba(PREDPONA + o.optString("h"), naslov, izvajalec.ifBlank { vir.ime }, slika, "",
                 o.optString("h"), video = o.optBoolean("v"), mediaType = o.optString("mt"), genres = genres,
                 year = o.optInt("y"), season = o.optInt("sn"), episode = o.optInt("en"),
                 imdbId = o.optString("imdb"), tmdbId = o.optString("tmdb"),
                 quality = o.optInt("q"), rating = o.optDouble("r"))
+            val vrsta = vrstaVsebine(sk)
+            val jeVideo = o.optBoolean("v") || vrsta == FILM || vrsta == SERIJA || vrsta == VIDEOSPOT ||
+                vir.jePeerTube || sk.season > 0 || sk.episode > 0 || sk.quality > 0
+            if (jeVideo != sk.video) sk.copy(video = jeVideo) else sk
         }
     }
 
@@ -600,7 +691,7 @@ object SpletniVir {
         if(uh.indexOf(h)<0&&h.indexOf(uh)<0)continue;
         if(/[?&](q|query|search|search_query)=|\/(search|login|signin|signup|register|account|settings|help|about|privacy|terms|cookies?|download|premium)(\/|\?|$)/i.test(u))continue;
         var z=po[u];if(!z){var m=meta(u),pot='';try{pot=new URL(u).pathname;}catch(e){}
-          var mt=m.mt||'',vid=/Movie|TVSeries|TVSeason|TVEpisode|VideoObject|MusicVideoObject/i.test(mt)||/(^|\/)(movie|movies|film|films|tv|series|shows?|watch|video|videos|episode|episodes|music-video|music-videos)(\/|$)/i.test(pot);
+          var mt=m.mt||'',vid=/Movie|TVSeries|TVSeason|TVEpisode|VideoObject|MusicVideoObject/i.test(mt)||/(^|\/|_|-|\.)(movie|movies|film|films|tv|watch-?series|watch-?tv|tv-?series|tv-?shows?|series|serie|serije|shows?|watch|video|videos|episode|episodes|music-video|music-videos)(\/|_|-|\.|$)/i.test(pot)||/watchseries/i.test(u);
           z=po[u]={h:u,t:'',n:'',i:'',v:vid,mt:mt,g:m.g||[],y:m.y||0,sn:m.sn||0,en:m.en||0,imdb:m.imdb||'',tmdb:m.tmdb||'',q:0,r:0};red.push(z);}
         var card=a.closest('article,li,[class*=card],[class*=item],[class*=movie],[class*=poster]')||a,ct=(card.innerText||'').replace(/\s+/g,' ');
         var qm=ct.match(/(?:2160p?|4k|uhd|1440p?|2k|1080p?|full\s*hd|fhd|720p?|480p?)/i);if(qm){var q=(''+qm[0]).toLowerCase();z.q=/2160|4k|uhd/.test(q)?2160:/1440|2k/.test(q)?1440:/1080|full|fhd/.test(q)?1080:/720/.test(q)?720:480;}
@@ -613,13 +704,16 @@ object SpletniVir {
           if(img){var r=img.getBoundingClientRect(),set=img.getAttribute('srcset')||img.getAttribute('data-srcset')||'',
             ss=img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||img.getAttribute('data-original')||img.getAttribute('data-poster')||img.getAttribute('data-image')||'';
             if(!ss&&set)ss=set.split(',').pop().trim().split(/\s+/)[0];if(!ss){var bg=getComputedStyle(img).backgroundImage.match(/url\(["']?([^"')]+)/);ss=(bg&&bg[1])||img.currentSrc||img.src||'';}ss=abs(ss);
-            if(r.width>=48&&r.height>=32&&/^https?:/.test(ss)){z.i=ss;z.v=z.v||r.width/r.height>1.3;if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
+            if(r.width>=48&&r.height>=32&&/^https?:/.test(ss)){
+              z.i=ss;
+              z.v=z.v||(r.width/r.height>1.2)||(card.matches&&card.matches('[class*=movie],[class*=film],[class*=series],[class*=poster],[class*=show],[class*=video],[class*=card],[class*=item]'))||/(movie|film|series|watch|show|tv|episode)/i.test(u);
+              if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
       }
       var vse=red.filter(function(z){return z.i&&(z.n||z.t);}).map(function(z){if(z.n)z.t=z.n;return z;});
-      function skupina(z){var p='';try{p=new URL(z.h).pathname;}catch(e){}
-        if(/TVSeries|TVSeason|TVEpisode/i.test(z.mt)||/(^|\/)(tv|series|shows?|episodes?)(\/|$)/i.test(p))return 1;
-        if(/MusicVideo/i.test(z.mt)||/(^|\/)(music-video|music-videos|videospoti?)(\/|$)/i.test(p))return 2;
-        if(/Movie/i.test(z.mt)||/(^|\/)(movie|movies|film|films)(\/|$)/i.test(p))return 0;return 3;}
+      function skupina(z){var p='';try{p=new URL(z.h).pathname+new URL(z.h).hostname;}catch(e){}
+        if(/TVSeries|TVSeason|TVEpisode/i.test(z.mt)||/(^|\/|_|-|\.)(watch-?series|watch-?tv|tv-?series|tv-?shows?|series|serie|serije|shows?|tv|episodes?)(\/|_|-|\.|$)/i.test(p)||/watchseries/i.test(z.h))return 1;
+        if(/MusicVideo/i.test(z.mt)||/(^|\/|_|-|\.)(music-video|music-videos|videospoti?)(\/|_|-|\.|$)/i.test(p))return 2;
+        if(/Movie/i.test(z.mt)||/(^|\/|_|-|\.)(movie|movies|film|films)(\/|_|-|\.|$)/i.test(p))return 0;return 3;}
       var g=[[],[],[],[]];vse.forEach(function(z){g[skupina(z)].push(z);});var ven=[];
       for(var k=0;ven.length<48;k++){var kaj=false;for(var q=0;q<g.length&&ven.length<48;q++)if(g[q][k]){ven.push(g[q][k]);kaj=true;}if(!kaj)break;}
       return ven;}catch(e){return [];}})()"""

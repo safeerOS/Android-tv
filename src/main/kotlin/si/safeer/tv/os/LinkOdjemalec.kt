@@ -79,8 +79,8 @@ class LinkOdjemalec(private val context: Context) {
     @Volatile var srediceJeTu: Boolean = false
         private set
 
-    /** Povabilo sredisca za QR kodo (pair.invite.ok): kar naprava potrebuje, da kodo narise. */
-    data class Povabilo(val qrId: String, val skrivnost: String, val odtis: String, val naslov: String, val veljaMs: Long)
+    /** Povabilo sredisca za QR kodo in 6-mestno kodo (pair.invite.ok): kar naprava potrebuje za prikaz. */
+    data class Povabilo(val qrId: String, val skrivnost: String, val odtis: String, val naslov: String, val veljaMs: Long, val pin: String = "")
 
     @Volatile private var naPovabilo: ((Povabilo?) -> Unit)? = null
 
@@ -484,8 +484,9 @@ class LinkOdjemalec(private val context: Context) {
             }
             "pair.invite.ok" -> {
                 val t = json.optJSONObject("payload") ?: JSONObject()
+                val pin = t.optString("pin").ifBlank { t.optString("code") }
                 val p = Povabilo(t.optString("qr_id"), t.optString("secret"), t.optString("fp"), t.optString("address"),
-                    (t.optDouble("expires_in_seconds", 300.0) * 1000).toLong())
+                    (t.optDouble("expires_in_seconds", 300.0) * 1000).toLong(), pin)
                 val naprej = naPovabilo
                 naPovabilo = null
                 if (naprej != null) glavna.post { naprej(if (p.qrId.isBlank() || p.skrivnost.isBlank()) null else p) }

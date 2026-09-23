@@ -149,4 +149,14 @@
     <string name="os_media_razvrsti_ime">Nombre A–Z</string>
     <string name="os_media_prikazani_viri">Fuentes mostradas temporalmente</string>
     <string name="os_media_ni_video_virov">No se han añadido fuentes de vídeo web.</string>
+    <string name="os_media_razmerje">Relación de aspecto</string>
+    <string name="os_media_razmerje_fit">Original (Fit)</string>
+    <string name="os_media_razmerje_fill">Zoom (Fill)</string>
+    <string name="os_media_razmerje_stretch">Estirar (16:9)</string>
+    <string name="os_media_nadaljuj_gledanje">Continuar viendo</string>
+    <string name="os_media_odstrani_nadaljuj">Quitar de Continuar viendo</string>
+    <string name="os_media_odstranjeno_nadaljuj">Quitado de Continuar viendo</string>
+    <string name="os_media_pocisti_nadaljuj">Borrar continuar viendo</string>
+    <string name="os_media_pocisti_nadaljuj_opis">Eliminar todo el historial de visualización</string>
+    <string name="os_media_pocisti_nadaljuj_potrdi">¿Eliminar todos los elementos de Continuar viendo?</string>
 </resources>

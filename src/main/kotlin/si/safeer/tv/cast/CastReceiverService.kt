@@ -383,7 +383,10 @@ class CastReceiverService : Service() {
                         put("name", deviceName)
                         put("role", "receiver")
                         val zmoznosti = mutableListOf("url", "media", "control", "volume", "seek", "text", "file", "screen", si.safeer.tv.link.Daljinec.ZMOZNOST,
-                            si.safeer.tv.link.Daljinec.ZMOZNOST_ZVOK, si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)
+                            si.safeer.tv.link.Daljinec.ZMOZNOST_ZVOK)
+                        if (si.safeer.tv.link.DatotekeStreznik.vklopljeno(this@CastReceiverService)) {
+                            zmoznosti.add(si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)
+                        }
                         if (BuildConfig.FLAVOR == "telefon" && internetGateway?.dovoljeno == true) zmoznosti.add("internet.gateway")
                         put("capabilities", org.json.JSONArray(zmoznosti))
                         // Protocol v1: model naprave in katalog aplikacij, ki jih zna ta zaslon zagnati.

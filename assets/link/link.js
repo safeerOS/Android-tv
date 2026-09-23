@@ -2133,16 +2133,16 @@
     if (!n) return;
     var v = el("vnosImena");
     var ime = v ? String(v.value || "").trim() : "";
-    // Svoje ime naprava sporoci Safeer Linku (vidijo ga vsi); imena drugih naprav so krajevna.
+    // Ime shranimo krajevno in ga sporocimo mostu (hubu), da ga vidijo vse naprave.
     if (n.id !== stanje.idNaprave) {
       if (ime === (n.ime || "").trim()) ime = "";
-      if (shraniVzdevek(n.id, ime)) {
-        pokazi("preimenujBlok", false);
-        besedilo("opombaDeljenje", t("preimenovano"));
-        besedilo("deljenjeNaslov", deljenje.samoIme ? prijaznoIme(n) : t("deliZ", { ime: prijaznoIme(n) }));
-        narisiVse();
-        return;
-      }
+      shraniVzdevek(n.id, ime);
+      pokazi("preimenujBlok", false);
+      besedilo("opombaDeljenje", t("preimenovano"));
+      besedilo("deljenjeNaslov", deljenje.samoIme ? prijaznoIme(n) : t("deliZ", { ime: prijaznoIme(n) }));
+      narisiVse();
+      if (most && most.preimenujNapravo) most.preimenujNapravo(n.id, ime);
+      return;
     }
     if (!most || !most.preimenujNapravo) return;
     besedilo("opombaDeljenje", t("posiljam"));

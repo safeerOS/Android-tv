@@ -11,9 +11,22 @@
     <string name="os_prijava_koda_naslov">Code à 6 chiffres</string>
     <string name="os_prijava_koda_opis">Sur l\'appareil qui rejoint, ouvre Safeer → Appareils connectés → Rejoindre. Le code apparaît ici – saisis-le là-bas.</string>
     <string name="os_prijava_koda_za">Code pour %1$s</string>
+    <string name="os_prijava_koda_velja">Valable 5 minutes · saisir sur le nouvel appareil</string>
     <string name="os_prijava_brez">Continuer sans connecter d\'appareils</string>
     <string name="os_prijava_zapri">Fermer</string>
     <string name="os_prijava_povezano">✓ %1$s est connecté.</string>
     <string name="os_naprave_povezi">Connecter un nouvel appareil</string>
     <string name="os_naprave_povezi_opis">Scanne le code avec l\'appareil photo de l\'autre appareil (fonctionne aussi sans Safeer) ou saisis le code à 6 chiffres</string>
+    <string name="os_naprave_vpisi_kodo">Saisir le code à 6 chiffres</string>
+    <string name="os_naprave_vpisi_kodo_opis">Connectez-vous à l\'aide du code à 6 chiffres affiché sur un autre appareil dans Safeer Link</string>
+    <string name="os_naprave_deljenje_datotek">Partage de fichiers</string>
+    <string name="os_naprave_deljenje_opis">Autoriser d\'autres appareils dans Safeer Link à accéder aux vidéos, à la musique et aux images sur cet appareil</string>
+    <string name="os_naprave_deljenje_vklopljeno">Le partage de fichiers est activé</string>
+    <string name="os_naprave_deljenje_izklopljeno">Le partage de fichiers est désactivé</string>
+    <string name="os_naprave_odpri_datoteke">Ouvrir les fichiers</string>
+    <string name="os_naprave_koda_napacna_dolzina">Le code doit comporter 6 chiffres.</string>
+    <string name="os_naprave_iskanje_naprave">Recherche de l\'appareil sur le réseau local …</string>
+    <string name="os_naprave_uspesno_povezano">Connecté avec succès à %1$s.</string>
+    <string name="os_naprave_naprava_ni_najdena">Aucun appareil trouvé. Assurez-vous que les deux appareils sont sur le même réseau Wi-Fi.</string>
+    <string name="os_prijava_vpisi_gumb">Saisir le code d\'un autre appareil</string>
 </resources>

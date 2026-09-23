@@ -11,9 +11,22 @@
     <string name="os_prijava_koda_naslov">6-stelliger Code</string>
     <string name="os_prijava_koda_opis">Öffne auf dem beitretenden Gerät Safeer → Verbundene Geräte → Beitreten. Der Code erscheint hier – gib ihn dort ein.</string>
     <string name="os_prijava_koda_za">Code für %1$s</string>
+    <string name="os_prijava_koda_velja">Gültig für 5 Minuten · auf beitretendem Gerät eingeben</string>
     <string name="os_prijava_brez">Ohne Geräteverbindung fortfahren</string>
     <string name="os_prijava_zapri">Schließen</string>
     <string name="os_prijava_povezano">✓ %1$s ist verbunden.</string>
     <string name="os_naprave_povezi">Neues Gerät verbinden</string>
     <string name="os_naprave_povezi_opis">Scanne den Code mit der Kamera des anderen Geräts (geht auch ohne Safeer) oder gib den 6-stelligen Code ein</string>
+    <string name="os_naprave_vpisi_kodo">6-stelligen Code eingeben</string>
+    <string name="os_naprave_vpisi_kodo_opis">Verbinde dich mit dem 6-stelligen Code eines anderen Geräts in Safeer Link</string>
+    <string name="os_naprave_deljenje_datotek">Dateifreigabe</string>
+    <string name="os_naprave_deljenje_opis">Anderen Geräten in Safeer Link Zugriff auf Videos, Musik und Bilder auf diesem Gerät erlauben</string>
+    <string name="os_naprave_deljenje_vklopljeno">Dateifreigabe ist aktiviert</string>
+    <string name="os_naprave_deljenje_izklopljeno">Dateifreigabe ist deaktiviert</string>
+    <string name="os_naprave_odpri_datoteke">Dateien öffnen</string>
+    <string name="os_naprave_koda_napacna_dolzina">Der Code muss 6 Ziffern enthalten.</string>
+    <string name="os_naprave_iskanje_naprave">Suche nach Gerät im Heimnetzwerk …</string>
+    <string name="os_naprave_uspesno_povezano">Erfolgreich mit %1$s verbunden.</string>
+    <string name="os_naprave_naprava_ni_najdena">Kein Gerät gefunden. Bitte sicherstellen, dass beide Geräte im selben WLAN sind.</string>
+    <string name="os_prijava_vpisi_gumb">Code von anderem Gerät eingeben</string>
 </resources>

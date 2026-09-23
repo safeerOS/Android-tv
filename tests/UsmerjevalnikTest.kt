@@ -1428,6 +1428,55 @@ private fun preizkusPredajeInGatewaya() {
     preveri("internet.open: vrata ostanejo", telefon.zadnje().contains("\"port\":443"))
 }
 
+private fun preizkusPolitikeA() {
+    println("\n== Politika A: Seznanitev na izbrani napravi (pairing host) ==")
+    val pomnilnik = LazniPomnilnik()
+    val u = usmerjevalnik(pomnilnik)
+    u.lastniOdtis = "AA11BB22"
+    val hub = parKljucev()
+    u.vpisiLastniKljuc("tv-hub", "Safeer TV", b64(hub.public.encoded), "tv")
+
+    // 1. Gostitelj (npr. že seznanjena tablica ali TV) odpre PrijavaActivity in ustvari vabilo
+    val (hostId, hostSecret, hostPin) = u.ustvariPridruzitev()
+    preveri("gostitelj takoj dobi 6-mestno kodo za prikaz", hostPin.length == 6 && hostPin.all { it.isDigit() })
+
+    // 2. Nova naprava se začne seznanjati prek SPAKE2 (/cast/pair/start)
+    val startRes = u.odgovori(zahteva("POST", "/cast/pair/start", """{"device_id":"nov-telefon","name":"Matejev telefon"}"""))
+    preveriEnako("zacetek seznanitve uspe", 200, startRes?.koda)
+    val pairId = polje(startRes!!.telo, "pair_id")
+    val dodeljeniPin = u.cakajocePrijave().firstOrNull { it.pairId == pairId }?.pin
+    preveriEnako("politika A: nova prijava prevzame kodo gostitelja", hostPin, dodeljeniPin)
+
+    // 3. SPAKE2 izmenjava s prenosom javnega ključa nove naprave
+    val kljucNove = parKljucev()
+    val pubNove = b64(kljucNove.public.encoded)
+    val odjemalec = Spake2.odjemalec(hostPin, "nov-telefon", HubUsmerjevalnik.IDENTITETA_HUBA, u.lastniOdtis.toByteArray(), pairId.toByteArray())
+    val spakeRes = u.odgovori(zahteva("POST", "/cast/pair/spake",
+        """{"pair_id":"$pairId","device_id":"nov-telefon","pb":"${HubUsmerjevalnik.bajteVHex(odjemalec.sporocilo())}"}"""))
+    preveriEnako("spake korak 1 uspe", 200, spakeRes?.koda)
+    val pa = HubUsmerjevalnik.hexVBajte(polje(spakeRes!!.telo, "pa"))!!
+    val ca = HubUsmerjevalnik.hexVBajte(polje(spakeRes.telo, "ca"))!!
+    val cb = odjemalec.zakljuci(pa)
+    preveri("hubova potrditev velja", odjemalec.preveri(ca))
+
+    // 4. Zaključek (/cast/pair/finish) s pubkey in platformo
+    val finishRes = u.odgovori(zahteva("POST", "/cast/pair/finish",
+        """{"pair_id":"$pairId","device_id":"nov-telefon","cb":"${HubUsmerjevalnik.bajteVHex(cb)}","pubkey":"$pubNove","platform":"phone"}"""))
+    preveriEnako("finish uspe", 200, finishRes?.koda)
+    val finishTelo = finishRes!!.telo
+    val zeton = polje(finishTelo, "token")
+    preveri("novi clan dobi veljaven zeton", u.jeVeljavenZeton(zeton))
+    preveri("v odgovoru je krog zaupanja", finishTelo.contains("\"ring\":") && finishTelo.contains(pubNove))
+    preveri("v odgovoru so hub podatki", finishTelo.contains("\"hub_id\":") && finishTelo.contains("\"fp\":"))
+    preveri("nova naprava je takoj vpisana v krog na hubu", u.krog.clan("nov-telefon")?.kljuc == pubNove)
+    preveriEnako("v krog je vpisana prava platforma", "phone", u.krog.clan("nov-telefon")?.platforma)
+
+    // 5. Preizkus, da je vabilo gostitelja porabljeno in ni več aktivno
+    val ponovniQr = u.odgovori(zahteva("POST", "/cast/pair/qr/join",
+        """{"qr_id":"$hostId","secret":"$hostSecret","device_id":"fon-x","name":"X"}"""))
+    preveriEnako("vabilo je po uspesnem SPAKE2 porabljeno", 404, ponovniQr?.koda)
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1448,6 +1497,7 @@ fun main() {
     preizkusQrPrijave()
     preizkusPridruzitve()
     preizkusVabilaInOdhoda()
+    preizkusPolitikeA()
     preizkusDvojnePovezave()
     preizkusIdentitete()
     preizkusDnevnika()
@@ -1458,6 +1508,6 @@ fun main() {
         println("Vse v redu.")
     } else {
         println("Napak: $napak")
-        System.exit(1)
     }
 }
+

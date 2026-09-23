@@ -11,9 +11,22 @@
     <string name="os_prijava_koda_naslov">Código de 6 cifras</string>
     <string name="os_prijava_koda_opis">En el dispositivo que se une abre Safeer → Dispositivos conectados → Unirse. El código aparece aquí: escríbelo allí.</string>
     <string name="os_prijava_koda_za">Código para %1$s</string>
+    <string name="os_prijava_koda_velja">Válido durante 5 minutos · introducir en el nuevo dispositivo</string>
     <string name="os_prijava_brez">Continuar sin conectar dispositivos</string>
     <string name="os_prijava_zapri">Cerrar</string>
     <string name="os_prijava_povezano">✓ %1$s está conectado.</string>
     <string name="os_naprave_povezi">Conectar un dispositivo nuevo</string>
     <string name="os_naprave_povezi_opis">Escanea el código con la cámara del otro dispositivo (funciona también sin Safeer) o escribe el código de 6 dígitos</string>
+    <string name="os_naprave_vpisi_kodo">Introducir código de 6 dígitos</string>
+    <string name="os_naprave_vpisi_kodo_opis">Conéctate usando el código de 6 dígitos mostrado en otro dispositivo en Safeer Link</string>
+    <string name="os_naprave_deljenje_datotek">Compartir archivos</string>
+    <string name="os_naprave_deljenje_opis">Permitir que otros dispositivos en Safeer Link accedan a videos, música e imágenes en este dispositivo</string>
+    <string name="os_naprave_deljenje_vklopljeno">El uso compartido de archivos está activado</string>
+    <string name="os_naprave_deljenje_izklopljeno">El uso compartido de archivos está desactivado</string>
+    <string name="os_naprave_odpri_datoteke">Abrir archivos</string>
+    <string name="os_naprave_koda_napacna_dolzina">El código debe contener 6 dígitos.</string>
+    <string name="os_naprave_iskanje_naprave">Buscando dispositivo en la red local …</string>
+    <string name="os_naprave_uspesno_povezano">Conectado con éxito a %1$s.</string>
+    <string name="os_naprave_naprava_ni_najdena">No se encontró ningún dispositivo. Asegúrate de que ambos dispositivos estén en la misma red Wi-Fi.</string>
+    <string name="os_prijava_vpisi_gumb">Introducir código de otro dispositivo</string>
 </resources>

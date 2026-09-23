@@ -14,6 +14,9 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import si.safeer.tv.cast.HubDiscovery
+import si.safeer.tv.cast.HubPairing
+import si.safeer.tv.link.DatotekeStreznik
 
 /**
  * Naprave v Safeer Linku na svojem zaslonu. Na domacem zaslonu je bila to se ena vrsta kartic in
@@ -75,29 +78,56 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val nove = ArrayList<Vrstica>()
         // Ta naprava: ime, kot ga vidijo druge naprave; OK jo preimenuje.
         if (jaz != null) nove.add(Vrstica(ikonaNaprave(jaz.platforma), jaz.ime.ifBlank { jaz.id },
-            getString(R.string.os_naprave_ta), getString(R.string.os_naprave_preimenuj), jaz.id) { preimenuj(jaz.id, jaz.ime) })
+            getString(R.string.os_naprave_ta), getString(R.string.os_naprave_preimenuj_kratko), jaz.id) { preimenuj(jaz.id, jaz.ime) })
         for (n in tuje) {
             val datoteke = n.zmoznosti.contains("files")
+            val lepo = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
             nove.add(Vrstica(
                 if (datoteke) R.drawable.os_ikona_racunalnik else ikonaNaprave(n.platforma),
-                // "Safeer Control (janez-pc)" -> "janez-pc": ime programa je ze v podnapisu.
-                DatotekeActivity.lepoIme(n.ime).ifBlank { n.id },
+                lepo,
                 opisNaprave(n),
-                getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_posiljanje),
+                getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_preimenuj_kratko),
                 n.id,
             ) {
-                if (datoteke) startActivity(Intent(this, DatotekeActivity::class.java)
-                    .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
-                else odpriLinkVBrskalniku()
+                if (datoteke) izbiraNaprave(n) else preimenuj(n.id, n.ime)
             })
         }
-        // Nova naprava: prijavno okno (QR s kamero telefona ali 6-mestna koda) - tudi po »brez povezave«.
-        nove.add(Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_naprave_povezi),
-            getString(R.string.os_naprave_povezi_opis), "") {
-            startActivity(Intent(this, PrijavaActivity::class.java)) })
-        // Zadnja vrstica je vedno pot naprej: stran Safeer Link, kjer se naprave seznanijo.
-        nove.add(Vrstica(R.drawable.os_ikona_link, getString(R.string.os_naprave_stran),
-            getString(R.string.os_naprave_stran_opis), "") { odpriLinkVBrskalniku() })
+        // Če naprava še ni povezana v Safeer Link: možnost vnosa 6-mestne kode z druge naprave
+        if (tuje.isEmpty()) {
+            nove.add(Vrstica(
+                R.drawable.os_ikona_naprava,
+                getString(R.string.os_naprave_vpisi_kodo),
+                getString(R.string.os_naprave_vpisi_kodo_opis),
+                getString(R.string.os_host_poveziSe),
+                ""
+            ) { vnesi6MestnoKodo() })
+        }
+        // Nova naprava: prijavno okno (prikaže QR kodo in 6-mestno kodo za povezavo)
+        nove.add(Vrstica(
+            R.drawable.os_ikona_naprava,
+            getString(R.string.os_naprave_povezi),
+            getString(R.string.os_naprave_povezi_opis),
+            "",
+            ""
+        ) { startActivity(Intent(this, PrijavaActivity::class.java)) })
+
+        // Deljenje datotek s te naprave v Safeer Linku (vklopljeno / izklopljeno)
+        val vklopljeno = DatotekeStreznik.vklopljeno(this)
+        nove.add(Vrstica(
+            R.drawable.os_ikona_racunalnik,
+            getString(R.string.os_naprave_deljenje_datotek),
+            getString(R.string.os_naprave_deljenje_opis),
+            getString(if (vklopljeno) R.string.os_vklopljeno else R.string.os_izklopljeno),
+            ""
+        ) {
+            val novoStanje = !vklopljeno
+            DatotekeStreznik.nastavi(this, novoStanje)
+            if (novoStanje && !DatotekeStreznik.imamoDovoljenje(this) && android.os.Build.VERSION.SDK_INT >= 23) {
+                requestPermissions(DatotekeStreznik.dovoljenja(), 101)
+            }
+            Toast.makeText(this, getString(if (novoStanje) R.string.os_naprave_deljenje_vklopljeno else R.string.os_naprave_deljenje_izklopljeno), Toast.LENGTH_SHORT).show()
+            narisi(link.naprave)
+        })
         vrstice = nove
         prilagojevalnik.notifyDataSetChanged()
         sporocilo.text = when {
@@ -157,6 +187,106 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Izbira za tujo napravo z deljenimi mapami: odpri datoteke ali preimenuj napravo. */
+    private fun izbiraNaprave(n: LinkOdjemalec.Naprava) {
+        val moznosti = arrayOf(
+            getString(R.string.os_naprave_odpri_datoteke),
+            getString(R.string.os_naprave_preimenuj)
+        )
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(DatotekeActivity.lepoIme(n.ime).ifBlank { n.id })
+            .setItems(moznosti) { _, i ->
+                when (i) {
+                    0 -> startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
+                    1 -> preimenuj(n.id, n.ime)
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Vnos 6-mestne kode z druge naprave za seznanitev brez kamere. */
+    private fun vnesi6MestnoKodo() {
+        val vnos = android.widget.EditText(this).apply {
+            setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(7))
+            hint = "123 456"
+            textSize = 28f
+            gravity = android.view.Gravity.CENTER
+            setPadding(40, 30, 40, 30)
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_naprave_vpisi_kodo))
+            .setMessage(getString(R.string.os_naprave_vpisi_kodo_opis))
+            .setView(vnos)
+            .setPositiveButton(getString(R.string.os_host_poveziSe)) { _, _ ->
+                val koda = vnos.text?.toString()?.filter { it.isDigit() }.orEmpty()
+                if (koda.length != 6) {
+                    Toast.makeText(this, getString(R.string.os_naprave_koda_napacna_dolzina), Toast.LENGTH_SHORT).show()
+                    vnesi6MestnoKodo()
+                    return@setPositiveButton
+                }
+                izvediPovezavoSKodo(koda)
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+        vnos.requestFocus()
+    }
+
+    private fun izvediPovezavoSKodo(koda: String) {
+        Toast.makeText(this, getString(R.string.os_naprave_iskanje_naprave), Toast.LENGTH_SHORT).show()
+        HubDiscovery.poisciVse(this, 3500L) { hubi ->
+            if (isFinishing) return@poisciVse
+            val kandidati = hubi.filter { it.id != Identiteta.id(this) }
+            if (kandidati.isEmpty()) {
+                val znan = Host.naslov(this)
+                if (!znan.isNullOrBlank()) {
+                    poskusiPovezavoSKodo(znan, koda, "Safeer Hub")
+                } else {
+                    Toast.makeText(this, getString(R.string.os_naprave_naprava_ni_najdena), Toast.LENGTH_LONG).show()
+                }
+                return@poisciVse
+            }
+            poskusiPovezavoSKodo(kandidati.first().naslov, koda, kandidati.first().ime)
+        }
+    }
+
+    private fun poskusiPovezavoSKodo(url: String, koda: String, imeHuba: String) {
+        HubPairing.prekini()
+        HubPairing.pair(this, url, Identiteta.id(this), "Safeer OS (" + android.os.Build.MODEL + ")",
+            { _, _ ->
+                if (isFinishing) return@pair
+                HubPairing.potrdiKodo(this, koda, Identiteta.id(this)) { uspelo, napaka ->
+                    if (isFinishing) return@potrdiKodo
+                    val izid = HubPairing.zadnjaSeznanitev
+                    if (uspelo && izid != null) {
+                        Host.shrani(this, url, izid.zeton, izid.odtis, izid.hubId)
+                        link.ponovnoPoveziSe()
+                        Toast.makeText(this, getString(R.string.os_naprave_uspesno_povezano, imeHuba), Toast.LENGTH_LONG).show()
+                        narisi(link.naprave)
+                    } else {
+                        val sporocilo = when (napaka) {
+                            "napacna_koda" -> getString(R.string.os_host_napacna_koda)
+                            "prevec_poskusov" -> getString(R.string.os_host_prevec_poskusov)
+                            else -> getString(R.string.os_host_ni_odgovora)
+                        }
+                        Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            { uspelo ->
+                if (!uspelo && !isFinishing) {
+                    Toast.makeText(this, getString(R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show()
+                }
+            })
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        narisi(link.naprave)
     }
 
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec). */
