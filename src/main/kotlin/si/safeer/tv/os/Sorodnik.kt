@@ -77,8 +77,14 @@ object Sorodnik {
 
     private fun vProcesu(app: Context, dovoliZagon: Boolean): Poverilnice? {
         if (!HubKrmilnik.tece()) {
-            // Umaknili smo se izvoljenemu hubu: tja, s podpisom kljuca (zeton ni potreben).
-            HubKrmilnik.izvoljeniHub(app)?.let { return Poverilnice(it.naslov, "", it.odtis, it.id) }
+            // Umaknili smo se izvoljenemu hubu: tja, s podpisom kljuca (zeton ni potreben) - a samo,
+            // ce se ta izvoljeni hub se sploh oglasa; ce ne, kazalca nase ne obdrzimo za vedno.
+            val izvoljeni = HubKrmilnik.izvoljeniHub(app)
+            if (izvoljeni != null) {
+                if (HubKrmilnik.izvoljeniDosegljiv(app)) return Poverilnice(izvoljeni.naslov, "", izvoljeni.odtis, izvoljeni.id)
+                Log.w(TAG, "Izvoljeni hub ${izvoljeni.id} (${izvoljeni.naslov}) ni dosegljiv; pozabljam in gostim sam.")
+                HubKrmilnik.pozabiIzvoljenegaHuba(app)
+            }
             if (!dovoliZagon) return null
             HubKrmilnik.zazeni(app, zapomni = true)
             HubStoritev.zagotovi(app)
