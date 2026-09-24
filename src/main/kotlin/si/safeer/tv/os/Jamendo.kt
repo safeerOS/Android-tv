@@ -35,6 +35,9 @@ object Jamendo {
         val streznik: String = "",
         /** Kanal PeerTube (ime@streznik) za "se s tega kanala"; znan po razresitvi. */
         val kanal: String = "",
+        /** Widevine podatki za uporabnikovo vsebino (Safeer Media, si.safeer.tv.media); navadni viri pustijo prazno. */
+        val licenseUrl: String = "",
+        val licenseHeadersJson: String = "",
     )
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

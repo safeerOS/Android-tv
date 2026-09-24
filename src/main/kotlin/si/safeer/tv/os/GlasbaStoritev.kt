@@ -96,7 +96,21 @@ class GlasbaStoritev : Service() {
             else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(this)
         p.setMediaSources(seznam.map { sk ->
             tovarna.createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
-                .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
+                .apply {
+                    if (sk.mime.isNotBlank()) setMimeType(sk.mime)
+                    // Safeer Media (si.safeer.tv.media): uporabnikova vsebina z licenco Widevine.
+                    if (sk.licenseUrl.isNotBlank()) {
+                        val headers = mutableMapOf<String, String>()
+                        try {
+                            val json = org.json.JSONObject(sk.licenseHeadersJson.ifBlank { "{}" })
+                            json.keys().forEach { key -> headers[key] = json.optString(key) }
+                        } catch (_: Exception) {}
+                        setDrmConfiguration(MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
+                            .setLicenseUri(sk.licenseUrl)
+                            .setLicenseRequestHeaders(headers)
+                            .build())
+                    }
+                }
                 .setMediaMetadata(M3Metadata.Builder().setTitle(sk.naslov).setArtist(sk.izvajalec).build())
                 .build())
         }, od.coerceIn(0, (seznam.size - 1).coerceAtLeast(0)), 0L)
