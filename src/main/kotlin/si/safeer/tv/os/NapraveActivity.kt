@@ -237,17 +237,17 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun izvediPovezavoSKodo(koda: String) {
+        // Vpis kode pomeni seznanitev z NOVO napravo, ki to kodo ravnokar kaze na svojem zaslonu --
+        // nikoli s hubom, s katerim smo ze seznanjeni prej. Zato tu NE smemo pasti nazaj na
+        // Host.naslov() (znani/pretekli hub): ce bi, bi ob prazni mDNS najdbi tiho izbrali napacno
+        // napravo, uporabnik pa bi videl le zavajajoco napako "napacna koda", ceprav je kodo vpisal
+        // pravilno -- kodo je namrec kazala druga (nova) naprava, ne nas ze znani hub.
         Toast.makeText(this, getString(R.string.os_naprave_iskanje_naprave), Toast.LENGTH_SHORT).show()
         HubDiscovery.poisciVse(this, 3500L) { hubi ->
             if (isFinishing) return@poisciVse
             val kandidati = hubi.filter { it.id != Identiteta.id(this) }
             if (kandidati.isEmpty()) {
-                val znan = Host.naslov(this)
-                if (!znan.isNullOrBlank()) {
-                    poskusiPovezavoSKodo(znan, koda, "Safeer Hub")
-                } else {
-                    Toast.makeText(this, getString(R.string.os_naprave_naprava_ni_najdena), Toast.LENGTH_LONG).show()
-                }
+                Toast.makeText(this, getString(R.string.os_naprave_naprava_ni_najdena), Toast.LENGTH_LONG).show()
                 return@poisciVse
             }
             poskusiPovezavoSKodo(kandidati.first().naslov, koda, kandidati.first().ime)
