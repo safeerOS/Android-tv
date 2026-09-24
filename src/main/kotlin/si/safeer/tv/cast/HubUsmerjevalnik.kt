@@ -1194,6 +1194,31 @@ class HubUsmerjevalnik(
             } else potrditev(id, "error", "Napaka pri posredovanju.", "control", "posredovanje_ni_uspelo")
         }
 
+        if (tip in DATA_POSREDOVANJE) {
+            // Safeer Data Transport (v0.26, docs/P2P-NACRT.md): dogovor (data.offer/data.answer) in
+            // nato sifrirani kosi (data.chunk/data.ack/data.close) med dvema seznanjenima napravama.
+            // Hub tovora ne razlaga in ga ne more razlagati - podpisan je s kljuci naprav (offer/answer)
+            // ali sifriran z izpeljanim sejnim kljucem (kosi), ki ju Hub nikoli ne pozna. Isti splosni
+            // vzorec kot internet.*: samo posreduj cilju, posiljatelja vpise Hub sam.
+            val cilj = sporocilo.niz("target") ?: ""
+            val posiljatelj = idPovezave(od) ?: ""
+            val prejemnik = register.povezavaOd(cilj)
+                ?: return potrditev(id, "rejected", "Ciljna naprava '$cilj' ni povezana ali ne obstaja.", "data", "naprava_ni_povezana")
+            if (prejemnik === od) return potrditev(id, "rejected", "Naprava ne more prenasati sama sebi.", "data", "isti_naprava")
+            val zapis = JsonLahki.objekt(surovo) ?: return potrditev(id, "error", "Neveljavno sporočilo.", "data", "neveljavno_sporocilo")
+            val naprej = JsonLahki.Zapis()
+                .niz("id", id)
+                .niz("type", tip)
+                .niz("target", cilj)
+                .niz("sender", posiljatelj)
+                .niz("sender_name", imeNaprave(posiljatelj))
+                .stevilo("timestamp", ura() / 1000.0)
+            zapis.surovo("payload")?.let { naprej.surovo("payload", it) }
+            return if (posljiVarno(prejemnik, naprej.toString())) {
+                if (tip.endsWith(".ack") || tip.endsWith(".result")) null else potrditev(id, "accepted", null, "data")
+            } else potrditev(id, "error", "Napaka pri posredovanju.", "data", "posredovanje_ni_uspelo")
+        }
+
         if (tip == "cast.status") {
             register.osveziZadnjic(sporocilo.niz("device_id"))
             objaviPosiljateljem(surovo)
@@ -1611,6 +1636,8 @@ class HubUsmerjevalnik(
         /** Daljinec (Safeer Control): ukaz napravi z zmoznostjo "remote" in njen odgovor nazaj. */
         private val CONTROL_POSREDOVANJE = setOf("control.command", "control.result")
         private val INTERNET_POSREDOVANJE = setOf("internet.open", "internet.opened", "internet.data", "internet.close", "internet.error")
+        /** Safeer Data Transport (v0.26): dogovor + sifrirani kosi med dvema seznanjenima napravama. */
+        private val DATA_POSREDOVANJE = setOf("data.offer", "data.answer", "data.chunk", "data.ack", "data.close", "data.error")
         const val ZMOZNOST_DALJINEC = "remote"
 
         // Meje so del zasnove, ne naknadni popravek. Televizor ima malo pomnilnika in ga
