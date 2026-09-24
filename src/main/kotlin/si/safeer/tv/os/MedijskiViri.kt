@@ -85,7 +85,7 @@ object MedijskiViri {
     }
 
     private fun beri(ctx: Context, kljuc: String) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(kljuc, "[]") ?: "[]"
-    private fun pisi(ctx: Context, kljuc: String, v: String) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(kljuc, v).apply()
+    private fun pisi(ctx: Context, kljuc: String, v: String) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(kljuc, v).commit()
 
     private fun pisiSkladbe(s: List<Jamendo.Skladba>): String {
         val a = JSONArray()
@@ -120,7 +120,7 @@ object MedijskiViri {
 
     fun zapomniIskanje(ctx: Context, beseda: String) {
         val nova = (listOf(beseda) + iskanja(ctx).filterNot { it.equals(beseda, ignoreCase = true) }).take(8)
-        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(ISKANJA, JSONArray(nova).toString()).apply()
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(ISKANJA, JSONArray(nova).toString()).commit()
     }
 
     fun streznikiPeerTube(ctx: Context): List<String> =
@@ -224,6 +224,6 @@ object MedijskiViri {
     private fun shrani(ctx: Context, viri: List<Vir>) {
         val a = JSONArray()
         viri.forEach { a.put(JSONObject().put("tip", it.tip).put("ime", it.ime).put("naslov", it.naslov)) }
-        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString()).apply()
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString()).commit()
     }
 }
