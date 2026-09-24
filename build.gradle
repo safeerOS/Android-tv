@@ -12,6 +12,8 @@ buildscript {
 
 plugins {
     id 'com.android.application' version '9.4.1'
+    // Room (Safeer Media: uporabnikov zasebni katalog, si.safeer.tv.media) potrebuje anotacijski procesor.
+    id 'com.google.devtools.ksp' version '2.3.10'
 }
 
 android {
@@ -139,6 +141,9 @@ dependencies {
     // WebSocket povezava sprejemnika Safeer Cast (knjiznici sta v libs/, gradnja ne rabi omrezja)
     implementation files('libs/okhttp-4.12.0.jar')
     implementation files('libs/okio-jvm-3.6.0.jar')
+    // Safeer Media: uporabnikov zasebni katalog (si.safeer.tv.media) - lokalna Room baza, brez omrezne sinhronizacije
+    implementation 'androidx.room:room-runtime:2.8.5'
+    ksp 'androidx.room:room-compiler:2.8.5'
 }
 
 tasks.withType(JavaCompile).configureEach {

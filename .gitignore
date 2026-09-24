@@ -1,4 +1,5 @@
 build/
+!assets/pdfjs/build/
 *.tmp
 .DS_Store
 .gradle/

@@ -8,7 +8,7 @@
     <string name="os_prijava_qr_pripravljam">Pripravljam kodo …</string>
     <string name="os_prijava_qr_napaka">Koda še ni pripravljena. Poskušam znova …</string>
     <string name="os_prijava_ali">ali</string>
-    <string name="os_prijava_koda_naslov">6-mestna koda</string>
+    <string name="os_prijava_koda_naslov">Koda tega televizorja</string>
     <string name="os_prijava_koda_opis">Na telefonu odpri Safeer → Safeer Link → Poveži s Safeer Link. Koda se pokaže tukaj – prepiši jo v telefon.</string>
     <string name="os_prijava_koda_za">Koda za %1$s</string>
     <string name="os_prijava_brez">Nadaljuj brez povezave naprav</string>
@@ -16,4 +16,10 @@
     <string name="os_prijava_povezano">✓ %1$s je povezan.</string>
     <string name="os_naprave_povezi">Poveži novo napravo</string>
     <string name="os_naprave_povezi_opis">Skeniraj kodo s telefonom (deluje tudi brez Safeerja) ali vpiši 6-mestno kodo</string>
+    <string name="os_prijava_vpis_naslov">Vpiši kodo druge naprave</string>
+    <string name="os_prijava_vpis_opis">Vtipkaj 6-mestno kodo, ki jo kaže tvoj telefon, tablica ali računalnik, da se z njim povežeš.</string>
+    <string name="os_prijava_vpis_gumb">Poveži</string>
+    <string name="os_prijava_vpis_namig">123456</string>
+    <string name="os_prijava_vpis_iskanje">Iščem napravo …</string>
+    <string name="os_prijava_vpis_ni_najdena">V bližini ni bilo mogoče najti naprave s to kodo.</string>
 </resources>

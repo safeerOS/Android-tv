@@ -8,7 +8,7 @@
     <string name="os_prijava_qr_pripravljam">Preparing the code …</string>
     <string name="os_prijava_qr_napaka">The code isn\'t ready yet. Trying again …</string>
     <string name="os_prijava_ali">or</string>
-    <string name="os_prijava_koda_naslov">6-digit code</string>
+    <string name="os_prijava_koda_naslov">This TV\'s code</string>
     <string name="os_prijava_koda_opis">On the phone open Safeer → Safeer Link → Connect to Safeer Link. The code appears here – type it into the phone.</string>
     <string name="os_prijava_koda_za">Code for %1$s</string>
     <string name="os_prijava_brez">Continue without connecting devices</string>
@@ -16,4 +16,10 @@
     <string name="os_prijava_povezano">✓ %1$s is connected.</string>
     <string name="os_naprave_povezi">Connect a new device</string>
     <string name="os_naprave_povezi_opis">Scan the code with your phone (works without Safeer too) or enter a 6-digit code</string>
+    <string name="os_prijava_vpis_naslov">Enter code from other device</string>
+    <string name="os_prijava_vpis_opis">Type the 6-digit code shown on your phone, tablet or computer to connect to that device.</string>
+    <string name="os_prijava_vpis_gumb">Connect</string>
+    <string name="os_prijava_vpis_namig">123456</string>
+    <string name="os_prijava_vpis_iskanje">Looking for the device …</string>
+    <string name="os_prijava_vpis_ni_najdena">Couldn\'t find a device with that code nearby.</string>
 </resources>

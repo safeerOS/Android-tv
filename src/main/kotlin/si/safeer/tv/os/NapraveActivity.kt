@@ -14,8 +14,6 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
-import si.safeer.tv.cast.HubDiscovery
-import si.safeer.tv.cast.HubPairing
 import si.safeer.tv.link.DatotekeStreznik
 
 /**
@@ -91,16 +89,6 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             ) {
                 if (datoteke) izbiraNaprave(n) else preimenuj(n.id, n.ime)
             })
-        }
-        // Ce naprava se ni povezana v Safeer Link: moznost vnosa 6-mestne kode z druge naprave
-        if (tuje.isEmpty()) {
-            nove.add(Vrstica(
-                R.drawable.os_ikona_naprava,
-                getString(R.string.os_naprave_vpisi_kodo),
-                getString(R.string.os_naprave_vpisi_kodo_opis),
-                getString(R.string.os_host_poveziSe),
-                ""
-            ) { vnesi6MestnoKodo() })
         }
         // Nova naprava: prijavno okno (prikaze QR kodo in 6-mestno kodo za povezavo)
         nove.add(Vrstica(
@@ -205,102 +193,6 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
-    }
-
-    /** Vnos 6-mestne kode z druge naprave za seznanitev brez kamere. */
-    private fun vnesi6MestnoKodo() {
-        // Kodo pokaze gostitelj SELE, ko seznanitev z njim ze tece -- zato tu se ne smemo vprasati
-        // za kodo, temvec moramo najprej najti napravo in zaceti seznanitev (HubPairing.pair);
-        // sele njen odziv nam pove, da je gostitelj pripravljen in kodo ze kaze na svojem zaslonu.
-        Toast.makeText(this, getString(R.string.os_naprave_iskanje_naprave), Toast.LENGTH_SHORT).show()
-        HubDiscovery.poisciVse(this, 3500L) { hubi ->
-            if (isFinishing) return@poisciVse
-            val kandidati = hubi.filter { it.id != Identiteta.id(this) }
-            if (kandidati.isEmpty()) {
-                Toast.makeText(this, getString(R.string.os_naprave_naprava_ni_najdena), Toast.LENGTH_LONG).show()
-                return@poisciVse
-            }
-            // Ce je v omrezju vec hubov (npr. uporabnikov telefon ima Link ze vklopljen), izberemo
-            // tistega z najvisjo prioriteto (glej IzvolitevHuba: streznik > Linux > TV > tablica >
-            // telefon) -- ne kar prvega, ki se oglasi po mDNS. Sicer se uporabnik, ki gleda kodo na
-            // televizorju, lahko pomotoma poskusi seznaniti s cisto drugo napravo v istem omrezju.
-            val najboljsi = kandidati.maxByOrNull { it.prioriteta } ?: kandidati.first()
-            zacniSeznanitev(najboljsi.naslov, najboljsi.ime)
-        }
-    }
-
-    /**
-     * Zacne seznanitev z najdenim gostiteljem. Vnos kode vprasamo sele, ko [HubPairing.pair] potrdi,
-     * da seznanitev tece (in je gostitelj kodo ze pokazal) -- ce bi uporabnika za kodo vprasali prej
-     * in bi njegov vnos sam sprozil novo seznanitev, bi vsak poskus gostiteljevo kodo spremenil, se
-     * preden bi jo uporabnik utegnil prepisati.
-     */
-    private fun zacniSeznanitev(url: String, imeHuba: String) {
-        HubPairing.prekini()
-        HubPairing.pair(this, url, Identiteta.id(this), "Safeer OS (" + android.os.Build.MODEL + ")",
-            { _, _ ->
-                if (!isFinishing) vprasajZaKodo(url, imeHuba)
-            },
-            { uspelo ->
-                if (!uspelo && !isFinishing) {
-                    Toast.makeText(this, getString(R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show()
-                }
-            })
-    }
-
-    /** Vnos kode za ze odprto seznanitev (glej zacniSeznanitev) -- prekliceno v gumbu Prekliči. */
-    private fun vprasajZaKodo(url: String, imeHuba: String) {
-        val vnos = android.widget.EditText(this).apply {
-            setSingleLine()
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(android.text.InputFilter.LengthFilter(7))
-            hint = "123 456"
-            textSize = 28f
-            gravity = android.view.Gravity.CENTER
-            setPadding(40, 30, 40, 30)
-        }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(getString(R.string.os_naprave_vpisi_kodo))
-            .setMessage(getString(R.string.os_naprave_vpisi_kodo_opis))
-            .setView(vnos)
-            .setPositiveButton(getString(R.string.os_host_poveziSe)) { _, _ ->
-                val koda = vnos.text?.toString()?.filter { it.isDigit() }.orEmpty()
-                if (koda.length != 6) {
-                    Toast.makeText(this, getString(R.string.os_naprave_koda_napacna_dolzina), Toast.LENGTH_SHORT).show()
-                    vprasajZaKodo(url, imeHuba)
-                    return@setPositiveButton
-                }
-                potrdiKodo(url, koda, imeHuba)
-            }
-            .setNegativeButton(getString(R.string.os_preklici)) { _, _ -> HubPairing.prekini() }
-            .setOnCancelListener { HubPairing.prekini() }
-            .let { Kontroler.pokazi(it.show()) }
-        vnos.requestFocus()
-    }
-
-    /** Potrdi vpisano kodo na ze odprti seznanitvi (brez novega HubPairing.pair -- glej zacniSeznanitev). */
-    private fun potrdiKodo(url: String, koda: String, imeHuba: String) {
-        HubPairing.potrdiKodo(this, koda, Identiteta.id(this)) { uspelo, napaka ->
-            if (isFinishing) return@potrdiKodo
-            val izid = HubPairing.zadnjaSeznanitev
-            if (uspelo && izid != null) {
-                Host.shrani(this, url, izid.zeton, izid.odtis, izid.hubId)
-                link.ponovnoPoveziSe()
-                Toast.makeText(this, getString(R.string.os_naprave_uspesno_povezano, imeHuba), Toast.LENGTH_LONG).show()
-                narisi(link.naprave)
-            } else {
-                val sporocilo = when (napaka) {
-                    "napacna_koda" -> getString(R.string.os_host_napacna_koda)
-                    "prevec_poskusov" -> getString(R.string.os_host_prevec_poskusov)
-                    else -> getString(R.string.os_host_ni_odgovora)
-                }
-                Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
-                // Napacna koda: seznanitev na gostitelju ostane odprta (HubPairing.potrdiKodo je ne
-                // zapre), zato uporabniku takoj znova ponudimo vnos iste, se vedno veljavne kode --
-                // namesto da bi zaceli novo seznanitev in mu s tem gostiteljevo kodo zamenjali.
-                if (napaka == "napacna_koda" && !isFinishing) vprasajZaKodo(url, imeHuba)
-            }
-        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

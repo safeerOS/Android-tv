@@ -29,6 +29,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.media3.common.Player
 import si.safeer.tv.R
+import si.safeer.tv.media.MediaCatalogActivity
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -508,10 +509,10 @@ class GlasbaActivity : OsActivity() {
     private fun glavaRazdelka(i: Int): List<View> = if (i != DOMOV) emptyList() else listOfNotNull(kategorije(), zdajPlosca())
 
     private fun kategorije(): View {
-        // Na ozkem zaslonu (tablica pokonci) dve vrsti po dve kartici, da opisi niso odrezani.
+        // Na ozkem zaslonu (tablica pokonci) tri vrste po dve kartici, da opisi niso odrezani.
         val ozko = resources.configuration.screenWidthDp < 900
         val okvir = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(6), 0, dp(2)) }
-        val vrsti = List(if (ozko) 2 else 1) { LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }.also {
+        val vrsti = List(if (ozko) 3 else 1) { LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }.also {
             okvir.addView(it, LinearLayout.LayoutParams(-1, -2).apply { if (okvir.childCount > 0) topMargin = dp(10) }) } }
         var stevec = 0
         fun kat(kljuc: String, res: Int, barva: Int, ime: Int, opis: Int, klik: () -> Unit) {
@@ -536,6 +537,9 @@ class GlasbaActivity : OsActivity() {
         kat(KLJUC_GLASBA, R.drawable.os_ikona_glasba, 0xFF8FA8FF.toInt(), R.string.os_mediji_glasba, R.string.os_media_glasba_opis) { odpri(GLASBA) }
         kat(KLJUC_VIDEO, R.drawable.os_ikona_video, 0xFFFF9580.toInt(), R.string.os_glasba_video, R.string.os_media_video_opis) { odpri(VIDEO) }
         kat(KLJUC_RADIO, R.drawable.os_ikona_radio, getColor(R.color.os_mint), R.string.os_glasba_radio, R.string.os_media_radio_opis) { odpri(RADIO) }
+        kat(KLJUC_VSEBINA, R.drawable.os_ikona_datoteke, 0xFF54D6A5.toInt(), R.string.os_user_media_title, R.string.os_user_media_category_description) {
+            startActivity(Intent(this, MediaCatalogActivity::class.java))
+        }
         kat(KLJUC_VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri, R.string.os_media_viri_opis) { odpri(VIRI) }
         return okvir
     }
@@ -1240,6 +1244,7 @@ class GlasbaActivity : OsActivity() {
         private const val MREZA_DP = 116
         private const val KLJUC_GLASBA = "k:kat:glasba"; private const val KLJUC_VIDEO = "k:kat:video"
         private const val KLJUC_RADIO = "k:kat:radio"; private const val KLJUC_VIRI = "k:kat:viri"
+        private const val KLJUC_VSEBINA = "k:kat:vsebina"
         private const val KLJUC_VSI_VIRI = "k:v:vsi"
         private val HITROSTI = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
         private val CASOVNIK = intArrayOf(15, 30, 60, 90)
