@@ -46,7 +46,10 @@ object PridruzitevSredisca {
                 zadnja = System.currentTimeMillis() to ime
                 Log.i(TAG, "Naprava $id se je pridruzila s QR kodo.")
             }
-            val (id, skrivnost, pin) = u.ustvariPridruzitev()
+            // Brez izrecnega preklica (npr. zaslon ponovi klic, ker prejsnji ni uspel - naslov ali
+            // vrata sredisca se niso bila pripravljena) obdrzimo ze pripravljeno kodo, da se
+            // uporabniku ne spreminja izpod prstov vsakih nekaj sekund.
+            val (id, skrivnost, pin) = if (preklici.isBlank()) u.zagotoviPridruzitev() else u.ustvariPridruzitev()
             b.putString("qr_id", id)
             b.putString("pin", pin)
             b.putString("code", pin)

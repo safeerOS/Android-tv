@@ -797,10 +797,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Aplikacija na tablici, telefonu ali drugem televizorju: odpre se na tisti napravi. */
     private fun zazeniNaNapravi(p: SafeerApp, r: LinkOdjemalec.Naprava) {
         val parametri = JSONObject().put("app", p.cilj)
-        // Na TV-ju aplikacija z druge Android naprave ni samo "zazeni tam": uporabnik jo zeli
-        // gledati tukaj. Gostitelj zato po uporabnikovi potrditvi MediaProjection deli zaslon na TV.
-        // Telefon/tablica ostaneta samostojna; na napravah na dotik je navaden zagon se vedno privzet.
-        if (packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) parametri.put("stream", true)
+        // Aplikacija z druge naprave ni samo "zazeni tam": uporabnik jo zeli gledati in upravljati
+        // tukaj - v vse smeri in za vse naprave enako, kot ze deluje zaslon racunalnika (Povezani
+        // zasloni). Gostitelj zato po uporabnikovi potrditvi MediaProjection deli svoj zaslon nazaj
+        // na TO napravo, karkoli ze je (televizor, tablica, telefon); dotik na sliki gre nazaj
+        // h gostitelju kot pravi dotik (Safeer Vnos, ce ga ima gostitelj vklopljenega).
+        parametri.put("stream", true)
         link.ukaz(r.id, "apps.launch", parametri, 15_000, LinkOdjemalec.Odgovor { izid, napaka ->
             if (isFinishing) return@Odgovor
             if (izid?.optBoolean("ok") != true) {

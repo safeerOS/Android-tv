@@ -255,7 +255,10 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         mDatoteke?.setOnClickListener {
             odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
         }
-        findViewById<View>(R.id.karticaMediji)?.setOnClickListener {
+        // R.id.karticaMediji je bil odstranjen (kartica Mediji na TV/OS domacem zaslonu je zdaj samo
+        // se postavka v stranski vrstici, R.id.meniGlasba) - tu ostaja enako varno (?.), ce ga ta
+        // postavitev tablice se ne pozna.
+        findViewById<View>(R.id.meniGlasba)?.setOnClickListener {
             odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
         }
         mNaprave?.setOnClickListener {

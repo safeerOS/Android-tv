@@ -243,8 +243,14 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, vrstaNaprave(it), -1, "",
                 pod = if (vrstaNaprave(it) == "tv") getString(R.string.os_ur_tv_vir_opis) else "") }
         prilagojevalnik.notifyDataSetChanged()
-        if (r.isEmpty()) pokaziSporocilo(getString(
-            if (!link.povezan) R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_racunalnika))
+        // Enaka past kot na zaslonu Naprave: "ni vklopljen" je bilo napisano tudi takrat, ko je Link
+        // dejansko vklopljen, a se sele povezuje ali ga je sredisce trenutno zavrnilo - locimo to od
+        // resnicno izklopljenega.
+        if (r.isEmpty()) pokaziSporocilo(getString(when {
+            link.povezan -> R.string.os_datoteke_ni_racunalnika
+            link.stanje == "povezujem" || link.stanje == "ni" -> R.string.os_stanje_povezujem
+            else -> R.string.os_datoteke_ni_linka
+        }))
         else skrijSporocilo()
         seznam.requestFocus(); seznam.setSelection(0)
     }

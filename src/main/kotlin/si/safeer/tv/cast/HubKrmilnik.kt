@@ -172,6 +172,12 @@ object HubKrmilnik {
             naPrejetoDatoteko = { ime, pot -> Log.i(TAG, "Prejeta datoteka $ime -> ${pot.parent}") }
         )
         u.tokovi = t
+        // Dotik gledalca (stran /cast/screen/{id}/view) gre nazaj h gostitelju kot control.command
+        // input.* - ista pot, kot bi ukaz poslala seznanjena naprava (Daljinec ga ze zna izvesti).
+        t.naVnosGledalca = { posiljatelj, akcija, parametriJson ->
+            u.posredujDeljenje("control.command", "gledalec", posiljatelj,
+                JsonLahki.Zapis().niz("action", akcija).surovo("params", parametriJson).toString())
+        }
         val s = HubStreznik(
             naZahtevo = { zahteva -> u.odgovori(zahteva) },
             preveriVstopnico = { zahteva -> u.preveriVstopnico(zahteva) },

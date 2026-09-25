@@ -19,6 +19,9 @@
     <string name="os_naprave_povezi_opis">Scan the code with the other device\'s camera (works without Safeer too) or enter a 6-digit code</string>
     <string name="os_naprave_vpisi_kodo">Enter 6-digit code</string>
     <string name="os_naprave_vpisi_kodo_opis">Connect using the 6-digit code shown on another device in Safeer Link</string>
+    <string name="os_naprave_link_opis">Connect this device with your others (phone, tablet, computer, TV) - devices, files and sending between them</string>
+    <string name="os_naprave_link_vklopljen">Safeer Link is on</string>
+    <string name="os_naprave_link_izklopljen">Safeer Link is off. Your other devices and their files will no longer be available.</string>
     <string name="os_naprave_deljenje_datotek">File sharing</string>
     <string name="os_naprave_deljenje_opis">Allow other devices in Safeer Link to access videos, music, and images on this device</string>
     <string name="os_naprave_deljenje_vklopljeno">File sharing is enabled</string>

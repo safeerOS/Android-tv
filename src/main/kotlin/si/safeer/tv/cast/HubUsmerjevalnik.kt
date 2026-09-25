@@ -850,7 +850,7 @@ class HubUsmerjevalnik(
      * ugibanje je omejeno. Kodo ustvari proces sredisca (zaslon) ali seznanjena naprava v krajevnem
      * omrezju (/cast/pair/qr/invite, »Poveži novo napravo« na racunalniku) - nikoli tujec.
      */
-    internal class Pridruzitev(val id: String, val odtisSkrivnosti: String, val pin: String, val nastala: Long, var poskusov: Int = 0)
+    internal class Pridruzitev(val id: String, val odtisSkrivnosti: String, val skrivnost: String, val pin: String, val nastala: Long, var poskusov: Int = 0)
 
     data class PridruzitevIzid(val id: String, val skrivnost: String, val pin: String)
 
@@ -868,15 +868,30 @@ class HubUsmerjevalnik(
         pridruzitve.entries.removeAll { zdaj - it.value.nastala > PIN_VELJA_MS }
     }
 
-    /** Nova koda za zaslon sredisca: (id, skrivnost, pin). Klice se samo v procesu ali ob povabilu. */
+    /** Nova koda za zaslon sredisca: (id, skrivnost, pin). Vedno skuje SVEZO kodo in staro zavrze -
+        za to poklici samo, ko zaslon eksplicitno zamenja kodo (npr. redna obnovitev pred potekom,
+        ali ko se je nekdo ravno pridruzil in caka naslednja naprava). Za ponovni izris istega zaslona
+        (npr. ker klic ni uspel in poskusa znova) uporabi zagotoviPridruzitev(), da se koda ne spreminja. */
     fun ustvariPridruzitev(): PridruzitevIzid = synchronized(kljucnica) {
         pocistiPridruzitve()
         while (pridruzitve.size >= NAJVEC_CAKAJOCIH) pridruzitve.remove(pridruzitve.keys.first())
         val id = nakljucni(12)
         val skrivnost = nakljucni(16)
         val koda = pin()
-        pridruzitve[id] = Pridruzitev(id, sha256Hex(skrivnost), koda, ura())
+        pridruzitve[id] = Pridruzitev(id, sha256Hex(skrivnost), skrivnost, koda, ura())
         PridruzitevIzid(id, skrivnost, koda)
+    }
+
+    /** Kot ustvariPridruzitev(), le da NE skuje nove kode, ce ze imamo se veljavno: zaslon jo lahko
+        klice poljubnokrat (npr. vsakih 5 s, ko krajevni naslov/vrata sredisca se niso pripravljena, ali
+        katerikoli drug ponovni poskus) in uporabnik vidno vidi VEDNO ISTO kodo, dokler ne potece ali
+        dokler je zaslon eksplicitno ne zamenja prek ustvariPridruzitev(). To je popravek napake, kjer se
+        je koda na zaslonu spreminjala prehitro, da bi jo uporabnik utegnil prepisati. */
+    fun zagotoviPridruzitev(): PridruzitevIzid = synchronized(kljucnica) {
+        pocistiPridruzitve()
+        val obstojeca = pridruzitve.values.lastOrNull()
+        if (obstojeca != null) PridruzitevIzid(obstojeca.id, obstojeca.skrivnost, obstojeca.pin)
+        else ustvariPridruzitev()
     }
 
     /** Zaslon je kodo zamenjal ali zaprl. */
@@ -1239,8 +1254,11 @@ class HubUsmerjevalnik(
         if (tip == "pair.invite") {
             // Naprava v Linku pokaze QR kodo in 6-mestno kodo za novo napravo; kodo naredi sredisce, naprava jo le pokaze.
             if (register.najdi(idPovezave(od)) == null) return potrditev(id, "rejected", "Naprava ni prijavljena.", "pair", "ni_prijavljena")
-            sporocilo.objekt("payload")?.niz("preklici")?.takeIf { it.isNotBlank() }?.let { prekliciPridruzitev(it) }
-            val (qrId, skrivnost, pin) = ustvariPridruzitev()
+            val zahtevaPreklic = sporocilo.objekt("payload")?.niz("preklici").orEmpty()
+            if (zahtevaPreklic.isNotBlank()) prekliciPridruzitev(zahtevaPreklic)
+            // Brez izrecnega preklica ponovimo isto kodo (naprava morda le ponavlja neuspel poskus) -
+            // da se koda, ki jo uporabnik ravno prepisuje, ne spreminja izpod prstov.
+            val (qrId, skrivnost, pin) = if (zahtevaPreklic.isBlank()) zagotoviPridruzitev() else ustvariPridruzitev()
             val naslov = krajevniNaslovHuba()
             posljiVarno(od, ovojnica("pair.invite.ok").surovo("payload", JsonLahki.Zapis()
                 .niz("qr_id", qrId).niz("secret", skrivnost).niz("fp", lastniOdtis).niz("address", naslov)

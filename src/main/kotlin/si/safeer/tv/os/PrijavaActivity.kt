@@ -163,9 +163,14 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             kodaZa.text = getString(R.string.os_prijava_koda_velja)
         }
 
+        // Fokusiran je samo gumb sam (ne se tudi kartica okoli njega): dve prekrivajoci se
+        // fokusirani tarci z isto akcijo sta z daljinca zmedle iskanje fokusa (uporabnik je videl
+        // gumb, a nanj ni mogel priti/klikniti). Kartica ostane le vizualni okvir.
         val gumbVpisi = Button(this).apply {
             text = getString(R.string.os_prijava_vpisi_gumb)
             isAllCaps = false
+            isFocusable = true
+            isFocusableInTouchMode = false
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setTextColor(zelena)
             setPadding(dp(16f), dp(6f), dp(16f), dp(6f))
@@ -182,8 +187,6 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         desno.addView(gumbVpisi, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
             topMargin = dp(12f); gravity = Gravity.CENTER_HORIZONTAL
         })
-        desno.isFocusable = true
-        desno.setOnClickListener { vnesi6MestnoKodo() }
         vrsta.addView(desno, LinearLayout.LayoutParams(sirinaKartice, LinearLayout.LayoutParams.WRAP_CONTENT))
         stolpec.addView(vrsta)
 
@@ -207,6 +210,15 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         stolpec.addView(gumb, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
             topMargin = dp(20f); gravity = Gravity.CENTER_HORIZONTAL
         })
+
+        // Eksplicitna veriga fokusa za daljinec med gumbom »Vpiši kodo z druge naprave« in spodnjim
+        // gumbom: privzeto (geometrijsko) iskanje fokusa v ScrollView z vecimi kandidati ni bilo
+        // zanesljivo - uporabnik z daljincem ni mogel priti do gumba ali ga klikniti.
+        // (nextFocusDown/nextFocusUp kot View-referenca v Kotlinu ne obstajata - potrebna sta ID-ja.)
+        if (gumbVpisi.id == View.NO_ID) gumbVpisi.id = View.generateViewId()
+        if (gumb.id == View.NO_ID) gumb.id = View.generateViewId()
+        gumbVpisi.nextFocusDownId = gumb.id
+        gumb.nextFocusUpId = gumbVpisi.id
 
         setContentView(koren)
         gumb.requestFocus()
@@ -362,14 +374,23 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+        // Na Android TV se ob fokusu z daljinca tipkovnica ne prikaže sama (za razliko od dotika na
+        // telefonu/tablici) - brez tega uporabnik vidi fokusirano polje, a ne more nič vtipkati.
         vnos.requestFocus()
+        vnos.post {
+            val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.showSoftInput(vnos, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
     private fun izvediPovezavoSKodo(koda: String) {
         Toast.makeText(this, getString(R.string.os_naprave_iskanje_naprave), Toast.LENGTH_SHORT).show()
         HubDiscovery.poisciVse(this, 3500L) { hubi ->
             if (isFinishing) return@poisciVse
-            val kandidati = hubi.filter { it.id != Identiteta.id(this) }
+            // Primerjaj s HubKrmilnik.lastniId(), ne z Identiteta.id(this): ta doda "-os" priponko,
+            // mDNS oglas pa nosi surov lastniId. Z narobe primerjavo se lastni hub ni nikoli izlocil,
+            // zato je naprava, ki se ni imela s kom povezati, znala poskusiti seznanitev sama s sabo.
+            val kandidati = hubi.filter { it.id != HubKrmilnik.lastniId() }
             if (kandidati.isEmpty()) {
                 val znan = Host.naslov(this)
                 if (!znan.isNullOrBlank()) {

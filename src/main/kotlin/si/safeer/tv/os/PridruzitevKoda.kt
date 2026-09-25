@@ -67,7 +67,10 @@ object PridruzitevKoda {
                 val ip = PridruzitevSredisca.krajevniNaslov()
                 val lokalni = Bundle()
                 if (u != null) {
-                    val (id, skrivnost, pin) = u.ustvariPridruzitev()
+                    // Brez izrecnega preklica obdrzimo ze pripravljeno kodo (glej PridruzitevSredisca.nova) -
+                    // ta veja se izvede vsakic, ko tuje sredisce ne odgovori, kar se lahko ponovi vsakih
+                    // nekaj sekund; brez tega bi vsak poskus skoval novo kodo.
+                    val (id, skrivnost, pin) = if (preklici.isBlank()) u.zagotoviPridruzitev() else u.ustvariPridruzitev()
                     lokalni.putString("qr_id", id)
                     lokalni.putString("pin", pin)
                     lokalni.putString("code", pin)

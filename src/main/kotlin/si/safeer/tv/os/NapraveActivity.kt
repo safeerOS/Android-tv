@@ -14,8 +14,6 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
-import si.safeer.tv.cast.HubDiscovery
-import si.safeer.tv.cast.HubPairing
 import si.safeer.tv.link.DatotekeStreznik
 
 /**
@@ -76,6 +74,27 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val jaz = naprave.firstOrNull { it.id == Identiteta.id(this) }
         val tuje = LinkOdjemalec.drugeZaPrikaz(naprave, Identiteta.id(this))
         val nove = ArrayList<Vrstica>()
+        // Safeer Link: glavno stikalo za to napravo (vklopljen/izklopljen). Prej ni bilo nobenega
+        // stalnega mesta v tem zaslonu, kjer bi ga uporabnik lahko izklopil ali znova vklopil -
+        // samo enkratno vprasanje ob prvem zagonu. Vzorec je enak spodnjemu stikalu za deljenje
+        // datotek, da je meni dosleden.
+        val linkVklopljen = !link.jeKrajevni()
+        nove.add(Vrstica(
+            R.drawable.os_ikona_naprava,
+            getString(R.string.os_link),
+            getString(R.string.os_naprave_link_opis),
+            getString(if (linkVklopljen) R.string.os_vklopljeno else R.string.os_izklopljeno),
+            ""
+        ) {
+            if (linkVklopljen) {
+                link.krajevniNacin()
+                Toast.makeText(this, getString(R.string.os_naprave_link_izklopljen), Toast.LENGTH_SHORT).show()
+            } else {
+                link.vklopiLink()
+                Toast.makeText(this, getString(R.string.os_naprave_link_vklopljen), Toast.LENGTH_SHORT).show()
+            }
+            narisi(link.naprave)
+        })
         // Ta naprava: ime, kot ga vidijo druge naprave; OK jo preimenuje.
         if (jaz != null) nove.add(Vrstica(ikonaNaprave(jaz.platforma), jaz.ime.ifBlank { jaz.id },
             getString(R.string.os_naprave_ta), getString(R.string.os_naprave_preimenuj_kratko), jaz.id) { preimenuj(jaz.id, jaz.ime) })
@@ -92,17 +111,9 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (datoteke) izbiraNaprave(n) else preimenuj(n.id, n.ime)
             })
         }
-        // Če naprava še ni povezana v Safeer Link: možnost vnosa 6-mestne kode z druge naprave
-        if (tuje.isEmpty()) {
-            nove.add(Vrstica(
-                R.drawable.os_ikona_naprava,
-                getString(R.string.os_naprave_vpisi_kodo),
-                getString(R.string.os_naprave_vpisi_kodo_opis),
-                getString(R.string.os_host_poveziSe),
-                ""
-            ) { vnesi6MestnoKodo() })
-        }
-        // Nova naprava: prijavno okno (prikaže QR kodo in 6-mestno kodo za povezavo)
+        // Nova naprava: prijavno okno (prikaže QR kodo IN gumb za vpis 6-mestne kode z druge naprave -
+        // en sam vstop v seznanitev, ne dva). Prej je bila tu se locena vrstica »Vpiši 6-mestno kodo«,
+        // ki je podvajala isto moznost, ki jo PrijavaActivity ze ponuja na svojem zaslonu.
         nove.add(Vrstica(
             R.drawable.os_ikona_naprava,
             getString(R.string.os_naprave_povezi),
@@ -130,10 +141,15 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         })
         vrstice = nove
         prilagojevalnik.notifyDataSetChanged()
+        // Safeer Link je lahko vklopljen (nacin ni krajevni), a se ni (se) povezan - prej je spodnje
+        // sporocilo vseeno trdilo »ni vklopljen«, kar je bilo v nasprotju s stikalom zgoraj. Locimo
+        // resnicno izklopljen link (stanje "ni_linka") od vklopljenega, ki se se povezuje ali ga je
+        // sredisce (za zdaj) zavrnilo (stanje "povezujem"/"ni") - takrat stikalo in sporocilo soglasata.
         sporocilo.text = when {
             tuje.isNotEmpty() -> ""
             link.jeKrajevni() -> getString(R.string.os_naprave_krajevni)
             link.povezan -> getString(R.string.os_ni_naprav)
+            link.stanje == "povezujem" || link.stanje == "ni" -> getString(R.string.os_stanje_povezujem)
             else -> getString(R.string.os_naprave_ni_linka)
         }
         sporocilo.visibility = if (sporocilo.text.isNullOrBlank()) View.GONE else View.VISIBLE
@@ -205,83 +221,6 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
-    }
-
-    /** Vnos 6-mestne kode z druge naprave za seznanitev brez kamere. */
-    private fun vnesi6MestnoKodo() {
-        val vnos = android.widget.EditText(this).apply {
-            setSingleLine()
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(android.text.InputFilter.LengthFilter(7))
-            hint = "123 456"
-            textSize = 28f
-            gravity = android.view.Gravity.CENTER
-            setPadding(40, 30, 40, 30)
-        }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(getString(R.string.os_naprave_vpisi_kodo))
-            .setMessage(getString(R.string.os_naprave_vpisi_kodo_opis))
-            .setView(vnos)
-            .setPositiveButton(getString(R.string.os_host_poveziSe)) { _, _ ->
-                val koda = vnos.text?.toString()?.filter { it.isDigit() }.orEmpty()
-                if (koda.length != 6) {
-                    Toast.makeText(this, getString(R.string.os_naprave_koda_napacna_dolzina), Toast.LENGTH_SHORT).show()
-                    vnesi6MestnoKodo()
-                    return@setPositiveButton
-                }
-                izvediPovezavoSKodo(koda)
-            }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .let { Kontroler.pokazi(it.show()) }
-        vnos.requestFocus()
-    }
-
-    private fun izvediPovezavoSKodo(koda: String) {
-        Toast.makeText(this, getString(R.string.os_naprave_iskanje_naprave), Toast.LENGTH_SHORT).show()
-        HubDiscovery.poisciVse(this, 3500L) { hubi ->
-            if (isFinishing) return@poisciVse
-            val kandidati = hubi.filter { it.id != Identiteta.id(this) }
-            if (kandidati.isEmpty()) {
-                val znan = Host.naslov(this)
-                if (!znan.isNullOrBlank()) {
-                    poskusiPovezavoSKodo(znan, koda, "Safeer Hub")
-                } else {
-                    Toast.makeText(this, getString(R.string.os_naprave_naprava_ni_najdena), Toast.LENGTH_LONG).show()
-                }
-                return@poisciVse
-            }
-            poskusiPovezavoSKodo(kandidati.first().naslov, koda, kandidati.first().ime)
-        }
-    }
-
-    private fun poskusiPovezavoSKodo(url: String, koda: String, imeHuba: String) {
-        HubPairing.prekini()
-        HubPairing.pair(this, url, Identiteta.id(this), "Safeer OS (" + android.os.Build.MODEL + ")",
-            { _, _ ->
-                if (isFinishing) return@pair
-                HubPairing.potrdiKodo(this, koda, Identiteta.id(this)) { uspelo, napaka ->
-                    if (isFinishing) return@potrdiKodo
-                    val izid = HubPairing.zadnjaSeznanitev
-                    if (uspelo && izid != null) {
-                        Host.shrani(this, url, izid.zeton, izid.odtis, izid.hubId)
-                        link.ponovnoPoveziSe()
-                        Toast.makeText(this, getString(R.string.os_naprave_uspesno_povezano, imeHuba), Toast.LENGTH_LONG).show()
-                        narisi(link.naprave)
-                    } else {
-                        val sporocilo = when (napaka) {
-                            "napacna_koda" -> getString(R.string.os_host_napacna_koda)
-                            "prevec_poskusov" -> getString(R.string.os_host_prevec_poskusov)
-                            else -> getString(R.string.os_host_ni_odgovora)
-                        }
-                        Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
-                    }
-                }
-            },
-            { uspelo ->
-                if (!uspelo && !isFinishing) {
-                    Toast.makeText(this, getString(R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show()
-                }
-            })
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

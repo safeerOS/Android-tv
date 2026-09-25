@@ -88,6 +88,13 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
+        <!-- Sosednje Safeer aplikacije na isti napravi (Sosed.kt): brez izrecnega vnosa jih Android 11+
+             skrije pred getPackageInfo(), tudi ce so namescene - vsaka bi mislila, da je edina in bi
+             sama poskusila voditi Safeer Link (dvoje sredisc, ki se "volita" med sabo na isti napravi). -->
+        <package android:name="si.safeer.tv" />
+        <package android:name="si.safeer.os" />
+        <package android:name="si.safeer.phone" />
+        <package android:name="si.safeer.tablet" />
     </queries>
 
     <!-- Oznaka, ikona in pasica so v okusih: vsaka aplikacija ima svoje ime in svojo ikono. -->

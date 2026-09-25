@@ -19,6 +19,9 @@
     <string name="os_naprave_povezi_opis">Skeniraj kodo s kamero druge naprave (deluje tudi brez Safeerja) ali vpiši 6-mestno kodo</string>
     <string name="os_naprave_vpisi_kodo">Vpiši 6-mestno kodo</string>
     <string name="os_naprave_vpisi_kodo_opis">Poveži se s kodo, prikazano na drugi napravi v Safeer Linku</string>
+    <string name="os_naprave_link_opis">Poveži to napravo z drugimi (telefon, tablica, računalnik, televizor) - naprave, datoteke in pošiljanje med njimi</string>
+    <string name="os_naprave_link_vklopljen">Safeer Link je vklopljen</string>
+    <string name="os_naprave_link_izklopljen">Safeer Link je izklopljen. Druge naprave in njihove datoteke ne bodo več na voljo.</string>
     <string name="os_naprave_deljenje_datotek">Deljenje datotek</string>
     <string name="os_naprave_deljenje_opis">Dovoli drugim napravam v Safeer Linku dostop do videoposnetkov, glasbe in slik na tej napravi</string>
     <string name="os_naprave_deljenje_vklopljeno">Deljenje datotek je vklopljeno</string>

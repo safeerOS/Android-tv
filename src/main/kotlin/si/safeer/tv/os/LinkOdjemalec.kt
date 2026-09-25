@@ -299,6 +299,11 @@ class LinkOdjemalec(private val context: Context) {
                 if (webSocket !== ws) return
                 Log.w(TAG, "Povezava padla: ${t.message}")
                 povezan = false
+                // Ob dejanski izgubi povezave takoj izpraznimo seznam naprav: brez tega zasloni (Safeer Link,
+                // Aplikacije, Datoteke) kazejo zadnji znani (zdaj zastareli) seznam, kot da je naprava se
+                // vedno povezana - dokler uporabnik ne poskusi dejanja in dobi "ni_povezave".
+                naprave = emptyList()
+                glavna.post { poslusalec?.naNaprave(emptyList()) }
                 javiStanje(false, "")
                 ponovno()
             }
@@ -306,6 +311,8 @@ class LinkOdjemalec(private val context: Context) {
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 if (webSocket !== ws) return
                 povezan = false
+                naprave = emptyList()
+                glavna.post { poslusalec?.naNaprave(emptyList()) }
                 javiStanje(false, "")
                 ponovno()
             }
