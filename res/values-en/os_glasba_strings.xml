@@ -176,4 +176,5 @@
     <string name="os_mediji_tv_v_zivo">Live TV</string>
     <string name="os_media_tv_opis">Official live streams by country</string>
     <string name="os_media_javna_last">Public domain movies</string>
+    <string name="os_media_tunein_lokalne">TuneIn · stations near you</string>
 </resources>

@@ -416,8 +416,11 @@ class PredvajanjeActivity : OsActivity() {
         } else {
             delavec.execute {
                 val r = try {
-                    if (JavnaLast.jeEnota(sk)) JavnaLast.razresi(sk)
-                    else PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this))
+                    when {
+                        JavnaLast.jeEnota(sk) -> JavnaLast.razresi(sk)
+                        TuneIn.jeEnota(sk) -> TuneIn.razresi(sk)
+                        else -> PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this))
+                    }
                 } catch (_: Exception) { null }
                 glavna.post {
                     if (isFinishing) return@post

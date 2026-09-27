@@ -176,4 +176,5 @@
     <string name="os_mediji_tv_v_zivo">TV en direct</string>
     <string name="os_media_tv_opis">Directs officiels par pays</string>
     <string name="os_media_javna_last">Films du domaine public</string>
+    <string name="os_media_tunein_lokalne">TuneIn · stations près de chez toi</string>
 </resources>
