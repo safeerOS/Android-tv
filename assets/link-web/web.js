@@ -293,9 +293,21 @@
     var p = parametri();
     stanje("siva", t("niPovezave"));
     if (p.j && p.s) {
+      // Telefon/tablica z Android: kodo najprej predamo aplikaciji Safeer (povezava potem tece v ozadju in
+      // ne izgine, ko uporabnik zapre stran). Ce Safeer ni namescen, se brskalnik vrne sem (splet=1) in
+      // naprava se pridruzi kot spletni odjemalec.
+      var hash = location.hash.replace(/^#/, "");
+      if (!p.splet && /Android/i.test(navigator.userAgent || "")) {
+        var nazaj = location.href.split("#")[0] + "#" + hash + "&splet=1";
+        try {
+          location.href = "intent://link/qr?" + hash + "#Intent;scheme=safeer;S.browser_fallback_url=" +
+            encodeURIComponent(nazaj) + ";end";
+          return;
+        } catch (e) {}
+      }
       pokazi("zPridruzi", true); pokazi("zBrezKode", false); pokazi("zNaprave", false);
       $("ime").value = (seja && seja.name) || t("privzetoIme");
-      var a = $("gumbOdpriSafeer"); a.href = "safeer://link/qr?" + location.hash.replace(/^#/, ""); a.hidden = false;
+      var a = $("gumbOdpriSafeer"); a.href = "safeer://link/qr?" + hash.replace(/&splet=1$/, ""); a.hidden = false;
       return;
     }
     if (seja && seja.token) { povezi(); return; }
