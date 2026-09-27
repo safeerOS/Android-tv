@@ -38,3 +38,8 @@ yt_*/
 !tests/vzorci/
 !tests/vzorci/*.png
 __pycache__/
+
+# Izdelki gradnje: v izdaje (GitHub Releases), ne v repozitorij
+*.apk
+*.aab
+Release/
