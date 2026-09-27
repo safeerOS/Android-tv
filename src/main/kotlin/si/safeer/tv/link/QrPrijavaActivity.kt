@@ -70,7 +70,11 @@ class QrPrijavaActivity : Activity() {
         }
 
         /** (qr_id, skrivnost, odtis16) iz povezave ali null, ce povezava ni prijava s QR. */
-        fun razcleni(uri: Uri?): Triple<String, String, String>? {
+        /** Prijava s QR kodo: qr_id, skrivnost, odtis16 in naslov Huba, ki je kodo izdal (peer-to-peer -
+         * naprava se poveze nanj neposredno, ne na huba, ki mu je morda ze zaupala prej). */
+        data class Prijava(val id: String, val skrivnost: String, val odtis: String, val naslov: String)
+
+        fun razcleni(uri: Uri?): Prijava? {
             if (uri == null) return null
             val parametri: Map<String, String> = when {
                 uri.scheme == "safeer" && uri.host == "link" && uri.path == "/qr" ->
@@ -84,14 +88,16 @@ class QrPrijavaActivity : Activity() {
             val id = parametri["i"].orEmpty()
             val skrivnost = parametri["s"].orEmpty()
             val odtis = parametri["f"].orEmpty().lowercase()
+            val naslov = parametri["a"].orEmpty()
             if (!Regex("^[0-9a-f]{8,64}$").matches(id) || skrivnost.length !in 16..128 ||
-                !Regex("^[0-9a-f]{16,64}$").matches(odtis)) return null
-            return Triple(id, skrivnost, odtis)
+                !Regex("^[0-9a-f]{16,64}$").matches(odtis) ||
+                (naslov.isNotEmpty() && !Regex("^[0-9.]{7,15}:[0-9]{2,5}$").matches(naslov))) return null
+            return Prijava(id, skrivnost, odtis, naslov)
         }
     }
 
     private val glavna = Handler(Looper.getMainLooper())
-    private var qr: Triple<String, String, String>? = null
+    private var qr: Prijava? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,14 +105,14 @@ class QrPrijavaActivity : Activity() {
         qr = razcleni(intent?.data)
         val koda = qr
         if (koda == null) { sporocilo(b("neveljavna")); return }
-        if (HubPairing.token(this).isNullOrBlank() || naslovHuba().isBlank()) { sporocilo(b("niPovezana")); return }
+        if (HubPairing.token(this).isNullOrBlank()) { sporocilo(b("niPovezana")); return }
         Thread {
             val (odgovor, videni) = klic("/cast/pair/qr/info", koda)
             glavna.post {
                 if (isFinishing) return@post
                 when {
                     odgovor == null -> sporocilo(b("niHuba"))
-                    videni == null || !videni.lowercase().startsWith(koda.third) -> sporocilo(b("drugLink"))
+                    videni == null || !videni.lowercase().startsWith(koda.odtis) -> sporocilo(b("drugLink"))
                     odgovor.optString("device_id").isBlank() -> sporocilo(napaka(odgovor))
                     else -> vprasaj(odgovor.optString("name").ifBlank { odgovor.optString("device_id") })
                 }
@@ -157,7 +163,7 @@ class QrPrijavaActivity : Activity() {
                 if (isFinishing) return@post
                 when {
                     odgovor == null -> sporocilo(b("niHuba"))
-                    videni == null || !videni.lowercase().startsWith(koda.third) -> sporocilo(b("drugLink"))
+                    videni == null || !videni.lowercase().startsWith(koda.odtis) -> sporocilo(b("drugLink"))
                     odgovor.optBoolean("approved") -> sporocilo(b("uspeh").replace("{ime}", ime))
                     else -> sporocilo(napaka(odgovor))
                 }
@@ -186,20 +192,23 @@ class QrPrijavaActivity : Activity() {
         getSharedPreferences(HubPairing.PREFS_NAME, Context.MODE_PRIVATE).getString("hub_url", "") ?: ""
 
     /**
-     * POST na hub, ki mu ta naprava zaupa (pripeti odtis; pri izvoljenem hubu se kljuc iz kroga).
+     * POST neposredno na Hub, ki je kodo izdal (naslov iz same kode) - peer-to-peer. Odtis, ki mu
+     * zaupamo za TO povezavo, je tisti iz kode (uporabnik jo je fizicno videl/skeniral); kljuc iz
+     * kroga (ce gre za izvoljeni hub) dodamo se vedno, ce je na voljo.
      * Vrne (odgovor ali null ob napaki povezave, odtis potrdila, ki smo ga videli).
      */
-    private fun klic(pot: String, koda: Triple<String, String, String>): Pair<JSONObject?, String?> {
+    private fun klic(pot: String, koda: Prijava): Pair<JSONObject?, String?> {
         var videni: String? = null
         return try {
-            val osnova = HubPairing.httpBase(naslovHuba())
+            val ciljniNaslov = koda.naslov.ifBlank { naslovHuba() }
+            val osnova = HubPairing.httpBase(ciljniNaslov)
+            if (osnova.isBlank()) return null to null
             val povezava = URL(osnova + pot).openConnection() as HttpURLConnection
             if (povezava !is HttpsURLConnection) return null to null
-            val odtis = HubTls.pripetiOdtis(this) ?: return null to null
             val kljuc = try {
                 HubKrmilnik.izvoljeniHub(this)?.let { KrogNaprave.kljucHuba(this, it.id) }
             } catch (_: Throwable) { null }
-            val (tovarna, zaupnik) = HubTls.odjemalec(odtis, kljuc)
+            val (tovarna, zaupnik) = HubTls.odjemalec(koda.odtis, kljuc)
             povezava.sslSocketFactory = tovarna
             povezava.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }
             try {
@@ -209,7 +218,7 @@ class QrPrijavaActivity : Activity() {
                 povezava.setRequestProperty("x-safeer-token", HubPairing.token(this).orEmpty())
                 povezava.setRequestProperty("Content-Type", "application/json")
                 povezava.doOutput = true
-                val telo = JSONObject().put("qr_id", koda.first).put("secret", koda.second).toString()
+                val telo = JSONObject().put("qr_id", koda.id).put("secret", koda.skrivnost).toString()
                 povezava.outputStream.use { it.write(telo.toByteArray(Charsets.UTF_8)) }
                 val status = povezava.responseCode
                 videni = zaupnik.videni
@@ -236,7 +245,7 @@ class QrPrijavaActivity : Activity() {
             "ne" -> if (sl) "Ne" else "No"
             "uspeh" -> if (sl) "Računalnik »{ime}« je prijavljen." else "The computer “{ime}” is signed in."
             "naslovPridruzi" -> if (sl) "Safeer Link" else "Safeer Link"
-            "povezujem" -> if (sl) "Povezujem s televizorjem …" else "Connecting to the TV …"
+            "povezujem" -> if (sl) "Povezujem …" else "Connecting …"
             "pridruzena" -> if (sl) "Povezano. Ta naprava je zdaj v tvojem Safeer Linku." else "Connected. This device is now in your Safeer Link."
             "zePovezana" -> if (sl) "Ta naprava je že povezana s tem Safeer Linkom." else "This device is already connected to this Safeer Link."
             "neveljavna" -> if (sl) "Ta koda ni koda za prijavo v Safeer." else "This is not a Safeer sign-in code."
@@ -248,8 +257,8 @@ class QrPrijavaActivity : Activity() {
                 else "This code is not for your Safeer Link. Sign-in was not allowed."
             "potekla" -> if (sl) "Koda je potekla. Na računalniku se je pokazala nova – poskeniraj jo."
                 else "The code has expired. The computer is showing a new one – scan that."
-            "poteklaTv" -> if (sl) "Koda je potekla. Televizor je že pokazal novo – poskeniraj jo."
-                else "The code has expired. The TV is already showing a new one – scan that."
+            "poteklaTv" -> if (sl) "Koda je potekla. Naprava je že pokazala novo – poskeniraj jo."
+                else "The code has expired. The device is already showing a new one – scan that."
             "prevecNaprav" -> if (sl) "V Safeer Linku je že preveč naprav. Odstrani katero, ki je ne uporabljaš."
                 else "Safeer Link already has too many devices. Remove one you no longer use."
             else -> kljuc

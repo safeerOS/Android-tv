@@ -294,3 +294,6 @@
   .aplikacije { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
   .aplikacija img, .aplikacija .aplikacijaZnak { width: 56px; height: 56px; }
 }
+
+/* v0.20: telefon ostane vecnamenski; gamepad je le preklopljiv pogled daljinca. */
+.safeerNacinKrmilnika{display:flex;gap:8px;margin:12px 0}.safeerNacinKrmilnika button{flex:1;padding:11px;border-radius:12px}.safeerNacinKrmilnika .izbran{font-weight:700;outline:2px solid currentColor}.safeerGamepad{user-select:none;touch-action:none;padding:10px 0}.gpRamena,.gpCenter{display:flex;gap:8px;align-items:center;justify-content:center}.gpRamena span{flex:1}.gpRamena button,.gpCenter button,.gpFace button,.gpDpad button{min-width:52px;min-height:48px;border-radius:14px}.gpGlavno{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;margin:18px 0}.gpStick{width:132px;height:132px;border-radius:50%;border:2px solid currentColor;opacity:.85;position:relative;margin:auto;touch-action:none}.gpStick span{position:absolute;inset:0;display:grid;place-items:center;opacity:.45}.gpStick i{position:absolute;width:52px;height:52px;border-radius:50%;background:currentColor;opacity:.35;left:40px;top:40px}.gpDpad,.gpFace{display:grid;grid-template-columns:repeat(2,58px);gap:8px;justify-content:center}@media(min-width:700px){.gpGlavno{grid-template-columns:1fr 1fr 1fr 1fr}}

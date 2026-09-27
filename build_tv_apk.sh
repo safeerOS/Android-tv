@@ -198,6 +198,11 @@ if [ -d "$DIR/build/outputs/apk/tablica/release" ]; then
     podpisi tablica "$RELEASE_DIR/safeer-os-tablet-release.apk"
     cp "$RELEASE_DIR/safeer-os-tablet-release.apk" "$DIR/Safeer-OS-Tablet.apk"
 fi
+# Safeer OS Mobile (okus telefon, si.safeer.phone): isto pravilo kot tablica.
+if [ -d "$DIR/build/outputs/apk/telefon/release" ]; then
+    podpisi telefon "$RELEASE_DIR/safeer-os-mobile-release.apk"
+    cp "$RELEASE_DIR/safeer-os-mobile-release.apk" "$DIR/Safeer-OS-Mobile.apk"
+fi
 
 FINAL_APK="$RELEASE_DIR/tv-browser-2-release.apk"
 cp "$FINAL_APK" "$DIR/TV-Browser-2.apk"

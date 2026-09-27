@@ -5,6 +5,25 @@ import android.webkit.WebView
 
 object UserScriptManager {
 
+    /**
+     * Stran, ki je ze sama temna (lasten temni videz - npr. speedtest.net), nasega temnega sloga ne
+     * dobi: ta vsem vsebnikom vsili neprosojno ozadje in prekrije plasti, ki jih stran rise zadaj
+     * (22. 9. 2026: gumb GO na speedtest.net je izginil). Slog za trenutek izklopimo, izmerimo
+     * svetlost lastnega ozadja strani in ga pri temni strani odstranimo za vselej (oznaka na <html>).
+     */
+    private const val SAM_TEMEN_JS = """
+        (function(){try{
+          var s=document.getElementById('safeer-dark-mode-style'); if(!s) return;
+          s.disabled=true;
+          function svetlost(c){var m=(c||'').match(/[\d.]+/g); if(!m||m.length<3) return -1;
+            if(m.length>3&&parseFloat(m[3])===0) return -1; return (0.2126*m[0]+0.7152*m[1]+0.0722*m[2])/255;}
+          var l=svetlost(getComputedStyle(document.body).backgroundColor);
+          if(l<0) l=svetlost(getComputedStyle(document.documentElement).backgroundColor);
+          if(l>=0&&l<0.25){document.documentElement.setAttribute('data-safeer-sam-temen','1'); s.remove();}
+          else s.disabled=false;
+        }catch(e){}})();
+    """
+
     private const val DARK_MODE_AMOLED_CSS = """
         /* 🌌 Safeer Universal Smart OLED Dark Theme */
         :root {
@@ -1157,6 +1176,7 @@ object UserScriptManager {
         ), "safeer-cosmetic-filter")
             if (isDarkMode) {
                 injectCss(webView, DARK_MODE_AMOLED_CSS, "safeer-dark-mode-style")
+                if (finished) webView.evaluateJavascript(SAM_TEMEN_JS, null)
             } else if (finished) {
                 removeCss(webView, "safeer-dark-mode-style")
             }
@@ -1171,7 +1191,7 @@ object UserScriptManager {
         // YouTubovi pomocniki pripadajo YouTubu; drugod so bili samo dodatno delo za televizor.
         if (isYouTubeUrl(target)) {
             webView.evaluateJavascript(YOUTUBE_FREEDOM_MOBILE_JS, null)
-            webView.evaluateJavascript(YOUTUBE_TV_LEANBACK_JS, null)
+            if (!((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) webView.evaluateJavascript(YOUTUBE_TV_LEANBACK_JS, null)
         }
         if (isYouTubeUrl(target) && SponsorBlockSettings.isEnabled(webView.context)) {
             webView.evaluateJavascript(
@@ -1185,7 +1205,8 @@ object UserScriptManager {
             webView.evaluateJavascript(com.safeer.threatfeed.SponsorBlock.RUNTIME_JS, null)
         }
         webView.evaluateJavascript(siteAgentJs(webView), null)
-        webView.evaluateJavascript(tvSpatialJs(webView), null)
+        // Navigacija z daljincem samo na televizorju; na dotik bi fokus samo motil.
+        if (!((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) webView.evaluateJavascript(tvSpatialJs(webView), null)
         if (finished) {
             webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
             webView.evaluateJavascript("try{if(window._safeerSiteAgent)window._safeerSiteAgent.onPageReady()}catch(e){}", null)
@@ -1229,6 +1250,7 @@ object UserScriptManager {
             if (result != null && result.contains("ok")) {
                 webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
                 if (!isDarkMode) removeCss(webView, "safeer-dark-mode-style")
+                else webView.evaluateJavascript(SAM_TEMEN_JS, null)
                 return@evaluateJavascript
             }
             injectSiteScripts(webView, pageUrl, isDarkMode, finished = true)
@@ -1307,6 +1329,7 @@ object UserScriptManager {
                 try {
                     var parent = document.head || document.documentElement;
                     if (!parent) return;
+                    if ('$idStr' === 'safeer-dark-mode-style' && document.documentElement.getAttribute('data-safeer-sam-temen') === '1') return;
                     if ('$idStr' === 'safeer-dark-mode-style' || '$idStr' === 'safeer-cosmetic-filter') {
                         var href = (location.href || '').toLowerCase();
                         var host = (location.hostname || '').toLowerCase();

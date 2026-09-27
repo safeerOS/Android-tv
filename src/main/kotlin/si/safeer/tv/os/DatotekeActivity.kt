@@ -238,16 +238,25 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         nadnaslov.text = getString(R.string.os_datoteke)
         naslov.text = getString(R.string.os_datoteke_viri)
         racunalnikZnacka.visibility = View.GONE
-        // Ta televizor je vedno prvi vir; racunalniki s Safeer Controlom so za njim.
-        vnosi = listOf(Vnos(KrajevneDatoteke.KOREN, getString(R.string.os_krajevno_ta_tv), "tv", -1, "")) +
+        // Ta naprava je vedno prvi vir; racunalniki s Safeer Controlom so za njim.
+        vnosi = listOf(Vnos(KrajevneDatoteke.KOREN, getString(R.string.os_krajevno_ta_tv), vrstaTeNaprave(), -1, "")) +
             r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, vrstaNaprave(it), -1, "",
                 pod = if (vrstaNaprave(it) == "tv") getString(R.string.os_ur_tv_vir_opis) else "") }
         prilagojevalnik.notifyDataSetChanged()
-        if (r.isEmpty()) pokaziSporocilo(getString(
-            if (!link.povezan) R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_racunalnika))
+        // Enaka past kot na zaslonu Naprave: "ni vklopljen" je bilo napisano tudi takrat, ko je Link
+        // dejansko vklopljen, a se sele povezuje ali ga je sredisce trenutno zavrnilo - locimo to od
+        // resnicno izklopljenega.
+        if (r.isEmpty()) pokaziSporocilo(getString(when {
+            link.povezan -> R.string.os_datoteke_ni_racunalnika
+            link.stanje == "povezujem" || link.stanje == "ni" -> R.string.os_stanje_povezujem
+            else -> R.string.os_datoteke_ni_linka
+        }))
         else skrijSporocilo()
         seznam.requestFocus(); seznam.setSelection(0)
     }
+
+    /** Vrsta TE naprave za ikono prvega vira: telefon, tablica ali televizor. */
+    private fun vrstaTeNaprave(): String = si.safeer.tv.cast.HubKrmilnik.platforma(this)
 
     /** Vrsta vira za ikono in podnapis: telefon, tablica ali racunalnik (Safeer Control). */
     private fun vrstaNaprave(n: LinkOdjemalec.Naprava): String =
@@ -723,7 +732,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             "image" -> R.drawable.os_ikona_slika
             "computer" -> R.drawable.os_ikona_racunalnik
             "phone" -> R.drawable.os_ikona_telefon
-            "tablet" -> R.drawable.os_ikona_naprava
+            "tablet" -> R.drawable.os_ikona_zaslon
             "tv" -> R.drawable.os_ikona_naprava
             else -> R.drawable.os_ikona_datoteka
         }

@@ -39,6 +39,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var meniAplikacije: View
     private lateinit var meniZaslon: View
     private lateinit var meniDatoteke: View
+    private lateinit var meniGlasba: View
     private lateinit var meniNaprave: View
     private lateinit var meniNastavitve: View
     private lateinit var karticaBrskalnik: View
@@ -82,6 +83,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.os_activity_domov)
+        // Safeer Link (sredisce) naj tece, kadar ga je uporabnik vklopil - tudi ce ga je Android ali
+        // uporabnik (prisilna ustavitev) medtem ustavil; do zdaj se je vrnil sele ob ponovnem zagonu naprave.
+        try { si.safeer.tv.cast.HubStoritev.zagotovi(this) } catch (_: Throwable) { }
         koren = findViewById(R.id.koren)
         stanjeBesedilo = findViewById(R.id.stanjeBesedilo)
         stanjePika = findViewById(R.id.stanjePika)
@@ -91,6 +95,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         meniAplikacije = findViewById(R.id.meniAplikacije)
         meniZaslon = findViewById(R.id.meniZaslon)
         meniDatoteke = findViewById(R.id.meniDatoteke)
+        meniGlasba = findViewById(R.id.meniGlasba)
         meniNaprave = findViewById(R.id.meniNaprave)
         meniNastavitve = findViewById(R.id.meniNastavitve)
         meniDomov.isActivated = true
@@ -142,15 +147,6 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     true
                 } else false
             } else false
-        }
-
-        // Mediji (glasba in video) ob spletnem brskalniku: ena pot, ne podvojena v stranskem meniju.
-        findViewById<View>(R.id.karticaMediji)?.let { m ->
-            m.onFocusChangeListener = fokus
-            m.setOnClickListener { odpriVarno(GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica)) }
-            m.setOnKeyListener { _, keyCode, event ->
-                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) { prvaSpodaj()?.requestFocus(); true } else false
-            }
         }
 
         karticaZaslon.onFocusChangeListener = fokus
@@ -289,7 +285,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (!::seznamPloscaNaprave.isInitialized) return
         seznamPloscaNaprave.removeAllViews()
         // Na domacem zaslonu dve, da glavni del ostane cel na zaslonu; vse so pod "›" (Naprave).
-        val druge = naprave.filter { it.id != Identiteta.id(this) }.take(2)
+        val druge = LinkOdjemalec.drugeZaPrikaz(naprave, Identiteta.id(this)).take(2)
         if (druge.isEmpty()) {
             val prazno = TextView(this)
             prazno.text = getString(R.string.os_plosca_naprave_prazno)
@@ -377,6 +373,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         meniDatoteke.setOnClickListener {
             odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.os_meni_datoteke))
         }
+        meniGlasba.setOnClickListener {
+            odpriVarno(GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
+        }
         meniNaprave.setOnClickListener {
             if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
             else vprasajZaNacin()
@@ -385,7 +384,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
         }
 
-        val menijskePostavke = listOf(meniDomov, meniAplikacije, meniZaslon, meniDatoteke, meniNaprave, meniNastavitve)
+        val menijskePostavke = listOf(meniDomov, meniAplikacije, meniZaslon, meniDatoteke, meniGlasba, meniNaprave, meniNastavitve)
         for (postavka in menijskePostavke) {
             postavka.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
@@ -1235,6 +1234,17 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
         if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniSpletno(a, -1) })
         if (mesto >= 0 && mesto < seznam.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniSpletno(a, 1) })
+        val medijskiVir = MedijskiViri.spletniVir(this, a.url)
+        if (medijskiVir == null) dejanja.add(getString(R.string.os_spletne_uporabi_vir) to {
+            val vir = MedijskiViri.dodajSpletniVir(this, a.url, a.ime)
+            Toast.makeText(this, if (vir == null) getString(R.string.os_mediji_ni_vira)
+                else getString(R.string.os_mediji_dodano, vir.ime), Toast.LENGTH_SHORT).show()
+            GlasbaActivity.pocistiSpletniPredpomnilnik()
+        }) else dejanja.add(getString(R.string.os_spletne_odstrani_vir) to {
+            MedijskiViri.odstrani(this, medijskiVir)
+            GlasbaActivity.pocistiSpletniPredpomnilnik()
+            Toast.makeText(this, R.string.os_spletne_vir_odstranjen, Toast.LENGTH_SHORT).show()
+        })
         dejanja.add(getString(R.string.os_spletne_odstrani) to { odstraniSpletno(a) })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
@@ -1577,7 +1587,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec); brskalnik pozna dodatek odpri_link. */
     private fun odpriLinkVBrskalniku() {
         // Link je del Safeer OS: stran naj ima ozadje sistema in se ob zaprtju vrne v Safeer OS.
-        val namera = brskalnikNamera().putExtra("odpri_link", true)
+        // Link vodi Safeer OS sam (vgrajen brskalnik z isto stranjo), ne Safeer Browser TV.
+        val paket = Sosed.linkBrskalnik(this)
+        val namera = (if (paket != null) brskalnikNamera()
+            else Intent(this, si.safeer.tv.MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            .putExtra("odpri_link", true)
             .putExtra("iz_safeer_os", packageName)
             .putExtra("os_ozadje", Ozadje.izbrana(this).oznaka)
             .putExtra("os_zatemnitev", Ozadje.zatemnitev(this))

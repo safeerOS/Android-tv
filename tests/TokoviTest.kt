@@ -116,6 +116,7 @@ fun main() {
     val zaDrugo = zahteva(vrata, "PUT", "/cast/file?name=zapis.txt&target=fon2", mapOf("x-safeer-token" to "pravi"), "zdravo".toByteArray())
     val odg2 = String(zaDrugo.second, Charsets.UTF_8)
     preveri("datoteka za drugo napravo je v zacasni mapi", polje(odg2, "for_host") == "false" || odg2.contains("\"for_host\":false"))
+    preveri("prejemnik dobi izvirno ime, brez zacasne predpone", polje(odg2, "name") == "zapis.txt")
     val id2 = polje(odg2, "id"); val k2 = polje(odg2, "key")
     preveri("napacen kljuc ne dobi datoteke", zahteva(vrata, "GET", "/cast/file/$id2?k=napacen").first.contains("404"))
     val prevzem = zahteva(vrata, "GET", "/cast/file/$id2?k=$k2")

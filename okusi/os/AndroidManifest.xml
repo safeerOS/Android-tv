@@ -13,7 +13,10 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
+    <!-- SYSTEM_ALERT_WINDOW ostane (iz skupnega manifesta): Safeer OS sprejema ukaze Safeer Linka in
+         odpre program, ki ga izbere seznanjena naprava (racunalnik, telefon). Android 10+ zagona iz ozadja
+         brez tega dovoljenja ne dovoli ("Abort background activity starts"). Ne zahtevamo ga ob
+         namestitvi - samo ob prvem zagonu na daljavo, z jasnim obvestilom. -->
 
     <!-- Safeer OS mora videti brskalnik: od njega dobi vstop v Safeer Link, Scit in odpiranje spleta. -->
     <queries>

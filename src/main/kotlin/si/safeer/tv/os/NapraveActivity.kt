@@ -14,6 +14,7 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import si.safeer.tv.link.DatotekeStreznik
 
 /**
  * Naprave v Safeer Linku na svojem zaslonu. Na domacem zaslonu je bila to se ena vrsta kartic in
@@ -71,46 +72,104 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun narisi(naprave: List<LinkOdjemalec.Naprava>) {
         val jaz = naprave.firstOrNull { it.id == Identiteta.id(this) }
-        val tuje = naprave.filter { it.id != Identiteta.id(this) }
+        val tuje = LinkOdjemalec.drugeZaPrikaz(naprave, Identiteta.id(this))
         val nove = ArrayList<Vrstica>()
+        // Safeer Link: glavno stikalo za to napravo (vklopljen/izklopljen). Prej ni bilo nobenega
+        // stalnega mesta v tem zaslonu, kjer bi ga uporabnik lahko izklopil ali znova vklopil -
+        // samo enkratno vprasanje ob prvem zagonu. Vzorec je enak spodnjemu stikalu za deljenje
+        // datotek, da je meni dosleden.
+        val linkVklopljen = !link.jeKrajevni()
+        nove.add(Vrstica(
+            R.drawable.os_ikona_naprava,
+            getString(R.string.os_link),
+            getString(R.string.os_naprave_link_opis),
+            getString(if (linkVklopljen) R.string.os_vklopljeno else R.string.os_izklopljeno),
+            ""
+        ) {
+            if (linkVklopljen) {
+                link.krajevniNacin()
+                Toast.makeText(this, getString(R.string.os_naprave_link_izklopljen), Toast.LENGTH_SHORT).show()
+            } else {
+                link.vklopiLink()
+                Toast.makeText(this, getString(R.string.os_naprave_link_vklopljen), Toast.LENGTH_SHORT).show()
+            }
+            narisi(link.naprave)
+        })
         // Ta naprava: ime, kot ga vidijo druge naprave; OK jo preimenuje.
-        if (jaz != null) nove.add(Vrstica(R.drawable.os_ikona_naprava, jaz.ime.ifBlank { jaz.id },
-            getString(R.string.os_naprave_ta), getString(R.string.os_naprave_preimenuj), jaz.id) { preimenuj(jaz.id, jaz.ime) })
+        if (jaz != null) nove.add(Vrstica(ikonaNaprave(jaz.platforma), jaz.ime.ifBlank { jaz.id },
+            getString(R.string.os_naprave_ta), getString(R.string.os_naprave_preimenuj_kratko), jaz.id) { preimenuj(jaz.id, jaz.ime) })
         for (n in tuje) {
             val datoteke = n.zmoznosti.contains("files")
+            val lepo = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
             nove.add(Vrstica(
-                if (datoteke) R.drawable.os_ikona_racunalnik else R.drawable.os_ikona_naprava,
-                // "Safeer Control (racunalnik-pc)" -> "racunalnik-pc": ime programa je ze v podnapisu.
-                DatotekeActivity.lepoIme(n.ime).ifBlank { n.id },
+                if (datoteke) R.drawable.os_ikona_racunalnik else ikonaNaprave(n.platforma),
+                lepo,
                 opisNaprave(n),
-                getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_posiljanje),
+                getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_preimenuj_kratko),
                 n.id,
             ) {
-                if (datoteke) startActivity(Intent(this, DatotekeActivity::class.java)
-                    .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
-                else odpriLinkVBrskalniku()
+                if (datoteke) izbiraNaprave(n) else preimenuj(n.id, n.ime)
             })
         }
-        // Nova naprava: prijavno okno (QR s kamero telefona ali 6-mestna koda) - tudi po »brez povezave«.
-        nove.add(Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_naprave_povezi),
-            getString(R.string.os_naprave_povezi_opis), "") {
-            startActivity(Intent(this, PrijavaActivity::class.java)) })
-        // Zadnja vrstica je vedno pot naprej: stran Safeer Link, kjer se naprave seznanijo.
-        nove.add(Vrstica(R.drawable.os_ikona_link, getString(R.string.os_naprave_stran),
-            getString(R.string.os_naprave_stran_opis), "") { odpriLinkVBrskalniku() })
+        // Nova naprava: prijavno okno (prikaže QR kodo IN gumb za vpis 6-mestne kode z druge naprave -
+        // en sam vstop v seznanitev, ne dva). Prej je bila tu se locena vrstica »Vpiši 6-mestno kodo«,
+        // ki je podvajala isto moznost, ki jo PrijavaActivity ze ponuja na svojem zaslonu.
+        nove.add(Vrstica(
+            R.drawable.os_ikona_naprava,
+            getString(R.string.os_naprave_povezi),
+            getString(R.string.os_naprave_povezi_opis),
+            "",
+            ""
+        ) { startActivity(Intent(this, PrijavaActivity::class.java)) })
+
+        // Deljenje datotek s te naprave v Safeer Linku (vklopljeno / izklopljeno)
+        val vklopljeno = DatotekeStreznik.vklopljeno(this)
+        nove.add(Vrstica(
+            R.drawable.os_ikona_racunalnik,
+            getString(R.string.os_naprave_deljenje_datotek),
+            getString(R.string.os_naprave_deljenje_opis),
+            getString(if (vklopljeno) R.string.os_vklopljeno else R.string.os_izklopljeno),
+            ""
+        ) {
+            val novoStanje = !vklopljeno
+            DatotekeStreznik.nastavi(this, novoStanje)
+            if (novoStanje && !DatotekeStreznik.imamoDovoljenje(this) && android.os.Build.VERSION.SDK_INT >= 23) {
+                requestPermissions(DatotekeStreznik.dovoljenja(), 101)
+            }
+            Toast.makeText(this, getString(if (novoStanje) R.string.os_naprave_deljenje_vklopljeno else R.string.os_naprave_deljenje_izklopljeno), Toast.LENGTH_SHORT).show()
+            narisi(link.naprave)
+        })
         vrstice = nove
         prilagojevalnik.notifyDataSetChanged()
+        // Safeer Link je lahko vklopljen (nacin ni krajevni), a se ni (se) povezan - prej je spodnje
+        // sporocilo vseeno trdilo »ni vklopljen«, kar je bilo v nasprotju s stikalom zgoraj. Locimo
+        // resnicno izklopljen link (stanje "ni_linka") od vklopljenega, ki se se povezuje ali ga je
+        // sredisce (za zdaj) zavrnilo (stanje "povezujem"/"ni") - takrat stikalo in sporocilo soglasata.
         sporocilo.text = when {
             tuje.isNotEmpty() -> ""
             link.jeKrajevni() -> getString(R.string.os_naprave_krajevni)
             link.povezan -> getString(R.string.os_ni_naprav)
+            link.stanje == "povezujem" || link.stanje == "ni" -> getString(R.string.os_stanje_povezujem)
             else -> getString(R.string.os_naprave_ni_linka)
         }
         sporocilo.visibility = if (sporocilo.text.isNullOrBlank()) View.GONE else View.VISIBLE
         if (currentFocus == null) seznam.requestFocus()
     }
 
+    /** Ikona po vrsti naprave: telefon je telefon, tablica in racunalniski zaslon zaslon, televizor televizor. */
+    private fun ikonaNaprave(platforma: String): Int = when (platforma) {
+        "phone" -> R.drawable.os_ikona_telefon
+        "tablet" -> R.drawable.os_ikona_zaslon
+        "linux", "windows" -> R.drawable.os_ikona_racunalnik
+        else -> R.drawable.os_ikona_naprava
+    }
+
     private fun opisNaprave(n: LinkOdjemalec.Naprava): String = when {
+        // Platforma, kot jo pove naprava (Protocol v1); sredisce je lahko tudi racunalnik.
+        n.platforma == "linux" -> if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
+        n.platforma == "tv" -> "TV · Safeer Link"
+        n.platforma == "tablet" -> "Tablica · Safeer OS"
+        n.platforma == "phone" -> "Safeer Browser · Android"
         n.naslov == "127.0.0.1" || n.id.startsWith("tv-") -> "TV · Safeer Link"
         n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
         n.id.startsWith("phone-") -> "Safeer Browser · Android"
@@ -146,9 +205,32 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .let { Kontroler.pokazi(it.show()) }
     }
 
+    /** Izbira za tujo napravo z deljenimi mapami: odpri datoteke ali preimenuj napravo. */
+    private fun izbiraNaprave(n: LinkOdjemalec.Naprava) {
+        val moznosti = arrayOf(
+            getString(R.string.os_naprave_odpri_datoteke),
+            getString(R.string.os_naprave_preimenuj)
+        )
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(DatotekeActivity.lepoIme(n.ime).ifBlank { n.id })
+            .setItems(moznosti) { _, i ->
+                when (i) {
+                    0 -> startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
+                    1 -> preimenuj(n.id, n.ime)
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        narisi(link.naprave)
+    }
+
     /** Stran Safeer Link v brskalniku (seznanitev, naprave, daljinec). */
     private fun odpriLinkVBrskalniku() {
-        val paket = Sosed.brskalnik(this)
+        val paket = Sosed.linkBrskalnik(this)
         val namera = if (paket != null)
             Intent().setComponent(ComponentName(paket, "si.safeer.tv.MainActivity"))
                 .putExtra("iz_safeer_os", packageName)

@@ -96,7 +96,7 @@
   <string name="ui_bankguard_status">Zaščita pred lažnimi spletnimi bankami: prave banke delujejo nemoteno</string>
   <string name="ui_downloads_title">📥 Prenosi</string>
   <string name="ui_downloads_empty">Ni prenesenih datotek.</string>
-  <string name="ui_downloads_cannot_open">Te datoteke na televizorju ne zna odpreti noben program. Shranjena je v mapi Prenosi.</string>
+  <string name="ui_downloads_cannot_open">Te datoteke ne zna odpreti noben program na tej napravi. Shranjena je v mapi Prenosi.</string>
   <string name="ui_downloads_running">se prenaša</string>
   <string name="ui_downloads_failed">prenos ni uspel</string>
   <string name="ui_ok">V redu</string>
@@ -119,8 +119,8 @@
     <string name="ui_sb_sponsor">Sponzor preskočen</string>
     <string name="ui_sb_selfpromo">Samopromocija preskočena</string>
     <string name="ui_sb_interaction">Poziv preskočen</string>
-    <string name="ui_cast_ready">Pripravljen na predvajanje iz telefona in računalnika</string>
-    <string name="ui_link_sync_unavailable">Sinhronizacija zaznamkov na televizorju še ni na voljo.</string>
+    <string name="ui_cast_ready">Pripravljen na predvajanje z drugih naprav</string>
+    <string name="ui_link_sync_unavailable">Sinhronizacija zaznamkov še ni na voljo.</string>
     <string name="ui_lang_auto">Samodejno (jezik naprave)</string>
     <string name="ui_link_prejeto">Poslano z druge naprave</string>
     <string name="ui_popup_block_on">🚫 Pojavna okna so preprečena</string>
@@ -147,4 +147,9 @@
     <string name="ui_aplikacija_dodana">%1$s dodan med aplikacije Safeer OS</string>
     <string name="ui_aplikacija_ze_dodana">%1$s je že med aplikacijami</string>
     <string name="ui_aplikacija_ni_strani">Najprej odpri stran, potem jo dodaj</string>
+    <string name="ui_link_zagon_odpri">Odpri %1$s</string>
+    <string name="ui_link_zagon_pretok">Deli zaslon in odpri %1$s na računalniku</string>
+    <string name="ui_link_zagon_tapni">Safeer Link · tapni za nadaljevanje</string>
+    <string name="ui_ssl_vprasanje">Potrdilo za %1$s ni veljavno, zato povezava morda ni zasebna. Safeer vas še vedno varuje pred znanimi grožnjami. Vseeno odprem?</string>
+    <string name="ui_ssl_odpri">Vseeno odpri</string>
 </resources>

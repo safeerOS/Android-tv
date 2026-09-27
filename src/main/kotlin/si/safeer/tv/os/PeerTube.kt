@@ -26,7 +26,10 @@ object PeerTube {
      */
     fun isci(strezniki: List<String>, beseda: String): List<Jamendo.Skladba> {
         val besede = normaliziraj(beseda).split(' ').filter { it.length >= 2 }
-        return strezniki.flatMap { s ->
+        // Strezniki hkrati in z rokom 5 s: tilvids.com je 21. 9. 2026 odgovoril v 14 s ali sploh ne,
+        // framatube.org v 1,7 s - pocasen streznik ne sme zadrzati ostalih.
+        val bazen = java.util.concurrent.Executors.newCachedThreadPool()
+        val opravila = strezniki.map { s -> bazen.submit<List<Jamendo.Skladba>> {
             try {
                 seznam(s, "/api/v1/search/videos?search=${URLEncoder.encode(beseda, "UTF-8")}&sort=-views&nsfw=false&count=30&searchTarget=local") { v ->
                     val besedilo = normaliziraj(listOf(v.optString("name"), v.optJSONObject("channel")?.optString("displayName").orEmpty(),
@@ -35,6 +38,12 @@ object PeerTube {
                     besede.all { besedilo.contains(it) }
                 }
             } catch (_: Exception) { emptyList() }
+        } }
+        bazen.shutdown()
+        val rok = System.currentTimeMillis() + 5_000
+        return opravila.flatMap { f ->
+            try { f.get((rok - System.currentTimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) }
+            catch (_: Exception) { f.cancel(true); emptyList() }
         }.distinctBy { it.id }
     }
 
@@ -48,7 +57,7 @@ object PeerTube {
     } catch (_: Exception) { null }
 
     /**
-     * Datoteka za predvajanje: najboljsa kakovost do 1080p (samostojna MP4, brez HLS). Najprej
+     * Datoteka za predvajanje: najboljsa kakovost do 1080p (samostojna MP4, sicer HLS). Najprej
      * vprasamo izvorni streznik, nato streznike, kjer smo video nasli - izvor je vcasih nedosegljiv
      * (preverjeno 21. 9. 2026: tinkerbetter.tube), povezani streznik pa pozna iste datoteke.
      */
@@ -75,9 +84,13 @@ object PeerTube {
         dodaj(j.optJSONArray("files"))
         val seznami = j.optJSONArray("streamingPlaylists")
         if (seznami != null) for (i in 0 until seznami.length()) dodaj(seznami.getJSONObject(i).optJSONArray("files"))
-        val url = datoteke.maxByOrNull { it.first }?.second ?: return null
         val kanal = j.optJSONObject("channel")?.let { "${it.optString("name")}@${it.optString("host")}" }.orEmpty()
-        return v.copy(zvok = url, mime = "video/mp4", kanal = kanal, streznik = streznik)
+        val url = datoteke.maxByOrNull { it.first }?.second
+        if (url != null) return v.copy(zvok = url, mime = "video/mp4", kanal = kanal, streznik = streznik)
+        // Samo HLS (brez samostojne MP4): predvajalnik ga zna z modulom Media3 HLS.
+        val hls = seznami?.let { s -> (0 until s.length()).map { s.getJSONObject(it).optString("playlistUrl") } }
+            ?.firstOrNull { it.startsWith("https://") } ?: return null
+        return v.copy(zvok = hls, mime = MedijskiViri.MIME_HLS, kanal = kanal, streznik = streznik)
     }
 
     /**

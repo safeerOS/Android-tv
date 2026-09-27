@@ -385,3 +385,214 @@ in brskalnik na istem računalniku). Uporabi ga »Odjavi ta računalnik« in nez
 (računalnik, po kosih) ali `remote` (Android, `apps.list` z ikonami naenkrat), brez te naprave in brez
 procesov z istim naslovom IP. Zgoraj je izbira naprave (Vse · računalnik · tablica …); zagon gre z
 `apps.launch` na napravo, ki ima program. Besedila: »Iz vseh tvojih naprav« / »Iz povezanih naprav«.
+
+## 10. v8: ena naprava = en ključ, dnevnik brez skrivnosti (22. 9.)
+
+**Identiteta naprave, dokončno.** Naprava je njen ključ; id-ji so le imena zanj (`pc-x` in `pc-x-control`
+za brskalnik in Safeer Control na istem računalniku, `tv-sm-x210` in `tv-sm-x210-os` za zaslon in Safeer OS
+na tablici, stari `tv-…` in novi `n-…`). Odprto vprašanje iz 2. in 3. poglavja (»enega bo treba označiti kot
+sorodnika«) je rešeno brez novega zapisa v krogu:
+
+- Hub (`HubUsmerjevalnik.napravaIzKljuca`, Linux `Hub.naprava_iz_kljuca`) vsaki napravi v `cast.devices` in
+  `GET /cast/devices` doda polje **`device`** = id iz ključa (`n-<16 hex>`) njenega člana v krogu. Sorodniki
+  imajo isto vrednost; naprava brez ključa v krogu (odjemalec 0.2) polja nima. Dodatno polje - stari
+  odjemalci ga prezrejo.
+- **Vzdevek velja za napravo, ne za id.** Preimenovanje naprave s ključem shrani ime pod `device` in odstrani
+  vzdevke njenih posameznih id-jev; vzdevek, dan staremu id-ju pred krogom, velja tudi za nov id iz ključa
+  (prej se je izgubil - odprto iz 6. poglavja).
+- Safeer OS (`LinkOdjemalec.drugeZaPrikaz`): seznami naprav (Naprave, plošča na domačem zaslonu TV in
+  tablice) pokažejo sorodnike kot eno napravo; ostane tisti z več zmožnostmi, da gredo dejanja (datoteke,
+  zaslon) pravemu. Lastna naprava izpade z vsemi sorodniki - tablica sebe ne vidi več kot »povezano napravo«.
+
+Preizkusi: JVM `preizkusIdentitete` (15 preverb), Linux `tests/test_link_hub_streznik.py::NapravaIzKljuca`.
+Preverjeno v živo (tablica, hub TV in hub računalnika): tablica na domačem zaslonu ne kaže več sebe
+(»Safeer OS Tablet«) kot povezane naprave.
+
+**Ime naprave je v krogu zaupanja.** V živo se je pokazalo, da ima po menjavi huba ista naprava drugo ime
+(»Dnevna soba« na hubu TV, »Safeer TV (…)« na hubu računalnika), ker so vzdevki živeli v posameznem hubu.
+Zdaj preimenovanje naprave s ključem zapiše ime k vsem njenim članom v krogu (novejši `dodano` zmaga pri
+združevanju); `trust.update` ga ponese vsem napravam in s tem vsakemu prihodnjemu hubu. Hub računalnika
+ime vzame iz kroga (`Hub.ime_v_krogu`). Nov id istega ključa (alias, prehod na `n-…`) podeduje ime naprave;
+hub ob zagonu ne povozi imena, ki ga je dal uporabnik. Lokalni vzdevki naprav s ključem se ob prvem zagonu
+prenesejo v krog; lokalno ostanejo samo za naprave brez ključa. Preizkusi: `preizkusIdentitete` (+3),
+Linux `NapravaIzKljuca.test_ime_iz_kroga`.
+
+**Ime ima svoj čas (`imenovano`), `dodano` ostane.** Preimenovanje tako ne more obuditi umaknjene naprave
+(prej bi novejši `dodano` premagal nadgrobnik). Starejše naprave polje prezrejo.
+
+**`trust.names` - ime z naprave na hub.** Naprava po prijavi (zaslon TV/tablice, Control) ponudi imena iz
+svojega kroga; hub (TV in računalnik) vzame **samo ime** članov, ki jih že pozna z istim ključem, niso umaknjeni
+in imajo novejši `imenovano` (ne več kot dan v prihodnost). Nov član, drug ključ ali umik po tej poti ne
+pride. Hub ob spremembi razpošlje `trust.update`. Safeer OS preimenuje tako, kadar hub nima HTTP poti
+(hub računalnika). Preverjeno v živo 22. 9.: tablica se je na hubu računalnika preimenovala, ime je v krogu
+pri vseh štirih id-jih tablice. Preizkusi: JVM `preizkusImenVKrogu`, Linux `ImenaVKrogu` (6).
+
+**Razbitje `HubUsmerjevalnik`.** HTTP končne točke (seznanitev, deljenje, naprave, zaupanje, prijava,
+stanje, QR; 517 vrstic) so v `cast/HubHttp.kt` kot razširitve usmerjevalnika - logika nespremenjena,
+člani, ki jih rabijo, so `internal`. `HubUsmerjevalnik.kt` ima zdaj ~1560 vrstic (prej 2024).
+
+**Dnevnik brez skrivnosti (`cast/SafeerLog.kt`, del Link Core).** Prazni `catch {}` na mestih, kjer uporabnik
+ostane brez odziva (povratni klici vmesnika, odgovori Safeer OS, prejeta datoteka, krog iz prijave), zdaj
+zapišejo napako. Vsako besedilo gre skozi `ocisti`: žetoni `saf_…`, polja token/ticket/secret/nonce/signature,
+skrivnosti iz povezave QR (`#j=…&s=…`) in dolgi base64/hex nizi ne pridejo v dnevnik. Pospravljanje
+(brisanje začasnih datotek, zapiranje vtičnic) ostane tiho. Preizkus: `preizkusDnevnika`.
+
+**QR za telefon brez aplikacije - znana omejitev.** Koda B (8.) ima danes, kadar središče streže spletnega
+odjemalca, obliko `http://<ip>:<vrata>/#j=…&s=…&f=…&a=…` (sicer `https://safeer.si/p#…`). Aplikacija Safeer
+govori s središčem samo prek potrdila z odtisom `f`, zato je varna. Telefon **brez** aplikacije pa odpre stran
+spletnega odjemalca po navadnem HTTP: kdor bi v domačem omrežju v 5 minutah veljavnosti stal vmes (ARP), bi
+lahko podtaknil stran in prebral enkratno skrivnost. Ublažitve danes: koda velja enkrat in 5 minut, ugibanje je
+omejeno, središče pokaže »✓ … je povezan« (neznana naprava je vidna) in jo uporabnik lahko odstrani. Popravek
+brez spremembe protokola ni mogoč (brskalnik ne zaupa samopodpisanemu potrdilu); prava rešitev je stran
+`safeer.si/p`, ki telefon brez aplikacije pošlje po aplikacijo, namesto da odpre HTTP odjemalca.
+
+## 11. RC1 (veja `rc1`, 22. 9. 2026)
+
+Prevzeto iz RC1 paketov (TV, tablica, telefon, Linux), pregledano in popravljeno pred vgradnjo.
+
+**Novo**
+- Okus `telefon` (`si.safeer.phone`, Safeer OS Mobile): koda tablice (`src/tablica`) in svoj manifest
+  (`CHANGE_NETWORK_STATE`). Viri: skupna lupina na dotik `okusi/dotik/res` (postavitve, prevodi) +
+  `okusi/<tablica|telefon>/res/values*/naprava.xml` (besedila, ki imenujejo napravo, v vseh 6 jezikih).
+  Telefon pokonci: iskanje cez vso sirino, stanje pod njim; vrstica nastavitev na ozkem zaslonu ima
+  stanje pod razlago (`res/layout`, siroki zasloni `res/layout-w600dp`). Platforma v krogu `phone`,
+  prioriteta 20. OS, tablica in telefon: 0.5.0 (25).
+- `handoff.request` (Nadaljuj na): izrecna predaja strani/predvajanja izbrani napravi. Oba huba (Kotlin in
+  Python) vpiseta pravega posiljatelja; Kotlin hub tovor omeji na 8 KiB. Sprejemnik odpre URL (Android:
+  `onCastUrlReceived` s polozajem; Linux: nov zavihek). Safeer OS za Linux: stran Safeer Media, gumbi
+  "Nadaljuj na" ob predvajanju (MPRIS/playerctl).
+- Continuity v3, Workspace v1, Media Sync v1.1: kategorije `sync.data` (`safeer.continuity.v3`,
+  `safeer.workspace.v1`, `safeer.media.v1`). Vedno pasivno: nikoli ne odpre strani ali aplikacije.
+  Android objavi kontinuiteto ob novem viru/stanju predvajanja, sicer najvec na 30 s. Uporabniskega vmesnika
+  za "nadaljuj, kjer si koncal" se ni; Android naprave brez zmoznosti `sync` sirjenja ne prejmejo (samo
+  odgovor na `sync.request`).
+- Igralni plosek na telefonskem daljincu (`gamepad.button/axis/release`). Imena so slovenska
+  (`leva_x`, `desna_y`, `krizec_x`, `izbira`, `zacni`); Android sprejme tudi angleska imena z Linux evdev
+  (`left_x`, `start`, `dpad_x` ...). Android: geste prek Safeer Vnos (dostopnost), profil je lokalen;
+  Linux: uinput, samo ko oddaljena seja ze tece. `MultiInputRouter` (Linux) se nikoli ne vklopi sam.
+- Internet gateway (samo telefon, privzeto izklopljen): `internet.open/opened/data/close/error`.
+  Glej `docs/INTERNET-GATEWAY.md`. Ponudnik je narejen, odjemalca (TV/Linux, ki bi gateway uporabil) se ni.
+
+**Popravljeno ob prevzemu**
+- Gateway: kosi toka so se pisali vzporedno (vec niti) in so lahko prisli v socket v napacnem vrstnem redu;
+  zdaj ena pisalna nit na tok. Mesecna omejitev mobilnih podatkov se ni nikoli ponastavila; zdaj ob novem
+  mesecu. Filter ciljev dopolnjen (0/8, 198.18/15, 240/4, broadcast, TEST-NET, 2001:db8::/32) in vrata SMTP
+  (25, 465, 587) zaprta; politika je v `InternetPoti.kt` in ima JVM test (`tests/run_gateway_tests.sh`).
+  Mobilna pot se ob zagonu storitve znova zahteva, ce jo je uporabnik dovolil.
+- Plosek: telefon je posiljal `leva_x`/`izbira`, Android je pricakoval `left_x`/`select` - palici, krizec,
+  SELECT in START niso delovali.
+- TV hub je `handoff.request` zavrnil (`neznan_tip`).
+- Linux: `safeer_link.py` je Link module uvazal brez `core.` (Control se ne bi zagnal); namestitveni tovor
+  Controla ni vseboval novih modulov; Safeer Media v `os.js` je bil zunaj glavne funkcije in ni videl
+  `klic`, `el`, `S` (stran ne bi delala); pytest testi so zdaj tudi unittest.
+
+## 12. Global Mesh / Global Link (temelj, izklopljeno)
+
+Prevzeto iz Global Mesh v0.24 in Global Link v0.25. Cilj: seznanjena naprava je dosegljiva tudi zunaj
+domacega omrezja (drug Wi-Fi, mobilni podatki). Pot je vedno `LOCAL -> DIRECT_INTERNET -> RELAY -> OFFLINE`:
+LAN zmaga vedno, internet in rele sta izrecna izbira, neseznanjena naprava ali naprava brez odtisa kljuca ni
+dosegljiva nikoli. Rele vidi samo sifrirano vsebino; brez samodejnega odpiranja vrat na usmerjevalniku.
+
+- Politika: `link/GlobalMesh.kt` (tv-browser-2) in `core/global_mesh.py` (safeer-lms), enaka logika,
+  JVM in Python test. Remote Link v0.23 (`RemoteLinkTransport`) je delal isto drugace poimenovano; ena
+  politika namesto dveh.
+- Koordinacija: `services/coordination` (safeer-lms) - Cloudflare Worker + en Durable Object (SQLite,
+  brezplacen nacrt: 100.000 zahtev/dan) na `link.safeer.si`. Samo prisotnost (namigi kandidatov, TTL najvec
+  120 s) in kratki signali; nic ne shrani trajno, nikoli kljuci ali vsebina. Brez skupne skrivnosti: vsaka
+  zahteva je podpisana s kljucem naprave (ECDSA P-256 iz kroga zaupanja, id = `n-` + SHA-256(SPKI)), cas
+  +-120 s. Prisotnost vidi in signal poslje samo naprava s seznama `allow`, ki ga objavi naprava sama (njen
+  krog); tujec ne izve, ali naprava obstaja. Najvec 64 signalov na prejemnika. Test: `node test.mjs`
+  (pravi podpisi DER kot Java). Referencni Python streznik in Docker postavitev iz v0.25 sta s tem odvec.
+- STUN: `stun.cloudflare.com` (brezplacen); TURN: Cloudflare Realtime TURN (1000 GB brezplacno, nato
+  0,05 USD/GB) - samo kot zadnja moznost.
+
+Se manjka, preden se vklopi: postavitev Workerja (`npx wrangler deploy`), kratkotrajna TURN poverila,
+objava prisotnosti s podpisom v odjemalcih (Android, Linux), ICE/WebRTC
+v odjemalcih, E2EE vezan na kljuce naprav, prehod Wi-Fi <-> mobilno in preizkus cez locena omrezja/CGNAT.
+`SAFEER_GLOBAL_LINK_ENABLED` ostane `false`.
+
+**Datoteke na tablici in telefonu:** meni Datoteke se odpre vedno. Brez racunalnika pokaze videe, glasbo
+in slike te naprave (`DatotekeActivity` krajevni nacin), s povezanim racunalnikom ponudi izbiro vira.
+
+### 12.1 Rele (vklopljeno, 22. 9. 2026)
+
+Naprava zunaj doma se poveze na **najmocnejso napravo doma** (izvoljeni hub, obicajno racunalnik s
+prioriteto 80); ta usmerja naprej do vseh ostalih in vraca odgovore, kot v LAN. Vedno najprej LAN:
+Android poskusi LAN dvakrat in sele nato rele; na releju vsakih 5 min preveri, ali je hub spet v LAN,
+in se vrne domov.
+
+- Hub (racunalnik, `core/link_rele.py` `AgentHuba` v Controlu): objavi prisotnost z `allow` = clani
+  kroga, drzi `/v1/listen` in za vsak kanal odpre `/v1/accept` ter ga poveze z lokalnim hubom.
+- Naprava (Android, `link/GlobalLink.kt`): lokalna vrata 127.0.0.1 (IPv4 - `getLoopbackAddress()` je na
+  Androidu ::1), vsaka povezava je kanal `/v1/connect?to=<hub>`; sprejemnik (CastReceiverService) in
+  Safeer OS (LinkOdjemalec) si delita en rele na hub. TLS Safeer Linka gre skozi nespremenjen (pripet
+  odtis huba), rele vidi samo sifrirane bajte.
+- Worker: en Durable Object na hub, WebSocket Hibernation (mirujoce povezave ne porabljajo casa),
+  najvec 32 kanalov, prisotnost v SQLite objekta. Cloudflare zavrne `Python-urllib` (403), zato
+  `User-Agent: SafeerLink/1.0`.
+- Nastavitve (Android): Global Link vklopljen privzeto; "Preizkus: tudi doma prek interneta" za preizkus.
+- Preizkuseno: zacasna naprava s PC prek link.safeer.si do Controla (HTTP 200, 0,9 s, potrdilo iz
+  huba), tujec zavrnjen; tablica prek releja prijavljena s podpisom in prejema ukaze prek huba.
+- Hub na Androidu (`GlobalLink.AgentHuba`, zagon v CastReceiverService): kadar TV, tablica ali telefon
+  gosti hub, se objavi enako kot Control. Preizkuseno: Control ustavljen, hub prevzame Android naprava,
+  racunalnik pride do nje samo prek link.safeer.si v ~20 s (odgovor huba cez TLS od konca do konca).
+- Hub, ki ga rele ne pozna (404, npr. ugasnjen): naprava ga minuto ne klice vec in ostane na LAN, kjer
+  volitve najdejo novega (varuje dnevno kvoto Workerja); ob uspehu prek LAN se odjemalec vrne na LAN.
+- Racunalnik (Control, `core/safeer_link.py` `_poskusi_rele`): ko v LAN ni huba, pred samostojnim
+  gostovanjem poskusi clane kroga prek releja (`link_rele.najdi_hub_prek_releja`); zaupa samo potrdilu, ki
+  nosi kljuc tega clana iz kroga. Na releju ne gosti (dva otoka), vsakih 90 s pogleda, ali je v LAN spet
+  hub. Neuspela povezava prek releja se ponovi (iskanje v ozadju), po treh neuspehih nov krog iskanja
+  cez minuto. Preizkus: `global_link_preizkus` v ~/.config/safeer-control/link.json (samo rele).
+  Preizkuseno 22. 9.: Control prek link.safeer.si na TV-hub v <10 s, 4 zaporedni zagoni pod systemd.
+- Neuspel podpis brez zetona ni vec "zavrnitev" (samo izrecen 401/403): prej je zamuda releja izbrisala
+  odtis huba in naprava je ostala brez povezave.
+
+## 22. 9. 2026 — pridružitev pri katerikoli napravi, podpisani vnosi, Safeer OS kot lastnik Linka
+
+**Seznanitev s kodo tudi na hubu računalnika.** Hub v Safeer Controlu doslej ni znal seznaniti nove
+naprave (`/cast/pair/start` je vrnil 404), zato se telefon ni mogel pridružiti, kadar je bil hub tam.
+Zdaj zna `/cast/pair/start|spake|finish|cancel` (SPAKE2, iste napake in meje kot `HubUsmerjevalnik`:
+5 poskusov, koda velja 5 minut, največ 8 čakajočih), `/cast/ticket` z žetonom seznanitve in
+`/cast/trust/enroll`. Žetoni seznanitve se shranijo (0600), zato naprava, ki še ni vpisala ključa,
+po ponovnem zagonu Controla ne ostane zunaj. Preizkusi: `SeznanitevSKodo` (8), `ZetoniPrezivijo`.
+
+**Koda se pokaže na vseh napravah v Linku.** Središče (Android in Control) ob novi prijavi razpošlje
+`pair.code` (ime naprave, koda, veljavnost) vsem članom in `pair.done`, ko prijave ni več; naprava s
+zaslonom kodo pokaže, »Zavrni« pošlje `pair.reject`. Tako uporabnik kodo prebere tam, kjer je, ne
+glede na to, katera naprava je središče. Na računalniku se pokaže tudi kot obvestilo (`notify-send`).
+
+**QR kodo lahko pokaže katerakoli naprava.** Član pošlje `pair.invite`, središče ustvari enkratno
+skrivnost (hrani samo SHA-256), vrne `qr_id`, skrivnost, svoj naslov in odtis potrdila; naprava kodo
+samo nariše (`PridruzitevSredisca.povezavaZaTujeSredisce`). Nova naprava se pridruži prek
+`/cast/pair/qr/join` (zdaj tudi na Controlu). `pair.invite.cancel` kodo prekliče. Preverjeno v živo
+22. 9.: televizor je pokazal QR za hub računalnika (`a=<naslov-racunalnika>:8990`, odtis Controla).
+
+**Podpisani vnosi v krogu zaupanja (pogoj za P2P).** Vsak član in umik, ki ga naredi naprava, je
+podpisan z njenim ključem: `KrogZaupanja.podatkiClana` / `link_krog.podatki_clana` in `podatkiUmika` /
+`podatki_umika`. `zdruzi(preveriPodpise=true)` — to je krog, ki ne pride od našega huba, ampak od
+naprave ali prek releja — sprejme nov ali spremenjen ključ in umik samo s podpisom člana, ki ga že
+poznamo. Krog od huba velja kot doslej, zato starejše naprave delajo naprej. Preizkusi:
+`preizkusPodpisanegaKroga` (JVM), `PodpisaniVnosi` (Linux).
+
+**Naprava po seznanitvi takoj vpiše ključ v krog.** `CastReceiverService` po prijavi z žetonom pokliče
+`/cast/trust/enroll`, zato se odslej prijavlja s podpisom na katerem koli hubu. `/cast/auth/challenge`
+na računalniku vrne 401 za napravo zunaj kroga (kot na Androidu), da naprava ve, da mora vpisati ključ
+ali iti na žeton.
+
+**Ena povezava naenkrat.** `LinkOdjemalec` je ob ponovnem zagonu odprl novo povezavo, staro pa pustil;
+središče je vsako novo povezavo iste naprave zamenjalo s prejšnjo, zato je telefon vsakih ~20 s izgubil
+zvezo. Zdaj se stara povezava zapre, dogodki zamenjane povezave se ne štejejo, po zavrnitvi je premor
+(2 s → 1 min), hub, ki nas ne sprejme, pa 10 minut ni kandidat za izvolitev (`hubNasJeZavrnil`).
+
+**Safeer Link na televizorju vodi Safeer OS.** `Sosed.lastnikLinka` na televizorju vrne Safeer OS, če
+je nameščen (Safeer Browser TV je predhodnik in Link vodi samo brez njega). Brskalnik ob Safeer OS ne
+zažene ne središča ne sprejemnika, obstoječa ugasne in stran Linka preda Safeer OS; Safeer OS vstopi z
+istim ključem (brez nove kode) in prevzame ime televizorja iz kroga. Ščit gre za Linkom: vodi ga ista
+aplikacija, ob prevzemu sosedovega ugasne (Android da tunel eni sami aplikaciji).
+
+**Besedila in ikone.** Na telefonu in tablici zasloni ne govorijo več o televizorju (22 besedil v
+šestih jezikih), navodilo za 6-mestno kodo opisuje pravo pot (Povezane naprave → Pridruži se), ikone
+pa ločijo telefon, televizor, računalnik in zaslon.
+
+**Naslednji korak:** `docs/P2P-NACRT.md` — Safeer Data Transport (LAN_DIRECT → INTERNET_DIRECT →
+SAFEER_RELAY), šifriranje od konca do konca, prenos datotek po kosih z nadaljevanjem in deljenje zaslona.

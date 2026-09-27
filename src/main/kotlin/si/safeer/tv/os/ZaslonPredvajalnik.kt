@@ -49,9 +49,12 @@ class ZaslonPredvajalnik(private val a: Activity, koren: FrameLayout, private va
     private val pas = LinearLayout(a).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(24), dp(16), dp(24), dp(18))
+        // Skoraj neprosojen: pas mora biti berljiv tudi nad svetlim, pisanim videom (pri 90 %
+        // so barve slike prosevale skozi napis in cas).
         background = GradientDrawable().apply {
             cornerRadius = 18 * gostota
-            setColor(Color.parseColor("#E60B1220"))
+            setColor(Color.parseColor("#F70B1220"))
+            setStroke((gostota).toInt().coerceAtLeast(1), Color.parseColor("#33FFFFFF"))
         }
         addView(naslov)
         addView(izvajalec)

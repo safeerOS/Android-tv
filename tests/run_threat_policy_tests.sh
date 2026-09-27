@@ -28,3 +28,5 @@ java -cp "$OUT/sponsorblock.jar" com.safeer.threatfeed.SponsorBlockTestKt
 java -cp "$OUT/filter-list.jar" com.safeer.threatfeed.FilterListEngineTestKt
 "$KOTLINC" "$SRC/si/safeer/tv/PrijavnaOkna.kt" "$TEST_DIR/PrijavnaOknaTest.kt" -include-runtime -d "$OUT/prijavna-okna.jar"
 java -cp "$OUT/prijavna-okna.jar" si.safeer.tv.PrijavnaOknaTestKt
+"$KOTLINC" "$SRC/si/safeer/tv/os/Relevantnost.kt" "$TEST_DIR/RelevantnostTest.kt" -include-runtime -d "$OUT/relevantnost.jar"
+java -cp "$OUT/relevantnost.jar" si.safeer.tv.os.RelevantnostTestKt

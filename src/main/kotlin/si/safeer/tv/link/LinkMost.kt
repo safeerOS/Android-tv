@@ -617,9 +617,8 @@ class LinkMost(
      */
     @JavascriptInterface
     fun hubPrijave(): String = try {
-        val u = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik
         org.json.JSONArray().apply {
-            u?.cakajocePrijave()?.forEach { p ->
+            si.safeer.tv.cast.HubKrmilnik.cakajocePrijave().forEach { p ->
                 put(JSONObject().apply {
                     put("id", p.pairId)
                     put("ime", p.ime)
@@ -650,7 +649,7 @@ class LinkMost(
 
     @JavascriptInterface
     fun hubZavrni(idPrijave: String) {
-        si.safeer.tv.cast.HubKrmilnik.usmerjevalnik?.zavrniPrijavo(idPrijave)
+        si.safeer.tv.cast.HubKrmilnik.zavrniPrijavo(idPrijave)
         odziv("hub-prijave", org.json.JSONArray(hubPrijave()))
     }
 

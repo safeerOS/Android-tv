@@ -119,7 +119,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="14dp"
-        android:numColumns="@integer/os_stolpci_programov"
+        android:numColumns="6"
         android:horizontalSpacing="12dp"
         android:verticalSpacing="12dp"
         android:listSelector="@drawable/os_izbor_vrstice"

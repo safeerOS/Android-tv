@@ -275,9 +275,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 // V igri so puscice puscice: igra, v kateri daljinec premika misko, se ne da igrati.
                 // Uporabnikova izbira za ta program ima prednost; sicer igra (s seznama ali od racunalnika).
                 val nastavitve = getSharedPreferences("safeer_os", MODE_PRIVATE)
+                // Program za televizor (Kodi, Plex HTPC) ima svoj meni za puscice: tipke, ne kazalec.
                 val tipke = if (program.isNotEmpty() && nastavitve.contains("tipke:$program"))
                     nastavitve.getBoolean("tipke:$program", false)
-                else igra || podatki.optBoolean("game", false)
+                else igra || podatki.optBoolean("game", false) || podatki.optString("profile") == "tv"
                 if (tipke) { ustaviSmer(); kazalec = false }
                 // Predvajalnik (VLC, Celluloid ...): OK predvajaj/pavza, levo/desno previj - razen ce je
                 // uporabnik za ta program izbral drug nacin.
@@ -1037,6 +1038,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun obvestilo(o: JSONObject) {
         if (isFinishing) return
         if (o.has("medij")) predvajalnikPas.stanje(o.optJSONObject("medij"))
+        // Predvajalnik se ni oglasil na MPRIS (Hypnotix, mpv brez vticnika): ne ostanemo v nacinu, v
+        // katerem bi bil OK samo presledek - razen ce ga je uporabnik za ta program izbral sam.
+        if (o.has("mpris") && !o.optBoolean("mpris") && predvajalnik &&
+            (program.isEmpty() || !getSharedPreferences("safeer_os", MODE_PRIVATE).contains("nacin:$program"))) {
+            predvajalnik = false
+            predvajalnikPas.skrij()
+            kazalec = !getSharedPreferences("safeer_os", MODE_PRIVATE).getBoolean("tipke:$program", false)
+            pokaziNamig()
+        }
         if (o.has("izbira")) {
             val a = o.optJSONArray("izbira")
             if (a != null && a.length() == 4) pokaziOkvir(a.optInt(0), a.optInt(1), a.optInt(2), a.optInt(3))

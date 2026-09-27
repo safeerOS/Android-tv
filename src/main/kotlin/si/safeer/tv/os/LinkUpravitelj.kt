@@ -118,7 +118,7 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         // Ce ne tece, ga prizgemo samo, kadar je uporabnik Safeer Link izrecno izbral.
         if (Nacin.jeKrajevni(app)) { tece = false; pozabiNaprave(); javi(false, "krajevni"); return }
         // Oddaljeni host: sredisce je zunaj hise in poverilnice ze imamo (seznanitev s kodo).
-        val oddaljen = Host.jeOddaljen(app)
+        val oddaljen = Host.jeOddaljen(app) && !zacasnoDoma
         if (!oddaljen && !Nacin.linkZeTece() && !Nacin.jeLink(app)) { tece = false; pozabiNaprave(); javi(false, "ni_linka"); return }
         tece = true
         val shranjene = if (oddaljen) Host.poverilnice(app) else if (Nacin.linkZeTece()) Identiteta.beri(app) else null
@@ -140,7 +140,7 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         if (prosimZaPoverilnice) return
         prosimZaPoverilnice = true
         javi(false, "povezujem")
-        Sorodnik.zahtevaj(app, dovoliZagon = Nacin.jeLink(app)) { p ->
+        Sorodnik.zahtevaj(app, dovoliZagon = Nacin.jeLink(app), prezriHost = zacasnoDoma) { p ->
             prosimZaPoverilnice = false
             if (p == null) { javi(false, if (Nacin.linkZeTece()) "ni" else "ni_linka"); return@zahtevaj }
             Identiteta.shrani(app, p)
@@ -157,6 +157,7 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
     // -------------------------------------------------------------- iz odjemalca (glavna nit)
 
     override fun naStanje(povezan: Boolean, sporocilo: String) {
+        if (povezan) zavrnitev = 0
         imeSredisca = odjemalec.imeSredisca
         javi(povezan, if (povezan) "povezan" else "povezujem")
     }
@@ -174,13 +175,43 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
     override fun naZavrnitev() {
         // Sredisce je bilo ponastavljeno ali je Safeer OS odstranjen s seznama: vstopimo znova brez kode.
         Identiteta.pozabi(app)
-        zahtevajPoverilnice()
+        znovaPoPremoru()
     }
 
+    /**
+     * Shranjeni oddaljeni host ni dosegljiv, na tej napravi pa tece sredisce: do konca procesa se povezemo
+     * nanj (Link te naprave dela naprej). Izbire hosta ne pozabimo - ko bo spet dosegljiv, velja ob
+     * naslednjem zagonu.
+     */
+    private var zacasnoDoma = false
+
     override fun naIzgubo() {
+        if (!zacasnoDoma && Host.jeOddaljen(app) && (Nacin.linkZeTece() || si.safeer.tv.cast.HubKrmilnik.jeZazelen(app))) {
+            android.util.Log.i("SafeerLinkUpravitelj", "Oddaljeni host ni dosegljiv; povezujem se na sredisce te naprave.")
+            zacasnoDoma = true
+            ustaviZares()
+            // Tudi shranjene poverilnice vodijo tja: nove da sredisce te naprave (Sorodnik).
+            Identiteta.pozabi(app)
+            zazeni()
+            return
+        }
         // Sredisca ni vec: lastni hub se je morda umaknil izvoljenemu (drug clan kroga) - poverilnice
         // vzamemo znova, Sorodnik nas takrat usmeri tja, s podpisom kljuca.
         Identiteta.pozabi(app)
-        zahtevajPoverilnice()
+        znovaPoPremoru()
+    }
+
+    /** Koliko zapored nas je sredisce zavrnilo; premor med poskusi raste (2 s -> 1 min). */
+    private var zavrnitev = 0
+
+    /**
+     * Sredisce nas je zavrnilo. Brez premora bi tekla zanka - poverilnice, zavrnitev, spet poverilnice -
+     * nekajkrat na sekundo (tako je telefon po izgubljenem zetonu obremenjeval sebe in sredisce).
+     */
+    private fun znovaPoPremoru() {
+        zavrnitev++
+        val zamik = minOf(60_000L, 2_000L * (1L shl minOf(zavrnitev, 5)))
+        javi(false, "povezujem")
+        glavna.postDelayed({ if (tece) zahtevajPoverilnice() }, zamik)
     }
 }

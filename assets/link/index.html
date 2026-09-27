@@ -271,8 +271,25 @@
       </form>
     </div>
 
+    <div class="safeerNacinKrmilnika" role="tablist" aria-label="Način upravljanja">
+      <button id="nacinDaljinec" class="izbran" type="button">Daljinec</button>
+      <button id="nacinGamepad" type="button">Igralni plošček</button>
+    </div>
+
+    <div id="gamepadPanel" class="safeerGamepad" hidden>
+      <div class="gpRamena"><button data-gp="l1">L1</button><button data-gp="l2">L2</button><span></span><button data-gp="r2">R2</button><button data-gp="r1">R1</button></div>
+      <div class="gpGlavno">
+        <div class="gpStick" data-stick="leva"><span>L</span><i></i></div>
+        <div class="gpDpad"><button data-axis="krizec_y:-1">▲</button><button data-axis="krizec_x:-1">◀</button><button data-axis="krizec_x:1">▶</button><button data-axis="krizec_y:1">▼</button></div>
+        <div class="gpFace"><button data-gp="y">Y</button><button data-gp="x">X</button><button data-gp="b">B</button><button data-gp="a">A</button></div>
+        <div class="gpStick" data-stick="desna"><span>R</span><i></i></div>
+      </div>
+      <div class="gpCenter"><button data-gp="izbira">SELECT</button><button data-gp="zacni">START</button></div>
+      <p class="opomba">Igralni plošček je samo dodatni način upravljanja. Telefon ostane telefon; kadarkoli preklopi nazaj na Daljinec ali zapri ta zaslon.</p>
+    </div>
+
     <!-- Hitre tipke in smerni kriz. -->
-    <div class="daljinecTipke">
+    <div class="daljinecTipke" id="navadniDaljinec">
       <div class="daljinecVrsta">
         <button class="dTipka" data-tipka="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 3l9 8 M5 10v11h5v-6h4v6h5V10"/></svg><span data-d="domov">Domov</span></button>
         <button class="dTipka" data-tipka="back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span data-d="nazaj">Nazaj</span></button>
