@@ -24,7 +24,7 @@ object JavnaLast {
         val parametri = listOf(
             "q" to q,
             "fl[]" to "identifier", "fl[]" to "title", "fl[]" to "year",
-            "fl[]" to "description", "fl[]" to "format",
+            "fl[]" to "description", "fl[]" to "format", "fl[]" to "language",
             "sort[]" to "downloads desc", "rows" to "40", "output" to "json",
         ).joinToString("&") { (k, v) -> kodiraj(k) + "=" + kodiraj(v) }
         val dokumenti = JSONObject(beri("https://archive.org/advancedsearch.php?$parametri"))
@@ -53,6 +53,8 @@ object JavnaLast {
             video = true,
             mediaType = "Movie",
             year = leto,
+            language = besedilo(v.opt("language")).split(Regex("[,;\\s]+"))
+                .firstOrNull().orEmpty(),
         )
     }
 

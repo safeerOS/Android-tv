@@ -147,10 +147,11 @@ object PeerTube {
                 !v.isNull("originallyPublishedAt") && it.length >= 4 && it.take(4).all { znak -> znak.isDigit() }
             } ?: v.optString("publishedAt")
             val leto = datum.take(4).toIntOrNull() ?: 0
+            val jezik = v.optJSONObject("language")?.optString("id").orEmpty()
             Jamendo.Skladba(v.optString("uuid"), ime,
                 v.optJSONObject("channel")?.optString("displayName").orEmpty().ifBlank { streznik },
                 if (slika.startsWith("/")) "https://$streznik$slika" else slika,
-                "", stran, video = true, streznik = streznik, year = leto)
+                "", stran, video = true, streznik = streznik, year = leto, language = jezik)
         }.filter { it.id.isNotBlank() && it.naslov.isNotBlank() }
     }
 

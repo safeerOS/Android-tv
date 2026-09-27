@@ -52,4 +52,7 @@
          ime vidijo sosedje v hisi, zato mora biti resnicno. -->
     <string name="os_ime_vrste" translatable="false">Safeer TV</string>
     <string name="omnibox_iskalnik">Search engine</string>
+    <string name="os_media_jeziki_vsebine">Content languages</string>
+    <string name="os_media_pripravljam">Preparing %1$s…</string>
+    <string name="os_media_priprava_napaka">Couldn’t prepare %1$s.</string>
 </resources>

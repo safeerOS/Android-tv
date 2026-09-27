@@ -98,6 +98,10 @@ class GlasbaActivity : OsActivity() {
     private lateinit var zdajCas: TextView
     private var razdelek = DOMOV
     private var nalaganje = 0
+    /** Zadnje nefiltrirane police; dialog mora ponuditi tudi trenutno izklopljen jezik. */
+    private val prikazanePolice = HashMap<Int, List<Podatki>>()
+    /** Isti klik med omrezno pripravo ne sme zagnati se enega razresevanja. */
+    private val pripraveVTeKu = ConcurrentHashMap.newKeySet<String>()
     private var iskalnik: EditText? = null
     /** Po izbiri kartice razdelka gre fokus na prvo kartico vsebine, ko se narise. */
     private var fokusVVsebino = false
@@ -600,10 +604,24 @@ class GlasbaActivity : OsActivity() {
     /** Kljuc polic na disku loci tudi vse zacasne poglede, da se med seboj ne pomesajo. */
     private fun kljucPolic(i: Int): String {
         val skriti = zacasnoSkritiViri[i].orEmpty().sorted().joinToString("") { "${it.length}:$it" }
+        val jeziki = izklopljeniJeziki(i).sorted().joinToString("") { "${it.length}:$it" }
         // Nova razlicica zavrze police z blokiranimi ali sumljivimi PeerTube videi.
         val peertube = if (i == DOMOV || i == VIDEO) ":pt4" else ""
-        return "police:$i:${resources.configuration.locales[0].toLanguageTag()}:r${razvrstitev(i)}:l${i in samoTaNaprava}:f$skriti$peertube"
+        return "police:$i:${resources.configuration.locales[0].toLanguageTag()}:r${razvrstitev(i)}:l${i in samoTaNaprava}:f$skriti:j$jeziki$peertube"
     }
+
+    private fun izklopljeniJeziki(i: Int): Set<String> =
+        getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE)
+            .getStringSet("$KLJUC_JEZIKOV$i", emptySet()).orEmpty()
+            .mapTo(mutableSetOf(), JezikiVsebine::oznaka)
+
+    private fun shraniIzklopljeneJezike(i: Int, jeziki: Set<String>) {
+        getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit()
+            .putStringSet("$KLJUC_JEZIKOV$i", jeziki.mapTo(mutableSetOf(), JezikiVsebine::oznaka)).apply()
+    }
+
+    private fun filtrirajJezike(i: Int, skladbe: List<Jamendo.Skladba>) =
+        JezikiVsebine.filtriraj(skladbe, izklopljeniJeziki(i)) { it.language }
 
     /** Razvrscanje je enako za vse razdelke in vedno velja samo znotraj posamezne police. */
     private fun razvrsti(i: Int, skladbe: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
@@ -656,8 +674,12 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Razdelek: najprej krajevno (nadzorna plosca, nedavno, priljubljene), nato vrste s spleta. */
-    private fun prikazi(i: Int, podatki: List<Podatki>) =
-        narisi(zgoraj(i) + vVrste(podatki), opis(i), glava = glavaRazdelka(i, podatki))
+    private fun prikazi(i: Int, podatki: List<Podatki>) {
+        prikazanePolice[i] = podatki
+        val filtrirani = podatki.map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
+            .filter { it.skladbe.isNotEmpty() }
+        narisi(zgoraj(i) + vVrste(filtrirani), opis(i), glava = glavaRazdelka(i, podatki))
+    }
 
     private fun opis(i: Int) = when (i) {
         GLASBA -> getString(R.string.os_media_gl_isci_opis)
@@ -804,14 +826,15 @@ class GlasbaActivity : OsActivity() {
     /** Krajevne vrste na vrhu razdelka: nedavno, tvoji viri, priljubljene in seznami, ki sodijo vanj. */
     private fun zgoraj(i: Int): List<Vrsta> {
         if (i in samoTaNaprava) return emptyList()
-        val p = razvrsti(i, MedijskiViri.priljubljene(this))
-        val seznami = MedijskiViri.seznami(this)
+        val p = razvrsti(i, filtrirajJezike(i, MedijskiViri.priljubljene(this)))
+        val seznami = MedijskiViri.seznami(this).map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
+            .filter { it.skladbe.isNotEmpty() }
         fun seznamVrsta(sz: MedijskiViri.Seznam) = sz.skladbe.all { it.video }.let { video ->
             val urejene = razvrsti(i, sz.skladbe)
             Vrsta("≡  " + sz.ime, if (video) videi(urejene, sz.ime, sz) else skladbe(urejene, sz.ime, sz), video) }
         return when (i) {
             DOMOV -> listOf(
-                Vrsta(getString(R.string.os_media_nedavno), razvrsti(i, MedijskiViri.nedavno(this)).take(5).let { n ->
+                Vrsta(getString(R.string.os_media_nedavno), razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this))).take(5).let { n ->
                     val kartice = n.map { sk ->
                         Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, { meniNedavno(sk) },
                             ikona = if (sk.video) R.drawable.os_ikona_video else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_glasba)
@@ -826,7 +849,9 @@ class GlasbaActivity : OsActivity() {
                 seznami.filterNot { sz -> sz.skladbe.all { it.video } }.map { seznamVrsta(it) }
             RADIO -> listOf(Vrsta(getString(R.string.os_media_prilj_radio), skladbe(p.filter { it.radio })))
             VIDEO -> {
+                val dovoljeniJeziki = filtrirajJezike(i, MediaNapredek.seznam(this).map { it.skladba }).map { it.id }.toSet()
                 val neurejeni = MediaNapredek.seznam(this).filter {
+                    it.skladba.id in dovoljeniJeziki &&
                     (it.skladba.video || SpletniVir.vrstaVsebine(it.skladba) == SpletniVir.SERIJA || SpletniVir.vrstaVsebine(it.skladba) == SpletniVir.FILM) &&
                     SpletniVir.vrstaVsebine(it.skladba) != SpletniVir.VIDEOSPOT &&
                     !it.skladba.mediaType.equals("MusicVideo", ignoreCase = true) &&
@@ -996,6 +1021,20 @@ class GlasbaActivity : OsActivity() {
             }
         }
         samoLokalno.setOnCheckedChangeListener { _, da -> izbire.forEach { it.isEnabled = !da } }
+        val jeziki = jezikiTrenutnihPolic(i)
+        val izklopljeni = izklopljeniJeziki(i)
+        val izbireJezikov = jeziki.map { jezik ->
+            CheckBox(this).apply {
+                text = imeJezika(jezik); setTextColor(getColor(R.color.os_besedilo)); isFocusable = true
+                isChecked = jezik !in izklopljeni
+            }
+        }
+        if (jeziki.isNotEmpty()) {
+            ovoj.addView(besedilo(14f, getColor(R.color.os_umirjeno), true).apply {
+                text = getString(R.string.os_media_jeziki_vsebine); setPadding(0, dp(12), 0, dp(2))
+            })
+            izbireJezikov.forEach(ovoj::addView)
+        }
         val drsniOvoj = ScrollView(this).apply { addView(ovoj) }
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.os_media_razvrsti_filtriraj)
@@ -1009,12 +1048,38 @@ class GlasbaActivity : OsActivity() {
                     clear()
                     viri.forEachIndexed { indeks, vir -> if (!izbire[indeks].isChecked) add(vir.kljuc) }
                 }
+                shraniIzklopljeneJezike(i, jeziki.filterIndexed { indeks, _ -> !izbireJezikov[indeks].isChecked }.toSet())
                 SEZNAMI.remove(razdelek)
                 izberi(razdelek)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
         Kontroler.pokazi(dialog)
+    }
+
+    /** Jeziki, ki so res navzoci v policah tega razdelka; praznih oznak v dialogu ne prikazujemo. */
+    private fun jezikiTrenutnihPolic(i: Int): List<String> {
+        val spletne = prikazanePolice[i].orEmpty().flatMap { it.skladbe }
+        val shranjene = when (i) {
+            DOMOV -> MedijskiViri.nedavno(this) + MedijskiViri.priljubljene(this) + MedijskiViri.seznami(this).flatMap { it.skladbe }
+            VIDEO -> MedijskiViri.priljubljene(this).filter { it.video } +
+                MedijskiViri.seznami(this).flatMap { it.skladbe }.filter { it.video } + MediaNapredek.seznam(this).map { it.skladba }
+            GLASBA -> MedijskiViri.priljubljene(this).filterNot { it.video || it.radio } +
+                MedijskiViri.seznami(this).flatMap { it.skladbe }.filterNot { it.video || it.radio }
+            RADIO -> MedijskiViri.priljubljene(this).filter { it.radio }
+            else -> emptyList()
+        }
+        val slovensko = Locale.forLanguageTag("sl")
+        return (spletne + shranjene).map { JezikiVsebine.oznaka(it.language) }.filter { it.isNotBlank() }
+            .distinct().sortedWith(compareBy(Collator.getInstance(slovensko)) { imeJezika(it) })
+    }
+
+    private fun imeJezika(koda: String): String {
+        val slovensko = Locale.forLanguageTag("sl")
+        val ime = Locale.forLanguageTag(koda).getDisplayLanguage(slovensko)
+        return ime.takeIf { it.isNotBlank() && !it.equals(koda, ignoreCase = true) }
+            ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(slovensko) else it.toString() }
+            ?: koda.uppercase(Locale.ROOT)
     }
 
     private fun kategorije(): View {
@@ -1367,11 +1432,11 @@ class GlasbaActivity : OsActivity() {
             izberi(DOMOV)
             drsnik.post { vsebina.findViewWithTag<View>(if (sosed != null) "k:v:$sosed" else KLJUC_VSI_VIRI)?.requestFocus() }
         })
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(v.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .let { Kontroler.pokazi(it.show()) }
+        )
     }
 
     /** Vir, ki ga uporabnik ta trenutek premika po plosci (null = ne premika). */
@@ -1450,11 +1515,11 @@ class GlasbaActivity : OsActivity() {
         val na = v.kljuc in MedijskiViri.pripeti(this)
         val dejanja = listOf(getString(if (na) R.string.os_media_s_plosce else R.string.os_media_na_plosco) to preklopi,
             getString(R.string.os_media_izbrisi_vir) to { odstraniVir(dodan) })
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(v.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
-            .let { Kontroler.pokazi(it.show()) }
+        )
     }
 
     private fun izmenicno(seznami: List<List<Jamendo.Skladba>>) =
@@ -1509,22 +1574,22 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun meniNedavno(sk: Jamendo.Skladba) {
-        AlertDialog.Builder(this).setTitle(sk.naslov)
+        pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
             .setItems(arrayOf(getString(R.string.os_media_odstrani_nedavno))) { _, _ ->
                 MedijskiViri.odstraniNedavno(this, sk)
                 SEZNAMI.remove(DOMOV)
                 izberi(DOMOV)
-            }.setNegativeButton(android.R.string.cancel, null).show()
+            }.setNegativeButton(android.R.string.cancel, null))
     }
 
     private fun potrdiPocistiNedavno() {
-        AlertDialog.Builder(this).setTitle(R.string.os_media_pocisti_nedavno)
+        pokaziBrisanje(AlertDialog.Builder(this).setTitle(R.string.os_media_pocisti_nedavno)
             .setMessage(R.string.os_media_pocisti_nedavno_potrdi)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 MedijskiViri.pocistiNedavno(this)
                 SEZNAMI.remove(DOMOV)
                 izberi(DOMOV)
-            }.setNegativeButton(android.R.string.cancel, null).show()
+            }.setNegativeButton(android.R.string.cancel, null))
     }
 
     private fun meniNadaljuj(sk: Jamendo.Skladba) {
@@ -1532,7 +1597,7 @@ class GlasbaActivity : OsActivity() {
             getString(R.string.os_media_odstrani_nadaljuj),
             getString(R.string.os_media_pocisti_nadaljuj)
         )
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sk.naslov)
+        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sk.naslov)
             .setItems(moznosti) { _, k ->
                 when (k) {
                     0 -> {
@@ -1543,18 +1608,18 @@ class GlasbaActivity : OsActivity() {
                     }
                     1 -> potrdiPocistiNadaljuj()
                 }
-            }.setNegativeButton(android.R.string.cancel, null).show()
+            }.setNegativeButton(android.R.string.cancel, null))
     }
 
     private fun potrdiPocistiNadaljuj() {
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_media_pocisti_nadaljuj)
+        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_media_pocisti_nadaljuj)
             .setMessage(R.string.os_media_pocisti_nadaljuj_potrdi)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 MediaNapredek.pocisti(this)
                 Toast.makeText(this, R.string.os_media_odstranjeno_nadaljuj, Toast.LENGTH_SHORT).show()
                 SEZNAMI.remove(VIDEO)
                 if (razdelek == VIDEO) izberi(VIDEO)
-            }.setNegativeButton(android.R.string.cancel, null).show()
+            }.setNegativeButton(android.R.string.cancel, null))
     }
 
     // ------------------------------------------------------------------ priljubljene
@@ -1585,9 +1650,18 @@ class GlasbaActivity : OsActivity() {
             osveziPriljubljene()
         }
         if (dejanja.isEmpty()) return
-        AlertDialog.Builder(this).setTitle(sk.naslov)
+        pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja[k].second() }
-            .setNegativeButton(android.R.string.cancel, null).show()
+            .setNegativeButton(android.R.string.cancel, null))
+    }
+
+    /** Na TV je varen privzeti fokus vedno Preklici, nikoli dejanje, ki brise uporabnikove podatke. */
+    private fun pokaziBrisanje(graditelj: AlertDialog.Builder): AlertDialog {
+        val okno = graditelj.create()
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        okno.show()
+        Kontroler.pokazi(okno)
+        return okno
     }
 
     /** Priljubljene so na vrhu plosce in razdelkov Glasba, Radio in Video - tam jih narisemo znova. */
@@ -1969,23 +2043,26 @@ class GlasbaActivity : OsActivity() {
      * Zadetek iz uporabnikove spletne aplikacije: tok ujamemo in ga predvaja nas predvajalnik. Zascitenega
      * toka ne ujamemo - takrat igra stran v skritem pogledu, upravlja pa jo nas predvajalnik ([SpletniIgralec]).
      */
-    private fun razresiSplet(sk: Jamendo.Skladba, rezervni: List<Jamendo.Skladba> = emptyList()) {
+    private fun razresiSplet(sk: Jamendo.Skladba, rezervni: List<Jamendo.Skladba> = emptyList(), obstojecaPriprava: String? = null) {
+        val priprava = obstojecaPriprava ?: zacniPripravo(sk) ?: return
         stanje.text = getString(R.string.os_glasba_nalagam)
         SpletniVir.razresi(this, sk) { r ->
-            if (isFinishing) return@razresi
+            if (isFinishing) { koncajPripravo(priprava); return@razresi }
             stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
             if (r == null) {
                 // Ce primarni vir ne uspe ponuditi neposrednega toka, kaskadno poskusimo naslednje razpolozljivo ogledalo.
                 val naslednji = rezervni.firstOrNull { it.povezava != sk.povezava }
                 if (naslednji != null) {
-                    razresiSplet(naslednji, rezervni.filterNot { it.povezava == naslednji.povezava })
+                    razresiSplet(naslednji, rezervni.filterNot { it.povezava == naslednji.povezava }, priprava)
                     return@razresi
                 }
+                koncajPripravo(priprava)
                 SpletniIgralec.zadnja = java.lang.ref.WeakReference(this)
                 GlasbaStoritev.predvajajSplet(this, sk)
                 if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
                 return@razresi
             }
+            koncajPripravo(priprava)
             GlasbaStoritev.predvajaj(this, listOf(r), 0)
             if (r.video) nadaljujKoPripravljen(sk)
             if (r.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
@@ -2068,7 +2145,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun odstraniVir(v: MedijskiViri.Vir) {
-        AlertDialog.Builder(this)
+        pokaziBrisanje(AlertDialog.Builder(this)
             .setTitle(v.ime)
             .setMessage(R.string.os_mediji_odstrani_vprasanje)
             .setPositiveButton(R.string.os_mediji_odstrani) { _, _ ->
@@ -2077,10 +2154,25 @@ class GlasbaActivity : OsActivity() {
                 izberi(VIRI)
             }
             .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        )
     }
 
     // ------------------------------------------------------------------ predvajanje
+
+    private fun zacniPripravo(sk: Jamendo.Skladba): String? {
+        val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
+        if (!pripraveVTeKu.add(kljuc)) return null
+        Toast.makeText(this, getString(R.string.os_media_pripravljam, sk.naslov), Toast.LENGTH_SHORT).show()
+        return kljuc
+    }
+
+    private fun koncajPripravo(kljuc: String) { pripraveVTeKu.remove(kljuc) }
+
+    private fun pripravaNiUspela(kljuc: String, sk: Jamendo.Skladba) {
+        koncajPripravo(kljuc)
+        stanje.text = getString(R.string.os_glasba_napaka)
+        Toast.makeText(this, getString(R.string.os_media_priprava_napaka, sk.naslov), Toast.LENGTH_LONG).show()
+    }
 
     private fun nadaljujKoPripravljen(sk: Jamendo.Skladba) {
         val od = MediaNapredek.polozaj(this, sk)
@@ -2109,12 +2201,14 @@ class GlasbaActivity : OsActivity() {
             if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
             return
         }
+        val priprava = zacniPripravo(sk) ?: return
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
             val r = try { PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this)) } catch (_: Exception) { null }
             glavna.post {
-                if (isFinishing) return@post
-                if (r == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
+                if (isFinishing) { koncajPripravo(priprava); return@post }
+                if (r == null) { pripravaNiUspela(priprava, sk); return@post }
+                koncajPripravo(priprava)
                 stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
                 nadaljujKoPripravljen(sk)
@@ -2124,12 +2218,14 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun razresiJavnoLast(sk: Jamendo.Skladba) {
+        val priprava = zacniPripravo(sk) ?: return
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
             val r = try { JavnaLast.razresi(sk) } catch (_: Exception) { null }
             glavna.post {
-                if (isFinishing) return@post
-                if (r == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
+                if (isFinishing) { koncajPripravo(priprava); return@post }
+                if (r == null) { pripravaNiUspela(priprava, sk); return@post }
+                koncajPripravo(priprava)
                 stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
                 nadaljujKoPripravljen(sk)
@@ -2140,12 +2236,14 @@ class GlasbaActivity : OsActivity() {
 
     /** TuneIn objavi tok sele ob kliku; neuspeh ostane omejen na izbrano postajo. */
     private fun razresiTuneIn(sk: Jamendo.Skladba) {
+        val priprava = zacniPripravo(sk) ?: return
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
             val r = try { TuneIn.razresi(sk) } catch (_: Exception) { null }
             glavna.post {
-                if (isFinishing) return@post
-                if (r == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
+                if (isFinishing) { koncajPripravo(priprava); return@post }
+                if (r == null) { pripravaNiUspela(priprava, sk); return@post }
+                koncajPripravo(priprava)
                 stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
             }
@@ -2242,6 +2340,8 @@ class GlasbaActivity : OsActivity() {
             Triple("", "news", R.string.os_media_zvrst_news),
         )
         private const val KLJUC_VSI_VIRI = "k:v:vsi"
+        private const val NASTAVITVE_POGLEDA = "safeer_media_pogled"
+        private const val KLJUC_JEZIKOV = "izklopljeni_jeziki_"
         private val HITROSTI = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
         private val CASOVNIK = intArrayOf(15, 30, 60, 90)
 

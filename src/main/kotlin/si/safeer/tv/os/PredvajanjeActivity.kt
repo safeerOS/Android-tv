@@ -57,6 +57,7 @@ class PredvajanjeActivity : OsActivity() {
     private lateinit var predlogi: LinearLayout
     private lateinit var predlogiNaslov: TextView
     private lateinit var predlogiNiz: LinearLayout
+    private var pripravaVTeKu = ""
     /** Za kateri posnetek so predlogi nalozeni (ob novem posnetku jih nalozimo znova). */
     private var predlogiZa = ""
     private val delavec = java.util.concurrent.Executors.newFixedThreadPool(3)
@@ -177,6 +178,9 @@ class PredvajanjeActivity : OsActivity() {
     override fun onDestroy() { delavec.shutdownNow(); super.onDestroy() }
 
     override fun onStop() {
+        // Video brez slike nima smisla: ko uporabnik zapusti predvajalnik (Nazaj, Domov, druga aplikacija),
+        // ga ustavimo na mestu - "Nadaljuj gledanje" ga pozneje nadaljuje. Glasba in radio igrata naprej.
+        if (jeVideo() && !isChangingConfigurations) GlasbaStoritev.predvajalnik?.pause()
         GlasbaStoritev.poslusalci.remove(poslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
         // Sliko odpnemo, zvok igra naprej (predvajanje v ozadju).
@@ -418,11 +422,16 @@ class PredvajanjeActivity : OsActivity() {
 
     /** Video iz predlogov: razresimo datoteko in ga predvajamo tu - zaslon ostane odprt. */
     private fun predvajajVideo(sk: Jamendo.Skladba) {
+        val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
+        if (pripravaVTeKu.isNotEmpty()) return
+        pripravaVTeKu = kljuc
+        android.widget.Toast.makeText(this, getString(R.string.os_media_pripravljam, sk.naslov), android.widget.Toast.LENGTH_SHORT).show()
         zapriPredloge()
         naslov.text = sk.naslov; izvajalec.text = getString(R.string.os_glasba_nalagam)
         if (SpletniVir.jeEnota(sk)) {
             SpletniVir.razresi(this, sk) { r ->
-                if (isFinishing) return@razresi
+                if (isFinishing) { pripravaVTeKu = ""; return@razresi }
+                pripravaVTeKu = ""
                 if (r == null) {
                     SpletniIgralec.zadnja = java.lang.ref.WeakReference(this)
                     GlasbaStoritev.predvajajSplet(this, sk)
@@ -440,8 +449,13 @@ class PredvajanjeActivity : OsActivity() {
                     }
                 } catch (_: Exception) { null }
                 glavna.post {
-                    if (isFinishing) return@post
-                    if (r == null) { izvajalec.text = getString(R.string.os_glasba_napaka); return@post }
+                    if (isFinishing) { pripravaVTeKu = ""; return@post }
+                    pripravaVTeKu = ""
+                    if (r == null) {
+                        izvajalec.text = getString(R.string.os_glasba_napaka)
+                        android.widget.Toast.makeText(this, getString(R.string.os_media_priprava_napaka, sk.naslov), android.widget.Toast.LENGTH_LONG).show()
+                        return@post
+                    }
                     GlasbaStoritev.predvajaj(this, listOf(r), 0)
                 }
             }

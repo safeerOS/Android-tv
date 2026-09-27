@@ -222,6 +222,7 @@ object SpletniVir {
                 genres = if (glava.genres.isNotEmpty()) glava.genres else urejeni.firstOrNull { it.genres.isNotEmpty() }?.genres ?: emptyList(),
                 imdbId = glava.imdbId.ifBlank { urejeni.firstOrNull { it.imdbId.isNotBlank() }?.imdbId.orEmpty() },
                 tmdbId = glava.tmdbId.ifBlank { urejeni.firstOrNull { it.tmdbId.isNotBlank() }?.tmdbId.orEmpty() },
+                language = glava.language.ifBlank { urejeni.firstOrNull { it.language.isNotBlank() }?.language.orEmpty() },
                 slika = glava.slika.ifBlank { urejeni.firstOrNull { it.slika.isNotBlank() }?.slika.orEmpty() },
                 izvajalec = glava.izvajalec.ifBlank { urejeni.firstOrNull { it.izvajalec.isNotBlank() }?.izvajalec.orEmpty() },
                 mediaType = if (urejeni.any { vrstaVsebine(it) == VIDEOSPOT }) "MusicVideo" else glava.mediaType
