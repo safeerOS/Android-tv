@@ -38,6 +38,7 @@
     <string name="os_mediji_dodaj_gumb">Añadir</string>
     <string name="os_mediji_preverjam">Comprobando la fuente…</string>
     <string name="os_mediji_ni_vira">En esta dirección no hay música ni vídeo que Safeer pueda reproducir.</string>
+    <string name="os_mediji_ni_vira_zakaj">La fuente no se ha añadido. Safeer reproduce música, vídeo, radio y TV (MP3, MP4, HLS, listas M3U/PLS, pódcasts, PeerTube) y páginas web; no reproduce torrents, archivos comprimidos ni emisiones protegidas.</string>
     <string name="os_mediji_dodano">Añadido: %1$s</string>
     <string name="os_mediji_vir_ze_dodan">Fuente ya añadida: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">¿Quitar esta fuente?</string>

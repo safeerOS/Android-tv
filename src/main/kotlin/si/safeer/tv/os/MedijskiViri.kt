@@ -121,6 +121,7 @@ object MedijskiViri {
     /** Spletno aplikacijo brez ponovnega omreznega preverjanja vklopi kot medijski vir. */
     fun dodajSpletniVir(ctx: Context, naslov: String, ime: String): Vir? {
         val cisto = naslov.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
+        if (!jePredvajljiv(cisto)) return null
         val gostitelj = try { URL(cisto).host } catch (_: Exception) { return null }
         prekliciOdstranjen(ctx, cisto)
         spletniVir(ctx, cisto)?.let { return it }
@@ -303,6 +304,7 @@ object MedijskiViri {
             shrani(ctx, rocni(ctx).filterNot { it.naslov == v.naslov } + v)
             return v
         }
+        if (!jePredvajljiv(cisto)) return null
         val gostitelj = try { URL(cisto).host } catch (_: Exception) { return null }
         val jePot = try { URL(cisto).path.trim('/').isNotEmpty() } catch (_: Exception) { false }
         val vir = PeerTube.imeStreznika(gostitelj)?.takeIf { !jePot || cisto.contains("/videos") || cisto.contains("/c/") || cisto.contains("/a/") }
@@ -380,7 +382,7 @@ object MedijskiViri {
                 }
             }
         }
-        return pari.filter { it.second.startsWith("http://") || it.second.startsWith("https://") }.map { (ime, url) ->
+        return pari.filter { (it.second.startsWith("http://") || it.second.startsWith("https://")) && jePredvajljiv(it.second) }.map { (ime, url) ->
             val (naslov, izvajalec) = Relevantnost.razdeli(ime.ifBlank { url.substringAfterLast('/').substringBefore('?') }, "")
             Jamendo.Skladba("seznam:$url", naslov, izvajalec, "", url, osnova,
                 mime = if (url.substringBefore('?').lowercase().endsWith(".m3u8")) MIME_HLS else "")
@@ -388,6 +390,11 @@ object MedijskiViri {
     }
 
     private val KONCNICE = listOf(".mp3", ".ogg", ".oga", ".opus", ".m4a", ".aac", ".flac", ".wav", ".mp4", ".mkv", ".webm", ".m3u8")
+    /** Torrentov, arhivov in namestitvenih paketov predvajalnik ne predvaja - takih vnosov ne pokazemo. */
+    private val NEPREDVAJLJIVE = listOf(".torrent", ".nzb", ".iso", ".rar", ".zip", ".7z", ".exe", ".msi", ".apk", ".dmg", ".img", ".bin")
+    fun jePredvajljiv(url: String) = !url.startsWith("magnet:", ignoreCase = true) &&
+        url.substringBefore('?').substringBefore('#').lowercase().let { u -> NEPREDVAJLJIVE.none { u.endsWith(it) } }
+
     private fun jeDatoteka(url: String) = url.substringBefore('?').lowercase().let { u -> KONCNICE.any { u.endsWith(it) } }
 
     /** Kaj je na naslovu: zvok, video, HLS, seznam, podkast ali stran (eno branje). */
