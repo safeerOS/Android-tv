@@ -1,7 +1,12 @@
 package si.safeer.tv
 
 import android.content.Context
+import android.app.UiModeManager
+import android.content.res.Configuration
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -10,12 +15,12 @@ import java.util.UUID
 
 data class TabModel(
     val id: String = UUID.randomUUID().toString(),
-    var webView: ChromiumEngineView,
+    var webView: ChromiumEngineView?,
     var title: String = "Google",
     var url: String = "https://www.google.com",
     var isDesktop: Boolean = false,
     var favicon: String = "🔍",
-    /** Zavihek spi: stran je odlozena, pogled je prazen in ne zaseda pomnilnika. */
+    /** Zavihek spi: stran je odlozena, pogled je null in ne zaseda pomnilnika. */
     var spi: Boolean = false,
     /** Naslov, ki ga ob prebuditvi nalozimo nazaj. */
     var spalniNaslov: String = "",
@@ -23,9 +28,15 @@ data class TabModel(
     var spalniOdmik: Int = 0,
     /** Zavihek predvaja zvok ali sliko - tak ne sme zaspati. */
     var predvaja: Boolean = false,
+    /** Obrazec vsebuje uporabnikovo se nepredano spremembo. */
+    var umazanObrazec: Boolean = false,
+    /** Poceni Chromiumovo stanje zgodovine za restoreState. */
+    var shranjenoStanje: Bundle? = null,
+    /** Naslov ikone strani; bitne slike ne drzimo v pomnilniku zavihka. */
+    var faviconUrl: String = "",
     /**
      * Globoko spanje: stari pogled je unicen (izrisovalnik in graficni pomnilnik sta sproscena),
-     * `webView` je nov, prazen in se ni v oknu. Ob prebuditvi ga vstavimo in nalozimo stran.
+     * `webView` je null. Ob prebuditvi ustvarimo nov pogled in obnovimo stanje.
      */
     var pogledSvez: Boolean = false,
     /** Zavihek je nastal kot pojavno okno (prijava); Nazaj ga zapre, ne pelje na prazno stran. */
@@ -50,14 +61,26 @@ class TabManager(
 ) {
 
     companion object {
-        private const val TAG = "SafeerZavihki"
+        private const val TAG = "SafeerRam"
         private const val PRAZNA = "about:blank"
         /** V tem casu drugo sesutje iste strani stejemo za ponovitev. */
         private const val PONOVITEV_MS = 60_000L
         private const val DOMACA = "file:///android_asset/brave_home.html"
+        private const val ZAMRZNI_TV_MS = 2 * 60 * 1000L
+        private const val ZAMRZNI_DRUGO_MS = 5 * 60 * 1000L
+        private const val STANJE_ZAMRZNITVE_JS = """(function(){try{
+          var igra=[].some.call(document.querySelectorAll('video,audio'),function(m){return !m.paused&&!m.ended&&m.readyState>1;});
+          var umazan=[].some.call(document.querySelectorAll('input,textarea,select'),function(e){
+            if(e.type==='password'||e.type==='file')return !!e.value;
+            if(e.tagName==='SELECT'){var d=[].findIndex.call(e.options,function(o){return o.defaultSelected;});return e.selectedIndex!==(d<0?0:d);}
+            if(e.type==='checkbox'||e.type==='radio')return e.checked!==e.defaultChecked;
+            return e.value!==e.defaultValue;});
+          return (igra?'1':'0')+'|'+(umazan?'1':'0');}catch(e){return '0|0';}})()"""
     }
 
     private val tabs = mutableListOf<TabModel>()
+    private val glavna = Handler(Looper.getMainLooper())
+    private val roki = HashMap<String, Runnable>()
     private var activeTabId: String? = null
 
     /** Zadnji zavihek, ki ga je uporabnik zapustil. */
@@ -73,6 +96,7 @@ class TabManager(
 
     private fun ustvariPogled(context: Context): ChromiumEngineView {
         val pogled = ChromiumEngineView(context)
+        Log.i(TAG, "ustvarjen WebView: zavihek")
         pogled.layoutParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
@@ -93,7 +117,9 @@ class TabManager(
                 ?: tabs.firstOrNull() ?: break
             nedavni.remove(victim.id)
             val idx = tabs.indexOf(victim)
-            try { victim.webView.destroy() } catch (_: Exception) {}
+            roki.remove(victim.id)?.let(glavna::removeCallbacks)
+            try { victim.webView?.destroy() } catch (_: Exception) {}
+            Log.i(TAG, "zavrzen zavihek: ${victim.url.take(60)}")
             if (idx >= 0) tabs.removeAt(idx)
         }
     }
@@ -178,17 +204,22 @@ class TabManager(
         activeTabId = tabId
         nedavni.remove(tabId); nedavni.addFirst(tabId)
 
+        roki.remove(tabId)?.let(glavna::removeCallbacks)
+        val ciljniPogled = zbudi(target)
         container.removeAllViews()
-        if (target.webView.parent != null) {
-            (target.webView.parent as? ViewGroup)?.removeView(target.webView)
+        if (ciljniPogled.parent != null) {
+            (ciljniPogled.parent as? ViewGroup)?.removeView(ciljniPogled)
         }
-        container.addView(target.webView)
-        zbudi(target)
-        strojniSloj(target.webView, true)
+        container.addView(ciljniPogled)
+        strojniSloj(ciljniPogled, true)
         for (tab in tabs) {
+            val w = tab.webView ?: continue
             try {
-                if (tab.id == tabId) tab.webView.onResume()
-                else tab.webView.onPause()
+                if (tab.id == tabId) {
+                    w.settings.mediaPlaybackRequiresUserGesture = false
+                    w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
+                    w.onResume()
+                } else takojVOzadje(tab, w)
             } catch (_: Exception) {}
         }
         pospraviOzadje()
@@ -198,18 +229,10 @@ class TabManager(
 
     // ------------------------------------------------------------------ spanje zavihkov
 
-    /** Nazadnje uporabljeni zavihki v ozadju, ki smejo ostati budni (TV 1, tablica 3; ob pritisku 0). */
-    private fun budniVOzadju(): Set<String> {
-        val n = BrowserMemoryPolicy.budnihZdaj(container.context)
-        return nedavni.filter { it != activeTabId }.take(n).toSet()
-    }
-
-    /** Zavihki v ozadju, ki niso na vrsti, zaspijo; nazadnje uporabljeni smejo ostati budni. */
+    /** Vsak neaktivni zavihek dobi rok za zamrznitev; do takrat je le ustavljen. */
     private fun pospraviOzadje() {
-        val budni = budniVOzadju()
         for (tab in tabs) {
-            if (tab.id == activeTabId || tab.id in budni) continue
-            uspavaj(tab)
+            if (tab.id != activeTabId && !tab.spi) nacrtujZamrznitev(tab)
         }
     }
 
@@ -220,8 +243,7 @@ class TabManager(
     fun uspavajOzadje(vse: Boolean) {
         for (tab in tabs) {
             if (tab.id == activeTabId) continue
-            if (!vse && tab.id in budniVOzadju()) continue
-            uspavaj(tab)
+            if (vse) zamrzni(tab, prisilno = true) else nacrtujZamrznitev(tab)
         }
     }
 
@@ -234,87 +256,118 @@ class TabManager(
     fun uspavajVOzadju(tudiAktivni: Boolean) {
         for (tab in tabs) {
             if (tab.id == activeTabId && !tudiAktivni) continue
-            uspavaj(tab, dovoliAktivnega = tudiAktivni)
-            // Navadno spanje (prazna stran) pomnilnika na televizorju skoraj ne vrne: WebView
-            // in njegov izrisovalnik ga obdrzita. Ko brskalnika ni na zaslonu, pogled unicimo.
-            if (tab.spi && !tab.pogledSvez) sprostiPogled(tab)
+            if (tab.id == activeTabId && tudiAktivni) zamrzni(tab, prisilno = false, dovoliAktivnega = true)
+            else nacrtujZamrznitev(tab)
         }
     }
 
-    private fun sprostiPogled(tab: TabModel) {
-        val stari = tab.webView
-        try { (stari.parent as? ViewGroup)?.removeView(stari) } catch (_: Exception) {}
-        try { stari.destroy() } catch (e: Exception) { Log.w(TAG, "Pogleda ni bilo mogoce sprostiti: ${e.message}") }
-        tab.webView = ustvariPogled(container.context)
+    private fun nacrtujZamrznitev(tab: TabModel, dovoliAktivnega: Boolean = false) {
+        roki.remove(tab.id)?.let(glavna::removeCallbacks)
+        val opravilo = Runnable { zamrzni(tab, prisilno = false, dovoliAktivnega = dovoliAktivnega) }
+        roki[tab.id] = opravilo
+        glavna.postDelayed(opravilo, casZamrznitve())
+    }
+
+    private fun casZamrznitve(): Long {
+        val ui = container.context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+        val jeTv = ui?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        return if (jeTv) ZAMRZNI_TV_MS else ZAMRZNI_DRUGO_MS
+    }
+
+    /** Takojsnja varcna nastavitev neaktivnega pogleda brez globalnega pauseTimers. */
+    private fun takojVOzadje(tab: TabModel, w: ChromiumEngineView) {
+        w.onPause()
+        w.settings.mediaPlaybackRequiresUserGesture = true
+        strojniSloj(w, false)
+        if (Build.VERSION.SDK_INT >= 26) w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
+        w.evaluateJavascript(STANJE_ZAMRZNITVE_JS) { odgovor ->
+            val deli = odgovor.orEmpty().replace("\"", "").split('|')
+            tab.predvaja = deli.firstOrNull() == "1"
+            tab.umazanObrazec = deli.getOrNull(1) == "1"
+        }
+    }
+
+    private fun zamrzni(tab: TabModel, prisilno: Boolean, dovoliAktivnega: Boolean = false) {
+        roki.remove(tab.id)?.let(glavna::removeCallbacks)
+        val w = tab.webView ?: return
+        if (!prisilno && tab.id == activeTabId && !dovoliAktivnega) return
+        if (!prisilno) {
+            w.evaluateJavascript(STANJE_ZAMRZNITVE_JS) { odgovor ->
+                val deli = odgovor.orEmpty().replace("\"", "").split('|')
+                tab.predvaja = deli.firstOrNull() == "1"
+                tab.umazanObrazec = deli.getOrNull(1) == "1"
+                if (tab.predvaja || tab.umazanObrazec) nacrtujZamrznitev(tab, dovoliAktivnega)
+                else zamrzniPogled(tab, w, dovoliAktivnega)
+            }
+        } else {
+            zamrzniPogled(tab, w, dovoliAktivnega)
+        }
+    }
+
+    private fun zamrzniPogled(tab: TabModel, w: ChromiumEngineView, dovoliAktivnega: Boolean = false) {
+        if (tab.webView !== w || (tab.id == activeTabId && !dovoliAktivnega)) return
+        val naslov = (w.url ?: tab.url).trim().ifBlank { tab.url }
+        tab.spalniNaslov = naslov
+        tab.spalniOdmik = try { w.scrollY } catch (_: Exception) { 0 }
+        tab.title = w.title?.takeIf { it.isNotBlank() } ?: tab.title
+        tab.faviconUrl = try {
+            val u = android.net.Uri.parse(naslov)
+            if (u.scheme in listOf("http", "https") && u.host != null) "${u.scheme}://${u.host}/favicon.ico" else ""
+        } catch (_: Exception) { "" }
+        tab.shranjenoStanje = Bundle().also { stanje ->
+            try { w.saveState(stanje) } catch (_: Exception) { stanje.clear() }
+        }.takeIf { !it.isEmpty }
+        tab.spi = true
         tab.pogledSvez = true
-        Log.i(TAG, "Zavihek globoko spi (pogled sproscen): ${tab.spalniNaslov.take(60)}")
+        tab.webView = null
+        try { (w.parent as? ViewGroup)?.removeView(w) } catch (_: Exception) { }
+        try { w.stopLoading(); w.onPause(); w.destroy() } catch (e: Exception) {
+            Log.w(TAG, "Pogleda ni bilo mogoce uniciti: ${e.message}")
+        }
+        Log.i(TAG, "zamrznjen zavihek: ${naslov.take(60)}")
+        Log.i(TAG, "unicen WebView: zamrznjen zavihek")
     }
 
     /** Ob vrnitvi na zaslon: aktivni zavihek, ki je zaspal v ozadju, se nalozi znova. */
     fun zbudiAktivnega() {
         val tab = tabs.find { it.id == activeTabId } ?: return
         if (!tab.spi) return
-        zbudi(tab)
-        strojniSloj(tab.webView, true)
+        val w = zbudi(tab)
+        if (w.parent == null) container.addView(w)
+        strojniSloj(w, true)
         // Nov pogled se ni imel fokusa: brez tega bi daljinec po vrnitvi krmilil orodno vrstico.
-        try { tab.webView.requestFocus() } catch (_: Exception) {}
+        try { w.requestFocus() } catch (_: Exception) {}
         notifyUpdated()
     }
 
     /** Ali kateri zavihek spi (za dnevnik in meritve). */
     fun steviloSpecih(): Int = tabs.count { it.spi }
 
-    private fun uspavaj(tab: TabModel, dovoliAktivnega: Boolean = false) {
-        if (tab.spi || tab.predvaja) return
-        if (tab.id == activeTabId && !dovoliAktivnega) return
-        val naslov = (tab.webView.url ?: tab.url).trim()
-        if (naslov.isBlank() || naslov == PRAZNA) return
-        tab.spalniNaslov = naslov
-        tab.spalniOdmik = try { tab.webView.scrollY } catch (_: Exception) { 0 }
-        tab.spi = true
-        try {
-            tab.webView.stopLoading()
-            tab.webView.loadUrl(PRAZNA)
-            tab.webView.clearHistory()
-            // Samo pomnilniski del predpomnilnika; datoteke na disku pustimo, da je
-            // prebuditev hitra.
-            tab.webView.clearCache(false)
-            tab.webView.onPause()
-            // Zavihek, ki ga nihce ne gleda, ne potrebuje strojnega sloja: ta je na
-            // televizorju cel zaslon velika slika v graficnem pomnilniku.
-            strojniSloj(tab.webView, false)
-            tab.webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
-        } catch (e: Exception) {
-            Log.w(TAG, "Zavihka ni bilo mogoce uspavati: ${e.message}")
-        }
-        Log.i(TAG, "Zavihek spi: ${tab.spalniNaslov.take(60)}")
-    }
-
-    private fun zbudi(tab: TabModel) {
-        if (!tab.spi) return
+    private fun zbudi(tab: TabModel): ChromiumEngineView {
+        tab.webView?.let { return it }
         tab.spi = false
         val naslov = tab.spalniNaslov
         val odmik = tab.spalniOdmik
-        if (tab.pogledSvez) {
-            tab.pogledSvez = false
-            if (tab.id == activeTabId && tab.webView.parent == null) {
-                container.removeAllViews()
-                container.addView(tab.webView)
-            }
-        }
+        val w = ustvariPogled(container.context)
+        tab.webView = w
+        tab.pogledSvez = false
         try {
-            tab.webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
-            tab.webView.onResume()
-            if (naslov.isNotBlank()) tab.webView.loadUrl(naslov)
+            w.isDesktopMode = tab.isDesktop
+            w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
+            w.onResume()
+            val obnovljeno = tab.shranjenoStanje?.let { w.restoreState(it) } != null
+            if (!obnovljeno && naslov.isNotBlank()) w.loadUrl(naslov)
             if (odmik > 0) {
                 // Mesto branja obnovimo, ko je stran ze na zaslonu.
-                tab.webView.postDelayed({
-                    try { tab.webView.scrollTo(0, odmik) } catch (_: Exception) {}
+                w.postDelayed({
+                    try { w.scrollTo(0, odmik) } catch (_: Exception) {}
                 }, 900)
             }
         } catch (e: Exception) {
             Log.w(TAG, "Zavihka ni bilo mogoce prebuditi: ${e.message}")
         }
+        Log.i(TAG, "obnovljen zavihek: ${naslov.take(60)}")
+        return w
     }
 
     /**
@@ -338,7 +391,7 @@ class TabManager(
      */
     fun sprostiPredpomnilnike() {
         for (tab in tabs) {
-            try { tab.webView.clearCache(false) } catch (_: Exception) {}
+            try { tab.webView?.clearCache(false) } catch (_: Exception) {}
         }
         Log.i(TAG, "Predpomnilniki strani sproscen")
     }
@@ -384,19 +437,23 @@ class TabManager(
         try { (stari.parent as? ViewGroup)?.removeView(stari) } catch (_: Exception) {}
         try { stari.destroy() } catch (_: Exception) {}
 
-        val nov = ustvariPogled(container.context)
-        tab.webView = nov
         tab.url = zaNalozit
 
         if (bilAktiven) {
+            val nov = ustvariPogled(container.context)
+            tab.webView = nov
             container.removeAllViews()
             container.addView(nov)
             tab.spi = false
             nov.loadUrl(zaNalozit)
+            Log.i(TAG, "obnovljen zavihek po smrti rendererja: ${zaNalozit.take(60)}")
         } else {
             // Zavihka v ozadju ne budimo: naj pocaka, da ga uporabnik res zeli.
+            tab.webView = null
             tab.spi = true
+            tab.pogledSvez = true
             tab.spalniNaslov = zaNalozit
+            Log.i(TAG, "zamrznjen zavihek po smrti rendererja: ${zaNalozit.take(60)}")
         }
         notifyUpdated()
     }
@@ -408,7 +465,9 @@ class TabManager(
         if (idx == -1) return
 
         val tabToClose = tabs[idx]
-        tabToClose.webView.destroy()
+        roki.remove(tabId)?.let(glavna::removeCallbacks)
+        tabToClose.webView?.destroy()
+        Log.i(TAG, "zavrzen zavihek: ${tabToClose.url.take(60)}")
         tabs.removeAt(idx)
         nedavni.remove(tabId)
         if (prejsnjiId == tabId) prejsnjiId = null
@@ -425,7 +484,9 @@ class TabManager(
 
     fun closeAllTabs(context: Context) {
         for (tab in tabs) {
-            tab.webView.destroy()
+            roki.remove(tab.id)?.let(glavna::removeCallbacks)
+            tab.webView?.destroy()
+            Log.i(TAG, "zavrzen zavihek: ${tab.url.take(60)}")
         }
         tabs.clear()
         nedavni.clear()

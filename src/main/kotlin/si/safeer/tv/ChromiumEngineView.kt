@@ -292,6 +292,7 @@ class ChromiumEngineView @JvmOverloads constructor(
     private var uniceno = false
 
     override fun destroy() {
+        if (!uniceno) android.util.Log.i("SafeerRam", "unicen WebView: ChromiumEngineView")
         uniceno = true
         super.destroy()
     }

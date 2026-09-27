@@ -16,6 +16,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import androidx.webkit.ScriptHandler
+import com.google.common.util.concurrent.Futures
 import si.safeer.tv.AdBlockEngine
 import si.safeer.tv.ChromiumEngineView
 import java.io.ByteArrayInputStream
@@ -25,28 +27,54 @@ import java.net.URL
  * Varcna druga stopnja spletnega predvajanja. Uporabi sistemski WebView brez ovoja brskalnika,
  * JavaScript vklopi sele po prvem nalaganju in pogled opusti takoj, ko lahko tok prevzame Media3.
  */
-class LahkaStran(
+class LahkaStran private constructor(
     ctx: Context,
     sk: Jamendo.Skladba,
     private val dovoliPrevzem: Boolean,
     private val obToku: (Jamendo.Skladba) -> Unit,
     private val obPripravi: (LahkaStran) -> Unit,
-    private val obNeuspehu: (LahkaStran) -> Unit
-) : SpletniIgralec(sk, WebView(ctx), false, null) {
+    private val obNeuspehu: (LahkaStran) -> Unit,
+    private val najem: Najem
+) : SpletniIgralec(sk, najem.pogled, false, null) {
+
+    constructor(
+        ctx: Context,
+        sk: Jamendo.Skladba,
+        dovoliPrevzem: Boolean,
+        obToku: (Jamendo.Skladba) -> Unit,
+        obPripravi: (LahkaStran) -> Unit,
+        obNeuspehu: (LahkaStran) -> Unit
+    ) : this(ctx, sk, dovoliPrevzem, obToku, obPripravi, obNeuspehu, najemi(ctx))
 
     private val glavna = Handler(Looper.getMainLooper())
     private val zacetniIzvor = izvor(sk.povezava)
     private var jsPonovitev = false
     private var predano = false
     private var koncano = false
+    private var mrtevIzrisovalnik = false
+    private var najemOdvzet = false
     private var trenutnaStran = sk.povezava
     private val rok = Runnable { if (!predano && !koncano) neuspeh() }
+    private var zacetniSkript: ScriptHandler? = null
 
     init {
+        najem.obOdvzemu = {
+            if (!sproscen) {
+                najemOdvzet = true
+                koncano = true
+                sproscen = true
+                glavna.removeCallbacksAndMessages(null)
+                ura.removeCallbacksAndMessages(null)
+                try { zacetniSkript?.remove() } catch (_: Exception) { }
+                zacetniSkript = null
+                obNeuspehu(this)
+            }
+        }
         nastaviVarcno(pogled, false, true)
+        pogled.resumeTimers()
         try {
             if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                WebViewCompat.addDocumentStartJavaScript(pogled, SpletniIgralec.POSREDNIK_JS, setOf("*"))
+                zacetniSkript = WebViewCompat.addDocumentStartJavaScript(pogled, SpletniIgralec.POSREDNIK_JS, setOf("*"))
             }
         } catch (_: Exception) { }
         pogled.webViewClient = object : WebViewClient() {
@@ -90,6 +118,7 @@ class LahkaStran(
             }
 
             override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                mrtevIzrisovalnik = true
                 glavna.post { neuspeh() }
                 return true
             }
@@ -139,12 +168,33 @@ class LahkaStran(
     }
 
     override fun handleRelease(): com.google.common.util.concurrent.ListenableFuture<*> {
+        if (sproscen || najemOdvzet) return Futures.immediateVoidFuture()
         koncano = true
+        sproscen = true
         glavna.removeCallbacksAndMessages(null)
-        return super.handleRelease()
+        ura.removeCallbacksAndMessages(null)
+        try { zacetniSkript?.remove() } catch (_: Exception) { }
+        zacetniSkript = null
+        if (mrtevIzrisovalnik) {
+            try { (pogled.parent as? android.view.ViewGroup)?.removeView(pogled) } catch (_: Exception) { }
+            LahkiWebViewPool.zavrzi(pogled, najem.lastnik, "renderer LahkaStran je umrl")
+        } else {
+            skrij()
+            LahkiWebViewPool.vrni(pogled, najem.lastnik, trenutnaStran)
+        }
+        return Futures.immediateVoidFuture()
     }
 
     companion object {
+        private data class Najem(val lastnik: Any, val pogled: WebView, var obOdvzemu: (() -> Unit)? = null)
+
+        private fun najemi(ctx: Context): Najem {
+            val lastnik = Any()
+            val ref = arrayOfNulls<Najem>(1)
+            val pogled = LahkiWebViewPool.pridobi(ctx, lastnik) { ref[0]?.obOdvzemu?.invoke() }
+            return Najem(lastnik, pogled).also { ref[0] = it }
+        }
+
         private val DOVOLJENE_SHEME = setOf("http", "https", "blob", "data")
 
         @SuppressLint("SetJavaScriptEnabled")
