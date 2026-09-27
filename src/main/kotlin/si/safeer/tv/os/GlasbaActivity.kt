@@ -599,7 +599,9 @@ class GlasbaActivity : OsActivity() {
     /** Kljuc polic na disku loci tudi vse zacasne poglede, da se med seboj ne pomesajo. */
     private fun kljucPolic(i: Int): String {
         val skriti = zacasnoSkritiViri[i].orEmpty().sorted().joinToString("") { "${it.length}:$it" }
-        return "police:$i:${resources.configuration.locales[0].toLanguageTag()}:r${razvrstitev(i)}:l${i in samoTaNaprava}:f$skriti"
+        // Nova razlicica zavrze stare PeerTube kartice, ki se niso imele preverjenega toka.
+        val peertube = if (i == DOMOV || i == VIDEO) ":pt2" else ""
+        return "police:$i:${resources.configuration.locales[0].toLanguageTag()}:r${razvrstitev(i)}:l${i in samoTaNaprava}:f$skriti$peertube"
     }
 
     /** Razvrscanje je enako za vse razdelke in vedno velja samo znotraj posamezne police. */
@@ -672,11 +674,11 @@ class GlasbaActivity : OsActivity() {
         DOMOV -> {
             val radio = if (jeVirViden(i, VIR_RADIO)) Radio.postajeLocene().let { it.first + it.second } else emptyList()
             val peertube = if (jeVirViden(i, VIR_PEERTUBE)) PeerTube.VGRAJENI else emptyList()
+            val peertubeVsebina = PeerTube.najboljGledani(peertube, 12).map { it.second }
             listOfNotNull(
                 if (jeVirViden(i, VIR_JAMENDO)) Podatki(getString(R.string.os_mediji_vrsta_glasba), Jamendo.priljubljene(24)) else null,
                 radio.takeIf { it.isNotEmpty() }?.let { Podatki(getString(R.string.os_mediji_vrsta_radio), it.take(24)) },
-                Podatki(getString(R.string.os_mediji_vrsta_video), izmenicno(peertube.map { s ->
-                    try { PeerTube.najboljGledani(s, 12) } catch (_: Exception) { emptyList() } }), video = true),
+                Podatki(getString(R.string.os_mediji_vrsta_video), izmenicno(peertubeVsebina), video = true),
             ).filter { it.skladbe.isNotEmpty() }
         }
         GLASBA -> {
@@ -772,8 +774,7 @@ class GlasbaActivity : OsActivity() {
             val peertubeStrezniki =
                 (if (jeVirViden(i, VIR_PEERTUBE)) PeerTube.VGRAJENI else emptyList()) +
                     vsiViri.filter { it.jePeerTube && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
-            vrste + peertubeStrezniki.distinct().mapNotNull { s ->
-                val vsebina = try { PeerTube.najboljGledani(s, 24) } catch (_: Exception) { emptyList() }
+            vrste + PeerTube.najboljGledani(peertubeStrezniki.distinct(), 24).mapNotNull { (s, vsebina) ->
                 vsebina.takeIf { it.isNotEmpty() }?.let { Podatki(s, it, video = true) }
             }
         }
