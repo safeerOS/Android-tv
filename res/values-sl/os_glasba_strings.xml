@@ -159,4 +159,14 @@
     <string name="os_media_pocisti_nadaljuj">Počisti nadaljuj gledanje</string>
     <string name="os_media_pocisti_nadaljuj_opis">Odstrani vso zgodovino gledanja</string>
     <string name="os_media_pocisti_nadaljuj_potrdi">Odstranim vse elemente iz Nadaljuj gledanje?</string>
+    <string name="os_media_zvrst_dance">Plesna</string>
+    <string name="os_media_zvrst_folk">Ljudska</string>
+    <string name="os_media_zvrst_reggae">Reggae</string>
+    <string name="os_media_zvrst_ambient">Sprostitvena</string>
+    <string name="os_media_zvrst_soundtrack">Filmska</string>
+    <string name="os_media_zvrst_country">Country</string>
+    <string name="os_media_zvrst_metal">Metal</string>
+    <string name="os_media_zvrst_news">Novice in pogovor</string>
+    <string name="os_mediji_tv_v_zivo">TV v živo</string>
+    <string name="os_media_tv_opis">Uradni prenosi po državah</string>
 </resources>

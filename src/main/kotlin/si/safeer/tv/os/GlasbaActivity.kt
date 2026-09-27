@@ -552,6 +552,7 @@ class GlasbaActivity : OsActivity() {
         razdelek = i
         naslov.text = getString(when (i) {
             GLASBA -> R.string.os_mediji_glasba; RADIO -> R.string.os_glasba_radio; VIDEO -> R.string.os_glasba_video
+            TV_V_ZIVO -> R.string.os_mediji_tv_v_zivo
             VIRI -> R.string.os_mediji_viri; ISKANJE -> R.string.os_glasba_iskanje; else -> R.string.os_media_naslov
         })
         geslo.visibility = if (i == DOMOV && !ozekZaslon()) View.VISIBLE else View.GONE
@@ -579,11 +580,12 @@ class GlasbaActivity : OsActivity() {
 
     /** Razdelek: najprej krajevno (nadzorna plosca, nedavno, priljubljene), nato vrste s spleta. */
     private fun prikazi(i: Int, podatki: List<Podatki>) =
-        narisi(zgoraj(i) + vVrste(podatki), opis(i), glava = glavaRazdelka(i))
+        narisi(zgoraj(i) + vVrste(podatki), opis(i), glava = glavaRazdelka(i, podatki))
 
     private fun opis(i: Int) = when (i) {
         GLASBA -> getString(R.string.os_media_gl_isci_opis)
         RADIO -> getString(R.string.os_glasba_radiji)
+        TV_V_ZIVO -> getString(R.string.os_media_tv_opis)
         VIDEO -> getString(R.string.os_glasba_video_opis)
         VIRI -> getString(R.string.os_mediji_viri_opis)
         else -> getString(R.string.os_media_podnaslov)
@@ -619,20 +621,26 @@ class GlasbaActivity : OsActivity() {
             unikatne(Jamendo.priljubljene(24), 18).takeIf { it.isNotEmpty() }?.let {
                 vrste += Podatki(getString(R.string.os_media_popularno), it)
             }
-            listOf(
-                "rock" to R.string.os_media_zvrst_rock,
-                "pop" to R.string.os_media_zvrst_pop,
-                "electronic" to R.string.os_media_zvrst_electronic,
-                "jazz" to R.string.os_media_zvrst_jazz,
-                "classical" to R.string.os_media_zvrst_classical,
-                "hiphop" to R.string.os_media_zvrst_hiphop
-            ).forEach { (tag, naziv) ->
-                unikatne(Jamendo.poZvrsti(tag, 18)).takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(naziv), it) }
+            // Po glasbenih zvrsteh, kot filmi po zanrih (police nalozimo vzporedno).
+            val poZvrsteh = ZVRSTI.filter { it.first.isNotEmpty() }.map { z ->
+                java.util.concurrent.CompletableFuture.supplyAsync { z.third to Jamendo.poZvrsti(z.first, 18) }
+            }.map { it.get() }
+            poZvrsteh.forEach { (naziv, skladbe) ->
+                unikatne(skladbe).takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(naziv), it) }
             }
             vrste
         }
-        RADIO -> Radio.postajeLocene().let { (domace, svet) ->
-            listOf(Podatki(getString(R.string.os_mediji_domace), domace), Podatki(getString(R.string.os_mediji_svet), svet)) }
+        RADIO -> {
+            val (domace, svet) = Radio.postajeLocene()
+            val vrste = mutableListOf(Podatki(getString(R.string.os_mediji_domace), domace))
+            val poZvrsteh = ZVRSTI.map { z ->
+                java.util.concurrent.CompletableFuture.supplyAsync { z.third to Radio.poZvrsti(z.second, 24) }
+            }.map { it.get() }
+            poZvrsteh.forEach { (naziv, postaje) -> if (postaje.isNotEmpty()) vrste += Podatki(getString(naziv), postaje) }
+            vrste += Podatki(getString(R.string.os_mediji_svet), svet)
+            vrste.filter { it.skladbe.isNotEmpty() }
+        }
+        TV_V_ZIVO -> TvVZivo.poDrzavah().map { (drzava, kanali) -> Podatki(drzava, kanali, video = true) }
         VIDEO -> {
             val medijskiViri = MedijskiViri.vsi(this).filterNot { it.naslov in zacasnoSkritiVideoViri }
             android.util.Log.i("SafeerOsMedia", "viri=${medijskiViri.size}, spletni=${medijskiViri.count { it.jeSplet }}")
@@ -753,10 +761,28 @@ class GlasbaActivity : OsActivity() {
     // ------------------------------------------------------------------ nadzorna plosca
 
     /** Pogledi nad vrstami: na plosci kartice razdelkov ter "zdaj se predvaja" s hitrimi dejanji. */
-    private fun glavaRazdelka(i: Int): List<View> = when (i) {
+    private fun glavaRazdelka(i: Int, podatki: List<Podatki> = emptyList()): List<View> = when (i) {
         DOMOV -> listOfNotNull(kategorije(), zdajPlosca())
         VIDEO -> listOf(videoKategorije())
+        GLASBA, RADIO, TV_V_ZIVO -> if (podatki.size > 1) listOf(skokNaPolico(podatki.map { it.naslov })) else emptyList()
         else -> emptyList()
+    }
+
+    /** Vrstica zvrsti (Glasba, Radio) ali drzav (TV v zivo): klik skoci na polico, kot zanri pri filmih. */
+    private fun skokNaPolico(naslovi: List<String>): View {
+        val niz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(8), dp(16), dp(8)) }
+        naslovi.forEachIndexed { i, cilj ->
+            niz.addView(besedilo(14f, getColor(R.color.os_besedilo), true).apply {
+                text = cilj; isFocusable = true; isClickable = true
+                setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
+                if (i == 0) nextFocusLeftId = meniMediji.id
+                setOnClickListener {
+                    val v = vsebina.findViewWithTag<View>("polica:$cilj")
+                    if (v != null) { drsnik.smoothScrollTo(0, v.top.coerceAtLeast(0)); v.nextFocusDownId = View.NO_ID }
+                }
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
+        }
+        return android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(niz) }
     }
 
     /** Hitra zgornja navigacija video kataloga; ne razkriva virov, skoci neposredno na polico. */
@@ -855,6 +881,7 @@ class GlasbaActivity : OsActivity() {
         kat(KLJUC_GLASBA, R.drawable.os_ikona_glasba, 0xFF8FA8FF.toInt(), R.string.os_mediji_glasba, R.string.os_media_glasba_opis) { odpri(GLASBA) }
         kat(KLJUC_VIDEO, R.drawable.os_ikona_video, 0xFFFF9580.toInt(), R.string.os_glasba_video, R.string.os_media_video_opis) { odpri(VIDEO) }
         kat(KLJUC_RADIO, R.drawable.os_ikona_radio, getColor(R.color.os_mint), R.string.os_glasba_radio, R.string.os_media_radio_opis) { odpri(RADIO) }
+        kat(KLJUC_TV, R.drawable.os_ikona_video, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo, R.string.os_media_tv_opis) { odpri(TV_V_ZIVO) }
         kat(KLJUC_VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri, R.string.os_media_viri_opis) { odpri(VIRI) }
         return okvir
     }
@@ -1872,6 +1899,11 @@ class GlasbaActivity : OsActivity() {
     /** Glasba in radio zacneta takoj (ves seznam v vrsto, naprej/nazaj preklaplja); video najprej razresimo. */
     private fun predvajaj(seznam: List<Jamendo.Skladba>, i: Int) {
         val sk = seznam.getOrNull(i) ?: return
+        if (TvVZivo.jeStran(sk)) {
+            // Izdajatelj prenos ponuja samo na svoji strani (RTV SLO): odpremo jo v brskalniku.
+            try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(sk.povezava))) } catch (_: Exception) { }
+            return
+        }
         // Oddaja podkasta in dodani seznam se odpreta kot seznam; enoto Archive.org razresimo v datoteke.
         if (Podkasti.jeOddaja(sk)) { odpriSeznam(sk.naslov, sk.izvajalec) { Podkasti.epizode(sk.povezava).second }; return }
         if (sk.id.startsWith(MedijskiViri.PREDPONA_SEZNAMA)) { odpriSeznam(sk.naslov, sk.izvajalec) { MedijskiViri.osveziSeznam(this, sk.zvok) }; return }
@@ -1949,7 +1981,7 @@ class GlasbaActivity : OsActivity() {
             private set
 
         private const val DOMOV = 0; private const val GLASBA = 2; private const val RADIO = 3
-        private const val VIDEO = 4; private const val VIRI = 6; private const val ISKANJE = 7
+        private const val VIDEO = 4; private const val VIRI = 6; private const val ISKANJE = 7; private const val TV_V_ZIVO = 8
         private const val GLAS = 41
         private const val NASLOV_VRSTE = "naslov-vrste"
         private const val MREZA_VRSTA = "mreza-vrsta"
@@ -1957,6 +1989,24 @@ class GlasbaActivity : OsActivity() {
         private const val MREZA_DP = 116
         private const val KLJUC_GLASBA = "k:kat:glasba"; private const val KLJUC_VIDEO = "k:kat:video"
         private const val KLJUC_RADIO = "k:kat:radio"; private const val KLJUC_VIRI = "k:kat:viri"
+        private const val KLJUC_TV = "k:kat:tv"
+        /** Glasbene zvrsti: (oznaka Jamendo, oznaka Radio Browser, ime). Enake kot v Safeer OS na racunalniku. */
+        private val ZVRSTI = listOf(
+            Triple("pop", "pop", R.string.os_media_zvrst_pop),
+            Triple("rock", "rock", R.string.os_media_zvrst_rock),
+            Triple("electronic", "electronic", R.string.os_media_zvrst_electronic),
+            Triple("hiphop", "hip hop", R.string.os_media_zvrst_hiphop),
+            Triple("jazz", "jazz", R.string.os_media_zvrst_jazz),
+            Triple("classical", "classical", R.string.os_media_zvrst_classical),
+            Triple("metal", "metal", R.string.os_media_zvrst_metal),
+            Triple("dance", "dance", R.string.os_media_zvrst_dance),
+            Triple("folk", "folk", R.string.os_media_zvrst_folk),
+            Triple("reggae", "reggae", R.string.os_media_zvrst_reggae),
+            Triple("ambient", "chillout", R.string.os_media_zvrst_ambient),
+            Triple("soundtrack", "soundtrack", R.string.os_media_zvrst_soundtrack),
+            Triple("country", "country", R.string.os_media_zvrst_country),
+            Triple("", "news", R.string.os_media_zvrst_news),
+        )
         private const val KLJUC_VSI_VIRI = "k:v:vsi"
         private val HITROSTI = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
         private val CASOVNIK = intArrayOf(15, 30, 60, 90)

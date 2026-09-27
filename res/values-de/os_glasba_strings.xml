@@ -159,4 +159,14 @@
     <string name="os_media_pocisti_nadaljuj">Weiterschauen leeren</string>
     <string name="os_media_pocisti_nadaljuj_opis">Gesamten Wiedergabeverlauf entfernen</string>
     <string name="os_media_pocisti_nadaljuj_potrdi">Alle Einträge aus Weiterschauen entfernen?</string>
+    <string name="os_media_zvrst_dance">Tanz</string>
+    <string name="os_media_zvrst_folk">Folk</string>
+    <string name="os_media_zvrst_reggae">Reggae</string>
+    <string name="os_media_zvrst_ambient">Entspannung</string>
+    <string name="os_media_zvrst_soundtrack">Filmmusik</string>
+    <string name="os_media_zvrst_country">Country</string>
+    <string name="os_media_zvrst_metal">Metal</string>
+    <string name="os_media_zvrst_news">Nachrichten &amp; Talk</string>
+    <string name="os_mediji_tv_v_zivo">Live-TV</string>
+    <string name="os_media_tv_opis">Offizielle Livestreams nach Land</string>
 </resources>
