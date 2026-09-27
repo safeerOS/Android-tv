@@ -297,7 +297,7 @@ class TvChrome(private val host: MainActivity) {
 
         if (url.isEmpty() || url == "about:blank" || url.startsWith("https://www.google.com") || url.startsWith("file:///android_asset")) {
             host.editUrl.setText("")
-            host.editUrl.hint = UiText.get(R.string.ui_search_hint)
+            host.editUrl.hint = UiText.get(R.string.url_hint)
             host.tvSecurityLock.text = "🔍"
             return
         }

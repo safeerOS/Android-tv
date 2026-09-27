@@ -96,7 +96,7 @@
   <string name="ui_bankguard_status">Protección contra bancos online falsos: los bancos reales funcionan con normalidad</string>
   <string name="ui_downloads_title">📥 Descargas</string>
   <string name="ui_downloads_empty">No hay archivos descargados.</string>
-  <string name="ui_downloads_cannot_open">Ninguna aplicación de este televisor puede abrir este archivo. Está guardado en Descargas.</string>
+  <string name="ui_downloads_cannot_open">Ninguna app de este dispositivo puede abrir este archivo. Está guardado en la carpeta Descargas.</string>
   <string name="ui_downloads_running">descargando</string>
   <string name="ui_downloads_failed">error de descarga</string>
   <string name="ui_ok">Aceptar</string>
@@ -119,8 +119,8 @@
     <string name="ui_sb_sponsor">Patrocinio omitido</string>
     <string name="ui_sb_selfpromo">Autopromoción omitida</string>
     <string name="ui_sb_interaction">Aviso omitido</string>
-    <string name="ui_cast_ready">Listo para reproducir desde el teléfono y el ordenador</string>
-    <string name="ui_link_sync_unavailable">La sincronización de marcadores todavía no está disponible en el televisor.</string>
+    <string name="ui_cast_ready">Listo para reproducir desde tus otros dispositivos</string>
+    <string name="ui_link_sync_unavailable">La sincronización de marcadores todavía no está disponible.</string>
     <string name="ui_lang_auto">Automático (idioma del dispositivo)</string>
     <string name="ui_link_prejeto">Enviado desde otro dispositivo</string>
     <string name="ui_popup_block_on">🚫 Las ventanas emergentes están bloqueadas</string>
@@ -147,4 +147,9 @@
     <string name="ui_aplikacija_dodana">%1$s añadido a Safeer OS</string>
     <string name="ui_aplikacija_ze_dodana">%1$s ya está en Safeer OS</string>
     <string name="ui_aplikacija_ni_strani">Abre primero una página y luego añádela</string>
+    <string name="ui_link_zagon_odpri">Abrir %1$s</string>
+    <string name="ui_link_zagon_pretok">Compartir pantalla y abrir %1$s en el ordenador</string>
+    <string name="ui_link_zagon_tapni">Safeer Link · toca para continuar</string>
+    <string name="ui_ssl_vprasanje">El certificado de %1$s no es válido, por lo que la conexión puede no ser privada. Safeer te sigue protegiendo de amenazas conocidas. ¿Abrir de todos modos?</string>
+    <string name="ui_ssl_odpri">Abrir de todos modos</string>
 </resources>

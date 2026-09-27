@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Safeer TV Browser</string>
-    <string name="url_hint">Sichere Suche oder URL</string>
+    <string name="url_hint">Suchen oder Webadresse eingeben</string>
     <string name="btn_home">Startseite</string>
     <string name="btn_back">Zurück</string>
     <string name="btn_forward">Vorwärts</string>
@@ -39,13 +39,14 @@
     <string name="hub_obvestilo_besedilo">Deine Geräte können Seiten, Videos und Musik an diesen Fernseher senden.</string>
     <string name="menu_popup_block">Pop-up-Fenster blockieren</string>
     <string name="menu_download_dir">Download-Ordner</string>
-    <string name="menu_scit">Safeer Schild: ganzer Fernseher</string>
+    <string name="menu_scit">Safeer Schild: alle Apps</string>
     <string name="menu_dodaj_aplikacijo">Zu Safeer-OS-Apps hinzufügen</string>
     <string name="scit_ime">Safeer Schild</string>
-    <string name="scit_obvestilo_opis">DNS-Filter für den ganzen Fernseher: Werbung, Tracker und gefährliche Domains werden in jeder App blockiert.</string>
+    <string name="scit_obvestilo_opis">DNS-Filter für alle Apps: Werbung, Tracker und gefährliche Domains werden blockiert.</string>
     <string name="scit_obvestilo_besedilo">Schützt den ganzen Fernseher · heute blockiert: %1$d</string>
-    <string name="scit_vklopljen">🛡 Safeer Schild ist an: der ganze Fernseher ist geschützt</string>
+    <string name="scit_vklopljen">🛡 Safeer Schild ist an: alle Apps sind geschützt</string>
     <string name="scit_izklopljen">Safeer Schild ist aus</string>
     <string name="scit_napaka_dovoljenje">Safeer Schild braucht deine Erlaubnis zum DNS-Filtern (Systemdialog). Nichts wurde geändert.</string>
     <string name="scit_blokiranih_danes">heute blockiert: %1$d</string>
+    <string name="omnibox_iskalnik">Suchmaschine</string>
 </resources>

@@ -1076,6 +1076,43 @@
     });
   }
 
+  // --------------------------------------------------------------
+  // Opcijski gamepad. Navadni daljinec ostane prvotni/defaultni nacin.
+  // Preklop ne vpliva na druge funkcije telefona ali Continuity; ob izhodu vedno sprostimo vnos.
+  function gamepadUkaz(dejanje, parametri) { ukaz(dejanje, parametri || {}, function () {}, 2500); }
+  function gamepadSprosti() { gamepadUkaz("gamepad.release", {}); }
+  function nacinKrmilnika(gamepad) {
+    var nav = el("navadniDaljinec"), gp = el("gamepadPanel"), a = el("nacinDaljinec"), b = el("nacinGamepad");
+    if (nav) nav.hidden = !!gamepad; if (gp) gp.hidden = !gamepad;
+    if (a) a.classList.toggle("izbran", !gamepad); if (b) b.classList.toggle("izbran", !!gamepad);
+    if (!gamepad) gamepadSprosti();
+  }
+  function pripraviGamepad() {
+    var a=el("nacinDaljinec"), b=el("nacinGamepad");
+    if(a) a.addEventListener("click",function(){nacinKrmilnika(false);});
+    if(b) b.addEventListener("click",function(){nacinKrmilnika(true);});
+    document.querySelectorAll("[data-gp]").forEach(function(g){
+      var ime=g.getAttribute("data-gp"), dol=function(e){e.preventDefault();gamepadUkaz("gamepad.button",{button:ime,down:true});}, gor=function(e){e.preventDefault();gamepadUkaz("gamepad.button",{button:ime,down:false});};
+      g.addEventListener("pointerdown",dol); g.addEventListener("pointerup",gor); g.addEventListener("pointercancel",gor); g.addEventListener("pointerleave",function(e){if(e.buttons)gor(e);});
+    });
+    document.querySelectorAll("[data-axis]").forEach(function(g){
+      var x=g.getAttribute("data-axis").split(":"), os=x[0], vrednost=parseFloat(x[1]);
+      g.addEventListener("pointerdown",function(e){e.preventDefault();gamepadUkaz("gamepad.axis",{axis:os,value:vrednost});});
+      function nic(e){e.preventDefault();gamepadUkaz("gamepad.axis",{axis:os,value:0});}
+      g.addEventListener("pointerup",nic);g.addEventListener("pointercancel",nic);g.addEventListener("pointerleave",function(e){if(e.buttons)nic(e);});
+    });
+    document.querySelectorAll(".gpStick").forEach(function(stick){
+      var stran=stick.getAttribute("data-stick"), osx=stran+"_x", osy=stran+"_y", pika=stick.querySelector("i"), pid=null, zadnji=0;
+      function premik(e){ if(pid!==e.pointerId)return; var r=stick.getBoundingClientRect(), dx=(e.clientX-(r.left+r.width/2))/(r.width/2), dy=(e.clientY-(r.top+r.height/2))/(r.height/2), m=Math.max(1,Math.sqrt(dx*dx+dy*dy)); dx/=m;dy/=m; if(pika){pika.style.transform="translate("+(dx*35)+"px,"+(dy*35)+"px)";} var z=Date.now(); if(z-zadnji>28){zadnji=z;gamepadUkaz("gamepad.axis",{axis:osx,value:dx});gamepadUkaz("gamepad.axis",{axis:osy,value:dy});}}
+      function dol(e){pid=e.pointerId;stick.setPointerCapture(pid);premik(e);}
+      function gor(e){if(pid!==e.pointerId)return;pid=null;if(pika)pika.style.transform="";gamepadUkaz("gamepad.axis",{axis:osx,value:0});gamepadUkaz("gamepad.axis",{axis:osy,value:0});}
+      stick.addEventListener("pointerdown",dol);stick.addEventListener("pointermove",premik);stick.addEventListener("pointerup",gor);stick.addEventListener("pointercancel",gor);
+    });
+    window.addEventListener("pagehide",gamepadSprosti); document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")gamepadSprosti();});
+    nacinKrmilnika(false);
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",pripraviGamepad); else pripraviGamepad();
+
   window.SafeerDaljinec = {
     odpri: odpri,
     zapri: zapri,

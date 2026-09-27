@@ -154,6 +154,7 @@ class DeljenjeZaslonaStoritev : Service() {
         hubHttp = intent.getStringExtra(EXTRA_HUB_HTTP) ?: ""
         zeton = intent.getStringExtra(EXTRA_ZETON) ?: ""
         idNaprave = intent.getStringExtra(EXTRA_ID_NAPRAVE) ?: ""
+        Log.i(TAG, "Zacenjam deljenje zaslona: cilj=${cilj.take(40)} hub=${hubHttp.isNotBlank()} zeton=${zeton.isNotBlank()}")
         if (data == null || cilj.isBlank() || hubHttp.isBlank()) {
             koncaj("Manjkajo podatki za deljenje.")
             return START_NOT_STICKY
@@ -384,7 +385,7 @@ class DeljenjeZaslonaStoritev : Service() {
         val jeTeklo = tece
         ustavljam = true
         tece = false
-        if (napaka.isNotBlank()) zadnjaNapaka = napaka
+        if (napaka.isNotBlank()) { zadnjaNapaka = napaka; Log.w(TAG, "Deljenje zaslona koncano z napako: $napaka") }
         try { navidezniZaslon?.release() } catch (_: Exception) { }
         navidezniZaslon = null
         try { bralec?.close() } catch (_: Exception) { }

@@ -21,6 +21,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import si.safeer.tv.BuildConfig
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -41,6 +42,7 @@ class CastReceiverService : Service() {
 
         const val ACTION_START = "si.safeer.tv.cast.START"
         const val ACTION_STOP = "si.safeer.tv.cast.STOP"
+        const val ACTION_GATEWAY_CHANGED = "si.safeer.tv.cast.GATEWAY_CHANGED"
         const val EXTRA_HUB_URL = "extra_hub_url"
         const val EXTRA_DEVICE_NAME = "extra_device_name"
 
@@ -109,6 +111,11 @@ class CastReceiverService : Service() {
             private set
 
         fun start(context: Context, hubUrl: String? = null, deviceName: String? = null) {
+            // Na televizorju s Safeer OS je sprejemnik v Safeer OS; Safeer Browser TV ne sme biti druga naprava v Linku.
+            if (!si.safeer.tv.os.Sosed.vodimLink(context)) {
+                Log.i(TAG, "Safeer Link te naprave vodi druga Safeer aplikacija - sprejemnika ne zaganjam.")
+                return
+            }
             // Brez nastavljenega vozlišča storitve sploh ne zaženemo: nobenega obvestila,
             // nobenega omrežnega prometa, nič, kar bi uporabnik brez Huba sploh opazil.
             if (hubUrl.isNullOrBlank() && !isConfigured(context)) {
@@ -128,6 +135,8 @@ class CastReceiverService : Service() {
         fun onCastUrlReceived(url: String, title: String?, startPosition: Double)
         fun onCastControl(action: String, position: Double?, volume: Double?)
         fun getCurrentPlaybackState(): Map<String, Any?>
+        fun onContinuityState(state: JSONObject) {}
+        fun onMediaSyncState(state: JSONObject) {}
 
         // Deljenje prek Safeer Linka (besedilo, zaslon, datoteka). Privzeto se ne zgodi nic,
         // da starejsi krmilniki ostanejo veljavni; brskalnik na televizorju jih prepise.
@@ -155,8 +164,19 @@ class CastReceiverService : Service() {
     }
 
     private var webSocket: WebSocket? = null
+    private var internetPoti: si.safeer.tv.link.AndroidInternetPoti? = null
+    private var internetGateway: si.safeer.tv.link.AndroidApplicationGateway? = null
+    private var continuity: SafeerContinuity? = null
+    private var workspace: SafeerWorkspace? = null
+    private var mediaSync: SafeerMediaSync? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var hubUrl: String = DEFAULT_HUB_URL
+    /** Global Link: domaci hub ni v tem omrezju, povezava gre prek link.safeer.si (LAN ostane prvi). */
+    @Volatile private var prekReleja = false
+
+    /** Naslov za povezavo: LAN ali lokalna vrata releja do izvoljenega huba. */
+    private fun aktivniUrl(): String =
+        si.safeer.tv.link.GlobalLink.naslov(this, hubUrl, HubKrmilnik.izvoljeniHub(this)?.id, prekReleja)
     /** Id iz kljuca naprave (HubKrmilnik.lastniId); isti, kot ga hub te naprave vpise v krog in oglasa po mDNS. */
     private val deviceId: String by lazy { HubKrmilnik.lastniId() }
     private var deviceName: String = "Android TV"
@@ -171,9 +191,15 @@ class CastReceiverService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
+        if (intent?.action == ACTION_STOP || !si.safeer.tv.os.Sosed.vodimLink(this)) {
             stopSelf()
             return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_GATEWAY_CHANGED) {
+            internetGateway?.osveziIzShrambe()
+            // Registracija capability je del cast.register, zato obnovimo povezavo brez ustavljanja storitve.
+            if (isRunning) connectToHub()
+            return START_STICKY
         }
 
         // Naslov vozlišča: 1. iz namere, 2. iz shranjenih nastavitev, 3. privzeti.
@@ -188,6 +214,8 @@ class CastReceiverService : Service() {
         instance = this
 
         startForeground(NOTIFICATION_ID, buildForegroundNotification())
+        // Global Link: ko ta naprava gosti hub, je dosegljiv tudi svojim napravam zunaj doma.
+        si.safeer.tv.link.GlobalLink.AgentHuba.zazeni(this)
         si.safeer.tv.link.DatotekeStreznik.pripravi(this)
         // Ze odprte povezave na isti naslov ne odpiramo znova: druga povezava iste naprave bi na hubu
         // zamenjala prvo, prva pa bi obvisela in cez pol minute sprozila nov krog zamenjav.
@@ -211,18 +239,19 @@ class CastReceiverService : Service() {
             return
         }
         client = zgradiOdjemalca()
-        Log.i(TAG, "Povezujem se na Safeer Cast Hub: $hubUrl (naprava: $deviceId)")
+        val naslovHuba = aktivniUrl()
+        Log.i(TAG, "Povezujem se na Safeer Cast Hub: $naslovHuba (naprava: $deviceId)")
         // S podpisom tudi, ce je nas kljuc v krogu pod starim id-jem: hub nov id sam vpise kot alias.
         val vpisan = try { KrogNaprave.lahkoSPodpisom(this, deviceId) } catch (_: Throwable) { false }
-        if (vpisan) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov, moj) }
+        if (vpisan) zVstopnicoSPodpisom(naslovHuba) { naslov -> odpriPovezavo(naslov, moj) }
         else {
             // Nas kljuc je v krogu pod drugim id (npr. Safeer OS iste naprave): ta id vpisemo kot alias
             // s podpisom, nato pridemo s podpisom tudi sami. Sicer po starem, z zetonom.
             val znani = try { KrogNaprave.znaniIdZaNasKljuc(this) } catch (_: Throwable) { null }
-            if (znani != null && HubKrmilnik.izvoljeniHub(this) != null) vpisiAlias(hubUrl, znani) { uspelo ->
-                if (uspelo) zVstopnicoSPodpisom(hubUrl) { naslov -> odpriPovezavo(naslov, moj) }
-                else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
-            } else zVstopnico(hubUrl, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
+            if (znani != null && HubKrmilnik.izvoljeniHub(this) != null) vpisiAlias(naslovHuba, znani) { uspelo ->
+                if (uspelo) zVstopnicoSPodpisom(naslovHuba) { naslov -> odpriPovezavo(naslov, moj) }
+                else zVstopnico(naslovHuba, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
+            } else zVstopnico(naslovHuba, controlToken()) { naslov -> odpriPovezavo(naslov, moj) }
         }
     }
 
@@ -238,7 +267,7 @@ class CastReceiverService : Service() {
                 .put("alias", deviceId).put("name", deviceName).put("platform", HubKrmilnik.platforma(this))
             klic("/cast/trust/alias", telo2) { koda2, odgovor ->
                 if (koda2 != 200) { Log.i(TAG, "Aliasa v krogu ni bilo mogoce vpisati ($koda2)."); naprej(false); return@klic }
-                try { JSONObject(odgovor).optJSONObject("ring")?.let { KrogNaprave.sprejmi(this, it.toString()) } } catch (_: Throwable) { }
+                try { JSONObject(odgovor).optJSONObject("ring")?.let { KrogNaprave.sprejmi(this, it.toString()) } } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "krog iz prijave ni shranjen", e) }
                 Log.i(TAG, "Id $deviceId vpisan v krog kot alias id-ja $znani.")
                 naprej(true)
             }
@@ -251,7 +280,7 @@ class CastReceiverService : Service() {
 
     /** POST JSON na hub; naprej(koda, telo), napaka omrezja = koda 0. */
     private fun klic(pot: String, telo: JSONObject?, naprej: (Int, String) -> Unit) {
-        val z = Request.Builder().url("${osnova(hubUrl)}$pot")
+        val z = Request.Builder().url("${osnova(aktivniUrl())}$pot")
             .post((telo?.toString() ?: "").toRequestBody("application/json".toMediaTypeOrNull()))
         client.newCall(z.build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: java.io.IOException) { naprej(0, "") }
@@ -322,14 +351,28 @@ class CastReceiverService : Service() {
     private fun odpriPovezavo(naslov: String, moj: Int) {
         if (!isRunning || moj != rod) return
         val request = Request.Builder().url(naslov).build()
+        if (BuildConfig.FLAVOR == "telefon" && internetGateway == null) {
+            val p = si.safeer.tv.link.AndroidInternetPoti(this)
+            internetPoti = p
+            internetGateway = si.safeer.tv.link.AndroidApplicationGateway(this, p) { sporocilo ->
+                val w = webSocket
+                w != null && povezan && try { w.send(sporocilo.put("id", UUID.randomUUID().toString()).toString()) } catch (_: Throwable) { false }
+            }
+            // Ob zagonu (npr. po ponovnem zagonu telefona) znova zahtevaj mobilno pot, ce jo je uporabnik dovolil.
+            internetGateway?.osveziIzShrambe()
+        }
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 if (moj != rod) { webSocket.cancel(); return }
-                Log.i(TAG, "Uspešno povezan s Cast Hubom!")
+                Log.i(TAG, if (aktivniUrl() != hubUrl) "Uspešno povezan s Cast Hubom prek Global Linka." else "Uspešno povezan s Cast Hubom!")
                 reconnectAttempts = 0
+                // Uspeh prek LAN (npr. hub se je zamenjal, rele ga ne pozna): naslednjic spet najprej LAN.
+                val u = webSocket.request().url
+                if (prekReleja && !si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)) prekReleja = false
+                if (prekReleja) { mainHandler.removeCallbacks(nazajVLan); mainHandler.postDelayed(nazajVLan, 300_000L) }
                 povezan = true
-                try { naPovezavo?.invoke(true) } catch (_: Throwable) { }
+                try { naPovezavo?.invoke(true) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPovezavo(true)", e) }
 
                 // 1. Registracija naprave kot Receiver
                 val registerMsg = JSONObject().apply {
@@ -339,8 +382,13 @@ class CastReceiverService : Service() {
                         put("device_id", deviceId)
                         put("name", deviceName)
                         put("role", "receiver")
-                        put("capabilities", org.json.JSONArray(listOf("url", "media", "control", "volume", "seek", "text", "file", "screen", si.safeer.tv.link.Daljinec.ZMOZNOST,
-                            si.safeer.tv.link.Daljinec.ZMOZNOST_ZVOK, si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)))
+                        val zmoznosti = mutableListOf("url", "media", "control", "volume", "seek", "text", "file", "screen", si.safeer.tv.link.Daljinec.ZMOZNOST,
+                            si.safeer.tv.link.Daljinec.ZMOZNOST_ZVOK)
+                        if (si.safeer.tv.link.DatotekeStreznik.vklopljeno(this@CastReceiverService)) {
+                            zmoznosti.add(si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)
+                        }
+                        if (BuildConfig.FLAVOR == "telefon" && internetGateway?.dovoljeno == true) zmoznosti.add("internet.gateway")
+                        put("capabilities", org.json.JSONArray(zmoznosti))
                         // Protocol v1: model naprave in katalog aplikacij, ki jih zna ta zaslon zagnati.
                         HubKrmilnik.poljaV1(this@CastReceiverService, "screen", this, HubKrmilnik.prioriteta(this@CastReceiverService))
                         val katalog = try { si.safeer.tv.link.Daljinec.katalog(this@CastReceiverService) } catch (_: Throwable) { null }
@@ -348,6 +396,17 @@ class CastReceiverService : Service() {
                     })
                 }
                 webSocket.send(registerMsg.toString())
+                continuity = SafeerContinuity(this@CastReceiverService) { msg -> try { webSocket.send(msg.toString()) } catch (_: Throwable) { false } }
+                continuity?.requestLatest()
+                workspace = SafeerWorkspace(this@CastReceiverService) { msg -> try { webSocket.send(msg.toString()) } catch (_: Throwable) { false } }
+                mediaSync = SafeerMediaSync(this@CastReceiverService) { msg -> try { webSocket.send(msg.toString()) } catch (_: Throwable) { false } }
+                mediaSync?.requestLatest()
+                // Imena naprav iz nasega kroga (npr. dana na drugem hubu): hub vzame samo imena znanih clanov.
+                if (packageName == si.safeer.tv.os.Sosed.OS) try { KrogNaprave.prevzemiImeTelevizorja(this@CastReceiverService) } catch (_: Throwable) { }
+                try {
+                    webSocket.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "trust.names")
+                        .put("payload", JSONObject(KrogNaprave.krog(this@CastReceiverService).json())).toString())
+                } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "trust.names", e) }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -383,7 +442,12 @@ class CastReceiverService : Service() {
      * celozaslonsko namero -- tega sistem odpre sam.
      */
     private fun odpriVBrskalniku(url: String, title: String?, startPos: Double) {
-        val namera = Intent().apply {
+        // Tablica: poslana stran gre v mobilni Safeer. Deljen zaslon (stran s Huba) ostane v vgrajenem,
+        // ki zaupa potrdilu Huba.
+        val hub = hubHttpOsnova()
+        val mobilna = if (hub.isNotEmpty() && url.startsWith(hub)) null
+            else si.safeer.tv.os.Brskalnik.mobilniNaslov(this, url)
+        val namera = mobilna ?: Intent().apply {
             setClassName(packageName, "si.safeer.tv.MainActivity")
             action = ACTION_OPEN_CAST
             putExtra(EXTRA_CAST_URL, url)
@@ -475,6 +539,11 @@ class CastReceiverService : Service() {
                     val telo = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
                         Log.w(TAG, "Control je zavrnil zahtevo za vstopnico (${it.code}).")
+                        // Izvoljeni hub nas ne pozna (ne podpisa ne zetona): ne vrtimo se v izvolitvah.
+                        if (it.code == 401 && HubKrmilnik.izvoljeniHub(this@CastReceiverService) != null) {
+                            mainHandler.post { odklopljen(); HubKrmilnik.hubNasJeZavrnil(this@CastReceiverService) }
+                            return
+                        }
                         mainHandler.post { odklopljen(); scheduleReconnect() }
                         return
                     }
@@ -524,7 +593,49 @@ class CastReceiverService : Service() {
                 mainHandler.postDelayed({ poisciDrugoSredisce() }, delayMs / 2)
             }
         }
+        // Global Link: po dveh neuspehih v LAN poskusimo domaci hub prek link.safeer.si (preden bi naprava
+        // razglasila izvoljeni hub za izgubljenega in zacela gostiti sama) - a samo, ce v tem omrezju ni
+        // nobenega huba. Ce je (npr. hub se je preselil), ostanemo v LAN in gremo nanj.
+        if (reconnectAttempts == 2 && !prekReleja && si.safeer.tv.link.GlobalLink.vklopljen(this) &&
+            si.safeer.tv.link.GlobalLink.osnovniId(HubKrmilnik.izvoljeniHub(this)?.id) != null) {
+            try {
+                HubDiscovery.discover(this, 4000L) { naslov ->
+                    if (!isRunning || prekReleja) return@discover
+                    if (naslov.isNullOrBlank()) {
+                        Log.i(TAG, "Domaci hub ni v tem omrezju; poskusim prek Global Linka.")
+                        prekReleja = true
+                    } else {
+                        if (HubKrmilnik.izvoljeniHub(this) != null && HubKrmilnik.jeZazelen(this)) {
+                            // Hub se je zamenjal: samo naslov ne zadostuje (pripet je kljuc starega huba),
+                            // zato takoj izvolitev - ta nastavi naslov, id in kljuc novega huba skupaj.
+                            Log.i(TAG, "V tem omrezju je drug hub; nova izvolitev.")
+                            HubKrmilnik.izvoljeniHubIzgubljen(this)
+                        } else {
+                            val nov = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_HUB_URL, naslov) ?: naslov
+                            if (nov != hubUrl) { Log.i(TAG, "Hub je v tem omrezju na novem naslovu: $nov"); hubUrl = nov; reconnectAttempts = 0 }
+                        }
+                    }
+                }
+            } catch (e: Throwable) { Log.w(TAG, "Iskanje huba v LAN: ${e.message}") }
+        }
         mainHandler.postDelayed({ connectToHub() }, delayMs)
+    }
+
+    /** Na releju: vsakih 5 min preverimo, ali je domaci hub spet v LAN; ce je, gremo domov (hitreje, brez releja). */
+    private val nazajVLan = object : Runnable {
+        override fun run() {
+            if (!isRunning || !prekReleja) return
+            Thread({
+                if (si.safeer.tv.link.GlobalLink.lanDosegljiv(hubUrl)) mainHandler.post {
+                    if (!prekReleja) return@post
+                    Log.i(TAG, "Domaci hub je spet v omrezju; zapuscam Global Link.")
+                    prekReleja = false
+                    si.safeer.tv.link.GlobalLink.izklopi()
+                    reconnectAttempts = 0
+                    connectToHub()
+                } else mainHandler.postDelayed(this, 300_000L)
+            }, "safeer-global-link-lan").apply { isDaemon = true }.start()
+        }
     }
 
     private fun poisciDrugoSredisce() {
@@ -549,8 +660,14 @@ class CastReceiverService : Service() {
     private fun odklopljen() {
         povezan = false
         zadnjeNaprave = "[]"
-        try { naPovezavo?.invoke(false) } catch (_: Throwable) { }
-        try { naSpremembeNaprav?.invoke("[]") } catch (_: Throwable) { }
+        try { naPovezavo?.invoke(false) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPovezavo(false)", e) }
+        try { naSpremembeNaprav?.invoke("[]") } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naSpremembeNaprav([])", e) }
+    }
+
+    /** Nadaljuj na: preda predvajanje/stran izbrani napravi (handoff.request prek Huba). */
+    fun nadaljujNa(cilj: String, url: String, naslov: String? = null, polozaj: Double = 0.0): Boolean {
+        val msg = SafeerHandoff.sporocilo(cilj, url, naslov ?: "", polozaj) ?: return false
+        return posljiSporocilo(msg)
     }
 
     /**
@@ -579,6 +696,36 @@ class CastReceiverService : Service() {
             val msgId = json.optString("id", UUID.randomUUID().toString())
             val type = json.optString("type")
 
+            if (type.startsWith("internet.") && internetGateway?.obdelaj(json) == true) return
+            // Nova naprava se pridruzuje Linku: kodo pokaze tudi ta zaslon, ceprav sredisce ni tu.
+            if (type.startsWith("pair.") && HubKrmilnik.sporociloPrijave(type, json.optJSONObject("payload")) { id ->
+                    try { ws.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "pair.reject")
+                        .put("payload", JSONObject().put("pair_id", id)).toString()) } catch (_: Throwable) { }
+                }) return
+            if (type == "sync.data") {
+                val payload = json.optJSONObject("payload") ?: JSONObject()
+                workspace?.accept(payload) // passive only; never steals focus
+                val state = continuity?.accept(payload)
+                if (state != null && !state.optBoolean("passive", false)) mainHandler.post { mediaController?.onContinuityState(state) }
+                val mediaState = mediaSync?.accept(payload)
+                if (mediaState != null) mainHandler.post { mediaController?.onMediaSyncState(mediaState) }
+            }
+
+            if (type == SafeerHandoff.TYPE) {
+                val p = SafeerHandoff.payload(json)
+                if (p != null) {
+                    // Kot cast.url: predvajalnik v ospredju nadaljuje na polozaju, sicer se odpre brskalnik.
+                    val url = p.getString("url"); val naslov = p.optString("title"); val polozaj = p.optDouble("position", 0.0)
+                    mainHandler.post {
+                        val krmilnik = mediaController
+                        if (krmilnik != null && krmilnikVOspredju) krmilnik.onCastUrlReceived(url, naslov, polozaj)
+                        else odpriVBrskalniku(url, naslov, polozaj)
+                    }
+                    sendAck(ws, msgId, "accepted")
+                } else sendAck(ws, msgId, "error", "invalid_handoff")
+                return
+            }
+
             when (type) {
                 "cast.ack" -> {
                     if (json.optString("ref_id", "").isNotBlank()) {
@@ -587,14 +734,14 @@ class CastReceiverService : Service() {
                                 json.optString("ref_id", ""), json.optString("status", ""),
                                 json.optString("error_code", ""), json.optString("error", "")
                             )
-                        } catch (_: Throwable) { }
+                        } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPotrditev", e) }
                     }
                 }
 
                 "cast.devices" -> {
                     val naprave = json.optJSONArray("devices")?.toString() ?: "[]"
                     zadnjeNaprave = naprave
-                    try { naSpremembeNaprav?.invoke(naprave) } catch (_: Throwable) { }
+                    try { naSpremembeNaprav?.invoke(naprave) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naSpremembeNaprav", e) }
                 }
 
                 "cast.url" -> {
@@ -631,7 +778,7 @@ class CastReceiverService : Service() {
                 "control.result", "control.ack" -> {
                     // Odgovor naprave na nas ukaz (ali zavrnitev sredisca): naprej strani daljinca.
                     if (type == "control.ack" && json.optString("status", "") == "accepted") return
-                    try { naUkazOdziv?.invoke(json) } catch (_: Throwable) { }
+                    try { naUkazOdziv?.invoke(json) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naUkazOdziv", e) }
                 }
 
                 "control.command" -> {
@@ -736,7 +883,7 @@ class CastReceiverService : Service() {
 
     /** Naslov Huba za navadne zahteve HTTP (ws://x:y/cast/ws -> http://x:y). */
     private fun hubHttpOsnova(): String =
-        hubUrl.replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
+        aktivniUrl().replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
             .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws")
             .trimEnd('/')
 
@@ -815,6 +962,9 @@ class CastReceiverService : Service() {
         ws.send(ack.toString())
     }
 
+    private var zadnjaKontinuiteta = ""
+    private var zadnjaKontinuitetaOb = 0L
+
     fun broadcastStatus(state: String, currentUrl: String?, title: String?, position: Double, duration: Double) {
         val statusMsg = JSONObject().apply {
             put("id", UUID.randomUUID().toString())
@@ -829,11 +979,27 @@ class CastReceiverService : Service() {
             })
         }
         webSocket?.send(statusMsg.toString())
+        // Predvajanje je najpomembnejsa kontinuiteta: druga naprava lahko nadaljuje na istem mestu.
+        // Status pride veckrat na sekundo; kontinuiteto objavimo le ob novem viru ali stanju
+        // predvajanja, sicer najvec na 30 s (celoten seznam aktivnosti gre vsem napravam).
+        if (currentUrl.isNullOrBlank()) return
+        val zdaj = System.currentTimeMillis()
+        val kljuc = "$currentUrl|$state"
+        if (kljuc == zadnjaKontinuiteta && zdaj - zadnjaKontinuitetaOb < 30_000) return
+        zadnjaKontinuiteta = kljuc; zadnjaKontinuitetaOb = zdaj
+        continuity?.publish(JSONObject().apply {
+            put("surface", "media"); put("url", currentUrl); put("title", title ?: "")
+            put("media_title", title ?: ""); put("media_position", position); put("media_duration", duration)
+            put("media_playing", state == "playing"); put("updated_by", deviceId)
+        })
     }
 
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        try { internetGateway?.close() } catch (_: Throwable) { }
+        internetGateway = null
+        internetPoti = null
         webSocket?.close(1000, "Service stopped")
         webSocket = null
         mainHandler.removeCallbacksAndMessages(null)

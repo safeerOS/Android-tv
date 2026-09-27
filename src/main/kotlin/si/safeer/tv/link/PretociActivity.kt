@@ -36,6 +36,8 @@ class PretociActivity : Activity() {
         cilj = intent?.getStringExtra(EXTRA_CILJ).orEmpty()
         paket = intent?.getStringExtra(EXTRA_PAKET).orEmpty()
         if (savedInstanceState != null) return
+        // Odprli smo se (neposredno ali s tapom na obvestilo): obvestilo za zagon ni vec potrebno.
+        Daljinec.pospraviObvestiloZagona(this)
         if (cilj.isBlank() || paket.isBlank()) { finish(); return }
         try {
             val upravitelj = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager

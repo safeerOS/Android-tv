@@ -62,38 +62,68 @@ class GlasbaStoritev : Service() {
                 if (p.hasNextMediaItem()) { p.seekToNextMediaItem(); p.prepare(); p.play() } else osvezi()
             }
         })
+        exo = p
         predvajalnik = p
 
         seja = MediaSession(this, "SafeerGlasba").apply {
             setCallback(object : MediaSession.Callback() {
-                override fun onPlay() { p.play() }
-                override fun onPause() { p.pause() }
-                override fun onSkipToNext() { if (p.hasNextMediaItem()) p.seekToNextMediaItem() }
-                override fun onSkipToPrevious() { p.seekToPreviousMediaItem() }
+                // Tipke gredo predvajalniku, ki igra: nasemu ali spletnemu ([SpletniIgralec]).
+                override fun onPlay() { predvajalnik?.play() }
+                override fun onPause() { predvajalnik?.pause() }
+                override fun onSkipToNext() { predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() } }
+                override fun onSkipToPrevious() { predvajalnik?.seekToPreviousMediaItem() }
                 override fun onStop() { konec() }
-                override fun onSeekTo(pos: Long) { p.seekTo(pos) }
+                override fun onSeekTo(pos: Long) { predvajalnik?.seekTo(pos) }
             })
             isActive = true
         }
         zacniVOspredju()
+        application.registerActivityLifecycleCallbacks(zasloni)
+    }
+
+    /** Spletni predvajalnik ostane pripet na zaslon Safeer v ospredju (glej [SpletniIgralec.gostuj]). */
+    private val zasloni = object : android.app.Application.ActivityLifecycleCallbacks {
+        override fun onActivityResumed(a: android.app.Activity) { SpletniIgralec.zadnja = java.lang.ref.WeakReference(a); spletni?.gostuj(a) }
+        override fun onActivityDestroyed(a: android.app.Activity) { spletni?.izgubi(a) }
+        override fun onActivityCreated(a: android.app.Activity, b: android.os.Bundle?) {}
+        override fun onActivityStarted(a: android.app.Activity) {}
+        override fun onActivityPaused(a: android.app.Activity) {}
+        override fun onActivityStopped(a: android.app.Activity) {}
+        override fun onActivitySaveInstanceState(a: android.app.Activity, b: android.os.Bundle) {}
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            AKCIJA_TOGGLE -> { predvajalnik?.let { if (it.isPlaying) it.pause() else it.play() }; return START_NOT_STICKY }
+            AKCIJA_NAPREJ -> { predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }; return START_NOT_STICKY }
+            AKCIJA_USTAVI -> { ustaviPredvajanje(); return START_NOT_STICKY }
+        }
         zacniVOspredju()
         cakajoci?.let { (seznam, od, s) -> cakajoci = null; nalozi(seznam, od, s) }
+        cakajociSplet?.let { cakajociSplet = null; zacniSplet(it) }
         return START_NOT_STICKY
+    }
+
+    /** Stop pomeni konec seje, ne pavze: sprostimo tudi skriti spletni predvajalnik/WebView. */
+    private fun ustaviPredvajanje() {
+        predvajalnik?.stop()
+        exo?.clearMediaItems()
+        koncajSplet()
+        android.os.Handler(mainLooper).post { stopSelf() }
     }
 
     /** Zaustavitev iz povratnega klica predvajalnika: storitev ustavimo sele po njem. */
     private fun konec() { android.os.Handler(mainLooper).post { stopSelf() } }
 
     private fun nalozi(seznam: List<Jamendo.Skladba>, od: Int, s: DatotekeActivity.Streznik?) {
-        val p = predvajalnik ?: return
+        val p = exo ?: return
+        koncajSplet()
+        predvajalnik = p
         vrsta = seznam
         // Datoteke z racunalnika gredo skozi pripeti vir (TLS z odtisom in zetonom Safeer Controla),
         // vse ostalo (splet, datoteke televizorja) skozi obicajnega.
         val tovarna = if (s != null) androidx.media3.exoplayer.source.DefaultMediaSourceFactory(PripetiVir.Tovarna(s.odtis, s.zeton))
-            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(this)
+            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(SpletniVir.virPodatkov(this))
         p.setMediaSources(seznam.map { sk ->
             tovarna.createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
                 .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
@@ -103,6 +133,33 @@ class GlasbaStoritev : Service() {
         p.prepare()
         p.play()
     }
+
+    private var exo: ExoPlayer? = null
+    private var spletni: SpletniIgralec? = null
+
+    /** Zasciteno vsebino predvaja stran v skritem pogledu; nas predvajalnik jo le upravlja. */
+    private fun zacniSplet(sk: Jamendo.Skladba) {
+        exo?.let { it.stop(); it.clearMediaItems() }
+        koncajSplet()
+        val s = SpletniIgralec(this, sk)
+        s.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) = osvezi()
+            override fun onMediaMetadataChanged(mediaMetadata: M3Metadata) {
+                val t = mediaMetadata.title?.toString().orEmpty()
+                if (t.isNotBlank()) vrsta = vrsta.map { it.copy(naslov = t, izvajalec = mediaMetadata.artist?.toString()?.ifBlank { null } ?: it.izvajalec) }
+                osvezi()
+            }
+            override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_ENDED) konec() else osvezi() }
+        })
+        spletni = s
+        SpletniIgralec.zadnja?.get()?.let { s.gostuj(it) }
+        vrsta = listOf(sk)
+        predvajalnik = s
+        MedijskiViri.zapomniNedavno(this, sk)
+        osvezi()
+    }
+
+    private fun koncajSplet() { spletni?.release(); spletni = null }
 
     private fun zacniVOspredju() {
         val o = obvestilo()
@@ -119,12 +176,21 @@ class GlasbaStoritev : Service() {
         val odpri = PendingIntent.getActivity(this, 0, Intent(this, PredvajanjeActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val b = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, KANAL) else @Suppress("DEPRECATION") Notification.Builder(this)
-        return b.setSmallIcon(R.drawable.os_ikona_glasba)
+        fun dejanje(akcija: String, koda: Int): PendingIntent = PendingIntent.getService(
+            this, koda, Intent(this, GlasbaStoritev::class.java).setAction(akcija),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        b.setSmallIcon(R.drawable.os_ikona_glasba)
             .setContentTitle(s?.naslov ?: getString(R.string.os_glasba_naslov))
             .setContentText(s?.izvajalec ?: "")
             .setContentIntent(odpri)
-            .setOngoing(true)
-            .build()
+            .addAction(Notification.Action.Builder(
+                android.graphics.drawable.Icon.createWithResource(this, if (predvajalnik?.isPlaying == true) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj),
+                if (predvajalnik?.isPlaying == true) "Pavza" else "Predvajaj", dejanje(AKCIJA_TOGGLE, 11)).build())
+        if (predvajalnik?.hasNextMediaItem() == true) b.addAction(Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_naslednja), "Naprej", dejanje(AKCIJA_NAPREJ, 12)).build())
+        b.addAction(Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_ustavi), "Ustavi", dejanje(AKCIJA_USTAVI, 13)).build())
+        return b.setOngoing(true).build()
     }
 
     private fun osvezi() {
@@ -147,8 +213,10 @@ class GlasbaStoritev : Service() {
     }
 
     override fun onDestroy() {
+        application.unregisterActivityLifecycleCallbacks(zasloni)
         seja?.release(); seja = null
-        predvajalnik?.release(); predvajalnik = null
+        koncajSplet()
+        exo?.release(); exo = null; predvajalnik = null
         vrsta = emptyList()
         poslusalci.toList().forEach { it() }
         super.onDestroy()
@@ -157,12 +225,23 @@ class GlasbaStoritev : Service() {
     companion object {
         private const val ID = 4711
         private const val KANAL = "safeer_glasba"
+        private const val AKCIJA_TOGGLE = "si.safeer.media.TOGGLE"
+        private const val AKCIJA_NAPREJ = "si.safeer.media.NEXT"
+        private const val AKCIJA_USTAVI = "si.safeer.media.STOP"
 
         /** Predvajalnik, dokler storitev tece; sicer null. */
-        @Volatile var predvajalnik: ExoPlayer? = null
+        @Volatile var predvajalnik: Player? = null
             private set
         private var vrsta: List<Jamendo.Skladba> = emptyList()
         private var cakajoci: Triple<List<Jamendo.Skladba>, Int, DatotekeActivity.Streznik?>? = null
+        private var cakajociSplet: Jamendo.Skladba? = null
+
+        /** Enoto spletne aplikacije, katere toka ne moremo ujeti, predvaja stran pod nasim upravljanjem. */
+        fun predvajajSplet(ctx: Context, sk: Jamendo.Skladba) {
+            cakajociSplet = sk
+            val namen = Intent(ctx, GlasbaStoritev::class.java)
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
+        }
 
         /** Zaslon se prijavi, da izve za spremembe (nova skladba, pavza, konec). */
         val poslusalci = mutableSetOf<() -> Unit>()
@@ -184,23 +263,11 @@ class GlasbaStoritev : Service() {
         }
 
         /**
-         * Kartica Mediji na zacetnem zaslonu (televizor in tablica): med predvajanjem pokaze, kaj
-         * igra - kot "zdaj se predvaja" - sicer je obicajna kartica Glasba in video.
+         * Prej je kartica Mediji na zacetnem zaslonu med predvajanjem pokazala "zdaj se predvaja".
+         * Ta kartica je zdaj samo se postavka v stranski vrstici (brez dinamicne vsebine, kot vse
+         * druge postavke), zato tale funkcija nima vec svojih pogledov - klici vanjo ostajajo varni.
          */
-        fun osveziKartico(a: android.app.Activity) {
-            val naslov = a.findViewById<android.widget.TextView>(R.id.medijiNaslov) ?: return
-            val opis = a.findViewById<android.widget.TextView>(R.id.medijiOpis) ?: return
-            val ikona = a.findViewById<android.widget.ImageView>(R.id.medijiIkona) ?: return
-            val sk = trenutna(); val p = predvajalnik
-            if (sk == null || p == null) {
-                naslov.setText(R.string.os_mediji_kartica); opis.setText(R.string.os_mediji_kartica_opis)
-                ikona.setImageResource(R.drawable.os_ikona_glasba); return
-            }
-            naslov.text = sk.naslov
-            opis.text = listOf(a.getString(if (p.isPlaying) R.string.os_mediji_zdaj else R.string.os_mediji_pavza), sk.izvajalec)
-                .filter { it.isNotBlank() }.joinToString(" · ")
-            ikona.setImageResource(if (p.isPlaying) R.drawable.os_ikona_predvajaj else R.drawable.os_ikona_pavza)
-        }
+        fun osveziKartico(a: android.app.Activity) { }
 
         /** Klik na kartico: med predvajanjem naravnost na predvajanje, sicer v Medije. */
         fun namenKartice(ctx: Context): Intent =

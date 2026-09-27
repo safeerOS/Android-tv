@@ -250,7 +250,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                         if (query.isNotEmpty()) {
                             val searchUrl = when (engine.lowercase()) {
                                 "youtube", "yt" -> "https://www.youtube.com/results?search_query=" + URLEncoder.encode(query, "UTF-8")
-                                else -> "https://www.google.com/search?q=" + URLEncoder.encode(query, "UTF-8")
+                                "google" -> SmartOmnibox.Iskalnik.GOOGLE.iskanje + URLEncoder.encode(query, "UTF-8")
+                                else -> SmartOmnibox.razresi(this@MainActivity, query)?.url ?: return
                             }
                             val activeTab = tabManager.getActiveTab()
                             if (activeTab != null) {
@@ -848,7 +849,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (!data.isNullOrEmpty()) return data
         val q = intent?.getStringExtra(SearchManager.QUERY) ?: intent?.getStringExtra("query")
         if (!q.isNullOrBlank()) {
-            return "https://www.google.com/search?q=" + URLEncoder.encode(q.trim(), "UTF-8")
+            return SmartOmnibox.razresi(this, q)?.url
         }
         return null
     }
@@ -1240,6 +1241,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         btnClearUrl = findViewById(R.id.btnClearUrl)
         btnSearchTrigger = findViewById(R.id.btnSearchTrigger)
         btnPointerToggle = findViewById(R.id.btnPointerToggle)
+        // Kazalec je za daljinec; na tablici (dotik) ga ne potrebujemo.
+        if (ChromiumEngineView.naDotik(this)) btnPointerToggle.visibility = View.GONE
         btnAddTab = findViewById(R.id.btnAddTab)
         btnTabCount = findViewById(R.id.btnTabCount)
         btnMenu = findViewById(R.id.btnMenu)
@@ -1521,6 +1524,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             override fun afterTextChanged(s: Editable?) {}
         })
 
+        (editUrl as? OmniboxPolje)?.obZaprtju = { closeSuggestionsAndFocusWeb() }
+
         editUrl.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE) {
                 performNavigation(editUrl.text.toString().trim())
@@ -1603,30 +1608,34 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val trimmed = query.trim()
         suggestionRunnable?.let { suggestionHandler.removeCallbacks(it) }
         // Naslovov strani ne posiljamo nikomur; predlogi so za iskanje, ne za brskanje.
-        if (trimmed.length < 2 || jeNaslovStrani(trimmed)) {
+        if (trimmed.length < 2) {
             runOnUiThread { suggestionsListContainer.removeAllViews() }
             return
         }
+        val iskalnik = SmartOmnibox.iskalnik(this)
         val runTask = Runnable {
             Thread {
+                val iz = try { predlogiZgodovine(trimmed) } catch (_: Exception) { emptyList() }
+                displaySuggestions(iz)
+                val vir = iskalnik.predlogi
+                if (vir == null || jeNaslovStrani(trimmed)) return@Thread
                 try {
                     val encoded = URLEncoder.encode(trimmed, "UTF-8")
-                    val url = java.net.URL("https://suggestqueries.google.com/complete/search?client=chrome&q=$encoded")
+                    val url = java.net.URL(vir + encoded)
                     val conn = url.openConnection() as java.net.HttpURLConnection
                     conn.connectTimeout = 1500
                     conn.readTimeout = 1500
                     conn.setRequestProperty("User-Agent", ChromiumEngineView.CHROME_ANDROID_USER_AGENT)
                     conn.setRequestProperty("Accept", "*/*")
                     conn.setRequestProperty("Accept-Language", "sl-SI,sl;q=0.9,en-US;q=0.8,en;q=0.7")
-                    conn.setRequestProperty("Referer", "https://www.google.com/")
                     if (conn.responseCode == 200) {
                         val responseText = conn.inputStream.bufferedReader().use { it.readText() }
                         val jsonArr = org.json.JSONArray(responseText)
                         if (jsonArr.length() > 1) {
                             val suggestionsArr = jsonArr.getJSONArray(1)
-                            val list = mutableListOf<String>()
+                            val list = iz.toMutableList()
                             for (i in 0 until minOf(suggestionsArr.length(), 5)) {
-                                list.add(suggestionsArr.getString(i))
+                                list.add(Predlog("🔍", suggestionsArr.getString(i), suggestionsArr.getString(i)))
                             }
                             displaySuggestions(list)
                         }
@@ -1638,20 +1647,36 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         suggestionHandler.postDelayed(runTask, 300)
     }
 
-    private fun displaySuggestions(list: List<String>) {
+    /** Predlog v omniboxu: ikona, prikazano besedilo in kar se ob izbiri vnese. */
+    private data class Predlog(val ikona: String, val besedilo: String, val vnos: String)
+
+    /** Do 3 obiskane strani, katerih naslov ali ime vsebuje vtipkano (samo lokalno). */
+    private fun predlogiZgodovine(q: String): List<Predlog> {
+        val m = q.lowercase()
+        return repository.getHistory(BrowserRepository.NAJVEC_ZGODOVINE)
+            .filter { !it.url.startsWith("file:") && (it.url.lowercase().contains(m) || it.title.lowercase().contains(m)) }
+            .distinctBy { it.url }.take(3)
+            .map { Predlog("🕘", if (it.title.isNotBlank() && it.title != it.url) "${it.title} · ${Uri.parse(it.url).host ?: ""}" else it.url, it.url) }
+    }
+
+    private fun displaySuggestions(list: List<Predlog>) {
         runOnUiThread {
             suggestionsListContainer.removeAllViews()
             if (list.isEmpty()) return@runOnUiThread
 
-            for (item in list) {
+            for (predlog in list) {
+                val item = predlog.vnos
                 val tv = TextView(this).apply {
-                    text = context.getString(R.string.fmt_ikona_besedilo_2, "🔍", item)
+                    text = context.getString(R.string.fmt_ikona_besedilo_2, predlog.ikona, predlog.besedilo)
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
                     setTextColor(Color.parseColor("#F8FAFC"))
                     textSize = 14f
                     setBackgroundResource(R.drawable.bg_mobile_omnibox)
                     setPadding(28, 16, 28, 16)
                     isFocusable = true
-                    isFocusableInTouchMode = true
+                    // Na dotik bi prvi dotik predlog samo izbral; odpreti ga mora ze prvi.
+                    isFocusableInTouchMode = !ChromiumEngineView.naDotik(context)
                     val lp = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1677,7 +1702,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
     }
 
-    internal fun performNavigation(input: String) {
+    /** [iskalnik] = iskalnik, izbran samo za ta vnos (cip na domaci strani); sicer nastavljeni. */
+    internal fun performNavigation(input: String, iskalnik: SmartOmnibox.Iskalnik? = null) {
         var cleanInput = input.trim()
         if (cleanInput.isEmpty()) return
 
@@ -1686,28 +1712,35 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             if (cleanInput.isEmpty()) return
         }
 
-        val isUrl = cleanInput.startsWith("http://", ignoreCase = true) ||
-            cleanInput.startsWith("https://", ignoreCase = true) ||
-            cleanInput.startsWith("file://", ignoreCase = true) ||
-            (cleanInput.contains(".") && !cleanInput.contains(" "))
-        if (!isUrl) {
-            val profile = SiteProfileResolver.fromUrl(activeUrl())
-            if (profile.handleSearch(cleanInput, this)) return
+        val isk = iskalnik ?: SmartOmnibox.iskalnik(this)
+        val odlocitev = SmartOmnibox.razresi(this, cleanInput, isk) ?: return
+        val gostitelj = odlocitev.preveri
+        if (gostitelj == null || !imaOmrezje()) {
+            odpriOdlocitev(cleanInput, odlocitev)
+            return
         }
+        // Vtipkana domena: kratko preverimo, da obstaja; tipkarska napaka (youtube.cmo) gre v iskanje.
+        Thread {
+            val obstaja = SmartOmnibox.obstaja(gostitelj)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                odpriOdlocitev(cleanInput, if (obstaja) odlocitev else SmartOmnibox.Odlocitev(SmartOmnibox.iskanje(this, cleanInput, isk), true))
+            }
+        }.start()
+    }
 
-        val finalUrl = when {
-            cleanInput.startsWith("http://", ignoreCase = true) ||
-                cleanInput.startsWith("https://", ignoreCase = true) ||
-                cleanInput.startsWith("file://", ignoreCase = true) -> cleanInput
-            cleanInput.contains(".") && !cleanInput.contains(" ") -> "https://$cleanInput"
-            else -> "https://www.google.com/search?q=" + URLEncoder.encode(cleanInput, "UTF-8")
-        }
+    private fun imaOmrezje(): Boolean = try {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        cm.activeNetwork != null
+    } catch (_: Exception) { true }
 
+    private fun odpriOdlocitev(vnos: String, odlocitev: SmartOmnibox.Odlocitev) {
+        if (odlocitev.iskanje && SiteProfileResolver.fromUrl(activeUrl()).handleSearch(vnos, this)) return
         val activeTab = tabManager.getActiveTab()
         if (activeTab != null) {
-            activeTab.webView.loadUrl(finalUrl)
+            activeTab.webView.loadUrl(odlocitev.url)
         } else {
-            tabManager.createTab(this, finalUrl, true)
+            tabManager.createTab(this, odlocitev.url, true)
         }
     }
 
@@ -1917,7 +1950,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 kodaOkno = null
                 return
             }
-            val p = si.safeer.tv.cast.HubKrmilnik.usmerjevalnik?.cakajocePrijave()?.lastOrNull()
+            val p = si.safeer.tv.cast.HubKrmilnik.cakajocePrijave().lastOrNull()
             if (p == null) {
                 kodaOkno?.let { if (it.isShowing) it.dismiss() }
                 kodaOkno = null
@@ -1948,7 +1981,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 .setTitle(UiText.get(R.string.ui_link_pair_code_title))
                 .setView(vsebina)
                 .setNegativeButton(UiText.get(R.string.ui_link_pair_reject)) { _, _ ->
-                    try { si.safeer.tv.cast.HubKrmilnik.usmerjevalnik?.zavrniPrijavo(p.pairId) } catch (_: Exception) { }
+                    try { si.safeer.tv.cast.HubKrmilnik.zavrniPrijavo(p.pairId) } catch (_: Exception) { }
                 }
                 .setPositiveButton(getString(android.R.string.ok), null)
                 .create()
@@ -2033,6 +2066,15 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     // JavaScript potrebuje sama stran Safeer Linka iz aplikacije; pogled ne nalozi nicesar drugega.
     @Suppress("SetJavaScriptEnabled")
     private fun odpriSafeerLink() {
+        // Safeer Link vodi Safeer OS (Safeer Browser TV je predhodnik): stran Linka je tam.
+        if (!si.safeer.tv.os.Sosed.vodimLink(this)) {
+            try {
+                startActivity(android.content.Intent().setComponent(android.content.ComponentName(si.safeer.tv.os.Sosed.OS,
+                    "si.safeer.tv.os.DomovActivity")).putExtra("os_vrni", "naprave")
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            } catch (_: Throwable) { }
+        }
         try {
             val pogled = android.webkit.WebView(this)
             pogled.settings.javaScriptEnabled = true
@@ -2283,6 +2325,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         val cbTvOzadje = dialog.findViewById<CheckBox>(R.id.cbTvOzadje)
         cbTvOzadje.isChecked = TvOzadje.jeCrno(this)
+        // Ozadje domacega zaslona televizorja: na telefonu in tablici te vrstice ni.
+        dialog.findViewById<LinearLayout>(R.id.rowMenuTvOzadje).visibility =
+            if (si.safeer.tv.os.Sosed.jeTelevizor(this)) View.VISIBLE else View.GONE
         dialog.findViewById<LinearLayout>(R.id.rowMenuTvOzadje).setOnClickListener {
             if (!TvOzadje.podprto(this)) {
                 Toast.makeText(this, UiText.get(R.string.ui_tv_wallpaper_failed), Toast.LENGTH_LONG).show()
@@ -2340,10 +2385,43 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             UiText.get(R.string.menu_scit) + " · " + UiText.get(R.string.scit_blokiranih_danes, si.safeer.tv.scit.Scit.statistika(this).blokiranih)
         } else UiText.get(R.string.menu_scit)
         dialog.findViewById<LinearLayout>(R.id.rowMenuScit).setOnClickListener {
-            val namera = Intent(this, si.safeer.tv.scit.ScitActivity::class.java)
-            if (scitVklopljen) namera.putExtra(si.safeer.tv.scit.ScitActivity.EXTRA_IZKLOPI, true)
-            try { startActivity(namera) } catch (_: Throwable) { }
-            dialog.dismiss()
+            // Scit vodi Safeer OS (kot Safeer Link): tam se tudi vklopi in izklopi.
+            if (!si.safeer.tv.os.Sosed.vodimLink(this)) {
+                try {
+                    dialog.dismiss()
+                    startActivity(android.content.Intent().setComponent(android.content.ComponentName(
+                        si.safeer.tv.os.Sosed.OS, "si.safeer.tv.os.DomovActivity"))
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    return@setOnClickListener
+                } catch (_: Throwable) { }
+            }
+            val zeVklopljen = si.safeer.tv.scit.Scit.jeVklopljen(this)
+            // Izklop ne potrebuje sistemskega dovoljenja, vklop pa samo ob prvi vzpostavitvi VPN-ja -
+            // v obeh primerih, ko sistemsko okno ni potrebno, preklopimo takoj v mestu, da checkbox in
+            // dejansko stanje soglasata in nas ne vrze iz brskalnika (prejsnja napaka: vedno je odprlo
+            // ScitActivity, cetudi dovoljenje ni bilo potrebno).
+            if (zeVklopljen || si.safeer.tv.scit.Scit.dovoljenjeNamera(this) == null) {
+                val zdajVklopljen: Boolean
+                val sporociloId: Int
+                if (zeVklopljen) {
+                    si.safeer.tv.scit.Scit.izklopi(this)
+                    zdajVklopljen = false
+                    sporociloId = R.string.scit_izklopljen
+                } else {
+                    val ok = si.safeer.tv.scit.Scit.vklopi(this)
+                    zdajVklopljen = ok
+                    sporociloId = if (ok) R.string.scit_vklopljen else R.string.scit_napaka_dovoljenje
+                }
+                cbScit.isChecked = zdajVklopljen
+                dialog.findViewById<android.widget.TextView>(R.id.txtMenuScit).text = if (zdajVklopljen) {
+                    UiText.get(R.string.menu_scit) + " · " + UiText.get(R.string.scit_blokiranih_danes, si.safeer.tv.scit.Scit.statistika(this).blokiranih)
+                } else UiText.get(R.string.menu_scit)
+                Toast.makeText(this, getString(sporociloId), Toast.LENGTH_SHORT).show()
+            } else {
+                val namera = Intent(this, si.safeer.tv.scit.ScitActivity::class.java)
+                try { startActivity(namera) } catch (_: Throwable) { }
+                dialog.dismiss()
+            }
         }
 
         // 📁 Kam se shranjujejo prenesene datoteke (velja tudi za datoteke prek Safeer Linka).
@@ -2370,6 +2448,22 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                         UiText.get(R.string.ui_download_dir_set, PrenosiMapa.opis(this)),
                         Toast.LENGTH_LONG
                     ).show()
+                }
+                .show()
+        }
+
+        // 🔍 Iskalnik, ki ga uporablja polje za iskanje in naslove.
+        val txtIskalnik = dialog.findViewById<android.widget.TextView>(R.id.txtIskalnik)
+        txtIskalnik.text = SmartOmnibox.iskalnik(this).ime
+        dialog.findViewById<LinearLayout>(R.id.rowMenuIskalnik).setOnClickListener {
+            val vsi = SmartOmnibox.Iskalnik.values()
+            android.app.AlertDialog.Builder(this)
+                .setTitle(UiText.get(R.string.omnibox_iskalnik))
+                .setSingleChoiceItems(vsi.map { it.ime }.toTypedArray(), vsi.indexOf(SmartOmnibox.iskalnik(this))) { d, i ->
+                    SmartOmnibox.nastaviIskalnik(this, vsi[i])
+                    d.dismiss()
+                    dialog.dismiss()
+                    Toast.makeText(this, UiText.get(R.string.omnibox_iskalnik) + ": " + vsi[i].ime, Toast.LENGTH_SHORT).show()
                 }
                 .show()
         }
@@ -2671,7 +2765,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     internal var lastCenterClickTime: Long = 0L
 
+    private val TIPKE_POTRDI = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
+        KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A)
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Samo tipka OK sme dovoliti en sinteticni dotik (triggerNativeTap); puscice ne.
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode in TIPKE_POTRDI) ChromiumEngineView.oznaciTipko()
         return keyRouter.dispatch(event)
     }
 

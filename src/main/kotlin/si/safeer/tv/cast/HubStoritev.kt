@@ -33,6 +33,8 @@ class HubStoritev : Service() {
         private const val TAG = "SafeerHubStoritev"
         private const val KANAL = "safeer_link_hub"
         private const val OBVESTILO = 4042
+        private const val KANAL_PRIJAVA = "safeer_link_prijava"
+        private const val OBVESTILO_PRIJAVA = 4048
 
         const val AKCIJA_ZACNI = "si.safeer.tv.cast.HUB_ZACNI"
         const val AKCIJA_KONCAJ = "si.safeer.tv.cast.HUB_KONCAJ"
@@ -43,6 +45,7 @@ class HubStoritev : Service() {
          */
         fun vklopi(context: Context): Boolean {
             val app = context.applicationContext
+            if (!si.safeer.tv.os.Sosed.vodimLink(app)) return false
             val uspelo = HubKrmilnik.zazeni(app, zapomni = true)
             if (uspelo) zazeniStoritev(app, AKCIJA_ZACNI)
             return uspelo
@@ -62,6 +65,7 @@ class HubStoritev : Service() {
          */
         fun zagotovi(context: Context) {
             val app = context.applicationContext
+            if (!si.safeer.tv.os.Sosed.vodimLink(app)) { HubKrmilnik.predajLinkLastniku(app); return }
             if (!HubKrmilnik.jeZazelen(app)) return
             zazeniStoritev(app, AKCIJA_ZACNI)
         }
@@ -81,7 +85,7 @@ class HubStoritev : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == AKCIJA_KONCAJ) {
+        if (intent?.action == AKCIJA_KONCAJ || !si.safeer.tv.os.Sosed.vodimLink(this)) {
             HubKrmilnik.ustavi(applicationContext, zapomni = false)
             ustaviOspredje()
             stopSelf()
@@ -99,6 +103,7 @@ class HubStoritev : Service() {
             Log.w(TAG, "Obvestila ni bilo mogoce prikazati: ${e.message}")
         }
         si.safeer.tv.os.VklopTelevizorja.namesti(applicationContext)
+        HubKrmilnik.naPrijavoZaObvestilo = { obvestiOPrijavi() }
         // Naprava, ki se je umaknila izvoljenemu hubu, je njegov odjemalec: huba tu ne zaganjamo znova
         // (prej je storitev, zagnana tik po vklopu, hub prizgala se enkrat in izvolitev se je ponovila).
         // Ce izvoljeni hub izgine, gosti naprava spet sama (HubKrmilnik.izvoljeniHubIzgubljen).
@@ -115,7 +120,45 @@ class HubStoritev : Service() {
         return START_STICKY
     }
 
+    /**
+     * Nova naprava se pridruzuje in Safeer OS ni na zaslonu (npr. tece druga aplikacija): brez tega uporabnik
+     * kode ne bi videl nikjer. Obvestilo s kodo; ce je dovoljen prikaz cez druge aplikacije, Safeer OS
+     * odpremo, da pokaze kodo v velikem oknu. Ko prijav ni vec, obvestilo umaknemo.
+     */
+    private fun obvestiOPrijavi() {
+        val upravitelj = getSystemService(NotificationManager::class.java) ?: return
+        val prijave = try { HubKrmilnik.cakajocePrijave() } catch (_: Throwable) { emptyList() }
+        val p = prijave.lastOrNull()
+        if (p == null) { upravitelj.cancel(OBVESTILO_PRIJAVA); return }
+        if (HubKrmilnik.naPrijavoZaZaslon != null) return // Safeer OS je odprt in kodo ze kaze
+        try {
+            if (upravitelj.getNotificationChannel(KANAL_PRIJAVA) == null) {
+                upravitelj.createNotificationChannel(NotificationChannel(KANAL_PRIJAVA, "Safeer Link - nova naprava",
+                    NotificationManager.IMPORTANCE_HIGH).apply { description = "Koda za napravo, ki se pridruzuje tvojemu Safeer Linku." })
+            }
+            val odpri = packageManager.getLeanbackLaunchIntentForPackage(packageName)
+                ?: packageManager.getLaunchIntentForPackage(packageName)
+            val cakajoca = odpri?.let {
+                android.app.PendingIntent.getActivity(this, OBVESTILO_PRIJAVA, it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+            }
+            val koda = p.pin.take(3) + " " + p.pin.drop(3)
+            val ime = p.ime.ifBlank { "Nova naprava" }
+            val gradnik = Notification.Builder(this, KANAL_PRIJAVA)
+                .setContentTitle("Safeer Link: $ime se želi pridružiti")
+                .setContentText("Na njej vpiši kodo $koda")
+                .setSmallIcon(android.R.drawable.ic_menu_send)
+                .setAutoCancel(true)
+            if (cakajoca != null) gradnik.setContentIntent(cakajoca)
+            upravitelj.notify(OBVESTILO_PRIJAVA, gradnik.build())
+            if (odpri != null && android.provider.Settings.canDrawOverlays(this)) startActivity(odpri)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Obvestila o prijavi ni bilo mogoce prikazati: ${e.message}")
+        }
+    }
+
     override fun onDestroy() {
+        HubKrmilnik.naPrijavoZaObvestilo = null
         // Hub zivi v istem procesu; ko gre storitev, gre z njo tudi vticnik.
         HubKrmilnik.ustavi(applicationContext, zapomni = false)
         super.onDestroy()

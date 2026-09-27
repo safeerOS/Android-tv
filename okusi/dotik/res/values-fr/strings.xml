@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tablet_datoteke">Fichiers</string>
+    <string name="tablet_naprave">Appareils</string>
+    <string name="tablet_programi">Programmes</string>
+    <string name="tablet_programi_opis">Lance les programmes de ton ordinateur</string>
+    <string name="tablet_zaslon">Écrans connectés</string>
+    <string name="tablet_ni_racunalnika">Aucun ordinateur n’est encore connecté. Lance Safeer Control sur ton ordinateur et rejoins Safeer Link ; il apparaîtra ici tout seul.</string>
+    <string name="tablet_vklopi">Activer Safeer Link</string>
+    <string name="tablet_znova">Se reconnecter</string>
+    <string name="tablet_znova_opis">Safeer Link est activé, mais la connexion n’est pas établie. Réessaie.</string>
+    <string name="tablet_pridruzi">Rejoindre %1$s</string>
+    <string name="tablet_povezujem">Connexion à « %1$s » …</string>
+    <string name="tablet_ni_odgovora">« %1$s » ne répond pas. Vérifie que l’appareil est allumé et sur le même réseau.</string>
+    <string name="tablet_koda_naslov">Code de « %1$s »</string>
+    <string name="tablet_koda_opis">Un code à six chiffres est apparu sur les autres appareils de ton Safeer Link (« %1$s »). Saisis-le ici.</string>
+    <string name="tablet_poveziSe">Connecter</string>
+    <string name="tablet_napacna_koda">Le code ne correspond pas. Vérifie-le à l’écran et réessaie.</string>
+    <string name="tablet_prevec_poskusov">Trop de codes erronés. Recommence depuis la tuile.</string>
+    <string name="tablet_koda_potekla">Le code a expiré. Touche à nouveau la tuile pour en obtenir un nouveau.</string>
+    <string name="tablet_nova_koda">Nouveau code</string>
+    <string name="tablet_iskanje_namig">Rechercher des applications, des fichiers ou sur le Web …</string>
+    <string name="tablet_prikazi_vse">Tout afficher ›</string>
+    <string name="tablet_odklopi">Déconnecter</string>
+    <string name="tablet_povezano_z">Connecté à %1$s</string>
+</resources>

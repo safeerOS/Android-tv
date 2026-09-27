@@ -39,12 +39,14 @@ object Daljinec {
         // (Safeer OS, Control) aplikacije katere koli naprave nasteje in zazene na en nacin.
         "apps.list", "apps.launch",
         // Vnos z racunalnika na zaslon, ki ga naprava deli (Safeer Vnos, storitev dostopnosti):
-        // dotik in poteg v delezih zaslona, sistemska tipka, besedilo v polje s fokusom.
-        "input.tap", "input.swipe", "input.key", "input.text", "input.enable",
+        // dotik in poteg v delezih zaslona, tipka (sistemska ali tipkovnice), kolesce, besedilo v polje s fokusom.
+        "input.tap", "input.swipe", "input.key", "input.text", "input.enable", "input.scroll",
         // Zvok racunalnika na tej napravi (Safeer OS za racunalnik: Zvok -> Predvajaj tukaj).
         "audio.play", "audio.stop",
         // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control.
-        "files.list"
+        "files.list", "files.search",
+        // Opcijski telefonski gamepad za Android aplikacijo, ki tece na tej napravi.
+        "gamepad.button", "gamepad.axis", "gamepad.release"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -126,9 +128,14 @@ object Daljinec {
         }
         // Vnos z racunalnika ne potrebuje brskalnika v ospredju: gre v aplikacijo, ki je na zaslonu.
         if (d.startsWith("input.")) return vnos(context, d, parametri)
+        if (d.startsWith("gamepad.")) return igralniPloskek(context, d, parametri)
         // Zvok z racunalnika igra ne glede na to, kaj je na zaslonu.
         if (d == "audio.play") return ZvokSprejemnik.zacni(context, parametri)
         if (d == "audio.stop") return ZvokSprejemnik.ustavi()
+        if (d == "files.search") {
+            val podatki = DatotekeStreznik.isci(context, parametri.optString("q", ""), parametri.optString(PARAM_POSILJATELJ, ""))
+            return Izid(true, "${podatki.optJSONArray("items")?.length() ?: 0} zadetkov", podatki)
+        }
         if (d == "files.list") {
             val podatki = DatotekeStreznik.seznam(context, parametri.optString("folder", ""), parametri.optString(PARAM_POSILJATELJ, ""))
             return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)
@@ -230,6 +237,11 @@ object Daljinec {
         val ime = try {
             context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(paket, 0)).toString()
         } catch (_: Throwable) { paket }
+        if (!smeZagnatiIzOzadja(context)) {
+            // Android bi zagon tiho zavrnil; povej po resnici, zakaj, in ponudi resitev na napravi.
+            prebudiZNamero(context, namera, ime)
+            return izidBrezDovoljenja(context, ime)
+        }
         try {
             context.startActivity(namera)
         } catch (e: Throwable) {
@@ -255,8 +267,12 @@ object Daljinec {
             context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(paket, 0)).toString()
         } catch (_: Throwable) { paket }
         val namera = PretociActivity.namera(context, cilj, paket)
+        if (!smeZagnatiIzOzadja(context)) {
+            prebudiZNamero(context, namera, ime)
+            return izidBrezDovoljenja(context, ime)
+        }
         try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Pretakanja ni bilo mogoce zaceti: ${e.message}") }
-        prebudiZNamero(context, namera, ime)
+        prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_pretok)
         return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
             JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
     }
@@ -264,7 +280,71 @@ object Daljinec {
     private const val KANAL_ZAGON = "safeer_link_zagon"
     private const val OBVESTILO_ZAGON = 4046
 
-    private fun prebudiZNamero(context: Context, namera: Intent, ime: String) {
+    /** Obvestilo za zagon ni vec potrebno (dejavnost se je odprla neposredno). */
+    fun pospraviObvestiloZagona(context: Context) {
+        try {
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).cancel(OBVESTILO_ZAGON)
+        } catch (_: Throwable) {}
+    }
+
+    private const val KANAL_DOVOLJENJE = "safeer_link_dovoljenje"
+    private const val OBVESTILO_DOVOLJENJE = 4047
+    const val KODA_DOVOLJENJE_PRIKAZ = "potrebno_dovoljenje_prikaz"
+
+    /** Ali sme Safeer odpreti program, ko ni v ospredju (Android 10+: "Prikaz cez druge aplikacije"). */
+    private fun smeZagnatiIzOzadja(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true
+        if (android.provider.Settings.canDrawOverlays(context)) return true
+        return jeVOspredju(context)
+    }
+
+    private fun jeVOspredju(context: Context): Boolean = try {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val moj = android.os.Process.myPid()
+        am.runningAppProcesses.orEmpty().any {
+            it.pid == moj && it.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+        }
+    } catch (_: Throwable) { false }
+
+    /** Enkratno obvestilo na tej napravi: dotik odpre nastavitev "Prikaz cez druge aplikacije" za Safeer. */
+    private fun obvestiZaDovoljenje(context: Context, ime: String) {
+        try {
+            val upravitelj = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            if (upravitelj.getNotificationChannel(KANAL_DOVOLJENJE) == null) {
+                val kanal = android.app.NotificationChannel(KANAL_DOVOLJENJE, "Safeer Link - dovoljenje za zagon",
+                    android.app.NotificationManager.IMPORTANCE_HIGH)
+                kanal.description = "Enkratna prosnja za dovoljenje, da Safeer Link odpira programe na tej napravi."
+                upravitelj.createNotificationChannel(kanal)
+            }
+            val nastavitev = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val cakajoca = PendingIntent.getActivity(context, OBVESTILO_DOVOLJENJE, nastavitev,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val obvestilo = android.app.Notification.Builder(context, KANAL_DOVOLJENJE)
+                .setContentTitle("Safeer Link: dovoli odpiranje programov")
+                .setContentText("Seznanjena naprava je zelela odpreti $ime. Dotakni se in vklopi »Prikaz čez druge aplikacije« za Safeer.")
+                .setSmallIcon(android.R.drawable.ic_menu_send)
+                .setContentIntent(cakajoca)
+                .setAutoCancel(true)
+                .build()
+            upravitelj.notify(OBVESTILO_DOVOLJENJE, obvestilo)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Obvestila za dovoljenje ni bilo mogoce objaviti: ${e.message}")
+        }
+    }
+
+    private fun izidBrezDovoljenja(context: Context, ime: String): Izid {
+        obvestiZaDovoljenje(context, ime)
+        return Izid(false, "Na tej napravi enkrat dovoli »Prikaz čez druge aplikacije« za Safeer (obvestilo je že na zaslonu), nato ponovi zagon $ime.",
+            koda = KODA_DOVOLJENJE_PRIKAZ)
+    }
+
+    /**
+     * Ce Android zagon iz ozadja zavrne (Android 10+, strozje od 14), uporabnik tapne to obvestilo. Zato
+     * pove, kaj se bo zgodilo, ne samo ime aplikacije.
+     */
+    private fun prebudiZNamero(context: Context, namera: Intent, ime: String,
+                               besedilo: Int = si.safeer.tv.R.string.ui_link_zagon_odpri) {
         try {
             val upravitelj = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             if (upravitelj.getNotificationChannel(KANAL_ZAGON) == null) {
@@ -278,8 +358,9 @@ object Daljinec {
             val cakajoca = PendingIntent.getActivity(context, OBVESTILO_ZAGON, namera, zastavice)
             val gradnik = android.app.Notification.Builder(context, KANAL_ZAGON)
             val obvestilo = gradnik
-                .setContentTitle("Safeer Link")
-                .setContentText(ime)
+                .setContentTitle(si.safeer.tv.UiText.get(besedilo, ime).ifBlank { context.getString(besedilo, ime) })
+                .setContentText(si.safeer.tv.UiText.get(si.safeer.tv.R.string.ui_link_zagon_tapni)
+                    .ifBlank { context.getString(si.safeer.tv.R.string.ui_link_zagon_tapni) })
                 .setSmallIcon(android.R.drawable.ic_menu_send)
                 .setContentIntent(cakajoca)
                 .setFullScreenIntent(cakajoca, true)
@@ -378,10 +459,31 @@ object Daljinec {
             "input.swipe" -> VnosStoritev.poteg(p.optDouble("x1", -1.0), p.optDouble("y1", -1.0),
                 p.optDouble("x2", -1.0), p.optDouble("y2", -1.0), p.optLong("ms", 300))
             "input.key" -> VnosStoritev.tipka(p.optString("key", ""))
+            "input.scroll" -> VnosStoritev.kolesce(p.optDouble("x", 0.5), p.optDouble("y", 0.5), p.optInt("steps", 1))
             "input.text" -> VnosStoritev.besedilo(p.optString("text", "").take(2000))
             else -> false
         }
         return if (uspelo) Izid(true, "Vnos izveden") else Izid(false, "Vnosa ni bilo mogoce izvesti", koda = "vnos_ni_uspel")
+    }
+
+
+    /**
+     * Telefonski igralni plosek -> dotiki na Android gostitelju. To ni sistemski gamepad in ne
+     * zahteva roota: Safeer Vnos (AccessibilityService), ki ga uporabnik sam vklopi, pretvori
+     * omejen nabor gamepad dogodkov v geste. Profil je lokalna nastavitev gostitelja; oddaljena
+     * naprava ne sme poslati poljubnih koordinat. Tako telefon ne dobi splosnega dostopa do zaslona.
+     */
+    private fun igralniPloskek(context: Context, d: String, p: JSONObject): Izid {
+        if (!VnosStoritev.aktivna()) return Izid(false,
+            "Na napravi z igro vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
+        val ok = when (d) {
+            "gamepad.button" -> VnosStoritev.igralniGumb(p.optString("button", ""), p.optBoolean("down", false))
+            "gamepad.axis" -> VnosStoritev.igralnaOs(p.optString("axis", ""), p.optDouble("value", 0.0))
+            "gamepad.release" -> VnosStoritev.igralniSprosti()
+            else -> false
+        }
+        return if (ok) Izid(true, "Igralni vnos izveden", JSONObject().put("controller", "phone-touch-gamepad"))
+        else Izid(false, "Igralnega vnosa ni bilo mogoce izvesti", koda = "gamepad_ni_uspel")
     }
 
     /**

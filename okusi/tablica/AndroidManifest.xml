@@ -11,11 +11,11 @@
     <uses-feature android:name="android.software.leanback" android:required="false" tools:node="replace" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="true" tools:node="replace" />
 
-    <!-- Cesar tablicna lupina ne potrebuje: mikrofon in risanje cez druge aplikacije sta
-         brskalnikova (glasovno iskanje, daljinec). -->
+    <!-- Cesar lupina ne potrebuje: mikrofon je brskalnikov (glasovno iskanje). SYSTEM_ALERT_WINDOW
+         ostane (iz skupnega manifesta): Safeer Link z druge naprave odpira programe tudi, ko lupina
+         ni v ospredju (Android 10+); uporabnik ga vklopi sam, prek obvestila. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
 
     <queries>
         <package android:name="si.safeer.tv" />

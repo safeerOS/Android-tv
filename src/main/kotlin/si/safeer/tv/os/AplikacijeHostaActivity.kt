@@ -103,6 +103,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         iskanje = findViewById(R.id.iskanje)
         skupineVrsta = findViewById(R.id.skupine)
         skupineDrsnik = findViewById(R.id.skupineDrsnik)
+        prilagodiSirini()
         when (nacin) {
             AppVir.RACUNALNIK.kljuc -> {
                 nadnaslov.text = getString(R.string.os_programi)
@@ -170,10 +171,32 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     }
 
-    /** Tablica se zasuka brez novega zaslona (configChanges): stevilo stolpcev prilagodimo sami. */
+    /** Tablica se zasuka brez novega zaslona (configChanges): mrezo in orodja prilagodimo sami. */
     override fun onConfigurationChanged(novo: android.content.res.Configuration) {
         super.onConfigurationChanged(novo)
-        mreza.numColumns = resources.getInteger(R.integer.os_stolpci_programov)
+        prilagodiSirini()
+    }
+
+    /**
+     * Stolpci po sirini zaslona, ne po usmerjenosti: kartica naj bo siroka vsaj 120 dp, da ime ne
+     * razpade sredi besede. Televizor in lezeca tablica imata 6 stolpcev, pokoncna tablica 5,
+     * telefon pokonci 3 (prej 4 in imena kot "AdGuar d"). Na ozkem zaslonu je iskanje cez vso
+     * sirino, skupine pa v svoji vrsti pod njim - prej jih je iskanje potisnilo z zaslona.
+     */
+    private fun prilagodiSirini() {
+        val c = resources.configuration
+        val gostota = resources.displayMetrics.density
+        val sirina = c.screenWidthDp - 2 * resources.getDimension(R.dimen.os_rob) / gostota
+        mreza.numColumns = ((sirina + RAZMIK_DP) / (KARTICA_DP + RAZMIK_DP)).toInt().coerceIn(3, 6)
+        val ozko = c.screenWidthDp < 600
+        fun dp(v: Int) = (v * gostota).toInt()
+        findViewById<LinearLayout>(R.id.orodja).orientation =
+            if (ozko) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        iskanje.layoutParams = LinearLayout.LayoutParams(if (ozko) -1 else dp(240), -2)
+        skupineDrsnik.layoutParams = LinearLayout.LayoutParams(if (ozko) -1 else 0, -2, if (ozko) 0f else 1f).apply {
+            if (ozko) topMargin = dp(10) else marginStart = dp(14)
+        }
+        naslov.maxLines = if (ozko) 2 else 1
     }
 
     override fun onStart() {
@@ -617,10 +640,10 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun osveziSeznam() {
         priljubljeni = SafeerAppi.priljubljeni(this).map { it.kljuc }.toSet()
         val iskano = poenostavi(iskanje.text?.toString().orEmpty().trim())
-        vidni = poViru().filter { p ->
+        vidni = najboljsi(poViru().filter { p ->
             (izbranaSkupina.isEmpty() || p.skupina == izbranaSkupina) &&
                 (iskano.isEmpty() || poenostavi(p.ime).contains(iskano) || poenostavi(p.opis).contains(iskano))
-        }
+        })
         prilagojevalnik.notifyDataSetChanged()
         when {
             vidni.isNotEmpty() -> skrijSporocilo()
@@ -628,6 +651,22 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             iskano.isNotEmpty() -> pokaziSporocilo(getString(R.string.os_programi_ni_zadetka, iskanje.text.toString().trim()))
             else -> pokaziSporocilo(getString(R.string.os_programi_prazno))
         }
+    }
+
+    /**
+     * Ista aplikacija na vec napravah v Linku je ena kartica (Matej, 21. 9. 2026: najhitrejsi in
+     * najmocnejsi ima prednost). Aplikacija te naprave ostane vedno (brez omrezja, na tem zaslonu);
+     * med napravami ima prednost racunalnik pred telefonom in tablico, med enakimi tista, ki je
+     * hitreje odgovorila. Ko uporabnik izbere napravo v vrsti zgoraj, vidi vse njene aplikacije.
+     */
+    private fun najboljsi(s: List<SafeerApp>): List<SafeerApp> {
+        if (izbranaNaprava != null) return s
+        val tu = s.filter { it.racunalnik.isEmpty() }.map { poenostavi(it.ime) }.toSet()
+        val izbrane = s.filter { it.racunalnik.isNotEmpty() && poenostavi(it.ime) !in tu }
+            .groupBy { poenostavi(it.ime) }
+            .mapValues { (_, g) -> g.sortedWith(compareBy({ if (it.racunalnik in androidNaprave) 1 else 0 },
+                { odziv[it.racunalnik] ?: Long.MAX_VALUE })).first() }
+        return s.filter { it.racunalnik.isEmpty() || izbrane[poenostavi(it.ime)] === it }
     }
 
     /** Ikona programa: PNG v base64 iz odgovora, oblikovan enako kot ikone spletnih aplikacij. */
@@ -757,7 +796,14 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Aplikacija na tablici, telefonu ali drugem televizorju: odpre se na tisti napravi. */
     private fun zazeniNaNapravi(p: SafeerApp, r: LinkOdjemalec.Naprava) {
-        link.ukaz(r.id, "apps.launch", JSONObject().put("app", p.cilj), 10_000, LinkOdjemalec.Odgovor { izid, napaka ->
+        val parametri = JSONObject().put("app", p.cilj)
+        // Aplikacija z druge naprave ni samo "zazeni tam": uporabnik jo zeli gledati in upravljati
+        // tukaj - v vse smeri in za vse naprave enako, kot ze deluje zaslon racunalnika (Povezani
+        // zasloni). Gostitelj zato po uporabnikovi potrditvi MediaProjection deli svoj zaslon nazaj
+        // na TO napravo, karkoli ze je (televizor, tablica, telefon); dotik na sliki gre nazaj
+        // h gostitelju kot pravi dotik (Safeer Vnos, ce ga ima gostitelj vklopljenega).
+        parametri.put("stream", true)
+        link.ukaz(r.id, "apps.launch", parametri, 15_000, LinkOdjemalec.Odgovor { izid, napaka ->
             if (isFinishing) return@Odgovor
             if (izid?.optBoolean("ok") != true) {
                 Toast.makeText(this, getString(R.string.os_programi_napaka,
@@ -837,6 +883,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     companion object {
+        private const val KARTICA_DP = 120f
+        private const val RAZMIK_DP = 12f
         /** Kaj zaslon kaze: "vse", "tv", "splet" ali "racunalnik" (privzeto). */
         const val EXTRA_VIR = "vir"
         /** Oznaka skupine za program, ki svoje kategorije nima (ista beseda kot v core/link_programi.py). */
@@ -886,6 +934,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val android = !r.zmoznosti.contains("apps")
             val zbrano = ArrayList<JSONObject>()
             val ime = r.ime.ifBlank { r.id }
+            val zacetek = zdaj()
             fun stran(od: Int) {
                 val zahteva = JSONObject().put("offset", od).put("limit", STRAN).put("icons", true)
                 link.ukaz(r.id, "apps.list", zahteva, 25_000, LinkOdjemalec.Odgovor { izid, napaka ->
@@ -893,6 +942,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                         konec(null, izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() })
                         return@Odgovor
                     }
+                    if (od == 0) odziv[r.id] = zdaj() - zacetek
                     val podatki = izid.optJSONObject("data") ?: JSONObject()
                     if (!podatki.optBoolean("enabled", false)) { konec(Surovo(ime, android, emptyList(), false), null); return@Odgovor }
                     val polje = podatki.optJSONArray("items")
@@ -905,6 +955,9 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             stran(0)
         }
+
+        /** Koliko ms je naprava potrebovala za prvi odgovor na apps.list (hitrejsa ima prednost). */
+        private val odziv = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
         /** Seznami, ki jih je domaci zaslon prenesel v ozadju (se brez ikon v spominu kot slike). */
         private val surovi = HashMap<String, Surovo>()

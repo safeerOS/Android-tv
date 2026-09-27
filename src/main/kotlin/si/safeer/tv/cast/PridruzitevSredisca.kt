@@ -40,18 +40,28 @@ object PridruzitevSredisca {
                 zagnanoZaKodo = true
             }
             val u = HubKrmilnik.usmerjevalnik
-            val vrata = HubKrmilnik.vrata()
-            val ip = krajevniNaslov()
-            if (u == null || vrata == 0 || ip == null) { b.putString("napaka", "ni_sredisca"); return b }
+            if (u == null) { b.putString("napaka", "ni_sredisca"); return b }
             if (preklici.isNotBlank()) u.prekliciPridruzitev(preklici)
             u.naPridruzitev = { id, ime ->
                 zadnja = System.currentTimeMillis() to ime
                 Log.i(TAG, "Naprava $id se je pridruzila s QR kodo.")
             }
-            val (id, skrivnost) = u.ustvariPridruzitev()
+            // Brez izrecnega preklica (npr. zaslon ponovi klic, ker prejsnji ni uspel - naslov ali
+            // vrata sredisca se niso bila pripravljena) obdrzimo ze pripravljeno kodo, da se
+            // uporabniku ne spreminja izpod prstov vsakih nekaj sekund.
+            val (id, skrivnost, pin) = if (preklici.isBlank()) u.zagotoviPridruzitev() else u.ustvariPridruzitev()
             b.putString("qr_id", id)
-            b.putString("povezava", povezavaZaKodo(ip, vrata, HubKrmilnik.vrataSplet(), id, skrivnost))
+            b.putString("pin", pin)
+            b.putString("code", pin)
             b.putLong("velja_ms", HubUsmerjevalnik.PIN_VELJA_MS)
+
+            val vrata = HubKrmilnik.vrata()
+            val ip = krajevniNaslov()
+            if (vrata > 0 && ip != null) {
+                b.putString("povezava", povezavaZaKodo(ip, vrata, HubKrmilnik.vrataSplet(), id, skrivnost))
+            } else {
+                b.putString("napaka", "ni_sredisca")
+            }
         } catch (e: Throwable) {
             Log.w(TAG, "Kode ni bilo mogoce pripraviti: ${e.message}")
             b.putString("napaka", "ni_sredisca")
@@ -64,15 +74,19 @@ object PridruzitevSredisca {
         return if (spletnaVrata > 0) "http://$ip:$spletnaVrata/$rep" else "https://safeer.si/p$rep"
     }
 
+    /** Povezava za kodo TUJEGA sredisca (naslov in odtis dobimo od njega): kodo lahko pokaze vsaka naprava. */
+    fun povezavaZaTujeSredisce(naslov: String, odtis: String, id: String, skrivnost: String): String =
+        "https://safeer.si/p#j=$id&s=$skrivnost&f=$odtis&a=$naslov"
+
     fun preklici(id: String) {
-        try { if (id.isNotBlank()) HubKrmilnik.usmerjevalnik?.prekliciPridruzitev(id) } catch (_: Throwable) { }
+        try { if (id.isNotBlank()) HubKrmilnik.usmerjevalnik?.prekliciPridruzitev(id) } catch (e: Throwable) { SafeerLog.napaka("Pridruzitev", "preklic kode", e) }
     }
 
     /** Uporabnik je izbral »brez povezave«: sredisce, ki smo ga prizgali samo za kodo, ugasnemo. */
     fun izklopiCeSamoZaKodo(context: Context) {
         if (!zagnanoZaKodo) return
         zagnanoZaKodo = false
-        try { HubStoritev.izklopi(context.applicationContext) } catch (_: Throwable) { }
+        try { HubStoritev.izklopi(context.applicationContext) } catch (e: Throwable) { SafeerLog.napaka("Pridruzitev", "sredisce ni izklopljeno", e) }
     }
 
     /** IPv4 naslov televizorja v domacem omrezju (telefon ga uporabi kot namig; odtis potrdi sredisce). */

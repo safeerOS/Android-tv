@@ -1,7 +1,6 @@
 package si.safeer.tv.tablica
 
 import si.safeer.tv.HomeTilesStore
-import si.safeer.tv.MainActivity
 import si.safeer.tv.R
 import si.safeer.tv.os.AplikacijeHostaActivity
 import si.safeer.tv.os.DatotekeActivity
@@ -117,6 +116,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         nastaviPostavitev()
+        // Safeer Link (sredisce) naj tece, kadar ga je uporabnik vklopil - tudi ce ga je Android ali
+        // uporabnik (prisilna ustavitev) medtem ustavil; do zdaj se je vrnil sele ob ponovnem zagonu naprave.
+        try { si.safeer.tv.cast.HubStoritev.zagotovi(this) } catch (_: Throwable) { }
         // Brez dovoljenja za obvestila naprava ne more vprasati lastnika, kadar Android za
         // brisanje ali vrtenje fotografije zahteva njegovo privolitev (PotrditevActivity).
         si.safeer.tv.link.Obvestila.zaprosiEnkrat(this)
@@ -125,6 +127,25 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         nastaviPostavitev()
+    }
+
+    /**
+     * Telefon pokonci (ozek zaslon): iskanje dobi vso sirino, kapsula stanja gre pod njo.
+     * Sicer bi kapsula iskalno polje stisnila na nekaj crk.
+     */
+    private fun glavaZaOzekZaslon() {
+        if (resources.configuration.screenWidthDp >= 600) return
+        val iskanje = findViewById<View>(R.id.iskalnaVrsticaOkvir) ?: return
+        val stanje = stanjeOkvir ?: return
+        val glava = iskanje.parent as? android.widget.LinearLayout ?: return
+        glava.orientation = android.widget.LinearLayout.VERTICAL
+        glava.gravity = android.view.Gravity.START
+        iskanje.layoutParams = (iskanje.layoutParams as android.widget.LinearLayout.LayoutParams).apply {
+            width = android.widget.LinearLayout.LayoutParams.MATCH_PARENT; weight = 0f; marginEnd = 0
+        }
+        stanje.layoutParams = (stanje.layoutParams as android.widget.LinearLayout.LayoutParams).apply {
+            topMargin = (10 * resources.displayMetrics.density).toInt()
+        }
     }
 
     private fun nastaviPostavitev() {
@@ -137,6 +158,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         drsnik = findViewById(R.id.drsnik)
         vnosIskanje = findViewById(R.id.vnosIskanje)
         stanjeOkvir = findViewById(R.id.stanjeOkvir)
+        glavaZaOzekZaslon()
         stanjePika = findViewById(R.id.stanjePika)
         stanjeBesedilo = findViewById(R.id.stanjeBesedilo)
         naslovPozdrav = findViewById(R.id.naslovPozdrav)
@@ -181,6 +203,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onStart() {
         super.onStart()
         link.dodaj(this)
+        zazeniSprejemnik(null)
         pokaziStanje()
         narisi()
         osveziScit()
@@ -190,6 +213,22 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         si.safeer.tv.os.GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         si.safeer.tv.os.GlasbaStoritev.osveziKartico(this)
+    }
+
+    /**
+     * Sprejemnik Safeer Linka (ukazi drugih naprav: zagon aplikacij, datoteke, deljenje zaslona). Brez
+     * njega je telefon v Linku le, dokler je Safeer OS odprt, in ga racunalnik ne vidi. Tece kot storitev
+     * v ospredju, dokler ga uporabnik ne ugasne; zazene se samo, ce je naprava seznanjena s srediscem.
+     */
+    private fun zazeniSprejemnik(hubUrl: String?) {
+        try {
+            if (hubUrl == null && (si.safeer.tv.cast.CastReceiverService.instance != null ||
+                    !si.safeer.tv.cast.CastReceiverService.isConfigured(this))) return
+            si.safeer.tv.cast.CastReceiverService.start(this, hubUrl,
+                getString(R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")")
+        } catch (e: Throwable) {
+            android.util.Log.w("SafeerTablica", "Sprejemnika Linka ni bilo mogoce zagnati: ${e.message}")
+        }
     }
 
     /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju). */
@@ -231,14 +270,15 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
             }
         }
+        // Datoteke so vedno na voljo: brez racunalnika se odprejo videi, glasba in slike te naprave,
+        // s povezanim racunalnikom pa DatotekeActivity ponudi izbiro vira (ta naprava ali racunalnik).
         mDatoteke?.setOnClickListener {
-            if (imamoDatoteke) {
-                odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
-            } else {
-                pokaziOknoNiPovezano(getString(R.string.tablet_datoteke))
-            }
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
         }
-        findViewById<View>(R.id.karticaMediji)?.setOnClickListener {
+        // R.id.karticaMediji je bil odstranjen (kartica Mediji na TV/OS domacem zaslonu je zdaj samo
+        // se postavka v stranski vrstici, R.id.meniGlasba) - tu ostaja enako varno (?.), ce ga ta
+        // postavitev tablice se ne pozna.
+        findViewById<View>(R.id.meniGlasba)?.setOnClickListener {
             odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
         }
         mNaprave?.setOnClickListener {
@@ -270,12 +310,14 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
         imm?.hideSoftInputFromWindow(vnosIskanje?.windowToken, 0)
         vnosIskanje?.clearFocus()
-        val url = when {
-            niz.startsWith("http://", ignoreCase = true) || niz.startsWith("https://", ignoreCase = true) -> niz
-            niz.contains(".") && !niz.contains(" ") -> "https://$niz"
-            else -> "https://www.google.com/search?q=" + URLEncoder.encode(niz, "UTF-8")
-        }
-        odpriVBrskalniku(url)
+        // Isto pravilo kot vrstica brskalnika: naslov ali iskanje; neobstojeca domena gre v iskanje.
+        val odl = si.safeer.tv.SmartOmnibox.razresi(this, niz) ?: return
+        val gostitelj = odl.preveri
+        if (gostitelj == null) { odpriVBrskalniku(odl.url); return }
+        Thread {
+            val url = if (si.safeer.tv.SmartOmnibox.obstaja(gostitelj)) odl.url else si.safeer.tv.SmartOmnibox.iskanje(this, niz)
+            runOnUiThread { if (!isFinishing) odpriVBrskalniku(url) }
+        }.start()
     }
 
     private fun pripraviVelikeKartice() {
@@ -324,11 +366,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
         }
         hitriDatoteke?.setOnClickListener {
-            if (imamoDatoteke) {
-                odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
-            } else {
-                pokaziOknoNiPovezano(getString(R.string.tablet_datoteke))
-            }
+            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
         }
         hitriNastavitve?.setOnClickListener {
             odpriVarno(Intent(this, si.safeer.tv.os.NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
@@ -338,18 +376,13 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
     }
 
-    private fun brskalnikNamera(): Intent {
-        val paket = Sosed.brskalnik(this)
-        val namera = if (paket != null)
-            Intent().setComponent(android.content.ComponentName(paket, "si.safeer.tv.MainActivity"))
-                .putExtra("iz_safeer_os", packageName)
-        else Intent(this, MainActivity::class.java)
-        return namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
+    /** Splet na tablici: mobilni Safeer, ce je namescen (os/Brskalnik), sicer vgrajeni. */
+    private fun brskalnikNamera(): Intent = si.safeer.tv.os.Brskalnik.namera(this)
 
     private fun odpriVBrskalniku(url: String?) {
-        val namera = brskalnikNamera()
-        if (url != null) { namera.action = Intent.ACTION_VIEW; namera.data = Uri.parse(url) }
+        val namera = url?.let { si.safeer.tv.os.Brskalnik.mobilniNaslov(this, it) } ?: brskalnikNamera().also {
+            if (url != null) { it.action = Intent.ACTION_VIEW; it.data = Uri.parse(url) }
+        }
         odpriVarno(namera, getString(R.string.os_splet))
     }
 
@@ -440,6 +473,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (uspelo && izid != null) {
                 Host.shrani(this, hub.naslov, izid.zeton, izid.odtis, izid.hubId)
                 link.ponovnoPoveziSe()
+                zazeniSprejemnik(hub.naslov)
                 hubi = emptyList()
                 Toast.makeText(this, getString(R.string.tablet_povezana, hub.ime), Toast.LENGTH_LONG).show()
                 pokaziStanje()
@@ -517,6 +551,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun zazeniSpletno(a: SpletneAplikacije.Aplikacija) {
+        si.safeer.tv.os.Brskalnik.mobilniNaslov(this, a.url)?.let {
+            odpriVarno(it, a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }); return
+        }
         val namera = brskalnikNamera()
             .setAction(Intent.ACTION_VIEW)
             .setData(Uri.parse(a.url))
@@ -592,7 +629,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         val seznam = seznamPloscaNaprave ?: return
         seznam.removeAllViews()
         val infl = LayoutInflater.from(this)
-        val druge = link.naprave.filter { it.id != Identiteta.id(this) }
+        val druge = LinkOdjemalec.drugeZaPrikaz(link.naprave, Identiteta.id(this))
 
         // Brez Safeer Linka tablica ne vidi nobene naprave, vklopa pa drugje nima: zato je na
         // domacem zaslonu. Krajevnega nacina tablici ne ponujamo - brez naprav ta zaslon nima cesa
@@ -628,8 +665,14 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 val pika = v.findViewById<View>(R.id.pikaNaprave)
                 val stanje = v.findViewById<TextView>(R.id.stanjeNaprave)
 
-                val jeTelefon = n.vloga == "phone" || n.vloga == "telefon"
-                ikona?.setImageResource(if (jeTelefon) R.drawable.os_ikona_telefon else R.drawable.os_ikona_zaslon)
+                // Ikona pove, kaj naprava je: telefon, televizor, racunalnik ali zaslon (tablica).
+                val jeTelefon = n.vloga == "phone" || n.vloga == "telefon" || n.platforma == "phone"
+                ikona?.setImageResource(when {
+                    jeTelefon -> R.drawable.os_ikona_telefon
+                    n.platforma == "tv" -> R.drawable.os_ikona_naprava
+                    n.platforma == "linux" || n.platforma == "windows" -> R.drawable.os_ikona_racunalnik
+                    else -> R.drawable.os_ikona_zaslon
+                })
                 ime?.text = n.ime.ifBlank { n.id }
                 pika?.setBackgroundResource(R.drawable.os_pika)
                 pika?.alpha = if (link.povezan) 1f else 0.35f
@@ -667,7 +710,10 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     private fun pokaziStanje() {
         val kje = link.imeSredisca.ifBlank { getString(R.string.os_naprava_tv) }
+        // Povezan samo sam s sabo (lastno sredisce, nobene druge naprave): ne "Povezano", ker to zavaja.
+        val sami = link.povezan && LinkOdjemalec.drugeZaPrikaz(link.naprave, Identiteta.id(this)).isEmpty()
         val besedilo = when {
+            sami -> getString(R.string.os_stanje_krajevni)
             link.povezan && !Host.jeOddaljen(this) && !imamoDatoteke && !imamoPrograme && !imamoZaslon ->
                 getString(R.string.tablet_stanje_ni_tv)
             link.povezan -> getString(R.string.os_stanje_povezan, kje)
@@ -678,7 +724,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         stanjeBesedilo?.text = besedilo
         stanjePika?.let { pika ->
-            if (link.povezan) {
+            if (link.povezan && !sami) {
                 pika.setBackgroundResource(R.drawable.os_pika)
                 pika.alpha = 1f
             } else {

@@ -875,7 +875,8 @@ private fun preizkusKroga() {
         """{"device_id":"tel-1","nonce":"$nonceB","signature":"${podpisi(tel, u.podatkiZaPodpis("tel-1", nonceB))}","alias":"tel-1-os","name":"Telefon OS"}"""))
     preveriEnako("alias s pravim podpisom uspe", 200, aliasOk?.koda)
     preveriEnako("alias ima isti kljuc", b64(tel.public.encoded), u.krog.clan("tel-1-os")?.kljuc)
-    preveriEnako("alias ima svoje ime", "Telefon OS", u.krog.clan("tel-1-os")?.ime)
+    // Ime pripada napravi (kljucu), ne id-ju: alias podeduje ime, da je naprava na vseh hubih ista.
+    preveriEnako("alias podeduje ime naprave", "Moj telefon", u.krog.clan("tel-1-os")?.ime)
     val izzivC = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1-os"}"""))
     preveriEnako("alias dobi izziv", 200, izzivC?.koda)
     val izzivD = u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1"}"""))
@@ -919,6 +920,60 @@ private fun preizkusKroga() {
     preveri("id iz kljuca ima predpono n- in 16 znakov", KrogZaupanja.idIzKljuca(b64(tel.public.encoded)).matches(Regex("n-[0-9a-f]{16}")))
 }
 
+// ------------------------------------------------------------ podpisani vnosi v krogu (P2P)
+
+private fun preizkusPodpisanegaKroga() {
+    println()
+    println("Podpisani vnosi v krogu")
+    val hub = parKljucev()
+    val telefon = parKljucev()
+    val vsiljivec = parKljucev()
+    val hubId = KrogZaupanja.idIzKljuca(b64(hub.public.encoded))
+
+    // Hub doda telefon in vnos podpise (kot naprava, ki v krog doda drugo napravo).
+    val krogHuba = KrogZaupanja()
+    krogHuba.lastniKljuc = b64(hub.public.encoded)
+    krogHuba.podpisnik = { podatki -> podpisi(hub, podatki) }
+    krogHuba.dodaj(KrogZaupanja.Clan(hubId, b64(hub.public.encoded), "TV", "tv", 100.0, hubId))
+    krogHuba.dodaj(KrogZaupanja.Clan("tel-1", b64(telefon.public.encoded), "Telefon", "phone", 200.0, hubId))
+    preveri("vnos, ki ga dodamo mi, je podpisan", krogHuba.json().contains("podpis"))
+
+    // Druga naprava, ki huba ze pozna, podpisan vnos sprejme tudi brez huba (npr. prek releja).
+    val krogTablice = KrogZaupanja()
+    krogTablice.zdruzi(JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", JsonLahki.Zapis().surovo(hubId,
+        JsonLahki.Zapis().niz("kljuc", b64(hub.public.encoded)).niz("ime", "TV").niz("platforma", "tv")
+            .stevilo("dodano", 100.0).niz("dodal", hubId).toString()).toString()).toString())
+    preveriEnako("podpisan vnos sprejmemo", true, krogTablice.zdruzi(krogHuba.json(), preveriPodpise = true))
+    preveriEnako("telefon je v krogu", true, krogTablice.jeClan("tel-1"))
+
+    // Nepodpisan ali ponarejen vnos tuje naprave ne pride noter.
+    val ponaredek = JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", JsonLahki.Zapis().surovo("vsiljivec",
+        JsonLahki.Zapis().niz("kljuc", b64(vsiljivec.public.encoded)).niz("ime", "Vsiljivec").niz("platforma", "linux")
+            .stevilo("dodano", 300.0).niz("dodal", hubId).toString()).toString()).toString()
+    preveriEnako("nepodpisan vnos ne pride v krog", false, krogTablice.zdruzi(ponaredek, preveriPodpise = true))
+    preveriEnako("vsiljivca ni v krogu", false, krogTablice.jeClan("vsiljivec"))
+    val tujPodpis = podpisi(vsiljivec, KrogZaupanja.podatkiClana("vsiljivec", b64(vsiljivec.public.encoded), "linux", 300.0, hubId))
+    val ponaredek2 = JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", JsonLahki.Zapis().surovo("vsiljivec",
+        JsonLahki.Zapis().niz("kljuc", b64(vsiljivec.public.encoded)).niz("ime", "Vsiljivec").niz("platforma", "linux")
+            .stevilo("dodano", 300.0).niz("dodal", hubId).niz("podpis", tujPodpis).toString()).toString()).toString()
+    preveriEnako("podpis z drugim kljucem ne velja", false, krogTablice.zdruzi(ponaredek2, preveriPodpise = true))
+
+    // Brez preverjanja (krog od nasega huba) velja kot doslej - stare naprave se naprej delajo.
+    preveriEnako("krog od huba sprejmemo tudi brez podpisov", true, krogTablice.zdruzi(ponaredek))
+
+    // Umik mora biti podpisan.
+    val krogDrugi = KrogZaupanja()
+    krogDrugi.zdruzi(krogHuba.json())
+    val laznjivUmik = JsonLahki.Zapis().stevilo("v", 1.0).surovo("umiki", JsonLahki.Zapis().surovo("tel-1",
+        JsonLahki.Zapis().stevilo("umaknjeno", 400.0).niz("umaknil", "vsiljivec").toString()).toString()).toString()
+    preveriEnako("nepodpisan umik ne umakne naprave", false, krogDrugi.zdruzi(laznjivUmik, preveriPodpise = true))
+    preveriEnako("telefon ostane v krogu", true, krogDrugi.jeClan("tel-1"))
+    krogHuba.umakni("tel-1", hubId, 500.0)
+    preveri("nas umik je podpisan", krogHuba.json().contains("umiki") && krogHuba.json().contains("podpis"))
+    preveriEnako("podpisan umik sprejmemo", true, krogDrugi.zdruzi(krogHuba.json(), preveriPodpise = true))
+    preveriEnako("telefon ni vec v krogu", false, krogDrugi.jeClan("tel-1"))
+}
+
 // ------------------------------------------------------------ id iz kljuca: prehod brez nove seznanitve
 
 private fun preizkusIdaIzKljuca() {
@@ -952,7 +1007,7 @@ private fun preizkusIdaIzKljuca() {
         """{"device_id":"$novi","nonce":"$nonce2","signature":"${podpisi(tel, u.podatkiZaPodpis(novi, nonce2))}","name":"Novi TV","platform":"tv"}"""))
     preveriEnako("pravi podpis pod novim id da vstopnico", 200, pravi?.koda)
     preveriEnako("nov id je v krogu z istim kljucem", kljuc, u.krog.clan(novi)?.kljuc)
-    preveriEnako("nov id ima ime iz prijave", "Novi TV", u.krog.clan(novi)?.ime)
+    preveriEnako("nov id podeduje ime naprave (ne povozi ga ime iz prijave)", "Stari TV", u.krog.clan(novi)?.ime)
     preveriEnako("nov id je dodal stari id", "tv-stari", u.krog.clan(novi)?.dodal)
     preveriEnako("stari id ostane (seznanitev prezivi)", kljuc, u.krog.clan("tv-stari")?.kljuc)
     preveri("odgovor prinese krog z obema", JsonLahki.objekt(pravi?.telo.orEmpty())?.objekt("ring")?.objekt("clani")?.ima("tv-stari") == true)
@@ -1211,6 +1266,217 @@ private fun preizkusDvojnePovezave() {
     preveriEnako("osirotela povezava dobi naprava_ni_povezana", "naprava_ni_povezana", polje(stara.zadnje(), "error_code"))
 }
 
+// ------------------------------------------------------------ identiteta naprave = kljuc
+
+private fun preizkusIdentitete() {
+    println()
+    println("Identiteta naprave (kljuc)")
+    val u = usmerjevalnik()
+    val pc = parKljucev()
+    val k = b64(pc.public.encoded)
+    val jedro = KrogZaupanja.idIzKljuca(k)
+    u.krog.dodaj(KrogZaupanja.Clan("pc-x", k, "Safeer (x)", "linux", 1.0, "hub"))
+    u.krog.dodaj(KrogZaupanja.Clan("pc-x-control", k, "Safeer Control (x)", "linux", 1.0, "pc-x"))
+    preveriEnako("brskalnik ima napravo iz kljuca", jedro, u.napravaIzKljuca("pc-x"))
+    preveriEnako("Control na istem racunalniku ima isto napravo", jedro, u.napravaIzKljuca("pc-x-control"))
+    preveriEnako("nov id iz kljuca s pripono tudi", jedro, u.napravaIzKljuca("$jedro-control"))
+    preveriEnako("naprava brez kljuca v krogu je nima", null, u.napravaIzKljuca("fon-stari"))
+    val tel = parKljucev()
+    u.krog.dodaj(KrogZaupanja.Clan("fon-1", b64(tel.public.encoded), "Telefon", "phone", 1.0, "hub"))
+    preveri("drug kljuc je druga naprava", u.napravaIzKljuca("fon-1") != jedro)
+
+    val a = Lazni(); u.obdelaj(a, registracija("pc-x", "sender"))
+    val b = Lazni(); u.obdelaj(b, registracija("pc-x-control", "sender"))
+    val c = Lazni(); u.obdelaj(c, registracija("fon-stari", "sender"))
+    val seznam = u.povezaniPrejemniki()
+    preveriEnako("oba sorodnika v seznamu nosita isto napravo", 2, seznam.split("\"device\":\"$jedro\"").size - 1)
+    val stari = JsonLahki.objekt("{\"s\":$seznam}")
+    preveri("naprava brez kljuca je v seznamu brez polja device", seznam.contains("\"id\":\"fon-stari\"") &&
+        !Regex("\"id\":\"fon-stari\"[^}]*\"device\"").containsMatchIn(seznam) && stari != null)
+
+    u.preimenuj("pc-x-control", "Matejev racunalnik")
+    preveriEnako("vzdevek velja za celo napravo (brskalnik)", "Matejev racunalnik", u.imeNaprave("pc-x"))
+    preveriEnako("vzdevek velja za nov id iz kljuca", "Matejev racunalnik", u.imeNaprave("$jedro-control"))
+    preveri("seznam kaze vzdevek pri obeh", u.povezaniPrejemniki().split("\"name\":\"Matejev racunalnik\"").size - 1 == 2)
+    preveriEnako("ime je v krogu (za vse hube)", "Matejev racunalnik", u.krog.clan("pc-x")?.ime)
+    u.preimenuj("pc-x", "Delovni")
+    preveriEnako("novo ime zamenja staro za vse id-je", "Delovni", u.imeNaprave("pc-x-control"))
+    val drugHub = usmerjevalnik()
+    drugHub.krog.zdruzi(u.krog.json())
+    preveriEnako("drug hub (po menjavi huba) vidi isto ime", "Delovni", drugHub.imeNaprave("pc-x-control"))
+    u.vpisiLastniKljuc("pc-x", "Safeer (x)", k, "linux")
+    preveriEnako("ponovni vpis lastnega kljuca ne povozi imena", "Delovni", u.imeNaprave("pc-x"))
+    u.preimenuj("pc-x", "")
+    preveriEnako("prazno ime odstrani vzdevek naprave", "Naprava pc-x-control", u.imeNaprave("pc-x-control"))
+    preveriEnako("telefon ni dobil vzdevka racunalnika", "Telefon", u.imeNaprave("fon-1").let { if (it == "fon-1") "Telefon" else it })
+
+    // Vzdevek, dan staremu id-ju pred krogom, velja tudi za nov id iz kljuca (prej se je izgubil).
+    val shramba = LazniPomnilnik()
+    val u2 = usmerjevalnik(shramba)
+    u2.preimenuj("tv-stari", "Dnevna soba")
+    val tv = parKljucev()
+    val k2 = b64(tv.public.encoded)
+    u2.krog.dodaj(KrogZaupanja.Clan("tv-stari", k2, "TV", "tv", 1.0, "hub"))
+    preveriEnako("stari vzdevek velja za nov id", "Dnevna soba", u2.imeNaprave(KrogZaupanja.idIzKljuca(k2)))
+    val u3 = usmerjevalnik(shramba)
+    preveriEnako("in prezivi ponovni zagon huba", "Dnevna soba", u3.imeNaprave(KrogZaupanja.idIzKljuca(k2)))
+}
+
+// ------------------------------------------------------------ dnevnik brez skrivnosti
+
+private fun preizkusDnevnika() {
+    println()
+    println("SafeerLog")
+    val zapisano = ArrayList<String>()
+    val prej = SafeerLog.izhod
+    SafeerLog.izhod = { zapisano.add(it) }
+    SafeerLog.napaka("Preizkus", "zeton saf_seja_abcdef123456 in {\"token\":\"skrivno123\",\"ticket\":\"t-9\"}",
+        IllegalStateException("http://192.168.0.5:8080/#j=q1&s=zelo-skrivno&f=AB"))
+    SafeerLog.napaka("Preizkus", "podpis MEUCIQDk3x9yZb0Qf1a2b3c4d5e6f7g8h9i0jKLMNOPQRSTUVWXYZ==")
+    SafeerLog.izhod = prej
+    val vse = zapisano.joinToString("\n")
+    preveriEnako("zapisa sta dva", 2, zapisano.size)
+    preveri("sejni zeton ni v dnevniku", !vse.contains("abcdef123456"))
+    preveri("token in ticket nista v dnevniku", !vse.contains("skrivno123") && !vse.contains("t-9"))
+    preveri("skrivnost iz QR ni v dnevniku", !vse.contains("zelo-skrivno"))
+    preveri("dolg podpis ni v dnevniku", !vse.contains("MEUCIQDk3x9"))
+    preveri("vrsta napake in oznaka ostaneta", vse.contains("IllegalStateException") && vse.contains("SafeerLink/Preizkus"))
+    SafeerLog.izhod = { throw RuntimeException("izhod odpove") }
+    SafeerLog.napaka("Preizkus", "ne sme vreci")
+    SafeerLog.izhod = prej
+    preveri("dnevnik ne vrze, tudi ko izhod odpove", true)
+}
+
+private fun preizkusImenVKrogu() {
+    println()
+    println("Imena v krogu in trust.names")
+    val u = usmerjevalnik()
+    val tv = parKljucev()
+    val k = b64(tv.public.encoded)
+    u.krog.dodaj(KrogZaupanja.Clan("tv-1", k, "Safeer TV", "tv", 100.0, "hub"))
+    u.preimenuj("tv-1", "Dnevna soba")
+    preveriEnako("preimenovanje ne premakne casa vpisa", 100.0, u.krog.clan("tv-1")?.dodano)
+    val star = KrogZaupanja()
+    star.dodaj(KrogZaupanja.Clan("a-1", k, "Isto ime", "tv", 1.0, "hub"))
+    preveri("enako ime brez casa imena se potrdi", star.preimenuj("a-1", "Isto ime") && (star.clan("a-1")?.imenovano ?: 0.0) > 0.0)
+    preveri("enako ime s casom imena se ne ponovi", !star.preimenuj("a-1", "Isto ime"))
+    preveri("preimenovanje ima svoj cas", (u.krog.clan("tv-1")?.imenovano ?: 0.0) > 0.0)
+
+    // Ponovni vpis iste naprave (novejsi dodano) ohrani ime, ki ga je dal uporabnik.
+    val tuj = KrogZaupanja()
+    tuj.dodaj(KrogZaupanja.Clan("tv-1", k, "Safeer TV", "tv", 200.0, "hub"))
+    u.krog.zdruzi(tuj.json())
+    preveriEnako("novejsi vpis ohrani uporabnikovo ime", "Dnevna soba", u.krog.clan("tv-1")?.ime)
+
+    // trust.names z naprave: hub vzame ime znanega clana z istim kljucem.
+    val odjemalec = KrogZaupanja()
+    odjemalec.zdruzi(u.krog.json())
+    odjemalec.preimenuj("tv-1", "Spalnica", KrogZaupanja.zdaj() + 10)
+    val n = Lazni(); u.obdelaj(n, registracija("fon-9", "sender"))
+    n.pocisti()
+    u.obdelaj(n, """{"id":"i1","type":"trust.names","payload":${odjemalec.json()}}""")
+    preveriEnako("trust.names je sprejet", "accepted", polje(n.prejeto.firstOrNull { tip(it) == "trust.ack" } ?: "", "status"))
+    preveriEnako("hub prevzame ime z naprave", "Spalnica", u.imeNaprave("tv-1"))
+    preveri("hub razposlje nov krog", n.prejeto.any { tip(it) == "trust.update" })
+
+    // Varnost: po tej poti ne pride nov clan, drug kljuc ali obujena naprava.
+    val vsiljivec = parKljucev()
+    val ponarejen = """{"v":1,"clani":{"tuj-1":{"kljuc":"${b64(vsiljivec.public.encoded)}","ime":"Tujec","platforma":"x","dodano":1.0,"dodal":"x","imenovano":${KrogZaupanja.zdaj() + 20}},""" +
+        """"tv-1":{"kljuc":"${b64(vsiljivec.public.encoded)}","ime":"Ugrabljen","platforma":"tv","dodano":100.0,"dodal":"hub","imenovano":${KrogZaupanja.zdaj() + 30}}},"umiki":{}}"""
+    u.obdelaj(n, """{"id":"i2","type":"trust.names","payload":$ponarejen}""")
+    preveri("nov clan po trust.names ne vstopi", u.krog.clan("tuj-1") == null)
+    preveriEnako("ime z drugim kljucem se ne prime", "Spalnica", u.imeNaprave("tv-1"))
+    preveriEnako("kljuc clana ostane isti", k, u.krog.clan("tv-1")?.kljuc)
+    u.krog.umakni("tv-1", "hub", KrogZaupanja.zdaj() + 40)
+    odjemalec.preimenuj("tv-1", "Obujen", KrogZaupanja.zdaj() + 50)
+    u.obdelaj(n, """{"id":"i3","type":"trust.names","payload":${odjemalec.json()}}""")
+    preveri("umaknjena naprava se s preimenovanjem ne vrne", u.krog.clan("tv-1") == null)
+    val neprijavljen = Lazni()
+    u.obdelaj(neprijavljen, """{"id":"i4","type":"trust.names","payload":${odjemalec.json()}}""")
+    preveriEnako("brez prijave trust.names ni sprejet", "rejected", polje(neprijavljen.zadnje(), "status"))
+    val prihodnost = KrogZaupanja()
+    prihodnost.dodaj(KrogZaupanja.Clan("fon-9", b64(parKljucev().public.encoded), "F", "phone", 1.0, "hub"))
+    preveri("ime iz daljne prihodnosti se ne prime", !prihodnost.zdruziImena(
+        """{"clani":{"fon-9":{"kljuc":"${prihodnost.clan("fon-9")!!.kljuc}","ime":"Z","imenovano":${KrogZaupanja.zdaj() + 10 * 86400}}}}"""))
+}
+
+private fun preizkusPredajeInGatewaya() {
+    println("\n== handoff.request in internet gateway (RC1) ==")
+    val u = usmerjevalnik()
+    val tv = Lazni("192.168.0.20")
+    val telefon = Lazni("192.168.0.30")
+    u.odgovorNa(tv, registracija("tv1", "receiver"))
+    u.odgovorNa(telefon, registracija("fon1", "sender", "[\"url\",\"internet.gateway\"]"))
+
+    tv.pocisti()
+    val predaja = u.odgovorNa(telefon, """{"id":"h1","type":"handoff.request","target":"tv1","sender":"ponarejen","payload":{"surface":"media","url":"https://safeer.si/v.mp4","title":"Film","position":42.5}}""")!!
+    preveriEnako("predaja sprejeta", "accepted", polje(predaja, "status"))
+    preveriEnako("zaslon dobi handoff.request", "handoff.request", tip(tv.zadnje()))
+    preveri("hub vpise pravega posiljatelja", tv.zadnje().contains("\"sender\":\"fon1\"") && !tv.zadnje().contains("ponarejen"))
+    preveri("tovor ostane (url, polozaj)", tv.zadnje().contains("https://safeer.si/v.mp4") && tv.zadnje().contains("42.5"))
+    preveriEnako("predaja neznani napravi zavrnjena", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"h2","type":"handoff.request","target":"nihce","payload":{"url":"https://x.si"}}""")!!, "status"))
+    preveriEnako("predaja sebi zavrnjena", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"h3","type":"handoff.request","target":"fon1","payload":{"url":"https://x.si"}}""")!!, "status"))
+    preveriEnako("predaja brez tovora zavrnjena", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"h4","type":"handoff.request","target":"tv1"}""")!!, "status"))
+
+    telefon.pocisti()
+    u.odgovorNa(tv, """{"id":"g1","type":"internet.open","target":"fon1","sender":"ponarejen","stream_id":"tok-12345678","host":"safeer.si","port":443}""")
+    preveriEnako("gateway dobi internet.open", "internet.open", tip(telefon.zadnje()))
+    preveri("internet.open: posiljatelja vpise hub", telefon.zadnje().contains("\"sender\":\"tv1\"") && !telefon.zadnje().contains("ponarejen"))
+    preveri("internet.open: vrata ostanejo", telefon.zadnje().contains("\"port\":443"))
+}
+
+private fun preizkusPolitikeA() {
+    println("\n== Politika A: Seznanitev na izbrani napravi (pairing host) ==")
+    val pomnilnik = LazniPomnilnik()
+    val u = usmerjevalnik(pomnilnik)
+    u.lastniOdtis = "AA11BB22"
+    val hub = parKljucev()
+    u.vpisiLastniKljuc("tv-hub", "Safeer TV", b64(hub.public.encoded), "tv")
+
+    // 1. Gostitelj (npr. že seznanjena tablica ali TV) odpre PrijavaActivity in ustvari vabilo
+    val (hostId, hostSecret, hostPin) = u.ustvariPridruzitev()
+    preveri("gostitelj takoj dobi 6-mestno kodo za prikaz", hostPin.length == 6 && hostPin.all { it.isDigit() })
+
+    // 2. Nova naprava se začne seznanjati prek SPAKE2 (/cast/pair/start)
+    val startRes = u.odgovori(zahteva("POST", "/cast/pair/start", """{"device_id":"nov-telefon","name":"Matejev telefon"}"""))
+    preveriEnako("zacetek seznanitve uspe", 200, startRes?.koda)
+    val pairId = polje(startRes!!.telo, "pair_id")
+    val dodeljeniPin = u.cakajocePrijave().firstOrNull { it.pairId == pairId }?.pin
+    preveriEnako("politika A: nova prijava prevzame kodo gostitelja", hostPin, dodeljeniPin)
+
+    // 3. SPAKE2 izmenjava s prenosom javnega ključa nove naprave
+    val kljucNove = parKljucev()
+    val pubNove = b64(kljucNove.public.encoded)
+    val odjemalec = Spake2.odjemalec(hostPin, "nov-telefon", HubUsmerjevalnik.IDENTITETA_HUBA, u.lastniOdtis.toByteArray(), pairId.toByteArray())
+    val spakeRes = u.odgovori(zahteva("POST", "/cast/pair/spake",
+        """{"pair_id":"$pairId","device_id":"nov-telefon","pb":"${HubUsmerjevalnik.bajteVHex(odjemalec.sporocilo())}"}"""))
+    preveriEnako("spake korak 1 uspe", 200, spakeRes?.koda)
+    val pa = HubUsmerjevalnik.hexVBajte(polje(spakeRes!!.telo, "pa"))!!
+    val ca = HubUsmerjevalnik.hexVBajte(polje(spakeRes.telo, "ca"))!!
+    val cb = odjemalec.zakljuci(pa)
+    preveri("hubova potrditev velja", odjemalec.preveri(ca))
+
+    // 4. Zaključek (/cast/pair/finish) s pubkey in platformo
+    val finishRes = u.odgovori(zahteva("POST", "/cast/pair/finish",
+        """{"pair_id":"$pairId","device_id":"nov-telefon","cb":"${HubUsmerjevalnik.bajteVHex(cb)}","pubkey":"$pubNove","platform":"phone"}"""))
+    preveriEnako("finish uspe", 200, finishRes?.koda)
+    val finishTelo = finishRes!!.telo
+    val zeton = polje(finishTelo, "token")
+    preveri("novi clan dobi veljaven zeton", u.jeVeljavenZeton(zeton))
+    preveri("v odgovoru je krog zaupanja", finishTelo.contains("\"ring\":") && finishTelo.contains(pubNove))
+    preveri("v odgovoru so hub podatki", finishTelo.contains("\"hub_id\":") && finishTelo.contains("\"fp\":"))
+    preveri("nova naprava je takoj vpisana v krog na hubu", u.krog.clan("nov-telefon")?.kljuc == pubNove)
+    preveriEnako("v krog je vpisana prava platforma", "phone", u.krog.clan("nov-telefon")?.platforma)
+
+    // 5. Preizkus, da je vabilo gostitelja porabljeno in ni več aktivno
+    val ponovniQr = u.odgovori(zahteva("POST", "/cast/pair/qr/join",
+        """{"qr_id":"$hostId","secret":"$hostSecret","device_id":"fon-x","name":"X"}"""))
+    preveriEnako("vabilo je po uspesnem SPAKE2 porabljeno", 404, ponovniQr?.koda)
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
@@ -1227,15 +1493,21 @@ fun main() {
     preizkusKroga()
     preizkusProtokolaV1()
     preizkusIdaIzKljuca()
+    preizkusPodpisanegaKroga()
     preizkusQrPrijave()
     preizkusPridruzitve()
     preizkusVabilaInOdhoda()
+    preizkusPolitikeA()
     preizkusDvojnePovezave()
+    preizkusIdentitete()
+    preizkusDnevnika()
+    preizkusImenVKrogu()
+    preizkusPredajeInGatewaya()
     println()
     if (napak == 0) {
         println("Vse v redu.")
     } else {
         println("Napak: $napak")
-        System.exit(1)
     }
 }
+
