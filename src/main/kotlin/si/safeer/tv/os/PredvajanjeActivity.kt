@@ -415,7 +415,10 @@ class PredvajanjeActivity : OsActivity() {
             }
         } else {
             delavec.execute {
-                val r = try { PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this)) } catch (_: Exception) { null }
+                val r = try {
+                    if (JavnaLast.jeEnota(sk)) JavnaLast.razresi(sk)
+                    else PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this))
+                } catch (_: Exception) { null }
                 glavna.post {
                     if (isFinishing) return@post
                     if (r == null) { izvajalec.text = getString(R.string.os_glasba_napaka); return@post }

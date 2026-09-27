@@ -599,8 +599,8 @@ class GlasbaActivity : OsActivity() {
     /** Kljuc polic na disku loci tudi vse zacasne poglede, da se med seboj ne pomesajo. */
     private fun kljucPolic(i: Int): String {
         val skriti = zacasnoSkritiViri[i].orEmpty().sorted().joinToString("") { "${it.length}:$it" }
-        // Nova razlicica zavrze stare PeerTube kartice, ki se niso imele preverjenega toka.
-        val peertube = if (i == DOMOV || i == VIDEO) ":pt2" else ""
+        // Nova razlicica zavrze stare video police brez javne lasti in preverjenih PeerTube tokov.
+        val peertube = if (i == DOMOV || i == VIDEO) ":pt3" else ""
         return "police:$i:${resources.configuration.locales[0].toLanguageTag()}:r${razvrstitev(i)}:l${i in samoTaNaprava}:f$skriti$peertube"
     }
 
@@ -771,6 +771,11 @@ class GlasbaActivity : OsActivity() {
                 unikat(filmskiViri.filter { SpletniVir.zvrstVsebine(it) == z }).takeIf { it.size >= MIN_KARTIC_KATEGORIJE }?.let { vrste += Podatki(z, it, video = true) }
             }
             android.util.Log.i("SafeerOsMedia", "enote=${izVirov.size}, z_vrsto=${filmi.size + serije.size}, police=${vrste.size}, prag=$MIN_KARTIC_KATEGORIJE")
+            if (jeVirViden(i, VIR_JAVNA_LAST)) {
+                try { JavnaLast.isci() } catch (_: Exception) { emptyList() }.takeIf { it.isNotEmpty() }?.let {
+                    vrste += Podatki(getString(R.string.os_media_javna_last), it, video = true)
+                }
+            }
             val peertubeStrezniki =
                 (if (jeVirViden(i, VIR_PEERTUBE)) PeerTube.VGRAJENI else emptyList()) +
                     vsiViri.filter { it.jePeerTube && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
@@ -866,7 +871,7 @@ class GlasbaActivity : OsActivity() {
             DOMOV -> listOf(VirIzbire(VIR_JAMENDO, "Jamendo"), VirIzbire(VIR_RADIO, "Radio Browser"), VirIzbire(VIR_PEERTUBE, "PeerTube"))
             GLASBA -> listOf(VirIzbire(VIR_JAMENDO, "Jamendo")) +
                 uporabniski.filter { it.jeSplet }.map { VirIzbire(kljucVira(it), it.ime) }
-            VIDEO -> listOf(VirIzbire(VIR_PEERTUBE, "PeerTube")) +
+            VIDEO -> listOf(VirIzbire(VIR_JAVNA_LAST, getString(R.string.os_media_javna_last)), VirIzbire(VIR_PEERTUBE, "PeerTube")) +
                 uporabniski.filter { it.jeSplet || it.jePeerTube }.map { VirIzbire(kljucVira(it), it.ime) }
             RADIO -> listOf(VirIzbire(VIR_RADIO, "Radio Browser"))
             TV_V_ZIVO -> listOf(VirIzbire(VIR_TV, getString(R.string.os_mediji_tv_v_zivo)))
@@ -1700,7 +1705,7 @@ class GlasbaActivity : OsActivity() {
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(9)
+        val rezultati = arrayOfNulls<Any>(10)
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
         val izSeznamov = MedijskiViri.iskanjeVSeznamih(this, beseda)
         val opravila = listOf<() -> Any>(
@@ -1713,6 +1718,7 @@ class GlasbaActivity : OsActivity() {
             { try { Podkasti.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try { Arhiv.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { SpletniVir.isciVse(this, spletniViri, beseda) },
+            { try { JavnaLast.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
         )
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = f() } }
         synchronized(iskanjeNiti) { iskanjeNiti.addAll(futures) }
@@ -1727,6 +1733,7 @@ class GlasbaActivity : OsActivity() {
             @Suppress("UNCHECKED_CAST") val podkasti = rezultati[6] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val arhiv = rezultati[7] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val izSpleta = rezultati[8] as? List<Pair<MedijskiViri.Vir, Jamendo.Skladba>> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val javnaLast = rezultati[9] as? List<Jamendo.Skladba> ?: emptyList()
             // Vsi zadetki v eni skupni lestvici; prednost odloca med dvojniki (ta naprava pred racunalnikom ...).
             val vsi = ArrayList<Relevantnost.Zadetek<*>>()
             krajevno.forEach { n ->
@@ -1742,6 +1749,7 @@ class GlasbaActivity : OsActivity() {
             arhiv.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Archive.org", 6)) }
             glasba.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Jamendo", 3)) }
             videi.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "PeerTube", 4)) }
+            javnaLast.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_media_javna_last), 4)) }
             postaje.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_glasba_radio), 5)) }
             val lestvica = Relevantnost.razvrsti(beseda, vsi)
             val videniNajboljsi = mutableSetOf<String>()
@@ -1777,7 +1785,7 @@ class GlasbaActivity : OsActivity() {
                     spletVrsta.takeIf { nicNasli && koncno },
                     Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first) }),
                     Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(glasba + spletAvdio + spletVideospoti), beseda)),
-                    Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi + spletFilmiInSerije), beseda), video = true),
+                    Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi + javnaLast + spletFilmiInSerije), beseda), video = true),
                     Vrsta(getString(R.string.os_mediji_izvajalci), izvajalci.map { iz ->
                         Kartica(iz.ime, getString(R.string.os_glasba_izvajalec), iz.slika, { odpriIzvajalca(iz) }) }),
                     Vrsta(getString(R.string.os_mediji_postaje), skladbe(ostali(postaje), beseda)),
@@ -2072,6 +2080,7 @@ class GlasbaActivity : OsActivity() {
         if (Podkasti.jeOddaja(sk)) { odpriSeznam(sk.naslov, sk.izvajalec) { Podkasti.epizode(sk.povezava).second }; return }
         if (sk.id.startsWith(MedijskiViri.PREDPONA_SEZNAMA)) { odpriSeznam(sk.naslov, sk.izvajalec) { MedijskiViri.osveziSeznam(this, sk.zvok) }; return }
         if (Arhiv.jeEnota(sk)) { razresiArhiv(sk); return }
+        if (JavnaLast.jeEnota(sk)) { razresiJavnoLast(sk); return }
         if (SpletniVir.jeEnota(sk)) { razresiSplet(sk); return }
         if (!sk.video || sk.zvok.isNotBlank()) {
             GlasbaStoritev.predvajaj(this, seznam, i)
@@ -2082,6 +2091,21 @@ class GlasbaActivity : OsActivity() {
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
             val r = try { PeerTube.razresi(sk, MedijskiViri.streznikiPeerTube(this)) } catch (_: Exception) { null }
+            glavna.post {
+                if (isFinishing) return@post
+                if (r == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
+                stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
+                GlasbaStoritev.predvajaj(this, listOf(r), 0)
+                nadaljujKoPripravljen(sk)
+                startActivity(Intent(this, PredvajanjeActivity::class.java))
+            }
+        }
+    }
+
+    private fun razresiJavnoLast(sk: Jamendo.Skladba) {
+        stanje.text = getString(R.string.os_glasba_nalagam)
+        delavec.execute {
+            val r = try { JavnaLast.razresi(sk) } catch (_: Exception) { null }
             glavna.post {
                 if (isFinishing) return@post
                 if (r == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
@@ -2154,6 +2178,7 @@ class GlasbaActivity : OsActivity() {
         private const val VIR_JAMENDO = "vgrajen:jamendo"
         private const val VIR_RADIO = "vgrajen:radio"
         private const val VIR_PEERTUBE = "vgrajen:peertube"
+        private const val VIR_JAVNA_LAST = "vgrajen:javna-last"
         private const val VIR_TV = "vgrajen:tv"
         private const val GLAS = 41
         private const val NASLOV_VRSTE = "naslov-vrste"
