@@ -386,6 +386,7 @@
                         android:layout_width="34dp"
                         android:layout_height="34dp"
                         android:src="@drawable/os_ikona_glasba"
+                        android:tint="#57D6AD"
                         android:contentDescription="@null"/>
                     <LinearLayout
                         android:layout_width="0dp"

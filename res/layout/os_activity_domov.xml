@@ -209,11 +209,18 @@
                         android:layout_width="22dp"
                         android:layout_height="22dp"
                         android:src="@drawable/os_ikona_glasba"
+                        android:tint="#57D6AD"
                         android:contentDescription="@null"/>
+                    <!-- Enaka barva in ena vrstica kot ostale postavke: daljse ime se raje malo pomanjsa. -->
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
+                        android:maxLines="1"
+                        android:autoSizeTextType="uniform"
+                        android:autoSizeMinTextSize="11sp"
+                        android:autoSizeMaxTextSize="14sp"
                         android:text="@string/os_mediji_kartica"
                         android:textColor="@color/os_besedilo"
                         android:textSize="14sp"
