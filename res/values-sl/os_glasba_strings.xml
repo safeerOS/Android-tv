@@ -145,9 +145,14 @@
     <string name="os_media_serija">Serija</string>
     <string name="os_media_videospot">Videospot</string>
     <string name="os_media_razvrsti">Razvrsti rezultate</string>
+    <string name="os_media_razvrsti_filtriraj">Razvrsti in filtriraj</string>
     <string name="os_media_razvrsti_priporoceno">Priporočeno</string>
-    <string name="os_media_razvrsti_najnovejse">Najnovejše</string>
+    <string name="os_media_razvrsti_najnovejse">Leto izida: najnovejše</string>
+    <string name="os_media_razvrsti_najstarejse">Leto izida: najstarejše</string>
     <string name="os_media_razvrsti_ime">Ime A–Ž</string>
+    <string name="os_media_razvrsti_ime_za">Ime Ž–A</string>
+    <string name="os_media_samo_ta_naprava">Samo ta naprava</string>
+    <string name="os_media_skriti_viri">Skritih virov: %1$d</string>
     <string name="os_media_prikazani_viri">Začasno prikazani viri</string>
     <string name="os_media_ni_video_virov">Ni dodanih spletnih video virov.</string>
     <string name="os_media_razmerje">Razmerje slike</string>

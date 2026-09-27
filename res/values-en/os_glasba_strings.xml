@@ -145,9 +145,14 @@
     <string name="os_media_serija">Series</string>
     <string name="os_media_videospot">Music video</string>
     <string name="os_media_razvrsti">Sort results</string>
+    <string name="os_media_razvrsti_filtriraj">Sort and filter</string>
     <string name="os_media_razvrsti_priporoceno">Recommended</string>
-    <string name="os_media_razvrsti_najnovejse">Newest first</string>
+    <string name="os_media_razvrsti_najnovejse">Release year: newest</string>
+    <string name="os_media_razvrsti_najstarejse">Release year: oldest</string>
     <string name="os_media_razvrsti_ime">Name A–Z</string>
+    <string name="os_media_razvrsti_ime_za">Name Z–A</string>
+    <string name="os_media_samo_ta_naprava">This device only</string>
+    <string name="os_media_skriti_viri">%1$d sources hidden</string>
     <string name="os_media_prikazani_viri">Temporarily shown sources</string>
     <string name="os_media_ni_video_virov">No web video sources have been added.</string>
     <string name="os_media_razmerje">Aspect ratio</string>
