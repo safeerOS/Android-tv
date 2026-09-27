@@ -426,20 +426,20 @@ object GenericWebSiteProfile : SiteProfile {
     override fun handleBack(host: MainActivity): Boolean {
         val tab = host.tabManager.getActiveTab()
         // Pojavno okno (prijava): Nazaj ga zapre in nas vrne na stran, ki ga je odprla.
-        if (tab != null && tab.jePojavni && !jeSmiselnoNazaj(tab.webView)) {
+        if (tab != null && tab.jePojavni && tab.webView?.let { !jeSmiselnoNazaj(it) } == true) {
             host.tabManager.zapriPojavni(host, tab)
             return true
         }
         if (TvSite.isWatchPage(host.activeUrl())) {
             if (tab?.webView?.canGoBack() == true) {
-                tab.webView.goBack()
+                tab.webView?.goBack()
                 return true
             }
             tab?.webView?.loadUrl("file:///android_asset/brave_home.html")
             return true
         }
-        if (tab != null && tab.webView.canGoBack()) {
-            tab.webView.goBack()
+        if (tab?.webView?.canGoBack() == true) {
+            tab.webView?.goBack()
             return true
         }
         if (host.tabManager.count > 1 && tab != null) {

@@ -30,6 +30,7 @@ import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -309,16 +310,21 @@ object SpletniVir {
         }
         val izid = AtomicReference("[]")
         val gotovo = CountDownLatch(1)
-        val wv = AtomicReference<WebView?>()
+        val wv = AtomicReference<NevidniNajem?>()
+        val brezPogleda = AtomicBoolean(false)
         val zacetek = System.currentTimeMillis()
         glavna.post {
             if (a.isFinishing) { gotovo.countDown(); return@post }
-            val w = nevidni(a) { gotovo.countDown() }; wv.set(w); w.loadUrl(url)
-            glavna.postDelayed({ wv.get()?.evaluateJavascript(SOGLASJE_JS, null) }, 1_200)
+            val najem = nevidni(a) { brezPogleda.set(true); gotovo.countDown() }
+            if (najem == null) { brezPogleda.set(true); gotovo.countDown(); return@post }
+            val w = najem.pogled
+            wv.set(najem)
+            w.loadUrl(url)
+            glavna.postDelayed({ wv.get()?.pogled?.evaluateJavascript(SOGLASJE_JS, null) }, 1_200)
             var prej = -1
             var mirujeOd = 0L
             fun poglej() {
-                val ziv = wv.get() ?: return
+                val ziv = wv.get()?.pogled ?: return
                 ziv.evaluateJavascript(ZADETKI_JS) { r ->
                     val n = try { JSONArray(r ?: "[]").length() } catch (_: Exception) { 0 }
                     if (n > 0) izid.set(r)
@@ -342,10 +348,10 @@ object SpletniVir {
             prekinjeno = true
             Thread.currentThread().interrupt()
         }
-        glavna.post { wv.getAndSet(null)?.let { odstrani(it) } }
+        glavna.post { wv.getAndSet(null)?.let { odstrani(it, url) } }
         // Prekinjen pregled (uporabnik je zaprl ali zamenjal zaslon) ne sme zapisati praznega
         // predpomnilnika in nato nadaljevati skozi ostale vire.
-        if (prekinjeno) return emptyList()
+        if (prekinjeno || brezPogleda.get()) return emptyList()
         val surovo = izid.get()
         val d = try { JSONArray(surovo) } catch (_: Exception) { return emptyList() }
         nast.edit().putString(kljuc, surovo).putLong(casKljuc, System.currentTimeMillis()).apply()
@@ -637,18 +643,24 @@ object SpletniVir {
 
     /** WebView pod vsebino zaslona (prosojen): stran tece kot vidna, uporabnik je ne vidi in ne doseze. */
     @SuppressLint("SetJavaScriptEnabled")
-    private fun nevidni(a: Activity, obZrusitvi: (() -> Unit)? = null): WebView = WebView(a).apply {
-        LahkaStran.nastaviVarcno(this, true, true)
-        webViewClient = Zaprt(obZrusitvi)
-        ua = settings.userAgentString
+    private data class NevidniNajem(val lastnik: Any, val pogled: WebView)
+
+    private fun nevidni(a: Activity, obZrusitvi: (() -> Unit)? = null): NevidniNajem? {
+        val lastnik = Any()
+        val pogled = LahkiWebViewPool.poskusiPridobiti(a, lastnik) { obZrusitvi?.invoke() } ?: return null
+        LahkaStran.nastaviVarcno(pogled, true, true)
+        pogled.webViewClient = Zaprt(lastnik, obZrusitvi)
+        ua = pogled.settings.userAgentString
         // Brskalnik ob odhodu v ozadje ustavi casovnike JS za VSE poglede procesa (pauseTimers);
         // brez njih se strani ne izrisejo. Ko delamo, jih zazenemo.
-        resumeTimers()
-        (a.window.decorView as ViewGroup).addView(this, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        pogled.resumeTimers()
+        (pogled.parent as? ViewGroup)?.removeView(pogled)
+        (a.window.decorView as ViewGroup).addView(pogled, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        return NevidniNajem(lastnik, pogled)
     }
 
     /** Vse ostane v nevidnem pogledu: sheme, ki niso http (intent:, aplikacije), se ne odprejo nikjer. */
-    private open class Zaprt(private val obZrusitvi: (() -> Unit)? = null) : WebViewClient() {
+    private open class Zaprt(private val lastnik: Any, private val obZrusitvi: (() -> Unit)? = null) : WebViewClient() {
         @Volatile private var stran: String? = null
 
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) { stran = url }
@@ -662,14 +674,14 @@ object SpletniVir {
         override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
             // Chromium lahko na televizorju z malo pomnilnika zapre izrisovalnik. Dogodek obravnavamo,
             // odstranimo mrtvi pogled in klicatelju omogocimo takoj zakljuciti namesto zrusitve aplikacije.
-            try { (view?.parent as? ViewGroup)?.removeView(view); view?.destroy() } catch (_: Exception) { }
+            if (view != null) LahkiWebViewPool.zavrzi(view, lastnik, "renderer nevidnega vira je umrl")
             obZrusitvi?.invoke()
             return true
         }
     }
 
-    private fun odstrani(w: WebView) {
-        try { w.stopLoading(); w.loadUrl("about:blank"); (w.parent as? ViewGroup)?.removeView(w); w.destroy() } catch (_: Exception) { }
+    private fun odstrani(najem: NevidniNajem, izvor: String) {
+        LahkiWebViewPool.vrni(najem.pogled, najem.lastnik, izvor)
     }
 
     private fun beri(c: Context, naslov: String, glava: Pair<String, String>? = null, agent: String? = null): String? {

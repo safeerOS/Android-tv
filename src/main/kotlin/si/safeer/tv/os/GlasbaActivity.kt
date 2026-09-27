@@ -2223,5 +2223,10 @@ class GlasbaActivity : OsActivity() {
             SEZNAMI.remove(GLASBA)
             SEZNAMI.remove(VIDEO)
         }
+
+        /** Slike so ponovljivo nalozljive; ob pomnilniskem pritisku jih ne drzimo v heapu. */
+        fun sprostiSlike() {
+            SLIKE.evictAll()
+        }
     }
 }

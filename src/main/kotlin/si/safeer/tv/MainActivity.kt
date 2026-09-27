@@ -226,7 +226,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                         if (newTab || activeTab == null) {
                             tabManager.createTab(this@MainActivity, url, true)
                         } else {
-                            activeTab.webView.loadUrl(url)
+                            activeTab.webView?.loadUrl(url)
                         }
                         showTvOsd("🌐 Povezava na TV", url.take(50))
                     }
@@ -255,7 +255,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                             }
                             val activeTab = tabManager.getActiveTab()
                             if (activeTab != null) {
-                                activeTab.webView.loadUrl(searchUrl)
+                                activeTab.webView?.loadUrl(searchUrl)
                             } else {
                                 tabManager.createTab(this@MainActivity, searchUrl, true)
                             }
@@ -399,7 +399,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 tabManager.createTab(this, zacetni, true).also { t ->
                     // Vir iz Safeer Media: stran kot na racunalniku (sirina 1280), pomanjsana na zaslon.
                     // Skripta velja od naslednjega nalaganja, zato prvo nalaganje ponovimo.
-                    if (zvokVOzadju) { t.webView.namiznaSirina = 1280; t.webView.loadUrl(zacetni) }
+                    if (zvokVOzadju) { t.webView?.namiznaSirina = 1280; t.webView?.loadUrl(zacetni) }
                 }.id
             } catch (_: Throwable) { null }
             if (zavihekAplikacije == null) odpriVZavihku(zacetni)
@@ -661,26 +661,27 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // ustavljamo in budnost obdrzimo, sicer slika zamrzne. Velja za vsako stran enako.
         val predvajaDomace = playback.isNativeActive()
         for (tab in tabs) {
+            val w = tab.webView ?: continue
             try {
                 if (firstSilence) {
-                    tab.webView.evaluateJavascript(js) {
+                    w.evaluateJavascript(js) {
                         if (generacija != generacijaUtisanja) return@evaluateJavascript
-                        try { tab.webView.onPause() } catch (_: Exception) {}
+                        try { w.onPause() } catch (_: Exception) {}
                         if (!predvajaDomace) {
-                            try { tab.webView.pauseTimers() } catch (_: Exception) {}
+                            try { w.pauseTimers() } catch (_: Exception) {}
                         }
                     }
                 } else {
-                    tab.webView.post {
+                    w.post {
                         if (generacija != generacijaUtisanja) return@post
-                        try { tab.webView.onPause() } catch (_: Exception) {}
+                        try { w.onPause() } catch (_: Exception) {}
                         if (!predvajaDomace) {
-                            try { tab.webView.pauseTimers() } catch (_: Exception) {}
+                            try { w.pauseTimers() } catch (_: Exception) {}
                         }
                     }
                 }
             } catch (_: Exception) {
-                try { tab.webView.onPause() } catch (_: Exception) {}
+                try { w.onPause() } catch (_: Exception) {}
             }
         }
         if (!predvajaDomace) {
@@ -707,13 +708,14 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         try { tabManager.getActiveTab()?.webView?.resumeTimers() } catch (_: Exception) {}
         val activeId = tabManager.getActiveTab()?.id
         for (tab in tabs) {
+            val w = tab.webView ?: continue
             try {
-                if (tab.id == activeId) tab.webView.onResume()
-                else tab.webView.onPause()
+                if (tab.id == activeId) w.onResume()
+                else w.onPause()
             } catch (_: Exception) {}
             if (tab.id == activeId) {
                 try {
-                    tab.webView.evaluateJavascript(
+                    w.evaluateJavascript(
                         "try{window._safeer_app_bg=false;sessionStorage.removeItem('safeer_app_bg');}catch(e){}",
                         null
                     )
@@ -749,7 +751,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             })();
         """.trimIndent()
         for (tab in tabs) {
-            try { tab.webView.evaluateJavascript(js, null) } catch (_: Exception) {}
+            try { tab.webView?.evaluateJavascript(js, null) } catch (_: Exception) {}
         }
         try {
             @Suppress("DEPRECATION")
@@ -807,10 +809,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         try {
-            if (level < TRIM_MEMORY_RUNNING_LOW) return
-            val vse = level >= TRIM_MEMORY_RUNNING_CRITICAL
-            if (::tabManager.isInitialized) tabManager.uspavajOzadje(vse)
-            if (vse) {
+            if (level < TRIM_MEMORY_RUNNING_MODERATE) return
+            if (::tabManager.isInitialized) tabManager.uspavajOzadje(true)
+            si.safeer.tv.os.LahkiWebViewPool.sprostiProstega()
+            si.safeer.tv.os.GlasbaActivity.sprostiSlike()
+            if (level >= TRIM_MEMORY_RUNNING_CRITICAL) {
                 if (::tabManager.isInitialized) tabManager.sprostiPredpomnilnike()
                 UserScriptManager.sprostiPredpomnilnik()
             }
@@ -825,6 +828,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         super.onLowMemory()
         try {
             if (::tabManager.isInitialized) tabManager.uspavajOzadje(true)
+            si.safeer.tv.os.LahkiWebViewPool.sprostiProstega()
+            si.safeer.tv.os.GlasbaActivity.sprostiSlike()
         } catch (_: Exception) {}
     }
 
@@ -834,7 +839,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // tudi, ko brskalnik ni odprt. Ugasne ga uporabnik v Safeer Linku.
         if (::tabManager.isInitialized) {
             for (tab in tabManager.getAllTabs()) {
-                try { tab.webView.destroy() } catch (_: Exception) {}
+                try { tab.webView?.destroy() } catch (_: Exception) {}
             }
         }
         try { debugJsReceiver?.let { unregisterReceiver(it) } } catch (_: Exception) {}
@@ -898,7 +903,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (!url.isNullOrEmpty()) {
             val activeTab = tabManager.getActiveTab()
             if (activeTab != null) {
-                activeTab.webView.loadUrl(url)
+                activeTab.webView?.loadUrl(url)
             } else {
                 tabManager.createTab(this, url, true)
             }
@@ -1047,7 +1052,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }
                 val activeTab = tabManager.getActiveTab()
                 if (activeTab != null) {
-                    activeTab.webView.loadUrl(url)
+                    activeTab.webView?.loadUrl(url)
                 } else {
                     tabManager.createTab(this, url, true)
                 }
@@ -1104,7 +1109,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             try {
                 try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }
                 val activeTab = tabManager.getActiveTab()
-                if (activeTab != null) activeTab.webView.loadUrl(url) else tabManager.createTab(this, url, true)
+                if (activeTab != null) activeTab.webView?.loadUrl(url) else tabManager.createTab(this, url, true)
                 // Tuj zaslon gledamo cez cel televizor: vrstica z naslovom bi le jemala prostor.
                 mobileTopBar.visibility = View.GONE
                 showTvOsd("📱 " + getString(R.string.ui_share_screen_from), od)
@@ -1222,7 +1227,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val activeTab = tabManager.getActiveTab()
         if (activeTab != null) {
             stopPageMedia("startPage")
-            activeTab.webView.loadUrl(home)
+            activeTab.webView?.loadUrl(home)
         } else {
             tabManager.createTab(this, home, true)
         }
@@ -1272,10 +1277,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         tabManager = TabManager(webViewContainer) { count, activeTab ->
             btnTabCount.text = String.format(java.util.Locale.getDefault(), "%d", count)
             if (activeTab != null) {
-                activeTab.webView.isDarkMode = isDarkModeActive
-                attachTabListeners(activeTab)
-                chrome.updateOmniboxDisplay(activeTab.url, activeTab.webView.title)
-                updateBookmarkButton(activeTab.url)
+                activeTab.webView?.let { wv ->
+                    wv.isDarkMode = isDarkModeActive
+                    attachTabListeners(activeTab)
+                    chrome.updateOmniboxDisplay(activeTab.url, wv.title)
+                    updateBookmarkButton(activeTab.url)
+                }
             }
         }
     }
@@ -1372,7 +1379,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     private fun attachTabListeners(tab: TabModel) {
-        val wv = tab.webView
+        val wv = tab.webView ?: return
         try {
             wv.setOnScrollChanged { direction, scrollY -> handlePageScroll(direction, scrollY) }
             wv.setOnChromeHidden { hidden ->
@@ -1738,7 +1745,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (odlocitev.iskanje && SiteProfileResolver.fromUrl(activeUrl()).handleSearch(vnos, this)) return
         val activeTab = tabManager.getActiveTab()
         if (activeTab != null) {
-            activeTab.webView.loadUrl(odlocitev.url)
+            activeTab.webView?.loadUrl(odlocitev.url)
         } else {
             tabManager.createTab(this, odlocitev.url, true)
         }
@@ -1819,7 +1826,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             showTvOsd(UiText.get(R.string.ui_bookmarks), getString(R.string.toast_bookmark_removed))
             Toast.makeText(this, getString(R.string.toast_bookmark_removed), Toast.LENGTH_SHORT).show()
         } else {
-            val title = activeTab.webView.title?.takeIf { it.isNotBlank() } ?: curUrl
+            val title = activeTab.webView?.title?.takeIf { it.isNotBlank() } ?: activeTab.title.ifBlank { curUrl }
             repository.addBookmark(title, curUrl)
             updateBookmarkButton(curUrl)
             showTvOsd(UiText.get(R.string.ui_bookmarks), "⭐ $title")
@@ -1999,7 +2006,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private fun odpriVZavihku(naslov: String) {
         val activeTab = tabManager.getActiveTab()
         if (activeTab != null) {
-            activeTab.webView.loadUrl(naslov)
+            activeTab.webView?.loadUrl(naslov)
         } else {
             tabManager.createTab(this, naslov, true)
         }
@@ -2475,7 +2482,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             cbDark.isChecked = isDarkModeActive
             getSharedPreferences("safeer_ui_prefs", MODE_PRIVATE).edit().putBoolean("dark_mode", isDarkModeActive).apply()
             tabManager.getAllTabs().forEach { t ->
-                t.webView.applyDarkMode(isDarkModeActive)
+                t.webView?.applyDarkMode(isDarkModeActive)
             }
             Toast.makeText(
                 this,

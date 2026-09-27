@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -185,6 +186,7 @@ open class SpletniIgralec protected constructor(
         skrij()
         ura.removeCallbacksAndMessages(null)
         try { pogled.stopLoading(); pogled.loadUrl("about:blank"); pogled.destroy() } catch (_: Exception) { }
+        Log.i("SafeerRam", "unicen WebView: polni ChromiumEngineView stopnje 3")
         return Futures.immediateVoidFuture()
     }
 

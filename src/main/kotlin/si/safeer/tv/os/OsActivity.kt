@@ -14,6 +14,20 @@ import android.view.View
  */
 open class OsActivity : Activity() {
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_RUNNING_MODERATE) {
+            LahkiWebViewPool.sprostiProstega()
+            GlasbaActivity.sprostiSlike()
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        LahkiWebViewPool.sprostiProstega()
+        GlasbaActivity.sprostiSlike()
+    }
+
     /** Vsi zasloni Safeer OS govorijo jezik, ki ga je uporabnik izbral
      *  (enako kot brskalnik); pri "samodejno" ostane jezik televizorja. */
     override fun attachBaseContext(newBase: android.content.Context) {
