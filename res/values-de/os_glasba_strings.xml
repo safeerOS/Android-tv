@@ -176,4 +176,5 @@
     <string name="os_mediji_tv_v_zivo">Live-TV</string>
     <string name="os_media_tv_opis">Offizielle Livestreams nach Land</string>
     <string name="os_media_javna_last">Gemeinfreie Filme</string>
+    <string name="os_media_tunein_lokalne">TuneIn · Sender in deiner Nähe</string>
 </resources>

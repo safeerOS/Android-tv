@@ -712,14 +712,22 @@ class GlasbaActivity : OsActivity() {
             vrste
         }
         RADIO -> {
-            if (!jeVirViden(i, VIR_RADIO)) return emptyList()
-            val (domace, svet) = Radio.postajeLocene()
-            val vrste = mutableListOf(Podatki(getString(R.string.os_mediji_domace), domace))
-            val poZvrsteh = ZVRSTI.map { z ->
-                java.util.concurrent.CompletableFuture.supplyAsync { z.third to Radio.poZvrsti(z.second, 24) }
-            }.map { it.get() }
-            poZvrsteh.forEach { (naziv, postaje) -> if (postaje.isNotEmpty()) vrste += Podatki(getString(naziv), postaje) }
-            vrste += Podatki(getString(R.string.os_mediji_svet), svet)
+            val radioViden = jeVirViden(i, VIR_RADIO)
+            val tuneInViden = jeVirViden(i, VIR_TUNEIN)
+            if (!radioViden && !tuneInViden) return emptyList()
+            val (domace, svet) = if (radioViden) Radio.postajeLocene() else emptyList<Jamendo.Skladba>() to emptyList()
+            val vrste = mutableListOf<Podatki>()
+            if (domace.isNotEmpty()) vrste += Podatki(getString(R.string.os_mediji_domace), domace)
+            if (tuneInViden) TuneIn.lokalne().takeIf { it.isNotEmpty() }?.let {
+                vrste += Podatki(getString(R.string.os_media_tunein_lokalne), it)
+            }
+            if (radioViden) {
+                val poZvrsteh = ZVRSTI.map { z ->
+                    java.util.concurrent.CompletableFuture.supplyAsync { z.third to Radio.poZvrsti(z.second, 24) }
+                }.map { it.get() }
+                poZvrsteh.forEach { (naziv, postaje) -> if (postaje.isNotEmpty()) vrste += Podatki(getString(naziv), postaje) }
+                vrste += Podatki(getString(R.string.os_mediji_svet), svet)
+            }
             vrste.filter { it.skladbe.isNotEmpty() }
         }
         TV_V_ZIVO -> if (jeVirViden(i, VIR_TV)) TvVZivo.poDrzavah().map { (drzava, kanali) -> Podatki(drzava, kanali, video = true) } else emptyList()
@@ -873,7 +881,7 @@ class GlasbaActivity : OsActivity() {
                 uporabniski.filter { it.jeSplet }.map { VirIzbire(kljucVira(it), it.ime) }
             VIDEO -> listOf(VirIzbire(VIR_JAVNA_LAST, getString(R.string.os_media_javna_last)), VirIzbire(VIR_PEERTUBE, "PeerTube")) +
                 uporabniski.filter { it.jeSplet || it.jePeerTube }.map { VirIzbire(kljucVira(it), it.ime) }
-            RADIO -> listOf(VirIzbire(VIR_RADIO, "Radio Browser"))
+            RADIO -> listOf(VirIzbire(VIR_RADIO, "Radio Browser"), VirIzbire(VIR_TUNEIN, "TuneIn"))
             TV_V_ZIVO -> listOf(VirIzbire(VIR_TV, getString(R.string.os_mediji_tv_v_zivo)))
             else -> emptyList()
         }.distinctBy { it.kljuc }
@@ -1705,7 +1713,7 @@ class GlasbaActivity : OsActivity() {
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(10)
+        val rezultati = arrayOfNulls<Any>(11)
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
         val izSeznamov = MedijskiViri.iskanjeVSeznamih(this, beseda)
         val opravila = listOf<() -> Any>(
@@ -1719,6 +1727,7 @@ class GlasbaActivity : OsActivity() {
             { try { Arhiv.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { SpletniVir.isciVse(this, spletniViri, beseda) },
             { try { JavnaLast.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { try { TuneIn.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
         )
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = f() } }
         synchronized(iskanjeNiti) { iskanjeNiti.addAll(futures) }
@@ -1734,6 +1743,15 @@ class GlasbaActivity : OsActivity() {
             @Suppress("UNCHECKED_CAST") val arhiv = rezultati[7] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val izSpleta = rezultati[8] as? List<Pair<MedijskiViri.Vir, Jamendo.Skladba>> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val javnaLast = rezultati[9] as? List<Jamendo.Skladba> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val tuneInSurovi = rezultati[10] as? List<Jamendo.Skladba> ?: emptyList()
+            // TuneIn toka do klika navadno se ne pozna. Takrat istoimensko postajo Radio Browserja
+            // obdrzimo kot prvi, ze razreseni zadetek; pri znanih tokovih primerjamo tudi naslov toka.
+            val tuneIn = tuneInSurovi.filterNot { t ->
+                postaje.any { r ->
+                    SpletniVir.cistNaslov(r.naslov) == SpletniVir.cistNaslov(t.naslov) &&
+                        (t.zvok.isBlank() || r.zvok.isBlank() || r.zvok == t.zvok)
+                }
+            }
             // Vsi zadetki v eni skupni lestvici; prednost odloca med dvojniki (ta naprava pred racunalnikom ...).
             val vsi = ArrayList<Relevantnost.Zadetek<*>>()
             krajevno.forEach { n ->
@@ -1751,6 +1769,7 @@ class GlasbaActivity : OsActivity() {
             videi.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "PeerTube", 4)) }
             javnaLast.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_media_javna_last), 4)) }
             postaje.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_glasba_radio), 5)) }
+            tuneIn.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "TuneIn", 5)) }
             val lestvica = Relevantnost.razvrsti(beseda, vsi)
             val videniNajboljsi = mutableSetOf<String>()
             val najboljsi = lestvica.filter { it.second >= Relevantnost.SPODNJA }.filter { z ->
@@ -1788,7 +1807,7 @@ class GlasbaActivity : OsActivity() {
                     Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi + javnaLast + spletFilmiInSerije), beseda), video = true),
                     Vrsta(getString(R.string.os_mediji_izvajalci), izvajalci.map { iz ->
                         Kartica(iz.ime, getString(R.string.os_glasba_izvajalec), iz.slika, { odpriIzvajalca(iz) }) }),
-                    Vrsta(getString(R.string.os_mediji_postaje), skladbe(ostali(postaje), beseda)),
+                    Vrsta(getString(R.string.os_mediji_postaje), skladbe(ostali(postaje + tuneIn), beseda)),
                     Vrsta(getString(R.string.os_media_podkasti), skladbe(podkasti, beseda)),
                     Vrsta("Archive.org", skladbe(ostali(arhiv), beseda)),
                     spletVrsta.takeIf { splet && !nicNasli && koncno },
@@ -2081,6 +2100,7 @@ class GlasbaActivity : OsActivity() {
         if (sk.id.startsWith(MedijskiViri.PREDPONA_SEZNAMA)) { odpriSeznam(sk.naslov, sk.izvajalec) { MedijskiViri.osveziSeznam(this, sk.zvok) }; return }
         if (Arhiv.jeEnota(sk)) { razresiArhiv(sk); return }
         if (JavnaLast.jeEnota(sk)) { razresiJavnoLast(sk); return }
+        if (TuneIn.jeEnota(sk)) { razresiTuneIn(sk); return }
         if (SpletniVir.jeEnota(sk)) { razresiSplet(sk); return }
         if (!sk.video || sk.zvok.isNotBlank()) {
             GlasbaStoritev.predvajaj(this, seznam, i)
@@ -2113,6 +2133,20 @@ class GlasbaActivity : OsActivity() {
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
                 nadaljujKoPripravljen(sk)
                 startActivity(Intent(this, PredvajanjeActivity::class.java))
+            }
+        }
+    }
+
+    /** TuneIn objavi tok sele ob kliku; neuspeh ostane omejen na izbrano postajo. */
+    private fun razresiTuneIn(sk: Jamendo.Skladba) {
+        stanje.text = getString(R.string.os_glasba_nalagam)
+        delavec.execute {
+            val r = try { TuneIn.razresi(sk) } catch (_: Exception) { null }
+            glavna.post {
+                if (isFinishing) return@post
+                if (r == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
+                stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
+                GlasbaStoritev.predvajaj(this, listOf(r), 0)
             }
         }
     }
@@ -2177,6 +2211,7 @@ class GlasbaActivity : OsActivity() {
         private const val RAZVRSTI_IME_ZA = 4
         private const val VIR_JAMENDO = "vgrajen:jamendo"
         private const val VIR_RADIO = "vgrajen:radio"
+        private const val VIR_TUNEIN = "vgrajen:tunein"
         private const val VIR_PEERTUBE = "vgrajen:peertube"
         private const val VIR_JAVNA_LAST = "vgrajen:javna-last"
         private const val VIR_TV = "vgrajen:tv"
