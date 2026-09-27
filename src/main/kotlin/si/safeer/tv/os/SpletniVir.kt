@@ -6,9 +6,9 @@ package si.safeer.tv.os
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
-import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
@@ -37,10 +37,10 @@ import java.util.concurrent.atomic.AtomicReference
  * predvajalniku, okno aplikacije se ne odpre. Brez receptov za posamezne strani:
  *  - iskanje najdemo po standardu OpenSearch (`<link rel="search">`) ali po iskalnem obrazcu strani;
  *  - zadetke preberemo z izrisane strani (povezave s sliko in naslovom);
- *  - tok ujamemo, ko ga stran sama zahteva (HLS, DASH ali datoteka) - v nevidnem WebViewu, z
- *    uporabnikovo ze odobreno storitvijo (njegovi piskotki, njegova prijava).
- * Zascitene vsebine ne odklepamo: kar se ne da ujeti, predvaja stran sama v skritem pogledu, upravlja
- * pa jo nas predvajalnik ([SpletniIgralec]).
+ *  - neposreden tok najprej poiscemo v omejenem odgovoru HTTP, brez WebViewa;
+ *  - nato tok ujame varcni [LahkaStran], polni brskalnik pa ostane zadnja moznost.
+ * Zascitene vsebine ne odklepamo: kar se ne da predati Media3, predvaja stran sama, upravlja pa jo
+ * nas predvajalnik ([SpletniIgralec]).
  */
 object SpletniVir {
     private const val PREDPONA = "splet:"
@@ -484,92 +484,24 @@ object SpletniVir {
 
     // ------------------------------------------------------------------ predvajanje
 
-    /**
-     * Enoto odpremo v nevidnem WebViewu in pocakamo, da stran zahteva svoj tok; tega predvaja nas
-     * predvajalnik (stran pred tem utisamo in zapremo). [koncano] dobi skladbo ali null (na glavni niti).
-     */
+    /** Prva stopnja: navaden omejen HTTP GET in standardne oznake HTML, brez zagona WebViewa. */
     fun razresi(a: Activity, sk: Jamendo.Skladba, koncano: (Jamendo.Skladba?) -> Unit) {
-        val w = nevidni(a)
-        var konec = false
-        val tokovi = ConcurrentHashMap<String, String>()
-        var izbiraNacrtovana = false
-        fun ocenaToka(u: String): Int {
-            val l = u.lowercase()
-            return when {
-                Regex("(?:2160p?|4k|uhd)").containsMatchIn(l) -> 21600
-                Regex("(?:1440p?|2k)").containsMatchIn(l) -> 14400
-                Regex("1080p?|full[-_ ]?hd|fhd").containsMatchIn(l) -> 10800
-                Regex("720p?|\bhd\b").containsMatchIn(l) -> 7200
-                Regex("480p?|\bsd\b").containsMatchIn(l) -> 4800
-                else -> 0
-            } + when {
-                l.substringBefore('?').endsWith(".mpd") -> 700
-                l.substringBefore('?').endsWith(".m3u8") -> 650
-                l.substringBefore('?').endsWith(".mp4") -> 400
-                else -> 0
+        Thread {
+            val neposreden = vrstaToka(sk.povezava)?.let { sk.povezava to it }
+                ?: beriHtmlToka(sk.povezava)
+            val r = neposreden?.let { (tok, mime) ->
+                zapomniGlave(tok, sk.povezava)
+                razresenaSkladba(sk, tok, mime)
             }
-        }
-        fun zakljuci(tok: String?, mime: String) {
-            if (konec) return
-            konec = true
-            w.evaluateJavascript(OPIS_JS) { r ->
-                val o = try { JSONObject(r ?: "{}") } catch (_: Exception) { JSONObject() }
-                odstrani(w)
-                if (tok == null) { koncano(null); return@evaluateJavascript }
-                glaveDomene[domena(tok)] = mapOf("Referer" to sk.povezava)
-                val (naslov, izvajalec) = Relevantnost.razdeli(o.optString("t").ifBlank { sk.naslov }, o.optString("a"))
-                val q = when {
-                    tok.contains(Regex("(?:2160p?|4k|uhd)", RegexOption.IGNORE_CASE)) -> 2160
-                    tok.contains(Regex("(?:1440p?|2k)", RegexOption.IGNORE_CASE)) -> 1440
-                    tok.contains(Regex("1080p?|full[-_ ]?hd|fhd", RegexOption.IGNORE_CASE)) -> 1080
-                    tok.contains(Regex("720p?", RegexOption.IGNORE_CASE)) -> 720
-                    else -> sk.quality
-                }
-                koncano(sk.copy(naslov = naslov, izvajalec = izvajalec.ifBlank { sk.izvajalec }, slika = o.optString("i").ifBlank { sk.slika },
-                    zvok = tok, video = o.optBoolean("v", sk.video), mime = mime, quality = q))
+            glavna.post {
+                if (r != null) android.util.Log.i("SafeerOsMedia", "stopnja=1 uspeh=Media3")
+                koncano(r)
             }
-        }
-        fun izberiTok() {
-            if (konec) return
-            val najboljsi = tokovi.keys.maxByOrNull(::ocenaToka)
-            zakljuci(najboljsi, najboljsi?.let { tokovi[it] }.orEmpty())
-        }
-        fun kandidat(u: String, mime: String) {
-            tokovi[u] = mime
-            if (!izbiraNacrtovana) {
-                izbiraNacrtovana = true
-                // Stran pogosto najprej zahteva 480p ali oglasni nadomestek, nato adaptivni/HD tok.
-                // Kratek zbirni interval omogoci izbiro dejansko najboljsega toka brez vidne zamude.
-                glavna.postDelayed({ izberiTok() }, 2_200)
-            }
-        }
-        w.webViewClient = object : Zaprt({ if (!konec) { konec = true; koncano(null) } }) {
-            override fun shouldInterceptRequest(view: WebView?, req: WebResourceRequest?): WebResourceResponse? {
-                val u = req?.url?.toString() ?: return null
-                if (req.method == "GET") vrstaToka(u)?.let { m -> glavna.post { kandidat(u, m) } }
-                return null
-            }
-            override fun onPageFinished(view: WebView?, url: String?) { view?.evaluateJavascript(SOGLASJE_JS, null); view?.evaluateJavascript(ZACNI_JS, null) }
-        }
-        var krog = 0
-        fun poglej() {
-            if (konec) return
-            if (++krog > 20) { zakljuci(null, ""); return }
-            w.evaluateJavascript(MEDIJ_JS) { r ->
-                val src = r?.trim('"').orEmpty()
-                when {
-                    src.startsWith("http") -> { kandidat(src, vrstaToka(src) ?: ""); glavna.postDelayed({ poglej() }, 500) }
-                    src == "blob" && tokovi.isEmpty() -> zakljuci(null, "")
-                    else -> glavna.postDelayed({ poglej() }, 750)
-                }
-            }
-        }
-        w.loadUrl(sk.povezava)
-        glavna.postDelayed({ poglej() }, 1_500)
+        }.apply { name = "Safeer-http-video"; start() }
     }
 
     /** Naslov je tok, ki ga zna nas predvajalnik: HLS, DASH ali zvocna/video datoteka (ne oglas, ne segment). */
-    private fun vrstaToka(u: String): String? {
+    internal fun vrstaToka(u: String): String? {
         val l = u.lowercase()
         if (Regex("""doubleclick|googlesyndication|imasdk|adservice|/ads?/|[./]ads\.""").containsMatchIn(l)) return null
         val pot = l.substringBefore('?')
@@ -582,6 +514,91 @@ object SpletniVir {
         }
     }
 
+    /** Sestavi enoto za Media3; uporablja jo HTTP in lahki WebView. */
+    internal fun razresenaSkladba(sk: Jamendo.Skladba, tok: String, mime: String): Jamendo.Skladba {
+        val q = when {
+            tok.contains(Regex("(?:2160p?|4k|uhd)", RegexOption.IGNORE_CASE)) -> 2160
+            tok.contains(Regex("(?:1440p?|2k)", RegexOption.IGNORE_CASE)) -> 1440
+            tok.contains(Regex("1080p?|full[-_ ]?hd|fhd", RegexOption.IGNORE_CASE)) -> 1080
+            tok.contains(Regex("720p?", RegexOption.IGNORE_CASE)) -> 720
+            else -> sk.quality
+        }
+        return sk.copy(zvok = tok, video = true, mime = mime, quality = q)
+    }
+
+    private fun beriHtmlToka(naslov: String): Pair<String, String>? {
+        val konec = System.currentTimeMillis() + 5_000
+        val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return null }
+        p.connectTimeout = 5_000
+        p.readTimeout = 5_000
+        p.instanceFollowRedirects = true
+        if (ua.isBlank()) ua = si.safeer.tv.ChromiumEngineView.MOBILE_USER_AGENT
+        p.setRequestProperty("User-Agent", ua)
+        p.setRequestProperty("Accept", "text/html,application/xhtml+xml")
+        return try {
+            if (p.responseCode !in 200..299) return null
+            p.readTimeout = (konec - System.currentTimeMillis()).coerceIn(1, 5_000).toInt()
+            val koncni = p.url.toString()
+            val tip = p.contentType.orEmpty().substringBefore(';').lowercase()
+            if (tip.startsWith("video/") || tip in setOf(MedijskiViri.MIME_HLS.lowercase(),
+                    "application/vnd.apple.mpegurl", "application/dash+xml")) {
+                return koncni to (vrstaToka(koncni) ?: tip)
+            }
+            val bajti = p.inputStream.use { vhod ->
+                val izhod = java.io.ByteArrayOutputStream()
+                val kos = ByteArray(16 * 1024)
+                var skupaj = 0
+                while (skupaj < 1_000_000 && System.currentTimeMillis() < konec) {
+                    p.readTimeout = (konec - System.currentTimeMillis()).coerceIn(1, 5_000).toInt()
+                    val n = vhod.read(kos, 0, minOf(kos.size, 1_000_000 - skupaj))
+                    if (n < 0) break
+                    izhod.write(kos, 0, n); skupaj += n
+                }
+                izhod.toByteArray()
+            }
+            najdiTokVHtml(String(bajti, Charsets.UTF_8), koncni)
+        } catch (_: Exception) { null } finally { p.disconnect() }
+    }
+
+    private fun najdiTokVHtml(html: String, osnova: String): Pair<String, String>? {
+        val kandidati = LinkedHashSet<String>()
+        fun dodaj(surov: String) {
+            val cist = surov.trim().replace("\\/", "/")
+                .replace("&amp;", "&").replace("&#38;", "&").replace("&quot;", "\"")
+            val poln = try { URL(URL(osnova), cist).toString() } catch (_: Exception) { return }
+            if (vrstaToka(poln) != null) kandidati.add(poln)
+        }
+        Regex("(?is)<(?:video|source)\\b[^>]*\\bsrc\\s*=\\s*['\"]([^'\"]+)['\"]")
+            .findAll(html).forEach { dodaj(it.groupValues[1]) }
+        Regex("(?is)<meta\\b[^>]*(?:property|name)\\s*=\\s*['\"]og:video(?::secure_url)?['\"][^>]*\\bcontent\\s*=\\s*['\"]([^'\"]+)['\"]")
+            .findAll(html).forEach { dodaj(it.groupValues[1]) }
+        Regex("(?is)<meta\\b[^>]*\\bcontent\\s*=\\s*['\"]([^'\"]+)['\"][^>]*(?:property|name)\\s*=\\s*['\"]og:video(?::secure_url)?['\"]")
+            .findAll(html).forEach { dodaj(it.groupValues[1]) }
+        Regex("(?is)['\"]contentUrl['\"]\\s*:\\s*['\"]([^'\"]+)['\"]")
+            .findAll(html).forEach { dodaj(it.groupValues[1]) }
+        Regex("(?i)['\"]([^'\"\\s<>]+\\.(?:m3u8|mpd|mp4)(?:\\?[^'\"<>]*)?)['\"]")
+            .findAll(html).forEach { dodaj(it.groupValues[1]) }
+        val najboljsi = kandidati.maxByOrNull(::ocenaToka) ?: return null
+        return najboljsi to vrstaToka(najboljsi).orEmpty()
+    }
+
+    private fun ocenaToka(u: String): Int {
+        val l = u.lowercase()
+        return when {
+            Regex("(?:2160p?|4k|uhd)").containsMatchIn(l) -> 21600
+            Regex("(?:1440p?|2k)").containsMatchIn(l) -> 14400
+            Regex("1080p?|full[-_ ]?hd|fhd").containsMatchIn(l) -> 10800
+            Regex("720p?|\\bhd\\b").containsMatchIn(l) -> 7200
+            Regex("480p?|\\bsd\\b").containsMatchIn(l) -> 4800
+            else -> 0
+        } + when {
+            l.substringBefore('?').endsWith(".mpd") -> 700
+            l.substringBefore('?').endsWith(".m3u8") -> 650
+            l.substringBefore('?').endsWith(".mp4") -> 400
+            else -> 0
+        }
+    }
+
     // ------------------------------------------------------------------ omrezje predvajalnika
 
     /** Glave za tok po njegovi domeni: Referer strani ali kljuc uporabnikovega API-ja (+ piskotki seje). */
@@ -589,6 +606,10 @@ object SpletniVir {
     @Volatile private var ua = ""
 
     private fun domena(url: String) = try { URL(url).host.split('.').takeLast(2).joinToString(".") } catch (_: Exception) { "" }
+
+    internal fun zapomniGlave(tok: String, stran: String) {
+        glaveDomene[domena(tok)] = mapOf("Referer" to stran)
+    }
 
     /** Vir podatkov za nas predvajalnik: tokovom iz spletnih aplikacij doda Referer, piskotke in UA brskalnika. */
     fun virPodatkov(c: Context): DataSource.Factory {
@@ -617,17 +638,9 @@ object SpletniVir {
     /** WebView pod vsebino zaslona (prosojen): stran tece kot vidna, uporabnik je ne vidi in ne doseze. */
     @SuppressLint("SetJavaScriptEnabled")
     private fun nevidni(a: Activity, obZrusitvi: (() -> Unit)? = null): WebView = WebView(a).apply {
-        settings.javaScriptEnabled = true
-        settings.domStorageEnabled = true
-        settings.mediaPlaybackRequiresUserGesture = false
-        // Enaka stran na TV in tablici: telefonski Chrome (televizijski UA dobi drugacne, TV strani).
-        settings.userAgentString = si.safeer.tv.ChromiumEngineView.MOBILE_USER_AGENT
-        isFocusable = false
+        LahkaStran.nastaviVarcno(this, true, true)
         webViewClient = Zaprt(obZrusitvi)
-        alpha = 0f
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         ua = settings.userAgentString
-        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         // Brskalnik ob odhodu v ozadje ustavi casovnike JS za VSE poglede procesa (pauseTimers);
         // brez njih se strani ne izrisejo. Ko delamo, jih zazenemo.
         resumeTimers()
@@ -636,8 +649,15 @@ object SpletniVir {
 
     /** Vse ostane v nevidnem pogledu: sheme, ki niso http (intent:, aplikacije), se ne odprejo nikjer. */
     private open class Zaprt(private val obZrusitvi: (() -> Unit)? = null) : WebViewClient() {
+        @Volatile private var stran: String? = null
+
+        override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) { stran = url }
+
         override fun shouldOverrideUrlLoading(view: WebView?, req: WebResourceRequest?): Boolean =
-            req?.url?.scheme?.startsWith("http") != true
+            req?.url?.scheme?.lowercase() !in setOf("http", "https", "blob", "data")
+
+        override fun shouldInterceptRequest(view: WebView?, req: WebResourceRequest?): WebResourceResponse? =
+            req?.let { LahkaStran.varcniOdgovor(it, stran) }
 
         override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
             // Chromium lahko na televizorju z malo pomnilnika zapre izrisovalnik. Dogodek obravnavamo,
@@ -729,29 +749,4 @@ object SpletniVir {
         if(t.length<40&&vz.test(t)){b[i].click();return true;}}var f=d.querySelectorAll('iframe');for(var j=0;j<f.length;j++){try{if(isci(f[j].contentDocument))return true;}catch(e){}}return false;}
       var n=0;(function k(){if(!isci(document)&&++n<8)setTimeout(k,1000);})();}catch(e){}})()"""
 
-    /** Utisaj stran in jo prosi za predvajanje: najprej medij sam, sicer najvecji gumb »play«. */
-    private const val ZACNI_JS = """(function(){try{
-      var P=HTMLMediaElement.prototype;if(!P._safeerTiho){P._safeerTiho=1;var p=P.play;P.play=function(){this.muted=true;return p.apply(this,arguments);};}
-      function igraj(){var m=document.querySelectorAll('video,audio');for(var i=0;i<m.length;i++){m[i].muted=true;try{m[i].play();}catch(e){}}
-        if(m.length&&!m[0].paused)return;
-        var g=[].slice.call(document.querySelectorAll('button,[role=button],a')).filter(function(b){
-          var n=(b.getAttribute('aria-label')||b.getAttribute('title')||b.className||'')+'';
-          var r=b.getBoundingClientRect();return /\bplay\b|predvajaj/i.test(n)&&r.width>0&&r.height>0;});
-        g.sort(function(x,y){var a=x.getBoundingClientRect(),b=y.getBoundingClientRect();return b.width*b.height-a.width*a.height;});
-        if(g[0])g[0].click();}
-      igraj();setTimeout(igraj,2500);setTimeout(igraj,5000);}catch(e){}})()"""
-
-    /** Neposreden naslov medija, ce ga stran ima (blob: ni naslov - tega ujamemo med zahtevami). */
-    private const val MEDIJ_JS = """(function(){var m=document.querySelectorAll('video,audio');
-      for(var i=0;i<m.length;i++){var s=m[i].currentSrc||m[i].src||'';if(/^https?:/.test(s))return s;
-        if(/^blob:/.test(s)&&m[i].readyState>=2)return 'blob';}return '';})()"""
-
-    /** Kaj igra: MediaSession strani, sicer Open Graph in naslov strani; video ali samo zvok. */
-    private const val OPIS_JS = """(function(){try{
-      var md=navigator.mediaSession&&navigator.mediaSession.metadata;
-      function og(p){var e=document.querySelector('meta[property="og:'+p+'"]');return e?e.content:'';}
-      var v=document.querySelector('video');
-      return {t:(md&&md.title)||og('title')||document.title||'',a:(md&&md.artist)||'',
-        i:(md&&md.artwork&&md.artwork.length&&md.artwork[md.artwork.length-1].src)||og('image')||'',
-        v:!!v&&(v.videoWidth>0||!document.querySelector('audio'))};}catch(e){return {};}})()"""
 }
