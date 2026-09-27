@@ -12,9 +12,23 @@ import java.net.URLEncoder
  * predvajljiv tok. Federirano iskanje dopolni SepiaSearch; za tok vedno vprasamo domaci streznik.
  */
 object PeerTube {
-    val VGRAJENI = listOf("peertube.tv", "tilvids.com", "framatube.org", "peertube.uno", "video.blender.org")
+    val VGRAJENI = listOf("tilvids.com", "framatube.org", "video.blender.org")
+    val BLOKIRANI = setOf("peertube.tv", "peertube.uno")
     private const val ROK_MS = 5_000L
     private const val SEPIA = "https://sepiasearch.org/api/v1/search/videos"
+    private val SUMLJIV_NASLOV = Regex(
+        """(?:(film|documentario|pel[ií]cula|documental)\s+complet|full\s+movie|ganzer\s+film|film\s+complet|streaming\s+(sub\s+)?ita|\bsub\s+ita\b|\b(hd|dvd|br|web)rip\b|\bweb-?dl\b|\bbluray\b|\bhdcam\b|\[[A-Za-z0-9_-]{11}]\s*$)""",
+        RegexOption.IGNORE_CASE
+    )
+
+    fun jeBlokiran(streznik: String): Boolean {
+        val naslov = if (streznik.contains("://")) streznik else "https://$streznik"
+        return Uri.parse(naslov).host?.lowercase()?.removePrefix("www.")?.trimEnd('.') in BLOKIRANI
+    }
+
+    /** Blokirani strezniki in sumljivi PeerTube naslovi se ne smejo prikazati niti iz shrambe. */
+    fun jeDovoljen(v: Jamendo.Skladba): Boolean = !jeBlokiran(v.streznik) && !jeBlokiran(v.povezava) &&
+        (v.streznik.isBlank() || !SUMLJIV_NASLOV.containsMatchIn(v.naslov))
 
     /** Najbolj gledani posnetki enega streznika. */
     fun najboljGledani(streznik: String, stevilo: Int = 24): List<Jamendo.Skladba> =
@@ -22,7 +36,7 @@ object PeerTube {
 
     /** Police vec streznikov nalozimo hkrati in ohranimo njihov vrstni red. */
     fun najboljGledani(strezniki: List<String>, stevilo: Int = 24): List<Pair<String, List<Jamendo.Skladba>>> {
-        val opravila: List<() -> Pair<String, List<Jamendo.Skladba>>> = strezniki.distinct().map { s ->
+        val opravila: List<() -> Pair<String, List<Jamendo.Skladba>>> = strezniki.distinct().filterNot(::jeBlokiran).map { s ->
             { s to (try { seznam(s, "/api/v1/videos?sort=-views&count=$stevilo&nsfw=false&isLocal=true") } catch (_: Exception) { emptyList() }) }
         }
         val surovi = vzporedno(opravila)
@@ -45,7 +59,7 @@ object PeerTube {
         }
 
         // Vsi indeksi imajo skupni rok; napaka ali zamuda enega ne zadrzi uspesnih odgovorov.
-        val opravila = strezniki.distinct().map { s ->
+        val opravila = strezniki.distinct().filterNot(::jeBlokiran).map { s ->
             { seznam(s, "/api/v1/search/videos?search=$q&sort=-views&nsfw=false&count=30&searchTarget=local", ::ustreza) }
         } + listOf<() -> List<Jamendo.Skladba>>({
             seznamIzNaslova("$SEPIA?search=$q&count=30", "sepiasearch.org", ::ustreza)
@@ -58,7 +72,7 @@ object PeerTube {
         .replace(Regex("\\p{M}+"), "").replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
 
     /** Ali na tem naslovu tece PeerTube; vrne ime streznika ali null. */
-    fun imeStreznika(streznik: String): String? = try {
+    fun imeStreznika(streznik: String): String? = if (jeBlokiran(streznik)) null else try {
         val j = JSONObject(beri("https://$streznik/api/v1/config"))
         j.optJSONObject("instance")?.optString("name")?.ifBlank { streznik }
     } catch (_: Exception) { null }
@@ -69,8 +83,9 @@ object PeerTube {
      * (preverjeno 21. 9. 2026: tinkerbetter.tube), povezani streznik pa pozna iste datoteke.
      */
     fun razresi(v: Jamendo.Skladba, rezervni: List<String> = VGRAJENI): Jamendo.Skladba? {
+        if (!jeDovoljen(v)) return null
         if (v.zvok.startsWith("https://")) return v
-        for (s in (listOf(v.streznik) + rezervni).filter { it.isNotBlank() }.distinct()) {
+        for (s in (listOf(v.streznik) + rezervni).filter { it.isNotBlank() && !jeBlokiran(it) }.distinct()) {
             val r = try { razresiPri(s, v) } catch (_: Exception) { null }
             if (r != null) return r
         }
@@ -104,6 +119,7 @@ object PeerTube {
      * naslova), izmenicno, brez tega videa. Preverjeno 21. 9. 2026 na tilvids.com in framatube.org.
      */
     fun predlogi(v: Jamendo.Skladba): List<Jamendo.Skladba> {
+        if (!jeDovoljen(v)) return emptyList()
         val s = v.streznik.ifBlank { return emptyList() }
         val kanal = try {
             if (v.kanal.contains('@')) razresiVzporedno(seznam(s, "/api/v1/video-channels/${v.kanal}/videos?sort=-views&count=12&nsfw=false")) else emptyList()
@@ -121,15 +137,20 @@ object PeerTube {
         ustreza: (JSONObject) -> Boolean = { true }): List<Jamendo.Skladba> {
         val r = JSONObject(beri(naslov)).optJSONArray("data") ?: return emptyList()
         return (0 until r.length()).map { r.getJSONObject(it) }.mapNotNull { v ->
-            if (v.optBoolean("nsfw") || !ustreza(v)) return@mapNotNull null
+            val ime = v.optString("name")
+            if (v.optBoolean("nsfw") || !ustreza(v) || SUMLJIV_NASLOV.containsMatchIn(ime)) return@mapNotNull null
             val stran = v.optString("url")
             val streznik = domaciStreznik(v, stran, privzetiStreznik)
-            if (streznik.isBlank()) return@mapNotNull null
+            if (streznik.isBlank() || jeBlokiran(streznik)) return@mapNotNull null
             val slika = v.optString("previewPath").ifBlank { v.optString("thumbnailPath") }
-            Jamendo.Skladba(v.optString("uuid"), v.optString("name"),
+            val datum = v.optString("originallyPublishedAt").takeIf {
+                !v.isNull("originallyPublishedAt") && it.length >= 4 && it.take(4).all { znak -> znak.isDigit() }
+            } ?: v.optString("publishedAt")
+            val leto = datum.take(4).toIntOrNull() ?: 0
+            Jamendo.Skladba(v.optString("uuid"), ime,
                 v.optJSONObject("channel")?.optString("displayName").orEmpty().ifBlank { streznik },
                 if (slika.startsWith("/")) "https://$streznik$slika" else slika,
-                "", stran, video = true, streznik = streznik)
+                "", stran, video = true, streznik = streznik, year = leto)
         }.filter { it.id.isNotBlank() && it.naslov.isNotBlank() }
     }
 
