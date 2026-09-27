@@ -36,6 +36,13 @@ object Radio {
         return (poImenu + poOznaki).filter { it.naslov.length <= 60 }.distinctBy { it.zvok }.take(24)
     }
 
+    /** Najbolj poslusane postaje ene glasbene zvrsti (oznaka Radio Browserja, npr. "jazz", "hip hop"). */
+    fun poZvrsti(oznaka: String, stevilo: Int = 30): List<Jamendo.Skladba> =
+        try {
+            iskanje("tag=${java.net.URLEncoder.encode(oznaka, "UTF-8")}&limit=${stevilo + 10}")
+                .filter { it.naslov.length <= 60 }.distinctBy { it.zvok }.take(stevilo)
+        } catch (_: Exception) { emptyList() }
+
     private fun iskanje(filter: String): List<Jamendo.Skladba> {
         val p = URL("$OSNOVA?order=clickcount&reverse=true&hidebroken=true&is_https=true&$filter").openConnection() as HttpURLConnection
         p.connectTimeout = 10_000; p.readTimeout = 15_000

@@ -159,4 +159,14 @@
     <string name="os_media_pocisti_nadaljuj">Borrar continuar viendo</string>
     <string name="os_media_pocisti_nadaljuj_opis">Eliminar todo el historial de visualización</string>
     <string name="os_media_pocisti_nadaljuj_potrdi">¿Eliminar todos los elementos de Continuar viendo?</string>
+    <string name="os_media_zvrst_dance">Baile</string>
+    <string name="os_media_zvrst_folk">Folk</string>
+    <string name="os_media_zvrst_reggae">Reggae</string>
+    <string name="os_media_zvrst_ambient">Relajante</string>
+    <string name="os_media_zvrst_soundtrack">Bandas sonoras</string>
+    <string name="os_media_zvrst_country">Country</string>
+    <string name="os_media_zvrst_metal">Metal</string>
+    <string name="os_media_zvrst_news">Noticias y debate</string>
+    <string name="os_mediji_tv_v_zivo">TV en directo</string>
+    <string name="os_media_tv_opis">Emisiones oficiales por país</string>
 </resources>
