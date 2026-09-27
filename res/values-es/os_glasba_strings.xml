@@ -45,6 +45,7 @@
     <string name="os_mediji_odstrani">Quitar</string>
     <string name="os_mediji_izvajalci">Artistas</string>
     <string name="os_mediji_namig_predvajanje">OK: pausa · izquierda/derecha: 10 s · abajo: favoritos, búsqueda y más · mantén OK: detener · Atrás: sigue sonando en segundo plano</string>
+    <string name="os_mediji_namig_predvajanje_video">OK: pausa · izquierda/derecha: 10 s · abajo: favoritos, búsqueda y más · mantén OK: detener · Atrás: pausa el vídeo, sigue luego en Seguir viendo</string>
     <string name="os_mediji_zadetki">Vídeos: %1$d · artistas: %2$d · emisoras: %3$d · fuentes: %4$d</string>
     <string name="os_mediji_nedavna">Búsquedas recientes</string>
     <string name="os_mediji_glasovno">Búsqueda por voz</string>

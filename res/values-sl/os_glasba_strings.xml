@@ -45,6 +45,7 @@
     <string name="os_mediji_odstrani">Odstrani</string>
     <string name="os_mediji_izvajalci">Izvajalci</string>
     <string name="os_mediji_namig_predvajanje">OK: pavza · levo/desno: 10 s · dol: priljubljeno, iskanje in več · zadržan OK: ustavi · Nazaj: predvajanje teče naprej v ozadju</string>
+    <string name="os_mediji_namig_predvajanje_video">OK: pavza · levo/desno: 10 s · dol: priljubljeno, iskanje in več · zadržan OK: ustavi · Nazaj: video se ustavi, nadaljuješ v Nadaljuj gledanje</string>
     <string name="os_mediji_zadetki">Videi: %1$d · izvajalci: %2$d · postaje: %3$d · viri: %4$d</string>
     <string name="os_mediji_nedavna">Nedavna iskanja</string>
     <string name="os_mediji_glasovno">Glasovno iskanje</string>
