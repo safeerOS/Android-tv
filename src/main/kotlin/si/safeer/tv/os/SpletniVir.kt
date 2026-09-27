@@ -253,8 +253,9 @@ object SpletniVir {
             // Videospoti po poti ali naslovu
             Regex("(?i)(?:^|[/_?&=.-])(?:music[-_ ]?videos?|videospoti?|official[-_ ]?videos?)(?:[/_?&=.-]|$)").containsMatchIn(u) ||
                 Regex("(?i)\\bofficial (?:music )?video\\b|\\bvideospot\\b").containsMatchIn(n) -> VIDEOSPOT
-            // Filmi z letnico v naslovu (ob odsotnosti oznak sezone)
-            Regex("\\b(19\\d{2}|20\\d{2})\\b").containsMatchIn(n) && !Regex("(?i)s\\d{1,2}|\\b(?:season|sezona)\\b").containsMatchIn(n) -> FILM
+            // Filmi z letnico v naslovu (ob odsotnosti oznak sezone). Ne za PeerTube: tam je letnica v
+            // naslovu predavanja ali posnetka ("What is TILvids? (2020)") in ne pomeni filma.
+            s.streznik.isBlank() && Regex("\\b(19\\d{2}|20\\d{2})\\b").containsMatchIn(n) && !Regex("(?i)s\\d{1,2}|\\b(?:season|sezona)\\b").containsMatchIn(n) -> FILM
             else -> null
         }
     }

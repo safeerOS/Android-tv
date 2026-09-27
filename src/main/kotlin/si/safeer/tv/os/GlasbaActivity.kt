@@ -322,14 +322,15 @@ class GlasbaActivity : OsActivity() {
             m.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
         }
         fun odpri(i: Intent) { try { startActivity(i) } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() } }
+        // Isti meni kot na zacetnem zaslonu (vrstni red, imena): uporabnik ne sme dobiti drugacnega menija,
+        // ko odpre Glasbo in video.
         postavka(R.drawable.os_ikona_domov, getString(R.string.os_meni_domov)) { finish() }
-        postavka(R.drawable.os_ikona_splet, getString(R.string.os_brskalnik_naslov)) { odpri(Brskalnik.izMedijev(Brskalnik.namera(this))) }
-        meniMediji = postavka(R.drawable.os_ikona_glasba, getString(R.string.os_media_naslov), getString(R.string.os_media_meni_opis)) {
-            if (razdelek != DOMOV) onBackPressed() else vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus()
-        }.apply { isActivated = true; isSelected = true }
         postavka(R.drawable.os_ikona_aplikacije, getString(R.string.os_meni_aplikacije)) {
             odpri(Intent(this, AplikacijeHostaActivity::class.java).putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse")) }
         postavka(R.drawable.os_ikona_datoteke, getString(R.string.os_meni_datoteke)) { odpri(Intent(this, DatotekeActivity::class.java)) }
+        meniMediji = postavka(R.drawable.os_ikona_glasba, getString(R.string.os_mediji_kartica)) {
+            if (razdelek != DOMOV) onBackPressed() else vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus()
+        }.apply { isActivated = true; isSelected = true }
         postavka(R.drawable.os_ikona_link, getString(R.string.os_meni_naprave)) { odpri(Intent(this, NapraveActivity::class.java)) }
         postavka(R.drawable.os_ikona_nastavitve, getString(R.string.os_meni_nastavitve)) { odpri(Intent(this, NastavitveActivity::class.java)) }
         m.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
