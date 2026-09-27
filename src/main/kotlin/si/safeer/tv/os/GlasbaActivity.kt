@@ -529,8 +529,12 @@ class GlasbaActivity : OsActivity() {
         delavec.execute {
             try {
                 // 280 px je dovolj za TV kartice, hkrati pa precej zmanjsa heap in GC sunke na 2 GB TV.
-                val b = (SpletniVir.bajtiSlike(this, naslov) ?: Jamendo.bajti(naslov))
-                    ?.let { VarnaSlika.izBajtov(it, 280) } ?: return@execute
+                // Naslovnica z diska (brez omrezja); nove shranimo za naslednje odprtje.
+                val bajti = MedijskiPredpomnilnik.naslovnica(this, naslov)
+                    ?: (SpletniVir.bajtiSlike(this, naslov) ?: Jamendo.bajti(naslov))?.also {
+                        MedijskiPredpomnilnik.shraniNaslovnico(this, naslov, it)
+                    }
+                val b = bajti?.let { VarnaSlika.izBajtov(it, 280) } ?: return@execute
                 SLIKE.put(naslov, b)
                 val cakajoci = cakajoceSlike.remove(naslov)
                 val pogledi = cakajoci?.let { synchronized(it) { it.toList() } }.orEmpty()
@@ -564,19 +568,34 @@ class GlasbaActivity : OsActivity() {
         if (predpomnjeno != null) { prikazi(i, predpomnjeno); return }
         if (i == VIRI) { narisi(viriVrste(), opis(i)); return }
         if (i == ISKANJE) { zadetki?.let { narisi(it, opisZadetkov) } ?: narisi(predIskanjem(), getString(R.string.os_glasba_isci_navodilo)); return }
+        // Zadnji znani pogled z diska pokazemo takoj (tudi po ponovnem zagonu), sveze police pa
+        // nalozimo v ozadju in jih zamenjamo samo, ce so drugacne - brez praznega zaslona in cakanja.
+        val kljucDiska = kljucPolic(i)
+        val zDiska = MedijskiPredpomnilnik.beriPolice(this, kljucDiska)?.map { (n, v, s) -> Podatki(n, s, v) }
+        if (zDiska != null) prikazi(i, zDiska)
         // Kar je na napravi, pokazemo takoj; vrste s spleta pridejo, ko se nalozijo.
-        narisi(zgoraj(i), getString(R.string.os_glasba_nalagam), getString(R.string.os_glasba_nalagam), glavaRazdelka(i))
+        else narisi(zgoraj(i), getString(R.string.os_glasba_nalagam), getString(R.string.os_glasba_nalagam), glavaRazdelka(i))
         delavec.execute {
             val podatki = try { podatkiRazdelka(i) } catch (_: Exception) { null }
+            val polni = podatki != null && podatki.isNotEmpty() && podatki.all { it.skladbe.isNotEmpty() }
+            if (polni) MedijskiPredpomnilnik.shraniPolice(this, kljucDiska, podatki!!.map { Triple(it.naslov, it.video, it.skladbe) })
             glavna.post {
                 if (moje != nalaganje || isFinishing) return@post
-                if (podatki == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
+                if (podatki == null) {
+                    // Brez omrezja: ce je pogled z diska, ostane; sicer povemo, da nalaganje ni uspelo.
+                    if (zDiska == null) stanje.text = getString(R.string.os_glasba_napaka)
+                    return@post
+                }
                 // Prazen odgovor (Jamendo obcasno) ne ostane v predpomnilniku - ob naslednji izbiri poskusimo znova.
-                if (podatki.all { it.skladbe.isNotEmpty() }) SEZNAMI[i] = podatki
+                if (polni) SEZNAMI[i] = podatki
+                if (zDiska != null && (!polni || zDiska == podatki)) return@post  // nic novega: pogleda ne risemo znova
                 prikazi(i, podatki)
             }
         }
     }
+
+    /** Kljuc polic na disku: razdelek + jezik (naslovi polic so prevedeni). */
+    private fun kljucPolic(i: Int) = "police:$i:" + resources.configuration.locales[0].toLanguageTag()
 
     /** Razdelek: najprej krajevno (nadzorna plosca, nedavno, priljubljene), nato vrste s spleta. */
     private fun prikazi(i: Int, podatki: List<Podatki>) =
@@ -854,12 +873,14 @@ class GlasbaActivity : OsActivity() {
         // Televizor (16:9) ima kategorije vedno v eni vrsti; na ozkem zaslonu (tablica pokonci) dve vrsti
         // po dve kartici, na telefonu pokonci ena kartica v vrsti - da opisi niso odrezani.
         val sirina = resources.configuration.screenWidthDp
-        val naVrsto = if (jeSirokTv()) 4 else if (sirina < 600) 1 else if (sirina < 900) 2 else 4
+        val naVrsto = if (jeSirokTv()) 5 else if (sirina < 600) 1 else if (sirina < 900) 2 else 5
         val okvir = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(6), 0, dp(2)) }
-        val vrsti = List(4 / naVrsto) { LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }.also {
-            okvir.addView(it, LinearLayout.LayoutParams(-1, -2).apply { if (okvir.childCount > 0) topMargin = dp(10) }) } }
+        // Vrstice ustvarimo sproti: kartic je lahko vec kot stiri (npr. TV v zivo), zato ni fiksnega stevila.
+        val vrsti = mutableListOf<LinearLayout>()
         var stevec = 0
         fun kat(kljuc: String, res: Int, barva: Int, ime: Int, opis: Int, klik: () -> Unit) {
+            while (vrsti.size <= stevec / naVrsto) vrsti += LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }.also {
+                okvir.addView(it, LinearLayout.LayoutParams(-1, -2).apply { if (okvir.childCount > 0) topMargin = dp(10) }) }
             val v = vrsti[stevec / naVrsto]
             stevec++
             v.addView(LinearLayout(this).apply {
@@ -1865,7 +1886,16 @@ class GlasbaActivity : OsActivity() {
                     val vir = MedijskiViri.dodaj(this, vnos, ime)
                     glavna.post {
                         if (isFinishing) return@post
-                        if (vir == null) { stanje.text = getString(R.string.os_mediji_ni_vira); return@post }
+                        if (vir == null) {
+                            // Vira, ki ga ne znamo predvajati, ne dodamo - in to uporabniku jasno povemo.
+                            stanje.text = getString(R.string.os_mediji_ni_vira)
+                            AlertDialog.Builder(this)
+                                .setTitle(R.string.os_mediji_dodaj)
+                                .setMessage(getString(R.string.os_mediji_ni_vira) + "\n\n" + getString(R.string.os_mediji_ni_vira_zakaj))
+                                .setPositiveButton(android.R.string.ok, null)
+                                .show()
+                            return@post
+                        }
                         Toast.makeText(this, getString(R.string.os_mediji_dodano, vir.ime), Toast.LENGTH_SHORT).show()
                         SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO)
                         izberi(VIRI)

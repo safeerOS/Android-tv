@@ -38,6 +38,7 @@
     <string name="os_mediji_dodaj_gumb">Add</string>
     <string name="os_mediji_preverjam">Checking source…</string>
     <string name="os_mediji_ni_vira">There is no music or video at this address that Safeer can play.</string>
+    <string name="os_mediji_ni_vira_zakaj">The source was not added. Safeer plays music, video, radio and TV streams (MP3, MP4, HLS, M3U/PLS playlists, podcasts, PeerTube) and web pages; it does not play torrents, archives or protected streams.</string>
     <string name="os_mediji_dodano">Added: %1$s</string>
     <string name="os_mediji_vir_ze_dodan">Source already added: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Remove this source?</string>
