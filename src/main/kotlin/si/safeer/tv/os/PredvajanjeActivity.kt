@@ -50,6 +50,7 @@ class PredvajanjeActivity : OsActivity() {
     private lateinit var tema: FrameLayout
     /** Vrtavka, dokler video nima prve slike ali se polni medpomnilnik - brez nje je zacetek le crn zaslon. */
     private lateinit var nalaganje: ProgressBar
+    private lateinit var namig: TextView
     private var prvaSlika = false
     private var prvaSlikaZa = ""
     private lateinit var temaUra: TextView
@@ -119,7 +120,7 @@ class PredvajanjeActivity : OsActivity() {
         vir = besedilo(13f, getColor(R.color.os_mint))
         potek = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000 }
         cas = besedilo(15f, getColor(R.color.os_umirjeno))
-        val namig = besedilo(12f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_mediji_namig_predvajanje) }
+        namig = besedilo(12f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_mediji_namig_predvajanje) }
         prekritje.addView(naslov); prekritje.addView(izvajalec); prekritje.addView(vir)
         prekritje.addView(potek, LinearLayout.LayoutParams(-1, dp(5)).apply { topMargin = dp(12); bottomMargin = dp(6) })
         prekritje.addView(cas); prekritje.addView(namig)
@@ -204,6 +205,7 @@ class PredvajanjeActivity : OsActivity() {
         if (prvaSlikaZa != sk.id) { prvaSlikaZa = sk.id; prvaSlika = p.playbackState == Player.STATE_READY && p.videoSize.width > 0 }
         posodobiNalaganje()
         povrsina.visibility = if (sk.video) View.VISIBLE else View.INVISIBLE
+        namig.setText(if (sk.video) R.string.os_mediji_namig_predvajanje_video else R.string.os_mediji_namig_predvajanje)
         (p as? SpletniIgralec)?.let { if (sk.video) it.pokazi(povrsina) else it.skrij() }
         naslovnica.visibility = if (sk.video || predlogiOdprti()) View.GONE else View.VISIBLE
         if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
