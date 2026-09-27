@@ -205,7 +205,7 @@ object MedijskiViri {
         val a = JSONArray()
         s.forEach { a.put(JSONObject().put("id", it.id).put("naslov", it.naslov).put("izvajalec", it.izvajalec).put("slika", it.slika)
             .put("zvok", it.zvok).put("povezava", it.povezava).put("radio", it.radio).put("video", it.video).put("mime", it.mime)
-            .put("streznik", it.streznik).put("kanal", it.kanal).put("year", it.year)) }
+            .put("streznik", it.streznik).put("kanal", it.kanal).put("year", it.year).put("language", it.language)) }
         return a.toString()
     }
 
@@ -214,7 +214,7 @@ object MedijskiViri {
         return (0 until a.length()).map { a.getJSONObject(it) }.map {
             Jamendo.Skladba(it.optString("id"), it.optString("naslov"), it.optString("izvajalec"), it.optString("slika"), it.optString("zvok"),
                 it.optString("povezava"), it.optBoolean("radio"), it.optBoolean("video"), it.optString("mime"), it.optString("streznik"),
-                it.optString("kanal"), year = it.optInt("year"))
+                it.optString("kanal"), year = it.optInt("year"), language = it.optString("language"))
         }.filter { it.id.isNotBlank() && PeerTube.jeDovoljen(it) }
     }
 

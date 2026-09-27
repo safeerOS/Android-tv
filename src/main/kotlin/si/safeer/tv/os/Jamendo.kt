@@ -47,6 +47,8 @@ object Jamendo {
         val quality: Int = 0,
         /** Ocena vsebine, ce jo spletna aplikacija objavi; 0 pomeni neznano. */
         val rating: Double = 0.0,
+        /** Jezik vsebine (ISO 639); prazen pomeni, da ga vir ne objavi. */
+        val language: String = "",
     )
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

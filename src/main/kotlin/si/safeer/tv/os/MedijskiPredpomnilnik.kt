@@ -29,6 +29,7 @@ object MedijskiPredpomnilnik {
         .put("mime", s.mime).put("streznik", s.streznik).put("kanal", s.kanal).put("mediaType", s.mediaType)
         .put("genres", JSONArray(s.genres)).put("year", s.year).put("season", s.season).put("episode", s.episode)
         .put("imdbId", s.imdbId).put("tmdbId", s.tmdbId).put("quality", s.quality).put("rating", s.rating)
+        .put("language", s.language)
 
     fun skladbaIzJson(o: JSONObject): Jamendo.Skladba = Jamendo.Skladba(
         id = o.optString("id"), naslov = o.optString("naslov"), izvajalec = o.optString("izvajalec"),
@@ -38,7 +39,7 @@ object MedijskiPredpomnilnik {
         genres = o.optJSONArray("genres")?.let { a -> List(a.length()) { a.optString(it) } } ?: emptyList(),
         year = o.optInt("year"), season = o.optInt("season"), episode = o.optInt("episode"),
         imdbId = o.optString("imdbId"), tmdbId = o.optString("tmdbId"), quality = o.optInt("quality"),
-        rating = o.optDouble("rating", 0.0),
+        rating = o.optDouble("rating", 0.0), language = o.optString("language"),
     )
 
     /** Shrani police razdelka: seznam (naslov police, video?, skladbe). */
