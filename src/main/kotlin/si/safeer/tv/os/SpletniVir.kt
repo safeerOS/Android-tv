@@ -231,22 +231,24 @@ object SpletniVir {
 
     /** Film, serija ali videospot po standardnih oznakah in naslovu; null = ne vemo. */
     fun vrstaVsebine(s: Jamendo.Skladba): String? {
+        val u = s.povezava.lowercase()
+        val n = s.naslov.lowercase()
+        val vzorecEpizode = Regex("(?i)s\\d{1,2}(?:e\\d{1,3})?|\\b(?:season|sezona|series)\\s*\\d+|\\b(?:episode|epizoda|del)\\s*\\d+")
+        val peerTubeBrezEpizode = s.video && s.streznik.isNotBlank() && s.season <= 0 && s.episode <= 0 &&
+            !vzorecEpizode.containsMatchIn(u) && !vzorecEpizode.containsMatchIn(n)
         when (s.mediaType.lowercase()) {
             "movie", "film" -> return FILM
-            "tvseries", "tvseason", "tvepisode", "series" -> return SERIJA
+            "tvseries", "tvseason", "tvepisode", "series" -> return if (peerTubeBrezEpizode) null else SERIJA
             "musicvideoobject", "musicvideo", "music video" -> return VIDEOSPOT
         }
         if (s.season > 0 || s.episode > 0) return SERIJA
-        val u = s.povezava.lowercase()
-        val n = s.naslov.lowercase()
         return when {
             // Izrecna pot za filme v URL (/movie/ ali /film/)
             Regex("(?i)(?:^|[/_?&=.-])(?:movies?|films?|filmi)(?:[/_?&=.-]|$)").containsMatchIn(u) -> FILM
             // Serije po domeni (watchseries), URL-ju (/tv/, /series/, /shows/) ali oznakah sezone/epizode
             u.contains("watchseries") || u.contains("watch-series") ||
                 Regex("(?i)(?:^|[/_?&=.-])(?:tv|series|serie|serija|serije|shows?|watch[-_]?tv|tv[-_]?series|tv-?shows?|episodes?|epizod[ae]|seasons?|sezon[ae])(?:[/_?&=.-]|$)").containsMatchIn(u) ||
-                Regex("(?i)s\\d{1,2}(?:e\\d{1,3})?|\\b(?:season|sezona|series)\\s*\\d+|\\b(?:episode|epizoda|del)\\s*\\d+").containsMatchIn(u) ||
-                Regex("(?i)s\\d{1,2}(?:e\\d{1,3})?|\\b(?:season|sezona|series)\\s*\\d+|\\b(?:episode|epizoda|del)\\s*\\d+").containsMatchIn(n) -> SERIJA
+                vzorecEpizode.containsMatchIn(u) || vzorecEpizode.containsMatchIn(n) -> if (peerTubeBrezEpizode) null else SERIJA
             // Videospoti po poti ali naslovu
             Regex("(?i)(?:^|[/_?&=.-])(?:music[-_ ]?videos?|videospoti?|official[-_ ]?videos?)(?:[/_?&=.-]|$)").containsMatchIn(u) ||
                 Regex("(?i)\\bofficial (?:music )?video\\b|\\bvideospot\\b").containsMatchIn(n) -> VIDEOSPOT

@@ -74,7 +74,7 @@ object MedijskiViri {
      * ki jih uporabnik doda v Safeer OS. Dvojniki po gostitelju so izločeni.
      */
     fun vsi(ctx: Context): List<Vir> {
-        val shranjeni = rocni(ctx)
+        val shranjeni = rocni(ctx).filterNot { PeerTube.jeBlokiran(it.naslov) }
         val spletne = try { SpletneAplikacije.seznam(ctx) } catch (_: Throwable) { emptyList() }
         val prepovedani = odstranjeni(ctx)
         val samodejni = spletne.mapNotNull { app ->
@@ -82,7 +82,7 @@ object MedijskiViri {
             if (url.isBlank() || !url.startsWith("http")) null
             else {
                 val g = gostiteljVira(url)
-                if (g.isBlank() || g in prepovedani) null
+                if (g.isBlank() || g in prepovedani || PeerTube.jeBlokiran(g)) null
                 else Vir(SPLET, app.ime.ifBlank { g }, url)
             }
         }
@@ -121,6 +121,7 @@ object MedijskiViri {
     /** Spletno aplikacijo brez ponovnega omreznega preverjanja vklopi kot medijski vir. */
     fun dodajSpletniVir(ctx: Context, naslov: String, ime: String): Vir? {
         val cisto = naslov.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
+        if (PeerTube.jeBlokiran(cisto)) return null
         if (!jePredvajljiv(cisto)) return null
         val gostitelj = try { URL(cisto).host } catch (_: Exception) { return null }
         prekliciOdstranjen(ctx, cisto)
@@ -204,7 +205,7 @@ object MedijskiViri {
         val a = JSONArray()
         s.forEach { a.put(JSONObject().put("id", it.id).put("naslov", it.naslov).put("izvajalec", it.izvajalec).put("slika", it.slika)
             .put("zvok", it.zvok).put("povezava", it.povezava).put("radio", it.radio).put("video", it.video).put("mime", it.mime)
-            .put("streznik", it.streznik).put("kanal", it.kanal)) }
+            .put("streznik", it.streznik).put("kanal", it.kanal).put("year", it.year)) }
         return a.toString()
     }
 
@@ -212,8 +213,9 @@ object MedijskiViri {
         val a = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
         return (0 until a.length()).map { a.getJSONObject(it) }.map {
             Jamendo.Skladba(it.optString("id"), it.optString("naslov"), it.optString("izvajalec"), it.optString("slika"), it.optString("zvok"),
-                it.optString("povezava"), it.optBoolean("radio"), it.optBoolean("video"), it.optString("mime"), it.optString("streznik"), it.optString("kanal"))
-        }.filter { it.id.isNotBlank() }
+                it.optString("povezava"), it.optBoolean("radio"), it.optBoolean("video"), it.optString("mime"), it.optString("streznik"),
+                it.optString("kanal"), year = it.optInt("year"))
+        }.filter { it.id.isNotBlank() && PeerTube.jeDovoljen(it) }
     }
 
     /** Nedavno predvajano (najnovejse prvo), samo na tej napravi. */
@@ -242,7 +244,7 @@ object MedijskiViri {
     }
 
     fun streznikiPeerTube(ctx: Context): List<String> =
-        (PeerTube.VGRAJENI + vsi(ctx).filter { it.jePeerTube }.map { it.naslov }).distinct()
+        (PeerTube.VGRAJENI + vsi(ctx).filter { it.jePeerTube }.map { it.naslov }).filterNot(PeerTube::jeBlokiran).distinct()
 
     fun odstrani(ctx: Context, vir: Vir) {
         zapomniOdstranjen(ctx, vir.naslov)
@@ -295,8 +297,9 @@ object MedijskiViri {
      * nicesar, kar bi znali predvajati.
      */
     fun dodaj(ctx: Context, vnos: String, ime: String? = null): Vir? {
-        obstojeciVir(ctx, vnos)?.let { return it }
         val cisto = vnos.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
+        if (PeerTube.jeBlokiran(cisto.substringBefore('|').trim())) return null
+        obstojeciVir(ctx, vnos)?.let { return it }
         prekliciOdstranjen(ctx, cisto)
         if (vnos.contains("{q}") || vnos.contains("{searchTerms}")) {
             val g = try { URL(vnos.substringBefore('|').trim()).host } catch (_: Exception) { return null }

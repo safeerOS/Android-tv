@@ -599,8 +599,8 @@ class GlasbaActivity : OsActivity() {
     /** Kljuc polic na disku loci tudi vse zacasne poglede, da se med seboj ne pomesajo. */
     private fun kljucPolic(i: Int): String {
         val skriti = zacasnoSkritiViri[i].orEmpty().sorted().joinToString("") { "${it.length}:$it" }
-        // Nova razlicica zavrze stare video police brez javne lasti in preverjenih PeerTube tokov.
-        val peertube = if (i == DOMOV || i == VIDEO) ":pt3" else ""
+        // Nova razlicica zavrze police z blokiranimi ali sumljivimi PeerTube videi.
+        val peertube = if (i == DOMOV || i == VIDEO) ":pt4" else ""
         return "police:$i:${resources.configuration.locales[0].toLanguageTag()}:r${razvrstitev(i)}:l${i in samoTaNaprava}:f$skriti$peertube"
     }
 
