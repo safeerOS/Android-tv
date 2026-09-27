@@ -48,6 +48,10 @@ class PredvajanjeActivity : OsActivity() {
     private lateinit var cas: TextView
     private lateinit var potek: ProgressBar
     private lateinit var tema: FrameLayout
+    /** Vrtavka, dokler video nima prve slike ali se polni medpomnilnik - brez nje je zacetek le crn zaslon. */
+    private lateinit var nalaganje: ProgressBar
+    private var prvaSlika = false
+    private var prvaSlikaZa = ""
     private lateinit var temaUra: TextView
     private lateinit var temaNaslov: TextView
     private lateinit var predlogi: LinearLayout
@@ -61,12 +65,19 @@ class PredvajanjeActivity : OsActivity() {
     private var zadnjaSlika = ""
     private val poslusalec: () -> Unit = { glavna.post { osvezi() } }
     private val tik = object : Runnable { override fun run() { osveziCas(); glavna.postDelayed(this, 1_000) } }
-    private val skrij = Runnable { if (jeVideo() && !predlogiOdprti()) prekritje.animate().alpha(0f).setDuration(300).start() }
+    private val skrij = Runnable {
+        // Dokler se video ne zacne, pas z naslovom ostane: uporabnik vidi, kaj se nalaga.
+        if (jeVideo() && !predlogiOdprti() && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
+        else if (seNalaga()) glavna.postDelayed(skrijRunnable(), 1_000)
+    }
+    private fun skrijRunnable(): Runnable = skrij
     private val zatemni = Runnable { if (!jeVideo() && GlasbaStoritev.predvajalnik?.isPlaying == true) tema.visibility = View.VISIBLE; osveziCas() }
     private var nacinRazmerja = 0
     private var zadnjaVelikost: VideoSize? = null
     private val velikost = object : Player.Listener {
         override fun onVideoSizeChanged(videoSize: VideoSize) = prilagodi(videoSize)
+        override fun onRenderedFirstFrame() { prvaSlika = true; posodobiNalaganje() }
+        override fun onPlaybackStateChanged(playbackState: Int) = posodobiNalaganje()
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
             val sk = GlasbaStoritev.trenutna()
             if (sk != null && SpletniVir.jeEnota(sk) && sk.zvok.isNotBlank()) {
@@ -74,6 +85,7 @@ class PredvajanjeActivity : OsActivity() {
                 GlasbaStoritev.predvajajSplet(this@PredvajanjeActivity, sk.copy(zvok = ""), dovoliPrevzem = false)
             } else {
                 izvajalec.text = getString(R.string.os_glasba_napaka)
+                nalaganje.visibility = View.GONE
                 zbudi()
             }
         }
@@ -125,6 +137,8 @@ class PredvajanjeActivity : OsActivity() {
         stolpec.addView(temaUra); stolpec.addView(temaNaslov)
         tema.addView(stolpec, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
         koren.addView(tema, FrameLayout.LayoutParams(-1, -1))
+        nalaganje = ProgressBar(this).apply { isIndeterminate = true; visibility = View.GONE }
+        koren.addView(nalaganje, FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER))
         setContentView(koren)
     }
 
@@ -181,7 +195,10 @@ class PredvajanjeActivity : OsActivity() {
         if (pripet !== p) {
             pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost) }
             p.setVideoSurfaceView(povrsina); p.addListener(velikost); pripet = p
+            prvaSlika = p.playbackState == Player.STATE_READY && p.videoSize.width > 0
         }
+        if (prvaSlikaZa != sk.id) { prvaSlikaZa = sk.id; prvaSlika = p.playbackState == Player.STATE_READY && p.videoSize.width > 0 }
+        posodobiNalaganje()
         povrsina.visibility = if (sk.video) View.VISIBLE else View.INVISIBLE
         (p as? SpletniIgralec)?.let { if (sk.video) it.pokazi(povrsina) else it.skrij() }
         naslovnica.visibility = if (sk.video || predlogiOdprti()) View.GONE else View.VISIBLE
@@ -438,6 +455,21 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     /** Pokaze podatke in odmakne zatemnitev. */
+    private fun seNalaga(): Boolean {
+        val p = GlasbaStoritev.predvajalnik ?: return false
+        if (p.playbackState == Player.STATE_ENDED || p.playerError != null) return false
+        if (p.playbackState == Player.STATE_BUFFERING) return true
+        // Spletni igralec (WebView) ne javlja prve slike: zanj velja le polnjenje medpomnilnika.
+        return jeVideo() && p !is SpletniIgralec && !prvaSlika && p.playWhenReady
+    }
+
+    private fun posodobiNalaganje() {
+        if (!::nalaganje.isInitialized) return
+        val da = seNalaga()
+        nalaganje.visibility = if (da) View.VISIBLE else View.GONE
+        if (da) { prekritje.animate().cancel(); prekritje.alpha = 1f }
+    }
+
     private fun zbudi() {
         tema.visibility = View.GONE
         prekritje.animate().cancel(); prekritje.alpha = 1f
