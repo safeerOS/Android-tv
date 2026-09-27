@@ -71,7 +71,7 @@ class PredvajanjeActivity : OsActivity() {
             val sk = GlasbaStoritev.trenutna()
             if (sk != null && SpletniVir.jeEnota(sk) && sk.zvok.isNotBlank()) {
                 SpletniIgralec.zadnja = java.lang.ref.WeakReference(this@PredvajanjeActivity)
-                GlasbaStoritev.predvajajSplet(this@PredvajanjeActivity, sk.copy(zvok = ""))
+                GlasbaStoritev.predvajajSplet(this@PredvajanjeActivity, sk.copy(zvok = ""), dovoliPrevzem = false)
             } else {
                 izvajalec.text = getString(R.string.os_glasba_napaka)
                 zbudi()

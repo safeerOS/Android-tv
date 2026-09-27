@@ -100,7 +100,7 @@ class GlasbaStoritev : Service() {
         }
         zacniVOspredju()
         cakajoci?.let { (seznam, od, s) -> cakajoci = null; nalozi(seznam, od, s) }
-        cakajociSplet?.let { cakajociSplet = null; zacniSplet(it) }
+        cakajociSplet?.let { (sk, prevzem) -> cakajociSplet = null; zacniSplet(sk, prevzem) }
         return START_NOT_STICKY
     }
 
@@ -137,11 +137,44 @@ class GlasbaStoritev : Service() {
     private var exo: ExoPlayer? = null
     private var spletni: SpletniIgralec? = null
 
-    /** Zasciteno vsebino predvaja stran v skritem pogledu; nas predvajalnik jo le upravlja. */
-    private fun zacniSplet(sk: Jamendo.Skladba) {
+    /** Druga stopnja je varcni sistemski WebView; polni brskalnik se ustvari sele po njenem neuspehu. */
+    private fun zacniSplet(sk: Jamendo.Skladba, dovoliPrevzem: Boolean) {
         exo?.let { it.stop(); it.clearMediaItems() }
         koncajSplet()
-        val s = SpletniIgralec(this, sk)
+        lateinit var lahki: LahkaStran
+        lahki = LahkaStran(this, sk,
+            dovoliPrevzem = dovoliPrevzem,
+            obToku = { tok ->
+                if (spletni === lahki) {
+                    spletni = null
+                    android.util.Log.i("SafeerOsMedia", "stopnja=2 uspeh=Media3")
+                    nalozi(listOf(tok), 0, null)
+                }
+            },
+            obPripravi = { pripravljen ->
+                if (spletni === pripravljen) {
+                    android.util.Log.i("SafeerOsMedia", "stopnja=2 uspeh=LahkaStran")
+                    osvezi()
+                }
+            },
+            obNeuspehu = { neuspesen ->
+                if (spletni === neuspesen) {
+                    spletni = null
+                    zacniPolniSplet(sk)
+                }
+            })
+        priklopiSpletnega(lahki, sk)
+    }
+
+    private fun zacniPolniSplet(sk: Jamendo.Skladba) {
+        val s = SpletniIgralec(this, sk) {
+            android.util.Log.i("SafeerOsMedia", "stopnja=3 uspeh=ChromiumEngineView")
+        }
+        priklopiSpletnega(s, sk)
+    }
+
+    private fun priklopiSpletnega(s: SpletniIgralec, sk: Jamendo.Skladba) {
+        spletni?.takeIf { it !== s }?.release()
         s.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) = osvezi()
             override fun onMediaMetadataChanged(mediaMetadata: M3Metadata) {
@@ -234,11 +267,11 @@ class GlasbaStoritev : Service() {
             private set
         private var vrsta: List<Jamendo.Skladba> = emptyList()
         private var cakajoci: Triple<List<Jamendo.Skladba>, Int, DatotekeActivity.Streznik?>? = null
-        private var cakajociSplet: Jamendo.Skladba? = null
+        private var cakajociSplet: Pair<Jamendo.Skladba, Boolean>? = null
 
         /** Enoto spletne aplikacije, katere toka ne moremo ujeti, predvaja stran pod nasim upravljanjem. */
-        fun predvajajSplet(ctx: Context, sk: Jamendo.Skladba) {
-            cakajociSplet = sk
+        fun predvajajSplet(ctx: Context, sk: Jamendo.Skladba, dovoliPrevzem: Boolean = true) {
+            cakajociSplet = sk to dovoliPrevzem
             val namen = Intent(ctx, GlasbaStoritev::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
         }

@@ -4,10 +4,12 @@
 package si.safeer.tv.os
 
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebView
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -21,8 +23,8 @@ import org.json.JSONObject
 import si.safeer.tv.ChromiumEngineView
 
 /**
- * Nas predvajalnik za vsebino, ki jo zna predvajati le stran sama (zasciteni tokovi - YouTube,
- * Spotify ...): stran tece v skritem pogledu brskalnika Safeer (z vsemi zascitami, brez oglasov,
+ * Skupna osnova za vsebino, ki jo zna predvajati le stran sama. LahkaStran uporabi sistemski WebView,
+ * zadnja stopnja pa polni pogled brskalnika Safeer (z vsemi zascitami, brez oglasov,
  * predvajanje v ozadju), mi pa jo upravljamo kot vsak drug predvajalnik - kartica Domov,
  * obvestilo, tipke daljinca, zaslon predvajanja. Video pokazemo tako, da pogled pripnemo na
  * zaslon predvajanja; ko ga zapustis, zvok igra naprej.
@@ -31,53 +33,73 @@ import si.safeer.tv.ChromiumEngineView
  * zato v vsak okvir ob zacetku vstavimo posrednika ([POSREDNIK_JS]) - ukazi gredo navzdol,
  * stanje navzgor, s standardnim postMessage.
  */
-class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBasePlayer(Looper.getMainLooper()) {
+open class SpletniIgralec protected constructor(
+    protected val sk: Jamendo.Skladba,
+    val pogled: WebView,
+    samodejnoNalozi: Boolean,
+    private val obNalozeni: (() -> Unit)?
+) : SimpleBasePlayer(Looper.getMainLooper()) {
 
-    val pogled: ChromiumEngineView = ChromiumEngineView(ctx).apply {
-        mobilniPogled = true
-        settings.mediaPlaybackRequiresUserGesture = false
-        isFocusable = false
-        val d = resources.displayMetrics
-        layout(0, 0, d.widthPixels, d.heightPixels)
-        try {
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))
-                WebViewCompat.addDocumentStartJavaScript(this, POSREDNIK_JS, setOf("*"))
-        } catch (_: Exception) { }
-        onPageLoaded = nalozeno@ { _, _ ->
-            if (sproscen) return@nalozeno
-            evaluateJavascript(POSREDNIK_JS, null)
-            evaluateJavascript(SpletniVir.SOGLASJE_JS, null)
-            ukaz("play")
-            ura.postDelayed({ if (!sproscen) ukaz("play") }, 3_000)
-            ura.postDelayed({ if (!sproscen && igra && !pripravljeno) ukaz("play") }, 7_000)
-            if (kino) {
-                vklopiKino()
-                ura.postDelayed({ if (!sproscen && kino) pogled.alpha = 1f }, 1_000)
+    constructor(ctx: Context, sk: Jamendo.Skladba, obNalozeni: (() -> Unit)? = null) :
+        this(sk, ChromiumEngineView(ctx), true, obNalozeni)
+
+    init {
+        if (samodejnoNalozi) (pogled as ChromiumEngineView).apply {
+            mobilniPogled = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            isFocusable = false
+            val d = resources.displayMetrics
+            layout(0, 0, d.widthPixels, d.heightPixels)
+            try {
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))
+                    WebViewCompat.addDocumentStartJavaScript(this, POSREDNIK_JS, setOf("*"))
+            } catch (_: Exception) { }
+            onPageLoaded = nalozeno@ { _, _ ->
+                if (sproscen) return@nalozeno
+                pripraviNalozenoStran()
             }
         }
-        loadUrl(sk.povezava)
     }
 
-    private val ura = Handler(Looper.getMainLooper())
+    /** Vklopi skupno upravljanje in kino po tem, ko je stran pripravljena. */
+    protected fun pripraviNalozenoStran() {
+        if (sproscen) return
+        if (!nalozenoSporoceno) {
+            nalozenoSporoceno = true
+            obNalozeni?.invoke()
+        }
+        pogled.evaluateJavascript(POSREDNIK_JS, null)
+        pogled.evaluateJavascript(SpletniVir.SOGLASJE_JS, null)
+        ukaz("play")
+        ura.postDelayed({ if (!sproscen) ukaz("play") }, 3_000)
+        ura.postDelayed({ if (!sproscen && igra && !pripravljeno) ukaz("play") }, 7_000)
+        if (kino) {
+            vklopiKino()
+            ura.postDelayed({ if (!sproscen && kino) pogled.alpha = 1f }, 1_000)
+        }
+    }
+
+    protected val ura = Handler(Looper.getMainLooper())
     /** Video je na zaslonu predvajanja: stran kaze samo video (slog ponovimo, ker ga nova stran pobrise). */
-    private var kino = false
-    private var igra = true
+    protected var kino = false
+    protected var igra = true
     /** Kaj zeli uporabnik (tipke, kartica, obvestilo); stran, ki se ustavi sama (odpet pogled), spet zazenemo. */
     private var zelja = true
     private var zadnjiZagon = 0L
-    private var pripravljeno = false
+    protected var pripravljeno = false
     private var polozaj = 0L
     private var trajanje = C.TIME_UNSET
     private var koncano = 0
     private var naslov = sk.naslov
     private var izvajalec = sk.izvajalec
-    private var sproscen = false
+    protected var sproscen = false
+    private var nalozenoSporoceno = false
 
-    private fun ukaz(c: String, t: Double = 0.0) =
+    protected fun ukaz(c: String, t: Double = 0.0) =
         pogled.evaluateJavascript("(function(){try{window.postMessage({safeer:'ukaz',c:'$c',t:$t},'*');}catch(e){}})()", null)
 
     /** Vrhnja stran izreze najvecji iframe/video, vsak notranji okvir pa samo svoj dejanski video. */
-    private fun vklopiKino() {
+    protected fun vklopiKino() {
         ukaz("kino")
         pogled.evaluateJavascript(KINO_JS) { r ->
             if (kino && (r == "true" || r?.contains("true") == true)) ura.postDelayed({ if (kino) pogled.alpha = 1f }, 120)
@@ -115,7 +137,10 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
         }
     }
 
-    init { ura.postDelayed(tik, 1_500) }
+    init {
+        ura.postDelayed(tik, 1_500)
+        if (samodejnoNalozi) pogled.loadUrl(sk.povezava)
+    }
 
     override fun getState(): State {
         val metapodatki = MediaMetadata.Builder().setTitle(naslov).setArtist(izvajalec).build()
@@ -170,6 +195,7 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
         kino = true
         pogled.alpha = 0f
         pogled.setBackgroundColor(android.graphics.Color.BLACK)
+        if (Build.VERSION.SDK_INT >= 26) pogled.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_BOUND, false)
         (pogled.parent as? ViewGroup)?.removeView(pogled)
         stars.addView(pogled, stars.indexOfChild(nad) + 1, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         kino = true
@@ -180,6 +206,7 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
     fun skrij() {
         kino = false
         pogled.alpha = 0f
+        if (Build.VERSION.SDK_INT >= 26) pogled.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
         (pogled.parent as? ViewGroup)?.removeView(pogled)
         zadnja?.get()?.let { gostuj(it) }
         if (zelja) ura.postDelayed({ ukaz("play") }, 400)
@@ -191,6 +218,7 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
      */
     fun gostuj(a: android.app.Activity) {
         if (kino || a.isFinishing) return
+        if (Build.VERSION.SDK_INT >= 26) pogled.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
         val koren = a.window.decorView as? ViewGroup ?: return
         if (pogled.parent === koren) return
         (pogled.parent as? ViewGroup)?.removeView(pogled)
@@ -212,7 +240,7 @@ class SpletniIgralec(ctx: Context, private val sk: Jamendo.Skladba) : SimpleBase
          * zascita predvajanja v ozadju ne zazene znova, »play« jo sprosti; okvir z medijem vsako sekundo
          * sporoci stanje vrhnji strani ({safeer:'stanje'}).
          */
-        private const val POSREDNIK_JS = """(function(){if(window.__safeerAgent)return;window.__safeerAgent=1;
+        internal const val POSREDNIK_JS = """(function(){if(window.__safeerAgent)return;window.__safeerAgent=1;
           try{var origPlay=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){this.muted=false;this.volume=1.0;return origPlay.apply(this,arguments);};}catch(x){}
           function odtisni(el){if(!el)return;try{el.muted=false;el.volume=1.0;}catch(x){}
             var ub=[].slice.call(document.querySelectorAll('button,[role=button],.ytp-mute-button')).filter(function(b){
