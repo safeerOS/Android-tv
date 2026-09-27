@@ -281,6 +281,10 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         findViewById<View>(R.id.meniGlasba)?.setOnClickListener {
             odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
         }
+        // Kartica "Glasba in video" na domacem zaslonu telefona/tablice je bila brez dejanja (dotik ni naredil nic).
+        findViewById<View>(R.id.karticaMediji)?.setOnClickListener {
+            odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
+        }
         mNaprave?.setOnClickListener {
             odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.tablet_naprave))
         }
