@@ -485,4 +485,7 @@
     <string name="os_spor_odstrani">Quitar canal</string>
     <string name="os_spor_ni_poslano">El mensaje no se envió.</string>
     <string name="os_spor_https">La dirección debe empezar por https://</string>
+    <string name="os_spor_pisi_napravi">Escribir a un dispositivo</string>
+    <string name="os_spor_ni_naprav">Aún no hay otro dispositivo en Safeer Link que pueda chatear.</string>
+    <string name="os_spor_caka">El dispositivo no está conectado: recibirá el mensaje cuando se conecte.</string>
 </resources>

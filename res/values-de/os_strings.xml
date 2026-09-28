@@ -485,4 +485,7 @@
     <string name="os_spor_odstrani">Kanal entfernen</string>
     <string name="os_spor_ni_poslano">Nachricht wurde nicht gesendet.</string>
     <string name="os_spor_https">Adresse muss mit https:// beginnen</string>
+    <string name="os_spor_pisi_napravi">Einem Gerät schreiben</string>
+    <string name="os_spor_ni_naprav">Noch kein anderes Gerät im Safeer Link kann chatten.</string>
+    <string name="os_spor_caka">Das Gerät ist offline – es erhält die Nachricht, sobald es sich verbindet.</string>
 </resources>

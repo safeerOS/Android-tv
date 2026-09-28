@@ -10,6 +10,8 @@ TOOLS_DIR="${SAFEER_TOOLS_DIR:-$HOME/Namizje/Neimenovana mapa/streamN-TV2/androi
 KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 
+# HubTokovi uporablja org.json (na Androidu vgrajen); na JVM ga dodamo iz predpomnilnika Gradla.
+JSON_JAR="${JSON_JAR:-$(ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar 2>/dev/null | grep -v sources | head -1)}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
@@ -25,9 +27,10 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
     "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
     "$TEST_DIR/UsmerjevalnikTest.kt" \
+    ${JSON_JAR:+-cp "$JSON_JAR"} \
     -include-runtime -d "$OUT/usmerjevalnik.jar"
 
-java -cp "$OUT/usmerjevalnik.jar" si.safeer.tv.cast.UsmerjevalnikTestKt
+java -cp "$OUT/usmerjevalnik.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.UsmerjevalnikTestKt
 
 # Testni vektor RFC 9382 (isti kot za spake2.py v brskalniku za Linux).
 "$KOTLINC" -J-Xmx2g \

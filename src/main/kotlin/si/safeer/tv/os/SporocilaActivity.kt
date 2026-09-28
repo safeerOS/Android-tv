@@ -67,6 +67,12 @@ class SporocilaActivity : OsActivity() {
         siroko = resources.configuration.screenWidthDp >= 720
         setContentView(StranskaVrstica.ovij(this, zgradi(), StranskaVrstica.Razdelek.SPOROCILA))
         narisiKanale(); narisiSeznam(); pokaziPogovor(null)
+        odpriIzNamere(intent)
+        // Sporocila z drugih naprav v Linku pridejo kot obvestilo: od Androida 13 za to rabimo dovoljenje.
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            try { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 71) } catch (_: Throwable) { }
+        }
         // Z daljincem zacnemo v vsebini: prvi pogovor ali, ce jih se ni, Dodaj kanal.
         koren.post { (if (seznam.childCount > 0) seznam.getChildAt(0) else dodajGumb).requestFocus() }
     }
@@ -75,11 +81,58 @@ class SporocilaActivity : OsActivity() {
         super.onStart()
         Ozadje.uporabi(this, koren)
         glavna.post(osvezi)
+        // Dokler so Sporocila odprta, drzimo povezavo v Link: klepet z drugih naprav pride takoj.
+        if (!LinkUpravitelj.pridobi(this).jeKrajevni()) LinkUpravitelj.pridobi(this).dodaj(linkPoslusalec)
+        KlepetLinka.poslusalci.add(obKlepetu)
+        KlepetLinka.odprtPogovor = izbran?.takeIf { it.kanalId == KlepetLinka.KANAL }?.id
     }
 
     override fun onStop() {
         glavna.removeCallbacks(osvezi)
+        LinkUpravitelj.pridobi(this).odstrani(linkPoslusalec)
+        KlepetLinka.poslusalci.remove(obKlepetu)
+        KlepetLinka.odprtPogovor = null
         super.onStop()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        odpriIzNamere(intent)
+    }
+
+    /** Obvestilo o sporocilu odpre pravi pogovor. */
+    private fun odpriIzNamere(namera: android.content.Intent?) {
+        val id = namera?.getStringExtra(EXTRA_POGOVOR) ?: return
+        shramba.pogovori().firstOrNull { it.kanalId == KlepetLinka.KANAL && it.id == id }?.let { pokaziPogovor(it) }
+    }
+
+    private val obKlepetu: () -> Unit = { glavna.post { if (!unicena) osveziPrikaz() } }
+    private var napraveLinka: List<LinkOdjemalec.Naprava> = emptyList()
+    private val linkPoslusalec = object : LinkOdjemalec.Poslusalec {
+        override fun naStanje(povezan: Boolean, sporocilo: String) {}
+        override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { napraveLinka = naprave; glavna.post { if (!unicena) narisiKanale() } }
+        override fun naNaslov(url: String, naslov: String, od: String) {}
+        override fun naBesedilo(besedilo: String, od: String) {}
+        override fun naZavrnitev() {}
+    }
+
+    /** Naprave v Linku, ki znajo Safeer Chat (brez te naprave in njenih sorodnikov). */
+    private fun napraveZaKlepet(): List<LinkOdjemalec.Naprava> =
+        LinkOdjemalec.drugeZaPrikaz(napraveLinka.filter { it.zmoznosti.contains(KlepetLinka.ZMOZNOST) }, Identiteta.id(this))
+
+    private fun pisiNapravi() {
+        val naprave = napraveZaKlepet()
+        if (naprave.isEmpty()) { Toast.makeText(this, R.string.os_spor_ni_naprav, Toast.LENGTH_LONG).show(); return }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_spor_pisi_napravi)
+            .setItems(naprave.map { it.ime }.toTypedArray()) { _, i ->
+                val n = naprave[i]
+                pokaziPogovor(KlepetLinka.zacniPogovor(shramba, n.naprava.ifBlank { n.id }, n.ime))
+            }
+            .setNegativeButton(R.string.os_preklici, null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
     }
 
     override fun onDestroy() {
@@ -157,6 +210,7 @@ class SporocilaActivity : OsActivity() {
         val pNaslovi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         pogovorIme = TextView(this).apply {
             setTextColor(getColor(R.color.os_besedilo)); textSize = 19f; maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
         pogovorZadeva = TextView(this).apply { setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; maxLines = 1 }
@@ -230,9 +284,19 @@ class SporocilaActivity : OsActivity() {
                 isFocusable = true; isClickable = true; maxLines = 1; tag = "kanal|" + k.id
                 setPadding(dp(14), dp(8), dp(14), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 contentDescription = k.ime + " " + besediloStanja(k.stanje)
-                setOnClickListener { urediKanal(k) }
+                setOnClickListener { if (k.vrsta == KlepetLinka.VRSTA) pisiNapravi() else urediKanal(k) }
             }
             kanaliVrsta.addView(cip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
+        }
+        // Safeer Link: pisanje drugim napravam, se preden je prislo prvo sporocilo.
+        if (shramba.kanali().none { it.id == KlepetLinka.KANAL } && napraveZaKlepet().isNotEmpty()) {
+            kanaliVrsta.addView(TextView(this).apply {
+                text = "💬 " + getString(R.string.os_spor_pisi_napravi)
+                setTextColor(getColor(R.color.os_mint)); textSize = 13f
+                isFocusable = true; isClickable = true; maxLines = 1; tag = "kanal|" + KlepetLinka.KANAL
+                setPadding(dp(14), dp(8), dp(14), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
+                setOnClickListener { pisiNapravi() }
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
         }
     }
 
@@ -286,6 +350,9 @@ class SporocilaActivity : OsActivity() {
 
     private fun pokaziPogovor(p: SporocilaShramba.Pogovor?) {
         izbran = p
+        KlepetLinka.odprtPogovor = p?.takeIf { it.kanalId == KlepetLinka.KANAL }?.id
+        if (p != null && p.kanalId == KlepetLinka.KANAL)
+            try { getSystemService(android.app.NotificationManager::class.java)?.cancel(p.id.hashCode()) } catch (_: Throwable) {}
         if (!siroko) {
             seznamPlosca.visibility = if (p == null) View.VISIBLE else View.GONE
             pogovorPlosca.visibility = if (p == null) View.GONE else View.VISIBLE
@@ -298,7 +365,11 @@ class SporocilaActivity : OsActivity() {
             return
         }
         pogovorIme.text = p.ime.ifBlank { p.oseba }
-        pogovorZadeva.text = if (p.zadeva.isNotBlank()) p.zadeva else p.oseba
+        pogovorZadeva.text = when {
+            p.kanalId == KlepetLinka.KANAL -> "Safeer Link"
+            p.zadeva.isNotBlank() -> p.zadeva
+            else -> p.oseba
+        }
         odgovor.isEnabled = true; posljiGumb.isEnabled = true; posljiGumb.alpha = 1f
         narisiSporocila()
         if (p.neprebrano > 0) delavec.execute {
@@ -324,11 +395,11 @@ class SporocilaActivity : OsActivity() {
                     cornerRadius = dp(14).toFloat(); setColor(getColor(if (ven) R.color.os_mint else R.color.os_ozadje))
                 }
                 maxWidth = (resources.displayMetrics.widthPixels * (if (siroko) 0.4f else 0.75f)).toInt()
-            })
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             vrstica.addView(TextView(this).apply {
                 text = kratekCas(s.cas); textSize = 10f; setTextColor(getColor(R.color.os_umirjeno))
                 setPadding(dp(6), dp(2), dp(6), 0)
-            })
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             sporocilaSeznam.addView(vrstica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
         }
         sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN) }
@@ -374,11 +445,15 @@ class SporocilaActivity : OsActivity() {
         if (besedilo.isEmpty()) return
         posljiGumb.isEnabled = false; posljiGumb.alpha = 0.5f
         delavec.execute {
-            val napaka = try { SporocilaKanali.poslji(this, shramba, p.kanalId, p.id, besedilo); null } catch (e: Throwable) { e }
+            var izid = ""
+            val napaka = try { izid = SporocilaKanali.poslji(this, shramba, p.kanalId, p.id, besedilo); null } catch (e: Throwable) { e }
             glavna.post {
                 if (unicena) return@post
                 posljiGumb.isEnabled = true; posljiGumb.alpha = 1f
-                if (napaka == null) { odgovor.setText(""); osveziPrikaz() }
+                if (napaka == null) {
+                    odgovor.setText(""); osveziPrikaz()
+                    if (izid == "queued") Toast.makeText(this, R.string.os_spor_caka, Toast.LENGTH_LONG).show()
+                }
                 else Toast.makeText(this, getString(R.string.os_spor_ni_poslano) + " " + besediloStanja(SporocilaKanali.razlog(napaka)), Toast.LENGTH_LONG).show()
             }
         }
@@ -550,6 +625,7 @@ class SporocilaActivity : OsActivity() {
     }
 
     companion object {
+        const val EXTRA_POGOVOR = "si.safeer.tv.os.sporocila.POGOVOR"
         private const val OSVEZI_MS = 60_000L
     }
 }

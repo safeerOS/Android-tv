@@ -260,6 +260,7 @@ object SporocilaKanali {
     // ------------------------------------------------------------------ skupno
     fun sinhroniziraj(c: Context, s: SporocilaShramba) {
         for (k in s.kanali()) {
+            if (k.vrsta == KlepetLinka.VRSTA) continue      // Safeer Chat pride sam po Linku
             try {
                 when (k.vrsta) {
                     "email" -> sinhronizirajEposto(c, s, k)
@@ -274,14 +275,18 @@ object SporocilaKanali {
 
     fun razlog(e: Throwable): String = when (e) {
         is ManjkaSkrivnost -> "napaka:geslo"
+        is KlepetLinka.NapakaKlepeta -> if (e.koda == "ni_naprave" || e.koda == "meja") "napaka" else "napaka:omrezje"
         is NapakaPrijave, is AuthenticationFailedException -> "napaka:prijava"
         is java.io.IOException, is javax.mail.MessagingException -> "napaka:omrezje"
         else -> "napaka"
     }
 
-    fun poslji(c: Context, s: SporocilaShramba, kanalId: String, pogovorId: String, besedilo: String) {
+    /** Vrne "queued", ce naprava v Linku ni povezana in bo sporocilo dobila kasneje, sicer "". */
+    fun poslji(c: Context, s: SporocilaShramba, kanalId: String, pogovorId: String, besedilo: String): String {
         val k = s.kanali().first { it.id == kanalId }
+        var izid = ""
         val sp = when (k.vrsta) {
+            KlepetLinka.VRSTA -> KlepetLinka.poslji(c, pogovorId, besedilo).also { izid = it.second }.first
             "email" -> posljiEposto(c, s, k, pogovorId, besedilo)
             else -> {
                 val o = chatwoot(c, k, "/conversations/$pogovorId/messages", "POST",
@@ -291,12 +296,14 @@ object SporocilaKanali {
         }
         s.shraniSporocilo(kanalId, sp)
         s.posodobiZadnje(kanalId, pogovorId, besedilo, sp.cas)
+        return if (izid == "queued") "queued" else ""
     }
 
     fun oznaciPrebrano(c: Context, s: SporocilaShramba, kanalId: String, pogovorId: String) {
         s.oznaciPrebrano(kanalId, pogovorId)
         val k = s.kanali().firstOrNull { it.id == kanalId } ?: return
         try {
+            if (k.vrsta == KlepetLinka.VRSTA) return
             if (k.vrsta == "email") oznaciEposto(c, s, k, pogovorId)
             else chatwoot(c, k, "/conversations/$pogovorId/update_last_seen", "POST", JSONObject())
         } catch (_: Throwable) {}

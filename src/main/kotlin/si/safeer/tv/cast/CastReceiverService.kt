@@ -388,6 +388,8 @@ class CastReceiverService : Service() {
                             zmoznosti.add(si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)
                         }
                         if (BuildConfig.FLAVOR == "telefon" && internetGateway?.dovoljeno == true) zmoznosti.add("internet.gateway")
+                        // Safeer Chat: sprejemnik tece stalno, zato sporocila pridejo tudi, ko Safeer OS ni odprt.
+                        if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.KlepetLinka.ZMOZNOST)
                         put("capabilities", org.json.JSONArray(zmoznosti))
                         // Protocol v1: model naprave in katalog aplikacij, ki jih zna ta zaslon zagnati.
                         HubKrmilnik.poljaV1(this@CastReceiverService, "screen", this, HubKrmilnik.prioriteta(this@CastReceiverService))
@@ -815,6 +817,14 @@ class CastReceiverService : Service() {
                         put("type", "cast.pong")
                     }
                     ws.send(pong.toString())
+                }
+
+                "chat.send" -> {
+                    sendAck(ws, msgId, "accepted")
+                    if (BuildConfig.FLAVOR != "brskalnik") {
+                        try { si.safeer.tv.os.KlepetLinka.prejmi(this@CastReceiverService, json) }
+                        catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "klepet", e) }
+                    }
                 }
 
                 "share.text" -> {
