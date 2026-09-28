@@ -1568,7 +1568,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * ena zascita, en seznam zavihkov); sicer nasega vgrajenega, ki je v Safeer OS za ta primer.
      */
     private fun brskalnikNamera(): Intent {
-        val paket = Sosed.brskalnik(this)
+        // Safeer OS ima brskalnik v jedru: splet se vedno odpre v njem (isti proces, isti Scit, takojsen
+        // prehod nazaj), tudi ce je namescen stari samostojni Safeer Browser TV.
+        val paket = if (Sosed.smoOs(this)) null else Sosed.brskalnik(this)
         val namera = if (paket != null)
             Intent().setComponent(android.content.ComponentName(paket, "si.safeer.tv.MainActivity"))
                 // Brskalnik naj ve, od kod je prisel: ob izhodu se vrne v Safeer OS, ne na Android.

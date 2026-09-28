@@ -164,7 +164,7 @@ object DomacaVrsta {
 
     /** Odpre spletno aplikacijo cez ves zaslon, naravnost z domacega zaslona televizorja. */
     private fun nameraAplikacije(c: Context, url: String, ime: String): String =
-        (Sosed.brskalnik(c)?.let { Intent().setComponent(android.content.ComponentName(it, "si.safeer.tv.MainActivity")) }
+        ((if (Sosed.smoOs(c)) null else Sosed.brskalnik(c))?.let { Intent().setComponent(android.content.ComponentName(it, "si.safeer.tv.MainActivity")) }
             ?: Intent(c, si.safeer.tv.MainActivity::class.java))
             .putExtra("spletna_aplikacija", url)
             .putExtra("aplikacija_ime", ime)
