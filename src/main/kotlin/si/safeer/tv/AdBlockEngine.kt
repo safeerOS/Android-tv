@@ -169,6 +169,8 @@ object AdBlockEngine {
             "pubmatic.com", "openx.net", "smartadserver.com", "bidswitch.net", "casalemedia.com",
             "scorecardresearch.com", "quantserve.com", "hotjar.com", "clarity.ms",
             "adnxs.com", "creativecdn.com", "trafficstars.com",
+            // Video oglasi in sledilci (seznam iz m6-adblock, MIT, Frederic Guiose)
+            "stickyadstv.com", "videoplaza.tv", "tealiumiq.com", "tiqcdn.com", "gemius.pl", "kameleoon.com", "kameleoon.eu", "tagcommander.com", "commander1.com", "bttrack.com", "criteo.net", "nr-data.net",
             "trafficjunky.com", "trafficjunky.net", "traffichaus.com", "trafficfactory.biz",
             "mc.yandex.ru", "metrika.yandex.ru", "an.yandex.ru"
         )
