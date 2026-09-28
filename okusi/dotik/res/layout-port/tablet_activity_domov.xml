@@ -52,7 +52,42 @@
                     android:contentDescription="@string/os_meni_domov"/>
             </FrameLayout>
 
-            <!-- Aplikacije -->
+            <!-- Medijski center -->
+            <FrameLayout
+                android:id="@+id/meniGlasba"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:focusable="true"
+                android:clickable="true"
+                android:background="@drawable/os_meni_postavka"
+                android:layout_marginBottom="8dp">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/os_ikona_glasba"
+                    android:tint="#57D6AD"
+                    android:contentDescription="@string/os_mediji_kartica"/>
+            </FrameLayout>
+
+            <!-- Naprave -->
+            <FrameLayout
+                android:id="@+id/meniNaprave"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:focusable="true"
+                android:clickable="true"
+                android:background="@drawable/os_meni_postavka"
+                android:layout_marginBottom="8dp">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/os_ikona_link"
+                    android:contentDescription="@string/os_meni_naprave"/>
+            </FrameLayout>
+
+            <!-- Programi -->
             <FrameLayout
                 android:id="@+id/meniAplikacije"
                 android:layout_width="48dp"
@@ -67,23 +102,6 @@
                     android:layout_gravity="center"
                     android:src="@drawable/os_ikona_aplikacije"
                     android:contentDescription="@string/os_meni_aplikacije"/>
-            </FrameLayout>
-
-            <!-- Zaslon -->
-            <FrameLayout
-                android:id="@+id/meniZaslon"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:focusable="true"
-                android:clickable="true"
-                android:background="@drawable/os_meni_postavka"
-                android:layout_marginBottom="8dp">
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/os_ikona_zaslon"
-                    android:contentDescription="@string/os_meni_zaslon"/>
             </FrameLayout>
 
             <!-- Datoteke -->
@@ -103,23 +121,6 @@
                     android:contentDescription="@string/os_meni_datoteke"/>
             </FrameLayout>
 
-            <!-- Povezane naprave -->
-            <FrameLayout
-                android:id="@+id/meniNaprave"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:focusable="true"
-                android:clickable="true"
-                android:background="@drawable/os_meni_postavka"
-                android:layout_marginBottom="8dp">
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/os_ikona_link"
-                    android:contentDescription="@string/tablet_naprave"/>
-            </FrameLayout>
-
             <!-- Splet -->
             <FrameLayout
                 android:id="@+id/meniSplet"
@@ -134,7 +135,25 @@
                     android:layout_height="24dp"
                     android:layout_gravity="center"
                     android:src="@drawable/os_ikona_splet"
-                    android:contentDescription="@string/os_hitri_splet"/>
+                    android:contentDescription="@string/os_meni_splet"/>
+            </FrameLayout>
+
+            <!-- Zapiski -->
+            <FrameLayout
+                android:id="@+id/meniZapiski"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:focusable="true"
+                android:clickable="true"
+                android:background="@drawable/os_meni_postavka"
+                android:layout_marginBottom="8dp">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/os_ikona_zapiski"
+                    android:tint="#57D6AD"
+                    android:contentDescription="@string/os_meni_zapiski"/>
             </FrameLayout>
 
             <!-- Nastavitve -->
@@ -152,6 +171,12 @@
                     android:src="@drawable/os_ikona_nastavitve"
                     android:contentDescription="@string/os_meni_nastavitve"/>
             </FrameLayout>
+
+            <View
+                android:id="@+id/meniZaslon"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone"/>
 
         </LinearLayout>
 

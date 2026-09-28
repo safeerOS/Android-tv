@@ -19,6 +19,7 @@ import si.safeer.tv.os.ZaslonActivity
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
@@ -28,14 +29,17 @@ import android.text.InputType
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import android.util.TypedValue
 import java.net.URLEncoder
 
 /**
@@ -248,6 +252,30 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         val mNaprave = findViewById<View>(R.id.meniNaprave)
         val mSplet = findViewById<View>(R.id.meniSplet)
         val mNastavitve = findViewById<View>(R.id.meniNastavitve)
+        val stars = mDomov?.parent as? ViewGroup ?: return
+        val ozko = mDomov is FrameLayout
+        val mMediji = findViewById<View>(R.id.meniGlasba) ?: ustvariMenijskoPostavko(
+            R.id.meniGlasba, R.drawable.os_ikona_glasba, R.string.os_mediji_kartica, ozko)
+        val mZapiski = findViewById<View>(R.id.meniZapiski) ?: ustvariMenijskoPostavko(
+            R.id.meniZapiski, R.drawable.os_ikona_zapiski, R.string.os_meni_zapiski, ozko)
+
+        // XML postavitvi sta razlicni (besedilo lezece, samo ikone pokoncno), vrstni red in fokus pa
+        // sta vedno ista. Stari meniZaslon ostane skrit zaradi zdruzljivosti s prejsnjo postavitvijo.
+        val vidne = listOfNotNull(mDomov, mMediji, mNaprave, mAplikacije, mDatoteke, mSplet, mZapiski, mNastavitve)
+        for (v in vidne + listOfNotNull(mZaslon)) (v.parent as? ViewGroup)?.removeView(v)
+        for (v in vidne) {
+            pripraviVidezMenija(v)
+            stars.addView(v)
+        }
+        mZaslon?.visibility = View.GONE
+        mZaslon?.isFocusable = false
+        mZaslon?.let { stars.addView(it) }
+        vidne.forEachIndexed { i, v ->
+            if (v.id == View.NO_ID) v.id = View.generateViewId()
+            v.nextFocusUpId = vidne[if (i == 0) 0 else i - 1].id
+            v.nextFocusDownId = vidne[if (i == vidne.lastIndex) i else i + 1].id
+            v.nextFocusLeftId = v.id
+        }
 
         mDomov?.isActivated = true
         mDomov?.isSelected = true
@@ -258,9 +286,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         mAplikacije?.setOnClickListener {
             odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.tablet_programi))
         }
-        // Zaslon in Splet sta kartici na domacem zaslonu; v stranski vrstici bi ju podvojila.
-        mZaslon?.visibility = View.GONE
-        mSplet?.visibility = View.GONE
+        // Zaslon je namenoma skrit; Splet je poenoten v obvezni stranski vrstici.
         mZaslon?.setOnClickListener {
             val r = racunalnik("desktop")
             if (r != null) {
@@ -278,7 +304,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         // R.id.karticaMediji je bil odstranjen (kartica Mediji na TV/OS domacem zaslonu je zdaj samo
         // se postavka v stranski vrstici, R.id.meniGlasba) - tu ostaja enako varno (?.), ce ga ta
         // postavitev tablice se ne pozna.
-        findViewById<View>(R.id.meniGlasba)?.setOnClickListener {
+        mMediji.setOnClickListener {
             odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
         }
         // Kartica "Glasba in video" na domacem zaslonu telefona/tablice je bila brez dejanja (dotik ni naredil nic).
@@ -291,8 +317,48 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         mSplet?.setOnClickListener {
             odpriVBrskalniku(null)
         }
+        mZapiski.setOnClickListener {
+            odpriVarno(Intent(this, si.safeer.tv.os.ZapiskiActivity::class.java), getString(R.string.os_meni_zapiski))
+        }
         mNastavitve?.setOnClickListener {
             odpriVarno(Intent(this, si.safeer.tv.os.NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
+        }
+    }
+
+    private fun ustvariMenijskoPostavko(id: Int, ikona: Int, ime: Int, ozko: Boolean): View {
+        val d = resources.displayMetrics.density
+        if (ozko) return FrameLayout(this).apply {
+            this.id = id; isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_meni_postavka)
+            addView(ImageView(this@DomovTabletActivity).apply {
+                setImageResource(ikona); imageTintList = ColorStateList.valueOf(getColor(R.color.os_mint)); contentDescription = getString(ime)
+            }, FrameLayout.LayoutParams((24 * d).toInt(), (24 * d).toInt(), android.view.Gravity.CENTER))
+            layoutParams = LinearLayout.LayoutParams((48 * d).toInt(), (48 * d).toInt()).apply { bottomMargin = (8 * d).toInt() }
+        }
+        return LinearLayout(this).apply {
+            this.id = id; orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
+            isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_meni_postavka)
+            setPadding((12 * d).toInt(), (7 * d).toInt(), (12 * d).toInt(), (7 * d).toInt())
+            addView(ImageView(this@DomovTabletActivity).apply {
+                setImageResource(ikona); imageTintList = ColorStateList.valueOf(getColor(R.color.os_mint))
+            }, LinearLayout.LayoutParams((22 * d).toInt(), (22 * d).toInt()))
+            addView(TextView(this@DomovTabletActivity).apply {
+                text = getString(ime); setTextColor(getColor(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                maxLines = 1; setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
+                setPadding((12 * d).toInt(), 0, 0, 0)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = (4 * d).toInt() }
+        }
+    }
+
+    private fun pripraviVidezMenija(v: View) {
+        if (v is ViewGroup) for (i in 0 until v.childCount) {
+            when (val otrok = v.getChildAt(i)) {
+                is ImageView -> otrok.imageTintList = ColorStateList.valueOf(getColor(R.color.os_mint))
+                is TextView -> {
+                    otrok.setTextColor(getColor(R.color.os_besedilo)); otrok.maxLines = 1
+                    otrok.setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
+                }
+            }
         }
     }
 

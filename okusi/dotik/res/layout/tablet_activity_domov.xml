@@ -93,7 +93,68 @@
                     android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
 
-            <!-- Aplikacije -->
+            <!-- Medijski center -->
+            <LinearLayout
+                android:id="@+id/meniGlasba"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:clickable="true"
+                android:background="@drawable/os_meni_postavka"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:layout_marginBottom="6dp">
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@drawable/os_ikona_glasba"
+                    android:tint="#57D6AD"
+                    android:contentDescription="@null"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/os_mediji_kartica"
+                    android:textColor="@color/os_besedilo"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif-medium"/>
+            </LinearLayout>
+
+            <!-- Naprave -->
+            <LinearLayout
+                android:id="@+id/meniNaprave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:clickable="true"
+                android:background="@drawable/os_meni_postavka"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:layout_marginBottom="6dp">
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@drawable/os_ikona_link"
+                    android:contentDescription="@null"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/os_meni_naprave"
+                    android:textColor="@color/os_besedilo"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif-medium"/>
+            </LinearLayout>
+
+            <!-- Programi -->
             <LinearLayout
                 android:id="@+id/meniAplikacije"
                 android:layout_width="match_parent"
@@ -118,36 +179,6 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:text="@string/os_meni_aplikacije"
-                    android:textColor="@color/os_besedilo"
-                    android:textSize="14sp"
-                    android:fontFamily="sans-serif-medium"/>
-            </LinearLayout>
-
-            <!-- Zaslon -->
-            <LinearLayout
-                android:id="@+id/meniZaslon"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:focusable="true"
-                android:clickable="true"
-                android:background="@drawable/os_meni_postavka"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:layout_marginBottom="6dp">
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@drawable/os_ikona_zaslon"
-                    android:contentDescription="@null"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:text="@string/os_meni_zaslon"
                     android:textColor="@color/os_besedilo"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium"/>
@@ -183,36 +214,6 @@
                     android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
 
-            <!-- Povezane naprave -->
-            <LinearLayout
-                android:id="@+id/meniNaprave"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:focusable="true"
-                android:clickable="true"
-                android:background="@drawable/os_meni_postavka"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:layout_marginBottom="6dp">
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@drawable/os_ikona_link"
-                    android:contentDescription="@null"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:text="@string/tablet_naprave"
-                    android:textColor="@color/os_besedilo"
-                    android:textSize="14sp"
-                    android:fontFamily="sans-serif-medium"/>
-            </LinearLayout>
-
             <!-- Splet -->
             <LinearLayout
                 android:id="@+id/meniSplet"
@@ -237,9 +238,45 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:text="@string/os_hitri_splet"
+                    android:text="@string/os_meni_splet"
                     android:textColor="@color/os_besedilo"
                     android:textSize="14sp"
+                    android:fontFamily="sans-serif-medium"/>
+            </LinearLayout>
+
+            <!-- Zapiski -->
+            <LinearLayout
+                android:id="@+id/meniZapiski"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:clickable="true"
+                android:background="@drawable/os_meni_postavka"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:layout_marginBottom="6dp">
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@drawable/os_ikona_zapiski"
+                    android:tint="#57D6AD"
+                    android:contentDescription="@null"/>
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/os_meni_zapiski"
+                    android:textColor="@color/os_besedilo"
+                    android:textSize="14sp"
+                    android:maxLines="1"
+                    android:autoSizeTextType="uniform"
+                    android:autoSizeMinTextSize="11sp"
+                    android:autoSizeMaxTextSize="14sp"
                     android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
 
@@ -271,6 +308,13 @@
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium"/>
             </LinearLayout>
+
+            <!-- Ohranjen samo zaradi zdruzljivosti s kodo; ni del vidnega menija. -->
+            <View
+                android:id="@+id/meniZaslon"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone"/>
 
         </LinearLayout>
 

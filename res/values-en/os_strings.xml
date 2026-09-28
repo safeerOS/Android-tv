@@ -360,11 +360,26 @@
     <string name="os_vse_kartica">All apps</string>
 <!-- Glava in stranski meni -->
     <string name="os_meni_domov">Home</string>
-    <string name="os_meni_aplikacije">Apps</string>
+    <string name="os_meni_aplikacije">Programs</string>
     <string name="os_meni_zaslon">Screen</string>
     <string name="os_meni_datoteke">Files</string>
     <string name="os_meni_naprave">Safeer Link</string>
+    <string name="os_meni_splet">Web</string>
+    <string name="os_meni_zapiski">Notes</string>
     <string name="os_meni_nastavitve">Settings</string>
+    <string name="os_zapiski">Notes</string>
+    <string name="os_zapiski_opis">Your local notes</string>
+    <string name="os_zapiski_nov">New note</string>
+    <string name="os_zapiski_uredi">Edit note</string>
+    <string name="os_zapiski_iskanje">Search notes</string>
+    <string name="os_zapiski_prazno">No notes yet.</string>
+    <string name="os_zapiski_naslov">Title</string>
+    <string name="os_zapiski_vsebina">Note</string>
+    <string name="os_zapiski_shrani">Save</string>
+    <string name="os_zapiski_izbrisi">Delete</string>
+    <string name="os_zapiski_izbrisi_vprasanje">Delete this note?</string>
+    <string name="os_zapiski_brez_naslova">Untitled</string>
+    <string name="os_zapiski_brez_vsebine">Empty note</string>
     <string name="os_podnaslov_app">Your computer in your hands.</string>
     <string name="os_pozdrav_naslov">Welcome back!</string>
     <string name="os_pozdrav_podnaslov">All your devices, apps and content – in one place.</string>

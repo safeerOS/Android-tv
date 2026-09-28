@@ -54,6 +54,8 @@
             tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity"
             tools:remove="android:screenOrientation" />
+        <activity android:name="si.safeer.tv.os.ZapiskiActivity"
+            tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.BesediloActivity"
             tools:remove="android:screenOrientation" />
         <activity android:name="si.safeer.tv.os.SlikaActivity"
