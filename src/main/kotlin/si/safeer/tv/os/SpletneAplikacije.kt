@@ -554,7 +554,7 @@ object SpletneAplikacije {
 
     // ------------------------------------------------------------------ manifest spletne aplikacije
 
-    private class Podatki(val ime: String, val ikona: String, val barva: String, val ikonaUrl: String)
+    internal class Podatki(val ime: String, val ikona: String, val barva: String, val ikonaUrl: String)
 
     private fun odjemalec(): OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
@@ -564,7 +564,7 @@ object SpletneAplikacije {
      * Brez manifesta poskusi apple-touch-icon in /favicon.ico. Vse gre prek navadnega HTTPS z
      * naslova same strani; nikamor drugam.
      */
-    private fun preberiManifest(c: Context, url: String): Podatki? {
+    internal fun preberiManifest(c: Context, url: String): Podatki? {
         val k = odjemalec()
         val html = try {
             k.newCall(Request.Builder().url(url).header("User-Agent", UA).build()).execute().use { o ->

@@ -32,3 +32,4 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.VarnaSlikaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.PredajaStraniTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.JezikiVsebineTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZapiskiShrambaTestKt
+python3 "$TEST_DIR/preveri_tv_ikone.py"
