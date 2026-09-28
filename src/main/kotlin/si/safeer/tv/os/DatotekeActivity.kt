@@ -22,7 +22,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
 import android.widget.ImageButton
 import android.widget.FrameLayout
-import android.widget.GridView
+import android.widget.LinearLayout
 import android.widget.AbsListView
 import android.widget.ListView
 import android.widget.TextView
@@ -60,10 +60,9 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     val pod: String = "", val spremenjeno: Long = 0L, val trajanje: Long = 0L)
 
     private data class Raven(val oznaka: String, val ime: String)
-    private data class GalerijaCelica(val indeks: Int = -1, val naslov: String? = null)
 
     private lateinit var seznam: ListView
-    private lateinit var mreza: GridView
+    private lateinit var mreza: ListView
     private lateinit var preklopPogleda: ImageButton
     private lateinit var naslov: TextView
     private lateinit var nadnaslov: TextView
@@ -158,8 +157,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         seznam.setOnItemClickListener { _, _, i, _ -> izberi(i) }
         seznam.setOnItemLongClickListener { _, _, i, _ -> moznosti(i); true }
-        mreza.setOnItemClickListener { _, _, i, _ -> galerija.indeksVnosa(i)?.let { izberi(it) } }
-        mreza.setOnItemLongClickListener { _, _, i, _ -> galerija.indeksVnosa(i)?.let { moznosti(it) }; true }
+        mreza.itemsCanFocus = true
         izbiramSliko = intent.getBooleanExtra(EXTRA_IZBERI_SLIKO, false)
         // Napis v sporocilu je nalaganje takoj prepisalo, zato povemo z obvestilom: uporabnik mora
         // vedeti, zakaj se mu je odprl seznam datotek.
@@ -682,8 +680,6 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun nastaviStolpce() {
         stolpcev = GalerijaPravila.stolpci(resources.configuration.screenWidthDp)
-        mreza.numColumns = stolpcev
-        mreza.columnWidth = dp(100)
         galerija.obnovi()
     }
 
@@ -722,7 +718,12 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun fokusNaPrviVnos() {
         if (mrezaVklopljena) {
             val i = galerija.prvaDatoteka()
-            if (i >= 0) { mreza.requestFocus(); mreza.setSelection(i) }
+            if (i >= 0) {
+                // Glava prvega dneva ostane vidna (setSelection(i) bi jo odrezal na vrhu).
+                mreza.setSelection((i - 1).coerceAtLeast(0))
+                mreza.post { (0 until mreza.childCount).map { mreza.getChildAt(it) }
+                    .firstOrNull { it is LinearLayout }?.let { (it as LinearLayout).getChildAt(0)?.requestFocus() } }
+            }
         } else { seznam.requestFocus(); seznam.setSelection(0) }
     }
 
@@ -811,9 +812,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
     }
 
-    /** GridView dobi glavo dneva in prazna mesta do zacetka naslednje vrstice, nato kvadratne medije. */
+    /** Galerija kot Androidova: glava dneva cez vso sirino, nato vrste kvadratnih slicic. */
     private inner class GalerijaPrilagojevalnik : BaseAdapter() {
-        private var celice: List<GalerijaCelica> = emptyList()
+        /** Vrstica je glava dneva (naslov) ali vrsta do [stolpcev] slicic (indeksi v vidni). */
+        private var vrstice: List<Pair<String?, List<Int>>> = emptyList()
 
         fun obnovi() {
             if (!::mreza.isInitialized) return
@@ -821,73 +823,90 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val urejeni = vidni.indices.sortedWith(compareByDescending<Int> { vidni[it].spremenjeno }.thenBy { vidni[it].ime.lowercase() })
             val skupine = LinkedHashMap<Long, MutableList<Int>>()
             for (i in urejeni) skupine.getOrPut(GalerijaPravila.dan(vidni[i].spremenjeno, cona)) { ArrayList() }.add(i)
-            val nove = ArrayList<GalerijaCelica>()
+            val nove = ArrayList<Pair<String?, List<Int>>>()
             for ((dan, elementi) in skupine) {
-                nove.add(GalerijaCelica(naslov = naslovDneva(dan)))
-                repeat((stolpcev - 1).coerceAtLeast(0)) { nove.add(GalerijaCelica()) }
-                elementi.forEach { nove.add(GalerijaCelica(indeks = it)) }
-                while (nove.size % stolpcev != 0) nove.add(GalerijaCelica())
+                nove.add(naslovDneva(dan) to emptyList())
+                elementi.chunked(stolpcev.coerceAtLeast(1)).forEach { nove.add(null to it) }
             }
-            celice = nove
+            vrstice = nove
             notifyDataSetChanged()
         }
 
-        fun indeksVnosa(polozaj: Int): Int? = celice.getOrNull(polozaj)?.indeks?.takeIf { it >= 0 }
-        fun prvaDatoteka(): Int = celice.indexOfFirst { it.indeks >= 0 }
-        override fun getCount(): Int = celice.size
-        override fun getItem(position: Int): Any = celice[position]
+        fun prvaDatoteka(): Int = vrstice.indexOfFirst { it.first == null && it.second.isNotEmpty() }
+        override fun getCount(): Int = vrstice.size
+        override fun getItem(position: Int): Any = vrstice[position]
         override fun getItemId(position: Int): Long = position.toLong()
-        override fun getViewTypeCount(): Int = 3
-        override fun getItemViewType(position: Int): Int = when {
-            celice[position].indeks >= 0 -> 2
-            celice[position].naslov != null -> 1
-            else -> 0
-        }
-        override fun isEnabled(position: Int): Boolean = celice[position].indeks >= 0
+        override fun getViewTypeCount(): Int = 2
+        override fun getItemViewType(position: Int): Int = if (vrstice[position].first != null) 0 else 1
+        override fun isEnabled(position: Int): Boolean = false
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            val c = celice[position]
-            if (c.naslov != null) return (convertView as? TextView ?: TextView(this@DatotekeActivity).apply {
-                setTextColor(getColor(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                gravity = Gravity.CENTER_VERTICAL; typeface = android.graphics.Typeface.DEFAULT_BOLD
-                setPadding(dp(4), 0, 0, 0)
-            }).apply { text = c.naslov; layoutParams = AbsListView.LayoutParams(-1, dp(38)) }
-            if (c.indeks < 0) return (convertView ?: View(this@DatotekeActivity)).apply {
-                isFocusable = false; layoutParams = AbsListView.LayoutParams(-1, dp(38))
-            }
+            val (naslov, indeksi) = vrstice[position]
+            if (naslov != null) return (convertView as? TextView ?: TextView(this@DatotekeActivity).apply {
+                setTextColor(getColor(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                gravity = Gravity.BOTTOM or Gravity.START; typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setPadding(dp(4), dp(14), 0, dp(8))
+                layoutParams = AbsListView.LayoutParams(-1, -2)
+            }).apply { text = naslov }
 
-            val ploscica = convertView as? FrameLayout ?: FrameLayout(this@DatotekeActivity).apply {
-                setPadding(dp(2), dp(2), dp(2), dp(2)); setBackgroundResource(R.drawable.os_galerija_fokus)
-                addView(ImageView(this@DatotekeActivity).apply {
-                    id = android.R.id.icon; scaleType = ImageView.ScaleType.CENTER_CROP
-                    setBackgroundColor(Color.rgb(16, 24, 33)); isFocusable = false
-                }, FrameLayout.LayoutParams(-1, -1))
-                addView(TextView(this@DatotekeActivity).apply {
-                    id = android.R.id.text1; setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                    setBackgroundResource(R.drawable.os_galerija_znacka); gravity = Gravity.CENTER
-                    isFocusable = false
-                }, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply {
-                    leftMargin = dp(7); bottomMargin = dp(7)
-                })
+            val razmik = dp(3)
+            val vrsta = (convertView as? LinearLayout)?.takeIf { it.childCount == stolpcev }
+                ?: LinearLayout(this@DatotekeActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    repeat(stolpcev) { k -> addView(novaPloscica(), LinearLayout.LayoutParams(0, dp(90), 1f).apply {
+                        if (k > 0) leftMargin = razmik
+                    }) }
+                }
+            val sirina = (mreza.width - mreza.paddingLeft - mreza.paddingRight).takeIf { it > 0 } ?: dp(stolpcev * 100)
+            val stranica = ((sirina - razmik * (stolpcev - 1)) / stolpcev).coerceAtLeast(dp(56))
+            vrsta.layoutParams = AbsListView.LayoutParams(-1, stranica + razmik)
+            vrsta.setPadding(0, 0, 0, razmik)
+            for (k in 0 until stolpcev) {
+                val ploscica = vrsta.getChildAt(k) as FrameLayout
+                (ploscica.layoutParams as LinearLayout.LayoutParams).height = stranica
+                val indeks = indeksi.getOrNull(k)
+                if (indeks == null) { ploscica.visibility = View.INVISIBLE; ploscica.isFocusable = false; continue }
+                ploscica.visibility = View.VISIBLE; ploscica.isFocusable = true
+                poveziPloscico(ploscica, indeks, stranica)
             }
-            val stranica = ((mreza.width.takeIf { it > 0 } ?: dp(stolpcev * 100)) - dp(3) * (stolpcev - 1)) / stolpcev
-            ploscica.layoutParams = AbsListView.LayoutParams(-1, stranica.coerceAtLeast(dp(72)))
-            val v = vidni[c.indeks]
+            return vrsta
+        }
+
+        private fun novaPloscica(): FrameLayout = FrameLayout(this@DatotekeActivity).apply {
+            setPadding(dp(2), dp(2), dp(2), dp(2)); setBackgroundResource(R.drawable.os_galerija_fokus)
+            isFocusable = true; isClickable = true
+            addView(ImageView(this@DatotekeActivity).apply {
+                id = android.R.id.icon; scaleType = ImageView.ScaleType.CENTER_CROP
+                setBackgroundColor(Color.rgb(16, 24, 33)); isFocusable = false
+            }, FrameLayout.LayoutParams(-1, -1))
+            addView(TextView(this@DatotekeActivity).apply {
+                id = android.R.id.text1; setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setBackgroundResource(R.drawable.os_galerija_znacka); gravity = Gravity.CENTER
+                isFocusable = false
+            }, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply {
+                leftMargin = dp(6); bottomMargin = dp(6)
+            })
+        }
+
+        private fun poveziPloscico(ploscica: FrameLayout, indeks: Int, stranica: Int) {
+            val v = vidni[indeks]
             ploscica.contentDescription = v.ime
+            ploscica.setOnClickListener { izberi(indeks) }
+            ploscica.setOnLongClickListener { moznosti(indeks); true }
             val slika = ploscica.findViewById<ImageView>(android.R.id.icon)
             val znacka = ploscica.findViewById<TextView>(android.R.id.text1)
+            val medij = v.vrsta == "image" || v.vrsta == "video"
             slika.setImageDrawable(null)
-            slika.scaleType = if (v.vrsta == "image" || v.vrsta == "video") ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.CENTER
-            if (v.vrsta != "image" && v.vrsta != "video") slika.setImageResource(ikona(v.vrsta))
+            slika.scaleType = if (medij) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.CENTER
+            if (!medij) slika.setImageResource(ikona(v.vrsta))
             znacka.visibility = if (v.vrsta == "video") View.VISIBLE else View.GONE
-            znacka.text = if (v.trajanje > 0) "▶  ${GalerijaPravila.trajanje(v.trajanje)}" else "▶"
-            if (v.vrsta == "image" || v.vrsta == "video") {
+            znacka.text = if (v.trajanje > 0) "▶ ${GalerijaPravila.trajanje(v.trajanje)}" else "▶"
+            if (medij) {
                 slika.tag = "${v.id}|${v.spremenjeno}|$stranica"
                 GalerijaSlicice.nalozi(this@DatotekeActivity, v, streznik, stranica, nalagalnikSlicic) { dobljen, bitmap ->
                     runOnUiThread { if (!isFinishing && slika.tag == dobljen && bitmap != null) slika.setImageBitmap(bitmap) }
                 }
             } else slika.tag = null
-            return ploscica
         }
     }
 
