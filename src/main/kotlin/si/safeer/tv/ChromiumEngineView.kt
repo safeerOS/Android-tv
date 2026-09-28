@@ -391,7 +391,7 @@ class ChromiumEngineView @JvmOverloads constructor(
             return
         }
         val sanitized = UrlSanitizer.sanitize(url)
-        val target = if (dotik) sanitized else rewriteYoutubeForTv(sanitized)
+        val target = if (dotik) YoutubeNaDotik.prevedi(sanitized) else rewriteYoutubeForTv(sanitized)
         applyUserAgentForUrl(target)
         val privacyHeaders = mapOf("Sec-GPC" to "1", "DNT" to "1")
         super.loadUrl(target, privacyHeaders)
@@ -404,7 +404,7 @@ class ChromiumEngineView @JvmOverloads constructor(
             return
         }
         val sanitized = UrlSanitizer.sanitize(url)
-        val target = if (dotik) sanitized else rewriteYoutubeForTv(sanitized)
+        val target = if (dotik) YoutubeNaDotik.prevedi(sanitized) else rewriteYoutubeForTv(sanitized)
         applyUserAgentForUrl(target)
         val combinedHeaders = additionalHttpHeaders.toMutableMap()
         combinedHeaders["Sec-GPC"] = "1"
