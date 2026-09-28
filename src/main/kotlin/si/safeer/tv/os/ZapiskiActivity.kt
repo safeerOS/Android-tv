@@ -36,7 +36,7 @@ class ZapiskiActivity : OsActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         shramba = ZapiskiShramba(getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(KLJUC, "").orEmpty())
-        setContentView(zgradi())
+        setContentView(StranskaVrstica.ovij(this, zgradi(), StranskaVrstica.Razdelek.ZAPISKI))
         narisi()
     }
 

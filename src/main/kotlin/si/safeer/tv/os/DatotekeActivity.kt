@@ -91,7 +91,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.os_activity_datoteke)
+        setContentView(StranskaVrstica.ovij(this, R.layout.os_activity_datoteke,
+            StranskaVrstica.Razdelek.DATOTEKE))
         seznam = findViewById(R.id.seznam)
         naslov = findViewById(R.id.naslov)
         nadnaslov = findViewById(R.id.nadnaslov)

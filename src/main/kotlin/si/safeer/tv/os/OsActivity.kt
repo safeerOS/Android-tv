@@ -7,6 +7,7 @@ import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 
 /**
  * Skupna osnova zaslonov Safeer OS: poskrbi, da igralni plosek dela povsod enako (glej
@@ -57,10 +58,40 @@ open class OsActivity : Activity() {
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
         if (zablodelaPotrditev(dogodek)) return true
+        if (stranskaVrstica()?.prestrezi(dogodek) == true) return true
         if (Kontroler.jeDokazPloska(dogodek) &&
             Kontroler.zabelezi(this, dogodek.device)) plosekZaznan()
         if (Kontroler.tipka(this, dogodek) { koda -> plosekDejanje(koda) }) return true
         return super.dispatchKeyEvent(dogodek)
+    }
+
+    /** Nazaj iz glavnega zaslona razdelka vedno vrne Safeer OS Domov. */
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    override fun onBackPressed() {
+        if (this !is DomovActivity && stranskaVrstica() != null) {
+            try {
+                startActivity(android.content.Intent(this, DomovActivity::class.java)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                finish()
+                return
+            } catch (_: Throwable) { }
+        }
+        super.onBackPressed()
+    }
+
+    override fun onConfigurationChanged(nova: android.content.res.Configuration) {
+        super.onConfigurationChanged(nova)
+        stranskaVrstica()?.prilagodiSirino()
+    }
+
+    private fun stranskaVrstica(): StranskaVrstica? {
+        fun poisci(v: View): StranskaVrstica? {
+            if (v is StranskaVrstica) return v
+            val skupina = v as? ViewGroup ?: return null
+            for (i in 0 until skupina.childCount) poisci(skupina.getChildAt(i))?.let { return it }
+            return null
+        }
+        return poisci(window.decorView)
     }
 
     override fun onGenericMotionEvent(dogodek: MotionEvent): Boolean {

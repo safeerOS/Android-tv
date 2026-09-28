@@ -90,7 +90,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.os_activity_programi)
+        setContentView(StranskaVrstica.ovij(this, R.layout.os_activity_programi,
+            StranskaVrstica.Razdelek.PROGRAMI))
         // En zaslon za vse aplikacije: tudi kartica Programi odpre Vse aplikacije (izbira naprave je
         // v vrsti zgoraj). Dva skoraj enaka zaslona sta uporabnika samo spraševala, katerega naj odpre.
         nacin = intent.getStringExtra(EXTRA_VIR) ?: "vse"

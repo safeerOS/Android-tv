@@ -42,7 +42,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.os_activity_nastavitve)
+        setContentView(StranskaVrstica.ovij(this, R.layout.os_activity_nastavitve,
+            StranskaVrstica.Razdelek.NASTAVITVE))
         koren = findViewById(R.id.koren)
         seznam = findViewById(R.id.seznam)
         opomba = findViewById(R.id.opomba)

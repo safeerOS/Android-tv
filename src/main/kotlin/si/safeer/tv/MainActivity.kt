@@ -26,6 +26,8 @@ import java.net.URLEncoder
 class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverService.CastMediaController,
     si.safeer.tv.link.Daljinec.VOspredju {
 
+    private var osStranskaVrstica: si.safeer.tv.os.StranskaVrstica? = null
+
     internal lateinit var mainRoot: RelativeLayout
     internal lateinit var mobileTopBar: LinearLayout
     internal lateinit var btnBack: Button
@@ -153,7 +155,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Aplikacijski kontekst v izbranem jeziku: nizi in glava Accept-Language
         // tako sledijo izbiri uporabnika, ne da bi zadrzali Activity v pomnilniku.
         UiText.init(JezikVmesnika.vKontekstu(applicationContext))
-        setContentView(R.layout.activity_main)
+        val brskalnikVsebina = layoutInflater.inflate(R.layout.activity_main, null, false)
+        if (jeNavadenZagonIzOs(intent)) {
+            osStranskaVrstica = si.safeer.tv.os.StranskaVrstica.ovij(this, brskalnikVsebina,
+                si.safeer.tv.os.StranskaVrstica.Razdelek.SPLET)
+        }
+        setContentView(osStranskaVrstica ?: brskalnikVsebina)
         si.safeer.tv.os.Robovi.uporabi(this)
 
         window.statusBarColor = Color.parseColor("#06090F")
@@ -877,6 +884,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         if (intent != null) setIntent(intent)
+        nastaviOsVrstico(intent)
         zapomniIzvor(intent)
         if (obravnavajCastNamero(intent)) return
         if (intent?.getBooleanExtra(EXTRA_ODPRI_LINK, false) == true) {
@@ -2778,7 +2786,35 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // Samo tipka OK sme dovoliti en sinteticni dotik (triggerNativeTap); puscice ne.
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode in TIPKE_POTRDI) ChromiumEngineView.oznaciTipko()
+        if (osStranskaVrstica?.prestrezi(event) == true) return true
         return keyRouter.dispatch(event)
+    }
+
+    override fun onConfigurationChanged(nova: Configuration) {
+        super.onConfigurationChanged(nova)
+        osStranskaVrstica?.prilagodiSirino()
+    }
+
+    /** Vrstico dobi samo navaden Splet iz Safeer OS; spletne aplikacije in stran Link ostanejo cele. */
+    private fun jeNavadenZagonIzOs(namera: Intent?): Boolean =
+        !namera?.getStringExtra(EXTRA_IZ_SAFEER_OS).isNullOrBlank() &&
+            namera?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA).isNullOrBlank() &&
+            namera?.getBooleanExtra(EXTRA_ODPRI_LINK, false) != true
+
+    /** MainActivity je singleTask: isti zivi pogled po potrebi ovijemo ali spet razpremo. */
+    private fun nastaviOsVrstico(namera: Intent?) {
+        if (!::mainRoot.isInitialized) return
+        val prikazi = jeNavadenZagonIzOs(namera)
+        if (prikazi && osStranskaVrstica == null) {
+            osStranskaVrstica = si.safeer.tv.os.StranskaVrstica.ovij(this, mainRoot,
+                si.safeer.tv.os.StranskaVrstica.Razdelek.SPLET)
+            setContentView(osStranskaVrstica)
+        } else if (!prikazi && osStranskaVrstica != null) {
+            osStranskaVrstica?.removeView(mainRoot)
+            osStranskaVrstica = null
+            setContentView(mainRoot)
+        } else return
+        si.safeer.tv.os.Robovi.uporabi(this)
     }
 
     internal fun handleBrowserBack() {
