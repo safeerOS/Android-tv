@@ -41,7 +41,8 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.os_activity_naprave)
+        setContentView(StranskaVrstica.ovij(this, R.layout.os_activity_naprave,
+            StranskaVrstica.Razdelek.NAPRAVE))
         koren = findViewById(R.id.koren)
         seznam = findViewById(R.id.seznam)
         naslov = findViewById(R.id.naslov)

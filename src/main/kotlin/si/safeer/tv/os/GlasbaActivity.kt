@@ -84,9 +84,8 @@ class GlasbaActivity : OsActivity() {
     private lateinit var meniMediji: View
     private lateinit var naslov: TextView
     private lateinit var geslo: TextView
-    /** Stranski meni in njegova besedila: na ozkem zaslonu (telefon pokonci) ostanejo samo ikone. */
-    private lateinit var meni: LinearLayout
-    private val besedilaMenija = ArrayList<View>()
+    /** Skupna stranska vrstica Safeer OS. */
+    private lateinit var stranskaVrstica: StranskaVrstica
     private lateinit var desnoOkvir: LinearLayout
     private lateinit var iskanjeGumb: View
     private lateinit var vsebina: LinearLayout
@@ -113,7 +112,6 @@ class GlasbaActivity : OsActivity() {
         super.onCreate(savedInstanceState)
         odprta = true
         setContentView(zgradi())
-        prilagodiMeni()
         izberi(DOMOV)
         drsnik.post { if (window.decorView.findFocus() == null || razdelek == DOMOV) vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus() }
         iskanjeIzNamena()
@@ -223,11 +221,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun prilagodiMeni() {
         val ozek = ozekZaslon()
-        meni.layoutParams = (meni.layoutParams as LinearLayout.LayoutParams).apply {
-            width = if (ozek) dp(68) else resources.getDimensionPixelSize(R.dimen.os_meni_sirina)
-        }
-        meni.setPadding(dp(if (ozek) 10 else 16), dp(24), dp(if (ozek) 10 else 12), dp(16))
-        for (v in besedilaMenija) v.visibility = if (ozek) View.GONE else View.VISIBLE
+        stranskaVrstica.prilagodiSirino()
         desnoOkvir.setPadding(dp(if (ozek) 14 else if (jeSirokTv()) 30 else 28), dp(10), dp(if (ozek) 14 else if (jeSirokTv()) 30 else 28), dp(8))
     }
 
@@ -240,10 +234,6 @@ class GlasbaActivity : OsActivity() {
 
     private fun zgradi(): View {
         val beli = getColor(R.color.os_besedilo)
-        val k = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setBackgroundColor(getColor(R.color.os_ozadje)) }
-        koren = k
-        k.addView(stranskiMeni(), LinearLayout.LayoutParams(resources.getDimensionPixelSize(R.dimen.os_meni_sirina), -1))
-
         val desno = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(if (jeSirokTv()) 30 else 28), dp(10), dp(if (jeSirokTv()) 30 else 28), dp(8)) }
         desnoOkvir = desno
 
@@ -288,76 +278,10 @@ class GlasbaActivity : OsActivity() {
         // Tipke daljinca samo na televizorju; tablica se upravlja z dotikom.
         if (packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK))
             desno.addView(pomoc(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
-        k.addView(desno, LinearLayout.LayoutParams(0, -1, 1f))
-        return k
-    }
-
-    /** Stranski meni Safeer OS; Safeer Media je izbran, ostalo odpre isti zaslon kot na domacem zaslonu. */
-    private fun stranskiMeni(): View {
-        val beli = getColor(R.color.os_besedilo)
-        val m = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(24), dp(12), dp(16))
-            setBackgroundColor(getColor(R.color.os_meni_ozadje))
-        }
-        meni = m
-        val znak = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), 0, 0, dp(22)) }
-        znak.addView(ikona(R.drawable.os_znak, 32))
-        val imeOs = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, 0, 0) }
-        imeOs.addView(besedilo(18f, beli, true).apply { text = getString(R.string.os_app_name) })
-        imeOs.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_podnaslov_app); maxLines = 2 })
-        znak.addView(imeOs)
-        besedilaMenija.add(imeOs)
-        m.addView(znak)
-
-        val postavke = ArrayList<View>()
-        fun postavka(res: Int, ime: String, opis: String? = null, klik: () -> Unit): View = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            id = View.generateViewId()
-            isFocusable = true; isClickable = true
-            setBackgroundResource(R.drawable.os_meni_postavka)
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            setOnClickListener { klik() }
-            addView(ikona(res, 22, getColor(R.color.os_mint)))
-            val t = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, 0, 0) }
-            t.addView(besedilo(14f, beli, true).apply {
-                text = ime; maxLines = 1
-                setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
-            })
-            if (opis != null) t.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = opis; maxLines = 2 })
-            addView(t)
-            besedilaMenija.add(t)
-            m.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
-            postavke.add(this)
-        }
-        fun odpri(i: Intent) { try { startActivity(i) } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() } }
-        // Isti meni kot na zacetnem zaslonu: Domov, Medijski center, Naprave, Programi, Datoteke,
-        // Splet, Zapiski, Nastavitve.
-        postavka(R.drawable.os_ikona_domov, getString(R.string.os_meni_domov)) { finish() }
-        meniMediji = postavka(R.drawable.os_ikona_glasba, getString(R.string.os_mediji_kartica)) {
-            if (razdelek != DOMOV) onBackPressed() else vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus()
-        }.apply { isActivated = true; isSelected = true }
-        postavka(R.drawable.os_ikona_link, getString(R.string.os_meni_naprave)) { odpri(Intent(this, NapraveActivity::class.java)) }
-        postavka(R.drawable.os_ikona_aplikacije, getString(R.string.os_meni_aplikacije)) {
-            odpri(Intent(this, AplikacijeHostaActivity::class.java).putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse")) }
-        postavka(R.drawable.os_ikona_datoteke, getString(R.string.os_meni_datoteke)) { odpri(Intent(this, DatotekeActivity::class.java)) }
-        postavka(R.drawable.os_ikona_splet, getString(R.string.os_meni_splet)) { odpri(Brskalnik.namera(this)) }
-        postavka(R.drawable.os_ikona_zapiski, getString(R.string.os_meni_zapiski)) { odpri(Intent(this, ZapiskiActivity::class.java)) }
-        postavka(R.drawable.os_ikona_nastavitve, getString(R.string.os_meni_nastavitve)) { odpri(Intent(this, NastavitveActivity::class.java)) }
-        postavke.forEachIndexed { i, v ->
-            v.nextFocusUpId = postavke[if (i == 0) 0 else i - 1].id
-            v.nextFocusDownId = postavke[if (i == postavke.lastIndex) i else i + 1].id
-            v.nextFocusLeftId = v.id
-        }
-        m.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
-        m.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_poganja); setPadding(dp(4), 0, 0, 0)
-            besedilaMenija.add(this) })
-        val link = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), dp(4), 0, 0) }
-        link.addView(ikona(R.drawable.os_ikona_link, 16, getColor(R.color.os_mint)))
-        link.addView(besedilo(13f, getColor(R.color.os_mint), true).apply { text = getString(R.string.os_link); setPadding(dp(6), 0, 0, 0)
-            besedilaMenija.add(this) })
-        m.addView(link)
-        return m
+        stranskaVrstica = StranskaVrstica.ovij(this, desno, StranskaVrstica.Razdelek.MEDIJI)
+        meniMediji = stranskaVrstica.aktivnaPostavka
+        koren = stranskaVrstica
+        return stranskaVrstica
     }
 
     /** Vrstica pomoci spodaj: tipke daljinca. */
