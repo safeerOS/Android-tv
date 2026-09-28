@@ -50,12 +50,15 @@ object KlepetLinka {
         // Ime, kot ga uporabnik vidi v seznamu naprav (vzdevek), sicer ime, ki ga je dal hub.
         val posiljatelj = niz(json, "sender")
         val izSeznama = try {
-            LinkUpravitelj.pridobi(c).naprave.firstOrNull { it.id == posiljatelj || (it.naprava.isNotBlank() && it.naprava == od) }?.ime
+            val naprave = LinkUpravitelj.pridobi(c).naprave
+            imeNaprave(naprave, od) ?: naprave.firstOrNull { it.id == posiljatelj }?.ime
         } catch (_: Throwable) { null }
         val cas = cas(telo.optString("created_at"))
         val s = SporocilaShramba(c)
         val znano = s.pogovori().firstOrNull { it.kanalId == KANAL && it.id == od }?.ime
-        val ime = izSeznama?.takeIf { it.isNotBlank() } ?: znano?.takeIf { it.isNotBlank() } ?: niz(json, "sender_name").ifBlank { od }
+        // Hub pozna trenutno ime (tudi vzdevek); shranjeno ime je lahko zastarelo, zato pride sele za njim.
+        val odHuba = niz(json, "sender_name").takeIf { it.isNotBlank() && it != posiljatelj && it != od }
+        val ime = izSeznama?.takeIf { it.isNotBlank() } ?: odHuba ?: znano?.takeIf { it.isNotBlank() } ?: od
         zagotoviKanal(s)
         val id = "chat:" + json.optString("id").ifBlank { System.nanoTime().toString() }
         if (s.sporocila(KANAL, od).any { it.id == id }) return          // isto sporocilo dvakrat (ponovna dostava)
@@ -65,6 +68,50 @@ object KlepetLinka {
             if (odprt) 0 else 1, cas), pristej = true)
         for (p in poslusalci) try { p() } catch (_: Throwable) { }
         if (!odprt) obvesti(c, od, ime, besedilo)
+    }
+
+    /**
+     * Pogovori Linka po seznamu naprav: vsak dobi trenutno ime naprave (kot v seznamu naprav), pogovori iste
+     * fizicne naprave pod starimi id-ji (id prijave namesto kljuca) pa se zdruzijo v enega. Vrne true ob spremembi.
+     */
+    /**
+     * Ime fizicne naprave za pogovor: ena naprava ima lahko vec prijav (Safeer Control, zaslon, brskalnik).
+     * Prednost ima prijava, ki zna Safeer Chat, in ime z oznako naprave (»Safeer Control (pisarna)«)
+     * pred splosnim imenom programa.
+     */
+    fun imeNaprave(naprave: List<LinkOdjemalec.Naprava>, kljuc: String): String? =
+        naprave.filter { it.ime.isNotBlank() && (it.naprava.ifBlank { it.id } == kljuc || it.id == kljuc) }
+            .sortedWith(compareByDescending<LinkOdjemalec.Naprava> { it.zmoznosti.contains(ZMOZNOST) }
+                .thenByDescending { it.ime.contains('(') }
+                .thenByDescending { it.zmoznosti.size })
+            .firstOrNull()?.ime
+
+    /** Ime za prikaz: pri racunalnikih je ime programa odvec (kanal ze pove »Safeer Link«), pomembno je ime racunalnika. */
+    fun prikaznoIme(ime: String): String =
+        Regex("^Safeer (?:Control|Link|OS(?: Mobile)?) \\((.+)\\)$").find(ime.trim())?.groupValues?.get(1) ?: ime
+
+    fun uskladi(s: SporocilaShramba, naprave: List<LinkOdjemalec.Naprava>): Boolean {
+        if (naprave.isEmpty()) return false
+        var spremenjeno = false
+        for (p in s.pogovori().filter { it.kanalId == KANAL }) {
+            val n = naprave.firstOrNull { it.naprava == p.id || it.id == p.id }
+            if (n == null) {
+                // Pogovor pod neznanim id (npr. iz starejse razlicice): pridruzi ga pogovoru iste naprave z enakim imenom.
+                val isti = s.pogovori().firstOrNull { it.kanalId == KANAL && it.id != p.id && it.ime == p.ime &&
+                    naprave.any { d -> d.naprava == it.id || d.id == it.id } }
+                if (isti != null) spremenjeno = s.zdruziPogovor(KANAL, p.id, isti.id, isti.ime) || spremenjeno
+                continue
+            }
+            val kljuc = n.naprava.ifBlank { n.id }
+            val ime = imeNaprave(naprave, kljuc) ?: n.ime
+            if (kljuc != p.id) {
+                spremenjeno = s.zdruziPogovor(KANAL, p.id, kljuc, ime) || spremenjeno
+                if (odprtPogovor == p.id) odprtPogovor = kljuc
+            } else if (ime.isNotBlank() && ime != p.ime) {
+                s.preimenujPogovor(KANAL, p.id, ime); spremenjeno = true
+            }
+        }
+        return spremenjeno
     }
 
     /** Nova naprava v pogovoru (uporabnik ji pise prvi): pogovor obstaja, preden je kaj poslano. */

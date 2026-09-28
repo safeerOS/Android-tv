@@ -110,7 +110,17 @@ class SporocilaActivity : OsActivity() {
     private var napraveLinka: List<LinkOdjemalec.Naprava> = emptyList()
     private val linkPoslusalec = object : LinkOdjemalec.Poslusalec {
         override fun naStanje(povezan: Boolean, sporocilo: String) {}
-        override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { napraveLinka = naprave; glavna.post { if (!unicena) narisiKanale() } }
+        override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
+            napraveLinka = naprave
+            glavna.post {
+                if (unicena) return@post
+                // Imena in id-ji pogovorov Linka sledijo seznamu naprav (preimenovanje, stari id-ji).
+                if (KlepetLinka.uskladi(shramba, naprave)) {
+                    izbran = izbran?.let { i -> if (i.kanalId == KlepetLinka.KANAL) shramba.pogovori().firstOrNull { it.kanalId == i.kanalId && (it.id == i.id || it.id == KlepetLinka.odprtPogovor) } else i }
+                    osveziPrikaz()
+                } else narisiKanale()
+            }
+        }
         override fun naNaslov(url: String, naslov: String, od: String) {}
         override fun naBesedilo(besedilo: String, od: String) {}
         override fun naZavrnitev() {}
@@ -318,8 +328,9 @@ class SporocilaActivity : OsActivity() {
                 setPadding(dp(16), dp(12), dp(16), dp(12)); setOnClickListener { pokaziPogovor(p) }
                 val vrh = LinearLayout(this@SporocilaActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
                 vrh.addView(TextView(this@SporocilaActivity).apply {
-                    text = p.ime.ifBlank { p.oseba }
+                    text = (if (p.kanalId == KlepetLinka.KANAL) KlepetLinka.prikaznoIme(p.ime) else p.ime).ifBlank { p.oseba }
                     setTextColor(getColor(R.color.os_besedilo)); textSize = 16f; maxLines = 1
+                    isSingleLine = true; ellipsize = android.text.TextUtils.TruncateAt.END
                     typeface = Typeface.create("sans-serif-medium", if (p.neprebrano > 0) Typeface.BOLD else Typeface.NORMAL)
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
                 vrh.addView(TextView(this@SporocilaActivity).apply {
@@ -364,7 +375,7 @@ class SporocilaActivity : OsActivity() {
             narisiSeznam()
             return
         }
-        pogovorIme.text = p.ime.ifBlank { p.oseba }
+        pogovorIme.text = (if (p.kanalId == KlepetLinka.KANAL) KlepetLinka.prikaznoIme(p.ime) else p.ime).ifBlank { p.oseba }
         pogovorZadeva.text = when {
             p.kanalId == KlepetLinka.KANAL -> "Safeer Link"
             p.zadeva.isNotBlank() -> p.zadeva
