@@ -114,6 +114,8 @@ class LinkOdjemalec(private val context: Context) {
 
     private class CakajociUkaz(val odgovor: Odgovor, val potek: Runnable)
     private val cakajoci = ConcurrentHashMap<String, CakajociUkaz>()
+    /** Safeer Chat: potrditve sredisca (chat.ack) po id-ju poslanega sporocila. */
+    private val klepetOdgovori = ConcurrentHashMap<String, java.util.concurrent.ArrayBlockingQueue<String>>()
 
     private val glavna = Handler(Looper.getMainLooper())
     private var poverilnice: Sorodnik.Poverilnice? = null
@@ -287,7 +289,7 @@ class LinkOdjemalec(private val context: Context) {
                         .put("device_id", idNaprave)
                         .put("name", "Safeer OS")
                         .put("role", "sender")
-                        .put("capabilities", JSONArray(listOf("url", "text")))))
+                        .put("capabilities", JSONArray(listOf("url", "text", KlepetLinka.ZMOZNOST)))))
                 webSocket.send(prijava.toString())
                 javiStanje(true, "")
             }
@@ -337,6 +339,24 @@ class LinkOdjemalec(private val context: Context) {
         val poslano = try { w.send(sporocilo.toString()) } catch (_: Throwable) { false }
         if (!poslano) { cakajoci.remove(id); glavna.post { odgovor.na(null, "ni_povezave") }; return }
         glavna.postDelayed(potek, potekMs)
+    }
+
+    /**
+     * Safeer Chat: poslje sporocilo napravi v Linku in pocaka na potrditev sredisca. Vrne "accepted"
+     * (dostavljeno), "queued" (naprava ni povezana, dobi ga ob povezavi) ali kodo napake. Ne klici na glavni niti.
+     */
+    fun posljiKlepet(cilj: String, besedilo: String, cas: String, potekMs: Long = 10_000): String {
+        val w = ws
+        if (!povezan || w == null) return "ni_povezave"
+        val id = UUID.randomUUID().toString()
+        val vrsta = java.util.concurrent.ArrayBlockingQueue<String>(1)
+        klepetOdgovori[id] = vrsta
+        val sporocilo = JSONObject().put("id", id).put("type", "chat.send").put("target", cilj)
+            .put("payload", JSONObject().put("text", besedilo).put("created_at", cas))
+        return try {
+            if (!w.send(sporocilo.toString())) "ni_povezave"
+            else vrsta.poll(potekMs, java.util.concurrent.TimeUnit.MILLISECONDS) ?: "potek"
+        } finally { klepetOdgovori.remove(id) }
     }
 
     /**
@@ -482,6 +502,16 @@ class LinkOdjemalec(private val context: Context) {
                 val od = json.optString("sender_name").ifBlank { json.optString("sender") }
                 potrdi(json)
                 if (url.isNotBlank()) glavna.post { poslusalec?.naNaslov(url, naslov, od) }
+            }
+            "chat.send" -> {
+                potrdi(json)
+                try { KlepetLinka.prejmi(context, json) } catch (e: Throwable) { Log.w(TAG, "Klepet: ${e.message}") }
+            }
+            "chat.ack" -> {
+                val ref = json.optString("ref_id"); if (ref.isBlank()) return
+                val stanje = json.optString("status")
+                klepetOdgovori[ref]?.offer(if (stanje == "accepted" || stanje == "queued") stanje
+                    else json.optString("error_code").ifBlank { stanje.ifBlank { "zavrnjeno" } })
             }
             "share.text" -> {
                 val telo = json.optJSONObject("payload") ?: return

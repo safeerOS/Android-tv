@@ -486,4 +486,7 @@
     <string name="os_spor_odstrani">Remove channel</string>
     <string name="os_spor_ni_poslano">Message was not sent.</string>
     <string name="os_spor_https">Address must start with https://</string>
+    <string name="os_spor_pisi_napravi">Message a device</string>
+    <string name="os_spor_ni_naprav">No other device in Safeer Link can chat yet.</string>
+    <string name="os_spor_caka">The device is offline – it will get the message when it connects.</string>
 </resources>

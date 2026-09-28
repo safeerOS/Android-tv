@@ -485,4 +485,7 @@
     <string name="os_spor_odstrani">Supprimer le canal</string>
     <string name="os_spor_ni_poslano">Le message n’a pas été envoyé.</string>
     <string name="os_spor_https">L’adresse doit commencer par https://</string>
+    <string name="os_spor_pisi_napravi">Écrire à un appareil</string>
+    <string name="os_spor_ni_naprav">Aucun autre appareil de Safeer Link ne peut encore discuter.</string>
+    <string name="os_spor_caka">L’appareil est hors ligne – il recevra le message à sa connexion.</string>
 </resources>

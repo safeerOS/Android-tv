@@ -485,4 +485,7 @@
     <string name="os_spor_odstrani">Odstrani kanal</string>
     <string name="os_spor_ni_poslano">Sporočilo ni bilo poslano.</string>
     <string name="os_spor_https">Naslov se mora začeti s https://</string>
+    <string name="os_spor_pisi_napravi">Piši napravi</string>
+    <string name="os_spor_ni_naprav">V Safeer Linku še ni druge naprave za klepet.</string>
+    <string name="os_spor_caka">Naprava ni povezana – sporočilo dobi, ko se poveže.</string>
 </resources>

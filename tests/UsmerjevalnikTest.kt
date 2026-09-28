@@ -1477,10 +1477,50 @@ private fun preizkusPolitikeA() {
     preveriEnako("vabilo je po uspesnem SPAKE2 porabljeno", 404, ponovniQr?.koda)
 }
 
+// ------------------------------------------------------------ Safeer Chat
+private fun preizkusKlepeta() {
+    println("\n== Safeer Chat ==")
+    val u = usmerjevalnik()
+    val tv = Lazni("192.168.0.20"); val telefon = Lazni("192.168.0.30")
+    u.odgovorNa(tv, registracija("tv1", "receiver")); u.odgovorNa(telefon, registracija("fon1", "sender"))
+    val ok = u.odgovorNa(telefon, """{"id":"c1","type":"chat.send","target":"tv1","payload":{"text":"Živjo TV","created_at":"2026-09-28T08:00:00+00:00"}}""")!!
+    preveriEnako("klepet sprejet", "accepted", polje(ok, "status"))
+    preveriEnako("potrditev v prostoru chat", "chat.ack", tip(ok))
+    preveriEnako("prejemnik dobi chat.send", "chat.send", tip(tv.zadnje()))
+    preveri("posiljatelja vpise Hub", tv.zadnje().contains("\"sender\":\"fon1\"") && tv.zadnje().contains("Naprava fon1"))
+    preveri("besedilo pride nespremenjeno", tv.zadnje().contains("Živjo TV"))
+    preveriEnako("prazno sporocilo zavrnjeno", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"c2","type":"chat.send","target":"tv1","payload":{"text":""}}""")!!, "status"))
+    val veliko = "x".repeat(17 * 1024)
+    preveriEnako("preveliko sporocilo zavrnjeno", "meja",
+        polje(u.odgovorNa(telefon, """{"id":"c3","type":"chat.send","target":"tv1","payload":{"text":"$veliko"}}""")!!, "error_code"))
+    preveriEnako("neznana naprava zavrnjena", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"c4","type":"chat.send","target":"nihce","payload":{"text":"x"}}""")!!, "status"))
+    preveriEnako("sam sebi zavrnjeno", "rejected",
+        polje(u.odgovorNa(telefon, """{"id":"c5","type":"chat.send","target":"fon1","payload":{"text":"x"}}""")!!, "status"))
+    // telefon se odklopi: sporocilo pocaka in pride ob naslednji prijavi
+    u.odklopi(telefon)
+    preveriEnako("nepovezani napravi: v cakalni vrsti", "queued",
+        polje(u.odgovorNa(tv, """{"id":"c6","type":"chat.send","target":"fon1","payload":{"text":"Ko se vrneš"}}""")!!, "status"))
+    preveriEnako("ena cakajoca", 1, u.steviloCakajocihKlepetov("fon1"))
+    val telefon2 = Lazni("192.168.0.30")
+    u.odgovorNa(telefon2, registracija("fon1", "sender"))
+    preveri("ob prijavi dobi cakajoce sporocilo", telefon2.prejeto.any { tip(it) == "chat.send" && it.contains("Ko se vrneš") })
+    preveriEnako("vrsta je prazna", 0, u.steviloCakajocihKlepetov("fon1"))
+    // zastarelo (vec kot 7 dni) se zavrze
+    u.odklopi(telefon2)
+    u.odgovorNa(tv, """{"id":"c7","type":"chat.send","target":"fon1","payload":{"text":"staro"}}""")
+    cas += 8L * 24 * 3600 * 1000
+    val telefon3 = Lazni("192.168.0.30")
+    u.odgovorNa(telefon3, registracija("fon1", "sender"))
+    preveri("zastarelo sporocilo ne pride", telefon3.prejeto.none { it.contains("staro") })
+}
+
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
     preizkusRegistra()
+    preizkusKlepeta()
     preizkusDaljinca()
     preizkusSinhronizacije()
     preizkusSeznanjanja()
