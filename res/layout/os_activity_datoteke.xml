@@ -102,14 +102,14 @@
             android:fadingEdgeLength="24dp"
             android:requiresFadingEdge="vertical"/>
 
-        <GridView
+        <!-- Galerija: vrstice sticic po dnevih (glava dneva cez vso sirino, nato vrste kvadratov). -->
+        <ListView
             android:id="@+id/mreza"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:visibility="gone"
-            android:horizontalSpacing="3dp"
-            android:verticalSpacing="3dp"
-            android:stretchMode="columnWidth"
+            android:divider="@null"
+            android:dividerHeight="0dp"
             android:listSelector="@android:color/transparent"
             android:scrollbars="none"
             android:clipToPadding="false"/>
