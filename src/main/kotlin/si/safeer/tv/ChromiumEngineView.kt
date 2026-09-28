@@ -148,6 +148,8 @@ class ChromiumEngineView @JvmOverloads constructor(
     var onTitleChanged: ((String) -> Unit)? = null
     var onSecurityChanged: ((Boolean) -> Unit)? = null
     var onPageLoaded: ((String, String) -> Unit)? = null
+    /** Ukaz strogo omejene zacetne strani Safeer OS. */
+    var onSpletSporocilo: ((SpletMostPravila.Ukaz) -> Unit)? = null
     var onFullscreenToggled: ((View?, WebChromeClient.CustomViewCallback?) -> Unit)? = null
 
     /**
@@ -172,6 +174,21 @@ class ChromiumEngineView @JvmOverloads constructor(
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
     private val jsBridge = SafeerWebAppInterface(context, this)
+    private val spletMost = object {
+        @JavascriptInterface
+        fun sporocilo(json: String?) {
+            val ukaz = json?.let(SpletMostPravila::razcleni) ?: return
+            // Klic pride z WebView niti. URL preverimo sele na glavni niti, neposredno pred dejanjem,
+            // zato navigacija, ki je medtem zapustila zacetno stran, most takoj zapre.
+            post {
+                if (!SpletMostPravila.jeDovoljenIzvor(url)) {
+                    android.util.Log.w("SafeerAndroid", "Zavrnjen ukaz z zunanje strani.")
+                    return@post
+                }
+                onSpletSporocilo?.invoke(ukaz)
+            }
+        }
+    }
     private var scriptNavGen = 0
     private var earlyScriptNavGen = -1
     private var finishedScriptNavGen = -1
@@ -299,6 +316,10 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     private fun applyUserAgentForUrl(url: String) {
         if (uniceno) return
+        try {
+            removeJavascriptInterface("SafeerAndroid")
+            if (SpletMostPravila.jeDovoljenIzvor(url)) addJavascriptInterface(spletMost, "SafeerAndroid")
+        } catch (_: Exception) {}
         // Most sme premikati brskalnik in brati domace ploscice samo na domacih straneh.
         jsBridge.krajevnaStran = url.isBlank() ||
             url.startsWith("file:///android_asset/") ||
@@ -529,7 +550,7 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         private fun reloadHome() {
             webView.post {
-                webView.loadUrl("file:///android_asset/brave_home.html")
+                webView.loadUrl(SpletDomaca.naslov(context))
             }
         }
 

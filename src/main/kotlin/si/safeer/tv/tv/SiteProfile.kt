@@ -22,7 +22,7 @@ object TvSite {
 
     fun isBrowserHome(url: String): Boolean {
         val u = url.lowercase()
-        return u.contains("android_asset/brave_home") || u.startsWith("file:///android_asset/brave_home")
+        return u.contains("android_asset/brave_home") || u.contains("android_asset/splet/splet.html")
     }
 
     /** Stran gledalca deljenega zaslona (Safeer Link): tuj zaslon gledamo cez cel televizor. */
@@ -249,7 +249,7 @@ object YoutubeTvSiteProfile : SiteProfile {
         ) { result ->
             if (result != null && result.contains("exit")) {
                 host.runOnUiThread {
-                    ytWv.loadUrl("file:///android_asset/brave_home.html")
+                    ytWv.loadUrl(SpletDomaca.naslov(host))
                 }
             }
         }
@@ -435,7 +435,7 @@ object GenericWebSiteProfile : SiteProfile {
                 tab.webView?.goBack()
                 return true
             }
-            tab?.webView?.loadUrl("file:///android_asset/brave_home.html")
+            tab?.webView?.loadUrl(SpletDomaca.naslov(host))
             return true
         }
         if (tab?.webView?.canGoBack() == true) {

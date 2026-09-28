@@ -36,7 +36,6 @@ class CastReceiverService : Service() {
     companion object {
         private const val TAG = "SafeerCastReceiver"
         /** Domaca stran brskalnika; tipka Domov z daljinca Safeer Controla jo odpre. */
-        const val DOMACA_STRAN = "file:///android_asset/brave_home.html"
         private const val CHANNEL_ID = "safeer_cast_channel"
         private const val NOTIFICATION_ID = 4040
 
@@ -797,7 +796,8 @@ class CastReceiverService : Service() {
                     mainHandler.post {
                         val krmilnik = mediaController
                         val ospredje = if (krmilnik != null && krmilnikVOspredju) krmilnik as? si.safeer.tv.link.Daljinec.VOspredju else null
-                        val izid = si.safeer.tv.link.Daljinec.izvedi(this@CastReceiverService, dejanje, parametri, ospredje, DOMACA_STRAN) { url, naslov ->
+                        val izid = si.safeer.tv.link.Daljinec.izvedi(this@CastReceiverService, dejanje, parametri, ospredje,
+                            si.safeer.tv.SpletDomaca.naslov(this@CastReceiverService)) { url, naslov ->
                             if (krmilnik != null && krmilnikVOspredju) krmilnik.onCastUrlReceived(url, naslov, 0.0)
                             else odpriVBrskalniku(url, naslov, 0.0)
                         }
