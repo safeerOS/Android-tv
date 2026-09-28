@@ -81,6 +81,7 @@
         <activity android:name="si.safeer.tv.os.AplikacijeTvActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.NapraveActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.ZapiskiActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.PredvajalnikActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.SlikaActivity" tools:node="remove" />
 

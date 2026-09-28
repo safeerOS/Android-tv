@@ -41,6 +41,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var meniDatoteke: View
     private lateinit var meniGlasba: View
     private lateinit var meniNaprave: View
+    private lateinit var meniSplet: View
+    private lateinit var meniZapiski: View
     private lateinit var meniNastavitve: View
     private lateinit var karticaBrskalnik: View
     private lateinit var karticaZaslon: View
@@ -97,6 +99,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         meniDatoteke = findViewById(R.id.meniDatoteke)
         meniGlasba = findViewById(R.id.meniGlasba)
         meniNaprave = findViewById(R.id.meniNaprave)
+        meniSplet = findViewById(R.id.meniSplet)
+        meniZapiski = findViewById(R.id.meniZapiski)
         meniNastavitve = findViewById(R.id.meniNastavitve)
         meniDomov.isActivated = true
         meniDomov.isSelected = true
@@ -380,11 +384,16 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
             else vprasajZaNacin()
         }
+        meniSplet.setOnClickListener { odpriVBrskalniku(null) }
+        meniZapiski.setOnClickListener {
+            odpriVarno(Intent(this, ZapiskiActivity::class.java), getString(R.string.os_meni_zapiski))
+        }
         meniNastavitve.setOnClickListener {
             odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
         }
 
-        val menijskePostavke = listOf(meniDomov, meniAplikacije, meniZaslon, meniDatoteke, meniGlasba, meniNaprave, meniNastavitve)
+        val menijskePostavke = listOf(meniDomov, meniGlasba, meniNaprave, meniAplikacije,
+            meniDatoteke, meniSplet, meniZapiski, meniNastavitve)
         for (postavka in menijskePostavke) {
             postavka.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
@@ -1563,21 +1572,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         p.requestRectangleOnScreen(android.graphics.Rect(0, 0, p.width, p.height + rob), false)
     }
 
-    /**
-     * Namera za splet: ce je Safeer Browser namescen kot svoja aplikacija, odpremo njega (en pogon,
-     * ena zascita, en seznam zavihkov); sicer nasega vgrajenega, ki je v Safeer OS za ta primer.
-     */
-    private fun brskalnikNamera(): Intent {
-        // Safeer OS ima brskalnik v jedru: splet se vedno odpre v njem (isti proces, isti Scit, takojsen
-        // prehod nazaj), tudi ce je namescen stari samostojni Safeer Browser TV.
-        val paket = if (Sosed.smoOs(this)) null else Sosed.brskalnik(this)
-        val namera = if (paket != null)
-            Intent().setComponent(android.content.ComponentName(paket, "si.safeer.tv.MainActivity"))
-                // Brskalnik naj ve, od kod je prisel: ob izhodu se vrne v Safeer OS, ne na Android.
-                .putExtra("iz_safeer_os", packageName)
-        else Intent(this, si.safeer.tv.MainActivity::class.java)
-        return namera.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
+    /** Splet se vedno odpre v brskalniskem pogonu te aplikacije, nikoli v locenem si.safeer.tv. */
+    private fun brskalnikNamera(): Intent = Brskalnik.namera(this)
 
     /** Odpre splet (brskalnik sosede ali vgrajenega), po zelji z naslovom. */
     private fun odpriVBrskalniku(url: String?) {
@@ -1590,9 +1586,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun odpriLinkVBrskalniku() {
         // Link je del Safeer OS: stran naj ima ozadje sistema in se ob zaprtju vrne v Safeer OS.
         // Link vodi Safeer OS sam (vgrajen brskalnik z isto stranjo), ne Safeer Browser TV.
-        val paket = Sosed.linkBrskalnik(this)
-        val namera = (if (paket != null) brskalnikNamera()
-            else Intent(this, si.safeer.tv.MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val namera = brskalnikNamera()
             .putExtra("odpri_link", true)
             .putExtra("iz_safeer_os", packageName)
             .putExtra("os_ozadje", Ozadje.izbrana(this).oznaka)

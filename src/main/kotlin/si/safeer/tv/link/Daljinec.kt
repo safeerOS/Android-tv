@@ -493,15 +493,22 @@ object Daljinec {
     private fun seznamV1(context: Context, parametri: JSONObject): Izid {
         val zIkonami = parametri.optBoolean("icons", false)
         val polje = aplikacije(context, zIkonami)
+        // Po kosih (offset) in do ~190 kB: sporocilo v Safeer Linku sme imeti najvec 256 kB; prevelik
+        // odgovor se izgubi in druga naprava pokaze crke namesto ikon.
+        val od = parametri.optInt("offset", 0).coerceIn(0, polje.length())
         val elementi = JSONArray()
-        for (i in 0 until polje.length()) {
+        var velikost = 0
+        for (i in od until polje.length()) {
             val z = polje.optJSONObject(i) ?: continue
             val e = JSONObject().put("id", z.optString("package")).put("name", z.optString("label"))
             if (z.has("icon")) e.put("icon", z.optString("icon"))
+            val teza = z.optString("icon").length + z.optString("label").length * 2 + 120
+            if (elementi.length() > 0 && velikost + teza > 190_000) break
+            velikost += teza
             elementi.put(e)
         }
         val podatki = JSONObject().put("enabled", true).put("items", elementi)
-            .put("total", elementi.length()).put("offset", 0)
+            .put("total", polje.length()).put("offset", od)
         return Izid(true, "Seznam aplikacij", podatki)
     }
 

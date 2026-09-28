@@ -356,11 +356,26 @@
     <string name="os_vse_kartica">Vse aplikacije</string>
 <!-- Glava in stranski meni -->
     <string name="os_meni_domov">Domov</string>
-    <string name="os_meni_aplikacije">Aplikacije</string>
+    <string name="os_meni_aplikacije">Programi</string>
     <string name="os_meni_zaslon">Zaslon</string>
     <string name="os_meni_datoteke">Datoteke</string>
     <string name="os_meni_naprave">Safeer Link</string>
+    <string name="os_meni_splet">Splet</string>
+    <string name="os_meni_zapiski">Zapiski</string>
     <string name="os_meni_nastavitve">Nastavitve</string>
+    <string name="os_zapiski">Zapiski</string>
+    <string name="os_zapiski_opis">Tvoji krajevni zapiski</string>
+    <string name="os_zapiski_nov">Nov zapisek</string>
+    <string name="os_zapiski_uredi">Uredi zapisek</string>
+    <string name="os_zapiski_iskanje">Išči zapiske</string>
+    <string name="os_zapiski_prazno">Ni še nobenega zapiska.</string>
+    <string name="os_zapiski_naslov">Naslov</string>
+    <string name="os_zapiski_vsebina">Zapisek</string>
+    <string name="os_zapiski_shrani">Shrani</string>
+    <string name="os_zapiski_izbrisi">Izbriši</string>
+    <string name="os_zapiski_izbrisi_vprasanje">Izbrišem ta zapisek?</string>
+    <string name="os_zapiski_brez_naslova">Brez naslova</string>
+    <string name="os_zapiski_brez_vsebine">Prazen zapisek</string>
     <string name="os_podnaslov_app">Tvoj računalnik v rokah.</string>
     <string name="os_pozdrav_naslov">Dobrodošel nazaj!</string>
     <string name="os_pozdrav_podnaslov">Vse tvoje naprave, aplikacije in vsebine – na enem mestu.</string>

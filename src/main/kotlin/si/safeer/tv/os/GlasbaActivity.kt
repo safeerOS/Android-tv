@@ -310,6 +310,7 @@ class GlasbaActivity : OsActivity() {
         besedilaMenija.add(imeOs)
         m.addView(znak)
 
+        val postavke = ArrayList<View>()
         fun postavka(res: Int, ime: String, opis: String? = null, klik: () -> Unit): View = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             id = View.generateViewId()
@@ -317,26 +318,37 @@ class GlasbaActivity : OsActivity() {
             setBackgroundResource(R.drawable.os_meni_postavka)
             setPadding(dp(12), dp(10), dp(12), dp(10))
             setOnClickListener { klik() }
-            addView(ikona(res, 22, beli))
+            addView(ikona(res, 22, getColor(R.color.os_mint)))
             val t = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, 0, 0) }
-            t.addView(besedilo(14f, beli, true).apply { text = ime; maxLines = 2 })
+            t.addView(besedilo(14f, beli, true).apply {
+                text = ime; maxLines = 1
+                setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
+            })
             if (opis != null) t.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = opis; maxLines = 2 })
             addView(t)
             besedilaMenija.add(t)
             m.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+            postavke.add(this)
         }
         fun odpri(i: Intent) { try { startActivity(i) } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() } }
-        // Isti meni kot na zacetnem zaslonu (vrstni red, imena): uporabnik ne sme dobiti drugacnega menija,
-        // ko odpre Glasbo in video.
+        // Isti meni kot na zacetnem zaslonu: Domov, Medijski center, Naprave, Programi, Datoteke,
+        // Splet, Zapiski, Nastavitve.
         postavka(R.drawable.os_ikona_domov, getString(R.string.os_meni_domov)) { finish() }
-        postavka(R.drawable.os_ikona_aplikacije, getString(R.string.os_meni_aplikacije)) {
-            odpri(Intent(this, AplikacijeHostaActivity::class.java).putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse")) }
-        postavka(R.drawable.os_ikona_datoteke, getString(R.string.os_meni_datoteke)) { odpri(Intent(this, DatotekeActivity::class.java)) }
         meniMediji = postavka(R.drawable.os_ikona_glasba, getString(R.string.os_mediji_kartica)) {
             if (razdelek != DOMOV) onBackPressed() else vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus()
         }.apply { isActivated = true; isSelected = true }
         postavka(R.drawable.os_ikona_link, getString(R.string.os_meni_naprave)) { odpri(Intent(this, NapraveActivity::class.java)) }
+        postavka(R.drawable.os_ikona_aplikacije, getString(R.string.os_meni_aplikacije)) {
+            odpri(Intent(this, AplikacijeHostaActivity::class.java).putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse")) }
+        postavka(R.drawable.os_ikona_datoteke, getString(R.string.os_meni_datoteke)) { odpri(Intent(this, DatotekeActivity::class.java)) }
+        postavka(R.drawable.os_ikona_splet, getString(R.string.os_meni_splet)) { odpri(Brskalnik.namera(this)) }
+        postavka(R.drawable.os_ikona_zapiski, getString(R.string.os_meni_zapiski)) { odpri(Intent(this, ZapiskiActivity::class.java)) }
         postavka(R.drawable.os_ikona_nastavitve, getString(R.string.os_meni_nastavitve)) { odpri(Intent(this, NastavitveActivity::class.java)) }
+        postavke.forEachIndexed { i, v ->
+            v.nextFocusUpId = postavke[if (i == 0) 0 else i - 1].id
+            v.nextFocusDownId = postavke[if (i == postavke.lastIndex) i else i + 1].id
+            v.nextFocusLeftId = v.id
+        }
         m.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
         m.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_poganja); setPadding(dp(4), 0, 0, 0)
             besedilaMenija.add(this) })

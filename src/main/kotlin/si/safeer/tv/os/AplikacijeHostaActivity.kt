@@ -949,7 +949,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     if (polje != null) for (i in 0 until polje.length()) polje.optJSONObject(i)?.let { zbrano.add(it) }
                     val skupaj = podatki.optInt("total", zbrano.size)
                     val prejeto = polje?.length() ?: 0
-                    if (!android && zbrano.size < skupaj && prejeto > 0) { stran(od + prejeto); return@Odgovor }
+                    if (zbrano.size < skupaj && prejeto > 0) { stran(od + prejeto); return@Odgovor }
                     konec(Surovo(ime, android, zbrano, true), null)
                 })
             }

@@ -356,11 +356,26 @@
     <string name="os_vse_kartica">Todas las apps</string>
 <!-- Glava in stranski meni -->
     <string name="os_meni_domov">Inicio</string>
-    <string name="os_meni_aplikacije">Aplicaciones</string>
+    <string name="os_meni_aplikacije">Programas</string>
     <string name="os_meni_zaslon">Pantalla</string>
     <string name="os_meni_datoteke">Archivos</string>
     <string name="os_meni_naprave">Safeer Link</string>
+    <string name="os_meni_splet">Web</string>
+    <string name="os_meni_zapiski">Notas</string>
     <string name="os_meni_nastavitve">Ajustes</string>
+    <string name="os_zapiski">Notas</string>
+    <string name="os_zapiski_opis">Tus notas locales</string>
+    <string name="os_zapiski_nov">Nueva nota</string>
+    <string name="os_zapiski_uredi">Editar nota</string>
+    <string name="os_zapiski_iskanje">Buscar notas</string>
+    <string name="os_zapiski_prazno">Aún no hay notas.</string>
+    <string name="os_zapiski_naslov">Título</string>
+    <string name="os_zapiski_vsebina">Nota</string>
+    <string name="os_zapiski_shrani">Guardar</string>
+    <string name="os_zapiski_izbrisi">Eliminar</string>
+    <string name="os_zapiski_izbrisi_vprasanje">¿Eliminar esta nota?</string>
+    <string name="os_zapiski_brez_naslova">Sin título</string>
+    <string name="os_zapiski_brez_vsebine">Nota vacía</string>
     <string name="os_podnaslov_app">Tu ordenador en tus manos.</string>
     <string name="os_pozdrav_naslov">¡Bienvenido de nuevo!</string>
     <string name="os_pozdrav_podnaslov">Todos tus dispositivos, aplicaciones y contenidos, en un solo lugar.</string>
