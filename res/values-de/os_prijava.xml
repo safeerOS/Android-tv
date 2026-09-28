@@ -29,4 +29,7 @@
     <string name="os_naprave_uspesno_povezano">Erfolgreich mit %1$s verbunden.</string>
     <string name="os_naprave_naprava_ni_najdena">Kein Gerät gefunden. Bitte sicherstellen, dass beide Geräte im selben WLAN sind.</string>
     <string name="os_prijava_vpisi_gumb">Code von anderem Gerät eingeben</string>
+    <string name="os_naprave_link_opis">Verbinde dieses Gerät mit deinen anderen (Telefon, Tablet, Computer, Fernseher) - Geräte, Dateien und Senden zwischen ihnen</string>
+    <string name="os_naprave_link_vklopljen">Safeer Link ist eingeschaltet</string>
+    <string name="os_naprave_link_izklopljen">Safeer Link ist ausgeschaltet. Deine anderen Geräte und ihre Dateien sind nicht mehr verfügbar.</string>
 </resources>

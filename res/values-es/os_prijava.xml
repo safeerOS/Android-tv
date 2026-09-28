@@ -29,4 +29,7 @@
     <string name="os_naprave_uspesno_povezano">Conectado con éxito a %1$s.</string>
     <string name="os_naprave_naprava_ni_najdena">No se encontró ningún dispositivo. Asegúrate de que ambos dispositivos estén en la misma red Wi-Fi.</string>
     <string name="os_prijava_vpisi_gumb">Introducir código de otro dispositivo</string>
+    <string name="os_naprave_link_opis">Conecta este dispositivo con los demás (teléfono, tableta, ordenador, TV): dispositivos, archivos y envíos entre ellos</string>
+    <string name="os_naprave_link_vklopljen">Safeer Link está activado</string>
+    <string name="os_naprave_link_izklopljen">Safeer Link está desactivado. Tus otros dispositivos y sus archivos ya no estarán disponibles.</string>
 </resources>

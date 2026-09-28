@@ -49,4 +49,7 @@
     <string name="scit_napaka_dovoljenje">Le Bouclier Safeer a besoin de votre autorisation pour filtrer le DNS (fenêtre système). Rien n\'a été modifié.</string>
     <string name="scit_blokiranih_danes">bloqués aujourd\'hui : %1$d</string>
     <string name="omnibox_iskalnik">Moteur de recherche</string>
+    <string name="os_media_jeziki_vsebine">Langues du contenu</string>
+    <string name="os_media_pripravljam">Préparation de %1$s…</string>
+    <string name="os_media_priprava_napaka">Impossible de préparer %1$s.</string>
 </resources>

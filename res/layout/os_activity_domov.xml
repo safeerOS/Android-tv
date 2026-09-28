@@ -126,7 +126,7 @@
                 </LinearLayout>
 
                 <!-- Stari Zaslon ostane navzoč le zaradi kode dejavnosti, vendar ni del menija. -->
-                <LinearLayout android:id="@+id/meniZaslon" android:layout_width="0dp" android:layout_height="0dp"
+                <LinearLayout android:id="@+id/meniZaslon" android:layout_width="0dp" android:layout_height="0dp" android:orientation="horizontal"
                     android:visibility="gone" android:focusable="false" android:clickable="false"/>
 
                 <LinearLayout android:id="@+id/meniDatoteke" android:layout_width="match_parent" android:layout_height="wrap_content"

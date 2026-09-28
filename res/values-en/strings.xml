@@ -49,4 +49,7 @@
     <string name="scit_napaka_dovoljenje">Safeer Shield needs your permission to filter DNS (the system dialog). Nothing was changed.</string>
     <string name="scit_blokiranih_danes">blocked today: %1$d</string>
     <string name="omnibox_iskalnik">Search engine</string>
+    <string name="os_media_jeziki_vsebine">Content languages</string>
+    <string name="os_media_pripravljam">Preparing %1$s…</string>
+    <string name="os_media_priprava_napaka">Couldn’t prepare %1$s.</string>
 </resources>
