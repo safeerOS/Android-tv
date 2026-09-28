@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Safeer OS: Mediji (GlasbaActivity, PredvajanjeActivity, GlasbaStoritev). -->
 <resources>
-    <string name="os_glasba_naslov">Musique et vidéo</string>
+    <string name="os_glasba_naslov">Centre multimédia</string>
     <string name="os_glasba_podnaslov">Artistes indépendants de Jamendo sans publicité · radio internet · vidéos PeerTube</string>
     <string name="os_glasba_radio">Radio</string>
     <string name="os_glasba_video">Vidéo</string>
@@ -18,7 +18,7 @@
     <string name="os_glasba_vir">Jamendo · %1$s</string>
     <string name="os_glasba_video_opis">Vos films, séries et clips musicaux · bien organisés au même endroit</string>
     <string name="os_media_zate">Pour vous</string>
-    <string name="os_mediji_kartica">Musique et vidéo</string>
+    <string name="os_mediji_kartica">Centre multimédia</string>
     <string name="os_mediji_kartica_opis">Sans publicité</string>
     <string name="os_mediji_domov">Accueil</string>
     <string name="os_mediji_glasba">Musique</string>
@@ -79,7 +79,7 @@
     <string name="os_mediji_izklopljeno">Désactivé</string>
     <string name="os_mediji_ponavljaj_vse">Tout</string>
     <string name="os_mediji_ponavljaj_eno">Un titre</string>
-    <string name="os_media_naslov">Safeer Media</string>
+    <string name="os_media_naslov">Centre multimédia</string>
     <string name="os_media_podnaslov">Ta musique, tes vidéos et la radio de tous tes appareils, au même endroit.</string>
     <string name="os_media_geslo">Lis tout.\nDe partout.</string>
     <string name="os_media_meni_opis">Musique · Vidéo · Radio</string>
