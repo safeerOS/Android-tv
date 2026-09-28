@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="obvestila_ozadje_kanal">Safeer OS in the background</string>
+    <string name="obvestila_ozadje_opis">Keeps casting, Safeer Link and the Shield ready. Silent, no badge.</string>
+</resources>
