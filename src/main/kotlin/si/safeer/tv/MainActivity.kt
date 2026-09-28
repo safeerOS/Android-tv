@@ -26,10 +26,20 @@ import java.net.URLEncoder
 class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverService.CastMediaController,
     si.safeer.tv.link.Daljinec.VOspredju {
 
+    private val PRIVZETI_SPLETNI_PORTALI = listOf(
+        "YouTube" to "https://www.youtube.com",
+        "Google" to "https://www.google.com",
+        "Gmail" to "https://mail.google.com",
+        "RTV 365" to "https://365.rtvslo.si",
+        "Reddit" to "https://www.reddit.com",
+        "Wikipedia" to "https://www.wikipedia.org"
+    )
+
     private var osStranskaVrstica: si.safeer.tv.os.StranskaVrstica? = null
 
     internal lateinit var mainRoot: RelativeLayout
     internal lateinit var mobileTopBar: LinearLayout
+    internal var mobileBottomBar: LinearLayout? = null
     internal lateinit var btnBack: Button
     private var btnForward: Button? = null
     internal lateinit var btnHome: Button
@@ -76,6 +86,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal lateinit var tabManager: TabManager
     private lateinit var repository: BrowserRepository
     private lateinit var downloadHandler: DownloadHandler
+    private lateinit var spletIkone: SpletIkone
 
     internal lateinit var chrome: TvChrome
     internal lateinit var keyRouter: TvKeyRouter
@@ -99,6 +110,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     internal fun isTopBarFocused(): Boolean = isChromeFocused()
+
+    internal fun nastaviVidnostChrome(vidnost: Int) {
+        mobileTopBar.visibility = vidnost
+        mobileBottomBar?.visibility = vidnost
+    }
 
     internal fun isTelevisionDevice(): Boolean {
         val ui = resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
@@ -175,6 +191,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         repository = BrowserRepository(this)
         downloadHandler = DownloadHandler(this)
+        spletIkone = SpletIkone(this) {
+            mainHandler.post { osveziOdprteSpletneDomace() }
+        }
         isDarkModeActive = getSharedPreferences("safeer_ui_prefs", MODE_PRIVATE).getBoolean("dark_mode", true)
 
         initViews()
@@ -399,12 +418,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      */
     internal fun vklopiNacinAplikacije(naslov: String, ime: String) {
         nacinAplikacije = naslov
-        mobileTopBar.visibility = View.GONE
+        nastaviVidnostChrome(View.GONE)
         // Ob zagonu brskalnika se domaca stran nalozi z zamikom; aplikacijo nalozimo za njo,
         // da ne tekmujeta za isti zavihek.
         mainHandler.postDelayed({
             if (nacinAplikacije != naslov) return@postDelayed
-            mobileTopBar.visibility = View.GONE
+            nastaviVidnostChrome(View.GONE)
             // Aplikacija dobi svoj zavihek: njena zgodovina se zacne pri njej, zato Nazaj na
             // zacetku zapre aplikacijo in ne pripelje na domaco stran brskalnika.
             // Nadaljujemo, kjer je uporabnik koncal (ce je bil tam pred kratkim); sicer zacetna stran.
@@ -458,7 +477,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             zavihekAplikacije = null
             try { tabManager.closeTab(this, id) } catch (_: Throwable) { }
         }
-        mobileTopBar.visibility = View.VISIBLE
+        nastaviVidnostChrome(View.VISIBLE)
         mobileTopBar.translationY = 0f
     }
 
@@ -796,7 +815,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             mainHandler.post(spletStanje)
         }
         // Spletna aplikacija tece cez ves zaslon tudi po vrnitvi iz ozadja.
-        if (nacinAplikacije != null && ::mobileTopBar.isInitialized) mobileTopBar.visibility = View.GONE
+        if (nacinAplikacije != null && ::mobileTopBar.isInitialized) nastaviVidnostChrome(View.GONE)
         si.safeer.tv.cast.CastReceiverService.krmilnikVOspredju = true
         si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = { runOnUiThread { pokaziKodoZaSeznanitev() } }
         pokaziKodoZaSeznanitev()
@@ -1138,7 +1157,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 val activeTab = tabManager.getActiveTab()
                 if (activeTab != null) activeTab.webView?.loadUrl(url) else tabManager.createTab(this, url, true)
                 // Tuj zaslon gledamo cez cel televizor: vrstica z naslovom bi le jemala prostor.
-                mobileTopBar.visibility = View.GONE
+                nastaviVidnostChrome(View.GONE)
                 showTvOsd("📱 " + getString(R.string.ui_share_screen_from), od)
             } catch (e: Exception) {
                 android.util.Log.w("SafeerCast", "Zaslona ni bilo mogoce odpreti: " + e.message)
@@ -1248,7 +1267,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         customVideoView = null
         customVideoCallback = null
         webViewContainer.visibility = View.VISIBLE
-        mobileTopBar.visibility = View.VISIBLE
+        nastaviVidnostChrome(View.VISIBLE)
         mobileTopBar.translationY = 0f
         val home = SpletDomaca.naslov(this)
         val activeTab = tabManager.getActiveTab()
@@ -1300,58 +1319,76 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         btnFindClose = findViewById(R.id.btnFindClose)
     }
 
-    /** Chrome razdelka Splet je enak namiznemu Safeer OS; v pokoncnem telefonu ostane ena kompaktna vrstica. */
+    /** Chrome razdelka Splet: namizni dve zgornji vrstici ali telefonski naslov zgoraj in navigacija spodaj. */
     private fun pripraviSafeerSpletChrome() {
         spletSirokiChrome = resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT ||
             resources.configuration.screenWidthDp >= 600
+        mobileBottomBar?.let { mainRoot.removeView(it) }
+        mobileBottomBar = null
         mobileTopBar.removeAllViews()
         mobileTopBar.orientation = LinearLayout.VERTICAL
         mobileTopBar.setBackgroundColor(Color.parseColor("#0A141C"))
         mobileTopBar.layoutParams = mobileTopBar.layoutParams.apply { height = ViewGroup.LayoutParams.WRAP_CONTENT }
 
-        val nav = LinearLayout(this).apply {
+        val naslovna = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(if (spletSirokiChrome) 8 else 2), dp(4), dp(if (spletSirokiChrome) 8 else 2), dp(6))
+            setPadding(dp(if (spletSirokiChrome) 8 else 10), dp(5), dp(if (spletSirokiChrome) 8 else 10), dp(7))
             setBackgroundColor(Color.parseColor("#0A141C"))
         }
-        fun gumb(znak: String, opis: Int) = Button(this).apply {
-            text = znak; contentDescription = getString(opis); textSize = 18f
+        fun nastaviIkono(gumb: Button, ikona: Int, opis: Int) {
+            gumb.text = ""; gumb.contentDescription = getString(opis); gumb.gravity = Gravity.CENTER
+            gumb.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            gumb.setCompoundDrawablesRelativeWithIntrinsicBounds(ikona, 0, 0, 0)
+            gumb.setPadding(0, 0, 0, 0)
+        }
+        fun gumb(ikona: Int, opis: Int) = Button(this).apply {
+            nastaviIkono(this, ikona, opis)
             setTextColor(Color.parseColor("#F2F7F5")); setBackgroundResource(R.drawable.splet_chrome_gumb)
             isFocusable = true; minWidth = 0; minHeight = 0
-            layoutParams = LinearLayout.LayoutParams(dp(if (spletSirokiChrome) 44 else 28), dp(if (spletSirokiChrome) 44 else 34)).apply { marginEnd = dp(if (spletSirokiChrome) 4 else 2) }
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(4) }
         }
-        btnForward = gumb("→", R.string.btn_forward).also { naprej ->
+        btnForward = gumb(R.drawable.ic_m_forward, R.string.btn_forward).also { naprej ->
             naprej.setOnClickListener { activeWebView()?.takeIf { it.canGoForward() }?.goForward() }
         }
 
-        listOf(btnBack, btnForward!!, btnReload, btnHome).forEach { v ->
+        val navigacija = listOf(
+            btnBack to (R.drawable.ic_m_back to R.string.btn_back),
+            btnForward!! to (R.drawable.ic_m_forward to R.string.btn_forward),
+            btnReload to (R.drawable.ic_m_reload to R.string.btn_reload),
+            btnHome to (R.drawable.ic_splet_home to R.string.btn_home)
+        )
+        navigacija.forEach { (v, podatki) ->
             (v.parent as? ViewGroup)?.removeView(v)
+            nastaviIkono(v, podatki.first, podatki.second)
             v.setBackgroundResource(R.drawable.splet_chrome_gumb)
-            v.layoutParams = LinearLayout.LayoutParams(dp(if (spletSirokiChrome) 44 else 28), dp(if (spletSirokiChrome) 44 else 34)).apply { marginEnd = dp(if (spletSirokiChrome) 4 else 2) }
-            nav.addView(v)
+            v.layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(4) }
+            if (spletSirokiChrome) naslovna.addView(v)
         }
-        btnHome.text = "⌂"
 
         (omniboxContainer.parent as? ViewGroup)?.removeView(omniboxContainer)
         omniboxContainer.setBackgroundResource(R.drawable.splet_naslov)
         btnSearchTrigger.visibility = View.GONE
-        nav.addView(omniboxContainer, LinearLayout.LayoutParams(0, dp(if (spletSirokiChrome) 44 else 38), 1f).apply {
-            marginStart = dp(4); marginEnd = dp(6)
+        tvSecurityLock.text = ""
+        tvSecurityLock.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_splet_lock, 0, 0, 0)
+        naslovna.addView(omniboxContainer, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+            marginStart = dp(if (spletSirokiChrome) 4 else 0); marginEnd = dp(7)
         })
         (btnFavorite.parent as? ViewGroup)?.removeView(btnFavorite)
+        nastaviIkono(btnFavorite, R.drawable.ic_m_star, R.string.btn_favorite)
         btnFavorite.setBackgroundResource(R.drawable.splet_chrome_gumb)
-        omniboxContainer.addView(btnFavorite, LinearLayout.LayoutParams(dp(if (spletSirokiChrome) 34 else 26), dp(if (spletSirokiChrome) 34 else 30)))
+        omniboxContainer.addView(btnFavorite, LinearLayout.LayoutParams(dp(36), dp(36)))
 
-        spletScit = gumb("", R.string.scit_ime).apply {
-            textSize = if (spletSirokiChrome) 13f else 0f
+        spletScit = gumb(R.drawable.ic_m_shield, R.string.scit_ime).apply {
             setOnClickListener { showThreatStatsDialog() }
-        }.also { nav.addView(it, LinearLayout.LayoutParams(if (spletSirokiChrome) dp(92) else dp(28), dp(if (spletSirokiChrome) 44 else 34)).apply { marginEnd = dp(if (spletSirokiChrome) 4 else 2) }) }
+        }
+        if (spletSirokiChrome) naslovna.addView(spletScit, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(4) })
 
         listOf(btnTabCount, btnMenu).forEach { v ->
             (v.parent as? ViewGroup)?.removeView(v); v.setBackgroundResource(R.drawable.splet_chrome_gumb)
-            v.layoutParams = LinearLayout.LayoutParams(dp(if (spletSirokiChrome) 42 else 28), dp(if (spletSirokiChrome) 44 else 34)).apply { marginStart = dp(if (spletSirokiChrome) 3 else 2) }
-            nav.addView(v)
+            v.layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginStart = dp(3) }
+            naslovna.addView(v)
         }
+        nastaviIkono(btnMenu, R.drawable.ic_splet_menu, R.string.btn_menu)
         btnPointerToggle.visibility = View.GONE
 
         if (spletSirokiChrome) {
@@ -1375,8 +1412,28 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         } else {
             btnTabCount.visibility = View.VISIBLE
             btnAddTab.visibility = View.GONE
+            val spodnja = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+                setPadding(dp(10), dp(6), dp(10), dp(6)); setBackgroundColor(Color.parseColor("#0A141C"))
+                elevation = dp(12).toFloat()
+            }
+            for (v in listOf(btnBack, btnForward!!, btnHome, btnReload, spletScit!!)) {
+                (v.parent as? ViewGroup)?.removeView(v)
+                spodnja.addView(v, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                    marginStart = dp(3); marginEnd = dp(3)
+                })
+            }
+            mainRoot.addView(spodnja, RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(60)).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+            })
+            mobileBottomBar = spodnja
         }
-        mobileTopBar.addView(nav, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(if (spletSirokiChrome) 56 else 48)))
+        mobileTopBar.addView(naslovna, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)))
+        // Na dotik prvi pritisk ne sme le premakniti fokusa (postavitev je narejena za daljinec TV).
+        if (!isTelevisionDevice()) {
+            listOf<View?>(btnBack, btnForward, btnReload, btnHome, btnFavorite, spletScit, btnTabCount, btnMenu, btnAddTab)
+                .forEach { it?.isFocusableInTouchMode = false }
+        }
         osveziSpletnoStanje()
     }
 
@@ -1396,17 +1453,21 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             val naslov = if (TvSite.isBrowserHome(tab.url)) getString(R.string.splet_nov_zavihek)
                 else tab.title.ifBlank { tab.url }.take(24)
             ovoj.addView(TextView(this).apply {
-                text = "🌐  $naslov"; setTextColor(Color.parseColor("#F2F7F5")); textSize = 13f; maxLines = 1
+                text = naslov; setTextColor(Color.parseColor("#F2F7F5")); textSize = 13f; maxLines = 1
+                compoundDrawablePadding = dp(7)
+                setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_splet_globe, 0, 0, 0)
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             ovoj.addView(Button(this).apply {
-                text = "×"; textSize = 16f; setTextColor(Color.parseColor("#C5D3CF")); contentDescription = getString(R.string.ui_close)
+                text = ""; setTextColor(Color.parseColor("#C5D3CF")); contentDescription = getString(R.string.ui_close)
+                setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_splet_close, 0, 0, 0); gravity = Gravity.CENTER
                 setBackgroundResource(R.drawable.splet_chrome_gumb); isFocusable = true; minWidth = 0; minHeight = 0
                 setOnClickListener { tabManager.closeTab(this@MainActivity, tab.id) }
             }, LinearLayout.LayoutParams(dp(34), dp(34)))
             cilj.addView(ovoj, LinearLayout.LayoutParams(dp(210), dp(44)).apply { marginEnd = dp(4) })
         }
         (btnAddTab.parent as? ViewGroup)?.removeView(btnAddTab)
-        btnAddTab.visibility = View.VISIBLE; btnAddTab.setBackgroundResource(R.drawable.splet_chrome_gumb)
+        btnAddTab.text = ""; btnAddTab.visibility = View.VISIBLE; btnAddTab.setBackgroundResource(R.drawable.splet_chrome_gumb)
+        btnAddTab.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_splet_plus, 0, 0, 0); btnAddTab.gravity = Gravity.CENTER
         cilj.addView(btnAddTab, LinearLayout.LayoutParams(dp(44), dp(44)))
     }
 
@@ -1414,21 +1475,27 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val povezano = si.safeer.tv.cast.CastReceiverService.povezan
         spletLinkZnacka?.text = getString(if (povezano) R.string.splet_link_povezano else R.string.splet_link_ni_povezano)
         val blokiranih = AdBlockEngine.blockedAdsCount.get() + ThreatBlockEngine.totalBlockedThreats.get()
-        spletScit?.text = if (spletSirokiChrome) getString(R.string.splet_scit, blokiranih) else "♢"
+        spletScit?.contentDescription = getString(R.string.splet_scit, blokiranih)
     }
 
     /** Poslje zacetni strani jezik, obstojeci iskalnik in isti vir bliznjic kot Safeer OS. */
     private fun inicSpletnoStran(wv: ChromiumEngineView) {
         if (!SpletMostPravila.jeDovoljenIzvor(wv.url)) return
-        val naprava = if (Build.VERSION.SDK_INT >= 24) resources.configuration.locales[0].toLanguageTag()
+        val jezikVmesnika = if (Build.VERSION.SDK_INT >= 24) resources.configuration.locales[0].toLanguageTag()
             else {
                 @Suppress("DEPRECATION")
                 resources.configuration.locale.toLanguageTag()
             }
-        val jezik = SpletMostPravila.izberiJezik(JezikVmesnika.izbrani(this), naprava)
+        // Activity je ze ovit v JezikVmesnika.vKontekstu: ta locale je jezik Safeer OS,
+        // tudi kadar je uporabnik izbral drug jezik kot ga ima naprava.
+        val jezik = SpletMostPravila.izberiJezik(jezikVmesnika, jezikVmesnika)
         val portali = org.json.JSONArray()
-        for (a in si.safeer.tv.os.SpletneAplikacije.seznam(this)) {
-            portali.put(JSONObject().put("title", a.ime).put("url", a.url))
+        val uporabniski = si.safeer.tv.os.SpletneAplikacije.seznam(this)
+        val seznam = if (uporabniski.isNotEmpty()) uporabniski.map { it.ime to it.url } else PRIVZETI_SPLETNI_PORTALI
+        for ((ime, url) in seznam) {
+            val favicon = spletIkone.preberi(url)
+            portali.put(JSONObject().put("title", ime).put("url", url).put("favicon", favicon))
+            if (favicon.isEmpty()) spletIkone.zagotovi(url)
         }
         val stanje = JSONObject()
             .put("language", jezik)
@@ -1436,6 +1503,23 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             .put("portals", portali)
             .put("tv", isTelevisionDevice())
         wv.evaluateJavascript("window.safeerSpletInit&&window.safeerSpletInit(${stanje})", null)
+    }
+
+    /** Kljucavnica v naslovu Safeer OS: vektorska ikona, zelena za varno, oranzna za nesifrirano povezavo. */
+    internal fun nastaviSpletnoKljucavnico(varno: Boolean) {
+        tvSecurityLock.text = ""
+        tvSecurityLock.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_splet_lock, 0, 0, 0)
+        tvSecurityLock.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(
+            Color.parseColor(if (varno) "#57D6AD" else "#F59E0B"))
+    }
+
+    /** Nova ikona se brez ponovnega nalaganja pokaze na vseh odprtih zacetnih straneh. */
+    private fun osveziOdprteSpletneDomace() {
+        if (!::tabManager.isInitialized || isFinishing || isDestroyed) return
+        for (tab in tabManager.getAllTabs()) {
+            val wv = tab.webView ?: continue
+            if (SpletMostPravila.jeDovoljenIzvor(wv.url)) inicSpletnoStran(wv)
+        }
     }
 
     private fun pokaziDodajBliznjico(wv: ChromiumEngineView) {
@@ -1647,7 +1731,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         wv.onSecurityChanged = { isSecure ->
             if (tabManager.getActiveTab()?.id == tab.id) {
                 val url = tab.url
-                if (url.startsWith("file://") || url.startsWith("about:") || url.isEmpty()) {
+                if (SpletDomaca.jeSafeerOs(this)) {
+                    nastaviSpletnoKljucavnico(url.startsWith("file://") || url.startsWith("about:") || url.isEmpty() || isSecure)
+                } else if (url.startsWith("file://") || url.startsWith("about:") || url.isEmpty()) {
                     tvSecurityLock.text = "S"
                     tvSecurityLock.setTextColor(Color.parseColor("#10B981"))
                 } else {
@@ -1679,7 +1765,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         wv.onPdfFokusVen = { smer ->
             if (smer == "gor") {
                 if (nacinAplikacije == null) {
-                    mobileTopBar.visibility = android.view.View.VISIBLE
+                    nastaviVidnostChrome(android.view.View.VISIBLE)
                     mobileTopBar.animate().translationY(0f).setDuration(150).start()
                 }
                 editUrl.requestFocus()
@@ -2066,6 +2152,16 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     internal fun updateBookmarkButton(url: String) {
         if (!::btnFavorite.isInitialized) return
+        if (SpletDomaca.jeSafeerOs(this)) {
+            // Safeer OS: zvezdica je vektorska ikona v naslovni vrstici (brez emoji znakov).
+            val dodana = url.isNotEmpty() && url != "about:blank" && !url.startsWith("file:///android_asset") &&
+                si.safeer.tv.os.SpletneAplikacije.jeDodana(this, url)
+            btnFavorite.text = ""
+            btnFavorite.setCompoundDrawablesRelativeWithIntrinsicBounds(if (dodana) R.drawable.ic_m_star_filled else R.drawable.ic_m_star, 0, 0, 0)
+            btnFavorite.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(
+                Color.parseColor(if (dodana) "#FBBF24" else "#DCE7E3"))
+            return
+        }
         if (url.isEmpty() || url == "about:blank" || url.startsWith("file:///android_asset")) {
             btnFavorite.text = "☆"
             btnFavorite.setTextColor(getColor(R.color.text_primary))
@@ -2146,8 +2242,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 val btnClose = view.findViewById<TextView>(R.id.btnTabClose)
                 val cardRoot = view.findViewById<RelativeLayout>(R.id.tabCardRoot)
 
-                tvTitle.text = tab.title.ifEmpty { UiText.get(R.string.ui_tab_number , position + 1) }
-                tvUrl.text = tab.url
+                val domaca = TvSite.isBrowserHome(tab.url)
+                tvTitle.text = if (domaca) getString(R.string.splet_nov_zavihek)
+                    else tab.title.ifEmpty { UiText.get(R.string.ui_tab_number , position + 1) }
+                // Notranji naslov zacetne strani (file:///android_asset/...) uporabniku ne pove nicesar.
+                tvUrl.text = if (domaca) "" else tab.url
                 
                 val isActive = (tab.id == activeId)
                 cardRoot.setBackgroundResource(if (isActive) R.drawable.bg_tab_card_active else R.drawable.bg_tab_card)
@@ -3016,6 +3115,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun onConfigurationChanged(nova: Configuration) {
         super.onConfigurationChanged(nova)
         osStranskaVrstica?.prilagodiSirino()
+        if (SpletDomaca.jeSafeerOs(this)) pripraviSafeerSpletChrome()
     }
 
     /** Vrstico dobi samo navaden Splet iz Safeer OS; spletne aplikacije in stran Link ostanejo cele. */

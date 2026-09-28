@@ -27,14 +27,18 @@ class TvChrome(private val host: MainActivity) {
         val chromeOn = !kiosk && !prekrivna &&
             host.mobileTopBar.visibility == View.VISIBLE &&
             !host.playback.isActive()
-        val pad = if (chromeOn) {
+        val padZgoraj = if (chromeOn) {
             val h = host.mobileTopBar.height
             if (h > 0) h else (56 * host.resources.displayMetrics.density).toInt()
         } else {
             0
         }
-        if (host.webViewContainer.paddingTop != pad) {
-            host.webViewContainer.setPadding(0, pad, 0, 0)
+        val spodnja = host.mobileBottomBar
+        val padSpodaj = if (!kiosk && host.nacinAplikacije == null && spodnja?.visibility == View.VISIBLE && !host.playback.isActive()) {
+            spodnja.height.takeIf { it > 0 } ?: (60 * host.resources.displayMetrics.density).toInt()
+        } else 0
+        if (host.webViewContainer.paddingTop != padZgoraj || host.webViewContainer.paddingBottom != padSpodaj) {
+            host.webViewContainer.setPadding(0, padZgoraj, 0, padSpodaj)
         }
     }
 
@@ -61,8 +65,9 @@ class TvChrome(private val host: MainActivity) {
 
     private fun premakniVrstico(pokazi: Boolean) {
         val vrstica = host.mobileTopBar
-        if (host.nacinAplikacije != null) { vrstica.visibility = View.GONE; return }
+        if (host.nacinAplikacije != null) { host.nastaviVidnostChrome(View.GONE); return }
         vrstica.visibility = View.VISIBLE
+        host.mobileBottomBar?.visibility = View.VISIBLE
         val visina = if (vrstica.height > 0) {
             vrstica.height
         } else {
@@ -125,10 +130,10 @@ class TvChrome(private val host: MainActivity) {
         // Spletna aplikacija (Safeer OS) je celozaslonska: vrstice z naslovom ne kazemo nikoli.
         val stayKiosk = host.nacinAplikacije != null || SiteProfileResolver.fromUrl(url).hideChrome(url)
         if (hidden || stayKiosk) {
-            host.mobileTopBar.visibility = View.GONE
+            host.nastaviVidnostChrome(View.GONE)
         } else if (!host.playback.isActive()) {
             prisliSmoNaYoutube = false
-            host.mobileTopBar.visibility = View.VISIBLE
+            host.nastaviVidnostChrome(View.VISIBLE)
             host.mobileTopBar.translationY = 0f
         }
         applyPageInset(url)
@@ -139,7 +144,7 @@ class TvChrome(private val host: MainActivity) {
         host.mobileTopBar.removeCallbacks(pospraviVrstico)
         // Spletna aplikacija Safeer OS: brez vrstice z naslovom, ne glede na stran.
         if (host.nacinAplikacije != null) {
-            host.mobileTopBar.visibility = View.GONE
+            host.nastaviVidnostChrome(View.GONE)
             host.activeWebView()?.requestFocus()
             applyPageInset(url)
             return
@@ -160,10 +165,10 @@ class TvChrome(private val host: MainActivity) {
             host.hideKeyboard()
             host.editUrl.clearFocus()
             host.searchSuggestionsOverlay.visibility = View.GONE
-            host.mobileTopBar.visibility = View.GONE
+            host.nastaviVidnostChrome(View.GONE)
             host.activeWebView()?.requestFocus()
         } else if (!host.playback.isActive()) {
-            host.mobileTopBar.visibility = View.VISIBLE
+            host.nastaviVidnostChrome(View.VISIBLE)
             if (host.mobileTopBar.translationY != 0f) {
                 host.mobileTopBar.animate().translationY(0f).setDuration(180).start()
             }
@@ -298,7 +303,8 @@ class TvChrome(private val host: MainActivity) {
         if (url.isEmpty() || url == "about:blank" || url.startsWith("https://www.google.com") || url.startsWith("file:///android_asset")) {
             host.editUrl.setText("")
             host.editUrl.hint = UiText.get(R.string.url_hint)
-            host.tvSecurityLock.text = "🔍"
+            if (si.safeer.tv.SpletDomaca.jeSafeerOs(host)) host.nastaviSpletnoKljucavnico(true)
+            else host.tvSecurityLock.text = "🔍"
             return
         }
 
