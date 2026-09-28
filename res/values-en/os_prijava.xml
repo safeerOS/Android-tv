@@ -29,4 +29,7 @@
     <string name="os_naprave_uspesno_povezano">Successfully connected to %1$s.</string>
     <string name="os_naprave_naprava_ni_najdena">No device found. Make sure both devices are connected to the same Wi-Fi network.</string>
     <string name="os_prijava_vpisi_gumb">Enter code from another device</string>
+    <string name="os_naprave_link_opis">Connect this device with your others (phone, tablet, computer, TV) - devices, files and sending between them</string>
+    <string name="os_naprave_link_vklopljen">Safeer Link is on</string>
+    <string name="os_naprave_link_izklopljen">Safeer Link is off. Your other devices and their files will no longer be available.</string>
 </resources>

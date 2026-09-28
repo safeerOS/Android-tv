@@ -49,4 +49,7 @@
     <string name="scit_napaka_dovoljenje">Scudo Safeer ha bisogno del tuo permesso per filtrare il DNS (finestra di sistema). Nulla è stato modificato.</string>
     <string name="scit_blokiranih_danes">bloccati oggi: %1$d</string>
     <string name="omnibox_iskalnik">Motore di ricerca</string>
+    <string name="os_media_jeziki_vsebine">Lingue dei contenuti</string>
+    <string name="os_media_pripravljam">Preparazione di %1$s…</string>
+    <string name="os_media_priprava_napaka">Impossibile preparare %1$s.</string>
 </resources>

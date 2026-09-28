@@ -1,3 +1,6 @@
+// Media3: SimpleBasePlayer (SpletniIgralec) je oznacen kot @UnstableApi.
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package si.safeer.tv.os
 
 import android.annotation.SuppressLint

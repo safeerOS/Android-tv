@@ -49,4 +49,7 @@
     <string name="scit_napaka_dovoljenje">Safeer Schild braucht deine Erlaubnis zum DNS-Filtern (Systemdialog). Nichts wurde geändert.</string>
     <string name="scit_blokiranih_danes">heute blockiert: %1$d</string>
     <string name="omnibox_iskalnik">Suchmaschine</string>
+    <string name="os_media_jeziki_vsebine">Inhaltssprachen</string>
+    <string name="os_media_pripravljam">%1$s wird vorbereitet …</string>
+    <string name="os_media_priprava_napaka">%1$s konnte nicht vorbereitet werden.</string>
 </resources>
