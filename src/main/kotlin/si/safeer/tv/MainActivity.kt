@@ -31,6 +31,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal lateinit var mainRoot: RelativeLayout
     internal lateinit var mobileTopBar: LinearLayout
     internal lateinit var btnBack: Button
+    private var btnForward: Button? = null
     internal lateinit var btnHome: Button
     internal lateinit var btnReload: Button
     internal lateinit var btnFavorite: Button
@@ -43,6 +44,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private lateinit var btnAddTab: Button
     private lateinit var btnTabCount: Button
     private lateinit var btnMenu: Button
+    private var spletZavihki: LinearLayout? = null
+    private var spletLinkZnacka: TextView? = null
+    private var spletScit: Button? = null
+    private var spletSirokiChrome = false
     /** Meni, odprt z daljinca s telefona: tipke daljinca gredo vanj, dokler je odprt. */
     private var meniDaljinca: Dialog? = null
     private lateinit var pageProgressBar: ProgressBar
@@ -86,11 +91,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal fun activeUrl(): String = tabManager.getActiveTab()?.url ?: ""
 
     internal fun isChromeFocused(): Boolean {
-        return btnBack.hasFocus() || btnHome.hasFocus() || btnReload.hasFocus() ||
+        return btnBack.hasFocus() || btnForward?.hasFocus() == true || btnHome.hasFocus() || btnReload.hasFocus() ||
             btnFavorite.hasFocus() || btnPointerToggle.hasFocus() ||
             btnAddTab.hasFocus() || btnTabCount.hasFocus() || btnMenu.hasFocus() ||
             btnClearUrl.hasFocus() || btnSearchTrigger.hasFocus() ||
-            editUrl.hasFocus() || mobileTopBar.hasFocus()
+            editUrl.hasFocus() || mobileTopBar.hasFocus() || spletZavihki?.hasFocus() == true
     }
 
     internal fun isTopBarFocused(): Boolean = isChromeFocused()
@@ -117,8 +122,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** D-Pad strip on the omnibox row. Skip tiny 🔍/✕ inside the URL field — they trap focus into the WebView. */
     internal fun moveChromeFocus(right: Boolean): Boolean {
         val chain = listOf(
-            btnBack, btnHome, btnReload, editUrl, btnFavorite, btnPointerToggle, btnAddTab, btnTabCount, btnMenu
-        ).filter { it.visibility == View.VISIBLE }
+            btnBack, btnForward, btnReload, btnHome, editUrl, btnFavorite, spletScit,
+            btnPointerToggle, btnAddTab, btnTabCount, btnMenu
+        ).filterNotNull().filter { it.visibility == View.VISIBLE }
         if (chain.isEmpty()) return false
         val focused = currentFocus
         val idx = when {
@@ -172,6 +178,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         isDarkModeActive = getSharedPreferences("safeer_ui_prefs", MODE_PRIVATE).getBoolean("dark_mode", true)
 
         initViews()
+        if (SpletDomaca.jeSafeerOs(this)) pripraviSafeerSpletChrome()
         playback = HostPlayback(this)
         // Ujet pretok predamo domacemu predvajalniku, na katerikoli strani smo.
         DashPrevzem.listener = { session ->
@@ -211,7 +218,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         SignedThreatIntel.start(this)
         installServiceWorkerThreatShield()
 
-        val targetUrl = incomingBrowseUrl(intent) ?: "file:///android_asset/brave_home.html"
+        val targetUrl = incomingBrowseUrl(intent) ?: SpletDomaca.naslov(this)
         tabManager.createTab(this, targetUrl, true)
 
         if (BuildConfig.DEBUG) {
@@ -469,6 +476,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var globalOsdView: TextView? = null
     private var screenOffOverlay: View? = null
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val spletStanje = object : Runnable {
+        override fun run() {
+            if (!SpletDomaca.jeSafeerOs(this@MainActivity) || isFinishing) return
+            osveziSpletnoStanje()
+            mainHandler.postDelayed(this, 2_000L)
+        }
+    }
 
     /**
      * Pomnilnik v ozadju: televizor ima 2-3 GB pomnilnika in Safeer je z odprtimi stranmi
@@ -767,6 +781,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     override fun onPause() {
+        mainHandler.removeCallbacks(spletStanje)
         nacinAplikacije?.let { zapomniMestoAplikacije(it) }
         si.safeer.tv.cast.CastReceiverService.krmilnikVOspredju = false
         si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = null
@@ -776,6 +791,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onResume() {
         super.onResume()
+        if (SpletDomaca.jeSafeerOs(this)) {
+            mainHandler.removeCallbacks(spletStanje)
+            mainHandler.post(spletStanje)
+        }
         // Spletna aplikacija tece cez ves zaslon tudi po vrnitvi iz ozadja.
         if (nacinAplikacije != null && ::mobileTopBar.isInitialized) mobileTopBar.visibility = View.GONE
         si.safeer.tv.cast.CastReceiverService.krmilnikVOspredju = true
@@ -902,7 +921,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             return
         }
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.
-        if (nacinAplikacije != null && intent?.action == Intent.ACTION_MAIN) izklopiNacinAplikacije()
+        if (nacinAplikacije != null) izklopiNacinAplikacije()
         val url = incomingBrowseUrl(intent)
         if (intent?.getBooleanExtra("exo_smoke", false) == true) {
             playback.playClearSmoke()
@@ -1231,7 +1250,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         webViewContainer.visibility = View.VISIBLE
         mobileTopBar.visibility = View.VISIBLE
         mobileTopBar.translationY = 0f
-        val home = "file:///android_asset/brave_home.html"
+        val home = SpletDomaca.naslov(this)
         val activeTab = tabManager.getActiveTab()
         if (activeTab != null) {
             stopPageMedia("startPage")
@@ -1281,6 +1300,181 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         btnFindClose = findViewById(R.id.btnFindClose)
     }
 
+    /** Chrome razdelka Splet je enak namiznemu Safeer OS; v pokoncnem telefonu ostane ena kompaktna vrstica. */
+    private fun pripraviSafeerSpletChrome() {
+        spletSirokiChrome = resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT ||
+            resources.configuration.screenWidthDp >= 600
+        mobileTopBar.removeAllViews()
+        mobileTopBar.orientation = LinearLayout.VERTICAL
+        mobileTopBar.setBackgroundColor(Color.parseColor("#0A141C"))
+        mobileTopBar.layoutParams = mobileTopBar.layoutParams.apply { height = ViewGroup.LayoutParams.WRAP_CONTENT }
+
+        val nav = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(if (spletSirokiChrome) 8 else 2), dp(4), dp(if (spletSirokiChrome) 8 else 2), dp(6))
+            setBackgroundColor(Color.parseColor("#0A141C"))
+        }
+        fun gumb(znak: String, opis: Int) = Button(this).apply {
+            text = znak; contentDescription = getString(opis); textSize = 18f
+            setTextColor(Color.parseColor("#F2F7F5")); setBackgroundResource(R.drawable.splet_chrome_gumb)
+            isFocusable = true; minWidth = 0; minHeight = 0
+            layoutParams = LinearLayout.LayoutParams(dp(if (spletSirokiChrome) 44 else 28), dp(if (spletSirokiChrome) 44 else 34)).apply { marginEnd = dp(if (spletSirokiChrome) 4 else 2) }
+        }
+        btnForward = gumb("→", R.string.btn_forward).also { naprej ->
+            naprej.setOnClickListener { activeWebView()?.takeIf { it.canGoForward() }?.goForward() }
+        }
+
+        listOf(btnBack, btnForward!!, btnReload, btnHome).forEach { v ->
+            (v.parent as? ViewGroup)?.removeView(v)
+            v.setBackgroundResource(R.drawable.splet_chrome_gumb)
+            v.layoutParams = LinearLayout.LayoutParams(dp(if (spletSirokiChrome) 44 else 28), dp(if (spletSirokiChrome) 44 else 34)).apply { marginEnd = dp(if (spletSirokiChrome) 4 else 2) }
+            nav.addView(v)
+        }
+        btnHome.text = "⌂"
+
+        (omniboxContainer.parent as? ViewGroup)?.removeView(omniboxContainer)
+        omniboxContainer.setBackgroundResource(R.drawable.splet_naslov)
+        btnSearchTrigger.visibility = View.GONE
+        nav.addView(omniboxContainer, LinearLayout.LayoutParams(0, dp(if (spletSirokiChrome) 44 else 38), 1f).apply {
+            marginStart = dp(4); marginEnd = dp(6)
+        })
+        (btnFavorite.parent as? ViewGroup)?.removeView(btnFavorite)
+        btnFavorite.setBackgroundResource(R.drawable.splet_chrome_gumb)
+        omniboxContainer.addView(btnFavorite, LinearLayout.LayoutParams(dp(if (spletSirokiChrome) 34 else 26), dp(if (spletSirokiChrome) 34 else 30)))
+
+        spletScit = gumb("", R.string.scit_ime).apply {
+            textSize = if (spletSirokiChrome) 13f else 0f
+            setOnClickListener { showThreatStatsDialog() }
+        }.also { nav.addView(it, LinearLayout.LayoutParams(if (spletSirokiChrome) dp(92) else dp(28), dp(if (spletSirokiChrome) 44 else 34)).apply { marginEnd = dp(if (spletSirokiChrome) 4 else 2) }) }
+
+        listOf(btnTabCount, btnMenu).forEach { v ->
+            (v.parent as? ViewGroup)?.removeView(v); v.setBackgroundResource(R.drawable.splet_chrome_gumb)
+            v.layoutParams = LinearLayout.LayoutParams(dp(if (spletSirokiChrome) 42 else 28), dp(if (spletSirokiChrome) 44 else 34)).apply { marginStart = dp(if (spletSirokiChrome) 3 else 2) }
+            nav.addView(v)
+        }
+        btnPointerToggle.visibility = View.GONE
+
+        if (spletSirokiChrome) {
+            btnTabCount.visibility = View.GONE
+            val vrstica = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM
+                setPadding(dp(10), dp(5), dp(12), 0); setBackgroundColor(Color.parseColor("#0A141C"))
+            }
+            val drsnik = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+            spletZavihki = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
+            drsnik.addView(spletZavihki, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(46)))
+            vrstica.addView(drsnik, LinearLayout.LayoutParams(0, dp(46), 1f))
+            spletLinkZnacka = TextView(this).apply {
+                setTextColor(Color.parseColor("#F2F7F5")); textSize = 13f; gravity = Gravity.CENTER
+                setBackgroundResource(R.drawable.splet_znacka); isFocusable = false
+            }
+            vrstica.addView(spletLinkZnacka, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)).apply {
+                gravity = Gravity.CENTER_VERTICAL; marginStart = dp(8)
+            })
+            mobileTopBar.addView(vrstica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(51)))
+        } else {
+            btnTabCount.visibility = View.VISIBLE
+            btnAddTab.visibility = View.GONE
+        }
+        mobileTopBar.addView(nav, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(if (spletSirokiChrome) 56 else 48)))
+        osveziSpletnoStanje()
+    }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private fun narisiSpletneZavihke() {
+        val cilj = spletZavihki ?: return
+        cilj.removeAllViews()
+        val aktivni = tabManager.getActiveTab()?.id
+        for (tab in tabManager.getAllTabs()) {
+            val ovoj = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                isSelected = tab.id == aktivni; isFocusable = true; isClickable = true
+                setBackgroundResource(R.drawable.splet_zavihek); setPadding(dp(12), 0, dp(4), 0)
+                setOnClickListener { tabManager.switchTab(tab.id) }
+            }
+            val naslov = if (TvSite.isBrowserHome(tab.url)) getString(R.string.splet_nov_zavihek)
+                else tab.title.ifBlank { tab.url }.take(24)
+            ovoj.addView(TextView(this).apply {
+                text = "🌐  $naslov"; setTextColor(Color.parseColor("#F2F7F5")); textSize = 13f; maxLines = 1
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            ovoj.addView(Button(this).apply {
+                text = "×"; textSize = 16f; setTextColor(Color.parseColor("#C5D3CF")); contentDescription = getString(R.string.ui_close)
+                setBackgroundResource(R.drawable.splet_chrome_gumb); isFocusable = true; minWidth = 0; minHeight = 0
+                setOnClickListener { tabManager.closeTab(this@MainActivity, tab.id) }
+            }, LinearLayout.LayoutParams(dp(34), dp(34)))
+            cilj.addView(ovoj, LinearLayout.LayoutParams(dp(210), dp(44)).apply { marginEnd = dp(4) })
+        }
+        (btnAddTab.parent as? ViewGroup)?.removeView(btnAddTab)
+        btnAddTab.visibility = View.VISIBLE; btnAddTab.setBackgroundResource(R.drawable.splet_chrome_gumb)
+        cilj.addView(btnAddTab, LinearLayout.LayoutParams(dp(44), dp(44)))
+    }
+
+    private fun osveziSpletnoStanje() {
+        val povezano = si.safeer.tv.cast.CastReceiverService.povezan
+        spletLinkZnacka?.text = getString(if (povezano) R.string.splet_link_povezano else R.string.splet_link_ni_povezano)
+        val blokiranih = AdBlockEngine.blockedAdsCount.get() + ThreatBlockEngine.totalBlockedThreats.get()
+        spletScit?.text = if (spletSirokiChrome) getString(R.string.splet_scit, blokiranih) else "♢"
+    }
+
+    /** Poslje zacetni strani jezik, obstojeci iskalnik in isti vir bliznjic kot Safeer OS. */
+    private fun inicSpletnoStran(wv: ChromiumEngineView) {
+        if (!SpletMostPravila.jeDovoljenIzvor(wv.url)) return
+        val naprava = if (Build.VERSION.SDK_INT >= 24) resources.configuration.locales[0].toLanguageTag()
+            else {
+                @Suppress("DEPRECATION")
+                resources.configuration.locale.toLanguageTag()
+            }
+        val jezik = SpletMostPravila.izberiJezik(JezikVmesnika.izbrani(this), naprava)
+        val portali = org.json.JSONArray()
+        for (a in si.safeer.tv.os.SpletneAplikacije.seznam(this)) {
+            portali.put(JSONObject().put("title", a.ime).put("url", a.url))
+        }
+        val stanje = JSONObject()
+            .put("language", jezik)
+            .put("engine", SmartOmnibox.iskalnik(this).oznaka)
+            .put("portals", portali)
+            .put("tv", isTelevisionDevice())
+        wv.evaluateJavascript("window.safeerSpletInit&&window.safeerSpletInit(${stanje})", null)
+    }
+
+    private fun pokaziDodajBliznjico(wv: ChromiumEngineView) {
+        if (!SpletMostPravila.jeDovoljenIzvor(wv.url) || isFinishing) return
+        val ime = EditText(this).apply { hint = getString(R.string.splet_portal_ime); isSingleLine = true }
+        val naslov = EditText(this).apply {
+            hint = getString(R.string.splet_portal_url); isSingleLine = true
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+        }
+        val vsebina = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(8), dp(22), 0)
+            addView(ime); addView(naslov)
+        }
+        val okno = AlertDialog.Builder(this)
+            .setTitle(R.string.splet_portal_naslov)
+            .setView(vsebina)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.splet_portal_dodaj, null)
+            .create()
+        okno.setOnShowListener {
+            okno.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                var url = naslov.text.toString().trim()
+                if (!url.contains("://")) url = "https://$url"
+                if (!SpletMostPravila.jeSpletniNaslov(url)) {
+                    naslov.error = getString(R.string.splet_portal_neveljaven); return@setOnClickListener
+                }
+                val prikaz = ime.text.toString().trim().ifBlank { android.net.Uri.parse(url).host.orEmpty() }
+                si.safeer.tv.os.SpletneAplikacije.dodaj(this, url, prikaz) {
+                    runOnUiThread {
+                        if (!isDestroyed && SpletMostPravila.jeDovoljenIzvor(wv.url)) inicSpletnoStran(wv)
+                    }
+                }
+                Toast.makeText(this, R.string.splet_portal_dodan, Toast.LENGTH_SHORT).show()
+                okno.dismiss()
+            }
+        }
+        okno.show()
+    }
+
     private fun setupTabManager() {
         tabManager = TabManager(webViewContainer) { count, activeTab ->
             btnTabCount.text = String.format(java.util.Locale.getDefault(), "%d", count)
@@ -1291,6 +1485,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     chrome.updateOmniboxDisplay(activeTab.url, wv.title)
                     updateBookmarkButton(activeTab.url)
                 }
+            }
+            if (SpletDomaca.jeSafeerOs(this)) {
+                narisiSpletneZavihke()
+                osveziSpletnoStanje()
             }
         }
     }
@@ -1425,6 +1623,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 val cleanTitle = if (pageTitle.isNotEmpty()) pageTitle else finalUrl
                 repository.addHistory(cleanTitle, finalUrl)
             }
+            if (SpletMostPravila.jeDovoljenIzvor(finalUrl)) inicSpletnoStran(wv)
+            narisiSpletneZavihke()
+        }
+
+        wv.onSpletSporocilo = { ukaz ->
+            if (tabManager.getActiveTab()?.id == tab.id && SpletMostPravila.jeDovoljenIzvor(wv.url)) {
+                when (ukaz) {
+                    is SpletMostPravila.Ukaz.Navigacija -> wv.loadUrl(ukaz.url)
+                    SpletMostPravila.Ukaz.DodajBliznjico -> pokaziDodajBliznjico(wv)
+                }
+            }
         }
 
         wv.onTitleChanged = { title ->
@@ -1432,6 +1641,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             if (tabManager.getActiveTab()?.id == tab.id) {
                 chrome.updateOmniboxDisplay(tab.url, title)
             }
+            narisiSpletneZavihke()
         }
 
         wv.onSecurityChanged = { isSecure ->
@@ -1496,7 +1706,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private fun setupOmnibox() {
         editUrl.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                omniboxContainer.setBackgroundResource(R.drawable.bg_tab_card_active)
+                omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov_fokus else R.drawable.bg_tab_card_active)
                 searchSuggestionsOverlay.visibility = View.VISIBLE
                 mobileTopBar.animate().translationY(0f).setDuration(150).start()
                 val currentUrl = tabManager.getActiveTab()?.url ?: ""
@@ -1511,7 +1721,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 // strani, ta pa ni iskalni niz in ne sodi v Googlovo storitev za predloge.
                 suggestionsListContainer.removeAllViews()
             } else {
-                omniboxContainer.setBackgroundResource(R.drawable.bg_mobile_omnibox)
+                omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov else R.drawable.bg_mobile_omnibox)
                 btnClearUrl.visibility = View.GONE
                 searchSuggestionsOverlay.visibility = View.GONE
                 val activeTab = tabManager.getActiveTab()
@@ -1722,8 +1932,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         var cleanInput = input.trim()
         if (cleanInput.isEmpty()) return
 
-        if (cleanInput.startsWith("file:///android_asset/brave_home.html", ignoreCase = true)) {
-            cleanInput = cleanInput.removePrefix("file:///android_asset/brave_home.html").trim()
+        if (TvSite.isBrowserHome(cleanInput)) {
+            cleanInput = cleanInput.substringAfter(".html", "").substringAfter('?', "").trim()
             if (cleanInput.isEmpty()) return
         }
 
@@ -1766,7 +1976,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         btnHome.setOnClickListener {
             stopPageMedia("btnHome")
-            tabManager.getActiveTab()?.webView?.loadUrl("file:///android_asset/brave_home.html")
+            tabManager.getActiveTab()?.webView?.loadUrl(SpletDomaca.naslov(this))
         }
 
         btnReload.setOnClickListener {
@@ -1793,7 +2003,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
 
         btnAddTab.setOnClickListener {
-            tabManager.createTab(this, "file:///android_asset/brave_home.html", true)
+            tabManager.createTab(this, SpletDomaca.naslov(this), true)
         }
 
         btnTabCount.setOnClickListener {
@@ -1807,7 +2017,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Tab switcher buttons
         btnNewTabInSwitcher.setOnClickListener {
             tabSwitcherOverlay.visibility = View.GONE
-            tabManager.createTab(this, "file:///android_asset/brave_home.html", true)
+            tabManager.createTab(this, SpletDomaca.naslov(this), true)
         }
 
         btnCloseTabsSwitcher.setOnClickListener {
@@ -1825,6 +2035,18 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val curUrl = activeTab.url
         if (curUrl.isEmpty() || curUrl == "about:blank" || curUrl.startsWith("file:///android_asset")) {
             Toast.makeText(this, UiText.get(R.string.ui_cannot_bookmark), Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (SpletDomaca.jeSafeerOs(this)) {
+            val naslov = activeTab.webView?.title?.takeIf { it.isNotBlank() }
+                ?: activeTab.title.ifBlank { android.net.Uri.parse(curUrl).host.orEmpty() }
+            if (si.safeer.tv.os.SpletneAplikacije.jeDodana(this, curUrl)) {
+                Toast.makeText(this, R.string.os_spletne_ze_dodana, Toast.LENGTH_SHORT).show()
+            } else {
+                si.safeer.tv.os.SpletneAplikacije.dodaj(this, curUrl, naslov)
+                Toast.makeText(this, R.string.splet_portal_dodan, Toast.LENGTH_SHORT).show()
+            }
+            updateBookmarkButton(curUrl)
             return
         }
         val isBm = repository.isBookmarked(curUrl)
@@ -1849,7 +2071,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             btnFavorite.setTextColor(getColor(R.color.text_primary))
             return
         }
-        val isBm = repository.isBookmarked(url)
+        val isBm = if (SpletDomaca.jeSafeerOs(this)) si.safeer.tv.os.SpletneAplikacije.jeDodana(this, url)
+            else repository.isBookmarked(url)
         if (isBm) {
             btnFavorite.text = "⭐"
             btnFavorite.setTextColor(Color.parseColor("#FBBF24"))
@@ -2243,7 +2466,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
 
         dialog.findViewById<LinearLayout>(R.id.rowMenuNewTab).setOnClickListener {
-            tabManager.createTab(this, "file:///android_asset/brave_home.html", true)
+            tabManager.createTab(this, SpletDomaca.naslov(this), true)
             dialog.dismiss()
             editUrl.requestFocus()
             showKeyboard()
@@ -2879,6 +3102,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         val curUrl = activeUrl()
         if (TvSite.isBrowserHome(curUrl)) {
+            osStranskaVrstica?.let { it.aktivnaPostavka.requestFocus(); return }
             SafeerDbg.log("H220", "MainActivity.kt:back", "leave browser", JSONObject().put("url", curUrl.take(80)))
             silenceBackgroundMedia("backHome")
             koncajVrniSe()
@@ -2887,6 +3111,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         val profile = SiteProfileResolver.fromUrl(curUrl)
         if (profile.handleBack(this)) return
+
+        osStranskaVrstica?.let { it.aktivnaPostavka.requestFocus(); return }
 
         super.onBackPressed()
     }

@@ -65,7 +65,6 @@ class TabManager(
         private const val PRAZNA = "about:blank"
         /** V tem casu drugo sesutje iste strani stejemo za ponovitev. */
         private const val PONOVITEV_MS = 60_000L
-        private const val DOMACA = "file:///android_asset/brave_home.html"
         private const val ZAMRZNI_TV_MS = 2 * 60 * 1000L
         private const val ZAMRZNI_DRUGO_MS = 5 * 60 * 1000L
         private const val STANJE_ZAMRZNITVE_JS = """(function(){try{
@@ -428,7 +427,7 @@ class TabManager(
         val prej = zadnjaSmrt[tab.id]
         val ponovitev = prej != null && prej.first == naslov && (zdaj - prej.second) < PONOVITEV_MS
         zadnjaSmrt[tab.id] = naslov to zdaj
-        val zaNalozit = if (ponovitev) DOMACA else naslov
+        val zaNalozit = if (ponovitev) SpletDomaca.naslov(container.context) else naslov
 
         Log.w(TAG, "Izrisovalnik je umrl (${if (sesul) "sesutje" else "sistem je sprostil pomnilnik"}); " +
             (if (ponovitev) "stran se je sesula dvakrat, odpiram domaco stran: "
@@ -473,7 +472,7 @@ class TabManager(
         if (prejsnjiId == tabId) prejsnjiId = null
 
         if (tabs.isEmpty()) {
-            createTab(context, "https://www.google.com", true)
+            createTab(context, SpletDomaca.naslov(context), true)
         } else if (activeTabId == tabId) {
             val nextIdx = if (idx < tabs.size) idx else tabs.size - 1
             switchTab(tabs[nextIdx].id)
@@ -492,7 +491,7 @@ class TabManager(
         nedavni.clear()
         prejsnjiId = null
         container.removeAllViews()
-        createTab(context, "https://www.google.com", true)
+        createTab(context, SpletDomaca.naslov(context), true)
     }
 
     fun getActiveTab(): TabModel? {

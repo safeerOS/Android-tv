@@ -31,13 +31,20 @@ object Brskalnik {
             .putExtra("iz_safeer_os", c.packageName)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-    /** Spletna aplikacija v svojem oknu brskalnika (kot s kartice na domacem zaslonu). */
+    /** Spletna aplikacija se odpre v istem razdelku Splet; lupina Safeer OS ostane vidna. */
     fun spletnaAplikacija(c: Context, url: String, ime: String): Intent =
-        mobilniNaslov(c, url) ?: namera(c).putExtra("spletna_aplikacija", url).putExtra("aplikacija_ime", ime)
+        mobilniNaslov(c, url) ?: namera(c).apply {
+            action = Intent.ACTION_VIEW
+            data = Uri.parse(url)
+            putExtra("aplikacija_ime", ime)
+        }
 
     /** Uporabnikov vir glasbe ali videa: kot spletna aplikacija, zvok pa ob tipki Domov igra naprej. */
     fun medijskaStran(c: Context, url: String, ime: String): Intent =
-        izMedijev(spletnaAplikacija(c, url, ime).putExtra("zvok_v_ozadju", true))
+        izMedijev(mobilniNaslov(c, url) ?: namera(c)
+            .putExtra("spletna_aplikacija", url)
+            .putExtra("aplikacija_ime", ime)
+            .putExtra("zvok_v_ozadju", true))
 
     /** Brskalnik, odprt iz Safeer Media: ob izhodu se vrne v Safeer Media, ne na zacetni zaslon. */
     fun izMedijev(i: Intent): Intent = i.putExtra("os_ohrani_mesto", true)

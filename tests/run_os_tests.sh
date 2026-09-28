@@ -20,6 +20,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/JezikiVsebine.kt" \
     "$SRC/si/safeer/tv/os/ZapiskiShramba.kt" \
     "$SRC/si/safeer/tv/os/VarnaSlika.kt" \
+    "$SRC/si/safeer/tv/SpletMostPravila.kt" \
     "$SRC/si/safeer/tv/tv/PredajaStrani.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
     "$TEST_DIR/GalerijaPravilaTest.kt" \
@@ -27,6 +28,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PredajaStraniTest.kt" \
     "$TEST_DIR/JezikiVsebineTest.kt" \
     "$TEST_DIR/ZapiskiShrambaTest.kt" \
+    "$TEST_DIR/SpletMostPravilaTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -35,4 +37,5 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.VarnaSlikaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.PredajaStraniTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.JezikiVsebineTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZapiskiShrambaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.SpletMostPravilaTestKt
 python3 "$TEST_DIR/preveri_tv_ikone.py"

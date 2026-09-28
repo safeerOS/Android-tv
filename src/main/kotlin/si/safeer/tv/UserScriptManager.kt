@@ -714,7 +714,7 @@ object UserScriptManager {
             var host = (location.hostname || '').toLowerCase();
             var href = (location.href || '').toLowerCase();
             if (href.indexOf('youtube.com/tv') !== -1) return;
-            if (href.indexOf('brave_home') !== -1) return;
+            if (href.indexOf('brave_home') !== -1 || href.indexOf('/splet/splet.html') !== -1) return;
             window._safeer_force_unmute = true;
 
             function lockEl(v) {
@@ -1127,7 +1127,8 @@ object UserScriptManager {
     """
 
     private fun isBrowserHome(url: String?): Boolean {
-        return (url ?: "").contains("brave_home", ignoreCase = true)
+        val u = url ?: ""
+        return u.contains("brave_home", ignoreCase = true) || u.contains("/splet/splet.html", ignoreCase = true)
     }
 
     fun isGoogleAuthUrl(url: String?): Boolean {
@@ -1333,7 +1334,7 @@ object UserScriptManager {
                     if ('$idStr' === 'safeer-dark-mode-style' || '$idStr' === 'safeer-cosmetic-filter') {
                         var href = (location.href || '').toLowerCase();
                         var host = (location.hostname || '').toLowerCase();
-                        if (href.indexOf('youtube.com/tv') !== -1 || host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1 || href.indexOf('brave_home') !== -1) {
+                        if (href.indexOf('youtube.com/tv') !== -1 || host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1 || href.indexOf('brave_home') !== -1 || href.indexOf('/splet/splet.html') !== -1) {
                             var existing = document.getElementById('$idStr');
                             if (existing) existing.remove();
                             return;
