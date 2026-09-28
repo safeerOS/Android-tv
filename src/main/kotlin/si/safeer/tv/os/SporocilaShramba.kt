@@ -75,6 +75,35 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
+    /**
+     * Pogovor [od] se pridruzi pogovoru [v] (ista naprava pod drugim id): sporocila se preselijo,
+     * neprebrana se sestejejo, ostane novejse zadnje sporocilo. Vrne true, ce se je kaj spremenilo.
+     */
+    fun zdruziPogovor(kanalId: String, od: String, v: String, ime: String): Boolean {
+        if (od == v) return false
+        val vsi = pogovori().filter { it.kanalId == kanalId }
+        val star = vsi.firstOrNull { it.id == od } ?: return false
+        val cilj = vsi.firstOrNull { it.id == v }
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.execSQL("UPDATE OR REPLACE sporocila SET pogovor_id=? WHERE kanal_id=? AND pogovor_id=?", arrayOf(v, kanalId, od))
+            db.delete("pogovori", "id=? AND kanal_id=?", arrayOf(od, kanalId))
+            val novejsi = if (cilj == null || star.cas > cilj.cas) star else cilj
+            db.insertWithOnConflict("pogovori", null, ContentValues().apply {
+                put("id", v); put("kanal_id", kanalId); put("oseba", v); put("ime", ime.ifBlank { cilj?.ime ?: star.ime })
+                put("zadeva", ""); put("zadnje", novejsi.zadnje); put("cas", novejsi.cas)
+                put("neprebrano", star.neprebrano + (cilj?.neprebrano ?: 0))
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        return true
+    }
+
+    fun preimenujPogovor(kanalId: String, id: String, ime: String) {
+        writableDatabase.execSQL("UPDATE pogovori SET ime=? WHERE id=? AND kanal_id=?", arrayOf(ime, id, kanalId))
+    }
+
     fun oznaciPrebrano(kanalId: String, pogovorId: String) {
         writableDatabase.execSQL("UPDATE pogovori SET neprebrano=0 WHERE id=? AND kanal_id=?", arrayOf(pogovorId, kanalId))
     }
