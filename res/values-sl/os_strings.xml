@@ -450,4 +450,9 @@
     <string name="os_zaslon_ni_vec">Izbrana naprava ni več povezana. Izberi drug zaslon.</string>
     <string name="os_zaslon_nacin_predvajalnik">Predvajalnik · OK predvajaj/pavza · ◀ ▶ previj 10 s (drži za hitreje) · ▲ ▼ pokaže pas · Meni odpre meni · drži Nazaj za izhod</string>
     <string name="os_zaslon_meni_predvajalnik">Upravljaj kot predvajalnik</string>
+    <string name="os_galerija_danes">Danes</string>
+    <string name="os_galerija_vceraj">Včeraj</string>
+    <string name="os_galerija_brez_datuma">Brez datuma</string>
+    <string name="os_galerija_pokazi_mrezo">Pokaži mrežo</string>
+    <string name="os_galerija_pokazi_seznam">Pokaži seznam</string>
 </resources>

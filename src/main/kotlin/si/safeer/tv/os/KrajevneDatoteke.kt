@@ -73,23 +73,30 @@ object KrajevneDatoteke {
         context.contentResolver.query(zbirkaUri(oznaka), arrayOf(MediaStore.MediaColumns._ID), null, null, null)?.use { it.count } ?: 0
     } catch (e: Throwable) { Log.w(TAG, "Stetja ni bilo mogoce narediti: ${e.message}"); 0 }
 
-    /** Vsebina zbirke: datoteke po abecedi, najvec [NAJVEC]. Prazna imena in mape brez datotek izpustimo. */
+    /** Vsebina zbirke: najnovejse najprej, najvec [NAJVEC]. */
     fun vsebina(context: Context, oznaka: String): List<DatotekeActivity.Vnos> {
         val vrsta = vrstaZa(oznaka)
-        val stolpci = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME,
-            MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.MIME_TYPE)
+        val stolpci = mutableListOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.MIME_TYPE, MediaStore.MediaColumns.DATE_MODIFIED)
+        // Kot Galerija: dan posnetka (datetaken, ms), ne dan zadnjega kopiranja datoteke.
+        if (vrsta == "image" || vrsta == "video") stolpci.add("datetaken")
+        if (vrsta == "video") stolpci.add(MediaStore.Video.VideoColumns.DURATION)
         val vnosi = ArrayList<DatotekeActivity.Vnos>()
         try {
-            context.contentResolver.query(zbirkaUri(oznaka), stolpci, null, null,
-                MediaStore.MediaColumns.DISPLAY_NAME + " ASC")?.use { k ->
+            context.contentResolver.query(zbirkaUri(oznaka), stolpci.toTypedArray(), null, null,
+                MediaStore.MediaColumns.DATE_MODIFIED + " DESC")?.use { k ->
                 val ci = k.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                 val cn = k.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
                 val cs = k.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                 val cm = k.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
+                val cd = k.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+                val ct = k.getColumnIndex(MediaStore.Video.VideoColumns.DURATION)
+                val cz = k.getColumnIndex("datetaken")
                 while (k.moveToNext() && vnosi.size < NAJVEC) {
                     val ime = k.getString(cn) ?: continue
                     val uri = ContentUris.withAppendedId(zbirkaUri(oznaka), k.getLong(ci))
-                    vnosi.add(DatotekeActivity.Vnos(uri.toString(), ime, vrsta, k.getLong(cs), k.getString(cm) ?: "", ""))
+                    vnosi.add(DatotekeActivity.Vnos(uri.toString(), ime, vrsta, k.getLong(cs), k.getString(cm) ?: "", "",
+                        (if (cz >= 0 && k.getLong(cz) > 0) k.getLong(cz) else k.getLong(cd) * 1000L), if (ct >= 0) k.getLong(ct) else 0L))
                 }
             }
         } catch (e: Throwable) {

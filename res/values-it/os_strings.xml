@@ -450,4 +450,9 @@
     <string name="os_zaslon_ni_vec">Il dispositivo scelto non è più collegato. Scegli un altro schermo.</string>
     <string name="os_zaslon_nacin_predvajalnik">Lettore · OK riproduci/pausa · ◀ ▶ salta 10 s (tieni premuto per andare più veloce) · ▲ ▼ mostra la barra · Menu apre il menu · tieni premuto Indietro per uscire</string>
     <string name="os_zaslon_meni_predvajalnik">Controlla come lettore</string>
+    <string name="os_galerija_danes">Oggi</string>
+    <string name="os_galerija_vceraj">Ieri</string>
+    <string name="os_galerija_brez_datuma">Data sconosciuta</string>
+    <string name="os_galerija_pokazi_mrezo">Mostra griglia</string>
+    <string name="os_galerija_pokazi_seznam">Mostra elenco</string>
 </resources>

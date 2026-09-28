@@ -16,11 +16,13 @@ trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" -J-Xmx1g \
     "$TEST_DIR/stubs/BitmapFactory.kt" \
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
+    "$SRC/si/safeer/tv/os/GalerijaPravila.kt" \
     "$SRC/si/safeer/tv/os/JezikiVsebine.kt" \
     "$SRC/si/safeer/tv/os/ZapiskiShramba.kt" \
     "$SRC/si/safeer/tv/os/VarnaSlika.kt" \
     "$SRC/si/safeer/tv/tv/PredajaStrani.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
+    "$TEST_DIR/GalerijaPravilaTest.kt" \
     "$TEST_DIR/VarnaSlikaTest.kt" \
     "$TEST_DIR/PredajaStraniTest.kt" \
     "$TEST_DIR/JezikiVsebineTest.kt" \
@@ -28,6 +30,7 @@ trap 'rm -rf "$OUT"' EXIT
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.GalerijaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.VarnaSlikaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.PredajaStraniTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.JezikiVsebineTestKt

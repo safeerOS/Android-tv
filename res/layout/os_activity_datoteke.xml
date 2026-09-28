@@ -51,6 +51,16 @@
             android:paddingBottom="6dp"
             android:textColor="@color/os_umirjeno"
             android:textSize="12sp"/>
+        <ImageButton
+            android:id="@+id/preklopPogleda"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="10dp"
+            android:padding="10dp"
+            android:background="@drawable/os_meni_postavka"
+            android:src="@drawable/os_ikona_mreza"
+            android:contentDescription="@string/os_galerija_pokazi_mrezo"
+            android:focusable="true"/>
     </LinearLayout>
 
     <!-- Iskanje po imenu v trenutni mapi (enako kot pri Aplikacijah). -->
@@ -75,18 +85,45 @@
         android:textCursorDrawable="@null"
         android:textSize="14sp"/>
 
-    <ListView
-        android:id="@+id/seznam"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="14dp"
-        android:divider="@null"
-        android:dividerHeight="4dp"
-        android:listSelector="@drawable/os_izbor_vrstice"
-        android:scrollbars="none"
-        android:fadingEdgeLength="24dp"
-        android:requiresFadingEdge="vertical"/>
+        android:layout_marginTop="14dp">
+
+        <ListView
+            android:id="@+id/seznam"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@null"
+            android:dividerHeight="4dp"
+            android:listSelector="@drawable/os_izbor_vrstice"
+            android:scrollbars="none"
+            android:fadingEdgeLength="24dp"
+            android:requiresFadingEdge="vertical"/>
+
+        <GridView
+            android:id="@+id/mreza"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:horizontalSpacing="3dp"
+            android:verticalSpacing="3dp"
+            android:stretchMode="columnWidth"
+            android:listSelector="@android:color/transparent"
+            android:scrollbars="none"
+            android:clipToPadding="false"/>
+
+        <TextView
+            android:id="@+id/sporocilo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:textColor="@color/os_umirjeno"
+            android:textSize="15sp"
+            android:lineSpacingExtra="4dp"
+            android:visibility="gone"/>
+    </FrameLayout>
 
     <!-- Namig o zadrzanem OK: brez njega je odpiranje na racunalniku skrita moznost. -->
     <TextView
@@ -98,13 +135,4 @@
         android:textSize="12sp"
         android:visibility="gone"/>
 
-    <TextView
-        android:id="@+id/sporocilo"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:textColor="@color/os_umirjeno"
-        android:textSize="15sp"
-        android:lineSpacingExtra="4dp"
-        android:visibility="gone"/>
 </LinearLayout>

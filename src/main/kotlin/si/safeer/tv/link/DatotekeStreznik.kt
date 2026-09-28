@@ -6,11 +6,13 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Size
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.InputStream
 import java.io.OutputStream
+import java.io.ByteArrayOutputStream
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
@@ -88,18 +90,23 @@ object DatotekeStreznik {
         } else {
             val zbirka = mapa.removePrefix(PREDPONA)
             val uri = zbirkaUri(zbirka) ?: return o.put("items", JSONArray()).put("shared", true)
-            val stolpci = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME,
-                MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.MIME_TYPE)
+            val stolpci = mutableListOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.MIME_TYPE, MediaStore.MediaColumns.DATE_MODIFIED)
+            if (zbirka == "video") stolpci.add(MediaStore.Video.VideoColumns.DURATION)
             try {
-                context.contentResolver.query(uri, stolpci, null, null, MediaStore.MediaColumns.DISPLAY_NAME + " ASC")?.use { k ->
+                context.contentResolver.query(uri, stolpci.toTypedArray(), null, null, MediaStore.MediaColumns.DATE_MODIFIED + " DESC")?.use { k ->
                     val ci = k.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                     val cn = k.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
                     val cs = k.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                     val cm = k.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
+                    val cd = k.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+                    val ct = k.getColumnIndex(MediaStore.Video.VideoColumns.DURATION)
                     while (k.moveToNext() && vnosi.length() < NAJVEC) {
                         val ime = k.getString(cn) ?: continue
                         vnosi.put(JSONObject().put("id", "$PREDPONA$zbirka:${k.getLong(ci)}").put("name", ime)
-                            .put("type", zbirka).put("size", k.getLong(cs)).put("mime", k.getString(cm) ?: ""))
+                            .put("type", zbirka).put("size", k.getLong(cs)).put("mime", k.getString(cm) ?: "")
+                            .put("modified", k.getLong(cd) * 1000L)
+                            .put("duration_ms", if (ct >= 0) k.getLong(ct) else 0L))
                         datotek = true
                     }
                 }
@@ -238,10 +245,12 @@ object DatotekeStreznik {
             // Zeton kot pri Controlu: glava X-Safeer-Token (predvajalnik, slike) ali ?t= (neposredna povezava).
             val zeton = glave["x-safeer-token"]
                 ?: poizvedba.split("&").firstOrNull { it.startsWith("t=") }?.substring(2)?.let { URLDecoder.decode(it, "UTF-8") }
-            if (!pot.startsWith("/d/")) { napaka(izhod, 404, "ni take poti"); return }
+            if (!pot.startsWith("/d/") && !pot.startsWith("/thumb/")) { napaka(izhod, 404, "ni take poti"); return }
             if (!zetonVelja(zeton)) { napaka(izhod, 401, "manjka ali napacen zeton"); return }
             val ctx = appContext ?: run { napaka(izhod, 503, "ni pripravljeno"); return }
-            val uri = uriIz(URLDecoder.decode(pot.substring(3), "UTF-8")) ?: run { napaka(izhod, 404, "datoteke ni"); return }
+            val palec = pot.startsWith("/thumb/")
+            val uri = uriIz(URLDecoder.decode(pot.substring(if (palec) 7 else 3), "UTF-8")) ?: run { napaka(izhod, 404, "datoteke ni"); return }
+            if (palec) { posljiSlicico(ctx, uri, deli[0], izhod); return }
             if (deli[0] == "POST") { uredi(ctx, uri, glave, vhod, izhod); return }
             val opis = try { ctx.contentResolver.openAssetFileDescriptor(uri, "r") } catch (_: Throwable) { null }
                 ?: run { napaka(izhod, 404, "datoteke ni"); return }
@@ -300,6 +309,29 @@ object DatotekeStreznik {
             val n = vir.skip(ostane)
             if (n <= 0) { if (vir.read() < 0) return; ostane-- } else ostane -= n
         }
+    }
+
+    /** Majhna JPEG slicica za druge Safeer naprave; polne fotografije nikoli ne dekodiramo. */
+    private fun posljiSlicico(ctx: Context, uri: Uri, metoda: String, izhod: OutputStream) {
+        val mime = ctx.contentResolver.getType(uri).orEmpty()
+        val video = mime.startsWith("video/")
+        val id = uri.lastPathSegment?.toLongOrNull()
+        val bitmap = try {
+            if (Build.VERSION.SDK_INT >= 29) ctx.contentResolver.loadThumbnail(uri, Size(256, 256), null)
+            else if (id != null && video) MediaStore.Video.Thumbnails.getThumbnail(ctx.contentResolver, id,
+                MediaStore.Video.Thumbnails.MINI_KIND, null)
+            else if (id != null) MediaStore.Images.Thumbnails.getThumbnail(ctx.contentResolver, id,
+                MediaStore.Images.Thumbnails.MINI_KIND, null)
+            else null
+        } catch (_: Throwable) { null } ?: run { napaka(izhod, 404, "slicice ni"); return }
+        val b = ByteArrayOutputStream()
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 78, b)
+        bitmap.recycle()
+        val telo = b.toByteArray()
+        izhod.write(("HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: ${telo.size}\r\n" +
+            "Cache-Control: private, max-age=3600\r\nConnection: close\r\n\r\n").toByteArray())
+        if (metoda != "HEAD") izhod.write(telo)
+        izhod.flush()
     }
 
     private fun napaka(izhod: OutputStream, koda: Int, besedilo: String) {
