@@ -172,20 +172,11 @@ class HubStoritev : Service() {
     }
 
     private fun pripraviKanal() {
-        val upravitelj = getSystemService(NotificationManager::class.java) ?: return
-        if (upravitelj.getNotificationChannel(KANAL) != null) return
-        val kanal = NotificationChannel(
-            KANAL,
-            getString(R.string.hub_obvestilo_naslov),
-            NotificationManager.IMPORTANCE_LOW
-        )
-        kanal.description = getString(R.string.hub_obvestilo_besedilo)
-        kanal.setShowBadge(false)
-        upravitelj.createNotificationChannel(kanal)
+        si.safeer.tv.TihaObvestila.kanal(this)
     }
 
     private fun obvestilo(): Notification {
-        val gradnik = Notification.Builder(this, KANAL)
+        val gradnik = Notification.Builder(this, si.safeer.tv.TihaObvestila.kanal(this))
         return gradnik
             .setContentTitle(getString(R.string.hub_obvestilo_naslov))
             .setContentText(getString(R.string.hub_obvestilo_besedilo))

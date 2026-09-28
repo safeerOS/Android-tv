@@ -389,16 +389,11 @@ class ScitStoritev : VpnService() {
     // ------------------------------------------------------------------ obvestilo
 
     private fun pripraviKanal() {
-        val u = getSystemService(NotificationManager::class.java) ?: return
-        if (u.getNotificationChannel(KANAL) != null) return
-        val k = NotificationChannel(KANAL, getString(R.string.scit_ime), NotificationManager.IMPORTANCE_LOW)
-        k.description = getString(R.string.scit_obvestilo_opis)
-        k.setShowBadge(false)
-        u.createNotificationChannel(k)
+        si.safeer.tv.TihaObvestila.kanal(this)
     }
 
     private fun obvestilo(): Notification {
-        val g = Notification.Builder(this, KANAL)
+        val g = Notification.Builder(this, si.safeer.tv.TihaObvestila.kanal(this))
         g.setContentTitle(getString(R.string.scit_ime))
             .setContentText(getString(R.string.scit_obvestilo_besedilo, blokiranih.get()))
             .setSmallIcon(R.mipmap.ic_launcher)

@@ -1021,23 +1021,13 @@ class CastReceiverService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createNotificationChannel() {
-        run {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Safeer Cast Receiver",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Sprejemanje lokalnih cast ukazov za TV predvajalnik"
-            }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager?.createNotificationChannel(channel)
-        }
+        si.safeer.tv.TihaObvestila.kanal(this)
     }
 
     private fun buildForegroundNotification(): Notification {
-        val builder = Notification.Builder(this, CHANNEL_ID)
+        val builder = Notification.Builder(this, si.safeer.tv.TihaObvestila.kanal(this))
         return builder
-            .setContentTitle("Safeer Cast Receiver")
+            .setContentTitle(getString(si.safeer.tv.R.string.obvestila_ozadje_kanal))
             .setContentText(getString(si.safeer.tv.R.string.ui_cast_ready))
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setOngoing(true)
