@@ -227,7 +227,7 @@ class SporocilaActivity : OsActivity() {
             val cip = TextView(this).apply {
                 text = (if (k.vrsta == "email") "✉ " else "💬 ") + k.ime + (if (napaka) "  ⚠" else "")
                 setTextColor(getColor(if (napaka) R.color.os_opozorilo else R.color.os_besedilo)); textSize = 13f
-                isFocusable = true; isClickable = true; maxLines = 1
+                isFocusable = true; isClickable = true; maxLines = 1; tag = "kanal|" + k.id
                 setPadding(dp(14), dp(8), dp(14), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 contentDescription = k.ime + " " + besediloStanja(k.stanje)
                 setOnClickListener { urediKanal(k) }
@@ -248,6 +248,7 @@ class SporocilaActivity : OsActivity() {
             val oznacen = izbran?.id == p.id && izbran?.kanalId == p.kanalId
             val kartica = LinearLayout(this).apply {
                 id = View.generateViewId(); orientation = LinearLayout.VERTICAL
+                tag = p.kanalId + "|" + p.id
                 isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_ploscica_app)
                 isSelected = oznacen
                 setPadding(dp(16), dp(12), dp(16), dp(12)); setOnClickListener { pokaziPogovor(p) }
@@ -330,7 +331,7 @@ class SporocilaActivity : OsActivity() {
             })
             sporocilaSeznam.addView(vrstica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
         }
-        sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN); odgovor.requestFocus() }
+        sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN) }
     }
 
     private fun kratekCas(iso: String): String {
@@ -354,11 +355,17 @@ class SporocilaActivity : OsActivity() {
 
     private fun osveziPrikaz() {
         val fokus = currentFocus
+        // Seznam se na novo izrise: z daljincem mora fokus ostati na istem pogovoru, ne skociti drugam.
+        val fokusKljuc = fokus?.tag as? String
+        val prej = izbran
+        izbran = prej?.let { i -> shramba.pogovori().firstOrNull { it.id == i.id && it.kanalId == i.kanalId } }
+        if (prej != null && izbran == null) { narisiKanale(); pokaziPogovor(null); return }   // kanal odstranjen
         narisiKanale()
-        izbran = izbran?.let { i -> shramba.pogovori().firstOrNull { it.id == i.id && it.kanalId == i.kanalId } }
         narisiSeznam()
         if (izbran != null) narisiSporocila()
         if (fokus == odgovor) odgovor.requestFocus()
+        else if (fokusKljuc != null)
+            (seznam.findViewWithTag<View>(fokusKljuc) ?: kanaliVrsta.findViewWithTag(fokusKljuc))?.requestFocus()
     }
 
     private fun poslji() {
