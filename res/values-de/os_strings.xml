@@ -455,4 +455,34 @@
     <string name="os_galerija_brez_datuma">Unbekanntes Datum</string>
     <string name="os_galerija_pokazi_mrezo">Raster anzeigen</string>
     <string name="os_galerija_pokazi_seznam">Liste anzeigen</string>
+    <!-- Sporocila -->
+    <string name="os_meni_sporocila">Nachrichten</string>
+    <string name="os_spor_opis">E-Mail und Chats an einem Ort</string>
+    <string name="os_spor_dodaj">Kanal hinzufügen</string>
+    <string name="os_spor_prazno">Noch keine Kanäle. Füge ein E-Mail-Konto oder Chatwoot hinzu.</string>
+    <string name="os_spor_ni_pogovorov">Noch keine Nachrichten</string>
+    <string name="os_spor_izberi">Unterhaltung wählen</string>
+    <string name="os_spor_odgovor">Antwort schreiben…</string>
+    <string name="os_spor_poslji">Senden</string>
+    <string name="os_spor_nazaj">Zurück</string>
+    <string name="os_spor_eposta">E-Mail</string>
+    <string name="os_spor_chatwoot">Chatwoot</string>
+    <string name="os_spor_naslov">E-Mail-Adresse</string>
+    <string name="os_spor_geslo">Passwort</string>
+    <string name="os_spor_geslo_aplikacije">Verwende ein App-Passwort, nicht dein Hauptpasswort.</string>
+    <string name="os_spor_oauth">Dieser Anbieter verlangt eine OAuth-Anmeldung, die noch nicht unterstützt wird. Verwende eine andere Adresse.</string>
+    <string name="os_spor_imap">IMAP-Server</string>
+    <string name="os_spor_smtp">SMTP-Server</string>
+    <string name="os_spor_url">Chatwoot-Adresse (https://…)</string>
+    <string name="os_spor_racun">Konto-ID</string>
+    <string name="os_spor_zeton">Zugriffstoken</string>
+    <string name="os_spor_povezujem">Verbinde…</string>
+    <string name="os_spor_napaka_geslo">Passwort fehlt. Bitte erneut eingeben.</string>
+    <string name="os_spor_napaka_prijava">Anmeldung fehlgeschlagen. Prüfe Adresse und Passwort.</string>
+    <string name="os_spor_napaka_omrezje">Server nicht erreichbar.</string>
+    <string name="os_spor_napaka">Fehler</string>
+    <string name="os_spor_novo_geslo">Neues Passwort speichern</string>
+    <string name="os_spor_odstrani">Kanal entfernen</string>
+    <string name="os_spor_ni_poslano">Nachricht wurde nicht gesendet.</string>
+    <string name="os_spor_https">Adresse muss mit https:// beginnen</string>
 </resources>

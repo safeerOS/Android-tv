@@ -455,4 +455,34 @@
     <string name="os_galerija_brez_datuma">Data sconosciuta</string>
     <string name="os_galerija_pokazi_mrezo">Mostra griglia</string>
     <string name="os_galerija_pokazi_seznam">Mostra elenco</string>
+    <!-- Sporocila -->
+    <string name="os_meni_sporocila">Messaggi</string>
+    <string name="os_spor_opis">E-mail e chat in un unico posto</string>
+    <string name="os_spor_dodaj">Aggiungi canale</string>
+    <string name="os_spor_prazno">Ancora nessun canale. Aggiungi un account e-mail o Chatwoot.</string>
+    <string name="os_spor_ni_pogovorov">Ancora nessun messaggio</string>
+    <string name="os_spor_izberi">Scegli una conversazione</string>
+    <string name="os_spor_odgovor">Scrivi una risposta…</string>
+    <string name="os_spor_poslji">Invia</string>
+    <string name="os_spor_nazaj">Indietro</string>
+    <string name="os_spor_eposta">E-mail</string>
+    <string name="os_spor_chatwoot">Chatwoot</string>
+    <string name="os_spor_naslov">Indirizzo e-mail</string>
+    <string name="os_spor_geslo">Password</string>
+    <string name="os_spor_geslo_aplikacije">Usa una password per app, non la password principale.</string>
+    <string name="os_spor_oauth">Questo provider richiede l’accesso OAuth, non ancora supportato. Usa un altro indirizzo.</string>
+    <string name="os_spor_imap">Server IMAP</string>
+    <string name="os_spor_smtp">Server SMTP</string>
+    <string name="os_spor_url">Indirizzo Chatwoot (https://…)</string>
+    <string name="os_spor_racun">ID account</string>
+    <string name="os_spor_zeton">Token di accesso</string>
+    <string name="os_spor_povezujem">Connessione…</string>
+    <string name="os_spor_napaka_geslo">Password mancante. Inseriscila di nuovo.</string>
+    <string name="os_spor_napaka_prijava">Accesso non riuscito. Controlla indirizzo e password.</string>
+    <string name="os_spor_napaka_omrezje">Server non raggiungibile.</string>
+    <string name="os_spor_napaka">Errore</string>
+    <string name="os_spor_novo_geslo">Salva nuova password</string>
+    <string name="os_spor_odstrani">Rimuovi canale</string>
+    <string name="os_spor_ni_poslano">Il messaggio non è stato inviato.</string>
+    <string name="os_spor_https">L’indirizzo deve iniziare con https://</string>
 </resources>

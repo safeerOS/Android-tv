@@ -26,7 +26,7 @@ class StranskaVrstica private constructor(
     val aktivna: Razdelek
 ) : LinearLayout(dejavnost), ViewTreeObserver.OnGlobalFocusChangeListener {
 
-    enum class Razdelek { DOMOV, MEDIJI, NAPRAVE, PROGRAMI, DATOTEKE, SPLET, ZAPISKI, NASTAVITVE }
+    enum class Razdelek { DOMOV, MEDIJI, NAPRAVE, SPOROCILA, PROGRAMI, DATOTEKE, SPLET, ZAPISKI, NASTAVITVE }
 
     private val meni = LinearLayout(dejavnost)
     private val besedila = ArrayList<View>()
@@ -117,6 +117,7 @@ class StranskaVrstica private constructor(
         dodaj(Razdelek.DOMOV, R.drawable.os_ikona_domov, R.string.os_meni_domov)
         dodaj(Razdelek.MEDIJI, R.drawable.os_ikona_glasba, R.string.os_mediji_kartica)
         dodaj(Razdelek.NAPRAVE, R.drawable.os_ikona_link, R.string.os_meni_naprave)
+        dodaj(Razdelek.SPOROCILA, R.drawable.os_ikona_sporocila, R.string.os_meni_sporocila)
         dodaj(Razdelek.PROGRAMI, R.drawable.os_ikona_aplikacije, R.string.os_meni_aplikacije)
         dodaj(Razdelek.DATOTEKE, R.drawable.os_ikona_datoteke, R.string.os_meni_datoteke)
         dodaj(Razdelek.SPLET, R.drawable.os_ikona_splet, R.string.os_meni_splet)
@@ -173,6 +174,7 @@ class StranskaVrstica private constructor(
             Razdelek.DOMOV -> Intent(dejavnost, DomovActivity::class.java)
             Razdelek.MEDIJI -> GlasbaStoritev.namenKartice(dejavnost)
             Razdelek.NAPRAVE -> Intent(dejavnost, NapraveActivity::class.java)
+            Razdelek.SPOROCILA -> Intent(dejavnost, SporocilaActivity::class.java)
             Razdelek.PROGRAMI -> Intent(dejavnost, AplikacijeHostaActivity::class.java)
                 .putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse")
             Razdelek.DATOTEKE -> Intent(dejavnost, DatotekeActivity::class.java)

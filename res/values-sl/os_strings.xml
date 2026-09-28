@@ -455,4 +455,34 @@
     <string name="os_galerija_brez_datuma">Brez datuma</string>
     <string name="os_galerija_pokazi_mrezo">Pokaži mrežo</string>
     <string name="os_galerija_pokazi_seznam">Pokaži seznam</string>
+    <!-- Sporocila -->
+    <string name="os_meni_sporocila">Sporočila</string>
+    <string name="os_spor_opis">E-pošta in klepeti na enem mestu</string>
+    <string name="os_spor_dodaj">Dodaj kanal</string>
+    <string name="os_spor_prazno">Še ni kanalov. Dodaj e-poštni račun ali Chatwoot.</string>
+    <string name="os_spor_ni_pogovorov">Še ni sporočil</string>
+    <string name="os_spor_izberi">Izberi pogovor</string>
+    <string name="os_spor_odgovor">Napiši odgovor…</string>
+    <string name="os_spor_poslji">Pošlji</string>
+    <string name="os_spor_nazaj">Nazaj</string>
+    <string name="os_spor_eposta">E-pošta</string>
+    <string name="os_spor_chatwoot">Chatwoot</string>
+    <string name="os_spor_naslov">E-poštni naslov</string>
+    <string name="os_spor_geslo">Geslo</string>
+    <string name="os_spor_geslo_aplikacije">Uporabi geslo za aplikacije, ne glavnega gesla.</string>
+    <string name="os_spor_oauth">Ta ponudnik zahteva prijavo OAuth, ki je še ni. Uporabi drug naslov.</string>
+    <string name="os_spor_imap">Strežnik IMAP</string>
+    <string name="os_spor_smtp">Strežnik SMTP</string>
+    <string name="os_spor_url">Naslov Chatwoot (https://…)</string>
+    <string name="os_spor_racun">ID računa</string>
+    <string name="os_spor_zeton">Žeton za dostop</string>
+    <string name="os_spor_povezujem">Povezujem…</string>
+    <string name="os_spor_napaka_geslo">Manjka geslo. Vnesi ga znova.</string>
+    <string name="os_spor_napaka_prijava">Prijava ni uspela. Preveri naslov in geslo.</string>
+    <string name="os_spor_napaka_omrezje">Strežnik ni dosegljiv.</string>
+    <string name="os_spor_napaka">Napaka</string>
+    <string name="os_spor_novo_geslo">Shrani novo geslo</string>
+    <string name="os_spor_odstrani">Odstrani kanal</string>
+    <string name="os_spor_ni_poslano">Sporočilo ni bilo poslano.</string>
+    <string name="os_spor_https">Naslov se mora začeti s https://</string>
 </resources>

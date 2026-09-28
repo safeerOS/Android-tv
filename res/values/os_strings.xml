@@ -456,4 +456,34 @@
     <string name="os_galerija_brez_datuma">Unknown date</string>
     <string name="os_galerija_pokazi_mrezo">Show grid</string>
     <string name="os_galerija_pokazi_seznam">Show list</string>
+    <!-- Sporocila -->
+    <string name="os_meni_sporocila">Messages</string>
+    <string name="os_spor_opis">Email and chats in one place</string>
+    <string name="os_spor_dodaj">Add channel</string>
+    <string name="os_spor_prazno">No channels yet. Add an email account or Chatwoot.</string>
+    <string name="os_spor_ni_pogovorov">No messages yet</string>
+    <string name="os_spor_izberi">Choose a conversation</string>
+    <string name="os_spor_odgovor">Write a reply…</string>
+    <string name="os_spor_poslji">Send</string>
+    <string name="os_spor_nazaj">Back</string>
+    <string name="os_spor_eposta">Email</string>
+    <string name="os_spor_chatwoot">Chatwoot</string>
+    <string name="os_spor_naslov">Email address</string>
+    <string name="os_spor_geslo">Password</string>
+    <string name="os_spor_geslo_aplikacije">Use an app password, not your main password.</string>
+    <string name="os_spor_oauth">This provider requires OAuth sign-in, which is not supported yet. Use another address.</string>
+    <string name="os_spor_imap">IMAP server</string>
+    <string name="os_spor_smtp">SMTP server</string>
+    <string name="os_spor_url">Chatwoot address (https://…)</string>
+    <string name="os_spor_racun">Account ID</string>
+    <string name="os_spor_zeton">Access token</string>
+    <string name="os_spor_povezujem">Connecting…</string>
+    <string name="os_spor_napaka_geslo">Password missing. Enter it again.</string>
+    <string name="os_spor_napaka_prijava">Sign-in failed. Check the address and password.</string>
+    <string name="os_spor_napaka_omrezje">Server is not reachable.</string>
+    <string name="os_spor_napaka">Error</string>
+    <string name="os_spor_novo_geslo">Save new password</string>
+    <string name="os_spor_odstrani">Remove channel</string>
+    <string name="os_spor_ni_poslano">Message was not sent.</string>
+    <string name="os_spor_https">Address must start with https://</string>
 </resources>
