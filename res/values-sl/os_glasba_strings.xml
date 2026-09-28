@@ -107,6 +107,7 @@
     <string name="os_media_stevilo_streznikov">Strežniki: %1$d</string>
     <string name="os_media_prilj_radio">Priljubljene postaje</string>
     <string name="os_media_v_zivo">V živo</string>
+    <string name="os_media_oznaka_v_zivo">V živo</string>
     <string name="os_media_pomoc_izberi">Izberi</string>
     <string name="os_media_pomoc_nazaj">Nazaj</string>
     <string name="os_media_pomoc_meni">Meni</string>

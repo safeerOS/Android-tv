@@ -107,6 +107,7 @@
     <string name="os_media_stevilo_streznikov">Server: %1$d</string>
     <string name="os_media_prilj_radio">Stazioni preferite</string>
     <string name="os_media_v_zivo">In diretta</string>
+    <string name="os_media_oznaka_v_zivo">In diretta</string>
     <string name="os_media_pomoc_izberi">Scegli</string>
     <string name="os_media_pomoc_nazaj">Indietro</string>
     <string name="os_media_pomoc_meni">Menu</string>

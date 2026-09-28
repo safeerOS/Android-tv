@@ -67,7 +67,8 @@ class GlasbaActivity : OsActivity() {
     private data class Podatki(val naslov: String, val skladbe: List<Jamendo.Skladba>, val video: Boolean = false)
     private data class Kartica(val naslov: String, val podnaslov: String, val slika: String, val klik: (View) -> Unit,
                                val dolgo: ((View) -> Unit)? = null, val ikona: Int = R.drawable.os_ikona_glasba,
-                               val oznaka: String = "", val kakovost: String = "", val ocena: String = "")
+                               val oznaka: String = "", val kakovost: String = "", val ocena: String = "",
+                               val tvId: String = "")
 
     private val delavec = Executors.newFixedThreadPool(4)
     // Omrezno iskanje ima lasten omejen pool. Prejsnje iskanje preklicemo, da pocasni
@@ -78,6 +79,8 @@ class GlasbaActivity : OsActivity() {
     private val slikeVTeKu = ConcurrentHashMap.newKeySet<String>()
     /** Pogledi, ki cakajo isto naslovnico; tako ob prihodu slike ne prehodimo celotnega zaslona. */
     private val cakajoceSlike = ConcurrentHashMap<String, MutableList<WeakReference<ImageView>>>()
+    /** TV-logotipe zamenjamo v obstojecih pogledih, zato ponovna risba ne premakne D-pad fokusa. */
+    private val tvIkone = ConcurrentHashMap<String, MutableList<WeakReference<ImageView>>>()
     private val glavna = Handler(Looper.getMainLooper())
 
     private lateinit var koren: View
@@ -163,6 +166,7 @@ class GlasbaActivity : OsActivity() {
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
         iskanjeDelavec.shutdownNow()
         delavec.shutdownNow()
+        tvIkone.clear()
         super.onDestroy()
     }
 
@@ -336,6 +340,7 @@ class GlasbaActivity : OsActivity() {
                 // Kartica brez slike: ikona zmerne velikosti na sredini, ne cez vso kartico.
                 if (k.slika.isBlank()) { scaleType = ImageView.ScaleType.FIT_CENTER; val r = minOf(sirina, visina) / 4; setPadding(r, r, r, r) }
             }
+            if (k.tvId.isNotBlank()) naloziTvIkono(k.tvId, slika)
             if (plakat) {
                 addView(FrameLayout(this@GlasbaActivity).apply {
                     addView(slika, FrameLayout.LayoutParams(-1, -1))
@@ -491,6 +496,31 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /** Pokaze shranjen uradni logotip ali obris TV; vedno ostane sredinsko oblikovana ikona. */
+    private fun naloziTvIkono(id: String, v: ImageView) {
+        v.tag = "tv:$id"
+        tvIkone.computeIfAbsent(id) {
+            Collections.synchronizedList(ArrayList<WeakReference<ImageView>>())
+        }.add(WeakReference(v))
+        TvVZivo.ikona(this, id)?.let { v.setImageDrawable(it) }
+    }
+
+    /** Posodobi samo slike kartic. Postavitev in trenutno fokusiran pogled ostaneta nedotaknjena. */
+    private fun osveziTvIkone() {
+        if (isFinishing || razdelek != TV_V_ZIVO) return
+        tvIkone.forEach { (id, pogledi) ->
+            val ikona = TvVZivo.ikona(this, id) ?: return@forEach
+            synchronized(pogledi) {
+                val i = pogledi.iterator()
+                while (i.hasNext()) {
+                    val pogled = i.next().get()
+                    if (pogled == null) i.remove()
+                    else if (pogled.tag == "tv:$id") pogled.setImageDrawable(ikona)
+                }
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ razdelki
 
     private fun izberi(i: Int) {
@@ -614,7 +644,9 @@ class GlasbaActivity : OsActivity() {
         prikazanePolice[i] = podatki
         val filtrirani = podatki.map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
             .filter { it.skladbe.isNotEmpty() }
+        if (i == TV_V_ZIVO) tvIkone.clear()
         narisi(zgoraj(i) + vVrste(filtrirani), opis(i), glava = glavaRazdelka(i, podatki))
+        if (i == TV_V_ZIVO) TvVZivo.osveziIkone(this) { osveziTvIkone() }
     }
 
     private fun opis(i: Int) = when (i) {
@@ -1051,7 +1083,7 @@ class GlasbaActivity : OsActivity() {
         kat(KLJUC_GLASBA, R.drawable.os_ikona_glasba, 0xFF8FA8FF.toInt(), R.string.os_mediji_glasba, R.string.os_media_glasba_opis) { odpri(GLASBA) }
         kat(KLJUC_VIDEO, R.drawable.os_ikona_video, 0xFFFF9580.toInt(), R.string.os_glasba_video, R.string.os_media_video_opis) { odpri(VIDEO) }
         kat(KLJUC_RADIO, R.drawable.os_ikona_radio, getColor(R.color.os_mint), R.string.os_glasba_radio, R.string.os_media_radio_opis) { odpri(RADIO) }
-        kat(KLJUC_TV, R.drawable.os_ikona_video, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo, R.string.os_media_tv_opis) { odpri(TV_V_ZIVO) }
+        kat(KLJUC_TV, R.drawable.os_ikona_tv, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo, R.string.os_media_tv_opis) { odpri(TV_V_ZIVO) }
         kat(KLJUC_VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri, R.string.os_media_viri_opis) { odpri(VIRI) }
         return okvir
     }
@@ -1466,10 +1498,17 @@ class GlasbaActivity : OsActivity() {
         if (sk.mime == MedijskiViri.STRAN) Kartica(sk.naslov, sk.izvajalec, "", { odpriStran(sk.zvok, sk.naslov) }, { meni(sk, s, vrsta, seznam) }, ikona = R.drawable.os_ikona_splet)
         else {
             val oznaka = if (sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT) "▶ Video" else ""
+            val ikona = when {
+                sk.id.startsWith("tv:") -> R.drawable.os_ikona_tv
+                sk.radio -> R.drawable.os_ikona_radio
+                sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT -> R.drawable.os_ikona_video
+                else -> R.drawable.os_ikona_glasba
+            }
             Kartica(sk.naslov, sk.izvajalec, sk.slika, {
                 if (SpletniVir.jeEnota(sk)) razresiSplet(sk)
                 else s.filterNot { it.mime == MedijskiViri.STRAN }.let { p -> predvajaj(p, p.indexOf(sk)) }
-            }, { meni(sk, s, vrsta, seznam) }, oznaka = oznaka)
+            }, { meni(sk, s, vrsta, seznam) }, ikona = ikona, oznaka = oznaka,
+                tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty())
         }
     }
 
@@ -1487,12 +1526,15 @@ class GlasbaActivity : OsActivity() {
             "zdruzevanje: kandidati=${v.size}, kartice=${skupine.size}, podvojene_skupine=$podvojene, odstranjeni=${v.size - skupine.size}")
         return skupine.map { urejene ->
             val sk = urejene.first()
+            val tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty()
             val podnaslov = sk.year.takeIf { it > 0 }?.toString().orEmpty()
-            val tip = when (SpletniVir.vrstaVsebine(sk)) {
-                SpletniVir.FILM -> getString(R.string.os_media_film)
-                SpletniVir.SERIJA -> getString(R.string.os_media_serija)
-                SpletniVir.VIDEOSPOT -> getString(R.string.os_media_videospot)
-                else -> getString(R.string.os_glasba_video)
+            val tip = if (tvId.isNotBlank()) getString(R.string.os_media_oznaka_v_zivo) else {
+                when (SpletniVir.vrstaVsebine(sk)) {
+                    SpletniVir.FILM -> getString(R.string.os_media_film)
+                    SpletniVir.SERIJA -> getString(R.string.os_media_serija)
+                    SpletniVir.VIDEOSPOT -> getString(R.string.os_media_videospot)
+                    else -> getString(R.string.os_glasba_video)
+                }
             }
             val signal = (sk.naslov + " " + sk.povezava).lowercase(Locale.ROOT)
             val kakovost = when {
@@ -1505,7 +1547,9 @@ class GlasbaActivity : OsActivity() {
                 // Uporabnik vidi eno kartico. V ozadju ostanejo vse razlicice, urejene od najboljse.
                 if (SpletniVir.jeEnota(sk)) razresiSplet(sk, urejene.drop(1)) else predvajaj(listOf(sk), 0)
             }, { meni(sk, v, vrsta, seznam) }, oznaka = tip, kakovost = kakovost,
-                ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty())
+                ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty(),
+                ikona = if (tvId.isNotBlank()) R.drawable.os_ikona_tv else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_video,
+                tvId = tvId)
         }
     }
 
