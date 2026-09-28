@@ -63,11 +63,15 @@ jobs:
           KOTLINC: /tmp/kotlinc/bin/kotlinc
         run: |
           bash tests/run_hub_tests.sh
-          bash tests/run_usmerjevalnik_tests.sh
+          # org.json je na Androidu vgrajen; na JVM ga pripnemo (ista razlicica kot v Gradlu, preverjena vsota).
+          curl -fsSL -o /tmp/json.jar https://repo1.maven.org/maven2/org/json/json/20180813/json-20180813.jar
+          echo "518080049ba83181914419d11a25d9bc9833a2d729b6a6e7469fa52851356da8  /tmp/json.jar" | sha256sum -c -
+          JSON_JAR=/tmp/json.jar bash tests/run_usmerjevalnik_tests.sh
 
       - name: Tokovi Huba (zaslon, datoteke)
         env:
           KOTLINC: /tmp/kotlinc/bin/kotlinc
+          JSON_JAR: /tmp/json.jar
         run: bash tests/run_tokovi_tests.sh
 
       - name: Podpisani seznami in pravila groženj
