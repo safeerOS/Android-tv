@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # ubuntu-latest gre 19. 10.-19. 11. 2026 na 26.04; prehod preizkusimo posebej
     steps:
       - uses: actions/checkout@v7
 
