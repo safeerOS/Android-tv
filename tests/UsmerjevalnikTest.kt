@@ -1514,6 +1514,19 @@ private fun preizkusKlepeta() {
     val telefon3 = Lazni("192.168.0.30")
     u.odgovorNa(telefon3, registracija("fon1", "sender"))
     preveri("zastarelo sporocilo ne pride", telefon3.prejeto.none { it.contains("staro") })
+
+    // cakalna vrsta prezivi ponovni zagon huba (Shramba)
+    val pomnilnik = LazniPomnilnik()
+    val u1 = usmerjevalnik(pomnilnik)
+    val tvA = Lazni("192.168.0.20"); val fonA = Lazni("192.168.0.30")
+    u1.odgovorNa(tvA, registracija("tv1", "receiver")); u1.odgovorNa(fonA, registracija("fon1", "sender"))
+    u1.odklopi(fonA)
+    u1.odgovorNa(tvA, """{"id":"c8","type":"chat.send","target":"fon1","payload":{"text":"Po ponovnem zagonu ✓"}}""")
+    val u2 = usmerjevalnik(pomnilnik)
+    val tvB = Lazni("192.168.0.20"); u2.odgovorNa(tvB, registracija("tv1", "receiver"))
+    val fonB = Lazni("192.168.0.30"); u2.odgovorNa(fonB, registracija("fon1", "sender"))
+    preveri("po ponovnem zagonu huba sporocilo pride", fonB.prejeto.any { tip(it) == "chat.send" && it.contains("Po ponovnem zagonu ✓") })
+    preveriEnako("in se ne dostavi dvakrat", 0, u2.steviloCakajocihKlepetov("fon1"))
 }
 
 fun main() {
