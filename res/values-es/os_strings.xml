@@ -450,4 +450,9 @@
     <string name="os_zaslon_ni_vec">El dispositivo elegido ya no está conectado. Elige otra pantalla.</string>
     <string name="os_zaslon_nacin_predvajalnik">Reproductor · OK reproducir/pausa · ◀ ▶ saltar 10 s (mantén para ir más rápido) · ▲ ▼ muestra la barra · Menú abre el menú · mantén Atrás para salir</string>
     <string name="os_zaslon_meni_predvajalnik">Controlar como reproductor</string>
+    <string name="os_galerija_danes">Hoy</string>
+    <string name="os_galerija_vceraj">Ayer</string>
+    <string name="os_galerija_brez_datuma">Fecha desconocida</string>
+    <string name="os_galerija_pokazi_mrezo">Mostrar cuadrícula</string>
+    <string name="os_galerija_pokazi_seznam">Mostrar lista</string>
 </resources>

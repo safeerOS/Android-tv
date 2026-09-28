@@ -5,7 +5,11 @@ import si.safeer.tv.R
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.text.format.DateFormat
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -16,11 +20,18 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
+import android.widget.ImageButton
+import android.widget.FrameLayout
+import android.widget.GridView
+import android.widget.AbsListView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONObject
 import java.util.Locale
+import java.util.Date
+import java.util.concurrent.Executors
+import java.time.ZoneId
 
 /**
  * Datoteke z racunalnika: Safeer Control na racunalniku deli izbrane mape, televizor jih pregleduje
@@ -35,6 +46,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Streznik datotek na racunalniku (naslov, odtis potrdila, zeton te naprave) iz odgovora `files.list`. */
     data class Streznik(val osnova: String, val odtis: String, val zeton: String) {
         fun url(id: String): String = osnova + "/d/" + android.net.Uri.encode(id)
+        fun slicicaUrl(id: String): String = osnova + "/thumb/" + android.net.Uri.encode(id)
         fun vBundle(b: Bundle) { b.putString("s_osnova", osnova); b.putString("s_odtis", odtis); b.putString("s_zeton", zeton) }
         companion object {
             fun iz(b: Bundle?): Streznik? {
@@ -44,11 +56,15 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
     }
 
-    data class Vnos(val id: String, val ime: String, val vrsta: String, val velikost: Long, val mime: String, val pod: String = "")
+    data class Vnos(val id: String, val ime: String, val vrsta: String, val velikost: Long, val mime: String,
+                    val pod: String = "", val spremenjeno: Long = 0L, val trajanje: Long = 0L)
 
     private data class Raven(val oznaka: String, val ime: String)
+    private data class GalerijaCelica(val indeks: Int = -1, val naslov: String? = null)
 
     private lateinit var seznam: ListView
+    private lateinit var mreza: GridView
+    private lateinit var preklopPogleda: ImageButton
     private lateinit var naslov: TextView
     private lateinit var nadnaslov: TextView
     private lateinit var racunalnikZnacka: TextView
@@ -57,6 +73,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private val prilagojevalnik = Prilagojevalnik()
+    private val galerija = GalerijaPrilagojevalnik()
+    private val nalagalnikSlicic = Executors.newFixedThreadPool(2)
+    private var mrezaVklopljena = false
+    private var stolpcev = 4
 
     private var racunalnik: LinkOdjemalec.Naprava? = null
     private val pot = ArrayList<Raven>()
@@ -94,6 +114,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         setContentView(StranskaVrstica.ovij(this, R.layout.os_activity_datoteke,
             StranskaVrstica.Razdelek.DATOTEKE))
         seznam = findViewById(R.id.seznam)
+        mreza = findViewById(R.id.mreza)
+        preklopPogleda = findViewById(R.id.preklopPogleda)
         naslov = findViewById(R.id.naslov)
         nadnaslov = findViewById(R.id.nadnaslov)
         racunalnikZnacka = findViewById(R.id.racunalnik)
@@ -101,6 +123,13 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         namigDrzi = findViewById(R.id.namigDrzi)
         namigDrzi.text = getString(R.string.os_datoteke_pomoc_drzi)
         seznam.adapter = prilagojevalnik
+        mreza.adapter = galerija
+        nastaviStolpce()
+        preklopPogleda.setOnClickListener {
+            mrezaVklopljena = !mrezaVklopljena
+            shraniPogled()
+            osveziPrikaz(true)
+        }
         // Iskanje po imenu: v domaci mapi je hitro sto map, puscica dol do prave pa je dolga pot.
         iskanje = findViewById(R.id.iskanje)
         iskanje.showSoftInputOnFocus = false
@@ -110,7 +139,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             override fun afterTextChanged(s: Editable?) {
                 iskano = poenostavi(s?.toString().orEmpty().trim())
                 vidni = filtrirano()
-                prilagojevalnik.notifyDataSetChanged()
+                osveziPrikaz()
             }
         })
         iskanje.setOnKeyListener { _, koda, dogodek ->
@@ -124,11 +153,13 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         iskanje.setOnEditorActionListener { _, _, _ ->
             (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
                 ?.hideSoftInputFromWindow(iskanje.windowToken, 0)
-            if (vidni.isNotEmpty()) { seznam.requestFocus(); seznam.setSelection(0) }
+            if (vidni.isNotEmpty()) fokusNaPrviVnos()
             true
         }
         seznam.setOnItemClickListener { _, _, i, _ -> izberi(i) }
         seznam.setOnItemLongClickListener { _, _, i, _ -> moznosti(i); true }
+        mreza.setOnItemClickListener { _, _, i, _ -> galerija.indeksVnosa(i)?.let { izberi(it) } }
+        mreza.setOnItemLongClickListener { _, _, i, _ -> galerija.indeksVnosa(i)?.let { moznosti(it) }; true }
         izbiramSliko = intent.getBooleanExtra(EXTRA_IZBERI_SLIKO, false)
         // Napis v sporocilu je nalaganje takoj prepisalo, zato povemo z obvestilom: uporabnik mora
         // vedeti, zakaj se mu je odprl seznam datotek.
@@ -159,6 +190,26 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onStop() {
         link.odstrani(this)
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        nalagalnikSlicic.shutdownNow()
+        super.onDestroy()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_RUNNING_MODERATE) GalerijaSlicice.pocisti()
+    }
+
+    override fun onLowMemory() {
+        GalerijaSlicice.pocisti()
+        super.onLowMemory()
+    }
+
+    override fun onConfigurationChanged(nova: android.content.res.Configuration) {
+        super.onConfigurationChanged(nova)
+        nastaviStolpce()
     }
 
     /** Vstop: vir iz namere, edini racunalnik, krajevne datoteke (brez Linka) ali seznam virov. */
@@ -194,7 +245,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (!KrajevneDatoteke.imamoDovoljenje(this)) {
             nadnaslov.text = getString(R.string.os_krajevno_ta_tv)
             naslov.text = getString(R.string.os_krajevno_koren)
-            vnosi = emptyList(); prilagojevalnik.notifyDataSetChanged()
+            vnosi = emptyList(); mrezaVklopljena = false; osveziPrikaz()
             pokaziSporocilo(getString(R.string.os_krajevno_dovoljenje))
             try { requestPermissions(KrajevneDatoteke.dovoljenja(), ZAHTEVA_DOVOLJENJA) } catch (_: Throwable) { }
             return
@@ -215,9 +266,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             runOnUiThread {
                 if (isFinishing || !krajevni || krajevnaZbirka != zbirka) return@runOnUiThread
                 vnosi = novi
-                prilagojevalnik.notifyDataSetChanged()
+                pripraviPogledMape()
+                osveziPrikaz()
                 if (novi.isEmpty()) pokaziSporocilo(getString(R.string.os_krajevno_prazno)) else {
-                    skrijSporocilo(); seznam.requestFocus(); seznam.setSelection(0)
+                    skrijSporocilo(); fokusNaPrviVnos()
                 }
             }
         }, "safeer-os-krajevne").start()
@@ -243,7 +295,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         vnosi = listOf(Vnos(KrajevneDatoteke.KOREN, getString(R.string.os_krajevno_ta_tv), vrstaTeNaprave(), -1, "")) +
             r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, vrstaNaprave(it), -1, "",
                 pod = if (vrstaNaprave(it) == "tv") getString(R.string.os_ur_tv_vir_opis) else "") }
-        prilagojevalnik.notifyDataSetChanged()
+        mrezaVklopljena = false
+        osveziPrikaz()
         // Enaka past kot na zaslonu Naprave: "ni vklopljen" je bilo napisano tudi takrat, ko je Link
         // dejansko vklopljen, a se sele povezuje ali ga je sredisce trenutno zavrnilo - locimo to od
         // resnicno izklopljenega.
@@ -253,7 +306,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             else -> R.string.os_datoteke_ni_linka
         }))
         else skrijSporocilo()
-        seznam.requestFocus(); seznam.setSelection(0)
+        fokusNaPrviVnos()
     }
 
     /** Vrsta TE naprave za ikono prvega vira: telefon, tablica ali televizor. */
@@ -280,7 +333,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val r = racunalnik ?: return
         nalagam = true
         vnosi = emptyList()
-        prilagojevalnik.notifyDataSetChanged()
+        osveziPrikaz()
         nadnaslov.text = lepoIme(r.ime).ifBlank { getString(R.string.os_datoteke) }
         naslov.text = if (pot.isEmpty()) getString(R.string.os_datoteke_koren) else pot.joinToString(" / ") { it.ime }
         pokaziSporocilo(getString(R.string.os_datoteke_nalagam))
@@ -331,13 +384,21 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     "media:image" -> getString(R.string.os_krajevno_slike)
                     else -> v.optString("name")
                 }
-                nov.add(Vnos(id, ime, v.optString("type", "file"), v.optLong("size", -1), v.optString("mime")))
+                val surovCas = when {
+                    v.has("modified") -> v.optLong("modified")
+                    v.has("mtime") -> v.optLong("mtime")
+                    else -> v.optLong("date_modified")
+                }
+                val cas = if (surovCas in 1..99_999_999_999L) surovCas * 1000L else surovCas
+                nov.add(Vnos(id, ime, v.optString("type", "file"), v.optLong("size", -1), v.optString("mime"),
+                    spremenjeno = cas, trajanje = v.optLong("duration_ms", v.optLong("duration", 0L))))
             }
             vnosi = nov
-            prilagojevalnik.notifyDataSetChanged()
+            pripraviPogledMape()
+            osveziPrikaz()
             if (nov.isEmpty()) pokaziSporocilo(getString(R.string.os_datoteke_prazna_mapa)) else {
                 skrijSporocilo()
-                seznam.requestFocus(); seznam.setSelection(0)
+                fokusNaPrviVnos()
             }
         })
     }
@@ -616,12 +677,72 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun filtrirano(): List<Vnos> =
         if (iskano.isEmpty()) vsi else vsi.filter { poenostavi(it.ime).contains(iskano) }
 
+    private fun dp(v: Int): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(),
+        resources.displayMetrics).toInt()
+
+    private fun nastaviStolpce() {
+        stolpcev = GalerijaPravila.stolpci(resources.configuration.screenWidthDp)
+        mreza.numColumns = stolpcev
+        mreza.columnWidth = dp(100)
+        galerija.obnovi()
+    }
+
+    /** Isti vir in ista pot dobita isti kljuc tudi po ponovnem zagonu aplikacije. */
+    private fun kljucMape(): String {
+        val vir = if (krajevni) "local" else racunalnik?.id.orEmpty()
+        val mapa = if (krajevni) krajevnaZbirka else pot.lastOrNull()?.oznaka.orEmpty()
+        return "galerija_" + Integer.toHexString("$vir|$mapa".hashCode())
+    }
+
+    private fun pripraviPogledMape() {
+        if (izbiramRacunalnik) { mrezaVklopljena = false; return }
+        val p = getSharedPreferences("safeer_datoteke_pogled", MODE_PRIVATE)
+        val k = kljucMape()
+        mrezaVklopljena = if (p.contains(k)) p.getBoolean(k, false) else GalerijaPravila.jeMrezaPrivzeto(
+            listOf(krajevnaZbirka, pot.lastOrNull()?.oznaka.orEmpty(), pot.lastOrNull()?.ime.orEmpty(), naslov.text.toString()),
+            vsi.map { it.vrsta })
+    }
+
+    private fun shraniPogled() {
+        getSharedPreferences("safeer_datoteke_pogled", MODE_PRIVATE).edit()
+            .putBoolean(kljucMape(), mrezaVklopljena).apply()
+    }
+
+    private fun osveziPrikaz(fokus: Boolean = false) {
+        prilagojevalnik.notifyDataSetChanged()
+        galerija.obnovi()
+        seznam.visibility = if (mrezaVklopljena) View.GONE else View.VISIBLE
+        mreza.visibility = if (mrezaVklopljena) View.VISIBLE else View.GONE
+        preklopPogleda.visibility = if (!izbiramRacunalnik && vsi.isNotEmpty()) View.VISIBLE else View.GONE
+        preklopPogleda.setImageResource(if (mrezaVklopljena) R.drawable.os_ikona_seznam else R.drawable.os_ikona_mreza)
+        preklopPogleda.contentDescription = getString(if (mrezaVklopljena) R.string.os_galerija_pokazi_seznam else R.string.os_galerija_pokazi_mrezo)
+        if (fokus && vidni.isNotEmpty()) fokusNaPrviVnos()
+    }
+
+    private fun fokusNaPrviVnos() {
+        if (mrezaVklopljena) {
+            val i = galerija.prvaDatoteka()
+            if (i >= 0) { mreza.requestFocus(); mreza.setSelection(i) }
+        } else { seznam.requestFocus(); seznam.setSelection(0) }
+    }
+
+    private fun naslovDneva(dan: Long): String {
+        if (dan == Long.MIN_VALUE) return getString(R.string.os_galerija_brez_datuma)
+        val cona = ZoneId.systemDefault()
+        val datum = GalerijaPravila.datumIzDneva(dan) ?: return getString(R.string.os_galerija_brez_datuma)
+        val danes = java.time.LocalDate.now(cona)
+        if (datum == danes) return getString(R.string.os_galerija_danes)
+        if (datum == danes.minusDays(1)) return getString(R.string.os_galerija_vceraj)
+        val vzorec = DateFormat.getBestDateTimePattern(Locale.getDefault(), if (datum.year == danes.year) "dMMM" else "dMMMyyyy")
+        return java.text.SimpleDateFormat(vzorec, Locale.getDefault()).format(Date(datum.atStartOfDay(cona).toInstant().toEpochMilli()))
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             // Nazaj najprej pocisti iskanje: kdor je iskal, hoce nazaj celo mapo, ne raven vise.
             if (iskano.isNotEmpty()) {
                 iskanje.setText("")
-                seznam.requestFocus(); seznam.setSelection(0)
+                fokusNaPrviVnos()
                 return true
             }
             val viri = link.racunalnikiZDatotekami()
@@ -687,6 +808,86 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.findViewById<TextView>(R.id.ime).text = vnos.ime
             v.findViewById<TextView>(R.id.opis).text = opis(this@DatotekeActivity, vnos)
             return v
+        }
+    }
+
+    /** GridView dobi glavo dneva in prazna mesta do zacetka naslednje vrstice, nato kvadratne medije. */
+    private inner class GalerijaPrilagojevalnik : BaseAdapter() {
+        private var celice: List<GalerijaCelica> = emptyList()
+
+        fun obnovi() {
+            if (!::mreza.isInitialized) return
+            val cona = ZoneId.systemDefault()
+            val urejeni = vidni.indices.sortedWith(compareByDescending<Int> { vidni[it].spremenjeno }.thenBy { vidni[it].ime.lowercase() })
+            val skupine = LinkedHashMap<Long, MutableList<Int>>()
+            for (i in urejeni) skupine.getOrPut(GalerijaPravila.dan(vidni[i].spremenjeno, cona)) { ArrayList() }.add(i)
+            val nove = ArrayList<GalerijaCelica>()
+            for ((dan, elementi) in skupine) {
+                nove.add(GalerijaCelica(naslov = naslovDneva(dan)))
+                repeat((stolpcev - 1).coerceAtLeast(0)) { nove.add(GalerijaCelica()) }
+                elementi.forEach { nove.add(GalerijaCelica(indeks = it)) }
+                while (nove.size % stolpcev != 0) nove.add(GalerijaCelica())
+            }
+            celice = nove
+            notifyDataSetChanged()
+        }
+
+        fun indeksVnosa(polozaj: Int): Int? = celice.getOrNull(polozaj)?.indeks?.takeIf { it >= 0 }
+        fun prvaDatoteka(): Int = celice.indexOfFirst { it.indeks >= 0 }
+        override fun getCount(): Int = celice.size
+        override fun getItem(position: Int): Any = celice[position]
+        override fun getItemId(position: Int): Long = position.toLong()
+        override fun getViewTypeCount(): Int = 3
+        override fun getItemViewType(position: Int): Int = when {
+            celice[position].indeks >= 0 -> 2
+            celice[position].naslov != null -> 1
+            else -> 0
+        }
+        override fun isEnabled(position: Int): Boolean = celice[position].indeks >= 0
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+            val c = celice[position]
+            if (c.naslov != null) return (convertView as? TextView ?: TextView(this@DatotekeActivity).apply {
+                setTextColor(getColor(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                gravity = Gravity.CENTER_VERTICAL; typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setPadding(dp(4), 0, 0, 0)
+            }).apply { text = c.naslov; layoutParams = AbsListView.LayoutParams(-1, dp(38)) }
+            if (c.indeks < 0) return (convertView ?: View(this@DatotekeActivity)).apply {
+                isFocusable = false; layoutParams = AbsListView.LayoutParams(-1, dp(38))
+            }
+
+            val ploscica = convertView as? FrameLayout ?: FrameLayout(this@DatotekeActivity).apply {
+                setPadding(dp(2), dp(2), dp(2), dp(2)); setBackgroundResource(R.drawable.os_galerija_fokus)
+                addView(ImageView(this@DatotekeActivity).apply {
+                    id = android.R.id.icon; scaleType = ImageView.ScaleType.CENTER_CROP
+                    setBackgroundColor(Color.rgb(16, 24, 33)); isFocusable = false
+                }, FrameLayout.LayoutParams(-1, -1))
+                addView(TextView(this@DatotekeActivity).apply {
+                    id = android.R.id.text1; setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                    setBackgroundResource(R.drawable.os_galerija_znacka); gravity = Gravity.CENTER
+                    isFocusable = false
+                }, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply {
+                    leftMargin = dp(7); bottomMargin = dp(7)
+                })
+            }
+            val stranica = ((mreza.width.takeIf { it > 0 } ?: dp(stolpcev * 100)) - dp(3) * (stolpcev - 1)) / stolpcev
+            ploscica.layoutParams = AbsListView.LayoutParams(-1, stranica.coerceAtLeast(dp(72)))
+            val v = vidni[c.indeks]
+            ploscica.contentDescription = v.ime
+            val slika = ploscica.findViewById<ImageView>(android.R.id.icon)
+            val znacka = ploscica.findViewById<TextView>(android.R.id.text1)
+            slika.setImageDrawable(null)
+            slika.scaleType = if (v.vrsta == "image" || v.vrsta == "video") ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.CENTER
+            if (v.vrsta != "image" && v.vrsta != "video") slika.setImageResource(ikona(v.vrsta))
+            znacka.visibility = if (v.vrsta == "video") View.VISIBLE else View.GONE
+            znacka.text = if (v.trajanje > 0) "▶  ${GalerijaPravila.trajanje(v.trajanje)}" else "▶"
+            if (v.vrsta == "image" || v.vrsta == "video") {
+                slika.tag = "${v.id}|${v.spremenjeno}|$stranica"
+                GalerijaSlicice.nalozi(this@DatotekeActivity, v, streznik, stranica, nalagalnikSlicic) { dobljen, bitmap ->
+                    runOnUiThread { if (!isFinishing && slika.tag == dobljen && bitmap != null) slika.setImageBitmap(bitmap) }
+                }
+            } else slika.tag = null
+            return ploscica
         }
     }
 
