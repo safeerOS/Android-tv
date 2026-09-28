@@ -41,6 +41,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private lateinit var meniDatoteke: View
     private lateinit var meniGlasba: View
     private lateinit var meniNaprave: View
+    private lateinit var meniSporocila: View
     private lateinit var meniSplet: View
     private lateinit var meniZapiski: View
     private lateinit var meniNastavitve: View
@@ -84,6 +85,17 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Telefon in tablica imata svoj domaci zaslon: Nazaj, Domov v stranski vrstici in tipka Y
+        // odprejo DomovActivity, zato jih tu preusmerimo, sicer bi se odprl TV zaslon v lezecem nacinu.
+        val zaganjalnik = packageManager.getLaunchIntentForPackage(packageName)?.component
+        if (zaganjalnik != null && zaganjalnik.className.endsWith(".DomovTabletActivity")) {
+            try {
+                startActivity(Intent().setComponent(zaganjalnik)
+                    .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+            } catch (_: Throwable) { }
+            finish()
+            return
+        }
         setContentView(R.layout.os_activity_domov)
         // Safeer Link (sredisce) naj tece, kadar ga je uporabnik vklopil - tudi ce ga je Android ali
         // uporabnik (prisilna ustavitev) medtem ustavil; do zdaj se je vrnil sele ob ponovnem zagonu naprave.
@@ -99,6 +111,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         meniDatoteke = findViewById(R.id.meniDatoteke)
         meniGlasba = findViewById(R.id.meniGlasba)
         meniNaprave = findViewById(R.id.meniNaprave)
+        meniSporocila = findViewById(R.id.meniSporocila)
         meniSplet = findViewById(R.id.meniSplet)
         meniZapiski = findViewById(R.id.meniZapiski)
         meniNastavitve = findViewById(R.id.meniNastavitve)
@@ -384,6 +397,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
             else vprasajZaNacin()
         }
+        meniSporocila.setOnClickListener {
+            odpriVarno(Intent(this, SporocilaActivity::class.java), getString(R.string.os_meni_sporocila))
+        }
         meniSplet.setOnClickListener { odpriVBrskalniku(null) }
         meniZapiski.setOnClickListener {
             odpriVarno(Intent(this, ZapiskiActivity::class.java), getString(R.string.os_meni_zapiski))
@@ -392,7 +408,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
         }
 
-        val menijskePostavke = listOf(meniDomov, meniGlasba, meniNaprave, meniAplikacije,
+        val menijskePostavke = listOf(meniDomov, meniGlasba, meniNaprave, meniSporocila, meniAplikacije,
             meniDatoteke, meniSplet, meniZapiski, meniNastavitve)
         for (postavka in menijskePostavke) {
             postavka.setOnKeyListener { _, keyCode, event ->

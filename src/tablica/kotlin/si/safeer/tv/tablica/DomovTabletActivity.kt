@@ -256,12 +256,14 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         val ozko = mDomov is FrameLayout
         val mMediji = findViewById<View>(R.id.meniGlasba) ?: ustvariMenijskoPostavko(
             R.id.meniGlasba, R.drawable.os_ikona_glasba, R.string.os_mediji_kartica, ozko)
+        val mSporocila = findViewById<View>(R.id.meniSporocila) ?: ustvariMenijskoPostavko(
+            R.id.meniSporocila, R.drawable.os_ikona_sporocila, R.string.os_meni_sporocila, ozko)
         val mZapiski = findViewById<View>(R.id.meniZapiski) ?: ustvariMenijskoPostavko(
             R.id.meniZapiski, R.drawable.os_ikona_zapiski, R.string.os_meni_zapiski, ozko)
 
         // XML postavitvi sta razlicni (besedilo lezece, samo ikone pokoncno), vrstni red in fokus pa
         // sta vedno ista. Stari meniZaslon ostane skrit zaradi zdruzljivosti s prejsnjo postavitvijo.
-        val vidne = listOfNotNull(mDomov, mMediji, mNaprave, mAplikacije, mDatoteke, mSplet, mZapiski, mNastavitve)
+        val vidne = listOfNotNull(mDomov, mMediji, mNaprave, mSporocila, mAplikacije, mDatoteke, mSplet, mZapiski, mNastavitve)
         for (v in vidne + listOfNotNull(mZaslon)) (v.parent as? ViewGroup)?.removeView(v)
         for (v in vidne) {
             pripraviVidezMenija(v)
@@ -316,6 +318,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         mSplet?.setOnClickListener {
             odpriVBrskalniku(null)
+        }
+        mSporocila.setOnClickListener {
+            odpriVarno(Intent(this, si.safeer.tv.os.SporocilaActivity::class.java), getString(R.string.os_meni_sporocila))
         }
         mZapiski.setOnClickListener {
             odpriVarno(Intent(this, si.safeer.tv.os.ZapiskiActivity::class.java), getString(R.string.os_meni_zapiski))

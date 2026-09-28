@@ -455,4 +455,34 @@
     <string name="os_galerija_brez_datuma">Date inconnue</string>
     <string name="os_galerija_pokazi_mrezo">Afficher la grille</string>
     <string name="os_galerija_pokazi_seznam">Afficher la liste</string>
+    <!-- Sporocila -->
+    <string name="os_meni_sporocila">Messages</string>
+    <string name="os_spor_opis">E-mails et discussions au même endroit</string>
+    <string name="os_spor_dodaj">Ajouter un canal</string>
+    <string name="os_spor_prazno">Aucun canal pour l’instant. Ajoutez un compte e-mail ou Chatwoot.</string>
+    <string name="os_spor_ni_pogovorov">Aucun message</string>
+    <string name="os_spor_izberi">Choisissez une conversation</string>
+    <string name="os_spor_odgovor">Écrire une réponse…</string>
+    <string name="os_spor_poslji">Envoyer</string>
+    <string name="os_spor_nazaj">Retour</string>
+    <string name="os_spor_eposta">E-mail</string>
+    <string name="os_spor_chatwoot">Chatwoot</string>
+    <string name="os_spor_naslov">Adresse e-mail</string>
+    <string name="os_spor_geslo">Mot de passe</string>
+    <string name="os_spor_geslo_aplikacije">Utilisez un mot de passe d’application, pas votre mot de passe principal.</string>
+    <string name="os_spor_oauth">Ce fournisseur exige une connexion OAuth, pas encore prise en charge. Utilisez une autre adresse.</string>
+    <string name="os_spor_imap">Serveur IMAP</string>
+    <string name="os_spor_smtp">Serveur SMTP</string>
+    <string name="os_spor_url">Adresse Chatwoot (https://…)</string>
+    <string name="os_spor_racun">ID du compte</string>
+    <string name="os_spor_zeton">Jeton d’accès</string>
+    <string name="os_spor_povezujem">Connexion…</string>
+    <string name="os_spor_napaka_geslo">Mot de passe manquant. Saisissez-le à nouveau.</string>
+    <string name="os_spor_napaka_prijava">Échec de la connexion. Vérifiez l’adresse et le mot de passe.</string>
+    <string name="os_spor_napaka_omrezje">Serveur injoignable.</string>
+    <string name="os_spor_napaka">Erreur</string>
+    <string name="os_spor_novo_geslo">Enregistrer le nouveau mot de passe</string>
+    <string name="os_spor_odstrani">Supprimer le canal</string>
+    <string name="os_spor_ni_poslano">Le message n’a pas été envoyé.</string>
+    <string name="os_spor_https">L’adresse doit commencer par https://</string>
 </resources>
