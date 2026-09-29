@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Podnapisi v predvajalniku Safeer OS (Podnapisi.kt). -->
+<resources>
+    <string name="podnapisi_naslov">Podnapisi</string>
+    <string name="podnapisi_izklop">Izklopljeno</string>
+    <string name="podnapisi_namig">gor: podnapisi</string>
+    <string name="podnapisi_st">Podnapisi %d</string>
+    <string name="podnapisi_prisilni">samo tuji govor</string>
+</resources>

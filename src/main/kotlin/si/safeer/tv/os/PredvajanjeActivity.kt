@@ -64,6 +64,8 @@ class PredvajanjeActivity : OsActivity() {
     private var predlogiZa = ""
     private val delavec = java.util.concurrent.Executors.newFixedThreadPool(3)
 
+    private val podnapisi by lazy { Podnapisi.Prikaz(this) }
+    private var gumbPodnapisi: ImageButton? = null
     private var pripet: Player? = null
     private var zadnjaSlika = ""
     private val poslusalec: () -> Unit = { glavna.post { osvezi() } }
@@ -81,6 +83,7 @@ class PredvajanjeActivity : OsActivity() {
         override fun onVideoSizeChanged(videoSize: VideoSize) = prilagodi(videoSize)
         override fun onRenderedFirstFrame() { prvaSlika = true; posodobiNalaganje() }
         override fun onPlaybackStateChanged(playbackState: Int) = posodobiNalaganje()
+        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = posodobiPodnapise()
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
             val sk = GlasbaStoritev.trenutna()
             if (sk != null && SpletniVir.jeEnota(sk) && sk.zvok.isNotBlank()) {
@@ -108,6 +111,7 @@ class PredvajanjeActivity : OsActivity() {
         val koren = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         povrsina = SurfaceView(this)
         koren.addView(povrsina, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
+        koren.addView(podnapisi.pogled, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { bottomMargin = dp(if (dotik) 24 else 48); leftMargin = dp(48); rightMargin = dp(48) })
         naslovnica = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setImageResource(R.drawable.os_ikona_glasba) }
         koren.addView(naslovnica, FrameLayout.LayoutParams(dp(300), dp(300), Gravity.CENTER).apply { bottomMargin = dp(90) })
 
@@ -187,6 +191,9 @@ class PredvajanjeActivity : OsActivity() {
         gumbi.addView(okroglGumb(R.drawable.os_ikona_naslednja, R.string.os_mediji_naslednja, 52) {
             GlasbaStoritev.predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
         })
+        gumbPodnapisi = okroglGumb(R.drawable.os_ikona_podnapisi, R.string.podnapisi_naslov, 52) {
+            GlasbaStoritev.predvajalnik?.let { p -> Podnapisi.izberi(this, p) { posodobiPodnapise() } }
+        }.also { it.visibility = View.GONE; gumbi.addView(it) }
         prekritje.addView(gumbi, prekritje.indexOfChild(namig), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10) })
     }
 
@@ -232,7 +239,7 @@ class PredvajanjeActivity : OsActivity() {
         GlasbaStoritev.poslusalci.remove(poslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
         // Sliko odpnemo, zvok igra naprej (predvajanje v ozadju).
-        pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost) }
+        pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost); it.removeListener(podnapisi) }
         (pripet as? SpletniIgralec)?.skrij()
         pripet = null
         super.onStop()
@@ -245,14 +252,15 @@ class PredvajanjeActivity : OsActivity() {
         val sk = GlasbaStoritev.trenutna()
         if (p == null || sk == null) { finish(); return }
         if (pripet !== p) {
-            pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost) }
-            p.setVideoSurfaceView(povrsina); p.addListener(velikost); pripet = p
+            pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost); it.removeListener(podnapisi) }
+            p.setVideoSurfaceView(povrsina); p.addListener(velikost); p.addListener(podnapisi); pripet = p
             prvaSlika = p.playbackState == Player.STATE_READY && p.videoSize.width > 0
         }
         if (prvaSlikaZa != sk.id) { prvaSlikaZa = sk.id; prvaSlika = p.playbackState == Player.STATE_READY && p.videoSize.width > 0 }
         posodobiNalaganje()
         povrsina.visibility = if (sk.video) View.VISIBLE else View.INVISIBLE
         namig.setText(if (sk.video) R.string.os_mediji_namig_predvajanje_video else R.string.os_mediji_namig_predvajanje)
+        posodobiPodnapise()
         (p as? SpletniIgralec)?.let { if (sk.video) it.pokazi(povrsina) else it.skrij() }
         naslovnica.visibility = if (sk.video || predlogiOdprti()) View.GONE else View.VISIBLE
         if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
@@ -538,6 +546,17 @@ class PredvajanjeActivity : OsActivity() {
         return jeVideo() && p !is SpletniIgralec && !prvaSlika && p.playWhenReady
     }
 
+    /** Gumb in namig za podnapise samo, kadar jih video ima. */
+    private fun posodobiPodnapise() {
+        val ima = jeVideo() && Podnapisi.imaPodnapise(GlasbaStoritev.predvajalnik)
+        gumbPodnapisi?.visibility = if (ima) View.VISIBLE else View.GONE
+        if (!dotik && ::namig.isInitialized && jeVideo()) {
+            val osnova = getString(R.string.os_mediji_namig_predvajanje_video)
+            namig.text = if (ima) osnova + " · " + getString(R.string.podnapisi_namig) else osnova
+        }
+        if (!jeVideo()) podnapisi.pogled.visibility = View.GONE
+    }
+
     private fun posodobiNalaganje() {
         if (!::nalaganje.isInitialized) return
         val da = seNalaga()
@@ -613,7 +632,8 @@ class PredvajanjeActivity : OsActivity() {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> { premakni(-10_000); return true }
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { premakni(10_000); return true }
             KeyEvent.KEYCODE_DPAD_DOWN -> { odpriPredloge(); return true }
-            KeyEvent.KEYCODE_DPAD_UP -> return true
+            KeyEvent.KEYCODE_DPAD_UP -> { if (jeVideo()) p?.let { Podnapisi.izberi(this, it) { posodobiPodnapise() } }; return true }
+            KeyEvent.KEYCODE_CAPTIONS -> { p?.let { Podnapisi.preklopi(this, it); posodobiPodnapise() }; return true }
             KeyEvent.KEYCODE_SEARCH -> { odpriIskanje(); return true }
             KeyEvent.KEYCODE_WINDOW, KeyEvent.KEYCODE_PROG_GREEN -> {
                 if (jeVideo()) {

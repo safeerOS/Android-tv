@@ -1956,7 +1956,8 @@ class GlasbaActivity : OsActivity() {
                             val ime = e.optString("name")
                             val (naslov, izvajalec) = Relevantnost.razdeli(e.optString("title").ifBlank { ime }, e.optString("artist"))
                             val sk = Jamendo.Skladba("link:${n.id}:${e.optString("id")}", naslov, izvajalec, "",
-                                s.url(e.optString("id")), "", video = vrsta == "video", mime = e.optString("mime"))
+                                s.url(e.optString("id")), "", video = vrsta == "video", mime = e.optString("mime"),
+                                podnapisi = Podnapisi.izSeznama(e.optJSONArray("subtitles"), s))
                             strezniki[sk.id] = s
                             izid.add(Relevantnost.Zadetek(sk, naslov, sk.izvajalec, izvor, 1, e.optString("path") + " " + ime))
                         }

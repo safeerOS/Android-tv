@@ -49,6 +49,8 @@ object Jamendo {
         val rating: Double = 0.0,
         /** Jezik vsebine (ISO 639); prazen pomeni, da ga vir ne objavi. */
         val language: String = "",
+        /** Podnapisi ob videu (datoteke z naprave ali iz istega torrenta). */
+        val podnapisi: List<Podnapisi.Podnapis> = emptyList(),
     )
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

@@ -216,11 +216,18 @@ class MagnetActivity : OsActivity() {
     private fun predvajaj(uri: String, d: MagnetMotor.Datoteka) {
         toast(getString(R.string.magnet_zaganjam))
         vOzadju {
-            val hash = MagnetMotor.dodaj(this, uri, listOf(d.i))
+            // Podnapise iz istega torrenta prenesemo zraven (majhni so) in jih ponudimo v predvajalniku.
+            val podnapisi = if (d.vrsta == "video") MagnetMotor.podnapisiZa(this, uri, d.i) else emptyList()
+            val hash = MagnetMotor.dodaj(this, uri, listOf(d.i) + podnapisi.map { it.i })
             val url = MagnetMotor.tok(this, hash, d.i)
+            val seznamPodnapisov = podnapisi.map { p ->
+                val (jezik, oznaka) = Podnapisi.jezik(d.ime, p.ime)
+                Podnapisi.Podnapis(MagnetMotor.tok(this, hash, p.i), p.ime.substringAfterLast('/'), jezik, oznaka, Podnapisi.mime(p.ime))
+            }
             glavna.post {
                 val ime = d.ime.substringAfterLast('/').substringBeforeLast('.')
-                val sk = Jamendo.Skladba("magnet:$hash:${d.i}", ime, "Magnet", "", url, "", video = d.vrsta == "video")
+                val sk = Jamendo.Skladba("magnet:$hash:${d.i}", ime, "Magnet", "", url, "", video = d.vrsta == "video",
+                    podnapisi = seznamPodnapisov)
                 GlasbaStoritev.predvajaj(this, listOf(sk), 0, null)
                 startActivity(Intent(this, PredvajanjeActivity::class.java))
             }

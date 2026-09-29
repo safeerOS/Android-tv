@@ -53,6 +53,7 @@ class GlasbaStoritev : Service() {
             .setContentType(C.AUDIO_CONTENT_TYPE_UNKNOWN).build(), true)
         p.setWakeMode(C.WAKE_MODE_NETWORK)
         p.setHandleAudioBecomingNoisy(true)
+        Podnapisi.uveljavi(this, p)
         p.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 // Nedavno predvajano (plosca Safeer Media): shranljive skladbe, postaje in videi.
@@ -141,6 +142,7 @@ class GlasbaStoritev : Service() {
         p.setMediaSources(seznam.map { sk ->
             tovarna.createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
                 .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
+                .apply { if (sk.podnapisi.isNotEmpty()) setSubtitleConfigurations(Podnapisi.konfiguracije(this@GlasbaStoritev, sk.podnapisi)) }
                 .setMediaMetadata(M3Metadata.Builder().setTitle(sk.naslov).setArtist(sk.izvajalec).build())
                 .build())
         }, od.coerceIn(0, (seznam.size - 1).coerceAtLeast(0)), 0L)
