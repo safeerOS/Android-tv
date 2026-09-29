@@ -8,6 +8,7 @@ import org.libtorrent4j.Priority
 import org.libtorrent4j.SessionManager
 import org.libtorrent4j.SessionParams
 import org.libtorrent4j.SettingsPack
+import org.libtorrent4j.Sha1Hash
 import org.libtorrent4j.TorrentBuilder
 import org.libtorrent4j.TorrentFlags
 import org.libtorrent4j.TorrentHandle
@@ -183,8 +184,20 @@ object MagnetMotor {
     }
 
     fun rocaj(c: Context, hash: String): TorrentHandle? =
-        seja(c).swig().get_torrents().let { v -> (0 until v.size).map { TorrentHandle(v[it]) } }
-            .firstOrNull { it.isValid && it.infoHash().toHex().equals(hash, true) }
+        if (!Regex("^[0-9a-fA-F]{40}$").matches(hash)) null else seja(c).find(Sha1Hash.parseHex(hash.lowercase()))
+
+    /**
+     * Ročaji vseh torrentov, vsak svoja kopija. Elementi `get_torrents()` so le kazalci v začasni C++ vektor:
+     * ko ga zbiralnik smeti sprosti, klic na tak ročaj sesuje proces (SIGSEGV v have_piece, 29. 9. 2026).
+     */
+    private fun rocaji(s: SessionManager): List<TorrentHandle> {
+        val v = s.swig().get_torrents()
+        val hashi = ArrayList<Sha1Hash>()
+        try {
+            for (k in 0 until v.size) { val h = v[k]; if (h.is_valid()) hashi += Sha1Hash(h.info_hash()) }
+        } finally { java.lang.ref.Reference.reachabilityFence(v) }
+        return hashi.mapNotNull { s.find(it) }
+    }
 
     // ------------------------------------------------------------------ uporaba
 
@@ -232,9 +245,7 @@ object MagnetMotor {
     fun seznam(c: Context): JSONArray {
         val izid = JSONArray()
         if (seja == null && JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").length() == 0) return izid
-        val s = seja(c).swig().get_torrents()
-        for (k in 0 until s.size) {
-            val th = TorrentHandle(s[k])
+        for (th in rocaji(seja(c))) {
             if (!th.isValid) continue
             val st = th.status()
             val hash = th.infoHash().toHex()
@@ -249,7 +260,7 @@ object MagnetMotor {
                     .put("vkljucena", prednosti.getOrNull(i) != Priority.IGNORE))
             }
             val lastna = JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").optJSONObject(hash)?.optString("lastna").orEmpty()
-            izid.put(JSONObject().put("hash", hash).put("ime", st.name()).put("preneseno", st.totalWantedDone())
+            izid.put(JSONObject().put("hash", hash).put("ime", ti?.name()?.takeIf { it.isNotBlank() } ?: st.name()).put("preneseno", st.totalWantedDone())
                 .put("skupaj", st.totalWanted()).put("hitrost", st.downloadPayloadRate()).put("oddaja", st.uploadPayloadRate())
                 .put("povezave", st.numPeers()).put("koncano", st.isFinished).put("premor", th.getFlags().and_(TorrentFlags.PAUSED).non_zero())
                 .put("deli_naprej", deliNaprej(c, hash)).put("lastna", lastna.isNotBlank()).put("datoteke", datoteke))
@@ -285,9 +296,7 @@ object MagnetMotor {
             Thread.sleep(10_000)
             try {
                 val s = seja ?: continue
-                val v = s.swig().get_torrents()
-                for (k in 0 until v.size) {
-                    val th = TorrentHandle(v[k])
+                for (th in rocaji(s)) {
                     if (!th.isValid) continue
                     // Po koncu prenosa ne oddajamo drugim, razen če uporabnik to izrecno izbere.
                     if (th.status().isFinished && !deliNaprej(app, th.infoHash().toHex()) &&
