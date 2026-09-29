@@ -287,8 +287,13 @@ object MagnetMotor {
                 datoteke.put(JSONObject().put("i", i).put("ime", ime).put("vrsta", vrsta(ime))
                     .put("vkljucena", prednosti.getOrNull(i) != Priority.IGNORE))
             }
-            val lastna = JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").optJSONObject(hash)?.optString("lastna").orEmpty()
-            izid.put(JSONObject().put("hash", hash).put("ime", ti?.name()?.takeIf { it.isNotBlank() } ?: st.name()).put("preneseno", st.totalWantedDone())
+            val zapis = JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").optJSONObject(hash)
+            val lastna = zapis?.optString("lastna").orEmpty()
+            // Takoj po zagonu (obnova) metapodatkov še ni: ime iz shranjene povezave (dn), sicer prazna vrstica.
+            val dn = zapis?.optString("uri").orEmpty().substringAfter('?', "").split('&')
+                .firstOrNull { it.startsWith("dn=") }?.let { runCatching { java.net.URLDecoder.decode(it.substring(3), "UTF-8") }.getOrNull() }.orEmpty()
+            val ime = listOf(ti?.name().orEmpty(), st.name().orEmpty(), dn).firstOrNull { it.isNotBlank() } ?: hash.take(12)
+            izid.put(JSONObject().put("hash", hash).put("ime", ime).put("preneseno", st.totalWantedDone())
                 .put("skupaj", st.totalWanted()).put("hitrost", st.downloadPayloadRate()).put("oddaja", st.uploadPayloadRate())
                 .put("povezave", st.numPeers()).put("koncano", st.isFinished).put("premor", th.getFlags().and_(TorrentFlags.PAUSED).non_zero())
                 .put("deli_naprej", deliNaprej(c, hash)).put("lastna", lastna.isNotBlank()).put("datoteke", datoteke))
