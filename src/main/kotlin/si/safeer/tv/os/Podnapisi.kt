@@ -216,6 +216,7 @@ object Podnapisi {
             }
             pogled.text = b
             pogled.visibility = if (b.isEmpty()) View.GONE else View.VISIBLE
+            if (android.util.Log.isLoggable("SafeerPodnapisi", android.util.Log.DEBUG) || b.isNotEmpty()) android.util.Log.d("SafeerPodnapisi", "Podnapis: ${b.length} znakov")
         }
     }
 }
