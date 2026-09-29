@@ -46,5 +46,9 @@ fun main() {
 
     preveri(DlnaPravila.mime("https://x/p.flac?t=1") == "audio/flac" && DlnaPravila.mime("https://x/radio") == "audio/mpeg", "mime")
     preveri(DlnaPravila.primernVir("https://prenos.jamendo.com/x.mp3") && !DlnaPravila.primernVir("content://media/1"), "vir")
+    preveri(!DlnaPravila.primernVir("https://192.168.0.20:8443/d/x.mp3") && DlnaPravila.primernVir("http://192.168.0.20:8000/x.mp3"), "https doma")
+    preveri(DlnaPravila.lokalniVir("content://media/external/audio/1") && DlnaPravila.zaZvocnik("/sdcard/Music/a.mp3"), "lokalno")
+    preveri(DlnaPravila.obseg("bytes=10-19", 100) == 10L..19L && DlnaPravila.obseg("bytes=-10", 100) == 90L..99L, "obseg")
+    preveri(DlnaPravila.obseg("bytes=90-", 100) == 90L..99L && DlnaPravila.obseg("bytes=200-", 100) == null, "obseg2")
     println("DlnaPravilaTest: OK")
 }

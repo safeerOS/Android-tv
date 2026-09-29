@@ -30,6 +30,9 @@ object Zvocniki {
     @Volatile var aktivnaSkladba: Jamendo.Skladba? = null
         private set
     @Volatile private var zadnjiSeznam: List<DlnaPravila.Zvocnik> = emptyList()
+    /** Naslov, ki ga zvocnik ta trenutek predvaja (pri datotekah te naprave: naslov nasega streznika). */
+    @Volatile private var aktivniUrl = ""
+    private var streznik: ZvocnikStreznik? = null
     private var straza: Runnable? = null
 
     fun zadnji(): List<DlnaPravila.Zvocnik> = zadnjiSeznam
@@ -133,9 +136,17 @@ object Zvocniki {
     fun predvajaj(ctx: Context, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, konec: (Exception?) -> Unit) {
         val app = ctx.applicationContext
         naDelavcu({ e -> if (e == null) { aktivni = z; aktivnaSkladba = sk; zazeniStrazo(app) }; konec(e) }) {
-            val mime = DlnaPravila.mime(sk.zvok, sk.mime)
-            val meta = DlnaPravila.didl(sk.zvok, sk.naslov, sk.izvajalec, mime)
-            soap(z.avUrl, DlnaPravila.AV, "SetAVTransportURI", listOf("CurrentURI" to sk.zvok, "CurrentURIMetaData" to meta))
+            var url = sk.zvok
+            var mime = DlnaPravila.mime(sk.zvok, sk.mime)
+            if (DlnaPravila.lokalniVir(sk.zvok)) {
+                // Datoteka te naprave: ponudi jo nas majhen streznik (samo ta datoteka, pod zetonom).
+                val s = streznik ?: ZvocnikStreznik(app).also { streznik = it }
+                url = s.ponudi(sk.zvok, sk.mime, z.naslov)
+                mime = s.mime()
+            }
+            aktivniUrl = url
+            val meta = DlnaPravila.didl(url, sk.naslov, sk.izvajalec, mime)
+            soap(z.avUrl, DlnaPravila.AV, "SetAVTransportURI", listOf("CurrentURI" to url, "CurrentURIMetaData" to meta))
             soap(z.avUrl, DlnaPravila.AV, "Play", listOf("Speed" to "1"))
         }
     }
@@ -166,7 +177,9 @@ object Zvocniki {
     }
 
     private fun pocisti() {
-        aktivni = null; aktivnaSkladba = null
+        aktivni = null; aktivnaSkladba = null; aktivniUrl = ""
+        val s = streznik; streznik = null
+        if (s != null) delavec.execute { s.zapri() }
         straza?.let { glavna.removeCallbacks(it) }; straza = null
     }
 
@@ -188,13 +201,13 @@ object Zvocniki {
                         if (aktivni !== z || straza !== this) return@post
                         when {
                             st == "PLAYING" || st == "TRANSITIONING" || st == "PAUSED_PLAYBACK" -> {
-                                if (uri.isNotBlank() && uri != sk.zvok && !DlnaPravila.primernVir(uri)) { pocisti(); return@post }
+                                if (uri.isNotBlank() && uri != aktivniUrl && !DlnaPravila.primernVir(uri)) { pocisti(); return@post }
                                 igral = true; napake = 0
                             }
                             st == "STOPPED" && igral -> {
                                 val vrsta = GlasbaStoritev.vrsta()
                                 val i = vrsta.indexOfFirst { it.id == sk.id }
-                                val naslednja = if (i >= 0) vrsta.drop(i + 1).firstOrNull { DlnaPravila.primernVir(it.zvok) && !it.video } else null
+                                val naslednja = if (i >= 0) vrsta.drop(i + 1).firstOrNull { DlnaPravila.zaZvocnik(it.zvok) && !it.video } else null
                                 if (naslednja != null) predvajaj(ctx, z, naslednja) {} else pocisti()
                                 return@post
                             }
