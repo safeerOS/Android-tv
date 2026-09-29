@@ -1944,7 +1944,7 @@ class GlasbaActivity : OsActivity() {
                     val sv = podatki?.optJSONObject("server")
                     val items = podatki?.optJSONArray("items")
                     if (sv != null && items != null) {
-                        val s = DatotekeActivity.Streznik(sv.optString("base_url").trimEnd('/'), sv.optString("fp"), sv.optString("token"))
+                        val s = DatotekeActivity.Streznik(sv.optString("base_url").trimEnd('/'), sv.optString("fp"), sv.optString("token"), n.id)
                         val izvor = DatotekeActivity.lepoIme(n.ime).ifBlank { n.ime }
                         for (i in 0 until items.length()) {
                             val e = items.optJSONObject(i) ?: continue

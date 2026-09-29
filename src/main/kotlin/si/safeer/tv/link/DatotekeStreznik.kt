@@ -43,7 +43,18 @@ object DatotekeStreznik {
     private val tece = AtomicBoolean(false)
     @Volatile private var vticnica: ServerSocket? = null
     @Volatile private var vrata = 0
-    private val zetoni = ConcurrentHashMap<String, String>()
+    /**
+     * kljuc (id naprave ali id#izdan za prejsnjega) -> zeton. Zeton velja [ZETON_VELJA_MS] od zadnje rabe (tok,
+     * ki tece, ga drzi pri zivljenju), najvec [NAJDLJE_MS] od izdaje; po polovici roka naprava dobi novega.
+     * Cas je monoton (SystemClock.elapsedRealtime), da ga premik ure ne podaljsa ali skrajsa.
+     */
+    private class Zeton(val vrednost: String, val izdan: Long, @Volatile var rabljen: Long) {
+        fun zivi(zdaj: Long) = zdaj - rabljen < ZETON_VELJA_MS && zdaj - izdan < NAJDLJE_MS
+    }
+    private val zetoni = ConcurrentHashMap<String, Zeton>()
+    private const val ZETON_VELJA_MS = 12 * 3600_000L
+    private const val NAJDLJE_MS = 7 * 24 * 3600_000L
+    private fun zdaj() = android.os.SystemClock.elapsedRealtime()
     private val nakljucje = SecureRandom()
 
     // ------------------------------------------------------------------ seznam
@@ -173,16 +184,26 @@ object DatotekeStreznik {
 
     // ------------------------------------------------------------------ zetoni
 
-    private fun zetonZa(idNaprave: String): String =
-        zetoni.getOrPut(idNaprave.ifBlank { "naprava" }) {
-            val b = ByteArray(24); nakljucje.nextBytes(b)
-            android.util.Base64.encodeToString(b, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
-        }
+    @Synchronized
+    private fun zetonZa(idNaprave: String, zdaj: Long = zdaj()): String {
+        val kljuc = idNaprave.ifBlank { "naprava" }
+        zetoni.entries.removeIf { !it.value.zivi(zdaj) }
+        zetoni[kljuc]?.takeIf { zdaj - it.izdan < ZETON_VELJA_MS / 2 }?.let { return it.vrednost }
+        val b = ByteArray(24); nakljucje.nextBytes(b)
+        val z = android.util.Base64.encodeToString(b, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+        // Prejsnji zeton te naprave velja do konca svojega roka (film, ki ravno tece, ne pade).
+        zetoni[kljuc]?.let { zetoni["$kljuc#${it.izdan}"] = it }
+        zetoni[kljuc] = Zeton(z, zdaj, zdaj)
+        while (zetoni.size > 64) zetoni.entries.minByOrNull { it.value.rabljen }?.let { zetoni.remove(it.key) }
+        return z
+    }
 
-    private fun zetonVelja(z: String?): Boolean {
+    private fun zetonVelja(z: String?, zdaj: Long = zdaj()): Boolean {
         if (z.isNullOrBlank()) return false
         val zb = z.toByteArray()
-        return zetoni.values.any { MessageDigest.isEqual(it.toByteArray(), zb) }
+        val najden = zetoni.values.firstOrNull { it.zivi(zdaj) && MessageDigest.isEqual(it.vrednost.toByteArray(), zb) } ?: return false
+        najden.rabljen = zdaj
+        return true
     }
 
     // ------------------------------------------------------------------ streznik
@@ -236,22 +257,46 @@ object DatotekeStreznik {
                 if (i > 0) glave[v.substring(0, i).trim().lowercase()] = v.substring(i + 1).trim()
             }
             val deli = prva.split(" ")
-            if (deli.size < 2 || (deli[0] != "GET" && deli[0] != "HEAD" && deli[0] != "POST")) {
-                napaka(izhod, 405, "samo GET ali POST"); return
-            }
+            if (deli.size < 2) { napaka(izhod, 405, "samo GET ali POST"); return }
             val cilj = deli[1]
-            val pot = cilj.substringBefore('?')
-            val poizvedba = cilj.substringAfter('?', "")
             // Zeton kot pri Controlu: glava X-Safeer-Token (predvajalnik, slike) ali ?t= (neposredna povezava).
+            val poizvedba = cilj.substringAfter('?', "")
             val zeton = glave["x-safeer-token"]
                 ?: poizvedba.split("&").firstOrNull { it.startsWith("t=") }?.substring(2)?.let { URLDecoder.decode(it, "UTF-8") }
+            postreziZahtevo(deli[0], cilj.substringBefore('?'), zeton, glave, vhod, izhod)
+        } catch (e: Throwable) {
+            Log.i(TAG, "Zahteva: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
+        } finally {
+            try { s.close() } catch (_: Throwable) { }
+        }
+    }
+
+    /**
+     * Ista datoteka prek Huba (`/cast/d/<id>`, `/cast/thumb/<id>`): po Global Linku rele pripelje samo
+     * povezavo do vrat Huba. Zeton samo v glavi (naslov prek releja ne nosi skrivnosti). Vrne false, ce
+     * pot ni za datoteke.
+     */
+    fun prekHuba(metoda: String, pot: String, glave: Map<String, String>, vhod: InputStream, izhod: OutputStream): Boolean {
+        if (!pot.startsWith("/cast/d/") && !pot.startsWith("/cast/thumb/")) return false
+        try {
+            postreziZahtevo(metoda, pot.removePrefix("/cast"), glave["x-safeer-token"], glave, vhod, izhod)
+        } catch (e: Throwable) {
+            Log.i(TAG, "Zahteva prek Huba: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
+        }
+        return true
+    }
+
+    private fun postreziZahtevo(metoda: String, pot: String, zeton: String?, glave: Map<String, String>,
+                                vhod: InputStream, izhod: OutputStream) {
+        run {
+            if (metoda != "GET" && metoda != "HEAD" && metoda != "POST") { napaka(izhod, 405, "samo GET ali POST"); return }
             if (!pot.startsWith("/d/") && !pot.startsWith("/thumb/")) { napaka(izhod, 404, "ni take poti"); return }
             if (!zetonVelja(zeton)) { napaka(izhod, 401, "manjka ali napacen zeton"); return }
             val ctx = appContext ?: run { napaka(izhod, 503, "ni pripravljeno"); return }
             val palec = pot.startsWith("/thumb/")
             val uri = uriIz(URLDecoder.decode(pot.substring(if (palec) 7 else 3), "UTF-8")) ?: run { napaka(izhod, 404, "datoteke ni"); return }
-            if (palec) { posljiSlicico(ctx, uri, deli[0], izhod); return }
-            if (deli[0] == "POST") { uredi(ctx, uri, glave, vhod, izhod); return }
+            if (palec) { posljiSlicico(ctx, uri, metoda, izhod); return }
+            if (metoda == "POST") { uredi(ctx, uri, glave, vhod, izhod); return }
             val opis = try { ctx.contentResolver.openAssetFileDescriptor(uri, "r") } catch (_: Throwable) { null }
                 ?: run { napaka(izhod, 404, "datoteke ni"); return }
             opis.use { o ->
@@ -282,7 +327,7 @@ object DatotekeStreznik {
                 if (delni) sb.append("Content-Range: bytes $zacetek-$konec/$velikost\r\n")
                 sb.append("Cache-Control: private, max-age=0\r\nConnection: close\r\n\r\n")
                 izhod.write(sb.toString().toByteArray())
-                if (deli[0] == "HEAD") return
+                if (metoda == "HEAD") return
                 o.createInputStream().use { vir ->
                     preskoci(vir, zacetek)
                     val b = ByteArray(64 * 1024)
@@ -296,10 +341,6 @@ object DatotekeStreznik {
                 }
                 izhod.flush()
             }
-        } catch (e: Throwable) {
-            Log.i(TAG, "Zahteva: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
-        } finally {
-            try { s.close() } catch (_: Throwable) { }
         }
     }
 

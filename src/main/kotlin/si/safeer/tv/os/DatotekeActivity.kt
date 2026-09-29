@@ -44,14 +44,17 @@ import java.time.ZoneId
 class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Streznik datotek na racunalniku (naslov, odtis potrdila, zeton te naprave) iz odgovora `files.list`. */
-    data class Streznik(val osnova: String, val odtis: String, val zeton: String) {
+    /** [naprava] = id naprave v Linku: z njim gre tok prek Global Linka, kadar naprava ni v istem omrezju. */
+    data class Streznik(val osnova: String, val odtis: String, val zeton: String, val naprava: String = "") {
         fun url(id: String): String = osnova + "/d/" + android.net.Uri.encode(id)
         fun slicicaUrl(id: String): String = osnova + "/thumb/" + android.net.Uri.encode(id)
-        fun vBundle(b: Bundle) { b.putString("s_osnova", osnova); b.putString("s_odtis", odtis); b.putString("s_zeton", zeton) }
+        fun vBundle(b: Bundle) {
+            b.putString("s_osnova", osnova); b.putString("s_odtis", odtis); b.putString("s_zeton", zeton); b.putString("s_naprava", naprava)
+        }
         companion object {
             fun iz(b: Bundle?): Streznik? {
                 val o = b?.getString("s_osnova") ?: return null
-                return Streznik(o, b.getString("s_odtis").orEmpty(), b.getString("s_zeton").orEmpty())
+                return Streznik(o, b.getString("s_odtis").orEmpty(), b.getString("s_zeton").orEmpty(), b.getString("s_naprava").orEmpty())
             }
         }
     }
@@ -348,7 +351,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             val podatki = izid.optJSONObject("data") ?: JSONObject()
             podatki.optJSONObject("server")?.let {
-                streznik = Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"))
+                streznik = Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"), r.id)
             }
             urejanje = podatki.optBoolean("edit", false) && streznik != null
             if (!izbiramSliko) {

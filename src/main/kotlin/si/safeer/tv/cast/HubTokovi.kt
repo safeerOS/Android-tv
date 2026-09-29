@@ -151,6 +151,9 @@ class HubTokovi(
         return when {
             pot == "/cast/file" && zahteva.metoda == "PUT" -> { sprejmiDatoteko(zahteva, vhod, izhod); true }
             pot.startsWith("/cast/file/") && zahteva.metoda == "GET" -> { posljiDatoteko(zahteva, izhod); true }
+            // Deljene datoteke te naprave prek Huba (tok glasbe in videa tudi prek Global Linka); samo branje.
+            (pot.startsWith("/cast/d/") || pot.startsWith("/cast/thumb/")) && (zahteva.metoda == "GET" || zahteva.metoda == "HEAD") ->
+                si.safeer.tv.link.DatotekeStreznik.prekHuba(zahteva.metoda, pot, zahteva.glave, vhod, izhod)
             pot.startsWith("/cast/screen/") && pot.endsWith("/stream") && zahteva.metoda == "GET" -> { gledajZaslon(zahteva, izhod, vticnica); true }
             pot.startsWith("/cast/screen/") && pot.endsWith("/view") && zahteva.metoda == "GET" -> { stranGledalca(zahteva, izhod); true }
             pot.startsWith("/cast/screen/") && pot.endsWith("/input") && zahteva.metoda == "POST" -> { vnosVZaslon(zahteva, vhod, izhod); true }

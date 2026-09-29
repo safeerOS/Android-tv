@@ -1124,7 +1124,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (izid?.optBoolean("ok") != true || streznik == null) { niVec(n); return@Odgovor }
                 odpriDatoteko(n, DatotekeActivity.Streznik(
                     streznik.optString("base_url").trimEnd('/'),
-                    streznik.optString("fp"), streznik.optString("token")))
+                    streznik.optString("fp"), streznik.optString("token"), r.id))
             })
     }
 

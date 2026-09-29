@@ -321,7 +321,8 @@ class HubStreznik(
 
     /** Poti, katerih telo je tok in ne kratko sporocilo. */
     private fun jeTokovnaPot(pot: String): Boolean =
-        pot.startsWith("/cast/file") || pot.startsWith("/cast/screen")
+        pot.startsWith("/cast/file") || pot.startsWith("/cast/screen") ||
+            pot.startsWith("/cast/d/") || pot.startsWith("/cast/thumb/")
 
     private fun preberiVrstico(vhod: InputStream): String? {
         val izpis = ByteArrayOutputStream()
