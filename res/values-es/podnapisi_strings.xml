@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Podnapisi v predvajalniku Safeer OS (Podnapisi.kt). -->
+<resources>
+    <string name="podnapisi_naslov">Subtítulos</string>
+    <string name="podnapisi_izklop">Desactivados</string>
+    <string name="podnapisi_namig">arriba: subtítulos</string>
+    <string name="podnapisi_st">Subtítulos %d</string>
+    <string name="podnapisi_prisilni">forzados</string>
+</resources>

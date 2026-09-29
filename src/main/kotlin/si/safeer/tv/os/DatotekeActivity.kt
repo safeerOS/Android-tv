@@ -60,7 +60,9 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     data class Vnos(val id: String, val ime: String, val vrsta: String, val velikost: Long, val mime: String,
-                    val pod: String = "", val spremenjeno: Long = 0L, val trajanje: Long = 0L)
+                    val pod: String = "", val spremenjeno: Long = 0L, val trajanje: Long = 0L,
+                    /** Podnapisi ob videu (polje `subtitles` iz seznama naprave). */
+                    val podnapisi: org.json.JSONArray? = null)
 
     private data class Raven(val oznaka: String, val ime: String)
 
@@ -392,7 +394,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 }
                 val cas = if (surovCas in 1..99_999_999_999L) surovCas * 1000L else surovCas
                 nov.add(Vnos(id, ime, v.optString("type", "file"), v.optLong("size", -1), v.optString("mime"),
-                    spremenjeno = cas, trajanje = v.optLong("duration_ms", v.optLong("duration", 0L))))
+                    spremenjeno = cas, trajanje = v.optLong("duration_ms", v.optLong("duration", 0L)),
+                    podnapisi = v.optJSONArray("subtitles")))
             }
             vnosi = nov
             pripraviPogledMape()
@@ -631,7 +634,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val s = if (krajevni) null else (streznik ?: return)
         val izbor = if (v.vrsta == "audio") vnosi.filter { it.vrsta == "audio" } else listOf(v)
         val seznam = izbor.map { e ->
-            Jamendo.Skladba(e.id, e.ime, "", "", if (s == null) e.id else s.url(e.id), "", video = e.vrsta != "audio", mime = e.mime)
+            Jamendo.Skladba(e.id, e.ime, "", "", if (s == null) e.id else s.url(e.id), "", video = e.vrsta != "audio", mime = e.mime,
+                podnapisi = if (s == null) emptyList() else Podnapisi.izSeznama(e.podnapisi, s))
         }
         GlasbaStoritev.predvajaj(this, seznam, izbor.indexOf(v).coerceAtLeast(0), s)
         startActivity(Intent(this, PredvajanjeActivity::class.java))

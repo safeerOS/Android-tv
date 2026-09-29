@@ -313,10 +313,22 @@ object MagnetMotor {
     private val nakljucje = SecureRandom()
 
     /** Lokalni naslov za predvajalnik: datoteka [i] torrenta [hash], predvaja se že med prenosom. */
+    /** Podnapisi iz istega torrenta, ki sodijo k videu [i] (ista mapa ali podmapa Subs). */
+    fun podnapisiZa(c: Context, uri: String, i: Int): List<Datoteka> {
+        val opis = preberi(c, uri)
+        val video = opis.datoteke.firstOrNull { it.i == i } ?: return emptyList()
+        val mapa = video.ime.substringBeforeLast('/', "")
+        val predpona = if (mapa.isEmpty()) "" else "$mapa/"
+        val vMapi = opis.datoteke.filter { it.ime.startsWith(predpona) }
+        val relativno = vMapi.associateBy { it.ime.removePrefix(predpona) }
+        val videov = vMapi.count { it.vrsta == "video" && !it.ime.removePrefix(predpona).contains('/') }
+        return Podnapisi.ujemajoci(video.ime, relativno.keys.toList(), videov == 1).mapNotNull { relativno[it] }.take(24)
+    }
+
     fun tok(c: Context, hash: String, i: Int): String {
         val th = rocaj(c, hash) ?: throw IllegalStateException("ni_torrenta")
         val ti = th.torrentFile() ?: throw IllegalStateException("ni_metapodatkov")
-        if (i !in 0 until ti.numFiles() || vrsta(ti.files().filePath(i)) !in setOf("video", "audio")) throw IllegalArgumentException("ni_predvajljivo")
+        if (i !in 0 until ti.numFiles() || vrsta(ti.files().filePath(i)) !in setOf("video", "audio", "podnapisi")) throw IllegalArgumentException("ni_predvajljivo")
         if (th.filePriority(i) == Priority.IGNORE) th.filePriority(i, Priority.DEFAULT)
         th.resume()
         val s = zazeniStreznik()
