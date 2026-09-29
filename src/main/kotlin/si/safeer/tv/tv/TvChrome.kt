@@ -14,6 +14,16 @@ class TvChrome(private val host: MainActivity) {
     /** Ali je stran trenutno zatemnjena (fokus je v vrstici). */
     private var zatemnjeno = false
 
+    init {
+        // Ob obratu zaslona (in spremembi visine vrstice) se odmik strani izracuna znova -
+        // sicer ostane odmik lezece postavitve in pod vrstico nastane prazen crn pas.
+        val ob = View.OnLayoutChangeListener { v, l, t, r, b, ol, ot, or_, ob_ ->
+            if (r - l != or_ - ol || b - t != ob_ - ot) v.post { applyPageInset(host.activeUrl()) }
+        }
+        host.mobileTopBar.addOnLayoutChangeListener(ob)
+        host.webViewContainer.addOnLayoutChangeListener(ob)
+    }
+
 
     private fun applyPageInset(url: String) {
         // Nova stran nima naseg sloga: ce tega ne pozabimo, se ob vrnitvi na YouTube
