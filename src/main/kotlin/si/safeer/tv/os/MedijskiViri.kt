@@ -262,7 +262,7 @@ object MedijskiViri {
      */
     private const val PRIPETI = "pripeti_viri"
     /** Dokler uporabnik ne izbere sam: ta naprava, naprave v Safeer Linku in radijske postaje. */
-    private val PRIVZETO_PRIPETI = listOf("tv", "link", "radio")
+    private val PRIVZETO_PRIPETI = listOf("tv", "link", "radio", "magnet")
 
     fun kljucPripetega(v: Vir) = "u:" + v.naslov
 
