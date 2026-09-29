@@ -1498,7 +1498,16 @@ class HubUsmerjevalnik(
         return true
     }
 
-    private fun sprejmiSoseda(od: Odjemalec, tovor: JsonLahki.Pogled, id: String): String {
+    /** Zavrnjena sosednja povezava se po odgovoru zapre - sicer bi vsak ponovni poskus pustil odprto vticnico. */
+    private fun sprejmiSoseda(od: Odjemalec, tovor: JsonLahki.Pogled, id: String): String? {
+        val odgovor = odlocitevSoseda(od, tovor, id)
+        if (!odgovor.contains("\"rejected\"")) return odgovor
+        posljiVarno(od, odgovor)
+        try { od.zapri(1008, "zavrnjeno") } catch (_: Throwable) { }
+        return null
+    }
+
+    private fun odlocitevSoseda(od: Odjemalec, tovor: JsonLahki.Pogled, id: String): String {
         val sosedId = tovor.niz("device_id")?.trim()?.take(NAJVEC_IMENA).orEmpty()
         val vstopnica = od.vstopnica
         val vezana = napravaVstopnice(vstopnica)

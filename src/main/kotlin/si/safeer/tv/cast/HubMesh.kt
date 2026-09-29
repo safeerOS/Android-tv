@@ -33,6 +33,10 @@ object HubMesh {
 
     private val klicem: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val prvicVideni = ConcurrentHashMap<String, Long>()
+    /** Sosed, ki nas je zavrnil: do kdaj ga ne klicemo (premor raste do 10 min). */
+    private val zavrnjen = ConcurrentHashMap<String, Pair<Long, Long>>()
+    private const val PREMOR_MS = 30_000L
+    private const val NAJDALJSI_PREMOR_MS = 600_000L
 
     /** Link Mesh je vklopljen (izklop samo za primerjavo: nastavitev link_mesh = false). */
     fun vklopljen(context: Context): Boolean =
@@ -75,6 +79,7 @@ object HubMesh {
         return hubi.filter { h ->
             if (h.id.isBlank() || h.id == jaz || h.mesh != HubUsmerjevalnik.MESH || h.id in povezani || h.id in klicem) return@filter false
             if (krog.clanZaId(h.id) == null) return@filter false
+            if ((zavrnjen[h.id]?.first ?: 0L) > zdaj) return@filter false
             val prvic = prvicVideni.getOrPut(h.id) { zdaj }
             !(h.id < jaz && zdaj - prvic < VECJI_CAKA_MS)       // manjsi id klice prvi; pocakamo nanj
         }
@@ -127,18 +132,23 @@ object HubMesh {
                         .put("role", "hub").put("capabilities", org.json.JSONArray().put(HubUsmerjevalnik.MESH))
                         .put("protocol", "1")).toString())
                 if (!u.dodajSoseda(h.id, povezava, u.lastniId)) {
-                    webSocket.close(1000, "sosednja povezava ze obstaja")
+                    webSocket.cancel()
                     klicem.remove(h.id)
                     return
                 }
                 klicem.remove(h.id)
+                zavrnjen.remove(h.id)
                 Log.i(TAG, "Sosed ${h.id} (${h.naslov})")
             }
             override fun onMessage(webSocket: WebSocket, text: String) {
                 val j = JsonLahki.objekt(text)
                 if (j?.niz("type") == "cast.ack" && j.niz("status") == "rejected") {
-                    // Sosed nas ne sprejme (npr. ze ima povezavo, ki jo je odprl sam).
-                    webSocket.close(1000, "zavrnjeno"); return
+                    // Sosed nas ne sprejme (npr. ze ima povezavo, ki jo je odprl sam): vticnico zapremo takoj.
+                    Log.i(TAG, "${h.id} nas ni sprejel (${j.niz("error_code").orEmpty()})")
+                    val prej = zavrnjen[h.id]?.second ?: 0L
+                    val premor = (if (prej == 0L) PREMOR_MS else prej * 2).coerceAtMost(NAJDALJSI_PREMOR_MS)
+                    zavrnjen[h.id] = (System.currentTimeMillis() + premor) to premor
+                    webSocket.cancel(); return
                 }
                 try { u.obdelaj(povezava, text) } catch (e: Throwable) { SafeerLog.napaka("Mesh", "obdelaj", e) }
             }
