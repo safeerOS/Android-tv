@@ -330,7 +330,7 @@ class PredvajanjeActivity : OsActivity() {
             val i = predlogiNiz.childCount
             predlogiNiz.addView(kartica(getString(R.string.zvocnik_na, naZvocniku.ime), Zvocniki.aktivnaSkladba?.naslov ?: "", "",
                 R.drawable.os_ikona_zvocnik, video) { ZvocnikIzbira.upravljaj(this) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } })
-        } else if (zdaj != null && !video && DlnaPravila.primernVir(zdaj.zvok)) {
+        } else if (zdaj != null && !video && DlnaPravila.zaZvocnik(zdaj.zvok)) {
             val i = predlogiNiz.childCount
             predlogiNiz.addView(kartica(getString(R.string.zvocnik_predvajaj_na), zdaj.naslov, "",
                 R.drawable.os_ikona_zvocnik, video) { ZvocnikIzbira.izberi(this, zdaj) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } })

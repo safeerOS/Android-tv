@@ -1251,7 +1251,7 @@ class GlasbaActivity : OsActivity() {
         val naZvocniku = Zvocniki.aktivni
         if (naZvocniku != null) {
             dejanje("k:zvocnik", R.drawable.os_ikona_zvocnik, getString(R.string.zvocnik_na, naZvocniku.ime)) { upravljajZvocnik() }
-        } else if (!sk.video && DlnaPravila.primernVir(sk.zvok)) {
+        } else if (!sk.video && DlnaPravila.zaZvocnik(sk.zvok)) {
             dejanje("k:zvocnik", R.drawable.os_ikona_zvocnik, getString(R.string.zvocnik_predvajaj_na)) { izberiZvocnik(sk) }
         }
         dejanje("k:ustavi", R.drawable.os_ikona_ustavi, getString(R.string.os_media_ustavi)) { GlasbaStoritev.ustavi(this); glavna.postDelayed({ if (razdelek == DOMOV) izberi(DOMOV) }, 300) }

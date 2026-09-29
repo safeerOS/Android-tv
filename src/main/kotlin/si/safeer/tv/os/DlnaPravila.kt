@@ -119,6 +119,40 @@ object DlnaPravila {
         }
     }
 
-    /** Ali lahko zvocnik predvaja ta vir sam: samo javni http(s) naslovi (ne content://, ne pripeti TLS). */
-    fun primernVir(url: String): Boolean = url.startsWith("http://", true) || url.startsWith("https://", true)
+    /** Ali lahko zvocnik vir potegne sam: http(s) naslov. https na domacem naslovu (datoteke racunalnika
+     *  prek Safeer Controla s pripetim potrdilom) zvocnik ne more preveriti - te ne. */
+    fun primernVir(url: String): Boolean {
+        val u = url.trim()
+        if (u.startsWith("http://", true)) return true
+        if (!u.startsWith("https://", true)) return false
+        val gostitelj = try { URI(u).host.orEmpty() } catch (_: Exception) { return false }
+        return !jeDomaciNaslov(gostitelj)
+    }
+
+    /** Datoteka na tej napravi (content://, file:// ali pot) - streze jo majhen streznik te naprave. */
+    fun lokalniVir(url: String): Boolean =
+        url.startsWith("content://", true) || url.startsWith("file://", true) || url.startsWith("/")
+
+    fun zaZvocnik(url: String): Boolean = primernVir(url) || lokalniVir(url)
+
+    fun jeDomaciNaslov(gostitelj: String): Boolean {
+        val h = gostitelj.lowercase()
+        if (h == "localhost" || h.endsWith(".local")) return true
+        val d = h.split('.').mapNotNull { it.toIntOrNull() }
+        if (d.size != 4) return false
+        return d[0] == 10 || d[0] == 127 || (d[0] == 192 && d[1] == 168) || (d[0] == 172 && d[1] in 16..31) ||
+            (d[0] == 169 && d[1] == 254)
+    }
+
+    /** Obseg iz glave Range (bytes=a-b, bytes=a-, bytes=-n); null = cela datoteka ali neveljavno. */
+    fun obseg(glava: String?, velikost: Long): LongRange? {
+        if (glava == null || velikost <= 0) return null
+        val m = Regex("bytes=(\\d*)-(\\d*)").matchEntire(glava.trim()) ?: return null
+        val (a, b) = m.destructured
+        if (a.isEmpty() && b.isEmpty()) return null
+        val od: Long; val doo: Long
+        if (a.isEmpty()) { od = (velikost - b.toLong()).coerceAtLeast(0); doo = velikost - 1 }
+        else { od = a.toLong(); doo = if (b.isEmpty()) velikost - 1 else minOf(b.toLong(), velikost - 1) }
+        return if (od > doo || od >= velikost) null else od..doo
+    }
 }
