@@ -9,6 +9,7 @@ The APK scan reads every entry, including classes.dex, because a hostname that
 lives in a Kotlin string ends up compiled into the code and would otherwise slip
 past a check that only looks at the home page.
 """
+import hashlib
 from pathlib import Path
 import re
 import sys
@@ -99,6 +100,10 @@ for doc in [ROOT / 'README.md', ROOT / 'docs' / 'SKILL.md']:
 for name in ['HomeTilesStore.kt', 'PortalManager.kt', 'BrowserRepository.kt']:
     text = (source / name).read_text()
     assert '192.168.' not in text, (name, '192.168.')
+DOVOLJENE_SO = {
+    'lib/arm64-v8a/libtorrent4j.so': '6428158f8e012f048f85eb790317e55cf8557ba4018d53e543e86dd9c25cef2f',
+    'lib/armeabi-v7a/libtorrent4j.so': 'f8fbe9f7ba3703092d05bbd8ea39b75227cbd3b84c43aeefa5798464e018863c',
+}
 for file in sys.argv[1:]:
     with zipfile.ZipFile(file) as archive:
         names = archive.namelist()
@@ -111,6 +116,12 @@ for file in sys.argv[1:]:
         # Every entry, code included: a hostname in a Kotlin string lands in classes.dex.
         for name in names:
             scan_bytes(file + '!' + name, archive.read(name))
-        assert not any(name.endswith(('.so', '.db', '.sqlite', '.jks', '.keystore')) for name in names), file
+        # Edina dovoljena izvorna knjiznica: libtorrent4j 2.1.0-39 (MIT, Maven Central) za magnet povezave.
+        # Odtis je pripet: nova ali spremenjena .so ustavi gradnjo, dokler je ne preverimo in vpisemo sem.
+        for name in names:
+            if name.endswith('.so'):
+                assert name in DOVOLJENE_SO, (file, name)
+                assert hashlib.sha256(archive.read(name)).hexdigest() == DOVOLJENE_SO[name], (file, name)
+        assert not any(name.endswith(('.db', '.sqlite', '.jks', '.keystore')) for name in names), file
         print('PASS public assets:', file)
 print('PASS public defaults; no site-specific adaptations; user navigation remains unrestricted.')
