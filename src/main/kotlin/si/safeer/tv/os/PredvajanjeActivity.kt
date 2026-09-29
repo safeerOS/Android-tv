@@ -324,6 +324,17 @@ class PredvajanjeActivity : OsActivity() {
             R.drawable.os_ikona_isci, video) { odpriIskanje() })
         val vrsta = GlasbaStoritev.vrsta()
         val zdaj = GlasbaStoritev.trenutna()
+        // Zvocnik v omrezju (DLNA): zvocnik vir potegne sam, ta naprava je le daljinec.
+        val naZvocniku = Zvocniki.aktivni
+        if (naZvocniku != null) {
+            val i = predlogiNiz.childCount
+            predlogiNiz.addView(kartica(getString(R.string.zvocnik_na, naZvocniku.ime), Zvocniki.aktivnaSkladba?.naslov ?: "", "",
+                R.drawable.os_ikona_zvocnik, video) { ZvocnikIzbira.upravljaj(this) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } })
+        } else if (zdaj != null && !video && DlnaPravila.primernVir(zdaj.zvok)) {
+            val i = predlogiNiz.childCount
+            predlogiNiz.addView(kartica(getString(R.string.zvocnik_predvajaj_na), zdaj.naslov, "",
+                R.drawable.os_ikona_zvocnik, video) { ZvocnikIzbira.izberi(this, zdaj) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } })
+        }
         if (zdaj != null && MedijskiViri.shranljiva(zdaj)) {
             val je = MedijskiViri.jePriljubljena(this, zdaj)
             predlogiNiz.addView(kartica(getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj), zdaj.naslov, "",

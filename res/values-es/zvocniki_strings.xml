@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="zvocnik_predvajaj_na">Reproducir en altavoz</string>
+    <string name="zvocnik_na">En altavoz: %1$s</string>
+    <string name="zvocnik_iscem">Buscando altavoces en la red…</string>
+    <string name="zvocnik_ni_najdenih">No se encontraron altavoces. Debe estar encendido y en la misma red (DLNA).</string>
+    <string name="zvocnik_zaseden">%1$s está reproduciendo %2$s. ¿Cambiar a esta música?</string>
+    <string name="zvocnik_preklopi">Cambiar</string>
+    <string name="zvocnik_igra">Suena en %1$s</string>
+    <string name="zvocnik_napaka">%1$s no aceptó la música.</string>
+    <string name="zvocnik_premor">Pausa / continuar</string>
+    <string name="zvocnik_glasneje">Más alto</string>
+    <string name="zvocnik_tisje">Más bajo</string>
+    <string name="zvocnik_vrni">Volver a este dispositivo</string>
+</resources>

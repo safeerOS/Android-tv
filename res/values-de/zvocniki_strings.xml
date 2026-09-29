@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="zvocnik_predvajaj_na">Auf Lautsprecher abspielen</string>
+    <string name="zvocnik_na">Auf Lautsprecher: %1$s</string>
+    <string name="zvocnik_iscem">Suche Lautsprecher im Netzwerk …</string>
+    <string name="zvocnik_ni_najdenih">Keine Lautsprecher gefunden. Der Lautsprecher muss eingeschaltet und im selben Netzwerk sein (DLNA).</string>
+    <string name="zvocnik_zaseden">%1$s spielt gerade %2$s. Auf diese Musik umschalten?</string>
+    <string name="zvocnik_preklopi">Umschalten</string>
+    <string name="zvocnik_igra">Läuft jetzt auf %1$s</string>
+    <string name="zvocnik_napaka">%1$s hat die Musik nicht angenommen.</string>
+    <string name="zvocnik_premor">Pause / fortsetzen</string>
+    <string name="zvocnik_glasneje">Lauter</string>
+    <string name="zvocnik_tisje">Leiser</string>
+    <string name="zvocnik_vrni">Zurück auf dieses Gerät</string>
+</resources>

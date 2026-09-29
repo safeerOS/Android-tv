@@ -1247,9 +1247,19 @@ class GlasbaActivity : OsActivity() {
             GlasbaStoritev.nastaviCasovnik(CASOVNIK.firstOrNull { it > ostalo } ?: 0)
             osveziZdaj()
         }
+        // Zvocnik v omrezju (DLNA, npr. JBL): zvocnik vir potegne sam, telefon je le daljinec.
+        val naZvocniku = Zvocniki.aktivni
+        if (naZvocniku != null) {
+            dejanje("k:zvocnik", R.drawable.os_ikona_zvocnik, getString(R.string.zvocnik_na, naZvocniku.ime)) { upravljajZvocnik() }
+        } else if (!sk.video && DlnaPravila.primernVir(sk.zvok)) {
+            dejanje("k:zvocnik", R.drawable.os_ikona_zvocnik, getString(R.string.zvocnik_predvajaj_na)) { izberiZvocnik(sk) }
+        }
         dejanje("k:ustavi", R.drawable.os_ikona_ustavi, getString(R.string.os_media_ustavi)) { GlasbaStoritev.ustavi(this); glavna.postDelayed({ if (razdelek == DOMOV) izberi(DOMOV) }, 300) }
         return v
     }
+
+    private fun izberiZvocnik(sk: Jamendo.Skladba) = ZvocnikIzbira.izberi(this, sk) { if (!isFinishing) izberi(razdelek) }
+    private fun upravljajZvocnik() = ZvocnikIzbira.upravljaj(this) { if (!isFinishing) izberi(razdelek) }
 
     /** Osvezi besedila, potek in stanja tipk na plosci (vsako sekundo in ob spremembi). */
     private fun osveziPlosco(zadnja: Jamendo.Skladba? = null) {
