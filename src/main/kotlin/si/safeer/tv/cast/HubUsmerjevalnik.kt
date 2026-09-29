@@ -1377,6 +1377,8 @@ class HubUsmerjevalnik(
 
     private val sosedje = LinkedHashMap<String, Odjemalec>()
     private val sosedNaprave = HashMap<String, MutableSet<String>>()
+    /** Zadnji relay zemljevid vsakega soseda (naprave njegovih neposrednih sosedov): sosed -> id -> zapis. */
+    private val zadnjiRelay = HashMap<String, Map<String, JsonLahki.Pogled>>()
     private val zacetnikSoseda = java.util.IdentityHashMap<Odjemalec, String>()
     @Volatile private var zadnjiMesh = ""
 
@@ -1410,18 +1412,42 @@ class HubUsmerjevalnik(
         }
     }
 
-    private fun sporociloNaprav(seznam: String): String =
-        ovojnica("mesh.devices").surovo("payload", JsonLahki.Zapis().niz("hub", lastniId).surovo("devices", seznam).toString()).toString()
+    private fun zapisZaSosede(n: RegisterNaprav.Naprava, hub: String? = null): String {
+        val z = JsonLahki.Zapis().niz("name", n.ime).niz("role", n.vloga).seznamNizov("capabilities", n.zmoznosti)
+            .niz("ip", n.naslov)
+        if (n.protokol.isNotBlank()) z.niz("protocol", n.protokol)
+        if (n.platforma.isNotBlank()) z.niz("platform", n.platforma)
+        if (n.vrsta.isNotBlank()) z.niz("kind", n.vrsta)
+        if (n.razlicica.isNotBlank()) z.niz("version", n.razlicica)
+        if (n.prioriteta > 0) z.stevilo("priority", n.prioriteta.toDouble())
+        if (n.aplikacije.isNotBlank()) z.surovo("apps", n.aplikacije)
+        if (hub != null) z.niz("hub", hub)
+        return "\"" + JsonLahki.ubezi(n.id) + "\":" + z.toString()
+    }
+
+    /**
+     * Naprave nasih NEPOSREDNIH sosedov (ne posrednih): sosed, ki do njih nima svoje poti, jih doseze
+     * prek nas. Pot je tako najvec en vmesni Hub - brez zank.
+     */
+    private fun posredneZaSosede(): String =
+        register.povezane().filter { val p = it.povezava; p is Namestnik && !p.posredno && jeClan(it.id) }
+            .sortedBy { it.id }.joinToString(",", "{", "}") { zapisZaSosede(it, (it.povezava as Namestnik).sosedId) }
+
+    private fun sporociloNaprav(seznam: String, relay: String): String =
+        ovojnica("mesh.devices").surovo("payload", JsonLahki.Zapis().niz("hub", lastniId).surovo("devices", seznam)
+            .surovo("relay", relay).toString()).toString()
 
     /** Sosedom poslje nase lokalne naprave - vsem samo ob spremembi, ali enemu (novemu) vedno. */
     private fun objaviSosedom(samo: Odjemalec?) {
-        val seznam = lokalneZaSosede()
+        val lokalne = lokalneZaSosede()
+        val relay = posredneZaSosede()
+        val seznam = lokalne + "|" + relay
         val prejemniki = synchronized(kljucnica) {
             if (samo == null && seznam == zadnjiMesh) return
             if (samo == null) zadnjiMesh = seznam
             if (samo != null) listOf(samo) else sosedje.values.toList()
         }
-        val sporocilo = sporociloNaprav(seznam)
+        val sporocilo = sporociloNaprav(lokalne, relay)
         for (p in prejemniki) posljiVarno(p, sporocilo)
     }
 
@@ -1485,15 +1511,70 @@ class HubUsmerjevalnik(
     }
 
     /** Oddaljene naprave soseda postanejo znane, a nepovezane (klepet zanje pocaka). */
-    private fun pocistiSoseda(sosedId: String): Boolean = synchronized(kljucnica) {
-        val idji = sosedNaprave.remove(sosedId) ?: return false
-        var spremenjeno = false
-        for (i in idji) {
-            val n = register.najdi(i) ?: continue
-            val p = n.povezava
-            if (p is Namestnik && p.sosedId == sosedId) { register.odklopi(p); spremenjeno = true }
+    private fun pocistiSoseda(sosedId: String): Boolean {
+        val spremenjeno = synchronized(kljucnica) {
+            zadnjiRelay.remove(sosedId)
+            val idji = sosedNaprave.remove(sosedId) ?: emptySet<String>()
+            var sprememba = false
+            for (n in register.vse()) {
+                val p = n.povezava
+                if (p is Namestnik && p.sosedId == sosedId && (p.posredno || n.id in idji)) { register.odklopi(p); sprememba = true }
+            }
+            sprememba
         }
-        spremenjeno
+        // Naprave izgubljenega soseda so morda se dosegljive prek drugega soseda.
+        uporabiPosredne()
+        return spremenjeno
+    }
+
+    /**
+     * Iz zadnjih relay zemljevidov sosedov sestavi posredne poti. Lokalna in neposredna pot imata vedno
+     * prednost; ce napravo ponuja vec sosedov, velja prvi po id (vsi Hubi izberejo enako).
+     */
+    private fun uporabiPosredne() {
+        val novi = ArrayList<Pair<String, Odjemalec>>()
+        synchronized(kljucnica) {
+            val zeljene = LinkedHashMap<String, Pair<String, JsonLahki.Pogled>>()
+            for (sosed in zadnjiRelay.keys.sorted()) {
+                if (sosed !in sosedje) continue
+                for ((did, z) in zadnjiRelay[sosed].orEmpty()) {
+                    if (did in zeljene || did == lastniId || z.niz("hub") == lastniId) continue
+                    val p = register.najdi(did)?.povezava
+                    if (p != null && !(p is Namestnik && p.posredno)) continue     // lokalna ali neposredna pot
+                    zeljene[did] = sosed to z
+                }
+            }
+            for (n in register.vse()) {
+                val p = n.povezava
+                if (p is Namestnik && p.posredno && zeljene[n.id]?.first != p.sosedId) register.odklopi(p)
+            }
+            for ((did, par) in zeljene) {
+                val (sosed, z) = par
+                val prej = register.najdi(did)?.povezava
+                val naslov = z.nizAli("ip").take(64)
+                val namestnik = if (prej is Namestnik && prej.posredno && prej.sosedId == sosed) prej
+                    else Namestnik(sosed, sosedje.getValue(sosed), did, naslov, posredno = true)
+                register.registriraj(
+                    od = namestnik, deviceId = did, ime = z.nizAli("name", did),
+                    vloga = z.nizAli("role", "receiver").take(16),
+                    zmoznosti = z.nizi("capabilities").take(24).map { it.take(24) },
+                    protokol = z.nizAli("protocol"), platforma = z.nizAli("platform"), vrsta = z.nizAli("kind"),
+                    razlicica = z.nizAli("version"), prioriteta = (z.stevilo("priority") ?: 0.0).toInt(),
+                    aplikacije = z.surovo("apps")?.let { preveriKatalog(it) } ?: ""
+                )
+                register.najdi(did)?.naslov = naslov
+                if (prej == null) novi.add(did to namestnik)
+            }
+        }
+        dostaviCakajoce(novi)
+    }
+
+    private fun dostaviCakajoce(prispeli: List<Pair<String, Odjemalec>>) {
+        for ((did, p) in prispeli) {
+            dostaviCakajociKlepet(did, p)
+            if (register.najdi(did)?.zmoznosti?.contains(ZMOZNOST_KLEPET) == true)
+                napravaIzKljuca(did)?.let { dostaviCakajociKlepet(it, p) }
+        }
     }
 
     private fun odstraniSoseda(sosedId: String, povezava: Odjemalec?) {
@@ -1505,7 +1586,7 @@ class HubUsmerjevalnik(
         try { naSosedu?.invoke(sosedId, "") } catch (_: Throwable) { }
     }
 
-    private fun sosedoveNaprave(sosedId: String, povezava: Odjemalec, naprave: JsonLahki.Pogled?) {
+    private fun sosedoveNaprave(sosedId: String, povezava: Odjemalec, naprave: JsonLahki.Pogled?, relay: JsonLahki.Pogled?) {
         if (naprave == null) return
         val novi = naprave.kljuci().take(NAJVEC_NAPRAV)
             .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && it != lastniId && jeClan(it) }
@@ -1519,9 +1600,9 @@ class HubUsmerjevalnik(
                 val obstojeca = register.najdi(did)
                 val p = obstojeca?.povezava
                 if (p != null && p !is Namestnik) continue                   // lokalna prijava ima prednost
-                if (p is Namestnik && p.sosedId != sosedId) continue         // ze vidna prek drugega soseda
+                if (p is Namestnik && p.sosedId != sosedId && !p.posredno) continue   // ze neposredno prek drugega soseda
                 val naslov = z.nizAli("ip").take(64)
-                val namestnik = if (p is Namestnik) p else Namestnik(sosedId, povezava, did, naslov)
+                val namestnik = if (p is Namestnik && p.sosedId == sosedId && !p.posredno) p else Namestnik(sosedId, povezava, did, naslov)
                 register.registriraj(
                     od = namestnik, deviceId = did, ime = z.nizAli("name", did),
                     vloga = z.nizAli("role", "receiver").take(16),
@@ -1536,16 +1617,17 @@ class HubUsmerjevalnik(
             }
             for (did in stari - obdrzani) {
                 val p = register.najdi(did)?.povezava
-                if (p is Namestnik && p.sosedId == sosedId) register.odklopi(p)
+                if (p is Namestnik && p.sosedId == sosedId && !p.posredno) register.odklopi(p)
             }
             sosedNaprave[sosedId] = obdrzani
+            if (relay != null) {
+                zadnjiRelay[sosedId] = relay.kljuci().take(NAJVEC_NAPRAV)
+                    .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && jeClan(it) }
+                    .mapNotNull { k -> relay.objekt(k)?.let { k to it } }.toMap()
+            }
         }
-        // Klepet, ki je cakal na napravo, gre zdaj prek soseda.
-        for ((did, p) in prispeli) {
-            dostaviCakajociKlepet(did, p)
-            if (register.najdi(did)?.zmoznosti?.contains(ZMOZNOST_KLEPET) == true)
-                napravaIzKljuca(did)?.let { dostaviCakajociKlepet(it, p) }
-        }
+        dostaviCakajoce(prispeli)
+        uporabiPosredne()
         objaviNaprave()
         naSpremembeNaprav?.invoke()
     }
@@ -1554,16 +1636,28 @@ class HubUsmerjevalnik(
     private fun obdelajSoseda(sosedId: String, od: Odjemalec, sporocilo: JsonLahki.Pogled): String? {
         val tovor = sporocilo.objekt("payload")
         when (sporocilo.niz("type")) {
-            "mesh.devices" -> { sosedoveNaprave(sosedId, od, tovor?.objekt("devices")); return null }
+            "mesh.devices" -> { sosedoveNaprave(sosedId, od, tovor?.objekt("devices"), tovor?.objekt("relay")); return null }
             "mesh.route" -> {
                 val cilj = tovor?.niz("to").orEmpty()
                 val msg = tovor?.niz("msg") ?: return null
                 if (msg.length > NAJVEC_MESH_SPOROCILO) return null
                 val prejemnik = register.povezavaOd(cilj)
-                if (prejemnik == null || prejemnik is Namestnik) return null        // samo lokalne; nikoli naprej
                 val vsebina = JsonLahki.objekt(msg) ?: return null
                 val posiljatelj = vsebina.niz("sender").orEmpty()
-                val njegove = synchronized(kljucnica) { sosedNaprave[sosedId]?.toSet() ?: emptySet() }
+                if (tovor?.logicno("relay") == true) {
+                    // En vmesni skok: samo napravi, ki je NEPOSREDNO pri nasem drugem sosedu, in samo v imenu
+                    // naprave, ki je lokalno pri sosedu, ki prosi. Nikoli se enkrat naprej.
+                    val lokalneSoseda = synchronized(kljucnica) { sosedNaprave[sosedId]?.toSet() ?: emptySet() }
+                    if (prejemnik !is Namestnik || prejemnik.posredno || prejemnik.sosedId == sosedId) return null
+                    if (posiljatelj.isBlank() || posiljatelj !in lokalneSoseda) return null
+                    posljiVarno(prejemnik, msg)
+                    return null
+                }
+                if (prejemnik == null || prejemnik is Namestnik) return null        // samo lokalne; nikoli naprej
+                // Sosed govori v imenu svojih naprav in naprav, ki jih posreduje (relay, en skok).
+                val njegove = synchronized(kljucnica) {
+                    (sosedNaprave[sosedId]?.toSet() ?: emptySet()) + zadnjiRelay[sosedId].orEmpty().keys
+                }
                 // Sosed sme govoriti samo v imenu svojih naprav (ali svojem); brez posiljatelja samo seznanitev.
                 if (posiljatelj.isBlank()) { if (!vsebina.nizAli("type").startsWith("pair.")) return null }
                 else if (posiljatelj !in njegove && posiljatelj != sosedId) return null
@@ -2069,11 +2163,15 @@ class Namestnik(
     val sosedId: String,
     val povezava: HubUsmerjevalnik.Odjemalec,
     val cilj: String,
-    override val naslov: String
+    override val naslov: String,
+    /** Naprava je pri sosedu nasega soseda: sosed naj sporocilo preda naprej (en sam vmesni skok). */
+    val posredno: Boolean = false
 ) : HubUsmerjevalnik.Odjemalec {
     override fun poslji(besedilo: String) {
+        val tovor = JsonLahki.Zapis().niz("to", cilj).niz("msg", besedilo)
+        if (posredno) tovor.logicno("relay", true)
         povezava.poslji(JsonLahki.Zapis().niz("id", UUID.randomUUID().toString()).niz("type", "mesh.route")
-            .surovo("payload", JsonLahki.Zapis().niz("to", cilj).niz("msg", besedilo).toString()).toString())
+            .surovo("payload", tovor.toString()).toString())
     }
 
     /** Zapreti se da samo sosednjo povezavo, ne posamezne oddaljene naprave. */

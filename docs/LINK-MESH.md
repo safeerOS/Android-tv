@@ -55,18 +55,17 @@ mesh.trust     {type, id, payload: <krog json>}     (zdruzi s preverjanjem podpi
 
 ## Znane meje v1
 
-- Polna mreža: če dve vozlišči v LAN ne moreta druga do druge (izolacija AP), naprav drug drugega ne
-  vidita. v2: dostava prek enega vmesnega soseda (TTL 2).
+- Dostava prek vmesnega vozlišča (narejeno 29. 9.): `mesh.devices` nosi še `relay` = naprave
+  NEPOSREDNIH sosedov (z `hub`). Kdor do take naprave nima svoje poti, jo vpiše kot posredno in ji
+  pošilja `mesh.route` z `relay: true`; vmesni Hub preda naprej samo napravi svojega neposrednega soseda
+  in samo v imenu naprave, ki je lokalna pri prosilcu. Največ en vmesni skok, brez zank; neposredna pot
+  ima vedno prednost, ob njenem izpadu promet takoj steče prek vmesnega (in obratno).
 - `share.file` prek huba (stari telefonski rele): pot `path` velja na hubu pošiljatelja; oddaljeni
   prejemnik dobi še `hub_address` in `hub_fp`. Stari prejemniki tega ne poznajo — zato novi pošiljatelji
   uporabljajo neposredno pot (Protocol v1).
 - Kategorije `sync.*` se hranijo na hubu, ki jih je sprejel.
 - Klepet, ki čaka na nepovezano napravo, hrani hub pošiljatelja in ga dostavi, ko se cilj pojavi
   lokalno **ali prek soseda**.
-
-- `mesh.trust` od preverjenega soseda se zdruzi brez preverjanja podpisov vnosov (enako zaupanje, kot so
-  ga naprave doslej dajale krogu svojega huba). Naslednji korak: podpisani vnosi kroga tudi na Linuxu
-  (Windows in Android jih ze imata), nato preverjanje podpisov povsod.
 
 ## Združljivost
 

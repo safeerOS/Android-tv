@@ -47,7 +47,7 @@ private fun kljuc(id: String): String = kljuci.getOrPut(id) {
     java.util.Base64.getEncoder().encodeToString(par.public.encoded)
 }
 
-private val CLANI = listOf("hub-a", "hub-b", "hub-c", "tv", "pc", "tel", "tablica")
+private val CLANI = listOf("hub-a", "hub-b", "hub-c", "hub-d", "tv", "pc", "tel", "tablica")
 
 private fun hub(id: String): HubUsmerjevalnik {
     val u = HubUsmerjevalnik(null)
@@ -112,7 +112,7 @@ fun main() {
         val tv = prijava(a, "tv"); prijava(b, "pc"); val tel = prijava(c, "tel")
         val (ab, _) = povezi(a, b); povezi(a, c); povezi(b, c)
         a.odklopi(ab)
-        preveriM("tv ne vidi vec pc", tv.idji() == listOf("tel", "tv"))
+        preveriM("tv vidi pc prek c (en vmesni skok)", tv.idji() == listOf("pc", "tel", "tv"))
         preveriM("tel se vedno vidi vse", tel.idji() == listOf("pc", "tel", "tv"))
         preveriM("a ima samo soseda c", a.sosedjeIdji() == listOf("hub-c"))
     }
@@ -184,11 +184,46 @@ fun main() {
         prijava(a, "tv")
         val (ab, _) = povezi(a, b)
         fun st() = ab.poslano.count { JsonLahki.objekt(it)?.niz("type") == "mesh.devices" }
+        prijava(b, "pc")                        // sprememba pri sosedu spremeni nas relay zemljevid
         val pred = st()
-        prijava(b, "pc")
-        preveriM("sprememba pri sosedu ne poslje nasega seznama", st() == pred)
+        a.obdelaj(Naprava(), """{"id":"p","type":"cast.ping"}""")
+        preveriM("brez spremembe ni novega seznama", st() == pred)
         prijava(a, "tablica")
         preveriM("nova lokalna naprava poslje seznam", st() == pred + 1)
+    }
+    primer("relay: a in c se ne dosezeta, poveze ju b") {
+        val a = hub("hub-a"); val b = hub("hub-b"); val c = hub("hub-c")
+        val tv = prijava(a, "tv"); prijava(b, "pc"); val tel = prijava(c, "tel")
+        povezi(a, b); povezi(b, c)
+        preveriM("tv vidi tel", tv.idji() == listOf("pc", "tel", "tv"))
+        preveriM("tel vidi tv", tel.idji() == listOf("pc", "tel", "tv"))
+        a.obdelaj(tv, """{"id":"r1","type":"control.command","target":"tel","payload":{}}""")
+        val ukaz = tel.zadnje("control.command")
+        preveriM("ukaz prispe prek b", ukaz != null && JsonLahki.objekt(ukaz)?.niz("sender") == "tv")
+        c.obdelaj(tel, """{"id":"r2","type":"control.result","target":"tv","ref_id":"r1"}""")
+        preveriM("odgovor nazaj prek b", tv.zadnje("control.result") != null)
+    }
+    primer("relay: neposredna pot ima prednost, izpad preklopi na vmesno") {
+        val a = hub("hub-a"); val b = hub("hub-b"); val c = hub("hub-c")
+        val tv = prijava(a, "tv"); prijava(b, "pc"); val tel = prijava(c, "tel")
+        val (ab, _) = povezi(a, b); povezi(b, c); val (ac, _) = povezi(a, c)
+        fun prekB() = ab.poslano.count { JsonLahki.objekt(it)?.niz("type") == "mesh.route" }
+        val pred = prekB()
+        a.obdelaj(tv, """{"id":"d","type":"share.text","target":"tel","payload":{"text":"x"}}""")
+        preveriM("neposredno, ne prek b", tel.vrste("share.text").size == 1 && prekB() == pred)
+        a.odklopi(ac)
+        a.obdelaj(tv, """{"id":"e","type":"share.text","target":"tel","payload":{"text":"y"}}""")
+        preveriM("po izpadu prek b", tel.vrste("share.text").size == 2 && prekB() == pred + 1)
+    }
+    primer("relay: najvec en skok in brez ponarejanja") {
+        val a = hub("hub-a"); val b = hub("hub-b"); val c = hub("hub-c"); val d = hub("hub-d")
+        prijava(a, "tv"); prijava(b, "pc"); val tel = prijava(c, "tel"); val tab = prijava(d, "tablica")
+        povezi(a, b); povezi(b, c); povezi(c, d)
+        val izA = b.javi("hub-a")!!
+        b.obdelaj(izA, """{"type":"mesh.route","payload":{"to":"tel","relay":true,"msg":"{\"type\":\"share.text\",\"sender\":\"pc\"}"}}""")
+        preveriM("tuj posiljatelj pri relay zavrzen", tel.vrste("share.text").isEmpty())
+        b.obdelaj(izA, """{"type":"mesh.route","payload":{"to":"tablica","relay":true,"msg":"{\"type\":\"share.text\",\"sender\":\"tv\"}"}}""")
+        preveriM("drugi skok zavrnjen", tab.vrste("share.text").isEmpty())
     }
     println()
     if (napakMesh == 0) println("Vse v redu.") else { println("Napak: $napakMesh"); kotlin.system.exitProcess(1) }
