@@ -348,7 +348,7 @@ class MagnetActivity : OsActivity() {
 }
 
 /** Postavi otroke v vrstice po vrsti in prelomi, ko zmanjka širine (kot besedilo). */
-private class OvijalnaVrsta(c: android.content.Context) : ViewGroup(c) {
+internal class OvijalnaVrsta(c: android.content.Context) : ViewGroup(c) {
     override fun onMeasure(sirinaSpec: Int, visinaSpec: Int) {
         val najvec = MeasureSpec.getSize(sirinaSpec).let { if (MeasureSpec.getMode(sirinaSpec) == MeasureSpec.UNSPECIFIED) Int.MAX_VALUE else it }
         var x = 0; var y = 0; var vrsta = 0; var sirina = 0
@@ -367,17 +367,32 @@ private class OvijalnaVrsta(c: android.content.Context) : ViewGroup(c) {
 
     override fun onLayout(spremenjeno: Boolean, l: Int, t: Int, r: Int, b: Int) {
         val najvec = r - l
-        var x = 0; var y = 0; var vrsta = 0
+        // Najprej vrste (kateri otroci gredo v katero vrsto in kako visoka je), nato postavitev na sredino vrste.
+        val vrste = mutableListOf<MutableList<View>>(mutableListOf())
+        val visine = mutableListOf(0)
+        var x = 0
         for (i in 0 until childCount) {
             val o = getChildAt(i)
             if (o.visibility == GONE) continue
             val lp = o.layoutParams as MarginLayoutParams
             val w = o.measuredWidth + lp.leftMargin + lp.rightMargin
             val h = o.measuredHeight + lp.topMargin + lp.bottomMargin
-            if (x > 0 && x + w > najvec) { y += vrsta; x = 0; vrsta = 0 }
-            val levo = if (layoutDirection == LAYOUT_DIRECTION_RTL) najvec - x - w + lp.leftMargin else x + lp.leftMargin
-            o.layout(levo, y + lp.topMargin, levo + o.measuredWidth, y + lp.topMargin + o.measuredHeight)
-            x += w; vrsta = maxOf(vrsta, h)
+            if (x > 0 && x + w > najvec) { vrste.add(mutableListOf()); visine.add(0); x = 0 }
+            vrste.last().add(o); visine[visine.size - 1] = maxOf(visine.last(), h); x += w
+        }
+        var y = 0
+        for ((k, vrsta) in vrste.withIndex()) {
+            x = 0
+            for (o in vrsta) {
+                val lp = o.layoutParams as MarginLayoutParams
+                val w = o.measuredWidth + lp.leftMargin + lp.rightMargin
+                val h = o.measuredHeight + lp.topMargin + lp.bottomMargin
+                val vrh = y + (visine[k] - h) / 2 + lp.topMargin
+                val levo = if (layoutDirection == LAYOUT_DIRECTION_RTL) najvec - x - w + lp.leftMargin else x + lp.leftMargin
+                o.layout(levo, vrh, levo + o.measuredWidth, vrh + o.measuredHeight)
+                x += w
+            }
+            y += visine[k]
         }
     }
 
