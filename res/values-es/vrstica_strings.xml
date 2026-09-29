@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="os_vrstica_pokazi">Mostrar barra lateral</string>
+    <string name="os_vrstica_skrij">Ocultar barra lateral</string>
 </resources>
