@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="os_mediji_nazaj_v_os">Retour à Safeer OS</string>
+    <string name="os_mediji_prejsnja">Précédent</string>
+    <string name="os_mediji_predvajaj_pavza">Lecture / pause</string>
+    <string name="os_mediji_naslednja">Suivant</string>
+</resources>
