@@ -179,4 +179,9 @@
     <string name="os_media_tv_opis">Official live streams by country</string>
     <string name="os_media_javna_last">Public domain movies</string>
     <string name="os_media_tunein_lokalne">TuneIn · stations near you</string>
+    <string name="os_media_napaka_tok">Stream unreachable. Check the address and connection.</string>
+    <string name="os_media_napaka_format">This format can't be played.</string>
+    <string name="os_media_napaka_zascita">This recording is DRM-protected and Safeer doesn't play it.</string>
+    <string name="os_media_napaka_splosno">Playback stopped because of an error.</string>
+    <string name="os_media_napaka_naslednja">Couldn't play »%1$s« – playing the next one.</string>
 </resources>

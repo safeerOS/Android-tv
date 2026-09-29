@@ -179,4 +179,9 @@
     <string name="os_media_tv_opis">Offizielle Livestreams nach Land</string>
     <string name="os_media_javna_last">Gemeinfreie Filme</string>
     <string name="os_media_tunein_lokalne">TuneIn · Sender in deiner Nähe</string>
+    <string name="os_media_napaka_tok">Stream nicht erreichbar. Adresse und Verbindung prüfen.</string>
+    <string name="os_media_napaka_format">Dieses Format kann nicht abgespielt werden.</string>
+    <string name="os_media_napaka_zascita">Die Aufnahme ist DRM-geschützt; Safeer spielt sie nicht ab.</string>
+    <string name="os_media_napaka_splosno">Die Wiedergabe wurde wegen eines Fehlers beendet.</string>
+    <string name="os_media_napaka_naslednja">»%1$s« konnte nicht abgespielt werden – spiele den nächsten Titel.</string>
 </resources>
