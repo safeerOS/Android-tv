@@ -170,7 +170,11 @@ object DvdVir {
             if (vOdseku <= 0) { odpriDel(); if (trenutni == null) return C.RESULT_END_OF_INPUT }
             val ds = trenutni ?: return C.RESULT_END_OF_INPUT
             val n = ds.read(buffer, offset, minOf(length.toLong(), vOdseku).toInt())
-            if (n == C.RESULT_END_OF_INPUT) { vOdseku = 0; return read(buffer, offset, length) }
+            if (n == C.RESULT_END_OF_INPUT) {
+                // Konec dela, preden ga je bilo toliko, kot pravi zapis v sliki: prirezan ISO, ne ponavljamo.
+                if (vOdseku > 0) throw IOException("prirezan_iso")
+                return C.RESULT_END_OF_INPUT
+            }
             polozaj += n; preostane -= n; vOdseku -= n
             bytesTransferred(n)
             return n

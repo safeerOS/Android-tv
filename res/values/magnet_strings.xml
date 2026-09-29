@@ -43,4 +43,5 @@
     <string name="magnet_nevarno_naslov">This file may be a program</string>
     <string name="magnet_nevarno_opis">The automatic check says “%s” may be a program. The check can be wrong. Download it only if you trust the source; Safeer never runs or plays it.</string>
     <string name="magnet_vseeno">Continue anyway</string>
+    <string name="magnet_pritisni_odpri">Check the link and press Open.</string>
 </resources>
