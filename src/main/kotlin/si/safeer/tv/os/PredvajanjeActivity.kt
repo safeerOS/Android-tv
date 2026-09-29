@@ -555,7 +555,7 @@ class PredvajanjeActivity : OsActivity() {
     /** Gumb in namig za podnapise samo, kadar jih video ima. */
     private fun posodobiPodnapise() {
         val ima = jeVideo() && Podnapisi.imaPodnapise(GlasbaStoritev.predvajalnik)
-        GlasbaStoritev.predvajalnik?.let { p -> android.util.Log.i("SafeerPodnapisi", "Posnetki: " + Podnapisi.posnetki(p).joinToString { (g, i) -> "${g.getTrackFormat(i).sampleMimeType}/${g.getTrackFormat(i).language}/${g.isTrackSelected(i)}" }) }
+        GlasbaStoritev.predvajalnik?.let { p -> android.util.Log.d("SafeerPodnapisi", "Posnetki: " + Podnapisi.posnetki(p).joinToString { (g, i) -> "${g.getTrackFormat(i).sampleMimeType}/${g.getTrackFormat(i).language}/${g.isTrackSelected(i)}" }) }
         gumbPodnapisi?.visibility = if (ima) View.VISIBLE else View.GONE
         if (!dotik && ::namig.isInitialized && jeVideo()) {
             val osnova = getString(R.string.os_mediji_namig_predvajanje_video)

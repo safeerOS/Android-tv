@@ -195,6 +195,74 @@ object Podnapisi {
         p.trackSelectionParameters = gradnik.build()
     }
 
+    // ------------------------------------------------------------------ popravilo (kot VLC)
+
+    private val CAS_SRT = Regex("(\\d{1,2}):(\\d{2}):(\\d{2})[,.](\\d{1,3})")
+
+    /** Besedilo podnapisa: UTF-8 (z BOM ali brez), UTF-16 z BOM, sicer Windows-1250 (stari slovenski podnapisi). */
+    fun besedilo(podatki: ByteArray): String {
+        if (podatki.size >= 2 && podatki[0] == 0xFF.toByte() && podatki[1] == 0xFE.toByte()) return String(podatki, 2, podatki.size - 2, Charsets.UTF_16LE)
+        if (podatki.size >= 2 && podatki[0] == 0xFE.toByte() && podatki[1] == 0xFF.toByte()) return String(podatki, 2, podatki.size - 2, Charsets.UTF_16BE)
+        val zacetek = if (podatki.size >= 3 && podatki[0] == 0xEF.toByte() && podatki[1] == 0xBB.toByte() && podatki[2] == 0xBF.toByte()) 3 else 0
+        return try {
+            Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                .decode(java.nio.ByteBuffer.wrap(podatki, zacetek, podatki.size - zacetek)).toString()
+        } catch (_: java.nio.charset.CharacterCodingException) {
+            String(podatki, java.nio.charset.Charset.forName("windows-1250"))
+        }
+    }
+
+    /**
+     * SRT, kot ga preberejo vsi predvajalniki: zaporedne številke znova (npr. "1 " s presledkom ExoPlayer
+     * zavrne), časi z vejico, UTF-8. Če v besedilu ni nobenega veljavnega bloka, vrne prazen niz.
+     */
+    fun srtPocisti(podatki: ByteArray): String {
+        val izid = StringBuilder()
+        var n = 0
+        for (blok in besedilo(podatki).replace("\r\n", "\n").replace('\r', '\n').trim().split(Regex("\n\\s*\n"))) {
+            val deli = blok.split('\n')
+            val i = deli.indexOfFirst { it.contains("-->") }
+            if (i < 0) continue
+            val casa = CAS_SRT.findAll(deli[i]).toList()
+            if (casa.size < 2) continue
+            val besedilo = deli.drop(i + 1).map { it.trimEnd() }.filter { it.isNotBlank() }
+            if (besedilo.isEmpty()) continue
+            fun cas(m: MatchResult) = String.format(Locale.ROOT, "%02d:%02d:%02d,%03d", m.groupValues[1].toInt(), m.groupValues[2].toInt(),
+                m.groupValues[3].toInt(), m.groupValues[4].padEnd(3, '0').toInt())
+            if (n > 0) izid.append('\n')
+            n++
+            izid.append(n).append('\n').append(cas(casa[0])).append(" --> ").append(cas(casa[1])).append('\n')
+                .append(besedilo.joinToString("\n")).append('\n')
+        }
+        return izid.toString()
+    }
+
+    /** Ovoj ExoPlayerjevih bralnikov podnapisov: SRT popravimo, SSA/VTT prekodiramo v UTF-8, nato preberejo oni. */
+    class Popravljalnik(private val osnova: androidx.media3.extractor.text.SubtitleParser.Factory =
+                            androidx.media3.extractor.text.DefaultSubtitleParserFactory()) : androidx.media3.extractor.text.SubtitleParser.Factory {
+        override fun supportsFormat(format: androidx.media3.common.Format) = osnova.supportsFormat(format)
+        override fun getCueReplacementBehavior(format: androidx.media3.common.Format) = osnova.getCueReplacementBehavior(format)
+        override fun create(format: androidx.media3.common.Format): androidx.media3.extractor.text.SubtitleParser {
+            val bralnik = osnova.create(format)
+            val mime = format.sampleMimeType
+            if (mime != MimeTypes.APPLICATION_SUBRIP && mime != MimeTypes.TEXT_SSA && mime != MimeTypes.TEXT_VTT) return bralnik
+            return object : androidx.media3.extractor.text.SubtitleParser {
+                override fun parse(data: ByteArray, offset: Int, length: Int,
+                                   outputOptions: androidx.media3.extractor.text.SubtitleParser.OutputOptions,
+                                   output: androidx.media3.common.util.Consumer<androidx.media3.extractor.text.CuesWithTiming>) {
+                    val izvirnik = data.copyOfRange(offset, offset + length)
+                    val popravljeno = try {
+                        (if (mime == MimeTypes.APPLICATION_SUBRIP) srtPocisti(izvirnik) else besedilo(izvirnik)).toByteArray(Charsets.UTF_8)
+                    } catch (_: Throwable) { ByteArray(0) }
+                    val podatki = if (popravljeno.isEmpty()) izvirnik else popravljeno
+                    bralnik.parse(podatki, 0, podatki.size, outputOptions, output)
+                }
+                override fun getCueReplacementBehavior(): Int = bralnik.cueReplacementBehavior
+                override fun reset() = bralnik.reset()
+            }
+        }
+    }
+
     /** Prikaz podnapisov nad sliko (besedilo z belimi črkami in obrobo; slike PGS izpustimo). */
     class Prikaz(ctx: Context) : Player.Listener {
         val pogled: TextView = TextView(ctx).apply {
@@ -216,7 +284,6 @@ object Podnapisi {
             }
             pogled.text = b
             pogled.visibility = if (b.isEmpty()) View.GONE else View.VISIBLE
-            if (android.util.Log.isLoggable("SafeerPodnapisi", android.util.Log.DEBUG) || b.isNotEmpty()) android.util.Log.d("SafeerPodnapisi", "Podnapis: ${b.length} znakov")
         }
     }
 }
