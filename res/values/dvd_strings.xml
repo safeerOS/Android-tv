@@ -4,4 +4,7 @@
     <string name="dvd_berem">Reading the disc…</string>
     <string name="dvd_zascita">The disc can\'t be read. Safeer doesn\'t unlock protected (CSS) discs.</string>
     <string name="dvd_ni_dvd">This image isn\'t a DVD-Video disc.</string>
+    <string name="dvd_krajevno">DVD (ISO image)</string>
+    <string name="dvd_krajevno_opis">Choose an ISO image on this device or a USB drive</string>
+    <string name="dvd_ni_izbirnika">No file picker is available on this device.</string>
 </resources>

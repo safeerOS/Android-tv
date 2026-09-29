@@ -4,4 +4,7 @@
     <string name="dvd_berem">Disc wird gelesen …</string>
     <string name="dvd_zascita">Die Disc kann nicht gelesen werden. Geschützte Discs (CSS) entsperrt Safeer nicht.</string>
     <string name="dvd_ni_dvd">Dieses Abbild ist keine DVD-Video-Disc.</string>
+    <string name="dvd_krajevno">DVD (ISO-Abbild)</string>
+    <string name="dvd_krajevno_opis">ISO-Abbild auf diesem Gerät oder einem USB-Stick auswählen</string>
+    <string name="dvd_ni_izbirnika">Auf diesem Gerät ist keine Dateiauswahl verfügbar.</string>
 </resources>

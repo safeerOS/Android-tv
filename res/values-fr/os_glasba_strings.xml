@@ -184,4 +184,6 @@
     <string name="os_media_napaka_zascita">L\'enregistrement est protégé par DRM ; Safeer ne le lit pas.</string>
     <string name="os_media_napaka_splosno">La lecture s\'est arrêtée à cause d\'une erreur.</string>
     <string name="os_media_napaka_naslednja">Impossible de lire « %1$s » – lecture du suivant.</string>
+    <string name="os_media_ni_dekoderja_slike">Cet appareil ne peut pas afficher l\'image de cette vidéo (%1$s). Lisez-la sur un téléviseur ou un ordinateur.</string>
+    <string name="os_media_ni_dekoderja_zvoka">Cet appareil ne peut pas lire le son de cette vidéo (%1$s).</string>
 </resources>

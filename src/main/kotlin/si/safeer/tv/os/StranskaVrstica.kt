@@ -29,6 +29,10 @@ class StranskaVrstica private constructor(
     enum class Razdelek { DOMOV, MEDIJI, NAPRAVE, SPOROCILA, PROGRAMI, DATOTEKE, SPLET, ZAPISKI, NASTAVITVE }
 
     private val meni = LinearLayout(dejavnost)
+    /** Meni se da podrsati: na telefonu lezece (nizek zaslon) sicer spodnje postavke niso dosegljive. */
+    private val drsnik = android.widget.ScrollView(dejavnost).apply {
+        isFillViewport = true; isVerticalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER
+    }
     private val besedila = ArrayList<View>()
     private val postavke = LinkedHashMap<Razdelek, View>()
     private var zadnjiFokusVsebine: View? = null
@@ -58,7 +62,8 @@ class StranskaVrstica private constructor(
         rocaj.contentDescription = dejavnost.getString(R.string.os_vrstica_pokazi)
         rocaj.setOnClickListener { nastaviSkrito(false) }
         addView(rocaj, LayoutParams(dp(14), ViewGroup.LayoutParams.MATCH_PARENT))
-        addView(meni, LayoutParams(dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina),
+        drsnik.addView(meni, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        addView(drsnik, LayoutParams(dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina),
             ViewGroup.LayoutParams.MATCH_PARENT))
         (vsebina.parent as? ViewGroup)?.removeView(vsebina)
         addView(vsebina, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
@@ -67,7 +72,7 @@ class StranskaVrstica private constructor(
     }
 
     private fun uveljaviSkrito() {
-        meni.visibility = if (skrita) View.GONE else View.VISIBLE
+        drsnik.visibility = if (skrita) View.GONE else View.VISIBLE
         rocaj.visibility = if (skrita) View.VISIBLE else View.GONE
     }
 
@@ -88,7 +93,7 @@ class StranskaVrstica private constructor(
             android.view.MotionEvent.ACTION_DOWN -> {
                 zacetekX = e.x; zacetekY = e.y; prevzet = false
                 // Skrij: poteg se zacne na vrstici. Pokazi: poteg z levega roba zaslona (ali dotik rocaja).
-                poteg = if (skrita) e.x < dp(28) else e.x < meni.right
+                poteg = if (skrita) e.x < dp(28) else e.x < drsnik.right
             }
             android.view.MotionEvent.ACTION_MOVE, android.view.MotionEvent.ACTION_UP -> if (poteg && !prevzet) {
                 val dx = e.x - zacetekX; val dy = e.y - zacetekY
@@ -133,7 +138,7 @@ class StranskaVrstica private constructor(
     /** Poklice jo Activity ob spremembi velikosti, kadar manifest zaslona ne ustvari znova. */
     fun prilagodiSirino() {
         val ozek = dejavnost.resources.configuration.screenWidthDp < 600 || skrcena
-        meni.layoutParams = (meni.layoutParams as? LayoutParams ?: LayoutParams(0, -1)).apply {
+        drsnik.layoutParams = (drsnik.layoutParams as? LayoutParams ?: LayoutParams(0, -1)).apply {
             width = if (ozek) dp(68) else dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina)
             height = ViewGroup.LayoutParams.MATCH_PARENT
         }

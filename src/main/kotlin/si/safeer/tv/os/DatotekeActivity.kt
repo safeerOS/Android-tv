@@ -415,7 +415,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return
         }
         when (v.vrsta) {
-            "folder" -> { pot.add(Raven(v.id, v.ime)); if (krajevni) naloziKrajevno(v.id) else nalozi(v.id) }
+            "folder" -> if (krajevni && v.id == KrajevneDatoteke.DVD) izberiIso()
+                else { pot.add(Raven(v.id, v.ime)); if (krajevni) naloziKrajevno(v.id) else nalozi(v.id) }
             "image" -> if (izbiramSliko) vrniSliko(v) else pokaziSliko(v)
             "video", "audio" -> if (izbiramSliko)
                 Toast.makeText(this, getString(R.string.os_izberi_sliko), Toast.LENGTH_SHORT).show()
@@ -594,6 +595,29 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val r = racunalnik ?: return
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
         odpriNaRacunalniku(v, zaslon)
+    }
+
+    /** Slika ISO na tej napravi ali ključku USB: izbere jo uporabnik v sistemskem izbirniku (kot »Odpri datoteko« v VLC). */
+    private fun izberiIso() {
+        val namera = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+        try { startActivityForResult(namera, ZAHTEVA_ISO) }
+        catch (_: android.content.ActivityNotFoundException) {
+            Toast.makeText(this, getString(R.string.dvd_ni_izbirnika), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onActivityResult(zahteva: Int, izid: Int, podatki: Intent?) {
+        super.onActivityResult(zahteva, izid, podatki)
+        if (zahteva != ZAHTEVA_ISO || izid != RESULT_OK) return
+        val uri = podatki?.data ?: return
+        try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) { }
+        val ime = try {
+            contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                if (it.moveToFirst()) it.getString(0) else null
+            }
+        } catch (_: Throwable) { null } ?: "DVD.iso"
+        // Slika ISO se prepozna po vsebini (DvdVir.preveri), ne le po končnici: sistemski izbirnik je ne zna filtrirati.
+        predvajajDvd(Vnos(uri.toString(), if (DvdVir.jeIso(ime)) ime else "$ime.iso", "file", -1, ""))
     }
 
     private fun predvajajDvd(v: Vnos) {
@@ -947,6 +971,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         const val EXTRA_IZBERI_SLIKO = "izberi_sliko"
         const val EXTRA_KRAJEVNO = "krajevno"
         private const val ZAHTEVA_DOVOLJENJA = 7321
+        private const val ZAHTEVA_ISO = 7322
         /** Pregledovalnik slik je datoteko spremenil: seznam se ob vrnitvi osvezi. */
         @Volatile var osveziPoVrnitvi = false
 

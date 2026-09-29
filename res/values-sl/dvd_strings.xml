@@ -4,4 +4,7 @@
     <string name="dvd_berem">Berem disk …</string>
     <string name="dvd_zascita">Diska ni mogoče prebrati. Zaščitenih diskov (CSS) Safeer ne odklepa.</string>
     <string name="dvd_ni_dvd">Ta slika ni disk DVD-Video.</string>
+    <string name="dvd_krajevno">DVD (slika ISO)</string>
+    <string name="dvd_krajevno_opis">Izberi sliko ISO na napravi ali ključku USB</string>
+    <string name="dvd_ni_izbirnika">Na tej napravi ni izbirnika datotek.</string>
 </resources>
