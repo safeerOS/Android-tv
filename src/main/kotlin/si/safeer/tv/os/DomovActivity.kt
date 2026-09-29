@@ -106,6 +106,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         ura = findViewById(R.id.ura)
         datum = findViewById(R.id.datum)
         meniDomov = findViewById(R.id.meniDomov)
+        if (packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK))
+            findViewById<android.view.ViewGroup?>(R.id.stranskiMeni)?.let { TvSkrcenjeVrstice(this, it) }
         meniAplikacije = findViewById(R.id.meniAplikacije)
         meniZaslon = findViewById(R.id.meniZaslon)
         meniDatoteke = findViewById(R.id.meniDatoteke)
