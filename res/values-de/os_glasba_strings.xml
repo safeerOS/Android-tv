@@ -184,4 +184,6 @@
     <string name="os_media_napaka_zascita">Die Aufnahme ist DRM-geschützt; Safeer spielt sie nicht ab.</string>
     <string name="os_media_napaka_splosno">Die Wiedergabe wurde wegen eines Fehlers beendet.</string>
     <string name="os_media_napaka_naslednja">»%1$s« konnte nicht abgespielt werden – spiele den nächsten Titel.</string>
+    <string name="os_media_ni_dekoderja_slike">Dieses Gerät kann das Bild dieses Videos nicht anzeigen (%1$s). Spiele es auf einem Fernseher oder Computer ab.</string>
+    <string name="os_media_ni_dekoderja_zvoka">Dieses Gerät kann den Ton dieses Videos nicht abspielen (%1$s).</string>
 </resources>

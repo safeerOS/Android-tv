@@ -40,6 +40,36 @@ class GlasbaStoritev : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /** Zadnji posnetek, za katerega smo že povedali, da mu manjka dekoder (sporočilo samo enkrat). */
+    private var brezDekoderja: String? = null
+
+    /**
+     * Kot VLC uporabniku povemo, kadar naprava slike ali zvoka posnetka ne zna dekodirati (npr. DVD z MPEG-2
+     * in AC-3 na telefonu brez teh dekoderjev). Brez tega predvajalnik tiho kaže črn zaslon.
+     */
+    private fun preveriDekoderje(p: Player, tracks: androidx.media3.common.Tracks) {
+        val kljuc = p.currentMediaItem?.mediaId + "#" + p.currentMediaItemIndex
+        if (tracks.groups.isEmpty() || kljuc == brezDekoderja) return
+        fun manjka(vrsta: Int): String? {
+            val skupine = tracks.groups.filter { it.type == vrsta }
+            if (skupine.isEmpty() || skupine.any { g -> (0 until g.length).any { g.isTrackSupported(it) } }) return null
+            return skupine.first().getTrackFormat(0).sampleMimeType.orEmpty()
+        }
+        fun ime(mime: String) = when (mime) {
+            "video/mpeg2" -> "MPEG-2"; "audio/ac3" -> "Dolby Digital (AC-3)"; "audio/eac3" -> "Dolby Digital Plus"
+            "audio/vnd.dts", "audio/vnd.dts.hd" -> "DTS"; "audio/true-hd" -> "Dolby TrueHD"
+            else -> mime.substringAfter('/').uppercase()
+        }
+        val slika = manjka(androidx.media3.common.C.TRACK_TYPE_VIDEO)
+        val zvok = manjka(androidx.media3.common.C.TRACK_TYPE_AUDIO)
+        when {
+            slika != null -> obvesti(getString(R.string.os_media_ni_dekoderja_slike, ime(slika)))
+            zvok != null -> obvesti(getString(R.string.os_media_ni_dekoderja_zvoka, ime(zvok)))
+            else -> return
+        }
+        brezDekoderja = kljuc
+    }
+
     private fun obvesti(besedilo: String) {
         android.os.Handler(mainLooper).post {
             android.widget.Toast.makeText(applicationContext, besedilo, android.widget.Toast.LENGTH_LONG).show()
@@ -61,6 +91,7 @@ class GlasbaStoritev : Service() {
                 osvezi()
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) = osvezi()
+            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = preveriDekoderje(p, tracks)
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) konec() else osvezi()
             }

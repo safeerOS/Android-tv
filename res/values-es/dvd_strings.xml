@@ -4,4 +4,7 @@
     <string name="dvd_berem">Leyendo el disco…</string>
     <string name="dvd_zascita">No se puede leer el disco. Safeer no desbloquea discos protegidos (CSS).</string>
     <string name="dvd_ni_dvd">Esta imagen no es un DVD-Video.</string>
+    <string name="dvd_krajevno">DVD (imagen ISO)</string>
+    <string name="dvd_krajevno_opis">Elige una imagen ISO en este dispositivo o en una memoria USB</string>
+    <string name="dvd_ni_izbirnika">Este dispositivo no tiene selector de archivos.</string>
 </resources>

@@ -184,4 +184,6 @@
     <string name="os_media_napaka_zascita">La registrazione è protetta da DRM e Safeer non la riproduce.</string>
     <string name="os_media_napaka_splosno">La riproduzione si è interrotta per un errore.</string>
     <string name="os_media_napaka_naslednja">Impossibile riprodurre «%1$s»: passo alla successiva.</string>
+    <string name="os_media_ni_dekoderja_slike">Questo dispositivo non può mostrare l\'immagine di questo video (%1$s). Riproducilo su un televisore o un computer.</string>
+    <string name="os_media_ni_dekoderja_zvoka">Questo dispositivo non può riprodurre l\'audio di questo video (%1$s).</string>
 </resources>

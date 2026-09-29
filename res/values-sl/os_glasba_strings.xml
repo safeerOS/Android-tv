@@ -184,4 +184,6 @@
     <string name="os_media_napaka_zascita">Posnetek je zaščiten (DRM) in ga Safeer ne predvaja.</string>
     <string name="os_media_napaka_splosno">Predvajanje se je ustavilo zaradi napake.</string>
     <string name="os_media_napaka_naslednja">»%1$s« ni bilo mogoče predvajati – predvajam naslednjo.</string>
+    <string name="os_media_ni_dekoderja_slike">Ta naprava ne zna prikazati slike tega posnetka (%1$s). Predvajaj ga na televizorju ali računalniku.</string>
+    <string name="os_media_ni_dekoderja_zvoka">Ta naprava ne zna predvajati zvoka tega posnetka (%1$s).</string>
 </resources>

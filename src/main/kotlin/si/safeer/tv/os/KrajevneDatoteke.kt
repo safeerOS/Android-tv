@@ -22,6 +22,8 @@ object KrajevneDatoteke {
     const val VIDEO = "local:video"
     const val AUDIO = "local:audio"
     const val SLIKE = "local:image"
+    /** DVD iz slike ISO: izbira prek sistemskega izbirnika datotek (ISO ni v zbirki medijev). */
+    const val DVD = "local:dvd"
     private const val NAJVEC = 500
 
     fun jeKrajevna(oznaka: String): Boolean = oznaka.startsWith(KOREN) || oznaka.startsWith("content://")
@@ -49,6 +51,8 @@ object KrajevneDatoteke {
         zbirka(context, VIDEO, context.getString(si.safeer.tv.R.string.os_krajevno_videi)),
         zbirka(context, AUDIO, context.getString(si.safeer.tv.R.string.os_krajevno_glasba)),
         zbirka(context, SLIKE, context.getString(si.safeer.tv.R.string.os_krajevno_slike)),
+        DatotekeActivity.Vnos(DVD, context.getString(si.safeer.tv.R.string.dvd_krajevno), "folder", -1, "",
+            context.getString(si.safeer.tv.R.string.dvd_krajevno_opis)),
     )
 
     private fun zbirka(context: Context, oznaka: String, ime: String): DatotekeActivity.Vnos {
