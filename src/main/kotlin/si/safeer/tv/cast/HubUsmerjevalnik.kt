@@ -1380,6 +1380,9 @@ class HubUsmerjevalnik(
     private val zacetnikSoseda = java.util.IdentityHashMap<Odjemalec, String>()
     @Volatile private var zadnjiMesh = ""
 
+    /** Sosed je prisel (id, naslov povezave) ali odsel (id, ""): krmilnik si zapomni naslov in po izgubi hitro poskusi znova. */
+    @Volatile var naSosedu: ((String, String) -> Unit)? = null
+
     fun sosedjeIdji(): List<String> = synchronized(kljucnica) { sosedje.keys.sorted() }
 
     /** Sosednja povezava za id Huba (za preizkuse in stanje). */
@@ -1463,6 +1466,7 @@ class HubUsmerjevalnik(
             synchronized(kljucnica) { zacetnikSoseda.remove(stara) }
             try { stara.zapri(1000, "podvojena sosednja povezava") } catch (_: Throwable) { }
         }
+        try { naSosedu?.invoke(sosedId, povezava.naslov) } catch (_: Throwable) { }
         objaviSosedom(povezava)
         posljiVarno(povezava, ovojnica("mesh.trust").surovo("payload", krog.json()).toString())
         return true
@@ -1498,6 +1502,7 @@ class HubUsmerjevalnik(
             sosedje.remove(sosedId)?.let { zacetnikSoseda.remove(it) }
         }
         if (pocistiSoseda(sosedId)) { objaviNaprave(); naSpremembeNaprav?.invoke() }
+        try { naSosedu?.invoke(sosedId, "") } catch (_: Throwable) { }
     }
 
     private fun sosedoveNaprave(sosedId: String, povezava: Odjemalec, naprave: JsonLahki.Pogled?) {
@@ -1567,10 +1572,9 @@ class HubUsmerjevalnik(
             }
             "mesh.trust" -> {
                 val krogJson = sporocilo.surovo("payload") ?: return null
-                // Sosed je clan kroga, preverjen s podpisom kljuca (kot doslej hub, katerega krog so naprave
-                // sprejemale). Racunalnik (Python) clanov se ne podpisuje; ko bodo vsi podpisani, gre tu
-                // preveriPodpise = true (docs/LINK-MESH.md, znane meje).
-                if (krog.zdruzi(krogJson, obvesti = false, preveriPodpise = false)) {
+                // Nov clan, drug kljuc in umik samo s podpisom clana, ki ga ze poznamo (tudi Linux in Windows
+                // zdaj podpisujeta vnose). Sosed tako ne more podtakniti tujega kljuca.
+                if (krog.zdruzi(krogJson, obvesti = false, preveriPodpise = true)) {
                     val s = sporociloKroga()
                     for (p in register.povezanePovezave()) if (p !is Namestnik) posljiVarno(p, s)
                     posljiKrogSosedom(od)

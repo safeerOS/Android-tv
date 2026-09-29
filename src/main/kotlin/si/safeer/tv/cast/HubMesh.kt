@@ -27,6 +27,9 @@ import java.util.concurrent.TimeUnit
 object HubMesh {
     private const val TAG = "SafeerMesh"
     private const val VECJI_CAKA_MS = 40_000L
+    private const val KLJUC_ZNANI = "mesh_znani"
+    private const val VRATA = 8990
+    private const val NAJVEC_ZNANIH = 32
 
     private val klicem: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val prvicVideni = ConcurrentHashMap<String, Long>()
@@ -34,6 +37,35 @@ object HubMesh {
     /** Link Mesh je vklopljen (izklop samo za primerjavo: nastavitev link_mesh = false). */
     fun vklopljen(context: Context): Boolean =
         context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE).getBoolean("link_mesh", true)
+
+    /**
+     * Zapomnjeni naslovi sosedov (id -> wss naslov): za naprave, ki jih mDNS ne vidi (pozarni zid,
+     * izolacija) in za hiter ponovni priklop po ponovnem zagonu. Dohodna povezava da samo IP.
+     */
+    fun zapomni(context: Context, id: String, naslov: String) {
+        if (id.isBlank() || naslov.isBlank()) return
+        val url = if (naslov.startsWith("wss://")) naslov else "wss://$naslov:$VRATA/cast/ws"
+        val p = context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE)
+        val znani = try { JSONObject(p.getString(KLJUC_ZNANI, "{}") ?: "{}") } catch (_: Throwable) { JSONObject() }
+        val star = znani.optString(id)
+        // Naslov iz odhodne povezave (z vrati) ima prednost pred samim IP iz dohodne.
+        if (star == url || (!naslov.startsWith("wss://") && star.contains("//$naslov:"))) return
+        znani.put(id, url)
+        while (znani.length() > NAJVEC_ZNANIH) znani.remove(znani.keys().next())
+        p.edit().putString(KLJUC_ZNANI, znani.toString()).apply()
+    }
+
+    /** Oglasi iz mDNS, dopolnjeni z zapomnjenimi naslovi sosedov, ki jih mDNS ta hip ne vidi. */
+    fun zDopolnitvijo(context: Context, hubi: List<HubDiscovery.NajdeniHub>): List<HubDiscovery.NajdeniHub> {
+        for (h in hubi) if (h.mesh == HubUsmerjevalnik.MESH) zapomni(context, h.id, h.naslov)
+        val videni = hubi.map { it.id }.toSet()
+        val znani = try {
+            JSONObject(context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE).getString(KLJUC_ZNANI, "{}") ?: "{}")
+        } catch (_: Throwable) { JSONObject() }
+        val dodatni = znani.keys().asSequence().filter { it !in videni }
+            .map { HubDiscovery.NajdeniHub(znani.optString(it), "", it, 0, "", HubUsmerjevalnik.MESH) }.toList()
+        return hubi + dodatni
+    }
 
     /** Iz oglasov izbere Hube, ki jih moramo zdaj poklicati. */
     fun kandidati(context: Context, u: HubUsmerjevalnik, hubi: List<HubDiscovery.NajdeniHub>, zdaj: Long = System.currentTimeMillis()): List<HubDiscovery.NajdeniHub> {
@@ -56,7 +88,7 @@ object HubMesh {
         // Zaupanje: kljuc v potrdilu = kljuc tega clana v krogu (oglas mDNS ne velja nic).
         val (graditelj, zaupnik) = HubTls.okhttp(OkHttpClient.Builder()
             .connectTimeout(6, TimeUnit.SECONDS).readTimeout(0, TimeUnit.MILLISECONDS)
-            .pingInterval(20, TimeUnit.SECONDS), null, kljuc)
+            .pingInterval(10, TimeUnit.SECONDS), null, kljuc)
         val client = graditelj.build()
         val osnova = h.naslov.replace(Regex("^wss"), "https").substringBefore("/cast/ws")
         fun klic(pot: String, telo: JSONObject, naprej: (Int, String) -> Unit) {
@@ -85,7 +117,7 @@ object HubMesh {
     }
 
     private fun odpri(app: Context, u: HubUsmerjevalnik, h: HubDiscovery.NajdeniHub, client: OkHttpClient, url: String) {
-        val povezava = Sosednja(h.naslov.substringAfter("//").substringBefore(":"))
+        val povezava = Sosednja(h.naslov)
         val ws = client.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 povezava.ws = webSocket
