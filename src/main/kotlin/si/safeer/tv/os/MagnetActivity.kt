@@ -76,7 +76,10 @@ class MagnetActivity : OsActivity() {
         val uri = i?.getStringExtra(EXTRA_URI) ?: i?.data?.takeIf { it.scheme.equals("magnet", true) }?.toString() ?: ""
         if (uri.isNotBlank()) {
             polje.setText(uri)
-            preberi(uri, i?.getStringExtra(EXTRA_SAMODEJNO) == ZETON)
+            // Z naprave v krogu (žeton) beremo in predvajamo takoj; povezava od drugod ne sproži omrežja,
+            // dokler uporabnik ne pritisne Odpri (spletna stran lahko magnet odpre tudi brez klika).
+            if (i?.getStringExtra(EXTRA_SAMODEJNO) == ZETON) preberi(uri, true)
+            else { narisi(); pokazi(getString(R.string.magnet_pritisni_odpri)); findViewById<android.view.View>(R.id.odpri).requestFocus() }
         } else narisi()
     }
 

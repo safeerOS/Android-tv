@@ -43,4 +43,5 @@
     <string name="magnet_nevarno_naslov">Ta datoteka je morda program</string>
     <string name="magnet_nevarno_opis">Samodejno preverjanje meni, da je »%s« morda program. Preverjanje se lahko zmoti. Prenesi jo samo, če zaupaš viru; Safeer je nikoli ne zažene ali predvaja.</string>
     <string name="magnet_vseeno">Vseeno nadaljuj</string>
+    <string name="magnet_pritisni_odpri">Preveri povezavo in pritisni Odpri.</string>
 </resources>

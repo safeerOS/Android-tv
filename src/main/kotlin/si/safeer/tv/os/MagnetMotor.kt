@@ -98,9 +98,37 @@ object MagnetMotor {
     }
 
     /** Magnet brez sledilnikov dobi nekaj zanesljivih (hitrejše iskanje); ostalih ne spreminjamo. */
-    fun zSledilniki(uri: String): String =
-        if (uri.contains("&tr=") || uri.contains("?tr=")) uri
-        else uri + SLEDILNIKI.joinToString("") { "&tr=" + java.net.URLEncoder.encode(it, "UTF-8") }
+    /**
+     * Očiščena povezava za libtorrent: xt, dn in samo javni sledilniki (brez x.pe/ws in brez naslovov v
+     * domačem omrežju - tuja povezava ne sme usmerjati zahtev na usmerjevalnik). Brez sledilnikov dodamo znane.
+     */
+    fun zSledilniki(uri: String): String {
+        val h = hash(uri) ?: return uri
+        val deli = uri.substringAfter('?', "").split('&').mapNotNull {
+            val k = it.substringBefore('=', ""); if (k.isEmpty()) null else k to java.net.URLDecoder.decode(it.substringAfter('='), "UTF-8")
+        }
+        val ime = deli.firstOrNull { it.first == "dn" }?.second.orEmpty().take(200)
+        val sledilniki = deli.filter { it.first == "tr" && javenSledilnik(it.second) }.map { it.second }.take(20)
+            .ifEmpty { SLEDILNIKI }
+        fun kod(x: String) = java.net.URLEncoder.encode(x, "UTF-8")
+        return "magnet:?xt=urn:btih:$h" + (if (ime.isNotEmpty()) "&dn=" + kod(ime) else "") +
+            sledilniki.joinToString("") { "&tr=" + kod(it) }
+    }
+
+    fun javenSledilnik(t: String): Boolean {
+        if (!(t.startsWith("udp://") || t.startsWith("http://") || t.startsWith("https://"))) return false
+        val gostitelj = try { android.net.Uri.parse(t).host?.lowercase()?.trimEnd('.') } catch (_: Throwable) { null } ?: return false
+        if (gostitelj.isEmpty() || gostitelj == "localhost" || '.' !in gostitelj && ':' !in gostitelj) return false
+        if (listOf(".localhost", ".local", ".lan", ".home", ".internal", ".home.arpa").any { gostitelj.endsWith(it) }) return false
+        val literal = Regex("^\\d{1,3}(\\.\\d{1,3}){3}$").matches(gostitelj) || ':' in gostitelj
+        if (!literal) return true
+        return try {
+            val a = java.net.InetAddress.getByName(gostitelj.trim('[', ']'))
+            val ula = a is java.net.Inet6Address && (a.address[0].toInt() and 0xFE) == 0xFC
+            !(a.isLoopbackAddress || a.isSiteLocalAddress || a.isLinkLocalAddress || a.isAnyLocalAddress || a.isMulticastAddress || ula ||
+                (a.address.size == 4 && (a.address[0].toInt() and 0xFF) == 100 && (a.address[1].toInt() and 0xC0) == 64))
+        } catch (_: Throwable) { false }
+    }
 
     fun vrsta(ime: String, izvrsljiva: Boolean = false): String {
         if (izvrsljiva) return "nevarno"
@@ -308,7 +336,8 @@ object MagnetMotor {
 
     // ------------------------------------------------------------------ lokalni tok za predvajalnik
 
-    private val tokovi = ConcurrentHashMap<String, Pair<String, Int>>()
+    /** Skrivnosti lokalnega toka po vrsti nastanka: ob preveč jih odstranimo najstarejšo, ne naključne. */
+    private val tokovi: MutableMap<String, Pair<String, Int>> = java.util.Collections.synchronizedMap(LinkedHashMap())
     @Volatile private var streznik: ServerSocket? = null
     private val nakljucje = SecureRandom()
 
@@ -322,7 +351,9 @@ object MagnetMotor {
         val vMapi = opis.datoteke.filter { it.ime.startsWith(predpona) }
         val relativno = vMapi.associateBy { it.ime.removePrefix(predpona) }
         val videov = vMapi.count { it.vrsta == "video" && !it.ime.removePrefix(predpona).contains('/') }
-        return Podnapisi.ujemajoci(video.ime, relativno.keys.toList(), videov == 1).mapNotNull { relativno[it] }.take(24)
+        // Prevelika "podnapisna" datoteka ni podnapis (8 MB kot na računalniku): ne prenašamo je.
+        return Podnapisi.ujemajoci(video.ime, relativno.keys.toList(), videov == 1).mapNotNull { relativno[it] }
+            .filter { it.velikost <= 8L * 1024 * 1024 }.take(24)
     }
 
     fun tok(c: Context, hash: String, i: Int): String {
@@ -335,7 +366,7 @@ object MagnetMotor {
         val b = ByteArray(16).also { nakljucje.nextBytes(it) }
         val skrivnost = b.joinToString("") { "%02x".format(it) }
         tokovi[skrivnost] = hash to i
-        while (tokovi.size > 64) tokovi.keys.firstOrNull()?.let { tokovi.remove(it) }
+        synchronized(tokovi) { while (tokovi.size > 256) tokovi.keys.firstOrNull()?.let { tokovi.remove(it) } }
         return "http://127.0.0.1:${s.localPort}/t/$skrivnost"
     }
 
