@@ -900,6 +900,9 @@ private fun preizkusKroga() {
     u.krog.umakni("tel-1", "tv-hub")
     preveri("umik clana gre vsem", o.prejeto.any { tip(it) == "trust.update" })
     preveriEnako("umaknjeni ni vec clan", false, u.krog.jeClan("tel-1"))
+    preveri("umaknjeni je umaknjen", u.krog.jeUmaknjen("tel-1"))
+    preveri("neznana naprava ni umaknjena", !u.krog.jeUmaknjen("tuja-naprava") && !u.krog.jeUmaknjen(""))
+    preveri("hub sam ni umaknjen", !u.krog.jeUmaknjen("tv-hub"))
     preveriEnako("umaknjeni ne dobi izziva", 401, u.odgovori(zahteva("POST", "/cast/auth/challenge", """{"device_id":"tel-1"}"""))?.koda)
 
     // Zdruzevanje je deterministicno in umik prezivi zdruzitev s starim krogom.

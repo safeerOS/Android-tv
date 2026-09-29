@@ -448,7 +448,7 @@ class HubUsmerjevalnik(
     fun jeVeljavenZeton(zeton: String?): Boolean {
         if (zeton.isNullOrEmpty()) return false
         synchronized(kljucnica) {
-            for (znani in zetoni.keys) if (enaka(znani, zeton)) return true
+            for ((znani, naprava) in zetoni) if (enaka(znani, zeton)) return !krog.jeUmaknjen(naprava.deviceId)
         }
         return napravaSeje(zeton) != null
     }
@@ -494,7 +494,9 @@ class HubUsmerjevalnik(
     fun napravaZeZetona(zeton: String?): String? {
         if (zeton.isNullOrEmpty()) return null
         synchronized(kljucnica) {
-            for ((znani, naprava) in zetoni) if (enaka(znani, zeton)) return naprava.deviceId
+            // Umaknjena naprava (tudi ce je umik prisel z druge naprave v krogu) z zetonom nima vec dostopa.
+            for ((znani, naprava) in zetoni) if (enaka(znani, zeton))
+                return naprava.deviceId.takeUnless { krog.jeUmaknjen(it) }
         }
         return napravaSeje(zeton)
     }

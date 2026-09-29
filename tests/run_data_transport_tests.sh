@@ -18,6 +18,7 @@ trap 'rm -rf "$OUT"' EXIT
 # nobenega od teh razredov razen JsonLahki in KrogZaupanja.
 "$KOTLINC" -J-Xmx2g \
     "$TEST_DIR/stubs/Log.kt" \
+    "$TEST_DIR/stubs/DatotekeStreznik.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \

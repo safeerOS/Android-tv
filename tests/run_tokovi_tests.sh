@@ -16,6 +16,7 @@ trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx2g ${JSON_JAR:+-cp "$JSON_JAR"} \
     "$TEST_DIR/stubs/Log.kt" \
+    "$TEST_DIR/stubs/DatotekeStreznik.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
