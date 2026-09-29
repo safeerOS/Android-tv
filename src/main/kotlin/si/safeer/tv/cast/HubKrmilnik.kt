@@ -192,6 +192,11 @@ object HubKrmilnik {
         streznik = s
         usmerjevalnik = u
         tokovi = t
+        // Link Mesh: naslov soseda si zapomnimo; ko sosed odide, ga hitro poiscemo znova.
+        u.naSosedu = { id, naslov ->
+            if (naslov.isNotBlank()) HubMesh.zapomni(app, id, naslov)
+            else glavna.post { if (tece() && HubMesh.vklopljen(app)) nacrtujIzvolitev(app, 2_000L) }
+        }
         // Naslov za QR kodo, ki jo pokaze DRUGA naprava v Linku (televizor, tablica): brez njega bi
         // naprava, ki se pridruzuje, imela le odtis in ne bi vedela, kam naj se poveze.
         u.naslovZaQr = try { krajevniNaslov()?.let { "$it:${s.vrata}" }.orEmpty() } catch (_: Throwable) { "" }
@@ -308,7 +313,7 @@ object HubKrmilnik {
             val u = usmerjevalnik
             if (HubMesh.vklopljen(app) && u != null) {
                 // Link Mesh: nihce se ne umika - vsak Hub se poveze s sosedi (clani kroga z mesh1).
-                val kandidati = HubMesh.kandidati(app, u, hubi)
+                val kandidati = HubMesh.kandidati(app, u, HubMesh.zDopolnitvijo(app, hubi))
                 for (h in kandidati) HubMesh.poklici(app, u, h)
                 Log.i(TAG, "Mesh: sosedje ${u.sosedjeIdji()}, klicem ${kandidati.map { it.id }}")
                 nacrtujIzvolitev(app, MESH_ISKANJE_MS)
