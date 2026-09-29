@@ -46,7 +46,9 @@ object Daljinec {
         // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control.
         "files.list", "files.search",
         // Opcijski telefonski gamepad za Android aplikacijo, ki tece na tej napravi.
-        "gamepad.button", "gamepad.axis", "gamepad.release"
+        "gamepad.button", "gamepad.axis", "gamepad.release",
+        // Magnet povezava z druge naprave: odpre se v Safeer OS predvajalniku te naprave.
+        "magnet.open"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -140,6 +142,7 @@ object Daljinec {
             val podatki = DatotekeStreznik.seznam(context, parametri.optString("folder", ""), parametri.optString(PARAM_POSILJATELJ, ""))
             return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)
         }
+        if (d == "magnet.open") return odpriMagnet(context, parametri.optString("uri", ""))
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {
@@ -249,6 +252,24 @@ object Daljinec {
         }
         prebudiZNamero(context, namera, ime)
         return Izid(true, "Odpiram $ime", JSONObject().put("package", paket).put("label", ime))
+    }
+
+    /** Odpre magnet povezavo v Safeer OS (MagnetActivity); brskalnik je nima. Povezavo najprej preverimo. */
+    private fun odpriMagnet(context: Context, uri: String): Izid {
+        if (si.safeer.tv.BuildConfig.FLAVOR == "brskalnik") return Izid(false, "Magnet povezave tu niso na voljo", koda = "ni_podprto")
+        if (uri.length > 8192 || si.safeer.tv.os.MagnetMotor.hash(uri) == null) return Izid(false, "Neveljavna magnet povezava", koda = "ni_magnet")
+        val namera = Intent().setClassName(context, "si.safeer.tv.os.MagnetActivity")
+            .putExtra(si.safeer.tv.os.MagnetActivity.EXTRA_URI, uri)
+            .putExtra(si.safeer.tv.os.MagnetActivity.EXTRA_SAMODEJNO, si.safeer.tv.os.MagnetActivity.ZETON)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val ime = "Safeer OS"
+        if (!smeZagnatiIzOzadja(context)) {
+            prebudiZNamero(context, namera, ime)
+            return izidBrezDovoljenja(context, ime)
+        }
+        try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Magnet ni odprt: ${e.message}") }
+        prebudiZNamero(context, namera, ime)
+        return Izid(true, "Odpiram magnet povezavo")
     }
 
     /** Kljuc, pod katerim CastReceiverService doda id posiljatelja ukaza (vedno prepise, kar pride od zunaj). */

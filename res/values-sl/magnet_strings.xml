@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS: magnet povezave (MagnetActivity). -->
+<resources>
+    <string name="magnet_naslov">Magnet povezave</string>
+    <string name="magnet_odpri">Odpri</string>
+    <string name="magnet_opomba">Predvajamo samo video in glasbo. Programov nikoli ne prenesemo. Prenašaj in deli samo vsebino, za katero imaš pravice; drugi soudeleženci vidijo tvoj naslov IP.</string>
+    <string name="magnet_napaka_ni_magnet">To ni veljavna magnet povezava.</string>
+    <string name="magnet_napaka_ni_izbranih">Izberi vsaj eno datoteko.</string>
+    <string name="magnet_napaka_ni_metapodatkov">Podatkov o torrentu ni bilo mogoče prebrati. Poskusi pozneje.</string>
+    <string name="magnet_napaka_ni_predvajljivo">Ta torrent nima videa ali glasbe.</string>
+    <string name="magnet_napaka">Nekaj je šlo narobe.</string>
+    <string name="magnet_berem">Berem podatke o torrentu …</string>
+    <string name="magnet_sumljiv">Pozor: torrent vsebuje programe. Teh ne bomo prenesli.</string>
+    <string name="magnet_predvajaj">Predvajaj</string>
+    <string name="magnet_prenesi_izbrane">Prenesi izbrane</string>
+    <string name="magnet_prenasam">Prenašam …</string>
+    <string name="magnet_poslji">Pošlji na napravo</string>
+    <string name="magnet_deli">Deli</string>
+    <string name="magnet_prenosi">Prenosi</string>
+    <string name="magnet_deli_datoteko">Deli datoteko</string>
+    <string name="magnet_zaganjam">Zaganjam …</string>
+    <string name="magnet_ni_naprav">Nobena naprava Safeer ne zna odpreti magnet povezav.</string>
+    <string name="magnet_poslano">Poslano na %s.</string>
+    <string name="magnet_ni_poslano">Pošiljanje ni uspelo.</string>
+    <string name="magnet_pripravljam">Pripravljam …</string>
+    <string name="magnet_deljeno">Delim %s</string>
+    <string name="magnet_koncano">Končano</string>
+    <string name="magnet_povezav">%d soudeležencev</string>
+    <string name="magnet_premor">Premor</string>
+    <string name="magnet_nadaljuj">Nadaljuj</string>
+    <string name="magnet_deli_naprej">Deli naprej</string>
+    <string name="magnet_odstrani">Odstrani</string>
+    <string name="magnet_izbrisi">Izbriši datoteke</string>
+    <string name="magnet_izbrisi_res">Odstranim prenos in izbrišem prenesene datoteke?</string>
+    <string name="magnet_ni_prenosov">Ni še prenosov.</string>
+    <string name="magnet_vrsta_video">Video</string>
+    <string name="magnet_vrsta_audio">Glasba</string>
+    <string name="magnet_vrsta_podnapisi">Podnapisi</string>
+    <string name="magnet_vrsta_slika">Slika</string>
+    <string name="magnet_vrsta_nevarno">Program (blokiran)</string>
+    <string name="magnet_vrsta_drugo">Drugo</string>
+    <string name="magnet_vir_opis">Predvajaj video in glasbo že med prenosom</string>
+</resources>

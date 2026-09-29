@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS: magnet povezave (MagnetActivity). -->
+<resources>
+    <string name="magnet_naslov">Magnet links</string>
+    <string name="magnet_odpri">Open</string>
+    <string name="magnet_opomba">Only video and music are played. Programs are never downloaded. Download and share only content you have the rights to; other peers can see your IP address.</string>
+    <string name="magnet_napaka_ni_magnet">This is not a valid magnet link.</string>
+    <string name="magnet_napaka_ni_izbranih">Select at least one file.</string>
+    <string name="magnet_napaka_ni_metapodatkov">Could not read the torrent details. Try again later.</string>
+    <string name="magnet_napaka_ni_predvajljivo">This torrent has no video or music.</string>
+    <string name="magnet_napaka">Something went wrong.</string>
+    <string name="magnet_berem">Reading torrent details…</string>
+    <string name="magnet_sumljiv">Warning: this torrent contains programs. They will not be downloaded.</string>
+    <string name="magnet_predvajaj">Play</string>
+    <string name="magnet_prenesi_izbrane">Download selected</string>
+    <string name="magnet_prenasam">Downloading…</string>
+    <string name="magnet_poslji">Send to device</string>
+    <string name="magnet_deli">Share</string>
+    <string name="magnet_prenosi">Transfers</string>
+    <string name="magnet_deli_datoteko">Share a file</string>
+    <string name="magnet_zaganjam">Starting…</string>
+    <string name="magnet_ni_naprav">No Safeer devices can open magnet links.</string>
+    <string name="magnet_poslano">Sent to %s.</string>
+    <string name="magnet_ni_poslano">Sending failed.</string>
+    <string name="magnet_pripravljam">Preparing…</string>
+    <string name="magnet_deljeno">Sharing %s</string>
+    <string name="magnet_koncano">Done</string>
+    <string name="magnet_povezav">%d peers</string>
+    <string name="magnet_premor">Pause</string>
+    <string name="magnet_nadaljuj">Resume</string>
+    <string name="magnet_deli_naprej">Keep sharing</string>
+    <string name="magnet_odstrani">Remove</string>
+    <string name="magnet_izbrisi">Delete files</string>
+    <string name="magnet_izbrisi_res">Remove the transfer and delete downloaded files?</string>
+    <string name="magnet_ni_prenosov">No transfers yet.</string>
+    <string name="magnet_vrsta_video">Video</string>
+    <string name="magnet_vrsta_audio">Music</string>
+    <string name="magnet_vrsta_podnapisi">Subtitles</string>
+    <string name="magnet_vrsta_slika">Image</string>
+    <string name="magnet_vrsta_nevarno">Program (blocked)</string>
+    <string name="magnet_vrsta_drugo">Other</string>
+    <string name="magnet_vir_opis">Play video and music while it downloads</string>
+</resources>

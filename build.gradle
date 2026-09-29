@@ -150,6 +150,15 @@ dependencies {
     implementation 'androidx.media3:media3-exoplayer-hls:1.11.1'
     implementation 'androidx.media3:media3-datasource:1.11.1'
     implementation 'androidx.webkit:webkit:1.17.0'
+    // Magnet povezave (MIT): Java del je v vseh okusih (koda je v main), izvorne knjiznice
+    // (armeabi-v7a za televizor, arm64 za telefon/tablico) samo v Safeer OS okusih.
+    implementation 'org.libtorrent4j:libtorrent4j:2.1.0-39'
+    osImplementation 'org.libtorrent4j:libtorrent4j-android-arm:2.1.0-39'
+    osImplementation 'org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39'
+    tablicaImplementation 'org.libtorrent4j:libtorrent4j-android-arm:2.1.0-39'
+    tablicaImplementation 'org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39'
+    telefonImplementation 'org.libtorrent4j:libtorrent4j-android-arm:2.1.0-39'
+    telefonImplementation 'org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39'
     // QR koda v prijavnem oknu Safeer OS (os/PrijavaActivity): samo kodirnik, cista Java, brez Googlovih storitev
     implementation 'com.google.zxing:core:3.5.3'
     // Ed25519 verification for the signed Safeer Threat Intelligence feed (see libs/README.md)

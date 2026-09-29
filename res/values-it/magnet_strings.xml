@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS: magnet povezave (MagnetActivity). -->
+<resources>
+    <string name="magnet_naslov">Link magnet</string>
+    <string name="magnet_odpri">Apri</string>
+    <string name="magnet_opomba">Vengono riprodotti solo video e musica. I programmi non vengono mai scaricati. Scarica e condividi solo contenuti di cui hai i diritti; gli altri peer vedono il tuo indirizzo IP.</string>
+    <string name="magnet_napaka_ni_magnet">Non è un link magnet valido.</string>
+    <string name="magnet_napaka_ni_izbranih">Seleziona almeno un file.</string>
+    <string name="magnet_napaka_ni_metapodatkov">Impossibile leggere i dettagli del torrent. Riprova più tardi.</string>
+    <string name="magnet_napaka_ni_predvajljivo">Questo torrent non contiene video né musica.</string>
+    <string name="magnet_napaka">Qualcosa è andato storto.</string>
+    <string name="magnet_berem">Lettura dei dettagli del torrent…</string>
+    <string name="magnet_sumljiv">Attenzione: questo torrent contiene programmi. Non verranno scaricati.</string>
+    <string name="magnet_predvajaj">Riproduci</string>
+    <string name="magnet_prenesi_izbrane">Scarica selezionati</string>
+    <string name="magnet_prenasam">Download in corso…</string>
+    <string name="magnet_poslji">Invia al dispositivo</string>
+    <string name="magnet_deli">Condividi</string>
+    <string name="magnet_prenosi">Trasferimenti</string>
+    <string name="magnet_deli_datoteko">Condividi un file</string>
+    <string name="magnet_zaganjam">Avvio…</string>
+    <string name="magnet_ni_naprav">Nessun dispositivo Safeer può aprire link magnet.</string>
+    <string name="magnet_poslano">Inviato a %s.</string>
+    <string name="magnet_ni_poslano">Invio non riuscito.</string>
+    <string name="magnet_pripravljam">Preparazione…</string>
+    <string name="magnet_deljeno">Condivisione di %s</string>
+    <string name="magnet_koncano">Completato</string>
+    <string name="magnet_povezav">%d peer</string>
+    <string name="magnet_premor">Pausa</string>
+    <string name="magnet_nadaljuj">Riprendi</string>
+    <string name="magnet_deli_naprej">Continua a condividere</string>
+    <string name="magnet_odstrani">Rimuovi</string>
+    <string name="magnet_izbrisi">Elimina file</string>
+    <string name="magnet_izbrisi_res">Rimuovere il trasferimento ed eliminare i file scaricati?</string>
+    <string name="magnet_ni_prenosov">Ancora nessun trasferimento.</string>
+    <string name="magnet_vrsta_video">Video</string>
+    <string name="magnet_vrsta_audio">Musica</string>
+    <string name="magnet_vrsta_podnapisi">Sottotitoli</string>
+    <string name="magnet_vrsta_slika">Immagine</string>
+    <string name="magnet_vrsta_nevarno">Programma (bloccato)</string>
+    <string name="magnet_vrsta_drugo">Altro</string>
+    <string name="magnet_vir_opis">Riproduci video e musica durante il download</string>
+</resources>

@@ -1313,7 +1313,10 @@ class GlasbaActivity : OsActivity() {
                 getString(R.string.os_media_stevilo_prilj, MedijskiViri.priljubljene(this).count { it.radio }), razdelek(RADIO)),
             Vir("peertube", R.drawable.os_ikona_video, 0xFFFF9580.toInt(), "PeerTube",
                 getString(R.string.os_media_stevilo_streznikov, MedijskiViri.streznikiPeerTube(this).size), razdelek(VIDEO)),
-        ) + MedijskiViri.vsi(this).map { v ->
+        ) + (if (si.safeer.tv.BuildConfig.FLAVOR == "brskalnik") emptyList() else listOf(
+            Vir("magnet", R.drawable.os_ikona_link, 0xFFB69CFF.toInt(), getString(R.string.magnet_naslov), getString(R.string.magnet_vir_opis),
+                { startActivity(Intent(this, MagnetActivity::class.java)) }),
+        )) + MedijskiViri.vsi(this).map { v ->
             Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet -> R.drawable.os_ikona_splet; else -> R.drawable.os_ikona_glasba },
                 0xFF7FB2FF.toInt(), v.ime, if (v.jePeerTube) "PeerTube · ${v.naslov}" else if (v.tip == MedijskiViri.API) "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" }) else v.naslov.removePrefix("https://").removePrefix("http://"), {
                     when {

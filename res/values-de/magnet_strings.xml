@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer OS: magnet povezave (MagnetActivity). -->
+<resources>
+    <string name="magnet_naslov">Magnet-Links</string>
+    <string name="magnet_odpri">Öffnen</string>
+    <string name="magnet_opomba">Es werden nur Video und Musik abgespielt. Programme werden nie heruntergeladen. Lade und teile nur Inhalte, für die du die Rechte hast; andere Teilnehmer sehen deine IP-Adresse.</string>
+    <string name="magnet_napaka_ni_magnet">Das ist kein gültiger Magnet-Link.</string>
+    <string name="magnet_napaka_ni_izbranih">Wähle mindestens eine Datei.</string>
+    <string name="magnet_napaka_ni_metapodatkov">Die Torrent-Details konnten nicht gelesen werden. Versuche es später erneut.</string>
+    <string name="magnet_napaka_ni_predvajljivo">Dieser Torrent enthält weder Video noch Musik.</string>
+    <string name="magnet_napaka">Etwas ist schiefgelaufen.</string>
+    <string name="magnet_berem">Torrent-Details werden gelesen …</string>
+    <string name="magnet_sumljiv">Achtung: Dieser Torrent enthält Programme. Sie werden nicht heruntergeladen.</string>
+    <string name="magnet_predvajaj">Abspielen</string>
+    <string name="magnet_prenesi_izbrane">Auswahl herunterladen</string>
+    <string name="magnet_prenasam">Wird heruntergeladen …</string>
+    <string name="magnet_poslji">An Gerät senden</string>
+    <string name="magnet_deli">Teilen</string>
+    <string name="magnet_prenosi">Übertragungen</string>
+    <string name="magnet_deli_datoteko">Datei teilen</string>
+    <string name="magnet_zaganjam">Wird gestartet …</string>
+    <string name="magnet_ni_naprav">Kein Safeer-Gerät kann Magnet-Links öffnen.</string>
+    <string name="magnet_poslano">An %s gesendet.</string>
+    <string name="magnet_ni_poslano">Senden fehlgeschlagen.</string>
+    <string name="magnet_pripravljam">Wird vorbereitet …</string>
+    <string name="magnet_deljeno">%s wird geteilt</string>
+    <string name="magnet_koncano">Fertig</string>
+    <string name="magnet_povezav">%d Teilnehmer</string>
+    <string name="magnet_premor">Pause</string>
+    <string name="magnet_nadaljuj">Fortsetzen</string>
+    <string name="magnet_deli_naprej">Weiter teilen</string>
+    <string name="magnet_odstrani">Entfernen</string>
+    <string name="magnet_izbrisi">Dateien löschen</string>
+    <string name="magnet_izbrisi_res">Übertragung entfernen und heruntergeladene Dateien löschen?</string>
+    <string name="magnet_ni_prenosov">Noch keine Übertragungen.</string>
+    <string name="magnet_vrsta_video">Video</string>
+    <string name="magnet_vrsta_audio">Musik</string>
+    <string name="magnet_vrsta_podnapisi">Untertitel</string>
+    <string name="magnet_vrsta_slika">Bild</string>
+    <string name="magnet_vrsta_nevarno">Programm (blockiert)</string>
+    <string name="magnet_vrsta_drugo">Sonstiges</string>
+    <string name="magnet_vir_opis">Video und Musik schon beim Herunterladen abspielen</string>
+</resources>
