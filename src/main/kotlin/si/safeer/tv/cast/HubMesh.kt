@@ -23,6 +23,10 @@ import java.util.concurrent.TimeUnit
  * sosednjo povezavo. Vse naprej naredi HubUsmerjevalnik (mesh.devices, mesh.route, mesh.trust).
  *
  * Za vsak par nastane ena povezava: prvi klice manjsi id; vecji klice sam sele, ce ga manjsi dolgo ne doseze.
+ *
+ * Global Link: kadar soseda neposredno ni (naprava je zunaj doma), ga po [RELE_PO_NEUSPEHIH] neuspelih klicih
+ * poklicemo prek link.safeer.si (GlobalLink.naslov). Rele prenasa samo sifrirane bajte; pripeti kljuc iz kroga
+ * in prijava s podpisom ostaneta enaka kot v LAN.
  */
 object HubMesh {
     private const val TAG = "SafeerMesh"
@@ -37,6 +41,34 @@ object HubMesh {
     private val zavrnjen = ConcurrentHashMap<String, Pair<Long, Long>>()
     private const val PREMOR_MS = 30_000L
     private const val NAJDALJSI_PREMOR_MS = 600_000L
+    /** Global Link: zaporedni neuspehi neposrednih klicev in premor po neuspelem klicu prek releja (kvota). */
+    private val neuspehi = ConcurrentHashMap<String, Int>()
+    private val premorReleja = ConcurrentHashMap<String, Pair<Long, Long>>()
+    private const val RELE_PO_NEUSPEHIH = 2
+    private const val PREMOR_RELEJA_MS = 60_000L
+
+    /** Ali naslov kaze na to napravo (127.x, ::1, localhost) - tam je lokalni konec releja, ne sosed. */
+    internal fun jeZanka(naslov: String): Boolean {
+        val gostitelj = try { java.net.URI(if (naslov.contains("://")) naslov else "wss://$naslov").host.orEmpty() } catch (_: Throwable) { naslov }
+            .trim('[', ']')
+        return gostitelj == "localhost" || gostitelj == "::1" || gostitelj == "0:0:0:0:0:0:0:1" || gostitelj.startsWith("127.")
+    }
+
+    /** Ali naj ta klic gre prek releja (vrne naslov lokalnih vrat releja) ali null. */
+    private fun naslovReleja(app: Context, h: HubDiscovery.NajdeniHub, zdaj: Long = System.currentTimeMillis()): String? {
+        if (!si.safeer.tv.link.GlobalLink.vklopljen(app)) return null
+        if ((premorReleja[h.id]?.first ?: 0L) > zdaj) return null
+        if (si.safeer.tv.link.GlobalLink.osnovniId(h.id) == null) return null
+        val naslov = si.safeer.tv.link.GlobalLink.naslov(app, h.naslov, h.id, prekRele = true)
+        return naslov.takeIf { it != h.naslov && jeZanka(it) }
+    }
+
+    private fun relejNiUspel(id: String) {
+        val prej = premorReleja[id]?.second ?: 0L
+        val premor = (if (prej == 0L) PREMOR_RELEJA_MS else prej * 2).coerceAtMost(NAJDALJSI_PREMOR_MS)
+        premorReleja[id] = (System.currentTimeMillis() + premor) to premor
+        Log.i(TAG, "${id}: prek releja ni dosegljiv; znova cez ${premor / 1000} s")
+    }
 
     /** Link Mesh je vklopljen (izklop samo za primerjavo: nastavitev link_mesh = false). */
     fun vklopljen(context: Context): Boolean =
@@ -47,7 +79,7 @@ object HubMesh {
      * izolacija) in za hiter ponovni priklop po ponovnem zagonu. Dohodna povezava da samo IP.
      */
     fun zapomni(context: Context, id: String, naslov: String) {
-        if (id.isBlank() || naslov.isBlank()) return
+        if (id.isBlank() || naslov.isBlank() || jeZanka(naslov)) return   // 127.0.0.1 je rele, ne sosed
         val url = if (naslov.startsWith("wss://")) naslov else "wss://$naslov:$VRATA/cast/ws"
         val p = context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE)
         val znani = try { JSONObject(p.getString(KLJUC_ZNANI, "{}") ?: "{}") } catch (_: Throwable) { JSONObject() }
@@ -85,9 +117,22 @@ object HubMesh {
         }
     }
 
-    fun poklici(context: Context, u: HubUsmerjevalnik, h: HubDiscovery.NajdeniHub) {
-        if (!klicem.add(h.id)) return
+    fun poklici(context: Context, u: HubUsmerjevalnik, h0: HubDiscovery.NajdeniHub, prekReleja: Boolean = false) {
         val app = context.applicationContext
+        // Preizkus (nastavitev "tudi doma prek interneta"): vedno prek releja.
+        if (!prekReleja && si.safeer.tv.link.GlobalLink.samoRele(app) && naslovReleja(app, h0) != null) {
+            poklici(app, u, h0, prekReleja = true); return
+        }
+        val h = if (prekReleja) (naslovReleja(app, h0)?.let { h0.copy(naslov = it) } ?: return) else h0
+        if (!klicem.add(h.id)) return
+        /** Klic ni prisel do soseda (brez odgovora ali napacen kljuc): stejemo in po potrebi poskusimo prek releja. */
+        fun nedosegljiv() {
+            klicem.remove(h.id)
+            if (prekReleja) { relejNiUspel(h.id); return }
+            val n = (neuspehi[h.id] ?: 0) + 1
+            neuspehi[h.id] = n
+            if (n >= RELE_PO_NEUSPEHIH && naslovReleja(app, h0) != null) poklici(app, u, h0, prekReleja = true)
+        }
         val kljuc = KrogNaprave.kljucHuba(app, h.id)
         if (kljuc == null) { klicem.remove(h.id); return }
         // Zaupanje: kljuc v potrdilu = kljuc tega clana v krogu (oglas mDNS ne velja nic).
@@ -109,7 +154,10 @@ object HubMesh {
             val j = try { JSONObject(telo) } catch (_: Throwable) { JSONObject() }
             val nonce = j.optString("nonce")
             val odtis = j.optString("fp").ifBlank { zaupnik.videni.orEmpty() }
+            if (koda == 0) { Log.i(TAG, "${h.id}: ni dosegljiv${if (prekReleja) " prek releja" else ""}"); nedosegljiv(); return@klic }
             if (koda != 200 || nonce.isBlank() || odtis.isBlank()) { Log.i(TAG, "${h.id}: izziva ni ($koda)"); klicem.remove(h.id); return@klic }
+            // Sosed je na tem naslovu dosegljiv (pravi kljuc v potrdilu): neposredno ali prek releja.
+            if (prekReleja) premorReleja.remove(h.id) else neuspehi.remove(h.id)
             val podpis = try { KrogNaprave.podpisPrijave(jaz, odtis, nonce) } catch (_: Throwable) { klicem.remove(h.id); return@klic }
             klic("/cast/auth/ticket", JSONObject().put("device_id", jaz).put("nonce", nonce).put("signature", podpis)
                 .put("platform", HubKrmilnik.platforma(app))) { koda2, telo2 ->
@@ -139,7 +187,7 @@ object HubMesh {
                 klicem.remove(h.id)
                 // Premor po zavrnitvi izbrisemo sele ob sprejemu (prvo sporocilo, ki ni zavrnitev):
                 // zavrnitev pride po odprtju, zato bi ga brisanje tu vedno vrnilo na 30 s.
-                Log.i(TAG, "Sosed ${h.id} (${h.naslov})")
+                Log.i(TAG, "Sosed ${h.id} (${h.naslov}${if (jeZanka(h.naslov)) ", Global Link" else ""})")
             }
             @Volatile private var sprejet = false
             override fun onMessage(webSocket: WebSocket, text: String) {
