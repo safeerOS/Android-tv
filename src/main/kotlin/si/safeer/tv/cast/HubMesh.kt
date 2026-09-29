@@ -1,0 +1,137 @@
+package si.safeer.tv.cast
+
+import android.content.Context
+import android.util.Log
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+
+/**
+ * Link Mesh (docs/LINK-MESH.md): nas Hub se sam poveze s Hubi drugih naprav iz kroga zaupanja.
+ *
+ * Hub na tej napravi tece vedno (brez izvolitve in umika). Tu poiscemo druge Hube (mDNS z `mesh=mesh1`),
+ * preverimo, da njihovo potrdilo nosi kljuc clana kroga, se prijavimo s podpisom nasega kljuca in odpremo
+ * sosednjo povezavo. Vse naprej naredi HubUsmerjevalnik (mesh.devices, mesh.route, mesh.trust).
+ *
+ * Za vsak par nastane ena povezava: prvi klice manjsi id; vecji klice sam sele, ce ga manjsi dolgo ne doseze.
+ */
+object HubMesh {
+    private const val TAG = "SafeerMesh"
+    private const val VECJI_CAKA_MS = 40_000L
+
+    private val klicem: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    private val prvicVideni = ConcurrentHashMap<String, Long>()
+
+    /** Link Mesh je vklopljen (izklop samo za primerjavo: nastavitev link_mesh = false). */
+    fun vklopljen(context: Context): Boolean =
+        context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE).getBoolean("link_mesh", true)
+
+    /** Iz oglasov izbere Hube, ki jih moramo zdaj poklicati. */
+    fun kandidati(context: Context, u: HubUsmerjevalnik, hubi: List<HubDiscovery.NajdeniHub>, zdaj: Long = System.currentTimeMillis()): List<HubDiscovery.NajdeniHub> {
+        val jaz = u.lastniId
+        val povezani = u.sosedjeIdji().toSet()
+        val krog = KrogNaprave.krog(context)
+        return hubi.filter { h ->
+            if (h.id.isBlank() || h.id == jaz || h.mesh != HubUsmerjevalnik.MESH || h.id in povezani || h.id in klicem) return@filter false
+            if (krog.clanZaId(h.id) == null) return@filter false
+            val prvic = prvicVideni.getOrPut(h.id) { zdaj }
+            !(h.id < jaz && zdaj - prvic < VECJI_CAKA_MS)       // manjsi id klice prvi; pocakamo nanj
+        }
+    }
+
+    fun poklici(context: Context, u: HubUsmerjevalnik, h: HubDiscovery.NajdeniHub) {
+        if (!klicem.add(h.id)) return
+        val app = context.applicationContext
+        val kljuc = KrogNaprave.kljucHuba(app, h.id)
+        if (kljuc == null) { klicem.remove(h.id); return }
+        // Zaupanje: kljuc v potrdilu = kljuc tega clana v krogu (oglas mDNS ne velja nic).
+        val (graditelj, zaupnik) = HubTls.okhttp(OkHttpClient.Builder()
+            .connectTimeout(6, TimeUnit.SECONDS).readTimeout(0, TimeUnit.MILLISECONDS)
+            .pingInterval(20, TimeUnit.SECONDS), null, kljuc)
+        val client = graditelj.build()
+        val osnova = h.naslov.replace(Regex("^wss"), "https").substringBefore("/cast/ws")
+        fun klic(pot: String, telo: JSONObject, naprej: (Int, String) -> Unit) {
+            client.newCall(Request.Builder().url(osnova + pot)
+                .post(telo.toString().toRequestBody("application/json".toMediaTypeOrNull())).build())
+                .enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: java.io.IOException) { naprej(0, "") }
+                    override fun onResponse(call: Call, response: Response) { response.use { naprej(it.code, it.body?.string().orEmpty()) } }
+                })
+        }
+        val jaz = u.lastniId
+        klic("/cast/auth/challenge", JSONObject().put("device_id", jaz)) { koda, telo ->
+            val j = try { JSONObject(telo) } catch (_: Throwable) { JSONObject() }
+            val nonce = j.optString("nonce")
+            val odtis = j.optString("fp").ifBlank { zaupnik.videni.orEmpty() }
+            if (koda != 200 || nonce.isBlank() || odtis.isBlank()) { Log.i(TAG, "${h.id}: izziva ni ($koda)"); klicem.remove(h.id); return@klic }
+            val podpis = try { KrogNaprave.podpisPrijave(jaz, odtis, nonce) } catch (_: Throwable) { klicem.remove(h.id); return@klic }
+            klic("/cast/auth/ticket", JSONObject().put("device_id", jaz).put("nonce", nonce).put("signature", podpis)
+                .put("platform", HubKrmilnik.platforma(app))) { koda2, telo2 ->
+                val j2 = try { JSONObject(telo2) } catch (_: Throwable) { JSONObject() }
+                val vstopnica = j2.optString("ticket")
+                if (koda2 != 200 || vstopnica.isBlank()) { Log.i(TAG, "${h.id}: vstopnice ni ($koda2)"); klicem.remove(h.id); return@klic }
+                odpri(app, u, h, client, "${h.naslov}?ticket=$vstopnica")
+            }
+        }
+    }
+
+    private fun odpri(app: Context, u: HubUsmerjevalnik, h: HubDiscovery.NajdeniHub, client: OkHttpClient, url: String) {
+        val povezava = Sosednja(h.naslov.substringAfter("//").substringBefore(":"))
+        val ws = client.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                povezava.ws = webSocket
+                // Prijava gre prva: sosed mora vedeti, da smo Hub, preden dobi karkoli drugega.
+                webSocket.send(JSONObject().put("id", System.currentTimeMillis().toString()).put("type", "cast.register")
+                    .put("payload", JSONObject().put("device_id", u.lastniId).put("name", HubKrmilnik.imeHuba(app))
+                        .put("role", "hub").put("capabilities", org.json.JSONArray().put(HubUsmerjevalnik.MESH))
+                        .put("protocol", "1")).toString())
+                if (!u.dodajSoseda(h.id, povezava, u.lastniId)) {
+                    webSocket.close(1000, "sosednja povezava ze obstaja")
+                    klicem.remove(h.id)
+                    return
+                }
+                klicem.remove(h.id)
+                Log.i(TAG, "Sosed ${h.id} (${h.naslov})")
+            }
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                val j = JsonLahki.objekt(text)
+                if (j?.niz("type") == "cast.ack" && j.niz("status") == "rejected") {
+                    // Sosed nas ne sprejme (npr. ze ima povezavo, ki jo je odprl sam).
+                    webSocket.close(1000, "zavrnjeno"); return
+                }
+                try { u.obdelaj(povezava, text) } catch (e: Throwable) { SafeerLog.napaka("Mesh", "obdelaj", e) }
+            }
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { konec() }
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { konec() }
+            private fun konec() {
+                klicem.remove(h.id)
+                povezava.zaprta = true
+                u.odklopi(povezava)
+            }
+        })
+        povezava.ws = ws
+    }
+
+    /** Povezava, ki smo jo odprli mi; OkHttp posilja v svoji niti, zato pocasen sosed ne ustavi Huba. */
+    private class Sosednja(override val naslov: String) : HubUsmerjevalnik.Odjemalec {
+        @Volatile var ws: WebSocket? = null
+        @Volatile var zaprta = false
+        override fun poslji(besedilo: String) {
+            val w = ws ?: throw IllegalStateException("ni odprta")
+            if (zaprta || !w.send(besedilo)) throw IllegalStateException("sosednja povezava je zaprta")
+        }
+        override fun zapri(koda: Int, razlog: String) {
+            zaprta = true
+            try { ws?.close(koda.coerceIn(1000, 4999).let { if (it == 1004 || it == 1005 || it == 1006) 1000 else it }, razlog.take(100)) } catch (_: Throwable) { }
+        }
+    }
+}

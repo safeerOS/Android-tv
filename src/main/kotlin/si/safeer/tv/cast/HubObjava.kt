@@ -72,6 +72,8 @@ object HubObjava {
             // Izvolitev huba: prioriteta in id, da vsi v hisi enako izracunajo, kdo gosti (IzvolitevHuba).
             if (prioriteta > 0) setAttribute(IzvolitevHuba.TXT_PRIORITETA, prioriteta.toString())
             if (id.isNotBlank()) setAttribute(IzvolitevHuba.TXT_ID, id.take(63))
+            // Link Mesh: ta Hub zna sosednje povezave (star Hub tega ne oglasi in ga ne klicemo kot soseda).
+            setAttribute(HubUsmerjevalnik.TXT_MESH, HubUsmerjevalnik.MESH)
         }
 
         val novi = object : NsdManager.RegistrationListener {

@@ -32,6 +32,23 @@ trap 'rm -rf "$OUT"' EXIT
 
 java -cp "$OUT/usmerjevalnik.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.UsmerjevalnikTestKt
 
+# Link Mesh (docs/LINK-MESH.md): trije usmerjevalniki kot sosedje.
+"$KOTLINC" -J-Xmx2g \
+    "$TEST_DIR/stubs/Log.kt" \
+    "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
+    "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
+    "$SRC/si/safeer/tv/cast/Spake2.kt" \
+    "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
+    "$SRC/si/safeer/tv/cast/HubHttp.kt" \
+    "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
+    "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
+    "$TEST_DIR/MeshTest.kt" \
+    ${JSON_JAR:+-cp "$JSON_JAR"} \
+    -include-runtime -d "$OUT/mesh.jar"
+java -cp "$OUT/mesh.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.MeshTestKt
+
 # Testni vektor RFC 9382 (isti kot za spake2.py v brskalniku za Linux).
 "$KOTLINC" -J-Xmx2g \
     "$SRC/si/safeer/tv/cast/Spake2.kt" \

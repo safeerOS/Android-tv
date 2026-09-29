@@ -113,12 +113,14 @@ class HubUsmerjevalnik(
     private val prijave = LinkedHashMap<String, Prijava>()
     private val zetoni = LinkedHashMap<String, SeznanjenaNaprava>()
     /** Vstopnica za WebSocket: kdaj je bila izdana in kateri napravi (zeton ali podpis), ce je znano. */
-    internal class Vstopnica(val izdana: Long, val deviceId: String?)
+    internal class Vstopnica(val izdana: Long, val deviceId: String?, val podpis: Boolean = false)
 
     internal val vstopnice = LinkedHashMap<String, Vstopnica>()
 
     /** Porabljene vstopnice, vezane na napravo: vstopnica -> device_id, dokler se povezava ne prijavi. */
     private val vezaneVstopnice = LinkedHashMap<String, String>()
+    /** Porabljene vstopnice, izdane s podpisom kljuca iz kroga (samo take smejo odpreti sosednjo povezavo). */
+    private val podpisaneVstopnice = LinkedHashSet<String>()
     internal val sinhronizacija = LinkedHashMap<String, Kategorija>()
 
     /** Klice se, ko se seznam cakajocih prijav spremeni, da vmesnik pokaze kodo brez spraševanja. */
@@ -326,7 +328,8 @@ class HubUsmerjevalnik(
 
     private fun objaviKrog() {
         val sporocilo = sporociloKroga()
-        for (povezava in register.povezanePovezave()) posljiVarno(povezava, sporocilo)
+        for (povezava in register.povezanePovezave()) if (povezava !is Namestnik) posljiVarno(povezava, sporocilo)
+        posljiKrogSosedom(null)
     }
 
     /** "ip:vrata" tega huba za QR kodo, ki jo pokaze druga naprava v Linku; prazno, ce naslova ne vemo. */
@@ -991,14 +994,14 @@ class HubUsmerjevalnik(
      * Enokratna vstopnica za WebSocket, kratke veljavnosti. Povezava brez nje sploh ne nastane -
      * enako kot na racunalniku, kjer jo izda Controlov SessionManager.
      */
-    fun izdajVstopnico(deviceId: String? = null): String = synchronized(kljucnica) {
+    fun izdajVstopnico(deviceId: String? = null, podpis: Boolean = false): String = synchronized(kljucnica) {
         pocistiVstopnice()
         if (vstopnice.size >= NAJVEC_VSTOPNIC) {
             // Najstarejsa pade ven; drugace bi jih nekdo lahko naracal poljubno veliko.
             vstopnice.remove(vstopnice.keys.first())
         }
         val vstopnica = nakljucni(16)
-        vstopnice[vstopnica] = Vstopnica(ura(), deviceId?.takeIf { it.isNotBlank() })
+        vstopnice[vstopnica] = Vstopnica(ura(), deviceId?.takeIf { it.isNotBlank() }, podpis)
         return vstopnica
     }
 
@@ -1021,6 +1024,10 @@ class HubUsmerjevalnik(
             if (v?.deviceId != null) {
                 if (vezaneVstopnice.size >= NAJVEC_VSTOPNIC) vezaneVstopnice.remove(vezaneVstopnice.keys.first())
                 vezaneVstopnice[najdena] = v.deviceId
+                if (v.podpis) {
+                    if (podpisaneVstopnice.size >= NAJVEC_VSTOPNIC) podpisaneVstopnice.remove(podpisaneVstopnice.first())
+                    podpisaneVstopnice.add(najdena)
+                }
             }
             return true
         }
@@ -1077,6 +1084,7 @@ class HubUsmerjevalnik(
     private fun idPovezave(povezava: Odjemalec): String? = register.idPovezave(povezava)
 
     fun odklopi(povezava: Odjemalec) {
+        sosedPovezave(povezava)?.let { odstraniSoseda(it, povezava); return }
         if (register.odklopi(povezava)) {
             objaviNaprave()
             naSpremembeNaprav?.invoke()
@@ -1103,7 +1111,14 @@ class HubUsmerjevalnik(
 
         if (tip.isNullOrEmpty()) return potrditev(id, "error", "Sporočilu manjka polje 'type'.", koda = "manjka_type")
 
-        if (tip == "cast.register") return registriraj(od, sporocilo, id)
+        sosedPovezave(od)?.let { return obdelajSoseda(it, od, sporocilo) }
+        if (tip.startsWith("mesh.")) return potrditev(id, "rejected", "Samo sosednji Hub.", "mesh", "ni_sosed")
+
+        if (tip == "cast.register") {
+            val t = sporocilo.objekt("payload")
+            if (t?.niz("role") == "hub" && t.nizi("capabilities").contains(MESH)) return sprejmiSoseda(od, t, id)
+            return registriraj(od, sporocilo, id)
+        }
 
         if (tip == "cast.ping") return ovojnica("cast.pong", id).toString()
 
@@ -1354,6 +1369,218 @@ class HubUsmerjevalnik(
         return potrditev(id, "accepted")
     }
 
+    // ------------------------------------------------------------------ Link Mesh (docs/LINK-MESH.md)
+    //
+    // Vsaka naprava gosti svoj Hub; Hubi so sosedje vsak z vsakim. Naprave soseda so v registru z
+    // namestnikom (Namestnik): kar jim posljemo, gre sosedu kot mesh.route, on jih preda svoji
+    // lokalni napravi. Sosed nikoli ne posreduje naprej, zato zank ni.
+
+    private val sosedje = LinkedHashMap<String, Odjemalec>()
+    private val sosedNaprave = HashMap<String, MutableSet<String>>()
+    private val zacetnikSoseda = java.util.IdentityHashMap<Odjemalec, String>()
+    @Volatile private var zadnjiMesh = ""
+
+    fun sosedjeIdji(): List<String> = synchronized(kljucnica) { sosedje.keys.sorted() }
+
+    /** Sosednja povezava za id Huba (za preizkuse in stanje). */
+    internal fun javi(sosedId: String): Odjemalec? = synchronized(kljucnica) { sosedje[sosedId] }
+
+    private fun sosedPovezave(od: Odjemalec): String? = synchronized(kljucnica) {
+        sosedje.entries.firstOrNull { it.value === od }?.key
+    }
+
+    private fun jeClan(id: String): Boolean = krog.clanZaId(id) != null
+
+    /** Nase lokalne naprave za sosede: samo clani kroga, brez namestnikov (id -> zapis). */
+    private fun lokalneZaSosede(): String {
+        val lokalne = register.povezane().filter { it.povezava !is Namestnik && jeClan(it.id) }.sortedBy { it.id }
+        return lokalne.joinToString(",", "{", "}") { n ->
+            val z = JsonLahki.Zapis().niz("name", n.ime).niz("role", n.vloga).seznamNizov("capabilities", n.zmoznosti)
+                .niz("ip", n.naslov)
+            if (n.protokol.isNotBlank()) z.niz("protocol", n.protokol)
+            if (n.platforma.isNotBlank()) z.niz("platform", n.platforma)
+            if (n.vrsta.isNotBlank()) z.niz("kind", n.vrsta)
+            if (n.razlicica.isNotBlank()) z.niz("version", n.razlicica)
+            if (n.prioriteta > 0) z.stevilo("priority", n.prioriteta.toDouble())
+            if (n.aplikacije.isNotBlank()) z.surovo("apps", n.aplikacije)
+            "\"" + JsonLahki.ubezi(n.id) + "\":" + z.toString()
+        }
+    }
+
+    private fun sporociloNaprav(seznam: String): String =
+        ovojnica("mesh.devices").surovo("payload", JsonLahki.Zapis().niz("hub", lastniId).surovo("devices", seznam).toString()).toString()
+
+    /** Sosedom poslje nase lokalne naprave - vsem samo ob spremembi, ali enemu (novemu) vedno. */
+    private fun objaviSosedom(samo: Odjemalec?) {
+        val seznam = lokalneZaSosede()
+        val prejemniki = synchronized(kljucnica) {
+            if (samo == null && seznam == zadnjiMesh) return
+            if (samo == null) zadnjiMesh = seznam
+            if (samo != null) listOf(samo) else sosedje.values.toList()
+        }
+        val sporocilo = sporociloNaprav(seznam)
+        for (p in prejemniki) posljiVarno(p, sporocilo)
+    }
+
+    private fun posljiKrogSosedom(razen: Odjemalec?) {
+        val sporocilo = ovojnica("mesh.trust").surovo("payload", krog.json()).toString()
+        val vsi = synchronized(kljucnica) { sosedje.toList() }
+        for ((sid, p) in vsi) {
+            if (!jeClan(sid)) {
+                odstraniSoseda(sid, p)
+                try { p.zapri(1008, "umaknjen iz kroga") } catch (_: Throwable) { }
+                continue
+            }
+            if (p !== razen) posljiVarno(p, sporocilo)
+        }
+        // Naprave, ki niso vec v krogu, izginejo tudi kot oddaljene.
+        val tujci = register.povezane().filter { it.povezava is Namestnik && !jeClan(it.id) }.map { it.id }
+        if (tujci.isNotEmpty()) {
+            synchronized(kljucnica) { for (i in tujci) { register.odstrani(i); sosedNaprave.values.forEach { it.remove(i) } } }
+            objaviNaprave(); naSpremembeNaprav?.invoke()
+        }
+    }
+
+    /**
+     * Sosednja povezava je vzpostavljena ([zacel] = id Huba, ki jo je odprl). Ce za istega soseda ze
+     * obstaja druga, ostane tista, ki jo je odprl manjsi id - obe strani izbereta isto.
+     */
+    fun dodajSoseda(sosedId: String, povezava: Odjemalec, zacel: String): Boolean {
+        if (sosedId.isBlank() || sosedId == lastniId) return false
+        val stara: Odjemalec? = synchronized(kljucnica) {
+            val obstojeca = sosedje[sosedId]
+            if (obstojeca != null && obstojeca !== povezava) {
+                val zacetnikStare = zacetnikSoseda[obstojeca].orEmpty()
+                if (zacetnikStare == minOf(sosedId, lastniId) && zacel != zacetnikStare) return false
+            }
+            if (obstojeca == null && sosedje.size >= NAJVEC_SOSEDOV) return false
+            zacetnikSoseda[povezava] = zacel
+            sosedje[sosedId] = povezava
+            obstojeca?.takeIf { it !== povezava }
+        }
+        if (stara != null) {
+            pocistiSoseda(sosedId)
+            synchronized(kljucnica) { zacetnikSoseda.remove(stara) }
+            try { stara.zapri(1000, "podvojena sosednja povezava") } catch (_: Throwable) { }
+        }
+        objaviSosedom(povezava)
+        posljiVarno(povezava, ovojnica("mesh.trust").surovo("payload", krog.json()).toString())
+        return true
+    }
+
+    private fun sprejmiSoseda(od: Odjemalec, tovor: JsonLahki.Pogled, id: String): String {
+        val sosedId = tovor.niz("device_id")?.trim()?.take(NAJVEC_IMENA).orEmpty()
+        val vstopnica = od.vstopnica
+        val vezana = napravaVstopnice(vstopnica)
+        val podpisana = vstopnica != null && synchronized(kljucnica) { podpisaneVstopnice.any { enaka(it, vstopnica) } }
+        if (sosedId.isBlank() || vezana != sosedId || !podpisana || !jeClan(sosedId)) {
+            return potrditev(id, "rejected", "Sosed mora biti clan kroga s podpisom.", koda = "ni_sosed")
+        }
+        if (!dodajSoseda(sosedId, od, sosedId)) return potrditev(id, "rejected", "Sosednja povezava ze obstaja.", koda = "podvojen_sosed")
+        return potrditev(id, "accepted")
+    }
+
+    /** Oddaljene naprave soseda postanejo znane, a nepovezane (klepet zanje pocaka). */
+    private fun pocistiSoseda(sosedId: String): Boolean = synchronized(kljucnica) {
+        val idji = sosedNaprave.remove(sosedId) ?: return false
+        var spremenjeno = false
+        for (i in idji) {
+            val n = register.najdi(i) ?: continue
+            val p = n.povezava
+            if (p is Namestnik && p.sosedId == sosedId) { register.odklopi(p); spremenjeno = true }
+        }
+        spremenjeno
+    }
+
+    private fun odstraniSoseda(sosedId: String, povezava: Odjemalec?) {
+        synchronized(kljucnica) {
+            if (povezava != null && sosedje[sosedId] !== povezava) { zacetnikSoseda.remove(povezava); return }
+            sosedje.remove(sosedId)?.let { zacetnikSoseda.remove(it) }
+        }
+        if (pocistiSoseda(sosedId)) { objaviNaprave(); naSpremembeNaprav?.invoke() }
+    }
+
+    private fun sosedoveNaprave(sosedId: String, povezava: Odjemalec, naprave: JsonLahki.Pogled?) {
+        if (naprave == null) return
+        val novi = naprave.kljuci().take(NAJVEC_NAPRAV)
+            .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && it != lastniId && jeClan(it) }
+        val prispeli = ArrayList<Pair<String, Odjemalec>>()
+        synchronized(kljucnica) {
+            if (sosedje[sosedId] !== povezava) return
+            val stari = sosedNaprave[sosedId] ?: mutableSetOf()
+            val obdrzani = mutableSetOf<String>()
+            for (did in novi) {
+                val z = naprave.objekt(did) ?: continue
+                val obstojeca = register.najdi(did)
+                val p = obstojeca?.povezava
+                if (p != null && p !is Namestnik) continue                   // lokalna prijava ima prednost
+                if (p is Namestnik && p.sosedId != sosedId) continue         // ze vidna prek drugega soseda
+                val naslov = z.nizAli("ip").take(64)
+                val namestnik = if (p is Namestnik) p else Namestnik(sosedId, povezava, did, naslov)
+                register.registriraj(
+                    od = namestnik, deviceId = did, ime = z.nizAli("name", did),
+                    vloga = z.nizAli("role", "receiver").take(16),
+                    zmoznosti = z.nizi("capabilities").take(24).map { it.take(24) },
+                    protokol = z.nizAli("protocol"), platforma = z.nizAli("platform"), vrsta = z.nizAli("kind"),
+                    razlicica = z.nizAli("version"), prioriteta = (z.stevilo("priority") ?: 0.0).toInt(),
+                    aplikacije = z.surovo("apps")?.let { preveriKatalog(it) } ?: ""
+                )
+                register.najdi(did)?.naslov = naslov
+                if (p == null) prispeli.add(did to namestnik)
+                obdrzani.add(did)
+            }
+            for (did in stari - obdrzani) {
+                val p = register.najdi(did)?.povezava
+                if (p is Namestnik && p.sosedId == sosedId) register.odklopi(p)
+            }
+            sosedNaprave[sosedId] = obdrzani
+        }
+        // Klepet, ki je cakal na napravo, gre zdaj prek soseda.
+        for ((did, p) in prispeli) {
+            dostaviCakajociKlepet(did, p)
+            if (register.najdi(did)?.zmoznosti?.contains(ZMOZNOST_KLEPET) == true)
+                napravaIzKljuca(did)?.let { dostaviCakajociKlepet(it, p) }
+        }
+        objaviNaprave()
+        naSpremembeNaprav?.invoke()
+    }
+
+    /** Sporocilo sosednjega Huba. Sosed nikoli ne posreduje naprej - samo nasim lokalnim napravam. */
+    private fun obdelajSoseda(sosedId: String, od: Odjemalec, sporocilo: JsonLahki.Pogled): String? {
+        val tovor = sporocilo.objekt("payload")
+        when (sporocilo.niz("type")) {
+            "mesh.devices" -> { sosedoveNaprave(sosedId, od, tovor?.objekt("devices")); return null }
+            "mesh.route" -> {
+                val cilj = tovor?.niz("to").orEmpty()
+                val msg = tovor?.niz("msg") ?: return null
+                if (msg.length > NAJVEC_MESH_SPOROCILO) return null
+                val prejemnik = register.povezavaOd(cilj)
+                if (prejemnik == null || prejemnik is Namestnik) return null        // samo lokalne; nikoli naprej
+                val vsebina = JsonLahki.objekt(msg) ?: return null
+                val posiljatelj = vsebina.niz("sender").orEmpty()
+                val njegove = synchronized(kljucnica) { sosedNaprave[sosedId]?.toSet() ?: emptySet() }
+                // Sosed sme govoriti samo v imenu svojih naprav (ali svojem); brez posiljatelja samo seznanitev.
+                if (posiljatelj.isBlank()) { if (!vsebina.nizAli("type").startsWith("pair.")) return null }
+                else if (posiljatelj !in njegove && posiljatelj != sosedId) return null
+                posljiVarno(prejemnik, msg)
+                return null
+            }
+            "mesh.trust" -> {
+                val krogJson = sporocilo.surovo("payload") ?: return null
+                // Podpisi: nov ali spremenjen kljuc sprejmemo samo s podpisom znanega clana.
+                if (krog.zdruzi(krogJson, obvesti = false, preveriPodpise = true)) {
+                    val s = sporociloKroga()
+                    for (p in register.povezanePovezave()) if (p !is Namestnik) posljiVarno(p, s)
+                    posljiKrogSosedom(od)
+                    naSpremembeNaprav?.invoke()
+                }
+                return null
+            }
+            "cast.ping" -> return ovojnica("cast.pong", sporocilo.nizAli("id")).toString()
+        }
+        return null
+    }
+
     // ------------------------------------------------------------------ Safeer Chat
     /** Sporocila za nepovezane naprave (npr. telefon z zaprto aplikacijo): cilj -> surova sporocila s casom. */
     private val cakajociKlepet = HashMap<String, ArrayDeque<Pair<Long, String>>>()
@@ -1547,7 +1774,8 @@ class HubUsmerjevalnik(
         val sporocilo = ovojnica("cast.devices").surovo("devices", povezaniPrejemniki()).toString()
         // Seznam dobijo vsi povezani, ne le posiljatelji: tudi zaslon mora vedeti, komu lahko
         // kaj poslje, ker je deljenje dvosmerno.
-        for (povezava in register.povezanePovezave()) posljiVarno(povezava, sporocilo)
+        for (povezava in register.povezanePovezave()) if (povezava !is Namestnik) posljiVarno(povezava, sporocilo)
+        objaviSosedom(null)
     }
 
     private fun objaviPosiljateljem(sporocilo: String) {
@@ -1754,7 +1982,13 @@ class HubUsmerjevalnik(
 
         // Meje so del zasnove, ne naknadni popravek. Televizor ima malo pomnilnika in ga
         // sistem ob pomanjkanju ubije brez opozorila, zato ima vsak seznam svojo streho.
-        const val NAJVEC_NAPRAV = 16
+        const val NAJVEC_NAPRAV = 32
+        /** Link Mesh: zmoznost sosednje povezave, najvec sosedov in najvecje posredovano sporocilo. */
+        const val MESH = "mesh1"
+        /** Lastnost oglasa mDNS, s katero Hub pove, da zna sosednje povezave. */
+        const val TXT_MESH = "mesh"
+        const val NAJVEC_SOSEDOV = 16
+        const val NAJVEC_MESH_SPOROCILO = 1024 * 1024
         const val NAJVEC_CAKAJOCIH = 8
         const val NAJVEC_SEZNANJENIH = 16
         const val NAJVEC_VSTOPNIC = 8
@@ -1819,4 +2053,23 @@ class HubUsmerjevalnik(
             }
         }
     }
+}
+
+/**
+ * Link Mesh: povezava do naprave, ki je prijavljena pri sosednjem Hubu. Kar Hub poslje tej napravi,
+ * se ovije v mesh.route in gre sosedu; ta sporocilo nespremenjeno preda svoji lokalni napravi.
+ */
+class Namestnik(
+    val sosedId: String,
+    val povezava: HubUsmerjevalnik.Odjemalec,
+    val cilj: String,
+    override val naslov: String
+) : HubUsmerjevalnik.Odjemalec {
+    override fun poslji(besedilo: String) {
+        povezava.poslji(JsonLahki.Zapis().niz("id", UUID.randomUUID().toString()).niz("type", "mesh.route")
+            .surovo("payload", JsonLahki.Zapis().niz("to", cilj).niz("msg", besedilo).toString()).toString())
+    }
+
+    /** Zapreti se da samo sosednjo povezavo, ne posamezne oddaljene naprave. */
+    override fun zapri(koda: Int, razlog: String) {}
 }

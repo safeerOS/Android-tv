@@ -409,7 +409,7 @@ internal fun HubUsmerjevalnik.odgovoriPrijava(zahteva: HubStreznik.Zahteva, pot:
             krog.dodaj(KrogZaupanja.Clan(deviceId, clan.kljuc, ime, platforma, KrogZaupanja.zdaj(), clan.id))
         }
         return HubStreznik.Odgovor(200, JsonLahki.Zapis()
-            .niz("ticket", izdajVstopnico(deviceId))
+            .niz("ticket", izdajVstopnico(deviceId, podpis = true))
             .niz("session_token", izdajSejo(deviceId))
             .stevilo("expires_in_seconds", (VSTOPNICA_VELJA_MS / 1000).toDouble())
             .surovo("ring", krog.json())
