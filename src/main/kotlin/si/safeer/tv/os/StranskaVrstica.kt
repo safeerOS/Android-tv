@@ -58,10 +58,10 @@ class StranskaVrstica private constructor(
         // Rocaj na levem robu, ko je vrstica skrita: tanek zelen jezicek (dotik ali poteg ga odpre).
         rocaj.background = android.graphics.drawable.LayerDrawable(arrayOf(
             android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor(0x9957D6AD.toInt()) }
-        )).apply { setLayerInset(0, dp(4), 0, dp(4), 0); setLayerGravity(0, Gravity.CENTER); setLayerSize(0, dp(6), dp(56)) }
+        )).apply { setLayerInset(0, dp(6), 0, dp(6), 0); setLayerGravity(0, Gravity.CENTER); setLayerSize(0, dp(6), dp(72)) }
         rocaj.contentDescription = dejavnost.getString(R.string.os_vrstica_pokazi)
         rocaj.setOnClickListener { nastaviSkrito(false) }
-        addView(rocaj, LayoutParams(dp(14), ViewGroup.LayoutParams.MATCH_PARENT))
+        addView(rocaj, LayoutParams(dp(20), ViewGroup.LayoutParams.MATCH_PARENT))
         drsnik.addView(meni, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         addView(drsnik, LayoutParams(dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina),
             ViewGroup.LayoutParams.MATCH_PARENT))
@@ -69,6 +69,7 @@ class StranskaVrstica private constructor(
         addView(vsebina, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         prilagodiSirino()
         uveljaviSkrito()
+        nastaviPrehode(dejavnost)
     }
 
     private fun uveljaviSkrito() {
@@ -207,6 +208,24 @@ class StranskaVrstica private constructor(
         }
 
         meni.addView(View(dejavnost), LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        if (dotik) {
+            val skrij = LinearLayout(dejavnost).apply {
+                orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                isFocusable = true; isClickable = true
+                setBackgroundResource(R.drawable.os_meni_postavka)
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                contentDescription = dejavnost.getString(R.string.os_vrstica_skrij)
+                addView(ikona(R.drawable.os_ikona_skrij_vrstico, 22, R.color.os_umirjeno))
+                addView(besedilo(13f, R.color.os_umirjeno).apply {
+                    text = dejavnost.getString(R.string.os_vrstica_skrij); maxLines = 1; setPadding(dp(12), 0, 0, 0)
+                    besedila.add(this)
+                }, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                setOnClickListener { nastaviSkrito(true) }
+            }
+            meni.addView(skrij, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin = dp(8)
+            })
+        }
         meni.addView(besedilo(11f, R.color.os_umirjeno).apply {
             text = dejavnost.getString(R.string.os_poganja); setPadding(dp(4), 0, 0, 0); besedila.add(this)
         })
@@ -245,6 +264,12 @@ class StranskaVrstica private constructor(
     }
 
     private fun odpri(razdelek: Razdelek) {
+        odpriRazdelek(razdelek)
+        // Za Android pod 14 (novejsi uporabi overrideActivityTransition iz nastaviPrehode).
+        @Suppress("DEPRECATION") dejavnost.overridePendingTransition(R.anim.os_prehod_noter, R.anim.os_prehod_ostane)
+    }
+
+    private fun odpriRazdelek(razdelek: Razdelek) {
         val namera = when (razdelek) {
             Razdelek.DOMOV -> Intent(dejavnost, DomovActivity::class.java)
             Razdelek.MEDIJI -> GlasbaStoritev.namenKartice(dejavnost)
@@ -302,6 +327,14 @@ class StranskaVrstica private constructor(
     }
 
     companion object {
+        /** Odpiranje in zapiranje zaslonov Safeer OS s kratkim prelivom namesto sistemske animacije okna. */
+        fun nastaviPrehode(dejavnost: Activity) {
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                dejavnost.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, R.anim.os_prehod_noter, R.anim.os_prehod_ostane)
+                dejavnost.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_CLOSE, R.anim.os_prehod_noter, R.anim.os_prehod_ostane)
+            }
+        }
+
         fun ovij(dejavnost: Activity, vsebina: View, aktivna: Razdelek) =
             StranskaVrstica(dejavnost, vsebina, aktivna)
 
