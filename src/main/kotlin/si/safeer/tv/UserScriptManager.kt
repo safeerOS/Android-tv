@@ -1145,7 +1145,7 @@ object UserScriptManager {
 
     // Samo nasa vgrajena domaca stran (android_asset). Prej je zadostoval del poti, zato je lahko
     // katerakoli stran z ».../splet/splet.html« v naslovu izklopila filtriranje oglasov na sebi.
-    private fun isBrowserHome(url: String?): Boolean = si.safeer.tv.tv.TvSite.isBrowserHome(url ?: "")
+    private fun isBrowserHome(url: String?): Boolean = TvSite.isBrowserHome(url ?: "")
 
     fun isGoogleAuthUrl(url: String?): Boolean {
         if (url.isNullOrEmpty()) return false
