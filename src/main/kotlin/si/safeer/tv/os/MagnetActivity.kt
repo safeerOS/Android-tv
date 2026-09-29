@@ -145,13 +145,11 @@ class MagnetActivity : OsActivity() {
     }
 
     /** Gumbi v vrsti se prelomijo (ožji zaslon telefona): HorizontalScrollView bi skril dejanja. */
-    private fun dejanja(): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-    }
+    /** Vrsta gumbov, ki se na ozkem zaslonu (telefon) prelomi v novo vrstico, namesto da gumbe stisne. */
+    private fun dejanja(): ViewGroup = OvijalnaVrsta(this)
 
     private fun velikost(b: Long): String = when {
-        b >= 1L shl 30 -> "%.1f GB".format(b / 1073741824.0)
+        b >= 1L shl 30 -> String.format(java.util.Locale.ROOT, "%.1f GB", b / 1073741824.0)
         b >= 1L shl 20 -> "${b shr 20} MB"
         else -> "${maxOf(1, b shr 10)} kB"
     }
@@ -286,7 +284,8 @@ class MagnetActivity : OsActivity() {
         val skupaj = x.optLong("skupaj").coerceAtLeast(1)
         val odst = (100 * x.optLong("preneseno") / skupaj).toInt()
         t.text = if (x.optBoolean("koncano")) getString(R.string.magnet_koncano) + " · " + velikost(x.optLong("skupaj"))
-        else "$odst % · %.1f MB/s · ".format(x.optInt("hitrost") / 1048576.0) + getString(R.string.magnet_povezav, x.optInt("povezave")) +
+        else "$odst % · " + String.format(java.util.Locale.ROOT, "%.1f MB/s", x.optInt("hitrost") / 1048576.0) + " · " +
+            getString(R.string.magnet_povezav, x.optInt("povezave")) +
             (if (x.optBoolean("premor")) " · " + getString(R.string.magnet_premor) else "")
     }
 
@@ -324,4 +323,44 @@ class MagnetActivity : OsActivity() {
     }
 
     private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
+}
+
+/** Postavi otroke v vrstice po vrsti in prelomi, ko zmanjka širine (kot besedilo). */
+private class OvijalnaVrsta(c: android.content.Context) : ViewGroup(c) {
+    override fun onMeasure(sirinaSpec: Int, visinaSpec: Int) {
+        val najvec = MeasureSpec.getSize(sirinaSpec).let { if (MeasureSpec.getMode(sirinaSpec) == MeasureSpec.UNSPECIFIED) Int.MAX_VALUE else it }
+        var x = 0; var y = 0; var vrsta = 0; var sirina = 0
+        for (i in 0 until childCount) {
+            val o = getChildAt(i)
+            if (o.visibility == GONE) continue
+            measureChildWithMargins(o, sirinaSpec, 0, visinaSpec, 0)
+            val lp = o.layoutParams as MarginLayoutParams
+            val w = o.measuredWidth + lp.leftMargin + lp.rightMargin
+            val h = o.measuredHeight + lp.topMargin + lp.bottomMargin
+            if (x > 0 && x + w > najvec) { y += vrsta; x = 0; vrsta = 0 }
+            x += w; vrsta = maxOf(vrsta, h); sirina = maxOf(sirina, x)
+        }
+        setMeasuredDimension(resolveSize(sirina, sirinaSpec), resolveSize(y + vrsta, visinaSpec))
+    }
+
+    override fun onLayout(spremenjeno: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val najvec = r - l
+        var x = 0; var y = 0; var vrsta = 0
+        for (i in 0 until childCount) {
+            val o = getChildAt(i)
+            if (o.visibility == GONE) continue
+            val lp = o.layoutParams as MarginLayoutParams
+            val w = o.measuredWidth + lp.leftMargin + lp.rightMargin
+            val h = o.measuredHeight + lp.topMargin + lp.bottomMargin
+            if (x > 0 && x + w > najvec) { y += vrsta; x = 0; vrsta = 0 }
+            val levo = if (layoutDirection == LAYOUT_DIRECTION_RTL) najvec - x - w + lp.leftMargin else x + lp.leftMargin
+            o.layout(levo, y + lp.topMargin, levo + o.measuredWidth, y + lp.topMargin + o.measuredHeight)
+            x += w; vrsta = maxOf(vrsta, h)
+        }
+    }
+
+    override fun generateLayoutParams(attrs: android.util.AttributeSet?): LayoutParams = MarginLayoutParams(context, attrs)
+    override fun generateDefaultLayoutParams(): LayoutParams = MarginLayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+    override fun generateLayoutParams(p: LayoutParams?): LayoutParams = if (p is MarginLayoutParams) MarginLayoutParams(p) else MarginLayoutParams(p)
+    override fun checkLayoutParams(p: LayoutParams?): Boolean = p is MarginLayoutParams
 }
