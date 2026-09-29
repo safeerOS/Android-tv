@@ -137,8 +137,9 @@ class GlasbaStoritev : Service() {
         vrsta = seznam
         // Datoteke z racunalnika gredo skozi pripeti vir (TLS z odtisom in zetonom Safeer Controla),
         // vse ostalo (splet, datoteke televizorja) skozi obicajnega.
-        val tovarna = (if (s != null) androidx.media3.exoplayer.source.DefaultMediaSourceFactory(PripetiVir.Tovarna(s.odtis, s.zeton, this, s.naprava))
-            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(SpletniVir.virPodatkov(this)))
+        // DvdVir: slike ISO (safeer-dvd:) bere kot tok glavnega naslova diska, vse drugo gre naravnost naprej.
+        val tovarna = (if (s != null) androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(PripetiVir.Tovarna(s.odtis, s.zeton, this, s.naprava)))
+            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this))))
             .setSubtitleParserFactory(Podnapisi.Popravljalnik())
         p.setMediaSources(seznam.map { sk ->
             tovarna.createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)

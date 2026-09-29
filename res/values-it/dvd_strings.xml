@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DVD brez zaščite (DvdVir.kt). -->
+<resources>
+    <string name="dvd_berem">Lettura del disco…</string>
+    <string name="dvd_zascita">Impossibile leggere il disco. Safeer non sblocca i dischi protetti (CSS).</string>
+    <string name="dvd_ni_dvd">Questa immagine non è un DVD-Video.</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DVD brez zaščite (DvdVir.kt). -->
+<resources>
+    <string name="dvd_berem">Berem disk …</string>
+    <string name="dvd_zascita">Diska ni mogoče prebrati. Zaščitenih diskov (CSS) Safeer ne odklepa.</string>
+    <string name="dvd_ni_dvd">Ta slika ni disk DVD-Video.</string>
+</resources>

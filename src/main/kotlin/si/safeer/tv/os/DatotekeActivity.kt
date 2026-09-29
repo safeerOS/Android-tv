@@ -581,6 +581,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Toast.makeText(this, getString(R.string.os_izberi_sliko), Toast.LENGTH_SHORT).show()
             return
         }
+        // DVD brez zaščite (slika ISO): glavni naslov predvaja naš predvajalnik, brez prenosa slike.
+        if (DvdVir.jeIso(v.ime)) { predvajajDvd(v); return }
         // Kar zna televizor, odpre televizor: besedilo tu, videe, glasbo in slike pa ze prej.
         if (BesediloActivity.jeBesedilo(v.ime, v.mime)) { pokaziBesedilo(v); return }
         if (krajevni) {
@@ -592,6 +594,29 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val r = racunalnik ?: return
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
         odpriNaRacunalniku(v, zaslon)
+    }
+
+    private fun predvajajDvd(v: Vnos) {
+        val s = if (krajevni) null else (streznik ?: return)
+        val url = if (s == null) v.id else s.url(v.id)
+        val tovarna: androidx.media3.datasource.DataSource.Factory =
+            if (s != null) PripetiVir.Tovarna(s.odtis, s.zeton, this, s.naprava) else androidx.media3.datasource.DefaultDataSource.Factory(this)
+        Toast.makeText(this, getString(R.string.dvd_berem), Toast.LENGTH_SHORT).show()
+        Thread({
+            val stanje = DvdVir.preveri(tovarna, android.net.Uri.parse(url))
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                when (stanje) {
+                    DvdVir.Stanje.ZASCITEN -> Toast.makeText(this, getString(R.string.dvd_zascita), Toast.LENGTH_LONG).show()
+                    DvdVir.Stanje.NI_DVD -> Toast.makeText(this, getString(R.string.dvd_ni_dvd), Toast.LENGTH_LONG).show()
+                    DvdVir.Stanje.V_REDU -> {
+                        val sk = Jamendo.Skladba(v.id, v.ime.substringBeforeLast('.').replace('_', ' '), "DVD", "", DvdVir.uri(url), "", video = true)
+                        GlasbaStoritev.predvajaj(this, listOf(sk), 0, s)
+                        startActivity(Intent(this, PredvajanjeActivity::class.java))
+                    }
+                }
+            }
+        }, "safeer-dvd").start()
     }
 
     private fun pokaziBesedilo(v: Vnos) {
