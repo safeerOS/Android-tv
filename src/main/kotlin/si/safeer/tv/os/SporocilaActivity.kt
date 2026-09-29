@@ -203,6 +203,8 @@ class SporocilaActivity : OsActivity() {
         seznam = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         seznamPlosca = ScrollView(this).apply {
             isFillViewport = true
+            // Prazen seznam ne sme ujeti fokusa daljinca (nevidna izbira med gumbom in menijem).
+            isFocusable = false
             addView(LinearLayout(this@SporocilaActivity).apply { orientation = LinearLayout.VERTICAL; addView(prazno); addView(seznam) })
         }
 
@@ -370,7 +372,7 @@ class SporocilaActivity : OsActivity() {
         }
         if (p == null) {
             pogovorIme.text = getString(R.string.os_spor_izberi); pogovorZadeva.text = ""
-            sporocilaSeznam.removeAllViews()
+            sporocilaSeznam.removeAllViews(); sporocilaDrsnik.isFocusable = false
             odgovor.isEnabled = false; posljiGumb.isEnabled = false; posljiGumb.alpha = 0.5f
             narisiSeznam()
             return
@@ -382,6 +384,7 @@ class SporocilaActivity : OsActivity() {
             else -> p.oseba
         }
         odgovor.isEnabled = true; posljiGumb.isEnabled = true; posljiGumb.alpha = 1f
+        sporocilaDrsnik.isFocusable = true  // z daljincem se da pomikati po pogovoru
         narisiSporocila()
         if (p.neprebrano > 0) delavec.execute {
             try { SporocilaKanali.oznaciPrebrano(this, shramba, p.kanalId, p.id) } catch (_: Throwable) {}
