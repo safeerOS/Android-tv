@@ -1567,8 +1567,10 @@ class HubUsmerjevalnik(
             }
             "mesh.trust" -> {
                 val krogJson = sporocilo.surovo("payload") ?: return null
-                // Podpisi: nov ali spremenjen kljuc sprejmemo samo s podpisom znanega clana.
-                if (krog.zdruzi(krogJson, obvesti = false, preveriPodpise = true)) {
+                // Sosed je clan kroga, preverjen s podpisom kljuca (kot doslej hub, katerega krog so naprave
+                // sprejemale). Racunalnik (Python) clanov se ne podpisuje; ko bodo vsi podpisani, gre tu
+                // preveriPodpise = true (docs/LINK-MESH.md, znane meje).
+                if (krog.zdruzi(krogJson, obvesti = false, preveriPodpise = false)) {
                     val s = sporociloKroga()
                     for (p in register.povezanePovezave()) if (p !is Namestnik) posljiVarno(p, s)
                     posljiKrogSosedom(od)

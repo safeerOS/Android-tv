@@ -64,6 +64,10 @@ mesh.trust     {type, id, payload: <krog json>}     (zdruzi s preverjanjem podpi
 - Klepet, ki čaka na nepovezano napravo, hrani hub pošiljatelja in ga dostavi, ko se cilj pojavi
   lokalno **ali prek soseda**.
 
+- `mesh.trust` od preverjenega soseda se zdruzi brez preverjanja podpisov vnosov (enako zaupanje, kot so
+  ga naprave doslej dajale krogu svojega huba). Naslednji korak: podpisani vnosi kroga tudi na Linuxu
+  (Windows in Android jih ze imata), nato preverjanje podpisov povsod.
+
 ## Združljivost
 
 - Hub z mesh1 sprejema stare odjemalce kot doslej.
