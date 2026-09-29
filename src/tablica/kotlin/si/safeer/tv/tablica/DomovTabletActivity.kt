@@ -117,6 +117,13 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var hubi: List<IskanjeHubov.Hub> = emptyList()
     private var iscem = false
 
+    private var skrivanje: si.safeer.tv.os.SkrivanjeVrstice? = null
+
+    override fun dispatchTouchEvent(dogodek: android.view.MotionEvent): Boolean {
+        if (skrivanje?.dotik(dogodek) == true) return true
+        return super.dispatchTouchEvent(dogodek)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         nastaviPostavitev()
@@ -155,6 +162,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun nastaviPostavitev() {
         setContentView(R.layout.tablet_activity_domov)
         Robovi.uporabi(this)
+        // Stranska vrstica: poteg proti levemu robu jo skrije, poteg z roba ali rocaj jo vrne.
+        skrivanje = findViewById<View?>(R.id.stranskiMeni)?.let { si.safeer.tv.os.SkrivanjeVrstice(this, it) }
         val root = findViewById<View>(R.id.koren)
         koren = root
         Ozadje.uporabi(this, root)

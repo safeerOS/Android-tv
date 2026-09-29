@@ -33,18 +33,83 @@ class StranskaVrstica private constructor(
     private val postavke = LinkedHashMap<Razdelek, View>()
     private var zadnjiFokusVsebine: View? = null
 
+    /** Naprava z dotikom: vrstico skrije poteg proti levemu robu, prikaze poteg z roba ali rocaj.
+     *  TV (daljinec): kot stranske vrstice brskalnikov - v vsebini skrcena na ikone, v meniju razsirjena. */
+    private val dotik = !dejavnost.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+    private val shramba = dejavnost.getSharedPreferences("safeer_os_vrstica", android.content.Context.MODE_PRIVATE)
+    private var skrita = dotik && shramba.getBoolean("skrita", false)
+    private var skrcena = false
+    private val rocaj = View(dejavnost)
+    private var zacetekX = 0f
+    private var zacetekY = 0f
+    private var poteg = false
+    private var prevzet = false
+
     val aktivnaPostavka: View get() = postavke.getValue(aktivna)
 
     init {
         orientation = HORIZONTAL
         setBackgroundColor(dejavnost.getColor(R.color.os_ozadje))
         zgradiMeni()
+        // Rocaj na levem robu, ko je vrstica skrita: tanek zelen jezicek (dotik ali poteg ga odpre).
+        rocaj.background = android.graphics.drawable.LayerDrawable(arrayOf(
+            android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor(0x9957D6AD.toInt()) }
+        )).apply { setLayerInset(0, dp(4), 0, dp(4), 0); setLayerGravity(0, Gravity.CENTER); setLayerSize(0, dp(6), dp(56)) }
+        rocaj.contentDescription = dejavnost.getString(R.string.os_vrstica_pokazi)
+        rocaj.setOnClickListener { nastaviSkrito(false) }
+        addView(rocaj, LayoutParams(dp(14), ViewGroup.LayoutParams.MATCH_PARENT))
         addView(meni, LayoutParams(dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina),
             ViewGroup.LayoutParams.MATCH_PARENT))
         (vsebina.parent as? ViewGroup)?.removeView(vsebina)
         addView(vsebina, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         prilagodiSirino()
+        uveljaviSkrito()
     }
+
+    private fun uveljaviSkrito() {
+        meni.visibility = if (skrita) View.GONE else View.VISIBLE
+        rocaj.visibility = if (skrita) View.VISIBLE else View.GONE
+    }
+
+    /** Skrij ali pokazi vrstico (na dotik); izbira ostane zapomnjena za vse zaslone Safeer OS. */
+    fun nastaviSkrito(da: Boolean) {
+        if (!dotik || skrita == da) return
+        skrita = da
+        shramba.edit().putBoolean("skrita", da).apply()
+        android.transition.TransitionManager.beginDelayedTransition(this)
+        uveljaviSkrito()
+    }
+
+    /** Poteg prestrezemo ze v dispatchTouchEvent: otroci (seznami, WebView) z
+     *  requestDisallowInterceptTouchEvent sicer onInterceptTouchEvent izklopijo. */
+    override fun dispatchTouchEvent(e: android.view.MotionEvent): Boolean {
+        if (!dotik) return super.dispatchTouchEvent(e)
+        when (e.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                zacetekX = e.x; zacetekY = e.y; prevzet = false
+                // Skrij: poteg se zacne na vrstici. Pokazi: poteg z levega roba zaslona (ali dotik rocaja).
+                poteg = if (skrita) e.x < dp(28) else e.x < meni.right
+            }
+            android.view.MotionEvent.ACTION_MOVE, android.view.MotionEvent.ACTION_UP -> if (poteg && !prevzet) {
+                val dx = e.x - zacetekX; val dy = e.y - zacetekY
+                if (kotline(dx, dy)) {
+                    prevzet = true; poteg = false
+                    val preklic = android.view.MotionEvent.obtain(e).apply { action = android.view.MotionEvent.ACTION_CANCEL }
+                    super.dispatchTouchEvent(preklic); preklic.recycle()
+                    nastaviSkrito(dx < 0)
+                    return true
+                }
+            }
+        }
+        if (prevzet) {
+            if (e.actionMasked == android.view.MotionEvent.ACTION_UP || e.actionMasked == android.view.MotionEvent.ACTION_CANCEL) prevzet = false
+            return true
+        }
+        return super.dispatchTouchEvent(e)
+    }
+
+    private fun kotline(dx: Float, dy: Float): Boolean =
+        kotlin.math.abs(dx) > dp(48) && kotlin.math.abs(dx) > 1.5f * kotlin.math.abs(dy) && ((dx < 0) != skrita)
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -58,11 +123,16 @@ class StranskaVrstica private constructor(
 
     override fun onGlobalFocusChanged(stari: View?, novi: View?) {
         if (novi != null && jePotomec(vsebina, novi)) zadnjiFokusVsebine = novi
+        // TV: v vsebini skrcena na ikone (vec prostora), ob vstopu v meni razsirjena z imeni.
+        if (!dotik && novi != null) {
+            val vMeniju = jePotomec(meni, novi)
+            if (skrcena == vMeniju) { skrcena = !vMeniju; prilagodiSirino() }
+        }
     }
 
     /** Poklice jo Activity ob spremembi velikosti, kadar manifest zaslona ne ustvari znova. */
     fun prilagodiSirino() {
-        val ozek = dejavnost.resources.configuration.screenWidthDp < 600
+        val ozek = dejavnost.resources.configuration.screenWidthDp < 600 || skrcena
         meni.layoutParams = (meni.layoutParams as? LayoutParams ?: LayoutParams(0, -1)).apply {
             width = if (ozek) dp(68) else dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina)
             height = ViewGroup.LayoutParams.MATCH_PARENT
