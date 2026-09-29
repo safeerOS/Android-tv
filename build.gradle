@@ -136,6 +136,10 @@ android {
     }
 
     packaging {
+        // libtorrent4j (magnet): stisnjena .so v APK-ju je ~12 MB namesto ~30 MB za prenos.
+        jniLibs {
+            useLegacyPackaging = true
+        }
         resources {
             excludes += ['META-INF/LICENSE.md', 'META-INF/NOTICE.md',
                          'META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt',
