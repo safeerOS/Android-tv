@@ -16,6 +16,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -142,6 +143,51 @@ class PredvajanjeActivity : OsActivity() {
         nalaganje = ProgressBar(this).apply { isIndeterminate = true; visibility = View.GONE }
         koren.addView(nalaganje, FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER))
         setContentView(koren)
+        if (dotik) pripraviDotik(koren)
+    }
+
+    /** Telefon in tablica nimata daljinca: vidni gumbi (nazaj v Safeer OS, prejsnja/predvajaj/naslednja)
+     *  in vedno odprta vrsta kartic namesto skritih tipk (Matej, 29. 9. 2026: »tezava iti nazaj«). */
+    private val dotik by lazy { si.safeer.tv.ChromiumEngineView.naDotik(this) }
+    private var gumbPredvajaj: ImageButton? = null
+
+    private fun okroglGumb(ikona: Int, opis: Int, velikost: Int, klik: () -> Unit) = ImageButton(this).apply {
+        setImageResource(ikona); contentDescription = getString(opis)
+        imageTintList = android.content.res.ColorStateList.valueOf(getColor(R.color.os_besedilo))
+        scaleType = ImageView.ScaleType.CENTER_INSIDE
+        setPadding(dp(10), dp(10), dp(10), dp(10))
+        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
+        layoutParams = LinearLayout.LayoutParams(dp(velikost), dp(velikost)).apply { marginEnd = dp(14) }
+        setOnClickListener { zbudi(); klik() }
+    }
+
+    private fun pripraviDotik(koren: FrameLayout) {
+        namig.visibility = View.GONE
+        val nazaj = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(6), dp(6), dp(16), dp(6))
+            background = GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
+            isClickable = true; isFocusable = true
+            contentDescription = getString(R.string.os_mediji_nazaj_v_os)
+            setOnClickListener { @Suppress("DEPRECATION") onBackPressed() }
+            addView(ImageView(this@PredvajanjeActivity).apply {
+                setImageResource(si.safeer.tv.R.drawable.ic_m_back)
+                imageTintList = android.content.res.ColorStateList.valueOf(getColor(R.color.os_besedilo))
+            }, LinearLayout.LayoutParams(dp(32), dp(32)))
+            addView(besedilo(15f, getColor(R.color.os_besedilo), true).apply { text = getString(R.string.os_mediji_nazaj_v_os); setPadding(dp(6), 0, 0, 0) })
+        }
+        // V isti vrstici kot gumbi predvajanja: ne prekrije naslova niti na nizkem zaslonu telefona.
+        val gumbi = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        gumbi.addView(nazaj, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(24) })
+        gumbi.addView(okroglGumb(R.drawable.os_ikona_prejsnja, R.string.os_mediji_prejsnja, 52) {
+            GlasbaStoritev.predvajalnik?.let { if (it.currentPosition > 5000 || !it.hasPreviousMediaItem()) it.seekTo(0) else it.seekToPreviousMediaItem() }
+        })
+        gumbPredvajaj = okroglGumb(R.drawable.os_ikona_pavza, R.string.os_mediji_predvajaj_pavza, 64) { preklopi() }
+        gumbi.addView(gumbPredvajaj)
+        gumbi.addView(okroglGumb(R.drawable.os_ikona_naslednja, R.string.os_mediji_naslednja, 52) {
+            GlasbaStoritev.predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
+        })
+        prekritje.addView(gumbi, prekritje.indexOfChild(namig), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10) })
     }
 
     override fun onStart() {
@@ -150,6 +196,7 @@ class PredvajanjeActivity : OsActivity() {
         osvezi()
         glavna.post(tik)
         zbudi()
+        if (dotik) glavna.post { if (!isFinishing && !predlogiOdprti()) odpriPredloge() }
         // S plosce Safeer Media: takoj zatemni (samo zvok).
         if (intent.getBooleanExtra(ZATEMNI, false)) {
             intent.removeExtra(ZATEMNI)
@@ -236,6 +283,7 @@ class PredvajanjeActivity : OsActivity() {
         val polozaj = p.currentPosition.coerceAtLeast(0)
         cas.text = (if (p.isPlaying) "▶  " else "❚❚  ") + if (trajanje > 0) "${oblikuj(polozaj)} / ${oblikuj(trajanje)}" else oblikuj(polozaj)
         potek.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
+        gumbPredvajaj?.setImageResource(if (p.isPlaying) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
         if (tema.visibility == View.VISIBLE) {
             temaUra.text = DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(Date())
             val minuta = (System.currentTimeMillis() / 60_000).toInt()
@@ -521,6 +569,12 @@ class PredvajanjeActivity : OsActivity() {
     override fun dispatchTouchEvent(dogodek: MotionEvent): Boolean {
         val budna = tema.visibility != View.VISIBLE && prekritje.alpha > 0.5f
         zbudi()
+        if (dotik) {
+            // Prvi dotik le zbudi prikaz; nato delujejo vidni gumbi in kartice (brez skritih kretenj).
+            if (!budna) return true
+            if (dogodek.action == MotionEvent.ACTION_UP && !predlogiOdprti()) odpriPredloge()
+            return super.dispatchTouchEvent(dogodek)
+        }
         if (predlogiOdprti()) return super.dispatchTouchEvent(dogodek)
         if (!budna) return true
         // Dotik spodnje cetrtine odpre predloge (tablica nima tipke dol).
@@ -533,7 +587,7 @@ class PredvajanjeActivity : OsActivity() {
         val budna = tema.visibility != View.VISIBLE
         zbudi()
         if (!budna && dogodek.keyCode != KeyEvent.KEYCODE_BACK) return true
-        if (predlogiOdprti()) when (dogodek.keyCode) {
+        if (predlogiOdprti() && !dotik) when (dogodek.keyCode) {
             KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) zapriPredloge(); return true }
             // V vrsti predlogov gredo tipke naravnost zaslonu (fokus, OK izbere kartico), mimo pavze in previjanja.
             KeyEvent.KEYCODE_DPAD_UP -> { if (dogodek.action == KeyEvent.ACTION_DOWN) zapriPredloge(); return true }

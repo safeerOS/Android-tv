@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="os_mediji_nazaj_v_os">Back to Safeer OS</string>
+    <string name="os_mediji_prejsnja">Previous</string>
+    <string name="os_mediji_predvajaj_pavza">Play / pause</string>
+    <string name="os_mediji_naslednja">Next</string>
+</resources>

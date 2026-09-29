@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="os_mediji_nazaj_v_os">Nazaj v Safeer OS</string>
+    <string name="os_mediji_prejsnja">Prejšnja</string>
+    <string name="os_mediji_predvajaj_pavza">Predvajaj / premor</string>
+    <string name="os_mediji_naslednja">Naslednja</string>
+</resources>
