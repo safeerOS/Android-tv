@@ -3,14 +3,14 @@
 <resources>
     <string name="magnet_naslov">Magnet-Links</string>
     <string name="magnet_odpri">Öffnen</string>
-    <string name="magnet_opomba">Es werden nur Video und Musik abgespielt. Programme werden nie heruntergeladen. Lade und teile nur Inhalte, für die du die Rechte hast; andere Teilnehmer sehen deine IP-Adresse.</string>
+    <string name="magnet_opomba">Es werden nur Video und Musik abgespielt. Dateien, die wie Programme aussehen, werden nur nach deiner Bestätigung heruntergeladen. Lade und teile nur Inhalte, für die du die Rechte hast; andere Teilnehmer sehen deine IP-Adresse.</string>
     <string name="magnet_napaka_ni_magnet">Das ist kein gültiger Magnet-Link.</string>
     <string name="magnet_napaka_ni_izbranih">Wähle mindestens eine Datei.</string>
     <string name="magnet_napaka_ni_metapodatkov">Die Torrent-Details konnten nicht gelesen werden. Versuche es später erneut.</string>
     <string name="magnet_napaka_ni_predvajljivo">Dieser Torrent enthält weder Video noch Musik.</string>
     <string name="magnet_napaka">Etwas ist schiefgelaufen.</string>
     <string name="magnet_berem">Torrent-Details werden gelesen …</string>
-    <string name="magnet_sumljiv">Achtung: Dieser Torrent enthält Programme. Sie werden nicht heruntergeladen.</string>
+    <string name="magnet_sumljiv">Achtung: Dieser Torrent enthält möglicherweise Programme. Sie sind nicht ausgewählt; du kannst sie trotzdem wählen.</string>
     <string name="magnet_predvajaj">Abspielen</string>
     <string name="magnet_prenesi_izbrane">Auswahl herunterladen</string>
     <string name="magnet_prenasam">Wird heruntergeladen …</string>
@@ -37,7 +37,10 @@
     <string name="magnet_vrsta_audio">Musik</string>
     <string name="magnet_vrsta_podnapisi">Untertitel</string>
     <string name="magnet_vrsta_slika">Bild</string>
-    <string name="magnet_vrsta_nevarno">Programm (blockiert)</string>
+    <string name="magnet_vrsta_nevarno">Möglicherweise Programm</string>
     <string name="magnet_vrsta_drugo">Sonstiges</string>
     <string name="magnet_vir_opis">Video und Musik schon beim Herunterladen abspielen</string>
+    <string name="magnet_nevarno_naslov">Diese Datei ist möglicherweise ein Programm</string>
+    <string name="magnet_nevarno_opis">Die automatische Prüfung hält „%s“ für ein mögliches Programm. Die Prüfung kann sich irren. Lade sie nur herunter, wenn du der Quelle vertraust; Safeer führt sie nie aus und spielt sie nie ab.</string>
+    <string name="magnet_vseeno">Trotzdem fortfahren</string>
 </resources>

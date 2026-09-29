@@ -131,7 +131,9 @@ object MagnetMotor {
         nastavitve.setBoolean(settings_pack.bool_types.enable_upnp.swigValue(), false)
         nastavitve.setBoolean(settings_pack.bool_types.enable_natpmp.swigValue(), false)
         val s = SessionManager(false)
-        s.start(SessionParams(nastavitve))
+        // Preprosto branje/pisanje namesto preslikave v pomnilnik (mmap): mmap nad Androidovo FUSE shrambo
+        // (Android/data) je 29. 9. 2026 na testnem telefonu sesul sistemsko storitev shrambe (MediaProvider).
+        s.start(SessionParams(nastavitve).apply { setPosixDiskIO() })
         seja = s
         obnovi(c)
         Thread({ nadzor() }, "safeer-magnet-nadzor").apply { isDaemon = true; start() }
@@ -164,7 +166,7 @@ object MagnetMotor {
                     val lastna = z.optString("lastna")
                     if (lastna.isNotBlank()) deli(c, File(lastna)) else {
                         val izbrane = (0 until (z.optJSONArray("izbrane")?.length() ?: 0)).map { z.getJSONArray("izbrane").getInt(it) }
-                        dodaj(c, z.optString("uri"), izbrane)
+                        dodaj(c, z.optString("uri"), izbrane, izbrane.toSet())  // shranjene je uporabnik že potrdil
                     }
                 } catch (e: Throwable) { Log.i(TAG, "Obnova $h: ${e.message}") }
             }, "safeer-magnet-obnova").apply { isDaemon = true; start() }
@@ -203,13 +205,17 @@ object MagnetMotor {
         return Opis(h, ti.name(), uri.trim(), datoteke)
     }
 
-    /** Začne prenos izbranih datotek (nevarnih nikoli); če torrent že teče, jih doda. Vrne hash. */
-    fun dodaj(c: Context, uri: String, izbrane: List<Int>): String {
+    /**
+     * Začne prenos izbranih datotek; če torrent že teče, jih doda. Vrne hash. Datoteko, ki je videti kot
+     * program, prenesemo samo, če jo je uporabnik izrecno potrdil ([potrjeneNevarne]) - prepoznava je
+     * samodejna in se lahko zmoti, odločitev je njegova. Predvajamo je nikoli.
+     */
+    fun dodaj(c: Context, uri: String, izbrane: List<Int>, potrjeneNevarne: Set<Int> = emptySet()): String {
         val opis = preberi(c, uri)
-        val dovoljene = opis.datoteke.filter { it.vrsta != "nevarno" }.map { it.i }.toSet()
+        val dovoljene = opis.datoteke.filter { it.vrsta != "nevarno" || it.i in potrjeneNevarne }.map { it.i }.toSet()
         val obstojeci = rocaj(c, opis.hash)
         val zdaj = (obstojeci?.filePriorities()?.withIndex()?.filter { it.value != Priority.IGNORE }?.map { it.index }?.toSet() ?: emptySet())
-        val koncne = (izbrane.toSet() intersect dovoljene) + (zdaj intersect dovoljene)
+        val koncne = (izbrane.toSet() intersect dovoljene) + zdaj
         if (koncne.isEmpty()) throw IllegalArgumentException("ni_izbranih")
         val ti = opisi[opis.hash]!!
         val prednosti = Array(ti.numFiles()) { if (it in koncne) Priority.DEFAULT else Priority.IGNORE }

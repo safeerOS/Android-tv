@@ -3,14 +3,14 @@
 <resources>
     <string name="magnet_naslov">Magnet links</string>
     <string name="magnet_odpri">Open</string>
-    <string name="magnet_opomba">Only video and music are played. Programs are never downloaded. Download and share only content you have the rights to; other peers can see your IP address.</string>
+    <string name="magnet_opomba">Only video and music are played. Files that look like programs are not downloaded unless you confirm them. Download and share only content you have the rights to; other peers can see your IP address.</string>
     <string name="magnet_napaka_ni_magnet">This is not a valid magnet link.</string>
     <string name="magnet_napaka_ni_izbranih">Select at least one file.</string>
     <string name="magnet_napaka_ni_metapodatkov">Could not read the torrent details. Try again later.</string>
     <string name="magnet_napaka_ni_predvajljivo">This torrent has no video or music.</string>
     <string name="magnet_napaka">Something went wrong.</string>
     <string name="magnet_berem">Reading torrent details…</string>
-    <string name="magnet_sumljiv">Warning: this torrent contains programs. They will not be downloaded.</string>
+    <string name="magnet_sumljiv">Warning: this torrent may contain programs. They are not selected; you can still choose them.</string>
     <string name="magnet_predvajaj">Play</string>
     <string name="magnet_prenesi_izbrane">Download selected</string>
     <string name="magnet_prenasam">Downloading…</string>
@@ -37,7 +37,10 @@
     <string name="magnet_vrsta_audio">Music</string>
     <string name="magnet_vrsta_podnapisi">Subtitles</string>
     <string name="magnet_vrsta_slika">Image</string>
-    <string name="magnet_vrsta_nevarno">Program (blocked)</string>
+    <string name="magnet_vrsta_nevarno">May be a program</string>
     <string name="magnet_vrsta_drugo">Other</string>
     <string name="magnet_vir_opis">Play video and music while it downloads</string>
+    <string name="magnet_nevarno_naslov">This file may be a program</string>
+    <string name="magnet_nevarno_opis">The automatic check says “%s” may be a program. The check can be wrong. Download it only if you trust the source; Safeer never runs or plays it.</string>
+    <string name="magnet_vseeno">Continue anyway</string>
 </resources>

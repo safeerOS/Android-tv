@@ -106,6 +106,7 @@ class MagnetActivity : OsActivity() {
             val o = MagnetMotor.preberi(this, uri)
             glavna.post {
                 if (isFinishing) return@post
+                if (opis?.hash != o.hash) potrjene.clear()
                 opis = o
                 pokazi("")
                 narisi()
@@ -160,6 +161,9 @@ class MagnetActivity : OsActivity() {
         "nevarno" -> R.string.magnet_vrsta_nevarno; else -> R.string.magnet_vrsta_drugo
     })
 
+    /** Datoteke, ki so videti kot program, a jih je uporabnik po opozorilu vseeno izbral (za trenutno povezavo). */
+    private val potrjene = mutableSetOf<Int>()
+
     private fun narisi() {
         seznam.removeAllViews()
         opis?.let { o ->
@@ -171,8 +175,18 @@ class MagnetActivity : OsActivity() {
                 val izbira = CheckBox(this).apply {
                     text = "${d.ime}  ·  ${velikost(d.velikost)}  ·  ${imeVrste(d.vrsta)}"
                     setTextColor(getColor(if (d.vrsta == "nevarno") R.color.os_umirjeno else R.color.os_besedilo))
-                    isChecked = d.privzetoIzbrana
-                    isEnabled = d.vrsta != "nevarno"
+                    isChecked = d.privzetoIzbrana || d.i in potrjene
+                    // Morda program: privzeto ne, a uporabnik lahko po opozorilu vseeno izbere.
+                    if (d.vrsta == "nevarno") setOnCheckedChangeListener { gumb, izbrano ->
+                        if (!izbrano) { potrjene.remove(d.i); return@setOnCheckedChangeListener }
+                        if (d.i in potrjene) return@setOnCheckedChangeListener
+                        AlertDialog.Builder(this@MagnetActivity).setTitle(R.string.magnet_nevarno_naslov)
+                            .setMessage(getString(R.string.magnet_nevarno_opis, d.ime.substringAfterLast('/')))
+                            .setPositiveButton(R.string.magnet_vseeno) { _, _ -> potrjene.add(d.i) }
+                            .setNegativeButton(android.R.string.cancel) { _, _ -> gumb.isChecked = false }
+                            .setOnCancelListener { gumb.isChecked = false }
+                            .show()
+                    }
                 }
                 izbire += d to izbira
                 v.addView(izbira)
@@ -181,9 +195,10 @@ class MagnetActivity : OsActivity() {
             }
             val d = dejanja()
             d.addView(gumb(getString(R.string.magnet_prenesi_izbrane)) {
-                val izbrane = izbire.filter { it.second.isChecked && it.second.isEnabled }.map { it.first.i }
+                val izbrane = izbire.filter { it.second.isChecked && (it.first.vrsta != "nevarno" || it.first.i in potrjene) }.map { it.first.i }
                 if (izbrane.isEmpty()) { pokazi(napaka("ni_izbranih")); return@gumb }
-                vOzadju { MagnetMotor.dodaj(this, o.uri, izbrane); glavna.post { toast(getString(R.string.magnet_prenasam)); osveziPrenose() } }
+                val potrjeneZdaj = potrjene.toSet()
+                vOzadju { MagnetMotor.dodaj(this, o.uri, izbrane, potrjeneZdaj); glavna.post { toast(getString(R.string.magnet_prenasam)); osveziPrenose() } }
             })
             d.addView(gumb(getString(R.string.magnet_poslji)) { posljiNaNapravo(o.uri) })
             d.addView(gumb(getString(R.string.magnet_deli)) { deliZDrugimi(o.uri) })
