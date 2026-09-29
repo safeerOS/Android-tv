@@ -79,6 +79,24 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
 
     fun stevilo(): Int = clani().size
 
+    /**
+     * Ali je naprava izrecno umaknjena iz kroga (nadgrobnik novejsi od vpisa), tudi pod id-jem iz kljuca.
+     * Naprava, ki je krog ne pozna, NI umaknjena (o njej odloca seznanitev). Pregled 29. 9. 2026, tocka 12:
+     * zeton umaknjene naprave ne sme veljati naprej.
+     */
+    fun jeUmaknjen(id: String): Boolean {
+        if (id.isBlank()) return false
+        synchronized(kljucnica) {
+            val u = umiki[id]
+            val c = clani[id]
+            if (u != null && (c == null || u.umaknjeno > c.dodano)) return true
+            if (c != null || !jeIdIzKljuca(id)) return false
+            val jedro = id.take(DOLZINA_ID_IZ_KLJUCA)
+            val ujemanja = clani.values.filter { idIzKljuca(it.kljuc) == jedro }
+            return ujemanja.isNotEmpty() && ujemanja.none { jeVeljaven(it) }
+        }
+    }
+
     /** Doda ali osvezi clana. Vrne true, ce se je krog spremenil. Vnos, ki ga dodamo mi, podpisemo. */
     fun dodaj(vnos: Clan): Boolean {
         val clan = if (vnos.podpis.isNotBlank()) vnos else podpisiVnos(vnos)

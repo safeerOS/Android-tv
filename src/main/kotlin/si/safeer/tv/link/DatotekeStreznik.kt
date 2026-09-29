@@ -201,10 +201,21 @@ object DatotekeStreznik {
     private fun zetonVelja(z: String?, zdaj: Long = zdaj()): Boolean {
         if (z.isNullOrBlank()) return false
         val zb = z.toByteArray()
-        val najden = zetoni.values.firstOrNull { it.zivi(zdaj) && MessageDigest.isEqual(it.vrednost.toByteArray(), zb) } ?: return false
+        val (kljuc, najden) = zetoni.entries.firstOrNull { it.value.zivi(zdaj) && MessageDigest.isEqual(it.value.vrednost.toByteArray(), zb) }
+            ?.let { it.key to it.value } ?: return false
+        // Deljenje izklopljeno ali naprava umaknjena iz kroga (tudi z druge naprave): zeton takoj ne velja vec,
+        // ne sele po [ZETON_VELJA_MS] (pregled 29. 9. 2026, tocka 12).
+        val ctx = appContext
+        if (ctx != null && (!vklopljeno(ctx) || umaknjena(ctx, kljuc.substringBefore('#')))) {
+            zetoni.remove(kljuc)
+            return false
+        }
         najden.rabljen = zdaj
         return true
     }
+
+    private fun umaknjena(ctx: Context, idNaprave: String): Boolean =
+        try { si.safeer.tv.cast.KrogNaprave.krog(ctx).jeUmaknjen(idNaprave) } catch (_: Throwable) { false }
 
     // ------------------------------------------------------------------ streznik
 

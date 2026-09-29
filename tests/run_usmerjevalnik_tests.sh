@@ -17,6 +17,7 @@ trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx2g \
     "$TEST_DIR/stubs/Log.kt" \
+    "$TEST_DIR/stubs/DatotekeStreznik.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
@@ -35,6 +36,7 @@ java -cp "$OUT/usmerjevalnik.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.Usmer
 # Link Mesh (docs/LINK-MESH.md): trije usmerjevalniki kot sosedje.
 "$KOTLINC" -J-Xmx2g \
     "$TEST_DIR/stubs/Log.kt" \
+    "$TEST_DIR/stubs/DatotekeStreznik.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
