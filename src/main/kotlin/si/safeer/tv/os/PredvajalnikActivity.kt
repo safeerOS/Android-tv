@@ -90,7 +90,7 @@ class PredvajalnikActivity : OsActivity() {
         val s = DatotekeActivity.Streznik.iz(intent.extras)
         if (!lokalno && s == null) { finish(); return }
         val renderers = DefaultRenderersFactory(this).setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
-        val tovarnaVira = if (lokalno) DefaultMediaSourceFactory(this) else DefaultMediaSourceFactory(PripetiVir.Tovarna(s!!.odtis, s.zeton))
+        val tovarnaVira = if (lokalno) DefaultMediaSourceFactory(this) else DefaultMediaSourceFactory(PripetiVir.Tovarna(s!!.odtis, s.zeton, this, s.naprava))
         val p = ExoPlayer.Builder(this)
             .setRenderersFactory(renderers)
             .setMediaSourceFactory(tovarnaVira)
