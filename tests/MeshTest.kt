@@ -150,9 +150,15 @@ fun main() {
         val a = hub("hub-a")
         val v1 = a.izdajVstopnico("hub-x")
         a.porabiVstopnico(v1)
-        val brezPodpisa = Naprava().let { object : HubUsmerjevalnik.Odjemalec by it { override val vstopnica = v1 } }
-        val o1 = a.odgovorNa(brezPodpisa, """{"id":"h","type":"cast.register","payload":{"device_id":"hub-b","role":"hub","capabilities":["mesh1"]}}""").orEmpty()
-        preveriM("brez podpisa zavrnjen", o1.contains("rejected"))
+        val n1 = Naprava()
+        var zaprta = false
+        val brezPodpisa = object : HubUsmerjevalnik.Odjemalec by n1 {
+            override val vstopnica = v1
+            override fun zapri(koda: Int, razlog: String) { zaprta = true }
+        }
+        val o1 = a.odgovorNa(brezPodpisa, """{"id":"h","type":"cast.register","payload":{"device_id":"hub-b","role":"hub","capabilities":["mesh1"]}}""")
+        preveriM("brez podpisa zavrnjen", o1 == null && n1.zadnje("cast.ack")?.contains("rejected") == true)
+        preveriM("zavrnjena povezava se zapre", zaprta)
         val v2 = a.izdajVstopnico("hub-b", podpis = true)
         a.porabiVstopnico(v2)
         val sPodpisom = Naprava().let { object : HubUsmerjevalnik.Odjemalec by it { override val vstopnica = v2 } }
