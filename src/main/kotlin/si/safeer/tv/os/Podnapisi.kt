@@ -270,8 +270,9 @@ object Podnapisi {
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             setShadowLayer(6f, 0f, 2f, Color.BLACK)
-            setBackgroundColor(0x00000000)
-            setPadding(24, 6, 24, 6)
+            // Poltemno ozadje: berljivo tudi nad svetlo sliko in nad gumbi na telefonu.
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 12f; setColor(0x99000000.toInt()) }
+            setPadding(24, 6, 24, 8)
             visibility = View.GONE
         }
 

@@ -136,7 +136,7 @@ class PredvajanjeActivity : OsActivity() {
         prekritje.addView(predlogi)
         koren.addView(prekritje, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
         // Podnapisi nad pasom z naslovom (ta na telefonu ostane viden), poravnani na spodnji rob slike.
-        koren.addView(podnapisi.pogled, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { bottomMargin = dp(48); leftMargin = dp(32); rightMargin = dp(32) })
+        koren.addView(podnapisi.pogled, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(48); leftMargin = dp(32); rightMargin = dp(32) })
 
         tema = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); visibility = View.GONE }
         val stolpec = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
