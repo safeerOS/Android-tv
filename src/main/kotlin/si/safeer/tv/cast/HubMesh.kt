@@ -137,9 +137,11 @@ object HubMesh {
                     return
                 }
                 klicem.remove(h.id)
-                zavrnjen.remove(h.id)
+                // Premor po zavrnitvi izbrisemo sele ob sprejemu (prvo sporocilo, ki ni zavrnitev):
+                // zavrnitev pride po odprtju, zato bi ga brisanje tu vedno vrnilo na 30 s.
                 Log.i(TAG, "Sosed ${h.id} (${h.naslov})")
             }
+            @Volatile private var sprejet = false
             override fun onMessage(webSocket: WebSocket, text: String) {
                 val j = JsonLahki.objekt(text)
                 if (j?.niz("type") == "cast.ack" && j.niz("status") == "rejected") {
@@ -150,6 +152,7 @@ object HubMesh {
                     zavrnjen[h.id] = (System.currentTimeMillis() + premor) to premor
                     webSocket.cancel(); return
                 }
+                if (!sprejet) { sprejet = true; zavrnjen.remove(h.id) }
                 try { u.obdelaj(povezava, text) } catch (e: Throwable) { SafeerLog.napaka("Mesh", "obdelaj", e) }
             }
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { konec() }

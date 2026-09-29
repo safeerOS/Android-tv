@@ -181,22 +181,26 @@ object UserScriptManager {
                                 var op = parseFloat(style.opacity);
                                 var rect = fx.getBoundingClientRect();
                                 if (z >= 99 && (op === 0 || style.visibility === 'hidden') && rect.width >= winW * 0.5 && rect.height >= winH * 0.5) {
-                                    // Pravo okno (potrditev starosti, piskotki, prijava) ni prevara, tudi ce se
-                                    // ravno prikazuje z animacijo od prosojnosti 0: ima gumbe, besedilo ali vlogo
-                                    // dialoga. Prej smo ga odstranili sredi prikaza in ostalo je samo zamegljeno ozadje.
+                                    // Pravo okno (vloga dialoga, obrazec, predvajalnik) ni prevara. Vse ostalo
+                                    // (tudi z besedilom ali gumbom - tako so narejene nevidne plasti za kraju klikov)
+                                    // odstranimo sele, ce ostane nevidno vsaj 3 s: okno, ki se prikazuje z animacijo
+                                    // od prosojnosti 0 (npr. potrditev starosti), je do takrat ze vidno.
                                     var praviDialog = fx.matches('[role="dialog"], [role="alertdialog"], [aria-modal="true"]') ||
-                                        fx.querySelector('video, iframe, form, input, button, select, textarea, [role="dialog"], [role="alertdialog"], [role="button"]') ||
-                                        (fx.innerText || '').trim().length > 0;
-                                    var seAnimira = false;
-                                    try { seAnimira = !!(fx.getAnimations && fx.getAnimations({ subtree: true }).length); } catch(e) {}
-                                    if (praviDialog || seAnimira) {
+                                        !!fx.querySelector('video, iframe, form, input, select, textarea, [role="dialog"], [role="alertdialog"]');
+                                    if (praviDialog) {
                                         delete fx.dataset.safeerNevidno;
                                     } else {
-                                        // Samo tisto, kar ostane nevidno vsaj 3 s (prevara ne izgine sama).
+                                        // Med animacijo (prikaz od prosojnosti 0) pocakamo dlje, a ne v nedogled:
+                                        // vrtavka v nevidni plasti je ne sme varovati za vedno.
+                                        var seAnimira = false;
+                                        try { seAnimira = !!(fx.getAnimations && fx.getAnimations({ subtree: true }).length); } catch(e) {}
                                         var odkdaj = parseInt(fx.dataset.safeerNevidno || '0', 10);
                                         if (!odkdaj) fx.dataset.safeerNevidno = String(Date.now());
-                                        else if (Date.now() - odkdaj > 3000) fx.remove();
+                                        else if (Date.now() - odkdaj > (seAnimira ? 10000 : 3000)) fx.remove();
                                     }
+                                } else if (fx.dataset && fx.dataset.safeerNevidno) {
+                                    // Postal je viden: stoparic ponastavimo (sicer bi ga kasnejsi kratek skrij odstranil takoj).
+                                    delete fx.dataset.safeerNevidno;
                                 }
                             }
                         } catch(e) {}
@@ -1139,10 +1143,9 @@ object UserScriptManager {
         })();
     """
 
-    private fun isBrowserHome(url: String?): Boolean {
-        val u = url ?: ""
-        return u.contains("brave_home", ignoreCase = true) || u.contains("/splet/splet.html", ignoreCase = true)
-    }
+    // Samo nasa vgrajena domaca stran (android_asset). Prej je zadostoval del poti, zato je lahko
+    // katerakoli stran z ».../splet/splet.html« v naslovu izklopila filtriranje oglasov na sebi.
+    private fun isBrowserHome(url: String?): Boolean = si.safeer.tv.tv.TvSite.isBrowserHome(url ?: "")
 
     fun isGoogleAuthUrl(url: String?): Boolean {
         if (url.isNullOrEmpty()) return false
