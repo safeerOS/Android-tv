@@ -111,7 +111,6 @@ class PredvajanjeActivity : OsActivity() {
         val koren = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         povrsina = SurfaceView(this)
         koren.addView(povrsina, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
-        koren.addView(podnapisi.pogled, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { bottomMargin = dp(if (dotik) 24 else 48); leftMargin = dp(48); rightMargin = dp(48) })
         naslovnica = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setImageResource(R.drawable.os_ikona_glasba) }
         koren.addView(naslovnica, FrameLayout.LayoutParams(dp(300), dp(300), Gravity.CENTER).apply { bottomMargin = dp(90) })
 
@@ -136,6 +135,8 @@ class PredvajanjeActivity : OsActivity() {
         predlogi.addView(HorizontalScrollView(this).apply { addView(predlogiNiz); isHorizontalScrollBarEnabled = false; clipToPadding = false })
         prekritje.addView(predlogi)
         koren.addView(prekritje, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
+        // Podnapisi nad pasom z naslovom (ta na telefonu ostane viden), poravnani na spodnji rob slike.
+        koren.addView(podnapisi.pogled, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { bottomMargin = dp(48); leftMargin = dp(32); rightMargin = dp(32) })
 
         tema = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); visibility = View.GONE }
         val stolpec = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
@@ -181,7 +182,8 @@ class PredvajanjeActivity : OsActivity() {
             addView(besedilo(15f, getColor(R.color.os_besedilo), true).apply { text = getString(R.string.os_mediji_nazaj_v_os); setPadding(dp(6), 0, 0, 0) })
         }
         // V isti vrstici kot gumbi predvajanja: ne prekrije naslova niti na nizkem zaslonu telefona.
-        val gumbi = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        // Ozek pokončni telefon: gumbi se prelomijo v drugo vrsto, namesto da bi padli čez rob zaslona.
+        val gumbi = OvijalnaVrsta(this)
         gumbi.addView(nazaj, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(24) })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_prejsnja, R.string.os_mediji_prejsnja, 52) {
             GlasbaStoritev.predvajalnik?.let { if (it.currentPosition > 5000 || !it.hasPreviousMediaItem()) it.seekTo(0) else it.seekToPreviousMediaItem() }
@@ -333,6 +335,10 @@ class PredvajanjeActivity : OsActivity() {
             }
         }
         povrsina.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
+        (podnapisi.pogled.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+            lp.bottomMargin = maxOf(0, (visina - minOf(h, visina)) / 2) + dp(if (dotik) 10 else 40)
+            podnapisi.pogled.layoutParams = lp
+        }
     }
 
     // ------------------------------------------------------------------ predlogi in iskanje
