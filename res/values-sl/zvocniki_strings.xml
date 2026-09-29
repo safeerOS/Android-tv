@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="zvocnik_predvajaj_na">Predvajaj na zvočniku</string>
+    <string name="zvocnik_na">Na zvočniku: %1$s</string>
+    <string name="zvocnik_iscem">Iščem zvočnike v omrežju …</string>
+    <string name="zvocnik_ni_najdenih">Ni najdenih zvočnikov. Zvočnik mora biti prižgan in v istem omrežju (DLNA).</string>
+    <string name="zvocnik_zaseden">%1$s trenutno predvaja %2$s. Preklopim na to glasbo?</string>
+    <string name="zvocnik_preklopi">Preklopi</string>
+    <string name="zvocnik_igra">Zdaj igra na: %1$s</string>
+    <string name="zvocnik_napaka">%1$s ni sprejel glasbe.</string>
+    <string name="zvocnik_premor">Premor / nadaljuj</string>
+    <string name="zvocnik_glasneje">Glasneje</string>
+    <string name="zvocnik_tisje">Tišje</string>
+    <string name="zvocnik_vrni">Nazaj na to napravo</string>
+</resources>

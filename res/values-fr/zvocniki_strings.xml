@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="zvocnik_predvajaj_na">Lire sur une enceinte</string>
+    <string name="zvocnik_na">Sur l\'enceinte : %1$s</string>
+    <string name="zvocnik_iscem">Recherche d\'enceintes sur le réseau…</string>
+    <string name="zvocnik_ni_najdenih">Aucune enceinte trouvée. Elle doit être allumée et sur le même réseau (DLNA).</string>
+    <string name="zvocnik_zaseden">%1$s lit actuellement %2$s. Passer à cette musique ?</string>
+    <string name="zvocnik_preklopi">Basculer</string>
+    <string name="zvocnik_igra">Lecture sur %1$s</string>
+    <string name="zvocnik_napaka">%1$s n\'a pas accepté la musique.</string>
+    <string name="zvocnik_premor">Pause / reprendre</string>
+    <string name="zvocnik_glasneje">Plus fort</string>
+    <string name="zvocnik_tisje">Moins fort</string>
+    <string name="zvocnik_vrni">Revenir sur cet appareil</string>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="zvocnik_predvajaj_na">Riproduci sulla cassa</string>
+    <string name="zvocnik_na">Sulla cassa: %1$s</string>
+    <string name="zvocnik_iscem">Ricerca casse nella rete…</string>
+    <string name="zvocnik_ni_najdenih">Nessuna cassa trovata. Deve essere accesa e nella stessa rete (DLNA).</string>
+    <string name="zvocnik_zaseden">%1$s sta riproducendo %2$s. Passare a questa musica?</string>
+    <string name="zvocnik_preklopi">Passa</string>
+    <string name="zvocnik_igra">In riproduzione su %1$s</string>
+    <string name="zvocnik_napaka">%1$s non ha accettato la musica.</string>
+    <string name="zvocnik_premor">Pausa / riprendi</string>
+    <string name="zvocnik_glasneje">Più forte</string>
+    <string name="zvocnik_tisje">Più piano</string>
+    <string name="zvocnik_vrni">Torna su questo dispositivo</string>
+</resources>

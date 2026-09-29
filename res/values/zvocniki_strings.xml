@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="zvocnik_predvajaj_na">Play on speaker</string>
+    <string name="zvocnik_na">On speaker: %1$s</string>
+    <string name="zvocnik_iscem">Searching for speakers in your network…</string>
+    <string name="zvocnik_ni_najdenih">No speakers found. The speaker must be switched on and in the same network (DLNA).</string>
+    <string name="zvocnik_zaseden">%1$s is playing %2$s. Switch to this music?</string>
+    <string name="zvocnik_preklopi">Switch</string>
+    <string name="zvocnik_igra">Now playing on %1$s</string>
+    <string name="zvocnik_napaka">%1$s did not accept the music.</string>
+    <string name="zvocnik_premor">Pause / resume</string>
+    <string name="zvocnik_glasneje">Louder</string>
+    <string name="zvocnik_tisje">Quieter</string>
+    <string name="zvocnik_vrni">Back to this device</string>
+</resources>
