@@ -238,6 +238,8 @@ object HubKrmilnik {
     const val KLJUC_IZVOLJENI_ID = "izvoljeni_hub_id"
     private const val PRVA_IZVOLITEV_MS = 1_500L
     private const val PONOVNA_IZVOLITEV_MS = 90_000L
+    /** Link Mesh: kako pogosto iscemo nove sosede. */
+    private const val MESH_ISKANJE_MS = 15_000L
 
     private val glavna by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
     private var izvolitevNacrtovana: Runnable? = null
@@ -275,6 +277,8 @@ object HubKrmilnik {
 
     /** Hub, ki smo se mu umaknili (naslov, odtis, id), ali null, ce gostimo sami oz. nismo v Linku. */
     fun izvoljeniHub(context: Context): HubDiscovery.NajdeniHub? {
+        // Link Mesh: izvoljenega huba ni vec - vsaka naprava gosti svojega, odjemalci gredo na lastnega.
+        if (HubMesh.vklopljen(context)) return null
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val naslov = p.getString(KLJUC_IZVOLJENI_URL, "") ?: ""
         val id = p.getString(KLJUC_IZVOLJENI_ID, "") ?: ""
@@ -301,6 +305,15 @@ object HubKrmilnik {
     fun izvolitev(app: Context) {
         HubDiscovery.poisciVse(app) { hubi ->
             if (!tece()) return@poisciVse
+            val u = usmerjevalnik
+            if (HubMesh.vklopljen(app) && u != null) {
+                // Link Mesh: nihce se ne umika - vsak Hub se poveze s sosedi (clani kroga z mesh1).
+                val kandidati = HubMesh.kandidati(app, u, hubi)
+                for (h in kandidati) HubMesh.poklici(app, u, h)
+                Log.i(TAG, "Mesh: sosedje ${u.sosedjeIdji()}, klicem ${kandidati.map { it.id }}")
+                nacrtujIzvolitev(app, MESH_ISKANJE_MS)
+                return@poisciVse
+            }
             val krog = KrogNaprave.krog(app)
             val jaz = IzvolitevHuba.Kandidat(lastniId(), prioriteta(app))
             // Clan kroga: po id-ju ali - pri id-ju iz kljuca - po kljucu (id, ki ga se nismo videli, a kljuc poznamo).
@@ -482,7 +495,7 @@ object HubKrmilnik {
         povezava.naZaprtje = { u.odklopi(odjemalec) }
     }
 
-    private fun imeHuba(context: Context): String =
+    internal fun imeHuba(context: Context): String =
         context.getString(si.safeer.tv.R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")"
 
     /** Naslov, na katerem je Hub dosegljiv; prazen, ce ne tece ali ce ni omrezja. */

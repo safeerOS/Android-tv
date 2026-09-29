@@ -109,7 +109,9 @@ object HubDiscovery {
             .getString("control_token", null).isNullOrBlank()
 
     /** Hub, ki se oglasa v omrezju, kot ga vidi izvolitev: naslov, odtis, id in prioriteta iz oglasa. */
-    data class NajdeniHub(val naslov: String, val odtis: String, val id: String, val prioriteta: Int, val ime: String)
+    data class NajdeniHub(val naslov: String, val odtis: String, val id: String, val prioriteta: Int, val ime: String,
+                          /** Link Mesh: Hub zna sosednje povezave (oglas `mesh=mesh1`). */
+                          val mesh: String = "")
 
     /**
      * Zbere VSE hube, ki se oglasajo in so zivi (mDNS, [timeoutMs]), brez spreminjanja nastavitev.
@@ -159,6 +161,7 @@ object HubDiscovery {
                     id = l[IzvolitevHuba.TXT_ID]?.toString(Charsets.UTF_8).orEmpty(),
                     prioriteta = IzvolitevHuba.prioritetaIzOglasa(l[IzvolitevHuba.TXT_PRIORITETA]?.toString(Charsets.UTF_8)),
                     ime = l["name"]?.toString(Charsets.UTF_8).orEmpty(),
+                    mesh = l[HubUsmerjevalnik.TXT_MESH]?.toString(Charsets.UTF_8).orEmpty(),
                 )
                 // Zapis v mDNS prezivi hub, ki ga ni vec: steje samo ziv hub.
                 preveriHub("https://$gostitelj:${info.port}", null) { ziv -> if (ziv && !koncano.get()) najdeni.add(hub) }
