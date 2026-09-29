@@ -140,6 +140,10 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
+        // Stisnjen dex: APK ~19 MB namesto ~28 MB (Cloudflare Pages sprejme datoteke do 25 MiB, manj prenosa na TV).
+        dex {
+            useLegacyPackaging = true
+        }
         resources {
             excludes += ['META-INF/LICENSE.md', 'META-INF/NOTICE.md',
                          'META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt',
