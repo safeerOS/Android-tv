@@ -179,4 +179,9 @@
     <string name="os_media_tv_opis">Emisiones oficiales por país</string>
     <string name="os_media_javna_last">Películas de dominio público</string>
     <string name="os_media_tunein_lokalne">TuneIn · emisoras cerca de ti</string>
+    <string name="os_media_napaka_tok">No se puede acceder a la emisión. Revisa la dirección y la conexión.</string>
+    <string name="os_media_napaka_format">Este formato no se puede reproducir.</string>
+    <string name="os_media_napaka_zascita">La grabación está protegida con DRM y Safeer no la reproduce.</string>
+    <string name="os_media_napaka_splosno">La reproducción se detuvo por un error.</string>
+    <string name="os_media_napaka_naslednja">No se pudo reproducir «%1$s»: reproduciendo la siguiente.</string>
 </resources>

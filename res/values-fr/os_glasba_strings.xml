@@ -179,4 +179,9 @@
     <string name="os_media_tv_opis">Directs officiels par pays</string>
     <string name="os_media_javna_last">Films du domaine public</string>
     <string name="os_media_tunein_lokalne">TuneIn · stations près de chez toi</string>
+    <string name="os_media_napaka_tok">Flux inaccessible. Vérifiez l\'adresse et la connexion.</string>
+    <string name="os_media_napaka_format">Ce format ne peut pas être lu.</string>
+    <string name="os_media_napaka_zascita">L\'enregistrement est protégé par DRM ; Safeer ne le lit pas.</string>
+    <string name="os_media_napaka_splosno">La lecture s\'est arrêtée à cause d\'une erreur.</string>
+    <string name="os_media_napaka_naslednja">Impossible de lire « %1$s » – lecture du suivant.</string>
 </resources>

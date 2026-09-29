@@ -179,4 +179,9 @@
     <string name="os_media_tv_opis">Uradni prenosi po državah</string>
     <string name="os_media_javna_last">Filmi v javni lasti</string>
     <string name="os_media_tunein_lokalne">TuneIn · postaje v tvoji bližini</string>
+    <string name="os_media_napaka_tok">Tok ni dosegljiv. Preveri naslov in povezavo.</string>
+    <string name="os_media_napaka_format">Tega zapisa ni mogoče predvajati.</string>
+    <string name="os_media_napaka_zascita">Posnetek je zaščiten (DRM) in ga Safeer ne predvaja.</string>
+    <string name="os_media_napaka_splosno">Predvajanje se je ustavilo zaradi napake.</string>
+    <string name="os_media_napaka_naslednja">»%1$s« ni bilo mogoče predvajati – predvajam naslednjo.</string>
 </resources>

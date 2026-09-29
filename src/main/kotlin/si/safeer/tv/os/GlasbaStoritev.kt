@@ -40,6 +40,12 @@ class GlasbaStoritev : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private fun obvesti(besedilo: String) {
+        android.os.Handler(mainLooper).post {
+            android.widget.Toast.makeText(applicationContext, besedilo, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         val p = ExoPlayer.Builder(this).build()
@@ -58,8 +64,16 @@ class GlasbaStoritev : Service() {
                 if (playbackState == Player.STATE_ENDED) konec() else osvezi()
             }
             override fun onPlayerError(error: PlaybackException) {
-                // Pokvarjena skladba ne sme ustaviti vsega: naprej na naslednjo, ce obstaja.
-                if (p.hasNextMediaItem()) { p.seekToNextMediaItem(); p.prepare(); p.play() } else osvezi()
+                // Pokvarjena skladba ne sme ustaviti vsega: naprej na naslednjo, ce obstaja. Uporabnik
+                // izve, kaj se je zgodilo (prej je predvajanje tiho obstalo in ni bilo jasno zakaj).
+                val ime = trenutna()?.naslov.orEmpty()
+                if (p.hasNextMediaItem()) {
+                    obvesti(getString(R.string.os_media_napaka_naslednja, ime.ifBlank { "?" }))
+                    p.seekToNextMediaItem(); p.prepare(); p.play()
+                } else {
+                    obvesti(getString(napakaZaUporabnika(error.errorCode)))
+                    osvezi()
+                }
             }
         })
         exo = p
@@ -326,4 +340,12 @@ class GlasbaStoritev : Service() {
             ctx.stopService(Intent(ctx, GlasbaStoritev::class.java))
         }
     }
+}
+
+/** Koda napake ExoPlayerja -> razumljivo sporočilo (enake skupine kot Safeer Media na Linuxu). */
+internal fun napakaZaUporabnika(koda: Int): Int = when (koda) {
+    1003, in 2000..2999 -> R.string.os_media_napaka_tok    // casovna omejitev, ERROR_CODE_IO_*: omrezje, 404, zavrnjen dostop
+    in 3000..3999, in 4000..4999 -> R.string.os_media_napaka_format  // razclenjevanje, dekoder
+    in 6000..6999 -> R.string.os_media_napaka_zascita      // ERROR_CODE_DRM_*
+    else -> R.string.os_media_napaka_splosno
 }
