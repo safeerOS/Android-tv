@@ -181,8 +181,21 @@ object UserScriptManager {
                                 var op = parseFloat(style.opacity);
                                 var rect = fx.getBoundingClientRect();
                                 if (z >= 99 && (op === 0 || style.visibility === 'hidden') && rect.width >= winW * 0.5 && rect.height >= winH * 0.5) {
-                                    if (fx.querySelectorAll('video, iframe, form').length === 0) {
-                                        fx.remove();
+                                    // Pravo okno (potrditev starosti, piskotki, prijava) ni prevara, tudi ce se
+                                    // ravno prikazuje z animacijo od prosojnosti 0: ima gumbe, besedilo ali vlogo
+                                    // dialoga. Prej smo ga odstranili sredi prikaza in ostalo je samo zamegljeno ozadje.
+                                    var praviDialog = fx.matches('[role="dialog"], [role="alertdialog"], [aria-modal="true"]') ||
+                                        fx.querySelector('video, iframe, form, input, button, select, textarea, [role="dialog"], [role="alertdialog"], [role="button"]') ||
+                                        (fx.innerText || '').trim().length > 0;
+                                    var seAnimira = false;
+                                    try { seAnimira = !!(fx.getAnimations && fx.getAnimations({ subtree: true }).length); } catch(e) {}
+                                    if (praviDialog || seAnimira) {
+                                        delete fx.dataset.safeerNevidno;
+                                    } else {
+                                        // Samo tisto, kar ostane nevidno vsaj 3 s (prevara ne izgine sama).
+                                        var odkdaj = parseInt(fx.dataset.safeerNevidno || '0', 10);
+                                        if (!odkdaj) fx.dataset.safeerNevidno = String(Date.now());
+                                        else if (Date.now() - odkdaj > 3000) fx.remove();
                                     }
                                 }
                             }
