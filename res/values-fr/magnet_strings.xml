@@ -3,14 +3,14 @@
 <resources>
     <string name="magnet_naslov">Liens magnet</string>
     <string name="magnet_odpri">Ouvrir</string>
-    <string name="magnet_opomba">Seuls la vidéo et la musique sont lues. Les programmes ne sont jamais téléchargés. Ne téléchargez et ne partagez que du contenu dont vous avez les droits ; les autres pairs voient votre adresse IP.</string>
+    <string name="magnet_opomba">Seuls la vidéo et la musique sont lues. Les fichiers qui ressemblent à des programmes ne sont téléchargés qu’après votre confirmation. Ne téléchargez et ne partagez que du contenu dont vous avez les droits ; les autres pairs voient votre adresse IP.</string>
     <string name="magnet_napaka_ni_magnet">Ce n’est pas un lien magnet valide.</string>
     <string name="magnet_napaka_ni_izbranih">Sélectionnez au moins un fichier.</string>
     <string name="magnet_napaka_ni_metapodatkov">Impossible de lire les détails du torrent. Réessayez plus tard.</string>
     <string name="magnet_napaka_ni_predvajljivo">Ce torrent ne contient ni vidéo ni musique.</string>
     <string name="magnet_napaka">Une erreur s’est produite.</string>
     <string name="magnet_berem">Lecture des détails du torrent…</string>
-    <string name="magnet_sumljiv">Attention : ce torrent contient des programmes. Ils ne seront pas téléchargés.</string>
+    <string name="magnet_sumljiv">Attention : ce torrent contient peut-être des programmes. Ils ne sont pas sélectionnés ; vous pouvez quand même les choisir.</string>
     <string name="magnet_predvajaj">Lire</string>
     <string name="magnet_prenesi_izbrane">Télécharger la sélection</string>
     <string name="magnet_prenasam">Téléchargement…</string>
@@ -37,7 +37,10 @@
     <string name="magnet_vrsta_audio">Musique</string>
     <string name="magnet_vrsta_podnapisi">Sous-titres</string>
     <string name="magnet_vrsta_slika">Image</string>
-    <string name="magnet_vrsta_nevarno">Programme (bloqué)</string>
+    <string name="magnet_vrsta_nevarno">Peut-être un programme</string>
     <string name="magnet_vrsta_drugo">Autre</string>
     <string name="magnet_vir_opis">Lire vidéo et musique pendant le téléchargement</string>
+    <string name="magnet_nevarno_naslov">Ce fichier est peut-être un programme</string>
+    <string name="magnet_nevarno_opis">La vérification automatique indique que « %s » est peut-être un programme. Elle peut se tromper. Ne le téléchargez que si vous faites confiance à la source ; Safeer ne l’exécute ni ne le lit jamais.</string>
+    <string name="magnet_vseeno">Continuer quand même</string>
 </resources>
