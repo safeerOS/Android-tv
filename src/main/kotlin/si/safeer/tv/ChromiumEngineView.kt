@@ -905,7 +905,11 @@ class ChromiumEngineView @JvmOverloads constructor(
                                     android.widget.Toast.makeText(context, context.getString(R.string.os_mediji_dodatki_shranjen, v.ime), android.widget.Toast.LENGTH_LONG).show()
                                 }
                                 .setNegativeButton(android.R.string.cancel, null)
-                                .show()
+                                .create().apply {
+                                    // Daljinec: OK takoj doda (gumb Dodaj ima fokus), Nazaj preklice.
+                                    setOnShowListener { getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
+                                    show()
+                                }
                         } catch (_: Exception) {}
                         return true
                     }
