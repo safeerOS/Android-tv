@@ -88,6 +88,24 @@ object SporocilaKanali {
         finally { try { store.close() } catch (_: Throwable) {} }
     }
 
+    /**
+     * Prijava s celim naslovom, ob neuspehu se z uporabniskim imenom brez domene (nekateri ponudniki, npr.
+     * Arnes ali Siol, hocejo le del pred @). Vrne uporabnisko ime, ki je delovalo, in ga zapise v nastavitve.
+     */
+    fun preveriEpostoPrilagodljivo(n: JSONObject, geslo: String, medPoskusom: (() -> Unit)? = null): String {
+        val naslov = n.getString("naslov")
+        val prvi = n.optString("uporabnik", naslov)
+        try { preveriEposto(n, geslo); return prvi } catch (e: NapakaPrijave) {
+            val brez = naslov.substringBefore('@')
+            if (prvi != brez && brez.isNotBlank()) {
+                medPoskusom?.invoke()
+                n.put("uporabnik", brez)
+                try { preveriEposto(n, geslo); return brez } catch (_: NapakaPrijave) { n.put("uporabnik", prvi) }
+            }
+            throw e
+        }
+    }
+
     private fun besedilo(p: Part, globina: Int = 0): Pair<String, Boolean> {
         if (globina > 6) return "" to false
         if (Part.ATTACHMENT.equals(p.disposition, true)) return "" to false

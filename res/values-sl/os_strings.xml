@@ -488,4 +488,50 @@
     <string name="os_spor_pisi_napravi">Piši napravi</string>
     <string name="os_spor_ni_naprav">V Safeer Linku še ni druge naprave za klepet.</string>
     <string name="os_spor_caka">Naprava ni povezana – sporočilo dobi, ko se poveže.</string>
+
+    <!-- Dodaj kanal: izbira ponudnika (samo naslov + geslo) in navodila -->
+    <string name="os_spor_izberi_ponudnika">Kje imaš e-pošto?</string>
+    <string name="os_spor_ponudnik_drug">Drug ponudnik</string>
+    <string name="os_spor_ponudnik_drug_opis">Vpiši naslov – strežnika predlagava sama.</string>
+    <string name="os_spor_ni_na_voljo">ni na voljo</string>
+    <string name="os_spor_zamenjaj_ponudnika">‹ Drug ponudnik</string>
+    <string name="os_spor_naslov_ponudnika">Tvoj naslov pri %1$s</string>
+    <string name="os_spor_geslo_aplikacije_polje">Geslo za aplikacije (16 znakov)</string>
+    <string name="os_spor_napredno">Strežniki (napredno)</string>
+    <string name="os_spor_kaj_narediti">Kaj moraš narediti</string>
+    <string name="os_spor_nav_gmail">1. Odpri myaccount.google.com › Varnost in vklopi »Preverjanje v 2 korakih«.\n2. Tam poišči »Gesla za aplikacije«, ustvari novo (ime npr. Safeer) in prepiši 16-mestno geslo.\n3. Sem vpiši svoj Gmail naslov in TO geslo (ne glavnega).\nIMAP je pri Gmailu vklopljen samodejno.</string>
+    <string name="os_spor_nav_yahoo">1. Odpri login.yahoo.com › Varnost računa › »Ustvari geslo za aplikacijo«.\n2. Prepiši ustvarjeno geslo in ga vpiši sem namesto glavnega.\nUporabniško ime je tvoj celoten Yahoo naslov.</string>
+    <string name="os_spor_nav_icloud">1. Odpri account.apple.com › Prijava in varnost › »Gesla za aplikacije« (potrebno je dvostopenjsko preverjanje).\n2. Ustvari geslo za Safeer in ga vpiši sem namesto gesla Apple računa.\nNaslov je tvoj celoten iCloud naslov.</string>
+    <string name="os_spor_nav_gmx">1. V spletni pošti odpri Nastavitve › POP3/IMAP in vklopi IMAP.\n2. Sem vpiši naslov in svoje običajno geslo.</string>
+    <string name="os_spor_nav_zoho">1. V Zoho Mail odpri Nastavitve › Poštni računi › »IMAP Access« in ga vklopi.\n2. Če imaš vklopljeno dvostopenjsko preverjanje, v Zoho računu ustvari »App password« in vpiši tega.</string>
+    <string name="os_spor_nav_fastmail">1. V Fastmailu odpri Nastavitve › Zasebnost in varnost › Integracije › »New app password« (za pošto).\n2. Vpiši naslov in to geslo za aplikacije.</string>
+    <string name="os_spor_nav_arnes">Vpiši svoj naslov in geslo Arnes. Če prijava ne uspe, poskusiva še z uporabniškim imenom brez »@arnes.si« – to naredi Safeer sam.</string>
+    <string name="os_spor_nav_navadno">Vpiši svoj naslov in običajno geslo za pošto. Strežnike in vrata pozna Safeer sam. Če prijava ne uspe, Safeer sam poskusi še z uporabniškim imenom brez domene.</string>
+    <string name="os_spor_nav_oauth">Microsoft za osebne račune ne dovoli več prijave z geslom (zahteva prijavo OAuth, ki je Safeer še nima). Do takrat uporabi uradno aplikacijo Outlook – zavihek »Aplikacije«.</string>
+    <string name="os_spor_nav_drug">Vpiši naslov – Safeer predlaga strežnika imap.domena in smtp.domena. Če pri ponudniku piše drugače, ju popravi pod »Strežniki (napredno)«.</string>
+    <string name="os_spor_poskus_brez_domene">Poskušam še z uporabniškim imenom brez domene…</string>
+    <!-- Aplikacije ponudnikov brez IMAP/SMTP in klepeti -->
+    <string name="os_spor_aplikacije">Aplikacije</string>
+    <string name="os_spor_aplikacije_opis">Ti ponudniki delujejo le prek svoje aplikacije. Odpre se uradni vnos v trgovini; Safeer ne prenaša ničesar sam.</string>
+    <string name="os_spor_app_posta">E-pošta</string>
+    <string name="os_spor_app_klepet">Klepet</string>
+    <string name="os_spor_app_namesti">Namesti</string>
+    <string name="os_spor_app_odpri">Odpri</string>
+    <string name="os_spor_app_outlook">Outlook, Hotmail, Live – Microsoftova pošta</string>
+    <string name="os_spor_app_proton">Šifrirana pošta (IMAP le prek Proton Bridge na računalniku)</string>
+    <string name="os_spor_app_tuta">Šifrirana pošta brez IMAP</string>
+    <string name="os_spor_app_signal">Zasebni klepet in klici</string>
+    <string name="os_spor_app_telegram">Klepet, skupine, kanali</string>
+    <string name="os_spor_app_whatsapp">Klepet in klici</string>
+    <string name="os_spor_app_viber">Klepet in klici</string>
+    <string name="os_spor_app_element">Odprt protokol Matrix</string>
+    <string name="os_spor_app_messenger">Facebook Messenger</string>
+    <string name="os_spor_app_discord">Skupnosti in glasovni kanali</string>
+    <string name="os_mediji_predvajalnik">Predvajalnik</string>
+    <string name="os_media_predvajalnik_opis">Odpri datoteko ali naslov</string>
+    <string name="os_mediji_predvajalnik_datoteka">Datoteka s te naprave</string>
+    <string name="os_mediji_predvajalnik_naslov">Spletni naslov (http/https)</string>
+    <string name="os_mediji_predvajaj">Predvajaj</string>
+    <string name="os_mediji_predvajalnik_ni_izbirnika">Na tej napravi ni izbirnika datotek.</string>
+    <string name="os_mediji_predvajalnik_le_http">Dovoljeni so le naslovi http/https.</string>
 </resources>

@@ -483,59 +483,139 @@ class SporocilaActivity : OsActivity() {
 
     private fun dodajKanal() {
         var vrsta = "email"
+        var ponudnik: PonudnikiEposte.Ponudnik? = null
         val eposta = gumb(getString(R.string.os_spor_eposta))
         val chatwoot = gumb(getString(R.string.os_spor_chatwoot))
+        val aplikacije = gumb(getString(R.string.os_spor_aplikacije))
         val izbira = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(eposta, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
-            addView(chatwoot, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(chatwoot, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
+            addView(aplikacije, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
+        // E-posta, korak 1: ponudnik s seznama (streznike poznamo mi). Korak 2: naslov + geslo + navodila.
+        val ponudnikiNaslov = TextView(this).apply { text = getString(R.string.os_spor_izberi_ponudnika); setTextColor(getColor(R.color.os_besedilo)); textSize = 15f; setPadding(0, dp(10), 0, dp(6)) }
+        val ponudniki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val zamenjaj = gumb(getString(R.string.os_spor_zamenjaj_ponudnika))
         val naslov = polje(R.string.os_spor_naslov, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
         val geslo = polje(R.string.os_spor_geslo, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val napredno = gumb(getString(R.string.os_spor_napredno))
         val imap = polje(R.string.os_spor_imap, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val smtp = polje(R.string.os_spor_smtp, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        val navodilaNaslov = TextView(this).apply { text = getString(R.string.os_spor_kaj_narediti); setTextColor(getColor(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(12), 0, dp(4)) }
+        val navodila = TextView(this).apply { setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; setLineSpacing(0f, 1.15f) }
         val url = polje(R.string.os_spor_url, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val racun = polje(R.string.os_spor_racun, InputType.TYPE_CLASS_NUMBER)
         val zeton = polje(R.string.os_spor_zeton, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        val namig = TextView(this).apply { setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; visibility = View.GONE }
         val napaka = TextView(this).apply { setTextColor(getColor(R.color.os_opozorilo)); textSize = 13f; visibility = View.GONE }
-        val eFields = listOf(naslov, geslo, imap, smtp)
+        val seznamAplikacij = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val korak1 = listOf(ponudnikiNaslov, ponudniki)
+        val korak2 = listOf(zamenjaj, naslov, geslo, napredno, imap, smtp, navodilaNaslov, navodila)
         val cFields = listOf(url, racun, zeton)
+        lateinit var okno: AlertDialog
 
-        fun posodobiNamig() {
-            val t = naslov.text?.toString().orEmpty()
-            if (!t.contains("@")) { namig.visibility = View.GONE; return }
-            val s = SporocilaKanali.streznik(t)
-            if (imap.text.isNullOrBlank() || imap.tag == "samodejno") { imap.setText(s.first); imap.tag = "samodejno" }
-            if (smtp.text.isNullOrBlank() || smtp.tag == "samodejno") { smtp.setText(s.second); smtp.tag = "samodejno" }
-            namig.text = when (s.third) {
-                "aplikacije" -> getString(R.string.os_spor_geslo_aplikacije)
-                "oauth" -> getString(R.string.os_spor_oauth)
-                else -> ""
+        fun pokaziKorak(drugi: Boolean) {
+            korak1.forEach { it.visibility = if (vrsta == "email" && !drugi) View.VISIBLE else View.GONE }
+            korak2.forEach { it.visibility = if (vrsta == "email" && drugi) View.VISIBLE else View.GONE }
+            val p = ponudnik
+            if (drugi && p != null && vrsta == "email") {
+                val drug = p.id == PonudnikiEposte.DRUG
+                imap.visibility = if (drug) View.VISIBLE else View.GONE
+                smtp.visibility = if (drug) View.VISIBLE else View.GONE
+                napredno.visibility = if (drug) View.GONE else View.VISIBLE
+                naslov.hint = if (drug) getString(R.string.os_spor_naslov) else getString(R.string.os_spor_naslov_ponudnika, p.ime)
+                geslo.hint = getString(if (p.geslo == PonudnikiEposte.APLIKACIJE) R.string.os_spor_geslo_aplikacije_polje else R.string.os_spor_geslo)
+                navodila.text = getString(p.navodila)
+                if (!drug) { imap.setText(if (p.imapVrata == 993) p.imap else "${p.imap}:${p.imapVrata}"); smtp.setText(if (p.smtpVrata == 465) p.smtp else "${p.smtp}:${p.smtpVrata}") }
+                else if (imap.tag != "rocno") { val (i, sm) = PonudnikiEposte.predlog(naslov.text?.toString().orEmpty()); imap.setText(if (naslov.text.isNullOrBlank()) "" else i); smtp.setText(if (naslov.text.isNullOrBlank()) "" else sm) }
             }
-            namig.visibility = if (namig.text.isNullOrEmpty() || vrsta != "email") View.GONE else View.VISIBLE
+            okno.getButton(AlertDialog.BUTTON_POSITIVE)?.visibility = if (vrsta == "aplikacije" || (vrsta == "email" && !drugi)) View.GONE else View.VISIBLE
         }
-        naslov.setOnFocusChangeListener { _, f -> if (!f) posodobiNamig() }
-        imap.setOnFocusChangeListener { _, f -> if (f) imap.tag = null }
-        smtp.setOnFocusChangeListener { _, f -> if (f) smtp.tag = null }
+
+        fun izberiPonudnika(p: PonudnikiEposte.Ponudnik) {
+            ponudnik = p; napaka.visibility = View.GONE
+            pokaziKorak(true)
+            naslov.requestFocus()
+        }
+
+        // Seznam ponudnikov: ime + kratek opis, kaj bo treba (navadno geslo / geslo za aplikacije / ni na voljo).
+        for (p in PonudnikiEposte.SEZNAM) {
+            val vrstica = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; isFocusable = true; isClickable = true
+                setPadding(dp(14), dp(9), dp(14), dp(9)); setBackgroundResource(R.drawable.os_meni_postavka)
+                val ime = TextView(this@SporocilaActivity).apply {
+                    text = if (p.id == PonudnikiEposte.DRUG) getString(R.string.os_spor_ponudnik_drug) else p.ime + (if (p.geslo == PonudnikiEposte.OAUTH) "  · " + getString(R.string.os_spor_ni_na_voljo) else "")
+                    setTextColor(getColor(if (p.geslo == PonudnikiEposte.OAUTH) R.color.os_umirjeno else R.color.os_besedilo)); textSize = 15f
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                }
+                val opis = TextView(this@SporocilaActivity).apply {
+                    text = when {
+                        p.id == PonudnikiEposte.DRUG -> getString(R.string.os_spor_ponudnik_drug_opis)
+                        p.geslo == PonudnikiEposte.APLIKACIJE -> getString(R.string.os_spor_geslo_aplikacije)
+                        p.geslo == PonudnikiEposte.OAUTH -> ""
+                        else -> p.domene.take(2).joinToString(", ") { "@" + it }
+                    }
+                    setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
+                }
+                addView(ime); addView(opis)
+                setOnClickListener { izberiPonudnika(p) }
+            }
+            ponudniki.addView(vrstica, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+        }
+        zamenjaj.setOnClickListener { ponudnik = null; pokaziKorak(false) }
+        napredno.setOnClickListener { imap.visibility = View.VISIBLE; smtp.visibility = View.VISIBLE; napredno.visibility = View.GONE }
+        imap.setOnFocusChangeListener { _, f -> if (f) imap.tag = "rocno" }
+        smtp.setOnFocusChangeListener { _, f -> if (f) smtp.tag = "rocno" }
+        naslov.setOnFocusChangeListener { _, f ->
+            if (f) return@setOnFocusChangeListener
+            val p = ponudnik ?: return@setOnFocusChangeListener
+            val t = naslov.text?.toString().orEmpty()
+            if (p.id == PonudnikiEposte.DRUG && t.contains("@")) {
+                // Ce je domena znanega ponudnika, ga izberemo namesto ugibanja.
+                PonudnikiEposte.izNaslova(t)?.let { izberiPonudnika(it); return@setOnFocusChangeListener }
+                if (imap.tag != "rocno") { val (i, sm) = PonudnikiEposte.predlog(t); imap.setText(i); smtp.setText(sm) }
+            }
+        }
+
+        // Aplikacije: ponudniki brez IMAP/SMTP (Outlook, Proton ...) in klepeti - uradna aplikacija iz trgovine.
+        seznamAplikacij.addView(TextView(this).apply { text = getString(R.string.os_spor_aplikacije_opis); setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; setPadding(0, dp(10), 0, dp(8)) })
+        for (skupina in listOf("posta" to R.string.os_spor_app_posta, "klepet" to R.string.os_spor_app_klepet)) {
+            seznamAplikacij.addView(TextView(this).apply { text = getString(skupina.second); setTextColor(getColor(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(8), 0, dp(4)) })
+            for (a in AplikacijeSporocil.SEZNAM.filter { it.vrsta == skupina.first }) {
+                val vrstica = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(14), dp(8), dp(10), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
+                    val besedilo = LinearLayout(this@SporocilaActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        addView(TextView(this@SporocilaActivity).apply { text = a.ime; setTextColor(getColor(R.color.os_besedilo)); textSize = 15f })
+                        addView(TextView(this@SporocilaActivity).apply { text = getString(a.opis); setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f })
+                    }
+                    val namescena = AplikacijeSporocil.nameščena(this@SporocilaActivity, a.paket)
+                    val g = gumb(getString(if (namescena) R.string.os_spor_app_odpri else R.string.os_spor_app_namesti))
+                    g.setOnClickListener { AplikacijeSporocil.odpriAliNamesti(this@SporocilaActivity, a.paket) }
+                    addView(besedilo, LinearLayout.LayoutParams(0, -2, 1f)); addView(g)
+                }
+                seznamAplikacij.addView(vrstica, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+            }
+        }
 
         fun nastaviVrsto(v: String) {
             vrsta = v
-            eposta.isSelected = v == "email"; chatwoot.isSelected = v == "chatwoot"
-            eposta.isActivated = v == "email"; chatwoot.isActivated = v == "chatwoot"
-            eFields.forEach { it.visibility = if (v == "email") View.VISIBLE else View.GONE }
+            for ((g, ime) in listOf(eposta to "email", chatwoot to "chatwoot", aplikacije to "aplikacije")) { g.isSelected = v == ime; g.isActivated = v == ime }
             cFields.forEach { it.visibility = if (v == "chatwoot") View.VISIBLE else View.GONE }
+            seznamAplikacij.visibility = if (v == "aplikacije") View.VISIBLE else View.GONE
             napaka.visibility = View.GONE
-            posodobiNamig()
+            pokaziKorak(ponudnik != null)
         }
         eposta.setOnClickListener { nastaviVrsto("email") }
         chatwoot.setOnClickListener { nastaviVrsto("chatwoot") }
+        aplikacije.setOnClickListener { nastaviVrsto("aplikacije") }
 
         val polja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0)
-            addView(izbira); (eFields + cFields).forEach { addView(it) }; addView(namig); addView(napaka)
+            addView(izbira); (korak1 + korak2 + cFields).forEach { addView(it) }; addView(seznamAplikacij); addView(napaka)
         }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(R.string.os_spor_dodaj)
             .setView(ScrollView(this).apply { addView(polja) })
             .setPositiveButton(R.string.os_spor_dodaj, null)
@@ -543,36 +623,39 @@ class SporocilaActivity : OsActivity() {
             .create()
         okno.setCanceledOnTouchOutside(false)
         okno.setOnShowListener {
-            nastaviVrsto("email"); naslov.requestFocus()
+            nastaviVrsto("email")
             okno.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { gumbDodaj ->
                 val id = UUID.randomUUID().toString().take(8)
                 val kanal: SporocilaShramba.Kanal
                 val skrivnost: String
                 if (vrsta == "email") {
-                    posodobiNamig()
+                    val p = ponudnik ?: return@setOnClickListener
                     val t = naslov.text?.toString().orEmpty().trim()
                     skrivnost = geslo.text?.toString().orEmpty()
                     if (!t.contains("@") || skrivnost.isEmpty()) { pokaziNapako(napaka, getString(R.string.os_spor_napaka_prijava)); return@setOnClickListener }
-                    if (SporocilaKanali.streznik(t).third == "oauth") { pokaziNapako(napaka, getString(R.string.os_spor_oauth)); return@setOnClickListener }
+                    if (p.geslo == PonudnikiEposte.OAUTH) { pokaziNapako(napaka, getString(R.string.os_spor_nav_oauth)); return@setOnClickListener }
                     val (iH, iP) = gostitelj(imap.text?.toString().orEmpty(), 993)
                     val (sH, sP) = gostitelj(smtp.text?.toString().orEmpty(), 465)
-                    kanal = SporocilaShramba.Kanal(id, "email", t, "", JSONObject().put("naslov", t).put("uporabnik", t)
+                    if (iH.isBlank() || sH.isBlank()) { pokaziNapako(napaka, getString(R.string.os_spor_napaka_prijava)); return@setOnClickListener }
+                    kanal = SporocilaShramba.Kanal(id, "email", t, "", JSONObject().put("naslov", t).put("uporabnik", t).put("ponudnik", p.id)
                         .put("imap", iH).put("imap_vrata", iP).put("smtp", sH).put("smtp_vrata", sP))
-                } else {
+                } else if (vrsta == "chatwoot") {
                     val u = url.text?.toString().orEmpty().trim().trimEnd('/')
                     skrivnost = zeton.text?.toString().orEmpty().trim()
                     val r = racun.text?.toString()?.trim()?.toIntOrNull()
                     if (!u.startsWith("https://")) { pokaziNapako(napaka, getString(R.string.os_spor_https)); return@setOnClickListener }
                     if (r == null || skrivnost.isEmpty()) { pokaziNapako(napaka, getString(R.string.os_spor_napaka_prijava)); return@setOnClickListener }
                     kanal = SporocilaShramba.Kanal(id, "chatwoot", u.removePrefix("https://"), "", JSONObject().put("url", u).put("account_id", r))
-                }
+                } else return@setOnClickListener
                 gumbDodaj.isEnabled = false
                 pokaziNapako(napaka, getString(R.string.os_spor_povezujem), false)
                 delavec.execute {
                     val ime = kanal.vrsta + ":" + kanal.id
                     val e = try {
                         if (!SporocilaSkrivnosti.shrani(this, ime, skrivnost)) throw SporocilaKanali.ManjkaSkrivnost()
-                        if (kanal.vrsta == "email") SporocilaKanali.preveriEposto(kanal.nastavitve, skrivnost)
+                        if (kanal.vrsta == "email") SporocilaKanali.preveriEpostoPrilagodljivo(kanal.nastavitve, skrivnost) {
+                            glavna.post { if (!unicena) pokaziNapako(napaka, getString(R.string.os_spor_poskus_brez_domene), false) }
+                        }
                         else SporocilaKanali.preveriChatwoot(this, kanal)
                         shramba.dodajKanal(kanal.copy(stanje = "povezan"))
                         null

@@ -1118,6 +1118,8 @@ class GlasbaActivity : OsActivity() {
         kat(KLJUC_RADIO, R.drawable.os_ikona_radio, getColor(R.color.os_mint), R.string.os_glasba_radio, R.string.os_media_radio_opis) { odpri(RADIO) }
         kat(KLJUC_TV, R.drawable.os_ikona_tv, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo, R.string.os_media_tv_opis) { odpri(TV_V_ZIVO) }
         kat(KLJUC_VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri, R.string.os_media_viri_opis) { odpri(VIRI) }
+        // Predvajalnik: datoteka s te naprave ali spletni naslov - isti zaslon predvajanja kot pri "Odpri z".
+        kat(KLJUC_PREDVAJALNIK, R.drawable.os_ikona_predvajaj, 0xFF57D6AD.toInt(), R.string.os_mediji_predvajalnik, R.string.os_media_predvajalnik_opis) { odpriPredvajalnik() }
         return okvir
     }
 
@@ -1790,9 +1792,46 @@ class GlasbaActivity : OsActivity() {
         catch (_: Exception) { Toast.makeText(this, R.string.os_mediji_ni_glasovnega, Toast.LENGTH_LONG).show() }
     }
 
+    /** Predvajalnik s plosce: izbira datoteke (sistemski izbirnik, brez dovoljenja za shrambo) ali spletni naslov. */
+    private fun odpriPredvajalnik() {
+        val moznosti = arrayOf(getString(R.string.os_mediji_predvajalnik_datoteka), getString(R.string.os_mediji_predvajalnik_naslov))
+        android.app.AlertDialog.Builder(this).setTitle(R.string.os_mediji_predvajalnik).setItems(moznosti) { _, i ->
+            if (i == 0) {
+                val n = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                    .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("video/*", "audio/*", "application/x-mpegURL", "application/vnd.apple.mpegurl", "application/dash+xml"))
+                try { @Suppress("DEPRECATION") startActivityForResult(n, PREDVAJALNIK_DATOTEKA) }
+                catch (_: Exception) { Toast.makeText(this, R.string.os_mediji_predvajalnik_ni_izbirnika, Toast.LENGTH_LONG).show() }
+            } else {
+                val polje = android.widget.EditText(this).apply { hint = "https://…"; inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI; isSingleLine = true }
+                android.app.AlertDialog.Builder(this).setTitle(R.string.os_mediji_predvajalnik_naslov).setView(polje)
+                    .setPositiveButton(R.string.os_mediji_predvajaj) { _, _ ->
+                        val u = polje.text?.toString().orEmpty().trim()
+                        if (u.startsWith("http://") || u.startsWith("https://")) predvajajNaslov(android.net.Uri.parse(u), "")
+                        else Toast.makeText(this, R.string.os_mediji_predvajalnik_le_http, Toast.LENGTH_LONG).show()
+                    }.setNegativeButton(R.string.os_preklici, null).show()
+            }
+        }.show()
+    }
+
+    /** Skupna pot za "Odpri z", izbirnik datotek in vnos naslova. */
+    private fun predvajajNaslov(uri: android.net.Uri, mimeNamig: String) {
+        val mime = mimeNamig.ifBlank { try { contentResolver.getType(uri) } catch (_: Throwable) { null } ?: "" }
+        val zvok = mime.startsWith("audio/")
+        val skladba = Jamendo.Skladba(uri.toString(), imeDatoteke(uri), "", "", uri.toString(), "", video = !zvok, mime = mime)
+        GlasbaStoritev.predvajaj(this, listOf(skladba), 0)
+        startActivity(Intent(this, PredvajanjeActivity::class.java))
+    }
+
     @Deprecated("Activity API")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == PREDVAJALNIK_DATOTEKA) {
+            val uri = data?.data ?: return
+            if (resultCode != RESULT_OK) return
+            // Trajno dovoljenje za to datoteko: "Nadaljuj gledanje" in "Nedavno" jo lahko odpreta znova.
+            try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) { }
+            predvajajNaslov(uri, data.type.orEmpty()); return
+        }
         if (requestCode != GLAS) return
         // Takojsnja zavrnitev pomeni, da glasovni vnos na tej napravi ne dela (npr. daljinec brez mikrofona).
         if (resultCode != RESULT_OK) {
@@ -2379,6 +2418,8 @@ class GlasbaActivity : OsActivity() {
         @Volatile var odprta = false
             private set
 
+        private const val PREDVAJALNIK_DATOTEKA = 7412
+        private const val KLJUC_PREDVAJALNIK = "kat-predvajalnik"
         private const val DOMOV = 0; private const val GLASBA = 2; private const val RADIO = 3
         private const val VIDEO = 4; private const val VIRI = 6; private const val ISKANJE = 7; private const val TV_V_ZIVO = 8
         private const val RAZVRSTI_PRIPOROCENO = 0

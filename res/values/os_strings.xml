@@ -489,4 +489,50 @@
     <string name="os_spor_pisi_napravi">Message a device</string>
     <string name="os_spor_ni_naprav">No other device in Safeer Link can chat yet.</string>
     <string name="os_spor_caka">The device is offline – it will get the message when it connects.</string>
+
+    <!-- Add channel: provider picker (address + password only) and instructions -->
+    <string name="os_spor_izberi_ponudnika">Where is your e-mail?</string>
+    <string name="os_spor_ponudnik_drug">Other provider</string>
+    <string name="os_spor_ponudnik_drug_opis">Type your address – we suggest the servers.</string>
+    <string name="os_spor_ni_na_voljo">not available</string>
+    <string name="os_spor_zamenjaj_ponudnika">‹ Other provider</string>
+    <string name="os_spor_naslov_ponudnika">Your %1$s address</string>
+    <string name="os_spor_geslo_aplikacije_polje">App password (16 characters)</string>
+    <string name="os_spor_napredno">Servers (advanced)</string>
+    <string name="os_spor_kaj_narediti">What you need to do</string>
+    <string name="os_spor_nav_gmail">1. Open myaccount.google.com › Security and turn on 2-Step Verification.\n2. There, find “App passwords”, create one (name it e.g. Safeer) and copy the 16-character password.\n3. Enter your Gmail address and THAT password here (not your main one).\nIMAP is on by default in Gmail.</string>
+    <string name="os_spor_nav_yahoo">1. Open login.yahoo.com › Account security › “Generate app password”.\n2. Copy the generated password and enter it here instead of your main one.\nThe username is your full Yahoo address.</string>
+    <string name="os_spor_nav_icloud">1. Open account.apple.com › Sign-In and Security › “App-Specific Passwords” (two-factor authentication required).\n2. Create one for Safeer and enter it here instead of your Apple Account password.\nThe address is your full iCloud address.</string>
+    <string name="os_spor_nav_gmx">1. In webmail open Settings › POP3/IMAP and enable IMAP.\n2. Enter your address and your usual password here.</string>
+    <string name="os_spor_nav_zoho">1. In Zoho Mail open Settings › Mail Accounts › “IMAP Access” and enable it.\n2. If two-factor authentication is on, create an “App password” in your Zoho account and enter that.</string>
+    <string name="os_spor_nav_fastmail">1. In Fastmail open Settings › Privacy &amp; Security › Integrations › “New app password” (for mail).\n2. Enter your address and that app password.</string>
+    <string name="os_spor_nav_arnes">Enter your Arnes address and password. If sign-in fails, Safeer retries with the username without “@arnes.si” by itself.</string>
+    <string name="os_spor_nav_navadno">Enter your address and your usual mail password. Safeer knows the servers and ports. If sign-in fails, Safeer retries with the username without the domain by itself.</string>
+    <string name="os_spor_nav_oauth">Microsoft no longer allows password sign-in for personal accounts (OAuth sign-in is required, which Safeer does not have yet). Until then use the official Outlook app – “Apps” tab.</string>
+    <string name="os_spor_nav_drug">Type your address – Safeer suggests imap.domain and smtp.domain. If your provider lists different servers, fix them under “Servers (advanced)”.</string>
+    <string name="os_spor_poskus_brez_domene">Retrying with the username without the domain…</string>
+    <!-- Apps of providers without IMAP/SMTP, and chats -->
+    <string name="os_spor_aplikacije">Apps</string>
+    <string name="os_spor_aplikacije_opis">These providers only work through their own app. The official store entry opens; Safeer downloads nothing itself.</string>
+    <string name="os_spor_app_posta">E-mail</string>
+    <string name="os_spor_app_klepet">Chat</string>
+    <string name="os_spor_app_namesti">Install</string>
+    <string name="os_spor_app_odpri">Open</string>
+    <string name="os_spor_app_outlook">Outlook, Hotmail, Live – Microsoft mail</string>
+    <string name="os_spor_app_proton">Encrypted mail (IMAP only via Proton Bridge on a computer)</string>
+    <string name="os_spor_app_tuta">Encrypted mail without IMAP</string>
+    <string name="os_spor_app_signal">Private chat and calls</string>
+    <string name="os_spor_app_telegram">Chat, groups, channels</string>
+    <string name="os_spor_app_whatsapp">Chat and calls</string>
+    <string name="os_spor_app_viber">Chat and calls</string>
+    <string name="os_spor_app_element">Open Matrix protocol</string>
+    <string name="os_spor_app_messenger">Facebook Messenger</string>
+    <string name="os_spor_app_discord">Communities and voice channels</string>
+    <string name="os_mediji_predvajalnik">Player</string>
+    <string name="os_media_predvajalnik_opis">Open a file or address</string>
+    <string name="os_mediji_predvajalnik_datoteka">File on this device</string>
+    <string name="os_mediji_predvajalnik_naslov">Web address (http/https)</string>
+    <string name="os_mediji_predvajaj">Play</string>
+    <string name="os_mediji_predvajalnik_ni_izbirnika">This device has no file picker.</string>
+    <string name="os_mediji_predvajalnik_le_http">Only http/https addresses are allowed.</string>
 </resources>
