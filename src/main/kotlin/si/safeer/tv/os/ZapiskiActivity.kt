@@ -49,7 +49,7 @@ class ZapiskiActivity : OsActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(28), dp(22), dp(28), dp(24))
-            setBackgroundColor(getColor(R.color.os_ozadje))
+            setBackgroundColor(osBarva(R.color.os_ozadje))
         }
         koren = root
 
@@ -60,12 +60,12 @@ class ZapiskiActivity : OsActivity() {
         val naslovi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         naslovi.addView(TextView(this).apply {
             text = getString(R.string.os_zapiski)
-            setTextColor(getColor(R.color.os_besedilo)); textSize = 27f
+            setTextColor(osBarva(R.color.os_besedilo)); textSize = 27f
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
         })
         naslovi.addView(TextView(this).apply {
             text = getString(R.string.os_zapiski_opis)
-            setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f
+            setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f
         })
         glava.addView(naslovi, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         novGumb = gumb(getString(R.string.os_zapiski_nov)).apply {
@@ -77,12 +77,12 @@ class ZapiskiActivity : OsActivity() {
         iskanje = EditText(this).apply {
             id = View.generateViewId()
             hint = getString(R.string.os_zapiski_iskanje)
-            setTextColor(getColor(R.color.os_besedilo)); setHintTextColor(getColor(R.color.os_umirjeno))
+            setTextColor(osBarva(R.color.os_besedilo)); setHintTextColor(osBarva(R.color.os_umirjeno))
             textSize = 16f; isSingleLine = true
             inputType = InputType.TYPE_CLASS_TEXT
             setPadding(dp(16), dp(10), dp(16), dp(10))
             background = GradientDrawable().apply {
-                cornerRadius = dp(12).toFloat(); setColor(getColor(R.color.os_kartica_dvignjena)); setStroke(dp(1), getColor(R.color.os_crta))
+                cornerRadius = dp(12).toFloat(); setColor(osBarva(R.color.os_kartica_dvignjena)); setStroke(dp(1), osBarva(R.color.os_crta))
             }
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -99,7 +99,7 @@ class ZapiskiActivity : OsActivity() {
 
         prazno = TextView(this).apply {
             text = getString(R.string.os_zapiski_prazno); gravity = Gravity.CENTER
-            setTextColor(getColor(R.color.os_umirjeno)); textSize = 16f; setPadding(0, dp(48), 0, dp(48))
+            setTextColor(osBarva(R.color.os_umirjeno)); textSize = 16f; setPadding(0, dp(48), 0, dp(48))
         }
         seznam = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; addView(prazno); addView(seznam) }
@@ -110,7 +110,7 @@ class ZapiskiActivity : OsActivity() {
 
     private fun gumb(ime: String) = TextView(this).apply {
         text = ime; gravity = Gravity.CENTER; isFocusable = true; isClickable = true
-        setTextColor(getColor(R.color.os_besedilo)); textSize = 15f
+        setTextColor(osBarva(R.color.os_besedilo)); textSize = 15f
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         setPadding(dp(18), dp(11), dp(18), dp(11)); setBackgroundResource(R.drawable.os_meni_postavka)
     }
@@ -128,16 +128,16 @@ class ZapiskiActivity : OsActivity() {
                 setPadding(dp(18), dp(14), dp(18), dp(14)); setOnClickListener { uredi(z) }
                 addView(TextView(this@ZapiskiActivity).apply {
                     text = z.naslov.ifBlank { getString(R.string.os_zapiski_brez_naslova) }
-                    setTextColor(getColor(R.color.os_besedilo)); textSize = 17f; maxLines = 1
+                    setTextColor(osBarva(R.color.os_besedilo)); textSize = 17f; maxLines = 1
                     typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 })
                 addView(TextView(this@ZapiskiActivity).apply {
                     text = z.vsebina.replace('\n', ' ').ifBlank { getString(R.string.os_zapiski_brez_vsebine) }
-                    setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; maxLines = 2
+                    setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f; maxLines = 2
                 })
                 addView(TextView(this@ZapiskiActivity).apply {
                     text = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(z.spremenjen))
-                    setTextColor(getColor(R.color.os_mint)); textSize = 11f; gravity = Gravity.END
+                    setTextColor(osBarva(R.color.os_mint)); textSize = 11f; gravity = Gravity.END
                 })
             }
             prejsnji?.let { it.nextFocusDownId = kartica.id; kartica.nextFocusUpId = it.id }

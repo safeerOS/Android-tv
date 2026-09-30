@@ -84,7 +84,7 @@ class ZaslonTipkovnica(
         val pomoc = context.getString(R.string.os_tipk_pomoc)
         t.text = if (Kontroler.jePriklopljen(context))
             context.getString(R.string.fmt_locilo, pomoc, context.getString(R.string.os_tipk_pomoc_plosek)) else pomoc
-        t.setTextColor(context.getColor(R.color.os_umirjeno))
+        t.setTextColor(context.osBarva(R.color.os_umirjeno))
         t.textSize = 12f
         t.gravity = Gravity.CENTER_HORIZONTAL
         val lp = LinearLayout.LayoutParams(
@@ -199,7 +199,7 @@ class ZaslonTipkovnica(
         val t = TextView(context)
         t.text = napis
         t.gravity = Gravity.CENTER
-        t.setTextColor(context.getColor(R.color.os_besedilo))
+        t.setTextColor(context.osBarva(R.color.os_besedilo))
         t.textSize = if (napis.length > 2) 12f else 17f
         t.setBackgroundResource(R.drawable.os_tipka_velika)
         t.isFocusable = true

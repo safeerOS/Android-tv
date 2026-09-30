@@ -21,7 +21,7 @@
             android:layout_width="@dimen/os_meni_sirina"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:background="@color/os_meni_ozadje"
+            android:background="?attr/osMeniOzadje"
             android:paddingStart="20dp"
             android:paddingEnd="16dp"
             android:paddingTop="24dp"
@@ -48,7 +48,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/os_app_name"
-                        android:textColor="@color/os_besedilo"
+                        android:textColor="?attr/osBesedilo"
                         android:textSize="18sp"
                         android:fontFamily="sans-serif-medium"
                         android:textStyle="bold"/>
@@ -57,7 +57,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="@string/os_podnaslov_app"
-                        android:textColor="@color/os_umirjeno"
+                        android:textColor="?attr/osUmirjeno"
                         android:textSize="11sp"/>
                 </LinearLayout>
             </LinearLayout>
@@ -75,9 +75,9 @@
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp" android:layout_marginBottom="2dp"
                     android:nextFocusUp="@id/meniDomov" android:nextFocusDown="@id/meniGlasba">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_domov" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_domov" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_domov" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_meni_domov" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
 
@@ -86,9 +86,9 @@
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp" android:layout_marginBottom="2dp"
                     android:nextFocusUp="@id/meniDomov" android:nextFocusDown="@id/meniNaprave">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_glasba" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_glasba" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_mediji_kartica" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_mediji_kartica" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
 
@@ -97,9 +97,9 @@
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp" android:layout_marginBottom="2dp"
                     android:nextFocusUp="@id/meniGlasba" android:nextFocusDown="@id/meniSporocila">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_link" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_link" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_naprave" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_meni_naprave" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
 
@@ -108,9 +108,9 @@
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp" android:layout_marginBottom="2dp"
                     android:nextFocusUp="@id/meniNaprave" android:nextFocusDown="@id/meniAplikacije">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_sporocila" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_sporocila" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_sporocila" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_meni_sporocila" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
 
@@ -119,9 +119,9 @@
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp" android:layout_marginBottom="2dp"
                     android:nextFocusUp="@id/meniSporocila" android:nextFocusDown="@id/meniDatoteke">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_aplikacije" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_aplikacije" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_aplikacije" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_meni_aplikacije" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
 
@@ -134,9 +134,9 @@
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp" android:layout_marginBottom="2dp"
                     android:nextFocusUp="@id/meniAplikacije" android:nextFocusDown="@id/meniSplet">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_datoteke" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_datoteke" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_datoteke" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_meni_datoteke" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
 
@@ -145,9 +145,9 @@
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp" android:layout_marginBottom="2dp"
                     android:nextFocusUp="@id/meniDatoteke" android:nextFocusDown="@id/meniZapiski">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_splet" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_splet" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_splet" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_meni_splet" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
 
@@ -156,9 +156,9 @@
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp"
                     android:paddingVertical="6dp" android:layout_marginBottom="2dp"
                     android:nextFocusUp="@id/meniSplet" android:nextFocusDown="@id/meniNastavitve">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_zapiski" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_zapiski" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_zapiski" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_meni_zapiski" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
 
@@ -166,9 +166,9 @@
                     android:focusable="true" android:clickable="true" android:background="@drawable/os_meni_postavka"
                     android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp" android:paddingVertical="6dp"
                     android:nextFocusUp="@id/meniZapiski" android:nextFocusDown="@id/meniNastavitve">
-                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_nastavitve" android:tint="#57D6AD" android:contentDescription="@null"/>
+                    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/os_ikona_nastavitve" android:tint="?attr/osMint" android:contentDescription="@null"/>
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp"
-                        android:text="@string/os_meni_nastavitve" android:textColor="@color/os_besedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
+                        android:text="@string/os_meni_nastavitve" android:textColor="?attr/osBesedilo" android:textSize="14sp" android:fontFamily="sans-serif-medium"
                         android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="11sp" android:autoSizeMaxTextSize="14sp"/>
                 </LinearLayout>
             </LinearLayout>
@@ -189,7 +189,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/os_poganja"
-                    android:textColor="@color/os_umirjeno"
+                    android:textColor="?attr/osUmirjeno"
                     android:textSize="11sp"/>
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -207,7 +207,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
                         android:text="@string/os_link"
-                        android:textColor="@color/os_mint"
+                        android:textColor="?attr/osMint"
                         android:textSize="13sp"
                         android:fontFamily="sans-serif-medium"/>
                 </LinearLayout>
@@ -268,7 +268,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:text="@string/os_stanje_povezujem"
-                            android:textColor="@color/os_besedilo"
+                            android:textColor="?attr/osBesedilo"
                             android:textSize="13sp"
                             android:fontFamily="sans-serif-medium"/>
                     </LinearLayout>
@@ -282,7 +282,7 @@
                             android:id="@+id/ura"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:textColor="@color/os_besedilo"
+                            android:textColor="?attr/osBesedilo"
                             android:textSize="16sp"
                             android:fontFamily="sans-serif-medium"
                             android:textStyle="bold"/>
@@ -290,7 +290,7 @@
                             android:id="@+id/datum"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:textColor="@color/os_umirjeno"
+                            android:textColor="?attr/osUmirjeno"
                             android:textSize="12sp"/>
                     </LinearLayout>
                 </LinearLayout>
@@ -355,7 +355,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/os_brskalnik_naslov"
-                                android:textColor="@color/os_besedilo"
+                                android:textColor="?attr/osBesedilo"
                                 android:textSize="16sp"
                                 android:fontFamily="sans-serif-medium"
                                 android:textStyle="bold"
@@ -366,7 +366,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="3dp"
                                 android:text="@string/os_brskalnik_opis"
-                                android:textColor="@color/os_umirjeno"
+                                android:textColor="?attr/osUmirjeno"
                                 android:textSize="12sp"
                                 android:maxLines="1"
                                 android:ellipsize="end"/>
@@ -376,7 +376,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
                             android:text="@string/os_puscica"
-                            android:textColor="@color/os_umirjeno"
+                            android:textColor="?attr/osUmirjeno"
                             android:textSize="20sp"
                             android:fontFamily="sans-serif-medium"/>
                     </LinearLayout>
@@ -412,7 +412,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/os_zaslon"
-                                android:textColor="@color/os_besedilo"
+                                android:textColor="?attr/osBesedilo"
                                 android:textSize="16sp"
                                 android:fontFamily="sans-serif-medium"
                                 android:textStyle="bold"
@@ -424,7 +424,7 @@
                                 android:layout_marginTop="3dp"
                                 android:id="@+id/karticaZaslonOpis"
                                 android:text="@string/os_zaslon_opis"
-                                android:textColor="@color/os_umirjeno"
+                                android:textColor="?attr/osUmirjeno"
                                 android:textSize="12sp"
                                 android:maxLines="1"
                                 android:ellipsize="end"/>
@@ -434,7 +434,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
                             android:text="@string/os_puscica"
-                            android:textColor="@color/os_umirjeno"
+                            android:textColor="?attr/osUmirjeno"
                             android:textSize="20sp"
                             android:fontFamily="sans-serif-medium"/>
                     </LinearLayout>
@@ -469,7 +469,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/os_programi"
-                                android:textColor="@color/os_besedilo"
+                                android:textColor="?attr/osBesedilo"
                                 android:textSize="16sp"
                                 android:fontFamily="sans-serif-medium"
                                 android:textStyle="bold"
@@ -480,7 +480,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="3dp"
                                 android:text="@string/os_programi_opis"
-                                android:textColor="@color/os_umirjeno"
+                                android:textColor="?attr/osUmirjeno"
                                 android:textSize="12sp"
                                 android:maxLines="1"
                                 android:ellipsize="end"/>
@@ -490,7 +490,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
                             android:text="@string/os_puscica"
-                            android:textColor="@color/os_umirjeno"
+                            android:textColor="?attr/osUmirjeno"
                             android:textSize="20sp"
                             android:fontFamily="sans-serif-medium"/>
                     </LinearLayout>
@@ -555,7 +555,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:text="@string/os_plosca_naprave_naslov"
-                                android:textColor="@color/os_besedilo"
+                                android:textColor="?attr/osBesedilo"
                                 android:textSize="15sp"
                                 android:fontFamily="sans-serif-medium"
                                 android:textStyle="bold"/>
@@ -563,7 +563,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/os_puscica"
-                                android:textColor="@color/os_umirjeno"
+                                android:textColor="?attr/osUmirjeno"
                                 android:textSize="18sp"
                                 android:fontFamily="sans-serif-medium"/>
                         </LinearLayout>
@@ -601,7 +601,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:text="@string/os_plosca_hitri_naslov"
-                                android:textColor="@color/os_besedilo"
+                                android:textColor="?attr/osBesedilo"
                                 android:textSize="15sp"
                                 android:fontFamily="sans-serif-medium"
                                 android:textStyle="bold"/>
@@ -609,7 +609,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/os_puscica"
-                                android:textColor="@color/os_umirjeno"
+                                android:textColor="?attr/osUmirjeno"
                                 android:textSize="18sp"
                                 android:fontFamily="sans-serif-medium"/>
                         </LinearLayout>
@@ -646,7 +646,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="6dp"
                                     android:text="@string/os_hitri_splet"
-                                    android:textColor="@color/os_besedilo"
+                                    android:textColor="?attr/osBesedilo"
                                     android:textSize="11sp"
                                     android:fontFamily="sans-serif-medium"/>
                             </LinearLayout>
@@ -675,7 +675,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="6dp"
                                     android:text="@string/os_hitri_zaslon"
-                                    android:textColor="@color/os_besedilo"
+                                    android:textColor="?attr/osBesedilo"
                                     android:textSize="11sp"
                                     android:fontFamily="sans-serif-medium"/>
                             </LinearLayout>
@@ -704,7 +704,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="6dp"
                                     android:text="@string/os_hitri_datoteke"
-                                    android:textColor="@color/os_besedilo"
+                                    android:textColor="?attr/osBesedilo"
                                     android:textSize="11sp"
                                     android:fontFamily="sans-serif-medium"/>
                             </LinearLayout>
@@ -732,7 +732,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="6dp"
                                     android:text="@string/os_hitri_nastavitve"
-                                    android:textColor="@color/os_besedilo"
+                                    android:textColor="?attr/osBesedilo"
                                     android:textSize="11sp"
                                     android:fontFamily="sans-serif-medium"/>
                             </LinearLayout>
@@ -766,7 +766,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:text="@string/os_plosca_scit_naslov"
-                                android:textColor="@color/os_besedilo"
+                                android:textColor="?attr/osBesedilo"
                                 android:textSize="15sp"
                                 android:fontFamily="sans-serif-medium"
                                 android:textStyle="bold"/>
@@ -774,7 +774,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/os_puscica"
-                                android:textColor="@color/os_umirjeno"
+                                android:textColor="?attr/osUmirjeno"
                                 android:textSize="18sp"
                                 android:fontFamily="sans-serif-medium"/>
                         </LinearLayout>
@@ -816,7 +816,7 @@
                                         android:layout_height="wrap_content"
                                         android:layout_marginStart="6dp"
                                         android:text="@string/os_plosca_scit_vklopljen"
-                                        android:textColor="@color/os_besedilo"
+                                        android:textColor="?attr/osBesedilo"
                                         android:textSize="13sp"
                                         android:fontFamily="sans-serif-medium"/>
                                 </LinearLayout>
@@ -827,7 +827,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="4dp"
                                     android:text="@string/os_plosca_scit_aktivna"
-                                    android:textColor="@color/os_umirjeno"
+                                    android:textColor="?attr/osUmirjeno"
                                     android:textSize="12sp"
                                     android:maxLines="2"
                                     android:ellipsize="end"/>
@@ -927,7 +927,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="18dp"
-            android:textColor="@color/os_umirjeno"
+            android:textColor="?attr/osUmirjeno"
             android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="end"
@@ -937,14 +937,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/os_noge_podpis"
-            android:textColor="@color/os_umirjeno"
+            android:textColor="?attr/osUmirjeno"
             android:textSize="11sp"/>
         <TextView
             android:id="@+id/opombaSpodaj"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
-            android:textColor="@color/os_opozorilo"
+            android:textColor="?attr/osOpozorilo"
             android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="end"

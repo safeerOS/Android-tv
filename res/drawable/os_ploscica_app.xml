@@ -4,22 +4,22 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_kartica_steklo_fokus"/>
-            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <solid android:color="?attr/osKarticaStekloFokus"/>
+            <stroke android:width="2dp" android:color="?attr/osMint"/>
             <corners android:radius="@dimen/os_kot_ploscica"/>
         </shape>
     </item>
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_kartica_steklo_fokus"/>
-            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <solid android:color="?attr/osKarticaStekloFokus"/>
+            <stroke android:width="2dp" android:color="?attr/osMint"/>
             <corners android:radius="@dimen/os_kot_ploscica"/>
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_ploscica_app_ozadje"/>
-            <stroke android:width="1dp" android:color="@color/os_kartica_obroba"/>
+            <solid android:color="?attr/osPloscicaAppOzadje"/>
+            <stroke android:width="1dp" android:color="?attr/osKarticaObroba"/>
             <corners android:radius="@dimen/os_kot_ploscica"/>
         </shape>
     </item>

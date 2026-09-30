@@ -25,9 +25,30 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:textColor="@color/os_umirjeno"
+        android:textColor="?attr/osUmirjeno"
         android:textSize="14sp"
         android:text="@string/os_ozadje_opis"/>
+
+    <!-- Tema (barvna shema): vidne kartice s predogledom barv; sprememba se uporabi takoj. -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:textColor="?attr/osBesedilo"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:text="@string/os_tema_naslov"/>
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:scrollbars="none">
+        <LinearLayout
+            android:id="@+id/teme"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"/>
+    </HorizontalScrollView>
 
     <ListView
         android:id="@+id/seznam"
@@ -55,14 +76,14 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:textColor="@color/os_besedilo"
+                android:textColor="?attr/osBesedilo"
                 android:textSize="15sp"
                 android:text="@string/os_zatemnitev"/>
             <TextView
                 android:id="@+id/odstotek"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/os_mint"
+                android:textColor="?attr/osMint"
                 android:textSize="15sp"/>
         </LinearLayout>
         <SeekBar
@@ -77,7 +98,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textColor="@color/os_umirjeno"
+            android:textColor="?attr/osUmirjeno"
             android:textSize="12sp"
             android:text="@string/os_zatemnitev_opis"/>
     </LinearLayout>

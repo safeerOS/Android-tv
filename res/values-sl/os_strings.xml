@@ -562,4 +562,7 @@
     <string name="os_spor_api_manjka_matrix">Vnesi naslov strežnika (https://…) in dostopni žeton.</string>
     <string name="os_spor_api_manjka_telegram">Vnesi žeton bota (oblika 123456:ABC…), ki ti ga da @BotFather.</string>
     <string name="os_spor_zapri">Zapri</string>
+    <string name="os_tema_naslov">Tema (barvna shema)</string>
+    <string name="os_tema_privzeta">Privzeta tema Safeer OS</string>
+    <string name="os_tema_izbrana">Izbrano</string>
 </resources>

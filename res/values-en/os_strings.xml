@@ -566,4 +566,7 @@
     <string name="os_spor_api_manjka_matrix">Enter the server address (https://…) and the access token.</string>
     <string name="os_spor_api_manjka_telegram">Enter the bot token (123456:ABC…) from @BotFather.</string>
     <string name="os_spor_zapri">Close</string>
+    <string name="os_tema_naslov">Theme (colour scheme)</string>
+    <string name="os_tema_privzeta">Default Safeer OS theme</string>
+    <string name="os_tema_izbrana">Selected</string>
 </resources>

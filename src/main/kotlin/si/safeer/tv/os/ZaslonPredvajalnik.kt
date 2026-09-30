@@ -36,11 +36,11 @@ class ZaslonPredvajalnik(private val a: Activity, koren: FrameLayout, private va
     private val gostota = a.resources.displayMetrics.density
     private fun dp(v: Int) = (v * gostota).toInt()
 
-    private val naslov = besedilo(20f, a.getColor(R.color.os_besedilo), true)
-    private val izvajalec = besedilo(14f, a.getColor(R.color.os_umirjeno))
-    private val znak = besedilo(26f, a.getColor(R.color.os_besedilo), true)
-    private val zdaj = besedilo(14f, a.getColor(R.color.os_besedilo))
-    private val skupaj = besedilo(14f, a.getColor(R.color.os_umirjeno))
+    private val naslov = besedilo(20f, a.osBarva(R.color.os_besedilo), true)
+    private val izvajalec = besedilo(14f, a.osBarva(R.color.os_umirjeno))
+    private val znak = besedilo(26f, a.osBarva(R.color.os_besedilo), true)
+    private val zdaj = besedilo(14f, a.osBarva(R.color.os_besedilo))
+    private val skupaj = besedilo(14f, a.osBarva(R.color.os_umirjeno))
     private val vrstica = ProgressBar(a, null, android.R.attr.progressBarStyleHorizontal).apply {
         max = 1000
         progressTintList = ColorStateList.valueOf(Color.parseColor("#2DD4BF"))
@@ -91,7 +91,7 @@ class ZaslonPredvajalnik(private val a: Activity, koren: FrameLayout, private va
 
 
     private fun gumb(oznaka: String, ob: () -> Unit) = TextView(a).apply {
-        text = oznaka; textSize = 16f; setTextColor(a.getColor(R.color.os_besedilo)); gravity = Gravity.CENTER
+        text = oznaka; textSize = 16f; setTextColor(a.osBarva(R.color.os_besedilo)); gravity = Gravity.CENTER
         isClickable = true; isFocusable = false   // na TV tipke daljinca; fokus naj ostane na sliki
         minWidth = dp(52); setPadding(dp(12), dp(8), dp(12), dp(8))
         background = GradientDrawable().apply { cornerRadius = 12 * gostota; setColor(Color.parseColor("#22FFFFFF")) }

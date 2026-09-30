@@ -1,5 +1,6 @@
 package si.safeer.tv.tablica
 
+import si.safeer.tv.os.osBarva
 import si.safeer.tv.HomeTilesStore
 import si.safeer.tv.R
 import si.safeer.tv.os.AplikacijeHostaActivity
@@ -125,6 +126,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        si.safeer.tv.os.Tema.uporabi(this, predvajalnik = false)
         super.onCreate(savedInstanceState)
         nastaviPostavitev()
         // Safeer Link (sredisce) naj tece, kadar ga je uporabnik vklopil - tudi ce ga je Android ali
@@ -344,7 +346,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (ozko) return FrameLayout(this).apply {
             this.id = id; isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_meni_postavka)
             addView(ImageView(this@DomovTabletActivity).apply {
-                setImageResource(ikona); imageTintList = ColorStateList.valueOf(getColor(R.color.os_mint)); contentDescription = getString(ime)
+                setImageResource(ikona); imageTintList = ColorStateList.valueOf(osBarva(R.color.os_mint)); contentDescription = getString(ime)
             }, FrameLayout.LayoutParams((24 * d).toInt(), (24 * d).toInt(), android.view.Gravity.CENTER))
             layoutParams = LinearLayout.LayoutParams((48 * d).toInt(), (48 * d).toInt()).apply { bottomMargin = (8 * d).toInt() }
         }
@@ -353,10 +355,10 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_meni_postavka)
             setPadding((12 * d).toInt(), (7 * d).toInt(), (12 * d).toInt(), (7 * d).toInt())
             addView(ImageView(this@DomovTabletActivity).apply {
-                setImageResource(ikona); imageTintList = ColorStateList.valueOf(getColor(R.color.os_mint))
+                setImageResource(ikona); imageTintList = ColorStateList.valueOf(osBarva(R.color.os_mint))
             }, LinearLayout.LayoutParams((22 * d).toInt(), (22 * d).toInt()))
             addView(TextView(this@DomovTabletActivity).apply {
-                text = getString(ime); setTextColor(getColor(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                text = getString(ime); setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 maxLines = 1; setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
                 setPadding((12 * d).toInt(), 0, 0, 0)
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
@@ -367,9 +369,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun pripraviVidezMenija(v: View) {
         if (v is ViewGroup) for (i in 0 until v.childCount) {
             when (val otrok = v.getChildAt(i)) {
-                is ImageView -> otrok.imageTintList = ColorStateList.valueOf(getColor(R.color.os_mint))
+                is ImageView -> otrok.imageTintList = ColorStateList.valueOf(osBarva(R.color.os_mint))
                 is TextView -> {
-                    otrok.setTextColor(getColor(R.color.os_besedilo)); otrok.maxLines = 1
+                    otrok.setTextColor(osBarva(R.color.os_besedilo)); otrok.maxLines = 1
                     otrok.setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
                 }
             }
@@ -784,7 +786,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         } else if (!vklop && !znova) {
             val prazno = TextView(this).apply {
                 text = getString(if (!link.povezan) R.string.tablet_ni_linka else R.string.tablet_ni_racunalnika)
-                setTextColor(getColor(R.color.os_umirjeno))
+                setTextColor(osBarva(R.color.os_umirjeno))
                 textSize = 12f
                 setPadding(0, 6, 0, 6)
             }
@@ -879,7 +881,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
         }
         // Zelena pika pomeni, da Scit dela; izklopljen ali prekinjen ima sivo, ne zbledelo zeleno.
-        pika.backgroundTintList = if (s.naVoljo && s.vklopljen && s.tece) null else android.content.res.ColorStateList.valueOf(getColor(R.color.os_siva_pika))
+        pika.backgroundTintList = if (s.naVoljo && s.vklopljen && s.tece) null else android.content.res.ColorStateList.valueOf(osBarva(R.color.os_siva_pika))
     }
 
     private fun podrobnostiScita() {

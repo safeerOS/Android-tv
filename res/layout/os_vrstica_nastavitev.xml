@@ -43,7 +43,7 @@
             android:layout_marginTop="4dp"
             android:maxLines="1"
             android:ellipsize="end"
-            android:textColor="@color/os_mint"
+            android:textColor="?attr/osMint"
             android:textSize="14sp"/>
     </LinearLayout>
 </LinearLayout>

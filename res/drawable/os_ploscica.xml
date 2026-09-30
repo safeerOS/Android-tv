@@ -4,15 +4,15 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_kartica_dvignjena"/>
-            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <solid android:color="?attr/osKarticaDvignjena"/>
+            <stroke android:width="2dp" android:color="?attr/osMint"/>
             <corners android:radius="18dp"/>
         </shape>
     </item>
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_kartica_dvignjena"/>
-            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <solid android:color="?attr/osKarticaDvignjena"/>
+            <stroke android:width="2dp" android:color="?attr/osMint"/>
             <corners android:radius="18dp"/>
         </shape>
     </item>

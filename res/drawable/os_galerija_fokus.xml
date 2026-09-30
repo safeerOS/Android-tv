@@ -2,18 +2,18 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <solid android:color="#090D15"/>
-            <stroke android:width="3dp" android:color="#57D6AD"/>
+            <solid android:color="?attr/osOzadje"/>
+            <stroke android:width="3dp" android:color="?attr/osMint"/>
         </shape>
     </item>
     <item android:state_selected="true">
         <shape android:shape="rectangle">
-            <solid android:color="#090D15"/>
-            <stroke android:width="3dp" android:color="#57D6AD"/>
+            <solid android:color="?attr/osOzadje"/>
+            <stroke android:width="3dp" android:color="?attr/osMint"/>
         </shape>
     </item>
     <item android:state_pressed="true">
-        <shape android:shape="rectangle"><solid android:color="#57D6AD"/></shape>
+        <shape android:shape="rectangle"><solid android:color="?attr/osMint"/></shape>
     </item>
-    <item><shape android:shape="rectangle"><solid android:color="#101821"/></shape></item>
+    <item><shape android:shape="rectangle"><solid android:color="?attr/osKartica"/></shape></item>
 </selector>

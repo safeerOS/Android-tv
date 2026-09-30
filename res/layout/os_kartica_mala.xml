@@ -30,7 +30,7 @@
         android:maxLines="2"
         android:ellipsize="end"
         android:lineSpacingMultiplier="0.95"
-        android:textColor="@color/os_besedilo"
+        android:textColor="?attr/osBesedilo"
         android:textSize="15sp"
         android:fontFamily="sans-serif-medium"/>
     <TextView
@@ -41,7 +41,7 @@
         android:gravity="center"
         android:maxLines="1"
         android:ellipsize="end"
-        android:textColor="@color/os_mint"
+        android:textColor="?attr/osMint"
         android:textSize="11sp"
         android:visibility="gone"/>
 </LinearLayout>

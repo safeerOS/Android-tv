@@ -239,7 +239,7 @@ class GlasbaActivity : OsActivity() {
     /** Okrogel gumb: pod fokusom mint obroba, sicer prozoren. */
     private fun ozadjeGumba(): StateListDrawable = StateListDrawable().apply {
         addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply {
-            shape = GradientDrawable.OVAL; setColor(getColor(R.color.os_kartica_dvignjena)); setStroke(dp(2), getColor(R.color.os_mint)) })
+            shape = GradientDrawable.OVAL; setColor(osBarva(R.color.os_kartica_dvignjena)); setStroke(dp(2), osBarva(R.color.os_mint)) })
         addState(intArrayOf(), GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0) })
     }
 
@@ -248,7 +248,7 @@ class GlasbaActivity : OsActivity() {
         isFocusable = true; isClickable = true
         background = ozadjeGumba()
         setOnClickListener { klik() }
-        addView(ImageView(this@GlasbaActivity).apply { setImageResource(res); imageTintList = ColorStateList.valueOf(getColor(R.color.os_besedilo)) },
+        addView(ImageView(this@GlasbaActivity).apply { setImageResource(res); imageTintList = ColorStateList.valueOf(osBarva(R.color.os_besedilo)) },
             FrameLayout.LayoutParams(dp(vel * 5 / 9), dp(vel * 5 / 9), Gravity.CENTER))
         layoutParams = LinearLayout.LayoutParams(dp(vel), dp(vel)).apply { marginEnd = dp(6) }
     }
@@ -270,7 +270,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun zgradi(): View {
-        val beli = getColor(R.color.os_besedilo)
+        val beli = osBarva(R.color.os_besedilo)
         val desno = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(if (jeSirokTv()) 30 else 28), dp(10), dp(if (jeSirokTv()) 30 else 28), dp(8)) }
         desnoOkvir = desno
 
@@ -278,11 +278,11 @@ class GlasbaActivity : OsActivity() {
         val glava = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val levo = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         naslov = besedilo(28f, beli, true).apply { typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD) }
-        stanje = besedilo(14f, getColor(R.color.os_umirjeno))
+        stanje = besedilo(14f, osBarva(R.color.os_umirjeno))
         levo.addView(naslov); levo.addView(stanje)
         glava.addView(levo, LinearLayout.LayoutParams(0, -2, 1f))
         geslo = TextView(this).apply {
-            text = getString(R.string.os_media_geslo); setTextColor(getColor(R.color.os_umirjeno))
+            text = getString(R.string.os_media_geslo); setTextColor(osBarva(R.color.os_umirjeno))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f); gravity = Gravity.END; setPadding(0, 0, dp(16), 0)
         }
         glava.addView(geslo)
@@ -298,17 +298,17 @@ class GlasbaActivity : OsActivity() {
         vrstica = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(18), dp(8), dp(18), dp(8))
-            background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(getColor(R.color.os_kartica_dvignjena)); setStroke(dp(1), getColor(R.color.os_crta)) }
+            background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(osBarva(R.color.os_kartica_dvignjena)); setStroke(dp(1), osBarva(R.color.os_crta)) }
             isFocusable = true; isClickable = true
             setOnClickListener { startActivity(Intent(this@GlasbaActivity, PredvajanjeActivity::class.java)) }
-            setOnFocusChangeListener { v, f -> (v.background as GradientDrawable).setStroke(dp(if (f) 2 else 1), getColor(if (f) R.color.os_mint else R.color.os_crta)) }
+            setOnFocusChangeListener { v, f -> (v.background as GradientDrawable).setStroke(dp(if (f) 2 else 1), osBarva(if (f) R.color.os_mint else R.color.os_crta)) }
             visibility = View.GONE
         }
         val besedila = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        zdajNaslov = besedilo(15f, beli, true); zdajIzvajalec = besedilo(13f, getColor(R.color.os_umirjeno))
+        zdajNaslov = besedilo(15f, beli, true); zdajIzvajalec = besedilo(13f, osBarva(R.color.os_umirjeno))
         besedila.addView(zdajNaslov); besedila.addView(zdajIzvajalec)
         vrstica.addView(besedila, LinearLayout.LayoutParams(0, -2, 1f))
-        zdajCas = besedilo(14f, getColor(R.color.os_mint))
+        zdajCas = besedilo(14f, osBarva(R.color.os_mint))
         vrstica.addView(zdajCas)
         desno.addView(vrstica, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
 
@@ -325,9 +325,9 @@ class GlasbaActivity : OsActivity() {
     private fun pomoc(): View {
         val v = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL or Gravity.END }
         fun tipka(t: String, opis: Int) {
-            v.addView(besedilo(11f, getColor(R.color.os_besedilo), true).apply {
+            v.addView(besedilo(11f, osBarva(R.color.os_besedilo), true).apply {
                 text = t; setBackgroundResource(R.drawable.os_tipka); setPadding(dp(8), dp(2), dp(8), dp(2)) })
-            v.addView(besedilo(12f, getColor(R.color.os_umirjeno)).apply { text = getString(opis); setPadding(dp(6), 0, dp(18), 0) })
+            v.addView(besedilo(12f, osBarva(R.color.os_umirjeno)).apply { text = getString(opis); setPadding(dp(6), 0, dp(18), 0) })
         }
         tipka("OK", R.string.os_media_pomoc_izberi)
         tipka("↩", R.string.os_media_pomoc_nazaj)
@@ -368,7 +368,7 @@ class GlasbaActivity : OsActivity() {
             if (prva) nextFocusLeftId = meniMediji.id
             val slika = ImageView(this@GlasbaActivity).apply {
                 scaleType = ImageView.ScaleType.CENTER_CROP
-                setBackgroundColor(getColor(R.color.os_kartica))
+                setBackgroundColor(osBarva(R.color.os_kartica))
                 setImageResource(k.ikona)
                 // Kartica brez slike: ikona zmerne velikosti na sredini, ne cez vso kartico.
                 if (k.slika.isBlank()) { scaleType = ImageView.ScaleType.FIT_CENTER; val r = minOf(sirina, visina) / 4; setPadding(r, r, r, r) }
@@ -387,15 +387,15 @@ class GlasbaActivity : OsActivity() {
                             }
                         }, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { leftMargin = dp(8); topMargin = dp(spodaj) })
                     }
-                    znacka(k.oznaka, if (k.oznaka == getString(R.string.os_media_serija)) 0xFFA878FF.toInt() else getColor(R.color.os_mint), 9)
+                    znacka(k.oznaka, if (k.oznaka == getString(R.string.os_media_serija)) 0xFFA878FF.toInt() else osBarva(R.color.os_mint), 9)
                     znacka(k.kakovost, 0xFF1CE6F2.toInt(), if (k.oznaka.isBlank()) 9 else 42)
                 }, LinearLayout.LayoutParams(sirina, visina))
             } else addView(slika, LinearLayout.LayoutParams(sirina, visina))
-            addView(besedilo(if (mala) 11f else 14f, getColor(R.color.os_besedilo), true).apply {
+            addView(besedilo(if (mala) 11f else 14f, osBarva(R.color.os_besedilo), true).apply {
                 text = k.naslov; maxLines = if (plakat) 2 else 1; setPadding(dp(2), dp(if (mala) 2 else 8), 0, 0)
             },
                 LinearLayout.LayoutParams(sirina, -2))
-            if (!mala) addView(besedilo(12f, getColor(R.color.os_umirjeno)).apply {
+            if (!mala) addView(besedilo(12f, osBarva(R.color.os_umirjeno)).apply {
                 text = listOf(k.podnaslov, k.ocena.takeIf { it.isNotBlank() }?.let { "★ $it" }.orEmpty()).filter { it.isNotBlank() }.joinToString("   ")
                 setPadding(dp(2), dp(2), 0, 0)
             },
@@ -426,7 +426,7 @@ class GlasbaActivity : OsActivity() {
             if (v.kartice.isEmpty() && v.pogled == null) continue
             val tesno = v.mala || razdelek == DOMOV
             if (v.naslov.isNotBlank())
-                vsebina.addView(besedilo(if (tesno) 16f else 18f, getColor(R.color.os_besedilo), true).apply {
+                vsebina.addView(besedilo(if (tesno) 16f else 18f, osBarva(R.color.os_besedilo), true).apply {
                     text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
                     setPadding(dp(4), dp(if (tesno) 5 else 14), 0, dp(if (tesno) 3 else 8)) })
             if (v.pogled != null) { vsebina.addView(v.pogled); continue }
@@ -934,10 +934,10 @@ class GlasbaActivity : OsActivity() {
             nextFocusLeftId = meniMediji.id
             setPadding(dp(16), dp(11), dp(16), dp(11))
             setBackgroundResource(R.drawable.os_kartica_steklo)
-            addView(besedilo(15f, getColor(R.color.os_mint), true).apply {
+            addView(besedilo(15f, osBarva(R.color.os_mint), true).apply {
                 text = "↕  " + getString(R.string.os_media_razvrsti_filtriraj)
             })
-            addView(besedilo(12f, getColor(R.color.os_umirjeno)).apply { text = opis })
+            addView(besedilo(12f, osBarva(R.color.os_umirjeno)).apply { text = opis })
             setOnClickListener { izberiRazvrstitevInVire(i) }
         }
     }
@@ -946,7 +946,7 @@ class GlasbaActivity : OsActivity() {
     private fun skokNaPolico(naslovi: List<String>): View {
         val niz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(8), dp(16), dp(8)) }
         naslovi.forEachIndexed { i, cilj ->
-            niz.addView(besedilo(14f, getColor(R.color.os_besedilo), true).apply {
+            niz.addView(besedilo(14f, osBarva(R.color.os_besedilo), true).apply {
                 text = cilj; isFocusable = true; isClickable = true
                 setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 if (i == 0) nextFocusLeftId = meniMediji.id
@@ -968,7 +968,7 @@ class GlasbaActivity : OsActivity() {
             "📺 " + getString(R.string.os_media_serije) to getString(R.string.os_media_serije)
         )
         kategorije.forEachIndexed { i, (napis, cilj) ->
-            niz.addView(besedilo(14f, getColor(R.color.os_besedilo), true).apply {
+            niz.addView(besedilo(14f, osBarva(R.color.os_besedilo), true).apply {
                 text = napis; isFocusable = true; isClickable = true
                 setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 if (i == 0) nextFocusLeftId = meniMediji.id
@@ -987,7 +987,7 @@ class GlasbaActivity : OsActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(22), dp(8), dp(22), dp(8))
         }
-        ovoj.addView(besedilo(14f, getColor(R.color.os_umirjeno), true).apply { text = getString(R.string.os_media_razvrsti) })
+        ovoj.addView(besedilo(14f, osBarva(R.color.os_umirjeno), true).apply { text = getString(R.string.os_media_razvrsti) })
         val radio = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
         val moznosti = intArrayOf(
             R.string.os_media_razvrsti_priporoceno,
@@ -999,24 +999,24 @@ class GlasbaActivity : OsActivity() {
         moznosti.forEachIndexed { indeks, niz ->
             radio.addView(RadioButton(this).apply {
                 id = View.generateViewId(); tag = indeks; text = getString(niz)
-                setTextColor(getColor(R.color.os_besedilo)); isFocusable = true
+                setTextColor(osBarva(R.color.os_besedilo)); isFocusable = true
                 isChecked = razvrstitev(i) == indeks
             })
         }
         ovoj.addView(radio)
-        ovoj.addView(besedilo(14f, getColor(R.color.os_umirjeno), true).apply {
+        ovoj.addView(besedilo(14f, osBarva(R.color.os_umirjeno), true).apply {
             text = getString(R.string.os_media_prikazani_viri); setPadding(0, dp(12), 0, dp(2))
         })
         val samoLokalno = CheckBox(this).apply {
             text = getString(R.string.os_media_samo_ta_naprava)
-            setTextColor(getColor(R.color.os_besedilo)); isFocusable = true
+            setTextColor(osBarva(R.color.os_besedilo)); isFocusable = true
             isChecked = i in samoTaNaprava
         }
         ovoj.addView(samoLokalno)
         val viri = viriIzbire(i)
         val izbire = viri.map { vir ->
             CheckBox(this).apply {
-                text = vir.ime; setTextColor(getColor(R.color.os_besedilo)); isFocusable = true
+                text = vir.ime; setTextColor(osBarva(R.color.os_besedilo)); isFocusable = true
                 isChecked = jeVirViden(i, vir.kljuc); isEnabled = !samoLokalno.isChecked
                 ovoj.addView(this)
             }
@@ -1026,12 +1026,12 @@ class GlasbaActivity : OsActivity() {
         val izklopljeni = izklopljeniJeziki(i)
         val izbireJezikov = jeziki.map { jezik ->
             CheckBox(this).apply {
-                text = imeJezika(jezik); setTextColor(getColor(R.color.os_besedilo)); isFocusable = true
+                text = imeJezika(jezik); setTextColor(osBarva(R.color.os_besedilo)); isFocusable = true
                 isChecked = jezik !in izklopljeni
             }
         }
         if (jeziki.isNotEmpty()) {
-            ovoj.addView(besedilo(14f, getColor(R.color.os_umirjeno), true).apply {
+            ovoj.addView(besedilo(14f, osBarva(R.color.os_umirjeno), true).apply {
                 text = getString(R.string.os_media_jeziki_vsebine); setPadding(0, dp(12), 0, dp(2))
             })
             izbireJezikov.forEach(ovoj::addView)
@@ -1107,15 +1107,15 @@ class GlasbaActivity : OsActivity() {
                 if (v.childCount == 0) nextFocusLeftId = meniMediji.id
                 addView(ikona(res, 28, barva))
                 val t = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, 0, 0) }
-                t.addView(besedilo(16f, getColor(R.color.os_besedilo), true).apply { text = getString(ime) })
-                t.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = getString(opis) })
+                t.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(ime) })
+                t.addView(besedilo(11f, osBarva(R.color.os_umirjeno)).apply { text = getString(opis) })
                 addView(t)
             }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = dp(12) })
         }
         fun odpri(i: Int) { fokusVVsebino = true; izberi(i) }
         kat(KLJUC_GLASBA, R.drawable.os_ikona_glasba, 0xFF8FA8FF.toInt(), R.string.os_mediji_glasba, R.string.os_media_glasba_opis) { odpri(GLASBA) }
         kat(KLJUC_VIDEO, R.drawable.os_ikona_video, 0xFFFF9580.toInt(), R.string.os_glasba_video, R.string.os_media_video_opis) { odpri(VIDEO) }
-        kat(KLJUC_RADIO, R.drawable.os_ikona_radio, getColor(R.color.os_mint), R.string.os_glasba_radio, R.string.os_media_radio_opis) { odpri(RADIO) }
+        kat(KLJUC_RADIO, R.drawable.os_ikona_radio, osBarva(R.color.os_mint), R.string.os_glasba_radio, R.string.os_media_radio_opis) { odpri(RADIO) }
         kat(KLJUC_TV, R.drawable.os_ikona_tv, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo, R.string.os_media_tv_opis) { odpri(TV_V_ZIVO) }
         kat(KLJUC_VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri, R.string.os_media_viri_opis) { odpri(VIRI) }
         // Predvajalnik: datoteka s te naprave ali spletni naslov - isti zaslon predvajanja kot pri "Odpri z".
@@ -1149,21 +1149,21 @@ class GlasbaActivity : OsActivity() {
         val zadnja = if (sk == null) MedijskiViri.nedavno(this).firstOrNull() else null
         pZaPredvajanje = if (sk != null && p != null) true else if (zadnja != null) false else null
         val prikaz = sk ?: zadnja ?: return null
-        val beli = getColor(R.color.os_besedilo)
+        val beli = osBarva(R.color.os_besedilo)
         // Na ozkem zaslonu (tablica pokonci) so hitra dejanja pod plosco, ne ob njej.
         val ozko = !jeSirokTv() && resources.configuration.screenWidthDp < 900
         val vrsta = LinearLayout(this).apply { orientation = if (ozko) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL; setPadding(0, dp(8), 0, 0) }
 
         val plosca = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(getColor(R.color.os_kartica_steklo)); setStroke(dp(1), getColor(R.color.os_kartica_obroba)) }
+            background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(osBarva(R.color.os_kartica_steklo)); setStroke(dp(1), osBarva(R.color.os_kartica_obroba)) }
             setPadding(dp(if (jeSirokTv()) 18 else 14), dp(if (jeSirokTv()) 12 else 10), dp(if (jeSirokTv()) 18 else 16), dp(if (jeSirokTv()) 12 else 10))
         }
         // Oznaka "zdaj se predvaja" je v vrstici z izvajalcem - loceni naslov bi vzel prostor vrsti spodaj.
         val oznaka = getString(if (pZaPredvajanje == true) R.string.os_media_zdaj else R.string.os_media_nazadnje)
         val telo = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val slika = ImageView(this).apply {
-            scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(getColor(R.color.os_kartica))
+            scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(osBarva(R.color.os_kartica))
             setImageResource(if (prikaz.video) R.drawable.os_ikona_video else if (prikaz.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_glasba)
         }
         pSlika = slika; pSlikaNaslov = ""
@@ -1173,7 +1173,7 @@ class GlasbaActivity : OsActivity() {
             isFocusable = true; isClickable = true
             setPadding(dp(3), dp(3), dp(3), dp(3))
             background = StateListDrawable().apply {
-                addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setStroke(dp(2), getColor(R.color.os_mint)) })
+                addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setStroke(dp(2), osBarva(R.color.os_mint)) })
                 addState(intArrayOf(), GradientDrawable().apply { setColor(0) })
             }
             nextFocusLeftId = meniMediji.id
@@ -1191,15 +1191,15 @@ class GlasbaActivity : OsActivity() {
         }
         telo.addView(okvir, LinearLayout.LayoutParams(dp(104), -1))
         val desno = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), 0, 0, 0) }
-        desno.addView(besedilo(11f, getColor(R.color.os_mint), true).apply { text = oznaka.uppercase(Locale.getDefault()); letterSpacing = 0.08f })
-        pIzvajalec = besedilo(if (jeSirokTv()) 15f else 14f, getColor(R.color.os_umirjeno)).also { desno.addView(it) }
+        desno.addView(besedilo(11f, osBarva(R.color.os_mint), true).apply { text = oznaka.uppercase(Locale.getDefault()); letterSpacing = 0.08f })
+        pIzvajalec = besedilo(if (jeSirokTv()) 15f else 14f, osBarva(R.color.os_umirjeno)).also { desno.addView(it) }
         pNaslov = besedilo(if (jeSirokTv()) 24f else 21f, beli, true).also { desno.addView(it) }
-        pVir = besedilo(if (jeSirokTv()) 14f else 13f, getColor(R.color.os_mint)).also { desno.addView(it) }
+        pVir = besedilo(if (jeSirokTv()) 14f else 13f, osBarva(R.color.os_mint)).also { desno.addView(it) }
         if (pZaPredvajanje == true) {
             val potek = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, dp(4)) }
             pPotek = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-                max = 1000; progressTintList = ColorStateList.valueOf(getColor(R.color.os_mint)) }.also { potek.addView(it, LinearLayout.LayoutParams(0, dp(5), 1f)) }
-            pCas = besedilo(12f, getColor(R.color.os_umirjeno)).apply { setPadding(dp(10), 0, 0, 0) }.also { potek.addView(it) }
+                max = 1000; progressTintList = ColorStateList.valueOf(osBarva(R.color.os_mint)) }.also { potek.addView(it, LinearLayout.LayoutParams(0, dp(5), 1f)) }
+            pCas = besedilo(12f, osBarva(R.color.os_umirjeno)).apply { setPadding(dp(10), 0, 0, 0) }.also { potek.addView(it) }
             desno.addView(potek)
             val tipke = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             val pl = GlasbaStoritev.predvajalnik
@@ -1228,7 +1228,7 @@ class GlasbaActivity : OsActivity() {
                 setBackgroundResource(R.drawable.os_kartica_steklo)
                 setPadding(dp(14), dp(8), dp(18), dp(8))
                 setOnClickListener { predvajaj(listOf(prikaz), 0) }
-                addView(ikona(R.drawable.os_ikona_predvajaj, 26, getColor(R.color.os_mint)))
+                addView(ikona(R.drawable.os_ikona_predvajaj, 26, osBarva(R.color.os_mint)))
                 addView(besedilo(15f, beli, true).apply { text = getString(R.string.os_media_nadaljuj); setPadding(dp(10), 0, 0, 0) })
             }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(14) })
         }
@@ -1248,10 +1248,10 @@ class GlasbaActivity : OsActivity() {
 
     /** Samo dejanja, ki delujejo: zatemnitev, hitrost, casovnik izklopa, ustavi (celozaslonsko je klik na naslovnico). */
     private fun hitraDejanja(sk: Jamendo.Skladba): View {
-        val beli = getColor(R.color.os_besedilo)
+        val beli = osBarva(R.color.os_besedilo)
         val v = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(getColor(R.color.os_kartica_steklo)); setStroke(dp(1), getColor(R.color.os_kartica_obroba)) }
+            background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(osBarva(R.color.os_kartica_steklo)); setStroke(dp(1), osBarva(R.color.os_kartica_obroba)) }
             setPadding(dp(12), dp(if (jeSirokTv()) 8 else 10), dp(12), dp(8))
         }
         v.addView(besedilo(15f, beli, true).apply { text = getString(R.string.os_media_hitra); setPadding(dp(6), 0, 0, dp(4)) })
@@ -1316,7 +1316,7 @@ class GlasbaActivity : OsActivity() {
         pPotek?.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
         pCas?.text = if (trajanje > 0) "${cas(polozaj)} / ${cas(trajanje)}" else cas(polozaj)
         pPredvajaj?.setImageResource(if (p.isPlaying) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
-        val mint = getColor(R.color.os_mint); val beli = getColor(R.color.os_besedilo)
+        val mint = osBarva(R.color.os_mint); val beli = osBarva(R.color.os_besedilo)
         pNakljucno?.imageTintList = ColorStateList.valueOf(if (p.shuffleModeEnabled) mint else beli)
         pPonavljaj?.imageTintList = ColorStateList.valueOf(if (p.repeatMode != Player.REPEAT_MODE_OFF) mint else beli)
         pSrce?.imageTintList = ColorStateList.valueOf(if (MedijskiViri.jePriljubljena(this, sk)) 0xFFFF6B7A.toInt() else beli)
@@ -1341,7 +1341,7 @@ class GlasbaActivity : OsActivity() {
         val televizor = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
         fun razdelek(i: Int): () -> Unit = { fokusVVsebino = true; izberi(i) }
         return listOf(
-            Vir("tv", if (televizor) R.drawable.os_ikona_zaslon else R.drawable.os_ikona_naprava, getColor(R.color.os_mint),
+            Vir("tv", if (televizor) R.drawable.os_ikona_zaslon else R.drawable.os_ikona_naprava, osBarva(R.color.os_mint),
                 getString(if (televizor) R.string.os_media_ta_tv else R.string.os_media_ta_naprava), getString(R.string.os_media_ta_tv_opis), datoteke),
             Vir("link", R.drawable.os_ikona_racunalnik, 0xFF8FA8FF.toInt(), getString(R.string.os_media_link), getString(R.string.os_media_link_opis), datoteke),
             Vir("radio", R.drawable.os_ikona_radio, 0xFFFF9580.toInt(), getString(R.string.os_mediji_postaje),
@@ -1383,8 +1383,8 @@ class GlasbaActivity : OsActivity() {
         setOnClickListener { klik() }
         addView(ikona(res, 24, barva))
         val t = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, 0, 0) }
-        t.addView(besedilo(13f, getColor(R.color.os_besedilo), true).apply { text = ime })
-        t.addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = opis })
+        t.addView(besedilo(13f, osBarva(R.color.os_besedilo), true).apply { text = ime })
+        t.addView(besedilo(11f, osBarva(R.color.os_umirjeno)).apply { text = opis })
         addView(t)
     }
 
@@ -1399,7 +1399,7 @@ class GlasbaActivity : OsActivity() {
         fun lp() = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) }
         for (v in pripeti) vrsta.addView(cip("k:v:" + v.kljuc, v.ikona, v.barva, v.ime, v.opis, v.odpri).apply {
             setOnLongClickListener { moznostiPripetega(v); true } }, lp())
-        val vec = cip(KLJUC_VSI_VIRI, R.drawable.os_ikona_mreza, getColor(R.color.os_besedilo),
+        val vec = cip(KLJUC_VSI_VIRI, R.drawable.os_ikona_mreza, osBarva(R.color.os_besedilo),
             getString(if (pripeti.isEmpty()) R.string.os_media_izberi_vire else R.string.os_media_vsi_viri),
             getString(R.string.os_mediji_viri)) { fokusVVsebino = true; izberi(VIRI) }
         vec.visibility = if (pripeti.isEmpty()) View.VISIBLE else View.GONE
@@ -1715,7 +1715,7 @@ class GlasbaActivity : OsActivity() {
         id = View.generateViewId()
         hint = getString(R.string.os_glasba_isci_namig)
         setText(zadnjaBeseda)
-        setTextColor(getColor(R.color.os_besedilo)); setHintTextColor(getColor(R.color.os_umirjeno))
+        setTextColor(osBarva(R.color.os_besedilo)); setHintTextColor(osBarva(R.color.os_umirjeno))
         setSingleLine(); imeOptions = EditorInfo.IME_ACTION_SEARCH; inputType = InputType.TYPE_CLASS_TEXT
         setBackgroundResource(R.drawable.os_iskanje)
         setPadding(dp(20), dp(10), dp(20), dp(10))
@@ -2228,7 +2228,7 @@ class GlasbaActivity : OsActivity() {
             hint = getString(namig); setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
         }
         fun oznaka(besedilo: Int) = TextView(this).apply {
-            text = getString(besedilo); setTextColor(getColor(R.color.os_besedilo)); textSize = 14f; setPadding(0, dp(10), 0, dp(2))
+            text = getString(besedilo); setTextColor(osBarva(R.color.os_besedilo)); textSize = 14f; setPadding(0, dp(10), 0, dp(2))
         }
         val stremio = polje(R.string.os_mediji_dodatki_stremio_namig)
         val kodi = polje(R.string.os_mediji_dodatki_kodi_namig)

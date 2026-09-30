@@ -15,6 +15,12 @@ import android.view.ViewGroup
  */
 open class OsActivity : Activity() {
 
+    /** Uporabnikova tema (Nastavitve › Videz) - nastavljena pred izrisom; celozaslonski zasloni dobijo crno razlicico. */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        Tema.uporabi(this, predvajalnik = this is PredvajanjeActivity || this is PredvajalnikActivity || this is SlikaActivity)
+        super.onCreate(savedInstanceState)
+    }
+
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= TRIM_MEMORY_RUNNING_MODERATE) {

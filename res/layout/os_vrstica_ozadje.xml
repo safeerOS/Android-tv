@@ -32,6 +32,6 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="10dp"
         android:maxLines="1"
-        android:textColor="@color/os_mint"
+        android:textColor="?attr/osMint"
         android:textSize="14sp"/>
 </LinearLayout>

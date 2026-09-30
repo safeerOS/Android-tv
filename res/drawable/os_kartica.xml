@@ -7,14 +7,14 @@
         <layer-list>
             <item>
                 <shape android:shape="rectangle">
-                    <solid android:color="@color/os_sij"/>
+                    <solid android:color="?attr/osSij"/>
                     <corners android:radius="18dp"/>
                 </shape>
             </item>
             <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp">
                 <shape android:shape="rectangle">
-                    <solid android:color="@color/os_kartica_dvignjena"/>
-                    <stroke android:width="2dp" android:color="@color/os_mint"/>
+                    <solid android:color="?attr/osKarticaDvignjena"/>
+                    <stroke android:width="2dp" android:color="?attr/osMint"/>
                     <corners android:radius="14dp"/>
                 </shape>
             </item>
@@ -24,14 +24,14 @@
         <layer-list>
             <item>
                 <shape android:shape="rectangle">
-                    <solid android:color="@color/os_sij"/>
+                    <solid android:color="?attr/osSij"/>
                     <corners android:radius="18dp"/>
                 </shape>
             </item>
             <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp">
                 <shape android:shape="rectangle">
-                    <solid android:color="@color/os_kartica_dvignjena"/>
-                    <stroke android:width="2dp" android:color="@color/os_mint"/>
+                    <solid android:color="?attr/osKarticaDvignjena"/>
+                    <stroke android:width="2dp" android:color="?attr/osMint"/>
                     <corners android:radius="14dp"/>
                 </shape>
             </item>
@@ -39,7 +39,7 @@
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_kartica"/>
+            <solid android:color="?attr/osKartica"/>
             <corners android:radius="14dp"/>
         </shape>
     </item>
