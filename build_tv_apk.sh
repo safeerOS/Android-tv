@@ -203,6 +203,11 @@ if [ -d "$DIR/build/outputs/apk/telefon/release" ]; then
     podpisi telefon "$RELEASE_DIR/safeer-os-mobile-release.apk"
     cp "$RELEASE_DIR/safeer-os-mobile-release.apk" "$DIR/Safeer-OS-Mobile.apk"
 fi
+# Safeer Predvajalnik (okus predvajalnik, si.safeer.player): samostojni predvajalnik za telefon in tablico.
+if [ -d "$DIR/build/outputs/apk/predvajalnik/release" ]; then
+    podpisi predvajalnik "$RELEASE_DIR/safeer-predvajalnik-release.apk"
+    cp "$RELEASE_DIR/safeer-predvajalnik-release.apk" "$DIR/Safeer-Predvajalnik.apk"
+fi
 
 FINAL_APK="$RELEASE_DIR/tv-browser-2-release.apk"
 cp "$FINAL_APK" "$DIR/TV-Browser-2.apk"

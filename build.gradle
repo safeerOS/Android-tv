@@ -64,6 +64,14 @@ android {
             versionCode = 31
             versionName = '0.5.6'
         }
+        // Safeer Predvajalnik: samostojna aplikacija (telefon, tablica) - Safeer Media brez zaganjalnika.
+        // Ista koda kot Medijski center v Safeer OS; "Odpri z" za video in zvok, Stremio/Kodi dodatki.
+        predvajalnik {
+            dimension = 'aplikacija'
+            applicationId = 'si.safeer.player'
+            versionCode = 1
+            versionName = '0.1.0'
+        }
     }
 
     sourceSets {
@@ -72,6 +80,10 @@ android {
         }
         os {
             manifest.srcFile 'okusi/os/AndroidManifest.xml'
+        }
+        predvajalnik {
+            manifest.srcFile 'okusi/predvajalnik/AndroidManifest.xml'
+            res.srcDirs = ['okusi/predvajalnik/res']
         }
         tablica {
             manifest.srcFile 'okusi/tablica/AndroidManifest.xml'
