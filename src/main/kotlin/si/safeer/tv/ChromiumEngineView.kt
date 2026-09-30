@@ -308,6 +308,9 @@ class ChromiumEngineView @JvmOverloads constructor(
     @Volatile
     private var uniceno = false
 
+    /** Odprto vprasanje "Dodam Stremio dodatek?" (samo eno naenkrat). */
+    private var stremioOkno: android.app.AlertDialog? = null
+
     override fun destroy() {
         if (!uniceno) android.util.Log.i("SafeerRam", "unicen WebView: ChromiumEngineView")
         uniceno = true
@@ -896,18 +899,29 @@ class ChromiumEngineView @JvmOverloads constructor(
                 if (scheme == "stremio" && BuildConfig.FLAVOR != "brskalnik") {
                     val (naslov, _) = si.safeer.tv.os.MedijskiViri.preveriDodatek(si.safeer.tv.os.MedijskiViri.STREMIO, urlStr)
                     if (naslov != null) {
+                        // En pritisk OK na povezavi prozi navigacijo dvakrat (sinteticni Enter + tipka sama),
+                        // zato okno za isti naslov odpremo samo enkrat.
+                        if (stremioOkno?.isShowing == true) return true
                         try {
-                            android.app.AlertDialog.Builder(context)
+                            fun dodaj() {
+                                val v = si.safeer.tv.os.MedijskiViri.dodajDodatek(context, si.safeer.tv.os.MedijskiViri.STREMIO, naslov, "")
+                                android.widget.Toast.makeText(context, context.getString(R.string.os_mediji_dodatki_shranjen, v.ime), android.widget.Toast.LENGTH_LONG).show()
+                            }
+                            stremioOkno = android.app.AlertDialog.Builder(context)
                                 .setTitle(R.string.os_mediji_dodatek_ujet)
                                 .setMessage(naslov)
-                                .setPositiveButton(R.string.os_mediji_dodatek_ujet_dodaj) { _, _ ->
-                                    val v = si.safeer.tv.os.MedijskiViri.dodajDodatek(context, si.safeer.tv.os.MedijskiViri.STREMIO, naslov, "")
-                                    android.widget.Toast.makeText(context, context.getString(R.string.os_mediji_dodatki_shranjen, v.ime), android.widget.Toast.LENGTH_LONG).show()
-                                }
+                                .setPositiveButton(R.string.os_mediji_dodatek_ujet_dodaj) { _, _ -> dodaj() }
                                 .setNegativeButton(android.R.string.cancel, null)
                                 .create().apply {
-                                    // Daljinec: OK takoj doda (gumb Dodaj ima fokus), Nazaj preklice.
+                                    // Daljinec: OK doda (tudi ce gumb nima fokusa), Nazaj preklice.
                                     setOnShowListener { getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
+                                    setOnKeyListener { d, code, ev ->
+                                        if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER) {
+                                            if (ev.action == android.view.KeyEvent.ACTION_UP) { dodaj(); d.dismiss() }
+                                            true
+                                        } else false
+                                    }
+                                    setOnDismissListener { stremioOkno = null }
                                     show()
                                 }
                         } catch (_: Exception) {}
