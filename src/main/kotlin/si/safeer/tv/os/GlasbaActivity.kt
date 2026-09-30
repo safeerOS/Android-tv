@@ -756,10 +756,17 @@ class GlasbaActivity : OsActivity() {
             Vir("peertube", R.drawable.os_ikona_video, 0xFFFF9580.toInt(), "PeerTube",
                 getString(R.string.os_media_stevilo_streznikov, MedijskiViri.streznikiPeerTube(this).size), razdelek(VIDEO)),
         ) + MedijskiViri.vsi(this).map { v ->
-            Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet -> R.drawable.os_ikona_splet; else -> R.drawable.os_ikona_glasba },
-                0xFF7FB2FF.toInt(), v.ime, if (v.jePeerTube) "PeerTube · ${v.naslov}" else v.naslov.removePrefix("https://").removePrefix("http://"), {
+            Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet || v.jeDodatek -> R.drawable.os_ikona_splet; else -> R.drawable.os_ikona_glasba },
+                0xFF7FB2FF.toInt(), v.ime, when {
+                    v.jePeerTube -> "PeerTube · ${v.naslov}"
+                    v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + v.naslov.removePrefix("https://").removePrefix("http://")
+                    v.jeKodi -> getString(R.string.os_mediji_dodatek_kodi) + " · " + v.naslov.removePrefix("https://").removePrefix("http://")
+                    else -> v.naslov.removePrefix("https://").removePrefix("http://")
+                }, {
                     when {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
+                        // Dodatek: pokazemo shranjeni naslov (predvajanje prek dodatkov je naslednji korak).
+                        v.jeDodatek -> AlertDialog.Builder(this).setTitle(v.ime).setMessage(v.naslov).setPositiveButton(android.R.string.ok, null).show()
                         // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
                         v.jeSplet -> odpriStran(v.naslov, v.ime)
                         else -> predvajaj(listOf(MedijskiViri.kotSkladba(v)), 0)
@@ -914,7 +921,8 @@ class GlasbaActivity : OsActivity() {
     private fun viriVrste(): List<Vrsta> {
         val pripeti = MedijskiViri.pripeti(this)
         return listOf(Vrsta("", listOf(
-            Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus)) +
+            Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
+            Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, ikona = R.drawable.os_ikona_plus)) +
             vsiViri().map { v -> Kartica((if (v.kljuc in pripeti) "★ " else "") + v.ime, v.opis, "", { v.odpri() }, { dolgoNaViru(v) }, ikona = v.ikona) },
             mreza = true))
     }
@@ -1060,7 +1068,7 @@ class GlasbaActivity : OsActivity() {
         stanje.text = getString(R.string.os_glasba_nalagam)
         val strezniki = MedijskiViri.streznikiPeerTube(this)
         val mali = beseda.lowercase()
-        val viri = MedijskiViri.vsi(this).filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) }
+        val viri = MedijskiViri.vsi(this).filter { !it.jeDodatek }.filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) }
         Thread {
             val iskanja = listOf<() -> List<Jamendo.Skladba>>({ PeerTube.isci(strezniki, beseda) }, { Radio.isci(beseda) })
             var izvajalci = emptyList<Jamendo.Izvajalec>()
@@ -1153,6 +1161,47 @@ class GlasbaActivity : OsActivity() {
                         drsnik.post { vsebina.findViewWithTag<View>("k:#${vsiViri().size}")?.requestFocus() }
                     }
                 }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Dodatki (Stremio, Kodi): dve jasno oznaceni polji, kamor uporabnik vnese naslove SVOJIH dodatkov.
+     * Safeer ne prilaga nobenega kataloga ali dodatka; shrani se le, kar je vneseno in preverjeno.
+     */
+    private fun dodajDodatke() {
+        fun polje(namig: Int) = EditText(this).apply {
+            hint = getString(namig); setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
+        }
+        fun oznaka(besedilo: Int) = TextView(this).apply {
+            text = getString(besedilo); setTextColor(getColor(R.color.os_besedilo)); textSize = 14f; setPadding(0, dp(10), 0, dp(2))
+        }
+        val stremio = polje(R.string.os_mediji_dodatki_stremio_namig)
+        val kodi = polje(R.string.os_mediji_dodatki_kodi_namig)
+        val vsebina = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(20), 0, dp(20), 0)
+            addView(oznaka(R.string.os_mediji_dodatki_stremio)); addView(stremio)
+            addView(oznaka(R.string.os_mediji_dodatki_kodi)); addView(kodi)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.os_mediji_dodatki)
+            .setMessage(R.string.os_mediji_dodatki_razlaga)
+            .setView(ScrollView(this).apply { addView(vsebina) })
+            .setPositiveButton(R.string.os_mediji_dodatki_shrani) { _, _ ->
+                var shranjeno = 0
+                for ((tip, vnos) in listOf(MedijskiViri.STREMIO to stremio.text.toString(), MedijskiViri.KODI to kodi.text.toString())) {
+                    if (vnos.isBlank()) continue
+                    val (naslov, napaka) = MedijskiViri.preveriDodatek(tip, vnos)
+                    if (naslov == null) {
+                        Toast.makeText(this, getString(if (napaka == "stremio") R.string.os_mediji_dodatki_napaka_stremio else R.string.os_mediji_dodatki_napaka_naslov), Toast.LENGTH_LONG).show()
+                        continue
+                    }
+                    val v = MedijskiViri.dodajDodatek(this, tip, naslov, "")
+                    Toast.makeText(this, getString(R.string.os_mediji_dodatki_shranjen, v.ime), Toast.LENGTH_SHORT).show()
+                    shranjeno++
+                }
+                if (shranjeno > 0) { SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); izberi(VIRI) }
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

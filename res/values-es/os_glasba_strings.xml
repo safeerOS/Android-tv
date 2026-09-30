@@ -116,4 +116,19 @@
     <string name="os_media_vsi_viri">Todas las fuentes</string>
     <string name="os_media_izberi_vire">Elegir fuentes</string>
     <string name="os_media_izbrisi_vir">Eliminar fuente</string>
+
+    <!-- Dodatki (Stremio, Kodi): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->
+    <string name="os_mediji_dodatki">Complementos (Stremio, Kodi)</string>
+    <string name="os_mediji_dodatki_opis">Introduce las direcciones de tus propios complementos</string>
+    <string name="os_mediji_dodatki_stremio">Complemento Stremio — introduce aquí la dirección del complemento (termina en /manifest.json)</string>
+    <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json o stremio://…</string>
+    <string name="os_mediji_dodatki_kodi">Complemento Kodi — introduce aquí la dirección del repositorio o del complemento (.zip)</string>
+    <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer no incluye catálogos ni complementos. Introduces los tuyos; las direcciones se guardan solo en este dispositivo.</string>
+    <string name="os_mediji_dodatki_shranjen">Complemento guardado: %1$s</string>
+    <string name="os_mediji_dodatki_napaka_stremio">La dirección de un complemento Stremio debe terminar en /manifest.json.</string>
+    <string name="os_mediji_dodatki_napaka_naslov">La dirección debe empezar por http:// o https://.</string>
+    <string name="os_mediji_dodatek_stremio">Complemento Stremio</string>
+    <string name="os_mediji_dodatek_kodi">Complemento Kodi</string>
+    <string name="os_mediji_dodatki_shrani">Guardar</string>
 </resources>
