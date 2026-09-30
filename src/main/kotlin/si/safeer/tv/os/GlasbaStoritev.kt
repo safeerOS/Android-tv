@@ -16,14 +16,13 @@ import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata as M3Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import si.safeer.tv.R
+import si.safeer.tv.predvajalnik.PredvajalnikTovarna
 
 /**
  * Glasba v ozadju: en predvajalnik za ves Safeer OS. Tece kot storitev v ospredju (mediaPlayback),
@@ -78,11 +77,9 @@ class GlasbaStoritev : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val p = ExoPlayer.Builder(this).build()
-        p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_UNKNOWN).build(), true)
-        p.setWakeMode(C.WAKE_MODE_NETWORK)
-        p.setHandleAudioBecomingNoisy(true)
+        // Skupna tovarna (profil GLASBA): zvocne lastnosti, zbujanje ob omrezju, utisanje ob izklopu
+        // slusalk, rezervni dekoder in meritve so nastavljeni na enem mestu za ves Safeer OS.
+        val p = PredvajalnikTovarna.ustvari(this, PredvajalnikTovarna.Profil.GLASBA)
         Podnapisi.uveljavi(this, p)
         p.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

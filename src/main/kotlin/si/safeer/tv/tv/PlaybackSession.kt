@@ -24,7 +24,6 @@ import android.webkit.WebChromeClient
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -33,8 +32,6 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -44,6 +41,7 @@ import androidx.media3.exoplayer.drm.FrameworkMediaDrm
 import androidx.media3.exoplayer.drm.HttpMediaDrmCallback
 import androidx.media3.exoplayer.drm.MediaDrmCallback
 import org.json.JSONObject
+import si.safeer.tv.predvajalnik.PredvajalnikTovarna
 import java.util.UUID
 
 /**
@@ -176,6 +174,7 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
     private var surfaceView: SurfaceView? = null
     private var player: ExoPlayer? = null
     private var trackSelector: DefaultTrackSelector? = null
+    private var zmogljivostDekoderja: PredvajalnikTovarna.Zmogljivost? = null
     private var spinner: ProgressBar? = null
     private var statusLabel: TextView? = null
     private var playingChannel: String = ""
@@ -615,32 +614,12 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
 
     private fun ensurePlayer(): ExoPlayer {
         player?.let { return it }
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(1_500, 12_000, 800, 1_500)
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
+        // Skupna tovarna (profil TV v zivo: kratek medpomnilnik s prednostjo casu, rezervni dekoder,
+        // meritve); politika sledi po izmerjeni zmogljivosti dekoderja, ne po trdi meji 1080p.
         val sel = DefaultTrackSelector(host)
         trackSelector = sel
         applyTrackPolicy()
-        val renderers = DefaultRenderersFactory(host)
-            .setEnableDecoderFallback(true)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
-        val exo = ExoPlayer.Builder(host)
-            .setRenderersFactory(renderers)
-            .setTrackSelector(sel)
-            .setLoadControl(loadControl)
-            .build()
-        try {
-            exo.setForegroundMode(true)
-        } catch (_: Exception) {}
-        exo.setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(C.USAGE_MEDIA)
-                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                .build(),
-            true
-        )
-        exo.setWakeMode(C.WAKE_MODE_NETWORK)
+        val exo = PredvajalnikTovarna.ustvari(host, PredvajalnikTovarna.Profil.TV_V_ZIVO, izbiraSledi = sel)
         exo.addListener(playerListener)
         player = exo
         return exo
@@ -648,29 +627,14 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
 
     private fun applyTrackPolicy() {
         val sel = trackSelector ?: return
-        val b = sel.buildUponParameters()
-            .setForceHighestSupportedBitrate(false)
-            .setAllowVideoMixedMimeTypeAdaptiveness(false)
-            .setPreferredVideoMimeTypes(MimeTypes.VIDEO_H264, MimeTypes.VIDEO_H265)
-            .setMaxVideoSize(1920, 1080)
-        if (codecRetry >= 1) {
-            b.setPreferredVideoMimeTypes(MimeTypes.VIDEO_H264)
-                .setMaxVideoSize(1280, 720)
-                .setMaxVideoFrameRate(30)
-                .setExceedVideoConstraintsIfNecessary(true)
+        val zm = zmogljivostDekoderja ?: PredvajalnikTovarna.zmogljivost().also {
+            zmogljivostDekoderja = it
+            Log.i("SafeerExo", "dekoder: ${it.sirina}x${it.visina} hevc=${it.hevc} (${it.vir})")
         }
-        sel.setParameters(b)
+        PredvajalnikTovarna.politikaVidea(sel, zm, codecRetry)
     }
 
-    private fun isVideoCodecError(error: PlaybackException): Boolean {
-        return when (error.errorCode) {
-            PlaybackException.ERROR_CODE_DECODING_FAILED,
-            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
-            PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
-            PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED -> true
-            else -> (error.message ?: "").contains("MediaCodecVideoRenderer", ignoreCase = true)
-        }
-    }
+    private fun isVideoCodecError(error: PlaybackException): Boolean = PredvajalnikTovarna.jeNapakaDekoderja(error)
 
     /** Recreate Exo after MediaCodec 4003 so the decoder is not left in an error state. */
     private fun retrySaferCodec(session: DashSeja) {
