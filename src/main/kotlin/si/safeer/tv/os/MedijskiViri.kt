@@ -25,6 +25,33 @@ object MedijskiViri {
         val jeSplet get() = tip == SPLET
         val jeSeznam get() = tip == SEZNAM
         val jePodkast get() = tip == PODKAST
+        val jeStremio get() = tip == STREMIO
+        val jeKodi get() = tip == KODI
+        val jeDodatek get() = jeStremio || jeKodi
+    }
+
+    /** Dodatki, ki jih uporabnik vnese SAM (Stremio: naslov manifesta; Kodi: repozitorij ali .zip). Brez prilozenih. */
+    const val STREMIO = "stremio"
+    const val KODI = "kodi"
+
+    /** Rezultat preverjanja naslova dodatka: (naslov ali null, kljuc napake za besedilo). */
+    fun preveriDodatek(tip: String, vnos: String): Pair<String?, String> {
+        var v = vnos.trim()
+        if (v.isEmpty()) return null to "prazno"
+        if (tip == STREMIO && v.lowercase().startsWith("stremio://")) v = "https://" + v.substring("stremio://".length)
+        val u = try { android.net.Uri.parse(v) } catch (_: Exception) { null }
+        if (u == null || u.scheme !in listOf("http", "https") || u.host.isNullOrBlank()) return null to "naslov"
+        if (tip == STREMIO && !(u.path ?: "").lowercase().endsWith("/manifest.json")) return null to "stremio"
+        return u.buildUpon().fragment(null).build().toString() to ""
+    }
+
+    /** Shrani dodatek (podvojeni naslov le vrne obstojecega). */
+    fun dodajDodatek(ctx: Context, tip: String, naslov: String, ime: String): Vir {
+        val obstojeci = vsi(ctx).firstOrNull { it.tip == tip && it.naslov == naslov }
+        if (obstojeci != null) return obstojeci
+        val v = Vir(tip, ime.ifBlank { android.net.Uri.parse(naslov).host ?: naslov }, naslov)
+        shrani(ctx, vsi(ctx) + v)
+        return v
     }
 
     const val PEERTUBE = "peertube"
