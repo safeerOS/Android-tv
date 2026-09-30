@@ -108,6 +108,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        si.safeer.tv.os.Tema.uporabi(this, predvajalnik = true)
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.os_activity_zaslon)
@@ -145,7 +146,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             val gumb = TextView(this).apply {
                 text = "\u2630"
                 textSize = 20f
-                setTextColor(getColor(R.color.os_besedilo))
+                setTextColor(osBarva(R.color.os_besedilo))
                 setBackgroundResource(R.drawable.os_znacka)
                 gravity = android.view.Gravity.CENTER
                 alpha = 0.85f

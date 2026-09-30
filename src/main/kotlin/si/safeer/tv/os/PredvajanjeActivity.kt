@@ -123,9 +123,9 @@ class PredvajanjeActivity : OsActivity() {
             setPadding(dp(56), dp(28), dp(56), dp(36))
             background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(0xE6000000.toInt(), 0x00000000))
         }
-        naslov = besedilo(26f, getColor(R.color.os_besedilo), true)
-        izvajalec = besedilo(17f, getColor(R.color.os_umirjeno))
-        vir = besedilo(13f, getColor(R.color.os_mint))
+        naslov = besedilo(26f, osBarva(R.color.os_besedilo), true)
+        izvajalec = besedilo(17f, osBarva(R.color.os_umirjeno))
+        vir = besedilo(13f, osBarva(R.color.os_mint))
         potek = if (dotik) SeekBar(this).apply {
             max = 1000
             // Vidno drsenje po posnetku (Matej: brez skritih kretenj) - premakne ob spustu.
@@ -139,13 +139,13 @@ class PredvajanjeActivity : OsActivity() {
                 }
             })
         } else ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000 }
-        cas = besedilo(15f, getColor(R.color.os_umirjeno))
-        namig = besedilo(12f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_mediji_namig_predvajanje) }
+        cas = besedilo(15f, osBarva(R.color.os_umirjeno))
+        namig = besedilo(12f, osBarva(R.color.os_umirjeno)).apply { text = getString(R.string.os_mediji_namig_predvajanje) }
         prekritje.addView(naslov); prekritje.addView(izvajalec); prekritje.addView(vir)
         prekritje.addView(potek, LinearLayout.LayoutParams(-1, if (dotik) -2 else dp(5)).apply { topMargin = dp(12); bottomMargin = dp(6) })
         prekritje.addView(cas); prekritje.addView(namig)
         predlogi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
-        predlogiNaslov = besedilo(17f, getColor(R.color.os_besedilo), true).apply { setPadding(0, dp(14), 0, dp(8)) }
+        predlogiNaslov = besedilo(17f, osBarva(R.color.os_besedilo), true).apply { setPadding(0, dp(14), 0, dp(8)) }
         predlogiNiz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         predlogi.addView(predlogiNaslov)
         predlogi.addView(HorizontalScrollView(this).apply { addView(predlogiNiz); isHorizontalScrollBarEnabled = false; clipToPadding = false })
@@ -174,7 +174,7 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun okroglGumb(ikona: Int, opis: Int, velikost: Int, klik: () -> Unit) = ImageButton(this).apply {
         setImageResource(ikona); contentDescription = getString(opis)
-        imageTintList = android.content.res.ColorStateList.valueOf(getColor(R.color.os_besedilo))
+        imageTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_besedilo))
         scaleType = ImageView.ScaleType.CENTER_INSIDE
         setPadding(dp(10), dp(10), dp(10), dp(10))
         background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
@@ -193,9 +193,9 @@ class PredvajanjeActivity : OsActivity() {
             setOnClickListener { @Suppress("DEPRECATION") onBackPressed() }
             addView(ImageView(this@PredvajanjeActivity).apply {
                 setImageResource(si.safeer.tv.R.drawable.ic_m_back)
-                imageTintList = android.content.res.ColorStateList.valueOf(getColor(R.color.os_besedilo))
+                imageTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_besedilo))
             }, LinearLayout.LayoutParams(dp(32), dp(32)))
-            addView(besedilo(15f, getColor(R.color.os_besedilo), true).apply { text = getString(R.string.os_mediji_nazaj_v_os); setPadding(dp(6), 0, 0, 0) })
+            addView(besedilo(15f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_mediji_nazaj_v_os); setPadding(dp(6), 0, 0, 0) })
         }
         // V isti vrstici kot gumbi predvajanja: ne prekrije naslova niti na nizkem zaslonu telefona.
         // Ozek pokončni telefon: gumbi se prelomijo v drugo vrsto, namesto da bi padli čez rob zaslona.
@@ -505,12 +505,12 @@ class PredvajanjeActivity : OsActivity() {
             isFocusable = true; isClickable = true
             setOnClickListener { klik() }
             val pogled = ImageView(this@PredvajanjeActivity).apply {
-                scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(getColor(R.color.os_kartica)); setImageResource(ikona)
+                scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(osBarva(R.color.os_kartica)); setImageResource(ikona)
             }
             addView(pogled, LinearLayout.LayoutParams(sirina, if (video) sirina * 9 / 16 else sirina))
-            addView(besedilo(13f, getColor(R.color.os_besedilo), true).apply { text = naslov; maxLines = 1; setPadding(dp(2), dp(6), 0, 0) },
+            addView(besedilo(13f, osBarva(R.color.os_besedilo), true).apply { text = naslov; maxLines = 1; setPadding(dp(2), dp(6), 0, 0) },
                 LinearLayout.LayoutParams(sirina, -2))
-            addView(besedilo(11f, getColor(R.color.os_umirjeno)).apply { text = podnaslov; maxLines = 1; setPadding(dp(2), 0, 0, 0) },
+            addView(besedilo(11f, osBarva(R.color.os_umirjeno)).apply { text = podnaslov; maxLines = 1; setPadding(dp(2), 0, 0, 0) },
                 LinearLayout.LayoutParams(sirina, -2))
             if (slika.startsWith("https://")) delavec.execute {
                 val b = (SpletniVir.bajtiSlike(this@PredvajanjeActivity, slika) ?: Jamendo.bajti(slika))?.let { VarnaSlika.izBajtov(it, 320) } ?: return@execute

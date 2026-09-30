@@ -70,8 +70,8 @@
             android:layout_height="6dp"
             android:layout_marginTop="14dp"
             android:max="1000"
-            android:progressTint="@color/os_mint"
-            android:progressBackgroundTint="@color/os_crta"/>
+            android:progressTint="?attr/osMint"
+            android:progressBackgroundTint="?attr/osCrta"/>
         <TextView
             android:id="@+id/namig"
             style="@style/Os.Kartica.Opis"

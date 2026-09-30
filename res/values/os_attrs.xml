@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Teme Safeer OS: barve so atributi teme (?attr/osX), da uporabnik izbere shemo (Nastavitve › Videz). -->
+<resources>
+    <attr name="osOzadje" format="color"/>
+    <attr name="osKartica" format="color"/>
+    <attr name="osKarticaDvignjena" format="color"/>
+    <attr name="osMint" format="color"/>
+    <attr name="osMintTemna" format="color"/>
+    <attr name="osBesedilo" format="color"/>
+    <attr name="osUmirjeno" format="color"/>
+    <attr name="osCrta" format="color"/>
+    <attr name="osOpozorilo" format="color"/>
+    <attr name="osSij" format="color"/>
+    <attr name="osKarticaSteklo" format="color"/>
+    <attr name="osKarticaStekloFokus" format="color"/>
+    <attr name="osKarticaObroba" format="color"/>
+    <attr name="osMeniOzadje" format="color"/>
+    <attr name="osMeniIzbranOzadje" format="color"/>
+    <attr name="osMeniFokusOzadje" format="color"/>
+    <attr name="osSivaPika" format="color"/>
+    <attr name="osPloscicaAppOzadje" format="color"/>
+</resources>

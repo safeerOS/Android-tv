@@ -168,7 +168,7 @@ class SporocilaActivity : OsActivity() {
             orientation = LinearLayout.VERTICAL
             val rob = if (siroko) 24 else 14
             setPadding(dp(rob), dp(if (siroko) 20 else 14), dp(rob), dp(14))
-            setBackgroundColor(getColor(R.color.os_ozadje))
+            setBackgroundColor(osBarva(R.color.os_ozadje))
         }
         koren = root
 
@@ -178,12 +178,12 @@ class SporocilaActivity : OsActivity() {
         val naslovi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         naslovi.addView(TextView(this).apply {
             text = getString(R.string.os_meni_sporocila)
-            setTextColor(getColor(R.color.os_besedilo)); textSize = if (siroko) 27f else 22f; maxLines = 1
+            setTextColor(osBarva(R.color.os_besedilo)); textSize = if (siroko) 27f else 22f; maxLines = 1
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
         })
         naslovi.addView(TextView(this).apply {
             text = getString(R.string.os_spor_opis)
-            setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f
+            setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f
         })
         glava.addView(naslovi, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         dodajGumb = gumb((if (siroko) "" else "+ ") + getString(R.string.os_spor_dodaj)).apply {
@@ -203,10 +203,10 @@ class SporocilaActivity : OsActivity() {
         // Iskanje (ime, zadeva, besedilo, oznake) in filtri - vidni gumbi, brez skritih kretenj.
         iskanje = EditText(this).apply {
             hint = getString(R.string.os_spor_isci_namig); isSingleLine = true
-            setTextColor(getColor(R.color.os_besedilo)); setHintTextColor(getColor(R.color.os_umirjeno)); textSize = 14f
+            setTextColor(osBarva(R.color.os_besedilo)); setHintTextColor(osBarva(R.color.os_umirjeno)); textSize = 14f
             inputType = InputType.TYPE_CLASS_TEXT; imeOptions = EditorInfo.IME_ACTION_SEARCH
             setPadding(dp(14), dp(9), dp(14), dp(9))
-            background = GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(getColor(R.color.os_kartica_dvignjena)); setStroke(dp(1), getColor(R.color.os_crta)) }
+            background = GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(osBarva(R.color.os_kartica_dvignjena)); setStroke(dp(1), osBarva(R.color.os_crta)) }
             addTextChangedListener(object : android.text.TextWatcher {
                 override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
@@ -220,7 +220,7 @@ class SporocilaActivity : OsActivity() {
 
         // Seznam pogovorov
         prazno = TextView(this).apply {
-            gravity = Gravity.CENTER; setTextColor(getColor(R.color.os_umirjeno)); textSize = 16f
+            gravity = Gravity.CENTER; setTextColor(osBarva(R.color.os_umirjeno)); textSize = 16f
             setPadding(dp(12), dp(40), dp(12), dp(40))
         }
         seznam = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -235,7 +235,7 @@ class SporocilaActivity : OsActivity() {
         pogovorPlosca = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(12), dp(16), dp(12))
-            background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(getColor(R.color.os_kartica_dvignjena)) }
+            background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(osBarva(R.color.os_kartica_dvignjena)) }
         }
         val pGlava = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         nazajGumb = gumb("‹ " + getString(R.string.os_spor_nazaj)).apply {
@@ -244,11 +244,11 @@ class SporocilaActivity : OsActivity() {
         pGlava.addView(nazajGumb, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(12) })
         val pNaslovi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         pogovorIme = TextView(this).apply {
-            setTextColor(getColor(R.color.os_besedilo)); textSize = 19f; maxLines = 1
+            setTextColor(osBarva(R.color.os_besedilo)); textSize = 19f; maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
-        pogovorZadeva = TextView(this).apply { setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; maxLines = 1 }
+        pogovorZadeva = TextView(this).apply { setTextColor(osBarva(R.color.os_umirjeno)); textSize = 12f; maxLines = 1 }
         pNaslovi.addView(pogovorIme); pNaslovi.addView(pogovorZadeva)
         pGlava.addView(pNaslovi, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         pogovorPlosca.addView(pGlava)
@@ -270,12 +270,12 @@ class SporocilaActivity : OsActivity() {
         odgovor = EditText(this).apply {
             id = View.generateViewId()
             hint = getString(R.string.os_spor_odgovor)
-            setTextColor(getColor(R.color.os_besedilo)); setHintTextColor(getColor(R.color.os_umirjeno)); textSize = 15f
+            setTextColor(osBarva(R.color.os_besedilo)); setHintTextColor(osBarva(R.color.os_umirjeno)); textSize = 15f
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             minLines = 1; maxLines = 5; imeOptions = EditorInfo.IME_ACTION_SEND
             setPadding(dp(14), dp(10), dp(14), dp(10))
             background = GradientDrawable().apply {
-                cornerRadius = dp(12).toFloat(); setColor(getColor(R.color.os_ozadje)); setStroke(dp(1), getColor(R.color.os_crta))
+                cornerRadius = dp(12).toFloat(); setColor(osBarva(R.color.os_ozadje)); setStroke(dp(1), osBarva(R.color.os_crta))
             }
             setOnKeyListener { _, koda, d ->
                 if (koda == KeyEvent.KEYCODE_ENTER && d.isCtrlPressed && d.action == KeyEvent.ACTION_UP) { poslji(); true } else false
@@ -303,7 +303,7 @@ class SporocilaActivity : OsActivity() {
 
     private fun gumb(ime: String) = TextView(this).apply {
         text = ime; gravity = Gravity.CENTER; isFocusable = true; isClickable = true
-        setTextColor(getColor(R.color.os_besedilo)); textSize = 15f
+        setTextColor(osBarva(R.color.os_besedilo)); textSize = 15f
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         setPadding(dp(18), dp(11), dp(18), dp(11)); setBackgroundResource(R.drawable.os_meni_postavka)
     }
@@ -324,7 +324,7 @@ class SporocilaActivity : OsActivity() {
             val napaka = k.stanje.startsWith("napaka")
             val cip = TextView(this).apply {
                 text = (if (k.vrsta == "email") "✉ " else "💬 ") + k.ime + (if (napaka) "  ⚠" else "")
-                setTextColor(getColor(if (napaka) R.color.os_opozorilo else R.color.os_besedilo)); textSize = 13f
+                setTextColor(osBarva(if (napaka) R.color.os_opozorilo else R.color.os_besedilo)); textSize = 13f
                 isFocusable = true; isClickable = true; maxLines = 1; tag = "kanal|" + k.id
                 setPadding(dp(14), dp(8), dp(14), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 contentDescription = k.ime + " " + besediloStanja(k.stanje)
@@ -336,7 +336,7 @@ class SporocilaActivity : OsActivity() {
         if (shramba.kanali().none { it.id == KlepetLinka.KANAL } && napraveZaKlepet().isNotEmpty()) {
             kanaliVrsta.addView(TextView(this).apply {
                 text = "💬 " + getString(R.string.os_spor_pisi_napravi)
-                setTextColor(getColor(R.color.os_mint)); textSize = 13f
+                setTextColor(osBarva(R.color.os_mint)); textSize = 13f
                 isFocusable = true; isClickable = true; maxLines = 1; tag = "kanal|" + KlepetLinka.KANAL
                 setPadding(dp(14), dp(8), dp(14), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 setOnClickListener { pisiNapravi() }
@@ -362,9 +362,9 @@ class SporocilaActivity : OsActivity() {
         for ((kljuc, ime) in vsi) {
             filtriVrsta.addView(TextView(this).apply {
                 text = ime; textSize = 12f; isFocusable = true; isClickable = true; maxLines = 1
-                setTextColor(getColor(if (filter == kljuc) R.color.os_mint_temna else R.color.os_besedilo))
+                setTextColor(osBarva(if (filter == kljuc) R.color.os_mint_temna else R.color.os_besedilo))
                 setPadding(dp(12), dp(6), dp(12), dp(6)); tag = "filter|$kljuc"
-                background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(getColor(if (filter == kljuc) R.color.os_mint else R.color.os_kartica_dvignjena)) }
+                background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(osBarva(if (filter == kljuc) R.color.os_mint else R.color.os_kartica_dvignjena)) }
                 setOnClickListener { filter = kljuc; narisiFiltre(); narisiSeznam() }
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
         }
@@ -403,27 +403,27 @@ class SporocilaActivity : OsActivity() {
                 val vrh = LinearLayout(this@SporocilaActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
                 vrh.addView(TextView(this@SporocilaActivity).apply {
                     text = imeOsebe(p, vrste)
-                    setTextColor(getColor(R.color.os_besedilo)); textSize = 16f; maxLines = 1
+                    setTextColor(osBarva(R.color.os_besedilo)); textSize = 16f; maxLines = 1
                     isSingleLine = true; ellipsize = android.text.TextUtils.TruncateAt.END
                     typeface = Typeface.create("sans-serif-medium", if (p.neprebrano > 0) Typeface.BOLD else Typeface.NORMAL)
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
                 vrh.addView(TextView(this@SporocilaActivity).apply {
-                    text = kratekCas(p.cas); setTextColor(getColor(R.color.os_umirjeno)); textSize = 11f
+                    text = kratekCas(p.cas); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 11f
                 })
                 if (p.neprebrano > 0) vrh.addView(TextView(this@SporocilaActivity).apply {
-                    text = p.neprebrano.toString(); setTextColor(getColor(R.color.os_mint_temna)); textSize = 11f
+                    text = p.neprebrano.toString(); setTextColor(osBarva(R.color.os_mint_temna)); textSize = 11f
                     typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
                     setPadding(dp(7), dp(1), dp(7), dp(1))
-                    background = GradientDrawable().apply { cornerRadius = dp(10).toFloat(); setColor(getColor(R.color.os_mint)) }
+                    background = GradientDrawable().apply { cornerRadius = dp(10).toFloat(); setColor(osBarva(R.color.os_mint)) }
                 }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8) })
                 addView(vrh)
                 addView(TextView(this@SporocilaActivity).apply {
                     text = p.zadnje.replace('\n', ' ').trim()
-                    setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; maxLines = 1
+                    setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f; maxLines = 1
                 })
                 addView(TextView(this@SporocilaActivity).apply {
                     text = listOf((if (vrste[p.kanalId] == "email") "✉ " else "💬 ") + imena[p.kanalId].orEmpty()).plus(oznake.map { "# $it" }).joinToString("  ")
-                    setTextColor(getColor(R.color.os_mint)); textSize = 10f; maxLines = 1
+                    setTextColor(osBarva(R.color.os_mint)); textSize = 10f; maxLines = 1
                 })
             }
             prejsnji?.let { it.nextFocusDownId = kartica.id; kartica.nextFocusUpId = it.id }
@@ -449,10 +449,10 @@ class SporocilaActivity : OsActivity() {
         val privzeto = (if (p.kanalId == KlepetLinka.KANAL) KlepetLinka.prikaznoIme(p.ime) else p.ime).ifBlank { p.oseba }
         val polja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0)
-            addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_oseba_privzeto, privzeto); setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f })
+            addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_oseba_privzeto, privzeto); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f })
             addView(ime)
             val identitete = pogovoriOsebe(p).map { it.oseba }.distinct()
-            addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_oseba_identitete) + " " + identitete.joinToString(", "); setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; setPadding(0, dp(8), 0, 0) })
+            addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_oseba_identitete) + " " + identitete.joinToString(", "); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 12f; setPadding(0, dp(8), 0, 0) })
         }
         val zdruzena = oseba != kljuc
         val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -491,7 +491,7 @@ class SporocilaActivity : OsActivity() {
         val nova = polje(R.string.os_spor_nova_oznaka)
         val izbire = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         for (o in vse) izbire.addView(android.widget.CheckBox(this).apply {
-            text = o; isChecked = trenutne.contains(o); setTextColor(getColor(R.color.os_besedilo))
+            text = o; isChecked = trenutne.contains(o); setTextColor(osBarva(R.color.os_besedilo))
             setOnCheckedChangeListener { _, b -> if (b) { if (!trenutne.contains(o)) trenutne.add(o) } else trenutne.remove(o) }
         })
         val polja = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0); addView(izbire); addView(nova) }
@@ -524,12 +524,12 @@ class SporocilaActivity : OsActivity() {
                 zadetki.removeAllViews()
                 val niz = e?.toString().orEmpty().trim(); if (niz.length < 2) return
                 val rez = shramba.isciSporocila(niz, pogovori)
-                if (rez.isEmpty()) { zadetki.addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_ni_zadetkov); setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; setPadding(0, dp(8), 0, 0) }); return }
+                if (rez.isEmpty()) { zadetki.addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_ni_zadetkov); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f; setPadding(0, dp(8), 0, 0) }); return }
                 for (z in rez) zadetki.addView(LinearLayout(this@SporocilaActivity).apply {
                     orientation = LinearLayout.VERTICAL; isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_ploscica_app)
                     setPadding(dp(12), dp(8), dp(12), dp(8))
-                    addView(TextView(this@SporocilaActivity).apply { text = imenaKanalov[z.kanalId].orEmpty() + " · " + kratekCas(z.sporocilo.cas); setTextColor(getColor(R.color.os_umirjeno)); textSize = 11f })
-                    addView(TextView(this@SporocilaActivity).apply { text = z.izsek; setTextColor(getColor(R.color.os_besedilo)); textSize = 13f; maxLines = 3 })
+                    addView(TextView(this@SporocilaActivity).apply { text = imenaKanalov[z.kanalId].orEmpty() + " · " + kratekCas(z.sporocilo.cas); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 11f })
+                    addView(TextView(this@SporocilaActivity).apply { text = z.izsek; setTextColor(osBarva(R.color.os_besedilo)); textSize = 13f; maxLines = 3 })
                     setOnClickListener {
                         okno.dismiss(); oznaciSporocilo = z.sporocilo.id
                         pogovori.firstOrNull { it.kanalId == z.kanalId && it.id == z.sporocilo.pogovorId }?.let { pokaziPogovor(it) }
@@ -585,16 +585,16 @@ class SporocilaActivity : OsActivity() {
             if (zadetek) obrobljena = vrstica
             vrstica.addView(TextView(this).apply {
                 text = s.besedilo.trim(); textSize = 15f; setTextIsSelectable(false)
-                setTextColor(getColor(if (ven) R.color.os_mint_temna else R.color.os_besedilo))
+                setTextColor(osBarva(if (ven) R.color.os_mint_temna else R.color.os_besedilo))
                 setPadding(dp(14), dp(9), dp(14), dp(9))
                 background = GradientDrawable().apply {
-                    cornerRadius = dp(14).toFloat(); setColor(getColor(if (ven) R.color.os_mint else R.color.os_ozadje))
-                    if (zadetek) setStroke(dp(2), getColor(R.color.os_opozorilo))
+                    cornerRadius = dp(14).toFloat(); setColor(osBarva(if (ven) R.color.os_mint else R.color.os_ozadje))
+                    if (zadetek) setStroke(dp(2), osBarva(R.color.os_opozorilo))
                 }
                 maxWidth = (resources.displayMetrics.widthPixels * (if (siroko) 0.4f else 0.75f)).toInt()
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             vrstica.addView(TextView(this).apply {
-                text = kratekCas(s.cas); textSize = 10f; setTextColor(getColor(R.color.os_umirjeno))
+                text = kratekCas(s.cas); textSize = 10f; setTextColor(osBarva(R.color.os_umirjeno))
                 setPadding(dp(6), dp(2), dp(6), 0)
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             sporocilaSeznam.addView(vrstica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
@@ -687,7 +687,7 @@ class SporocilaActivity : OsActivity() {
         }
         // Lastni API: Matrix (streznik + zeton) ali Telegram Bot (zeton od @BotFather) - navodila povedo, kje ju dobis.
         var protokol = "matrix"
-        val apiOpis = TextView(this).apply { text = getString(R.string.os_spor_lastni_api_opis); setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; setPadding(0, dp(10), 0, dp(6)) }
+        val apiOpis = TextView(this).apply { text = getString(R.string.os_spor_lastni_api_opis); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f; setPadding(0, dp(10), 0, dp(6)) }
         val gMatrix = gumb("Matrix"); val gTelegram = gumb("Telegram Bot")
         val apiIzbira = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -697,8 +697,8 @@ class SporocilaActivity : OsActivity() {
         val apiStreznik = polje(R.string.os_spor_api_streznik, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val apiZeton = polje(R.string.os_spor_zeton, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         val apiIme = polje(R.string.os_spor_api_ime)
-        val apiNavodilaNaslov = TextView(this).apply { text = getString(R.string.os_spor_kaj_narediti); setTextColor(getColor(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(12), 0, dp(4)) }
-        val apiNavodila = TextView(this).apply { setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; setLineSpacing(0f, 1.15f) }
+        val apiNavodilaNaslov = TextView(this).apply { text = getString(R.string.os_spor_kaj_narediti); setTextColor(osBarva(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(12), 0, dp(4)) }
+        val apiNavodila = TextView(this).apply { setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f; setLineSpacing(0f, 1.15f) }
         val aFields = listOf(apiOpis, apiIzbira, apiStreznik, apiZeton, apiIme, apiNavodilaNaslov, apiNavodila)
         fun nastaviProtokol(pr: String) {
             protokol = pr
@@ -709,7 +709,7 @@ class SporocilaActivity : OsActivity() {
         }
         gMatrix.setOnClickListener { nastaviProtokol("matrix") }; gTelegram.setOnClickListener { nastaviProtokol("telegram_bot") }
         // E-posta, korak 1: ponudnik s seznama (streznike poznamo mi). Korak 2: naslov + geslo + navodila.
-        val ponudnikiNaslov = TextView(this).apply { text = getString(R.string.os_spor_izberi_ponudnika); setTextColor(getColor(R.color.os_besedilo)); textSize = 15f; setPadding(0, dp(10), 0, dp(6)) }
+        val ponudnikiNaslov = TextView(this).apply { text = getString(R.string.os_spor_izberi_ponudnika); setTextColor(osBarva(R.color.os_besedilo)); textSize = 15f; setPadding(0, dp(10), 0, dp(6)) }
         val ponudniki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val zamenjaj = gumb(getString(R.string.os_spor_zamenjaj_ponudnika))
         val naslov = polje(R.string.os_spor_naslov, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
@@ -717,12 +717,12 @@ class SporocilaActivity : OsActivity() {
         val napredno = gumb(getString(R.string.os_spor_napredno))
         val imap = polje(R.string.os_spor_imap, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val smtp = polje(R.string.os_spor_smtp, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        val navodilaNaslov = TextView(this).apply { text = getString(R.string.os_spor_kaj_narediti); setTextColor(getColor(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(12), 0, dp(4)) }
-        val navodila = TextView(this).apply { setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; setLineSpacing(0f, 1.15f) }
+        val navodilaNaslov = TextView(this).apply { text = getString(R.string.os_spor_kaj_narediti); setTextColor(osBarva(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(12), 0, dp(4)) }
+        val navodila = TextView(this).apply { setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f; setLineSpacing(0f, 1.15f) }
         val url = polje(R.string.os_spor_url, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val racun = polje(R.string.os_spor_racun, InputType.TYPE_CLASS_NUMBER)
         val zeton = polje(R.string.os_spor_zeton, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        val napaka = TextView(this).apply { setTextColor(getColor(R.color.os_opozorilo)); textSize = 13f; visibility = View.GONE }
+        val napaka = TextView(this).apply { setTextColor(osBarva(R.color.os_opozorilo)); textSize = 13f; visibility = View.GONE }
         val seznamAplikacij = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val korak1 = listOf(ponudnikiNaslov, ponudniki)
         val korak2 = listOf(zamenjaj, naslov, geslo, napredno, imap, smtp, navodilaNaslov, navodila)
@@ -760,7 +760,7 @@ class SporocilaActivity : OsActivity() {
                 setPadding(dp(14), dp(9), dp(14), dp(9)); setBackgroundResource(R.drawable.os_meni_postavka)
                 val ime = TextView(this@SporocilaActivity).apply {
                     text = if (p.id == PonudnikiEposte.DRUG) getString(R.string.os_spor_ponudnik_drug) else p.ime + (if (p.geslo == PonudnikiEposte.OAUTH) "  · " + getString(R.string.os_spor_ni_na_voljo) else "")
-                    setTextColor(getColor(if (p.geslo == PonudnikiEposte.OAUTH) R.color.os_umirjeno else R.color.os_besedilo)); textSize = 15f
+                    setTextColor(osBarva(if (p.geslo == PonudnikiEposte.OAUTH) R.color.os_umirjeno else R.color.os_besedilo)); textSize = 15f
                     typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 }
                 val opis = TextView(this@SporocilaActivity).apply {
@@ -770,7 +770,7 @@ class SporocilaActivity : OsActivity() {
                         p.geslo == PonudnikiEposte.OAUTH -> ""
                         else -> p.domene.take(2).joinToString(", ") { "@" + it }
                     }
-                    setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
+                    setTextColor(osBarva(R.color.os_umirjeno)); textSize = 12f; visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
                 }
                 addView(ime); addView(opis)
                 setOnClickListener { izberiPonudnika(p) }
@@ -793,17 +793,17 @@ class SporocilaActivity : OsActivity() {
         }
 
         // Aplikacije: ponudniki brez IMAP/SMTP (Outlook, Proton ...) in klepeti - uradna aplikacija iz trgovine.
-        seznamAplikacij.addView(TextView(this).apply { text = getString(R.string.os_spor_aplikacije_opis); setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; setPadding(0, dp(10), 0, dp(8)) })
+        seznamAplikacij.addView(TextView(this).apply { text = getString(R.string.os_spor_aplikacije_opis); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 12f; setPadding(0, dp(10), 0, dp(8)) })
         for (skupina in listOf("posta" to R.string.os_spor_app_posta, "klepet" to R.string.os_spor_app_klepet)) {
-            seznamAplikacij.addView(TextView(this).apply { text = getString(skupina.second); setTextColor(getColor(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(8), 0, dp(4)) })
+            seznamAplikacij.addView(TextView(this).apply { text = getString(skupina.second); setTextColor(osBarva(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(8), 0, dp(4)) })
             for (a in AplikacijeSporocil.SEZNAM.filter { it.vrsta == skupina.first }) {
                 val vrstica = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                     setPadding(dp(14), dp(8), dp(10), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                     val besedilo = LinearLayout(this@SporocilaActivity).apply {
                         orientation = LinearLayout.VERTICAL
-                        addView(TextView(this@SporocilaActivity).apply { text = a.ime; setTextColor(getColor(R.color.os_besedilo)); textSize = 15f })
-                        addView(TextView(this@SporocilaActivity).apply { text = getString(a.opis); setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f })
+                        addView(TextView(this@SporocilaActivity).apply { text = a.ime; setTextColor(osBarva(R.color.os_besedilo)); textSize = 15f })
+                        addView(TextView(this@SporocilaActivity).apply { text = getString(a.opis); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 12f })
                     }
                     val namescena = AplikacijeSporocil.nameščena(this@SporocilaActivity, a.paket)
                     val g = gumb(getString(if (namescena) R.string.os_spor_app_odpri else R.string.os_spor_app_namesti))
@@ -916,7 +916,7 @@ class SporocilaActivity : OsActivity() {
 
     private fun pokaziNapako(v: TextView, besedilo: String, napaka: Boolean = true) {
         v.text = besedilo; v.visibility = View.VISIBLE
-        v.setTextColor(getColor(if (napaka) R.color.os_opozorilo else R.color.os_umirjeno))
+        v.setTextColor(osBarva(if (napaka) R.color.os_opozorilo else R.color.os_umirjeno))
     }
 
     private fun gostitelj(vnos: String, privzeto: Int): Pair<String, Int> {
@@ -933,7 +933,7 @@ class SporocilaActivity : OsActivity() {
         val polja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0)
             if (stanje.isNotEmpty()) addView(TextView(this@SporocilaActivity).apply {
-                text = stanje; setTextColor(getColor(R.color.os_opozorilo)); textSize = 13f
+                text = stanje; setTextColor(osBarva(R.color.os_opozorilo)); textSize = 13f
             })
             addView(geslo)
         }

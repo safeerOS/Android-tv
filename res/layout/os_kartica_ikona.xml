@@ -28,7 +28,7 @@
         android:gravity="center"
         android:singleLine="true"
         android:ellipsize="end"
-        android:textColor="@color/os_besedilo"
+        android:textColor="?attr/osBesedilo"
         android:textSize="11sp"
         android:fontFamily="sans-serif-medium"/>
 </LinearLayout>

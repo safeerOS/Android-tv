@@ -8,6 +8,175 @@
         <item name="android:colorAccent">@color/os_mint</item>
         <item name="android:windowAnimationStyle">@null</item>
         <item name="android:windowContentTransitions">false</item>
+        <item name="osOzadje">@color/os_ozadje</item>
+        <item name="osKartica">@color/os_kartica</item>
+        <item name="osKarticaDvignjena">@color/os_kartica_dvignjena</item>
+        <item name="osMint">@color/os_mint</item>
+        <item name="osMintTemna">@color/os_mint_temna</item>
+        <item name="osBesedilo">@color/os_besedilo</item>
+        <item name="osUmirjeno">@color/os_umirjeno</item>
+        <item name="osCrta">@color/os_crta</item>
+        <item name="osOpozorilo">@color/os_opozorilo</item>
+        <item name="osSij">@color/os_sij</item>
+        <item name="osKarticaSteklo">@color/os_kartica_steklo</item>
+        <item name="osKarticaStekloFokus">@color/os_kartica_steklo_fokus</item>
+        <item name="osKarticaObroba">@color/os_kartica_obroba</item>
+        <item name="osMeniOzadje">@color/os_meni_ozadje</item>
+        <item name="osMeniIzbranOzadje">@color/os_meni_izbran_ozadje</item>
+        <item name="osMeniFokusOzadje">@color/os_meni_fokus_ozadje</item>
+        <item name="osSivaPika">@color/os_siva_pika</item>
+        <item name="osPloscicaAppOzadje">@color/os_ploscica_app_ozadje</item>
+    </style>
+
+    <style name="Theme.SafeerOs.Catppuccin" parent="Theme.SafeerOs">
+        <item name="android:windowBackground">@color/tema_catppuccin_ozadje</item>
+        <item name="android:colorBackground">@color/tema_catppuccin_ozadje</item>
+        <item name="android:textColorPrimary">@color/tema_catppuccin_besedilo</item>
+        <item name="android:textColorSecondary">@color/tema_catppuccin_umirjeno</item>
+        <item name="android:colorAccent">@color/tema_catppuccin_mint</item>
+        <item name="osOzadje">@color/tema_catppuccin_ozadje</item>
+        <item name="osKartica">@color/tema_catppuccin_kartica</item>
+        <item name="osKarticaDvignjena">@color/tema_catppuccin_kartica_dvignjena</item>
+        <item name="osMint">@color/tema_catppuccin_mint</item>
+        <item name="osMintTemna">@color/tema_catppuccin_mint_temna</item>
+        <item name="osBesedilo">@color/tema_catppuccin_besedilo</item>
+        <item name="osUmirjeno">@color/tema_catppuccin_umirjeno</item>
+        <item name="osCrta">@color/tema_catppuccin_crta</item>
+        <item name="osOpozorilo">@color/tema_catppuccin_opozorilo</item>
+        <item name="osSij">@color/tema_catppuccin_sij</item>
+        <item name="osKarticaSteklo">@color/tema_catppuccin_kartica_steklo</item>
+        <item name="osKarticaStekloFokus">@color/tema_catppuccin_kartica_steklo_fokus</item>
+        <item name="osKarticaObroba">@color/tema_catppuccin_kartica_obroba</item>
+        <item name="osMeniOzadje">@color/tema_catppuccin_meni_ozadje</item>
+        <item name="osMeniIzbranOzadje">@color/tema_catppuccin_meni_izbran_ozadje</item>
+        <item name="osMeniFokusOzadje">@color/tema_catppuccin_meni_fokus_ozadje</item>
+        <item name="osSivaPika">@color/tema_catppuccin_siva_pika</item>
+        <item name="osPloscicaAppOzadje">@color/tema_catppuccin_ploscica_app_ozadje</item>
+    </style>
+    <style name="Theme.SafeerOs.Catppuccin.Predvajalnik" parent="Theme.SafeerOs.Catppuccin">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <style name="Theme.SafeerOs.Tokyonight" parent="Theme.SafeerOs">
+        <item name="android:windowBackground">@color/tema_tokyonight_ozadje</item>
+        <item name="android:colorBackground">@color/tema_tokyonight_ozadje</item>
+        <item name="android:textColorPrimary">@color/tema_tokyonight_besedilo</item>
+        <item name="android:textColorSecondary">@color/tema_tokyonight_umirjeno</item>
+        <item name="android:colorAccent">@color/tema_tokyonight_mint</item>
+        <item name="osOzadje">@color/tema_tokyonight_ozadje</item>
+        <item name="osKartica">@color/tema_tokyonight_kartica</item>
+        <item name="osKarticaDvignjena">@color/tema_tokyonight_kartica_dvignjena</item>
+        <item name="osMint">@color/tema_tokyonight_mint</item>
+        <item name="osMintTemna">@color/tema_tokyonight_mint_temna</item>
+        <item name="osBesedilo">@color/tema_tokyonight_besedilo</item>
+        <item name="osUmirjeno">@color/tema_tokyonight_umirjeno</item>
+        <item name="osCrta">@color/tema_tokyonight_crta</item>
+        <item name="osOpozorilo">@color/tema_tokyonight_opozorilo</item>
+        <item name="osSij">@color/tema_tokyonight_sij</item>
+        <item name="osKarticaSteklo">@color/tema_tokyonight_kartica_steklo</item>
+        <item name="osKarticaStekloFokus">@color/tema_tokyonight_kartica_steklo_fokus</item>
+        <item name="osKarticaObroba">@color/tema_tokyonight_kartica_obroba</item>
+        <item name="osMeniOzadje">@color/tema_tokyonight_meni_ozadje</item>
+        <item name="osMeniIzbranOzadje">@color/tema_tokyonight_meni_izbran_ozadje</item>
+        <item name="osMeniFokusOzadje">@color/tema_tokyonight_meni_fokus_ozadje</item>
+        <item name="osSivaPika">@color/tema_tokyonight_siva_pika</item>
+        <item name="osPloscicaAppOzadje">@color/tema_tokyonight_ploscica_app_ozadje</item>
+    </style>
+    <style name="Theme.SafeerOs.Tokyonight.Predvajalnik" parent="Theme.SafeerOs.Tokyonight">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <style name="Theme.SafeerOs.Gruvbox" parent="Theme.SafeerOs">
+        <item name="android:windowBackground">@color/tema_gruvbox_ozadje</item>
+        <item name="android:colorBackground">@color/tema_gruvbox_ozadje</item>
+        <item name="android:textColorPrimary">@color/tema_gruvbox_besedilo</item>
+        <item name="android:textColorSecondary">@color/tema_gruvbox_umirjeno</item>
+        <item name="android:colorAccent">@color/tema_gruvbox_mint</item>
+        <item name="osOzadje">@color/tema_gruvbox_ozadje</item>
+        <item name="osKartica">@color/tema_gruvbox_kartica</item>
+        <item name="osKarticaDvignjena">@color/tema_gruvbox_kartica_dvignjena</item>
+        <item name="osMint">@color/tema_gruvbox_mint</item>
+        <item name="osMintTemna">@color/tema_gruvbox_mint_temna</item>
+        <item name="osBesedilo">@color/tema_gruvbox_besedilo</item>
+        <item name="osUmirjeno">@color/tema_gruvbox_umirjeno</item>
+        <item name="osCrta">@color/tema_gruvbox_crta</item>
+        <item name="osOpozorilo">@color/tema_gruvbox_opozorilo</item>
+        <item name="osSij">@color/tema_gruvbox_sij</item>
+        <item name="osKarticaSteklo">@color/tema_gruvbox_kartica_steklo</item>
+        <item name="osKarticaStekloFokus">@color/tema_gruvbox_kartica_steklo_fokus</item>
+        <item name="osKarticaObroba">@color/tema_gruvbox_kartica_obroba</item>
+        <item name="osMeniOzadje">@color/tema_gruvbox_meni_ozadje</item>
+        <item name="osMeniIzbranOzadje">@color/tema_gruvbox_meni_izbran_ozadje</item>
+        <item name="osMeniFokusOzadje">@color/tema_gruvbox_meni_fokus_ozadje</item>
+        <item name="osSivaPika">@color/tema_gruvbox_siva_pika</item>
+        <item name="osPloscicaAppOzadje">@color/tema_gruvbox_ploscica_app_ozadje</item>
+    </style>
+    <style name="Theme.SafeerOs.Gruvbox.Predvajalnik" parent="Theme.SafeerOs.Gruvbox">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <style name="Theme.SafeerOs.Nord" parent="Theme.SafeerOs">
+        <item name="android:windowBackground">@color/tema_nord_ozadje</item>
+        <item name="android:colorBackground">@color/tema_nord_ozadje</item>
+        <item name="android:textColorPrimary">@color/tema_nord_besedilo</item>
+        <item name="android:textColorSecondary">@color/tema_nord_umirjeno</item>
+        <item name="android:colorAccent">@color/tema_nord_mint</item>
+        <item name="osOzadje">@color/tema_nord_ozadje</item>
+        <item name="osKartica">@color/tema_nord_kartica</item>
+        <item name="osKarticaDvignjena">@color/tema_nord_kartica_dvignjena</item>
+        <item name="osMint">@color/tema_nord_mint</item>
+        <item name="osMintTemna">@color/tema_nord_mint_temna</item>
+        <item name="osBesedilo">@color/tema_nord_besedilo</item>
+        <item name="osUmirjeno">@color/tema_nord_umirjeno</item>
+        <item name="osCrta">@color/tema_nord_crta</item>
+        <item name="osOpozorilo">@color/tema_nord_opozorilo</item>
+        <item name="osSij">@color/tema_nord_sij</item>
+        <item name="osKarticaSteklo">@color/tema_nord_kartica_steklo</item>
+        <item name="osKarticaStekloFokus">@color/tema_nord_kartica_steklo_fokus</item>
+        <item name="osKarticaObroba">@color/tema_nord_kartica_obroba</item>
+        <item name="osMeniOzadje">@color/tema_nord_meni_ozadje</item>
+        <item name="osMeniIzbranOzadje">@color/tema_nord_meni_izbran_ozadje</item>
+        <item name="osMeniFokusOzadje">@color/tema_nord_meni_fokus_ozadje</item>
+        <item name="osSivaPika">@color/tema_nord_siva_pika</item>
+        <item name="osPloscicaAppOzadje">@color/tema_nord_ploscica_app_ozadje</item>
+    </style>
+    <style name="Theme.SafeerOs.Nord.Predvajalnik" parent="Theme.SafeerOs.Nord">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <style name="Theme.SafeerOs.Dracula" parent="Theme.SafeerOs">
+        <item name="android:windowBackground">@color/tema_dracula_ozadje</item>
+        <item name="android:colorBackground">@color/tema_dracula_ozadje</item>
+        <item name="android:textColorPrimary">@color/tema_dracula_besedilo</item>
+        <item name="android:textColorSecondary">@color/tema_dracula_umirjeno</item>
+        <item name="android:colorAccent">@color/tema_dracula_mint</item>
+        <item name="osOzadje">@color/tema_dracula_ozadje</item>
+        <item name="osKartica">@color/tema_dracula_kartica</item>
+        <item name="osKarticaDvignjena">@color/tema_dracula_kartica_dvignjena</item>
+        <item name="osMint">@color/tema_dracula_mint</item>
+        <item name="osMintTemna">@color/tema_dracula_mint_temna</item>
+        <item name="osBesedilo">@color/tema_dracula_besedilo</item>
+        <item name="osUmirjeno">@color/tema_dracula_umirjeno</item>
+        <item name="osCrta">@color/tema_dracula_crta</item>
+        <item name="osOpozorilo">@color/tema_dracula_opozorilo</item>
+        <item name="osSij">@color/tema_dracula_sij</item>
+        <item name="osKarticaSteklo">@color/tema_dracula_kartica_steklo</item>
+        <item name="osKarticaStekloFokus">@color/tema_dracula_kartica_steklo_fokus</item>
+        <item name="osKarticaObroba">@color/tema_dracula_kartica_obroba</item>
+        <item name="osMeniOzadje">@color/tema_dracula_meni_ozadje</item>
+        <item name="osMeniIzbranOzadje">@color/tema_dracula_meni_izbran_ozadje</item>
+        <item name="osMeniFokusOzadje">@color/tema_dracula_meni_fokus_ozadje</item>
+        <item name="osSivaPika">@color/tema_dracula_siva_pika</item>
+        <item name="osPloscicaAppOzadje">@color/tema_dracula_ploscica_app_ozadje</item>
+    </style>
+    <style name="Theme.SafeerOs.Dracula.Predvajalnik" parent="Theme.SafeerOs.Dracula">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
     </style>
     <style name="Theme.SafeerOs.Predvajalnik" parent="Theme.SafeerOs">
         <item name="android:windowBackground">@android:color/black</item>

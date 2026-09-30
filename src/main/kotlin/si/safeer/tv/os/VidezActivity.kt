@@ -48,6 +48,7 @@ class VidezActivity : OsActivity() {
         seznam = findViewById(R.id.seznam)
         drsnik = findViewById(R.id.drsnik)
         odstotek = findViewById(R.id.odstotek)
+        narisiTeme(findViewById(R.id.teme))
         seznam.adapter = prilagojevalnik
         seznam.setOnItemClickListener { _, _, i, _ -> izberi(i) }
         seznam.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -89,6 +90,38 @@ class VidezActivity : OsActivity() {
     override fun onDestroy() {
         ozadjeNit.shutdownNow()
         super.onDestroy()
+    }
+
+    /** Kartice tem: ime, vir palete in stirje barvni vzorci; izbrana je obrobljena. Klik shrani in zaslon narise znova. */
+    private fun narisiTeme(vrsta: ViewGroup) {
+        vrsta.removeAllViews()
+        val gost = resources.displayMetrics.density
+        fun dp(v: Int) = (v * gost).toInt()
+        val izbrana = Tema.izbrana(this).id
+        for (t in Tema.VSE) {
+            val tema = android.view.ContextThemeWrapper(this, t.stil).theme
+            fun b(attr: Int): Int { val tv = android.util.TypedValue(); tema.resolveAttribute(attr, tv, true); return tv.data }
+            val kartica = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL; isFocusable = true; isClickable = true
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = 14 * gost; setColor(osBarva(R.color.os_kartica))
+                    setStroke(dp(if (t.id == izbrana) 2 else 1), osBarva(if (t.id == izbrana) R.color.os_mint else R.color.os_crta))
+                }
+                addView(android.widget.LinearLayout(this@VidezActivity).apply {
+                    orientation = android.widget.LinearLayout.HORIZONTAL
+                    for (attr in listOf(R.attr.osOzadje, R.attr.osKarticaDvignjena, R.attr.osMint, R.attr.osBesedilo))
+                        addView(View(this@VidezActivity).apply { setBackgroundColor(b(attr)) }, android.widget.LinearLayout.LayoutParams(dp(34), dp(26)))
+                }, android.widget.LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(8) })
+                addView(TextView(this@VidezActivity).apply { text = t.ime; textSize = 14f; setTextColor(osBarva(R.color.os_besedilo)); setTypeface(typeface, android.graphics.Typeface.BOLD) })
+                addView(TextView(this@VidezActivity).apply {
+                    text = if (t.id == "safeer") getString(R.string.os_tema_privzeta) else t.vir + (if (t.id == izbrana) "  ·  " + getString(R.string.os_tema_izbrana) else "")
+                    textSize = 11f; setTextColor(osBarva(R.color.os_umirjeno))
+                })
+                setOnClickListener { if (t.id != izbrana) { Tema.nastavi(this@VidezActivity, t.id); recreate() } }
+            }
+            vrsta.addView(kartica, android.widget.LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
+        }
     }
 
     /** Predogled: ozadje zaslona se zamenja, izbira se se ne shrani. */

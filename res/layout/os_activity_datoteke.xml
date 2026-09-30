@@ -49,7 +49,7 @@
             android:paddingEnd="12dp"
             android:paddingTop="6dp"
             android:paddingBottom="6dp"
-            android:textColor="@color/os_umirjeno"
+            android:textColor="?attr/osUmirjeno"
             android:textSize="12sp"/>
         <ImageButton
             android:id="@+id/preklopPogleda"
@@ -80,8 +80,8 @@
         android:inputType="text"
         android:imeOptions="actionSearch"
         android:hint="@string/os_programi_isci"
-        android:textColorHint="@color/os_umirjeno"
-        android:textColor="@color/os_besedilo"
+        android:textColorHint="?attr/osUmirjeno"
+        android:textColor="?attr/osBesedilo"
         android:textCursorDrawable="@null"
         android:textSize="14sp"/>
 
@@ -119,7 +119,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:textColor="@color/os_umirjeno"
+            android:textColor="?attr/osUmirjeno"
             android:textSize="15sp"
             android:lineSpacingExtra="4dp"
             android:visibility="gone"/>
@@ -131,7 +131,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:textColor="@color/os_umirjeno"
+        android:textColor="?attr/osUmirjeno"
         android:textSize="12sp"
         android:visibility="gone"/>
 

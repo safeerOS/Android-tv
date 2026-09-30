@@ -143,7 +143,7 @@ object Ozadje {
 
     /** Risba izbire brez zavese: za predogled v seznamu ozadij. */
     fun predogled(c: Context, izbira: Izbira): Drawable? = when {
-        izbira.oznaka == BREZ -> ColorDrawable(c.getColor(R.color.os_ozadje))
+        izbira.oznaka == BREZ -> ColorDrawable(c.osBarva(R.color.os_ozadje))
         izbira.oznaka == LASTNA -> lastnaRisba(c)
         else -> try { c.getDrawable(izbira.risba) } catch (_: Throwable) { null }
     }
@@ -170,7 +170,7 @@ object Ozadje {
 
     /** Cela podlaga zaslona: barva, slika, zavesa in uporabnikova zatemnitev. */
     fun sestavi(c: Context, izbira: Izbira, zatemnitev: Int): Drawable {
-        val osnova = ColorDrawable(c.getColor(R.color.os_ozadje))
+        val osnova = ColorDrawable(c.osBarva(R.color.os_ozadje))
         val slika = if (izbira.oznaka == BREZ) null else predogled(c, izbira)
         if (slika == null) return osnova
         val plasti = ArrayList<Drawable>(4)

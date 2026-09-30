@@ -125,7 +125,7 @@ class MagnetActivity : OsActivity() {
     private fun gumb(besedilo: String, dejanje: (Button) -> Unit): Button = Button(this).apply {
         text = besedilo
         isAllCaps = false
-        setTextColor(getColor(R.color.os_besedilo))
+        setTextColor(osBarva(R.color.os_besedilo))
         background = getDrawable(R.drawable.os_hitri_gumb)
         setPadding(28, 0, 28, 0)
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (44 * resources.displayMetrics.density).toInt())
@@ -136,7 +136,7 @@ class MagnetActivity : OsActivity() {
     private fun besedilo(t: String, velikost: Float = 15f, umirjeno: Boolean = false): TextView = TextView(this).apply {
         text = t
         textSize = velikost
-        setTextColor(getColor(if (umirjeno) R.color.os_umirjeno else R.color.os_besedilo))
+        setTextColor(osBarva(if (umirjeno) R.color.os_umirjeno else R.color.os_besedilo))
     }
 
     private fun vrstica(): LinearLayout = LinearLayout(this).apply {
@@ -177,7 +177,7 @@ class MagnetActivity : OsActivity() {
                 val v = vrstica()
                 val izbira = CheckBox(this).apply {
                     text = "${d.ime}  ·  ${velikost(d.velikost)}  ·  ${imeVrste(d.vrsta)}"
-                    setTextColor(getColor(if (d.vrsta == "nevarno") R.color.os_umirjeno else R.color.os_besedilo))
+                    setTextColor(osBarva(if (d.vrsta == "nevarno") R.color.os_umirjeno else R.color.os_besedilo))
                     isChecked = d.privzetoIzbrana || d.i in potrjene
                     // Morda program: privzeto ne, a uporabnik lahko po opozorilu vseeno izbere.
                     if (d.vrsta == "nevarno") setOnCheckedChangeListener { gumb, izbrano ->

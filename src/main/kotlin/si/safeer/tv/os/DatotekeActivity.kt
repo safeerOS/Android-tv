@@ -899,7 +899,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
             val (naslov, indeksi) = vrstice[position]
             if (naslov != null) return (convertView as? TextView ?: TextView(this@DatotekeActivity).apply {
-                setTextColor(getColor(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
                 gravity = Gravity.BOTTOM or Gravity.START; typeface = android.graphics.Typeface.DEFAULT_BOLD
                 setPadding(dp(4), dp(14), 0, dp(8))
                 layoutParams = AbsListView.LayoutParams(-1, -2)

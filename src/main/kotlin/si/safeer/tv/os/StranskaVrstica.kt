@@ -53,7 +53,7 @@ class StranskaVrstica private constructor(
 
     init {
         orientation = HORIZONTAL
-        setBackgroundColor(dejavnost.getColor(R.color.os_ozadje))
+        setBackgroundColor(dejavnost.osBarva(R.color.os_ozadje))
         zgradiMeni()
         // Rocaj na levem robu, ko je vrstica skrita: tanek zelen jezicek (dotik ali poteg ga odpre).
         rocaj.background = android.graphics.drawable.LayerDrawable(arrayOf(
@@ -175,7 +175,7 @@ class StranskaVrstica private constructor(
 
     private fun zgradiMeni() {
         meni.orientation = VERTICAL
-        meni.setBackgroundColor(dejavnost.getColor(R.color.os_meni_ozadje))
+        meni.setBackgroundColor(dejavnost.osBarva(R.color.os_meni_ozadje))
 
         val znak = LinearLayout(dejavnost).apply {
             orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), 0, 0, dp(14))

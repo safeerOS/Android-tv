@@ -3,21 +3,21 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_mint"/>
+            <solid android:color="?attr/osMint"/>
             <corners android:radius="999dp"/>
         </shape>
     </item>
     <item android:state_activated="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_mint_temna"/>
-            <stroke android:width="1dp" android:color="@color/os_mint"/>
+            <solid android:color="?attr/osMintTemna"/>
+            <stroke android:width="1dp" android:color="?attr/osMint"/>
             <corners android:radius="999dp"/>
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_kartica"/>
-            <stroke android:width="1dp" android:color="@color/os_crta"/>
+            <solid android:color="?attr/osKartica"/>
+            <stroke android:width="1dp" android:color="?attr/osCrta"/>
             <corners android:radius="999dp"/>
         </shape>
     </item>

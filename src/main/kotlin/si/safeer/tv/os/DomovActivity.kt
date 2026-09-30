@@ -308,7 +308,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (druge.isEmpty()) {
             val prazno = TextView(this)
             prazno.text = getString(R.string.os_plosca_naprave_prazno)
-            prazno.setTextColor(resources.getColor(R.color.os_umirjeno, null))
+            prazno.setTextColor(osBarva(R.color.os_umirjeno))
             prazno.textSize = 12f
             prazno.setPadding(0, 12, 0, 12)
             seznamPloscaNaprave.addView(prazno)
@@ -741,7 +741,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 }
             }
             // Zelena pika pomeni, da Scit dela; izklopljen ali prekinjen ima sivo, ne zbledelo zeleno.
-            scitStatusPika.backgroundTintList = if (s.naVoljo && s.vklopljen && s.tece) null else android.content.res.ColorStateList.valueOf(getColor(R.color.os_siva_pika))
+            scitStatusPika.backgroundTintList = if (s.naVoljo && s.vklopljen && s.tece) null else android.content.res.ColorStateList.valueOf(osBarva(R.color.os_siva_pika))
         }
     }
 
@@ -1327,8 +1327,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             hint = getString(R.string.os_spletne_vnesi_namig)
             setSingleLine()
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
-            setTextColor(resources.getColor(R.color.os_besedilo, null))
-            setHintTextColor(resources.getColor(R.color.os_umirjeno, null))
+            setTextColor(osBarva(R.color.os_besedilo))
+            setHintTextColor(osBarva(R.color.os_umirjeno))
         }
         val okvir = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL

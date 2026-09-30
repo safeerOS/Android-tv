@@ -5,27 +5,27 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_meni_fokus_ozadje"/>
-            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <solid android:color="?attr/osMeniFokusOzadje"/>
+            <stroke android:width="2dp" android:color="?attr/osMint"/>
             <corners android:radius="@dimen/os_kot_meni"/>
         </shape>
     </item>
     <item android:state_selected="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_meni_izbran_ozadje"/>
+            <solid android:color="?attr/osMeniIzbranOzadje"/>
             <corners android:radius="@dimen/os_kot_meni"/>
         </shape>
     </item>
     <item android:state_activated="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_meni_izbran_ozadje"/>
+            <solid android:color="?attr/osMeniIzbranOzadje"/>
             <corners android:radius="@dimen/os_kot_meni"/>
         </shape>
     </item>
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/os_meni_fokus_ozadje"/>
-            <stroke android:width="2dp" android:color="@color/os_mint"/>
+            <solid android:color="?attr/osMeniFokusOzadje"/>
+            <stroke android:width="2dp" android:color="?attr/osMint"/>
             <corners android:radius="@dimen/os_kot_meni"/>
         </shape>
     </item>
