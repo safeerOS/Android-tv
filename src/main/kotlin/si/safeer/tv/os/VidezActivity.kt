@@ -104,10 +104,20 @@ class VidezActivity : OsActivity() {
             val kartica = android.widget.LinearLayout(this).apply {
                 orientation = android.widget.LinearLayout.VERTICAL; isFocusable = true; isClickable = true
                 setPadding(dp(12), dp(10), dp(12), dp(10))
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    cornerRadius = 14 * gost; setColor(osBarva(R.color.os_kartica))
-                    setStroke(dp(if (t.id == izbrana) 2 else 1), osBarva(if (t.id == izbrana) R.color.os_mint else R.color.os_crta))
+                // Na TV mora biti jasno vidno, katera kartica ima fokus (daljinec): debela obroba in
+                // svetlejse ozadje ob fokusu, izbrana tema ima tanjso obrobo v barvi Safeer.
+                fun okvir(fokus: Boolean) = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = 14 * gost
+                    setColor(osBarva(if (fokus) R.color.os_kartica_dvignjena else R.color.os_kartica))
+                    setStroke(dp(if (fokus) 3 else if (t.id == izbrana) 2 else 1),
+                        osBarva(if (fokus || t.id == izbrana) R.color.os_mint else R.color.os_crta))
                 }
+                background = android.graphics.drawable.StateListDrawable().apply {
+                    addState(intArrayOf(android.R.attr.state_focused), okvir(true))
+                    addState(intArrayOf(android.R.attr.state_pressed), okvir(true))
+                    addState(intArrayOf(), okvir(false))
+                }
+                setOnFocusChangeListener { v, f -> v.animate().scaleX(if (f) 1.06f else 1f).scaleY(if (f) 1.06f else 1f).setDuration(120).start() }
                 addView(android.widget.LinearLayout(this@VidezActivity).apply {
                     orientation = android.widget.LinearLayout.HORIZONTAL
                     for (attr in listOf(R.attr.osOzadje, R.attr.osKarticaDvignjena, R.attr.osMint, R.attr.osBesedilo))
