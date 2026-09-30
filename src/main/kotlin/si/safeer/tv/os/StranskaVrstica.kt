@@ -49,7 +49,7 @@ class StranskaVrstica private constructor(
     private var poteg = false
     private var prevzet = false
 
-    val aktivnaPostavka: View get() = postavke.getValue(aktivna)
+    val aktivnaPostavka: View get() = (postavke[aktivna] ?: postavke.values.first())
 
     init {
         orientation = HORIZONTAL
@@ -190,14 +190,17 @@ class StranskaVrstica private constructor(
         besedila.add(ime)
         meni.addView(znak)
 
-        dodaj(Razdelek.DOMOV, R.drawable.os_ikona_domov, R.string.os_meni_domov)
+        // Safeer Predvajalnik (samostojna aplikacija): samo, kar spada k predvajalniku - mediji, naprave
+        // (datoteke z racunalnikov prek Safeer Linka), datoteke in nastavitve; ostalo je Safeer OS.
+        val samoPredvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
+        if (!samoPredvajalnik) dodaj(Razdelek.DOMOV, R.drawable.os_ikona_domov, R.string.os_meni_domov)
         dodaj(Razdelek.MEDIJI, R.drawable.os_ikona_glasba, R.string.os_mediji_kartica)
         dodaj(Razdelek.NAPRAVE, R.drawable.os_ikona_link, R.string.os_meni_naprave)
-        dodaj(Razdelek.SPOROCILA, R.drawable.os_ikona_sporocila, R.string.os_meni_sporocila)
-        dodaj(Razdelek.PROGRAMI, R.drawable.os_ikona_aplikacije, R.string.os_meni_aplikacije)
+        if (!samoPredvajalnik) dodaj(Razdelek.SPOROCILA, R.drawable.os_ikona_sporocila, R.string.os_meni_sporocila)
+        if (!samoPredvajalnik) dodaj(Razdelek.PROGRAMI, R.drawable.os_ikona_aplikacije, R.string.os_meni_aplikacije)
         dodaj(Razdelek.DATOTEKE, R.drawable.os_ikona_datoteke, R.string.os_meni_datoteke)
-        dodaj(Razdelek.SPLET, R.drawable.os_ikona_splet, R.string.os_meni_splet)
-        dodaj(Razdelek.ZAPISKI, R.drawable.os_ikona_zapiski, R.string.os_meni_zapiski)
+        if (!samoPredvajalnik) dodaj(Razdelek.SPLET, R.drawable.os_ikona_splet, R.string.os_meni_splet)
+        if (!samoPredvajalnik) dodaj(Razdelek.ZAPISKI, R.drawable.os_ikona_zapiski, R.string.os_meni_zapiski)
         dodaj(Razdelek.NASTAVITVE, R.drawable.os_ikona_nastavitve, R.string.os_meni_nastavitve)
 
         val seznam = postavke.values.toList()
