@@ -139,10 +139,24 @@ class GlasbaActivity : OsActivity() {
         n.putExtra(NAMEN_OBDELAN, true)
         val mime = n.type ?: contentResolver.getType(uri) ?: ""
         val zvok = mime.startsWith("audio/")
-        val ime = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: uri.toString()
+        val ime = imeDatoteke(uri)
         val skladba = Jamendo.Skladba(uri.toString(), ime, "", "", uri.toString(), "", video = !zvok, mime = mime)
         GlasbaStoritev.predvajaj(this, listOf(skladba), 0)
         startActivity(Intent(this, PredvajanjeActivity::class.java))
+    }
+
+    /** Ime datoteke za naslov: pri content:// (upravitelj datotek, Prenosi) je zadnji del poti le stevilka,
+     *  pravo ime da ponudnik (DISPLAY_NAME); pri file:// in http je to zadnji del poti. */
+    private fun imeDatoteke(uri: android.net.Uri): String {
+        if (uri.scheme == "content") {
+            try {
+                contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) c.getString(0)?.takeIf { it.isNotBlank() }?.let { return it }
+                }
+            } catch (_: Throwable) { }
+        }
+        val zadnji = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+        return try { zadnji?.let { java.net.URLDecoder.decode(it, "UTF-8") } ?: uri.toString() } catch (_: Throwable) { zadnji ?: uri.toString() }
     }
 
     /** Iskanje, odprto od drugod (zaslon predvajanja, tipka Isci): razdelek Iskanje, polje pripravljeno. */

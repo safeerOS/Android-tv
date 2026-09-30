@@ -65,9 +65,23 @@ open class OsActivity : Activity() {
         return super.dispatchKeyEvent(dogodek)
     }
 
-    /** Nazaj iz glavnega zaslona razdelka vedno vrne Safeer OS Domov. */
+    /** Nazaj iz glavnega zaslona razdelka vedno vrne Safeer OS Domov. V samostojnem Safeer Predvajalniku
+     *  Domov Safeer OS ni del aplikacije: Nazaj iz razdelka vrne v Medije, iz Medijev pa zapusti aplikacijo. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        val samoPredvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
+        if (samoPredvajalnik) {
+            if (this !is GlasbaActivity && stranskaVrstica() != null) {
+                try {
+                    startActivity(android.content.Intent(this, GlasbaActivity::class.java)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                    finish()
+                    return
+                } catch (_: Throwable) { }
+            }
+            super.onBackPressed()
+            return
+        }
         if (this !is DomovActivity && stranskaVrstica() != null) {
             try {
                 startActivity(android.content.Intent(this, DomovActivity::class.java)

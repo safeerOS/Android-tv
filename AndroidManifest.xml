@@ -263,7 +263,8 @@
         </activity>
         <activity android:name="si.safeer.tv.os.PredvajanjeActivity" android:exported="false"
             android:theme="@style/Theme.SafeerOs.Predvajalnik" android:launchMode="singleTop"
-            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation" />
         <service
             android:name="si.safeer.tv.os.GlasbaStoritev"
             android:exported="false"
