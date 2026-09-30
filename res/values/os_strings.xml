@@ -535,4 +535,32 @@
     <string name="os_mediji_predvajaj">Play</string>
     <string name="os_mediji_predvajalnik_ni_izbirnika">This device has no file picker.</string>
     <string name="os_mediji_predvajalnik_le_http">Only http/https addresses are allowed.</string>
+    <!-- Sporocila: skupni nabiralnik, osebe, oznake, iskanje pri osebi, Lastni API (30. 9. 2026) -->
+    <string name="os_spor_isci_namig">Search by name, subject, text or label…</string>
+    <string name="os_spor_filter_vse">All</string>
+    <string name="os_spor_filter_neprebrano">Unread</string>
+    <string name="os_spor_filter_klepeti">Chats</string>
+    <string name="os_spor_ni_zadetkov">No results.</string>
+    <string name="os_spor_oseba">Person</string>
+    <string name="os_spor_oznake">Labels</string>
+    <string name="os_spor_isci_osebo">Search this person</string>
+    <string name="os_spor_isci_osebo_namig">Word in messages…</string>
+    <string name="os_spor_oseba_ime">Your name for this person (optional)</string>
+    <string name="os_spor_oseba_privzeto">Name from the channel: %1$s</string>
+    <string name="os_spor_oseba_identitete">Addresses and accounts:</string>
+    <string name="os_spor_shrani">Save</string>
+    <string name="os_spor_zdruzi">Merge with…</string>
+    <string name="os_spor_zdruzi_z">Same person as…</string>
+    <string name="os_spor_razdruzi">Split off</string>
+    <string name="os_spor_ni_drugih_oseb">No other people to merge with.</string>
+    <string name="os_spor_nova_oznaka">New label</string>
+    <string name="os_spor_lastni_api">Own API</string>
+    <string name="os_spor_lastni_api_opis">If you have a token for your own app, enter it here – messages land in the shared inbox.</string>
+    <string name="os_spor_api_streznik">Server, e.g. https://matrix.org</string>
+    <string name="os_spor_api_ime">Channel name (optional)</string>
+    <string name="os_spor_nav_matrix">Matrix (Element, Beeper, own Synapse): in Element open Settings › Help &amp; About › Advanced › Access Token and paste it here. The server address is the one your account lives on (e.g. https://matrix.org).</string>
+    <string name="os_spor_nav_telegram_bot">Telegram Bot: in Telegram message @BotFather, send /newbot and follow the steps – you get a token like 123456:ABC… The bot receives messages from people who write to it; Telegram does not expose your private account this way.</string>
+    <string name="os_spor_api_manjka_matrix">Enter the server address (https://…) and the access token.</string>
+    <string name="os_spor_api_manjka_telegram">Enter the bot token (123456:ABC…) from @BotFather.</string>
+    <string name="os_spor_zapri">Close</string>
 </resources>

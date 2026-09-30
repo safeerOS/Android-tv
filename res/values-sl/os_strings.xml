@@ -534,4 +534,32 @@
     <string name="os_mediji_predvajaj">Predvajaj</string>
     <string name="os_mediji_predvajalnik_ni_izbirnika">Na tej napravi ni izbirnika datotek.</string>
     <string name="os_mediji_predvajalnik_le_http">Dovoljeni so le naslovi http/https.</string>
+    <!-- Sporocila: skupni nabiralnik, osebe, oznake, iskanje pri osebi, Lastni API (30. 9. 2026) -->
+    <string name="os_spor_isci_namig">Išči po imenu, zadevi, besedilu ali oznaki …</string>
+    <string name="os_spor_filter_vse">Vse</string>
+    <string name="os_spor_filter_neprebrano">Neprebrano</string>
+    <string name="os_spor_filter_klepeti">Klepeti</string>
+    <string name="os_spor_ni_zadetkov">Ni zadetkov.</string>
+    <string name="os_spor_oseba">Oseba</string>
+    <string name="os_spor_oznake">Oznake</string>
+    <string name="os_spor_isci_osebo">Išči pri tej osebi</string>
+    <string name="os_spor_isci_osebo_namig">Beseda v sporočilih …</string>
+    <string name="os_spor_oseba_ime">Tvoje ime za to osebo (neobvezno)</string>
+    <string name="os_spor_oseba_privzeto">Ime iz kanala: %1$s</string>
+    <string name="os_spor_oseba_identitete">Naslovi in računi:</string>
+    <string name="os_spor_shrani">Shrani</string>
+    <string name="os_spor_zdruzi">Združi z …</string>
+    <string name="os_spor_zdruzi_z">Ista oseba kot …</string>
+    <string name="os_spor_razdruzi">Razdruži</string>
+    <string name="os_spor_ni_drugih_oseb">Ni drugih oseb za združitev.</string>
+    <string name="os_spor_nova_oznaka">Nova oznaka</string>
+    <string name="os_spor_lastni_api">Lastni API</string>
+    <string name="os_spor_lastni_api_opis">Če imaš žeton svoje aplikacije, ga vpiši tukaj – sporočila pridejo v skupni nabiralnik.</string>
+    <string name="os_spor_api_streznik">Strežnik, npr. https://matrix.org</string>
+    <string name="os_spor_api_ime">Ime kanala (neobvezno)</string>
+    <string name="os_spor_nav_matrix">Matrix (Element, Beeper, lastni Synapse): v aplikaciji Element odpri Nastavitve › Pomoč in o programu › Napredno › Dostopni žeton in ga prepiši sem. Naslov strežnika je tisti, na katerem imaš račun (npr. https://matrix.org).</string>
+    <string name="os_spor_nav_telegram_bot">Telegram Bot: v Telegramu piši @BotFather, pošlji /newbot in sledi navodilom – dobiš žeton oblike 123456:ABC… Bot prejema sporočila ljudi, ki mu pišejo; tvojega zasebnega računa Telegram tako ne odpira.</string>
+    <string name="os_spor_api_manjka_matrix">Vnesi naslov strežnika (https://…) in dostopni žeton.</string>
+    <string name="os_spor_api_manjka_telegram">Vnesi žeton bota (oblika 123456:ABC…), ki ti ga da @BotFather.</string>
+    <string name="os_spor_zapri">Zapri</string>
 </resources>
