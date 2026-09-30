@@ -182,6 +182,15 @@ object DvdVir {
 
         override fun getUri(): Uri? = uri
 
+        /**
+         * Glave odgovora gredo naprej od pravega vira. Brez tega ExoPlayer ne vidi "icy-metaint" (sam zahteva
+         * "Icy-MetaData: 1"), zato ne odstrani vrinjenih blokov z naslovom skladbe (vsakih 8-16 KB, torej
+         * 1-2x na sekundo) in dekoder MP3 ob vsakem bloku poci - "praskanje v ozadju" pri internetnem radiu
+         * (Radio 1, Rock Radio; TV, 30. 9. 2026). Jamendo brez ICY je bil cist.
+         */
+        override fun getResponseHeaders(): Map<String, List<String>> =
+            naprej?.responseHeaders ?: trenutni?.responseHeaders ?: emptyMap()
+
         override fun close() {
             naprej?.close(); naprej = null
             trenutni?.close(); trenutni = null

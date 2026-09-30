@@ -79,8 +79,10 @@ class GlasbaStoritev : Service() {
     override fun onCreate() {
         super.onCreate()
         val p = ExoPlayer.Builder(this).build()
+        // Vsebina "glasba" (privzeto v Media3), ne "neznano": televizor po tej oznaki izbere
+        // obdelavo zvoka (npr. Philipsov nacin za govor/glasbo), ki je bila prej nedolocena.
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_UNKNOWN).build(), true)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(), true)
         p.setWakeMode(C.WAKE_MODE_NETWORK)
         p.setHandleAudioBecomingNoisy(true)
         Podnapisi.uveljavi(this, p)
