@@ -135,12 +135,20 @@ object SpletniVir {
             (if (s.slika.isNotBlank()) 30 else 0)
     }
 
-    fun cistNaslov(t: String): String = t.lowercase()
-        .replace(Regex("(?i)\\[.*?\\]|\\(.*?\\)"), " ")
-        .replace(Regex("\\b(19|20)\\d{2}\\b"), "")
-        .replace(Regex("(?i)\\b(4k|uhd|fhd|full.?hd|1080p?|720p?|hd|watch|online|official|music|video|videospot|audio|lyrics?|lyric|remastered|live|clip)\\b"), "")
-        .replace(Regex("[^\\p{L}\\p{N}]"), "")
-        .trim()
+    // Regularni izrazi so prevedeni enkrat (prej ob vsakem klicu: na televizorju je zdruzevanje 84 kartic
+    // trajalo 4 s na glavni niti, ker je vsak par kartic na novo prevedel ~30 izrazov).
+    private val RX_OKLEPAJI = Regex("(?i)\\[.*?\\]|\\(.*?\\)")
+    private val RX_LETNICA = Regex("\\b(19|20)\\d{2}\\b")
+    private val RX_SUM = Regex("(?i)\\b(4k|uhd|fhd|full.?hd|1080p?|720p?|hd|watch|online|official|music|video|videospot|audio|lyrics?|lyric|remastered|live|clip)\\b")
+    private val RX_NEALFA = Regex("[^\\p{L}\\p{N}]")
+    private val cistiNaslovi = android.util.LruCache<String, String>(4000)
+
+    fun cistNaslov(t: String): String {
+        cistiNaslovi.get(t)?.let { return it }
+        val r = t.lowercase().replace(RX_OKLEPAJI, " ").replace(RX_LETNICA, "").replace(RX_SUM, "").replace(RX_NEALFA, "").trim()
+        cistiNaslovi.put(t, r)
+        return r
+    }
 
     fun zdruzljiva(a: Jamendo.Skladba, b: Jamendo.Skladba): Boolean {
         if (a.povezava == b.povezava) return true
@@ -198,16 +206,34 @@ object SpletniVir {
     }
 
     /** Ena skupina na vsebino; znotraj skupine je najkakovostnejsi vir vedno prvi z zdruzenimi metapodatki. */
+    /** Kljuci, po katerih se dve vsebini sploh lahko ujemata (isti pogoji kot v [zdruzljiva]); ostali pari se ne primerjajo. */
+    private fun kljuciKandidata(s: Jamendo.Skladba): List<String> {
+        val k = ArrayList<String>(5)
+        k += "u:" + s.povezava
+        if (s.imdbId.isNotBlank()) k += "i:" + s.imdbId.lowercase()
+        if (s.tmdbId.isNotBlank()) k += "t:" + s.tmdbId.lowercase()
+        cistNaslov(s.naslov).takeIf { it.isNotBlank() }?.let { k += "n:$it" }
+        if (s.izvajalec.isNotBlank()) cistNaslov("${s.izvajalec} ${s.naslov}").takeIf { it.isNotBlank() }?.let { k += "n:$it" }
+        return k
+    }
+
     fun zdruziEnako(v: List<Jamendo.Skladba>): List<List<Jamendo.Skladba>> {
         val grupe = mutableListOf<MutableList<Jamendo.Skladba>>()
+        val poKljucu = HashMap<String, MutableList<Int>>()   // kljuc -> indeksi grup, ki ga vsebujejo
         for (item in v) {
-            val obstojeca = grupe.firstOrNull { g -> g.any { zdruzljiva(it, item) } }
+            val kljuci = kljuciKandidata(item)
+            val kandidati = kljuci.flatMap { poKljucu[it].orEmpty() }.distinct()
+            val obstojeca = kandidati.map { grupe[it] }.firstOrNull { g -> g.any { zdruzljiva(it, item) } }
             if (obstojeca != null) {
                 if (obstojeca.none { it.povezava == item.povezava }) {
                     obstojeca.add(item)
+                    val idx = grupe.indexOf(obstojeca)
+                    for (k in kljuci) poKljucu.getOrPut(k) { ArrayList() }.let { if (idx !in it) it.add(idx) }
                 }
             } else {
                 grupe.add(mutableListOf(item))
+                val idx = grupe.size - 1
+                for (k in kljuci) poKljucu.getOrPut(k) { ArrayList() }.add(idx)
             }
         }
         return grupe.map { kandidati ->
@@ -231,13 +257,30 @@ object SpletniVir {
         }
     }
 
-    /** Film, serija ali videospot po standardnih oznakah in naslovu; null = ne vemo. */
+    private val RX_EPIZODA = Regex("(?i)s\\d{1,2}(?:e\\d{1,3})?|\\b(?:season|sezona|series)\\s*\\d+|\\b(?:episode|epizoda|del)\\s*\\d+")
+    private val RX_FILM_URL = Regex("(?i)(?:^|[/_?&=.-])(?:movies?|films?|filmi)(?:[/_?&=.-]|$)")
+    private val RX_SERIJA_URL = Regex("(?i)(?:^|[/_?&=.-])(?:tv|series|serie|serija|serije|shows?|watch[-_]?tv|tv[-_]?series|tv-?shows?|episodes?|epizod[ae]|seasons?|sezon[ae])(?:[/_?&=.-]|$)")
+    private val RX_SPOT_URL = Regex("(?i)(?:^|[/_?&=.-])(?:music[-_ ]?videos?|videospoti?|official[-_ ]?videos?)(?:[/_?&=.-]|$)")
+    private val RX_SPOT_NASLOV = Regex("(?i)\\bofficial (?:music )?video\\b|\\bvideospot\\b")
+    private val RX_LETNICA_NASLOV = Regex("\\b(19\\d{2}|20\\d{2})\\b")
+    private val RX_SEZONA_NASLOV = Regex("(?i)s\\d{1,2}|\\b(?:season|sezona)\\b")
+    private val vrsteVsebine = android.util.LruCache<String, String>(4000)
+    private const val NEZNANA = "\u0000"
+
+    /** Film, serija ali videospot po standardnih oznakah in naslovu; null = ne vemo. Rezultat se hrani po vsebini. */
     fun vrstaVsebine(s: Jamendo.Skladba): String? {
+        val kljuc = s.povezava + "\u0001" + s.naslov + "\u0001" + s.mediaType + "\u0001" + s.season + "\u0001" + s.episode + "\u0001" + s.streznik + "\u0001" + s.video
+        vrsteVsebine.get(kljuc)?.let { return if (it == NEZNANA) null else it }
+        val r = izracunajVrsto(s)
+        vrsteVsebine.put(kljuc, r ?: NEZNANA)
+        return r
+    }
+
+    private fun izracunajVrsto(s: Jamendo.Skladba): String? {
         val u = s.povezava.lowercase()
         val n = s.naslov.lowercase()
-        val vzorecEpizode = Regex("(?i)s\\d{1,2}(?:e\\d{1,3})?|\\b(?:season|sezona|series)\\s*\\d+|\\b(?:episode|epizoda|del)\\s*\\d+")
         val peerTubeBrezEpizode = s.video && s.streznik.isNotBlank() && s.season <= 0 && s.episode <= 0 &&
-            !vzorecEpizode.containsMatchIn(u) && !vzorecEpizode.containsMatchIn(n)
+            !RX_EPIZODA.containsMatchIn(u) && !RX_EPIZODA.containsMatchIn(n)
         when (s.mediaType.lowercase()) {
             "movie", "film" -> return FILM
             "tvseries", "tvseason", "tvepisode", "series" -> return if (peerTubeBrezEpizode) null else SERIJA
@@ -246,17 +289,16 @@ object SpletniVir {
         if (s.season > 0 || s.episode > 0) return SERIJA
         return when {
             // Izrecna pot za filme v URL (/movie/ ali /film/)
-            Regex("(?i)(?:^|[/_?&=.-])(?:movies?|films?|filmi)(?:[/_?&=.-]|$)").containsMatchIn(u) -> FILM
+            RX_FILM_URL.containsMatchIn(u) -> FILM
             // Serije po domeni (watchseries), URL-ju (/tv/, /series/, /shows/) ali oznakah sezone/epizode
             u.contains("watchseries") || u.contains("watch-series") ||
-                Regex("(?i)(?:^|[/_?&=.-])(?:tv|series|serie|serija|serije|shows?|watch[-_]?tv|tv[-_]?series|tv-?shows?|episodes?|epizod[ae]|seasons?|sezon[ae])(?:[/_?&=.-]|$)").containsMatchIn(u) ||
-                vzorecEpizode.containsMatchIn(u) || vzorecEpizode.containsMatchIn(n) -> if (peerTubeBrezEpizode) null else SERIJA
+                RX_SERIJA_URL.containsMatchIn(u) ||
+                RX_EPIZODA.containsMatchIn(u) || RX_EPIZODA.containsMatchIn(n) -> if (peerTubeBrezEpizode) null else SERIJA
             // Videospoti po poti ali naslovu
-            Regex("(?i)(?:^|[/_?&=.-])(?:music[-_ ]?videos?|videospoti?|official[-_ ]?videos?)(?:[/_?&=.-]|$)").containsMatchIn(u) ||
-                Regex("(?i)\\bofficial (?:music )?video\\b|\\bvideospot\\b").containsMatchIn(n) -> VIDEOSPOT
+            RX_SPOT_URL.containsMatchIn(u) || RX_SPOT_NASLOV.containsMatchIn(n) -> VIDEOSPOT
             // Filmi z letnico v naslovu (ob odsotnosti oznak sezone). Ne za PeerTube: tam je letnica v
             // naslovu predavanja ali posnetka ("What is TILvids? (2020)") in ne pomeni filma.
-            s.streznik.isBlank() && Regex("\\b(19\\d{2}|20\\d{2})\\b").containsMatchIn(n) && !Regex("(?i)s\\d{1,2}|\\b(?:season|sezona)\\b").containsMatchIn(n) -> FILM
+            s.streznik.isBlank() && RX_LETNICA_NASLOV.containsMatchIn(n) && !RX_SEZONA_NASLOV.containsMatchIn(n) -> FILM
             else -> null
         }
     }

@@ -114,8 +114,24 @@ class GlasbaActivity : OsActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         odprta = true
+        // Merjenje odzivnosti (samo razvojna gradnja): vsak dostop do diska/omrezja na glavni niti gre v dnevnik
+        // z skladom klicev, cas do prvega izrisa pa pod SafeerOsCas. Izdajna gradnja tega ne dela.
+        if (si.safeer.tv.BuildConfig.DEBUG) {
+            android.os.StrictMode.setThreadPolicy(android.os.StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build())
+            // Vsako sporocilo glavne niti, ki traja vec kot 80 ms, gre v dnevnik s cilje/klicem (razvojna gradnja).
+            var zacetek = 0L; var opis = ""
+            android.os.Looper.getMainLooper().setMessageLogging { x ->
+                if (x.startsWith(">>>>>")) { zacetek = android.os.SystemClock.uptimeMillis(); opis = x }
+                else if (x.startsWith("<<<<<")) { val d = android.os.SystemClock.uptimeMillis() - zacetek; if (d > 80) android.util.Log.w("SafeerOsCas", "pocasno sporocilo $d ms: ${opis.take(200)}") }
+            }
+        }
+        val t0 = android.os.SystemClock.uptimeMillis()
         setContentView(zgradi())
+        val t1 = android.os.SystemClock.uptimeMillis()
         izberi(DOMOV)
+        val t2 = android.os.SystemClock.uptimeMillis()
+        android.util.Log.i("SafeerOsCas", "onCreate: zgradi=${t1 - t0} ms, izberi(DOMOV)=${t2 - t1} ms")
+        drsnik.post { android.util.Log.i("SafeerOsCas", "prvi izris po onCreate: ${android.os.SystemClock.uptimeMillis() - t0} ms") }
         drsnik.post { if (window.decorView.findFocus() == null || razdelek == DOMOV) vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus() }
         iskanjeIzNamena()
         predvajajIzNamena()
@@ -414,7 +430,15 @@ class GlasbaActivity : OsActivity() {
         return null
     }
 
+    /**
+     * Risanje po korakih: police in kartice se dodajajo v majhnih kosih (vsak kos najvec ~8 ms na glavni
+     * niti), ne vse v eni slicici. Na televizorju (Philips mt5895, 2 GB) je celoten razdelek v eni slicici
+     * trajal 1,2 s ("Skipped 33 frames"); zdaj se prva vrsta pokaze takoj, ostale sledijo brez zastoja.
+     * Novo risanje (menjava razdelka) prekine se nedokoncano prejsnje.
+     */
+    private var risanje = 0
     private fun narisi(vrste: List<Vrsta>, opis: String, prazno: String = getString(R.string.os_glasba_prazno), glava: List<View> = emptyList()) {
+        val moje = ++risanje
         val kljuc = if (vsebina.hasFocus()) kljucFokusa() else null
         // Fokus iz vsebine, ki jo bomo zamenjali, v meni - sicer skoci na prvi element zaslona.
         if (vsebina.hasFocus()) meniMediji.requestFocus()
@@ -422,48 +446,69 @@ class GlasbaActivity : OsActivity() {
         stanje.text = if (glava.isEmpty() && vrste.all { it.kartice.isEmpty() && it.pogled == null }) prazno else opis
         iskalnik?.let { vsebina.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
         glava.forEach { vsebina.addView(it) }
+        val koraki = ArrayDeque<() -> Unit>()
         for (v in vrste) {
             if (v.kartice.isEmpty() && v.pogled == null) continue
             val tesno = v.mala || razdelek == DOMOV
-            if (v.naslov.isNotBlank())
-                vsebina.addView(besedilo(if (tesno) 16f else 18f, osBarva(R.color.os_besedilo), true).apply {
-                    text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
-                    setPadding(dp(4), dp(if (tesno) 5 else 14), 0, dp(if (tesno) 3 else 8)) })
-            if (v.pogled != null) { vsebina.addView(v.pogled); continue }
+            koraki.addLast {
+                if (v.naslov.isNotBlank())
+                    vsebina.addView(besedilo(if (tesno) 16f else 18f, osBarva(R.color.os_besedilo), true).apply {
+                        text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
+                        setPadding(dp(4), dp(if (tesno) 5 else 14), 0, dp(if (tesno) 3 else 8)) })
+            }
+            if (v.pogled != null) { koraki.addLast { vsebina.addView(v.pogled) }; continue }
             if (v.mreza) {
                 // Mreza (Moji viri): toliko kartic v vrsto, kolikor jih gre celih, ostale v naslednjo vrsto.
                 val korak = dp(MREZA_DP + 12 + 14)
                 val n = ((vsebina.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels * 3 / 4)) / korak).coerceAtLeast(1)
                 v.kartice.chunked(n).forEachIndexed { r, del ->
-                    vsebina.addView(LinearLayout(this).apply {
-                        orientation = LinearLayout.HORIZONTAL; tag = MREZA_VRSTA
-                        del.forEachIndexed { i, k ->
-                            addView(kartica(k, false, i == 0, "k:${v.naslov}#${r * n + i}", velikostDp = MREZA_DP), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(14); bottomMargin = dp(14) })
-                        }
-                    })
+                    koraki.addLast {
+                        vsebina.addView(LinearLayout(this).apply {
+                            orientation = LinearLayout.HORIZONTAL; tag = MREZA_VRSTA
+                            del.forEachIndexed { i, k ->
+                                addView(kartica(k, false, i == 0, "k:${v.naslov}#${r * n + i}", velikostDp = MREZA_DP), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(14); bottomMargin = dp(14) })
+                            }
+                        })
+                    }
                 }
                 continue
             }
             val niz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            v.kartice.forEachIndexed { i, k ->
-                niz.addView(kartica(k, v.video, i == 0, "k:${v.naslov}#$i", v.mala), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(if (v.mala) 10 else 14) })
+            // Prvih nekaj kartic skupaj s polico (toliko, kot jih je vidnih), ostale po kosih.
+            v.kartice.chunked(KARTIC_NA_KORAK).forEachIndexed { c, del ->
+                koraki.addLast {
+                    if (c == 0) vsebina.addView(HorizontalScrollView(this).apply {
+                        addView(niz); isHorizontalScrollBarEnabled = false; clipToPadding = false
+                    })
+                    del.forEachIndexed { j, k ->
+                        val i = c * KARTIC_NA_KORAK + j
+                        niz.addView(kartica(k, v.video, i == 0, "k:${v.naslov}#$i", v.mala), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(if (v.mala) 10 else 14) })
+                    }
+                }
             }
-            vsebina.addView(HorizontalScrollView(this).apply {
-                addView(niz); isHorizontalScrollBarEnabled = false; clipToPadding = false
-            })
         }
         if (kljuc == null) drsnik.scrollTo(0, 0)
-        brezOdrezanihVrst()
-        drsnik.post {
-            // "Nadaljuj" se po zacetku predvajanja zamenja s tipkami - izbira gre na predvajaj/pavza.
-            val nazaj = kljuc?.let { vsebina.findViewWithTag<View>(it) ?: if (it == "k:nadaljuj") vsebina.findViewWithTag<View>("k:predvajaj") else null }
-            when {
-                nazaj != null -> nazaj.requestFocus()
-                fokusVVsebino -> { fokusVVsebino = false; fokusNaPrvo() }
-                // Po zaprtem oknu (Dodaj vir, Odstrani) fokus ne sme ostati nikjer.
-                window.decorView.findFocus() == null -> meniMediji.requestFocus()
+        fun koncano() {
+            brezOdrezanihVrst()
+            drsnik.post {
+                if (moje != risanje) return@post
+                // "Nadaljuj" se po zacetku predvajanja zamenja s tipkami - izbira gre na predvajaj/pavza.
+                val nazaj = kljuc?.let { vsebina.findViewWithTag<View>(it) ?: if (it == "k:nadaljuj") vsebina.findViewWithTag<View>("k:predvajaj") else null }
+                when {
+                    nazaj != null -> nazaj.requestFocus()
+                    fokusVVsebino -> { fokusVVsebino = false; fokusNaPrvo() }
+                    // Po zaprtem oknu (Dodaj vir, Odstrani) fokus ne sme ostati nikjer.
+                    window.decorView.findFocus() == null -> meniMediji.requestFocus()
+                }
             }
         }
+        fun korak() {
+            if (moje != risanje || isFinishing) return
+            val zacetek = android.os.SystemClock.uptimeMillis()
+            while (koraki.isNotEmpty() && android.os.SystemClock.uptimeMillis() - zacetek < PRORACUN_MS) koraki.removeFirst()()
+            if (koraki.isNotEmpty()) glavna.post { korak() } else koncano()
+        }
+        korak()
     }
 
     /**
@@ -575,11 +620,12 @@ class GlasbaActivity : OsActivity() {
         // Zadnji znani pogled z diska pokazemo takoj (tudi po ponovnem zagonu), sveze police pa
         // nalozimo v ozadju in jih zamenjamo samo, ce so drugacne - brez praznega zaslona in cakanja.
         val kljucDiska = kljucPolic(i)
-        val zDiska = MedijskiPredpomnilnik.beriPolice(this, kljucDiska)?.map { (n, v, s) -> Podatki(n, s, v) }
-        if (zDiska != null) prikazi(i, zDiska)
-        // Kar je na napravi, pokazemo takoj; vrste s spleta pridejo, ko se nalozijo.
-        else narisi(zgoraj(i), getString(R.string.os_glasba_nalagam), getString(R.string.os_glasba_nalagam), glavaRazdelka(i))
+        // Kar je na napravi, pokazemo takoj; zadnji znani pogled z diska in sveze police pridejo z delovne niti
+        // (branje in razclenjevanje JSON-a z diska je na televizorju trajalo do pol sekunde na glavni niti).
+        narisi(zgoraj(i), getString(R.string.os_glasba_nalagam), getString(R.string.os_glasba_nalagam), glavaRazdelka(i))
         delavec.execute {
+            val zDiska = try { MedijskiPredpomnilnik.beriPolice(this, kljucDiska)?.map { (n, v, s) -> Podatki(n, s, v) } } catch (_: Exception) { null }
+            if (zDiska != null) glavna.post { if (moje == nalaganje && !isFinishing) prikazi(i, zDiska) }
             val podatki = try {
                 podatkiRazdelka(i).map { it.copy(skladbe = razvrsti(i, it.skladbe)) }
             } catch (_: Exception) { null }
@@ -675,10 +721,17 @@ class GlasbaActivity : OsActivity() {
     /** Razdelek: najprej krajevno (nadzorna plosca, nedavno, priljubljene), nato vrste s spleta. */
     private fun prikazi(i: Int, podatki: List<Podatki>) {
         prikazanePolice[i] = podatki
+        val c0 = android.os.SystemClock.uptimeMillis()
         val filtrirani = podatki.map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
             .filter { it.skladbe.isNotEmpty() }
         if (i == TV_V_ZIVO) tvIkone.clear()
-        narisi(zgoraj(i) + vVrste(filtrirani), opis(i), glava = glavaRazdelka(i, podatki))
+        val c1 = android.os.SystemClock.uptimeMillis()
+        val zg = zgoraj(i); val c2 = android.os.SystemClock.uptimeMillis()
+        val vr = vVrste(filtrirani); val c3 = android.os.SystemClock.uptimeMillis()
+        val gl = glavaRazdelka(i, podatki); val c4 = android.os.SystemClock.uptimeMillis()
+        narisi(zg + vr, opis(i), glava = gl)
+        val c5 = android.os.SystemClock.uptimeMillis()
+        if (si.safeer.tv.BuildConfig.DEBUG) android.util.Log.i("SafeerOsCas", "prikazi($i): filtri=${c1 - c0} zgoraj=${c2 - c1} vVrste=${c3 - c2} glava=${c4 - c3} narisi=${c5 - c4} ms, polic=${podatki.size}, kartic=${podatki.sumOf { it.skladbe.size }}")
         if (i == TV_V_ZIVO) TvVZivo.osveziIkone(this) { osveziTvIkone() }
     }
 
@@ -2411,6 +2464,9 @@ class GlasbaActivity : OsActivity() {
 
     companion object {
         private const val NAMEN_OBDELAN = "safeer.namen.obdelan"
+        /** Risanje po korakih: kartic na kos in casovni proracun enega kosa na glavni niti. */
+        private const val KARTIC_NA_KORAK = 6
+        private const val PRORACUN_MS = 8L
         /** Beseda za iskanje ob odprtju (prazna: samo odpri iskanje), npr. z zaslona predvajanja. */
         const val ISKANJE_BESEDA = "iskanje"
 

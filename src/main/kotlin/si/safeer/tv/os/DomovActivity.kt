@@ -84,6 +84,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        si.safeer.tv.os.Predgretje.zazeni(this)
         super.onCreate(savedInstanceState)
         // Telefon in tablica imata svoj domaci zaslon: Nazaj, Domov v stranski vrstici in tipka Y
         // odprejo DomovActivity, zato jih tu preusmerimo, sicer bi se odprl TV zaslon v lezecem nacinu.
