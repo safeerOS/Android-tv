@@ -24,10 +24,10 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import android.widget.FrameLayout
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import java.util.Locale
+import si.safeer.tv.predvajalnik.PredvajalnikTovarna
 
 /**
  * Predvajalnik videa in glasbe z racunalnika (ExoPlayer, vir PripetiVir). Daljinec: OK ali
@@ -89,15 +89,10 @@ class PredvajalnikActivity : OsActivity() {
         val lokalno = intent.getBooleanExtra("lokalno", false)
         val s = DatotekeActivity.Streznik.iz(intent.extras)
         if (!lokalno && s == null) { finish(); return }
-        val renderers = DefaultRenderersFactory(this).setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
         val tovarnaVira = if (lokalno) DefaultMediaSourceFactory(this) else DefaultMediaSourceFactory(PripetiVir.Tovarna(s!!.odtis, s.zeton, this, s.naprava))
-        val p = ExoPlayer.Builder(this)
-            .setRenderersFactory(renderers)
-            .setMediaSourceFactory(tovarnaVira)
-            .build()
-        p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
-            .setContentType(if (zvok) C.AUDIO_CONTENT_TYPE_MUSIC else C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
-        p.setWakeMode(C.WAKE_MODE_NETWORK)
+        // Skupna tovarna: profil GLASBA za zvok, FILM za video (rezervni dekoder, meritve, zbujanje ob omrezju).
+        val p = PredvajalnikTovarna.ustvari(this, if (zvok) PredvajalnikTovarna.Profil.GLASBA else PredvajalnikTovarna.Profil.FILM, virMedijev = tovarnaVira)
+        if (zvok) p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(), true)
         if (!zvok) p.setVideoSurfaceView(povrsina)
         p.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {

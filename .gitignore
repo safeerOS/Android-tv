@@ -43,3 +43,5 @@ __pycache__/
 *.apk
 *.aab
 Release/
+.android-sdk
+local.properties
