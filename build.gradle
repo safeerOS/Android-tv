@@ -25,8 +25,8 @@ android {
     defaultConfig {
         minSdk = 28
         targetSdk = 36
-        versionCode = 239
-        versionName = '2.1.130'
+        versionCode = 240
+        versionName = '2.1.131'
     }
 
     // BuildConfig je privzeto izklopljen; koda ga rabi (DEBUG, razlicica).
@@ -46,23 +46,23 @@ android {
         os {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.os'
-            versionCode = 31
-            versionName = '0.5.6'
+            versionCode = 32
+            versionName = '0.5.7'
         }
         // Safeer OS Tablet: ista koda, a za dotik od blizu (tablica), ne za daljinec.
         // V pripravi; televizorja in brskalnika se ne dotika.
         tablica {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.tablet'
-            versionCode = 31
-            versionName = '0.5.6'
+            versionCode = 32
+            versionName = '0.5.7'
         }
         // Safeer OS Mobile: telefonska lupina nad istim Safeer OS jedrom.
         telefon {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.phone'
-            versionCode = 31
-            versionName = '0.5.6'
+            versionCode = 32
+            versionName = '0.5.7'
         }
         // Safeer Predvajalnik: samostojna aplikacija (telefon, tablica) - Safeer Media brez zaganjalnika.
         // Ista koda kot Medijski center v Safeer OS; "Odpri z" za video in zvok, Stremio/Kodi dodatki.
