@@ -41,7 +41,16 @@ object MedijskiViri {
         if (tip == STREMIO && v.lowercase().startsWith("stremio://")) v = "https://" + v.substring("stremio://".length)
         val u = try { android.net.Uri.parse(v) } catch (_: Exception) { null }
         if (u == null || u.scheme !in listOf("http", "https") || u.host.isNullOrBlank()) return null to "naslov"
-        if (tip == STREMIO && !(u.path ?: "").lowercase().endsWith("/manifest.json")) return null to "stremio"
+        if (tip == STREMIO) {
+            // Uporabnik z daljincem ne bo tipkal "/manifest.json": sprejmemo tudi stran dodatka
+            // (".../configure", ".../" ali brez konca) in manifest dopolnimo sami.
+            var pot = (u.path ?: "").trimEnd('/')
+            if (!pot.lowercase().endsWith("/manifest.json")) {
+                if (pot.lowercase().endsWith("/configure")) pot = pot.substring(0, pot.length - "/configure".length)
+                pot = "$pot/manifest.json"
+            }
+            return u.buildUpon().path(pot).query(null).fragment(null).build().toString() to ""
+        }
         return u.buildUpon().fragment(null).build().toString() to ""
     }
 

@@ -201,4 +201,9 @@
     <string name="os_mediji_dodatek_stremio">Stremio add-on</string>
     <string name="os_mediji_dodatek_kodi">Kodi add-on</string>
     <string name="os_mediji_dodatki_shrani">Save</string>
+    <string name="os_mediji_dodatki_prilepi">Paste</string>
+    <string name="os_mediji_dodatki_prilepi_prazno">Clipboard is empty – copy the address first (e.g. on the web: hold OK on a link).</string>
+    <string name="os_mediji_dodatki_namig_splet">Easiest, no typing: open the add-on's page on the web and press its Install button – Safeer offers to add it here.</string>
+    <string name="os_mediji_dodatek_ujet">Add this Stremio add-on to the Media Center?</string>
+    <string name="os_mediji_dodatek_ujet_dodaj">Add</string>
 </resources>
