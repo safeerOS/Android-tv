@@ -118,12 +118,31 @@ class GlasbaActivity : OsActivity() {
         izberi(DOMOV)
         drsnik.post { if (window.decorView.findFocus() == null || razdelek == DOMOV) vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus() }
         iskanjeIzNamena()
+        predvajajIzNamena()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         iskanjeIzNamena()
+        predvajajIzNamena()
+    }
+
+    /**
+     * "Odpri z" (samostojni Safeer Predvajalnik): datoteko ali naslov iz druge aplikacije predvajamo
+     * prek skupne storitve [GlasbaStoritev] in odpremo zaslon predvajanja. Vsak namen obdelamo enkrat.
+     */
+    private fun predvajajIzNamena() {
+        val n = intent ?: return
+        if (n.action != Intent.ACTION_VIEW || n.getBooleanExtra(NAMEN_OBDELAN, false)) return
+        val uri = n.data ?: return
+        n.putExtra(NAMEN_OBDELAN, true)
+        val mime = n.type ?: contentResolver.getType(uri) ?: ""
+        val zvok = mime.startsWith("audio/")
+        val ime = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: uri.toString()
+        val skladba = Jamendo.Skladba(uri.toString(), ime, "", "", uri.toString(), "", video = !zvok, mime = mime)
+        GlasbaStoritev.predvajaj(this, listOf(skladba), 0)
+        startActivity(Intent(this, PredvajanjeActivity::class.java))
     }
 
     /** Iskanje, odprto od drugod (zaslon predvajanja, tipka Isci): razdelek Iskanje, polje pripravljeno. */
@@ -2338,6 +2357,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     companion object {
+        private const val NAMEN_OBDELAN = "safeer.namen.obdelan"
         /** Beseda za iskanje ob odprtju (prazna: samo odpri iskanje), npr. z zaslona predvajanja. */
         const val ISKANJE_BESEDA = "iskanje"
 
