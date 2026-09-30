@@ -46,6 +46,7 @@ class ZaslonPredvajalnik(private val a: Activity, koren: FrameLayout, private va
         progressTintList = ColorStateList.valueOf(Color.parseColor("#2DD4BF"))
         progressBackgroundTintList = ColorStateList.valueOf(Color.parseColor("#33FFFFFF"))
     }
+    private var gumbPredvajaj: TextView? = null   // pred `pas`: pas ga nastavi ob gradnji
     private val pas = LinearLayout(a).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(24), dp(16), dp(24), dp(18))
@@ -67,7 +68,34 @@ class ZaslonPredvajalnik(private val a: Activity, koren: FrameLayout, private va
             addView(vrstica, LinearLayout.LayoutParams(0, dp(6), 1f))
             addView(skupaj, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(14) })
         })
+        // Vidni gumbi (telefon/tablica upravljata z dotikom; na TV delujejo tipke daljinca):
+        // prejsnja, -10 s, predvajaj/pavza, +10 s, naslednja, ustavi.
+        addView(LinearLayout(a).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(10), 0, 0)
+            for ((oznaka, dejanje) in listOf<Pair<String, () -> Unit>>(
+                "⏮" to { ukaz("nazaj"); pokazi() },
+                "−10 s" to { previj(-PREVIJ_S) },
+                "" to { ukaz("predvajaj_pavza"); predvaja = !predvaja; pokazi() },
+                "+10 s" to { previj(PREVIJ_S) },
+                "⏭" to { ukaz("naprej"); pokazi() },
+                "⏹" to { ukaz("ustavi"); predvaja = false; pokazi() })) {
+                val g = gumb(oznaka) { dejanje() }
+                if (oznaka.isEmpty()) gumbPredvajaj = g
+                addView(g, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(4); marginEnd = dp(4) })
+            }
+        })
         visibility = View.GONE
+    }
+
+
+    private fun gumb(oznaka: String, ob: () -> Unit) = TextView(a).apply {
+        text = oznaka; textSize = 16f; setTextColor(a.getColor(R.color.os_besedilo)); gravity = Gravity.CENTER
+        isClickable = true; isFocusable = false   // na TV tipke daljinca; fokus naj ostane na sliki
+        minWidth = dp(52); setPadding(dp(12), dp(8), dp(12), dp(8))
+        background = GradientDrawable().apply { cornerRadius = 12 * gostota; setColor(Color.parseColor("#22FFFFFF")) }
+        setOnClickListener { ob() }
     }
 
     init {
@@ -118,6 +146,7 @@ class ZaslonPredvajalnik(private val a: Activity, koren: FrameLayout, private va
 
     private fun osvezi() {
         znak.text = if (predvaja) "❚❚" else "▶"
+        gumbPredvajaj?.text = if (predvaja) "❚❚" else "▶"
         naslov.visibility = if (naslov.text.isNullOrBlank()) View.GONE else View.VISIBLE
         izvajalec.visibility = if (izvajalec.text.isNullOrBlank()) View.GONE else View.VISIBLE
         val znanCas = imaStanje && (dolzina > 0 || polozaj > 0)
