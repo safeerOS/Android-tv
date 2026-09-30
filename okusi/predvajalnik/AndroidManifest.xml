@@ -20,8 +20,8 @@
 
     <application
         android:label="@string/predvajalnik_ime"
-        android:icon="@mipmap/os_ic_launcher"
-        android:roundIcon="@mipmap/os_ic_launcher"
+        android:icon="@mipmap/predvajalnik_ic_launcher"
+        android:roundIcon="@mipmap/predvajalnik_ic_launcher"
         android:largeHeap="false"
         tools:replace="android:largeHeap">
 
@@ -63,7 +63,7 @@
             android:name="si.safeer.tv.MainActivity"
             android:exported="false"
             android:label="@string/predvajalnik_ime"
-            android:icon="@mipmap/os_ic_launcher"
+            android:icon="@mipmap/predvajalnik_ic_launcher"
             android:banner="@drawable/os_banner"
             tools:replace="android:exported,android:label,android:icon,android:banner"
             tools:ignore="RedundantLabel" />
