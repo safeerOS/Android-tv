@@ -283,6 +283,8 @@ object SporocilaKanali {
                 when (k.vrsta) {
                     "email" -> sinhronizirajEposto(c, s, k)
                     "chatwoot" -> sinhronizirajChatwoot(c, s, k)
+                    "matrix" -> SporocilaLastniApi.sinhronizirajMatrix(c, s, k)
+                    "telegram_bot" -> SporocilaLastniApi.sinhronizirajTelegram(c, s, k)
                 }
                 s.stanje(k.id, "povezan")
             } catch (e: Throwable) {
@@ -306,6 +308,8 @@ object SporocilaKanali {
         val sp = when (k.vrsta) {
             KlepetLinka.VRSTA -> KlepetLinka.poslji(c, pogovorId, besedilo).also { izid = it.second }.first
             "email" -> posljiEposto(c, s, k, pogovorId, besedilo)
+            "matrix" -> SporocilaLastniApi.posljiMatrix(c, k, pogovorId, besedilo)
+            "telegram_bot" -> SporocilaLastniApi.posljiTelegram(c, k, pogovorId, besedilo)
             else -> {
                 val o = chatwoot(c, k, "/conversations/$pogovorId/messages", "POST",
                     JSONObject().put("content", besedilo).put("message_type", "outgoing").put("private", false)) as? JSONObject
@@ -322,7 +326,9 @@ object SporocilaKanali {
         val k = s.kanali().firstOrNull { it.id == kanalId } ?: return
         try {
             if (k.vrsta == KlepetLinka.VRSTA) return
+            if (k.vrsta == "telegram_bot") return      // Bot API nima potrdil o branju
             if (k.vrsta == "email") oznaciEposto(c, s, k, pogovorId)
+            else if (k.vrsta == "matrix") SporocilaLastniApi.oznaciPrebranoMatrix(c, s, k, pogovorId)
             else chatwoot(c, k, "/conversations/$pogovorId/update_last_seen", "POST", JSONObject())
         } catch (_: Throwable) {}
     }

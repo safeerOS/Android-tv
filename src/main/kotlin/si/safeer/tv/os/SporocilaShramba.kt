@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONObject
 
 /** Krajevna hramba Sporocil (kanali, pogovori, sporocila). Brez skrivnosti - te so v SporocilaSkrivnosti. */
-class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "sporocila.db", null, 1) {
+class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "sporocila.db", null, 2) {
 
     data class Kanal(val id: String, val vrsta: String, val ime: String, val stanje: String, val nastavitve: JSONObject)
     data class Pogovor(val id: String, val kanalId: String, val oseba: String, val ime: String, val zadeva: String,
@@ -18,9 +18,96 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         db.execSQL("CREATE TABLE kanali(id TEXT PRIMARY KEY, vrsta TEXT, ime TEXT, stanje TEXT, nastavitve TEXT, stanje_kanala TEXT)")
         db.execSQL("CREATE TABLE pogovori(id TEXT, kanal_id TEXT, oseba TEXT, ime TEXT, zadeva TEXT, zadnje TEXT, neprebrano INTEGER, cas TEXT, PRIMARY KEY(id, kanal_id))")
         db.execSQL("CREATE TABLE sporocila(id TEXT, kanal_id TEXT, pogovor_id TEXT, smer TEXT, besedilo TEXT, cas TEXT, PRIMARY KEY(id, kanal_id))")
+        osebeTabele(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, stara: Int, nova: Int) {}
+    /** v2: osebe (zdruzene identitete + lastno ime) in oznake pogovorov - vse lokalno, uporabnikovo. */
+    private fun osebeTabele(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS identitete(kljuc TEXT PRIMARY KEY, oseba TEXT)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS osebe(id TEXT PRIMARY KEY, lastno_ime TEXT)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS oznake(kanal_id TEXT, pogovor_id TEXT, oznaka TEXT, PRIMARY KEY(kanal_id, pogovor_id, oznaka))")
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, stara: Int, nova: Int) { if (stara < 2) osebeTabele(db) }
+
+    // ------------------------------------------------------------------ osebe (uporabnikovo urejanje)
+    /** Kljuc identitete pogovora: ista oseba na razlicnih kanalih dobi isti kljuc (e-posta ne glede na velikost crk). */
+    fun kljucIdentitete(vrstaKanala: String, p: Pogovor): String {
+        val o = p.oseba.trim()
+        return when {
+            o.contains("@") && !o.startsWith("@") -> "email:" + o.lowercase()
+            o.startsWith("+") -> "telefon:" + o.filter { it.isDigit() || it == '+' }
+            vrstaKanala == "matrix" -> "matrix:" + o
+            vrstaKanala == "telegram_bot" -> "tg:" + o
+            else -> vrstaKanala + ":" + o
+        }
+    }
+
+    /** Oseba, h kateri spada identiteta (po zdruzitvi), sicer identiteta sama. */
+    fun osebaZa(kljuc: String): String = readableDatabase.rawQuery("SELECT oseba FROM identitete WHERE kljuc=?", arrayOf(kljuc)).use {
+        if (it.moveToFirst()) it.getString(0) ?: kljuc else kljuc
+    }
+
+    fun lastnoIme(oseba: String): String = readableDatabase.rawQuery("SELECT lastno_ime FROM osebe WHERE id=?", arrayOf(oseba)).use {
+        if (it.moveToFirst()) it.getString(0) ?: "" else ""
+    }
+
+    fun preimenujOsebo(oseba: String, ime: String) {
+        if (ime.isBlank()) writableDatabase.delete("osebe", "id=?", arrayOf(oseba))
+        else writableDatabase.insertWithOnConflict("osebe", null, ContentValues().apply { put("id", oseba); put("lastno_ime", ime.trim()) }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    /** Vse identitete osebe [drugi] se preselijo k [cilj]; lastno ime cilja ostane. */
+    fun zdruziOsebi(cilj: String, drugi: String, kljuciDrugega: List<String>) {
+        if (cilj == drugi) return
+        val db = writableDatabase; db.beginTransaction()
+        try {
+            for (k in kljuciDrugega) db.insertWithOnConflict("identitete", null, ContentValues().apply { put("kljuc", k); put("oseba", cilj) }, SQLiteDatabase.CONFLICT_REPLACE)
+            db.execSQL("UPDATE identitete SET oseba=? WHERE oseba=?", arrayOf(cilj, drugi))
+            if (lastnoIme(cilj).isBlank()) lastnoIme(drugi).takeIf { it.isNotBlank() }?.let { preimenujOsebo(cilj, it) }
+            db.delete("osebe", "id=?", arrayOf(drugi))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    fun razdruzi(kljuc: String) { writableDatabase.delete("identitete", "kljuc=?", arrayOf(kljuc)) }
+
+    // ------------------------------------------------------------------ oznake
+    fun oznake(kanalId: String, pogovorId: String): List<String> = readableDatabase.rawQuery(
+        "SELECT oznaka FROM oznake WHERE kanal_id=? AND pogovor_id=? ORDER BY oznaka COLLATE NOCASE", arrayOf(kanalId, pogovorId)).use { k ->
+        buildList { while (k.moveToNext()) add(k.getString(0)) }
+    }
+
+    fun vseOznake(): List<String> = readableDatabase.rawQuery("SELECT DISTINCT oznaka FROM oznake ORDER BY oznaka COLLATE NOCASE", null).use { k ->
+        buildList { while (k.moveToNext()) add(k.getString(0)) }
+    }
+
+    fun nastaviOznake(kanalId: String, pogovorId: String, oznake: List<String>) {
+        val db = writableDatabase; db.beginTransaction()
+        try {
+            db.delete("oznake", "kanal_id=? AND pogovor_id=?", arrayOf(kanalId, pogovorId))
+            for (o in oznake.map { it.trim() }.filter { it.isNotEmpty() }.distinct())
+                db.insertWithOnConflict("oznake", null, ContentValues().apply { put("kanal_id", kanalId); put("pogovor_id", pogovorId); put("oznaka", o) }, SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    data class Zadetek(val sporocilo: Sporocilo, val kanalId: String, val izsek: String)
+
+    /** Iskanje po besedilu sporocil v danih pogovorih (npr. vsi pogovori ene osebe); najnovejsi najprej. */
+    fun isciSporocila(niz: String, pogovori: List<Pogovor>, najvec: Int = 60): List<Zadetek> {
+        val n = niz.trim(); if (n.isEmpty() || pogovori.isEmpty()) return emptyList()
+        val vzorec = "%" + n.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        val pogoj = pogovori.joinToString(" OR ") { "(kanal_id=? AND pogovor_id=?)" }
+        val args = arrayOf(vzorec) + pogovori.flatMap { listOf(it.kanalId, it.id) } + najvec.toString()
+        return readableDatabase.rawQuery("SELECT id,pogovor_id,smer,besedilo,cas,kanal_id FROM sporocila WHERE besedilo LIKE ? ESCAPE '\\' AND ($pogoj) ORDER BY cas DESC, rowid DESC LIMIT ?", args).use { k ->
+            buildList { while (k.moveToNext()) {
+                val b = k.getString(3) ?: ""; val i = b.lowercase().indexOf(n.lowercase()); val zac = if (i > 40) i - 40 else 0
+                add(Zadetek(Sporocilo(k.getString(0), k.getString(1), k.getString(2), b, k.getString(4) ?: ""), k.getString(5),
+                    (if (zac > 0) "…" else "") + b.substring(zac, minOf(b.length, zac + 160)) + (if (b.length > zac + 160) "…" else "")))
+            } }
+        }
+    }
 
     fun kanali(): List<Kanal> = readableDatabase.rawQuery("SELECT id,vrsta,ime,stanje,nastavitve FROM kanali ORDER BY ime", null).use { k ->
         buildList { while (k.moveToNext()) add(Kanal(k.getString(0), k.getString(1), k.getString(2), k.getString(3) ?: "",

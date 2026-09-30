@@ -54,6 +54,11 @@ class SporocilaActivity : OsActivity() {
     private val glavna = Handler(Looper.getMainLooper())
     private var siroko = false
     private var izbran: SporocilaShramba.Pogovor? = null
+    private lateinit var filtriVrsta: LinearLayout
+    private lateinit var iskanje: EditText
+    private lateinit var dejanjaPogovora: LinearLayout
+    private var filter = "vse"            // vse | neprebrano | email | klepet | oznaka:<ime>
+    private var oznaciSporocilo: String? = null   // zadetek iskanja, ki ga v pogovoru obrobimo
     private var unicena = false
     private val osvezi = object : Runnable {
         override fun run() { sinhroniziraj(); glavna.postDelayed(this, OSVEZI_MS) }
@@ -66,7 +71,7 @@ class SporocilaActivity : OsActivity() {
         shramba = SporocilaShramba(this)
         siroko = resources.configuration.screenWidthDp >= 720
         setContentView(StranskaVrstica.ovij(this, zgradi(), StranskaVrstica.Razdelek.SPOROCILA))
-        narisiKanale(); narisiSeznam(); pokaziPogovor(null)
+        narisiKanale(); narisiFiltre(); narisiSeznam(); pokaziPogovor(null)
         odpriIzNamere(intent)
         // Sporocila z drugih naprav v Linku pridejo kot obvestilo: od Androida 13 za to rabimo dovoljenje.
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
@@ -195,6 +200,24 @@ class SporocilaActivity : OsActivity() {
             topMargin = dp(14); bottomMargin = dp(12)
         })
 
+        // Iskanje (ime, zadeva, besedilo, oznake) in filtri - vidni gumbi, brez skritih kretenj.
+        iskanje = EditText(this).apply {
+            hint = getString(R.string.os_spor_isci_namig); isSingleLine = true
+            setTextColor(getColor(R.color.os_besedilo)); setHintTextColor(getColor(R.color.os_umirjeno)); textSize = 14f
+            inputType = InputType.TYPE_CLASS_TEXT; imeOptions = EditorInfo.IME_ACTION_SEARCH
+            setPadding(dp(14), dp(9), dp(14), dp(9))
+            background = GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(getColor(R.color.os_kartica_dvignjena)); setStroke(dp(1), getColor(R.color.os_crta)) }
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+                override fun afterTextChanged(p0: android.text.Editable?) { narisiSeznam() }
+            })
+        }
+        root.addView(iskanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
+        filtriVrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(filtriVrsta) },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10) })
+
         // Seznam pogovorov
         prazno = TextView(this).apply {
             gravity = Gravity.CENTER; setTextColor(getColor(R.color.os_umirjeno)); textSize = 16f
@@ -229,6 +252,15 @@ class SporocilaActivity : OsActivity() {
         pNaslovi.addView(pogovorIme); pNaslovi.addView(pogovorZadeva)
         pGlava.addView(pNaslovi, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         pogovorPlosca.addView(pGlava)
+        // Dejanja nad osebo: preimenuj/zdruzi, oznake, iskanje po sporocilih te osebe.
+        dejanjaPogovora = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for ((ime, dejanje) in listOf(R.string.os_spor_oseba to { izbran?.let { urediOsebo(it) } }, R.string.os_spor_oznake to { izbran?.let { urediOznake(it) } },
+                                     R.string.os_spor_isci_osebo to { izbran?.let { isciPriOsebi(it) } })) {
+            dejanjaPogovora.addView(gumb(getString(ime)).apply { textSize = 12f; setPadding(dp(12), dp(6), dp(12), dp(6)); setOnClickListener { dejanje() } },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
+        }
+        pogovorPlosca.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(dejanjaPogovora) },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
 
         sporocilaSeznam = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(8)) }
         sporocilaDrsnik = ScrollView(this).apply { isFillViewport = true; addView(sporocilaSeznam) }
@@ -312,16 +344,56 @@ class SporocilaActivity : OsActivity() {
         }
     }
 
+    /** Prikazno ime osebe: uporabnikovo lastno ime ima prednost pred imenom iz kanala. */
+    private fun imeOsebe(p: SporocilaShramba.Pogovor, vrste: Map<String, String>): String {
+        val lastno = shramba.lastnoIme(shramba.osebaZa(shramba.kljucIdentitete(vrste[p.kanalId].orEmpty(), p)))
+        if (lastno.isNotBlank()) return lastno
+        return (if (p.kanalId == KlepetLinka.KANAL) KlepetLinka.prikaznoIme(p.ime) else p.ime).ifBlank { p.oseba }
+    }
+
+    private fun jeKlepet(vrsta: String) = vrsta.isNotEmpty() && vrsta != "email"
+
+    private fun narisiFiltre() {
+        filtriVrsta.removeAllViews()
+        val vsi = listOf("vse" to getString(R.string.os_spor_filter_vse), "neprebrano" to getString(R.string.os_spor_filter_neprebrano),
+            "email" to getString(R.string.os_spor_eposta), "klepet" to getString(R.string.os_spor_filter_klepeti)) +
+            shramba.vseOznake().map { "oznaka:$it" to "# $it" }
+        if (vsi.none { it.first == filter }) filter = "vse"
+        for ((kljuc, ime) in vsi) {
+            filtriVrsta.addView(TextView(this).apply {
+                text = ime; textSize = 12f; isFocusable = true; isClickable = true; maxLines = 1
+                setTextColor(getColor(if (filter == kljuc) R.color.os_mint_temna else R.color.os_besedilo))
+                setPadding(dp(12), dp(6), dp(12), dp(6)); tag = "filter|$kljuc"
+                background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(getColor(if (filter == kljuc) R.color.os_mint else R.color.os_kartica_dvignjena)) }
+                setOnClickListener { filter = kljuc; narisiFiltre(); narisiSeznam() }
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(6) })
+        }
+    }
+
     private fun narisiSeznam() {
         val kanali = shramba.kanali()
-        val pogovori = shramba.pogovori()
+        val vrste = kanali.associate { it.id to it.vrsta }
+        val niz = iskanje.text?.toString().orEmpty().trim().lowercase()
+        val pogovori = shramba.pogovori().filter { p ->
+            val oznake = shramba.oznake(p.kanalId, p.id)
+            val ustrezaFilter = when {
+                filter == "vse" -> true
+                filter == "neprebrano" -> p.neprebrano > 0
+                filter == "email" -> vrste[p.kanalId] == "email"
+                filter == "klepet" -> jeKlepet(vrste[p.kanalId].orEmpty())
+                filter.startsWith("oznaka:") -> oznake.contains(filter.removePrefix("oznaka:"))
+                else -> true
+            }
+            ustrezaFilter && (niz.isEmpty() || (imeOsebe(p, vrste) + " " + p.ime + " " + p.oseba + " " + p.zadeva + " " + p.zadnje + " " + oznake.joinToString(" ")).lowercase().contains(niz))
+        }
         seznam.removeAllViews()
-        prazno.text = getString(if (kanali.isEmpty()) R.string.os_spor_prazno else R.string.os_spor_ni_pogovorov)
+        prazno.text = getString(if (kanali.isEmpty()) R.string.os_spor_prazno else if (niz.isNotEmpty() || filter != "vse") R.string.os_spor_ni_zadetkov else R.string.os_spor_ni_pogovorov)
         prazno.visibility = if (pogovori.isEmpty()) View.VISIBLE else View.GONE
         val imena = kanali.associate { it.id to it.ime }
         var prejsnji: View? = null
         for (p in pogovori) {
             val oznacen = izbran?.id == p.id && izbran?.kanalId == p.kanalId
+            val oznake = shramba.oznake(p.kanalId, p.id)
             val kartica = LinearLayout(this).apply {
                 id = View.generateViewId(); orientation = LinearLayout.VERTICAL
                 tag = p.kanalId + "|" + p.id
@@ -330,7 +402,7 @@ class SporocilaActivity : OsActivity() {
                 setPadding(dp(16), dp(12), dp(16), dp(12)); setOnClickListener { pokaziPogovor(p) }
                 val vrh = LinearLayout(this@SporocilaActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
                 vrh.addView(TextView(this@SporocilaActivity).apply {
-                    text = (if (p.kanalId == KlepetLinka.KANAL) KlepetLinka.prikaznoIme(p.ime) else p.ime).ifBlank { p.oseba }
+                    text = imeOsebe(p, vrste)
                     setTextColor(getColor(R.color.os_besedilo)); textSize = 16f; maxLines = 1
                     isSingleLine = true; ellipsize = android.text.TextUtils.TruncateAt.END
                     typeface = Typeface.create("sans-serif-medium", if (p.neprebrano > 0) Typeface.BOLD else Typeface.NORMAL)
@@ -350,7 +422,8 @@ class SporocilaActivity : OsActivity() {
                     setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; maxLines = 1
                 })
                 addView(TextView(this@SporocilaActivity).apply {
-                    text = imena[p.kanalId].orEmpty(); setTextColor(getColor(R.color.os_mint)); textSize = 10f; maxLines = 1
+                    text = listOf((if (vrste[p.kanalId] == "email") "✉ " else "💬 ") + imena[p.kanalId].orEmpty()).plus(oznake.map { "# $it" }).joinToString("  ")
+                    setTextColor(getColor(R.color.os_mint)); textSize = 10f; maxLines = 1
                 })
             }
             prejsnji?.let { it.nextFocusDownId = kartica.id; kartica.nextFocusUpId = it.id }
@@ -359,6 +432,112 @@ class SporocilaActivity : OsActivity() {
             prejsnji = kartica
         }
         prejsnji?.let { it.nextFocusDownId = it.id }
+    }
+
+    // ------------------------------------------------------------------ osebe, oznake, iskanje pri osebi
+    private fun pogovoriOsebe(p: SporocilaShramba.Pogovor): List<SporocilaShramba.Pogovor> {
+        val vrste = shramba.kanali().associate { it.id to it.vrsta }
+        val oseba = shramba.osebaZa(shramba.kljucIdentitete(vrste[p.kanalId].orEmpty(), p))
+        return shramba.pogovori().filter { shramba.osebaZa(shramba.kljucIdentitete(vrste[it.kanalId].orEmpty(), it)) == oseba }
+    }
+
+    private fun urediOsebo(p: SporocilaShramba.Pogovor) {
+        val vrste = shramba.kanali().associate { it.id to it.vrsta }
+        val kljuc = shramba.kljucIdentitete(vrste[p.kanalId].orEmpty(), p)
+        val oseba = shramba.osebaZa(kljuc)
+        val ime = polje(R.string.os_spor_oseba_ime).apply { setText(shramba.lastnoIme(oseba)) }
+        val privzeto = (if (p.kanalId == KlepetLinka.KANAL) KlepetLinka.prikaznoIme(p.ime) else p.ime).ifBlank { p.oseba }
+        val polja = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0)
+            addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_oseba_privzeto, privzeto); setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f })
+            addView(ime)
+            val identitete = pogovoriOsebe(p).map { it.oseba }.distinct()
+            addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_oseba_identitete) + " " + identitete.joinToString(", "); setTextColor(getColor(R.color.os_umirjeno)); textSize = 12f; setPadding(0, dp(8), 0, 0) })
+        }
+        val zdruzena = oseba != kljuc
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_spor_oseba)
+            .setView(ScrollView(this).apply { addView(polja) })
+            .setPositiveButton(R.string.os_spor_shrani) { _, _ -> shramba.preimenujOsebo(oseba, ime.text?.toString().orEmpty()); osveziPrikaz() }
+            .setNeutralButton(if (zdruzena) R.string.os_spor_razdruzi else R.string.os_spor_zdruzi) { _, _ ->
+                if (zdruzena) { shramba.razdruzi(kljuc); osveziPrikaz() } else zdruziZ(p)
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Zdruzi to osebo z drugo iz seznama (ista oseba na drugem kanalu, npr. e-posta + Matrix). */
+    private fun zdruziZ(p: SporocilaShramba.Pogovor) {
+        val vrste = shramba.kanali().associate { it.id to it.vrsta }
+        val moj = shramba.osebaZa(shramba.kljucIdentitete(vrste[p.kanalId].orEmpty(), p))
+        val druge = shramba.pogovori().map { it to shramba.osebaZa(shramba.kljucIdentitete(vrste[it.kanalId].orEmpty(), it)) }
+            .filter { it.second != moj }.distinctBy { it.second }
+        if (druge.isEmpty()) { Toast.makeText(this, R.string.os_spor_ni_drugih_oseb, Toast.LENGTH_SHORT).show(); return }
+        val imena = druge.map { imeOsebe(it.first, vrste) + "  ·  " + it.first.oseba }.toTypedArray()
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_spor_zdruzi_z)
+            .setItems(imena) { _, i ->
+                val (drugi, drugaOseba) = druge[i]
+                val kljuci = pogovoriOsebe(drugi).map { shramba.kljucIdentitete(vrste[it.kanalId].orEmpty(), it) }.distinct()
+                shramba.zdruziOsebi(moj, drugaOseba, kljuci); osveziPrikaz()
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun urediOznake(p: SporocilaShramba.Pogovor) {
+        val trenutne = shramba.oznake(p.kanalId, p.id).toMutableList()
+        val vse = (shramba.vseOznake() + trenutne).distinct()
+        val nova = polje(R.string.os_spor_nova_oznaka)
+        val izbire = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        for (o in vse) izbire.addView(android.widget.CheckBox(this).apply {
+            text = o; isChecked = trenutne.contains(o); setTextColor(getColor(R.color.os_besedilo))
+            setOnCheckedChangeListener { _, b -> if (b) { if (!trenutne.contains(o)) trenutne.add(o) } else trenutne.remove(o) }
+        })
+        val polja = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0); addView(izbire); addView(nova) }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_spor_oznake)
+            .setView(ScrollView(this).apply { addView(polja) })
+            .setPositiveButton(R.string.os_spor_shrani) { _, _ ->
+                nova.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { trenutne.add(it) }
+                shramba.nastaviOznake(p.kanalId, p.id, trenutne); narisiFiltre(); osveziPrikaz()
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Iskanje po besedilu sporocil te osebe (vsi njeni kanali); zadetek odpre pogovor in obrobi sporocilo. */
+    private fun isciPriOsebi(p: SporocilaShramba.Pogovor) {
+        val vnos = polje(R.string.os_spor_isci_osebo_namig)
+        val zadetki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val polja = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0); addView(vnos); addView(zadetki) }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_spor_isci_osebo)
+            .setView(ScrollView(this).apply { addView(polja) })
+            .setNegativeButton(R.string.os_spor_zapri, null).create()
+        val pogovori = pogovoriOsebe(p)
+        val imenaKanalov = shramba.kanali().associate { it.id to it.ime }
+        vnos.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun afterTextChanged(e: android.text.Editable?) {
+                zadetki.removeAllViews()
+                val niz = e?.toString().orEmpty().trim(); if (niz.length < 2) return
+                val rez = shramba.isciSporocila(niz, pogovori)
+                if (rez.isEmpty()) { zadetki.addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_ni_zadetkov); setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; setPadding(0, dp(8), 0, 0) }); return }
+                for (z in rez) zadetki.addView(LinearLayout(this@SporocilaActivity).apply {
+                    orientation = LinearLayout.VERTICAL; isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_ploscica_app)
+                    setPadding(dp(12), dp(8), dp(12), dp(8))
+                    addView(TextView(this@SporocilaActivity).apply { text = imenaKanalov[z.kanalId].orEmpty() + " · " + kratekCas(z.sporocilo.cas); setTextColor(getColor(R.color.os_umirjeno)); textSize = 11f })
+                    addView(TextView(this@SporocilaActivity).apply { text = z.izsek; setTextColor(getColor(R.color.os_besedilo)); textSize = 13f; maxLines = 3 })
+                    setOnClickListener {
+                        okno.dismiss(); oznaciSporocilo = z.sporocilo.id
+                        pogovori.firstOrNull { it.kanalId == z.kanalId && it.id == z.sporocilo.pogovorId }?.let { pokaziPogovor(it) }
+                    }
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
+            }
+        })
+        Kontroler.pokazi(okno); okno.show(); vnos.requestFocus()
     }
 
     private fun pokaziPogovor(p: SporocilaShramba.Pogovor?) {
@@ -377,7 +556,7 @@ class SporocilaActivity : OsActivity() {
             narisiSeznam()
             return
         }
-        pogovorIme.text = (if (p.kanalId == KlepetLinka.KANAL) KlepetLinka.prikaznoIme(p.ime) else p.ime).ifBlank { p.oseba }
+        pogovorIme.text = imeOsebe(p, shramba.kanali().associate { it.id to it.vrsta })
         pogovorZadeva.text = when {
             p.kanalId == KlepetLinka.KANAL -> "Safeer Link"
             p.zadeva.isNotBlank() -> p.zadeva
@@ -396,17 +575,21 @@ class SporocilaActivity : OsActivity() {
     private fun narisiSporocila() {
         val p = izbran ?: return
         sporocilaSeznam.removeAllViews()
+        var obrobljena: View? = null
         for (s in shramba.sporocila(p.kanalId, p.id)) {
             val ven = s.smer == "ven"
+            val zadetek = s.id == oznaciSporocilo
             val vrstica = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; gravity = if (ven) Gravity.END else Gravity.START
             }
+            if (zadetek) obrobljena = vrstica
             vrstica.addView(TextView(this).apply {
                 text = s.besedilo.trim(); textSize = 15f; setTextIsSelectable(false)
                 setTextColor(getColor(if (ven) R.color.os_mint_temna else R.color.os_besedilo))
                 setPadding(dp(14), dp(9), dp(14), dp(9))
                 background = GradientDrawable().apply {
                     cornerRadius = dp(14).toFloat(); setColor(getColor(if (ven) R.color.os_mint else R.color.os_ozadje))
+                    if (zadetek) setStroke(dp(2), getColor(R.color.os_opozorilo))
                 }
                 maxWidth = (resources.displayMetrics.widthPixels * (if (siroko) 0.4f else 0.75f)).toInt()
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -416,7 +599,9 @@ class SporocilaActivity : OsActivity() {
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             sporocilaSeznam.addView(vrstica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
         }
-        sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN) }
+        val cilj = obrobljena
+        if (cilj != null) { oznaciSporocilo = null; sporocilaDrsnik.post { sporocilaDrsnik.smoothScrollTo(0, maxOf(0, cilj.top - dp(40))) } }
+        else sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN) }
     }
 
     private fun kratekCas(iso: String): String {
@@ -446,8 +631,9 @@ class SporocilaActivity : OsActivity() {
         izbran = prej?.let { i -> shramba.pogovori().firstOrNull { it.id == i.id && it.kanalId == i.kanalId } }
         if (prej != null && izbran == null) { narisiKanale(); pokaziPogovor(null); return }   // kanal odstranjen
         narisiKanale()
+        narisiFiltre()
         narisiSeznam()
-        if (izbran != null) narisiSporocila()
+        izbran?.let { pogovorIme.text = imeOsebe(it, shramba.kanali().associate { k -> k.id to k.vrsta }); narisiSporocila() }
         if (fokus == odgovor) odgovor.requestFocus()
         else if (fokusKljuc != null)
             (seznam.findViewWithTag<View>(fokusKljuc) ?: kanaliVrsta.findViewWithTag(fokusKljuc))?.requestFocus()
@@ -487,12 +673,41 @@ class SporocilaActivity : OsActivity() {
         val eposta = gumb(getString(R.string.os_spor_eposta))
         val chatwoot = gumb(getString(R.string.os_spor_chatwoot))
         val aplikacije = gumb(getString(R.string.os_spor_aplikacije))
-        val izbira = LinearLayout(this).apply {
+        val lastniApi = gumb(getString(R.string.os_spor_lastni_api))
+        // Stiri zavihki: na sirokem zaslonu v eni vrsti, na telefonu 2 x 2 - vsi vidni, brez lomljenja besed.
+        val zavihki = listOf(eposta, chatwoot, aplikacije, lastniApi)
+        zavihki.forEach { it.maxLines = 1; it.isSingleLine = true; it.gravity = Gravity.CENTER }
+        fun vrstaZavihkov(g: List<TextView>) = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(eposta, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
-            addView(chatwoot, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
-            addView(aplikacije, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            g.forEachIndexed { i, z -> addView(z, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { if (i < g.size - 1) marginEnd = dp(6); bottomMargin = dp(6) }) }
         }
+        val izbira = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            if (siroko) addView(vrstaZavihkov(zavihki)) else { addView(vrstaZavihkov(zavihki.take(2))); addView(vrstaZavihkov(zavihki.drop(2))) }
+        }
+        // Lastni API: Matrix (streznik + zeton) ali Telegram Bot (zeton od @BotFather) - navodila povedo, kje ju dobis.
+        var protokol = "matrix"
+        val apiOpis = TextView(this).apply { text = getString(R.string.os_spor_lastni_api_opis); setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; setPadding(0, dp(10), 0, dp(6)) }
+        val gMatrix = gumb("Matrix"); val gTelegram = gumb("Telegram Bot")
+        val apiIzbira = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(gMatrix, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
+            addView(gTelegram, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        val apiStreznik = polje(R.string.os_spor_api_streznik, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        val apiZeton = polje(R.string.os_spor_zeton, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val apiIme = polje(R.string.os_spor_api_ime)
+        val apiNavodilaNaslov = TextView(this).apply { text = getString(R.string.os_spor_kaj_narediti); setTextColor(getColor(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(12), 0, dp(4)) }
+        val apiNavodila = TextView(this).apply { setTextColor(getColor(R.color.os_umirjeno)); textSize = 13f; setLineSpacing(0f, 1.15f) }
+        val aFields = listOf(apiOpis, apiIzbira, apiStreznik, apiZeton, apiIme, apiNavodilaNaslov, apiNavodila)
+        fun nastaviProtokol(pr: String) {
+            protokol = pr
+            gMatrix.isSelected = pr == "matrix"; gMatrix.isActivated = pr == "matrix"; gTelegram.isSelected = pr != "matrix"; gTelegram.isActivated = pr != "matrix"
+            apiStreznik.visibility = if (pr == "matrix") View.VISIBLE else View.GONE
+            apiZeton.hint = if (pr == "matrix") getString(R.string.os_spor_zeton) else "123456:ABC…"
+            apiNavodila.text = getString(if (pr == "matrix") R.string.os_spor_nav_matrix else R.string.os_spor_nav_telegram_bot)
+        }
+        gMatrix.setOnClickListener { nastaviProtokol("matrix") }; gTelegram.setOnClickListener { nastaviProtokol("telegram_bot") }
         // E-posta, korak 1: ponudnik s seznama (streznike poznamo mi). Korak 2: naslov + geslo + navodila.
         val ponudnikiNaslov = TextView(this).apply { text = getString(R.string.os_spor_izberi_ponudnika); setTextColor(getColor(R.color.os_besedilo)); textSize = 15f; setPadding(0, dp(10), 0, dp(6)) }
         val ponudniki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -601,8 +816,10 @@ class SporocilaActivity : OsActivity() {
 
         fun nastaviVrsto(v: String) {
             vrsta = v
-            for ((g, ime) in listOf(eposta to "email", chatwoot to "chatwoot", aplikacije to "aplikacije")) { g.isSelected = v == ime; g.isActivated = v == ime }
+            for ((g, ime) in listOf(eposta to "email", chatwoot to "chatwoot", aplikacije to "aplikacije", lastniApi to "api")) { g.isSelected = v == ime; g.isActivated = v == ime }
             cFields.forEach { it.visibility = if (v == "chatwoot") View.VISIBLE else View.GONE }
+            aFields.forEach { it.visibility = if (v == "api") View.VISIBLE else View.GONE }
+            if (v == "api") nastaviProtokol(protokol)
             seznamAplikacij.visibility = if (v == "aplikacije") View.VISIBLE else View.GONE
             napaka.visibility = View.GONE
             pokaziKorak(ponudnik != null)
@@ -610,10 +827,11 @@ class SporocilaActivity : OsActivity() {
         eposta.setOnClickListener { nastaviVrsto("email") }
         chatwoot.setOnClickListener { nastaviVrsto("chatwoot") }
         aplikacije.setOnClickListener { nastaviVrsto("aplikacije") }
+        lastniApi.setOnClickListener { nastaviVrsto("api") }
 
         val polja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0)
-            addView(izbira); (korak1 + korak2 + cFields).forEach { addView(it) }; addView(seznamAplikacij); addView(napaka)
+            addView(izbira); (korak1 + korak2 + cFields + aFields).forEach { addView(it) }; addView(seznamAplikacij); addView(napaka)
         }
         okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(R.string.os_spor_dodaj)
@@ -626,7 +844,7 @@ class SporocilaActivity : OsActivity() {
             nastaviVrsto("email")
             okno.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { gumbDodaj ->
                 val id = UUID.randomUUID().toString().take(8)
-                val kanal: SporocilaShramba.Kanal
+                var kanal: SporocilaShramba.Kanal
                 val skrivnost: String
                 if (vrsta == "email") {
                     val p = ponudnik ?: return@setOnClickListener
@@ -646,6 +864,17 @@ class SporocilaActivity : OsActivity() {
                     if (!u.startsWith("https://")) { pokaziNapako(napaka, getString(R.string.os_spor_https)); return@setOnClickListener }
                     if (r == null || skrivnost.isEmpty()) { pokaziNapako(napaka, getString(R.string.os_spor_napaka_prijava)); return@setOnClickListener }
                     kanal = SporocilaShramba.Kanal(id, "chatwoot", u.removePrefix("https://"), "", JSONObject().put("url", u).put("account_id", r))
+                } else if (vrsta == "api" && protokol == "matrix") {
+                    var st = apiStreznik.text?.toString().orEmpty().trim().trimEnd('/')
+                    if (st.isNotEmpty() && !st.contains("://")) st = "https://$st"
+                    skrivnost = apiZeton.text?.toString().orEmpty().trim()
+                    val lokalni = st.startsWith("http://localhost") || st.startsWith("http://127.")
+                    if (!(st.startsWith("https://") || lokalni) || skrivnost.isEmpty()) { pokaziNapako(napaka, getString(R.string.os_spor_api_manjka_matrix)); return@setOnClickListener }
+                    kanal = SporocilaShramba.Kanal(id, "matrix", apiIme.text?.toString().orEmpty().trim().ifBlank { st.removePrefix("https://") }, "", JSONObject().put("streznik", st))
+                } else if (vrsta == "api") {
+                    skrivnost = apiZeton.text?.toString().orEmpty().trim()
+                    if (!skrivnost.contains(":") || skrivnost.length < 20) { pokaziNapako(napaka, getString(R.string.os_spor_api_manjka_telegram)); return@setOnClickListener }
+                    kanal = SporocilaShramba.Kanal(id, "telegram_bot", apiIme.text?.toString().orEmpty().trim().ifBlank { "Telegram bot" }, "", JSONObject())
                 } else return@setOnClickListener
                 gumbDodaj.isEnabled = false
                 pokaziNapako(napaka, getString(R.string.os_spor_povezujem), false)
@@ -656,7 +885,16 @@ class SporocilaActivity : OsActivity() {
                         if (kanal.vrsta == "email") SporocilaKanali.preveriEpostoPrilagodljivo(kanal.nastavitve, skrivnost) {
                             glavna.post { if (!unicena) pokaziNapako(napaka, getString(R.string.os_spor_poskus_brez_domene), false) }
                         }
-                        else SporocilaKanali.preveriChatwoot(this, kanal)
+                        else if (kanal.vrsta == "chatwoot") SporocilaKanali.preveriChatwoot(this, kanal)
+                        else if (kanal.vrsta == "matrix") {
+                            val uid = SporocilaLastniApi.preveriMatrix(this, kanal, skrivnost)
+                            kanal.nastavitve.put("uporabnik", uid)
+                            if (apiIme.text.isNullOrBlank()) kanal = kanal.copy(ime = uid)
+                        } else {
+                            val bot = SporocilaLastniApi.preveriTelegram(this, kanal, skrivnost)
+                            kanal.nastavitve.put("bot", bot)
+                            if (apiIme.text.isNullOrBlank() && bot.isNotBlank()) kanal = kanal.copy(ime = "Telegram @$bot")
+                        }
                         shramba.dodajKanal(kanal.copy(stanje = "povezan"))
                         null
                     } catch (t: Throwable) { SporocilaSkrivnosti.pozabi(this, ime); t }
