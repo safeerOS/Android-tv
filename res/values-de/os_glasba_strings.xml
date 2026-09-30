@@ -186,4 +186,19 @@
     <string name="os_media_napaka_naslednja">»%1$s« konnte nicht abgespielt werden – spiele den nächsten Titel.</string>
     <string name="os_media_ni_dekoderja_slike">Dieses Gerät kann das Bild dieses Videos nicht anzeigen (%1$s). Spiele es auf einem Fernseher oder Computer ab.</string>
     <string name="os_media_ni_dekoderja_zvoka">Dieses Gerät kann den Ton dieses Videos nicht abspielen (%1$s).</string>
+
+    <!-- Dodatki (Stremio, Kodi): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->
+    <string name="os_mediji_dodatki">Add-ons (Stremio, Kodi)</string>
+    <string name="os_mediji_dodatki_opis">Adressen deiner eigenen Add-ons eingeben</string>
+    <string name="os_mediji_dodatki_stremio">Stremio-Add-on — hier die Add-on-Adresse eingeben (endet mit /manifest.json)</string>
+    <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json oder stremio://…</string>
+    <string name="os_mediji_dodatki_kodi">Kodi-Add-on — hier die Adresse des Repositorys oder Add-ons eingeben (.zip)</string>
+    <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer liefert keine Kataloge oder Add-ons mit. Du gibst deine eigenen ein; Adressen bleiben nur auf diesem Gerät.</string>
+    <string name="os_mediji_dodatki_shranjen">Add-on gespeichert: %1$s</string>
+    <string name="os_mediji_dodatki_napaka_stremio">Die Adresse eines Stremio-Add-ons muss mit /manifest.json enden.</string>
+    <string name="os_mediji_dodatki_napaka_naslov">Die Adresse muss mit http:// oder https:// beginnen.</string>
+    <string name="os_mediji_dodatek_stremio">Stremio-Add-on</string>
+    <string name="os_mediji_dodatek_kodi">Kodi-Add-on</string>
+    <string name="os_mediji_dodatki_shrani">Speichern</string>
 </resources>

@@ -186,4 +186,19 @@
     <string name="os_media_napaka_naslednja">Impossibile riprodurre «%1$s»: passo alla successiva.</string>
     <string name="os_media_ni_dekoderja_slike">Questo dispositivo non può mostrare l\'immagine di questo video (%1$s). Riproducilo su un televisore o un computer.</string>
     <string name="os_media_ni_dekoderja_zvoka">Questo dispositivo non può riprodurre l\'audio di questo video (%1$s).</string>
+
+    <!-- Dodatki (Stremio, Kodi): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->
+    <string name="os_mediji_dodatki">Componenti aggiuntivi (Stremio, Kodi)</string>
+    <string name="os_mediji_dodatki_opis">Inserisci gli indirizzi dei tuoi componenti aggiuntivi</string>
+    <string name="os_mediji_dodatki_stremio">Componente Stremio — inserisci qui l’indirizzo del componente (termina con /manifest.json)</string>
+    <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json o stremio://…</string>
+    <string name="os_mediji_dodatki_kodi">Componente Kodi — inserisci qui l’indirizzo del repository o del componente (.zip)</string>
+    <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer non include cataloghi o componenti aggiuntivi. Inserisci i tuoi; gli indirizzi restano solo su questo dispositivo.</string>
+    <string name="os_mediji_dodatki_shranjen">Componente salvato: %1$s</string>
+    <string name="os_mediji_dodatki_napaka_stremio">L’indirizzo di un componente Stremio deve terminare con /manifest.json.</string>
+    <string name="os_mediji_dodatki_napaka_naslov">L’indirizzo deve iniziare con http:// o https://.</string>
+    <string name="os_mediji_dodatek_stremio">Componente Stremio</string>
+    <string name="os_mediji_dodatek_kodi">Componente Kodi</string>
+    <string name="os_mediji_dodatki_shrani">Salva</string>
 </resources>

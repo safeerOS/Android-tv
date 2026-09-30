@@ -186,4 +186,19 @@
     <string name="os_media_napaka_naslednja">Impossible de lire « %1$s » – lecture du suivant.</string>
     <string name="os_media_ni_dekoderja_slike">Cet appareil ne peut pas afficher l\'image de cette vidéo (%1$s). Lisez-la sur un téléviseur ou un ordinateur.</string>
     <string name="os_media_ni_dekoderja_zvoka">Cet appareil ne peut pas lire le son de cette vidéo (%1$s).</string>
+
+    <!-- Dodatki (Stremio, Kodi): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->
+    <string name="os_mediji_dodatki">Extensions (Stremio, Kodi)</string>
+    <string name="os_mediji_dodatki_opis">Saisis les adresses de tes propres extensions</string>
+    <string name="os_mediji_dodatki_stremio">Extension Stremio — saisis ici l’adresse de l’extension (se termine par /manifest.json)</string>
+    <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json ou stremio://…</string>
+    <string name="os_mediji_dodatki_kodi">Extension Kodi — saisis ici l’adresse du dépôt ou de l’extension (.zip)</string>
+    <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ne fournit ni catalogues ni extensions. Tu saisis les tiennes ; les adresses restent sur cet appareil.</string>
+    <string name="os_mediji_dodatki_shranjen">Extension enregistrée : %1$s</string>
+    <string name="os_mediji_dodatki_napaka_stremio">L’adresse d’une extension Stremio doit se terminer par /manifest.json.</string>
+    <string name="os_mediji_dodatki_napaka_naslov">L’adresse doit commencer par http:// ou https://.</string>
+    <string name="os_mediji_dodatek_stremio">Extension Stremio</string>
+    <string name="os_mediji_dodatek_kodi">Extension Kodi</string>
+    <string name="os_mediji_dodatki_shrani">Enregistrer</string>
 </resources>
