@@ -890,8 +890,27 @@ class ChromiumEngineView @JvmOverloads constructor(
                     return true
                 }
 
-                // 3. Odpri posebne sheme v ustreznih aplikacijah
+                // 2.9 Gumb "Namesti" na strani Stremio dodatka (stremio://…/manifest.json): v Safeer OS in
+                //     Predvajalniku dodatek dodamo v Medijski center - brez tipkanja naslova z daljincem.
                 val scheme = uri.scheme?.lowercase() ?: ""
+                if (scheme == "stremio" && BuildConfig.FLAVOR != "brskalnik") {
+                    val (naslov, _) = si.safeer.tv.os.MedijskiViri.preveriDodatek(si.safeer.tv.os.MedijskiViri.STREMIO, urlStr)
+                    if (naslov != null) {
+                        try {
+                            android.app.AlertDialog.Builder(context)
+                                .setTitle(R.string.os_mediji_dodatek_ujet)
+                                .setMessage(naslov)
+                                .setPositiveButton(R.string.os_mediji_dodatek_ujet_dodaj) { _, _ ->
+                                    val v = si.safeer.tv.os.MedijskiViri.dodajDodatek(context, si.safeer.tv.os.MedijskiViri.STREMIO, naslov, "")
+                                    android.widget.Toast.makeText(context, context.getString(R.string.os_mediji_dodatki_shranjen, v.ime), android.widget.Toast.LENGTH_LONG).show()
+                                }
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .show()
+                        } catch (_: Exception) {}
+                        return true
+                    }
+                }
+                // 3. Odpri posebne sheme v ustreznih aplikacijah
                 if (scheme != "http" && scheme != "https" && scheme != "file" && scheme != "about") {
                     try {
                         val intent = if (urlStr.startsWith("intent:", ignoreCase = true)) {

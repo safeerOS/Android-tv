@@ -190,15 +190,20 @@
     <!-- Dodatki (Stremio, Kodi): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->
     <string name="os_mediji_dodatki">Dodatki (Stremio, Kodi)</string>
     <string name="os_mediji_dodatki_opis">Vnesi naslove svojih dodatkov</string>
-    <string name="os_mediji_dodatki_stremio">Stremio dodatek — sem vnesi naslov dodatka (konča se z /manifest.json)</string>
+    <string name="os_mediji_dodatki_stremio">Stremio dodatek — naslov dodatka (manifest.json ali stran »configure«; stremio:// je v redu)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json ali stremio://…</string>
     <string name="os_mediji_dodatki_kodi">Kodi dodatek — sem vnesi naslov repozitorija ali dodatka (.zip)</string>
     <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
     <string name="os_mediji_dodatki_razlaga">Safeer ne prilaga katalogov ali dodatkov. Vneseš svoje; naslovi se shranijo samo na tej napravi.</string>
     <string name="os_mediji_dodatki_shranjen">Dodatek shranjen: %1$s</string>
-    <string name="os_mediji_dodatki_napaka_stremio">Naslov Stremio dodatka se mora končati z /manifest.json.</string>
+    <string name="os_mediji_dodatki_napaka_stremio">Naslov Stremio dodatka ni veljaven (pričakujem …/manifest.json ali stremio://…).</string>
     <string name="os_mediji_dodatki_napaka_naslov">Naslov se mora začeti s http:// ali https://.</string>
     <string name="os_mediji_dodatek_stremio">Stremio dodatek</string>
     <string name="os_mediji_dodatek_kodi">Kodi dodatek</string>
     <string name="os_mediji_dodatki_shrani">Shrani</string>
+    <string name="os_mediji_dodatki_prilepi">Prilepi</string>
+    <string name="os_mediji_dodatki_prilepi_prazno">Odložišče je prazno – najprej kopiraj naslov (npr. v Spletu: drži OK na povezavi).</string>
+    <string name="os_mediji_dodatki_namig_splet">Najlažje brez tipkanja: v Spletu odpri stran dodatka in pritisni njegov gumb Namesti/Install – Safeer ponudi, da ga doda sem.</string>
+    <string name="os_mediji_dodatek_ujet">Dodam Stremio dodatek v Medijski center?</string>
+    <string name="os_mediji_dodatek_ujet_dodaj">Dodaj</string>
 </resources>

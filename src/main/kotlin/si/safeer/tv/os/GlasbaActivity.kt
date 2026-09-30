@@ -2285,10 +2285,28 @@ class GlasbaActivity : OsActivity() {
         }
         val stremio = polje(R.string.os_mediji_dodatki_stremio_namig)
         val kodi = polje(R.string.os_mediji_dodatki_kodi_namig)
+        // Z daljincem je tipkanje naslova mucno: gumb Prilepi vzame naslov iz odlozisca (kopiran v Spletu
+        // ali poslan z druge naprave), namig pa pove, da dodatek doda ze gumb Namesti na njegovi strani.
+        fun vrsticaZGumbom(polje: EditText) = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(polje, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(android.widget.Button(this@GlasbaActivity).apply {
+                text = getString(R.string.os_mediji_dodatki_prilepi); isAllCaps = false
+                setOnClickListener {
+                    val cm = getSystemService(android.content.ClipboardManager::class.java)
+                    val b = cm?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this@GlasbaActivity)?.toString()?.trim().orEmpty()
+                    if (b.isBlank()) Toast.makeText(this@GlasbaActivity, R.string.os_mediji_dodatki_prilepi_prazno, Toast.LENGTH_LONG).show()
+                    else { polje.setText(b); polje.setSelection(b.length) }
+                }
+            })
+        }
         val vsebina = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(20), 0, dp(20), 0)
-            addView(oznaka(R.string.os_mediji_dodatki_stremio)); addView(stremio)
-            addView(oznaka(R.string.os_mediji_dodatki_kodi)); addView(kodi)
+            addView(TextView(this@GlasbaActivity).apply {
+                text = getString(R.string.os_mediji_dodatki_namig_splet); setTextColor(osBarva(R.color.os_mint)); textSize = 13f; setPadding(0, dp(4), 0, dp(6))
+            })
+            addView(oznaka(R.string.os_mediji_dodatki_stremio)); addView(vrsticaZGumbom(stremio))
+            addView(oznaka(R.string.os_mediji_dodatki_kodi)); addView(vrsticaZGumbom(kodi))
         }
         AlertDialog.Builder(this)
             .setTitle(R.string.os_mediji_dodatki)
