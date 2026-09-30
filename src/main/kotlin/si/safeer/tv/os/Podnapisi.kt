@@ -118,7 +118,7 @@ object Podnapisi {
 
     private fun jezikNaprave(ctx: Context): String = ctx.resources.configuration.locales[0].language
 
-    private fun imeJezika(ctx: Context, koda: String): String =
+    internal fun imeJezika(ctx: Context, koda: String): String =
         if (koda.isBlank()) "" else Locale(koda).getDisplayLanguage(ctx.resources.configuration.locales[0])
             .replaceFirstChar { it.titlecase(ctx.resources.configuration.locales[0]) }
 

@@ -4,4 +4,9 @@
     <string name="os_mediji_prejsnja">Précédent</string>
     <string name="os_mediji_predvajaj_pavza">Lecture / pause</string>
     <string name="os_mediji_naslednja">Suivant</string>
+    <string name="os_mediji_nazaj_10">Reculer de 10 s</string>
+    <string name="os_mediji_naprej_10">Avancer de 10 s</string>
+    <string name="os_mediji_zvocna_sled">Piste audio</string>
+    <string name="os_mediji_zvocna_sled_st">Audio %1$d</string>
+    <string name="os_mediji_slika_v_sliki">Image dans l’image</string>
 </resources>

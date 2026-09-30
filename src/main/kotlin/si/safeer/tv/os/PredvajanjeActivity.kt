@@ -20,6 +20,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
@@ -66,6 +67,9 @@ class PredvajanjeActivity : OsActivity() {
 
     private val podnapisi by lazy { Podnapisi.Prikaz(this) }
     private var gumbPodnapisi: ImageButton? = null
+    private var gumbZvok: ImageButton? = null
+    private var gumbPip: ImageButton? = null
+    private var vlecenje = false
     private var pripet: Player? = null
     private var zadnjaSlika = ""
     private val poslusalec: () -> Unit = { glavna.post { osvezi() } }
@@ -122,11 +126,23 @@ class PredvajanjeActivity : OsActivity() {
         naslov = besedilo(26f, getColor(R.color.os_besedilo), true)
         izvajalec = besedilo(17f, getColor(R.color.os_umirjeno))
         vir = besedilo(13f, getColor(R.color.os_mint))
-        potek = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000 }
+        potek = if (dotik) SeekBar(this).apply {
+            max = 1000
+            // Vidno drsenje po posnetku (Matej: brez skritih kretenj) - premakne ob spustu.
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, v: Int, odUporabnika: Boolean) { if (odUporabnika) zbudi() }
+                override fun onStartTrackingTouch(sb: SeekBar) { vlecenje = true }
+                override fun onStopTrackingTouch(sb: SeekBar) {
+                    vlecenje = false
+                    GlasbaStoritev.predvajalnik?.let { p -> if (p.duration > 0 && p.isCurrentMediaItemSeekable) p.seekTo(p.duration * sb.progress / 1000) }
+                    osveziCas()
+                }
+            })
+        } else ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000 }
         cas = besedilo(15f, getColor(R.color.os_umirjeno))
         namig = besedilo(12f, getColor(R.color.os_umirjeno)).apply { text = getString(R.string.os_mediji_namig_predvajanje) }
         prekritje.addView(naslov); prekritje.addView(izvajalec); prekritje.addView(vir)
-        prekritje.addView(potek, LinearLayout.LayoutParams(-1, dp(5)).apply { topMargin = dp(12); bottomMargin = dp(6) })
+        prekritje.addView(potek, LinearLayout.LayoutParams(-1, if (dotik) -2 else dp(5)).apply { topMargin = dp(12); bottomMargin = dp(6) })
         prekritje.addView(cas); prekritje.addView(namig)
         predlogi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
         predlogiNaslov = besedilo(17f, getColor(R.color.os_besedilo), true).apply { setPadding(0, dp(14), 0, dp(8)) }
@@ -188,14 +204,21 @@ class PredvajanjeActivity : OsActivity() {
         gumbi.addView(okroglGumb(R.drawable.os_ikona_prejsnja, R.string.os_mediji_prejsnja, 52) {
             GlasbaStoritev.predvajalnik?.let { if (it.currentPosition > 5000 || !it.hasPreviousMediaItem()) it.seekTo(0) else it.seekToPreviousMediaItem() }
         })
+        gumbi.addView(okroglGumb(R.drawable.os_ikona_nazaj10, R.string.os_mediji_nazaj_10, 52) { premakni(-10_000) })
         gumbPredvajaj = okroglGumb(R.drawable.os_ikona_pavza, R.string.os_mediji_predvajaj_pavza, 64) { preklopi() }
         gumbi.addView(gumbPredvajaj)
+        gumbi.addView(okroglGumb(R.drawable.os_ikona_naprej10, R.string.os_mediji_naprej_10, 52) { premakni(10_000) })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_naslednja, R.string.os_mediji_naslednja, 52) {
             GlasbaStoritev.predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
         })
         gumbPodnapisi = okroglGumb(R.drawable.os_ikona_podnapisi, R.string.podnapisi_naslov, 52) {
             GlasbaStoritev.predvajalnik?.let { p -> Podnapisi.izberi(this, p) { posodobiPodnapise() } }
         }.also { it.visibility = View.GONE; gumbi.addView(it) }
+        gumbZvok = okroglGumb(R.drawable.os_ikona_zvocna_sled, R.string.os_mediji_zvocna_sled, 52) {
+            GlasbaStoritev.predvajalnik?.let { p -> ZvocneSledi.izberi(this, p) { posodobiPodnapise() } }
+        }.also { it.visibility = View.GONE; gumbi.addView(it) }
+        gumbPip = okroglGumb(R.drawable.os_ikona_slika_v_sliki, R.string.os_mediji_slika_v_sliki, 52) { vSlikoVSliki() }
+            .also { it.visibility = View.GONE; gumbi.addView(it) }
         prekritje.addView(gumbi, prekritje.indexOfChild(namig), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10) })
     }
 
@@ -230,9 +253,10 @@ class PredvajanjeActivity : OsActivity() {
 
     companion object {
         const val ZATEMNI = "zatemni"
+        const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"
     }
 
-    override fun onDestroy() { delavec.shutdownNow(); super.onDestroy() }
+    override fun onDestroy() { odjaviPip(); delavec.shutdownNow(); super.onDestroy() }
 
     override fun onStop() {
         // Video brez slike nima smisla: ko uporabnik zapusti predvajalnik (Nazaj, Domov, druga aplikacija),
@@ -292,7 +316,7 @@ class PredvajanjeActivity : OsActivity() {
         val trajanje = p.duration.takeIf { it > 0 } ?: 0L
         val polozaj = p.currentPosition.coerceAtLeast(0)
         cas.text = (if (p.isPlaying) "▶  " else "❚❚  ") + if (trajanje > 0) "${oblikuj(polozaj)} / ${oblikuj(trajanje)}" else oblikuj(polozaj)
-        potek.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
+        if (!vlecenje) potek.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
         gumbPredvajaj?.setImageResource(if (p.isPlaying) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
         if (tema.visibility == View.VISIBLE) {
             temaUra.text = DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(Date())
@@ -557,6 +581,9 @@ class PredvajanjeActivity : OsActivity() {
         val ima = jeVideo() && Podnapisi.imaPodnapise(GlasbaStoritev.predvajalnik)
         GlasbaStoritev.predvajalnik?.let { p -> android.util.Log.d("SafeerPodnapisi", "Posnetki: " + Podnapisi.posnetki(p).joinToString { (g, i) -> "${g.getTrackFormat(i).sampleMimeType}/${g.getTrackFormat(i).language}/${g.isTrackSelected(i)}" }) }
         gumbPodnapisi?.visibility = if (ima) View.VISIBLE else View.GONE
+        gumbZvok?.visibility = if (ZvocneSledi.imaIzbiro(GlasbaStoritev.predvajalnik)) View.VISIBLE else View.GONE
+        gumbPip?.visibility = if (jeVideo() && pipMogoc()) View.VISIBLE else View.GONE
+        posodobiPip()
         if (!dotik && ::namig.isInitialized && jeVideo()) {
             val osnova = getString(R.string.os_mediji_namig_predvajanje_video)
             namig.text = if (ima) osnova + " · " + getString(R.string.podnapisi_namig) else osnova
@@ -582,6 +609,7 @@ class PredvajanjeActivity : OsActivity() {
         val p = GlasbaStoritev.predvajalnik ?: return
         if (p.isPlaying) p.pause() else p.play()
         osveziCas()
+        glavna.postDelayed({ posodobiPip() }, 150)
     }
 
     private fun premakni(ms: Long) {
@@ -590,6 +618,63 @@ class PredvajanjeActivity : OsActivity() {
         val cilj = (p.currentPosition + ms).coerceAtLeast(0)
         p.seekTo(if (p.duration > 0) minOf(cilj, p.duration - 500) else cilj)
         osveziCas()
+    }
+
+    // ------------------------------------------------------------------ slika v sliki (telefon, tablica)
+    private fun pipMogoc(): Boolean = dotik && packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+    private fun pipParametri(): android.app.PictureInPictureParams {
+        val v = zadnjaVelikost
+        val razmerje = if (v != null && v.width > 0 && v.height > 0) android.util.Rational(v.width, v.height) else android.util.Rational(16, 9)
+        // Android dovoli razmerja med 1:2,39 in 2,39:1.
+        val r = razmerje.toFloat().coerceIn(0.4185f, 2.39f)
+        val b = android.app.PictureInPictureParams.Builder().setAspectRatio(android.util.Rational((r * 1000).toInt(), 1000))
+        val igra = GlasbaStoritev.predvajalnik?.isPlaying == true
+        val dejanje = android.app.RemoteAction(
+            android.graphics.drawable.Icon.createWithResource(this, if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj),
+            getString(R.string.os_mediji_predvajaj_pavza), getString(R.string.os_mediji_predvajaj_pavza),
+            android.app.PendingIntent.getBroadcast(this, 1, Intent(PIP_PREKLOPI).setPackage(packageName),
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE))
+        b.setActions(listOf(dejanje))
+        if (android.os.Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(jeVideo() && igra)
+        return b.build()
+    }
+
+    /** Posodobi parametre (samodejni vstop ob tipki Domov na Androidu 12+, gumb predvajaj/premor v oknu). */
+    private fun posodobiPip() {
+        if (!pipMogoc() || !jeVideo()) return
+        try { setPictureInPictureParams(pipParametri()) } catch (_: Throwable) { }
+    }
+
+    private fun vSlikoVSliki() {
+        if (!pipMogoc() || !jeVideo()) return
+        try { enterPictureInPictureMode(pipParametri()) } catch (e: Throwable) { android.util.Log.w("SafeerPiP", "vstop ni uspel: $e") }
+    }
+
+    /** Android 8-11: tipka Domov med videom -> slika v sliki (na 12+ to naredi setAutoEnterEnabled). */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (android.os.Build.VERSION.SDK_INT < 31 && pipMogoc() && jeVideo() && GlasbaStoritev.predvajalnik?.isPlaying == true) vSlikoVSliki()
+    }
+
+    private var pipSprejemnikPrijavljen = false
+    private fun odjaviPip() { if (pipSprejemnikPrijavljen) { pipSprejemnikPrijavljen = false; try { unregisterReceiver(pipSprejemnik) } catch (_: Throwable) { } } }
+
+    private val pipSprejemnik = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: android.content.Context?, i: Intent?) { if (i?.action == PIP_PREKLOPI) { preklopi(); posodobiPip() } }
+    }
+
+    override fun onPictureInPictureModeChanged(vPip: Boolean, novaKonfiguracija: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(vPip, novaKonfiguracija)
+        // V majhnem oknu le slika (in podnapisi); pas z naslovom in kartice se skrijejo.
+        prekritje.visibility = if (vPip) View.GONE else View.VISIBLE
+        if (vPip) { prekritje.animate().cancel(); prekritje.alpha = 1f } else zbudi()
+        if (vPip) {
+            val filter = android.content.IntentFilter(PIP_PREKLOPI)
+            if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(pipSprejemnik, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+            else @Suppress("UnspecifiedRegisterReceiverFlag") registerReceiver(pipSprejemnik, filter)
+            pipSprejemnikPrijavljen = true
+        } else odjaviPip()
     }
 
     override fun dispatchTouchEvent(dogodek: MotionEvent): Boolean {

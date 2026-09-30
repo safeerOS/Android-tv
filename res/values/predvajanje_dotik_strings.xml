@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="os_mediji_nazaj_v_os">Back to Safeer OS</string>
-    <string name="os_mediji_prejsnja">Previous</string>
-    <string name="os_mediji_predvajaj_pavza">Play / pause</string>
-    <string name="os_mediji_naslednja">Next</string>
+    <string name="os_mediji_nazaj_v_os">Nazaj v Safeer OS</string>
+    <string name="os_mediji_prejsnja">Prejšnja</string>
+    <string name="os_mediji_predvajaj_pavza">Predvajaj / premor</string>
+    <string name="os_mediji_naslednja">Naslednja</string>
+    <string name="os_mediji_nazaj_10">Nazaj 10 s</string>
+    <string name="os_mediji_naprej_10">Naprej 10 s</string>
+    <string name="os_mediji_zvocna_sled">Zvočna sled</string>
+    <string name="os_mediji_zvocna_sled_st">Zvok %1$d</string>
+    <string name="os_mediji_slika_v_sliki">Slika v sliki</string>
 </resources>
