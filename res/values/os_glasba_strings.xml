@@ -116,4 +116,19 @@
     <string name="os_media_vsi_viri">All sources</string>
     <string name="os_media_izberi_vire">Choose sources</string>
     <string name="os_media_izbrisi_vir">Delete source</string>
+
+    <!-- Dodatki (Stremio, Kodi): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->
+    <string name="os_mediji_dodatki">Add-ons (Stremio, Kodi)</string>
+    <string name="os_mediji_dodatki_opis">Enter the addresses of your own add-ons</string>
+    <string name="os_mediji_dodatki_stremio">Stremio add-on — enter the add-on address here (ends with /manifest.json)</string>
+    <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json or stremio://…</string>
+    <string name="os_mediji_dodatki_kodi">Kodi add-on — enter the repository or add-on address here (.zip)</string>
+    <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ships no catalogues or add-ons. You enter your own; addresses are stored only on this device.</string>
+    <string name="os_mediji_dodatki_shranjen">Add-on saved: %1$s</string>
+    <string name="os_mediji_dodatki_napaka_stremio">A Stremio add-on address must end with /manifest.json.</string>
+    <string name="os_mediji_dodatki_napaka_naslov">The address must start with http:// or https://.</string>
+    <string name="os_mediji_dodatek_stremio">Stremio add-on</string>
+    <string name="os_mediji_dodatek_kodi">Kodi add-on</string>
+    <string name="os_mediji_dodatki_shrani">Save</string>
 </resources>
