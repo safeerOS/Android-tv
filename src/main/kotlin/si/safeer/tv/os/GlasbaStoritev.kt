@@ -94,6 +94,18 @@ class GlasbaStoritev : Service() {
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) = osvezi()
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = preveriDekoderje(p, tracks)
+            override fun onMetadata(metadata: androidx.media3.common.Metadata) {
+                // Radio: naslov skladbe iz toka (ICY StreamTitle) kot "izvajalec" pod imenom postaje.
+                // Naslov iz MediaItem ima v Media3 prednost, zato onMediaMetadataChanged tega ne prinese.
+                for (i in 0 until metadata.length()) {
+                    val e = metadata.get(i) as? androidx.media3.extractor.metadata.icy.IcyInfo ?: continue
+                    val t = e.title?.trim().orEmpty()
+                    if (t.isBlank()) continue
+                    val z = p.currentMediaItemIndex
+                    vrsta = vrsta.mapIndexed { j, s -> if (j == z && s.radio && s.izvajalec != t) s.copy(izvajalec = t) else s }
+                    osvezi()
+                }
+            }
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) konec() else osvezi()
             }
