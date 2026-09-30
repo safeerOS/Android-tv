@@ -168,8 +168,8 @@ object Ozadje {
         } catch (_: Throwable) { null }
     }
 
-    /** Cela podlaga zaslona: barva, slika, zavesa in uporabnikova zatemnitev. */
-    fun sestavi(c: Context, izbira: Izbira, zatemnitev: Int): Drawable {
+    /** Cela podlaga zaslona: barva, slika, zavesa in uporabnikova zatemnitev (stiri plasti, za predogled). */
+    fun sestaviPlasti(c: Context, izbira: Izbira, zatemnitev: Int): Drawable {
         val osnova = ColorDrawable(c.osBarva(R.color.os_ozadje))
         val slika = if (izbira.oznaka == BREZ) null else predogled(c, izbira)
         if (slika == null) return osnova
@@ -180,6 +180,32 @@ object Ozadje {
         val a = (zatemnitev.coerceIn(0, NAJVECJA_ZATEMNITEV) * 255) / 100
         if (a > 0) plasti.add(ColorDrawable(Color.argb(a, 0, 0, 0)))
         return LayerDrawable(plasti.toTypedArray())
+    }
+
+    private var sestavljena: Bitmap? = null
+    private var sestavljenaKljuc = ""
+
+    /**
+     * Podlaga kot ENA neprosojna slika v velikosti zaslona: barva, fotografija, zavesa in zatemnitev se
+     * zlijejo enkrat (Canvas), ne ob vsaki slicici. Prej je televizor ob vsakem izrisu (drsenje, fokus,
+     * animacija) risal stiri celozaslonske plasti - na Philipsu (Mali, 1080p) je bil GPU del slicice tudi
+     * nad 200 ms. Ista slika se hrani za vse zaslone, dokler se izbira ali zatemnitev ne spremeni.
+     */
+    fun sestavi(c: Context, izbira: Izbira, zatemnitev: Int): Drawable {
+        val plasti = sestaviPlasti(c, izbira, zatemnitev)
+        if (plasti !is LayerDrawable) return plasti
+        val m = c.resources.displayMetrics
+        val w = m.widthPixels.coerceAtLeast(1); val h = m.heightPixels.coerceAtLeast(1)
+        val kljuc = "${izbira.oznaka}|$zatemnitev|${w}x$h|${c.osBarva(R.color.os_ozadje)}|${if (izbira.oznaka == LASTNA) datoteka(c).lastModified() else 0L}"
+        synchronized(this) {
+            sestavljena?.let { if (kljuc == sestavljenaKljuc && !it.isRecycled) return BitmapDrawable(c.resources, it) }
+            return try {
+                val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { it.setHasAlpha(false) }   // neprosojno (brez pasov v temnih prelivih)
+                plasti.setBounds(0, 0, w, h); plasti.draw(android.graphics.Canvas(b))
+                sestavljena = b; sestavljenaKljuc = kljuc
+                BitmapDrawable(c.resources, b)
+            } catch (_: Throwable) { plasti }   // brez pomnilnika: stare plasti
+        }
     }
 
     /** Ozadje zaslona po izbiri uporabnika; "Enobarvno" pusti mirno temno ploskev. */

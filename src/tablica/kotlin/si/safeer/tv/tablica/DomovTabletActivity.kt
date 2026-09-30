@@ -126,6 +126,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        si.safeer.tv.os.Predgretje.zazeni(this)
         si.safeer.tv.os.Tema.uporabi(this, predvajalnik = false)
         super.onCreate(savedInstanceState)
         nastaviPostavitev()
