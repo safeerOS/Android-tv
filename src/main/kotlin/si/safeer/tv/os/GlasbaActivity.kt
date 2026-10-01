@@ -396,6 +396,9 @@ class GlasbaActivity : OsActivity() {
         stanje = besedilo(14f, osBarva(R.color.os_umirjeno)).apply { maxLines = 2 }
         levo.addView(naslov); levo.addView(stanje)
         if (vlc) {
+            // Dolgo ime ("Safeer Predvajalnik") se zmanjsa, ne odreze.
+            naslov.maxLines = 1
+            naslov.setAutoSizeTextTypeUniformWithConfiguration(15, 22, 1, TypedValue.COMPLEX_UNIT_SP)
             // Zgornja vrstica kot pri VLC: znak, ime razdelka, iskanje in ⋮. Stalni opis razdelka
             // skrijemo (prostor gre vsebini); sporocila (nalagam, napaka, prazno) ostanejo vidna.
             glava.addView(ikona(R.drawable.os_znak, 30, null), LinearLayout.LayoutParams(dp(30), dp(30)).apply { marginEnd = dp(12) })
@@ -638,6 +641,8 @@ class GlasbaActivity : OsActivity() {
      * s svojim naslovom odmakne pod rob (pokaze se ob drsenju). Merimo po postavitvi, ne ugibamo.
      */
     private fun brezOdrezanihVrst() {
+        // Samo televizor (daljinec): na dotik se drsi s prstom in odmik bi pustil prazno luknjo sredi zaslona.
+        if (!packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) return
         vsebina.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 vsebina.viewTreeObserver.removeOnGlobalLayoutListener(this)
