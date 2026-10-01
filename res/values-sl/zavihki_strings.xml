@@ -60,4 +60,18 @@
     <string name="os_stremio_vir_racunalnik">Pretaka računalnik v Safeer Linku – na to napravo se nič ne prenaša</string>
     <string name="os_stremio_racunalnik_zaseden">Računalniki v tvojem Linku so trenutno zelo zasedeni, zato ne prevzamejo še tega dela. Poskusi čez nekaj minut.</string>
     <string name="os_stremio_racunalnik_ni_prostora">Na računalniku ni dovolj prostora za ta film. Odstrani starejše prenose v polici »Prenosi na računalniku«.</string>
+    <string name="os_moc_k_ram">RAM %1$s prosto</string>
+    <string name="os_moc_k_disk">disk %1$s prosto</string>
+    <string name="os_moc_k_baterija">baterija %1$d %%</string>
+    <string name="os_moc_k_polni">baterija %1$d %% ⚡</string>
+    <string name="os_moc_k_pomaga">✓ lahko pomaga</string>
+    <string name="os_moc_k_ne">✗ ne pomaga – %1$s</string>
+    <string name="os_moc_r_baterija" formatted="false">baterija pod 30 % (pomaga spet od 40 % ali med polnjenjem)</string>
+    <string name="os_moc_r_varcevanje">vklopljeno varčevanje z energijo</string>
+    <string name="os_moc_r_pregreto">naprava je pregreta</string>
+    <string name="os_moc_r_malo_pomnilnika">zmanjkuje pomnilnika</string>
+    <string name="os_moc_r_preobremenjen">zelo zaseden</string>
+    <string name="os_moc_r_ni_prostora">premalo prostora</string>
+    <string name="os_moc_k_kodiranje">strojno kodiranje videa</string>
+    <string name="os_moc_nalagam">preverjam moč …</string>
 </resources>

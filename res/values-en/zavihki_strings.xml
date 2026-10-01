@@ -56,4 +56,18 @@
     <string name="os_stremio_vir_racunalnik">Streamed by a computer in Safeer Link – nothing is downloaded to this device</string>
     <string name="os_stremio_racunalnik_zaseden">The computers in your Link are very busy right now, so they won\'t take on this job too. Try again in a few minutes.</string>
     <string name="os_stremio_racunalnik_ni_prostora">There\'s not enough space on the computer for this film. Remove older downloads in “Downloads on your computer”.</string>
+    <string name="os_moc_k_ram">RAM %1$s free</string>
+    <string name="os_moc_k_disk">disk %1$s free</string>
+    <string name="os_moc_k_baterija">battery %1$d %%</string>
+    <string name="os_moc_k_polni">battery %1$d %% ⚡</string>
+    <string name="os_moc_k_pomaga">✓ can help</string>
+    <string name="os_moc_k_ne">✗ not helping – %1$s</string>
+    <string name="os_moc_r_baterija" formatted="false">battery below 30 % (helps again from 40 % or while charging)</string>
+    <string name="os_moc_r_varcevanje">battery saver is on</string>
+    <string name="os_moc_r_pregreto">device is too hot</string>
+    <string name="os_moc_r_malo_pomnilnika">running low on memory</string>
+    <string name="os_moc_r_preobremenjen">very busy</string>
+    <string name="os_moc_r_ni_prostora">not enough space</string>
+    <string name="os_moc_k_kodiranje">hardware video encoding</string>
+    <string name="os_moc_nalagam">checking capacity …</string>
 </resources>

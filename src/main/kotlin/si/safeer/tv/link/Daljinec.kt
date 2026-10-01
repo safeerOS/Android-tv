@@ -48,7 +48,9 @@ object Daljinec {
         // Opcijski telefonski gamepad za Android aplikacijo, ki tece na tej napravi.
         "gamepad.button", "gamepad.axis", "gamepad.release",
         // Magnet povezava z druge naprave: odpre se v Safeer OS predvajalniku te naprave.
-        "magnet.open"
+        "magnet.open",
+        // Zakon solidarnosti: koliko proste moci ima ta naprava in ali ta trenutek sme pomagati (Zmogljivost).
+        "host.info"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -143,6 +145,7 @@ object Daljinec {
             return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)
         }
         if (d == "magnet.open") return odpriMagnet(context, parametri.optString("uri", ""))
+        if (d == "host.info") return Izid(true, "Zmogljivost", Zmogljivost.porocilo(context))
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {

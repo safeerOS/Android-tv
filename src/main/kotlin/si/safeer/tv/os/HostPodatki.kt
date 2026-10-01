@@ -139,6 +139,38 @@ object HostPodatki {
         return vrstice.joinToString("\n")
     }
 
+    /**
+     * Kratka vrstica moci za seznam naprav (zakon solidarnosti): jedra, prosti RAM in disk, baterija,
+     * strojno kodiranje in ali naprava ta trenutek lahko pomaga drugim (polje `pomoc` iz host.info).
+     */
+    fun kratko(context: Context, p: JSONObject): String {
+        val deli = ArrayList<String>()
+        // Najprej odgovor na glavno vprasanje (ali pomaga), nato stevilke - vrstica se lahko odreze.
+        p.optJSONObject("pomoc")?.let { m ->
+            deli.add(if (m.optBoolean("lahko", true)) context.getString(R.string.os_moc_k_pomaga)
+                else context.getString(R.string.os_moc_k_ne, razlog(context, m.optString("razlog"))))
+        }
+        p.optJSONObject("cpu")?.optInt("jedra", 0)?.takeIf { it > 0 }?.let { deli.add(context.getString(R.string.os_host_jedra, it)) }
+        p.optJSONObject("ram")?.optLong("prosto", -1L)?.takeIf { it >= 0 }?.let { deli.add(context.getString(R.string.os_moc_k_ram, velikost(it))) }
+        p.optJSONObject("disk")?.optLong("prosto", -1L)?.takeIf { it >= 0 }?.let { deli.add(context.getString(R.string.os_moc_k_disk, velikost(it))) }
+        p.optJSONObject("baterija")?.let { b ->
+            val r = b.optInt("raven", -1)
+            if (r >= 0) deli.add(context.getString(if (b.optBoolean("polni")) R.string.os_moc_k_polni else R.string.os_moc_k_baterija, r))
+        }
+        if (p.optJSONObject("gpu")?.optBoolean("strojno") == true) deli.add(context.getString(R.string.os_moc_k_kodiranje))
+        return deli.joinToString(" · ")
+    }
+
+    fun razlog(context: Context, koda: String): String = when (koda) {
+        "baterija" -> context.getString(R.string.os_moc_r_baterija)
+        "varcevanje" -> context.getString(R.string.os_moc_r_varcevanje)
+        "pregreto" -> context.getString(R.string.os_moc_r_pregreto)
+        "malo_pomnilnika" -> context.getString(R.string.os_moc_r_malo_pomnilnika)
+        "preobremenjen" -> context.getString(R.string.os_moc_r_preobremenjen)
+        "ni_prostora" -> context.getString(R.string.os_moc_r_ni_prostora)
+        else -> koda
+    }
+
     /** Ena vrstica za nastavitve. */
     fun vrstica(context: Context, p: Podatki): String {
         val deli = ArrayList<String>()

@@ -56,4 +56,18 @@
     <string name="os_stremio_vir_racunalnik">Ein Computer in Safeer Link streamt – auf dieses Gerät wird nichts geladen</string>
     <string name="os_stremio_racunalnik_zaseden">Die Computer in deinem Link sind gerade stark ausgelastet und übernehmen diese Aufgabe nicht. Versuche es in ein paar Minuten erneut.</string>
     <string name="os_stremio_racunalnik_ni_prostora">Auf dem Computer ist nicht genug Platz für diesen Film. Entferne ältere Downloads unter „Downloads auf dem Computer“.</string>
+    <string name="os_moc_k_ram">RAM %1$s frei</string>
+    <string name="os_moc_k_disk">Speicher %1$s frei</string>
+    <string name="os_moc_k_baterija">Akku %1$d %%</string>
+    <string name="os_moc_k_polni">Akku %1$d %% ⚡</string>
+    <string name="os_moc_k_pomaga">✓ kann helfen</string>
+    <string name="os_moc_k_ne">✗ hilft nicht – %1$s</string>
+    <string name="os_moc_r_baterija" formatted="false">Akku unter 30 % (hilft wieder ab 40 % oder beim Laden)</string>
+    <string name="os_moc_r_varcevanje">Energiesparmodus ist an</string>
+    <string name="os_moc_r_pregreto">Gerät ist zu heiß</string>
+    <string name="os_moc_r_malo_pomnilnika">wenig Arbeitsspeicher</string>
+    <string name="os_moc_r_preobremenjen">stark ausgelastet</string>
+    <string name="os_moc_r_ni_prostora">zu wenig Speicherplatz</string>
+    <string name="os_moc_k_kodiranje">Hardware-Videokodierung</string>
+    <string name="os_moc_nalagam">prüfe Leistung …</string>
 </resources>
