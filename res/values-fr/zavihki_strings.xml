@@ -25,4 +25,11 @@
         <item quantity="one">%d élément</item>
         <item quantity="other">%d éléments</item>
     </plurals>
+    <string name="os_kartica_hitrost">Vitesse</string>
+    <string name="os_kartica_casovnik">Minuterie de veille</string>
+    <string name="os_casovnik_cez">Dans %1$d min</string>
+    <string name="os_podnapisi_dodaj">Ajouter des sous-titres</string>
+    <string name="os_podnapisi_dodaj_opis">Fichier .srt, .vtt ou .ass</string>
+    <string name="os_podnapisi_dodani">Sous-titres ajoutés : %1$s</string>
+    <string name="os_podnapisi_ni_podnapis">Ce n’est pas un fichier de sous-titres (.srt, .vtt, .ass).</string>
 </resources>

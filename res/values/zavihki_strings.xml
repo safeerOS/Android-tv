@@ -27,4 +27,11 @@
         <item quantity="few">%d posnetki</item>
         <item quantity="other">%d posnetkov</item>
     </plurals>
+    <string name="os_kartica_hitrost">Hitrost</string>
+    <string name="os_kartica_casovnik">Časovnik izklopa</string>
+    <string name="os_casovnik_cez">Čez %1$d min</string>
+    <string name="os_podnapisi_dodaj">Dodaj podnapise</string>
+    <string name="os_podnapisi_dodaj_opis">Datoteka .srt, .vtt ali .ass</string>
+    <string name="os_podnapisi_dodani">Podnapisi dodani: %1$s</string>
+    <string name="os_podnapisi_ni_podnapis">To ni datoteka s podnapisi (.srt, .vtt, .ass).</string>
 </resources>
