@@ -16,4 +16,13 @@
     <string name="os_dovoljenje_dovoli">Permitir</string>
     <string name="os_kretnja_svetlost">Brillo %1$d %%</string>
     <string name="os_kretnja_glasnost">Volumen %1$d %%</string>
+    <string name="os_zaklep_zaslona">Bloquear pantalla</string>
+    <string name="os_odklep_zaslona">Desbloquear</string>
+    <string name="os_zaslon_zaklenjen">Pantalla bloqueada. Toca Desbloquear o pulsa Atrás.</string>
+    <string name="os_nadaljujem_od">Continuando desde %1$s</string>
+    <string name="os_seznami_predvajanja">Listas de reproducción</string>
+    <plurals name="os_stevilo_posnetkov">
+        <item quantity="one">%d elemento</item>
+        <item quantity="other">%d elementos</item>
+    </plurals>
 </resources>

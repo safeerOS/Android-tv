@@ -355,6 +355,10 @@ class GlasbaActivity : OsActivity() {
         glavna.post(tik)
         // Ob vrnitvi (npr. iz predvajanja) sta se nedavno in stanje predvajanja lahko spremenila.
         if (videnPrej && razdelek == DOMOV) izberi(DOMOV)
+        // Po ogledu (Nazaj s predvajanja) osvezimo napredek na kartici videa z naprave.
+        // Video: znova narisemo (iz predpomnilnika, brez omrezja), da kartica in "Nadaljuj gledanje" pokazeta novo mesto.
+        if (videnPrej && vlc && razdelek == VIDEO) izberi(VIDEO)
+        else if (videnPrej && razdelek == GLASBA) naloziKrajevno(razdelek)
         // Dovoljenje, dano v nastavitvah aplikacije: ob vrnitvi takoj pokazemo, kar je na napravi.
         if (vlc && videnPrej && imeloDovoljenje != stanjeDovoljenj()) {
             imeloDovoljenje = stanjeDovoljenj()
@@ -920,6 +924,7 @@ class GlasbaActivity : OsActivity() {
     private fun krajevnePolice(i: Int): List<Podatki> {
         if (!KrajevneDatoteke.imamoDovoljenje(this)) return emptyList()
         fun beri(zbirka: String, video: Boolean) = KrajevneDatoteke.vsebina(this, zbirka).map { v ->
+            // Pri videu trajanje (podnaslov na kartici in na zaslonu predvajanja); napredek doda videi().
             Jamendo.Skladba("krajevno:${v.id}", v.ime.substringBeforeLast('.'),
                 if (video && v.trajanje > 0) cas(v.trajanje) else "", if (video) v.id else "", v.id, "",
                 video = video, mime = v.mime)
@@ -1159,8 +1164,9 @@ class GlasbaActivity : OsActivity() {
                         val sk = vnos.skladba
                         val podnaslov = if (vnos.trajanje > 0) "${cas(vnos.polozaj)} / ${cas(vnos.trajanje)}"
                                         else sk.year.takeIf { it > 0 }?.toString().orEmpty()
-                        val tip = when (SpletniVir.vrstaVsebine(sk)) {
-                            SpletniVir.SERIJA -> getString(R.string.os_media_serija)
+                        val tip = when {
+                            sk.id.startsWith("krajevno:") -> getString(R.string.os_glasba_video)
+                            SpletniVir.vrstaVsebine(sk) == SpletniVir.SERIJA -> getString(R.string.os_media_serija)
                             else -> getString(R.string.os_media_film)
                         }
                         Kartica(sk.naslov, podnaslov, sk.slika, klik = {
@@ -1832,11 +1838,31 @@ class GlasbaActivity : OsActivity() {
      */
     private fun viriVrste(): List<Vrsta> {
         val pripeti = MedijskiViri.pripeti(this)
-        return listOf(Vrsta("", listOf(
+        // Seznami predvajanja (Shrani vrsto na zaslonu predvajanja) imajo v Brskaj svojo polico.
+        val seznami = MedijskiViri.seznami(this)
+        val vrstaSeznamov = if (!vlc || seznami.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_seznami_predvajanja),
+            seznami.map { sz ->
+                Kartica(sz.ime, resources.getQuantityString(R.plurals.os_stevilo_posnetkov, sz.skladbe.size, sz.skladbe.size), sz.skladbe.firstOrNull { it.slika.startsWith("http") }?.slika.orEmpty(),
+                    { odpriSeznam(sz.ime, "") { sz.skladbe } }, { meniSeznama(sz) },
+                    ikona = if (sz.skladbe.all { it.video }) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
+            }, mala = true))
+        return vrstaSeznamov + listOf(Vrsta("", listOf(
             Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
             Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, ikona = R.drawable.os_ikona_plus)) +
             vsiViri().map { v -> Kartica((if (v.kljuc in pripeti) "★ " else "") + v.ime, v.opis, "", { v.odpri() }, { dolgoNaViru(v) }, ikona = v.ikona) },
             mreza = true))
+    }
+
+    /** Dolg dotik na seznamu v Brskaj: predvajaj ali odstrani (s potrditvijo). */
+    private fun meniSeznama(sz: MedijskiViri.Seznam) {
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sz.ime)
+            .setItems(arrayOf(getString(R.string.os_mediji_predvajaj), getString(R.string.os_mediji_odstrani_seznam))) { _, k ->
+                if (k == 0) predvajaj(sz.skladbe, 0)
+                else AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sz.ime)
+                    .setMessage(R.string.os_mediji_odstrani_seznam)
+                    .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, sz.ime); izberi(VIRI) }
+                    .setNegativeButton(android.R.string.cancel, null).show()
+            }.show()
     }
 
     private fun dolgoNaViru(v: Vir) {
@@ -1891,6 +1917,8 @@ class GlasbaActivity : OsActivity() {
 
     /** Isti naslov iz vec virov je ena kartica; Safeer sam izbere vir in ga uporabniku ne izpostavlja. */
     private fun videi(v: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null): List<Kartica> {
+        val napredekKrajevnih = if (v.none { it.id.startsWith("krajevno:") }) emptyMap()
+            else MediaNapredek.seznam(this).filter { it.skladba.id.startsWith("krajevno:") && it.polozaj > 0 }.associateBy { it.skladba.id }
         val skupine = SpletniVir.zdruziEnako(v)
         val podvojene = skupine.count { it.size > 1 }
         if (podvojene > 0) android.util.Log.i("SafeerOsMedia",
@@ -1898,7 +1926,10 @@ class GlasbaActivity : OsActivity() {
         return skupine.map { urejene ->
             val sk = urejene.first()
             val tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty()
-            val podnaslov = sk.year.takeIf { it > 0 }?.toString().orEmpty()
+            // Video z naprave: napredek ali trajanje (kot VLC), spletni: letnica.
+            val podnaslov = if (sk.id.startsWith("krajevno:"))
+                napredekKrajevnih[sk.id]?.let { n -> "${cas(n.polozaj)} / ${cas(n.trajanje)}" } ?: sk.izvajalec
+            else sk.year.takeIf { it > 0 }?.toString().orEmpty()
             val tip = if (tvId.isNotBlank()) getString(R.string.os_media_oznaka_v_zivo) else {
                 when (SpletniVir.vrstaVsebine(sk)) {
                     SpletniVir.FILM -> getString(R.string.os_media_film)
@@ -2625,6 +2656,7 @@ class GlasbaActivity : OsActivity() {
     private fun nadaljujKoPripravljen(sk: Jamendo.Skladba) {
         val od = MediaNapredek.polozaj(this, sk)
         if (od <= 0) return
+        Toast.makeText(this, getString(R.string.os_nadaljujem_od, cas(od)), Toast.LENGTH_SHORT).show()
         glavna.postDelayed({ GlasbaStoritev.predvajalnik?.let { p -> if (p.duration <= 0 || od < p.duration - 5_000) p.seekTo(od) } }, 900)
     }
 
