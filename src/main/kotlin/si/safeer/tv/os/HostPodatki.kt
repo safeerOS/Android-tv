@@ -168,6 +168,7 @@ object HostPodatki {
         "malo_pomnilnika" -> context.getString(R.string.os_moc_r_malo_pomnilnika)
         "preobremenjen" -> context.getString(R.string.os_moc_r_preobremenjen)
         "ni_prostora" -> context.getString(R.string.os_moc_r_ni_prostora)
+        "sorodnik" -> context.getString(R.string.os_moc_r_sorodnik)
         else -> koda
     }
 

@@ -57,8 +57,31 @@ object Zmogljivost {
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val varcuje = pm.isPowerSaveMode
         val vroce = Build.VERSION.SDK_INT >= 29 && pm.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE
-        p.put("pomoc", pomoc(context, bat, varcuje, vroce, malo))
+        val sorodnik = sorodnikZVecjoPrednostjo(context)
+        if (sorodnik != null) {
+            // Ista fizicna naprava, dve Safeer aplikaciji (npr. Safeer OS in brskalnik): pomaga samo ena,
+            // da se moc naprave ne steje dvakrat in ne prevzameta dela hkrati.
+            p.put("pomoc", JSONObject().put("lahko", false).put("razlog", "sorodnik").put("sorodnik", sorodnik))
+        } else {
+            p.put("pomoc", pomoc(context, bat, varcuje, vroce, malo))
+        }
         return p
+    }
+
+    /** Prednost pri pomoci na eni napravi: Safeer OS, nato Predvajalnik, nato brskalnik. */
+    private val PREDNOST = linkedMapOf("si.safeer.os" to 3, "si.safeer.tablet" to 3, "si.safeer.phone" to 3,
+        "si.safeer.player" to 2)
+
+    fun prednost(paket: String): Int = PREDNOST[paket] ?: 1
+
+    /** Ime paketa Safeer aplikacije z vecjo prednostjo, ki je namescena na tej napravi, sicer null. */
+    fun sorodnikZVecjoPrednostjo(context: Context): String? {
+        val moja = prednost(context.packageName)
+        return PREDNOST.keys.firstOrNull { paket ->
+            paket != context.packageName && prednost(paket) > moja && try {
+                context.packageManager.getPackageInfo(paket, 0); true
+            } catch (_: Throwable) { false }
+        }
     }
 
     private fun vrsta(context: Context): String = when {
