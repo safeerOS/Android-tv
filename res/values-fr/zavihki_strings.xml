@@ -54,4 +54,6 @@
     <string name="os_prenos_odstrani_vprasanje">Le film et tous ses fichiers seront supprimés de l’ordinateur. Tu peux le rouvrir à tout moment depuis l’extension.</string>
     <string name="os_prenos_odstranjen">Supprimé de l’ordinateur</string>
     <string name="os_stremio_vir_racunalnik">Diffusé par un ordinateur de Safeer Link – rien n’est téléchargé sur cet appareil</string>
+    <string name="os_stremio_racunalnik_zaseden">Les ordinateurs de ton Link sont très occupés et ne prennent pas cette tâche en plus. Réessaie dans quelques minutes.</string>
+    <string name="os_stremio_racunalnik_ni_prostora">Pas assez d’espace sur l’ordinateur pour ce film. Supprime d’anciens téléchargements dans « Téléchargements sur l’ordinateur ».</string>
 </resources>

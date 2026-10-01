@@ -54,4 +54,6 @@
     <string name="os_prenos_odstrani_vprasanje">The film and all its files will be deleted from the computer. You can open it again from the add-on any time.</string>
     <string name="os_prenos_odstranjen">Removed from computer</string>
     <string name="os_stremio_vir_racunalnik">Streamed by a computer in Safeer Link – nothing is downloaded to this device</string>
+    <string name="os_stremio_racunalnik_zaseden">The computers in your Link are very busy right now, so they won\'t take on this job too. Try again in a few minutes.</string>
+    <string name="os_stremio_racunalnik_ni_prostora">There\'s not enough space on the computer for this film. Remove older downloads in “Downloads on your computer”.</string>
 </resources>

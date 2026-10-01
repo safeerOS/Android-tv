@@ -2832,8 +2832,20 @@ class GlasbaActivity : OsActivity() {
      * Brez racunalnika televizor torrenta ne prenasa; telefon in tablica ga lahko, ce uporabnik izbere.
      */
     private fun torrentPrekRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int = -1, prednost: String = "") {
-        val racunalniki = racunalnikiZaPomoc()
+        val vsi = racunalnikiZaPomoc()
             .sortedWith(compareByDescending<LinkOdjemalec.Naprava> { it.id == prednost }.thenByDescending { it.zmoznosti.contains("desktop") })
+        // Solidarnost: delo dobi racunalnik z najvec proste moci (host.info), ne vedno isti.
+        if (prednost.isBlank() && vsi.size > 1) {
+            val proste = java.util.concurrent.ConcurrentHashMap<String, Double>()
+            var cakam = vsi.size
+            for (r in vsi) link.ukaz(r.id, "host.info", org.json.JSONObject(), 3_000, LinkOdjemalec.Odgovor { izid, _ ->
+                izid?.optJSONObject("data")?.let { proste[r.id] = prostaMoc(it) }
+                if (--cakam == 0 && !isFinishing) torrentPrekRacunalnika(sk, naslov, magnet, datoteka,
+                    vsi.maxByOrNull { proste[it.id] ?: 0.0 }?.id ?: vsi.first().id)
+            })
+            return
+        }
+        val racunalniki = vsi
         fun brez(sporocilo: String) {
             val d = AlertDialog.Builder(this).setTitle(naslov).setMessage(sporocilo).setPositiveButton(android.R.string.ok, null)
             if (!jeTv()) d.setNeutralButton(R.string.os_stremio_prenesi_sem) { _, _ ->
@@ -2844,7 +2856,14 @@ class GlasbaActivity : OsActivity() {
         if (racunalniki.isEmpty()) { brez(getString(R.string.os_stremio_torrent_brez_racunalnika)); return }
         var zadnjaNapaka = ""
         fun poskusi(k: Int) {
-            if (k >= racunalniki.size) { brez(getString(R.string.os_stremio_torrent_napaka, zadnjaNapaka)); return }
+            if (k >= racunalniki.size) {
+                brez(when (zadnjaNapaka) {
+                    "preobremenjen", "malo_pomnilnika" -> getString(R.string.os_stremio_racunalnik_zaseden)
+                    "ni_prostora" -> getString(R.string.os_stremio_racunalnik_ni_prostora)
+                    else -> getString(R.string.os_stremio_torrent_napaka, zadnjaNapaka)
+                })
+                return
+            }
             val r = racunalniki[k]
             val ime = DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }
             Toast.makeText(this, getString(R.string.os_stremio_racunalnik_pripravlja, ime), Toast.LENGTH_LONG).show()
@@ -2907,6 +2926,15 @@ class GlasbaActivity : OsActivity() {
         }
         cakam.await(10, java.util.concurrent.TimeUnit.SECONDS)
         return izid.sortedBy { it.naslov.lowercase(Locale.ROOT) }
+    }
+
+    /** Prosta moc racunalnika iz host.info: prosta jedra + prosti pomnilnik (GB); brez prostora na disku 0. */
+    private fun prostaMoc(d: org.json.JSONObject): Double {
+        val cpu = d.optJSONObject("cpu"); val ram = d.optJSONObject("ram"); val disk = d.optJSONObject("disk")
+        if (disk != null && disk.optLong("prosto", Long.MAX_VALUE) < 3L * 1024 * 1024 * 1024) return 0.0
+        val jedra = cpu?.optDouble("jedra", 1.0) ?: 1.0
+        val prostaJedra = (jedra - (cpu?.optDouble("obremenitev", 0.0) ?: 0.0)).coerceAtLeast(0.0)
+        return prostaJedra + (ram?.optLong("prosto", 0L) ?: 0L) / 1e9
     }
 
     private fun btih(magnet: String): String? =

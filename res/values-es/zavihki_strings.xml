@@ -54,4 +54,6 @@
     <string name="os_prenos_odstrani_vprasanje">La película y todos sus archivos se borrarán del ordenador. Puedes volver a abrirla desde el complemento cuando quieras.</string>
     <string name="os_prenos_odstranjen">Quitado del ordenador</string>
     <string name="os_stremio_vir_racunalnik">Lo transmite un ordenador de Safeer Link – no se descarga nada en este dispositivo</string>
+    <string name="os_stremio_racunalnik_zaseden">Los ordenadores de tu Link están muy ocupados y no asumen también esta tarea. Inténtalo en unos minutos.</string>
+    <string name="os_stremio_racunalnik_ni_prostora">No hay espacio suficiente en el ordenador para esta película. Quita descargas antiguas en «Descargas en el ordenador».</string>
 </resources>
