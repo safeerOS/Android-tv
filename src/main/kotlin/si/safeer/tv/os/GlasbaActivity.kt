@@ -1422,7 +1422,7 @@ class GlasbaActivity : OsActivity() {
             (tipke.getChildAt(0))?.nextFocusLeftId = meniMediji.id
             if (telefon) { tipke.gravity = Gravity.CENTER; tipkeSpodaj = tipke } else desno.addView(tipke)
         } else {
-            desno.addView(LinearLayout(this).apply {
+            val nadaljuj = LinearLayout(this).apply {
                 tag = "k:nadaljuj"
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                 isFocusable = true; isClickable = true; nextFocusLeftId = meniMediji.id
@@ -1431,7 +1431,10 @@ class GlasbaActivity : OsActivity() {
                 setOnClickListener { predvajaj(listOf(prikaz), 0) }
                 addView(ikona(R.drawable.os_ikona_predvajaj, 26, osBarva(R.color.os_mint)))
                 addView(besedilo(15f, beli, true).apply { text = getString(R.string.os_media_nadaljuj); setPadding(dp(10), 0, 0, 0) })
-            }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(14) })
+            }
+            // Telefon pokonci: gumb pod naslovnico na sredini (ob njej bi se odrezal v "Nadalj...").
+            if (telefon) tipkeSpodaj = LinearLayout(this).apply { gravity = Gravity.CENTER; addView(nadaljuj) }
+            else desno.addView(nadaljuj, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(14) })
         }
         telo.addView(desno, LinearLayout.LayoutParams(0, -2, 1f))
         plosca.addView(telo)
