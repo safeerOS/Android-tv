@@ -1036,7 +1036,20 @@ class GlasbaActivity : OsActivity() {
             }
             vrste.filter { it.skladbe.isNotEmpty() }
         }
-        TV_V_ZIVO -> if (jeVirViden(i, VIR_TV)) TvVZivo.poDrzavah().map { (drzava, kanali) -> Podatki(drzava, kanali, video = true) } else emptyList()
+        TV_V_ZIVO -> {
+            // Kanali v zivo iz uporabnikovih dodatkov Stremio (katalogi tipa "tv"): vsak katalog svoja polica, pred uradnimi prenosi.
+            val stremio = MedijskiViri.vsi(this).filter { it.jeStremio && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
+            val izDodatkov = mutableListOf<Podatki>()
+            if (stremio.isNotEmpty()) {
+                val katalogi = try { Stremio.katalogiTv(stremio) } catch (_: Exception) { emptyList() }.take(12)
+                val vsebine = katalogi.map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
+                katalogi.zip(vsebine).forEach { (k, f) ->
+                    val vsebina = try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
+                    if (vsebina.isNotEmpty()) izDodatkov += Podatki("📡 ${k.ime} · ${k.imeDodatka}", vsebina.take(80), video = true)
+                }
+            }
+            izDodatkov + (if (jeVirViden(i, VIR_TV)) TvVZivo.poDrzavah().map { (drzava, kanali) -> Podatki(drzava, kanali, video = true) } else emptyList())
+        }
         VIDEO -> {
             val vsiViri = MedijskiViri.vsi(this)
             val medijskiViri = vsiViri.filter { jeVirViden(i, kljucVira(it)) }
@@ -1280,7 +1293,8 @@ class GlasbaActivity : OsActivity() {
             VIDEO -> listOf(VirIzbire(VIR_JAVNA_LAST, getString(R.string.os_media_javna_last)), VirIzbire(VIR_PEERTUBE, "PeerTube")) +
                 uporabniski.filter { it.jeSplet || it.jePeerTube }.map { VirIzbire(kljucVira(it), it.ime) }
             RADIO -> listOf(VirIzbire(VIR_RADIO, "Radio Browser"), VirIzbire(VIR_TUNEIN, "TuneIn"))
-            TV_V_ZIVO -> listOf(VirIzbire(VIR_TV, getString(R.string.os_mediji_tv_v_zivo)))
+            TV_V_ZIVO -> listOf(VirIzbire(VIR_TV, getString(R.string.os_mediji_tv_v_zivo))) +
+                uporabniski.filter { it.jeStremio }.map { VirIzbire(kljucVira(it), Stremio.imeIzPredpomnilnika(it.naslov) ?: it.ime) }
             else -> emptyList()
         }.distinctBy { it.kljuc }
     }
@@ -2637,7 +2651,7 @@ class GlasbaActivity : OsActivity() {
                             return@post
                         }
                         Toast.makeText(this, getString(R.string.os_mediji_dodano, vir.ime), Toast.LENGTH_SHORT).show()
-                        SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO)
+                        SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); SEZNAMI.remove(TV_V_ZIVO)
                         izberi(VIRI)
                         // Fokus na pravkar dodani vir: takoj ga lahko odpres.
                         drsnik.post { vsebina.findViewWithTag<View>("k:#${vsiViri().size}")?.requestFocus() }
@@ -2698,7 +2712,7 @@ class GlasbaActivity : OsActivity() {
                     Toast.makeText(this, getString(R.string.os_mediji_dodatki_shranjen, v.ime), Toast.LENGTH_SHORT).show()
                     shranjeno++
                 }
-                if (shranjeno > 0) { SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); izberi(VIRI) }
+                if (shranjeno > 0) { SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); SEZNAMI.remove(TV_V_ZIVO); izberi(VIRI) }
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -2710,7 +2724,7 @@ class GlasbaActivity : OsActivity() {
             .setMessage(R.string.os_mediji_odstrani_vprasanje)
             .setPositiveButton(R.string.os_mediji_odstrani) { _, _ ->
                 MedijskiViri.odstrani(this, v)
-                SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO)
+                SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); SEZNAMI.remove(TV_V_ZIVO)
                 izberi(VIRI)
             }
             .setNegativeButton(android.R.string.cancel, null)
