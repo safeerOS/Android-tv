@@ -36,7 +36,9 @@ object Stremio {
 
     data class Tok(val vrsta: String, val url: String, val ime: String, val opis: String, val dodatek: String,
                    /** Torrent: katera datoteka (fileIdx), -1 = najvecji video. */
-                   val datoteka: Int = -1)
+                   val datoteka: Int = -1,
+                   /** `behaviorHints.proxyHeaders.request`: glave, ki jih tok zahteva (User-Agent, Referer, Origin, Cookie ...). */
+                   val glave: Map<String, String> = emptyMap())
 
     private val manifesti = ConcurrentHashMap<String, Manifest>()
 
@@ -186,8 +188,13 @@ object Stremio {
                 val s = a.optJSONObject(i) ?: return@mapNotNull null
                 val ime = s.optString("name").ifBlank { m.ime }
                 val opis = s.optString("title").ifBlank { s.optString("description") }
+                // proxyHeaders.request (SDK: behaviorHints): glave, brez katerih streznik toka ne odgovori.
+                val glave = LinkedHashMap<String, String>()
+                s.optJSONObject("behaviorHints")?.optJSONObject("proxyHeaders")?.optJSONObject("request")?.let { h ->
+                    for (k in h.keys()) { val v = h.optString(k); if (k.isNotBlank() && v.isNotBlank()) glave[k] = v }
+                }
                 when {
-                    s.optString("url").startsWith("http") -> Tok("url", s.optString("url"), ime, opis, m.ime)
+                    s.optString("url").startsWith("http") -> Tok("url", s.optString("url"), ime, opis, m.ime, glave = glave)
                     s.optString("externalUrl").isNotBlank() -> Tok("zunanji", s.optString("externalUrl"), ime, opis, m.ime)
                     s.optString("ytId").isNotBlank() -> Tok("zunanji", "https://www.youtube.com/watch?v=" + s.optString("ytId"), ime, opis, m.ime)
                     s.optString("infoHash").isNotBlank() -> {

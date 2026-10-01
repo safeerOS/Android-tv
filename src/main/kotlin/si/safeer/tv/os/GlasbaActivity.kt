@@ -2871,6 +2871,8 @@ class GlasbaActivity : OsActivity() {
         fun odpri(t: Stremio.Tok) {
             when (t.vrsta) {
                 "url" -> {
+                    // Glave, ki jih tok zahteva (proxyHeaders), veljajo za gostitelja toka, dokler ne pride drug tok z istega.
+                    SpletniVir.zapomniGlaveToka(t.url, t.glave)
                     val r = sk.copy(id = sk.id + "#" + t.url.hashCode(), naslov = naslov, zvok = t.url, povezava = t.url, video = true)
                     GlasbaStoritev.predvajaj(this, listOf(r), 0)
                     nadaljujKoPripravljen(r)

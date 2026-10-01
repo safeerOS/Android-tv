@@ -653,21 +653,41 @@ object SpletniVir {
 
     /** Glave za tok po njegovi domeni: Referer strani ali kljuc uporabnikovega API-ja (+ piskotki seje). */
     private val glaveDomene = ConcurrentHashMap<String, Map<String, String>>()
+    /** Glave po natancnem gostitelju (z vrati): `behaviorHints.proxyHeaders.request` toka Stremio (User-Agent, Referer,
+     *  Origin, Cookie ...). Po gostitelju, ne domeni, da UA enega dodatka ne velja za cel CDN. */
+    private val glaveGostitelja = ConcurrentHashMap<String, Map<String, String>>()
     @Volatile private var ua = ""
 
     private fun domena(url: String) = try { URL(url).host.split('.').takeLast(2).joinToString(".") } catch (_: Exception) { "" }
+    private fun gostitelj(url: String) = try { URL(url).let { it.host.lowercase() + (if (it.port > 0) ":" + it.port else "") } } catch (_: Exception) { "" }
 
     internal fun zapomniGlave(tok: String, stran: String) {
         glaveDomene[domena(tok)] = mapOf("Referer" to stran)
     }
 
-    /** Vir podatkov za nas predvajalnik: tokovom iz spletnih aplikacij doda Referer, piskotke in UA brskalnika. */
+    /** Glave zahteve za tok (Stremio proxyHeaders): veljajo za vse zahteve na ta gostitelj (tudi dele HLS). */
+    fun zapomniGlaveToka(tok: String, glave: Map<String, String>) {
+        val g = gostitelj(tok)
+        if (g.isBlank()) return
+        if (glave.isEmpty()) glaveGostitelja.remove(g) else glaveGostitelja[g] = glave
+    }
+
+    /**
+     * Vir podatkov za nas predvajalnik: tokovom iz spletnih aplikacij doda Referer, piskotke in UA brskalnika.
+     * UA gre v glave zahteve (ne v tovarno): DefaultHttpDataSource bi s svojim UA prepisal tistega iz proxyHeaders.
+     */
     fun virPodatkov(c: Context): DataSource.Factory {
         if (ua.isBlank()) ua = try { WebSettings.getDefaultUserAgent(c) } catch (_: Exception) { "" }
-        val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true).apply { if (ua.isNotBlank()) setUserAgent(ua) }
+        val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
         return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { spec ->
-            val glave = HashMap(glaveDomene[domena(spec.uri.toString())] ?: return@Factory spec)
-            try { CookieManager.getInstance().getCookie(spec.uri.toString()) } catch (_: Exception) { null }?.let { glave["Cookie"] = it }
+            val url = spec.uri.toString()
+            if (!url.startsWith("http://") && !url.startsWith("https://")) return@Factory spec
+            val glave = HashMap<String, String>()
+            if (ua.isNotBlank()) glave["User-Agent"] = ua
+            glaveDomene[domena(url)]?.let { glave.putAll(it) }
+            try { CookieManager.getInstance().getCookie(url) } catch (_: Exception) { null }?.let { glave["Cookie"] = it }
+            // Glave toka (proxyHeaders) imajo zadnjo besedo - tudi nad UA brskalnika in piskotki.
+            glaveGostitelja[gostitelj(url)]?.let { glave.putAll(it) }
             spec.withAdditionalHeaders(glave)
         }
     }
