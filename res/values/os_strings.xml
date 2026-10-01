@@ -568,4 +568,5 @@
     <string name="os_tema_naslov">Theme (colour scheme)</string>
     <string name="os_tema_privzeta">Default Safeer OS theme</string>
     <string name="os_tema_izbrana">Selected</string>
+    <string name="os_krajevno_shramba">Storage for other devices</string>
 </resources>
