@@ -138,17 +138,14 @@ object Stremio {
     const val CINEMETA = "https://v3-cinemeta.strem.io/manifest.json"
 
     /**
-     * Uporabnikovi dodatki, za katalog dopolnjeni s Cinemeto, kadar noben njegov dodatek ne ponuja katalogov
-     * filmov/serij (Torrentio in podobni dajo samo tokove). Lastnik, 1. 10. 2026: ko dodas dodatke Stremio, morajo
-     * biti filmi in serije na voljo kot v Stremiu - uporabnik ne raziskuje, kateri dodatek je katalog.
+     * Uporabnikovi dodatki + javni katalog Cinemeta (kot v Stremiu, kjer je Cinemeta vedno namescena): ko dodas
+     * dodatke Stremio, so filmi in serije na voljo, uporabnik ne raziskuje, kateri dodatek je katalog (lastnik,
+     * 1. 10. 2026). Uporabnikovi katalogi so pred Cinemeto.
      */
     fun zKatalogom(naslovi: List<String>): List<String> {
         if (naslovi.isEmpty()) return naslovi
         val cinemeta = osnova(CINEMETA)
-        if (naslovi.any { osnova(it) == cinemeta }) return naslovi
-        val imaKatalog = naslovi.mapNotNull { manifest(it) }
-            .any { m -> m.katalogi.any { it.prikazen && (it.tip == "movie" || it.tip == "series") } }
-        return if (imaKatalog) naslovi else naslovi + CINEMETA
+        return if (naslovi.any { osnova(it) == cinemeta }) naslovi else naslovi + CINEMETA
     }
 
     /** Katalogi za prikaz (filmi, nato serije); brez tistih, ki brez filtra ne vrnejo nicesar. */
