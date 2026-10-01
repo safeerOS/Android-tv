@@ -19,7 +19,6 @@ import java.util.concurrent.ConcurrentHashMap
 object SprotnaPomoc {
     private const val TAG = "SafeerSprotnaPomoc"
     const val PRIPONA = "#live"
-    private val NAMIZNE = setOf("linux", "windows", "macos")
 
     /** Napake, pri katerih pomaga pretvorba: dekodirnik (video ali zvok) manjka, odpove ali oblike ne podpira. */
     fun jeNapakaDekodiranja(e: PlaybackException): Boolean = e.errorCode in setOf(
@@ -95,11 +94,15 @@ object SprotnaPomoc {
     /** Ta skladba je ze sprotni tok pomocnika: ce ne gre niti ta, ne prosimo naprej. */
     fun jeSprotniTok(sk: Jamendo.Skladba): Boolean = sk.id.endsWith(PRIPONA)
 
-    /** Ocena pomocnika (0 = ne pride v postev): najvecja sirina H.264 kodirnika, nato jedra. */
+    /**
+     * Ocena pomocnika (0 = ne pride v postev): strojni kodirnik pred programskim (racunalnik s ffmpeg brez
+     * VAAPI), nato najvecja sirina H.264 kodirnika, nato jedra.
+     */
     fun ocena(info: JSONObject, oblika: JSONObject): Long {
         if (info.optJSONObject("pomoc")?.optBoolean("lahko", true) == false) return 0
         val gpu = info.optJSONObject("gpu") ?: return 0
-        if (!gpu.optBoolean("strojno")) return 0
+        val strojno = gpu.optBoolean("strojno")
+        if (!strojno && !gpu.optBoolean("ffmpeg")) return 0
         var sirina = 0
         val k = gpu.optJSONArray("kodirniki")
         for (i in 0 until (k?.length() ?: 0)) {
@@ -121,7 +124,7 @@ object SprotnaPomoc {
             }
             if (!zna) return 0
         }
-        return sirina.toLong() * 1000 + (info.optJSONObject("cpu")?.optInt("jedra") ?: 0)
+        return (if (strojno) 1_000_000_000L else 0L) + sirina.toLong() * 1000 + (info.optJSONObject("cpu")?.optInt("jedra") ?: 0)
     }
 
     /**
@@ -136,7 +139,8 @@ object SprotnaPomoc {
             || jeKrajevniVir(sk.zvok)) {
             naKonec(false); return
         }
-        val kandidati = link.naprave.filter { n -> !link.jeTaNaprava(n) && "files" in n.zmoznosti && n.platforma !in NAMIZNE }
+        // Tudi racunalnik (Safeer Control s ffmpeg) je pomocnik: host.info pove gpu.kodirniki, sicer ocena 0.
+        val kandidati = link.naprave.filter { n -> !link.jeTaNaprava(n) && "files" in n.zmoznosti }
         if (kandidati.isEmpty()) { naKonec(false); return }
         naStanje(app.getString(R.string.os_sprotno_iscem))
         val ocene = ConcurrentHashMap<String, Long>()
