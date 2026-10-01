@@ -1,0 +1,6 @@
+# Safeer OS 0.5.17 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.141
+
+- **Skupni prostor (Safeer Link):** ko računalniku zmanjkuje prostora, lahko tablica, telefon ali TV z dovolj prostora shrani njegovo datoteko. Naprava jo prenese sama po šifrirani povezavi samo do tvojega računalnika in jo obdrži le, če je vsebina enaka izvirniku (SHA-256). Datoteke so v mapi *Prenosi › Safeer Shramba* (ostanejo tudi, če odstraniš aplikacijo), v Safeer Linku pa so vidne kot *Shramba za druge naprave*.
+- Naprava shranjuje le, ko sme pomagati (na polnilcu ali vsaj 40 % baterije, ni pregreta, ni varčevanja) in si vedno pusti vsaj 2 GB prostora zase. Izvirnik na računalniku izbriše samo uporabnik, ko vidi, kje je kopija (Safeer OS za Linux 0.4.13).
+
+English: Shared space in Safeer Link – a device with enough room can store a file for a computer that is running low on space; it downloads the file itself over an encrypted, pinned connection and keeps it only if it matches the original (SHA-256). Files go to *Downloads › Safeer Shramba* and show up in Safeer Link as *Storage for other devices*. The device only helps when allowed (charging or at least 40 % battery, not hot, no battery saver) and always keeps 2 GB free. No browser changes in 2.1.141.
