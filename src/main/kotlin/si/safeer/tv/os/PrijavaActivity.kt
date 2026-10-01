@@ -400,7 +400,21 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 }
                 return@poisciVse
             }
-            poskusiPovezavoSKodo(kandidati.first().naslov, koda, kandidati.first().ime)
+            // Z Link Mesh ima Hub vsaka naprava v hisi: kodo poznamo samo tam, kjer je izpisana. Vprasamo
+            // vse hkrati, katera jo kaze; stara sredisca (brez odgovora) pridejo na vrsto za njimi.
+            Thread {
+                val odgovori = java.util.concurrent.ConcurrentHashMap<String, Int>()
+                val niti = kandidati.map { h ->
+                    Thread {
+                        odgovori[h.naslov] = when (HubPairing.imaOdprtoKodo(h.naslov)) { true -> 0; null -> 1; false -> 2 }
+                    }.apply { start() }
+                }
+                niti.forEach { try { it.join(6000) } catch (_: InterruptedException) {} }
+                val izbran = kandidati.minByOrNull { odgovori[it.naslov] ?: 1 } ?: kandidati.first()
+                glavna.post {
+                    if (!isFinishing) poskusiPovezavoSKodo(izbran.naslov, koda, izbran.ime)
+                }
+            }.start()
         }
     }
 
