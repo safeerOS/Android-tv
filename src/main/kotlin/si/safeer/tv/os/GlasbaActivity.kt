@@ -115,7 +115,7 @@ class GlasbaActivity : OsActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        odprta = true
+        odprtih++
         // Merjenje odzivnosti (samo razvojna gradnja): vsak dostop do diska/omrezja na glavni niti gre v dnevnik
         // z skladom klicev, cas do prvega izrisa pa pod SafeerOsCas. Izdajna gradnja tega ne dela.
         if (si.safeer.tv.BuildConfig.DEBUG) {
@@ -149,6 +149,12 @@ class GlasbaActivity : OsActivity() {
         }
         iskanjeIzNamena()
         predvajajIzNamena()
+    }
+
+    /** Zaslon predvajanja je en sam: obstojecega premaknemo naprej, ne zlagamo novih na sklad. */
+    override fun startActivity(intent: Intent?, options: Bundle?) {
+        if (intent?.component?.className == PredvajanjeActivity::class.java.name) intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+        super.startActivity(intent, options)
     }
 
     // ------------------------------------------------------------------ VLC slog (predvajalnik na dotik)
@@ -303,7 +309,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     override fun onDestroy() {
-        odprta = false
+        odprtih = (odprtih - 1).coerceAtLeast(0)
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
         iskanjeDelavec.shutdownNow()
         delavec.shutdownNow()
@@ -2630,8 +2636,11 @@ class GlasbaActivity : OsActivity() {
         const val ZAVIHEK = "zavihek"
 
         /** Safeer Media je odprt (pod predvajalnikom); sicer ga Nazaj v predvajalniku odpre. */
-        @Volatile var odprta = false
+        /** Stevec zivih Medijskih centrov (prej da/ne: zaprtje enega je "pozabilo" na drugega in Nazaj s
+         *  predvajanja je odprl novega - stresni test 1. 10. 2026: 13 Medijskih centrov na skladu). */
+        @Volatile var odprtih = 0
             private set
+        val odprta: Boolean get() = odprtih > 0
 
         private const val PREDVAJALNIK_DATOTEKA = 7412
         private const val KLJUC_PREDVAJALNIK = "kat-predvajalnik"

@@ -85,6 +85,10 @@ class StranskaVrstica private constructor(
                 id = View.generateViewId(); isFocusable = true; isClickable = true
                 setPadding(0, dp(6), 0, dp(6))
                 contentDescription = dejavnost.getString(niz)
+                // Valovanje ob dotiku (odziv, da je tap zaznan), brez stalnega ozadja.
+                TypedValue().also { tv ->
+                    if (dejavnost.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true)) setBackgroundResource(tv.resourceId)
+                }
                 // Izbrani zavihek: kapsula za ikono (kot pri sodobnih predvajalnikih), ne cel blok.
                 addView(android.widget.FrameLayout(dejavnost).apply {
                     addView(ikona(slika, 24, R.color.os_umirjeno), android.widget.FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))

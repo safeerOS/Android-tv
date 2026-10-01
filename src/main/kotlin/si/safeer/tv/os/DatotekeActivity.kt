@@ -636,7 +636,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     DvdVir.Stanje.V_REDU -> {
                         val sk = Jamendo.Skladba(v.id, v.ime.substringBeforeLast('.').replace('_', ' '), "DVD", "", DvdVir.uri(url), "", video = true)
                         GlasbaStoritev.predvajaj(this, listOf(sk), 0, s)
-                        startActivity(Intent(this, PredvajanjeActivity::class.java))
+                        startActivity(Intent(this, PredvajanjeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
                     }
                 }
             }
@@ -687,7 +687,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 podnapisi = if (s == null) emptyList() else Podnapisi.izSeznama(e.podnapisi, s))
         }
         GlasbaStoritev.predvajaj(this, seznam, izbor.indexOf(v).coerceAtLeast(0), s)
-        startActivity(Intent(this, PredvajanjeActivity::class.java))
+        startActivity(Intent(this, PredvajanjeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
     }
 
     private fun pokaziSliko(v: Vnos) {

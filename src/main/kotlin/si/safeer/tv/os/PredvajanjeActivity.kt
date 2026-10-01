@@ -309,7 +309,8 @@ class PredvajanjeActivity : OsActivity() {
      */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
-        if (!GlasbaActivity.odprta) startActivity(android.content.Intent(this, GlasbaActivity::class.java))
+        if (!GlasbaActivity.odprta) startActivity(android.content.Intent(this, GlasbaActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
         super.onBackPressed()
     }
 
