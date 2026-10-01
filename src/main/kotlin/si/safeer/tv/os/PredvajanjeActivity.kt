@@ -158,8 +158,9 @@ class PredvajanjeActivity : OsActivity() {
         val stolpec = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         temaUra = besedilo(64f, 0x66F0F4F3).apply { gravity = Gravity.CENTER }
         temaNaslov = besedilo(22f, 0x77F0F4F3).apply { gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0) }
-        stolpec.addView(temaUra); stolpec.addView(temaNaslov)
-        tema.addView(stolpec, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+        stolpec.addView(temaUra); stolpec.addView(temaNaslov, LinearLayout.LayoutParams(-1, -2))
+        // Polna sirina z robom: dolg naslov se prelomi, ne odreze levo in desno (telefon pokonci).
+        tema.addView(stolpec, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { leftMargin = dp(24); rightMargin = dp(24) })
         koren.addView(tema, FrameLayout.LayoutParams(-1, -1))
         nalaganje = ProgressBar(this).apply { isIndeterminate = true; visibility = View.GONE }
         koren.addView(nalaganje, FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER))
@@ -254,7 +255,8 @@ class PredvajanjeActivity : OsActivity() {
         val ozek = sirinaDp < 480
         (nazaj.parent as? android.view.ViewGroup)?.removeView(nazaj)
         if (pokoncno) {
-            koren.addView(nazaj, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { topMargin = dp(16); leftMargin = dp(16) })
+            // Pod zatemnitvijo (tema), da je zatemnjen zaslon res samo ura in naslov.
+            koren.addView(nazaj, koren.indexOfChild(tema).coerceAtLeast(0), FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { topMargin = dp(16); leftMargin = dp(16) })
         } else {
             gumbi.addView(nazaj, 0, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(24) })
         }
@@ -296,11 +298,17 @@ class PredvajanjeActivity : OsActivity() {
         glavna.post(tik)
         zbudi()
         if (dotik) glavna.post { if (!isFinishing && !predlogiOdprti()) odpriPredloge() }
-        // S plosce Safeer Media: takoj zatemni (samo zvok).
-        if (intent.getBooleanExtra(ZATEMNI, false)) {
-            intent.removeExtra(ZATEMNI)
-            if (!jeVideo()) { glavna.removeCallbacks(zatemni); tema.visibility = View.VISIBLE; osveziCas() }
-        }
+        zatemniIzNamena()
+    }
+
+    /** S plosce Safeer Media: takoj zatemni (samo zvok). Tudi ob onNewIntent - obstojeci zaslon
+     *  (REORDER_TO_FRONT) dobi nov namen sele PO onStart. */
+    private fun zatemniIzNamena() {
+        if (!intent.getBooleanExtra(ZATEMNI, false)) return
+        intent.removeExtra(ZATEMNI)
+        // Za odprtjem vrste kartic (na dotik, glavna.post v onStart), ki zaslon zbudi - sicer bi
+        // zatemnitev takoj izginila (preizkus 1. 10. 2026: "Zatemni zaslon" na telefonu ni deloval).
+        glavna.post { if (!isFinishing && !jeVideo()) { glavna.removeCallbacks(zatemni); tema.visibility = View.VISIBLE; osveziCas() } }
     }
 
     /**
@@ -317,6 +325,7 @@ class PredvajanjeActivity : OsActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        zatemniIzNamena()
     }
 
     companion object {
