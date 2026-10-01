@@ -2071,7 +2071,7 @@ class HubUsmerjevalnik(
             "/cast/trust/enroll", "/cast/trust/ring", "/cast/trust/alias", "/cast/auth/challenge", "/cast/auth/ticket",
             "/cast/pair/qr/start", "/cast/pair/qr/info", "/cast/pair/qr/approve", "/cast/pair/qr/status", "/cast/pair/qr/cancel",
             "/cast/pair/qr/join", "/cast/pair/qr/invite", "/cast/pair/qr/invite/status", "/cast/pair/qr/invite/cancel",
-            "/cast/devices/leave"
+            "/cast/pair/qr/odprto", "/cast/devices/leave"
         )
         /** Izziv za prijavo s podpisom velja minuto: dovolj za en krog po omrezju, premalo za zbiranje. */
         internal const val IZZIV_VELJA_MS = 60_000L

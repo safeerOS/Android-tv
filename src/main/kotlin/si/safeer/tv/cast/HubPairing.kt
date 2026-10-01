@@ -99,6 +99,21 @@ object HubPairing {
     }
 
     /**
+     * Ali sredisce ravno kaze 6-mestno kodo (odprto »Poveži naprave«). true/false, null = staro sredisce
+     * brez te poti ali ni odgovora. Blokira (najvec ~5 s) - klicati v ozadju.
+     */
+    fun imaOdprtoKodo(wsUrl: String): Boolean? {
+        val osnova = httpBase(wsUrl)
+        if (!osnova.startsWith("https://")) return null
+        return try {
+            val (koda, json) = post(odjemalecTofu().first, "$osnova/cast/pair/qr/odprto", JSONObject())
+            if (koda == 200 && json != null && json.has("open")) json.optBoolean("open") else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * Zacne seznanitev. `nacinZnan` dobi nacin in prazno kodo (kodo pokaze gostitelj);
      * vmesnik nato ponudi vnos in ga poslje s [potrdiKodo]. `koncano(false)`, ce ne gre.
      */

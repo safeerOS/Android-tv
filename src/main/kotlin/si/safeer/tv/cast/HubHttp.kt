@@ -522,6 +522,11 @@ internal fun HubUsmerjevalnik.odgovorQr(pot: String, zahteva: HubStreznik.Zahtev
         "/cast/pair/qr/cancel" -> {
             return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("cancelled", prekliciQr(qrId, deviceId, prevzem)).toString())
         }
+        "/cast/pair/qr/odprto" -> {
+            // Ali ta naprava ravno kaze 6-mestno kodo (»Poveži naprave«)? Naprava, kamor uporabnik kodo
+            // vtipka, po tem izbere pravo sredisce - z Link Mesh ima Hub vsaka naprava. Koda sama ne gre ven.
+            return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("open", aktivniPin() != null).toString())
+        }
         "/cast/pair/qr/invite" -> {
             // »Poveži novo napravo« na napravi, ki je ze v Safeer Linku (npr. racunalnik): sredisce ustvari
             // enkratno kodo za pridruzitev, kot jo sicer pokaze na svojem zaslonu. Samo za seznanjeno
