@@ -54,4 +54,6 @@
     <string name="os_prenos_odstrani_vprasanje">Der Film und alle seine Dateien werden vom Computer gelöscht. Du kannst ihn jederzeit wieder über das Add-on öffnen.</string>
     <string name="os_prenos_odstranjen">Vom Computer entfernt</string>
     <string name="os_stremio_vir_racunalnik">Ein Computer in Safeer Link streamt – auf dieses Gerät wird nichts geladen</string>
+    <string name="os_stremio_racunalnik_zaseden">Die Computer in deinem Link sind gerade stark ausgelastet und übernehmen diese Aufgabe nicht. Versuche es in ein paar Minuten erneut.</string>
+    <string name="os_stremio_racunalnik_ni_prostora">Auf dem Computer ist nicht genug Platz für diesen Film. Entferne ältere Downloads unter „Downloads auf dem Computer“.</string>
 </resources>

@@ -58,4 +58,6 @@
     <string name="os_prenos_odstrani_vprasanje">Film in vse njegove datoteke se izbrišejo z računalnika. Kadarkoli ga lahko znova odpreš iz dodatka.</string>
     <string name="os_prenos_odstranjen">Odstranjeno z računalnika</string>
     <string name="os_stremio_vir_racunalnik">Pretaka računalnik v Safeer Linku – na to napravo se nič ne prenaša</string>
+    <string name="os_stremio_racunalnik_zaseden">Računalniki v tvojem Linku so trenutno zelo zasedeni, zato ne prevzamejo še tega dela. Poskusi čez nekaj minut.</string>
+    <string name="os_stremio_racunalnik_ni_prostora">Na računalniku ni dovolj prostora za ta film. Odstrani starejše prenose v polici »Prenosi na računalniku«.</string>
 </resources>

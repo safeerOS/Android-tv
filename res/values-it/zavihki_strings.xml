@@ -54,4 +54,6 @@
     <string name="os_prenos_odstrani_vprasanje">Il film e tutti i suoi file verranno eliminati dal computer. Puoi riaprirlo in qualsiasi momento dal componente.</string>
     <string name="os_prenos_odstranjen">Rimosso dal computer</string>
     <string name="os_stremio_vir_racunalnik">Trasmesso da un computer in Safeer Link – nulla viene scaricato su questo dispositivo</string>
+    <string name="os_stremio_racunalnik_zaseden">I computer del tuo Link sono molto occupati e non accettano anche questo lavoro. Riprova tra qualche minuto.</string>
+    <string name="os_stremio_racunalnik_ni_prostora">Spazio insufficiente sul computer per questo film. Rimuovi i download più vecchi in «Download sul computer».</string>
 </resources>
