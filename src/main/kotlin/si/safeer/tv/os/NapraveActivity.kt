@@ -38,6 +38,9 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private val prilagojevalnik = Prilagojevalnik()
     private var vrstice: List<Vrstica> = emptyList()
+    /** Moc vsake naprave (host.info), da je vidno, kdo lahko pomaga (zakon solidarnosti). */
+    private val moc = HashMap<String, String>()
+    private val vprasano = HashMap<String, Long>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,14 +101,16 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         })
         // Ta naprava: ime, kot ga vidijo druge naprave; OK jo preimenuje.
         if (jaz != null) nove.add(Vrstica(ikonaNaprave(jaz.platforma), jaz.ime.ifBlank { jaz.id },
-            getString(R.string.os_naprave_ta), getString(R.string.os_naprave_preimenuj_kratko), jaz.id) { preimenuj(jaz.id, jaz.ime) })
+            getString(R.string.os_naprave_ta) + "\n" + HostPodatki.kratko(this, si.safeer.tv.link.Zmogljivost.porocilo(this)),
+            getString(R.string.os_naprave_preimenuj_kratko), jaz.id) { preimenuj(jaz.id, jaz.ime) })
         for (n in tuje) {
             val datoteke = n.zmoznosti.contains("files")
             val lepo = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
             nove.add(Vrstica(
                 if (datoteke) R.drawable.os_ikona_racunalnik else ikonaNaprave(n.platforma),
                 lepo,
-                opisNaprave(n),
+                listOf(opisNaprave(n), moc[n.id] ?: getString(R.string.os_moc_nalagam).takeIf { link.povezan }.orEmpty())
+                    .filter { it.isNotBlank() }.joinToString("\n"),
                 getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_preimenuj_kratko),
                 n.id,
             ) {
@@ -142,6 +147,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         })
         vrstice = nove
         prilagojevalnik.notifyDataSetChanged()
+        vprasajZaMoc(tuje)
         // Safeer Link je lahko vklopljen (nacin ni krajevni), a se ni (se) povezan - prej je spodnje
         // sporocilo vseeno trdilo »ni vklopljen«, kar je bilo v nasprotju s stikalom zgoraj. Locimo
         // resnicno izklopljen link (stanje "ni_linka") od vklopljenega, ki se se povezuje ali ga je
@@ -155,6 +161,22 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         sporocilo.visibility = if (sporocilo.text.isNullOrBlank()) View.GONE else View.VISIBLE
         if (currentFocus == null) seznam.requestFocus()
+    }
+
+    /** Vsako napravo vprasa za moc (najvec na 20 s); odgovor osvezi njeno vrstico. */
+    private fun vprasajZaMoc(naprave: List<LinkOdjemalec.Naprava>) {
+        if (!link.povezan) return
+        val zdaj = android.os.SystemClock.elapsedRealtime()
+        for (n in naprave) {
+            if (zdaj - (vprasano[n.id] ?: 0L) < 20_000) continue
+            vprasano[n.id] = zdaj
+            link.ukaz(n.id, "host.info", org.json.JSONObject(), 6_000, LinkOdjemalec.Odgovor { izid, _ ->
+                if (isFinishing) return@Odgovor
+                val p = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
+                moc[n.id] = if (p != null) HostPodatki.kratko(this, p) else ""
+                narisi(link.naprave)
+            })
+        }
     }
 
     /** Ikona po vrsti naprave: telefon je telefon, tablica in racunalniski zaslon zaslon, televizor televizor. */
@@ -267,7 +289,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val vr = vrstice[i]
             v.findViewById<ImageView>(R.id.ikona).setImageResource(vr.ikona)
             v.findViewById<TextView>(R.id.ime).text = vr.ime
-            v.findViewById<TextView>(R.id.opis).text = vr.opis
+            v.findViewById<TextView>(R.id.opis).apply { text = vr.opis; maxLines = 4 }
             v.findViewById<TextView>(R.id.stanje).text = vr.stanje
             v.setBackgroundResource(R.drawable.os_izbor_vrstice)
             return v

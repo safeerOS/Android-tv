@@ -56,4 +56,18 @@
     <string name="os_stremio_vir_racunalnik">Trasmesso da un computer in Safeer Link – nulla viene scaricato su questo dispositivo</string>
     <string name="os_stremio_racunalnik_zaseden">I computer del tuo Link sono molto occupati e non accettano anche questo lavoro. Riprova tra qualche minuto.</string>
     <string name="os_stremio_racunalnik_ni_prostora">Spazio insufficiente sul computer per questo film. Rimuovi i download più vecchi in «Download sul computer».</string>
+    <string name="os_moc_k_ram">RAM %1$s libera</string>
+    <string name="os_moc_k_disk">spazio %1$s libero</string>
+    <string name="os_moc_k_baterija">batteria %1$d %%</string>
+    <string name="os_moc_k_polni">batteria %1$d %% ⚡</string>
+    <string name="os_moc_k_pomaga">✓ può aiutare</string>
+    <string name="os_moc_k_ne">✗ non aiuta – %1$s</string>
+    <string name="os_moc_r_baterija" formatted="false">batteria sotto il 30 % (aiuta di nuovo dal 40 % o in carica)</string>
+    <string name="os_moc_r_varcevanje">risparmio energetico attivo</string>
+    <string name="os_moc_r_pregreto">dispositivo surriscaldato</string>
+    <string name="os_moc_r_malo_pomnilnika">memoria quasi esaurita</string>
+    <string name="os_moc_r_preobremenjen">molto occupato</string>
+    <string name="os_moc_r_ni_prostora">spazio insufficiente</string>
+    <string name="os_moc_k_kodiranje">codifica video hardware</string>
+    <string name="os_moc_nalagam">controllo potenza …</string>
 </resources>

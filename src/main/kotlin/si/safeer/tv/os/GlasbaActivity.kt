@@ -2858,7 +2858,7 @@ class GlasbaActivity : OsActivity() {
         fun poskusi(k: Int) {
             if (k >= racunalniki.size) {
                 brez(when (zadnjaNapaka) {
-                    "preobremenjen", "malo_pomnilnika" -> getString(R.string.os_stremio_racunalnik_zaseden)
+                    "preobremenjen", "malo_pomnilnika", "baterija", "varcevanje", "pregreto" -> getString(R.string.os_stremio_racunalnik_zaseden)
                     "ni_prostora" -> getString(R.string.os_stremio_racunalnik_ni_prostora)
                     else -> getString(R.string.os_stremio_torrent_napaka, zadnjaNapaka)
                 })
@@ -2930,6 +2930,7 @@ class GlasbaActivity : OsActivity() {
 
     /** Prosta moc racunalnika iz host.info: prosta jedra + prosti pomnilnik (GB); brez prostora na disku 0. */
     private fun prostaMoc(d: org.json.JSONObject): Double {
+        if (d.optJSONObject("pomoc")?.optBoolean("lahko", true) == false) return 0.0
         val cpu = d.optJSONObject("cpu"); val ram = d.optJSONObject("ram"); val disk = d.optJSONObject("disk")
         if (disk != null && disk.optLong("prosto", Long.MAX_VALUE) < 3L * 1024 * 1024 * 1024) return 0.0
         val jedra = cpu?.optDouble("jedra", 1.0) ?: 1.0
