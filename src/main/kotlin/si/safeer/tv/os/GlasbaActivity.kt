@@ -832,7 +832,7 @@ class GlasbaActivity : OsActivity() {
         val moje = ++nalaganje
         val predpomnjeno = SEZNAMI[i]
         if (predpomnjeno != null) { prikazi(i, predpomnjeno); return }
-        if (i == VIRI) { narisi(viriVrste(), opis(i)); return }
+        if (i == VIRI) { narisi(viriVrste(), opis(i), glava = glavaRazdelka(i)); return }
         if (i == ISKANJE) { zadetki?.let { narisi(it, opisZadetkov) } ?: narisi(predIskanjem(), getString(R.string.os_glasba_isci_navodilo)); return }
         // Zadnji znani pogled z diska pokazemo takoj (tudi po ponovnem zagonu), sveze police pa
         // nalozimo v ozadju in jih zamenjamo samo, ce so drugacne - brez praznega zaslona in cakanja.
@@ -1220,12 +1220,52 @@ class GlasbaActivity : OsActivity() {
         else -> emptyList()
     } else when (i) {
         DOMOV -> listOfNotNull(kategorije(), razvrstiInFiltrirajGumb(i), zdajPlosca())
-        VIDEO -> listOf(videoKategorije(), razvrstiInFiltrirajGumb(i))
+        VIDEO -> listOf(razdelkiVrstica(i), videoKategorije(), razvrstiInFiltrirajGumb(i))
         GLASBA, RADIO, TV_V_ZIVO -> listOfNotNull(
+            razdelkiVrstica(i),
             razvrstiInFiltrirajGumb(i),
             skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 }
         )
+        VIRI -> listOf(razdelkiVrstica(i))
         else -> emptyList()
+    }
+
+    /**
+     * Razdelki (Glasba, Video, Radio, TV v zivo, Moji viri, Predvajalnik) kot vrsta gumbov na vrhu vsakega
+     * razdelka: uporabnik ima izbiro vedno na voljo, ne le na plosci (lastnik, 1. 10. 2026). Predvajalnik
+     * (VLC slog) ima za to zavihke spodaj.
+     */
+    private fun razdelkiVrstica(trenutni: Int): View {
+        val vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        fun gumb(kljuc: String, i: Int?, res: Int, barva: Int, ime: Int, klik: () -> Unit) {
+            val aktiven = i != null && i == trenutni
+            vrsta.addView(LinearLayout(this).apply {
+                tag = "r:$kljuc"
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                isFocusable = true; isClickable = true
+                setBackgroundResource(R.drawable.os_kartica_steklo)
+                setPadding(dp(10), dp(6), dp(12), dp(6))
+                alpha = if (aktiven) 1f else 0.8f
+                setOnClickListener { if (!aktiven) klik() else fokusVVsebino = true }
+                addView(ikona(res, 20, barva))
+                addView(besedilo(13f, osBarva(if (aktiven) R.color.os_mint else R.color.os_besedilo), aktiven).apply {
+                    text = getString(ime); setPadding(dp(8), 0, 0, 0); maxLines = 1
+                })
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(8) })
+        }
+        fun odpri(i: Int) { fokusVVsebino = true; izberi(i) }
+        gumb(KLJUC_GLASBA, GLASBA, R.drawable.os_ikona_glasba, 0xFF8FA8FF.toInt(), R.string.os_mediji_glasba) { odpri(GLASBA) }
+        gumb(KLJUC_VIDEO, VIDEO, R.drawable.os_ikona_video, 0xFFFF9580.toInt(), R.string.os_glasba_video) { odpri(VIDEO) }
+        gumb(KLJUC_RADIO, RADIO, R.drawable.os_ikona_radio, osBarva(R.color.os_mint), R.string.os_glasba_radio) { odpri(RADIO) }
+        gumb(KLJUC_TV, TV_V_ZIVO, R.drawable.os_ikona_tv, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo) { odpri(TV_V_ZIVO) }
+        gumb(KLJUC_VIRI, VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri) { odpri(VIRI) }
+        gumb(KLJUC_PREDVAJALNIK, null, R.drawable.os_ikona_predvajaj, 0xFF57D6AD.toInt(), R.string.os_mediji_predvajalnik) { odpriPredvajalnik() }
+        vrsta.getChildAt(0)?.nextFocusLeftId = meniMediji.id
+        return android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER
+            addView(vrsta, android.view.ViewGroup.LayoutParams(-2, -2))
+            setPadding(0, dp(2), 0, dp(10))
+        }
     }
 
     private data class VirIzbire(val kljuc: String, val ime: String)
