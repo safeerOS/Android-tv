@@ -923,6 +923,41 @@ private fun preizkusKroga() {
     preveri("id iz kljuca ima predpono n- in 16 znakov", KrogZaupanja.idIzKljuca(b64(tel.public.encoded)).matches(Regex("n-[0-9a-f]{16}")))
 }
 
+// ------------------------------------------------------------ hub brez podpisnika (napaka do 2.1.142)
+
+private fun preizkusPodpisaStarihVnosov() {
+    println()
+    println("Nepodpisani vnosi huba se podpisejo")
+    val hub = parKljucev()
+    val telefon = parKljucev()
+    val hubId = KrogZaupanja.idIzKljuca(b64(hub.public.encoded))
+    // Hub brez podpisnika (tako je tekel HubUsmerjevalnik do 2.1.142): vnos telefona ostane nepodpisan.
+    val krogHuba = KrogZaupanja()
+    krogHuba.dodaj(KrogZaupanja.Clan(hubId, b64(hub.public.encoded), "TV", "tv", 100.0, hubId))
+    krogHuba.dodaj(KrogZaupanja.Clan("n-oneplus", b64(telefon.public.encoded), "OnePlus", "phone", 200.0, hubId))
+    val sosed = KrogZaupanja()
+    sosed.zdruzi(JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", JsonLahki.Zapis().surovo(hubId,
+        JsonLahki.Zapis().niz("kljuc", b64(hub.public.encoded)).niz("ime", "TV").niz("platforma", "tv")
+            .stevilo("dodano", 100.0).niz("dodal", hubId).toString()).toString()).toString())
+    preveriEnako("sosed nepodpisan vnos zavrne", false, sosed.zdruzi(krogHuba.json(), preveriPodpise = true))
+    preveriEnako("brez podpisnika se nic ne podpise", false, krogHuba.podpisiLastne())
+    // Popravek: hub dobi podpisnika in podpise svoje stare vnose.
+    krogHuba.lastniKljuc = b64(hub.public.encoded)
+    krogHuba.podpisnik = { podatki -> podpisi(hub, podatki) }
+    preveriEnako("stari vnosi huba so podpisani", true, krogHuba.podpisiLastne())
+    preveriEnako("drugic ni vec kaj podpisati", false, krogHuba.podpisiLastne())
+    preveriEnako("sosed zdaj sprejme novo napravo", true, sosed.zdruzi(krogHuba.json(), preveriPodpise = true))
+    preveriEnako("nova naprava je v krogu soseda", true, sosed.jeClan("n-oneplus"))
+    // Tujih vnosov (dodal jih je nekdo drug) hub ne podpise v svojem imenu.
+    val drug = KrogZaupanja()
+    drug.lastniKljuc = b64(hub.public.encoded)
+    drug.podpisnik = { podatki -> podpisi(hub, podatki) }
+    drug.zdruzi(JsonLahki.Zapis().stevilo("v", 1.0).surovo("clani", JsonLahki.Zapis().surovo("n-tuj",
+        JsonLahki.Zapis().niz("kljuc", b64(telefon.public.encoded)).niz("ime", "Tuj").niz("platforma", "phone")
+            .stevilo("dodano", 50.0).niz("dodal", "n-nekdo-drug").toString()).toString()).toString())
+    preveriEnako("tujega vnosa ne podpisemo", false, drug.podpisiLastne())
+}
+
 // ------------------------------------------------------------ podpisani vnosi v krogu (P2P)
 
 private fun preizkusPodpisanegaKroga() {
@@ -1550,6 +1585,7 @@ fun main() {
     preizkusProtokolaV1()
     preizkusIdaIzKljuca()
     preizkusPodpisanegaKroga()
+    preizkusPodpisaStarihVnosov()
     preizkusQrPrijave()
     preizkusPridruzitve()
     preizkusVabilaInOdhoda()

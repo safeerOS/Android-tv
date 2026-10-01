@@ -154,6 +154,26 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
         return if (podpis.isBlank()) clan else clan.copy(podpis = podpis)
     }
 
+    /**
+     * Podpise vnose, ki jih je dodala ta naprava, a so bili shranjeni brez podpisa (hub pred 2.1.143 ni imel
+     * podpisnika). Brez podpisa jih sosedje v mesh zavrnejo in nov clan ostane znan samo temu hubu.
+     * Vrne true, ce se je krog spremenil (takrat ga je treba razposlati).
+     */
+    fun podpisiLastne(): Boolean {
+        if (podpisnik == null || lastniKljuc == null) return false
+        val spremenjeno = synchronized(kljucnica) {
+            var sp = false
+            for ((id, c) in clani.toMap()) {
+                if (c.podpis.isNotBlank() || !smoMi(c.dodal)) continue
+                val podpisan = podpisiVnos(c)
+                if (podpisan.podpis.isNotBlank()) { clani[id] = podpisan; sp = true }
+            }
+            sp
+        }
+        if (spremenjeno) { shrani(); naSpremembo?.invoke() }
+        return spremenjeno
+    }
+
     /** Javni kljuc clana (tudi prek id-ja iz kljuca) za preverjanje podpisa vnosa; prazno, ce ga ne poznamo. */
     private fun kljucClana(id: String): String = clanZaId(id)?.kljuc.orEmpty()
 

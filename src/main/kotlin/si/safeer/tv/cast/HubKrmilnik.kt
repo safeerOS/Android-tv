@@ -154,9 +154,18 @@ object HubKrmilnik {
             return false
         }
         u.lastniOdtis = HubTls.lastniOdtis()
+        // Vnose, ki jih v krog doda ta hub (nova naprava s kodo), podpisemo s kljucem huba: sosedje v mesh
+        // (racunalnik, tablica, telefoni) sprejmejo nov clan samo s podpisom. Brez tega je novo napravo
+        // poznal samo hub, ki jo je sprejel, druge pa so jo zavracale (401), dokler se niso znova povezale.
+        u.krog.lastniKljuc = try { HubTls.javniKljucB64() } catch (_: Throwable) { null }
+        u.krog.podpisnik = { podatki -> try { HubTls.podpisi(podatki) } catch (_: Throwable) { null } }
         // Hub je prvi clan kroga zaupanja: njegov kljuc je kljuc potrdila TLS.
         try { u.vpisiLastniKljuc(lastniId(), imeHuba(app), HubTls.javniKljucB64(), "tv") } catch (e: Throwable) {
             Log.w(TAG, "Kljuca huba ni bilo mogoce vpisati v krog: ${e.message}")
+        }
+        // Starejsi nepodpisani vnosi tega huba: podpisemo jih, da jih sosedje sprejmejo.
+        try { if (u.krog.podpisiLastne()) Log.i(TAG, "Krog: podpisani starejsi vnosi tega huba") } catch (e: Throwable) {
+            Log.w(TAG, "Podpis starejsih vnosov: ${e.message}")
         }
         u.naSpremembePrijav = {
             javiPrijave()
