@@ -1,0 +1,7 @@
+# Safeer OS 0.5.18 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.142
+
+- **Pretvori za televizor (Safeer Link, grafika):** naprava s strojnim kodirnikom pretvori video računalnika s šibko grafiko v H.264/AAC MP4 do 1080p – obliko, ki jo predvaja vsak televizor. Video prenese sama po šifrirani povezavi samo do tvojega računalnika, ga pretvori s strojnim kodirnikom in shrani v *Prenosi › Safeer Shramba*. Začasne datoteke se vedno pobrišejo.
+- Naprava pretvarja le, ko sme pomagati (na polnilcu ali vsaj 40 % baterije, ni pregreta, ni varčevanja), ko zna prebrati izvirnik (npr. 4K HEVC) in ko ima dovolj prostora; zase vedno obdrži 10 % diska (najmanj 512 MB, največ 2 GB), zato pomaga tudi televizor z malo prostora.
+- Vsaka naprava zdaj Safeer Linku pove tudi, katere videe zna prebrati (dekodirniki in največja ločljivost). Ukaz sproži Safeer OS za Linux 0.4.14.
+
+English: Convert for TV in Safeer Link – a device with a hardware encoder converts a video from a computer with weak graphics to H.264/AAC MP4 up to 1080p, a format every TV plays. It fetches the video itself over an encrypted, pinned connection and saves the result in *Downloads › Safeer Shramba*. It only helps when allowed (charging or at least 40 % battery, not hot, no battery saver), when it can read the source (e.g. 4K HEVC) and has room, always keeping 10 % of its storage (512 MB–2 GB) free. Devices now also report which videos they can decode. No browser changes in 2.1.142.
