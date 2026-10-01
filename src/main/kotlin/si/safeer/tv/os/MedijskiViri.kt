@@ -110,7 +110,7 @@ object MedijskiViri {
      * ki jih uporabnik doda v Safeer OS. Dvojniki po gostitelju so izločeni.
      */
     fun vsi(ctx: Context): List<Vir> {
-        val shranjeni = rocni(ctx).filterNot { PeerTube.jeBlokiran(it.naslov) }
+        val shranjeni = rocni(ctx).filterNot { PeerTube.jeBlokiran(it.naslov) || (it.jeSplet && jeImenikVirov(it.naslov)) }
         val spletne = try { SpletneAplikacije.seznam(ctx) } catch (_: Throwable) { emptyList() }
         val prepovedani = odstranjeni(ctx)
         val samodejni = spletne.mapNotNull { app ->
@@ -118,7 +118,7 @@ object MedijskiViri {
             if (url.isBlank() || !url.startsWith("http")) null
             else {
                 val g = gostiteljVira(url)
-                if (g.isBlank() || g in prepovedani || PeerTube.jeBlokiran(g)) null
+                if (g.isBlank() || g in prepovedani || PeerTube.jeBlokiran(g) || jeImenikVirov(url)) null
                 else Vir(SPLET, app.ime.ifBlank { g }, url)
             }
         }
@@ -168,8 +168,20 @@ object MedijskiViri {
     }
 
     private fun gostiteljVira(url: String): String = try {
-        URL(url).host.lowercase().removePrefix("www.").removePrefix("m.").trimEnd('.')
+        val u = url.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
+        URL(u).host.lowercase().removePrefix("www.").removePrefix("m.").trimEnd('.')
     } catch (_: Exception) { "" }
+
+    /**
+     * Strani, ki niso vsebina, ampak imeniki virov (seznam dodatkov Stremio, trgovine, repozitoriji):
+     * iz njih splosni bralnik "najde" kartice dodatkov in jih zlozi med serije in videe (tablica, 1. 10. 2026).
+     */
+    private val IMENIKI_VIROV = setOf(
+        "stremio-addons.net", "beta.stremio-addons.net", "stremio-addons.com", "addons.stremio.com", "stremio.com",
+        "github.com", "gitlab.com", "codeberg.org", "play.google.com", "apps.apple.com", "f-droid.org",
+        "addons.mozilla.org", "chromewebstore.google.com", "safeer.si"
+    )
+    fun jeImenikVirov(url: String): Boolean = gostiteljVira(url).let { g -> g.isNotBlank() && IMENIKI_VIROV.any { g == it || g.endsWith(".$it") } }
 
     /** Pri spletni aplikaciji je vir domena, ne posamezna podstran ali sledilni parameter. */
     private fun istaSpletnaStran(a: String, b: String): Boolean {
@@ -280,7 +292,19 @@ object MedijskiViri {
     }
 
     fun streznikiPeerTube(ctx: Context): List<String> =
-        (PeerTube.VGRAJENI + vsi(ctx).filter { it.jePeerTube }.map { it.naslov }).filterNot(PeerTube::jeBlokiran).distinct()
+        (vgrajeniPeerTube(ctx) + vsi(ctx).filter { it.jePeerTube }.map { it.naslov }).filterNot(PeerTube::jeBlokiran).distinct()
+
+    /**
+     * Vgrajeni strezniki PeerTube brez tistih, ki jih je uporabnik odstranil (Moji viri -> Izbrisi vir).
+     * Lastnik, 1. 10. 2026: uporabnik vire doda in pozabi - tudi vgrajenih mu ni treba trpeti.
+     */
+    fun vgrajeniPeerTube(ctx: Context): List<String> {
+        val proc = odstranjeni(ctx)
+        return PeerTube.VGRAJENI.filterNot { it in proc }
+    }
+
+    /** Vgrajeni streznik kot vir (za Moji viri: odstranitev z istim dialogom kot dodani viri). */
+    fun vgrajenPeerTubeVir(streznik: String) = Vir(PEERTUBE, streznik, streznik)
 
     fun odstrani(ctx: Context, vir: Vir) {
         zapomniOdstranjen(ctx, vir.naslov)

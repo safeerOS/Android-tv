@@ -979,7 +979,7 @@ class GlasbaActivity : OsActivity() {
         return when (i) {
         DOMOV -> {
             val radio = if (jeVirViden(i, VIR_RADIO)) Radio.postajeLocene().let { it.first + it.second } else emptyList()
-            val peertube = if (jeVirViden(i, VIR_PEERTUBE)) PeerTube.VGRAJENI else emptyList()
+            val peertube = if (jeVirViden(i, VIR_PEERTUBE)) MedijskiViri.vgrajeniPeerTube(this) else emptyList()
             val peertubeVsebina = PeerTube.najboljGledani(peertube, 12).map { it.second }
             listOfNotNull(
                 if (jeVirViden(i, VIR_JAMENDO)) Podatki(getString(R.string.os_mediji_vrsta_glasba), Jamendo.priljubljene(24)) else null,
@@ -1081,7 +1081,7 @@ class GlasbaActivity : OsActivity() {
             // Dodatki Stremio (uporabnikovi): vsak katalog svoja polica, filmi in serije jasno loceni.
             val stremio = vsiViri.filter { it.jeStremio && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
             if (stremio.isNotEmpty()) {
-                val katalogi = try { Stremio.prikazniKatalogi(stremio) } catch (_: Exception) { emptyList() }
+                val katalogi = try { Stremio.prikazniKatalogi(Stremio.zKatalogom(stremio)) } catch (_: Exception) { emptyList() }
                 val izKatalogov = katalogi.take(12).map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
                 katalogi.take(12).zip(izKatalogov).forEach { (k, f) ->
                     val vsebina = try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
@@ -1105,7 +1105,7 @@ class GlasbaActivity : OsActivity() {
                 }
             }
             val peertubeStrezniki =
-                (if (jeVirViden(i, VIR_PEERTUBE)) PeerTube.VGRAJENI else emptyList()) +
+                (if (jeVirViden(i, VIR_PEERTUBE)) MedijskiViri.vgrajeniPeerTube(this) else emptyList()) +
                     vsiViri.filter { it.jePeerTube && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
             vrste + PeerTube.najboljGledani(peertubeStrezniki.distinct(), 24).mapNotNull { (s, vsebina) ->
                 vsebina.takeIf { it.isNotEmpty() }?.let { Podatki(s, it, video = true) }
@@ -1696,7 +1696,11 @@ class GlasbaActivity : OsActivity() {
                 getString(R.string.os_media_stevilo_prilj, MedijskiViri.priljubljene(this).count { it.radio }), razdelek(RADIO)),
             Vir("peertube", R.drawable.os_ikona_video, 0xFFFF9580.toInt(), "PeerTube",
                 getString(R.string.os_media_stevilo_streznikov, MedijskiViri.streznikiPeerTube(this).size), razdelek(VIDEO)),
-        ) + (if (si.safeer.tv.BuildConfig.FLAVOR == "brskalnik") emptyList() else listOf(
+        ) + MedijskiViri.vgrajeniPeerTube(this).map { s ->
+            // Vgrajeni strezniki PeerTube so viri kot vsi drugi: zadrzan OK -> Izbrisi vir (nazaj z Dodaj vir).
+            val v = MedijskiViri.vgrajenPeerTubeVir(s)
+            Vir(MedijskiViri.kljucPripetega(v), R.drawable.os_ikona_video, 0xFFFF9580.toInt(), s, "PeerTube · $s", razdelek(VIDEO), v)
+        } + (if (si.safeer.tv.BuildConfig.FLAVOR == "brskalnik") emptyList() else listOf(
             Vir("magnet", R.drawable.os_ikona_link, 0xFFB69CFF.toInt(), getString(R.string.magnet_naslov), getString(R.string.magnet_vir_opis),
                 { startActivity(Intent(this, MagnetActivity::class.java)) }),
         )) + MedijskiViri.vsi(this).map { v ->
@@ -2253,7 +2257,7 @@ class GlasbaActivity : OsActivity() {
             { SpletniVir.isciVse(this, spletniViri, beseda) },
             { try { JavnaLast.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try { TuneIn.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
-            { try { Stremio.isci(stremioNaslovi, beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { try { Stremio.isci(Stremio.zKatalogom(stremioNaslovi), beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
         )
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = f() } }
         synchronized(iskanjeNiti) { iskanjeNiti.addAll(futures) }
