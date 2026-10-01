@@ -465,6 +465,9 @@ class PredvajanjeActivity : OsActivity() {
         val stran = sk.povezava.removePrefix("https://").removePrefix("http://").removePrefix("www.").trimEnd('/')
         vir.text = when {
             skritiVir -> ""
+            // Dodatki: naslov toka ima lahko skrivne dele (kljuc storitve, skrivnost toka) - pokazemo le, od kod je.
+            (sk.id.startsWith("stremio|") || sk.id.startsWith("pcprenos|")) && sk.id.contains("#t") -> getString(R.string.os_stremio_vir_racunalnik)
+            sk.id.startsWith("stremio|") -> android.net.Uri.parse(sk.zvok).host.orEmpty()
             sk.zvok.startsWith("https://prod-1.storage.jamendo.com") || sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, stran)
             else -> stran
         }

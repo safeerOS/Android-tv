@@ -32,4 +32,26 @@
     <string name="os_podnapisi_dodaj_opis">Datei .srt, .vtt oder .ass</string>
     <string name="os_podnapisi_dodani">Untertitel hinzugefügt: %1$s</string>
     <string name="os_podnapisi_ni_podnapis">Das ist keine Untertiteldatei (.srt, .vtt, .ass).</string>
+    <string name="os_stremio_dodatki">Add-ons</string>
+    <string name="os_stremio_ni_epizod">Das Add-on hat für diese Serie keine Folgen geliefert.</string>
+    <string name="os_stremio_ni_tokov">Deine Add-ons bieten für diesen Titel keine Wiedergabe. Das Add-on, das ihn zeigt (z. B. Cinemeta), liefert nur Infos – füge ein Add-on mit Streams hinzu.</string>
+    <string name="os_stremio_sezona">Staffel %1$d</string>
+    <string name="os_stremio_torrent">Torrent</string>
+    <string name="os_stremio_zunanji">öffnet den Browser</string>
+    <string name="os_kodi_pojasnilo">Kodi-Add-ons sind Programme für die Kodi-App; Safeer kann sie nicht ausführen.\n\nAdresse: %1$s\n\nWenn Kodi installiert ist, öffne das Add-on dort. Für Filme und Serien in Safeer nutze Stremio-Add-ons.</string>
+    <string name="os_kodi_odpri">Kodi öffnen</string>
+    <plurals name="os_stremio_epizod">
+        <item quantity="one">%d Folge</item>
+        <item quantity="other">%d Folgen</item>
+    </plurals>
+    <string name="os_stremio_racunalnik_pripravlja">Computer %1$s bereitet den Stream vor … (beim ersten Mal bis zu einer Minute)</string>
+    <string name="os_stremio_torrent_brez_racunalnika">Diese Quelle ist ein Torrent. Damit nichts auf dieses Gerät geladen wird, kann ein Computer mit Safeer Control in deinem Link ihn laden und streamen – gerade ist keiner verbunden. Starte Safeer Control am Computer und versuche es erneut.</string>
+    <string name="os_stremio_torrent_napaka">Der Computer konnte diesen Torrent nicht streamen (%1$s).</string>
+    <string name="os_stremio_prenesi_sem">Auf dieses Gerät laden</string>
+    <string name="os_prenosi_racunalnik">Downloads auf dem Computer</string>
+    <string name="os_prenos_predvajaj">Abspielen</string>
+    <string name="os_prenos_odstrani">Vom Computer entfernen</string>
+    <string name="os_prenos_odstrani_vprasanje">Der Film und alle seine Dateien werden vom Computer gelöscht. Du kannst ihn jederzeit wieder über das Add-on öffnen.</string>
+    <string name="os_prenos_odstranjen">Vom Computer entfernt</string>
+    <string name="os_stremio_vir_racunalnik">Ein Computer in Safeer Link streamt – auf dieses Gerät wird nichts geladen</string>
 </resources>
