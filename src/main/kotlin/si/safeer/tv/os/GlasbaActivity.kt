@@ -2014,11 +2014,13 @@ class GlasbaActivity : OsActivity() {
         return skupine.map { urejene ->
             val sk = urejene.first()
             val tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty()
+            // Kanal v zivo: uradni (tv:) ali iz dodatka Stremio tipa "tv" (stremio|tv|...): oznaka V ZIVO in ikona TV.
+            val vZivo = tvId.isNotBlank() || sk.id.startsWith("stremio|tv|")
             // Video z naprave: napredek ali trajanje (kot VLC), spletni: letnica.
             val podnaslov = if (sk.id.startsWith("krajevno:") || sk.id.startsWith(PREDPONA_PC_PRENOSA))
                 napredekKrajevnih[sk.id]?.let { n -> "${cas(n.polozaj)} / ${cas(n.trajanje)}" } ?: sk.izvajalec
             else sk.year.takeIf { it > 0 }?.toString().orEmpty()
-            val tip = if (tvId.isNotBlank()) getString(R.string.os_media_oznaka_v_zivo) else {
+            val tip = if (vZivo) getString(R.string.os_media_oznaka_v_zivo) else {
                 when (SpletniVir.vrstaVsebine(sk)) {
                     SpletniVir.FILM -> getString(R.string.os_media_film)
                     SpletniVir.SERIJA -> getString(R.string.os_media_serija)
@@ -2038,7 +2040,7 @@ class GlasbaActivity : OsActivity() {
                 if (SpletniVir.jeEnota(sk)) razresiSplet(sk, urejene.drop(1)) else predvajaj(listOf(sk), 0)
             }, { meni(sk, v, vrsta, seznam) }, oznaka = tip, kakovost = kakovost,
                 ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty(),
-                ikona = if (tvId.isNotBlank()) R.drawable.os_ikona_tv else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_video,
+                ikona = if (vZivo) R.drawable.os_ikona_tv else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_video,
                 tvId = tvId)
         }
     }
