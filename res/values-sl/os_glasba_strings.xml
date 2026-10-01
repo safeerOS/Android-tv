@@ -118,6 +118,8 @@
     <string name="os_media_ta_naprava">Ta naprava</string>
     <string name="os_media_na_plosco">Pokaži na plošči</string>
     <string name="os_media_s_plosce">Umakni s plošče</string>
+    <string name="os_media_pokazi_vse">Pokaži vse</string>
+    <string name="os_media_nalozi_vec">Naloži več</string>
     <string name="os_media_vsi_viri">Vsi viri</string>
     <string name="os_media_izberi_vire">Izberi vire</string>
     <string name="os_media_izbrisi_vir">Izbriši vir</string>

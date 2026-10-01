@@ -118,6 +118,8 @@
     <string name="os_media_ta_naprava">Cet appareil</string>
     <string name="os_media_na_plosco">Afficher sur le tableau de bord</string>
     <string name="os_media_s_plosce">Retirer du tableau de bord</string>
+    <string name="os_media_pokazi_vse">Tout afficher</string>
+    <string name="os_media_nalozi_vec">Charger plus</string>
     <string name="os_media_vsi_viri">Toutes les sources</string>
     <string name="os_media_izberi_vire">Choisir des sources</string>
     <string name="os_media_izbrisi_vir">Supprimer la source</string>

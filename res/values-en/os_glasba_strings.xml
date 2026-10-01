@@ -118,6 +118,8 @@
     <string name="os_media_ta_naprava">This device</string>
     <string name="os_media_na_plosco">Show on the dashboard</string>
     <string name="os_media_s_plosce">Take off the dashboard</string>
+    <string name="os_media_pokazi_vse">Show all</string>
+    <string name="os_media_nalozi_vec">Load more</string>
     <string name="os_media_vsi_viri">All sources</string>
     <string name="os_media_izberi_vire">Choose sources</string>
     <string name="os_media_izbrisi_vir">Delete source</string>

@@ -122,11 +122,12 @@ object Stremio {
             year = leto.take(4).toIntOrNull() ?: 0)
     }
 
-    /** Prva stran kataloga; obvezni parametri s privzeto moznostjo, iskanje kot `search=`. */
-    fun katalog(k: Katalog, iskanje: String = ""): List<Jamendo.Skladba> {
+    /** Stran kataloga (`skip` = koliko vnosov preskociti, kot v Stremiu); obvezni parametri s privzeto moznostjo, iskanje kot `search=`. */
+    fun katalog(k: Katalog, iskanje: String = "", skip: Int = 0): List<Jamendo.Skladba> {
         var pot = "${k.dodatek}/catalog/${enc(k.tip)}/${enc(k.id)}"
         val dodatno = (if (iskanje.isNotBlank()) listOf("search" to iskanje) else emptyList()) +
-            k.privzeti.filter { it.first != "search" && (iskanje.isBlank() || it.first in k.obvezni) }
+            k.privzeti.filter { it.first != "search" && (iskanje.isBlank() || it.first in k.obvezni) } +
+            (if (skip > 0) listOf("skip" to skip.toString()) else emptyList())
         if (dodatno.isNotEmpty()) pot += "/" + dodatno.joinToString("&") { enc(it.first) + "=" + enc(it.second) }
         val d = json("$pot.json") ?: return emptyList()
         val a = d.optJSONArray("metas") ?: d.optJSONArray("metasDetailed") ?: return emptyList()

@@ -387,6 +387,7 @@ class GlasbaActivity : OsActivity() {
     /** Nazaj iz razdelka vrne na nadzorno plosco; s plosce zapusti Safeer Media. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        if (odprtKatalog != null) { odprtKatalog = null; izberi(odprtKatalogIz); return }
         if (razdelek != DOMOV) {
             val kljuc = when (razdelek) { GLASBA -> KLJUC_GLASBA; VIDEO -> KLJUC_VIDEO; RADIO -> KLJUC_RADIO; VIRI -> KLJUC_VIRI; else -> KLJUC_GLASBA }
             izberi(DOMOV)
@@ -659,7 +660,7 @@ class GlasbaActivity : OsActivity() {
                         vsebina.addView(LinearLayout(this).apply {
                             orientation = LinearLayout.HORIZONTAL; tag = MREZA_VRSTA
                             del.forEachIndexed { i, k ->
-                                addView(kartica(k, false, i == 0, "k:${v.naslov}#${r * n + i}", velikostDp = MREZA_DP), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(14); bottomMargin = dp(14) })
+                                addView(kartica(k, v.video, i == 0, "k:${v.naslov}#${r * n + i}", velikostDp = if (v.video) 0 else MREZA_DP), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(14); bottomMargin = dp(14) })
                             }
                         })
                     }
@@ -818,6 +819,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun izberi(i: Int) {
         razdelek = i
+        odprtKatalog = null
         osveziVlc(i)
         naloziKrajevno(i)
         naslov.text = if (vlc && i == DOMOV) getString(R.string.os_ime_predvajalnik) else getString(when (i) {
@@ -1130,7 +1132,63 @@ class GlasbaActivity : OsActivity() {
 
     private fun vVrste(p: List<Podatki>) = p.mapNotNull { d ->
         val kartice = if (d.video) videi(d.skladbe, d.naslov) else skladbe(d.skladbe, d.naslov)
-        kartice.takeIf { it.isNotEmpty() }?.let { Vrsta(d.naslov, it, d.video) }
+        // Polica kataloga Stremio: na koncu "Pokazi vse" - mreza z vsemi stranmi kataloga (skip), kot Discover v Stremiu.
+        val zVsemi = if (d.video && jePolicaKataloga(d.naslov) && d.skladbe.size >= STRAN_KATALOGA_MIN) kartice + pokaziVseKartica(d.naslov, d.skladbe) else kartice
+        zVsemi.takeIf { it.isNotEmpty() }?.let { Vrsta(d.naslov, it, d.video) }
+    }
+
+    // ------------------------------------------------------------------ katalog Stremio (Pokazi vse, strani)
+
+    /** Odprt katalog (Pokazi vse): katalog, do zdaj nalozeni vnosi in ali je verjetno se kaj. */
+    private var odprtKatalog: Triple<Stremio.Katalog, MutableList<Jamendo.Skladba>, Boolean>? = null
+    private var odprtKatalogIz = VIDEO
+
+    private fun jePolicaKataloga(naslov: String) = naslov.startsWith("🎬 ") || naslov.startsWith("📺 ") || naslov.startsWith("📡 ")
+
+    private fun pokaziVseKartica(naslov: String, prvaStran: List<Jamendo.Skladba>) =
+        Kartica(getString(R.string.os_media_pokazi_vse), naslov.substringAfter(" · "), "", { odpriKatalog(naslov, prvaStran) }, ikona = R.drawable.os_ikona_mreza)
+
+    /** Katalog najdemo po naslovu police (police so tudi s predpomnilnika na disku, kjer kataloga ni). */
+    private fun odpriKatalog(naslov: String, prvaStran: List<Jamendo.Skladba>) {
+        stanje.text = getString(R.string.os_glasba_nalagam)
+        val iz = razdelek
+        delavec.execute {
+            val k = try {
+                val n = stremioNaslovi()
+                (Stremio.prikazniKatalogi(Stremio.zKatalogom(n)) + Stremio.katalogiTv(n)).firstOrNull { naslovKataloga(it) == naslov }
+            } catch (_: Exception) { null }
+            glavna.post {
+                if (isFinishing) return@post
+                if (k == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
+                odprtKatalog = Triple(k, prvaStran.toMutableList(), prvaStran.size >= STRAN_KATALOGA_MIN)
+                odprtKatalogIz = iz
+                narisiKatalog(naslov)
+                fokusNaPrvo()
+            }
+        }
+    }
+
+    private fun narisiKatalog(naslov: String) {
+        val (_, vsi, seKaj) = odprtKatalog ?: return
+        val kartice = videi(vsi, naslov) + (if (seKaj) listOf(Kartica(getString(R.string.os_media_nalozi_vec), vsi.size.toString(), "",
+            { naloziVecKataloga(naslov) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
+        narisi(listOf(Vrsta(naslov, kartice, video = true, mreza = true)), vsi.size.toString())
+    }
+
+    private fun naloziVecKataloga(naslov: String) {
+        val (k, vsi, _) = odprtKatalog ?: return
+        stanje.text = getString(R.string.os_glasba_nalagam)
+        delavec.execute {
+            val nove = try { Stremio.katalog(k, skip = vsi.size) } catch (_: Exception) { emptyList() }
+            glavna.post {
+                if (isFinishing || odprtKatalog?.first != k) return@post
+                val znani = vsi.map { it.id }.toSet()
+                val sveze = nove.filter { it.id !in znani }
+                vsi += sveze
+                odprtKatalog = Triple(k, vsi, sveze.isNotEmpty() && nove.size >= STRAN_KATALOGA_MIN)
+                narisiKatalog(naslov)
+            }
+        }
     }
 
     /** Krajevne vrste na vrhu razdelka: nedavno, tvoji viri, priljubljene in seznami, ki sodijo vanj. */
@@ -3160,6 +3218,8 @@ class GlasbaActivity : OsActivity() {
         private const val POLICA_KARTIC = "polica-kartic"
         /** Kartica v mrezi Mojih virov: dve vrsti gresta na prvi zaslon televizorja. */
         private const val MREZA_DP = 116
+        /** Katalog Stremio ima "Pokazi vse"/"Nalozi vec" sele, ko je stran vsaj tako dolga (kratki katalogi so celi na polici). */
+        private const val STRAN_KATALOGA_MIN = 20
         private const val KLJUC_GLASBA = "k:kat:glasba"; private const val KLJUC_VIDEO = "k:kat:video"
         private const val KLJUC_RADIO = "k:kat:radio"; private const val KLJUC_VIRI = "k:kat:viri"
         private const val KLJUC_TV = "k:kat:tv"
