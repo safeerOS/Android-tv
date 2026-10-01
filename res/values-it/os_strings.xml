@@ -488,4 +488,5 @@
     <string name="os_spor_pisi_napravi">Scrivi a un dispositivo</string>
     <string name="os_spor_ni_naprav">Nessun altro dispositivo in Safeer Link può ancora chattare.</string>
     <string name="os_spor_caka">Il dispositivo non è connesso: riceverà il messaggio quando si connette.</string>
+    <string name="os_krajevno_shramba">Spazio per altri dispositivi</string>
 </resources>

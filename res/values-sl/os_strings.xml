@@ -567,4 +567,5 @@
     <string name="os_tema_naslov">Tema (barvna shema)</string>
     <string name="os_tema_privzeta">Privzeta tema Safeer OS</string>
     <string name="os_tema_izbrana">Izbrano</string>
+    <string name="os_krajevno_shramba">Shramba za druge naprave</string>
 </resources>

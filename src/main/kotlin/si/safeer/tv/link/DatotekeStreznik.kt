@@ -95,7 +95,9 @@ object DatotekeStreznik {
         val vnosi = JSONArray()
         var datotek = false
         if (mapa.isBlank() || mapa == "root") {
-            for ((oznaka, ime) in listOf("video" to imeZbirke(context, "video"), "audio" to imeZbirke(context, "audio"), "image" to imeZbirke(context, "image"))) {
+            // Shramba: datoteke, ki jih je ta naprava shranila za druge naprave (skupni prostor, Shramba.kt).
+            val zbirke = listOf("video", "audio", "image") + (if (Build.VERSION.SDK_INT >= 29) listOf("shramba") else emptyList())
+            for ((oznaka, ime) in zbirke.map { it to imeZbirke(context, it) }) {
                 vnosi.put(JSONObject().put("id", PREDPONA + oznaka).put("name", ime).put("type", "folder"))
             }
         } else {
@@ -105,7 +107,10 @@ object DatotekeStreznik {
                 MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.MIME_TYPE, MediaStore.MediaColumns.DATE_MODIFIED)
             if (zbirka == "video") stolpci.add(MediaStore.Video.VideoColumns.DURATION)
             try {
-                context.contentResolver.query(uri, stolpci.toTypedArray(), null, null, MediaStore.MediaColumns.DATE_MODIFIED + " DESC")?.use { k ->
+                val (izbor, argumenti) = if (zbirka == "shramba")
+                    (MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?") to arrayOf(android.os.Environment.DIRECTORY_DOWNLOADS + "/" + Shramba.MAPA + "%")
+                else null to null
+                context.contentResolver.query(uri, stolpci.toTypedArray(), izbor, argumenti, MediaStore.MediaColumns.DATE_MODIFIED + " DESC")?.use { k ->
                     val ci = k.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                     val cn = k.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
                     val cs = k.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
@@ -114,8 +119,11 @@ object DatotekeStreznik {
                     val ct = k.getColumnIndex(MediaStore.Video.VideoColumns.DURATION)
                     while (k.moveToNext() && vnosi.length() < NAJVEC) {
                         val ime = k.getString(cn) ?: continue
+                        val mime = k.getString(cm) ?: ""
+                        val vrsta = if (zbirka != "shramba") zbirka else when {
+                            mime.startsWith("video/") -> "video"; mime.startsWith("audio/") -> "audio"; mime.startsWith("image/") -> "image"; else -> "file" }
                         vnosi.put(JSONObject().put("id", "$PREDPONA$zbirka:${k.getLong(ci)}").put("name", ime)
-                            .put("type", zbirka).put("size", k.getLong(cs)).put("mime", k.getString(cm) ?: "")
+                            .put("type", vrsta).put("size", k.getLong(cs)).put("mime", k.getString(cm) ?: "")
                             .put("modified", k.getLong(cd) * 1000L)
                             .put("duration_ms", if (ct >= 0) k.getLong(ct) else 0L))
                         datotek = true
@@ -162,15 +170,16 @@ object DatotekeStreznik {
     }
 
     private fun imeZbirke(context: Context, zbirka: String): String {
-        val ime = when (zbirka) { "audio" -> "os_krajevno_glasba"; "image" -> "os_krajevno_slike"; else -> "os_krajevno_videi" }
+        val ime = when (zbirka) { "audio" -> "os_krajevno_glasba"; "image" -> "os_krajevno_slike"; "shramba" -> "os_krajevno_shramba"; else -> "os_krajevno_videi" }
         val id = context.resources.getIdentifier(ime, "string", context.packageName)
-        return if (id != 0) context.getString(id) else when (zbirka) { "audio" -> "Music"; "image" -> "Photos"; else -> "Videos" }
+        return if (id != 0) context.getString(id) else when (zbirka) { "audio" -> "Music"; "image" -> "Photos"; "shramba" -> "Safeer Shramba"; else -> "Videos" }
     }
 
     private fun zbirkaUri(zbirka: String): Uri? = when (zbirka) {
         "audio" -> if (Build.VERSION.SDK_INT >= 29) MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL) else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         "image" -> if (Build.VERSION.SDK_INT >= 29) MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL) else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         "video" -> if (Build.VERSION.SDK_INT >= 29) MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL) else MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        "shramba" -> if (Build.VERSION.SDK_INT >= 29) MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL) else null
         else -> null
     }
 
