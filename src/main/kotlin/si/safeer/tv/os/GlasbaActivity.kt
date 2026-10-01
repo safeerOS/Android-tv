@@ -182,6 +182,63 @@ class GlasbaActivity : OsActivity() {
     }
 
     private var zadnjeVZivo = RADIO
+    private var imeloDovoljenje = ""
+
+    /** Brez dovoljenja za predstavnost: prijazna kartica namesto praznega mesta (kot VLC "Odobri dovoljenje"). */
+    /** Dovoljenja za eno vrsto (Android 13+ loci videe in glasbo). */
+    private fun dovoljenjaZa(i: Int): Array<String> = when {
+        android.os.Build.VERSION.SDK_INT >= 34 && i == VIDEO -> arrayOf("android.permission.READ_MEDIA_VIDEO", "android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
+        android.os.Build.VERSION.SDK_INT >= 33 && i == VIDEO -> arrayOf("android.permission.READ_MEDIA_VIDEO")
+        android.os.Build.VERSION.SDK_INT >= 33 -> arrayOf("android.permission.READ_MEDIA_AUDIO")
+        else -> arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
+    private fun imaDovoljenjeZa(i: Int) = dovoljenjaZa(i).any { checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
+
+    /** Povzetek dovoljenj (ob vrnitvi iz nastavitev vemo, ali se je kaj spremenilo). */
+    private fun stanjeDovoljenj() = "${imaDovoljenjeZa(VIDEO)}${imaDovoljenjeZa(GLASBA)}"
+
+    private fun dovoljenjeKartica(i: Int): View? {
+        if (imaDovoljenjeZa(i)) return null
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            isFocusable = true; isClickable = true
+            setBackgroundResource(R.drawable.os_kartica_steklo)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            addView(ikona(R.drawable.os_ikona_mapa, 28, osBarva(R.color.os_mint)))
+            addView(LinearLayout(this@GlasbaActivity).apply {
+                orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, dp(8), 0)
+                addView(besedilo(15f, osBarva(R.color.os_besedilo), true).apply {
+                    text = getString(if (i == VIDEO) R.string.os_dovoljenje_videi else R.string.os_dovoljenje_glasba) })
+                addView(besedilo(12f, osBarva(R.color.os_umirjeno)).apply { text = getString(R.string.os_dovoljenje_opis); maxLines = 3 })
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(besedilo(15f, osBarva(R.color.os_mint), true).apply { text = getString(R.string.os_dovoljenje_dovoli) })
+            setOnClickListener { zahtevajDovoljenje(i) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
+        }
+    }
+
+    private fun zahtevajDovoljenje(i: Int) {
+        val nastavitve = getSharedPreferences("safeer_predvajalnik", MODE_PRIVATE)
+        val kljuc = "dovoljenje_vprasano_$i"
+        val zeVprasano = nastavitve.getBoolean(kljuc, false)
+        // Po zavrnitvi "ne sprasuj vec" Android okna ne pokaze vec - odpremo nastavitve aplikacije.
+        if (zeVprasano && dovoljenjaZa(i).none { shouldShowRequestPermissionRationale(it) }) {
+            try { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", packageName, null))) }
+            catch (_: Throwable) { }
+            return
+        }
+        nastavitve.edit().putBoolean(kljuc, true).apply()
+        try { requestPermissions(dovoljenjaZa(i), ZAHTEVA_PREDSTAVNOST) } catch (_: Throwable) { }
+    }
+
+    override fun onRequestPermissionsResult(zahteva: Int, dovoljenja: Array<out String>, izidi: IntArray) {
+        super.onRequestPermissionsResult(zahteva, dovoljenja, izidi)
+        if (zahteva != ZAHTEVA_PREDSTAVNOST) return
+        imeloDovoljenje = stanjeDovoljenj()
+        SEZNAMI.remove(VIDEO); SEZNAMI.remove(GLASBA); krajevno.clear()
+        izberi(razdelek)
+    }
     private var zivoZavihki: LinearLayout? = null
 
     /** Zgornja zavihka v razdelku V zivo (kot VIDEI / SEZNAMI PREDVAJANJA pri VLC): RADIO | TV. */
@@ -298,6 +355,12 @@ class GlasbaActivity : OsActivity() {
         glavna.post(tik)
         // Ob vrnitvi (npr. iz predvajanja) sta se nedavno in stanje predvajanja lahko spremenila.
         if (videnPrej && razdelek == DOMOV) izberi(DOMOV)
+        // Dovoljenje, dano v nastavitvah aplikacije: ob vrnitvi takoj pokazemo, kar je na napravi.
+        if (vlc && videnPrej && imeloDovoljenje != stanjeDovoljenj()) {
+            imeloDovoljenje = stanjeDovoljenj()
+            SEZNAMI.remove(VIDEO); SEZNAMI.remove(GLASBA); krajevno.clear()
+            if (razdelek == VIDEO || razdelek == GLASBA) izberi(razdelek)
+        }
         videnPrej = true
     }
 
@@ -457,6 +520,7 @@ class GlasbaActivity : OsActivity() {
             desno.addView(pomoc(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         stranskaVrstica = StranskaVrstica.ovij(this, desno, StranskaVrstica.Razdelek.MEDIJI)
         stranskaVrstica.naZavihek = { z -> izberi(razdelekZavihka(z)); true }
+        imeloDovoljenje = stanjeDovoljenj()
         meniMediji = stranskaVrstica.aktivnaPostavka
         koren = stranskaVrstica
         return stranskaVrstica
@@ -674,6 +738,7 @@ class GlasbaActivity : OsActivity() {
         // ponujajo naslovnice prek navadnega HTTP-ja. Safeer jih ze varno prenese v SpletniVir;
         // tukaj jih ne smemo zavreci samo zato, ker niso HTTPS. Druge sheme ostanejo prepovedane.
         val shema = runCatching { android.net.Uri.parse(naslov).scheme?.lowercase(java.util.Locale.ROOT) }.getOrNull()
+        if (shema == "content") { naloziKrajevnoSlicico(naslov, v); return }
         if (shema != "https" && shema != "http") return
         SLIKE.get(naslov)?.let { v.setImageBitmap(it); return }
         v.tag = naslov
@@ -703,6 +768,20 @@ class GlasbaActivity : OsActivity() {
                 slikeVTeKu.remove(naslov)
                 cakajoceSlike.remove(naslov)
             }
+        }
+    }
+
+    /** Slicica videa ali naslovnica albuma z naprave (MediaStore); brez nje ostane ikona. */
+    private fun naloziKrajevnoSlicico(naslov: String, v: ImageView) {
+        SLIKE.get(naslov)?.let { v.setImageBitmap(it); return }
+        if (android.os.Build.VERSION.SDK_INT < 29) return
+        v.tag = naslov
+        val ref = WeakReference(v)
+        delavec.execute {
+            val b = try { contentResolver.loadThumbnail(android.net.Uri.parse(naslov), android.util.Size(320, 320), null) } catch (_: Throwable) { null }
+                ?: return@execute
+            SLIKE.put(naslov, b)
+            glavna.post { if (!isFinishing) ref.get()?.takeIf { it.tag == naslov }?.setImageBitmap(b) }
         }
     }
 
@@ -736,6 +815,7 @@ class GlasbaActivity : OsActivity() {
     private fun izberi(i: Int) {
         razdelek = i
         osveziVlc(i)
+        naloziKrajevno(i)
         naslov.text = if (vlc && i == DOMOV) getString(R.string.os_ime_predvajalnik) else getString(when (i) {
             GLASBA -> R.string.os_mediji_glasba; RADIO -> R.string.os_glasba_radio; VIDEO -> R.string.os_glasba_video
             TV_V_ZIVO -> R.string.os_mediji_tv_v_zivo
@@ -840,7 +920,8 @@ class GlasbaActivity : OsActivity() {
     private fun krajevnePolice(i: Int): List<Podatki> {
         if (!KrajevneDatoteke.imamoDovoljenje(this)) return emptyList()
         fun beri(zbirka: String, video: Boolean) = KrajevneDatoteke.vsebina(this, zbirka).map { v ->
-            Jamendo.Skladba("krajevno:${v.id}", v.ime.substringBeforeLast('.'), "", "", v.id, "",
+            Jamendo.Skladba("krajevno:${v.id}", v.ime.substringBeforeLast('.'),
+                if (video && v.trajanje > 0) cas(v.trajanje) else "", if (video) v.id else "", v.id, "",
                 video = video, mime = v.mime)
         }
         val glasba = if (i == DOMOV || i == GLASBA) beri(KrajevneDatoteke.AUDIO, false) else emptyList()
@@ -1011,7 +1092,34 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Krajevne vrste na vrhu razdelka: nedavno, tvoji viri, priljubljene in seznami, ki sodijo vanj. */
+    /** Krajevni videi/glasba za zavihka Video in Glasba (VLC slog); berejo se loceno od spleta. */
+    private val krajevno = HashMap<Int, List<Jamendo.Skladba>>()
+
+    private fun naloziKrajevno(i: Int) {
+        if (!vlc || (i != VIDEO && i != GLASBA) || i in samoTaNaprava) return
+        // Lastna nit: delavec ima v vrsti nalaganje slik in spleta - krajevno mora biti takoj.
+        Thread {
+            val l = try { krajevnePolice(i).flatMap { it.skladbe } } catch (_: Throwable) { emptyList() }
+            glavna.post {
+                if (isFinishing || krajevno[i] == l) return@post
+                krajevno[i] = l
+                if (razdelek != i) return@post
+                val podatki = prikazanePolice[i] ?: SEZNAMI[i]
+                if (podatki != null) prikazi(i, podatki)
+                else narisi(zgoraj(i), getString(R.string.os_glasba_nalagam), getString(R.string.os_glasba_nalagam), glavaRazdelka(i))
+            }
+        }.apply { name = "safeer-krajevno"; isDaemon = true }.start()
+    }
+
     private fun zgoraj(i: Int): List<Vrsta> {
+        val lokalne = if (vlc && i !in samoTaNaprava) krajevno[i].orEmpty() else emptyList()
+        val vrsta = if (lokalne.isEmpty()) emptyList() else listOf(
+            if (i == VIDEO) Vrsta(getString(R.string.os_krajevno_koren), videi(lokalne), video = true)
+            else Vrsta(getString(R.string.os_krajevno_koren), skladbe(lokalne)))
+        return vrsta + zgorajSplet(i)
+    }
+
+    private fun zgorajSplet(i: Int): List<Vrsta> {
         if (i in samoTaNaprava) return emptyList()
         val p = razvrsti(i, filtrirajJezike(i, MedijskiViri.priljubljene(this)))
         val seznami = MedijskiViri.seznami(this).map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
@@ -1076,8 +1184,9 @@ class GlasbaActivity : OsActivity() {
     private fun glavaRazdelka(i: Int, podatki: List<Podatki> = emptyList()): List<View> = if (vlc) when (i) {
         // Zavihki spodaj nadomestijo kartice razdelkov; razvrscanje je v meniju ⋮ (kot pri VLC).
         DOMOV -> listOfNotNull(zdajPlosca())
-        VIDEO -> listOf(videoKategorije())
-        GLASBA, RADIO, TV_V_ZIVO -> listOfNotNull(skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 })
+        VIDEO -> listOfNotNull(dovoljenjeKartica(i), videoKategorije())
+        GLASBA -> listOfNotNull(dovoljenjeKartica(i), skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 })
+        RADIO, TV_V_ZIVO -> listOfNotNull(skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 })
         else -> emptyList()
     } else when (i) {
         DOMOV -> listOfNotNull(kategorije(), razvrstiInFiltrirajGumb(i), zdajPlosca())
@@ -2642,6 +2751,7 @@ class GlasbaActivity : OsActivity() {
         const val ISKANJE_BESEDA = "iskanje"
         /** Zavihek spodnje vrstice (StranskaVrstica.Zavihek.name), ki naj se odpre. */
         const val ZAVIHEK = "zavihek"
+        private const val ZAHTEVA_PREDSTAVNOST = 7413
 
         /** Safeer Media je odprt (pod predvajalnikom); sicer ga Nazaj v predvajalniku odpre. */
         /** Stevec zivih Medijskih centrov (prej da/ne: zaprtje enega je "pozabilo" na drugega in Nazaj s

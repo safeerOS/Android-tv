@@ -10,4 +10,10 @@
     <string name="os_odpri_datoteko_naslov">Apri file o indirizzo</string>
     <string name="os_zavihek_radio">Radio</string>
     <string name="os_zavihek_tv">TV</string>
+    <string name="os_dovoljenje_videi">Mostra i video di questo dispositivo</string>
+    <string name="os_dovoljenje_glasba">Mostra la musica di questo dispositivo</string>
+    <string name="os_dovoljenje_opis">Il lettore ha bisogno del permesso per leggere musica e video. Nulla lascia il dispositivo.</string>
+    <string name="os_dovoljenje_dovoli">Consenti</string>
+    <string name="os_kretnja_svetlost">Luminosità %1$d %%</string>
+    <string name="os_kretnja_glasnost">Volume %1$d %%</string>
 </resources>
