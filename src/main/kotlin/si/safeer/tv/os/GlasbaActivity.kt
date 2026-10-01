@@ -2834,15 +2834,30 @@ class GlasbaActivity : OsActivity() {
     private fun torrentPrekRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int = -1, prednost: String = "") {
         val vsi = racunalnikiZaPomoc()
             .sortedWith(compareByDescending<LinkOdjemalec.Naprava> { it.id == prednost }.thenByDescending { it.zmoznosti.contains("desktop") })
-        // Solidarnost: delo dobi racunalnik z najvec proste moci (host.info), ne vedno isti.
+        // Nadzornik solidarnosti: (1) ce ima kateri racunalnik ta film ze (magnet.list), ga pretaka on -
+        // ista vsebina se ne prenasa dvakrat na razlicne naprave; (2) sicer dobi delo racunalnik z najvec
+        // proste moci (host.info), ne vedno isti.
         if (prednost.isBlank() && vsi.size > 1) {
             val proste = java.util.concurrent.ConcurrentHashMap<String, Double>()
-            var cakam = vsi.size
-            for (r in vsi) link.ukaz(r.id, "host.info", org.json.JSONObject(), 3_000, LinkOdjemalec.Odgovor { izid, _ ->
-                izid?.optJSONObject("data")?.let { proste[r.id] = prostaMoc(it) }
-                if (--cakam == 0 && !isFinishing) torrentPrekRacunalnika(sk, naslov, magnet, datoteka,
-                    vsi.maxByOrNull { proste[it.id] ?: 0.0 }?.id ?: vsi.first().id)
-            })
+            val zeIma = java.util.Collections.synchronizedSet(HashSet<String>())
+            val hash = btih(magnet)
+            var cakam = vsi.size * 2
+            fun koncano() {
+                if (--cakam != 0 || isFinishing) return
+                val izbran = vsi.firstOrNull { it.id in zeIma } ?: vsi.maxByOrNull { proste[it.id] ?: 0.0 } ?: vsi.first()
+                torrentPrekRacunalnika(sk, naslov, magnet, datoteka, izbran.id)
+            }
+            for (r in vsi) {
+                link.ukaz(r.id, "host.info", org.json.JSONObject(), 2_500, LinkOdjemalec.Odgovor { izid, _ ->
+                    izid?.optJSONObject("data")?.let { proste[r.id] = prostaMoc(it) }
+                    koncano()
+                })
+                link.ukaz(r.id, "magnet.list", org.json.JSONObject(), 2_500, LinkOdjemalec.Odgovor { izid, _ ->
+                    val a = izid?.optJSONObject("data")?.optJSONArray("items")
+                    for (i in 0 until (a?.length() ?: 0)) if (hash != null && btih(a!!.optJSONObject(i)?.optString("magnet").orEmpty()) == hash) zeIma += r.id
+                    koncano()
+                })
+            }
             return
         }
         val racunalniki = vsi
