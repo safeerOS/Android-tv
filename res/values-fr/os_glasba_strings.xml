@@ -201,4 +201,10 @@
     <string name="os_mediji_dodatek_stremio">Extension Stremio</string>
     <string name="os_mediji_dodatek_kodi">Extension Kodi</string>
     <string name="os_mediji_dodatki_shrani">Enregistrer</string>
+    <!-- Dodani prevodi (Android Lint MissingTranslation) -->
+    <string name="os_mediji_dodatki_prilepi">Coller</string>
+    <string name="os_mediji_dodatki_prilepi_prazno">Le presse-papiers est vide – copie d\'abord l\'adresse (p. ex. sur le web : maintiens OK sur un lien).</string>
+    <string name="os_mediji_dodatki_namig_splet">Le plus simple, sans rien taper : ouvre la page du module sur le web et appuie sur son bouton Install – Safeer propose de l\'ajouter ici.</string>
+    <string name="os_mediji_dodatek_ujet">Ajouter ce module Stremio au centre multimédia ?</string>
+    <string name="os_mediji_dodatek_ujet_dodaj">Ajouter</string>
 </resources>

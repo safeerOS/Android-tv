@@ -570,4 +570,7 @@
     <string name="os_tema_privzeta">Default Safeer OS theme</string>
     <string name="os_tema_izbrana">Selected</string>
     <string name="os_krajevno_shramba">Storage for other devices</string>
+    <!-- Dodani prevodi (Android Lint MissingTranslation) -->
+    <string name="os_ime_predvajalnik">Safeer Player</string>
+    <string name="os_podnaslov_predvajalnik">Music, video and radio from all your devices.</string>
 </resources>

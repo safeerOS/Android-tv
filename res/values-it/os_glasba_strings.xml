@@ -201,4 +201,10 @@
     <string name="os_mediji_dodatek_stremio">Componente Stremio</string>
     <string name="os_mediji_dodatek_kodi">Componente Kodi</string>
     <string name="os_mediji_dodatki_shrani">Salva</string>
+    <!-- Dodani prevodi (Android Lint MissingTranslation) -->
+    <string name="os_mediji_dodatki_prilepi">Incolla</string>
+    <string name="os_mediji_dodatki_prilepi_prazno">Gli appunti sono vuoti – copia prima l\'indirizzo (ad es. sul web: tieni premuto OK su un link).</string>
+    <string name="os_mediji_dodatki_namig_splet">Il modo più semplice, senza digitare: apri la pagina del componente aggiuntivo sul web e premi il suo pulsante Install – Safeer propone di aggiungerlo qui.</string>
+    <string name="os_mediji_dodatek_ujet">Aggiungere questo componente aggiuntivo di Stremio al Media Center?</string>
+    <string name="os_mediji_dodatek_ujet_dodaj">Aggiungi</string>
 </resources>
