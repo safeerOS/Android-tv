@@ -146,28 +146,55 @@ object Pretvorba {
         } catch (_: Throwable) { null }
         if (format == null) { napaka(o, "ni_video", vir); return }
         if (!znaDekodirati(format)) { napaka(o, "ne_zna_dekodirati", vir); return }
+        // Visina (pokoncni video: sirina), sirina in trajanje izvirnika - za velikost in bitno hitrost izhoda.
+        var sirinaVira = 0; var trajanjeMs = 0L
         val visina = try {
             MediaMetadataRetriever().run {
                 setDataSource(vir.path)
                 val v = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
                 val s = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
                 val r = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+                trajanjeMs = extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
                 release()
+                sirinaVira = if (r == 90 || r == 270) v else s
                 if (r == 90 || r == 270) s else v
             }
         } catch (_: Throwable) { 0 }
+        val bitnaHitrost = bitnaHitrost(vir.length(), trajanjeMs, sirinaVira, visina)
         val cilj = File(mapa(ctx), o.id + ".mp4")
         o.faza = "pretvarjam"; o.odstotek = 0
-        glavna.post { pretvori(ctx, o, vir, cilj, visina) }
+        glavna.post { pretvori(ctx, o, vir, cilj, visina, bitnaHitrost) }
     }
 
     /** Media3 Transformer mora teci na niti z Looperjem (glavna nit); delo opravi strojni kodirnik. */
-    private fun pretvori(ctx: Context, o: Opravilo, vir: File, cilj: File, visina: Int) {
+    /**
+     * Bitna hitrost izhoda H.264: izvirnik x 1,6 (H.264 rabi vec kot HEVC/VP9 za isto kakovost), omejeno na
+     * 2-8 Mb/s pri 1080p in sorazmerno manj pri manjsi sliki. Brez tega je bil izhod 3-krat vecji od izvirnika.
+     * 0 = naj izbere kodirnik (trajanja ne poznamo).
+     */
+    fun bitnaHitrost(velikost: Long, trajanjeMs: Long, sirina: Int, visina: Int): Int {
+        if (velikost <= 0 || trajanjeMs <= 0) return 0
+        val vir = velikost * 8_000.0 / trajanjeMs
+        val izhodVisina = if (visina > VISINA) VISINA else visina.coerceAtLeast(1)
+        val izhodSirina = if (visina > VISINA && sirina > 0) sirina.toDouble() * VISINA / visina else sirina.toDouble().coerceAtLeast(1.0)
+        val delez = ((izhodSirina * izhodVisina) / (1920.0 * 1080.0)).coerceIn(0.1, 1.0)
+        val najvec = 8_000_000.0 * delez
+        val najmanj = 2_000_000.0 * delez
+        return (vir * 1.6).coerceIn(najmanj, najvec).toInt()
+    }
+
+    private fun pretvori(ctx: Context, o: Opravilo, vir: File, cilj: File, visina: Int, bitnaHitrost: Int = 0) {
         try {
             val ucinki = if (visina > VISINA) listOf<androidx.media3.common.Effect>(Presentation.createForHeight(VISINA)) else emptyList()
             val element = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(vir)))
                 .setEffects(Effects(emptyList(), ucinki)).build()
+            val kodirnik = androidx.media3.transformer.DefaultEncoderFactory.Builder(ctx)
+                .apply {
+                    if (bitnaHitrost > 0) setRequestedVideoEncoderSettings(
+                        androidx.media3.transformer.VideoEncoderSettings.Builder().setBitrate(bitnaHitrost).build())
+                }.build()
             val transformer = Transformer.Builder(ctx)
+                .setEncoderFactory(kodirnik)
                 .setVideoMimeType(MimeTypes.VIDEO_H264)
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
                 .addListener(object : Transformer.Listener {
