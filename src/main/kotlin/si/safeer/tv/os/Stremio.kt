@@ -154,6 +154,10 @@ object Stremio {
         .flatMap { m -> m.katalogi.filter { it.prikazen && (it.tip == "movie" || it.tip == "series") } }
         .sortedBy { if (it.tip == "movie") 0 else 1 }
 
+    /** Katalogi TV kanalov v zivo (tip "tv") iz uporabnikovih dodatkov - gredo v razdelek TV v zivo (Matej, 1. 10. 2026). */
+    fun katalogiTv(naslovi: List<String>): List<Katalog> = naslovi.mapNotNull { manifest(it) }
+        .flatMap { m -> m.katalogi.filter { it.prikazen && it.tip == "tv" } }
+
     /** Iskanje po imenu v vseh katalogih z iskanjem (vzporedno klice klicatelj prek niti). */
     fun isci(naslovi: List<String>, beseda: String): List<Jamendo.Skladba> = naslovi.mapNotNull { manifest(it) }
         .flatMap { m -> m.katalogi.filter { it.iskanje && (it.tip == "movie" || it.tip == "series") } }
