@@ -25,11 +25,13 @@
         android:largeHeap="false"
         tools:replace="android:largeHeap">
 
-        <!-- Vstopna tocka: Safeer Media naravnost; "Odpri z" za datoteke in naslove videa/zvoka. -->
+        <!-- Vstopna tocka: Safeer Media naravnost; "Odpri z" za datoteke in naslove videa/zvoka.
+             singleTask: en sam Medijski center (stresni test 1. 10. 2026 je brez tega nalozil 13 kopij). -->
         <activity android:name="si.safeer.tv.os.GlasbaActivity"
             android:exported="true"
             android:label="@string/predvajalnik_ime"
-            tools:replace="android:exported"
+            android:launchMode="singleTask"
+            tools:replace="android:exported,android:launchMode"
             tools:ignore="RedundantLabel">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
