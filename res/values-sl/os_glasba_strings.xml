@@ -194,7 +194,7 @@
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json ali stremio://…</string>
     <string name="os_mediji_dodatki_kodi">Kodi dodatek — sem vnesi naslov repozitorija ali dodatka (.zip)</string>
     <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer ne prilaga katalogov ali dodatkov. Vneseš svoje; naslovi se shranijo samo na tej napravi.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ne prilaga dodatkov. Vneseš svoje; naslovi se shranijo samo na tej napravi. Filme in serije pokaže javni katalog Cinemeta, tokove dajo tvoji dodatki.</string>
     <string name="os_mediji_dodatki_shranjen">Dodatek shranjen: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">Naslov Stremio dodatka ni veljaven (pričakujem …/manifest.json ali stremio://…).</string>
     <string name="os_mediji_dodatki_napaka_naslov">Naslov se mora začeti s http:// ali https://.</string>
@@ -206,4 +206,8 @@
     <string name="os_mediji_dodatki_namig_splet">Najlažje brez tipkanja: v Spletu odpri stran dodatka in pritisni njegov gumb Namesti/Install – Safeer ponudi, da ga doda sem.</string>
     <string name="os_mediji_dodatek_ujet">Dodam Stremio dodatek v Medijski center?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Dodaj</string>
+    <string name="os_sprotno_iscem">Iščem napravo v Safeer Linku, ki zna pretvoriti ta video …</string>
+    <string name="os_sprotno_pretvarja">Naprava %1$s video sproti pretvarja za to napravo …</string>
+    <string name="os_sprotno_vir">sproti pretvarja: %1$s</string>
+    <string name="os_glasba_napaka_dekodirnik">Te oblike videa ta naprava ne zna predvajati in nobena naprava v Safeer Linku je ta trenutek ne more pretvoriti.</string>
 </resources>

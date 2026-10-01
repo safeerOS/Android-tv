@@ -132,18 +132,62 @@ class PredvajanjeActivity : OsActivity() {
         override fun onVideoSizeChanged(videoSize: VideoSize) = prilagodi(videoSize)
         override fun onRenderedFirstFrame() { prvaSlika = true; posodobiNalaganje() }
         override fun onPlaybackStateChanged(playbackState: Int) = posodobiNalaganje()
-        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = posodobiPodnapise()
+        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+            posodobiPodnapise()
+            // Sled, ki presega zmoznosti te naprave (4K na Full HD dekodirniku, nepodprt zvok): raje jo sproti
+            // pretvarja naprava v Linku, kot da bi tu zatikala ali ostala brez zvoka.
+            val sk = GlasbaStoritev.trenutna() ?: return
+            if (SprotnaPomoc.jeSprotniTok(sk) || sk.id == sprotnoPreverjeno) return
+            val f = SprotnaPomoc.nepodprtaSled(tracks) ?: return
+            sprotnoPreverjeno = sk.id
+            prosiZaSprotniTok(sk, SprotnaPomoc.oblikaIzFormata(f))
+        }
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
             val sk = GlasbaStoritev.trenutna()
             if (sk != null && SpletniVir.jeEnota(sk) && sk.zvok.isNotBlank()) {
                 SpletniIgralec.zadnja = java.lang.ref.WeakReference(this@PredvajanjeActivity)
                 GlasbaStoritev.predvajajSplet(this@PredvajanjeActivity, sk.copy(zvok = ""), dovoliPrevzem = false)
+            } else if (sk != null && SprotnaPomoc.jeSprotniTok(sk) && izvirnikSprotnega != null) {
+                // Sprotni tok pomocnika je odpovedal: nazaj na izvirnik (morda zatika, a tece), brez nove prosnje.
+                val izvirnik = izvirnikSprotnega!!; izvirnikSprotnega = null
+                sprotnoPreverjeno = izvirnik.id
+                izvajalec.text = izvirnik.izvajalec
+                GlasbaStoritev.predvajaj(this@PredvajanjeActivity, listOf(izvirnik), 0, streznikSprotnega)
+            } else if (sk != null && SprotnaPomoc.jeNapakaDekodiranja(error) && !SprotnaPomoc.jeSprotniTok(sk) && sk.id != sprotnoPreverjeno) {
+                // Ta naprava videa ne zna predvajati: naprava v Linku z boljsim kodirnikom ga sproti pretvarja za nas.
+                sprotnoPreverjeno = sk.id
+                prosiZaSprotniTok(sk, SprotnaPomoc.oblikaIzNapake(error))
             } else {
                 izvajalec.text = getString(R.string.os_glasba_napaka)
                 nalaganje.visibility = View.GONE
                 zbudi()
             }
         }
+    }
+
+    /** Skladba, za katero smo ze preverili zmoznosti (da ne prosimo dvakrat). */
+    private var sprotnoPreverjeno = ""
+    /** Izvirnik in njegov streznik, dokler tece sprotni tok pomocnika (ce tok odpove, se vrnemo nanj). */
+    private var izvirnikSprotnega: Jamendo.Skladba? = null
+    private var streznikSprotnega: DatotekeActivity.Streznik? = null
+
+    private fun prosiZaSprotniTok(sk: Jamendo.Skladba, oblika: org.json.JSONObject) {
+        val pozicija = GlasbaStoritev.predvajalnik?.currentPosition?.coerceAtLeast(0L) ?: 0L
+        val trajanje = GlasbaStoritev.predvajalnik?.duration?.takeIf { it != androidx.media3.common.C.TIME_UNSET && it > 0 } ?: 0L
+        val streznik = GlasbaStoritev.streznikTrenutni
+        nalaganje.visibility = View.VISIBLE
+        zbudi()
+        SprotnaPomoc.poskusi(this, sk, streznik, oblika, pozicija, trajanje,
+            naStanje = { b -> runOnUiThread { if (!isFinishing) izvajalec.text = b } },
+            naKonec = { uspeh -> runOnUiThread {
+                if (uspeh) { izvirnikSprotnega = sk; streznikSprotnega = streznik }
+                if (isFinishing || uspeh) return@runOnUiThread
+                // Nihce ne more pomagati: ce predvajanje vseeno tece (zatikajoce), ga pustimo; sicer napaka.
+                val tece = GlasbaStoritev.predvajalnik?.let { it.isPlaying || it.playbackState == Player.STATE_BUFFERING } == true
+                if (!tece) izvajalec.text = getString(R.string.os_glasba_napaka_dekodirnik)
+                else izvajalec.text = GlasbaStoritev.trenutna()?.izvajalec.orEmpty()
+                nalaganje.visibility = View.GONE
+            } })
     }
 
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()

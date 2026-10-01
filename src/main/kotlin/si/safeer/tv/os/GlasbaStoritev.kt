@@ -180,6 +180,7 @@ class GlasbaStoritev : Service() {
         koncajSplet()
         predvajalnik = p
         vrsta = seznam
+        streznikTrenutni = s
         // Datoteke z racunalnika gredo skozi pripeti vir (TLS z odtisom in zetonom Safeer Controla),
         // vse ostalo (splet, datoteke televizorja) skozi obicajnega.
         // DvdVir: slike ISO (safeer-dvd:) bere kot tok glavnega naslova diska, vse drugo gre naravnost naprej.
@@ -329,6 +330,9 @@ class GlasbaStoritev : Service() {
         @Volatile var predvajalnik: Player? = null
             private set
         private var vrsta: List<Jamendo.Skladba> = emptyList()
+        /** Streznik (racunalnik/naprava s pripetim potrdilom), s katerega tece trenutni seznam; null za splet in lokalno. */
+        @Volatile var streznikTrenutni: DatotekeActivity.Streznik? = null
+            private set
         private var cakajoci: Triple<List<Jamendo.Skladba>, Int, DatotekeActivity.Streznik?>? = null
         private var cakajociSplet: Pair<Jamendo.Skladba, Boolean>? = null
 

@@ -207,7 +207,7 @@ object DatotekeStreznik {
         return z
     }
 
-    private fun zetonVelja(z: String?, zdaj: Long = zdaj()): Boolean {
+    private fun zetonVelja(z: String?, zdaj: Long = zdaj(), zahtevaDeljenje: Boolean = true): Boolean {
         if (z.isNullOrBlank()) return false
         val zb = z.toByteArray()
         val (kljuc, najden) = zetoni.entries.firstOrNull { it.value.zivi(zdaj) && MessageDigest.isEqual(it.value.vrednost.toByteArray(), zb) }
@@ -215,7 +215,7 @@ object DatotekeStreznik {
         // Deljenje izklopljeno ali naprava umaknjena iz kroga (tudi z druge naprave): zeton takoj ne velja vec,
         // ne sele po [ZETON_VELJA_MS] (pregled 29. 9. 2026, tocka 12).
         val ctx = appContext
-        if (ctx != null && (!vklopljeno(ctx) || umaknjena(ctx, kljuc.substringBefore('#')))) {
+        if (ctx != null && ((zahtevaDeljenje && !vklopljeno(ctx)) || umaknjena(ctx, kljuc.substringBefore('#')))) {
             zetoni.remove(kljuc)
             return false
         }
@@ -249,6 +249,15 @@ object DatotekeStreznik {
     }
 
     fun pripravi(context: Context) { appContext = context.applicationContext }
+
+    /** Streznik te naprave za drugo napravo ([idNaprave]): {base_url, fp, token} ali null, ce ga ni mogoce zagnati. */
+    fun streznikZa(context: Context, idNaprave: String): JSONObject? {
+        appContext = context.applicationContext
+        val naslov = krajevniNaslov() ?: return null
+        if (!zazeni()) return null
+        return JSONObject().put("base_url", "https://$naslov:$vrata")
+            .put("fp", si.safeer.tv.cast.HubTls.lastniOdtis()).put("token", zetonZa(idNaprave))
+    }
 
     fun ustavi() {
         tece.set(false)
@@ -310,6 +319,14 @@ object DatotekeStreznik {
                                 vhod: InputStream, izhod: OutputStream) {
         run {
             if (metoda != "GET" && metoda != "HEAD" && metoda != "POST") { napaka(izhod, 405, "samo GET ali POST"); return }
+            if (pot.startsWith("/live/")) {
+                // Sprotno pretvorjeni tok za drugo napravo (Pretok): zeton kot pri datotekah, a brez pogoja,
+                // da naprava deli svoje datoteke - tok ni njena datoteka.
+                if (metoda == "POST") { napaka(izhod, 405, "samo GET"); return }
+                if (!zetonVelja(zeton, zahtevaDeljenje = false)) { napaka(izhod, 401, "manjka ali napacen zeton"); return }
+                Pretok.postrezi(pot.substring(6).substringBefore('?'), metoda, izhod)
+                return
+            }
             if (!pot.startsWith("/d/") && !pot.startsWith("/thumb/")) { napaka(izhod, 404, "ni take poti"); return }
             if (!zetonVelja(zeton)) { napaka(izhod, 401, "manjka ali napacen zeton"); return }
             val ctx = appContext ?: run { napaka(izhod, 503, "ni pripravljeno"); return }
