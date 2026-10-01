@@ -201,4 +201,10 @@
     <string name="os_mediji_dodatek_stremio">Complemento Stremio</string>
     <string name="os_mediji_dodatek_kodi">Complemento Kodi</string>
     <string name="os_mediji_dodatki_shrani">Guardar</string>
+    <!-- Dodani prevodi (Android Lint MissingTranslation) -->
+    <string name="os_mediji_dodatki_prilepi">Pegar</string>
+    <string name="os_mediji_dodatki_prilepi_prazno">El portapapeles está vacío: copia primero la dirección (p. ej., en la web: mantén pulsado OK sobre un enlace).</string>
+    <string name="os_mediji_dodatki_namig_splet">Lo más fácil, sin escribir: abre la página del complemento en la web y pulsa su botón Install; Safeer te ofrece añadirlo aquí.</string>
+    <string name="os_mediji_dodatek_ujet">¿Añadir este complemento de Stremio al centro multimedia?</string>
+    <string name="os_mediji_dodatek_ujet_dodaj">Añadir</string>
 </resources>

@@ -77,6 +77,7 @@ object Shramba {
             .takeIf { it.isNotBlank() && it != "." && it != ".." }.orEmpty()
 
     private fun prenesi(ctx: Context, o: Opravilo, url: String, odtis: String, zeton: String, sha: String) {
+        if (Build.VERSION.SDK_INT < 29) return   // MediaStore.Downloads (sprejmi to ze preveri; za Lint)
         val cr = ctx.contentResolver
         var uri: Uri? = null
         try {

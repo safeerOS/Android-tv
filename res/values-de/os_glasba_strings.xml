@@ -201,4 +201,10 @@
     <string name="os_mediji_dodatek_stremio">Stremio-Add-on</string>
     <string name="os_mediji_dodatek_kodi">Kodi-Add-on</string>
     <string name="os_mediji_dodatki_shrani">Speichern</string>
+    <!-- Dodani prevodi (Android Lint MissingTranslation) -->
+    <string name="os_mediji_dodatki_prilepi">Einfügen</string>
+    <string name="os_mediji_dodatki_prilepi_prazno">Die Zwischenablage ist leer – kopiere zuerst die Adresse (z. B. im Web: OK auf einem Link gedrückt halten).</string>
+    <string name="os_mediji_dodatki_namig_splet">Am einfachsten, ohne Tippen: Öffne die Seite des Add-ons im Web und drücke dort »Install« – Safeer bietet an, es hier hinzuzufügen.</string>
+    <string name="os_mediji_dodatek_ujet">Dieses Stremio-Add-on zum Mediencenter hinzufügen?</string>
+    <string name="os_mediji_dodatek_ujet_dodaj">Hinzufügen</string>
 </resources>

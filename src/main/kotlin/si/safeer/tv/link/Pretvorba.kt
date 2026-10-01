@@ -195,6 +195,7 @@ object Pretvorba {
     }
 
     private fun shrani(ctx: Context, o: Opravilo, vir: File, cilj: File) {
+        if (Build.VERSION.SDK_INT < 29) { napaka(o, "ni_podprto", vir, cilj); return }   // MediaStore.Downloads (za Lint)
         val cr = ctx.contentResolver
         var uri: Uri? = null
         try {
