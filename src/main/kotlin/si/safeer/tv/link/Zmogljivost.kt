@@ -111,8 +111,15 @@ object Zmogljivost {
         val prej = prefs.getBoolean("pomaga", true)
         val (lahko, razlog) = odlocitev(bat?.optInt("raven", -1) ?: -1, bat?.optBoolean("polni") ?: true, prej, varcuje, vroce, malo)
         if (bat != null && !varcuje && !vroce && !malo) prefs.edit().putBoolean("pomaga", lahko).apply()
+        // Na napravi ravno tece video ali glasba (npr. gledas film na TV): naj ne zatika - pomaga, ko ustavis.
+        if (lahko && predvaja(context)) return JSONObject().put("lahko", false).put("razlog", "predvaja")
         return JSONObject().put("lahko", lahko).put("razlog", razlog)
     }
+
+    /** Ali na napravi ta trenutek tece zvok (video, glasba) - takrat naprava ne prevzema dodatnega dela. */
+    fun predvaja(context: Context): Boolean = try {
+        (context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager).isMusicActive
+    } catch (_: Throwable) { false }
 
     /** Cista odlocitev (za teste): raven -1 = brez baterije (televizor, vedno na omrezju). */
     fun odlocitev(raven: Int, polni: Boolean, prej: Boolean, varcuje: Boolean, vroce: Boolean, malo: Boolean): Pair<Boolean, String> = when {

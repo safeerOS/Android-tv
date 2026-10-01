@@ -71,4 +71,5 @@
     <string name="os_moc_k_kodiranje">hardware video encoding</string>
     <string name="os_moc_nalagam">checking capacity …</string>
     <string name="os_moc_r_sorodnik">Safeer OS helps on this device</string>
+    <string name="os_moc_r_predvaja">video or music is playing on this device</string>
 </resources>

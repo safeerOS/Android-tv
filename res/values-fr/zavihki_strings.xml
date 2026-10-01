@@ -71,4 +71,5 @@
     <string name="os_moc_k_kodiranje">encodage vidéo matériel</string>
     <string name="os_moc_nalagam">vérification de la puissance …</string>
     <string name="os_moc_r_sorodnik">Safeer OS aide sur cet appareil</string>
+    <string name="os_moc_r_predvaja">une vidéo ou de la musique est en cours sur cet appareil</string>
 </resources>
