@@ -194,7 +194,7 @@
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json ou stremio://…</string>
     <string name="os_mediji_dodatki_kodi">Extension Kodi — saisis ici l’adresse du dépôt ou de l’extension (.zip)</string>
     <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer ne fournit ni catalogues ni extensions. Tu saisis les tiennes ; les adresses restent sur cet appareil.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ne fournit aucune extension. Tu saisis les tiennes ; les adresses restent sur cet appareil. Les films et séries viennent du catalogue public Cinemeta, les flux de tes extensions.</string>
     <string name="os_mediji_dodatki_shranjen">Extension enregistrée : %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">L’adresse d’une extension Stremio doit se terminer par /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">L’adresse doit commencer par http:// ou https://.</string>
@@ -207,4 +207,8 @@
     <string name="os_mediji_dodatki_namig_splet">Le plus simple, sans rien taper : ouvre la page du module sur le web et appuie sur son bouton Install – Safeer propose de l\'ajouter ici.</string>
     <string name="os_mediji_dodatek_ujet">Ajouter ce module Stremio au centre multimédia ?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Ajouter</string>
+    <string name="os_sprotno_iscem">Recherche d\'un appareil dans Safeer Link capable de convertir cette vidéo …</string>
+    <string name="os_sprotno_pretvarja">%1$s convertit la vidéo en direct pour cet appareil …</string>
+    <string name="os_sprotno_vir">converti en direct par %1$s</string>
+    <string name="os_glasba_napaka_dekodirnik">Cet appareil ne peut pas lire ce format vidéo et aucun appareil de Safeer Link ne peut le convertir pour le moment.</string>
 </resources>

@@ -194,7 +194,7 @@
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json o stremio://…</string>
     <string name="os_mediji_dodatki_kodi">Componente Kodi — inserisci qui l’indirizzo del repository o del componente (.zip)</string>
     <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer non include cataloghi o componenti aggiuntivi. Inserisci i tuoi; gli indirizzi restano solo su questo dispositivo.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer non include componenti aggiuntivi. Inserisci i tuoi; gli indirizzi restano solo su questo dispositivo. Film e serie arrivano dal catalogo pubblico Cinemeta, gli stream dai tuoi componenti.</string>
     <string name="os_mediji_dodatki_shranjen">Componente salvato: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">L’indirizzo di un componente Stremio deve terminare con /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">L’indirizzo deve iniziare con http:// o https://.</string>
@@ -207,4 +207,8 @@
     <string name="os_mediji_dodatki_namig_splet">Il modo più semplice, senza digitare: apri la pagina del componente aggiuntivo sul web e premi il suo pulsante Install – Safeer propone di aggiungerlo qui.</string>
     <string name="os_mediji_dodatek_ujet">Aggiungere questo componente aggiuntivo di Stremio al Media Center?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Aggiungi</string>
+    <string name="os_sprotno_iscem">Cerco un dispositivo in Safeer Link che possa convertire questo video …</string>
+    <string name="os_sprotno_pretvarja">%1$s sta convertendo il video in diretta per questo dispositivo …</string>
+    <string name="os_sprotno_vir">convertito in diretta da %1$s</string>
+    <string name="os_glasba_napaka_dekodirnik">Questo dispositivo non può riprodurre questo formato video e nessun dispositivo in Safeer Link può convertirlo al momento.</string>
 </resources>

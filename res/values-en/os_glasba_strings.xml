@@ -194,7 +194,7 @@
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json or stremio://…</string>
     <string name="os_mediji_dodatki_kodi">Kodi add-on — enter the repository or add-on address here (.zip)</string>
     <string name="os_mediji_dodatki_kodi_namig">https://…/repository.….zip</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer ships no catalogues or add-ons. You enter your own; addresses are stored only on this device.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ships no add-ons. You enter your own; addresses are stored only on this device. Movies and series come from the public Cinemeta catalogue, streams from your add-ons.</string>
     <string name="os_mediji_dodatki_shranjen">Add-on saved: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">A Stremio add-on address must end with /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">The address must start with http:// or https://.</string>
@@ -206,4 +206,8 @@
     <string name="os_mediji_dodatki_namig_splet">Easiest, no typing: open the add-on page on the web and press its Install button – Safeer offers to add it here.</string>
     <string name="os_mediji_dodatek_ujet">Add this Stremio add-on to the Media Center?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Add</string>
+    <string name="os_sprotno_iscem">Looking for a device in Safeer Link that can convert this video …</string>
+    <string name="os_sprotno_pretvarja">%1$s is converting the video live for this device …</string>
+    <string name="os_sprotno_vir">converted live by %1$s</string>
+    <string name="os_glasba_napaka_dekodirnik">This device cannot play this video format and no device in Safeer Link can convert it right now.</string>
 </resources>
