@@ -377,7 +377,47 @@ class PredvajanjeActivity : OsActivity() {
         zatemniIzNamena()
     }
 
+    // ------------------------------------------------------------------ podnapisi iz datoteke (video z naprave)
+    /** Ali je video igral, preden je izbirnik datotek (onStop) ustavil predvajanje. */
+    private var igraloPredIzbiro = false
+
+    private fun izberiPodnapise() {
+        igraloPredIzbiro = GlasbaStoritev.predvajalnik?.isPlaying == true
+        val n = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+        try { @Suppress("DEPRECATION") startActivityForResult(n, IZBERI_PODNAPISE) }
+        catch (_: Throwable) { android.widget.Toast.makeText(this, R.string.os_mediji_predvajalnik_ni_izbirnika, android.widget.Toast.LENGTH_LONG).show() }
+    }
+
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    override fun onActivityResult(zahteva: Int, izid: Int, podatki: Intent?) {
+        super.onActivityResult(zahteva, izid, podatki)
+        if (zahteva != IZBERI_PODNAPISE || izid != RESULT_OK) return
+        val uri = podatki?.data ?: return
+        val sk = GlasbaStoritev.trenutna() ?: return
+        val p = GlasbaStoritev.predvajalnik ?: return
+        try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) { }
+        val ime = try {
+            contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { k ->
+                if (k.moveToFirst()) k.getString(0) else null }
+        } catch (_: Throwable) { null } ?: uri.lastPathSegment.orEmpty()
+        if (!Podnapisi.jePodnapis(ime)) {
+            android.widget.Toast.makeText(this, R.string.os_podnapisi_ni_podnapis, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        KrajevniPodnapisi.shrani(this, sk.id, uri.toString(), ime)
+        // Isti video znova, s podnapisi, na istem mestu.
+        val kje = p.currentPosition
+        val igra = igraloPredIzbiro || p.isPlaying
+        GlasbaStoritev.predvajaj(this, listOf(sk.copy(podnapisi = KrajevniPodnapisi.za(this, sk.id))), 0)
+        glavna.postDelayed({
+            GlasbaStoritev.predvajalnik?.let { q -> q.seekTo(kje); if (igra) q.play() else q.pause() }
+            predlogiZa = ""; if (predlogiOdprti()) { predlogi.visibility = View.GONE; odpriPredloge() }
+        }, 900)
+        android.widget.Toast.makeText(this, getString(R.string.os_podnapisi_dodani, ime), android.widget.Toast.LENGTH_SHORT).show()
+    }
+
     companion object {
+        private const val IZBERI_PODNAPISE = 7421
         const val ZATEMNI = "zatemni"
         const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"
     }
@@ -611,6 +651,32 @@ class PredvajanjeActivity : OsActivity() {
                 prilagodi()
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             })
+        }
+        // Hitrost, casovnik izklopa in podnapisi tudi tu, ne le na Domov (lastnik: "kot VLC").
+        if (dotik && p != null && zdaj?.radio != true) {
+            val i = predlogiNiz.childCount
+            val hitrost = p.playbackParameters.speed.toString().removeSuffix(".0") + "×"
+            predlogiNiz.addView(kartica(getString(R.string.os_kartica_hitrost), hitrost, "", R.drawable.os_ikona_hitrost, video) {
+                val h = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
+                p.setPlaybackSpeed(h.firstOrNull { it > p.playbackParameters.speed + 0.01f } ?: h.first())
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
+            })
+        }
+        if (dotik) {
+            val i = predlogiNiz.childCount
+            val min = GlasbaStoritev.casovnikMinut()
+            predlogiNiz.addView(kartica(getString(R.string.os_kartica_casovnik),
+                if (min > 0) getString(R.string.os_casovnik_cez, min) else getString(R.string.os_mediji_izklopljeno), "",
+                R.drawable.os_ikona_casovnik, video) {
+                val c = intArrayOf(15, 30, 60, 90)
+                GlasbaStoritev.nastaviCasovnik(c.firstOrNull { it > GlasbaStoritev.casovnikMinut() } ?: 0)
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
+            })
+        }
+        if (dotik && video && zdaj != null && zdaj.id.startsWith("krajevno:")) {
+            predlogiNiz.addView(kartica(getString(R.string.os_podnapisi_dodaj),
+                zdaj.podnapisi.firstOrNull()?.ime ?: getString(R.string.os_podnapisi_dodaj_opis), "",
+                R.drawable.os_ikona_podnapisi, video) { izberiPodnapise() })
         }
         dejanj = predlogiNiz.childCount
         seznam.forEach { sk ->

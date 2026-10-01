@@ -25,4 +25,11 @@
         <item quantity="one">%d Titel</item>
         <item quantity="other">%d Titel</item>
     </plurals>
+    <string name="os_kartica_hitrost">Geschwindigkeit</string>
+    <string name="os_kartica_casovnik">Schlaftimer</string>
+    <string name="os_casovnik_cez">In %1$d Min.</string>
+    <string name="os_podnapisi_dodaj">Untertitel hinzufügen</string>
+    <string name="os_podnapisi_dodaj_opis">Datei .srt, .vtt oder .ass</string>
+    <string name="os_podnapisi_dodani">Untertitel hinzugefügt: %1$s</string>
+    <string name="os_podnapisi_ni_podnapis">Das ist keine Untertiteldatei (.srt, .vtt, .ass).</string>
 </resources>

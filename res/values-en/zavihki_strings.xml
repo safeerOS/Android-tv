@@ -25,4 +25,11 @@
         <item quantity="one">%d item</item>
         <item quantity="other">%d items</item>
     </plurals>
+    <string name="os_kartica_hitrost">Speed</string>
+    <string name="os_kartica_casovnik">Sleep timer</string>
+    <string name="os_casovnik_cez">In %1$d min</string>
+    <string name="os_podnapisi_dodaj">Add subtitles</string>
+    <string name="os_podnapisi_dodaj_opis">.srt, .vtt or .ass file</string>
+    <string name="os_podnapisi_dodani">Subtitles added: %1$s</string>
+    <string name="os_podnapisi_ni_podnapis">That is not a subtitle file (.srt, .vtt, .ass).</string>
 </resources>

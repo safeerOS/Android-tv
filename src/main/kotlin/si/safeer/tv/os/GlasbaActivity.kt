@@ -927,7 +927,8 @@ class GlasbaActivity : OsActivity() {
             // Pri videu trajanje (podnaslov na kartici in na zaslonu predvajanja); napredek doda videi().
             Jamendo.Skladba("krajevno:${v.id}", v.ime.substringBeforeLast('.'),
                 if (video && v.trajanje > 0) cas(v.trajanje) else "", if (video) v.id else "", v.id, "",
-                video = video, mime = v.mime)
+                video = video, mime = v.mime,
+                podnapisi = if (video) KrajevniPodnapisi.za(this, "krajevno:${v.id}") else emptyList())
         }
         val glasba = if (i == DOMOV || i == GLASBA) beri(KrajevneDatoteke.AUDIO, false) else emptyList()
         val videi = if (i == DOMOV || i == VIDEO) beri(KrajevneDatoteke.VIDEO, true) else emptyList()
