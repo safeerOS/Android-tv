@@ -282,6 +282,8 @@ class PredvajanjeActivity : OsActivity() {
         if (prvic) return
         if (drugaVelikost && predlogiOdprti()) { predlogiZa = ""; predlogi.visibility = View.GONE; odpriPredloge() }
         osvezi()
+        // Po zasuku se mere zaslona spremenijo sele ob naslednji postavitvi.
+        povrsina.post { prilagodi() }
     }
 
     private var velikostKartic = 120
@@ -435,9 +437,14 @@ class PredvajanjeActivity : OsActivity() {
                 wFit to hFit
             }
         }
-        povrsina.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
+        // Telefon pokonci (kot VLC): video zgoraj pod gumbom Nazaj, gumbi in vrsta pod njim - ne cez sliko.
+        val vrh = dp(76)
+        val zgoraj = nacinRazmerja == 0 && pokoncnoDotik() && h + vrh < visina
+        povrsina.layoutParams = if (zgoraj) FrameLayout.LayoutParams(w, h, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = vrh }
+            else FrameLayout.LayoutParams(w, h, Gravity.CENTER)
         (podnapisi.pogled.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
-            lp.bottomMargin = maxOf(0, (visina - minOf(h, visina)) / 2) + dp(if (dotik) 10 else 40)
+            lp.bottomMargin = if (zgoraj) visina - (vrh + h) + dp(10)
+                else maxOf(0, (visina - minOf(h, visina)) / 2) + dp(if (dotik) 10 else 40)
             podnapisi.pogled.layoutParams = lp
         }
     }
@@ -755,8 +762,98 @@ class PredvajanjeActivity : OsActivity() {
         } else odjaviPip()
     }
 
+    // ------------------------------------------------------------------ kretnje (kot VLC, samo na prostem delu)
+    private var kretnjaX = 0f
+    private var kretnjaY = 0f
+    private var kretnjaNacin = 0          // 0 nic, 1 svetlost, 2 glasnost, -1 dotik ni v obmocju kretenj
+    private var kretnjaZacetek = 0f
+    private var zadnjiDotikCas = 0L
+    private var zadnjiDotikLevo = false
+    private val kazalnik by lazy {
+        TextView(this).apply {
+            setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+            setPadding(dp(22), dp(12), dp(22), dp(12)); visibility = View.GONE
+            background = GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(0xCC101820.toInt()) }
+            (prekritje.parent as FrameLayout).addView(this, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+        }
+    }
+    private val skrijKazalnik = Runnable { kazalnik.visibility = View.GONE }
+
+    private fun pokaziKazalnik(besedilo: String) {
+        kazalnik.text = besedilo; kazalnik.visibility = View.VISIBLE; kazalnik.bringToFront()
+        glavna.removeCallbacks(skrijKazalnik); glavna.postDelayed(skrijKazalnik, 900)
+    }
+
+    /** Dotik na prostem delu (slika/naslovnica): nad pasom z gumbi ali kjerkoli, ko je pas skrit. */
+    private fun vObmocjuKretenj(e: MotionEvent, budna: Boolean): Boolean {
+        if (tema.visibility == View.VISIBLE || isInPictureInPictureMode) return false
+        if (budna && e.y >= prekritje.top) return false
+        gumbNazaj?.takeIf { budna && it.isShown }?.let { g ->
+            val r = android.graphics.Rect(); g.getGlobalVisibleRect(r); if (r.contains(e.rawX.toInt(), e.rawY.toInt())) return false
+        }
+        return true
+    }
+
+    private fun trenutnaSvetlost(): Float = window.attributes.screenBrightness.takeIf { it >= 0f }
+        ?: try { android.provider.Settings.System.getInt(contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS) / 255f } catch (_: Throwable) { 0.5f }
+
+    /** Vrne true, ce je dogodek porabila kretnja (takrat ga gumbi ne dobijo). */
+    private fun kretnje(e: MotionEvent, budna: Boolean): Boolean {
+        val zvok = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+        val najvec = zvok.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                kretnjaNacin = if (vObmocjuKretenj(e, budna)) 0 else -1
+                kretnjaX = e.x; kretnjaY = e.y
+                return false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (kretnjaNacin == -1) return false
+                val dy = e.y - kretnjaY
+                if (kretnjaNacin == 0) {
+                    if (kotlin.math.abs(dy) < dp(24) || kotlin.math.abs(dy) < 1.5f * kotlin.math.abs(e.x - kretnjaX)) return false
+                    kretnjaNacin = if (kretnjaX < (prekritje.parent as View).width / 2f) 1 else 2
+                    kretnjaZacetek = if (kretnjaNacin == 1) trenutnaSvetlost() else zvok.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / najvec
+                    kretnjaY = e.y
+                    // Gumbi in kartice pod prstom ne smejo dobiti klika.
+                    val preklic = MotionEvent.obtain(e).apply { action = MotionEvent.ACTION_CANCEL }
+                    super.dispatchTouchEvent(preklic); preklic.recycle()
+                }
+                val visina = (prekritje.parent as View).height.coerceAtLeast(1) * 0.6f
+                val vrednost = (kretnjaZacetek - (e.y - kretnjaY) / visina).coerceIn(0f, 1f)
+                if (kretnjaNacin == 1) {
+                    window.attributes = window.attributes.apply { screenBrightness = vrednost.coerceAtLeast(0.01f) }
+                    pokaziKazalnik(getString(R.string.os_kretnja_svetlost, (vrednost * 100).toInt()))
+                } else {
+                    zvok.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (vrednost * najvec).toInt(), 0)
+                    pokaziKazalnik(getString(R.string.os_kretnja_glasnost, (vrednost * 100).toInt()))
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (kretnjaNacin > 0) { kretnjaNacin = 0; return true }
+                if (kretnjaNacin == -1 || e.actionMasked == MotionEvent.ACTION_CANCEL) return false
+                // Dvojni dotik levo/desno: previjanje za 10 s (samo video, kot VLC).
+                if (!jeVideo() || kotlin.math.abs(e.x - kretnjaX) > dp(20) || kotlin.math.abs(e.y - kretnjaY) > dp(20)) return false
+                val levo = e.x < (prekritje.parent as View).width / 2f
+                val zdaj = android.os.SystemClock.uptimeMillis()
+                if (zdaj - zadnjiDotikCas < 320 && levo == zadnjiDotikLevo) {
+                    zadnjiDotikCas = 0L
+                    premakni(if (levo) -10_000 else 10_000)
+                    pokaziKazalnik(if (levo) "− 10 s" else "+ 10 s")
+                    return true
+                }
+                zadnjiDotikCas = zdaj; zadnjiDotikLevo = levo
+                return false
+            }
+        }
+        return false
+    }
+
     override fun dispatchTouchEvent(dogodek: MotionEvent): Boolean {
         val budna = tema.visibility != View.VISIBLE && prekritje.alpha > 0.5f
+        if (dotik && kretnje(dogodek, budna)) { zbudi(); return true }
         zbudi()
         if (dotik) {
             // Prvi dotik le zbudi prikaz; nato delujejo vidni gumbi in kartice (brez skritih kretenj).
