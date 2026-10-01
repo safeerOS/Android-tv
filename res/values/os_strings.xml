@@ -378,6 +378,8 @@
     <string name="os_zapiski_brez_naslova">Untitled</string>
     <string name="os_zapiski_brez_vsebine">Empty note</string>
     <string name="os_podnaslov_app">Your computer in your hands.</string>
+    <string name="os_ime_predvajalnik">Safeer Player</string>
+    <string name="os_podnaslov_predvajalnik">Music, video and radio from all your devices.</string>
     <string name="os_pozdrav_naslov">Welcome back!</string>
     <string name="os_pozdrav_podnaslov">All your devices, apps and content – in one place.</string>
     <string name="os_noge_podpis">Safeer OS | Open world. No limits.</string>
