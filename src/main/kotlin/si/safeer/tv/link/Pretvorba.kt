@@ -42,7 +42,14 @@ import java.util.concurrent.ConcurrentHashMap
 @OptIn(UnstableApi::class)
 object Pretvorba {
     private const val TAG = "SafeerPretvorba"
-    private const val REZERVA = 2L * 1024 * 1024 * 1024
+    private const val MB = 1024L * 1024
+
+    /** Prostor, ki ga naprava vedno obdrzi zase: 10 % diska, najmanj 512 MB, najvec 2 GB
+     *  (televizor ima pogosto le 5 GB - s fiksnimi 2 GB ne bi nikoli pomagal). Enako v link_pretvorba.py. */
+    fun rezerva(): Long = try {
+        val s = android.os.StatFs(Environment.getExternalStorageDirectory().path)
+        (s.blockCountLong * s.blockSizeLong / 10).coerceIn(512 * MB, 2048 * MB)
+    } catch (_: Throwable) { 2048 * MB }
     private const val VISINA = 1080
 
     class Opravilo(val id: String, val ime: String) {
@@ -76,7 +83,7 @@ object Pretvorba {
             return Daljinec.Izid(false, "Naprava ta trenutek ne more pomagati", koda = pomoc.optString("razlog"))
         // Izvirnik + pretvorjeni video hkrati v predpomnilniku in rezerva za napravo.
         val prosto = Shramba.prostor()
-        if (prosto in 0 until 2 * velikost + REZERVA) return Daljinec.Izid(false, "Premalo prostora", koda = "ni_prostora")
+        if (prosto in 0 until 2 * velikost + rezerva()) return Daljinec.Izid(false, "Premalo prostora", koda = "ni_prostora")
         val o = Opravilo(java.util.UUID.randomUUID().toString(), ime)
         opravila[o.id] = o
         while (opravila.size > 16) opravila.keys.firstOrNull()?.let { opravila.remove(it) }
