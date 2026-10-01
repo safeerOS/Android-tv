@@ -550,7 +550,7 @@ class GlasbaActivity : OsActivity() {
     private fun kartica(k: Kartica, video: Boolean, prva: Boolean, kljuc: String, mala: Boolean = false, velikostDp: Int = 0): View {
         // Video katalog na televizorju uporablja pokoncne plakate: vec naslovov je
         // hkrati vidnih, slika pa ni odrezana v sirok 16:9 trak. Majhne kartice "Nedavno" ostanejo 16:9.
-        val plakat = video && !mala && velikostDp == 0
+        val plakat = video && !mala
         val sirina = dp(if (velikostDp > 0) velikostDp else if (mala) 96 else if (plakat) 112 else 150)
         val visina = if (mala && video) sirina * 9 / 16 else if (plakat) sirina * 3 / 2 else sirina
         return LinearLayout(this).apply {
@@ -652,15 +652,20 @@ class GlasbaActivity : OsActivity() {
             }
             if (v.pogled != null) { koraki.addLast { vsebina.addView(v.pogled) }; continue }
             if (v.mreza) {
-                // Mreza (Moji viri): toliko kartic v vrsto, kolikor jih gre celih, ostale v naslednjo vrsto.
-                val korak = dp(MREZA_DP + 12 + 14)
-                val n = ((vsebina.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels * 3 / 4)) / korak).coerceAtLeast(1)
+                // Mreza (Moji viri, katalog): toliko kartic v vrsto, kolikor jih gre celih, ostale v naslednjo vrsto.
+                // Plakati na ozkem telefonu: vsaj dva v vrsto, zato ozji (en plakat na vrsto bi bil seznam).
+                val sirinaVsebine = vsebina.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels * 3 / 4)
+                var velikost = if (v.video) 112 else MREZA_DP
+                var n = (sirinaVsebine / dp(velikost + 12 + 14)).coerceAtLeast(1)
+                if (v.video && n < 2 && sirinaVsebine / dp(72 + 12 + 14) >= 2) {
+                    n = 2; velikost = (sirinaVsebine / 2 / resources.displayMetrics.density).toInt() - 26
+                }
                 v.kartice.chunked(n).forEachIndexed { r, del ->
                     koraki.addLast {
                         vsebina.addView(LinearLayout(this).apply {
                             orientation = LinearLayout.HORIZONTAL; tag = MREZA_VRSTA
                             del.forEachIndexed { i, k ->
-                                addView(kartica(k, v.video, i == 0, "k:${v.naslov}#${r * n + i}", velikostDp = if (v.video) 0 else MREZA_DP), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(14); bottomMargin = dp(14) })
+                                addView(kartica(k, v.video, i == 0, "k:${v.naslov}#${r * n + i}", velikostDp = velikost), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(14); bottomMargin = dp(14) })
                             }
                         })
                     }
@@ -1186,7 +1191,15 @@ class GlasbaActivity : OsActivity() {
                 val sveze = nove.filter { it.id !in znani }
                 vsi += sveze
                 odprtKatalog = Triple(k, vsi, sveze.isNotEmpty() && nove.size >= STRAN_KATALOGA_MIN)
+                // Mreza se narise znova: ostanemo tam, kjer smo bili (ob gumbu Nalozi vec), ne na vrhu.
+                val y = drsnik.scrollY
                 narisiKatalog(naslov)
+                drsnik.post(object : Runnable {
+                    var poskusi = 0
+                    override fun run() {
+                        if (vsebina.height >= y + drsnik.height || poskusi++ > 30) drsnik.scrollTo(0, y) else drsnik.postDelayed(this, 50)
+                    }
+                })
             }
         }
     }
