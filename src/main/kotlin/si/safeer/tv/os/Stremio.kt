@@ -117,6 +117,24 @@ object Stremio {
         return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { m -> vnos(m, k.dodatek) } }
     }
 
+    /** Javni katalog metapodatkov Stremia (Cinemeta: filmi in serije po priljubljenosti, epizode) - samo
+     *  metapodatki, tokove dajo uporabnikovi dodatki. Isti vir, kot ga Stremio sam kaze v Discover. */
+    const val CINEMETA = "https://v3-cinemeta.strem.io/manifest.json"
+
+    /**
+     * Uporabnikovi dodatki, za katalog dopolnjeni s Cinemeto, kadar noben njegov dodatek ne ponuja katalogov
+     * filmov/serij (Torrentio in podobni dajo samo tokove). Matej, 1. 10. 2026: ko dodas dodatke Stremio, morajo
+     * biti filmi in serije na voljo kot v Stremiu - uporabnik ne raziskuje, kateri dodatek je katalog.
+     */
+    fun zKatalogom(naslovi: List<String>): List<String> {
+        if (naslovi.isEmpty()) return naslovi
+        val cinemeta = osnova(CINEMETA)
+        if (naslovi.any { osnova(it) == cinemeta }) return naslovi
+        val imaKatalog = naslovi.mapNotNull { manifest(it) }
+            .any { m -> m.katalogi.any { it.obvezni.isEmpty() && (it.tip == "movie" || it.tip == "series") } }
+        return if (imaKatalog) naslovi else naslovi + CINEMETA
+    }
+
     /** Katalogi za prikaz (filmi, nato serije); brez tistih, ki brez filtra ne vrnejo nicesar. */
     fun prikazniKatalogi(naslovi: List<String>): List<Katalog> = naslovi.mapNotNull { manifest(it) }
         .flatMap { m -> m.katalogi.filter { it.obvezni.isEmpty() && (it.tip == "movie" || it.tip == "series") } }

@@ -767,7 +767,7 @@ object SpletniVir {
         if(!/^https?:/.test(u))continue;
         var uh='';try{uh=new URL(u).hostname.replace(/^www\./,'');}catch(e){continue;}
         if(uh.indexOf(h)<0&&h.indexOf(uh)<0)continue;
-        if(/[?&](q|query|search|search_query)=|\/(search|login|signin|signup|register|account|settings|help|about|privacy|terms|cookies?|download|premium)(\/|\?|$)/i.test(u))continue;
+        if(/[?&](q|query|search|search_query)=|\/(search|login|signin|signup|register|account|settings|help|about|privacy|terms|cookies?|download|premium|addons?|add-ons?|plugins?|extensions?)(\/|\?|$)/i.test(u))continue;
         var z=po[u];if(!z){var m=meta(u),pot='';try{pot=new URL(u).pathname;}catch(e){}
           var mt=m.mt||'',vid=/Movie|TVSeries|TVSeason|TVEpisode|VideoObject|MusicVideoObject/i.test(mt)||/(^|\/|_|-|\.)(movie|movies|film|films|tv|watch-?series|watch-?tv|tv-?series|tv-?shows?|series|serie|serije|shows?|watch|video|videos|episode|episodes|music-video|music-videos)(\/|_|-|\.|$)/i.test(pot)||/watchseries/i.test(u);
           z=po[u]={h:u,t:'',n:'',i:'',v:vid,mt:mt,g:m.g||[],y:m.y||0,sn:m.sn||0,en:m.en||0,imdb:m.imdb||'',tmdb:m.tmdb||'',q:0,r:0};red.push(z);}
