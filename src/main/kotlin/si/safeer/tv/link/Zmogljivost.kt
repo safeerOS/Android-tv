@@ -129,6 +129,7 @@ object Zmogljivost {
     /** Grafika: OpenGL ES, strojna osnova in strojni kodirniki videa (kdo zna pretvarjati video). */
     /** Grafika se med delovanjem ne spremeni: preberemo jo enkrat (nastevanje kodirnikov traja). */
     @Volatile private var grafikaPomnjena: String? = null
+    private val VELIKOSTI = listOf(7680 to 4320, 3840 to 2160, 2560 to 1440, 1920 to 1080, 1280 to 720, 720 to 480)
 
     private fun grafika(context: Context): JSONObject {
         grafikaPomnjena?.let { return JSONObject(it) }
@@ -142,9 +143,22 @@ object Zmogljivost {
             g.put("model", listOf("OpenGL ES " + am.deviceConfigurationInfo.glEsVersion, Build.HARDWARE).filter { it.isNotBlank() }.joinToString(" · "))
         } catch (e: Throwable) { Log.w(TAG, "GPU: ${e.message}") }
         val kodirniki = JSONArray()
+        // Dekodirniki (tudi programski): kateri izvirnik naprava sploh zna prebrati, npr. 4K HEVC.
+        val dekodirniki = linkedMapOf<String, IntArray>()
         try {
             for (c in MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos) {
-                if (!c.isEncoder) continue
+                if (!c.isEncoder) {
+                    for (t in c.supportedTypes) {
+                        if (!t.startsWith("video/")) continue
+                        val v = try { c.getCapabilitiesForType(t).videoCapabilities } catch (_: Throwable) { null } ?: continue
+                        // Zgornji meji sirine in visine nista hkrati podprti: preverimo prave velikosti.
+                        val vel = VELIKOSTI.firstOrNull { (w, h) -> try { v.isSizeSupported(w, h) } catch (_: Throwable) { false } } ?: continue
+                        val sirina = vel.first; val visina = vel.second
+                        val prej = dekodirniki[t.removePrefix("video/")]
+                        if (prej == null || sirina.toLong() * visina > prej[0].toLong() * prej[1]) dekodirniki[t.removePrefix("video/")] = intArrayOf(sirina, visina)
+                    }
+                    continue
+                }
                 if (Build.VERSION.SDK_INT >= 29 && !c.isHardwareAccelerated) continue
                 if (Build.VERSION.SDK_INT < 29 && (c.name.startsWith("OMX.google.") || c.name.startsWith("c2.android."))) continue
                 for (t in c.supportedTypes) {
@@ -157,6 +171,8 @@ object Zmogljivost {
             }
         } catch (e: Throwable) { Log.w(TAG, "Kodirniki: ${e.message}") }
         g.put("kodirniki", kodirniki)
+        g.put("dekodirniki", JSONArray().also { a -> dekodirniki.forEach { (t, v) ->
+            a.put(JSONObject().put("vrsta", t).put("sirina", v[0]).put("visina", v[1])) } })
         g.put("strojno", kodirniki.length() > 0)
         return g
     }
