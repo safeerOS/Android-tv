@@ -118,6 +118,8 @@
     <string name="os_media_ta_naprava">Dieses Gerät</string>
     <string name="os_media_na_plosco">Auf dem Dashboard zeigen</string>
     <string name="os_media_s_plosce">Vom Dashboard nehmen</string>
+    <string name="os_media_pokazi_vse">Alle anzeigen</string>
+    <string name="os_media_nalozi_vec">Mehr laden</string>
     <string name="os_media_vsi_viri">Alle Quellen</string>
     <string name="os_media_izberi_vire">Quellen wählen</string>
     <string name="os_media_izbrisi_vir">Quelle löschen</string>
