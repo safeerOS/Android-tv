@@ -75,4 +75,5 @@
     <string name="os_moc_k_kodiranje">strojno kodiranje videa</string>
     <string name="os_moc_nalagam">preverjam moč …</string>
     <string name="os_moc_r_sorodnik">na tej napravi pomaga Safeer OS</string>
+    <string name="os_moc_r_predvaja">na tej napravi ravno teče video ali glasba</string>
 </resources>

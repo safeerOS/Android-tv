@@ -71,4 +71,5 @@
     <string name="os_moc_k_kodiranje">codifica video hardware</string>
     <string name="os_moc_nalagam">controllo potenza …</string>
     <string name="os_moc_r_sorodnik">su questo dispositivo aiuta Safeer OS</string>
+    <string name="os_moc_r_predvaja">su questo dispositivo è in riproduzione video o musica</string>
 </resources>
