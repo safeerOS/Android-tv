@@ -52,7 +52,9 @@ object Daljinec {
         // Zakon solidarnosti: koliko proste moci ima ta naprava in ali ta trenutek sme pomagati (Zmogljivost).
         "host.info",
         // Skupni prostor: shrani datoteko druge naprave (racunalnik z malo prostora) - Shramba.
-        "storage.put", "storage.status"
+        "storage.put", "storage.status",
+        // Grafika: pretvorba videa na napravi z najboljsim strojnim kodirnikom (Pretvorba).
+        "video.transcode", "video.status"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -150,6 +152,8 @@ object Daljinec {
         if (d == "host.info") return Izid(true, "Zmogljivost", Zmogljivost.porocilo(context))
         if (d == "storage.put") return Shramba.sprejmi(context, parametri)
         if (d == "storage.status") return Shramba.stanje(parametri.optString("id"))
+        if (d == "video.transcode") return Pretvorba.zacni(context, parametri)
+        if (d == "video.status") return Pretvorba.stanje(parametri.optString("id"))
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {

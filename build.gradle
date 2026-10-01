@@ -169,6 +169,9 @@ dependencies {
     implementation 'androidx.media3:media3-exoplayer-dash:1.11.1'
     implementation 'androidx.media3:media3-exoplayer-hls:1.11.1'
     implementation 'androidx.media3:media3-datasource:1.11.1'
+    // Pretvarjanje videa za druge naprave (zakon solidarnosti, korak 3: grafika) - strojni kodirnik naprave.
+    implementation 'androidx.media3:media3-transformer:1.11.1'
+    implementation 'androidx.media3:media3-effect:1.11.1'
     implementation 'androidx.webkit:webkit:1.17.0'
     // Magnet povezave (MIT): Java del je v vseh okusih (koda je v main), izvorne knjiznice
     // (armeabi-v7a za televizor, arm64 za telefon/tablico) samo v Safeer OS okusih.
