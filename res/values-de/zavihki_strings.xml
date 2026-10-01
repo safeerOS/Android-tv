@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spodnja vrstica zavihkov (Safeer Predvajalnik na dotik, v slogu VLC). -->
+<resources>
+    <string name="os_zavihek_domov">Start</string>
+    <string name="os_zavihek_video">Video</string>
+    <string name="os_zavihek_glasba">Musik</string>
+    <string name="os_zavihek_v_zivo">Live</string>
+    <string name="os_zavihek_brskaj">Durchsuchen</string>
+    <string name="os_vec_moznosti">Weitere Optionen</string>
+    <string name="os_odpri_datoteko_naslov">Datei oder Adresse öffnen</string>
+    <string name="os_zavihek_radio">Radio</string>
+    <string name="os_zavihek_tv">TV</string>
+</resources>

@@ -9,4 +9,5 @@
     <string name="os_mediji_zvocna_sled">Pista de audio</string>
     <string name="os_mediji_zvocna_sled_st">Audio %1$d</string>
     <string name="os_mediji_slika_v_sliki">Imagen en imagen</string>
+    <string name="os_mediji_nazaj_v_knjiznico">Volver a la biblioteca</string>
 </resources>

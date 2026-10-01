@@ -28,6 +28,9 @@ class StranskaVrstica private constructor(
 
     enum class Razdelek { DOMOV, MEDIJI, NAPRAVE, SPOROCILA, PROGRAMI, DATOTEKE, SPLET, ZAPISKI, NASTAVITVE }
 
+    /** Zavihki spodnje vrstice (Safeer Predvajalnik na dotik, v slogu VLC). */
+    enum class Zavihek { DOMOV, VIDEO, GLASBA, V_ZIVO, BRSKAJ }
+
     private val meni = LinearLayout(dejavnost)
     /** Meni se da podrsati: na telefonu lezece (nizek zaslon) sicer spodnje postavke niso dosegljive. */
     private val drsnik = android.widget.ScrollView(dejavnost).apply {
@@ -49,11 +52,93 @@ class StranskaVrstica private constructor(
     private var poteg = false
     private var prevzet = false
 
-    val aktivnaPostavka: View get() = (postavke[aktivna] ?: postavke.values.first())
+    /**
+     * Safeer Predvajalnik na telefonu/tablici: namesto leve vrstice spodnja vrstica zavihkov, kot jo
+     * poznajo uporabniki VLC in drugih predvajalnikov (Matej, 1. 10. 2026: "uporabniku bolj domace").
+     */
+    val spodnja = dotik && si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
+    private val zavihki = LinkedHashMap<Zavihek, LinearLayout>()
+    /** Zaslon, ki zna zavihek pokazati sam (GlasbaActivity), vrne true; sicer odpremo GlasbaActivity. */
+    var naZavihek: ((Zavihek) -> Boolean)? = null
+
+    val aktivnaPostavka: View get() = (postavke[aktivna] ?: postavke.values.firstOrNull() ?: zavihki.values.first())
 
     init {
         orientation = HORIZONTAL
         setBackgroundColor(dejavnost.osBarva(R.color.os_ozadje))
+        if (spodnja) zgradiSpodnjo() else zgradiNormalno()
+    }
+
+    private fun zgradiSpodnjo() {
+        orientation = VERTICAL
+        (vsebina.parent as? ViewGroup)?.removeView(vsebina)
+        addView(vsebina, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        addView(View(dejavnost).apply { setBackgroundColor(dejavnost.osBarva(R.color.os_crta)) },
+            LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)))
+        val vrsta = LinearLayout(dejavnost).apply {
+            orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(dejavnost.osBarva(R.color.os_meni_ozadje))
+        }
+        fun zavihek(z: Zavihek, slika: Int, niz: Int) {
+            val pogled = LinearLayout(dejavnost).apply {
+                orientation = VERTICAL; gravity = Gravity.CENTER
+                id = View.generateViewId(); isFocusable = true; isClickable = true
+                setPadding(0, dp(6), 0, dp(6))
+                contentDescription = dejavnost.getString(niz)
+                // Izbrani zavihek: kapsula za ikono (kot pri sodobnih predvajalnikih), ne cel blok.
+                addView(android.widget.FrameLayout(dejavnost).apply {
+                    addView(ikona(slika, 24, R.color.os_umirjeno), android.widget.FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
+                }, LayoutParams(dp(60), dp(30)))
+                addView(besedilo(12f, R.color.os_umirjeno).apply {
+                    text = dejavnost.getString(niz); maxLines = 1; gravity = Gravity.CENTER
+                    ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(dp(2), dp(3), dp(2), 0)
+                }, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+                setOnClickListener { izberiZavihek(z) }
+            }
+            zavihki[z] = pogled
+            vrsta.addView(pogled, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        }
+        zavihek(Zavihek.DOMOV, R.drawable.os_ikona_domov, R.string.os_zavihek_domov)
+        zavihek(Zavihek.VIDEO, R.drawable.os_ikona_video, R.string.os_zavihek_video)
+        zavihek(Zavihek.GLASBA, R.drawable.os_ikona_glasba, R.string.os_zavihek_glasba)
+        zavihek(Zavihek.V_ZIVO, R.drawable.os_ikona_radio, R.string.os_zavihek_v_zivo)
+        zavihek(Zavihek.BRSKAJ, R.drawable.os_ikona_mapa, R.string.os_zavihek_brskaj)
+        addView(vrsta, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64)))
+        oznaci(if (aktivna == Razdelek.DATOTEKE) Zavihek.BRSKAJ else null)
+        nastaviPrehode(dejavnost)
+    }
+
+    /** Oznaci aktivni zavihek (barva Safeer, krepko); null = noben (npr. Nastavitve, Iskanje). */
+    fun oznaci(z: Zavihek?) {
+        zavihki.forEach { (k, v) ->
+            val da = k == z
+            val barva = dejavnost.getColor(if (da) R.color.os_mint else R.color.os_umirjeno)
+            v.isSelected = da
+            (v.getChildAt(0) as? android.widget.FrameLayout)?.let { okvir ->
+                okvir.background = if (!da) null else android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = dp(15).toFloat(); setColor((dejavnost.getColor(R.color.os_mint) and 0x00FFFFFF) or 0x33000000) }
+                (okvir.getChildAt(0) as? ImageView)?.imageTintList = ColorStateList.valueOf(barva)
+            }
+            (v.getChildAt(1) as? TextView)?.apply {
+                setTextColor(barva)
+                typeface = Typeface.create(if (da) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
+            }
+        }
+    }
+
+    private fun izberiZavihek(z: Zavihek) {
+        if (naZavihek?.invoke(z) == true) { oznaci(z); return }
+        try {
+            dejavnost.startActivity(Intent(dejavnost, GlasbaActivity::class.java)
+                .putExtra(GlasbaActivity.ZAVIHEK, z.name)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+            if (dejavnost !is GlasbaActivity) dejavnost.finish()
+        } catch (_: Throwable) {
+            Toast.makeText(dejavnost, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun zgradiNormalno() {
         zgradiMeni()
         // Rocaj na levem robu, ko je vrstica skrita: tanek zelen jezicek (dotik ali poteg ga odpre).
         rocaj.background = android.graphics.drawable.LayerDrawable(arrayOf(
@@ -73,13 +158,14 @@ class StranskaVrstica private constructor(
     }
 
     private fun uveljaviSkrito() {
+        if (spodnja) return
         drsnik.visibility = if (skrita) View.GONE else View.VISIBLE
         rocaj.visibility = if (skrita) View.VISIBLE else View.GONE
     }
 
     /** Skrij ali pokazi vrstico (na dotik); izbira ostane zapomnjena za vse zaslone Safeer OS. */
     fun nastaviSkrito(da: Boolean) {
-        if (!dotik || skrita == da) return
+        if (!dotik || spodnja || skrita == da) return
         skrita = da
         shramba.edit().putBoolean("skrita", da).apply()
         android.transition.TransitionManager.beginDelayedTransition(this)
@@ -89,7 +175,7 @@ class StranskaVrstica private constructor(
     /** Poteg prestrezemo ze v dispatchTouchEvent: otroci (seznami, WebView) z
      *  requestDisallowInterceptTouchEvent sicer onInterceptTouchEvent izklopijo. */
     override fun dispatchTouchEvent(e: android.view.MotionEvent): Boolean {
-        if (!dotik) return super.dispatchTouchEvent(e)
+        if (!dotik || spodnja) return super.dispatchTouchEvent(e)
         when (e.actionMasked) {
             android.view.MotionEvent.ACTION_DOWN -> {
                 zacetekX = e.x; zacetekY = e.y; prevzet = false
@@ -138,6 +224,7 @@ class StranskaVrstica private constructor(
 
     /** Poklice jo Activity ob spremembi velikosti, kadar manifest zaslona ne ustvari znova. */
     fun prilagodiSirino() {
+        if (spodnja) return
         val ozek = dejavnost.resources.configuration.screenWidthDp < 600 || skrcena
         drsnik.layoutParams = (drsnik.layoutParams as? LayoutParams ?: LayoutParams(0, -1)).apply {
             width = if (ozek) dp(68) else dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina)
@@ -182,9 +269,13 @@ class StranskaVrstica private constructor(
         }
         znak.addView(ikona(R.drawable.os_znak, 32))
         val ime = LinearLayout(dejavnost).apply { orientation = VERTICAL; setPadding(dp(10), 0, 0, 0) }
-        ime.addView(besedilo(18f, R.color.os_besedilo, true).apply { text = dejavnost.getString(R.string.os_app_name) })
+        // Samostojni Safeer Predvajalnik se predstavi s svojim imenom, ne kot Safeer OS.
+        val jePredvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
+        ime.addView(besedilo(18f, R.color.os_besedilo, true).apply {
+            text = dejavnost.getString(if (jePredvajalnik) R.string.os_ime_predvajalnik else R.string.os_app_name)
+        })
         ime.addView(besedilo(11f, R.color.os_umirjeno).apply {
-            text = dejavnost.getString(R.string.os_podnaslov_app); maxLines = 2
+            text = dejavnost.getString(if (jePredvajalnik) R.string.os_podnaslov_predvajalnik else R.string.os_podnaslov_app); maxLines = 2
         })
         znak.addView(ime)
         besedila.add(ime)

@@ -260,8 +260,10 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         override fun getItem(i: Int): Any = vrstice[i]
         override fun getItemId(i: Int): Long = i.toLong()
         override fun getView(i: Int, star: View?, roditelj: ViewGroup): View {
-            val v = star ?: LayoutInflater.from(this@NapraveActivity)
-                .inflate(R.layout.os_vrstica_nastavitev, roditelj, false)
+            // Po zasuku (configChanges) ne uporabimo vrstice iz druge postavitve (layout-w600dp).
+            val siroka = resources.configuration.screenWidthDp >= 600
+            val v = star?.takeIf { it.getTag(R.id.stanje) == siroka } ?: LayoutInflater.from(this@NapraveActivity)
+                .inflate(R.layout.os_vrstica_nastavitev, roditelj, false).also { it.setTag(R.id.stanje, siroka) }
             val vr = vrstice[i]
             v.findViewById<ImageView>(R.id.ikona).setImageResource(vr.ikona)
             v.findViewById<TextView>(R.id.ime).text = vr.ime

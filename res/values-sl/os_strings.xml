@@ -377,6 +377,8 @@
     <string name="os_zapiski_brez_naslova">Brez naslova</string>
     <string name="os_zapiski_brez_vsebine">Prazen zapisek</string>
     <string name="os_podnaslov_app">Tvoj računalnik v rokah.</string>
+    <string name="os_ime_predvajalnik">Safeer Predvajalnik</string>
+    <string name="os_podnaslov_predvajalnik">Glasba, video in radio z vseh tvojih naprav.</string>
     <string name="os_pozdrav_naslov">Dobrodošel nazaj!</string>
     <string name="os_pozdrav_podnaslov">Vse tvoje naprave, aplikacije in vsebine – na enem mestu.</string>
     <string name="os_noge_podpis">Safeer OS | Odprt svet. Brez omejitev.</string>

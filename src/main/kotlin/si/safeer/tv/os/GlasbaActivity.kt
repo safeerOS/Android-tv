@@ -98,6 +98,8 @@ class GlasbaActivity : OsActivity() {
     private lateinit var zdajNaslov: TextView
     private lateinit var zdajIzvajalec: TextView
     private lateinit var zdajCas: TextView
+    /** Na dotik: pravi gumb pavza/predvajaj v mali vrstici (znak ▶ se ni dal tapniti). */
+    private var zdajGumb: FrameLayout? = null
     private var razdelek = DOMOV
     private var nalaganje = 0
     /** Zadnje nefiltrirane police; dialog mora ponuditi tudi trenutno izklopljen jezik. */
@@ -128,7 +130,8 @@ class GlasbaActivity : OsActivity() {
         val t0 = android.os.SystemClock.uptimeMillis()
         setContentView(zgradi())
         val t1 = android.os.SystemClock.uptimeMillis()
-        izberi(DOMOV)
+        izberi(intent.getStringExtra(ZAVIHEK)?.let { z -> runCatching { razdelekZavihka(StranskaVrstica.Zavihek.valueOf(z)) }.getOrNull() } ?: DOMOV)
+        intent.removeExtra(ZAVIHEK)
         val t2 = android.os.SystemClock.uptimeMillis()
         android.util.Log.i("SafeerOsCas", "onCreate: zgradi=${t1 - t0} ms, izberi(DOMOV)=${t2 - t1} ms")
         drsnik.post { android.util.Log.i("SafeerOsCas", "prvi izris po onCreate: ${android.os.SystemClock.uptimeMillis() - t0} ms") }
@@ -140,8 +143,97 @@ class GlasbaActivity : OsActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        intent.getStringExtra(ZAVIHEK)?.let { z ->
+            intent.removeExtra(ZAVIHEK)
+            runCatching { StranskaVrstica.Zavihek.valueOf(z) }.getOrNull()?.let { izberi(razdelekZavihka(it)) }
+        }
         iskanjeIzNamena()
         predvajajIzNamena()
+    }
+
+    // ------------------------------------------------------------------ VLC slog (predvajalnik na dotik)
+
+    /** Safeer Predvajalnik na telefonu/tablici: zgornja vrstica z ⋮ in spodnji zavihki (kot VLC). */
+    private val vlc by lazy { si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik" &&
+        !packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK) }
+
+    private fun razdelekZavihka(z: StranskaVrstica.Zavihek) = when (z) {
+        StranskaVrstica.Zavihek.DOMOV -> DOMOV
+        StranskaVrstica.Zavihek.VIDEO -> VIDEO
+        StranskaVrstica.Zavihek.GLASBA -> GLASBA
+        // V zivo: zadnji izbrani od Radio / TV (zgornja zavihka).
+        StranskaVrstica.Zavihek.V_ZIVO -> if (zadnjeVZivo == TV_V_ZIVO) TV_V_ZIVO else RADIO
+        StranskaVrstica.Zavihek.BRSKAJ -> VIRI
+    }
+
+    private fun zavihekRazdelka(i: Int) = when (i) {
+        DOMOV -> StranskaVrstica.Zavihek.DOMOV
+        VIDEO -> StranskaVrstica.Zavihek.VIDEO
+        GLASBA -> StranskaVrstica.Zavihek.GLASBA
+        RADIO, TV_V_ZIVO -> StranskaVrstica.Zavihek.V_ZIVO
+        VIRI -> StranskaVrstica.Zavihek.BRSKAJ
+        else -> null
+    }
+
+    private var zadnjeVZivo = RADIO
+    private var zivoZavihki: LinearLayout? = null
+
+    /** Zgornja zavihka v razdelku V zivo (kot VIDEI / SEZNAMI PREDVAJANJA pri VLC): RADIO | TV. */
+    private fun zgradiZivoZavihke(): View {
+        val vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; visibility = View.GONE }
+        fun zavihek(niz: Int, cilj: Int) {
+            // Crta pod izbranim zavihkom je ozadje besedila (sirina = besedilo), ne svoj pogled.
+            val zavihek = besedilo(15f, osBarva(R.color.os_umirjeno), true).apply {
+                text = getString(niz).uppercase(Locale.getDefault()); letterSpacing = 0.08f; maxLines = 1
+                isFocusable = true; isClickable = true; tag = cilj
+                setPadding(dp(4), dp(8), dp(4), dp(12))
+                setOnClickListener { izberi(cilj) }
+            }
+            vrsta.addView(zavihek, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(24) })
+        }
+        zavihek(R.string.os_zavihek_radio, RADIO)
+        zavihek(R.string.os_zavihek_tv, TV_V_ZIVO)
+        zivoZavihki = vrsta
+        return vrsta
+    }
+
+    private fun osveziVlc(i: Int) {
+        if (!vlc) return
+        if (i == RADIO || i == TV_V_ZIVO) zadnjeVZivo = i
+        stranskaVrstica.oznaci(zavihekRazdelka(i))
+        val vrsta = zivoZavihki ?: return
+        vrsta.visibility = if (i == RADIO || i == TV_V_ZIVO) View.VISIBLE else View.GONE
+        for (k in 0 until vrsta.childCount) {
+            val zavihek = vrsta.getChildAt(k) as TextView
+            val da = zavihek.tag == i
+            zavihek.setTextColor(osBarva(if (da) R.color.os_mint else R.color.os_umirjeno))
+            zavihek.background = if (!da) null else android.graphics.drawable.LayerDrawable(arrayOf(
+                GradientDrawable().apply { cornerRadius = dp(2).toFloat(); setColor(osBarva(R.color.os_mint)) })).apply {
+                setLayerGravity(0, Gravity.BOTTOM or Gravity.FILL_HORIZONTAL); setLayerHeight(0, dp(3)) }
+        }
+    }
+
+    /** ⋮: kar pri VLC skriva meni zgoraj desno - razvrscanje, odpiranje datoteke/naslova, Link, nastavitve. */
+    private fun pokaziVec() {
+        val sidro = vsebina.rootView.findViewWithTag<View>("k:vec") ?: return
+        val meni = android.widget.PopupMenu(this, sidro)
+        val razvrsti = razdelek in listOf(DOMOV, VIDEO, GLASBA, RADIO, TV_V_ZIVO)
+        if (razvrsti) meni.menu.add(0, 1, 0, R.string.os_media_razvrsti_filtriraj)
+        meni.menu.add(0, 2, 1, R.string.os_odpri_datoteko_naslov)
+        meni.menu.add(0, 3, 2, R.string.os_meni_naprave)
+        meni.menu.add(0, 4, 3, R.string.os_meni_datoteke)
+        meni.menu.add(0, 5, 4, R.string.os_meni_nastavitve)
+        meni.setOnMenuItemClickListener { m ->
+            when (m.itemId) {
+                1 -> izberiRazvrstitevInVire(razdelek)
+                2 -> odpriPredvajalnik()
+                3 -> startActivity(Intent(this, NapraveActivity::class.java))
+                4 -> startActivity(Intent(this, DatotekeActivity::class.java))
+                5 -> startActivity(Intent(this, NastavitveActivity::class.java))
+            }
+            true
+        }
+        meni.show()
     }
 
     /**
@@ -293,9 +385,23 @@ class GlasbaActivity : OsActivity() {
         // Glava: naslov in opis razdelka, desno geslo in iskanje
         val glava = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val levo = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        naslov = besedilo(28f, beli, true).apply { typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD) }
-        stanje = besedilo(14f, osBarva(R.color.os_umirjeno))
+        naslov = besedilo(if (vlc) 22f else 28f, beli, true).apply { typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD) }
+        // Opis razdelka sme v dve vrstici: na ozkem telefonu (pokoncno) bi se sicer odrezal.
+        stanje = besedilo(14f, osBarva(R.color.os_umirjeno)).apply { maxLines = 2 }
         levo.addView(naslov); levo.addView(stanje)
+        if (vlc) {
+            // Zgornja vrstica kot pri VLC: znak, ime razdelka, iskanje in ⋮. Stalni opis razdelka
+            // skrijemo (prostor gre vsebini); sporocila (nalagam, napaka, prazno) ostanejo vidna.
+            glava.addView(ikona(R.drawable.os_znak, 30, null), LinearLayout.LayoutParams(dp(30), dp(30)).apply { marginEnd = dp(12) })
+            stanje.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(t: android.text.Editable?) {
+                    stanje.visibility = if (t.isNullOrBlank() || t.toString() == opis(razdelek)) View.GONE else View.VISIBLE
+                }
+            })
+            stanje.visibility = View.GONE
+        }
         glava.addView(levo, LinearLayout.LayoutParams(0, -2, 1f))
         geslo = TextView(this).apply {
             text = getString(R.string.os_media_geslo); setTextColor(osBarva(R.color.os_umirjeno))
@@ -304,7 +410,10 @@ class GlasbaActivity : OsActivity() {
         glava.addView(geslo)
         iskanjeGumb = gumb(R.drawable.os_ikona_isci, 48, "k:iskanje") { odpriIskanje("") }
         glava.addView(iskanjeGumb)
+        if (vlc) glava.addView(gumb(R.drawable.os_ikona_vec, 48, "k:vec") { pokaziVec() }.apply {
+            contentDescription = getString(R.string.os_vec_moznosti) })
         desno.addView(glava)
+        if (vlc) desno.addView(zgradiZivoZavihke(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
 
         vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4), 0, dp(8)) }
         drsnik = ScrollView(this).apply { addView(vsebina); isFillViewport = true; isVerticalScrollBarEnabled = false }
@@ -326,12 +435,19 @@ class GlasbaActivity : OsActivity() {
         vrstica.addView(besedila, LinearLayout.LayoutParams(0, -2, 1f))
         zdajCas = besedilo(14f, osBarva(R.color.os_mint))
         vrstica.addView(zdajCas)
+        if (!packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) {
+            zdajCas.visibility = View.GONE
+            zdajGumb = gumb(R.drawable.os_ikona_pavza, 44, "k:mala-pavza") {
+                GlasbaStoritev.predvajalnik?.let { if (it.isPlaying) it.pause() else it.play() }; osveziZdaj()
+            }.also { g -> g.contentDescription = getString(R.string.os_mediji_predvajaj_pavza); vrstica.addView(g) }
+        }
         desno.addView(vrstica, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
 
         // Tipke daljinca samo na televizorju; tablica se upravlja z dotikom.
         if (packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK))
             desno.addView(pomoc(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         stranskaVrstica = StranskaVrstica.ovij(this, desno, StranskaVrstica.Razdelek.MEDIJI)
+        stranskaVrstica.naZavihek = { z -> izberi(razdelekZavihka(z)); true }
         meniMediji = stranskaVrstica.aktivnaPostavka
         koren = stranskaVrstica
         return stranskaVrstica
@@ -478,7 +594,7 @@ class GlasbaActivity : OsActivity() {
             v.kartice.chunked(KARTIC_NA_KORAK).forEachIndexed { c, del ->
                 koraki.addLast {
                     if (c == 0) vsebina.addView(HorizontalScrollView(this).apply {
-                        addView(niz); isHorizontalScrollBarEnabled = false; clipToPadding = false
+                        addView(niz); isHorizontalScrollBarEnabled = false; clipToPadding = false; tag = POLICA_KARTIC
                     })
                     del.forEachIndexed { j, k ->
                         val i = c * KARTIC_NA_KORAK + j
@@ -521,11 +637,16 @@ class GlasbaActivity : OsActivity() {
                 vsebina.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 val vidno = drsnik.height
                 if (vidno <= 0) return
+                var vidnaVrsta = false
                 for (i in 0 until vsebina.childCount) {
                     val v = vsebina.getChildAt(i)
-                    if (v.bottom <= vidno) continue
+                    val jeVrsta = v is HorizontalScrollView || v.tag == MREZA_VRSTA
+                    if (v.bottom <= vidno) { if (v.tag == POLICA_KARTIC || v.tag == MREZA_VRSTA) vidnaVrsta = true; continue }
                     // Samo vrste kartic (in njihove naslove); plosce na vrhu ostanejo, kot so.
-                    if (v !is HorizontalScrollView && v.contentDescription != NASLOV_VRSTE && v.tag != MREZA_VRSTA) return
+                    if (!jeVrsta && v.contentDescription != NASLOV_VRSTE) return
+                    // Prve vrste nikoli ne odmaknemo: na nizkem zaslonu (telefon lezece) bi sicer
+                    // ostala vidna samo glava in zaslon bi bil videti prazen.
+                    if (!vidnaVrsta) return
                     val zacetek = if (i > 0 && vsebina.getChildAt(i - 1).contentDescription == NASLOV_VRSTE) i - 1 else i
                     val vrh = vsebina.getChildAt(zacetek).top
                     if (zacetek > 0 && vrh < vidno) vsebina.addView(View(this@GlasbaActivity), zacetek, LinearLayout.LayoutParams(-1, vidno - vrh))
@@ -603,7 +724,8 @@ class GlasbaActivity : OsActivity() {
 
     private fun izberi(i: Int) {
         razdelek = i
-        naslov.text = getString(when (i) {
+        osveziVlc(i)
+        naslov.text = if (vlc && i == DOMOV) getString(R.string.os_ime_predvajalnik) else getString(when (i) {
             GLASBA -> R.string.os_mediji_glasba; RADIO -> R.string.os_glasba_radio; VIDEO -> R.string.os_glasba_video
             TV_V_ZIVO -> R.string.os_mediji_tv_v_zivo
             VIRI -> R.string.os_mediji_viri; ISKANJE -> R.string.os_glasba_iskanje; else -> R.string.os_media_naslov
@@ -940,7 +1062,13 @@ class GlasbaActivity : OsActivity() {
     // ------------------------------------------------------------------ nadzorna plosca
 
     /** Pogledi nad vrstami: na plosci kartice razdelkov ter "zdaj se predvaja" s hitrimi dejanji. */
-    private fun glavaRazdelka(i: Int, podatki: List<Podatki> = emptyList()): List<View> = when (i) {
+    private fun glavaRazdelka(i: Int, podatki: List<Podatki> = emptyList()): List<View> = if (vlc) when (i) {
+        // Zavihki spodaj nadomestijo kartice razdelkov; razvrscanje je v meniju ⋮ (kot pri VLC).
+        DOMOV -> listOfNotNull(zdajPlosca())
+        VIDEO -> listOf(videoKategorije())
+        GLASBA, RADIO, TV_V_ZIVO -> listOfNotNull(skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 })
+        else -> emptyList()
+    } else when (i) {
         DOMOV -> listOfNotNull(kategorije(), razvrstiInFiltrirajGumb(i), zdajPlosca())
         VIDEO -> listOf(videoKategorije(), razvrstiInFiltrirajGumb(i))
         GLASBA, RADIO, TV_V_ZIVO -> listOfNotNull(
@@ -985,6 +1113,8 @@ class GlasbaActivity : OsActivity() {
             orientation = LinearLayout.VERTICAL
             isFocusable = true; isClickable = true
             nextFocusLeftId = meniMediji.id
+            // Enak desni rob kot mreza kategorij nad njim (vsaka celica ima marginEnd 12 dp).
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { marginEnd = dp(12) }
             setPadding(dp(16), dp(11), dp(16), dp(11))
             setBackgroundResource(R.drawable.os_kartica_steklo)
             addView(besedilo(15f, osBarva(R.color.os_mint), true).apply {
@@ -1205,6 +1335,10 @@ class GlasbaActivity : OsActivity() {
         val beli = osBarva(R.color.os_besedilo)
         // Na ozkem zaslonu (tablica pokonci) so hitra dejanja pod plosco, ne ob njej.
         val ozko = !jeSirokTv() && resources.configuration.screenWidthDp < 900
+        // Telefon pokonci: kvadratna naslovnica ob besedilu bi vzela vso sirino (naslov "RED...",
+        // tipke cez rob - preizkus 1. 10. 2026). Manjsa naslovnica, tipke v svoji vrsti pod njo.
+        val telefon = !jeSirokTv() && resources.configuration.screenWidthDp < 480
+        var tipkeSpodaj: LinearLayout? = null
         val vrsta = LinearLayout(this).apply { orientation = if (ozko) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL; setPadding(0, dp(8), 0, 0) }
 
         val plosca = LinearLayout(this).apply {
@@ -1238,11 +1372,14 @@ class GlasbaActivity : OsActivity() {
         }
         // Naslovnica je visoka kot stolpec z besedilom in tipkami ob njej (kvadrat): cim vecja,
         // plosca pa zaradi nje ne zraste - prostor za vrste spodaj ostane (izmerjeno 21. 9. 2026).
-        okvir.addOnLayoutChangeListener { v, _, t, _, b, _, _, _, _ ->
-            val h = b - t
-            if (h > 0 && v.layoutParams.width != h) v.post { v.layoutParams = LinearLayout.LayoutParams(h, -1); v.requestLayout() }
+        if (telefon) telo.addView(okvir, LinearLayout.LayoutParams(dp(92), dp(92)))
+        else {
+            okvir.addOnLayoutChangeListener { v, _, t, _, b, _, _, _, _ ->
+                val h = b - t
+                if (h > 0 && v.layoutParams.width != h) v.post { v.layoutParams = LinearLayout.LayoutParams(h, -1); v.requestLayout() }
+            }
+            telo.addView(okvir, LinearLayout.LayoutParams(dp(104), -1))
         }
-        telo.addView(okvir, LinearLayout.LayoutParams(dp(104), -1))
         val desno = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), 0, 0, 0) }
         desno.addView(besedilo(11f, osBarva(R.color.os_mint), true).apply { text = oznaka.uppercase(Locale.getDefault()); letterSpacing = 0.08f })
         pIzvajalec = besedilo(if (jeSirokTv()) 15f else 14f, osBarva(R.color.os_umirjeno)).also { desno.addView(it) }
@@ -1272,7 +1409,7 @@ class GlasbaActivity : OsActivity() {
                     izberi(DOMOV)
                 } }.also { pSrce = it.getChildAt(0) as ImageView })
             (tipke.getChildAt(0))?.nextFocusLeftId = meniMediji.id
-            desno.addView(tipke)
+            if (telefon) { tipke.gravity = Gravity.CENTER; tipkeSpodaj = tipke } else desno.addView(tipke)
         } else {
             desno.addView(LinearLayout(this).apply {
                 tag = "k:nadaljuj"
@@ -1287,6 +1424,7 @@ class GlasbaActivity : OsActivity() {
         }
         telo.addView(desno, LinearLayout.LayoutParams(0, -2, 1f))
         plosca.addView(telo)
+        tipkeSpodaj?.let { plosca.addView(it, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) }) }
         if (ozko) {
             vrsta.addView(plosca, LinearLayout.LayoutParams(-1, -2))
             if (pZaPredvajanje == true) vrsta.addView(hitraDejanja(prikaz), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
@@ -2451,6 +2589,7 @@ class GlasbaActivity : OsActivity() {
         zdajNaslov.text = sk.naslov
         zdajIzvajalec.text = if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec
         zdajCas.text = if (p.isPlaying) "▶" else "❚❚"
+        (zdajGumb?.getChildAt(0) as? ImageView)?.setImageResource(if (p.isPlaying) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -2487,6 +2626,8 @@ class GlasbaActivity : OsActivity() {
         private const val PRORACUN_MS = 8L
         /** Beseda za iskanje ob odprtju (prazna: samo odpri iskanje), npr. z zaslona predvajanja. */
         const val ISKANJE_BESEDA = "iskanje"
+        /** Zavihek spodnje vrstice (StranskaVrstica.Zavihek.name), ki naj se odpre. */
+        const val ZAVIHEK = "zavihek"
 
         /** Safeer Media je odprt (pod predvajalnikom); sicer ga Nazaj v predvajalniku odpre. */
         @Volatile var odprta = false
@@ -2510,6 +2651,7 @@ class GlasbaActivity : OsActivity() {
         private const val GLAS = 41
         private const val NASLOV_VRSTE = "naslov-vrste"
         private const val MREZA_VRSTA = "mreza-vrsta"
+        private const val POLICA_KARTIC = "polica-kartic"
         /** Kartica v mrezi Mojih virov: dve vrsti gresta na prvi zaslon televizorja. */
         private const val MREZA_DP = 116
         private const val KLJUC_GLASBA = "k:kat:glasba"; private const val KLJUC_VIDEO = "k:kat:video"

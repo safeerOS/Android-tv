@@ -171,6 +171,9 @@ class PredvajanjeActivity : OsActivity() {
      *  in vedno odprta vrsta kartic namesto skritih tipk (Matej, 29. 9. 2026: »tezava iti nazaj«). */
     private val dotik by lazy { si.safeer.tv.ChromiumEngineView.naDotik(this) }
     private var gumbPredvajaj: ImageButton? = null
+    private var gumbNazaj: View? = null
+    private var vrstaGumbov: OvijalnaVrsta? = null
+    private val okrogli = mutableListOf<Pair<ImageButton, Int>>()
 
     private fun okroglGumb(ikona: Int, opis: Int, velikost: Int, klik: () -> Unit) = ImageButton(this).apply {
         setImageResource(ikona); contentDescription = getString(opis)
@@ -180,7 +183,7 @@ class PredvajanjeActivity : OsActivity() {
         background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
         layoutParams = LinearLayout.LayoutParams(dp(velikost), dp(velikost)).apply { marginEnd = dp(14) }
         setOnClickListener { zbudi(); klik() }
-    }
+    }.also { okrogli.add(it to velikost) }
 
     private fun pripraviDotik(koren: FrameLayout) {
         namig.visibility = View.GONE
@@ -189,17 +192,19 @@ class PredvajanjeActivity : OsActivity() {
             setPadding(dp(6), dp(6), dp(16), dp(6))
             background = GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
             isClickable = true; isFocusable = true
-            contentDescription = getString(R.string.os_mediji_nazaj_v_os)
+            contentDescription = getString(nazajBesedilo)
             setOnClickListener { @Suppress("DEPRECATION") onBackPressed() }
             addView(ImageView(this@PredvajanjeActivity).apply {
                 setImageResource(si.safeer.tv.R.drawable.ic_m_back)
                 imageTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_besedilo))
             }, LinearLayout.LayoutParams(dp(32), dp(32)))
-            addView(besedilo(15f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_mediji_nazaj_v_os); setPadding(dp(6), 0, 0, 0) })
+            addView(besedilo(15f, osBarva(R.color.os_besedilo), true).apply { text = getString(nazajBesedilo); setPadding(dp(6), 0, 0, 0) })
         }
+        gumbNazaj = nazaj
         // V isti vrstici kot gumbi predvajanja: ne prekrije naslova niti na nizkem zaslonu telefona.
         // Ozek pokončni telefon: gumbi se prelomijo v drugo vrsto, namesto da bi padli čez rob zaslona.
         val gumbi = OvijalnaVrsta(this)
+        vrstaGumbov = gumbi
         gumbi.addView(nazaj, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(24) })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_prejsnja, R.string.os_mediji_prejsnja, 52) {
             GlasbaStoritev.predvajalnik?.let { if (it.currentPosition > 5000 || !it.hasPreviousMediaItem()) it.seekTo(0) else it.seekToPreviousMediaItem() }
@@ -220,6 +225,68 @@ class PredvajanjeActivity : OsActivity() {
         gumbPip = okroglGumb(R.drawable.os_ikona_slika_v_sliki, R.string.os_mediji_slika_v_sliki, 52) { vSlikoVSliki() }
             .also { it.visibility = View.GONE; gumbi.addView(it) }
         prekritje.addView(gumbi, prekritje.indexOfChild(namig), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10) })
+        prilagodiZaslonu(prvic = true)
+    }
+
+    /** Safeer Predvajalnik je samostojen program: nazaj vodi v njegovo knjiznico, ne v Safeer OS. */
+    private val nazajBesedilo get() =
+        if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") R.string.os_mediji_nazaj_v_knjiznico else R.string.os_mediji_nazaj_v_os
+
+    /** Pokoncni telefon: dovolj prostora za naslovnico nad besedilom tudi pri odprti vrsti kartic. */
+    private fun pokoncnoDotik() = dotik && resources.configuration.screenHeightDp > resources.configuration.screenWidthDp &&
+        resources.configuration.screenHeightDp >= 560
+
+    /** Nizek zaslon (telefon lezece): vse mora biti vidno brez drsenja - manjsi gumbi in kartice. */
+    private fun nizekZaslon() = dotik && resources.configuration.screenHeightDp < 480
+
+    /**
+     * Postavitev za dotik glede na lego (Matej, 1. 10. 2026: preizkus pokoncno/lezece).
+     * Pokoncno: Nazaj zgoraj levo, naslovnica zgoraj, gumbi predvajanja v eni vrsti na sredini.
+     * Lezece: Nazaj v vrsti z gumbi, manjsi gumbi in kartice, da vrsta "V vrsti" ni odrezana.
+     */
+    private fun prilagodiZaslonu(prvic: Boolean = false) {
+        if (!dotik) return
+        val koren = prekritje.parent as? FrameLayout ?: return
+        val gumbi = vrstaGumbov ?: return
+        val nazaj = gumbNazaj ?: return
+        val pokoncno = pokoncnoDotik(); val nizek = nizekZaslon()
+        val sirinaDp = resources.configuration.screenWidthDp
+        val ozek = sirinaDp < 480
+        (nazaj.parent as? android.view.ViewGroup)?.removeView(nazaj)
+        if (pokoncno) {
+            koren.addView(nazaj, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { topMargin = dp(16); leftMargin = dp(16) })
+        } else {
+            gumbi.addView(nazaj, 0, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(24) })
+        }
+        val faktor = if (ozek || nizek) 0.88f else 1f
+        val razmik = if (ozek) 10 else 14
+        okrogli.forEach { (g, vel) ->
+            g.layoutParams = LinearLayout.LayoutParams((dp(vel) * faktor).toInt(), (dp(vel) * faktor).toInt()).apply { marginEnd = dp(razmik) }
+        }
+        (gumbi.layoutParams as? LinearLayout.LayoutParams)?.gravity = if (pokoncno) Gravity.CENTER_HORIZONTAL else Gravity.START
+        val strani = if (ozek) 20 else if (nizek) 32 else 56
+        prekritje.setPadding(dp(strani), dp(if (nizek) 10 else 28), dp(strani), dp(if (nizek) 10 else 36))
+        vir.visibility = if (nizek) View.GONE else View.VISIBLE
+        naslov.maxLines = if (nizek) 1 else 2
+        predlogiNaslov.setPadding(0, dp(if (nizek) 6 else 14), 0, dp(if (nizek) 4 else 8))
+        val stranNaslovnice = minOf(sirinaDp - 48, 280).coerceAtLeast(120)
+        naslovnica.layoutParams = if (pokoncno)
+            FrameLayout.LayoutParams(dp(stranNaslovnice), dp(stranNaslovnice), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(76) }
+        else FrameLayout.LayoutParams(dp(300), dp(300), Gravity.CENTER).apply { bottomMargin = dp(90) }
+        val kartice = if (nizek) 76 else 120
+        val drugaVelikost = velikostKartic != kartice
+        velikostKartic = kartice
+        gumbi.requestLayout()
+        if (prvic) return
+        if (drugaVelikost && predlogiOdprti()) { predlogiZa = ""; predlogi.visibility = View.GONE; odpriPredloge() }
+        osvezi()
+    }
+
+    private var velikostKartic = 120
+
+    override fun onConfigurationChanged(novo: android.content.res.Configuration) {
+        super.onConfigurationChanged(novo)
+        prilagodiZaslonu()
     }
 
     override fun onStart() {
@@ -288,7 +355,7 @@ class PredvajanjeActivity : OsActivity() {
         namig.setText(if (sk.video) R.string.os_mediji_namig_predvajanje_video else R.string.os_mediji_namig_predvajanje)
         posodobiPodnapise()
         (p as? SpletniIgralec)?.let { if (sk.video) it.pokazi(povrsina) else it.skrij() }
-        naslovnica.visibility = if (sk.video || predlogiOdprti()) View.GONE else View.VISIBLE
+        naslovnica.visibility = if (sk.video || (predlogiOdprti() && !pokoncnoDotik())) View.GONE else View.VISIBLE
         if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
         naslov.text = sk.naslov
         val skritiVir = SpletniVir.jeEnota(sk)
@@ -374,7 +441,8 @@ class PredvajanjeActivity : OsActivity() {
         val sk = GlasbaStoritev.trenutna() ?: return
         predlogi.visibility = View.VISIBLE
         // Naslovnica bi prekrila besedilo nad vrsto; ko se vrsta zapre, jo osvezi() vrne.
-        naslovnica.visibility = View.GONE
+        // Pokoncni telefon jo ima zgoraj, nad besedilom - tam ostane.
+        if (!pokoncnoDotik()) naslovnica.visibility = View.GONE
         zbudi()
         if (predlogiZa != sk.id) {
             predlogiZa = sk.id
@@ -497,7 +565,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun prvaKartica() = (predlogiNiz.getChildAt(dejanj) ?: predlogiNiz.getChildAt(0))?.requestFocus()
 
     private fun kartica(naslov: String, podnaslov: String, slika: String, ikona: Int, video: Boolean, klik: () -> Unit): View {
-        val sirina = dp(if (video) 200 else 120)
+        val sirina = dp(if (video) velikostKartic * 5 / 3 else velikostKartic)
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(5), dp(5), dp(5), dp(6))

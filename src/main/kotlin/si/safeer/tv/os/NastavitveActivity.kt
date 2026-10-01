@@ -167,7 +167,12 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val skrij = if (packageName.endsWith(".tablet") || packageName.endsWith(".phone")) setOf(getString(R.string.os_zaganjalnik),
             getString(R.string.os_zagon), getString(R.string.os_nacin), getString(R.string.os_plosek_preizkus),
             getString(R.string.os_izhod)) else emptySet()
-        vrstice = vse.filter { it.ime !in skrij && (packageName.endsWith(".phone") || it.ime != "Internet prek Safeer Linka") }
+        // Safeer Predvajalnik je samostojen program, ne domaci zaslon: brez nastavitev zaganjalnika,
+        // racunalniskega hosta, igralnega ploscka, moci, Scita in izhoda v sistem (preizkus 1. 10. 2026).
+        val skrijPredvajalnik = if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") setOf(getString(R.string.os_zaganjalnik),
+            getString(R.string.os_zagon), getString(R.string.os_host), getString(R.string.os_plosek_preizkus),
+            getString(R.string.os_moc), getString(R.string.os_scit), getString(R.string.os_izhod)) else emptySet()
+        vrstice = vse.filter { it.ime !in skrij && it.ime !in skrijPredvajalnik && (packageName.endsWith(".phone") || it.ime != "Internet prek Safeer Linka") }
         prilagojevalnik.notifyDataSetChanged()
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
     }
@@ -487,8 +492,11 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         override fun getItem(i: Int): Any = vrstice[i]
         override fun getItemId(i: Int): Long = i.toLong()
         override fun getView(i: Int, star: View?, roditelj: ViewGroup): View {
-            val v = star ?: LayoutInflater.from(this@NastavitveActivity)
-                .inflate(R.layout.os_vrstica_nastavitev, roditelj, false)
+            // Zasuk ne naredi novega zaslona (configChanges): vrstica iz druge postavitve
+            // (layout-w600dp, stanje desno) se ne sme ponovno uporabiti - naslov bi se odrezal.
+            val siroka = resources.configuration.screenWidthDp >= 600
+            val v = star?.takeIf { it.getTag(R.id.stanje) == siroka } ?: LayoutInflater.from(this@NastavitveActivity)
+                .inflate(R.layout.os_vrstica_nastavitev, roditelj, false).also { it.setTag(R.id.stanje, siroka) }
             val vr = vrstice[i]
             v.findViewById<ImageView>(R.id.ikona).setImageResource(vr.ikona)
             v.findViewById<TextView>(R.id.ime).text = vr.ime

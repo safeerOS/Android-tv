@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Predvajalnik tece na telefonu in tablici: besedila imenujejo "to napravo" in predvajalnik, ne televizorja in Safeer OS. -->
+<resources>
+    <string name="os_app_name" translatable="false">Safeer Predvajalnik</string>
+    <string name="os_naprava_tv">ta naprava</string>
+    <string name="os_krajevno_koren">Na tej napravi</string>
+    <string name="os_krajevno_dovoljenje">Safeer Predvajalnik potrebuje dovoljenje za branje glasbe in videov na tej napravi.</string>
+    <string name="os_krajevno_ta_tv">Ta naprava</string>
+    <string name="os_krajevno_ta_tv_opis">Videoposnetki, glasba in slike na napravi in USB</string>
+    <string name="os_vir_tv">Naprava</string>
+    <string name="os_jezik_opis">Safeer Predvajalnik v jeziku, ki ga izbereš, ne glede na jezik naprave</string>
+    <string name="os_stanje_krajevni">Krajevni način · ta naprava</string>
+    <string name="os_naprave_krajevni">Krajevni način: predvajalnik uporablja samo to napravo. Za glasbo in videe z drugih naprav vklopi Safeer Link.</string>
+    <string name="os_nacin_krajevni_izbran">Krajevni način: predvajalnik uporablja samo to napravo. Safeer Link lahko pozneje vklopiš na njegovi kartici.</string>
+    <string name="hub_obvestilo_besedilo">Tvoje naprave lahko pošljejo videe in glasbo na to napravo.</string>
+    <string name="os_videz_opis">Ozadje in zatemnitev Safeer Predvajalnika</string>
+    <string name="os_nacin_kratko">Safeer Link (glasba in videi z vseh tvojih naprav) ali samo ta naprava</string>
+</resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Predvajalnik tece na telefonu in tablici: besedila imenujejo "to napravo" in predvajalnik, ne televizorja in Safeer OS. -->
+<resources>
+    <string name="os_naprava_tv">este dispositivo</string>
+    <string name="os_krajevno_koren">En este dispositivo</string>
+    <string name="os_krajevno_dovoljenje">Safeer Player necesita permiso para leer la música y los vídeos de este dispositivo.</string>
+    <string name="os_krajevno_ta_tv">Este dispositivo</string>
+    <string name="os_krajevno_ta_tv_opis">Vídeos, música y fotos del dispositivo y USB</string>
+    <string name="os_vir_tv">Dispositivo</string>
+    <string name="os_jezik_opis">Safeer Player en el idioma que elijas, sea cual sea el idioma del dispositivo</string>
+    <string name="os_stanje_krajevni">Modo local · este dispositivo</string>
+    <string name="os_naprave_krajevni">Modo local: el reproductor usa solo este dispositivo. Activa Safeer Link para la música y los vídeos de tus otros dispositivos.</string>
+    <string name="os_nacin_krajevni_izbran">Modo local: el reproductor usa solo este dispositivo. Puedes activar Safeer Link más tarde en su tarjeta.</string>
+    <string name="hub_obvestilo_besedilo">Tus dispositivos pueden enviar vídeos y música a este dispositivo.</string>
+    <string name="os_videz_opis">Fondo y atenuación de Safeer Player</string>
+    <string name="os_nacin_kratko">Safeer Link (música y vídeos de todos tus dispositivos) o solo este dispositivo</string>
+</resources>
