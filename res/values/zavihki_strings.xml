@@ -16,4 +16,15 @@
     <string name="os_dovoljenje_dovoli">Dovoli</string>
     <string name="os_kretnja_svetlost">Svetlost %1$d %%</string>
     <string name="os_kretnja_glasnost">Glasnost %1$d %%</string>
+    <string name="os_zaklep_zaslona">Zakleni zaslon</string>
+    <string name="os_odklep_zaslona">Odkleni</string>
+    <string name="os_zaslon_zaklenjen">Zaslon je zaklenjen. Za odklep tapni Odkleni ali pritisni Nazaj.</string>
+    <string name="os_nadaljujem_od">Nadaljujem od %1$s</string>
+    <string name="os_seznami_predvajanja">Seznami predvajanja</string>
+    <plurals name="os_stevilo_posnetkov">
+        <item quantity="one">%d posnetek</item>
+        <item quantity="two">%d posnetka</item>
+        <item quantity="few">%d posnetki</item>
+        <item quantity="other">%d posnetkov</item>
+    </plurals>
 </resources>

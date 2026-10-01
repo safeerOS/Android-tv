@@ -69,11 +69,56 @@ class PredvajanjeActivity : OsActivity() {
     private var gumbPodnapisi: ImageButton? = null
     private var gumbZvok: ImageButton? = null
     private var gumbPip: ImageButton? = null
+    private var gumbZaklep: ImageButton? = null
+
+    // ------------------------------------------------------------------ zaklep zaslona (kot VLC)
+    /** Zaklenjen zaslon med videom: dotiki ne sprozijo nicesar (zep, otroci); odklep z gumbom ali tipko Nazaj. */
+    private var zaklenjeno = false
+    private val gumbOdkleni by lazy {
+        android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(10), dp(18), dp(10)); visibility = View.GONE
+            isClickable = true; contentDescription = getString(R.string.os_odklep_zaslona)
+            background = GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(0xCC101820.toInt()); setStroke(dp(1), 0x55FFFFFF) }
+            addView(ImageView(this@PredvajanjeActivity).apply { setImageResource(R.drawable.os_ikona_odklep) }, android.widget.LinearLayout.LayoutParams(dp(26), dp(26)))
+            addView(TextView(this@PredvajanjeActivity).apply {
+                text = getString(R.string.os_odklep_zaslona); setTextColor(0xFFFFFFFF.toInt()); setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                setPadding(dp(8), 0, 0, 0) })
+            setOnClickListener { zakleni(false) }
+            (prekritje.parent as FrameLayout).addView(this, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(24) })
+        }
+    }
+    private val skrijOdkleni = Runnable { gumbOdkleni.visibility = View.GONE }
+
+    private fun pokaziOdkleni() {
+        gumbOdkleni.visibility = View.VISIBLE; gumbOdkleni.bringToFront()
+        glavna.removeCallbacks(skrijOdkleni); glavna.postDelayed(skrijOdkleni, 2_500)
+    }
+
+    private fun zakleni(da: Boolean) {
+        zaklenjeno = da
+        prekritje.visibility = if (da) View.GONE else View.VISIBLE
+        gumbNazaj?.visibility = if (da) View.GONE else View.VISIBLE
+        if (da) { android.widget.Toast.makeText(this, R.string.os_zaslon_zaklenjen, android.widget.Toast.LENGTH_SHORT).show(); pokaziOdkleni() }
+        else { glavna.removeCallbacks(skrijOdkleni); gumbOdkleni.visibility = View.GONE; zbudi() }
+    }
     private var vlecenje = false
     private var pripet: Player? = null
     private var zadnjaSlika = ""
     private val poslusalec: () -> Unit = { glavna.post { osvezi() } }
-    private val tik = object : Runnable { override fun run() { osveziCas(); glavna.postDelayed(this, 1_000) } }
+    private var tikov = 0
+    private val tik = object : Runnable { override fun run() {
+        osveziCas()
+        // Napredek videa sproti (prej samo, ko je bil odprt Medijski center - med gledanjem se ni zapisal).
+        if (++tikov % 5 == 0) zapisiNapredek()
+        glavna.postDelayed(this, 1_000)
+    } }
+
+    private fun zapisiNapredek() {
+        val p = GlasbaStoritev.predvajalnik ?: return
+        val sk = GlasbaStoritev.trenutna() ?: return
+        if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0))
+    }
     private val skrij = Runnable {
         // Dokler se video ne zacne, pas z naslovom ostane: uporabnik vidi, kaj se nalaga.
         if (jeVideo() && !predlogiOdprti() && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
@@ -223,6 +268,8 @@ class PredvajanjeActivity : OsActivity() {
         gumbZvok = okroglGumb(R.drawable.os_ikona_zvocna_sled, R.string.os_mediji_zvocna_sled, 52) {
             GlasbaStoritev.predvajalnik?.let { p -> ZvocneSledi.izberi(this, p) { posodobiPodnapise() } }
         }.also { it.visibility = View.GONE; gumbi.addView(it) }
+        gumbZaklep = okroglGumb(R.drawable.os_ikona_zaklep, R.string.os_zaklep_zaslona, 52) { zakleni(true) }
+            .also { it.visibility = View.GONE; gumbi.addView(it) }
         gumbPip = okroglGumb(R.drawable.os_ikona_slika_v_sliki, R.string.os_mediji_slika_v_sliki, 52) { vSlikoVSliki() }
             .also { it.visibility = View.GONE; gumbi.addView(it) }
         prekritje.addView(gumbi, prekritje.indexOfChild(namig), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10) })
@@ -338,8 +385,10 @@ class PredvajanjeActivity : OsActivity() {
     override fun onDestroy() { odjaviPip(); delavec.shutdownNow(); super.onDestroy() }
 
     override fun onStop() {
+        if (zaklenjeno) zakleni(false)
         // Video brez slike nima smisla: ko uporabnik zapusti predvajalnik (Nazaj, Domov, druga aplikacija),
         // ga ustavimo na mestu - "Nadaljuj gledanje" ga pozneje nadaljuje. Glasba in radio igrata naprej.
+        zapisiNapredek()
         if (jeVideo() && !isChangingConfigurations) GlasbaStoritev.predvajalnik?.pause()
         GlasbaStoritev.poslusalci.remove(poslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
@@ -668,6 +717,7 @@ class PredvajanjeActivity : OsActivity() {
         gumbPodnapisi?.visibility = if (ima) View.VISIBLE else View.GONE
         gumbZvok?.visibility = if (ZvocneSledi.imaIzbiro(GlasbaStoritev.predvajalnik)) View.VISIBLE else View.GONE
         gumbPip?.visibility = if (jeVideo() && pipMogoc()) View.VISIBLE else View.GONE
+        gumbZaklep?.visibility = if (jeVideo()) View.VISIBLE else View.GONE
         posodobiPip()
         if (!dotik && ::namig.isInitialized && jeVideo()) {
             val osnova = getString(R.string.os_mediji_namig_predvajanje_video)
@@ -852,6 +902,15 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     override fun dispatchTouchEvent(dogodek: MotionEvent): Boolean {
+        if (zaklenjeno) {
+            // Samo gumb Odkleni; vse drugo le pokaze ta gumb.
+            if (gumbOdkleni.visibility == View.VISIBLE) {
+                val r = android.graphics.Rect(); gumbOdkleni.getGlobalVisibleRect(r)
+                if (r.contains(dogodek.rawX.toInt(), dogodek.rawY.toInt())) { pokaziOdkleni(); return super.dispatchTouchEvent(dogodek) }
+            }
+            if (dogodek.actionMasked == MotionEvent.ACTION_UP) pokaziOdkleni()
+            return true
+        }
         val budna = tema.visibility != View.VISIBLE && prekritje.alpha > 0.5f
         if (dotik && kretnje(dogodek, budna)) { zbudi(); return true }
         zbudi()
@@ -870,6 +929,12 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        if (zaklenjeno) {
+            // Nazaj odklene (nikoli ne ujamemo uporabnika); glasnost dela, ostale tipke ne.
+            if (dogodek.keyCode == KeyEvent.KEYCODE_BACK) { if (dogodek.action == KeyEvent.ACTION_UP) zakleni(false); return true }
+            if (dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP || dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) return super.dispatchKeyEvent(dogodek)
+            return true
+        }
         val budna = tema.visibility != View.VISIBLE
         zbudi()
         if (!budna && dogodek.keyCode != KeyEvent.KEYCODE_BACK) return true

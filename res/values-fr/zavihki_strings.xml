@@ -16,4 +16,13 @@
     <string name="os_dovoljenje_dovoli">Autoriser</string>
     <string name="os_kretnja_svetlost">Luminosité %1$d %%</string>
     <string name="os_kretnja_glasnost">Volume %1$d %%</string>
+    <string name="os_zaklep_zaslona">Verrouiller l’écran</string>
+    <string name="os_odklep_zaslona">Déverrouiller</string>
+    <string name="os_zaslon_zaklenjen">Écran verrouillé. Touche Déverrouiller ou appuie sur Retour.</string>
+    <string name="os_nadaljujem_od">Reprise à %1$s</string>
+    <string name="os_seznami_predvajanja">Listes de lecture</string>
+    <plurals name="os_stevilo_posnetkov">
+        <item quantity="one">%d élément</item>
+        <item quantity="other">%d éléments</item>
+    </plurals>
 </resources>

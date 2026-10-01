@@ -16,4 +16,13 @@
     <string name="os_dovoljenje_dovoli">Consenti</string>
     <string name="os_kretnja_svetlost">Luminosità %1$d %%</string>
     <string name="os_kretnja_glasnost">Volume %1$d %%</string>
+    <string name="os_zaklep_zaslona">Blocca schermo</string>
+    <string name="os_odklep_zaslona">Sblocca</string>
+    <string name="os_zaslon_zaklenjen">Schermo bloccato. Tocca Sblocca o premi Indietro.</string>
+    <string name="os_nadaljujem_od">Riprendo da %1$s</string>
+    <string name="os_seznami_predvajanja">Playlist</string>
+    <plurals name="os_stevilo_posnetkov">
+        <item quantity="one">%d elemento</item>
+        <item quantity="other">%d elementi</item>
+    </plurals>
 </resources>

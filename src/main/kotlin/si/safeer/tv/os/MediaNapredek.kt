@@ -13,12 +13,15 @@ object MediaNapredek {
     private fun kljuc(s: Jamendo.Skladba) = s.naslov.lowercase().replace(Regex("\\b(19|20)\\d{2}\\b"), "")
         .replace(Regex("[^\\p{L}\\p{N}]"), "")
 
+    /** Videi s te naprave (kot VLC): zapomnimo si mesto ze od 1 min dolzine naprej. */
+    private fun najkrajse(s: Jamendo.Skladba) = if (s.id.startsWith("krajevno:")) 60_000L else 600_000L
+
     fun zapisi(c: Context, s: Jamendo.Skladba, polozaj: Long, trajanje: Long) {
         val vrsta = SpletniVir.vrstaVsebine(s)
         val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || s.season > 0 || s.episode > 0
         // Kratkih glasbenih videospotov, pesmi in vsebin pod 10 min ne vnasamo med filme in serije za nadaljevanje ogleda
         if (!s.video || s.radio || vrsta == SpletniVir.VIDEOSPOT || s.mediaType.equals("MusicVideo", ignoreCase = true) ||
-            (!jeSerijaAliFilm && trajanje < 600_000L) || polozaj < 15_000 || trajanje <= 0) return
+            (!jeSerijaAliFilm && trajanje < najkrajse(s)) || polozaj < 15_000 || trajanje <= 0) return
         val k = kljuc(s)
         val vsi = preberiJson(c).filter { it.optString("k") != k }.toMutableList()
         // Zadnjih ~95 % ne ponujamo kot "Nadaljuj"; ogled je prakticno koncan.
@@ -32,7 +35,7 @@ object MediaNapredek {
             val trajanje = o.getLong("d")
             val vrsta = SpletniVir.vrstaVsebine(sk)
             val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || sk.season > 0 || sk.episode > 0
-            if (!sk.video || sk.radio || vrsta == SpletniVir.VIDEOSPOT || sk.mediaType.equals("MusicVideo", ignoreCase = true) || (!jeSerijaAliFilm && trajanje < 600_000L)) null
+            if (!sk.video || sk.radio || vrsta == SpletniVir.VIDEOSPOT || sk.mediaType.equals("MusicVideo", ignoreCase = true) || (!jeSerijaAliFilm && trajanje < najkrajse(sk))) null
             else Vnos(sk, o.getLong("p"), trajanje, o.optLong("t"))
         } catch (_: Exception) { null }
     }.sortedByDescending { it.cas }
