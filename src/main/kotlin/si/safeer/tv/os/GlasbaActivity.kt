@@ -1085,7 +1085,7 @@ class GlasbaActivity : OsActivity() {
                 val izKatalogov = katalogi.take(12).map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
                 katalogi.take(12).zip(izKatalogov).forEach { (k, f) ->
                     val vsebina = try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
-                    if (vsebina.isNotEmpty()) vrste += Podatki(naslovKataloga(k), vsebina.take(40), video = true)
+                    if (vsebina.isNotEmpty()) vrste += Podatki(naslovKataloga(k), vsebina.take(60), video = true)
                 }
             }
             filmi.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_filmi), it, video = true) }
@@ -2760,7 +2760,9 @@ class GlasbaActivity : OsActivity() {
 
     private fun naslovKataloga(k: Stremio.Katalog): String {
         val vrsta = if (k.tip == "series") "📺 " + getString(R.string.os_media_serije) else "🎬 " + getString(R.string.os_media_filmi)
-        return "$vrsta · ${k.ime} · ${k.imeDodatka}"
+        // Katalog z obvezno zvrstjo pokazemo s prvo moznostjo (kot Stremio): ime zvrsti v naslovu police.
+        val zvrst = k.privzeti.firstOrNull { it.first == "genre" }?.second?.let { " · $it" }.orEmpty()
+        return "$vrsta · ${k.ime}$zvrst · ${k.imeDodatka}"
     }
 
     private fun stremioNaslovi() = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }

@@ -22,7 +22,12 @@ object Stremio {
     private const val CAS = 15_000
 
     data class Katalog(val dodatek: String, val imeDodatka: String, val tip: String, val id: String, val ime: String,
-                       val iskanje: Boolean, val obvezni: List<String>)
+                       val iskanje: Boolean, val obvezni: List<String>,
+                       /** Obvezni dodatni parametri s prvo ponujeno moznostjo (genre=Action), kot jih Stremio pokaze v Discover. */
+                       val privzeti: List<Pair<String, String>> = emptyList()) {
+        /** Ali katalog brez uporabnikovega filtra sploh vrne vsebino (vsi obvezni parametri imajo privzeto moznost). */
+        val prikazen: Boolean get() = obvezni.all { o -> privzeti.any { it.first == o } }
+    }
 
     data class Manifest(val osnova: String, val ime: String, val viri: Set<String>, val tipi: Set<String>,
                         val predpone: List<String>, val katalogi: List<Katalog>)
@@ -76,12 +81,19 @@ object Stremio {
             val tip = k.optString("type"); val id = k.optString("id")
             if (tip.isBlank() || id.isBlank()) continue
             val podprti = mutableSetOf<String>(); val obvezni = mutableListOf<String>()
+            val privzeti = mutableListOf<Pair<String, String>>()
             k.optJSONArray("extra")?.let { e -> for (j in 0 until e.length()) {
                 val x = e.optJSONObject(j) ?: continue
-                podprti += x.optString("name"); if (x.optBoolean("isRequired")) obvezni += x.optString("name") } }
+                val imeX = x.optString("name")
+                podprti += imeX
+                if (x.optBoolean("isRequired")) {
+                    obvezni += imeX
+                    // Stremio v Discover obvezni parameter nastavi na prvo moznost (npr. zvrst): enako tu.
+                    x.optJSONArray("options")?.optString(0)?.takeIf { it.isNotBlank() }?.let { privzeti += imeX to it }
+                } } }
             k.optJSONArray("extraSupported")?.let { e -> for (j in 0 until e.length()) podprti += e.optString(j) }
             k.optJSONArray("extraRequired")?.let { e -> for (j in 0 until e.length()) obvezni += e.optString(j) }
-            katalogi += Katalog(o, ime, tip, id, k.optString("name").ifBlank { id }, "search" in podprti, obvezni.distinct())
+            katalogi += Katalog(o, ime, tip, id, k.optString("name").ifBlank { id }, "search" in podprti, obvezni.distinct(), privzeti)
         } }
         return Manifest(o, ime, viri, tipi, predpone, katalogi).also { manifesti[o] = it }
     }
@@ -108,10 +120,12 @@ object Stremio {
             year = leto.take(4).toIntOrNull() ?: 0)
     }
 
-    /** Prva stran kataloga (brez obveznih filtrov). */
+    /** Prva stran kataloga; obvezni parametri s privzeto moznostjo, iskanje kot `search=`. */
     fun katalog(k: Katalog, iskanje: String = ""): List<Jamendo.Skladba> {
         var pot = "${k.dodatek}/catalog/${enc(k.tip)}/${enc(k.id)}"
-        if (iskanje.isNotBlank()) pot += "/search=" + enc(iskanje)
+        val dodatno = (if (iskanje.isNotBlank()) listOf("search" to iskanje) else emptyList()) +
+            k.privzeti.filter { it.first != "search" && (iskanje.isBlank() || it.first in k.obvezni) }
+        if (dodatno.isNotEmpty()) pot += "/" + dodatno.joinToString("&") { enc(it.first) + "=" + enc(it.second) }
         val d = json("$pot.json") ?: return emptyList()
         val a = d.optJSONArray("metas") ?: d.optJSONArray("metasDetailed") ?: return emptyList()
         return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { m -> vnos(m, k.dodatek) } }
@@ -131,13 +145,13 @@ object Stremio {
         val cinemeta = osnova(CINEMETA)
         if (naslovi.any { osnova(it) == cinemeta }) return naslovi
         val imaKatalog = naslovi.mapNotNull { manifest(it) }
-            .any { m -> m.katalogi.any { it.obvezni.isEmpty() && (it.tip == "movie" || it.tip == "series") } }
+            .any { m -> m.katalogi.any { it.prikazen && (it.tip == "movie" || it.tip == "series") } }
         return if (imaKatalog) naslovi else naslovi + CINEMETA
     }
 
     /** Katalogi za prikaz (filmi, nato serije); brez tistih, ki brez filtra ne vrnejo nicesar. */
     fun prikazniKatalogi(naslovi: List<String>): List<Katalog> = naslovi.mapNotNull { manifest(it) }
-        .flatMap { m -> m.katalogi.filter { it.obvezni.isEmpty() && (it.tip == "movie" || it.tip == "series") } }
+        .flatMap { m -> m.katalogi.filter { it.prikazen && (it.tip == "movie" || it.tip == "series") } }
         .sortedBy { if (it.tip == "movie") 0 else 1 }
 
     /** Iskanje po imenu v vseh katalogih z iskanjem (vzporedno klice klicatelj prek niti). */
