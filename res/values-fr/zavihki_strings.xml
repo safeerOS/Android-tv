@@ -32,4 +32,26 @@
     <string name="os_podnapisi_dodaj_opis">Fichier .srt, .vtt ou .ass</string>
     <string name="os_podnapisi_dodani">Sous-titres ajoutés : %1$s</string>
     <string name="os_podnapisi_ni_podnapis">Ce n’est pas un fichier de sous-titres (.srt, .vtt, .ass).</string>
+    <string name="os_stremio_dodatki">Extensions</string>
+    <string name="os_stremio_ni_epizod">L’extension n’a renvoyé aucun épisode pour cette série.</string>
+    <string name="os_stremio_ni_tokov">Tes extensions ne proposent pas de lecture pour ce titre. Celle qui l’affiche (p. ex. Cinemeta) ne donne que des infos – ajoute une extension avec des flux.</string>
+    <string name="os_stremio_sezona">Saison %1$d</string>
+    <string name="os_stremio_torrent">torrent</string>
+    <string name="os_stremio_zunanji">ouvre le navigateur</string>
+    <string name="os_kodi_pojasnilo">Les extensions Kodi sont des programmes pour l’app Kodi ; Safeer ne peut pas les exécuter.\n\nAdresse : %1$s\n\nSi Kodi est installé, ouvre l’extension là-bas. Pour les films et séries dans Safeer, utilise des extensions Stremio.</string>
+    <string name="os_kodi_odpri">Ouvrir Kodi</string>
+    <plurals name="os_stremio_epizod">
+        <item quantity="one">%d épisode</item>
+        <item quantity="other">%d épisodes</item>
+    </plurals>
+    <string name="os_stremio_racunalnik_pripravlja">L’ordinateur %1$s prépare le flux … (la première fois, jusqu’à une minute)</string>
+    <string name="os_stremio_torrent_brez_racunalnika">Cette source est un torrent. Pour ne rien télécharger sur cet appareil, un ordinateur avec Safeer Control dans ton Link peut le télécharger et le diffuser – aucun n’est connecté. Lance Safeer Control sur l’ordinateur et réessaie.</string>
+    <string name="os_stremio_torrent_napaka">L’ordinateur n’a pas pu diffuser ce torrent (%1$s).</string>
+    <string name="os_stremio_prenesi_sem">Télécharger sur cet appareil</string>
+    <string name="os_prenosi_racunalnik">Téléchargements sur l’ordinateur</string>
+    <string name="os_prenos_predvajaj">Lire</string>
+    <string name="os_prenos_odstrani">Supprimer de l’ordinateur</string>
+    <string name="os_prenos_odstrani_vprasanje">Le film et tous ses fichiers seront supprimés de l’ordinateur. Tu peux le rouvrir à tout moment depuis l’extension.</string>
+    <string name="os_prenos_odstranjen">Supprimé de l’ordinateur</string>
+    <string name="os_stremio_vir_racunalnik">Diffusé par un ordinateur de Safeer Link – rien n’est téléchargé sur cet appareil</string>
 </resources>

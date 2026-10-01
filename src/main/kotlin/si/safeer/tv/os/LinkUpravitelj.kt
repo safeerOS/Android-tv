@@ -102,6 +102,10 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
      */
     fun jeTaNaprava(n: LinkOdjemalec.Naprava): Boolean {
         if (n.id == Identiteta.id(app)) return true
+        // Racunalnik, telefon ali tablica niso nikoli "ta naprava", tudi ce jih sredisce na tem televizorju
+        // vidi prek zanke (127.0.0.1) - prej je to skrilo racunalnik v Datotekah in pri pomoci sibkejsim napravam.
+        val moja = try { si.safeer.tv.cast.HubKrmilnik.platforma(app) } catch (_: Throwable) { "" }
+        if (n.platforma.isNotBlank() && moja.isNotBlank() && n.platforma != moja) return false
         if (odjemalec.srediceJeTu && n.naslov in setOf("127.0.0.1", "::1", "localhost")) return true
         val moj = try { si.safeer.tv.cast.PridruzitevSredisca.krajevniNaslov() } catch (_: Throwable) { null }
         return moj != null && n.naslov.isNotBlank() && n.naslov == moj

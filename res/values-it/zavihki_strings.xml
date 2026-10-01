@@ -32,4 +32,26 @@
     <string name="os_podnapisi_dodaj_opis">File .srt, .vtt o .ass</string>
     <string name="os_podnapisi_dodani">Sottotitoli aggiunti: %1$s</string>
     <string name="os_podnapisi_ni_podnapis">Non è un file di sottotitoli (.srt, .vtt, .ass).</string>
+    <string name="os_stremio_dodatki">Componenti</string>
+    <string name="os_stremio_ni_epizod">Il componente non ha restituito episodi per questa serie.</string>
+    <string name="os_stremio_ni_tokov">I tuoi componenti non offrono la riproduzione per questo titolo. Quello che lo mostra (es. Cinemeta) fornisce solo i dettagli: aggiungi un componente con stream.</string>
+    <string name="os_stremio_sezona">Stagione %1$d</string>
+    <string name="os_stremio_torrent">torrent</string>
+    <string name="os_stremio_zunanji">apre il browser</string>
+    <string name="os_kodi_pojasnilo">I componenti Kodi sono programmi per l’app Kodi e Safeer non può eseguirli.\n\nIndirizzo: %1$s\n\nSe Kodi è installato, apri lì il componente. Per film e serie in Safeer usa i componenti Stremio.</string>
+    <string name="os_kodi_odpri">Apri Kodi</string>
+    <plurals name="os_stremio_epizod">
+        <item quantity="one">%d episodio</item>
+        <item quantity="other">%d episodi</item>
+    </plurals>
+    <string name="os_stremio_racunalnik_pripravlja">Il computer %1$s prepara lo stream … (la prima volta fino a un minuto)</string>
+    <string name="os_stremio_torrent_brez_racunalnika">Questa fonte è un torrent. Per non scaricare nulla su questo dispositivo, un computer con Safeer Control nel tuo Link può scaricarlo e trasmetterlo – nessuno è collegato. Avvia Safeer Control sul computer e riprova.</string>
+    <string name="os_stremio_torrent_napaka">Il computer non è riuscito a trasmettere questo torrent (%1$s).</string>
+    <string name="os_stremio_prenesi_sem">Scarica su questo dispositivo</string>
+    <string name="os_prenosi_racunalnik">Download sul computer</string>
+    <string name="os_prenos_predvajaj">Riproduci</string>
+    <string name="os_prenos_odstrani">Rimuovi dal computer</string>
+    <string name="os_prenos_odstrani_vprasanje">Il film e tutti i suoi file verranno eliminati dal computer. Puoi riaprirlo in qualsiasi momento dal componente.</string>
+    <string name="os_prenos_odstranjen">Rimosso dal computer</string>
+    <string name="os_stremio_vir_racunalnik">Trasmesso da un computer in Safeer Link – nulla viene scaricato su questo dispositivo</string>
 </resources>

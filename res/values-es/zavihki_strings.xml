@@ -32,4 +32,26 @@
     <string name="os_podnapisi_dodaj_opis">Archivo .srt, .vtt o .ass</string>
     <string name="os_podnapisi_dodani">Subtítulos añadidos: %1$s</string>
     <string name="os_podnapisi_ni_podnapis">No es un archivo de subtítulos (.srt, .vtt, .ass).</string>
+    <string name="os_stremio_dodatki">Complementos</string>
+    <string name="os_stremio_ni_epizod">El complemento no devolvió episodios para esta serie.</string>
+    <string name="os_stremio_ni_tokov">Tus complementos no ofrecen reproducción para este título. El que lo muestra (p. ej. Cinemeta) solo da información: añade un complemento con streams.</string>
+    <string name="os_stremio_sezona">Temporada %1$d</string>
+    <string name="os_stremio_torrent">torrent</string>
+    <string name="os_stremio_zunanji">abre el navegador</string>
+    <string name="os_kodi_pojasnilo">Los complementos de Kodi son programas para la app Kodi y Safeer no puede ejecutarlos.\n\nDirección: %1$s\n\nSi tienes Kodi instalado, ábrelo allí. Para películas y series en Safeer usa complementos de Stremio.</string>
+    <string name="os_kodi_odpri">Abrir Kodi</string>
+    <plurals name="os_stremio_epizod">
+        <item quantity="one">%d episodio</item>
+        <item quantity="other">%d episodios</item>
+    </plurals>
+    <string name="os_stremio_racunalnik_pripravlja">El ordenador %1$s prepara la transmisión … (la primera vez hasta un minuto)</string>
+    <string name="os_stremio_torrent_brez_racunalnika">Esta fuente es un torrent. Para no descargar nada en este dispositivo, un ordenador con Safeer Control en tu Link puede descargarlo y transmitirlo; ahora no hay ninguno conectado. Abre Safeer Control en el ordenador e inténtalo de nuevo.</string>
+    <string name="os_stremio_torrent_napaka">El ordenador no pudo transmitir este torrent (%1$s).</string>
+    <string name="os_stremio_prenesi_sem">Descargar en este dispositivo</string>
+    <string name="os_prenosi_racunalnik">Descargas en el ordenador</string>
+    <string name="os_prenos_predvajaj">Reproducir</string>
+    <string name="os_prenos_odstrani">Quitar del ordenador</string>
+    <string name="os_prenos_odstrani_vprasanje">La película y todos sus archivos se borrarán del ordenador. Puedes volver a abrirla desde el complemento cuando quieras.</string>
+    <string name="os_prenos_odstranjen">Quitado del ordenador</string>
+    <string name="os_stremio_vir_racunalnik">Lo transmite un ordenador de Safeer Link – no se descarga nada en este dispositivo</string>
 </resources>

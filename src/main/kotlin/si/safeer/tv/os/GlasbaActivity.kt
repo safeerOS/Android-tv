@@ -950,6 +950,15 @@ class GlasbaActivity : OsActivity() {
         val vr = vVrste(filtrirani); val c3 = android.os.SystemClock.uptimeMillis()
         val gl = glavaRazdelka(i, podatki); val c4 = android.os.SystemClock.uptimeMillis()
         narisi(zg + vr, opis(i), glava = gl)
+        if (i == VIDEO) skociNaDodatek?.let { naslov ->
+            val ime = Stremio.imeIzPredpomnilnika(naslov)
+            if (ime != null) {
+                skociNaDodatek = null
+                drsnik.postDelayed({ (0 until vsebina.childCount).map { vsebina.getChildAt(it) }
+                    .firstOrNull { (it.tag as? String)?.startsWith("polica:") == true && (it.tag as String).endsWith(" · $ime") }
+                    ?.let { drsnik.smoothScrollTo(0, it.top.coerceAtLeast(0)) } }, 300)
+            }
+        }
         val c5 = android.os.SystemClock.uptimeMillis()
         if (si.safeer.tv.BuildConfig.DEBUG) android.util.Log.i("SafeerOsCas", "prikazi($i): filtri=${c1 - c0} zgoraj=${c2 - c1} vVrste=${c3 - c2} glava=${c4 - c3} narisi=${c5 - c4} ms, polic=${podatki.size}, kartic=${podatki.sumOf { it.skladbe.size }}")
         if (i == TV_V_ZIVO) TvVZivo.osveziIkone(this) { osveziTvIkone() }
@@ -1064,6 +1073,20 @@ class GlasbaActivity : OsActivity() {
 
             if (zateSeznam.isNotEmpty() && (imaZgodovino || (!enakFilmom && !enakSerijam && !enakOstalim))) {
                 vrste += Podatki(getString(R.string.os_media_zate), zateSeznam, video = true)
+            }
+            // Kar racunalniki v Linku hranijo za to napravo (torrenti iz dodatkov): ogled ali odstranitev.
+            prenosiNaRacunalnikih().takeIf { it.isNotEmpty() }?.let {
+                vrste += Podatki("💻 " + getString(R.string.os_prenosi_racunalnik), it, video = true)
+            }
+            // Dodatki Stremio (uporabnikovi): vsak katalog svoja polica, filmi in serije jasno loceni.
+            val stremio = vsiViri.filter { it.jeStremio && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
+            if (stremio.isNotEmpty()) {
+                val katalogi = try { Stremio.prikazniKatalogi(stremio) } catch (_: Exception) { emptyList() }
+                val izKatalogov = katalogi.take(12).map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
+                katalogi.take(12).zip(izKatalogov).forEach { (k, f) ->
+                    val vsebina = try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
+                    if (vsebina.isNotEmpty()) vrste += Podatki(naslovKataloga(k), vsebina.take(40), video = true)
+                }
             }
             filmi.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_filmi), it, video = true) }
             serije.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_serije), it, video = true) }
@@ -1261,7 +1284,9 @@ class GlasbaActivity : OsActivity() {
                 setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 if (i == 0) nextFocusLeftId = meniMediji.id
                 setOnClickListener {
-                    val v = vsebina.findViewWithTag<View>("polica:$cilj")
+                    // Prva polica, katere naslov (brez znaka) se zacne s ciljem - tudi police dodatkov.
+                    val v = vsebina.findViewWithTag<View>("polica:$cilj") ?: (0 until vsebina.childCount).map { vsebina.getChildAt(it) }
+                        .firstOrNull { (it.tag as? String)?.removePrefix("polica:")?.replace(Regex("^[^\\p{L}]+"), "")?.startsWith(cilj) == true }
                     if (v != null) { drsnik.smoothScrollTo(0, v.top.coerceAtLeast(0)); v.nextFocusDownId = View.NO_ID }
                 }
             }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
@@ -1283,7 +1308,9 @@ class GlasbaActivity : OsActivity() {
                 setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 if (i == 0) nextFocusLeftId = meniMediji.id
                 setOnClickListener {
-                    val v = vsebina.findViewWithTag<View>("polica:$cilj")
+                    // Prva polica, katere naslov (brez znaka) se zacne s ciljem - tudi police dodatkov.
+                    val v = vsebina.findViewWithTag<View>("polica:$cilj") ?: (0 until vsebina.childCount).map { vsebina.getChildAt(it) }
+                        .firstOrNull { (it.tag as? String)?.removePrefix("polica:")?.replace(Regex("^[^\\p{L}]+"), "")?.startsWith(cilj) == true }
                     if (v != null) { drsnik.smoothScrollTo(0, v.top.coerceAtLeast(0)); v.nextFocusDownId = View.NO_ID }
                 }
             }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
@@ -1674,9 +1701,10 @@ class GlasbaActivity : OsActivity() {
                 { startActivity(Intent(this, MagnetActivity::class.java)) }),
         )) + MedijskiViri.vsi(this).map { v ->
             Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet || v.jeDodatek -> R.drawable.os_ikona_splet; else -> R.drawable.os_ikona_glasba },
-                0xFF7FB2FF.toInt(), v.ime, when {
+                // Dodatek: ime iz manifesta (Cinemeta, Torrentio ...) in samo streznik - naslov ima lahko kljuc storitve.
+                0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, when {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
-                    v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + v.naslov.removePrefix("https://").removePrefix("http://")
+                    v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "")
                     v.jeKodi -> getString(R.string.os_mediji_dodatek_kodi) + " · " + v.naslov.removePrefix("https://").removePrefix("http://")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
@@ -1684,7 +1712,8 @@ class GlasbaActivity : OsActivity() {
                     when {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
                         // Dodatek: pokazemo shranjeni naslov (predvajanje prek dodatkov je naslednji korak).
-                        v.jeDodatek -> AlertDialog.Builder(this).setTitle(v.ime).setMessage(v.naslov).setPositiveButton(android.R.string.ok, null).show()
+                        v.jeStremio -> { skociNaDodatek = v.naslov; fokusVVsebino = true; SEZNAMI.remove(VIDEO); izberi(VIDEO) }
+                        v.jeKodi -> kodiPojasnilo(v)
                         // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
                         v.jeSplet -> odpriStran(v.naslov, v.ime)
                         // API: iscemo po njem skupaj z vsemi viri.
@@ -1928,7 +1957,7 @@ class GlasbaActivity : OsActivity() {
             val sk = urejene.first()
             val tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty()
             // Video z naprave: napredek ali trajanje (kot VLC), spletni: letnica.
-            val podnaslov = if (sk.id.startsWith("krajevno:"))
+            val podnaslov = if (sk.id.startsWith("krajevno:") || sk.id.startsWith(PREDPONA_PC_PRENOSA))
                 napredekKrajevnih[sk.id]?.let { n -> "${cas(n.polozaj)} / ${cas(n.trajanje)}" } ?: sk.izvajalec
             else sk.year.takeIf { it > 0 }?.toString().orEmpty()
             val tip = if (tvId.isNotBlank()) getString(R.string.os_media_oznaka_v_zivo) else {
@@ -2208,7 +2237,8 @@ class GlasbaActivity : OsActivity() {
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(11)
+        val rezultati = arrayOfNulls<Any>(12)
+        val stremioNaslovi = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
         val izSeznamov = MedijskiViri.iskanjeVSeznamih(this, beseda)
         val opravila = listOf<() -> Any>(
@@ -2223,6 +2253,7 @@ class GlasbaActivity : OsActivity() {
             { SpletniVir.isciVse(this, spletniViri, beseda) },
             { try { JavnaLast.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try { TuneIn.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { try { Stremio.isci(stremioNaslovi, beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
         )
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = f() } }
         synchronized(iskanjeNiti) { iskanjeNiti.addAll(futures) }
@@ -2239,6 +2270,7 @@ class GlasbaActivity : OsActivity() {
             @Suppress("UNCHECKED_CAST") val izSpleta = rezultati[8] as? List<Pair<MedijskiViri.Vir, Jamendo.Skladba>> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val javnaLast = rezultati[9] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val tuneInSurovi = rezultati[10] as? List<Jamendo.Skladba> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val izDodatkov = rezultati[11] as? List<Jamendo.Skladba> ?: emptyList()
             // TuneIn toka do klika navadno se ne pozna. Takrat istoimensko postajo Radio Browserja
             // obdrzimo kot prvi, ze razreseni zadetek; pri znanih tokovih primerjamo tudi naslov toka.
             val tuneIn = tuneInSurovi.filterNot { t ->
@@ -2265,6 +2297,7 @@ class GlasbaActivity : OsActivity() {
             javnaLast.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_media_javna_last), 4)) }
             postaje.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_glasba_radio), 5)) }
             tuneIn.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "TuneIn", 5)) }
+            izDodatkov.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, "", getString(R.string.os_stremio_dodatki), 2)) }
             val lestvica = Relevantnost.razvrsti(beseda, vsi)
             val videniNajboljsi = mutableSetOf<String>()
             val najboljsi = lestvica.filter { it.second >= Relevantnost.SPODNJA }.filter { z ->
@@ -2298,6 +2331,9 @@ class GlasbaActivity : OsActivity() {
                 val vrste = listOfNotNull(
                     spletVrsta.takeIf { nicNasli && koncno },
                     Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first) }),
+                    // Dodatki: filmi in serije v loceni polici (jasno, kaj je kaj).
+                    Vrsta("🎬 " + getString(R.string.os_media_filmi), videi(ostali(izDodatkov.filterNot { Stremio.jeSerija(it) }), beseda), video = true),
+                    Vrsta("📺 " + getString(R.string.os_media_serije), videi(ostali(izDodatkov.filter { Stremio.jeSerija(it) }), beseda), video = true),
                     Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(glasba + spletAvdio + spletVideospoti), beseda)),
                     Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi + javnaLast + spletFilmiInSerije), beseda), video = true),
                     Vrsta(getString(R.string.os_mediji_izvajalci), izvajalci.map { iz ->
@@ -2676,6 +2712,8 @@ class GlasbaActivity : OsActivity() {
         if (JavnaLast.jeEnota(sk)) { razresiJavnoLast(sk); return }
         if (TuneIn.jeEnota(sk)) { razresiTuneIn(sk); return }
         if (SpletniVir.jeEnota(sk)) { razresiSplet(sk); return }
+        if (Stremio.jeEnota(sk)) { razresiStremio(sk); return }
+        if (sk.id.startsWith(PREDPONA_PC_PRENOSA)) { meniPrenosa(sk); return }
         if (!sk.video || sk.zvok.isNotBlank()) {
             GlasbaStoritev.predvajaj(this, seznam, i)
             if (sk.video) nadaljujKoPripravljen(sk)
@@ -2696,6 +2734,204 @@ class GlasbaActivity : OsActivity() {
                 startActivity(Intent(this, PredvajanjeActivity::class.java))
             }
         }
+    }
+
+    // ------------------------------------------------------------------ dodatki Stremio
+
+    /** Klik na dodatek Stremio v Moji viri: Video, pomaknjeno na prvo polico tega dodatka. */
+    private var skociNaDodatek: String? = null
+
+    /**
+     * Dodatki Kodi so programi v Pythonu za aplikacijo Kodi - Safeer jih ne more zagnati (in jih ne bo
+     * posnemal). Povemo odkrito; ce je Kodi namescen, ga odpremo.
+     */
+    private fun kodiPojasnilo(v: MedijskiViri.Vir) {
+        val kodi = listOf("org.xbmc.kodi", "org.xbmc.kodi.beta").firstNotNullOfOrNull { packageManager.getLaunchIntentForPackage(it) }
+        val b = AlertDialog.Builder(this).setTitle(v.ime).setMessage(getString(R.string.os_kodi_pojasnilo, v.naslov))
+        if (kodi != null) b.setPositiveButton(R.string.os_kodi_odpri) { _, _ -> try { startActivity(kodi) } catch (_: Exception) { } }
+            .setNegativeButton(android.R.string.cancel, null)
+        else b.setPositiveButton(android.R.string.ok, null)
+        b.show()
+    }
+
+    private fun naslovKataloga(k: Stremio.Katalog): String {
+        val vrsta = if (k.tip == "series") "📺 " + getString(R.string.os_media_serije) else "🎬 " + getString(R.string.os_media_filmi)
+        return "$vrsta · ${k.ime} · ${k.imeDodatka}"
+    }
+
+    private fun stremioNaslovi() = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
+
+    private fun razresiStremio(sk: Jamendo.Skladba) {
+        val (_, tip, id) = Stremio.razstavi(sk) ?: return
+        val priprava = zacniPripravo(sk) ?: return
+        delavec.execute {
+            if (tip == "series") {
+                val ep = try { Stremio.epizode(sk) } catch (_: Exception) { emptyList() }
+                glavna.post {
+                    koncajPripravo(priprava)
+                    if (isFinishing) return@post
+                    if (ep.isEmpty()) { Toast.makeText(this, R.string.os_stremio_ni_epizod, Toast.LENGTH_LONG).show(); return@post }
+                    izberiSezono(sk, ep)
+                }
+            } else {
+                val t = try { Stremio.tokovi(stremioNaslovi(), tip, id) } catch (_: Exception) { emptyList() }
+                glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t) }
+            }
+        }
+    }
+
+    private fun izberiSezono(sk: Jamendo.Skladba, ep: List<Stremio.Epizoda>) {
+        val sezone = ep.map { it.sezona }.distinct()
+        if (sezone.size == 1) { izberiEpizodo(sk, ep); return }
+        val imena = sezone.map { z -> val n = ep.count { it.sezona == z }
+            getString(R.string.os_stremio_sezona, z) + " · " + resources.getQuantityString(R.plurals.os_stremio_epizod, n, n) }
+        AlertDialog.Builder(this).setTitle(sk.naslov).setItems(imena.toTypedArray()) { _, k -> izberiEpizodo(sk, ep.filter { it.sezona == sezone[k] }) }.show()
+    }
+
+    private fun izberiEpizodo(sk: Jamendo.Skladba, ep: List<Stremio.Epizoda>) {
+        val imena = ep.map { e -> "S${e.sezona}E${e.epizoda}" + (if (e.ime.isNotBlank()) " · " + e.ime else "") }
+        AlertDialog.Builder(this).setTitle(sk.naslov).setItems(imena.toTypedArray()) { _, k ->
+            val e = ep[k]
+            Toast.makeText(this, getString(R.string.os_media_pripravljam, imena[k]), Toast.LENGTH_SHORT).show()
+            delavec.execute {
+                val t = try { Stremio.tokovi(stremioNaslovi(), "series", e.id) } catch (_: Exception) { emptyList() }
+                glavna.post { if (!isFinishing) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${imena[k]}", t) }
+            }
+        }.show()
+    }
+
+    /** En tok: takoj; vec: izbira (ime dodatka in opis toka, kot v Stremiu); nic: jasno sporocilo. */
+    private fun izberiTok(sk: Jamendo.Skladba, naslov: String, tokovi: List<Stremio.Tok>) {
+        if (tokovi.isEmpty()) {
+            AlertDialog.Builder(this).setTitle(naslov).setMessage(R.string.os_stremio_ni_tokov).setPositiveButton(android.R.string.ok, null).show()
+            return
+        }
+        fun odpri(t: Stremio.Tok) {
+            when (t.vrsta) {
+                "url" -> {
+                    val r = sk.copy(id = sk.id + "#" + t.url.hashCode(), naslov = naslov, zvok = t.url, povezava = t.url, video = true)
+                    GlasbaStoritev.predvajaj(this, listOf(r), 0)
+                    nadaljujKoPripravljen(r)
+                    startActivity(Intent(this, PredvajanjeActivity::class.java))
+                }
+                "torrent" -> torrentPrekRacunalnika(sk, naslov, t.url, t.datoteka)
+                else -> odpriStran(t.url, naslov)
+            }
+        }
+        if (tokovi.size == 1) { odpri(tokovi.first()); return }
+        val imena = tokovi.map { t ->
+            val vrsta = when (t.vrsta) { "torrent" -> " · " + getString(R.string.os_stremio_torrent); "zunanji" -> " · " + getString(R.string.os_stremio_zunanji); else -> "" }
+            listOf(t.ime, t.opis.replace('\n', ' ')).filter { it.isNotBlank() }.joinToString(" · ") + vrsta
+        }
+        AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray()) { _, k -> odpri(tokovi[k]) }.show()
+    }
+
+    /**
+     * Zakon solidarnosti v Linku: torrent prenasa in pretaka racunalnik (Safeer Control, `magnet.stream`),
+     * ta naprava dobi le sproten tok kot pri spletnem videu - nic se ne prenasa in ne shranjuje nanjo.
+     * Brez racunalnika televizor torrenta ne prenasa; telefon in tablica ga lahko, ce uporabnik izbere.
+     */
+    private fun torrentPrekRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int = -1, prednost: String = "") {
+        val racunalniki = racunalnikiZaPomoc()
+            .sortedWith(compareByDescending<LinkOdjemalec.Naprava> { it.id == prednost }.thenByDescending { it.zmoznosti.contains("desktop") })
+        fun brez(sporocilo: String) {
+            val d = AlertDialog.Builder(this).setTitle(naslov).setMessage(sporocilo).setPositiveButton(android.R.string.ok, null)
+            if (!jeTv()) d.setNeutralButton(R.string.os_stremio_prenesi_sem) { _, _ ->
+                startActivity(Intent(this, MagnetActivity::class.java).putExtra(MagnetActivity.EXTRA_URI, magnet))
+            }
+            d.show()
+        }
+        if (racunalniki.isEmpty()) { brez(getString(R.string.os_stremio_torrent_brez_racunalnika)); return }
+        var zadnjaNapaka = ""
+        fun poskusi(k: Int) {
+            if (k >= racunalniki.size) { brez(getString(R.string.os_stremio_torrent_napaka, zadnjaNapaka)); return }
+            val r = racunalniki[k]
+            val ime = DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }
+            Toast.makeText(this, getString(R.string.os_stremio_racunalnik_pripravlja, ime), Toast.LENGTH_LONG).show()
+            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).apply { if (datoteka >= 0) put("file", datoteka) }, 150_000, LinkOdjemalec.Odgovor { izid, napaka ->
+                if (isFinishing) return@Odgovor
+                val podatki = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
+                val srv = podatki?.optJSONObject("server")
+                if (podatki == null || srv == null) {
+                    zadnjaNapaka = izid?.optString("code")?.ifBlank { null } ?: izid?.optString("message") ?: napaka
+                    poskusi(k + 1)
+                    return@Odgovor
+                }
+                val s = DatotekeActivity.Streznik(srv.optString("base_url").trimEnd('/'), srv.optString("fp"), srv.optString("token"), r.id)
+                val url = s.osnova + podatki.optString("path")
+                val pr = sk.copy(id = sk.id + "#t" + magnet.hashCode(), naslov = naslov, zvok = url, povezava = url, video = true)
+                SEZNAMI.remove(VIDEO)   // polica "Prenosi na racunalniku" se osvezi
+                // Plakat in ime iz dodatka si zapomnimo, da je kartica prenosa na racunalniku prepoznavna.
+                btih(magnet)?.let { h -> getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE).edit().putString(h, sk.slika).apply() }
+                GlasbaStoritev.predvajaj(this, listOf(pr), 0, s)
+                nadaljujKoPripravljen(pr)
+                startActivity(Intent(this, PredvajanjeActivity::class.java))
+            })
+        }
+        poskusi(0)
+    }
+
+    /**
+     * Racunalniki v Linku, ki pomagajo sibkejsim napravam (Safeer Control z datotekami): namizje, ne telefon/TV.
+     * Brez jeTaNaprava(): ta po naslovu v omrezju lahko izloci racunalnik, kadar sredisce tece na njem.
+     */
+    private fun racunalnikiZaPomoc(): List<LinkOdjemalec.Naprava> =
+        if (link.jeKrajevni() || !link.povezan) emptyList()
+        else link.naprave.filter { n -> n.id != Identiteta.id(this) && "files" in n.zmoznosti &&
+            ("desktop" in n.zmoznosti || n.platforma in setOf("linux", "windows", "macos")) }
+
+    /** Prenosi, ki jih racunalniki (Safeer Control, `magnet.list`) hranijo za naprave. Klic iz delovne niti. */
+    private fun prenosiNaRacunalnikih(): List<Jamendo.Skladba> {
+        val racunalniki = try { racunalnikiZaPomoc() } catch (_: Exception) { emptyList() }
+        if (racunalniki.isEmpty()) return emptyList()
+        val izid = java.util.Collections.synchronizedList(mutableListOf<Jamendo.Skladba>())
+        val plakati = getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE)
+        val cakam = java.util.concurrent.CountDownLatch(racunalniki.size)
+        glavna.post {
+            for (r in racunalniki) link.ukaz(r.id, "magnet.list", org.json.JSONObject(), 8_000, LinkOdjemalec.Odgovor { odgovor, _ ->
+                try {
+                    val a = odgovor?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")?.optJSONArray("items")
+                    val ime = DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }
+                    for (i in 0 until (a?.length() ?: 0)) {
+                        val t = a!!.optJSONObject(i) ?: continue
+                        val skupaj = t.optLong("size"); val dobljeno = t.optLong("done")
+                        val delez = if (skupaj > 0) (dobljeno * 100 / skupaj).toInt() else 0
+                        val opis = ime + " · " + android.text.format.Formatter.formatShortFileSize(this, skupaj) +
+                            (if (t.optBoolean("finished")) "" else " · $delez %")
+                        val plakat = btih(t.optString("magnet"))?.let { plakati.getString(it, "") }.orEmpty()
+                        izid += Jamendo.Skladba(PREDPONA_PC_PRENOSA + r.id + "|" + t.optInt("id") + "|" + t.optInt("file", -1),
+                            t.optString("name"), opis, plakat, "", t.optString("magnet"), video = true, mediaType = "movie")
+                    }
+                } finally { cakam.countDown() }
+            })
+        }
+        cakam.await(10, java.util.concurrent.TimeUnit.SECONDS)
+        return izid.sortedBy { it.naslov.lowercase(Locale.ROOT) }
+    }
+
+    private fun btih(magnet: String): String? =
+        Regex("btih:([0-9a-zA-Z]{32,40})").find(magnet)?.groupValues?.get(1)?.lowercase(Locale.ROOT)
+
+    /** Prenos na racunalniku: predvajaj (racunalnik pretaka) ali odstrani z racunalnika, ko ga ne rabis vec. */
+    private fun meniPrenosa(sk: Jamendo.Skladba) {
+        val d = sk.id.removePrefix(PREDPONA_PC_PRENOSA).split('|')
+        if (d.size < 3) return
+        val (pc, tid, datoteka) = Triple(d[0], d[1].toIntOrNull() ?: return, d[2].toIntOrNull() ?: -1)
+        AlertDialog.Builder(this).setTitle(sk.naslov).setMessage(sk.izvajalec)
+            .setPositiveButton(R.string.os_prenos_predvajaj) { _, _ -> torrentPrekRacunalnika(sk, sk.naslov, sk.povezava, datoteka, pc) }
+            .setNeutralButton(R.string.os_prenos_odstrani) { _, _ ->
+                AlertDialog.Builder(this).setTitle(sk.naslov).setMessage(R.string.os_prenos_odstrani_vprasanje)
+                    .setPositiveButton(R.string.os_prenos_odstrani) { _, _ ->
+                        link.ukaz(pc, "magnet.remove", org.json.JSONObject().put("id", tid), 20_000, LinkOdjemalec.Odgovor { izid, napaka ->
+                            if (isFinishing) return@Odgovor
+                            val ok = izid?.optBoolean("ok") == true
+                            Toast.makeText(this, if (ok) getString(R.string.os_prenos_odstranjen)
+                                else getString(R.string.os_stremio_torrent_napaka, izid?.optString("message") ?: napaka), Toast.LENGTH_LONG).show()
+                            if (ok) { SEZNAMI.remove(VIDEO); if (razdelek == VIDEO) izberi(VIDEO) }
+                        })
+                    }.setNegativeButton(android.R.string.cancel, null).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 
     private fun razresiJavnoLast(sk: Jamendo.Skladba) {
@@ -2796,6 +3032,8 @@ class GlasbaActivity : OsActivity() {
         private const val PREDVAJALNIK_DATOTEKA = 7412
         private const val KLJUC_PREDVAJALNIK = "kat-predvajalnik"
         private const val DOMOV = 0; private const val GLASBA = 2; private const val RADIO = 3
+        private const val PREDPONA_PC_PRENOSA = "pcprenos|"
+        private const val PREFS_PC_PRENOSI = "safeer_pc_prenosi"
         private const val VIDEO = 4; private const val VIRI = 6; private const val ISKANJE = 7; private const val TV_V_ZIVO = 8
         private const val RAZVRSTI_PRIPOROCENO = 0
         private const val RAZVRSTI_NAJNOVEJSE = 1
