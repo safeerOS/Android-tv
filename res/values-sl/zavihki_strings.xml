@@ -36,10 +36,9 @@
     <string name="os_podnapisi_ni_podnapis">To ni datoteka s podnapisi (.srt, .vtt, .ass).</string>
     <string name="os_stremio_dodatki">Dodatki</string>
     <string name="os_stremio_ni_epizod">Za to serijo dodatek ni vrnil epizod.</string>
-    <string name="os_stremio_ni_tokov">Za ta naslov tvoji dodatki ne ponujajo predvajanja. Dodatek, ki ga kaže (npr. Cinemeta), daje samo opis – za ogled dodaj še dodatek s tokovi.</string>
     <string name="os_stremio_sezona">Sezona %1$d</string>
     <string name="os_stremio_torrent">torrent</string>
-    <string name="os_stremio_zunanji">odpre brskalnik</string>
+    <string name="os_stremio_zunanji">napovednik</string>
     <string name="os_kodi_pojasnilo">Dodatki Kodi so programi za aplikacijo Kodi in jih Safeer ne more zagnati.\n\nNaslov: %1$s\n\nČe imaš Kodi nameščen, odpri dodatek tam. Za filme in serije v Safeerju uporabi dodatke Stremio.</string>
     <string name="os_kodi_odpri">Odpri Kodi</string>
     <plurals name="os_stremio_epizod">
@@ -76,4 +75,5 @@
     <string name="os_moc_nalagam">preverjam moč …</string>
     <string name="os_moc_r_sorodnik">na tej napravi pomaga Safeer OS</string>
     <string name="os_moc_r_predvaja">na tej napravi ravno teče video ali glasba</string>
+    <string name="os_media_ni_na_voljo">»%1$s« trenutno ni na voljo v tvojih dodatkih.</string>
 </resources>

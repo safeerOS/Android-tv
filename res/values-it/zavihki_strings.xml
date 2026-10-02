@@ -34,10 +34,9 @@
     <string name="os_podnapisi_ni_podnapis">Non è un file di sottotitoli (.srt, .vtt, .ass).</string>
     <string name="os_stremio_dodatki">Componenti</string>
     <string name="os_stremio_ni_epizod">Il componente non ha restituito episodi per questa serie.</string>
-    <string name="os_stremio_ni_tokov">I tuoi componenti non offrono la riproduzione per questo titolo. Quello che lo mostra (es. Cinemeta) fornisce solo i dettagli: aggiungi un componente con stream.</string>
     <string name="os_stremio_sezona">Stagione %1$d</string>
     <string name="os_stremio_torrent">torrent</string>
-    <string name="os_stremio_zunanji">apre il browser</string>
+    <string name="os_stremio_zunanji">trailer</string>
     <string name="os_kodi_pojasnilo">I componenti Kodi sono programmi per l’app Kodi e Safeer non può eseguirli.\n\nIndirizzo: %1$s\n\nSe Kodi è installato, apri lì il componente. Per film e serie in Safeer usa i componenti Stremio.</string>
     <string name="os_kodi_odpri">Apri Kodi</string>
     <plurals name="os_stremio_epizod">
@@ -72,4 +71,5 @@
     <string name="os_moc_nalagam">controllo potenza …</string>
     <string name="os_moc_r_sorodnik">su questo dispositivo aiuta Safeer OS</string>
     <string name="os_moc_r_predvaja">su questo dispositivo è in riproduzione video o musica</string>
+    <string name="os_media_ni_na_voljo">«%1$s» al momento non è disponibile nei tuoi componenti aggiuntivi.</string>
 </resources>
