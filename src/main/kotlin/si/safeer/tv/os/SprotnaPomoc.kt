@@ -2,7 +2,9 @@ package si.safeer.tv.os
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlaybackException
 import org.json.JSONObject
 import si.safeer.tv.R
@@ -28,6 +30,7 @@ object SprotnaPomoc {
         PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED)
 
     /** Oblika, ki je ta naprava ni zmogla (iz napake upodabljalnika): {mime, width, height} ali prazno. */
+    @OptIn(UnstableApi::class)
     fun oblikaIzNapake(e: PlaybackException): JSONObject {
         val f = (e as? ExoPlaybackException)?.takeIf { it.type == ExoPlaybackException.TYPE_RENDERER }?.rendererFormat ?: return JSONObject()
         return oblikaIzFormata(f)
@@ -47,6 +50,7 @@ object SprotnaPomoc {
      * Neizbrane skupine (druga zvocna sled v DTS ob podprti AAC) NISO tezava - predvajanje tece in ga ne
      * smemo prekiniti (Stremio tok na tablici, 1. 10. 2026). Vrne obliko te sledi ali null.
      */
+    @OptIn(UnstableApi::class)
     fun nepodprtaSled(tracks: androidx.media3.common.Tracks): androidx.media3.common.Format? {
         for (vrsta in intArrayOf(androidx.media3.common.C.TRACK_TYPE_VIDEO, androidx.media3.common.C.TRACK_TYPE_AUDIO)) {
             var obstaja = false
