@@ -132,6 +132,9 @@ open class OsActivity : Activity() {
         viden = SystemClock.uptimeMillis()
         pritisnjene.clear()
         koda.zacni()
+        // "Poslji na napravo": ponudba druge naprave se pokaze kot tiha pasica na zaslonu v ospredju (ne kot okno).
+        Predaja.prikaz = { po -> if (!isFinishing) PredajaObvestilo.pasica(this, po) }
+        Predaja.cakajoca?.takeIf { it.velja() }?.let { PredajaObvestilo.umakni(this); PredajaObvestilo.pasica(this, it) }
     }
 
     // ------------------------------------------------------------------ zablodel OK
@@ -179,6 +182,7 @@ open class OsActivity : Activity() {
     override fun onPause() {
         koda.ustavi()
         palica.ustavi()
+        if (Predaja.prikaz != null) { Predaja.prikaz = null; PredajaObvestilo.umakniPasico() }
         super.onPause()
     }
 }

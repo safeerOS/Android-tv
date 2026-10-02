@@ -225,5 +225,16 @@
     <string name="os_predaja_napaka">Die Geräte konnten nicht gefragt werden.</string>
     <string name="os_predaja_nast">Wiedergabe mit Link-Geräten teilen</string>
     <string name="os_predaja_nast_opis">Deine anderen Geräte können auf Wunsch fortsetzen, was du hier schaust</string>
+    <string name="os_predaja_poslji">An Gerät senden</string>
+    <string name="os_predaja_poslji_opis">Dort weiterschauen – wartet auf Annehmen</string>
+    <string name="os_predaja_poslano">An %1$s gesendet – dort mit Annehmen bestätigen.</string>
+    <string name="os_predaja_poslji_stara">%1$s kennt das noch nicht – dort Safeer OS aktualisieren.</string>
+    <string name="os_predaja_poslji_napaka">%1$s antwortet nicht.</string>
+    <string name="os_predaja_poslji_ni_deljeno">Diese Datei kann nicht gesendet werden: Dateifreigabe ist auf diesem Gerät ausgeschaltet.</string>
+    <string name="os_predaja_poslji_izklopljeno">%1$s nimmt keine Wiedergabe von anderen Geräten an.</string>
+    <string name="os_predaja_ni_naprav">Kein anderes Gerät im Safeer Link.</string>
+    <string name="os_predaja_ponudba">%1$s sendet dir: %2$s (bei %3$s)</string>
+    <string name="os_predaja_sprejmi">Annehmen</string>
+    <string name="os_predaja_zavrni">Ablehnen</string>
     <string name="os_media_kanali_virov">Sender aus deinen Quellen</string>
 </resources>

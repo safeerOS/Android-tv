@@ -78,7 +78,8 @@ object Predaja {
             val oznaka = DatotekeStreznik.oznakaZa(sk.zvok) ?: return null
             val s = DatotekeStreznik.streznikZa(ctx, posiljatelj) ?: return null
             val url = s.optString("base_url").trimEnd('/') + "/d/" + android.net.Uri.encode(oznaka)
-            return Vnos(vJson(sk.copy(id = oznaka, zvok = url, povezava = url, podnapisi = emptyList())), s, Identiteta.id(ctx))
+            // povezava prazna: predvajalnik na cilju pod naslovom ne kaze naslova streznika z zetonom (kot pri Datotekah).
+            return Vnos(vJson(sk.copy(id = oznaka, zvok = url, povezava = "", podnapisi = emptyList())), s, Identiteta.id(ctx))
         }
         if (streznik != null && streznik.naprava.isNotBlank()) {
             // Datoteka druge naprave (racunalnik, telefon): cilj dobi svoj zeton pri tisti napravi (files.list).
@@ -86,6 +87,90 @@ object Predaja {
         }
         if (sk.zvok.startsWith("content://") || sk.zvok.startsWith("file:") || sk.zvok.startsWith("/")) return null
         return Vnos(vJson(sk.copy(podnapisi = emptyList())), null, "")
+    }
+
+    // ------------------------------------------------------------------ "Poslji na napravo" (potiskanje z izvora)
+
+    /**
+     * Ponudba druge naprave, ki tu caka na Sprejmi/Zavrni (pravila 28. 9.: tiho obvestilo, nic se ne predvaja in nic se
+     * ne ustavi, dokler uporabnik tu ne sprejme). Najvec ena; nova zamenja staro; velja [VELJA_MS].
+     */
+    class Ponujeno(val od: String, val odIme: String, val skladba: Jamendo.Skladba, val polozajMs: Long, val trajanjeMs: Long,
+                   val streznik: DatotekeActivity.Streznik?, val streznikNaprava: String, val cas: Long = System.currentTimeMillis()) {
+        fun velja() = System.currentTimeMillis() - cas < VELJA_MS
+    }
+
+    const val VELJA_MS = 10 * 60_000L
+    @Volatile var cakajoca: Ponujeno? = null
+        private set
+    /** Zaslon v ospredju, ki ponudbo pokaze kot tiho pasico (OsActivity ob onResume; null = obvestilo v vrstici). */
+    @Volatile var prikaz: ((Ponujeno) -> Unit)? = null
+
+    fun vzemiCakajoco(): Ponujeno? = cakajoca?.takeIf { it.velja() }.also { cakajoca = null }
+    fun zavrni(ctx: Context) { cakajoca = null; PredajaObvestilo.umakni(ctx) }
+
+    /** `play.offer` (Daljinec, glavna nit): ponudbo shrani in tiho pokaze; cilj sam nicesar ne zacne predvajati. */
+    fun prejmiPonudbo(ctx: Context, posiljatelj: String, p: JSONObject): JSONObject {
+        val item = p.optJSONObject("item") ?: return JSONObject().put("queued", false).put("reason", "ni_vnosa")
+        if (!deli(ctx)) return JSONObject().put("queued", false).put("reason", "izklopljeno")
+        val app = ctx.applicationContext
+        val ime = LinkUpravitelj.pridobi(app).naprave.firstOrNull { it.id == posiljatelj }?.ime?.takeIf { it.isNotBlank() }
+            ?: p.optString("from").ifBlank { posiljatelj }
+        val s = p.optJSONObject("server")?.let { DatotekeActivity.Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"), posiljatelj) }
+        val po = Ponujeno(posiljatelj, DatotekeActivity.lepoIme(ime), izJson(item), p.optLong("position_ms"), p.optLong("duration_ms"), s, p.optString("server_device"))
+        if (po.skladba.zvok.isBlank() && po.streznikNaprava.isBlank()) return JSONObject().put("queued", false).put("reason", "ni_vnosa")
+        cakajoca = po
+        log("play.offer od $posiljatelj: ${po.skladba.naslov} @ ${po.polozajMs}")
+        val z = prikaz
+        if (z != null) z(po) else PredajaObvestilo.obvesti(app, po)
+        return JSONObject().put("queued", true)
+    }
+
+    /** Ponudba za cilj [cilj] iz tega, kar tu igra: isti zapis kot `play.state` (datoteka z zetonom za cilj). */
+    private fun ponudbaZa(ctx: Context, cilj: String): JSONObject? {
+        val p = GlasbaStoritev.predvajalnik ?: return null
+        val sk = GlasbaStoritev.trenutna() ?: return null
+        val tok = SprotnaPomoc.tokZa(sk)
+        val izvirnik = tok?.izvirnik ?: sk
+        val streznik = tok?.streznikIzvirnika ?: GlasbaStoritev.streznikTrenutni
+        val polozaj = (tok?.zamikMs ?: 0L) + p.currentPosition.coerceAtLeast(0L)
+        val trajanje = tok?.trajanjeMs?.takeIf { it > 0 } ?: p.duration.takeIf { it > 0 } ?: 0L
+        val vnos = zaPosiljanje(ctx, izvirnik, streznik, cilj) ?: return null
+        val link = LinkUpravitelj.pridobi(ctx.applicationContext)
+        val jaz = link.naprave.firstOrNull { it.id == Identiteta.id(ctx) }?.ime ?: android.os.Build.MODEL
+        val o = JSONObject().put("position_ms", polozaj).put("duration_ms", trajanje).put("from", jaz)
+        vnos.toMap().forEach { (k, v) -> o.put(k, v) }
+        return o
+    }
+
+    /** Naprave, ki jim je mogoce poslati (vse z daljincem razen te). */
+    fun cilji(ctx: Context): List<LinkOdjemalec.Naprava> {
+        val link = LinkUpravitelj.pridobi(ctx.applicationContext)
+        if (link.jeKrajevni() || !link.povezan) return emptyList()
+        val vse = link.naprave
+        val cilji = vse.filter { !link.jeTaNaprava(it) && "remote" in it.zmoznosti }
+        log("cilji: " + vse.joinToString(" | ") { "${it.id} ${it.ime} ip=${it.naslov} pl=${it.platforma} ta=${link.jeTaNaprava(it)} remote=${"remote" in it.zmoznosti}" })
+        return cilji
+    }
+
+    /**
+     * Poslje, kar tu igra, napravi [cilj]; [nato] dobi kodo na glavni niti: "ok" (tam caka Sprejmi), "ni_deljeno"
+     * (datoteka te naprave, a deljenje datotek je izklopljeno), "stara" (cilj ukaza ne pozna), "izklopljeno" (cilj
+     * deljenja ne sprejema), "ni_povezave" ali "napaka". Izvor igra naprej - ustavi ga le uporabnik.
+     */
+    fun poslji(ctx: Context, cilj: LinkOdjemalec.Naprava, nato: (String) -> Unit) {
+        val o = ponudbaZa(ctx, cilj.id) ?: run { nato("ni_deljeno"); return }
+        LinkUpravitelj.pridobi(ctx.applicationContext).ukaz(cilj.id, "play.offer", o, 8_000, LinkOdjemalec.Odgovor { izid, napaka ->
+            log("play.offer -> ${cilj.id}: ${izid?.toString()?.take(300)} napaka=$napaka")
+            val d = izid?.optJSONObject("data")
+            nato(when {
+                izid?.optBoolean("ok") == true && d?.optBoolean("queued") == true -> "ok"
+                izid?.optBoolean("ok") == true -> d?.optString("reason").orEmpty().ifBlank { "napaka" }
+                izid?.optString("code") == "neznano_dejanje" -> "stara"
+                napaka == "ni_povezave" || napaka == "potek" -> "ni_povezave"
+                else -> "napaka"
+            })
+        })
     }
 
     // ------------------------------------------------------------------ cilj (vprasaj naprave)

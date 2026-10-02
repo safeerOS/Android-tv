@@ -225,5 +225,16 @@
     <string name="os_predaja_napaka">Impossible d\'interroger les appareils.</string>
     <string name="os_predaja_nast">Partager la lecture avec les appareils du Link</string>
     <string name="os_predaja_nast_opis">Tes autres appareils peuvent, à ta demande, continuer ce que tu regardes ici</string>
+    <string name="os_predaja_poslji">Envoyer à un appareil</string>
+    <string name="os_predaja_poslji_opis">Continuer là-bas – attend Accepter</string>
+    <string name="os_predaja_poslano">Envoyé à %1$s – confirme là-bas avec Accepter.</string>
+    <string name="os_predaja_poslji_stara">%1$s ne sait pas encore le faire – mets à jour Safeer OS là-bas.</string>
+    <string name="os_predaja_poslji_napaka">%1$s ne répond pas.</string>
+    <string name="os_predaja_poslji_ni_deljeno">Ce fichier ne peut pas être envoyé : le partage de fichiers est désactivé sur cet appareil.</string>
+    <string name="os_predaja_poslji_izklopljeno">%1$s n\'accepte pas la lecture depuis d\'autres appareils.</string>
+    <string name="os_predaja_ni_naprav">Aucun autre appareil dans Safeer Link.</string>
+    <string name="os_predaja_ponudba">%1$s t\'envoie : %2$s (à %3$s)</string>
+    <string name="os_predaja_sprejmi">Accepter</string>
+    <string name="os_predaja_zavrni">Refuser</string>
     <string name="os_media_kanali_virov">Chaînes de tes sources</string>
 </resources>

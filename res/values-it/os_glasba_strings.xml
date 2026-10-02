@@ -225,5 +225,16 @@
     <string name="os_predaja_napaka">Impossibile interrogare i dispositivi.</string>
     <string name="os_predaja_nast">Condividi la riproduzione con i dispositivi del Link</string>
     <string name="os_predaja_nast_opis">Gli altri tuoi dispositivi possono continuare, su tua richiesta, ciò che guardi qui</string>
+    <string name="os_predaja_poslji">Invia a un dispositivo</string>
+    <string name="os_predaja_poslji_opis">Continua lì – attende Accetta</string>
+    <string name="os_predaja_poslano">Inviato a %1$s – conferma lì con Accetta.</string>
+    <string name="os_predaja_poslji_stara">%1$s non lo sa ancora fare – aggiorna Safeer OS lì.</string>
+    <string name="os_predaja_poslji_napaka">%1$s non risponde.</string>
+    <string name="os_predaja_poslji_ni_deljeno">Questo file non può essere inviato: la condivisione dei file è disattivata su questo dispositivo.</string>
+    <string name="os_predaja_poslji_izklopljeno">%1$s non accetta la riproduzione da altri dispositivi.</string>
+    <string name="os_predaja_ni_naprav">Nessun altro dispositivo in Safeer Link.</string>
+    <string name="os_predaja_ponudba">%1$s ti invia: %2$s (a %3$s)</string>
+    <string name="os_predaja_sprejmi">Accetta</string>
+    <string name="os_predaja_zavrni">Rifiuta</string>
     <string name="os_media_kanali_virov">Canali dalle tue fonti</string>
 </resources>

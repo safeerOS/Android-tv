@@ -58,7 +58,7 @@ object Daljinec {
         // Sprotno pretvarjanje za napravo, ki videa ne zna predvajati (Pretok).
         "video.stream", "video.stream_stop",
         // "Nadaljuj na drugi napravi": kaj ta naprava predvaja (ali je nazadnje gledala) in kje; pavza, ce cilj tako izbere (Predaja).
-        "play.state", "play.stop"
+        "play.state", "play.stop", "play.offer"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -162,6 +162,8 @@ object Daljinec {
         if (d == "video.stream_stop") return Pretok.ustaviUkaz(parametri.optString("id"))
         if (d == "play.state") return Izid(true, "Predvajanje", si.safeer.tv.os.Predaja.stanje(context, parametri.optString(PARAM_POSILJATELJ, "")))
         if (d == "play.stop") return Izid(true, "Pavza", si.safeer.tv.os.Predaja.ustavi())
+        // "Poslji na napravo": izvor ponudi, kar igra; tu le tiho obvestilo s Sprejmi/Zavrni (nic se ne zacne samo).
+        if (d == "play.offer") return Izid(true, "Ponudba", si.safeer.tv.os.Predaja.prejmiPonudbo(context, parametri.optString(PARAM_POSILJATELJ, ""), parametri))
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {

@@ -195,6 +195,9 @@ object DatotekeStreznik {
         return null
     }
 
+    /** Oznaka te naprave (media:video:123) -> content:// naslov za predvajanje z diska; null za tuje oznake. */
+    fun uriZa(oznaka: String): String? = if (oznaka.startsWith(PREDPONA)) uriIz(oznaka)?.toString() else null
+
     private fun uriIz(oznaka: String): Uri? {
         val deli = oznaka.removePrefix(PREDPONA).split(":")
         if (deli.size != 2) return null
