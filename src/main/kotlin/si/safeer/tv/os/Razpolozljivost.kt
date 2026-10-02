@@ -15,6 +15,15 @@ object Razpolozljivost {
     private const val NI_VELJA = 6 * 3_600_000L
     private const val JE_VELJA = 24 * 3_600_000L
     private const val NAJVEC = 4000
+    private const val ZACASNO_VELJA = 10 * 60_000L
+
+    /**
+     * Skrito le za kratek cas in samo v pomnilniku (kljuc -> cas): dotik ni dal toka, a se ne vemo, ali so odgovorili
+     * vsi dodatki. Izpad dodatka ali omrezja ne sme naslova skriti za ure - to stori sele potrjen "ni" ([zapomni]).
+     */
+    private val zacasno = ConcurrentHashMap<String, Long>()
+
+    fun zacasnoNi(kljuc: String) { zacasno[kljuc] = System.currentTimeMillis() }
 
     /** kljuc -> cas zapisa; negativen cas pomeni "ni na voljo". */
     private val stanja = ConcurrentHashMap<String, Long>()
@@ -39,6 +48,7 @@ object Razpolozljivost {
     /** true = se da predvajati, false = ne, null = ne vemo (se ni preverjeno ali je zapis zastarel). */
     fun stanje(c: Context, kljuc: String): Boolean? {
         nalozi(c)
+        zacasno[kljuc]?.let { if (System.currentTimeMillis() - it in 0..ZACASNO_VELJA) return false else zacasno.remove(kljuc) }
         val cas = stanja[kljuc] ?: return null
         val starost = System.currentTimeMillis() - kotlin.math.abs(cas)
         return when {
@@ -54,6 +64,7 @@ object Razpolozljivost {
             stanja.entries.sortedBy { kotlin.math.abs(it.value) }.take(NAJVEC / 2).forEach { stanja.remove(it.key) }
         }
         stanja[kljuc] = System.currentTimeMillis() * (if (je) 1 else -1)
+        zacasno.remove(kljuc)
         umazano = true
         shrani(c.applicationContext)
     }
@@ -64,7 +75,7 @@ object Razpolozljivost {
         val odtis = dodatki.map { it.trim() }.sorted().joinToString("\n").hashCode().toString()
         val p = c.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE)
         if (p.getString("dodatki", "") == odtis) return
-        stanja.clear()
+        stanja.clear(); zacasno.clear()
         p.edit().putString("dodatki", odtis).putString("stanja", "{}").apply()
     }
 

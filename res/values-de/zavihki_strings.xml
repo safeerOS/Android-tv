@@ -72,4 +72,5 @@
     <string name="os_moc_r_sorodnik">auf diesem Gerät hilft Safeer OS</string>
     <string name="os_moc_r_predvaja">auf diesem Gerät läuft gerade Video oder Musik</string>
     <string name="os_media_ni_na_voljo">„%1$s“ ist in deinen Add-ons derzeit nicht verfügbar.</string>
+    <string name="os_media_ni_predvajljivih">Keines deiner Add-ons kann diese Titel derzeit abspielen. Füge unter Meine Quellen ein Add-on mit Streams hinzu.</string>
 </resources>

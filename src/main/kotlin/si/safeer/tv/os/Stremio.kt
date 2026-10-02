@@ -112,7 +112,14 @@ object Stremio {
         return o
     }
 
+    /** Koda HTTP zadnjega prenosa v tej niti (0 = dodatek ni odgovoril): locimo "tega nimam" (404) od izpada. */
+    private val zadnjaKoda = ThreadLocal<Int>()
+
+    /** Dodatek je odgovoril, da vsebine nima (ne: napaka streznika, prijave ali omejitve - to je izpad). */
+    internal fun kodaPomeniNima(koda: Int) = koda in 400..499 && koda !in setOf(401, 403, 407, 408, 425, 429)
+
     private fun prenesiJson(url: String): JSONObject? {
+        zadnjaKoda.set(0)
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
         return try {
             val c = URL(url).openConnection() as HttpURLConnection
@@ -120,7 +127,9 @@ object Stremio {
             c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
             c.setRequestProperty("Accept", "application/json")
             try {
-                if (c.responseCode !in 200..299) return null
+                val koda = c.responseCode
+                zadnjaKoda.set(koda)
+                if (koda !in 200..299) return null
                 JSONObject(c.inputStream.use { String(it.readBytes(), Charsets.UTF_8) })
             } finally { c.disconnect() }
         } catch (_: Exception) { null }
@@ -377,7 +386,9 @@ object Stremio {
         val dodatki = manifestiDodatkov.filterNotNull()
             .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
         val niti = dodatki.map { m -> bazen.submit<Boolean?> {
-            val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json") ?: return@submit null
+            // Brez odgovora ne vemo nicesar; odgovor "tega nimam" (404) pa je odgovor - dodatek vsebine nima.
+            val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json")
+                ?: return@submit if (kodaPomeniNima(zadnjaKoda.get() ?: 0)) false else null
             val a = d.optJSONArray("streams") ?: JSONArray()
             (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.any { it.vrsta == "url" || (torrent && it.vrsta == "torrent") }
         } }

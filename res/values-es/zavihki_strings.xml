@@ -72,4 +72,5 @@
     <string name="os_moc_r_sorodnik">en este dispositivo ayuda Safeer OS</string>
     <string name="os_moc_r_predvaja">en este dispositivo se está reproduciendo vídeo o música</string>
     <string name="os_media_ni_na_voljo">«%1$s» no está disponible ahora en tus complementos.</string>
+    <string name="os_media_ni_predvajljivih">Ninguno de tus complementos puede reproducir estos títulos ahora. Añade un complemento con streams en Mis fuentes.</string>
 </resources>
