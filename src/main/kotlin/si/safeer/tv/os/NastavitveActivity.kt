@@ -119,7 +119,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (isFinishing) return@preveri
             narisi()
             when {
-                nova != null -> Posodobitve.prenesiInNamesti(this, nova)
+                nova != null -> Posodobitve.ponudiZOpisom(this, nova)
                 napaka != null -> Toast.makeText(this, R.string.os_posodobitev_napaka, Toast.LENGTH_LONG).show()
                 else -> Toast.makeText(this, getString(R.string.os_posodobitev_najnovejsa, si.safeer.tv.BuildConfig.VERSION_NAME), Toast.LENGTH_SHORT).show()
             }

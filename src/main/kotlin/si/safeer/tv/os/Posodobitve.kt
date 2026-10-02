@@ -33,14 +33,21 @@ object Posodobitve {
     private const val OPOMNIK_MS = 24 * 3600_000L
     private const val OZNAKA = "SafeerPosodobitve"
 
-    class Nova(val razlicica: String, val koda: Int, val url: String, val sha256: String, val velikost: Long) {
+    class Nova(val razlicica: String, val koda: Int, val url: String, val sha256: String, val velikost: Long, val novo: JSONObject? = null) {
         fun json(): JSONObject = JSONObject().put("razlicica", razlicica).put("koda", koda).put("url", url).put("sha256", sha256).put("velikost", velikost)
+            .put("novo", novo ?: JSONObject())
+        /** Kaj je novega, v jeziku vmesnika (sl ali en), ali prazno. */
+        fun kajJeNovega(ctx: Context): String {
+            val n = novo ?: return ""
+            val jezik = ctx.resources.configuration.locales[0].language
+            return n.optString(if (jezik == "sl") "sl" else "en").ifBlank { n.optString("en") }
+        }
         companion object {
             fun iz(o: JSONObject?): Nova? {
                 o ?: return null
                 val r = o.optString("razlicica"); val u = o.optString("url"); val s = o.optString("sha256")
                 if (r.isBlank() || !u.startsWith("https://") || s.length != 64) return null
-                return Nova(r, o.optInt("koda"), u, s.lowercase(), o.optLong("velikost"))
+                return Nova(r, o.optInt("koda"), u, s.lowercase(), o.optLong("velikost"), o.optJSONObject("novo"))
             }
         }
     }
@@ -109,6 +116,16 @@ object Posodobitve {
             PredajaObvestilo.pasicaSplosna(a, a.getString(R.string.os_posodobitev_pasica, nova.razlicica),
                 a.getString(R.string.os_posodobitev_namesti), a.getString(R.string.os_posodobitev_pozneje), { prenesiInNamesti(a, nova) }, {})
         }
+    }
+
+    /** Iz Nastavitev: najprej pove, kaj je novega (Namesti / Pozneje), nato prenos in namescanje. */
+    fun ponudiZOpisom(a: Activity, nova: Nova) {
+        val novo = nova.kajJeNovega(a)
+        val b = AlertDialog.Builder(a).setTitle(a.getString(R.string.os_posodobitev_pasica, nova.razlicica))
+            .setPositiveButton(R.string.os_posodobitev_namesti) { _, _ -> prenesiInNamesti(a, nova) }
+            .setNegativeButton(R.string.os_posodobitev_pozneje, null)
+        if (novo.isNotBlank()) b.setMessage(novo)
+        b.show()
     }
 
     /** Prenos APK v predpomnilnik (z napredkom), preverba SHA-256, nato sistemsko namescanje. */
