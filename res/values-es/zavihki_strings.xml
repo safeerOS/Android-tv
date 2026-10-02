@@ -37,8 +37,6 @@
     <string name="os_stremio_sezona">Temporada %1$d</string>
     <string name="os_stremio_torrent">torrent</string>
     <string name="os_stremio_zunanji">tráiler</string>
-    <string name="os_kodi_pojasnilo">Los complementos de Kodi son programas para la app Kodi y Safeer no puede ejecutarlos.\n\nDirección: %1$s\n\nSi tienes Kodi instalado, ábrelo allí. Para películas y series en Safeer usa complementos de Stremio.</string>
-    <string name="os_kodi_odpri">Abrir Kodi</string>
     <plurals name="os_stremio_epizod">
         <item quantity="one">%d episodio</item>
         <item quantity="other">%d episodios</item>

@@ -37,8 +37,6 @@
     <string name="os_stremio_sezona">Saison %1$d</string>
     <string name="os_stremio_torrent">torrent</string>
     <string name="os_stremio_zunanji">bande-annonce</string>
-    <string name="os_kodi_pojasnilo">Les extensions Kodi sont des programmes pour l’app Kodi ; Safeer ne peut pas les exécuter.\n\nAdresse : %1$s\n\nSi Kodi est installé, ouvre l’extension là-bas. Pour les films et séries dans Safeer, utilise des extensions Stremio.</string>
-    <string name="os_kodi_odpri">Ouvrir Kodi</string>
     <plurals name="os_stremio_epizod">
         <item quantity="one">%d épisode</item>
         <item quantity="other">%d épisodes</item>
