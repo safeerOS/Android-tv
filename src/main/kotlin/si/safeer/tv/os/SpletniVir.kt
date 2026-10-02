@@ -665,18 +665,27 @@ object SpletniVir {
         glaveDomene[domena(tok)] = mapOf("Referer" to stran)
     }
 
-    /** Glave zahteve za tok (Stremio proxyHeaders): veljajo za vse zahteve na ta gostitelj (tudi dele HLS). */
+    /** Glave po natancnem naslovu toka: predvajalnik jih da na VSE zahteve tega toka (tudi dele HLS/DASH na drugih
+     *  gostiteljih - CDN), kot Stremio prek svojega posrednika. */
+    private val glaveToka = ConcurrentHashMap<String, Map<String, String>>()
+
+    /** Glave zahteve za tok (Stremio proxyHeaders): za ta tok in vse njegove dele, pa tudi za druge zahteve na isti gostitelj. */
     fun zapomniGlaveToka(tok: String, glave: Map<String, String>) {
+        if (tok.isBlank()) return
+        if (glave.isEmpty()) glaveToka.remove(tok) else glaveToka[tok] = glave
         val g = gostitelj(tok)
         if (g.isBlank()) return
         if (glave.isEmpty()) glaveGostitelja.remove(g) else glaveGostitelja[g] = glave
     }
 
+    /** Glave, ki spremljajo tok z natancno tem naslovom (prazno, ce jih nima). */
+    fun glaveToka(tok: String): Map<String, String> = glaveToka[tok] ?: emptyMap()
+
     /**
      * Vir podatkov za nas predvajalnik: tokovom iz spletnih aplikacij doda Referer, piskotke in UA brskalnika.
      * UA gre v glave zahteve (ne v tovarno): DefaultHttpDataSource bi s svojim UA prepisal tistega iz proxyHeaders.
      */
-    fun virPodatkov(c: Context): DataSource.Factory {
+    fun virPodatkov(c: Context, glaveVsem: Map<String, String> = emptyMap()): DataSource.Factory {
         if (ua.isBlank()) ua = try { WebSettings.getDefaultUserAgent(c) } catch (_: Exception) { "" }
         val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
         return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { spec ->
@@ -688,6 +697,8 @@ object SpletniVir {
             try { CookieManager.getInstance().getCookie(url) } catch (_: Exception) { null }?.let { glave["Cookie"] = it }
             // Glave toka (proxyHeaders) imajo zadnjo besedo - tudi nad UA brskalnika in piskotki.
             glaveGostitelja[gostitelj(url)]?.let { glave.putAll(it) }
+            // Glave, ki spremljajo ta tok, gredo na vsak njegov del - tudi na segmente HLS/DASH na drugem gostitelju.
+            if (glaveVsem.isNotEmpty()) glave.putAll(glaveVsem)
             spec.withAdditionalHeaders(glave)
         }
     }

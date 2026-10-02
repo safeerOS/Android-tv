@@ -187,8 +187,20 @@ class GlasbaStoritev : Service() {
         val tovarna = (if (s != null) androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(PripetiVir.Tovarna(s.odtis, s.zeton, this, s.naprava)))
             else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this))))
             .setSubtitleParserFactory(Podnapisi.Popravljalnik())
+        // Tok z glavami (Stremio proxyHeaders) dobi svojo tovarno: glave spremljajo vse njegove zahteve, tudi dele HLS/DASH
+        // na drugih gostiteljih, drugih tokov v vrsti pa ne zadevajo.
+        val tovarneZGlavami = HashMap<Map<String, String>, androidx.media3.exoplayer.source.MediaSource.Factory>()
+        fun tovarnaZa(sk: Jamendo.Skladba): androidx.media3.exoplayer.source.MediaSource.Factory {
+            if (s != null) return tovarna
+            val glave = SpletniVir.glaveToka(sk.zvok)
+            if (glave.isEmpty()) return tovarna
+            return tovarneZGlavami.getOrPut(glave) {
+                androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, glave)))
+                    .setSubtitleParserFactory(Podnapisi.Popravljalnik())
+            }
+        }
         p.setMediaSources(seznam.map { sk ->
-            tovarna.createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
+            tovarnaZa(sk).createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
                 .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
                 .apply { if (sk.podnapisi.isNotEmpty()) setSubtitleConfigurations(Podnapisi.konfiguracije(this@GlasbaStoritev, sk.podnapisi)) }
                 .setMediaMetadata(M3Metadata.Builder().setTitle(sk.naslov).setArtist(sk.izvajalec).build())
