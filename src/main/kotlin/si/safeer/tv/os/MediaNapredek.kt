@@ -8,7 +8,8 @@ import org.json.JSONObject
 object MediaNapredek {
     private const val PREF = "safeer_media_napredek"
     private const val KEY = "vnosi"
-    data class Vnos(val skladba: Jamendo.Skladba, val polozaj: Long, val trajanje: Long, val cas: Long)
+    /** [naprava] = id naprave v Linku, s katere je datoteka (streznik datotek); prazno za splet in to napravo. */
+    data class Vnos(val skladba: Jamendo.Skladba, val polozaj: Long, val trajanje: Long, val cas: Long, val naprava: String = "")
 
     private fun kljuc(s: Jamendo.Skladba) = s.naslov.lowercase().replace(Regex("\\b(19|20)\\d{2}\\b"), "")
         .replace(Regex("[^\\p{L}\\p{N}]"), "")
@@ -16,7 +17,7 @@ object MediaNapredek {
     /** Videi s te naprave (kot VLC): zapomnimo si mesto ze od 1 min dolzine naprej. */
     private fun najkrajse(s: Jamendo.Skladba) = if (s.id.startsWith("krajevno:")) 60_000L else 600_000L
 
-    fun zapisi(c: Context, s: Jamendo.Skladba, polozaj: Long, trajanje: Long) {
+    fun zapisi(c: Context, s: Jamendo.Skladba, polozaj: Long, trajanje: Long, naprava: String = "") {
         val vrsta = SpletniVir.vrstaVsebine(s)
         val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || s.season > 0 || s.episode > 0
         // Kratkih glasbenih videospotov, pesmi in vsebin pod 10 min ne vnasamo med filme in serije za nadaljevanje ogleda
@@ -25,7 +26,7 @@ object MediaNapredek {
         val k = kljuc(s)
         val vsi = preberiJson(c).filter { it.optString("k") != k }.toMutableList()
         // Zadnjih ~95 % ne ponujamo kot "Nadaljuj"; ogled je prakticno koncan.
-        if (polozaj < trajanje * 95 / 100) vsi.add(0, json(s, polozaj, trajanje))
+        if (polozaj < trajanje * 95 / 100) vsi.add(0, json(s, polozaj, trajanje, naprava))
         shrani(c, vsi.take(30))
     }
 
@@ -36,7 +37,7 @@ object MediaNapredek {
             val vrsta = SpletniVir.vrstaVsebine(sk)
             val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || sk.season > 0 || sk.episode > 0
             if (!sk.video || sk.radio || vrsta == SpletniVir.VIDEOSPOT || sk.mediaType.equals("MusicVideo", ignoreCase = true) || (!jeSerijaAliFilm && trajanje < najkrajse(sk))) null
-            else Vnos(sk, o.getLong("p"), trajanje, o.optLong("t"))
+            else Vnos(sk, o.getLong("p"), trajanje, o.optLong("t"), o.optString("np"))
         } catch (_: Exception) { null }
     }.sortedByDescending { it.cas }
 
@@ -62,8 +63,8 @@ object MediaNapredek {
         c.getSharedPreferences(PREF, 0).edit().remove(KEY).apply()
     }
 
-    private fun json(s: Jamendo.Skladba, p: Long, d: Long) = JSONObject().put("k", kljuc(s)).put("p", p).put("d", d)
-        .put("t", System.currentTimeMillis()).put("s", JSONObject().put("id",s.id).put("n",s.naslov).put("a",s.izvajalec)
+    private fun json(s: Jamendo.Skladba, p: Long, d: Long, naprava: String) = JSONObject().put("k", kljuc(s)).put("p", p).put("d", d)
+        .put("t", System.currentTimeMillis()).put("np", naprava).put("s", JSONObject().put("id",s.id).put("n",s.naslov).put("a",s.izvajalec)
             .put("i",s.slika).put("z",s.zvok).put("u",s.povezava).put("r",s.radio).put("v",s.video).put("m",s.mime).put("st",s.streznik).put("ka",s.kanal).put("mt",s.mediaType).put("je",s.language))
     private fun skladba(o: JSONObject) = Jamendo.Skladba(o.optString("id"),o.optString("n"),o.optString("a"),o.optString("i"),o.optString("z"),o.optString("u"),o.optBoolean("r"),o.optBoolean("v"),o.optString("m"),o.optString("st"),o.optString("ka"),mediaType=o.optString("mt"),language=o.optString("je"))
     private fun preberiJson(c: Context): List<JSONObject> = try { val a=JSONArray(c.getSharedPreferences(PREF,0).getString(KEY,"[]")); (0 until a.length()).mapNotNull{a.optJSONObject(it)} } catch (_:Exception){ emptyList() }

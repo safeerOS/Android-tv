@@ -2912,7 +2912,7 @@ class GlasbaActivity : OsActivity() {
         val link = LinkUpravitelj.pridobi(this)
         if (ustaviTam) link.ukaz(p.naprava.id, "play.stop", org.json.JSONObject(), 5_000, LinkOdjemalec.Odgovor { _, _ -> })
         predajaPolozaj = sk.id to p.polozajMs
-        if (sk.video && p.trajanjeMs > 0) MediaNapredek.zapisi(this, sk, p.polozajMs, p.trajanjeMs)
+        if (sk.video && p.trajanjeMs > 0) MediaNapredek.zapisi(this, sk, p.polozajMs, p.trajanjeMs, p.streznikNaprava.ifBlank { p.streznik?.naprava.orEmpty() })
         fun zacni(s: DatotekeActivity.Streznik?, skl: Jamendo.Skladba = sk) {
             GlasbaStoritev.predvajaj(this, listOf(skl), 0, s)
             nadaljujKoPripravljen(skl)
@@ -2943,6 +2943,9 @@ class GlasbaActivity : OsActivity() {
                     zacni(s)
                 })
             }
+            sk.id.startsWith("share:") || sk.id.startsWith("disk:") || sk.id.startsWith("media:") ->
+                // Datoteka naprave brez streznika (stara zgodovina brez id-ja naprave): brez zetona je ni mogoce predvajati.
+                Toast.makeText(this, getString(R.string.os_predaja_napaka), Toast.LENGTH_LONG).show()
             else -> predvajaj(listOf(sk), 0)
         }
     }
@@ -3290,8 +3293,8 @@ class GlasbaActivity : OsActivity() {
         vrstica.visibility = if (sk == null || p == null || razdelek == DOMOV) View.GONE else View.VISIBLE
         if (sk == null || p == null) return
         val tokPomocnika = SprotnaPomoc.tokZa(sk)
-        if (tokPomocnika != null) { if (tokPomocnika.izvirnik.video) MediaNapredek.zapisi(this, tokPomocnika.izvirnik, tokPomocnika.zamikMs + p.currentPosition.coerceAtLeast(0), tokPomocnika.trajanjeMs) }
-        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0))
+        if (tokPomocnika != null) { if (tokPomocnika.izvirnik.video) MediaNapredek.zapisi(this, tokPomocnika.izvirnik, tokPomocnika.zamikMs + p.currentPosition.coerceAtLeast(0), tokPomocnika.trajanjeMs, tokPomocnika.streznikIzvirnika?.naprava.orEmpty()) }
+        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
         zdajNaslov.text = sk.naslov
         zdajIzvajalec.text = if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec
         zdajCas.text = if (p.isPlaying) "▶" else "❚❚"
