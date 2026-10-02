@@ -197,13 +197,15 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // krajevni nacin (brez naprav tablica nima cesa pokazati) in izhod v sistem televizorja.
         val skrij = if (packageName.endsWith(".tablet") || packageName.endsWith(".phone")) setOf(getString(R.string.os_zaganjalnik),
             getString(R.string.os_zagon), getString(R.string.os_nacin), getString(R.string.os_plosek_preizkus),
-            getString(R.string.os_izhod)) else setOf(getString(R.string.os_obvestila))  // televizor obvestil aplikacij ne kaze
+            getString(R.string.os_izhod)) else emptySet()
+        // Televizor tihih obvestil aplikacij ne kaze: vrstica Obvestila le na telefonu in tablici (tudi v Predvajalniku).
+        val skrijTv = if (packageManager.hasSystemFeature("android.software.leanback")) setOf(getString(R.string.os_obvestila)) else emptySet()
         // Safeer Predvajalnik je samostojen program, ne domaci zaslon: brez nastavitev zaganjalnika,
         // racunalniskega hosta, igralnega ploscka, moci, Scita in izhoda v sistem (preizkus 1. 10. 2026).
         val skrijPredvajalnik = if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") setOf(getString(R.string.os_zaganjalnik),
             getString(R.string.os_zagon), getString(R.string.os_host), getString(R.string.os_plosek_preizkus),
             getString(R.string.os_moc), getString(R.string.os_scit), getString(R.string.os_izhod)) else emptySet()
-        vrstice = vse.filter { it.ime !in skrij && it.ime !in skrijPredvajalnik && (packageName.endsWith(".phone") || it.ime != "Internet prek Safeer Linka") }
+        vrstice = vse.filter { it.ime !in skrij && it.ime !in skrijTv && it.ime !in skrijPredvajalnik && (packageName.endsWith(".phone") || it.ime != "Internet prek Safeer Linka") }
         prilagojevalnik.notifyDataSetChanged()
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
     }

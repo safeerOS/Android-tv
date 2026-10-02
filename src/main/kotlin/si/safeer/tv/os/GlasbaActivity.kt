@@ -370,6 +370,8 @@ class GlasbaActivity : OsActivity() {
 
     override fun onStart() {
         super.onStart()
+        // Samostojni Predvajalnik: to je njegov domaci zaslon - nova razlicica s safeer.si se ponudi tu (tiha pasica).
+        if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") Posodobitve.ponudiCeJeCas(this)
         Ozadje.uporabi(this, koren)
         if (!link.jeKrajevni()) link.dodaj(linkPoslusalec)
         GlasbaStoritev.poslusalci.add(poslusalec)
