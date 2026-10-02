@@ -117,7 +117,57 @@ class PredvajanjeActivity : OsActivity() {
     private fun zapisiNapredek() {
         val p = GlasbaStoritev.predvajalnik ?: return
         val sk = GlasbaStoritev.trenutna() ?: return
-        if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0))
+        // Sprotni tok pomocnika: napredek velja za izvirnik (nadaljevanje ga znova odpre in po potrebi spet prosi pomocnika).
+        val t = SprotnaPomoc.tokZa(sk)
+        if (t != null) { if (t.izvirnik.video) MediaNapredek.zapisi(this, t.izvirnik, t.zamikMs + p.currentPosition.coerceAtLeast(0), t.trajanjeMs) }
+        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0))
+    }
+
+    /**
+     * Polozaj in trajanje, kot ju vidi uporabnik: pri sprotnem toku pomocnika glede na izvirnik (tok tece od zamika,
+     * trajanja sam ne pozna), med cakanjem na nov tok po previjanju pa ze ciljni polozaj.
+     */
+    private fun polozajInTrajanje(p: Player): Pair<Long, Long> {
+        val t = GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) }
+            ?: return p.currentPosition.coerceAtLeast(0) to (p.duration.takeIf { it > 0 } ?: 0L)
+        val polozaj = if (ciljSprotnega >= 0) ciljSprotnega else t.zamikMs + p.currentPosition.coerceAtLeast(0)
+        return polozaj to t.trajanjeMs.coerceAtLeast(0L)
+    }
+
+    /** Ciljni polozaj previjanja v sprotnem toku, dokler pomocnik ne poslje novega toka (-1 = ni previjanja). */
+    private var ciljSprotnega = -1L
+    private val previjZdaj = Runnable {
+        val cilj = ciljSprotnega
+        if (cilj < 0) return@Runnable
+        // Medtem se predvaja kaj drugega: previjanje ne velja vec.
+        if (GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) } == null) {
+            android.util.Log.i("SafeerSprotnaPomoc", "Previjanje preklicano: trenutna skladba ni vec sprotni tok (${GlasbaStoritev.trenutna()?.id})")
+            ciljSprotnega = -1L; return@Runnable
+        }
+        nalaganje.visibility = View.VISIBLE
+        zbudi()
+        SprotnaPomoc.previj(this, cilj,
+            naStanje = { b -> runOnUiThread { if (!isFinishing) izvajalec.text = b } },
+            naKonec = { uspeh -> runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                ciljSprotnega = -1L
+                if (!uspeh) { izvajalec.text = GlasbaStoritev.trenutna()?.izvajalec.orEmpty(); nalaganje.visibility = View.GONE }
+                osveziCas()
+            } })
+    }
+
+    /** Skok na [ciljMs] (polozaj za uporabnika): v sprotnem toku prek pomocnika (z zamikom, da se zaporedni skoki sestejejo). */
+    private fun skociNa(ciljMs: Long) {
+        val p = GlasbaStoritev.predvajalnik ?: return
+        val t = GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) }
+        if (t == null) {
+            if (!p.isCurrentMediaItemSeekable) return
+            p.seekTo(if (p.duration > 0) minOf(ciljMs, p.duration - 500).coerceAtLeast(0) else ciljMs.coerceAtLeast(0))
+            osveziCas(); return
+        }
+        ciljSprotnega = ciljMs.coerceAtLeast(0).let { if (t.trajanjeMs > 0) minOf(it, (t.trajanjeMs - 2_000).coerceAtLeast(0)) else it }
+        osveziCas()
+        glavna.removeCallbacks(previjZdaj); glavna.postDelayed(previjZdaj, 700)
     }
     private val skrij = Runnable {
         // Dokler se video ne zacne, pas z naslovom ostane: uporabnik vidi, kaj se nalaga.
@@ -148,11 +198,22 @@ class PredvajanjeActivity : OsActivity() {
                 SpletniIgralec.zadnja = java.lang.ref.WeakReference(this@PredvajanjeActivity)
                 GlasbaStoritev.predvajajSplet(this@PredvajanjeActivity, sk.copy(zvok = ""), dovoliPrevzem = false)
             } else if (sk != null && SprotnaPomoc.jeSprotniTok(sk) && izvirnikSprotnega != null) {
-                // Sprotni tok pomocnika je odpovedal: nazaj na izvirnik (morda zatika, a tece), brez nove prosnje.
+                // Sprotni tok pomocnika je odpovedal (npr. tudi on ne zna prebrati izvirnika): ta pomocnik za ta video
+                // odpade, prosimo naslednjega; sele ko nihce ne more, nazaj na izvirnik (morda zatika, a tece).
                 val izvirnik = izvirnikSprotnega!!; izvirnikSprotnega = null
                 sprotnoPreverjeno = izvirnik.id
-                izvajalec.text = izvirnik.izvajalec
-                GlasbaStoritev.predvajaj(this@PredvajanjeActivity, listOf(izvirnik), 0, streznikSprotnega)
+                val t = SprotnaPomoc.tokZa(sk)
+                if (t != null) SprotnaPomoc.zabeleziNeuspeh(izvirnik.id, t.pomocnik)
+                val pozicija = t?.let { it.zamikMs + (GlasbaStoritev.predvajalnik?.currentPosition ?: 0L).coerceAtLeast(0L) } ?: 0L
+                nalaganje.visibility = View.VISIBLE
+                SprotnaPomoc.poskusi(this@PredvajanjeActivity, izvirnik, streznikSprotnega, t?.oblika ?: org.json.JSONObject(), pozicija, t?.trajanjeMs ?: 0L,
+                    naStanje = { b -> runOnUiThread { if (!isFinishing) izvajalec.text = b } },
+                    naKonec = { uspeh -> runOnUiThread {
+                        if (isFinishing) return@runOnUiThread
+                        if (uspeh) { izvirnikSprotnega = izvirnik; return@runOnUiThread }
+                        izvajalec.text = izvirnik.izvajalec
+                        GlasbaStoritev.predvajaj(this@PredvajanjeActivity, listOf(izvirnik), 0, streznikSprotnega)
+                    } })
             } else if (sk != null && SprotnaPomoc.jeNapakaDekodiranja(error) && !SprotnaPomoc.jeSprotniTok(sk) && sk.id != sprotnoPreverjeno) {
                 // Ta naprava videa ne zna predvajati: naprava v Linku z boljsim kodirnikom ga sproti pretvarja za nas.
                 sprotnoPreverjeno = sk.id
@@ -172,7 +233,9 @@ class PredvajanjeActivity : OsActivity() {
     private var streznikSprotnega: DatotekeActivity.Streznik? = null
 
     private fun prosiZaSprotniTok(sk: Jamendo.Skladba, oblika: org.json.JSONObject) {
-        val pozicija = GlasbaStoritev.predvajalnik?.currentPosition?.coerceAtLeast(0L) ?: 0L
+        var pozicija = GlasbaStoritev.predvajalnik?.currentPosition?.coerceAtLeast(0L) ?: 0L
+        // "Nadaljuj ogled" skoci na shranjeno mesto sele po zagonu: pomocnik naj zacne kar tam, ne od zacetka.
+        if (pozicija < 1_500L) MediaNapredek.polozaj(this, sk).takeIf { it > 0 }?.let { pozicija = it }
         val trajanje = GlasbaStoritev.predvajalnik?.duration?.takeIf { it != androidx.media3.common.C.TIME_UNSET && it > 0 } ?: 0L
         val streznik = GlasbaStoritev.streznikTrenutni
         nalaganje.visibility = View.VISIBLE
@@ -223,7 +286,7 @@ class PredvajanjeActivity : OsActivity() {
                 override fun onStartTrackingTouch(sb: SeekBar) { vlecenje = true }
                 override fun onStopTrackingTouch(sb: SeekBar) {
                     vlecenje = false
-                    GlasbaStoritev.predvajalnik?.let { p -> if (p.duration > 0 && p.isCurrentMediaItemSeekable) p.seekTo(p.duration * sb.progress / 1000) }
+                    GlasbaStoritev.predvajalnik?.let { p -> val (_, trajanje) = polozajInTrajanje(p); if (trajanje > 0) skociNa(trajanje * sb.progress / 1000) }
                     osveziCas()
                 }
             })
@@ -384,9 +447,22 @@ class PredvajanjeActivity : OsActivity() {
         prilagodiZaslonu()
     }
 
+    /**
+     * Dokler je zaslon predvajanja odprt, drzimo povezavo v Safeer Link: sprotni tok pomocnika jo potrebuje za
+     * previjanje (nov tok) in za zamenjavo pomocnika, povezava pa sicer pade 6 s po odhodu z zaslona Datotek.
+     */
+    private val linkPoslusalec = object : LinkOdjemalec.Poslusalec {
+        override fun naStanje(povezan: Boolean, sporocilo: String) {}
+        override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {}
+        override fun naNaslov(url: String, naslov: String, od: String) {}
+        override fun naBesedilo(besedilo: String, od: String) {}
+        override fun naZavrnitev() {}
+    }
+
     override fun onStart() {
         super.onStart()
         GlasbaStoritev.poslusalci.add(poslusalec)
+        if (!LinkUpravitelj.pridobi(this).jeKrajevni()) LinkUpravitelj.pridobi(this).dodaj(linkPoslusalec)
         osvezi()
         glavna.post(tik)
         zbudi()
@@ -475,6 +551,7 @@ class PredvajanjeActivity : OsActivity() {
         zapisiNapredek()
         if (jeVideo() && !isChangingConfigurations) GlasbaStoritev.predvajalnik?.pause()
         GlasbaStoritev.poslusalci.remove(poslusalec)
+        LinkUpravitelj.pridobi(this).odstrani(linkPoslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
         // Sliko odpnemo, zvok igra naprej (predvajanje v ozadju).
         pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost); it.removeListener(podnapisi) }
@@ -528,8 +605,7 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun osveziCas() {
         val p = GlasbaStoritev.predvajalnik ?: return
-        val trajanje = p.duration.takeIf { it > 0 } ?: 0L
-        val polozaj = p.currentPosition.coerceAtLeast(0)
+        val (polozaj, trajanje) = polozajInTrajanje(p)
         cas.text = (if (p.isPlaying) "▶  " else "❚❚  ") + if (trajanje > 0) "${oblikuj(polozaj)} / ${oblikuj(trajanje)}" else oblikuj(polozaj)
         if (!vlecenje) potek.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
         gumbPredvajaj?.setImageResource(if (p.isPlaying) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
@@ -815,12 +891,22 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     /** Pokaze podatke in odmakne zatemnitev. */
+    /** Od kdaj je predvajalnik pripravljen brez prve slike (0 = ni tako): zvok tece, slike pa dekodirnik ne da. */
+    private var brezSlikeOd = 0L
+
     private fun seNalaga(): Boolean {
         val p = GlasbaStoritev.predvajalnik ?: return false
         if (p.playbackState == Player.STATE_ENDED || p.playerError != null) return false
         if (p.playbackState == Player.STATE_BUFFERING) return true
         // Spletni igralec (WebView) ne javlja prve slike: zanj velja le polnjenje medpomnilnika.
-        return jeVideo() && p !is SpletniIgralec && !prvaSlika && p.playWhenReady
+        val caka = jeVideo() && p !is SpletniIgralec && !prvaSlika && p.playWhenReady
+        if (!caka || p.playbackState != Player.STATE_READY || !p.isPlaying) { brezSlikeOd = 0L; return caka }
+        // Pripravljen in igra, slike pa po 4 s se ni: video brez slike (npr. ta naprava zna le zvok) - ne vrtimo se v nedogled.
+        if (brezSlikeOd == 0L) { brezSlikeOd = System.currentTimeMillis(); glavna.postDelayed({ posodobiNalaganje() }, 4_200) }
+        if (System.currentTimeMillis() - brezSlikeOd < 4_000) return true
+        if (GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) } == null && izvajalec.text != getString(R.string.os_glasba_napaka_dekodirnik))
+            izvajalec.text = getString(R.string.os_glasba_napaka_dekodirnik)
+        return false
     }
 
     /** Gumb in namig za podnapise samo, kadar jih video ima. */
@@ -862,10 +948,8 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun premakni(ms: Long) {
         val p = GlasbaStoritev.predvajalnik ?: return
-        if (!p.isCurrentMediaItemSeekable) return
-        val cilj = (p.currentPosition + ms).coerceAtLeast(0)
-        p.seekTo(if (p.duration > 0) minOf(cilj, p.duration - 500) else cilj)
-        osveziCas()
+        val (polozaj, _) = polozajInTrajanje(p)
+        skociNa((polozaj + ms).coerceAtLeast(0))
     }
 
     // ------------------------------------------------------------------ slika v sliki (telefon, tablica)

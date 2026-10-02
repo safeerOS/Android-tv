@@ -17,6 +17,13 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
 
     companion object {
         @Volatile private var primerek: LinkUpravitelj? = null
+
+        /** Fizicna naprava za identiteto Linka: `n-<kljuc>` brez pripone (-os, -control, -player ...). */
+        fun fizicnaNaprava(id: String): String {
+            if (!id.startsWith("n-")) return id
+            val deli = id.split("-")
+            return if (deli.size >= 2) deli[0] + "-" + deli[1] else id
+        }
         /** Ena povezava v Link za ves proces brskalnika (domaci zaslon, datoteke, predvajalnik). */
         fun pridobi(context: Context): LinkUpravitelj = primerek ?: synchronized(this) {
             primerek ?: LinkUpravitelj(context.applicationContext as Application).also { primerek = it }
@@ -102,6 +109,9 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
      */
     fun jeTaNaprava(n: LinkOdjemalec.Naprava): Boolean {
         if (n.id == Identiteta.id(app)) return true
+        // Ista fizicna naprava z drugo identiteto (n-<kljuc> = sredisce/sprejemnik, n-<kljuc>-os = ta aplikacija):
+        // prej se je telefon v Datotekah videl dvakrat ("Ta telefon" in "Safeer OS (WP28 S)").
+        if (fizicnaNaprava(n.id) == fizicnaNaprava(Identiteta.id(app))) return true
         // Racunalnik, telefon ali tablica niso nikoli "ta naprava", tudi ce jih sredisce na tem televizorju
         // vidi prek zanke (127.0.0.1) - prej je to skrilo racunalnik v Datotekah in pri pomoci sibkejsim napravam.
         val moja = try { si.safeer.tv.cast.HubKrmilnik.platforma(app) } catch (_: Throwable) { "" }
