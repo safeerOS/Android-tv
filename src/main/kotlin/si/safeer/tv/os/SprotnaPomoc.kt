@@ -170,6 +170,8 @@ object SprotnaPomoc {
         // Trajanje pove pomocniku, koliko prostora bo tok vzel in s kaksno bitno hitrostjo naj kodira.
         if (trajanjeMs > 0) p.put("duration_ms", trajanjeMs)
         if (streznik != null) p.put("fp", streznik.odtis).put("token", streznik.zeton)
+        // Glave toka (Stremio proxyHeaders): brez njih pomocnik izvirnika ne bi dobil (403).
+        SpletniVir.glaveToka(sk.zvok).takeIf { it.isNotEmpty() }?.let { p.put("headers", JSONObject(it)) }
         for (kljuc in oblika.keys()) p.put(kljuc, oblika.get(kljuc))
         link.ukaz(n.id, "video.stream", p, 30_000, LinkOdjemalec.Odgovor { izid, napaka ->
             val d = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")

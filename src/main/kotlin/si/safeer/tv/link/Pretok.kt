@@ -68,6 +68,7 @@ object Pretok {
         if (!url.startsWith("https://") && !url.startsWith("http://")) return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
         if (odtis.isNotBlank() && odtis.length != 64) return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
         val mime = p.optString("mime"); val w = p.optInt("width"); val h = p.optInt("height")
+        val glave = glaveZahteve(p.optJSONObject("headers"))
         if (mime.startsWith("video/") && w > 0 && h > 0 && !znaDekodirati(MediaFormat.createVideoFormat(mime, w, h)))
             return Daljinec.Izid(false, "Naprava tega videa ne zna prebrati", koda = "ne_zna_dekodirati")
         val pomoc = Zmogljivost.porocilo(context).optJSONObject("pomoc")
@@ -94,10 +95,10 @@ object Pretok {
         val app = context.applicationContext
         // Velikost izvirnika (za bitno hitrost izhoda) poizvemo v ozadju, ce je odjemalec ne pozna; ukaz tece na glavni niti.
         Thread({
-            val vel = if (velikost > 0 || trajanjeMs <= 0) velikost else poizvediVelikost(url, odtis, zeton)
+            val vel = if (velikost > 0 || trajanjeMs <= 0) velikost else poizvediVelikost(url, odtis, zeton, glave)
             val bitna = Pretvorba.bitnaHitrost(vel, trajanjeMs, w, h)
             Log.i(TAG, "Tok $ime: izvirnik $vel B, ${trajanjeMs} ms, ${w}x$h -> bitna hitrost $bitna b/s")
-            glavna.post { pretvarjaj(app, t, url, odtis, zeton, seek, bitna, h) }
+            glavna.post { pretvarjaj(app, t, url, odtis, zeton, glave, seek, bitna, h) }
         }, "safeer-pretok").apply { isDaemon = true; start() }
         return Daljinec.Izid(true, "Pretvarjam sproti", JSONObject().put("id", t.id)
             .put("url", streznik.optString("base_url") + "/live/" + t.id)
@@ -110,12 +111,27 @@ object Pretok {
         return Daljinec.Izid(true, "Ustavljeno")
     }
 
+    /** Glave zahteve za izvirnik (Stremio proxyHeaders), ki jih poslje odjemalec: najvec 16, brez prelomov vrstic. */
+    private fun glaveZahteve(o: JSONObject?): Map<String, String> {
+        if (o == null) return emptyMap()
+        val m = LinkedHashMap<String, String>()
+        for (k in o.keys()) {
+            val v = o.optString(k)
+            if (k.isBlank() || k.length > 64 || v.length > 2048 || k.any { it < ' ' } || v.any { it == '\r' || it == '\n' }) continue
+            if (k.equals("Range", true) || k.equals("Host", true) || k.equals("Content-Length", true)) continue
+            m[k] = v
+            if (m.size >= 16) break
+        }
+        return m
+    }
+
     /** Velikost izvirnika z enim bajtom (Range 0-0 -> Content-Range: bytes 0-0/skupaj); 0, ce streznik ne pove. */
-    private fun poizvediVelikost(url: String, odtis: String, zeton: String): Long = try {
+    private fun poizvediVelikost(url: String, odtis: String, zeton: String, glave: Map<String, String> = emptyMap()): Long = try {
         val odjemalec = if (odtis.isNotBlank()) si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis)
             else okhttp3.OkHttpClient.Builder().connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
                 .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS).build()
-        val z = okhttp3.Request.Builder().url(url).header("Range", "bytes=0-0").apply { if (zeton.isNotBlank()) header("X-Safeer-Token", zeton) }.build()
+        val z = okhttp3.Request.Builder().url(url).apply { glave.forEach { (k, v) -> header(k, v) } }
+            .header("Range", "bytes=0-0").apply { if (zeton.isNotBlank()) header("X-Safeer-Token", zeton) }.build()
         odjemalec.newCall(z).execute().use { r ->
             val obseg = r.header("Content-Range").orEmpty().substringAfter('/', "").trim()
             obseg.toLongOrNull() ?: if (r.code == 200) r.header("Content-Length")?.toLongOrNull() ?: 0L else 0L
@@ -133,10 +149,14 @@ object Pretok {
     }
 
     /** Transformer tece na glavni niti; vir bere naravnost z racunalnika/televizorja (pripeto) ali s spleta. */
-    private fun pretvarjaj(ctx: Context, t: Tok, url: String, odtis: String, zeton: String, seekMs: Long, bitna: Int, visinaVira: Int) {
+    private fun pretvarjaj(ctx: Context, t: Tok, url: String, odtis: String, zeton: String, glave: Map<String, String>,
+                           seekMs: Long, bitna: Int, visinaVira: Int) {
         try {
+            // UA gre v tovarno (DefaultHttpDataSource z njim prepise glave zahteve), ostale glave toka na vsako zahtevo.
             val vir: DataSource.Factory = if (odtis.isNotBlank()) si.safeer.tv.os.PripetiVir.Tovarna(odtis, zeton, ctx)
-                else DefaultHttpDataSource.Factory().setUserAgent("Safeer OS").setAllowCrossProtocolRedirects(true)
+                else DefaultHttpDataSource.Factory().setUserAgent(glave.entries.firstOrNull { it.key.equals("User-Agent", true) }?.value ?: "Safeer OS")
+                    .setDefaultRequestProperties(glave.filterKeys { !it.equals("User-Agent", true) })
+                    .setAllowCrossProtocolRedirects(true)
             val nalagalnik = DefaultAssetLoaderFactory(ctx, DefaultDecoderFactory.Builder(ctx).build(), Clock.DEFAULT,
                 DefaultMediaSourceFactory(vir), DataSourceBitmapLoader(ctx))
             val kodirnik = DefaultEncoderFactory.Builder(ctx).apply {
