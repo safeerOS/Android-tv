@@ -745,7 +745,8 @@ class GlasbaActivity : OsActivity() {
     private fun kljucFokusa(): String? {
         var v: View? = window.decorView.findFocus()
         while (v != null && v !== vsebina) {
-            (v.tag as? String)?.takeIf { it.startsWith("k:") }?.let { return it }
+            // "r:" = gumb razdelka v glavi (Glasba | Video | ...): tudi nanj se izbira po risanju vrne.
+            (v.tag as? String)?.takeIf { it.startsWith("k:") || it.startsWith("r:") }?.let { return it }
             v = v.parent as? View
         }
         return null
@@ -758,9 +759,14 @@ class GlasbaActivity : OsActivity() {
      * Novo risanje (menjava razdelka) prekine se nedokoncano prejsnje.
      */
     private var risanje = 0
+    /** Kljuc izbire, ki jo mora vrniti risanje v teku (glej [narisi]); pritisk tipke ga razveljavi - uporabnik izbira sam. */
+    private var kljucVRisanju: String? = null
     private fun narisi(vrste: List<Vrsta>, opis: String, prazno: String = getString(R.string.os_glasba_prazno), glava: List<View> = emptyList()) {
         val moje = ++risanje
-        val kljuc = if (vsebina.hasFocus()) kljucFokusa() else null
+        // Risanje, ki ga prekine naslednje (mreza se dopolni, ko pridejo katalogi), izbire se ni vrnilo: kljuc gre naprej,
+        // sicer izbira na televizorju ostane v meniju.
+        val kljuc = (if (vsebina.hasFocus()) kljucFokusa() else null) ?: kljucVRisanju
+        kljucVRisanju = kljuc
         // Fokus iz vsebine, ki jo bomo zamenjali, v meni - sicer skoci na prvi element zaslona.
         if (vsebina.hasFocus()) meniMediji.requestFocus()
         vsebina.removeAllViews()
@@ -841,11 +847,13 @@ class GlasbaActivity : OsActivity() {
             brezOdrezanihVrst()
             drsnik.post {
                 if (moje != risanje) return@post
+                kljucVRisanju = null
                 // "Nadaljuj" se po zacetku predvajanja zamenja s tipkami - izbira gre na predvajaj/pavza.
                 val nazaj = kljuc?.let { vsebina.findViewWithTag<View>(it) ?: if (it == "k:nadaljuj") vsebina.findViewWithTag<View>("k:predvajaj") else null }
                 when {
+                    // Odprt razdelek: izbira gre na prvo kartico; ce kartic se ni (mreza se nalaga), poskusimo ob naslednjem risanju.
+                    fokusVVsebino -> { if (fokusNaPrvo()) fokusVVsebino = false }
                     nazaj != null -> nazaj.requestFocus()
-                    fokusVVsebino -> { fokusVVsebino = false; fokusNaPrvo() }
                     // Po zaprtem oknu (Dodaj vir, Odstrani) fokus ne sme ostati nikjer.
                     window.decorView.findFocus() == null -> meniMediji.requestFocus()
                 }
@@ -1394,7 +1402,13 @@ class GlasbaActivity : OsActivity() {
             { naloziVecKataloga(naslov) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
         if (!brskanje) { narisi(listOf(Vrsta(naslov, kartice, video = true, mreza = true)), vsi.size.toString()); return }
         // Filmi | Serije: zavihki, zvrsti in razvrstitev na vrhu, pod njimi mreza plakatov (brez naslova police).
-        val opis = when { o.nalagam && vsi.isEmpty() -> getString(R.string.os_glasba_nalagam); vsi.isEmpty() -> getString(R.string.os_glasba_prazno); else -> vsi.size.toString() }
+        val opis = when {
+            o.nalagam && vsi.isEmpty() -> getString(R.string.os_glasba_nalagam)
+            // Katalog ima naslove, a nobenega ne predvaja noben dodatek: povemo, kaj manjka (ne "Nic nisem nasel").
+            vsi.isEmpty() && o.vsi.any { znanoNiNaVoljo(it) } -> getString(R.string.os_media_ni_predvajljivih)
+            vsi.isEmpty() -> getString(R.string.os_glasba_prazno)
+            else -> vsi.size.toString()
+        }
         narisi(listOf(Vrsta("", kartice, video = true, mreza = true, cisto = true)), opis, glava = glavaBrskanja(o))
         // Pred prvo postavitvijo sirine se ne poznamo: ko je znana, mrezo narisemo se enkrat s pravo sirino plakatov.
         if (vsebina.width == 0) vsebina.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
@@ -2369,6 +2383,9 @@ class GlasbaActivity : OsActivity() {
     /** Med premikanjem gredo tipke samo premikanju: levo/desno premakne, vse ostalo konca. */
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
         zadnjiDotik = android.os.SystemClock.uptimeMillis()
+        kljucVRisanju = null
+        // Uporabnik izbira sam: cakajoca "izbira na prvo kartico" ne sme vec skociti (klik jo nastavi sele za tem).
+        if (dogodek.action == KeyEvent.ACTION_DOWN) fokusVVsebino = false
         val k = premikam
         if (k != null) {
             if (dogodek.action == KeyEvent.ACTION_DOWN) when (dogodek.keyCode) {
@@ -3065,13 +3082,28 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Fokus na prvo kartico prve vrste (za iskalnim poljem). */
-    private fun fokusNaPrvo() {
+    /**
+     * Izbira (daljinec) na prvo kartico vsebine. Vrstica razdelkov (Glasba | Video | ...) in izbire mreze (Filmi,
+     * razvrstitev, zvrst) niso vsebina: ce pod njimi se ni kartic, gre izbira na odprti razdelek in funkcija vrne false
+     * (klicatelj lahko poskusi znova, ko vsebina pride).
+     */
+    private fun fokusNaPrvo(): Boolean {
+        var glava: View? = null
         for (i in 0 until vsebina.childCount) {
             val v = vsebina.getChildAt(i)
             val vrsta = (if (v.tag == MREZA_VRSTA) v else (v as? HorizontalScrollView)?.getChildAt(0)) as? LinearLayout ?: continue
-            vrsta.getChildAt(0)?.requestFocus()
-            return
+            val prvi = vrsta.getChildAt(0) ?: continue
+            val oznaka = prvi.tag as? String
+            if (oznaka?.startsWith("r:") == true) {
+                glava = (0 until vrsta.childCount).map { vrsta.getChildAt(it) }.firstOrNull { it.alpha == 1f } ?: prvi
+                continue
+            }
+            if (oznaka == "k:nacin") { if (glava == null) glava = prvi; continue }
+            prvi.requestFocus()
+            return true
         }
+        glava?.requestFocus()
+        return false
     }
 
     /** Seznam iz vira (epizode podkasta, dodani .m3u): prikaz kot vrsta, uporabnik izbere, kaj predvaja. */
@@ -3723,7 +3755,7 @@ class GlasbaActivity : OsActivity() {
 
     /** Epizode ni v nobenem dodatku: zapomnimo si in pokazemo seznam brez nje (ostale so morda na voljo). */
     private fun epizodeNi(sk: Jamendo.Skladba, tip: String, e: Stremio.Epizoda, vse: List<Stremio.Epizoda>, rocno: Boolean, edinaSezona: Boolean) {
-        Razpolozljivost.zapomni(this, Razpolozljivost.kljuc(tip, e.id), false)
+        skrijInPotrdi(Razpolozljivost.kljuc(tip, e.id)) { naslovi, torrent -> Stremio.razpolozljivo(naslovi, tip, e.id, torrent) }
         izberiEpizodo(sk, vse, rocno, edinaSezona)
     }
 
@@ -3749,10 +3781,27 @@ class GlasbaActivity : OsActivity() {
         kljucRazpolozljivosti(sk)?.let { if (Razpolozljivost.stanje(this, it) != true) Razpolozljivost.zapomni(this, it, true) }
     }
 
-    /** Vsebine se ne da predvajati: zapomnimo si in kartico umaknemo z zaslona (mreza ostane, kjer je bila). */
+    /**
+     * Dotik ni dal toka: vsebino skrijemo takoj (za nekaj minut), za ure pa si "ni na voljo" zapomnimo sele, ko to
+     * potrdijo vsi dodatki. Izpad dodatka ali omrezja tako ne skrije naslova, ki je cez minuto spet na voljo.
+     */
+    private fun skrijInPotrdi(k: String, preveri: (List<String>, Boolean) -> Boolean?) {
+        Razpolozljivost.zacasnoNi(k)
+        val naslovi = stremioNaslovi()
+        if (naslovi.isEmpty()) return
+        val torrent = torrentSteje()
+        try {
+            preverjanjeEpizod.execute {
+                val r = try { preveri(naslovi, torrent) } catch (_: Exception) { null }
+                if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
+    /** Vsebine se ne da predvajati: kartico umaknemo z zaslona (mreza ostane, kjer je bila). */
     private fun oznaciNiNaVoljo(sk: Jamendo.Skladba) {
         val k = kljucRazpolozljivosti(sk) ?: return
-        Razpolozljivost.zapomni(this, k, false)
+        skrijInPotrdi(k) { naslovi, torrent -> preveriEnoto(sk, naslovi, torrent) }
         SEZNAMI.remove(VIDEO); SEZNAMI.remove(DOMOV)
         val o = odprtKatalog
         // Mreza se uredi sama; na policah in med zadetki iskanja izgine kartica, ki jo je uporabnik pravkar izbral.

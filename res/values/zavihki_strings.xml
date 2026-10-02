@@ -76,4 +76,5 @@
     <string name="os_moc_r_sorodnik">na tej napravi pomaga Safeer OS</string>
     <string name="os_moc_r_predvaja">na tej napravi ravno teče video ali glasba</string>
     <string name="os_media_ni_na_voljo">“%1$s” is not available in your add-ons right now.</string>
+    <string name="os_media_ni_predvajljivih">None of your add-ons can play these titles right now. Add an add-on with streams in My sources.</string>
 </resources>
