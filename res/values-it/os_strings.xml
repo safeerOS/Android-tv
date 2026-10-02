@@ -100,6 +100,8 @@
     <string name="os_stanje_nacin_link">Safeer Link</string>
     <string name="os_stanje_nacin_krajevni">Locale</string>
     <string name="os_scit_nastavitev_opis">Filtro DNS per tutto il televisore, in ogni app</string>
+    <string name="os_obvestila">Notifiche</string>
+    <string name="os_obvestila_opis">Invia a un dispositivo e i messaggi di altri dispositivi arrivano come notifica silenziosa quando Safeer OS è in secondo piano</string>
     <string name="os_vklopljeno">Attivo</string>
     <string name="os_izklopljeno">Disattivo</string>
 

@@ -104,6 +104,8 @@
     <string name="os_stanje_nacin_link">Safeer Link</string>
     <string name="os_stanje_nacin_krajevni">Local</string>
     <string name="os_scit_nastavitev_opis">DNS filtering for the whole television, in every app</string>
+    <string name="os_obvestila">Notifications</string>
+    <string name="os_obvestila_opis">Send to device and messages from other devices arrive as a quiet notification when Safeer OS is in the background</string>
     <string name="os_vklopljeno">On</string>
     <string name="os_izklopljeno">Off</string>
 

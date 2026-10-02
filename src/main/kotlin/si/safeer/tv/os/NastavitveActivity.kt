@@ -110,6 +110,14 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         odpri()
     }
 
+    /** Sistemske nastavitve obvestil za Safeer OS (od Androida 8 stran aplikacije, prej splosne). */
+    private fun odpriObvestila() {
+        val i = if (android.os.Build.VERSION.SDK_INT >= 26)
+            Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+        else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(android.net.Uri.parse("package:$packageName"))
+        try { sistemskoOkno { startActivity(i) } } catch (_: Throwable) { koren.visibility = View.VISIBLE }
+    }
+
     private fun narisi() {
         val stanjeZaganjalnika = Zaganjalnik.stanje(this)
         val jeDomaci = stanjeZaganjalnika == Zaganjalnik.IZBRAN
@@ -150,6 +158,11 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
                 getString(R.string.os_scit_nastavitev_opis),
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
+            // Obvestila (telefon, tablica): brez njih "Poslji na napravo" in sporocila z drugih naprav v ozadju niso vidni;
+            // dovoljenje, ki ga je uporabnik enkrat zavrnil, sistem ne ponudi vec - zato pot do nastavitev aplikacije tu.
+            Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_obvestila),
+                getString(R.string.os_obvestila_opis),
+                getString(if (si.safeer.tv.link.Obvestila.dovoljena(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { odpriObvestila() },
             Vrstica(R.drawable.os_ikona_link, "Global Link",
                 "Tvoje naprave se dosežejo tudi zunaj doma (link.safeer.si). Vidi jih samo tvoj krog zaupanja.",
                 getString(if (si.safeer.tv.link.GlobalLink.vklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { nastaviGlobalLink() },
@@ -166,7 +179,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // krajevni nacin (brez naprav tablica nima cesa pokazati) in izhod v sistem televizorja.
         val skrij = if (packageName.endsWith(".tablet") || packageName.endsWith(".phone")) setOf(getString(R.string.os_zaganjalnik),
             getString(R.string.os_zagon), getString(R.string.os_nacin), getString(R.string.os_plosek_preizkus),
-            getString(R.string.os_izhod)) else emptySet()
+            getString(R.string.os_izhod)) else setOf(getString(R.string.os_obvestila))  // televizor obvestil aplikacij ne kaze
         // Safeer Predvajalnik je samostojen program, ne domaci zaslon: brez nastavitev zaganjalnika,
         // racunalniskega hosta, igralnega ploscka, moci, Scita in izhoda v sistem (preizkus 1. 10. 2026).
         val skrijPredvajalnik = if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") setOf(getString(R.string.os_zaganjalnik),
