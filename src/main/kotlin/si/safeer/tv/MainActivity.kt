@@ -820,6 +820,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = { runOnUiThread { pokaziKodoZaSeznanitev() } }
         pokaziKodoZaSeznanitev()
         obravnavajCastNamero(intent)
+        si.safeer.tv.os.Posodobitve.ponudiCeJeCas(this)   // nova razlicica brskalnika s safeer.si: tiha pasica
         resumeBackgroundMedia()
     }
 

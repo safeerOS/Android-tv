@@ -66,6 +66,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         narisi()
         // Scit je lahko v sosednji aplikaciji: stanje preberemo prek mostu in vrstico osvezimo.
         Scit.stanje(this) { narisi() }
+        // Posodobitve: tiha preverba (najvec na 6 h), vrstica se osvezi.
+        Posodobitve.preveri(this) { _, _ -> if (!isFinishing) narisi() }
         osveziHost()
     }
 
@@ -108,6 +110,20 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun sistemskoOkno(odpri: () -> Unit) {
         koren.visibility = View.INVISIBLE
         odpri()
+    }
+
+    /** Posodobitve: takoj preveri safeer.si; novo razlicico prenese in preda namescanju, sicer pove, da je najnovejsa. */
+    private fun posodobi() {
+        Toast.makeText(this, R.string.os_posodobitev_preverjam, Toast.LENGTH_SHORT).show()
+        Posodobitve.preveri(this, vsiljeno = true) { nova, napaka ->
+            if (isFinishing) return@preveri
+            narisi()
+            when {
+                nova != null -> Posodobitve.prenesiInNamesti(this, nova)
+                napaka != null -> Toast.makeText(this, R.string.os_posodobitev_napaka, Toast.LENGTH_LONG).show()
+                else -> Toast.makeText(this, getString(R.string.os_posodobitev_najnovejsa, si.safeer.tv.BuildConfig.VERSION_NAME), Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     /** Sistemske nastavitve obvestil za Safeer OS (od Androida 8 stran aplikacije, prej splosne). */
@@ -163,6 +179,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_obvestila),
                 getString(R.string.os_obvestila_opis),
                 getString(if (si.safeer.tv.link.Obvestila.dovoljena(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { odpriObvestila() },
+            Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.os_posodobitve),
+                getString(R.string.os_posodobitve_opis), Posodobitve.stanje(this)) { posodobi() },
             Vrstica(R.drawable.os_ikona_link, "Global Link",
                 "Tvoje naprave se dosežejo tudi zunaj doma (link.safeer.si). Vidi jih samo tvoj krog zaupanja.",
                 getString(if (si.safeer.tv.link.GlobalLink.vklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { nastaviGlobalLink() },

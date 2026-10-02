@@ -454,6 +454,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiNadaljuj()
         narisiAplikacije()
+        Posodobitve.ponudiCeJeCas(this)   // nova razlicica s safeer.si: tiha pasica, najvec enkrat na dan
         narisiSpletne()
         prevzemiSpletne()
         // Ikone, shranjene s prejsnjo razlicico, so bile premajhne in zato zamegljene; enkrat jih
