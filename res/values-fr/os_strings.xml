@@ -109,7 +109,7 @@
     <string name="os_posodobitev_pasica">Une nouvelle version de Safeer OS, la %1$s, est disponible.</string>
     <string name="os_posodobitev_namesti">Installer</string>
     <string name="os_posodobitev_pozneje">Plus tard</string>
-    <string name="os_posodobitev_dovoljenje">Android doit autoriser Safeer OS à installer des applications. Autorise-le, reviens et appuie de nouveau sur Installer.</string>
+    <string name="os_posodobitev_dovoljenje">Android doit autoriser Safeer OS à installer des applications. Autorise-le et reviens : l\'installation continue toute seule.</string>
     <string name="os_posodobitev_dovoli">Autoriser</string>
     <string name="os_posodobitev_prenasam">Téléchargement de %1$s…</string>
     <string name="os_posodobitev_napaka">La mise à jour n\'a pas abouti – réessaie plus tard ou télécharge-la sur safeer.si.</string>

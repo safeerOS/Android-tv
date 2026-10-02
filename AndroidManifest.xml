@@ -90,6 +90,11 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
+        <!-- Posodobitve: sistemski namestitelj paketov najdemo izrecno, da uporabnik ne dobi izbirnika aplikacij. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:mimeType="application/vnd.android.package-archive" />
+        </intent>
         <!-- Sosednje Safeer aplikacije na isti napravi (Sosed.kt): brez izrecnega vnosa jih Android 11+
              skrije pred getPackageInfo(), tudi ce so namescene - vsaka bi mislila, da je edina in bi
              sama poskusila voditi Safeer Link (dvoje sredisc, ki se "volita" med sabo na isti napravi). -->

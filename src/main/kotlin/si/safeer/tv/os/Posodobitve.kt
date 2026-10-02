@@ -31,6 +31,7 @@ object Posodobitve {
     private const val PREFS = "safeer_posodobitve"
     private const val PREVERBA_MS = 6 * 3600_000L
     private const val OPOMNIK_MS = 24 * 3600_000L
+    private const val CAKA_MS = 10 * 60_000L
     private const val OZNAKA = "SafeerPosodobitve"
 
     class Nova(val razlicica: String, val koda: Int, val url: String, val sha256: String, val velikost: Long, val novo: JSONObject? = null) {
@@ -105,8 +106,28 @@ object Posodobitve {
         }, "safeer-posodobitve").start()
     }
 
+    /**
+     * Po vrnitvi iz sistemskih nastavitev (dovoljenje za namescanje): namestitev se nadaljuje sama, brez
+     * ponovnega iskanja gumba Namesti. Zapis je v nastavitvah (ne v pomnilniku), ker Android ob spremembi tega
+     * dovoljenja aplikacijo lahko ponovno zazene. Velja 10 minut.
+     */
+    fun nadaljujCeCaka(a: Activity): Boolean {
+        val p = prefs(a)
+        val zapis = p.getString("caka", "") ?: ""
+        if (zapis.isEmpty()) return false
+        val cas = p.getLong("caka_cas", 0L)
+        p.edit().remove("caka").remove("caka_cas").apply()
+        if (System.currentTimeMillis() - cas > CAKA_MS) return false
+        val nova = Nova.iz(try { JSONObject(zapis) } catch (_: Throwable) { null }) ?: return false
+        if (nova.koda <= BuildConfig.VERSION_CODE) return false
+        if (Build.VERSION.SDK_INT >= 26 && !a.packageManager.canRequestPackageInstalls()) return false
+        prenesiInNamesti(a, nova)
+        return true
+    }
+
     /** Ob odprtju zaslona: preveri (najvec na 6 h) in novo razlicico ponudi s pasico (najvec enkrat na dan za isto). */
     fun ponudiCeJeCas(a: Activity) {
+        if (nadaljujCeCaka(a)) return
         preveri(a) { nova, _ ->
             if (nova == null || a.isFinishing) return@preveri
             val p = prefs(a)
@@ -134,6 +155,7 @@ object Posodobitve {
             // Android najprej vprasa, ali sme Safeer OS namescati aplikacije; uporabnik se vrne in pritisne Namesti znova.
             AlertDialog.Builder(a).setTitle(R.string.os_posodobitve).setMessage(R.string.os_posodobitev_dovoljenje)
                 .setPositiveButton(R.string.os_posodobitev_dovoli) { _, _ ->
+                    prefs(a).edit().putString("caka", nova.json().toString()).putLong("caka_cas", System.currentTimeMillis()).apply()
                     try { a.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.packageName))) }
                     catch (_: Throwable) { try { a.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)) } catch (_: Throwable) { } }
                 }.setNegativeButton(android.R.string.cancel, null).show()
@@ -177,6 +199,11 @@ object Posodobitve {
                     val uri = Uri.parse("content://" + a.packageName + ".fileprovider/cache_files/posodobitve/" + cilj.name)
                     val i = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
                         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    // Brez izbirnika "Odpiranje z aplikacijo" (npr. Termux se prijavi za APK): naravnost v sistemski namestitelj.
+                    try {
+                        a.packageManager.queryIntentActivities(i, android.content.pm.PackageManager.MATCH_SYSTEM_ONLY)
+                            .firstOrNull()?.activityInfo?.let { i.setClassName(it.packageName, it.name) }
+                    } catch (_: Throwable) { }
                     try { a.startActivity(i) } catch (t: Throwable) {
                         log("namescanje: $t"); android.widget.Toast.makeText(a, R.string.os_posodobitev_napaka, android.widget.Toast.LENGTH_LONG).show()
                     }
