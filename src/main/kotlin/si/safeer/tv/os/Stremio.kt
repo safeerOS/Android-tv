@@ -34,7 +34,9 @@ object Stremio {
     data class Manifest(val osnova: String, val ime: String, val viri: Set<String>, val tipi: Set<String>,
                         val predpone: List<String>, val katalogi: List<Katalog>)
 
-    data class Epizoda(val id: String, val ime: String, val sezona: Int, val epizoda: Int)
+    data class Epizoda(val id: String, val ime: String, val sezona: Int, val epizoda: Int,
+                       /** Tokovi, ki jih dodatek poda ze v metapodatkih posnetka (`videos[].streams`); prazno = vprasamo /stream. */
+                       val tokovi: List<Tok> = emptyList())
 
     data class Tok(val vrsta: String, val url: String, val ime: String, val opis: String, val dodatek: String,
                    /** Torrent: katera datoteka (fileIdx), -1 = najvecji video. */
@@ -43,6 +45,39 @@ object Stremio {
                    val glave: Map<String, String> = emptyMap())
 
     private val manifesti = ConcurrentHashMap<String, Manifest>()
+
+    // Kam sodi vsebina dodatka (Matej, 2. 10. 2026): uporabnik doda dodatek, Safeer ga sam razvrsti v pravi razdelek.
+    const val FILM = "film"
+    const val SERIJA = "serija"
+    /** TV v zivo: kanali, prenosi dogodkov in sporta. */
+    const val TV = "tv"
+    /** Glasba in drug zvok (albumi, skladbe, seznami, podkasti, zvocne knjige). */
+    const val GLASBA = "glasba"
+    const val RADIO = "radio"
+    /** Drug video (kanali z videi, anime, "other"): razdelek Video. */
+    const val VIDEO = "video"
+
+    /** Razred vsebine iz tipa dodatka (`type` kataloga ali vnosa). Neznan tip je video - nic se ne izgubi. */
+    fun razred(tip: String): String = when (tip.trim().lowercase()) {
+        "movie" -> FILM
+        "series" -> SERIJA
+        "tv", "live", "livetv", "iptv", "events", "event", "sports", "sport" -> TV
+        "radio", "radios" -> RADIO
+        "music", "audio", "album", "albums", "song", "songs", "track", "tracks", "playlist", "playlists",
+        "podcast", "podcasts", "audiobook", "audiobooks" -> GLASBA
+        else -> VIDEO
+    }
+
+    private val RX_NAGLASI = Regex("\\p{M}+")
+    private fun poenostavi(t: String) = java.text.Normalizer.normalize(t.lowercase(), java.text.Normalizer.Form.NFD).replace(RX_NAGLASI, "")
+    /** Ali ime vsebuje vse iskane besede (brez razlikovanja velikih crk in naglasov: "pop tv" najde "POP TV HD"). */
+    fun ujema(ime: String, beseda: String): Boolean {
+        val i = poenostavi(ime)
+        val besede = poenostavi(beseda).split(Regex("\\s+")).filter { it.isNotBlank() }
+        return besede.isNotEmpty() && besede.all { it in i }
+    }
+
+    private val bazen = java.util.concurrent.Executors.newCachedThreadPool { r -> Thread(r, "safeer-stremio").apply { isDaemon = true } }
 
     fun osnova(naslov: String): String {
         var n = naslov.trim()
@@ -156,13 +191,19 @@ object Stremio {
         return if (d.size == 3) Triple(d[2].substringBefore('#'), d[0], d[1]) else null
     }
     fun jeSerija(s: Jamendo.Skladba) = razstavi(s)?.second == "series"
+    /** Razred enote dodatka (FILM, SERIJA, TV, GLASBA, RADIO, VIDEO). */
+    fun razredEnote(s: Jamendo.Skladba): String = razred(razstavi(s)?.second.orEmpty())
+    fun jeVZivo(s: Jamendo.Skladba) = jeEnota(s) && razredEnote(s) == TV
 
-    private fun vnos(m: JSONObject, osnova: String): Jamendo.Skladba? {
+    private fun vnos(m: JSONObject, osnova: String, tipKataloga: String = ""): Jamendo.Skladba? {
         val id = m.optString("id").ifBlank { return null }
-        val tip = m.optString("type").ifBlank { "movie" }
+        val tip = m.optString("type").ifBlank { tipKataloga.ifBlank { "movie" } }
         val leto = m.optString("releaseInfo").ifBlank { m.optString("year") }
+        val r = razred(tip)
         return Jamendo.Skladba(PREDPONA + tip + "|" + id + "|" + osnova, m.optString("name").ifBlank { id }, leto,
-            m.optString("poster"), "", "$osnova/meta/${enc(tip)}/${enc(id)}.json", video = true,
+            m.optString("poster").ifBlank { m.optString("logo") }, "", "$osnova/meta/${enc(tip)}/${enc(id)}.json",
+            // Glasba in radio sta zvok (kartica in predvajalnik za zvok), vse ostalo video.
+            radio = r == RADIO, video = r != GLASBA && r != RADIO,
             // FILM / SERIJA za oznako na kartici in za filter Filmi | Serije (SpletniVir.vrstaVsebine).
             mediaType = when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
             year = leto.take(4).toIntOrNull() ?: 0,
@@ -184,7 +225,7 @@ object Stremio {
         if (dodatno.isNotEmpty()) pot += "/" + dodatno.joinToString("&") { enc(it.first) + "=" + enc(it.second) }
         val d = json("$pot.json") ?: return emptyList()
         val a = d.optJSONArray("metas") ?: d.optJSONArray("metasDetailed") ?: return emptyList()
-        return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { m -> vnos(m, k.dodatek) } }
+        return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { m -> vnos(m, k.dodatek, k.tip) } }
     }
 
     /** Javni katalog metapodatkov Stremia (Cinemeta: filmi in serije po priljubljenosti, epizode) - samo
@@ -202,30 +243,90 @@ object Stremio {
         return if (naslovi.any { osnova(it) == cinemeta }) naslovi else naslovi + CINEMETA
     }
 
-    /** Katalogi za prikaz (filmi, nato serije); brez tistih, ki brez filtra ne vrnejo nicesar. */
+    /** Katalogi razdelka Video (filmi, nato serije, nato drug video: kanali, anime ...); brez tistih, ki brez filtra ne vrnejo nicesar. */
     fun prikazniKatalogi(naslovi: List<String>): List<Katalog> = naslovi.mapNotNull { manifest(it) }
-        .flatMap { m -> m.katalogi.filter { it.prikazen && (it.tip == "movie" || it.tip == "series") } }
-        .sortedBy { if (it.tip == "movie") 0 else 1 }
+        .flatMap { m -> m.katalogi.filter { it.prikazen && razred(it.tip) in setOf(FILM, SERIJA, VIDEO) } }
+        .sortedBy { when (it.tip) { "movie" -> 0; "series" -> 1; else -> 2 } }
 
-    /** Katalogi TV kanalov v zivo (tip "tv") iz uporabnikovih dodatkov - gredo v razdelek TV v zivo (Matej, 1. 10. 2026). */
-    fun katalogiTv(naslovi: List<String>): List<Katalog> = naslovi.mapNotNull { manifest(it) }
-        .flatMap { m -> m.katalogi.filter { it.prikazen && it.tip == "tv" } }
+    /** Katalogi dodatkov izbranega razreda: TV (razdelek TV v zivo), GLASBA (Glasba), RADIO (Radio). */
+    fun katalogiRazreda(naslovi: List<String>, razred: String): List<Katalog> = naslovi.mapNotNull { manifest(it) }
+        .flatMap { m -> m.katalogi.filter { it.prikazen && razred(it.tip) == razred } }
 
-    /** Iskanje po imenu v vseh katalogih z iskanjem (vzporedno klice klicatelj prek niti). */
-    fun isci(naslovi: List<String>, beseda: String): List<Jamendo.Skladba> = naslovi.mapNotNull { manifest(it) }
-        .flatMap { m -> m.katalogi.filter { it.iskanje && (it.tip == "movie" || it.tip == "series") } }
-        .distinctBy { it.dodatek + it.tip }
-        .flatMap { k -> katalog(k, beseda).take(20) }
+    /** Katalogi TV kanalov v zivo iz uporabnikovih dodatkov - gredo v razdelek TV v zivo (Matej, 1. 10. 2026). */
+    fun katalogiTv(naslovi: List<String>): List<Katalog> = katalogiRazreda(naslovi, TV)
 
+    /** V kateri razdelek sodi dodatek po svojih katalogih: video (filmi, serije), sicer TV, glasba ali radio. */
+    fun glavniRazred(naslov: String): String {
+        val razredi = manifest(naslov)?.katalogi.orEmpty().map { razred(it.tip) }.toSet()
+        return when {
+            razredi.isEmpty() || FILM in razredi || SERIJA in razredi || VIDEO in razredi -> VIDEO
+            TV in razredi -> TV
+            GLASBA in razredi -> GLASBA
+            else -> RADIO
+        }
+    }
+
+    /**
+     * Iskanje po imenu v dodatkih VSEH vrst (filmi, serije, TV v zivo, glasba, radio), vsi katalogi hkrati.
+     * Katalog z lastnim iskanjem vprasamo z `search=`; kataloge kanalov, postaj in glasbe, ki iskanja ne
+     * podpirajo (vecina dodatkov TV v zivo), preiscemo sami po imenu (stran kataloga je v predpomnilniku).
+     */
+    fun isci(naslovi: List<String>, beseda: String): List<Jamendo.Skladba> {
+        val katalogi = naslovi.mapNotNull { manifest(it) }.flatMap { it.katalogi }
+        val zIskanjem = katalogi.filter { it.iskanje }.distinctBy { it.dodatek + "|" + it.tip }
+        val pokriti = zIskanjem.map { it.dodatek + "|" + it.tip }.toSet()
+        val brezIskanja = katalogi.filter { !it.iskanje && it.prikazen && (it.dodatek + "|" + it.tip) !in pokriti &&
+            razred(it.tip) in setOf(TV, RADIO, GLASBA) }.take(16)
+        val opravila = zIskanjem.map { k -> java.util.concurrent.Callable { katalog(k, beseda).take(20) } } +
+            brezIskanja.map { k -> java.util.concurrent.Callable { katalog(k).filter { ujema(it.naslov, beseda) }.take(20) } }
+        if (opravila.isEmpty()) return emptyList()
+        return bazen.invokeAll(opravila, 10, java.util.concurrent.TimeUnit.SECONDS)
+            .flatMap { f -> try { if (f.isCancelled) emptyList() else f.get() } catch (_: Exception) { emptyList() } }
+            .distinctBy { it.id }
+    }
+
+    /**
+     * Posnetki enote (`videos` v metapodatkih): epizode serije, skladbe albuma, videi kanala. Serija: ostevilcene
+     * epizode po sezonah (kot do zdaj); ostalo v vrstnem redu dodatka, tudi brez sezone in stevilke.
+     */
     fun epizode(s: Jamendo.Skladba): List<Epizoda> {
         val (osnova, tip, id) = razstavi(s) ?: return emptyList()
         val m = json("$osnova/meta/${enc(tip)}/${enc(id)}.json")?.optJSONObject("meta") ?: return emptyList()
         val v = m.optJSONArray("videos") ?: return emptyList()
-        return (0 until v.length()).mapNotNull { i ->
+        val imeDodatka = manifesti[osnova]?.ime.orEmpty()
+        val vsi = (0 until v.length()).mapNotNull { i ->
             val x = v.optJSONObject(i) ?: return@mapNotNull null
             val vid = x.optString("id").ifBlank { return@mapNotNull null }
-            Epizoda(vid, x.optString("title").ifBlank { x.optString("name") }, x.optInt("season"), x.optInt("episode"))
-        }.filter { it.sezona > 0 || it.epizoda > 0 }.sortedWith(compareBy({ it.sezona }, { it.epizoda }))
+            val tokovi = x.optJSONArray("streams")?.let { a -> (0 until a.length()).mapNotNull { j -> a.optJSONObject(j)?.let { tok(it, imeDodatka) } } }.orEmpty()
+            Epizoda(vid, x.optString("title").ifBlank { x.optString("name") }, x.optInt("season"), x.optInt("episode"), tokovi)
+        }
+        val ostevilcene = vsi.filter { it.sezona > 0 || it.epizoda > 0 }
+        return if (tip == "series" && ostevilcene.isNotEmpty()) ostevilcene.sortedWith(compareBy({ it.sezona }, { it.epizoda })) else vsi
+    }
+
+    private fun tok(s: JSONObject, imeDodatka: String): Tok? {
+        val ime = s.optString("name").ifBlank { imeDodatka }
+        val opis = s.optString("title").ifBlank { s.optString("description") }
+        // proxyHeaders.request (SDK: behaviorHints): glave, brez katerih streznik toka ne odgovori.
+        val glave = LinkedHashMap<String, String>()
+        s.optJSONObject("behaviorHints")?.optJSONObject("proxyHeaders")?.optJSONObject("request")?.let { h ->
+            for (k in h.keys()) { val v = h.optString(k); if (k.isNotBlank() && v.isNotBlank()) glave[k] = v }
+        }
+        return when {
+            s.optString("url").startsWith("http") -> Tok("url", s.optString("url"), ime, opis, imeDodatka, glave = glave)
+            s.optString("externalUrl").isNotBlank() -> Tok("zunanji", s.optString("externalUrl"), ime, opis, imeDodatka)
+            s.optString("ytId").isNotBlank() -> Tok("zunanji", "https://www.youtube.com/watch?v=" + s.optString("ytId"), ime, opis, imeDodatka)
+            s.optString("infoHash").isNotBlank() -> {
+                // Sledilniki iz `sources` ("tracker:udp://..."), da racunalnik hitreje najde vire.
+                val viri = s.optJSONArray("sources")
+                val tr = (0 until (viri?.length() ?: 0)).mapNotNull { viri?.optString(it) }
+                    .filter { it.startsWith("tracker:") }.joinToString("") { "&tr=" + enc(it.removePrefix("tracker:")) }
+                val ime2 = s.optJSONObject("behaviorHints")?.optString("filename").orEmpty()
+                Tok("torrent", "magnet:?xt=urn:btih:" + s.optString("infoHash") + (if (ime2.isNotBlank()) "&dn=" + enc(ime2) else "") + tr,
+                    ime, opis, imeDodatka, s.optInt("fileIdx", -1))
+            }
+            else -> null
+        }
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */
@@ -235,30 +336,6 @@ object Stremio {
         .flatMap { m ->
             val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json") ?: return@flatMap emptyList<Tok>()
             val a = d.optJSONArray("streams") ?: JSONArray()
-            (0 until a.length()).mapNotNull { i ->
-                val s = a.optJSONObject(i) ?: return@mapNotNull null
-                val ime = s.optString("name").ifBlank { m.ime }
-                val opis = s.optString("title").ifBlank { s.optString("description") }
-                // proxyHeaders.request (SDK: behaviorHints): glave, brez katerih streznik toka ne odgovori.
-                val glave = LinkedHashMap<String, String>()
-                s.optJSONObject("behaviorHints")?.optJSONObject("proxyHeaders")?.optJSONObject("request")?.let { h ->
-                    for (k in h.keys()) { val v = h.optString(k); if (k.isNotBlank() && v.isNotBlank()) glave[k] = v }
-                }
-                when {
-                    s.optString("url").startsWith("http") -> Tok("url", s.optString("url"), ime, opis, m.ime, glave = glave)
-                    s.optString("externalUrl").isNotBlank() -> Tok("zunanji", s.optString("externalUrl"), ime, opis, m.ime)
-                    s.optString("ytId").isNotBlank() -> Tok("zunanji", "https://www.youtube.com/watch?v=" + s.optString("ytId"), ime, opis, m.ime)
-                    s.optString("infoHash").isNotBlank() -> {
-                        // Sledilniki iz `sources` ("tracker:udp://..."), da racunalnik hitreje najde vire.
-                        val viri = s.optJSONArray("sources")
-                        val tr = (0 until (viri?.length() ?: 0)).mapNotNull { viri?.optString(it) }
-                            .filter { it.startsWith("tracker:") }.joinToString("") { "&tr=" + enc(it.removePrefix("tracker:")) }
-                        val ime2 = s.optJSONObject("behaviorHints")?.optString("filename").orEmpty()
-                        Tok("torrent", "magnet:?xt=urn:btih:" + s.optString("infoHash") + (if (ime2.isNotBlank()) "&dn=" + enc(ime2) else "") + tr,
-                            ime, opis, m.ime, s.optInt("fileIdx", -1))
-                    }
-                    else -> null
-                }
-            }
+            (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }
         }
 }
