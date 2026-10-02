@@ -21,7 +21,7 @@ object MediaNapredek {
         val vrsta = SpletniVir.vrstaVsebine(s)
         val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || s.season > 0 || s.episode > 0
         // Kratkih glasbenih videospotov, pesmi in vsebin pod 10 min ne vnasamo med filme in serije za nadaljevanje ogleda
-        if (!s.video || s.radio || vrsta == SpletniVir.VIDEOSPOT || s.mediaType.equals("MusicVideo", ignoreCase = true) ||
+        if (!s.video || s.radio || Stremio.jeVZivo(s) || s.id.startsWith("tv:") || vrsta == SpletniVir.VIDEOSPOT || s.mediaType.equals("MusicVideo", ignoreCase = true) ||
             (!jeSerijaAliFilm && trajanje < najkrajse(s)) || polozaj < 15_000 || trajanje <= 0) return
         val k = kljuc(s)
         val vsi = preberiJson(c).filter { it.optString("k") != k }.toMutableList()
@@ -36,7 +36,7 @@ object MediaNapredek {
             val trajanje = o.getLong("d")
             val vrsta = SpletniVir.vrstaVsebine(sk)
             val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || sk.season > 0 || sk.episode > 0
-            if (!sk.video || sk.radio || vrsta == SpletniVir.VIDEOSPOT || sk.mediaType.equals("MusicVideo", ignoreCase = true) || (!jeSerijaAliFilm && trajanje < najkrajse(sk))) null
+            if (!sk.video || sk.radio || Stremio.jeVZivo(sk) || sk.id.startsWith("tv:") || vrsta == SpletniVir.VIDEOSPOT || sk.mediaType.equals("MusicVideo", ignoreCase = true) || (!jeSerijaAliFilm && trajanje < najkrajse(sk))) null
             else Vnos(sk, o.getLong("p"), trajanje, o.optLong("t"), o.optString("np"))
         } catch (_: Exception) { null }
     }.sortedByDescending { it.cas }
