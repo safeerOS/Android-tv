@@ -147,7 +147,7 @@ object HubKrmilnik {
             return false
         }
 
-        val u = HubUsmerjevalnik(NastavitveShramba(app))
+        val u = HubUsmerjevalnik(NastavitveShramba(app), krogZaupanja = KrogNaprave.krog(app))
         // TLS: kljuc Huba iz Android KeyStore; odtis potrdila je vpleten v seznanjanje.
         val tls = try { HubTls.streznik() } catch (e: Throwable) {
             Log.w(TAG, "TLS Huba ni bilo mogoce pripraviti: ${e.message}")
@@ -160,7 +160,7 @@ object HubKrmilnik {
         u.krog.lastniKljuc = try { HubTls.javniKljucB64() } catch (_: Throwable) { null }
         u.krog.podpisnik = { podatki -> try { HubTls.podpisi(podatki) } catch (_: Throwable) { null } }
         // Hub je prvi clan kroga zaupanja: njegov kljuc je kljuc potrdila TLS.
-        try { u.vpisiLastniKljuc(lastniId(), imeHuba(app), HubTls.javniKljucB64(), "tv") } catch (e: Throwable) {
+        try { u.vpisiLastniKljuc(lastniId(), imeHuba(app), HubTls.javniKljucB64(), platforma(app)) } catch (e: Throwable) {
             Log.w(TAG, "Kljuca huba ni bilo mogoce vpisati v krog: ${e.message}")
         }
         // Starejsi nepodpisani vnosi tega huba: podpisemo jih, da jih sosedje sprejmejo.

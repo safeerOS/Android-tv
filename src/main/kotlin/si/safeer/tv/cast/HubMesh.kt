@@ -46,6 +46,8 @@ object HubMesh {
     private val premorReleja = ConcurrentHashMap<String, Pair<Long, Long>>()
     private const val RELE_PO_NEUSPEHIH = 2
     private const val PREMOR_RELEJA_MS = 60_000L
+    /** Sosed, ki ga nismo dosegli: do kdaj ga ne klicemo (premor raste do 10 min); oglas mDNS premor izbrise. */
+    private val nedosegljivDo = ConcurrentHashMap<String, Pair<Long, Long>>()
 
     /** Ali naslov kaze na to napravo (127.x, ::1, localhost) - tam je lokalni konec releja, ne sosed. */
     internal fun jeZanka(naslov: String): Boolean {
@@ -92,8 +94,18 @@ object HubMesh {
     }
 
     /** Oglasi iz mDNS, dopolnjeni z zapomnjenimi naslovi sosedov, ki jih mDNS ta hip ne vidi. */
+    /** Pozabi zapomnjeni naslov soseda (naslov zdaj pripada drugi napravi ali je naprava umaknjena). */
+    fun pozabi(context: Context, id: String) {
+        val p = context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE)
+        val znani = try { JSONObject(p.getString(KLJUC_ZNANI, "{}") ?: "{}") } catch (_: Throwable) { JSONObject() }
+        if (!znani.has(id)) return
+        znani.remove(id)
+        p.edit().putString(KLJUC_ZNANI, znani.toString()).apply()
+    }
+
     fun zDopolnitvijo(context: Context, hubi: List<HubDiscovery.NajdeniHub>): List<HubDiscovery.NajdeniHub> {
-        for (h in hubi) if (h.mesh == HubUsmerjevalnik.MESH) zapomni(context, h.id, h.naslov)
+        // Sosed, ki se spet oglasa po mDNS, je ocitno tu: premor po neuspelih klicih zanj ne velja vec.
+        for (h in hubi) if (h.mesh == HubUsmerjevalnik.MESH) { zapomni(context, h.id, h.naslov); nedosegljivDo.remove(h.id) }
         val videni = hubi.map { it.id }.toSet()
         val znani = try {
             JSONObject(context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE).getString(KLJUC_ZNANI, "{}") ?: "{}")
@@ -112,6 +124,7 @@ object HubMesh {
             if (h.id.isBlank() || h.id == jaz || h.mesh != HubUsmerjevalnik.MESH || h.id in povezani || h.id in klicem) return@filter false
             if (krog.clanZaId(h.id) == null) return@filter false
             if ((zavrnjen[h.id]?.first ?: 0L) > zdaj) return@filter false
+            if ((nedosegljivDo[h.id]?.first ?: 0L) > zdaj) return@filter false
             val prvic = prvicVideni.getOrPut(h.id) { zdaj }
             !(h.id < jaz && zdaj - prvic < VECJI_CAKA_MS)       // manjsi id klice prvi; pocakamo nanj
         }
@@ -125,16 +138,29 @@ object HubMesh {
         }
         val h = if (prekReleja) (naslovReleja(app, h0)?.let { h0.copy(naslov = it) } ?: return) else h0
         if (!klicem.add(h.id)) return
-        /** Klic ni prisel do soseda (brez odgovora ali napacen kljuc): stejemo in po potrebi poskusimo prek releja. */
-        fun nedosegljiv() {
-            klicem.remove(h.id)
-            if (prekReleja) { relejNiUspel(h.id); return }
-            val n = (neuspehi[h.id] ?: 0) + 1
-            neuspehi[h.id] = n
-            if (n >= RELE_PO_NEUSPEHIH && naslovReleja(app, h0) != null) poklici(app, u, h0, prekReleja = true)
-        }
         val kljuc = KrogNaprave.kljucHuba(app, h.id)
         if (kljuc == null) { klicem.remove(h.id); return }
+        /** Klic ni prisel do soseda (brez odgovora ali napacen kljuc): stejemo in po potrebi poskusimo prek releja. */
+        fun nedosegljiv(videniKljuc: String?) {
+            klicem.remove(h.id)
+            if (prekReleja) { relejNiUspel(h.id); return }
+            if (videniKljuc != null && videniKljuc != kljuc) {
+                // Na tem naslovu se oglasa DRUGA naprava (npr. telefon po ponovni namestitvi z novim kljucem):
+                // stara identiteta tu ne zivi vec - naslov pozabimo in je ne klicemo, dokler je mDNS spet ne oglasi.
+                // Brez tega bi vsaka naprava v krogu vsakih 20 s trkala na tujo napravo, ta pa bi vsakic zavrnila potrdilo.
+                pozabi(app, h.id)
+                nedosegljivDo[h.id] = (System.currentTimeMillis() + NAJDALJSI_PREMOR_MS) to NAJDALJSI_PREMOR_MS
+                Log.i(TAG, "${h.id}: na ${h.naslov} je druga naprava (${try { KrogZaupanja.idIzKljuca(videniKljuc) } catch (_: Throwable) { "?" }}); naslov pozabljen")
+                return
+            }
+            val n = (neuspehi[h.id] ?: 0) + 1
+            neuspehi[h.id] = n
+            // Vsak nadaljnji klic pocaka dlje (30 s ... 10 min); oglas mDNS premor takoj izbrise (zDopolnitvijo).
+            val prej = nedosegljivDo[h.id]?.second ?: 0L
+            val premor = (if (prej == 0L) PREMOR_MS else prej * 2).coerceAtMost(NAJDALJSI_PREMOR_MS)
+            nedosegljivDo[h.id] = (System.currentTimeMillis() + premor) to premor
+            if (n >= RELE_PO_NEUSPEHIH && naslovReleja(app, h0) != null) poklici(app, u, h0, prekReleja = true)
+        }
         // Zaupanje: kljuc v potrdilu = kljuc tega clana v krogu (oglas mDNS ne velja nic).
         val (graditelj, zaupnik) = HubTls.okhttp(OkHttpClient.Builder()
             .connectTimeout(6, TimeUnit.SECONDS).readTimeout(0, TimeUnit.MILLISECONDS)
@@ -154,10 +180,10 @@ object HubMesh {
             val j = try { JSONObject(telo) } catch (_: Throwable) { JSONObject() }
             val nonce = j.optString("nonce")
             val odtis = j.optString("fp").ifBlank { zaupnik.videni.orEmpty() }
-            if (koda == 0) { Log.i(TAG, "${h.id}: ni dosegljiv${if (prekReleja) " prek releja" else ""}"); nedosegljiv(); return@klic }
+            if (koda == 0) { Log.i(TAG, "${h.id}: ni dosegljiv${if (prekReleja) " prek releja" else ""}"); nedosegljiv(zaupnik.videniKljuc); return@klic }
             if (koda != 200 || nonce.isBlank() || odtis.isBlank()) { Log.i(TAG, "${h.id}: izziva ni ($koda)"); klicem.remove(h.id); return@klic }
             // Sosed je na tem naslovu dosegljiv (pravi kljuc v potrdilu): neposredno ali prek releja.
-            if (prekReleja) premorReleja.remove(h.id) else neuspehi.remove(h.id)
+            if (prekReleja) premorReleja.remove(h.id) else { neuspehi.remove(h.id); nedosegljivDo.remove(h.id) }
             val podpis = try { KrogNaprave.podpisPrijave(jaz, odtis, nonce) } catch (_: Throwable) { klicem.remove(h.id); return@klic }
             klic("/cast/auth/ticket", JSONObject().put("device_id", jaz).put("nonce", nonce).put("signature", podpis)
                 .put("platform", HubKrmilnik.platforma(app))) { koda2, telo2 ->

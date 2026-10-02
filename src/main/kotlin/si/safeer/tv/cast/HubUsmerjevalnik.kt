@@ -32,7 +32,9 @@ import java.util.UUID
 class HubUsmerjevalnik(
     private val shramba: Shramba? = null,
     internal val ura: () -> Long = { System.currentTimeMillis() },
-    internal val nakljucni: (Int) -> String = { privzetoNakljucno(it) }
+    internal val nakljucni: (Int) -> String = { privzetoNakljucno(it) },
+    /** Skupni krog zaupanja naprave (KrogNaprave.krog): hub in naprava NE smeta imeti vsak svoje kopije iste shrambe. */
+    krogZaupanja: KrogZaupanja? = null
 ) {
 
     /** Trajna shramba za zetone seznanjenih naprav (na Androidu SharedPreferences). */
@@ -304,7 +306,10 @@ class HubUsmerjevalnik(
     // Kljuci naprav (KrogZaupanja). Hub ga hrani in razposilja; naprava, ki se izkaze s starim
     // zetonom, vanj vpise svoj kljuc in od takrat naprej pride s podpisom - brez nove kode.
 
-    val krog = KrogZaupanja(shramba)
+    // En sam krog na proces: prej je imel hub svojo kopijo (KrogZaupanja(shramba)) poleg KrogNaprave.krog, obe pa sta
+    // pisali isti kljuc v SharedPreferences - zadnji pisec je prepisal clane drugega. Na S25 (2. 10. 2026) je hub po
+    // seznanitvi tako shranil krog samo s seboj; po ponovnem zagonu naprava ni poznala nikogar (401, brez sosedov).
+    val krog = krogZaupanja ?: KrogZaupanja(shramba)
 
     /** Id in odtis TLS tega huba; nastavi krmilnik. Podpis prijave je vezan na odtis, da ga ni mogoce prenesti na drug hub. */
     @Volatile
@@ -1203,6 +1208,7 @@ class HubUsmerjevalnik(
             val posiljatelj = idPovezave(od) ?: ""
             val (prejemnik, zmoznosti) = register.najdi(cilj).let { Pair(it?.povezava, it?.zmoznosti ?: emptyList()) }
             if (prejemnik == null) {
+                android.util.Log.i("SafeerHubUsmerjevalnik", "$tip za $cilj (od $posiljatelj): cilj ni povezan - znane naprave: ${register.vse().joinToString { it.id + (if (it.povezava == null) "(brez)" else "") }}")
                 return potrditev(id, "rejected", "Ciljna naprava '$cilj' ni povezana ali ne obstaja.", "control", "naprava_ni_povezana")
             }
             if (prejemnik === od) return potrditev(id, "rejected", "Naprava ne more upravljati sama sebe.", "control", "isti_naprava")
