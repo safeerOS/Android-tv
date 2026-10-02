@@ -7,6 +7,9 @@ object SpletMostPravila {
     sealed class Ukaz {
         data class Navigacija(val url: String) : Ukaz()
         object DodajBliznjico : Ukaz()
+        /** Uporabnik je bliznjico odstranil z zacetne strani (tudi vgrajeno): nic ni vsiljeno. */
+        data class OdstraniBliznjico(val url: String) : Ukaz()
+        object ObnoviBliznjice : Ukaz()
     }
 
     /** Most je dovoljen samo dokumentu splet.html, ne drugim datotekam v assets/splet. */
@@ -15,12 +18,17 @@ object SpletMostPravila {
         return cist == DOMACA
     }
 
-    /** Sprejmemo samo dve dokumentirani obliki in samo spletne naslove http(s). */
+    /** Kljuc bliznjice (enak kot v splet.js): naslov brez sheme, www. in koncne posevnice, z malimi crkami. */
+    fun kljucBliznjice(url: String): String = url.trim().replace(Regex("^https?://(www\\.)?", RegexOption.IGNORE_CASE), "").trimEnd('/').lowercase()
+
+    /** Sprejmemo samo dokumentirane oblike in samo spletne naslove http(s). */
     fun razcleni(json: String): Ukaz? {
         if (json.length !in 2..4096) return null
         return when (polje(json, "action")) {
             "navigate" -> polje(json, "url")?.takeIf(::jeSpletniNaslov)?.let(Ukaz::Navigacija)
             "open_sidebar" -> if (polje(json, "service") == "add_portal") Ukaz.DodajBliznjico else null
+            "remove_portal" -> polje(json, "url")?.takeIf(::jeSpletniNaslov)?.let(Ukaz::OdstraniBliznjico)
+            "reset_portals" -> Ukaz.ObnoviBliznjice
             else -> null
         }
     }

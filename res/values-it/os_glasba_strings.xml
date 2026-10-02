@@ -238,4 +238,20 @@
     <string name="os_predaja_sprejmi">Accetta</string>
     <string name="os_predaja_zavrni">Rifiuta</string>
     <string name="os_media_kanali_virov">Canali dalle tue fonti</string>
+    <string name="os_zvrst_vse">Tutti i generi</string>
+    <string name="os_zvrst_akcija">Azione</string>
+    <string name="os_zvrst_komedija">Commedia</string>
+    <string name="os_zvrst_drama">Drammatico</string>
+    <string name="os_zvrst_triler">Thriller</string>
+    <string name="os_zvrst_grozljivke">Horror</string>
+    <string name="os_zvrst_kriminalke">Poliziesco</string>
+    <string name="os_zvrst_zf">Fantascienza</string>
+    <string name="os_zvrst_fantazija">Fantasy</string>
+    <string name="os_zvrst_pustolovski">Avventura</string>
+    <string name="os_zvrst_animacija">Animazione</string>
+    <string name="os_zvrst_druzinski">Famiglia</string>
+    <string name="os_zvrst_romantika">Romantico</string>
+    <string name="os_zvrst_dokumentarci">Documentario</string>
+    <string name="os_media_izberi_tok">Scegli la fonte</string>
+    <string name="os_media_drug_vir">Questa fonte non funziona: provo la successiva…</string>
 </resources>

@@ -24,7 +24,9 @@ object Stremio {
     data class Katalog(val dodatek: String, val imeDodatka: String, val tip: String, val id: String, val ime: String,
                        val iskanje: Boolean, val obvezni: List<String>,
                        /** Obvezni dodatni parametri s prvo ponujeno moznostjo (genre=Action), kot jih Stremio pokaze v Discover. */
-                       val privzeti: List<Pair<String, String>> = emptyList()) {
+                       val privzeti: List<Pair<String, String>> = emptyList(),
+                       /** Moznosti parametra `genre` (zvrsti ali leta), kot jih katalog oglasi - za filter zvrsti v mrezi Filmi | Serije. */
+                       val zvrsti: List<String> = emptyList()) {
         /** Ali katalog brez uporabnikovega filtra sploh vrne vsebino (vsi obvezni parametri imajo privzeto moznost). */
         val prikazen: Boolean get() = obvezni.all { o -> privzeti.any { it.first == o } }
     }
@@ -49,7 +51,33 @@ object Stremio {
         return n.trimEnd('/')
     }
 
+    /**
+     * Predpomnilnik odgovorov dodatkov (v pomnilniku): uporabnik ne caka dvakrat na isto (Matej, 2. 10. 2026).
+     * Katalog 15 min (police razdelka Video in mreza Filmi | Serije berejo iste strani), metapodatki 1 uro,
+     * tokovi 3 min (ponoven dotik istega filma, vnaprej nalozeni tokovi ob izbiri kartice z daljincem).
+     */
+    private val odgovori = ConcurrentHashMap<String, Pair<Long, JSONObject>>()
+    private fun veljavnost(url: String): Long = when {
+        "/stream/" in url -> 3 * 60_000L
+        "/catalog/" in url -> 15 * 60_000L
+        "/meta/" in url -> 60 * 60_000L
+        else -> 0L
+    }
+
     private fun json(url: String): JSONObject? {
+        val velja = veljavnost(url)
+        if (velja > 0) odgovori[url]?.let { (cas, o) -> if (System.currentTimeMillis() - cas < velja) return o }
+        val o = prenesiJson(url) ?: return null
+        // Praznega seznama tokov ne hranimo: dodatek je morda le zacasno brez odgovora.
+        val prazniTokovi = "/stream/" in url && (o.optJSONArray("streams")?.length() ?: 0) == 0
+        if (velja > 0 && !prazniTokovi) {
+            if (odgovori.size > 300) odgovori.clear()
+            odgovori[url] = System.currentTimeMillis() to o
+        }
+        return o
+    }
+
+    private fun prenesiJson(url: String): JSONObject? {
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
         return try {
             val c = URL(url).openConnection() as HttpURLConnection
@@ -65,10 +93,26 @@ object Stremio {
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 
+    /** Mapa za predpomnilnik manifestov na disku (nastavi jo aplikacija ob zagonu); brez nje le pomnilnik. */
+    @Volatile var mapaPredpomnilnika: java.io.File? = null
+
+    /**
+     * Manifest dodatka: z diska (do 24 ur), sicer s spleta. Po hladnem zagonu so katalogi in tokovi tako na voljo
+     * brez cakanja na manifest vsakega dodatka posebej; nedosegljiv dodatek uporabi zadnji znani manifest.
+     */
+    private fun manifestJson(osnova: String): JSONObject? {
+        val datoteka = mapaPredpomnilnika?.let { java.io.File(it, "manifest-" + Integer.toHexString(osnova.hashCode()) + ".json") }
+        val zDiska = try { datoteka?.takeIf { it.isFile }?.let { JSONObject(it.readText()) } } catch (_: Exception) { null }
+        if (zDiska != null && System.currentTimeMillis() - (datoteka?.lastModified() ?: 0L) < 24 * 3600_000L) return zDiska
+        val svez = prenesiJson("$osnova/manifest.json")
+        if (svez != null) try { datoteka?.parentFile?.mkdirs(); datoteka?.writeText(svez.toString()) } catch (_: Exception) { }
+        return svez ?: zDiska
+    }
+
     fun manifest(naslov: String): Manifest? {
         val o = osnova(naslov)
         manifesti[o]?.let { return it }
-        val m = json("$o/manifest.json") ?: return null
+        val m = manifestJson(o) ?: return null
         val ime = m.optString("name").ifBlank { o }
         val viri = mutableSetOf<String>()
         m.optJSONArray("resources")?.let { a -> for (i in 0 until a.length()) {
@@ -84,10 +128,12 @@ object Stremio {
             if (tip.isBlank() || id.isBlank()) continue
             val podprti = mutableSetOf<String>(); val obvezni = mutableListOf<String>()
             val privzeti = mutableListOf<Pair<String, String>>()
+            val zvrsti = mutableListOf<String>()
             k.optJSONArray("extra")?.let { e -> for (j in 0 until e.length()) {
                 val x = e.optJSONObject(j) ?: continue
                 val imeX = x.optString("name")
                 podprti += imeX
+                if (imeX == "genre") x.optJSONArray("options")?.let { o -> for (q in 0 until o.length()) o.optString(q).takeIf { it.isNotBlank() }?.let { zvrsti += it } }
                 if (x.optBoolean("isRequired")) {
                     obvezni += imeX
                     // Stremio v Discover obvezni parameter nastavi na prvo moznost (npr. zvrst): enako tu.
@@ -95,7 +141,7 @@ object Stremio {
                 } } }
             k.optJSONArray("extraSupported")?.let { e -> for (j in 0 until e.length()) podprti += e.optString(j) }
             k.optJSONArray("extraRequired")?.let { e -> for (j in 0 until e.length()) obvezni += e.optString(j) }
-            katalogi += Katalog(o, ime, tip, id, k.optString("name").ifBlank { id }, "search" in podprti, obvezni.distinct(), privzeti)
+            katalogi += Katalog(o, ime, tip, id, k.optString("name").ifBlank { id }, "search" in podprti, obvezni.distinct(), privzeti, zvrsti)
         } }
         return Manifest(o, ime, viri, tipi, predpone, katalogi).also { manifesti[o] = it }
     }
@@ -122,14 +168,18 @@ object Stremio {
             year = leto.take(4).toIntOrNull() ?: 0,
             // Id IMDb (tt...), kot ga rabi vecina dodatkov: isti film iz vec katalogov/dodatkov je ena kartica.
             imdbId = if (id.startsWith("tt") && id.drop(2).all { it.isDigit() }) id else "",
-            genres = m.optJSONArray("genres")?.let { g -> (0 until g.length()).mapNotNull { g.optString(it).takeIf { s -> s.isNotBlank() } } } ?: emptyList())
+            genres = (m.optJSONArray("genres") ?: m.optJSONArray("genre"))?.let { g -> (0 until g.length()).mapNotNull { g.optString(it).takeIf { s -> s.isNotBlank() } } } ?: emptyList(),
+            // Ocena (IMDb), kadar jo katalog poda: na kartici kot zvezdica, kot pri drugih virih.
+            rating = m.optString("imdbRating").toDoubleOrNull() ?: 0.0)
     }
 
     /** Stran kataloga (`skip` = koliko vnosov preskociti, kot v Stremiu); obvezni parametri s privzeto moznostjo, iskanje kot `search=`. */
-    fun katalog(k: Katalog, iskanje: String = "", skip: Int = 0): List<Jamendo.Skladba> {
+    fun katalog(k: Katalog, iskanje: String = "", skip: Int = 0, zvrst: String = ""): List<Jamendo.Skladba> {
         var pot = "${k.dodatek}/catalog/${enc(k.tip)}/${enc(k.id)}"
         val dodatno = (if (iskanje.isNotBlank()) listOf("search" to iskanje) else emptyList()) +
-            k.privzeti.filter { it.first != "search" && (iskanje.isBlank() || it.first in k.obvezni) } +
+            // Izbrana zvrst (moznost kataloga, npr. "Comedy") nadomesti privzeto moznost parametra genre.
+            (if (zvrst.isNotBlank()) listOf("genre" to zvrst) else emptyList()) +
+            k.privzeti.filter { it.first != "search" && (zvrst.isBlank() || it.first != "genre") && (iskanje.isBlank() || it.first in k.obvezni) } +
             (if (skip > 0) listOf("skip" to skip.toString()) else emptyList())
         if (dodatno.isNotEmpty()) pot += "/" + dodatno.joinToString("&") { enc(it.first) + "=" + enc(it.second) }
         val d = json("$pot.json") ?: return emptyList()

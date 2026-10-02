@@ -238,4 +238,20 @@
     <string name="os_predaja_sprejmi">Annehmen</string>
     <string name="os_predaja_zavrni">Ablehnen</string>
     <string name="os_media_kanali_virov">Sender aus deinen Quellen</string>
+    <string name="os_zvrst_vse">Alle Genres</string>
+    <string name="os_zvrst_akcija">Action</string>
+    <string name="os_zvrst_komedija">Komödie</string>
+    <string name="os_zvrst_drama">Drama</string>
+    <string name="os_zvrst_triler">Thriller</string>
+    <string name="os_zvrst_grozljivke">Horror</string>
+    <string name="os_zvrst_kriminalke">Krimi</string>
+    <string name="os_zvrst_zf">Science-Fiction</string>
+    <string name="os_zvrst_fantazija">Fantasy</string>
+    <string name="os_zvrst_pustolovski">Abenteuer</string>
+    <string name="os_zvrst_animacija">Animation</string>
+    <string name="os_zvrst_druzinski">Familie</string>
+    <string name="os_zvrst_romantika">Romantik</string>
+    <string name="os_zvrst_dokumentarci">Dokumentation</string>
+    <string name="os_media_izberi_tok">Quelle wählen</string>
+    <string name="os_media_drug_vir">Diese Quelle läuft nicht – versuche die nächste …</string>
 </resources>
