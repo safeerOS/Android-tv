@@ -94,6 +94,9 @@ object HubMesh {
     }
 
     /** Oglasi iz mDNS, dopolnjeni z zapomnjenimi naslovi sosedov, ki jih mDNS ta hip ne vidi. */
+    /** Sosed se je povezal (v katero koli smer): premor po neuspelih klicih zanj izbrisemo. */
+    fun sosedTu(id: String) { nedosegljivDo.remove(id); neuspehi.remove(id) }
+
     /** Pozabi zapomnjeni naslov soseda (naslov zdaj pripada drugi napravi ali je naprava umaknjena). */
     fun pozabi(context: Context, id: String) {
         val p = context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE)
@@ -181,7 +184,15 @@ object HubMesh {
             val nonce = j.optString("nonce")
             val odtis = j.optString("fp").ifBlank { zaupnik.videni.orEmpty() }
             if (koda == 0) { Log.i(TAG, "${h.id}: ni dosegljiv${if (prekReleja) " prek releja" else ""}"); nedosegljiv(zaupnik.videniKljuc); return@klic }
-            if (koda != 200 || nonce.isBlank() || odtis.isBlank()) { Log.i(TAG, "${h.id}: izziva ni ($koda)"); klicem.remove(h.id); return@klic }
+            if (koda != 200 || nonce.isBlank() || odtis.isBlank()) {
+                // 401 = sosed nas (se) nima v svojem krogu (npr. telefon po ponovni seznanitvi): ne trkamo vsakih 20 s,
+                // ampak s premorom, ki raste; oglas mDNS ali njegov klic k nam ga izbrise.
+                Log.i(TAG, "${h.id}: izziva ni ($koda)"); klicem.remove(h.id)
+                val prej = nedosegljivDo[h.id]?.second ?: 0L
+                val premor = (if (prej == 0L) PREMOR_MS else prej * 2).coerceAtMost(NAJDALJSI_PREMOR_MS)
+                nedosegljivDo[h.id] = (System.currentTimeMillis() + premor) to premor
+                return@klic
+            }
             // Sosed je na tem naslovu dosegljiv (pravi kljuc v potrdilu): neposredno ali prek releja.
             if (prekReleja) premorReleja.remove(h.id) else { neuspehi.remove(h.id); nedosegljivDo.remove(h.id) }
             val podpis = try { KrogNaprave.podpisPrijave(jaz, odtis, nonce) } catch (_: Throwable) { klicem.remove(h.id); return@klic }
