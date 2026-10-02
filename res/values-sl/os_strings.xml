@@ -109,7 +109,7 @@
     <string name="os_posodobitev_pasica">Nova različica Safeer OS %1$s je na voljo.</string>
     <string name="os_posodobitev_namesti">Namesti</string>
     <string name="os_posodobitev_pozneje">Pozneje</string>
-    <string name="os_posodobitev_dovoljenje">Android mora Safeer OS dovoliti nameščanje aplikacij. Dovoli, se vrni in znova pritisni Namesti.</string>
+    <string name="os_posodobitev_dovoljenje">Android mora Safeer OS dovoliti nameščanje aplikacij. Dovoli in se vrni – namestitev se nadaljuje sama.</string>
     <string name="os_posodobitev_dovoli">Dovoli</string>
     <string name="os_posodobitev_prenasam">Prenašam %1$s …</string>
     <string name="os_posodobitev_napaka">Posodobitev ni uspela – poskusi pozneje ali jo prenesi s safeer.si.</string>

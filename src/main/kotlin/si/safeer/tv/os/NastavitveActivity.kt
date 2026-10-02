@@ -67,7 +67,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Scit je lahko v sosednji aplikaciji: stanje preberemo prek mostu in vrstico osvezimo.
         Scit.stanje(this) { narisi() }
         // Posodobitve: tiha preverba (najvec na 6 h), vrstica se osvezi.
-        Posodobitve.preveri(this) { _, _ -> if (!isFinishing) narisi() }
+        if (!Posodobitve.nadaljujCeCaka(this)) Posodobitve.preveri(this) { _, _ -> if (!isFinishing) narisi() }
         osveziHost()
     }
 
@@ -176,10 +176,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
             // Obvestila (telefon, tablica): brez njih "Poslji na napravo" in sporocila z drugih naprav v ozadju niso vidni;
             // dovoljenje, ki ga je uporabnik enkrat zavrnil, sistem ne ponudi vec - zato pot do nastavitev aplikacije tu.
-            Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_obvestila),
+            Vrstica(R.drawable.os_ikona_zvonec, getString(R.string.os_obvestila),
                 getString(R.string.os_obvestila_opis),
                 getString(if (si.safeer.tv.link.Obvestila.dovoljena(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { odpriObvestila() },
-            Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.os_posodobitve),
+            Vrstica(R.drawable.os_ikona_posodobi, getString(R.string.os_posodobitve),
                 getString(R.string.os_posodobitve_opis), Posodobitve.stanje(this)) { posodobi() },
             Vrstica(R.drawable.os_ikona_link, "Global Link",
                 "Tvoje naprave se dosežejo tudi zunaj doma (link.safeer.si). Vidi jih samo tvoj krog zaupanja.",
