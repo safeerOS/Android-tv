@@ -180,7 +180,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 getString(R.string.os_obvestila_opis),
                 getString(if (si.safeer.tv.link.Obvestila.dovoljena(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { odpriObvestila() },
             Vrstica(R.drawable.os_ikona_posodobi, getString(R.string.os_posodobitve),
-                getString(R.string.os_posodobitve_opis), Posodobitve.stanje(this)) { posodobi() },
+                Posodobitve.besedilo(this, R.string.os_posodobitve_opis), Posodobitve.stanje(this)) { posodobi() },
             Vrstica(R.drawable.os_ikona_link, "Global Link",
                 "Tvoje naprave se dosežejo tudi zunaj doma (link.safeer.si). Vidi jih samo tvoj krog zaupanja.",
                 getString(if (si.safeer.tv.link.GlobalLink.vklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { nastaviGlobalLink() },
