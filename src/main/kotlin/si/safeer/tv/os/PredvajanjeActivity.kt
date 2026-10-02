@@ -698,6 +698,27 @@ class PredvajanjeActivity : OsActivity() {
 
     private var zadnjiPredlogi: Pair<List<Jamendo.Skladba>, Boolean> = emptyList<Jamendo.Skladba>() to false
 
+    private fun posljiNaNapravo() {
+        val cilji = Predaja.cilji(this)
+        if (cilji.isEmpty()) { android.widget.Toast.makeText(this, R.string.os_predaja_ni_naprav, android.widget.Toast.LENGTH_SHORT).show(); return }
+        android.app.AlertDialog.Builder(this).setTitle(R.string.os_predaja_poslji)
+            .setItems(cilji.map { DatotekeActivity.lepoIme(it.ime) }.toTypedArray()) { _, i ->
+                val c = cilji[i]
+                val ime = DatotekeActivity.lepoIme(c.ime)
+                Predaja.poslji(this, c) { koda ->
+                    if (isFinishing) return@poslji
+                    val b = when (koda) {
+                        "ok" -> getString(R.string.os_predaja_poslano, ime)
+                        "ni_deljeno" -> getString(R.string.os_predaja_poslji_ni_deljeno)
+                        "stara" -> getString(R.string.os_predaja_poslji_stara, ime)
+                        "izklopljeno" -> getString(R.string.os_predaja_poslji_izklopljeno, ime)
+                        else -> getString(R.string.os_predaja_poslji_napaka, ime)
+                    }
+                    android.widget.Toast.makeText(this, b, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }.setNegativeButton(android.R.string.cancel, null).show()
+    }
+
     /** Kartice: Isci, Priljubljeno (♡), Shrani vrsto (glasba, radio), nato predlogi. */
     private fun napolni(seznam: List<Jamendo.Skladba>, video: Boolean, fokusNa: Int = -1) {
         zadnjiPredlogi = seznam to video
@@ -717,6 +738,11 @@ class PredvajanjeActivity : OsActivity() {
             val i = predlogiNiz.childCount
             predlogiNiz.addView(kartica(getString(R.string.zvocnik_predvajaj_na), zdaj.naslov, "",
                 R.drawable.os_ikona_zvocnik, video) { ZvocnikIzbira.izberi(this, zdaj) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } })
+        }
+        // "Poslji na napravo": kar igra tu, drugi napravi v Linku - tam caka tiho Sprejmi/Zavrni, tu igra naprej (pravila 28. 9.).
+        if (zdaj != null && Predaja.cilji(this).isNotEmpty()) {
+            predlogiNiz.addView(kartica(getString(R.string.os_predaja_poslji), getString(R.string.os_predaja_poslji_opis), "",
+                R.drawable.os_ikona_link, video) { posljiNaNapravo() })
         }
         if (zdaj != null && MedijskiViri.shranljiva(zdaj)) {
             val je = MedijskiViri.jePriljubljena(this, zdaj)

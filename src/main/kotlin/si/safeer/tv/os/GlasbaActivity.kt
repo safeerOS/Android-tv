@@ -140,6 +140,7 @@ class GlasbaActivity : OsActivity() {
         drsnik.post { if (window.decorView.findFocus() == null || razdelek == DOMOV) vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus() }
         iskanjeIzNamena()
         predvajajIzNamena()
+        sprejmiIzNamena()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -151,6 +152,24 @@ class GlasbaActivity : OsActivity() {
         }
         iskanjeIzNamena()
         predvajajIzNamena()
+        sprejmiIzNamena()
+    }
+
+    private fun sprejmiIzNamena() {
+        val n = intent ?: return
+        if (!n.getBooleanExtra(EXTRA_PREDAJA_SPREJMI, false)) return
+        n.removeExtra(EXTRA_PREDAJA_SPREJMI)
+        sprejmiPonudbo()
+    }
+
+    /** "Poslji na napravo": ponudbo, ki tu caka, prevzamemo kot pri "Nadaljuj z druge naprave" (isti predvajalnik, ista sekunda). */
+    fun sprejmiPonudbo() {
+        PredajaObvestilo.umakni(this)
+        val po = Predaja.vzemiCakajoco() ?: return
+        val link = LinkUpravitelj.pridobi(this)
+        val naprava = link.naprave.firstOrNull { it.id == po.od } ?: LinkOdjemalec.Naprava(po.od, po.odIme, "", emptyList(), "")
+        prevzemi(Predaja.Ponudba(naprava, po.skladba, po.polozajMs, po.trajanjeMs, igra = true, nazadnje = false, streznik = po.streznik,
+            streznikNaprava = po.streznikNaprava), ustaviTam = false)
     }
 
     /** Zaslon predvajanja je en sam: obstojecega premaknemo naprej, ne zlagamo novih na sklad. */
@@ -2894,13 +2913,22 @@ class GlasbaActivity : OsActivity() {
         if (ustaviTam) link.ukaz(p.naprava.id, "play.stop", org.json.JSONObject(), 5_000, LinkOdjemalec.Odgovor { _, _ -> })
         predajaPolozaj = sk.id to p.polozajMs
         if (sk.video && p.trajanjeMs > 0) MediaNapredek.zapisi(this, sk, p.polozajMs, p.trajanjeMs)
-        fun zacni(s: DatotekeActivity.Streznik?) {
-            GlasbaStoritev.predvajaj(this, listOf(sk), 0, s)
-            nadaljujKoPripravljen(sk)
-            if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
+        fun zacni(s: DatotekeActivity.Streznik?, skl: Jamendo.Skladba = sk) {
+            GlasbaStoritev.predvajaj(this, listOf(skl), 0, s)
+            nadaljujKoPripravljen(skl)
+            if (skl.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
         }
         when {
             p.streznik != null -> zacni(p.streznik)
+            p.streznikNaprava.isNotBlank() && LinkUpravitelj.fizicnaNaprava(p.streznikNaprava) == LinkUpravitelj.fizicnaNaprava(Identiteta.id(this)) -> {
+                // Datoteka te naprave, ki se vraca (druga naprava jo je igrala od tod): kar z diska, brez zetona.
+                val uri = si.safeer.tv.link.DatotekeStreznik.uriZa(sk.id)
+                if (uri == null) { Toast.makeText(this, getString(R.string.os_predaja_napaka), Toast.LENGTH_LONG).show(); return }
+                val lokalna = sk.copy(id = "krajevno:$uri", zvok = uri, povezava = "", slika = if (sk.video) uri else sk.slika)
+                predajaPolozaj = lokalna.id to p.polozajMs
+                if (lokalna.video && p.trajanjeMs > 0) MediaNapredek.zapisi(this, lokalna, p.polozajMs, p.trajanjeMs)
+                zacni(null, lokalna)
+            }
             p.streznikNaprava.isNotBlank() -> {
                 // Datoteka tretje naprave (racunalnik, telefon): svoj zeton dobimo tako kot Datoteke (files.list).
                 stanje.text = getString(R.string.os_glasba_nalagam)
@@ -3306,6 +3334,8 @@ class GlasbaActivity : OsActivity() {
         const val ISKANJE_BESEDA = "iskanje"
         /** Zavihek spodnje vrstice (StranskaVrstica.Zavihek.name), ki naj se odpre. */
         const val ZAVIHEK = "zavihek"
+        /** "Poslji na napravo": uporabnik je v pasici ali obvestilu izbral Sprejmi - Medijski center ponudbo prevzame. */
+        const val EXTRA_PREDAJA_SPREJMI = "predaja_sprejmi"
         private const val ZAHTEVA_PREDSTAVNOST = 7413
 
         /** Safeer Media je odprt (pod predvajalnikom); sicer ga Nazaj v predvajalniku odpre. */

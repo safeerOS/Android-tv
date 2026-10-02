@@ -314,6 +314,9 @@
             </intent-filter>
         </service>
 
+        <!-- "Poslji na napravo": Zavrni iz tihega obvestila (brez odpiranja aplikacije). -->
+        <receiver android:name="si.safeer.tv.os.PredajaObvestilo$Prejemnik" android:exported="false" />
+
         <receiver
             android:name="si.safeer.tv.cast.ZagonPrejemnik"
             android:exported="true"

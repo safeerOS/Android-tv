@@ -224,5 +224,16 @@
     <string name="os_predaja_napaka">Naprave ni bilo mogoče vprašati.</string>
     <string name="os_predaja_nast">Deli predvajanje z napravami v Linku</string>
     <string name="os_predaja_nast_opis">Druge tvoje naprave lahko na tvojo zahtevo nadaljujejo, kar gledaš tukaj</string>
+    <string name="os_predaja_poslji">Pošlji na napravo</string>
+    <string name="os_predaja_poslji_opis">Nadaljuj tam – čaka na Sprejmi</string>
+    <string name="os_predaja_poslano">Poslano na %1$s – tam potrdi s Sprejmi.</string>
+    <string name="os_predaja_poslji_stara">%1$s tega še ne zna – tam posodobi Safeer OS.</string>
+    <string name="os_predaja_poslji_napaka">%1$s ne odgovarja.</string>
+    <string name="os_predaja_poslji_ni_deljeno">Te datoteke ni mogoče poslati: deljenje datotek je na tej napravi izklopljeno.</string>
+    <string name="os_predaja_poslji_izklopljeno">%1$s ne sprejema predvajanja z drugih naprav.</string>
+    <string name="os_predaja_ni_naprav">V Safeer Linku ni druge naprave.</string>
+    <string name="os_predaja_ponudba">%1$s ti pošilja: %2$s (pri %3$s)</string>
+    <string name="os_predaja_sprejmi">Sprejmi</string>
+    <string name="os_predaja_zavrni">Zavrni</string>
     <string name="os_media_kanali_virov">Kanali iz tvojih virov</string>
 </resources>
