@@ -227,7 +227,7 @@
     <string name="os_predaja_poslji">Send to device</string>
     <string name="os_predaja_poslji_opis">Continue there – it waits for Accept</string>
     <string name="os_predaja_poslano">Sent to %1$s – confirm there with Accept.</string>
-    <string name="os_predaja_poslano_odpri">Sent to %1$s – notifications are off there, so open Safeer OS on that device and confirm with Accept.</string>
+    <string name="os_predaja_poslano_odpri">Sent to %1$s – open Safeer OS on that device and confirm with Accept (a notification is not visible there).</string>
     <string name="os_predaja_poslji_stara">%1$s does not know this yet – update Safeer OS there.</string>
     <string name="os_predaja_poslji_napaka">%1$s is not answering.</string>
     <string name="os_predaja_poslji_ni_deljeno">This file cannot be sent: file sharing is switched off on this device.</string>
