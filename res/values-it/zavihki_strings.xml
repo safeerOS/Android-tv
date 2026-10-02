@@ -37,8 +37,6 @@
     <string name="os_stremio_sezona">Stagione %1$d</string>
     <string name="os_stremio_torrent">torrent</string>
     <string name="os_stremio_zunanji">trailer</string>
-    <string name="os_kodi_pojasnilo">I componenti Kodi sono programmi per l’app Kodi e Safeer non può eseguirli.\n\nIndirizzo: %1$s\n\nSe Kodi è installato, apri lì il componente. Per film e serie in Safeer usa i componenti Stremio.</string>
-    <string name="os_kodi_odpri">Apri Kodi</string>
     <plurals name="os_stremio_epizod">
         <item quantity="one">%d episodio</item>
         <item quantity="other">%d episodi</item>

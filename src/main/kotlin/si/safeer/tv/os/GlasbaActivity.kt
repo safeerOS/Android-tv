@@ -741,6 +741,14 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /** Kartice s tem kljucem ni vec (izbrisan vir, zadnja v vrsti): najblizja prejsnja v isti vrsti, da izbira ne pade v meni. */
+    private fun sosedKljuca(k: String): View? {
+        val i = k.lastIndexOf('#')
+        val n = (if (i >= 0) k.substring(i + 1).toIntOrNull() else null) ?: return null
+        for (j in n - 1 downTo 0) vsebina.findViewWithTag<View>(k.substring(0, i + 1) + j)?.let { return it }
+        return null
+    }
+
     /** Kljuc pogleda s fokusom (kartice in gumbi imajo tag "k:..."), da ga po ponovnem risanju najdemo. */
     private fun kljucFokusa(): String? {
         var v: View? = window.decorView.findFocus()
@@ -849,7 +857,7 @@ class GlasbaActivity : OsActivity() {
                 if (moje != risanje) return@post
                 kljucVRisanju = null
                 // "Nadaljuj" se po zacetku predvajanja zamenja s tipkami - izbira gre na predvajaj/pavza.
-                val nazaj = kljuc?.let { vsebina.findViewWithTag<View>(it) ?: if (it == "k:nadaljuj") vsebina.findViewWithTag<View>("k:predvajaj") else null }
+                val nazaj = kljuc?.let { vsebina.findViewWithTag<View>(it) ?: (if (it == "k:nadaljuj") vsebina.findViewWithTag<View>("k:predvajaj") else null) ?: sosedKljuca(it) }
                 when {
                     // Odprt razdelek: izbira gre na prvo kartico; ce kartic se ni (mreza se nalaga), poskusimo ob naslednjem risanju.
                     fokusVVsebino -> { if (fokusNaPrvo()) fokusVVsebino = false }
@@ -881,10 +889,18 @@ class GlasbaActivity : OsActivity() {
                 val vidno = drsnik.height
                 if (vidno <= 0) return
                 var vidnaVrsta = false
+                var vidneVrsteMreze = 0
                 for (i in 0 until vsebina.childCount) {
                     val v = vsebina.getChildAt(i)
                     val jeVrsta = v is HorizontalScrollView || v.tag == MREZA_VRSTA
-                    if (v.bottom <= vidno) { if (v.tag == POLICA_KARTIC || v.tag == MREZA_VRSTA) vidnaVrsta = true; continue }
+                    if (v.bottom <= vidno) {
+                        if (v.tag == POLICA_KARTIC || v.tag == MREZA_VRSTA) vidnaVrsta = true
+                        if (v.tag == MREZA_VRSTA) vidneVrsteMreze++
+                        continue
+                    }
+                    // Mreza plakatov, kjer gre na zaslon ena sama vrsta (odprta je mala vrstica predvajanja): druge
+                    // vrste ne odmaknemo - sicer bi bila pod prvo vrsto praznina cez pol zaslona.
+                    if (v.tag == MREZA_VRSTA && vidneVrsteMreze < 2) return
                     // Samo vrste kartic (in njihove naslove); plosce na vrhu ostanejo, kot so.
                     if (!jeVrsta && v.contentDescription != NASLOV_VRSTE) return
                     // Prve vrste nikoli ne odmaknemo: na nizkem zaslonu (telefon lezece) bi sicer
@@ -1398,7 +1414,8 @@ class GlasbaActivity : OsActivity() {
         Razpolozljivost.pripravi(this, stremioNaslovi())
         val vsi = (if (brskanje) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi).filterNot { znanoNiNaVoljo(it) }
         preveriMrezo(o, vsi)
-        val kartice = videi(vsi, naslov) + (if (o.seKaj) listOf(Kartica(getString(R.string.os_media_nalozi_vec), vsi.size.toString(), "",
+        // Ce nobenega naslova ne predvaja noben dodatek, "Nalozi vec" ne pomaga (naslednje strani bi izginile enako).
+        val kartice = videi(vsi, naslov) + (if (o.seKaj && vsi.isNotEmpty()) listOf(Kartica(getString(R.string.os_media_nalozi_vec), vsi.size.toString(), "",
             { naloziVecKataloga(naslov) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
         if (!brskanje) { narisi(listOf(Vrsta(naslov, kartice, video = true, mreza = true)), vsi.size.toString()); return }
         // Filmi | Serije: zavihki, zvrsti in razvrstitev na vrhu, pod njimi mreza plakatov (brez naslova police).
@@ -2239,7 +2256,6 @@ class GlasbaActivity : OsActivity() {
                 0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, when {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
                     v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "")
-                    v.jeKodi -> getString(R.string.os_mediji_dodatek_kodi) + " · " + v.naslov.removePrefix("https://").removePrefix("http://")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
                 }, {
@@ -2247,7 +2263,6 @@ class GlasbaActivity : OsActivity() {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
                         // Dodatek: pokazemo shranjeni naslov (predvajanje prek dodatkov je naslednji korak).
                         v.jeStremio -> odpriRazdelekDodatka(v.naslov)
-                        v.jeKodi -> kodiPojasnilo(v)
                         // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
                         v.jeSplet -> odpriStran(v.naslov, v.ime)
                         // API: iscemo po njem skupaj z vsemi viri.
@@ -2503,6 +2518,7 @@ class GlasbaActivity : OsActivity() {
                       celota: List<Jamendo.Skladba> = v0): List<Kartica> {
         // Vsebine, za katero vemo, da je noben dodatek ne predvaja, ne kazemo nikjer (police, iskanje, mreza).
         val v = v0.filterNot { znanoNiNaVoljo(it) }
+        preveriPolico(v)
         val napredekKrajevnih = if (v.none { it.id.startsWith("krajevno:") }) emptyMap()
             else MediaNapredek.seznam(this).filter { it.skladba.id.startsWith("krajevno:") && it.polozaj > 0 }.associateBy { it.skladba.id }
         val skupine = SpletniVir.zdruziEnako(v)
@@ -3339,30 +3355,34 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
-     * Dodatki (Stremio, Kodi): dve jasno oznaceni polji, kamor uporabnik vnese naslove SVOJIH dodatkov.
-     * Safeer ne prilaga nobenega kataloga ali dodatka; shrani se le, kar je vneseno in preverjeno.
+     * Dodatki (Stremio): polje, kamor uporabnik vnese naslov SVOJEGA dodatka. Safeer ne prilaga nobenega kataloga ali
+     * dodatka; shrani se le, kar je vneseno in preverjeno. Ponujamo samo dodatke, ki jih Safeer sam poganja.
      */
     private fun dodajDodatke() {
-        fun polje(namig: Int) = EditText(this).apply {
-            hint = getString(namig); setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
+        val stremio = EditText(this).apply {
+            hint = getString(R.string.os_mediji_dodatki_stremio_namig); setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
         }
-        fun oznaka(besedilo: Int) = TextView(this).apply {
-            text = getString(besedilo); setTextColor(osBarva(R.color.os_besedilo)); textSize = 14f; setPadding(0, dp(10), 0, dp(2))
+        val napakaVrstica = TextView(this).apply {
+            setTextColor(0xFFFF8A80.toInt()); textSize = 13f; setPadding(0, dp(6), 0, 0); visibility = View.GONE
         }
-        val stremio = polje(R.string.os_mediji_dodatki_stremio_namig)
-        val kodi = polje(R.string.os_mediji_dodatki_kodi_namig)
+        // Ko uporabnik naslov popravlja, stara napaka izgine.
+        stremio.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) { }
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { napakaVrstica.visibility = View.GONE }
+            override fun afterTextChanged(s: android.text.Editable?) { }
+        })
         // Z daljincem je tipkanje naslova mucno: gumb Prilepi vzame naslov iz odlozisca (kopiran v Spletu
         // ali poslan z druge naprave), namig pa pove, da dodatek doda ze gumb Namesti na njegovi strani.
-        fun vrsticaZGumbom(polje: EditText) = LinearLayout(this).apply {
+        val vrstica = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(polje, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(stremio, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             addView(android.widget.Button(this@GlasbaActivity).apply {
                 text = getString(R.string.os_mediji_dodatki_prilepi); isAllCaps = false
                 setOnClickListener {
                     val cm = getSystemService(android.content.ClipboardManager::class.java)
                     val b = cm?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this@GlasbaActivity)?.toString()?.trim().orEmpty()
                     if (b.isBlank()) Toast.makeText(this@GlasbaActivity, R.string.os_mediji_dodatki_prilepi_prazno, Toast.LENGTH_LONG).show()
-                    else { polje.setText(b); polje.setSelection(b.length) }
+                    else { stremio.setText(b); stremio.setSelection(b.length) }
                 }
             })
         }
@@ -3371,30 +3391,36 @@ class GlasbaActivity : OsActivity() {
             addView(TextView(this@GlasbaActivity).apply {
                 text = getString(R.string.os_mediji_dodatki_namig_splet); setTextColor(osBarva(R.color.os_mint)); textSize = 13f; setPadding(0, dp(4), 0, dp(6))
             })
-            addView(oznaka(R.string.os_mediji_dodatki_stremio)); addView(vrsticaZGumbom(stremio))
-            addView(oznaka(R.string.os_mediji_dodatki_kodi)); addView(vrsticaZGumbom(kodi))
+            addView(TextView(this@GlasbaActivity).apply {
+                text = getString(R.string.os_mediji_dodatki_stremio); setTextColor(osBarva(R.color.os_besedilo)); textSize = 14f; setPadding(0, dp(10), 0, dp(2))
+            })
+            addView(vrstica)
+            addView(napakaVrstica)
         }
-        AlertDialog.Builder(this)
+        val okno = AlertDialog.Builder(this)
             .setTitle(R.string.os_mediji_dodatki)
             .setMessage(R.string.os_mediji_dodatki_razlaga)
             .setView(ScrollView(this).apply { addView(vsebina) })
-            .setPositiveButton(R.string.os_mediji_dodatki_shrani) { _, _ ->
-                var shranjeno = 0
-                for ((tip, vnos) in listOf(MedijskiViri.STREMIO to stremio.text.toString(), MedijskiViri.KODI to kodi.text.toString())) {
-                    if (vnos.isBlank()) continue
-                    val (naslov, napaka) = MedijskiViri.preveriDodatek(tip, vnos)
-                    if (naslov == null) {
-                        Toast.makeText(this, getString(if (napaka == "stremio") R.string.os_mediji_dodatki_napaka_stremio else R.string.os_mediji_dodatki_napaka_naslov), Toast.LENGTH_LONG).show()
-                        continue
-                    }
-                    val v = MedijskiViri.dodajDodatek(this, tip, naslov, "")
-                    Toast.makeText(this, getString(R.string.os_mediji_dodatki_shranjen, v.ime), Toast.LENGTH_SHORT).show()
-                    shranjeno++
-                }
-                if (shranjeno > 0) { SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); SEZNAMI.remove(TV_V_ZIVO); izberi(VIRI) }
-            }
+            .setPositiveButton(R.string.os_mediji_dodatki_shrani, null)
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+        // Napacen naslov okna ne zapre: napaka ostane pod poljem, dokler je uporabnik ne popravi (obvestilo, ki
+        // izgine po treh sekundah, je na televizorju lahko spregledati).
+        okno.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val vnos = stremio.text.toString()
+            if (vnos.isBlank()) { okno.dismiss(); return@setOnClickListener }
+            val (naslov, napaka) = MedijskiViri.preveriDodatek(MedijskiViri.STREMIO, vnos)
+            if (naslov == null) {
+                napakaVrstica.text = getString(if (napaka == "stremio") R.string.os_mediji_dodatki_napaka_stremio else R.string.os_mediji_dodatki_napaka_naslov)
+                napakaVrstica.visibility = View.VISIBLE
+                stremio.requestFocus()
+                return@setOnClickListener
+            }
+            val v = MedijskiViri.dodajDodatek(this, MedijskiViri.STREMIO, naslov, "")
+            Toast.makeText(this, getString(R.string.os_mediji_dodatki_shranjen, v.ime), Toast.LENGTH_SHORT).show()
+            okno.dismiss()
+            SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); SEZNAMI.remove(TV_V_ZIVO); izberi(VIRI)
+        }
     }
 
     private fun odstraniVir(v: MedijskiViri.Vir) {
@@ -3581,19 +3607,6 @@ class GlasbaActivity : OsActivity() {
                 fokusVVsebino = true; SEZNAMI.remove(cilj); izberi(cilj)
             }
         }
-    }
-
-    /**
-     * Dodatki Kodi so programi v Pythonu za aplikacijo Kodi - Safeer jih ne more zagnati (in jih ne bo
-     * posnemal). Povemo odkrito; ce je Kodi namescen, ga odpremo.
-     */
-    private fun kodiPojasnilo(v: MedijskiViri.Vir) {
-        val kodi = listOf("org.xbmc.kodi", "org.xbmc.kodi.beta").firstNotNullOfOrNull { packageManager.getLaunchIntentForPackage(it) }
-        val b = AlertDialog.Builder(this).setTitle(v.ime).setMessage(getString(R.string.os_kodi_pojasnilo, v.naslov))
-        if (kodi != null) b.setPositiveButton(R.string.os_kodi_odpri) { _, _ -> try { startActivity(kodi) } catch (_: Exception) { } }
-            .setNegativeButton(android.R.string.cancel, null)
-        else b.setPositiveButton(android.R.string.ok, null)
-        b.show()
     }
 
     private fun naslovKataloga(k: Stremio.Katalog): String {
@@ -3876,6 +3889,35 @@ class GlasbaActivity : OsActivity() {
                     if (r == false) glavna.post { glavna.removeCallbacks(umiri); glavna.postDelayed(umiri, 1_200) }
                 } finally { vPreverjanju.remove(k) }
             }
+        }
+    }
+
+    /**
+     * Police (domaca stran, Zate, zadetki): prvih nekaj naslovov iz dodatkov preverimo v ozadju. Zaslona pod prsti ne
+     * premikamo - cesar noben dodatek nima, ob naslednjem risanju ne bo vec (do takrat dotik da kratko obvestilo).
+     */
+    private fun preveriPolico(vsi: List<Jamendo.Skladba>) {
+        if (odprtKatalog != null) return        // mrezo preverja preveriMrezo
+        val enote = vsi.asSequence().filter { Stremio.jeEnota(it) && kljucRazpolozljivosti(it) != null }.take(12).toList()
+        if (enote.isEmpty()) return
+        val omrezje = getSystemService(android.net.ConnectivityManager::class.java)
+        if (omrezje == null || omrezje.activeNetwork == null || omrezje.isActiveNetworkMetered) return
+        val naslovi = stremioNaslovi()
+        if (naslovi.isEmpty()) return
+        Razpolozljivost.pripravi(this, naslovi)
+        val torrent = torrentSteje()
+        for (sk in enote) {
+            val k = kljucRazpolozljivosti(sk) ?: continue
+            if (Razpolozljivost.stanje(this, k) != null || !vPreverjanju.add(k)) continue
+            try {
+                preverjanje.execute {
+                    try {
+                        if (isFinishing) return@execute
+                        val r = try { preveriEnoto(sk, naslovi, torrent) } catch (_: Exception) { null }
+                        if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
+                    } finally { vPreverjanju.remove(k) }
+                }
+            } catch (_: java.util.concurrent.RejectedExecutionException) { vPreverjanju.remove(k) }
         }
     }
 

@@ -37,8 +37,6 @@
     <string name="os_stremio_sezona">Season %1$d</string>
     <string name="os_stremio_torrent">torrent</string>
     <string name="os_stremio_zunanji">trailer</string>
-    <string name="os_kodi_pojasnilo">Kodi add-ons are programs for the Kodi app and Safeer cannot run them.\n\nAddress: %1$s\n\nIf Kodi is installed, open the add-on there. For movies and series in Safeer, use Stremio add-ons.</string>
-    <string name="os_kodi_odpri">Open Kodi</string>
     <plurals name="os_stremio_epizod">
         <item quantity="one">%d episode</item>
         <item quantity="other">%d episodes</item>

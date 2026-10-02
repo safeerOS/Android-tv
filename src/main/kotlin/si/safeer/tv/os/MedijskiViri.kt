@@ -26,13 +26,17 @@ object MedijskiViri {
         val jeSeznam get() = tip == SEZNAM
         val jePodkast get() = tip == PODKAST
         val jeStremio get() = tip == STREMIO
-        val jeKodi get() = tip == KODI
-        val jeDodatek get() = jeStremio || jeKodi
+        val jeDodatek get() = jeStremio
     }
 
-    /** Dodatki, ki jih uporabnik vnese SAM (Stremio: naslov manifesta; Kodi: repozitorij ali .zip). Brez prilozenih. */
+    /** Dodatki, ki jih uporabnik vnese SAM (Stremio: naslov manifesta). Brez prilozenih. */
     const val STREMIO = "stremio"
-    const val KODI = "kodi"
+    /**
+     * Dodatkov Kodi Safeer ne more poganjati (programi za aplikacijo Kodi), zato jih ne ponujamo vec (lastnik,
+     * 2. 10. 2026: "ce ne moremo necesa poganjati, tudi dodatkov ne ponujamo"). Vrsta ostane le, da prej shranjene
+     * vnose prepoznamo in izpustimo.
+     */
+    private const val KODI_OPUSCENO = "kodi"
 
     /** Rezultat preverjanja naslova dodatka: (naslov ali null, kljuc napake za besedilo). */
     fun preveriDodatek(tip: String, vnos: String): Pair<String?, String> {
@@ -110,7 +114,7 @@ object MedijskiViri {
      * ki jih uporabnik doda v Safeer OS. Dvojniki po gostitelju so izločeni.
      */
     fun vsi(ctx: Context): List<Vir> {
-        val shranjeni = rocni(ctx).filterNot { PeerTube.jeBlokiran(it.naslov) || (it.jeSplet && jeImenikVirov(it.naslov)) }
+        val shranjeni = rocni(ctx).filterNot { it.tip == KODI_OPUSCENO || PeerTube.jeBlokiran(it.naslov) || (it.jeSplet && jeImenikVirov(it.naslov)) }
         val spletne = try { SpletneAplikacije.seznam(ctx) } catch (_: Throwable) { emptyList() }
         val prepovedani = odstranjeni(ctx)
         val samodejni = spletne.mapNotNull { app ->
@@ -349,7 +353,9 @@ object MedijskiViri {
 
     fun odstrani(ctx: Context, vir: Vir) {
         zapomniOdstranjen(ctx, vir.naslov)
-        shrani(ctx, rocni(ctx).filterNot { it.naslov == vir.naslov || istaSpletnaStran(it.naslov, vir.naslov) })
+        // Spletne strani so vir po domeni (ista stran pod drugim naslovom gre zraven); dodatki, tokovi in strezniki pa po
+        // tocnem naslovu - sicer bi izbris enega dodatka odstranil vse dodatke z iste domene.
+        shrani(ctx, rocni(ctx).filterNot { it.naslov == vir.naslov || (vir.jeSplet && it.jeSplet && istaSpletnaStran(it.naslov, vir.naslov)) })
         if (vir.jeSeznam) ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().remove(kljucSeznama(vir.naslov)).apply()
         pripeti(ctx).let { p -> if (kljucPripetega(vir) in p) pisi(ctx, PRIPETI, JSONArray(p - kljucPripetega(vir)).toString()) }
     }
