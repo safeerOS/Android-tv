@@ -213,4 +213,17 @@
     <string name="os_sprotno_pretvarja">%1$s sta convertendo il video in diretta per questo dispositivo …</string>
     <string name="os_sprotno_vir">convertito in diretta da %1$s</string>
     <string name="os_glasba_napaka_dekodirnik">Questo dispositivo non può riprodurre questo formato video e nessun dispositivo in Safeer Link può convertirlo al momento.</string>
+    <string name="os_predaja_naslov">Continua da un altro dispositivo</string>
+    <string name="os_predaja_opis">Ciò che è in riproduzione o è stato visto per ultimo su un altro dispositivo</string>
+    <string name="os_predaja_vprasam">Chiedo ai dispositivi…</string>
+    <string name="os_predaja_nic">Nessun dispositivo in Safeer Link sta riproducendo nulla al momento.</string>
+    <string name="os_predaja_igra">in riproduzione</string>
+    <string name="os_predaja_nazadnje">ultimo</string>
+    <string name="os_predaja_tukaj">Continua qui</string>
+    <string name="os_predaja_tukaj_ustavi">Continua qui e ferma là</string>
+    <string name="os_predaja_vprasanje">%1$s sta riproducendo questo (a %2$s). Continuare qui?</string>
+    <string name="os_predaja_napaka">Impossibile interrogare i dispositivi.</string>
+    <string name="os_predaja_nast">Condividi la riproduzione con i dispositivi del Link</string>
+    <string name="os_predaja_nast_opis">Gli altri tuoi dispositivi possono continuare, su tua richiesta, ciò che guardi qui</string>
+    <string name="os_media_kanali_virov">Canali dalle tue fonti</string>
 </resources>

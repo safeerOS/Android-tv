@@ -184,6 +184,17 @@ object DatotekeStreznik {
     }
 
     /** Oznaka datoteke (media:video:123) -> content URI; null za vse, kar ni datoteka iz zbirke. */
+    /** Obratno od [uriIz]: content:// naslov te naprave -> oznaka `media:<zbirka>:<id>` za pot `/d/` (predaja predvajanja). */
+    fun oznakaZa(uri: String): String? {
+        val u = uri.trimEnd('/')
+        val id = u.substringAfterLast('/').toLongOrNull() ?: return null
+        for (zbirka in listOf("video", "audio", "image", "shramba")) {
+            val osnova = zbirkaUri(zbirka)?.toString()?.trimEnd('/') ?: continue
+            if (u == "$osnova/$id") return "$PREDPONA$zbirka:$id"
+        }
+        return null
+    }
+
     private fun uriIz(oznaka: String): Uri? {
         val deli = oznaka.removePrefix(PREDPONA).split(":")
         if (deli.size != 2) return null

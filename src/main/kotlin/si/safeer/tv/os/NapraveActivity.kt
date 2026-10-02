@@ -145,6 +145,18 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Toast.makeText(this, getString(if (novoStanje) R.string.os_naprave_deljenje_vklopljeno else R.string.os_naprave_deljenje_izklopljeno), Toast.LENGTH_SHORT).show()
             narisi(link.naprave)
         })
+        // "Nadaljuj na drugi napravi": ali ta naprava drugim (na njihovo zahtevo) pove, kaj predvaja in kje.
+        val deliPredvajanje = Predaja.deli(this)
+        nove.add(Vrstica(
+            R.drawable.os_ikona_link,
+            getString(R.string.os_predaja_nast),
+            getString(R.string.os_predaja_nast_opis),
+            getString(if (deliPredvajanje) R.string.os_vklopljeno else R.string.os_izklopljeno),
+            ""
+        ) {
+            Predaja.nastaviDeli(this, !deliPredvajanje)
+            narisi(link.naprave)
+        })
         vrstice = nove
         prilagojevalnik.notifyDataSetChanged()
         vprasajZaMoc(tuje)
