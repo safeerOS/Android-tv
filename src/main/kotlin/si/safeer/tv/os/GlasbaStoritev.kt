@@ -117,6 +117,16 @@ class GlasbaStoritev : Service() {
                     obvesti(getString(R.string.os_media_napaka_naslednja, ime.ifBlank { "?" }))
                     p.seekToNextMediaItem(); p.prepare(); p.play()
                 } else {
+                    // Film iz dodatka ima rezervne tokove (naslednji najboljsi): poskusimo jih po vrsti, brez vprasanj.
+                    val naslednji = rezerve.firstOrNull()
+                    if (naslednji != null) {
+                        val ostale = rezerve.drop(1)
+                        SpletniVir.zapomniGlaveToka(naslednji.first.zvok, naslednji.second)
+                        obvesti(getString(R.string.os_media_drug_vir))
+                        predvajaj(this@GlasbaStoritev, listOf(naslednji.first), 0)
+                        rezerve = ostale
+                        return
+                    }
                     obvesti(getString(napakaZaUporabnika(error.errorCode)))
                     osvezi()
                 }
@@ -367,8 +377,18 @@ class GlasbaStoritev : Service() {
         }
 
         /** Predvajaj seznam od izbrane skladbe naprej; storitev se zazene, ce se ne tece. */
+        /** Rezervni tokovi iste vsebine z glavami, ki jih zahtevajo; veljajo samo za zadnje zagnano predvajanje. */
+        @Volatile private var rezerve: List<Pair<Jamendo.Skladba, Map<String, String>>> = emptyList()
+
+        /** Predvaja [prvi] tok; ce ga predvajalnik ne zmore (kodek, mrtva povezava), sam poskusi [ostali] po vrsti. */
+        fun predvajajZRezervami(ctx: Context, prvi: Jamendo.Skladba, ostali: List<Pair<Jamendo.Skladba, Map<String, String>>>) {
+            predvajaj(ctx, listOf(prvi), 0)
+            rezerve = ostali
+        }
+
         fun predvajaj(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int, streznik: DatotekeActivity.Streznik? = null) {
             if (seznam.isEmpty()) return
+            rezerve = emptyList()
             cakajoci = Triple(seznam, od, streznik)
             val namen = Intent(ctx, GlasbaStoritev::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)

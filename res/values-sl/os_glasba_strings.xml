@@ -237,4 +237,20 @@
     <string name="os_predaja_sprejmi">Sprejmi</string>
     <string name="os_predaja_zavrni">Zavrni</string>
     <string name="os_media_kanali_virov">Kanali iz tvojih virov</string>
+    <string name="os_zvrst_vse">Vse zvrsti</string>
+    <string name="os_zvrst_akcija">Akcija</string>
+    <string name="os_zvrst_komedija">Komedija</string>
+    <string name="os_zvrst_drama">Drama</string>
+    <string name="os_zvrst_triler">Triler</string>
+    <string name="os_zvrst_grozljivke">Grozljivke</string>
+    <string name="os_zvrst_kriminalke">Kriminalke</string>
+    <string name="os_zvrst_zf">Znanstvena fantastika</string>
+    <string name="os_zvrst_fantazija">Fantazija</string>
+    <string name="os_zvrst_pustolovski">Pustolovski</string>
+    <string name="os_zvrst_animacija">Animirani</string>
+    <string name="os_zvrst_druzinski">Družinski</string>
+    <string name="os_zvrst_romantika">Romantika</string>
+    <string name="os_zvrst_dokumentarci">Dokumentarci</string>
+    <string name="os_media_izberi_tok">Izberi vir</string>
+    <string name="os_media_drug_vir">Ta vir ne dela – poskušam naslednjega …</string>
 </resources>

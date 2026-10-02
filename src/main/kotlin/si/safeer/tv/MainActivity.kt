@@ -1479,6 +1479,14 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         spletScit?.contentDescription = getString(R.string.splet_scit, blokiranih)
     }
 
+    /** Bliznjice, odstranjene z zacetne strani Spleta (kljuci naslovov). Spletna aplikacija sama ostane v Programih. */
+    private fun skriteBliznjice(): Set<String> =
+        getSharedPreferences("safeer_splet", MODE_PRIVATE).getStringSet("skrite_bliznjice", emptySet()).orEmpty().toSet()
+
+    private fun shraniSkriteBliznjice(skrite: Set<String>) {
+        getSharedPreferences("safeer_splet", MODE_PRIVATE).edit().putStringSet("skrite_bliznjice", HashSet(skrite)).apply()
+    }
+
     /** Poslje zacetni strani jezik, obstojeci iskalnik in isti vir bliznjic kot Safeer OS. */
     private fun inicSpletnoStran(wv: ChromiumEngineView) {
         if (!SpletMostPravila.jeDovoljenIzvor(wv.url)) return
@@ -1492,7 +1500,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val jezik = SpletMostPravila.izberiJezik(jezikVmesnika, jezikVmesnika)
         val portali = org.json.JSONArray()
         val uporabniski = si.safeer.tv.os.SpletneAplikacije.seznam(this)
-        val seznam = if (uporabniski.isNotEmpty()) uporabniski.map { it.ime to it.url } else PRIVZETI_SPLETNI_PORTALI
+        val skrite = skriteBliznjice()
+        val seznam = (if (uporabniski.isNotEmpty()) uporabniski.map { it.ime to it.url } else PRIVZETI_SPLETNI_PORTALI)
+            .filter { SpletMostPravila.kljucBliznjice(it.second) !in skrite }
         for ((ime, url) in seznam) {
             val favicon = spletIkone.preberi(url)
             portali.put(JSONObject().put("title", ime).put("url", url).put("favicon", favicon))
@@ -1502,6 +1512,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             .put("language", jezik)
             .put("engine", SmartOmnibox.iskalnik(this).oznaka)
             .put("portals", portali)
+            // Bliznjice, ki jih je uporabnik odstranil z zacetne strani (tudi vgrajene); stran jih ne pokaze niti kot privzete.
+            .put("hidden", org.json.JSONArray(skrite.toList()))
+            .put("no_defaults", true)   // seznam vodi aplikacija; prazen seznam ostane prazen
             .put("tv", isTelevisionDevice())
         wv.evaluateJavascript("window.safeerSpletInit&&window.safeerSpletInit(${stanje})", null)
     }
@@ -1548,6 +1561,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     naslov.error = getString(R.string.splet_portal_neveljaven); return@setOnClickListener
                 }
                 val prikaz = ime.text.toString().trim().ifBlank { android.net.Uri.parse(url).host.orEmpty() }
+                // Znova dodana bliznjica ni vec med odstranjenimi.
+                shraniSkriteBliznjice(skriteBliznjice() - SpletMostPravila.kljucBliznjice(url))
                 si.safeer.tv.os.SpletneAplikacije.dodaj(this, url, prikaz) {
                     runOnUiThread {
                         if (!isDestroyed && SpletMostPravila.jeDovoljenIzvor(wv.url)) inicSpletnoStran(wv)
@@ -1717,6 +1732,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 when (ukaz) {
                     is SpletMostPravila.Ukaz.Navigacija -> wv.loadUrl(ukaz.url)
                     SpletMostPravila.Ukaz.DodajBliznjico -> pokaziDodajBliznjico(wv)
+                    is SpletMostPravila.Ukaz.OdstraniBliznjico -> shraniSkriteBliznjice(skriteBliznjice() + SpletMostPravila.kljucBliznjice(ukaz.url))
+                    SpletMostPravila.Ukaz.ObnoviBliznjice -> { shraniSkriteBliznjice(emptySet()); inicSpletnoStran(wv) }
                 }
             }
         }
