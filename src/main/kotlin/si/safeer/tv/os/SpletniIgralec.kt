@@ -95,6 +95,11 @@ open class SpletniIgralec protected constructor(
     private var izvajalec = sk.izvajalec
     protected var sproscen = false
     private var nalozenoSporoceno = false
+    /**
+     * Posnetek je del nasega seznama predvajanja: konec javimo po dveh sekundah (ne cakamo, ali bo stran sama zacela
+     * svoj naslednji predlog) - naslednji je nas, ne predlog strani.
+     */
+    var vVrsti = false
 
     protected fun ukaz(c: String, t: Double = 0.0) =
         pogled.evaluateJavascript("(function(){try{window.postMessage({safeer:'ukaz',c:'$c',t:$t},'*');}catch(e){}})()", null)
@@ -111,6 +116,7 @@ open class SpletniIgralec protected constructor(
         override fun run() {
             if (sproscen) return
             if (kino) vklopiKino()
+            if (vgradno && polozaj <= 0L) preveriVgradno()
             // Casovniki JS so skupni vsem pogledom procesa; ce jih je brskalnik ustavil, stran ne tece.
             if (zelja) pogled.resumeTimers()
             pogled.evaluateJavascript(STANJE_JS) { r ->
@@ -138,9 +144,31 @@ open class SpletniIgralec protected constructor(
         }
     }
 
+    /** Stran igra v vgradnem predvajalniku izdajatelja (hitrejsi zacetek); ob napaki se vrnemo na polno stran. */
+    private var vgradno = false
+
     init {
         ura.postDelayed(tik, 1_500)
-        if (samodejnoNalozi) pogled.loadUrl(sk.povezava)
+        if (samodejnoNalozi) {
+            val vgradna = vgradnaStran(sk.povezava)
+            if (vgradna != null) {
+                vgradno = true
+                // Vgradni predvajalnik tece v okvirju nase prazne strani (kot na vsaki spletni strani, ki vgradi
+                // posnetek): okvir ve, kdo ga vgrajuje, zato ga izdajatelj ne zavrne.
+                pogled.loadDataWithBaseURL(VGRADNA_OSNOVA, vgradna, "text/html", "utf-8", null)
+            } else pogled.loadUrl(sk.povezava)
+        }
+    }
+
+    /** Lastnik posnetka vgradnje ne dovoli (ali predvajalnik javi napako): nalozimo polno stran posnetka. */
+    private fun preveriVgradno() {
+        if (!vgradno || sproscen) return
+        pogled.evaluateJavascript("(function(){return !!window.__safeerNapaka;})()") { r ->
+            if (sproscen || !vgradno || r != "true") return@evaluateJavascript
+            vgradno = false
+            Log.i("SafeerOsMedia", "vgradni predvajalnik ni dovoljen, polna stran")
+            pogled.loadUrl(sk.povezava)
+        }
     }
 
     override fun getState(): State {
@@ -157,7 +185,7 @@ open class SpletniIgralec protected constructor(
                 Player.COMMAND_GET_TIMELINE, Player.COMMAND_RELEASE).build())
             .setPlaylist(listOf(postavka))
             .setPlayWhenReady(igra, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
-            .setPlaybackState(when { koncano >= 6 -> Player.STATE_ENDED; pripravljeno -> Player.STATE_READY; else -> Player.STATE_BUFFERING })
+            .setPlaybackState(when { koncano >= (if (vVrsti) 2 else 6) -> Player.STATE_ENDED; pripravljeno -> Player.STATE_READY; else -> Player.STATE_BUFFERING })
             .setContentPositionMs(PositionSupplier.getExtrapolating(polozaj, if (igra && pripravljeno) 1f else 0f))
             .build()
     }
@@ -233,6 +261,30 @@ open class SpletniIgralec protected constructor(
     }
 
     companion object {
+        /** Stran, v katero vgradimo predvajalnik izdajatelja (osnova za Referer okvirja). */
+        private const val VGRADNA_OSNOVA = "https://safeer.si/predvajalnik/"
+
+        /**
+         * Prazna stran z vgradnim predvajalnikom za stran posnetka (YouTube): samo predvajalnik, brez cele mobilne
+         * strani - zacne nekajkrat hitreje. Za druge strani null (nalozimo stran posnetka).
+         */
+        internal fun vgradnaStran(stran: String): String? {
+            val u = try { java.net.URL(stran) } catch (_: Exception) { return null }
+            val g = u.host.lowercase().removePrefix("www.").removePrefix("m.").removePrefix("music.")
+            val id = when {
+                g == "youtu.be" -> u.path.trim('/').substringBefore('/')
+                g == "youtube.com" && u.path == "/watch" -> Regex("(?:^|&)v=([A-Za-z0-9_-]{6,})").find(u.query.orEmpty())?.groupValues?.get(1).orEmpty()
+                else -> ""
+            }
+            if (id.length < 6 || !id.all { it.isLetterOrDigit() || it == '_' || it == '-' }) return null
+            return "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+                "<meta name=\"referrer\" content=\"strict-origin-when-cross-origin\"></head>" +
+                "<body style=\"margin:0;background:#000;overflow:hidden\">" +
+                "<iframe src=\"https://www.youtube.com/embed/$id?autoplay=1&playsinline=1&rel=0\" " +
+                "allow=\"autoplay; encrypted-media; fullscreen\" referrerpolicy=\"strict-origin-when-cross-origin\" " +
+                "style=\"position:fixed;inset:0;width:100vw;height:100vh;border:0\"></iframe></body></html>"
+        }
+
         /** Zadnji zaslon Safeer v ospredju (nastavi ga [GlasbaStoritev]). */
         @Volatile var zadnja: java.lang.ref.WeakReference<android.app.Activity>? = null
 
@@ -266,9 +318,12 @@ open class SpletniIgralec protected constructor(
                 s.textContent='html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;background:#000!important;overflow:hidden!important}body>*:not([data-safeer-only-video]){visibility:hidden!important}video[data-safeer-only-video]{visibility:visible!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:contain!important;background:#000!important;z-index:2147483647!important}';}
             }
             for(var i=0;i<window.frames.length;i++){try{window.frames[i].postMessage(d,'*');}catch(x){}}});
-          if(window.top!==window){setInterval(function(){var m=glavni();if(m){try{window.top.postMessage({safeer:'stanje',
+          if(window.top!==window){setInterval(function(){
+            var er=document.querySelector('.ytp-error');if(er&&er.offsetWidth>0){try{window.top.postMessage({safeer:'napaka'},'*');}catch(x){}}
+            var m=glavni();if(m){try{window.top.postMessage({safeer:'stanje',
             p:!m.paused,t:m.currentTime||0,d:m.duration||0,r:m.readyState,e:!!m.ended},'*');}catch(x){}}},1000);}
-          else{window.addEventListener('message',function(e){var d=e.data;if(d&&d.safeer==='stanje'){window.__safeerOkvir=d;window.__safeerOkvirCas=Date.now();}});}
+          else{window.addEventListener('message',function(e){var d=e.data;if(d&&d.safeer==='stanje'){window.__safeerOkvir=d;window.__safeerOkvirCas=Date.now();}
+            if(d&&d.safeer==='napaka'){window.__safeerNapaka=Date.now();}});}
         })()"""
 
         /** Stanje: medij vrhnje strani, sicer zadnje stanje okvirja z medijem; naslov iz MediaSession strani. */

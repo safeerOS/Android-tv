@@ -207,10 +207,20 @@ object MedijskiViri {
      */
     fun shranljiva(s: Jamendo.Skladba): Boolean {
         val naprava = s.mime.isNotBlank() && s.mime != STRAN && s.streznik.isBlank()
+        // Glasba s spletnega vira (stran posnetka) in uvozene skladbe: shranimo stran, tok poiscemo ob predvajanju.
+        if (UvozSeznama.jeIskana(s) || (SpletniVir.jeEnota(s) && !s.video && s.povezava.startsWith("https://"))) return true
         return !naprava && (s.zvok.startsWith("https://") || (s.video && s.streznik.isNotBlank()))
     }
 
-    private fun zaShranjevanje(s: Jamendo.Skladba) = if (s.video && s.streznik.isNotBlank()) s.copy(zvok = "", mime = "") else s
+    /** V seznam predvajanja gre tudi video s spletnega vira (uvozen seznam posnetkov). */
+    private fun zaSeznam(s: Jamendo.Skladba) = shranljiva(s) || (SpletniVir.jeEnota(s) && s.povezava.startsWith("https://"))
+
+    private fun zaShranjevanje(s: Jamendo.Skladba) = when {
+        s.video && s.streznik.isNotBlank() -> s.copy(zvok = "", mime = "")
+        // Ujeti tok strani velja le kratek cas: shranimo stran, tok dobimo znova ob predvajanju.
+        SpletniVir.jeEnota(s) -> s.copy(zvok = "", mime = "")
+        else -> s
+    }
 
     fun priljubljene(ctx: Context): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, PRILJUBLJENE))
 
@@ -232,10 +242,41 @@ object MedijskiViri {
 
     /** Shrani seznam (isto ime zamenja); vrne shranjeni seznam ali null, ce v njem ni nicesar shranljivega. */
     fun shraniSeznam(ctx: Context, ime: String, skladbe: List<Jamendo.Skladba>): Seznam? {
-        val sz = Seznam(ime, skladbe.filter { shranljiva(it) }.map { zaShranjevanje(it) }.distinctBy { it.id }.take(200))
+        val sz = Seznam(ime, skladbe.filter { zaSeznam(it) }.map { zaShranjevanje(it) }.distinctBy { it.id }.take(NAJVEC_V_SEZNAMU))
         if (sz.skladbe.isEmpty()) return null
         pisiSeznami(ctx, listOf(sz) + seznami(ctx).filterNot { it.ime == ime })
         return sz
+    }
+
+    const val NAJVEC_V_SEZNAMU = 400
+
+    /** Doda skladbo na konec seznama (ustvari ga, ce ga se ni); vrne false, ce je ze na njem ali je ni mogoce shraniti. */
+    fun dodajNaSeznam(ctx: Context, ime: String, s: Jamendo.Skladba): Boolean {
+        if (!zaSeznam(s)) return false
+        val vsi = seznami(ctx)
+        val obstojeci = vsi.firstOrNull { it.ime == ime }
+        if (obstojeci != null && obstojeci.skladbe.any { it.id == s.id }) return false
+        val nov = Seznam(ime, ((obstojeci?.skladbe ?: emptyList()) + zaShranjevanje(s)).takeLast(NAJVEC_V_SEZNAMU))
+        // Obstojeci seznam ostane na svojem mestu, nov gre na zacetek.
+        pisiSeznami(ctx, if (obstojeci != null) vsi.map { if (it.ime == ime) nov else it } else listOf(nov) + vsi)
+        return true
+    }
+
+    /** Odstrani skladbo s seznama; prazen seznam izgine. */
+    fun odstraniSSeznama(ctx: Context, ime: String, s: Jamendo.Skladba) =
+        pisiSeznami(ctx, seznami(ctx).map { if (it.ime == ime) it.copy(skladbe = it.skladbe.filterNot { x -> x.id == s.id }) else it })
+
+    /**
+     * Uvozena skladba je dobila posnetek ([UvozSeznama.najdi]): v seznamih in med priljubljenimi jo zamenjamo, da
+     * naslednjic zacne takoj in ima svojo sliko.
+     */
+    @Synchronized fun zamenjaj(ctx: Context, zamenjave: Map<String, Jamendo.Skladba>) {
+        if (zamenjave.isEmpty()) return
+        val sz = seznami(ctx)
+        if (sz.any { l -> l.skladbe.any { it.id in zamenjave } })
+            pisiSeznami(ctx, sz.map { l -> l.copy(skladbe = l.skladbe.map { zamenjave[it.id] ?: it }.distinctBy { it.id }) })
+        val p = priljubljene(ctx)
+        if (p.any { it.id in zamenjave }) pisi(ctx, PRILJUBLJENE, pisiSkladbe(p.map { zamenjave[it.id] ?: it }.distinctBy { it.id }))
     }
 
     fun odstraniSeznam(ctx: Context, ime: String) = pisiSeznami(ctx, seznami(ctx).filterNot { it.ime == ime })

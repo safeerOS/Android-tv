@@ -360,14 +360,14 @@ class PredvajanjeActivity : OsActivity() {
         vrstaGumbov = gumbi
         gumbi.addView(nazaj, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(24) })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_prejsnja, R.string.os_mediji_prejsnja, 52) {
-            GlasbaStoritev.predvajalnik?.let { if (it.currentPosition > 5000 || !it.hasPreviousMediaItem()) it.seekTo(0) else it.seekToPreviousMediaItem() }
+            GlasbaStoritev.prejsnja()
         })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_nazaj10, R.string.os_mediji_nazaj_10, 52) { premakni(-10_000) })
         gumbPredvajaj = okroglGumb(R.drawable.os_ikona_pavza, R.string.os_mediji_predvajaj_pavza, 64) { preklopi() }
         gumbi.addView(gumbPredvajaj)
         gumbi.addView(okroglGumb(R.drawable.os_ikona_naprej10, R.string.os_mediji_naprej_10, 52) { premakni(10_000) })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_naslednja, R.string.os_mediji_naslednja, 52) {
-            GlasbaStoritev.predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
+            GlasbaStoritev.naslednja()
         })
         gumbPodnapisi = okroglGumb(R.drawable.os_ikona_podnapisi, R.string.podnapisi_naslov, 52) {
             GlasbaStoritev.predvajalnik?.let { p -> Podnapisi.izberi(this, p) { posodobiPodnapise() } }
@@ -753,6 +753,11 @@ class PredvajanjeActivity : OsActivity() {
                 android.widget.Toast.makeText(this, if (da) R.string.os_mediji_dodano_prilj else R.string.os_mediji_odstranjeno_prilj, android.widget.Toast.LENGTH_SHORT).show()
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, 1)
             })
+        }
+        // Svoj seznam predvajanja nastaja med poslusanjem: trenutno skladbo dodas na obstojecega ali novega.
+        if (zdaj != null && !zdaj.radio && SeznamOkno.mozno(zdaj)) {
+            predlogiNiz.addView(kartica(getString(R.string.os_seznam_dodaj), zdaj.naslov, "",
+                R.drawable.os_ikona_plus, video) { SeznamOkno.dodaj(this, zdaj) })
         }
         if (!video && vrsta.count { MedijskiViri.shranljiva(it) } > 1) {
             predlogiNiz.addView(kartica(getString(R.string.os_mediji_shrani_vrsto), getString(R.string.os_mediji_shrani_vrsto_opis), "",
@@ -1183,8 +1188,8 @@ class PredvajanjeActivity : OsActivity() {
             KeyEvent.KEYCODE_MEDIA_PLAY -> { p?.play(); return true }
             KeyEvent.KEYCODE_MEDIA_PAUSE -> { p?.pause(); return true }
             KeyEvent.KEYCODE_MEDIA_STOP -> { GlasbaStoritev.ustavi(this); finish(); return true }
-            KeyEvent.KEYCODE_MEDIA_NEXT -> { if (p?.hasNextMediaItem() == true) p.seekToNextMediaItem(); return true }
-            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { p?.seekToPreviousMediaItem(); return true }
+            KeyEvent.KEYCODE_MEDIA_NEXT -> { GlasbaStoritev.naslednja(); return true }
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { GlasbaStoritev.prejsnja(); return true }
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> { premakni(-10_000); return true }
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { premakni(10_000); return true }
             KeyEvent.KEYCODE_DPAD_DOWN -> { odpriPredloge(); return true }

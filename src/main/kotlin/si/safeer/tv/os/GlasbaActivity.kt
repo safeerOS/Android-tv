@@ -335,6 +335,20 @@ class GlasbaActivity : OsActivity() {
      */
     private fun predvajajIzNamena() {
         val n = intent ?: return
+        // "Deli" iz YouTuba ali Spotifyja: povezava seznama predvajanja -> uvoz v nase sezname.
+        if (n.action == Intent.ACTION_SEND && !n.getBooleanExtra(NAMEN_OBDELAN, false)) {
+            n.putExtra(NAMEN_OBDELAN, true)
+            val besedilo = n.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() } ?: return
+            val posnetek = Regex("https?://\\S+").find(besedilo)?.value?.trimEnd('.', ',', ')')
+            if (UvozSeznama.povezavaIz(besedilo) != null || posnetek == null) uvoziVNozadju(besedilo)
+            else {
+                // Deljena povezava posameznega posnetka (npr. iz YouTuba): predvajamo jo, kot bi jo odprl iz vira.
+                val ime = n.getStringExtra(Intent.EXTRA_SUBJECT)?.takeIf { it.isNotBlank() }
+                    ?: (try { java.net.URL(posnetek).host.removePrefix("www.") } catch (_: Exception) { posnetek })
+                razresiSplet(SpletniVir.enota(posnetek, ime, "", "", true))
+            }
+            return
+        }
         if (n.action != Intent.ACTION_VIEW || n.getBooleanExtra(NAMEN_OBDELAN, false)) return
         val uri = n.data ?: return
         n.putExtra(NAMEN_OBDELAN, true)
@@ -957,6 +971,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun izberi(i: Int) {
         razdelek = i
+        odprtSeznam = ""
         odprtKatalog = null
         osveziVlc(i)
         naloziKrajevno(i)
@@ -1626,7 +1641,12 @@ class GlasbaActivity : OsActivity() {
             .filter { it.skladbe.isNotEmpty() }
         fun seznamVrsta(sz: MedijskiViri.Seznam) = sz.skladbe.all { it.video }.let { video ->
             val urejene = razvrsti(i, sz.skladbe)
-            Vrsta("≡  " + sz.ime, if (video) videi(urejene, sz.ime, sz) else skladbe(urejene, sz.ime, sz), video) }
+            // Dolg (uvozen) seznam: na polici prvih nekaj, zadnja kartica odpre vsega - polica s 300 karticami bi bila pocasna.
+            val prve = urejene.take(NA_POLICI_SEZNAMA)
+            val kartice = if (video) videi(prve, sz.ime, sz, urejene) else skladbe(prve, sz.ime, sz, urejene)
+            val vse = if (urejene.size <= NA_POLICI_SEZNAMA) emptyList() else listOf(Kartica(getString(R.string.os_seznam_vse, urejene.size), sz.ime, "",
+                { odpriSeznam(sz.ime, "", sz) { sz.skladbe } }, ikona = if (video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba))
+            Vrsta("≡  " + sz.ime, kartice + vse, video) }
         return when (i) {
             DOMOV -> predajaVrsta() + listOf(
                 Vrsta(getString(R.string.os_media_nedavno), razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this))).take(5).let { n ->
@@ -2037,10 +2057,10 @@ class GlasbaActivity : OsActivity() {
             val pl = GlasbaStoritev.predvajalnik
             if (!prikaz.radio) tipke.addView(gumb(R.drawable.os_ikona_nakljucno, 36, "k:nakljucno") {
                 pl?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled }; osveziZdaj() }.also { pNakljucno = it.getChildAt(0) as ImageView })
-            tipke.addView(gumb(R.drawable.os_ikona_prejsnja, 36, "k:prejsnja") { pl?.seekToPreviousMediaItem() })
+            tipke.addView(gumb(R.drawable.os_ikona_prejsnja, 36, "k:prejsnja") { GlasbaStoritev.prejsnja() })
             tipke.addView(gumb(R.drawable.os_ikona_predvajaj, 48, "k:predvajaj") { pl?.let { if (it.isPlaying) it.pause() else it.play() }; osveziZdaj() }
                 .also { pPredvajaj = it.getChildAt(0) as ImageView })
-            tipke.addView(gumb(R.drawable.os_ikona_naslednja, 36, "k:naslednja") { pl?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() } })
+            tipke.addView(gumb(R.drawable.os_ikona_naslednja, 36, "k:naslednja") { GlasbaStoritev.naslednja() })
             if (!prikaz.radio) tipke.addView(gumb(R.drawable.os_ikona_ponavljaj, 36, "k:ponavljaj") {
                 pl?.let { it.repeatMode = when (it.repeatMode) { Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL; Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE; else -> Player.REPEAT_MODE_OFF } }
                 osveziZdaj() }.also { pPonavljaj = it.getChildAt(0) as ImageView })
@@ -2364,15 +2384,16 @@ class GlasbaActivity : OsActivity() {
         val pripeti = MedijskiViri.pripeti(this)
         // Seznami predvajanja (Shrani vrsto na zaslonu predvajanja) imajo v Brskaj svojo polico.
         val seznami = MedijskiViri.seznami(this)
-        val vrstaSeznamov = if (!vlc || seznami.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_seznami_predvajanja),
+        val vrstaSeznamov = if (seznami.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_seznami_predvajanja),
             seznami.map { sz ->
                 Kartica(sz.ime, resources.getQuantityString(R.plurals.os_stevilo_posnetkov, sz.skladbe.size, sz.skladbe.size), sz.skladbe.firstOrNull { it.slika.startsWith("http") }?.slika.orEmpty(),
-                    { odpriSeznam(sz.ime, "") { sz.skladbe } }, { meniSeznama(sz) },
+                    { odpriSeznam(sz.ime, "", sz) { sz.skladbe } }, { meniSeznama(sz) },
                     ikona = if (sz.skladbe.all { it.video }) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
             }, mala = true))
         return vrstaSeznamov + listOf(Vrsta("", listOf(
             Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
-            Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, ikona = R.drawable.os_ikona_plus)) +
+            Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, ikona = R.drawable.os_ikona_plus),
+            Kartica(getString(R.string.os_uvoz_naslov), getString(R.string.os_uvoz_opis), "", { uvoziSeznam() }, ikona = R.drawable.os_ikona_plus)) +
             vsiViri().map { v -> Kartica((if (v.kljuc in pripeti) "★ " else "") + v.ime, v.opis, "", { v.odpri() }, { dolgoNaViru(v) }, ikona = v.ikona) },
             mreza = true))
     }
@@ -2381,7 +2402,7 @@ class GlasbaActivity : OsActivity() {
     private fun meniSeznama(sz: MedijskiViri.Seznam) {
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sz.ime)
             .setItems(arrayOf(getString(R.string.os_mediji_predvajaj), getString(R.string.os_mediji_odstrani_seznam))) { _, k ->
-                if (k == 0) predvajaj(sz.skladbe, 0)
+                if (k == 0) sz.skladbe.first().let { prva -> if (jeVrstaPosnetkov(prva, sz)) predvajajVrstoPosnetkov(sz.skladbe, prva) else predvajaj(sz.skladbe, 0) }
                 else AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sz.ime)
                     .setMessage(R.string.os_mediji_odstrani_seznam)
                     .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, sz.ime); izberi(VIRI) }
@@ -2415,7 +2436,20 @@ class GlasbaActivity : OsActivity() {
         (0 until (seznami.maxOfOrNull { it.size } ?: 0)).flatMap { i -> seznami.mapNotNull { it.getOrNull(i) } }
 
     /** Kartice skladb vrste; zadrzan OK odpre meni (priljubljeno, shrani vrsto kot seznam). */
-    private fun skladbe(s: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null) = s.map { sk ->
+    /** Seznam predvajanja s posnetki s strani (YouTube ...) ali uvozenimi skladbami igra kot vrsta: ob koncu naslednji. */
+    private fun jeVrstaPosnetkov(sk: Jamendo.Skladba, seznam: MedijskiViri.Seznam?) =
+        UvozSeznama.jeIskana(sk) || (seznam != null && SpletniVir.jeEnota(sk))
+
+    private fun predvajajVrstoPosnetkov(s: List<Jamendo.Skladba>, sk: Jamendo.Skladba) {
+        val p = s.filter { it.mime != MedijskiViri.STRAN && (UvozSeznama.jeIskana(it) || SpletniVir.jeEnota(it) || it.zvok.isNotBlank()) }
+        if (p.isEmpty()) return
+        SpletniIgralec.zadnja = java.lang.ref.WeakReference(this)
+        GlasbaStoritev.predvajajVrsto(this, p, p.indexOfFirst { it.id == sk.id }.coerceAtLeast(0))
+        if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
+    }
+
+    private fun skladbe(s: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null,
+                        celota: List<Jamendo.Skladba> = s) = s.map { sk ->
         if (sk.mime == MedijskiViri.STRAN) Kartica(sk.naslov, sk.izvajalec, "", { odpriStran(sk.zvok, sk.naslov) }, { meni(sk, s, vrsta, seznam) }, ikona = R.drawable.os_ikona_splet)
         else {
             val oznaka = if (sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT) "▶ Video" else ""
@@ -2426,9 +2460,10 @@ class GlasbaActivity : OsActivity() {
                 else -> R.drawable.os_ikona_glasba
             }
             Kartica(sk.naslov, sk.izvajalec, sk.slika, {
-                if (SpletniVir.jeEnota(sk)) razresiSplet(sk)
-                else s.filterNot { it.mime == MedijskiViri.STRAN }.let { p -> predvajaj(p, p.indexOf(sk)) }
-            }, { meni(sk, s, vrsta, seznam) }, ikona = ikona, oznaka = oznaka,
+                if (jeVrstaPosnetkov(sk, seznam)) predvajajVrstoPosnetkov(celota, sk)
+                else if (SpletniVir.jeEnota(sk)) razresiSplet(sk)
+                else celota.filterNot { it.mime == MedijskiViri.STRAN }.let { p -> predvajaj(p, p.indexOf(sk)) }
+            }, { meni(sk, celota, vrsta, seznam) }, ikona = ikona, oznaka = oznaka,
                 tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty())
         }
     }
@@ -2440,7 +2475,8 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Isti naslov iz vec virov je ena kartica; Safeer sam izbere vir in ga uporabniku ne izpostavlja. */
-    private fun videi(v: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null): List<Kartica> {
+    private fun videi(v: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null,
+                      celota: List<Jamendo.Skladba> = v): List<Kartica> {
         val napredekKrajevnih = if (v.none { it.id.startsWith("krajevno:") }) emptyMap()
             else MediaNapredek.seznam(this).filter { it.skladba.id.startsWith("krajevno:") && it.polozaj > 0 }.associateBy { it.skladba.id }
         val skupine = SpletniVir.zdruziEnako(v)
@@ -2455,9 +2491,11 @@ class GlasbaActivity : OsActivity() {
             // Video z naprave: napredek ali trajanje (kot VLC), spletni: letnica.
             val podnaslov = if (sk.id.startsWith("krajevno:") || sk.id.startsWith(PREDPONA_PC_PRENOSA))
                 napredekKrajevnih[sk.id]?.let { n -> "${cas(n.polozaj)} / ${cas(n.trajanje)}" } ?: sk.izvajalec
-            else sk.year.takeIf { it > 0 }?.toString().orEmpty()
+            // Posnetek s seznama predvajanja (uvozen z YouTuba): pod naslovom avtor, letnice nima.
+            else sk.year.takeIf { it > 0 }?.toString() ?: if (seznam != null) sk.izvajalec else ""
             val tip = if (vZivo) getString(R.string.os_media_oznaka_v_zivo) else {
-                when (SpletniVir.vrstaVsebine(sk)) {
+                // Posnetek z uvozenega seznama predvajanja je video, ne film (letnica v naslovu predavanja ga ne naredi filma).
+                when (if (seznam != null && SpletniVir.jeEnota(sk)) null else SpletniVir.vrstaVsebine(sk)) {
                     SpletniVir.FILM -> getString(R.string.os_media_film)
                     SpletniVir.SERIJA -> getString(R.string.os_media_serija)
                     SpletniVir.VIDEOSPOT -> getString(R.string.os_media_videospot)
@@ -2474,11 +2512,12 @@ class GlasbaActivity : OsActivity() {
             Kartica(sk.naslov, podnaslov, sk.slika, {
                 // Uporabnik vidi eno kartico. V ozadju ostanejo vse razlicice, urejene od najboljse.
                 when {
+                    jeVrstaPosnetkov(sk, seznam) -> predvajajVrstoPosnetkov(celota, sk)
                     SpletniVir.jeEnota(sk) -> razresiSplet(sk, urejene.drop(1))
                     Stremio.jeEnota(sk) && urejene.size > 1 -> razresiStremio(sk, razlicice = urejene.drop(1))
                     else -> predvajaj(listOf(sk), 0)
                 }
-            }, { meni(sk, v, vrsta, seznam) }, oznaka = tip, kakovost = kakovost,
+            }, { meni(sk, celota, vrsta, seznam) }, oznaka = tip, kakovost = kakovost,
                 ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty(),
                 ikona = if (vZivo) R.drawable.os_ikona_tv else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_video,
                 tvId = tvId,
@@ -2556,6 +2595,11 @@ class GlasbaActivity : OsActivity() {
                 Toast.makeText(this, if (zdaj) R.string.os_mediji_dodano_prilj else R.string.os_mediji_odstranjeno_prilj, Toast.LENGTH_SHORT).show()
                 osveziPriljubljene()
             }
+        }
+        // Svoj seznam predvajanja: skladbo dodas na obstojecega ali novega (ne samo "shrani vso vrsto").
+        if (SeznamOkno.mozno(sk)) dejanja += getString(R.string.os_seznam_dodaj) to { dodajNaSeznam(sk) }
+        if (seznam != null) dejanja += getString(R.string.os_seznam_odstrani_skladbo) to {
+            MedijskiViri.odstraniSSeznama(this, seznam.ime, sk); SEZNAMI.remove(DOMOV); osveziPriljubljene()
         }
         if (seznam != null) dejanja += getString(R.string.os_mediji_odstrani_seznam) to {
             MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene()
@@ -2998,15 +3042,17 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Seznam iz vira (epizode podkasta, dodani .m3u): prikaz kot vrsta, uporabnik izbere, kaj predvaja. */
-    private fun odpriSeznam(ime: String, opis: String, nalozi: () -> List<Jamendo.Skladba>) {
+    private fun odpriSeznam(ime: String, opis: String, seznam: MedijskiViri.Seznam? = null, nalozi: () -> List<Jamendo.Skladba>) {
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
             val s = try { nalozi() } catch (_: Exception) { emptyList() }
             glavna.post {
                 if (isFinishing) return@post
                 if (s.isEmpty()) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
-                narisi(listOf(Vrsta(ime, skladbe(s, ime))), opis)
+                val video = seznam != null && s.all { it.video }
+                narisi(listOf(Vrsta(ime, if (video) videi(s, ime, seznam) else skladbe(s, ime, seznam), video = video, mreza = seznam != null)), opis)
                 fokusNaPrvo()
+                odprtSeznam = seznam?.ime.orEmpty()
             }
         }
     }
@@ -3101,7 +3147,104 @@ class GlasbaActivity : OsActivity() {
             .show()
     }
 
+    /** Uvoz seznama predvajanja iz YouTuba ali Spotifyja: uporabnik prilepi povezavo (ali jo deli iz aplikacije). */
+    private fun uvoziSeznam() {
+        val polje = EditText(this).apply {
+            hint = "https://…"; setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
+            // Povezava, ki jo je uporabnik pravkar kopiral, je ze v polju - ostane mu samo Uvozi.
+            try {
+                val odlozisce = getSystemService(android.content.ClipboardManager::class.java)
+                odlozisce?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
+                    ?.let { UvozSeznama.povezavaIz(it) }?.let { setText(it); setSelection(it.length) }
+            } catch (_: Exception) { }
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.os_uvoz_naslov)
+            .setMessage(R.string.os_uvoz_razlaga)
+            .setView(FrameLayout(this).apply { setPadding(dp(20), 0, dp(20), 0); addView(polje) })
+            .setPositiveButton(R.string.os_uvoz_gumb) { _, _ -> polje.text.toString().takeIf { it.isNotBlank() }?.let { uvoziVNozadju(it) } }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun uvoziVNozadju(vnos: String) {
+        val povezava = UvozSeznama.povezavaIz(vnos) ?: vnos.trim()
+        if (!UvozSeznama.jePovezava(povezava)) {
+            AlertDialog.Builder(this).setTitle(R.string.os_uvoz_naslov).setMessage(R.string.os_uvoz_ni_seznam)
+                .setPositiveButton(android.R.string.ok, null).show()
+            return
+        }
+        stanje.text = getString(R.string.os_uvoz_uvazam)
+        Toast.makeText(this, R.string.os_uvoz_uvazam, Toast.LENGTH_SHORT).show()
+        delavec.execute {
+            val u = try { UvozSeznama.uvozi(povezava) } catch (_: Exception) { null }
+            // Isto ime kot obstojec seznam ga zamenja (ponoven uvoz = osvezitev seznama).
+            val sz = u?.let { MedijskiViri.shraniSeznam(this, it.ime.take(60), it.skladbe) }
+            glavna.post {
+                if (isFinishing) return@post
+                stanje.text = opis(razdelek)
+                if (sz == null) {
+                    AlertDialog.Builder(this).setTitle(R.string.os_uvoz_naslov).setMessage(R.string.os_uvoz_ni_uspel)
+                        .setPositiveButton(android.R.string.ok, null).show()
+                    return@post
+                }
+                Toast.makeText(this, getString(R.string.os_uvoz_uspeh, sz.ime, sz.skladbe.size), Toast.LENGTH_LONG).show()
+                SEZNAMI.remove(DOMOV); SEZNAMI.remove(GLASBA); SEZNAMI.remove(VIDEO)
+                // Najprej Moji viri (tam so seznami predvajanja), nato uvozeni seznam: zacetni zaslon, ki se se
+                // nalaga, ga ne prekrije, Nazaj pa pelje k seznamom.
+                izberi(VIRI)
+                odpriSeznam(sz.ime, "", sz) { sz.skladbe }
+                poisciPosnetke(sz.ime)
+            }
+        }
+    }
+
+    /**
+     * Uvozenim skladbam brez posnetka (Spotify) v ozadju poiscemo posnetke: seznam dobi slike posameznih skladb in
+     * predvajanje zacne brez iskanja. Uporabnik ne caka - seznam je ze odprt in predvajljiv (iskanje ob predvajanju).
+     */
+    private fun poisciPosnetke(ime: String) {
+        val cakajo = MedijskiViri.seznami(this).firstOrNull { it.ime == ime }?.skladbe?.filter { UvozSeznama.jeIskana(it) } ?: return
+        if (cakajo.isEmpty()) return
+        val bazen = Executors.newFixedThreadPool(3)
+        val narejenih = java.util.concurrent.atomic.AtomicInteger(0)
+        val najdene = java.util.concurrent.ConcurrentHashMap<String, Jamendo.Skladba>()
+        val aplikacija = applicationContext
+        fun shraniDel(konec: Boolean) {
+            val del = HashMap(najdene)
+            if (del.isEmpty() && !konec) return
+            del.keys.forEach { najdene.remove(it) }
+            MedijskiViri.zamenjaj(aplikacija, del)
+            glavna.post {
+                if (isFinishing) return@post
+                SEZNAMI.remove(DOMOV); SEZNAMI.remove(GLASBA)
+                stanje.text = if (konec) opis(razdelek) else getString(R.string.os_uvoz_iscem, narejenih.get(), cakajo.size)
+                // Odprt seznam osvezimo ob koncu (slike skladb), ne sproti - sproti bi uporabniku skakal pod prsti.
+                if (konec && odprtSeznam == ime) MedijskiViri.seznami(this).firstOrNull { it.ime == ime }?.let { sz -> odpriSeznam(sz.ime, "", sz) { sz.skladbe } }
+            }
+        }
+        cakajo.forEach { sk ->
+            bazen.execute {
+                try { UvozSeznama.najdi(sk)?.let { najdene[sk.id] = it } } catch (_: Exception) { }
+                val n = narejenih.incrementAndGet()
+                if (n == cakajo.size) shraniDel(true) else if (n % 10 == 0) shraniDel(false)
+            }
+        }
+        bazen.shutdown()
+    }
+
+    /** Ime seznama predvajanja, ki je trenutno odprt cez ves zaslon (za osvezitev po iskanju posnetkov). */
+    private var odprtSeznam = ""
+
+    /** Skladbo doda na izbran seznam predvajanja ali na novega (ime vpise uporabnik). */
+    private fun dodajNaSeznam(sk: Jamendo.Skladba) = SeznamOkno.dodaj(this, sk) {
+        SEZNAMI.remove(DOMOV); SEZNAMI.remove(GLASBA); SEZNAMI.remove(VIDEO)
+        osveziPriljubljene()
+    }
+
     private fun dodajVNozadju(vnos: String, ime: String?) {
+                // Povezava seznama predvajanja (YouTube, Spotify) v polju za vir: uvozimo seznam, ne dodajamo strani.
+                if (UvozSeznama.jePovezava(UvozSeznama.povezavaIz(vnos) ?: vnos.trim())) { uvoziVNozadju(vnos); return }
                 MedijskiViri.obstojeciVir(this, vnos)?.let {
                     Toast.makeText(this, getString(R.string.os_mediji_vir_ze_dodan, it.ime), Toast.LENGTH_SHORT).show()
                     return
@@ -3330,6 +3473,7 @@ class GlasbaActivity : OsActivity() {
         if (Arhiv.jeEnota(sk)) { razresiArhiv(sk); return }
         if (JavnaLast.jeEnota(sk)) { razresiJavnoLast(sk); return }
         if (TuneIn.jeEnota(sk)) { razresiTuneIn(sk); return }
+        if (UvozSeznama.jeIskana(sk)) { predvajajVrstoPosnetkov(seznam, sk); return }
         if (SpletniVir.jeEnota(sk)) { razresiSplet(sk); return }
         if (Stremio.jeEnota(sk)) { razresiStremio(sk); return }
         if (sk.id.startsWith(PREDPONA_PC_PRENOSA)) { meniPrenosa(sk); return }
@@ -3778,8 +3922,8 @@ class GlasbaActivity : OsActivity() {
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { p?.let { if (it.isPlaying) it.pause() else it.play() }; return true }
             KeyEvent.KEYCODE_MEDIA_PLAY -> { p?.play(); return true }
             KeyEvent.KEYCODE_MEDIA_PAUSE -> { p?.pause(); return true }
-            KeyEvent.KEYCODE_MEDIA_NEXT -> { if (p?.hasNextMediaItem() == true) p.seekToNextMediaItem(); return true }
-            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { p?.seekToPreviousMediaItem(); return true }
+            KeyEvent.KEYCODE_MEDIA_NEXT -> { GlasbaStoritev.naslednja(); return true }
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { GlasbaStoritev.prejsnja(); return true }
             KeyEvent.KEYCODE_MEDIA_STOP -> { GlasbaStoritev.ustavi(this); return true }
             KeyEvent.KEYCODE_SEARCH -> { odpriIskanje(""); return true }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { event?.startTracking() }
@@ -3801,6 +3945,8 @@ class GlasbaActivity : OsActivity() {
 
     companion object {
         private const val NAMEN_OBDELAN = "safeer.namen.obdelan"
+        /** Koliko skladb seznama predvajanja pokaze polica; ostale odpre kartica "Prikazi vse". */
+        private const val NA_POLICI_SEZNAMA = 20
         /** Risanje po korakih: kartic na kos in casovni proracun enega kosa na glavni niti. */
         private const val KARTIC_NA_KORAK = 6
         private const val PRORACUN_MS = 8L

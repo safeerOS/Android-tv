@@ -107,7 +107,7 @@ class GlasbaStoritev : Service() {
                 }
             }
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) konec() else osvezi()
+                if (playbackState == Player.STATE_ENDED) poKoncu() else osvezi()
             }
             override fun onPlayerError(error: PlaybackException) {
                 // Pokvarjena skladba ne sme ustaviti vsega: naprej na naslednjo, ce obstaja. Uporabnik
@@ -116,6 +116,9 @@ class GlasbaStoritev : Service() {
                 if (p.hasNextMediaItem()) {
                     obvesti(getString(R.string.os_media_napaka_naslednja, ime.ifBlank { "?" }))
                     p.seekToNextMediaItem(); p.prepare(); p.play()
+                } else if (spletnaVrsta.size > spletniIndeks + 1) {
+                    obvesti(getString(R.string.os_media_napaka_naslednja, ime.ifBlank { "?" }))
+                    zacniElement(spletniIndeks + 1)
                 } else {
                     // Film iz dodatka ima rezervne tokove (naslednji najboljsi): poskusimo jih po vrsti, brez vprasanj.
                     val naslednji = rezerve.firstOrNull()
@@ -140,13 +143,14 @@ class GlasbaStoritev : Service() {
                 // Tipke gredo predvajalniku, ki igra: nasemu ali spletnemu ([SpletniIgralec]).
                 override fun onPlay() { predvajalnik?.play() }
                 override fun onPause() { predvajalnik?.pause() }
-                override fun onSkipToNext() { predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() } }
-                override fun onSkipToPrevious() { predvajalnik?.seekToPreviousMediaItem() }
+                override fun onSkipToNext() { naslednja() }
+                override fun onSkipToPrevious() { prejsnja() }
                 override fun onStop() { konec() }
                 override fun onSeekTo(pos: Long) { predvajalnik?.seekTo(pos) }
             })
             isActive = true
         }
+        primerek = this
         zacniVOspredju()
         application.registerActivityLifecycleCallbacks(zasloni)
     }
@@ -165,17 +169,19 @@ class GlasbaStoritev : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             AKCIJA_TOGGLE -> { predvajalnik?.let { if (it.isPlaying) it.pause() else it.play() }; return START_NOT_STICKY }
-            AKCIJA_NAPREJ -> { predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }; return START_NOT_STICKY }
+            AKCIJA_NAPREJ -> { naslednja(); return START_NOT_STICKY }
             AKCIJA_USTAVI -> { ustaviPredvajanje(); return START_NOT_STICKY }
         }
         zacniVOspredju()
         cakajoci?.let { (seznam, od, s) -> cakajoci = null; nalozi(seznam, od, s) }
         cakajociSplet?.let { (sk, prevzem) -> cakajociSplet = null; zacniSplet(sk, prevzem) }
+        cakajocaVrsta?.let { (seznam, od) -> cakajocaVrsta = null; spletnaVrsta = seznam; zacniElement(od) }
         return START_NOT_STICKY
     }
 
     /** Stop pomeni konec seje, ne pavze: sprostimo tudi skriti spletni predvajalnik/WebView. */
     private fun ustaviPredvajanje() {
+        spletnaVrsta = emptyList(); zetonVrste++
         predvajalnik?.stop()
         exo?.clearMediaItems()
         koncajSplet()
@@ -184,6 +190,63 @@ class GlasbaStoritev : Service() {
 
     /** Zaustavitev iz povratnega klica predvajalnika: storitev ustavimo sele po njem. */
     private fun konec() { android.os.Handler(mainLooper).post { stopSelf() } }
+
+    /** Posnetek je pri koncu: v vrsti posnetkov s strani (seznam predvajanja) zacne naslednji, sicer je konec. */
+    private fun poKoncu() {
+        if (spletnaVrsta.size > spletniIndeks + 1) android.os.Handler(mainLooper).post { zacniElement(spletniIndeks + 1) }
+        else konec()
+    }
+
+    /**
+     * Vrsta, v kateri vsak posnetek zahteva svojo pripravo (stran posnetka, uvozena skladba brez posnetka):
+     * predvajalnik dobi po enega, ob koncu zacnemo naslednjega. Navadne skladbe s tokom gredo skozi isto vrsto.
+     * [preskoceni]: koliko zaporednih ni uspelo - po treh odnehamo, da ne preletimo vsega seznama brez zvoka.
+     */
+    private fun zacniElement(i: Int, preskoceni: Int = 0) {
+        val sk = spletnaVrsta.getOrNull(i) ?: run { ustaviPredvajanje(); return }
+        spletniIndeks = i
+        val moj = ++zetonVrste
+        trenutniIdVrste = sk.id
+        when {
+            UvozSeznama.jeIskana(sk) -> {
+                // Dokler iscemo posnetek, zaslon ze kaze naslov in izvajalca.
+                exo?.let { it.stop(); it.clearMediaItems() }
+                koncajSplet()
+                exo?.let { predvajalnik = it }
+                vrsta = listOf(sk); osvezi()
+                Thread {
+                    val najden = try { UvozSeznama.najdi(sk) } catch (_: Exception) { null }
+                    if (najden != null) MedijskiViri.zamenjaj(this, mapOf(sk.id to najden))
+                    android.os.Handler(mainLooper).post {
+                        if (moj != zetonVrste || primerek !== this) return@post
+                        if (najden == null) {
+                            obvesti(getString(R.string.os_media_napaka_naslednja, sk.naslov))
+                            if (preskoceni < 2 && spletnaVrsta.size > i + 1) zacniElement(i + 1, preskoceni + 1) else ustaviPredvajanje()
+                            return@post
+                        }
+                        spletnaVrsta = spletnaVrsta.mapIndexed { j, x -> if (j == i) najden else x }
+                        trenutniIdVrste = najden.id
+                        zacniSplet(najden, true)
+                        pripraviNaslednjo(i + 1)
+                    }
+                }.apply { name = "Safeer-uvoz-najdi"; start() }
+            }
+            SpletniVir.jeEnota(sk) -> { zacniSplet(sk.copy(zvok = "", mime = ""), true); pripraviNaslednjo(i + 1) }
+            else -> { nalozi(listOf(sk), 0, null); pripraviNaslednjo(i + 1) }
+        }
+    }
+
+    /** Naslednji uvozeni skladbi poiscemo posnetek ze med predvajanjem trenutne: prehod je potem brez cakanja. */
+    private fun pripraviNaslednjo(i: Int) {
+        val sk = spletnaVrsta.getOrNull(i)?.takeIf { UvozSeznama.jeIskana(it) } ?: return
+        Thread {
+            val najden = try { UvozSeznama.najdi(sk) } catch (_: Exception) { null } ?: return@Thread
+            MedijskiViri.zamenjaj(this, mapOf(sk.id to najden))
+            android.os.Handler(mainLooper).post {
+                if (spletnaVrsta.getOrNull(i)?.id == sk.id) spletnaVrsta = spletnaVrsta.mapIndexed { j, x -> if (j == i) najden else x }
+            }
+        }.apply { name = "Safeer-uvoz-naslednja"; start() }
+    }
 
     private fun nalozi(seznam: List<Jamendo.Skladba>, od: Int, s: DatotekeActivity.Streznik?) {
         val p = exo ?: return
@@ -223,10 +286,30 @@ class GlasbaStoritev : Service() {
     private var exo: ExoPlayer? = null
     private var spletni: SpletniIgralec? = null
 
+    /** Gostitelj strani brez www./m. - kljuc za "ta stran rabi polni pogon". */
+    private fun gostiteljStrani(sk: Jamendo.Skladba): String = try {
+        java.net.URL(sk.povezava).host.lowercase().removePrefix("www.").removePrefix("m.").removePrefix("music.")
+    } catch (_: Exception) { "" }
+
+    /**
+     * Strani, ki so cele aplikacije v JavaScriptu (YouTube), v varcnem pogledu ne stecejo: gremo naravnost na
+     * polni pogon, namesto da uporabnik caka na neuspeh druge stopnje. Seznam se dopolnjuje sam ([zapomniPolniPogon]).
+     */
+    private fun rabiPolniPogon(sk: Jamendo.Skladba): Boolean {
+        val g = gostiteljStrani(sk)
+        return g.isNotBlank() && (g in POLNI_POGON || getSharedPreferences("safeer_mediji", MODE_PRIVATE).getBoolean("polni-pogon:$g", false))
+    }
+
+    private fun zapomniPolniPogon(sk: Jamendo.Skladba) {
+        val g = gostiteljStrani(sk).ifBlank { return }
+        getSharedPreferences("safeer_mediji", MODE_PRIVATE).edit().putBoolean("polni-pogon:$g", true).apply()
+    }
+
     /** Druga stopnja je varcni sistemski WebView; polni brskalnik se ustvari sele po njenem neuspehu. */
     private fun zacniSplet(sk: Jamendo.Skladba, dovoliPrevzem: Boolean) {
         exo?.let { it.stop(); it.clearMediaItems() }
         koncajSplet()
+        if (rabiPolniPogon(sk)) { zacniPolniSplet(sk); return }
         lateinit var lahki: LahkaStran
         lahki = LahkaStran(this, sk,
             dovoliPrevzem = dovoliPrevzem,
@@ -241,20 +324,31 @@ class GlasbaStoritev : Service() {
                 if (spletni === pripravljen) {
                     android.util.Log.i("SafeerOsMedia", "stopnja=2 uspeh=LahkaStran")
                     osvezi()
+                    // "Pripravljena" stran, ki po 8 s se vedno ne igra (zelimo pa, da igra), v varcnem pogledu ne
+                    // stece: polni pogon, in za to stran si to zapomnimo.
+                    android.os.Handler(mainLooper).postDelayed({
+                        if (spletni === pripravljen && pripravljen.playWhenReady && !pripravljen.isPlaying && pripravljen.currentPosition <= 0L) {
+                            android.util.Log.i("SafeerOsMedia", "stopnja=2 ne igra, polni pogon")
+                            spletni = null
+                            pripravljen.release()
+                            zacniPolniSplet(sk, zapomni = true)
+                        }
+                    }, 8_000)
                 }
             },
             obNeuspehu = { neuspesen ->
                 if (spletni === neuspesen) {
                     spletni = null
-                    zacniPolniSplet(sk)
+                    zacniPolniSplet(sk, zapomni = true)
                 }
             })
         priklopiSpletnega(lahki, sk)
     }
 
-    private fun zacniPolniSplet(sk: Jamendo.Skladba) {
+    private fun zacniPolniSplet(sk: Jamendo.Skladba, zapomni: Boolean = false) {
         val s = SpletniIgralec(this, sk) {
             android.util.Log.i("SafeerOsMedia", "stopnja=3 uspeh=ChromiumEngineView")
+            if (zapomni) zapomniPolniPogon(sk)
         }
         priklopiSpletnega(s, sk)
     }
@@ -268,9 +362,10 @@ class GlasbaStoritev : Service() {
                 if (t.isNotBlank()) vrsta = vrsta.map { it.copy(naslov = t, izvajalec = mediaMetadata.artist?.toString()?.ifBlank { null } ?: it.izvajalec) }
                 osvezi()
             }
-            override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_ENDED) konec() else osvezi() }
+            override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_ENDED) poKoncu() else osvezi() }
         })
         spletni = s
+        s.vVrsti = spletnaVrsta.size > 1
         SpletniIgralec.zadnja?.get()?.let { s.gostuj(it) }
         vrsta = listOf(sk)
         predvajalnik = s
@@ -305,7 +400,7 @@ class GlasbaStoritev : Service() {
             .addAction(Notification.Action.Builder(
                 android.graphics.drawable.Icon.createWithResource(this, if (predvajalnik?.isPlaying == true) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj),
                 if (predvajalnik?.isPlaying == true) "Pavza" else "Predvajaj", dejanje(AKCIJA_TOGGLE, 11)).build())
-        if (predvajalnik?.hasNextMediaItem() == true) b.addAction(Notification.Action.Builder(
+        if (imaNaslednjo()) b.addAction(Notification.Action.Builder(
             android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_naslednja), "Naprej", dejanje(AKCIJA_NAPREJ, 12)).build())
         b.addAction(Notification.Action.Builder(
             android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_ustavi), "Ustavi", dejanje(AKCIJA_USTAVI, 13)).build())
@@ -333,6 +428,8 @@ class GlasbaStoritev : Service() {
 
     override fun onDestroy() {
         application.unregisterActivityLifecycleCallbacks(zasloni)
+        if (primerek === this) primerek = null
+        spletnaVrsta = emptyList(); zetonVrste++
         seja?.release(); seja = null
         koncajSplet()
         exo?.release(); exo = null; predvajalnik = null
@@ -347,6 +444,8 @@ class GlasbaStoritev : Service() {
         private const val AKCIJA_TOGGLE = "si.safeer.media.TOGGLE"
         private const val AKCIJA_NAPREJ = "si.safeer.media.NEXT"
         private const val AKCIJA_USTAVI = "si.safeer.media.STOP"
+        /** Strani, za katere vemo, da v varcnem pogledu ne tecejo (aplikacije v JavaScriptu). */
+        private val POLNI_POGON = setOf("youtube.com", "youtu.be")
 
         /** Predvajalnik, dokler storitev tece; sicer null. */
         @Volatile var predvajalnik: Player? = null
@@ -358,8 +457,58 @@ class GlasbaStoritev : Service() {
         private var cakajoci: Triple<List<Jamendo.Skladba>, Int, DatotekeActivity.Streznik?>? = null
         private var cakajociSplet: Pair<Jamendo.Skladba, Boolean>? = null
 
+        @Volatile private var primerek: GlasbaStoritev? = null
+        /** Vrsta posnetkov, ki se pripravljajo sproti (glej [zacniElement]); prazna = navadno predvajanje. */
+        private var spletnaVrsta: List<Jamendo.Skladba> = emptyList()
+        private var spletniIndeks = 0
+        private var zetonVrste = 0
+        private var trenutniIdVrste = ""
+        private var cakajocaVrsta: Pair<List<Jamendo.Skladba>, Int>? = null
+
+        /** Novo predvajanje zunaj vrste jo konca; ponovni zagon ISTEGA posnetka (drug nacin, podnapisi) je ne. */
+        private fun zapustiVrsto(id: String) {
+            if (spletnaVrsta.isEmpty() || id == trenutniIdVrste || id == spletnaVrsta.getOrNull(spletniIndeks)?.id) return
+            spletnaVrsta = emptyList(); zetonVrste++
+        }
+
+        /**
+         * Seznam predvajanja s posnetki s strani (YouTube ...) in uvozenimi skladbami: igra po vrsti kot vsak
+         * seznam, Naprej/Nazaj preklapljata, ob koncu posnetka zacne naslednji.
+         */
+        fun predvajajVrsto(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int) {
+            if (seznam.isEmpty()) return
+            rezerve = emptyList()
+            cakajoci = null; cakajociSplet = null
+            cakajocaVrsta = seznam to od.coerceIn(0, seznam.size - 1)
+            val namen = Intent(ctx, GlasbaStoritev::class.java)
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
+        }
+
+        /** Ali Naprej kam pelje: naslednja skladba navadne vrste ali naslednji posnetek seznama. */
+        fun imaNaslednjo(): Boolean = spletnaVrsta.size > spletniIndeks + 1 || predvajalnik?.hasNextMediaItem() == true
+
+        fun naslednja() {
+            val s = primerek
+            if (s != null && spletnaVrsta.size > spletniIndeks + 1) s.zacniElement(spletniIndeks + 1)
+            else predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
+        }
+
+        /** Nazaj: po prvih sekundah na zacetek posnetka, sicer prejsnji (kot pri vsakem predvajalniku). */
+        fun prejsnja() {
+            val s = primerek
+            val p = predvajalnik
+            if (s != null && spletnaVrsta.isNotEmpty()) {
+                if ((p?.currentPosition ?: 0L) > 5000 || spletniIndeks == 0) p?.seekTo(0) else s.zacniElement(spletniIndeks - 1)
+            } else p?.let { if (it.currentPosition > 5000 || !it.hasPreviousMediaItem()) it.seekTo(0) else it.seekToPreviousMediaItem() }
+        }
+
+        /** Mesto v seznamu predvajanja (1-based) in dolzina, kadar igra seznam posnetkov; sicer null. */
+        fun mestoVVrsti(): Pair<Int, Int>? = if (spletnaVrsta.size > 1 && predvajalnik != null) spletniIndeks + 1 to spletnaVrsta.size else null
+
         /** Enoto spletne aplikacije, katere toka ne moremo ujeti, predvaja stran pod nasim upravljanjem. */
         fun predvajajSplet(ctx: Context, sk: Jamendo.Skladba, dovoliPrevzem: Boolean = true) {
+            zapustiVrsto(sk.id)
+            cakajocaVrsta = null
             cakajociSplet = sk to dovoliPrevzem
             val namen = Intent(ctx, GlasbaStoritev::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
@@ -388,6 +537,8 @@ class GlasbaStoritev : Service() {
 
         fun predvajaj(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int, streznik: DatotekeActivity.Streznik? = null) {
             if (seznam.isEmpty()) return
+            if (seznam.size == 1) zapustiVrsto(seznam[0].id) else { spletnaVrsta = emptyList(); zetonVrste++ }
+            cakajocaVrsta = null
             rezerve = emptyList()
             cakajoci = Triple(seznam, od, streznik)
             val namen = Intent(ctx, GlasbaStoritev::class.java)
