@@ -61,6 +61,17 @@ object Posodobitve {
 
     fun log(s: String) = android.util.Log.i(OZNAKA, s)
 
+    /**
+     * Besedilo posodobitev z imenom TE aplikacije: prevodi govorijo o "Safeer OS", Predvajalnik in TV brskalnik
+     * pa imata svoje ime (prej je Predvajalnik ponujal "novo razlicico Safeer OS 0.2.21").
+     */
+    fun besedilo(ctx: Context, id: Int, vararg argumenti: Any): String {
+        val b = ctx.getString(id, *argumenti)
+        if (BuildConfig.FLAVOR != "predvajalnik" && BuildConfig.FLAVOR != "brskalnik") return b
+        val ime = try { ctx.applicationInfo.loadLabel(ctx.packageManager).toString() } catch (_: Throwable) { "" }
+        return if (ime.isBlank()) b else b.replace("Safeer OS", ime)
+    }
+
     private fun prefs(ctx: Context) = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** Shranjena nova razlicica iz prejsnje preverbe (da jo Nastavitve pokazejo takoj, se pred novo preverbo). */
@@ -134,7 +145,7 @@ object Posodobitve {
             val kljuc = "ponujeno_" + nova.koda
             if (System.currentTimeMillis() - p.getLong(kljuc, 0L) < OPOMNIK_MS) return@preveri
             p.edit().putLong(kljuc, System.currentTimeMillis()).apply()
-            PredajaObvestilo.pasicaSplosna(a, a.getString(R.string.os_posodobitev_pasica, nova.razlicica),
+            PredajaObvestilo.pasicaSplosna(a, besedilo(a, R.string.os_posodobitev_pasica, nova.razlicica),
                 a.getString(R.string.os_posodobitev_namesti), a.getString(R.string.os_posodobitev_pozneje), { prenesiInNamesti(a, nova) }, {})
         }
     }
@@ -142,7 +153,7 @@ object Posodobitve {
     /** Iz Nastavitev: najprej pove, kaj je novega (Namesti / Pozneje), nato prenos in namescanje. */
     fun ponudiZOpisom(a: Activity, nova: Nova) {
         val novo = nova.kajJeNovega(a)
-        val b = AlertDialog.Builder(a).setTitle(a.getString(R.string.os_posodobitev_pasica, nova.razlicica))
+        val b = AlertDialog.Builder(a).setTitle(besedilo(a, R.string.os_posodobitev_pasica, nova.razlicica))
             .setPositiveButton(R.string.os_posodobitev_namesti) { _, _ -> prenesiInNamesti(a, nova) }
             .setNegativeButton(R.string.os_posodobitev_pozneje, null)
         if (novo.isNotBlank()) b.setMessage(novo)
@@ -153,7 +164,7 @@ object Posodobitve {
     fun prenesiInNamesti(a: Activity, nova: Nova) {
         if (Build.VERSION.SDK_INT >= 26 && !a.packageManager.canRequestPackageInstalls()) {
             // Android najprej vprasa, ali sme Safeer OS namescati aplikacije; uporabnik se vrne in pritisne Namesti znova.
-            AlertDialog.Builder(a).setTitle(R.string.os_posodobitve).setMessage(R.string.os_posodobitev_dovoljenje)
+            AlertDialog.Builder(a).setTitle(R.string.os_posodobitve).setMessage(besedilo(a, R.string.os_posodobitev_dovoljenje))
                 .setPositiveButton(R.string.os_posodobitev_dovoli) { _, _ ->
                     prefs(a).edit().putString("caka", nova.json().toString()).putLong("caka_cas", System.currentTimeMillis()).apply()
                     try { a.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.packageName))) }
