@@ -119,8 +119,8 @@ class PredvajanjeActivity : OsActivity() {
         val sk = GlasbaStoritev.trenutna() ?: return
         // Sprotni tok pomocnika: napredek velja za izvirnik (nadaljevanje ga znova odpre in po potrebi spet prosi pomocnika).
         val t = SprotnaPomoc.tokZa(sk)
-        if (t != null) { if (t.izvirnik.video) MediaNapredek.zapisi(this, t.izvirnik, t.zamikMs + p.currentPosition.coerceAtLeast(0), t.trajanjeMs) }
-        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0))
+        if (t != null) { if (t.izvirnik.video) MediaNapredek.zapisi(this, t.izvirnik, t.zamikMs + p.currentPosition.coerceAtLeast(0), t.trajanjeMs, t.streznikIzvirnika?.naprava.orEmpty()) }
+        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
     }
 
     /**

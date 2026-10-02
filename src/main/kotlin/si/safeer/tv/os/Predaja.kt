@@ -47,7 +47,9 @@ object Predaja {
         }
         // Nic ne igra: zadnji video s shranjenim mestom (televizor je film ugasnil pri 1:02 - tablica nadaljuje).
         val zadnji = MediaNapredek.seznam(ctx).firstOrNull() ?: return o.put("playing", false)
-        val vnos = zaPosiljanje(ctx, zadnji.skladba, null, posiljatelj) ?: return o.put("playing", false)
+        // Datoteka druge naprave (zgodovina hrani id njenega streznika): cilj si zeton pri njej dobi sam.
+        val streznikZadnjega = zadnji.naprava.takeIf { it.isNotBlank() }?.let { DatotekeActivity.Streznik("", "", "", it) }
+        val vnos = zaPosiljanje(ctx, zadnji.skladba, streznikZadnjega, posiljatelj) ?: return o.put("playing", false)
         o.put("playing", false).put("last", true).put("position_ms", zadnji.polozaj).put("duration_ms", zadnji.trajanje).put("when", zadnji.cas)
         vnos.toMap().forEach { (k, v) -> o.put(k, v) }
         return o
@@ -86,6 +88,8 @@ object Predaja {
             return Vnos(vJson(sk.copy(podnapisi = emptyList())), null, streznik.naprava)
         }
         if (sk.zvok.startsWith("content://") || sk.zvok.startsWith("file:") || sk.zvok.startsWith("/")) return null
+        // Datoteka naprave brez znanega streznika (stara zgodovina): naslov z zetonom te naprave drugje ne velja.
+        if (sk.id.startsWith("share:") || sk.id.startsWith("disk:") || sk.id.startsWith("media:")) return null
         return Vnos(vJson(sk.copy(podnapisi = emptyList())), null, "")
     }
 
