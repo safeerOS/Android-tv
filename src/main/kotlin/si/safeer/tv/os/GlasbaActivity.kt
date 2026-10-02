@@ -428,6 +428,9 @@ class GlasbaActivity : OsActivity() {
         iskanjeDelavec.shutdownNow()
         slikeDelavec.shutdownNow()
         delavec.shutdownNow()
+        preverjanje.shutdownNow()
+        preverjanjeEpizod.shutdownNow()
+        glavna.removeCallbacks(umiri)
         tvIkone.clear()
         super.onDestroy()
     }
@@ -635,7 +638,7 @@ class GlasbaActivity : OsActivity() {
                 addState(intArrayOf(android.R.attr.state_pressed), GradientDrawable().apply { cornerRadius = polmer; setColor(0x33FFFFFF) })
                 addState(intArrayOf(), android.graphics.drawable.ColorDrawable(0))
             }
-            setOnClickListener { k.klik(it) }
+            setOnClickListener { zadnjaKartica = java.lang.ref.WeakReference(it); k.klik(it) }
             k.dolgo?.let { d ->
                 setOnLongClickListener { d(it); true }
                 setOnKeyListener { v, koda, dogodek ->
@@ -678,7 +681,7 @@ class GlasbaActivity : OsActivity() {
             if (mala) setPadding(dp(3), dp(3), dp(3), dp(3)) else setPadding(dp(6), dp(6), dp(6), dp(8))
             setBackgroundResource(R.drawable.os_ploscica_app)
             isFocusable = true; isClickable = true
-            setOnClickListener { k.klik(it) }
+            setOnClickListener { zadnjaKartica = java.lang.ref.WeakReference(it); k.klik(it) }
             k.dolgo?.let { d ->
                 setOnLongClickListener { d(it); true }
                 setOnKeyListener { v, koda, dogodek ->
@@ -1383,7 +1386,10 @@ class GlasbaActivity : OsActivity() {
         val o = odprtKatalog ?: return
         o.naslov = naslov
         val brskanje = o.tip.isNotBlank()
-        val vsi = if (brskanje) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi
+        // Cesar noben dodatek ne predvaja, ne kazemo; ostalo v ozadju preverimo (preveriMrezo).
+        Razpolozljivost.pripravi(this, stremioNaslovi())
+        val vsi = (if (brskanje) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi).filterNot { znanoNiNaVoljo(it) }
+        preveriMrezo(o, vsi)
         val kartice = videi(vsi, naslov) + (if (o.seKaj) listOf(Kartica(getString(R.string.os_media_nalozi_vec), vsi.size.toString(), "",
             { naloziVecKataloga(naslov) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
         if (!brskanje) { narisi(listOf(Vrsta(naslov, kartice, video = true, mreza = true)), vsi.size.toString()); return }
@@ -2362,6 +2368,7 @@ class GlasbaActivity : OsActivity() {
 
     /** Med premikanjem gredo tipke samo premikanju: levo/desno premakne, vse ostalo konca. */
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        zadnjiDotik = android.os.SystemClock.uptimeMillis()
         val k = premikam
         if (k != null) {
             if (dogodek.action == KeyEvent.ACTION_DOWN) when (dogodek.keyCode) {
@@ -2475,8 +2482,10 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Isti naslov iz vec virov je ena kartica; Safeer sam izbere vir in ga uporabniku ne izpostavlja. */
-    private fun videi(v: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null,
-                      celota: List<Jamendo.Skladba> = v): List<Kartica> {
+    private fun videi(v0: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null,
+                      celota: List<Jamendo.Skladba> = v0): List<Kartica> {
+        // Vsebine, za katero vemo, da je noben dodatek ne predvaja, ne kazemo nikjer (police, iskanje, mreza).
+        val v = v0.filterNot { znanoNiNaVoljo(it) }
         val napredekKrajevnih = if (v.none { it.id.startsWith("krajevno:") }) emptyMap()
             else MediaNapredek.seznam(this).filter { it.skladba.id.startsWith("krajevno:") && it.polozaj > 0 }.associateBy { it.skladba.id }
         val skupine = SpletniVir.zdruziEnako(v)
@@ -2821,7 +2830,10 @@ class GlasbaActivity : OsActivity() {
             @Suppress("UNCHECKED_CAST") val izSpleta = rezultati[8] as? List<Pair<MedijskiViri.Vir, Jamendo.Skladba>> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val javnaLast = rezultati[9] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val tuneInSurovi = rezultati[10] as? List<Jamendo.Skladba> ?: emptyList()
-            @Suppress("UNCHECKED_CAST") val izDodatkov = rezultati[11] as? List<Jamendo.Skladba> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val izDodatkovVsi = rezultati[11] as? List<Jamendo.Skladba> ?: emptyList()
+            zadetkiDodatkov = izDodatkovVsi
+            // Cesar noben dodatek ne predvaja, med zadetki ni.
+            val izDodatkov = izDodatkovVsi.filterNot { znanoNiNaVoljo(it) }
             @Suppress("UNCHECKED_CAST") val tvKanali = rezultati[12] as? List<Jamendo.Skladba> ?: emptyList()
             // Zadetki dodatkov po vrsti vsebine: vsak pristane v svoji polici (film, serija, TV v zivo, glasba, radio).
             val dodatkiPoRazredu = izDodatkov.groupBy { Stremio.razredEnote(it) }
@@ -2941,7 +2953,28 @@ class GlasbaActivity : OsActivity() {
                 try { Thread.sleep(100) } catch (_: InterruptedException) { break }
             }
             futures.forEach { if (!it.isDone) it.cancel(true) }
+            // Filme in serije iz dodatkov med zadetki preverimo: cesar se ne da predvajati, iz zadetkov izgine.
+            if (moje == nalaganje && !isFinishing && preveriZadetke(zadetkiDodatkov) && moje == nalaganje && !isFinishing) prikazi(true, false)
         }.start()
+    }
+
+    /** Zadetki dodatkov zadnjega iskanja (za preverjanje razpolozljivosti po prikazu). */
+    @Volatile private var zadetkiDodatkov: List<Jamendo.Skladba> = emptyList()
+
+    /** Preveri filme in serije med zadetki (najvec 24, do 10 s); vrne true, ce se katerega ne da predvajati. Klic iz delovne niti. */
+    private fun preveriZadetke(l: List<Jamendo.Skladba>): Boolean {
+        val naslovi = stremioNaslovi()
+        if (naslovi.isEmpty()) return false
+        val cakajo = l.filter { sk -> kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == null } == true }.take(24)
+        if (cakajo.isEmpty()) return false
+        val torrent = torrentSteje()
+        val niti = cakajo.map { sk -> preverjanjeEpizod.submit<Boolean> {
+            val r = try { preveriEnoto(sk, naslovi, torrent) } catch (_: Exception) { null }
+            if (r != null) kljucRazpolozljivosti(sk)?.let { Razpolozljivost.zapomni(applicationContext, it, r) }
+            r == false
+        } }
+        val rok = System.currentTimeMillis() + 10_000
+        return niti.count { f -> try { f.get((rok - System.currentTimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { false } } > 0
     }
 
     /** Streznik datotek naprave v Linku za zadetek (predvajanje s pripetim potrdilom). */
@@ -3617,25 +3650,38 @@ class GlasbaActivity : OsActivity() {
         if (sezone.size == 1) { izberiEpizodo(sk, ep, rocno); return }
         val imena = sezone.map { z -> val n = ep.count { it.sezona == z }
             getString(R.string.os_stremio_sezona, z) + " · " + resources.getQuantityString(R.plurals.os_stremio_epizod, n, n) }
-        AlertDialog.Builder(this).setTitle(sk.naslov).setItems(imena.toTypedArray()) { _, k -> izberiEpizodo(sk, ep.filter { it.sezona == sezone[k] }, rocno) }.show()
+        AlertDialog.Builder(this).setTitle(sk.naslov).setItems(imena.toTypedArray()) { _, k -> izberiEpizodo(sk, ep.filter { it.sezona == sezone[k] }, rocno, edinaSezona = false) }.show()
     }
 
-    private fun izberiEpizodo(sk: Jamendo.Skladba, ep: List<Stremio.Epizoda>, rocno: Boolean = false) {
+    private fun izberiEpizodo(sk: Jamendo.Skladba, vseEpizode: List<Stremio.Epizoda>, rocno: Boolean = false,
+                              /** Serija ima samo to sezono: ce ni nobene epizode, ni serije. */
+                              edinaSezona: Boolean = true) {
         val tip = Stremio.razstavi(sk)?.second ?: "series"
         // Epizoda serije: S1E2 · ime; skladba albuma ali video kanala brez stevilk: zaporedna stevilka in ime.
-        val imena = ep.mapIndexed { i, e ->
-            if (e.sezona > 0 || e.epizoda > 0) "S${e.sezona}E${e.epizoda}" + (if (e.ime.isNotBlank()) " · " + e.ime else "")
-            else "${i + 1}. " + e.ime.ifBlank { sk.naslov }
+        val imena = vseEpizode.mapIndexed { i, e ->
+            e.id to (if (e.sezona > 0 || e.epizoda > 0) "S${e.sezona}E${e.epizoda}" + (if (e.ime.isNotBlank()) " · " + e.ime else "")
+            else "${i + 1}. " + e.ime.ifBlank { sk.naslov })
+        }.toMap()
+        fun ime(e: Stremio.Epizoda) = imena[e.id].orEmpty()
+        // Epizod, za katere ze vemo, da jih noben dodatek nima, ne kazemo; ce ni nobene, serija izgine s seznama.
+        val ep = vseEpizode.filter { it.tokovi.isNotEmpty() || Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, it.id)) != false }.toMutableList()
+        fun nicNiNaVoljo() {
+            Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, sk.naslov), Toast.LENGTH_SHORT).show()
+            if (edinaSezona && !imaZnanoEpizodo(sk)) oznaciNiNaVoljo(sk)
         }
-        AlertDialog.Builder(this).setTitle(sk.naslov).setItems(imena.toTypedArray()) { _, k ->
-            val e = ep[k]
-            Toast.makeText(this, getString(R.string.os_media_pripravljam, imena[k]), Toast.LENGTH_SHORT).show()
+        if (ep.isEmpty()) { nicNiNaVoljo(); return }
+        val vrstice = android.widget.ArrayAdapter(this, android.R.layout.select_dialog_item, ep.map { ime(it) }.toMutableList())
+        var okno: AlertDialog? = null
+        okno = AlertDialog.Builder(this).setTitle(sk.naslov).setAdapter(vrstice) { _, k ->
+            val seznam = ep.toList()
+            val e = seznam.getOrNull(k) ?: return@setAdapter
+            Toast.makeText(this, getString(R.string.os_media_pripravljam, ime(e)), Toast.LENGTH_SHORT).show()
             delavec.execute {
                 fun tokoviZa(x: Stremio.Epizoda) = x.tokovi.ifEmpty { try { tokoviVzporedno(tip, x.id) } catch (_: Exception) { emptyList() } }
                 if (!sk.video && !rocno) {
                     // Zvok: tokove izbrane in naslednjih skladb vprasamo hkrati; izbrana se zacne, cim je znana,
                     // naslednjim damo se najvec 1,2 s (kar do takrat pride, gre v vrsto - album igra naprej sam).
-                    val naprej = ep.drop(k).take(40)
+                    val naprej = seznam.drop(k).take(40)
                     val niti = naprej.map { x -> iskanjeDelavec.submit<List<Stremio.Tok>> { tokoviZa(x) } }
                     val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
                     fun najboljsi(t: List<Stremio.Tok>) = TokIzbira.uredi(t.filter { it.vrsta == "url" }, opis, zmoznostiNaprave).firstOrNull()
@@ -3649,18 +3695,160 @@ class GlasbaActivity : OsActivity() {
                                 f.get((rok - android.os.SystemClock.uptimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS)
                             } catch (_: Exception) { emptyList() }) ?: break
                             SpletniVir.zapomniGlaveToka(tok.url, tok.glave)
-                            vrsta += sk.copy(id = sk.id + "#" + tok.url.hashCode(), naslov = "${sk.naslov} · ${imena[k + j]}", zvok = tok.url, povezava = tok.url, video = false)
+                            vrsta += sk.copy(id = sk.id + "#" + tok.url.hashCode(), naslov = "${sk.naslov} · ${ime(naprej[j])}", zvok = tok.url, povezava = tok.url, video = false)
                         }
                         glavna.post { if (!isFinishing) GlasbaStoritev.predvajaj(this, vrsta, 0) }
                         return@execute
                     }
-                    glavna.post { if (!isFinishing) izberiTok(sk, "${sk.naslov} · ${imena[k]}", prvi, rocno) }
+                    glavna.post { if (!isFinishing) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) } }
                     return@execute
                 }
                 val t = tokoviZa(e)
-                glavna.post { if (!isFinishing) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${imena[k]}", t, rocno) }
+                glavna.post {
+                    if (!isFinishing) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) }
+                }
             }
         }.show()
+        // V ozadju preverimo, katere epizode dodatki res imajo: cesar ni, s seznama sproti izgine (in tok izbrane je ze v predpomnilniku).
+        preveriEpizode(tip, ep.toList()) { e ->
+            val d = okno
+            if (isFinishing || d == null || !d.isShowing) return@preveriEpizode
+            val i = ep.indexOfFirst { it.id == e.id }
+            if (i < 0) return@preveriEpizode
+            ep.removeAt(i)
+            vrstice.remove(vrstice.getItem(i))
+            if (ep.isEmpty()) { d.dismiss(); nicNiNaVoljo() }
+        }
+    }
+
+    /** Epizode ni v nobenem dodatku: zapomnimo si in pokazemo seznam brez nje (ostale so morda na voljo). */
+    private fun epizodeNi(sk: Jamendo.Skladba, tip: String, e: Stremio.Epizoda, vse: List<Stremio.Epizoda>, rocno: Boolean, edinaSezona: Boolean) {
+        Razpolozljivost.zapomni(this, Razpolozljivost.kljuc(tip, e.id), false)
+        izberiEpizodo(sk, vse, rocno, edinaSezona)
+    }
+
+    // ------------------------------------------------------------------ razpolozljivost: prikazemo samo, kar se da predvajati
+
+    /** Torrent tu steje kot predvajanje: telefon in tablica ga zmoreta sama, televizor le prek racunalnika v Linku. */
+    private fun torrentSteje() = !jeTv() || racunalnikiZaPomoc().isNotEmpty()
+
+    private fun kljucRazpolozljivosti(sk: Jamendo.Skladba): String? {
+        val (_, tip, id) = Stremio.razstavi(sk) ?: return null
+        return if (tip == "movie" || tip == "series") Razpolozljivost.kljuc(tip, id) else null
+    }
+
+    /** Film ali serija iz dodatkov, za katero vemo, da je noben dodatek ne predvaja. */
+    private fun znanoNiNaVoljo(sk: Jamendo.Skladba): Boolean =
+        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == false } == true
+
+    /** Ali za serijo vemo vsaj za eno epizodo, da se da predvajati (potem serija ostane, cetudi ena sezona manjka). */
+    private fun imaZnanoEpizodo(sk: Jamendo.Skladba): Boolean =
+        kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == true } == true
+
+    private fun oznaciNaVoljo(sk: Jamendo.Skladba) {
+        kljucRazpolozljivosti(sk)?.let { if (Razpolozljivost.stanje(this, it) != true) Razpolozljivost.zapomni(this, it, true) }
+    }
+
+    /** Vsebine se ne da predvajati: zapomnimo si in kartico umaknemo z zaslona (mreza ostane, kjer je bila). */
+    private fun oznaciNiNaVoljo(sk: Jamendo.Skladba) {
+        val k = kljucRazpolozljivosti(sk) ?: return
+        Razpolozljivost.zapomni(this, k, false)
+        SEZNAMI.remove(VIDEO); SEZNAMI.remove(DOMOV)
+        val o = odprtKatalog
+        // Mreza se uredi sama; na policah in med zadetki iskanja izgine kartica, ki jo je uporabnik pravkar izbral.
+        if (o != null) osveziMrezo(o) else zadnjaKartica?.get()?.let { v ->
+            if (v.isAttachedToWindow) { val naslednja = v.focusSearch(View.FOCUS_RIGHT); v.visibility = View.GONE; if (jeTv()) naslednja?.requestFocus() }
+        }
+    }
+
+    /** Kartica, ki jo je uporabnik nazadnje izbral (da jo lahko umaknemo, ce se vsebine ne da predvajati). */
+    private var zadnjaKartica: java.lang.ref.WeakReference<View>? = null
+
+    /** Mrezo narisemo znova brez umaknjenih kartic; drsnik in izbira (daljinec) ostaneta, kjer sta bila. */
+    private fun osveziMrezo(o: OdprtKatalog) {
+        if (odprtKatalog !== o || isFinishing) return
+        val y = drsnik.scrollY
+        val izbrana = vsebina.findFocus()?.tag
+        narisiKatalog(o.naslov)
+        drsnik.post {
+            drsnik.scrollTo(0, y)
+            if (izbrana != null) (vsebina.findViewWithTag<View>(izbrana) ?: vsebina.findViewWithTag<View>("k:0"))?.requestFocus()
+        }
+    }
+
+    private val preverjanje = Executors.newFixedThreadPool(2)
+    /** Epizode odprtega seznama imajo svojo vrsto (uporabnik caka nanje), da jih preverjanje mreze ne zadrzuje. */
+    private val preverjanjeEpizod = Executors.newFixedThreadPool(4)
+    private val vPreverjanju = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+    @Volatile private var zadnjiDotik = 0L
+    private val umiri = object : Runnable {
+        override fun run() {
+            val o = odprtKatalog ?: return
+            // Dokler uporabnik drsi ali izbira, mreze ne premikamo pod prsti; uredimo jo, ko za hip miruje.
+            if (android.os.SystemClock.uptimeMillis() - zadnjiDotik < 2_500) { glavna.postDelayed(this, 1_000); return }
+            if (o.vsi.any { znanoNiNaVoljo(it) }) osveziMrezo(o)
+        }
+    }
+
+    /** Ali je serija ali film na voljo: film vprasamo naravnost, serijo po prvi epizodi, prvi epizodi zadnje sezone in zadnji epizodi. */
+    private fun preveriEnoto(sk: Jamendo.Skladba, naslovi: List<String>, torrent: Boolean): Boolean? {
+        val (_, tip, id) = Stremio.razstavi(sk) ?: return null
+        if (tip == "movie") return Stremio.razpolozljivo(naslovi, tip, id, torrent)
+        val ep = (try { Stremio.epizode(sk) } catch (_: Exception) { emptyList() }).filter { it.sezona >= 1 }
+        if (ep.isEmpty()) return null
+        val poskusi = listOf(ep.first(), ep.first { it.sezona == ep.last().sezona }, ep.last()).distinctBy { it.id }
+        var neznano = false
+        for (e in poskusi) {
+            when (Stremio.razpolozljivo(naslovi, tip, e.id, torrent)) { true -> return true; null -> neznano = true; else -> { } }
+        }
+        return if (neznano) null else false
+    }
+
+    /**
+     * V ozadju preveri, katere kartice mreze se da predvajati (dva naslova hkrati, samo na neomejenem omrezju); cesar
+     * noben dodatek nima, izgine. Odgovori dodatkov ostanejo v predpomnilniku, zato preverjen film zacne takoj.
+     */
+    private fun preveriMrezo(o: OdprtKatalog, vsi: List<Jamendo.Skladba>) {
+        val omrezje = getSystemService(android.net.ConnectivityManager::class.java)
+        if (omrezje == null || omrezje.activeNetwork == null || omrezje.isActiveNetworkMetered) return
+        val cakajo = vsi.filter { sk -> kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == null && it !in vPreverjanju } == true }
+        if (cakajo.isEmpty()) return
+        val naslovi = stremioNaslovi()
+        if (naslovi.isEmpty()) return
+        val torrent = torrentSteje()
+        for (sk in cakajo) {
+            val k = kljucRazpolozljivosti(sk) ?: continue
+            if (!vPreverjanju.add(k)) continue
+            preverjanje.execute {
+                try {
+                    if (odprtKatalog !== o || isFinishing) return@execute      // mreza je zaprta: dodatkov ne sprasujemo vec
+                    val r = try { preveriEnoto(sk, naslovi, torrent) } catch (_: Exception) { null }
+                    if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
+                    if (r == false) glavna.post { glavna.removeCallbacks(umiri); glavna.postDelayed(umiri, 1_200) }
+                } finally { vPreverjanju.remove(k) }
+            }
+        }
+    }
+
+    /** Epizode odprtega seznama preverimo v ozadju; [obNi] (glavna nit): epizode noben dodatek nima. */
+    private fun preveriEpizode(tip: String, ep: List<Stremio.Epizoda>, obNi: (Stremio.Epizoda) -> Unit) {
+        val naslovi = stremioNaslovi()
+        if (naslovi.isEmpty()) return
+        val torrent = torrentSteje()
+        for (e in ep.take(40)) {
+            val k = Razpolozljivost.kljuc(tip, e.id)
+            if (e.tokovi.isNotEmpty() || Razpolozljivost.stanje(this, k) != null) continue
+            preverjanjeEpizod.execute {
+                val r = try { Stremio.razpolozljivo(naslovi, tip, e.id, torrent) } catch (_: Exception) { null }
+                if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
+                if (r == false) glavna.post { obNi(e) }
+            }
+        }
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        zadnjiDotik = android.os.SystemClock.uptimeMillis()
+        return super.dispatchTouchEvent(ev)
     }
 
     /**
@@ -3669,11 +3857,17 @@ class GlasbaActivity : OsActivity() {
      * poskusi naslednje. Seznam virov ostane rocna moznost (dolg pritisk na kartico > Izberi vir) in izhod v sili,
      * kadar dodatki ponudijo le zunanje povezave (napovednik ipd.).
      */
-    private fun izberiTok(sk: Jamendo.Skladba, naslov: String, tokovi: List<Stremio.Tok>, rocno: Boolean = false) {
-        if (tokovi.isEmpty()) {
-            AlertDialog.Builder(this).setTitle(naslov).setMessage(R.string.os_stremio_ni_tokov).setPositiveButton(android.R.string.ok, null).show()
+    private fun izberiTok(sk: Jamendo.Skladba, naslov: String, tokovi: List<Stremio.Tok>, rocno: Boolean = false,
+                          /** Kaj storiti, ce se vsebine ne da predvajati (epizoda: nazaj na seznam epizod); privzeto: kartica izgine. */
+                          obNeuspehu: (() -> Unit)? = null) {
+        // Brez predvajljivega toka ni okna in ni seznama povezav (prosnje za donacijo, Discord, "No streams found" so ze
+        // izlocene v Stremio.tok): kratko obvestilo, vsebina pa izgine s seznama (lastnik, 2. 10. 2026).
+        if (tokovi.none { Stremio.jePredvajljiv(it) }) {
+            Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+            if (obNeuspehu != null) obNeuspehu() else oznaciNiNaVoljo(sk)
             return
         }
+        oznaciNaVoljo(sk)
         // Glasba in radio iz dodatka ostaneta zvok (predvajalnik za zvok, v ozadju), vse ostalo je video.
         fun skladbaToka(t: Stremio.Tok) = sk.copy(id = sk.id + "#" + t.url.hashCode(), naslov = naslov, zvok = t.url, povezava = t.url, video = sk.video)
         fun odpri(t: Stremio.Tok, rezerve: List<Stremio.Tok> = emptyList()) {
@@ -3686,7 +3880,8 @@ class GlasbaActivity : OsActivity() {
                     if (r.video) { nadaljujKoPripravljen(r); startActivity(Intent(this, PredvajanjeActivity::class.java)) }
                 }
                 "torrent" -> torrentPrekRacunalnika(sk, naslov, t.url, t.datoteka)
-                else -> odpriStran(t.url, naslov)
+                // Napovednik (samo pri rocni izbiri vira): igra v nasem predvajalniku, ne v brskalniku.
+                else -> razresiSplet(SpletniVir.enota(t.url, naslov, "", sk.slika, true))
             }
         }
         val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
@@ -3698,11 +3893,11 @@ class GlasbaActivity : OsActivity() {
             if (neposredni.isNotEmpty()) { odpri(neposredni.first(), neposredni.drop(1).take(4)); return }
             if (torrenti.isNotEmpty()) { odpri(torrenti.first()); return }
         }
-        // Rocna izbira (ali samo zunanje povezave): najboljsi na vrhu, napovedniki in obvestila dodatkov na koncu.
+        // Rocna izbira: najboljsi na vrhu, napovednik na koncu.
         val urejeni = neposredni + torrenti + tokovi.filter { it.vrsta != "url" && it.vrsta != "torrent" }
         if (urejeni.size == 1 && !rocno) { odpri(urejeni.first()); return }
         val imena = urejeni.map { t ->
-            val vrsta = when (t.vrsta) { "torrent" -> " · " + getString(R.string.os_stremio_torrent); "zunanji" -> " · " + getString(R.string.os_stremio_zunanji); else -> "" }
+            val vrsta = when (t.vrsta) { "torrent" -> " · " + getString(R.string.os_stremio_torrent); "napovednik" -> " · " + getString(R.string.os_stremio_zunanji); else -> "" }
             listOf(t.ime, t.opis.replace('\n', ' ')).filter { it.isNotBlank() }.joinToString(" · ") + vrsta
         }
         AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray()) { _, k ->

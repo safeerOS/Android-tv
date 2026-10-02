@@ -334,9 +334,13 @@ object Stremio {
             for (k in h.keys()) { val v = h.optString(k); if (k.isNotBlank() && v.isNotBlank()) glave[k] = v }
         }
         return when {
-            s.optString("url").startsWith("http") -> Tok("url", s.optString("url"), ime, opis, imeDodatka, glave = glave)
-            s.optString("externalUrl").isNotBlank() -> Tok("zunanji", s.optString("externalUrl"), ime, opis, imeDodatka)
-            s.optString("ytId").isNotBlank() -> Tok("zunanji", "https://www.youtube.com/watch?v=" + s.optString("ytId"), ime, opis, imeDodatka)
+            s.optString("url").startsWith("http") ->
+                if (jeObvestilo(s, ime, opis)) null else Tok("url", s.optString("url"), ime, opis, imeDodatka, glave = glave)
+            // `externalUrl` ni tok, ampak povezava na stran: prosnja za donacijo, vabilo v Discord, "No streams found",
+            // trgovina ... Tega uporabniku nikoli ne kazemo (lastnik, 2. 10. 2026) - vnos izpustimo.
+            s.optString("externalUrl").isNotBlank() -> null
+            // Napovednik (YouTube) ni vsebina sama: ne steje kot predvajanje, ponudimo ga le pri rocni izbiri vira.
+            s.optString("ytId").isNotBlank() -> Tok("napovednik", "https://www.youtube.com/watch?v=" + s.optString("ytId"), ime, opis, imeDodatka)
             s.optString("infoHash").isNotBlank() -> {
                 // Sledilniki iz `sources` ("tracker:udp://..."), da racunalnik hitreje najde vire.
                 val viri = s.optJSONArray("sources")
@@ -348,6 +352,44 @@ object Stremio {
             }
             else -> null
         }
+    }
+
+    /** Vnos med tokovi, ki je obvestilo (prosnja za donacijo, vabilo v Discord, "No streams found"): glej [ObvestilaTokov]. */
+    internal fun jeObvestilo(s: JSONObject, ime: String, opis: String): Boolean {
+        val namigi = s.optJSONObject("behaviorHints")
+        val znakiToka = namigi != null &&
+            (namigi.has("filename") || namigi.has("videoSize") || namigi.has("videoHash") || namigi.has("proxyHeaders"))
+        return ObvestilaTokov.je(s.optString("url"), "$ime $opis", znakiToka)
+    }
+
+    /** Tok, ki ga ta naprava lahko predvaja kot vsebino (ne napovednik). */
+    fun jePredvajljiv(t: Tok) = t.vrsta == "url" || t.vrsta == "torrent"
+
+    /**
+     * Ali vsaj eden od dodatkov za ta naslov ponuja predvajanje: true = da, false = vsi so odgovorili in nobeden nima
+     * nicesar, null = ne vemo (kateri ni odgovoril) - takrat nicesar ne sklepamo. [torrent]: ali torrent tu steje.
+     */
+    fun razpolozljivo(naslovi: List<String>, tip: String, id: String, torrent: Boolean): Boolean? {
+        if (naslovi.isEmpty()) return null
+        val manifestiDodatkov = naslovi.map { manifest(it) }
+        // Dodatek, ki ga trenutno ne dosezemo (brez omrezja), bi vsebino morda imel: ne sklepamo "ni na voljo".
+        var neznano = manifestiDodatkov.any { it == null }
+        val dodatki = manifestiDodatkov.filterNotNull()
+            .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
+        val niti = dodatki.map { m -> bazen.submit<Boolean?> {
+            val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json") ?: return@submit null
+            val a = d.optJSONArray("streams") ?: JSONArray()
+            (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.any { it.vrsta == "url" || (torrent && it.vrsta == "torrent") }
+        } }
+        // Prvi dodatek, ki ima tok, zadosca (na pocasne ne cakamo); "ni" velja sele, ko so odgovorili vsi.
+        val rok = System.currentTimeMillis() + 15_000
+        while (true) {
+            if (niti.any { f -> f.isDone && (try { f.get() } catch (_: Exception) { null }) == true }) return true
+            if (niti.all { it.isDone } || System.currentTimeMillis() > rok) break
+            try { Thread.sleep(40) } catch (_: InterruptedException) { return null }
+        }
+        if (niti.any { f -> !f.isDone || (try { f.get() } catch (_: Exception) { null }) == null }) neznano = true
+        return if (neznano) null else false
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */

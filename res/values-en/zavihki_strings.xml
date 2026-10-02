@@ -34,10 +34,9 @@
     <string name="os_podnapisi_ni_podnapis">That is not a subtitle file (.srt, .vtt, .ass).</string>
     <string name="os_stremio_dodatki">Add-ons</string>
     <string name="os_stremio_ni_epizod">The add-on returned no episodes for this series.</string>
-    <string name="os_stremio_ni_tokov">Your add-ons offer no playback for this title. The add-on that lists it (e.g. Cinemeta) only provides details – add an add-on with streams to watch.</string>
     <string name="os_stremio_sezona">Season %1$d</string>
     <string name="os_stremio_torrent">torrent</string>
-    <string name="os_stremio_zunanji">opens the browser</string>
+    <string name="os_stremio_zunanji">trailer</string>
     <string name="os_kodi_pojasnilo">Kodi add-ons are programs for the Kodi app and Safeer cannot run them.\n\nAddress: %1$s\n\nIf Kodi is installed, open the add-on there. For movies and series in Safeer, use Stremio add-ons.</string>
     <string name="os_kodi_odpri">Open Kodi</string>
     <plurals name="os_stremio_epizod">
@@ -72,4 +71,5 @@
     <string name="os_moc_nalagam">checking capacity …</string>
     <string name="os_moc_r_sorodnik">Safeer OS helps on this device</string>
     <string name="os_moc_r_predvaja">video or music is playing on this device</string>
+    <string name="os_media_ni_na_voljo">“%1$s” is not available in your add-ons right now.</string>
 </resources>
