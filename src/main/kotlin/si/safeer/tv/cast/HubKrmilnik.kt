@@ -203,6 +203,8 @@ object HubKrmilnik {
         tokovi = t
         // Link Mesh: naslov soseda si zapomnimo; ko sosed odide, ga hitro poiscemo znova.
         u.naSosedu = { id, naslov ->
+            // Sosed je tu (nas je poklical ali smo ga mi): morebitni premor po neuspelih klicih zanj ne velja vec.
+            HubMesh.sosedTu(id)
             if (naslov.isNotBlank()) HubMesh.zapomni(app, id, naslov)
             else glavna.post { if (tece() && HubMesh.vklopljen(app)) nacrtujIzvolitev(app, 2_000L) }
         }
