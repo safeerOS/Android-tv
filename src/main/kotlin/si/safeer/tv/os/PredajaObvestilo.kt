@@ -111,14 +111,17 @@ object PredajaObvestilo {
 
     /**
      * Obvestilo v vrstici (aplikacija v ozadju): tiho (brez zvoka), z gumboma Sprejmi in Zavrni.
-     * Vrne false, kadar ga sistem ne bi pokazal (obvestila so za Safeer izklopljena ali dovoljenje od Androida 13 ni dano,
-     * kanal utisan): ponudba potem caka na naslednje odprtje Safeer OS (pasica), posiljatelju pa to povemo.
+     * Vrne false, kadar ga uporabnik ne bi videl (obvestila so za Safeer izklopljena ali dovoljenje od Androida 13 ni dano,
+     * kanal utisan; televizor tihih obvestil aplikacij sploh ne kaze): ponudba potem caka na naslednje odprtje Safeer OS
+     * (pasica), posiljatelju pa to povemo.
      */
     fun obvesti(ctx: Context, po: Predaja.Ponujeno): Boolean {
         try {
             val c = ctx.applicationContext
             val nm = c.getSystemService(NotificationManager::class.java) ?: return false
             if (!si.safeer.tv.link.Obvestila.dovoljena(c)) return false
+            // Android TV nima vrstice z obvestili: ko je Safeer OS v ozadju (druga aplikacija, televizor spi), ponudba pocaka.
+            if (c.packageManager.hasSystemFeature("android.software.leanback")) return false
             if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(KANAL) == null) {
                 nm.createNotificationChannel(NotificationChannel(KANAL, c.getString(R.string.os_predaja_poslji), NotificationManager.IMPORTANCE_LOW))
             }
