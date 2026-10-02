@@ -228,6 +228,7 @@
     <string name="os_predaja_poslji">Envoyer à un appareil</string>
     <string name="os_predaja_poslji_opis">Continuer là-bas – attend Accepter</string>
     <string name="os_predaja_poslano">Envoyé à %1$s – confirme là-bas avec Accepter.</string>
+    <string name="os_predaja_poslano_odpri">Envoyé à %1$s – les notifications y sont désactivées ; ouvre Safeer OS sur cet appareil et confirme avec Accepter.</string>
     <string name="os_predaja_poslji_stara">%1$s ne sait pas encore le faire – mets à jour Safeer OS là-bas.</string>
     <string name="os_predaja_poslji_napaka">%1$s ne répond pas.</string>
     <string name="os_predaja_poslji_ni_deljeno">Ce fichier ne peut pas être envoyé : le partage de fichiers est désactivé sur cet appareil.</string>

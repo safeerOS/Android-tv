@@ -109,14 +109,20 @@ object PredajaObvestilo {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
     }
 
-    /** Obvestilo v vrstici (aplikacija v ozadju): tiho (brez zvoka), z gumboma Sprejmi in Zavrni. */
-    fun obvesti(ctx: Context, po: Predaja.Ponujeno) {
+    /**
+     * Obvestilo v vrstici (aplikacija v ozadju): tiho (brez zvoka), z gumboma Sprejmi in Zavrni.
+     * Vrne false, kadar ga sistem ne bi pokazal (obvestila so za Safeer izklopljena ali dovoljenje od Androida 13 ni dano,
+     * kanal utisan): ponudba potem caka na naslednje odprtje Safeer OS (pasica), posiljatelju pa to povemo.
+     */
+    fun obvesti(ctx: Context, po: Predaja.Ponujeno): Boolean {
         try {
             val c = ctx.applicationContext
-            val nm = c.getSystemService(NotificationManager::class.java) ?: return
+            val nm = c.getSystemService(NotificationManager::class.java) ?: return false
+            if (!si.safeer.tv.link.Obvestila.dovoljena(c)) return false
             if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(KANAL) == null) {
                 nm.createNotificationChannel(NotificationChannel(KANAL, c.getString(R.string.os_predaja_poslji), NotificationManager.IMPORTANCE_LOW))
             }
+            if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(KANAL)?.importance == NotificationManager.IMPORTANCE_NONE) return false
             val odpri = Intent(c, GlasbaActivity::class.java).putExtra(GlasbaActivity.EXTRA_PREDAJA_SPREJMI, true)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             val piSprejmi = PendingIntent.getActivity(c, ID, odpri, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -134,8 +140,10 @@ object PredajaObvestilo {
                 .addAction(android.app.Notification.Action.Builder(null, c.getString(R.string.os_predaja_zavrni), piZavrni).build())
                 .build()
             nm.notify(ID, obvestilo)
+            return true
         } catch (t: Throwable) {
             Predaja.log("obvestilo: $t")
+            return false
         }
     }
 

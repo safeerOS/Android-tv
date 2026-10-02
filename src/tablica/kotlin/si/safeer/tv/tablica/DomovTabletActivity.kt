@@ -67,7 +67,16 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Jezik je bil v Nastavitvah zamenjan: domaci zaslon se ob vrnitvi narise v novem. */
     override fun onResume() {
         super.onResume()
-        if (jezikOb != null && si.safeer.tv.JezikVmesnika.izbrani(this) != jezikOb) recreate()
+        if (jezikOb != null && si.safeer.tv.JezikVmesnika.izbrani(this) != jezikOb) { recreate(); return }
+        // "Poslji na napravo": ponudba druge naprave se tudi na domacem zaslonu pokaze kot tiha pasica (kot v OsActivity),
+        // ne kot obvestilo - to brez dovoljenja za obvestila sploh ne bi bilo vidno.
+        si.safeer.tv.os.Predaja.prikaz = { po -> if (!isFinishing) si.safeer.tv.os.PredajaObvestilo.pasica(this, po) }
+        si.safeer.tv.os.Predaja.cakajoca?.takeIf { it.velja() }?.let { si.safeer.tv.os.PredajaObvestilo.umakni(this); si.safeer.tv.os.PredajaObvestilo.pasica(this, it) }
+    }
+
+    override fun onPause() {
+        if (si.safeer.tv.os.Predaja.prikaz != null) { si.safeer.tv.os.Predaja.prikaz = null; si.safeer.tv.os.PredajaObvestilo.umakniPasico() }
+        super.onPause()
     }
 
     private var koren: View? = null

@@ -124,10 +124,16 @@ object Predaja {
         val po = Ponujeno(posiljatelj, DatotekeActivity.lepoIme(ime), izJson(item), p.optLong("position_ms"), p.optLong("duration_ms"), s, p.optString("server_device"))
         if (po.skladba.zvok.isBlank() && po.streznikNaprava.isBlank()) return JSONObject().put("queued", false).put("reason", "ni_vnosa")
         cakajoca = po
-        log("play.offer od $posiljatelj: ${po.skladba.naslov} @ ${po.polozajMs}")
         val z = prikaz
-        if (z != null) z(po) else PredajaObvestilo.obvesti(app, po)
-        return JSONObject().put("queued", true)
+        // Kako jo uporabnik vidi: pasica na zaslonu v ospredju, tiho obvestilo, ali sele ob naslednjem odprtju Safeer OS
+        // (obvestila izklopljena) - posiljatelj po tem pove, kaj naj uporabnik tam stori.
+        val kako = when {
+            z != null -> { z(po); "banner" }
+            PredajaObvestilo.obvesti(app, po) -> "notification"
+            else -> "later"
+        }
+        log("play.offer od $posiljatelj: ${po.skladba.naslov} @ ${po.polozajMs} ($kako)")
+        return JSONObject().put("queued", true).put("shown", kako)
     }
 
     /** Ponudba za cilj [cilj] iz tega, kar tu igra: isti zapis kot `play.state` (datoteka z zetonom za cilj). */
@@ -147,7 +153,11 @@ object Predaja {
         return o
     }
 
-    /** Naprave, ki jim je mogoce poslati (vse z daljincem razen te). */
+    /**
+     * Naprave, ki jim je mogoce poslati (vse z daljincem razen te). Izid [poslji]: `ok` (tam je pasica ali obvestilo),
+     * `ok_odpri` (ponudba caka, a tam obvestil ni - uporabnik naj odpre Safeer OS), `ni_deljeno`, `stara`, `izklopljeno`,
+     * `ni_povezave`, `napaka`.
+     */
     fun cilji(ctx: Context): List<LinkOdjemalec.Naprava> {
         val link = LinkUpravitelj.pridobi(ctx.applicationContext)
         if (link.jeKrajevni() || !link.povezan) return emptyList()
@@ -168,7 +178,8 @@ object Predaja {
             log("play.offer -> ${cilj.id}: ${izid?.toString()?.take(300)} napaka=$napaka")
             val d = izid?.optJSONObject("data")
             nato(when {
-                izid?.optBoolean("ok") == true && d?.optBoolean("queued") == true -> "ok"
+                izid?.optBoolean("ok") == true && d?.optBoolean("queued") == true ->
+                    if (d.optString("shown") == "later") "ok_odpri" else "ok"
                 izid?.optBoolean("ok") == true -> d?.optString("reason").orEmpty().ifBlank { "napaka" }
                 izid?.optString("code") == "neznano_dejanje" -> "stara"
                 napaka == "ni_povezave" || napaka == "potek" -> "ni_povezave"

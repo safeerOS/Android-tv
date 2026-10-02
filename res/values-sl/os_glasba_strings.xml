@@ -227,6 +227,7 @@
     <string name="os_predaja_poslji">Pošlji na napravo</string>
     <string name="os_predaja_poslji_opis">Nadaljuj tam – čaka na Sprejmi</string>
     <string name="os_predaja_poslano">Poslano na %1$s – tam potrdi s Sprejmi.</string>
+    <string name="os_predaja_poslano_odpri">Poslano na %1$s – obvestila so tam izklopljena, zato tam odpri Safeer OS in potrdi s Sprejmi.</string>
     <string name="os_predaja_poslji_stara">%1$s tega še ne zna – tam posodobi Safeer OS.</string>
     <string name="os_predaja_poslji_napaka">%1$s ne odgovarja.</string>
     <string name="os_predaja_poslji_ni_deljeno">Te datoteke ni mogoče poslati: deljenje datotek je na tej napravi izklopljeno.</string>
