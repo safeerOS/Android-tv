@@ -56,7 +56,9 @@ object Daljinec {
         // Grafika: pretvorba videa na napravi z najboljsim strojnim kodirnikom (Pretvorba).
         "video.transcode", "video.status",
         // Sprotno pretvarjanje za napravo, ki videa ne zna predvajati (Pretok).
-        "video.stream", "video.stream_stop"
+        "video.stream", "video.stream_stop",
+        // "Nadaljuj na drugi napravi": kaj ta naprava predvaja (ali je nazadnje gledala) in kje; pavza, ce cilj tako izbere (Predaja).
+        "play.state", "play.stop"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -158,6 +160,8 @@ object Daljinec {
         if (d == "video.status") return Pretvorba.stanje(parametri.optString("id"))
         if (d == "video.stream") return Pretok.zacni(context, parametri, parametri.optString(PARAM_POSILJATELJ, ""))
         if (d == "video.stream_stop") return Pretok.ustaviUkaz(parametri.optString("id"))
+        if (d == "play.state") return Izid(true, "Predvajanje", si.safeer.tv.os.Predaja.stanje(context, parametri.optString(PARAM_POSILJATELJ, "")))
+        if (d == "play.stop") return Izid(true, "Pavza", si.safeer.tv.os.Predaja.ustavi())
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {

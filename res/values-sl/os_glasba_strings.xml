@@ -212,4 +212,17 @@
     <string name="os_sprotno_pretvarja">Naprava %1$s video sproti pretvarja za to napravo …</string>
     <string name="os_sprotno_vir">sproti pretvarja: %1$s</string>
     <string name="os_glasba_napaka_dekodirnik">Te oblike videa ta naprava ne zna predvajati in nobena naprava v Safeer Linku je ta trenutek ne more pretvoriti.</string>
+    <string name="os_predaja_naslov">Nadaljuj z druge naprave</string>
+    <string name="os_predaja_opis">Kar igra ali si nazadnje gledal na drugi napravi</string>
+    <string name="os_predaja_vprasam">Vprašam naprave …</string>
+    <string name="os_predaja_nic">Nobena naprava v Safeer Linku trenutno ne predvaja ničesar.</string>
+    <string name="os_predaja_igra">igra</string>
+    <string name="os_predaja_nazadnje">nazadnje</string>
+    <string name="os_predaja_tukaj">Nadaljuj tukaj</string>
+    <string name="os_predaja_tukaj_ustavi">Nadaljuj tukaj in ustavi tam</string>
+    <string name="os_predaja_vprasanje">%1$s predvaja ta video (pri %2$s). Nadaljujem tukaj?</string>
+    <string name="os_predaja_napaka">Naprave ni bilo mogoče vprašati.</string>
+    <string name="os_predaja_nast">Deli predvajanje z napravami v Linku</string>
+    <string name="os_predaja_nast_opis">Druge tvoje naprave lahko na tvojo zahtevo nadaljujejo, kar gledaš tukaj</string>
+    <string name="os_media_kanali_virov">Kanali iz tvojih virov</string>
 </resources>

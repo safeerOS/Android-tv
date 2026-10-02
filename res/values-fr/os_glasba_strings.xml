@@ -213,4 +213,17 @@
     <string name="os_sprotno_pretvarja">%1$s convertit la vidéo en direct pour cet appareil …</string>
     <string name="os_sprotno_vir">converti en direct par %1$s</string>
     <string name="os_glasba_napaka_dekodirnik">Cet appareil ne peut pas lire ce format vidéo et aucun appareil de Safeer Link ne peut le convertir pour le moment.</string>
+    <string name="os_predaja_naslov">Continuer depuis un autre appareil</string>
+    <string name="os_predaja_opis">Ce qui est lu ou a été regardé en dernier sur un autre appareil</string>
+    <string name="os_predaja_vprasam">Interrogation des appareils…</string>
+    <string name="os_predaja_nic">Aucun appareil du Safeer Link ne lit quoi que ce soit en ce moment.</string>
+    <string name="os_predaja_igra">en lecture</string>
+    <string name="os_predaja_nazadnje">dernier</string>
+    <string name="os_predaja_tukaj">Continuer ici</string>
+    <string name="os_predaja_tukaj_ustavi">Continuer ici et arrêter là-bas</string>
+    <string name="os_predaja_vprasanje">%1$s lit ceci (à %2$s). Continuer ici ?</string>
+    <string name="os_predaja_napaka">Impossible d\'interroger les appareils.</string>
+    <string name="os_predaja_nast">Partager la lecture avec les appareils du Link</string>
+    <string name="os_predaja_nast_opis">Tes autres appareils peuvent, à ta demande, continuer ce que tu regardes ici</string>
+    <string name="os_media_kanali_virov">Chaînes de tes sources</string>
 </resources>

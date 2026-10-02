@@ -1047,16 +1047,16 @@ class GlasbaActivity : OsActivity() {
             vrste.filter { it.skladbe.isNotEmpty() }
         }
         TV_V_ZIVO -> {
-            // Kanali v zivo iz uporabnikovih dodatkov Stremio (katalogi tipa "tv"): vsak katalog svoja polica, pred uradnimi prenosi.
+            // Kanali v zivo iz uporabnikovih dodatkov Stremio (katalogi tipa "tv"): vsi katalogi skupaj v eni polici (uporabnik
+            // vira ne rabi poznati), isti kanal iz vec dodatkov enkrat; "Pokazi vse" odpre vse kanale. Pred uradnimi prenosi.
             val stremio = MedijskiViri.vsi(this).filter { it.jeStremio && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
             val izDodatkov = mutableListOf<Podatki>()
             if (stremio.isNotEmpty()) {
                 val katalogi = try { Stremio.katalogiTv(stremio) } catch (_: Exception) { emptyList() }.take(12)
                 val vsebine = katalogi.map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
-                katalogi.zip(vsebine).forEach { (k, f) ->
-                    val vsebina = try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
-                    if (vsebina.isNotEmpty()) izDodatkov += Podatki("📡 ${k.ime} · ${k.imeDodatka}", vsebina.take(80), video = true)
-                }
+                    .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } }
+                val kanali = SpletniVir.zdruziEnako(prepleti(vsebine)).map { it.first() }
+                if (kanali.isNotEmpty()) izDodatkov += Podatki("📡 " + getString(R.string.os_media_kanali_virov), kanali.take(80), video = true)
             }
             izDodatkov + (if (jeVirViden(i, VIR_TV)) TvVZivo.poDrzavah().map { (drzava, kanali) -> Podatki(drzava, kanali, video = true) } else emptyList())
         }
@@ -1150,6 +1150,7 @@ class GlasbaActivity : OsActivity() {
         return when (naslov) {
             getString(R.string.os_media_filmi) -> vsi.filter { it.tip == "movie" }
             getString(R.string.os_media_serije) -> vsi.filter { it.tip == "series" }
+            "📡 " + getString(R.string.os_media_kanali_virov) -> Stremio.katalogiTv(n)
             else -> listOfNotNull((vsi + Stremio.katalogiTv(n)).firstOrNull { naslovKataloga(it) == naslov })
         }
     }
@@ -1265,7 +1266,7 @@ class GlasbaActivity : OsActivity() {
             val urejene = razvrsti(i, sz.skladbe)
             Vrsta("≡  " + sz.ime, if (video) videi(urejene, sz.ime, sz) else skladbe(urejene, sz.ime, sz), video) }
         return when (i) {
-            DOMOV -> listOf(
+            DOMOV -> predajaVrsta() + listOf(
                 Vrsta(getString(R.string.os_media_nedavno), razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this))).take(5).let { n ->
                     val kartice = n.map { sk ->
                         Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, { meniNedavno(sk) },
@@ -2847,8 +2848,80 @@ class GlasbaActivity : OsActivity() {
         Toast.makeText(this, getString(R.string.os_media_priprava_napaka, sk.naslov), Toast.LENGTH_LONG).show()
     }
 
+    // ------------------------------------------------------------------ nadaljuj z druge naprave (Predaja)
+
+    /** Mesto, ki ga je dala druga naprava (predaja): velja za eno skladbo, enkrat. */
+    private var predajaPolozaj: Pair<String, Long>? = null
+
+    /** Vrsta s kartico "Nadaljuj z druge naprave" - samo, kadar so v Linku se druge naprave (nic samodejnega: klik vprasa). */
+    private fun predajaVrsta(): List<Vrsta> {
+        val link = LinkUpravitelj.pridobi(this)
+        if (link.jeKrajevni() || link.naprave.none { !link.jeTaNaprava(it) && "remote" in it.zmoznosti }) return emptyList()
+        val kartica = Kartica(getString(R.string.os_predaja_naslov), getString(R.string.os_predaja_opis), "", { nadaljujZDrugeNaprave() }, ikona = R.drawable.os_ikona_link)
+        return listOf(Vrsta(getString(R.string.os_predaja_naslov), listOf(kartica), video = true, mala = true))
+    }
+
+    /** Vprasa naprave, kaj predvajajo (ali so nazadnje gledale), in ponudi nadaljevanje tukaj - vlecenje na cilju, kot je dolocil lastnik. */
+    private fun nadaljujZDrugeNaprave() {
+        stanje.text = getString(R.string.os_predaja_vprasam)
+        Predaja.poizvedi(this) { ponudbe ->
+            if (isFinishing) return@poizvedi
+            stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
+            if (ponudbe.isEmpty()) { Toast.makeText(this, getString(R.string.os_predaja_nic), Toast.LENGTH_LONG).show(); return@poizvedi }
+            val imena = ponudbe.map { p ->
+                val kje = cas(p.polozajMs) + (if (p.trajanjeMs > 0) " / " + cas(p.trajanjeMs) else "")
+                "${DatotekeActivity.lepoIme(p.naprava.ime)} · ${p.skladba.naslov}\n$kje · ${getString(if (p.igra) R.string.os_predaja_igra else R.string.os_predaja_nazadnje)}"
+            }
+            AlertDialog.Builder(this).setTitle(R.string.os_predaja_naslov)
+                .setItems(imena.toTypedArray()) { _, i -> izberiPrevzem(ponudbe[i]) }
+                .setNegativeButton(android.R.string.cancel, null).show()
+        }
+    }
+
+    private fun izberiPrevzem(p: Predaja.Ponudba) {
+        if (!p.igra) { prevzemi(p, false); return }
+        // Izvor ne ustavi sam: uporabnik izbere, ali tam tece naprej (druga oseba gleda) ali se ustavi.
+        AlertDialog.Builder(this).setTitle(p.skladba.naslov)
+            .setMessage(getString(R.string.os_predaja_vprasanje, DatotekeActivity.lepoIme(p.naprava.ime), cas(p.polozajMs)))
+            .setPositiveButton(R.string.os_predaja_tukaj) { _, _ -> prevzemi(p, false) }
+            .setNeutralButton(R.string.os_predaja_tukaj_ustavi) { _, _ -> prevzemi(p, true) }
+            .setNegativeButton(android.R.string.cancel, null).show()
+    }
+
+    private fun prevzemi(p: Predaja.Ponudba, ustaviTam: Boolean) {
+        val sk = p.skladba
+        val link = LinkUpravitelj.pridobi(this)
+        if (ustaviTam) link.ukaz(p.naprava.id, "play.stop", org.json.JSONObject(), 5_000, LinkOdjemalec.Odgovor { _, _ -> })
+        predajaPolozaj = sk.id to p.polozajMs
+        if (sk.video && p.trajanjeMs > 0) MediaNapredek.zapisi(this, sk, p.polozajMs, p.trajanjeMs)
+        fun zacni(s: DatotekeActivity.Streznik?) {
+            GlasbaStoritev.predvajaj(this, listOf(sk), 0, s)
+            nadaljujKoPripravljen(sk)
+            if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
+        }
+        when {
+            p.streznik != null -> zacni(p.streznik)
+            p.streznikNaprava.isNotBlank() -> {
+                // Datoteka tretje naprave (racunalnik, telefon): svoj zeton dobimo tako kot Datoteke (files.list).
+                stanje.text = getString(R.string.os_glasba_nalagam)
+                link.ukaz(p.streznikNaprava, "files.list", org.json.JSONObject().put("folder", Predaja.mapaDatoteke(sk.id)), 10_000, LinkOdjemalec.Odgovor { izid, napaka ->
+                    if (isFinishing) return@Odgovor
+                    Predaja.log("files.list ${p.streznikNaprava}: ${izid?.toString()?.take(300)} napaka=$napaka")
+                    stanje.text = opis(razdelek)
+                    val s = izid?.optJSONObject("data")?.optJSONObject("server")?.let {
+                        DatotekeActivity.Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"), p.streznikNaprava)
+                    }
+                    if (s == null) { Toast.makeText(this, getString(R.string.os_predaja_napaka), Toast.LENGTH_LONG).show(); return@Odgovor }
+                    zacni(s)
+                })
+            }
+            else -> predvajaj(listOf(sk), 0)
+        }
+    }
+
     private fun nadaljujKoPripravljen(sk: Jamendo.Skladba) {
-        val od = MediaNapredek.polozaj(this, sk)
+        val predano = predajaPolozaj?.takeIf { it.first == sk.id }?.second?.also { predajaPolozaj = null }
+        val od = predano ?: MediaNapredek.polozaj(this, sk)
         if (od <= 0) return
         Toast.makeText(this, getString(R.string.os_nadaljujem_od, cas(od)), Toast.LENGTH_SHORT).show()
         glavna.postDelayed({
