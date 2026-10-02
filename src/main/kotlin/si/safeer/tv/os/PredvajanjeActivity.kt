@@ -709,6 +709,7 @@ class PredvajanjeActivity : OsActivity() {
                     if (isFinishing) return@poslji
                     val b = when (koda) {
                         "ok" -> getString(R.string.os_predaja_poslano, ime)
+                        "ok_odpri" -> getString(R.string.os_predaja_poslano_odpri, ime)
                         "ni_deljeno" -> getString(R.string.os_predaja_poslji_ni_deljeno)
                         "stara" -> getString(R.string.os_predaja_poslji_stara, ime)
                         "izklopljeno" -> getString(R.string.os_predaja_poslji_izklopljeno, ime)

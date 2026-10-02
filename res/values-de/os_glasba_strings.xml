@@ -228,6 +228,7 @@
     <string name="os_predaja_poslji">An Gerät senden</string>
     <string name="os_predaja_poslji_opis">Dort weiterschauen – wartet auf Annehmen</string>
     <string name="os_predaja_poslano">An %1$s gesendet – dort mit Annehmen bestätigen.</string>
+    <string name="os_predaja_poslano_odpri">An %1$s gesendet – Benachrichtigungen sind dort aus; öffne dort Safeer OS und bestätige mit Annehmen.</string>
     <string name="os_predaja_poslji_stara">%1$s kennt das noch nicht – dort Safeer OS aktualisieren.</string>
     <string name="os_predaja_poslji_napaka">%1$s antwortet nicht.</string>
     <string name="os_predaja_poslji_ni_deljeno">Diese Datei kann nicht gesendet werden: Dateifreigabe ist auf diesem Gerät ausgeschaltet.</string>
