@@ -119,7 +119,10 @@ object Stremio {
             m.optString("poster"), "", "$osnova/meta/${enc(tip)}/${enc(id)}.json", video = true,
             // FILM / SERIJA za oznako na kartici in za filter Filmi | Serije (SpletniVir.vrstaVsebine).
             mediaType = when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
-            year = leto.take(4).toIntOrNull() ?: 0)
+            year = leto.take(4).toIntOrNull() ?: 0,
+            // Id IMDb (tt...), kot ga rabi vecina dodatkov: isti film iz vec katalogov/dodatkov je ena kartica.
+            imdbId = if (id.startsWith("tt") && id.drop(2).all { it.isDigit() }) id else "",
+            genres = m.optJSONArray("genres")?.let { g -> (0 until g.length()).mapNotNull { g.optString(it).takeIf { s -> s.isNotBlank() } } } ?: emptyList())
     }
 
     /** Stran kataloga (`skip` = koliko vnosov preskociti, kot v Stremiu); obvezni parametri s privzeto moznostjo, iskanje kot `search=`. */

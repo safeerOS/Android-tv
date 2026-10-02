@@ -245,9 +245,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return
         }
         racunalnik = naprave.firstOrNull { it.zmoznosti.contains("apps") } ?: naprave.first()
+        // Ime naprave sledi Linku tudi za ze nalozene naprave: po preimenovanju (cast.devices) cipi takoj
+        // kazejo novo ime, ne sele po ponovnem zagonu aplikacije.
+        var preimenovano = false
         for (r in naprave) {
+            val ime = r.ime.ifBlank { r.id }
+            if (imenaNaprav[r.id] != ime) { preimenovano = imenaNaprav.containsKey(r.id); imenaNaprav[r.id] = ime }
             if (r.id in nalagam || r.id in nalozene) continue
-            imenaNaprav[r.id] = r.ime.ifBlank { r.id }
             if (!r.zmoznosti.contains("apps")) androidNaprave.add(r.id)
             // Seznam je svez (domaci zaslon ga je pravkar pripravil ali smo ga pravkar pokazali):
             // ne vprasamo naprave se enkrat - brez dvojnega nalaganja.
@@ -260,6 +264,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 else getString(R.string.os_programi_naprav, imenaNaprav.size)
             znacka.visibility = View.VISIBLE
         }
+        if (preimenovano) narisiSkupine()
     }
 
     /**

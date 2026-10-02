@@ -57,6 +57,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 /** Polica zvrsti iz uporabnikovih virov se pokaze sele z vsaj toliko enotami (redke ostanejo v Filmi/Serije). */
 private const val MIN_KARTIC_KATEGORIJE = 3
+/** Najvec kartic na zdruzeni polici (Filmi, Serije, Video, zvrst); vse ostalo prek "Pokazi vse". */
+private const val POLICA_NAJVEC = 60
 
 class GlasbaActivity : OsActivity() {
 
@@ -1062,36 +1064,44 @@ class GlasbaActivity : OsActivity() {
             val vsiViri = MedijskiViri.vsi(this)
             val medijskiViri = vsiViri.filter { jeVirViden(i, kljucVira(it)) }
             android.util.Log.i("SafeerOsMedia", "viri=${medijskiViri.size}, spletni=${medijskiViri.count { it.jeSplet }}")
+            // Uporabnik doda vir in nanj pozabi (Matej, 2. 10. 2026): police so po VSEBINI (Zate, Filmi, Serije, Video,
+            // zvrsti), ne po virih. Vse vire vprasamo hkrati, vsebino zdruzimo in isti film iz vec virov je ena kartica.
+            val stremio = vsiViri.filter { it.jeStremio && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
+            val katalogi = if (stremio.isEmpty()) emptyList() else try { Stremio.prikazniKatalogi(Stremio.zKatalogom(stremio)) } catch (_: Exception) { emptyList() }.take(12)
+            val izKatalogov = katalogi.map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
+            val javnaLast = if (jeVirViden(i, VIR_JAVNA_LAST)) iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { JavnaLast.isci() } catch (_: Exception) { emptyList() } } else null
+            val peertubeStrezniki = (
+                (if (jeVirViden(i, VIR_PEERTUBE)) MedijskiViri.vgrajeniPeerTube(this) else emptyList()) +
+                    vsiViri.filter { it.jePeerTube && jeVirViden(i, kljucVira(it)) }.map { it.naslov }).distinct()
+            val peertube = if (peertubeStrezniki.isEmpty()) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
+                try { PeerTube.najboljGledani(peertubeStrezniki, 24).flatMap { it.second } } catch (_: Exception) { emptyList() }
+            }
             val surovi = SpletniVir.priljubljeno(this, medijskiViri).filter {
                 (it.video || SpletniVir.vrstaVsebine(it) == SpletniVir.SERIJA || SpletniVir.vrstaVsebine(it) == SpletniVir.FILM) &&
                 SpletniVir.vrstaVsebine(it) != SpletniVir.VIDEOSPOT &&
                 !it.mediaType.equals("MusicVideo", ignoreCase = true)
             }
-            val izVirov = surovi
-            fun unikat(s: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
-                val videne = mutableSetOf<String>()
-                return s.filter { sk ->
-                    val k = (sk.imdbId.takeIf { it.isNotBlank() } ?: sk.tmdbId.takeIf { it.isNotBlank() } ?: (sk.izvajalec + " " + sk.naslov).lowercase()).trim()
-                    if (k.isNotBlank()) videne.add(k) else videne.add(sk.id)
-                }
-            }
-            val filmi = unikat(izVirov.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.FILM })
-            val serije = unikat(izVirov.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.SERIJA })
-            val ostali = unikat(izVirov.filter { SpletniVir.vrstaVsebine(it) == null })
+            fun pocakaj(f: java.util.concurrent.Future<List<Jamendo.Skladba>>?): List<Jamendo.Skladba> =
+                try { f?.get(20, java.util.concurrent.TimeUnit.SECONDS).orEmpty() } catch (_: Exception) { emptyList() }
+            // Katalogi dodatkov se prepletejo (vsak prispeva po vrsti), da polica ni samo iz prvega dodatka.
+            val izDodatkov = prepleti(izKatalogov.map { pocakaj(it) })
+            val kandidati = surovi + izDodatkov + pocakaj(javnaLast) + pocakaj(peertube)
+            // Ena kartica na vsebino: isti film/video iz vec virov (IMDb, naslov + letnica, naslov + kanal) se zdruzi.
+            val vse = SpletniVir.zdruziEnako(kandidati).map { it.first() }
+            android.util.Log.i("SafeerOsMedia", "video: kandidati=${kandidati.size} (splet ${surovi.size}, dodatki ${izDodatkov.size}), kartice=${vse.size}")
+            val filmi = vse.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.FILM }
+            val serije = vse.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.SERIJA }
+            val ostali = vse.filter { SpletniVir.vrstaVsebine(it) == null }
 
             val vrste = mutableListOf<Podatki>()
-            val filmskiViri = izVirov
-            val priporocila = MediaPriporocila.uredi(this, filmskiViri)
-
+            val priporocila = MediaPriporocila.uredi(this, vse)
             val imaZgodovino = MediaNapredek.seznam(this).any { it.skladba.video } ||
                 MedijskiViri.priljubljene(this).any { it.video } ||
                 MedijskiViri.nedavno(this).any { it.video }
-
-            val zateSeznam = unikat(priporocila.zate).take(15)
+            val zateSeznam = priporocila.zate.take(15)
             val enakFilmom = filmi.isNotEmpty() && zateSeznam.size == filmi.size && zateSeznam.map { it.id } == filmi.map { it.id }
             val enakSerijam = serije.isNotEmpty() && zateSeznam.size == serije.size && zateSeznam.map { it.id } == serije.map { it.id }
             val enakOstalim = ostali.isNotEmpty() && zateSeznam.size == ostali.size && zateSeznam.map { it.id } == ostali.map { it.id }
-
             if (zateSeznam.isNotEmpty() && (imaZgodovino || (!enakFilmom && !enakSerijam && !enakOstalim))) {
                 vrste += Podatki(getString(R.string.os_media_zate), zateSeznam, video = true)
             }
@@ -1099,38 +1109,17 @@ class GlasbaActivity : OsActivity() {
             prenosiNaRacunalnikih().takeIf { it.isNotEmpty() }?.let {
                 vrste += Podatki("💻 " + getString(R.string.os_prenosi_racunalnik), it, video = true)
             }
-            // Dodatki Stremio (uporabnikovi): vsak katalog svoja polica, filmi in serije jasno loceni.
-            val stremio = vsiViri.filter { it.jeStremio && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
-            if (stremio.isNotEmpty()) {
-                val katalogi = try { Stremio.prikazniKatalogi(Stremio.zKatalogom(stremio)) } catch (_: Exception) { emptyList() }
-                val izKatalogov = katalogi.take(12).map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
-                katalogi.take(12).zip(izKatalogov).forEach { (k, f) ->
-                    val vsebina = try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
-                    if (vsebina.isNotEmpty()) vrste += Podatki(naslovKataloga(k), vsebina.take(60), video = true)
-                }
-            }
-            filmi.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_filmi), it, video = true) }
-            serije.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_serije), it, video = true) }
+            filmi.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_filmi), it.take(POLICA_NAJVEC), video = true) }
+            serije.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_serije), it.take(POLICA_NAJVEC), video = true) }
             if (ostali.isNotEmpty() && (filmi.isEmpty() || ostali.size >= MIN_KARTIC_KATEGORIJE)) {
-                vrste += Podatki(getString(R.string.os_glasba_video), ostali, video = true)
+                vrste += Podatki(getString(R.string.os_glasba_video), ostali.take(POLICA_NAJVEC), video = true)
             }
-            // Zvrsti so dodatne police znotraj uporabnikovih virov. Ne zahtevajo novega API-ja in se
-            // prikazejo samo, kadar vir sam v naslovu/URL-ju poda dovolj mocan signal.
+            // Zvrsti cez vse vire skupaj; polica le, kadar vsebina sama da dovolj mocan signal.
             listOf("Komedija", "Grozljivke", "Drama", "Akcija", "Fantastika", "Kriminalke", "Dokumentarci", "Animacija", "Druzinski", "Romantika").forEach { z ->
-                unikat(filmskiViri.filter { SpletniVir.zvrstVsebine(it) == z }).takeIf { it.size >= MIN_KARTIC_KATEGORIJE }?.let { vrste += Podatki(z, it, video = true) }
+                vse.filter { SpletniVir.zvrstVsebine(it) == z }.takeIf { it.size >= MIN_KARTIC_KATEGORIJE }?.let { vrste += Podatki(z, it.take(POLICA_NAJVEC), video = true) }
             }
-            android.util.Log.i("SafeerOsMedia", "enote=${izVirov.size}, z_vrsto=${filmi.size + serije.size}, police=${vrste.size}, prag=$MIN_KARTIC_KATEGORIJE")
-            if (jeVirViden(i, VIR_JAVNA_LAST)) {
-                try { JavnaLast.isci() } catch (_: Exception) { emptyList() }.takeIf { it.isNotEmpty() }?.let {
-                    vrste += Podatki(getString(R.string.os_media_javna_last), it, video = true)
-                }
-            }
-            val peertubeStrezniki =
-                (if (jeVirViden(i, VIR_PEERTUBE)) MedijskiViri.vgrajeniPeerTube(this) else emptyList()) +
-                    vsiViri.filter { it.jePeerTube && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
-            vrste + PeerTube.najboljGledani(peertubeStrezniki.distinct(), 24).mapNotNull { (s, vsebina) ->
-                vsebina.takeIf { it.isNotEmpty() }?.let { Podatki(s, it, video = true) }
-            }
+            android.util.Log.i("SafeerOsMedia", "enote=${vse.size}, z_vrsto=${filmi.size + serije.size}, police=${vrste.size}, prag=$MIN_KARTIC_KATEGORIJE")
+            vrste
         }
         else -> emptyList()
         }
@@ -1145,28 +1134,54 @@ class GlasbaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ katalog Stremio (Pokazi vse, strani)
 
-    /** Odprt katalog (Pokazi vse): katalog, do zdaj nalozeni vnosi in ali je verjetno se kaj. */
-    private var odprtKatalog: Triple<Stremio.Katalog, MutableList<Jamendo.Skladba>, Boolean>? = null
+    /** Odprta polica (Pokazi vse): katalogi, ki jo polnijo, do zdaj nalozeni vnosi (zdruzeni), koliko jih je dal vsak katalog in ali je se kaj. */
+    private class OdprtKatalog(val katalogi: List<Stremio.Katalog>, val vsi: MutableList<Jamendo.Skladba>,
+                               val preneseno: HashMap<Stremio.Katalog, Int>, var seKaj: Boolean)
+    private var odprtKatalog: OdprtKatalog? = null
     private var odprtKatalogIz = VIDEO
 
-    private fun jePolicaKataloga(naslov: String) = naslov.startsWith("🎬 ") || naslov.startsWith("📺 ") || naslov.startsWith("📡 ")
+    private fun jePolicaKataloga(naslov: String) = naslov.startsWith("🎬 ") || naslov.startsWith("📺 ") || naslov.startsWith("📡 ") ||
+        (stremioNaslovi().isNotEmpty() && (naslov == getString(R.string.os_media_filmi) || naslov == getString(R.string.os_media_serije)))
+
+    /** Katalogi dodatkov, ki prispevajo polici: Filmi = vsi filmski, Serije = vsi serijski, sicer katalog z istim naslovom police. */
+    private fun katalogiPolice(naslov: String): List<Stremio.Katalog> {
+        val n = stremioNaslovi()
+        val vsi = Stremio.prikazniKatalogi(Stremio.zKatalogom(n))
+        return when (naslov) {
+            getString(R.string.os_media_filmi) -> vsi.filter { it.tip == "movie" }
+            getString(R.string.os_media_serije) -> vsi.filter { it.tip == "series" }
+            else -> listOfNotNull((vsi + Stremio.katalogiTv(n)).firstOrNull { naslovKataloga(it) == naslov })
+        }
+    }
+
+    /** Vsebine vec katalogov v eni vrsti: vsak katalog prispeva po vrsti (1. iz vsakega, 2. iz vsakega ...). */
+    private fun prepleti(seznami: List<List<Jamendo.Skladba>>): List<Jamendo.Skladba> {
+        val izhod = ArrayList<Jamendo.Skladba>(seznami.sumOf { it.size })
+        val najvec = seznami.maxOfOrNull { it.size } ?: 0
+        for (j in 0 until najvec) for (sez in seznami) sez.getOrNull(j)?.let { izhod += it }
+        return izhod
+    }
 
     private fun pokaziVseKartica(naslov: String, prvaStran: List<Jamendo.Skladba>) =
         Kartica(getString(R.string.os_media_pokazi_vse), naslov.substringAfter(" · "), "", { odpriKatalog(naslov, prvaStran) }, ikona = R.drawable.os_ikona_mreza)
 
-    /** Katalog najdemo po naslovu police (police so tudi s predpomnilnika na disku, kjer kataloga ni). */
+    /**
+     * Kataloge najdemo po naslovu police (police so tudi s predpomnilnika na disku, kjer kataloga ni). Prve strani vseh
+     * katalogov police prenesemo znova, da vemo, koliko je dal vsak (od tam naprej gre "Nalozi vec" po katalogih).
+     */
     private fun odpriKatalog(naslov: String, prvaStran: List<Jamendo.Skladba>) {
         stanje.text = getString(R.string.os_glasba_nalagam)
         val iz = razdelek
         delavec.execute {
-            val k = try {
-                val n = stremioNaslovi()
-                (Stremio.prikazniKatalogi(Stremio.zKatalogom(n)) + Stremio.katalogiTv(n)).firstOrNull { naslovKataloga(it) == naslov }
-            } catch (_: Exception) { null }
+            val katalogi = try { katalogiPolice(naslov) } catch (_: Exception) { emptyList() }
+            val strani = katalogi.map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
+                .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } }
+            val preneseno = HashMap<Stremio.Katalog, Int>().apply { katalogi.zip(strani).forEach { (k, v) -> put(k, v.size) } }
+            val vsi = SpletniVir.zdruziEnako(prvaStran + prepleti(strani)).map { it.first() }.toMutableList()
             glavna.post {
                 if (isFinishing) return@post
-                if (k == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
-                odprtKatalog = Triple(k, prvaStran.toMutableList(), prvaStran.size >= STRAN_KATALOGA_MIN)
+                if (katalogi.isEmpty()) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
+                odprtKatalog = OdprtKatalog(katalogi, vsi, preneseno, strani.any { it.size >= STRAN_KATALOGA_MIN })
                 odprtKatalogIz = iz
                 narisiKatalog(naslov)
                 fokusNaPrvo()
@@ -1175,23 +1190,31 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun narisiKatalog(naslov: String) {
-        val (_, vsi, seKaj) = odprtKatalog ?: return
-        val kartice = videi(vsi, naslov) + (if (seKaj) listOf(Kartica(getString(R.string.os_media_nalozi_vec), vsi.size.toString(), "",
+        val o = odprtKatalog ?: return
+        val vsi = o.vsi
+        val kartice = videi(vsi, naslov) + (if (o.seKaj) listOf(Kartica(getString(R.string.os_media_nalozi_vec), vsi.size.toString(), "",
             { naloziVecKataloga(naslov) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
         narisi(listOf(Vrsta(naslov, kartice, video = true, mreza = true)), vsi.size.toString())
     }
 
     private fun naloziVecKataloga(naslov: String) {
-        val (k, vsi, _) = odprtKatalog ?: return
+        val o = odprtKatalog ?: return
+        val vsi = o.vsi
         stanje.text = getString(R.string.os_glasba_nalagam)
         delavec.execute {
-            val nove = try { Stremio.katalog(k, skip = vsi.size) } catch (_: Exception) { emptyList() }
+            // Naslednja stran vsakega kataloga (skip = kolikor je ta katalog ze dal), vse hkrati.
+            val katalogi = o.katalogi.filter { (o.preneseno[it] ?: 0) > 0 }
+            val strani = katalogi.map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k, skip = o.preneseno[k] ?: 0) } catch (_: Exception) { emptyList() } } }
+                .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } }
+            val nove = prepleti(strani)
             glavna.post {
-                if (isFinishing || odprtKatalog?.first != k) return@post
+                if (isFinishing || odprtKatalog !== o) return@post
+                katalogi.zip(strani).forEach { (k, v) -> o.preneseno[k] = (o.preneseno[k] ?: 0) + v.size }
                 val znani = vsi.map { it.id }.toSet()
-                val sveze = nove.filter { it.id !in znani }
+                // Nov vnos, ki je ista vsebina kot ze prikazana kartica, se vanjo zdruzi (ni nove kartice).
+                val sveze = SpletniVir.zdruziEnako(vsi + nove.filter { it.id !in znani }).filter { g -> g.none { it.id in znani } }.map { it.first() }
                 vsi += sveze
-                odprtKatalog = Triple(k, vsi, sveze.isNotEmpty() && nove.size >= STRAN_KATALOGA_MIN)
+                o.seKaj = sveze.isNotEmpty() && strani.any { it.size >= STRAN_KATALOGA_MIN }
                 // Mreza se narise znova: ostanemo tam, kjer smo bili (ob gumbu Nalozi vec), ne na vrhu.
                 val y = drsnik.scrollY
                 narisiKatalog(naslov)
@@ -1785,8 +1808,10 @@ class GlasbaActivity : OsActivity() {
         val slika = pSlika
         if (slika != null && sk.slika != pSlikaNaslov) { pSlikaNaslov = sk.slika; naloziSliko(sk.slika, slika) }
         if (p == null || pZaPredvajanje != true) return
-        val trajanje = p.duration.takeIf { it > 0 } ?: 0L
-        val polozaj = p.currentPosition.coerceAtLeast(0)
+        // Sprotni tok pomocnika: polozaj in trajanje glede na izvirnik (tok tece od zamika naprej).
+        val tokPomocnika = SprotnaPomoc.tokZa(sk)
+        val trajanje = if (tokPomocnika != null) tokPomocnika.trajanjeMs.coerceAtLeast(0L) else p.duration.takeIf { it > 0 } ?: 0L
+        val polozaj = (tokPomocnika?.zamikMs ?: 0L) + p.currentPosition.coerceAtLeast(0)
         pPotek?.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
         pCas?.text = if (trajanje > 0) "${cas(polozaj)} / ${cas(trajanje)}" else cas(polozaj)
         pPredvajaj?.setImageResource(if (p.isPlaying) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
@@ -2826,7 +2851,13 @@ class GlasbaActivity : OsActivity() {
         val od = MediaNapredek.polozaj(this, sk)
         if (od <= 0) return
         Toast.makeText(this, getString(R.string.os_nadaljujem_od, cas(od)), Toast.LENGTH_SHORT).show()
-        glavna.postDelayed({ GlasbaStoritev.predvajalnik?.let { p -> if (p.duration <= 0 || od < p.duration - 5_000) p.seekTo(od) } }, 900)
+        glavna.postDelayed({
+            GlasbaStoritev.predvajalnik?.let { p ->
+                // Sprotni tok pomocnika je ze zacel pri shranjenem mestu (SprotnaPomoc): skok bi ga le pokvaril.
+                if (GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) } != null) return@let
+                if (p.duration <= 0 || od < p.duration - 5_000) p.seekTo(od)
+            }
+        }, 900)
     }
 
     /** Glasba in radio zacneta takoj (ves seznam v vrsto, naprej/nazaj preklaplja); video najprej razresimo. */
@@ -3157,7 +3188,9 @@ class GlasbaActivity : OsActivity() {
         }
         vrstica.visibility = if (sk == null || p == null || razdelek == DOMOV) View.GONE else View.VISIBLE
         if (sk == null || p == null) return
-        if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0))
+        val tokPomocnika = SprotnaPomoc.tokZa(sk)
+        if (tokPomocnika != null) { if (tokPomocnika.izvirnik.video) MediaNapredek.zapisi(this, tokPomocnika.izvirnik, tokPomocnika.zamikMs + p.currentPosition.coerceAtLeast(0), tokPomocnika.trajanjeMs) }
+        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0))
         zdajNaslov.text = sk.naslov
         zdajIzvajalec.text = if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec
         zdajCas.text = if (p.isPlaying) "▶" else "❚❚"

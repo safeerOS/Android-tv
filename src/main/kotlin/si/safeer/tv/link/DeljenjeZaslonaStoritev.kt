@@ -191,9 +191,33 @@ class DeljenjeZaslonaStoritev : Service() {
         zadnjaKoda = ""
         zadnjaZasedenaOd = ""
         ustavljam = false
+        ohraniZaslon(true)
         javi()
         nit = Thread({ tokZaslona() }, "safeer-zaslon").also { it.start() }
         return START_NOT_STICKY
+    }
+
+    private var budnost: android.os.PowerManager.WakeLock? = null
+
+    /**
+     * Med deljenjem zaslon ne sme ugasniti (gledalec na racunalniku bi dobil crn zaslon sredi ogleda), sme pa
+     * se zatemniti - kot pri zrcaljenju zaslona. Po koncu deljenja spet velja navadni cas ugasnitve.
+     */
+    private fun ohraniZaslon(da: Boolean) {
+        try {
+            if (da) {
+                if (budnost?.isHeld == true) return
+                val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                @Suppress("DEPRECATION")
+                budnost = pm.newWakeLock(android.os.PowerManager.SCREEN_DIM_WAKE_LOCK or android.os.PowerManager.ON_AFTER_RELEASE, "Safeer:DeljenjeZaslona")
+                    .apply { setReferenceCounted(false); acquire(4 * 60 * 60 * 1000L) }
+            } else {
+                budnost?.takeIf { it.isHeld }?.release()
+                budnost = null
+            }
+        } catch (e: Exception) {
+            Log.i(TAG, "Zaslona ni mogoce drzati budnega: ${e.message}")
+        }
     }
 
     // ------------------------------------------------------------------ tok
@@ -385,6 +409,7 @@ class DeljenjeZaslonaStoritev : Service() {
         val jeTeklo = tece
         ustavljam = true
         tece = false
+        ohraniZaslon(false)
         if (napaka.isNotBlank()) { zadnjaNapaka = napaka; Log.w(TAG, "Deljenje zaslona koncano z napako: $napaka") }
         try { navidezniZaslon?.release() } catch (_: Exception) { }
         navidezniZaslon = null
