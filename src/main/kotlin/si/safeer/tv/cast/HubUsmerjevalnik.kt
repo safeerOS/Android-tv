@@ -331,6 +331,13 @@ class HubUsmerjevalnik(
         krog.naSpremembo = { objaviKrog() }
     }
 
+    /** Umakne clane brez stika vec kot KrogZaupanja.DNI_BREZ_STIKA; umik gre vsem (naSpremembo -> objaviKrog). */
+    fun pospraviKrog(): List<String> {
+        val umaknjeni = try { krog.pospravi(lastniId, ura() / 1000.0) } catch (_: Throwable) { emptyList() }
+        if (umaknjeni.isNotEmpty()) android.util.Log.i("SafeerHubUsmerjevalnik", "Krog: umaknjeni clani brez stika ${KrogZaupanja.DNI_BREZ_STIKA} dni: $umaknjeni")
+        return umaknjeni
+    }
+
     private fun objaviKrog() {
         val sporocilo = sporociloKroga()
         for (povezava in register.povezanePovezave()) if (povezava !is Namestnik) posljiVarno(povezava, sporocilo)
@@ -1365,6 +1372,7 @@ class HubUsmerjevalnik(
         if (!izid.sprejeta) {
             return potrditev(id, "rejected", "Preveč naprav; odklopite katero od prejšnjih.", koda = izid.koda)
         }
+        krog.zabeleziStik(listOf(deviceId), ura() / 1000.0)
         // Vsaka nova naprava spremeni seznam za vse: tudi posiljatelj je zdaj mozen cilj deljenja.
         objaviNaprave()
         naSpremembeNaprav?.invoke()
@@ -1501,6 +1509,7 @@ class HubUsmerjevalnik(
             try { stara.zapri(1000, "podvojena sosednja povezava") } catch (_: Throwable) { }
         }
         try { naSosedu?.invoke(sosedId, povezava.naslov) } catch (_: Throwable) { }
+        krog.zabeleziStik(listOf(sosedId), ura() / 1000.0)
         objaviSosedom(povezava)
         posljiVarno(povezava, ovojnica("mesh.trust").surovo("payload", krog.json()).toString())
         return true
@@ -1607,6 +1616,7 @@ class HubUsmerjevalnik(
         if (naprave == null) return
         val novi = naprave.kljuci().take(NAJVEC_NAPRAV)
             .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && it != lastniId && jeClan(it) }
+        krog.zabeleziStik(novi, ura() / 1000.0)
         val prispeli = ArrayList<Pair<String, Odjemalec>>()
         synchronized(kljucnica) {
             if (sosedje[sosedId] !== povezava) return
