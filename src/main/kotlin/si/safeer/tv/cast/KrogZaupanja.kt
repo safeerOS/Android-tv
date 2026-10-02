@@ -50,6 +50,9 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
     private val kljucnica = Any()
     private val clani = LinkedHashMap<String, Clan>()
     private val umiki = LinkedHashMap<String, Umik>()
+    /** Zadnji stik s clanom (id -> cas v s): prijava, sosed ali seznam soseda. Za pospravljanje kroga. */
+    private val stiki = HashMap<String, Double>()
+    private var stikiZapisani = 0.0
 
     /** Klice se ob vsaki spremembi kroga (hub ga takrat razposlje). */
     @Volatile
@@ -57,6 +60,53 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
 
     init {
         shramba?.beri(KLJUC_SHRAMBE)?.let { zdruzi(it, obvesti = false) }
+        shramba?.beri(KLJUC_STIKOV)?.let { json ->
+            try {
+                val o = org.json.JSONObject(json)
+                for (k in o.keys()) stiki[k] = o.optDouble(k, 0.0)
+            } catch (_: Throwable) { }
+        }
+    }
+
+    // ------------------------------------------------------------------ stiki in pospravljanje
+
+    /** Clan(i) se je/so oglasil(i): zapomnimo si cas (v shrambo najvec vsakih 10 min). Neznanih ne belezimo. */
+    fun zabeleziStik(idji: Collection<String>, zdaj: Double = zdaj()) {
+        val zapisi: String? = synchronized(kljucnica) {
+            for (i in idji) if (i.isNotBlank() && clani.containsKey(i)) stiki[i] = zdaj
+            if (zdaj - stikiZapisani >= STIKI_ZAPIS_S) {
+                stikiZapisani = zdaj
+                org.json.JSONObject(stiki.toMap()).toString()
+            } else null
+        }
+        if (zapisi != null) try { shramba?.pisi(KLJUC_STIKOV, zapisi) } catch (_: Throwable) { }
+    }
+
+    /** Zadnji stik z napravo: vsi id-ji z istim kljucem stejejo; najvec od stika, vpisa in imenovanja. */
+    fun zadnjiStik(id: String): Double = synchronized(kljucnica) {
+        val c = clani[id] ?: return 0.0
+        val sorodniki = clani.values.filter { it.kljuc == c.kljuc }
+        (sorodniki.map { stiki[it.id] ?: 0.0 } + sorodniki.map { it.dodano } + sorodniki.map { it.imenovano }).maxOrNull() ?: 0.0
+    }
+
+    /**
+     * Umakne clane, ki jih ni bilo vec kot [mejaS] (privzeto 90 dni): stare identitete naprav po ponovni namestitvi
+     * (nov kljuc) bi sicer ostale v krogu za vedno. Naprava z istim kljucem kot kateri koli zivi clan ostane,
+     * nase naprave ne umikamo. Ce MI nismo videli nikogar 7 dni (ugasnjena naprava), smo bili odsotni mi - nic.
+     * Umik podpisemo, da ga sosedje sprejmejo. Vrne umaknjene id-je.
+     */
+    fun pospravi(kdo: String, zdaj: Double = zdaj(), mejaS: Double = DNI_BREZ_STIKA * 86400.0): List<String> {
+        val kandidati = synchronized(kljucnica) {
+            val zadnji = stiki.values.maxOrNull() ?: return emptyList()
+            if (zdaj - zadnji > 7 * 86400.0) return emptyList()
+            clani.values.filter { jeVeljaven(it) && !smoMi(it.id) }.map { it.id }
+        }
+        val umaknjeni = ArrayList<String>()
+        for (id in kandidati) {
+            if (zdaj - zadnjiStik(id) <= mejaS) continue
+            if (umakni(id, kdo, zdaj)) umaknjeni.add(id)
+        }
+        return umaknjeni
     }
 
     fun clani(): List<Clan> = synchronized(kljucnica) { clani.values.filter { jeVeljaven(it) } }
@@ -308,6 +358,10 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
 
     companion object {
         const val KLJUC_SHRAMBE = "cast_krog"
+        const val KLJUC_STIKOV = "cast_krog_stiki"
+        /** Clan brez stika toliko dni gre iz kroga (pospravi); stiki v shrambo najvec vsakih 10 min. */
+        const val DNI_BREZ_STIKA = 90
+        const val STIKI_ZAPIS_S = 600.0
 
         fun zdaj(): Double = System.currentTimeMillis() / 1000.0
 

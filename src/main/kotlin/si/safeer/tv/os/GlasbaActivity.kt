@@ -653,11 +653,12 @@ class GlasbaActivity : OsActivity() {
             if (v.pogled != null) { koraki.addLast { vsebina.addView(v.pogled) }; continue }
             if (v.mreza) {
                 // Mreza (Moji viri, katalog): toliko kartic v vrsto, kolikor jih gre celih, ostale v naslednjo vrsto.
-                // Plakati na ozkem telefonu: vsaj dva v vrsto, zato ozji (en plakat na vrsto bi bil seznam).
+                // Na ozkem telefonu vsaj dve kartici v vrsto, zato ozje (plakati najmanj 72 dp, druge kartice 88 dp):
+                // ena kartica na vrsto je bil seznam z veliko praznega prostora (Matej, Moji viri na telefonu pokonci).
                 val sirinaVsebine = vsebina.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels * 3 / 4)
                 var velikost = if (v.video) 112 else MREZA_DP
                 var n = (sirinaVsebine / dp(velikost + 12 + 14)).coerceAtLeast(1)
-                if (v.video && n < 2 && sirinaVsebine / dp(72 + 12 + 14) >= 2) {
+                if (n < 2 && sirinaVsebine / dp((if (v.video) 72 else 88) + 12 + 14) >= 2) {
                     n = 2; velikost = (sirinaVsebine / 2 / resources.displayMetrics.density).toInt() - 26
                 }
                 v.kartice.chunked(n).forEachIndexed { r, del ->

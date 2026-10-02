@@ -35,6 +35,9 @@ object HubKrmilnik {
     @Volatile
     var usmerjevalnik: HubUsmerjevalnik? = null
         private set
+    /** Kdaj je hub zacel teci (0 = ne tece); pospravljanje kroga caka vsaj uro po zagonu. */
+    @Volatile private var zacetekHuba = 0L
+    private const val KLJUC_POSPRAVLJENO = "krog_pospravljeno"
 
     /** Stran Safeer Linka (ce je odprta) izve za nove ali potrjene prijave. */
     @Volatile
@@ -200,6 +203,7 @@ object HubKrmilnik {
         }
         streznik = s
         usmerjevalnik = u
+        zacetekHuba = System.currentTimeMillis()
         tokovi = t
         // Link Mesh: naslov soseda si zapomnimo; ko sosed odide, ga hitro poiscemo znova.
         u.naSosedu = { id, naslov ->
@@ -318,6 +322,16 @@ object HubKrmilnik {
      * Pogleda, kdo v hisi gosti, in se umakne boljsemu clanu kroga (IzvolitevHuba). Tuj oglas brez
      * mesta v krogu zaupanja ne steje. Ce ostanemo hub, preverimo znova cez nekaj minut.
      */
+    /** Enkrat na dan (ko hub tece vsaj uro) umakne clane kroga brez stika 90 dni (stare identitete naprav). */
+    private fun pospraviKrogObCasu(app: Context, u: HubUsmerjevalnik) {
+        val zdaj = System.currentTimeMillis()
+        if (zacetekHuba == 0L || zdaj - zacetekHuba < 3_600_000L) return
+        val p = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (zdaj - p.getLong(KLJUC_POSPRAVLJENO, 0L) < 86_400_000L) return
+        p.edit().putLong(KLJUC_POSPRAVLJENO, zdaj).apply()
+        try { u.pospraviKrog() } catch (e: Throwable) { Log.w(TAG, "Pospravljanje kroga: ${e.message}") }
+    }
+
     fun izvolitev(app: Context) {
         HubDiscovery.poisciVse(app) { hubi ->
             if (!tece()) return@poisciVse
@@ -327,6 +341,7 @@ object HubKrmilnik {
                 val kandidati = HubMesh.kandidati(app, u, HubMesh.zDopolnitvijo(app, hubi))
                 for (h in kandidati) HubMesh.poklici(app, u, h)
                 Log.i(TAG, "Mesh: sosedje ${u.sosedjeIdji()}, klicem ${kandidati.map { it.id }}")
+                pospraviKrogObCasu(app, u)
                 nacrtujIzvolitev(app, MESH_ISKANJE_MS)
                 return@poisciVse
             }
@@ -435,6 +450,7 @@ object HubKrmilnik {
         spletniStreznik?.ustavi()
         spletniStreznik = null
         usmerjevalnik = null
+        zacetekHuba = 0L
         tokovi = null
         if (context != null) odklopiLastniZaslon(context.applicationContext)
         if (zapomni && context != null) zapomniZeljo(context.applicationContext, false)
