@@ -466,6 +466,7 @@ class PredvajanjeActivity : OsActivity() {
         osvezi()
         glavna.post(tik)
         zbudi()
+        if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") Posodobitve.ponudiCeJeCas(this)   // Predvajalnik nima domacega zaslona
         if (dotik) glavna.post { if (!isFinishing && !predlogiOdprti()) odpriPredloge() }
         zatemniIzNamena()
     }

@@ -43,8 +43,17 @@ object PredajaObvestilo {
 
     /** Pasica v zaslonu [a]; Sprejmi preda ponudbo Medijskemu centru. */
     fun pasica(a: Activity, po: Predaja.Ponujeno) {
+        if (!pasicaSplosna(a, besedilo(a, po), a.getString(R.string.os_predaja_sprejmi), a.getString(R.string.os_predaja_zavrni),
+                { sprejmi(a) }, { Predaja.zavrni(a) })) obvesti(a, po)
+    }
+
+    /**
+     * Tiha pasica na dnu zaslona [a] z dvema gumboma (isti videz za ponudbo predaje in za novo razlicico):
+     * [naDa] ob prvem gumbu, [naNe] ob drugem ali tipki Nazaj; sama se umakne po minuti. Vrne false, ce zaslon nima okna.
+     */
+    fun pasicaSplosna(a: Activity, besedilo: String, daNapis: String, neNapis: String, naDa: () -> Unit, naNe: () -> Unit): Boolean {
         umakniPasico()
-        val koren = a.window?.decorView as? FrameLayout ?: run { obvesti(a, po); return }
+        val koren = a.window?.decorView as? FrameLayout ?: return false
         val dp = { v: Int -> TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), a.resources.displayMetrics).toInt() }
         val prikazano = SystemClock.uptimeMillis()
         fun gumb(napis: String, klik: () -> Unit) = Button(a).apply {
@@ -58,14 +67,14 @@ object PredajaObvestilo {
             // Nazaj na pasici = Zavrni (gledalec filma se ne sme znajti zunaj predvajalnika); posiljatelj lahko poslje znova.
             setOnKeyListener { _, k, e ->
                 if (k != android.view.KeyEvent.KEYCODE_BACK) false
-                else { if (e.action == android.view.KeyEvent.ACTION_UP) { umakniPasico(); Predaja.zavrni(a) }; true }
+                else { if (e.action == android.view.KeyEvent.ACTION_UP) { umakniPasico(); naNe() }; true }
             }
         }
         // Telefon (ozek zaslon): besedilo zgoraj, gumba v svoji vrsti; tablica in televizor: vse v eni vrsti.
         val sirok = a.resources.configuration.smallestScreenWidthDp >= 600
-        val sprejmi = gumb(a.getString(R.string.os_predaja_sprejmi)) { umakniPasico(); sprejmi(a) }
-        val zavrni = gumb(a.getString(R.string.os_predaja_zavrni)) { umakniPasico(); Predaja.zavrni(a) }
-        val napis = TextView(a).apply { text = besedilo(a, po); textSize = 15f; setTextColor(a.osBarva(R.color.os_besedilo)); maxLines = 3 }
+        val sprejmi = gumb(daNapis) { umakniPasico(); naDa() }
+        val zavrni = gumb(neNapis) { umakniPasico(); naNe() }
+        val napis = TextView(a).apply { text = besedilo; textSize = 15f; setTextColor(a.osBarva(R.color.os_besedilo)); maxLines = 3 }
         val vsebina = LinearLayout(a).apply {
             orientation = if (sirok) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
@@ -94,6 +103,7 @@ object PredajaObvestilo {
         // Brez dotika (televizor) OK sprejme, Nazaj ali Zavrni umakne; na telefonu se gumba tapneta.
         if (!a.packageManager.hasSystemFeature("android.hardware.touchscreen")) vsebina.post { (vsebina.tag as? View)?.requestFocus() }
         vsebina.postDelayed({ if (pasica === vsebina) umakniPasico() }, PASICA_MS)
+        return true
     }
 
     fun umakniPasico() {

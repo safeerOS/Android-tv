@@ -102,6 +102,18 @@
     <string name="os_scit_nastavitev_opis">Filtrage DNS pour tout le téléviseur, dans chaque application</string>
     <string name="os_obvestila">Notifications</string>
     <string name="os_obvestila_opis">Envoyer à un appareil et les messages des autres appareils arrivent en notification silencieuse quand Safeer OS est en arrière-plan</string>
+    <string name="os_posodobitve">Mises à jour</string>
+    <string name="os_posodobitve_opis">Safeer OS vérifie safeer.si lui-même et installe une nouvelle version en un geste</string>
+    <string name="os_posodobitev_na_voljo">%1$s disponible</string>
+    <string name="os_posodobitev_najnovejsa">À jour (%1$s)</string>
+    <string name="os_posodobitev_pasica">Une nouvelle version de Safeer OS, la %1$s, est disponible.</string>
+    <string name="os_posodobitev_namesti">Installer</string>
+    <string name="os_posodobitev_pozneje">Plus tard</string>
+    <string name="os_posodobitev_dovoljenje">Android doit autoriser Safeer OS à installer des applications. Autorise-le, reviens et appuie de nouveau sur Installer.</string>
+    <string name="os_posodobitev_dovoli">Autoriser</string>
+    <string name="os_posodobitev_prenasam">Téléchargement de %1$s…</string>
+    <string name="os_posodobitev_napaka">La mise à jour n\'a pas abouti – réessaie plus tard ou télécharge-la sur safeer.si.</string>
+    <string name="os_posodobitev_preverjam">Vérification de safeer.si…</string>
     <string name="os_vklopljeno">Activé</string>
     <string name="os_izklopljeno">Désactivé</string>
 
