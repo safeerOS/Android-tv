@@ -100,5 +100,19 @@
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/safeer_vnos" />
         </service>
 
+        <!-- "Deli" iz YouTuba ali Spotifyja: povezava seznama predvajanja se uvozi v sezname Medijskega centra.
+             Vzdevek, ker je GlasbaActivity tu notranji zaslon (ni izvozen). -->
+        <activity-alias
+            android:name="si.safeer.tv.os.UvozSeznamaVhod"
+            android:targetActivity="si.safeer.tv.os.GlasbaActivity"
+            android:exported="true"
+            android:label="@string/os_uvoz_naslov">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
     </application>
 </manifest>

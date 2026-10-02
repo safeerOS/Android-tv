@@ -54,6 +54,10 @@ object SpletniVir {
 
     fun jeEnota(s: Jamendo.Skladba) = s.id.startsWith(PREDPONA)
 
+    /** Enota za znano stran posnetka (uvozeni seznami predvajanja): enaka, kot jo da iskanje po spletnem viru. */
+    fun enota(stran: String, naslov: String, izvajalec: String, slika: String, video: Boolean) =
+        Jamendo.Skladba(PREDPONA + stran, naslov, izvajalec, slika, "", stran, video = video)
+
     // ------------------------------------------------------------------ iskanje
 
     /**

@@ -254,4 +254,21 @@
     <string name="os_zvrst_dokumentarci">Documentaire</string>
     <string name="os_media_izberi_tok">Choisir la source</string>
     <string name="os_media_drug_vir">Cette source ne fonctionne pas – essai de la suivante…</string>
+    <string name="os_uvoz_naslov">Importer une playlist</string>
+    <string name="os_uvoz_opis">Depuis YouTube ou Spotify</string>
+    <string name="os_uvoz_razlaga">Colle le lien d’une playlist YouTube ou Spotify (dans l’appli : Partager &gt; Copier le lien). La playlist doit être publique ou non répertoriée. Pour Spotify, la liste des titres est importée et Safeer trouve les enregistrements.</string>
+    <string name="os_uvoz_gumb">Importer</string>
+    <string name="os_uvoz_uvazam">Importation de la playlist …</string>
+    <string name="os_uvoz_uspeh">Importée : %1$s (%2$d)</string>
+    <string name="os_uvoz_ni_uspel">Impossible de lire la playlist. Elle doit être publique ou non répertoriée – les listes privées (J’aime, Titres likés) ne sont pas lisibles sans connexion. Ajoute ces titres à une playlist publique et importe-la.</string>
+    <string name="os_uvoz_ni_seznam">Ce n’est pas un lien de playlist. Ouvre la playlist dans YouTube ou Spotify et choisis Partager &gt; Copier le lien.</string>
+    <string name="os_uvoz_iscem">Recherche des enregistrements : %1$d / %2$d</string>
+    <string name="os_seznam_dodaj">Ajouter à une playlist</string>
+    <string name="os_seznam_nov">Nouvelle playlist …</string>
+    <string name="os_seznam_ime">Nom de la playlist</string>
+    <string name="os_seznam_dodano">Ajouté à %1$s</string>
+    <string name="os_seznam_ze">Déjà dans %1$s</string>
+    <string name="os_seznam_odstrani_skladbo">Retirer de la playlist</string>
+    <string name="os_seznam_vse">Tout afficher (%1$d)</string>
+    <string name="os_seznam_predvajaj_vse">Tout lire</string>
 </resources>

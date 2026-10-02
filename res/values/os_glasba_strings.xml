@@ -253,4 +253,21 @@
     <string name="os_zvrst_dokumentarci">Documentary</string>
     <string name="os_media_izberi_tok">Choose source</string>
     <string name="os_media_drug_vir">This source doesn\'t play – trying the next one …</string>
+    <string name="os_uvoz_naslov">Import a playlist</string>
+    <string name="os_uvoz_opis">From YouTube or Spotify</string>
+    <string name="os_uvoz_razlaga">Paste a playlist link from YouTube or Spotify (in the app: Share &gt; Copy link). The playlist must be public or unlisted. For Spotify the track list is imported and Safeer finds the recordings itself.</string>
+    <string name="os_uvoz_gumb">Import</string>
+    <string name="os_uvoz_uvazam">Importing playlist …</string>
+    <string name="os_uvoz_uspeh">Imported: %1$s (%2$d)</string>
+    <string name="os_uvoz_ni_uspel">The playlist could not be read. It must be public or unlisted – private lists (Liked videos, Liked Songs) cannot be read without signing in. Add those tracks to a public playlist and import that one.</string>
+    <string name="os_uvoz_ni_seznam">This is not a playlist link. Open the playlist in YouTube or Spotify and choose Share &gt; Copy link.</string>
+    <string name="os_uvoz_iscem">Finding recordings: %1$d / %2$d</string>
+    <string name="os_seznam_dodaj">Add to playlist</string>
+    <string name="os_seznam_nov">New playlist …</string>
+    <string name="os_seznam_ime">Playlist name</string>
+    <string name="os_seznam_dodano">Added to %1$s</string>
+    <string name="os_seznam_ze">Already in %1$s</string>
+    <string name="os_seznam_odstrani_skladbo">Remove from playlist</string>
+    <string name="os_seznam_vse">Show all (%1$d)</string>
+    <string name="os_seznam_predvajaj_vse">Play all</string>
 </resources>

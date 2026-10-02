@@ -253,4 +253,21 @@
     <string name="os_zvrst_dokumentarci">Dokumentarci</string>
     <string name="os_media_izberi_tok">Izberi vir</string>
     <string name="os_media_drug_vir">Ta vir ne dela – poskušam naslednjega …</string>
+    <string name="os_uvoz_naslov">Uvozi seznam predvajanja</string>
+    <string name="os_uvoz_opis">Iz YouTuba ali Spotifyja</string>
+    <string name="os_uvoz_razlaga">Prilepi povezavo seznama iz YouTuba ali Spotifyja (v aplikaciji: Deli &gt; Kopiraj povezavo). Seznam mora biti javen ali nenaveden. Pri Spotifyju prenesemo seznam skladb, posnetke zanje poišče Safeer sam.</string>
+    <string name="os_uvoz_gumb">Uvozi</string>
+    <string name="os_uvoz_uvazam">Uvažam seznam …</string>
+    <string name="os_uvoz_uspeh">Uvoženo: %1$s (%2$d)</string>
+    <string name="os_uvoz_ni_uspel">Seznama ni bilo mogoče prebrati. Biti mora javen ali nenaveden – zasebnih seznamov (Všečki, Liked Songs) brez prijave ni mogoče brati. Skladbe iz njih dodaj v javen seznam in uvozi tega.</string>
+    <string name="os_uvoz_ni_seznam">To ni povezava seznama predvajanja. V YouTubu ali Spotifyju odpri seznam in izberi Deli &gt; Kopiraj povezavo.</string>
+    <string name="os_uvoz_iscem">Iščem posnetke: %1$d / %2$d</string>
+    <string name="os_seznam_dodaj">Dodaj na seznam predvajanja</string>
+    <string name="os_seznam_nov">Nov seznam …</string>
+    <string name="os_seznam_ime">Ime seznama</string>
+    <string name="os_seznam_dodano">Dodano na seznam %1$s</string>
+    <string name="os_seznam_ze">Že na seznamu %1$s</string>
+    <string name="os_seznam_odstrani_skladbo">Odstrani s seznama</string>
+    <string name="os_seznam_vse">Prikaži vse (%1$d)</string>
+    <string name="os_seznam_predvajaj_vse">Predvajaj vse</string>
 </resources>

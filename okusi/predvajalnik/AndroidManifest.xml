@@ -51,6 +51,12 @@
                 <data android:mimeType="application/vnd.apple.mpegurl" />
                 <data android:mimeType="application/dash+xml" />
             </intent-filter>
+            <!-- "Deli" iz YouTuba ali Spotifyja: povezava seznama predvajanja se uvozi v nase sezname. -->
+            <intent-filter android:label="@string/os_uvoz_naslov">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <!-- Deljeni zasloni na telefonu niso zaklenjeni v lezeco lego. -->

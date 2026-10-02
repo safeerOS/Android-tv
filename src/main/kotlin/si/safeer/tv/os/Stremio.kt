@@ -200,8 +200,11 @@ object Stremio {
         val tip = m.optString("type").ifBlank { tipKataloga.ifBlank { "movie" } }
         val leto = m.optString("releaseInfo").ifBlank { m.optString("year") }
         val r = razred(tip)
-        return Jamendo.Skladba(PREDPONA + tip + "|" + id + "|" + osnova, m.optString("name").ifBlank { id }, leto,
-            m.optString("poster").ifBlank { m.optString("logo") }, "", "$osnova/meta/${enc(tip)}/${enc(id)}.json",
+        // Glasba in radio: pod naslovom je izvajalec (kdo igra), ne letnica - uporabnik mora vedeti, koga pricakovati
+        // (Matej, 2. 10. 2026). Dodatki ga podajo razlicno, zato po vrsti: artist/author, igralci, reziser, opis.
+        val podnaslov = if (r == GLASBA || r == RADIO) izvajalec(m).ifBlank { leto } else leto
+        return Jamendo.Skladba(PREDPONA + tip + "|" + id + "|" + osnova, m.optString("name").ifBlank { id }, podnaslov,
+            slikaVnosa(m), "", "$osnova/meta/${enc(tip)}/${enc(id)}.json",
             // Glasba in radio sta zvok (kartica in predvajalnik za zvok), vse ostalo video.
             radio = r == RADIO, video = r != GLASBA && r != RADIO,
             // FILM / SERIJA za oznako na kartici in za filter Filmi | Serije (SpletniVir.vrstaVsebine).
@@ -212,6 +215,24 @@ object Stremio {
             genres = (m.optJSONArray("genres") ?: m.optJSONArray("genre"))?.let { g -> (0 until g.length()).mapNotNull { g.optString(it).takeIf { s -> s.isNotBlank() } } } ?: emptyList(),
             // Ocena (IMDb), kadar jo katalog poda: na kartici kot zvezdica, kot pri drugih virih.
             rating = m.optString("imdbRating").toDoubleOrNull() ?: 0.0)
+    }
+
+    /** Slika vnosa: plakat, sicer logotip, ozadje ali slicica - katerokoli sliko dodatek poda, raje kot prazno kartico. */
+    internal fun slikaVnosa(m: JSONObject): String =
+        listOf("poster", "logo", "background", "thumbnail", "image", "icon").firstNotNullOfOrNull { k ->
+            m.optString(k).trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
+        }.orEmpty()
+
+    /** Izvajalec glasbenega vnosa, kot ga dodatki podajo: artist/author, prvi igralci, reziser, sicer kratek opis. */
+    internal fun izvajalec(m: JSONObject): String {
+        fun niz(k: String): String = when (val v = m.opt(k)) {
+            is String -> v.trim()
+            is org.json.JSONArray -> (0 until minOf(v.length(), 2)).mapNotNull { v.optString(it).trim().takeIf { s -> s.isNotBlank() } }.joinToString(", ")
+            else -> ""
+        }
+        listOf("artist", "artists", "author", "cast", "director").forEach { k -> niz(k).takeIf { it.isNotBlank() }?.let { return it.take(60) } }
+        // Opis: samo kratka prva vrstica (npr. "Siddharta" ali "Pop · Slovenija"), dolgega besedila ne kazemo pod naslovom.
+        return m.optString("description").lineSequence().firstOrNull()?.trim()?.takeIf { it.isNotBlank() && it.length <= 48 }.orEmpty()
     }
 
     /** Stran kataloga (`skip` = koliko vnosov preskociti, kot v Stremiu); obvezni parametri s privzeto moznostjo, iskanje kot `search=`. */

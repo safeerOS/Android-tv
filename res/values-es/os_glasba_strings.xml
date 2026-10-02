@@ -254,4 +254,21 @@
     <string name="os_zvrst_dokumentarci">Documental</string>
     <string name="os_media_izberi_tok">Elegir fuente</string>
     <string name="os_media_drug_vir">Esta fuente no funciona: probando la siguiente…</string>
+    <string name="os_uvoz_naslov">Importar una lista</string>
+    <string name="os_uvoz_opis">De YouTube o Spotify</string>
+    <string name="os_uvoz_razlaga">Pega el enlace de una lista de YouTube o Spotify (en la app: Compartir &gt; Copiar enlace). La lista debe ser pública u oculta. De Spotify se importa la lista de canciones y Safeer busca las grabaciones.</string>
+    <string name="os_uvoz_gumb">Importar</string>
+    <string name="os_uvoz_uvazam">Importando la lista …</string>
+    <string name="os_uvoz_uspeh">Importada: %1$s (%2$d)</string>
+    <string name="os_uvoz_ni_uspel">No se pudo leer la lista. Debe ser pública u oculta: las listas privadas (Me gusta, Canciones que te gustan) no se pueden leer sin iniciar sesión. Añade esas canciones a una lista pública e impórtala.</string>
+    <string name="os_uvoz_ni_seznam">Esto no es un enlace de lista. Abre la lista en YouTube o Spotify y elige Compartir &gt; Copiar enlace.</string>
+    <string name="os_uvoz_iscem">Buscando grabaciones: %1$d / %2$d</string>
+    <string name="os_seznam_dodaj">Añadir a una lista</string>
+    <string name="os_seznam_nov">Lista nueva …</string>
+    <string name="os_seznam_ime">Nombre de la lista</string>
+    <string name="os_seznam_dodano">Añadido a %1$s</string>
+    <string name="os_seznam_ze">Ya está en %1$s</string>
+    <string name="os_seznam_odstrani_skladbo">Quitar de la lista</string>
+    <string name="os_seznam_vse">Ver todo (%1$d)</string>
+    <string name="os_seznam_predvajaj_vse">Reproducir todo</string>
 </resources>

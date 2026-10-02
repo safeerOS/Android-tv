@@ -99,7 +99,9 @@ class LahkaStran private constructor(
                 val shema = r.url.scheme?.lowercase().orEmpty()
                 if (shema !in DOVOLJENE_SHEME) return true
                 if (!r.isForMainFrame) return false
-                return izvor(r.url.toString()) != zacetniIzvor
+                // Ista stran na mobilnem ali www naslovu (www.youtube.com -> m.youtube.com) je se vedno ista stran:
+                // brez tega je preusmeritev obvisela in posnetek je zacel sele po 12 s (tretja stopnja).
+                return izvor(r.url.toString()) != zacetniIzvor && jedro(r.url.toString()) != jedro(sk.povezava)
             }
 
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
@@ -246,6 +248,11 @@ class LahkaStran private constructor(
             val pot = url.lowercase().substringBefore('?')
             return listOf(".ts", ".m4s", ".cmfv", ".cmfa").any(pot::endsWith)
         }
+
+        /** Gostitelj brez predpone www./m./mobile. - za preusmeritev na mobilno razlicico iste strani. */
+        private fun jedro(url: String): String = try {
+            URL(url).let { it.protocol.lowercase() + "://" + it.host.lowercase().removePrefix("www.").removePrefix("m.").removePrefix("mobile.") }
+        } catch (_: Exception) { "" }
 
         private fun izvor(url: String): String = try {
             URL(url).let { "${it.protocol.lowercase()}://${it.host.lowercase()}:${if (it.port >= 0) it.port else it.defaultPort}" }
