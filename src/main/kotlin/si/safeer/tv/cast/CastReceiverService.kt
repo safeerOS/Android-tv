@@ -780,6 +780,7 @@ class CastReceiverService : Service() {
                 "control.result", "control.ack" -> {
                     // Odgovor naprave na nas ukaz (ali zavrnitev sredisca): naprej strani daljinca.
                     if (type == "control.ack" && json.optString("status", "") == "accepted") return
+                    if (type == "control.ack") Log.w(TAG, "Sredisce zavrnilo nase sporocilo: ${json.optString("error_code")} ${json.optString("error")}")
                     try { naUkazOdziv?.invoke(json) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naUkazOdziv", e) }
                 }
 
