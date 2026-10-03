@@ -65,6 +65,7 @@
     <string name="os_mediji_odstrani_prilj">Quitar de favoritos</string>
     <string name="os_mediji_shrani_seznam">Guardar como lista de reproducción</string>
     <string name="os_mediji_odstrani_seznam">Quitar lista</string>
+    <string name="os_mediji_odstrani_seznam_vsepovsod">La lista se quitará, también de tus otros dispositivos en Safeer Link.</string>
     <string name="os_mediji_seznam_shranjen">Lista guardada en favoritos: %1$s</string>
     <string name="os_mediji_dodano_prilj">Añadido a favoritos</string>
     <string name="os_mediji_odstranjeno_prilj">Quitado de favoritos</string>

@@ -65,6 +65,7 @@
     <string name="os_mediji_odstrani_prilj">Odstrani iz priljubljenih</string>
     <string name="os_mediji_shrani_seznam">Shrani kot seznam predvajanja</string>
     <string name="os_mediji_odstrani_seznam">Odstrani seznam</string>
+    <string name="os_mediji_odstrani_seznam_vsepovsod">Seznam bo odstranjen – tudi z drugih tvojih naprav v Safeer Linku.</string>
     <string name="os_mediji_seznam_shranjen">Seznam shranjen med priljubljene: %1$s</string>
     <string name="os_mediji_dodano_prilj">Dodano med priljubljene</string>
     <string name="os_mediji_odstranjeno_prilj">Odstranjeno iz priljubljenih</string>

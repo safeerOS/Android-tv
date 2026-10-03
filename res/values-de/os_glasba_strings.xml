@@ -65,6 +65,7 @@
     <string name="os_mediji_odstrani_prilj">Aus Favoriten entfernen</string>
     <string name="os_mediji_shrani_seznam">Als Playlist speichern</string>
     <string name="os_mediji_odstrani_seznam">Playlist entfernen</string>
+    <string name="os_mediji_odstrani_seznam_vsepovsod">Die Playlist wird entfernt – auch von deinen anderen Geräten in Safeer Link.</string>
     <string name="os_mediji_seznam_shranjen">Playlist in Favoriten gespeichert: %1$s</string>
     <string name="os_mediji_dodano_prilj">Zu Favoriten hinzugefügt</string>
     <string name="os_mediji_odstranjeno_prilj">Aus Favoriten entfernt</string>

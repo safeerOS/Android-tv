@@ -385,7 +385,8 @@ class GlasbaActivity : OsActivity() {
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private val linkPoslusalec = object : LinkOdjemalec.Poslusalec {
         override fun naStanje(povezan: Boolean, sporocilo: String) { }
-        override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { }
+        // Ko so naprave v Linku znane (ob zagonu traja hip), uskladimo sezname predvajanja z njimi.
+        override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { glavna.post { if (!isFinishing) uskladiSezname() } }
         override fun naNaslov(url: String, naslov: String, od: String) { }
         override fun naBesedilo(besedilo: String, od: String) { }
         override fun naZavrnitev() { }
@@ -399,6 +400,7 @@ class GlasbaActivity : OsActivity() {
         if (!link.jeKrajevni()) link.dodaj(linkPoslusalec)
         GlasbaStoritev.poslusalci.add(poslusalec)
         glavna.post(tik)
+        uskladiSezname()
         // Ob vrnitvi (npr. iz predvajanja) sta se nedavno in stanje predvajanja lahko spremenila.
         if (videnPrej && razdelek == DOMOV) izberi(DOMOV)
         // Po ogledu (Nazaj s predvajanja) osvezimo napredek na kartici videa z naprave.
@@ -850,7 +852,17 @@ class GlasbaActivity : OsActivity() {
                 }
             }
         }
-        if (kljuc == null) drsnik.scrollTo(0, 0)
+        if (kljuc == null) {
+            // Po dejanju na mestu (izbris vira ali seznama, priljubljena, usklajeni seznami) ostanemo tam, kjer smo bili.
+            val y = if (razdelek == naMestuRazdelek && android.os.SystemClock.uptimeMillis() < naMestuDo) naMestuY else 0
+            if (y <= 0) drsnik.scrollTo(0, 0) else drsnik.post(object : Runnable {
+                var poskusi = 0
+                override fun run() {
+                    if (moje != risanje) return
+                    if (vsebina.height >= y + drsnik.height || poskusi++ > 30) drsnik.scrollTo(0, y) else drsnik.postDelayed(this, 50)
+                }
+            })
+        }
         fun koncano() {
             brezOdrezanihVrst()
             drsnik.post {
@@ -995,6 +1007,17 @@ class GlasbaActivity : OsActivity() {
     }
 
     // ------------------------------------------------------------------ razdelki
+
+    private var naMestuRazdelek = -1
+    private var naMestuY = 0
+    private var naMestuDo = 0L
+
+    /** Isti razdelek narisemo znova (nekaj je bilo izbrisano ali dodano), drsnik pa ostane, kjer je bil - na dotik
+     *  uporabnik sicer po vsakem izbrisu pristane na vrhu in mora nazaj do mesta, kjer je bil. */
+    private fun izberiNaMestu(i: Int) {
+        naMestuRazdelek = i; naMestuY = drsnik.scrollY; naMestuDo = android.os.SystemClock.uptimeMillis() + 4_000
+        izberi(i)
+    }
 
     private fun izberi(i: Int) {
         razdelek = i
@@ -2437,14 +2460,18 @@ class GlasbaActivity : OsActivity() {
             mreza = true))
     }
 
+    /** V Linku seznam izgine na vseh napravah (SeznamiSink) - to mora uporabnik vedeti, preden potrdi. */
+    private fun vprasanjeOdstraniSeznam(): Int =
+        if (link.jeKrajevni()) R.string.os_mediji_odstrani_seznam else R.string.os_mediji_odstrani_seznam_vsepovsod
+
     /** Dolg dotik na seznamu v Brskaj: predvajaj ali odstrani (s potrditvijo). */
     private fun meniSeznama(sz: MedijskiViri.Seznam) {
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sz.ime)
             .setItems(arrayOf(getString(R.string.os_mediji_predvajaj), getString(R.string.os_mediji_odstrani_seznam))) { _, k ->
                 if (k == 0) sz.skladbe.first().let { prva -> if (jeVrstaPosnetkov(prva, sz)) predvajajVrstoPosnetkov(sz.skladbe, prva) else predvajaj(sz.skladbe, 0) }
                 else AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sz.ime)
-                    .setMessage(R.string.os_mediji_odstrani_seznam)
-                    .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, sz.ime); izberi(VIRI) }
+                    .setMessage(vprasanjeOdstraniSeznam())
+                    .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, sz.ime); izberiNaMestu(VIRI) }
                     .setNegativeButton(android.R.string.cancel, null).show()
             }.show()
     }
@@ -2644,7 +2671,12 @@ class GlasbaActivity : OsActivity() {
             MedijskiViri.odstraniSSeznama(this, seznam.ime, sk); SEZNAMI.remove(DOMOV); osveziPriljubljene()
         }
         if (seznam != null) dejanja += getString(R.string.os_mediji_odstrani_seznam) to {
-            MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene()
+            // S potrditvijo: seznam izgine tudi na drugih napravah v Linku (SeznamiSink), zato en dotik ni dovolj.
+            pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(seznam.ime)
+                .setMessage(vprasanjeOdstraniSeznam())
+                .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene() }
+                .setNegativeButton(android.R.string.cancel, null))
+            Unit
         } else if (vrsta.count { MedijskiViri.shranljiva(it) } > 1) dejanja += getString(R.string.os_mediji_shrani_seznam) to {
             val sz = MedijskiViri.shraniSeznam(this, ime.ifBlank { sk.izvajalec.ifBlank { getString(R.string.os_mediji_moja_vrsta) } }, vrsta)
             if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
@@ -2668,7 +2700,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Priljubljene so na vrhu plosce in razdelkov Glasba, Radio in Video - tam jih narisemo znova. */
-    private fun osveziPriljubljene() { if (razdelek != VIRI && razdelek != ISKANJE) izberi(razdelek) }
+    private fun osveziPriljubljene() { if (razdelek != VIRI && razdelek != ISKANJE) izberiNaMestu(razdelek) }
 
     // ------------------------------------------------------------------ iskanje
 
@@ -3260,7 +3292,7 @@ class GlasbaActivity : OsActivity() {
         delavec.execute {
             val u = try { UvozSeznama.uvozi(povezava) } catch (_: Exception) { null }
             // Isto ime kot obstojec seznam ga zamenja (ponoven uvoz = osvezitev seznama).
-            val sz = u?.let { MedijskiViri.shraniSeznam(this, it.ime.take(60), it.skladbe) }
+            val sz = u?.let { MedijskiViri.shraniSeznam(this, it.ime.take(60), it.skladbe, it.vir) }
             glavna.post {
                 if (isFinishing) return@post
                 stanje.text = opis(razdelek)
@@ -3423,6 +3455,20 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /**
+     * Seznami predvajanja so enaki na vseh napravah v Safeer Linku: ob odprtju vprasamo ostale naprave ([SeznamiSink]).
+     * Ce se kaj spremeni, zaslon osvezimo le, ko uporabnik ravno nicesar ne dela (sicer ob naslednjem risanju).
+     */
+    private fun uskladiSezname() {
+        if (link.jeKrajevni()) return
+        SeznamiSink.uskladi(this) {
+            if (isFinishing) return@uskladi
+            SEZNAMI.remove(DOMOV); SEZNAMI.remove(GLASBA); SEZNAMI.remove(VIDEO)
+            val miruje = android.os.SystemClock.uptimeMillis() - zadnjiDotik > 2_500
+            if (miruje && odprtKatalog == null && odprtSeznam.isBlank() && (razdelek == VIRI || razdelek == GLASBA || razdelek == DOMOV)) izberiNaMestu(razdelek)
+        }
+    }
+
     private fun odstraniVir(v: MedijskiViri.Vir) {
         pokaziBrisanje(AlertDialog.Builder(this)
             .setTitle(v.ime)
@@ -3430,7 +3476,7 @@ class GlasbaActivity : OsActivity() {
             .setPositiveButton(R.string.os_mediji_odstrani) { _, _ ->
                 MedijskiViri.odstrani(this, v)
                 SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); SEZNAMI.remove(TV_V_ZIVO)
-                izberi(VIRI)
+                izberiNaMestu(VIRI)
             }
             .setNegativeButton(android.R.string.cancel, null)
         )
