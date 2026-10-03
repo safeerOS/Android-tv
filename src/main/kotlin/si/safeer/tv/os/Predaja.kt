@@ -37,6 +37,9 @@ object Predaja {
         if (p != null && sk != null) {
             val tok = SprotnaPomoc.tokZa(sk)
             val izvirnik = tok?.izvirnik ?: sk
+            // Vsebine zasebnega dodatka druga naprava ne vidi (ZasebniDodatki).
+            Stremio.pripravi(ctx)
+            if (Stremio.jeZasebna(izvirnik) || Stremio.jeZasebna(sk)) return o.put("playing", false)
             val streznik = tok?.streznikIzvirnika ?: GlasbaStoritev.streznikTrenutni
             val polozaj = (tok?.zamikMs ?: 0L) + p.currentPosition.coerceAtLeast(0L)
             val trajanje = tok?.trajanjeMs?.takeIf { it > 0 } ?: p.duration.takeIf { it > 0 } ?: 0L

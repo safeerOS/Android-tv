@@ -1,5 +1,6 @@
 package si.safeer.tv.os
 
+import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -32,7 +33,9 @@ object Stremio {
     }
 
     data class Manifest(val osnova: String, val ime: String, val viri: Set<String>, val tipi: Set<String>,
-                        val predpone: List<String>, val katalogi: List<Katalog>)
+                        val predpone: List<String>, val katalogi: List<Katalog>,
+                        /** Zaseben dodatek ([ZasebniDodatki]): ne gre med police, mreze, iskanje in na druge naprave. */
+                        val zaseben: Boolean = false)
 
     data class Epizoda(val id: String, val ime: String, val sezona: Int, val epizoda: Int,
                        /** Tokovi, ki jih dodatek poda ze v metapodatkih posnetka (`videos[].streams`); prazno = vprasamo /stream. */
@@ -187,8 +190,70 @@ object Stremio {
             k.optJSONArray("extraRequired")?.let { e -> for (j in 0 until e.length()) obvezni += e.optString(j) }
             katalogi += Katalog(o, ime, tip, id, k.optString("name").ifBlank { id }, "search" in podprti, obvezni.distinct(), privzeti, zvrsti)
         } }
-        return Manifest(o, ime, viri, tipi, predpone, katalogi).also { manifesti[o] = it }
+        // Zaseben dodatek ([ZasebniDodatki]): tako se oznaci sam, v manifestu (uradno polje protokola).
+        val zaseben = m.optJSONObject("behaviorHints")?.optBoolean("adult") == true
+        zapomniZasebnost(o, zaseben)
+        return Manifest(o, ime, viri, tipi, predpone, katalogi, zaseben).also { manifesti[o] = it }
     }
+
+    // ------------------------------------------------------------------ zasebni dodatki (ZasebniDodatki)
+
+    private const val PREFS_ZASEBNI = "safeer_stremio_zasebni"
+    /** Shrambi oznak in premorov (ne Context: predmet zivi ves cas procesa). null = [pripravi] se ni bil klican. */
+    @Volatile private var shrambaZasebnih: android.content.SharedPreferences? = null
+    @Volatile private var shrambaPremorov: android.content.SharedPreferences? = null
+    /** osnova -> ali je zaseben dodatek. Zapis prezivi ponovni zagon, da odlocitev ne caka na omrezje. */
+    private val znaniZasebni = ConcurrentHashMap<String, Boolean>()
+
+    /** Vstopne tocke s Contextom (zaslon, storitev, Link) pripravijo predpomnilnik manifestov in znane oznake. */
+    fun pripravi(ctx: Context) {
+        if (shrambaZasebnih != null) return
+        synchronized(znaniZasebni) {
+            if (shrambaZasebnih != null) return
+            val a = ctx.applicationContext
+            if (mapaPredpomnilnika == null) mapaPredpomnilnika = java.io.File(a.cacheDir, "stremio")
+            try {
+                val p = a.getSharedPreferences(PREFS_ZASEBNI, Context.MODE_PRIVATE)
+                p.all.forEach { (k, v) -> if (v is Boolean) znaniZasebni.putIfAbsent(k, v) }
+                // Kar smo spoznali pred pripravo (manifest brez Contexta), zapisemo zdaj.
+                val e = p.edit(); znaniZasebni.forEach { (k, v) -> e.putBoolean(k, v) }; e.apply()
+            } catch (_: Exception) { }
+            // Premori dodatkov iz prejsnjega zagona (ponovni zagon ne sme znova sproziti omejitve).
+            try {
+                val zdaj = System.currentTimeMillis()
+                val p = a.getSharedPreferences(PREFS_PREMOR, Context.MODE_PRIVATE)
+                val e = p.edit()
+                p.all.forEach { (k, v) -> if (v is Long && v > zdaj && v < zdaj + PREMOR_NAJVEC_MS) premorDo.putIfAbsent(k, v) else e.remove(k) }
+                e.apply()
+                shrambaPremorov = p
+            } catch (_: Exception) { }
+            shrambaZasebnih = try { a.getSharedPreferences(PREFS_ZASEBNI, Context.MODE_PRIVATE) } catch (_: Exception) { null }
+        }
+    }
+
+    private fun zapomniZasebnost(osnova: String, da: Boolean) {
+        if (znaniZasebni.put(osnova, da) == da) return
+        try { shrambaZasebnih?.edit()?.putBoolean(osnova, da)?.apply() } catch (_: Exception) { }
+    }
+
+    /** Ali je zaseben dodatek, kolikor ze vemo (brez omrezja); null = njegovega manifesta se nismo videli. */
+    fun zasebenZnano(naslov: String): Boolean? = znaniZasebni[osnova(naslov)]
+
+    /** Kot [zasebenZnano], a neznan manifest prenese (klic z delovne niti); null = dodatek ni dosegljiv. */
+    fun zaseben(naslov: String): Boolean? = zasebenZnano(naslov) ?: manifest(naslov)?.zaseben
+
+    /** Kartica (film, epizoda, video) iz zasebnega dodatka - brez omrezja. */
+    fun jeZasebna(s: Jamendo.Skladba): Boolean = jeEnota(s) && razstavi(s)?.first?.let { znaniZasebni[it] } == true
+
+    /** Manifeste dodatkov, ki jih se ne poznamo, prenese v ozadju (odlocitev pri usklajevanju virov med napravami). */
+    fun spoznaj(naslovi: List<String>) {
+        naslovi.filter { zasebenZnano(it) == null }.take(8).forEach { n ->
+            try { bazen.execute { try { manifest(n) } catch (_: Exception) { } } } catch (_: Exception) { }
+        }
+    }
+
+    /** Vsi katalogi enega dodatka, ki brez filtra vrnejo vsebino - za izrecno odprt dodatek (Moji viri). */
+    fun katalogiDodatka(naslov: String): List<Katalog> = manifest(naslov)?.katalogi.orEmpty().filter { it.prikazen }
 
     /** Ime dodatka, ce je manifest ze nalozen (brez omrezja - za glavno nit). */
     fun imeIzPredpomnilnika(naslov: String): String? = manifesti[osnova(naslov)]?.ime
@@ -274,12 +339,12 @@ object Stremio {
     }
 
     /** Katalogi razdelka Video (filmi, nato serije, nato drug video: kanali, anime ...); brez tistih, ki brez filtra ne vrnejo nicesar. */
-    fun prikazniKatalogi(naslovi: List<String>): List<Katalog> = naslovi.mapNotNull { manifest(it) }
+    fun prikazniKatalogi(naslovi: List<String>): List<Katalog> = naslovi.mapNotNull { manifest(it) }.filter { !it.zaseben }
         .flatMap { m -> m.katalogi.filter { it.prikazen && razred(it.tip) in setOf(FILM, SERIJA, VIDEO) } }
         .sortedBy { when (it.tip) { "movie" -> 0; "series" -> 1; else -> 2 } }
 
     /** Katalogi dodatkov izbranega razreda: TV (razdelek TV v zivo), GLASBA (Glasba), RADIO (Radio). */
-    fun katalogiRazreda(naslovi: List<String>, razred: String): List<Katalog> = naslovi.mapNotNull { manifest(it) }
+    fun katalogiRazreda(naslovi: List<String>, razred: String): List<Katalog> = naslovi.mapNotNull { manifest(it) }.filter { !it.zaseben }
         .flatMap { m -> m.katalogi.filter { it.prikazen && razred(it.tip) == razred } }
 
     /** Katalogi TV kanalov v zivo iz uporabnikovih dodatkov - gredo v razdelek TV v zivo (lastnik, 1. 10. 2026). */
@@ -301,8 +366,9 @@ object Stremio {
      * Katalog z lastnim iskanjem vprasamo z `search=`; kataloge kanalov, postaj in glasbe, ki iskanja ne
      * podpirajo (vecina dodatkov TV v zivo), preiscemo sami po imenu (stran kataloga je v predpomnilniku).
      */
-    fun isci(naslovi: List<String>, beseda: String): List<Jamendo.Skladba> {
-        val katalogi = naslovi.mapNotNull { manifest(it) }.flatMap { it.katalogi }
+    fun isci(naslovi: List<String>, beseda: String, tudiZasebni: Boolean = false): List<Jamendo.Skladba> {
+        // Zasebni dodatki niso v skupnem iskanju (ZasebniDodatki): isce se v njih samo izrecno ([tudiZasebni]).
+        val katalogi = naslovi.mapNotNull { manifest(it) }.filter { tudiZasebni || !it.zaseben }.flatMap { it.katalogi }
         val zIskanjem = katalogi.filter { it.iskanje }.distinctBy { it.dodatek + "|" + it.tip }
         val pokriti = zIskanjem.map { it.dodatek + "|" + it.tip }.toSet()
         val brezIskanja = katalogi.filter { !it.iskanje && it.prikazen && (it.dodatek + "|" + it.tip) !in pokriti &&
@@ -385,6 +451,65 @@ object Stremio {
     /** Tok, ki ga ta naprava lahko predvaja kot vsebino (ne napovednik). */
     fun jePredvajljiv(t: Tok) = t.vrsta == "url" || t.vrsta == "torrent"
 
+    // ------------------------------------------------------------------ vljudnost do dodatkov (preverjanje v ozadju)
+
+    /**
+     * Preverjanje, kaj se da predvajati, poslje dodatku veliko poizvedb, ki jih uporabnik ni izrecno sprozil. Dodatek
+     * jih sme imeti za zlorabo (3. 10. 2026: "403 Rate limit exceeded (Scraping/Abuse)" - potem ne dela niti
+     * predvajanje). Zato: najvec [ZETONI_NAJVEC] poizvedb takoj, nato [ZETONI_NA_S] na sekundo na dodatek, in premor
+     * (15 min, ob ponovitvi dvakrat dlje, do 2 h), ko dodatek odgovori 429 ali 403. Predvajanje ([tokovi]) ne caka.
+     * Meja je nizka namenoma: 3. 10. 2026 je dodatek zavrnil napravo ze po ~37 poizvedbah v 15 s, v enem domu pa
+     * isti dodatek sprasuje vec naprav z istega naslova. Premor prezivi ponovni zagon ([pripravi]).
+     */
+    private const val ZETONI_NAJVEC = 6.0
+    private const val ZETONI_NA_S = 0.5
+    private const val PREMOR_MS = 15 * 60_000L
+    private const val PREMOR_NAJVEC_MS = 2 * 3_600_000L
+    private class Vedro { var zetoni = ZETONI_NAJVEC; var cas = System.currentTimeMillis() }
+    private val vedra = ConcurrentHashMap<String, Vedro>()
+    private val premorDo = ConcurrentHashMap<String, Long>()
+    private val premorKorak = ConcurrentHashMap<String, Int>()
+    private const val PREFS_PREMOR = "safeer_stremio_premor"
+
+    /** Dodatek je odgovoril, da omejuje poizvedbe: v ozadju ga do konca premora ne sprasujemo. */
+    fun vPremoru(naslov: String): Boolean = (premorDo[osnova(naslov)] ?: 0L) > System.currentTimeMillis()
+
+    private fun zacniPremor(osnova: String) {
+        if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis()) return      // vec hkratnih odgovorov je en premor
+        val korak = (premorKorak[osnova] ?: 0).coerceAtMost(3)
+        premorKorak[osnova] = korak + 1
+        val trajanje = (PREMOR_MS shl korak).coerceAtMost(PREMOR_NAJVEC_MS)
+        premorDo[osnova] = System.currentTimeMillis() + trajanje
+        try { shrambaPremorov?.edit()?.putLong(osnova, System.currentTimeMillis() + trajanje)?.apply() } catch (_: Exception) { }
+        try { android.util.Log.i("SafeerStremio", "dodatek ${try { URL(osnova).host } catch (_: Exception) { "?" }} omejuje poizvedbe: premor ${trajanje / 60_000} min") } catch (_: Throwable) { }
+    }
+
+    /** Pocaka na zeton za poizvedbo v ozadju pri dodatku; false = dodatek je v premoru ali je nit prekinjena. */
+    private fun zeton(osnova: String): Boolean {
+        val v = vedra.getOrPut(osnova) { Vedro() }
+        while (true) {
+            if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis()) return false
+            val cakaj = synchronized(v) {
+                val zdaj = System.currentTimeMillis()
+                v.zetoni = (v.zetoni + (zdaj - v.cas).coerceAtLeast(0) / 1000.0 * ZETONI_NA_S).coerceAtMost(ZETONI_NAJVEC)
+                v.cas = zdaj
+                if (v.zetoni >= 1.0) { v.zetoni -= 1.0; 0L } else ((1.0 - v.zetoni) / ZETONI_NA_S * 1000).toLong() + 5
+            }
+            if (cakaj == 0L) return true
+            try { Thread.sleep(cakaj) } catch (_: InterruptedException) { return false }
+        }
+    }
+
+    /**
+     * Ali so vsi dodatki, ki bi jih za ta naslov vprasali po tokovih (tip in predpona id-ja), v premoru - naslova zdaj
+     * ni mogoce preveriti. Brez omrezja: uposteva manifeste, ki jih ze poznamo.
+     */
+    fun vprasaniVPremoru(naslovi: List<String>, tip: String, id: String): Boolean {
+        val d = naslovi.mapNotNull { manifesti[osnova(it)] }
+            .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
+        return d.isNotEmpty() && d.all { vPremoru(it.osnova) }
+    }
+
     /**
      * Ali vsaj eden od dodatkov za ta naslov ponuja predvajanje: true = da, false = vsi so odgovorili in nobeden nima
      * nicesar, null = ne vemo (kateri ni odgovoril) - takrat nicesar ne sklepamo. [torrent]: kateri torrent tu steje
@@ -395,12 +520,21 @@ object Stremio {
         val manifestiDodatkov = naslovi.map { manifest(it) }
         // Dodatek, ki ga trenutno ne dosezemo (brez omrezja), bi vsebino morda imel: ne sklepamo "ni na voljo".
         var neznano = manifestiDodatkov.any { it == null }
-        val dodatki = manifestiDodatkov.filterNotNull()
+        val vsiDodatki = manifestiDodatkov.filterNotNull()
             .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
+        // Vljudnost do dodatkov: preverjanje tece v ozadju, zato vsak dodatek dobi najvec nekaj poizvedb na sekundo
+        // (zeton), dodatka, ki je odgovoril, da poizvedbe omejuje, pa nekaj casa sploh ne sprasujemo (premor).
+        val dodatki = vsiDodatki.filter { zeton(it.osnova) }
+        if (dodatki.size != vsiDodatki.size) neznano = true
         val niti = dodatki.map { m -> bazen.submit<Boolean?> {
             // Brez odgovora ne vemo nicesar; odgovor "tega nimam" (404) pa je odgovor - dodatek vsebine nima.
             val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json")
-                ?: return@submit if (kodaPomeniNima(zadnjaKoda.get() ?: 0)) false else null
+                ?: return@submit run {
+                    val koda = zadnjaKoda.get() ?: 0
+                    if (koda == 429 || koda == 403) zacniPremor(m.osnova)
+                    if (kodaPomeniNima(koda)) false else null
+                }
+            premorKorak.remove(m.osnova)
             val a = d.optJSONArray("streams") ?: JSONArray()
             (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.any { it.vrsta == "url" || (it.vrsta == "torrent" && torrentGre(it, torrent)) }
         } }

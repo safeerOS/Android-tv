@@ -110,6 +110,9 @@ object SeznamiSink {
         Thread {
             var spremenjeno = false
             try {
+                Stremio.pripravi(app)
+                // Zasebni dodatki, prevzeti pred pravilom ZasebniDodatki, tu izginejo (na izvorni napravi ostanejo).
+                try { if (MedijskiViri.odstraniPrevzeteZasebne(app)) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true; Log.i(TAG, "prevzet zaseben dodatek odstranjen") } } catch (_: Exception) { }
                 for (n in naprave) {
                     try { if (prevzemiOd(app, link, n.id)) spremenjeno = true } catch (e: Exception) { Log.w(TAG, "naprava ${n.id}: ${e.message}") }
                 }
@@ -131,6 +134,9 @@ object SeznamiSink {
         return odgovor
     }
 
+    /** Dodatki, ki ob prevzemu niso odgovorili (osnova -> kdaj): da jih ne sprasujemo ob vsaki uskladitvi. */
+    private val nedosegljivi = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
     private fun prevzemiOd(app: Context, link: LinkUpravitelj, naprava: String): Boolean {
         val kazalo = vprasaj(link, naprava, JSONObject()) ?: return false
         var spremenjeno = false
@@ -144,6 +150,15 @@ object SeznamiSink {
                 for (i in 0 until minOf(a.length(), 200)) {
                     val o = a.optJSONObject(i) ?: continue
                     val v = MedijskiViri.Vir(o.optString("tip"), o.optString("ime"), o.optString("naslov"))
+                    // Zasebnega dodatka ne prevzamemo (ZasebniDodatki) - tudi ce ga ponudi naprava s starejso razlicico.
+                    // Neznan dodatek vprasamo po manifestu (smo v ozadju); nedosegljivega poskusimo spet cez 10 min.
+                    if (v.jeStremio && !MedijskiViri.imamVir(app, v)) {
+                        val k = Stremio.osnova(v.naslov)
+                        if (Stremio.zasebenZnano(v.naslov) == null && (nedosegljivi[k] ?: 0L) > android.os.SystemClock.elapsedRealtime() - 600_000L) continue
+                        val zaseben = try { Stremio.zaseben(v.naslov) } catch (_: Exception) { null }
+                        if (zaseben == null) nedosegljivi[k] = android.os.SystemClock.elapsedRealtime()
+                        if (!ZasebniDodatki.smeMedNaprave(true, zaseben)) continue
+                    }
                     if (!MedijskiViri.prevzemiVir(app, v, o.optLong("cas"))) continue
                     viri = true
                     Log.i(TAG, "vir ${v.tip} »${v.ime}« od $naprava")

@@ -7,6 +7,7 @@
     <string name="os_glasba_video">Video</string>
     <string name="os_glasba_iskanje">Iskanje</string>
     <string name="os_glasba_isci_namig">Video, izvajalec ali radijska postaja</string>
+    <string name="os_mediji_isci_v_dodatku">Išči v: %1$s</string>
     <string name="os_glasba_isci_navodilo">Vpiši, kaj iščeš, in pritisni Išči. Safeer išče po videih, izvajalcih, radijskih postajah in tvojih virih.</string>
     <string name="os_glasba_nalagam">Nalagam …</string>
     <string name="os_glasba_napaka">Vsebine ni bilo mogoče naložiti. Preveri povezavo in poskusi znova.</string>

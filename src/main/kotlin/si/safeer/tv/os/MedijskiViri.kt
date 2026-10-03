@@ -362,7 +362,11 @@ object MedijskiViri {
     }
 
     /** Nedavno predvajano (najnovejse prvo), samo na tej napravi. */
-    fun nedavno(ctx: Context): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }.take(MAX_NEDAVNO)
+    fun nedavno(ctx: Context): List<Jamendo.Skladba> {
+        Stremio.pripravi(ctx)
+        // Vsebina zasebnih dodatkov ni v zgodovini (ZasebniDodatki) - tudi tista, zapisana pred tem pravilom.
+        return beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }.filterNot { Stremio.jeZasebna(it) }.take(MAX_NEDAVNO)
+    }
 
     fun odstraniNedavno(ctx: Context, s: Jamendo.Skladba) =
         pisi(ctx, NEDAVNO, pisiSkladbe(nedavno(ctx).filterNot { it.id == s.id }))
@@ -370,7 +374,8 @@ object MedijskiViri {
     fun pocistiNedavno(ctx: Context) = pisi(ctx, NEDAVNO, "[]")
 
     fun zapomniNedavno(ctx: Context, s: Jamendo.Skladba) {
-        if (!shranljiva(s)) return
+        Stremio.pripravi(ctx)
+        if (!shranljiva(s) || Stremio.jeZasebna(s)) return
         val z = zaShranjevanje(s)
         pisi(ctx, NEDAVNO, pisiSkladbe((listOf(z) + nedavno(ctx).filterNot { it.id == z.id }).distinctBy { it.id }.take(MAX_NEDAVNO)))
     }
@@ -601,7 +606,7 @@ object MedijskiViri {
      * vir dodan in kdaj izbrisan: [cas] != 0 je cas z druge naprave (prevzem), sicer ura te naprave - a nikoli starejsa
      * od znanega izbrisa oziroma dodajanja (ure naprav niso enake).
      */
-    @Synchronized private fun shrani(ctx: Context, viri: List<Vir>, cas: Long = 0L) {
+    @Synchronized private fun shrani(ctx: Context, viri: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false) {
         val prej = rocni(ctx).map { kljucUskladitve(it) }.toSet()
         val zdaj = viri.map { kljucUskladitve(it) }.toSet()
         val a = JSONArray()
@@ -609,7 +614,8 @@ object MedijskiViri {
         val casi = beriCase(ctx, VIRI_CASI); val izbrisani = beriCase(ctx, VIRI_IZBRISANI)
         val ura = System.currentTimeMillis()
         for (k in zdaj - prej) { casi[k] = if (cas != 0L) cas else SeznamiPravila.novCas(ura, 0L, izbrisani[k] ?: 0L); izbrisani.remove(k) }
-        for (k in prej - zdaj) { izbrisani[k] = if (cas != 0L) cas else SeznamiPravila.novCas(ura, casi[k] ?: 0L, 0L); casi.remove(k) }
+        // [brezSledi]: vir izgine samo tukaj (ni izbris, ki bi se prenesel na druge naprave).
+        for (k in prej - zdaj) { if (!brezSledi) izbrisani[k] = if (cas != 0L) cas else SeznamiPravila.novCas(ura, casi[k] ?: 0L, 0L); casi.remove(k) }
         casi.keys.retainAll(zdaj)
         while (izbrisani.size > 300) izbrisani.remove(izbrisani.minByOrNull { it.value }!!.key)
         ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString())
@@ -638,8 +644,33 @@ object MedijskiViri {
 
     /** Rocno dodani viri te naprave s casom dodajanja (0 = dodan pred usklajevanjem) - za druge naprave v Linku. */
     fun zaUskladitev(ctx: Context): List<Pair<Vir, Long>> {
+        Stremio.pripravi(ctx)
         val casi = beriCase(ctx, VIRI_CASI)
-        return rocni(ctx).filter { uskladljiv(it) }.take(200).map { it to (casi[kljucUskladitve(it)] ?: 0L) }
+        val moji = rocni(ctx).filter { uskladljiv(it) }
+        // Dodatek gre drugim napravam sele, ko vemo, da ni zaseben (ZasebniDodatki); neznane spoznamo v ozadju.
+        Stremio.spoznaj(moji.filter { it.jeStremio }.map { it.naslov })
+        return moji.filter { ZasebniDodatki.smeMedNaprave(it.jeStremio, if (it.jeStremio) Stremio.zasebenZnano(it.naslov) else null) }
+            .take(200).map { it to (casi[kljucUskladitve(it)] ?: 0L) }
+    }
+
+    /** Ali vir s tem kljucem tu ze imamo (hitro, brez omrezja). */
+    fun imamVir(ctx: Context, v: Vir): Boolean = kljucUskladitve(v).let { k -> rocni(ctx).any { kljucUskladitve(it) == k } }
+
+    /**
+     * Zasebni dodatki, ki so sem prisli z usklajevanjem, preden je veljalo pravilo [ZasebniDodatki]: tu izginejo
+     * brez sledi izbrisa (na napravi, kjer jih je uporabnik dodal, ostanejo). Vrne true, ce je kaj odstranil.
+     */
+    @Synchronized fun odstraniPrevzeteZasebne(ctx: Context): Boolean {
+        Stremio.pripravi(ctx)
+        val casi = beriCase(ctx, VIRI_CASI)
+        val moji = rocni(ctx)
+        val stran = moji.filter { it.jeStremio && ZasebniDodatki.prevzetOdstranimo(Stremio.zasebenZnano(it.naslov), casi[kljucUskladitve(it)] ?: 0L) }
+            .map { kljucUskladitve(it) }.toSet()
+        if (stran.isEmpty()) return false
+        shrani(ctx, moji.filterNot { kljucUskladitve(it) in stran }, brezSledi = true)
+        pripeti(ctx).let { p -> val brez = p.filterNot { k -> moji.any { kljucUskladitve(it) in stran && kljucPripetega(it) == k } }
+            if (brez.size != p.size) pisi(ctx, PRIPETI, JSONArray(brez).toString()) }
+        return true
     }
 
     /** Viri, izbrisani na tej napravi (kljuc -> cas izbrisa): druge naprave jih izbrisejo tudi pri sebi. */

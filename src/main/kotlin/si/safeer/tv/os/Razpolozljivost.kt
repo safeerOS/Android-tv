@@ -12,7 +12,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object Razpolozljivost {
     private const val DATOTEKA = "safeer_razpolozljivost"
-    private const val NI_VELJA = 6 * 3_600_000L
+    // "Ni na voljo" velja en dan (prej 6 ur): vsako ponovno preverjanje je poizvedba dodatku (vljudnost, Stremio.zeton).
+    private const val NI_VELJA = 24 * 3_600_000L
     private const val JE_VELJA = 72 * 3_600_000L
     private const val NAJVEC = 4000
     private const val ZACASNO_VELJA = 10 * 60_000L
