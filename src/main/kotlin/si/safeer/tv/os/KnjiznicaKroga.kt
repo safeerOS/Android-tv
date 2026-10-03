@@ -55,6 +55,37 @@ object KnjiznicaKroga {
         return naslov to plakatPomocnika.trim().takeIf { it.startsWith("https://") }.orEmpty().ifBlank { lokalni?.plakat.orEmpty() }
     }
 
+    /** Predpona id-ja kartice prenosa na polici: "pcprenos|<naprava>|<oznaka prenosa>|<datoteka>" in pri zasebnem prenosu se "|z". */
+    const val PREDPONA_PRENOSA = "pcprenos|"
+
+    /**
+     * Oznake vnosa police: z = zaseben prenos (polica v zasebnem dodatku; ta je tudi v id-ju kartice), k = naprava, ki
+     * film hrani, pozna »Obdrži« (`magnet.list` ima polje `keep`), o = prenos je obdrzan.
+     */
+    fun oznake(zaseben: Boolean, obdrzi: Boolean?): String =
+        (if (zaseben) "z" else "") + (if (obdrzi != null) "k" else "") + (if (obdrzi == true) "o" else "")
+    fun oznakeKartice(id: String): String =
+        if (!id.startsWith(PREDPONA_PRENOSA)) "" else id.substringBefore('#').removePrefix(PREDPONA_PRENOSA).split('|').getOrNull(3).orEmpty()
+    fun jeZaseben(oznake: String) = 'z' in oznake
+    fun znaObdrzi(oznake: String) = 'k' in oznake
+    fun jeObdrzan(oznake: String) = 'o' in oznake
+    /** Kartica zasebnega prenosa: zanjo veljajo ista pravila kot za vsebino zasebnega dodatka (ni zgodovine, ni predaje). */
+    fun jeZasebenPrenos(id: String): Boolean = jeZaseben(oznakeKartice(id))
+
+    const val NAJVEC_PODNAPISOV = 12
+    private val POT_TOKA = Regex("^/(m|magnet)/[A-Za-z0-9_\\-]{8,200}(/[^/?#\\\\]{1,300})?$")
+    private val PRIPONE_PODNAPISOV = setOf("srt", "vtt", "ass", "ssa")
+
+    /**
+     * Podnapisi iz odgovora `magnet.stream` (`subs`: pot toka + ime datoteke), ki jih smemo dati predvajalniku: samo
+     * poti tokov (isti streznik, isti zeton kot film) in datoteke podnapisov, najvec [NAJVEC_PODNAPISOV].
+     */
+    fun podnapisiToka(vnosi: List<Pair<String, String>>): List<Pair<String, String>> =
+        vnosi.filter { (pot, ime) ->
+            POT_TOKA.matches(pot) && pot.substringAfterLast('/') !in setOf(".", "..") &&
+                ime.substringAfterLast('.', "").lowercase() in PRIPONE_PODNAPISOV
+        }.take(NAJVEC_PODNAPISOV)
+
     /** Isti film pri vec napravah je na polici enkrat: prednost ima koncan prenos, nato ta naprava, nato racunalnik. */
     fun <T> brezDvojnikov(vnosi: List<T>, hash: (T) -> String, koncan: (T) -> Boolean, tukaj: (T) -> Boolean, racunalnik: (T) -> Boolean): List<T> =
         vnosi.groupBy { hash(it) }.flatMap { (h, skupina) ->

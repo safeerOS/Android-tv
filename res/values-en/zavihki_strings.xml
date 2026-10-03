@@ -53,6 +53,13 @@
     <string name="os_prenos_odstrani_vprasanje">The film and all its files will be deleted from the device that keeps it. You can open it again from the add-on any time.</string>
     <string name="os_prenos_odstranjen">Download removed</string>
     <string name="os_prenos_ta_naprava">This device</string>
+    <string name="os_prenos_obdrzi">Keep (does not expire after 48 hours)</string>
+    <string name="os_prenos_ne_obdrzi">Stop keeping (expires after 48 hours)</string>
+    <string name="os_prenos_obdrzan">Kept: this download will not expire</string>
+    <string name="os_prenos_ni_vec_obdrzan">No longer kept: removed after 48 hours without playback</string>
+    <string name="os_prenos_obdrzi_napaka">This download could not be kept</string>
+    <string name="os_prenos_obdrzano">kept</string>
+    <string name="os_prenos_zaseben">Private download</string>
     <string name="os_stremio_vir_racunalnik">Streamed by a computer in Safeer Link – nothing is downloaded to this device</string>
     <string name="os_stremio_vir_tukaj">Playing from a torrent on this device – removed automatically after two days without watching</string>
     <string name="os_stremio_vir_naprava">Streamed by a device in Safeer Link – nothing is downloaded to this device</string>

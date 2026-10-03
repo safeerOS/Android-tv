@@ -149,6 +149,15 @@ object SeznamiSink {
             kazalo.optJSONArray("sources")?.let { a ->
                 for (i in 0 until minOf(a.length(), 200)) {
                     val o = a.optJSONObject(i) ?: continue
+                    // Naslov, dodan na racunalniku: vrsto (podkast, seznam, tok, stran) doloci ta naprava sama; naslov,
+                    // ki ga ta trenutek ni mogoce prebrati, poskusimo spet cez 10 minut.
+                    if (o.optString("tip") == MedijskiViri.VRSTA_URL) {
+                        val n = o.optString("naslov")
+                        if ((nedosegljivi[n] ?: 0L) > android.os.SystemClock.elapsedRealtime() - 600_000L) continue
+                        if (MedijskiViri.prevzemiNaslov(app, n, o.optString("ime"), o.optLong("cas"))) { viri = true; Log.i(TAG, "vir z racunalnika od $naprava") }
+                        else if (n.isNotBlank() && !MedijskiViri.imamNaslov(app, n)) nedosegljivi[n] = android.os.SystemClock.elapsedRealtime()
+                        continue
+                    }
                     val v = MedijskiViri.Vir(o.optString("tip"), o.optString("ime"), o.optString("naslov"))
                     // Zasebnega dodatka ne prevzamemo (ZasebniDodatki) - tudi ce ga ponudi naprava s starejso razlicico.
                     // Neznan dodatek vprasamo po manifestu (smo v ozadju); nedosegljivega poskusimo spet cez 10 min.

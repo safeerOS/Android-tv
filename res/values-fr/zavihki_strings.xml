@@ -53,6 +53,13 @@
     <string name="os_prenos_odstrani_vprasanje">Le film et tous ses fichiers seront supprimés de l’appareil qui le conserve. Tu peux le rouvrir à tout moment depuis l’extension.</string>
     <string name="os_prenos_odstranjen">Téléchargement supprimé</string>
     <string name="os_prenos_ta_naprava">Cet appareil</string>
+    <string name="os_prenos_obdrzi">Garder (n’expire pas après 48 heures)</string>
+    <string name="os_prenos_ne_obdrzi">Ne plus garder (expire après 48 heures)</string>
+    <string name="os_prenos_obdrzan">Gardé : ce téléchargement n’expirera pas</string>
+    <string name="os_prenos_ni_vec_obdrzan">N’est plus gardé : supprimé après 48 heures sans lecture</string>
+    <string name="os_prenos_obdrzi_napaka">Impossible de garder ce téléchargement</string>
+    <string name="os_prenos_obdrzano">gardé</string>
+    <string name="os_prenos_zaseben">Téléchargement privé</string>
     <string name="os_stremio_vir_racunalnik">Diffusé par un ordinateur de Safeer Link – rien n’est téléchargé sur cet appareil</string>
     <string name="os_stremio_vir_tukaj">Lecture depuis un torrent sur cet appareil – supprimé automatiquement après deux jours sans visionnage</string>
     <string name="os_stremio_vir_naprava">Diffusé par un appareil de Safeer Link – rien n\'est téléchargé sur cet appareil</string>

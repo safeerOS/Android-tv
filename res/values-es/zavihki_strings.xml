@@ -53,6 +53,13 @@
     <string name="os_prenos_odstrani_vprasanje">La película y todos sus archivos se borrarán del dispositivo que la guarda. Puedes volver a abrirla desde el complemento cuando quieras.</string>
     <string name="os_prenos_odstranjen">Descarga quitada</string>
     <string name="os_prenos_ta_naprava">Este dispositivo</string>
+    <string name="os_prenos_obdrzi">Conservar (no caduca a las 48 horas)</string>
+    <string name="os_prenos_ne_obdrzi">Dejar de conservar (caduca a las 48 horas)</string>
+    <string name="os_prenos_obdrzan">Conservado: esta descarga no caducará</string>
+    <string name="os_prenos_ni_vec_obdrzan">Ya no se conserva: se quitará tras 48 horas sin reproducirse</string>
+    <string name="os_prenos_obdrzi_napaka">No se pudo conservar esta descarga</string>
+    <string name="os_prenos_obdrzano">conservado</string>
+    <string name="os_prenos_zaseben">Descarga privada</string>
     <string name="os_stremio_vir_racunalnik">Lo transmite un ordenador de Safeer Link – no se descarga nada en este dispositivo</string>
     <string name="os_stremio_vir_tukaj">Se reproduce desde un torrent en este dispositivo; se elimina solo tras dos días sin verlo</string>
     <string name="os_stremio_vir_naprava">Lo transmite un dispositivo de Safeer Link; no se descarga nada en este dispositivo</string>

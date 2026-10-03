@@ -57,6 +57,13 @@
     <string name="os_prenos_odstrani_vprasanje">Film in vse njegove datoteke se izbrišejo z naprave, ki ga hrani. Kadarkoli ga lahko znova odpreš iz dodatka.</string>
     <string name="os_prenos_odstranjen">Prenos je odstranjen</string>
     <string name="os_prenos_ta_naprava">Ta naprava</string>
+    <string name="os_prenos_obdrzi">Obdrži (ne poteče po 48 urah)</string>
+    <string name="os_prenos_ne_obdrzi">Ne obdrži več (poteče po 48 urah)</string>
+    <string name="os_prenos_obdrzan">Obdržano: prenos ne bo potekel</string>
+    <string name="os_prenos_ni_vec_obdrzan">Ni več obdržano: odstrani se po 48 urah brez predvajanja</string>
+    <string name="os_prenos_obdrzi_napaka">Tega prenosa ni bilo mogoče obdržati</string>
+    <string name="os_prenos_obdrzano">obdržano</string>
+    <string name="os_prenos_zaseben">Zaseben prenos</string>
     <string name="os_stremio_vir_racunalnik">Pretaka računalnik v Safeer Linku – na to napravo se nič ne prenaša</string>
     <string name="os_stremio_vir_tukaj">Predvaja se iz torrenta na tej napravi – ko ga dva dni ne gledaš, se odstrani sam</string>
     <string name="os_stremio_vir_naprava">Pretaka naprava v Safeer Linku – na to napravo se nič ne prenaša</string>

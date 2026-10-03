@@ -70,7 +70,13 @@ object MagnetPomoc {
                 Log.i(TAG, "Pretakam ${t.datoteka.ime} za $posiljatelj")
                 Daljinec.Izid(true, "Naprava pretaka: " + t.datoteka.ime.substringAfterLast('/'), JSONObject()
                     .put("server", streznik).put("path", "/magnet/" + t.skrivnost)
-                    .put("name", t.datoteka.ime.substringAfterLast('/')).put("file", t.datoteka.i).put("size", t.datoteka.velikost))
+                    .put("name", t.datoteka.ime.substringAfterLast('/')).put("file", t.datoteka.i).put("size", t.datoteka.velikost)
+                    // Podnapisi iz istega torrenta: naprava, ki film samo gleda, jih dobi kot tokove z istega streznika.
+                    .put("subs", org.json.JSONArray().apply {
+                        t.podnapisi.take(KnjiznicaKroga.NAJVEC_PODNAPISOV).forEach { (d, url) ->
+                            put(JSONObject().put("path", "/magnet/" + url.substringAfterLast('/')).put("name", d.ime.substringAfterLast('/')))
+                        }
+                    }))
             } catch (e: Throwable) {
                 Log.i(TAG, "magnet.stream za $posiljatelj: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
                 val koda = e.message?.takeIf { it in setOf("ni_magnet", "ni_metapodatkov", "ni_predvajljivo", "ni_prostora", "ni_podprto") } ?: "napaka"
@@ -87,6 +93,15 @@ object MagnetPomoc {
     fun seznam(context: Context, posiljatelj: String): Daljinec.Izid {
         val a = try { MagnetMotor.seznamZacasnih(context, posiljatelj) } catch (e: Throwable) { org.json.JSONArray() }
         return Daljinec.Izid(true, "${a.length()} prenosov", JSONObject().put("items", a))
+    }
+
+    /** `magnet.keep {id, keep}`: prenos ne potece po 48 urah (»Obdrži« na polici druge naprave). */
+    fun obdrzi(context: Context, p: JSONObject, posiljatelj: String): Daljinec.Izid {
+        if (!p.has("id") || p.opt("keep") !is Boolean) return Daljinec.Izid(false, "Manjka prenos", koda = "ni_prenosa")
+        val drzi = p.optBoolean("keep")
+        val ok = try { MagnetMotor.nastaviObdrzi(context.applicationContext, p.optInt("id", -1), drzi, posiljatelj) } catch (e: Throwable) { false }
+        return if (ok) Daljinec.Izid(true, if (drzi) "Prenos ostane na napravi" else "Prenos ni vec obdrzan", JSONObject().put("keep", drzi))
+            else Daljinec.Izid(false, "Tega prenosa ni mogoce obdrzati", koda = "ni_prenosa")
     }
 
     fun odstrani(context: Context, p: JSONObject): Daljinec.Izid {

@@ -53,6 +53,13 @@
     <string name="os_prenos_odstrani_vprasanje">Der Film und alle seine Dateien werden von dem Gerät gelöscht, das ihn speichert. Du kannst ihn jederzeit wieder über das Add-on öffnen.</string>
     <string name="os_prenos_odstranjen">Download entfernt</string>
     <string name="os_prenos_ta_naprava">Dieses Gerät</string>
+    <string name="os_prenos_obdrzi">Behalten (läuft nach 48 Stunden nicht ab)</string>
+    <string name="os_prenos_ne_obdrzi">Nicht mehr behalten (läuft nach 48 Stunden ab)</string>
+    <string name="os_prenos_obdrzan">Behalten: Dieser Download läuft nicht ab</string>
+    <string name="os_prenos_ni_vec_obdrzan">Nicht mehr behalten: wird nach 48 Stunden ohne Wiedergabe entfernt</string>
+    <string name="os_prenos_obdrzi_napaka">Dieser Download konnte nicht behalten werden</string>
+    <string name="os_prenos_obdrzano">behalten</string>
+    <string name="os_prenos_zaseben">Privater Download</string>
     <string name="os_stremio_vir_racunalnik">Ein Computer in Safeer Link streamt – auf dieses Gerät wird nichts geladen</string>
     <string name="os_stremio_vir_tukaj">Wird aus einem Torrent auf diesem Gerät abgespielt – nach zwei Tagen ohne Ansehen automatisch entfernt</string>
     <string name="os_stremio_vir_naprava">Gestreamt von einem Gerät in Safeer Link – auf dieses Gerät wird nichts heruntergeladen</string>

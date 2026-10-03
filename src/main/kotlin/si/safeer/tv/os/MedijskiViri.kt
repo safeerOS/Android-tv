@@ -644,6 +644,10 @@ object MedijskiViri {
             (v.jePeerTube || v.naslov.startsWith("http://") || v.naslov.startsWith("https://")) &&
             !(v.jeSplet && jeImenikVirov(v.naslov))
 
+    /** Ali ta vir potuje med napravami v Linku (za besedilo ob brisanju): zaseben ali se neznan dodatek ne. */
+    fun greMedNaprave(v: Vir): Boolean =
+        uskladljiv(v) && ZasebniDodatki.smeMedNaprave(v.jeStremio, if (v.jeStremio) Stremio.zasebenZnano(v.naslov) else null)
+
     /** Rocno dodani viri te naprave s casom dodajanja (0 = dodan pred usklajevanjem) - za druge naprave v Linku. */
     fun zaUskladitev(ctx: Context): List<Pair<Vir, Long>> {
         Stremio.pripravi(ctx)
@@ -654,6 +658,9 @@ object MedijskiViri {
         return moji.filter { ZasebniDodatki.smeMedNaprave(it.jeStremio, if (it.jeStremio) Stremio.zasebenZnano(it.naslov) else null) }
             .take(200).map { it to (casi[kljucUskladitve(it)] ?: 0L) }
     }
+
+    /** Ali vir s tem naslovom tu ze imamo, ne glede na vrsto (hitro, brez omrezja). */
+    fun imamNaslov(ctx: Context, naslov: String): Boolean = rocni(ctx).any { it.naslov == naslov }
 
     /** Ali vir s tem kljucem tu ze imamo (hitro, brez omrezja). */
     fun imamVir(ctx: Context, v: Vir): Boolean = kljucUskladitve(v).let { k -> rocni(ctx).any { kljucUskladitve(it) == k } }
@@ -692,20 +699,45 @@ object MedijskiViri {
         return true
     }
 
+    /**
+     * Naslov, ki ga je uporabnik dodal na racunalniku (vrsta [VRSTA_URL]): racunalnik vrste ne pozna, doloci jo ta
+     * naprava sama (prebere naslov - klic iz ozadja). Vrne true, ce je vir dodan.
+     */
+    fun prevzemiNaslov(ctx: Context, naslov: String, ime: String, cas: Long): Boolean {
+        if (naslov.length !in 4..2048 || naslov.any { it < ' ' } || !(naslov.startsWith("http://") || naslov.startsWith("https://"))) return false
+        synchronized(this) {
+            val moji = rocni(ctx)
+            if (moji.size >= 400 || moji.any { it.naslov == naslov || (!it.jePeerTube && kanonicniNaslov(it.naslov) == kanonicniNaslov(naslov)) }) return false
+            // Tu izbrisan pozneje, kot je bil na racunalniku dodan: se ne vrne (ne glede na vrsto, ki jo je imel tukaj).
+            val izbris = beriCase(ctx, VIRI_IZBRISANI).filterKeys { it.substringAfter('|') == naslov }.values.maxOrNull()
+            if (!SeznamiPravila.virPrevzamemo(false, izbris, cas)) return false
+        }
+        if (PeerTube.jeBlokiran(naslov) || !jePredvajljiv(naslov)) return false
+        val gostitelj = try { URL(naslov).host } catch (_: Exception) { return false }
+        val v = razvrsti(ctx, naslov, gostitelj) ?: return false
+        return prevzemiVir(ctx, if (ime.isBlank() || ime.length > 200 || ime.any { it < ' ' }) v else v.copy(ime = ime), cas)
+    }
+
+    /** Vrsta vira v usklajevanju, ki jo poslje racunalnik za naslov, dodan tam (core/viri_sink.py). */
+    const val VRSTA_URL = "url"
+
     /** Vir je bil izbrisan na drugi napravi ob [cas]: izgine tudi tu, ce ga tu nismo dodali pozneje. Vrne true ob izbrisu. */
     @Synchronized fun prevzemiIzbrisVira(ctx: Context, kljuc: String, cas: Long): Boolean {
         if (cas <= 0L || kljuc.length > 2100) return false
+        val odRacunalnika = kljuc.startsWith("$VRSTA_URL|")
+        // Racunalnik ne pozna vrste, ki jo je naslovu dala ta naprava: izbris "url|<naslov>" velja za vir s tem naslovom.
         val moj = rocni(ctx).firstOrNull { kljucUskladitve(it) == kljuc }
+            ?: if (odRacunalnika) rocni(ctx).firstOrNull { !it.jeStremio && !it.jePeerTube && it.naslov == kljuc.substringAfter('|') } else null
         if (moj == null) {
             val izbrisani = beriCase(ctx, VIRI_IZBRISANI)
-            if ((izbrisani[kljuc] ?: 0L) < cas && VRSTE_ZA_USKLADITEV.matches(kljuc.substringBefore('|'))) {
+            if ((izbrisani[kljuc] ?: 0L) < cas && (odRacunalnika || VRSTE_ZA_USKLADITEV.matches(kljuc.substringBefore('|')))) {
                 izbrisani[kljuc] = cas
                 while (izbrisani.size > 300) izbrisani.remove(izbrisani.minByOrNull { it.value }!!.key)
                 ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString()).apply()
             }
             return false
         }
-        if (!SeznamiPravila.izbrisViraVelja(beriCase(ctx, VIRI_CASI)[kljuc] ?: 0L, cas)) return false
+        if (!SeznamiPravila.izbrisViraVelja(beriCase(ctx, VIRI_CASI)[kljucUskladitve(moj)] ?: 0L, cas)) return false
         odstrani(ctx, moj, cas)
         return true
     }
