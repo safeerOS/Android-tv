@@ -341,6 +341,14 @@ object DatotekeStreznik {
                 Pretok.postrezi(pot.substring(6).substringBefore('?'), metoda, izhod)
                 return
             }
+            if (pot.startsWith("/magnet/")) {
+                // Torrent, ki ga ta naprava prenasa in pretaka drugi napravi v Linku (MagnetPomoc): zeton kot pri
+                // datotekah, a brez pogoja, da naprava deli svoje datoteke - tok ni njena datoteka.
+                if (metoda == "POST") { napaka(izhod, 405, "samo GET"); return }
+                if (!zetonVelja(zeton, zahtevaDeljenje = false)) { napaka(izhod, 401, "manjka ali napacen zeton"); return }
+                si.safeer.tv.os.MagnetMotor.postreziNapravi(pot.substring(8).substringBefore('?'), metoda, glave["range"].orEmpty(), izhod)
+                return
+            }
             if (!pot.startsWith("/d/") && !pot.startsWith("/thumb/")) { napaka(izhod, 404, "ni take poti"); return }
             if (!zetonVelja(zeton)) { napaka(izhod, 401, "manjka ali napacen zeton"); return }
             val ctx = appContext ?: run { napaka(izhod, 503, "ni pripravljeno"); return }

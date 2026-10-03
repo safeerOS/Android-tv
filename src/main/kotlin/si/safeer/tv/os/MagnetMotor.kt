@@ -187,6 +187,7 @@ object MagnetMotor {
     }
 
     private fun obnovi(c: Context) {
+        try { pocistiZacasne(c) } catch (e: Throwable) { Log.i(TAG, "Ciscenje: ${e.message}") }
         val vsi = JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}")
         for (h in vsi.keys()) {
             val z = vsi.optJSONObject(h) ?: continue
@@ -195,7 +196,7 @@ object MagnetMotor {
                     val lastna = z.optString("lastna")
                     if (lastna.isNotBlank()) deli(c, File(lastna)) else {
                         val izbrane = (0 until (z.optJSONArray("izbrane")?.length() ?: 0)).map { z.getJSONArray("izbrane").getInt(it) }
-                        dodaj(c, z.optString("uri"), izbrane, izbrane.toSet())  // shranjene je uporabnik že potrdil
+                        dodaj(c, z.optString("uri"), izbrane, izbrane.toSet(), zacasno = null)  // shranjene je uporabnik že potrdil
                     }
                 } catch (e: Throwable) { Log.i(TAG, "Obnova $h: ${e.message}") }
             }, "safeer-magnet-obnova").apply { isDaemon = true; start() }
@@ -251,7 +252,9 @@ object MagnetMotor {
      * program, prenesemo samo, če jo je uporabnik izrecno potrdil ([potrjeneNevarne]) - prepoznava je
      * samodejna in se lahko zmoti, odločitev je njegova. Predvajamo je nikoli.
      */
-    fun dodaj(c: Context, uri: String, izbrane: List<Int>, potrjeneNevarne: Set<Int> = emptySet()): String {
+    fun dodaj(c: Context, uri: String, izbrane: List<Int>, potrjeneNevarne: Set<Int> = emptySet(),
+              /** true = predvajanje brez izrecnega prenosa (samodejno ciscenje), false = uporabnik ga je prenesel sam (ostane), null = brez spremembe. */
+              zacasno: Boolean? = false): String {
         val opis = preberi(c, uri)
         val dovoljene = opis.datoteke.filter { it.vrsta != "nevarno" || it.i in potrjeneNevarne }.map { it.i }.toSet()
         val obstojeci = rocaj(c, opis.hash)
@@ -266,7 +269,14 @@ object MagnetMotor {
         } else {
             seja(c).download(ti, mapa(c), null, prednosti, null, TorrentFlags.SEQUENTIAL_DOWNLOAD)
         }
+        // Izrecen prenos velja naprej: torrent, ki ga je uporabnik prenesel sam, s predvajanjem ne postane zacasen.
+        val shranjen = try { JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").has(opis.hash) } catch (_: Throwable) { false }
+        val zeIzrecen = (obstojeci != null || shranjen) && !jeZacasen(c, opis.hash)
         zapomni(c, opis.hash, opis.uri, koncne)
+        when {
+            zacasno == true && !zeIzrecen -> zabeleziRabo(c, opis.hash, ti.name())
+            zacasno == false -> pozabiZacasnega(c, opis.hash)
+        }
         return opis.hash
     }
 
@@ -325,8 +335,11 @@ object MagnetMotor {
     fun magnet(c: Context, hash: String): String? = rocaj(c, hash)?.makeMagnetUri()?.let { zSledilniki(it) }
 
     private fun nadzor() {
+        var krog = 0
         while (true) {
             Thread.sleep(10_000)
+            // Vsako uro: zacasni torrenti, ki jih 48 ur nihce ni predvajal, gredo (tudi med dolgim delovanjem aplikacije).
+            if (++krog % 360 == 0) try { pocistiZacasne(app) } catch (e: Throwable) { Log.i(TAG, "Ciscenje: ${e.message}") }
             try {
                 val s = seja ?: continue
                 for (th in rocaji(s)) {
@@ -337,6 +350,204 @@ object MagnetMotor {
                 }
             } catch (e: Throwable) { Log.i(TAG, "Nadzor: ${e.message}") }
         }
+    }
+
+    // ------------------------------------------------------------------ zacasni tokovi in samodejno ciscenje
+
+    /** Motor torrentov je v Safeer OS (TV, tablica, telefon); Predvajalnik in brskalnik ga nimata. */
+    val naVoljo: Boolean get() = si.safeer.tv.BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")
+
+    /**
+     * Roka iz [ZacasniPravila]. Za preizkus na napravi ju je mogoce skrajsati z `adb shell setprop
+     * debug.safeer.torrent_velja_ms <ms>` in `debug.safeer.torrent_tece_ms <ms>` (lastnosti debug.* nastavi le adb).
+     */
+    private fun rok(lastnost: String, privzeto: Long): Long = try {
+        val p = Runtime.getRuntime().exec(arrayOf("getprop", lastnost))
+        p.inputStream.bufferedReader().use { it.readLine() }?.trim()?.toLongOrNull()?.takeIf { it in 1_000L..privzeto } ?: privzeto
+    } catch (_: Throwable) { privzeto }
+    private val zadnjiZapisRabe = ConcurrentHashMap<String, Long>()
+
+    /** hash -> {cas zadnje rabe, ime mape ali datoteke}: torrenti, ki jih je zacel predvajalnik ali druga naprava v Linku. */
+    private fun zacasni(c: Context): JSONObject = try { JSONObject(prefs(c).getString("zacasni", "{}") ?: "{}") } catch (_: Throwable) { JSONObject() }
+
+    fun jeZacasen(c: Context, hash: String): Boolean = zacasni(c).has(hash.lowercase())
+
+    @Synchronized
+    fun zabeleziRabo(c: Context, hash: String, ime: String = "") {
+        val h = hash.lowercase()
+        val z = zacasni(c)
+        val prej = z.optJSONObject(h)
+        z.put(h, JSONObject().put("cas", System.currentTimeMillis()).put("ime", ime.ifBlank { prej?.optString("ime").orEmpty() }))
+        prefs(c).edit().putString("zacasni", z.toString()).apply()
+        zadnjiZapisRabe[h] = System.currentTimeMillis()
+    }
+
+    /** Tok se bere (predvajanje tece): rok do odstranitve se podaljsa - zapis najvec na 10 minut. */
+    private fun rabaTece(c: Context, hash: String) {
+        val h = hash.lowercase()
+        if (System.currentTimeMillis() - (zadnjiZapisRabe[h] ?: 0L) < 600_000L) return
+        zadnjiZapisRabe[h] = System.currentTimeMillis()
+        if (jeZacasen(c, h)) zabeleziRabo(c, h)
+    }
+
+    @Synchronized
+    private fun pozabiZacasnega(c: Context, hash: String) {
+        val z = zacasni(c)
+        if (!z.has(hash.lowercase())) return
+        z.remove(hash.lowercase())
+        prefs(c).edit().putString("zacasni", z.toString()).apply()
+    }
+
+    /** Koliko prostora mora na napravi vedno ostati (5 % shrambe, najmanj 300 MB, najvec 2 GB). */
+    fun rezerva(c: Context): Long = try {
+        (mapa(c).totalSpace / 20).coerceIn(300L * 1024 * 1024, 2048L * 1024 * 1024)
+    } catch (_: Throwable) { 1024L * 1024 * 1024 }
+
+    private fun velikostNaDisku(f: File): Long = try {
+        if (f.isDirectory) f.listFiles()?.sumOf { velikostNaDisku(it) } ?: 0L else f.length()
+    } catch (_: Throwable) { 0L }
+
+    /** Mapa ali datoteka zacasnega torrenta v nasi mapi prenosov (nikoli zunaj nje). */
+    private fun potZacasnega(c: Context, ime: String): File? {
+        if (ime.isBlank() || ime == "." || ime == ".." || ime.contains('/') || ime.contains('\\')) return null
+        val koren = mapa(c)
+        val f = File(koren, ime)
+        return try { if (f.canonicalPath.startsWith(koren.canonicalPath + File.separator)) f else null } catch (_: Throwable) { null }
+    }
+
+    /** Datoteke zacasnega torrenta in njegova datoteka delnih kosov (.<hash>.parts) - tudi kadar seja ne tece. */
+    private fun izbrisiDatoteke(c: Context, hash: String, ime: String) {
+        potZacasnega(c, ime)?.let { try { it.deleteRecursively() } catch (_: Throwable) { } }
+        if (Regex("^[0-9a-f]{40}$").matches(hash)) try { File(mapa(c), ".$hash.parts").delete() } catch (_: Throwable) { }
+    }
+
+    @Volatile private var prostorOb = 0L
+    @Volatile private var prostorZadnji = 0L
+
+    /**
+     * Najvecja datoteka, ki jo ta naprava lahko predvaja iz torrenta sama: prosti prostor brez rezerve, skupaj s tem,
+     * kar bi sprostili zacasni torrenti, ki jih ze nekaj ur nihce ne gleda. Vrednost velja nekaj sekund (klic iz risanja).
+     */
+    fun prostorZaTok(c: Context): Long {
+        if (!naVoljo) return 0L
+        val zdaj = android.os.SystemClock.elapsedRealtime()
+        if (prostorOb != 0L && zdaj - prostorOb < 5_000) return prostorZadnji
+        var sprostljivo = 0L
+        try {
+            val z = zacasni(c)
+            for (h in z.keys()) {
+                val o = z.optJSONObject(h) ?: continue
+                if (ZacasniPravila.sprostljiv(o.optLong("cas"), System.currentTimeMillis())) potZacasnega(c, o.optString("ime"))?.let { sprostljivo += velikostNaDisku(it) }
+            }
+        } catch (_: Throwable) { }
+        prostorZadnji = (mapa(c).usableSpace - rezerva(c) + sprostljivo).coerceAtLeast(0L)
+        prostorOb = zdaj
+        return prostorZadnji
+    }
+
+    /**
+     * Odstrani zacasne torrente z datotekami: tiste, ki jih 48 ur nihce ni predvajal, in - kadar za nov film manjka
+     * prostora ([potrebujem] bajtov prostega) - tudi mlajse, najdlje neuporabljene prve (ne predvajanih v zadnjih urah in
+     * ne [obdrzi]). Dela tudi brez zagnane seje (ob zagonu aplikacije): zapis in datoteke odstrani naravnost.
+     * Kar je uporabnik prenesel sam (Prenesi), ni zacasno in ostane. Vrne stevilo odstranjenih.
+     */
+    @Synchronized
+    fun pocistiZacasne(c: Context, potrebujem: Long = 0L, obdrzi: String = ""): Int {
+        val z = zacasni(c)
+        val zdaj = System.currentTimeMillis()
+        if (z.length() == 0) return 0
+        val velja = rok("debug.safeer.torrent_velja_ms", ZacasniPravila.VELJA_MS)
+        val vTeku = rok("debug.safeer.torrent_tece_ms", ZacasniPravila.V_TEKU_MS)
+        val vsi = ZacasniPravila.poVrsti(z.keys().asSequence().toList().mapNotNull { h -> z.optJSONObject(h)?.let { it.optLong("cas") to (h to it.optString("ime")) } })
+        var odstranjenih = 0
+        for ((cas, vnos) in vsi) {
+            val (h, ime) = vnos
+            if (h == obdrzi.lowercase()) continue
+            val pretekel = ZacasniPravila.odstrani(cas, zdaj, false, velja, vTeku)
+            val primanjkuje = potrebujem > 0 && mapa(c).usableSpace < potrebujem
+            if (!ZacasniPravila.odstrani(cas, zdaj, primanjkuje, velja, vTeku)) continue
+            try {
+                seja?.let { s -> s.find(Sha1Hash.parseHex(h))?.let { s.remove(it, session_handle.delete_files) } }
+            } catch (e: Throwable) { Log.i(TAG, "Odstranitev $h: ${e.message}") }
+            pozabi(c, h)
+            prefs(c).getStringSet("deli_naprej", emptySet())!!.let { m -> if (h in m) prefs(c).edit().putStringSet("deli_naprej", m - h).apply() }
+            izbrisiDatoteke(c, h, ime)
+            z.remove(h)
+            odstranjenih++
+            Log.i(TAG, "Zacasni torrent $h odstranjen (${if (pretekel) "48 h brez predvajanja" else "prostor za nov film"})")
+        }
+        if (odstranjenih > 0) { prefs(c).edit().putString("zacasni", z.toString()).apply(); prostorOb = 0L }
+        return odstranjenih
+    }
+
+    /** Pripravljen tok: lokalni naslov za predvajalnik te naprave in skrivnost za tok drugi napravi ([postreziNapravi]). */
+    class Pripravljen(val hash: String, val datoteka: Datoteka, val url: String, val skrivnost: String, val podnapisi: List<Pair<Datoteka, String>>)
+
+    /**
+     * Predvajanje naravnost iz torrenta, brez okna Magnet (film iz kataloga; pomoc drugi napravi v Linku): prebere
+     * metapodatke, izbere datoteko ([datoteka] ali najvecji video), naredi prostor in zacne prenos kot zacasen torrent.
+     * Blokira do minute - klic iz ozadja. Napake kot sporocilo izjeme: ni_magnet, ni_metapodatkov, ni_predvajljivo,
+     * ni_prostora.
+     */
+    fun pripraviTok(c: Context, uri: String, datoteka: Int = -1): Pripravljen {
+        if (!naVoljo) throw IllegalStateException("ni_podprto")
+        val opis = try { preberi(c, uri) } catch (e: IllegalArgumentException) { throw IllegalStateException("ni_magnet") }
+        val d = (if (datoteka >= 0) opis.datoteke.firstOrNull { it.i == datoteka && it.predvajljiva }
+            else opis.datoteke.filter { it.vrsta == "video" }.maxByOrNull { it.velikost } ?: opis.datoteke.filter { it.vrsta == "audio" }.maxByOrNull { it.velikost })
+            ?: throw IllegalStateException("ni_predvajljivo")
+        // Kar je od te datoteke ze na disku (film, ki ga nadaljujemo), ne potrebuje novega prostora.
+        val zePreneseno = try { rocaj(c, opis.hash)?.fileProgress()?.getOrNull(d.i) ?: 0L } catch (_: Throwable) { 0L }
+        val potrebno = (d.velikost - zePreneseno).coerceAtLeast(0L) + rezerva(c)
+        pocistiZacasne(c, potrebno, opis.hash)
+        if (mapa(c).usableSpace < potrebno) throw IllegalStateException("ni_prostora")
+        val podnapisi = if (d.vrsta == "video") try { podnapisiZa(c, uri, d.i) } catch (_: Throwable) { emptyList() } else emptyList()
+        val hash = dodaj(c, uri, listOf(d.i) + podnapisi.map { it.i }, zacasno = true)
+        val url = tok(c, hash, d.i)
+        return Pripravljen(hash, d, url, url.substringAfterLast('/'), podnapisi.map { it to tok(c, hash, it.i) })
+    }
+
+    /** Zacasni torrenti te naprave za `magnet.list`: [(hash, ime, velikost izbranih, preneseno, koncano, magnet, datoteka)]. */
+    fun seznamZacasnih(c: Context): JSONArray {
+        val izid = JSONArray()
+        if (!naVoljo) return izid
+        val z = zacasni(c)
+        if (z.length() == 0) return izid
+        val vsi = seznam(c)
+        for (k in 0 until vsi.length()) {
+            val t = vsi.optJSONObject(k) ?: continue
+            val hash = t.optString("hash").lowercase()
+            if (!z.has(hash)) continue
+            val d = t.optJSONArray("datoteke")
+            val video = (0 until (d?.length() ?: 0)).mapNotNull { d?.optJSONObject(it) }.firstOrNull { it.optBoolean("vkljucena") && it.optString("vrsta") == "video" }
+            izid.put(JSONObject().put("id", idZacasnega(hash)).put("name", t.optString("ime")).put("size", t.optLong("skupaj"))
+                .put("done", t.optLong("preneseno")).put("finished", t.optBoolean("koncano"))
+                .put("magnet", "magnet:?xt=urn:btih:$hash").put("file", video?.optInt("i", -1) ?: -1))
+        }
+        return izid
+    }
+
+    /** Stevilka zacasnega torrenta za `magnet.remove` (protokol racunalnika pozna celo stevilo, ne hasha). */
+    fun idZacasnega(hash: String): Int = hash.take(7).toInt(16)
+
+    fun seznamZacasnihIdji(c: Context): List<Int> = try { zacasni(c).keys().asSequence().map { idZacasnega(it) }.toList() } catch (_: Throwable) { emptyList() }
+
+    /** `magnet.remove`: samo zacasni torrenti (kar je uporabnik te naprave prenesel sam, druga naprava ne more odstraniti). */
+    fun odstraniZacasnega(c: Context, id: Int): Boolean {
+        val z = zacasni(c)
+        val hash = z.keys().asSequence().firstOrNull { idZacasnega(it) == id } ?: return false
+        odstrani(c, hash, true)
+        izbrisiDatoteke(c, hash, z.optJSONObject(hash)?.optString("ime").orEmpty())
+        pozabi(c, hash)
+        pozabiZacasnega(c, hash)
+        prostorOb = 0L
+        return true
+    }
+
+    /** Tok za drugo napravo v Linku ([si.safeer.tv.link.DatotekeStreznik] pot `/magnet/<skrivnost>`, zeton je ze preverjen). */
+    fun postreziNapravi(skrivnost: String, metoda: String, obseg: String, izhod: OutputStream) {
+        val cilj = tokovi[skrivnost]
+        if ((metoda != "GET" && metoda != "HEAD") || cilj == null) { prazen(izhod, 404); return }
+        postreziCilj(cilj, metoda, obseg, izhod)
     }
 
     // ------------------------------------------------------------------ lokalni tok za predvajalnik
@@ -404,6 +615,18 @@ object MagnetMotor {
             val metoda = deli.getOrNull(0).orEmpty()
             val cilj = tokovi[deli.getOrNull(1).orEmpty().removePrefix("/t/").substringBefore('?')]
             if ((metoda != "GET" && metoda != "HEAD") || cilj == null) { prazen(izhod, 404); return }
+            postreziCilj(cilj, metoda, obseg, izhod)
+        } catch (e: Throwable) {
+            Log.i(TAG, "Tok: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
+        } finally {
+            try { s.close() } catch (_: Throwable) { }
+        }
+    }
+
+    /** Odgovor s tokom datoteke torrenta (z `Range`): isti za predvajalnik te naprave in za drugo napravo v Linku. */
+    private fun postreziCilj(cilj: Pair<String, Int>, metoda: String, obseg: String, izhod: OutputStream) {
+        try {
+            rabaTece(app, cilj.first)
             val th = rocaj(app, cilj.first) ?: run { prazen(izhod, 404); return }
             val ti = th.torrentFile() ?: run { prazen(izhod, 404); return }
             val fs = ti.files()
@@ -435,8 +658,6 @@ object MagnetMotor {
             posljiObseg(th, ti, cilj.second, zacetek, dolzina, izhod)
         } catch (e: Throwable) {
             Log.i(TAG, "Tok: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
-        } finally {
-            try { s.close() } catch (_: Throwable) { }
         }
     }
 

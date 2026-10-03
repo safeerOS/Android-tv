@@ -36,9 +36,10 @@ object Razpolozljivost {
      * njega je razpolozljivost istega naslova druga, zato imata nacina vsak svoje zapise: ko se pomocnik vrne v
      * krog, "ni na voljo" iz casa brez njega ne velja vec (3. 10. 2026: mreza Filmi je ostala prazna se 6 ur).
      */
-    @Volatile private var torrent = true
+    @Volatile private var nacin = ""
 
-    fun kljuc(tip: String, id: String) = if (torrent) "$tip|$id" else "$tip|$id|brez"
+    /** [nacin]: "" = vsak torrent steje, "brez" = nobeden, "doN" = le do velikosti, ki gre na prosti prostor naprave. */
+    fun kljuc(tip: String, id: String) = if (nacin.isEmpty()) "$tip|$id" else "$tip|$id|$nacin"
 
     private fun nalozi(c: Context) {
         if (nalozeno) return
@@ -85,9 +86,9 @@ object Razpolozljivost {
     }
 
     /** Drugi dodatki = druga razpolozljivost: ob spremembi seznama dodatkov vse pozabimo. */
-    fun pripravi(c: Context, dodatki: List<String>, torrentSteje: Boolean) {
+    fun pripravi(c: Context, dodatki: List<String>, nacinTorrenta: String) {
         nalozi(c)
-        torrent = torrentSteje
+        nacin = nacinTorrenta
         // "2": zapisi pred locenima nacinoma (torrent / brez) niso zanesljivi - ob posodobitvi se enkrat pozabijo.
         val odtis = "2:" + dodatki.map { it.trim() }.sorted().joinToString("\n").hashCode().toString()
         val p = c.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE)

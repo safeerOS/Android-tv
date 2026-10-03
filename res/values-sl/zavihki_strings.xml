@@ -46,6 +46,10 @@
         <item quantity="other">%d epizod</item>
     </plurals>
     <string name="os_stremio_racunalnik_pripravlja">Računalnik %1$s pripravlja tok … (prvič lahko traja do minute)</string>
+    <string name="os_stremio_pripravljam">Pripravljam tok … (prvič lahko traja do minute)</string>
+    <string name="os_stremio_naprava_pripravlja">%1$s pripravlja tok … (prvič lahko traja do minute)</string>
+    <string name="os_stremio_ni_prostora_nikjer">Za ta film ni dovolj prostora – ne na tej napravi ne na drugih v tvojem Linku.</string>
+    <string name="os_stremio_naprave_zasedene">Naprave v tvojem Linku ta hip ne morejo pomagati. Poskusi čez nekaj minut.</string>
     <string name="os_stremio_torrent_brez_racunalnika">Ta vir je torrent. Da se nič ne prenaša na to napravo, ga lahko prenaša in pretaka računalnik s Safeer Control v tvojem Linku – trenutno ni nobenega povezanega. Vklopi Safeer Control na računalniku in poskusi znova.</string>
     <string name="os_stremio_torrent_napaka">Računalnik torrenta ni mogel pretakati (%1$s).</string>
     <string name="os_stremio_prenesi_sem">Prenesi na to napravo</string>
@@ -55,6 +59,8 @@
     <string name="os_prenos_odstrani_vprasanje">Film in vse njegove datoteke se izbrišejo z računalnika. Kadarkoli ga lahko znova odpreš iz dodatka.</string>
     <string name="os_prenos_odstranjen">Odstranjeno z računalnika</string>
     <string name="os_stremio_vir_racunalnik">Pretaka računalnik v Safeer Linku – na to napravo se nič ne prenaša</string>
+    <string name="os_stremio_vir_tukaj">Predvaja se iz torrenta na tej napravi – ko ga dva dni ne gledaš, se odstrani sam</string>
+    <string name="os_stremio_vir_naprava">Pretaka naprava v Safeer Linku – na to napravo se nič ne prenaša</string>
     <string name="os_stremio_racunalnik_zaseden">Računalniki v tvojem Linku so trenutno zelo zasedeni, zato ne prevzamejo še tega dela. Poskusi čez nekaj minut.</string>
     <string name="os_stremio_racunalnik_ni_prostora">Na računalniku ni dovolj prostora za ta film. Odstrani starejše prenose v polici »Prenosi na računalniku«.</string>
     <string name="os_moc_k_ram">RAM %1$s prosto</string>

@@ -42,6 +42,10 @@
         <item quantity="other">%d épisodes</item>
     </plurals>
     <string name="os_stremio_racunalnik_pripravlja">L’ordinateur %1$s prépare le flux … (la première fois, jusqu’à une minute)</string>
+    <string name="os_stremio_pripravljam">Préparation du flux … (la première fois jusqu\'à une minute)</string>
+    <string name="os_stremio_naprava_pripravlja">%1$s prépare le flux … (la première fois jusqu\'à une minute)</string>
+    <string name="os_stremio_ni_prostora_nikjer">Pas assez de place pour ce film – ni sur cet appareil ni sur les autres de ton Link.</string>
+    <string name="os_stremio_naprave_zasedene">Les appareils de ton Link ne peuvent pas aider pour le moment. Réessaie dans quelques minutes.</string>
     <string name="os_stremio_torrent_brez_racunalnika">Cette source est un torrent. Pour ne rien télécharger sur cet appareil, un ordinateur avec Safeer Control dans ton Link peut le télécharger et le diffuser – aucun n’est connecté. Lance Safeer Control sur l’ordinateur et réessaie.</string>
     <string name="os_stremio_torrent_napaka">L’ordinateur n’a pas pu diffuser ce torrent (%1$s).</string>
     <string name="os_stremio_prenesi_sem">Télécharger sur cet appareil</string>
@@ -51,6 +55,8 @@
     <string name="os_prenos_odstrani_vprasanje">Le film et tous ses fichiers seront supprimés de l’ordinateur. Tu peux le rouvrir à tout moment depuis l’extension.</string>
     <string name="os_prenos_odstranjen">Supprimé de l’ordinateur</string>
     <string name="os_stremio_vir_racunalnik">Diffusé par un ordinateur de Safeer Link – rien n’est téléchargé sur cet appareil</string>
+    <string name="os_stremio_vir_tukaj">Lecture depuis un torrent sur cet appareil – supprimé automatiquement après deux jours sans visionnage</string>
+    <string name="os_stremio_vir_naprava">Diffusé par un appareil de Safeer Link – rien n\'est téléchargé sur cet appareil</string>
     <string name="os_stremio_racunalnik_zaseden">Les ordinateurs de ton Link sont très occupés et ne prennent pas cette tâche en plus. Réessaie dans quelques minutes.</string>
     <string name="os_stremio_racunalnik_ni_prostora">Pas assez d’espace sur l’ordinateur pour ce film. Supprime d’anciens téléchargements dans « Téléchargements sur l’ordinateur ».</string>
     <string name="os_moc_k_ram">RAM %1$s libre</string>

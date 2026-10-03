@@ -371,14 +371,26 @@ object Stremio {
         return ObvestilaTokov.je(s.optString("url"), "$ime $opis", znakiToka)
     }
 
+    /**
+     * Ali torrent na tej napravi steje kot predvajanje. [meja]: Long.MAX_VALUE = vsak (pomocnik v Linku ali veliko
+     * prostora), 0 = nobeden, sicer najvecja datoteka (bajti), ki gre na prosti prostor - velikost pove opis toka;
+     * torrent brez znane velikosti takrat ne steje (ne obljubimo filma, ki ne gre na napravo).
+     */
+    fun torrentGre(t: Tok, meja: Long): Boolean = when (meja) {
+        0L -> false
+        Long.MAX_VALUE -> true
+        else -> TokIzbira.opisi(t.ime + " " + t.opis).gb.let { it > 0.0 && it * 1024.0 * 1024.0 * 1024.0 <= meja }
+    }
+
     /** Tok, ki ga ta naprava lahko predvaja kot vsebino (ne napovednik). */
     fun jePredvajljiv(t: Tok) = t.vrsta == "url" || t.vrsta == "torrent"
 
     /**
      * Ali vsaj eden od dodatkov za ta naslov ponuja predvajanje: true = da, false = vsi so odgovorili in nobeden nima
-     * nicesar, null = ne vemo (kateri ni odgovoril) - takrat nicesar ne sklepamo. [torrent]: ali torrent tu steje.
+     * nicesar, null = ne vemo (kateri ni odgovoril) - takrat nicesar ne sklepamo. [torrent]: kateri torrent tu steje
+     * ([torrentGre]).
      */
-    fun razpolozljivo(naslovi: List<String>, tip: String, id: String, torrent: Boolean): Boolean? {
+    fun razpolozljivo(naslovi: List<String>, tip: String, id: String, torrent: Long): Boolean? {
         if (naslovi.isEmpty()) return null
         val manifestiDodatkov = naslovi.map { manifest(it) }
         // Dodatek, ki ga trenutno ne dosezemo (brez omrezja), bi vsebino morda imel: ne sklepamo "ni na voljo".
@@ -390,7 +402,7 @@ object Stremio {
             val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json")
                 ?: return@submit if (kodaPomeniNima(zadnjaKoda.get() ?: 0)) false else null
             val a = d.optJSONArray("streams") ?: JSONArray()
-            (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.any { it.vrsta == "url" || (torrent && it.vrsta == "torrent") }
+            (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.any { it.vrsta == "url" || (it.vrsta == "torrent" && torrentGre(it, torrent)) }
         } }
         // Prvi dodatek, ki ima tok, zadosca (na pocasne ne cakamo); "ni" velja sele, ko so odgovorili vsi.
         val rok = System.currentTimeMillis() + 15_000

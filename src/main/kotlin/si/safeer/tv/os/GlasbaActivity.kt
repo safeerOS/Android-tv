@@ -3065,7 +3065,7 @@ class GlasbaActivity : OsActivity() {
         if (naslovi.isEmpty()) return false
         val cakajo = l.filter { sk -> kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == null } == true }.take(24)
         if (cakajo.isEmpty()) return false
-        val torrent = torrentSteje()
+        val torrent = torrentMeja()
         val niti = cakajo.map { sk -> preverjanjeEpizod.submit<Boolean> {
             val r = try { preveriEnoto(sk, naslovi, torrent) } catch (_: Exception) { null }
             if (r != null) kljucRazpolozljivosti(sk)?.let { Razpolozljivost.zapomni(applicationContext, it, r) }
@@ -3863,13 +3863,41 @@ class GlasbaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ razpolozljivost: prikazemo samo, kar se da predvajati
 
-    /** Torrent tu steje kot predvajanje: telefon in tablica ga zmoreta sama, televizor le prek racunalnika v Linku. */
-    private fun torrentSteje() = !jeTv() || racunalnikiZaPomoc().isNotEmpty()
+    /**
+     * Kateri torrent ta naprava ta hip zmore predvajati: vsakega (Long.MAX_VALUE), ce ji pomaga naprava v Linku
+     * (racunalnik, telefon, tablica) ali ima sama veliko prostora; sicer le datoteko, ki gre na njen prosti prostor
+     * (bajti); 0 = nobenega (Predvajalnik brez Linka, naprava brez prostora). Glej [Stremio.torrentGre].
+     */
+    private fun torrentMeja(): Long {
+        if (racunalnikiZaPomoc().isNotEmpty() || napraveZaTorrent().isNotEmpty()) return Long.MAX_VALUE
+        val prostor = MagnetMotor.prostorZaTok(this)
+        return when {
+            prostor >= 20L * 1024 * 1024 * 1024 -> Long.MAX_VALUE
+            prostor < 150L * 1024 * 1024 -> 0L
+            else -> prostor
+        }
+    }
 
-    private var torrentPrej: Boolean? = null
+    private fun torrentSteje() = torrentMeja() > 0L
+
+    /** Zapisi razpolozljivosti so loceni po tem, kaj naprava zmore ([Razpolozljivost.kljuc]); velikost po 256 MB. */
+    private fun nacinTorrenta(meja: Long = torrentMeja()) = when (meja) {
+        Long.MAX_VALUE -> ""
+        0L -> "brez"
+        else -> "do" + meja / (256L * 1024 * 1024)
+    }
+
+    /** Naprave v Linku s Safeer OS (telefon, tablica, televizor), ki znajo torrent pretakati drugim ([si.safeer.tv.link.MagnetPomoc]). */
+    private fun napraveZaTorrent(): List<LinkOdjemalec.Naprava> {
+        if (link.jeKrajevni() || !link.povezan) return emptyList()
+        val jaz = LinkUpravitelj.fizicnaNaprava(Identiteta.id(this))
+        return link.naprave.filter { n -> si.safeer.tv.link.MagnetPomoc.ZMOZNOST in n.zmoznosti && LinkUpravitelj.fizicnaNaprava(n.id) != jaz }
+    }
+
+    private var torrentPrej: String? = null
     /** Pomocnik je prisel v krog ali ga zapustil: kar se da predvajati, je zdaj drugo - mreza se uredi takoj, ne cez ure. */
     private fun torrentSeJeSpremenil() {
-        val zdaj = torrentSteje()
+        val zdaj = nacinTorrenta()
         val prej = torrentPrej
         torrentPrej = zdaj
         if (prej == null) Razpolozljivost.pripravi(this, stremioNaslovi(), zdaj)
@@ -3901,11 +3929,11 @@ class GlasbaActivity : OsActivity() {
      * Dotik ni dal toka: vsebino skrijemo takoj (za nekaj minut), za ure pa si "ni na voljo" zapomnimo sele, ko to
      * potrdijo vsi dodatki. Izpad dodatka ali omrezja tako ne skrije naslova, ki je cez minuto spet na voljo.
      */
-    private fun skrijInPotrdi(k: String, preveri: (List<String>, Boolean) -> Boolean?) {
+    private fun skrijInPotrdi(k: String, preveri: (List<String>, Long) -> Boolean?) {
         Razpolozljivost.zacasnoNi(k)
         val naslovi = stremioNaslovi()
         if (naslovi.isEmpty()) return
-        val torrent = torrentSteje()
+        val torrent = torrentMeja()
         try {
             preverjanjeEpizod.execute {
                 val r = try { preveri(naslovi, torrent) } catch (_: Exception) { null }
@@ -3965,7 +3993,7 @@ class GlasbaActivity : OsActivity() {
             val vidni = vidniKataloga(o).second.map { it.id }
             val drugace = vidni != o.narisani
             if (drugace || o.caka.get() == 0) android.util.Log.i("SafeerOsMedia", "mreza: vidnih=${vidni.size}, narisanih=${o.narisani.size}, vseh=${o.vsi.size}, caka=${o.caka.get()}, " +
-                "nalagam=${o.nalagam}, seKaj=${o.seKaj}, cilj=${o.cilj}, samodejno=${o.samodejno}, strogo=${strogaMreza(o)}, torrent=${torrentSteje()}, risem=$drugace")
+                "nalagam=${o.nalagam}, seKaj=${o.seKaj}, cilj=${o.cilj}, samodejno=${o.samodejno}, strogo=${strogaMreza(o)}, torrent=${nacinTorrenta().ifEmpty { "vse" }}, risem=$drugace")
             if (drugace) osveziMrezo(o)
             poPreverjanju(o)
         }
@@ -3994,7 +4022,7 @@ class GlasbaActivity : OsActivity() {
 
     /** (kandidati = vse, cesar ne poznamo kot nepredvajljivo; vidni = kar od tega res pokazemo). */
     private fun vidniKataloga(o: OdprtKatalog): Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>> {
-        val torrent = torrentSteje()
+        val torrent = nacinTorrenta()
         torrentPrej = torrent
         Razpolozljivost.pripravi(this, stremioNaslovi(), torrent)
         val kandidati = (if (o.tip.isNotBlank()) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi).filterNot { znanoNiNaVoljo(it) }
@@ -4023,7 +4051,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Ali je serija ali film na voljo: film vprasamo naravnost, serijo po prvi epizodi, prvi epizodi zadnje sezone in zadnji epizodi. */
-    private fun preveriEnoto(sk: Jamendo.Skladba, naslovi: List<String>, torrent: Boolean): Boolean? {
+    private fun preveriEnoto(sk: Jamendo.Skladba, naslovi: List<String>, torrent: Long): Boolean? {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return null
         if (tip == "movie") return Stremio.razpolozljivo(naslovi, tip, id, torrent)
         val ep = (try { Stremio.epizode(sk) } catch (_: Exception) { emptyList() }).filter { it.sezona >= 1 }
@@ -4046,7 +4074,7 @@ class GlasbaActivity : OsActivity() {
         if (cakajo.isEmpty()) return
         val naslovi = stremioNaslovi()
         if (naslovi.isEmpty()) return
-        val torrent = torrentSteje()
+        val torrent = torrentMeja()
         for (sk in cakajo) {
             val k = kljucRazpolozljivosti(sk) ?: continue
             if (!vPreverjanju.add(k)) continue
@@ -4081,9 +4109,9 @@ class GlasbaActivity : OsActivity() {
         if (omrezje == null || omrezje.activeNetwork == null || omrezje.isActiveNetworkMetered) return
         val naslovi = stremioNaslovi()
         if (naslovi.isEmpty()) return
-        val torrent = torrentSteje()
-        torrentPrej = torrent
-        Razpolozljivost.pripravi(this, naslovi, torrent)
+        val torrent = torrentMeja()
+        torrentPrej = nacinTorrenta(torrent)
+        Razpolozljivost.pripravi(this, naslovi, nacinTorrenta(torrent))
         for (sk in enote) {
             val k = kljucRazpolozljivosti(sk) ?: continue
             if (Razpolozljivost.stanje(this, k) != null || !vPreverjanju.add(k)) continue
@@ -4103,7 +4131,7 @@ class GlasbaActivity : OsActivity() {
     private fun preveriEpizode(tip: String, ep: List<Stremio.Epizoda>, obNi: (Stremio.Epizoda) -> Unit) {
         val naslovi = stremioNaslovi()
         if (naslovi.isEmpty()) return
-        val torrent = torrentSteje()
+        val torrent = torrentMeja()
         for (e in ep.take(40)) {
             val k = Razpolozljivost.kljuc(tip, e.id)
             if (e.tokovi.isNotEmpty() || Razpolozljivost.stanje(this, k) != null) continue
@@ -4131,7 +4159,10 @@ class GlasbaActivity : OsActivity() {
                           obNeuspehu: (() -> Unit)? = null) {
         // Brez predvajljivega toka ni okna in ni seznama povezav (prosnje za donacijo, Discord, "No streams found" so ze
         // izlocene v Stremio.tok): kratko obvestilo, vsebina pa izgine s seznama (lastnik, 2. 10. 2026).
-        if (tokovi.none { Stremio.jePredvajljiv(it) }) {
+        // Torrent steje le, ce ga ta naprava zmore: prek pomocnika v Linku ali sama, ce datoteka gre na njen prostor.
+        val meja = torrentMeja()
+        fun gre(t: Stremio.Tok) = t.vrsta != "torrent" || Stremio.torrentGre(t, meja)
+        if (tokovi.none { Stremio.jePredvajljiv(it) && gre(it) }) {
             Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
             if (obNeuspehu != null) obNeuspehu() else oznaciNiNaVoljo(sk)
             return
@@ -4148,14 +4179,15 @@ class GlasbaActivity : OsActivity() {
                     GlasbaStoritev.predvajajZRezervami(this, r, rezerve.map { skladbaToka(it) to it.glave })
                     if (r.video) { nadaljujKoPripravljen(r); startActivity(Intent(this, PredvajanjeActivity::class.java)) }
                 }
-                "torrent" -> torrentPrekRacunalnika(sk, naslov, t.url, t.datoteka)
+                "torrent" -> torrentPrekRacunalnika(sk, naslov, t.url, t.datoteka,
+                    velikost = (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong())
                 // Napovednik (samo pri rocni izbiri vira): igra v nasem predvajalniku, ne v brskalniku.
                 else -> razresiSplet(SpletniVir.enota(t.url, naslov, "", sk.slika, true))
             }
         }
         val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
         val neposredni = TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave)
-        val torrenti = TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" }, opis, zmoznostiNaprave)
+        val torrenti = TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave)
         if (!rocno) {
             android.util.Log.i("SafeerOsMedia", "tokovi: neposredni=${neposredni.size}, torrenti=${torrenti.size}, zunanji=${tokovi.size - neposredni.size - torrenti.size}; " +
                 "izbran=${(neposredni.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}")
@@ -4181,7 +4213,9 @@ class GlasbaActivity : OsActivity() {
      * ta naprava dobi le sproten tok kot pri spletnem videu - nic se ne prenasa in ne shranjuje nanjo.
      * Brez racunalnika televizor torrenta ne prenasa; telefon in tablica ga lahko, ce uporabnik izbere.
      */
-    private fun torrentPrekRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int = -1, prednost: String = "") {
+    private fun torrentPrekRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int = -1, prednost: String = "",
+                                       /** Velikost datoteke po opisu toka (bajti), 0 = neznana. */
+                                       velikost: Long = 0L) {
         val vsi = racunalnikiZaPomoc()
             .sortedWith(compareByDescending<LinkOdjemalec.Naprava> { it.id == prednost }.thenByDescending { it.zmoznosti.contains("desktop") })
         // Nadzornik solidarnosti: (1) ce ima kateri racunalnik ta film ze (magnet.list), ga pretaka on -
@@ -4195,7 +4229,7 @@ class GlasbaActivity : OsActivity() {
             fun koncano() {
                 if (--cakam != 0 || isFinishing) return
                 val izbran = vsi.firstOrNull { it.id in zeIma } ?: vsi.maxByOrNull { proste[it.id] ?: 0.0 } ?: vsi.first()
-                torrentPrekRacunalnika(sk, naslov, magnet, datoteka, izbran.id)
+                torrentPrekRacunalnika(sk, naslov, magnet, datoteka, izbran.id, velikost)
             }
             for (r in vsi) {
                 link.ukaz(r.id, "host.info", org.json.JSONObject(), 2_500, LinkOdjemalec.Odgovor { izid, _ ->
@@ -4211,24 +4245,11 @@ class GlasbaActivity : OsActivity() {
             return
         }
         val racunalniki = vsi
-        fun brez(sporocilo: String) {
-            val d = AlertDialog.Builder(this).setTitle(naslov).setMessage(sporocilo).setPositiveButton(android.R.string.ok, null)
-            if (!jeTv()) d.setNeutralButton(R.string.os_stremio_prenesi_sem) { _, _ ->
-                startActivity(Intent(this, MagnetActivity::class.java).putExtra(MagnetActivity.EXTRA_URI, magnet))
-            }
-            d.show()
-        }
-        if (racunalniki.isEmpty()) { brez(getString(R.string.os_stremio_torrent_brez_racunalnika)); return }
+        // Brez racunalnika (ali ce noben ne more): naprava predvaja sama ali prosi drugo napravo v krogu - brez okna.
+        if (racunalniki.isEmpty()) { torrentBrezRacunalnika(sk, naslov, magnet, datoteka, velikost, ""); return }
         var zadnjaNapaka = ""
         fun poskusi(k: Int) {
-            if (k >= racunalniki.size) {
-                brez(when (zadnjaNapaka) {
-                    "preobremenjen", "malo_pomnilnika", "baterija", "varcevanje", "pregreto" -> getString(R.string.os_stremio_racunalnik_zaseden)
-                    "ni_prostora" -> getString(R.string.os_stremio_racunalnik_ni_prostora)
-                    else -> getString(R.string.os_stremio_torrent_napaka, zadnjaNapaka)
-                })
-                return
-            }
+            if (k >= racunalniki.size) { torrentBrezRacunalnika(sk, naslov, magnet, datoteka, velikost, zadnjaNapaka); return }
             val r = racunalniki[k]
             val ime = DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }
             Toast.makeText(this, getString(R.string.os_stremio_racunalnik_pripravlja, ime), Toast.LENGTH_LONG).show()
@@ -4241,18 +4262,84 @@ class GlasbaActivity : OsActivity() {
                     poskusi(k + 1)
                     return@Odgovor
                 }
-                val s = DatotekeActivity.Streznik(srv.optString("base_url").trimEnd('/'), srv.optString("fp"), srv.optString("token"), r.id)
-                val url = s.osnova + podatki.optString("path")
-                val pr = sk.copy(id = sk.id + "#t" + magnet.hashCode(), naslov = naslov, zvok = url, povezava = url, video = true)
-                SEZNAMI.remove(VIDEO)   // polica "Prenosi na racunalniku" se osvezi
-                // Plakat in ime iz dodatka si zapomnimo, da je kartica prenosa na racunalniku prepoznavna.
-                btih(magnet)?.let { h -> getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE).edit().putString(h, sk.slika).apply() }
-                GlasbaStoritev.predvajaj(this, listOf(pr), 0, s)
-                nadaljujKoPripravljen(pr)
-                startActivity(Intent(this, PredvajanjeActivity::class.java))
+                predvajajTokPomocnika(sk, naslov, magnet, r, srv, podatki.optString("path"))
             })
         }
         poskusi(0)
+    }
+
+    /** Tok, ki ga pretaka naprava v Linku (racunalnik ali Safeer OS na telefonu, tablici, TV): pripet streznik + pot. */
+    private fun predvajajTokPomocnika(sk: Jamendo.Skladba, naslov: String, magnet: String, r: LinkOdjemalec.Naprava, srv: org.json.JSONObject, pot: String,
+                                      /** Pomocnik je racunalnik (Safeer Control); sicer naprava s Safeer OS - oznaka "#tn" za napis vira. */
+                                      racunalnik: Boolean = true) {
+        val s = DatotekeActivity.Streznik(srv.optString("base_url").trimEnd('/'), srv.optString("fp"), srv.optString("token"), r.id)
+        val url = s.osnova + pot
+        val pr = sk.copy(id = sk.id + (if (racunalnik) "#t" else "#tn") + magnet.hashCode(), naslov = naslov, zvok = url, povezava = url, video = true)
+        SEZNAMI.remove(VIDEO)   // polica "Prenosi na racunalniku" se osvezi
+        // Plakat in ime iz dodatka si zapomnimo, da je kartica prenosa na racunalniku prepoznavna.
+        btih(magnet)?.let { h -> getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE).edit().putString(h, sk.slika).apply() }
+        GlasbaStoritev.predvajaj(this, listOf(pr), 0, s)
+        nadaljujKoPripravljen(pr)
+        startActivity(Intent(this, PredvajanjeActivity::class.java))
+    }
+
+    /**
+     * Torrent brez racunalnika v Linku (lastnik, 3. 10. 2026): naprava ga predvaja SAMA, ce datoteka gre na njen prosti
+     * prostor (zacasno - po 48 urah brez predvajanja izgine sama); sicer prosi drugo napravo s Safeer OS v krogu
+     * (telefon, tablico, televizor), da ga prenasa in ji ga pretaka. Brez okna in brez izbire: film se zacne ali pa
+     * kratko povemo, zakaj ne.
+     */
+    private fun torrentBrezRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int, velikost: Long, napakaRacunalnika: String) {
+        val drugi = napraveZaTorrent()
+        fun konec(koda: String) {
+            if (isFinishing) return
+            android.util.Log.i("SafeerOsMedia", "torrent ni stekel: $koda")
+            Toast.makeText(this, when (koda) {
+                "ni_prostora" -> getString(R.string.os_stremio_ni_prostora_nikjer)
+                "preobremenjen", "malo_pomnilnika", "baterija", "varcevanje", "pregreto", "predvaja", "sorodnik" -> getString(R.string.os_stremio_naprave_zasedene)
+                else -> getString(R.string.os_media_ni_na_voljo, naslov)
+            }, Toast.LENGTH_LONG).show()
+        }
+        fun prosi(k: Int, zadnja: String, od: Long = android.os.SystemClock.uptimeMillis()) {
+            if (isFinishing) return
+            if (k >= drugi.size) { konec(zadnja); return }
+            val r = drugi[k]
+            val prvic = android.os.SystemClock.uptimeMillis() - od < 500
+            if (prvic) Toast.makeText(this, getString(R.string.os_stremio_naprava_pripravlja, DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }), Toast.LENGTH_LONG).show()
+            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).apply { if (datoteka >= 0) put("file", datoteka) }, 20_000, LinkOdjemalec.Odgovor { izid, napaka ->
+                if (isFinishing) return@Odgovor
+                val podatki = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
+                val srv = podatki?.optJSONObject("server")
+                when {
+                    podatki != null && srv != null -> predvajajTokPomocnika(sk, naslov, magnet, r, srv, podatki.optString("path"), racunalnik = false)
+                    // Naprava se bere metapodatke torrenta (do minute): vprasamo znova.
+                    podatki?.optBoolean("pending") == true && android.os.SystemClock.uptimeMillis() - od < 150_000 ->
+                        glavna.postDelayed({ prosi(k, zadnja, od) }, 2_000)
+                    else -> prosi(k + 1, izid?.optString("code")?.ifBlank { null } ?: zadnja)
+                }
+            })
+        }
+        val prostor = MagnetMotor.prostorZaTok(this)
+        val sam = MagnetMotor.naVoljo && prostor > 0 && (velikost <= 0 || velikost <= prostor)
+        if (!sam) { prosi(0, napakaRacunalnika.ifBlank { if (MagnetMotor.naVoljo) "ni_prostora" else "ni_podprto" }); return }
+        Toast.makeText(this, R.string.os_stremio_pripravljam, Toast.LENGTH_LONG).show()
+        val app = applicationContext
+        Thread({
+            val r: Any = try { MagnetMotor.pripraviTok(app, magnet, datoteka) } catch (e: Throwable) { e.message ?: "napaka" }
+            glavna.post {
+                if (isFinishing) return@post
+                if (r is MagnetMotor.Pripravljen) {
+                    val podnapisi = r.podnapisi.map { (d, url) ->
+                        val (jezik, oznaka) = Podnapisi.jezik(r.datoteka.ime, d.ime)
+                        Podnapisi.Podnapis(url, d.ime.substringAfterLast('/'), jezik, oznaka, Podnapisi.mime(d.ime))
+                    }
+                    val pr = sk.copy(id = sk.id + "#t" + magnet.hashCode(), naslov = naslov, zvok = r.url, povezava = r.url, video = true, podnapisi = podnapisi)
+                    GlasbaStoritev.predvajaj(this, listOf(pr), 0, null)
+                    nadaljujKoPripravljen(pr)
+                    startActivity(Intent(this, PredvajanjeActivity::class.java))
+                } else prosi(0, r as String)
+            }
+        }, "safeer-torrent-tukaj").apply { isDaemon = true; start() }
     }
 
     /**

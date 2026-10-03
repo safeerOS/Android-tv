@@ -587,6 +587,9 @@ class PredvajanjeActivity : OsActivity() {
         vir.text = when {
             skritiVir -> ""
             // Dodatki: naslov toka ima lahko skrivne dele (kljuc storitve, skrivnost toka) - pokazemo le, od kod je.
+            // Torrent: predvaja ga ta naprava sama, druga naprava s Safeer OS v Linku ali racunalnik.
+            sk.id.startsWith("stremio|") && sk.id.contains("#t") && sk.zvok.startsWith("http://127.0.0.1:") -> getString(R.string.os_stremio_vir_tukaj)
+            sk.id.startsWith("stremio|") && sk.id.contains("#tn") -> getString(R.string.os_stremio_vir_naprava)
             (sk.id.startsWith("stremio|") || sk.id.startsWith("pcprenos|")) && sk.id.contains("#t") -> getString(R.string.os_stremio_vir_racunalnik)
             sk.id.startsWith("stremio|") -> android.net.Uri.parse(sk.zvok).host.orEmpty()
             sk.zvok.startsWith("https://prod-1.storage.jamendo.com") || sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, stran)

@@ -185,6 +185,8 @@ class CastReceiverService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // Zacasni torrenti (film iz kataloga, pomoc drugi napravi), ki jih 48 ur nihce ni predvajal, gredo ob zagonu.
+        if (si.safeer.tv.os.MagnetMotor.naVoljo) Thread({ try { si.safeer.tv.os.MagnetMotor.pocistiZacasne(applicationContext) } catch (_: Throwable) { } }, "safeer-magnet-ciscenje").apply { isDaemon = true; start() }
         // Vklop televizorja iz pripravljenosti: Safeer OS naj bo prvo, kar se vidi (os/VklopTelevizorja).
         si.safeer.tv.os.VklopTelevizorja.namesti(this)
     }
@@ -390,6 +392,8 @@ class CastReceiverService : Service() {
                         // Safeer Chat: sprejemnik tece stalno, zato sporocila pridejo tudi, ko Safeer OS ni odprt.
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.KlepetLinka.ZMOZNOST)
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add("magnet")
+                        // Torrent zna prenasati in pretakati drugim napravam v Linku (MagnetPomoc).
+                        if (si.safeer.tv.os.MagnetMotor.naVoljo) zmoznosti.add(si.safeer.tv.link.MagnetPomoc.ZMOZNOST)
                         // Seznami predvajanja Medijskega centra so enaki na vseh napravah v Linku (SeznamiSink).
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.SeznamiSink.ZMOZNOST)
                         put("capabilities", org.json.JSONArray(zmoznosti))
