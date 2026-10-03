@@ -49,6 +49,8 @@ object Daljinec {
         "gamepad.button", "gamepad.axis", "gamepad.release",
         // Magnet povezava z druge naprave: odpre se v Safeer OS predvajalniku te naprave.
         "magnet.open",
+        // Zakon solidarnosti: ta naprava torrent prenasa in pretaka napravi v Linku, ki ga sama ne zmore (MagnetPomoc).
+        "magnet.stream", "magnet.list", "magnet.remove",
         // Zakon solidarnosti: koliko proste moci ima ta naprava in ali ta trenutek sme pomagati (Zmogljivost).
         "host.info",
         // Skupni prostor: shrani datoteko druge naprave (racunalnik z malo prostora) - Shramba.
@@ -155,6 +157,9 @@ object Daljinec {
             return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)
         }
         if (d == "magnet.open") return odpriMagnet(context, parametri.optString("uri", ""))
+        if (d == "magnet.stream") return MagnetPomoc.tok(context, parametri, parametri.optString(PARAM_POSILJATELJ, ""))
+        if (d == "magnet.list") return MagnetPomoc.seznam(context)
+        if (d == "magnet.remove") return MagnetPomoc.odstrani(context, parametri)
         if (d == "host.info") return Izid(true, "Zmogljivost", Zmogljivost.porocilo(context))
         if (d == "storage.put") return Shramba.sprejmi(context, parametri)
         if (d == "storage.status") return Shramba.stanje(parametri.optString("id"))

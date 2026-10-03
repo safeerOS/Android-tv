@@ -42,6 +42,10 @@
         <item quantity="other">%d Folgen</item>
     </plurals>
     <string name="os_stremio_racunalnik_pripravlja">Computer %1$s bereitet den Stream vor … (beim ersten Mal bis zu einer Minute)</string>
+    <string name="os_stremio_pripravljam">Stream wird vorbereitet … (beim ersten Mal bis zu einer Minute)</string>
+    <string name="os_stremio_naprava_pripravlja">%1$s bereitet den Stream vor … (beim ersten Mal bis zu einer Minute)</string>
+    <string name="os_stremio_ni_prostora_nikjer">Für diesen Film ist nicht genug Platz – weder auf diesem Gerät noch auf den anderen in deinem Link.</string>
+    <string name="os_stremio_naprave_zasedene">Die Geräte in deinem Link können gerade nicht helfen. Versuche es in ein paar Minuten noch einmal.</string>
     <string name="os_stremio_torrent_brez_racunalnika">Diese Quelle ist ein Torrent. Damit nichts auf dieses Gerät geladen wird, kann ein Computer mit Safeer Control in deinem Link ihn laden und streamen – gerade ist keiner verbunden. Starte Safeer Control am Computer und versuche es erneut.</string>
     <string name="os_stremio_torrent_napaka">Der Computer konnte diesen Torrent nicht streamen (%1$s).</string>
     <string name="os_stremio_prenesi_sem">Auf dieses Gerät laden</string>
@@ -51,6 +55,8 @@
     <string name="os_prenos_odstrani_vprasanje">Der Film und alle seine Dateien werden vom Computer gelöscht. Du kannst ihn jederzeit wieder über das Add-on öffnen.</string>
     <string name="os_prenos_odstranjen">Vom Computer entfernt</string>
     <string name="os_stremio_vir_racunalnik">Ein Computer in Safeer Link streamt – auf dieses Gerät wird nichts geladen</string>
+    <string name="os_stremio_vir_tukaj">Wird aus einem Torrent auf diesem Gerät abgespielt – nach zwei Tagen ohne Ansehen automatisch entfernt</string>
+    <string name="os_stremio_vir_naprava">Gestreamt von einem Gerät in Safeer Link – auf dieses Gerät wird nichts heruntergeladen</string>
     <string name="os_stremio_racunalnik_zaseden">Die Computer in deinem Link sind gerade stark ausgelastet und übernehmen diese Aufgabe nicht. Versuche es in ein paar Minuten erneut.</string>
     <string name="os_stremio_racunalnik_ni_prostora">Auf dem Computer ist nicht genug Platz für diesen Film. Entferne ältere Downloads unter „Downloads auf dem Computer“.</string>
     <string name="os_moc_k_ram">RAM %1$s frei</string>
