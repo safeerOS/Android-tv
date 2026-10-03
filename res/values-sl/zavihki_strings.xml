@@ -77,4 +77,5 @@
     <string name="os_moc_r_predvaja">na tej napravi ravno teče video ali glasba</string>
     <string name="os_media_ni_na_voljo">»%1$s« trenutno ni na voljo v tvojih dodatkih.</string>
     <string name="os_media_ni_predvajljivih">Teh naslovov trenutno ne predvaja noben tvoj dodatek. Dodatek s tokovi dodaš v Moji viri.</string>
+    <string name="os_media_dodatek_omejuje">Dodatek omejuje poizvedbe – prikazani so že preverjeni naslovi.</string>
 </resources>

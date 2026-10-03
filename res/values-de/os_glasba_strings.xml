@@ -7,6 +7,7 @@
     <string name="os_glasba_video">Video</string>
     <string name="os_glasba_iskanje">Suche</string>
     <string name="os_glasba_isci_namig">Video, Künstler oder Radiosender</string>
+    <string name="os_mediji_isci_v_dodatku">Suchen in: %1$s</string>
     <string name="os_glasba_isci_navodilo">Gib ein, was du suchst, und drücke Suchen. Safeer durchsucht Videos, Künstler, Radiosender und deine Quellen.</string>
     <string name="os_glasba_nalagam">Wird geladen …</string>
     <string name="os_glasba_napaka">Laden fehlgeschlagen. Prüfe die Verbindung und versuche es erneut.</string>

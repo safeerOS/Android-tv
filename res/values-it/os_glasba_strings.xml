@@ -7,6 +7,7 @@
     <string name="os_glasba_video">Video</string>
     <string name="os_glasba_iskanje">Cerca</string>
     <string name="os_glasba_isci_namig">Video, artista o stazione radio</string>
+    <string name="os_mediji_isci_v_dodatku">Cerca in: %1$s</string>
     <string name="os_glasba_isci_navodilo">Scrivi cosa cerchi e premi Cerca. Safeer cerca tra video, artisti, stazioni radio e le tue fonti.</string>
     <string name="os_glasba_nalagam">Caricamento…</string>
     <string name="os_glasba_napaka">Impossibile caricare. Controlla la connessione e riprova.</string>

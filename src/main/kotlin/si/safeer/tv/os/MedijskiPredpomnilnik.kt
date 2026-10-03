@@ -18,7 +18,15 @@ object MedijskiPredpomnilnik {
     private fun odtis(s: String): String =
         MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
 
-    private fun mapaSeznamov(c: Context) = File(c.cacheDir, "mediji-police").apply { mkdirs() }
+    /**
+     * Mapa polic. Ime nosi razlicico vsebine: "-2" od 3. 10. 2026, ko zasebni dodatki niso vec v skupnih policah in
+     * mrezah (ZasebniDodatki) - stare police bi jih ob prvem odprtju se enkrat pokazale, zato jih zavrzemo.
+     */
+    private fun mapaSeznamov(c: Context): File {
+        val stara = File(c.cacheDir, "mediji-police")
+        if (stara.exists()) try { stara.deleteRecursively() } catch (_: Exception) { }
+        return File(c.cacheDir, "mediji-police-2").apply { mkdirs() }
+    }
     private fun mapaNaslovnic(c: Context) = File(c.cacheDir, "mediji-naslovnice").apply { mkdirs() }
 
     // ---------------------------------------------------------------- police

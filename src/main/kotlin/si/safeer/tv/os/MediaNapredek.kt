@@ -18,6 +18,9 @@ object MediaNapredek {
     private fun najkrajse(s: Jamendo.Skladba) = if (s.id.startsWith("krajevno:")) 60_000L else 600_000L
 
     fun zapisi(c: Context, s: Jamendo.Skladba, polozaj: Long, trajanje: Long, naprava: String = "") {
+        // Ogled vsebine zasebnega dodatka se ne zapise (ZasebniDodatki): ni v Nadaljuj, Zate in ne gre drugi napravi.
+        Stremio.pripravi(c)
+        if (Stremio.jeZasebna(s)) return
         val vrsta = SpletniVir.vrstaVsebine(s)
         val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || s.season > 0 || s.episode > 0
         // Kratkih glasbenih videospotov, pesmi in vsebin pod 10 min ne vnasamo med filme in serije za nadaljevanje ogleda
@@ -30,9 +33,10 @@ object MediaNapredek {
         shrani(c, vsi.take(30))
     }
 
-    fun seznam(c: Context): List<Vnos> = preberiJson(c).mapNotNull { o ->
+    fun seznam(c: Context): List<Vnos> = preberiJson(c).also { Stremio.pripravi(c) }.mapNotNull { o ->
         try {
             val sk = skladba(o.getJSONObject("s"))
+            if (Stremio.jeZasebna(sk)) return@mapNotNull null
             val trajanje = o.getLong("d")
             val vrsta = SpletniVir.vrstaVsebine(sk)
             val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || sk.season > 0 || sk.episode > 0

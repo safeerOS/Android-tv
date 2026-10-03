@@ -73,4 +73,5 @@
     <string name="os_moc_r_predvaja">su questo dispositivo è in riproduzione video o musica</string>
     <string name="os_media_ni_na_voljo">«%1$s» al momento non è disponibile nei tuoi componenti aggiuntivi.</string>
     <string name="os_media_ni_predvajljivih">Nessuno dei tuoi componenti aggiuntivi può riprodurre questi titoli ora. Aggiungi un componente con flussi in Le mie fonti.</string>
+    <string name="os_media_dodatek_omejuje">Un componente limita le richieste: sono mostrati i titoli già verificati.</string>
 </resources>
