@@ -24,16 +24,16 @@ class StranskaVrstica private constructor(
     private val dejavnost: Activity,
     val vsebina: View,
     val aktivna: Razdelek
-) : LinearLayout(dejavnost), ViewTreeObserver.OnGlobalFocusChangeListener {
+) : LinearLayout(kontekstTeme(dejavnost)), ViewTreeObserver.OnGlobalFocusChangeListener {
 
     enum class Razdelek { DOMOV, MEDIJI, NAPRAVE, SPOROCILA, PROGRAMI, DATOTEKE, SPLET, ZAPISKI, NASTAVITVE }
 
     /** Zavihki spodnje vrstice (Safeer Predvajalnik na dotik, v slogu VLC). */
     enum class Zavihek { DOMOV, VIDEO, GLASBA, V_ZIVO, BRSKAJ }
 
-    private val meni = LinearLayout(dejavnost)
+    private val meni = LinearLayout(context)
     /** Meni se da podrsati: na telefonu lezece (nizek zaslon) sicer spodnje postavke niso dosegljive. */
-    private val drsnik = android.widget.ScrollView(dejavnost).apply {
+    private val drsnik = android.widget.ScrollView(context).apply {
         isFillViewport = true; isVerticalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER
     }
     private val besedila = ArrayList<View>()
@@ -46,7 +46,7 @@ class StranskaVrstica private constructor(
     private val shramba = dejavnost.getSharedPreferences("safeer_os_vrstica", android.content.Context.MODE_PRIVATE)
     private var skrita = dotik && shramba.getBoolean("skrita", false)
     private var skrcena = false
-    private val rocaj = View(dejavnost)
+    private val rocaj = View(context)
     private var zacetekX = 0f
     private var zacetekY = 0f
     private var poteg = false
@@ -65,7 +65,7 @@ class StranskaVrstica private constructor(
 
     init {
         orientation = HORIZONTAL
-        setBackgroundColor(dejavnost.osBarva(R.color.os_ozadje))
+        setBackgroundColor(context.osBarva(R.color.os_ozadje))
         if (spodnja) zgradiSpodnjo() else zgradiNormalno()
     }
 
@@ -73,14 +73,14 @@ class StranskaVrstica private constructor(
         orientation = VERTICAL
         (vsebina.parent as? ViewGroup)?.removeView(vsebina)
         addView(vsebina, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        addView(View(dejavnost).apply { setBackgroundColor(dejavnost.osBarva(R.color.os_crta)) },
+        addView(View(context).apply { setBackgroundColor(context.osBarva(R.color.os_crta)) },
             LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)))
-        val vrsta = LinearLayout(dejavnost).apply {
+        val vrsta = LinearLayout(context).apply {
             orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(dejavnost.osBarva(R.color.os_meni_ozadje))
+            setBackgroundColor(context.osBarva(R.color.os_meni_ozadje))
         }
         fun zavihek(z: Zavihek, slika: Int, niz: Int) {
-            val pogled = LinearLayout(dejavnost).apply {
+            val pogled = LinearLayout(context).apply {
                 orientation = VERTICAL; gravity = Gravity.CENTER
                 id = View.generateViewId(); isFocusable = true; isClickable = true
                 setPadding(0, dp(6), 0, dp(6))
@@ -90,7 +90,7 @@ class StranskaVrstica private constructor(
                     if (dejavnost.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true)) setBackgroundResource(tv.resourceId)
                 }
                 // Izbrani zavihek: kapsula za ikono (kot pri sodobnih predvajalnikih), ne cel blok.
-                addView(android.widget.FrameLayout(dejavnost).apply {
+                addView(android.widget.FrameLayout(context).apply {
                     addView(ikona(slika, 24, R.color.os_umirjeno), android.widget.FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
                 }, LayoutParams(dp(60), dp(30)))
                 addView(besedilo(12f, R.color.os_umirjeno).apply {
@@ -266,13 +266,13 @@ class StranskaVrstica private constructor(
 
     private fun zgradiMeni() {
         meni.orientation = VERTICAL
-        meni.setBackgroundColor(dejavnost.osBarva(R.color.os_meni_ozadje))
+        meni.setBackgroundColor(context.osBarva(R.color.os_meni_ozadje))
 
-        val znak = LinearLayout(dejavnost).apply {
+        val znak = LinearLayout(context).apply {
             orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), 0, 0, dp(14))
         }
         znak.addView(ikona(R.drawable.os_znak, 32))
-        val ime = LinearLayout(dejavnost).apply { orientation = VERTICAL; setPadding(dp(10), 0, 0, 0) }
+        val ime = LinearLayout(context).apply { orientation = VERTICAL; setPadding(dp(10), 0, 0, 0) }
         // Samostojni Safeer Predvajalnik se predstavi s svojim imenom, ne kot Safeer OS.
         val jePredvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
         ime.addView(besedilo(18f, R.color.os_besedilo, true).apply {
@@ -305,9 +305,9 @@ class StranskaVrstica private constructor(
             pogled.nextFocusLeftId = pogled.id
         }
 
-        meni.addView(View(dejavnost), LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        meni.addView(View(context), LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         if (dotik) {
-            val skrij = LinearLayout(dejavnost).apply {
+            val skrij = LinearLayout(context).apply {
                 orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                 isFocusable = true; isClickable = true
                 setBackgroundResource(R.drawable.os_meni_postavka)
@@ -327,7 +327,7 @@ class StranskaVrstica private constructor(
         meni.addView(besedilo(11f, R.color.os_umirjeno).apply {
             text = dejavnost.getString(R.string.os_poganja); setPadding(dp(4), 0, 0, 0); besedila.add(this)
         })
-        val link = LinearLayout(dejavnost).apply {
+        val link = LinearLayout(context).apply {
             orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), dp(4), 0, 0)
         }
         link.addView(ikona(R.drawable.os_ikona_link, 16, R.color.os_mint))
@@ -338,7 +338,7 @@ class StranskaVrstica private constructor(
     }
 
     private fun dodaj(razdelek: Razdelek, slika: Int, niz: Int) {
-        val pogled = LinearLayout(dejavnost).apply {
+        val pogled = LinearLayout(context).apply {
             orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             id = View.generateViewId(); isFocusable = true; isClickable = true
             setBackgroundResource(R.drawable.os_meni_postavka)
@@ -392,13 +392,13 @@ class StranskaVrstica private constructor(
         }
     }
 
-    private fun ikona(vir: Int, velikost: Int, barva: Int? = null) = ImageView(dejavnost).apply {
+    private fun ikona(vir: Int, velikost: Int, barva: Int? = null) = ImageView(context).apply {
         setImageResource(vir); scaleType = ImageView.ScaleType.FIT_CENTER
         if (barva != null) imageTintList = ColorStateList.valueOf(dejavnost.getColor(barva))
         layoutParams = LayoutParams(dp(velikost), dp(velikost))
     }
 
-    private fun besedilo(velikost: Float, barva: Int, krepko: Boolean = false) = TextView(dejavnost).apply {
+    private fun besedilo(velikost: Float, barva: Int, krepko: Boolean = false) = TextView(context).apply {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, velikost)
         setTextColor(dejavnost.getColor(barva))
         if (krepko) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -425,6 +425,15 @@ class StranskaVrstica private constructor(
     }
 
     companion object {
+        /**
+         * Splet (MainActivity) ima temo brskalnika, ki barv Safeer OS (?attr/osMint ...) nima: ikone menija, ki
+         * barvo berejo iz teme, bi se tam narisale prozorne (prazna vrstica). Vrstica zato nastane v kontekstu
+         * izbrane teme Safeer OS, kadar je gostujoca dejavnost nima.
+         */
+        private fun kontekstTeme(a: Activity): android.content.Context =
+            if (a.theme.resolveAttribute(R.attr.osMint, TypedValue(), true)) a
+            else android.view.ContextThemeWrapper(a, Tema.izbrana(a).stil)
+
         /** Odpiranje in zapiranje zaslonov Safeer OS s kratkim prelivom namesto sistemske animacije okna. */
         fun nastaviPrehode(dejavnost: Activity) {
             if (android.os.Build.VERSION.SDK_INT >= 34) {
