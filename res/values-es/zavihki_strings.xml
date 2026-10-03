@@ -46,9 +46,7 @@
     <string name="os_stremio_naprava_pripravlja">%1$s prepara la transmisión … (la primera vez hasta un minuto)</string>
     <string name="os_stremio_ni_prostora_nikjer">No hay espacio suficiente para esta película, ni en este dispositivo ni en los demás de tu Link.</string>
     <string name="os_stremio_naprave_zasedene">Los dispositivos de tu Link no pueden ayudar ahora. Inténtalo en unos minutos.</string>
-    <string name="os_stremio_torrent_brez_racunalnika">Esta fuente es un torrent. Para no descargar nada en este dispositivo, un ordenador con Safeer Control en tu Link puede descargarlo y transmitirlo; ahora no hay ninguno conectado. Abre Safeer Control en el ordenador e inténtalo de nuevo.</string>
     <string name="os_stremio_torrent_napaka">El ordenador no pudo transmitir este torrent (%1$s).</string>
-    <string name="os_stremio_prenesi_sem">Descargar en este dispositivo</string>
     <string name="os_prenosi_racunalnik">Descargas en el ordenador</string>
     <string name="os_prenos_predvajaj">Reproducir</string>
     <string name="os_prenos_odstrani">Quitar del ordenador</string>
@@ -57,8 +55,6 @@
     <string name="os_stremio_vir_racunalnik">Lo transmite un ordenador de Safeer Link – no se descarga nada en este dispositivo</string>
     <string name="os_stremio_vir_tukaj">Se reproduce desde un torrent en este dispositivo; se elimina solo tras dos días sin verlo</string>
     <string name="os_stremio_vir_naprava">Lo transmite un dispositivo de Safeer Link; no se descarga nada en este dispositivo</string>
-    <string name="os_stremio_racunalnik_zaseden">Los ordenadores de tu Link están muy ocupados y no asumen también esta tarea. Inténtalo en unos minutos.</string>
-    <string name="os_stremio_racunalnik_ni_prostora">No hay espacio suficiente en el ordenador para esta película. Quita descargas antiguas en «Descargas en el ordenador».</string>
     <string name="os_moc_k_ram">RAM %1$s libre</string>
     <string name="os_moc_k_disk">almacenamiento %1$s libre</string>
     <string name="os_moc_k_baterija">batería %1$d %%</string>

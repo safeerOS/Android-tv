@@ -46,9 +46,7 @@
     <string name="os_stremio_naprava_pripravlja">%1$s is preparing the stream … (the first time can take up to a minute)</string>
     <string name="os_stremio_ni_prostora_nikjer">There is not enough free space for this film – neither on this device nor on the others in your Link.</string>
     <string name="os_stremio_naprave_zasedene">The devices in your Link can\'t help right now. Try again in a few minutes.</string>
-    <string name="os_stremio_torrent_brez_racunalnika">This source is a torrent. So nothing is downloaded to this device, a computer with Safeer Control in your Link can download and stream it – none is connected right now. Turn on Safeer Control on your computer and try again.</string>
     <string name="os_stremio_torrent_napaka">The computer could not stream this torrent (%1$s).</string>
-    <string name="os_stremio_prenesi_sem">Download to this device</string>
     <string name="os_prenosi_racunalnik">Downloads on your computer</string>
     <string name="os_prenos_predvajaj">Play</string>
     <string name="os_prenos_odstrani">Remove from computer</string>
@@ -57,8 +55,6 @@
     <string name="os_stremio_vir_racunalnik">Streamed by a computer in Safeer Link – nothing is downloaded to this device</string>
     <string name="os_stremio_vir_tukaj">Playing from a torrent on this device – removed automatically after two days without watching</string>
     <string name="os_stremio_vir_naprava">Streamed by a device in Safeer Link – nothing is downloaded to this device</string>
-    <string name="os_stremio_racunalnik_zaseden">The computers in your Link are very busy right now, so they won\'t take on this job too. Try again in a few minutes.</string>
-    <string name="os_stremio_racunalnik_ni_prostora">There\'s not enough space on the computer for this film. Remove older downloads in “Downloads on your computer”.</string>
     <string name="os_moc_k_ram">RAM %1$s free</string>
     <string name="os_moc_k_disk">disk %1$s free</string>
     <string name="os_moc_k_baterija">battery %1$d %%</string>
