@@ -202,8 +202,11 @@ object MedijskiViri {
 
     // ------------------------------------------------------------------ priljubljene
 
-    /** Seznam predvajanja, ki si ga je uporabnik shranil med priljubljene. */
-    data class Seznam(val ime: String, val skladbe: List<Jamendo.Skladba>)
+    /**
+     * Seznam predvajanja, ki si ga je uporabnik shranil med priljubljene. [cas] = zadnja sprememba (ms; 0 = seznam iz
+     * casa pred usklajevanjem med napravami), [vir] = od kod je uvozen (YouTube, Spotify ali prazno). Glej [SeznamiSink].
+     */
+    data class Seznam(val ime: String, val skladbe: List<Jamendo.Skladba>, val cas: Long = 0L, val vir: String = "")
 
     /**
      * Ali skladbo lahko shranimo: splet, radio, Jamendo, PeerTube (datoteko ob predvajanju vprasamo
@@ -240,15 +243,47 @@ object MedijskiViri {
 
     fun seznami(ctx: Context): List<Seznam> {
         val a = try { JSONArray(beri(ctx, SEZNAMI)) } catch (_: Exception) { JSONArray() }
-        return (0 until a.length()).map { a.getJSONObject(it) }.map { Seznam(it.optString("ime"), beriSkladbe(it.optJSONArray("skladbe")?.toString() ?: "[]")) }
-            .filter { it.ime.isNotBlank() && it.skladbe.isNotEmpty() }
+        return (0 until a.length()).map { a.getJSONObject(it) }.map {
+            Seznam(it.optString("ime"), beriSkladbe(it.optJSONArray("skladbe")?.toString() ?: "[]"), it.optLong("cas"), it.optString("vir"))
+        }.filter { it.ime.isNotBlank() && it.skladbe.isNotEmpty() }
+    }
+
+    private const val SEZNAMI_IZBRISANI = "seznami_izbrisani"
+
+    /** Izbrisani seznami (ime -> cas izbrisa): da se seznam ne vrne z naprave, ki ga se ima ([SeznamiSink]). */
+    fun izbrisaniSeznami(ctx: Context): Map<String, Long> = try {
+        val o = JSONObject(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(SEZNAMI_IZBRISANI, "{}") ?: "{}")
+        o.keys().asSequence().associateWith { o.optLong(it) }.filterValues { it > 0 }
+    } catch (_: Exception) { emptyMap() }
+
+    /** Zapomni izbris (kasnejsi cas zmaga); [cas] = 0 izbris pozabi (seznam je spet ustvarjen). Najvec 100 zapisov. */
+    @Synchronized fun zapomniIzbrisSeznama(ctx: Context, ime: String, cas: Long) {
+        val zdaj = izbrisaniSeznami(ctx).toMutableMap()
+        if (cas <= 0) { if (zdaj.remove(ime) == null) return } else { if ((zdaj[ime] ?: 0L) >= cas) return; zdaj[ime] = cas }
+        val o = JSONObject()
+        zdaj.entries.sortedByDescending { it.value }.take(100).forEach { o.put(it.key, it.value) }
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(SEZNAMI_IZBRISANI, o.toString()).apply()
+    }
+
+    /** Cas krajevne spremembe seznama [ime] ([SeznamiPravila.novCas]: nikoli starejsi od prejsnjega stanja in izbrisa). */
+    private fun novCasSeznama(ctx: Context, ime: String): Long = SeznamiPravila.novCas(System.currentTimeMillis(),
+        seznami(ctx).firstOrNull { it.ime == ime }?.cas ?: 0L, izbrisaniSeznami(ctx)[ime] ?: 0L)
+
+    /** Usklajevanje: seznam z druge naprave zapise, kot je (cas ostane njen); obstojeci ostane na svojem mestu. */
+    @Synchronized fun nastaviSeznam(ctx: Context, sz: Seznam) {
+        if (sz.ime.isBlank() || sz.skladbe.isEmpty()) return
+        val vsi = seznami(ctx)
+        pisiSeznami(ctx, if (vsi.any { it.ime == sz.ime }) vsi.map { if (it.ime == sz.ime) sz else it } else listOf(sz) + vsi)
+        zapomniIzbrisSeznama(ctx, sz.ime, 0)
     }
 
     /** Shrani seznam (isto ime zamenja); vrne shranjeni seznam ali null, ce v njem ni nicesar shranljivega. */
-    fun shraniSeznam(ctx: Context, ime: String, skladbe: List<Jamendo.Skladba>): Seznam? {
-        val sz = Seznam(ime, skladbe.filter { zaSeznam(it) }.map { zaShranjevanje(it) }.distinctBy { it.id }.take(NAJVEC_V_SEZNAMU))
+    fun shraniSeznam(ctx: Context, ime: String, skladbe: List<Jamendo.Skladba>, vir: String = ""): Seznam? {
+        val sz = Seznam(ime, skladbe.filter { zaSeznam(it) }.map { zaShranjevanje(it) }.distinctBy { it.id }.take(NAJVEC_V_SEZNAMU),
+            novCasSeznama(ctx, ime), vir)
         if (sz.skladbe.isEmpty()) return null
         pisiSeznami(ctx, listOf(sz) + seznami(ctx).filterNot { it.ime == ime })
+        zapomniIzbrisSeznama(ctx, ime, 0)
         return sz
     }
 
@@ -260,15 +295,20 @@ object MedijskiViri {
         val vsi = seznami(ctx)
         val obstojeci = vsi.firstOrNull { it.ime == ime }
         if (obstojeci != null && obstojeci.skladbe.any { it.id == s.id }) return false
-        val nov = Seznam(ime, ((obstojeci?.skladbe ?: emptyList()) + zaShranjevanje(s)).takeLast(NAJVEC_V_SEZNAMU))
+        val nov = Seznam(ime, ((obstojeci?.skladbe ?: emptyList()) + zaShranjevanje(s)).takeLast(NAJVEC_V_SEZNAMU),
+            novCasSeznama(ctx, ime), obstojeci?.vir.orEmpty())
         // Obstojeci seznam ostane na svojem mestu, nov gre na zacetek.
         pisiSeznami(ctx, if (obstojeci != null) vsi.map { if (it.ime == ime) nov else it } else listOf(nov) + vsi)
+        zapomniIzbrisSeznama(ctx, ime, 0)
         return true
     }
 
     /** Odstrani skladbo s seznama; prazen seznam izgine. */
-    fun odstraniSSeznama(ctx: Context, ime: String, s: Jamendo.Skladba) =
-        pisiSeznami(ctx, seznami(ctx).map { if (it.ime == ime) it.copy(skladbe = it.skladbe.filterNot { x -> x.id == s.id }) else it })
+    fun odstraniSSeznama(ctx: Context, ime: String, s: Jamendo.Skladba) {
+        val zdaj = novCasSeznama(ctx, ime)
+        val vsi = seznami(ctx).map { if (it.ime == ime) it.copy(skladbe = it.skladbe.filterNot { x -> x.id == s.id }, cas = zdaj) else it }
+        if (vsi.any { it.ime == ime && it.skladbe.isEmpty() }) odstraniSeznam(ctx, ime) else pisiSeznami(ctx, vsi)
+    }
 
     /**
      * Uvozena skladba je dobila posnetek ([UvozSeznama.najdi]): v seznamih in med priljubljenimi jo zamenjamo, da
@@ -277,17 +317,26 @@ object MedijskiViri {
     @Synchronized fun zamenjaj(ctx: Context, zamenjave: Map<String, Jamendo.Skladba>) {
         if (zamenjave.isEmpty()) return
         val sz = seznami(ctx)
+        // Najden posnetek je sprememba seznama: druge naprave ga dobijo z usklajevanjem in ne iscejo same.
+        val zdaj = System.currentTimeMillis()
         if (sz.any { l -> l.skladbe.any { it.id in zamenjave } })
-            pisiSeznami(ctx, sz.map { l -> l.copy(skladbe = l.skladbe.map { zamenjave[it.id] ?: it }.distinctBy { it.id }) })
+            pisiSeznami(ctx, sz.map { l ->
+                if (l.skladbe.none { it.id in zamenjave }) l
+                else l.copy(skladbe = l.skladbe.map { zamenjave[it.id] ?: it }.distinctBy { it.id }, cas = SeznamiPravila.novCas(zdaj, l.cas, 0L))
+            })
         val p = priljubljene(ctx)
         if (p.any { it.id in zamenjave }) pisi(ctx, PRILJUBLJENE, pisiSkladbe(p.map { zamenjave[it.id] ?: it }.distinctBy { it.id }))
     }
 
-    fun odstraniSeznam(ctx: Context, ime: String) = pisiSeznami(ctx, seznami(ctx).filterNot { it.ime == ime })
+    /** Izbrise seznam in si izbris zapomni ([cas]; privzeto zdaj), da ga usklajevanje ne vrne z druge naprave. */
+    fun odstraniSeznam(ctx: Context, ime: String, cas: Long = novCasSeznama(ctx, ime)) {
+        pisiSeznami(ctx, seznami(ctx).filterNot { it.ime == ime })
+        zapomniIzbrisSeznama(ctx, ime, cas)
+    }
 
     private fun pisiSeznami(ctx: Context, s: List<Seznam>) {
         val a = JSONArray()
-        s.take(30).forEach { a.put(JSONObject().put("ime", it.ime).put("skladbe", JSONArray(pisiSkladbe(it.skladbe)))) }
+        s.take(30).forEach { a.put(JSONObject().put("ime", it.ime).put("cas", it.cas).put("vir", it.vir).put("skladbe", JSONArray(pisiSkladbe(it.skladbe)))) }
         pisi(ctx, SEZNAMI, a.toString())
     }
 

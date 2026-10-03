@@ -65,6 +65,7 @@
     <string name="os_mediji_odstrani_prilj">Retirer des favoris</string>
     <string name="os_mediji_shrani_seznam">Enregistrer comme playlist</string>
     <string name="os_mediji_odstrani_seznam">Supprimer la playlist</string>
+    <string name="os_mediji_odstrani_seznam_vsepovsod">La playlist sera supprimée, y compris de tes autres appareils dans Safeer Link.</string>
     <string name="os_mediji_seznam_shranjen">Playlist enregistrée dans les favoris : %1$s</string>
     <string name="os_mediji_dodano_prilj">Ajouté aux favoris</string>
     <string name="os_mediji_odstranjeno_prilj">Retiré des favoris</string>
