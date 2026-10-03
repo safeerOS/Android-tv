@@ -34,6 +34,50 @@ object TokIzbira {
     private val VELIKOST = Regex("(\\d+(?:[.,]\\d+)?)\\s*(gb|gib|mb|mib)")
     private val SEJALCI = Regex("(?:\uD83D\uDC64|seed(?:er)?s?\\s*[:=]?)\\s*(\\d{1,6})")
 
+    private val PODPIS_DATUM = Regex("[?&]X-(?:Amz|Goog)-Date=(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})(\\d{2})Z", RegexOption.IGNORE_CASE)
+    private val PODPIS_VELJA = Regex("[?&]X-(?:Amz|Goog)-Expires=(\\d{1,9})(?=&|$)", RegexOption.IGNORE_CASE)
+    private val IZTEK_UNIX = Regex("[?&](?:expires?|exp)=(\\d{10})(?:\\d{3})?(?=&|$)", RegexOption.IGNORE_CASE)
+    private val IZTEK_ZETON = Regex("[?&](?:hdnts|hdnea|hdntl|token)=(?:[^&]*?[~_-])?exp=(\\d{10})", RegexOption.IGNORE_CASE)
+    private val IZTEK_ISO = Regex("[?&]se=(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2})(?:%3A|:)(\\d{2})(?:(?:%3A|:)(\\d{2}))?Z", RegexOption.IGNORE_CASE)
+
+    /** Sekunde od 1. 1. 1970 (UTC) za koledarski cas - brez java.time, da pravila tecejo na vsakem Androidu in v JVM. */
+    private fun epoha(leto: Int, mesec: Int, dan: Int, ura: Int, minuta: Int, sekunda: Int): Long {
+        val l = if (mesec <= 2) leto - 1 else leto
+        val doba = (if (l >= 0) l else l - 399) / 400
+        val letoDobe = l - doba * 400
+        val danLeta = (153 * (mesec + (if (mesec > 2) -3 else 9)) + 2) / 5 + dan - 1
+        val danDobe = letoDobe * 365 + letoDobe / 4 - letoDobe / 100 + danLeta
+        return (doba * 146097L + danDobe - 719468L) * 86400L + ura * 3600L + minuta * 60L + sekunda
+    }
+
+    /**
+     * Koliko sekund je naslov toka se veljaven, kadar to pove sam: podpisana, casovno omejena povezava do shrambe v
+     * oblaku ali CDN (X-Amz-Date + X-Amz-Expires, X-Goog-*, Expires=<cas>, se=<datum>, exp= v zetonu). null = naslov
+     * roka ne pove (trajna povezava ali neznan zapis). Negativno = ze potekla.
+     *
+     * Zakaj (Matej, 3. 10. 2026: "prvi vir ponavadi ne deluje, sele naslednji"): dodatki take povezave hranijo v
+     * predpomnilniku in jih ponudijo tudi, ko so ze potekle - streznik potem odgovori 403. Potekle povezave zato sploh
+     * ne poskusamo, med enakovrednima tokoma pa ima prednost tisti brez roka.
+     */
+    fun veljaSe(naslov: String, zdajS: Long): Long? {
+        fun stevilke(m: MatchResult) = m.groupValues.drop(1).map { it.toIntOrNull() ?: 0 }
+        PODPIS_DATUM.find(naslov)?.let { d ->
+            val velja = PODPIS_VELJA.find(naslov)?.groupValues?.get(1)?.toLongOrNull() ?: return@let
+            val (l, m, dan, u, mi) = stevilke(d)
+            return epoha(l, m, dan, u, mi, stevilke(d)[5]) + velja - zdajS
+        }
+        IZTEK_ISO.find(naslov)?.let { d ->
+            val (l, m, dan, u, mi) = stevilke(d)
+            return epoha(l, m, dan, u, mi, stevilke(d).getOrElse(5) { 0 }) - zdajS
+        }
+        val unix = (IZTEK_UNIX.find(naslov) ?: IZTEK_ZETON.find(naslov))?.groupValues?.get(1)?.toLongOrNull() ?: return null
+        // Samo verjeten cas izteka (2017-2100): parameter z istim imenom je lahko tudi kaj drugega.
+        return if (unix in 1_500_000_000L..4_102_444_800L) unix - zdajS else null
+    }
+
+    /** Povezava, ki je po lastnem zapisu ze potekla (ali potece v minuti): streznik je ne bo vec dal. */
+    fun potekla(naslov: String, zdajS: Long): Boolean = veljaSe(naslov, zdajS)?.let { it <= 60 } == true
+
     /** Koliko sejalcev navaja opis torrenta ("👤 123", "Seeders: 12"); -1 = opis tega ne pove. */
     fun sejalci(besedilo: String): Int = SEJALCI.find(besedilo.lowercase())?.groupValues?.get(1)?.toIntOrNull() ?: -1
 
@@ -52,8 +96,10 @@ object TokIzbira {
         return Opis(visina, HEVC.containsMatchIn(t), AV1.containsMatchIn(t), HDR.containsMatchIn(t), DV.containsMatchIn(t), zvok, SLAB.containsMatchIn(t), gb)
     }
 
-    /** Vecja ocena = boljsi tok za to napravo. */
-    fun ocena(besedilo: String, z: Zmoznosti): Int {
+    /**
+     * Vecja ocena = boljsi tok za to napravo. [veljaS]: koliko sekund je povezava se veljavna ([veljaSe]); null = brez roka.
+     */
+    fun ocena(besedilo: String, z: Zmoznosti, veljaS: Long? = null): Int {
         val o = opisi(besedilo)
         val v = if (o.visina == 0) 700 else o.visina          // neznana locljivost: med 720p in 480p
         // Do locljivosti zaslona je vec boljse; nad njo le vecja datoteka brez koristi (se vedno predvajljivo).
@@ -79,10 +125,18 @@ object TokIzbira {
             in 5..19 -> tocke -= 150
             else -> tocke += minOf(60, s / 20)
         }
+        // Casovno omejena povezava: potekla ne dela (zadnja od vseh), tik pred iztekom se ustavi sredi filma (za
+        // drugimi iste locljivosti); sicer ima med enakovrednima prednost trajna povezava.
+        if (veljaS != null) tocke -= when { veljaS <= 60 -> 6000; veljaS < 20 * 60 -> 300; else -> 15 }
         return tocke
     }
 
-    /** Tokovi od najboljsega do najslabsega za to napravo; pri enaki oceni ostane vrstni red dodatka. */
-    fun <T> uredi(tokovi: List<T>, besedilo: (T) -> String, z: Zmoznosti): List<T> =
-        tokovi.withIndex().sortedWith(compareByDescending<IndexedValue<T>> { ocena(besedilo(it.value), z) }.thenBy { it.index }).map { it.value }
+    /**
+     * Tokovi od najboljsega do najslabsega za to napravo; pri enaki oceni ostane vrstni red dodatka. Z [naslov] se
+     * uposteva tudi rok veljavnosti povezave ([veljaSe]) ob casu [zdajS] (sekunde od 1970).
+     */
+    fun <T> uredi(tokovi: List<T>, besedilo: (T) -> String, z: Zmoznosti, naslov: ((T) -> String)? = null,
+                  zdajS: Long = System.currentTimeMillis() / 1000): List<T> =
+        tokovi.mapIndexed { i, t -> Triple(t, ocena(besedilo(t), z, naslov?.let { veljaSe(it(t), zdajS) }), i) }
+            .sortedWith(compareByDescending<Triple<T, Int, Int>> { it.second }.thenBy { it.third }).map { it.first }
 }

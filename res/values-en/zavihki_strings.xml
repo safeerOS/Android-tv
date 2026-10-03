@@ -80,6 +80,7 @@
     <string name="os_moc_r_sorodnik">Safeer OS helps on this device</string>
     <string name="os_moc_r_predvaja">video or music is playing on this device</string>
     <string name="os_media_ni_na_voljo">“%1$s” is not available in your add-ons right now.</string>
+    <string name="os_media_dodatek_ne_odgovarja">The add-on isn\'t responding right now. Try again in a minute.</string>
     <string name="os_media_ni_predvajljivih">None of your add-ons can play these titles right now. Add an add-on with streams in My sources.</string>
     <string name="os_media_dodatek_omejuje">An add-on is limiting requests – titles checked so far are shown.</string>
 </resources>
