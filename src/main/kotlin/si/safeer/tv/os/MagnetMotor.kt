@@ -377,9 +377,35 @@ object MagnetMotor {
         val h = hash.lowercase()
         val z = zacasni(c)
         val prej = z.optJSONObject(h)
-        z.put(h, JSONObject().put("cas", System.currentTimeMillis()).put("ime", ime.ifBlank { prej?.optString("ime").orEmpty() }))
+        // Ostala polja vnosa (opis za knjiznico kroga, narocniki) ostanejo.
+        val vnos = prej?.let { JSONObject(it.toString()) } ?: JSONObject()
+        z.put(h, vnos.put("cas", System.currentTimeMillis()).put("ime", ime.ifBlank { prej?.optString("ime").orEmpty() }))
         prefs(c).edit().putString("zacasni", z.toString()).apply()
         zadnjiZapisRabe[h] = System.currentTimeMillis()
+    }
+
+    private fun opisIz(vnos: JSONObject): KnjiznicaKroga.Opis? =
+        if (vnos.optBoolean("zaseben")) KnjiznicaKroga.Opis("", "", "", "", true)
+        else vnos.optString("naslov").takeIf { it.isNotBlank() }?.let { KnjiznicaKroga.Opis(it, vnos.optString("plakat"), vnos.optString("vrsta"), vnos.optString("ref"), false) }
+
+    private fun narocniki(vnos: JSONObject): List<String> =
+        vnos.optJSONArray("narocniki")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() } }.orEmpty()
+
+    /**
+     * Knjiznica kroga: kar je naprava (ta ali druga v Linku) povedala o zacasnem torrentu - naslov in plakat ali da je
+     * zaseben - in kdo ga je prosil ([KnjiznicaKroga]). Torrenta, ki ni zacasen (uporabnik ga je prenesel sam), ne belezimo.
+     */
+    @Synchronized
+    fun zabeleziOpis(c: Context, hash: String, opis: KnjiznicaKroga.Opis?, narocnik: String) {
+        if (opis == null) return
+        val h = hash.lowercase()
+        val z = zacasni(c)
+        val vnos = z.optJSONObject(h) ?: return
+        val zdruzen = KnjiznicaKroga.zdruzi(opisIz(vnos), opis)
+        vnos.put("zaseben", zdruzen.zaseben).put("naslov", zdruzen.naslov).put("plakat", zdruzen.plakat).put("vrsta", zdruzen.vrsta).put("ref", zdruzen.ref)
+        vnos.put("narocniki", JSONArray((narocniki(vnos).filter { it != narocnik } + narocnik).filter { it.isNotBlank() }.takeLast(16)))
+        z.put(h, vnos)
+        prefs(c).edit().putString("zacasni", z.toString()).apply()
     }
 
     /** Tok se bere (predvajanje tece): rok do odstranitve se podaljsa - zapis najvec na 10 minut. */
@@ -507,7 +533,7 @@ object MagnetMotor {
     }
 
     /** Zacasni torrenti te naprave za `magnet.list`: [(hash, ime, velikost izbranih, preneseno, koncano, magnet, datoteka)]. */
-    fun seznamZacasnih(c: Context): JSONArray {
+    fun seznamZacasnih(c: Context, /** Naprava, ki sprasuje (zasebnega dobi samo narocnik); null = ta naprava sama. */ vprasa: String? = null): JSONArray {
         val izid = JSONArray()
         if (!naVoljo) return izid
         val z = zacasni(c)
@@ -519,9 +545,20 @@ object MagnetMotor {
             if (!z.has(hash)) continue
             val d = t.optJSONArray("datoteke")
             val video = (0 until (d?.length() ?: 0)).mapNotNull { d?.optJSONObject(it) }.firstOrNull { it.optBoolean("vkljucena") && it.optString("vrsta") == "video" }
-            izid.put(JSONObject().put("id", idZacasnega(hash)).put("name", t.optString("ime")).put("size", t.optLong("skupaj"))
+            val zapis = z.optJSONObject(hash) ?: JSONObject()
+            val opis = opisIz(zapis)
+            if (vprasa != null && !KnjiznicaKroga.pove(opis, narocniki(zapis), vprasa)) continue
+            val vnos = JSONObject().put("id", idZacasnega(hash)).put("name", t.optString("ime")).put("size", t.optLong("skupaj"))
                 .put("done", t.optLong("preneseno")).put("finished", t.optBoolean("koncano"))
-                .put("magnet", "magnet:?xt=urn:btih:$hash").put("file", video?.optInt("i", -1) ?: -1))
+                .put("magnet", "magnet:?xt=urn:btih:$hash").put("file", video?.optInt("i", -1) ?: -1)
+            if (opis?.zaseben == true) vnos.put("private", true)
+            else if (opis != null) {
+                vnos.put("title", opis.naslov)
+                if (opis.plakat.isNotBlank()) vnos.put("poster", opis.plakat)
+                if (opis.vrsta.isNotBlank()) vnos.put("kind", opis.vrsta)
+                if (opis.ref.isNotBlank()) vnos.put("ref", opis.ref)
+            }
+            izid.put(vnos)
         }
         return izid
     }

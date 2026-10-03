@@ -33,10 +33,12 @@ object MediaNapredek {
         shrani(c, vsi.take(30))
     }
 
-    fun seznam(c: Context): List<Vnos> = preberiJson(c).also { Stremio.pripravi(c) }.mapNotNull { o ->
+    fun seznam(c: Context): List<Vnos> = seznam(c, MedijskiViri.vsi(c).filter { it.jeStremio }.map { it.naslov })
+
+    private fun seznam(c: Context, dodatki: List<String>): List<Vnos> = preberiJson(c).also { Stremio.pripravi(c) }.mapNotNull { o ->
         try {
             val sk = skladba(o.getJSONObject("s"))
-            if (Stremio.jeZasebna(sk)) return@mapNotNull null
+            if (Stremio.jeZasebna(sk) || Stremio.brezDodatka(sk, dodatki)) return@mapNotNull null
             val trajanje = o.getLong("d")
             val vrsta = SpletniVir.vrstaVsebine(sk)
             val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || sk.season > 0 || sk.episode > 0

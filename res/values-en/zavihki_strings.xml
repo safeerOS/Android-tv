@@ -47,11 +47,12 @@
     <string name="os_stremio_ni_prostora_nikjer">There is not enough free space for this film – neither on this device nor on the others in your Link.</string>
     <string name="os_stremio_naprave_zasedene">The devices in your Link can\'t help right now. Try again in a few minutes.</string>
     <string name="os_stremio_torrent_napaka">The computer could not stream this torrent (%1$s).</string>
-    <string name="os_prenosi_racunalnik">Downloads on your computer</string>
+    <string name="os_prenosi_racunalnik">On your devices</string>
     <string name="os_prenos_predvajaj">Play</string>
-    <string name="os_prenos_odstrani">Remove from computer</string>
-    <string name="os_prenos_odstrani_vprasanje">The film and all its files will be deleted from the computer. You can open it again from the add-on any time.</string>
-    <string name="os_prenos_odstranjen">Removed from computer</string>
+    <string name="os_prenos_odstrani">Remove download</string>
+    <string name="os_prenos_odstrani_vprasanje">The film and all its files will be deleted from the device that keeps it. You can open it again from the add-on any time.</string>
+    <string name="os_prenos_odstranjen">Download removed</string>
+    <string name="os_prenos_ta_naprava">This device</string>
     <string name="os_stremio_vir_racunalnik">Streamed by a computer in Safeer Link – nothing is downloaded to this device</string>
     <string name="os_stremio_vir_tukaj">Playing from a torrent on this device – removed automatically after two days without watching</string>
     <string name="os_stremio_vir_naprava">Streamed by a device in Safeer Link – nothing is downloaded to this device</string>

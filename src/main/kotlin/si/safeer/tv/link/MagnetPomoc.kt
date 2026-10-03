@@ -3,6 +3,7 @@ package si.safeer.tv.link
 import android.content.Context
 import android.util.Log
 import org.json.JSONObject
+import si.safeer.tv.os.KnjiznicaKroga
 import si.safeer.tv.os.MagnetMotor
 import java.util.concurrent.ConcurrentHashMap
 
@@ -41,7 +42,12 @@ object MagnetPomoc {
         dela.entries.removeIf { (_, d) -> (d.koncano != 0L && zdaj - d.koncano > ODGOVOR_VELJA_MS) || zdaj - d.zacetek > NAJDLJE_MS + ODGOVOR_VELJA_MS }
         val kljuc = "$hash|$datoteka|$posiljatelj"
         dela[kljuc]?.let { d ->
-            d.izid?.let { izid -> if (!izid.ok) dela.remove(kljuc); return izid }
+            d.izid?.let { izid ->
+                if (!izid.ok) dela.remove(kljuc)
+                // Ponovljena prosnja dobi shranjeni odgovor; opis (ali da je naslov zaseben) pa si zapomnimo tudi tokrat.
+                else try { MagnetMotor.zabeleziOpis(context.applicationContext, hash, opisIz(p), posiljatelj) } catch (e: Throwable) { }
+                return izid
+            }
             return Daljinec.Izid(true, "Pripravljam tok", JSONObject().put("pending", true))
         }
         // Naprava pomaga, kolikor zmore: prazna baterija, varcevanje, pregrevanje ali film, ki ga sama predvaja, so razlog za "ne".
@@ -58,6 +64,8 @@ object MagnetPomoc {
         Thread({
             delo.izid = try {
                 val t = MagnetMotor.pripraviTok(app, uri, datoteka)
+                // Knjiznica kroga: naslov in plakat, ki ju pove naprava (ali da je naslov zaseben), za polico na vseh napravah.
+                MagnetMotor.zabeleziOpis(app, t.hash, opisIz(p), posiljatelj)
                 val streznik = DatotekeStreznik.streznikZa(app, posiljatelj) ?: throw IllegalStateException("napaka")
                 Log.i(TAG, "Pretakam ${t.datoteka.ime} za $posiljatelj")
                 Daljinec.Izid(true, "Naprava pretaka: " + t.datoteka.ime.substringAfterLast('/'), JSONObject()
@@ -73,8 +81,11 @@ object MagnetPomoc {
         return Daljinec.Izid(true, "Pripravljam tok", JSONObject().put("pending", true))
     }
 
-    fun seznam(context: Context): Daljinec.Izid {
-        val a = try { MagnetMotor.seznamZacasnih(context) } catch (e: Throwable) { org.json.JSONArray() }
+    private fun opisIz(p: JSONObject): KnjiznicaKroga.Opis? =
+        KnjiznicaKroga.sprejet(p.optString("title"), p.optString("poster"), p.optString("kind"), p.optString("ref"), p.optBoolean("private", false))
+
+    fun seznam(context: Context, posiljatelj: String): Daljinec.Izid {
+        val a = try { MagnetMotor.seznamZacasnih(context, posiljatelj) } catch (e: Throwable) { org.json.JSONArray() }
         return Daljinec.Izid(true, "${a.length()} prenosov", JSONObject().put("items", a))
     }
 
