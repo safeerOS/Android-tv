@@ -24,6 +24,32 @@ object LahkiWebViewPool {
     private var lastnik: Any? = null
     private var obOdvzemu: (() -> Unit)? = null
 
+    /**
+     * Odjemalec pogleda, ki ta trenutek nima lastnika. Vsi WebView-ji aplikacije si delijo en izrisovalni proces: ko se
+     * ta sesuje (stran v zavihku, npr. Googlov odgovor z umetno inteligenco - posnetek 3. 10. 2026) in KATERI KOLI
+     * WebView vrne false, Android ubije celo aplikacijo (sistem nato ponudi "odstrani posodobitve WebView"). Privzeti
+     * WebViewClient vrne false - zato mirujoc pogled iz poola ob smrti izrisovalnika samo zavrzemo.
+     */
+    private class MirujociKlient : WebViewClient() {
+        override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+            Log.w(TAG, "izrisovalnik je koncal (sesutje=${detail?.didCrash() == true}); lahki pogled zavrzem")
+            val w = view ?: return true
+            glavna.post {
+                if (pogled === w) {
+                    pogled = null
+                    val klic = obOdvzemu
+                    lastnik = null
+                    obOdvzemu = null
+                    glavna.removeCallbacks(unicenje)
+                    try { klic?.invoke() } catch (_: Throwable) { }
+                }
+                try { (w.parent as? ViewGroup)?.removeView(w) } catch (_: Throwable) { }
+                try { w.destroy() } catch (_: Throwable) { }
+            }
+            return true
+        }
+    }
+
     private val unicenje = Runnable {
         val w = pogled ?: return@Runnable
         if (lastnik != null) return@Runnable
@@ -48,6 +74,7 @@ object LahkiWebViewPool {
         }
         val w = pogled ?: WebView(MutableContextWrapper(context.applicationContext)).also {
             pogled = it
+            try { it.webViewClient = MirujociKlient() } catch (_: Throwable) { }
             Log.i(TAG, "ustvarjen WebView: lahki pool")
         }
         (w.context as? MutableContextWrapper)?.baseContext = context
@@ -119,7 +146,7 @@ object LahkiWebViewPool {
             try { w.removeJavascriptInterface(ime) } catch (_: Throwable) { }
         }
         try { w.webChromeClient = WebChromeClient() } catch (_: Throwable) { }
-        try { w.webViewClient = WebViewClient() } catch (_: Throwable) { }
+        try { w.webViewClient = MirujociKlient() } catch (_: Throwable) { }
     }
 
     private fun odstraniPodatkeIzvora(naslov: String?) {
