@@ -30,5 +30,14 @@ fun main() {
     check(brezHevc.first().startsWith("B"))
     // Enaka ocena: vrstni red dodatka ostane.
     check(TokIzbira.uredi(listOf("X 1080p", "Y 1080p"), { it }, telefon) == listOf("X 1080p", "Y 1080p"))
+    // Sejalci (torrent): opis jih pove kot "👤 123" ali "Seeders: 12"; brez podatka -1.
+    check(TokIzbira.sejalci("Film.2020.1080p.WEB\n\uD83D\uDC64 245 \uD83D\uDCBE 2.1 GB") == 245)
+    check(TokIzbira.sejalci("Film 1080p Seeders: 12 Size 2 GB") == 12)
+    check(TokIzbira.sejalci("Film 1080p 2 GB") == -1)
+    // Podprt torrent 720p pred slabo podprtim 1080p (zacne se takoj); mrtev torrent je zadnji.
+    val roj = TokIzbira.uredi(listOf("A 1080p \uD83D\uDC64 2 3 GB", "B 720p \uD83D\uDC64 300 1 GB", "C 1080p \uD83D\uDC64 0 3 GB", "D 1080p \uD83D\uDC64 80 3 GB"), { it }, telefon)
+    check(roj == listOf("D 1080p \uD83D\uDC64 80 3 GB", "B 720p \uD83D\uDC64 300 1 GB", "A 1080p \uD83D\uDC64 2 3 GB", "C 1080p \uD83D\uDC64 0 3 GB")) { roj }
+    // Na televizorju 4K z nekaj sejalci 4K ostane pred 1080p z veliko sejalci.
+    check(TokIzbira.uredi(listOf("E 1080p \uD83D\uDC64 500 2 GB", "F 2160p \uD83D\uDC64 15 12 GB"), { it }, tv4k).first().startsWith("F"))
     println("TokIzbiraTest: OK")
 }

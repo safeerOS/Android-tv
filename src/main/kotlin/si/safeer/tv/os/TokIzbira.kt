@@ -32,6 +32,10 @@ object TokIzbira {
     private val AC3 = Regex("\\bdd[ .]?[257]|\\bac-?3\\b|dolby digital")
     private val SLAB = Regex("\\b(cam|hdcam|camrip|ts|hdts|telesync|tc|telecine|scr|screener)\\b")
     private val VELIKOST = Regex("(\\d+(?:[.,]\\d+)?)\\s*(gb|gib|mb|mib)")
+    private val SEJALCI = Regex("(?:\uD83D\uDC64|seed(?:er)?s?\\s*[:=]?)\\s*(\\d{1,6})")
+
+    /** Koliko sejalcev navaja opis torrenta ("👤 123", "Seeders: 12"); -1 = opis tega ne pove. */
+    fun sejalci(besedilo: String): Int = SEJALCI.find(besedilo.lowercase())?.groupValues?.get(1)?.toIntOrNull() ?: -1
 
     fun opisi(besedilo: String): Opis {
         val t = besedilo.lowercase()
@@ -65,6 +69,16 @@ object TokIzbira {
         if (o.slabPosnetek) tocke -= 800
         // Med enakovrednimi se manjsa datoteka zacne hitreje (nic cakanja).
         tocke -= (minOf(o.gb, 40.0) * 4).toInt()
+        // Torrent: zacetek predvajanja doloca roj, ne naprava (izmerjeno 3. 10. 2026 - dobro podprt torrent stece v
+        // nekaj sekundah, slabo podprt po minuti ali nikoli). Kjer opis pove stevilo sejalcev, ima podprt torrent
+        // prednost tudi pred eno stopnjo visjo locljivostjo; brez sejalcev je zadnji.
+        when (val s = sejalci(besedilo)) {
+            -1 -> { }
+            0 -> tocke -= 2500
+            in 1..4 -> tocke -= 600
+            in 5..19 -> tocke -= 150
+            else -> tocke += minOf(60, s / 20)
+        }
         return tocke
     }
 
