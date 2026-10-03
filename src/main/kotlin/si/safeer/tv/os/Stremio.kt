@@ -264,6 +264,17 @@ object Stremio {
         val d = s.id.removePrefix(PREDPONA).split('|', limit = 3)
         return if (d.size == 3) Triple(d[2].substringBefore('#'), d[0], d[1]) else null
     }
+    /**
+     * Enota dodatka, ki ga uporabnik nima vec (izbrisal ga je tu ali na drugi napravi v Linku): ne da se predvajati,
+     * zato je ne kazemo v »Nadaljuj gledanje« in »Nazadnje predvajano« (lastnik: kar se ne da predvajati, ne kazemo).
+     * Javni katalog Cinemeta je vedno namescen. Zapis ostane - ce dodatek vrne, se naslov vrne z njim.
+     */
+    fun brezDodatka(s: Jamendo.Skladba, nasloviDodatkov: Collection<String>): Boolean {
+        if (!jeEnota(s)) return false
+        val dodatek = razstavi(s)?.first ?: return false
+        return dodatek != osnova(CINEMETA) && nasloviDodatkov.none { osnova(it) == dodatek }
+    }
+
     fun jeSerija(s: Jamendo.Skladba) = razstavi(s)?.second == "series"
     /** Razred enote dodatka (FILM, SERIJA, TV, GLASBA, RADIO, VIDEO). */
     fun razredEnote(s: Jamendo.Skladba): String = razred(razstavi(s)?.second.orEmpty())

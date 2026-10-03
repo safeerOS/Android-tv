@@ -47,11 +47,12 @@
     <string name="os_stremio_ni_prostora_nikjer">No hay espacio suficiente para esta película, ni en este dispositivo ni en los demás de tu Link.</string>
     <string name="os_stremio_naprave_zasedene">Los dispositivos de tu Link no pueden ayudar ahora. Inténtalo en unos minutos.</string>
     <string name="os_stremio_torrent_napaka">El ordenador no pudo transmitir este torrent (%1$s).</string>
-    <string name="os_prenosi_racunalnik">Descargas en el ordenador</string>
+    <string name="os_prenosi_racunalnik">En tus dispositivos</string>
     <string name="os_prenos_predvajaj">Reproducir</string>
-    <string name="os_prenos_odstrani">Quitar del ordenador</string>
-    <string name="os_prenos_odstrani_vprasanje">La película y todos sus archivos se borrarán del ordenador. Puedes volver a abrirla desde el complemento cuando quieras.</string>
-    <string name="os_prenos_odstranjen">Quitado del ordenador</string>
+    <string name="os_prenos_odstrani">Quitar descarga</string>
+    <string name="os_prenos_odstrani_vprasanje">La película y todos sus archivos se borrarán del dispositivo que la guarda. Puedes volver a abrirla desde el complemento cuando quieras.</string>
+    <string name="os_prenos_odstranjen">Descarga quitada</string>
+    <string name="os_prenos_ta_naprava">Este dispositivo</string>
     <string name="os_stremio_vir_racunalnik">Lo transmite un ordenador de Safeer Link – no se descarga nada en este dispositivo</string>
     <string name="os_stremio_vir_tukaj">Se reproduce desde un torrent en este dispositivo; se elimina solo tras dos días sin verlo</string>
     <string name="os_stremio_vir_naprava">Lo transmite un dispositivo de Safeer Link; no se descarga nada en este dispositivo</string>

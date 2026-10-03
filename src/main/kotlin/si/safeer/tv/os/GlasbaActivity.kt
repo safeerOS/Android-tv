@@ -1326,9 +1326,9 @@ class GlasbaActivity : OsActivity() {
             val zateJe = zateSeznam.isNotEmpty() && imaZgodovino && !jeZacetek(filmi) && !jeZacetek(serije) && !jeZacetek(ostali)
             if (zateJe) vrste += Podatki(getString(R.string.os_media_zate), zateSeznam, video = true)
             val vZate = if (zateJe) zateId.toSet() else emptySet()
-            // Kar racunalniki v Linku hranijo za to napravo (torrenti iz dodatkov): ogled ali odstranitev.
+            // Knjiznica kroga: kar naprave v Linku in ta naprava hranijo (torrenti iz dodatkov) - ogled ali odstranitev.
             prenosiNaRacunalnikih().takeIf { it.isNotEmpty() }?.let {
-                vrste += Podatki("💻 " + getString(R.string.os_prenosi_racunalnik), it, video = true)
+                vrste += Podatki(getString(R.string.os_prenosi_racunalnik), it, video = true)
             }
             filmi.filter { it.id !in vZate }.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_filmi), it.take(POLICA_NAJVEC), video = true) }
             serije.filter { it.id !in vZate }.takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(R.string.os_media_serije), it.take(POLICA_NAJVEC), video = true) }
@@ -1655,6 +1655,26 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /**
+     * Daljinec (televizor): izbira Filmi | Serije | Zate je v pogledu Zate ozka in levo, zato jo je iskanje fokusa
+     * preskocilo - dosegljiva je bila samo iz razdelka Glasba (najdeno 3. 10. 2026 v zivo). Zdaj pelje vanjo DOL iz
+     * vsakega razdelka in GOR iz vrstice pod njo.
+     */
+    private fun poveziIzbiro(razdelki: View, izbire: View, pod: View) {
+        fun prva(v: View): View? = if (v.isFocusable && v.isClickable) v
+            else (v as? android.view.ViewGroup)?.let { g -> (0 until g.childCount).firstNotNullOfOrNull { prva(g.getChildAt(it)) } }
+        val izbira = prva(izbire) ?: return
+        if (izbira.id == View.NO_ID) izbira.id = View.generateViewId()
+        if (pod.id == View.NO_ID) pod.id = View.generateViewId()
+        pod.nextFocusUpId = izbira.id
+        izbira.nextFocusDownId = pod.id
+        fun vsi(v: View) {
+            if (v.isFocusable && v.isClickable) v.nextFocusDownId = izbira.id
+            (v as? android.view.ViewGroup)?.let { g -> for (k in 0 until g.childCount) vsi(g.getChildAt(k)) }
+        }
+        vsi(razdelki)
+    }
+
     /** Glava mreze Filmi | Serije: (v Medijskem centru se razdelki) in tri izbire - vrsta, razvrstitev, zvrst. */
     private fun glavaBrskanja(o: OdprtKatalog): List<View> =
         (if (vlc) emptyList() else listOf(razdelkiVrstica(VIDEO))) + listOf(videoIzbire(o))
@@ -1829,7 +1849,11 @@ class GlasbaActivity : OsActivity() {
         else -> emptyList()
     } else when (i) {
         DOMOV -> listOfNotNull(kategorije(), razvrstiInFiltrirajGumb(i), zdajPlosca())
-        VIDEO -> listOf(razdelkiVrstica(i), videoIzbire(null), razvrstiInFiltrirajGumb(i))
+        VIDEO -> {
+            val razdelki = razdelkiVrstica(i); val izbire = videoIzbire(null); val razvrsti = razvrstiInFiltrirajGumb(i)
+            poveziIzbiro(razdelki, izbire, razvrsti)
+            listOf(razdelki, izbire, razvrsti)
+        }
         GLASBA, RADIO, TV_V_ZIVO -> listOfNotNull(
             razdelkiVrstica(i),
             razvrstiInFiltrirajGumb(i),
@@ -4396,7 +4420,7 @@ class GlasbaActivity : OsActivity() {
             val r = racunalniki[k]
             val ime = DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }
             Toast.makeText(this, getString(R.string.os_stremio_racunalnik_pripravlja, ime), Toast.LENGTH_LONG).show()
-            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).apply { if (datoteka >= 0) put("file", datoteka) }, 150_000, LinkOdjemalec.Odgovor { izid, napaka ->
+            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).apply { if (datoteka >= 0) put("file", datoteka); opisVZahtevo(this, opisZa(sk, naslov)) }, 150_000, LinkOdjemalec.Odgovor { izid, napaka ->
                 if (isFinishing) return@Odgovor
                 val podatki = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
                 val srv = podatki?.optJSONObject("server")
@@ -4422,8 +4446,9 @@ class GlasbaActivity : OsActivity() {
         val url = s.osnova + pot
         val pr = sk.copy(id = sk.id + (if (racunalnik) "#t" else "#tn") + magnet.hashCode(), naslov = naslov, zvok = url, povezava = url, video = true)
         SEZNAMI.remove(VIDEO)   // polica "Prenosi na racunalniku" se osvezi
-        // Plakat in ime iz dodatka si zapomnimo, da je kartica prenosa na racunalniku prepoznavna.
-        btih(magnet)?.let { h -> getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE).edit().putString(h, sk.slika).apply() }
+        // Naslov in plakat iz dodatka (ali da je naslov zaseben) si zapomnimo: kartica na polici je prepoznavna tudi,
+        // ce pomocnik opisa ne zna hraniti (starejsa razlicica); zasebnega na polici ni.
+        zapomniPrenos(magnet, opisZa(sk, naslov))
         GlasbaStoritev.predvajaj(this, listOf(pr), 0, s)
         nadaljujKoPripravljen(pr)
         startActivity(Intent(this, PredvajanjeActivity::class.java))
@@ -4435,8 +4460,10 @@ class GlasbaActivity : OsActivity() {
      * (telefon, tablico, televizor), da ga prenasa in ji ga pretaka. Brez okna in brez izbire: film se zacne ali pa
      * kratko povemo, zakaj ne.
      */
-    private fun torrentBrezRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int, velikost: Long, napakaRacunalnika: String) {
-        val drugi = napraveZaTorrent()
+    private fun torrentBrezRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int, velikost: Long, napakaRacunalnika: String,
+                                       /** Polica »Preneseno«: film hrani ta naprava ([TA_NAPRAVA]) ali naprava s tem id - predvajamo od tam. */
+                                       samoNaprava: String = "") {
+        val drugi = if (samoNaprava.isBlank() || samoNaprava == TA_NAPRAVA) napraveZaTorrent() else napraveZaTorrent().filter { it.id == samoNaprava }
         fun konec(koda: String) {
             if (isFinishing) return
             android.util.Log.i("SafeerOsMedia", "torrent ni stekel: $koda")
@@ -4452,7 +4479,7 @@ class GlasbaActivity : OsActivity() {
             val r = drugi[k]
             val prvic = android.os.SystemClock.uptimeMillis() - od < 500
             if (prvic) Toast.makeText(this, getString(R.string.os_stremio_naprava_pripravlja, DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }), Toast.LENGTH_LONG).show()
-            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).apply { if (datoteka >= 0) put("file", datoteka) }, 20_000, LinkOdjemalec.Odgovor { izid, napaka ->
+            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).apply { if (datoteka >= 0) put("file", datoteka); opisVZahtevo(this, opisZa(sk, naslov)) }, 20_000, LinkOdjemalec.Odgovor { izid, napaka ->
                 if (isFinishing) return@Odgovor
                 val podatki = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
                 val srv = podatki?.optJSONObject("server")
@@ -4467,7 +4494,8 @@ class GlasbaActivity : OsActivity() {
             })
         }
         val prostor = MagnetMotor.prostorZaTok(this)
-        val sam = MagnetMotor.naVoljo && prostor > 0 && (velikost <= 0 || velikost <= prostor)
+        val sam = if (samoNaprava == TA_NAPRAVA) MagnetMotor.naVoljo
+            else samoNaprava.isBlank() && MagnetMotor.naVoljo && prostor > 0 && (velikost <= 0 || velikost <= prostor)
         merim(if (sam) "predvajam sam" else "prosim naprave: ${drugi.size}")
         if (!sam) { prosi(0, napakaRacunalnika.ifBlank { if (MagnetMotor.naVoljo) "ni_prostora" else "ni_podprto" }); return }
         Toast.makeText(this, R.string.os_stremio_pripravljam, Toast.LENGTH_LONG).show()
@@ -4478,6 +4506,11 @@ class GlasbaActivity : OsActivity() {
                 if (isFinishing) return@post
                 if (r is MagnetMotor.Pripravljen) {
                     merim("sam pripravljen")
+                    // Knjiznica kroga: druge naprave vidijo, kaj ta naprava hrani (zasebnega ne).
+                    val opis = opisZa(sk, naslov)
+                    try { MagnetMotor.zabeleziOpis(app, r.hash, opis, Identiteta.id(this)) } catch (_: Throwable) { }
+                    zapomniPrenos(magnet, opis)
+                    SEZNAMI.remove(VIDEO)
                     val podnapisi = r.podnapisi.map { (d, url) ->
                         val (jezik, oznaka) = Podnapisi.jezik(r.datoteka.ime, d.ime)
                         Podnapisi.Podnapis(url, d.ime.substringAfterLast('/'), jezik, oznaka, Podnapisi.mime(d.ime))
@@ -4511,33 +4544,80 @@ class GlasbaActivity : OsActivity() {
         else link.naprave.filter { n -> n.id != Identiteta.id(this) && "files" in n.zmoznosti &&
             ("desktop" in n.zmoznosti || n.platforma in setOf("linux", "windows", "macos")) }
 
-    /** Prenosi, ki jih racunalniki (Safeer Control, `magnet.list`) hranijo za naprave. Klic iz delovne niti. */
+    /**
+     * Knjiznica kroga ([KnjiznicaKroga]): kar naprave v Linku (racunalniki s Safeer Control, telefoni, tablice, televizorji)
+     * in ta naprava hranijo iz torrentov - z naslovom in plakatom iz dodatka, nikoli s surovim imenom torrenta. Zasebnega
+     * na polici ni. Isti film pri vec napravah je en vnos. Klic iz delovne niti.
+     */
     private fun prenosiNaRacunalnikih(): List<Jamendo.Skladba> {
         val racunalniki = try { racunalnikiZaPomoc() } catch (_: Exception) { emptyList() }
-        if (racunalniki.isEmpty()) return emptyList()
-        val izid = java.util.Collections.synchronizedList(mutableListOf<Jamendo.Skladba>())
-        val plakati = getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE)
-        val cakam = java.util.concurrent.CountDownLatch(racunalniki.size)
-        glavna.post {
-            for (r in racunalniki) link.ukaz(r.id, "magnet.list", org.json.JSONObject(), 8_000, LinkOdjemalec.Odgovor { odgovor, _ ->
-                try {
-                    val a = odgovor?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")?.optJSONArray("items")
-                    val ime = DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }
-                    for (i in 0 until (a?.length() ?: 0)) {
-                        val t = a!!.optJSONObject(i) ?: continue
-                        val skupaj = t.optLong("size"); val dobljeno = t.optLong("done")
-                        val delez = if (skupaj > 0) (dobljeno * 100 / skupaj).toInt() else 0
-                        val opis = ime + " · " + android.text.format.Formatter.formatShortFileSize(this, skupaj) +
-                            (if (t.optBoolean("finished")) "" else " · $delez %")
-                        val plakat = btih(t.optString("magnet"))?.let { plakati.getString(it, "") }.orEmpty()
-                        izid += Jamendo.Skladba(PREDPONA_PC_PRENOSA + r.id + "|" + t.optInt("id") + "|" + t.optInt("file", -1),
-                            t.optString("name"), opis, plakat, "", t.optString("magnet"), video = true, mediaType = "movie")
-                    }
-                } finally { cakam.countDown() }
-            })
+        val naprave = try { napraveZaTorrent() } catch (_: Exception) { emptyList() }
+        val imetniki = (racunalniki + naprave).distinctBy { it.id }
+        val zapisi = getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE)
+        class Vnos(val sk: Jamendo.Skladba, val hash: String, val koncan: Boolean, val tukaj: Boolean, val racunalnik: Boolean)
+        val izid = java.util.Collections.synchronizedList(mutableListOf<Vnos>())
+        fun dodaj(a: org.json.JSONArray?, imetnik: String, ime: String, tukaj: Boolean, racunalnik: Boolean) {
+            for (i in 0 until (a?.length() ?: 0)) {
+                val t = a!!.optJSONObject(i) ?: continue
+                val hash = btih(t.optString("magnet"))
+                val (naslov, plakat) = KnjiznicaKroga.zaPolico(t.optString("title"), t.optString("poster"), t.optBoolean("private"),
+                    lokalniOpis(zapisi, hash)) ?: continue
+                val skupaj = t.optLong("size"); val dobljeno = t.optLong("done")
+                val delez = if (skupaj > 0) (dobljeno * 100 / skupaj).toInt() else 0
+                val opis = ime + " · " + android.text.format.Formatter.formatShortFileSize(this, skupaj) +
+                    (if (t.optBoolean("finished")) "" else " · $delez %")
+                izid += Vnos(Jamendo.Skladba(PREDPONA_PC_PRENOSA + imetnik + "|" + t.optInt("id") + "|" + t.optInt("file", -1),
+                    naslov, opis, plakat, "", t.optString("magnet"), video = true, mediaType = "movie"),
+                    hash.orEmpty(), t.optBoolean("finished"), tukaj, racunalnik)
+            }
         }
-        cakam.await(10, java.util.concurrent.TimeUnit.SECONDS)
-        return izid.sortedBy { it.naslov.lowercase(Locale.ROOT) }
+        // Ta naprava: kar je prenesla sama, ko je film predvajala brez pomoci.
+        try { dodaj(MagnetMotor.seznamZacasnih(this), TA_NAPRAVA, getString(R.string.os_prenos_ta_naprava), true, false) } catch (_: Throwable) { }
+        if (imetniki.isNotEmpty()) {
+            val cakam = java.util.concurrent.CountDownLatch(imetniki.size)
+            glavna.post {
+                for (r in imetniki) link.ukaz(r.id, "magnet.list", org.json.JSONObject(), 8_000, LinkOdjemalec.Odgovor { odgovor, _ ->
+                    try {
+                        dodaj(odgovor?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")?.optJSONArray("items"), r.id,
+                            DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }, false, racunalniki.any { it.id == r.id })
+                    } finally { cakam.countDown() }
+                })
+            }
+            cakam.await(10, java.util.concurrent.TimeUnit.SECONDS)
+        }
+        return KnjiznicaKroga.brezDvojnikov(izid.toList(), { it.hash }, { it.koncan }, { it.tukaj }, { it.racunalnik })
+            .map { it.sk }.sortedBy { it.naslov.lowercase(Locale.ROOT) }
+    }
+
+    /** Kar ta naprava pove pomocniku o filmu, ki ga prosi: naslov in plakat iz dodatka; iz zasebnega dodatka samo oznako. */
+    private fun opisZa(sk: Jamendo.Skladba, naslov: String): KnjiznicaKroga.Opis =
+        KnjiznicaKroga.opis(naslov.ifBlank { sk.naslov }, sk.slika, sk.mediaType, if (sk.id.startsWith(PREDPONA_PC_PRENOSA)) "" else sk.id, Stremio.jeZasebna(sk))
+
+    private fun opisVZahtevo(p: org.json.JSONObject, o: KnjiznicaKroga.Opis) {
+        if (o.zaseben) { p.put("private", true); return }
+        if (o.naslov.isBlank()) return
+        p.put("title", o.naslov)
+        if (o.plakat.isNotBlank()) p.put("poster", o.plakat)
+        if (o.vrsta.isNotBlank()) p.put("kind", o.vrsta)
+        if (o.ref.isNotBlank()) p.put("ref", o.ref)
+    }
+
+    private fun zapomniPrenos(magnet: String, o: KnjiznicaKroga.Opis) {
+        val h = btih(magnet) ?: return
+        val prej = lokalniOpis(getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE), h)
+        val z = KnjiznicaKroga.zdruzi(prej, o)
+        getSharedPreferences(PREFS_PC_PRENOSI, MODE_PRIVATE).edit().putString(h, org.json.JSONObject().put("t", z.naslov).put("p", z.plakat)
+            .put("k", z.vrsta).put("r", z.ref).put("z", z.zaseben).toString()).apply()
+    }
+
+    /** Zapis te naprave o prenosu (naslov, plakat, zasebnost); starejsi zapis (samo plakat) ne steje - brez naslova ni kartice. */
+    private fun lokalniOpis(zapisi: android.content.SharedPreferences, hash: String?): KnjiznicaKroga.Opis? {
+        val v = hash?.let { zapisi.getString(it, "") }.orEmpty()
+        if (!v.startsWith("{")) return null
+        return try {
+            val j = org.json.JSONObject(v)
+            KnjiznicaKroga.Opis(j.optString("t"), j.optString("p"), j.optString("k"), j.optString("r"), j.optBoolean("z"))
+        } catch (_: Exception) { null }
     }
 
     /** Prosta moc racunalnika iz host.info: prosta jedra + prosti pomnilnik (GB); brez prostora na disku 0. */
@@ -4553,22 +4633,37 @@ class GlasbaActivity : OsActivity() {
     private fun btih(magnet: String): String? =
         Regex("btih:([0-9a-zA-Z]{32,40})").find(magnet)?.groupValues?.get(1)?.lowercase(Locale.ROOT)
 
-    /** Prenos na racunalniku: predvajaj (racunalnik pretaka) ali odstrani z racunalnika, ko ga ne rabis vec. */
+    /** Prenos s police »Preneseno«: predvajaj od naprave, ki ga hrani, ali ga tam odstrani, ko ga ne rabis vec. */
     private fun meniPrenosa(sk: Jamendo.Skladba) {
         val d = sk.id.removePrefix(PREDPONA_PC_PRENOSA).split('|')
         if (d.size < 3) return
         val (pc, tid, datoteka) = Triple(d[0], d[1].toIntOrNull() ?: return, d[2].toIntOrNull() ?: -1)
+        val tukaj = pc == TA_NAPRAVA
+        fun odstranjeno(ok: Boolean, sporocilo: String?) {
+            if (isFinishing) return
+            Toast.makeText(this, if (ok) getString(R.string.os_prenos_odstranjen)
+                else getString(R.string.os_stremio_torrent_napaka, sporocilo.orEmpty()), Toast.LENGTH_LONG).show()
+            if (ok) { SEZNAMI.remove(VIDEO); if (razdelek == VIDEO) izberi(VIDEO) }
+        }
         AlertDialog.Builder(this).setTitle(sk.naslov).setMessage(sk.izvajalec)
-            .setPositiveButton(R.string.os_prenos_predvajaj) { _, _ -> torrentPrekRacunalnika(sk, sk.naslov, sk.povezava, datoteka, pc) }
+            .setPositiveButton(R.string.os_prenos_predvajaj) { _, _ ->
+                when {
+                    tukaj -> torrentBrezRacunalnika(sk, sk.naslov, sk.povezava, datoteka, 0L, "", samoNaprava = TA_NAPRAVA)
+                    racunalnikiZaPomoc().any { it.id == pc } -> torrentPrekRacunalnika(sk, sk.naslov, sk.povezava, datoteka, pc)
+                    else -> torrentBrezRacunalnika(sk, sk.naslov, sk.povezava, datoteka, 0L, "", samoNaprava = pc)
+                }
+            }
             .setNeutralButton(R.string.os_prenos_odstrani) { _, _ ->
                 AlertDialog.Builder(this).setTitle(sk.naslov).setMessage(R.string.os_prenos_odstrani_vprasanje)
                     .setPositiveButton(R.string.os_prenos_odstrani) { _, _ ->
-                        link.ukaz(pc, "magnet.remove", org.json.JSONObject().put("id", tid), 20_000, LinkOdjemalec.Odgovor { izid, napaka ->
-                            if (isFinishing) return@Odgovor
-                            val ok = izid?.optBoolean("ok") == true
-                            Toast.makeText(this, if (ok) getString(R.string.os_prenos_odstranjen)
-                                else getString(R.string.os_stremio_torrent_napaka, izid?.optString("message") ?: napaka), Toast.LENGTH_LONG).show()
-                            if (ok) { SEZNAMI.remove(VIDEO); if (razdelek == VIDEO) izberi(VIDEO) }
+                        if (tukaj) {
+                            val app = applicationContext
+                            Thread({
+                                val ok = try { MagnetMotor.odstraniZacasnega(app, tid) } catch (_: Throwable) { false }
+                                glavna.post { odstranjeno(ok, null) }
+                            }, "safeer-prenos-odstrani").apply { isDaemon = true; start() }
+                        } else link.ukaz(pc, "magnet.remove", org.json.JSONObject().put("id", tid), 20_000, LinkOdjemalec.Odgovor { izid, napaka ->
+                            odstranjeno(izid?.optBoolean("ok") == true, izid?.optString("message") ?: napaka)
                         })
                     }.setNegativeButton(android.R.string.cancel, null).show()
             }
@@ -4680,6 +4775,8 @@ class GlasbaActivity : OsActivity() {
         private const val KLJUC_PREDVAJALNIK = "kat-predvajalnik"
         private const val DOMOV = 0; private const val GLASBA = 2; private const val RADIO = 3
         private const val PREDPONA_PC_PRENOSA = "pcprenos|"
+        /** Imetnik prenosa na polici »Preneseno«, kadar film hrani ta naprava sama. */
+        private const val TA_NAPRAVA = "tukaj"
         private const val PREFS_PC_PRENOSI = "safeer_pc_prenosi"
         private const val VIDEO = 4; private const val VIRI = 6; private const val ISKANJE = 7; private const val TV_V_ZIVO = 8
         private const val RAZVRSTI_PRIPOROCENO = 0

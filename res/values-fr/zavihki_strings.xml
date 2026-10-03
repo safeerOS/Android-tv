@@ -47,11 +47,12 @@
     <string name="os_stremio_ni_prostora_nikjer">Pas assez de place pour ce film – ni sur cet appareil ni sur les autres de ton Link.</string>
     <string name="os_stremio_naprave_zasedene">Les appareils de ton Link ne peuvent pas aider pour le moment. Réessaie dans quelques minutes.</string>
     <string name="os_stremio_torrent_napaka">L’ordinateur n’a pas pu diffuser ce torrent (%1$s).</string>
-    <string name="os_prenosi_racunalnik">Téléchargements sur l’ordinateur</string>
+    <string name="os_prenosi_racunalnik">Sur tes appareils</string>
     <string name="os_prenos_predvajaj">Lire</string>
-    <string name="os_prenos_odstrani">Supprimer de l’ordinateur</string>
-    <string name="os_prenos_odstrani_vprasanje">Le film et tous ses fichiers seront supprimés de l’ordinateur. Tu peux le rouvrir à tout moment depuis l’extension.</string>
-    <string name="os_prenos_odstranjen">Supprimé de l’ordinateur</string>
+    <string name="os_prenos_odstrani">Supprimer le téléchargement</string>
+    <string name="os_prenos_odstrani_vprasanje">Le film et tous ses fichiers seront supprimés de l’appareil qui le conserve. Tu peux le rouvrir à tout moment depuis l’extension.</string>
+    <string name="os_prenos_odstranjen">Téléchargement supprimé</string>
+    <string name="os_prenos_ta_naprava">Cet appareil</string>
     <string name="os_stremio_vir_racunalnik">Diffusé par un ordinateur de Safeer Link – rien n’est téléchargé sur cet appareil</string>
     <string name="os_stremio_vir_tukaj">Lecture depuis un torrent sur cet appareil – supprimé automatiquement après deux jours sans visionnage</string>
     <string name="os_stremio_vir_naprava">Diffusé par un appareil de Safeer Link – rien n\'est téléchargé sur cet appareil</string>

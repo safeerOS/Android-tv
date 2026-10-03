@@ -51,11 +51,12 @@
     <string name="os_stremio_ni_prostora_nikjer">There is not enough free space for this film – neither on this device nor on the others in your Link.</string>
     <string name="os_stremio_naprave_zasedene">The devices in your Link can\'t help right now. Try again in a few minutes.</string>
     <string name="os_stremio_torrent_napaka">Računalnik torrenta ni mogel pretakati (%1$s).</string>
-    <string name="os_prenosi_racunalnik">Prenosi na računalniku</string>
+    <string name="os_prenosi_racunalnik">Na tvojih napravah</string>
     <string name="os_prenos_predvajaj">Predvajaj</string>
-    <string name="os_prenos_odstrani">Odstrani z računalnika</string>
-    <string name="os_prenos_odstrani_vprasanje">Film in vse njegove datoteke se izbrišejo z računalnika. Kadarkoli ga lahko znova odpreš iz dodatka.</string>
-    <string name="os_prenos_odstranjen">Odstranjeno z računalnika</string>
+    <string name="os_prenos_odstrani">Odstrani prenos</string>
+    <string name="os_prenos_odstrani_vprasanje">Film in vse njegove datoteke se izbrišejo z naprave, ki ga hrani. Kadarkoli ga lahko znova odpreš iz dodatka.</string>
+    <string name="os_prenos_odstranjen">Prenos je odstranjen</string>
+    <string name="os_prenos_ta_naprava">Ta naprava</string>
     <string name="os_stremio_vir_racunalnik">Pretaka računalnik v Safeer Linku – na to napravo se nič ne prenaša</string>
     <string name="os_stremio_vir_tukaj">Playing from a torrent on this device – removed automatically after two days without watching</string>
     <string name="os_stremio_vir_naprava">Streamed by a device in Safeer Link – nothing is downloaded to this device</string>

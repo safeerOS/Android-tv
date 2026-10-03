@@ -158,7 +158,7 @@ object Daljinec {
         }
         if (d == "magnet.open") return odpriMagnet(context, parametri.optString("uri", ""))
         if (d == "magnet.stream") return MagnetPomoc.tok(context, parametri, parametri.optString(PARAM_POSILJATELJ, ""))
-        if (d == "magnet.list") return MagnetPomoc.seznam(context)
+        if (d == "magnet.list") return MagnetPomoc.seznam(context, parametri.optString(PARAM_POSILJATELJ, ""))
         if (d == "magnet.remove") return MagnetPomoc.odstrani(context, parametri)
         if (d == "host.info") return Izid(true, "Zmogljivost", Zmogljivost.porocilo(context))
         if (d == "storage.put") return Shramba.sprejmi(context, parametri)
