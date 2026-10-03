@@ -11,8 +11,8 @@ fun main() {
     check(ObvestilaTokov.je("https://primer.org/x", "Please donate to keep the server alive", false))
     check(ObvestilaTokov.je("https://primer.org/x", "Buy me a coffee", false))
     // Pravi tokovi ostanejo - tudi ce v opisu omenijo Discord ali je v naslovu filma beseda iz pravila.
-    check(!ObvestilaTokov.je("https://cdn.primer.org/film.mkv", "HdHub 1080p [3.1 GB]", false))
-    check(!ObvestilaTokov.je("https://cdn.primer.org/tok/abc", "HdHub 1080p · Join our Discord", true))
+    check(!ObvestilaTokov.je("https://cdn.primer.org/film.mkv", "Dodatek 1080p [3.1 GB]", false))
+    check(!ObvestilaTokov.je("https://cdn.primer.org/tok/abc", "Dodatek 1080p · Join our Discord", true))
     check(!ObvestilaTokov.je("https://cdn.primer.org/Discord.Movie.2024.1080p.mp4?t=1", "Discord Movie 1080p", false))
     check(!ObvestilaTokov.je("https://cdn.primer.org/tok/abc", "The Donation (2019) 720p", true))
     check(!ObvestilaTokov.je("https://cdn.primer.org/tok/abc", "Film 1080p", false))

@@ -482,9 +482,12 @@ object Stremio {
      * (15 min, ob ponovitvi dvakrat dlje, do 2 h), ko dodatek odgovori 429 ali 403. Predvajanje ([tokovi]) ne caka.
      * Meja je nizka namenoma: 3. 10. 2026 je dodatek zavrnil napravo ze po ~37 poizvedbah v 15 s, v enem domu pa
      * isti dodatek sprasuje vec naprav z istega naslova. Premor prezivi ponovni zagon ([pripravi]).
+     * Se nizja od 3. 10. 2026 zvecer: ze en sam telefon je s 6 + 0,5/s (okoli 28 poizvedb v 45 s) sprozil omejitev v
+     * manj kot minuti po odprtju Medijskega centra - potem dodatek ni dal tokov niti za film, ki ga je uporabnik izbral.
+     * Zdaj 4 takoj in nato ena na 8 s: polica se preveri pocasneje (izid se hrani ure), predvajanje pa dela.
      */
-    private const val ZETONI_NAJVEC = 6.0
-    private const val ZETONI_NA_S = 0.5
+    private const val ZETONI_NAJVEC = 4.0
+    private const val ZETONI_NA_S = 0.125
     private const val PREMOR_MS = 15 * 60_000L
     private const val PREMOR_NAJVEC_MS = 2 * 3_600_000L
     private class Vedro { var zetoni = ZETONI_NAJVEC; var cas = System.currentTimeMillis() }
@@ -572,12 +575,37 @@ object Stremio {
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */
-    fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> = naslovi.mapNotNull { manifest(it) }
+    fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> = naslovi
+        // Dodatek, ki ga ne dosezemo (manifesta ni), bi vsebino morda imel: to je izpad, ne "ni na voljo".
+        .mapNotNull { manifest(it) ?: run { zadnjiIzpad.set(System.currentTimeMillis()); null } }
         .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) &&
             (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
         .flatMap { m ->
-            val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json") ?: return@flatMap emptyList<Tok>()
-            val a = d.optJSONArray("streams") ?: JSONArray()
+            val naslov = "${m.osnova}/stream/${enc(tip)}/${enc(id)}.json"
+            var d = json(naslov)
+            if (d == null && !kodaPomeniNima(zadnjaKoda.get() ?: 0)) {
+                // Dodatek ni odgovoril (omejuje poizvedbe, napaka streznika, omrezje). Uporabnik caka na film: preverjanje
+                // v ozadju ustavimo (premor) in poskusimo se enkrat; ce spet nic, to zabelezimo kot izpad.
+                val koda = zadnjaKoda.get() ?: 0
+                if (koda == 429 || koda == 403) zacniPremor(m.osnova)
+                try { Thread.sleep(1_200) } catch (_: InterruptedException) { return@flatMap emptyList<Tok>() }
+                d = json(naslov)
+                if (d == null && !kodaPomeniNima(zadnjaKoda.get() ?: 0)) {
+                    zadnjiIzpad.set(System.currentTimeMillis())
+                    try { android.util.Log.i("SafeerStremio", "dodatek ${try { URL(m.osnova).host } catch (_: Exception) { "?" }} ni dal tokov: koda ${zadnjaKoda.get() ?: 0}") } catch (_: Throwable) { }
+                }
+            }
+            val a = d?.optJSONArray("streams") ?: JSONArray()
             (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }
         }
+
+    /**
+     * Kdaj (System.currentTimeMillis) je poizvedba po tokovih za PREDVAJANJE nazadnje ostala brez odgovora dodatka
+     * (omejitev poizvedb, napaka streznika, omrezje). Prazen seznam tokov takrat ne pomeni "vsebine ni": uporabniku
+     * povemo, da dodatek ne odgovarja, naslov pa ostane na zaslonu.
+     */
+    val zadnjiIzpad = java.util.concurrent.atomic.AtomicLong(0L)
+
+    /** Ali je zadnja poizvedba po tokovih (v zadnje pol minute) ostala brez odgovora dodatka. */
+    fun dodatekNiOdgovoril(): Boolean = System.currentTimeMillis() - zadnjiIzpad.get() < 30_000
 }

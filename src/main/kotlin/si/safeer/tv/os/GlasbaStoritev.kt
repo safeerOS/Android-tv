@@ -130,7 +130,14 @@ class GlasbaStoritev : Service() {
                     if (naslednji != null) {
                         val ostale = rezerve.drop(1)
                         SpletniVir.zapomniGlaveToka(naslednji.first.zvok, naslednji.second)
-                        obvesti(getString(R.string.os_media_drug_vir))
+                        val trajalo = android.os.SystemClock.uptimeMillis() - poskusOd
+                        // Mesto ostane: tok, ki odpove sredi filma (povezava potece), nadaljuje naslednji od tam, ne od zacetka.
+                        val mesto = maxOf(p.currentPosition, zacetekPoskusa)
+                        if (mesto > 5_000) zacetnoMesto = naslednji.first.id to mesto
+                        Log.i("SafeerOsMedia", "tok odpovedal: koda=${error.errorCode}, po $trajalo ms, mesto=$mesto, rezerv=${ostale.size}")
+                        // Mrtva povezava odpove v trenutku ([hitraNapaka]): preklop je neopazen, zato brez obvestila. Povemo
+                        // le, kadar je uporabnik ze cakal ali gledal (sicer bi ob vsakem filmu bral, da "vir ne dela").
+                        if (trajalo > 2_500) obvesti(getString(R.string.os_media_drug_vir))
                         predvajaj(this@GlasbaStoritev, listOf(naslednji.first), 0)
                         rezerve = ostale
                         return
@@ -263,7 +270,7 @@ class GlasbaStoritev : Service() {
         // vse ostalo (splet, datoteke televizorja) skozi obicajnega.
         // DvdVir: slike ISO (safeer-dvd:) bere kot tok glavnega naslova diska, vse drugo gre naravnost naprej.
         val tovarna = (if (s != null) androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(PripetiVir.Tovarna(s.odtis, s.zeton, this, s.naprava)))
-            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this))))
+            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this))).setLoadErrorHandlingPolicy(hitraNapaka))
             .setSubtitleParserFactory(Podnapisi.Popravljalnik())
         // Tok z glavami (Stremio proxyHeaders) dobi svojo tovarno: glave spremljajo vse njegove zahteve, tudi dele HLS/DASH
         // na drugih gostiteljih, drugih tokov v vrsti pa ne zadevajo.
@@ -274,7 +281,7 @@ class GlasbaStoritev : Service() {
             if (glave.isEmpty()) return tovarna
             return tovarneZGlavami.getOrPut(glave) {
                 androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, glave)))
-                    .setSubtitleParserFactory(Podnapisi.Popravljalnik())
+                    .setLoadErrorHandlingPolicy(hitraNapaka).setSubtitleParserFactory(Podnapisi.Popravljalnik())
             }
         }
         p.setMediaSources(seznam.map { sk ->
@@ -286,10 +293,34 @@ class GlasbaStoritev : Service() {
         }, od.coerceIn(0, (seznam.size - 1).coerceAtLeast(0)),
             // Nadaljevanje ogleda zacne naravnost pri shranjenem mestu (prej: zacetek pri 0 in skok cez 0,9 s - pri
             // torrentu in pocasnem viru se je najprej prenesel zacetek filma, ki ga nihce ni gledal).
-            zacetnoMesto?.takeIf { it.first == seznam.getOrNull(od)?.id }?.second ?: 0L)
+            (zacetnoMesto?.takeIf { it.first == seznam.getOrNull(od)?.id }?.second ?: 0L).also { zacetekPoskusa = it })
         zacetnoMesto = null
+        poskusOd = android.os.SystemClock.uptimeMillis()
         p.prepare()
         p.play()
+    }
+
+    /** Kdaj se je zacel zadnji poskus predvajanja (uptimeMillis) in pri katerem mestu - za preklop na rezervni tok. */
+    private var poskusOd = 0L
+    private var zacetekPoskusa = 0L
+
+    /**
+     * Mrtva povezava (odgovor 4xx: potekla, izbrisana, zavrnjena) se s ponavljanjem ne popravi. Kadar ima vsebina
+     * rezervne tokove, zato ne cakamo na tri ponovitve (nekaj sekund), ampak gremo takoj na naslednjega. Brez rezerv
+     * ostane privzeto vedenje (ponovitve), ker pomocnik v Linku med pripravo torrenta lahko hip odgovarja z napako.
+     */
+    private val hitraNapaka = object : androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy() {
+        override fun getRetryDelayMsFor(loadErrorInfo: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+            var e: Throwable? = loadErrorInfo.exception
+            while (e != null) {
+                if (e is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+                    if (rezerve.isNotEmpty() && e.responseCode in 400..499) return C.TIME_UNSET
+                    break
+                }
+                e = e.cause
+            }
+            return super.getRetryDelayMsFor(loadErrorInfo)
+        }
     }
 
     private var exo: ExoPlayer? = null

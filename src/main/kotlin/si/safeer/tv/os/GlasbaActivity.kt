@@ -59,6 +59,8 @@ import java.util.concurrent.ConcurrentHashMap
 private const val MIN_KARTIC_KATEGORIJE = 3
 /** Najvec kartic na zdruzeni polici (Filmi, Serije, Video, zvrst); vse ostalo prek "Pokazi vse". */
 private const val POLICA_NAJVEC = 60
+/** Koliko naslednjih najboljsih tokov gre v rezervo: mrtva povezava odpove v trenutku, zato jih je lahko vec. */
+private const val REZERVNIH_TOKOV = 6
 
 class GlasbaActivity : OsActivity() {
 
@@ -3836,7 +3838,10 @@ class GlasbaActivity : OsActivity() {
             if (prviTok != 0L && zdaj - prviTok > 1_500) break
             try { Thread.sleep(40) } catch (_: InterruptedException) { break }
         }
-        return niti.filter { it.isDone }.flatMap { f -> try { f.get() } catch (_: Exception) { emptyList() } }
+        val tokovi = niti.filter { it.isDone }.flatMap { f -> try { f.get() } catch (_: Exception) { emptyList() } }
+        // Dodatek, ki v roku ni odgovoril, bi tok morda imel: brez tokov je to izpad, ne "ni na voljo".
+        if (tokovi.isEmpty() && niti.any { !it.isDone }) Stremio.zadnjiIzpad.set(System.currentTimeMillis())
+        return tokovi
     }
 
     /** Kaj ta naprava predvaja (zaslon, dekodirniki slike in zvoka) - za izbiro najboljsega toka brez vprasanj. */
@@ -3931,7 +3936,7 @@ class GlasbaActivity : OsActivity() {
                     val naprej = seznam.drop(k).take(40)
                     val niti = naprej.map { x -> iskanjeDelavec.submit<List<Stremio.Tok>> { tokoviZa(x) } }
                     val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
-                    fun najboljsi(t: List<Stremio.Tok>) = TokIzbira.uredi(t.filter { it.vrsta == "url" }, opis, zmoznostiNaprave).firstOrNull()
+                    fun najboljsi(t: List<Stremio.Tok>) = TokIzbira.uredi(t.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }).firstOrNull()
                     val prvi = try { niti.first().get(15, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
                     val prviTok = najboljsi(prvi)
                     if (prviTok != null) {
@@ -4356,6 +4361,12 @@ class GlasbaActivity : OsActivity() {
         val meja = torrentMeja()
         fun gre(t: Stremio.Tok) = t.vrsta != "torrent" || Stremio.torrentGre(t, meja)
         if (tokovi.none { Stremio.jePredvajljiv(it) && gre(it) }) {
+            // Dodatek ni odgovoril (omejuje poizvedbe, izpad, omrezje): to ni "ni na voljo". Naslov ostane na zaslonu,
+            // uporabnik izve, da naj poskusi znova - prej je film ob vsakem izpadu dodatka "izginil".
+            if (Stremio.dodatekNiOdgovoril()) {
+                Toast.makeText(this, R.string.os_media_dodatek_ne_odgovarja, Toast.LENGTH_LONG).show()
+                return
+            }
             Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
             if (obNeuspehu != null) obNeuspehu() else oznaciNiNaVoljo(sk)
             return
@@ -4379,12 +4390,17 @@ class GlasbaActivity : OsActivity() {
             }
         }
         val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
-        val neposredni = TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave)
+        // Rok veljavnosti povezave steje pri vrstnem redu (TokIzbira.veljaSe): potekla povezava je zadnja.
+        val zdajS = System.currentTimeMillis() / 1000
+        val neposredni = TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }, zdajS)
         val torrenti = TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave)
         if (!rocno) {
-            android.util.Log.i("SafeerOsMedia", "tokovi: neposredni=${neposredni.size}, torrenti=${torrenti.size}, zunanji=${tokovi.size - neposredni.size - torrenti.size}; " +
-                "izbran=${(neposredni.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}")
-            if (neposredni.isNotEmpty()) { odpri(neposredni.first(), neposredni.drop(1).take(4)); return }
+            // Povezave, ki je po lastnem zapisu ze potekla, sploh ne poskusamo (streznik bi odgovoril 403 in uporabnik
+            // bi cakal na naslednjo) - razen ce so take vse: ura naprave je lahko napacna, zato jih takrat vseeno poskusimo.
+            val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }.ifEmpty { neposredni }
+            android.util.Log.i("SafeerOsMedia", "tokovi: neposredni=${neposredni.size} (poteklih ${neposredni.size - zivi.size}), torrenti=${torrenti.size}, zunanji=${tokovi.size - neposredni.size - torrenti.size}; " +
+                "izbran=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}, rok=${zivi.firstOrNull()?.let { TokIzbira.veljaSe(it.url, zdajS) }}")
+            if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return }
             if (torrenti.isNotEmpty()) { odpri(torrenti.first()); return }
         }
         // Rocna izbira: najboljsi na vrhu, napovednik na koncu.
@@ -4397,7 +4413,7 @@ class GlasbaActivity : OsActivity() {
         AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray()) { _, k ->
             val t = urejeni[k]
             // Tudi po rocni izbiri: ce izbrani tok ne stece, gredo za njim ostali neposredni (od najboljsega).
-            odpri(t, if (t.vrsta == "url") neposredni.filter { it !== t }.take(4) else emptyList())
+            odpri(t, if (t.vrsta == "url") neposredni.filter { it !== t }.take(REZERVNIH_TOKOV) else emptyList())
         }.show()
     }
 
