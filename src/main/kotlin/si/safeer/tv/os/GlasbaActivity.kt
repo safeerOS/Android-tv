@@ -3663,10 +3663,14 @@ class GlasbaActivity : OsActivity() {
         val od = predano ?: MediaNapredek.polozaj(this, sk)
         if (od <= 0) return
         Toast.makeText(this, getString(R.string.os_nadaljujem_od, cas(od)), Toast.LENGTH_SHORT).show()
+        // Predvajalnik zacne naravnost pri shranjenem mestu (GlasbaStoritev.nalozi); sprotni tok pomocnika ga ima ze v sebi.
+        if (SprotnaPomoc.tokZa(sk) == null) GlasbaStoritev.zacetnoMesto = sk.id to od
         glavna.postDelayed({
             GlasbaStoritev.predvajalnik?.let { p ->
                 // Sprotni tok pomocnika je ze zacel pri shranjenem mestu (SprotnaPomoc): skok bi ga le pokvaril.
                 if (GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) } != null) return@let
+                // Ze zacel pri shranjenem mestu: skok ni potreben (ostane za primer, ko nalaganje mesta ni upostevalo).
+                if (GlasbaStoritev.trenutna()?.id == sk.id && kotlin.math.abs(p.currentPosition - od) < 5_000) return@let
                 if (p.duration <= 0 || od < p.duration - 5_000) p.seekTo(od)
             }
         }, 900)
@@ -4349,7 +4353,9 @@ class GlasbaActivity : OsActivity() {
     private fun torrentPrekRacunalnika(sk: Jamendo.Skladba, naslov: String, magnet: String, datoteka: Int = -1, prednost: String = "",
                                        /** Velikost datoteke po opisu toka (bajti), 0 = neznana. */
                                        velikost: Long = 0L) {
-        val vsi = racunalnikiZaPomoc()
+        if (prednost.isBlank()) { GlasbaStoritev.merimOd = android.os.SystemClock.uptimeMillis(); merim("izbran torrent, racunalnikov v krogu: ${racunalnikiZaPomoc().size}") }
+        // Racunalnika, ki je ze odgovoril, da pretakanja torrentov ne pozna (Safeer za Windows), ne sprasujemo znova.
+        val vsi = racunalnikiZaPomoc().filter { it.id !in NE_ZNA_TORRENTA }
             .sortedWith(compareByDescending<LinkOdjemalec.Naprava> { it.id == prednost }.thenByDescending { it.zmoznosti.contains("desktop") })
         // Nadzornik solidarnosti: (1) ce ima kateri racunalnik ta film ze (magnet.list), ga pretaka on -
         // ista vsebina se ne prenasa dvakrat na razlicne naprave; (2) sicer dobi delo racunalnik z najvec
@@ -4361,15 +4367,19 @@ class GlasbaActivity : OsActivity() {
             var cakam = vsi.size * 2
             fun koncano() {
                 if (--cakam != 0 || isFinishing) return
-                val izbran = vsi.firstOrNull { it.id in zeIma } ?: vsi.maxByOrNull { proste[it.id] ?: 0.0 } ?: vsi.first()
-                torrentPrekRacunalnika(sk, naslov, magnet, datoteka, izbran.id, velikost)
+                val znajo = vsi.filter { it.id !in NE_ZNA_TORRENTA }
+                val izbran = znajo.firstOrNull { it.id in zeIma } ?: znajo.maxByOrNull { proste[it.id] ?: 0.0 }
+                merim("racunalnik izbran: ${izbran?.ime ?: "nobeden"}")
+                // Noben racunalnik ne zna: "prednost" je ta naprava sama (ni v seznamu racunalnikov) - gremo naravnost naprej.
+                torrentPrekRacunalnika(sk, naslov, magnet, datoteka, izbran?.id ?: Identiteta.id(this), velikost)
             }
             for (r in vsi) {
                 link.ukaz(r.id, "host.info", org.json.JSONObject(), 2_500, LinkOdjemalec.Odgovor { izid, _ ->
                     izid?.optJSONObject("data")?.let { proste[r.id] = prostaMoc(it) }
                     koncano()
                 })
-                link.ukaz(r.id, "magnet.list", org.json.JSONObject(), 2_500, LinkOdjemalec.Odgovor { izid, _ ->
+                link.ukaz(r.id, "magnet.list", org.json.JSONObject(), 2_500, LinkOdjemalec.Odgovor { izid, napaka ->
+                    if (neznanoDejanje(izid, napaka)) NE_ZNA_TORRENTA += r.id
                     val a = izid?.optJSONObject("data")?.optJSONArray("items")
                     for (i in 0 until (a?.length() ?: 0)) if (hash != null && btih(a!!.optJSONObject(i)?.optString("magnet").orEmpty()) == hash) zeIma += r.id
                     koncano()
@@ -4391,10 +4401,13 @@ class GlasbaActivity : OsActivity() {
                 val podatki = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
                 val srv = podatki?.optJSONObject("server")
                 if (podatki == null || srv == null) {
+                    if (neznanoDejanje(izid, napaka)) NE_ZNA_TORRENTA += r.id
                     zadnjaNapaka = izid?.optString("code")?.ifBlank { null } ?: izid?.optString("message") ?: napaka
+                    merim("racunalnik $ime ne more: $zadnjaNapaka")
                     poskusi(k + 1)
                     return@Odgovor
                 }
+                merim("racunalnik $ime pripravljen")
                 predvajajTokPomocnika(sk, naslov, magnet, r, srv, podatki.optString("path"))
             })
         }
@@ -4444,16 +4457,18 @@ class GlasbaActivity : OsActivity() {
                 val podatki = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
                 val srv = podatki?.optJSONObject("server")
                 when {
-                    podatki != null && srv != null -> predvajajTokPomocnika(sk, naslov, magnet, r, srv, podatki.optString("path"), racunalnik = false)
-                    // Naprava se bere metapodatke torrenta (do minute): vprasamo znova.
+                    podatki != null && srv != null -> { merim("naprava ${r.ime} pripravljena"); predvajajTokPomocnika(sk, naslov, magnet, r, srv, podatki.optString("path"), racunalnik = false) }
+                    // Naprava se bere metapodatke torrenta (do minute): vprasamo znova - na 0,7 s (prej 2 s), da
+                    // pripravljen tok ne caka na naslednje vprasanje.
                     podatki?.optBoolean("pending") == true && android.os.SystemClock.uptimeMillis() - od < 150_000 ->
-                        glavna.postDelayed({ prosi(k, zadnja, od) }, 2_000)
-                    else -> prosi(k + 1, izid?.optString("code")?.ifBlank { null } ?: zadnja)
+                        glavna.postDelayed({ prosi(k, zadnja, od) }, 700)
+                    else -> { merim("naprava ${r.ime} ne more: ${izid?.optString("code")}"); prosi(k + 1, izid?.optString("code")?.ifBlank { null } ?: zadnja) }
                 }
             })
         }
         val prostor = MagnetMotor.prostorZaTok(this)
         val sam = MagnetMotor.naVoljo && prostor > 0 && (velikost <= 0 || velikost <= prostor)
+        merim(if (sam) "predvajam sam" else "prosim naprave: ${drugi.size}")
         if (!sam) { prosi(0, napakaRacunalnika.ifBlank { if (MagnetMotor.naVoljo) "ni_prostora" else "ni_podprto" }); return }
         Toast.makeText(this, R.string.os_stremio_pripravljam, Toast.LENGTH_LONG).show()
         val app = applicationContext
@@ -4462,6 +4477,7 @@ class GlasbaActivity : OsActivity() {
             glavna.post {
                 if (isFinishing) return@post
                 if (r is MagnetMotor.Pripravljen) {
+                    merim("sam pripravljen")
                     val podnapisi = r.podnapisi.map { (d, url) ->
                         val (jezik, oznaka) = Podnapisi.jezik(r.datoteka.ime, d.ime)
                         Podnapisi.Podnapis(url, d.ime.substringAfterLast('/'), jezik, oznaka, Podnapisi.mime(d.ime))
@@ -4479,6 +4495,17 @@ class GlasbaActivity : OsActivity() {
      * Racunalniki v Linku, ki pomagajo sibkejsim napravam (Safeer Control z datotekami): namizje, ne telefon/TV.
      * Brez jeTaNaprava(): ta po naslovu v omrezju lahko izloci racunalnik, kadar sredisce tece na njem.
      */
+    /** Dnevnik cakanja pred zacetkom filma iz torrenta: koliko ms od dotika (GlasbaStoritev.merimOd). */
+    private fun merim(kaj: String) {
+        val od = GlasbaStoritev.merimOd
+        if (od != 0L) android.util.Log.i("SafeerTorrentCas", "${android.os.SystemClock.uptimeMillis() - od} ms: $kaj")
+    }
+
+    /** Naprava je odgovorila, da dejanja ne pozna (starejsa ali drugacna razlicica brez pretakanja torrentov). */
+    private fun neznanoDejanje(izid: org.json.JSONObject?, napaka: String? = null): Boolean =
+        (izid?.optBoolean("ok") != true) && listOf(izid?.optString("message").orEmpty(), napaka.orEmpty())
+            .any { it.contains("Neznano dejanje", ignoreCase = true) || it.contains("unknown action", ignoreCase = true) }
+
     private fun racunalnikiZaPomoc(): List<LinkOdjemalec.Naprava> =
         if (link.jeKrajevni() || !link.povezan) emptyList()
         else link.naprave.filter { n -> n.id != Identiteta.id(this) && "files" in n.zmoznosti &&
@@ -4674,6 +4701,8 @@ class GlasbaActivity : OsActivity() {
         private const val MREZA_DP = 116
         /** Katalog Stremio ima "Pokazi vse"/"Nalozi vec" sele, ko je stran vsaj tako dolga (kratki katalogi so celi na polici). */
         private const val STRAN_KATALOGA_MIN = 20
+        /** Racunalniki v Linku, ki so odgovorili, da pretakanja torrentov ne poznajo (do konca zivljenja procesa). */
+        private val NE_ZNA_TORRENTA: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
         /** Vljudno preverjanje mreze: okno ob odprtju, podaljsanje okna ob vsakem "vec", najvec poizvedb na uporabnikovo dejanje. */
         private const val ZELJA_KARTIC = 30
         private const val KORAK_KARTIC = 30

@@ -15,6 +15,7 @@ import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
+import android.util.Log
 import android.os.IBinder
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -92,7 +93,11 @@ class GlasbaStoritev : Service() {
                 trenutna()?.let { MedijskiViri.zapomniNedavno(this@GlasbaStoritev, it) }
                 osvezi()
             }
-            override fun onIsPlayingChanged(isPlaying: Boolean) = osvezi()
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                // Merjenje cakanja pred zacetkom (torrent prek pomocnika): od dotika do prve slike.
+                if (isPlaying && merimOd != 0L) { Log.i("SafeerTorrentCas", "predvajanje tece po ${android.os.SystemClock.uptimeMillis() - merimOd} ms"); merimOd = 0L }
+                osvezi()
+            }
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = preveriDekoderje(p, tracks)
             override fun onMetadata(metadata: androidx.media3.common.Metadata) {
                 // Radio: naslov skladbe iz toka (ICY StreamTitle) kot "izvajalec" pod imenom postaje.
@@ -278,7 +283,11 @@ class GlasbaStoritev : Service() {
                 .apply { if (sk.podnapisi.isNotEmpty()) setSubtitleConfigurations(Podnapisi.konfiguracije(this@GlasbaStoritev, sk.podnapisi)) }
                 .setMediaMetadata(M3Metadata.Builder().setTitle(sk.naslov).setArtist(sk.izvajalec).build())
                 .build())
-        }, od.coerceIn(0, (seznam.size - 1).coerceAtLeast(0)), 0L)
+        }, od.coerceIn(0, (seznam.size - 1).coerceAtLeast(0)),
+            // Nadaljevanje ogleda zacne naravnost pri shranjenem mestu (prej: zacetek pri 0 in skok cez 0,9 s - pri
+            // torrentu in pocasnem viru se je najprej prenesel zacetek filma, ki ga nihce ni gledal).
+            zacetnoMesto?.takeIf { it.first == seznam.getOrNull(od)?.id }?.second ?: 0L)
+        zacetnoMesto = null
         p.prepare()
         p.play()
     }
@@ -455,6 +464,10 @@ class GlasbaStoritev : Service() {
         @Volatile var streznikTrenutni: DatotekeActivity.Streznik? = null
             private set
         private var cakajoci: Triple<List<Jamendo.Skladba>, Int, DatotekeActivity.Streznik?>? = null
+        /** (id posnetka, mesto v ms): naslednje nalaganje tega posnetka zacne pri tem mestu (nadaljevanje ogleda). */
+        @Volatile var zacetnoMesto: Pair<String, Long>? = null
+        /** Kdaj (uptimeMillis) je uporabnik izbral film iz torrenta; 0 = ne merimo. Dnevnik SafeerTorrentCas. */
+        @Volatile var merimOd = 0L
         private var cakajociSplet: Pair<Jamendo.Skladba, Boolean>? = null
 
         @Volatile private var primerek: GlasbaStoritev? = null
