@@ -8,12 +8,12 @@ import java.util.concurrent.ConcurrentHashMap
  * Kaj od prikazanega se res da predvajati (Matej, 2. 10. 2026: "ce videa ali serije ne moremo predvajati, ga ne
  * prikazemo"). Katalog (npr. Cinemeta) pozna vse naslove, tokove pa imajo le uporabnikovi dodatki - zato si za vsak
  * naslov zapomnimo, ali ga kateri dodatek ponuja. "Ni na voljo" velja nekaj ur (dodatki dobivajo nove vsebine),
- * "je na voljo" en dan. Ob spremembi dodatkov se vse pozabi. Samo na tej napravi.
+ * "je na voljo" tri dni. Ob spremembi dodatkov se vse pozabi. Samo na tej napravi.
  */
 object Razpolozljivost {
     private const val DATOTEKA = "safeer_razpolozljivost"
     private const val NI_VELJA = 6 * 3_600_000L
-    private const val JE_VELJA = 24 * 3_600_000L
+    private const val JE_VELJA = 72 * 3_600_000L
     private const val NAJVEC = 4000
     private const val ZACASNO_VELJA = 10 * 60_000L
 
@@ -31,7 +31,14 @@ object Razpolozljivost {
     @Volatile private var umazano = false
     @Volatile private var shranjujem = false
 
-    fun kljuc(tip: String, id: String) = "$tip|$id"
+    /**
+     * Ali torrent na tej napravi ta hip steje kot predvajanje (televizor brez pomocnika v krogu ga ne zmore). Brez
+     * njega je razpolozljivost istega naslova druga, zato imata nacina vsak svoje zapise: ko se pomocnik vrne v
+     * krog, "ni na voljo" iz casa brez njega ne velja vec (3. 10. 2026: mreza Filmi je ostala prazna se 6 ur).
+     */
+    @Volatile private var torrent = true
+
+    fun kljuc(tip: String, id: String) = if (torrent) "$tip|$id" else "$tip|$id|brez"
 
     private fun nalozi(c: Context) {
         if (nalozeno) return
@@ -57,6 +64,14 @@ object Razpolozljivost {
         }
     }
 
+    /** Zadnji znani odgovor je bil "se da predvajati" (tudi ce je zapis ze zastarel, do 30 dni) in ni novejsega "ni". */
+    fun nekocNaVoljo(c: Context, kljuc: String): Boolean {
+        nalozi(c)
+        if (zacasno.containsKey(kljuc)) return false
+        val cas = stanja[kljuc] ?: return false
+        return cas > 0 && System.currentTimeMillis() - cas in 0..30L * 24 * 3_600_000L
+    }
+
     fun zapomni(c: Context, kljuc: String, je: Boolean) {
         nalozi(c)
         if (stanja.size > NAJVEC) {
@@ -70,9 +85,11 @@ object Razpolozljivost {
     }
 
     /** Drugi dodatki = druga razpolozljivost: ob spremembi seznama dodatkov vse pozabimo. */
-    fun pripravi(c: Context, dodatki: List<String>) {
+    fun pripravi(c: Context, dodatki: List<String>, torrentSteje: Boolean) {
         nalozi(c)
-        val odtis = dodatki.map { it.trim() }.sorted().joinToString("\n").hashCode().toString()
+        torrent = torrentSteje
+        // "2": zapisi pred locenima nacinoma (torrent / brez) niso zanesljivi - ob posodobitvi se enkrat pozabijo.
+        val odtis = "2:" + dodatki.map { it.trim() }.sorted().joinToString("\n").hashCode().toString()
         val p = c.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE)
         if (p.getString("dodatki", "") == odtis) return
         stanja.clear(); zacasno.clear()

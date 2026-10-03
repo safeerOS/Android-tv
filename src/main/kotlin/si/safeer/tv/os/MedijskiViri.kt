@@ -63,7 +63,8 @@ object MedijskiViri {
         val obstojeci = vsi(ctx).firstOrNull { it.tip == tip && it.naslov == naslov }
         if (obstojeci != null) return obstojeci
         val v = Vir(tip, ime.ifBlank { android.net.Uri.parse(naslov).host ?: naslov }, naslov)
-        shrani(ctx, vsi(ctx) + v)
+        // Samo rocno dodani: viri iz spletnih aplikacij te naprave nastanejo sproti (vsi) in se ne shranjujejo.
+        shrani(ctx, rocni(ctx) + v)
         return v
     }
 
@@ -400,11 +401,11 @@ object MedijskiViri {
     /** Vgrajeni streznik kot vir (za Moji viri: odstranitev z istim dialogom kot dodani viri). */
     fun vgrajenPeerTubeVir(streznik: String) = Vir(PEERTUBE, streznik, streznik)
 
-    fun odstrani(ctx: Context, vir: Vir) {
+    fun odstrani(ctx: Context, vir: Vir, cas: Long = 0L) {
         zapomniOdstranjen(ctx, vir.naslov)
         // Spletne strani so vir po domeni (ista stran pod drugim naslovom gre zraven); dodatki, tokovi in strezniki pa po
         // tocnem naslovu - sicer bi izbris enega dodatka odstranil vse dodatke z iste domene.
-        shrani(ctx, rocni(ctx).filterNot { it.naslov == vir.naslov || (vir.jeSplet && it.jeSplet && istaSpletnaStran(it.naslov, vir.naslov)) })
+        shrani(ctx, rocni(ctx).filterNot { it.naslov == vir.naslov || (vir.jeSplet && it.jeSplet && istaSpletnaStran(it.naslov, vir.naslov)) }, cas)
         if (vir.jeSeznam) ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().remove(kljucSeznama(vir.naslov)).apply()
         pripeti(ctx).let { p -> if (kljucPripetega(vir) in p) pisi(ctx, PRIPETI, JSONArray(p - kljucPripetega(vir)).toString()) }
     }
@@ -595,9 +596,84 @@ object MedijskiViri {
         } catch (_: Exception) { null } finally { p.disconnect() }
     }
 
-    private fun shrani(ctx: Context, viri: List<Vir>) {
+    /**
+     * Shrani rocno dodane vire. Za usklajevanje med napravami v Linku ([SeznamiSink]) si ob tem zapomnimo, kdaj je bil
+     * vir dodan in kdaj izbrisan: [cas] != 0 je cas z druge naprave (prevzem), sicer ura te naprave - a nikoli starejsa
+     * od znanega izbrisa oziroma dodajanja (ure naprav niso enake).
+     */
+    @Synchronized private fun shrani(ctx: Context, viri: List<Vir>, cas: Long = 0L) {
+        val prej = rocni(ctx).map { kljucUskladitve(it) }.toSet()
+        val zdaj = viri.map { kljucUskladitve(it) }.toSet()
         val a = JSONArray()
         viri.forEach { a.put(JSONObject().put("tip", it.tip).put("ime", it.ime).put("naslov", it.naslov)) }
-        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString()).apply()
+        val casi = beriCase(ctx, VIRI_CASI); val izbrisani = beriCase(ctx, VIRI_IZBRISANI)
+        val ura = System.currentTimeMillis()
+        for (k in zdaj - prej) { casi[k] = if (cas != 0L) cas else SeznamiPravila.novCas(ura, 0L, izbrisani[k] ?: 0L); izbrisani.remove(k) }
+        for (k in prej - zdaj) { izbrisani[k] = if (cas != 0L) cas else SeznamiPravila.novCas(ura, casi[k] ?: 0L, 0L); casi.remove(k) }
+        casi.keys.retainAll(zdaj)
+        while (izbrisani.size > 300) izbrisani.remove(izbrisani.minByOrNull { it.value }!!.key)
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString())
+            .putString(VIRI_CASI, JSONObject(casi as Map<*, *>).toString()).putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString()).apply()
+    }
+
+    // ------------------------------------------------------------------ viri so enaki na vseh napravah v Linku
+
+    private const val VIRI_CASI = "viri_casi"
+    private const val VIRI_IZBRISANI = "viri_izbrisani"
+    private val VRSTE_ZA_USKLADITEV = Regex("^(stremio|peertube|splet|api|seznam|podkast|tok(-hls)?(-video)?)$")
+
+    fun kljucUskladitve(v: Vir) = v.tip + "|" + v.naslov
+
+    private fun beriCase(ctx: Context, kljuc: String): MutableMap<String, Long> = try {
+        val o = JSONObject(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(kljuc, "{}") ?: "{}")
+        o.keys().asSequence().associateWith { o.optLong(it) }.toMutableMap()
+    } catch (_: Exception) { mutableMapOf() }
+
+    /** Vir, ki ga smemo poslati drugi napravi ali prevzeti z nje: znana vrsta, javen naslov, ni blokiran. */
+    private fun uskladljiv(v: Vir): Boolean =
+        VRSTE_ZA_USKLADITEV.matches(v.tip) && v.naslov.length in 4..2048 && v.ime.length <= 200 &&
+            v.naslov.none { it < ' ' } && v.ime.none { it < ' ' } && !PeerTube.jeBlokiran(v.naslov) &&
+            (v.jePeerTube || v.naslov.startsWith("http://") || v.naslov.startsWith("https://")) &&
+            !(v.jeSplet && jeImenikVirov(v.naslov))
+
+    /** Rocno dodani viri te naprave s casom dodajanja (0 = dodan pred usklajevanjem) - za druge naprave v Linku. */
+    fun zaUskladitev(ctx: Context): List<Pair<Vir, Long>> {
+        val casi = beriCase(ctx, VIRI_CASI)
+        return rocni(ctx).filter { uskladljiv(it) }.take(200).map { it to (casi[kljucUskladitve(it)] ?: 0L) }
+    }
+
+    /** Viri, izbrisani na tej napravi (kljuc -> cas izbrisa): druge naprave jih izbrisejo tudi pri sebi. */
+    fun izbrisaniViri(ctx: Context): Map<String, Long> = beriCase(ctx, VIRI_IZBRISANI)
+
+    /** Vir z druge naprave: dodamo ga, ce ga tu se ni in ga tu nismo izbrisali pozneje, kot je bil tam dodan. */
+    @Synchronized fun prevzemiVir(ctx: Context, v: Vir, cas: Long): Boolean {
+        if (!uskladljiv(v)) return false
+        val k = kljucUskladitve(v)
+        val moji = rocni(ctx)
+        if (moji.any { kljucUskladitve(it) == k } || moji.size >= 400) return false
+        // Ista spletna stran pod drugim naslovom je isti vir.
+        if (v.jeSplet && moji.any { it.jeSplet && istaSpletnaStran(it.naslov, v.naslov) }) return false
+        if (!SeznamiPravila.virPrevzamemo(false, beriCase(ctx, VIRI_IZBRISANI)[k], cas)) return false
+        prekliciOdstranjen(ctx, v.naslov)
+        shrani(ctx, moji + v, if (cas > 0L) cas else 1L)
+        return true
+    }
+
+    /** Vir je bil izbrisan na drugi napravi ob [cas]: izgine tudi tu, ce ga tu nismo dodali pozneje. Vrne true ob izbrisu. */
+    @Synchronized fun prevzemiIzbrisVira(ctx: Context, kljuc: String, cas: Long): Boolean {
+        if (cas <= 0L || kljuc.length > 2100) return false
+        val moj = rocni(ctx).firstOrNull { kljucUskladitve(it) == kljuc }
+        if (moj == null) {
+            val izbrisani = beriCase(ctx, VIRI_IZBRISANI)
+            if ((izbrisani[kljuc] ?: 0L) < cas && VRSTE_ZA_USKLADITEV.matches(kljuc.substringBefore('|'))) {
+                izbrisani[kljuc] = cas
+                while (izbrisani.size > 300) izbrisani.remove(izbrisani.minByOrNull { it.value }!!.key)
+                ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString()).apply()
+            }
+            return false
+        }
+        if (!SeznamiPravila.izbrisViraVelja(beriCase(ctx, VIRI_CASI)[kljuc] ?: 0L, cas)) return false
+        odstrani(ctx, moj, cas)
+        return true
     }
 }

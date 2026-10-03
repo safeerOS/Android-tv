@@ -42,6 +42,7 @@
     <string name="os_mediji_dodano">Aggiunto: %1$s</string>
     <string name="os_mediji_vir_ze_dodan">Fonte già aggiunta: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Rimuovere questa fonte?</string>
+    <string name="os_mediji_odstrani_vir_vsepovsod">Rimuovere questa fonte? Verrà rimossa anche dagli altri tuoi dispositivi in Safeer Link.</string>
     <string name="os_mediji_odstrani">Rimuovi</string>
     <string name="os_mediji_izvajalci">Artisti</string>
     <string name="os_mediji_namig_predvajanje">OK: pausa · sinistra/destra: 10 s · giù: preferiti, ricerca e altro · tieni premuto OK: stop · Indietro: la riproduzione continua in background</string>
@@ -195,7 +196,7 @@
     <string name="os_mediji_dodatki_opis">Inserisci gli indirizzi dei tuoi componenti aggiuntivi</string>
     <string name="os_mediji_dodatki_stremio">Componente Stremio — inserisci qui l’indirizzo del componente (termina con /manifest.json)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json o stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer non include componenti aggiuntivi. Inserisci i tuoi; gli indirizzi restano solo su questo dispositivo. Film e serie arrivano dal catalogo pubblico Cinemeta, gli stream dai tuoi componenti.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer non include componenti aggiuntivi. Inserisci i tuoi; un componente aggiunto qui arriva anche agli altri tuoi dispositivi in Safeer Link – direttamente tra i dispositivi, niente passa dal cloud. Film e serie arrivano dal catalogo pubblico Cinemeta, gli stream dai tuoi componenti.</string>
     <string name="os_mediji_dodatki_shranjen">Componente salvato: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">L’indirizzo di un componente Stremio deve terminare con /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">L’indirizzo deve iniziare con http:// o https://.</string>

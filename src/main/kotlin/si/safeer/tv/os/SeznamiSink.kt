@@ -14,8 +14,13 @@ import java.util.concurrent.TimeUnit
  * racunalnik): ko odpres Medijski center, naprava vprasa ostale (`lists.get`) in prevzame, kar je novejse; izbris se
  * prenese enako. Nic ne gre v oblak - samo med napravami v Linku. Pravila: [SeznamiPravila].
  *
+ * Enako velja za Moje vire (dodatki, strezniki, tokovi, spletne strani, podkasti - kar je uporabnik dodal sam): dodas
+ * jih enkrat, veljajo na vseh napravah (3. 10. 2026: televizor ni imel dodatka s tokovi, ki ga je imel telefon, zato
+ * na njem ni bilo kaj predvajati). Naprava, ki virov ne pozna (racunalnik), polj `sources*` ne poslje in jih ne bere.
+ *
  * Protokol (enak v Safeer OS za racunalnik, core/os_media.py):
- *  - `lists.get {}` -> `{lists: [{ime, vir, cas, stevilo}], deleted: {ime: cas}}`
+ *  - `lists.get {}` -> `{lists: [{ime, vir, cas, stevilo}], deleted: {ime: cas},
+ *                        sources: [{tip, ime, naslov, cas}], sources_deleted: {"tip|naslov": cas}}`
  *  - `lists.get {ime, od}` -> `{ime, vir, cas, stevilo, od, skladbe: [najvec 100]}` (sporocila Linka so omejena)
  */
 object SeznamiSink {
@@ -29,6 +34,9 @@ object SeznamiSink {
     private const val PREMOR_MS = 45_000L
     @Volatile private var zadnjic = 0L
     @Volatile private var tece = false
+    /** Kdaj (elapsedRealtime) je uskladitev nazadnje spremenila Moje vire: zasloni z vsebino virov se nalozijo znova. */
+    @Volatile var viriSpremenjeni = 0L
+        private set
 
     // ------------------------------------------------------------------ zapis skladbe
 
@@ -71,7 +79,11 @@ object SeznamiSink {
             seznami.forEach { a.put(JSONObject().put("ime", it.ime).put("vir", it.vir).put("cas", it.cas).put("stevilo", it.skladbe.size)) }
             val izbrisani = JSONObject()
             MedijskiViri.izbrisaniSeznami(ctx).forEach { (k, v) -> izbrisani.put(k, v) }
-            return JSONObject().put("lists", a).put("deleted", izbrisani)
+            val viri = JSONArray()
+            MedijskiViri.zaUskladitev(ctx).forEach { (v, cas) -> viri.put(JSONObject().put("tip", v.tip).put("ime", v.ime).put("naslov", v.naslov).put("cas", cas)) }
+            val izbrisaniViri = JSONObject()
+            MedijskiViri.izbrisaniViri(ctx).forEach { (k, v) -> izbrisaniViri.put(k, v) }
+            return JSONObject().put("lists", a).put("deleted", izbrisani).put("sources", viri).put("sources_deleted", izbrisaniViri)
         }
         val sz = seznami.firstOrNull { it.ime == ime } ?: return JSONObject().put("ime", ime).put("stevilo", 0).put("skladbe", JSONArray())
         val od = p.optInt("od").coerceAtLeast(0)
@@ -122,6 +134,25 @@ object SeznamiSink {
     private fun prevzemiOd(app: Context, link: LinkUpravitelj, naprava: String): Boolean {
         val kazalo = vprasaj(link, naprava, JSONObject()) ?: return false
         var spremenjeno = false
+        // 0) Moji viri: izbrisi, nato dodani viri.
+        try {
+            var viri = false
+            kazalo.optJSONObject("sources_deleted")?.let { d ->
+                for (k in d.keys()) if (MedijskiViri.prevzemiIzbrisVira(app, k, d.optLong(k))) { viri = true; Log.i(TAG, "vir izbrisan (od $naprava)") }
+            }
+            kazalo.optJSONArray("sources")?.let { a ->
+                for (i in 0 until minOf(a.length(), 200)) {
+                    val o = a.optJSONObject(i) ?: continue
+                    val v = MedijskiViri.Vir(o.optString("tip"), o.optString("ime"), o.optString("naslov"))
+                    if (!MedijskiViri.prevzemiVir(app, v, o.optLong("cas"))) continue
+                    viri = true
+                    Log.i(TAG, "vir ${v.tip} »${v.ime}« od $naprava")
+                    // Seznam .m3u se prebere ob dodajanju: tu ga preberemo zdaj (smo v ozadju).
+                    if (v.jeSeznam) try { MedijskiViri.osveziSeznam(app, v.naslov) } catch (_: Exception) { }
+                }
+            }
+            if (viri) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true }
+        } catch (e: Exception) { Log.w(TAG, "viri od $naprava: ${e.message}") }
         // 1) Izbrisi: seznam, ki je bil drugje izbrisan in ga tu od takrat nismo spremenili, izgine tudi tukaj.
         kazalo.optJSONObject("deleted")?.let { izbrisani ->
             val moji = MedijskiViri.seznami(app).associateBy { it.ime }

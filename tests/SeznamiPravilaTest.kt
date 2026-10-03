@@ -48,5 +48,18 @@ fun main() {
     // ... zato izbris z naprave z zaostalo uro velja, nov seznam po izbrisu pa ostane.
     check(SeznamiPravila.izbrisVelja(5_000, SeznamiPravila.novCas(1_000, 5_000, 0)))
     check(!SeznamiPravila.izbrisVelja(SeznamiPravila.novCas(1_000, 0, 7_000), 7_000))
+    // Moji viri med napravami. Vir iz casa pred usklajevanjem (cas 0) prevzame naprava, ki ga nima ...
+    check(SeznamiPravila.virPrevzamemo(false, null, 0))
+    check(!SeznamiPravila.virPrevzamemo(true, null, 5_000))
+    // ... razen ce ga je uporabnik tu izbrisal: izbrisan vir se ne vrne, dokler ga drugje ne doda znova (pozneje).
+    val izbrisVira = SeznamiPravila.novCas(1_000, 0, 0)
+    check(!SeznamiPravila.virPrevzamemo(false, izbrisVira, 0))
+    check(!SeznamiPravila.virPrevzamemo(false, izbrisVira, izbrisVira))
+    check(SeznamiPravila.virPrevzamemo(false, izbrisVira, SeznamiPravila.novCas(900, 0, izbrisVira)))   // dodan znova, ura zaostaja
+    // Izbris z druge naprave odstrani star vir (cas 0) in vir, dodan pred izbrisom; pozneje dodanega pusti.
+    check(SeznamiPravila.izbrisViraVelja(0, izbrisVira))
+    check(SeznamiPravila.izbrisViraVelja(500, SeznamiPravila.novCas(100, 500, 0)))                        // izbris z naprave z zaostalo uro
+    check(!SeznamiPravila.izbrisViraVelja(SeznamiPravila.novCas(900, 0, izbrisVira), izbrisVira))
+    check(!SeznamiPravila.izbrisViraVelja(0, 0))
     println("SeznamiPravilaTest: OK")
 }

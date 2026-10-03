@@ -47,6 +47,15 @@ object SeznamiPravila {
 
     fun izbrisVelja(mojCas: Long, casIzbrisa: Long) = casIzbrisa > 0 && casIzbrisa >= mojCas
 
+    // Moji viri (dodatki, strezniki, tokovi ...) so enaki na vseh napravah v Linku. Vir nima vsebine, ki bi se
+    // spreminjala - samo obstaja ali ne: [mojCas]/[tujCas] = kdaj je bil dodan (0 = pred usklajevanjem).
+
+    /** Vir z druge naprave prevzamemo, ce ga tu ni in ga tu nismo izbrisali pozneje (ali hkrati), kot je bil tam dodan. */
+    fun virPrevzamemo(imam: Boolean, mojIzbris: Long?, tujCas: Long) = !imam && (mojIzbris ?: -1L) < tujCas
+
+    /** Izbris vira na drugi napravi velja tudi tukaj, ce vira tu nismo dodali pozneje. */
+    fun izbrisViraVelja(mojCas: Long, tujIzbris: Long) = tujIzbris > 0 && tujIzbris > mojCas
+
     /** Moje skladbe in za njimi tuje, ki jih se nimam (vrstni red obeh ostane). */
     fun zdruzi(moje: List<Zapis>, tuje: List<Zapis>, najvec: Int): List<Zapis> {
         val imam = moje.map { it.kljuc }.toHashSet()

@@ -42,6 +42,7 @@
     <string name="os_mediji_dodano">Hinzugefügt: %1$s</string>
     <string name="os_mediji_vir_ze_dodan">Quelle bereits hinzugefügt: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Diese Quelle entfernen?</string>
+    <string name="os_mediji_odstrani_vir_vsepovsod">Diese Quelle entfernen? Sie wird auch von deinen anderen Geräten in Safeer Link entfernt.</string>
     <string name="os_mediji_odstrani">Entfernen</string>
     <string name="os_mediji_izvajalci">Künstler</string>
     <string name="os_mediji_namig_predvajanje">OK: Pause · links/rechts: 10 s · runter: Favoriten, Suche und mehr · OK halten: Stopp · Zurück: Wiedergabe läuft im Hintergrund weiter</string>
@@ -195,7 +196,7 @@
     <string name="os_mediji_dodatki_opis">Adressen deiner eigenen Add-ons eingeben</string>
     <string name="os_mediji_dodatki_stremio">Stremio-Add-on — hier die Add-on-Adresse eingeben (endet mit /manifest.json)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json oder stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer liefert keine Add-ons mit. Du gibst deine eigenen ein; Adressen bleiben nur auf diesem Gerät. Filme und Serien kommen aus dem öffentlichen Cinemeta-Katalog, Streams von deinen Add-ons.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer liefert keine Add-ons mit. Du gibst deine eigenen ein; ein Add-on, das du hier hinzufügst, erhalten auch deine anderen Geräte in Safeer Link – direkt zwischen den Geräten, nichts geht in eine Cloud. Filme und Serien kommen aus dem öffentlichen Cinemeta-Katalog, Streams von deinen Add-ons.</string>
     <string name="os_mediji_dodatki_shranjen">Add-on gespeichert: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">Die Adresse eines Stremio-Add-ons muss mit /manifest.json enden.</string>
     <string name="os_mediji_dodatki_napaka_naslov">Die Adresse muss mit http:// oder https:// beginnen.</string>

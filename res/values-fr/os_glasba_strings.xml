@@ -42,6 +42,7 @@
     <string name="os_mediji_dodano">Ajouté : %1$s</string>
     <string name="os_mediji_vir_ze_dodan">Source déjà ajoutée : %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Retirer cette source ?</string>
+    <string name="os_mediji_odstrani_vir_vsepovsod">Retirer cette source ? Elle sera aussi retirée de tes autres appareils dans Safeer Link.</string>
     <string name="os_mediji_odstrani">Retirer</string>
     <string name="os_mediji_izvajalci">Artistes</string>
     <string name="os_mediji_namig_predvajanje">OK : pause · gauche/droite : 10 s · bas : favoris, recherche et plus · OK maintenu : arrêt · Retour : la lecture continue en arrière-plan</string>
@@ -195,7 +196,7 @@
     <string name="os_mediji_dodatki_opis">Saisis les adresses de tes propres extensions</string>
     <string name="os_mediji_dodatki_stremio">Extension Stremio — saisis ici l’adresse de l’extension (se termine par /manifest.json)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json ou stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer ne fournit aucune extension. Tu saisis les tiennes ; les adresses restent sur cet appareil. Les films et séries viennent du catalogue public Cinemeta, les flux de tes extensions.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ne fournit aucune extension. Tu saisis les tiennes ; une extension ajoutée ici arrive aussi sur tes autres appareils dans Safeer Link – directement entre appareils, rien ne passe par le cloud. Les films et séries viennent du catalogue public Cinemeta, les flux de tes extensions.</string>
     <string name="os_mediji_dodatki_shranjen">Extension enregistrée : %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">L’adresse d’une extension Stremio doit se terminer par /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">L’adresse doit commencer par http:// ou https://.</string>
