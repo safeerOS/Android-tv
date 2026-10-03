@@ -42,6 +42,7 @@
     <string name="os_mediji_dodano">Añadido: %1$s</string>
     <string name="os_mediji_vir_ze_dodan">Fuente ya añadida: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">¿Quitar esta fuente?</string>
+    <string name="os_mediji_odstrani_vir_vsepovsod">¿Quitar esta fuente? También se quitará de tus otros dispositivos en Safeer Link.</string>
     <string name="os_mediji_odstrani">Quitar</string>
     <string name="os_mediji_izvajalci">Artistas</string>
     <string name="os_mediji_namig_predvajanje">OK: pausa · izquierda/derecha: 10 s · abajo: favoritos, búsqueda y más · mantén OK: detener · Atrás: sigue sonando en segundo plano</string>
@@ -195,7 +196,7 @@
     <string name="os_mediji_dodatki_opis">Introduce las direcciones de tus propios complementos</string>
     <string name="os_mediji_dodatki_stremio">Complemento Stremio — introduce aquí la dirección del complemento (termina en /manifest.json)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json o stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer no incluye complementos. Introduces los tuyos; las direcciones se guardan solo en este dispositivo. Las películas y series vienen del catálogo público Cinemeta, los streams de tus complementos.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer no incluye complementos. Introduces los tuyos; un complemento que añades aquí llega también a tus otros dispositivos en Safeer Link, directamente entre dispositivos, sin pasar por la nube. Las películas y series vienen del catálogo público Cinemeta, los streams de tus complementos.</string>
     <string name="os_mediji_dodatki_shranjen">Complemento guardado: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">La dirección de un complemento Stremio debe terminar en /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">La dirección debe empezar por http:// o https://.</string>

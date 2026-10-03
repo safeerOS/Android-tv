@@ -42,6 +42,7 @@
     <string name="os_mediji_dodano">Dodano: %1$s</string>
     <string name="os_mediji_vir_ze_dodan">Vir je že dodan: %1$s</string>
     <string name="os_mediji_odstrani_vprasanje">Odstranim ta vir?</string>
+    <string name="os_mediji_odstrani_vir_vsepovsod">Odstranim ta vir? Odstranjen bo tudi z drugih tvojih naprav v Safeer Linku.</string>
     <string name="os_mediji_odstrani">Odstrani</string>
     <string name="os_mediji_izvajalci">Izvajalci</string>
     <string name="os_mediji_namig_predvajanje">OK: pavza · levo/desno: 10 s · dol: priljubljeno, iskanje in več · zadržan OK: ustavi · Nazaj: predvajanje teče naprej v ozadju</string>
@@ -195,7 +196,7 @@
     <string name="os_mediji_dodatki_opis">Vnesi naslove svojih dodatkov</string>
     <string name="os_mediji_dodatki_stremio">Stremio dodatek — naslov dodatka (manifest.json ali stran »configure«; stremio:// je v redu)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json ali stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer ne prilaga dodatkov. Vneseš svoje; naslovi se shranijo samo na tej napravi. Filme in serije pokaže javni katalog Cinemeta, tokove dajo tvoji dodatki.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ne prilaga dodatkov. Vneseš svoje; dodatek, ki ga dodaš tukaj, dobijo tudi tvoje druge naprave v Safeer Linku – neposredno med napravami, nič ne gre v oblak. Filme in serije pokaže javni katalog Cinemeta, tokove dajo tvoji dodatki.</string>
     <string name="os_mediji_dodatki_shranjen">Dodatek shranjen: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">Naslov Stremio dodatka ni veljaven (pričakujem …/manifest.json ali stremio://…).</string>
     <string name="os_mediji_dodatki_napaka_naslov">Naslov se mora začeti s http:// ali https://.</string>
