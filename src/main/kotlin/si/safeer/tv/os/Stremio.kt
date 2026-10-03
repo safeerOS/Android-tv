@@ -193,6 +193,7 @@ object Stremio {
         // Zaseben dodatek ([ZasebniDodatki]): tako se oznaci sam, v manifestu (uradno polje protokola).
         val zaseben = m.optJSONObject("behaviorHints")?.optBoolean("adult") == true
         zapomniZasebnost(o, zaseben)
+        zapomniIme(o, ime)
         return Manifest(o, ime, viri, tipi, predpone, katalogi, zaseben).also { manifesti[o] = it }
     }
 
@@ -214,7 +215,7 @@ object Stremio {
             if (mapaPredpomnilnika == null) mapaPredpomnilnika = java.io.File(a.cacheDir, "stremio")
             try {
                 val p = a.getSharedPreferences(PREFS_ZASEBNI, Context.MODE_PRIVATE)
-                p.all.forEach { (k, v) -> if (v is Boolean) znaniZasebni.putIfAbsent(k, v) }
+                p.all.forEach { (k, v) -> if (v is Boolean) znaniZasebni.putIfAbsent(k, v) else if (v is String && k.startsWith(KLJUC_IMENA)) znanaImena.putIfAbsent(k.removePrefix(KLJUC_IMENA), v) }
                 // Kar smo spoznali pred pripravo (manifest brez Contexta), zapisemo zdaj.
                 val e = p.edit(); znaniZasebni.forEach { (k, v) -> e.putBoolean(k, v) }; e.apply()
             } catch (_: Exception) { }
@@ -236,6 +237,15 @@ object Stremio {
         try { shrambaZasebnih?.edit()?.putBoolean(osnova, da)?.apply() } catch (_: Exception) { }
     }
 
+    /** osnova -> ime dodatka iz manifesta. Zapis prezivi ponovni zagon: kartica dodatka ne kaze naslova streznika, dokler se manifest ne nalozi znova. */
+    private val znanaImena = ConcurrentHashMap<String, String>()
+    private const val KLJUC_IMENA = "ime:"
+
+    private fun zapomniIme(osnova: String, ime: String) {
+        if (ime.isBlank() || ime.length > 120 || znanaImena.put(osnova, ime) == ime) return
+        try { shrambaZasebnih?.edit()?.putString(KLJUC_IMENA + osnova, ime)?.apply() } catch (_: Exception) { }
+    }
+
     /** Ali je zaseben dodatek, kolikor ze vemo (brez omrezja); null = njegovega manifesta se nismo videli. */
     fun zasebenZnano(naslov: String): Boolean? = znaniZasebni[osnova(naslov)]
 
@@ -243,7 +253,8 @@ object Stremio {
     fun zaseben(naslov: String): Boolean? = zasebenZnano(naslov) ?: manifest(naslov)?.zaseben
 
     /** Kartica (film, epizoda, video) iz zasebnega dodatka - brez omrezja. */
-    fun jeZasebna(s: Jamendo.Skladba): Boolean = jeEnota(s) && razstavi(s)?.first?.let { znaniZasebni[it] } == true
+    fun jeZasebna(s: Jamendo.Skladba): Boolean =
+        (jeEnota(s) && razstavi(s)?.first?.let { znaniZasebni[it] } == true) || KnjiznicaKroga.jeZasebenPrenos(s.id)
 
     /** Manifeste dodatkov, ki jih se ne poznamo, prenese v ozadju (odlocitev pri usklajevanju virov med napravami). */
     fun spoznaj(naslovi: List<String>) {
@@ -256,7 +267,7 @@ object Stremio {
     fun katalogiDodatka(naslov: String): List<Katalog> = manifest(naslov)?.katalogi.orEmpty().filter { it.prikazen }
 
     /** Ime dodatka, ce je manifest ze nalozen (brez omrezja - za glavno nit). */
-    fun imeIzPredpomnilnika(naslov: String): String? = manifesti[osnova(naslov)]?.ime
+    fun imeIzPredpomnilnika(naslov: String): String? = osnova(naslov).let { o -> manifesti[o]?.ime ?: znanaImena[o] }
 
     fun jeEnota(s: Jamendo.Skladba) = s.id.startsWith(PREDPONA)
     /** (osnova kataloskega dodatka, tip, id vnosa) iz id-ja kartice. */

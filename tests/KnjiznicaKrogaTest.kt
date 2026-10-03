@@ -47,5 +47,19 @@ fun main() {
         V("c", "telefon", true), V("c", "pc", true, racunalnik = true), V("", "x", true), V("", "y", true))
     val brez = k.brezDvojnikov(vnosi, { it.hash }, { it.koncan }, { it.tukaj }, { it.racunalnik })
     preveri(brez.map { it.naprava } == listOf("racunalnik", "jaz", "pc", "x", "y"), "brez dvojnikov: ${brez.map { it.naprava }}")
+
+    // Krog 85 - oznake kartice: zasebna (polica v zasebnem dodatku), naprava pozna »Obdrži«, prenos je obdrzan.
+    preveri(k.oznake(false, null) == "" && k.oznake(false, false) == "k" && k.oznake(false, true) == "ko" && k.oznake(true, true) == "zko", "oznake")
+    preveri(!k.znaObdrzi("") && k.znaObdrzi("k") && !k.jeObdrzan("k") && k.jeObdrzan("zko") && k.jeZaseben("zk") && !k.jeZaseben("ko"), "branje oznak")
+    // Id javne kartice je tak kot prej (nanj je vezano mesto nadaljevanja); zasebna nosi "|z" - tudi med predvajanjem ("#t...").
+    preveri(!k.jeZasebenPrenos("pcprenos|n-1|7|2") && !k.jeZasebenPrenos("pcprenos|n-1|7|2#t123"), "javna kartica")
+    preveri(k.jeZasebenPrenos("pcprenos|n-1|7|2|z") && k.jeZasebenPrenos("pcprenos|tukaj|-12|0|z#tn-998"), "zasebna kartica")
+    preveri(!k.jeZasebenPrenos("stremio|movie|tt1|https://d.primer/z") && !k.jeZasebenPrenos("krajevno:z|z|z|z|z"), "ni kartica prenosa")
+    // Podnapisi iz odgovora magnet.stream: samo poti tokov in datoteke podnapisov, najvec 12.
+    val pod = k.podnapisiToka(listOf("/magnet/0123456789abcdef" to "Film.sl.srt", "/m/AbC_-0123456789/Film.en.forced.vtt" to "Subs/Film.en.forced.vtt",
+        "/d/tuja-datoteka" to "x.srt", "/magnet/0123456789abcdef/../x" to "y.srt", "/magnet/0123456789abcdef" to "namesti.exe",
+        "https://drugje.primer/magnet/0123456789abcdef" to "z.srt", "/magnet/kratko" to "k.srt", "" to "p.srt"))
+    preveri(pod.map { it.second } == listOf("Film.sl.srt", "Subs/Film.en.forced.vtt"), "podnapisi toka: ${pod.map { it.second }}")
+    preveri(k.podnapisiToka((1..30).map { "/magnet/0123456789abcde$it" to "f$it.srt" }).size == 12, "najvec 12 podnapisov")
     println("KnjiznicaKrogaTest: OK")
 }

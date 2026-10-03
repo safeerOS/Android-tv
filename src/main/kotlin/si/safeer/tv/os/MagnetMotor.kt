@@ -463,7 +463,7 @@ object MagnetMotor {
             val z = zacasni(c)
             for (h in z.keys()) {
                 val o = z.optJSONObject(h) ?: continue
-                if (ZacasniPravila.sprostljiv(o.optLong("cas"), System.currentTimeMillis())) potZacasnega(c, o.optString("ime"))?.let { sprostljivo += velikostNaDisku(it) }
+                if (ZacasniPravila.sprostljiv(o.optLong("cas"), System.currentTimeMillis(), obdrzan = o.optBoolean("obdrzi"))) potZacasnega(c, o.optString("ime"))?.let { sprostljivo += velikostNaDisku(it) }
             }
         } catch (_: Throwable) { }
         prostorZadnji = (mapa(c).usableSpace - rezerva(c) + sprostljivo).coerceAtLeast(0L)
@@ -489,9 +489,11 @@ object MagnetMotor {
         for ((cas, vnos) in vsi) {
             val (h, ime) = vnos
             if (h == obdrzi.lowercase()) continue
-            val pretekel = ZacasniPravila.odstrani(cas, zdaj, false, velja, vTeku)
+            // »Obdrži«: kar je uporabnik oznacil, ne potece in ne gre niti ob pomanjkanju prostora.
+            val drzimo = z.optJSONObject(h)?.optBoolean("obdrzi") == true
+            val pretekel = ZacasniPravila.odstrani(cas, zdaj, false, velja, vTeku, drzimo)
             val primanjkuje = potrebujem > 0 && mapa(c).usableSpace < potrebujem
-            if (!ZacasniPravila.odstrani(cas, zdaj, primanjkuje, velja, vTeku)) continue
+            if (!ZacasniPravila.odstrani(cas, zdaj, primanjkuje, velja, vTeku, drzimo)) continue
             try {
                 seja?.let { s -> s.find(Sha1Hash.parseHex(h))?.let { s.remove(it, session_handle.delete_files) } }
             } catch (e: Throwable) { Log.i(TAG, "Odstranitev $h: ${e.message}") }
@@ -551,6 +553,8 @@ object MagnetMotor {
             val vnos = JSONObject().put("id", idZacasnega(hash)).put("name", t.optString("ime")).put("size", t.optLong("skupaj"))
                 .put("done", t.optLong("preneseno")).put("finished", t.optBoolean("koncano"))
                 .put("magnet", "magnet:?xt=urn:btih:$hash").put("file", video?.optInt("i", -1) ?: -1)
+                // »Obdrži«: polje je vedno tu - naprava po njem ve, da ta naprava zna `magnet.keep`.
+                .put("keep", zapis.optBoolean("obdrzi"))
             if (opis?.zaseben == true) vnos.put("private", true)
             else if (opis != null) {
                 vnos.put("title", opis.naslov)
@@ -567,6 +571,23 @@ object MagnetMotor {
     fun idZacasnega(hash: String): Int = hash.take(7).toInt(16)
 
     fun seznamZacasnihIdji(c: Context): List<Int> = try { zacasni(c).keys().asSequence().map { idZacasnega(it) }.toList() } catch (_: Throwable) { emptyList() }
+
+    /**
+     * »Obdrži« (`magnet.keep` ali polica na tej napravi): zacasni torrent ne potece po 48 urah - odstrani ga samo
+     * uporabnik. [vprasa] = naprava, ki to zeli (null = ta naprava sama); zasebnega sme oznaciti le narocnik.
+     */
+    @Synchronized
+    fun nastaviObdrzi(c: Context, id: Int, obdrzi: Boolean, vprasa: String? = null): Boolean {
+        val z = zacasni(c)
+        val hash = z.keys().asSequence().firstOrNull { idZacasnega(it) == id } ?: return false
+        val vnos = z.optJSONObject(hash) ?: return false
+        if (vprasa != null && !KnjiznicaKroga.pove(opisIz(vnos), narocniki(vnos), vprasa)) return false
+        if (obdrzi) vnos.put("obdrzi", true) else vnos.remove("obdrzi")
+        z.put(hash, vnos)
+        prefs(c).edit().putString("zacasni", z.toString()).apply()
+        prostorOb = 0L
+        return true
+    }
 
     /** `magnet.remove`: samo zacasni torrenti (kar je uporabnik te naprave prenesel sam, druga naprava ne more odstraniti). */
     fun odstraniZacasnega(c: Context, id: Int): Boolean {

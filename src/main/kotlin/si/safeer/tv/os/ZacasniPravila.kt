@@ -12,12 +12,14 @@ object ZacasniPravila {
     const val V_TEKU_MS = 6L * 3_600_000
 
     /** [cas] = zadnja raba; [primanjkuje] = za nov film ni dovolj prostora. */
-    fun odstrani(cas: Long, zdaj: Long, primanjkuje: Boolean, velja: Long = VELJA_MS, vTeku: Long = V_TEKU_MS): Boolean =
-        zdaj - cas > velja || (primanjkuje && zdaj - cas > vTeku)
+    fun odstrani(cas: Long, zdaj: Long, primanjkuje: Boolean, velja: Long = VELJA_MS, vTeku: Long = V_TEKU_MS,
+                 /** »Obdrži«: uporabnik hoce, da film ostane - ne potece in ne gre niti ob pomanjkanju prostora. */
+                 obdrzan: Boolean = false): Boolean =
+        !obdrzan && (zdaj - cas > velja || (primanjkuje && zdaj - cas > vTeku))
 
     /** Vrstni red odstranjevanja: najdlje neuporabljeni prvi. Vnos = (cas zadnje rabe, kljuc). */
     fun <T> poVrsti(vnosi: List<Pair<Long, T>>): List<Pair<Long, T>> = vnosi.sortedBy { it.first }
 
     /** Kaj od zacasnih torrentov bi ob pomanjkanju prostora smeli sprostiti (za izracun prostora, ki je napravi na voljo). */
-    fun sprostljiv(cas: Long, zdaj: Long, vTeku: Long = V_TEKU_MS): Boolean = zdaj - cas > vTeku
+    fun sprostljiv(cas: Long, zdaj: Long, vTeku: Long = V_TEKU_MS, obdrzan: Boolean = false): Boolean = !obdrzan && zdaj - cas > vTeku
 }

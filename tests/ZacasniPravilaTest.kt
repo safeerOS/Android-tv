@@ -19,5 +19,10 @@ fun main() {
     check(ZacasniPravila.sprostljiv(zdaj - 7 * ura, zdaj) && !ZacasniPravila.sprostljiv(zdaj - 1 * ura, zdaj))
     // Skrajsana roka (preizkus na napravi).
     check(ZacasniPravila.odstrani(zdaj - 61_000, zdaj, false, velja = 60_000, vTeku = 10_000))
+    // »Obdrži« (krog 85): obdrzan prenos ne potece, ne gre ob pomanjkanju prostora in se ne steje kot sprostljiv prostor.
+    check(!ZacasniPravila.odstrani(zdaj - 500 * ura, zdaj, false, obdrzan = true))
+    check(!ZacasniPravila.odstrani(zdaj - 500 * ura, zdaj, true, obdrzan = true))
+    check(ZacasniPravila.odstrani(zdaj - 500 * ura, zdaj, false, obdrzan = false))
+    check(!ZacasniPravila.sprostljiv(zdaj - 7 * ura, zdaj, obdrzan = true))
     println("ZacasniPravilaTest: OK")
 }

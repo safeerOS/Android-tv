@@ -53,6 +53,13 @@
     <string name="os_prenos_odstrani_vprasanje">Il film e tutti i suoi file verranno eliminati dal dispositivo che lo conserva. Puoi riaprirlo in qualsiasi momento dal componente.</string>
     <string name="os_prenos_odstranjen">Download rimosso</string>
     <string name="os_prenos_ta_naprava">Questo dispositivo</string>
+    <string name="os_prenos_obdrzi">Conserva (non scade dopo 48 ore)</string>
+    <string name="os_prenos_ne_obdrzi">Non conservare più (scade dopo 48 ore)</string>
+    <string name="os_prenos_obdrzan">Conservato: questo download non scadrà</string>
+    <string name="os_prenos_ni_vec_obdrzan">Non più conservato: verrà rimosso dopo 48 ore senza riproduzione</string>
+    <string name="os_prenos_obdrzi_napaka">Impossibile conservare questo download</string>
+    <string name="os_prenos_obdrzano">conservato</string>
+    <string name="os_prenos_zaseben">Download privato</string>
     <string name="os_stremio_vir_racunalnik">Trasmesso da un computer in Safeer Link – nulla viene scaricato su questo dispositivo</string>
     <string name="os_stremio_vir_tukaj">Riproduzione da un torrent su questo dispositivo – rimosso automaticamente dopo due giorni senza visione</string>
     <string name="os_stremio_vir_naprava">Trasmesso da un dispositivo in Safeer Link – niente viene scaricato su questo dispositivo</string>
