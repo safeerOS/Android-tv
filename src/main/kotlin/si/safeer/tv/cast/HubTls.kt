@@ -214,7 +214,27 @@ object HubTls {
         val (tovarna, z) = odjemalec(pripeti, pripetiKljuc)
         graditelj.sslSocketFactory(tovarna, z)
         graditelj.hostnameVerifier { _, _ -> true }
+        graditelj.socketFactory(BrezZamika)
         return graditelj to z
+    }
+
+    /**
+     * Vticnice Linka brez Naglovega zbiranja. Sporocila so kratka in vsako naj gre takoj: potrditev toka
+     * ali ukaz daljinca sicer caka na potrditev prejsnjega paketa (do 40 ms ob zakasnjenem ACK).
+     */
+    private object BrezZamika : javax.net.SocketFactory() {
+        private val osnovna: javax.net.SocketFactory = getDefault()
+        private fun pripravi(s: java.net.Socket): java.net.Socket {
+            try { s.tcpNoDelay = true } catch (_: Exception) { }
+            return s
+        }
+        override fun createSocket(): java.net.Socket = pripravi(osnovna.createSocket())
+        override fun createSocket(host: String?, port: Int): java.net.Socket = pripravi(osnovna.createSocket(host, port))
+        override fun createSocket(host: String?, port: Int, localHost: java.net.InetAddress?, localPort: Int): java.net.Socket =
+            pripravi(osnovna.createSocket(host, port, localHost, localPort))
+        override fun createSocket(host: java.net.InetAddress?, port: Int): java.net.Socket = pripravi(osnovna.createSocket(host, port))
+        override fun createSocket(address: java.net.InetAddress?, port: Int, localAddress: java.net.InetAddress?, localPort: Int): java.net.Socket =
+            pripravi(osnovna.createSocket(address, port, localAddress, localPort))
     }
 
     fun pripetiOdtis(context: Context): String? =

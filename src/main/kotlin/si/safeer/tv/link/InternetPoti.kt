@@ -10,7 +10,9 @@ data class InternetPot(
     val vrsta: VrstaInternetPoti,
     val dosegljiva: Boolean,
     val merjena: Boolean,
-    val roaming: Boolean = false
+    val roaming: Boolean = false,
+    /** Android je preveril, da omrezje res pride do interneta. Wi-Fi ob izpadu doma ostane povezan, a nepreverjen. */
+    val preverjena: Boolean = true
 )
 
 enum class VrstaInternetPoti { WIFI, CELLULAR, ETHERNET, VPN, DRUGO }
@@ -28,6 +30,45 @@ data class InternetPolitika(
         if (pot.roaming && !dovoliRoaming) return false
         if (omejitevBajtov > 0 && porabljenoBajtov >= omejitevBajtov) return false
         return true
+    }
+}
+
+/** Izid izbire poti: [pot] ali [razlog] zavrnitve (koda protokola). */
+class IzbranaPot(val pot: InternetPot?, val razlog: String)
+
+/**
+ * Katero pot telefona uporabi tok. [zahteva] je `mobile` (samo mobilno omrezje), `wifi` (samo Wi-Fi ali
+ * zicno), `any` ali prazno (Wi-Fi z internetom, sicer mobilno) ali tocen id poti.
+ *
+ * Namen prehoda je deliti MOBILNI internet: ob izpadu domacega interneta je Wi-Fi telefona ista pokvarjena
+ * povezava. Zato odjemalec privzeto zahteva `mobile`, pri `any` pa Wi-Fi velja samo, ce je preverjen.
+ * VPN in druga omrezja se ne izberejo sama (samo s tocnim id-jem).
+ */
+fun izberiPot(vse: List<InternetPot>, politika: InternetPolitika, zahteva: String): IzbranaPot {
+    val dosegljive = vse.filter { it.dosegljiva }
+    val mobilne = dosegljive.filter { it.vrsta == VrstaInternetPoti.CELLULAR }
+    val domace = dosegljive.filter { it.vrsta == VrstaInternetPoti.WIFI || it.vrsta == VrstaInternetPoti.ETHERNET }
+
+    fun mobilna(): IzbranaPot {
+        if (!politika.dovoliMobilne) return IzbranaPot(null, "mobile_off")
+        if (politika.omejitevBajtov > 0 && politika.porabljenoBajtov >= politika.omejitevBajtov) return IzbranaPot(null, "limit")
+        if (mobilne.isEmpty()) return IzbranaPot(null, "no_mobile")
+        val dovoljene = mobilne.filter { politika.dovoljena(it) }
+        if (dovoljene.isEmpty()) return IzbranaPot(null, "roaming")
+        return IzbranaPot(dovoljene.firstOrNull { it.preverjena } ?: dovoljene.first(), "")
+    }
+
+    return when (zahteva) {
+        "mobile", "cellular" -> mobilna()
+        "wifi" -> domace.firstOrNull { it.preverjena }?.let { IzbranaPot(it, "") } ?: IzbranaPot(null, "no_path")
+        "", "any" -> domace.firstOrNull { it.preverjena }?.let { IzbranaPot(it, "") } ?: mobilna().let {
+            if (it.pot != null || it.razlog == "limit" || it.razlog == "roaming") it else IzbranaPot(null, "no_path")
+        }
+        else -> {
+            val p = dosegljive.firstOrNull { it.id == zahteva } ?: return IzbranaPot(null, "no_path")
+            if (p.vrsta != VrstaInternetPoti.CELLULAR || politika.dovoljena(p)) IzbranaPot(p, "")
+            else IzbranaPot(null, mobilna().razlog.ifBlank { "roaming" })
+        }
     }
 }
 

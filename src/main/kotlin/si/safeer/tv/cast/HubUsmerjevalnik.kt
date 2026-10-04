@@ -1198,11 +1198,17 @@ class HubUsmerjevalnik(
             val prejemnik = register.povezavaOd(cilj)
                 ?: return potrditev(id, "rejected", "Internet gateway ni povezan.", "internet", "naprava_ni_povezana")
             if (prejemnik === od) return potrditev(id, "rejected", "Ista naprava.", "internet", "ista_naprava")
-            val zapis = JsonLahki.objekt(surovo) ?: return potrditev(id, "error", "Neveljavno sporocilo.", "internet", "neveljavno")
+            val zapis = sporocilo          // ze razclenjeno zgoraj; drugo razclenjevanje 32 KiB kosa bi bilo cisto delo zastonj
             val naprej = JsonLahki.Zapis().niz("id", id).niz("type", tip).niz("target", cilj)
                 .niz("sender", posiljatelj).niz("sender_name", imeNaprave(posiljatelj)).stevilo("timestamp", ura() / 1000.0)
-            for (polje in listOf("stream_id", "host", "path_id", "data", "reason")) zapis.niz(polje)?.let { naprej.niz(polje, it) }
-            zapis.stevilo("port")?.let { naprej.stevilo("port", it) }
+            for (polje in listOf("stream_id", "host", "path_id", "reason", "kind")) zapis.niz(polje)?.let { naprej.niz(polje, it) }
+            // Kos toka (base64, do 32 KiB) gre naprej tak, kot je prisel: brez razlaganja in ponovnega ubezanja.
+            if (zapis.vrsta("data") == JsonLahki.Vrsta.NIZ) zapis.surovo("data")?.let { naprej.surovo("data", it) }
+            // port: cilj; v: razlicica protokola; bytes: potrditev (internet.window); off: odmik kosa v toku;
+            // epoch: doba odjemalca (zamenja jo ob ponovnem zagonu ali izgubi Linka).
+            for (polje in listOf("port", "v", "bytes", "off", "epoch")) zapis.stevilo(polje)?.let { naprej.stevilo(polje, it) }
+            // internet.status: kaj ponudnik dovoli (majhen objekt; sredisce ga ne razlaga).
+            if (zapis.vrsta("payload") == JsonLahki.Vrsta.OBJEKT) zapis.surovo("payload")?.takeIf { it.length <= 16 * 1024 }?.let { naprej.surovo("payload", it) }
             return if (posljiVarno(prejemnik, naprej.toString())) null
             else potrditev(id, "error", "Gateway sporocila ni bilo mogoce dostaviti.", "internet", "posredovanje_ni_uspelo")
         }
@@ -2098,7 +2104,9 @@ class HubUsmerjevalnik(
         private val SHARE_POSREDOVANJE = setOf("share.text", "share.file", "share.screen")
         /** Daljinec (Safeer Control): ukaz napravi z zmoznostjo "remote" in njen odgovor nazaj. */
         private val CONTROL_POSREDOVANJE = setOf("control.command", "control.result")
-        private val INTERNET_POSREDOVANJE = setOf("internet.open", "internet.opened", "internet.data", "internet.close", "internet.error")
+        private val INTERNET_POSREDOVANJE = setOf("internet.open", "internet.opened", "internet.data", "internet.close", "internet.error",
+            // protokol 2 (docs/INTERNET-GATEWAY.md): vprasanje in stanje, nadzor pretoka, pol-zaprtje
+            "internet.query", "internet.status", "internet.window", "internet.eof")
         /** Safeer Data Transport (v0.26): dogovor + sifrirani kosi med dvema seznanjenima napravama. */
         const val ZMOZNOST_KLEPET = "chat"
         private const val KLEPET_NAJVEC_B = 16 * 1024

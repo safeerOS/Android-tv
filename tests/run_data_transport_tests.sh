@@ -10,6 +10,9 @@ TOOLS_DIR="${SAFEER_TOOLS_DIR:-$HOME/Namizje/Neimenovana mapa/streamN-TV2/androi
 KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 
+# org.json je na Androidu vgrajen; na JVM ga pripnemo (JSON_JAR ali Gradlov predpomnilnik), kot run_usmerjevalnik_tests.sh.
+JSON_JAR="${JSON_JAR:-$(ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar 2>/dev/null | grep -v sources | head -1)}"
+
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
@@ -30,6 +33,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
     "$SRC/si/safeer/tv/cast/DataTransport.kt" \
     "$TEST_DIR/DataTransportTest.kt" \
+    ${JSON_JAR:+-cp "$JSON_JAR"} \
     -include-runtime -d "$OUT/data_transport.jar"
 
-java -cp "$OUT/data_transport.jar" si.safeer.tv.cast.DataTransportTestKt
+java -cp "$OUT/data_transport.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.DataTransportTestKt

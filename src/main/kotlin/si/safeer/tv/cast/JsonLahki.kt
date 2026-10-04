@@ -253,7 +253,25 @@ object JsonLahki {
         private fun niz(): String? {
             if (i >= vir.length || vir[i] != '"') return null
             i++
-            val izpis = StringBuilder()
+            // Hitra pot: niz brez ubeznih znakov (velika vecina, tudi 32 KiB kosi tokov v base64) je kar izsek
+            // vira. Prej je sel vsak znak posebej skozi StringBuilder - pri tokovih Internet Gatewaya je to
+            // zasedlo celo jedro telefona.
+            val zacetek = i
+            var j = i
+            val n = vir.length
+            while (j < n) {
+                val c = vir[j]
+                if (c == '"') {
+                    i = j + 1
+                    return vir.substring(zacetek, j)
+                }
+                if (c == '\\' || c.code < 0x20) break
+                j++
+            }
+            if (j >= n) return null
+            val izpis = StringBuilder(j - zacetek + 32)
+            izpis.append(vir, zacetek, j)
+            i = j
             while (i < vir.length) {
                 val c = vir[i]
                 when {
@@ -320,18 +338,35 @@ object JsonLahki {
 
     /** Ubezi niz za JSON. Nadzorni znaki gredo v \\u obliko, da izpis ostane veljaven. */
     fun ubezi(besedilo: String): String {
-        val izpis = StringBuilder(besedilo.length + 8)
-        for (c in besedilo) {
-            when {
-                c == '"' -> izpis.append("\\\"")
-                c == '\\' -> izpis.append("\\\\")
-                c == '\n' -> izpis.append("\\n")
-                c == '\r' -> izpis.append("\\r")
-                c == '\t' -> izpis.append("\\t")
-                c.code < 0x20 -> izpis.append(String.format("\\u%04x", c.code))
-                else -> izpis.append(c)
-            }
+        val n = besedilo.length
+        var i = 0
+        // Hitra pot: nic za ubezati (identifikatorji, base64) - vrnemo isti niz, brez kopije.
+        while (i < n) {
+            val c = besedilo[i]
+            if (c == '"' || c == '\\' || c.code < 0x20) break
+            i++
         }
+        if (i == n) return besedilo
+        val izpis = StringBuilder(n + 64)
+        var cisto = 0          // zacetek odseka brez posebnih znakov; prepise se v enem kosu
+        while (i < n) {
+            val c = besedilo[i]
+            val zamenjava: String? = when {
+                c == '"' -> "\\\""
+                c == '\\' -> "\\\\"
+                c == '\n' -> "\\n"
+                c == '\r' -> "\\r"
+                c == '\t' -> "\\t"
+                c.code < 0x20 -> String.format("\\u%04x", c.code)
+                else -> null
+            }
+            if (zamenjava != null) {
+                izpis.append(besedilo, cisto, i).append(zamenjava)
+                cisto = i + 1
+            }
+            i++
+        }
+        izpis.append(besedilo, cisto, n)
         return izpis.toString()
     }
 

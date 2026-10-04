@@ -240,8 +240,15 @@ object HubMesh {
                 if (!sprejet) { sprejet = true; zavrnjen.remove(h.id) }
                 try { u.obdelaj(povezava, text) } catch (e: Throwable) { SafeerLog.napaka("Mesh", "obdelaj", e) }
             }
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { konec() }
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { konec() }
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (!povezava.zaprta && code != 1000) Log.i(TAG, "Sosed ${h.id}: povezavo je zaprl ($code ${reason.take(60)})")
+                konec()
+            }
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                // Vzrok v dnevnik: brez njega se padca sosednje povezave med prenosom ne da pojasniti.
+                if (!povezava.zaprta) Log.i(TAG, "Sosed ${h.id}: povezava prekinjena (${t.javaClass.simpleName}: ${t.message.orEmpty().take(120)})")
+                konec()
+            }
             private fun konec() {
                 klicem.remove(h.id)
                 povezava.zaprta = true

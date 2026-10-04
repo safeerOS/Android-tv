@@ -11,8 +11,10 @@ command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
-"$KOTLINC" -J-Xmx2g "$SRC/si/safeer/tv/link/InternetPoti.kt" "$SRC/si/safeer/tv/link/GlobalMesh.kt" \
-    "$TEST_DIR/InternetPotiTest.kt" "$TEST_DIR/GlobalMeshTest.kt" \
+"$KOTLINC" -J-Xmx2g "$SRC/si/safeer/tv/link/InternetPoti.kt" "$SRC/si/safeer/tv/link/InternetPretok.kt" \
+    "$SRC/si/safeer/tv/link/GlobalMesh.kt" \
+    "$TEST_DIR/InternetPotiTest.kt" "$TEST_DIR/InternetPretokTest.kt" "$TEST_DIR/GlobalMeshTest.kt" \
     -include-runtime -d "$OUT/gateway.jar"
 java -cp "$OUT/gateway.jar" InternetPotiTestKt
+java -cp "$OUT/gateway.jar" InternetPretokTestKt
 java -cp "$OUT/gateway.jar" si.safeer.tv.link.GlobalMeshTest

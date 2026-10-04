@@ -184,9 +184,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_link, "Global Link",
                 "Tvoje naprave se dosežejo tudi zunaj doma (link.safeer.si). Vidi jih samo tvoj krog zaupanja.",
                 getString(if (si.safeer.tv.link.GlobalLink.vklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { nastaviGlobalLink() },
-            Vrstica(R.drawable.os_ikona_link, "Internet prek Safeer Linka",
-                "Telefon lahko zaupanim Safeer napravam posreduje internet prek Wi-Fi ali dovoljenega mobilnega omrezja.",
-                if (getSharedPreferences("safeer_internet_gateway", MODE_PRIVATE).getBoolean("gateway_enabled", false)) getString(R.string.os_vklopljeno) else getString(R.string.os_izklopljeno)) { nastaviInternetGateway() },
+            Vrstica(R.drawable.os_ikona_link, getString(R.string.os_ig_naslov),
+                getString(R.string.os_ig_opis),
+                if (getSharedPreferences(si.safeer.tv.link.AndroidApplicationGateway.PREFS, MODE_PRIVATE).getBoolean("gateway_enabled", false)) getString(R.string.os_vklopljeno) else getString(R.string.os_izklopljeno)) { nastaviInternetGateway() },
             Vrstica(R.drawable.os_ikona_datoteka, getString(R.string.os_pravno),
                 getString(R.string.os_pravno_opis), "") { pokaziPravno() },
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_izhod),
@@ -205,7 +205,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val skrijPredvajalnik = if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") setOf(getString(R.string.os_zaganjalnik),
             getString(R.string.os_zagon), getString(R.string.os_host), getString(R.string.os_plosek_preizkus),
             getString(R.string.os_moc), getString(R.string.os_scit), getString(R.string.os_izhod)) else emptySet()
-        vrstice = vse.filter { it.ime !in skrij && it.ime !in skrijTv && it.ime !in skrijPredvajalnik && (packageName.endsWith(".phone") || it.ime != "Internet prek Safeer Linka") }
+        vrstice = vse.filter { it.ime !in skrij && it.ime !in skrijTv && it.ime !in skrijPredvajalnik && (packageName.endsWith(".phone") || it.ime != getString(R.string.os_ig_naslov)) }
         prilagojevalnik.notifyDataSetChanged()
         if (seznam.selectedItemPosition < 0) seznam.requestFocus()
     }
@@ -225,20 +225,65 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }.setNegativeButton(android.R.string.cancel, null).show()
     }
 
+    /**
+     * Internet prek Safeer Linka: deljenje, mobilni podatki, omejitev, poraba in naprave, ki smejo.
+     * Dovoljenje je po napravah: kljukica = sme, brez = ne sme. Naprava, ki se caka na odlocitev, ostane
+     * taka, dokler je uporabnik ne oznaci (ali odgovori na vprasanje v obvestilu).
+     */
     private fun nastaviInternetGateway() {
-        val p = getSharedPreferences("safeer_internet_gateway", MODE_PRIVATE)
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 8) }
-        val gateway = CheckBox(this).apply { text = "Deli internet z zaupanimi Safeer napravami"; isChecked = p.getBoolean("gateway_enabled", false) }
-        val mobile = CheckBox(this).apply { text = "Dovoli mobilne podatke (4G/5G)"; isChecked = p.getBoolean("allow_cellular", false) }
-        val roaming = CheckBox(this).apply { text = "Dovoli roaming"; isChecked = p.getBoolean("allow_roaming", false) }
-        val limit = EditText(this).apply { hint = "Mesecna omejitev mobilnih podatkov v MB (0 = brez omejitve)"; inputType = 2; val b=p.getLong("cellular_limit",0L); if(b>0) setText((b/1024/1024).toString()) }
-        box.addView(gateway); box.addView(mobile); box.addView(roaming); box.addView(limit)
-        android.app.AlertDialog.Builder(this).setTitle("Safeer Internet Gateway").setView(box)
-            .setPositiveButton("Shrani") { _, _ ->
+        val p = getSharedPreferences(si.safeer.tv.link.AndroidApplicationGateway.PREFS, MODE_PRIVATE)
+        val dovoljenja = si.safeer.tv.link.AndroidApplicationGateway.dovoljenja(this)
+        val rob = (20 * resources.displayMetrics.density).toInt()
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(rob, rob / 2, rob, 0) }
+        fun vrstica(niz: String, krepko: Boolean = false) = TextView(this).apply {
+            text = niz
+            setPadding(0, rob / 2, 0, rob / 4)
+            if (krepko) setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        box.addView(vrstica(getString(R.string.os_ig_opis)))
+        val gateway = CheckBox(this).apply { text = getString(R.string.os_ig_deli); isChecked = p.getBoolean("gateway_enabled", false) }
+        val mobile = CheckBox(this).apply { text = getString(R.string.os_ig_mobilni); isChecked = p.getBoolean("allow_cellular", false) }
+        val roaming = CheckBox(this).apply {
+            text = getString(R.string.os_ig_gostovanje); isChecked = p.getBoolean("allow_roaming", false); isEnabled = mobile.isChecked
+        }
+        mobile.setOnCheckedChangeListener { _, vklop -> roaming.isEnabled = vklop; if (!vklop) roaming.isChecked = false }
+        val meja = p.getLong("cellular_limit", 0L)
+        val limit = EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(7))
+            setText((meja / 1024 / 1024).toString())
+        }
+        box.addView(gateway); box.addView(mobile); box.addView(roaming)
+        box.addView(vrstica(getString(R.string.os_ig_omejitev))); box.addView(limit)
+        val (danes, mesec) = si.safeer.tv.link.AndroidApplicationGateway.poraba(this)
+        fun vel(b: Long) = android.text.format.Formatter.formatShortFileSize(this, b)
+        box.addView(vrstica(if (meja > 0) getString(R.string.os_ig_poraba_omejitev, vel(danes), vel(mesec), vel(meja))
+                            else getString(R.string.os_ig_poraba, vel(danes), vel(mesec))))
+        box.addView(vrstica(getString(R.string.os_ig_naprave), krepko = true))
+        val vnosi = dovoljenja.vsi()
+        val izbire = vnosi.map { v ->
+            CheckBox(this).apply {
+                text = if (v.stanje == si.safeer.tv.link.InternetDovoljenja.Stanje.CAKA) getString(R.string.os_ig_naprava_caka, v.ime) else v.ime
+                isChecked = v.stanje == si.safeer.tv.link.InternetDovoljenja.Stanje.DOVOLJENO
+            }
+        }
+        if (vnosi.isEmpty()) box.addView(vrstica(getString(R.string.os_ig_ni_naprav))) else izbire.forEach { box.addView(it) }
+        val drsnik = android.widget.ScrollView(this).apply { addView(box) }
+        android.app.AlertDialog.Builder(this).setTitle(getString(R.string.os_ig_naslov)).setView(drsnik)
+            .setPositiveButton(getString(R.string.os_ig_shrani)) { _, _ ->
                 val mb = limit.text.toString().toLongOrNull()?.coerceAtLeast(0) ?: 0L
                 p.edit().putBoolean("gateway_enabled", gateway.isChecked).putBoolean("allow_cellular", mobile.isChecked)
                     .putBoolean("allow_roaming", roaming.isChecked && mobile.isChecked).putLong("cellular_limit", mb * 1024L * 1024L).apply()
-                val i = Intent(this, si.safeer.tv.cast.CastReceiverService::class.java).apply { action = si.safeer.tv.cast.CastReceiverService.ACTION_GATEWAY_CHANGED }
+                vnosi.forEachIndexed { i, v ->
+                    val prej = v.stanje == si.safeer.tv.link.InternetDovoljenja.Stanje.DOVOLJENO
+                    val zdaj = izbire[i].isChecked
+                    // Samo, kar je uporabnik spremenil: naprava, ki caka in je ni oznacil, caka naprej.
+                    if (zdaj != prej) {
+                        dovoljenja.odloci(v.naprava, zdaj, v.ime)
+                        si.safeer.tv.link.InternetVprasanje.umakni(this, v.naprava)
+                    }
+                }
+                val i = Intent(this, si.safeer.tv.cast.CastReceiverService::class.java).apply { action = si.safeer.tv.cast.CastReceiverService.ACTION_GATEWAY_PERMISSION }
                 try { startService(i) } catch (_: Throwable) { }
                 narisi()
             }.setNegativeButton(android.R.string.cancel, null).show()

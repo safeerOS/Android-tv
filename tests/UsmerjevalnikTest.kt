@@ -124,6 +124,24 @@ private fun preizkusJson() {
     preveriEnako("zapis", """{"a":"z \"navednico\"","b":3,"c":1.25,"d":true,"e":null,"f":["x","y"]}""",
         zapis.toString())
     preveri("kar zapisemo, znamo tudi prebrati", JsonLahki.objekt(zapis.toString())?.niz("a") == "z \"navednico\"")
+
+    // Hitra pot (niz brez ubeznih znakov je izsek vira; ubezi prepisuje odseke) mora dati isto kot pocasna.
+    val dolg = "Ab+/9=".repeat(6000)
+    preveriEnako("dolg niz brez ubeznih znakov", dolg, JsonLahki.objekt("{\"d\":\"$dolg\"}")?.niz("d"))
+    preveriEnako("ubezni znak na koncu dolgega niza", dolg + "\"", JsonLahki.objekt("{\"d\":\"$dolg\\\"\"}")?.niz("d"))
+    preveriEnako("ubezni znak na zacetku", "\n" + dolg, JsonLahki.objekt("{\"d\":\"\\n$dolg\"}")?.niz("d"))
+    preveriEnako("unicode ubeg sredi niza", "a\u010cb", JsonLahki.objekt("{\"d\":\"a\\u010cb\"}")?.niz("d"))
+    preveriEnako("prazen niz", "", JsonLahki.objekt("{\"d\":\"\"}")?.niz("d"))
+    preveriEnako("polje za dolgim nizom se prebere", "x", JsonLahki.objekt("{\"d\":\"$dolg\",\"e\":\"x\"}")?.niz("e"))
+    preveri("nadzorni znak za dolgim cistim odsekom se zavrne", JsonLahki.objekt("{\"d\":\"$dolg\u0001\"}") == null)
+    preveri("nezakljucen dolg niz se zavrne", JsonLahki.objekt("{\"d\":\"$dolg") == null)
+    preveri("nezakljucen ubeg na koncu se zavrne", JsonLahki.objekt("{\"d\":\"$dolg\\") == null)
+    preveri("ubezi brez posebnih znakov vrne isti niz", JsonLahki.ubezi(dolg) === dolg)
+    preveriEnako("ubezi: znani izpis", "a\\\"b\\\\c\\nd\\te\\rf\\u0001g", JsonLahki.ubezi("a\"b\\c\nd\te\rf\u0001g"))
+    val mesano = "\"a\"b\\c\nd\te\rf\u0001g" + dolg + "\"" + dolg + "\\"
+    preveriEnako("ubezi in branje sta si nasprotna", mesano, JsonLahki.objekt("{\"m\":\"${JsonLahki.ubezi(mesano)}\"}")?.niz("m"))
+    preveriEnako("sporocilo v sporocilu (mesh.route) pride nazaj enako", "{\"data\":\"$dolg\"}",
+        JsonLahki.objekt(JsonLahki.Zapis().niz("msg", "{\"data\":\"$dolg\"}").toString())?.niz("msg"))
 }
 
 // ------------------------------------------------------------ register in cast
@@ -1464,6 +1482,42 @@ private fun preizkusPredajeInGatewaya() {
     preveriEnako("gateway dobi internet.open", "internet.open", tip(telefon.zadnje()))
     preveri("internet.open: posiljatelja vpise hub", telefon.zadnje().contains("\"sender\":\"tv1\"") && !telefon.zadnje().contains("ponarejen"))
     preveri("internet.open: vrata ostanejo", telefon.zadnje().contains("\"port\":443"))
+
+    // Protokol 2 (docs/INTERNET-GATEWAY.md): pot po vrsti, razlicica, nadzor pretoka, stanje, odmik kosa.
+    u.odgovorNa(tv, """{"id":"g2","type":"internet.open","target":"fon1","stream_id":"tok-12345678","host":"safeer.si","port":443,"path_id":"mobile","v":2}""")
+    preveri("internet.open: pot in razlicica ostaneta", telefon.zadnje().contains("\"path_id\":\"mobile\"") && telefon.zadnje().contains("\"v\":2"))
+    u.odgovorNa(tv, """{"id":"g2b","type":"internet.open","target":"fon1","stream_id":"tok-12345678","host":"safeer.si","port":443,"path_id":"mobile","v":2,"epoch":987654321,"tuje":"ne gre naprej"}""")
+    preveri("internet.open: doba odjemalca (epoch) pride do ponudnika", telefon.zadnje().contains("\"epoch\":987654321"))
+    preveri("internet.open: neznana polja ne gredo naprej", !telefon.zadnje().contains("tuje"))
+    val velikKos = "Qk9M".repeat(8192)
+    tv.pocisti()
+    u.odgovorNa(telefon, "{\"id\":\"g2c\",\"type\":\"internet.data\",\"target\":\"tv1\",\"stream_id\":\"tok-12345678\",\"off\":0,\"data\":\"$velikKos\"}")
+    preveriEnako("internet.data: kos 32 KiB pride cel", velikKos, polje(tv.zadnje(), "data"))
+    tv.pocisti()
+    preveriEnako("internet.data brez potrditve sredisca", null,
+        u.odgovorNa(telefon, """{"id":"g3","type":"internet.data","target":"tv1","stream_id":"tok-12345678","off":7340032000,"data":"QUJDRA=="}"""))
+    preveri("internet.data: kos in odmik prideta nespremenjena", tv.zadnje().contains("\"data\":\"QUJDRA==\"") && tv.zadnje().contains("\"off\":7340032000")
+        && tv.zadnje().contains("\"sender\":\"fon1\""))
+    u.odgovorNa(tv, """{"id":"g4","type":"internet.window","target":"fon1","stream_id":"tok-12345678","bytes":5368709120}""")
+    preveriEnako("internet.window pride do ponudnika", "internet.window", tip(telefon.zadnje()))
+    preveri("internet.window: velika stevila brez znanstvenega zapisa", telefon.zadnje().contains("\"bytes\":5368709120"))
+    u.odgovorNa(tv, """{"id":"g5","type":"internet.eof","target":"fon1","stream_id":"tok-12345678"}""")
+    preveriEnako("internet.eof pride do ponudnika", "internet.eof", tip(telefon.zadnje()))
+    u.odgovorNa(tv, """{"id":"g6","type":"internet.query","target":"fon1","v":2}""")
+    preveriEnako("internet.query pride do ponudnika", "internet.query", tip(telefon.zadnje()))
+    tv.pocisti()
+    u.odgovorNa(telefon, """{"id":"g7","type":"internet.status","target":"tv1","payload":{"protocol":2,"enabled":true,"permission":"pending"}}""")
+    preveriEnako("internet.status pride do odjemalca", "internet.status", tip(tv.zadnje()))
+    preveri("internet.status: tovor ostane", tv.zadnje().contains("\"permission\":\"pending\"") && tv.zadnje().contains("\"protocol\":2"))
+    u.odgovorNa(telefon, """{"id":"g8","type":"internet.opened","target":"tv1","stream_id":"tok-12345678","path_id":"android-1","kind":"cellular"}""")
+    preveri("internet.opened: vrsta poti ostane", tv.zadnje().contains("\"kind\":\"cellular\""))
+    tv.pocisti()
+    u.odgovorNa(telefon, """{"id":"g9","type":"internet.status","target":"tv1","payload":"ni objekt"}""")
+    preveri("internet.status: tovor, ki ni objekt, se ne posreduje", !tv.zadnje().contains("ni objekt"))
+    val zavrnitev = u.odgovorNa(tv, """{"id":"g10","type":"internet.open","target":"nihce","stream_id":"tok-12345678","host":"safeer.si","port":443,"v":2}""")!!
+    preveriEnako("internet.open neznani napravi: zavrnitev sredisca", "rejected", polje(zavrnitev, "status"))
+    preveriEnako("zavrnitev je internet.ack", "internet.ack", tip(zavrnitev))
+    preveriEnako("zavrnitev nosi id zahteve", "g10", polje(zavrnitev, "ref_id"))
 }
 
 private fun preizkusPolitikeA() {

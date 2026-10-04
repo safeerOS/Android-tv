@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Internet Gateway (telefon deli internet z napravo v Safeer Linku): nastavitve in vprasanje za dovoljenje.
+     Datoteko sestavi outputs/krog102/android102_nizi.py - popravki gredo tja. -->
+<resources>
+    <string name="os_ig_naslov">Internet over Safeer Link</string>
+    <string name="os_ig_opis">A computer in Safeer Link can use this phone’s internet – for example when the home internet is down.</string>
+    <string name="os_ig_deli">Share this phone’s internet with my Safeer devices</string>
+    <string name="os_ig_mobilni">Allow mobile data (4G/5G)</string>
+    <string name="os_ig_gostovanje">Also while roaming</string>
+    <string name="os_ig_omejitev">Monthly mobile data limit in MB (0 = no limit)</string>
+    <string name="os_ig_poraba">Mobile data used through Safeer Link: today %1$s, this month %2$s</string>
+    <string name="os_ig_poraba_omejitev">Mobile data used through Safeer Link: today %1$s, this month %2$s of %3$s</string>
+    <string name="os_ig_naprave">Devices that may use the internet</string>
+    <string name="os_ig_ni_naprav">No device has asked yet. Turn on “Internet through the phone” on the computer (Safeer OS › Network connections) and the question appears on this phone.</string>
+    <string name="os_ig_naprava_caka">%1$s (waiting for your decision)</string>
+    <string name="os_ig_shrani">Save</string>
+    <string name="os_ig_vprasanje">%1$s wants to use this phone’s internet over Safeer Link. If you allow it, it can also use mobile data whenever mobile data is allowed in the settings.</string>
+    <string name="os_ig_vprasanje_kratko">%1$s wants to use this phone’s internet</string>
+    <string name="os_ig_dovoli">Allow</string>
+    <string name="os_ig_zavrni">Deny</string>
+    <string name="os_ig_kanal">Safeer: internet over Link</string>
+    <string name="os_ig_kanal_opis">Questions about which device may use this phone’s internet.</string>
+    <string name="os_ig_dovoljeno">%1$s may now use this phone’s internet.</string>
+    <string name="os_ig_zavrnjeno">%1$s may not use this phone’s internet.</string>
+</resources>

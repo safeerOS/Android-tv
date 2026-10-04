@@ -42,6 +42,8 @@ class CastReceiverService : Service() {
         const val ACTION_START = "si.safeer.tv.cast.START"
         const val ACTION_STOP = "si.safeer.tv.cast.STOP"
         const val ACTION_GATEWAY_CHANGED = "si.safeer.tv.cast.GATEWAY_CHANGED"
+        /** Nastavitve ali dovoljenja Safeer Internet Gatewaya so se spremenila (brez nove prijave, ce zmoznost ostane ista). */
+        const val ACTION_GATEWAY_PERMISSION = "si.safeer.tv.cast.GATEWAY_PERMISSION"
         const val EXTRA_HUB_URL = "extra_hub_url"
         const val EXTRA_DEVICE_NAME = "extra_device_name"
 
@@ -182,9 +184,24 @@ class CastReceiverService : Service() {
     private var isRunning = false
     private var reconnectAttempts = 0
 
+    /**
+     * Ko uporabnik odpre Safeer OS, pokazemo vprasanja naprav, ki cakajo na dovoljenje za internet tega telefona
+     * (link/InternetVprasanje): iz ozadja jih Android ne dovoli odpreti, obvestila pa so lahko izklopljena.
+     */
+    private val zasloniInterneta = object : android.app.Application.ActivityLifecycleCallbacks {
+        override fun onActivityResumed(a: android.app.Activity) { si.safeer.tv.link.InternetVprasanje.pokaziCakajoce(a) }
+        override fun onActivityCreated(a: android.app.Activity, b: android.os.Bundle?) {}
+        override fun onActivityStarted(a: android.app.Activity) {}
+        override fun onActivityPaused(a: android.app.Activity) {}
+        override fun onActivityStopped(a: android.app.Activity) {}
+        override fun onActivitySaveInstanceState(a: android.app.Activity, b: android.os.Bundle) {}
+        override fun onActivityDestroyed(a: android.app.Activity) {}
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        try { application.registerActivityLifecycleCallbacks(zasloniInterneta) } catch (_: Throwable) { }
         // Zacasni torrenti (film iz kataloga, pomoc drugi napravi), ki jih 48 ur nihce ni predvajal, gredo ob zagonu.
         if (si.safeer.tv.os.MagnetMotor.naVoljo) Thread({ try { si.safeer.tv.os.MagnetMotor.pocistiZacasne(applicationContext) } catch (_: Throwable) { } }, "safeer-magnet-ciscenje").apply { isDaemon = true; start() }
         // Vklop televizorja iz pripravljenosti: Safeer OS naj bo prvo, kar se vidi (os/VklopTelevizorja).
@@ -195,6 +212,16 @@ class CastReceiverService : Service() {
         if (intent?.action == ACTION_STOP || !si.safeer.tv.os.Sosed.vodimLink(this)) {
             stopSelf()
             return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_GATEWAY_PERMISSION) {
+            // Odprti tokovi dovoljenih naprav tecejo naprej; nova prijava je potrebna samo, ko se zmoznost
+            // internet.gateway pojavi ali izgine (ta je del cast.register).
+            val prej = internetGateway?.dovoljeno
+            internetGateway?.osveziIzShrambe()
+            val zdaj = internetGateway?.dovoljeno
+                ?: getSharedPreferences(si.safeer.tv.link.AndroidApplicationGateway.PREFS, Context.MODE_PRIVATE).getBoolean("gateway_enabled", false)
+            if (isRunning && prej != zdaj) connectToHub()
+            return START_STICKY
         }
         if (intent?.action == ACTION_GATEWAY_CHANGED) {
             internetGateway?.osveziIzShrambe()
@@ -233,6 +260,8 @@ class CastReceiverService : Service() {
         val moj = ++rod
         webSocket?.cancel()
         webSocket = null
+        // Kosi tokov, ki so bili na poti po stari povezavi, so izgubljeni: tokovi se koncajo, odjemalec odpre nove.
+        internetGateway?.povezavaIzgubljena()
 
         if (!hubUrl.startsWith("wss://")) {
             // Brez TLS bi zeton in vse, kar delimo, potovalo v cistem besedilu. Tak Hub naj se posodobi.
@@ -355,7 +384,10 @@ class CastReceiverService : Service() {
         if (BuildConfig.FLAVOR == "telefon" && internetGateway == null) {
             val p = si.safeer.tv.link.AndroidInternetPoti(this)
             internetPoti = p
-            internetGateway = si.safeer.tv.link.AndroidApplicationGateway(this, p) { sporocilo ->
+            internetGateway = si.safeer.tv.link.AndroidApplicationGateway(this, p, posljiBesedilo = { besedilo ->
+                val w = webSocket
+                w != null && povezan && try { w.send(besedilo) } catch (_: Throwable) { false }
+            }) { sporocilo ->
                 val w = webSocket
                 w != null && povezan && try { w.send(sporocilo.put("id", UUID.randomUUID().toString()).toString()) } catch (_: Throwable) { false }
             }
@@ -668,6 +700,8 @@ class CastReceiverService : Service() {
     private fun odklopljen() {
         povezan = false
         zadnjeNaprave = "[]"
+        // Tokovi Safeer Internet Gatewaya brez Linka nimajo kam: zaprejo se, odjemalec odpre nove.
+        try { internetGateway?.povezavaIzgubljena() } catch (_: Throwable) { }
         try { naPovezavo?.invoke(false) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPovezavo(false)", e) }
         try { naSpremembeNaprav?.invoke("[]") } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naSpremembeNaprav([])", e) }
     }
@@ -1015,6 +1049,7 @@ class CastReceiverService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        try { application.unregisterActivityLifecycleCallbacks(zasloniInterneta) } catch (_: Throwable) { }
         try { internetGateway?.close() } catch (_: Throwable) { }
         internetGateway = null
         internetPoti = null

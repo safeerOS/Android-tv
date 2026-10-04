@@ -65,6 +65,24 @@ private class TestniOdjemalec(vrata: Int) {
         return Pair(prva, glave)
     }
 
+    /** En (maskiran) okvir s poljubno opkodo in zastavico FIN - za sporocila, razdeljena na vec okvirjev. */
+    fun posljiDel(opkoda: Int, zadnji: Boolean, podatki: ByteArray) {
+        val glava = java.io.ByteArrayOutputStream()
+        glava.write((if (zadnji) 0x80 else 0) or opkoda)
+        when {
+            podatki.size < 126 -> glava.write(0x80 or podatki.size)
+            podatki.size <= 0xFFFF -> { glava.write(0x80 or 126); glava.write((podatki.size shr 8) and 0xFF); glava.write(podatki.size and 0xFF) }
+            else -> { glava.write(0x80 or 127); for (i in 7 downTo 0) glava.write(((podatki.size.toLong() shr (8 * i)) and 0xFF).toInt()) }
+        }
+        val maska = byteArrayOf(0x7f, 0x00, 0x81.toByte(), 0x5a)
+        glava.write(maska)
+        val zakrit = ByteArray(podatki.size)
+        for (i in podatki.indices) zakrit[i] = (podatki[i].toInt() xor maska[i % 4].toInt()).toByte()
+        izhod.write(glava.toByteArray())
+        izhod.write(zakrit)
+        izhod.flush()
+    }
+
     /** Okvir odjemalca mora biti maskiran - tako kot ga poslje pravi brskalnik. */
     fun posljiBesedilo(besedilo: String, maskiraj: Boolean = true) {
         val podatki = besedilo.toByteArray(Charsets.UTF_8)
@@ -221,6 +239,30 @@ fun main() {
         preveriEnako("odgovor je besedilni okvir", 1, opkoda)
         preveriEnako("vsebina odgovora", "odmev:{\"vrsta\":\"pozdrav\"}", odgovor)
         preveri("strežnik šteje eno povezavo", streznik.steviloPovezav() == 1)
+
+        // Veliki okvirji (kosi tokov Internet Gatewaya, 32 KiB) in dolzine, ki niso veckratnik stiri:
+        // odmaskiranje gre po stiri bajte naenkrat, sporocilo v enem okvirju pa brez vmesnih kopij.
+        for (dolzina in listOf(1, 2, 3, 5, 125, 126, 127, 4096, 33001, 65535, 65537)) {
+            val vsebina = buildString { for (i in 0 until dolzina) append("čAb9+/=z"[i % 8]) }
+            o.posljiBesedilo(vsebina)
+            val (op, odmev) = o.preberiOkvir()
+            preveriEnako("okvir $dolzina znakov: opkoda", 1, op)
+            preveri("okvir $dolzina znakov pride nespremenjen", odmev == "odmev:$vsebina")
+        }
+        // Sporocilo v treh okvirjih (FIN sele na zadnjem), vmes ping: sestavi se v eno.
+        val deli = listOf("prvi del, ", "drugi del s č, ", "tretji del").map { it.toByteArray(Charsets.UTF_8) }
+        o.posljiDel(0x1, false, deli[0])
+        o.posljiDel(0x0, false, deli[1])
+        o.posljiDel(0x9, true, "p".toByteArray())
+        o.posljiDel(0x0, true, deli[2])
+        val (opPong, pong) = o.preberiOkvir()
+        preveriEnako("ping sredi razdeljenega sporocila dobi pong", 0xA, opPong)
+        preveriEnako("pong vrne isto vsebino", "p", pong)
+        val (opCelo, celo) = o.preberiOkvir()
+        preveriEnako("razdeljeno sporocilo: opkoda", 1, opCelo)
+        preveriEnako("razdeljeno sporocilo se sestavi", "odmev:prvi del, drugi del s č, tretji del", celo)
+        o.posljiBesedilo("se dela")
+        preveriEnako("po razdeljenem sporocilu gre navaden okvir", "odmev:se dela", o.preberiOkvir().second)
         o.zapri()
     }
 

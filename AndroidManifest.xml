@@ -321,6 +321,17 @@
             </intent-filter>
         </service>
 
+        <!-- Safeer Internet Gateway: vprasanje, ali sme naprava uporabljati internet tega telefona (okno iz obvestila
+             in gumba Dovoli / Zavrni v obvestilu). Samo znotraj aplikacije. -->
+        <activity
+            android:name="si.safeer.tv.link.InternetDovoljenjeActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:noHistory="true" />
+        <receiver android:name="si.safeer.tv.link.InternetVprasanje$Prejemnik" android:exported="false" />
+
         <!-- "Poslji na napravo": Zavrni iz tihega obvestila (brez odpiranja aplikacije). -->
         <receiver android:name="si.safeer.tv.os.PredajaObvestilo$Prejemnik" android:exported="false" />
 

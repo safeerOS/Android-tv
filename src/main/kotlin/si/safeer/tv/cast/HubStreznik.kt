@@ -670,6 +670,7 @@ class HubStreznik(
                     }
                     continue
                 } catch (e: Exception) {
+                    if (jeOdprta()) Log.i(OZNAKA, "Branje s povezave ${imeNaprave.ifBlank { naslov }} se je končalo: ${e.javaClass.simpleName}: ${e.message.orEmpty().take(100)}")
                     break
                 }
                 if (prvi < 0) break
@@ -703,7 +704,7 @@ class HubStreznik(
                 if (!preberiTocno(maska)) break
                 val podatki = ByteArray(dolzina.toInt())
                 if (!preberiTocno(podatki)) break
-                for (i in podatki.indices) podatki[i] = (podatki[i].toInt() xor maska[i % 4].toInt()).toByte()
+                odmaskiraj(podatki, maska)
 
                 when (opkoda) {
                     OPKODA_ZAPRI -> {
@@ -727,17 +728,21 @@ class HubStreznik(
                             zapri(1013, "naprava naj poskusi znova")
                             return
                         }
-                        zbrano.write(podatki)
-                        if (zakljucen) {
+                        // Sporocilo v enem okvirju (skoraj vsa) gre naprej brez vmesnih kopij.
+                        val celo: ByteArray? = if (zakljucen && zbrano.size() == 0) podatki else {
+                            zbrano.write(podatki)
+                            if (zakljucen) zbrano.toByteArray() else null
+                        }
+                        if (celo != null) {
                             if (zbranaOpkoda == OPKODA_BESEDILO) {
-                                val besedilo = String(zbrano.toByteArray(), Charsets.UTF_8)
+                                val besedilo = String(celo, Charsets.UTF_8)
                                 try {
                                     naSporocilo?.invoke(besedilo)
                                 } catch (e: Exception) {
                                     Log.w(OZNAKA, "Obdelava sporočila ni uspela: ${e.message}")
                                 }
                             }
-                            zbrano = ByteArrayOutputStream()
+                            if (zbrano.size() > 0) zbrano = ByteArrayOutputStream()
                             zbranaOpkoda = -1
                             sprostiZadrzek()
                         }
@@ -745,6 +750,27 @@ class HubStreznik(
                 }
             }
             zapri(1000, "")
+        }
+
+        /** XOR z masko odjemalca (RFC 6455) po stiri bajte naenkrat - brez deljenja po modulu za vsak bajt. */
+        private fun odmaskiraj(podatki: ByteArray, maska: ByteArray) {
+            val m0 = maska[0].toInt()
+            val m1 = maska[1].toInt()
+            val m2 = maska[2].toInt()
+            val m3 = maska[3].toInt()
+            val polnih = podatki.size and 3.inv()
+            var i = 0
+            while (i < polnih) {
+                podatki[i] = (podatki[i].toInt() xor m0).toByte()
+                podatki[i + 1] = (podatki[i + 1].toInt() xor m1).toByte()
+                podatki[i + 2] = (podatki[i + 2].toInt() xor m2).toByte()
+                podatki[i + 3] = (podatki[i + 3].toInt() xor m3).toByte()
+                i += 4
+            }
+            while (i < podatki.size) {
+                podatki[i] = (podatki[i].toInt() xor maska[i and 3].toInt()).toByte()
+                i++
+            }
         }
 
         private fun preberiTocno(cilj: ByteArray): Boolean {
