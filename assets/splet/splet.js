@@ -154,11 +154,20 @@
   }
   function odpri(url) { if (!most({ action: "navigate", url: url })) window.location.href = url; }
 
+  function jeIPv4(g) {
+    var d = g.split(".");
+    return d.length === 4 && d.every(function (x) { return /^\d{1,3}$/.test(x) && +x <= 255; });
+  }
+
   function vNaslov(vnos) {
     var q = (vnos || "").trim();
     if (!q) return "";
     if (/^(https?:|file:)/i.test(q)) return q;
-    if (/^(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(q)) return "http://" + q;
+    if (q.indexOf(" ") < 0) {
+      // Naprave v domacem omrezju (usmerjevalnik, tiskalnik, NAS) nimajo potrdila: naslov IP in lokalna imena po http.
+      var gostitelj = q.split(/[\/?#]/)[0].replace(/:\d+$/, "").toLowerCase();
+      if (gostitelj === "localhost" || jeIPv4(gostitelj) || /^[^\s.]+(\.[^\s.]+)*\.(local|lan|home|internal|localdomain)$/.test(gostitelj)) return "http://" + q;
+    }
     if (q.indexOf(" ") < 0 && /^[^\s.]+(\.[^\s.]+)+(:\d+)?(\/.*)?$/.test(q)) return "https://" + q;
     return (ISKALNIKI[S.iskalnik] || ISKALNIKI.duckduckgo) + encodeURIComponent(q);
   }
@@ -279,7 +288,11 @@
   window.setSearchEngine = function (e) { if (ISKALNIKI[e]) S.iskalnik = e; };
 
   $("iskanje").addEventListener("submit", function (e) {
-    e.preventDefault(); var u = vNaslov($("vnos").value); if (u) odpri(u);
+    e.preventDefault();
+    var vnos = ($("vnos").value || "").trim(); if (!vnos) return;
+    // Android: naslov ali iskanje odloci gostitelj z istimi pravili kot naslovna vrstica.
+    if (window.SafeerAndroid && window.SafeerAndroid.sporocilo && most({ action: "query", text: vnos })) return;
+    odpri(vNaslov(vnos));
   });
   $("predlogiNaslov").addEventListener("click", function () { S.zvrst = "vse"; narisiCipe(); narisiKartice(); });
 

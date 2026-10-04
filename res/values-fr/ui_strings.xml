@@ -1,5 +1,6 @@
 <resources>
   <string name="ui_edit">Modifier</string>
+  <string name="ui_prilepi_in_pojdi">Coller et ouvrir</string>
   <string name="ui_delete">Supprimer</string>
   <string name="ui_close">Fermer</string>
   <string name="ui_cancel">Annuler</string>

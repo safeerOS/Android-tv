@@ -145,7 +145,7 @@ object HomeTilesStore {
                         blp.marginStart = 8
                         layoutParams = blp
                         isFocusable = true
-                        isFocusableInTouchMode = true
+                        isFocusableInTouchMode = !ChromiumEngineView.naDotik(activity)
                         setOnClickListener { onClick() }
                     }
                 }
@@ -208,7 +208,7 @@ object HomeTilesStore {
                 layoutParams = lp
                 setPadding(28, 16, 28, 16)
                 isFocusable = true
-                isFocusableInTouchMode = true
+                isFocusableInTouchMode = !ChromiumEngineView.naDotik(activity)
                 setOnClickListener { onClick() }
             }
         }

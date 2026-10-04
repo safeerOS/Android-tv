@@ -3,9 +3,12 @@ package si.safeer.tv
 /** Cista pravila mostu zacetne strani; brez Androida, da jih lahko preverimo v JVM. */
 object SpletMostPravila {
     const val DOMACA = "file:///android_asset/splet/splet.html"
+    const val NAJVEC_POIZVEDBE = 2048
 
     sealed class Ukaz {
         data class Navigacija(val url: String) : Ukaz()
+        /** Vnos v iskalno polje zacetne strani, kot ga je uporabnik napisal: naslov ali iskanje odloci gostitelj. */
+        data class Poizvedba(val besedilo: String) : Ukaz()
         object DodajBliznjico : Ukaz()
         /** Uporabnik je bliznjico odstranil z zacetne strani (tudi vgrajeno): nic ni vsiljeno. */
         data class OdstraniBliznjico(val url: String) : Ukaz()
@@ -26,6 +29,7 @@ object SpletMostPravila {
         if (json.length !in 2..4096) return null
         return when (polje(json, "action")) {
             "navigate" -> polje(json, "url")?.takeIf(::jeSpletniNaslov)?.let(Ukaz::Navigacija)
+            "query" -> polje(json, "text")?.trim()?.takeIf { it.isNotEmpty() && it.length <= NAJVEC_POIZVEDBE }?.let(Ukaz::Poizvedba)
             "open_sidebar" -> if (polje(json, "service") == "add_portal") Ukaz.DodajBliznjico else null
             "remove_portal" -> polje(json, "url")?.takeIf(::jeSpletniNaslov)?.let(Ukaz::OdstraniBliznjico)
             "reset_portals" -> Ukaz.ObnoviBliznjice

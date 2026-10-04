@@ -57,3 +57,4 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.ZacasniPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebniDodatkiTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KnjiznicaKrogaTestKt
 python3 "$TEST_DIR/preveri_tv_ikone.py"
+python3 "$TEST_DIR/preveri_naslovno_vrstico.py"

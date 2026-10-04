@@ -3,6 +3,7 @@ package si.safeer.tv
 import android.content.Context
 import java.net.IDN
 import java.net.InetAddress
+import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -49,6 +50,23 @@ object SmartOmnibox {
 
     fun iskanje(c: Context, poizvedba: String, i: Iskalnik = iskalnik(c)): String =
         i.iskanje + URLEncoder.encode(poizvedba.trim(), "UTF-8")
+
+    /**
+     * Iskani niz, kadar je [url] stran z zadetki enega od iskalnikov (sicer null). Naslovna vrstica ga pokaze
+     * namesto dolgega naslova - in namesto praznega polja -, da ga uporabnik vidi in dopolni.
+     */
+    fun poizvedba(url: String): String? {
+        for (i in Iskalnik.values()) {
+            val osnova = i.iskanje.substringBefore('?')
+            if (!url.startsWith("$osnova?")) continue
+            val parameter = i.iskanje.substringAfter('?').substringBefore('=') + "="
+            val niz = url.substring(osnova.length + 1).substringBefore('#').split('&')
+                .firstOrNull { it.startsWith(parameter) }?.substring(parameter.length) ?: return null
+            val besedilo = try { URLDecoder.decode(niz, "UTF-8").trim() } catch (_: Exception) { return null }
+            return besedilo.ifEmpty { null }
+        }
+        return null
+    }
 
     fun razresi(c: Context, vnos: String, i: Iskalnik = iskalnik(c)): Odlocitev? = razresi(vnos, i.iskanje)
 

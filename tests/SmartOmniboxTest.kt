@@ -56,6 +56,18 @@ fun main() {
     preveri("sumniki v iskanju so kodirani", SmartOmnibox.razresi("čaj", ISKANJE)?.url == ISKANJE + "%C4%8Daj")
     preveri("presledki so strnjeni", SmartOmnibox.razresi("a    b", ISKANJE)?.url == ISKANJE + "a+b")
 
+    println("SmartOmnibox: iskani niz iz naslova strani z zadetki")
+    preveri("Google", SmartOmnibox.poizvedba("https://www.google.com/search?q=defrag+windows&sca_esv=1") == "defrag windows")
+    preveri("parameter ni prvi, sumniki", SmartOmnibox.poizvedba("https://www.google.com/search?hl=sl&q=%C4%8Daj#ip=1") == "čaj")
+    preveri("parameter s podobnim imenom", SmartOmnibox.poizvedba("https://www.google.com/search?oq=staro&q=novo") == "novo")
+    preveri("DuckDuckGo", SmartOmnibox.poizvedba("https://duckduckgo.com/?q=safeer+os&ia=web") == "safeer os")
+    preveri("Brave", SmartOmnibox.poizvedba("https://search.brave.com/search?q=a%26b") == "a&b")
+    preveri("zacetna stran iskalnika ni iskanje", SmartOmnibox.poizvedba("https://www.google.com/") == null)
+    preveri("druga stran istega gostitelja", SmartOmnibox.poizvedba("https://www.google.com/maps?q=ljubljana") == null)
+    preveri("prazen niz", SmartOmnibox.poizvedba("https://www.google.com/search?q=") == null)
+    preveri("pokvarjeno kodiranje", SmartOmnibox.poizvedba("https://www.google.com/search?q=%E0%A4%A") == null)
+    preveri("navadna stran", SmartOmnibox.poizvedba("https://safeer.si/?q=nekaj") == null)
+
     println(if (napak == 0) "VSE OK" else "NAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

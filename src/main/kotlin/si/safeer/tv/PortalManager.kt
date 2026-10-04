@@ -75,12 +75,16 @@ object PortalManager {
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         val portals = loadPortals(activity)
+        // Mere so nastale za televizor (1100 px). Na telefonu okno ne sme biti sirse od zaslona, gumbi pa gredo
+        // eden pod drugega - sicer je bil gumb Zapri zunaj zaslona.
+        val sirina = minOf(1100, activity.resources.displayMetrics.widthPixels - 48)
+        val ozko = sirina < 900
 
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.drawable.bg_mobile_menu_dialog)
             setPadding(40, 36, 40, 36)
-            layoutParams = ViewGroup.LayoutParams(1100, ViewGroup.LayoutParams.WRAP_CONTENT)
+            layoutParams = ViewGroup.LayoutParams(sirina, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
 
         // Header
@@ -138,7 +142,7 @@ object PortalManager {
                     blp.marginStart = 16
                     layoutParams = blp
                     isFocusable = true
-                    isFocusableInTouchMode = true
+                    isFocusableInTouchMode = !ChromiumEngineView.naDotik(activity)
                     setOnClickListener {
                         portals.removeAt(index)
                         savePortals(activity, portals)
@@ -159,7 +163,7 @@ object PortalManager {
 
         // Action Buttons Row
         val btnRow = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
+            orientation = if (ozko) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
             setPadding(0, 24, 0, 0)
             gravity = android.view.Gravity.CENTER
         }
@@ -172,8 +176,9 @@ object PortalManager {
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setBackgroundResource(R.drawable.bg_mobile_omnibox)
             setPadding(32, 16, 32, 16)
+            if (ozko) layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             isFocusable = true
-            isFocusableInTouchMode = true
+            isFocusableInTouchMode = !ChromiumEngineView.naDotik(activity)
             setOnClickListener {
                 showAddPortalDialog(activity) { newItem ->
                     portals.add(newItem)
@@ -192,14 +197,14 @@ object PortalManager {
             textSize = 14f
             setBackgroundResource(R.drawable.bg_mobile_omnibox)
             val lp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                if (ozko) LinearLayout.LayoutParams.MATCH_PARENT else LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            lp.marginStart = 16
+            if (ozko) lp.topMargin = 12 else lp.marginStart = 16
             layoutParams = lp
             setPadding(28, 16, 28, 16)
             isFocusable = true
-            isFocusableInTouchMode = true
+            isFocusableInTouchMode = !ChromiumEngineView.naDotik(activity)
             setOnClickListener {
                 portals.clear()
                 portals.addAll(DEFAULT_PORTALS)
@@ -218,14 +223,14 @@ object PortalManager {
             textSize = 14f
             setBackgroundResource(R.drawable.bg_mobile_omnibox)
             val lp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                if (ozko) LinearLayout.LayoutParams.MATCH_PARENT else LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            lp.marginStart = 16
+            if (ozko) lp.topMargin = 12 else lp.marginStart = 16
             layoutParams = lp
             setPadding(28, 16, 28, 16)
             isFocusable = true
-            isFocusableInTouchMode = true
+            isFocusableInTouchMode = !ChromiumEngineView.naDotik(activity)
             setOnClickListener {
                 dialog.dismiss()
             }
@@ -246,7 +251,7 @@ object PortalManager {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.drawable.bg_mobile_menu_dialog)
             setPadding(36, 32, 36, 32)
-            layoutParams = ViewGroup.LayoutParams(850, ViewGroup.LayoutParams.WRAP_CONTENT)
+            layoutParams = ViewGroup.LayoutParams(minOf(850, activity.resources.displayMetrics.widthPixels - 48), ViewGroup.LayoutParams.WRAP_CONTENT)
         }
 
         val titleTv = TextView(activity).apply {

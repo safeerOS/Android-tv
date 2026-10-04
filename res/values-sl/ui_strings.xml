@@ -1,5 +1,6 @@
 <resources>
   <string name="ui_edit">Uredi</string>
+  <string name="ui_prilepi_in_pojdi">Prilepi in pojdi</string>
   <string name="ui_delete">Briši</string>
   <string name="ui_close">Zapri</string>
   <string name="ui_cancel">Prekliči</string>

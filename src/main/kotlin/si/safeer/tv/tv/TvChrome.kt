@@ -217,7 +217,9 @@ class TvChrome(private val host: MainActivity) {
                 setBackgroundResource(R.drawable.bg_portal_chip)
                 setPadding((16 * density).toInt(), 0, (16 * density).toInt(), 0)
                 isFocusable = true
-                isFocusableInTouchMode = true
+                // Na dotik bi prvi dotik cip samo izbral in naslovni vrstici vzel fokus (predlogi bi se zaprli,
+                // stran pa se ne bi odprla); odpreti ga mora ze prvi.
+                isFocusableInTouchMode = !si.safeer.tv.ChromiumEngineView.naDotik(host)
                 val lp = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     (38 * density).toInt()
@@ -275,7 +277,7 @@ class TvChrome(private val host: MainActivity) {
             setBackgroundResource(R.drawable.bg_portal_chip)
             setPadding((16 * density).toInt(), 0, (16 * density).toInt(), 0)
             isFocusable = true
-            isFocusableInTouchMode = true
+            isFocusableInTouchMode = !si.safeer.tv.ChromiumEngineView.naDotik(host)
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 (38 * density).toInt()
@@ -305,10 +307,71 @@ class TvChrome(private val host: MainActivity) {
             }
         }
         container.addView(editBtn)
+        // Izris je odstranil tudi cip »Prilepi in pojdi«; ce uporabnik naslov prav zdaj ureja, ga vrnemo.
+        if (host.editUrl.hasFocus()) pokaziCipPrilepi(true)
+    }
+
+    private var cipPrilepi: View? = null
+
+    /**
+     * Na dotik: kadar je v odlozišcu besedilo, je prvi cip pod naslovno vrstico »Prilepi in pojdi« - kopirano
+     * besedilo ali naslov odpres z enim dotikom. Dokler uporabnik cipa ne izbere, samo vprasamo, ALI besedilo je
+     * (opis odlozisca); vsebino preberemo sele ob dotiku, zato sistem prej ne pokaze obvestila o branju odlozisca.
+     */
+    fun pokaziCipPrilepi(pokazi: Boolean) {
+        val container = host.portalChipsContainer
+        cipPrilepi?.let { container.removeView(it) }
+        cipPrilepi = null
+        if (!pokazi || !si.safeer.tv.ChromiumEngineView.naDotik(host)) return
+        val odlozisce = host.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager ?: return
+        val imaBesedilo = try {
+            odlozisce.hasPrimaryClip() && odlozisce.primaryClipDescription?.let {
+                it.hasMimeType(android.content.ClipDescription.MIMETYPE_TEXT_PLAIN) ||
+                    it.hasMimeType(android.content.ClipDescription.MIMETYPE_TEXT_HTML)
+            } == true
+        } catch (_: Exception) { false }
+        if (!imaBesedilo) return
+        val density = host.resources.displayMetrics.density
+        val cip = Button(host).apply {
+            text = UiText.get(R.string.fmt_ikona_besedilo, "📋", UiText.get(R.string.ui_prilepi_in_pojdi))
+            setTextColor(host.resources.getColorStateList(R.color.color_portal_chip_text, host.theme))
+            textSize = 13f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setBackgroundResource(R.drawable.bg_portal_chip)
+            setPadding((16 * density).toInt(), 0, (16 * density).toInt(), 0)
+            isFocusable = true
+            isFocusableInTouchMode = false
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, (38 * density).toInt())
+            lp.marginEnd = (10 * density).toInt()
+            layoutParams = lp
+            setOnClickListener {
+                val besedilo = try {
+                    odlozisce.primaryClip?.getItemAt(0)?.coerceToText(host)?.toString()?.trim()
+                } catch (_: Exception) { null }
+                if (besedilo.isNullOrEmpty()) {
+                    pokaziCipPrilepi(false)
+                } else {
+                    // Dolgo kopirano besedilo gre v iskanje; naslov iskalnika ima omejeno dolzino.
+                    host.performNavigation(besedilo.take(2000))
+                    host.closeSuggestionsAndFocusWeb()
+                }
+            }
+        }
+        container.addView(cip, 0)
+        cipPrilepi = cip
     }
 
     fun updateOmniboxDisplay(url: String, title: String?) {
         if (host.editUrl.hasFocus()) return
+
+        // Stran z zadetki iskalnika: v vrstici je iskani niz - ne dolg naslov in ne prazno polje.
+        val poizvedba = si.safeer.tv.SmartOmnibox.poizvedba(url)
+        if (poizvedba != null) {
+            host.editUrl.setText(poizvedba)
+            if (si.safeer.tv.SpletDomaca.jeSafeerOs(host)) host.nastaviSpletnoKljucavnico(true)
+            else host.tvSecurityLock.text = "🔍"
+            return
+        }
 
         if (url.isEmpty() || url == "about:blank" || url.startsWith("https://www.google.com") || url.startsWith("file:///android_asset")) {
             host.editUrl.setText("")

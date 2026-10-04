@@ -1,5 +1,6 @@
 <resources>
   <string name="ui_edit">Modifica</string>
+  <string name="ui_prilepi_in_pojdi">Incolla e vai</string>
   <string name="ui_delete">Elimina</string>
   <string name="ui_close">Chiudi</string>
   <string name="ui_cancel">Annulla</string>

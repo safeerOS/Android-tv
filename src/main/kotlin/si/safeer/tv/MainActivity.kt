@@ -1318,6 +1318,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         btnFindPrev = findViewById(R.id.btnFindPrev)
         btnFindNext = findViewById(R.id.btnFindNext)
         btnFindClose = findViewById(R.id.btnFindClose)
+        // Postavitev je narejena za daljinec (focusableInTouchMode): na dotik bi prvi dotik gumbu samo dal fokus,
+        // klik pa se ne bi izvedel. Pri krizcu v naslovni vrstici je polje s tem izgubilo fokus - urejanje se je
+        // zaprlo, naslov pa ni bil pobrisan.
+        if (ChromiumEngineView.naDotik(this)) {
+            listOf<View>(btnBack, btnHome, btnReload, btnClearUrl, btnSearchTrigger, btnFavorite, btnPointerToggle,
+                btnAddTab, btnTabCount, btnMenu).forEach { it.isFocusableInTouchMode = false }
+        }
     }
 
     /** Chrome razdelka Splet: namizni dve zgornji vrstici ali telefonski naslov zgoraj in navigacija spodaj. */
@@ -1731,6 +1738,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             if (tabManager.getActiveTab()?.id == tab.id && SpletMostPravila.jeDovoljenIzvor(wv.url)) {
                 when (ukaz) {
                     is SpletMostPravila.Ukaz.Navigacija -> wv.loadUrl(ukaz.url)
+                    // Polje zacetne strani: naslov ali iskanje odloci SmartOmnibox, enako kot v naslovni vrstici
+                    // (naprave v domacem omrezju po http, tipkarska napaka v domeni gre v iskanje).
+                    is SpletMostPravila.Ukaz.Poizvedba -> performNavigation(ukaz.besedilo)
                     SpletMostPravila.Ukaz.DodajBliznjico -> pokaziDodajBliznjico(wv)
                     is SpletMostPravila.Ukaz.OdstraniBliznjico -> shraniSkriteBliznjice(skriteBliznjice() + SpletMostPravila.kljucBliznjice(ukaz.url))
                     SpletMostPravila.Ukaz.ObnoviBliznjice -> { shraniSkriteBliznjice(emptySet()); inicSpletnoStran(wv) }
@@ -1814,22 +1824,38 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 searchSuggestionsOverlay.visibility = View.VISIBLE
                 mobileTopBar.animate().translationY(0f).setDuration(150).start()
                 val currentUrl = tabManager.getActiveTab()?.url ?: ""
-                if (currentUrl.startsWith("https://www.google.com") || currentUrl.startsWith("file:///android_asset") || currentUrl == "about:blank") {
+                // Na dotik: na strani z zadetki je v polju iskani niz (izbran), da ga dopolnis ali prepises. Z daljincem
+                // ostane polje tam prazno - OK na praznem polju odpre tipkovnico (TvKeyRouter).
+                val poizvedba = if (ChromiumEngineView.naDotik(this)) SmartOmnibox.poizvedba(currentUrl) else null
+                if (poizvedba != null) {
+                    editUrl.setText(poizvedba)
+                    editUrl.selectAll()
+                } else if (currentUrl.startsWith("https://www.google.com") || currentUrl.startsWith("file:///android_asset") || currentUrl == "about:blank") {
                     editUrl.setText("")
                 } else {
                     editUrl.setText(currentUrl)
+                    // Izbira ostane tudi po dotiku, ki je polju dal fokus (selectAllOnFocus v postavitvi); brez tega jo
+                    // je dotik takoj nadomestil s kazalcem in naslova ni bilo mogoce kar prepisati.
                     editUrl.selectAll()
                 }
                 btnClearUrl.visibility = if (editUrl.text.isNotEmpty()) View.VISIBLE else View.GONE
                 // Ob samem prihodu fokusa ne posljemo nicesar: v polju je naslov odprte
                 // strani, ta pa ni iskalni niz in ne sodi v Googlovo storitev za predloge.
+                // setText zgoraj je predloge ze narocil (TextWatcher) - preklicemo jih, sicer bi se cez trenutek
+                // kot predlog pokazala kar stran, ki je odprta.
+                suggestionRunnable?.let { suggestionHandler.removeCallbacks(it) }
                 suggestionsListContainer.removeAllViews()
+                chrome.pokaziCipPrilepi(true)
             } else {
                 omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov else R.drawable.bg_mobile_omnibox)
                 btnClearUrl.visibility = View.GONE
                 searchSuggestionsOverlay.visibility = View.GONE
+                chrome.pokaziCipPrilepi(false)
                 val activeTab = tabManager.getActiveTab()
                 chrome.updateOmniboxDisplay(activeTab?.url ?: "", activeTab?.webView?.title)
+                // Na dotik: dotik strani zapre urejanje naslova - z njim naj gre tudi tipkovnica (prej je ostala
+                // odprta nad stranjo). Polje na strani, ki ga uporabnik tapne, jo takoj zatem odpre samo.
+                if (ChromiumEngineView.naDotik(this)) hideKeyboard()
             }
         }
 

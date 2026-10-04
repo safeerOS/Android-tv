@@ -24,7 +24,10 @@ object Robovi {
                 WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime()
             )
             pogled.setPadding(r.left, r.top, r.right, r.bottom)
-            robovi
+            // Robove smo porabili z odmikom. Nespremenjeni bi sli naprej do WebView, ta pa bi jih strani javil kot
+            // safe-area-inset (WebView 136+): stran bi se odmaknila se enkrat - prazen pas pod naslovno vrstico in
+            // nad spodnjo vrstico. Izmerjeno na Androidu 16: top=30px, bottom=48px v pogledu, ki vrstic ne doseze.
+            WindowInsets.CONSUMED
         }
         vsebina.requestApplyInsets()
     }

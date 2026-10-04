@@ -114,6 +114,7 @@
                 android:inputType="textUri|textWebEditText"
                 android:paddingVertical="0dp"
                 android:singleLine="true"
+                android:selectAllOnFocus="true"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_dim"
                 android:textSize="14sp"
