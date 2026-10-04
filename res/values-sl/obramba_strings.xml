@@ -23,4 +23,13 @@
     <string name="link_varovalka_dan">1 dan</string>
     <string name="link_varovalka_teden">7 dni</string>
     <string name="link_seznanitev_zaprta">Povezovanje s kodo je na tisti napravi začasno zaprto, ker je nekdo ugibal kodo. Na njej odpri »Poveži naprave« ali uporabi kodo QR.</string>
+    <string name="link_obramba_sprosti">Sprosti</string>
+    <string name="link_obramba_sproscena">%1$s je sproščena. Spet se lahko poveže.</string>
+    <string name="link_varovalka_odpri">Odpri povezovanje s kodo</string>
+    <string name="link_varovalka_odprto">Povezovanje s kodo je spet odprto. Naslednja zapora bo daljša.</string>
+    <string name="link_prijava_kanal">Safeer Link – nova naprava</string>
+    <string name="link_prijava_kanal_opis">Koda za napravo, ki se pridružuje tvojemu Safeer Linku.</string>
+    <string name="link_prijava_naslov">Safeer Link: %1$s se želi pridružiti</string>
+    <string name="link_prijava_besedilo">Na njej vpiši kodo %1$s</string>
+    <string name="link_prijava_nova_naprava">Nova naprava</string>
 </resources>

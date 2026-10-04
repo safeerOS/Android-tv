@@ -23,4 +23,13 @@
     <string name="link_varovalka_dan">1 Tag</string>
     <string name="link_varovalka_teden">7 Tage</string>
     <string name="link_seznanitev_zaprta">Die Kopplung per Code ist auf diesem Gerät vorübergehend gesperrt, weil jemand den Code erraten wollte. Öffne dort „Geräte verbinden“ oder nutze den QR-Code.</string>
+    <string name="link_obramba_sprosti">Freigeben</string>
+    <string name="link_obramba_sproscena">%1$s ist freigegeben. Es kann sich wieder verbinden.</string>
+    <string name="link_varovalka_odpri">Kopplung per Code öffnen</string>
+    <string name="link_varovalka_odprto">Die Kopplung per Code ist wieder offen. Die nächste Sperre dauert länger.</string>
+    <string name="link_prijava_kanal">Safeer Link – neues Gerät</string>
+    <string name="link_prijava_kanal_opis">Der Code für ein Gerät, das deinem Safeer Link beitritt.</string>
+    <string name="link_prijava_naslov">Safeer Link: %1$s möchte beitreten</string>
+    <string name="link_prijava_besedilo">Gib dort den Code %1$s ein</string>
+    <string name="link_prijava_nova_naprava">Neues Gerät</string>
 </resources>

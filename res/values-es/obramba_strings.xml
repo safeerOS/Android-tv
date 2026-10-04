@@ -23,4 +23,13 @@
     <string name="link_varovalka_dan">1 día</string>
     <string name="link_varovalka_teden">7 días</string>
     <string name="link_seznanitev_zaprta">El emparejamiento con código está cerrado temporalmente en ese dispositivo porque alguien intentaba adivinar el código. Abre allí «Conectar dispositivos» o usa el código QR.</string>
+    <string name="link_obramba_sprosti">Liberar</string>
+    <string name="link_obramba_sproscena">%1$s está liberado. Puede volver a conectarse.</string>
+    <string name="link_varovalka_odpri">Abrir el emparejamiento con código</string>
+    <string name="link_varovalka_odprto">El emparejamiento con código vuelve a estar abierto. El próximo cierre durará más.</string>
+    <string name="link_prijava_kanal">Safeer Link – dispositivo nuevo</string>
+    <string name="link_prijava_kanal_opis">El código para un dispositivo que se une a tu Safeer Link.</string>
+    <string name="link_prijava_naslov">Safeer Link: %1$s quiere unirse</string>
+    <string name="link_prijava_besedilo">Escribe en él el código %1$s</string>
+    <string name="link_prijava_nova_naprava">Dispositivo nuevo</string>
 </resources>

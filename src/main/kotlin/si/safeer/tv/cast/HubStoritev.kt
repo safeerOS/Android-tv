@@ -43,6 +43,16 @@ class HubStoritev : Service() {
         const val AKCIJA_ZACNI = "si.safeer.tv.cast.HUB_ZACNI"
         const val AKCIJA_KONCAJ = "si.safeer.tv.cast.HUB_KONCAJ"
 
+        /** Gumba na obvestilu obrambe: sprosti ustavljeno napravo (dodatek [DODATEK_VIR]) in odpri povezovanje s kodo. */
+        const val AKCIJA_SPROSTI = "si.safeer.tv.cast.OBRAMBA_SPROSTI"
+        const val AKCIJA_ODPRI_KODO = "si.safeer.tv.cast.OBRAMBA_ODPRI_KODO"
+        const val DODATEK_VIR = "vir"
+        const val DODATEK_OBVESTILO = "obvestilo"
+        const val DODATEK_IME = "ime"
+
+        /** Stevilka obvestila za zaporo vira: vsak vir svoje (zapora drugega ne sme prekriti prve). */
+        internal fun obvestiloZapore(vir: String): Int = OBVESTILO_ZAPORA + 16 + (vir.hashCode() and 0xfff)
+
         /**
          * Uporabnik je Safeer Link prizgal. Hub zazenemo takoj (da vmesnik lahko pove,
          * ali je uspelo), storitev pa poskrbi, da tece naprej, ko brskalnika ni vec.
@@ -89,6 +99,11 @@ class HubStoritev : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Gumba na obvestilu obrambe; storitev potem tece naprej kot prej.
+        when (intent?.action) {
+            AKCIJA_SPROSTI -> sprostiZObvestila(intent)
+            AKCIJA_ODPRI_KODO -> odpriKodoZObvestila()
+        }
         if (intent?.action == AKCIJA_KONCAJ || !si.safeer.tv.os.Sosed.vodimLink(this)) {
             HubKrmilnik.ustavi(applicationContext, zapomni = false)
             ustaviOspredje()
@@ -132,6 +147,29 @@ class HubStoritev : Service() {
      * kode ne bi videl nikjer. Obvestilo s kodo; ce je dovoljen prikaz cez druge aplikacije, Safeer OS
      * odpremo, da pokaze kodo v velikem oknu. Ko prijav ni vec, obvestilo umaknemo.
      */
+    private fun sprostiZObvestila(namera: Intent) {
+        val vir = namera.getStringExtra(DODATEK_VIR).orEmpty()
+        if (vir.isEmpty()) return
+        HubKrmilnik.sprostiVir(vir)
+        val kdo = namera.getStringExtra(DODATEK_IME).orEmpty().ifBlank { vir }
+        // Isto obvestilo zamenjamo s potrditvijo (brez gumba), da uporabnik vidi, da je dejanje uspelo.
+        obvestiVarnost(namera.getIntExtra(DODATEK_OBVESTILO, obvestiloZapore(vir)), getString(R.string.link_obramba_naslov),
+            getString(R.string.link_obramba_sproscena, kdo))
+    }
+
+    private fun odpriKodoZObvestila() {
+        HubKrmilnik.odpriPovezovanjeSKodo()
+        obvestiVarnost(OBVESTILO_KODA, getString(R.string.link_varovalka_naslov), getString(R.string.link_varovalka_odprto))
+    }
+
+    /** Gumb na obvestilu: namera za to storitev (ze tece, zato je to samo ukaz). */
+    private fun dejanje(stevilka: Int, napis: Int, akcija: String, dodatki: Intent.() -> Unit = {}): Notification.Action {
+        val namera = Intent(this, HubStoritev::class.java).setAction(akcija).apply(dodatki)
+        val cakajoca = android.app.PendingIntent.getService(this, stevilka, namera,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+        return Notification.Action.Builder(null, getString(napis), cakajoca).build()
+    }
+
     private fun obvestiOPrijavi() {
         val upravitelj = getSystemService(NotificationManager::class.java) ?: return
         val prijave = try { HubKrmilnik.cakajocePrijave() } catch (_: Throwable) { emptyList() }
@@ -140,8 +178,8 @@ class HubStoritev : Service() {
         if (HubKrmilnik.naPrijavoZaZaslon != null) return // Safeer OS je odprt in kodo ze kaze
         try {
             if (upravitelj.getNotificationChannel(KANAL_PRIJAVA) == null) {
-                upravitelj.createNotificationChannel(NotificationChannel(KANAL_PRIJAVA, "Safeer Link - nova naprava",
-                    NotificationManager.IMPORTANCE_HIGH).apply { description = "Koda za napravo, ki se pridruzuje tvojemu Safeer Linku." })
+                upravitelj.createNotificationChannel(NotificationChannel(KANAL_PRIJAVA, getString(R.string.link_prijava_kanal),
+                    NotificationManager.IMPORTANCE_HIGH).apply { description = getString(R.string.link_prijava_kanal_opis) })
             }
             val odpri = packageManager.getLeanbackLaunchIntentForPackage(packageName)
                 ?: packageManager.getLaunchIntentForPackage(packageName)
@@ -150,10 +188,10 @@ class HubStoritev : Service() {
                     android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
             }
             val koda = p.pin.take(3) + " " + p.pin.drop(3)
-            val ime = p.ime.ifBlank { "Nova naprava" }
+            val ime = p.ime.ifBlank { getString(R.string.link_prijava_nova_naprava) }
             val gradnik = Notification.Builder(this, KANAL_PRIJAVA)
-                .setContentTitle("Safeer Link: $ime se želi pridružiti")
-                .setContentText("Na njej vpiši kodo $koda")
+                .setContentTitle(getString(R.string.link_prijava_naslov, ime))
+                .setContentText(getString(R.string.link_prijava_besedilo, koda))
                 .setSmallIcon(android.R.drawable.ic_menu_send)
                 .setAutoCancel(true)
             if (cakajoca != null) gradnik.setContentIntent(cakajoca)
@@ -185,8 +223,13 @@ class HubStoritev : Service() {
             })
             getString(R.string.link_obramba_besedilo, vir, kaj, minut)
         }
-        // Vsak vir svoje obvestilo (zapora drugega ne sme prekriti prve).
-        obvestiVarnost(OBVESTILO_ZAPORA + 16 + (vir.hashCode() and 0xfff), getString(R.string.link_obramba_naslov), besedilo)
+        val stevilka = obvestiloZapore(vir)
+        obvestiVarnost(stevilka, getString(R.string.link_obramba_naslov), besedilo,
+            dejanje(stevilka, R.string.link_obramba_sprosti, AKCIJA_SPROSTI) {
+                putExtra(DODATEK_VIR, vir)
+                putExtra(DODATEK_OBVESTILO, stevilka)
+                putExtra(DODATEK_IME, ime.trim().take(40))
+            })
     }
 
     /** Varovalka je zaprla povezovanje s kodo: uporabnik izve zakaj, za koliko casa in kako zdaj doda napravo. */
@@ -200,7 +243,8 @@ class HubStoritev : Service() {
         val kaj = getString(if (razlog == HubVarovalka.RAZLOG_KODE) R.string.link_varovalka_r_kode else R.string.link_varovalka_r_zacetki)
         val odKod = if (viri.isEmpty()) "" else " (" + viri.take(3).joinToString(", ") + ")"
         obvestiVarnost(OBVESTILO_KODA, getString(R.string.link_varovalka_naslov),
-            getString(R.string.link_varovalka_besedilo, kaj + odKod, trajanje))
+            getString(R.string.link_varovalka_besedilo, kaj + odKod, trajanje),
+            dejanje(OBVESTILO_KODA, R.string.link_varovalka_odpri, AKCIJA_ODPRI_KODO))
     }
 
     private fun obvestiONapadu(viri: List<String>) {
@@ -208,7 +252,7 @@ class HubStoritev : Service() {
             getString(R.string.link_obramba_napad_besedilo, viri.take(6).joinToString(", ")))
     }
 
-    private fun obvestiVarnost(id: Int, naslov: String, besedilo: String) {
+    private fun obvestiVarnost(id: Int, naslov: String, besedilo: String, gumb: Notification.Action? = null) {
         try {
             val upravitelj = getSystemService(NotificationManager::class.java) ?: return
             if (upravitelj.getNotificationChannel(KANAL_VARNOST) == null) {
@@ -221,6 +265,7 @@ class HubStoritev : Service() {
                 .setStyle(Notification.BigTextStyle().bigText(besedilo))
                 .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
                 .setAutoCancel(true)
+            if (gumb != null) gradnik.addAction(gumb)
             upravitelj.notify(id, gradnik.build())
         } catch (e: Throwable) {
             Log.w(TAG, "Obvestila obrambe ni bilo mogoce prikazati: ${e.message}")

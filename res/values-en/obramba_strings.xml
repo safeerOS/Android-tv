@@ -23,4 +23,13 @@
     <string name="link_varovalka_dan">1 day</string>
     <string name="link_varovalka_teden">7 days</string>
     <string name="link_seznanitev_zaprta">Pairing by code is temporarily closed on that device because someone was guessing the code. Open “Connect devices” on it or use the QR code.</string>
+    <string name="link_obramba_sprosti">Release</string>
+    <string name="link_obramba_sproscena">%1$s is released. It can connect again.</string>
+    <string name="link_varovalka_odpri">Open pairing by code</string>
+    <string name="link_varovalka_odprto">Pairing by code is open again. The next closure will last longer.</string>
+    <string name="link_prijava_kanal">Safeer Link – new device</string>
+    <string name="link_prijava_kanal_opis">The code for a device that is joining your Safeer Link.</string>
+    <string name="link_prijava_naslov">Safeer Link: %1$s wants to join</string>
+    <string name="link_prijava_besedilo">Enter the code %1$s on it</string>
+    <string name="link_prijava_nova_naprava">New device</string>
 </resources>

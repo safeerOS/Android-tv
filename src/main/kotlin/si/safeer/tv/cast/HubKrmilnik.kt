@@ -96,6 +96,22 @@ object HubKrmilnik {
     private fun obrambaSestava(vir: String): Map<String, Int> =
         obramba.stanje().zaprti.firstOrNull { it.vir == vir }?.sestava ?: emptyMap()
 
+    /** Uporabnik je ustavljeno napravo sprostil sam (gumb na obvestilu). */
+    fun sprostiVir(vir: String): Boolean {
+        val sproscen = obramba.sprosti(vir)
+        Log.i(TAG, "obramba: vir $vir ${if (sproscen) "sproscen (uporabnik)" else "ni bil zaprt"}")
+        return sproscen
+    }
+
+    /** Uporabnik je povezovanje s kodo odprl sam (gumb na obvestilu). false = sredisce ne tece ali ni bilo zaprto. */
+    fun odpriPovezovanjeSKodo(): Boolean {
+        val v = usmerjevalnik?.varovalka ?: return false
+        if (!v.zaprto()) return false
+        v.odpri()
+        Log.i(TAG, "varovalka: povezovanje s kodo odprto (uporabnik)")
+        return true
+    }
+
     @Volatile
     var tokovi: HubTokovi? = null
         private set
