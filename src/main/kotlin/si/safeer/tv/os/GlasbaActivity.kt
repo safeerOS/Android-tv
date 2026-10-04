@@ -3165,9 +3165,16 @@ class GlasbaActivity : OsActivity() {
         if (cakajo.isEmpty()) return false
         val torrent = torrentMeja()
         val niti = cakajo.map { sk -> preverjanjeEpizod.submit<Boolean> {
-            val r = try { preveriEnoto(sk, naslovi, torrent) { !isFinishing && vOspredju } } catch (_: Exception) { null }
-            if (r != null) kljucRazpolozljivosti(sk)?.let { Razpolozljivost.zapomni(applicationContext, it, r) }
-            r?.velja(torrent) == false
+            val seVelja = { !isFinishing && vOspredju }
+            val k = kljucRazpolozljivosti(sk)
+            if (k != null && DomPreverjanjePravila.veljaven(k)) {
+                DomPreverjanje.preveri(applicationContext, k, torrent, { prvaEpizoda(sk) }, seVelja) == DomPreverjanje.Izid.ODGOVOR &&
+                    Razpolozljivost.stanjeZa(applicationContext, k, torrent) == false
+            } else {
+                val r = try { preveriEnoto(sk, naslovi, torrent, seVelja) } catch (_: Exception) { null }
+                if (r != null && k != null) Razpolozljivost.zapomni(applicationContext, k, r)
+                r?.velja(torrent) == false
+            }
         } }
         val rok = System.currentTimeMillis() + 10_000
         return niti.count { f -> try { f.get((rok - System.currentTimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { false } } > 0
@@ -4112,7 +4119,8 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
-    private val preverjanje = Executors.newFixedThreadPool(4)
+    /** Naslovi okna cakajo na odgovor doma (DomPreverjanje) - niti vecinoma samo cakajo, zato jih je toliko kot okno sme hkrati. */
+    private val preverjanje = Executors.newFixedThreadPool(12)
     /** Epizode odprtega seznama imajo svojo vrsto (uporabnik caka nanje), da jih preverjanje mreze ne zadrzuje. */
     private val preverjanjeEpizod = Executors.newFixedThreadPool(4)
     private val vPreverjanju = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
@@ -4317,11 +4325,21 @@ class GlasbaActivity : OsActivity() {
                         // Enako velja za naslove, ki so ob odhodu ze cakali na zeton dodatka: preklicano preverjanje ne
                         // poslje nicesar in ne pove nicesar - naslova ne skrijemo, ob vrnitvi ga vprasamo znova.
                         if (!seVelja()) { glavna.post { o.proracun++ }; return@execute }
-                        val r = try { preveriEnoto(sk, naslovi, torrent, seVelja) } catch (_: Exception) { null }
-                        if (r == null && !seVelja()) { glavna.post { o.proracun++ }; return@execute }
-                        val je = r?.velja(torrent)
+                        val je: Boolean?
+                        if (DomPreverjanjePravila.veljaven(k)) {
+                            // Javni naslov (IMDb): vprasamo DOM - preverjevalca v Linku ali vrsto te naprave. Eno vprasanje
+                            // na naslov in en proracun vprasanj za vse naprave v domu (docs/HOME-VERIFIER.md).
+                            val izid = DomPreverjanje.preveri(applicationContext, k, torrent, { prvaEpizoda(sk) }, seVelja)
+                            if (izid == DomPreverjanje.Izid.PREKLICANO) { glavna.post { o.proracun++ }; return@execute }
+                            je = if (izid == DomPreverjanje.Izid.ODGOVOR) Razpolozljivost.stanjeZa(applicationContext, k, torrent) else null
+                        } else {
+                            // Naslov zasebnega dodatka: preveri ga ta naprava sama.
+                            val r = try { preveriEnoto(sk, naslovi, torrent, seVelja) } catch (_: Exception) { null }
+                            if (r == null && !seVelja()) { glavna.post { o.proracun++ }; return@execute }
+                            if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
+                            je = r?.velja(torrent)
+                        }
                         if (!zastarel) { o.preverjenih.incrementAndGet(); if (je == true) o.zadetkov.incrementAndGet() }
-                        if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
                         // Dodatek ni odgovoril (izpad, ustavljena storitev) ali odgovor za to napravo nicesar ne pove: v tej
                         // mrezi ga ne sprasujemo znova. Neznanega naslova nekaj minut ne kazemo; zastarel odgovor obvelja
                         // naprej (za ure si "ni na voljo" zapomnimo le ob pravem odgovoru).
@@ -4349,19 +4367,37 @@ class GlasbaActivity : OsActivity() {
         if (o.caka.get() > 0) return
         // Naslovov ZA oknom ne preverjamo vnaprej: dodatek steje poizvedbe po domacem naslovu, ne po napravi (4. 10. 2026
         // je dom omejil), in vsako vprasanje na zalogo je vprasanje manj za uporabnika, ki film res izbere.
-        // 2) Zastareli odgovori na ze prikazanem delu seznama (vidni »je« in skriti »ni«): osvezimo jih v ozadju, po
-        //    nekaj na obisk - novo dodana vsebina se tako pojavi, umaknjena izgine, seznam pa nikoli ne caka.
+        // 2) Na zalogo - nihce ne caka nanje, preverjevalec doma jih vprasa, ko ima cas (DomPreverjanje.naZalogo):
+        //    zastareli odgovori na ze prikazanem delu seznama (vidni »je« in skriti »ni«) in naslovi ZA oknom, ki jih
+        //    se ne poznamo. Ko uporabnik pride do njih (drsenje, Nalozi vec, naslednji obisk), so ze preverjeni - in
+        //    to stane eno vprasanje na dom, pocasi in samo, kadar nihce ne caka (4. 10. 2026: preverjanje vnaprej na
+        //    vsaki napravi posebej je dom pripeljalo cez mejo dodatka).
+        val naZalogo = ArrayList<String>()
         var osvezenih = 0
         val doTu = okno.lastOrNull()?.let { zadnji -> o.urejeni.indexOfFirst { it.id == zadnji.id } } ?: -1
         for (sk in (if (doTu >= 0) o.urejeni.take(doTu + 1) else okno)) {
-            if (smem <= 0 || osvezenih >= OSVEZI_NA_OBISK || o.ozadje.get() >= OZADJE_HKRATI) return
             if (!zastarel(sk)) continue
             val k = kljucRazpolozljivosti(sk) ?: continue
+            if (DomPreverjanjePravila.veljaven(k)) { naZalogo += k; continue }
+            // Naslov zasebnega dodatka osvezi ta naprava sama, po nekaj na obisk.
+            if (smem <= 0 || osvezenih >= OSVEZI_NA_OBISK || o.ozadje.get() >= OZADJE_HKRATI) continue
             if (k in vPreverjanju || k in o.neznani || vPremoru(sk)) continue
             osvezenih++
             vprasaj(sk, k, o.ozadje, zastarel = true)
         }
+        val vOknu = okno.mapTo(HashSet()) { it.id }
+        for (sk in vsi) {
+            if (naZalogo.size >= DomPreverjanjePravila.NAJVEC_NAPREJ) break
+            if (sk.id in vOknu || !nepreverjen(sk)) continue
+            val k = kljucRazpolozljivosti(sk) ?: continue
+            if (DomPreverjanjePravila.veljaven(k) && k !in o.neznani) naZalogo += k
+        }
+        if (naZalogo.isNotEmpty()) DomPreverjanje.naZalogo(applicationContext, naZalogo, torrent)
     }
+
+    /** Prva epizoda serije po katalogu kartice (po njej preverimo serijo kot celoto); null, ce katalog serije ne pozna. */
+    private fun prvaEpizoda(sk: Jamendo.Skladba): String? =
+        (try { Stremio.epizode(sk) } catch (_: Exception) { emptyList() }).firstOrNull { it.sezona >= 1 }?.id
 
     /**
      * Police (domaca stran, Zate, zadetki): prvih nekaj naslovov iz dodatkov preverimo v ozadju. Zaslona pod prsti ne
@@ -4378,9 +4414,13 @@ class GlasbaActivity : OsActivity() {
         val torrent = torrentMeja()
         torrentPrej = nacinTorrenta(torrent)
         Razpolozljivost.pripravi(this, dodatkiZaRazpolozljivost(), torrent)
+        val naZalogo = ArrayList<String>()
         for (sk in enote) {
             val k = kljucRazpolozljivosti(sk) ?: continue
-            if (Razpolozljivost.stanje(this, k) != null || !vPreverjanju.add(k)) continue
+            if (Razpolozljivost.stanje(this, k) != null) continue
+            // Javni naslov: preveri ga preverjevalec doma, ko nihce ne caka (na polici kartica ne caka na odgovor).
+            if (DomPreverjanjePravila.veljaven(k)) { naZalogo += k; continue }
+            if (!vPreverjanju.add(k)) continue
             try {
                 preverjanje.execute {
                     try {
@@ -4393,6 +4433,7 @@ class GlasbaActivity : OsActivity() {
                 }
             } catch (_: java.util.concurrent.RejectedExecutionException) { vPreverjanju.remove(k) }
         }
+        if (naZalogo.isNotEmpty()) DomPreverjanje.naZalogo(applicationContext, naZalogo, torrent)
     }
 
     /** Epizode odprtega seznama preverimo v ozadju; [obNi] (glavna nit): epizode noben dodatek nima. */
@@ -4404,9 +4445,15 @@ class GlasbaActivity : OsActivity() {
             val k = Razpolozljivost.kljuc(tip, e.id)
             if (e.tokovi.isNotEmpty() || Razpolozljivost.stanje(this, k) != null) continue
             preverjanjeEpizod.execute {
-                val r = try { Stremio.razpolozljivo(naslovi, tip, e.id, torrent) { !isFinishing && vOspredju } } catch (_: Exception) { null }
-                if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
-                if (r?.velja(torrent) == false) glavna.post { obNi(e) }
+                val seVelja = { !isFinishing && vOspredju }
+                val je: Boolean? = if (DomPreverjanjePravila.veljaven(k)) {
+                    if (DomPreverjanje.preveri(applicationContext, k, torrent, null, seVelja) == DomPreverjanje.Izid.ODGOVOR) Razpolozljivost.stanjeZa(applicationContext, k, torrent) else null
+                } else {
+                    val r = try { Stremio.razpolozljivo(naslovi, tip, e.id, torrent, seVelja) } catch (_: Exception) { null }
+                    if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
+                    r?.velja(torrent)
+                }
+                if (je == false) glavna.post { obNi(e) }
             }
         }
     }

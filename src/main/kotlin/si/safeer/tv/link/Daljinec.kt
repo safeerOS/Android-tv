@@ -62,7 +62,9 @@ object Daljinec {
         // "Nadaljuj na drugi napravi": kaj ta naprava predvaja (ali je nazadnje gledala) in kje; pavza, ce cilj tako izbere (Predaja).
         "play.state", "play.stop", "play.offer",
         // Seznami predvajanja so enaki na vseh napravah v Linku: druga naprava prebere sezname te naprave (SeznamiSink).
-        "lists.get"
+        "lists.get",
+        // Preverjevalec doma: druga naprava vprasa, kaj se da predvajati; dodatke vprasa samo ta (DomPreverjanje).
+        "avail.get"
     )
 
     /** Zmoznost, s katero se naprava javi, da zna predvajati zvok racunalnika ([ZvokSprejemnik]). */
@@ -169,6 +171,8 @@ object Daljinec {
         if (d == "video.stream") return Pretok.zacni(context, parametri, parametri.optString(PARAM_POSILJATELJ, ""))
         if (d == "video.stream_stop") return Pretok.ustaviUkaz(parametri.optString("id"))
         if (d == si.safeer.tv.os.SeznamiSink.DEJANJE) return Izid(true, "Seznami", si.safeer.tv.os.SeznamiSink.izvoz(context, parametri))
+        // Odgovor caka na dodatke, zato ga sprejemnik da z delovne niti (CastReceiverService); na glavni niti ga ni.
+        if (d == si.safeer.tv.os.DomPreverjanjePravila.DEJANJE) return Izid(false, "Samo prek sprejemnika", koda = "ni_na_voljo")
         if (d == "play.state") return Izid(true, "Predvajanje", si.safeer.tv.os.Predaja.stanje(context, parametri.optString(PARAM_POSILJATELJ, "")))
         if (d == "play.stop") return Izid(true, "Pavza", si.safeer.tv.os.Predaja.ustavi())
         // "Poslji na napravo": izvor ponudi, kar igra; tu le tiho obvestilo s Sprejmi/Zavrni (nic se ne zacne samo).

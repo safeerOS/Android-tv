@@ -105,6 +105,25 @@ object Razpolozljivost {
         return P.znano(zapisi[kljuc], meja, System.currentTimeMillis())
     }
 
+    /**
+     * Zapis, kot ga damo drugi napravi v Linku ([DomPreverjanje]): niz za prenos, ce je odgovor zanjo SVEZ - presoja
+     * se po njeni meji ([mejaNaprave]: kaj ona zmore s torrenti), ne po nasi. null = ne vemo ali je zastarelo.
+     */
+    fun zapisZa(c: Context, kljuc: String, mejaNaprave: Long): String? {
+        nalozi(c)
+        val z = zapisi[kljuc] ?: return null
+        return if (P.stanje(z, mejaNaprave, System.currentTimeMillis()) != null) P.vNiz(z) else null
+    }
+
+    /** Svez odgovor za napravo z mejo [mejaNaprave] - kot [stanje], a z izrecno mejo in brez zacasno skritih. */
+    fun stanjeZa(c: Context, kljuc: String, mejaNaprave: Long): Boolean? {
+        nalozi(c)
+        return P.stanje(zapisi[kljuc], mejaNaprave, System.currentTimeMillis())
+    }
+
+    /** Odprta mreza naj se uredi znova (odgovor je prisel mimo nje: delo na zalogo, druga naprava). */
+    fun obvesti() { try { obSpremembi?.invoke() } catch (_: Throwable) { } }
+
     /** Odgovor dodatkov za naslov ([Stremio.razpolozljivo]). */
     fun zapomni(c: Context, kljuc: String, izid: P.Izid) {
         nalozi(c)

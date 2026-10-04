@@ -171,6 +171,9 @@ class CastReceiverService : Service() {
     private var workspace: SafeerWorkspace? = null
     private var mediaSync: SafeerMediaSync? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    /** Odgovori preverjevalca doma (`avail.get`) cakajo na dodatke: svoje niti, omejeno stevilo (naprav v domu je malo). */
+    private val domDelavci = java.util.concurrent.ThreadPoolExecutor(8, 8, 30L, java.util.concurrent.TimeUnit.SECONDS,
+        java.util.concurrent.LinkedBlockingQueue<Runnable>(32)) { r -> Thread(r, "safeer-dom-odgovor").apply { isDaemon = true } }.apply { allowCoreThreadTimeOut(true) }
     private var hubUrl: String = DEFAULT_HUB_URL
     /** Global Link: domaci hub ni v tem omrezju, povezava gre prek link.safeer.si (LAN ostane prvi). */
     @Volatile private var prekReleja = false
@@ -428,6 +431,8 @@ class CastReceiverService : Service() {
                         if (si.safeer.tv.os.MagnetMotor.naVoljo) zmoznosti.add(si.safeer.tv.link.MagnetPomoc.ZMOZNOST)
                         // Seznami predvajanja Medijskega centra so enaki na vseh napravah v Linku (SeznamiSink).
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.SeznamiSink.ZMOZNOST)
+                        // Preverjevalec doma: Safeer OS (televizor, tablica, telefon) zna za dom vprasati dodatke (DomPreverjanje).
+                        if (BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) zmoznosti.add(si.safeer.tv.os.DomPreverjanjePravila.ZMOZNOST)
                         put("capabilities", org.json.JSONArray(zmoznosti))
                         // Protocol v1: model naprave in katalog aplikacij, ki jih zna ta zaslon zagnati.
                         HubKrmilnik.poljaV1(this@CastReceiverService, "screen", this, HubKrmilnik.prioriteta(this@CastReceiverService))
@@ -834,6 +839,27 @@ class CastReceiverService : Service() {
                     // Komu gre odgovor ali pretakanje, pove hub (sender), nikoli parametri ukaza.
                     parametri.remove(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ)
                     if (posiljatelj.isNotBlank()) parametri.put(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ, posiljatelj)
+                    if (dejanje == si.safeer.tv.os.DomPreverjanjePravila.DEJANJE && BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) {
+                        // Preverjevalec doma: odgovor pocaka na dodatke (dolgo povprasevanje, do 4 s) - ne na glavni niti,
+                        // in brez vrstice v dnevniku za vsako vprasanje (odjemalec sprasuje, dokler mreza caka).
+                        try {
+                            domDelavci.execute {
+                                val izid = try {
+                                    si.safeer.tv.link.Daljinec.Izid(true, "Razpolozljivost", si.safeer.tv.os.DomPreverjanje.odgovori(this@CastReceiverService, parametri))
+                                } catch (e: Throwable) {
+                                    SafeerLog.napaka("Sprejemnik", "avail.get", e)
+                                    si.safeer.tv.link.Daljinec.Izid(false, "Napaka", koda = "napaka")
+                                }
+                                if (posiljatelj.isNotBlank()) {
+                                    try { ws.send(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje, izid).toString()) }
+                                    catch (e: Throwable) { Log.w(TAG, "Odgovora na ukaz ni bilo mogoce poslati: ${e.message}") }
+                                }
+                            }
+                        } catch (_: java.util.concurrent.RejectedExecutionException) {
+                            // Prevec vprasanj hkrati: brez odgovora; odjemalec po izteku casa preveri sam.
+                        }
+                        return
+                    }
                     Log.i(TAG, "Prejet control.command od $posiljatelj: $dejanje")
                     mainHandler.post {
                         val krmilnik = mediaController

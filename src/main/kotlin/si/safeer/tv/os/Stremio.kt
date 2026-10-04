@@ -118,12 +118,18 @@ object Stremio {
     /** Koda HTTP zadnjega prenosa v tej niti (0 = dodatek ni odgovoril): locimo "tega nimam" (404) od izpada. */
     private val zadnjaKoda = ThreadLocal<Int>()
 
+    /** Glave zadnjega odgovora z omejitvijo (429, 403) v tej niti, imena z malimi crkami: dodatek z njimi pove, koliko naj pocakamo. */
+    private val zadnjeGlave = ThreadLocal<Map<String, String>>()
+
     /** Dodatek je odgovoril, da vsebine nima (ne: napaka streznika, prijave ali omejitve - to je izpad). */
     internal fun kodaPomeniNima(koda: Int) = koda in 400..499 && koda !in setOf(401, 403, 407, 408, 425, 429)
 
     private fun prenesiJson(url: String): JSONObject? {
         zadnjaKoda.set(0)
+        zadnjeGlave.set(emptyMap())
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
+        // Vsaka poizvedba po tokovih steje v urni proracun dodatka - tudi tista za predvajanje ([TempoDodatka]).
+        if ("/stream/" in url) stej(url.substringBefore("/stream/"))
         return try {
             val c = URL(url).openConnection() as HttpURLConnection
             c.connectTimeout = CAS; c.readTimeout = CAS
@@ -132,6 +138,9 @@ object Stremio {
             try {
                 val koda = c.responseCode
                 zadnjaKoda.set(koda)
+                if (koda == 429 || koda == 403) zadnjeGlave.set(try {
+                    c.headerFields.mapNotNull { (k, v) -> if (k == null) null else v?.firstOrNull()?.let { k.lowercase() to it } }.toMap()
+                } catch (_: Exception) { emptyMap() })
                 if (koda !in 200..299) return null
                 JSONObject(c.inputStream.use { String(it.readBytes(), Charsets.UTF_8) })
             } finally { c.disconnect() }
@@ -227,6 +236,27 @@ object Stremio {
                 p.all.forEach { (k, v) -> if (v is Long && v > zdaj && v < zdaj + PREMOR_NAJVEC_MS) premorDo.putIfAbsent(k, v) else e.remove(k) }
                 e.apply()
                 shrambaPremorov = p
+            } catch (_: Exception) { }
+            // Poizvedbe zadnje ure in kar smo se o meji dodatkov naucili ([TempoDodatka]): ponovni zagon jih ne pozabi.
+            try {
+                val zdaj = System.currentTimeMillis()
+                val p = a.getSharedPreferences(PREFS_TEMPO, Context.MODE_PRIVATE)
+                val e = p.edit()
+                p.all.forEach { (k, v) ->
+                    if (k == KLJUC_OMEJITVE) {
+                        // Zadnja omejitev (tu ali drugje v domu): po ponovnem zagonu naprava se vedno ve, da mora z zalogo pocakati.
+                        val ob = (v as? String)?.toLongOrNull() ?: 0L
+                        if (ob in zdaj - 24 * 3_600_000L..zdaj) { if (ob > premorOb) premorOb = ob } else e.remove(k)
+                        return@forEach
+                    }
+                    val stanje = TempoDodatka.Stanje.izNiza((v as? String)?.substringBefore('|'))
+                    val ura = TempoDodatka.Ura.izNiza((v as? String)?.substringAfter('|', ""))
+                    // Dodatek, o katerem ni vec kaj vedeti (odstranjen ali dolgo nerabljen), iz shrambe izgine.
+                    if (stanje == TempoDodatka.Stanje() && ura.vsota(zdaj) == 0) e.remove(k)
+                    else { tempo.putIfAbsent(k, stanje); ure.putIfAbsent(k, ura) }
+                }
+                e.apply()
+                shrambaTempa = p
             } catch (_: Exception) { }
             shrambaZasebnih = try { a.getSharedPreferences(PREFS_ZASEBNI, Context.MODE_PRIVATE) } catch (_: Exception) { null }
         }
@@ -409,6 +439,17 @@ object Stremio {
      */
     fun epizode(s: Jamendo.Skladba): List<Epizoda> {
         val (osnova, tip, id) = razstavi(s) ?: return emptyList()
+        return epizodeZa(osnova, tip, id)
+    }
+
+    /**
+     * Prva epizoda serije z javnim id-jem (IMDb) po javnem katalogu: po njej preverjevalec doma preveri serijo kot
+     * celoto, kadar ga vprasa druga naprava (ta poslje samo kljuc, ne svoje kartice). null = katalog serije ne pozna.
+     */
+    fun prvaEpizoda(id: String): String? =
+        (try { epizodeZa(osnova(CINEMETA), "series", id) } catch (_: Exception) { emptyList() }).firstOrNull { it.sezona >= 1 }?.id
+
+    private fun epizodeZa(osnova: String, tip: String, id: String): List<Epizoda> {
         val m = json("$osnova/meta/${enc(tip)}/${enc(id)}.json")?.optJSONObject("meta") ?: return emptyList()
         val v = m.optJSONArray("videos") ?: return emptyList()
         val imeDodatka = manifesti[osnova]?.ime.orEmpty()
@@ -485,6 +526,8 @@ object Stremio {
      * Se nizja od 3. 10. 2026 zvecer: ze en sam telefon je s 6 + 0,5/s (okoli 28 poizvedb v 45 s) sprozil omejitev v
      * manj kot minuti po odprtju Medijskega centra - potem dodatek ni dal tokov niti za film, ki ga je uporabnik izbral.
      * Zdaj 4 takoj in nato ena na 8 s: polica se preveri pocasneje (izid se hrani ure), predvajanje pa dela.
+     * 4. 10. 2026: tudi to ni dovolj - ena sama naprava je po daljsem brskanju spet sprozila omejitev. Dodatek steje
+     * tudi vsoto v daljsem casu, zato ima vsak dodatek se urni proracun, ki se uci ([TempoDodatka], [proracun]).
      */
     private const val ZETONI_NAJVEC = 4.0
     private const val ZETONI_NA_S = 0.125
@@ -496,8 +539,120 @@ object Stremio {
     private val premorKorak = ConcurrentHashMap<String, Int>()
     private const val PREFS_PREMOR = "safeer_stremio_premor"
 
+    // Urni proracun dodatka ([TempoDodatka]): poizvedbe zadnje ure in meja za preverjanje v ozadju, oboje po dodatku.
+    private const val PREFS_TEMPO = "safeer_stremio_tempo"
+    private val ure = ConcurrentHashMap<String, TempoDodatka.Ura>()
+    private val tempo = ConcurrentHashMap<String, TempoDodatka.Stanje>()
+    private val tempoShranjenOb = ConcurrentHashMap<String, Long>()
+    /** Dodatki, katerih premor je nas lasten (porabljen urni proracun) in ne omejitev dodatka. */
+    private val premorProracuna: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    private val zaklepPremora = Any()
+    @Volatile private var shrambaTempa: android.content.SharedPreferences? = null
+
+    /** Kljuc v shrambi proracuna, ki ni naslov dodatka: kdaj je dodatek dom nazadnje omejil ([premorOb]). */
+    private const val KLJUC_OMEJITVE = "#omejitev"
+
+    private fun zapomniOmejitev(zdaj: Long) {
+        premorOb = zdaj
+        try { shrambaTempa?.edit()?.putString(KLJUC_OMEJITVE, zdaj.toString())?.apply() } catch (_: Exception) { }
+    }
+
+    private fun gostitelj(osnova: String) = try { URL(osnova).host } catch (_: Exception) { "?" }
+
+    private fun ura(osnova: String) = ure.getOrPut(osnova) { TempoDodatka.Ura() }
+
+    /** Meja dodatka; vsak dan brez omejitve se nekoliko vrne proti privzeti. */
+    private fun stanjeTempa(osnova: String): TempoDodatka.Stanje {
+        val s = tempo[osnova] ?: TempoDodatka.Stanje()
+        val o = TempoDodatka.okrevaj(s, System.currentTimeMillis())
+        if (o != s) { tempo[osnova] = o; shraniTempo(osnova, takoj = true) }
+        return o
+    }
+
+    private fun stej(osnova: String) {
+        ura(osnova).dodaj(System.currentTimeMillis())
+        shraniTempo(osnova, takoj = false)
+    }
+
+    /** Stevec se spreminja z vsako poizvedbo: v shrambo gre najvec na pol minute, sprememba meje pa takoj. */
+    private fun shraniTempo(osnova: String, takoj: Boolean) {
+        val p = shrambaTempa ?: return
+        val zdaj = System.currentTimeMillis()
+        if (!takoj && zdaj - (tempoShranjenOb[osnova] ?: 0L) in 0 until 30_000L) return
+        tempoShranjenOb[osnova] = zdaj
+        try { p.edit().putString(osnova, (tempo[osnova] ?: TempoDodatka.Stanje()).vNiz() + "|" + ura(osnova).vNiz()).apply() } catch (_: Exception) { }
+    }
+
+    /**
+     * Ali urni proracun dodatka se dovoli poizvedbo v ozadju. Ce ne, zacne premor, dokler ga ni spet nekaj: seznami
+     * kazejo ze preverjene naslove, ostale naprave v domu pocakajo ([premori]), predvajanje pa dela naprej.
+     */
+    private fun proracun(osnova: String): Boolean {
+        val zdaj = System.currentTimeMillis()
+        val s = stanjeTempa(osnova)
+        val u = ura(osnova)
+        val vUri = u.vsota(zdaj)
+        if (TempoDodatka.smeVOzadju(s, vUri)) return true
+        synchronized(zaklepPremora) {
+            if ((premorDo[osnova] ?: 0L) > zdaj) return false
+            val trajanje = TempoDodatka.cakajNaProracun(s, u, zdaj)
+            premorProracuna.add(osnova)
+            premorDo[osnova] = zdaj + trajanje
+            try { shrambaPremorov?.edit()?.putLong(osnova, zdaj + trajanje)?.apply() } catch (_: Exception) { }
+            try { android.util.Log.i("SafeerStremio", "dodatek ${gostitelj(osnova)}: urni proracun je porabljen ($vUri od ${s.naUro}), preverjanje v ozadju pocaka ${trajanje / 60_000} min") } catch (_: Throwable) { }
+        }
+        return false
+    }
+
+    /** Ali urni proracun dodatkov, ki dajejo tokove, se dovoli delo na zalogo (zadnje na vrsti). Nic ne porabi. */
+    fun smeNaZalogo(naslovi: List<String>): Boolean {
+        val zdaj = System.currentTimeMillis()
+        return naslovi.all { n ->
+            val o = osnova(n)
+            manifesti[o]?.let { "stream" in it.viri } == false || TempoDodatka.smeNaZalogo(stanjeTempa(o), ura(o).vsota(zdaj))
+        }
+    }
+
+    /** Najbolj obremenjen dodatek: »poizvedb zadnje ure/meja na uro« - za dnevnik in meritve (brez imen). */
+    fun opisProracuna(): String {
+        val zdaj = System.currentTimeMillis()
+        return ure.entries.maxByOrNull { it.value.vsota(zdaj) }?.let { "${it.value.vsota(zdaj)}/${stanjeTempa(it.key).naUro}" } ?: "0"
+    }
+
     /** Dodatek je odgovoril, da omejuje poizvedbe: v ozadju ga do konca premora ne sprasujemo. */
     fun vPremoru(naslov: String): Boolean = (premorDo[osnova(naslov)] ?: 0L) > System.currentTimeMillis()
+
+    /** Koliko poizvedb v ozadju (preverjanje, kaj se da predvajati) je ta naprava poslala dodatkom od zagona - za dnevnik in meritve. */
+    val poizvedbVOzadju = java.util.concurrent.atomic.AtomicInteger(0)
+
+    /** Kdaj (System.currentTimeMillis) je kateri dodatek nazadnje omejil poizvedbe - tu ali na drugi napravi v Linku. */
+    @Volatile var premorOb = 0L
+        private set
+
+    /**
+     * Kdaj je uporabnik nazadnje zahteval tokove za predvajanje ([tokovi]). Delo na zalogo (preverjevalec doma) po
+     * tem nekaj casa pocaka: poizvedbe doma so najprej za tistega, ki zdaj nekaj gleda.
+     */
+    @Volatile var uporabnikOb = 0L
+        private set
+
+    /**
+     * Koliko poizvedb v ozadju dodatki ta hip se dovolijo (najmanjse vedro med dodatki, ki dajejo tokove); 0, ce je
+     * kateri v premoru. Nic ne porabi - preverjevalec doma po tem presodi, ali sme delati na zalogo.
+     */
+    fun zetonov(naslovi: List<String>): Double {
+        val zdaj = System.currentTimeMillis()
+        var najmanj = ZETONI_NAJVEC
+        for (n in naslovi) {
+            val o = osnova(n)
+            if (manifesti[o]?.let { "stream" in it.viri } == false) continue
+            if ((premorDo[o] ?: 0L) > zdaj) return 0.0
+            val v = vedra[o] ?: continue
+            val z = synchronized(v) { (v.zetoni + (zdaj - v.cas).coerceAtLeast(0) / 1000.0 * ZETONI_NA_S).coerceAtMost(ZETONI_NAJVEC) }
+            if (z < najmanj) najmanj = z
+        }
+        return najmanj
+    }
 
     /**
      * Premori, ki se tecejo (osnova dodatka -> koliko ms se). Dodatek omejuje po domacem naslovu, ne po napravi, zato
@@ -517,18 +672,37 @@ object Stremio {
         // Minuta razlike ni nov premor (naprave si ga povedo veckrat).
         if ((premorDo[o] ?: 0L) >= konec - 60_000L) return
         premorDo[o] = konec
+        zapomniOmejitev(zdaj)
         try { shrambaPremorov?.edit()?.putLong(o, konec)?.apply() } catch (_: Exception) { }
         try { android.util.Log.i("SafeerStremio", "dodatek ${try { URL(o).host } catch (_: Exception) { "?" }} omejuje poizvedbe (sporocila naprava v Linku): premor ${(konec - zdaj) / 60_000} min") } catch (_: Throwable) { }
     }
 
+    /** Dodatek je odgovoril, da omejuje poizvedbe (429, 403). Klic iz niti, ki je odgovor prejela (koda in glave). */
     private fun zacniPremor(osnova: String) {
-        if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis()) return      // vec hkratnih odgovorov je en premor
-        val korak = (premorKorak[osnova] ?: 0).coerceAtMost(3)
-        premorKorak[osnova] = korak + 1
-        val trajanje = (PREMOR_MS shl korak).coerceAtMost(PREMOR_NAJVEC_MS)
-        premorDo[osnova] = System.currentTimeMillis() + trajanje
-        try { shrambaPremorov?.edit()?.putLong(osnova, System.currentTimeMillis() + trajanje)?.apply() } catch (_: Exception) { }
-        try { android.util.Log.i("SafeerStremio", "dodatek ${try { URL(osnova).host } catch (_: Exception) { "?" }} omejuje poizvedbe: premor ${trajanje / 60_000} min") } catch (_: Throwable) { }
+        val koda = zadnjaKoda.get() ?: 0
+        val glave = zadnjeGlave.get().orEmpty()
+        synchronized(zaklepPremora) {
+            val zdaj = System.currentTimeMillis()
+            // Vec hkratnih odgovorov je en premor; nas lasten premor (porabljen proracun) pa omejitve dodatka ne skrije.
+            val lasten = premorProracuna.remove(osnova)
+            if ((premorDo[osnova] ?: 0L) > zdaj && !lasten) return
+            val korak = (premorKorak[osnova] ?: 0).coerceAtMost(3)
+            premorKorak[osnova] = korak + 1
+            // Ce dodatek pove, koliko naj pocakamo, velja njegova beseda; sicer 15 min in ob ponovitvi dvakrat dlje.
+            val trajanje = TempoDodatka.cakajPoGlavah(glave, zdaj) ?: (PREMOR_MS shl korak).coerceAtMost(PREMOR_NAJVEC_MS)
+            premorDo[osnova] = zdaj + trajanje
+            zapomniOmejitev(zdaj)
+            // Meja je nizja, kot smo mislili: nova je polovica tega, kar je naprava v zadnji uri res poslala.
+            val poslanih = ura(osnova).vsota(zdaj)
+            val novo = TempoDodatka.poOmejitvi(stanjeTempa(osnova), poslanih, zdaj)
+            tempo[osnova] = novo
+            shraniTempo(osnova, takoj = true)
+            try { shrambaPremorov?.edit()?.putLong(osnova, zdaj + trajanje)?.apply() } catch (_: Exception) { }
+            try {
+                val opis = TempoDodatka.opisGlav(glave).let { if (it.isEmpty()) "" else "; $it" }
+                android.util.Log.i("SafeerStremio", "dodatek ${gostitelj(osnova)} omejuje poizvedbe: premor ${trajanje / 60_000} min (koda $koda, v zadnji uri $poslanih poizvedb, nova meja ${novo.naUro} na uro$opis)")
+            } catch (_: Throwable) { }
+        }
     }
 
     /**
@@ -539,6 +713,7 @@ object Stremio {
         val v = vedra.getOrPut(osnova) { Vedro() }
         while (true) {
             if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis() || !seVelja()) return false
+            if (!proracun(osnova)) return false
             val cakaj = synchronized(v) {
                 val zdaj = System.currentTimeMillis()
                 v.zetoni = (v.zetoni + (zdaj - v.cas).coerceAtLeast(0) / 1000.0 * ZETONI_NA_S).coerceAtMost(ZETONI_NAJVEC)
@@ -597,6 +772,7 @@ object Stremio {
         if (dodatki.size != vsiDodatki.size) neznano = true
         // Vsak dodatek vrne potrebe svojih tokov (prazno = odgovoril je, a nima nicesar); null = ni odgovoril.
         val niti = dodatki.map { m -> bazen.submit<List<Long>?> {
+            poizvedbVOzadju.incrementAndGet()
             // Brez odgovora ne vemo nicesar; odgovor "tega nimam" (404) pa je odgovor - dodatek vsebine nima.
             val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json")
                 ?: return@submit run {
@@ -623,7 +799,7 @@ object Stremio {
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */
-    fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> = naslovi
+    fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> = naslovi.also { uporabnikOb = System.currentTimeMillis() }
         // Dodatek, ki ga ne dosezemo (manifesta ni), bi vsebino morda imel: to je izpad, ne "ni na voljo".
         .mapNotNull { manifest(it) ?: run { zadnjiIzpad.set(System.currentTimeMillis()); null } }
         .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) &&
