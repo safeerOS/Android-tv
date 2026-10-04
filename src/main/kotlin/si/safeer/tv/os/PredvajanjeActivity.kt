@@ -171,9 +171,16 @@ class PredvajanjeActivity : OsActivity() {
     }
     private val skrij = Runnable {
         // Dokler se video ne zacne, pas z naslovom ostane: uporabnik vidi, kaj se nalaga.
-        if (jeVideo() && !predlogiOdprti() && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
+        if (jeVideo() && OsPravila.pasSeSkrije(dotik, predlogiOdprti(), videoTece()) && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
         else if (seNalaga()) glavna.postDelayed(skrijRunnable(), 1_000)
     }
+
+    /** Uporabnik hoce predvajanje (ni pavze), posnetek ni koncan in ni v napaki. */
+    private fun videoTece(): Boolean =
+        GlasbaStoritev.predvajalnik?.let { it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playerError == null } == true
+
+    /** Zadnja sprememba je bila pavza: nadaljevanje skrije pas prej ([OsPravila.pasZamik]). */
+    private var poPavzi = false
     private fun skrijRunnable(): Runnable = skrij
     private val zatemni = Runnable { if (!jeVideo() && GlasbaStoritev.predvajalnik?.isPlaying == true) tema.visibility = View.VISIBLE; osveziCas() }
     private var nacinRazmerja = 0
@@ -181,7 +188,19 @@ class PredvajanjeActivity : OsActivity() {
     private val velikost = object : Player.Listener {
         override fun onVideoSizeChanged(videoSize: VideoSize) = prilagodi(videoSize)
         override fun onRenderedFirstFrame() { prvaSlika = true; posodobiNalaganje() }
-        override fun onPlaybackStateChanged(playbackState: Int) = posodobiNalaganje()
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            posodobiNalaganje()
+            // Konec posnetka na dotik: pas s predlogi se vrne (med predvajanjem je bil skrit).
+            if (playbackState == Player.STATE_ENDED && dotik && jeVideo() && !zaklenjeno && !isInPictureInPictureMode) zbudi()
+        }
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (!dotik || !jeVideo()) return
+            // Pavza (tudi s slusalk, iz obvestila ali z druge naprave): pas se pokaze in ostane. Nadaljevanje: pas se
+            // kmalu skrije, tudi kadar je odprta vrsta kartic.
+            if (!playWhenReady) { poPavzi = true; if (!zaklenjeno && !isInPictureInPictureMode) zbudi(); return }
+            glavna.removeCallbacks(skrij); glavna.postDelayed(skrij, OsPravila.pasZamik(poPavzi))
+            poPavzi = false
+        }
         override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
             posodobiPodnapise()
             // Sled, ki presega zmoznosti te naprave (4K na Full HD dekodirniku, nepodprt zvok): raje jo sproti
@@ -992,7 +1011,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun zbudi() {
         tema.visibility = View.GONE
         prekritje.animate().cancel(); prekritje.alpha = 1f
-        glavna.removeCallbacks(skrij); glavna.postDelayed(skrij, 4_000)
+        glavna.removeCallbacks(skrij); glavna.postDelayed(skrij, OsPravila.PAS_SKRIJ_MS)
         glavna.removeCallbacks(zatemni); glavna.postDelayed(zatemni, 30_000)
     }
 
