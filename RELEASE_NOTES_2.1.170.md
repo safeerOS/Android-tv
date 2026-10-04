@@ -1,0 +1,15 @@
+# Safeer 2.1.170 · Safeer OS 0.5.46
+
+Vgrajeni brskalnik na telefonu in tablici:
+
+- **Križec v naslovni vrstici počisti naslov, gumbi portalov odprejo stran.** Dotik križca – in gumbov pod vrstico (Google, YouTube …) – je doslej samo zaprl urejanje: naslov je ostal, stran se ni odprla, tipkovnica pa je obvisela na zaslonu. Gumbi so bili nastavljeni za daljinec, kjer prvi pritisk gumb le izbere. Na dotik zdaj delujejo ob prvem dotiku; enako gumbi v oknih za urejanje portalov in ploščic.
+- **Dotik naslovne vrstice izbere ves naslov.** Začneš tipkati ali prilepiš, in stari naslov je zamenjan. Prej je kazalec pristal sredi naslova.
+- **Prilepi in pojdi.** Kadar je v odložišču besedilo, je prvi gumb pod naslovno vrstico »Prilepi in pojdi«: kopirano povezavo odpre, kopirano besedilo poišče – z enim dotikom. Vsebino odložišča Safeer prebere šele, ko gumb izbereš.
+- **Na strani z zadetki je v naslovni vrstici iskani niz**, ne prazno polje, da ga dopolniš ali popraviš. Dotik strani zapre urejanje naslova skupaj s tipkovnico. Med predlogi ni več strani, ki je že odprta.
+- **Polje na začetni strani odpre tudi naprave v domačem omrežju.** Naslov IP ali ime, kot je `tiskalnik.local`, je šel doslej prek https in se končal z napako. Zdaj o vnosu odloči isto pravilo kot v naslovni vrstici.
+
+Android 15 in novejši:
+
+- **Spletne strani niso več odmaknjene od roba dvakrat.** Safeer OS vsebino odmakne od vrstice stanja in navigacijske vrstice. Isti odmik je dobila še spletna stran in ga upoštevala po svoje: pod naslovno vrstico in nad spodnjo vrstico brskalnika je ostal prazen pas. Izmerjeno na Androidu 16: stran je prej dobila 30 in 48 točk odmika, zdaj 0.
+
+English: **Built-in browser on phones and tablets.** The clear button in the address bar now clears the address and the portal buttons under it (Google, YouTube …) open their page: until now a tap only closed editing – the address stayed, no page opened and the keyboard was left on screen, because the buttons were set up for a remote control, where the first press only selects a button. Tapping the address bar selects the whole address, so typing or pasting replaces it. **Paste and go:** when the clipboard holds text, the first button under the address bar opens the copied link or searches for the copied text with one tap; Safeer reads the clipboard only when you choose the button. On a results page the address bar shows the search terms instead of an empty field, a tap on the page closes address editing together with the keyboard, and the page that is already open is no longer offered as a suggestion. The field on the start page now opens devices on the home network too (an IP address or a name like `printer.local` used to go over https and fail). **Android 15 and newer:** web pages are no longer inset from the screen edges twice – Safeer OS already keeps content clear of the status and navigation bars, and the same inset also reached the web page, which left an empty band under the address bar and above the bottom bar (measured on Android 16: 30 and 48 px before, 0 now).
