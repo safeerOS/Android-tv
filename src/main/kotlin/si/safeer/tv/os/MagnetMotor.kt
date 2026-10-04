@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import org.libtorrent4j.AddTorrentParams
+import org.libtorrent4j.AlertListener
 import org.libtorrent4j.Priority
 import org.libtorrent4j.SessionManager
 import org.libtorrent4j.SessionParams
@@ -13,9 +15,20 @@ import org.libtorrent4j.TorrentBuilder
 import org.libtorrent4j.TorrentFlags
 import org.libtorrent4j.TorrentHandle
 import org.libtorrent4j.TorrentInfo
+import org.libtorrent4j.TorrentStatus
+import org.libtorrent4j.Vectors
+import org.libtorrent4j.alerts.Alert
+import org.libtorrent4j.alerts.AlertType
+import org.libtorrent4j.alerts.FastresumeRejectedAlert
+import org.libtorrent4j.alerts.SaveResumeDataAlert
+import org.libtorrent4j.swig.add_torrent_params
+import org.libtorrent4j.swig.byte_vector
+import org.libtorrent4j.swig.error_code
+import org.libtorrent4j.swig.libtorrent
 import org.libtorrent4j.swig.remove_flags_t
 import org.libtorrent4j.swig.session_handle
 import org.libtorrent4j.swig.settings_pack
+import org.libtorrent4j.swig.torrent_flags_t
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -39,6 +52,10 @@ import java.util.concurrent.ConcurrentHashMap
  * - brez UPnP/NAT-PMP (ne odpiramo vrat na usmerjevalniku);
  * - oddajanje (upload) je med prenosom omejeno, po koncu se ustavi, razen če uporabnik izbere »Deli naprej«;
  * - malo povezav in omejen pomnilnik: TV in telefon ostaneta odzivna.
+ *
+ * Ponovni zagon ([ObnovaPravila]): ob vsakem torrentu shranimo njegov opis in podatke za nadaljevanje, zato motor ob
+ * zagonu ne potrebuje omrežja in že prenesenih datotek ne bere znova. Torrent brez teh podatkov svoje datoteke
+ * preveri postopoma, s premori, da naprava ostane odzivna.
  */
 object MagnetMotor {
     private const val TAG = "SafeerMagnet"
@@ -144,6 +161,13 @@ object MagnetMotor {
     @Volatile private var seja: SessionManager? = null
     private val opisi = ConcurrentHashMap<String, TorrentInfo>()
     private lateinit var app: Context
+    /** Nastavitve seje ostanejo dosegljive, dokler živi motor (domačih predmetov seje ne prepuščamo zbiralniku smeti). */
+    private var nastavitveSeje: SettingsPack? = null
+    private var parametriSeje: SessionParams? = null
+    /** Hash ročaja -> ključ, pod katerim je torrent shranjen (hash iz magnet povezave). */
+    private val kljuci = ConcurrentHashMap<String, String>()
+    /** Kdaj je kdo nazadnje bral tok torrenta (čas od zagona naprave). */
+    private val zadnjiTok = ConcurrentHashMap<String, Long>()
 
     fun mapa(c: Context): File = File(c.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: c.filesDir, "Safeer").apply { mkdirs() }
 
@@ -159,10 +183,15 @@ object MagnetMotor {
         // Brez odpiranja vrat na usmerjevalniku.
         nastavitve.setBoolean(settings_pack.bool_types.enable_upnp.swigValue(), false)
         nastavitve.setBoolean(settings_pack.bool_types.enable_natpmp.swigValue(), false)
+        varujZakljucevalnike()
         val s = SessionManager(false)
+        s.addListener(poslusalec)
         // Preprosto branje/pisanje namesto preslikave v pomnilnik (mmap): mmap nad Androidovo FUSE shrambo
         // (Android/data) je 29. 9. 2026 na testnem telefonu sesul sistemsko storitev shrambe (MediaProvider).
-        s.start(SessionParams(nastavitve).apply { setPosixDiskIO() })
+        val parametri = SessionParams(nastavitve).apply { setPosixDiskIO() }
+        nastavitveSeje = nastavitve
+        parametriSeje = parametri
+        s.start(parametri)
         seja = s
         obnovi(c)
         Thread({ nadzor() }, "safeer-magnet-nadzor").apply { isDaemon = true; start() }
@@ -184,22 +213,293 @@ object MagnetMotor {
         val vsi = JSONObject(p.getString("prenosi", "{}") ?: "{}")
         vsi.remove(hash)
         p.edit().putString("prenosi", vsi.toString()).apply()
+        // Podatki za nadaljevanje veljajo samo, dokler je torrent shranjen. Opis ostane do naslednjega zagona
+        // (če uporabnik isti torrent doda znova, ga ni treba iskati po omrežju); potem ga pospravi [obnovi].
+        try { datotekaStanja(c, hash.lowercase(), "resume")?.delete() } catch (_: Throwable) { }
     }
+
+    private fun jeShranjen(c: Context, hash: String): Boolean =
+        try { JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").has(hash) } catch (_: Throwable) { false }
+
+    // ------------------------------------------------------------------ stanje na disku in obnova ob zagonu
+
+    private const val NAJVEC_OPIS = 20L * 1024 * 1024
+
+    /** Opis torrenta (`<hash>.torrent`) in podatki za nadaljevanje (`<hash>.resume`) v zasebni shrambi aplikacije. */
+    private fun mapaStanja(c: Context): File = File(c.filesDir, "magnet").apply { mkdirs() }
+
+    private fun datotekaStanja(c: Context, hash: String, vrsta: String): File? =
+        if (ObnovaPravila.veljavenHash(hash)) File(mapaStanja(c), "$hash.$vrsta") else null
+
+    /**
+     * Mapa začasnega torrenta, s katerim knjižnica pridobi opis magneta. Ta torrent ima isti hash kot pravi, a ni naš:
+     * njegovega stanja ne shranjujemo in ga ob obnovi ne sprejmemo.
+     */
+    private fun mapaIskanja(c: Context): File = File(c.cacheDir, "magnet").apply { mkdirs() }
+
+    private fun lastnost(ime: String): String = try {
+        Runtime.getRuntime().exec(arrayOf("getprop", ime)).inputStream.bufferedReader().use { it.readLine() }?.trim().orEmpty()
+    } catch (_: Throwable) { "" }
+
+    /** Zapis v celoti ali nič: najprej začasna datoteka, nato preimenovanje. */
+    private fun zapisiCelo(f: File, bajti: ByteArray) {
+        val zacasna = File(f.parentFile, f.name + ".tmp")
+        zacasna.writeBytes(bajti)
+        if (!zacasna.renameTo(f)) { f.delete(); if (!zacasna.renameTo(f)) zacasna.delete() }
+    }
+
+    private fun shraniOpis(c: Context, hash: String, bajti: ByteArray) {
+        try { datotekaStanja(c, hash, "torrent")?.let { zapisiCelo(it, bajti) } } catch (e: Throwable) { Log.i(TAG, "Opis ${hash.take(8)}: ${e.message}") }
+    }
+
+    /** Shranjen opis torrenta, če je cel in res pripada temu hashu; poškodovan zapis odstrani (opis pride znova iz omrežja). */
+    private fun shranjenOpis(c: Context, hash: String): TorrentInfo? {
+        val f = datotekaStanja(c, hash, "torrent") ?: return null
+        if (!f.isFile) return null
+        val ti = try {
+            if (f.length() in 1..NAJVEC_OPIS) TorrentInfo.bdecode(f.readBytes()).takeIf { it.isValid && ustreza(it, hash) } else null
+        } catch (_: Throwable) { null }
+        if (ti == null) try { f.delete() } catch (_: Throwable) { }
+        return ti
+    }
+
+    private fun ustreza(ti: TorrentInfo, hash: String): Boolean = try {
+        ti.infoHash().toHex() == hash || ti.infoHashes().let { it.hasV1() && it.v1.toHex() == hash }
+    } catch (_: Throwable) { false }
 
     private fun obnovi(c: Context) {
         try { pocistiZacasne(c) } catch (e: Throwable) { Log.i(TAG, "Ciscenje: ${e.message}") }
         val vsi = JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}")
-        for (h in vsi.keys()) {
+        val hashi = vsi.keys().asSequence().toList()
+        try {
+            val m = mapaStanja(c)
+            for (ime in ObnovaPravila.ostanki(m.list()?.toList().orEmpty(), hashi.toSet())) File(m, ime).delete()
+            // Preizkus na napravi (lastnosti debug.* nastavi le adb): zagon kot prvič po posodobitvi - 1 = brez podatkov
+            // za nadaljevanje, 2 = tudi brez opisov. Odstrani samo shranjeno stanje; prenesene datoteke ostanejo.
+            val preizkus = lastnost("debug.safeer.torrent_brez_stanja")
+            if (preizkus == "1" || preizkus == "2") for (f in m.listFiles().orEmpty())
+                if (f.name.endsWith(".resume") || (preizkus == "2" && f.name.endsWith(".torrent"))) f.delete()
+        } catch (e: Throwable) { Log.i(TAG, "Stanje: ${e.message}") }
+        if (hashi.isNotEmpty()) Log.i(TAG, "Obnova: torrentov ${hashi.size}, z opisom ${hashi.count { datotekaStanja(c, it, "torrent")?.isFile == true }}, " +
+            "s podatki za nadaljevanje ${hashi.count { datotekaStanja(c, it, "resume")?.isFile == true }}")
+        for (h in hashi) {
             val z = vsi.optJSONObject(h) ?: continue
-            Thread({
-                try {
-                    val lastna = z.optString("lastna")
-                    if (lastna.isNotBlank()) deli(c, File(lastna)) else {
-                        val izbrane = (0 until (z.optJSONArray("izbrane")?.length() ?: 0)).map { z.getJSONArray("izbrane").getInt(it) }
-                        dodaj(c, z.optString("uri"), izbrane, izbrane.toSet(), zacasno = null)  // shranjene je uporabnik že potrdil
+            Thread({ obnoviEnega(c, h, z) }, "safeer-magnet-obnova").apply { isDaemon = true; start() }
+        }
+    }
+
+    private fun obnoviEnega(c: Context, h: String, z: JSONObject) {
+        for (poskus in 0 until 6) {
+            try {
+                val lastna = z.optString("lastna")
+                if (lastna.isNotBlank()) {
+                    val f = File(lastna)
+                    val ti = shranjenOpis(c, h)
+                    // Z opisom datoteke, ki jo uporabnik deli, ni treba znova prebrati cele (izračun kosov).
+                    if (ti != null && f.isFile) { opisi[h] = ti; vSejo(c, ti, f.parentFile ?: mapa(c), null, TorrentFlags.SEED_MODE, h, nezno = false) }
+                    else deli(c, f)
+                } else {
+                    val izbrane = (0 until (z.optJSONArray("izbrane")?.length() ?: 0)).map { z.getJSONArray("izbrane").getInt(it) }
+                    dodaj(c, z.optString("uri"), izbrane, izbrane.toSet(), zacasno = null, nezno = true)  // shranjene je uporabnik že potrdil
+                }
+                return
+            } catch (e: Throwable) {
+                Log.i(TAG, "Obnova ${h.take(8)}: ${e.message}")
+                // Opisa brez omrežja ni mogoče dobiti: poskusimo pozneje. Druge napake se s čakanjem ne popravijo.
+                if (e.message != "ni_metapodatkov") return
+            }
+            try { Thread.sleep(300_000) } catch (_: InterruptedException) { return }
+        }
+    }
+
+    /** Ali je na disku vsaj ena izbrana datoteka torrenta (podatki za nadaljevanje brez datotek so zastareli). */
+    private fun imaPodatke(ti: TorrentInfo, kam: File, prednosti: Array<Priority>?): Boolean = try {
+        val fs = ti.files()
+        (0 until fs.numFiles()).any { !fs.padFileAt(it) && (prednosti == null || prednosti.getOrNull(it) != Priority.IGNORE) && File(kam, fs.filePath(it)).exists() }
+    } catch (_: Throwable) { true }
+
+    /**
+     * Doda torrent v sejo - s podatki za nadaljevanje, kadar jih imamo (že prenesenih datotek potem ne bere znova).
+     * [nezno] (obnova ob zagonu): torrent brez teh podatkov pride v sejo ustavljen, datoteke na disku pa nato postopoma
+     * preveri [preverjaj]. Brez [nezno] (uporabnik ga hoče zdaj) se preveri takoj. [kljuc] = hash, pod katerim je shranjen.
+     */
+    private fun vSejo(c: Context, ti: TorrentInfo, kam: File, prednosti: Array<Priority>?, zastavice: torrent_flags_t,
+                      kljuc: String, nezno: Boolean) {
+        val s = seja(c)
+        val hashRocaja = ti.infoHash().toHex()
+        kljuci[hashRocaja] = kljuc
+        var shranjeni: add_torrent_params? = null
+        val f = datotekaStanja(c, kljuc, "resume")
+        if (f != null && f.isFile && imaPodatke(ti, kam, prednosti)) try {
+            val napaka = error_code()
+            val p = libtorrent.read_resume_data_ex(Vectors.bytes2byte_vector(f.readBytes()), napaka)
+            val tuje = p.getSave_path() == mapaIskanja(c).absolutePath
+            if (napaka.value() == 0 && !tuje && Sha1Hash(p.getInfo_hashes().get_best()).toHex() == hashRocaja) shranjeni = p
+            else Log.i(TAG, "Podatki za nadaljevanje ${kljuc.take(8)} niso uporabni")
+        } catch (e: Throwable) { Log.i(TAG, "Podatki za nadaljevanje ${kljuc.take(8)}: ${e.message}") }
+        // Stanje, shranjeno med preverjanjem, pozna le del kosov: preostanek je treba še preveriti.
+        val nedokoncano = shranjeni != null && try { shranjeni.get_have_pieces().size() < ti.numPieces() } catch (_: Throwable) { false }
+        var odrezano = 0
+        if (nedokoncano && shranjeni != null) try {
+            // Rep takega stanja ima lahko luknje (kosi, ki so bili ob shranjevanju še v delu): od prve luknje naprej znova.
+            val kosi = shranjeni.get_have_pieces()
+            val velja = ObnovaPravila.veljavnihKosov(kosi.size(), ObnovaPravila.repPreverjanja(ti.pieceLength())) { kosi.get_bit(it) }
+            if (velja < kosi.size()) { odrezano = kosi.size() - velja; kosi.resize(velja); shranjeni.set_have_pieces(kosi) }
+        } catch (e: Throwable) { Log.i(TAG, "Stanje ${kljuc.take(8)}: ${e.message}") }
+        val preverba = nezno && (shranjeni == null || nedokoncano)
+        val p = shranjeni ?: add_torrent_params()
+        p.set_ti(ti.swig())
+        p.setSave_path(kam.absolutePath)
+        if (prednosti != null) p.set_file_priorities(byte_vector().apply { for (x in prednosti) add(x.swig()) })
+        // Načini, ki jih sami nikoli ne izberemo (samo oddajanje po napaki diska, ustavitev ob pripravljenosti), se z
+        // obnovo ne smejo prenesti v nov zagon: torrent v njih ne bi več prenašal.
+        var z = p.getFlags().or_(zastavice).and_(TorrentFlags.UPLOAD_MODE.inv()).and_(TorrentFlags.STOP_WHEN_READY.inv())
+            .and_(TorrentFlags.SHARE_MODE.inv())
+        if (preverba) z = z.and_(TorrentFlags.AUTO_MANAGED.inv()).or_(TorrentFlags.PAUSED)
+        p.setFlags(z)
+        s.swig().async_add_torrent(p)
+        Log.i(TAG, "V sejo ${kljuc.take(8)}: " + when {
+            preverba && nedokoncano -> "nadaljevanje postopnega preverjanja od kosa ${shranjeni?.get_have_pieces()?.size()}" + (if (odrezano > 0) " (rep z luknjo: $odrezano kosov znova)" else "")
+            shranjeni != null -> "s podatki za nadaljevanje"
+            preverba -> "postopno preverjanje"
+            else -> "brez podatkov za nadaljevanje"
+        })
+        if (preverba) vPreverjanje(hashRocaja)
+    }
+
+    private val cakaPreverjanje = java.util.ArrayDeque<String>()
+    private var preverjanjeTece = false
+
+    private fun vPreverjanje(hashRocaja: String) {
+        synchronized(cakaPreverjanje) {
+            cakaPreverjanje.add(hashRocaja)
+            if (preverjanjeTece) return
+            preverjanjeTece = true
+        }
+        Thread({ preverjaj() }, "safeer-magnet-preverjanje").apply { isDaemon = true; priority = Thread.MIN_PRIORITY; start() }
+    }
+
+    /** Torrente brez podatkov za nadaljevanje preveri enega za drugim ([ObnovaPravila]). */
+    private fun preverjaj() {
+        while (true) {
+            val h = synchronized(cakaPreverjanje) { cakaPreverjanje.poll().also { if (it == null) preverjanjeTece = false } } ?: return
+            try { preveriEnega(h) } catch (e: Throwable) { Log.i(TAG, "Preverjanje ${h.take(8)}: ${e.message}") }
+        }
+    }
+
+    private fun sePreverja(th: TorrentHandle): Boolean = th.status().state().let {
+        it == TorrentStatus.State.CHECKING_FILES || it == TorrentStatus.State.CHECKING_RESUME_DATA
+    }
+
+    private fun maloPomnilnika(): Boolean = try {
+        val am = app.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }.lowMemory
+    } catch (_: Throwable) { false }
+
+    private fun ura() = android.os.SystemClock.elapsedRealtime()
+
+    /**
+     * Preverjanje datotek enega torrenta v kratkih korakih: torrent teče [ObnovaPravila.TECE_MS], nato počiva. Premor se
+     * podaljša, kadar naprava zamuja ali ji zmanjkuje pomnilnika. Vmesno stanje se shranjuje, zato se prekinjeno
+     * preverjanje ob naslednjem zagonu nadaljuje. Torrent, ki ga kdo pravkar predvaja, se preverja s krajšimi premori.
+     */
+    private fun preveriEnega(h: String) {
+        val s = seja ?: return
+        val sha = Sha1Hash.parseHex(h)
+        var najden: TorrentHandle? = null
+        for (k in 0 until 50) {   // torrent je bil dodan asinhrono
+            najden = s.find(sha)?.takeIf { it.isValid }
+            if (najden != null) break
+            Thread.sleep(200)
+        }
+        val th = najden ?: run { Log.i(TAG, "Preverjanje ${h.take(8)}: torrenta ni v seji"); return }
+        val zacetek = ura()
+        var shranjeno = zacetek
+        var premor = ObnovaPravila.PREMOR_MS
+        var bral = false
+        var napaka = false
+        while (th.isValid) {
+            val st = th.status()
+            if (st.state() != TorrentStatus.State.CHECKING_FILES && st.state() != TorrentStatus.State.CHECKING_RESUME_DATA) break
+            if (st.errorCode().isError) { napaka = true; Log.i(TAG, "Preverjanje ${h.take(8)}: ${st.errorCode().message}"); break }
+            if (ura() - zacetek > ObnovaPravila.NAJVEC_MS) { napaka = true; break }
+            bral = bral || st.state() == TorrentStatus.State.CHECKING_FILES
+            th.resume()
+            Thread.sleep(ObnovaPravila.TECE_MS)
+            th.pause()
+            if (ura() - (zadnjiTok[h] ?: -ObnovaPravila.V_RABI_MS) <= ObnovaPravila.V_RABI_MS) {
+                Thread.sleep(ObnovaPravila.PREMOR_V_RABI_MS)   // nekdo ga predvaja: krajši premori
+            } else {
+                val t0 = ura()
+                Thread.sleep(premor)
+                premor = ObnovaPravila.premor(premor, ura() - t0 - premor, maloPomnilnika())
+            }
+            if (ura() - shranjeno > ObnovaPravila.SHRANI_MS) {
+                shranjeno = ura()
+                th.saveResumeData()
+                Log.i(TAG, "Preverjanje ${h.take(8)}: ${(st.progress() * 100).toInt()} %, premor $premor ms")
+            }
+        }
+        if (!th.isValid) { Log.i(TAG, "Preverjanje ${h.take(8)}: torrent je odstranjen"); return }
+        if (napaka) { th.pause(); return }
+        val vRabi = ura() - (zadnjiTok[h] ?: -ObnovaPravila.V_RABI_MS) <= ObnovaPravila.V_RABI_MS
+        val konec = th.status()
+        val koncan = konec.isFinished
+        when {
+            // Končan torrent brez »Deli naprej« ostane ustavljen; nedokončan prenos gre naprej kot pred zagonom.
+            !ObnovaPravila.tecePoPreverjanju(koncan, deliNaprej(app, h)) -> th.pause()
+            vRabi -> th.resume()
+            else -> { th.setFlags(TorrentFlags.AUTO_MANAGED); th.resume() }
+        }
+        th.saveResumeData()
+        Log.i(TAG, "Preverjeno ${h.take(8)}: ${(ura() - zacetek) / 1000} s" + (if (bral) "" else ", brez branja") +
+            (if (koncan) ", cel" else ", delen (manjka ${konec.totalWanted() - konec.totalWantedDone()} B)"))
+        if (!koncan) try {
+            // Kateri izbrani kosi manjkajo (prvih nekaj): za iskanje vzroka, kadar bi po preverjanju manjkal kos cele datoteke.
+            val ti = th.torrentFile()
+            val prednosti = th.piecePriorities()
+            val manjkajo = (0 until (ti?.numPieces() ?: 0)).filter { prednosti.getOrNull(it) != Priority.IGNORE && !th.havePiece(it) }
+            Log.i(TAG, "Preverjeno ${h.take(8)}: kosov ${ti?.numPieces()}, velikost kosa ${ti?.pieceLength()}, manjka ${manjkajo.size}: ${manjkajo.take(24)}")
+        } catch (e: Throwable) { Log.i(TAG, "Preverjeno ${h.take(8)}: ${e.message}") }
+    }
+
+    /** Shranjevanje podatkov za nadaljevanje, ko jih libtorrent pripravi ([nadzor] jih zahteva sproti). */
+    private val poslusalec = object : AlertListener {
+        override fun types(): IntArray = intArrayOf(AlertType.SAVE_RESUME_DATA.swig(), AlertType.FASTRESUME_REJECTED.swig())
+        override fun alert(alert: Alert<*>) {
+            try {
+                when (alert) {
+                    is SaveResumeDataAlert -> {
+                        val h = alert.handle().infoHash().toHex()
+                        // Samo torrenti, ki smo jih v sejo dodali sami ([vSejo]) - ne začasni torrent iskanja opisa.
+                        val kljuc = kljuci[h] ?: return
+                        val stanje = alert.params()
+                        if (stanje.savePath == mapaIskanja(app).absolutePath) return
+                        // Torrent, ki ga je uporabnik medtem odstranil, ne pusti stanja za seboj.
+                        if (jeShranjen(app, kljuc)) datotekaStanja(app, kljuc, "resume")?.let { zapisiCelo(it, AddTorrentParams.writeResumeDataBuf(stanje)) }
                     }
-                } catch (e: Throwable) { Log.i(TAG, "Obnova $h: ${e.message}") }
-            }, "safeer-magnet-obnova").apply { isDaemon = true; start() }
+                    is FastresumeRejectedAlert ->
+                        Log.i(TAG, "Podatki za nadaljevanje ${alert.handle().infoHash().toHex().take(8)} zavrnjeni: ${alert.error().message}")
+                }
+            } catch (e: Throwable) { Log.i(TAG, "Nadaljevanje: ${e.message}") }
+        }
+    }
+
+    @Volatile private var varovano = false
+
+    /**
+     * Zaključevalnik domačega predmeta (libtorrent) lahko ob hudem zastoju naprave zamudi sistemski rok (10 s). Sistem
+     * bi zato sesul aplikacijo, čeprav ni nič narobe (testni telefon, 4. 10. 2026). Tako zamudo samo zabeležimo;
+     * vse druge napake gredo naprej kot prej.
+     */
+    private fun varujZakljucevalnike() {
+        if (varovano) return
+        varovano = true
+        val prej = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { nit, napaka ->
+            if (nit.name == "FinalizerWatchdogDaemon" && napaka is java.util.concurrent.TimeoutException)
+                Log.w(TAG, "Zakljucevalnik je zamudil rok (naprava je zastala): ${napaka.message}")
+            else prej?.uncaughtException(nit, napaka)
         }
     }
 
@@ -209,7 +509,18 @@ object MagnetMotor {
         val m = prefs(c).getStringSet("deli_naprej", emptySet())!!.toMutableSet()
         if (vklop) m.add(hash) else m.remove(hash)
         prefs(c).edit().putStringSet("deli_naprej", m).apply()
-        if (vklop) rocaj(c, hash)?.resume()
+        // Oddajanje vodi vrsta libtorrenta (hkrati le nekaj torrentov), zato mu vrnemo samodejno vodenje.
+        if (vklop) rocaj(c, hash)?.let { it.setFlags(TorrentFlags.AUTO_MANAGED); it.resume() }
+    }
+
+    /**
+     * Premor ali nadaljevanje na uporabnikovo željo. Ustavljenemu izklopimo samodejno vodenje vrste, sicer bi ga
+     * libtorrent čez čas sam spet zagnal.
+     */
+    fun nastaviPremor(c: Context, hash: String, premor: Boolean) {
+        val th = rocaj(c, hash) ?: return
+        if (premor) { th.unsetFlags(TorrentFlags.AUTO_MANAGED); th.pause() } else th.resume()
+        th.saveResumeData()
     }
 
     fun rocaj(c: Context, hash: String): TorrentHandle? =
@@ -233,11 +544,10 @@ object MagnetMotor {
     /** Metapodatki magneta (ime in datoteke), brez prenosa vsebine. Blokira do 60 s: klic iz ozadja. */
     fun preberi(c: Context, uri: String): Opis {
         val h = hash(uri) ?: throw IllegalArgumentException("ni_magnet")
-        val ti = opisi[h] ?: run {
-            val dir = File(c.cacheDir, "magnet").apply { mkdirs() }
-            val bajti = seja(c).fetchMagnet(zSledilniki(uri.trim()), 60, dir) ?: throw IllegalStateException("ni_metapodatkov")
-            TorrentInfo.bdecode(bajti).also { opisi[h] = it }
-        }
+        val ti = opisi[h] ?: (shranjenOpis(c, h) ?: run {
+            val bajti = seja(c).fetchMagnet(zSledilniki(uri.trim()), 60, mapaIskanja(c)) ?: throw IllegalStateException("ni_metapodatkov")
+            TorrentInfo.bdecode(bajti).also { shraniOpis(c, h, bajti) }
+        }).also { opisi[h] = it }
         val fs = ti.files()
         val datoteke = (0 until fs.numFiles()).filter { !fs.padFileAt(it) }.map {
             val ime = fs.filePath(it)
@@ -254,7 +564,9 @@ object MagnetMotor {
      */
     fun dodaj(c: Context, uri: String, izbrane: List<Int>, potrjeneNevarne: Set<Int> = emptySet(),
               /** true = predvajanje brez izrecnega prenosa (samodejno ciscenje), false = uporabnik ga je prenesel sam (ostane), null = brez spremembe. */
-              zacasno: Boolean? = false): String {
+              zacasno: Boolean? = false,
+              /** Obnova ob zagonu: torrent brez podatkov za nadaljevanje datoteke preveri postopoma ([preverjaj]). */
+              nezno: Boolean = false): String {
         val opis = preberi(c, uri)
         val dovoljene = opis.datoteke.filter { it.vrsta != "nevarno" || it.i in potrjeneNevarne }.map { it.i }.toSet()
         val obstojeci = rocaj(c, opis.hash)
@@ -267,7 +579,7 @@ object MagnetMotor {
             obstojeci.prioritizeFiles(prednosti)
             obstojeci.resume()
         } else {
-            seja(c).download(ti, mapa(c), null, prednosti, null, TorrentFlags.SEQUENTIAL_DOWNLOAD)
+            vSejo(c, ti, mapa(c), prednosti, TorrentFlags.SEQUENTIAL_DOWNLOAD, opis.hash, nezno)
         }
         // Izrecen prenos velja naprej: torrent, ki ga je uporabnik prenesel sam, s predvajanjem ne postane zacasen.
         val shranjen = try { JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").has(opis.hash) } catch (_: Throwable) { false }
@@ -323,9 +635,12 @@ object MagnetMotor {
 
     /** Iz uporabnikove datoteke (kopija v naši mapi) naredi torrent, ga začne oddajati in vrne magnet povezavo. */
     fun deli(c: Context, datoteka: File): String {
-        val ti = TorrentInfo.bdecode(TorrentBuilder().path(datoteka).creator("Safeer").generate().entry().bencode())
-        seja(c).download(ti, datoteka.parentFile, null, null, null, TorrentFlags.SEED_MODE)
+        val bajti = TorrentBuilder().path(datoteka).creator("Safeer").generate().entry().bencode()
+        val ti = TorrentInfo.bdecode(bajti)
         val hash = ti.infoHash().toHex()
+        opisi[hash] = ti
+        shraniOpis(c, hash, bajti)
+        vSejo(c, ti, datoteka.parentFile ?: mapa(c), null, TorrentFlags.SEED_MODE, hash, nezno = false)
         nastaviDeliNaprej(c, hash, true)
         val uri = zSledilniki("magnet:?xt=urn:btih:$hash&dn=" + java.net.URLEncoder.encode(ti.name(), "UTF-8"))
         zapomni(c, hash, uri, setOf(0), lastna = datoteka.absolutePath)
@@ -344,9 +659,16 @@ object MagnetMotor {
                 val s = seja ?: continue
                 for (th in rocaji(s)) {
                     if (!th.isValid) continue
-                    // Po koncu prenosa ne oddajamo drugim, razen če uporabnik to izrecno izbere.
-                    if (th.status().isFinished && !deliNaprej(app, th.infoHash().toHex()) &&
-                        !th.getFlags().and_(TorrentFlags.PAUSED).non_zero()) th.pause()
+                    val st = th.status()
+                    // Torrent, ki datoteke še preverja, vodi [preverjaj].
+                    if (st.state() == TorrentStatus.State.CHECKING_FILES || st.state() == TorrentStatus.State.CHECKING_RESUME_DATA) continue
+                    val zastavice = th.getFlags()
+                    val ustavljen = zastavice.and_(TorrentFlags.PAUSED).non_zero() && !zastavice.and_(TorrentFlags.AUTO_MANAGED).non_zero()
+                    // Po koncu prenosa ne oddajamo drugim, razen če uporabnik to izrecno izbere. Samodejno vodenje vrste
+                    // izklopimo, sicer libtorrent ustavljen torrent čez čas sam spet zažene.
+                    if (st.isFinished && !deliNaprej(app, th.infoHash().toHex()) && !ustavljen) {
+                        th.unsetFlags(TorrentFlags.AUTO_MANAGED); th.pause(); th.saveResumeData()
+                    } else if (krog % 3 == 0 && th.needSaveResumeData()) th.saveResumeData()
                 }
             } catch (e: Throwable) { Log.i(TAG, "Nadzor: ${e.message}") }
         }
@@ -523,8 +845,13 @@ object MagnetMotor {
         val d = (if (datoteka >= 0) opis.datoteke.firstOrNull { it.i == datoteka && it.predvajljiva }
             else opis.datoteke.filter { it.vrsta == "video" }.maxByOrNull { it.velikost } ?: opis.datoteke.filter { it.vrsta == "audio" }.maxByOrNull { it.velikost })
             ?: throw IllegalStateException("ni_predvajljivo")
-        // Kar je od te datoteke ze na disku (film, ki ga nadaljujemo), ne potrebuje novega prostora.
-        val zePreneseno = try { rocaj(c, opis.hash)?.fileProgress()?.getOrNull(d.i) ?: 0L } catch (_: Throwable) { 0L }
+        // Kar je od te datoteke ze na disku (film, ki ga nadaljujemo), ne potrebuje novega prostora. Dokler torrent svoje
+        // datoteke se preverja (prvi zagon po posodobitvi), napredka ne pozna: takrat velja velikost datoteke na disku.
+        val zePreneseno = try {
+            val th = rocaj(c, opis.hash)
+            val znano = th?.fileProgress()?.getOrNull(d.i) ?: 0L
+            if (th != null && sePreverja(th)) maxOf(znano, File(th.savePath(), d.ime).length().coerceAtMost(d.velikost)) else znano
+        } catch (_: Throwable) { 0L }
         val potrebno = (d.velikost - zePreneseno).coerceAtLeast(0L) + rezerva(c)
         pocistiZacasne(c, potrebno, opis.hash)
         if (mapa(c).usableSpace < potrebno) throw IllegalStateException("ni_prostora")
@@ -635,7 +962,10 @@ object MagnetMotor {
         val ti = th.torrentFile() ?: throw IllegalStateException("ni_metapodatkov")
         if (i !in 0 until ti.numFiles() || vrsta(ti.files().filePath(i)) !in setOf("video", "audio", "podnapisi")) throw IllegalArgumentException("ni_predvajljivo")
         if (th.filePriority(i) == Priority.IGNORE) th.filePriority(i, Priority.DEFAULT)
+        // Predvajanje mora teči ne glede na vrsto prenosov: libtorrent hkrati pusti le nekaj prenosov, ostale ustavi.
+        th.unsetFlags(TorrentFlags.AUTO_MANAGED)
         th.resume()
+        zadnjiTok[th.infoHash().toHex()] = ura()
         val s = zazeniStreznik()
         val b = ByteArray(16).also { nakljucje.nextBytes(it) }
         val skrivnost = b.joinToString("") { "%02x".format(it) }
@@ -729,8 +1059,10 @@ object MagnetMotor {
         var poz = od
         val konec = od + dolzina
         var datoteka: RandomAccessFile? = null
+        val hashToka = try { th.infoHash().toHex() } catch (_: Throwable) { "" }
         try {
             while (poz < konec) {
+                if (hashToka.isNotEmpty()) zadnjiTok[hashToka] = ura()
                 // Roki: najprej kos, ki ga potrebujemo zdaj, nato okno naprej (predvajanje brez zatikanja).
                 val prvi = ((odmikDatoteke + poz) / dolzinaKosa).toInt()
                 val zadnjiOkna = ((odmikDatoteke + minOf(konec, poz + OKNO_BAJTOV) - 1) / dolzinaKosa).toInt()
@@ -740,6 +1072,7 @@ object MagnetMotor {
                 val zacetek = System.currentTimeMillis()
                 while (!th.havePiece(prvi)) {
                     if (System.currentTimeMillis() - zacetek > CAKAJ_KOS_MS) throw java.io.IOException("kos $prvi ne pride")
+                    if (hashToka.isNotEmpty()) zadnjiTok[hashToka] = ura()
                     Thread.sleep(50)
                 }
                 // Do konca tega kosa smemo brati.

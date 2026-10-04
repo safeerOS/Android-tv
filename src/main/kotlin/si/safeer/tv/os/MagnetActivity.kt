@@ -328,7 +328,7 @@ class MagnetActivity : OsActivity() {
                 MagnetMotor.Datoteka(prva.optInt("i"), prva.optString("ime"), 0, prva.optString("vrsta")))
         })
         d1.addView(gumb(getString(if (x.optBoolean("premor")) R.string.magnet_nadaljuj else R.string.magnet_premor)) {
-            vOzadju { MagnetMotor.rocaj(this, hash)?.let { if (x.optBoolean("premor")) it.resume() else it.pause() }; glavna.post { prenosi?.tag = null; osveziPrenose() } }
+            vOzadju { MagnetMotor.nastaviPremor(this, hash, !x.optBoolean("premor")); glavna.post { prenosi?.tag = null; osveziPrenose() } }
         })
         d1.addView(gumb((if (x.optBoolean("deli_naprej")) "✓ " else "") + getString(R.string.magnet_deli_naprej)) {
             vOzadju { MagnetMotor.nastaviDeliNaprej(this, hash, !x.optBoolean("deli_naprej")); glavna.post { prenosi?.tag = null; osveziPrenose() } }
