@@ -21,6 +21,12 @@ object IzvirniJeziki {
     private const val TAG = "SafeerJeziki"
     private const val NASLOV = "https://query.wikidata.org/sparql"
     private const val DATOTEKA = "izvirni-jeziki.tsv"
+    /**
+     * Razlicica tabele jezikov ([IzvirniJezik.JEZIKI]). Ko tabela dobi nove predmete (razlicice jezika), zapisi
+     * »neznan jezik« iz stare tabele niso vec resnicni (veljali bi se do 7 dni); znani ostanejo.
+     */
+    private const val TABELA = "2"
+    private const val VRSTICA_TABELE = "#tabela\t"
     private const val NAJVEC_ZAPISOV = 20_000
     private const val SEZNAM_VELJA_MS = 6L * 3_600_000
 
@@ -46,9 +52,15 @@ object IzvirniJeziki {
         if (nalozeno) return
         try {
             val f = datoteka(c)
+            var tabela = ""
             if (f.isFile) f.forEachLine { v ->
+                if (v.startsWith(VRSTICA_TABELE)) { tabela = v.substring(VRSTICA_TABELE.length).trim(); return@forEachLine }
                 val i = v.indexOf('\t')
                 if (i > 0 && IzvirniJezik.veljavenImdb(v.substring(0, i))) zapisi[v.substring(0, i)] = v.substring(i + 1)
+            }
+            if (tabela != TABELA) {
+                val zdaj = System.currentTimeMillis()
+                zapisi.entries.removeAll { IzvirniJezik.izZapisa(it.value, zdaj).isNullOrEmpty() }
             }
         } catch (e: Throwable) { Log.i(TAG, "Branje: ${e.message}") }
         nalozeno = true
@@ -64,7 +76,10 @@ object IzvirniJeziki {
             }
             val f = datoteka(c)
             val zacasna = File(f.parentFile, f.name + ".tmp")
-            zacasna.bufferedWriter().use { w -> for ((id, z) in zapisi) { w.write(id); w.write("\t"); w.write(z); w.write("\n") } }
+            zacasna.bufferedWriter().use { w ->
+                w.write(VRSTICA_TABELE); w.write(TABELA); w.write("\n")
+                for ((id, z) in zapisi) { w.write(id); w.write("\t"); w.write(z); w.write("\n") }
+            }
             if (!zacasna.renameTo(f)) { f.delete(); if (!zacasna.renameTo(f)) zacasna.delete() }
         } catch (e: Throwable) { Log.i(TAG, "Zapis: ${e.message}") }
     }

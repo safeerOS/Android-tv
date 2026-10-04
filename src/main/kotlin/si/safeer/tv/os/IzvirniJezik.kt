@@ -16,15 +16,26 @@ object IzvirniJezik {
     /** [koda] ISO 639-1; [predmeti] = jezik v Wikidati (Q...); [drzave] = drzave (Q...), kjer je to jezik domacih filmov. */
     class Jezik(val koda: String, val predmeti: List<String>, val drzave: List<String>)
 
-    /** Jeziki, ki jih ponudi izbira. Predmeti so preverjeni v Wikidati (4. 10. 2026). */
+    /**
+     * Jeziki, ki jih ponudi izbira. Predmeti so preverjeni v Wikidati (4. 10. 2026).
+     *
+     * Prvi predmet je jezik sam, ostali so njegove razlicice, kot jih Wikidata res uporablja pri filmih in serijah
+     * (vseh 220 najpogostejsih vrednosti P364): »American English« (Breaking Bad), »Brazilian Portuguese«, »Swiss
+     * German«, »Egyptian Arabic«, »Putonghua« ... Brez njih bi tak naslov veljal za naslov neznanega jezika in se med
+     * izbiro jezika ne bi pokazal. Narecja, ki jih katalogi vodijo pod jezikom drzave (neapeljscina, sicilscina,
+     * bavarscina, kitajski jeziki), sodijo pod ta jezik - tako jih vodi tudi TMDB. Ista tabela kot na racunalniku
+     * (core/izvirni_jezik.py).
+     */
     val JEZIKI: List<Jezik> = listOf(
         Jezik("sl", listOf("Q9063"), listOf("Q215", "Q36704", "Q83286")),
-        Jezik("en", listOf("Q1860"), listOf("Q30", "Q145", "Q16", "Q408", "Q27", "Q664")),
-        Jezik("de", listOf("Q188"), listOf("Q183", "Q713750", "Q16957", "Q40", "Q39")),
-        Jezik("fr", listOf("Q150"), listOf("Q142", "Q31", "Q39", "Q16")),
-        Jezik("es", listOf("Q1321"), listOf("Q29", "Q96", "Q414", "Q739", "Q298", "Q419", "Q717", "Q241", "Q77")),
-        Jezik("it", listOf("Q652"), listOf("Q38", "Q39")),
-        Jezik("pt", listOf("Q5146"), listOf("Q45", "Q155")),
+        Jezik("en", listOf("Q1860", "Q7976", "Q7979", "Q44679", "Q44676", "Q665624", "Q44661", "Q1156228", "Q1553250"),
+            listOf("Q30", "Q145", "Q16", "Q408", "Q27", "Q664")),
+        Jezik("de", listOf("Q188", "Q387066", "Q306626", "Q8077088", "Q56474", "Q29540"), listOf("Q183", "Q713750", "Q16957", "Q40", "Q39")),
+        Jezik("fr", listOf("Q150", "Q979914", "Q1450506", "Q3083196"), listOf("Q142", "Q31", "Q39", "Q16")),
+        Jezik("es", listOf("Q1321", "Q616620", "Q56649449", "Q4477330"),
+            listOf("Q29", "Q96", "Q414", "Q739", "Q298", "Q419", "Q717", "Q241", "Q77")),
+        Jezik("it", listOf("Q652", "Q33845", "Q33973"), listOf("Q38", "Q39")),
+        Jezik("pt", listOf("Q5146", "Q750553"), listOf("Q45", "Q155")),
         // Srbohrvascina (Q9301) je jezik starejsih jugoslovanskih filmov: sodi k hrvascini, srbscini in bosanscini.
         Jezik("hr", listOf("Q6654", "Q9301"), listOf("Q224", "Q36704", "Q83286")),
         Jezik("sr", listOf("Q9299", "Q9301"), listOf("Q403", "Q37024", "Q838261", "Q236", "Q36704", "Q83286")),
@@ -35,7 +46,7 @@ object IzvirniJezik {
         Jezik("cs", listOf("Q9056"), listOf("Q213", "Q33946")),
         Jezik("sk", listOf("Q9058"), listOf("Q214", "Q33946")),
         Jezik("hu", listOf("Q9067"), listOf("Q28")),
-        Jezik("nl", listOf("Q7411"), listOf("Q55", "Q31")),
+        Jezik("nl", listOf("Q7411", "Q34147", "Q1404296"), listOf("Q55", "Q31")),
         Jezik("sv", listOf("Q9027"), listOf("Q34")),
         Jezik("da", listOf("Q9035"), listOf("Q35")),
         Jezik("no", listOf("Q9043", "Q25167", "Q25164"), listOf("Q20")),
@@ -49,14 +60,17 @@ object IzvirniJezik {
         Jezik("uk", listOf("Q8798"), listOf("Q212")),
         Jezik("ja", listOf("Q5287"), listOf("Q17")),
         Jezik("ko", listOf("Q9176"), listOf("Q884")),
-        Jezik("zh", listOf("Q7850", "Q9192", "Q727694", "Q9186", "Q7033959"), listOf("Q148", "Q8646", "Q865")),
+        Jezik("zh", listOf("Q7850", "Q9192", "Q727694", "Q9186", "Q7033959", "Q24841726", "Q262828", "Q1048980", "Q5894342",
+            "Q13414913", "Q2278732", "Q4380827", "Q36778", "Q36495", "Q3846528", "Q33375", "Q2391532"),
+            listOf("Q148", "Q8646", "Q865")),
         Jezik("hi", listOf("Q1568"), listOf("Q668")),
         Jezik("ta", listOf("Q5885"), listOf("Q668")),
         Jezik("te", listOf("Q8097"), listOf("Q668")),
         Jezik("th", listOf("Q9217"), listOf("Q869")),
-        Jezik("ar", listOf("Q13955"), listOf("Q79")),
-        Jezik("he", listOf("Q9288"), listOf("Q801")),
-        Jezik("fa", listOf("Q9168"), listOf("Q794")),
+        Jezik("ar", listOf("Q13955", "Q29919", "Q56426", "Q56240", "Q56499", "Q56232", "Q2143071", "Q1516642", "Q6448936"),
+            listOf("Q79")),
+        Jezik("he", listOf("Q9288", "Q8141"), listOf("Q801")),
+        Jezik("fa", listOf("Q9168", "Q178440"), listOf("Q794")),
     )
 
     val KODE: List<String> = JEZIKI.map { it.koda }

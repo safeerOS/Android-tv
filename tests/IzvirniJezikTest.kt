@@ -30,6 +30,27 @@ fun main() {
     check(j.glavni(listOf("Q9063"), listOf("Q215")) == listOf("sl"))
     // Kitajscina v vec predmetih (mandarinscina, kantonscina) je en jezik izbire.
     check(j.glavni(listOf("Q9192", "Q9186"), listOf("Q8646")) == listOf("zh"))
+    // Razlicice jezika, kot jih Wikidata uporablja pri filmih in serijah, sodijo pod jezik sam (isti primeri kot na racunalniku).
+    check(j.glavni(listOf("Q7976"), listOf("Q30")) == listOf("en"))              // American English (Breaking Bad, tt0903747)
+    check(j.glavni(listOf("Q7979"), listOf("Q145")) == listOf("en"))             // British English
+    check(j.glavni(listOf("Q7976", "Q1860"), listOf("Q30")) == listOf("en"))     // razlicica in jezik sam sta en jezik
+    check(j.glavni(listOf("Q7976", "Q1321"), listOf("Q30")) == listOf("en"))     // ameriska serija z nekaj spanscine
+    check(j.glavni(listOf("Q750553"), listOf("Q155")) == listOf("pt"))           // Brazilian Portuguese
+    check(j.glavni(listOf("Q387066"), listOf("Q39")) == listOf("de"))            // Swiss German
+    check(j.glavni(listOf("Q979914"), listOf("Q16")) == listOf("fr"))            // Quebec French
+    check(j.glavni(listOf("Q616620"), listOf("Q96")) == listOf("es"))            // Mexican Spanish
+    check(j.glavni(listOf("Q34147"), listOf("Q31")) == listOf("nl"))             // Flemish Dutch
+    check(j.glavni(listOf("Q29919"), emptyList()) == listOf("ar"))               // Egyptian Arabic
+    check(j.glavni(listOf("Q24841726"), listOf("Q148")) == listOf("zh"))         // Putonghua
+    check(j.glavni(listOf("Q36778", "Q9192"), listOf("Q865")) == listOf("zh"))   // tajvanski film: hokkien in mandarinscina
+    check(j.glavni(listOf("Q33845"), listOf("Q38")) == listOf("it"))             // neapeljscina: italijanska serija
+    check(j.glavni(listOf("Q178440"), emptyList()) == listOf("fa"))              // dari
+    // Prvi predmet je jezik sam; isti predmet pri vec jezikih je samo srbohrvascina.
+    val vsiPredmeti = j.JEZIKI.flatMap { it.predmeti }
+    check(vsiPredmeti.groupBy { it }.filter { it.value.size > 1 }.keys == setOf("Q9301"))
+    check(listOf("en", "de", "pt", "zh", "ar").map { j.poKodi(it)!!.predmeti[0] } == listOf("Q1860", "Q188", "Q5146", "Q7850", "Q13955"))
+    // Seznam naslovov v jeziku vpraša tudi po razlicicah.
+    check(j.poizvedbaSeznam(j.poKodi("pt")!!, "movie").contains("VALUES ?jezik { wd:Q5146 wd:Q750553 }"))
     // Jezik, ki ga izbira ne ponuja, ali brez jezika: ne vemo.
     check(j.glavni(listOf("Q123456789"), listOf("Q30")).isEmpty() && j.glavni(emptyList(), listOf("Q30")).isEmpty())
 
