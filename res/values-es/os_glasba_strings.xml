@@ -239,6 +239,9 @@
     <string name="os_predaja_zavrni">Rechazar</string>
     <string name="os_media_kanali_virov">Canales de tus fuentes</string>
     <string name="os_zvrst_vse">Todos los géneros</string>
+    <string name="os_jezik_vsi">Todos los idiomas</string>
+    <string name="os_jezik_vsebine">Idioma del contenido</string>
+    <string name="os_jezik_ni_vsebine">Aquí no hay nada en este idioma.</string>
     <string name="os_zvrst_akcija">Acción</string>
     <string name="os_zvrst_komedija">Comedia</string>
     <string name="os_zvrst_drama">Drama</string>

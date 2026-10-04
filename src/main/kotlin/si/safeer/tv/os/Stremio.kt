@@ -343,6 +343,17 @@ object Stremio {
             rating = m.optString("imdbRating").toDoubleOrNull() ?: 0.0)
     }
 
+    /**
+     * Kartica naslova, ki ga poznamo samo po id-ju IMDb (seznam naslovov v izbranem jeziku): enaka kot kartica javnega
+     * kataloga Cinemeta - podrobnosti, epizode in tokovi gredo po isti poti.
+     */
+    fun vnosPoImdb(tip: String, imdb: String, naslov: String, leto: Int, jezik: String = ""): Jamendo.Skladba {
+        val osnova = osnova(CINEMETA)
+        return Jamendo.Skladba(PREDPONA + tip + "|" + imdb + "|" + osnova, naslov, if (leto > 0) leto.toString() else "",
+            "https://images.metahub.space/poster/small/$imdb/img", "", "$osnova/meta/${enc(tip)}/${enc(imdb)}.json",
+            video = true, mediaType = if (tip == "movie") "movie" else "tvseries", year = leto, imdbId = imdb, language = jezik)
+    }
+
     /** Slika vnosa: plakat, sicer logotip, ozadje ali slicica - katerokoli sliko dodatek poda, raje kot prazno kartico. */
     internal fun slikaVnosa(m: JSONObject): String =
         listOf("poster", "logo", "background", "thumbnail", "image", "icon").firstNotNullOfOrNull { k ->

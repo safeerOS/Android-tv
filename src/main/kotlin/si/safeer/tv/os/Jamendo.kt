@@ -55,16 +55,23 @@ object Jamendo {
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)
 
-    /** Najbolj poslusane skladbe (razvrscene po priljubljenosti). */
-    fun priljubljene(stevilo: Int = 48): List<Skladba> =
+    /**
+     * Najbolj poslusane skladbe (razvrscene po priljubljenosti). [jezik] (ISO 639-1) = samo skladbe z besedilom v tem
+     * jeziku (Jamendo jih izbere sam; preverjeno 4. 10. 2026).
+     */
+    fun priljubljene(stevilo: Int = 48, jezik: String = ""): List<Skladba> {
+        val poizvedba = "order=popularity_total&limit=$stevilo" + jezikPoizvedbe(jezik)
         // Jamendo obcasno vrne prazen seznam (preverjeno na tablici 21. 9. 2026); drugi poskus ga dobi.
-        skladbe("order=popularity_total&limit=$stevilo").ifEmpty { Thread.sleep(800); skladbe("order=popularity_total&limit=$stevilo") }.distinctBy { it.id }.take(stevilo)
-
+        return skladbe(poizvedba).ifEmpty { Thread.sleep(800); skladbe(poizvedba) }.distinctBy { it.id }.take(stevilo)
+    }
 
     /** Popularna glasba po zvrsti. Jamendo tags uporablja kot vsebinski signal; ce zvrst nima rezultatov, vrne prazen seznam. */
-    fun poZvrsti(zvrst: String, stevilo: Int = 18): List<Skladba> =
-        try { skladbe("tags=${kodiraj(zvrst)}&order=popularity_total&limit=$stevilo").distinctBy { it.id }.take(stevilo) }
+    fun poZvrsti(zvrst: String, stevilo: Int = 18, jezik: String = ""): List<Skladba> =
+        try { skladbe("tags=${kodiraj(zvrst)}&order=popularity_total&limit=$stevilo" + jezikPoizvedbe(jezik)).distinctBy { it.id }.take(stevilo) }
         catch (_: Exception) { emptyList() }
+
+    private val KODA_JEZIKA = Regex("^[a-z]{2}$")
+    private fun jezikPoizvedbe(jezik: String) = if (KODA_JEZIKA.matches(jezik)) "&lang=$jezik" else ""
 
     /** Skladbe izvajalca, najbolj poslusane najprej. */
     fun odIzvajalca(id: String): List<Skladba> =
@@ -93,11 +100,13 @@ object Jamendo {
     }
 
     private fun skladbe(poizvedba: String): List<Skladba> {
-        val r = zahteva("/tracks/?$poizvedba&audioformat=mp32").optJSONArray("results") ?: return emptyList()
+        // musicinfo: jezik besedila skladbe (za filter po jeziku vsebine); instrumentalne ga nimajo.
+        val r = zahteva("/tracks/?$poizvedba&audioformat=mp32&include=musicinfo").optJSONArray("results") ?: return emptyList()
         return (0 until r.length()).map { r.getJSONObject(it) }.map {
             Skladba(it.optString("id"), it.optString("name"), it.optString("artist_name"),
                 it.optString("image").ifBlank { it.optString("album_image") }, it.optString("audio"),
-                it.optString("shorturl").ifBlank { it.optString("shareurl") })
+                it.optString("shorturl").ifBlank { it.optString("shareurl") },
+                language = it.optJSONObject("musicinfo")?.optString("lang").orEmpty().takeIf { j -> KODA_JEZIKA.matches(j) }.orEmpty())
         }.filter { it.zvok.startsWith("https://") }
     }
 

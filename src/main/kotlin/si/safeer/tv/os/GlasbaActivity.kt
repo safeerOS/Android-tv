@@ -1068,7 +1068,7 @@ class GlasbaActivity : OsActivity() {
         // Na plosci je velik "zdaj se predvaja"; mala vrstica spodaj je samo v razdelkih.
         vrstica.visibility = if (i == DOMOV || GlasbaStoritev.trenutna() == null) View.GONE else View.VISIBLE
         // Video se odpre naravnost v mrezo plakatov (Filmi ali Serije, zadnja izbira) - brez polic vmes (lastnik, 2. 10. 2026).
-        if (i == VIDEO && i !in samoTaNaprava) videoNacin().takeIf { it.isNotEmpty() }?.let { ++nalaganje; odpriBrskanje(it, videoZvrst); return }
+        if (i == VIDEO && i !in samoTaNaprava) videoNacin().takeIf { it.isNotEmpty() }?.let { ++nalaganje; odpriBrskanje(it, videoZvrst, videoJezik); return }
         val moje = ++nalaganje
         val predpomnjeno = SEZNAMI[i]
         if (predpomnjeno != null) { prikazi(i, predpomnjeno); return }
@@ -1114,7 +1114,8 @@ class GlasbaActivity : OsActivity() {
         val jeziki = izklopljeniJeziki(i).sorted().joinToString("") { "${it.length}:$it" }
         // Nova razlicica zavrze police z blokiranimi ali sumljivimi PeerTube videi.
         val peertube = if (i == DOMOV || i == VIDEO) ":pt4" else ""
-        return "police:$i:${resources.configuration.locales[0].toLanguageTag()}:r${razvrstitev(i)}:l${i in samoTaNaprava}:f$skriti:j$jeziki$peertube"
+        val glasba = if (i == GLASBA && glasbaJezik.isNotEmpty()) ":g$glasbaJezik" else ""
+        return "police:$i:${resources.configuration.locales[0].toLanguageTag()}:r${razvrstitev(i)}:l${i in samoTaNaprava}:f$skriti:j$jeziki$peertube$glasba"
     }
 
     private fun izklopljeniJeziki(i: Int): Set<String> =
@@ -1196,7 +1197,8 @@ class GlasbaActivity : OsActivity() {
         val zg = zgoraj(i); val c2 = android.os.SystemClock.uptimeMillis()
         val vr = vVrste(filtrirani); val c3 = android.os.SystemClock.uptimeMillis()
         val gl = glavaRazdelka(i, podatki); val c4 = android.os.SystemClock.uptimeMillis()
-        narisi(zg + vr, opis(i), glava = gl)
+        if (i == GLASBA && glasbaJezik.isNotEmpty() && vr.isEmpty()) narisi(zg + vr, opis(i), getString(R.string.os_jezik_ni_vsebine), gl)
+        else narisi(zg + vr, opis(i), glava = gl)
         if (i == VIDEO) skociNaDodatek?.let { naslov ->
             val ime = Stremio.imeIzPredpomnilnika(naslov)
             if (ime != null) {
@@ -1239,13 +1241,16 @@ class GlasbaActivity : OsActivity() {
             // popularen izbor, nato zvrsti. Posamezna skladba se med vrstami prikaze samo enkrat.
             val uporabljeni = mutableSetOf<String>()
             fun unikatne(s: List<Jamendo.Skladba>, meja: Int = 18) = s.filter { uporabljeni.add(it.id) }.take(meja)
+            // Izbran jezik: Jamendo skladbe izbere sam (jezik besedila); iz ostalih virov ostane, kar jezik pove in se ujema.
+            val jezik = glasbaJezik
+            fun vJeziku(s: List<Jamendo.Skladba>) = if (jezik.isEmpty()) s else s.filter { JezikiVsebine.oznaka(it.language) == jezik }
             val vrste = mutableListOf<Podatki>()
-            val vsebinaVirov = SpletniVir.priljubljeno(this, MedijskiViri.vsi(this).filter { jeVirViden(i, kljucVira(it)) })
+            val vsebinaVirov = vJeziku(SpletniVir.priljubljeno(this, MedijskiViri.vsi(this).filter { jeVirViden(i, kljucVira(it)) }))
             val videospoti = vsebinaVirov.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.VIDEOSPOT }
             val avdioViri = vsebinaVirov.filterNot { it.video || SpletniVir.vrstaVsebine(it) == SpletniVir.VIDEOSPOT }
 
             // Glasbeni dodatki uporabnika (albumi, skladbe, seznami, podkasti): njegova izbira je pred vgrajenimi viri.
-            vrste += policeDodatkov(i, Stremio.GLASBA)
+            vrste += policeDodatkov(i, Stremio.GLASBA).map { it.copy(skladbe = vJeziku(it.skladbe)) }.filter { it.skladbe.isNotEmpty() }
             avdioViri.takeIf { it.isNotEmpty() }?.let {
                 vrste += Podatki(getString(R.string.os_media_prilj_v_virih), it)
             }
@@ -1253,12 +1258,12 @@ class GlasbaActivity : OsActivity() {
                 vrste += Podatki(getString(R.string.os_media_videospoti), it, video = true)
             }
             if (jeVirViden(i, VIR_JAMENDO)) {
-                unikatne(Jamendo.priljubljene(24), 18).takeIf { it.isNotEmpty() }?.let {
+                unikatne(Jamendo.priljubljene(24, jezik), 18).takeIf { it.isNotEmpty() }?.let {
                     vrste += Podatki(getString(R.string.os_media_popularno), it)
                 }
                 // Po glasbenih zvrsteh, kot filmi po zanrih (police nalozimo vzporedno).
                 val poZvrsteh = ZVRSTI.filter { it.first.isNotEmpty() }.map { z ->
-                    java.util.concurrent.CompletableFuture.supplyAsync { z.third to Jamendo.poZvrsti(z.first, 18) }
+                    java.util.concurrent.CompletableFuture.supplyAsync { z.third to Jamendo.poZvrsti(z.first, 18, jezik) }
                 }.map { it.get() }
                 poZvrsteh.forEach { (naziv, skladbe) ->
                     unikatne(skladbe).takeIf { it.isNotEmpty() }?.let { vrste += Podatki(getString(naziv), it) }
@@ -1409,7 +1414,12 @@ class GlasbaActivity : OsActivity() {
                                /** Zaporedne strani brez nove vsebine (filter zvrsti na nasi strani): po treh nehamo nalagati. */
                                var prazne: Int = 0,
                                /** Mreza enega (zasebnega) dodatka: njegov naslov; iskanje, odprto od tu, isce samo v njem. */
-                               val dodatek: String = "") {
+                               val dodatek: String = "",
+                               /** Mreza Filmi | Serije: izbrani jezik vsebine (ISO 639-1); prazno = vsi jeziki. */
+                               val jezik: String = "") {
+        /** Seznam naslovov v izbranem jeziku ([IzvirniJeziki.seznam]): koliko smo jih ze prosili in ali jih je se kaj. */
+        var jezikOdmik = 0
+        var jezikSeKaj = false
         /** Polica »Na tvojih napravah« nad mrezo zasebnega dodatka: njegovi prenosi na napravah v Linku (samo tu). */
         var prenosi: List<Jamendo.Skladba> = emptyList()
         /** Koliko naslovov te mreze se preverjamo pri dodatkih, ker nanje caka okno. */
@@ -1547,8 +1557,11 @@ class GlasbaActivity : OsActivity() {
     /** Zadnja izbira v razdelku Video: "movie" (privzeto) ali "series" = mreza plakatov, "" = police (Zate, na napravi, prenosi). */
     private fun videoNacin(): String = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString("video_nacin", "movie") ?: "movie"
     private fun shraniVideoNacin(n: String) = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit().putString("video_nacin", n).apply()
-    /** Izbrana zvrst ostane, dokler je aplikacija odprta (vrnitev v Video pokaze isto mrezo). */
+    /** Izbrana zvrst in jezik ostaneta, dokler je aplikacija odprta (vrnitev v Video pokaze isto mrezo). */
     private var videoZvrst = ""
+    private var videoJezik = ""
+    /** Glasba: izbrani jezik besedila skladb (ISO 639-1); prazno = vsi jeziki. */
+    private var glasbaJezik = ""
 
     private fun naloziVecKataloga(naslov: String, samodejno: Boolean = false) {
         val o = odprtKatalog ?: return
@@ -1562,19 +1575,29 @@ class GlasbaActivity : OsActivity() {
         delavec.execute {
             // Naslednja stran vsakega kataloga (skip = kolikor je ta katalog ze dal), vse hkrati.
             val katalogi = o.katalogi.filter { (o.preneseno[it] ?: 0) > 0 }
+            val seznamJezika = if (o.jezikSeKaj) iskanjeDelavec.submit<Pair<List<Jamendo.Skladba>, Boolean>?> { try { naslovniJezika(o.jezik, o.tip, o.jezikOdmik) } catch (_: Exception) { null } } else null
             val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, zvrst, o.preneseno[k] ?: 0) } catch (_: Exception) { 0 to emptyList() } } }
                 .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { 0 to emptyList<Jamendo.Skladba>() } }
-            val nove = prepleti(strani.map { it.second })
+            // Jezik za vse kataloge skupaj (isti naslov je v vec katalogih): eno vprasanje namesto dvanajstih.
+            val izKatalogov = vJeziku(prepleti(strani.map { it.second }), o.jezik)
+            val izSeznama = try { seznamJezika?.get(30, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
+            val nove = izSeznama?.first.orEmpty() + izKatalogov
             glavna.post {
                 o.nalagam = false
                 if (isFinishing || odprtKatalog !== o) return@post
                 katalogi.zip(strani).forEach { (k, v) -> o.preneseno[k] = (o.preneseno[k] ?: 0) + v.first }
+                if (seznamJezika != null) {
+                    // Brez odgovora (izpad) ostanemo na isti strani seznama: naslednjic poskusimo znova.
+                    if (izSeznama != null) { o.jezikOdmik += IzvirniJezik.STRAN_SEZNAMA; o.jezikSeKaj = izSeznama.second }
+                }
                 val znani = vsi.map { it.id }.toSet()
                 // Nov vnos, ki je ista vsebina kot ze prikazana kartica, se vanjo zdruzi (ni nove kartice).
                 val sveze = SpletniVir.zdruziEnako(vsi + nove.filter { it.id !in znani }).filter { g -> g.none { it.id in znani } }.map { it.first() }
                 vsi += sveze
                 o.prazne = if (sveze.isEmpty()) o.prazne + 1 else 0
-                o.seKaj = strani.any { it.first >= STRAN_KATALOGA_MIN } && (sveze.isNotEmpty() || (zvrst != null && o.prazne < 3))
+                // Filter na nasi strani (zvrst, jezik): stran brez ustreznih naslovov se ni konec - po treh praznih nehamo.
+                o.seKaj = o.jezikSeKaj || (strani.any { it.first >= STRAN_KATALOGA_MIN } &&
+                    (sveze.isNotEmpty() || ((zvrst != null || o.jezik.isNotEmpty()) && o.prazne < 3)))
                 // Mreza se narise znova: ostanemo tam, kjer smo bili (ob gumbu Nalozi vec), ne na vrhu.
                 val y = drsnik.scrollY
                 narisiKatalog(naslov)
@@ -1598,6 +1621,32 @@ class GlasbaActivity : OsActivity() {
         return stran.size to (if (zvrst == null || moznost.isNotEmpty()) stran else stran.filter { zvrst.ustreza(it) })
     }
 
+    /**
+     * Kartice v izbranem jeziku. Jezik, ki ga vir pove sam (PeerTube, javna last, spletni viri), velja; pri naslovih z
+     * id-jem IMDb velja izvirni jezik naslova ([IzvirniJeziki], Wikidata). Naslov z neznanim jezikom izpade - izbira
+     * »angleščina« ne sme kazati filmov, za katere ne vemo, v katerem jeziku so. Klic iz ozadja (omrezje).
+     */
+    private fun vJeziku(kartice: List<Jamendo.Skladba>, jezik: String): List<Jamendo.Skladba> {
+        if (jezik.isEmpty() || kartice.isEmpty()) return kartice
+        val vprasaj = kartice.filter { it.language.isBlank() && it.imdbId.isNotBlank() }.map { it.imdbId }
+        val znani = if (vprasaj.isEmpty()) emptyMap() else try { IzvirniJeziki.jeziki(applicationContext, vprasaj) } catch (_: Exception) { emptyMap() }
+        return kartice.filter { s ->
+            if (s.language.isNotBlank()) JezikiVsebine.oznaka(s.language) == jezik else jezik in znani[s.imdbId].orEmpty()
+        }
+    }
+
+    /** Stran naslovov v izbranem jeziku po prepoznavnosti (Wikidata): kartice in ali je se kaj; null = brez odgovora. */
+    private fun naslovniJezika(jezik: String, tip: String, odmik: Int): Pair<List<Jamendo.Skladba>, Boolean>? =
+        IzvirniJeziki.seznam(applicationContext, jezik, tip, odmik)?.let { s -> s.naslovi.map { Stremio.vnosPoImdb(tip, it.imdb, it.naslov, it.leto, jezik) } to s.seKaj }
+
+    /** Jeziki za izbiro: jezik vmesnika in angleščina na vrhu, ostali po abecedi; imena v jeziku vmesnika. */
+    private fun jezikiIzbire(kode: List<String>): List<Pair<String, String>> {
+        val vmesnik = resources.configuration.locales[0]
+        fun ime(k: String) = Locale.forLanguageTag(k).getDisplayLanguage(vmesnik).replaceFirstChar { it.titlecase(vmesnik) }
+        val prvi = listOf(vmesnik.language, "en").distinct().filter { it in kode }
+        return (prvi + kode.filter { it !in prvi }.sortedWith(compareBy(Collator.getInstance(vmesnik)) { ime(it) })).map { it to ime(it) }
+    }
+
     // ------------------------------------------------------------------ Filmi | Serije: mreza plakatov z zvrstmi
 
     /**
@@ -1605,19 +1654,20 @@ class GlasbaActivity : OsActivity() {
      * razvrstitvijo - kot na racunalniku in kot uporabniki poznajo iz drugih predvajalnikov (lastnik, 2. 10. 2026).
      * Uporabnik ne izbira vira: isti film iz vec virov je ena kartica.
      */
-    private fun odpriBrskanje(tip: String, zvrstKljuc: String = "") {
+    private fun odpriBrskanje(tip: String, zvrstKljuc: String = "", jezik: String = "") {
         val naslov = getString(if (tip == "movie") R.string.os_media_filmi else R.string.os_media_serije)
-        val o = OdprtKatalog(emptyList(), mutableListOf(), HashMap(), false, tip, zvrstKljuc, naslov, nalagam = true)
+        val o = OdprtKatalog(emptyList(), mutableListOf(), HashMap(), false, tip, zvrstKljuc, naslov, nalagam = true, jezik = jezik)
         odprtKatalog = o
         odprtKatalogIz = VIDEO
         // Nic cakanja: zadnja znana mreza (pomnilnik, sicer disk) je na zaslonu takoj; sveza vsebina jo zamenja le, ce je drugacna.
-        val kljuc = "brskanje:$tip:$zvrstKljuc:${resources.configuration.locales[0].toLanguageTag()}"
+        val kljuc = "brskanje:$tip:$zvrstKljuc:${resources.configuration.locales[0].toLanguageTag()}" + (if (jezik.isEmpty()) "" else ":j$jezik")
         BRSKANJE[kljuc]?.let { o.vsi += it }
         drsnik.scrollTo(0, 0)
         narisiKatalog(naslov)
         val zvrst = Zvrsti.poKljucu(zvrstKljuc)
         val vrsta = if (tip == "movie") SpletniVir.FILM else SpletniVir.SERIJA
         videoZvrst = zvrstKljuc
+        videoJezik = jezik
         delavec.execute {
             if (o.vsi.isEmpty()) {
                 val zDiska = try { MedijskiPredpomnilnik.beriPolice(this, kljuc)?.firstOrNull()?.third } catch (_: Exception) { null }
@@ -1629,13 +1679,21 @@ class GlasbaActivity : OsActivity() {
             val dodatki = MedijskiViri.vsi(this).filter { it.jeStremio && jeVirViden(VIDEO, kljucVira(it)) }.map { it.naslov }
             val katalogi = (if (dodatki.isEmpty()) emptyList() else try { Stremio.prikazniKatalogi(Stremio.zKatalogom(dodatki)) } catch (_: Exception) { emptyList() })
                 .filter { it.tip == tip && (zvrst == null || Zvrsti.moznost(zvrst, it.zvrsti) != null || "genre" !in it.obvezni) }.take(12)
+            // Izbran jezik: naslovi v tem jeziku po prepoznavnosti (Wikidata) - splosni katalogi jih na prvih straneh skoraj
+            // nimajo. Anglescine je v katalogih dovolj; ob izbrani zvrsti ostanejo katalogi (seznam zvrsti ne pozna).
+            val seznamJezika = if (jezik.isNotEmpty() && jezik != "en" && zvrst == null)
+                iskanjeDelavec.submit<Pair<List<Jamendo.Skladba>, Boolean>?> { try { naslovniJezika(jezik, tip, 0) } catch (_: Exception) { null } } else null
             val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, zvrst) } catch (_: Exception) { 0 to emptyList() } } }
                 .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { 0 to emptyList<Jamendo.Skladba>() } }
-            val izKatalogov = prepleti(strani.map { it.second })
+            // Jezik za vse kataloge skupaj (isti naslov je v vec katalogih): eno vprasanje namesto dvanajstih.
+            val vJezikuKatalogov = vJeziku(prepleti(strani.map { it.second }), jezik)
+            // Na seznam jezika cakamo kratko: pocasen odgovor (velik jezik prvic) ne sme zadrzati mreze - pride z »Naloži več«.
+            val izSeznama = try { seznamJezika?.get(8, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
+            val izKatalogov = izSeznama?.first.orEmpty() + vJezikuKatalogov
             // 2) Kar razdelek Video pozna iz ostalih virov (splet, PeerTube, javna last ...). Ce to se ni nalozeno, mreza
             //    ne caka: katalogi so na zaslonu takoj, ostalo se doda, ko pride.
-            fun osnova(police: List<Podatki>, vse: List<Jamendo.Skladba>?) = (police.flatMap { it.skladbe } + vse.orEmpty()).distinctBy { it.id }
-                .filter { SpletniVir.vrstaVsebine(it) == vrsta && (zvrst == null || zvrst.ustreza(it)) }
+            fun osnova(police: List<Podatki>, vse: List<Jamendo.Skladba>?) = vJeziku((police.flatMap { it.skladbe } + vse.orEmpty()).distinctBy { it.id }
+                .filter { SpletniVir.vrstaVsebine(it) == vrsta && (zvrst == null || zvrst.ustreza(it)) }, jezik)
             val znane = SEZNAMI[VIDEO] ?: prikazanePolice[VIDEO]
             // Police s predpomnilnika na disku (ali po spremembi virov) so okrnjene ali stare: vse kartice razdelka dobimo
             // v drugem koraku (podatkiRazdelka).
@@ -1654,7 +1712,10 @@ class GlasbaActivity : OsActivity() {
                 if (isFinishing || odprtKatalog !== o) return@post
                 o.katalogi = katalogi
                 katalogi.zip(strani).forEach { (k, v) -> o.preneseno[k] = v.first }
-                val seKaj = strani.any { it.first >= STRAN_KATALOGA_MIN }
+                // Seznam jezika: brez odgovora (izpad) ga »Naloži več« vpraša znova od zacetka.
+                o.jezikOdmik = if (izSeznama != null) IzvirniJezik.STRAN_SEZNAMA else 0
+                o.jezikSeKaj = seznamJezika != null && (izSeznama == null || izSeznama.second)
+                val seKaj = strani.any { it.first >= STRAN_KATALOGA_MIN } || o.jezikSeKaj
                 // Dokler ne poznamo vseh kartic razdelka (drugi korak), ostane na zaslonu tudi, kar je mreza pokazala iz
                 // predpomnilnika (filmi javne lasti ...): sicer bi izginilo in se cez nekaj sekund spet pojavilo.
                 val nove = if (popolne) vsi else { val znani = vsi.map { it.id }.toSet(); vsi + o.vsi.filter { it.id !in znani } }
@@ -1712,21 +1773,31 @@ class GlasbaActivity : OsActivity() {
         vsi(razdelki)
     }
 
-    /** Glava mreze Filmi | Serije: (v Medijskem centru se razdelki) in tri izbire - vrsta, razvrstitev, zvrst. */
+    /** Glava mreze Filmi | Serije: (v Medijskem centru se razdelki) in stiri izbire - vrsta, razvrstitev, zvrst, jezik. */
     private fun glavaBrskanja(o: OdprtKatalog): List<View> =
         (if (vlc) emptyList() else listOf(razdelkiVrstica(VIDEO))) + listOf(videoIzbire(o))
 
     /**
      * Izbire razdelka Video v eni vrstici, kot Discover v drugih predvajalnikih (lastnik, 2. 10. 2026):
-     * [Filmi ▾] [Priporoceno ▾] [Vse zvrsti ▾]. Na telefonu enako siroke cez ves zaslon. Pri policah (Zate)
-     * je samo prva, da se uporabnik vrne v mrezo.
+     * [Filmi ▾] [Priporoceno ▾] [Vse zvrsti ▾] [Vsi jeziki ▾]. Na telefonu sta vrstici dve (po dve enako siroki
+     * izbiri cez ves zaslon); na sirsih zaslonih so stiri enako siroke cez razpolozljivo sirino (najvec 200 dp vsaka),
+     * da so na televizorju in tablici vse na zaslonu brez drsenja. Pri policah (Zate) je samo prva, da se uporabnik
+     * vrne v mrezo.
      */
     private fun videoIzbire(o: OdprtKatalog?): View {
         val ozek = ozekZaslon()
-        val niz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, dp(12)) }
-        fun izbira(kljuc: String, moznosti: List<String>, izbrana: Int, naslovOkna: String?, obIzbiri: (Int) -> Unit) {
-            val prva = niz.childCount == 0
-            niz.addView(LinearLayout(this).apply {
+        val niz = (if (!ozek && o != null) object : LinearLayout(this) {
+            override fun onMeasure(sirina: Int, visina: Int) {
+                val najvec = dp(4 * 200 + 3 * 8)
+                val omejena = View.MeasureSpec.getMode(sirina) != View.MeasureSpec.UNSPECIFIED && View.MeasureSpec.getSize(sirina) > najvec
+                super.onMeasure(if (omejena) View.MeasureSpec.makeMeasureSpec(najvec, View.MeasureSpec.EXACTLY) else sirina, visina)
+            }
+        } else LinearLayout(this)).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, dp(12)) }
+        // Telefon: stiri izbire v eni vrstici bi bile preozke za napis - druga vrstica (zvrst, jezik) pride pod prvo.
+        val druga = if (ozek && o != null) LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 0, 0, dp(12)) } else null
+        fun izbira(kljuc: String, moznosti: List<String>, izbrana: Int, naslovOkna: String?, cilj: LinearLayout = niz, obIzbiri: (Int) -> Unit) {
+            val prva = cilj.childCount == 0
+            cilj.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                 tag = "k:$kljuc"; isFocusable = true; isClickable = true
                 setPadding(dp(if (ozek) 10 else 12), dp(10), dp(if (ozek) 8 else 10), dp(10))
@@ -1749,7 +1820,8 @@ class GlasbaActivity : OsActivity() {
                         .setSingleChoiceItems(moznosti.toTypedArray(), izbrana) { d, i -> d.dismiss(); if (i != izbrana) obIzbiri(i) }
                         .setNegativeButton(android.R.string.cancel, null).show()
                 }
-            }, LinearLayout.LayoutParams(if (ozek && o != null) 0 else dp(if (ozek) 150 else 200), -2, if (ozek && o != null) 1f else 0f).apply { if (!prva) marginStart = dp(8) })
+            // Mreza: izbire so enako siroke in si razdelijo vrstico; sama prva (police Zate) ima svojo sirino.
+            }, LinearLayout.LayoutParams(if (o != null) 0 else dp(if (ozek) 150 else 200), -2, if (o != null) 1f else 0f).apply { if (!prva) marginStart = dp(8) })
         }
         // 1) Kaj: Filmi | Serije (mreza) | Zate (police: nadaljuj, na napravi, prenosi, priporocila).
         val nacini = listOf("movie", "series", "")
@@ -1757,7 +1829,7 @@ class GlasbaActivity : OsActivity() {
             nacini.indexOf(o?.tip.orEmpty()), null) { i ->
             shraniVideoNacin(nacini[i])
             fokusVVsebino = false
-            if (nacini[i].isEmpty()) { odprtKatalog = null; izberi(VIDEO) } else odpriBrskanje(nacini[i], o?.zvrst ?: videoZvrst)
+            if (nacini[i].isEmpty()) { odprtKatalog = null; izberi(VIDEO) } else odpriBrskanje(nacini[i], o?.zvrst ?: videoZvrst, o?.jezik ?: videoJezik)
         }
         if (o != null) {
             // 2) Razvrstitev.
@@ -1771,12 +1843,22 @@ class GlasbaActivity : OsActivity() {
             }
             // 3) Zvrst.
             izbira("zvrst", listOf(getString(R.string.os_zvrst_vse)) + Zvrsti.VSE.map { getString(it.ime) },
-                Zvrsti.VSE.indexOfFirst { it.kljuc == o.zvrst } + 1, null) { i ->
-                odpriBrskanje(o.tip, if (i == 0) "" else Zvrsti.VSE[i - 1].kljuc)
+                Zvrsti.VSE.indexOfFirst { it.kljuc == o.zvrst } + 1, null, druga ?: niz) { i ->
+                odpriBrskanje(o.tip, if (i == 0) "" else Zvrsti.VSE[i - 1].kljuc, o.jezik)
+            }
+            // 4) Jezik vsebine (izvirni jezik naslova).
+            val jeziki = jezikiIzbire(IzvirniJezik.KODE)
+            izbira("jezik", listOf(getString(R.string.os_jezik_vsi)) + jeziki.map { it.second },
+                jeziki.indexOfFirst { it.first == o.jezik } + 1, getString(R.string.os_jezik_vsebine), druga ?: niz) { i ->
+                odpriBrskanje(o.tip, o.zvrst, if (i == 0) "" else jeziki[i - 1].first)
             }
         }
-        // Telefon: vrstica je natanko siroka kot vsebina (tri enake izbire, nic ne gleda cez rob); sirsi zasloni: naravna sirina.
-        if (ozek) return niz
+        // Vrstici sta natanko siroki kot vsebina (enake izbire, nic ne gleda cez rob); sama prva izbira: naravna sirina.
+        if (druga != null) {
+            niz.setPadding(0, dp(6), 0, dp(8))
+            return LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; addView(niz); addView(druga) }
+        }
+        if (ozek || o != null) return niz
         return HorizontalScrollView(this).apply { addView(niz, android.view.ViewGroup.LayoutParams(-2, -2)); isHorizontalScrollBarEnabled = false; clipToPadding = false }
     }
 
@@ -1881,7 +1963,7 @@ class GlasbaActivity : OsActivity() {
         // Zavihki spodaj nadomestijo kartice razdelkov; razvrscanje je v meniju ⋮ (kot pri VLC).
         DOMOV -> listOfNotNull(zdajPlosca())
         VIDEO -> listOfNotNull(dovoljenjeKartica(i), videoIzbire(null))
-        GLASBA -> listOfNotNull(dovoljenjeKartica(i), skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 })
+        GLASBA -> listOfNotNull(dovoljenjeKartica(i), glasbaVrstica(podatki))
         RADIO, TV_V_ZIVO -> listOfNotNull(skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 })
         else -> emptyList()
     } else when (i) {
@@ -1891,7 +1973,8 @@ class GlasbaActivity : OsActivity() {
             poveziIzbiro(razdelki, izbire, razvrsti)
             listOf(razdelki, izbire, razvrsti)
         }
-        GLASBA, RADIO, TV_V_ZIVO -> listOfNotNull(
+        GLASBA -> listOf(razdelkiVrstica(i), razvrstiInFiltrirajGumb(i), glasbaVrstica(podatki))
+        RADIO, TV_V_ZIVO -> listOfNotNull(
             razdelkiVrstica(i),
             razvrstiInFiltrirajGumb(i),
             skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 }
@@ -1986,14 +2069,42 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
-    /** Vrstica zvrsti (Glasba, Radio) ali drzav (TV v zivo): klik skoci na polico, kot zanri pri filmih. */
-    private fun skokNaPolico(naslovi: List<String>): View {
+    /**
+     * Glasba: izbira jezika vsebine (jezik besedila skladb) in za njo zvrsti - »poleg zvrsti« (lastnik, 4. 10. 2026).
+     * Izbira ostane na zaslonu tudi, kadar v izbranem jeziku ni nicesar: uporabnik jo mora imeti, da se vrne.
+     */
+    private fun glasbaVrstica(podatki: List<Podatki>): View {
+        val jeziki = jezikiIzbire(IzvirniJezik.KODE)
+        val izbran = jeziki.indexOfFirst { it.first == glasbaJezik } + 1
+        val moznosti = listOf(getString(R.string.os_jezik_vsi)) + jeziki.map { it.second }
+        val jezik = besedilo(14f, osBarva(if (izbran > 0) R.color.os_mint else R.color.os_besedilo), true).apply {
+            text = moznosti[izbran] + "  ▾"; tag = "k:jezik"; isFocusable = true; isClickable = true
+            setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
+            setOnClickListener {
+                AlertDialog.Builder(this@GlasbaActivity).setTitle(R.string.os_jezik_vsebine)
+                    .setSingleChoiceItems(moznosti.toTypedArray(), izbran) { d, i ->
+                        d.dismiss()
+                        if (i != izbran) {
+                            glasbaJezik = if (i == 0) "" else jeziki[i - 1].first
+                            SEZNAMI.remove(GLASBA); prikazanePolice.remove(GLASBA)
+                            izberi(GLASBA)
+                        }
+                    }
+                    .setNegativeButton(android.R.string.cancel, null).show()
+            }
+        }
+        return skokNaPolico(if (podatki.size > 1) podatki.map { it.naslov } else emptyList(), jezik)
+    }
+
+    /** Vrstica zvrsti (Glasba, Radio) ali drzav (TV v zivo): klik skoci na polico, kot zanri pri filmih. [spredaj] = izbira pred njimi. */
+    private fun skokNaPolico(naslovi: List<String>, spredaj: View? = null): View {
         val niz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(8), dp(16), dp(8)) }
+        spredaj?.let { it.nextFocusLeftId = meniMediji.id; niz.addView(it, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) }) }
         naslovi.forEachIndexed { i, cilj ->
             niz.addView(besedilo(14f, osBarva(R.color.os_besedilo), true).apply {
                 text = cilj; isFocusable = true; isClickable = true
                 setPadding(dp(16), dp(8), dp(16), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
-                if (i == 0) nextFocusLeftId = meniMediji.id
+                if (i == 0 && spredaj == null) nextFocusLeftId = meniMediji.id
                 setOnClickListener {
                     // Prva polica, katere naslov (brez znaka) se zacne s ciljem - tudi police dodatkov.
                     val v = vsebina.findViewWithTag<View>("polica:$cilj") ?: (0 until vsebina.childCount).map { vsebina.getChildAt(it) }
@@ -3613,7 +3724,7 @@ class GlasbaActivity : OsActivity() {
                 videniViri = SeznamiSink.viriSpremenjeni
                 SEZNAMI.clear(); BRSKANJE.clear(); VSE_VIDEO = null
                 // Odprta mreza Filmi | Serije se nalozi znova z novimi dodatki.
-                odprtKatalog?.takeIf { it.tip.isNotBlank() && razdelek == VIDEO }?.let { o -> odpriBrskanje(o.tip, o.zvrst); return@uskladi }
+                odprtKatalog?.takeIf { it.tip.isNotBlank() && razdelek == VIDEO }?.let { o -> odpriBrskanje(o.tip, o.zvrst, o.jezik); return@uskladi }
             }
             if (miruje && odprtKatalog == null && odprtSeznam.isBlank() && (noviViri || razdelek == VIRI || razdelek == GLASBA || razdelek == DOMOV)) izberiNaMestu(razdelek)
         }
@@ -4221,8 +4332,11 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Besedilo prazne mreze: katalog ima naslove, a nobenega ne predvaja noben dodatek - povemo, kaj manjka. */
-    private fun praznaMreza(o: OdprtKatalog) =
-        getString(if (o.vsi.any { znanoNiNaVoljo(it) }) R.string.os_media_ni_predvajljivih else R.string.os_glasba_prazno)
+    private fun praznaMreza(o: OdprtKatalog) = getString(when {
+        o.vsi.any { znanoNiNaVoljo(it) } -> R.string.os_media_ni_predvajljivih
+        o.jezik.isNotEmpty() -> R.string.os_jezik_ni_vsebine
+        else -> R.string.os_glasba_prazno
+    })
 
     /**
      * Ko je mreza preverjena: v strogem nacinu stran, ki ni dala nobene nove kartice, ni odgovor na "Nalozi vec" -

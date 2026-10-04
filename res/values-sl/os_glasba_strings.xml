@@ -238,6 +238,9 @@
     <string name="os_predaja_zavrni">Zavrni</string>
     <string name="os_media_kanali_virov">Kanali iz tvojih virov</string>
     <string name="os_zvrst_vse">Vse zvrsti</string>
+    <string name="os_jezik_vsi">Vsi jeziki</string>
+    <string name="os_jezik_vsebine">Jezik vsebine</string>
+    <string name="os_jezik_ni_vsebine">V tem jeziku tukaj ni vsebine.</string>
     <string name="os_zvrst_akcija">Akcija</string>
     <string name="os_zvrst_komedija">Komedija</string>
     <string name="os_zvrst_drama">Drama</string>
