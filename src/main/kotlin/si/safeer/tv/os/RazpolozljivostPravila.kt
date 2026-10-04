@@ -13,6 +13,16 @@ package si.safeer.tv.os
  * je potem polnila znova, en naslov na osem sekund (toliko poizvedb dodatek dovoli, glej Stremio.zeton).
  */
 object RazpolozljivostPravila {
+    /**
+     * Kartica iz lastne knjiznice dodatka: dodatek jo je vpisal v svoj katalog, zanjo sam daje tokove (vir "stream" za
+     * ta tip in predpono id-ja), njen id pa je samo njegov ([javniId] = false; javni id IMDb imajo tudi katalogi, ki
+     * le nastevajo znane naslove). Z vpisom v katalog je dodatek ze povedal, da jo ima, zato je ne preverjamo vnaprej:
+     * mreza je polna takoj in dodatek ne dobi poizvedbe za vsak naslov. Ce ob dotiku toka ni, kartica izgine kot
+     * vsaka druga.
+     */
+    fun lastnaKnjiznica(javniId: Boolean, viri: Set<String>, tipi: Set<String>, predpone: List<String>, tip: String, id: String): Boolean =
+        !javniId && id.isNotBlank() && "stream" in viri && (tipi.isEmpty() || tip in tipi) && (predpone.isEmpty() || predpone.any { id.startsWith(it) })
+
     const val BREZ = -1L
     const val VSE = Long.MAX_VALUE
     private const val URA = 3_600_000L

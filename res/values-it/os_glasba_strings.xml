@@ -239,6 +239,7 @@
     <string name="os_predaja_zavrni">Rifiuta</string>
     <string name="os_media_kanali_virov">Canali dalle tue fonti</string>
     <string name="os_zvrst_vse">Tutti i generi</string>
+    <string name="os_zvrst_zasebni">Privato</string>
     <string name="os_jezik_vsi">Tutte le lingue</string>
     <string name="os_jezik_vsebine">Lingua dei contenuti</string>
     <string name="os_jezik_ni_vsebine">Qui non c\'è nulla in questa lingua.</string>

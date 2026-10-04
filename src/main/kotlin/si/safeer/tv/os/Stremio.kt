@@ -286,6 +286,16 @@ object Stremio {
     fun jeZasebna(s: Jamendo.Skladba): Boolean =
         (jeEnota(s) && razstavi(s)?.first?.let { znaniZasebni[it] } == true) || KnjiznicaKroga.jeZasebenPrenos(s.id)
 
+    /**
+     * Kartica iz lastne knjiznice dodatka ([RazpolozljivostPravila.lastnaKnjiznica]) - brez omrezja; dokler manifesta
+     * dodatka ne poznamo, velja ne (kartico preverimo kot vsako drugo).
+     */
+    fun lastnaKnjiznica(s: Jamendo.Skladba): Boolean {
+        val (osnova, tip, id) = razstavi(s) ?: return false
+        val m = manifesti[osnova] ?: return false
+        return RazpolozljivostPravila.lastnaKnjiznica(DomPreverjanjePravila.veljaven(Razpolozljivost.kljuc(tip, id)), m.viri, m.tipi, m.predpone, tip, id)
+    }
+
     /** Manifeste dodatkov, ki jih se ne poznamo, prenese v ozadju (odlocitev pri usklajevanju virov med napravami). */
     fun spoznaj(naslovi: List<String>) {
         naslovi.filter { zasebenZnano(it) == null }.take(8).forEach { n ->

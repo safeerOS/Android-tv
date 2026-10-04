@@ -238,6 +238,7 @@
     <string name="os_predaja_zavrni">Decline</string>
     <string name="os_media_kanali_virov">Channels from your sources</string>
     <string name="os_zvrst_vse">All genres</string>
+    <string name="os_zvrst_zasebni">Private</string>
     <string name="os_jezik_vsi">All languages</string>
     <string name="os_jezik_vsebine">Content language</string>
     <string name="os_jezik_ni_vsebine">Nothing here in this language.</string>

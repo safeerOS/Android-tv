@@ -1656,18 +1656,22 @@ class GlasbaActivity : OsActivity() {
      */
     private fun odpriBrskanje(tip: String, zvrstKljuc: String = "", jezik: String = "") {
         val naslov = getString(if (tip == "movie") R.string.os_media_filmi else R.string.os_media_serije)
-        val o = OdprtKatalog(emptyList(), mutableListOf(), HashMap(), false, tip, zvrstKljuc, naslov, nalagam = true, jezik = jezik)
+        // Zvrst »Zasebni«: samo katalogi zasebnih dodatkov. Ne pusti sledi (ZasebniDodatki): brez predpomnilnika, izbira
+        // se ne zapomni (vrnitev v Video pokaze obicajno mrezo), jezik ne velja (zasebni katalog jezika ne pove).
+        val zasebni = zvrstKljuc == ZVRST_ZASEBNI
+        val o = OdprtKatalog(emptyList(), mutableListOf(), HashMap(), false, tip, zvrstKljuc, naslov, nalagam = true, jezik = if (zasebni) "" else jezik)
         odprtKatalog = o
         odprtKatalogIz = VIDEO
         // Nic cakanja: zadnja znana mreza (pomnilnik, sicer disk) je na zaslonu takoj; sveza vsebina jo zamenja le, ce je drugacna.
         val kljuc = "brskanje:$tip:$zvrstKljuc:${resources.configuration.locales[0].toLanguageTag()}" + (if (jezik.isEmpty()) "" else ":j$jezik")
-        BRSKANJE[kljuc]?.let { o.vsi += it }
+        if (!zasebni) BRSKANJE[kljuc]?.let { o.vsi += it }
         drsnik.scrollTo(0, 0)
         narisiKatalog(naslov)
         val zvrst = Zvrsti.poKljucu(zvrstKljuc)
         val vrsta = if (tip == "movie") SpletniVir.FILM else SpletniVir.SERIJA
-        videoZvrst = zvrstKljuc
+        videoZvrst = if (zasebni) "" else zvrstKljuc
         videoJezik = jezik
+        if (zasebni) { delavec.execute { odpriZasebne(o, tip, naslov) }; return }
         delavec.execute {
             if (o.vsi.isEmpty()) {
                 val zDiska = try { MedijskiPredpomnilnik.beriPolice(this, kljuc)?.firstOrNull()?.third } catch (_: Exception) { null }
@@ -1750,6 +1754,30 @@ class GlasbaActivity : OsActivity() {
                 narisiKatalog(naslov)
                 if (y > 0) drsnik.post { drsnik.scrollTo(0, y) }
             }
+        }
+    }
+
+    /**
+     * Mreza zvrsti »Zasebni«: prve strani katalogov zasebnih dodatkov te vrste (Filmi: vse, kar niso serije). Naprej
+     * z »Naloži več« kot pri vsaki mrezi. Klic iz delovne niti.
+     */
+    private fun odpriZasebne(o: OdprtKatalog, tip: String, naslov: String) {
+        val dodatki = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
+            .filter { (try { Stremio.zaseben(it) } catch (_: Exception) { null }) == true }
+        val katalogi = dodatki.flatMap { n -> try { Stremio.katalogiDodatka(n) } catch (_: Exception) { emptyList() } }
+            .filter { if (tip == "series") it.tip == "series" else it.tip != "series" }.take(12)
+        val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, null) } catch (_: Exception) { 0 to emptyList() } } }
+            .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { 0 to emptyList<Jamendo.Skladba>() } }
+        val vsi = SpletniVir.zdruziEnako(prepleti(strani.map { it.second })).map { it.first() }
+        glavna.post {
+            if (isFinishing || odprtKatalog !== o) return@post
+            o.katalogi = katalogi
+            katalogi.zip(strani).forEach { (k, v) -> o.preneseno[k] = v.first }
+            o.vsi.clear(); o.vsi += vsi
+            o.seKaj = strani.any { it.first >= STRAN_KATALOGA_MIN }
+            o.popolna = true
+            o.nalagam = false
+            narisiKatalog(naslov)
         }
     }
 
@@ -1841,10 +1869,13 @@ class GlasbaActivity : OsActivity() {
                 SEZNAMI.remove(VIDEO)   // police (Zate) se uredijo enako
                 narisiKatalog(o.naslov)
             }
-            // 3) Zvrst.
-            izbira("zvrst", listOf(getString(R.string.os_zvrst_vse)) + Zvrsti.VSE.map { getString(it.ime) },
-                Zvrsti.VSE.indexOfFirst { it.kljuc == o.zvrst } + 1, null, druga ?: niz) { i ->
-                odpriBrskanje(o.tip, if (i == 0) "" else Zvrsti.VSE[i - 1].kljuc, o.jezik)
+            // 3) Zvrst; na koncu »Zasebni«, ce ima uporabnik zaseben dodatek (njegovi katalogi se med ostale ne mesajo).
+            val imaZasebne = MedijskiViri.vsi(this).any { it.jeStremio && Stremio.zasebenZnano(it.naslov) == true }
+            val zvrsti = listOf(getString(R.string.os_zvrst_vse)) + Zvrsti.VSE.map { getString(it.ime) } +
+                (if (imaZasebne) listOf(getString(R.string.os_zvrst_zasebni)) else emptyList())
+            izbira("zvrst", zvrsti, if (o.zvrst == ZVRST_ZASEBNI && imaZasebne) zvrsti.size - 1 else Zvrsti.VSE.indexOfFirst { it.kljuc == o.zvrst } + 1,
+                null, druga ?: niz) { i ->
+                odpriBrskanje(o.tip, when { i == 0 -> ""; i > Zvrsti.VSE.size -> ZVRST_ZASEBNI; else -> Zvrsti.VSE[i - 1].kljuc }, o.jezik)
             }
             // 4) Jezik vsebine (izvirni jezik naslova).
             val jeziki = jezikiIzbire(IzvirniJezik.KODE)
@@ -4273,11 +4304,15 @@ class GlasbaActivity : OsActivity() {
      * prikaz naprej in se preveri znova v ozadju - mreza se ne sprazni in ne obstane.
      */
     private fun nepreverjen(sk: Jamendo.Skladba): Boolean =
-        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == null } == true
+        Stremio.jeEnota(sk) && !Stremio.lastnaKnjiznica(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == null } == true
 
     /** Naslov z znanim, a ne vec svezim odgovorom: preverimo ga znova, ko mreza nima nujnejsega dela. */
     private fun zastarel(sk: Jamendo.Skladba): Boolean =
-        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) != null && Razpolozljivost.stanje(this, it) == null } == true
+        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let {
+            val znano = Razpolozljivost.znano(this, it)
+            // »Je« kartice iz lastne knjiznice dodatka ne zastara (dodatek jo se vedno nasteva); »ni« preverimo znova.
+            znano != null && Razpolozljivost.stanje(this, it) == null && !(znano && Stremio.lastnaKnjiznica(sk))
+        } == true
 
     /**
      * Strogi nacin mreze: kartico iz dodatkov pokazemo sele, ko je preverjena (3. 10. 2026: na televizorju se je 122
@@ -4311,7 +4346,7 @@ class GlasbaActivity : OsActivity() {
         for (sk in kandidati) {
             if (izhod.size >= o.zelja) { naprej = true; break }
             val k = kljucRazpolozljivosti(sk)
-            if (k != null && Razpolozljivost.znano(this, k) == null && k !in o.neznani) {
+            if (k != null && Razpolozljivost.znano(this, k) == null && k !in o.neznani && !Stremio.lastnaKnjiznica(sk)) {
                 val r = Stremio.razstavi(sk)
                 if (r != null && Stremio.vprasaniVPremoru(dodatki, r.second, r.third)) { premor++; continue }
             }
@@ -4364,7 +4399,7 @@ class GlasbaActivity : OsActivity() {
     private fun stanjeMreze(o: OdprtKatalog, kandidati: List<Jamendo.Skladba>): StanjeMreze {
         val okno = oknoMreze(o, kandidati)
         // Okno caka samo na naslove, ki jih se ne poznamo; zastareli odgovori se osvezijo v ozadju.
-        val vOknu = okno.naslovi.any { sk -> kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == null && it !in o.neznani } == true }
+        val vOknu = okno.naslovi.any { sk -> !Stremio.lastnaKnjiznica(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == null && it !in o.neznani } == true }
         return StanjeMreze(vOknu, okno.vPremoru > 0, okno.naprej)
     }
 
@@ -4473,7 +4508,7 @@ class GlasbaActivity : OsActivity() {
         for (sk in okno) {
             if (smem <= 0) return
             val k = kljucRazpolozljivosti(sk) ?: continue
-            if (Razpolozljivost.znano(this, k) != null || k in vPreverjanju || k in o.neznani) continue
+            if (Razpolozljivost.znano(this, k) != null || k in vPreverjanju || k in o.neznani || Stremio.lastnaKnjiznica(sk)) continue
             vprasaj(sk, k, o.caka, zastarel = false)
         }
         // Delo v ozadju nikoli ne stoji pred oknom: zacne se sele, ko okno ne caka vec, in ima najvec dve poizvedbi
@@ -4531,7 +4566,7 @@ class GlasbaActivity : OsActivity() {
         val naZalogo = ArrayList<String>()
         for (sk in enote) {
             val k = kljucRazpolozljivosti(sk) ?: continue
-            if (Razpolozljivost.stanje(this, k) != null) continue
+            if (Razpolozljivost.stanje(this, k) != null || Stremio.lastnaKnjiznica(sk)) continue
             // Javni naslov: preveri ga preverjevalec doma, ko nihce ne caka (na polici kartica ne caka na odgovor).
             if (DomPreverjanjePravila.veljaven(k)) { naZalogo += k; continue }
             if (!vPreverjanju.add(k)) continue
@@ -5143,6 +5178,8 @@ class GlasbaActivity : OsActivity() {
         private const val PREDPONA_PC_PRENOSA = KnjiznicaKroga.PREDPONA_PRENOSA
         /** Naslov in plakat zasebnega prenosa: samo na napravi, ki ga je prosila, in samo za polico v zasebnem dodatku. */
         private const val PREFS_ZASEBNI_PRENOSI = "safeer_zasebni_prenosi"
+        /** Zadnja moznost izbire zvrsti pri Filmih in Serijah: katalogi zasebnih dodatkov (med ostale se ne mesajo). */
+        private const val ZVRST_ZASEBNI = "zasebni"
         private const val ZASEBNI_ZAPIS_VELJA_MS = 30L * 24 * 3_600_000
         /** Oznake kartic na polici prenosov (id kartice -> [KnjiznicaKroga.oznake]): ali naprava pozna »Obdrži« in ali je prenos obdrzan. */
         private val OZNAKE_PRENOSOV = java.util.concurrent.ConcurrentHashMap<String, String>()

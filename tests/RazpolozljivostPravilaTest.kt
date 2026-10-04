@@ -2,8 +2,27 @@ package si.safeer.tv.os
 
 import si.safeer.tv.os.RazpolozljivostPravila as P
 
+/** Lastna knjiznica dodatka: kartice iz njegovega kataloga, ki jih ne preverjamo vnaprej. */
+fun lastnaKnjiznicaTest() {
+    val p = P
+    val tokovi = setOf("catalog", "meta", "stream")
+    // Dodatek s svojimi id-ji, ki zanje sam daje tokove: njegov katalog je njegova knjiznica.
+    check(p.lastnaKnjiznica(false, tokovi, setOf("movie"), listOf("moj:"), "movie", "moj:123"))
+    check(p.lastnaKnjiznica(false, tokovi, emptySet(), emptyList(), "series", "abc"))
+    check(p.lastnaKnjiznica(false, setOf("stream"), setOf("movie", "series"), listOf("x", "moj"), "series", "moj-7"))
+    // Javni id (IMDb): katalog le nasteva znane naslove - preverimo kot doslej, tudi ce dodatek daje tokove.
+    check(!p.lastnaKnjiznica(true, tokovi, setOf("movie"), listOf("tt"), "movie", "tt0111161"))
+    // Dodatek brez tokov (samo katalog), drug tip, druga predpona, prazen id.
+    check(!p.lastnaKnjiznica(false, setOf("catalog", "meta"), setOf("movie"), listOf("moj:"), "movie", "moj:123"))
+    check(!p.lastnaKnjiznica(false, tokovi, setOf("series"), listOf("moj:"), "movie", "moj:123"))
+    check(!p.lastnaKnjiznica(false, tokovi, setOf("movie"), listOf("drug:"), "movie", "moj:123"))
+    check(!p.lastnaKnjiznica(false, tokovi, emptySet(), emptyList(), "movie", ""))
+    check(!p.lastnaKnjiznica(false, emptySet(), emptySet(), emptyList(), "movie", "moj:1"))
+}
+
 /** Pravila razpolozljivosti: meje po zmoznosti naprave, svezina, zdruzevanje, stari zapisi, sprememba dodatkov. */
 fun main() {
+    lastnaKnjiznicaTest()
     val ura = 3_600_000L
     val zdaj = 1_800_000_000_000L
     val gb = 1024L * 1024 * 1024
