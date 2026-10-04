@@ -287,6 +287,19 @@ class ChromiumEngineView @JvmOverloads constructor(
                         "https://*.googlevideo.com"
                     )
                 )
+                // YouTube brez cakanja na oglas: mora teci pred skriptami strani (assets/youtube_zacetek.js).
+                UserScriptManager.youtubeZacetekJs(context).takeIf { it.isNotEmpty() }?.let { js ->
+                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
+                        this,
+                        js,
+                        setOf(
+                            "https://*.youtube.com",
+                            "https://youtube.com",
+                            "https://*.youtube-nocookie.com",
+                            "https://youtube-nocookie.com"
+                        )
+                    )
+                }
             }
         } catch (_: Exception) {}
 
@@ -307,6 +320,17 @@ class ChromiumEngineView @JvmOverloads constructor(
      */
     @Volatile
     private var uniceno = false
+
+    /**
+     * Posnetek, ki ga uporabnik odpre s strani YouTuba (dotik na zadetek, naslednji posnetek), zacne sam. Na dotik je
+     * za predvajanje sicer potreben dotik; stran posnetka pa se nalozi kot nova stran (assets/youtube_zacetek.js) in
+     * dotik s prejsnje strani zanjo ne velja. Naslov, ki ga odpre aplikacija (obnovljen zavihek, povezava od drugod),
+     * ostane pri pravilu dotika - zvok se ne zacne sam od sebe.
+     */
+    private var youtubeSamodejno = false
+
+    /** Tece obravnava navigacije strani (shouldOverrideUrlLoading): loadUrl od tam ni naslov »od zunaj«. */
+    private var vNavigacijiStrani = false
 
     /** Odprto vprasanje "Dodam Stremio dodatek?" (samo eno naenkrat). */
     private var stremioOkno: android.app.AlertDialog? = null
@@ -372,7 +396,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
-        settings.mediaPlaybackRequiresUserGesture = dotik && !mobilniPogled
+        settings.mediaPlaybackRequiresUserGesture = dotik && !mobilniPogled && !youtubeSamodejno
         settings.setNeedInitialFocus(false)
         // Mesane vsebine kot v Chromu: skripte in okvirji po http v strani https so prepovedani,
         // slike, zvok in video pa se nalozijo (Chromium jih po moznosti nadgradi na https).
@@ -395,6 +419,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
         val sanitized = UrlSanitizer.sanitize(url)
         val target = if (dotik) YoutubeNaDotik.prevedi(sanitized) else rewriteYoutubeForTv(sanitized)
+        if (!vNavigacijiStrani) youtubeSamodejno = false
         applyUserAgentForUrl(target)
         val privacyHeaders = mapOf("Sec-GPC" to "1", "DNT" to "1")
         super.loadUrl(target, privacyHeaders)
@@ -408,6 +433,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
         val sanitized = UrlSanitizer.sanitize(url)
         val target = if (dotik) YoutubeNaDotik.prevedi(sanitized) else rewriteYoutubeForTv(sanitized)
+        if (!vNavigacijiStrani) youtubeSamodejno = false
         applyUserAgentForUrl(target)
         val combinedHeaders = additionalHttpHeaders.toMutableMap()
         combinedHeaders["Sec-GPC"] = "1"
@@ -818,6 +844,12 @@ class ChromiumEngineView @JvmOverloads constructor(
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                // loadUrl, ki ga sprozi obravnava navigacije strani (ociscen naslov, preusmeritev), ni naslov »od zunaj«.
+                vNavigacijiStrani = true
+                try { return obravnavajNavigacijo(view, request) } finally { vNavigacijiStrani = false }
+            }
+
+            private fun obravnavajNavigacijo(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
                 val urlStr = uri.toString()
                 // Odhod z Googla (zadetek iskanja, tudi prek preusmeritve google.com/goto): spodaj
@@ -825,6 +857,10 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // noben zadetek se ni odprl (21. 9. 2026). Tako navigacijo na koncu sprozimo znova.
                 val zGoogla = request.isForMainFrame && urlStr.startsWith("http", ignoreCase = true) &&
                     UserScriptManager.isGoogleDomain(view?.url) && !UserScriptManager.isGoogleDomain(urlStr)
+                // S strani YouTuba na stran YouTuba (posnetek, ki ga je uporabnik izbral, ali naslednji): zacne sam.
+                if (request.isForMainFrame) {
+                    youtubeSamodejno = UserScriptManager.isYouTubeUrl(urlStr) && UserScriptManager.isYouTubeUrl(view?.url)
+                }
                 applyUserAgentForUrl(urlStr)
                 val isMainFrame = request.isForMainFrame
 
@@ -1039,10 +1075,22 @@ class ChromiumEngineView @JvmOverloads constructor(
                     DashPrevzem.resetAll()
                 }
                 url?.let {
+                    if (!UserScriptManager.isYouTubeUrl(it)) youtubeSamodejno = false
                     applyUserAgentForUrl(it)
                     onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                 }
+            }
+
+            /**
+             * Navigacija znotraj strani (history.pushState, #sidro) ne sprozi onPageStarted: naslovna vrstica je
+             * ostala pri starem naslovu (4. 10. 2026: »m.youtube.com/#searching« ob odprtem posnetku).
+             */
+            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                super.doUpdateVisitedHistory(view, url, isReload)
+                val naslov = url ?: return
+                if (isReload || !naslov.startsWith("http", ignoreCase = true)) return
+                onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(naslov))
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {

@@ -441,7 +441,9 @@ object UserScriptManager {
                         // 🚫 Takojšen preskok oglasa v 0s
                         if (isAd) {
                             video.muted = true;
-                            if (isFinite(video.duration) && video.duration > 0) {
+                            // Samo nalozen oglas: cas, nastavljen pred nalaganjem, velja za NASLEDNJI vir - posnetek se je
+                            // po blokiranem oglasu zato zacel pri njegovi dolzini (pri 6. sekundi, izmerjeno 4. 10. 2026).
+                            if (video.readyState >= 1 && isFinite(video.duration) && video.duration > 0) {
                                 video.currentTime = video.duration;
                             }
                             video.playbackRate = 16.0;
@@ -792,6 +794,8 @@ object UserScriptManager {
     private var cachedTvSpatialJs: String? = null
     @Volatile
     private var cachedSiteAgentJs: String? = null
+    @Volatile
+    private var cachedYoutubeZacetekJs: String? = null
 
     /**
      * Vbrizgane skripte hranimo v pomnilniku, ker jih beremo ob vsaki strani. Ko sistemu
@@ -800,6 +804,20 @@ object UserScriptManager {
     fun sprostiPredpomnilnik() {
         cachedTvSpatialJs = null
         cachedSiteAgentJs = null
+        cachedYoutubeZacetekJs = null
+    }
+
+    /**
+     * Skripta za YouTube, ki mora teci pred skriptami strani (assets/youtube_zacetek.js): odgovor predvajalnika brez
+     * oglasov in prehod na drug posnetek kot nova stran. Pogled jo registrira ob zacetku dokumenta; "" = ni je.
+     */
+    fun youtubeZacetekJs(context: android.content.Context): String {
+        cachedYoutubeZacetekJs?.let { return it }
+        val js = try {
+            context.assets.open("youtube_zacetek.js").bufferedReader(Charsets.UTF_8).use { it.readText() }
+        } catch (_: Exception) { "" }
+        cachedYoutubeZacetekJs = js
+        return js
     }
 
     private fun assetJs(webView: WebView, name: String, cache: () -> String?, store: (String) -> Unit): String {
@@ -1207,6 +1225,8 @@ object UserScriptManager {
         webView.evaluateJavascript(BACKGROUND_PLAYBACK_JS, null)
         // YouTubovi pomocniki pripadajo YouTubu; drugod so bili samo dodatno delo za televizor.
         if (isYouTubeUrl(target)) {
+            // Ze tece od zacetka dokumenta (ChromiumEngineView); tu le za WebView, ki tega ne zna - namesti se enkrat.
+            youtubeZacetekJs(webView.context).takeIf { it.isNotEmpty() }?.let { webView.evaluateJavascript(it, null) }
             webView.evaluateJavascript(YOUTUBE_FREEDOM_MOBILE_JS, null)
             if (!((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) webView.evaluateJavascript(YOUTUBE_TV_LEANBACK_JS, null)
         }
