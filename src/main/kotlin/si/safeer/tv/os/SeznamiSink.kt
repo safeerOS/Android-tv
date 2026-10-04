@@ -22,6 +22,13 @@ import java.util.concurrent.TimeUnit
  *  - `lists.get {}` -> `{lists: [{ime, vir, cas, stevilo}], deleted: {ime: cas},
  *                        sources: [{tip, ime, naslov, cas}], sources_deleted: {"tip|naslov": cas}}`
  *  - `lists.get {ime, od}` -> `{ime, vir, cas, stevilo, od, skladbe: [najvec 100]}` (sporocila Linka so omejena)
+ *
+ * In za to, kaj se da predvajati ([Razpolozljivost]): vsako vprasanje dodatku je drago (dodatek jih dovoli le nekaj na
+ * minuto), zato si naprave z ISTIMI dodatki odgovore delijo - eno vprasanje na dom, ne na napravo (4. 10. 2026).
+ *  - kazalo (`lists.get {}`) nosi `razpolozljivost: {odtis, vseh, zadnji}` in `premori: {odtis dodatka: ms}` - dodatek
+ *    omejuje poizvedbe po domacem naslovu, zato premor ene naprave velja za vse;
+ *  - `lists.get {razpolozljivost: odtis, od}` -> `{razpolozljivost: {odtis, vseh, od, zapisi: {kljuc: niz}}}`, po
+ *    [Razpolozljivost.STRAN] zapisov. Samo filmi in serije z javnim id-jem; zasebni dodatki ostanejo na napravi.
  */
 object SeznamiSink {
     const val DEJANJE = "lists.get"
@@ -72,6 +79,7 @@ object SeznamiSink {
     // ------------------------------------------------------------------ ta naprava odgovarja (Daljinec: lists.get)
 
     fun izvoz(ctx: Context, p: JSONObject): JSONObject {
+        if (p.has("razpolozljivost")) return JSONObject().put("razpolozljivost", Razpolozljivost.izvoz(ctx, p.optString("razpolozljivost"), p.optInt("od")))
         val seznami = MedijskiViri.seznami(ctx)
         val ime = p.optString("ime")
         if (ime.isBlank()) {
@@ -83,7 +91,12 @@ object SeznamiSink {
             MedijskiViri.zaUskladitev(ctx).forEach { (v, cas) -> viri.put(JSONObject().put("tip", v.tip).put("ime", v.ime).put("naslov", v.naslov).put("cas", cas)) }
             val izbrisaniViri = JSONObject()
             MedijskiViri.izbrisaniViri(ctx).forEach { (k, v) -> izbrisaniViri.put(k, v) }
+            // Premori dodatkov (odtis naslova -> koliko ms se): dodatek omejuje po domacem naslovu, zato pocakajo vse naprave.
+            val premori = JSONObject()
+            try { Stremio.pripravi(ctx) } catch (_: Throwable) { }       // shranjeni premori iz prejsnjega zagona
+            try { Stremio.premori().forEach { (osnova, se) -> premori.put(RazpolozljivostPravila.odtisNaslova(osnova), se) } } catch (_: Throwable) { }
             return JSONObject().put("lists", a).put("deleted", izbrisani).put("sources", viri).put("sources_deleted", izbrisaniViri)
+                .put("razpolozljivost", Razpolozljivost.povzetek(ctx)).put("premori", premori)
         }
         val sz = seznami.firstOrNull { it.ime == ime } ?: return JSONObject().put("ime", ime).put("stevilo", 0).put("skladbe", JSONArray())
         val od = p.optInt("od").coerceAtLeast(0)
@@ -111,6 +124,12 @@ object SeznamiSink {
             var spremenjeno = false
             try {
                 Stremio.pripravi(app)
+                // Odtis dodatkov za delitev razpolozljivosti: manifesti morajo biti znani (smo v ozadju; z diska, sicer z omrezja).
+                try {
+                    val dodatki = MedijskiViri.vsi(app).filter { it.jeStremio }.map { it.naslov }
+                    dodatki.filter { Stremio.dajeTokove(it) == null }.forEach { try { Stremio.manifest(it) } catch (_: Exception) { } }
+                    Razpolozljivost.nastaviDodatke(app, dodatki.map { it to Stremio.dajeTokove(it) })
+                } catch (_: Throwable) { }
                 // Zasebni dodatki, prevzeti pred pravilom ZasebniDodatki, tu izginejo (na izvorni napravi ostanejo).
                 try { if (MedijskiViri.odstraniPrevzeteZasebne(app)) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true; Log.i(TAG, "prevzet zaseben dodatek odstranjen") } } catch (_: Exception) { }
                 for (n in naprave) {
@@ -137,9 +156,41 @@ object SeznamiSink {
     /** Dodatki, ki ob prevzemu niso odgovorili (osnova -> kdaj): da jih ne sprasujemo ob vsaki uskladitvi. */
     private val nedosegljivi = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
+    /** Do katerega casa smo od naprave ze prevzeli odgovore o razpolozljivosti (naprava -> »zadnji« iz njenega kazala). */
+    private val razpolozljivostDo = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /** Odgovori dodatkov z naprave z istimi dodatki; samo, ce ima od zadnjic kaj novega. */
+    private fun prevzemiRazpolozljivost(app: Context, link: LinkUpravitelj, naprava: String, kazalo: JSONObject) {
+        val r = kazalo.optJSONObject("razpolozljivost") ?: return
+        val moj = Razpolozljivost.odtis(app)
+        val zadnji = r.optLong("zadnji")
+        val vseh = r.optInt("vseh")
+        if (moj.isEmpty() || r.optString("odtis") != moj || vseh <= 0 || zadnji <= (razpolozljivostDo[naprava] ?: 0L)) return
+        var od = 0; var novih = 0
+        while (od < vseh && od < 4000) {
+            val stran = vprasaj(link, naprava, JSONObject().put("razpolozljivost", moj).put("od", od))?.optJSONObject("razpolozljivost") ?: return
+            val z = stran.optJSONObject("zapisi") ?: return
+            if (z.length() == 0) break
+            novih += Razpolozljivost.prevzemi(app, z)
+            od += z.length()
+        }
+        razpolozljivostDo[naprava] = zadnji
+        Log.i(TAG, "razpolozljivost od $naprava: $vseh zapisov, $novih novih")
+    }
+
     private fun prevzemiOd(app: Context, link: LinkUpravitelj, naprava: String): Boolean {
         val kazalo = vprasaj(link, naprava, JSONObject()) ?: return false
         var spremenjeno = false
+        try { prevzemiRazpolozljivost(app, link, naprava, kazalo) } catch (e: Exception) { Log.w(TAG, "razpolozljivost od $naprava: ${e.message}") }
+        // Dodatek je omejil drugo napravo v istem domu: pocakamo tudi mi (nase poizvedbe bi omejitev samo podaljsale).
+        try {
+            kazalo.optJSONObject("premori")?.takeIf { it.length() > 0 }?.let { p ->
+                for (naslov in MedijskiViri.vsi(app).filter { it.jeStremio }.map { it.naslov }) {
+                    val se = p.optLong(RazpolozljivostPravila.odtisNaslova(Stremio.osnova(naslov)))
+                    if (se > 0L) Stremio.prevzemiPremor(naslov, se)
+                }
+            }
+        } catch (e: Exception) { Log.w(TAG, "premori od $naprava: ${e.message}") }
         // 0) Moji viri: izbrisi, nato dodani viri.
         try {
             var viri = false

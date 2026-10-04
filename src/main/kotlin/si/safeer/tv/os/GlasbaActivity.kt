@@ -394,13 +394,26 @@ class GlasbaActivity : OsActivity() {
         override fun naZavrnitev() { }
     }
 
+    /** Odgovore dodatkov je dopolnila druga naprava v Linku ([SeznamiSink]): odprta mreza se uredi znova. */
+    private val obRazpolozljivosti: () -> Unit = { glavna.post { if (!isFinishing && odprtKatalog != null) narociUmiri() } }
+
+    /**
+     * Medijski center je na zaslonu. Ko ni (Domov, drug program, ugasnjen zaslon), dodatkov ne sprasujemo: preverjanje
+     * mreze je prej v ozadju teklo do konca proracuna in trosilo poizvedbe, ki jih dom nima na pretek.
+     */
+    @Volatile private var vOspredju = false
+
     override fun onStart() {
         super.onStart()
         // Samostojni Predvajalnik: to je njegov domaci zaslon - nova razlicica s safeer.si se ponudi tu (tiha pasica).
         if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") Posodobitve.ponudiCeJeCas(this)
         Ozadje.uporabi(this, koren)
         if (!link.jeKrajevni()) link.dodaj(linkPoslusalec)
+        vOspredju = true
         torrentSeJeSpremenil()
+        Razpolozljivost.obSpremembi = obRazpolozljivosti
+        // Preverjanje odprte mreze, ustavljeno ob odhodu z zaslona, se nadaljuje.
+        if (odprtKatalog != null) narociUmiri()
         GlasbaStoritev.poslusalci.add(poslusalec)
         glavna.post(tik)
         uskladiSezname()
@@ -433,6 +446,8 @@ class GlasbaActivity : OsActivity() {
     override fun onStop() {
         link.odstrani(linkPoslusalec)
         GlasbaStoritev.poslusalci.remove(poslusalec)
+        if (Razpolozljivost.obSpremembi === obRazpolozljivosti) Razpolozljivost.obSpremembi = null
+        vOspredju = false
         glavna.removeCallbacks(tik)
         super.onStop()
     }
@@ -1397,8 +1412,12 @@ class GlasbaActivity : OsActivity() {
                                val dodatek: String = "") {
         /** Polica »Na tvojih napravah« nad mrezo zasebnega dodatka: njegovi prenosi na napravah v Linku (samo tu). */
         var prenosi: List<Jamendo.Skladba> = emptyList()
-        /** Koliko naslovov te mreze se preverjamo pri dodatkih. */
+        /** Koliko naslovov te mreze se preverjamo pri dodatkih, ker nanje caka okno. */
         val caka = java.util.concurrent.atomic.AtomicInteger()
+        /** Koliko jih preverjamo v ozadju (korak naprej, zastareli odgovori): zaslon nanje ne caka. */
+        val ozadje = java.util.concurrent.atomic.AtomicInteger()
+        /** Vsi naslovi mreze v vrstnem redu prikaza, tudi skriti (za osvezevanje zastarelih odgovorov). */
+        @Volatile var urejeni: List<Jamendo.Skladba> = emptyList()
         /** Naslovi, za katere dodatki niso odgovorili: v tej mrezi jih ne sprasujemo znova. */
         val neznani: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
         /** Kartice, ki so zdaj na zaslonu (id-ji po vrsti): mrezo risemo znova samo, ce bi bila drugacna. */
@@ -2649,7 +2668,7 @@ class GlasbaActivity : OsActivity() {
                       celota: List<Jamendo.Skladba> = v0): List<Kartica> {
         // Vsebine, za katero vemo, da je noben dodatek ne predvaja, ne kazemo nikjer (police, iskanje, mreza).
         val v = v0.filterNot { znanoNiNaVoljo(it) }
-        preveriPolico(v)
+        preveriPolico(v0)
         val napredekKrajevnih = if (v.none { it.id.startsWith("krajevno:") }) emptyMap()
             else MediaNapredek.seznam(this).filter { it.skladba.id.startsWith("krajevno:") && it.polozaj > 0 }.associateBy { it.skladba.id }
         val skupine = SpletniVir.zdruziEnako(v)
@@ -3146,9 +3165,9 @@ class GlasbaActivity : OsActivity() {
         if (cakajo.isEmpty()) return false
         val torrent = torrentMeja()
         val niti = cakajo.map { sk -> preverjanjeEpizod.submit<Boolean> {
-            val r = try { preveriEnoto(sk, naslovi, torrent) } catch (_: Exception) { null }
+            val r = try { preveriEnoto(sk, naslovi, torrent) { !isFinishing && vOspredju } } catch (_: Exception) { null }
             if (r != null) kljucRazpolozljivosti(sk)?.let { Razpolozljivost.zapomni(applicationContext, it, r) }
-            r == false
+            r?.velja(torrent) == false
         } }
         val rok = System.currentTimeMillis() + 10_000
         return niti.count { f -> try { f.get((rok - System.currentTimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { false } } > 0
@@ -3998,7 +4017,10 @@ class GlasbaActivity : OsActivity() {
 
     private fun torrentSteje() = torrentMeja() > 0L
 
-    /** Zapisi razpolozljivosti so loceni po tem, kaj naprava zmore ([Razpolozljivost.kljuc]); velikost po 256 MB. */
+    /** Dodatki za [Razpolozljivost.pripravi]: naslov in ali dodatek daje tokove (null, dokler manifesta ne poznamo). */
+    private fun dodatkiZaRazpolozljivost() = stremioNaslovi().map { it to Stremio.dajeTokove(it) }
+
+    /** Kaj naprava zmore s torrenti, za dnevnik in za zaznavo spremembe (zapisi razpolozljivosti veljajo za vse nacine). */
     private fun nacinTorrenta(meja: Long = torrentMeja()) = when (meja) {
         Long.MAX_VALUE -> ""
         0L -> "brez"
@@ -4015,13 +4037,13 @@ class GlasbaActivity : OsActivity() {
     private var torrentPrej: String? = null
     /** Pomocnik je prisel v krog ali ga zapustil: kar se da predvajati, je zdaj drugo - mreza se uredi takoj, ne cez ure. */
     private fun torrentSeJeSpremenil() {
-        val zdaj = nacinTorrenta()
+        val meja = torrentMeja()
+        val zdaj = nacinTorrenta(meja)
         val prej = torrentPrej
         torrentPrej = zdaj
-        if (prej == null) Razpolozljivost.pripravi(this, stremioNaslovi(), zdaj)
+        Razpolozljivost.pripravi(this, dodatkiZaRazpolozljivost(), meja)
         if (prej == null || prej == zdaj) return
         android.util.Log.i("SafeerOsMedia", "torrent steje: $prej -> $zdaj")
-        Razpolozljivost.pripravi(this, stremioNaslovi(), zdaj)
         SEZNAMI.remove(VIDEO); SEZNAMI.remove(DOMOV)
         odprtKatalog?.let { o -> o.neznani.clear(); o.vec(0); osveziMrezo(o) }
     }
@@ -4031,23 +4053,26 @@ class GlasbaActivity : OsActivity() {
         return if (tip == "movie" || tip == "series") Razpolozljivost.kljuc(tip, id) else null
     }
 
-    /** Film ali serija iz dodatkov, za katero vemo, da je noben dodatek ne predvaja. */
+    /**
+     * Film ali serija iz dodatkov, za katero vemo, da je noben dodatek ne predvaja - po zadnjem znanem odgovoru, tudi
+     * ce ni vec svez: ostane skrita, medtem ko jo v ozadju preverimo znova (seznam na to ne caka).
+     */
     private fun znanoNiNaVoljo(sk: Jamendo.Skladba): Boolean =
-        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == false } == true
+        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == false } == true
 
     /** Ali za serijo vemo vsaj za eno epizodo, da se da predvajati (potem serija ostane, cetudi ena sezona manjka). */
     private fun imaZnanoEpizodo(sk: Jamendo.Skladba): Boolean =
-        kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == true } == true
+        kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == true } == true
 
     private fun oznaciNaVoljo(sk: Jamendo.Skladba) {
-        kljucRazpolozljivosti(sk)?.let { if (Razpolozljivost.stanje(this, it) != true) Razpolozljivost.zapomni(this, it, true) }
+        kljucRazpolozljivosti(sk)?.let { if (Razpolozljivost.stanje(this, it) != true) Razpolozljivost.zapomniNaVoljo(this, it) }
     }
 
     /**
      * Dotik ni dal toka: vsebino skrijemo takoj (za nekaj minut), za ure pa si "ni na voljo" zapomnimo sele, ko to
      * potrdijo vsi dodatki. Izpad dodatka ali omrezja tako ne skrije naslova, ki je cez minuto spet na voljo.
      */
-    private fun skrijInPotrdi(k: String, preveri: (List<String>, Long) -> Boolean?) {
+    private fun skrijInPotrdi(k: String, preveri: (List<String>, Long) -> RazpolozljivostPravila.Izid?) {
         Razpolozljivost.zacasnoNi(k)
         val naslovi = stremioNaslovi()
         if (naslovi.isEmpty()) return
@@ -4110,7 +4135,7 @@ class GlasbaActivity : OsActivity() {
             // Znova risemo samo, ce bi bila mreza drugacna (kartica, ki je ni vec mogoce predvajati, ali nova preverjena).
             val vidni = vidniKataloga(o).second.map { it.id }
             val drugace = vidni != o.narisani
-            if (drugace || o.caka.get() == 0) android.util.Log.i("SafeerOsMedia", "mreza: vidnih=${vidni.size}, narisanih=${o.narisani.size}, vseh=${o.vsi.size}, caka=${o.caka.get()}, " +
+            if (drugace || o.caka.get() == 0) android.util.Log.i("SafeerOsMedia", "mreza: vidnih=${vidni.size}, narisanih=${o.narisani.size}, vseh=${o.vsi.size}, caka=${o.caka.get()}, ozadje=${o.ozadje.get()}, " +
                 "nalagam=${o.nalagam}, seKaj=${o.seKaj}, okno=${o.zelja}, proracun=${o.proracun}, preverjenih=${o.preverjenih.get()}, zadetkov=${o.zadetkov.get()}, " +
                 "samodejno=${o.samodejno}, strogo=${strogaMreza(o)}, torrent=${nacinTorrenta().ifEmpty { "vse" }}, risem=$drugace")
             // Risanje samo nadaljuje preverjanje (narisiKatalog -> preveriMrezo); brez risanja ga nadaljujemo tu.
@@ -4125,11 +4150,15 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
-     * Naslov iz dodatkov, za katerega se ne vemo, ali se da predvajati. Kar se je nedavno dalo (zapis je le zastarel),
-     * ostane na zaslonu, medtem ko ga preverjamo znova - mreza se po treh dneh ne sprazni.
+     * Naslov iz dodatkov, ki ga se ne poznamo: samo na take mreza caka. Zastarel odgovor (»je« ali »ni«) velja za
+     * prikaz naprej in se preveri znova v ozadju - mreza se ne sprazni in ne obstane.
      */
     private fun nepreverjen(sk: Jamendo.Skladba): Boolean =
-        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == null && !Razpolozljivost.nekocNaVoljo(this, it) } == true
+        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == null } == true
+
+    /** Naslov z znanim, a ne vec svezim odgovorom: preverimo ga znova, ko mreza nima nujnejsega dela. */
+    private fun zastarel(sk: Jamendo.Skladba): Boolean =
+        Stremio.jeEnota(sk) && kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) != null && Razpolozljivost.stanje(this, it) == null } == true
 
     /**
      * Strogi nacin mreze: kartico iz dodatkov pokazemo sele, ko je preverjena (3. 10. 2026: na televizorju se je 122
@@ -4142,10 +4171,12 @@ class GlasbaActivity : OsActivity() {
 
     /** (kandidati = vse, cesar ne poznamo kot nepredvajljivo; vidni = kar od tega res pokazemo). */
     private fun vidniKataloga(o: OdprtKatalog): Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>> {
-        val torrent = nacinTorrenta()
-        torrentPrej = torrent
-        Razpolozljivost.pripravi(this, stremioNaslovi(), torrent)
-        val kandidati = (if (o.tip.isNotBlank()) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi).filterNot { znanoNiNaVoljo(it) }
+        val meja = torrentMeja()
+        torrentPrej = nacinTorrenta(meja)
+        Razpolozljivost.pripravi(this, dodatkiZaRazpolozljivost(), meja)
+        val urejeni = if (o.tip.isNotBlank()) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi
+        o.urejeni = urejeni
+        val kandidati = urejeni.filterNot { znanoNiNaVoljo(it) }
         // Strogo: samo okno in v njem samo preverjeno - kartice pridejo po vrsti, nic se ne vrine vmes.
         return kandidati to (if (strogaMreza(o)) oknoMreze(o, kandidati).naslovi.filterNot { nepreverjen(it) } else kandidati)
     }
@@ -4161,7 +4192,7 @@ class GlasbaActivity : OsActivity() {
         for (sk in kandidati) {
             if (izhod.size >= o.zelja) { naprej = true; break }
             val k = kljucRazpolozljivosti(sk)
-            if (k != null && Razpolozljivost.stanje(this, k) == null && k !in o.neznani && !Razpolozljivost.nekocNaVoljo(this, k)) {
+            if (k != null && Razpolozljivost.znano(this, k) == null && k !in o.neznani) {
                 val r = Stremio.razstavi(sk)
                 if (r != null && Stremio.vprasaniVPremoru(dodatki, r.second, r.third)) { premor++; continue }
             }
@@ -4210,7 +4241,8 @@ class GlasbaActivity : OsActivity() {
 
     private fun stanjeMreze(o: OdprtKatalog, kandidati: List<Jamendo.Skladba>): StanjeMreze {
         val okno = oknoMreze(o, kandidati)
-        val vOknu = okno.naslovi.any { sk -> kljucRazpolozljivosti(sk)?.let { Razpolozljivost.stanje(this, it) == null && it !in o.neznani } == true }
+        // Okno caka samo na naslove, ki jih se ne poznamo; zastareli odgovori se osvezijo v ozadju.
+        val vOknu = okno.naslovi.any { sk -> kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == null && it !in o.neznani } == true }
         return StanjeMreze(vOknu, okno.vPremoru > 0, okno.naprej)
     }
 
@@ -4245,13 +4277,15 @@ class GlasbaActivity : OsActivity() {
     /**
      * Ali je serija ali film na voljo: film vprasamo naravnost, serijo po prvi epizodi. Ena poizvedba na naslov (do
      * 3. 10. 2026 tri na serijo: prva epizoda, prva zadnje sezone, zadnja) - vljudnost do dodatkov, glej Stremio.zeton.
+     * [seVelja]: preverjanje v ozadju velja, dokler uporabnik gleda ta zaslon; preklicano vrne null in ne poslje nicesar.
      */
-    private fun preveriEnoto(sk: Jamendo.Skladba, naslovi: List<String>, torrent: Long): Boolean? {
+    private fun preveriEnoto(sk: Jamendo.Skladba, naslovi: List<String>, torrent: Long, seVelja: () -> Boolean = { true }): RazpolozljivostPravila.Izid? {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return null
-        if (tip == "movie") return Stremio.razpolozljivo(naslovi, tip, id, torrent)
+        if (tip == "movie") return Stremio.razpolozljivo(naslovi, tip, id, torrent, seVelja)
+        if (!seVelja()) return null
         val ep = (try { Stremio.epizode(sk) } catch (_: Exception) { emptyList() }).filter { it.sezona >= 1 }
         if (ep.isEmpty()) return null
-        return Stremio.razpolozljivo(naslovi, tip, ep.first().id, torrent)
+        return Stremio.razpolozljivo(naslovi, tip, ep.first().id, torrent, seVelja)
     }
 
     /**
@@ -4259,39 +4293,73 @@ class GlasbaActivity : OsActivity() {
      * noben dodatek nima, izgine. Odgovori dodatkov ostanejo v predpomnilniku, zato preverjen film zacne takoj.
      */
     private fun preveriMrezo(o: OdprtKatalog, vsi: List<Jamendo.Skladba>) {
-        if (!smemPreverjati()) return
+        if (!vOspredju || !smemPreverjati()) return
         val naslovi = stremioNaslovi()
         if (naslovi.isEmpty()) return
         // Vljudno do dodatkov (3. 10. 2026 nas je dodatek zavrnil s "Rate limit exceeded"): ne preverimo vsega kataloga,
         // ampak samo okno (prvih o.zelja kandidatov) in najvec o.proracun naslovov do naslednjega uporabnikovega dejanja.
         // Ce prvih 20 ne da nobene kartice, nehamo (naslednji ne bi bili drugacni); uporabnik lahko nadaljuje z Nalozi vec.
         if (o.preverjenih.get() >= 20 && o.zadetkov.get() == 0) o.proracun = 0
-        var smem = minOf(o.proracun, 12 - o.caka.get())
+        var smem = minOf(o.proracun, 12 - o.caka.get() - o.ozadje.get())
         if (smem <= 0) return
         val torrent = torrentMeja()
-        for (sk in oknoMreze(o, vsi).naslovi) {
-            if (smem <= 0) break
-            val k = kljucRazpolozljivosti(sk) ?: continue
-            if (Razpolozljivost.stanje(this, k) != null || k in vPreverjanju || k in o.neznani) continue
-            if (!vPreverjanju.add(k)) continue
+        // Mreza je se odprta in Safeer je na zaslonu. Pogoj gre z vprasanjem do zadnjega koraka pred omrezjem.
+        val seVelja = { odprtKatalog === o && !isFinishing && vOspredju }
+        /** [caka]: na ta naslov caka okno (stevec o.caka); sicer tece v ozadju in zaslona ne zadrzuje (o.ozadje). */
+        fun vprasaj(sk: Jamendo.Skladba, k: String, stevec: java.util.concurrent.atomic.AtomicInteger, zastarel: Boolean) {
+            if (!vPreverjanju.add(k)) return
             smem--; o.proracun--
-            o.caka.incrementAndGet()
+            stevec.incrementAndGet()
             try {
                 preverjanje.execute {
                     try {
-                        if (odprtKatalog !== o || isFinishing) return@execute      // mreza je zaprta: dodatkov ne sprasujemo vec
-                        val r = try { preveriEnoto(sk, naslovi, torrent) } catch (_: Exception) { null }
-                        o.preverjenih.incrementAndGet(); if (r == true) o.zadetkov.incrementAndGet()
-                        // Dodatek ni odgovoril (izpad, ustavljena storitev): naslova zdaj ni mogoce predvajati, zato ga
-                        // nekaj minut ne kazemo; za ure si "ni na voljo" zapomnimo le ob pravem odgovoru.
-                        if (r != null) Razpolozljivost.zapomni(applicationContext, k, r) else { o.neznani.add(k); Razpolozljivost.zacasnoNi(k) }
+                        // Mreza je zaprta ali Safeer ni vec na zaslonu: dodatkov ne sprasujemo (vprasanje gre nazaj v proracun).
+                        // Enako velja za naslove, ki so ob odhodu ze cakali na zeton dodatka: preklicano preverjanje ne
+                        // poslje nicesar in ne pove nicesar - naslova ne skrijemo, ob vrnitvi ga vprasamo znova.
+                        if (!seVelja()) { glavna.post { o.proracun++ }; return@execute }
+                        val r = try { preveriEnoto(sk, naslovi, torrent, seVelja) } catch (_: Exception) { null }
+                        if (r == null && !seVelja()) { glavna.post { o.proracun++ }; return@execute }
+                        val je = r?.velja(torrent)
+                        if (!zastarel) { o.preverjenih.incrementAndGet(); if (je == true) o.zadetkov.incrementAndGet() }
+                        if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
+                        // Dodatek ni odgovoril (izpad, ustavljena storitev) ali odgovor za to napravo nicesar ne pove: v tej
+                        // mrezi ga ne sprasujemo znova. Neznanega naslova nekaj minut ne kazemo; zastarel odgovor obvelja
+                        // naprej (za ure si "ni na voljo" zapomnimo le ob pravem odgovoru).
+                        if (je == null) { o.neznani.add(k); if (!zastarel) Razpolozljivost.zacasnoNi(k) }
                     } finally {
                         vPreverjanju.remove(k)
-                        o.caka.decrementAndGet()
+                        stevec.decrementAndGet()
                         glavna.post { if (odprtKatalog === o && !isFinishing) narociUmiri() }
                     }
                 }
-            } catch (_: java.util.concurrent.RejectedExecutionException) { vPreverjanju.remove(k); o.caka.decrementAndGet() }
+            } catch (_: java.util.concurrent.RejectedExecutionException) { vPreverjanju.remove(k); stevec.decrementAndGet() }
+        }
+        /** Vsi dodatki, ki bi jih za naslov vprasali, so v premoru (omejitev poizvedb): zdaj ga ne moremo preveriti. */
+        fun vPremoru(sk: Jamendo.Skladba) = Stremio.razstavi(sk)?.let { r -> Stremio.vprasaniVPremoru(naslovi, r.second, r.third) } == true
+        // 1) Okno: naslovi, ki jih se ne poznamo - samo nanje uporabnik caka (oknoMreze naslove v premoru ze izpusti).
+        val okno = oknoMreze(o, vsi).naslovi
+        for (sk in okno) {
+            if (smem <= 0) return
+            val k = kljucRazpolozljivosti(sk) ?: continue
+            if (Razpolozljivost.znano(this, k) != null || k in vPreverjanju || k in o.neznani) continue
+            vprasaj(sk, k, o.caka, zastarel = false)
+        }
+        // Delo v ozadju nikoli ne stoji pred oknom: zacne se sele, ko okno ne caka vec, in ima najvec dve poizvedbi
+        // hkrati (vsaka caka na zeton dodatka - nova poizvedba okna bi sicer stala v vrsti za njimi).
+        if (o.caka.get() > 0) return
+        // Naslovov ZA oknom ne preverjamo vnaprej: dodatek steje poizvedbe po domacem naslovu, ne po napravi (4. 10. 2026
+        // je dom omejil), in vsako vprasanje na zalogo je vprasanje manj za uporabnika, ki film res izbere.
+        // 2) Zastareli odgovori na ze prikazanem delu seznama (vidni »je« in skriti »ni«): osvezimo jih v ozadju, po
+        //    nekaj na obisk - novo dodana vsebina se tako pojavi, umaknjena izgine, seznam pa nikoli ne caka.
+        var osvezenih = 0
+        val doTu = okno.lastOrNull()?.let { zadnji -> o.urejeni.indexOfFirst { it.id == zadnji.id } } ?: -1
+        for (sk in (if (doTu >= 0) o.urejeni.take(doTu + 1) else okno)) {
+            if (smem <= 0 || osvezenih >= OSVEZI_NA_OBISK || o.ozadje.get() >= OZADJE_HKRATI) return
+            if (!zastarel(sk)) continue
+            val k = kljucRazpolozljivosti(sk) ?: continue
+            if (k in vPreverjanju || k in o.neznani || vPremoru(sk)) continue
+            osvezenih++
+            vprasaj(sk, k, o.ozadje, zastarel = true)
         }
     }
 
@@ -4309,15 +4377,17 @@ class GlasbaActivity : OsActivity() {
         if (naslovi.isEmpty()) return
         val torrent = torrentMeja()
         torrentPrej = nacinTorrenta(torrent)
-        Razpolozljivost.pripravi(this, naslovi, nacinTorrenta(torrent))
+        Razpolozljivost.pripravi(this, dodatkiZaRazpolozljivost(), torrent)
         for (sk in enote) {
             val k = kljucRazpolozljivosti(sk) ?: continue
             if (Razpolozljivost.stanje(this, k) != null || !vPreverjanju.add(k)) continue
             try {
                 preverjanje.execute {
                     try {
-                        if (isFinishing) return@execute
-                        val r = try { preveriEnoto(sk, naslovi, torrent) } catch (_: Exception) { null }
+                        // Samo dokler je medijski center na zaslonu (glej vOspredju).
+                        val seVelja = { !isFinishing && vOspredju }
+                        if (!seVelja()) return@execute
+                        val r = try { preveriEnoto(sk, naslovi, torrent, seVelja) } catch (_: Exception) { null }
                         if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
                     } finally { vPreverjanju.remove(k) }
                 }
@@ -4334,9 +4404,9 @@ class GlasbaActivity : OsActivity() {
             val k = Razpolozljivost.kljuc(tip, e.id)
             if (e.tokovi.isNotEmpty() || Razpolozljivost.stanje(this, k) != null) continue
             preverjanjeEpizod.execute {
-                val r = try { Stremio.razpolozljivo(naslovi, tip, e.id, torrent) } catch (_: Exception) { null }
+                val r = try { Stremio.razpolozljivo(naslovi, tip, e.id, torrent) { !isFinishing && vOspredju } } catch (_: Exception) { null }
                 if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
-                if (r == false) glavna.post { obNi(e) }
+                if (r?.velja(torrent) == false) glavna.post { obNi(e) }
             }
         }
     }
@@ -4944,6 +5014,9 @@ class GlasbaActivity : OsActivity() {
         private const val ZELJA_KARTIC = 30
         private const val KORAK_KARTIC = 30
         private const val PRORACUN_PREVERJANJ = 40
+        /** Koliko zastarelih odgovorov osvezimo v ozadju ob enem klicu preverjanja in koliko poizvedb v ozadju tece hkrati. */
+        private const val OSVEZI_NA_OBISK = 10
+        private const val OZADJE_HKRATI = 2
         private const val KLJUC_GLASBA = "k:kat:glasba"; private const val KLJUC_VIDEO = "k:kat:video"
         private const val KLJUC_RADIO = "k:kat:radio"; private const val KLJUC_VIRI = "k:kat:viri"
         private const val KLJUC_TV = "k:kat:tv"

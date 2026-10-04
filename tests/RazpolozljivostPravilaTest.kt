@@ -1,0 +1,132 @@
+package si.safeer.tv.os
+
+import si.safeer.tv.os.RazpolozljivostPravila as P
+
+/** Pravila razpolozljivosti: meje po zmoznosti naprave, svezina, zdruzevanje, stari zapisi, sprememba dodatkov. */
+fun main() {
+    val ura = 3_600_000L
+    val zdaj = 1_800_000_000_000L
+    val gb = 1024L * 1024 * 1024
+
+    // ---- kaj tok zahteva od naprave (isto pravilo kot Stremio.torrentGre)
+    check(P.potreba(neposreden = true, torrent = false, gb = 0.0) == 0L)
+    check(P.potreba(neposreden = false, torrent = true, gb = 2.0) == 2 * gb)
+    check(P.potreba(neposreden = false, torrent = true, gb = 0.0) == P.VSE) { "torrent neznane velikosti: samo naprava, ki zmore vsakega" }
+    check(P.potreba(neposreden = false, torrent = false, gb = 1.0) == null) { "zunanja povezava ni predvajanje" }
+
+    // ---- izid poizvedbe
+    val neposreden = P.izTokov(listOf(5 * gb, 0L), vsiOdgovorili = false)!!
+    check(neposreden == P.Izid(jeOd = 0L) && neposreden.velja(0L) == true && neposreden.velja(P.VSE) == true)
+    val torrent = P.izTokov(listOf(5 * gb, 2 * gb), vsiOdgovorili = true)!!
+    check(torrent.velja(P.VSE) == true && torrent.velja(2 * gb) == true && torrent.velja(2 * gb - 1) == false && torrent.velja(0L) == false) { torrent }
+    val delni = P.izTokov(listOf(2 * gb), vsiOdgovorili = false)!!
+    check(delni.velja(3 * gb) == true && delni.velja(gb) == null) { "delni odgovor: kjer ne zadosca, ne vemo (drug dodatek ima morda neposreden tok)" }
+    check(P.izTokov(emptyList(), vsiOdgovorili = true) == P.Izid(niDo = P.VSE))
+    check(P.izTokov(emptyList(), vsiOdgovorili = true)!!.velja(P.VSE) == false)
+    check(P.izTokov(emptyList(), vsiOdgovorili = false) == null) { "brez tokov in brez vseh odgovorov ne sklepamo nicesar" }
+    val neznanaVelikost = P.izTokov(listOf(P.VSE), vsiOdgovorili = true)!!
+    check(neznanaVelikost.velja(P.VSE) == true && neznanaVelikost.velja(50 * gb) == false)
+
+    // ---- zapis: svez, zastarel (se znan za prikaz), pozabljen
+    val je = P.zapisi(null, neposreden, zdaj)
+    check(P.stanje(je, 0L, zdaj) == true && P.stanje(je, P.VSE, zdaj + P.JE_VELJA) == true)
+    check(P.stanje(je, 0L, zdaj + P.JE_VELJA + 1) == null) { "po tednu ni vec svez" }
+    check(P.znano(je, 0L, zdaj + P.JE_VELJA + 1) == true) { "a ostane na zaslonu, medtem ko ga preverjamo" }
+    check(P.znano(je, 0L, zdaj + P.JE_ZNANO + 1) == null)
+    val ni = P.zapisi(null, P.Izid(niDo = P.VSE), zdaj)
+    check(P.stanje(ni, P.VSE, zdaj + P.NI_VELJA) == false && P.stanje(ni, P.VSE, zdaj + P.NI_VELJA + 1) == null)
+    check(P.znano(ni, P.VSE, zdaj + P.NI_VELJA + 1) == false) { "zastarel »ni« ostane skrit - seznam nanj ne caka" }
+    check(P.znano(ni, P.VSE, zdaj + P.NI_ZNANO + 1) == null)
+    check(P.stanje(null, P.VSE, zdaj) == null && P.znano(null, 0L, zdaj) == null)
+    // Ura naprav ni povsem enaka: malo iz prihodnosti je svez, vec kot uro ni verodostojen.
+    check(P.stanje(je, 0L, zdaj - 10 * 60_000L) == true && P.stanje(je, 0L, zdaj - 2 * ura) == null)
+
+    // ---- en odgovor velja v vseh nacinih (pomocnik za torrente pride in gre, prosti prostor se spreminja)
+    val z = P.zapisi(null, torrent, zdaj)
+    check(P.stanje(z, P.VSE, zdaj) == true && P.stanje(z, 3 * gb, zdaj) == true && P.stanje(z, gb, zdaj) == false && P.stanje(z, 0L, zdaj) == false)
+
+    // ---- nov odgovor
+    // Popoln odgovor nadomesti vse.
+    check(P.zapisi(je, P.Izid(niDo = P.VSE), zdaj + ura) == P.Zapis(niDo = P.VSE, casNi = zdaj + ura))
+    check(P.zapisi(ni, neposreden, zdaj + ura) == P.Zapis(jeOd = 0L, casJe = zdaj + ura))
+    // Delni odgovor (prvi dodatek s torrentom) ne povozi nizje, se sveze meje - in njenega casa ne podaljsa.
+    val poDelnem = P.zapisi(z, P.Izid(jeOd = P.VSE), zdaj + ura)
+    check(poDelnem.jeOd == 2 * gb && poDelnem.casJe == zdaj && poDelnem.niDo == 2 * gb - 1) { poDelnem }
+    // Ko nizja meja ni vec sveza, obvelja novi dokaz; meja »ni« ostane (njen dokaz je svoj).
+    val kasneje = P.zapisi(z, P.Izid(jeOd = P.VSE), zdaj + P.JE_VELJA + ura)
+    check(kasneje.jeOd == P.VSE && kasneje.casJe == zdaj + P.JE_VELJA + ura && kasneje.niDo == 2 * gb - 1 && kasneje.casNi == zdaj) { kasneje }
+    // Nizja meja iz delnega odgovora obvelja takoj; meja »ni«, ki ji nasprotuje, se umakne.
+    val nizja = P.zapisi(z, P.Izid(jeOd = gb), zdaj + ura)
+    check(nizja.jeOd == gb && nizja.casJe == zdaj + ura && nizja.niDo == gb - 1) { nizja }
+    // Predvajanje je uspelo na napravi, ki zmore vse: vemo samo, da gre tam.
+    val uspelo = P.zapisi(null, P.Izid(jeOd = P.VSE), zdaj)
+    check(P.stanje(uspelo, P.VSE, zdaj) == true && P.stanje(uspelo, 4 * gb, zdaj) == null)
+
+    // ---- zdruzevanje z drugo napravo: novejsi dokaz obvelja v celoti, cas iz prihodnosti se pristrize
+    check(P.zdruzi(null, je, zdaj) == je)
+    check(P.zdruzi(ni, P.Zapis(jeOd = 0L, casJe = zdaj + 5), zdaj + 10) == P.Zapis(jeOd = 0L, casJe = zdaj + 5))
+    check(P.zdruzi(P.Zapis(jeOd = 0L, casJe = zdaj + 5), ni, zdaj + 10) == P.Zapis(jeOd = 0L, casJe = zdaj + 5)) { "starejsi tuji zapis ne povozi nasega" }
+    val izPrihodnosti = P.zdruzi(null, P.Zapis(niDo = P.VSE, casNi = zdaj + 9 * ura), zdaj)
+    check(izPrihodnosti.casNi == zdaj && P.stanje(izPrihodnosti, P.VSE, zdaj) == false)
+    check(P.zdruzi(je, je, zdaj) == je)
+
+    // ---- dodatki so se spremenili: odgovori ostanejo za prikaz, a niso vec svezi
+    val star = P.zastaraj(z, zdaj + ura)
+    check(P.stanje(star, P.VSE, zdaj + ura) == null && P.znano(star, P.VSE, zdaj + ura) == true)
+    check(P.stanje(star, 0L, zdaj + ura) == null && P.znano(star, 0L, zdaj + ura) == false)
+    check(P.zastaraj(star, zdaj + ura) == star) { "ze zastarel zapis se ne stara naprej" }
+
+    // ---- zapis v niz in nazaj
+    for (v in listOf(je, ni, z, uspelo, star, P.Zapis(jeOd = 5 * gb, casJe = 7, niDo = 5 * gb - 1, casNi = 7))) check(P.izNiza(P.vNiz(v)) == v) { P.vNiz(v) }
+    check(P.vNiz(je) == "0;$zdaj;;0" && P.vNiz(ni) == ";0;M;$zdaj")
+    for (slab in listOf(null, "", "a;b;c;d", "0;1;2", ";0;;0", "-5;1;;0", "0;-1;;0", "0;1;;0;9")) check(P.izNiza(slab) == null) { slab ?: "null" }
+    check(P.izNiza("3;10;7;20") == P.Zapis(niDo = 7, casNi = 20)) { "nasprotujoci meji: obvelja novejsi dokaz" }
+    check(P.izNiza("3;20;7;10") == P.Zapis(jeOd = 3, casJe = 20, niDo = 2, casNi = 10))
+
+    // ---- zapisi pred 4. 10. 2026
+    check(P.izStarega("movie|tt1", zdaj) == ("movie|tt1" to P.Zapis(jeOd = P.VSE, casJe = zdaj)))
+    check(P.izStarega("movie|tt1", -zdaj) == ("movie|tt1" to P.Zapis(niDo = P.VSE, casNi = zdaj)))
+    check(P.izStarega("series|tt2:1:1|brez", zdaj) == ("series|tt2:1:1" to P.Zapis(jeOd = 0L, casJe = zdaj)))
+    check(P.izStarega("movie|tt1|brez", -zdaj) == ("movie|tt1" to P.Zapis(niDo = 0L, casNi = zdaj)))
+    val blok = 256L * 1024 * 1024
+    check(P.izStarega("movie|tt1|do37", zdaj)!!.second == P.Zapis(jeOd = 38 * blok, casJe = zdaj))
+    check(P.izStarega("movie|tt1|do37", -zdaj)!!.second == P.Zapis(niDo = 37 * blok, casNi = zdaj))
+    for (slab in listOf("movie", "|tt1", "movie|tt1|cudno", "movie|tt1|doX", "a|b|c|d")) check(P.izStarega(slab, zdaj) == null) { slab }
+    check(P.izStarega("movie|tt1", 0L) == null)
+    // »Ni« v nacinu, ki zmore vse, velja povsod; »je« brez torrentov velja povsod.
+    check(P.stanje(P.izStarega("movie|tt1", -zdaj)!!.second, 0L, zdaj) == false)
+    check(P.stanje(P.izStarega("movie|tt1|brez", zdaj)!!.second, P.VSE, zdaj) == true)
+    check(P.stanje(P.izStarega("movie|tt1", zdaj)!!.second, 5 * gb, zdaj) == null) { "»je« z vsemi torrenti za omejeno napravo ne pove nicesar" }
+
+    // ---- dodatki: kaj spremeni svezino odgovorov
+    val a = P.odtisNaslova("https://dodatek-a.example/abc"); val b = P.odtisNaslova("https://dodatek-b.example")
+    val c = P.odtisNaslova("https://podnapisi.example")
+    check(a.length == 12 && a != b && a == P.odtisNaslova(" https://dodatek-a.example/abc "))
+    check(!P.dodatki(null, mapOf(a to 's')).zastaraj) { "prvi zagon: nic ne sklepamo" }
+    check(!P.dodatki(mapOf(a to 's'), mapOf(a to 's')).zastaraj)
+    check(P.dodatki(mapOf(a to 's'), mapOf(a to 's', b to 's')).zastaraj) { "nov dodatek s tokovi" }
+    check(P.dodatki(mapOf(a to 's'), mapOf(a to 's', b to 'u')).zastaraj) { "nov dodatek, za katerega se ne vemo" }
+    check(!P.dodatki(mapOf(a to 's'), mapOf(a to 's', c to 'n')).zastaraj) { "dodatek s podnapisi ne spremeni nicesar" }
+    check(P.dodatki(mapOf(a to 's', b to 's'), mapOf(a to 's')).zastaraj) { "odstranjen dodatek s tokovi" }
+    check(!P.dodatki(mapOf(a to 's', c to 'n'), mapOf(a to 's')).zastaraj) { "odstranjen dodatek brez tokov" }
+    // Manifest se ni nalozen (zagon): obdrzimo, kar smo vedeli - brez tega bi vsak zagon postaral vse.
+    val poZagonu = P.dodatki(mapOf(a to 's', c to 'n'), mapOf(a to 'u', c to 'u'))
+    check(!poZagonu.zastaraj && poZagonu.dodatki == mapOf(a to 's', c to 'n'))
+    // Neznan dodatek se izkaze za dodatek s tokovi ali brez: steli smo ga ze ob dodajanju.
+    check(!P.dodatki(mapOf(a to 's', b to 'u'), mapOf(a to 's', b to 's')).zastaraj)
+    check(!P.dodatki(mapOf(a to 's', b to 'u'), mapOf(a to 's', b to 'n')).zastaraj)
+    check(P.dodatki(mapOf(a to 's', c to 'n'), mapOf(a to 's', c to 's')).zastaraj) { "dodatek je zacel dajati tokove" }
+    check(P.dodatkiIzNiza(P.dodatkiVNiz(mapOf(a to 's', c to 'n', b to 'u'))) == mapOf(a to 's', c to 'n', b to 'u'))
+    check(P.dodatkiIzNiza(null) == null && P.dodatkiIzNiza("")!!.isEmpty() && P.dodatkiIzNiza("x:q,:s,y")!!.isEmpty())
+    // Odtis za delitev: samo dodatki s tokovi, vrstni red ni pomemben; brez njih ni kaj deliti.
+    check(P.odtis(mapOf(a to 's', b to 's', c to 'n')) == P.odtis(mapOf(b to 's', a to 's')))
+    check(P.odtis(mapOf(a to 's')) != P.odtis(mapOf(a to 's', b to 's')))
+    check(P.odtis(mapOf(c to 'n', b to 'u')) == "" && P.odtis(mapOf(a to 's')).length == 16)
+
+    // ---- kaj smemo deliti z drugimi napravami: samo javne id-je (IMDb)
+    check(P.zaDelitev("movie|tt0111161") && P.zaDelitev("series|tt0944947:1:2"))
+    for (zasebno in listOf("movie|zp:123", "series|kitsu:5", "Posebno|tt0111161", "movie|tt0111161|brez", "movie|tt12", "movie|" + "tt1".repeat(40)))
+        check(!P.zaDelitev(zasebno)) { zasebno }
+
+    println("RazpolozljivostPravilaTest OK")
+}

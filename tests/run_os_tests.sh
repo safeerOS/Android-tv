@@ -26,6 +26,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/ZacasniPravila.kt" \
     "$SRC/si/safeer/tv/os/ZasebniDodatki.kt" \
     "$SRC/si/safeer/tv/os/KnjiznicaKroga.kt" \
+    "$SRC/si/safeer/tv/os/RazpolozljivostPravila.kt" \
     "$SRC/si/safeer/tv/SpletMostPravila.kt" \
     "$SRC/si/safeer/tv/tv/PredajaStrani.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
@@ -41,6 +42,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ZacasniPravilaTest.kt" \
     "$TEST_DIR/ZasebniDodatkiTest.kt" \
     "$TEST_DIR/KnjiznicaKrogaTest.kt" \
+    "$TEST_DIR/RazpolozljivostPravilaTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -56,5 +58,6 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.SeznamiPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZacasniPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebniDodatkiTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KnjiznicaKrogaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.RazpolozljivostPravilaTestKt
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"

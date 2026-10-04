@@ -499,6 +499,28 @@ object Stremio {
     /** Dodatek je odgovoril, da omejuje poizvedbe: v ozadju ga do konca premora ne sprasujemo. */
     fun vPremoru(naslov: String): Boolean = (premorDo[osnova(naslov)] ?: 0L) > System.currentTimeMillis()
 
+    /**
+     * Premori, ki se tecejo (osnova dodatka -> koliko ms se). Dodatek omejuje po domacem naslovu, ne po napravi, zato
+     * si jih naprave v Linku povedo ([SeznamiSink]): ko dodatek omeji eno, pocakajo vse.
+     */
+    fun premori(): Map<String, Long> {
+        val zdaj = System.currentTimeMillis()
+        return premorDo.filterValues { it > zdaj }.mapValues { it.value - zdaj }
+    }
+
+    /** Dodatek je omejil drugo napravo v istem domu: tudi ta ga v ozadju ne sprasuje, dokler premor ne mine. */
+    fun prevzemiPremor(naslov: String, seMs: Long) {
+        if (seMs <= 0L) return
+        val o = osnova(naslov)
+        val zdaj = System.currentTimeMillis()
+        val konec = zdaj + seMs.coerceAtMost(PREMOR_NAJVEC_MS)
+        // Minuta razlike ni nov premor (naprave si ga povedo veckrat).
+        if ((premorDo[o] ?: 0L) >= konec - 60_000L) return
+        premorDo[o] = konec
+        try { shrambaPremorov?.edit()?.putLong(o, konec)?.apply() } catch (_: Exception) { }
+        try { android.util.Log.i("SafeerStremio", "dodatek ${try { URL(o).host } catch (_: Exception) { "?" }} omejuje poizvedbe (sporocila naprava v Linku): premor ${(konec - zdaj) / 60_000} min") } catch (_: Throwable) { }
+    }
+
     private fun zacniPremor(osnova: String) {
         if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis()) return      // vec hkratnih odgovorov je en premor
         val korak = (premorKorak[osnova] ?: 0).coerceAtMost(3)
@@ -509,11 +531,14 @@ object Stremio {
         try { android.util.Log.i("SafeerStremio", "dodatek ${try { URL(osnova).host } catch (_: Exception) { "?" }} omejuje poizvedbe: premor ${trajanje / 60_000} min") } catch (_: Throwable) { }
     }
 
-    /** Pocaka na zeton za poizvedbo v ozadju pri dodatku; false = dodatek je v premoru ali je nit prekinjena. */
-    private fun zeton(osnova: String): Boolean {
+    /**
+     * Pocaka na zeton za poizvedbo v ozadju pri dodatku; false = dodatek je v premoru, nit je prekinjena ali vprasanje
+     * ne velja vec ([seVelja]: uporabnik je odsel z zaslona) - takrat zetona ne vzame.
+     */
+    private fun zeton(osnova: String, seVelja: () -> Boolean = { true }): Boolean {
         val v = vedra.getOrPut(osnova) { Vedro() }
         while (true) {
-            if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis()) return false
+            if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis() || !seVelja()) return false
             val cakaj = synchronized(v) {
                 val zdaj = System.currentTimeMillis()
                 v.zetoni = (v.zetoni + (zdaj - v.cas).coerceAtLeast(0) / 1000.0 * ZETONI_NA_S).coerceAtMost(ZETONI_NAJVEC)
@@ -521,8 +546,15 @@ object Stremio {
                 if (v.zetoni >= 1.0) { v.zetoni -= 1.0; 0L } else ((1.0 - v.zetoni) / ZETONI_NA_S * 1000).toLong() + 5
             }
             if (cakaj == 0L) return true
-            try { Thread.sleep(cakaj) } catch (_: InterruptedException) { return false }
+            // Po kosih: cakajoce vprasanje, ki ne velja vec, odneha v sekundi (in ne sele, ko bi prislo na vrsto).
+            try { Thread.sleep(minOf(cakaj, 1_000L)) } catch (_: InterruptedException) { return false }
         }
+    }
+
+    /** Poizvedba ni bila poslana (uporabnik je medtem odsel): zeton gre nazaj v vedro. */
+    private fun vrniZeton(osnova: String) {
+        val v = vedra[osnova] ?: return
+        synchronized(v) { v.zetoni = (v.zetoni + 1.0).coerceAtMost(ZETONI_NAJVEC) }
     }
 
     /**
@@ -535,13 +567,22 @@ object Stremio {
         return d.isNotEmpty() && d.all { vPremoru(it.osnova) }
     }
 
+    /** Ali dodatek daje tokove (vir "stream"); null, dokler njegovega manifesta ne poznamo. Brez omrezja. */
+    fun dajeTokove(naslov: String): Boolean? = manifesti[osnova(naslov)]?.let { "stream" in it.viri }
+
+    /** Kaj tok zahteva od naprave ([RazpolozljivostPravila.potreba]): 0 = neposreden, velikost torrenta ali »vsak torrent«. */
+    private fun potreba(t: Tok): Long? = RazpolozljivostPravila.potreba(t.vrsta == "url", t.vrsta == "torrent",
+        if (t.vrsta == "torrent") TokIzbira.opisi(t.ime + " " + t.opis).gb else 0.0)
+
     /**
-     * Ali vsaj eden od dodatkov za ta naslov ponuja predvajanje: true = da, false = vsi so odgovorili in nobeden nima
-     * nicesar, null = ne vemo (kateri ni odgovoril) - takrat nicesar ne sklepamo. [torrent]: kateri torrent tu steje
-     * ([torrentGre]).
+     * Kaj dodatki ponujajo za ta naslov, kot meji glede na to, kaj naprava zmore ([RazpolozljivostPravila.Izid]) - isti
+     * odgovor zato velja za vsako napravo in vsak nacin. null = ne vemo (kateri dodatek ni odgovoril in nobeden nima
+     * nicesar) - takrat nicesar ne sklepamo. [torrent]: kateri torrent steje na tej napravi ([torrentGre]); prvi
+     * dodatek s tokom, ki ga ta naprava zmore, zadosca. [seVelja]: preverjanje v ozadju velja le, dokler uporabnik
+     * gleda seznam - ko ne velja vec, dodatka ne vprasamo in vrnemo null (klicatelj iz tega ne sklepa nicesar).
      */
-    fun razpolozljivo(naslovi: List<String>, tip: String, id: String, torrent: Long): Boolean? {
-        if (naslovi.isEmpty()) return null
+    fun razpolozljivo(naslovi: List<String>, tip: String, id: String, torrent: Long, seVelja: () -> Boolean = { true }): RazpolozljivostPravila.Izid? {
+        if (naslovi.isEmpty() || !seVelja()) return null
         val manifestiDodatkov = naslovi.map { manifest(it) }
         // Dodatek, ki ga trenutno ne dosezemo (brez omrezja), bi vsebino morda imel: ne sklepamo "ni na voljo".
         var neznano = manifestiDodatkov.any { it == null }
@@ -549,29 +590,36 @@ object Stremio {
             .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
         // Vljudnost do dodatkov: preverjanje tece v ozadju, zato vsak dodatek dobi najvec nekaj poizvedb na sekundo
         // (zeton), dodatka, ki je odgovoril, da poizvedbe omejuje, pa nekaj casa sploh ne sprasujemo (premor).
-        val dodatki = vsiDodatki.filter { zeton(it.osnova) }
+        val dodatki = vsiDodatki.filter { zeton(it.osnova, seVelja) }
+        // Med cakanjem na zeton je uporabnik odsel (zaprl seznam, zacel film, Domov): ne vprasamo nicesar - poizvedbe
+        // doma so za tistega, ki zdaj nekaj gleda ali isce. Neporabljeni zetoni gredo nazaj.
+        if (!seVelja()) { dodatki.forEach { vrniZeton(it.osnova) }; return null }
         if (dodatki.size != vsiDodatki.size) neznano = true
-        val niti = dodatki.map { m -> bazen.submit<Boolean?> {
+        // Vsak dodatek vrne potrebe svojih tokov (prazno = odgovoril je, a nima nicesar); null = ni odgovoril.
+        val niti = dodatki.map { m -> bazen.submit<List<Long>?> {
             // Brez odgovora ne vemo nicesar; odgovor "tega nimam" (404) pa je odgovor - dodatek vsebine nima.
             val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json")
                 ?: return@submit run {
                     val koda = zadnjaKoda.get() ?: 0
                     if (koda == 429 || koda == 403) zacniPremor(m.osnova)
-                    if (kodaPomeniNima(koda)) false else null
+                    if (kodaPomeniNima(koda)) emptyList() else null
                 }
             premorKorak.remove(m.osnova)
             val a = d.optJSONArray("streams") ?: JSONArray()
-            (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.any { it.vrsta == "url" || (it.vrsta == "torrent" && torrentGre(it, torrent)) }
+            (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.mapNotNull { potreba(it) }
         } }
-        // Prvi dodatek, ki ima tok, zadosca (na pocasne ne cakamo); "ni" velja sele, ko so odgovorili vsi.
+        fun odgovori() = niti.map { f -> if (f.isDone) (try { f.get() } catch (_: Exception) { null }) else null }
+        // Prvi dodatek s tokom, ki ga ta naprava zmore, zadosca (na pocasne ne cakamo); "ni" velja sele, ko so odgovorili vsi.
         val rok = System.currentTimeMillis() + 15_000
         while (true) {
-            if (niti.any { f -> f.isDone && (try { f.get() } catch (_: Exception) { null }) == true }) return true
+            val o = odgovori()
+            val potrebe = o.filterNotNull().flatten()
+            if (potrebe.any { it <= torrent }) return RazpolozljivostPravila.izTokov(potrebe, vsiOdgovorili = !neznano && o.none { it == null })
             if (niti.all { it.isDone } || System.currentTimeMillis() > rok) break
             try { Thread.sleep(40) } catch (_: InterruptedException) { return null }
         }
-        if (niti.any { f -> !f.isDone || (try { f.get() } catch (_: Exception) { null }) == null }) neznano = true
-        return if (neznano) null else false
+        val o = odgovori()
+        return RazpolozljivostPravila.izTokov(o.filterNotNull().flatten(), vsiOdgovorili = !neznano && o.none { it == null })
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */
