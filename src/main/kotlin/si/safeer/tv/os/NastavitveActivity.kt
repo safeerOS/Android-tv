@@ -497,7 +497,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         Toast.makeText(this, getString(R.string.os_host_povezujem), Toast.LENGTH_SHORT).show()
         si.safeer.tv.cast.HubPairing.pair(this, url, Identiteta.id(this), "Safeer OS (" + android.os.Build.MODEL + ")",
             { _, _ -> if (!isFinishing) vnesiKodoHosta(url) },
-            { uspelo -> if (!uspelo && !isFinishing) Toast.makeText(this, getString(R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show() })
+            { uspelo -> if (!uspelo && !isFinishing) Toast.makeText(this, getString(if (si.safeer.tv.cast.HubPairing.kodaZaprtaPriSrediscu())
+                R.string.link_seznanitev_zaprta else R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show() })
     }
 
     private fun vnesiKodoHosta(url: String) {

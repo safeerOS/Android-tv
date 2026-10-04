@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="link_obramba_kanal">Safeer Link – varnost</string>
+    <string name="link_obramba_kanal_opis">Ko Safeer Link ustavi napravo, ki poskuša priti noter.</string>
+    <string name="link_obramba_naslov">Safeer Link: naprava ustavljena</string>
+    <string name="link_obramba_besedilo">Naprava z naslova %1$s %2$s. Za %3$d min je ne poslušam več. Tvoje naprave delajo naprej.</string>
+    <string name="link_obramba_znana">»%1$s« (%2$s) se prijavlja narobe. Za %3$d min je ne poslušam. Če je tvoja, jo potem v Safeer Linku poveži znova.</string>
+    <string name="link_obramba_r_seznanitev">je ugibala kodo za povezavo</string>
+    <string name="link_obramba_r_zacetek">se je vsiljevala v Safeer Link</string>
+    <string name="link_obramba_r_brez_zaupanja">se je prijavljala brez dovoljenja</string>
+    <string name="link_obramba_r_povezava">je odpirala preveč povezav</string>
+    <string name="link_obramba_r_rokovanje">je tipala vrata Safeer Linka</string>
+    <string name="link_obramba_r_tipanje">je tipala po Safeer Linku</string>
+    <string name="link_obramba_r_okvir">je pošiljala pokvarjena sporočila</string>
+    <string name="link_obramba_r_drugo">se je vedla sumljivo</string>
+    <string name="link_obramba_napad_naslov">Safeer Link: napad v domačem omrežju</string>
+    <string name="link_obramba_napad_besedilo">Ustavljene naprave: %1$s. Preveri, kdo je v tvojem omrežju (gostje, neznane naprave).</string>
+    <string name="link_varovalka_naslov">Safeer Link: povezovanje s kodo je zaprto</string>
+    <string name="link_varovalka_besedilo">%1$s. Povezovanje s kodo je zaprto za %2$s. Novo napravo povežeš tako, da na eni od svojih naprav odpreš »Poveži naprave«, ali s kodo QR. Tvoje naprave delajo naprej.</string>
+    <string name="link_varovalka_r_kode">Nekdo je ugibal kodo za povezavo</string>
+    <string name="link_varovalka_r_zacetki">Nekdo je znova in znova začenjal povezovanje</string>
+    <string name="link_varovalka_ura">1 uro</string>
+    <string name="link_varovalka_dan">1 dan</string>
+    <string name="link_varovalka_teden">7 dni</string>
+    <string name="link_seznanitev_zaprta">Povezovanje s kodo je na tisti napravi začasno zaprto, ker je nekdo ugibal kodo. Na njej odpri »Poveži naprave« ali uporabi kodo QR.</string>
+</resources>

@@ -54,6 +54,48 @@ object HubKrmilnik {
     @Volatile
     var naPrijavoZaObvestilo: (() -> Unit)? = null
 
+    /** Obramba je zaprla vir (naslov, trajanje, razlog, ime naprave, ce jo sredisce pozna): storitev pokaze obvestilo. */
+    @Volatile
+    var naZaporo: ((vir: String, trajanjeMs: Long, razlog: String, ime: String) -> Unit)? = null
+
+    /** Obramba je zaznala napad (vec zaprtih virov ali vztrajen vir). */
+    @Volatile
+    var naNapad: ((viri: List<String>) -> Unit)? = null
+
+    /**
+     * Varovalka je zaprla povezovanje s kodo (trajanje, razlog »kode« ali »zacetki«, viri z imeni naprav, ce jih
+     * sredisce pozna): storitev pokaze obvestilo.
+     */
+    @Volatile
+    var naZaporoKode: ((trajanjeMs: Long, razlog: String, viri: List<String>) -> Unit)? = null
+
+    /**
+     * Obrambni mehanizem obeh sredisc (TLS in spletnega): steje sovrazne dogodke po viru in vir zapre. Zivi dlje kot
+     * streznik - zapora velja tudi po ponovnem zagonu sredisca v istem procesu.
+     */
+    val obramba = HubObramba(
+        obZapori = { vir, trajanjeMs, razlog ->
+            val sestava = try { HubObramba.opis(obrambaSestava(vir)) } catch (_: Throwable) { "" }
+            Log.w(TAG, "obramba: vir $vir zaprt za ${trajanjeMs / 1000} s (${sestava.ifEmpty { razlog }})")
+            val ime = try { usmerjevalnik?.imePoNaslovu(vir).orEmpty() } catch (_: Throwable) { "" }
+            try { naZaporo?.invoke(vir, trajanjeMs, razlog, ime) } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naZaporo", e) }
+        },
+        obNapadu = { viri ->
+            Log.w(TAG, "obramba: napad, zaprti viri: ${viri.joinToString()}")
+            try { naNapad?.invoke(viri) } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naNapad", e) }
+        },
+        // Vir na polovici praga: samo v dnevnik (ce je to uporabnikova naprava, se tu vidi, kaj pocne).
+        obOpozorilu = { vir, vsota, sestava ->
+            Log.i(TAG, "obramba: $vir na $vsota od ${HubObramba.PRAG} (${HubObramba.opis(sestava)})")
+        }
+    ).also { o ->
+        // Zaupan je vir, ki ima pri enem od sredisc odprto povezavo - dokler je povezan.
+        o.zaupan = { vir -> streznik?.imaPovezavoZ(vir) == true || spletniStreznik?.imaPovezavoZ(vir) == true }
+    }
+
+    private fun obrambaSestava(vir: String): Map<String, Int> =
+        obramba.stanje().zaprti.firstOrNull { it.vir == vir }?.sestava ?: emptyMap()
+
     @Volatile
     var tokovi: HubTokovi? = null
         private set
@@ -170,6 +212,14 @@ object HubKrmilnik {
         try { if (u.krog.podpisiLastne()) Log.i(TAG, "Krog: podpisani starejsi vnosi tega huba") } catch (e: Throwable) {
             Log.w(TAG, "Podpis starejsih vnosov: ${e.message}")
         }
+        u.naZaporoKode = { zapora ->
+            val viri = zapora.viri.map { (vir, _) ->
+                val ime = try { u.imePoNaslovu(vir).trim().take(40) } catch (_: Throwable) { "" }
+                if (ime.isNotEmpty()) "$ime ($vir)" else vir
+            }
+            Log.w(TAG, "varovalka: povezovanje s kodo zaprto za ${zapora.trajanjeMs / 1000} s (${zapora.razlog}; viri: ${zapora.viri.joinToString { it.first }})")
+            try { naZaporoKode?.invoke(zapora.trajanjeMs, zapora.razlog, viri) } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "naZaporoKode", e) }
+        }
         u.naSpremembePrijav = {
             javiPrijave()
             try { u.razposljiKode() } catch (e: Throwable) { SafeerLog.napaka("Krmilnik", "razposljiKode", e) }
@@ -195,7 +245,8 @@ object HubKrmilnik {
             preveriVstopnico = { zahteva -> u.preveriVstopnico(zahteva) },
             naPovezavo = { povezava -> povezi(u, povezava) },
             naTok = { zahteva, vhod, izhod, vticnica -> t.obdelaj(zahteva, vhod, izhod, vticnica) },
-            tlsTovarna = tls
+            tlsTovarna = tls,
+            obramba = obramba
         )
         if (!s.zazeni()) {
             Log.w(TAG, "Huba ni bilo mogoce zagnati.")
@@ -226,7 +277,8 @@ object HubKrmilnik {
             naZahtevo = { zahteva -> u.odgovoriSplet(zahteva) },
             preveriVstopnico = { zahteva -> u.preveriVstopnico(zahteva) },
             naPovezavo = { povezava -> povezi(u, povezava) },
-            tlsTovarna = null
+            tlsTovarna = null,
+            obramba = obramba
         )
         if (w.zazeni()) { spletniStreznik = w; u.spletnaVrata = w.vrata } else Log.w(TAG, "Spletnih vrat ni bilo mogoce odpreti; spletni odjemalec ni na voljo.")
 

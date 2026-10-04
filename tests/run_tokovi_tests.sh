@@ -18,6 +18,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/stubs/Log.kt" \
     "$TEST_DIR/stubs/DatotekeStreznik.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/HubObramba.kt" \
+    "$SRC/si/safeer/tv/cast/HubVarovalka.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
     "$SRC/si/safeer/tv/cast/SafeerLog.kt" \

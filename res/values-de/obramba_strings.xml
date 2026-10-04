@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="link_obramba_kanal">Safeer Link – Sicherheit</string>
+    <string name="link_obramba_kanal_opis">Wenn Safeer Link ein Gerät stoppt, das immer wieder hineinwill.</string>
+    <string name="link_obramba_naslov">Safeer Link: Gerät gestoppt</string>
+    <string name="link_obramba_besedilo">Das Gerät mit der Adresse %1$s %2$s. Ich höre %3$d Min. nicht mehr auf es. Deine Geräte arbeiten weiter.</string>
+    <string name="link_obramba_znana">„%1$s“ (%2$s) meldet sich fehlerhaft an. Ich höre %3$d Min. nicht auf es. Wenn es deins ist, verbinde es danach in Safeer Link neu.</string>
+    <string name="link_obramba_r_seznanitev">hat den Kopplungscode geraten</string>
+    <string name="link_obramba_r_zacetek">wollte sich immer wieder mit Safeer Link koppeln</string>
+    <string name="link_obramba_r_brez_zaupanja">hat sich immer wieder ohne Erlaubnis angemeldet</string>
+    <string name="link_obramba_r_povezava">hat zu viele Verbindungen geöffnet</string>
+    <string name="link_obramba_r_rokovanje">hat den Port von Safeer Link abgetastet</string>
+    <string name="link_obramba_r_tipanje">hat Safeer Link abgetastet</string>
+    <string name="link_obramba_r_okvir">hat fehlerhafte Nachrichten gesendet</string>
+    <string name="link_obramba_r_drugo">hat sich verdächtig verhalten</string>
+    <string name="link_obramba_napad_naslov">Safeer Link: Angriff im Heimnetz</string>
+    <string name="link_obramba_napad_besedilo">Gestoppte Geräte: %1$s. Prüfe, wer in deinem Netz ist (Gäste, unbekannte Geräte).</string>
+    <string name="link_varovalka_naslov">Safeer Link: Kopplung per Code ist gesperrt</string>
+    <string name="link_varovalka_besedilo">%1$s. Die Kopplung per Code ist für %2$s gesperrt. Ein neues Gerät verbindest du, indem du auf einem deiner Geräte „Geräte verbinden“ öffnest, oder per QR-Code. Deine Geräte arbeiten weiter.</string>
+    <string name="link_varovalka_r_kode">Jemand hat versucht, den Kopplungscode zu erraten</string>
+    <string name="link_varovalka_r_zacetki">Jemand hat die Kopplung immer wieder gestartet</string>
+    <string name="link_varovalka_ura">1 Stunde</string>
+    <string name="link_varovalka_dan">1 Tag</string>
+    <string name="link_varovalka_teden">7 Tage</string>
+    <string name="link_seznanitev_zaprta">Die Kopplung per Code ist auf diesem Gerät vorübergehend gesperrt, weil jemand den Code erraten wollte. Öffne dort „Geräte verbinden“ oder nutze den QR-Code.</string>
+</resources>

@@ -36,7 +36,8 @@ internal fun HubUsmerjevalnik.odgovoriSeznanitev(zahteva: HubStreznik.Zahteva, p
         val ime = (telo?.niz("name") ?: "").trim().take(NAJVEC_IMENA)
         if (deviceId.isEmpty()) return HubStreznik.Odgovor(400, napakaJson("Manjka device_id.", "manjka_device_id"))
         val prijava = zacniSeznanitev(deviceId, ime, zahteva.odjemalec)
-            ?: return HubStreznik.Odgovor(429, napakaJson("Preveč čakajočih prijav; poskusite čez nekaj minut.", "prevec_prijav"))
+            ?: return if (kodaZaprta()) HubStreznik.Odgovor(429, napakaJson(HubUsmerjevalnik.BESEDILO_KODA_ZAPRTA, "seznanitev_zaprta"))
+            else HubStreznik.Odgovor(429, napakaJson("Preveč čakajočih prijav; poskusite čez nekaj minut.", "prevec_prijav"))
         // Kode NE vrnemo napravi, ki se prikljucuje. Pokaze jo gostitelj na svojem
         // zaslonu, uporabnik pa jo tam prebere in vtipka. Nacin povemo izrecno, da
         // odjemalec ve, kaj naj pokaze; starejsi Hub tega polja nima in takrat velja
@@ -105,6 +106,7 @@ internal fun HubUsmerjevalnik.odgovoriSeznanitev(zahteva: HubStreznik.Zahteva, p
         if (izid.pa == null || izid.ca == null) {
             val (kodaHttp, sporocilo) = when (izid.napaka) {
                 "prevec_poskusov" -> 429 to "Preveč poskusov. Začnite znova."
+                "seznanitev_zaprta" -> 429 to HubUsmerjevalnik.BESEDILO_KODA_ZAPRTA
                 "prijava_ne_obstaja" -> 404 to "Prijava je potekla. Začnite znova."
                 "neveljavna_tocka" -> 400 to "Neveljavno sporočilo."
                 else -> 409 to "Seznanitev ni mogoča."
@@ -169,6 +171,7 @@ internal fun HubUsmerjevalnik.odgovoriSeznanitev(zahteva: HubStreznik.Zahteva, p
         if (zeton == null) {
             val (koda_http, sporocilo) = when (izid.napaka) {
                 "napacna_koda" -> 401 to "Koda ni pravilna."
+                "seznanitev_zaprta" -> 429 to HubUsmerjevalnik.BESEDILO_KODA_ZAPRTA
                 "prevec_poskusov" -> 429 to "Preveč poskusov. Začnite znova."
                 "prijava_ne_obstaja" -> 404 to "Prijava je potekla. Začnite znova."
                 else -> 409 to "Seznanitev ni mogoča."

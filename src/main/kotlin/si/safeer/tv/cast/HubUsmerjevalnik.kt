@@ -274,6 +274,18 @@ class HubUsmerjevalnik(
         }
     }
 
+    /** Ime naprave ali sosednjega sredisca, ki ga sredisce pozna s tega naslova, ali "". Za obvestilo obrambe. */
+    fun imePoNaslovu(naslov: String): String {
+        if (naslov.isEmpty()) return ""
+        val n = register.vse().filter { it.naslov == naslov }.maxByOrNull { it.zadnjic }
+        if (n != null) return imeNaprave(n.id).takeIf { it != n.id } ?: n.ime
+        // Sosednje sredisce (Link Mesh) ni v registru naprav: ime ima krog zaupanja.
+        val sosed = synchronized(kljucnica) {
+            sosedje.entries.firstOrNull { naslovSoseda(it.value.naslov) == naslov }?.key
+        } ?: return ""
+        return imeNaprave(sosed).takeIf { it != sosed } ?: krog.clanZaId(sosed)?.ime.orEmpty()
+    }
+
     /** Ime, kot ga vidi uporabnik: njegov vzdevek, sicer ime, ki ga je naprava povedala o sebi. */
     fun imeNaprave(id: String): String = synchronized(kljucnica) {
         vzdevek(id) ?: register.najdi(id)?.ime ?: zetoni.values.firstOrNull { it.deviceId == id }?.ime ?: id
@@ -515,6 +527,35 @@ class HubUsmerjevalnik(
 
     // ------------------------------------------------------------------ seznanjanje
 
+    /**
+     * Varovalka kode: skupna (ne po viru) omejitev ugibanja 6-mestne kode. Stanje prezivi ponovni zagon sredisca -
+     * sicer bi vsak zagon napadalcu vrnil polno mejo.
+     */
+    val varovalka = HubVarovalka(ura, shramba?.beri(KLJUC_VAROVALKE), { zapis -> shramba?.pisi(KLJUC_VAROVALKE, zapis) })
+        .also { it.obZapori = { zapora -> zaporaKode(zapora) } }
+
+    /** Povezovanje s kodo se je zaprlo: sredisce pokaze obvestilo. */
+    @Volatile
+    var naZaporoKode: ((HubVarovalka.Zapora) -> Unit)? = null
+
+    /** Varovalka je zaprla povezovanje s kodo: cakajoce prijave brez vabila padejo, kode na zaslonih ugasnejo. */
+    private fun zaporaKode(zapora: HubVarovalka.Zapora) {
+        synchronized(kljucnica) {
+            pocistiPridruzitve()
+            val odprte = pridruzitve.values.map { it.pin }.toSet()
+            val padle = prijave.filterValues { !it.potrjena && it.pin !in odprte }.keys.toList()
+            for (kljuc in padle) prijave.remove(kljuc)
+            if (padle.isNotEmpty()) naSpremembePrijav?.invoke()
+        }
+        try { naZaporoKode?.invoke(zapora) } catch (e: Throwable) { SafeerLog.napaka("Usmerjevalnik", "naZaporoKode", e) }
+    }
+
+    /** Ali je povezovanje s kodo zdaj zaprto za novo napravo (varovalka; odprto vabilo ga med zaporo odpre). */
+    fun kodaZaprta(): Boolean = synchronized(kljucnica) {
+        pocistiPridruzitve()
+        !varovalka.smeZaceti(pridruzitve.isNotEmpty())
+    }
+
     private fun pocistiPrijave() {
         val zdaj = ura()
         val potekle = prijave.filterValues {
@@ -525,7 +566,8 @@ class HubUsmerjevalnik(
 
     /**
      * Naprava se prijavi in dobi kodo, ki jo pokaze na svojem zaslonu. Vrne null, ce je
-     * cakajocih prijav prevec - takrat naj naprava poskusi cez nekaj minut.
+     * cakajocih prijav prevec - takrat naj naprava poskusi cez nekaj minut - ali ce je varovalka
+     * povezovanje s kodo zaprla ([kodaZaprta]).
      */
     fun zacniSeznanitev(deviceId: String, ime: String, naslov: String): Pair<String, String>? {
         synchronized(kljucnica) {
@@ -535,6 +577,7 @@ class HubUsmerjevalnik(
             val stare = prijave.filterValues { it.deviceId == deviceId }.keys.toList()
             for (kljuc in stare) prijave.remove(kljuc)
             if (prijave.size >= NAJVEC_CAKAJOCIH) return null
+            if (!varovalka.zacetek(naslov, pridruzitve.isNotEmpty())) return null
             // Politika A: ce je naprava v krogu ze odprla povabilo (pairing host),
             // uporabimo ze prikazano kodo, da jo uporabnik le prepise z zaslona.
             val aktivnaKoda = pridruzitve.values.lastOrNull()?.pin ?: pin()
@@ -606,6 +649,12 @@ class HubUsmerjevalnik(
             return IzidKode(zeton, null)
         }
         val vnos = koda.trim()
+        pocistiPridruzitve()
+        if (!varovalka.poskus(prijava.naslov, pridruzitve.values.any { it.pin == prijava.pin })) {
+            prijave.remove(pairId)
+            naSpremembePrijav?.invoke()
+            return IzidKode(null, "seznanitev_zaprta")
+        }
         if (!enaka(prijava.pin, vnos)) {
             prijava.poskusov += 1
             if (prijava.poskusov >= NAJVEC_POSKUSOV) {
@@ -616,6 +665,8 @@ class HubUsmerjevalnik(
             naSpremembePrijav?.invoke()
             return IzidKode(null, "napacna_koda")
         }
+        // Koda je bila prava: ta poskus ni ugibanje, tudi ce sredisce nima vec prostora.
+        varovalka.uspeh(prijava.naslov)
         if (jePolno(prijava.deviceId)) {
             return IzidKode(null, "preveč_naprav")
         }
@@ -644,6 +695,13 @@ class HubUsmerjevalnik(
             prijave.remove(pairId)
             naSpremembePrijav?.invoke()
             return IzidSpake(null, null, "prevec_poskusov")
+        }
+        // En krog napravi pove, ali je njena koda prava: to JE poskus kode in steje v skupno mejo.
+        pocistiPridruzitve()
+        if (!varovalka.poskus(prijava.naslov, pridruzitve.values.any { it.pin == prijava.pin })) {
+            prijave.remove(pairId)
+            naSpremembePrijav?.invoke()
+            return IzidSpake(null, null, "seznanitev_zaprta")
         }
         return try {
             val s = Spake2.streznik(prijava.pin, IDENTITETA_HUBA, prijava.deviceId,
@@ -677,6 +735,8 @@ class HubUsmerjevalnik(
             naSpremembePrijav?.invoke()
             return IzidKode(null, "napacna_koda")
         }
+        // Koda je bila prava: ta poskus ni ugibanje, tudi ce sredisce nima vec prostora.
+        varovalka.uspeh(prijava.naslov)
         if (jePolno(prijava.deviceId)) return IzidKode(null, "preveč_naprav")
         val zeton = "saf_tv_" + nakljucni(24)
         vpisiZeton(zeton, SeznanjenaNaprava(prijava.deviceId, prijava.ime, ura() / 1000.0))
@@ -2160,6 +2220,23 @@ class HubUsmerjevalnik(
         fun bajteVHex(b: ByteArray): String = b.joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
         const val PIN_VELJA_MS = 300_000L
+
+        /**
+         * Naslov IP sosednje povezave: dohodna nosi naslov odjemalca, odhodna naslov sredisca
+         * (wss://ip:vrata/cast/ws ali ip:vrata).
+         */
+        internal fun naslovSoseda(naslov: String): String {
+            var n = naslov.substringAfter("://", naslov).substringBefore('/')
+            if (n.startsWith("[")) return n.substringAfter('[').substringBefore(']')
+            if (n.count { it == ':' } == 1) n = n.substringBefore(':')
+            return n
+        }
+
+        /** Kljuc v shrambi za stanje varovalke kode. */
+        const val KLJUC_VAROVALKE = "hub_varovalka"
+
+        /** Odgovor napravi, ki zeli zaceti prijavo s kodo, ko jo je varovalka zaprla. */
+        const val BESEDILO_KODA_ZAPRTA = "Povezovanje s kodo je začasno zaprto, ker je nekdo ugibal kodo. Na napravi v Safeer Linku odpri »Poveži naprave« ali uporabi kodo QR."
         const val PREVZEM_VELJA_MS = 600_000L
         const val VSTOPNICA_VELJA_MS = 60_000L
 

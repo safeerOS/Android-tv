@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="link_obramba_kanal">Safeer Link – sicurezza</string>
+    <string name="link_obramba_kanal_opis">Quando Safeer Link blocca un dispositivo che continua a provare a entrare.</string>
+    <string name="link_obramba_naslov">Safeer Link: dispositivo bloccato</string>
+    <string name="link_obramba_besedilo">Il dispositivo all\'indirizzo %1$s %2$s. Non lo ascolto per %3$d min. I tuoi dispositivi continuano a funzionare.</string>
+    <string name="link_obramba_znana">«%1$s» (%2$s) accede in modo errato. Non lo ascolto per %3$d min. Se è tuo, ricollegalo poi in Safeer Link.</string>
+    <string name="link_obramba_r_seznanitev">stava indovinando il codice di abbinamento</string>
+    <string name="link_obramba_r_zacetek">continuava a chiedere di unirsi a Safeer Link</string>
+    <string name="link_obramba_r_brez_zaupanja">continuava ad accedere senza permesso</string>
+    <string name="link_obramba_r_povezava">apriva troppe connessioni</string>
+    <string name="link_obramba_r_rokovanje">stava sondando la porta di Safeer Link</string>
+    <string name="link_obramba_r_tipanje">stava sondando Safeer Link</string>
+    <string name="link_obramba_r_okvir">inviava messaggi difettosi</string>
+    <string name="link_obramba_r_drugo">si è comportato in modo sospetto</string>
+    <string name="link_obramba_napad_naslov">Safeer Link: attacco nella rete di casa</string>
+    <string name="link_obramba_napad_besedilo">Dispositivi bloccati: %1$s. Controlla chi è nella tua rete (ospiti, dispositivi sconosciuti).</string>
+    <string name="link_varovalka_naslov">Safeer Link: l\'associazione con codice è chiusa</string>
+    <string name="link_varovalka_besedilo">%1$s. L\'associazione con codice è chiusa per %2$s. Per aggiungere un dispositivo, apri «Collega dispositivi» su uno dei tuoi dispositivi oppure usa il codice QR. I tuoi dispositivi continuano a funzionare.</string>
+    <string name="link_varovalka_r_kode">Qualcuno cercava di indovinare il codice di associazione</string>
+    <string name="link_varovalka_r_zacetki">Qualcuno avviava l\'associazione più e più volte</string>
+    <string name="link_varovalka_ura">1 ora</string>
+    <string name="link_varovalka_dan">1 giorno</string>
+    <string name="link_varovalka_teden">7 giorni</string>
+    <string name="link_seznanitev_zaprta">L\'associazione con codice è temporaneamente chiusa su quel dispositivo perché qualcuno cercava di indovinare il codice. Apri lì «Collega dispositivi» o usa il codice QR.</string>
+</resources>

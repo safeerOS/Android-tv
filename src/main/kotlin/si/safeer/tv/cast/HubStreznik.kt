@@ -43,7 +43,12 @@ class HubStreznik(
      * to je dovoljeno samo v preizkusih na JVM; na napravah Hub vedno tece s TLS, ker po
      * omrezju potujejo zetoni, datoteke in zaslon.
      */
-    private val tlsTovarna: javax.net.ssl.SSLServerSocketFactory? = null
+    private val tlsTovarna: javax.net.ssl.SSLServerSocketFactory? = null,
+    /**
+     * Obrambni mehanizem ([HubObramba]): steje sovrazne dogodke po viru in vir zapre. Zaprt vir ne pride niti do
+     * rokovanja TLS. Brez njega (preizkusi) streznik dela kot prej.
+     */
+    private val obramba: HubObramba? = null
 ) {
 
     data class Zahteva(
@@ -120,6 +125,9 @@ class HubStreznik(
 
     fun steviloPovezav(): Int = povezave.size
 
+    /** Ali ima naprava s tega naslova pri nas odprto povezavo (prijava z vstopnico je uspela)? Za obrambo je zaupana. */
+    fun imaPovezavoZ(vir: String): Boolean = vir.isNotEmpty() && povezave.any { it.zahteva.odjemalec == vir }
+
     /**
      * Najprej poskusimo obicajna vrata, da je naslov predvidljiv. Ce so zasedena (npr. na
      * napravi ze tece kaj drugega), vzamemo prosta - naslov ionako objavimo prek mDNS, zato
@@ -163,6 +171,11 @@ class HubStreznik(
             } catch (e: Exception) {
                 if (tece.get()) Log.w(OZNAKA, "Napaka pri sprejemanju: ${e.message}")
                 break
+            }
+            // Zaprt vir (HubObramba) ne pride niti do rokovanja TLS: brez potrdila, brez odgovora.
+            if (obramba != null && !obramba.dovoli(odjemalec.inetAddress?.hostAddress ?: "")) {
+                try { odjemalec.close() } catch (_: Exception) { }
+                continue
             }
             if (strezenihZdaj.get() >= NAJVEC_SOCASNIH) {
                 // Raje jasno povemo, da zdaj ne gre, kot da bi niti rasle brez konca.
@@ -208,6 +221,16 @@ class HubStreznik(
     private fun postrezi(vticnica: Socket) {
         vticnica.soTimeout = BRALNI_TIMEOUT_MS
         vticnica.tcpNoDelay = true
+        val vir = vticnica.inetAddress?.hostAddress ?: ""
+        if (obramba != null && vticnica is javax.net.ssl.SSLSocket) {
+            // Rokovanje izrecno: neuspelo (ni TLS, pregledovalnik vrat, tiha povezava) je sovrazen dogodek vira.
+            try {
+                vticnica.startHandshake()
+            } catch (e: Exception) {
+                obramba.dogodek(vir, HubObramba.ROKOVANJE)
+                return
+            }
+        }
         val vhod = vticnica.getInputStream().buffered()
         val izhod = vticnica.getOutputStream()
 
@@ -219,9 +242,12 @@ class HubStreznik(
             if (razlog != null) {
                 // Povezavo zavrnemo se pred rokovanjem: naprava brez veljavne vstopnice
                 // ne sme nikoli priti do sporocil.
+                obramba?.dogodek(vir, HubObramba.BREZ_ZAUPANJA)
                 posljiOdgovor(izhod, Odgovor(403, "{\"napaka\":\"$razlog\"}"))
                 return
             }
+            // Veljavna vstopnica: vir je clan kroga.
+            obramba?.zaupaj(vir)
             val kljuc = zahteva.glave["sec-websocket-key"]
             if (kljuc.isNullOrBlank()) {
                 posljiOdgovor(izhod, Odgovor(400, "{\"napaka\":\"manjka kljuc\"}"))
@@ -253,6 +279,7 @@ class HubStreznik(
                 true
             }
             if (prevzeto) return
+            obramba?.dogodek(vir, HubObramba.TIPANJE)
             posljiOdgovor(izhod, Odgovor(404, "{\"napaka\":\"ni te poti\"}"))
             return
         }
@@ -263,7 +290,27 @@ class HubStreznik(
             Log.w(OZNAKA, "Napaka pri obdelavi ${zahteva.pot}: ${e.message}")
             Odgovor(500, "{\"napaka\":\"notranja napaka\"}")
         }
+        obramba?.let { oceni(it, vir, zahteva, odgovor) }
         posljiOdgovor(izhod, odgovor)
+    }
+
+    /** Obramba: napaka odgovora je sovrazen dogodek vira, uspesna prijava ga naredi zaupanega. */
+    private fun oceni(o: HubObramba, vir: String, zahteva: Zahteva, odgovor: Odgovor) {
+        if (odgovor.koda >= 400) {
+            // GET /cast/health brez zetona (401) je prepoznava sredisca - tako ga preveri vsaka naprava, preden mu zaupa.
+            if (zahteva.pot == "/cast/health" && zahteva.metoda == "GET") return
+            o.dogodek(vir, HubObramba.vrstaNapake(odgovor.koda, odgovor.telo))
+            return
+        }
+        if (zahteva.metoda != "POST") return
+        when (zahteva.pot) {
+            "/cast/auth/ticket", "/cast/ticket" -> o.zaupaj(vir)
+            // Zacetek seznanitve s kodo uporabniku pokaze kodo: cetrti v minuti vir zapre.
+            "/cast/pair/start" -> o.dogodek(vir, HubObramba.ZACETEK_SEZNANITVE)
+            // Odgovor napravi pove, ali je njena koda prava (potrditev sredisca): vsak krog je poskus kode.
+            "/cast/pair/spake" -> o.dogodek(vir, HubObramba.POSKUS_KODE)
+            "/cast/pair/qr/start" -> o.dogodek(vir, HubObramba.SEZNANITEV)
+        }
     }
 
     // ---------------------------------------------------------------- HTTP
@@ -684,6 +731,7 @@ class HubStreznik(
                 val maskiran = (drugi and 0x80) != 0
                 if (!maskiran) {
                     // Odjemalec, ki ne maskira, ni skladen; taksne povezave ne beremo naprej.
+                    obramba?.dogodek(zahteva.odjemalec, HubObramba.OKVIR)
                     zapri(1002, "okvir ni maskiran")
                     break
                 }

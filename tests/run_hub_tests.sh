@@ -15,7 +15,26 @@ trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" -J-Xmx2g \
     "$TEST_DIR/stubs/Log.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/HubObramba.kt" \
     "$TEST_DIR/HubStreznikTest.kt" \
     -include-runtime -d "$OUT/hub.jar"
 
 java -cp "$OUT/hub.jar" si.safeer.tv.cast.HubStreznikTestKt
+
+# Obrambni mehanizem sredisca (HubObramba): pravila z lazno uro in pravo sredisce na zanki.
+"$KOTLINC" -J-Xmx2g \
+    "$TEST_DIR/stubs/Log.kt" \
+    "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/HubObramba.kt" \
+    "$TEST_DIR/HubObrambaTest.kt" \
+    -include-runtime -d "$OUT/obramba.jar"
+
+java -cp "$OUT/obramba.jar" si.safeer.tv.cast.HubObrambaTestKt
+
+# Varovalka kode za povezavo (HubVarovalka): skupna omejitev ugibanja 6-mestne kode, pravila z lazno uro.
+"$KOTLINC" -J-Xmx2g \
+    "$SRC/si/safeer/tv/cast/HubVarovalka.kt" \
+    "$TEST_DIR/HubVarovalkaTest.kt" \
+    -include-runtime -d "$OUT/varovalka.jar"
+
+java -cp "$OUT/varovalka.jar" si.safeer.tv.cast.HubVarovalkaTestKt

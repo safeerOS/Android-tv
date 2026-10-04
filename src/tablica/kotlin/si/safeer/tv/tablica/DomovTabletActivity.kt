@@ -534,7 +534,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             getString(R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")",
             { _, _ -> if (!isFinishing) vnesiKodo(hub) },
             { uspelo -> if (!uspelo && !isFinishing)
-                Toast.makeText(this, getString(R.string.tablet_ni_odgovora, hub.ime), Toast.LENGTH_LONG).show() })
+                Toast.makeText(this, if (si.safeer.tv.cast.HubPairing.kodaZaprtaPriSrediscu()) getString(R.string.link_seznanitev_zaprta)
+                    else getString(R.string.tablet_ni_odgovora, hub.ime), Toast.LENGTH_LONG).show() })
     }
 
     private fun vnesiKodo(hub: IskanjeHubov.Hub) {

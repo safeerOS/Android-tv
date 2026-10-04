@@ -14,6 +14,7 @@ mkdir -p "$OUT"
 "$KOTLINC" -J-Xmx2g \
     "$TEST_DIR/stubs/Log.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/HubObramba.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$TEST_DIR/VrstaTest.kt" \
     -include-runtime -d "$OUT/vrsta.jar"

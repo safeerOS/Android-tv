@@ -214,7 +214,12 @@ class LinkMost(
                         put("koda", koda)
                     })
                 },
-                { uspelo -> seznanitevKoncana(uspelo) }
+                { uspelo ->
+                    seznanitevKoncana(uspelo)
+                    if (!uspelo && HubPairing.kodaZaprtaPriSrediscu()) {
+                        napaka("seznanitev_zaprta", dejavnost.getString(si.safeer.tv.R.string.link_seznanitev_zaprta))
+                    }
+                }
             )
         } catch (e: Throwable) {
             napaka("seznanitev_ni_stekla", "Seznanitve ni bilo mogoce zaceti: ${e.message}")

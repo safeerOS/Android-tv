@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="link_obramba_kanal">Safeer Link – security</string>
+    <string name="link_obramba_kanal_opis">When Safeer Link stops a device that keeps trying to get in.</string>
+    <string name="link_obramba_naslov">Safeer Link: device stopped</string>
+    <string name="link_obramba_besedilo">The device at %1$s %2$s. I will not listen to it for %3$d min. Your devices keep working.</string>
+    <string name="link_obramba_znana">“%1$s” (%2$s) keeps signing in incorrectly. I will not listen to it for %3$d min. If it is yours, connect it again in Safeer Link afterwards.</string>
+    <string name="link_obramba_r_seznanitev">was guessing the pairing code</string>
+    <string name="link_obramba_r_zacetek">kept asking to join Safeer Link</string>
+    <string name="link_obramba_r_brez_zaupanja">kept signing in without permission</string>
+    <string name="link_obramba_r_povezava">was opening too many connections</string>
+    <string name="link_obramba_r_rokovanje">was probing the Safeer Link port</string>
+    <string name="link_obramba_r_tipanje">was probing Safeer Link</string>
+    <string name="link_obramba_r_okvir">was sending broken messages</string>
+    <string name="link_obramba_r_drugo">behaved suspiciously</string>
+    <string name="link_obramba_napad_naslov">Safeer Link: attack in the home network</string>
+    <string name="link_obramba_napad_besedilo">Stopped devices: %1$s. Check who is in your network (guests, unknown devices).</string>
+    <string name="link_varovalka_naslov">Safeer Link: pairing by code is closed</string>
+    <string name="link_varovalka_besedilo">%1$s. Pairing by code is closed for %2$s. To add a device, open “Connect devices” on one of your devices, or use the QR code. Your devices keep working.</string>
+    <string name="link_varovalka_r_kode">Someone was guessing the pairing code</string>
+    <string name="link_varovalka_r_zacetki">Someone kept starting to pair over and over</string>
+    <string name="link_varovalka_ura">1 hour</string>
+    <string name="link_varovalka_dan">1 day</string>
+    <string name="link_varovalka_teden">7 days</string>
+    <string name="link_seznanitev_zaprta">Pairing by code is temporarily closed on that device because someone was guessing the code. Open “Connect devices” on it or use the QR code.</string>
+</resources>

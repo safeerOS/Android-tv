@@ -444,7 +444,8 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             },
             { uspelo ->
                 if (!uspelo && !isFinishing) {
-                    Toast.makeText(this, getString(R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(if (HubPairing.kodaZaprtaPriSrediscu()) R.string.link_seznanitev_zaprta
+                        else R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show()
                 }
             })
     }

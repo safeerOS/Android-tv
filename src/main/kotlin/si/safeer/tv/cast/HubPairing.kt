@@ -52,6 +52,14 @@ object HubPairing {
     var zadnjaSeznanitev: Izid? = null
         private set
 
+    /** Stabilna koda napake, s katero je sredisce zavrnilo zadnji zacetek seznanitve (null = ni je ali ni odgovora). */
+    @Volatile
+    var zadnjaNapaka: String? = null
+        private set
+
+    /** Sredisce je povezovanje s kodo zaprlo (nekdo je ugibal kodo): uporabniku povemo, kaj naj naredi. */
+    fun kodaZaprtaPriSrediscu(): Boolean = zadnjaNapaka == "seznanitev_zaprta"
+
     @Volatile
     private var odprta: Prijava? = null
 
@@ -135,6 +143,7 @@ object HubPairing {
         }
         tece = true
         odprta = null
+        zadnjaNapaka = null
         Thread {
             try {
                 val (odjemalec, zaupnik) = odjemalecTofu()
@@ -147,7 +156,8 @@ object HubPairing {
                 val hubId = json?.optString("hub_id").orEmpty().ifBlank { HubUsmerjevalnik.IDENTITETA_HUBA }
                 val odtis = zaupnik.videni.orEmpty()
                 if (koda != 200 || pairId.isBlank() || odtis.isBlank()) {
-                    Log.w(TAG, "Prijave ni bilo mogoce zaceti (koda $koda).")
+                    zadnjaNapaka = json?.optString("code").orEmpty().ifBlank { null }
+                    Log.w(TAG, "Prijave ni bilo mogoce zaceti (koda $koda${zadnjaNapaka?.let { ", $it" } ?: ""}).")
                     tece = false
                     glavna.post { koncano(false) }
                     return@Thread

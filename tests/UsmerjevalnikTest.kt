@@ -1569,6 +1569,133 @@ private fun preizkusPolitikeA() {
     preveriEnako("vabilo je po uspesnem SPAKE2 porabljeno", 404, ponovniQr?.koda)
 }
 
+// ------------------------------------------------------------ ime sosednjega sredisca
+
+private fun preizkusImenaSoseda() {
+    println("\n== Obramba: obvestilo imenuje tudi sosednje sredisce (Link Mesh) ==")
+    preveriEnako("dohodna povezava", "192.168.0.71", HubUsmerjevalnik.naslovSoseda("192.168.0.71"))
+    preveriEnako("odhodna povezava (URL)", "192.168.0.70", HubUsmerjevalnik.naslovSoseda("wss://192.168.0.70:8990/cast/ws"))
+    preveriEnako("naslov z vrati", "192.168.0.70", HubUsmerjevalnik.naslovSoseda("192.168.0.70:45433"))
+    preveriEnako("IPv6 v oklepajih", "fd00::1", HubUsmerjevalnik.naslovSoseda("wss://[fd00::1]:8990/cast/ws"))
+    preveriEnako("goli IPv6", "fd00::1", HubUsmerjevalnik.naslovSoseda("fd00::1"))
+
+    val u = usmerjevalnik()
+    val hub = parKljucev()
+    u.vpisiLastniKljuc("n-aaaaaaaaaaaaaaaa", "Televizor", b64(hub.public.encoded), "tv")
+    val telefon = parKljucev()
+    val idTelefona = "n-404fedf2ed258fd9"
+    u.krog.dodaj(KrogZaupanja.Clan(idTelefona, b64(telefon.public.encoded), "Telefon v kuhinji", "phone", KrogZaupanja.zdaj(), "n-aaaaaaaaaaaaaaaa"))
+    preveriEnako("brez sosednje povezave ni imena", "", u.imePoNaslovu("192.168.0.157"))
+    val povezava = object : HubUsmerjevalnik.Odjemalec {
+        override val naslov = "192.168.0.157"
+        override fun poslji(besedilo: String) {}
+        override fun zapri(koda: Int, razlog: String) {}
+    }
+    preveri("sosed je sprejet", u.dodajSoseda(idTelefona, povezava, idTelefona))
+    preveriEnako("sosednje sredisce dobi ime iz kroga", "Telefon v kuhinji", u.imePoNaslovu("192.168.0.157"))
+    preveriEnako("drug naslov nima imena", "", u.imePoNaslovu("192.168.0.158"))
+}
+
+// ------------------------------------------------------------ varovalka kode
+
+/** En poskus kode, kot ga naredi naprava: zeton, "napacna" ali napaka sredisca. Napadalec po napacni kodi ne klice /finish. */
+private fun poskusKode(u: HubUsmerjevalnik, pairId: String, naprava: String, koda: String): String {
+    val o = Spake2.odjemalec(koda, naprava, HubUsmerjevalnik.IDENTITETA_HUBA, u.lastniOdtis.toByteArray(), pairId.toByteArray())
+    val prvi = u.spakeKorak1(pairId, naprava, o.sporocilo())
+    if (prvi.pa == null || prvi.ca == null) return prvi.napaka ?: "?"
+    val cb = o.zakljuci(prvi.pa)
+    if (!o.preveri(prvi.ca)) return "napacna"
+    val drugi = u.spakeKorak2(pairId, naprava, cb)
+    return drugi.zeton ?: (drugi.napaka ?: "?")
+}
+
+private fun preizkusVarovalke() {
+    println("\n== Varovalka kode: skupna omejitev ugibanja (ne po viru) ==")
+    val naslovi = listOf("192.168.0.66", "192.168.0.67", "192.168.0.68", "192.168.0.69")
+
+    // Pocasno ugibanje z vec naslovov ostane pod pragom obrambe po viru; skupna meja ga ustavi.
+    val u = usmerjevalnik()
+    u.lastniOdtis = "AA11BB22"
+    val zapore = ArrayList<HubVarovalka.Zapora>()
+    u.naZaporoKode = { zapore.add(it) }
+    var izvedenih = 0
+    var zavrnjenihZacetkov = 0
+    for (i in 0 until 6) {
+        cas += 61_000L
+        val zacetek = u.zacniSeznanitev("vsiljivec-$i", "Telefon", naslovi[i % 4])
+        if (zacetek == null) { zavrnjenihZacetkov++; continue }
+        for (k in 0 until 5) {
+            val izid = poskusKode(u, zacetek.first, "vsiljivec-$i", "000000")
+            if (izid == "napacna") izvedenih++ else { preveriEnako("poskus cez mejo je zavrnjen", "seznanitev_zaprta", izid); break }
+        }
+    }
+    preveriEnako("izvedenih je natanko meja minus ena poskusov", HubVarovalka.POSKUSOV - 1, izvedenih)
+    preveriEnako("zapora je ena, zaradi kod, za eno uro", listOf("kode" to 3_600_000L), zapore.map { it.razlog to it.trajanjeMs })
+    preveriEnako("po zapori sta zacetka zavrnjena", 2, zavrnjenihZacetkov)
+    preveri("cakajoce prijave padejo (kode na zaslonih ugasnejo)", u.cakajocePrijave().isEmpty())
+    preveri("povezovanje s kodo je zaprto", u.kodaZaprta())
+    val zaprt = u.odgovori(zahteva("POST", "/cast/pair/start", """{"device_id":"telefon","name":"Telefon"}"""))
+    preveriEnako("zacetek po HTTP: 429", 429, zaprt?.koda)
+    preveriEnako("zacetek po HTTP: razlog", "seznanitev_zaprta", polje(zaprt!!.telo, "code"))
+    preveri("zacetek po HTTP: besedilo pove, kaj naj uporabnik naredi", polje(zaprt.telo, "detail").contains("Poveži naprave"))
+    preveriEnako("obramba po viru ga steje kot tipanje", HubObramba.TIPANJE, HubObramba.vrstaNapake(429, zaprt.telo))
+
+    // Vabilo zaupane naprave (»Poveži naprave«) povezovanje odpre tudi med zaporo.
+    val vabilo = u.ustvariPridruzitev()
+    preveri("z odprtim vabilom povezovanje ni zaprto", !u.kodaZaprta())
+    val moja = u.zacniSeznanitev("telefon", "Telefon", "192.168.0.30")
+    preveri("z vabilom se prijava zacne", moja != null)
+    val zeton = poskusKode(u, moja!!.first, "telefon", vabilo.pin)
+    preveri("prava koda z vabila izda zeton", u.jeVeljavenZeton(zeton))
+    preveriEnako("uspeh vrne kredit", HubVarovalka.KREDIT_VABILA, u.varovalka.stanje().kredit)
+    preveri("vabilo je porabljeno: povezovanje s kodo je spet zaprto", u.kodaZaprta())
+
+    // Tudi z vabilom je poskusov med zaporo najvec KREDIT_VABILA.
+    u.ustvariPridruzitev()
+    var zVabilom = 0
+    for (i in 0 until 4) {
+        val zacetek = u.zacniSeznanitev("vsiljivec-v$i", "Telefon", naslovi[0]) ?: break
+        for (k in 0 until 5) if (poskusKode(u, zacetek.first, "vsiljivec-v$i", "000000") == "napacna") zVabilom++
+    }
+    preveriEnako("z vabilom najvec deset poskusov na zaporo", HubVarovalka.KREDIT_VABILA, zVabilom)
+    preveri("potem je povezovanje s kodo zaprto do konca zapore", u.kodaZaprta() && u.zacniSeznanitev("telefon-2", "Telefon", "192.168.0.31") == null)
+    preveriEnako("zapora ostane ena", 1, zapore.size)
+
+    // Krog, ki ga varovalka zavrne, po HTTP odgovori 429 s pojasnilom.
+    val u2 = usmerjevalnik()
+    u2.lastniOdtis = "AA11BB22"
+    val start = u2.odgovori(zahteva("POST", "/cast/pair/start", """{"device_id":"fon","name":"Fon"}"""))
+    val pair = polje(start!!.telo, "pair_id")
+    repeat(HubVarovalka.POSKUSOV - 1) { u2.varovalka.poskus("192.168.0.66") }
+    val o = Spake2.odjemalec("000000", "fon", HubUsmerjevalnik.IDENTITETA_HUBA, u2.lastniOdtis.toByteArray(), pair.toByteArray())
+    val krog = u2.odgovori(zahteva("POST", "/cast/pair/spake", """{"pair_id":"$pair","device_id":"fon","pb":"${HubUsmerjevalnik.bajteVHex(o.sporocilo())}"}"""))
+    preveriEnako("krog cez mejo: 429", 429, krog?.koda)
+    preveriEnako("krog cez mejo: razlog", "seznanitev_zaprta", polje(krog!!.telo, "code"))
+
+    // Domace povezovanje ne steje: uspesna seznanitev svoj poskus in zacetek vrne.
+    val u3 = usmerjevalnik()
+    u3.lastniOdtis = "AA11BB22"
+    var uspelih = 0
+    for (i in 0 until 25) {
+        cas += 30_000L
+        val (pairId, pin) = u3.zacniSeznanitev("naprava-${i % 5}", "Naprava", "192.168.0.${20 + i % 5}")!!
+        if (u3.jeVeljavenZeton(poskusKode(u3, pairId, "naprava-${i % 5}", pin))) uspelih++
+    }
+    preveriEnako("petindvajset uspesnih seznanitev zapored", 25, uspelih)
+    val s3 = u3.varovalka.stanje()
+    preveriEnako("domace povezovanje ne steje", Triple(false, 0, 0), Triple(s3.zaprto, s3.poskusov, s3.zacetkov))
+
+    // Stanje je v shrambi: ponovni zagon sredisca napadalcu ne vrne meje.
+    val pomnilnik = LazniPomnilnik()
+    val u4 = usmerjevalnik(pomnilnik)
+    repeat(HubVarovalka.POSKUSOV) { u4.varovalka.poskus("192.168.0.66") }
+    preveri("stanje varovalke je v shrambi", pomnilnik.vsebina[HubUsmerjevalnik.KLJUC_VAROVALKE].orEmpty().isNotEmpty())
+    cas += 120_000L
+    val u5 = usmerjevalnik(pomnilnik)
+    preveri("po ponovnem zagonu je povezovanje s kodo se zaprto", u5.kodaZaprta() && u5.zacniSeznanitev("telefon", "Telefon", "192.168.0.30") == null)
+    preveriEnako("zapora tece naprej", 3_480_000L, u5.varovalka.stanje().seMs)
+}
+
 // ------------------------------------------------------------ Safeer Chat
 private fun preizkusKlepeta() {
     println("\n== Safeer Chat ==")
@@ -1644,6 +1771,8 @@ fun main() {
     preizkusPridruzitve()
     preizkusVabilaInOdhoda()
     preizkusPolitikeA()
+    preizkusImenaSoseda()
+    preizkusVarovalke()
     preizkusDvojnePovezave()
     preizkusIdentitete()
     preizkusDnevnika()
@@ -1654,6 +1783,8 @@ fun main() {
         println("Vse v redu.")
     } else {
         println("Napak: $napak")
+        // Brez tega je skript (in z njim CI) uspel tudi ob padlih preverbah.
+        kotlin.system.exitProcess(1)
     }
 }
 

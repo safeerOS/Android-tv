@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="link_obramba_kanal">Safeer Link: seguridad</string>
+    <string name="link_obramba_kanal_opis">Cuando Safeer Link detiene un dispositivo que intenta entrar una y otra vez.</string>
+    <string name="link_obramba_naslov">Safeer Link: dispositivo detenido</string>
+    <string name="link_obramba_besedilo">El dispositivo con la dirección %1$s %2$s. No lo escucharé durante %3$d min. Tus dispositivos siguen funcionando.</string>
+    <string name="link_obramba_znana">«%1$s» (%2$s) inicia sesión de forma incorrecta. No lo escucharé durante %3$d min. Si es tuyo, vuelve a conectarlo después en Safeer Link.</string>
+    <string name="link_obramba_r_seznanitev">estaba adivinando el código de emparejamiento</string>
+    <string name="link_obramba_r_zacetek">pedía una y otra vez unirse a Safeer Link</string>
+    <string name="link_obramba_r_brez_zaupanja">intentaba iniciar sesión sin permiso</string>
+    <string name="link_obramba_r_povezava">abría demasiadas conexiones</string>
+    <string name="link_obramba_r_rokovanje">estaba sondeando el puerto de Safeer Link</string>
+    <string name="link_obramba_r_tipanje">estaba sondeando Safeer Link</string>
+    <string name="link_obramba_r_okvir">enviaba mensajes defectuosos</string>
+    <string name="link_obramba_r_drugo">se comportó de forma sospechosa</string>
+    <string name="link_obramba_napad_naslov">Safeer Link: ataque en la red doméstica</string>
+    <string name="link_obramba_napad_besedilo">Dispositivos detenidos: %1$s. Comprueba quién está en tu red (invitados, dispositivos desconocidos).</string>
+    <string name="link_varovalka_naslov">Safeer Link: el emparejamiento con código está cerrado</string>
+    <string name="link_varovalka_besedilo">%1$s. El emparejamiento con código está cerrado durante %2$s. Para añadir un dispositivo, abre «Conectar dispositivos» en uno de tus dispositivos o usa el código QR. Tus dispositivos siguen funcionando.</string>
+    <string name="link_varovalka_r_kode">Alguien intentaba adivinar el código de emparejamiento</string>
+    <string name="link_varovalka_r_zacetki">Alguien iniciaba el emparejamiento una y otra vez</string>
+    <string name="link_varovalka_ura">1 hora</string>
+    <string name="link_varovalka_dan">1 día</string>
+    <string name="link_varovalka_teden">7 días</string>
+    <string name="link_seznanitev_zaprta">El emparejamiento con código está cerrado temporalmente en ese dispositivo porque alguien intentaba adivinar el código. Abre allí «Conectar dispositivos» o usa el código QR.</string>
+</resources>
