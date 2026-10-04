@@ -65,8 +65,11 @@ source is blocked.
 The user is told: a notification says which address was stopped, why and for how long, and that their own devices
 keep working; an attack gets its own notification. Both are also written to the log. If the hub knows a device or a
 neighbouring hub at that address, the notification names it and says to connect it again afterwards — then it is most likely the
-user's own device with a broken sign-in, not a stranger. There is no list of blocked sources in the interface yet;
-a block ends by itself. On a TV the notification is not visible (the log has it).
+user's own device with a broken sign-in, not a stranger. The notification has the button **Release**: the user
+can end the block of a device they recognise at once (an action of the notification — over D-Bus on the desktop, a
+notification action on Android; the button also works later, from the notification tray). There is no list of
+blocked sources in the interface yet; without the button a block ends by itself. On a TV the notification is not
+visible (the log has it).
 
 ## The pairing-code guard (implemented)
 
@@ -109,7 +112,8 @@ The guard therefore counts **all** guesses and **all** starts of a sign-in toget
 What this means for an attacker that never gives up: fewer than 250 guesses in a year
 (`test_vztrajen_napadalec_v_enem_letu`), a chance below 0.03 % per year and per hub. The user gets a notification
 at every closure: that somebody was guessing the code, from which addresses, for how long pairing by code is closed
-and how to add a device meanwhile.
+and how to add a device meanwhile. The notification has the button **Open pairing by code**: it ends the closure at
+once. The count of closures stays — the lower limits keep applying and the next closure lasts longer.
 
 Limits of the guard, stated plainly:
 
@@ -130,8 +134,8 @@ Limits of the guard, stated plainly:
 3. **Change of address.** On an attack the hub moves to a new port and a new label and tells the trusted devices
    over the connections that already exist; a closure of pairing by code is shared across the circle.
 4. **Relay.** A changing label instead of the id from the key, several interchangeable rendezvous points.
-5. **Interface.** A list of blocked sources with "Release", the state of pairing by code, and the notification on
-   a TV.
+5. **Interface.** A list of blocked sources and the state of pairing by code in the interface (today "Release" and
+   "Open pairing by code" are buttons on the notifications only), and the notification on a TV.
 
 Stages 1–3 need no "flag day": a hub keeps the old fields and the default port for as long as one device of the
 circle does not understand the new ones.
