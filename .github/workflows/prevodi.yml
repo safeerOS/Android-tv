@@ -100,3 +100,7 @@ jobs:
       # Tece v Node (na tem poganjalcu je ze namescen) z nadomestki za okno, dokument in zgodovino.
       - name: YouTube v vgrajenem brskalniku (zacetek brez cakanja)
         run: node tests/youtube_zacetek_test.js
+
+      # Cistilec oglasnih prekrivk ne sme odstraniti predvajalnika (stanje oglasa je razred na njegovem vsebniku).
+      - name: Cistilec oglasnih prekrivk (predvajalnik ostane)
+        run: node tests/cistilec_prekrivk_test.js

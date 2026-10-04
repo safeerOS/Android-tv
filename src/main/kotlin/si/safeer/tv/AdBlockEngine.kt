@@ -276,8 +276,55 @@ object AdBlockEngine {
         return false
     }
 
+    /** Kako odgovorimo na blokirano zahtevo ([vrstaBlokade]). */
+    enum class Blokada { PRAZEN_JSON, PRAZNO, NAPAKA }
+
+    private val KONCNICE_VIROV = listOf(".js", ".mjs", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".avif", ".ico",
+        ".html", ".htm", ".woff", ".woff2", ".ttf", ".mp4", ".webm", ".m3u8", ".ts", ".mp3")
+
+    /** Strezaji, ki jim na blokirano zahtevo z »json« v naslovu odgovorimo z izmisljenim odgovorom v obliki YouTuba. */
+    private val GOOGLOVI_STREZAJI = listOf("youtube.com", "youtube-nocookie.com", "googlevideo.com", "google.com",
+        "doubleclick.net", "googlesyndication.com", "googleadservices.com", "googleapis.com", "gstatic.com", "ytimg.com")
+
+    private fun jeGooglov(host: String): Boolean = GOOGLOVI_STREZAJI.any { host == it || host.endsWith(".$it") }
+
     /**
-     * Prestrezanje oglasnih zahtevkov in vračanje veljavnih praznih odgovorov.
+     * Blokirana zahteva po podatkih (fetch, XMLHttpRequest) mora PROPASTI, kot pri vsakem blokatorju oglasov. Strani so
+     * narejene za to: ko oglasnega odgovora ni, gredo naprej brez oglasa. Odgovor »200 OK« s praznim ali izmisljenim
+     * telesom je za stran uspeh z vsebino, ki je ne razume, in nanjo lahko caka v nedogled (4. 10. 2026: predvajalnik
+     * strani z videi je cakal na pripravo oglasa in se posnetek ni nikoli zacel).
+     *
+     * Prazen odgovor kot doslej dobijo: stran in okvir (okvir z napako bi pokazal stran z napako), slika, slog in
+     * skripta (skripta z napako sprozi zaznavala blokatorjev) ter zahteva, o kateri brskalnik ne pove, kaj pricakuje.
+     * Izmisljen odgovor JSON je v obliki, ki jo pricakuje YouTube, zato ga dobijo samo oglasne poti YouTuba in naslovi
+     * Googlovih strezajev z »json« (tam je preizkusen); drugod bi bil stran samo zmedel.
+     * [lower]: naslov z malimi crkami; [accept]: glava Accept zahteve.
+     */
+    internal fun vrstaBlokade(lower: String, accept: String?, isMainFrame: Boolean): Blokada {
+        if (lower.contains("/pagead/") || lower.contains("/api/stats/ads") || lower.contains("get_midroll_info")) return Blokada.PRAZEN_JSON
+        if (lower.contains("json") && jeGooglov(gostiteljIz(lower))) return Blokada.PRAZEN_JSON
+        if (isMainFrame) return Blokada.PRAZNO
+        val a = accept?.lowercase()?.trim().orEmpty()
+        if (a.isEmpty() || a.contains("text/html") || a.startsWith("image/") || a.contains("text/css")) return Blokada.PRAZNO
+        val pot = lower.substringBefore('?').substringBefore('#')
+        if (KONCNICE_VIROV.any { pot.endsWith(it) }) return Blokada.PRAZNO
+        return Blokada.NAPAKA
+    }
+
+    /**
+     * Tok, s katerim zahteva propade z napako omrezja, kot bi jo prekinil blokator. Napako javi ze [available]:
+     * WebView pred glavami odgovora vprasa, koliko bajtov je na voljo, in ob napaki zahtevo konca, se preden stran
+     * dobi »200 OK«. Ce bi napako javilo sele branje, bi fetch najprej uspel (glave so ze poslane) in propadlo bi
+     * sele telo - tega strani ne pricakujejo.
+     */
+    private class PropadliTok : java.io.InputStream() {
+        override fun available(): Int = throw java.io.IOException("blokirano")
+        override fun read(): Int = throw java.io.IOException("blokirano")
+        override fun read(b: ByteArray, off: Int, len: Int): Int = throw java.io.IOException("blokirano")
+    }
+
+    /**
+     * Prestrezanje oglasnih zahtevkov: blokirana zahteva dobi prazen odgovor ali propade ([vrstaBlokade]).
      */
     fun handleIntercept(url: String): WebResourceResponse? = handleIntercept(url, null, null, false)
 
@@ -297,9 +344,12 @@ object AdBlockEngine {
             android.util.Log.d("SafeerAdBlock", "blokirano: ${url.take(120)}")
             onAdBlocked?.invoke()
 
-            val isJson = lower.endsWith(".json") || lower.contains("json") ||
-                         lower.contains("/pagead/") || lower.contains("/api/stats/ads") ||
-                         lower.contains("get_midroll_info")
+            val blokada = vrstaBlokade(lower, accept, isMainFrame)
+            val glave = mapOf("Access-Control-Allow-Origin" to "*", "Cache-Control" to "no-store")
+            if (blokada == Blokada.NAPAKA) {
+                return WebResourceResponse("text/plain", "UTF-8", 200, "OK", glave, PropadliTok())
+            }
+            val isJson = blokada == Blokada.PRAZEN_JSON
 
             val mime = when {
                 isJson -> "application/json"

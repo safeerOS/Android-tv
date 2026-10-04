@@ -89,6 +89,58 @@ fun main() {
         )
     }
 
+    // Blokirana zahteva po podatkih propade (kot pri vsakem blokatorju); stran, slika, slog in skripta dobijo prazen odgovor.
+    println()
+    println("== odgovor na blokirano zahtevo ==")
+    fun vrsta(naslov: String, accept: String?, glavni: Boolean = false) = AdBlockEngine.vrstaBlokade(naslov.lowercase(), accept, glavni)
+    preveri("fetch po podatkih propade", vrsta("https://www.example.com/_xa/ads_batch?ads=true&x=1", "*/*") == AdBlockEngine.Blokada.NAPAKA)
+    preveri("XMLHttpRequest (jQuery) propade", vrsta("https://ads.example.net/serve?zone=3", "application/json, text/javascript, */*; q=0.01") == AdBlockEngine.Blokada.NAPAKA)
+    preveri("merilni zahtevek propade", vrsta("https://stats.example.net/g/collect?v=2", "*/*") == AdBlockEngine.Blokada.NAPAKA)
+    preveri("oglasni tok videa propade", vrsta("https://rr1.example.com/videoplayback?ctier=l&x=1", "*/*") == AdBlockEngine.Blokada.NAPAKA)
+    preveri("skripta dobi prazen odgovor", vrsta("https://static.example.net/embeddedads.es6.min.js?v=3", "*/*") == AdBlockEngine.Blokada.PRAZNO)
+    preveri("slika dobi prazen odgovor", vrsta("https://ads.example.net/pixel?id=1", "image/avif,image/webp,image/apng,*/*;q=0.8") == AdBlockEngine.Blokada.PRAZNO)
+    preveri("slika po koncnici", vrsta("https://ads.example.net/b/1.GIF", "*/*") == AdBlockEngine.Blokada.PRAZNO)
+    preveri("slog dobi prazen odgovor", vrsta("https://ads.example.net/slog", "text/css,*/*;q=0.1") == AdBlockEngine.Blokada.PRAZNO)
+    preveri("okvir dobi prazen odgovor", vrsta("https://ads.example.net/frame?x=1", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8") == AdBlockEngine.Blokada.PRAZNO)
+    preveri("glavna stran dobi prazen odgovor", vrsta("https://ads.example.net/landing", "*/*", glavni = true) == AdBlockEngine.Blokada.PRAZNO)
+    preveri("neznana vrsta zahteve ostane po starem", vrsta("https://ads.example.net/serve?zone=3", null) == AdBlockEngine.Blokada.PRAZNO && vrsta("https://ads.example.net/serve", "  ") == AdBlockEngine.Blokada.PRAZNO)
+    preveri("oglasne poti YouTuba dobijo prazen JSON", vrsta("https://www.youtube.com/pagead/interaction/?x=1", "*/*") == AdBlockEngine.Blokada.PRAZEN_JSON &&
+        vrsta("https://www.youtube.com/api/stats/ads?x=1", "*/*") == AdBlockEngine.Blokada.PRAZEN_JSON && vrsta("https://www.youtube.com/get_midroll_info?x=1", "*/*") == AdBlockEngine.Blokada.PRAZEN_JSON)
+    preveri("naslov z json pri Googlu dobi prazen JSON", vrsta("https://www.youtube.com/youtubei/v1/log_event?alt=json", "*/*") == AdBlockEngine.Blokada.PRAZEN_JSON &&
+        vrsta("https://googleads.g.doubleclick.net/x?format=json", "*/*") == AdBlockEngine.Blokada.PRAZEN_JSON)
+    preveri("naslov z json drugod propade (izmisljen odgovor YouTuba bi stran zmedel)", vrsta("https://ads.example.net/config.json", "*/*") == AdBlockEngine.Blokada.NAPAKA &&
+        vrsta("https://www.example.com/_xa/ads?zone=3&data=%7B%22json%22%3A1%7D", "*/*") == AdBlockEngine.Blokada.NAPAKA)
+    preveri("ime strezaja, ki se le konca kot Googlov, ni Googlov", vrsta("https://notgoogle.com.example.net/a?alt=json", "*/*") == AdBlockEngine.Blokada.NAPAKA &&
+        vrsta("https://fakeyoutube.com/a?alt=json", "*/*") == AdBlockEngine.Blokada.NAPAKA)
+    // Odgovor sam: propadla zahteva ima tok, ki ob branju javi napako; prazen odgovor se prebere do konca.
+    val propadla = AdBlockEngine.handleIntercept("https://doubleclick.net/serve?zone=3", "https://www.example.com/", "*/*", false)
+    preveri("propadla zahteva: branje javi napako", propadla != null && try { propadla.data.read(); false } catch (_: java.io.IOException) { true })
+    preveri("propadla zahteva: branje v polje javi napako", propadla != null && try { propadla.data.read(ByteArray(8), 0, 8); false } catch (_: java.io.IOException) { true })
+    // WebView pred glavami odgovora vprasa, koliko bajtov je na voljo: napaka tu konca zahtevo, preden stran dobi »200 OK«.
+    preveri("propadla zahteva: napako javi ze vprasanje po velikosti (pred glavami odgovora)",
+        propadla != null && try { propadla.data.available(); false } catch (_: java.io.IOException) { true })
+    val prazna = AdBlockEngine.handleIntercept("https://doubleclick.net/tag.js", "https://www.example.com/", "*/*", false)
+    preveri("skripta: prazen odgovor 200", prazna != null && prazna.statusCode == 200 && prazna.data.read() == -1 && prazna.mimeType == "application/javascript")
+    val brezGlave = AdBlockEngine.handleIntercept("https://doubleclick.net/serve?zone=3")
+    preveri("brez glave Accept: prazen odgovor kot doslej", brezGlave != null && brezGlave.data.read() == -1)
+
+    // Kozmeticni filter: predvajalnika ne skrije; prazna oglasna mesta skrije samo ob vklopljenem blokiranju.
+    println()
+    println("== kozmeticni filter ==")
+    val zBlokiranjem = CosmeticFilterEngine.splosnaPravila(true)
+    val brezBlokiranja = CosmeticFilterEngine.splosnaPravila(false)
+    preveri("v pravilih ni notranjosti predvajalnika (stanje oglasa je razred na njegovem glavnem vsebniku)", zBlokiranjem.none { it.contains("mgp_") })
+    preveri("prazna oglasna mesta so skrita ob vklopljenem blokiranju",
+        CosmeticFilterEngine.PRAZNA_OGLASNA_MESTA.isNotEmpty() && zBlokiranjem.containsAll(CosmeticFilterEngine.PRAZNA_OGLASNA_MESTA))
+    preveri("brez blokiranja ostanejo vidna (v njih je oglas, ki ga je uporabnik dovolil)", brezBlokiranja.none { it in CosmeticFilterEngine.PRAZNA_OGLASNA_MESTA })
+    val bilo = AdBlockEngine.isEnabled
+    AdBlockEngine.isEnabled = false
+    val slogBrez = CosmeticFilterEngine.buildCosmeticCss("https://www.example.com/")
+    AdBlockEngine.isEnabled = true
+    val slogZ = CosmeticFilterEngine.buildCosmeticCss("https://www.example.com/")
+    AdBlockEngine.isEnabled = bilo
+    preveri("slog strani sledi stikalu blokiranja", !slogBrez.contains("adsbytrafficjunky") && slogZ.contains("ins.adsbytrafficjunky"))
+
     // Seznami sami: noben vnos ne sme biti odvecen ali podvojen.
     println()
     println("== higiena seznamov ==")

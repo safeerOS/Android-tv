@@ -123,10 +123,9 @@ object UserScriptManager {
                         '.reward-zone', '#reward-zone', '.fc-ab-root', '.adblock-overlay', '#adblock-modal',
                         '[class*="dating-popup"]', '[id*="dating-popup"]', '[class*="fake-download"]',
                         '.download-button-ad', 'div[class*="download-arrow"]',
-                        '.mgp_adOverlay', '.mgp_adSkip', '.mgp_adMarker', '.mgp_commercial',
                         '.adBlockContainer', 'div[class*="adSkip"]',
-                        '.mgp_skipAdButton', 'a[class*="adLink"]', 'div[class*="adInformation"]', '.adInformation',
-                        'div[class*="mgp_ad"]', '.removeAds', 'a[href*="casino"]', '.topAd', '.bottomAd',
+                        'a[class*="adLink"]', 'div[class*="adInformation"]', '.adInformation',
+                        '.removeAds', 'a[href*="casino"]', '.topAd', '.bottomAd',
                         '.wideBanner', '.underPlayerAd', '.commercial-unit', '.ad-zone',
                         '[class*="ad-banner"]', '[class*="player-advertisement"]', '[id*="player-advertisement"]',
                         '.ad-banner-overlay', '.jw-ad-container', '.plyr__ad', '.vjs-ad', '.video-ad-overlay'
@@ -134,7 +133,13 @@ object UserScriptManager {
                     
                     var adElements = document.querySelectorAll(adSelectors);
                     adElements.forEach(function(el) {
-                        try { el.remove(); } catch(e) {}
+                        try {
+                            // Predvajalnika ne odstranimo nikoli: element z videom ali zvokom je predvajalnik (ali ga
+                            // ovija), deli znotraj predvajalnika pa so njegovi - brez njih obstane (4. 10. 2026: stanje
+                            // oglasa je razred na glavnem vsebniku predvajalnika, pravilo ga je ujelo in odstranilo).
+                            if (el.querySelector('video, audio') || el.closest('.mgp_container')) return;
+                            el.remove();
+                        } catch(e) {}
                     });
 
                     // Odstrani lažna sistemska opozorila (baterija poškodovana, virus zaznan)
@@ -213,7 +218,7 @@ object UserScriptManager {
                 try {
                     // Klikni gumb za preskok oglasa takoj ko se pojavi
                     var skipButtons = document.querySelectorAll(
-                        '.videoAdUiSkipButton, .mgp_skipAdButton, .mgp_adSkip, [class*="skipAd"], ' +
+                        '.videoAdUiSkipButton, .mgp_skipAdButton, .mgp_adSkip, .mgp_adRollSkipButton, [class*="skipAd"], ' +
                         '[class*="SkipAd"], [class*="adSkip"], [class*="ad-skip"], .video-ad-skip, ' +
                         'button[class*="skip-ad"], .skip-button, .ad-skip-button'
                     );

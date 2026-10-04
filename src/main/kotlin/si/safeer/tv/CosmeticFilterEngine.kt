@@ -53,10 +53,11 @@ object CosmeticFilterEngine {
         "ytm-promoted-sparkles-web-renderer", "ytm-paid-content-overlay-renderer",
 
         // 🎬 In-Video Preroll & Streaming Ad Overlays (HTML5, Casino)
-        ".mgp_adOverlay", ".mgp_adSkip", ".mgp_adMarker", ".mgp_commercial", ".mgp_adContainer",
-        ".mgp_adPlaying", ".adBlockContainer", "div[class*='adOverlay']", "div[class*='adSkip']",
-        ".mgp_skipAdButton", "a[class*='adLink']", "div[class*='adInformation']", ".adInformation",
-        "div[class*='mgp_ad']", ".removeAds", "a[href*='casino']", ".topAd", ".bottomAd",
+        // Brez pravil za notranjost predvajalnika: predvajalnik si stanje oglasa zapise kot razred na svojem glavnem
+        // vsebniku, zato je pravilo div[class*='mgp_ad'] ob pripravljenem oglasu skrilo cel predvajalnik (4. 10. 2026).
+        ".adBlockContainer", "div[class*='adOverlay']", "div[class*='adSkip']",
+        "a[class*='adLink']", "div[class*='adInformation']", ".adInformation",
+        ".removeAds", "a[href*='casino']", ".topAd", ".bottomAd",
         ".wideBanner", ".underPlayerAd", ".commercial-unit", ".ad-zone", ".player-ad",
         "[class*='ad-banner']", "[class*='player-advertisement']", "[id*='player-advertisement']",
         ".ad-banner-overlay", ".jw-ad-container", ".plyr__ad", ".vjs-ad", ".video-ad-overlay",
@@ -64,6 +65,17 @@ object CosmeticFilterEngine {
         // AdBlock opozorila in prekrivna okna
         ".fc-ab-root", ".adblock-overlay", "#adblock-modal", ".ad-block-warning"
     )
+
+    /**
+     * Prazna mesta oglasnih omrezij, ki jih blokiramo ze v omrezju ([AdBlockEngine]): skripta omrezja se ne nalozi,
+     * mesto pa ostane - prazen okvir s fiksno sirino, ki je na telefonu sirsi od zaslona in razsiri vso stran.
+     * Skrijemo jih samo, kadar je blokiranje vklopljeno (sicer je v njih oglas, ki ga je uporabnik dovolil).
+     */
+    internal val PRAZNA_OGLASNA_MESTA = listOf("ins.adsbytrafficjunky")
+
+    /** Splosna pravila brez pravil s seznamov - za preizkus. */
+    internal fun splosnaPravila(blokiranje: Boolean): List<String> =
+        if (blokiranje) GENERIC_ELEMENT_HIDING_RULES + PRAZNA_OGLASNA_MESTA else GENERIC_ELEMENT_HIDING_RULES
 
     /**
      * Zgradi strnjen CSS niz za injiciranje v spletno stran.
@@ -77,7 +89,7 @@ object CosmeticFilterEngine {
         } catch (_: Exception) {
             emptyList()
         }
-        val selectors = (GENERIC_ELEMENT_HIDING_RULES + listRules).distinct().joinToString(", ")
+        val selectors = (splosnaPravila(AdBlockEngine.isEnabled) + listRules).distinct().joinToString(", ")
         return """
             $selectors {
                 display: none !important;
