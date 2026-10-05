@@ -174,6 +174,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        svezaDejavnost = savedInstanceState == null
         // Aplikacijski kontekst v izbranem jeziku: nizi in glava Accept-Language
         // tako sledijo izbiri uporabnika, ne da bi zadrzali Activity v pomnilniku.
         UiText.init(JezikVmesnika.vKontekstu(applicationContext))
@@ -533,6 +534,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * konca, se umakne in televizor pokaze tisto, kar je bilo prej (Safeer OS, program ...).
      */
     private var deljenjeOdprloBrskalnik = false
+    /** Deljen zaslon se je odprl, ko je bil Safeer na zaslonu (ne z obvestilom iz druge aplikacije). */
+    private var deljenjeIzSafeerja = false
+    /** Ta dejavnost je nastala samo za deljen zaslon (ni obstojeci brskalnik z uporabnikovimi zavihki). */
+    private var nastalaZaDeljenje = false
+    /** Od onCreate brez shranjenega stanja do konca prvega onResume. */
+    private var svezaDejavnost = false
     private var linkMost: si.safeer.tv.link.LinkMost? = null
     /** Koda zahteve za sistemsko okno »Zacni zajem zaslona«. */
     private val ZAHTEVA_ZAJEM_ZASLONA = 4711
@@ -820,6 +827,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = { runOnUiThread { pokaziKodoZaSeznanitev() } }
         pokaziKodoZaSeznanitev()
         obravnavajCastNamero(intent)
+        svezaDejavnost = false
         si.safeer.tv.os.Posodobitve.ponudiCeJeCas(this)   // nova razlicica brskalnika s safeer.si: tiha pasica
         resumeBackgroundMedia()
     }
@@ -913,7 +921,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val url = namera?.getStringExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_URL)
         if (url.isNullOrEmpty()) return false
         namera.removeExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_URL)
+        // Vsebina se odpira: obvestilo, ki bi jo odprlo, ni vec potrebno (ostalo je, kadar je zagon uspel neposredno).
+        si.safeer.tv.cast.CastReceiverService.pospraviObvestiloPrebujanja(this)
         deljenjeOdprloBrskalnik = url.contains("/cast/screen/")
+        deljenjeIzSafeerja = namera.getBooleanExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_IZ_SAFEERJA, false)
+        nastalaZaDeljenje = deljenjeOdprloBrskalnik && svezaDejavnost
         val naslov = namera.getStringExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_TITLE)
         val mesto = namera.getDoubleExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_POSITION, 0.0)
         onCastUrlReceived(url, naslov, mesto)
@@ -1126,12 +1138,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun onShareText(od: String, besedilo: String) {
         runOnUiThread {
             try {
-                val jePovezava = besedilo.trim().let { it.startsWith("http://") || it.startsWith("https://") } &&
-                    !besedilo.trim().contains(Regex("\\s"))
+                val jePovezava = si.safeer.tv.os.OsPravila.jePovezava(besedilo)
                 val okno = android.app.AlertDialog.Builder(this)
                     .setTitle("💬 " + od)
                     .setMessage(besedilo.take(4000))
                     .setNegativeButton(getString(android.R.string.ok), null)
+                // Telefon in tablica: besedilo je navadno namenjeno drugi aplikaciji na tej napravi.
+                if (si.safeer.tv.cast.HubKrmilnik.platforma(this) != "tv") {
+                    okno.setNeutralButton(getString(R.string.os_bliznjica_kopiraj)) { _, _ ->
+                        si.safeer.tv.os.Odlozisce.kopiraj(this, besedilo)
+                    }
+                }
                 if (jePovezava) {
                     okno.setPositiveButton(getString(R.string.ui_share_open_link)) { _, _ ->
                         onCastUrlReceived(besedilo.trim(), null, 0.0)
@@ -1180,7 +1197,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     // Brskalnika ni odprl uporabnik: vrnemo ga tja, kjer je bil, sicer ostane na zaslonu
                     // (tudi po izklopu in vklopu televizorja) namesto Safeer OS.
                     deljenjeOdprloBrskalnik = false
-                    moveTaskToBack(true)
+                    // Telefon in tablica: Domov Safeer OS je v isti nalogi pod brskalnikom - naloga v ozadje bi
+                    // uporabnika vrgla na domaci zaslon naprave. Brskalnik, ki je nastal samo za ta zaslon,
+                    // zato zapremo; dejavnost pod njim ostane, kjer je bila (cast/PoDeljenju).
+                    if (si.safeer.tv.cast.PoDeljenju.zapriBrskalnik(nastalaZaDeljenje && tabManager.count <= 1,
+                            deljenjeIzSafeerja, isTaskRoot)) finish()
+                    else moveTaskToBack(true)
                 }
             } catch (e: Exception) {
                 android.util.Log.w("SafeerCast", "Konca deljenja ni bilo mogoce obdelati: " + e.message)

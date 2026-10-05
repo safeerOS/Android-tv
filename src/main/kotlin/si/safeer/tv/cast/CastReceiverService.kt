@@ -67,8 +67,22 @@ class CastReceiverService : Service() {
         const val EXTRA_CAST_URL = "cast_url"
         const val EXTRA_CAST_TITLE = "cast_title"
         const val EXTRA_CAST_POSITION = "cast_position"
+        /** Ali je bil Safeer na zaslonu, ko je vsebina prisla (sicer jo je uporabnik odprl z obvestilom od drugod). */
+        const val EXTRA_CAST_IZ_SAFEERJA = "cast_iz_safeerja"
         private const val WAKE_NOTIFICATION_ID = 4041
         private const val WAKE_CHANNEL_ID = "safeer_cast_wake"
+
+        /** Katero deljenje zaslona stoji za obvestilom o prihajajoci vsebini. */
+        internal val obvestiloZaslona = ObvestiloZaslona()
+
+        /** Obvestilo o prihajajoci vsebini ni vec potrebno: vsebina je odprta ali je deljenje zaslona koncano. */
+        fun pospraviObvestiloPrebujanja(context: Context) {
+            try {
+                (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
+                    .cancel(WAKE_NOTIFICATION_ID)
+            } catch (_: Throwable) { }
+            obvestiloZaslona.pospravljeno()
+        }
         private const val MAX_RECONNECT_ATTEMPTS = 10
         private const val IDLE_RETRY_MS = 600_000L
 
@@ -486,7 +500,8 @@ class CastReceiverService : Service() {
      * iz ozadja pogosto zavrne, zato poleg neposrednega poskusa objavimo se obvestilo s
      * celozaslonsko namero -- tega sistem odpre sam.
      */
-    private fun odpriVBrskalniku(url: String, title: String?, startPos: Double) {
+    private fun odpriVBrskalniku(url: String, title: String?, startPos: Double,
+                                 deljenjeZaslona: String? = null, besediloObvestila: String? = null) {
         // Tablica: poslana stran gre v mobilni Safeer. Deljen zaslon (stran s Huba) ostane v vgrajenem,
         // ki zaupa potrdilu Huba.
         val hub = hubHttpOsnova()
@@ -498,6 +513,7 @@ class CastReceiverService : Service() {
             putExtra(EXTRA_CAST_URL, url)
             putExtra(EXTRA_CAST_TITLE, title ?: "")
             putExtra(EXTRA_CAST_POSITION, startPos)
+            putExtra(EXTRA_CAST_IZ_SAFEERJA, safeerNaZaslonu())
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
         // Android 10+ zagon dejavnosti iz ozadja zavrne tiho, brez izjeme, zato tega poskusa
@@ -514,8 +530,8 @@ class CastReceiverService : Service() {
                 this, WAKE_NOTIFICATION_ID, namera, zastavice)
             val gradnik = android.app.Notification.Builder(this, WAKE_CHANNEL_ID)
             val obvestilo = gradnik
-                .setContentTitle("Safeer Cast")
-                .setContentText(if (title.isNullOrBlank()) url else title)
+                .setContentTitle("Safeer Link")
+                .setContentText(besediloObvestila?.takeIf { it.isNotBlank() } ?: if (title.isNullOrBlank()) url else title)
                 .setSmallIcon(android.R.drawable.stat_sys_upload)
                 .setContentIntent(cakajoca)
                 .setFullScreenIntent(cakajoca, true)
@@ -523,6 +539,7 @@ class CastReceiverService : Service() {
                 .build()
             val upravitelj = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             upravitelj.notify(WAKE_NOTIFICATION_ID, obvestilo)
+            if (deljenjeZaslona != null) obvestiloZaslona.zaZaslon(deljenjeZaslona) else obvestiloZaslona.zaDrugo()
             Log.i(TAG, "Objavljeno obvestilo s celozaslonsko namero za $url")
         } catch (e: Exception) {
             Log.w(TAG, "Obvestila s celozaslonsko namero ni bilo mogoce objaviti: ${e.message}")
@@ -900,6 +917,14 @@ class CastReceiverService : Service() {
                     val besedilo = payload.optString("text", "")
                     val od = imePosiljatelja(json)
                     Log.i(TAG, "Prejeto besedilo od $od (${besedilo.length} znakov)")
+                    // Okno v brskalniku se po pol minute zapre samo, napis na zaslonu po nekaj sekundah. Besedilo zato
+                    // shranimo v Sporocila (pogovor s to napravo), kjer ga uporabnik najde in kopira tudi pozneje;
+                    // obvestilo dobi, kadar okna ni. Safeer Browser TV Sporocil nima.
+                    if (BuildConfig.FLAVOR != "brskalnik") {
+                        val vOknu = mediaController != null && krmilnikVOspredju
+                        try { si.safeer.tv.os.KlepetLinka.prejmi(this@CastReceiverService, json, obvestilo = !vOknu) }
+                        catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "besedilo v Sporocila", e) }
+                    }
                     mainHandler.post {
                         val krmilnik = mediaController
                         if (krmilnik != null && krmilnikVOspredju) krmilnik.onShareText(od, besedilo)
@@ -921,11 +946,15 @@ class CastReceiverService : Service() {
                             mainHandler.post {
                                 val krmilnik = mediaController
                                 if (krmilnik != null && krmilnikVOspredju) krmilnik.onShareScreenStarted(url, od)
-                                else odpriVBrskalniku(url, "Zaslon: $od", 0.0)
+                                else odpriVBrskalniku(url,
+                                    napisZaslona(si.safeer.tv.R.string.ui_share_screen_from, "Zaslon:") + " " + od, 0.0,
+                                    idDeljenja, napisZaslona(si.safeer.tv.R.string.ui_share_screen_notice, od, od))
                             }
                         }
                     } else if (dejanje == "stop") {
                         Log.i(TAG, "Deljenje zaslona $idDeljenja je koncano")
+                        // Obvestilo »... deli zaslon« nima vec cesa odpreti.
+                        if (obvestiloZaslona.obKoncu(idDeljenja)) pospraviObvestiloPrebujanja(this@CastReceiverService)
                         mainHandler.post { mediaController?.onShareScreenStopped(idDeljenja) }
                     }
                     sendAck(ws, msgId, "accepted")
@@ -951,6 +980,20 @@ class CastReceiverService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.message}", e)
         }
+    }
+
+    /** Ali ima ta aplikacija dejavnost na zaslonu (storitev v ospredju sama da pomembnost 125, ne 100). */
+    private fun safeerNaZaslonu(): Boolean = try {
+        val stanje = android.app.ActivityManager.RunningAppProcessInfo()
+        android.app.ActivityManager.getMyMemoryState(stanje)
+        stanje.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+    } catch (_: Throwable) { false }
+
+    /** Napis v jeziku vmesnika (UiText); ce ta se ni pripravljen, v jeziku sistema, sicer [rezerva]. */
+    private fun napisZaslona(vir: Int, rezerva: String, vararg deli: Any?): String {
+        val izbrani = try { si.safeer.tv.UiText.get(vir, *deli) } catch (_: Throwable) { "" }
+        if (izbrani.isNotBlank()) return izbrani
+        return try { getString(vir, *deli) } catch (_: Throwable) { rezerva }
     }
 
     private fun imePosiljatelja(json: JSONObject): String {

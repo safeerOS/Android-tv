@@ -153,4 +153,5 @@
     <string name="ui_link_zagon_tapni">Safeer Link · toca para continuar</string>
     <string name="ui_ssl_vprasanje">El certificado de %1$s no es válido, por lo que la conexión puede no ser privada. Safeer te sigue protegiendo de amenazas conocidas. ¿Abrir de todos modos?</string>
     <string name="ui_ssl_odpri">Abrir de todos modos</string>
+    <string name="ui_share_screen_notice">%1$s comparte la pantalla: ábrelo para verla</string>
 </resources>

@@ -32,4 +32,12 @@
     <string name="os_naprave_uspesno_povezano">Successfully connected to %1$s.</string>
     <string name="os_naprave_naprava_ni_najdena">No device found. Make sure both devices are connected to the same Wi-Fi network.</string>
     <string name="os_prijava_vpisi_gumb">Enter code from another device</string>
+    <string name="os_naprave_link_izklop_naslov">Turn off Safeer Link?</string>
+    <string name="os_naprave_link_izklop_opis">This device will no longer be connected to your others: their files, sending and the remote will not be available until you turn Safeer Link on again.</string>
+    <string name="os_naprave_link_izklopi">Turn off</string>
+    <string name="os_naprave_vrsta_racunalnik">Computer</string>
+    <string name="os_naprave_vrsta_tv">TV</string>
+    <string name="os_naprave_vrsta_tablica">Tablet</string>
+    <string name="os_naprave_vrsta_telefon">Phone</string>
+    <string name="os_sporocila_kopirano">Copied</string>
 </resources>

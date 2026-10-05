@@ -1235,6 +1235,7 @@
     seznanjen: false,
     povezan: false,
     televizor: false,
+    platforma: "",          // "tv" | "phone" | "tablet" (most.platforma()); prazno: starejsa aplikacija
     hub: "",
     imeNaprave: "",
     idNaprave: "",
@@ -1411,10 +1412,22 @@
     for (var iz = 0; drugje && iz < stanje.naprave.length; iz++) if (stanje.naprave[iz].id === stanje.izvoljeni) izvoljena = stanje.naprave[iz];
     besedilo("opombaHubVklop", tuSredisce ? ""
       : drugje ? t("tuDrugje", { ime: izvoljena ? prijaznoIme(izvoljena) : t("televizor") })
-      : t(stanje.televizor ? "tuOpisTv" : "tuOpis"));
-    besedilo("naslovHubTu", t(stanje.televizor ? "tuNaslovTv" : "tuNaslov"));
+      : t(naTelevizorju() ? "tuOpisTv" : "tuOpis"));
+    besedilo("naslovHubTu", t(naTelevizorju() ? "tuNaslovTv" : "tuNaslov"));
     narisiStanje();
     osveziOpozoriloOspredje();
+  }
+
+  /** Ali je ta naprava res televizor. stanje.televizor velja za vse aplikacije za Android (tudi telefon in tablico). */
+  function naTelevizorju() {
+    if (stanje.platforma === "phone" || stanje.platforma === "tablet") return false;
+    return !!stanje.televizor;
+  }
+
+  /** Ikona te naprave v seznamu. */
+  function ikonaTeNaprave() {
+    if (stanje.platforma === "phone" || stanje.platforma === "tablet") return "telefon";
+    return stanje.televizor ? "tv" : "racunalnik";
   }
 
   function zasloni() {
@@ -1438,7 +1451,7 @@
     var jaz = null;
     for (var k = 0; k < stanje.naprave.length; k++) if (stanje.naprave[k].id === stanje.idNaprave) jaz = stanje.naprave[k];
     seznam.appendChild(vrstica(
-      stanje.televizor ? "tv" : "racunalnik",
+      ikonaTeNaprave(),
       (jaz && jaz.ime) || stanje.imeNaprave || t("taNaprava"),
       stanje.hubTece ? t("tuSredisce") : (stanje.povezan ? t("povezanaZLinkom") : t("povezujem")),
       t("taNaprava"),
@@ -1464,7 +1477,7 @@
       var pod = zasedena ? t("zasedenoDeli", { ime: n.zasedenaOdIme || n.zasedenaOd })
         : (deljivo ? t("deliDotik") : (jeZaslon ? t("zaslon") : t("naprava")));
       seznam.appendChild(vrstica(
-        jeZaslon ? "tv" : ikonaNapraveVSeznamu(n),
+        (jeZaslon && !n.platforma) ? "tv" : ikonaNapraveVSeznamu(n),
         prijaznoIme(n),
         pod,
         zasedena ? t("zasedenoKratko") : t("povezan"), zasedena ? "rumenaZnacka" : "zivo",
@@ -1476,6 +1489,13 @@
   }
 
   function ikonaNapraveVSeznamu(naprava) {
+    // Protocol v1: naprava pove platformo in vrsto sama; ugibanje po imenu ostane za naprave 0.2.
+    var pl = (naprava && naprava.platforma) || "";
+    var vr = (naprava && naprava.vrsta) || "";
+    // "screen" pove le, da naprava zna prikazati zaslon (tudi telefon); TV je samo brez druge platforme.
+    if (pl === "tv" || (vr === "screen" && !pl)) return "tv";
+    if (pl === "linux" || pl === "windows" || pl === "macos" || vr === "computer" || vr === "control") return "racunalnik";
+    if (pl === "phone" || pl === "tablet" || vr === "handheld") return "telefon";
     var opis = ((naprava && (naprava.ime || "")) + " " + (naprava && (naprava.id || ""))).toLowerCase();
     if (/(televizor|tv|philips|android tv)/.test(opis)) return "tv";
     if (/(racunaln|računaln|computer|namizn|desktop|laptop|prenosn|linux|windows|mac|pc\b)/.test(opis)) return "racunalnik";
@@ -1510,7 +1530,7 @@
     besedilo("opombaCast", "");
     prejemniki.forEach(function (n) {
       var ime = prijaznoIme(n);
-      seznam.appendChild(vrstica(n.vloga === "receiver" ? "tv" : ikonaNapraveVSeznamu(n), ime,
+      seznam.appendChild(vrstica((n.vloga === "receiver" && !n.platforma) ? "tv" : ikonaNapraveVSeznamu(n), ime,
         t(n.vloga === "receiver" ? "posljiNaZaslon" : "posljiNaNapravo"), t("poslji"), "zivo",
         function () {
           stanje.prejemnik = n;
@@ -2365,6 +2385,9 @@
 
     try {
       if (most && most.jeTelevizor && most.jeTelevizor()) stanje.televizor = true;
+    } catch (e) {}
+    try {
+      if (most && most.platforma) stanje.platforma = String(most.platforma() || "");
     } catch (e) {}
 
     naKlik("gumbDodajMapo", function () {

@@ -153,4 +153,5 @@
     <string name="ui_link_zagon_tapni">Safeer Link · tapni za nadaljevanje</string>
     <string name="ui_ssl_vprasanje">Potrdilo za %1$s ni veljavno, zato povezava morda ni zasebna. Safeer vas še vedno varuje pred znanimi grožnjami. Vseeno odprem?</string>
     <string name="ui_ssl_odpri">Vseeno odpri</string>
+    <string name="ui_share_screen_notice">%1$s deli zaslon – odpri za prikaz</string>
 </resources>

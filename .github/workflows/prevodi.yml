@@ -104,3 +104,8 @@ jobs:
       # Cistilec oglasnih prekrivk ne sme odstraniti predvajalnika (stanje oglasa je razred na njegovem vsebniku).
       - name: Cistilec oglasnih prekrivk (predvajalnik ostane)
         run: node tests/cistilec_prekrivk_test.js
+
+      # Stran Safeer Linka v aplikacijah za Android: telefon in tablica nista televizor (ikona in napis te naprave),
+      # ikone drugih naprav po platformi, ki jo naprava pove sama. Stran se zares izvede (Node, nadomestni elementi).
+      - name: Stran Safeer Linka (ikone in napis naprav)
+        run: node tests/link_stran_naprave_test.js

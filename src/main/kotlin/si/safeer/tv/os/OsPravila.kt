@@ -88,4 +88,65 @@ object OsPravila {
      * (pripeta kartica na domacem zaslonu ima svojo odstranitev).
      */
     fun ponudiOdstranitev(kljuc: String, vNadaljuj: List<String>): Boolean = kljuc in vNadaljuj
+
+    /**
+     * Ikona naprave v seznamu Safeer Linka: "telefon", "tablica", "racunalnik" ali "naprava" (televizor, neznano).
+     * Doloci jo platforma, ki jo naprava pove sama. »Deli datoteke« pomeni racunalnik samo pri napravah brez
+     * platforme (starejse): datoteke delita tudi tablica in telefon, ki sta zato dobila ikono racunalnika.
+     */
+    fun ikonaNaprave(platforma: String, deliDatoteke: Boolean): String = when (platforma) {
+        "phone" -> "telefon"
+        "tablet" -> "tablica"
+        "linux", "windows", "macos" -> "racunalnik"
+        "" -> if (deliDatoteke) "racunalnik" else "naprava"
+        else -> "naprava"
+    }
+
+    /**
+     * Podnapis naprave v seznamu Safeer Linka kot par (vrsta, program). Vrsta je "racunalnik", "tv", "tablica",
+     * "telefon" ali "" (ne vemo - vrstica ostane brez podnapisa); zaslon jo prevede. Program je ime programa ali
+     * "": kadar ga ne vemo ali kadar se z njim ze zacne [prikazanoIme] (»Safeer OS (model)« ne potrebuje se
+     * podnapisa »Safeer OS«). Platformo pove naprava sama; starejse naprave prepoznamo po naslovu in id-ju.
+     */
+    fun opisNaprave(platforma: String, id: String, ime: String, prikazanoIme: String, naslov: String): Pair<String, String> {
+        val programRacunalnika = if (id.endsWith("-control")) "Safeer Control" else "Safeer Browser"
+        val (vrsta, program) = when {
+            platforma == "linux" || platforma == "windows" || platforma == "macos" -> "racunalnik" to programRacunalnika
+            platforma == "tv" -> "tv" to "Safeer Link"
+            platforma == "tablet" -> "tablica" to "Safeer OS"
+            platforma == "phone" -> "telefon" to programTelefona(ime)
+            naslov == "127.0.0.1" || id.startsWith("tv-") -> "tv" to "Safeer Link"
+            id.startsWith("pc-") -> "racunalnik" to programRacunalnika
+            id.startsWith("phone-") -> "telefon" to "Safeer Browser"
+            // Surove vloge (sender/receiver) uporabnik ne razume.
+            else -> "" to ""
+        }
+        val zeVImenu = program.isNotEmpty() && prikazanoIme.trim().startsWith(program)
+        return vrsta to (if (zeVImenu) "" else program)
+    }
+
+    /**
+     * Program telefona. Platformo "phone" javita Safeer OS in Safeer Browser za Android; kateri je, pove samo
+     * privzeto ime naprave (»Safeer OS (model)«, »Safeer (model)«). Preimenovan telefon tega ne pove: prazno,
+     * brez ugibanja (prej je vsak telefon dobil napis »Safeer Browser · Android«, tudi tisti s Safeer OS).
+     */
+    fun programTelefona(ime: String): String {
+        val i = ime.trim()
+        return when {
+            i.startsWith("Safeer OS") -> "Safeer OS"
+            Regex("^Safeer(?: telefon)? \\(.+\\)$").matches(i) -> "Safeer Browser"
+            else -> ""
+        }
+    }
+
+    /** Besedilo je ena sama spletna povezava: ob njem ponudimo »Odpri povezavo«. */
+    fun jePovezava(besedilo: String): Boolean {
+        val b = besedilo.trim()
+        val zaShemo = when {
+            b.startsWith("https://") -> b.substring(8)
+            b.startsWith("http://") -> b.substring(7)
+            else -> return false
+        }
+        return zaShemo.isNotEmpty() && b.none { it.isWhitespace() }
+    }
 }

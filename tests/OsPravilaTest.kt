@@ -84,8 +84,61 @@ private fun pasMedVideom() {
         OsPravila.pasZamik(poPavzi = true) >= 1_000L)
 }
 
+private fun preizkusIkonNaprav() {
+    println("\n== ikone naprav v Safeer Linku ==")
+    preveriEnako("telefon", "telefon", OsPravila.ikonaNaprave("phone", false))
+    preveriEnako("telefon, ki deli datoteke, ostane telefon", "telefon", OsPravila.ikonaNaprave("phone", true))
+    preveriEnako("tablica, ki deli datoteke, ostane tablica (prej ikona racunalnika)", "tablica", OsPravila.ikonaNaprave("tablet", true))
+    preveriEnako("racunalnik z Linuxom", "racunalnik", OsPravila.ikonaNaprave("linux", true))
+    preveriEnako("racunalnik z Windows brez deljenih datotek", "racunalnik", OsPravila.ikonaNaprave("windows", false))
+    preveriEnako("televizor", "naprava", OsPravila.ikonaNaprave("tv", true))
+    preveriEnako("naprava brez platforme, ki deli datoteke, je racunalnik (kot doslej)", "racunalnik", OsPravila.ikonaNaprave("", true))
+    preveriEnako("naprava brez platforme in brez datotek", "naprava", OsPravila.ikonaNaprave("", false))
+}
+
+private fun preizkusOpisaNaprav() {
+    println("\n== podnapis naprav v Safeer Linku ==")
+    fun opis(platforma: String, id: String, ime: String, prikazano: String = ime, naslov: String = "10.0.0.7") =
+        OsPravila.opisNaprave(platforma, id, ime, prikazano, naslov)
+    preveriEnako("racunalnik s Safeer Control: program v podnapisu, ker ga prikazano ime nima",
+        "racunalnik" to "Safeer Control", opis("windows", "n-1-control", "Safeer Control (PISARNA)", "PISARNA"))
+    preveriEnako("racunalnik z brskalnikom: ime ze pove program", "racunalnik" to "",
+        opis("linux", "n-2", "Safeer Browser (dnevna-soba)"))
+    preveriEnako("preimenovan racunalnik z brskalnikom", "racunalnik" to "Safeer Browser", opis("linux", "n-2", "Stari prenosnik"))
+    preveriEnako("telefon s Safeer OS ni vec »Safeer Browser · Android«", "telefon" to "", opis("phone", "n-3", "Safeer OS (LE2113)"))
+    preveriEnako("telefon s Safeer OS Mobile", "telefon" to "", opis("phone", "n-4", "Safeer OS Mobile (SM-S931B)"))
+    preveriEnako("preimenovan telefon: programa ne ugibamo", "telefon" to "", opis("phone", "n-5", "Lastnikov telefon"))
+    preveriEnako("telefon s Safeer Browserjem", "telefon" to "Safeer Browser", opis("phone", "n-6", "Safeer (Pixel 8)"))
+    preveriEnako("preimenovana tablica", "tablica" to "Safeer OS", opis("tablet", "n-7", "Tablica v kuhinji"))
+    preveriEnako("tablica s privzetim imenom", "tablica" to "", opis("tablet", "n-8", "Safeer OS Tablet (SM-X210)"))
+    preveriEnako("televizor", "tv" to "Safeer Link", opis("tv", "n-9", "Safeer TV (Philips)"))
+    preveriEnako("starejsi televizor brez platforme", "tv" to "Safeer Link", opis("", "tv-philips", "Televizor"))
+    preveriEnako("sredisce brez platforme (naslov zanke)", "tv" to "Safeer Link", opis("", "x1", "Dnevna soba", naslov = "127.0.0.1"))
+    preveriEnako("starejsi racunalnik brez platforme", "racunalnik" to "Safeer Control", opis("", "pc-abc-control", "Pisarna"))
+    preveriEnako("starejsi telefon brez platforme", "telefon" to "Safeer Browser", opis("", "phone-pixel", "Pixel"))
+    preveriEnako("neznana naprava ostane brez podnapisa", "" to "", opis("", "n-10", "Nekaj"))
+    preveriEnako("program telefona: privzeto ime huba", "Safeer Browser", OsPravila.programTelefona("Safeer telefon (Pixel 8)"))
+    preveriEnako("program telefona: »Safeer« sredi imena ni dovolj", "", OsPravila.programTelefona("Moj Safeer (Pixel 8)"))
+}
+
+private fun preizkusPovezave() {
+    println("\n== prejeto besedilo: ena sama povezava ==")
+    preveriEnako("https povezava", true, OsPravila.jePovezava("https://safeer.si/prenos"))
+    preveriEnako("http povezava s presledki okoli", true, OsPravila.jePovezava("  http://10.0.0.7:8080/a?b=1\n"))
+    preveriEnako("stavek s povezavo ni povezava", false, OsPravila.jePovezava("poglej https://safeer.si"))
+    preveriEnako("povezava in se kaj za njo", false, OsPravila.jePovezava("https://safeer.si in se nekaj"))
+    preveriEnako("dve vrstici", false, OsPravila.jePovezava("https://safeer.si\nhttps://example.org"))
+    preveriEnako("samo shema", false, OsPravila.jePovezava("https://"))
+    preveriEnako("navadno besedilo", false, OsPravila.jePovezava("Kupi kruh"))
+    preveriEnako("druga shema", false, OsPravila.jePovezava("javascript:alert(1)"))
+    preveriEnako("prazno", false, OsPravila.jePovezava(""))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
+    preizkusIkonNaprav()
+    preizkusOpisaNaprav()
+    preizkusPovezave()
     preizkusMer()
     preizkusNadaljuj()
     preizkusIkon()

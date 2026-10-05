@@ -74,6 +74,21 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onStop()
     }
 
+    /** Vprasanje pred izklopom Safeer Linka; fokus je na »Preklici«, da nehoten OK nicesar ne izklopi. */
+    private fun potrdiIzklopLinka() {
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_naprave_link_izklop_naslov))
+            .setMessage(getString(R.string.os_naprave_link_izklop_opis))
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .setPositiveButton(getString(R.string.os_naprave_link_izklopi)) { _, _ ->
+                link.krajevniNacin()
+                Toast.makeText(this, getString(R.string.os_naprave_link_izklopljen), Toast.LENGTH_SHORT).show()
+                narisi(link.naprave)
+            }
+            .let { Kontroler.pokazi(it.show()) }
+        try { okno.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)?.requestFocus() } catch (_: Exception) { }
+    }
+
     private fun narisi(naprave: List<LinkOdjemalec.Naprava>) {
         val jaz = naprave.firstOrNull { it.id == Identiteta.id(this) }
         val tuje = LinkOdjemalec.drugeZaPrikaz(naprave, Identiteta.id(this))
@@ -91,13 +106,14 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             ""
         ) {
             if (linkVklopljen) {
-                link.krajevniNacin()
-                Toast.makeText(this, getString(R.string.os_naprave_link_izklopljen), Toast.LENGTH_SHORT).show()
+                // Izklop loci to napravo od vseh drugih. En nehoten dotik - ali OK na televizorju, kjer je ta
+                // vrstica prva v fokusu - tega ne sme narediti, zato vprasamo.
+                potrdiIzklopLinka()
             } else {
                 link.vklopiLink()
                 Toast.makeText(this, getString(R.string.os_naprave_link_vklopljen), Toast.LENGTH_SHORT).show()
+                narisi(link.naprave)
             }
-            narisi(link.naprave)
         })
         // Ta naprava: ime, kot ga vidijo druge naprave; OK jo preimenuje.
         if (jaz != null) nove.add(Vrstica(ikonaNaprave(jaz.platforma), jaz.ime.ifBlank { jaz.id },
@@ -107,9 +123,9 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val datoteke = n.zmoznosti.contains("files")
             val lepo = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
             nove.add(Vrstica(
-                if (datoteke) R.drawable.os_ikona_racunalnik else ikonaNaprave(n.platforma),
+                ikonaNaprave(n.platforma, datoteke),
                 lepo,
-                listOf(opisNaprave(n), moc[n.id] ?: getString(R.string.os_moc_nalagam).takeIf { link.povezan }.orEmpty())
+                listOf(opisNaprave(n, lepo), moc[n.id] ?: getString(R.string.os_moc_nalagam).takeIf { link.povezan }.orEmpty())
                     .filter { it.isNotBlank() }.joinToString("\n"),
                 getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_preimenuj_kratko),
                 n.id,
@@ -191,26 +207,26 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
     }
 
-    /** Ikona po vrsti naprave: telefon je telefon, tablica in racunalniski zaslon zaslon, televizor televizor. */
-    private fun ikonaNaprave(platforma: String): Int = when (platforma) {
-        "phone" -> R.drawable.os_ikona_telefon
-        "tablet" -> R.drawable.os_ikona_zaslon
-        "linux", "windows" -> R.drawable.os_ikona_racunalnik
-        else -> R.drawable.os_ikona_naprava
-    }
+    /** Ikona po vrsti naprave, kot jo naprava pove sama: telefon, tablica, racunalnik; drugo je zaslon (televizor). */
+    private fun ikonaNaprave(platforma: String, deliDatoteke: Boolean = false): Int =
+        when (OsPravila.ikonaNaprave(platforma, deliDatoteke)) {
+            "telefon" -> R.drawable.os_ikona_telefon
+            "tablica" -> R.drawable.os_ikona_tablica
+            "racunalnik" -> R.drawable.os_ikona_racunalnik
+            else -> R.drawable.os_ikona_naprava
+        }
 
-    private fun opisNaprave(n: LinkOdjemalec.Naprava): String = when {
-        // Platforma, kot jo pove naprava (Protocol v1); sredisce je lahko tudi racunalnik.
-        n.platforma == "linux" || n.platforma == "windows" ->
-            if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
-        n.platforma == "tv" -> "TV · Safeer Link"
-        n.platforma == "tablet" -> "Tablica · Safeer OS"
-        n.platforma == "phone" -> "Safeer Browser · Android"
-        n.naslov == "127.0.0.1" || n.id.startsWith("tv-") -> "TV · Safeer Link"
-        n.id.startsWith("pc-") -> if (n.id.endsWith("-control")) "PC · Safeer Control" else "PC · Safeer Browser"
-        n.id.startsWith("phone-") -> "Safeer Browser · Android"
-        // Surove vloge (sender/receiver) uporabnik ne razume.
-        else -> ""
+    /** Podnapis vrstice: vrsta naprave v jeziku uporabnika in program, kadar ga ime naprave se ne pove. */
+    private fun opisNaprave(n: LinkOdjemalec.Naprava, prikazanoIme: String): String {
+        val (vrsta, program) = OsPravila.opisNaprave(n.platforma, n.id, n.ime, prikazanoIme, n.naslov)
+        val napis = getString(when (vrsta) {
+            "racunalnik" -> R.string.os_naprave_vrsta_racunalnik
+            "tv" -> R.string.os_naprave_vrsta_tv
+            "tablica" -> R.string.os_naprave_vrsta_tablica
+            "telefon" -> R.string.os_naprave_vrsta_telefon
+            else -> return ""
+        })
+        return if (program.isEmpty()) napis else "$napis · $program"
     }
 
     /**

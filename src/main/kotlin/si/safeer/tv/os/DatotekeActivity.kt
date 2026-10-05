@@ -1010,7 +1010,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             "image" -> R.drawable.os_ikona_slika
             "computer" -> R.drawable.os_ikona_racunalnik
             "phone" -> R.drawable.os_ikona_telefon
-            "tablet" -> R.drawable.os_ikona_zaslon
+            "tablet" -> R.drawable.os_ikona_tablica
             "tv" -> R.drawable.os_ikona_naprava
             else -> R.drawable.os_ikona_datoteka
         }

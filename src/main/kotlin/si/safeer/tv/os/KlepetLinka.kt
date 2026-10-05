@@ -40,19 +40,25 @@ object KlepetLinka {
     /** optString vrne "null" za JSON null; tega ne smemo vzeti za naslov naprave. */
     private fun niz(o: JSONObject, kljuc: String): String = if (o.isNull(kljuc)) "" else o.optString(kljuc).trim()
 
-    /** chat.send s sredisca (na niti povezave). */
-    fun prejmi(c: Context, json: JSONObject) {
+    /**
+     * chat.send ali share.text s sredisca (na niti povezave). Besedilo, poslano z »Poslji besedilo«, gre v isti
+     * pogovor kot Safeer Chat: prej je bilo na zaslonu le nekaj sekund in ga potem ni bilo nikjer.
+     * [obvestilo] = false, kadar je besedilo ze na zaslonu (okno v brskalniku).
+     */
+    fun prejmi(c: Context, json: JSONObject, obvestilo: Boolean = true) {
         val telo = json.optJSONObject("payload") ?: return
         val besedilo = telo.optString("text").take(16 * 1024)
+        val posiljatelj = niz(json, "sender")
+        val naprave = try { LinkUpravitelj.pridobi(c).naprave } catch (_: Throwable) { emptyList<LinkOdjemalec.Naprava>() }
         // Pogovor je fizicna naprava (kljuc), ce jo hub pozna - ne glede na to, katera aplikacija na njej pise.
-        val od = niz(json, "sender_device").ifBlank { niz(json, "sender") }
+        // chat.send jo pove sam (sender_device); share.text je ne nosi, zato jo poiscemo v seznamu naprav ali
+        // izpeljemo iz id-ja prijave (n-<kljuc>-control -> n-<kljuc>), da obe vrsti pristaneta v istem pogovoru.
+        val od = niz(json, "sender_device")
+            .ifBlank { naprave.firstOrNull { it.id == posiljatelj }?.naprava.orEmpty() }
+            .ifBlank { LinkUpravitelj.fizicnaNaprava(posiljatelj) }
         if (besedilo.isBlank() || od.isBlank()) return
         // Ime, kot ga uporabnik vidi v seznamu naprav (vzdevek), sicer ime, ki ga je dal hub.
-        val posiljatelj = niz(json, "sender")
-        val izSeznama = try {
-            val naprave = LinkUpravitelj.pridobi(c).naprave
-            imeNaprave(naprave, od) ?: naprave.firstOrNull { it.id == posiljatelj }?.ime
-        } catch (_: Throwable) { null }
+        val izSeznama = imeNaprave(naprave, od) ?: naprave.firstOrNull { it.id == posiljatelj }?.ime
         val cas = cas(telo.optString("created_at"))
         val s = SporocilaShramba(c)
         val znano = s.pogovori().firstOrNull { it.kanalId == KANAL && it.id == od }?.ime
@@ -67,7 +73,7 @@ object KlepetLinka {
         s.posodobiPogovor(SporocilaShramba.Pogovor(od, KANAL, od, ime, "", besedilo.replace('\n', ' ').take(240),
             if (odprt) 0 else 1, cas), pristej = true)
         for (p in poslusalci) try { p() } catch (_: Throwable) { }
-        if (!odprt) obvesti(c, od, ime, besedilo)
+        if (!odprt && obvestilo) obvesti(c, od, ime, besedilo)
     }
 
     /**

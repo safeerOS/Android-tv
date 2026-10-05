@@ -32,4 +32,12 @@
     <string name="os_naprave_link_opis">Conecta este dispositivo con los demás (teléfono, tableta, ordenador, TV): dispositivos, archivos y envíos entre ellos</string>
     <string name="os_naprave_link_vklopljen">Safeer Link está activado</string>
     <string name="os_naprave_link_izklopljen">Safeer Link está desactivado. Tus otros dispositivos y sus archivos ya no estarán disponibles.</string>
+    <string name="os_naprave_link_izklop_naslov">¿Desactivar Safeer Link?</string>
+    <string name="os_naprave_link_izklop_opis">Este dispositivo dejará de estar conectado con los demás: sus archivos, los envíos y el mando no estarán disponibles hasta que vuelvas a activar Safeer Link.</string>
+    <string name="os_naprave_link_izklopi">Desactivar</string>
+    <string name="os_naprave_vrsta_racunalnik">Ordenador</string>
+    <string name="os_naprave_vrsta_tv">Televisor</string>
+    <string name="os_naprave_vrsta_tablica">Tableta</string>
+    <string name="os_naprave_vrsta_telefon">Móvil</string>
+    <string name="os_sporocila_kopirano">Copiado</string>
 </resources>

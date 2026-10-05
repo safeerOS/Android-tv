@@ -32,4 +32,12 @@
     <string name="os_naprave_link_opis">Connect this device with your others (phone, tablet, computer, TV) - devices, files and sending between them</string>
     <string name="os_naprave_link_vklopljen">Safeer Link is on</string>
     <string name="os_naprave_link_izklopljen">Safeer Link is off. Your other devices and their files will no longer be available.</string>
+    <string name="os_naprave_link_izklop_naslov">Turn off Safeer Link?</string>
+    <string name="os_naprave_link_izklop_opis">This device will no longer be connected to your others: their files, sending and the remote will not be available until you turn Safeer Link on again.</string>
+    <string name="os_naprave_link_izklopi">Turn off</string>
+    <string name="os_naprave_vrsta_racunalnik">Computer</string>
+    <string name="os_naprave_vrsta_tv">TV</string>
+    <string name="os_naprave_vrsta_tablica">Tablet</string>
+    <string name="os_naprave_vrsta_telefon">Phone</string>
+    <string name="os_sporocila_kopirano">Copied</string>
 </resources>

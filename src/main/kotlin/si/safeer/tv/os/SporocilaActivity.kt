@@ -585,6 +585,8 @@ class SporocilaActivity : OsActivity() {
             if (zadetek) obrobljena = vrstica
             vrstica.addView(TextView(this).apply {
                 text = s.besedilo.trim(); textSize = 15f; setTextIsSelectable(false)
+                // Dotik: dolg pritisk kopira (prejeto besedilo je navadno namenjeno drugi aplikaciji).
+                setOnLongClickListener { dejanjaSporocila(s.besedilo.trim()); true }
                 setTextColor(osBarva(if (ven) R.color.os_mint_temna else R.color.os_besedilo))
                 setPadding(dp(14), dp(9), dp(14), dp(9))
                 background = GradientDrawable().apply {
@@ -602,6 +604,23 @@ class SporocilaActivity : OsActivity() {
         val cilj = obrobljena
         if (cilj != null) { oznaciSporocilo = null; sporocilaDrsnik.post { sporocilaDrsnik.smoothScrollTo(0, maxOf(0, cilj.top - dp(40))) } }
         else sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN) }
+    }
+
+    /** Dolg pritisk na sporocilo: kopiraj; ena sama povezava ponudi se »Odpri povezavo«. */
+    private fun dejanjaSporocila(besedilo: String) {
+        if (besedilo.isEmpty()) return
+        if (!OsPravila.jePovezava(besedilo)) { Odlozisce.kopiraj(this, besedilo); return }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setItems(arrayOf(getString(R.string.ui_share_open_link), getString(R.string.os_bliznjica_kopiraj))) { _, i ->
+                if (i == 1) Odlozisce.kopiraj(this, besedilo)
+                else try {
+                    startActivity(Brskalnik.namera(this).setAction(android.content.Intent.ACTION_VIEW)
+                        .setData(android.net.Uri.parse(besedilo)))
+                } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() }
+            }
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
     }
 
     private fun kratekCas(iso: String): String {

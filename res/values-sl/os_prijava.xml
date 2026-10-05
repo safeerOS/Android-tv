@@ -32,4 +32,12 @@
     <string name="os_naprave_uspesno_povezano">Uspešno povezano z napravo %1$s.</string>
     <string name="os_naprave_naprava_ni_najdena">Naprave ni bilo mogoče najti. Preverite, ali sta obe napravi v istem Wi-Fi omrežju.</string>
     <string name="os_prijava_vpisi_gumb">Vpiši kodo z druge naprave</string>
+    <string name="os_naprave_link_izklop_naslov">Izklopim Safeer Link?</string>
+    <string name="os_naprave_link_izklop_opis">Ta naprava ne bo več povezana z drugimi: njihove datoteke, pošiljanje in daljinec ne bodo na voljo, dokler Safeer Linka ne vklopiš znova.</string>
+    <string name="os_naprave_link_izklopi">Izklopi</string>
+    <string name="os_naprave_vrsta_racunalnik">Računalnik</string>
+    <string name="os_naprave_vrsta_tv">Televizor</string>
+    <string name="os_naprave_vrsta_tablica">Tablica</string>
+    <string name="os_naprave_vrsta_telefon">Telefon</string>
+    <string name="os_sporocila_kopirano">Kopirano</string>
 </resources>

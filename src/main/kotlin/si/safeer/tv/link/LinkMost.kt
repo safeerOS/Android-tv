@@ -84,8 +84,16 @@ class LinkMost(
 
     // ------------------------------------------------------------------
 
+    /**
+     * Stran se v aplikacijah za Android vede kot na televizorju (fokus za daljinec, brez plosce predvajanja) - tudi na
+     * telefonu in tablici. Napis in ikono TE naprave izbere po [platforma].
+     */
     @JavascriptInterface
     fun jeTelevizor(): Boolean = true
+
+    /** Platforma te naprave: "tv", "phone" ali "tablet" (kot jo naprava pove srediscu). */
+    @JavascriptInterface
+    fun platforma(): String = si.safeer.tv.cast.HubKrmilnik.platforma(dejavnost)
 
     /** Stanje sinhronizacije. Na televizorju je zaenkrat izklopljena. */
     @JavascriptInterface
@@ -296,6 +304,9 @@ class LinkMost(
                     put("zasedenaOd", n.optString("busy_by", ""))
                     put("zasedenaOdIme", n.optString("busy_by_name", ""))
                     put("naslov", n.optString("ip", ""))
+                    // Platformo in vrsto pove naprava sama (protocol v1); stran po njima izbere ikono.
+                    put("platforma", n.optString("platform", ""))
+                    put("vrsta", n.optString("kind", ""))
                 })
             }
         } catch (_: Throwable) { }

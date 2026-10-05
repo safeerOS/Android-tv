@@ -153,4 +153,5 @@
     <string name="ui_link_zagon_tapni">Safeer Link · zum Fortfahren tippen</string>
     <string name="ui_ssl_vprasanje">Das Zertifikat von %1$s ist ungültig, die Verbindung ist daher möglicherweise nicht privat. Safeer schützt Sie weiterhin vor bekannten Bedrohungen. Trotzdem öffnen?</string>
     <string name="ui_ssl_odpri">Trotzdem öffnen</string>
+    <string name="ui_share_screen_notice">%1$s teilt den Bildschirm – zum Anzeigen öffnen</string>
 </resources>

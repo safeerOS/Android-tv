@@ -769,6 +769,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                     jeTelefon -> R.drawable.os_ikona_telefon
                     n.platforma == "tv" -> R.drawable.os_ikona_naprava
                     n.platforma == "linux" || n.platforma == "windows" -> R.drawable.os_ikona_racunalnik
+                    n.platforma == "tablet" -> R.drawable.os_ikona_tablica
                     else -> R.drawable.os_ikona_zaslon
                 })
                 ime?.text = n.ime.ifBlank { n.id }

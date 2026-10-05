@@ -33,6 +33,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/IzvirniJezik.kt" \
     "$SRC/si/safeer/tv/SpletMostPravila.kt" \
     "$SRC/si/safeer/tv/tv/PredajaStrani.kt" \
+    "$SRC/si/safeer/tv/cast/ObvestiloZaslona.kt" \
+    "$SRC/si/safeer/tv/cast/PoDeljenju.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
     "$TEST_DIR/GalerijaPravilaTest.kt" \
     "$TEST_DIR/VarnaSlikaTest.kt" \
@@ -51,6 +53,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/TempoDodatkaTest.kt" \
     "$TEST_DIR/ObnovaPravilaTest.kt" \
     "$TEST_DIR/IzvirniJezikTest.kt" \
+    "$TEST_DIR/ObvestiloZaslonaTest.kt" \
+    "$TEST_DIR/PoDeljenjuTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -71,6 +75,8 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.DomPreverjanjePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.TempoDodatkaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ObnovaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.IzvirniJezikTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.cast.ObvestiloZaslonaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.cast.PoDeljenjuTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.
