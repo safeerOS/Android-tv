@@ -134,8 +134,85 @@ private fun preizkusPovezave() {
     preveriEnako("prazno", false, OsPravila.jePovezava(""))
 }
 
+private fun preizkusTipkMenija() {
+    println("\n== stranska vrstica ob brskalniku: tipke daljinca ==")
+    preveriEnako("GOR gre meniju (prej v naslovno vrstico strani)", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(19, true, 0))
+    preveriEnako("DOL gre meniju", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(20, true, 0))
+    preveriEnako("OK gre meniju (pritisk)", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(23, true, 0))
+    preveriEnako("OK gre meniju (spust - brez njega ni klika)", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(23, false, 0))
+    preveriEnako("Enter gre meniju", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(66, true, 0))
+    preveriEnako("LEVO ne naredi nicesar (prej premik v strani in zaprt meni)", OsPravila.TipkaMenija.NIC, OsPravila.tipkaVMeniju(21, true, 0))
+    preveriEnako("DESNO vrne v stran", OsPravila.TipkaMenija.V_VSEBINO, OsPravila.tipkaVMeniju(22, true, 0))
+    preveriEnako("spust tipke DESNO ne naredi nicesar", OsPravila.TipkaMenija.NIC, OsPravila.tipkaVMeniju(22, false, 0))
+    preveriEnako("NAZAJ zapusti Splet (prej zgodovina strani)", OsPravila.TipkaMenija.IZHOD, OsPravila.tipkaVMeniju(4, true, 0))
+    preveriEnako("drzanje NAZAJ ne steje", OsPravila.TipkaMenija.NIC, OsPravila.tipkaVMeniju(4, true, 3))
+    preveriEnako("spust tipke NAZAJ ne steje (pritisk je meni morda sele odprl)", OsPravila.TipkaMenija.NIC, OsPravila.tipkaVMeniju(4, false, 0))
+    preveriEnako("predvajaj/pavza ni za meni", OsPravila.TipkaMenija.DRUGAM, OsPravila.tipkaVMeniju(85, true, 0))
+    preveriEnako("rdeca tipka ni za meni", OsPravila.TipkaMenija.DRUGAM, OsPravila.tipkaVMeniju(183, true, 0))
+    check(OsPravila.TipkaMenija.values().size == 5)
+}
+
+private fun preizkusGlasbenegaImena() {
+    println("\n== glasbeni dodatek ==")
+    for (ime in listOf("Music - Charts", "Vse-Music", "Live Concerts", "Koncerti", "Glasbeni videospoti", "Música en vivo", "Top Songs"))
+        preveri("glasbeno ime: $ime", OsPravila.glasbenoIme(ime))
+    for (ime in listOf("Musical", "Top filmi", "Movies - Popular", "Kanali News", "Amusical Night", ""))
+        preveri("ni glasbeno ime: »$ime«", !OsPravila.glasbenoIme(ime))
+}
+
+private fun preizkusStabilnegaReda() {
+    println("\n== mreza se dopolnjuje brez premescanja ==")
+    fun red(naZaslonu: String, novi: String) = OsPravila.stabilenRed(naZaslonu.map { it.toString() }, novi.map { it.toString() }) { it }.joinToString("")
+    preveriEnako("prazna mreza: vrstni red vira", "abcd", red("", "abcd"))
+    preveriEnako("nove kartice pridejo za prikazanimi, ne vmes", "bdace", red("bd", "abcde"))
+    preveriEnako("drugacen vrstni red vira prikazanih ne premesca", "abc", red("abc", "cba"))
+    preveriEnako("kartica, ki je vir nima vec, izpade; ostale ostanejo na mestu", "acbd", red("axc", "bcda"))
+    preveriEnako("nic od prikazanega ni vec v viru: vrstni red vira", "abc", red("xy", "abc"))
+    preveriEnako("podvojen id v viru: ostane prvi", "ab", red("a", "aba").let { it.toList().distinct().joinToString("") })
+}
+
+private fun preizkusLogotipa() {
+    println("\n== logotip kanala ==")
+    val prozoren = 0x00000000; val crn = 0xFF101010.toInt(); val bel = 0xFFF0F0F0.toInt(); val rdec = 0xFFE02020.toInt()
+    fun slika(vidni: Int, barva: Int) = IntArray(256) { if (it < vidni) barva else prozoren }
+    preveri("temen logotip na prozornem ozadju: svetla podlaga", OsPravila.svetlaPodlaga(slika(100, crn)))
+    preveri("svetel logotip na prozornem ozadju: ostane temna", !OsPravila.svetlaPodlaga(slika(100, bel)))
+    preveri("barven (rdec) logotip na prozornem ozadju: svetlost 89 -> svetla podlaga", OsPravila.svetlaPodlaga(slika(100, rdec)))
+    preveri("temen logotip s svojo (neprozorno) podlago: ostane, kot je", !OsPravila.svetlaPodlaga(slika(256, crn)))
+    preveri("skoraj neprozorna slika (manj kot petina prozorne): ostane", !OsPravila.svetlaPodlaga(slika(230, crn)))
+    preveri("povsem prozorna slika: ostane temna", !OsPravila.svetlaPodlaga(slika(0, crn)))
+    preveri("prazen seznam", !OsPravila.svetlaPodlaga(IntArray(0)))
+}
+
+private fun preizkusKanalov() {
+    println("\n== kanal, ki ne stece ==")
+    preveriEnako("404: kanala pri viru ni", true, OsPravila.mrtevKanal(2004, 404))
+    preveriEnako("410: kanala pri viru ni vec", true, OsPravila.mrtevKanal(2004, 410))
+    preveriEnako("403: vir zavraca", true, OsPravila.mrtevKanal(2004, 403))
+    preveriEnako("429: vir omejuje - zacasno", false, OsPravila.mrtevKanal(2004, 429))
+    preveriEnako("401: zahteva prijavo - ni dokaz", false, OsPravila.mrtevKanal(2004, 401))
+    preveriEnako("503: izpad streznika - zacasno", false, OsPravila.mrtevKanal(2004, 503))
+    preveriEnako("izpad omrezja te naprave ni mrtev kanal", false, OsPravila.mrtevKanal(2001, 0))
+    preveriEnako("casovna omejitev ni mrtev kanal", false, OsPravila.mrtevKanal(2002, 0))
+    preveriEnako("seznama ni mogoce prebrati", true, OsPravila.mrtevKanal(3002, 0))
+    preveriEnako("neznan vsebnik", true, OsPravila.mrtevKanal(3003, 0))
+    preveriEnako("napaka dekodirnika ni mrtev kanal (pomaga naprava v Linku)", false, OsPravila.mrtevKanal(4001, 0))
+    preveriEnako("zaostanek za prenosom v zivo ni mrtev kanal", false, OsPravila.mrtevKanal(1002, 0))
+    preveriEnako("kljuc kartice: predvajana enota brez oznake toka", "stremio|tv|kanal1|https://dodatek.test", OsPravila.kljucKanala("stremio|tv|kanal1|https://dodatek.test#123456"))
+    preveriEnako("kljuc kartice: negativna oznaka toka", "stremio|tv|kanal1|https://dodatek.test", OsPravila.kljucKanala("stremio|tv|kanal1|https://dodatek.test#-98765"))
+    preveriEnako("kljuc kartice: torrent ostane", "stremio|movie|tt1|x#t3", OsPravila.kljucKanala("stremio|movie|tt1|x#t3"))
+    preveriEnako("kljuc kartice: uradni kanal ostane", "tv:slo1", OsPravila.kljucKanala("tv:slo1"))
+    preveri("daljinec: ob napaki pas z razlago ostane (prej crn zaslon)", !OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = false, tece = false, napaka = true))
+    preveri("daljinec: brez napake se pas skrije kot doslej", OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = false, tece = true, napaka = false))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
+    preizkusKanalov()
+    preizkusLogotipa()
+    preizkusStabilnegaReda()
+    preizkusGlasbenegaImena()
+    preizkusTipkMenija()
     preizkusIkonNaprav()
     preizkusOpisaNaprav()
     preizkusPovezave()

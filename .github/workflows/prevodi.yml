@@ -109,3 +109,7 @@ jobs:
       # ikone drugih naprav po platformi, ki jo naprava pove sama. Stran se zares izvede (Node, nadomestni elementi).
       - name: Stran Safeer Linka (ikone in napis naprav)
         run: node tests/link_stran_naprave_test.js
+
+      # Vgrajeni brskalnik v Safeer OS: LEVO odpre stransko vrstico samo na levem robu strani (prej ob vsakem pritisku).
+      - name: Levi rob strani in stranska vrstica (daljinec)
+        run: node tests/tv_levi_rob_test.js

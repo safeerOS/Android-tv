@@ -1605,7 +1605,7 @@
                 }
                 if (idx < 0) return false;
                 var next = direction === 'LEFT' ? idx - 1 : idx + 1;
-                if (next < 0 || next >= links.length) return true;
+                if (next < 0 || next >= links.length) return 'rob';
                 highlightElement(links[next]);
                 // #region agent log
                 try {
@@ -1622,7 +1622,23 @@
                 return true;
             }
 
-            window._safeer_navigate_spatial = function(direction) {
+            /* SAFEER_LEVI_ROB_ZACETEK - ciste funkcije; preizkus: tests/tv_levi_rob_test.js */
+            // Safeer OS ima levo od strani stransko vrstico. LEVO jo odpre, kadar v isti vrsti na zaslonu levo ni vec
+            // nobenega elementa. Prej je vrstico odprl VSAK pritisk LEVO (Android strani ne vidi), fokus v strani pa
+            // se je premaknil sele ob naslednjem.
+            function jeLeviSosed(c, r) {
+                // Kandidat r je levo od izbranega c (sredisce vsaj 12 px levo) in se z njim prekriva po visini.
+                var dx = (r.left + r.width / 2) - (c.left + c.width / 2);
+                return dx < -12 && r.top < c.bottom - 4 && r.bottom > c.top + 4;
+            }
+            function leviRob(robVrstice, imaSoseda, scrollX) {
+                // '' = navadna navigacija; 'podrsaj' = stran je podrsana v desno (najprej nazaj na levi rob); 'meni' = stranska vrstica.
+                if (!robVrstice || imaSoseda) return '';
+                return scrollX > 0 ? 'podrsaj' : 'meni';
+            }
+            /* SAFEER_LEVI_ROB_KONEC */
+
+            window._safeer_navigate_spatial = function(direction, robVrstice) {
                 try {
                     var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
                     var winH = window.innerHeight || 1080;
@@ -1664,12 +1680,17 @@
                             window.scrollBy({ top: -120, behavior: scrollEase });
                             return 1;
                         }
-                        if (direction === 'LEFT') { window.scrollBy({ left: -140, behavior: scrollEase }); return 1; }
+                        if (direction === 'LEFT') {
+                            if (leviRob(robVrstice, false, window.scrollX || 0) === 'meni') return -2;
+                            window.scrollBy({ left: -140, behavior: scrollEase }); return 1;
+                        }
                         if (direction === 'RIGHT') { window.scrollBy({ left: 140, behavior: scrollEase }); return 1; }
                         return -1;
                     }
 
                     if (!current) {
+                        // V strani ni izbranega nicesar: LEVO gre v stransko vrstico (Safeer OS), ne na prvi element strani.
+                        if (direction === 'LEFT' && leviRob(robVrstice, false, window.scrollX || 0) === 'meni') return -2;
                         if (!current) {
                         var best = null;
                         var bestDist = Infinity;
@@ -1726,7 +1747,10 @@
                     }
 
                     if ((direction === 'LEFT' || direction === 'RIGHT') && current && jeMenijskaPovezava(current)) {
-                        if (premakniPoMeniju(direction)) return 1;
+                        var poMeniju = premakniPoMeniju(direction);
+                        // Prva povezava menija strani: levo od nje je stranska vrstica Safeer OS.
+                        if (poMeniju === 'rob' && direction === 'LEFT' && leviRob(robVrstice, false, window.scrollX || 0) === 'meni') return -2;
+                        if (poMeniju) return 1;
                     }
 
                     if (direction === 'UP') {
@@ -1814,6 +1838,7 @@
                     var wrapTarget = null;
                     var wrapY = 1e9;
                     var wrapX = 1e9;
+                    var leviSosed = false;
 
                     for (var j = 0; j < candidates.length; j++) {
                         var el = candidates[j];
@@ -1861,6 +1886,8 @@
                             }
                         }
 
+                        if (direction === 'LEFT' && !leviSosed && jeLeviSosed(cRect, r)) leviSosed = true;
+
                         if (valid) {
                             var rowTol = jePotVZivo() ? 88 : 72;
                             var colTol = jePotVZivo() ? 150 : 130;
@@ -1877,6 +1904,12 @@
                                 bestTarget = el;
                             }
                         }
+                    }
+                    // Safeer OS: v isti vrsti levo ni nicesar -> stranska vrstica (ne skok na konec vrste nad nami).
+                    if (direction === 'LEFT') {
+                        var rob = leviRob(robVrstice, leviSosed, window.scrollX || 0);
+                        if (rob === 'meni') return -2;
+                        if (rob === 'podrsaj') { window.scrollBy({ left: -140, behavior: scrollEase }); return 0; }
                     }
                     if (bestAxis) bestTarget = bestAxis;
                     else if (!bestTarget && wrapTarget) bestTarget = wrapTarget;

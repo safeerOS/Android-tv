@@ -16,9 +16,9 @@ object RazpolozljivostPravila {
     /**
      * Kartica iz lastne knjiznice dodatka: dodatek jo je vpisal v svoj katalog, zanjo sam daje tokove (vir "stream" za
      * ta tip in predpono id-ja), njen id pa je samo njegov ([javniId] = false; javni id IMDb imajo tudi katalogi, ki
-     * le nastevajo znane naslove). Z vpisom v katalog je dodatek ze povedal, da jo ima, zato je ne preverjamo vnaprej:
-     * mreza je polna takoj in dodatek ne dobi poizvedbe za vsak naslov. Ce ob dotiku toka ni, kartica izgine kot
-     * vsaka druga.
+     * le nastevajo znane naslove). Take kartice ne preverjamo vsake posebej (dodatek ne dobi poizvedbe za vsak naslov),
+     * na zaslon pa pride sele, ko knjiznica dokaze, da tokove res daje ([Zaupanje]). Ce ob dotiku toka ni, kartica
+     * izgine kot vsaka druga.
      */
     fun lastnaKnjiznica(javniId: Boolean, viri: Set<String>, tipi: Set<String>, predpone: List<String>, tip: String, id: String): Boolean =
         !javniId && id.isNotBlank() && "stream" in viri && (tipi.isEmpty() || tip in tipi) && (predpone.isEmpty() || predpone.any { id.startsWith(it) })
@@ -180,6 +180,76 @@ object RazpolozljivostPravila {
             else -> return null
         }
         return (d[0] + "|" + d[1]) to z
+    }
+
+    // ------------------------------------------------------------------ zaupanje v lastno knjiznico dodatka
+
+    /**
+     * Lastna knjiznica dodatka ([lastnaKnjiznica]) velja za predvajljivo sele po dokazu: naslov iz nje se je dal
+     * predvajati (vzorec v ozadju ali dotik). Do 5. 10. 2026 je veljala na besedo - dodatek, ki je svojo knjiznico
+     * nasteval, tokov zanjo pa ni dajal, je mrezo napolnil s karticami, ki se jih ni dalo predvajati (lastnik: »samo
+     * tok, ki ga lahko predvajamo«). [dela]: true / false / null = se ne vemo; [neuspehov]: zaporedni dotiki brez
+     * toka; [cas]: cas dokaza.
+     */
+    data class Zaupanje(val dela: Boolean? = null, val neuspehov: Int = 0, val cas: Long = 0L)
+
+    /** Koliko naslovov knjiznice vprasamo za vzorec - in koliko zaporednih dotikov brez toka zaupanje odvzame. */
+    const val VZOREC_KNJIZNICE = 3
+    /** Kako dolgo je dokaz svez; potem knjiznico vzorcimo znova - v ozadju, prikaz na to ne caka ([zaupanje]). */
+    const val KNJIZNICA_DELA_VELJA = 24 * URA
+    const val KNJIZNICA_NE_DELA_VELJA = 12 * URA
+
+    /** Kateri od [stevilo] naslovov knjiznice so vzorec: prvi, srednji in zadnji (prvi trije so si najbolj podobni). */
+    fun vzorecKnjiznice(stevilo: Int): List<Int> = when {
+        stevilo <= 0 -> emptyList()
+        stevilo <= VZOREC_KNJIZNICE -> (0 until stevilo).toList()
+        else -> listOf(0, stevilo / 2, stevilo - 1)
+    }
+
+    /**
+     * Izid vzorca iz odgovorov po naslovih (true = ima predvajljiv tok, false = dodatek je odgovoril, toka nima, null =
+     * ni odgovoril): en predvajljiv naslov zadosca; »ne« velja sele, ko je dodatek odgovoril za vse; sicer ne vemo.
+     */
+    fun izidVzorca(odgovori: List<Boolean?>): Boolean? = when {
+        odgovori.any { it == true } -> true
+        odgovori.isNotEmpty() && odgovori.all { it == false } -> false
+        else -> null
+    }
+
+    fun poVzorcu(izid: Boolean, zdaj: Long): Zaupanje = Zaupanje(izid, if (izid) 0 else VZOREC_KNJIZNICE, zdaj)
+
+    /**
+     * Dotik naslova iz knjiznice: uspeh zaupanje potrdi; [VZOREC_KNJIZNICE] zaporednih dotikov brez toka ga odvzame.
+     * En sam dotik brez toka ne spremeni nicesar (tista kartica izgine sama) - dokaz ostane star, kolikor je.
+     */
+    fun poDotiku(prej: Zaupanje?, uspeh: Boolean, zdaj: Long): Zaupanje {
+        if (uspeh) return Zaupanje(true, 0, zdaj)
+        val n = (prej?.neuspehov ?: 0) + 1
+        return if (n >= VZOREC_KNJIZNICE) Zaupanje(false, n, zdaj) else Zaupanje(prej?.dela, n, prej?.cas ?: 0L)
+    }
+
+    /** Zadnji znani dokaz za prikaz (tudi ce ni vec svez, do [JE_ZNANO] / [NI_ZNANO]); null = knjiznice se ne poznamo. */
+    fun zaupanje(z: Zaupanje?, zdaj: Long): Boolean? {
+        val dela = z?.dela ?: return null
+        return if (starost(z.cas, zdaj) in 0..(if (dela) JE_ZNANO else NI_ZNANO)) dela else null
+    }
+
+    /** Ali je treba knjiznico vzorciti: se ne vemo ali pa dokaz ni vec svez. */
+    fun vzorciti(z: Zaupanje?, zdaj: Long): Boolean {
+        val dela = z?.dela ?: return true
+        return starost(z.cas, zdaj) !in 0..(if (dela) KNJIZNICA_DELA_VELJA else KNJIZNICA_NE_DELA_VELJA)
+    }
+
+    /** »d|n|u;neuspehov;cas« (dela, ne dela, se ne vemo). */
+    fun zaupanjeVNiz(z: Zaupanje): String = (when (z.dela) { true -> "d"; false -> "n"; null -> "u" }) + ";" + z.neuspehov + ";" + z.cas
+
+    fun zaupanjeIzNiza(s: String?): Zaupanje? {
+        val d = s?.split(';') ?: return null
+        if (d.size != 3) return null
+        val dela = when (d[0]) { "d" -> true; "n" -> false; "u" -> null; else -> return null }
+        val n = d[1].toIntOrNull()?.takeIf { it >= 0 } ?: return null
+        val cas = d[2].toLongOrNull()?.takeIf { it >= 0L } ?: return null
+        return Zaupanje(dela, n, cas)
     }
 
     // ------------------------------------------------------------------ dodatki

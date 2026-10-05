@@ -43,6 +43,14 @@ class GlasbaStoritev : Service() {
 
     /** Zadnji posnetek, za katerega smo že povedali, da mu manjka dekoder (sporočilo samo enkrat). */
     private var brezDekoderja: String? = null
+    /** Posnetek, za katerega so sledi ze v dnevniku. */
+    private var zabelezeneSledi: String? = null
+    /** Trenutni posnetek je ze kdaj zares igral (napaka pred tem pomeni, da se sploh ni zacel). */
+    private var zacelo = false
+    /** Posnetek, ki smo ga po napaki »neznana oblika« ze poskusili kot seznam HLS. */
+    private var kotHls = ""
+    /** Predvaja se en sam kanal ali postaja v zivo s spleta (ne datoteka z naprave v Linku): bere ga nit nalaganja. */
+    @Volatile private var enaVZivo = false
 
     /**
      * Kot VLC uporabniku povemo, kadar naprava slike ali zvoka posnetka ne zna dekodirati (npr. DVD z MPEG-2
@@ -50,6 +58,16 @@ class GlasbaStoritev : Service() {
      */
     private fun preveriDekoderje(p: Player, tracks: androidx.media3.common.Tracks) {
         val kljuc = p.currentMediaItem?.mediaId + "#" + p.currentMediaItemIndex
+        // Oblika slike in zvoka v dnevnik (brez naslovov): ali kanal sploh ima zvok in ali ga naprava zna.
+        if (tracks.groups.isNotEmpty() && kljuc != zabelezeneSledi) {
+            zabelezeneSledi = kljuc
+            Log.i("SafeerOsMedia", "sledi: " + tracks.groups.joinToString("; ") { g ->
+                val f = g.getTrackFormat(0)
+                val vrsta = when (g.type) { C.TRACK_TYPE_VIDEO -> "slika"; C.TRACK_TYPE_AUDIO -> "zvok"; C.TRACK_TYPE_TEXT -> "besedilo"; else -> "drugo" }
+                val mere = if (g.type == C.TRACK_TYPE_VIDEO) " ${f.width}x${f.height}" else if (g.type == C.TRACK_TYPE_AUDIO) " ${f.channelCount}k ${f.sampleRate}Hz" else ""
+                "$vrsta ${f.sampleMimeType ?: f.containerMimeType ?: "?"}$mere${if (g.isSupported) "" else " NEPODPRTO"}${if (g.isSelected) " *" else ""}"
+            })
+        }
         if (tracks.groups.isEmpty() || kljuc == brezDekoderja) return
         fun manjka(vrsta: Int): String? {
             val skupine = tracks.groups.filter { it.type == vrsta }
@@ -94,6 +112,7 @@ class GlasbaStoritev : Service() {
                 osvezi()
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) { zacelo = true; koncnaNapaka = null }
                 // Merjenje cakanja pred zacetkom (torrent prek pomocnika): od dotika do prve slike.
                 if (isPlaying && merimOd != 0L) { Log.i("SafeerTorrentCas", "predvajanje tece po ${android.os.SystemClock.uptimeMillis() - merimOd} ms"); merimOd = 0L }
                 osvezi()
@@ -118,6 +137,22 @@ class GlasbaStoritev : Service() {
                 // Pokvarjena skladba ne sme ustaviti vsega: naprej na naslednjo, ce obstaja. Uporabnik
                 // izve, kaj se je zgodilo (prej je predvajanje tiho obstalo in ni bilo jasno zakaj).
                 val ime = trenutna()?.naslov.orEmpty()
+                if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+                    // Prenos v zivo po pavzi ali zastoju: predvajalnik je zaostal za oknom prenosa. To ni napaka kanala -
+                    // nazaj na zivo. (Prej: »Predvajanje se je ustavilo zaradi napake« in crn zaslon.)
+                    Log.i("SafeerOsMedia", "za oknom prenosa v zivo: nazaj na zivo")
+                    p.seekToDefaultPosition(); p.prepare()
+                    return
+                }
+                val enota = trenutna()
+                if (enota != null && vrsta.size == 1 && enota.mime.isBlank() && enota.zvok.startsWith("http") && kotHls != enota.id &&
+                    error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED) {
+                    // Naslov brez koncnice (preusmeritev): po naslovu nismo prepoznali, da je vsebina seznam HLS. En poskus kot HLS.
+                    kotHls = enota.id
+                    Log.i("SafeerOsMedia", "neznana oblika: poskus kot seznam HLS")
+                    nalozi(listOf(enota.copy(mime = androidx.media3.common.MimeTypes.APPLICATION_M3U8)), 0, streznikTrenutni)
+                    return
+                }
                 if (p.hasNextMediaItem()) {
                     obvesti(getString(R.string.os_media_napaka_naslednja, ime.ifBlank { "?" }))
                     p.seekToNextMediaItem(); p.prepare(); p.play()
@@ -142,8 +177,24 @@ class GlasbaStoritev : Service() {
                         rezerve = ostale
                         return
                     }
-                    obvesti(getString(napakaZaUporabnika(error.errorCode)))
-                    osvezi()
+                    // Koncna napaka. Kanal ali postaja, ki pri viru ne dela, dobi stavek z razlogom in je do jutri skrit
+                    // ([MrtviKanali]); ce se sploh ni zacel, predvajanje zapremo - prej je ostal crn predvajalnik brez
+                    // razlage, kanal pa v mali vrstici kot »zdaj se predvaja«.
+                    val http = httpKoda(error)
+                    val vZivo = enota != null && (enota.radio || enota.id.startsWith("tv:") || Stremio.jeVZivo(enota))
+                    // Te napake resuje zaslon predvajanja sam (stran pod nasim upravljanjem, sprotna pretvorba v Linku).
+                    val resujeZaslon = enota != null && (SpletniVir.jeEnota(enota) || SprotnaPomoc.jeSprotniTok(enota) || SprotnaPomoc.jeNapakaDekodiranja(error))
+                    val mrtev = vZivo && !resujeZaslon && OsPravila.mrtevKanal(error.errorCode, http)
+                    val besedilo = when {
+                        mrtev && http > 0 -> getString(R.string.os_media_kanal_mrtev_http, ime.ifBlank { "?" }, http)
+                        mrtev -> getString(R.string.os_media_kanal_mrtev, ime.ifBlank { "?" })
+                        else -> getString(napakaZaUporabnika(error.errorCode))
+                    }
+                    Log.i("SafeerOsMedia", "koncna napaka: koda=${error.errorCode}, http=$http, vZivo=$vZivo, zacelo=$zacelo, mrtev=$mrtev")
+                    koncnaNapaka = KoncnaNapaka(enota?.id.orEmpty(), error.errorCode, http, besedilo)
+                    if (mrtev && enota != null) MrtviKanali.zapomni(this@GlasbaStoritev, enota.id)
+                    obvesti(besedilo)
+                    if (vZivo && !zacelo && !resujeZaslon) android.os.Handler(mainLooper).post { ustaviPredvajanje() } else osvezi()
                 }
             }
         })
@@ -260,11 +311,23 @@ class GlasbaStoritev : Service() {
         }.apply { name = "Safeer-uvoz-naslednja"; start() }
     }
 
+    /** Odgovor HTTP, zaradi katerega je predvajanje odpovedalo; 0 = napaka ni odgovor vira. */
+    private fun httpKoda(error: PlaybackException): Int {
+        var e: Throwable? = error
+        while (e != null) {
+            if (e is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) return e.responseCode
+            e = e.cause
+        }
+        return 0
+    }
+
     private fun nalozi(seznam: List<Jamendo.Skladba>, od: Int, s: DatotekeActivity.Streznik?) {
         val p = exo ?: return
         koncajSplet()
         predvajalnik = p
         vrsta = seznam
+        zacelo = false; koncnaNapaka = null
+        enaVZivo = s == null && seznam.size == 1 && seznam[0].let { it.radio || it.id.startsWith("tv:") || Stremio.jeVZivo(it) }
         streznikTrenutni = s
         // Datoteke z racunalnika gredo skozi pripeti vir (TLS z odtisom in zetonom Safeer Controla),
         // vse ostalo (splet, datoteke televizorja) skozi obicajnega.
@@ -284,8 +347,21 @@ class GlasbaStoritev : Service() {
                     .setLoadErrorHandlingPolicy(hitraNapaka).setSubtitleParserFactory(Podnapisi.Popravljalnik())
             }
         }
+        // Seznami HLS gredo skozi nas razclenjevalnik ([HlsSeznami]): kanal z neveljavno zapisanim datumom v seznamu je
+        // prej odpovedal z napako razclenjevanja, drugi predvajalniki pa ga predvajajo.
+        val hlsTovarne = HashMap<Map<String, String>, androidx.media3.exoplayer.source.MediaSource.Factory>()
+        fun hlsTovarnaZa(sk: Jamendo.Skladba): androidx.media3.exoplayer.source.MediaSource.Factory? {
+            if (s != null) return null
+            val vrstaVsebine = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null })
+            if (vrstaVsebine != C.CONTENT_TYPE_HLS) return null
+            return hlsTovarne.getOrPut(SpletniVir.glaveToka(sk.zvok)) {
+                androidx.media3.exoplayer.hls.HlsMediaSource.Factory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, SpletniVir.glaveToka(sk.zvok))))
+                    .setPlaylistParserFactory(HlsSeznami()).setLoadErrorHandlingPolicy(hitraNapaka)
+                    .setSubtitleParserFactory(Podnapisi.Popravljalnik())
+            }
+        }
         p.setMediaSources(seznam.map { sk ->
-            tovarnaZa(sk).createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
+            (hlsTovarnaZa(sk) ?: tovarnaZa(sk)).createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
                 .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
                 .apply { if (sk.podnapisi.isNotEmpty()) setSubtitleConfigurations(Podnapisi.konfiguracije(this@GlasbaStoritev, sk.podnapisi)) }
                 .setMediaMetadata(M3Metadata.Builder().setTitle(sk.naslov).setArtist(sk.izvajalec).build())
@@ -315,6 +391,9 @@ class GlasbaStoritev : Service() {
             while (e != null) {
                 if (e is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
                     if (rezerve.isNotEmpty() && e.responseCode in 400..499) return C.TIME_UNSET
+                    // Kanal ali postaja v zivo: vir je odgovoril, da prenosa ni (404, 403, 410 ...). Ponavljanje tega ne
+                    // popravi, uporabnik pa caka (izmerjeno 5. 10. 2026: 7,5 s do sporocila) - en poskus je dovolj.
+                    if (enaVZivo && OsPravila.mrtevKanal(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, e.responseCode)) return C.TIME_UNSET
                     break
                 }
                 e = e.cause
@@ -596,9 +675,22 @@ class GlasbaStoritev : Service() {
          */
         fun osveziKartico(a: android.app.Activity) { }
 
-        /** Klik na kartico: med predvajanjem naravnost na predvajanje, sicer v Medije. */
+        /**
+         * Klik na kartico: med predvajanjem naravnost na predvajanje, sicer v Medije. »Med predvajanjem« pomeni, da
+         * res tece ([tece]): zaustavljen ali odpovedan kanal je prej odprl crn predvajalnik namesto Medijskega centra.
+         */
         fun namenKartice(ctx: Context): Intent =
-            Intent(ctx, if (trenutna() != null) PredvajanjeActivity::class.java else GlasbaActivity::class.java)
+            Intent(ctx, if (trenutna() != null && tece()) PredvajanjeActivity::class.java else GlasbaActivity::class.java)
+
+        /** Predvajanje tece ali se nalaga po uporabnikovi zelji: ni pavze, ni napake, ni konca. */
+        fun tece(): Boolean = predvajalnik?.let {
+            it.playWhenReady && it.playerError == null && (it.playbackState == Player.STATE_READY || it.playbackState == Player.STATE_BUFFERING)
+        } == true
+
+        /** Napaka, po kateri predvajanje ne gre naprej (ni rezervnega toka): kaj povedati uporabniku. */
+        class KoncnaNapaka(val id: String, val koda: Int, val http: Int, val besedilo: String)
+        @Volatile var koncnaNapaka: KoncnaNapaka? = null
+            private set
 
         /** Casovnik izklopa: ob izteku predvajanje ustavimo (za zaspance pred televizorjem). */
         private var izklopOb = 0L

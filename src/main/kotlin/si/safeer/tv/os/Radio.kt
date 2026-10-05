@@ -36,6 +36,16 @@ object Radio {
         return (poImenu + poOznaki).filter { it.naslov.length <= 60 }.distinctBy { it.zvok }.take(24)
     }
 
+    /**
+     * Stran postaj po poslusanosti: [drzava] (ISO 3166-1, prazno = ves svet), [oznaka] (zvrst Radio Browserja, prazno =
+     * vse), [odmik] = koliko postaj preskociti. Za mrezo Radia z izbirama »kje« in »zvrst«.
+     */
+    fun stran(drzava: String, oznaka: String, stevilo: Int, odmik: Int): List<Jamendo.Skladba> =
+        iskanje(listOfNotNull(
+            drzava.takeIf { it.length == 2 }?.let { "countrycode=${it.lowercase(Locale.ROOT)}" },
+            oznaka.takeIf { it.isNotBlank() }?.let { "tag=${java.net.URLEncoder.encode(it, "UTF-8")}" },
+            "limit=$stevilo", "offset=$odmik").joinToString("&")).filter { it.naslov.length <= 60 }
+
     /** Najbolj poslusane postaje ene glasbene zvrsti (oznaka Radio Browserja, npr. "jazz", "hip hop"). */
     fun poZvrsti(oznaka: String, stevilo: Int = 30): List<Jamendo.Skladba> =
         try {

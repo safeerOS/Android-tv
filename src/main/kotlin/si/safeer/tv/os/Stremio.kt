@@ -49,6 +49,38 @@ object Stremio {
 
     private val manifesti = ConcurrentHashMap<String, Manifest>()
 
+    // ------------------------------------------------------------------ diagnostika na zahtevo razvijalca
+
+    private const val DNEVNIK = "SafeerOsKatalogi"
+    /** Vklop: `adb shell setprop log.tag.SafeerOsKatalogi DEBUG`. Brez tega se ne zapise nic. */
+    internal fun dnevnik(): Boolean = try { android.util.Log.isLoggable(DNEVNIK, android.util.Log.DEBUG) } catch (_: Throwable) { false }
+    private fun oznakaDodatka(osnova: String) = "d-" + Integer.toHexString(osnova.hashCode())
+    private val zabelezeniKatalogi = java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+
+    /** Katalogi dodatkov po razredih (tip, id, ime, moznosti zvrsti) - brez naslovov; zasebni dodatki se ne zapisejo. */
+    fun dnevnikKatalogov(naslovi: List<String>) {
+        if (!dnevnik()) return
+        for (n in naslovi) {
+            val m = manifest(n) ?: continue
+            if (m.zaseben || !zabelezeniKatalogi.add(m.osnova)) continue
+            val o = oznakaDodatka(m.osnova)
+            android.util.Log.d(DNEVNIK, "$o ime=${m.ime} viri=${m.viri} tipi=${m.tipi} predpone=${m.predpone.take(8)} katalogov=${m.katalogi.size}")
+            for (k in m.katalogi) android.util.Log.d(DNEVNIK, "$o ${razred(k.tip)} tip=${k.tip} id=${k.id} ime=${k.ime} prikazen=${k.prikazen} " +
+                "obvezni=${k.obvezni} iskanje=${k.iskanje} zvrsti(${k.zvrsti.size})=${k.zvrsti.take(60)}")
+        }
+    }
+
+    /** Oblika toka za dnevnik: katera polja ima, shema in koncnica naslova, kljuci namigov - brez gostitelja in imen. */
+    private fun oblikaToka(s: JSONObject): String {
+        val polja = listOf("url", "ytId", "externalUrl", "infoHash", "playerFrameUrl", "nzbUrl").filter { s.optString(it).isNotBlank() }
+        val u = s.optString("url")
+        val oblika = if (u.isBlank()) "" else try { val x = URL(u); x.protocol + " ." + x.path.substringAfterLast('/').substringAfterLast('.', "").take(6) } catch (_: Exception) { "?" }
+        val n = s.optJSONObject("behaviorHints")
+        val namigi = ArrayList<String>().apply { n?.keys()?.forEach { add(it) } }
+        val glave = ArrayList<String>().apply { n?.optJSONObject("proxyHeaders")?.optJSONObject("request")?.keys()?.forEach { add(it) } }
+        return "polja=$polja oblika=$oblika namigi=$namigi glave=$glave"
+    }
+
     // Kam sodi vsebina dodatka (lastnik, 2. 10. 2026): uporabnik doda dodatek, Safeer ga sam razvrsti v pravi razdelek.
     const val FILM = "film"
     const val SERIJA = "serija"
@@ -59,6 +91,16 @@ object Stremio {
     const val RADIO = "radio"
     /** Drug video (kanali z videi, anime, "other"): razdelek Video. */
     const val VIDEO = "video"
+
+    /**
+     * Razred kataloga: po tipu, razen kadar ime dodatka ali kataloga pove, da je vsebina glasba ([OsPravila.glasbenoIme]) -
+     * glasbeni dodatek, ki se oglasa kot filmi ali drug video, sodi pod Glasbo (lastnik, 5. 10. 2026). Kanali v zivo,
+     * radio in glasba ostanejo, kjer so.
+     */
+    fun razredKataloga(k: Katalog): String {
+        val r = razred(k.tip)
+        return if ((r == FILM || r == SERIJA || r == VIDEO) && (OsPravila.glasbenoIme(k.imeDodatka) || OsPravila.glasbenoIme(k.ime))) GLASBA else r
+    }
 
     /** Razred vsebine iz tipa dodatka (`type` kataloga ali vnosa). Neznan tip je video - nic se ne izgubi. */
     fun razred(tip: String): String = when (tip.trim().lowercase()) {
@@ -222,6 +264,8 @@ object Stremio {
             if (shrambaZasebnih != null) return
             val a = ctx.applicationContext
             if (mapaPredpomnilnika == null) mapaPredpomnilnika = java.io.File(a.cacheDir, "stremio")
+            // Kaj vemo o lastnih knjiznicah dodatkov (katere dokazano dajo tokove) - pred prvim risanjem.
+            ZaupanjeKnjiznic.pripravi(a)
             try {
                 val p = a.getSharedPreferences(PREFS_ZASEBNI, Context.MODE_PRIVATE)
                 p.all.forEach { (k, v) -> if (v is Boolean) znaniZasebni.putIfAbsent(k, v) else if (v is String && k.startsWith(KLJUC_IMENA)) znanaImena.putIfAbsent(k.removePrefix(KLJUC_IMENA), v) }
@@ -287,13 +331,86 @@ object Stremio {
         (jeEnota(s) && razstavi(s)?.first?.let { znaniZasebni[it] } == true) || KnjiznicaKroga.jeZasebenPrenos(s.id)
 
     /**
-     * Kartica iz lastne knjiznice dodatka ([RazpolozljivostPravila.lastnaKnjiznica]) - brez omrezja; dokler manifesta
-     * dodatka ne poznamo, velja ne (kartico preverimo kot vsako drugo).
+     * Kartica iz lastne knjiznice dodatka po pravilu ([RazpolozljivostPravila.lastnaKnjiznica]) - brez omrezja; dokler
+     * manifesta dodatka ne poznamo, velja ne (kartico preverimo kot vsako drugo). Kanali in postaje v zivo niso
+     * knjiznica: te preverja mreza kanalov ([imaLastenTok], MrtviKanali).
      */
-    fun lastnaKnjiznica(s: Jamendo.Skladba): Boolean {
+    fun izLastneKnjiznice(s: Jamendo.Skladba): Boolean {
         val (osnova, tip, id) = razstavi(s) ?: return false
         val m = manifesti[osnova] ?: return false
+        val r = razred(tip)
+        if (r == TV || r == RADIO) return false
         return RazpolozljivostPravila.lastnaKnjiznica(DomPreverjanjePravila.veljaven(Razpolozljivost.kljuc(tip, id)), m.viri, m.tipi, m.predpone, tip, id)
+    }
+
+    /** Ali knjiznica dodatka te kartice dokazano daje tokove ([ZaupanjeKnjiznic.stanje]): true / false / null = se ne vemo. */
+    fun zaupanjeKnjiznice(s: Jamendo.Skladba): Boolean? = razstavi(s)?.first?.let { ZaupanjeKnjiznic.stanje(it) }
+
+    /** Kartica iz lastne knjiznice, ki dokazano daje tokove: pokazemo jo brez poizvedbe za vsak naslov posebej. */
+    fun lastnaKnjiznica(s: Jamendo.Skladba): Boolean = izLastneKnjiznice(s) && zaupanjeKnjiznice(s) == true
+
+    /** Kartica iz lastne knjiznice, za katero vzorec se ni odgovoril: ne kazemo je, dokler ne vemo, da se da predvajati. */
+    fun knjiznicaCaka(s: Jamendo.Skladba): Boolean = izLastneKnjiznice(s) && zaupanjeKnjiznice(s) == null
+
+    /** Kartica iz lastne knjiznice dodatka, ki tokov zanjo dokazano ne daje: ne kazemo je. */
+    fun knjiznicaNeDela(s: Jamendo.Skladba): Boolean = izLastneKnjiznice(s) && zaupanjeKnjiznice(s) == false
+
+    /** Dotik kartice iz lastne knjiznice: dodatek je tok dal ([uspeh]) ali je odgovoril, da ga nima. */
+    fun zabeleziKnjiznico(s: Jamendo.Skladba, uspeh: Boolean) {
+        if (izLastneKnjiznice(s)) razstavi(s)?.first?.let { ZaupanjeKnjiznic.poDotiku(it, uspeh) }
+    }
+
+    /**
+     * Vzorec lastne knjiznice dodatka: nekaj njenih naslovov ([RazpolozljivostPravila.vzorecKnjiznice]) vprasamo po
+     * tokovih pri dodatku samem; prvi, ki se da predvajati, zadosca. Najvec tri poizvedbe na dodatek in na pol dneva,
+     * zato brez cakanja na zeton; dodatka v premoru ne sprasujemo. Klic iz ozadja. true / false = dokaz, null = ne
+     * vemo (dodatek ni odgovoril). [torrent]: kateri torrent steje na tej napravi ([torrentGre]).
+     */
+    fun vzorciKnjiznico(osnova: String, naslovi: List<Jamendo.Skladba>, torrent: Long): Boolean? {
+        val m = manifesti[osnova] ?: return null
+        if ("stream" !in m.viri || vPremoru(osnova)) return null
+        val odgovori = ArrayList<Boolean?>()
+        for (i in RazpolozljivostPravila.vzorecKnjiznice(naslovi.size)) {
+            val je = try { tokVzorca(m, naslovi[i], torrent) } catch (_: Exception) { null }
+            odgovori += je
+            // Dokaz je tu ali pa dodatek ne odgovarja: naprej ne sprasujemo.
+            if (je != false) break
+        }
+        val izid = RazpolozljivostPravila.izidVzorca(odgovori)
+        try {
+            android.util.Log.i("SafeerStremio", "knjiznica dodatka ${if (m.zaseben) "(zaseben)" else gostitelj(osnova)}: vzorec ${odgovori.size} od ${naslovi.size} naslovov -> " +
+                when (izid) { true -> "daje tokove"; false -> "tokov ne daje, kartic ne kazemo"; null -> "brez odgovora" })
+        } catch (_: Throwable) { }
+        return izid
+    }
+
+    /** Ali ima naslov vzorca pri svojem dodatku tok, ki ga ta naprava predvaja; null = dodatek ni odgovoril. */
+    private fun tokVzorca(m: Manifest, s: Jamendo.Skladba, torrent: Long): Boolean? {
+        val (_, tip, id) = razstavi(s) ?: return null
+        val r = razred(tip)
+        // Posnetek na YouTubu je pri videospotu, glasbi in kanalu z videi vsebina sama, pri filmu ali seriji napovednik
+        // (isto pravilo kot ob dotiku, GlasbaActivity.izberiTok).
+        val posnetek = s.mediaType.equals("MusicVideo", ignoreCase = true) || (r != FILM && r != SERIJA)
+        fun steje(t: Tok) = when (t.vrsta) { "url" -> true; "torrent" -> torrentGre(t, torrent); "napovednik" -> posnetek; else -> false }
+        var idToka = id
+        if (tip == "series" || r == GLASBA || r == VIDEO) {
+            // Serija, album, kanal z videi: tok ima posnetek (epizoda), ne enota sama - kot pri predvajanju.
+            val ep = epizodeZa(m.osnova, tip, id)
+            val prva = (if (tip == "series") ep.firstOrNull { it.sezona >= 1 } else null) ?: ep.firstOrNull()
+            if (prva != null) {
+                if (prva.tokovi.any { steje(it) }) return true
+                idToka = prva.id
+            } else if (tip == "series") return null
+        }
+        poizvedbVOzadju.incrementAndGet()
+        val d = json("${m.osnova}/stream/${enc(tip)}/${enc(idToka)}.json")
+        if (d == null) {
+            val koda = zadnjaKoda.get() ?: 0
+            if (koda == 429 || koda == 403) zacniPremor(m.osnova)
+            return if (kodaPomeniNima(koda)) false else null
+        }
+        val a = d.optJSONArray("streams") ?: return false
+        return (0 until a.length()).any { i -> a.optJSONObject(i)?.let { tok(it, m.ime) }?.let { steje(it) } == true }
     }
 
     /** Manifeste dodatkov, ki jih se ne poznamo, prenese v ozadju (odlocitev pri usklajevanju virov med napravami). */
@@ -331,7 +448,7 @@ object Stremio {
     fun razredEnote(s: Jamendo.Skladba): String = razred(razstavi(s)?.second.orEmpty())
     fun jeVZivo(s: Jamendo.Skladba) = jeEnota(s) && razredEnote(s) == TV
 
-    private fun vnos(m: JSONObject, osnova: String, tipKataloga: String = ""): Jamendo.Skladba? {
+    private fun vnos(m: JSONObject, osnova: String, tipKataloga: String = "", glasbeno: Boolean = false): Jamendo.Skladba? {
         val id = m.optString("id").ifBlank { return null }
         val tip = m.optString("type").ifBlank { tipKataloga.ifBlank { "movie" } }
         val leto = m.optString("releaseInfo").ifBlank { m.optString("year") }
@@ -344,7 +461,8 @@ object Stremio {
             // Glasba in radio sta zvok (kartica in predvajalnik za zvok), vse ostalo video.
             radio = r == RADIO, video = r != GLASBA && r != RADIO,
             // FILM / SERIJA za oznako na kartici in za filter Filmi | Serije (SpletniVir.vrstaVsebine).
-            mediaType = when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
+            // Videospot (glasbeni katalog): ne gre med filme in serije (SpletniVir.vrstaVsebine).
+            mediaType = if (glasbeno) "MusicVideo" else when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
             year = leto.take(4).toIntOrNull() ?: 0,
             // Id IMDb (tt...), kot ga rabi vecina dodatkov: isti film iz vec katalogov/dodatkov je ena kartica.
             imdbId = if (id.startsWith("tt") && id.drop(2).all { it.isDigit() }) id else "",
@@ -393,7 +511,16 @@ object Stremio {
         if (dodatno.isNotEmpty()) pot += "/" + dodatno.joinToString("&") { enc(it.first) + "=" + enc(it.second) }
         val d = json("$pot.json") ?: return emptyList()
         val a = d.optJSONArray("metas") ?: d.optJSONArray("metasDetailed") ?: return emptyList()
-        return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { m -> vnos(m, k.dodatek, k.tip) } }
+        if (dnevnik() && manifesti[k.dodatek]?.zaseben != true) {
+            val prvi = a.optJSONObject(0)
+            val kljuci = ArrayList<String>().apply { prvi?.keys()?.forEach { add(it) } }
+            val zvrstiPrvih = (0 until minOf(a.length(), 6)).map { i -> a.optJSONObject(i)?.let { m -> (m.optJSONArray("genres") ?: m.optJSONArray("genre"))?.toString() ?: "-" } }
+            android.util.Log.d(DNEVNIK, "${oznakaDodatka(k.dodatek)} katalog ${k.tip}/${k.id} zvrst=$zvrst skip=$skip iskanje=${iskanje.isNotBlank()} -> ${a.length()} vnosov; " +
+                "polja prvega=$kljuci; tip prvega=${prvi?.optString("type")}; zvrsti prvih=$zvrstiPrvih")
+        }
+        // Vnos glasbenega kataloga, ki se oglasa kot film ali drug video, je videospot (ne film).
+        val glasbeno = razred(k.tip) != GLASBA && razredKataloga(k) == GLASBA
+        return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { m -> vnos(m, k.dodatek, k.tip, glasbeno) } }
     }
 
     /** Javni katalog metapodatkov Stremia (Cinemeta: filmi in serije po priljubljenosti, epizode) - samo
@@ -413,19 +540,32 @@ object Stremio {
 
     /** Katalogi razdelka Video (filmi, nato serije, nato drug video: kanali, anime ...); brez tistih, ki brez filtra ne vrnejo nicesar. */
     fun prikazniKatalogi(naslovi: List<String>): List<Katalog> = naslovi.mapNotNull { manifest(it) }.filter { !it.zaseben }
-        .flatMap { m -> m.katalogi.filter { it.prikazen && razred(it.tip) in setOf(FILM, SERIJA, VIDEO) } }
+        .flatMap { m -> m.katalogi.filter { it.prikazen && razredKataloga(it) in setOf(FILM, SERIJA, VIDEO) } }
         .sortedBy { when (it.tip) { "movie" -> 0; "series" -> 1; else -> 2 } }
 
-    /** Katalogi dodatkov izbranega razreda: TV (razdelek TV v zivo), GLASBA (Glasba), RADIO (Radio). */
-    fun katalogiRazreda(naslovi: List<String>, razred: String): List<Katalog> = naslovi.mapNotNull { manifest(it) }.filter { !it.zaseben }
-        .flatMap { m -> m.katalogi.filter { it.prikazen && razred(it.tip) == razred } }
+    /**
+     * Katalogi dodatkov izbranega razreda: TV (razdelek TV v zivo), GLASBA (Glasba), RADIO (Radio). Katalog, ki ga
+     * dodatek sam oznaci kot zasebno kategorijo ([KanaliPravila.jeZasebna]), ne gre v skupne sezname; [zZasebnimi]
+     * ga vrne klicatelju, ki njegove vnose izloci tudi iz kataloga »vse«.
+     */
+    fun katalogiRazreda(naslovi: List<String>, razred: String, zZasebnimi: Boolean = false): List<Katalog> = naslovi.mapNotNull { manifest(it) }.filter { !it.zaseben }
+        .flatMap { m -> m.katalogi.filter { it.prikazen && razredKataloga(it) == razred && (zZasebnimi || !zasebenKatalog(it)) } }
+
+    internal fun zasebenKatalog(k: Katalog) = KanaliPravila.jeZasebna(KanaliPravila.oznakaKataloga(k.imeDodatka, k.ime))
+
+    /** Vnosi zasebnih kategorij javnih dodatkov (id-ji), ko jih mreza kanalov spozna: ne gredo niti med zadetke iskanja. Samo v pomnilniku. */
+    @Volatile var zasebniVnosi: Set<String> = emptySet()
+
+    /** Katalog z vnaprej izbrano moznostjo zvrsti: stran in `skip` gresta po obicajni poti ([katalog]). */
+    fun zMoznostjo(k: Katalog, moznost: String): Katalog =
+        if (moznost.isBlank()) k else k.copy(privzeti = k.privzeti.filter { it.first != "genre" } + ("genre" to moznost))
 
     /** Katalogi TV kanalov v zivo iz uporabnikovih dodatkov - gredo v razdelek TV v zivo (lastnik, 1. 10. 2026). */
-    fun katalogiTv(naslovi: List<String>): List<Katalog> = katalogiRazreda(naslovi, TV)
+    fun katalogiTv(naslovi: List<String>): List<Katalog> = katalogiRazreda(naslovi, TV, zZasebnimi = true)
 
     /** V kateri razdelek sodi dodatek po svojih katalogih: video (filmi, serije), sicer TV, glasba ali radio. */
     fun glavniRazred(naslov: String): String {
-        val razredi = manifest(naslov)?.katalogi.orEmpty().map { razred(it.tip) }.toSet()
+        val razredi = manifest(naslov)?.katalogi.orEmpty().map { razredKataloga(it) }.toSet()
         return when {
             razredi.isEmpty() || FILM in razredi || SERIJA in razredi || VIDEO in razredi -> VIDEO
             TV in razredi -> TV
@@ -442,16 +582,17 @@ object Stremio {
     fun isci(naslovi: List<String>, beseda: String, tudiZasebni: Boolean = false): List<Jamendo.Skladba> {
         // Zasebni dodatki niso v skupnem iskanju (ZasebniDodatki): isce se v njih samo izrecno ([tudiZasebni]).
         val katalogi = naslovi.mapNotNull { manifest(it) }.filter { tudiZasebni || !it.zaseben }.flatMap { it.katalogi }
+            .filter { tudiZasebni || !zasebenKatalog(it) }
         val zIskanjem = katalogi.filter { it.iskanje }.distinctBy { it.dodatek + "|" + it.tip }
         val pokriti = zIskanjem.map { it.dodatek + "|" + it.tip }.toSet()
         val brezIskanja = katalogi.filter { !it.iskanje && it.prikazen && (it.dodatek + "|" + it.tip) !in pokriti &&
-            razred(it.tip) in setOf(TV, RADIO, GLASBA) }.take(16)
+            razredKataloga(it) in setOf(TV, RADIO, GLASBA) }.take(16)
         val opravila = zIskanjem.map { k -> java.util.concurrent.Callable { katalog(k, beseda).take(20) } } +
             brezIskanja.map { k -> java.util.concurrent.Callable { katalog(k).filter { ujema(it.naslov, beseda) }.take(20) } }
         if (opravila.isEmpty()) return emptyList()
         return bazen.invokeAll(opravila, 10, java.util.concurrent.TimeUnit.SECONDS)
             .flatMap { f -> try { if (f.isCancelled) emptyList() else f.get() } catch (_: Exception) { emptyList() } }
-            .distinctBy { it.id }
+            .distinctBy { it.id }.filter { tudiZasebni || it.id !in zasebniVnosi }
     }
 
     /**
@@ -819,6 +960,27 @@ object Stremio {
         return RazpolozljivostPravila.izTokov(o.filterNotNull().flatten(), vsiOdgovorili = !neznano && o.none { it == null })
     }
 
+    /**
+     * Ali ima kanal pri SVOJEM dodatku tok, ki ga lahko predvajamo: true / false; null = ne vemo (dodatek tokov ne daje,
+     * ni odgovoril ali poizvedbe omejuje - takrat nehamo sprasevati, [vPremoru]). Preverjanje mreze kanalov v ozadju
+     * vprasa samo dodatek, iz katerega je kartica; drugih dodatkov ne obremenjuje. Odgovor ostane v predpomnilniku
+     * ([veljavnost]), zato dotik preverjenega kanala ne poslje novega vprasanja.
+     */
+    fun imaLastenTok(s: Jamendo.Skladba): Boolean? {
+        val (osnova, tip, id) = razstavi(s) ?: return null
+        val m = manifesti[osnova] ?: return null
+        if ("stream" !in m.viri || vPremoru(osnova)) return null
+        poizvedbVOzadju.incrementAndGet()
+        val d = json("$osnova/stream/${enc(tip)}/${enc(id)}.json")
+        if (d == null) {
+            val koda = zadnjaKoda.get() ?: 0
+            if (koda == 429 || koda == 403) zacniPremor(osnova)
+            return if (kodaPomeniNima(koda)) false else null
+        }
+        val a = d.optJSONArray("streams") ?: return false
+        return (0 until a.length()).any { i -> a.optJSONObject(i)?.let { tok(it, m.ime) }?.let { jePredvajljiv(it) } == true }
+    }
+
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */
     fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> = naslovi.also { uporabnikOb = System.currentTimeMillis() }
         // Dodatek, ki ga ne dosezemo (manifesta ni), bi vsebino morda imel: to je izpad, ne "ni na voljo".
@@ -841,6 +1003,10 @@ object Stremio {
                 }
             }
             val a = d?.optJSONArray("streams") ?: JSONArray()
+            if (dnevnik() && !m.zaseben) {
+                android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)} tokovi $tip: odgovor=${d != null} koda=${zadnjaKoda.get() ?: 0} stevilo=${a.length()}")
+                for (i in 0 until minOf(a.length(), 8)) a.optJSONObject(i)?.let { android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)}   tok $i: ${oblikaToka(it)}") }
+            }
             (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }
         }
 

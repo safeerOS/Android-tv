@@ -43,7 +43,9 @@ object OsPravila {
      * posnetka pas ostane (uporabnik vidi, kje je obstal; gumbi in predlogi so pri roki).
      * [tece]: uporabnik hoce predvajanje (ni pavze), posnetek ni koncan in ni v napaki.
      */
-    fun pasSeSkrije(dotik: Boolean, vrstaOdprta: Boolean, tece: Boolean): Boolean = if (dotik) tece else !vrstaOdprta
+    fun pasSeSkrije(dotik: Boolean, vrstaOdprta: Boolean, tece: Boolean, napaka: Boolean = false): Boolean =
+        // Napaka na televizorju: slike ni, zato pas z razlago ostane (prej se je skril in ostal je crn zaslon).
+        if (dotik) tece else !vrstaOdprta && !napaka
 
     /** Po koliko ms brez dotika ali tipke se pas skrije. */
     const val PAS_SKRIJ_MS = 4_000L
@@ -137,6 +139,108 @@ object OsPravila {
             Regex("^Safeer(?: telefon)? \\(.+\\)$").matches(i) -> "Safeer Browser"
             else -> ""
         }
+    }
+
+    // ------------------------------------------------------------------ glasbeni dodatek
+
+    private val RX_NAGLASI = Regex("\\p{M}+")
+    private val GLASBENO_IME = Regex("(^|[^a-z])(music|musik|musica|musique|muzika|glasba|glasbeni|songs?|concerts?|koncerti?|" +
+        "lastfm|last fm|vevo|karaoke|soundcloud|videospoti?)([^a-z]|$)")
+
+    /**
+     * Ali ime dodatka ali kataloga pove, da je vsebina glasba (»Top Music«, »... Music«, »Koncerti«). Tak katalog
+     * sodi pod Glasbo, tudi ce ga dodatek oglasi kot filme ali drug video (lastnik, 5. 10. 2026: dodatek, ki predvaja
+     * videospote z YouTuba ali podobno, spada pod zvok). »Musical« je filmska zvrst, ne glasba.
+     */
+    fun glasbenoIme(ime: String): Boolean =
+        GLASBENO_IME.containsMatchIn(java.text.Normalizer.normalize(ime.lowercase(), java.text.Normalizer.Form.NFD).replace(RX_NAGLASI, ""))
+
+    // ------------------------------------------------------------------ logotip kanala
+
+    /**
+     * Ali logotip potrebuje svetlo podlago: [piksli] so ARGB pomanjsane slike. Da, kadar je vsaj petina slike prozorna
+     * (logotip brez svoje podlage) in so vidni piksli v povprecju temni - tak logotip se na temni ploscici ne vidi.
+     * Logotip s svojo podlago (neprozoren) in svetel logotip ostaneta na temni.
+     */
+    fun svetlaPodlaga(piksli: IntArray): Boolean {
+        if (piksli.isEmpty()) return false
+        var prozornih = 0; var vidnih = 0; var svetlost = 0L
+        for (p in piksli) {
+            val a = p ushr 24
+            if (a < 64) { prozornih++; continue }
+            vidnih++
+            svetlost += (299 * ((p shr 16) and 0xFF) + 587 * ((p shr 8) and 0xFF) + 114 * (p and 0xFF)) / 1000
+        }
+        if (vidnih == 0 || prozornih * 5 < piksli.size) return false
+        return svetlost / vidnih < 96
+    }
+
+    // ------------------------------------------------------------------ kanal ali postaja, ki ne stece
+
+    /** Kako dolgo kanala, ki pri viru ne dela, ne kazemo. */
+    const val MRTEV_KANAL_MS = 24 * 3_600_000L
+    /** Kako dolgo velja odgovor dodatka, da za kanal ima prenos (potem ga mreza kanalov vprasa znova). */
+    const val ZIV_KANAL_MS = 12 * 3_600_000L
+
+    /**
+     * Ali napaka predvajalnika pomeni, da kanal ali postaja pri VIRU ne dela (ne pa, da je odpovedalo omrezje te
+     * naprave ali da naprava oblike ne zna). [koda] je PlaybackException.errorCode, [http] odgovor vira (0 = ni).
+     * 2004 slab odgovor HTTP: 4xx razen tistih, ki so zacasni ali zahtevajo prijavo; 2003 napacna vrsta vsebine;
+     * 2005 datoteke ni; 3001-3004 seznama ali vsebnika ni mogoce prebrati. Casovne omejitve, izpad omrezja (2001,
+     * 2002), napake dekodirnika (4xxx) in 5xx niso dokaz, da kanala ni.
+     */
+    fun mrtevKanal(koda: Int, http: Int): Boolean = when (koda) {
+        2004 -> http in 400..499 && http !in setOf(401, 407, 408, 425, 429)
+        2003, 2005 -> true
+        in 3001..3004 -> true
+        else -> false
+    }
+
+    /**
+     * Id kartice kanala. Predvajana enota dodatka ima za id-jem kartice se »#<stevilka toka>« (izbrani tok); torrent
+     * (»#t...«) in drugi id-ji ostanejo, kot so.
+     */
+    fun kljucKanala(id: String): String {
+        val i = id.lastIndexOf('#')
+        if (i <= 0) return id
+        val rep = id.substring(i + 1).removePrefix("-")
+        return if (rep.isNotEmpty() && rep.all { it.isDigit() }) id.substring(0, i) else id
+    }
+
+    /**
+     * Vrstni red mreze, ki se dopolnjuje v ozadju: kar uporabnik ze vidi ([naZaslonu], id-ji po vrsti), ostane spredaj v
+     * istem vrstnem redu, novo pride za tem v svojem vrstnem redu. Kartice se tako nikoli ne premescajo in ne vrivajo
+     * pod izbiro (lastnik, 5. 10. 2026: »uporabnik ne sme cutiti osvezevanja v ozadju«). Cesar v [novi] ni vec, izpade.
+     */
+    fun <T> stabilenRed(naZaslonu: List<String>, novi: List<T>, id: (T) -> String): List<T> {
+        if (naZaslonu.isEmpty()) return novi
+        val poId = HashMap<String, T>(novi.size * 2)
+        for (x in novi) poId.putIfAbsent(id(x), x)
+        val spredaj = naZaslonu.mapNotNull { poId[it] }
+        if (spredaj.isEmpty()) return novi
+        val videni = naZaslonu.toHashSet()
+        return spredaj + novi.filter { id(it) !in videni }
+    }
+
+    // ------------------------------------------------------------------ stranska vrstica ob vgrajenem brskalniku
+
+    /** Kaj naredi tipka daljinca, ko je fokus v stranski vrstici Safeer OS in je vsebina vgrajeni brskalnik. */
+    enum class TipkaMenija { MENIJU, NIC, V_VSEBINO, IZHOD, DRUGAM }
+
+    /**
+     * Fokus v stranski vrstici ob brskalniku. GOR, DOL in OK pripadajo meniju (prej jih je dobila stran: GOR je
+     * skocil v naslovno vrstico in meni zaprl - po meniju se z daljincem ni dalo premikati). DESNO vrne v stran,
+     * LEVO ne naredi nicesar, NAZAJ zapusti Splet (vsebina -> meni -> izhod, kot v televizijskih aplikacijah;
+     * drzanje tipke ne steje, da en dolg pritisk ne naredi dveh korakov). Druge tipke (barvne, predvajanje) niso
+     * za meni. [koda] je Androidova (KeyEvent.KEYCODE_*), [pritisk] = ACTION_DOWN.
+     */
+    fun tipkaVMeniju(koda: Int, pritisk: Boolean, ponovitev: Int): TipkaMenija = when (koda) {
+        19, 20 -> TipkaMenija.MENIJU                 // DPAD_UP, DPAD_DOWN
+        23, 66, 160, 96 -> TipkaMenija.MENIJU        // DPAD_CENTER, ENTER, NUMPAD_ENTER, BUTTON_A
+        21 -> TipkaMenija.NIC                        // DPAD_LEFT
+        22 -> if (pritisk) TipkaMenija.V_VSEBINO else TipkaMenija.NIC                       // DPAD_RIGHT
+        4 -> if (pritisk && ponovitev == 0) TipkaMenija.IZHOD else TipkaMenija.NIC          // BACK
+        else -> TipkaMenija.DRUGAM
     }
 
     /** Besedilo je ena sama spletna povezava: ob njem ponudimo »Odpri povezavo«. */

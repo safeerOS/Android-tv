@@ -100,20 +100,24 @@ internal fun smerNaGooglu(wv: android.webkit.WebView, smer: String, event: KeyEv
  * dobi stran sama. Tako pridemo do gumbov v oknih, ki tecejo v svojem okvirju in jih nasa
  * skripta sploh ne vidi - na primer do "Zavrni vse" v Googlovem oknu o piskotkih.
  */
-private fun posljiSmer(wv: android.webkit.WebView, smer: String, event: KeyEvent) {
+private fun posljiSmer(wv: android.webkit.WebView, smer: String, event: KeyEvent, host: MainActivity? = null) {
+    // Safeer OS: LEVO na levem robu strani odpre stransko vrstico. Ali je levo se kaj, pove stran sama (-2 = rob).
+    val vMeni: (() -> Unit)? = if (smer == "LEFT" && host != null && host.imaOsVrstico()) ({ host.runOnUiThread { host.vOsVrstico() } }) else null
     // V Googlove strani namenoma ne vbrizgavamo nicesar, da ostanejo prijava, iskanje in
     // reCAPTCHA povsem izvirni. Tam torej nase navigacije ni in tipka gre naravnost strani -
     // sicer bi se izgubila in uporabnik ne bi mogel niti do gumbov v oknu o piskotkih.
     if (si.safeer.tv.UserScriptManager.isGoogleDomain(wv.url)) {
         // Rezultati iskanja: vse smeri po legi na zaslonu ([smerNaGooglu]).
-        if (jeGoogleIskanje(wv)) { smerNaGooglu(wv, smer, event) {}; return }
+        if (jeGoogleIskanje(wv)) { smerNaGooglu(wv, smer, event) { vMeni?.invoke() }; return }
         nativnaTipka(wv, event)
         return
     }
     try {
-        wv.evaluateJavascript("window._safeer_navigate_spatial('$smer');") { odgovor ->
+        wv.evaluateJavascript("window._safeer_navigate_spatial('$smer'${if (vMeni != null) ", true" else ""});") { odgovor ->
             val ocisceno = (odgovor ?: "").trim().trim('"')
-            if (ocisceno == "-1" || ocisceno == "null" || ocisceno.isEmpty()) {
+            if (ocisceno == "-2" && vMeni != null) {
+                vMeni()
+            } else if (ocisceno == "-1" || ocisceno == "null" || ocisceno.isEmpty()) {
                 nativnaTipka(wv, event)
             }
         }
@@ -378,7 +382,7 @@ object GenericWebSiteProfile : SiteProfile {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                posljiSmer(wv, "LEFT", event)
+                posljiSmer(wv, "LEFT", event, host)
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {

@@ -3174,9 +3174,33 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // Samo tipka OK sme dovoliti en sinteticni dotik (triggerNativeTap); puscice ne.
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode in TIPKE_POTRDI) ChromiumEngineView.oznaciTipko()
-        if (osStranskaVrstica?.prestrezi(event) == true) return true
+        val vrstica = osStranskaVrstica
+        if (vrstica != null) {
+            if (vrstica.imaFokus()) {
+                // Fokus v stranski vrstici: smerne tipke, OK in Nazaj pripadajo meniju. Brskalnikov usmerjevalnik bi
+                // jih poslal strani (GOR v naslovno vrstico, NAZAJ po zgodovini strani) in meni zaprl.
+                when (si.safeer.tv.os.OsPravila.tipkaVMeniju(event.keyCode, event.action == KeyEvent.ACTION_DOWN, event.repeatCount)) {
+                    si.safeer.tv.os.OsPravila.TipkaMenija.MENIJU -> return super.dispatchKeyEvent(event)
+                    si.safeer.tv.os.OsPravila.TipkaMenija.NIC -> return true
+                    si.safeer.tv.os.OsPravila.TipkaMenija.V_VSEBINO -> { vrstica.fokusVsebine(); return true }
+                    si.safeer.tv.os.OsPravila.TipkaMenija.IZHOD -> { silenceBackgroundMedia("backMenu"); koncajVrniSe(); return true }
+                    si.safeer.tv.os.OsPravila.TipkaMenija.DRUGAM -> { }
+                }
+            } else if (activeWebView()?.hasFocus() != true) {
+                // Orodna vrstica in drugi domaci pogledi: levo od skrajno levega je meni (iskanje fokusa Androida).
+                // V strani odloci stran sama ([GenericWebSiteProfile], levi rob): za Android je cela stran en
+                // pogled in bi meni nasel levo od vsakega mesta v njej - LEVO je zato vedno odprl meni.
+                if (vrstica.prestrezi(event)) return true
+            }
+        }
         return keyRouter.dispatch(event)
     }
+
+    /** Splet tece v lupini Safeer OS (leva stranska vrstica). */
+    internal fun imaOsVrstico(): Boolean = osStranskaVrstica != null
+
+    /** Levi rob strani: fokus gre v stransko vrstico Safeer OS. */
+    internal fun vOsVrstico() { osStranskaVrstica?.fokusMenija() }
 
     override fun onConfigurationChanged(nova: Configuration) {
         super.onConfigurationChanged(nova)

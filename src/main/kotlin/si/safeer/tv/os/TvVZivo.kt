@@ -16,10 +16,12 @@ import java.util.concurrent.Executors
  */
 object TvVZivo {
     private class Kanal(val id: String, val ime: String, val jezik: String, val tok: String,
-                        val stran: String, val domaca: String, val samoZa: String, val drzava: String)
+                        val stran: String, val domaca: String, val samoZa: String, val drzava: String,
+                        /** Zvrst za izbiro v mrezi TV v zivo ([KanaliPravila.KLJUCI_KATEGORIJ]). */
+                        val zvrst: String = "novice")
 
     private val KANALI = listOf(
-        Kanal("rtvslo", "RTV SLO v živo", "sl", "", "https://365.rtvslo.si/v-zivo", "https://www.rtvslo.si", "SI", "SI"),
+        Kanal("rtvslo", "RTV SLO v živo", "sl", "", "https://365.rtvslo.si/v-zivo", "https://www.rtvslo.si", "SI", "SI", "splosni"),
         Kanal("dw-en", "DW News", "en", "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8", "", "https://www.dw.com", "", "DE"),
         Kanal("dw-de", "DW Deutsch", "de", "https://dwamdstream103.akamaized.net/hls/live/2015526/dwstream103/index.m3u8", "", "https://www.dw.com", "", "DE"),
         Kanal("dw-es", "DW Español", "es", "https://dwamdstream104.akamaized.net/hls/live/2015530/dwstream104/index.m3u8", "", "https://www.dw.com", "", "DE"),
@@ -31,7 +33,7 @@ object TvVZivo {
         Kanal("trt-world", "TRT World", "en", "https://tv-trtworld.medya.trt.com.tr/master.m3u8", "", "https://www.trtworld.com", "", "TR"),
         Kanal("cbs-news", "CBS News 24/7", "en", "https://cbsn-us.cbsnstream.cbsnews.com/out/v1/55a8648e8f134e82a470f83d562deeca/master.m3u8", "", "https://www.cbsnews.com", "", "US"),
         Kanal("arirang", "Arirang TV", "en", "https://amdlive-ch01-ctnd-com.akamaized.net/arirang_1ch/smil:arirang_1ch.smil/playlist.m3u8", "", "https://www.arirang.com", "", "KR"),
-        Kanal("redbull", "Red Bull TV", "en", "https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8", "", "https://www.redbull.com", "", "AT"),
+        Kanal("redbull", "Red Bull TV", "en", "https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8", "", "https://www.redbull.com", "", "AT", "sport"),
     )
 
     private const val TAG = "SafeerOsTvVZivo"
@@ -103,6 +105,20 @@ object TvVZivo {
 
     /** Uradna stran prenosa (kadar izdajatelj javnega toka nima) - odpre se v brskalniku. */
     fun jeStran(sk: Jamendo.Skladba) = sk.id.startsWith("tv:") && sk.zvok.isBlank() && sk.povezava.isNotBlank()
+
+    /** Vgrajen kanal z lastnostmi za izbiri mreze TV v zivo: jezik (ISO 639-1), drzava in zvrst. */
+    class Vgrajen(val skladba: Jamendo.Skladba, val jezik: String, val drzava: String, val zvrst: String)
+
+    /** Vsi vgrajeni kanali v vrstnem redu seznama. */
+    fun kanali(): List<Vgrajen> {
+        val moja = Locale.getDefault().country.uppercase(Locale.ROOT)
+        val jezik = Locale.getDefault()
+        return KANALI.filter { it.samoZa.isEmpty() || it.samoZa == moja }.map { k ->
+            val drzava = Locale.Builder().setRegion(k.drzava).build().getDisplayCountry(jezik).ifBlank { k.drzava }
+            Vgrajen(Jamendo.Skladba("tv:${k.id}", k.ime, "$drzava · ${Locale.forLanguageTag(k.jezik).getDisplayLanguage(jezik)}", "", k.tok, k.stran, video = true,
+                mime = if (k.tok.isNotBlank()) MedijskiViri.MIME_HLS else ""), k.jezik, k.drzava, k.zvrst)
+        }
+    }
 
     /** Kanali po drzavah: najprej drzava naprave, nato druge po abecedi (imena drzav v jeziku naprave). */
     fun poDrzavah(): List<Pair<String, List<Jamendo.Skladba>>> {

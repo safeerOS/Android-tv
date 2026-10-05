@@ -26,9 +26,16 @@ domene = {
     "f24-es": "france24.com", "aje": "aljazeera.com", "trt-world": "trtworld.com",
     "cbs-news": "cbsnews.com", "arirang": "arirang.com", "redbull": "redbull.com",
 }
+# Zvrst kanala (deveto polje, privzeto »novice«) mora biti kljuc znane kategorije iz KanaliPravila - po njej filtrira
+# mreza TV v zivo.
+PRAVILA = (ROOT / "src/main/kotlin/si/safeer/tv/os/KanaliPravila.kt").read_text(encoding="utf-8")
+kategorije = set(re.findall(r'^\s+"([a-z]+)" to "', PRAVILA, flags=re.M))
+preveri({"novice", "sport", "splosni"} <= kategorije, "pravila poznajo kategorije vgrajenih kanalov")
 for vrstica in vrstice:
     nizi = re.findall(r'"([^"]*)"', vrstica)
-    preveri(len(nizi) == 8, f"kanal {nizi[0]} ima vsa polja")
+    preveri(len(nizi) in (8, 9), f"kanal {nizi[0]} ima vsa polja")
+    if len(nizi) == 9:
+        preveri(nizi[8] in kategorije, f"kanal {nizi[0]} ima znano zvrst ({nizi[8]})")
     kanal, domaca = nizi[0], nizi[5]
     preveri(domaca.startswith("https://"), f"kanal {kanal} ima HTTPS domačo stran")
     preveri(domene[kanal] in domaca, f"kanal {kanal} uporablja uradno domeno")

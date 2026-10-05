@@ -222,7 +222,10 @@ class StranskaVrstica private constructor(
         // TV: v vsebini skrcena na ikone (vec prostora), ob vstopu v meni razsirjena z imeni.
         if (!dotik && novi != null) {
             val vMeniju = jePotomec(meni, novi)
-            if (skrcena == vMeniju) { skrcena = !vMeniju; prilagodiSirino() }
+            if (skrcena == vMeniju) {
+                skrcena = !vMeniju; prilagodiSirino()
+                if (android.util.Log.isLoggable(DNEVNIK_MREZE, android.util.Log.DEBUG)) android.util.Log.d(DNEVNIK_MREZE, "stranska vrstica: " + if (skrcena) "skrcena" else "razsirjena")
+            }
         }
     }
 
@@ -263,6 +266,12 @@ class StranskaVrstica private constructor(
             ?: prviFokus(vsebina)
         cilj?.requestFocus()
     }
+
+    /** Fokus je v meniju (ne v vsebini). */
+    fun imaFokus(): Boolean = dejavnost.currentFocus?.let { jePotomec(meni, it) } == true
+
+    /** Fokus v meni, na aktivno postavko (na televizorju se meni ob tem razsiri z imeni). */
+    fun fokusMenija() { aktivnaPostavka.requestFocus() }
 
     private fun zgradiMeni() {
         meni.orientation = VERTICAL
@@ -425,6 +434,9 @@ class StranskaVrstica private constructor(
     }
 
     companion object {
+        /** Oznaka dnevnika za meritve prikaza (polna risanja, dopolnjevanja mreze, stranska vrstica) - samo na zahtevo (setprop). */
+        const val DNEVNIK_MREZE = "SafeerOsMreza"
+
         /**
          * Splet (MainActivity) ima temo brskalnika, ki barv Safeer OS (?attr/osMint ...) nima: ikone menija, ki
          * barvo berejo iz teme, bi se tam narisale prozorne (prazna vrstica). Vrstica zato nastane v kontekstu

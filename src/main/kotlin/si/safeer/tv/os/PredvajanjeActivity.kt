@@ -171,7 +171,7 @@ class PredvajanjeActivity : OsActivity() {
     }
     private val skrij = Runnable {
         // Dokler se video ne zacne, pas z naslovom ostane: uporabnik vidi, kaj se nalaga.
-        if (jeVideo() && OsPravila.pasSeSkrije(dotik, predlogiOdprti(), videoTece()) && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
+        if (jeVideo() && OsPravila.pasSeSkrije(dotik, predlogiOdprti(), videoTece(), GlasbaStoritev.predvajalnik?.playerError != null) && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
         else if (seNalaga()) glavna.postDelayed(skrijRunnable(), 1_000)
     }
 
@@ -238,7 +238,10 @@ class PredvajanjeActivity : OsActivity() {
                 sprotnoPreverjeno = sk.id
                 prosiZaSprotniTok(sk, SprotnaPomoc.oblikaIzNapake(error))
             } else {
-                izvajalec.text = getString(R.string.os_glasba_napaka)
+                // Storitev se resuje sama (rezervni tok, nazaj na zivo, drug razclenjevalnik): za uporabnika to ni napaka.
+                val koncna = GlasbaStoritev.koncnaNapaka
+                if (koncna == null) { posodobiNalaganje(); return }
+                izvajalec.text = koncna.besedilo
                 nalaganje.visibility = View.GONE
                 zbudi()
             }
@@ -601,7 +604,8 @@ class PredvajanjeActivity : OsActivity() {
         if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
         naslov.text = sk.naslov
         val skritiVir = SpletniVir.jeEnota(sk)
-        izvajalec.text = if (skritiVir) "" else sk.izvajalec
+        // Koncna napaka tega posnetka ostane napisana (osvezitev je ne sme prepisati z imenom izvajalca).
+        izvajalec.text = GlasbaStoritev.koncnaNapaka?.takeIf { it.id == sk.id }?.besedilo ?: if (skritiVir) "" else sk.izvajalec
         temaNaslov.text = if (skritiVir) sk.naslov else listOf(sk.naslov, sk.izvajalec).filter { it.isNotBlank() }.joinToString(" · ")
         val stran = sk.povezava.removePrefix("https://").removePrefix("http://").removePrefix("www.").trimEnd('/')
         vir.text = when {

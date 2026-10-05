@@ -154,8 +154,13 @@ object SpletniVir {
         return r
     }
 
+    /** Ista povezava; vsebini brez povezave (vgrajeni kanali, posnetki z naprave) sta ista samo z istim id-jem. */
+    private fun istiVir(a: Jamendo.Skladba, b: Jamendo.Skladba): Boolean =
+        if (a.povezava.isBlank() || b.povezava.isBlank()) a.id == b.id else a.povezava == b.povezava
+
     fun zdruzljiva(a: Jamendo.Skladba, b: Jamendo.Skladba): Boolean {
-        if (a.povezava == b.povezava) return true
+        // Prazna povezava pri obeh NI ista vsebina: tako so se vsi vgrajeni kanali TV v zivo zlili v eno kartico.
+        if (istiVir(a, b)) return true
         if (a.imdbId.isNotBlank() && b.imdbId.isNotBlank()) return a.imdbId.equals(b.imdbId, ignoreCase = true)
         if (a.tmdbId.isNotBlank() && b.tmdbId.isNotBlank()) return a.tmdbId.equals(b.tmdbId, ignoreCase = true)
 
@@ -194,7 +199,7 @@ object SpletniVir {
     }
 
     fun najboljsiKandidati(v: List<Jamendo.Skladba>): List<Jamendo.Skladba> =
-        v.distinctBy { it.povezava }.sortedByDescending(::ocenaKandidata)
+        v.distinctBy { it.povezava.ifBlank { "id:" + it.id } }.sortedByDescending(::ocenaKandidata)
 
     /** Stabilni kljuc iste vsebine med razlicnimi viri; epizod iste serije ne zdruzi med seboj. */
     fun kljucVsebine(s: Jamendo.Skladba): String {
@@ -213,7 +218,7 @@ object SpletniVir {
     /** Kljuci, po katerih se dve vsebini sploh lahko ujemata (isti pogoji kot v [zdruzljiva]); ostali pari se ne primerjajo. */
     private fun kljuciKandidata(s: Jamendo.Skladba): List<String> {
         val k = ArrayList<String>(5)
-        k += "u:" + s.povezava
+        k += if (s.povezava.isNotBlank()) "u:" + s.povezava else "id:" + s.id
         if (s.imdbId.isNotBlank()) k += "i:" + s.imdbId.lowercase()
         if (s.tmdbId.isNotBlank()) k += "t:" + s.tmdbId.lowercase()
         cistNaslov(s.naslov).takeIf { it.isNotBlank() }?.let { k += "n:$it" }
@@ -229,7 +234,7 @@ object SpletniVir {
             val kandidati = kljuci.flatMap { poKljucu[it].orEmpty() }.distinct()
             val obstojeca = kandidati.map { grupe[it] }.firstOrNull { g -> g.any { zdruzljiva(it, item) } }
             if (obstojeca != null) {
-                if (obstojeca.none { it.povezava == item.povezava }) {
+                if (obstojeca.none { istiVir(it, item) }) {
                     obstojeca.add(item)
                     val idx = grupe.indexOf(obstojeca)
                     for (k in kljuci) poKljucu.getOrPut(k) { ArrayList() }.let { if (idx !in it) it.add(idx) }

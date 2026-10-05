@@ -177,7 +177,9 @@ class TvKeyRouter(private val host: MainActivity) {
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    host.virtualPointerView.movePointer(-40f, 0f, activeWv)
+                    // Kazalec na levem robu zaslona: levo od strani je stranska vrstica Safeer OS.
+                    if (host.virtualPointerView.pointerX <= 10.5f && host.imaOsVrstico()) host.vOsVrstico()
+                    else host.virtualPointerView.movePointer(-40f, 0f, activeWv)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {

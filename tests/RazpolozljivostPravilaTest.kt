@@ -20,9 +20,52 @@ fun lastnaKnjiznicaTest() {
     check(!p.lastnaKnjiznica(false, emptySet(), emptySet(), emptyList(), "movie", "moj:1"))
 }
 
+/** Zaupanje v lastno knjiznico dodatka: na zaslon pride sele po dokazu, da dodatek zanjo res da tokove. */
+fun zaupanjeKnjizniceTest() {
+    val ura = 3_600_000L
+    val zdaj = 1_800_000_000_000L
+    // Vzorec: prvi, srednji in zadnji naslov; v majhni knjiznici vsi.
+    check(P.vzorecKnjiznice(0).isEmpty() && P.vzorecKnjiznice(1) == listOf(0) && P.vzorecKnjiznice(3) == listOf(0, 1, 2))
+    check(P.vzorecKnjiznice(100) == listOf(0, 50, 99) && P.vzorecKnjiznice(4) == listOf(0, 2, 3))
+    // Izid vzorca: en predvajljiv naslov zadosca; »ne« sele, ko je dodatek odgovoril za vse; brez odgovora ne vemo.
+    check(P.izidVzorca(listOf(false, true)) == true && P.izidVzorca(listOf(true)) == true)
+    check(P.izidVzorca(listOf(false, false, false)) == false && P.izidVzorca(listOf(false)) == false)
+    check(P.izidVzorca(emptyList()) == null && P.izidVzorca(listOf(false, null)) == null && P.izidVzorca(listOf(null)) == null)
+    // Neznana knjiznica: ne vemo, treba jo je vzorciti.
+    check(P.zaupanje(null, zdaj) == null && P.vzorciti(null, zdaj))
+    // Dokaz »dela«: svez en dan; za prikaz velja naprej (vzorcimo znova v ozadju), po 30 dneh ne vemo vec.
+    val dela = P.poVzorcu(true, zdaj)
+    check(P.zaupanje(dela, zdaj) == true && !P.vzorciti(dela, zdaj + 23 * ura))
+    check(P.zaupanje(dela, zdaj + 25 * ura) == true && P.vzorciti(dela, zdaj + 25 * ura))
+    check(P.zaupanje(dela, zdaj + 31 * 24 * ura) == null)
+    // Dokaz »ne dela«: svez pol dneva, potem vzorcimo znova; za prikaz velja do tedna.
+    val neDela = P.poVzorcu(false, zdaj)
+    check(P.zaupanje(neDela, zdaj) == false && !P.vzorciti(neDela, zdaj + 11 * ura) && P.vzorciti(neDela, zdaj + 13 * ura))
+    check(P.zaupanje(neDela, zdaj + 6 * 24 * ura) == false && P.zaupanje(neDela, zdaj + 8 * 24 * ura) == null)
+    // Dotik: uspeh potrdi (tudi po »ne dela«); en ali dva dotika brez toka zaupanja ne odvzameta, trije zaporedni ga.
+    check(P.zaupanje(P.poDotiku(neDela, true, zdaj + ura), zdaj + ura) == true)
+    val en = P.poDotiku(dela, false, zdaj + ura)
+    check(P.zaupanje(en, zdaj + ura) == true && en.neuspehov == 1 && en.cas == zdaj) { "en dotik brez toka: dokaz ostane, star kolikor je" }
+    val dva = P.poDotiku(en, false, zdaj + 2 * ura)
+    check(P.zaupanje(dva, zdaj + 2 * ura) == true)
+    val trije = P.poDotiku(dva, false, zdaj + 3 * ura)
+    check(P.zaupanje(trije, zdaj + 3 * ura) == false && trije.cas == zdaj + 3 * ura)
+    check(P.poDotiku(dva, true, zdaj + 3 * ura).neuspehov == 0) { "uspeh pretrga niz dotikov brez toka" }
+    // Neznana knjiznica in dotiki brez toka: ne vemo, dokler niso trije.
+    val n1 = P.poDotiku(null, false, zdaj)
+    check(P.zaupanje(n1, zdaj) == null && P.vzorciti(n1, zdaj))
+    check(P.zaupanje(P.poDotiku(P.poDotiku(n1, false, zdaj), false, zdaj), zdaj) == false)
+    // Zapis v niz in nazaj; pokvarjen zapis je neznan.
+    for (z in listOf(dela, neDela, en, n1)) check(P.zaupanjeIzNiza(P.zaupanjeVNiz(z)) == z) { P.zaupanjeVNiz(z) }
+    for (slab in listOf(null, "", "x;1;2", "d;-1;5", "d;0", "d;0;-3", "d;0;1;2")) check(P.zaupanjeIzNiza(slab) == null) { slab.toString() }
+    // Ura naprave nazaj (dokaz »iz prihodnosti« za vec kot uro): ne velja.
+    check(P.zaupanje(dela, zdaj - 2 * ura) == null && P.zaupanje(dela, zdaj - ura / 2) == true)
+}
+
 /** Pravila razpolozljivosti: meje po zmoznosti naprave, svezina, zdruzevanje, stari zapisi, sprememba dodatkov. */
 fun main() {
     lastnaKnjiznicaTest()
+    zaupanjeKnjizniceTest()
     val ura = 3_600_000L
     val zdaj = 1_800_000_000_000L
     val gb = 1024L * 1024 * 1024
