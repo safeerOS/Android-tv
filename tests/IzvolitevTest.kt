@@ -35,6 +35,15 @@ fun main() {
     // Oglas.
     preveri("prio iz oglasa", IzvolitevHuba.prioritetaIzOglasa("60") == 60 && IzvolitevHuba.prioritetaIzOglasa(null) == 0
         && IzvolitevHuba.prioritetaIzOglasa("x") == 0 && IzvolitevHuba.prioritetaIzOglasa("5000") == 1000)
+    // Link Mesh: kdo klice soseda. Manjsi id prvi; vecji sele po cakanju; po zagonu znane sosede takoj.
+    val cakaj = 40_000L
+    preveri("manjsega soseda pocakamo", IzvolitevHuba.pocakamNaSoseda("n-a", "n-m", 0, cakaj))
+    preveri("vecjega klicemo takoj", !IzvolitevHuba.pocakamNaSoseda("n-z", "n-m", 0, cakaj))
+    preveri("manjsega po cakanju klicemo sami", !IzvolitevHuba.pocakamNaSoseda("n-a", "n-m", cakaj, cakaj)
+        && IzvolitevHuba.pocakamNaSoseda("n-a", "n-m", cakaj - 1, cakaj))
+    preveri("po zagonu znanega manjsega klicemo takoj", !IzvolitevHuba.pocakamNaSoseda("n-a", "n-m", 0, cakaj, setOf("n-a")))
+    preveri("po zagonu neznanega manjsega se vedno pocakamo", IzvolitevHuba.pocakamNaSoseda("n-b", "n-m", 0, cakaj, setOf("n-a")))
+    preveri("sebe ne cakamo", !IzvolitevHuba.pocakamNaSoseda("n-m", "n-m", 0, cakaj))
     println(if (napak == 0) "\nVse v redu." else "\nNapak: $napak")
     if (napak > 0) System.exit(1)
 }

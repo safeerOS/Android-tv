@@ -401,6 +401,18 @@ object HubKrmilnik {
     }
 
     fun izvolitev(app: Context) {
+        // Po zagonu: sosede iz prejsnjega teka poklicemo takoj, tudi ce imajo manjsi id, in brez cakanja na oglase
+        // mDNS (do 4 s) - sosed za nas ponovni zagon ne ve in bi nas nasel sele v svojem naslednjem krogu iskanja.
+        usmerjevalnik?.let { u ->
+            if (tece() && HubMesh.vklopljen(app)) {
+                val poZagonu = HubMesh.vzemiPoZagonu(app)
+                if (poZagonu.isNotEmpty()) {
+                    val znani = HubMesh.kandidati(app, u, HubMesh.zDopolnitvijo(app, emptyList()), poZagonu = poZagonu)
+                    for (h in znani) HubMesh.poklici(app, u, h)
+                    Log.i(TAG, "Mesh po zagonu: klicem znane ${znani.map { it.id }}")
+                }
+            }
+        }
         HubDiscovery.poisciVse(app) { hubi ->
             if (!tece()) return@poisciVse
             val u = usmerjevalnik

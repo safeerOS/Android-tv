@@ -37,6 +37,17 @@ object IzvolitevHuba {
         else -> PRIORITETA_TELEFON
     }
 
+    /**
+     * Link Mesh: ali s klicem soseda [sosed] se pocakamo. Za vsak par Hubov nastane ena povezava - prvi klice manjsi
+     * id, vecji klice sam sele, ce ga manjsi [cakajMs] ne doseze ([videnPredMs] = koliko casa soseda ze vidimo).
+     *
+     * Izjema je prvi krog po nasem zagonu ([poZagonu] = sosedje iz prejsnjega teka): sosed za nas ponovni zagon ne
+     * ve in bi nas nasel sele v svojem naslednjem krogu iskanja. Ce medtem poklice tudi on, Hub obdrzi povezavo, ki
+     * jo je odprl manjsi id (HubUsmerjevalnik.dodajSoseda).
+     */
+    fun pocakamNaSoseda(sosed: String, jaz: String, videnPredMs: Long, cakajMs: Long, poZagonu: Set<String> = emptySet()): Boolean =
+        sosed < jaz && videnPredMs < cakajMs && sosed !in poZagonu
+
     /** Hub, ki se oglasa (ali mi sami). */
     data class Kandidat(val id: String, val prioriteta: Int, val naslov: String = "", val odtis: String = "", val ime: String = "")
 

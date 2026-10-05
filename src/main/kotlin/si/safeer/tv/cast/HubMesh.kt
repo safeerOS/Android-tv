@@ -118,8 +118,28 @@ object HubMesh {
         return hubi + dodatni
     }
 
+    /** Sosedje iz prejsnjega teka so ze prebrani (enkrat na zagon procesa). */
+    @Volatile private var poZagonuVzeto = false
+
+    /**
+     * Id-ji sosedov, ki smo jih poznali v prejsnjem teku - samo ob prvem klicu po zagonu procesa, potem prazno.
+     * Te HubKrmilnik takoj po zagonu poklice sam (IzvolitevHuba.pocakamNaSoseda), se pred iskanjem oglasov mDNS.
+     */
+    fun vzemiPoZagonu(context: Context): Set<String> {
+        if (poZagonuVzeto) return emptySet()
+        synchronized(this) {
+            if (poZagonuVzeto) return emptySet()
+            poZagonuVzeto = true
+            return try {
+                JSONObject(context.getSharedPreferences("safeer_cast_prefs", Context.MODE_PRIVATE).getString(KLJUC_ZNANI, "{}") ?: "{}")
+                    .keys().asSequence().toSet()
+            } catch (_: Throwable) { emptySet() }
+        }
+    }
+
     /** Iz oglasov izbere Hube, ki jih moramo zdaj poklicati. */
-    fun kandidati(context: Context, u: HubUsmerjevalnik, hubi: List<HubDiscovery.NajdeniHub>, zdaj: Long = System.currentTimeMillis()): List<HubDiscovery.NajdeniHub> {
+    fun kandidati(context: Context, u: HubUsmerjevalnik, hubi: List<HubDiscovery.NajdeniHub>, zdaj: Long = System.currentTimeMillis(),
+                  poZagonu: Set<String> = emptySet()): List<HubDiscovery.NajdeniHub> {
         val jaz = u.lastniId
         val povezani = u.sosedjeIdji().toSet()
         val krog = KrogNaprave.krog(context)
@@ -129,7 +149,8 @@ object HubMesh {
             if ((zavrnjen[h.id]?.first ?: 0L) > zdaj) return@filter false
             if ((nedosegljivDo[h.id]?.first ?: 0L) > zdaj) return@filter false
             val prvic = prvicVideni.getOrPut(h.id) { zdaj }
-            !(h.id < jaz && zdaj - prvic < VECJI_CAKA_MS)       // manjsi id klice prvi; pocakamo nanj
+            // Manjsi id klice prvi; pocakamo nanj - razen v prvem krogu po nasem zagonu.
+            !IzvolitevHuba.pocakamNaSoseda(h.id, jaz, zdaj - prvic, VECJI_CAKA_MS, poZagonu)
         }
     }
 

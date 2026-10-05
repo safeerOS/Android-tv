@@ -187,6 +187,17 @@ fun main() {
         preveriM("ostane povezava, ki jo je odprl manjsi id", a.javi("hub-b") === prva)
         preveriM("seznam ostane pravilen", tv.idji() == listOf("pc", "tv"))
     }
+    primer("vecji id poklice prvi (po zagonu), nato se manjsi: ostane povezava manjsega") {
+        val a = hub("hub-a"); val b = hub("hub-b")
+        val tv = prijava(a, "tv"); val pc = prijava(b, "pc")
+        povezi(b, a, zacel = "hub-b")
+        preveriM("povezava vecjega velja, dokler ni druge", tv.idji() == listOf("pc", "tv"))
+        val prvaA = a.javi("hub-b"); val prvaB = b.javi("hub-a")
+        val (ab, ba) = povezi(a, b, zacel = "hub-a")
+        preveriM("na obeh straneh obvelja povezava manjsega id", a.javi("hub-b") === ab && b.javi("hub-a") === ba
+            && a.javi("hub-b") !== prvaA && b.javi("hub-a") !== prvaB)
+        preveriM("naprave ostanejo v obeh seznamih", tv.idji() == listOf("pc", "tv") && pc.idji() == listOf("pc", "tv"))
+    }
     primer("klepet pocaka in pride prek soseda") {
         val a = hub("hub-a"); val b = hub("hub-b"); val c = hub("hub-c")
         val tv = prijava(a, "tv"); prijava(b, "tel")
