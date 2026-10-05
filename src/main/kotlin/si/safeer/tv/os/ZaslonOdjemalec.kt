@@ -14,7 +14,6 @@ import org.json.JSONObject
 import java.io.DataInputStream
 import java.io.InputStream
 import java.io.OutputStream
-import java.net.InetSocketAddress
 import java.net.Socket
 import javax.net.ssl.SSLSocket
 
@@ -31,7 +30,11 @@ import javax.net.ssl.SSLSocket
  * racunalniku **vnos**: vsak dogodek je ena vrstica JSON (tipka, besedilo, premik, klik, kolesce).
  */
 class ZaslonOdjemalec(
-    private val naslov: String,
+    /**
+     * Naslovi racunalnika, ki jih poskusimo po vrsti (docs/LINK-MESH.md, pravilo 8): naslov iz seznama naprav in
+     * tisti, ki jih je racunalnik nastel sam.
+     */
+    private val naslovi: List<String>,
     private val vrata: Int,
     private val odtis: String,
     private val zeton: String,
@@ -40,8 +43,11 @@ class ZaslonOdjemalec(
     /** Obvestila racunalnika med sejo (okvir izbire, kazalec za povecavo, tipkovnica ...). */
     private val naObvestilo: (JSONObject) -> Unit = {},
 ) {
-    /** PRAZNO: racunalnik javi, da na locenem zaslonu ni vec programa (besedilo = razlog). */
-    enum class Stanje { POVEZUJEM, TECE, KONCANO, NAPAKA, PRAZNO }
+    /**
+     * PRAZNO: racunalnik javi, da na locenem zaslonu ni vec programa (besedilo = razlog).
+     * NEDOSEGLJIV: racunalnika ni na nobenem od njegovih naslovov (seja se sploh ni zacela).
+     */
+    enum class Stanje { POVEZUJEM, TECE, KONCANO, NAPAKA, PRAZNO, NEDOSEGLJIV }
 
     /** Kar lahko izmerimo na televizorju: slike, pretok in koliko casa slika stoji v dekoderju. */
     data class Statistika(val slik: Int, val naSekundo: Double, val megabitov: Double,
@@ -93,12 +99,17 @@ class ZaslonOdjemalec(
         var kodek: MediaCodec? = null
         try {
             naStanje(Stanje.POVEZUJEM, "")
-            val (tovarna, _) = Pin.tovarna(odtis)
-            val goli = Socket()
-            goli.connect(InetSocketAddress(naslov, vrata), 8_000)
-            goli.tcpNoDelay = true                     // brez Naglejevega zbiranja: vsak paket takoj
-            val s = tovarna.createSocket(goli, naslov, vrata, true) as SSLSocket
-            s.startHandshake()
+            // Zeton poslje sele ta nit, po rokovanju s pripetim potrdilom (NeposrednaPovezava).
+            val s = NeposrednaPovezava.povezi(naslovi, vrata, odtis, oznaka = TAG, tece = { tece })
+            if (s == null) {
+                if (tece) {
+                    Log.w(TAG, "Zaslon: racunalnik ni dosegljiv (${naslovi.joinToString()}:$vrata)")
+                    naStanje(Stanje.NEDOSEGLJIV, "")
+                } else {
+                    naStanje(Stanje.KONCANO, "")
+                }
+                return
+            }
             vticnica = s
             val izhodniTok: OutputStream = s.outputStream
             val vhod: InputStream = s.inputStream

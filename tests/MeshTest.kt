@@ -343,6 +343,20 @@ fun main() {
         preveriM("ime namesto IP: brez poizvedbe DNS", HubNaslovi.nasProti("safeer-tv.local") == "")
         preveriM("pot do zanke ni nas naslov", HubNaslovi.nasProti("127.0.0.1") == "")
     }
+    primer("naslov: kandidati za neposredno povezavo (pravilo 8)") {
+        val k = HubNaslovi::kandidati
+        preveriM("najprej iz seznama, nato nasteti", k("192.168.0.220", listOf("192.168.0.220", "10.0.0.7")) == listOf("192.168.0.220", "10.0.0.7"))
+        preveriM("brez nastetih samo naslov iz seznama", k("192.168.0.220", null) == listOf("192.168.0.220") && k("192.168.0.220", emptyList()) == listOf("192.168.0.220"))
+        preveriM("brez naslova iz seznama veljajo nasteti", k("", listOf("192.168.0.135")) == listOf("192.168.0.135") && k("  ", listOf("  ")).isEmpty() && k("", null).isEmpty())
+        val slabi = listOf("127.0.0.1", "127.8.9.1", "0.0.0.0", "0.1.2.3", "224.0.0.251", "240.0.0.1", "255.255.255.255",
+            "::", "::1", "ff02::1", "fe80::1", "2001:db8::5", "::ffff:192.168.0.6", "racunalnik.local", "192.168.0.300",
+            "192.168.01.5", "1.2.3", "1.2.3.4.5", "192.168.0.-5", "\u0661\u0669\u0662.168.0.5", "192.168.0.5:8080",
+            "http://192.168.0.5", "", "192.168.0.5 ")
+        preveriM("nasteti morajo biti naslovi IPv4, dosegljivi od drugod", k("192.168.0.220", slabi) == listOf("192.168.0.220", "192.168.0.5"))
+        preveriM("naslov brez DHCP in naslov ponudnika veljata", k("", listOf("169.254.10.20", "100.64.0.7", "223.255.255.254")) == listOf("169.254.10.20", "100.64.0.7", "223.255.255.254"))
+        val veliko = (1..19).map { "10.0.0.$it" }
+        preveriM("najvec stirje", k("192.168.0.220", veliko) == listOf("192.168.0.220", "10.0.0.1", "10.0.0.2", "10.0.0.3") && k("", veliko).size == HubNaslovi.NAJVEC_KANDIDATOV)
+    }
     println()
     if (napakMesh == 0) println("Vse v redu.") else { println("Napak: $napakMesh"); kotlin.system.exitProcess(1) }
 }

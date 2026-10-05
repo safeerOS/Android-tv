@@ -71,5 +71,17 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.DomPreverjanjePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.TempoDodatkaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ObnovaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.IzvirniJezikTestKt
+
+# Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
+# prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.
+"$KOTLINC" -J-Xmx1g \
+    "$TEST_DIR/stubs/Log.kt" \
+    "$TEST_DIR/stubs/R.kt" \
+    "$SRC/si/safeer/tv/os/Pin.kt" \
+    "$SRC/si/safeer/tv/os/NeposrednaPovezava.kt" \
+    "$TEST_DIR/NeposrednaPovezavaTest.kt" \
+    -include-runtime -d "$OUT/povezava.jar"
+java -cp "$OUT/povezava.jar" si.safeer.tv.os.NeposrednaPovezavaTestKt
+
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"

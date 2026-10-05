@@ -2375,6 +2375,41 @@ internal object HubNaslovi {
         return if (sredisceTu) n else soseda(hubUrl)
     }
 
+    /** Najvec naslovov, ki jih gledalec poskusi za eno sejo (docs/LINK-MESH.md, pravilo 8). */
+    const val NAJVEC_KANDIDATOV = 4
+
+    /**
+     * Ali je [naslov] iz odgovora naprave naslov IPv4, na katerem jo ima smisel iskati: stiri desetiska stevila brez
+     * vodilnih nicel; zanka (127.x), 0.x ter skupinski in rezervirani naslovi (224 in vec) odpadejo. Ime gostitelja
+     * ni naslov - gledalec zaradi odgovora naprave ne sprasuje DNS.
+     */
+    fun naslovNaprave(naslov: String): Boolean {
+        val deli = naslov.split('.')
+        if (deli.size != 4) return false
+        val stevila = IntArray(4)
+        for ((i, d) in deli.withIndex()) {
+            if (d.isEmpty() || d.length > 3 || !d.all { it in '0'..'9' } || (d.length > 1 && d[0] == '0')) return false
+            stevila[i] = d.toInt()
+        }
+        return stevila.all { it <= 255 } && stevila[0] != 0 && stevila[0] != 127 && stevila[0] < 224
+    }
+
+    /**
+     * Naslovi, na katerih gledalec isce napravo: najprej [naslov] iz seznama naprav Safeer Linka, nato tisti, ki jih je
+     * naprava sama nastela v odgovoru na `screen.start` ([hosts]). Vsak samo enkrat, najvec [NAJVEC_KANDIDATOV].
+     */
+    fun kandidati(naslov: String, hosts: List<String>?): List<String> {
+        val izid = ArrayList<String>()
+        val prvi = naslov.trim()
+        if (prvi.isNotEmpty()) izid.add(prvi)
+        for (h0 in hosts.orEmpty()) {
+            if (izid.size >= NAJVEC_KANDIDATOV) break
+            val h = h0.trim()
+            if (h.isNotEmpty() && h !in izid && naslovNaprave(h)) izid.add(h)
+        }
+        return izid.take(NAJVEC_KANDIDATOV)
+    }
+
     /**
      * Nas naslov na poti do [gostitelj]: vticnica UDP se samo »poveze« - sistem izbere pot in s tem nas naslov,
      * paketa ne poslje. "" za ime namesto naslova IP (brez poizvedbe DNS) in ob napaki.

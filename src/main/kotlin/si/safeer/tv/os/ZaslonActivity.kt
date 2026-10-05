@@ -345,9 +345,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Ne surovi naslov iz seznama: ta je lahko 127.0.0.1 - racunalnik pri SVOJEM srediscu, ne pri nas.
         val naslov = link.odjemalec.naslovZaPovezavo(r)
         if (naslov.isBlank()) { pokazi(getString(R.string.os_zaslon_ni_doma, r.ime.ifBlank { r.id })); return }
+        // Poleg naslova iz seznama se naslovi, ki jih je racunalnik nastel sam (docs/LINK-MESH.md, pravilo 8).
+        val nasteti = podatki.optJSONArray("hosts")?.let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String } }
         odjemalec?.ustavi()
         val o = ZaslonOdjemalec(
-            naslov, podatki.optInt("port"), podatki.optString("fp"), podatki.optString("token"),
+            si.safeer.tv.cast.HubNaslovi.kandidati(naslov, nasteti),
+            podatki.optInt("port"), podatki.optString("fp"), podatki.optString("token"),
             naStanje = { stanje, besedilo ->
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
@@ -370,6 +373,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         // uporabnika vrnemo nazaj - zamrznjena slika je najslabsi mozni izid.
                         ZaslonOdjemalec.Stanje.KONCANO -> if (!koncujem) ponoviAliKoncaj(getString(R.string.os_zaslon_koncano))
                         ZaslonOdjemalec.Stanje.NAPAKA -> ponoviAliKoncaj(getString(R.string.os_zaslon_napaka, besedilo))
+                        // Racunalnika ni na nobenem naslovu: stavek z njegovim imenom, ne sistemska napaka.
+                        ZaslonOdjemalec.Stanje.NEDOSEGLJIV ->
+                            ponoviAliKoncaj(getString(R.string.os_zaslon_ni_dosegljiv, r.ime.ifBlank { r.id }))
                         // Na locenem zaslonu ni vec programa (igra se je zaprla ob Esc ...): temen
                         // prazen zaslon je slepa ulica, zato gremo takoj nazaj v Safeer OS.
                         ZaslonOdjemalec.Stanje.PRAZNO -> {
