@@ -309,4 +309,7 @@
     <string name="os_kanali_ostalo">Other</string>
     <string name="os_media_kanal_brez_toka">“%1$s”: the source has no stream for it right now. Hidden until tomorrow.</string>
     <string name="os_media_moja_glasba">My music</string>
+    <string name="os_media_kanal_mrtev_streznik">“%1$s” is not working – its server cannot be found. Hidden until tomorrow.</string>
+    <string name="os_media_kanal_mrtev_neodziven">“%1$s” is not working – its server is not responding. Hidden until tomorrow.</string>
+    <string name="os_tv_brez_odgovora">Some add-on channels are not responding right now; only working ones are shown.</string>
 </resources>

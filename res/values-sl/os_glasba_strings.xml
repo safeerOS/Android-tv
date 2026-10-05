@@ -309,4 +309,7 @@
     <string name="os_kanali_ostalo">Ostalo</string>
     <string name="os_media_kanal_brez_toka">»%1$s«: vir zanj trenutno nima prenosa. Do jutri skrito.</string>
     <string name="os_media_moja_glasba">Moja glasba</string>
+    <string name="os_media_kanal_mrtev_streznik">»%1$s« ne dela – strežnika prenosa ni mogoče najti. Do jutri skrito.</string>
+    <string name="os_media_kanal_mrtev_neodziven">»%1$s« ne dela – strežnik prenosa se ne odziva. Do jutri skrito.</string>
+    <string name="os_tv_brez_odgovora">Nekateri kanali dodatkov ta čas ne odgovarjajo; prikazani so tisti, ki delajo.</string>
 </resources>

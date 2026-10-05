@@ -310,4 +310,7 @@
     <string name="os_kanali_ostalo">Autres</string>
     <string name="os_media_kanal_brez_toka">« %1$s » : la source n\'a pas de flux pour le moment. Masqué jusqu\'à demain.</string>
     <string name="os_media_moja_glasba">Ma musique</string>
+    <string name="os_media_kanal_mrtev_streznik">« %1$s » ne fonctionne pas : serveur introuvable. Masqué jusqu\'à demain.</string>
+    <string name="os_media_kanal_mrtev_neodziven">« %1$s » ne fonctionne pas : le serveur ne répond pas. Masqué jusqu\'à demain.</string>
+    <string name="os_tv_brez_odgovora">Certaines chaînes des extensions ne répondent pas pour le moment ; seules celles qui fonctionnent sont affichées.</string>
 </resources>

@@ -367,7 +367,9 @@ object MedijskiViri {
         // Vsebina zasebnih dodatkov ni v zgodovini (ZasebniDodatki) - tudi tista, zapisana pred tem pravilom.
         // Naslovov dodatka, ki ga uporabnik nima vec, ne kazemo (ne dajo se predvajati).
         val dodatki = vsi(ctx).filter { it.jeStremio }.map { it.naslov }
-        return beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }.filterNot { Stremio.jeZasebna(it) || Stremio.brezDodatka(it, dodatki) }.take(MAX_NEDAVNO)
+        // Kanala ali postaje, ki ta cas pri viru ne dela ([MrtviKanali]), ne ponujamo za nadaljevanje.
+        return beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }
+            .filterNot { Stremio.jeZasebna(it) || Stremio.brezDodatka(it, dodatki) || MrtviKanali.jeMrtev(ctx, it.id) }.take(MAX_NEDAVNO)
     }
 
     fun odstraniNedavno(ctx: Context, s: Jamendo.Skladba) =

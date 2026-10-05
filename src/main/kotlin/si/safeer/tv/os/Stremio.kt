@@ -966,7 +966,13 @@ object Stremio {
      * vprasa samo dodatek, iz katerega je kartica; drugih dodatkov ne obremenjuje. Odgovor ostane v predpomnilniku
      * ([veljavnost]), zato dotik preverjenega kanala ne poslje novega vprasanja.
      */
-    fun imaLastenTok(s: Jamendo.Skladba): Boolean? {
+    /** Ali kanal pri njegovem dodatku sploh lahko preverimo: dodatek sam daje tokove (ni samo katalog). */
+    fun dajeLastneTokove(s: Jamendo.Skladba): Boolean {
+        val osnova = razstavi(s)?.first ?: return false
+        return manifesti[osnova]?.let { "stream" in it.viri } == true
+    }
+
+    fun imaLastenTok(s: Jamendo.Skladba, sonda: ((Tok) -> Boolean?)? = null): Boolean? {
         val (osnova, tip, id) = razstavi(s) ?: return null
         val m = manifesti[osnova] ?: return null
         if ("stream" !in m.viri || vPremoru(osnova)) return null
@@ -974,11 +980,23 @@ object Stremio {
         val d = json("$osnova/stream/${enc(tip)}/${enc(id)}.json")
         if (d == null) {
             val koda = zadnjaKoda.get() ?: 0
+            if (dnevnik()) android.util.Log.d(DNEVNIK, "${oznakaDodatka(osnova)} tok kanala: brez odgovora, koda=$koda")
             if (koda == 429 || koda == 403) zacniPremor(osnova)
             return if (kodaPomeniNima(koda)) false else null
         }
-        val a = d.optJSONArray("streams") ?: return false
-        return (0 until a.length()).any { i -> a.optJSONObject(i)?.let { tok(it, m.ime) }?.let { jePredvajljiv(it) } == true }
+        val a = d.optJSONArray("streams")
+        val tokovi = if (a == null) emptyList() else (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.filter { jePredvajljiv(it) }
+        if (dnevnik() && tokovi.isEmpty()) android.util.Log.d(DNEVNIK, "${oznakaDodatka(osnova)} tok kanala: tokov=${a?.length() ?: -1}, predvajljivih=0, " +
+            "polja odgovora=${d.keys().asSequence().toList()}, oblika prvega=${a?.optJSONObject(0)?.let { oblikaToka(it) } ?: "-"}, " +
+            "besedilo prvega=${a?.optJSONObject(0)?.let { (it.optString("name") + " | " + it.optString("title").ifBlank { it.optString("description") }).replace('\n', ' ').take(160) } ?: "-"}")
+        if (tokovi.isEmpty()) return false
+        // Dodatek tok nasteje, streznik toka pa s te naprave morda ne odgovori ([SondaToka]): vprasamo prva neposredna
+        // tokova (tista, ki bi ju predvajali; drugi je rezerva). Eden odgovori -> kanal je; oba dokazano ne -> ni ga.
+        val neposredni = tokovi.filter { it.vrsta == "url" }.take(2)
+        if (sonda == null || neposredni.isEmpty()) return true
+        var neznano = false
+        for (t in neposredni) when (sonda(t)) { true -> return true; null -> neznano = true; false -> { } }
+        return if (neznano) null else false
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */

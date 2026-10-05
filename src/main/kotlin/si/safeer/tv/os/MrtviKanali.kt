@@ -13,7 +13,8 @@ import java.util.concurrent.CopyOnWriteArraySet
  */
 object MrtviKanali {
     private const val PREFS = "safeer_mrtvi_kanali"
-    private const val PREFS_ZIVI = "safeer_zivi_kanali"
+    // »2«: odgovor »ziv« od 0.5.53 pomeni, da je odgovoril streznik toka ([SondaToka]), ne samo dodatek - stari ne veljajo.
+    private const val PREFS_ZIVI = "safeer_zivi_kanali_2"
     private val doKdaj = ConcurrentHashMap<String, Long>()
     private val zivDo = ConcurrentHashMap<String, Long>()
     @Volatile private var nalozeno = false

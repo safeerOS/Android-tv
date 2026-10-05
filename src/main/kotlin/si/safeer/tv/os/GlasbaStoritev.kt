@@ -45,8 +45,56 @@ class GlasbaStoritev : Service() {
     private var brezDekoderja: String? = null
     /** Posnetek, za katerega so sledi ze v dnevniku. */
     private var zabelezeneSledi: String? = null
-    /** Trenutni posnetek je ze kdaj zares igral (napaka pred tem pomeni, da se sploh ni zacel). */
-    private var zacelo = false
+    /** Trenutni posnetek je ze kdaj zares igral (napaka pred tem pomeni, da se sploh ni zacel). Bere ga tudi nit nalaganja. */
+    @Volatile private var zacelo = false
+    /** Odgovor imenika (DNS) za streznik toka, ki ga predvajalnik ni nasel ([vprasajImenik]). */
+    private class OdgovorImenika(val gostitelj: String, val obstaja: Boolean?, val kontrola: Boolean?, val kdaj: Long)
+    @Volatile private var odgovorImenika: OdgovorImenika? = null
+    @Volatile private var vprasanjeImeniku = ""
+
+    /** Gostitelj, ki ga imenik (DNS) ni nasel, ali "" (napaka ni te vrste). Po preusmeritvi velja ime iz sporocila sistema. */
+    private fun neznanGostitelj(napaka: Throwable?): String {
+        var e = napaka
+        var izZahteve = ""
+        var izSporocila = ""
+        var neznan = false
+        while (e != null) {
+            if (e is androidx.media3.datasource.HttpDataSource.HttpDataSourceException && izZahteve.isEmpty()) izZahteve = e.dataSpec.uri.host.orEmpty().lowercase()
+            if (e is java.net.UnknownHostException) { neznan = true; izSporocila = OsPravila.gostiteljIzNapake(e.message) }
+            e = e.cause
+        }
+        return if (neznan) izSporocila.ifEmpty { izZahteve } else ""
+    }
+
+    /** Streznik toka ni odgovoril v roku, je povezavo zavrnil ali do njega ni poti (ne odgovor HTTP in ne imenik). */
+    private fun streznikSeNeOdziva(napaka: Throwable?): Boolean {
+        var e = napaka
+        while (e != null) {
+            if (e is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException || e is java.net.UnknownHostException) return false
+            if (e is java.net.SocketTimeoutException || e is java.net.ConnectException || e is java.net.NoRouteToHostException) return true
+            e = e.cause
+        }
+        return false
+    }
+
+    /** Imenik vprasamo v ozadju (odgovor pride po glavni niti, zato tu nihce ne caka); izid prebere koncna napaka. */
+    private fun vprasajImenik(gostitelj: String) {
+        if (gostitelj.isEmpty() || vprasanjeImeniku == gostitelj) return
+        vprasanjeImeniku = gostitelj
+        Thread {
+            val o = Imenik.obstaja(listOf(gostitelj, Imenik.KONTROLA), OsPravila.IMENIK_ROK_MS)
+            odgovorImenika = OdgovorImenika(gostitelj, o[0], o[1], android.os.SystemClock.uptimeMillis())
+            vprasanjeImeniku = ""
+        }.start()
+    }
+    /** Enota, ki je ze zapisana med nedavno predvajane (da je ob vsakem nadaljevanju po pavzi ne pisemo znova). */
+    private var zapisanaNedavno = ""
+    private fun zapomniNedavnoEnkrat() {
+        val sk = trenutna() ?: return
+        if (sk.id == zapisanaNedavno) return
+        zapisanaNedavno = sk.id
+        MedijskiViri.zapomniNedavno(this, sk)
+    }
     /** Posnetek, ki smo ga po napaki »neznana oblika« ze poskusili kot seznam HLS. */
     private var kotHls = ""
     /** Predvaja se en sam kanal ali postaja v zivo s spleta (ne datoteka z naprave v Linku): bere ga nit nalaganja. */
@@ -107,12 +155,14 @@ class GlasbaStoritev : Service() {
         Podnapisi.uveljavi(this, p)
         p.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                // Nedavno predvajano (plosca Safeer Media): shranljive skladbe, postaje in videi.
-                trenutna()?.let { MedijskiViri.zapomniNedavno(this@GlasbaStoritev, it) }
+                // Nedavno predvajano (plosca Safeer Media): shranljive skladbe, postaje in videi - sele, ko res tecejo.
+                // Kanal ali film, ki se ni zacel, ne sodi med »nazadnje predvajano« (izmerjeno 5. 10. 2026: kanal brez
+                // streznika je bil tam z gumbom »Nadaljuj«).
+                if (p.isPlaying) zapomniNedavnoEnkrat()
                 osvezi()
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (isPlaying) { zacelo = true; koncnaNapaka = null }
+                if (isPlaying) { zacelo = true; koncnaNapaka = null; zapomniNedavnoEnkrat() }
                 // Merjenje cakanja pred zacetkom (torrent prek pomocnika): od dotika do prve slike.
                 if (isPlaying && merimOd != 0L) { Log.i("SafeerTorrentCas", "predvajanje tece po ${android.os.SystemClock.uptimeMillis() - merimOd} ms"); merimOd = 0L }
                 osvezi()
@@ -184,13 +234,27 @@ class GlasbaStoritev : Service() {
                     val vZivo = enota != null && (enota.radio || enota.id.startsWith("tv:") || Stremio.jeVZivo(enota))
                     // Te napake resuje zaslon predvajanja sam (stran pod nasim upravljanjem, sprotna pretvorba v Linku).
                     val resujeZaslon = enota != null && (SpletniVir.jeEnota(enota) || SprotnaPomoc.jeSprotniTok(enota) || SprotnaPomoc.jeNapakaDekodiranja(error))
-                    val mrtev = vZivo && !resujeZaslon && OsPravila.mrtevKanal(error.errorCode, http)
+                    // Streznika toka ni v imeniku (DNS): kanal je mrtev sele, ko je imenik sveze odgovoril, da imena ni, in
+                    // isti hip odgovoril za kontrolno ime ([OsPravila.mrtevGostitelj]) - sicer je lahko odpovedalo omrezje.
+                    val gostitelj = if (vZivo && !resujeZaslon) neznanGostitelj(error) else ""
+                    // Streznik se ne odziva (rok povezave, zavrnjena povezava): mrtev sele, ko je imenik isti hip odgovoril
+                    // za kontrolno ime - omrezje te naprave torej dela ([OsPravila.mrtevNeodziven]).
+                    val neodziven = vZivo && !resujeZaslon && gostitelj.isEmpty() && streznikSeNeOdziva(error)
+                    val kljucImenika = if (neodziven) NEODZIVEN else gostitelj
+                    val imenik = odgovorImenika?.takeIf { kljucImenika.isNotEmpty() && it.gostitelj == kljucImenika &&
+                        android.os.SystemClock.uptimeMillis() - it.kdaj < (if (neodziven) OsPravila.KONTROLA_VELJA_MS else OsPravila.IMENIK_VELJA_MS) }
+                    val brezStreznika = !neodziven && imenik != null && OsPravila.mrtevGostitelj(imenik.obstaja, imenik.kontrola)
+                    val brezOdziva = neodziven && imenik != null && OsPravila.mrtevNeodziven(zacelo, imenik.kontrola)
+                    val mrtev = vZivo && !resujeZaslon && (OsPravila.mrtevKanal(error.errorCode, http) || brezStreznika || brezOdziva)
                     val besedilo = when {
+                        brezStreznika -> getString(R.string.os_media_kanal_mrtev_streznik, ime.ifBlank { "?" })
+                        brezOdziva -> getString(R.string.os_media_kanal_mrtev_neodziven, ime.ifBlank { "?" })
                         mrtev && http > 0 -> getString(R.string.os_media_kanal_mrtev_http, ime.ifBlank { "?" }, http)
                         mrtev -> getString(R.string.os_media_kanal_mrtev, ime.ifBlank { "?" })
                         else -> getString(napakaZaUporabnika(error.errorCode))
                     }
-                    Log.i("SafeerOsMedia", "koncna napaka: koda=${error.errorCode}, http=$http, vZivo=$vZivo, zacelo=$zacelo, mrtev=$mrtev")
+                    val oImeniku = if (kljucImenika.isEmpty()) "" else ", imenik: ime=${imenik?.obstaja}, kontrola=${imenik?.kontrola}, neodziven=$neodziven"
+                    Log.i("SafeerOsMedia", "koncna napaka: koda=${error.errorCode}, http=$http, vZivo=$vZivo, zacelo=$zacelo, mrtev=$mrtev$oImeniku")
                     koncnaNapaka = KoncnaNapaka(enota?.id.orEmpty(), error.errorCode, http, besedilo)
                     if (mrtev && enota != null) MrtviKanali.zapomni(this@GlasbaStoritev, enota.id)
                     obvesti(besedilo)
@@ -326,14 +390,16 @@ class GlasbaStoritev : Service() {
         koncajSplet()
         predvajalnik = p
         vrsta = seznam
-        zacelo = false; koncnaNapaka = null
+        zacelo = false; koncnaNapaka = null; zapisanaNedavno = ""
         enaVZivo = s == null && seznam.size == 1 && seznam[0].let { it.radio || it.id.startsWith("tv:") || Stremio.jeVZivo(it) }
         streznikTrenutni = s
+        // Kanal ali postaja v zivo: streznik, ki se v 5 s ne oglasi, ne dela (privzeti rok 8 s je za datoteke).
+        val rokPovezave = if (enaVZivo) OsPravila.ROK_POVEZAVE_V_ZIVO_MS else 0
         // Datoteke z racunalnika gredo skozi pripeti vir (TLS z odtisom in zetonom Safeer Controla),
         // vse ostalo (splet, datoteke televizorja) skozi obicajnega.
         // DvdVir: slike ISO (safeer-dvd:) bere kot tok glavnega naslova diska, vse drugo gre naravnost naprej.
         val tovarna = (if (s != null) androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(PripetiVir.Tovarna(s.odtis, s.zeton, this, s.naprava)))
-            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this))).setLoadErrorHandlingPolicy(hitraNapaka))
+            else androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, rokPovezaveMs = rokPovezave))).setLoadErrorHandlingPolicy(hitraNapaka))
             .setSubtitleParserFactory(Podnapisi.Popravljalnik())
         // Tok z glavami (Stremio proxyHeaders) dobi svojo tovarno: glave spremljajo vse njegove zahteve, tudi dele HLS/DASH
         // na drugih gostiteljih, drugih tokov v vrsti pa ne zadevajo.
@@ -343,7 +409,7 @@ class GlasbaStoritev : Service() {
             val glave = SpletniVir.glaveToka(sk.zvok)
             if (glave.isEmpty()) return tovarna
             return tovarneZGlavami.getOrPut(glave) {
-                androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, glave)))
+                androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, glave, rokPovezave)))
                     .setLoadErrorHandlingPolicy(hitraNapaka).setSubtitleParserFactory(Podnapisi.Popravljalnik())
             }
         }
@@ -355,7 +421,7 @@ class GlasbaStoritev : Service() {
             val vrstaVsebine = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null })
             if (vrstaVsebine != C.CONTENT_TYPE_HLS) return null
             return hlsTovarne.getOrPut(SpletniVir.glaveToka(sk.zvok)) {
-                androidx.media3.exoplayer.hls.HlsMediaSource.Factory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, SpletniVir.glaveToka(sk.zvok))))
+                androidx.media3.exoplayer.hls.HlsMediaSource.Factory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, SpletniVir.glaveToka(sk.zvok), rokPovezave)))
                     .setPlaylistParserFactory(HlsSeznami()).setLoadErrorHandlingPolicy(hitraNapaka)
                     .setSubtitleParserFactory(Podnapisi.Popravljalnik())
             }
@@ -385,8 +451,32 @@ class GlasbaStoritev : Service() {
      * rezervne tokove, zato ne cakamo na tri ponovitve (nekaj sekund), ampak gremo takoj na naslednjega. Brez rezerv
      * ostane privzeto vedenje (ponovitve), ker pomocnik v Linku med pripravo torrenta lahko hip odgovarja z napako.
      */
+    private val IMENIK_PONOVI_MS = 700L
+    /** Kljuc odgovora imenika za streznik, ki se ne odziva (ime obstaja; vprasali smo samo za kontrolo). */
+    private val NEODZIVEN = "*"
     private val hitraNapaka = object : androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy() {
         override fun getRetryDelayMsFor(loadErrorInfo: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+            if (enaVZivo && !zacelo) {
+                // Kanal ali postaja se ni stekla, streznika toka pa ni v imeniku (DNS). Tri ponovitve tega ne popravijo,
+                // uporabnik pa caka (izmerjeno 5. 10. 2026: 3,1 s do sporocila): en ponovni poskus za hip brez omrezja,
+                // medtem imenik vprasamo sveze. Med predvajanjem ostane privzeto vedenje (zaloga premosti kratek izpad).
+                val gostitelj = neznanGostitelj(loadErrorInfo.exception)
+                if (gostitelj.isNotEmpty()) {
+                    vprasajImenik(gostitelj)
+                    return if (loadErrorInfo.errorCount >= 2) C.TIME_UNSET else IMENIK_PONOVI_MS
+                }
+                if (streznikSeNeOdziva(loadErrorInfo.exception)) {
+                    // Streznik toka ni odgovoril v roku ali je povezavo zavrnil. Izmerjeno 5. 10. 2026: stirje poskusi po
+                    // 8 s = 35 s vrtenja do sporocila. En poskus je dovolj. Pred koncem vprasamo imenik za kontrolno ime,
+                    // da locimo neodziven streznik od izpada omrezja te naprave: ta nit ni glavna (odgovor pride po
+                    // glavni), zato sme pocakati; na glavni niti ne cakamo in kanal ostane.
+                    if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+                        val o = Imenik.obstaja(listOf(Imenik.KONTROLA), OsPravila.IMENIK_ROK_MS)
+                        odgovorImenika = OdgovorImenika(NEODZIVEN, true, o[0], android.os.SystemClock.uptimeMillis())
+                    }
+                    return C.TIME_UNSET
+                }
+            }
             var e: Throwable? = loadErrorInfo.exception
             while (e != null) {
                 if (e is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {

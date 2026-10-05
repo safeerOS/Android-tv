@@ -310,4 +310,7 @@
     <string name="os_kanali_ostalo">Sonstiges</string>
     <string name="os_media_kanal_brez_toka">„%1$s“: Die Quelle hat dafür gerade keinen Stream. Bis morgen ausgeblendet.</string>
     <string name="os_media_moja_glasba">Meine Musik</string>
+    <string name="os_media_kanal_mrtev_streznik">„%1$s“ funktioniert nicht – Server nicht gefunden. Bis morgen ausgeblendet.</string>
+    <string name="os_media_kanal_mrtev_neodziven">„%1$s“ funktioniert nicht – Server antwortet nicht. Bis morgen ausgeblendet.</string>
+    <string name="os_tv_brez_odgovora">Einige Add-on-Sender antworten gerade nicht; angezeigt werden nur funktionierende.</string>
 </resources>

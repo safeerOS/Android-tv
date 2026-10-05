@@ -694,9 +694,17 @@ object SpletniVir {
      * Vir podatkov za nas predvajalnik: tokovom iz spletnih aplikacij doda Referer, piskotke in UA brskalnika.
      * UA gre v glave zahteve (ne v tovarno): DefaultHttpDataSource bi s svojim UA prepisal tistega iz proxyHeaders.
      */
-    fun virPodatkov(c: Context, glaveVsem: Map<String, String> = emptyMap()): DataSource.Factory {
+    /** Uporabniski agent, s katerim predvajalnik zahteva tokove: sonda toka naj strezniku pokaze isto kot predvajanje. */
+    fun agent(c: Context): String {
+        if (ua.isBlank()) ua = try { WebSettings.getDefaultUserAgent(c) } catch (_: Exception) { "" }
+        return ua
+    }
+
+    fun virPodatkov(c: Context, glaveVsem: Map<String, String> = emptyMap(), rokPovezaveMs: Int = 0): DataSource.Factory {
         if (ua.isBlank()) ua = try { WebSettings.getDefaultUserAgent(c) } catch (_: Exception) { "" }
         val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+        // Kanal ali postaja v zivo: krajsi rok povezave ([OsPravila.ROK_POVEZAVE_V_ZIVO_MS]); 0 = privzeti rok predvajalnika.
+        if (rokPovezaveMs > 0) http.setConnectTimeoutMs(rokPovezaveMs)
         return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { spec ->
             val url = spec.uri.toString()
             if (!url.startsWith("http://") && !url.startsWith("https://")) return@Factory spec

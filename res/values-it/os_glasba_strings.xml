@@ -310,4 +310,7 @@
     <string name="os_kanali_ostalo">Altro</string>
     <string name="os_media_kanal_brez_toka">«%1$s»: la sorgente ora non ha un flusso. Nascosto fino a domani.</string>
     <string name="os_media_moja_glasba">La mia musica</string>
+    <string name="os_media_kanal_mrtev_streznik">«%1$s» non funziona: server non trovato. Nascosto fino a domani.</string>
+    <string name="os_media_kanal_mrtev_neodziven">«%1$s» non funziona: il server non risponde. Nascosto fino a domani.</string>
+    <string name="os_tv_brez_odgovora">Alcuni canali dei componenti ora non rispondono; sono mostrati solo quelli funzionanti.</string>
 </resources>

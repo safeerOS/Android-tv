@@ -196,6 +196,44 @@ object OsPravila {
         else -> false
     }
 
+    /** Koliko casa najvec cakamo na odgovor imenika (DNS) o strezniku toka. */
+    const val IMENIK_ROK_MS = 1_500L
+    /** Kako dolgo velja odgovor imenika za istega gostitelja (ponovni dotik iste kartice). */
+    const val IMENIK_VELJA_MS = 60_000L
+
+    /**
+     * Streznika toka ni v imeniku (DNS). To je dokaz, da kanala pri viru ni, sele, kadar je imenik sveze odgovoril, da
+     * imena ni ([imeObstaja] == false), IN je isti hip odgovoril za kontrolno ime ([kontrola] == true): imenik torej
+     * dela, omrezje te naprave tudi. Brez odgovora (null) je lahko odpovedalo omrezje - takrat kanal ostane.
+     */
+    fun mrtevGostitelj(imeObstaja: Boolean?, kontrola: Boolean?): Boolean = imeObstaja == false && kontrola == true
+
+    /**
+     * Izid sonde toka po odgovoru streznika [http]: true = tok je (2xx), false = toka pri viru ni (iste kode kot pri
+     * predvajanju, [mrtevKanal]), null = ne vemo (omejitev, prijava, napaka streznika, preusmeritev brez cilja).
+     */
+    fun sondaPoOdgovoru(http: Int): Boolean? = when {
+        http in 200..299 -> true
+        mrtevKanal(2004, http) -> false
+        else -> null
+    }
+
+    /** Rok za povezavo do streznika kanala ali postaje v zivo (privzeto v predvajalniku: 8 s). */
+    const val ROK_POVEZAVE_V_ZIVO_MS = 5_000
+    /** Kako dolgo velja odgovor imenika o delujocem omrezju za streznik, ki se ne odziva. */
+    const val KONTROLA_VELJA_MS = 3_000L
+
+    /**
+     * Streznik toka se ne odziva (casovna omejitev, zavrnjena povezava, ni poti), kanal pa se se ni zacel. Mrtev je,
+     * kadar je imenik isti hip odgovoril za kontrolno ime ([kontrola] == true): omrezje te naprave torej dela, ne
+     * odziva se streznik. Med predvajanjem ([zacelo]) kratek izpad ni dokaz.
+     */
+    fun mrtevNeodziven(zacelo: Boolean, kontrola: Boolean?): Boolean = !zacelo && kontrola == true
+
+    /** Ime gostitelja iz sporocila sistema »Unable to resolve host "ime": ...« ali "". */
+    fun gostiteljIzNapake(sporocilo: String?): String =
+        Regex("resolve host \"([^\"]+)\"").find(sporocilo.orEmpty())?.groupValues?.get(1)?.trim()?.lowercase().orEmpty()
+
     /**
      * Id kartice kanala. Predvajana enota dodatka ima za id-jem kartice se »#<stevilka toka>« (izbrani tok); torrent
      * (»#t...«) in drugi id-ji ostanejo, kot so.
