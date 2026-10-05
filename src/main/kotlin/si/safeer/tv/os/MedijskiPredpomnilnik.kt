@@ -67,15 +67,19 @@ object MedijskiPredpomnilnik {
     }
 
     /** Zadnje shranjene police razdelka ali null. */
-    fun beriPolice(c: Context, kljuc: String): List<Triple<String, Boolean, List<Jamendo.Skladba>>>? = try {
+    fun beriPolice(c: Context, kljuc: String): List<Triple<String, Boolean, List<Jamendo.Skladba>>>? = beriPoliceSCasom(c, kljuc)?.second
+
+    /** Zadnje shranjene police razdelka s casom, ko so bile shranjene (System.currentTimeMillis; 0 = neznan), ali null. */
+    fun beriPoliceSCasom(c: Context, kljuc: String): Pair<Long, List<Triple<String, Boolean, List<Jamendo.Skladba>>>>? = try {
         val datoteka = File(mapaSeznamov(c), odtis(kljuc) + ".json")
         if (!datoteka.isFile) null else {
-            val a = JSONObject(datoteka.readText()).getJSONArray("police")
+            val o = JSONObject(datoteka.readText())
+            val a = o.getJSONArray("police")
             List(a.length()) { i ->
                 val p = a.getJSONObject(i)
                 val s = p.optJSONArray("skladbe") ?: JSONArray()
                 Triple(p.optString("naslov"), p.optBoolean("video"), List(s.length()) { skladbaIzJson(s.getJSONObject(it)) })
-            }.takeIf { it.isNotEmpty() }
+            }.takeIf { it.isNotEmpty() }?.let { o.optLong("cas") to it }
         }
     } catch (_: Exception) { null }
 

@@ -214,6 +214,9 @@ object MedijskiViri {
      * znova). Datoteke z naprav ne - njihov naslov velja samo za trenutno povezavo Safeer Linka.
      */
     fun shranljiva(s: Jamendo.Skladba): Boolean {
+        // Vgrajeni kanal v zivo ima vrsto vsebine (HLS) kot datoteka z naprave, a je spletni prenos: gre med nazadnje
+        // predvajane in priljubljene (izmerjeno 5. 10. 2026: predvajan vgrajeni kanal ni bil »Nazadnje predvajano«).
+        if (s.id.startsWith("tv:") && s.zvok.startsWith("https://")) return true
         val naprava = s.mime.isNotBlank() && s.mime != STRAN && s.streznik.isBlank()
         // Glasba s spletnega vira (stran posnetka) in uvozene skladbe: shranimo stran, tok poiscemo ob predvajanju.
         if (UvozSeznama.jeIskana(s) || (SpletniVir.jeEnota(s) && !s.video && s.povezava.startsWith("https://"))) return true
@@ -230,7 +233,17 @@ object MedijskiViri {
         else -> s
     }
 
-    fun priljubljene(ctx: Context): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, PRILJUBLJENE))
+    /**
+     * Shranjen vgrajeni kanal (»tv:«) velja po trenutnem seznamu vgrajenih kanalov: ime in naslov prenosa se s
+     * posodobitvijo aplikacije lahko spremenita, shranjena kopija pa ne. Kanal, ki ga v seznamu ni vec, ostane, kot je.
+     */
+    private fun osveziVgrajene(s: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
+        if (s.none { it.id.startsWith("tv:") }) return s
+        val vgrajeni = try { TvVZivo.kanali().associate { it.skladba.id to it.skladba } } catch (_: Exception) { emptyMap() }
+        return s.map { if (it.id.startsWith("tv:")) vgrajeni[it.id] ?: it else it }
+    }
+
+    fun priljubljene(ctx: Context): List<Jamendo.Skladba> = osveziVgrajene(beriSkladbe(beri(ctx, PRILJUBLJENE)))
 
     fun jePriljubljena(ctx: Context, s: Jamendo.Skladba) = priljubljene(ctx).any { it.id == s.id }
 
@@ -368,8 +381,8 @@ object MedijskiViri {
         // Naslovov dodatka, ki ga uporabnik nima vec, ne kazemo (ne dajo se predvajati).
         val dodatki = vsi(ctx).filter { it.jeStremio }.map { it.naslov }
         // Kanala ali postaje, ki ta cas pri viru ne dela ([MrtviKanali]), ne ponujamo za nadaljevanje.
-        return beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }
-            .filterNot { Stremio.jeZasebna(it) || Stremio.brezDodatka(it, dodatki) || MrtviKanali.jeMrtev(ctx, it.id) }.take(MAX_NEDAVNO)
+        return osveziVgrajene(beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }
+            .filterNot { Stremio.jeZasebna(it) || Stremio.brezDodatka(it, dodatki) || MrtviKanali.jeMrtev(ctx, it.id) }.take(MAX_NEDAVNO))
     }
 
     fun odstraniNedavno(ctx: Context, s: Jamendo.Skladba) =

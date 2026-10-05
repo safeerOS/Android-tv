@@ -260,6 +260,28 @@ object OsPravila {
         return spredaj + novi.filter { id(it) !in videni }
     }
 
+    /** Kako dolgo polica, ki je vir tokrat ni dal, ostane iz zadnjega znanega pogleda razdelka. */
+    const val POLICA_OSTANE_MS = 24 * 3_600_000L
+
+    /**
+     * Sveze police razdelka, dopolnjene s policami zadnjega znanega pogleda ([stare]), ki jih [sveze] tokrat nimajo (vir
+     * obcasno ne odgovori - polica zato ne sme izginiti in se naslednjic vrniti). Manjkajoca polica pride za svojo
+     * prejsnjo sosedo; vrstni red svezih ostane. Brez manjkajocih vrne [sveze] (isti seznam).
+     */
+    fun <T> dopolniPolice(stare: List<T>, sveze: List<T>, naslov: (T) -> String): List<T> {
+        val imena = sveze.map(naslov).toHashSet()
+        if (stare.all { naslov(it) in imena }) return sveze
+        val izid = ArrayList(sveze)
+        var za = -1
+        for (p in stare) {
+            val i = izid.indexOfFirst { naslov(it) == naslov(p) }
+            if (i >= 0) { za = i; continue }
+            izid.add(za + 1, p)
+            za++
+        }
+        return izid
+    }
+
     // ------------------------------------------------------------------ stranska vrstica ob vgrajenem brskalniku
 
     /** Kaj naredi tipka daljinca, ko je fokus v stranski vrstici Safeer OS in je vsebina vgrajeni brskalnik. */

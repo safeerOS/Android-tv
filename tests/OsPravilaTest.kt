@@ -160,6 +160,20 @@ private fun preizkusGlasbenegaImena() {
         preveri("ni glasbeno ime: »$ime«", !OsPravila.glasbenoIme(ime))
 }
 
+private fun preizkusPolic() {
+    println("\n== police razdelka: vir, ki tokrat ne odgovori ==")
+    fun dop(stare: String, sveze: String) = OsPravila.dopolniPolice(stare.map { it.toString() }, sveze.map { it.toString() }) { it }.joinToString("")
+    preveriEnako("prva polica manjka: ostane spredaj", "abc", dop("abc", "bc"))
+    preveriEnako("srednja polica manjka: ostane med sosedama", "abc", dop("abc", "ac"))
+    preveriEnako("zadnja polica manjka: ostane zadaj", "abc", dop("abc", "ab"))
+    preveriEnako("nic ne manjka: sveze, kot so (tudi nova polica)", "abd", dop("ab", "abd"))
+    preveriEnako("nov vrstni red svezih ostane, manjkajoca pride za prejsnjo sosedo", "cab", dop("abc", "ca"))
+    preveriEnako("dve manjkata zapored", "abcd", dop("abcd", "ad"))
+    preveriEnako("brez starega pogleda: sveze", "ab", dop("", "ab"))
+    val sveze = listOf("a", "b")
+    preveri("nic ne manjka: vrne isti seznam (klicatelj po tem loci popoln pogled)", OsPravila.dopolniPolice(listOf("a"), sveze) { it } === sveze)
+}
+
 private fun preizkusStabilnegaReda() {
     println("\n== mreza se dopolnjuje brez premescanja ==")
     fun red(naZaslonu: String, novi: String) = OsPravila.stabilenRed(naZaslonu.map { it.toString() }, novi.map { it.toString() }) { it }.joinToString("")
@@ -231,6 +245,7 @@ fun main() {
     preizkusKanalov()
     preizkusLogotipa()
     preizkusStabilnegaReda()
+    preizkusPolic()
     preizkusGlasbenegaImena()
     preizkusTipkMenija()
     preizkusIkonNaprav()

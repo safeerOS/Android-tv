@@ -1339,13 +1339,19 @@ class GlasbaActivity : OsActivity() {
         // (branje in razclenjevanje JSON-a z diska je na televizorju trajalo do pol sekunde na glavni niti).
         narisi(zgoraj(i), getString(R.string.os_glasba_nalagam), getString(R.string.os_glasba_nalagam), glavaRazdelka(i))
         delavec.execute {
-            val zDiska = try { MedijskiPredpomnilnik.beriPolice(this, kljucDiska)?.map { (n, v, s) -> Podatki(n, s, v) } } catch (_: Exception) { null }
+            val sCasom = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljucDiska) } catch (_: Exception) { null }
+            val zDiska = sCasom?.second?.map { (n, v, s) -> Podatki(n, s, v) }
             if (zDiska != null) glavna.post { if (moje == nalaganje && !isFinishing) prikazi(i, zDiska) }
-            val podatki = try {
+            val sveze = try {
                 podatkiRazdelka(i).map { it.copy(skladbe = razvrsti(i, it.skladbe)) }
             } catch (_: Exception) { null }
-            val polni = podatki != null && podatki.isNotEmpty() && podatki.all { it.skladbe.isNotEmpty() }
-            if (polni) MedijskiPredpomnilnik.shraniPolice(this, kljucDiska, podatki!!.map { Triple(it.naslov, it.video, it.skladbe) })
+            val polni = sveze != null && sveze.isNotEmpty() && sveze.all { it.skladbe.isNotEmpty() }
+            // Vir, ki obcasno ne odgovori (izmerjeno 5. 10. 2026: lestvica glasbe), ne sme umakniti police, ki jo uporabnik
+            // pozna, in je naslednjic vrniti: sveze police dopolnimo s tistimi z diska, ki jih tokrat ni - dokler je pogled
+            // z diska mlajsi od enega dne. Na disk gre samo popoln svez pogled, zato se ta rok ne podaljsuje sam.
+            val diskVelja = sCasom != null && System.currentTimeMillis() - sCasom.first in 0 until OsPravila.POLICA_OSTANE_MS
+            val podatki = if (polni && zDiska != null && diskVelja) OsPravila.dopolniPolice(zDiska, sveze!!) { it.naslov } else sveze
+            if (polni && podatki === sveze) MedijskiPredpomnilnik.shraniPolice(this, kljucDiska, sveze!!.map { Triple(it.naslov, it.video, it.skladbe) })
             glavna.post {
                 if (moje != nalaganje || isFinishing) return@post
                 if (podatki == null) {
@@ -1358,15 +1364,16 @@ class GlasbaActivity : OsActivity() {
                 // Pogled z diska je na zaslonu: znova ga narisemo samo, ce so police druge (nov vir, nova polica). Kadar se je
                 // vsebina istih polic le premesala (lestvica priljubljenih), sveze pocaka na naslednji obisk razdelka -
                 // uporabnik osvezevanja v ozadju ne sme cutiti (lastnik, 5. 10. 2026; izmerjeno: polno risanje 3 s po odprtju).
-                if (zDiska != null && (!polni || istePolice(zDiska, podatki))) return@post
+                dnevnikMreze { "police razdelka $i: z diska=${zDiska?.map { it.naslov.take(28) + "(" + it.skladbe.size + ")" }}, " +
+                    "sveze=${sveze?.map { it.naslov.take(28) + "(" + it.skladbe.size + ")" }}, polni=$polni, dopolnjene=${podatki !== sveze}, disk velja=$diskVelja" }
+                // Pogled z diska je na zaslonu in ostane: sveze police (nova, umaknjena ali premesana polica) pocakajo na
+                // naslednji obisk razdelka - uporabnik osvezevanja v ozadju ne sme cutiti (lastnik, 5. 10. 2026; izmerjeno:
+                // polno risanje 3,5 s po odprtju, polica izgine ali se pojavi).
+                if (zDiska != null) return@post
                 prikazi(i, podatki)
             }
         }
     }
-
-    /** Sveze police so za uporabnika iste kot prikazane: iste police v istem vrstnem redu (vsebina se sme razlikovati). */
-    private fun istePolice(a: List<Podatki>, b: List<Podatki>): Boolean =
-        a.size == b.size && a.indices.all { a[it].naslov == b[it].naslov && a[it].video == b[it].video }
 
     /** Kljuc polic na disku loci tudi vse zacasne poglede, da se med seboj ne pomesajo. */
     private fun kljucPolic(i: Int): String {
@@ -2365,6 +2372,8 @@ class GlasbaActivity : OsActivity() {
         mrezaKanalov = m
         // Nic cakanja: zadnja znana mreza te izbire je na zaslonu takoj; sveza jo zamenja le, ce je drugacna.
         KANALI_MREZE[m.kljuc]?.let { (d, k) -> m.domaci += d; m.kanali += k; m.videni += (d + k).map { it.id } }
+        // Vrstni red, kot ga je uporabnik pri tej izbiri nazadnje videl: ob vrnitvi so kanali na istih mestih.
+        KANALI_RED["${m.kljuc}|${razvrstitev(TV_V_ZIVO)}"]?.let { m.narisani = it }
         drsnik.scrollTo(0, 0)
         narisiKanale(m)
         // Pred prvo postavitvijo sirine se ne poznamo: ko je znana, mrezo narisemo se enkrat s pravim stevilom ploscic v vrsti.
@@ -2650,7 +2659,9 @@ class GlasbaActivity : OsActivity() {
         // Kar uporabnik ze vidi, ostane na svojem mestu; novo preverjeni kanali pridejo za tem (pri razvrstitvi po imenu
         // velja abeceda). Brez tega bi se kanali dodatkov vrivali med ze narisane vgrajene.
         val vsiPoVrsti: List<Jamendo.Skladba> = vsi
-        val prikaz = if (razvrstitev(TV_V_ZIVO) == RAZVRSTI_IME_AZ) vsiPoVrsti else OsPravila.stabilenRed(m.narisani, vsiPoVrsti) { it.id }
+        // Priljubljeni kanali so vedno spredaj (tudi tisti, ki ga je uporabnik pravkar dodal med priljubljene).
+        val prikaz = if (razvrstitev(TV_V_ZIVO) == RAZVRSTI_IME_AZ) vsiPoVrsti
+            else OsPravila.stabilenRed(m.narisani, vsiPoVrsti) { it.id }.let { s -> s.filter { it.id in vednoId } + s.filterNot { it.id in vednoId } }
         // Poizvedbe samo, dokler je proracun tega uporabnikovega dejanja; potem caka gumb »Naloži več«.
         if (m.proracun <= 0) caka = false else zaPreverjanje.forEach { preveriKanal(m, it) }
         m.caka = caka; m.naprej = naprej || (zaPreverjanje.isNotEmpty() && m.proracun <= 0)
@@ -2674,19 +2685,27 @@ class GlasbaActivity : OsActivity() {
         // Gumb »Naloži več« sele, ko so odgovorili vsi viri prve strani in preverjanje miruje (prej dotik ne bi naredil nicesar).
         // Kadar gremo po naslednjo stran sami, gumba ni (prej se je za hip pokazal in izginil - izmerjeno 5. 10. 2026).
         val vec = (m.seKaj || m.naprej) && !m.nalagam && !caka && !samNalagam && prikaz.isNotEmpty()
-        val podpis = "${prikaz.map { it.id }.hashCode()}|$vec|$opis|${System.identityHashCode(FILTRI_KANALOV)}|${razvrstitev(TV_V_ZIVO)}|${vsebina.width}"
+        val podpis = "${prikaz.map { it.id }.hashCode()}|$vec|$opis|${podpisFiltrovKanalov()}|${razvrstitev(TV_V_ZIVO)}|${vsebina.width}"
         if (podpis == m.podpis) { if (stanje.text.toString() != opis) stanje.text = opis; return }
         m.podpis = podpis
         m.narisani = prikaz.map { it.id }
+        KANALI_RED["${m.kljuc}|${razvrstitev(TV_V_ZIVO)}"] = m.narisani
         // (tvIkone ne praznimo: pogledi vgrajenih kanalov ostanejo isti in morajo ostati prijavljeni za osvezitev ikon.)
         val kartice = videi(prikaz) + (if (vec) listOf(Kartica(getString(R.string.os_media_nalozi_vec), "", "",
             { vecKanalov(m) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
         pokaziMrezo(m, Vrsta("", kartice, video = true, mreza = true, kanali = true), opis,
-            "${m.zvrst}|${m.jezik}|${razvrstitev(TV_V_ZIVO)}|${System.identityHashCode(FILTRI_KANALOV)}|${ozekZaslon()}") {
+            "${m.zvrst}|${m.jezik}|${razvrstitev(TV_V_ZIVO)}|${podpisFiltrovKanalov()}|${ozekZaslon()}") {
             (if (vlc) emptyList() else listOf(razdelkiVrstica(TV_V_ZIVO))) + listOf(kanaliIzbire(m))
         }
         TvVZivo.osveziIkone(this) { osveziTvIkone() }
     }
+
+    /**
+     * Od cesar je odvisna glava mreze kanalov: moznosti izbir (zvrsti, jeziki), ne predmet, ki jih nosi - vsako nalaganje
+     * katalogov naredi novega z isto vsebino, glava pa se zato ne sme narisati znova.
+     */
+    private fun podpisFiltrovKanalov(): Int =
+        FILTRI_KANALOV?.let { f -> (f.zvrsti.map { it.kljuc + "|" + it.ime } to f.jeziki.map { it.kljuc }).hashCode() } ?: 0
 
     /** Izbire mreze kanalov: [Vse zvrsti ▾] [Vsi jeziki ▾] [Priporoceno ▾]. Moznosti dajo katalogi dodatkov in vgrajeni kanali. */
     private fun kanaliIzbire(m: MrezaKanalov): View {
@@ -3537,7 +3556,15 @@ class GlasbaActivity : OsActivity() {
             else -> ""
         }
         val slika = pSlika
-        if (slika != null && sk.slika != pSlikaNaslov) {
+        // Vgrajeni kanal nima slike v podatkih: njegov logotip je shranjen posebej ([TvVZivo.ikona], brez omrezja).
+        val vgrajenBrezSlike = sk.id.startsWith("tv:") && sk.slika.isBlank()
+        if (slika != null && vgrajenBrezSlike) {
+            if (pSlikaNaslov != sk.id) TvVZivo.ikona(this, sk.id.removePrefix("tv:"))?.let {
+                pSlikaNaslov = sk.id
+                slika.scaleType = ImageView.ScaleType.FIT_CENTER
+                slika.setImageDrawable(it)
+            }
+        } else if (slika != null && sk.slika != pSlikaNaslov) {
             pSlikaNaslov = sk.slika
             // Logotip kanala ali postaje pokazemo cel (obrezan je izgubil prvo crko - izmerjeno 5. 10. 2026);
             // naslovnice in plakati zapolnijo okvir.
@@ -3989,7 +4016,8 @@ class GlasbaActivity : OsActivity() {
             }
         }
         // Svoj seznam predvajanja: skladbo dodas na obstojecega ali novega (ne samo "shrani vso vrsto").
-        if (SeznamOkno.mozno(sk)) dejanja += getString(R.string.os_seznam_dodaj) to { dodajNaSeznam(sk) }
+        // Kanal v zivo ni skladba za seznam predvajanja: zanj so priljubljeni (zgoraj).
+        if (SeznamOkno.mozno(sk) && !sk.id.startsWith("tv:")) dejanja += getString(R.string.os_seznam_dodaj) to { dodajNaSeznam(sk) }
         if (seznam != null) dejanja += getString(R.string.os_seznam_odstrani_skladbo) to {
             MedijskiViri.odstraniSSeznama(this, seznam.ime, sk); SEZNAMI.remove(DOMOV); osveziPriljubljene()
         }
@@ -4000,7 +4028,7 @@ class GlasbaActivity : OsActivity() {
                 .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene() }
                 .setNegativeButton(android.R.string.cancel, null))
             Unit
-        } else if (vrsta.count { MedijskiViri.shranljiva(it) } > 1) dejanja += getString(R.string.os_mediji_shrani_seznam) to {
+        } else if (vrsta.count { MedijskiViri.shranljiva(it) && !it.id.startsWith("tv:") } > 1) dejanja += getString(R.string.os_mediji_shrani_seznam) to {
             val sz = MedijskiViri.shraniSeznam(this, ime.ifBlank { sk.izvajalec.ifBlank { getString(R.string.os_mediji_moja_vrsta) } }, vrsta)
             if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
             osveziPriljubljene()
@@ -6461,6 +6489,8 @@ class GlasbaActivity : OsActivity() {
         private var tvJezik = ""
         @Volatile private var FILTRI_KANALOV: KanaliPravila.Filtri? = null
         private val KANALI_MREZE = java.util.concurrent.ConcurrentHashMap<String, Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>>>()
+        /** Vrstni red kanalov (id-ji), kot ga je uporabnik pri izbiri »zvrst|jezik|razvrstitev« nazadnje videl - samo v pomnilniku. */
+        private val KANALI_RED = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
         /** Kanali zasebnih kategorij dodatkov (kljuc virov, id-ji): samo v pomnilniku. */
         @Volatile private var ZASEBNI_KANALI: Pair<String, Set<String>>? = null
         /** Imena znanih kategorij kanalov ([KanaliPravila.KLJUCI_KATEGORIJ]). */
