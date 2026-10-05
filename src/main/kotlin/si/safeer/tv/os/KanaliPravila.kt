@@ -122,6 +122,20 @@ object KanaliPravila {
     /** Ime kanala brez tehnicnih pripon seznamov IPTV (»(720p)«, »[Not 24/7]«): tako se isti kanal v dveh locljivostih zdruzi v eno kartico. */
     fun imeKanala(ime: String): String = ime.replace(RX_LOCLJIVOST, "").replace(RX_OPOMBA, "").trim().ifBlank { ime.trim() }
 
+    private val RX_NI_V_IMENU = Regex("[^\\p{L}\\p{N}+]+")
+    private val RX_PRED_PLUSOM = Regex(" +\\+")
+    private val RX_KAKOVOST = Regex("(?:^| )(?:hd|fhd|uhd|sd|4k|8k|hevc|h265|h264|\\d{3,4}[pi])(?= |$)")
+
+    /**
+     * Kljuc, po katerem sta dva vnosa isti kanal: ime brez tehnicnih pripon ([imeKanala]), locil, presledkov in oznak
+     * kakovosti, z malimi crkami. Vse drugo je del imena: kanal s plusom, drugo stevilko, dodatno besedo ali drugim
+     * vsebinskim oklepajem je drug kanal. Vec vnosov z istim imenom (vec povezav istega kanala ali dogodka) je en kanal.
+     */
+    fun kljucImena(ime: String): String {
+        val c = imeKanala(ime).lowercase(java.util.Locale.ROOT).replace(RX_NI_V_IMENU, " ").replace(RX_PRED_PLUSOM, "+").trim()
+        return c.replace(RX_KAKOVOST, "").trim().ifEmpty { c }.replace(" ", "")
+    }
+
     fun filtri(katalogi: List<Katalog>): Filtri {
         val splosni = ArrayList<Vir>()
         val zasebni = ArrayList<Vir>()

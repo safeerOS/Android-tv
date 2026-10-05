@@ -260,6 +260,17 @@ object OsPravila {
         return spredaj + novi.filter { id(it) !in videni }
     }
 
+    /**
+     * Razlicice iste vsebine, urejene od najboljse ([poOceni]): razlicica, ki je ze na zaslonu kot kartica ([naZaslonu],
+     * id-ji kartic), ostane prva - kartica se ne zamenja, ko je pozneje potrjena boljsa razlicica. Ostale ostanejo za
+     * njo po kakovosti. Brez spremembe vrne [poOceni] (isti seznam).
+     */
+    fun <T> stalnaGlava(poOceni: List<T>, naZaslonu: Set<String>, id: (T) -> String): List<T> {
+        if (naZaslonu.isEmpty() || poOceni.size < 2) return poOceni
+        val i = poOceni.indexOfFirst { id(it) in naZaslonu }
+        return if (i <= 0) poOceni else listOf(poOceni[i]) + poOceni.filterIndexed { j, _ -> j != i }
+    }
+
     /** Kako dolgo polica, ki je vir tokrat ni dal, ostane iz zadnjega znanega pogleda razdelka. */
     const val POLICA_OSTANE_MS = 24 * 3_600_000L
 

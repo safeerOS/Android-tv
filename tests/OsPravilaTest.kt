@@ -185,6 +185,20 @@ private fun preizkusStabilnegaReda() {
     preveriEnako("podvojen id v viru: ostane prvi", "ab", red("a", "aba").let { it.toList().distinct().joinToString("") })
 }
 
+private fun preizkusStalneGlave() {
+    println("\n== kartica zdruzene vsebine se ne zamenja ==")
+    fun glava(poOceni: String, naZaslonu: String) =
+        OsPravila.stalnaGlava(poOceni.map { it.toString() }, naZaslonu.map { it.toString() }.toSet()) { it }.joinToString("")
+    preveriEnako("nic se ni na zaslonu: najboljsa razlicica je prva", "abc", glava("abc", ""))
+    preveriEnako("na zaslonu je najboljsa: red ostane", "abc", glava("abc", "a"))
+    preveriEnako("na zaslonu je najslabsa: ostane kartica, ostale za njo po kakovosti", "cab", glava("abc", "c"))
+    preveriEnako("pozneje potrjena boljsa razlicica kartice ne prevzame", "bac", glava("abc", "b"))
+    preveriEnako("na zaslonu ni nobene od teh razlicic: najboljsa je prva", "abc", glava("abc", "xy"))
+    preveriEnako("ena sama razlicica", "a", glava("a", "a"))
+    val red = listOf("a", "b")
+    preveri("brez spremembe vrne isti seznam", OsPravila.stalnaGlava(red, setOf("a")) { it } === red)
+}
+
 private fun preizkusLogotipa() {
     println("\n== logotip kanala ==")
     val prozoren = 0x00000000; val crn = 0xFF101010.toInt(); val bel = 0xFFF0F0F0.toInt(); val rdec = 0xFFE02020.toInt()
@@ -245,6 +259,7 @@ fun main() {
     preizkusKanalov()
     preizkusLogotipa()
     preizkusStabilnegaReda()
+    preizkusStalneGlave()
     preizkusPolic()
     preizkusGlasbenegaImena()
     preizkusTipkMenija()

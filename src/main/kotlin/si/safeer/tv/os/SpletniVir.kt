@@ -158,9 +158,20 @@ object SpletniVir {
     private fun istiVir(a: Jamendo.Skladba, b: Jamendo.Skladba): Boolean =
         if (a.povezava.isBlank() || b.povezava.isBlank()) a.id == b.id else a.povezava == b.povezava
 
+    /** Kanal v zivo: vgrajen (tv:) ali vnos dodatka vrste TV. */
+    private fun jeKanal(s: Jamendo.Skladba) = s.id.startsWith("tv:") || Stremio.jeVZivo(s)
+    private val kljuciKanalov = android.util.LruCache<String, String>(2000)
+    private fun kljucKanala(ime: String): String = kljuciKanalov.get(ime) ?: KanaliPravila.kljucImena(ime).also { kljuciKanalov.put(ime, it) }
+
     fun zdruzljiva(a: Jamendo.Skladba, b: Jamendo.Skladba): Boolean {
         // Prazna povezava pri obeh NI ista vsebina: tako so se vsi vgrajeni kanali TV v zivo zlili v eno kartico.
         if (istiVir(a, b)) return true
+        // Kanala v zivo sta ista samo z istim imenom ([KanaliPravila.kljucImena]): splosno ciscenje naslovov izenaci tudi
+        // kanala, ki se locita po plusu ali besedi (izmerjeno 6. 10. 2026: dva razlicna kanala sta bila ena kartica).
+        // Kanal se z drugo vsebino (film, posnetek) ne zdruzi.
+        val kanalA = jeKanal(a)
+        val kanalB = jeKanal(b)
+        if (kanalA || kanalB) return kanalA && kanalB && kljucKanala(a.naslov) == kljucKanala(b.naslov)
         if (a.imdbId.isNotBlank() && b.imdbId.isNotBlank()) return a.imdbId.equals(b.imdbId, ignoreCase = true)
         if (a.tmdbId.isNotBlank() && b.tmdbId.isNotBlank()) return a.tmdbId.equals(b.tmdbId, ignoreCase = true)
 
@@ -221,12 +232,18 @@ object SpletniVir {
         k += if (s.povezava.isNotBlank()) "u:" + s.povezava else "id:" + s.id
         if (s.imdbId.isNotBlank()) k += "i:" + s.imdbId.lowercase()
         if (s.tmdbId.isNotBlank()) k += "t:" + s.tmdbId.lowercase()
+        // Kanal v zivo se primerja samo s kanali z istim kljucem imena ([zdruzljiva]).
+        if (jeKanal(s)) { k += "k:" + kljucKanala(s.naslov); return k }
         cistNaslov(s.naslov).takeIf { it.isNotBlank() }?.let { k += "n:$it" }
         if (s.izvajalec.isNotBlank()) cistNaslov("${s.izvajalec} ${s.naslov}").takeIf { it.isNotBlank() }?.let { k += "n:$it" }
         return k
     }
 
-    fun zdruziEnako(v: List<Jamendo.Skladba>): List<List<Jamendo.Skladba>> {
+    /**
+     * [stalne]: id-ji razlicic, ki so ze na zaslonu kot kartice - taka razlicica ostane glava svoje skupine
+     * ([OsPravila.stalnaGlava]), da se kartica ne zamenja, ko je pozneje potrjena boljsa razlicica iste vsebine.
+     */
+    fun zdruziEnako(v: List<Jamendo.Skladba>, stalne: Set<String> = emptySet()): List<List<Jamendo.Skladba>> {
         val grupe = mutableListOf<MutableList<Jamendo.Skladba>>()
         val poKljucu = HashMap<String, MutableList<Int>>()   // kljuc -> indeksi grup, ki ga vsebujejo
         for (item in v) {
@@ -246,7 +263,7 @@ object SpletniVir {
             }
         }
         return grupe.map { kandidati ->
-            val urejeni = najboljsiKandidati(kandidati)
+            val urejeni = OsPravila.stalnaGlava(najboljsiKandidati(kandidati), stalne) { it.id }
             val glava = urejeni.first()
             val jeVideo = urejeni.any { it.video } || vrstaVsebine(glava) == FILM || vrstaVsebine(glava) == SERIJA
             val najboljsa = glava.copy(

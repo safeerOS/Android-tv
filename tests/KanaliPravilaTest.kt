@@ -95,6 +95,20 @@ fun main() {
     preveriEnako("oklepaj, ki ni locljivost, ostane", "Kanal (Maribor)", KanaliPravila.imeKanala("Kanal (Maribor)"))
     preveriEnako("ime iz same pripone ostane", "(720p)", KanaliPravila.imeKanala("(720p)"))
 
+    println("\n== isti kanal ali drug kanal ==")
+    fun isti(a: String, b: String) = KanaliPravila.kljucImena(a) == KanaliPravila.kljucImena(b)
+    preveri("isto ime je isti kanal (vec povezav istega kanala je ena kartica)", isti("Liga Ena", "Liga Ena"))
+    preveri("oznaka kakovosti ne naredi drugega kanala",
+        isti("Kanal Ena HD", "Kanal Ena") && isti("Kanal Ena FHD", "kanal ena (720p)") && isti("Kanal Ena 1080p", "Kanal Ena 4K"))
+    preveri("locila in presledki ne naredijo drugega kanala", isti("Kanal-Ena", "Kanal Ena") && isti("KanalEna", "Kanal Ena"))
+    preveri("plus je del imena: drug kanal", !isti("Kanal", "Kanal+") && !isti("Kanal Ena", "Kanal Ena +1"))
+    preveri("plus s presledkom ali brez je isti kanal", isti("Kanal + Sport", "Kanal+ Sport"))
+    preveri("stevilka je del imena: drug kanal", !isti("Sport 1", "Sport 2"))
+    preveri("beseda je del imena: drug kanal", !isti("Glasba TV", "Glasba TV Live") && !isti("Novice", "Novice Music"))
+    preveri("vsebinski oklepaj je del imena: drug kanal", !isti("Kanal (Maribor)", "Kanal (Ljubljana)"))
+    preveriEnako("ime iz same oznake kakovosti ostane", "hd", KanaliPravila.kljucImena("HD"))
+    preveriEnako("ime s plusom in oznako kakovosti", "a+bmednarodni", KanaliPravila.kljucImena("A+B Mednarodni HD"))
+
     println()
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

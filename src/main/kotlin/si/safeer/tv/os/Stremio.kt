@@ -501,7 +501,14 @@ object Stremio {
     }
 
     /** Stran kataloga (`skip` = koliko vnosov preskociti, kot v Stremiu); obvezni parametri s privzeto moznostjo, iskanje kot `search=`. */
-    fun katalog(k: Katalog, iskanje: String = "", skip: Int = 0, zvrst: String = ""): List<Jamendo.Skladba> {
+    fun katalog(k: Katalog, iskanje: String = "", skip: Int = 0, zvrst: String = ""): List<Jamendo.Skladba> =
+        katalogAliIzpad(k, iskanje, skip, zvrst) ?: emptyList()
+
+    /**
+     * Kot [katalog], le da izpad (dodatek ni odgovoril ali je odgovoril z napako streznika, prijave ali omejitve) vrne
+     * null. Prazna stran in »tega nimam« (404) sta odgovor - prazen seznam.
+     */
+    fun katalogAliIzpad(k: Katalog, iskanje: String = "", skip: Int = 0, zvrst: String = ""): List<Jamendo.Skladba>? {
         var pot = "${k.dodatek}/catalog/${enc(k.tip)}/${enc(k.id)}"
         val dodatno = (if (iskanje.isNotBlank()) listOf("search" to iskanje) else emptyList()) +
             // Izbrana zvrst (moznost kataloga, npr. "Comedy") nadomesti privzeto moznost parametra genre.
@@ -509,7 +516,7 @@ object Stremio {
             k.privzeti.filter { it.first != "search" && (zvrst.isBlank() || it.first != "genre") && (iskanje.isBlank() || it.first in k.obvezni) } +
             (if (skip > 0) listOf("skip" to skip.toString()) else emptyList())
         if (dodatno.isNotEmpty()) pot += "/" + dodatno.joinToString("&") { enc(it.first) + "=" + enc(it.second) }
-        val d = json("$pot.json") ?: return emptyList()
+        val d = json("$pot.json") ?: return if (kodaPomeniNima(zadnjaKoda.get() ?: 0)) emptyList() else null
         val a = d.optJSONArray("metas") ?: d.optJSONArray("metasDetailed") ?: return emptyList()
         if (dnevnik() && manifesti[k.dodatek]?.zaseben != true) {
             val prvi = a.optJSONObject(0)
