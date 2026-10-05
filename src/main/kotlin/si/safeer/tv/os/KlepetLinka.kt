@@ -20,6 +20,9 @@ object KlepetLinka {
     const val VRSTA = "safeer"
     const val ZMOZNOST = "chat"
     private const val OBVESTILA = "safeer_sporocila"
+    /** Skupina obvestil Sporocil in obvestilo-povzetek skupine. */
+    private const val SKUPINA = "safeer_sporocila"
+    private const val ID_POVZETKA = 4052
 
     /** Zaslon Sporocila se prijavi, da ob novem sporocilu takoj osvezi prikaz. */
     val poslusalci = CopyOnWriteArraySet<() -> Unit>()
@@ -145,6 +148,17 @@ object KlepetLinka {
 
     class NapakaKlepeta(val koda: String) : Exception(koda)
 
+    /** Pogovor je odprt: njegovo obvestilo izgine. Povzetek skupine gre z zadnjim sporocilom (tudi, ce je ostal sam). */
+    fun umakniObvestilo(c: Context, pogovorId: String? = null) {
+        try {
+            val nm = c.getSystemService(NotificationManager::class.java) ?: return
+            val id = pogovorId?.hashCode()
+            if (id != null) nm.cancel(id)
+            val ostala = nm.activeNotifications.count { it.notification.group == SKUPINA && it.id != ID_POVZETKA && it.id != id }
+            if (ostala == 0) nm.cancel(ID_POVZETKA)
+        } catch (_: Throwable) { }
+    }
+
     private fun obvesti(c: Context, od: String, ime: String, besedilo: String) {
         try {
             val nm = c.getSystemService(NotificationManager::class.java) ?: return
@@ -160,8 +174,20 @@ object KlepetLinka {
             val obvestilo = g.setSmallIcon(R.drawable.os_ikona_sporocila)
                 .setContentTitle(ime).setContentText(besedilo.take(200))
                 .setStyle(android.app.Notification.BigTextStyle().bigText(besedilo.take(1000)))
-                .setContentIntent(pi).setAutoCancel(true).build()
+                .setContentIntent(pi).setAutoCancel(true)
+                // Svoja skupina: brez nje je Android sporocilo zdruzil z obvestili storitev Safeerja in dotik zdruzene
+                // vrstice je odprl Domov namesto pogovora (izmerjeno 5. 10. 2026 na telefonu).
+                .setGroup(SKUPINA).setCategory(android.app.Notification.CATEGORY_MESSAGE).build()
             nm.notify(od.hashCode(), obvestilo)
+            // Povzetek skupine (Android ga pokaze sele pri vec sporocilih): dotik odpre Sporocila.
+            val vsa = PendingIntent.getActivity(c, 0, Intent(c, SporocilaActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            @Suppress("DEPRECATION")
+            val gp = if (Build.VERSION.SDK_INT >= 26) android.app.Notification.Builder(c, OBVESTILA) else android.app.Notification.Builder(c)
+            gp.setSmallIcon(R.drawable.os_ikona_sporocila).setContentTitle(c.getString(R.string.os_meni_sporocila))
+                .setGroup(SKUPINA).setGroupSummary(true).setContentIntent(vsa).setAutoCancel(true)
+            if (Build.VERSION.SDK_INT >= 26) gp.setGroupAlertBehavior(android.app.Notification.GROUP_ALERT_CHILDREN)
+            nm.notify(ID_POVZETKA, gp.build())
         } catch (_: Throwable) {
             // Brez dovoljenja za obvestila sporocilo vseeno ostane v Sporocilih.
         }

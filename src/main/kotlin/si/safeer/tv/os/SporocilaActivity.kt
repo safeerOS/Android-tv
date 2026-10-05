@@ -86,6 +86,8 @@ class SporocilaActivity : OsActivity() {
         super.onStart()
         Ozadje.uporabi(this, koren)
         glavna.post(osvezi)
+        // Povzetek skupine obvestil brez sporocil (uporabnik jih je odmaknil) ne sme ostati sam.
+        KlepetLinka.umakniObvestilo(this)
         // Dokler so Sporocila odprta, drzimo povezavo v Link: klepet z drugih naprav pride takoj.
         if (!LinkUpravitelj.pridobi(this).jeKrajevni()) LinkUpravitelj.pridobi(this).dodaj(linkPoslusalec)
         KlepetLinka.poslusalci.add(obKlepetu)
@@ -544,7 +546,7 @@ class SporocilaActivity : OsActivity() {
         izbran = p
         KlepetLinka.odprtPogovor = p?.takeIf { it.kanalId == KlepetLinka.KANAL }?.id
         if (p != null && p.kanalId == KlepetLinka.KANAL)
-            try { getSystemService(android.app.NotificationManager::class.java)?.cancel(p.id.hashCode()) } catch (_: Throwable) {}
+            KlepetLinka.umakniObvestilo(this, p.id)
         if (!siroko) {
             seznamPlosca.visibility = if (p == null) View.VISIBLE else View.GONE
             pogovorPlosca.visibility = if (p == null) View.GONE else View.VISIBLE
