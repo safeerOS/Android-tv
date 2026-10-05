@@ -224,6 +224,7 @@
     <string name="os_zaslon_ni_racunalnika">Nessun computer in Safeer Link condivide lo schermo. In Safeer Control sul computer attiva \'Schermo per il televisore\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link non è connesso, quindi non c\'è nessun computer da interrogare.</string>
     <string name="os_zaslon_ni_dovoljeno">%1$s non condivide lo schermo. In Safeer Control su quel computer attiva \'Schermo per il televisore\'.</string>
+    <string name="os_zaslon_ni_doma">%1$s al momento non è raggiungibile direttamente. La visualizzazione dello schermo funziona solo sulla stessa rete (a casa), non tramite Global Link.</string>
     <string name="os_zaslon_napaka">Non ha funzionato: %1$s</string>
     <string name="os_zaslon_koncano">Il computer ha terminato la sessione.</string>
     <string name="os_zaslon_ponovno">La connessione è caduta. Riprovo…</string>

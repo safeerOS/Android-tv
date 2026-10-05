@@ -34,7 +34,9 @@ class LinkOdjemalec(private val context: Context) {
                        /** "tv", "tablet", "phone", "linux" ... - kot se naprava predstavi hubu; prazno pri starih. */
                        val platforma: String = "",
                        /** Fizicna naprava (id iz kljuca, polje `device`): sorodniki z istim kljucem imajo isto; prazno brez kljuca. */
-                       val naprava: String = "")
+                       val naprava: String = "",
+                       /** Naprava je na napravi sredisca (polje `here`; starejsa sredisca ga ne posljejo). */
+                       val tukaj: Boolean = false)
 
     companion object {
         private const val TAG = "SafeerOsLink"
@@ -78,6 +80,14 @@ class LinkOdjemalec(private val context: Context) {
     /** Sredisce tece na tej napravi (loopback ali nas naslov): njegov brskalnik se hubu javi s 127.0.0.1. */
     @Volatile var srediceJeTu: Boolean = false
         private set
+
+    /**
+     * Naslov naprave za NEPOSREDNO povezavo (slika zaslona racunalnika); prazno, ce neposredne poti ni.
+     * Surovi [Naprava.naslov] je lahko 127.0.0.1 - naslov naprave pri NJENEM srediscu, ne pri nas
+     * (gl. [si.safeer.tv.cast.HubNaslovi.zaOdjemalca]).
+     */
+    fun naslovZaPovezavo(n: Naprava): String =
+        si.safeer.tv.cast.HubNaslovi.zaOdjemalca(n.naslov, poverilnice?.hubUrl.orEmpty(), srediceJeTu, prekReleja)
 
     /** Povabilo sredisca za QR kodo in 6-mestno kodo (pair.invite.ok): kar naprava potrebuje za prikaz. */
     data class Povabilo(val qrId: String, val skrivnost: String, val odtis: String, val naslov: String, val veljaMs: Long, val pin: String = "")
@@ -477,10 +487,12 @@ class LinkOdjemalec(private val context: Context) {
                     val z = d.optJSONArray("capabilities") ?: JSONArray()
                     val zmoznosti = (0 until z.length()).map { z.optString(it) }
                     seznam.add(Naprava(d.optString("id"), d.optString("name"), d.optString("role", "receiver"), zmoznosti, d.optString("ip"),
-                        d.optString("platform"), d.optString("device")))
+                        d.optString("platform"), d.optString("device"), d.optBoolean("here", false)))
                 }
-                // Sredisce je naprava z loopback naslovom (tako ga prepozna tudi stran Linka).
-                imeSredisca = seznam.firstOrNull { it.naslov == "127.0.0.1" || it.naslov == "::1" }?.ime
+                // Sredisce je naprava, ki jo sredisce samo oznaci kot svojo (`here`). Starejsa sredisca oznake nimajo:
+                // tam velja naprava z loopback naslovom (tako ga prepozna tudi stran Linka).
+                imeSredisca = seznam.firstOrNull { it.tukaj }?.ime
+                    ?: seznam.firstOrNull { it.naslov == "127.0.0.1" || it.naslov == "::1" }?.ime
                     ?: seznam.firstOrNull { it.id.startsWith("tv-") }?.ime ?: imeSredisca
                 naprave = seznam
                 glavna.post { poslusalec?.naNaprave(seznam) }

@@ -229,7 +229,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun racunalnikZZaslonom(): LinkOdjemalec.Naprava? {
         val vsi = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
         val zeleni = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
-        return if (zeleni.isNullOrBlank()) vsi.firstOrNull() else vsi.firstOrNull { it.id == zeleni }
+        // Brez izbire ima prednost racunalnik z naslovom: tisti, ki je dosegljiv samo prek Global Linka, slike ne da.
+        return if (zeleni.isNullOrBlank()) vsi.firstOrNull { link.odjemalec.naslovZaPovezavo(it).isNotBlank() } ?: vsi.firstOrNull()
+        else vsi.firstOrNull { it.id == zeleni }
     }
 
     /**
@@ -246,6 +248,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (r == null) {
             pokazi(getString(
                 if (!link.povezan) R.string.os_zaslon_ni_povezave else R.string.os_zaslon_ni_racunalnika))
+            return
+        }
+        if (link.odjemalec.naslovZaPovezavo(r).isBlank()) {
+            // Slika gre neposredno z racunalnika. Brez njegovega naslova (dosegljiv je samo prek Global Linka) ga ne
+            // prosimo: racunalnik bi zaman odprl vrata in cakal na nas.
+            val razlog = getString(R.string.os_zaslon_ni_doma, r.ime.ifBlank { r.id })
+            if (ponovnoOd != 0L) ponoviAliKoncaj(razlog) else pokazi(razlog)
             return
         }
         racunalnik = r
@@ -333,8 +342,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         povecava = false
         vlecem = false
         uravnajRazmerje(slikaW, slikaH)
-        val naslov = r.naslov.ifBlank { "" }
-        if (naslov.isBlank()) { pokazi(getString(R.string.os_zaslon_napaka, "ni naslova")); return }
+        // Ne surovi naslov iz seznama: ta je lahko 127.0.0.1 - racunalnik pri SVOJEM srediscu, ne pri nas.
+        val naslov = link.odjemalec.naslovZaPovezavo(r)
+        if (naslov.isBlank()) { pokazi(getString(R.string.os_zaslon_ni_doma, r.ime.ifBlank { r.id })); return }
         odjemalec?.ustavi()
         val o = ZaslonOdjemalec(
             naslov, podatki.optInt("port"), podatki.optString("fp"), podatki.optString("token"),

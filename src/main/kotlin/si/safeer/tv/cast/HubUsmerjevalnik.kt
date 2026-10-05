@@ -362,6 +362,10 @@ class HubUsmerjevalnik(
 
     private fun krajevniNaslovHuba(): String = naslovZaQr
 
+    /** Nas naslov na poti do soseda z danim IP ("" = neznan). Zamenljivo, da preizkus ne odpira vticnic. */
+    @Volatile
+    internal var nasNaslovProti: (String) -> String = { HubNaslovi.nasProti(it) }
+
     /** Kode, ki smo jih razposlali clanom (pair.code); ko prijave ni vec, jim povemo (pair.done). */
     private val razposlaneKode = mutableSetOf<String>()
 
@@ -1115,23 +1119,29 @@ class HubUsmerjevalnik(
 
     // ------------------------------------------------------------------ register naprav
 
-    private fun napraveJson(): String {
+    /** [nasNaslov]: null za odjemalca s te naprave (surov seznam); sicer nas naslov na poti do odjemalca. */
+    private fun napraveJson(nasNaslov: String? = null): String {
         // Vse povezane naprave, z vlogo zraven: "zaslon" (receiver) sprejema strani in videe,
         // deliti (besedilo, datoteka, zaslon) pa je mogoce s katerokoli. Kdo je kaj, odloci
         // vmesnik po polju role, ne Hub s filtriranjem.
-        return register.povezane().joinToString(",", "[", "]") { napravaJson(it) }
+        return register.povezane().joinToString(",", "[", "]") { napravaJson(it, nasNaslov) }
     }
 
-    private fun napravaJson(naprava: RegisterNaprav.Naprava): String {
+    private fun napravaJson(naprava: RegisterNaprav.Naprava, nasNaslov: String? = null): String {
+        // Program s TE naprave ima pri nas 127.0.0.1 in dobi polje `here`. Odjemalcu s te naprave naslov ostane (po
+        // njem prepozna programe svoje naprave); odjemalec od DRUGOD bi se z njim povezal sam nase, zato dobi nas
+        // naslov na poti do njega.
+        val tukaj = naprava.povezava !is Namestnik && naprava.naslov.isNotBlank() && HubNaslovi.samoTukaj(naprava.naslov)
         val zapis = JsonLahki.Zapis()
             .niz("id", naprava.id)
             .niz("name", vzdevek(naprava.id) ?: naprava.ime)
             .niz("own_name", naprava.ime)
             .niz("role", naprava.vloga)
             .seznamNizov("capabilities", naprava.zmoznosti)
-            .niz("ip", naprava.naslov)
+            .niz("ip", if (tukaj && nasNaslov != null) nasNaslov else naprava.naslov)
             .nic("port")
             .stevilo("last_seen", naprava.zadnjic)
+        if (tukaj) zapis.logicno("here", true)
         // Fizicna naprava (kljuc): vmesnik zdruzi sorodnike (brskalnik + Control) v eno napravo.
         napravaIzKljuca(naprava.id)?.let { zapis.niz("device", it) }
         // Protocol v1: model naprave in katalog aplikacij, samo kadar ju naprava pove.
@@ -1478,12 +1488,18 @@ class HubUsmerjevalnik(
 
     private fun jeClan(id: String): Boolean = krog.clanZaId(id) != null
 
-    /** Nase lokalne naprave za sosede: samo clani kroga, brez namestnikov (id -> zapis). */
-    private fun lokalneZaSosede(): String {
+    /**
+     * Nase lokalne naprave za sosede: samo clani kroga, brez namestnikov (id -> zapis).
+     *
+     * [nasNaslov] je nas naslov na poti do soseda, ki mu seznam posiljamo: program s TE naprave (pri nas 127.0.0.1)
+     * gre cez mejo s tem naslovom - gl. [HubNaslovi.zaDruge]. Brez njega (null) ostane zapis surov; tak je samo
+     * kljuc, po katerem vemo, ali se je seznam spremenil.
+     */
+    private fun lokalneZaSosede(nasNaslov: String? = null): String {
         val lokalne = register.povezane().filter { it.povezava !is Namestnik && jeClan(it.id) }.sortedBy { it.id }
         return lokalne.joinToString(",", "{", "}") { n ->
             val z = JsonLahki.Zapis().niz("name", n.ime).niz("role", n.vloga).seznamNizov("capabilities", n.zmoznosti)
-                .niz("ip", n.naslov)
+                .niz("ip", if (nasNaslov == null) n.naslov else HubNaslovi.zaDruge(n.naslov, nasNaslov))
             if (n.protokol.isNotBlank()) z.niz("protocol", n.protokol)
             if (n.platforma.isNotBlank()) z.niz("platform", n.platforma)
             if (n.vrsta.isNotBlank()) z.niz("kind", n.vrsta)
@@ -1529,8 +1545,12 @@ class HubUsmerjevalnik(
             if (samo == null) zadnjiMesh = seznam
             if (samo != null) listOf(samo) else sosedje.values.toList()
         }
-        val sporocilo = sporociloNaprav(lokalne, relay)
-        for (p in prejemniki) posljiVarno(p, sporocilo)
+        // Vsak sosed dobi nas naslov, kot velja na poti do njega; prek releja (Global Link) nobenega.
+        for (p in prejemniki) {
+            val sosed = HubNaslovi.soseda(p.naslov)
+            val nas = if (sosed.isEmpty()) "" else try { nasNaslovProti(sosed) } catch (_: Throwable) { "" }
+            posljiVarno(p, sporociloNaprav(lokalneZaSosede(nas), relay))
+        }
     }
 
     private fun posljiKrogSosedom(razen: Odjemalec?) {
@@ -1643,7 +1663,7 @@ class HubUsmerjevalnik(
             for ((did, par) in zeljene) {
                 val (sosed, z) = par
                 val prej = register.najdi(did)?.povezava
-                val naslov = z.nizAli("ip").take(64)
+                val naslov = HubNaslovi.zaDruge(z.nizAli("ip"), "").take(64)
                 val namestnik = if (prej is Namestnik && prej.posredno && prej.sosedId == sosed) prej
                     else Namestnik(sosed, sosedje.getValue(sosed), did, naslov, posredno = true)
                 register.registriraj(
@@ -1684,6 +1704,7 @@ class HubUsmerjevalnik(
             .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && it != lastniId && jeClan(it) }
         krog.zabeleziStik(novi, ura() / 1000.0)
         val prispeli = ArrayList<Pair<String, Odjemalec>>()
+        val gostitelj = HubNaslovi.soseda(povezava.naslov)
         synchronized(kljucnica) {
             if (sosedje[sosedId] !== povezava) return
             val stari = sosedNaprave[sosedId] ?: mutableSetOf()
@@ -1694,7 +1715,7 @@ class HubUsmerjevalnik(
                 val p = obstojeca?.povezava
                 if (p != null && p !is Namestnik) continue                   // lokalna prijava ima prednost
                 if (p is Namestnik && p.sosedId != sosedId && !p.posredno) continue   // ze neposredno prek drugega soseda
-                val naslov = z.nizAli("ip").take(64)
+                val naslov = HubNaslovi.zaDruge(z.nizAli("ip"), gostitelj).take(64)
                 val namestnik = if (p is Namestnik && p.sosedId == sosedId && !p.posredno) p else Namestnik(sosedId, povezava, did, naslov)
                 register.registriraj(
                     od = namestnik, deviceId = did, ime = z.nizAli("name", did),
@@ -1964,10 +1985,21 @@ class HubUsmerjevalnik(
     fun kategorijeSinhronizacije(): List<String> = synchronized(kljucnica) { sinhronizacija.keys.sorted() }
 
     private fun objaviNaprave() {
-        val sporocilo = ovojnica("cast.devices").surovo("devices", povezaniPrejemniki()).toString()
         // Seznam dobijo vsi povezani, ne le posiljatelji: tudi zaslon mora vedeti, komu lahko
-        // kaj poslje, ker je deljenje dvosmerno.
-        for (povezava in register.povezanePovezave()) if (povezava !is Namestnik) posljiVarno(povezava, sporocilo)
+        // kaj poslje, ker je deljenje dvosmerno. Odjemalci s te naprave dobijo isti (surov) seznam,
+        // odjemalci od drugod svojega - gl. napravaJson.
+        val seznami = HashMap<String?, String>()
+        val nasi = HashMap<String, String>()
+        for (povezava in register.povezanePovezave()) {
+            if (povezava is Namestnik) continue
+            val odKod = HubNaslovi.soseda(povezava.naslov)            // "" = s te naprave (ali neznano)
+            val nas: String? = if (odKod.isEmpty()) null
+                else nasi.getOrPut(odKod) { try { nasNaslovProti(odKod) } catch (_: Throwable) { "" } }
+            val sporocilo = seznami.getOrPut(nas) {
+                ovojnica("cast.devices").surovo("devices", synchronized(kljucnica) { napraveJson(nas) }).toString()
+            }
+            posljiVarno(povezava, sporocilo)
+        }
         objaviSosedom(null)
     }
 
@@ -2288,4 +2320,73 @@ class Namestnik(
 
     /** Zapreti se da samo sosednjo povezavo, ne posamezne oddaljene naprave. */
     override fun zapri(koda: Int, razlog: String) {}
+}
+
+/**
+ * Naslov naprave cez mejo Huba (isto kot core/link_hub_streznik.py na racunalniku).
+ *
+ * Hub programu, ki se nanj poveze z iste naprave (Safeer OS na svojem telefonu), pripise 127.0.0.1. Ta naslov velja
+ * samo tam: kdor ga dobi na drugi napravi, se z njim poveze sam nase (telefon je 5. 10. 2026 namesto zaslona
+ * racunalnika klical svoja vrata) ali pa tuj program steje za »to napravo«. Cez mejo Huba zato namesto zanke potuje
+ * naslov naprave, na kateri program tece.
+ */
+internal object HubNaslovi {
+    private val IPV4 = Regex("""\d{1,3}(\.\d{1,3}){3}""")
+
+    /** Gostitelj iz naslova povezave: goli IP (dohodna povezava) ali wss://gostitelj:vrata/pot (odhodna). */
+    fun gostitelj(naslov: String): String {
+        var n = naslov.trim()
+        if (n.contains("://")) n = try { java.net.URI(n).host.orEmpty() } catch (_: Throwable) { "" }
+        n = n.trim('[', ']').substringBefore('%')
+        if (n.startsWith("::ffff:", ignoreCase = true) && n.contains('.')) n = n.substring(7)
+        return n
+    }
+
+    /** Naslov, ki velja samo na napravi, kjer je nastal: zanka, IPv6 naslov povezave (fe80::/10) ali nic. */
+    fun samoTukaj(naslov: String): Boolean {
+        val g = gostitelj(naslov).lowercase()
+        return g.isEmpty() || g == "localhost" || g == "::1" || g == "0:0:0:0:0:0:0:1" || g.startsWith("127.") ||
+            g.take(3) in setOf("fe8", "fe9", "fea", "feb")
+    }
+
+    /**
+     * Naslov naprave, kot velja ZUNAJ naprave, na kateri tece njen Hub. Ce naslova te naprave ne poznamo (sosed prek
+     * Global Linka), naslova ni: "" pove resnico, 127.0.0.1 bi kazal na napacno napravo.
+     */
+    fun zaDruge(naslov: String, gostiteljHuba: String): String =
+        if (!samoTukaj(naslov)) naslov else if (samoTukaj(gostiteljHuba)) "" else gostitelj(gostiteljHuba)
+
+    /** Naslov naprave, na kateri tece sosednji Hub, iz naslova sosednje povezave; "" prek releja (127.0.0.1). */
+    fun soseda(naslovPovezave: String): String = gostitelj(naslovPovezave).takeUnless { samoTukaj(it) }.orEmpty()
+
+    /**
+     * Odjemalceva stran istega pravila: naslov naprave iz seznama sredisca, kot velja pri odjemalcu - za NEPOSREDNO
+     * povezavo (slika zaslona racunalnika).
+     *
+     * Sredisce programu na svoji napravi pripise 127.0.0.1; starejsa sredisca ta naslov posljejo tudi odjemalcem od
+     * drugod. Ce nase sredisce tece drugje ([sredisceTu] = false), je naprava z zanko na NJEGOVEM naslovu ([hubUrl] je
+     * pravi naslov sredisca, ne krajevni konec releja). Prek Global Linka ([prekReleja]) smo zdoma: neposredne poti v
+     * domace omrezje ni, zato naslova ni - tudi ce ga seznam navaja.
+     */
+    fun zaOdjemalca(naslov: String, hubUrl: String, sredisceTu: Boolean, prekReleja: Boolean): String {
+        if (prekReleja) return ""
+        val n = naslov.trim()
+        if (n.isEmpty() || !samoTukaj(n)) return n
+        return if (sredisceTu) n else soseda(hubUrl)
+    }
+
+    /**
+     * Nas naslov na poti do [gostitelj]: vticnica UDP se samo »poveze« - sistem izbere pot in s tem nas naslov,
+     * paketa ne poslje. "" za ime namesto naslova IP (brez poizvedbe DNS) in ob napaki.
+     */
+    fun nasProti(gostitelj: String): String {
+        if (!IPV4.matches(gostitelj) && !gostitelj.contains(':')) return ""
+        return try {
+            java.net.DatagramSocket().use { s ->
+                s.connect(java.net.InetAddress.getByName(gostitelj), 9)
+                val nas = s.localAddress
+                if (nas == null || nas.isAnyLocalAddress) "" else gostitelj(nas.hostAddress.orEmpty()).takeUnless { samoTukaj(it) }.orEmpty()
+            }
+        } catch (_: Throwable) { "" }
+    }
 }
