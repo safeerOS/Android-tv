@@ -42,6 +42,13 @@ class ZaslonOdjemalec(
     private val naStatistiko: (Statistika) -> Unit,
     /** Obvestila racunalnika med sejo (okvir izbire, kazalec za povecavo, tipkovnica ...). */
     private val naObvestilo: (JSONObject) -> Unit = {},
+    /**
+     * Krajevna vrata releja do Huba racunalnika (Global Link) ali null, kadar te poti ni. Rele se odpre sele ob
+     * klicu: doma neposredna pot zmaga prej in se ga ne dotaknemo.
+     */
+    private val vrataHuba: (() -> Int?)? = null,
+    /** Preizkus »tudi doma prek interneta«: samo pot prek Huba, da se vidi, ali deluje. */
+    private val samoHub: Boolean = false,
 ) {
     /**
      * PRAZNO: racunalnik javi, da na locenem zaslonu ni vec programa (besedilo = razlog).
@@ -54,6 +61,9 @@ class ZaslonOdjemalec(
                           val dekoderMs: Long, val sirina: Int, val visina: Int, val zvok: Boolean)
 
     @Volatile private var tece = false
+    /** Seja tece prek Huba racunalnika (Global Link), ne neposredno - za dnevnik in meritve. */
+    @Volatile var prekHuba = false
+        private set
     private var nit: Thread? = null
     private var vticnica: Socket? = null
     private var izhod: OutputStream? = null
@@ -99,9 +109,22 @@ class ZaslonOdjemalec(
         var kodek: MediaCodec? = null
         try {
             naStanje(Stanje.POVEZUJEM, "")
-            // Zeton poslje sele ta nit, po rokovanju s pripetim potrdilom (NeposrednaPovezava).
-            val s = NeposrednaPovezava.povezi(naslovi, vrata, odtis, oznaka = TAG, tece = { tece })
-            if (s == null) {
+            // Dve poti do iste seje: neposredno (doma) in prek Huba racunalnika (Global Link, zdoma). Doma je
+            // neposredna povezava koncana, preden se druga sploh zacne; zdoma nihce ne caka na naslove domacega
+            // omrezja. Zeton gre na pot sele po rokovanju s pripetim potrdilom (NeposrednaPovezava).
+            val dobiVrata = vrataHuba
+            val neposredno: ((() -> Boolean) -> SSLSocket?)? =
+                if (naslovi.isEmpty() || (samoHub && dobiVrata != null)) null
+                else fun(t: () -> Boolean): SSLSocket? =
+                    NeposrednaPovezava.povezi(naslovi, vrata, odtis, oznaka = TAG, tece = t)
+            val poHubu: ((() -> Boolean) -> SSLSocket?)? =
+                if (dobiVrata == null) null
+                else fun(t: () -> Boolean): SSLSocket? {
+                    val v = dobiVrata() ?: return null
+                    return NeposrednaPovezava.poveziPrekHuba(v, odtis, zeton, oznaka = TAG, tece = t)
+                }
+            val izid = NeposrednaPovezava.tekma(neposredno, poHubu, tece = { tece })
+            if (izid == null) {
                 if (tece) {
                     Log.w(TAG, "Zaslon: racunalnik ni dosegljiv (${naslovi.joinToString()}:$vrata)")
                     naStanje(Stanje.NEDOSEGLJIV, "")
@@ -110,12 +133,22 @@ class ZaslonOdjemalec(
                 }
                 return
             }
+            val s = izid.vticnica
             vticnica = s
+            // Uporabnik je zaslon zapustil med povezovanjem: racunalniku se ne predstavimo vec.
+            if (!tece) { naStanje(Stanje.KONCANO, ""); return }
+            prekHuba = izid.pot == NeposrednaPovezava.Pot.HUB
+            Log.i(TAG, "Zaslon: povezava " + if (prekHuba) "prek Global Linka" else "neposredno")
             val izhodniTok: OutputStream = s.outputStream
             val vhod: InputStream = s.inputStream
-            izhodniTok.write(("SAFEER-ZASLON $zeton\n").toByteArray())
-            izhodniTok.flush()
+            // Prek Huba je zeton ze v zahtevi za predajo seje; neposredno ga poslje pozdrav.
+            if (!prekHuba) {
+                izhodniTok.write(("SAFEER-ZASLON $zeton\n").toByteArray())
+                izhodniTok.flush()
+            }
             izhod = izhodniTok
+            // Glava pride takoj, ko racunalnik gledalca sprejme; brez roka bi nema povezava visela v nedogled.
+            s.soTimeout = TISINA_MS
             val glava = JSONObject(preberiVrstico(vhod))
             val sirina = glava.optInt("w", 1920)
             val visina = glava.optInt("h", 1080)

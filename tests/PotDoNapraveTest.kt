@@ -66,7 +66,13 @@ fun main() {
         "https://127.0.0.1:40123/cast/d/share%3A0%3AGlasba%2Fa%20b.ogg") { "datoteka" }
     check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/thumb/media%3Aimage%3A7?v=2", 40123) ==
         "https://127.0.0.1:40123/cast/thumb/media%3Aimage%3A7?v=2") { "slicica s poizvedbo" }
-    check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/live/abc", 40123) == null) { "drugih poti Hub ne streze" }
+    check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/live/abc", 40123) ==
+        "https://127.0.0.1:40123/cast/live/abc") { "sprotni tok gre zdoma po isti poti" }
+    check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/m/skrivnost/film.mkv", 40123) ==
+        "https://127.0.0.1:40123/cast/m/skrivnost/film.mkv") { "tok torrenta z racunalnika" }
+    check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/magnet/skrivnost", 40123) ==
+        "https://127.0.0.1:40123/cast/magnet/skrivnost") { "tok torrenta z naprave" }
+    check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/drugo/abc", 40123) == null) { "drugih poti Hub ne streze" }
     check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/cast/ws", 40123) == null)
     check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/d/x", 0) == null) { "brez vrat releja ni naslova" }
     check(PotDoNaprave.relejniNaslov("ni naslov", 40123) == null)

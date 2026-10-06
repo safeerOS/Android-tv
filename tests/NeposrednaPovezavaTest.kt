@@ -9,8 +9,9 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLServerSocket
 import javax.net.ssl.SSLSocket
 
-// Neposredna povezava do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8) s pravimi vticnicami TLS.
-// Isti primeri kot na Linuxu (tests/test_link_gledalec_naslovi.py) in Windows (windows/tests/test_oddaljeni_zaslon_naslovi.py).
+// Povezava do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8) in prek njenega Huba (Global Link) s pravimi
+// vticnicami TLS. Neposredni primeri so isti kot na Linuxu (tests/test_link_gledalec_naslovi.py) in Windows
+// (windows/tests/test_oddaljeni_zaslon_naslovi.py); Hub odgovarja po pravilih core/link_hub_streznik.py (_namizje).
 
 private var napak = 0
 
@@ -26,6 +27,25 @@ private fun pocakaj(najvecMs: Long = 2000, pogoj: () -> Boolean): Boolean {
     return pogoj()
 }
 
+/** Novo samopodpisano potrdilo: (kontekst TLS streznika, odtis potrdila). */
+private fun potrdilo(mapa: File): Pair<SSLContext, String> {
+    val shramba = File(mapa, "n-${System.nanoTime()}.p12")
+    val geslo = "preizkus"
+    val keytool = File(System.getProperty("java.home"), "bin/keytool").path
+    val p = ProcessBuilder(keytool, "-genkeypair", "-alias", "a", "-keyalg", "RSA", "-keysize", "2048",
+        "-dname", "CN=safeer-preizkus", "-validity", "2", "-storetype", "PKCS12", "-keystore", shramba.path,
+        "-storepass", geslo, "-keypass", geslo).redirectErrorStream(true).start()
+    val izpis = p.inputStream.bufferedReader().readText()
+    check(p.waitFor() == 0) { "keytool: $izpis" }
+    val ks = KeyStore.getInstance("PKCS12")
+    shramba.inputStream().use { ks.load(it, geslo.toCharArray()) }
+    val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
+    kmf.init(ks, geslo.toCharArray())
+    val ctx = SSLContext.getInstance("TLS")
+    ctx.init(kmf.keyManagers, null, null)
+    return Pair(ctx, Pin.sha256Hex(ks.getCertificate("a").encoded))
+}
+
 /** Naprava s svojim samopodpisanim potrdilom na enem naslovu zanke; steje povezave, rokovanja in pozdrave. */
 private class Naprava(naslov: String, mapa: File, zeljenaVrata: Int = 0) {
     val odtis: String
@@ -37,21 +57,8 @@ private class Naprava(naslov: String, mapa: File, zeljenaVrata: Int = 0) {
     @Volatile private var tece = true
 
     init {
-        val shramba = File(mapa, "n-${System.nanoTime()}.p12")
-        val geslo = "preizkus"
-        val keytool = File(System.getProperty("java.home"), "bin/keytool").path
-        val p = ProcessBuilder(keytool, "-genkeypair", "-alias", "a", "-keyalg", "RSA", "-keysize", "2048",
-            "-dname", "CN=safeer-preizkus", "-validity", "2", "-storetype", "PKCS12", "-keystore", shramba.path,
-            "-storepass", geslo, "-keypass", geslo).redirectErrorStream(true).start()
-        val izpis = p.inputStream.bufferedReader().readText()
-        check(p.waitFor() == 0) { "keytool: $izpis" }
-        val ks = KeyStore.getInstance("PKCS12")
-        shramba.inputStream().use { ks.load(it, geslo.toCharArray()) }
-        odtis = Pin.sha256Hex(ks.getCertificate("a").encoded)
-        val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
-        kmf.init(ks, geslo.toCharArray())
-        val ctx = SSLContext.getInstance("TLS")
-        ctx.init(kmf.keyManagers, null, null)
+        val (ctx, o) = potrdilo(mapa)
+        odtis = o
         posluh = ctx.serverSocketFactory.createServerSocket(zeljenaVrata, 8, InetAddress.getByName(naslov)) as SSLServerSocket
         Thread({
             while (tece) {
@@ -76,10 +83,99 @@ private class Naprava(naslov: String, mapa: File, zeljenaVrata: Int = 0) {
     fun zapri() { tece = false; try { posluh.close() } catch (_: Throwable) { } }
 }
 
+/**
+ * Hub naprave (kot core/link_hub_streznik.py, pot /cast/desktop): po rokovanju prebere zahtevo HTTP; na pravi zeton
+ * in nadgradnjo odgovori 101 in TAKOJ za njim poslje glavo seje, sicer 404 ali 400. Steje zahteve in predaje.
+ */
+private class Hub(mapa: File, private val zeton: String, private val zamikOdgovoraMs: Long = 0) {
+    val odtis: String
+    private val posluh: SSLServerSocket
+    val vrata: Int get() = posluh.localPort
+    val zahteve: MutableList<String> = java.util.Collections.synchronizedList(ArrayList<String>())
+    @Volatile var predanih = 0
+    @Volatile var koncanih = 0
+    /** Sejo ima ze drug gledalec: Hub je ne preda (Zaslon.caka() je False). */
+    @Volatile var oddana = false
+    @Volatile private var tece = true
+
+    init {
+        val (ctx, o) = potrdilo(mapa)
+        odtis = o
+        posluh = ctx.serverSocketFactory.createServerSocket(0, 8, InetAddress.getByName("127.0.0.1")) as SSLServerSocket
+        Thread({
+            while (tece) {
+                val s = try { posluh.accept() as SSLSocket } catch (_: Throwable) { break }
+                Thread({ seja(s) }, "hub-seja").apply { isDaemon = true; start() }
+            }
+        }, "hub").apply { isDaemon = true; start() }
+    }
+
+    private fun seja(s: SSLSocket) {
+        var zahtevaPrisla = false
+        try {
+            s.soTimeout = 4000
+            s.startHandshake()
+            val vhod = s.inputStream
+            val sb = StringBuilder()
+            while (!sb.endsWith("\r\n\r\n")) {
+                val z = vhod.read()
+                if (z < 0) return
+                sb.append(z.toChar())
+            }
+            val zahteva = sb.toString()
+            zahteve.add(zahteva)
+            zahtevaPrisla = true
+            if (zamikOdgovoraMs > 0) Thread.sleep(zamikOdgovoraMs)
+            val glave = HashMap<String, String>()
+            for (v in zahteva.split("\r\n").drop(1)) {
+                val i = v.indexOf(':')
+                if (i > 0) glave[v.substring(0, i).trim().lowercase()] = v.substring(i + 1).trim()
+            }
+            val o = s.outputStream
+            if (!zahteva.startsWith("GET /cast/desktop HTTP/1.1\r\n") || glave["x-safeer-desktop"] != zeton || oddana) {
+                o.write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray()); o.flush()
+                return
+            }
+            if (glave["upgrade"]?.lowercase() != "safeer-desktop") {
+                o.write("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray()); o.flush()
+                return
+            }
+            // Odgovor in glava seje v enem zapisu: gledalec ne sme z glavo HTTP pojesti niti bajta pretoka.
+            o.write(("HTTP/1.1 101 Switching Protocols\r\nUpgrade: safeer-desktop\r\nConnection: Upgrade\r\n\r\n" +
+                "{\"v\":2,\"w\":1920}\n").toByteArray())
+            o.flush()
+            predanih++
+            try { while (vhod.read() >= 0) { } } catch (_: Throwable) { }      // seja: do konca povezave
+        } catch (_: Throwable) {
+        } finally {
+            try { s.close() } catch (_: Throwable) { }
+            if (zahtevaPrisla) koncanih++
+        }
+    }
+
+    fun zapri() { tece = false; try { posluh.close() } catch (_: Throwable) { } }
+}
+
 private fun pozdravi(s: SSLSocket?) {
     val o = s?.outputStream ?: return
     o.write("SAFEER-ZASLON zeton\n".toByteArray())
     o.flush()
+}
+
+/** Prva vrstica pretoka po povezavi (glava seje), prebrana bajt za bajtom. */
+private fun vrstica(s: SSLSocket?): String {
+    if (s == null) return ""
+    val vhod = s.inputStream
+    s.soTimeout = 3000
+    val sb = StringBuilder()
+    try {
+        while (sb.length < 200) {
+            val z = vhod.read()
+            if (z < 0 || z == '\n'.code) break
+            sb.append(z.toChar())
+        }
+    } catch (_: Throwable) { }
+    return sb.toString()
 }
 
 fun main() {
@@ -166,6 +262,144 @@ fun main() {
             preveri("en naslov dobi ves cas", NeposrednaPovezava.casZa(1) == 8000 && NeposrednaPovezava.casZa(0) == 8000)
             preveri("vec naslovov si ga razdeli", NeposrednaPovezava.casZa(2) == 4000 && NeposrednaPovezava.casZa(4) == 4000)
             preveri("stirje poskusi povezave se izidejo v cakanju naprave (30 s)", 4 * NeposrednaPovezava.casZa(4) <= 30_000)
+        }
+
+        // ------------------------------------------------------------------ prek Huba naprave (Global Link)
+        primer("prek Huba: zeton v zahtevi za predajo, po odgovoru 101 tece pretok seje") {
+            val h = Hub(mapa, "zeton-1")
+            val s = NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton-1")
+            preveri("povezano", s != null)
+            preveri("Hub je sejo predal", pocakaj { h.predanih == 1 })
+            val zahteva = h.zahteve.firstOrNull().orEmpty()
+            preveri("zahteva je GET /cast/desktop", zahteva.startsWith("GET /cast/desktop HTTP/1.1\r\n"))
+            preveri("zeton je v glavi X-Safeer-Desktop", zahteva.contains("\r\nX-Safeer-Desktop: zeton-1\r\n"))
+            preveri("zahteva prosi za nadgradnjo", zahteva.contains("\r\nUpgrade: safeer-desktop\r\n") && zahteva.contains("\r\nConnection: Upgrade\r\n"))
+            preveri("glava seje pride cela (glava HTTP ni pojedla pretoka)", vrstica(s) == "{\"v\":2,\"w\":1920}")
+            s?.close(); h.zapri()
+        }
+        primer("prek Huba: napacen zeton ali oddana seja") {
+            val h = Hub(mapa, "zeton-1")
+            preveri("napacen zeton: povezave ni", NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "drug-zeton") == null)
+            h.oddana = true
+            preveri("sejo ima drug gledalec: povezave ni", NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton-1") == null)
+            preveri("Hub ni predal nicesar", h.predanih == 0 && h.zahteve.size == 2)
+            h.zapri()
+        }
+        primer("prek Huba: druga naprava zetona ne dobi") {
+            val h = Hub(mapa, "zeton-1")
+            val tuj = Hub(mapa, "zeton-1")
+            preveri("potrdili sta razlicni", h.odtis != tuj.odtis)
+            val s = NeposrednaPovezava.poveziPrekHuba(tuj.vrata, h.odtis, "zeton-1", casMs = 1500)
+            preveri("ni povezave", s == null)
+            Thread.sleep(200)
+            preveri("tuji Hub zahteve (zetona) ne dobi", tuj.zahteve.isEmpty())
+            h.zapri(); tuj.zapri()
+        }
+        primer("prek Huba: zeton, ki bi bil druga glava, ne gre na pot") {
+            val h = Hub(mapa, "zeton-1")
+            preveri("nova vrstica", NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton-1\r\nX-Drugo: 1") == null)
+            preveri("presledek", NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton 1") == null)
+            preveri("prazen", NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "") == null)
+            Thread.sleep(150)
+            preveri("Huba nismo niti poklicali", h.zahteve.isEmpty())
+            h.zapri()
+        }
+        primer("prek Huba: Huba ni ali uporabnik je odsel") {
+            val h = Hub(mapa, "zeton-1")
+            val prosta = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { it.localPort }
+            preveri("na vratih ni nikogar", NeposrednaPovezava.poveziPrekHuba(prosta, h.odtis, "zeton-1", casMs = 700) == null)
+            preveri("uporabnik je odsel", NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton-1", tece = { false }) == null)
+            Thread.sleep(150)
+            preveri("Hub zahteve ne dobi", h.zahteve.isEmpty())
+            h.zapri()
+        }
+
+        // ------------------------------------------------------------------ obe poti hkrati
+        primer("tekma: doma zmaga neposredna pot, Huba se ne dotaknemo") {
+            val n = Naprava("127.0.0.1", mapa)
+            val h = Hub(mapa, "zeton")
+            val izid = NeposrednaPovezava.tekma(
+                { t -> NeposrednaPovezava.povezi(listOf("127.0.0.1"), n.vrata, n.odtis, tece = t) },
+                { t -> NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton", tece = t) })
+            preveri("neposredno", izid?.pot == NeposrednaPovezava.Pot.NEPOSREDNO)
+            preveri("pred pozdravom naprava ne dobi nicesar", n.pozdravi.isEmpty())
+            pozdravi(izid?.vticnica)
+            preveri("naprava dobi pozdrav", pocakaj { n.pozdravi.size == 1 })
+            Thread.sleep(NeposrednaPovezava.PREDNOST_NEPOSREDNE_MS + 300)
+            preveri("Hub ni dobil nobene zahteve", h.zahteve.isEmpty())
+            izid?.vticnica?.close(); n.zapri(); h.zapri()
+        }
+        primer("tekma: zdoma (domaci naslov molci) zmaga pot prek Huba brez cakanja") {
+            val h = Hub(mapa, "zeton")
+            val nema = ServerSocket(0, 8, InetAddress.getByName("127.0.0.2"))            // sprejme TCP, TLS ne odgovori
+            val zacetek = System.currentTimeMillis()
+            val izid = NeposrednaPovezava.tekma(
+                { t -> NeposrednaPovezava.povezi(listOf("127.0.0.2"), nema.localPort, h.odtis, casMs = 5000, tece = t) },
+                { t -> NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton", tece = t) })
+            val trajalo = System.currentTimeMillis() - zacetek
+            preveri("prek Huba", izid?.pot == NeposrednaPovezava.Pot.HUB)
+            preveri("po prednosti neposredne poti, ne po njenem roku ($trajalo ms)", trajalo in 250..3000)
+            preveri("glava seje pride", vrstica(izid?.vticnica) == "{\"v\":2,\"w\":1920}")
+            izid?.vticnica?.close(); nema.close(); h.zapri()
+        }
+        primer("tekma: neposredna pot odpove takoj - pot prek Huba ne caka prednosti") {
+            val h = Hub(mapa, "zeton")
+            val prosta = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { it.localPort }
+            val zacetek = System.currentTimeMillis()
+            val izid = NeposrednaPovezava.tekma(
+                { t -> NeposrednaPovezava.povezi(listOf("127.0.0.1"), prosta, h.odtis, tece = t) },
+                { t -> NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton", tece = t) },
+                prednostMs = 5000)
+            val trajalo = System.currentTimeMillis() - zacetek
+            preveri("prek Huba", izid?.pot == NeposrednaPovezava.Pot.HUB)
+            preveri("brez cakanja na prednost ($trajalo ms)", trajalo < 3000)
+            izid?.vticnica?.close(); h.zapri()
+        }
+        primer("tekma: neposredna zmaga, ko je pot prek Huba ze na poti - pocasnejso zapremo") {
+            val n = Naprava("127.0.0.1", mapa)
+            val h = Hub(mapa, "zeton", zamikOdgovoraMs = 900)
+            val izid = NeposrednaPovezava.tekma(
+                { t -> Thread.sleep(600); NeposrednaPovezava.povezi(listOf("127.0.0.1"), n.vrata, n.odtis, tece = t) },
+                { t -> NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton", tece = t) })
+            preveri("neposredno", izid?.pot == NeposrednaPovezava.Pot.NEPOSREDNO)
+            preveri("Hub je zahtevo ze dobil", pocakaj { h.zahteve.size == 1 })
+            preveri("povezavo prek Huba smo zaprli", pocakaj(4000) { h.koncanih == 1 })
+            pozdravi(izid?.vticnica)
+            preveri("naprava dobi pozdrav", pocakaj { n.pozdravi.size == 1 })
+            izid?.vticnica?.close(); n.zapri(); h.zapri()
+        }
+        primer("tekma: obe poti odpovesta") {
+            val h = Hub(mapa, "zeton")
+            val prosta = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { it.localPort }
+            val zacetek = System.currentTimeMillis()
+            val izid = NeposrednaPovezava.tekma(
+                { t -> NeposrednaPovezava.povezi(listOf("127.0.0.1"), prosta, h.odtis, tece = t) },
+                { t -> NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "napacen", tece = t) })
+            preveri("ni povezave", izid == null)
+            preveri("brez visenja (${System.currentTimeMillis() - zacetek} ms)", System.currentTimeMillis() - zacetek < 4000)
+            h.zapri()
+        }
+        primer("tekma: ena sama pot in nobena") {
+            val n = Naprava("127.0.0.1", mapa)
+            val h = Hub(mapa, "zeton")
+            val samoNeposredno = NeposrednaPovezava.tekma({ t -> NeposrednaPovezava.povezi(listOf("127.0.0.1"), n.vrata, n.odtis, tece = t) }, null)
+            preveri("brez poti prek Huba je kot prej", samoNeposredno?.pot == NeposrednaPovezava.Pot.NEPOSREDNO)
+            val samoHub = NeposrednaPovezava.tekma(null, { t -> NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton", tece = t) })
+            preveri("brez naslova gre samo prek Huba", samoHub?.pot == NeposrednaPovezava.Pot.HUB)
+            preveri("brez poti ni povezave", NeposrednaPovezava.tekma(null, null) == null)
+            samoNeposredno?.vticnica?.close(); samoHub?.vticnica?.close(); n.zapri(); h.zapri()
+        }
+        primer("tekma: uporabnik je zaslon zapustil") {
+            val n = Naprava("127.0.0.1", mapa)
+            val h = Hub(mapa, "zeton")
+            val izid = NeposrednaPovezava.tekma(
+                { t -> NeposrednaPovezava.povezi(listOf("127.0.0.1"), n.vrata, n.odtis, tece = t) },
+                { t -> NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton", tece = t) },
+                tece = { false })
+            preveri("ni povezave", izid == null)
+            Thread.sleep(150)
+            preveri("nikogar nismo poklicali", n.povezav == 0 && h.zahteve.isEmpty())
+            n.zapri(); h.zapri()
         }
     } finally {
         mapa.deleteRecursively()

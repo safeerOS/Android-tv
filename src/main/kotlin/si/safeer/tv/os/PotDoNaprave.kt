@@ -70,16 +70,20 @@ object PotDoNaprave {
         return if (prva == Pot.RELE) listOf(Pot.RELE, Pot.NEPOSREDNO) else listOf(Pot.NEPOSREDNO, Pot.RELE)
     }
 
+    /** Poti streznika datotek naprave (racunalnik: /m/ tok torrenta; Android: /magnet/). Hub jih streze pod /cast. */
+    val POTI_STREZNIKA = listOf("/d/", "/thumb/", "/m/", "/live/", "/magnet/")
+
     /**
      * Isti naslov prek releja: `https://naprava:vrata/d/<id>?q` postane
-     * `https://127.0.0.1:<vrataReleja>/cast/d/<id>?q` (Hub naprave streze deljene datoteke in slicice
-     * pod `/cast`). Null za poti, ki jih Hub ne streze, in kadar releja ni.
+     * `https://127.0.0.1:<vrataReleja>/cast/d/<id>?q`. Hub naprave streze pod `/cast` vse poti njenega streznika
+     * datotek ([POTI_STREZNIKA]): datoteko, slicico, sprotni tok in tok torrenta - zdoma mora delovati isto kot
+     * doma. Null za druge poti in kadar releja ni.
      */
     fun relejniNaslov(url: String, vrataReleja: Int): String? {
         if (vrataReleja <= 0) return null
         val u = try { URI(url) } catch (_: Throwable) { return null }
         val pot = u.rawPath ?: return null
-        if (!pot.startsWith("/d/") && !pot.startsWith("/thumb/")) return null
+        if (POTI_STREZNIKA.none { pot.startsWith(it) }) return null
         return "https://127.0.0.1:$vrataReleja/cast$pot" + (u.rawQuery?.let { "?$it" } ?: "")
     }
 }

@@ -117,6 +117,9 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
 
         private val odjemalci = java.util.concurrent.ConcurrentHashMap<String, OkHttpClient>()
 
+        /** Kontekst aplikacije (za rele), zapomnjen ob prvi rabi - urejanje ga nima pri roki. */
+        @Volatile private var aplikacija: android.content.Context? = null
+
         /**
          * Kot [odjemalecZaStreznik], le da gre branje (GET, HEAD) po isti poti kot predvajanje: doma
          * neposredno, zdoma prek Global Linka. Za besedilo, slike in slicice, ki ne tecejo skozi
@@ -125,6 +128,7 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
          */
         fun odjemalecZaNapravo(odtis: String, context: android.content.Context?, naprava: String): OkHttpClient {
             val app = context?.applicationContext
+            if (app != null) aplikacija = app
             if (app == null || naprava.isBlank()) return odjemalecZaStreznik(odtis)
             if (odjemalci.size > 8) odjemalci.clear()
             return odjemalci.getOrPut("$odtis|$naprava") {
@@ -171,6 +175,7 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
          */
         fun ogrej(context: android.content.Context?, naprava: String, url: String, naprej: () -> Unit = {}) {
             val app = context?.applicationContext
+            if (app != null) aplikacija = app
             try { ozadje.execute { try { vrstniRed(app, naprava, url) } catch (_: Throwable) { }; naprej() } }
             catch (_: Throwable) { }
         }
@@ -196,6 +201,22 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
                 }
             }
             throw napaka ?: IOException("ni poti do naprave")
+        }
+
+        /**
+         * Naslov za zahtevo, ki se sme izvesti samo ENKRAT (urejanje, POST): po poti, ki do naprave velja zdaj.
+         * Druge poti po neuspehu ne poskusamo - preimenovanje ali brisanje se ne sme izvesti dvakrat. Prek Global
+         * Linka samo, kadar Hub naprave urejanje zna ([hubZnaUrejanje]: polje `hub` >= 2 v `files.list`).
+         * Ne klici na glavni niti (pot se po potrebi preveri s sondo).
+         */
+        fun naslovZaUrejanje(naprava: String, url: String, hubZnaUrejanje: Boolean): String {
+            val c = aplikacija
+            if (!hubZnaUrejanje || c == null) return url
+            val prva = try { vrstniRed(c, naprava, url).firstOrNull() } catch (_: Throwable) { null }
+            if (prva != PotDoNaprave.Pot.RELE) return url
+            val prekReleja = relejniNaslov(c, naprava, url) ?: return url
+            android.util.Log.i("SafeerPot", "Urejanje na napravi $naprava: prek Global Linka")
+            return prekReleja
         }
 
         /** Zadnja pot, po kateri je naprava odgovorila. V dnevnik gre samo sprememba - brez naslovov in imen datotek. */

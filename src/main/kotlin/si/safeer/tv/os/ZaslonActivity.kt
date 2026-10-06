@@ -62,6 +62,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var program = ""
     private var igra = false
     private var koncujem = false
+    /** Racunalnik, ki poti prek svojega Huba ne zna (starejsi Safeer): dokler ni dosegljiv neposredno, ga ne prosimo znova. */
+    private var brezHuba: String? = null
     private var poskusov = 0
     private var prosim = false
     private var odklon: Pair<Float, Float>? = null
@@ -257,7 +259,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun racunalnikZZaslonom(): LinkOdjemalec.Naprava? {
         val vsi = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
         val zeleni = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
-        // Brez izbire ima prednost racunalnik z naslovom: tisti, ki je dosegljiv samo prek Global Linka, slike ne da.
+        // Brez izbire ima prednost racunalnik z naslovom v nasem omrezju (neposredna pot); sicer prvi - do njega
+        // pride slika prek njegovega Huba (Global Link).
         return if (zeleni.isNullOrBlank()) vsi.firstOrNull { link.odjemalec.naslovZaPovezavo(it).isNotBlank() } ?: vsi.firstOrNull()
         else vsi.firstOrNull { it.id == zeleni }
     }
@@ -278,17 +281,24 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 if (!link.povezan) R.string.os_zaslon_ni_povezave else R.string.os_zaslon_ni_racunalnika))
             return
         }
-        if (link.odjemalec.naslovZaPovezavo(r).isBlank()) {
-            // Slika gre neposredno z racunalnika. Brez njegovega naslova (dosegljiv je samo prek Global Linka) ga ne
-            // prosimo: racunalnik bi zaman odprl vrata in cakal na nas.
-            val razlog = getString(R.string.os_zaslon_ni_doma, r.ime.ifBlank { r.id })
+        // Zdoma pride slika prek Huba racunalnika (Global Link) - ista slika in isti zvok kot doma.
+        val prekHuba = si.safeer.tv.link.GlobalLink.releMogoc(this, r.id)
+        val brezNaslova = link.odjemalec.naslovZaPovezavo(r).isBlank()
+        if (brezNaslova && (!prekHuba || r.id == brezHuba)) {
+            // Brez naslova v nasem omrezju in brez poti prek Global Linka racunalnika ne prosimo: zaman bi odprl
+            // vrata in cakal na nas. Enako, ce je ze povedal, da poti prek Huba ne zna (starejsi Safeer).
+            val razlog = getString(if (prekHuba) R.string.os_zaslon_zdoma_posodobi else R.string.os_zaslon_ni_doma,
+                r.ime.ifBlank { r.id })
             if (ponovnoOd != 0L) ponoviAliKoncaj(razlog) else pokazi(razlog)
             return
         }
         racunalnik = r
         prosim = true
         pokazi(getString(R.string.os_zaslon_prosim, r.ime.ifBlank { r.id }))
-        link.ukaz(r.id, "screen.start", JSONObject().put("quality", kakovost).put("screen", cilj), 15_000,
+        val zahteva = JSONObject().put("quality", kakovost).put("screen", cilj)
+        // Racunalniku povemo, da znamo po sliko tudi do njegovega Huba; starejsi Safeer polje prezre.
+        if (prekHuba) zahteva.put("relay", true)
+        link.ukaz(r.id, "screen.start", zahteva, 15_000,
             LinkOdjemalec.Odgovor { izid, napaka ->
                 prosim = false
                 if (isFinishing) return@Odgovor
@@ -376,13 +386,33 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         uravnajRazmerje(slikaW, slikaH)
         // Ne surovi naslov iz seznama: ta je lahko 127.0.0.1 - racunalnik pri SVOJEM srediscu, ne pri nas.
         val naslov = link.odjemalec.naslovZaPovezavo(r)
-        if (naslov.isBlank()) { pokazi(getString(R.string.os_zaslon_ni_doma, r.ime.ifBlank { r.id })); return }
+        // Pot prek Huba racunalnika (Global Link): racunalnik jo je potrdil v odgovoru (polje relay) in rele do
+        // njega obstaja. Starejsi Safeer na racunalniku polja nima - do njega gre samo neposredno.
+        val releMogoc = si.safeer.tv.link.GlobalLink.releMogoc(this, r.id)
+        val prekHuba = releMogoc && podatki.optBoolean("relay", false)
+        if (naslov.isBlank() && !prekHuba) {
+            // Zdoma smo, racunalnik pa poti prek Huba (se) ne zna: povemo, kaj manjka, in ga ne pustimo cakati.
+            seja = null
+            if (releMogoc) brezHuba = r.id
+            link.ukaz(r.id, "screen.stop", JSONObject(), 5_000, LinkOdjemalec.Odgovor { _, _ -> })
+            pokazi(getString(if (releMogoc) R.string.os_zaslon_zdoma_posodobi else R.string.os_zaslon_ni_doma,
+                r.ime.ifBlank { r.id }))
+            return
+        }
         // Poleg naslova iz seznama se naslovi, ki jih je racunalnik nastel sam (docs/LINK-MESH.md, pravilo 8).
         val nasteti = podatki.optJSONArray("hosts")?.let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String } }
+        val idRacunalnika = r.id
+        val aplikacija = applicationContext
+        val dobiVrata: (() -> Int?)? =
+            if (!prekHuba) null
+            else fun(): Int? = si.safeer.tv.link.GlobalLink.vrataReleja(aplikacija, idRacunalnika)
         odjemalec?.ustavi()
         val o = ZaslonOdjemalec(
             si.safeer.tv.cast.HubNaslovi.kandidati(naslov, nasteti),
             podatki.optInt("port"), podatki.optString("fp"), podatki.optString("token"),
+            vrataHuba = dobiVrata,
+            // Preizkus »tudi doma prek interneta«: samo pot prek Huba, da se vidi, ali deluje.
+            samoHub = prekHuba && si.safeer.tv.link.GlobalLink.samoRele(this),
             naStanje = { stanje, besedilo ->
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
@@ -410,9 +440,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         // uporabnika vrnemo nazaj - zamrznjena slika je najslabsi mozni izid.
                         ZaslonOdjemalec.Stanje.KONCANO -> if (!koncujem) ponoviAliKoncaj(getString(R.string.os_zaslon_koncano))
                         ZaslonOdjemalec.Stanje.NAPAKA -> ponoviAliKoncaj(getString(R.string.os_zaslon_napaka, besedilo))
-                        // Racunalnika ni na nobenem naslovu: stavek z njegovim imenom, ne sistemska napaka.
+                        // Racunalnika ni na nobenem naslovu (in ne prek njegovega Huba): stavek z njegovim imenom,
+                        // ne sistemska napaka. Kadar bi do njega prisli prek Global Linka, pa te poti se ne zna
+                        // (starejsi Safeer), povemo to - »preveri omrezje« bi uporabnika poslal iskat napacno stvar.
                         ZaslonOdjemalec.Stanje.NEDOSEGLJIV ->
-                            ponoviAliKoncaj(getString(R.string.os_zaslon_ni_dosegljiv, r.ime.ifBlank { r.id }))
+                            ponoviAliKoncaj(getString(if (releMogoc && !prekHuba) R.string.os_zaslon_zdoma_posodobi
+                                else R.string.os_zaslon_ni_dosegljiv, r.ime.ifBlank { r.id }))
                         // Na locenem zaslonu ni vec programa (igra se je zaprla ob Esc ...): temen
                         // prazen zaslon je slepa ulica, zato gremo takoj nazaj v Safeer OS.
                         ZaslonOdjemalec.Stanje.PRAZNO -> {
@@ -428,7 +461,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 // ostanejo v dnevniku, kjer jih potrebujemo, kadar iscemo vzrok tezave.
                 android.util.Log.d("SafeerZaslon",
                     "${s.sirina}x${s.visina} ${s.naSekundo} sl/s ${s.megabitov} Mb/s " +
-                    "dekoder ${s.dekoderMs} ms zvok=${s.zvok}")
+                    "dekoder ${s.dekoderMs} ms zvok=${s.zvok} " +
+                    "pot=${if (odjemalec?.prekHuba == true) "global" else "neposredno"}")
             },
             naObvestilo = { ob -> runOnUiThread { obvestilo(ob) } })
         odjemalec = o

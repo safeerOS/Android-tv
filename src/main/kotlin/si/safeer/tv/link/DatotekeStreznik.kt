@@ -271,6 +271,8 @@ object DatotekeStreznik {
         if (!zazeni()) return null
         return JSONObject().put("base_url", "https://$naslov:$vrata")
             .put("fp", si.safeer.tv.cast.HubTls.lastniOdtis()).put("token", zetonZa(idNaprave))
+            // Hub te naprave streze iste poti pod /cast (Global Link): urejanje, slicice, tokovi - zdoma kot doma.
+            .put("hub", 2)
     }
 
     fun ustavi() {
@@ -315,12 +317,15 @@ object DatotekeStreznik {
     }
 
     /**
-     * Ista datoteka prek Huba (`/cast/d/<id>`, `/cast/thumb/<id>`): po Global Linku rele pripelje samo
-     * povezavo do vrat Huba. Zeton samo v glavi (naslov prek releja ne nosi skrivnosti). Vrne false, ce
-     * pot ni za datoteke.
+     * Iste poti prek Huba (`/cast/d/<id>`, `/cast/thumb/<id>`, `/cast/live/<id>`, `/cast/magnet/<skrivnost>`): po
+     * Global Linku rele pripelje samo povezavo do vrat Huba. Zeton samo v glavi (naslov prek releja ne nosi
+     * skrivnosti). Vrne false, ce pot ni za streznik datotek.
      */
+    fun jePotPrekHuba(pot: String): Boolean =
+        pot.startsWith("/cast/d/") || pot.startsWith("/cast/thumb/") || pot.startsWith("/cast/live/") || pot.startsWith("/cast/magnet/")
+
     fun prekHuba(metoda: String, pot: String, glave: Map<String, String>, vhod: InputStream, izhod: OutputStream): Boolean {
-        if (!pot.startsWith("/cast/d/") && !pot.startsWith("/cast/thumb/")) return false
+        if (!jePotPrekHuba(pot)) return false
         try {
             postreziZahtevo(metoda, pot.removePrefix("/cast"), glave["x-safeer-token"], glave, vhod, izhod)
         } catch (e: Throwable) {

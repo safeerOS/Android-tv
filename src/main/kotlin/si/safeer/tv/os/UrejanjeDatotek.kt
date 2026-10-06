@@ -50,7 +50,9 @@ object UrejanjeDatotek {
                 val k: OkHttpClient = PripetiVir.odjemalecZaStreznik(s.odtis).newBuilder()
                     .readTimeout(40, java.util.concurrent.TimeUnit.SECONDS)
                     .build()
-                val z = Request.Builder().url(s.url(id)).header("X-Safeer-Token", s.zeton)
+                // Zdoma gre urejanje do Huba naprave (Global Link), ce ga ta zna; vedno po eni sami poti.
+                val naslov = PripetiVir.naslovZaUrejanje(s.naprava, s.url(id), s.hub >= 2)
+                val z = Request.Builder().url(naslov).header("X-Safeer-Token", s.zeton)
                     .post(telo.toString().toRequestBody(json)).build()
                 k.newCall(z).execute().use { o ->
                     val b = o.body?.string().orEmpty()

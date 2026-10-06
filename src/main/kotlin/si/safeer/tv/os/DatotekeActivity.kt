@@ -47,16 +47,23 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Streznik datotek na racunalniku (naslov, odtis potrdila, zeton te naprave) iz odgovora `files.list`. */
     /** [naprava] = id naprave v Linku: z njim gre tok prek Global Linka, kadar naprava ni v istem omrezju. */
-    data class Streznik(val osnova: String, val odtis: String, val zeton: String, val naprava: String = "") {
+    /**
+     * [hub] = kaj zna Hub naprave za njen streznik datotek (polje `hub` v `files.list`): 2 = tudi urejanje, slicice
+     * in tokovi pod /cast - zdoma isto kot doma. 0 = starejsi Safeer (zdoma samo branje datotek).
+     */
+    data class Streznik(val osnova: String, val odtis: String, val zeton: String, val naprava: String = "",
+                        val hub: Int = 0) {
         fun url(id: String): String = osnova + "/d/" + android.net.Uri.encode(id)
         fun slicicaUrl(id: String): String = osnova + "/thumb/" + android.net.Uri.encode(id)
         fun vBundle(b: Bundle) {
             b.putString("s_osnova", osnova); b.putString("s_odtis", odtis); b.putString("s_zeton", zeton); b.putString("s_naprava", naprava)
+            b.putInt("s_hub", hub)
         }
         companion object {
             fun iz(b: Bundle?): Streznik? {
                 val o = b?.getString("s_osnova") ?: return null
-                return Streznik(o, b.getString("s_odtis").orEmpty(), b.getString("s_zeton").orEmpty(), b.getString("s_naprava").orEmpty())
+                return Streznik(o, b.getString("s_odtis").orEmpty(), b.getString("s_zeton").orEmpty(), b.getString("s_naprava").orEmpty(),
+                    b.getInt("s_hub", 0))
             }
         }
     }
@@ -117,14 +124,24 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Zaslon je odprt zato, da uporabnik izbere sliko (za ozadje); klik na sliko jo vrne nazaj. */
     private var izbiramSliko = false
     private var krajevnaZbirka = ""
+    /** Zaslon se je odprl, preden se je Link povezal: cakamo na naprave, namesto da sklepamo, da jih ni. */
+    private var cakamLink = false
+    private val linkNiPrisel = Runnable {
+        if (!cakamLink || !izbiramRacunalnik || racunalnik != null || isFinishing) return@Runnable
+        if (link.racunalnikiZDatotekami().isNotEmpty()) { cakamLink = false; return@Runnable }
+        // Link je povezan in drugih naprav z datotekami ni (ali Linka sploh ni): datoteke te naprave, kot prej.
+        // Ce se se povezuje, ostane seznam virov - uporabnik lahko sam izbere to napravo.
+        if (link.povezan || link.stanje == "ni_linka" || link.stanje == "krajevni") { cakamLink = false; odpriKrajevno() }
+    }
     /** Racunalnik dovoli urejanje datotek te mape (`edit` v odgovoru `files.list`; Safeer Control 2.1.0+). */
     private var urejanjeDovoljeno = false
     /**
-     * Urejanje ponudimo samo, kadar do naprave beremo neposredno: preimenovanje, premik in brisanje gredo
-     * samo tako, prek Global Linka pa ne - bolje nic kot moznost, ki pade.
+     * Urejanje (preimenovanje, premik, brisanje, vrtenje) zdoma kot doma: prek Global Linka gre do Huba naprave,
+     * ce ga ta zna (`hub` >= 2). Pri starejsem Safeerju na napravi ga zdoma ne ponudimo - bolje nic kot moznost,
+     * ki pade.
      */
     private val urejanje: Boolean
-        get() = urejanjeDovoljeno && streznik?.let { !PripetiVir.prekGlobalLinka(it.naprava, it.osnova) } == true
+        get() = urejanjeDovoljeno && streznik?.let { it.hub >= 2 || !PripetiVir.prekGlobalLinka(it.naprava, it.osnova) } == true
     /** Po vrnitvi iz pregledovalnika slik je treba seznam osveziti, ko je Link spet povezan. */
     private var cakamOsvezitev = false
     /** Zaporedna stevilka zahteve po seznamu: velja samo odgovor na zadnjo. */
@@ -265,6 +282,15 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         when {
             intent.getBooleanExtra(EXTRA_KRAJEVNO, false) || link.jeKrajevni() -> odpriKrajevno()
             r != null -> odpriRacunalnik(r)
+            // Link se sele povezuje (aplikacija se je ravnokar odprla): naprav se ni na seznamu, a to ne pomeni, da
+            // jih ni. Pokazemo seznam virov s »Povezujem ...« in ga dopolnimo, ko pridejo (naNaprave). Prej je
+            // uporabnik padel v datoteke te naprave in v vprasanje za dovoljenje, ceprav je hotel na racunalnik.
+            kandidati.isEmpty() && !link.povezan && (link.stanje == "povezujem" || link.stanje == "ni") -> {
+                cakamLink = true
+                pokaziRacunalnike(kandidati)
+                glavna.removeCallbacks(linkNiPrisel)
+                glavna.postDelayed(linkNiPrisel, CAKAJ_LINK_MS)
+            }
             kandidati.isEmpty() -> odpriKrajevno()
             else -> pokaziRacunalnike(kandidati)
         }
@@ -444,7 +470,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val podatki = izid.optJSONObject("data") ?: JSONObject()
             val prejZeton = streznik?.zeton
             podatki.optJSONObject("server")?.let {
-                val s = Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"), r.id)
+                val s = Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"), r.id,
+                    it.optInt("hub", 0))
                 val novNaslov = s.osnova != streznik?.osnova
                 streznik = s
                 znaniStrezniki[r.id] = s
@@ -1020,6 +1047,18 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun naStanje(povezan: Boolean, sporocilo: String) {
         if (povezan) osveziCeTreba()
+        if (!povezan && cakamLink && izbiramRacunalnik && (sporocilo == "ni_linka" || sporocilo == "krajevni")) {
+            // Safeer Linka na tej napravi ni: nimamo cesa cakati - datoteke te naprave, kot prej.
+            cakamLink = false
+            glavna.removeCallbacks(linkNiPrisel)
+            odpriKrajevno()
+            return
+        }
+        if (povezan && cakamLink) {
+            // Povezano: naprave pridejo v trenutku (naNaprave). Ce drugih z datotekami ni, cez hip na to napravo.
+            glavna.removeCallbacks(linkNiPrisel)
+            glavna.postDelayed(linkNiPrisel, CAKAJ_NAPRAVE_MS)
+        }
         if (!povezan && racunalnik == null && !krajevni) {
             pokaziSporocilo(getString(if (sporocilo == "ni_linka" || sporocilo == "krajevni") R.string.os_datoteke_ni_linka else R.string.os_datoteke_ni_povezave))
         }
@@ -1224,6 +1263,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val odprta: Boolean get() = odprtih > 0
         /** Napis »Nalagam« se pokaze sele po tem zamiku; hiter odgovor ga sploh ne pokaze. */
         private const val ZAMIK_NALAGAM_MS = 600L
+        /** Toliko cakamo, da se Link ob odprtju zaslona poveze, preden (brez drugih naprav) odpremo to napravo. */
+        private const val CAKAJ_LINK_MS = 4_000L
+        /** Po povezavi pridejo naprave (tudi tiste pri sosednjih srediscih) v tem casu. */
+        private const val CAKAJ_NAPRAVE_MS = 1_500L
         /** Toliko casa pocakamo napravo, ki je izginila s seznama Linka, preden uporabnika vrnemo na seznam virov. */
         private const val POCAKAJ_VIR_MS = 25_000L
         private const val NAJVEC_ZNANIH = 24

@@ -70,6 +70,49 @@ računalnik, ki je ves čas prižgan. Hub je ena točka odpovedi in ena točka, 
    Star računalnik `hosts` ne pošlje in gledalec dela kot prej; star gledalec polje prezre. Naprave
    brez naslova v seznamu gledalec še vedno ne prosi (pravilo 7).
 
+9. **Kar hub posreduje sam – datoteko in zaslon – pošiljatelj odda hubu ciljne naprave** (5. 10. 2026).
+   Pot v `share.file` (`/cast/file/<id>?k=…`) in pot gledalca v `share.screen`
+   (`/cast/screen/<id>/view?k=…`) sta relativni na hub, ki je vsebino sprejel, in se čez sosede ne
+   preneseta. Zato:
+   - **datoteka**: pošiljatelj jo odda (`PUT /cast/file`) hubu ciljne naprave, prijavljen s sejo s
+     podpisom (`/cast/auth/challenge` → `/cast/auth/ticket`), kot sosednja povezava. Hub oddajo zavrne
+     (409 `naprava_pri_drugem_srediscu`), če je cilj pri sosedu. Prejemnik datoteko poišče **najprej
+     pri svojem hubu, nato pri pošiljateljevem** – iz sporočila se ne vidi, kateri jo ima; naslednji
+     pride na vrsto samo, če prejšnji odgovori 404, vsaka druga napaka je končna
+     (`link_deljenje.prevzemi_pri_srediscih`). Do 1.0.97 je Safeer Control na Linuxu vprašal samo
+     pošiljateljev hub in datoteka z drugega računalnika je ostala v zalogi njegovega huba.
+   - **zaslon**: pošiljatelj začne deljenje (`POST /cast/share/screen/start`) pri hubu ciljne naprave
+     z isto sejo in tja potiska okvirje; ta hub svoji napravi pove, kje je gledalec
+     (`link_deljenje.sredisce_za_zaslon`). Tako delajo računalniki. Telefon (Android) deljenje začne
+     pri SVOJEM hubu in `share.screen` gre do cilja čez sosede, zato prejemnik stran gledalca poišče
+     **najprej pri svojem hubu, nato pri pošiljateljevem** (`link_deljenje.gledalec_pri_srediscih`;
+     velja prvi, ki stran ima). Hub zaslon posreduje samo napravi, ki je prijavljena pri njem (sicer
+     409 `naprava_pri_drugem_srediscu`) – pri tretjem hubu prejemnik strani ne bi iskal.
+     Hub računalnika zaslon posreduje od 1.0.99 (Linux) in 1.0.40 (Windows): isti protokol kot hub na
+     Androidu (`link_hub_deljenje.Zasloni`), stran gledalca je samo za gledanje, deljenje pa se konča
+     tudi, ko ga 10 s nihče več ne gleda – pošiljatelj razlog dobi v odgovoru na svoj tok okvirjev
+     (`razlog: ni_gledalcev`). Prej računalnik računalniku zaslona ni mogel pokazati, zaslon s
+     telefona pa se je na računalniku odprl kot napaka (stran gledalca je iskal samo pri svojem hubu).
+
+   Zaupanje je isto kot pri sosednji povezavi: ključ v potrdilu huba mora biti ključ člana kroga
+   (`link_mesh.sredisce_naprave`).
+
+10. **Zdoma kot doma: kar naprava streže neposredno, streže tudi njen hub** (6. 10. 2026). Rele (Global
+    Link) pripelje samo do vrat huba. Hub zato pod `/cast` streže vse poti strežnika datotek svoje naprave
+    z istim žetonom (`X-Safeer-Token`) in istimi pravili: `/cast/d/<id>` (GET, HEAD in urejanje s POST),
+    `/cast/thumb/<id>`, sprotni tok `/cast/live/<id>` in tok torrenta (`/cast/m/…` na računalniku,
+    `/cast/magnet/…` na Androidu). Da hub to zna, pove `server.hub = 2` v odgovoru `files.list`; brez tega
+    polja (starejši Safeer) naprava zdoma ponudi samo branje datotek. Urejanje gre vedno po eni sami poti
+    (preimenovanje ali brisanje se ne sme izvesti dvakrat).
+
+    **Zaslon računalnika** gre po isti poti: gledalec v `screen.start` pošlje `relay: true`, računalnik pot
+    potrdi (`relay: true` v odgovoru), gledalec pa pride do huba z `GET /cast/desktop`
+    (`Upgrade: safeer-desktop`, žeton seje v glavi `X-Safeer-Desktop`). Po odgovoru `101` hub povezavo preda
+    seji (`Zaslon.prevzemi`) in po njej teče isti pretok kot po neposredni: ista kakovost slike, zvok in vnos
+    nazaj – kakovosti zaradi poti ne nižamo. Gledalec poskusi obe poti hkrati; neposredna ima 0,3 s
+    prednosti, zato doma zmaga, preden se rele sploh odpre, zdoma pa nihče ne čaka na naslove domačega
+    omrežja. Seja dobi natanko enega gledalca: drugi in tisti z napačnim žetonom dobita 404.
+
 ## Sporočila (novo)
 
 ```

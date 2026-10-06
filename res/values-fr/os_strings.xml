@@ -224,8 +224,9 @@
     <string name="os_zaslon_ni_racunalnika">Aucun ordinateur dans Safeer Link ne partage son écran. Dans Safeer Control sur l\'ordinateur, active \'Écran pour le téléviseur\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link n\'est pas connecté, il n\'y a donc aucun ordinateur à interroger.</string>
     <string name="os_zaslon_ni_dovoljeno">%1$s ne partage pas son écran. Dans Safeer Control sur cet ordinateur, active \'Écran pour le téléviseur\'.</string>
-    <string name="os_zaslon_ni_doma">%1$s n\'est pas joignable directement pour le moment. L\'affichage de l\'écran ne fonctionne que sur le même réseau (à la maison), pas via Global Link.</string>
-    <string name="os_zaslon_ni_dosegljiv">%1$s est injoignable. Vérifiez que les deux appareils sont sur le même réseau.</string>
+    <string name="os_zaslon_ni_doma">%1$s n\'est pas joignable pour le moment, ni sur le réseau domestique ni via Global Link. Vérifiez qu\'il est allumé et que Global Link est activé sur les deux appareils.</string>
+    <string name="os_zaslon_ni_dosegljiv">%1$s est injoignable. Vérifiez qu\'il est allumé et connecté au réseau.</string>
+    <string name="os_zaslon_zdoma_posodobi">%1$s n\'est pas joignable directement d\'ici et a besoin d\'une version plus récente de Safeer pour afficher son écran via Global Link. Mettez à jour Safeer sur l\'ordinateur.</string>
     <string name="os_zaslon_napaka">Ça n\'a pas marché : %1$s</string>
     <string name="os_zaslon_koncano">L\'ordinateur a terminé la session.</string>
     <string name="os_zaslon_ponovno">La connexion a été coupée. Nouvel essai…</string>

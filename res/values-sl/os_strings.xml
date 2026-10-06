@@ -224,8 +224,9 @@
     <string name="os_zaslon_ni_racunalnika">Noben računalnik v Safeer Linku ne deli zaslona. V Safeer Controlu na računalniku vklopi \'Zaslon za televizor\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link ni povezan, zato ni računalnika, ki bi ga vprašali.</string>
     <string name="os_zaslon_ni_dovoljeno">%1$s zaslona ne deli. V Safeer Controlu na tem računalniku vklopi \'Zaslon za televizor\'.</string>
-    <string name="os_zaslon_ni_doma">%1$s zdaj ni dosegljiv neposredno. Slika zaslona deluje samo v istem omrežju (doma), prek Global Linka ne.</string>
-    <string name="os_zaslon_ni_dosegljiv">%1$s ni dosegljiv. Preveri, ali sta obe napravi v istem omrežju.</string>
+    <string name="os_zaslon_ni_doma">%1$s zdaj ni dosegljiv – ne v domačem omrežju ne prek Global Linka. Preveri, ali je prižgan in ali je Global Link vklopljen na obeh napravah.</string>
+    <string name="os_zaslon_ni_dosegljiv">%1$s ni dosegljiv. Preveri, ali je prižgan in povezan v omrežje.</string>
+    <string name="os_zaslon_zdoma_posodobi">%1$s od tu ni dosegljiv neposredno, za sliko zaslona prek Global Linka pa potrebuje novejši Safeer. Posodobi Safeer na računalniku.</string>
     <string name="os_zaslon_napaka">Ni šlo: %1$s</string>
     <string name="os_zaslon_koncano">Računalnik je končal sejo.</string>
     <string name="os_zaslon_program_zaprt">Program na računalniku se je zaprl.</string>
