@@ -76,6 +76,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onPause() {
+        if (cakamZaslon) { cakamZaslon = false; glavna.removeCallbacks(zaslonNiPrisel) }
         if (si.safeer.tv.os.Predaja.prikaz != null) { si.safeer.tv.os.Predaja.prikaz = null; si.safeer.tv.os.PredajaObvestilo.umakniPasico() }
         super.onPause()
     }
@@ -312,13 +313,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         // Zaslon je namenoma skrit; Splet je poenoten v obvezni stranski vrstici.
         mZaslon?.setOnClickListener {
-            val r = racunalnik("desktop")
-            if (r != null) {
-                val namera = Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
-                odpriVarno(namera, getString(R.string.tablet_zaslon))
-            } else {
-                pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
-            }
+            // Ista pot kot kartica Povezani zasloni (izbira naprave, cakanje na Link).
+            odpriZaslon()
         }
         // Datoteke so vedno na voljo: brez racunalnika se odprejo videi, glasba in slike te naprave,
         // s povezanim racunalnikom pa DatotekeActivity ponudi izbiro vira (ta naprava ali racunalnik).
@@ -454,13 +450,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             odpriVBrskalniku(null)
         }
         hitriRacunalnik?.setOnClickListener {
-            val r = racunalnik("desktop")
-            if (r != null) {
-                val namera = Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id)
-                odpriVarno(namera, getString(R.string.tablet_zaslon))
-            } else {
-                pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
-            }
+            // Ista pot kot kartica Povezani zasloni (izbira naprave, cakanje na Link).
+            odpriZaslon()
         }
         hitriDatoteke?.setOnClickListener {
             odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
@@ -602,7 +593,9 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 getString(R.string.tablet_zaslon))
         }
         when (naprave.size) {
-            0 -> pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
+            // Link se pravkar povezuje (zasuk zaslona, vrnitev v aplikacijo): naprave pridejo cez trenutek. Pocakamo,
+            // namesto da uporabniku recemo, naj napravo poveze.
+            0 -> if (link.povezan) pokaziOknoNiPovezano(getString(R.string.tablet_zaslon)) else pocakajNaZaslon()
             1 -> odpri(naprave[0])
             else -> AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(getString(R.string.tablet_zaslon))
@@ -610,6 +603,22 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
+    }
+
+    /** »Povezani zasloni« dotaknjeni, ko se Link se povezuje: cakamo na naprave (false = ne cakamo). */
+    private var cakamZaslon = false
+    private val cakajLinkMs = 4_000L
+    private val zaslonNiPrisel = Runnable {
+        cakamZaslon = false
+        if (!isFinishing) pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
+    }
+
+    /** Pocaka na naprave (najvec [cakajLinkMs]); [naNaprave] zaslon odpre, takoj ko racunalnik pride. */
+    private fun pocakajNaZaslon() {
+        if (cakamZaslon) return
+        cakamZaslon = true
+        Toast.makeText(this, getString(R.string.os_stanje_povezujem), Toast.LENGTH_SHORT).show()
+        glavna.postDelayed(zaslonNiPrisel, cakajLinkMs)
     }
 
     private fun racunalnik(zmoznost: String): LinkOdjemalec.Naprava? =
@@ -947,6 +956,12 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (datoteke != imamoDatoteke || programi != imamoPrograme || zaslon != imamoZaslon) narisi()
         else narisiNaprave()
         if (!datoteke && !programi && !zaslon) isci()
+        // Uporabnik je »Povezane zaslone« dotaknil, preden se je Link povezal: racunalnik je tu, odpremo.
+        if (cakamZaslon && zaslon) {
+            cakamZaslon = false
+            glavna.removeCallbacks(zaslonNiPrisel)
+            odpriZaslon()
+        }
         si.safeer.tv.os.AplikacijeHostaActivity.predhodno(this)
     }
 

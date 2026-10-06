@@ -240,8 +240,16 @@ object GlobalLink {
         }
     }
 
+    /** Krajevna vticnica kanala naj vsak kos poslje takoj (TCP_NODELAY); napaka ne sme podreti kanala. */
+    internal fun brezZamika(tcp: Socket): Boolean = try { tcp.tcpNoDelay = true; true } catch (_: Throwable) { false }
+
     /** Poslusalec, ki bajte kanala prenasa v lokalno TCP povezavo in nazaj ([takoj]: brez cakanja na "ready"). */
     internal fun cev(tcp: Socket, takoj: Boolean, cilj: String? = null): WebSocketListener = object : WebSocketListener() {
+        init {
+            // Brez Naglovega zbiranja: kosi iz releja (16 KiB) so na krajevni zanki (MSS ~64 KiB) vsi »majhni« in bi
+            // vsak cakal na potrditev prejsnjega - do 40 ms. Slika oddaljenega zaslona je zato prihajala v sunkih.
+            brezZamika(tcp)
+        }
         private fun posiljaj(webSocket: WebSocket) {
             Thread({
                 val buf = ByteArray(16 * 1024)
