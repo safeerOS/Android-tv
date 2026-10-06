@@ -450,15 +450,15 @@ class CastReceiverService : Service() {
                         put("capabilities", org.json.JSONArray(zmoznosti))
                         // Protocol v1: model naprave in katalog aplikacij, ki jih zna ta zaslon zagnati.
                         HubKrmilnik.poljaV1(this@CastReceiverService, "screen", this, HubKrmilnik.prioriteta(this@CastReceiverService))
-                        val katalog = try { si.safeer.tv.link.Daljinec.katalog(this@CastReceiverService) } catch (_: Throwable) { null }
-                        if (katalog != null && katalog.length() > 0) put("apps", katalog)
+                        // Seznama namescenih programov sredisce ne dobi vec: z seznamom naprav ga je prejela vsaka naprava v
+                        // Linku. Kdor ima na tej napravi dovoljenje za programe, ga dobi z ukazom apps.list (Dostop).
                     })
                 }
                 webSocket.send(registerMsg.toString())
-                continuity = SafeerContinuity(this@CastReceiverService) { msg -> try { webSocket.send(msg.toString()) } catch (_: Throwable) { false } }
+                continuity = SafeerContinuity(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
                 continuity?.requestLatest()
-                workspace = SafeerWorkspace(this@CastReceiverService) { msg -> try { webSocket.send(msg.toString()) } catch (_: Throwable) { false } }
-                mediaSync = SafeerMediaSync(this@CastReceiverService) { msg -> try { webSocket.send(msg.toString()) } catch (_: Throwable) { false } }
+                workspace = SafeerWorkspace(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
+                mediaSync = SafeerMediaSync(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
                 mediaSync?.requestLatest()
                 // Imena naprav iz nasega kroga (npr. dana na drugem hubu): hub vzame samo imena znanih clanov.
                 if (packageName == si.safeer.tv.os.Sosed.OS) try { KrogNaprave.prevzemiImeTelevizorja(this@CastReceiverService) } catch (_: Throwable) { }
@@ -766,7 +766,7 @@ class CastReceiverService : Service() {
                     try { ws.send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "pair.reject")
                         .put("payload", JSONObject().put("pair_id", id)).toString()) } catch (_: Throwable) { }
                 }) return
-            if (type == "sync.data") {
+            if (type == "sync.data" && Dostop.smeSporocilo(this, json.optString("sender", ""), type)) {
                 val payload = json.optJSONObject("payload") ?: JSONObject()
                 workspace?.accept(payload) // passive only; never steals focus
                 val state = continuity?.accept(payload)
@@ -776,6 +776,7 @@ class CastReceiverService : Service() {
             }
 
             if (type == SafeerHandoff.TYPE) {
+                if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
                 val p = SafeerHandoff.payload(json)
                 if (p != null) {
                     // Kot cast.url: predvajalnik v ospredju nadaljuje na polozaju, sicer se odpre brskalnik.
@@ -809,6 +810,7 @@ class CastReceiverService : Service() {
                 }
 
                 "cast.url" -> {
+                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
                     val payload = json.getJSONObject("payload")
                     val url = payload.getString("url")
                     val title = payload.optString("title", "")
@@ -827,6 +829,7 @@ class CastReceiverService : Service() {
                 }
 
                 "cast.control" -> {
+                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
                     val payload = json.getJSONObject("payload")
                     val action = payload.getString("action")
                     val position = if (payload.has("position")) payload.getDouble("position") else null
@@ -856,6 +859,16 @@ class CastReceiverService : Service() {
                     // Komu gre odgovor ali pretakanje, pove hub (sender), nikoli parametri ukaza.
                     parametri.remove(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ)
                     if (posiljatelj.isNotBlank()) parametri.put(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ, posiljatelj)
+                    // Seznanitev ni dovoljenje: ukaz izvedemo le napravi, ki ji je uporabnik na TEJ napravi odprl ustrezno
+                    // zmoznost (datoteke, programi, predvajalnik, zaslon). Drugi dobijo odgovor »naprava tega ne deli«.
+                    if (!Dostop.smeDejanje(this, posiljatelj, dejanje)) {
+                        if (posiljatelj.isNotBlank()) {
+                            try { ws.send(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje,
+                                si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje)).toString()) }
+                            catch (e: Throwable) { Log.w(TAG, "Zavrnitve ni bilo mogoce poslati: ${e.message}") }
+                        }
+                        return
+                    }
                     if (dejanje == si.safeer.tv.os.DomPreverjanjePravila.DEJANJE && BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) {
                         // Preverjevalec doma: odgovor pocaka na dodatke (dolgo povprasevanje, do 4 s) - ne na glavni niti,
                         // in brez vrstice v dnevniku za vsako vprasanje (odjemalec sprasuje, dokler mreza caka).
@@ -938,6 +951,11 @@ class CastReceiverService : Service() {
                     val dejanje = payload.optString("action", "")
                     val od = imePosiljatelja(json)
                     val idDeljenja = payload.optString("id", "")
+                    if (dejanje == "start" && !Dostop.smeSporocilo(this, json.optString("sender", ""), type, dejanje)) {
+                        // Zaslon druge naprave se tu ne odpre sam, ce ji tega nismo dovolili.
+                        sendAck(ws, msgId, "error", "ni_dovoljeno")
+                        return
+                    }
                     if (dejanje == "start") {
                         val pot = payload.optString("path", "")
                         val url = if (pot.startsWith("/")) hubHttpOsnova() + pot else payload.optString("url", "")
@@ -1083,6 +1101,31 @@ class CastReceiverService : Service() {
         ws.send(ack.toString())
     }
 
+    /**
+     * Usklajevanje stanja (kaj je odprto, kaj se predvaja, kje): prej je slo vsem napravam v Linku (`target: all`),
+     * zdaj vsaki napravi ozjega kroga (odprto ji je vse) posebej - tako ga tudi starejse sredisce ne more dati komu
+     * drugemu. Seznam `allow` pove novemu srediscu, komu sme dati zadnje stanje iz svoje shrambe. Zahteve
+     * (sync.request) gredo naprej z istim seznamom.
+     */
+    private fun posljiUsklajevanje(ws: WebSocket, msg: JSONObject): Boolean {
+        val dovoljeni = Dostop.napraveZ(this, DostopPravila.Zahteva.VSE)
+        msg.put("allow", org.json.JSONArray(dovoljeni))
+        if (msg.optString("type") != "sync.data") return try { ws.send(msg.toString()) } catch (_: Throwable) { false }
+        if (dovoljeni.isEmpty()) return false
+        var poslano = false
+        try {
+            val naprave = org.json.JSONArray(zadnjeNaprave)
+            val ze = HashSet<String>()
+            for (i in 0 until naprave.length()) {
+                val id = naprave.optJSONObject(i)?.optString("id").orEmpty()
+                if (id.isBlank() || id == deviceId || !ze.add(id) || Dostop.jedro(this, id) !in dovoljeni) continue
+                val kopija = JSONObject(msg.toString()).put("id", UUID.randomUUID().toString()).put("target", id)
+                if (ws.send(kopija.toString())) poslano = true
+            }
+        } catch (_: Throwable) { }
+        return poslano
+    }
+
     private var zadnjaKontinuiteta = ""
     private var zadnjaKontinuitetaOb = 0L
 
@@ -1091,6 +1134,9 @@ class CastReceiverService : Service() {
             put("id", UUID.randomUUID().toString())
             put("type", "cast.status")
             put("device_id", deviceId)
+            // Kaj ta naprava predvaja, smejo izvedeti samo naprave, ki jim je tu odprt predvajalnik; sredisce stanje
+            // posreduje le njim (HubUsmerjevalnik). Prej ga je dobila vsaka naprava v Linku.
+            put("allow", org.json.JSONArray(Dostop.napraveZ(this@CastReceiverService, DostopPravila.Zmoznost.PREDVAJALNIK)))
             put("payload", JSONObject().apply {
                 put("state", state)
                 put("current_url", currentUrl)

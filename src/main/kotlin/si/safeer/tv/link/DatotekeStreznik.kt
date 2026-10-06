@@ -52,6 +52,26 @@ object DatotekeStreznik {
         fun zivi(zdaj: Long) = zdaj - rabljen < ZETON_VELJA_MS && zdaj - izdan < NAJDLJE_MS
     }
     private val zetoni = ConcurrentHashMap<String, Zeton>()
+    /**
+     * Datoteke, ki jih je uporabnik te naprave drugi napravi sam poslal ali jih naprava z odprtim predvajalnikom
+     * nadaljuje: "jedro naprave|oznaka" -> do kdaj (monotoni cas). Prav ta datoteka je napravi dosegljiva tudi brez
+     * odprtih datotek - samo za branje.
+     */
+    private val izrecno = ConcurrentHashMap<String, Long>()
+
+    fun dovoliIzrecno(ctx: Context, idNaprave: String, oznaka: String) {
+        if (idNaprave.isBlank() || oznaka.isBlank()) return
+        val zdaj = zdaj()
+        izrecno.entries.removeIf { it.value <= zdaj }
+        izrecno[si.safeer.tv.cast.Dostop.jedro(ctx, idNaprave) + "|" + oznaka] = zdaj + NAJDLJE_MS
+        while (izrecno.size > 512) izrecno.entries.minByOrNull { it.value }?.let { izrecno.remove(it.key) }
+    }
+
+    private fun izrecnoDovoljena(ctx: Context, idNaprave: String, oznaka: String?): Boolean {
+        if (oznaka.isNullOrBlank()) return false
+        val rok = izrecno[si.safeer.tv.cast.Dostop.jedro(ctx, idNaprave) + "|" + oznaka] ?: return false
+        return zdaj() < rok
+    }
     private const val ZETON_VELJA_MS = 12 * 3600_000L
     private const val NAJDLJE_MS = 7 * 24 * 3600_000L
     private fun zdaj() = android.os.SystemClock.elapsedRealtime()
@@ -211,7 +231,7 @@ object DatotekeStreznik {
         return z
     }
 
-    private fun zetonVelja(z: String?, zdaj: Long = zdaj(), zahtevaDeljenje: Boolean = true): Boolean {
+    private fun zetonVelja(z: String?, zdaj: Long = zdaj(), zahtevaDeljenje: Boolean = true, oznaka: String? = null): Boolean {
         if (z.isNullOrBlank()) return false
         val zb = z.toByteArray()
         val (kljuc, najden) = zetoni.entries.firstOrNull { it.value.zivi(zdaj) && MessageDigest.isEqual(it.value.vrednost.toByteArray(), zb) }
@@ -222,6 +242,16 @@ object DatotekeStreznik {
         if (ctx != null && ((zahtevaDeljenje && !vklopljeno(ctx)) || umaknjena(ctx, kljuc.substringBefore('#')))) {
             zetoni.remove(kljuc)
             return false
+        }
+        // Dovoljenje naprave se preveri ob VSAKI zahtevi: ko ji uporabnik dostop odvzame, datoteke takoj niso vec
+        // dosegljive. Datoteke te naprave zahtevajo odprte »datoteke« (cast/Dostop) - ali pa je bila prav ta datoteka
+        // napravi izrecno poslana (samo branje). Tokovi pomoci (pretvorba, torrent) imajo svojo nakljucno oznako, ki jo
+        // dobi le naprava, ki je tok smela zahtevati ali ji je bil poslan; zanje zadosca zeton. Zetona ob zavrnitvi ne
+        // zavrzemo: velja naprej za izrecno poslano in za tokove.
+        if (ctx != null && zahtevaDeljenje) {
+            val naprava = kljuc.substringBefore('#')
+            if (!si.safeer.tv.cast.Dostop.sme(ctx, naprava, si.safeer.tv.cast.DostopPravila.Zmoznost.DATOTEKE) &&
+                !izrecnoDovoljena(ctx, naprava, oznaka)) return false
         }
         najden.rabljen = zdaj
         return true
@@ -362,7 +392,11 @@ object DatotekeStreznik {
                 return
             }
             if (!pot.startsWith("/d/") && !pot.startsWith("/thumb/")) { napaka(izhod, 404, "ni take poti"); return }
-            if (!zetonVelja(zeton)) { napaka(izhod, 401, "manjka ali napacen zeton"); return }
+            // Urejanje (POST) samo z odprtimi datotekami - izrecno poslana datoteka je samo za branje.
+            val oznakaZahteve = if (metoda == "POST") null else try {
+                URLDecoder.decode(pot.substring(if (pot.startsWith("/thumb/")) 7 else 3), "UTF-8")
+            } catch (_: Throwable) { null }
+            if (!zetonVelja(zeton, oznaka = oznakaZahteve)) { napaka(izhod, 401, "manjka ali napacen zeton"); return }
             val ctx = appContext ?: run { napaka(izhod, 503, "ni pripravljeno"); return }
             val palec = pot.startsWith("/thumb/")
             val uri = uriIz(URLDecoder.decode(pot.substring(if (palec) 7 else 3), "UTF-8")) ?: run { napaka(izhod, 404, "datoteke ni"); return }

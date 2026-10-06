@@ -81,6 +81,9 @@ object Predaja {
             // Datoteka te naprave: le, ce naprava datoteke deli (isto stikalo in dovoljenje kot Datoteke).
             if (!DatotekeStreznik.vklopljeno(ctx) || !DatotekeStreznik.imamoDovoljenje(ctx)) return null
             val oznaka = DatotekeStreznik.oznakaZa(sk.zvok) ?: return null
+            // Prav ta datoteka je napravi dosegljiva tudi brez odprtih datotek (samo branje): do sem pride naprava z
+            // odprtim predvajalnikom (play.state) ali naprava, ki ji uporabnik te naprave vsebino sam poslje.
+            DatotekeStreznik.dovoliIzrecno(ctx, posiljatelj, oznaka)
             val s = DatotekeStreznik.streznikZa(ctx, posiljatelj) ?: return null
             val url = s.optString("base_url").trimEnd('/') + "/d/" + android.net.Uri.encode(oznaka)
             // povezava prazna: predvajalnik na cilju pod naslovom ne kaze naslova streznika z zetonom (kot pri Datotekah).

@@ -52,8 +52,9 @@ private class LazniPomnilnik : HubUsmerjevalnik.Shramba {
 private var cas = 1_700_000_000_000L
 private var stevec = 0
 
+// Naprave v teh preizkusih so (razen kjer preizkus pove drugace) vse v ozjem krogu naprave s srediscem.
 private fun usmerjevalnik(shramba: HubUsmerjevalnik.Shramba? = null): HubUsmerjevalnik =
-    HubUsmerjevalnik(shramba, { cas }, { n -> "t%d-%d".format(++stevec, n) })
+    HubUsmerjevalnik(shramba, { cas }, { n -> "t%d-%d".format(++stevec, n) }, ozjiKrog = { _, _ -> true })
 
 private fun tip(sporocilo: String): String = JsonLahki.objekt(sporocilo)?.nizAli("type") ?: "?"
 private fun polje(sporocilo: String, kljuc: String): String =
@@ -187,7 +188,13 @@ private fun preizkusRegistra() {
     val potrditev = u.odgovorNa(telefon, ukaz)!!
     preveriEnako("ukaz je sprejet", "accepted", polje(potrditev, "status"))
     preveriEnako("potrditev se sklicuje na sporocilo", "u1", polje(potrditev, "ref_id"))
-    preveriEnako("prejemnik dobi ukaz nespremenjen", ukaz, tv.zadnje())
+    // Tovor pride nespremenjen, posiljatelja pa vpise Hub po prijavljeni povezavi (prejemnik po njem odloca o dostopu).
+    preveriEnako("prejemnik dobi ukaz", "cast.url", tip(tv.zadnje()))
+    preveri("tovor ukaza je nespremenjen", tv.zadnje().contains("""{"url":"https://safeer.si/"}"""))
+    preveriEnako("posiljatelja vpise sredisce", "fon1", polje(tv.zadnje(), "sender"))
+    tv.pocisti()
+    u.odgovorNa(telefon, """{"id":"u1b","type":"cast.url","target":"tv1","sender":"tablica-lastnika","payload":{"url":"https://safeer.si/"}}""")
+    preveriEnako("posiljatelja, ki ga vpise naprava sama, sredisce prepise", "fon1", polje(tv.zadnje(), "sender"))
 
     preveriEnako("neznan cilj je zavrnjen", "rejected",
         polje(u.odgovorNa(telefon, """{"id":"u2","type":"cast.url","target":"ni-me"}""")!!, "status"))
@@ -274,8 +281,10 @@ private fun preizkusSinhronizacije() {
     val podatki = """{"id":"d1","type":"sync.data","payload":{"category":"bookmarks","version":3,"timestamp":100,"data":[{"u":"https://safeer.si/"}]}}"""
     preveriEnako("sync.data sprejet", "accepted", polje(u.odgovorNa(a, podatki)!!, "status"))
     preveriEnako("potrditev je v prostoru sync", "sync.ack", tip(u.odgovorNa(a, podatki)!!))
-    preveriEnako("druga naprava dobi podatke", podatki, b.zadnje())
-    preveri("posiljatelj sam sebi ne posilja", a.prejeto.none { it == podatki })
+    preveriEnako("druga naprava dobi podatke", "sync.data", tip(b.zadnje()))
+    preveri("podatki so nespremenjeni", b.zadnje().contains("""[{"u":"https://safeer.si/"}]"""))
+    preveriEnako("posiljatelja usklajevanja vpise sredisce", "fonA", polje(b.zadnje(), "sender"))
+    preveri("posiljatelj sam sebi ne posilja", a.prejeto.none { tip(it) == "sync.data" })
     preveriEnako("kategorija je shranjena", listOf("bookmarks"), u.kategorijeSinhronizacije())
 
     // Naprava, ki je bila ugasnjena, dohiti
@@ -287,6 +296,7 @@ private fun preizkusSinhronizacije() {
     preveriEnako("dobi shranjeno stanje", "sync.data", tip(c.zadnje()))
     preveri("stanje vsebuje podatke", c.zadnje().contains("https://safeer.si/"))
     preveriEnako("stanje je naslovljeno nanj", "fonC", polje(c.zadnje(), "target"))
+    preveriEnako("shranjeno stanje pove, kdo ga je oddal", "fonA", polje(c.zadnje(), "sender"))
 
     c.pocisti()
     preveriEnako("ce ze ima novejso razlicico, ne posiljamo", "accepted",
@@ -1102,6 +1112,78 @@ private fun preizkusIdaIzKljuca() {
     preveri("umik iz kroga ubije sejo", !u.jeVeljavenZeton(seja))
 }
 
+// ------------------------------------------------------------ zasebne oddaje: samo napravam, ki jim izvor to odpre
+
+private fun preizkusZasebnihOddaj() {
+    println("\n== zasebne oddaje: stanje predvajanja in usklajevanje samo dovoljenim ==")
+    // Sredisce tece na napravi, ki ima v ozjem krogu tv1 in fonMoj; fonGost je v Linku, a samo pomaga pri povezavi.
+    val ozji = setOf("tv1", "fonMoj")
+    val u = HubUsmerjevalnik(null, { cas }, { n -> "z%d-%d".format(++stevec, n) }, ozjiKrog = { jedro, _ -> jedro in ozji })
+    val tv = Lazni("192.168.0.71")
+    val moj = Lazni("192.168.0.72")
+    val gost = Lazni("192.168.0.73")
+    u.odgovorNa(tv, registracija("tv1", "receiver", "[\"url\",\"sync\"]"))
+    u.odgovorNa(moj, registracija("fonMoj", "sender", "[\"sync\"]"))
+    u.odgovorNa(gost, registracija("fonGost", "sender", "[\"sync\"]"))
+    fun stanja(o: Lazni) = o.prejeto.filter { tip(it) == "cast.status" }
+    fun uskl(o: Lazni) = o.prejeto.filter { tip(it) == "sync.data" }
+    fun pocisti() { tv.pocisti(); moj.pocisti(); gost.pocisti() }
+
+    // Stanje predvajanja s seznamom: samo navedenim.
+    pocisti()
+    u.odgovorNa(tv, """{"id":"s1","type":"cast.status","device_id":"tv1","allow":["fonMoj"],"payload":{"state":"playing","title":"zasebno"}}""")
+    preveriEnako("naprava s seznama dobi stanje predvajanja", 1, stanja(moj).size)
+    preveriEnako("naprava, ki je ni na seznamu, ga ne dobi", 0, stanja(gost).size)
+    preveri("seznam allow ne gre naprej", stanja(moj).none { it.contains("allow") })
+    preveriEnako("posiljatelja stanja vpise sredisce", "tv1", polje(stanja(moj).last(), "sender"))
+    preveri("tovor stanja ostane", stanja(moj).last().contains("zasebno"))
+
+    // Prazen seznam: nihce (naprava nikomur ni odprla predvajalnika).
+    pocisti()
+    u.odgovorNa(tv, """{"id":"s2","type":"cast.status","device_id":"tv1","allow":[],"payload":{"state":"playing"}}""")
+    preveri("prazen seznam: stanja ne dobi nihce", stanja(moj).isEmpty() && stanja(gost).isEmpty())
+
+    // Izvor lahko navede tudi napravo zunaj ozjega kroga sredisca - o svojih vsebinah odloca izvor.
+    pocisti()
+    u.odgovorNa(tv, """{"id":"s3","type":"cast.status","device_id":"tv1","allow":["fonGost"],"payload":{"state":"playing"}}""")
+    preveri("izvor sam odloci, komu odpre", stanja(gost).size == 1 && stanja(moj).isEmpty())
+
+    // Starejsi izvor brez seznama: samo znotraj ozjega kroga naprave s srediscem.
+    pocisti()
+    u.odgovorNa(tv, """{"id":"s4","type":"cast.status","device_id":"tv1","payload":{"state":"playing"}}""")
+    preveri("brez seznama: naprava iz ozjega kroga dobi, gost ne", stanja(moj).size == 1 && stanja(gost).isEmpty())
+    pocisti()
+    u.odgovorNa(gost, """{"id":"s5","type":"cast.status","device_id":"fonGost","payload":{"state":"playing"}}""")
+    preveri("brez seznama od naprave zunaj ozjega kroga: nikomur", stanja(moj).isEmpty() && stanja(tv).isEmpty())
+
+    // Usklajevanje s seznamom: samo navedenim; shramba zadnjega stanja velja za iste.
+    pocisti()
+    val uskladi = """{"id":"d1","type":"sync.data","allow":["tv1"],"payload":{"category":"continuity","version":4,"timestamp":500,"data":[{"u":"https://zasebno.primer/"}]}}"""
+    preveriEnako("usklajevanje sprejeto", "accepted", polje(u.odgovorNa(moj, uskladi)!!, "status"))
+    preveri("usklajevanje dobi navedena naprava, gost ne", uskl(tv).size == 1 && uskl(gost).isEmpty())
+    preveri("seznam allow ne gre naprej tudi pri usklajevanju", uskl(tv).none { it.contains("allow") })
+    pocisti()
+    val zahtevek = """{"id":"z1","type":"sync.request","payload":{"category":"continuity"}}"""
+    u.odgovorNa(gost, zahtevek)
+    preveri("gost iz shrambe sredisca ne dobi zadnjega stanja", gost.prejeto.none { it.contains("zasebno.primer") })
+    u.odgovorNa(tv, zahtevek)
+    preveri("navedena naprava ga iz shrambe dobi", tv.prejeto.any { tip(it) == "sync.data" && it.contains("zasebno.primer") })
+
+    // Starejsi izvor brez seznama (iz ozjega kroga): ozjemu krogu, gostu ne - tudi iz shrambe ne.
+    pocisti()
+    u.odgovorNa(tv, """{"id":"d2","type":"sync.data","payload":{"category":"bookmarks","version":1,"timestamp":600,"data":["starejsa-naprava"]}}""")
+    preveri("brez seznama: usklajevanje ozjemu krogu, gostu ne", uskl(moj).size == 1 && uskl(gost).isEmpty())
+    pocisti()
+    u.odgovorNa(gost, """{"id":"z2","type":"sync.request","payload":{"category":"bookmarks"}}""")
+    preveri("gost tudi starejsega stanja iz shrambe ne dobi", gost.prejeto.none { it.contains("starejsa-naprava") })
+
+    // Naslovljeno usklajevanje (naprava ga poslje vsaki napravi ozjega kroga posebej) gre naslovniku.
+    pocisti()
+    u.odgovorNa(moj, """{"id":"d3","type":"sync.data","target":"tv1","allow":["tv1"],"payload":{"category":"media","version":2,"timestamp":700,"data":["film"]}}""")
+    preveri("naslovljeno usklajevanje pride do naslovnika s pravim posiljateljem",
+        uskl(tv).size == 1 && polje(uskl(tv).last(), "sender") == "fonMoj" && uskl(gost).isEmpty())
+}
+
 // ------------------------------------------------------------ Protocol v1: model naprave in katalog aplikacij
 
 private fun preizkusProtokolaV1() {
@@ -1109,7 +1191,7 @@ private fun preizkusProtokolaV1() {
     println("Protocol v1")
     val u = HubUsmerjevalnik()
     val pc = Lazni("192.168.0.60")
-    val katalog = """{"firefox":{"name":"Firefox","kind":"app"},"vlc":{"name":"VLC","kind":"app","icon":"data:x"}}"""
+    val katalog = """{"firefox":{"name":"Firefox","kind":"app"},"vlc":{"name":"VLC","kind":"app","icon":"data:x"},"si.safeer.os":{"name":"Safeer OS","kind":"app"}}"""
     val odgovor = u.odgovorNa(pc, """{"id":"r1","type":"cast.register","payload":{"device_id":"pc-1","name":"Racunalnik","role":"sender",
         "capabilities":["url","apps"],"protocol":"1.0","platform":"linux","kind":"computer","version":"1.0.14","priority":80,"apps":$katalog}}""")
     preveriEnako("prijava v1 sprejeta", "accepted", polje(odgovor!!, "status"))
@@ -1120,15 +1202,17 @@ private fun preizkusProtokolaV1() {
     val naprave = seznam?.surovo("devices").orEmpty()
     preveri("v seznamu je model naprave v1", naprave.contains("\"platform\":\"linux\"") && naprave.contains("\"kind\":\"computer\"")
         && naprave.contains("\"version\":\"1.0.14\"") && naprave.contains("\"priority\":80") && naprave.contains("\"protocol\":\"1.0\""))
-    preveri("v seznamu je katalog aplikacij", naprave.contains("\"apps\":{") && naprave.contains("\"firefox\":{\"name\":\"Firefox\"") && naprave.contains("\"icon\":\"data:x\""))
+    // Seznam naprav dobi vsak clan Linka: iz kataloga ostane samo, ali ima naprava Safeer aplikacije.
+    preveri("v seznamu so iz kataloga samo paketi Safeer", naprave.contains("\"apps\":{") && naprave.contains("\"si.safeer.os\":{\"name\":\"Safeer OS\"")
+        && !naprave.contains("firefox") && !naprave.contains("VLC") && !naprave.contains("data:x"))
     preveri("naprava 0.2 nima polj v1", !naprave.substringAfter("\"id\":\"tv-1\"").contains("\"platform\""))
     // Naknadna objava kataloga.
     tv.pocisti()
-    val objava = u.odgovorNa(pc, """{"id":"a1","type":"apps.announce","payload":{"apps":{"gimp":{"name":"GIMP","kind":"app"}}}}""")
+    val objava = u.odgovorNa(pc, """{"id":"a1","type":"apps.announce","payload":{"apps":{"gimp":{"name":"GIMP","kind":"app"},"si.safeer.tablet":{"name":"Safeer OS","kind":"app"}}}}""")
     preveriEnako("apps.announce sprejet", "accepted", polje(objava!!, "status"))
     val novi = tv.prejeto.lastOrNull { it.contains("cast.devices") }.orEmpty()
-    preveri("po objavi dobijo vsi nov seznam", novi.contains("\"gimp\":{\"name\":\"GIMP\"") && !novi.contains("firefox"))
-    preveriEnako("ista objava drugic ne razposilja", "accepted", polje(u.odgovorNa(pc, """{"id":"a2","type":"apps.announce","payload":{"apps":{"gimp":{"name":"GIMP","kind":"app"}}}}""")!!, "status"))
+    preveri("po objavi dobijo vsi nov seznam (samo paketi Safeer)", novi.contains("\"si.safeer.tablet\":{\"name\":\"Safeer OS\"") && !novi.contains("GIMP") && !novi.contains("si.safeer.os"))
+    preveriEnako("ista objava drugic ne razposilja", "accepted", polje(u.odgovorNa(pc, """{"id":"a2","type":"apps.announce","payload":{"apps":{"gimp":{"name":"GIMP","kind":"app"},"si.safeer.tablet":{"name":"Safeer OS","kind":"app"}}}}""")!!, "status"))
     val neprijavljen = Lazni("192.168.0.62")
     preveriEnako("apps.announce brez prijave je zavrnjen", "rejected", polje(u.odgovorNa(neprijavljen, """{"id":"a3","type":"apps.announce","payload":{"apps":{"x":{"name":"X"}}}}""")!!, "status"))
     // Meje kataloga.
@@ -1779,6 +1863,7 @@ fun main() {
     preizkusKlepeta()
     preizkusDaljinca()
     preizkusSinhronizacije()
+    preizkusZasebnihOddaj()
     preizkusSeznanjanja()
     preizkusPreklica()
     preizkusSorodnika()

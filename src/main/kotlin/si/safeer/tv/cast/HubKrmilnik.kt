@@ -208,7 +208,9 @@ object HubKrmilnik {
             return false
         }
 
-        val u = HubUsmerjevalnik(NastavitveShramba(app), krogZaupanja = KrogNaprave.krog(app))
+        val u = HubUsmerjevalnik(NastavitveShramba(app), krogZaupanja = KrogNaprave.krog(app),
+            // Zasebne oddaje starejsih naprav (brez seznama `allow`): samo znotraj ozjega kroga te naprave.
+            ozjiKrog = { jedro, zahteva -> Dostop.sme(app, jedro, zahteva) })
         // TLS: kljuc Huba iz Android KeyStore; odtis potrdila je vpleten v seznanjanje.
         val tls = try { HubTls.streznik() } catch (e: Throwable) {
             Log.w(TAG, "TLS Huba ni bilo mogoce pripraviti: ${e.message}")

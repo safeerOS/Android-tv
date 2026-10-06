@@ -80,6 +80,23 @@ object Daljinec {
         }
     }
 
+    const val KODA_NI_DOVOLJENO = "ni_dovoljeno"
+
+    /**
+     * Odgovor napravi, ki ji uporabnik te naprave zmoznosti ni odprl (cast/Dostop). Pri seznamih ima obliko »naprava
+     * tega ne deli«, kot jo naprave ze poznajo (prazen seznam, shared/enabled = false) - starejsa razlicica na drugi
+     * strani zato ne pokaze napake, ampak napravo brez deljenja. Vse drugo dobi kratko zavrnitev s kodo.
+     */
+    fun zavrnitevDostopa(dejanje: String): Izid = when (dejanje.trim().lowercase()) {
+        "files.list", "files.search" -> Izid(true, "Naprava datotek ne deli",
+            JSONObject().put("folder", "").put("items", JSONArray()).put("shared", false).put("reason", "access"))
+        "apps.list" -> Izid(true, "Naprava programov ne deli",
+            JSONObject().put("items", JSONArray()).put("enabled", false).put("reason", "access"))
+        "apps" -> Izid(true, "Naprava programov ne deli", JSONObject().put("apps", JSONArray()).put("reason", "access"))
+        "play.state" -> Izid(true, "Predvajanje", JSONObject().put("shared", false).put("reason", "access"))
+        else -> Izid(false, "Ta naprava ti tega ne dovoli. Dostop odpre njen uporabnik v Safeer Linku.", koda = KODA_NI_DOVOLJENO)
+    }
+
     /** Kar zna izvesti samo odprti brskalnik. Vrne null, ce dejanja ne pozna. */
     interface VOspredju {
         fun izvediUkaz(dejanje: String, parametri: JSONObject): Izid?

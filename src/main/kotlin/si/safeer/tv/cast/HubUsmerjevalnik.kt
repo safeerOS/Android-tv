@@ -34,7 +34,12 @@ class HubUsmerjevalnik(
     internal val ura: () -> Long = { System.currentTimeMillis() },
     internal val nakljucni: (Int) -> String = { privzetoNakljucno(it) },
     /** Skupni krog zaupanja naprave (KrogNaprave.krog): hub in naprava NE smeta imeti vsak svoje kopije iste shrambe. */
-    krogZaupanja: KrogZaupanja? = null
+    krogZaupanja: KrogZaupanja? = null,
+    /**
+     * Ali je naprava (jedro, cast/DostopPravila.jedro) v ozjem krogu naprave, na kateri tece to sredisce, za dano
+     * zahtevo. Rabi samo za zasebne oddaje starejsih naprav, ki ne povedo, komu smejo (`allow`). Privzeto nihce.
+     */
+    private val ozjiKrog: (String, DostopPravila.Zahteva) -> Boolean = { _, _ -> false }
 ) {
 
     /** Trajna shramba za zetone seznanjenih naprav (na Androidu SharedPreferences). */
@@ -86,7 +91,9 @@ class HubUsmerjevalnik(
         val razlicica: Double,
         val cas: Double,
         val podatkiSurovo: String,
-        val vir: String?
+        val vir: String?,
+        /** Komu sme sredisce to stanje dati: seznam `allow` izvora (jedra) ali null pri starejsem izvoru. */
+        val navedeni: Set<String>? = null
     ) {
         val bajtov: Int = podatkiSurovo.toByteArray(Charsets.UTF_8).size
     }
@@ -1150,7 +1157,7 @@ class HubUsmerjevalnik(
         if (naprava.vrsta.isNotBlank()) zapis.niz("kind", naprava.vrsta)
         if (naprava.razlicica.isNotBlank()) zapis.niz("version", naprava.razlicica)
         if (naprava.prioriteta > 0) zapis.stevilo("priority", naprava.prioriteta.toDouble())
-        if (naprava.aplikacije.isNotBlank()) zapis.surovo("apps", naprava.aplikacije)
+        katalogZaSeznam(naprava.aplikacije).let { if (it.isNotBlank()) zapis.surovo("apps", it) }
         val z = zasedeno[naprava.id]
         if (z != null) {
             zapis.niz("busy_by", z.posiljatelj)
@@ -1222,7 +1229,9 @@ class HubUsmerjevalnik(
                 it.vloga == "receiver" || (tip == "cast.url" && it.zmoznosti.contains("url"))
             }?.takeIf { it.povezava !== od }?.povezava
                 ?: return potrditev(id, "rejected", "Ciljna naprava '${cilj ?: ""}' ni povezana ali ne obstaja.", koda = "naprava_ni_povezana")
-            return if (posljiVarno(prejemnik, surovo)) potrditev(id, "accepted")
+            // Posiljatelja vpise Hub sam (kot pri ukazih), da se ga ne da ponarediti: prejemnik po njem odloci, ali
+            // napravi to dovoli (cast/Dostop). Prej je slo sporocilo naprej dobesedno, brez posiljatelja.
+            return if (posljiVarno(prejemnik, sPosiljateljem(sporocilo, id, tip, idPovezave(od)))) potrditev(id, "accepted")
             else potrditev(id, "error", "Napaka pri posredovanju prejemniku.", koda = "posredovanje_ni_uspelo")
         }
 
@@ -1344,7 +1353,15 @@ class HubUsmerjevalnik(
 
         if (tip == "cast.status") {
             register.osveziZadnjic(sporocilo.niz("device_id"))
-            objaviPosiljateljem(surovo)
+            // Kaj naprava predvaja, gre samo napravam, ki jim je izvor odprl predvajalnik (prej vsem v Linku). Sporocilo
+            // sestavimo na novo: posiljatelja vpise sredisce, seznam `allow` je namenjen srediscu in ne gre naprej.
+            val izvor = idPovezave(od)
+            val navedeni = navedeniPrejemniki(sporocilo)
+            val naprej = JsonLahki.Zapis().niz("id", id).niz("type", tip)
+            sporocilo.niz("device_id")?.let { naprej.niz("device_id", it) }
+            naprej.niz("sender", izvor.orEmpty())
+            sporocilo.surovo("payload")?.let { naprej.surovo("payload", it) }
+            objaviPosiljateljem(naprej.toString()) { smeDobiti(it, izvor, navedeni, DostopPravila.Zahteva.PREDVAJALNIK) }
             return null
         }
 
@@ -1505,7 +1522,7 @@ class HubUsmerjevalnik(
             if (n.vrsta.isNotBlank()) z.niz("kind", n.vrsta)
             if (n.razlicica.isNotBlank()) z.niz("version", n.razlicica)
             if (n.prioriteta > 0) z.stevilo("priority", n.prioriteta.toDouble())
-            if (n.aplikacije.isNotBlank()) z.surovo("apps", n.aplikacije)
+            katalogZaSeznam(n.aplikacije).let { if (it.isNotBlank()) z.surovo("apps", it) }
             "\"" + JsonLahki.ubezi(n.id) + "\":" + z.toString()
         }
     }
@@ -1518,7 +1535,7 @@ class HubUsmerjevalnik(
         if (n.vrsta.isNotBlank()) z.niz("kind", n.vrsta)
         if (n.razlicica.isNotBlank()) z.niz("version", n.razlicica)
         if (n.prioriteta > 0) z.stevilo("priority", n.prioriteta.toDouble())
-        if (n.aplikacije.isNotBlank()) z.surovo("apps", n.aplikacije)
+        katalogZaSeznam(n.aplikacije).let { if (it.isNotBlank()) z.surovo("apps", it) }
         if (hub != null) z.niz("hub", hub)
         return "\"" + JsonLahki.ubezi(n.id) + "\":" + z.toString()
     }
@@ -1903,6 +1920,58 @@ class HubUsmerjevalnik(
         return if (stevilo == 0) "" else zapis.toString()
     }
 
+    /** Stalna oznaka naprave (cast/DostopPravila.jedro) po krogu tega sredisca. */
+    private fun jedroNaprave(id: String?): String =
+        DostopPravila.jedro(id.orEmpty(), { krog.clanZaId(it)?.kljuc }, { KrogZaupanja.idIzKljuca(it) })
+
+    /** Seznam `allow` izvora (jedra naprav, ki jim je pri NJEM odprto) ali null, ce ga sporocilo nima. */
+    private fun navedeniPrejemniki(sporocilo: JsonLahki.Pogled): Set<String>? =
+        if (sporocilo.ima("allow")) sporocilo.nizi("allow").toSet() else null
+
+    /**
+     * Ali sme [prejemnik] dobiti zasebno oddajo izvora (kaj predvaja, usklajevanje). Izvor prejemnike navede sam
+     * ([navedeni]). Izvor brez seznama (starejsa razlicica) ne more povedati, komu zaupa: oddaja gre naprej samo, ce
+     * sta izvor IN prejemnik v ozjem krogu naprave, na kateri tece sredisce (naprave istega uporabnika delajo naprej,
+     * dokler niso posodobljene). Drugi programi izvorne naprave jo dobijo vedno.
+     */
+    private fun smeDobiti(prejemnik: String?, izvor: String?, navedeni: Set<String>?, zahteva: DostopPravila.Zahteva): Boolean {
+        val p = jedroNaprave(prejemnik)
+        val i = jedroNaprave(izvor)
+        if (p.isNotEmpty() && p == i) return true
+        if (navedeni != null) return p in navedeni
+        return try { ozjiKrog(i, zahteva) && ozjiKrog(p, zahteva) } catch (_: Throwable) { false }
+    }
+
+    /**
+     * Katalog aplikacij za seznam naprav, ki ga dobi VSAKA naprava v Linku: ostanejo samo paketi Safeer (po njih se
+     * odloca »Odpri na zaslonu«). Imena drugih programov da naprava sama - tistim, ki jim jih je njen uporabnik odprl
+     * (apps.list).
+     */
+    internal fun katalogZaSeznam(aplikacije: String): String {
+        if (aplikacije.isBlank()) return ""
+        val pogled = JsonLahki.objekt(aplikacije) ?: return ""
+        val zapis = JsonLahki.Zapis()
+        var stevilo = 0
+        for (idApp in pogled.kljuci()) {
+            if (!idApp.startsWith("si.safeer.")) continue
+            zapis.surovo(idApp, pogled.surovo(idApp) ?: continue)
+            stevilo++
+        }
+        return if (stevilo == 0) "" else zapis.toString()
+    }
+
+    /**
+     * Sporocilo naprave, sestavljeno na novo: id, tip, cilj in tovor ostanejo, posiljatelja vpise Hub po prijavljeni
+     * povezavi. Vse, kar bi naprava sama vpisala v `sender`, odpade.
+     */
+    private fun sPosiljateljem(sporocilo: JsonLahki.Pogled, id: String, tip: String, posiljatelj: String?): String {
+        val z = JsonLahki.Zapis().niz("id", id).niz("type", tip)
+        sporocilo.niz("target")?.let { z.niz("target", it) }
+        z.niz("sender", posiljatelj.orEmpty()).niz("sender_name", imeNaprave(posiljatelj.orEmpty())).stevilo("timestamp", ura() / 1000.0)
+        sporocilo.surovo("payload")?.let { z.surovo("payload", it) }
+        return z.toString()
+    }
+
     private fun usmeriSinhronizacijo(
         od: Odjemalec,
         sporocilo: JsonLahki.Pogled,
@@ -1913,14 +1982,17 @@ class HubUsmerjevalnik(
         val posiljatelj = synchronized(kljucnica) { idPovezave(od) }
         val tovor = sporocilo.objekt("payload")
 
+        // Usklajevanje nosi zasebno stanje naprave (odprte strani, iskanja, mesta v filmih): dobijo ga samo naprave, ki
+        // jih navede izvor (`allow`) - tudi zadnje stanje iz shrambe sredisca. Gl. smeDobiti.
+        val navedeni = navedeniPrejemniki(sporocilo)
         if (tip == "sync.data" && tovor != null) {
-            shraniKategorijo(tovor, posiljatelj)
+            shraniKategorijo(tovor, posiljatelj, navedeni)
         }
 
         if (tip == "sync.request" && tovor != null) {
             val ime = tovor.niz("category") ?: ""
             val shranjeno = synchronized(kljucnica) { sinhronizacija[ime] }
-            if (shranjeno != null) {
+            if (shranjeno != null && smeDobiti(posiljatelj, shranjeno.vir, shranjeno.navedeni, DostopPravila.Zahteva.VSE)) {
                 val od_razlicice = tovor.stevilo("since_version")
                 if (od_razlicice == null || shranjeno.razlicica > od_razlicice) {
                     val tovorNazaj = JsonLahki.Zapis()
@@ -1929,6 +2001,7 @@ class HubUsmerjevalnik(
                         .stevilo("timestamp", shranjeno.cas)
                         .surovo("data", shranjeno.podatkiSurovo)
                     val odgovor = ovojnica("sync.data", cilj = posiljatelj)
+                        .niz("sender", shranjeno.vir.orEmpty())
                         .surovo("payload", tovorNazaj.toString())
                     posljiVarno(od, odgovor.toString())
                 }
@@ -1936,22 +2009,26 @@ class HubUsmerjevalnik(
             }
         }
 
+        // Vsebino usklajevanja (sync.data) sredisce sestavi na novo s pravim posiljateljem: prejemnik po njem odloci,
+        // ali jo sprejme (cast/Dostop). Zahteve in stanja (sync.request, sync.status) gredo naprej dobesedno.
+        val naprej = if (tip == "sync.data") sPosiljateljem(sporocilo, id, tip, posiljatelj) else surovo
         val cilj = sporocilo.niz("target")
         if (!cilj.isNullOrEmpty() && cilj != VSEM) {
             val povezava = register.povezavaOd(cilj)
                 ?: return potrditev(id, "rejected", "Naprava '$cilj' ni povezana ali ne obstaja.", "sync", "naprava_ni_povezana")
-            return if (posljiVarno(povezava, surovo)) potrditev(id, "accepted", null, "sync")
+            return if (posljiVarno(povezava, naprej)) potrditev(id, "accepted", null, "sync")
             else potrditev(id, "error", "Napaka pri posredovanju.", "sync", "posredovanje_ni_uspelo")
         }
 
         val prejemniki = register.povezane().filter {
-            it.id != posiljatelj && (it.zmoznosti.contains(ZMOZNOST_SYNC) || it.vloga == "sync-client")
+            it.id != posiljatelj && (it.zmoznosti.contains(ZMOZNOST_SYNC) || it.vloga == "sync-client") &&
+                smeDobiti(it.id, posiljatelj, navedeni, DostopPravila.Zahteva.VSE)
         }.mapNotNull { it.povezava }
         if (prejemniki.isEmpty()) {
             return potrditev(id, "rejected", "Nobena druga naprava ne sinhronizira.", "sync", "nobena_ne_sinhronizira")
         }
         var dostavljeno = 0
-        for (povezava in prejemniki) if (posljiVarno(povezava, surovo)) dostavljeno++
+        for (povezava in prejemniki) if (posljiVarno(povezava, naprej)) dostavljeno++
         return if (dostavljeno > 0) potrditev(id, "accepted", null, "sync")
         else potrditev(id, "error", "Nobene naprave ni bilo mogoče doseči.", "sync", "nobene_ni_doseglo")
     }
@@ -1961,7 +2038,7 @@ class HubUsmerjevalnik(
      * Meje so tu, ker gre za pomnilnik televizorja: prevelika kategorija se ne shrani,
      * prevec kategorij pa ne nastane.
      */
-    private fun shraniKategorijo(tovor: JsonLahki.Pogled, vir: String?) {
+    private fun shraniKategorijo(tovor: JsonLahki.Pogled, vir: String?, navedeni: Set<String>? = null) {
         val ime = tovor.niz("category") ?: return
         val podatki = tovor.surovo("data") ?: return
         val bajtov = podatki.toByteArray(Charsets.UTF_8).size
@@ -1970,7 +2047,7 @@ class HubUsmerjevalnik(
         synchronized(kljucnica) {
             val staro = sinhronizacija[ime]
             if (staro != null && staro.cas > cas) return
-            val nova = Kategorija(ime, tovor.stevilo("version") ?: 0.0, cas, podatki, vir)
+            val nova = Kategorija(ime, tovor.stevilo("version") ?: 0.0, cas, podatki, vir, navedeni)
             sinhronizacija[ime] = nova
             // Ce smo cez skupno mejo, gredo ven najstarejsi vpisi, dokler nismo spet pod njo.
             while (sinhronizacija.size > NAJVEC_KATEGORIJ ||
@@ -2003,8 +2080,9 @@ class HubUsmerjevalnik(
         objaviSosedom(null)
     }
 
-    private fun objaviPosiljateljem(sporocilo: String) {
+    private fun objaviPosiljateljem(sporocilo: String, sme: ((String?) -> Boolean)? = null) {
         for (posiljatelj in register.posiljateljiKopija()) {
+            if (sme != null && !sme(register.idPovezave(posiljatelj))) continue
             if (!posljiVarno(posiljatelj, sporocilo)) {
                 register.odstraniPosiljatelja(posiljatelj)
             }

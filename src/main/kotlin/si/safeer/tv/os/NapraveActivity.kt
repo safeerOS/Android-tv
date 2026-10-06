@@ -122,15 +122,21 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         for (n in tuje) {
             val datoteke = n.zmoznosti.contains("files")
             val lepo = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
+            // Kaj sme ta naprava na TEJ napravi (cast/Dostop): seznanitev sama ne odpre nicesar.
+            val dano = si.safeer.tv.cast.Dostop.zmoznosti(this, n.id)
             nove.add(Vrstica(
                 ikonaNaprave(n.platforma, datoteke),
                 lepo,
-                listOf(opisNaprave(n, lepo), moc[n.id] ?: getString(R.string.os_moc_nalagam).takeIf { link.povezan }.orEmpty())
+                listOf(opisNaprave(n, lepo), moc[n.id] ?: getString(R.string.os_moc_nalagam).takeIf { link.povezan }.orEmpty(), opisDostopa(dano))
                     .filter { it.isNotBlank() }.joinToString("\n"),
-                getString(if (datoteke) R.string.os_naprave_datoteke else R.string.os_naprave_preimenuj_kratko),
+                getString(when {
+                    dano.containsAll(si.safeer.tv.cast.DostopPravila.VSE_ZMOZNOSTI) -> R.string.os_dostop_poln
+                    dano.isEmpty() -> R.string.os_dostop_brez
+                    else -> R.string.os_dostop_delni
+                }),
                 n.id,
             ) {
-                if (datoteke) izbiraNaprave(n) else preimenuj(n.id, n.ime)
+                izbiraNaprave(n)
             })
         }
         // Nova naprava: prijavno okno (prikaže QR kodo IN gumb za vpis 6-mestne kode z druge naprave -
@@ -258,19 +264,54 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .let { Kontroler.pokazi(it.show()) }
     }
 
-    /** Izbira za tujo napravo z deljenimi mapami: odpri datoteke ali preimenuj napravo. */
+    /** Vrstica o dostopu naprave: »Sme vse ...«, »Sme: datoteke, programi« ali »Brez dostopa - samo pomaga pri povezavi«. */
+    private fun opisDostopa(dano: Set<si.safeer.tv.cast.DostopPravila.Zmoznost>): String = when {
+        dano.containsAll(si.safeer.tv.cast.DostopPravila.VSE_ZMOZNOSTI) -> getString(R.string.os_dostop_vrstica_poln)
+        dano.isEmpty() -> getString(R.string.os_dostop_vrstica_brez)
+        else -> getString(R.string.os_dostop_vrstica_delno, si.safeer.tv.cast.DostopPravila.povzetek(dano).joinToString(", ") {
+            getString(when (it) {
+                si.safeer.tv.cast.DostopPravila.Zmoznost.DATOTEKE -> R.string.os_dostop_kratko_datoteke
+                si.safeer.tv.cast.DostopPravila.Zmoznost.PROGRAMI -> R.string.os_dostop_kratko_programi
+                si.safeer.tv.cast.DostopPravila.Zmoznost.PREDVAJALNIK -> R.string.os_dostop_kratko_predvajalnik
+                si.safeer.tv.cast.DostopPravila.Zmoznost.ZASLON -> R.string.os_dostop_kratko_zaslon
+            })
+        })
+    }
+
+    /** Izbira za drugo napravo: njene datoteke (ce jih deli), kaj sme ona na tej napravi, novo ime. */
     private fun izbiraNaprave(n: LinkOdjemalec.Naprava) {
-        val moznosti = arrayOf(
-            getString(R.string.os_naprave_odpri_datoteke),
-            getString(R.string.os_naprave_preimenuj)
-        )
+        val moznosti = ArrayList<Pair<String, () -> Unit>>()
+        if (n.zmoznosti.contains("files")) moznosti.add(getString(R.string.os_naprave_odpri_datoteke) to {
+            startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id)) })
+        moznosti.add(getString(R.string.os_dostop_moznost) to { dostopNaprave(n) })
+        moznosti.add(getString(R.string.os_naprave_preimenuj) to { preimenuj(n.id, n.ime) })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(DatotekeActivity.lepoIme(n.ime).ifBlank { n.id })
-            .setItems(moznosti) { _, i ->
-                when (i) {
-                    0 -> startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
-                    1 -> preimenuj(n.id, n.ime)
-                }
+            .setItems(moznosti.map { it.first }.toTypedArray()) { _, i -> moznosti.getOrNull(i)?.second?.invoke() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /**
+     * Kaj sme druga naprava na TEJ napravi: datoteke, programi, predvajalnik, zaslon in upravljanje. Velja takoj in samo
+     * tukaj - o svojih vsebinah odloca vsaka naprava sama (cast/Dostop). Naprava brez dostopa ostane v Safeer Linku in
+     * pomaga pri povezavi.
+     */
+    private fun dostopNaprave(n: LinkOdjemalec.Naprava) {
+        val vse = si.safeer.tv.cast.DostopPravila.Zmoznost.values()
+        val imena = arrayOf(getString(R.string.os_dostop_datoteke), getString(R.string.os_dostop_programi),
+            getString(R.string.os_dostop_predvajalnik), getString(R.string.os_dostop_zaslon))
+        val dano = si.safeer.tv.cast.Dostop.zmoznosti(this, n.id)
+        val izbrano = BooleanArray(vse.size) { vse[it] in dano }
+        val ime = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_dostop_naslov, ime))
+            .setMultiChoiceItems(imena, izbrano) { _, i, da -> izbrano[i] = da }
+            .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
+                si.safeer.tv.cast.Dostop.nastavi(this, n.id, vse.filterIndexed { i, _ -> izbrano[i] }.toSet())
+                Toast.makeText(this, getString(if (izbrano.any { it }) R.string.os_dostop_shranjeno else R.string.os_dostop_brez_shranjeno, ime),
+                    Toast.LENGTH_LONG).show()
+                narisi(link.naprave)
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }

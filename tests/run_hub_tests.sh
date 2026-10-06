@@ -38,3 +38,11 @@ java -cp "$OUT/obramba.jar" si.safeer.tv.cast.HubObrambaTestKt
     -include-runtime -d "$OUT/varovalka.jar"
 
 java -cp "$OUT/varovalka.jar" si.safeer.tv.cast.HubVarovalkaTestKt
+
+# Dostop naprav do vsebin (DostopPravila): kaj zahteva katero dejanje in kdo ob uvedbi dovoljenj obdrzi dostop.
+"$KOTLINC" -J-Xmx2g \
+    "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
+    "$TEST_DIR/DostopPravilaTest.kt" \
+    -include-runtime -d "$OUT/dostop.jar"
+
+java -cp "$OUT/dostop.jar" si.safeer.tv.cast.DostopPravilaTestKt
