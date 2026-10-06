@@ -103,6 +103,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var vlecem = false
     /** Povecava okoli kazalca (meni seje), izrisana na televizorju. */
     private var povecava = false
+    /** Povecava z dvema prstoma (telefon, tablica): racun je v [ZaslonPovecava], tu sta dotik in izris. */
+    private val pov by lazy { ZaslonPovecava(resources.displayMetrics.density) }
+    private var gumbCelZaslon: View? = null
     private var brezGumbovPovedano = false
     private var zadnjiFokusDaljinec = false
     private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
@@ -158,6 +161,31 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             lpGumb.gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
             lpGumb.setMargins(0, 0, (14 * gostota).toInt(), (14 * gostota).toInt())
             findViewById<android.widget.FrameLayout>(R.id.koren).addView(gumb, lpGumb)
+            // Povecana slika: gumb nad menijem jo z enim dotikom vrne na cel zaslon racunalnika.
+            val cel = TextView(this).apply {
+                text = "1\u00D7"
+                textSize = 16f
+                setTextColor(osBarva(R.color.os_besedilo))
+                setBackgroundResource(R.drawable.os_znacka)
+                gravity = android.view.Gravity.CENTER
+                alpha = 0.85f
+                contentDescription = getString(R.string.os_zaslon_meni_povecava_izklopi)
+                visibility = View.GONE
+                setOnClickListener { pov.ponastavi(); uveljaviPovecavo() }
+            }
+            val lpCel = android.widget.FrameLayout.LayoutParams(velikost, velikost)
+            lpCel.gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
+            lpCel.setMargins(0, 0, (14 * gostota).toInt(), (14 * gostota).toInt() + velikost + (10 * gostota).toInt())
+            findViewById<android.widget.FrameLayout>(R.id.koren).addView(cel, lpCel)
+            gumbCelZaslon = cel
+            // Gumba prekrivata desni rob: povecana slika se sme odmakniti izpod njiju, namig pa ne sega podnju
+            // (na ozjem zaslonu se prelomi v dve vrstici).
+            val pasGumbov = velikost + (28 * gostota).toInt()
+            pov.nastaviOdmikDesno(pasGumbov.toFloat())
+            (namig.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
+                marginStart = pasGumbov; marginEnd = pasGumbov
+                namig.layoutParams = this
+            }
         }
         tipkovnica = ZaslonTipkovnica(this, tipkovnicaPogled,
             naBesedilo = { z -> poslji(JSONObject().put("vrsta", "besedilo").put("besedilo", z)) },
@@ -331,6 +359,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             osnovaW = lp.width; osnovaH = lp.height
             osnovaL = (sirina - lp.width) / 2; osnovaT = (visina - lp.height) / 2
             trenL = osnovaL; trenT = osnovaT; trenW = osnovaW; trenH = osnovaH
+            // Povecava z dvema prstoma ostane (vrtenje zaslona), le lega se omeji na novo povrsino.
+            pov.nastaviOsnovo(sirina, visina, osnovaL, osnovaT, osnovaW, osnovaH)
+            uveljaviPovecavo()
         }
     }
 
@@ -341,6 +372,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         okvir.visibility = View.GONE
         povecava = false
         vlecem = false
+        pov.ponastavi()
         uravnajRazmerje(slikaW, slikaH)
         // Ne surovi naslov iz seznama: ta je lahko 127.0.0.1 - racunalnik pri SVOJEM srediscu, ne pri nas.
         val naslov = link.odjemalec.naslovZaPovezavo(r)
@@ -366,6 +398,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                                 nast.edit().putInt("zaslon_namigov", videno + 1).apply()
                                 Toast.makeText(this, getString(R.string.os_zaslon_namig), Toast.LENGTH_LONG).show()
                                 pokaziNamig()          // prvic polnih 6 s
+                                namigPokazan = true
+                            } else if (!namigPokazan && naDotik() && kazalec && !predvajalnik &&
+                                !nast.getBoolean("zaslon_namig_povecava", false)) {
+                                // Povecava z dvema prstoma je nova: enkrat jo izve tudi, kdor je namige ze videl.
+                                pokaziNamig()
                                 namigPokazan = true
                             }
                         }
@@ -641,9 +678,17 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (naDrugem && fokusPodprt) {
             dejanja.add(getString(if (vlecem) R.string.os_zaslon_meni_spusti else R.string.os_zaslon_meni_vleci) to
                 { preklopiVlecenje() })
-            dejanja.add(getString(if (povecava) R.string.os_zaslon_meni_povecava_izklopi
+            // Povecava okoli kazalca je za daljinec; na dotik je povecava z dvema prstoma (spodaj).
+            if (!naDotik()) dejanja.add(getString(if (povecava) R.string.os_zaslon_meni_povecava_izklopi
                 else R.string.os_zaslon_meni_povecava) to { preklopiPovecavo() })
         }
+        // Na dotik isto kot dva prsta narazen - za tiste, ki kretnje ne poznajo ali je ne zmorejo.
+        if (naDotik()) dejanja.add(getString(if (pov.povecano) R.string.os_zaslon_meni_povecava_izklopi
+            else R.string.os_zaslon_meni_povecava) to {
+            val koren = findViewById<View>(R.id.koren)
+            if (pov.povecano) pov.ponastavi() else pov.povecajNa(2f, koren.width / 2f, koren.height / 2f)
+            uveljaviPovecavo()
+        })
         // Predvajalnik ima svoj nacin; iz njega gre uporabnik na kazalec (in nazaj), kot pri drugih.
         if (profil == "predvajalnik" && !predvajalnik)
             dejanja.add(getString(R.string.os_zaslon_meni_predvajalnik) to { nastaviPredvajalnik(true) })
@@ -719,15 +764,19 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     /** Namig o upravljanju: pokaze se ob zacetku seje in ob preklopu, nato sam izgine. */
     private fun pokaziNamig() {
+        // Telefon in tablica: prst je miska, zato namig govori o dotiku, ne o smernih tipkah.
+        val dotik = naDotik() && kazalec && !predvajalnik
         namig.text = getString(when {
             predvajalnik -> R.string.os_zaslon_nacin_predvajalnik
+            dotik -> R.string.os_zaslon_nacin_dotik
             kazalec -> R.string.os_zaslon_nacin_kazalec
             else -> R.string.os_zaslon_nacin_tipke
         })
+        if (dotik) getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putBoolean("zaslon_namig_povecava", true).apply()
         namig.visibility = View.VISIBLE
         glavna.removeCallbacks(skrijNamig)
-        // Kratko: uporabnik je nacin pravkar preklopil sam in hoce le potrditev.
-        glavna.postDelayed(skrijNamig, if (namigPokazan) 2_500L else 6_000L)
+        // Kratko: uporabnik je nacin pravkar preklopil sam in hoce le potrditev. Namig o dotiku je daljsi.
+        glavna.postDelayed(skrijNamig, if (namigPokazan) (if (dotik) 4_000L else 2_500L) else (if (dotik) 9_000L else 6_000L))
     }
 
     private val skrijNamig = Runnable { namig.visibility = View.GONE }
@@ -949,10 +998,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     /**
      * Dotik na sliki racunalnika je miska na racunalniku (klik, vlecenje, desni klik), ne klik na
      * ta pogled - zato performClick tu nima pomena. Dostopnost ima meni seje (gumb v kotu).
+     * Poslusamo na korenu, ne na sliki: slika se med povecavo premika pod prsti, koren pa miruje, in
+     * kretnja z dvema prstoma se sme zaceti tudi na crnem robu ob sliki.
      */
     @Suppress("ClickableViewAccessibility")
     private fun dotikNaPovrsini() {
-        pogled.setOnTouchListener { _, e -> dotik(e) }
+        findViewById<View>(R.id.koren).setOnTouchListener { _, e -> dotik(e) }
     }
 
     private fun naDotik(): Boolean =
@@ -965,29 +1016,80 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var vlecemDotik = false
     private var dolgiDotik = false
     private var dvaPrsta = false
-    private var dvaPrstaY = 0f
+    /** Dotik se je zacel na crnem robu ob sliki: ni klik (lahko pa postane kretnja z dvema prstoma). */
+    private var dotikZunaj = false
+    /** Dvoprstni poteg, ki se ni postal cel korak kolesca. */
+    private var drsenjeOstanek = 0f
+    private var drsenjeUsmerjeno = false
 
     /** Drzi prst: desni klik tam (kot na telefonu dolg pritisk odpre meni). */
     private val dolgPritisk = Runnable {
-        if (!vlecemDotik && !dvaPrsta) {
+        if (!vlecemDotik && !dvaPrsta && !dotikZunaj) {
             dolgiDotik = true
             posljiTocko(dotikX, dotikY)
             poslji(ZaslonVnos.klik("desni"))
         }
     }
 
+    private fun slikaSirina() = osnovaW * pov.merilo
+    private fun slikaVisina() = osnovaH * pov.merilo
+
+    private fun naSliki(x: Float, y: Float) =
+        x >= pov.levo && y >= pov.vrh && x < pov.levo + slikaSirina() && y < pov.vrh + slikaVisina()
+
+    /** Tocka povrsine (kjer je prst) -> tocka zaslona racunalnika; uposteva povecavo in premik slike. */
     private fun posljiTocko(x: Float, y: Float) {
-        if (slikaW <= 0 || slikaH <= 0 || pogled.width <= 0 || pogled.height <= 0) return
-        val sx = (x / pogled.width * slikaW).toInt().coerceIn(0, slikaW - 1)
-        val sy = (y / pogled.height * slikaH).toInt().coerceIn(0, slikaH - 1)
+        val w = slikaSirina()
+        val h = slikaVisina()
+        if (slikaW <= 0 || slikaH <= 0 || w <= 0f || h <= 0f) return
+        val sx = ((x - pov.levo) / w * slikaW).toInt().coerceIn(0, slikaW - 1)
+        val sy = ((y - pov.vrh) / h * slikaH).toInt().coerceIn(0, slikaH - 1)
         poslji(JSONObject().put("vrsta", "tocka").put("x", sx).put("y", sy))
     }
 
     private fun gumbLevi(dol: Boolean) = poslji(JSONObject().put("vrsta", "gumb").put("gumb", "levi").put("dol", dol))
 
+    /** Povecavo narisemo z merilom in premikom pogleda (slika SurfaceView gre od Androida 7 z njim). */
+    private fun uveljaviPovecavo() {
+        pogled.pivotX = 0f; pogled.pivotY = 0f
+        pogled.scaleX = pov.merilo; pogled.scaleY = pov.merilo
+        pogled.translationX = pov.levo - osnovaL
+        pogled.translationY = pov.vrh - osnovaT
+        gumbCelZaslon?.visibility = if (pov.povecano) View.VISIBLE else View.GONE
+        if (pov.povecano) okvir.visibility = View.GONE
+    }
+
+    private fun sredinaX(e: MotionEvent, a: Int, b: Int) = (e.getX(a) + e.getX(b)) / 2f
+    private fun sredinaY(e: MotionEvent, a: Int, b: Int) = (e.getY(a) + e.getY(b)) / 2f
+    private fun razmik(e: MotionEvent, a: Int, b: Int) = kotlin.math.hypot(e.getX(a) - e.getX(b), e.getY(a) - e.getY(b))
+
+    /** Kretnja z dvema prstoma se zacne - ali nadaljuje z drugim parom, ko se eden od treh prstov dvigne. */
+    private fun zacniDvaPrsta(e: MotionEvent, brez: Int) {
+        val prsti = (0 until e.pointerCount).filter { it != brez }
+        if (prsti.size < 2) return
+        pov.zacni(sredinaX(e, prsti[0], prsti[1]), sredinaY(e, prsti[0], prsti[1]), razmik(e, prsti[0], prsti[1]))
+    }
+
+    /** Navpicni poteg z dvema prstoma je kolesce miske: prsta gor = vsebina gor, kot na telefonu (kolesce navzdol). */
+    private fun drsi(e: MotionEvent, premik: Float, gostota: Float) {
+        drsenjeOstanek += premik
+        val korak = 36 * gostota
+        val n = (kotlin.math.abs(drsenjeOstanek) / korak).toInt()
+        if (n <= 0) return
+        // Drsi naj tisto, kar je pod prsti - ne okno, v katerem je kazalec ostal po zadnjem kliku.
+        if (!drsenjeUsmerjeno && e.pointerCount >= 2) {
+            drsenjeUsmerjeno = true
+            posljiTocko(sredinaX(e, 0, 1), sredinaY(e, 0, 1))
+        }
+        poslji(JSONObject().put("vrsta", "kolesce").put("smer", if (drsenjeOstanek < 0) "dol" else "gor").put("koliko", n))
+        drsenjeOstanek -= (if (drsenjeOstanek < 0) -1 else 1) * n * korak
+    }
+
     /**
      * Dotik: kratek dotik je klik tam, kamor pokazes; vlecenje s prstom vlece (oznaci besedilo,
-     * premakne okno); drzanje je desni klik; dva prsta drsita vsebino gor in dol.
+     * premakne okno); drzanje je desni klik; dva prsta drsita vsebino gor in dol. Dva prsta narazen
+     * sliko povecata, da je drobne gumbe lazje zadeti; povecano sliko dva prsta premikata, klik pa se
+     * vedno zadene tisto, kar je pod prstom ([ZaslonPovecava]).
      */
     private fun dotik(e: MotionEvent): Boolean {
         val gostota = resources.displayMetrics.density
@@ -995,28 +1097,32 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             MotionEvent.ACTION_DOWN -> {
                 dotikX = e.x; dotikY = e.y
                 vlecemDotik = false; dolgiDotik = false; dvaPrsta = false
-                glavna.postDelayed(dolgPritisk, 550)
+                dotikZunaj = !naSliki(e.x, e.y)
+                if (!dotikZunaj) glavna.postDelayed(dolgPritisk, 550)
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 glavna.removeCallbacks(dolgPritisk)
                 if (vlecemDotik) { gumbLevi(false); vlecemDotik = false }
+                if (!dvaPrsta) { drsenjeOstanek = 0f; drsenjeUsmerjeno = false }
                 dvaPrsta = true
-                dvaPrstaY = if (e.pointerCount >= 2) (e.getY(0) + e.getY(1)) / 2 else e.y
+                zacniDvaPrsta(e, -1)
+            }
+            MotionEvent.ACTION_POINTER_UP -> {
+                // Ce sta na zaslonu se vedno dva prsta, kretnjo nadaljujeta ona dva (brez skoka). Sicer je
+                // kretnje konec; preostali prst ne klikne in ne vlece (dvaPrsta velja do konca dotika).
+                if (dvaPrsta) {
+                    if (e.pointerCount >= 3) zacniDvaPrsta(e, e.actionIndex)
+                    else { pov.koncaj(); uveljaviPovecavo() }
+                }
             }
             MotionEvent.ACTION_MOVE -> {
                 if (dvaPrsta) {
                     if (e.pointerCount >= 2) {
-                        val y = (e.getY(0) + e.getY(1)) / 2
-                        val d = y - dvaPrstaY
-                        val korak = 36 * gostota
-                        if (kotlin.math.abs(d) >= korak) {
-                            val n = (kotlin.math.abs(d) / korak).toInt()
-                            // Prsta gor = vsebina gor, kot na telefonu (kolesce navzdol).
-                            poslji(JSONObject().put("vrsta", "kolesce").put("smer", if (d < 0) "dol" else "gor").put("koliko", n))
-                            dvaPrstaY += (if (d < 0) -1 else 1) * n * korak
-                        }
+                        val premik = pov.premakni(sredinaX(e, 0, 1), sredinaY(e, 0, 1), razmik(e, 0, 1))
+                        if (pov.nacin == ZaslonPovecava.Nacin.POVECAVA) uveljaviPovecavo()
+                        if (premik != 0f) drsi(e, premik, gostota)
                     }
-                } else if (!dolgiDotik) {
+                } else if (!dolgiDotik && !dotikZunaj) {
                     if (!vlecemDotik && kotlin.math.hypot(e.x - dotikX, e.y - dotikY) > 12 * gostota) {
                         glavna.removeCallbacks(dolgPritisk)
                         vlecemDotik = true
@@ -1030,14 +1136,16 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 glavna.removeCallbacks(dolgPritisk)
                 if (vlecemDotik) {
                     posljiTocko(e.x, e.y); gumbLevi(false); vlecemDotik = false
-                } else if (!dvaPrsta && !dolgiDotik) {
+                } else if (!dvaPrsta && !dolgiDotik && !dotikZunaj) {
                     posljiTocko(e.x, e.y)
                     poslji(ZaslonVnos.klik("levi"))
                 }
+                if (dvaPrsta) { pov.koncaj(); uveljaviPovecavo() }
             }
             MotionEvent.ACTION_CANCEL -> {
                 glavna.removeCallbacks(dolgPritisk)
                 if (vlecemDotik) { gumbLevi(false); vlecemDotik = false }
+                if (dvaPrsta) { pov.koncaj(); uveljaviPovecavo() }
             }
         }
         return true
@@ -1097,13 +1205,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Okvir okoli elementa (x, y, w, h v tockah drugega zaslona), poravnan s sliko in povecavo. */
     private fun pokaziOkvir(x: Int, y: Int, w: Int, h: Int) {
         if (slikaW <= 0 || slikaH <= 0 || trenW <= 0 || trenH <= 0) return
-        val sx = trenW.toFloat() / slikaW
-        val sy = trenH.toFloat() / slikaH
+        val sx = trenW.toFloat() / slikaW * pogled.scaleX
+        val sy = trenH.toFloat() / slikaH * pogled.scaleY
         val rob = 5 * resources.displayMetrics.density
         val lp = android.widget.FrameLayout.LayoutParams((w * sx + 2 * rob).toInt(), (h * sy + 2 * rob).toInt())
         lp.gravity = android.view.Gravity.TOP or android.view.Gravity.START
-        lp.leftMargin = (trenL + x * sx - rob).toInt()
-        lp.topMargin = (trenT + y * sy - rob).toInt()
+        lp.leftMargin = (trenL + pogled.translationX + x * sx - rob).toInt()
+        lp.topMargin = (trenT + pogled.translationY + y * sy - rob).toInt()
         okvir.layoutParams = lp
         okvir.visibility = View.VISIBLE
     }

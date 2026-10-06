@@ -284,6 +284,7 @@
     <string name="os_moc_disk">Storage</string>
     <string name="os_moc_berem">Checking…</string>
     <string name="os_zaslon_nacin_kazalec">Pointer · arrows move the mouse, OK clicks, hold OK right-clicks · Menu opens the menu (keyboard, keys, save) · hold Back to exit</string>
+    <string name="os_zaslon_nacin_dotik">Tap clicks\u00A0· drag drags\u00A0· long press right-clicks\u00A0· two fingers scroll\u00A0· spread two fingers to zoom in\u00A0· ☰ opens the menu</string>
     <string name="os_zaslon_nacin_tipke">Keys · arrows and OK go to the computer as keys · Menu opens the menu (keyboard, pointer, save) · hold Back to exit</string>
     <string name="os_besedilo_napaka">The file could not be read.</string>
     <string name="os_besedilo_prevelika">Long file — showing the first part only.</string>

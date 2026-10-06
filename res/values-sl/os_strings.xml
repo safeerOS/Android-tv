@@ -280,6 +280,7 @@
     <string name="os_moc_disk">Shramba</string>
     <string name="os_moc_berem">Preverjam …</string>
     <string name="os_zaslon_nacin_kazalec">Kazalec · smerne tipke premikajo miško, OK klikne, drži OK desni klik · Meni odpre meni (tipkovnica, tipke, shrani) · drži Nazaj za izhod</string>
+    <string name="os_zaslon_nacin_dotik">Dotik klikne\u00A0· poteg vleče\u00A0· dolg dotik je desni klik\u00A0· dva prsta drsita vsebino\u00A0· razmakni dva prsta za povečavo\u00A0· ☰ odpre meni</string>
     <string name="os_zaslon_nacin_tipke">Tipke · smerne tipke in OK gredo v računalnik kot tipke · Meni odpre meni (tipkovnica, kazalec, shrani) · drži Nazaj za izhod</string>
     <string name="os_besedilo_napaka">Datoteke ni bilo mogoče prebrati.</string>
     <string name="os_besedilo_prevelika">Dolga datoteka — prikazan je začetek.</string>

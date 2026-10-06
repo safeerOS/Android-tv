@@ -278,6 +278,7 @@
     <string name="os_moc_disk">Almacenamiento</string>
     <string name="os_moc_berem">Comprobando…</string>
     <string name="os_zaslon_nacin_kazalec">Puntero · las flechas mueven el ratón, OK hace clic, mantener OK es clic derecho · Menú abre el menú (teclado, teclas, guardar) · mantén Atrás para salir</string>
+    <string name="os_zaslon_nacin_dotik">Toca para hacer clic\u00A0· arrastra para arrastrar\u00A0· mantén pulsado para clic derecho\u00A0· dos dedos desplazan\u00A0· separa dos dedos para ampliar\u00A0· ☰ abre el menú</string>
     <string name="os_zaslon_nacin_tipke">Teclas · las flechas y OK van al ordenador como teclas · Menú abre el menú (teclado, puntero, guardar) · mantén Atrás para salir</string>
     <string name="os_besedilo_napaka">No se pudo leer el archivo.</string>
     <string name="os_besedilo_prevelika">Archivo largo: se muestra solo el principio.</string>

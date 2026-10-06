@@ -278,6 +278,7 @@
     <string name="os_moc_disk">Archiviazione</string>
     <string name="os_moc_berem">Controllo…</string>
     <string name="os_zaslon_nacin_kazalec">Puntatore · le frecce muovono il mouse, OK fa clic, OK lungo = clic destro · Menu apre il menu (tastiera, tasti, salva) · tieni premuto Indietro per uscire</string>
+    <string name="os_zaslon_nacin_dotik">Tocca per fare clic\u00A0· trascina per trascinare\u00A0· pressione lunga = clic destro\u00A0· due dita scorrono\u00A0· allarga due dita per ingrandire\u00A0· ☰ apre il menu</string>
     <string name="os_zaslon_nacin_tipke">Tasti · frecce e OK vanno al computer come tasti · Menu apre il menu (tastiera, puntatore, salva) · tieni premuto Indietro per uscire</string>
     <string name="os_besedilo_napaka">Non è stato possibile leggere il file.</string>
     <string name="os_besedilo_prevelika">File lungo: viene mostrato solo l\'inizio.</string>

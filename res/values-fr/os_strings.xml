@@ -278,6 +278,7 @@
     <string name="os_moc_disk">Stockage</string>
     <string name="os_moc_berem">Vérification…</string>
     <string name="os_zaslon_nacin_kazalec">Pointeur · les flèches déplacent la souris, OK clique, OK long = clic droit · Menu ouvre le menu (clavier, touches, enregistrer) · maintenez Retour pour quitter</string>
+    <string name="os_zaslon_nacin_dotik">Touchez pour cliquer\u00A0· glissez pour déplacer\u00A0· appui long = clic droit\u00A0· deux doigts font défiler\u00A0· écartez deux doigts pour zoomer\u00A0· ☰ ouvre le menu</string>
     <string name="os_zaslon_nacin_tipke">Touches · les flèches et OK vont à l\'ordinateur comme touches · Menu ouvre le menu (clavier, pointeur, enregistrer) · maintenez Retour pour quitter</string>
     <string name="os_besedilo_napaka">Le fichier n\'a pas pu être lu.</string>
     <string name="os_besedilo_prevelika">Fichier long — seul le début est affiché.</string>

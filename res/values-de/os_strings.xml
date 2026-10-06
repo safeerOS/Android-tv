@@ -278,6 +278,7 @@
     <string name="os_moc_disk">Speicher</string>
     <string name="os_moc_berem">Prüfe …</string>
     <string name="os_zaslon_nacin_kazalec">Zeiger · Pfeiltasten bewegen die Maus, OK klickt, OK halten ist Rechtsklick · Menü öffnet das Menü (Tastatur, Tasten, Speichern) · Zurück halten zum Beenden</string>
+    <string name="os_zaslon_nacin_dotik">Tippen klickt\u00A0· Ziehen zieht\u00A0· langes Drücken ist Rechtsklick\u00A0· zwei Finger scrollen\u00A0· zwei Finger spreizen vergrößert\u00A0· ☰ öffnet das Menü</string>
     <string name="os_zaslon_nacin_tipke">Tasten · Pfeiltasten und OK gehen als Tasten an den Computer · Menü öffnet das Menü (Tastatur, Zeiger, Speichern) · Zurück halten zum Beenden</string>
     <string name="os_besedilo_napaka">Die Datei konnte nicht gelesen werden.</string>
     <string name="os_besedilo_prevelika">Lange Datei — nur der Anfang wird gezeigt.</string>
