@@ -54,13 +54,32 @@ class ZaslonOdjemalec(
      * PRAZNO: racunalnik javi, da na locenem zaslonu ni vec programa (besedilo = razlog).
      * NEDOSEGLJIV: racunalnika ni na nobenem od njegovih naslovov (seja se sploh ni zacela).
      */
-    enum class Stanje { POVEZUJEM, TECE, KONCANO, NAPAKA, PRAZNO, NEDOSEGLJIV }
+    enum class Stanje {
+        POVEZUJEM, TECE, KONCANO, NAPAKA, PRAZNO, NEDOSEGLJIV,
+        /** Dekoder HEVC te naprave toka ne zna (ni vrnil nobene slike): gledalec sejo zahteva znova s H.264. */
+        KODEK
+    }
 
     /** Kar lahko izmerimo na televizorju: slike, pretok in koliko casa slika stoji v dekoderju. */
     data class Statistika(val slik: Int, val naSekundo: Double, val megabitov: Double,
-                          val dekoderMs: Long, val sirina: Int, val visina: Int, val zvok: Boolean)
+                          val dekoderMs: Long, val sirina: Int, val visina: Int, val zvok: Boolean,
+                          /** Koliko presledkov med zaporednima slikama je bilo v tem obdobju daljsih od [ZASTOJ_MS]. */
+                          val zastojev: Int = 0)
 
     @Volatile private var tece = false
+    /** Kodek toka, kot ga pove racunalnik v glavi (`kodek`): HEVC ali (privzeto, starejsi Safeer) H.264. */
+    @Volatile private var hevc = false
+    // Stanje dekodiranja; bere in pise ga samo nit toka.
+    private val info = MediaCodec.BufferInfo()
+    private var slik = 0
+    private var zastojev = 0
+    private var zadnjaSlika = 0L
+    private var zadnjaZakasnitev = 0L
+    /** Enote z nastavitvami HEVC, ki cakajo na sliko, s katero gredo skupaj v dekoder. */
+    private var predSliko = ByteArray(0)
+    /** Slike HEVC, poslane v dekoder, preden je vrnil prvo: dekoder, ki ne vrne nobene, toka ne zna. */
+    private var poslanihSlik = 0
+    @Volatile private var imaSliko = false
     /** Seja tece prek Huba racunalnika (Global Link), ne neposredno - za dnevnik in meritve. */
     @Volatile var prekHuba = false
         private set
@@ -153,7 +172,15 @@ class ZaslonOdjemalec(
             val sirina = glava.optInt("w", 1920)
             val visina = glava.optInt("h", 1080)
             val fps = glava.optInt("fps", 30)
-            kodek = pripraviKodek(surface, sirina, visina, fps)
+            hevc = glava.optString("kodek") == "hevc"
+            imaSliko = false
+            kodek = try { pripraviKodek(surface, sirina, visina, fps) } catch (e: Throwable) {
+                if (!hevc) throw e
+                // Dekoderja HEVC ni mogoce pripraviti: gledalec sejo zahteva znova s H.264.
+                Log.w(TAG, "HEVC: dekoderja ni mogoce pripraviti (${e.message})")
+                naStanje(Stanje.KODEK, "")
+                return
+            }
             glava.optJSONObject("zvok")?.let { zvocnik = pripraviZvok(it.optInt("hz", 48000), it.optInt("kanali", 2)) }
             // Slika in zvok tecejo ves cas (tudi med pavzo). Ce 10 s ne pride nic, povezave ni vec
             // (izpad Wi-Fi ne zapre vticnice) - branje pade in seja se vrne sama, namesto zamrznjene slike.
@@ -162,7 +189,11 @@ class ZaslonOdjemalec(
             crpaj(vhod, kodek, sirina, visina)
             naStanje(Stanje.KONCANO, "")
         } catch (e: Throwable) {
-            if (tece) {
+            if (tece && hevc && !imaSliko && e !is java.io.IOException) {
+                // Dekoder HEVC je odpovedal, preden je vrnil prvo sliko (povezava je cela): znova s H.264.
+                Log.w(TAG, "HEVC: dekoder je odpovedal pred prvo sliko (${e.message})")
+                naStanje(Stanje.KODEK, "")
+            } else if (tece) {
                 Log.w(TAG, "Zaslon: ${e.message}")
                 naStanje(Stanje.NAPAKA, e.message.orEmpty())
             } else {
@@ -181,7 +212,8 @@ class ZaslonOdjemalec(
     }
 
     private fun pripraviKodek(surface: Surface, sirina: Int, visina: Int, fps: Int): MediaCodec {
-        val oblika = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, sirina, visina)
+        val vrsta = if (hevc) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
+        val oblika = MediaFormat.createVideoFormat(vrsta, sirina, visina)
         oblika.setInteger(MediaFormat.KEY_FRAME_RATE, fps)
         // Nizka zakasnitev: dekoder naj ne zbira slik vnaprej (Android 11+ zna to povedati naravnost).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -192,7 +224,7 @@ class ZaslonOdjemalec(
         // povemo, so vhodni medpomnilniki premajhni in prva taka slika vrze BufferOverflowException
         // (v dnevniku samo "null") - seja pade takoj po prvi sliki.
         oblika.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxOf(1 shl 20, sirina * visina))
-        val kodek = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+        val kodek = MediaCodec.createDecoderByType(vrsta)
         kodek.configure(oblika, surface, null, 0)
         kodek.start()
         Log.i(TAG, "Dekoder: ${kodek.name} za ${sirina}x$visina@$fps")
@@ -224,21 +256,18 @@ class ZaslonOdjemalec(
     }
 
     /**
-     * Pretok so okvirji: ena bajt vrste, styri bajti dolzine, vsebina. Slika gre v dekoder (prej jo
-     * razrezemo na enote NAL, ker MediaCodec hoce eno na medpomnilnik), zvok pa naravnost v
-     * AudioTrack. Zvok pisemo neblokirajoce: ce bi cakal, bi ustavil sliko - raje izpustimo nekaj
-     * zvoka kot da slika obstane.
+     * Pretok so okvirji: en bajt vrste, stirje bajti dolzine, vsebina. Slika gre v dekoder (prej jo
+     * razrezemo na enote NAL), zvok pa naravnost v AudioTrack. Zvok pisemo neblokirajoce: ce bi cakal,
+     * bi ustavil sliko - raje izpustimo nekaj zvoka kot da slika obstane.
      */
     private fun crpaj(vhod: InputStream, kodek: MediaCodec, sirina: Int, visina: Int) {
         val podatkovni = DataInputStream(vhod)
-        val info = MediaCodec.BufferInfo()
         val glava = ByteArray(5)
         var ostanek = ByteArray(0)
-        var slik = 0
         var bajtov = 0L
         var zadnjePorocilo = SystemClock.elapsedRealtime()
-        var zadnjaZakasnitev = 0L
         var imelZvok = false
+        slik = 0; zastojev = 0; zadnjaSlika = 0L; zadnjaZakasnitev = 0L; predSliko = ByteArray(0); poslanihSlik = 0
         while (tece) {
             podatkovni.readFully(glava)
             val vrsta = glava[0].toInt() and 0xff
@@ -271,48 +300,86 @@ class ZaslonOdjemalec(
                 naslednji = zacetekNal(ostanek, od + 3)
             }
             ostanek = ostanek.copyOfRange(od, ostanek.size)   // zacetek naslednje enote
-
-            // Vse, kar je dekoder ze naredil, takoj na zaslon.
-            while (true) {
-                val i = kodek.dequeueOutputBuffer(info, 0)
-                if (i < 0) break
-                zadnjaZakasnitev = SystemClock.elapsedRealtime() - info.presentationTimeUs / 1000
-                kodek.releaseOutputBuffer(i, true)
-                slik++
+            izprazni(kodek)
+            if (ZaslonKodek.hevcBrezSlike(hevc, poslanihSlik, imaSliko)) {
+                Log.w(TAG, "HEVC: dekoder po $poslanihSlik slikah ni vrnil nobene - sejo zahtevamo znova s H.264")
+                naStanje(Stanje.KODEK, "")
+                tece = false
+                break
             }
             val zdaj = SystemClock.elapsedRealtime()
             if (zdaj - zadnjePorocilo >= 1000) {
                 val sekunde = (zdaj - zadnjePorocilo) / 1000.0
                 naStatistiko(Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
-                    zadnjaZakasnitev, sirina, visina, imelZvok))
-                slik = 0; bajtov = 0; zadnjePorocilo = zdaj; imelZvok = false
+                    zadnjaZakasnitev, sirina, visina, imelZvok, zastojev))
+                slik = 0; bajtov = 0; zadnjePorocilo = zdaj; imelZvok = false; zastojev = 0
             }
         }
     }
 
+    /** Vse, kar je dekoder ze naredil, takoj na zaslon. */
+    private fun izprazni(kodek: MediaCodec) {
+        while (true) {
+            val i = kodek.dequeueOutputBuffer(info, 0)
+            if (i < 0) break
+            val zdajSlika = SystemClock.elapsedRealtime()
+            zadnjaZakasnitev = zdajSlika - info.presentationTimeUs / 1000
+            kodek.releaseOutputBuffer(i, true)
+            slik++
+            imaSliko = true
+            if (zadnjaSlika != 0L && zdajSlika - zadnjaSlika > ZASTOJ_MS) zastojev++
+            zadnjaSlika = zdajSlika
+        }
+    }
+
     private fun posljiNal(kodek: MediaCodec, vir: ByteArray, od: Int, do_: Int) {
-        val i = kodek.dequeueInputBuffer(20_000)
+        val vrsta = vrstaNal(vir, od)
+        if (ZaslonKodek.cakaNaSliko(hevc, vrsta)) {
+            // HEVC: nastavitve (VPS, SPS, PPS) in spremne enote pocakajo na sliko in gredo z njo v enem
+            // medpomnilniku - locenih nastavitev vsi strojni dekoderji ne sprejmejo.
+            predSliko = if (predSliko.size + (do_ - od) > NAJVEC_PRED_SLIKO) ByteArray(0)
+                else predSliko + vir.copyOfRange(od, do_)
+            return
+        }
+        val spredaj = predSliko
+        predSliko = ByteArray(0)
+        val dolzina = spredaj.size + (do_ - od)
+        val i = vhodniMedpomnilnik(kodek)
         if (i < 0) return
         val medpomnilnik = kodek.getInputBuffer(i) ?: return
         medpomnilnik.clear()
-        if (do_ - od > medpomnilnik.remaining()) {
+        if (dolzina > medpomnilnik.remaining()) {
             // Enote NAL ni mogoce razbiti na pol, zato jo raje izpustimo kot da seja pade;
-            // naslednji kljucni okvir (vsako sekundo) sliko spet postavi na noge.
-            Log.w(TAG, "Prevelika enota NAL (${do_ - od} B), izpuscena.")
+            // naslednji kljucni okvir sliko spet postavi na noge.
+            Log.w(TAG, "Prevelika enota NAL ($dolzina B), izpuscena.")
             kodek.queueInputBuffer(i, 0, 0, 0, 0)
             return
         }
+        if (spredaj.isNotEmpty()) medpomnilnik.put(spredaj)
         medpomnilnik.put(vir, od, do_ - od)
-        val vrsta = vrstaNal(vir, od)
-        val zastavice = if (vrsta == 7 || vrsta == 8) MediaCodec.BUFFER_FLAG_CODEC_CONFIG else 0
+        val zastavice = if (ZaslonKodek.jeNastavitev(hevc, vrsta)) MediaCodec.BUFFER_FLAG_CODEC_CONFIG else 0
         // Cas oddaje uporabimo kot zig: ob izhodu iz dekoderja iz njega izracunamo zakasnitev.
-        kodek.queueInputBuffer(i, 0, do_ - od, SystemClock.elapsedRealtime() * 1000, zastavice)
+        kodek.queueInputBuffer(i, 0, dolzina, SystemClock.elapsedRealtime() * 1000, zastavice)
+        if (hevc && !imaSliko) poslanihSlik++
+    }
+
+    /**
+     * Vhodni medpomnilnik dekoderja. Kadar je dekoder poln, najprej oddamo, kar je ze naredil, in pocakamo - enote ne
+     * izpustimo: pri dolgi skupini slik (kljucna slika na 10 s) bi izpuscena enota pokvarila sliko do naslednje kljucne.
+     */
+    private fun vhodniMedpomnilnik(kodek: MediaCodec): Int {
+        while (tece) {
+            val i = kodek.dequeueInputBuffer(10_000)
+            if (i >= 0) return i
+            izprazni(kodek)
+        }
+        return -1
     }
 
     private fun vrstaNal(b: ByteArray, zacetek: Int): Int {
         var i = zacetek + 3
         if (zacetek + 3 < b.size && b[zacetek + 2] == 0.toByte()) i = zacetek + 4
-        return if (i < b.size) (b[i].toInt() and 0x1f) else -1
+        return if (i < b.size) ZaslonKodek.vrstaEnote(hevc, b[i].toInt()) else -1
     }
 
     /** Prvi zacetek NAL enote od [od] naprej ali -1. */
@@ -341,6 +408,8 @@ class ZaslonOdjemalec(
     private companion object {
         /** Najdaljsa tisina povezave, preden jo razglasimo za prekinjeno. */
         const val TISINA_MS = 10_000
+        /** Presledek med zaporednima slikama, ki ga oko pri 60 slikah na sekundo ze zazna kot zatik. */
+        const val ZASTOJ_MS = 50L
         const val TAG = "SafeerOsZaslon"
         /** Vrsti okvirjev; morata biti enaki kot v core/link_zaslon.py. */
         const val OKVIR_SLIKA = 1
@@ -348,5 +417,7 @@ class ZaslonOdjemalec(
         const val OKVIR_OBVESTILO = 3
         /** Vec kot toliko v enem okvirju ne posiljamo; vecje stevilo pomeni pokvarjen pretok. */
         const val NAJVECJI_OKVIR = 8 * 1024 * 1024
+        /** Nastavitve HEVC pred sliko so nekaj sto bajtov; vec kot toliko pomeni pokvarjen pretok. */
+        const val NAJVEC_PRED_SLIKO = 64 * 1024
     }
 }

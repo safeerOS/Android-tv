@@ -235,6 +235,9 @@
     <string name="os_zaslon_koncano">The computer ended the session.</string>
     <string name="os_zaslon_program_zaprt">The program on the computer has closed.</string>
     <string name="os_zaslon_ni_okna">The program did not open on the computer.</string>
+    <string name="os_zaslon_na_namizju">The program is already open on the computer – showing the computer\'s desktop.</string>
+    <string name="os_zaslon_na_namizju_ime">%1$s is already open on the computer – showing the computer\'s desktop.</string>
+    <string name="os_zaslon_program_se_odpira">Opening the program on the computer…</string>
     <string name="os_zaslon_ponovno">The connection dropped. Trying again…</string>
     <string name="os_zaslon_namig">Long press Back to end</string>
     <!-- Scit: kratko na kartici, podrobnosti posebej -->
@@ -309,6 +312,11 @@
     <string name="os_zaslon_meni_kazalec">Switch to the pointer</string>
     <string name="os_zaslon_meni_shrani">Save (Ctrl+S)</string>
     <string name="os_zaslon_meni_bliznjice">Shortcuts</string>
+    <string name="os_zaslon_meni_podatki">Connection details</string>
+    <string name="os_zaslon_meni_podatki_skrij">Hide connection details</string>
+    <string name="os_zaslon_podatki">%1$d × %2$d · %3$d frames/s · %4$s Mb/s · stalls %5$d/s · %6$s</string>
+    <string name="os_zaslon_pot_neposredno">direct</string>
+    <string name="os_zaslon_pot_global">via Global Link</string>
     <string name="os_zaslon_meni_koncaj">End the session</string>
     <string name="os_bliznjica_shrani">Save</string>
     <string name="os_bliznjica_shrani_kot">Save as</string>

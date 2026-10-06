@@ -39,6 +39,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/KanaliPravila.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPovecava.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPogled.kt" \
+    "$SRC/si/safeer/tv/os/ZaslonKodek.kt" \
     "$SRC/si/safeer/tv/os/PotDoNaprave.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
     "$TEST_DIR/GalerijaPravilaTest.kt" \
@@ -64,6 +65,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/KanaliPravilaTest.kt" \
     "$TEST_DIR/ZaslonPovecavaTest.kt" \
     "$TEST_DIR/ZaslonPogledTest.kt" \
+    "$TEST_DIR/ZaslonKodekTest.kt" \
     "$TEST_DIR/PotDoNapraveTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
@@ -91,6 +93,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.HlsPopravekTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KanaliPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPovecavaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPogledTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonKodekTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PotDoNapraveTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):

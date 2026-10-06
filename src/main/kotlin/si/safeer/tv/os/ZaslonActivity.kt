@@ -61,6 +61,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Program, zaradi katerega smo tu (za zapomnjeni nacin tipk), in ali je igra. */
     private var program = ""
     private var igra = false
+    /** Program se je namesto na locenem zaslonu odprl (ali je ze bil odprt) na namizju: gledamo namizje racunalnika. */
+    private var predano = false
+    /** Ime programa, ki se odpira (pove ga racunalnik) - za napis med cakanjem in ob predaji na namizje. */
+    private var imePrograma = ""
+    /** Rod seje: povratni klici odjemalca prejsnje seje (po predaji na namizje) se ne upostevajo vec. */
+    private var rodSeje = 0
+    /** »Podatki o povezavi« (meni seje): slike na sekundo, pretok, zastoji, pot. Privzeto skrito. */
+    private var podatkiVidni = false
     private var koncujem = false
     /** Racunalnik, ki poti prek svojega Huba ne zna (starejsi Safeer): dokler ni dosegljiv neposredno, ga ne prosimo znova. */
     private var brezHuba: String? = null
@@ -307,6 +315,21 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (prekHuba) zahteva.put("relay", true)
         // In kaksna je povrsina, na kateri bo slika: loceni zaslon za programe naredi v tej obliki in velikosti.
         pogledZaRacunalnik()?.let { zahteva.put("view", it) }
+        // Kaj znamo: preklop na namizje racunalnika, kadar je program odprt tam (program ene same instance), in dolgo
+        // skupino slik (enot ne izpuscamo, zato kljucna slika vsako sekundo ni potrebna).
+        zahteva.put("caps", org.json.JSONArray().put("handoff").put("gop"))
+        // Kodeki slike po prednosti: HEVC (isti videz, manj podatkov), ce ga ta naprava strojno dekodira v tej velikosti.
+        // Zmoci mora velikost nase povrsine (loceni zaslon) in 1920 x 1080 (namizje racunalnika pride do te velikosti).
+        // Ce je dekoder HEVC v tej razlicici aplikacije ze odpovedal (znovaBrezHevc), ga ne ponudimo vec.
+        val velikost = zahteva.optJSONObject("view")
+        val hevc = android.media.MediaFormat.MIMETYPE_VIDEO_HEVC
+        val hevcZmore = ZaslonKodek.hevcDovoljen(
+                getSharedPreferences("safeer_os", MODE_PRIVATE).getLong(KLJUC_BREZ_HEVC, 0L), razlicicaAplikacije()) &&
+            dekodirnikZmore(1920, 1080, hevc, samoStrojni = true) &&
+            (velikost == null || dekodirnikZmore(velikost.optInt("w", 1920), velikost.optInt("h", 1080), hevc,
+                samoStrojni = true))
+        zahteva.put("codecs", org.json.JSONArray(ZaslonKodek.seznam(hevcZmore)))
+        if (predano) zahteva.put("handoff", true)
         link.ukaz(r.id, "screen.start", zahteva, 15_000,
             LinkOdjemalec.Odgovor { izid, napaka ->
                 prosim = false
@@ -418,11 +441,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      * Ali dekodirnik H.264, ki ga gledalec uporabi (prvi v seznamu - isti kot MediaCodec.createDecoderByType),
      * zmore sliko te velikosti pri 60 slikah na sekundo.
      */
-    private fun dekodirnikZmore(w: Int, h: Int): Boolean = try {
-        val avc = android.media.MediaFormat.MIMETYPE_VIDEO_AVC
-        android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).codecInfos
-            .firstOrNull { info -> !info.isEncoder && info.supportedTypes.any { it.equals(avc, true) } }
-            ?.getCapabilitiesForType(avc)?.videoCapabilities?.areSizeAndRateSupported(w, h, 60.0) == true
+    private fun dekodirnikZmore(w: Int, h: Int, vrsta: String = android.media.MediaFormat.MIMETYPE_VIDEO_AVC,
+                                samoStrojni: Boolean = false): Boolean = try {
+        val prvi = android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).codecInfos
+            .firstOrNull { info -> !info.isEncoder && info.supportedTypes.any { it.equals(vrsta, true) } }
+        // Programski dekodirnik (c2.android.*, OMX.google.*) slike 60-krat na sekundo ne zmore brez zatikanja.
+        val strojni = prvi != null && (if (android.os.Build.VERSION.SDK_INT >= 29) prvi.isHardwareAccelerated
+            else !prvi.name.startsWith("OMX.google.", true) && !prvi.name.startsWith("c2.android.", true))
+        (!samoStrojni || strojni) &&
+            prvi?.getCapabilitiesForType(vrsta)?.videoCapabilities?.areSizeAndRateSupported(w, h, 60.0) == true
     } catch (_: Throwable) { false }
 
     /** »Zapolni zaslon« / »Cela slika« (meni seje, gumb 1x): krajevna povecava, izbira se zapomni. */
@@ -503,6 +530,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (!prekHuba) null
             else fun(): Int? = si.safeer.tv.link.GlobalLink.vrataReleja(aplikacija, idRacunalnika)
         odjemalec?.ustavi()
+        val rod = ++rodSeje
         val o = ZaslonOdjemalec(
             si.safeer.tv.cast.HubNaslovi.kandidati(naslov, nasteti),
             podatki.optInt("port"), podatki.optString("fp"), podatki.optString("token"),
@@ -511,7 +539,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             samoHub = prekHuba && si.safeer.tv.link.GlobalLink.samoRele(this),
             naStanje = { stanje, besedilo ->
                 runOnUiThread {
-                    if (isFinishing) return@runOnUiThread
+                    if (isFinishing || rod != rodSeje) return@runOnUiThread
                     when (stanje) {
                         ZaslonOdjemalec.Stanje.POVEZUJEM -> pokazi(getString(R.string.os_zaslon_povezujem))
                         ZaslonOdjemalec.Stanje.TECE -> {
@@ -536,6 +564,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         // uporabnika vrnemo nazaj - zamrznjena slika je najslabsi mozni izid.
                         ZaslonOdjemalec.Stanje.KONCANO -> if (!koncujem) ponoviAliKoncaj(getString(R.string.os_zaslon_koncano))
                         ZaslonOdjemalec.Stanje.NAPAKA -> ponoviAliKoncaj(getString(R.string.os_zaslon_napaka, besedilo))
+                        // Dekoder HEVC te naprave toka ne zna: isto sejo zahtevamo znova s H.264.
+                        ZaslonOdjemalec.Stanje.KODEK -> znovaBrezHevc()
                         // Racunalnika ni na nobenem naslovu (in ne prek njegovega Huba): stavek z njegovim imenom,
                         // ne sistemska napaka. Kadar bi do njega prisli prek Global Linka, pa te poti se ne zna
                         // (starejsi Safeer), povemo to - »preveri omrezje« bi uporabnika poslal iskat napacno stvar.
@@ -545,6 +575,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         // Na locenem zaslonu ni vec programa (igra se je zaprla ob Esc ...): temen
                         // prazen zaslon je slepa ulica, zato gremo takoj nazaj v Safeer OS.
                         ZaslonOdjemalec.Stanje.PRAZNO -> {
+                            // Program je odprt na namizju racunalnika (sme teci samo enkrat): pokazemo ga tam.
+                            if (besedilo == "na_namizju" && !predano) { preklopiNaNamizje(); return@runOnUiThread }
                             Toast.makeText(this, getString(if (besedilo == "ni_okna") R.string.os_zaslon_ni_okna
                                 else R.string.os_zaslon_program_zaprt), Toast.LENGTH_LONG).show()
                             koncaj(); finish()
@@ -557,13 +589,64 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 // ostanejo v dnevniku, kjer jih potrebujemo, kadar iscemo vzrok tezave.
                 android.util.Log.d("SafeerZaslon",
                     "${s.sirina}x${s.visina} ${s.naSekundo} sl/s ${s.megabitov} Mb/s " +
-                    "dekoder ${s.dekoderMs} ms zvok=${s.zvok} " +
+                    "dekoder ${s.dekoderMs} ms zvok=${s.zvok} zastojev=${s.zastojev} " +
                     "pot=${if (odjemalec?.prekHuba == true) "global" else "neposredno"}")
+                // Kdor jih je v meniju seje vklopil, jih vidi (iskanje vzroka, kadar slika zdoma ne tece gladko).
+                if (podatkiVidni) runOnUiThread {
+                    if (isFinishing || !podatkiVidni) return@runOnUiThread
+                    meritve.text = getString(R.string.os_zaslon_podatki, s.sirina, s.visina,
+                        Math.round(s.naSekundo).toInt(),
+                        String.format(java.util.Locale.getDefault(), "%.1f", s.megabitov), s.zastojev,
+                        getString(if (odjemalec?.prekHuba == true) R.string.os_zaslon_pot_global
+                            else R.string.os_zaslon_pot_neposredno))
+                    meritve.visibility = View.VISIBLE
+                }
             },
             naObvestilo = { ob -> runOnUiThread { obvestilo(ob) } })
         odjemalec = o
         o.zacni(pogled.holder.surface)
     }
+
+    /**
+     * Program, ki ga je uporabnik hotel odpreti, je na racunalniku ze odprt in se ne more odpreti dvakrat (ali pa
+     * se je odprl na namizju). Namesto praznega locenega zaslona pokazemo namizje racunalnika; racunalnik okno tega
+     * programa postavi v ospredje (`handoff` v `screen.start`).
+     */
+    private fun preklopiNaNamizje() {
+        predano = true
+        rodSeje++                                   // klici stare seje (KONCANO) ne smejo sproziti ponovnega povezovanja
+        Toast.makeText(this, if (imePrograma.isNotBlank()) getString(R.string.os_zaslon_na_namizju_ime, imePrograma)
+            else getString(R.string.os_zaslon_na_namizju), Toast.LENGTH_LONG).show()
+        odjemalec?.ustavi()
+        odjemalec = null
+        seja = null
+        naDrugem = false
+        cilj = "desktop"
+        program = ""
+        pokazi(getString(R.string.os_zaslon_povezujem))
+        zahtevajSejo()
+    }
+
+    /**
+     * Dekoder HEVC te naprave toka ne zna (ni ga mogoce pripraviti ali ni vrnil nobene slike). Isto sejo zahtevamo znova
+     * s H.264 - tok, kot je bil pred uvedbo HEVC - in si to zapomnimo do naslednje posodobitve aplikacije, da uporabnik
+     * caka samo prvic. Program na racunalniku medtem tece naprej.
+     */
+    private fun znovaBrezHevc() {
+        getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putLong(KLJUC_BREZ_HEVC, razlicicaAplikacije()).apply()
+        rodSeje++                                   // klici stare seje (KONCANO) ne smejo sproziti se enega povezovanja
+        odjemalec?.ustavi()
+        odjemalec = null
+        seja = null
+        pokazi(getString(R.string.os_zaslon_povezujem))
+        zahtevajSejo()
+    }
+
+    /** Stevilka razlicice aplikacije (versionCode); -1, ce je ni mogoce prebrati. */
+    private fun razlicicaAplikacije(): Long = try {
+        val p = packageManager.getPackageInfo(packageName, 0)
+        if (android.os.Build.VERSION.SDK_INT >= 28) p.longVersionCode else @Suppress("DEPRECATION") p.versionCode.toLong()
+    } catch (_: Throwable) { -1L }
 
     /**
      * Prekinjena povezava ni konec seje. Izpad Wi-Fi ali kratka motnja traja nekaj sekund, program na
@@ -848,6 +931,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         })
         dejanja.add(getString(R.string.os_zaslon_meni_shrani) to { posljiTipko("shrani") })
         dejanja.add(getString(R.string.os_zaslon_meni_bliznjice) to { odpriBliznjice() })
+        dejanja.add(getString(if (podatkiVidni) R.string.os_zaslon_meni_podatki_skrij
+            else R.string.os_zaslon_meni_podatki) to {
+            podatkiVidni = !podatkiVidni
+            if (!podatkiVidni) meritve.visibility = View.GONE
+        })
         dejanja.add(getString(R.string.os_zaslon_meni_koncaj) to { koncaj(zapriPrograme = true); finish() })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_zaslon))
@@ -1306,6 +1394,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Obvestilo racunalnika (na glavni niti). Stari racunalnik jih ne posilja - takrat nic. */
     private fun obvestilo(o: JSONObject) {
         if (isFinishing) return
+        // Program se na locenem zaslonu se odpira: povemo to, namesto da uporabnik gleda prazen zaslon.
+        if (o.has("program")) {
+            o.optString("name").takeIf { it.isNotBlank() }?.let { imePrograma = it }
+            if (o.optString("program") == "caka") {
+                pokazi(if (imePrograma.isNotBlank()) getString(R.string.os_programi_odpiram, imePrograma)
+                    else getString(R.string.os_zaslon_program_se_odpira))
+            } else skrij()
+        }
         if (o.has("medij")) predvajalnikPas.stanje(o.optJSONObject("medij"))
         // Predvajalnik se ni oglasil na MPRIS (Hypnotix, mpv brez vticnika): ne ostanemo v nacinu, v
         // katerem bi bil OK samo presledek - razen ce ga je uporabnik za ta program izbral sam.
@@ -1479,5 +1575,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         private const val PONOVI_DRZANJE = 20
         /** Kako dolgo se po izpadu povezave poskusamo vrniti v isti program (Wi-Fi, kratka motnja). */
         private const val PONOVNO_NAJVEC_MS = 30_000L
+        /** Razlicica aplikacije (versionCode), v kateri dekoder HEVC te naprave toka ni znal; 0 = ni odpovedal. */
+        private const val KLJUC_BREZ_HEVC = "zaslon_brez_hevc"
     }
 }

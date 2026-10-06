@@ -231,6 +231,9 @@
     <string name="os_zaslon_koncano">Računalnik je končal sejo.</string>
     <string name="os_zaslon_program_zaprt">Program na računalniku se je zaprl.</string>
     <string name="os_zaslon_ni_okna">Program se na računalniku ni odprl.</string>
+    <string name="os_zaslon_na_namizju">Program je na računalniku že odprt – kažem namizje računalnika.</string>
+    <string name="os_zaslon_na_namizju_ime">%1$s je na računalniku že odprt – kažem namizje računalnika.</string>
+    <string name="os_zaslon_program_se_odpira">Program se odpira na računalniku …</string>
     <string name="os_zaslon_ponovno">Povezava je padla. Poskušam znova …</string>
     <string name="os_zaslon_namig">Za konec zadrži Nazaj</string>
     <!-- Scit: kratko na kartici, podrobnosti posebej -->
@@ -305,6 +308,11 @@
     <string name="os_zaslon_meni_kazalec">Preklopi na kazalec</string>
     <string name="os_zaslon_meni_shrani">Shrani (Ctrl+S)</string>
     <string name="os_zaslon_meni_bliznjice">Bližnjice</string>
+    <string name="os_zaslon_meni_podatki">Podatki o povezavi</string>
+    <string name="os_zaslon_meni_podatki_skrij">Skrij podatke o povezavi</string>
+    <string name="os_zaslon_podatki">%1$d × %2$d · %3$d slik/s · %4$s Mb/s · zastoji %5$d/s · %6$s</string>
+    <string name="os_zaslon_pot_neposredno">neposredno</string>
+    <string name="os_zaslon_pot_global">prek Global Linka</string>
     <string name="os_zaslon_meni_koncaj">Končaj sejo</string>
     <string name="os_bliznjica_shrani">Shrani</string>
     <string name="os_bliznjica_shrani_kot">Shrani kot</string>

@@ -303,6 +303,11 @@
     <string name="os_zaslon_meni_kazalec">Auf den Zeiger umschalten</string>
     <string name="os_zaslon_meni_shrani">Speichern (Strg+S)</string>
     <string name="os_zaslon_meni_bliznjice">Tastenkürzel</string>
+    <string name="os_zaslon_meni_podatki">Verbindungsdaten</string>
+    <string name="os_zaslon_meni_podatki_skrij">Verbindungsdaten ausblenden</string>
+    <string name="os_zaslon_podatki">%1$d × %2$d · %3$d Bilder/s · %4$s Mb/s · Aussetzer %5$d/s · %6$s</string>
+    <string name="os_zaslon_pot_neposredno">direkt</string>
+    <string name="os_zaslon_pot_global">über Global Link</string>
     <string name="os_zaslon_meni_koncaj">Sitzung beenden</string>
     <string name="os_bliznjica_shrani">Speichern</string>
     <string name="os_bliznjica_shrani_kot">Speichern unter</string>
@@ -332,6 +337,9 @@
     <string name="os_datoteke_pomoc_drzi">OK halten · auf dem Computer öffnen</string>
     <string name="os_zaslon_program_zaprt">Das Programm auf dem Computer wurde geschlossen.</string>
     <string name="os_zaslon_ni_okna">Das Programm hat sich auf dem Computer nicht geöffnet.</string>
+    <string name="os_zaslon_na_namizju">Das Programm ist auf dem Computer bereits geöffnet – der Desktop des Computers wird angezeigt.</string>
+    <string name="os_zaslon_na_namizju_ime">%1$s ist auf dem Computer bereits geöffnet – der Desktop des Computers wird angezeigt.</string>
+    <string name="os_zaslon_program_se_odpira">Das Programm wird auf dem Computer geöffnet …</string>
     <string name="os_program_zapri">Auf dem Computer schließen</string>
     <string name="os_program_zaprt">%1$s wird auf dem Computer geschlossen.</string>
     <string name="os_program_ne_tece">%1$s läuft nicht auf dem Computer.</string>

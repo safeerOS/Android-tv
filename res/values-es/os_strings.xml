@@ -303,6 +303,11 @@
     <string name="os_zaslon_meni_kazalec">Cambiar al puntero</string>
     <string name="os_zaslon_meni_shrani">Guardar (Ctrl+S)</string>
     <string name="os_zaslon_meni_bliznjice">Atajos</string>
+    <string name="os_zaslon_meni_podatki">Datos de la conexión</string>
+    <string name="os_zaslon_meni_podatki_skrij">Ocultar datos de la conexión</string>
+    <string name="os_zaslon_podatki">%1$d × %2$d · %3$d imágenes/s · %4$s Mb/s · cortes %5$d/s · %6$s</string>
+    <string name="os_zaslon_pot_neposredno">directa</string>
+    <string name="os_zaslon_pot_global">por Global Link</string>
     <string name="os_zaslon_meni_koncaj">Terminar la sesión</string>
     <string name="os_bliznjica_shrani">Guardar</string>
     <string name="os_bliznjica_shrani_kot">Guardar como</string>
@@ -332,6 +337,9 @@
     <string name="os_datoteke_pomoc_drzi">Mantén OK · abrir en el ordenador</string>
     <string name="os_zaslon_program_zaprt">El programa del ordenador se ha cerrado.</string>
     <string name="os_zaslon_ni_okna">El programa no se abrió en el ordenador.</string>
+    <string name="os_zaslon_na_namizju">El programa ya está abierto en el ordenador: se muestra el escritorio del ordenador.</string>
+    <string name="os_zaslon_na_namizju_ime">%1$s ya está abierto en el ordenador: se muestra el escritorio del ordenador.</string>
+    <string name="os_zaslon_program_se_odpira">Abriendo el programa en el ordenador…</string>
     <string name="os_program_zapri">Cerrar en el ordenador</string>
     <string name="os_program_zaprt">%1$s se está cerrando en el ordenador.</string>
     <string name="os_program_ne_tece">%1$s no se está ejecutando en el ordenador.</string>

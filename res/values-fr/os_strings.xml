@@ -303,6 +303,11 @@
     <string name="os_zaslon_meni_kazalec">Passer au pointeur</string>
     <string name="os_zaslon_meni_shrani">Enregistrer (Ctrl+S)</string>
     <string name="os_zaslon_meni_bliznjice">Raccourcis</string>
+    <string name="os_zaslon_meni_podatki">Données de la connexion</string>
+    <string name="os_zaslon_meni_podatki_skrij">Masquer les données de la connexion</string>
+    <string name="os_zaslon_podatki">%1$d × %2$d · %3$d images/s · %4$s Mb/s · saccades %5$d/s · %6$s</string>
+    <string name="os_zaslon_pot_neposredno">directe</string>
+    <string name="os_zaslon_pot_global">via Global Link</string>
     <string name="os_zaslon_meni_koncaj">Terminer la session</string>
     <string name="os_bliznjica_shrani">Enregistrer</string>
     <string name="os_bliznjica_shrani_kot">Enregistrer sous</string>
@@ -332,6 +337,9 @@
     <string name="os_datoteke_pomoc_drzi">Maintenez OK · ouvrir sur l\'ordinateur</string>
     <string name="os_zaslon_program_zaprt">Le programme sur l\'ordinateur s\'est fermé.</string>
     <string name="os_zaslon_ni_okna">Le programme ne s\'est pas ouvert sur l\'ordinateur.</string>
+    <string name="os_zaslon_na_namizju">Le programme est déjà ouvert sur l\'ordinateur – affichage du bureau de l\'ordinateur.</string>
+    <string name="os_zaslon_na_namizju_ime">%1$s est déjà ouvert sur l\'ordinateur – affichage du bureau de l\'ordinateur.</string>
+    <string name="os_zaslon_program_se_odpira">Ouverture du programme sur l\'ordinateur…</string>
     <string name="os_program_zapri">Fermer sur l\'ordinateur</string>
     <string name="os_program_zaprt">%1$s se ferme sur l\'ordinateur.</string>
     <string name="os_program_ne_tece">%1$s ne tourne pas sur l\'ordinateur.</string>
