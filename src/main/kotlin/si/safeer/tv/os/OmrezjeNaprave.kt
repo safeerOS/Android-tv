@@ -93,6 +93,8 @@ object OmrezjeNaprave {
             try {
                 val t = telefonija(context)?.dataNetworkType ?: 0
                 if (t != 0) return t
+            } catch (_: SecurityException) {
+                // Dovoljenja ni (ali ga je sistem odvzel): ostane rezerva spodaj.
             } catch (_: Throwable) { }
         }
         // Starejsi Android (in rezerva): vrsta, ki jo o dejavni povezavi vodi ConnectivityManager.
