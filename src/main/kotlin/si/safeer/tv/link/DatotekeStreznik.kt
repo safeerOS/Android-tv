@@ -136,13 +136,7 @@ object DatotekeStreznik {
         o.put("items", vnosi).put("shared", true)
         // Urejanje (brisanje, vrtenje slik) je mogoce v zbirkah, ne v korenu, kjer so same mape.
         o.put("edit", !(mapa.isBlank() || mapa == "root"))
-        if (datotek) {
-            val naslov = krajevniNaslov()
-            if (zazeni() && naslov != null) {
-                o.put("server", JSONObject().put("base_url", "https://$naslov:$vrata")
-                    .put("fp", si.safeer.tv.cast.HubTls.lastniOdtis()).put("token", zetonZa(idNaprave)))
-            }
-        }
+        if (datotek) opisStreznika(idNaprave)?.let { o.put("server", it) }
         return o
     }
 
@@ -161,11 +155,7 @@ object DatotekeStreznik {
                 .put("mime", n.mime).put("title", n.naslov).put("artist", n.izvajalec).put("path", n.mapa.trimEnd('/')))
         }
         o.put("items", vnosi).put("shared", true)
-        val naslov = krajevniNaslov()
-        if (vnosi.length() > 0 && zazeni() && naslov != null) {
-            o.put("server", JSONObject().put("base_url", "https://$naslov:$vrata")
-                .put("fp", si.safeer.tv.cast.HubTls.lastniOdtis()).put("token", zetonZa(idNaprave)))
-        }
+        if (vnosi.length() > 0) opisStreznika(idNaprave)?.let { o.put("server", it) }
         return o
     }
 
@@ -264,14 +254,31 @@ object DatotekeStreznik {
 
     fun pripravi(context: Context) { appContext = context.applicationContext }
 
-    /** Streznik te naprave za drugo napravo ([idNaprave]): {base_url, fp, token} ali null, ce ga ni mogoce zagnati. */
+    /** Streznik te naprave za drugo napravo ([idNaprave]): {base_url, fp, token, hub} ali null, ce ga ni mogoce zagnati. */
     fun streznikZa(context: Context, idNaprave: String): JSONObject? {
         appContext = context.applicationContext
-        val naslov = krajevniNaslov() ?: return null
+        return opisStreznika(idNaprave)
+    }
+
+    /**
+     * Naslov iz dokumentacijskega obsega (RFC 5737), na katerem ni nikogar. Stoji v opisu streznika, kadar ta naprava
+     * nima naslova v domacem omrezju (mobilni podatki): neposredni poskus nanj odpove, odjemalec gre prek Huba.
+     */
+    const val NASLOV_BREZ_OMREZJA = "192.0.2.1"
+
+    /**
+     * Opis streznika te naprave za napravo [idNaprave]: naslov, odtis potrdila, njen zeton in `hub: 2` (Hub te
+     * naprave streze iste poti pod /cast - datoteka, slicica, urejanje, tokovi; zdoma kot doma).
+     *
+     * Naslov v domacem omrezju NI pogoj. Na mobilnih podatkih ga naprava nima, do njenih datotek pa pride druga
+     * naprava prek Huba (Global Link). Prej je opis brez domacega naslova izostal: druga naprava je videla seznam,
+     * odpreti pa ni mogla nicesar.
+     */
+    private fun opisStreznika(idNaprave: String): JSONObject? {
         if (!zazeni()) return null
+        val naslov = krajevniNaslov() ?: NASLOV_BREZ_OMREZJA
         return JSONObject().put("base_url", "https://$naslov:$vrata")
             .put("fp", si.safeer.tv.cast.HubTls.lastniOdtis()).put("token", zetonZa(idNaprave))
-            // Hub te naprave streze iste poti pod /cast (Global Link): urejanje, slicice, tokovi - zdoma kot doma.
             .put("hub", 2)
     }
 

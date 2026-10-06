@@ -29,6 +29,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/HubHttp.kt" \
     "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
     "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
+    "$SRC/si/safeer/tv/link/KatalogAplikacij.kt" \
     "$TEST_DIR/UsmerjevalnikTest.kt" \
     ${JSON_JAR:+-cp "$JSON_JAR"} \
     -include-runtime -d "$OUT/usmerjevalnik.jar"

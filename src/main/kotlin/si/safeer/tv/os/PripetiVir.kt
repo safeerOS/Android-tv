@@ -166,7 +166,9 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
             PotDoNaprave.vrstniRed(PotDoNaprave.kljuc(naprava, url),
                 // Nastavitev »Preizkus: tudi doma prek interneta« velja tudi za branje datotek: rele prvi.
                 si.safeer.tv.link.GlobalLink.zdoma || (context != null && si.safeer.tv.link.GlobalLink.samoRele(context)),
-                releMogoc(context, naprava, url), { android.os.SystemClock.elapsedRealtime() }, { sonda(url) },
+                releMogoc(context, naprava, url), { android.os.SystemClock.elapsedRealtime() },
+                // Naprava brez naslova v domacem omrezju (mobilni podatki): sonda nima kam - takoj prek Huba.
+                { !PotDoNaprave.brezOmrezja(url) && sonda(url) },
                 { delo -> ozadje.execute(delo) })
 
         /**
@@ -190,6 +192,8 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
             val kljuc = PotDoNaprave.kljuc(naprava, url)
             var napaka: IOException? = null
             for (pot in vrstniRed(context, naprava, url)) {
+                // Na naslovu brez omrezja ni nikogar: neposredni poskus bi samo podaljsal cakanje na napako.
+                if (pot == PotDoNaprave.Pot.NEPOSREDNO && PotDoNaprave.brezOmrezja(url)) continue
                 try {
                     val naslov = if (pot == PotDoNaprave.Pot.NEPOSREDNO) url else relejniNaslov(context, naprava, url) ?: continue
                     val izid = zahteva(naslov)

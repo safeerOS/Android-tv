@@ -70,6 +70,17 @@ object PotDoNaprave {
         return if (prva == Pot.RELE) listOf(Pot.RELE, Pot.NEPOSREDNO) else listOf(Pot.NEPOSREDNO, Pot.RELE)
     }
 
+    /**
+     * Naslov iz dokumentacijskega obsega (192.0.2.0/24, RFC 5737): naprava brez naslova v domacem omrezju (mobilni
+     * podatki) ga da v opis svojega streznika datotek. Na njem ni nikogar - do naprave se pride samo prek njenega
+     * Huba, zato sonde in neposrednega poskusa sploh ne delamo (uporabnik ne caka na nekaj, kar ne more uspeti).
+     */
+    fun brezOmrezja(url: String): Boolean {
+        val gostitelj = try { URI(url).host } catch (_: Throwable) { null } ?: return false
+        val zadnji = gostitelj.removePrefix("192.0.2.")
+        return zadnji != gostitelj && zadnji.length in 1..3 && zadnji.all { it in '0'..'9' }
+    }
+
     /** Poti streznika datotek naprave (racunalnik: /m/ tok torrenta; Android: /magnet/). Hub jih streze pod /cast. */
     val POTI_STREZNIKA = listOf("/d/", "/thumb/", "/m/", "/live/", "/magnet/")
 

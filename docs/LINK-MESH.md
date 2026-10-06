@@ -113,6 +113,20 @@ računalnik, ki je ves čas prižgan. Hub je ena točka odpovedi in ena točka, 
     prednosti, zato doma zmaga, preden se rele sploh odpre, zdoma pa nihče ne čaka na naslove domačega
     omrežja. Seja dobi natanko enega gledalca: drugi in tisti z napačnim žetonom dobita 404.
 
+    **Središče druge naprave zdoma** (pravilo 9): kadar soseda v tem omrežju ni, je naslov njegovega središča
+    krajevni konec releja do njega (`MeshPovezovalec.naslov_prek_releja`; na Androidu `GlobalLink.vrataReleja`). Po
+    njem gredo oddaja datoteke napravi, prevzem datoteke z naprave in stran gledalca deljenega zaslona. Kratek
+    poskus povezave (0,7 s) pove, ali je sosed v tem omrežju; zaupanje je isto – ključ v potrdilu mora biti ključ
+    člana kroga. Do 1.0.100 je računalnik za napravo zdoma odgovoril »Naprava v tem omrežju ni dosegljiva.«
+
+    **Opis strežnika datotek ne sme biti odvisen od naslova v domačem omrežju.** Naprava na mobilnih podatkih ga
+    nima, do njenih datotek pa pride druga naprava prek huba. V `server` zato vedno pošlje `fp`, `token` in
+    `hub: 2`; brez domačega naslova je v `base_url` naslov iz dokumentacijskega obsega (`192.0.2.1`, RFC 5737), na
+    katerem ni nikogar – neposredni poskus odpove in odjemalec gre prek huba. Odjemalec, ki ta obseg pozna
+    (`192.0.2.0/24`: `link_pretok.brez_omrezja`, na Androidu `PotDoNaprave.brezOmrezja`), neposrednega poskusa
+    sploh ne naredi – uporabnik ne čaka na nekaj, kar ne more uspeti. Do Safeer OS 0.5.57 (Android) je
+    naprava na mobilnih podatkih poslala seznam brez `server`: druga naprava je datoteke videla, odpreti pa ne.
+
 ## Sporočila (novo)
 
 ```

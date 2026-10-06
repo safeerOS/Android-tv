@@ -77,6 +77,16 @@ fun main() {
     check(PotDoNaprave.relejniNaslov("https://192.0.2.10:8443/d/x", 0) == null) { "brez vrat releja ni naslova" }
     check(PotDoNaprave.relejniNaslov("ni naslov", 40123) == null)
 
+    // 8b) Naslov brez omrezja (naprava na mobilnih podatkih): samo ta obseg, nic drugega.
+    check(PotDoNaprave.brezOmrezja("https://192.0.2.1:40000/d/x")) { "naslov brez omrezja" }
+    check(PotDoNaprave.brezOmrezja("https://192.0.2.1:40000")) { "osnovni naslov brez omrezja" }
+    check(!PotDoNaprave.brezOmrezja("https://192.0.20.1:40000/d/x")) { "192.0.20.1 ni v obsegu" }
+    check(!PotDoNaprave.brezOmrezja("https://198.51.100.7:40000/d/x")) { "drug naslov" }
+    check(!PotDoNaprave.brezOmrezja("https://192.0.2.1.primer.si:40000/d/x")) { "ime, ki se zacne enako" }
+    check(!PotDoNaprave.brezOmrezja("ni naslov")) { "neveljaven naslov" }
+    // Do take naprave se pride prek releja po istem pravilu kot do vsake druge.
+    check(PotDoNaprave.relejniNaslov("https://192.0.2.1:40000/d/x", 40123) == "https://127.0.0.1:40123/cast/d/x")
+
     // 9) Kljuc: ista naprava na istem naslovu; druga naprava na istem naslovu ali ista na drugih vratih je drug kljuc.
     check(k == PotDoNaprave.kljuc("n-0123456789abcdef-control", "https://192.0.2.10:8443/thumb/b?x=1")) { "pot in poizvedba ne spremenita kljuca" }
     check(k == PotDoNaprave.kljuc("n-0123456789abcdef-control", "https://192.0.2.10:8443")) { "osnovni naslov streznika je isti kljuc" }

@@ -1139,6 +1139,30 @@ private fun preizkusProtokolaV1() {
     preveriEnako("katalog je omejen na NAJVEC_APLIKACIJ", HubUsmerjevalnik.NAJVEC_APLIKACIJ, ociscen?.kljuci()?.size)
     preveriEnako("predolg katalog odpade", "", u.preveriKatalog("x".repeat(HubUsmerjevalnik.NAJVEC_KATALOG_BAJTOV + 1)))
     preveri("vnos brez imena dobi id kot ime", u.preveriKatalog("""{"kodi":{}}""").contains("\"name\":\"kodi\""))
+    // Katalog, ki ga naprava sestavi sama (KatalogAplikacij), mora Hub sprejeti - tudi pri napravi z zelo veliko
+    // aplikacijami in dolgimi imeni. Katalog nad mejo bi Hub zavrgel v celoti in naprava bi ostala brez njega.
+    fun seznam(n: Int, ime: (Int) -> String) = org.json.JSONArray().also { p ->
+        for (i in 1..n) p.put(org.json.JSONObject().put("package", "si.primer.aplikacija.stevilka$i").put("label", ime(i)))
+    }
+    val katalogNaprave = si.safeer.tv.link.KatalogAplikacij
+    val majhen = katalogNaprave.izSeznama(seznam(25) { "Aplikacija $it" })
+    preveriEnako("majhen katalog naprave ostane cel", 25, majhen.length())
+    preveriEnako("Hub sprejme majhen katalog naprave cel", 25, JsonLahki.objekt(u.preveriKatalog(majhen.toString()))?.kljuci()?.size)
+    val stiristo = katalogNaprave.izSeznama(seznam(400) { "Aplikacija $it" })
+    preveriEnako("katalog naprave ima najvec toliko vnosov, kot jih Hub hrani", HubUsmerjevalnik.NAJVEC_APLIKACIJ, stiristo.length())
+    preveriEnako("Hub sprejme katalog naprave s 400 aplikacijami", HubUsmerjevalnik.NAJVEC_APLIKACIJ,
+        JsonLahki.objekt(u.preveriKatalog(stiristo.toString()))?.kljuci()?.size)
+    preveri("v katalogu ostanejo prvi po vrsti", stiristo.has("si.primer.aplikacija.stevilka1") && stiristo.has("si.primer.aplikacija.stevilka200") &&
+        !stiristo.has("si.primer.aplikacija.stevilka201"))
+    val dolga = katalogNaprave.izSeznama(seznam(400) { "Zelo dolgo ime aplikacije \"$it\" š/č\\ž " + "x".repeat(150) })
+    preveri("katalog z dolgimi imeni ostane pod mejo Huba (${dolga.toString().length} znakov, ${dolga.length()} vnosov)",
+        dolga.toString().length <= HubUsmerjevalnik.NAJVEC_KATALOG_BAJTOV && dolga.length() in 1 until HubUsmerjevalnik.NAJVEC_APLIKACIJ)
+    preveriEnako("Hub sprejme katalog z dolgimi imeni v celoti", dolga.length(),
+        JsonLahki.objekt(u.preveriKatalog(dolga.toString()))?.kljuci()?.size)
+    preveriEnako("prazen seznam da prazen katalog", 0, katalogNaprave.izSeznama(org.json.JSONArray()).length())
+    val podvojen = org.json.JSONArray().put(org.json.JSONObject().put("package", "a.b").put("label", "Prva"))
+        .put(org.json.JSONObject().put("package", "a.b").put("label", "Druga")).put(org.json.JSONObject().put("label", "Brez paketa"))
+    preveriEnako("isti paket samo enkrat, vnos brez paketa odpade", 1, katalogNaprave.izSeznama(podvojen).length())
 }
 
 // ------------------------------------------------------------ prijava s QR kodo

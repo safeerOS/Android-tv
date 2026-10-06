@@ -446,12 +446,18 @@ object Daljinec {
         return Izid(true, "Odpiram $ime", JSONObject().put("package", paket).put("label", ime))
     }
 
+    /** Najvec aplikacij v ENEM sporocilu z ikonami (stari ukaz `apps`): sporocilo sredisca sme imeti 256 KiB. */
+    const val NAJVEC_V_SPOROCILU = 60
+
+    /** Najvec aplikacij v seznamu po kosih (`apps.list`). Katalog za Hub ima svoje meje ([KatalogAplikacij]). */
+    const val NAJVEC_APLIKACIJ = 400
+
     /**
      * Aplikacije, ki jih je mogoce zagnati (Leanback ali navadni zaganjalnik), po imenu.
-     * Z ikonami (48 px, WebP) za mrezo v daljincu; celoten seznam mora ostati pod mejo
-     * sporocila sredisca (256 KiB), zato jih je najvec 60.
+     * Z ikonami (48 px, WebP) za mrezo v daljincu. [najvec]: stari ukaz `apps` poslje ves seznam z ikonami v enem
+     * sporocilu (meja sredisca 256 KiB), zato tam 60; `apps.list` gre po kosih in katalog je brez ikon - tam vse.
      */
-    fun aplikacije(context: Context, zIkonami: Boolean = false): JSONArray {
+    fun aplikacije(context: Context, zIkonami: Boolean = false, najvec: Int = NAJVEC_V_SPOROCILU): JSONArray {
         val pm = context.packageManager
         val najdene = LinkedHashMap<String, String>()
         val kategorije = listOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)
@@ -468,7 +474,7 @@ object Daljinec {
             }
         }
         val polje = JSONArray()
-        for ((paket, ime) in najdene.entries.sortedBy { it.value.lowercase() }.take(60)) {
+        for ((paket, ime) in najdene.entries.sortedBy { it.value.lowercase() }.take(najvec)) {
             val zapis = JSONObject().put("package", paket).put("label", ime)
             if (zIkonami) ikonaAplikacije(pm, paket)?.let { zapis.put("icon", it) }
             polje.put(zapis)
@@ -547,7 +553,11 @@ object Daljinec {
      */
     private fun seznamV1(context: Context, parametri: JSONObject): Izid {
         val zIkonami = parametri.optBoolean("icons", false)
-        val polje = aplikacije(context, zIkonami)
+        // Imena vseh aplikacij (brez ikon); ikone narisemo samo za kos, ki gre v to sporocilo. Prej je bil seznam
+        // prirezan na prvih 60 po abecedi - druga naprava aplikacij od H naprej sploh ni videla.
+        val polje = aplikacije(context, false, NAJVEC_APLIKACIJ)
+        val pm = context.packageManager
+        val meja = parametri.optInt("limit", 0)
         // Po kosih (offset) in do ~190 kB: sporocilo v Safeer Linku sme imeti najvec 256 kB; prevelik
         // odgovor se izgubi in druga naprava pokaze crke namesto ikon.
         val od = parametri.optInt("offset", 0).coerceIn(0, polje.length())
@@ -555,9 +565,11 @@ object Daljinec {
         var velikost = 0
         for (i in od until polje.length()) {
             val z = polje.optJSONObject(i) ?: continue
+            if (meja > 0 && elementi.length() >= meja) break
             val e = JSONObject().put("id", z.optString("package")).put("name", z.optString("label"))
-            if (z.has("icon")) e.put("icon", z.optString("icon"))
-            val teza = z.optString("icon").length + z.optString("label").length * 2 + 120
+            val ikona = if (zIkonami) ikonaAplikacije(pm, z.optString("package")) else null
+            if (ikona != null) e.put("icon", ikona)
+            val teza = (ikona?.length ?: 0) + z.optString("label").length * 2 + 120
             if (elementi.length() > 0 && velikost + teza > 190_000) break
             velikost += teza
             elementi.put(e)
@@ -573,13 +585,8 @@ object Daljinec {
      * vzame z ukazom `apps` z icons=true, ko jih potrebuje.
      */
     fun katalog(context: Context): JSONObject {
-        val k = JSONObject()
-        val seznam = aplikacije(context)
-        for (i in 0 until seznam.length()) {
-            val z = seznam.optJSONObject(i) ?: continue
-            k.put(z.optString("package"), JSONObject().put("name", z.optString("label")).put("kind", "android"))
-        }
-        return k
+        // Meje Huba (200 vnosov, 32 KiB - vecji katalog zavrze v celoti) varuje KatalogAplikacij.
+        return KatalogAplikacij.izSeznama(aplikacije(context, najvec = KatalogAplikacij.NAJVEC_VNOSOV))
     }
 
     /** Ikona aplikacije kot data URL (WebP, 48 px); null, ce je ni mogoce narisati. */
