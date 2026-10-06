@@ -145,7 +145,7 @@ class GlasbaStoritev : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val p = ExoPlayer.Builder(this).build()
+        val p = ExoPlayer.Builder(this).setTrackSelector(IzbiraZvocneSledi(this)).build()
         // Vsebina "glasba" (privzeto v Media3), ne "neznano": televizor po tej oznaki izbere
         // obdelavo zvoka (npr. Philipsov nacin za govor/glasbo), ki je bila prej nedolocena.
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
@@ -153,6 +153,8 @@ class GlasbaStoritev : Service() {
         p.setWakeMode(C.WAKE_MODE_NETWORK)
         p.setHandleAudioBecomingNoisy(true)
         Podnapisi.uveljavi(this, p)
+        // Kaj gre v resnici iz zvocnikov (predan tok Dolby ali dekodirano v stereo): za dnevnik in za zaslon predvajanja.
+        p.addAnalyticsListener(ZvokIzhod.poslusalec(this) { oznaka -> zvocniIzhod = oznaka })
         p.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 // Nedavno predvajano (plosca Safeer Media): shranljive skladbe, postaje in videi - sele, ko res tecejo.
@@ -659,6 +661,9 @@ class GlasbaStoritev : Service() {
         /** Predvajalnik, dokler storitev tece; sicer null. */
         @Volatile var predvajalnik: Player? = null
             private set
+        /** Kaj gre ta hip iz zvocnikov, kadar je to vredno povedati (»Dolby Atmos«, »5.1 → stereo«); sicer prazno. */
+        @Volatile var zvocniIzhod: String = ""
+            private set
         private var vrsta: List<Jamendo.Skladba> = emptyList()
         /** Streznik (racunalnik/naprava s pripetim potrdilom), s katerega tece trenutni seznam; null za splet in lokalno. */
         @Volatile var streznikTrenutni: DatotekeActivity.Streznik? = null
@@ -693,6 +698,7 @@ class GlasbaStoritev : Service() {
             rezerve = emptyList()
             cakajoci = null; cakajociSplet = null
             cakajocaVrsta = seznam to od.coerceIn(0, seznam.size - 1)
+            stevecZagonov.incrementAndGet()
             val namen = Intent(ctx, GlasbaStoritev::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
         }
@@ -723,12 +729,22 @@ class GlasbaStoritev : Service() {
             zapustiVrsto(sk.id)
             cakajocaVrsta = null
             cakajociSplet = sk to dovoliPrevzem
+            stevecZagonov.incrementAndGet()
             val namen = Intent(ctx, GlasbaStoritev::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
         }
 
         /** Zaslon se prijavi, da izve za spremembe (nova skladba, pavza, konec). */
         val poslusalci = mutableSetOf<() -> Unit>()
+
+        private val stevecZagonov = java.util.concurrent.atomic.AtomicInteger()
+
+        /**
+         * Koliko predvajanj je bilo namerno zagnanih ([predvajaj], [predvajajSplet], [predvajajVrsto]). Zaslon predvajanja
+         * z njim loci »uporabnik je odsel« od »medtem se je zacelo nekaj novega«: onStop starega zaslona pride sele po
+         * zagonu novega posnetka in ga ne sme ustaviti.
+         */
+        val zagonov: Int get() = stevecZagonov.get()
 
         /** Ves seznam, ki se predvaja (za "v vrsti" na zaslonu predvajanja). */
         fun vrsta(): List<Jamendo.Skladba> = if (predvajalnik == null) emptyList() else vrsta
@@ -754,6 +770,7 @@ class GlasbaStoritev : Service() {
             cakajocaVrsta = null
             rezerve = emptyList()
             cakajoci = Triple(seznam, od, streznik)
+            stevecZagonov.incrementAndGet()
             val namen = Intent(ctx, GlasbaStoritev::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
         }

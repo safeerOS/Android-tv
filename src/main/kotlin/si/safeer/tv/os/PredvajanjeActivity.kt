@@ -106,6 +106,18 @@ class PredvajanjeActivity : OsActivity() {
     private var pripet: Player? = null
     private var zadnjaSlika = ""
     private val poslusalec: () -> Unit = { glavna.post { osvezi() } }
+
+    /**
+     * Zaslon je med onStart in onStop. Osvezitev, ki jo poslusalec poslje v vrsto, se lahko izvede sele po onStop (pavza v
+     * onStop sama sprozi obvestilo): ustavljen ali unicen zaslon si predvajalnika ne sme znova pripeti - novemu zaslonu
+     * predvajanja bi vzel sliko (zamrznjena slika ob zvoku, ki tece) in ostal prijavljen kot poslusalec predvajalnika.
+     */
+    private var zagnan = false
+
+    /** [GlasbaStoritev.zagonov], ko je zaslon izgubil ospredje (onPause) - glej onStop. */
+    private var zagonovObOdhodu = -1
+
+    override fun onPause() { zagonovObOdhodu = GlasbaStoritev.zagonov; super.onPause() }
     private var tikov = 0
     private val tik = object : Runnable { override fun run() {
         osveziCas()
@@ -484,6 +496,7 @@ class PredvajanjeActivity : OsActivity() {
 
     override fun onStart() {
         super.onStart()
+        zagnan = true; zagnanih++
         GlasbaStoritev.poslusalci.add(poslusalec)
         if (!LinkUpravitelj.pridobi(this).jeKrajevni()) LinkUpravitelj.pridobi(this).dodaj(linkPoslusalec)
         osvezi()
@@ -568,16 +581,23 @@ class PredvajanjeActivity : OsActivity() {
         /** Predvajanje je odprl zaslon Datoteke: Nazaj vrne v mapo, iz katere je uporabnik prisel. */
         const val IZ_DATOTEK = "iz_datotek"
         const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"
+        /** Koliko zaslonov predvajanja je med onStart in onStop (ob zamenjavi posnetka od drugod sta kratek cas dva). */
+        private var zagnanih = 0
     }
 
     override fun onDestroy() { odjaviPip(); delavec.shutdownNow(); super.onDestroy() }
 
     override fun onStop() {
+        zagnan = false; zagnanih = (zagnanih - 1).coerceAtLeast(0)
         if (zaklenjeno) zakleni(false)
         // Video brez slike nima smisla: ko uporabnik zapusti predvajalnik (Nazaj, Domov, druga aplikacija),
         // ga ustavimo na mestu - "Nadaljuj gledanje" ga pozneje nadaljuje. Glasba in radio igrata naprej.
-        zapisiNapredek()
-        if (jeVideo() && !isChangingConfigurations) GlasbaStoritev.predvajalnik?.pause()
+        // Izjema: medtem ko je ta zaslon odhajal, se je namerno zacelo novo predvajanje (posnetek, odprt od drugod,
+        // sprejeta ponudba z druge naprave) ali pa video ze kaze drug zaslon predvajanja. onStop starega zaslona pride
+        // sele po zagonu novega - novega posnetka ne sme ustaviti in njegovega mesta ne zapisati kot napredek.
+        val novoPredvajanje = OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu, GlasbaStoritev.zagonov, zagnanih)
+        if (!novoPredvajanje) zapisiNapredek()
+        if (jeVideo() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()
         GlasbaStoritev.poslusalci.remove(poslusalec)
         LinkUpravitelj.pridobi(this).odstrani(linkPoslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
@@ -591,6 +611,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun jeVideo() = GlasbaStoritev.trenutna()?.video == true
 
     private fun osvezi() {
+        if (!zagnan) return
         val p = GlasbaStoritev.predvajalnik
         val sk = GlasbaStoritev.trenutna()
         if (p == null || sk == null) { finish(); return }
@@ -613,7 +634,7 @@ class PredvajanjeActivity : OsActivity() {
         izvajalec.text = GlasbaStoritev.koncnaNapaka?.takeIf { it.id == sk.id }?.besedilo ?: if (skritiVir) "" else sk.izvajalec
         temaNaslov.text = if (skritiVir) sk.naslov else listOf(sk.naslov, sk.izvajalec).filter { it.isNotBlank() }.joinToString(" · ")
         val stran = sk.povezava.removePrefix("https://").removePrefix("http://").removePrefix("www.").trimEnd('/')
-        vir.text = when {
+        virOsnova = when {
             skritiVir -> ""
             // Dodatki: naslov toka ima lahko skrivne dele (kljuc storitve, skrivnost toka) - pokazemo le, od kod je.
             // Torrent: predvaja ga ta naprava sama, druga naprava s Safeer OS v Linku ali racunalnik.
@@ -624,6 +645,7 @@ class PredvajanjeActivity : OsActivity() {
             sk.zvok.startsWith("https://prod-1.storage.jamendo.com") || sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, stran)
             else -> stran
         }
+        nastaviVir()
         if (!sk.video && sk.slika != zadnjaSlika) {
             zadnjaSlika = sk.slika
             naslovnica.setImageResource(R.drawable.os_ikona_glasba)
@@ -635,8 +657,19 @@ class PredvajanjeActivity : OsActivity() {
         osveziCas()
     }
 
+    /** Vrstica vira brez dodatka o zvoku in dodatek, ki je zdaj prikazan ([GlasbaStoritev.zvocniIzhod]). */
+    private var virOsnova = ""
+    private var prikazanIzhod = ""
+
+    /** Vir in, kadar je vredno povedati, kaj gre iz zvocnikov: »streznik.example · Dolby Atmos«, »… · 5.1 → stereo«. */
+    private fun nastaviVir() {
+        prikazanIzhod = GlasbaStoritev.zvocniIzhod
+        vir.text = listOf(virOsnova, prikazanIzhod).filter { it.isNotBlank() }.joinToString(" · ")
+    }
+
     private fun osveziCas() {
         val p = GlasbaStoritev.predvajalnik ?: return
+        if (GlasbaStoritev.zvocniIzhod != prikazanIzhod) nastaviVir()
         val (polozaj, trajanje) = polozajInTrajanje(p)
         cas.text = (if (p.isPlaying) "▶  " else "❚❚  ") + if (trajanje > 0) "${oblikuj(polozaj)} / ${oblikuj(trajanje)}" else oblikuj(polozaj)
         if (!vlecenje) potek.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0

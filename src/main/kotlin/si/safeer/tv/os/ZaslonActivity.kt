@@ -231,8 +231,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         })
     }
 
+    /** Slike in dotiki naj ne cakajo na radio Wi-Fi, ki varcuje (glej [WifiNizkaZakasnitev]). */
+    private val wifi by lazy { WifiNizkaZakasnitev(this, "Safeer:Zaslon") }
+
     override fun onStart() {
         super.onStart()
+        wifi.vklopi()
         OmrezjeNaprave.pripravi(this)
         link.dodaj(this)
         if (seja == null) zahtevajSejo()
@@ -262,6 +266,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             finish()
         }
         link.odstrani(this)
+        wifi.izklopi()
         super.onStop()
     }
 

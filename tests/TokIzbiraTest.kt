@@ -77,5 +77,20 @@ fun main() {
     // Potekla povezava je zadnja od vseh - tudi za tokom, ki ga naprava slabse predvaja.
     val potekli = TokIzbira.uredi(trije, { it.opis }, tv4k, { it.url }, zdaj + 5000)
     check(potekli.last().url == podpisana && potekli.first().opis.contains("20 GB")) { potekli.toString() }
+    // ---- Dolby Atmos: prednost samo tam, kjer ga zvocna veriga res odda ----
+    check(TokIzbira.opisi("FILM.2020.1080p.WEB-DL.DDP5.1.Atmos.H.264").atmos && !TokIzbira.opisi("FILM.2020.1080p.WEB-DL.DDP5.1.H.264").atmos)
+    val zAtmosom = TokIzbira.Zmoznosti(visina = 1080, eac3 = true, ac3 = true, atmos = true)
+    val brezAtmosa = TokIzbira.Zmoznosti(visina = 1080, eac3 = true, ac3 = true)
+    val dva = listOf("A 1080p [3.0 GB] FILM.2020.1080p.WEB-DL.AAC.H.264", "B 1080p [6.5 GB] FILM.2020.1080p.WEB-DL.DDP5.1.Atmos.H.264")
+    check(TokIzbira.uredi(dva, { it }, zAtmosom).first().startsWith("B")) { "veriga odda Atmos: tok z Atmosom prvi, ceprav je vecji" }
+    check(TokIzbira.uredi(dva, { it }, brezAtmosa).first().startsWith("A")) { "brez Atmosa v verigi ostane manjsa datoteka" }
+    // Locljivosti Atmos ne prehiti; zelo velike datoteke tudi ne.
+    check(TokIzbira.uredi(listOf("C 2160p [9 GB] FILM.2160p.HEVC.AAC", "D 1080p [4 GB] FILM.1080p.DDP5.1.Atmos"), { it },
+        TokIzbira.Zmoznosti(visina = 2160, eac3 = true, atmos = true)).first().startsWith("C"))
+    check(TokIzbira.uredi(listOf("E 1080p [2 GB] FILM.1080p.AAC", "F 1080p [20 GB] FILM.1080p.DDP5.1.Atmos"), { it }, zAtmosom).first().startsWith("E"))
+    // TrueHD Atmos: brez dekodirnika in brez predaje je to film brez zvoka; s sprejemnikom, ki TrueHD sprejme, gre.
+    val remux = listOf("G 1080p [4 GB] FILM.1080p.AAC", "H 1080p [9 GB] FILM.1080p.BluRay.TrueHD.7.1.Atmos")
+    check(TokIzbira.uredi(remux, { it }, zAtmosom).first().startsWith("G"))
+    check(TokIzbira.uredi(remux, { it }, zAtmosom.copy(truehd = true)).first().startsWith("H"))
     println("TokIzbiraTest: OK")
 }

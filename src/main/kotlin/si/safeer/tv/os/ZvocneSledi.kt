@@ -22,9 +22,9 @@ object ZvocneSledi {
 
     fun ime(a: Activity, g: Tracks.Group, i: Int, k: Int): String {
         val f = g.getTrackFormat(i)
-        val kanali = when (f.channelCount) { 1 -> "mono"; 2 -> "stereo"; 6 -> "5.1"; 8 -> "7.1"; else -> if (f.channelCount > 0) "${f.channelCount} ch" else "" }
-        return listOfNotNull(f.label?.ifBlank { null } ?: Podnapisi.imeJezika(a, f.language.orEmpty()).ifBlank { null },
-            kanali.ifBlank { null }).joinToString(" · ").ifBlank { a.getString(R.string.os_mediji_zvocna_sled_st, k + 1) }
+        // Jezik ali ime sledi, kanali in zapis (»Angleščina · 5.1 · Dolby Atmos«): uporabnik ve, katero sled izbira.
+        return ZvokPravila.opisSledi(f.label?.ifBlank { null } ?: Podnapisi.imeJezika(a, f.language.orEmpty()),
+            f.channelCount, f.sampleMimeType, f.label).ifBlank { a.getString(R.string.os_mediji_zvocna_sled_st, k + 1) }
     }
 
     fun izberi(a: Activity, p: Player, poIzbiri: () -> Unit = {}) {

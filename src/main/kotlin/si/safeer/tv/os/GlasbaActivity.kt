@@ -5261,7 +5261,18 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Kaj ta naprava predvaja (zaslon, dekodirniki slike in zvoka) - za izbiro najboljsega toka brez vprasanj. */
-    private val zmoznostiNaprave: TokIzbira.Zmoznosti by lazy {
+    private val zmoznostiNaprave: TokIzbira.Zmoznosti
+        get() {
+            // Zvocni izhod se med rabo spreminja (zvocnik na HDMI, slusalke): preberemo ga ob vsaki izbiri toka. Kar
+            // izhod sprejme kot nedotaknjen tok (npr. TrueHD ali DTS prek sprejemnika), ne potrebuje dekodirnika.
+            val predaja = ZvokIzhod.predaja(this)
+            val o = zmoznostiOsnovne
+            return o.copy(ac3 = o.ac3 || "ac3" in predaja, eac3 = o.eac3 || "eac3" in predaja || "atmos" in predaja,
+                dts = o.dts || "dts" in predaja, truehd = o.truehd || "truehd" in predaja, atmos = o.atmos || "atmos" in predaja)
+        }
+
+    /** Zaslon in dekodirniki se med rabo ne spreminjajo. */
+    private val zmoznostiOsnovne: TokIzbira.Zmoznosti by lazy {
         val kodeki = try {
             android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).codecInfos
                 .filter { !it.isEncoder }.flatMap { it.supportedTypes.toList() }.map { it.lowercase(Locale.ROOT) }.toSet()
@@ -5277,7 +5288,8 @@ class GlasbaActivity : OsActivity() {
             hevc = "video/hevc" in kodeki, av1 = "video/av01" in kodeki, hdr = hdrTipi.isNotEmpty(),
             dolbyVision = "video/dolby-vision" in kodeki && android.view.Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION in hdrTipi,
             eac3 = tv || "audio/eac3" in kodeki || "audio/eac3-joc" in kodeki, ac3 = tv || "audio/ac3" in kodeki,
-            dts = kodeki.any { it.startsWith("audio/vnd.dts") }, truehd = "audio/true-hd" in kodeki)
+            dts = kodeki.any { it.startsWith("audio/vnd.dts") }, truehd = "audio/true-hd" in kodeki,
+            atmos = "audio/eac3-joc" in kodeki)
     }
 
     /**

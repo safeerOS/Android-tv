@@ -94,10 +94,13 @@ class PredvajalnikActivity : OsActivity() {
         val p = ExoPlayer.Builder(this)
             .setRenderersFactory(renderers)
             .setMediaSourceFactory(tovarnaVira)
+            .setTrackSelector(IzbiraZvocneSledi(this))
             .build()
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
             .setContentType(if (zvok) C.AUDIO_CONTENT_TYPE_MUSIC else C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
         p.setWakeMode(C.WAKE_MODE_NETWORK)
+        // V dnevnik: ali gre zvok Dolby zvocniku nedotaknjen ali ga naprava dekodira (brez naslovov).
+        p.addAnalyticsListener(ZvokIzhod.poslusalec(this) { })
         if (!zvok) p.setVideoSurfaceView(povrsina)
         p.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {

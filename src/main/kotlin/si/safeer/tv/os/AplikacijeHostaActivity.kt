@@ -77,6 +77,26 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val androidNaprave = HashSet<String>()
     /** Izbrana naprava v vrsti naprav; null = vse. */
     private var izbranaNaprava: String? = null
+    /** Od kdaj izbrane naprave ni v Linku (ms); 0 = je tu. Do [POCAKAJ_NAPRAVO_MS] izbira ostane, kot je. */
+    private var izbraneNiOd = 0L
+
+    /**
+     * Izbrane naprave trenutno ni med tistimi s programi (Link se povezuje znova, naprava se je za hip odklopila).
+     * Vrne true, dokler jo se cakamo: cip in izbira ostaneta, seznam je prazen - pod prstom se ne pojavi program druge
+     * naprave. Po izteku roka vrne false in klicatelj izbiro vrne na »Vse«.
+     */
+    private fun pocakajIzbrano(): Boolean {
+        val id = izbranaNaprava ?: return false
+        if (imenaNaprav[id].isNullOrBlank()) return false
+        val zdajMs = android.os.SystemClock.elapsedRealtime()
+        if (izbraneNiOd == 0L) {
+            izbraneNiOd = zdajMs
+            mreza.postDelayed({
+                if (!isFinishing && izbraneNiOd != 0L && izbranaNaprava == id && oddaljeni.none { it.racunalnik == id }) prerisi { }
+            }, POCAKAJ_NAPRAVO_MS + 300)
+        }
+        return zdajMs - izbraneNiOd < POCAKAJ_NAPRAVO_MS
+    }
 
 
     private fun zVirom(v: AppVir) = nacin == "vse" || nacin == v.kljuc
@@ -248,6 +268,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Ime naprave sledi Linku tudi za ze nalozene naprave: po preimenovanju (cast.devices) cipi takoj
         // kazejo novo ime, ne sele po ponovnem zagonu aplikacije.
         var preimenovano = false
+        var vrniIzShrambe = false
         for (r in naprave) {
             val ime = r.ime.ifBlank { r.id }
             if (imenaNaprav[r.id] != ime) { preimenovano = imenaNaprav.containsKey(r.id); imenaNaprav[r.id] = ime }
@@ -255,7 +276,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (!r.zmoznosti.contains("apps")) androidNaprave.add(r.id)
             // Seznam je svez (domaci zaslon ga je pravkar pripravil ali smo ga pravkar pokazali):
             // ne vprasamo naprave se enkrat - brez dvojnega nalaganja.
-            if (jeSvez(shramba[r.id]?.cas)) { nalozene.add(r.id); continue }
+            if (jeSvez(shramba[r.id]?.cas)) {
+                nalozene.add(r.id)
+                // Naprava se je vrnila po kratki prekinitvi Linka: njeni programi so bili umaknjeni iz mreze, svez
+                // seznam pa se imamo - vrnemo ga takoj, brez novega vprasanja napravi.
+                if (oddaljeni.none { it.racunalnik == r.id } && shramba[r.id]?.aplikacije?.isNotEmpty() == true) vrniIzShrambe = true
+                continue
+            }
             if (programi.isEmpty()) pokaziSporocilo(getString(R.string.os_programi_nalagam))
             naloziStran(r)
         }
@@ -264,6 +291,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 else getString(R.string.os_programi_naprav, imenaNaprav.size)
             znacka.visibility = View.VISIBLE
         }
+        if (vrniIzShrambe) prerisi { izShrambe() }
         if (preimenovano) narisiSkupine()
     }
 
@@ -482,9 +510,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val drsnik = findViewById<View>(R.id.napraveDrsnik)
         viriVrsta = vrsta
         vrsta.removeAllViews()
-        if (izbire.size < 3) { drsnik.visibility = View.GONE; izbraniVir = null; izbranaNaprava = null; return }
+        // Izbrana naprava je za hip izginila: njen cip ostane (0 programov), dokler se ne vrne ali ne potece rok.
+        if ((izbraniVir to izbranaNaprava) in izbire) izbraneNiOd = 0L
+        else if (izbraniVir == AppVir.RACUNALNIK && pocakajIzbrano()) izbire.add(AppVir.RACUNALNIK to izbranaNaprava)
+        else { izbraniVir = null; izbranaNaprava = null; izbraneNiOd = 0L }
+        if (izbire.size < 3 && izbranaNaprava == null) { drsnik.visibility = View.GONE; izbraniVir = null; return }
         drsnik.visibility = View.VISIBLE
-        if ((izbraniVir to izbranaNaprava) !in izbire) { izbraniVir = null; izbranaNaprava = null }
         for ((v, id) in izbire) {
             val n = when {
                 v == null -> programi.size
@@ -512,15 +543,19 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Naprava se zamenja z OK, ker zamenja celo mrezo.
      */
     private fun narisiNaprave() {
-        val prisotne = imenaNaprav.keys.filter { id -> oddaljeni.any { it.racunalnik == id } }
+        var prisotne = imenaNaprav.keys.filter { id -> oddaljeni.any { it.racunalnik == id } }
         val vrsta = findViewById<LinearLayout>(R.id.naprave)
         val drsnik = findViewById<View>(R.id.napraveDrsnik)
         viriVrsta = vrsta
         vrsta.removeAllViews()
-        if (prisotne.size < 2) { drsnik.visibility = View.GONE; izbranaNaprava = null; return }
+        // Izbrana naprava je za hip izginila: njen cip ostane (0 programov), dokler se ne vrne ali ne potece rok.
+        val izbrana = izbranaNaprava
+        if (izbrana == null || izbrana in prisotne) izbraneNiOd = 0L
+        else if (pocakajIzbrano()) prisotne = prisotne + izbrana
+        else { izbranaNaprava = null; izbraneNiOd = 0L }
+        if (prisotne.size < 2 && izbranaNaprava == null) { drsnik.visibility = View.GONE; return }
         znacka.visibility = View.GONE
         drsnik.visibility = View.VISIBLE
-        if (izbranaNaprava != null && izbranaNaprava !in prisotne) izbranaNaprava = null
         for (id in listOf<String?>(null) + prisotne) {
             val n = if (id == null) oddaljeni.size else oddaljeni.count { it.racunalnik == id }
             val ime = if (id == null) getString(R.string.os_vir_vse) else imenaNaprav[id].orEmpty()
@@ -655,6 +690,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             vidni.isNotEmpty() -> skrijSporocilo()
             programi.isEmpty() -> { }               // sporocilo o nalaganju ali napaki ostane
             iskano.isNotEmpty() -> pokaziSporocilo(getString(R.string.os_programi_ni_zadetka, iskanje.text.toString().trim()))
+            izbraneNiOd != 0L && izbranaNaprava != null ->
+                pokaziSporocilo(getString(R.string.os_programi_cakam_napravo, imenaNaprav[izbranaNaprava].orEmpty()))
             else -> pokaziSporocilo(getString(R.string.os_programi_prazno))
         }
     }
@@ -889,6 +926,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     companion object {
+        /** Koliko casa izbrana naprava sme manjkati v Linku, preden se izbira vrne na »Vse«. */
+        const val POCAKAJ_NAPRAVO_MS = 20_000L
         private const val KARTICA_DP = 120f
         private const val RAZMIK_DP = 12f
         /** Kaj zaslon kaze: "vse", "tv", "splet" ali "racunalnik" (privzeto). */

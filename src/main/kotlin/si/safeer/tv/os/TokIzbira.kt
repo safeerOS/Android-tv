@@ -10,11 +10,13 @@ object TokIzbira {
     /** Kaj naprava zmore: visina zaslona (krajsa stranica najvecjega nacina), dekodirniki slike in zvoka. */
     data class Zmoznosti(val visina: Int = 1080, val hevc: Boolean = true, val av1: Boolean = false, val hdr: Boolean = false,
                          val dolbyVision: Boolean = false, val eac3: Boolean = false, val ac3: Boolean = false,
-                         val dts: Boolean = false, val truehd: Boolean = false)
+                         val dts: Boolean = false, val truehd: Boolean = false,
+                         /** Dolby Atmos pride do zvocnikov: izhod ga sprejme kot tok (HDMI/eARC) ali ga naprava dekodira sama. */
+                         val atmos: Boolean = false)
 
     /** Kar o toku pove njegovo ime in opis (tako tokove opisujejo dodatki: "2160p WEB-DL DDP5.1 Atmos DV HDR H.265 12.66 GB"). */
     data class Opis(val visina: Int, val hevc: Boolean, val av1: Boolean, val hdr: Boolean, val dv: Boolean,
-                    val zvok: String, val slabPosnetek: Boolean, val gb: Double)
+                    val zvok: String, val slabPosnetek: Boolean, val gb: Double, val atmos: Boolean = false)
 
     private val V2160 = Regex("2160p?|\\b4k\\b|\\buhd\\b")
     private val V1440 = Regex("1440p")
@@ -29,6 +31,7 @@ object TokIzbira {
     private val TRUEHD = Regex("true[ .-]?hd")
     private val DTS = Regex("\\bdts")
     private val EAC3 = Regex("\\bddp|dd\\+|e-?ac-?3|atmos")
+    private val ATMOS = Regex("\\batmos\\b")
     private val AC3 = Regex("\\bdd[ .]?[257]|\\bac-?3\\b|dolby digital")
     private val SLAB = Regex("\\b(cam|hdcam|camrip|ts|hdts|telesync|tc|telecine|scr|screener)\\b")
     private val VELIKOST = Regex("(\\d+(?:[.,]\\d+)?)\\s*(gb|gib|mb|mib)")
@@ -93,7 +96,8 @@ object TokIzbira {
             val n = m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 0.0
             if (m.groupValues[2].startsWith("m")) n / 1024.0 else n
         } ?: 0.0
-        return Opis(visina, HEVC.containsMatchIn(t), AV1.containsMatchIn(t), HDR.containsMatchIn(t), DV.containsMatchIn(t), zvok, SLAB.containsMatchIn(t), gb)
+        return Opis(visina, HEVC.containsMatchIn(t), AV1.containsMatchIn(t), HDR.containsMatchIn(t), DV.containsMatchIn(t), zvok, SLAB.containsMatchIn(t), gb,
+            ATMOS.containsMatchIn(t))
     }
 
     /**
@@ -112,6 +116,9 @@ object TokIzbira {
         // Zvok, ki ga naprava ne dekodira, pomeni film brez zvoka: huje kot nizja locljivost.
         val zvokGre = when (o.zvok) { "truehd" -> z.truehd; "dts" -> z.dts; "eac3" -> z.eac3; "ac3" -> z.ac3; else -> true }
         if (!zvokGre) tocke -= 1200
+        // Dolby Atmos, kadar ga veriga res odda (zvocnik na HDMI/eARC ali dekodirnik naprave): med sicer enakovrednimi
+        // tokovi ima prednost tisti s prostorskim zvokom, tudi ce je nekaj GB vecji. Locljivosti ne prehiti.
+        if (o.atmos && z.atmos && zvokGre) tocke += 45
         if (o.slabPosnetek) tocke -= 800
         // Med enakovrednimi se manjsa datoteka zacne hitreje (nic cakanja).
         tocke -= (minOf(o.gb, 40.0) * 4).toInt()

@@ -82,6 +82,16 @@ private fun pasMedVideom() {
         !OsPravila.pasSeSkrije(dotik = true, vrstaOdprta = false, tece = false))
     preveri("po pavzi se pas skrije prej kot sicer", OsPravila.pasZamik(poPavzi = true) < OsPravila.pasZamik(poPavzi = false) &&
         OsPravila.pasZamik(poPavzi = true) >= 1_000L)
+    // Odhod z zaslona predvajanja: video se ustavi, razen ce se je medtem zacelo novo predvajanje ali ga kaze drug zaslon.
+    preveri("odhod (Nazaj, Domov): video se ustavi", !OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = 7, zagonovZdaj = 7, drugihZaslonov = 0))
+    preveri("nov posnetek, zagnan med odhodom starega zaslona, se ne ustavi",
+        OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = 7, zagonovZdaj = 8, drugihZaslonov = 0))
+    preveri("video ze kaze drug zaslon predvajanja: se ne ustavi",
+        OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = 7, zagonovZdaj = 7, drugihZaslonov = 1))
+    preveri("onPause ni zabelezen: staro vedenje (video se ustavi)",
+        !OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = -1, zagonovZdaj = 3, drugihZaslonov = 0))
+    preveri("stevec na zacetku (0 zagonov) ne pomeni novega predvajanja",
+        !OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = 0, zagonovZdaj = 0, drugihZaslonov = 0))
 }
 
 private fun preizkusIkonNaprav() {

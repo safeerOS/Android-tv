@@ -56,6 +56,16 @@ object OsPravila {
     /** Zamik skrivanja ob zacetku predvajanja oziroma nadaljevanju ([poPavzi]). */
     fun pasZamik(poPavzi: Boolean): Long = if (poPavzi) PAS_SKRIJ_PO_PAVZI_MS else PAS_SKRIJ_MS
 
+    /**
+     * Zaslon predvajanja odhaja (onStop). Video sicer ustavimo ("video brez slike nima smisla"), razen kadar odhod NI
+     * uporabnikov odhod od videa: medtem ko je zaslon izgubljal ospredje, se je namerno zacelo novo predvajanje
+     * ([zagonovObOdhodu] je stevec ob onPause, [zagonovZdaj] ob onStop), ali pa video ze kaze drug zaslon predvajanja
+     * ([drugihZaslonov] > 0). Brez tega je onStop starega zaslona, ki pride sele po zagonu novega posnetka, novi posnetek
+     * ustavil na zacetku. [zagonovObOdhodu] < 0 pomeni, da onPause ni bil zabelezen - takrat velja staro vedenje.
+     */
+    fun novoPredvajanjeObOdhodu(zagonovObOdhodu: Int, zagonovZdaj: Int, drugihZaslonov: Int): Boolean =
+        drugihZaslonov > 0 || (zagonovObOdhodu >= 0 && zagonovZdaj != zagonovObOdhodu)
+
     // ------------------------------------------------------------------ vrstica Nadaljuj
 
     /** Nov vnos gre na vrh; isti (po kljucu) se ne podvoji, ampak premakne; najvec [najvec] vnosov. */
