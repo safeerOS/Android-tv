@@ -312,6 +312,7 @@
     <string name="os_zaslon_meni_kazalec">Switch to the pointer</string>
     <string name="os_zaslon_meni_shrani">Save (Ctrl+S)</string>
     <string name="os_zaslon_meni_bliznjice">Shortcuts</string>
+    <string name="os_zaslon_potreben_4g">The computer\'s screen away from home needs a 4G or faster connection (now: %1$s).</string>
     <string name="os_zaslon_meni_podatki">Connection details</string>
     <string name="os_zaslon_meni_podatki_skrij">Hide connection details</string>
     <string name="os_zaslon_podatki">%1$d × %2$d · %3$d frames/s · %4$s Mb/s · stalls %5$d/s · %6$s</string>

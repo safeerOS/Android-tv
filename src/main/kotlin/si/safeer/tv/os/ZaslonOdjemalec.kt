@@ -69,6 +69,11 @@ class ZaslonOdjemalec(
     @Volatile private var tece = false
     /** Kodek toka, kot ga pove racunalnik v glavi (`kodek`): HEVC ali (privzeto, starejsi Safeer) H.264. */
     @Volatile private var hevc = false
+    /** Kvantizator toka, kot ga pove racunalnik v glavi (`qp`); 0, ce ga ne pove (starejsi Safeer). */
+    @Volatile private var qp = 0
+
+    /** Tok za »Podatke o povezavi«: kodek in kvantizator, npr. »HEVC q20«. */
+    fun opisToka(): String = (if (hevc) "HEVC" else "H.264") + (if (qp > 0) " q$qp" else "")
     // Stanje dekodiranja; bere in pise ga samo nit toka.
     private val info = MediaCodec.BufferInfo()
     private var slik = 0
@@ -173,6 +178,7 @@ class ZaslonOdjemalec(
             val visina = glava.optInt("h", 1080)
             val fps = glava.optInt("fps", 30)
             hevc = glava.optString("kodek") == "hevc"
+            qp = glava.optInt("qp", 0)
             imaSliko = false
             kodek = try { pripraviKodek(surface, sirina, visina, fps) } catch (e: Throwable) {
                 if (!hevc) throw e

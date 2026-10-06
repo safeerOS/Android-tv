@@ -69,6 +69,10 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var rodSeje = 0
     /** »Podatki o povezavi« (meni seje): slike na sekundo, pretok, zastoji, pot. Privzeto skrito. */
     private var podatkiVidni = false
+    /** Omrezje te naprave ob zahtevi seje (wifi, ethernet, 5g, 4g ...): racunalnik po njem izbere kakovost zdoma. */
+    private var omrezje = ""
+    /** Na prikaz omrezja (ali je LTE v resnici 5G) pocakamo najvec enkrat in le trenutek. */
+    private var cakalNaOmrezje = false
     private var koncujem = false
     /** Racunalnik, ki poti prek svojega Huba ne zna (starejsi Safeer): dokler ni dosegljiv neposredno, ga ne prosimo znova. */
     private var brezHuba: String? = null
@@ -229,6 +233,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
+        OmrezjeNaprave.pripravi(this)
         link.dodaj(this)
         if (seja == null) zahtevajSejo()
     }
@@ -307,6 +312,20 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (ponovnoOd != 0L) ponoviAliKoncaj(razlog) else pokazi(razlog)
             return
         }
+        // Kakovost zdoma je umerjena na obicajno povezavo 4G (na 5G stopnjo vise), doma je najvisja - izbere jo
+        // racunalnik po poti in po omrezju, ki mu ga povemo. Pod 4G zaslona zdoma ni: raje brez storitve kot slaba.
+        if (brezNaslova && !cakalNaOmrezje && OmrezjeNaprave.cakaNaPrikaz(this)) {
+            cakalNaOmrezje = true
+            glavna.postDelayed({ if (!isFinishing && !koncujem && seja == null && !prosim) zahtevajSejo() }, 250)
+            return
+        }
+        omrezje = OmrezjeNaprave.vrsta(this)
+        android.util.Log.i("SafeerZaslon", "omrezje naprave: \"$omrezje\" (${OmrezjeNaprave.opis(this)})")
+        if (brezNaslova && !OmrezjePravila.dovoliZdoma(omrezje)) {
+            val razlog = getString(R.string.os_zaslon_potreben_4g, OmrezjePravila.oznaka(omrezje))
+            if (ponovnoOd != 0L) ponoviAliKoncaj(razlog) else pokazi(razlog)
+            return
+        }
         racunalnik = r
         prosim = true
         pokazi(getString(R.string.os_zaslon_prosim, r.ime.ifBlank { r.id }))
@@ -318,6 +337,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Kaj znamo: preklop na namizje racunalnika, kadar je program odprt tam (program ene same instance), in dolgo
         // skupino slik (enot ne izpuscamo, zato kljucna slika vsako sekundo ni potrebna).
         zahteva.put("caps", org.json.JSONArray().put("handoff").put("gop"))
+        // Omrezje te naprave: racunalnik po njem in po poti (neposredno ali prek Huba) izbere kakovost.
+        zahteva.put("net", omrezje)
         // Kodeki slike po prednosti: HEVC (isti videz, manj podatkov), ce ga ta naprava strojno dekodira v tej velikosti.
         // Zmoci mora velikost nase povrsine (loceni zaslon) in 1920 x 1080 (namizje racunalnika pride do te velikosti).
         // Ce je dekoder HEVC v tej razlicici aplikacije ze odpovedal (znovaBrezHevc), ga ne ponudimo vec.
@@ -590,15 +611,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 android.util.Log.d("SafeerZaslon",
                     "${s.sirina}x${s.visina} ${s.naSekundo} sl/s ${s.megabitov} Mb/s " +
                     "dekoder ${s.dekoderMs} ms zvok=${s.zvok} zastojev=${s.zastojev} " +
-                    "pot=${if (odjemalec?.prekHuba == true) "global" else "neposredno"}")
+                    "pot=${if (odjemalec?.prekHuba == true) "global" else "neposredno"} " +
+                    "omrezje=$omrezje tok=${odjemalec?.opisToka().orEmpty()}")
                 // Kdor jih je v meniju seje vklopil, jih vidi (iskanje vzroka, kadar slika zdoma ne tece gladko).
                 if (podatkiVidni) runOnUiThread {
                     if (isFinishing || !podatkiVidni) return@runOnUiThread
                     meritve.text = getString(R.string.os_zaslon_podatki, s.sirina, s.visina,
                         Math.round(s.naSekundo).toInt(),
-                        String.format(java.util.Locale.getDefault(), "%.1f", s.megabitov), s.zastojev,
-                        getString(if (odjemalec?.prekHuba == true) R.string.os_zaslon_pot_global
-                            else R.string.os_zaslon_pot_neposredno))
+                        String.format(java.util.Locale.getDefault(), "%.1f", s.megabitov), s.zastojev, opisPoti())
                     meritve.visibility = View.VISIBLE
                 }
             },
@@ -625,6 +645,16 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         program = ""
         pokazi(getString(R.string.os_zaslon_povezujem))
         zahtevajSejo()
+    }
+
+    /** Pot, omrezje naprave in tok za »Podatke o povezavi«, npr. »prek Global Linka · 4G · HEVC q20«. */
+    private fun opisPoti(): String {
+        val o = odjemalec
+        val deli = mutableListOf(getString(if (o?.prekHuba == true) R.string.os_zaslon_pot_global
+            else R.string.os_zaslon_pot_neposredno))
+        OmrezjePravila.oznaka(omrezje).takeIf { it.isNotEmpty() }?.let { deli.add(it) }
+        o?.opisToka()?.takeIf { it.isNotEmpty() }?.let { deli.add(it) }
+        return deli.joinToString(" · ")
     }
 
     /**

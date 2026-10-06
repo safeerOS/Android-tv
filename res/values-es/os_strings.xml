@@ -303,6 +303,7 @@
     <string name="os_zaslon_meni_kazalec">Cambiar al puntero</string>
     <string name="os_zaslon_meni_shrani">Guardar (Ctrl+S)</string>
     <string name="os_zaslon_meni_bliznjice">Atajos</string>
+    <string name="os_zaslon_potreben_4g">La pantalla del ordenador fuera de casa necesita una conexión 4G o más rápida (ahora: %1$s).</string>
     <string name="os_zaslon_meni_podatki">Datos de la conexión</string>
     <string name="os_zaslon_meni_podatki_skrij">Ocultar datos de la conexión</string>
     <string name="os_zaslon_podatki">%1$d × %2$d · %3$d imágenes/s · %4$s Mb/s · cortes %5$d/s · %6$s</string>
