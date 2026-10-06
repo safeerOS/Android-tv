@@ -62,6 +62,26 @@ class ZaslonPovecava(private val gostota: Float) {
         if (povecano) postavi(levo, vrh)
     }
 
+    /**
+     * Merilo, pri katerem slika zapolni povrsino (brez crnih robov ob straneh ali zgoraj in spodaj). Kar pri tem
+     * pade cez rob, doseze premik z dvema prstoma. 1, kadar slika povrsino ze zapolni ali mere se niso znane.
+     */
+    fun meriloZapolni(): Float {
+        if (osnovaW <= 0f || osnovaH <= 0f || sirina <= 0f || visina <= 0f) return 1f
+        return maxOf(sirina / osnovaW, visina / osnovaH).coerceIn(1f, NAJVEC)
+    }
+
+    /** Ali ob sliki v osnovni legi ostane dovolj praznine, da jo je vredno zapolniti. */
+    val lahkoZapolni: Boolean get() = meriloZapolni() > PRAG_ZAPOLNI
+
+    /** Slika je v legi »zapolni zaslon« (merilo zapolnitve; premik z dvema prstoma tega ne spremeni). */
+    val zapolnjeno: Boolean get() = lahkoZapolni && kotlin.math.abs(merilo - meriloZapolni()) < 0.01f
+
+    /** Slika cez vso povrsino, poravnana na sredino. */
+    fun zapolni() {
+        if (lahkoZapolni) povecajNa(meriloZapolni(), sirina / 2f, visina / 2f)
+    }
+
     /** Nazaj na cel zaslon racunalnika. */
     fun ponastavi() {
         merilo = 1f; levo = osnovaL; vrh = osnovaT
@@ -165,5 +185,7 @@ class ZaslonPovecava(private val gostota: Float) {
         const val PRAG_DRSENJA_DP = 12f
         const val MRTVI_PAS = 0.06f
         const val SKOK_NAZAJ = 1.06f
+        /** Manj kot toliko praznine ob robu ni vredno zapolnjevati (in pod SKOK_NAZAJ bi slika skocila nazaj). */
+        const val PRAG_ZAPOLNI = 1.06f
     }
 }

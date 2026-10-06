@@ -358,6 +358,10 @@
     <string name="os_zaslon_meni_spusti">Déposer</string>
     <string name="os_zaslon_meni_povecava">Zoom</string>
     <string name="os_zaslon_meni_povecava_izklopi">Désactiver le zoom</string>
+    <string name="os_zaslon_meni_zapolni">Remplir l\'écran</string>
+    <string name="os_zaslon_meni_cela_slika">Image entière</string>
+    <string name="os_zaslon_meni_vecja_vsebina">Contenu plus grand</string>
+    <string name="os_zaslon_meni_manjsa_vsebina">Contenu plus petit</string>
     <string name="os_zaslon_vlecem">Glissement – déplacez le pointeur et appuyez sur OK pour déposer</string>
     <string name="os_seznanitev_naslov">Nouvel appareil</string>
     <string name="os_seznanitev_opis">%1$s veut rejoindre ton Safeer Link. Saisis ce code dessus :</string>

@@ -108,6 +108,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Povecava z dvema prstoma (telefon, tablica): racun je v [ZaslonPovecava], tu sta dotik in izris. */
     private val pov by lazy { ZaslonPovecava(resources.displayMetrics.density) }
     private var gumbCelZaslon: View? = null
+    /** Uporabnik hoce sliko cez ves zaslon naprave (meni seje); velja za to napravo, dokler je ne izklopi. */
+    private var zapolni = false
+    /** Merilo vsebine locenega zaslona, kot ga je potrdil racunalnik (1 = brez); 0 = racunalnik merila ne pozna. */
+    private var meriloVsebine = 0f
+    /** Najvecje merilo, pri katerem programi na locenem zaslonu se ostanejo celi (pove racunalnik). */
+    private var najvecjeMerilo = ZaslonPogled.NAJVECJE_MERILO
     private var brezGumbovPovedano = false
     private var zadnjiFokusDaljinec = false
     private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
@@ -118,6 +124,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.os_activity_zaslon)
         Robovi.uporabi(this)
+        zapolni = getSharedPreferences("safeer_os", MODE_PRIVATE).getBoolean("zaslon_zapolni", false)
         pogled = findViewById(R.id.povrsina)
         // Mere slike smo racunali le ob zacetku pretoka. Ko se okno spremeni (vrtenje tablice - Android
         // 16 na velikem zaslonu fiksne lege ne uposteva vec - ali deljen zaslon), bi ostale mere
@@ -173,7 +180,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 alpha = 0.85f
                 contentDescription = getString(R.string.os_zaslon_meni_povecava_izklopi)
                 visibility = View.GONE
-                setOnClickListener { pov.ponastavi(); uveljaviPovecavo() }
+                setOnClickListener { osnovnaLega() }
             }
             val lpCel = android.widget.FrameLayout.LayoutParams(velikost, velikost)
             lpCel.gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
@@ -298,6 +305,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         val zahteva = JSONObject().put("quality", kakovost).put("screen", cilj)
         // Racunalniku povemo, da znamo po sliko tudi do njegovega Huba; starejsi Safeer polje prezre.
         if (prekHuba) zahteva.put("relay", true)
+        // In kaksna je povrsina, na kateri bo slika: loceni zaslon za programe naredi v tej obliki in velikosti.
+        pogledZaRacunalnik()?.let { zahteva.put("view", it) }
         link.ukaz(r.id, "screen.start", zahteva, 15_000,
             LinkOdjemalec.Odgovor { izid, napaka ->
                 prosim = false
@@ -319,6 +328,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 seja = podatki
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)
                 naDrugem = podatki.optString("screen") == "apps"
+                meriloVsebine = if (naDrugem) podatki.optDouble("scale", 0.0).toFloat() else 0f
+                najvecjeMerilo = podatki.optDouble("scale_max", ZaslonPogled.NAJVECJE_MERILO.toDouble()).toFloat()
                 fokusPodprt = podatki.optBoolean("focus", false)
                 // V igri so puscice puscice: igra, v kateri daljinec premika misko, se ne da igrati.
                 // Uporabnikova izbira za ta program ima prednost; sicer igra (s seznama ali od racunalnika).
@@ -350,6 +361,88 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     /**
+     * Povrsina, na kateri bo slika (tocke in gostota te naprave). Racunalnik po njej oblikuje loceni zaslon za
+     * programe: slika zapolni cel zaslon te naprave, brez crnih robov. Pravega zaslona racunalnika ne spremeni.
+     * Velikost je najvecja, ki jo strojni dekodirnik zmore pri 60 slikah na sekundo; null = polja ne posljemo.
+     */
+    private fun pogledZaRacunalnik(): JSONObject? {
+        val (w, h) = povrsinaZaSliko()
+        val velikost = ZaslonPogled.velikost(w, h) { sw, sh -> dekodirnikZmore(sw, sh) } ?: return null
+        val dotik = naDotik()
+        val pogled = JSONObject().put("w", velikost.first).put("h", velikost.second)
+            .put("density", resources.displayMetrics.density.toDouble()).put("touch", dotik)
+            .put("kind", ZaslonPogled.vrsta(dotik, resources.configuration.smallestScreenWidthDp))
+        // Uporabnik si je na tej napravi ze izbral vecjo ali manjso vsebino: velja namesto samodejnega merila.
+        val izbrano = getSharedPreferences("safeer_os", MODE_PRIVATE).getFloat("zaslon_merilo", 0f)
+        if (izbrano >= 1f) pogled.put("scale", ZaslonPogled.merilo(izbrano).toDouble())
+        return pogled
+    }
+
+    /**
+     * »Vecja vsebina« / »Manjsa vsebina« (meni seje): racunalnik programe na locenem zaslonu narise vecje ali
+     * manjse. Slika ostane enako velika in seja tece naprej; pravi zaslon racunalnika se ne spremeni.
+     */
+    private fun nastaviMeriloVsebine(zeljeno: Float) {
+        val merilo = ZaslonPogled.merilo(zeljeno).coerceAtMost(maxOf(1f, najvecjeMerilo))
+        getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putFloat("zaslon_merilo", merilo).apply()
+        poslji(JSONObject().put("vrsta", "merilo").put("merilo", merilo.toDouble()))
+    }
+
+    /**
+     * Povrsina, ki jo ima gledalec v celozaslonskem nacinu: okno brez izreza kamere, lezece. Mer postavitve tu ne
+     * uporabimo - ob zacetku seje so sistemske vrstice se vidne (skrijejo se po prvem izrisu), pred zasukom pa so
+     * mere se pokoncne.
+     */
+    private fun povrsinaZaSliko(): Pair<Int, Int> {
+        var sirina: Int
+        var visina: Int
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            val meje = windowManager.currentWindowMetrics.bounds
+            sirina = meje.width(); visina = meje.height()
+        } else {
+            val tocka = android.graphics.Point()
+            @Suppress("DEPRECATION") windowManager.defaultDisplay.getRealSize(tocka)
+            sirina = tocka.x; visina = tocka.y
+        }
+        if (sirina <= 0 || visina <= 0) { val m = resources.displayMetrics; sirina = m.widthPixels; visina = m.heightPixels }
+        val izrez = try {
+            if (android.os.Build.VERSION.SDK_INT >= 30) display?.cutout
+            else if (android.os.Build.VERSION.SDK_INT >= 29) @Suppress("DEPRECATION") windowManager.defaultDisplay.cutout
+            else null
+        } catch (_: Throwable) { null }
+        return ZaslonPogled.povrsina(sirina, visina, izrez?.safeInsetLeft ?: 0, izrez?.safeInsetTop ?: 0,
+            izrez?.safeInsetRight ?: 0, izrez?.safeInsetBottom ?: 0)
+    }
+
+    /**
+     * Ali dekodirnik H.264, ki ga gledalec uporabi (prvi v seznamu - isti kot MediaCodec.createDecoderByType),
+     * zmore sliko te velikosti pri 60 slikah na sekundo.
+     */
+    private fun dekodirnikZmore(w: Int, h: Int): Boolean = try {
+        val avc = android.media.MediaFormat.MIMETYPE_VIDEO_AVC
+        android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).codecInfos
+            .firstOrNull { info -> !info.isEncoder && info.supportedTypes.any { it.equals(avc, true) } }
+            ?.getCapabilitiesForType(avc)?.videoCapabilities?.areSizeAndRateSupported(w, h, 60.0) == true
+    } catch (_: Throwable) { false }
+
+    /** »Zapolni zaslon« / »Cela slika« (meni seje, gumb 1x): krajevna povecava, izbira se zapomni. */
+    private fun nastaviZapolni(vklopi: Boolean) {
+        zapolni = vklopi
+        getSharedPreferences("safeer_os", MODE_PRIVATE).edit().putBoolean("zaslon_zapolni", vklopi).apply()
+        osnovnaLega()
+    }
+
+    /** Osnovna lega slike: cela slika ali - ce je uporabnik tako izbral - cez ves zaslon naprave. */
+    private fun osnovnaLega() {
+        pov.ponastavi()
+        if (zapolni && naDotik()) pov.zapolni()
+        uveljaviPovecavo()
+    }
+
+    /** Slika je povecana bolj kot v osnovni legi (cela slika oziroma izbrano »Zapolni zaslon«). */
+    private fun povecanoPrekOsnove(): Boolean = pov.povecano && !(zapolni && pov.zapolnjeno)
+
+    /**
      * Slika mora ohraniti razmerje racunalniskega zaslona: raztegnjeno namizje je takoj videti
      * napacno. Povrsino zato pomanjsamo na najvecji pravokotnik pravega razmerja, ki gre v zaslon.
      */
@@ -371,6 +464,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             trenL = osnovaL; trenT = osnovaT; trenW = osnovaW; trenH = osnovaH
             // Povecava z dvema prstoma ostane (vrtenje zaslona), le lega se omeji na novo povrsino.
             pov.nastaviOsnovo(sirina, visina, osnovaL, osnovaT, osnovaW, osnovaH)
+            // Izbrano »Zapolni zaslon«: nova seja in zasukan zaslon se zapolnita sama. Povecava je krajevna -
+            // racunalnik o njej ne izve nicesar in njegov zaslon ostane, kot je.
+            if (zapolni && naDotik() && !pov.povecano) pov.zapolni()
             uveljaviPovecavo()
         }
     }
@@ -717,12 +813,26 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 else R.string.os_zaslon_meni_povecava) to { preklopiPovecavo() })
         }
         // Na dotik isto kot dva prsta narazen - za tiste, ki kretnje ne poznajo ali je ne zmorejo.
-        if (naDotik()) dejanja.add(getString(if (pov.povecano) R.string.os_zaslon_meni_povecava_izklopi
+        if (naDotik()) dejanja.add(getString(if (povecanoPrekOsnove()) R.string.os_zaslon_meni_povecava_izklopi
             else R.string.os_zaslon_meni_povecava) to {
             val koren = findViewById<View>(R.id.koren)
-            if (pov.povecano) pov.ponastavi() else pov.povecajNa(2f, koren.width / 2f, koren.height / 2f)
-            uveljaviPovecavo()
+            // Izklop povecave vrne osnovno lego (celo sliko ali izbrano »Zapolni zaslon«), ne nujno merila 1.
+            if (povecanoPrekOsnove()) osnovnaLega()
+            else { pov.povecajNa(maxOf(2f, pov.merilo * 1.6f), koren.width / 2f, koren.height / 2f); uveljaviPovecavo() }
         })
+        // Programi racunalnika na locenem zaslonu: vecji ali manjsi gumbi in besedilo (merilo izbere racunalnik iz
+        // gostote naprave, uporabnik ga popravi po svoje). Samo, ce racunalnik merilo pozna.
+        if (naDrugem && meriloVsebine > 0f) {
+            // Vecja samo, dokler programi ostanejo celi (mejo pove racunalnik); naprej pomaga povecava z dvema prstoma.
+            if (meriloVsebine < najvecjeMerilo - 0.01f) dejanja.add(getString(R.string.os_zaslon_meni_vecja_vsebina) to
+                { nastaviMeriloVsebine(meriloVsebine + ZaslonPogled.KORAK_MERILA) })
+            if (meriloVsebine > 1f) dejanja.add(getString(R.string.os_zaslon_meni_manjsa_vsebina) to
+                { nastaviMeriloVsebine(meriloVsebine - ZaslonPogled.KORAK_MERILA) })
+        }
+        // Slika, ki zaslona naprave ne zapolni (namizje 16:9 na daljsem zaslonu telefona): cez ves zaslon ali cela.
+        if (naDotik() && pov.lahkoZapolni) dejanja.add(getString(
+            if (zapolni) R.string.os_zaslon_meni_cela_slika else R.string.os_zaslon_meni_zapolni) to
+            { nastaviZapolni(!zapolni) })
         // Predvajalnik ima svoj nacin; iz njega gre uporabnik na kazalec (in nazaj), kot pri drugih.
         if (profil == "predvajalnik" && !predvajalnik)
             dejanja.add(getString(R.string.os_zaslon_meni_predvajalnik) to { nastaviPredvajalnik(true) })
@@ -1089,7 +1199,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         pogled.scaleX = pov.merilo; pogled.scaleY = pov.merilo
         pogled.translationX = pov.levo - osnovaL
         pogled.translationY = pov.vrh - osnovaT
-        gumbCelZaslon?.visibility = if (pov.povecano) View.VISIBLE else View.GONE
+        gumbCelZaslon?.visibility = if (povecanoPrekOsnove()) View.VISIBLE else View.GONE
         if (pov.povecano) okvir.visibility = View.GONE
     }
 
@@ -1226,6 +1336,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             }
         }
         if (o.optBoolean("tipkovnica") && tipkovnica?.jeOdprta != true) odpriTipkovnico()
+        // Racunalnik je potrdil novo merilo vsebine locenega zaslona.
+        if (o.has("merilo")) meriloVsebine = o.optDouble("merilo", meriloVsebine.toDouble()).toFloat()
+        if (o.has("najvec")) najvecjeMerilo = o.optDouble("najvec", najvecjeMerilo.toDouble()).toFloat()
         o.optJSONArray("kazalec")?.let { k -> if (povecava && k.length() == 2) premakniPovecavo(k.optInt(0), k.optInt(1)) }
     }
 

@@ -358,6 +358,10 @@
     <string name="os_zaslon_meni_spusti">Loslassen</string>
     <string name="os_zaslon_meni_povecava">Vergrößern</string>
     <string name="os_zaslon_meni_povecava_izklopi">Vergrößerung aus</string>
+    <string name="os_zaslon_meni_zapolni">Bildschirm füllen</string>
+    <string name="os_zaslon_meni_cela_slika">Ganzes Bild</string>
+    <string name="os_zaslon_meni_vecja_vsebina">Inhalt größer</string>
+    <string name="os_zaslon_meni_manjsa_vsebina">Inhalt kleiner</string>
     <string name="os_zaslon_vlecem">Ziehen – Zeiger bewegen und OK drücken zum Loslassen</string>
     <string name="os_seznanitev_naslov">Neues Gerät</string>
     <string name="os_seznanitev_opis">%1$s möchte deinem Safeer Link beitreten. Gib diesen Code dort ein:</string>

@@ -111,5 +111,30 @@ fun main() {
     check(p.levo <= 0f && p.levo >= 1080f - 3240f) { "po vrtenju slika ne sme pustiti praznine: ${p.levo}" }
     check(blizu(p.vrh, 866f + (607f - 1821f) / 2f))
 
+    // 10) Zapolni zaslon: namizje 16:9 na daljsem zaslonu telefona - slika cez vso sirino, na sredini po visini.
+    p = nova()
+    check(p.lahkoZapolni && blizu(p.meriloZapolni(), 2340f / 1920f)) { "merilo zapolnitve: ${p.meriloZapolni()}" }
+    p.zapolni()
+    check(p.povecano && blizu(p.merilo, 2340f / 1920f) && blizu(p.levo, 0f)) { "slika mora segati od roba do roba: ${p.levo}" }
+    check(blizu(p.vrh, (1080f - 1080f * 2340f / 1920f) / 2f)) { "navpicno na sredini: ${p.vrh}" }
+    p.koncaj()
+    check(p.povecano && p.zapolnjeno) { "zapolnjena slika po koncu kretnje ne sme skociti nazaj" }
+    p.povecajNa(3f, 1170f, 540f)
+    check(!p.zapolnjeno) { "povecano prek zapolnitve ni vec osnovna lega" }
+    p.ponastavi()
+    check(!p.povecano && !p.zapolnjeno && blizu(p.levo, 210f) && blizu(p.vrh, 0f)) { "cela slika" }
+    // Slika, ki zaslon ze zapolni (namizje 16:9 na zaslonu 16:9), nima cesa zapolniti.
+    val enaka = ZaslonPovecava(2f).apply { nastaviOsnovo(1920, 1080, 0, 0, 1920, 1080) }
+    check(!enaka.lahkoZapolni && blizu(enaka.meriloZapolni(), 1f))
+    enaka.zapolni()
+    check(!enaka.povecano)
+    // Tablica 16:10 (1920 x 1200) z namizjem 16:9: praznina zgoraj in spodaj, zapolni se po visini.
+    val tablica = ZaslonPovecava(1.5f).apply { nastaviOsnovo(1920, 1200, 0, 60, 1920, 1080) }
+    check(tablica.lahkoZapolni && blizu(tablica.meriloZapolni(), 1200f / 1080f))
+    tablica.zapolni()
+    check(blizu(tablica.vrh, 0f) && blizu(tablica.levo, (1920f - 1920f * 1200f / 1080f) / 2f)) { "tablica: ${tablica.levo}, ${tablica.vrh}" }
+    // Brez znanih mer: nic.
+    check(blizu(ZaslonPovecava(2f).meriloZapolni(), 1f) && !ZaslonPovecava(2f).lahkoZapolni)
+
     println("ZaslonPovecavaTest: OK")
 }

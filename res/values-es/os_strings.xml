@@ -358,6 +358,10 @@
     <string name="os_zaslon_meni_spusti">Soltar</string>
     <string name="os_zaslon_meni_povecava">Ampliar</string>
     <string name="os_zaslon_meni_povecava_izklopi">Quitar ampliación</string>
+    <string name="os_zaslon_meni_zapolni">Llenar la pantalla</string>
+    <string name="os_zaslon_meni_cela_slika">Imagen completa</string>
+    <string name="os_zaslon_meni_vecja_vsebina">Contenido más grande</string>
+    <string name="os_zaslon_meni_manjsa_vsebina">Contenido más pequeño</string>
     <string name="os_zaslon_vlecem">Arrastrando: mueve el puntero y pulsa OK para soltar</string>
     <string name="os_seznanitev_naslov">Nuevo dispositivo</string>
     <string name="os_seznanitev_opis">%1$s quiere unirse a tu Safeer Link. Escribe este código en él:</string>
