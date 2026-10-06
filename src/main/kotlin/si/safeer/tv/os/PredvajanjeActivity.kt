@@ -504,12 +504,15 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     /**
-     * Nazaj vedno vodi v Safeer Media - tudi ce je bilo predvajanje odprto s kartice na zacetnem
-     * zaslonu ali iz obvestila (prej je vrglo na zacetni zaslon Safeer OS). Zvok igra naprej.
+     * Nazaj vodi v Safeer Media - tudi ce je bilo predvajanje odprto s kartice na zacetnem
+     * zaslonu ali iz obvestila (prej je vrglo na zacetni zaslon Safeer OS). Izjema: predvajanje,
+     * odprto iz Datotek, se vrne v mapo, iz katere je uporabnik prisel (prej je bil vmes se Safeer
+     * Media in je do mape potreboval dva koraka nazaj). Zvok igra naprej.
      */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
-        if (!GlasbaActivity.odprta) startActivity(android.content.Intent(this, GlasbaActivity::class.java)
+        val vMapo = intent.getBooleanExtra(IZ_DATOTEK, false) && DatotekeActivity.odprta
+        if (!vMapo && !GlasbaActivity.odprta) startActivity(android.content.Intent(this, GlasbaActivity::class.java)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
         super.onBackPressed()
     }
@@ -562,6 +565,8 @@ class PredvajanjeActivity : OsActivity() {
     companion object {
         private const val IZBERI_PODNAPISE = 7421
         const val ZATEMNI = "zatemni"
+        /** Predvajanje je odprl zaslon Datoteke: Nazaj vrne v mapo, iz katere je uporabnik prisel. */
+        const val IZ_DATOTEK = "iz_datotek"
         const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"
     }
 

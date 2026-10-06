@@ -291,6 +291,8 @@ class LinkOdjemalec(private val context: Context) {
                 povezan = true
                 val u = webSocket.request().url
                 if (prekReleja && !si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)) prekReleja = false
+                // Tudi branje datotek z drugih naprav gre odslej po poti, po kateri tece ta povezava.
+                si.safeer.tv.link.GlobalLink.zdoma = si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)
                 if (prekReleja) glavna.postDelayed(nazajVLan, 300_000L)
                 val prijava = JSONObject()
                     .put("id", UUID.randomUUID().toString())

@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.format.DateFormat
 import android.util.TypedValue
 import android.view.Gravity
@@ -64,7 +66,14 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     /** Podnapisi ob videu (polje `subtitles` iz seznama naprave). */
                     val podnapisi: org.json.JSONArray? = null)
 
-    private data class Raven(val oznaka: String, val ime: String)
+    /** Kje v seznamu je uporabnik: vrstica po oznaki (prezivi osvezitev in iskanje) in njen odmik od vrha. */
+    private class Polozaj(val id: String, val vrstica: Int, val odmik: Int, val mreza: Boolean)
+
+    /** Raven poti; [odKod] je mesto v nadrejeni mapi, s katerega je uporabnik vstopil (Nazaj ga vrne tja). */
+    private data class Raven(val oznaka: String, val ime: String, val odKod: Polozaj? = null)
+
+    /** Zadnji znani seznam mape; [podpis] pove, ali je svez odgovor naprave kaj spremenil. */
+    private class Posnetek(val vnosi: List<Vnos>, val podpis: String)
 
     private lateinit var seznam: ListView
     private lateinit var mreza: ListView
@@ -109,12 +118,37 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private var izbiramSliko = false
     private var krajevnaZbirka = ""
     /** Racunalnik dovoli urejanje datotek te mape (`edit` v odgovoru `files.list`; Safeer Control 2.1.0+). */
-    private var urejanje = false
+    private var urejanjeDovoljeno = false
+    /**
+     * Urejanje ponudimo samo, kadar do naprave beremo neposredno: preimenovanje, premik in brisanje gredo
+     * samo tako, prek Global Linka pa ne - bolje nic kot moznost, ki pade.
+     */
+    private val urejanje: Boolean
+        get() = urejanjeDovoljeno && streznik?.let { !PripetiVir.prekGlobalLinka(it.naprava, it.osnova) } == true
     /** Po vrnitvi iz pregledovalnika slik je treba seznam osveziti, ko je Link spet povezan. */
     private var cakamOsvezitev = false
+    /** Zaporedna stevilka zahteve po seznamu: velja samo odgovor na zadnjo. */
+    private var zahteva = 0
+    /** Kljuc mape, katere seznam je na zaslonu (naprava|oznaka); null med nalaganjem in na seznamu virov. */
+    private var prikazan: String? = null
+    /** Znani seznam je na zaslonu, svez odgovor naprave (z veljavnim zetonom) pa se ni prisel. */
+    private var cakamSvez = false
+    /** Odpiranje datoteke, ki caka na svez odgovor. */
+    private var poSvezem: (() -> Unit)? = null
+    private val glavna = Handler(Looper.getMainLooper())
+    private val pokaziNalagam = Runnable { if (nalagam && !isFinishing) pokaziSporocilo(getString(R.string.os_datoteke_nalagam)) }
+    /** Naprave, katere mapo gledamo, trenutno ni na seznamu Linka (povezava se vzpostavlja znova). */
+    private var virManjka = false
+    private val virIzginil = Runnable {
+        val r = racunalnik
+        if (r == null || isFinishing || krajevni || !virManjka) return@Runnable
+        val z = link.racunalnikiZDatotekami()
+        if (z.none { it.id == r.id }) pokaziRacunalnike(z) else virManjka = false
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        odprtih++
         setContentView(StranskaVrstica.ovij(this, R.layout.os_activity_datoteke,
             StranskaVrstica.Razdelek.DATOTEKE))
         seznam = findViewById(R.id.seznam)
@@ -196,6 +230,9 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onDestroy() {
+        odprtih = (odprtih - 1).coerceAtLeast(0)
+        glavna.removeCallbacksAndMessages(null)
+        poSvezem = null
         nalagalnikSlicic.shutdownNow()
         super.onDestroy()
     }
@@ -238,6 +275,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun odpriKrajevno() {
         izbiramRacunalnik = false
         krajevni = true
+        novVir()
         namigDrzi.visibility = View.GONE
         racunalnik = null
         streznik = null
@@ -256,11 +294,15 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         naloziKrajevno("")
     }
 
-    private fun naloziKrajevno(zbirka: String) {
+    private fun naloziKrajevno(zbirka: String, polozaj: Polozaj? = null) {
         krajevnaZbirka = zbirka
         nadnaslov.text = getString(R.string.os_krajevno_ta_tv)
         naslov.text = if (zbirka.isEmpty()) getString(R.string.os_krajevno_koren) else pot.lastOrNull()?.ime.orEmpty()
-        pokaziSporocilo(getString(R.string.os_datoteke_nalagam))
+        // Napis sele, ce branje traja: zbirka te naprave je obicajno tu takoj.
+        nalagam = true
+        skrijSporocilo()
+        glavna.removeCallbacks(pokaziNalagam)
+        glavna.postDelayed(pokaziNalagam, ZAMIK_NALAGAM_MS)
         // Branje MediaStore je lahko pocasno (USB s tisoci datotek): v ozadju.
         Thread({
             val novi = try {
@@ -268,11 +310,14 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             } catch (_: Throwable) { emptyList() }
             runOnUiThread {
                 if (isFinishing || !krajevni || krajevnaZbirka != zbirka) return@runOnUiThread
+                glavna.removeCallbacks(pokaziNalagam)
+                nalagam = false
                 vnosi = novi
                 pripraviPogledMape()
-                osveziPrikaz()
+                novPrikaz()
                 if (novi.isEmpty()) pokaziSporocilo(getString(R.string.os_krajevno_prazno)) else {
-                    skrijSporocilo(); fokusNaPrviVnos()
+                    skrijSporocilo()
+                    if (polozaj != null) postavi(polozaj) else fokusNaPrviVnos()
                 }
             }
         }, "safeer-os-krajevne").start()
@@ -288,6 +333,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun pokaziRacunalnike(r: List<LinkOdjemalec.Naprava>) {
         izbiramRacunalnik = true
         krajevni = false
+        novVir()
         namigDrzi.visibility = View.GONE
         racunalnik = null
         pot.clear()
@@ -299,7 +345,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             r.map { Vnos(it.id, lepoIme(it.ime).ifBlank { it.id }, vrstaNaprave(it), -1, "",
                 pod = if (vrstaNaprave(it) == "tv") getString(R.string.os_ur_tv_vir_opis) else "") }
         mrezaVklopljena = false
-        osveziPrikaz()
+        novPrikaz()
         // Enaka past kot na zaslonu Naprave: "ni vklopljen" je bilo napisano tudi takrat, ko je Link
         // dejansko vklopljen, a se sele povezuje ali ga je sredisce trenutno zavrnilo - locimo to od
         // resnicno izklopljenega.
@@ -326,47 +372,92 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         namigDrzi.visibility = if (izbiramSliko || !r.zmoznosti.contains("desktop")) View.GONE else View.VISIBLE
         racunalnik = r
         pot.clear()
-        streznik = null
+        novVir()
+        // Zadnji znani streznik te naprave: slicice znane mape so na zaslonu takoj; svez pride z odgovorom.
+        streznik = znaniStrezniki[r.id]
         // Ime racunalnika je ze v nadnaslovu; znacka bi ga le ponovila.
         racunalnikZnacka.visibility = View.GONE
         nalozi("")
     }
 
-    private fun nalozi(oznaka: String) {
+    /**
+     * Seznam mape na napravi. Mapa, ki smo jo v tej seji ze videli, je na zaslonu takoj (Nazaj, ponoven
+     * vstop); svez seznam pride v ozadju: ce se ni nic spremenilo, uporabnik osvezitve ne opazi, sicer se
+     * seznam dopolni na mestu. [polozaj]: kam v seznamu postaviti uporabnika (vrnitev v nadrejeno mapo).
+     */
+    private fun nalozi(oznaka: String, polozaj: Polozaj? = null) {
         val r = racunalnik ?: return
-        nalagam = true
-        vnosi = emptyList()
-        osveziPrikaz()
+        val st = ++zahteva
+        val kljuc = r.id + "|" + oznaka
+        poSvezem = null
+        glavna.removeCallbacks(pokaziNalagam)
         nadnaslov.text = lepoIme(r.ime).ifBlank { getString(R.string.os_datoteke) }
         naslov.text = if (pot.isEmpty()) getString(R.string.os_datoteke_koren) else pot.joinToString(" / ") { it.ime }
-        pokaziSporocilo(getString(R.string.os_datoteke_nalagam))
+        val znan = znaniSeznami[kljuc]
+        when {
+            // Ista mapa je ze na zaslonu (osvezitev po urejanju ali po vrnitvi iz pregledovalnika): nic se ne premakne.
+            znan != null && prikazan == kljuc -> { }
+            znan != null -> {
+                nalagam = false
+                prikazan = kljuc
+                cakamSvez = true
+                if (streznik == null) streznik = znaniStrezniki[r.id]
+                vnosi = znan.vnosi
+                pripraviPogledMape()
+                novPrikaz()
+                if (znan.vnosi.isEmpty()) pokaziSporocilo(getString(R.string.os_datoteke_prazna_mapa)) else {
+                    skrijSporocilo()
+                    if (polozaj != null) postavi(polozaj) else fokusNaPrviVnos()
+                }
+            }
+            else -> {
+                nalagam = true
+                prikazan = null
+                cakamSvez = false
+                vnosi = emptyList()
+                osveziPrikaz()
+                skrijSporocilo()
+                // Napis sele, ce odgovor ne pride takoj: v domacem omrezju je seznam tu prej, kot bi ga oko prebralo.
+                glavna.postDelayed(pokaziNalagam, ZAMIK_NALAGAM_MS)
+            }
+        }
         link.ukaz(r.id, "files.list", JSONObject().put("folder", oznaka), 12_000, LinkOdjemalec.Odgovor { izid, napaka ->
-            if (isFinishing || racunalnik?.id != r.id) return@Odgovor
+            // Velja samo odgovor na zadnjo zahtevo: hiter Nazaj ne sme mape prepisati s seznamom prejsnje.
+            if (isFinishing || racunalnik?.id != r.id || st != zahteva) return@Odgovor
+            glavna.removeCallbacks(pokaziNalagam)
             nalagam = false
+            cakamSvez = false
+            val cakajoce = poSvezem
+            poSvezem = null
+            val naZaslonu = prikazan == kljuc
             if (izid == null) {
-                pokaziSporocilo(getString(if (napaka == "ni_povezave") R.string.os_datoteke_ni_povezave else R.string.os_datoteke_napaka, napaka))
+                val besedilo = getString(if (napaka == "ni_povezave") R.string.os_datoteke_ni_povezave else R.string.os_datoteke_napaka, napaka)
+                // Znani seznam ostane na zaslonu; uporabnik izve, da ga naprava zdaj ni potrdila.
+                if (naZaslonu) Toast.makeText(this, besedilo, Toast.LENGTH_SHORT).show() else pokaziSporocilo(besedilo)
                 return@Odgovor
             }
             if (!izid.optBoolean("ok")) {
+                pozabi(kljuc)
                 pokaziSporocilo(getString(R.string.os_datoteke_napaka, izid.optString("message")))
                 return@Odgovor
             }
             val podatki = izid.optJSONObject("data") ?: JSONObject()
+            val prejZeton = streznik?.zeton
             podatki.optJSONObject("server")?.let {
-                streznik = Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"), r.id)
+                val s = Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"), r.id)
+                val novNaslov = s.osnova != streznik?.osnova
+                streznik = s
+                znaniStrezniki[r.id] = s
+                // Pot do naprave (neposredno ali prek Global Linka) ugotovimo vnaprej: prvi dotik datoteke ne caka.
+                if (novNaslov) PripetiVir.ogrej(applicationContext, s.naprava, s.url("x")) {
+                    glavna.post { if (!isFinishing && racunalnik?.id == r.id) osveziNamig() }
+                }
             }
-            urejanje = podatki.optBoolean("edit", false) && streznik != null
-            if (!izbiramSliko) {
-                val namizje = r.zmoznosti.contains("desktop")
-                namigDrzi.text = getString(when {
-                    urejanje && jeNaprava() -> R.string.os_ur_pomoc_drzi_naprava
-                    urejanje -> R.string.os_ur_pomoc_drzi
-                    else -> R.string.os_datoteke_pomoc_drzi
-                })
-                namigDrzi.visibility = if (urejanje || namizje) View.VISIBLE else View.GONE
-            }
+            urejanjeDovoljeno = podatki.optBoolean("edit", false)
+            osveziNamig()
             if (!podatki.optBoolean("shared", true)) {
                 // Telefon in tablica povesta, zakaj ne delita: brez dovoljenja za medije ali izklopljeno.
+                pozabi(kljuc)
                 val ime = lepoIme(r.ime).ifBlank { r.id }
                 pokaziSporocilo(getString(when (podatki.optString("reason")) {
                     "permission" -> R.string.os_datoteke_naprava_dovoljenje
@@ -397,14 +488,104 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     spremenjeno = cas, trajanje = v.optLong("duration_ms", v.optLong("duration", 0L)),
                     podnapisi = v.optJSONArray("subtitles")))
             }
+            // Podpis seznama (dolzina in zgoscena vrednost surovega odgovora): po njem vemo, ali se je mapa spremenila.
+            val podpis = polje?.toString().orEmpty().let { "${it.length}:${it.hashCode()}" }
+            val prej = znaniSeznami[kljuc]
+            znaniSeznami[kljuc] = Posnetek(nov, podpis)
+            // Nov zeton: slicice, ki so z znanim (pretecenim) padle, smemo poskusiti znova.
+            val novZeton = streznik?.zeton != prejZeton
+            if (novZeton) GalerijaSlicice.pozabiNeuspele()
+            if (naZaslonu) {
+                if (prej?.podpis != podpis) {
+                    // Mapa se je medtem spremenila: seznam se dopolni na mestu, uporabnik ostane, kjer je
+                    // (tudi iskanje in fokus v iskalnem polju).
+                    val kje = polozaj()
+                    vsi = nov
+                    vidni = filtrirano()
+                    osveziPrikaz()
+                    if (nov.isEmpty()) pokaziSporocilo(getString(R.string.os_datoteke_prazna_mapa)) else {
+                        skrijSporocilo()
+                        postavi(kje, fokus = !iskanje.hasFocus())
+                    }
+                } else if (novZeton && mrezaVklopljena) galerija.notifyDataSetChanged()
+                cakajoce?.invoke()
+                return@Odgovor
+            }
+            prikazan = kljuc
             vnosi = nov
             pripraviPogledMape()
-            osveziPrikaz()
+            novPrikaz()
             if (nov.isEmpty()) pokaziSporocilo(getString(R.string.os_datoteke_prazna_mapa)) else {
                 skrijSporocilo()
-                fokusNaPrviVnos()
+                if (polozaj != null) postavi(polozaj) else fokusNaPrviVnos()
             }
         })
+    }
+
+    /** Namig na dnu: kaj naredi zadrzan OK (odpiranje na racunalniku, urejanje) - samo, kar je zdaj res mogoce. */
+    private fun osveziNamig() {
+        val r = racunalnik ?: return
+        if (izbiramSliko || krajevni || izbiramRacunalnik) return
+        val namizje = r.zmoznosti.contains("desktop")
+        namigDrzi.text = getString(when {
+            urejanje && jeNaprava() -> R.string.os_ur_pomoc_drzi_naprava
+            urejanje -> R.string.os_ur_pomoc_drzi
+            else -> R.string.os_datoteke_pomoc_drzi
+        })
+        namigDrzi.visibility = if (urejanje || namizje) View.VISIBLE else View.GONE
+    }
+
+    /** Naprava mape ne da vec (napaka ali ne deli): znani seznam zavrzemo in zaslon izpraznimo. */
+    private fun pozabi(kljuc: String) {
+        znaniSeznami.remove(kljuc)
+        prikazan = null
+        vnosi = emptyList()
+        osveziPrikaz()
+    }
+
+    /** Nov vir ali seznam virov: odgovori na prejsnje zahteve in cakajoca dejanja ne veljajo vec. */
+    private fun novVir() {
+        zahteva++
+        prikazan = null
+        cakamSvez = false
+        poSvezem = null
+        nalagam = false
+        urejanjeDovoljeno = false
+        virManjka = false
+        glavna.removeCallbacks(pokaziNalagam)
+        glavna.removeCallbacks(virIzginil)
+    }
+
+    /**
+     * Odpiranje datoteke z naprave potrebuje veljaven zeton. Kadar je na zaslonu znani seznam in svez
+     * odgovor se ni prisel, dejanje pocaka nanj (v domacem omrezju trenutek) - sicer bi po ponovnem
+     * zagonu programa na racunalniku prvi dotik padel na pretecenem zetonu.
+     */
+    private fun sSvezim(dejanje: () -> Unit) {
+        if (krajevni || !cakamSvez) dejanje() else poSvezem = dejanje
+    }
+
+    /** Kje je uporabnik zdaj; [izbran] je vrstica, na katero je pritisnil (vstop v mapo). */
+    private fun polozaj(izbran: Vnos? = null): Polozaj {
+        if (mrezaVklopljena) return Polozaj(izbran?.id.orEmpty(), mreza.firstVisiblePosition, mreza.getChildAt(0)?.top ?: 0, true)
+        val oznacena = if (seznam.isInTouchMode) -1 else seznam.selectedItemPosition
+        val indeks = izbran?.let { vidni.indexOf(it) }?.takeIf { it >= 0 }
+            ?: oznacena.takeIf { it >= 0 } ?: seznam.firstVisiblePosition
+        val pogled = seznam.getChildAt(indeks - seznam.firstVisiblePosition)
+        return Polozaj(vidni.getOrNull(indeks)?.id.orEmpty(), indeks, pogled?.top ?: 0, false)
+    }
+
+    /** Uporabnika postavi nazaj na [p]: ista vrstica na istem mestu zaslona (z daljincem je tudi izbrana). */
+    private fun postavi(p: Polozaj, fokus: Boolean = true) {
+        if (p.mreza != mrezaVklopljena || vidni.isEmpty()) { if (fokus) fokusNaPrviVnos(); return }
+        if (mrezaVklopljena) {
+            mreza.setSelectionFromTop(p.vrstica.coerceIn(0, (galerija.count - 1).coerceAtLeast(0)), p.odmik)
+            if (fokus && p.id.isNotEmpty() && !mreza.isInTouchMode) mreza.post { galerija.fokusNa(p.id) }
+            return
+        }
+        val i = vidni.indexOfFirst { it.id == p.id }.takeIf { it >= 0 } ?: p.vrstica.coerceIn(0, vidni.size - 1)
+        if (fokus) seznam.requestFocus()
+        seznam.setSelectionFromTop(i, p.odmik)
     }
 
     private fun izberi(i: Int) {
@@ -416,12 +597,12 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         when (v.vrsta) {
             "folder" -> if (krajevni && v.id == KrajevneDatoteke.DVD) izberiIso()
-                else { pot.add(Raven(v.id, v.ime)); if (krajevni) naloziKrajevno(v.id) else nalozi(v.id) }
-            "image" -> if (izbiramSliko) vrniSliko(v) else pokaziSliko(v)
+                else { pot.add(Raven(v.id, v.ime, polozaj(v))); if (krajevni) naloziKrajevno(v.id) else nalozi(v.id) }
+            "image" -> sSvezim { if (izbiramSliko) vrniSliko(v) else pokaziSliko(v) }
             "video", "audio" -> if (izbiramSliko)
                 Toast.makeText(this, getString(R.string.os_izberi_sliko), Toast.LENGTH_SHORT).show()
-                else predvajaj(v)
-            else -> odpriDrugo(v)
+                else sSvezim { predvajaj(v) }
+            else -> sSvezim { odpriDrugo(v) }
         }
     }
 
@@ -636,7 +817,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     DvdVir.Stanje.V_REDU -> {
                         val sk = Jamendo.Skladba(v.id, v.ime.substringBeforeLast('.').replace('_', ' '), "DVD", "", DvdVir.uri(url), "", video = true)
                         GlasbaStoritev.predvajaj(this, listOf(sk), 0, s)
-                        startActivity(Intent(this, PredvajanjeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                        startActivity(Intent(this, PredvajanjeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                            .putExtra(PredvajanjeActivity.IZ_DATOTEK, true))
                     }
                 }
             }
@@ -687,7 +869,9 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 podnapisi = if (s == null) emptyList() else Podnapisi.izSeznama(e.podnapisi, s))
         }
         GlasbaStoritev.predvajaj(this, seznam, izbor.indexOf(v).coerceAtLeast(0), s)
-        startActivity(Intent(this, PredvajanjeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+        // Nazaj iz predvajalnika vrne v to mapo (ne v Safeer Media): uporabnik je prisel od tu.
+        startActivity(Intent(this, PredvajanjeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            .putExtra(PredvajanjeActivity.IZ_DATOTEK, true))
     }
 
     private fun pokaziSliko(v: Vnos) {
@@ -760,6 +944,17 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .putBoolean(kljucMape(), mrezaVklopljena).apply()
     }
 
+    /**
+     * Na zaslon pride drug seznam (druga mapa, drug vir): pogleda zacneta znova. Brez tega je lega prejsnjega
+     * seznama (drsenje) prezivela zamenjavo, kadar se je v istem koraku spremenila se visina seznama (namig na
+     * dnu) - nov seznam se je pokazal zamaknjen, zahteva za pravo mesto pa je bila preslisana.
+     */
+    private fun novPrikaz() {
+        seznam.adapter = prilagojevalnik
+        mreza.adapter = galerija
+        osveziPrikaz()
+    }
+
     private fun osveziPrikaz(fokus: Boolean = false) {
         prilagojevalnik.notifyDataSetChanged()
         galerija.obnovi()
@@ -805,9 +1000,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val viri = link.racunalnikiZDatotekami()
             when {
                 pot.isNotEmpty() -> {
-                    pot.removeAt(pot.size - 1)
+                    // Nazaj v nadrejeno mapo, na vrstico, s katere je uporabnik vstopil.
+                    val zapuscena = pot.removeAt(pot.size - 1)
                     val oznaka = pot.lastOrNull()?.oznaka ?: ""
-                    if (krajevni) naloziKrajevno(oznaka) else nalozi(oznaka)
+                    if (krajevni) naloziKrajevno(oznaka, zapuscena.odKod) else nalozi(oznaka, zapuscena.odKod)
                     return true
                 }
                 // Na vrhu vira: nazaj na seznam virov, kadar je kaj za izbirati (racunalniki + ta televizor).
@@ -844,7 +1040,17 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (izbran != null) odpriRacunalnik(izbran) else pokaziRacunalnike(z)
             }
         } else if (z.none { it.id == r.id }) {
-            pokaziRacunalnike(z)
+            // Povezava v Link se obcasno vzpostavi znova (menjava sredisca, preklop omrezja) in naprava je cez
+            // nekaj sekund spet tu: uporabnik ostane v svoji mapi. Na seznam virov ga vrnemo sele, ce se ne vrne.
+            if (!virManjka) {
+                virManjka = true
+                glavna.postDelayed(virIzginil, POCAKAJ_VIR_MS)
+            }
+        } else if (virManjka) {
+            // Naprava je spet tu: mapa ostane na zaslonu, v ozadju vzamemo svez seznam (in zeton).
+            virManjka = false
+            glavna.removeCallbacks(virIzginil)
+            if (link.povezan) nalozi(pot.lastOrNull()?.oznaka ?: "")
         }
     }
 
@@ -876,12 +1082,15 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         fun obnovi() {
             if (!::mreza.isInitialized) return
             val cona = ZoneId.systemDefault()
-            val urejeni = vidni.indices.sortedWith(compareByDescending<Int> { vidni[it].spremenjeno }.thenBy { vidni[it].ime.lowercase() })
+            // Naprava, ki casov ne poslje: brez glave »Brez datuma« in v vrstnem redu seznama (mape najprej).
+            val brezDatumov = vidni.none { it.spremenjeno > 0 }
+            val urejeni = if (brezDatumov) vidni.indices.toList()
+                else vidni.indices.sortedWith(compareByDescending<Int> { vidni[it].spremenjeno }.thenBy { vidni[it].ime.lowercase() })
             val skupine = LinkedHashMap<Long, MutableList<Int>>()
             for (i in urejeni) skupine.getOrPut(GalerijaPravila.dan(vidni[i].spremenjeno, cona)) { ArrayList() }.add(i)
             val nove = ArrayList<Pair<String?, List<Int>>>()
             for ((dan, elementi) in skupine) {
-                nove.add(naslovDneva(dan) to emptyList())
+                if (!brezDatumov) nove.add(naslovDneva(dan) to emptyList())
                 elementi.chunked(stolpcev.coerceAtLeast(1)).forEach { nove.add(null to it) }
             }
             vrstice = nove
@@ -889,6 +1098,16 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
 
         fun prvaDatoteka(): Int = vrstice.indexOfFirst { it.first == null && it.second.isNotEmpty() }
+
+        /** Fokus (daljinec) na ploscico z oznako [id], ce je njena vrsta na zaslonu. */
+        fun fokusNa(id: String) {
+            val indeks = vidni.indexOfFirst { it.id == id }
+            if (indeks < 0) return
+            val vrstica = vrstice.indexOfFirst { it.first == null && indeks in it.second }
+            if (vrstica < 0) return
+            val pogled = mreza.getChildAt(vrstica - mreza.firstVisiblePosition) as? LinearLayout ?: return
+            pogled.getChildAt(vrstice[vrstica].second.indexOf(indeks))?.requestFocus()
+        }
         override fun getCount(): Int = vrstice.size
         override fun getItem(position: Int): Any = vrstice[position]
         override fun getItemId(position: Int): Long = position.toLong()
@@ -915,7 +1134,13 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 }
             val sirina = (mreza.width - mreza.paddingLeft - mreza.paddingRight).takeIf { it > 0 } ?: dp(stolpcev * 100)
             val stranica = ((sirina - razmik * (stolpcev - 1)) / stolpcev).coerceAtLeast(dp(56))
-            vrsta.layoutParams = AbsListView.LayoutParams(-1, stranica + razmik)
+            // Parametrov postavitve na ponovno uporabljeni vrsti ne zamenjamo, samo popravimo: ListView si vanje
+            // zapise, da je vrsto naredil med merjenjem in jo mora ob prvi postavitvi zares pripeti v okno
+            // (forceAdd). Z novimi parametri je taka vrsta ostala narisana, a brez okna: dotik je ni odprl,
+            // bralnik zaslona je ni videl (preizkus 6. 10. 2026: prva vrsta mreze brez glave dneva).
+            val parametri = vrsta.layoutParams as? AbsListView.LayoutParams
+            if (parametri == null) vrsta.layoutParams = AbsListView.LayoutParams(-1, stranica + razmik)
+            else if (parametri.height != stranica + razmik) { parametri.height = stranica + razmik; vrsta.requestLayout() }
             vrsta.setPadding(0, 0, 0, razmik)
             for (k in 0 until stolpcev) {
                 val ploscica = vrsta.getChildAt(k) as FrameLayout
@@ -942,6 +1167,12 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply {
                 leftMargin = dp(6); bottomMargin = dp(6)
             })
+            // Ime pod ikono: za vse, kar nima slicice.
+            addView(TextView(this@DatotekeActivity).apply {
+                id = android.R.id.text2; setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                gravity = Gravity.CENTER_HORIZONTAL; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END
+                isFocusable = false; setPadding(dp(4), 0, dp(4), dp(5)); visibility = View.GONE
+            }, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
         }
 
         private fun poveziPloscico(ploscica: FrameLayout, indeks: Int, stranica: Int) {
@@ -951,18 +1182,32 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             ploscica.setOnLongClickListener { moznosti(indeks); true }
             val slika = ploscica.findViewById<ImageView>(android.R.id.icon)
             val znacka = ploscica.findViewById<TextView>(android.R.id.text1)
+            val ime = ploscica.findViewById<TextView>(android.R.id.text2)
             val medij = v.vrsta == "image" || v.vrsta == "video"
+            // Kar nima slicice (mapa, glasba, dokument - in slika ali video, do katerega zdaj ni poti),
+            // dobi ikono vrste in ime: prazna ploscica uporabniku ne pove, kaj je.
+            fun zImenom() {
+                slika.scaleType = ImageView.ScaleType.CENTER
+                slika.setPadding(0, 0, 0, dp(26))
+                slika.setImageResource(ikona(v.vrsta))
+                ime.text = v.ime
+                ime.visibility = View.VISIBLE
+                znacka.visibility = View.GONE
+            }
             slika.setImageDrawable(null)
-            slika.scaleType = if (medij) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.CENTER
-            if (!medij) slika.setImageResource(ikona(v.vrsta))
+            slika.setPadding(0, 0, 0, 0)
+            slika.scaleType = ImageView.ScaleType.CENTER_CROP
+            ime.visibility = View.GONE
             znacka.visibility = if (v.vrsta == "video") View.VISIBLE else View.GONE
             znacka.text = if (v.trajanje > 0) "▶ ${GalerijaPravila.trajanje(v.trajanje)}" else "▶"
-            if (medij) {
-                slika.tag = "${v.id}|${v.spremenjeno}|$stranica"
-                GalerijaSlicice.nalozi(this@DatotekeActivity, v, streznik, stranica, nalagalnikSlicic) { dobljen, bitmap ->
-                    runOnUiThread { if (!isFinishing && slika.tag == dobljen && bitmap != null) slika.setImageBitmap(bitmap) }
+            if (!medij) { slika.tag = null; zImenom(); return }
+            slika.tag = "${v.id}|${v.spremenjeno}|$stranica"
+            GalerijaSlicice.nalozi(this@DatotekeActivity, v, streznik, stranica, nalagalnikSlicic) { dobljen, bitmap ->
+                runOnUiThread {
+                    if (isFinishing || slika.tag != dobljen) return@runOnUiThread
+                    if (bitmap != null) slika.setImageBitmap(bitmap) else zImenom()
                 }
-            } else slika.tag = null
+            }
         }
     }
 
@@ -974,6 +1219,20 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         private const val ZAHTEVA_ISO = 7322
         /** Pregledovalnik slik je datoteko spremenil: seznam se ob vrnitvi osvezi. */
         @Volatile var osveziPoVrnitvi = false
+        /** Koliko zaslonov Datoteke je odprtih (predvajalnik po tem ve, ali se ima Nazaj kam vrniti). */
+        @Volatile private var odprtih = 0
+        val odprta: Boolean get() = odprtih > 0
+        /** Napis »Nalagam« se pokaze sele po tem zamiku; hiter odgovor ga sploh ne pokaze. */
+        private const val ZAMIK_NALAGAM_MS = 600L
+        /** Toliko casa pocakamo napravo, ki je izginila s seznama Linka, preden uporabnika vrnemo na seznam virov. */
+        private const val POCAKAJ_VIR_MS = 25_000L
+        private const val NAJVEC_ZNANIH = 24
+        /** Zadnji znani seznami map (kljuc: naprava|oznaka mape), dokler aplikacija tece; samo v pomnilniku. */
+        private val znaniSeznami = object : LinkedHashMap<String, Posnetek>(32, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Posnetek>?): Boolean = size > NAJVEC_ZNANIH
+        }
+        /** Zadnji znani streznik datotek vsake naprave (naslov, odtis, zeton); samo v pomnilniku. */
+        private val znaniStrezniki = HashMap<String, Streznik>()
 
         /** "dopust.jpg" -> ("dopust", ".jpg"); mape in imena brez pike ostanejo cela. */
         fun razdeliIme(ime: String, mapa: Boolean): Pair<String, String> {

@@ -47,6 +47,13 @@ object GlobalLink {
         if (!vklopljen) izklopi()
     }
 
+    /**
+     * Povezava Safeer OS v Link trenutno tece prek releja: naprava je zdoma (ali je vklopljen preizkus
+     * »tudi doma prek interneta«). Do datotek drugih naprav gremo takrat naravnost po isti poti, brez
+     * cakanja na neposredni poskus v omrezje, v katerem nas ni.
+     */
+    @Volatile var zdoma = false
+
     /** En rele na hub (sprejemnik in Safeer OS lahko hkrati uporabljata istega; drug drugemu ga ne zapreta). */
     private val releji = HashMap<String, Rele>()
 
@@ -76,11 +83,27 @@ object GlobalLink {
         val cilj = osnovniId(hubId) ?: return hubUrl
         // Hub se ne objavlja (npr. ugasnjen): nazaj na LAN, kjer volitve najdejo novega; brez klicev releja.
         if (hubOdsoten(cilj) && !samoRele(c)) return hubUrl
-        val r = synchronized(this) {
-            releji[cilj]?.takeIf { it.tece } ?: Rele(c.applicationContext, cilj).also { releji[cilj] = it }
-        }
+        val r = rele(c, cilj)
         val pot = try { URI(hubUrl).rawPath.orEmpty() } catch (_: Throwable) { "" }
         return "wss://127.0.0.1:${r.vrata}$pot"
+    }
+
+    private fun rele(c: Context, cilj: String): Rele = synchronized(this) {
+        releji[cilj]?.takeIf { it.tece } ?: Rele(c.applicationContext, cilj).also { releji[cilj] = it }
+    }
+
+    /** Ali do naprave [hubId] vodi rele: Global Link je vklopljen, id je izpeljan iz kljuca, naprava se releju javlja. */
+    fun releMogoc(c: Context, hubId: String?): Boolean {
+        if (!vklopljen(c)) return false
+        val cilj = osnovniId(hubId) ?: return false
+        return !hubOdsoten(cilj) || samoRele(c)
+    }
+
+    /** Krajevna vrata releja do naprave [hubId] (rele se odpre ob prvi rabi) ali null, kadar releja do nje ni. */
+    fun vrataReleja(c: Context, hubId: String?): Int? {
+        if (!releMogoc(c, hubId)) return null
+        val cilj = osnovniId(hubId) ?: return null
+        return rele(c, cilj).vrata
     }
 
     /** Ali povezava na [host]:[port] tece skozi enega od nasih relejev (sicer je LAN ali lastni hub). */

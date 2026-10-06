@@ -11,6 +11,7 @@ import androidx.media3.common.C
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -51,21 +52,8 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
             }
             return odjemalec.newCall(z.build()).execute()
         }
-        val izvirni = dataSpec.uri.toString()
-        val kljucPoti = kljucPoti(izvirni)
-        // Naprava je bila ze nedosegljiva v LAN: minuto gremo naravnost prek releja (previjanje brez cakanja).
-        val znanRele = (releji[kljucPoti] ?: 0L).takeIf { android.os.SystemClock.elapsedRealtime() < it }?.let { prekReleja(izvirni) }
-        val r = if (znanRele != null) {
-            try { zahteva(znanRele).also { releji[kljucPoti] = android.os.SystemClock.elapsedRealtime() + 60_000L } } catch (e: IOException) {
-                // Rele ne gre vec (npr. smo spet doma in rele je padel): enkrat poskusimo neposredno.
-                releji.remove(kljucPoti)
-                zahteva(izvirni)
-            }
-        } else try { zahteva(izvirni) } catch (e: IOException) {
-            // Neposredno ni sla (npr. zunaj doma): isti tok prek Global Linka do Huba te naprave.
-            val rele = prekReleja(izvirni) ?: throw e
-            zahteva(rele).also { releji[kljucPoti] = android.os.SystemClock.elapsedRealtime() + 60_000L }
-        }
+        // Doma neposredno, zdoma isti tok prek Global Linka do Huba te naprave (gl. [poPoti]).
+        val r = poPoti(context, naprava, dataSpec.uri.toString()) { zahteva(it) }
         if (!r.isSuccessful) {
             r.close()
             throw IOException("HTTP ${r.code}")
@@ -115,31 +103,7 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
         if (bilo) transferEnded()
     }
 
-    /**
-     * Isti naslov prek Global Linka: lokalna vrata releja do Huba naprave + `/cast` (Hub streze deljene
-     * datoteke na `/cast/d/<id>`). Potrdilo Huba je isto kot potrdilo streznika datotek (isti kljuc), zato
-     * velja isti pripeti odtis. Null, ce rele ni mogoc (izklopljen Global Link, neznana naprava).
-     */
-    private fun prekReleja(url: String): String? {
-        val c = context ?: return null
-        if (naprava.isBlank() || !si.safeer.tv.link.GlobalLink.vklopljen(c)) return null
-        val u = Uri.parse(url)
-        val pot = u.encodedPath ?: return null
-        if (!pot.startsWith("/d/") && !pot.startsWith("/thumb/")) return null
-        val hub = "wss://${u.host}:${if (u.port > 0) u.port else 443}/cast/ws"
-        val rele = si.safeer.tv.link.GlobalLink.naslov(c, hub, naprava, prekRele = true)
-        if (!rele.startsWith("wss://127.0.0.1:")) return null
-        val vrata = Uri.parse(rele).port.takeIf { it > 0 } ?: return null
-        return "https://127.0.0.1:$vrata/cast$pot" + (u.encodedQuery?.let { "?$it" } ?: "")
-    }
-
-    /** Odlocitev o releju velja samo za isto napravo na istem naslovu (nikoli za drugo na istem IP). */
-    private fun kljucPoti(url: String): String = Uri.parse(url).let { "$naprava|${it.host}:${it.port}" }
-
     companion object {
-        /** Naprave, ki so bile nedosegljive v LAN: do kdaj (elapsedRealtime) gremo naravnost prek releja. */
-        private val releji = java.util.concurrent.ConcurrentHashMap<String, Long>()
-
         /** OkHttp s pripetim potrdilom streznika datotek (odtis SHA-256 iz odgovora `files.list`). */
         fun odjemalecZaStreznik(odtis: String): OkHttpClient {
             val (tovarna, zaupnik) = Pin.tovarna(odtis)
@@ -149,6 +113,122 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
                 .connectTimeout(6, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .build()
+        }
+
+        private val odjemalci = java.util.concurrent.ConcurrentHashMap<String, OkHttpClient>()
+
+        /**
+         * Kot [odjemalecZaStreznik], le da gre branje (GET, HEAD) po isti poti kot predvajanje: doma
+         * neposredno, zdoma prek Global Linka. Za besedilo, slike in slicice, ki ne tecejo skozi
+         * predvajalnik - prej so zdoma ostale brez poti, ceprav je glasba z iste naprave igrala.
+         * En odjemalec na napravo, da se povezava (in z njo kanal releja) uporabi veckrat.
+         */
+        fun odjemalecZaNapravo(odtis: String, context: android.content.Context?, naprava: String): OkHttpClient {
+            val app = context?.applicationContext
+            if (app == null || naprava.isBlank()) return odjemalecZaStreznik(odtis)
+            if (odjemalci.size > 8) odjemalci.clear()
+            return odjemalci.getOrPut("$odtis|$naprava") {
+                odjemalecZaStreznik(odtis).newBuilder().addInterceptor(object : Interceptor {
+                    override fun intercept(chain: Interceptor.Chain): Response {
+                        val z = chain.request()
+                        if (z.method != "GET" && z.method != "HEAD") return chain.proceed(z)
+                        return poPoti(app, naprava, z.url.toString()) { url -> chain.proceed(z.newBuilder().url(url).build()) }
+                    }
+                }).build()
+            }
+        }
+
+        /** Ali do te naprave trenutno beremo prek Global Linka (pocasnejsa pot, na telefonu lahko mobilni podatki). */
+        fun prekGlobalLinka(naprava: String, url: String): Boolean =
+            si.safeer.tv.link.GlobalLink.zdoma ||
+                PotDoNaprave.zadnja(PotDoNaprave.kljuc(naprava, url)) == PotDoNaprave.Pot.RELE
+
+        /** Preverjanje poti v ozadju (sonda); nikoli na niti, ki riše. */
+        private val ozadje = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+            Thread(r, "safeer-pot").apply { isDaemon = true }
+        }
+
+        /** Toliko casa ima naprava v istem omrezju, da sprejme povezavo; kdor ne odgovori, je zdoma. */
+        private const val SONDA_MS = 700
+
+        /** Kratek poskus povezave na naslov naprave: ali je v tem omrezju. Brez podatkov in brez rokovanja TLS. */
+        private fun sonda(url: String): Boolean = try {
+            val u = java.net.URI(url)
+            java.net.Socket().use { it.connect(java.net.InetSocketAddress(u.host, if (u.port > 0) u.port else 443), SONDA_MS) }
+            true
+        } catch (_: Throwable) { false }
+
+        private fun vrstniRed(context: android.content.Context?, naprava: String, url: String): List<PotDoNaprave.Pot> =
+            PotDoNaprave.vrstniRed(PotDoNaprave.kljuc(naprava, url),
+                // Nastavitev »Preizkus: tudi doma prek interneta« velja tudi za branje datotek: rele prvi.
+                si.safeer.tv.link.GlobalLink.zdoma || (context != null && si.safeer.tv.link.GlobalLink.samoRele(context)),
+                releMogoc(context, naprava, url), { android.os.SystemClock.elapsedRealtime() }, { sonda(url) },
+                { delo -> ozadje.execute(delo) })
+
+        /**
+         * Pot do naprave ugotovimo vnaprej (v ozadju), takoj ko vemo za njen streznik: prvi dotik datoteke
+         * potem ne caka na sondo. [naprej] (na niti ozadja) pove, da je pot znana.
+         */
+        fun ogrej(context: android.content.Context?, naprava: String, url: String, naprej: () -> Unit = {}) {
+            val app = context?.applicationContext
+            try { ozadje.execute { try { vrstniRed(app, naprava, url) } catch (_: Throwable) { }; naprej() } }
+            catch (_: Throwable) { }
+        }
+
+        /**
+         * Izvede [zahteva] z naslovom po pravi poti do naprave [naprava] (id v Linku): doma z izvirnim
+         * naslovom, zdoma z naslovom krajevnega konca releja do njenega Huba. Kadar prva pot odpove
+         * (IOException), poskusi drugo; pot, ki je uspela, velja za naslednje zahteve (previjanje,
+         * naslednja slika). Ne klici na glavni niti.
+         */
+        internal fun <T> poPoti(context: android.content.Context?, naprava: String, url: String, zahteva: (String) -> T): T {
+            val kljuc = PotDoNaprave.kljuc(naprava, url)
+            var napaka: IOException? = null
+            for (pot in vrstniRed(context, naprava, url)) {
+                try {
+                    val naslov = if (pot == PotDoNaprave.Pot.NEPOSREDNO) url else relejniNaslov(context, naprava, url) ?: continue
+                    val izid = zahteva(naslov)
+                    PotDoNaprave.zapomni(kljuc, pot, android.os.SystemClock.elapsedRealtime())
+                    zabelezi(kljuc, naprava, pot)
+                    return izid
+                } catch (e: IOException) {
+                    napaka = e
+                }
+            }
+            throw napaka ?: IOException("ni poti do naprave")
+        }
+
+        /** Zadnja pot, po kateri je naprava odgovorila. V dnevnik gre samo sprememba - brez naslovov in imen datotek. */
+        private val zadnjaPot = java.util.concurrent.ConcurrentHashMap<String, PotDoNaprave.Pot>()
+
+        private fun zabelezi(kljuc: String, naprava: String, pot: PotDoNaprave.Pot) {
+            if (naprava.isBlank() || zadnjaPot.put(kljuc, pot) == pot) return
+            android.util.Log.i("SafeerPot", "Branje z naprave $naprava: " +
+                if (pot == PotDoNaprave.Pot.RELE) "prek Global Linka" else "neposredno")
+        }
+
+        /** Naslov na tej napravi (lastni streznik) ni nikoli za rele. */
+        private fun naTejNapravi(url: String): Boolean {
+            val gostitelj = try { java.net.URI(url).host } catch (_: Throwable) { null } ?: return true
+            return gostitelj == "127.0.0.1" || gostitelj == "localhost" || gostitelj == "::1" || gostitelj == "[::1]"
+        }
+
+        private fun releMogoc(context: android.content.Context?, naprava: String, url: String): Boolean {
+            val c = context ?: return false
+            if (naprava.isBlank() || naTejNapravi(url)) return false
+            return si.safeer.tv.link.GlobalLink.releMogoc(c, naprava) && PotDoNaprave.relejniNaslov(url, 1) != null
+        }
+
+        /**
+         * Isti naslov prek Global Linka: krajevna vrata releja do Huba naprave + `/cast` (Hub streze deljene
+         * datoteke na `/cast/d/<id>`). Potrdilo Huba je isto kot potrdilo streznika datotek (isti kljuc), zato
+         * velja isti pripeti odtis. Null, ce rele ni mogoc (izklopljen Global Link, neznana naprava).
+         */
+        private fun relejniNaslov(context: android.content.Context?, naprava: String, url: String): String? {
+            val c = context ?: return null
+            if (naprava.isBlank() || naTejNapravi(url)) return null
+            val vrata = si.safeer.tv.link.GlobalLink.vrataReleja(c, naprava) ?: return null
+            return PotDoNaprave.relejniNaslov(url, vrata)
         }
     }
 }

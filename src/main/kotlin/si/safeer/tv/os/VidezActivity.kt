@@ -196,7 +196,7 @@ class VidezActivity : OsActivity() {
                 if (lokalno) contentResolver.openInputStream(Uri.parse(url))?.use { it.readBytes() }
                 else {
                     val s = streznik ?: return@execute
-                    val k = PripetiVir.odjemalecZaStreznik(s.odtis)
+                    val k = PripetiVir.odjemalecZaNapravo(s.odtis, this, s.naprava)
                     k.newCall(Request.Builder().url(url).header("X-Safeer-Token", s.zeton).build())
                         .execute().use { o -> if (o.isSuccessful) o.body?.bytes() else null }
                 }

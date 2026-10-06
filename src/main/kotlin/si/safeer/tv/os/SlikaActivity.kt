@@ -76,7 +76,7 @@ class SlikaActivity : OsActivity() {
         if (!lokalno) {
             streznik = s
             zeton = s!!.zeton
-            odjemalec = PripetiVir.odjemalecZaStreznik(s.odtis)
+            odjemalec = PripetiVir.odjemalecZaNapravo(s.odtis, this, s.naprava)
         }
         urejanje = intent.getBooleanExtra("urejanje", false) && !lokalno && oznake.size == urli.size
         naprava = intent.getBooleanExtra("naprava", false)
