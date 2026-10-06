@@ -132,6 +132,10 @@ class HubTokovi(
 
     // ------------------------------------------------------------------ HTTP tokovi
 
+    /** Poti streznika datotek te naprave pod /cast (isti seznam kot DatotekeStreznik.jePotPrekHuba). */
+    private fun jePotStreznikaDatotek(pot: String): Boolean =
+        pot.startsWith("/cast/d/") || pot.startsWith("/cast/thumb/") || pot.startsWith("/cast/live/") || pot.startsWith("/cast/magnet/")
+
     /**
      * Prevzame tokovne zahteve. Vrne true, ce je odgovoril sam (tudi z napako).
      *   PUT  /cast/file?name=&target=&from=      telo = datoteka; zeton v glavi
@@ -153,7 +157,7 @@ class HubTokovi(
             pot.startsWith("/cast/file/") && zahteva.metoda == "GET" -> { posljiDatoteko(zahteva, izhod); true }
             // Poti streznika datotek te naprave prek Huba (Global Link pripelje samo do vrat Huba): datoteka, slicica,
             // urejanje (POST), sprotni tok in tok torrenta - z istim zetonom in istimi pravili kot doma.
-            si.safeer.tv.link.DatotekeStreznik.jePotPrekHuba(pot) &&
+            jePotStreznikaDatotek(pot) &&
                 (zahteva.metoda == "GET" || zahteva.metoda == "HEAD" || zahteva.metoda == "POST") ->
                 si.safeer.tv.link.DatotekeStreznik.prekHuba(zahteva.metoda, pot, zahteva.glave, vhod, izhod)
             pot.startsWith("/cast/screen/") && pot.endsWith("/stream") && zahteva.metoda == "GET" -> { gledajZaslon(zahteva, izhod, vticnica); true }
