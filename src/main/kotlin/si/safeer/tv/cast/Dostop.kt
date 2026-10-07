@@ -84,6 +84,19 @@ object Dostop {
         return sme
     }
 
+    /**
+     * Ali sme gledalec zaslona, ki ga TA naprava pravkar deli, izvesti [dejanje] (dotik, poteg, tipka). Glej
+     * DostopPravila.smeGledalec; zavrnitev gre v dnevnik.
+     */
+    fun smeGledalec(ctx: Context, dejanje: String, znakUkaza: String): Boolean {
+        val deli = si.safeer.tv.link.DeljenjeZaslonaStoritev.tece
+        val cilj = si.safeer.tv.link.DeljenjeZaslonaStoritev.cilj
+        val sme = DostopPravila.smeGledalec(dejanje, deli, if (deli) zmoznosti(ctx, cilj) else emptySet(),
+            si.safeer.tv.link.DeljenjeZaslonaStoritev.znakGledalca, znakUkaza)
+        if (!sme) Log.i(TAG, "Zavrnjeno: gledalec ne sme $dejanje (zaslon deljen: $deli)")
+        return sme
+    }
+
     fun smeSporocilo(ctx: Context, posiljatelj: String, tip: String, dejanje: String = ""): Boolean {
         val zahteva = DostopPravila.zahtevaSporocila(tip, dejanje)
         val sme = sme(ctx, posiljatelj, zahteva)

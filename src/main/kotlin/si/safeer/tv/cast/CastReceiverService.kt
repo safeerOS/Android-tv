@@ -861,8 +861,17 @@ class CastReceiverService : Service() {
                     if (posiljatelj.isNotBlank()) parametri.put(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ, posiljatelj)
                     // Seznanitev ni dovoljenje: ukaz izvedemo le napravi, ki ji je uporabnik na TEJ napravi odprl ustrezno
                     // zmoznost (datoteke, programi, predvajalnik, zaslon). Drugi dobijo odgovor »naprava tega ne deli«.
-                    if (!Dostop.smeDejanje(this, posiljatelj, dejanje)) {
-                        if (posiljatelj.isNotBlank()) {
+                    // Dotik gledalca deljenega zaslona pride od sredisca pod posiljateljem »gledalec«: to ni naprava,
+                    // zato zanj velja svoje pravilo (samo med deljenjem, samo upravljanje - Dostop.smeGledalec).
+                    // Znak deljenja doda sredisce, ki deljenje gosti; v izvedbo ukaza ne gre. Gledalcu ne odgovarjamo
+                    // (ni naprava v Linku, sredisce bi odgovor zavrnilo).
+                    val gledalec = posiljatelj == DostopPravila.GLEDALEC
+                    val znakGledalca = parametri.optString(DostopPravila.PARAM_ZNAK_GLEDALCA, "")
+                    parametri.remove(DostopPravila.PARAM_ZNAK_GLEDALCA)
+                    val dovoljeno = if (gledalec) Dostop.smeGledalec(this, dejanje, znakGledalca)
+                    else Dostop.smeDejanje(this, posiljatelj, dejanje)
+                    if (!dovoljeno) {
+                        if (posiljatelj.isNotBlank() && !gledalec) {
                             try { ws.send(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje,
                                 si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje)).toString()) }
                             catch (e: Throwable) { Log.w(TAG, "Zavrnitve ni bilo mogoce poslati: ${e.message}") }
@@ -899,7 +908,7 @@ class CastReceiverService : Service() {
                             if (krmilnik != null && krmilnikVOspredju) krmilnik.onCastUrlReceived(url, naslov, 0.0)
                             else odpriVBrskalniku(url, naslov, 0.0)
                         }
-                        if (posiljatelj.isNotBlank()) {
+                        if (posiljatelj.isNotBlank() && !gledalec) {
                             try {
                                 ws.send(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje, izid).toString())
                             } catch (e: Throwable) {

@@ -132,6 +132,42 @@ object DostopPravila {
         return izid
     }
 
+    /** Posiljatelj, pod katerim sredisce posreduje dotik gledalca deljenega zaslona (HubKrmilnik.naVnosGledalca). */
+    const val GLEDALEC = "gledalec"
+
+    /** Parameter ukaza gledalca, v katerem sredisce poslje znak deljenja ([znakGledalca]). */
+    const val PARAM_ZNAK_GLEDALCA = "_znak"
+
+    /**
+     * Znak deljenja zaslona: zgoscena vrednost id-ja in kljuca deljenja. Poznajo ju naprava, ki zaslon deli, sredisce,
+     * ki deljenje gosti, in gledalec, ki mu je bil zaslon poslan. Sredisce z znakom oznaci dotik gledalca; naprava, ki
+     * bi se v Link le prijavila pod imenom »gledalec«, ga ne pozna. Kljuca deljenja se iz znaka ne da dobiti.
+     */
+    fun znakGledalca(idDeljenja: String, kljucDeljenja: String): String {
+        if (idDeljenja.isBlank() || kljucDeljenja.isBlank()) return ""
+        val zgostitev = java.security.MessageDigest.getInstance("SHA-256")
+            .digest("safeer-gledalec-v1\n$idDeljenja\n$kljucDeljenja".toByteArray(Charsets.UTF_8))
+        return zgostitev.joinToString("") { String.format("%02x", it.toInt() and 0xFF) }
+    }
+
+    /**
+     * Dotik gledalca deljenega zaslona. Gledalec ni naprava v Linku (zaslon gleda s kljucem deljenja), zato zanj ni
+     * zapisa. Upravljati sme (input.*) samo, dokler TA naprava sama deli zaslon ([deliZaslon]), in samo, ce je napravi,
+     * s katero ga deli, tu odprt zaslon in upravljanje ([zmoznostiCilja]). Ogled je uporabnik izrecno poslal;
+     * upravljanje naprave je dostop - gostu, ki mu zaslon samo pokazes, s tem ne das naprave v roke.
+     * [znakDeljenja] je znak deljenja, ki tece na tej napravi, [znakUkaza] tisti, ki ga je prinesel ukaz: biti morata
+     * enaka (prazen znak ne velja nikoli - dokler sredisce deljenja ne odpre, dotika ni).
+     */
+    fun smeGledalec(
+        dejanje: String, deliZaslon: Boolean, zmoznostiCilja: Set<Zmoznost>, znakDeljenja: String, znakUkaza: String
+    ): Boolean =
+        deliZaslon && dejanje.trim().lowercase() in VNOS_GLEDALCA && Zmoznost.ZASLON in zmoznostiCilja &&
+            znakDeljenja.isNotBlank() &&
+            java.security.MessageDigest.isEqual(znakDeljenja.toByteArray(Charsets.UTF_8), znakUkaza.toByteArray(Charsets.UTF_8))
+
+    /** Kar stran gledalca poslje (HubTokovi.vnosVZaslon): dotik, poteg, tipka. Nic drugega. */
+    private val VNOS_GLEDALCA = setOf("input.tap", "input.swipe", "input.key")
+
     /** Kratek opis za vrstico naprave: katere zmoznosti so odprte, v vrstnem redu stikal. */
     fun povzetek(dano: Set<Zmoznost>): List<Zmoznost> = Zmoznost.values().filter { it in dano }
 }

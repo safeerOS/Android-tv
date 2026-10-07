@@ -72,6 +72,9 @@ class DeljenjeZaslonaStoritev : Service() {
             private set
         @Volatile var cilj: String = ""
             private set
+        /** Znak tega deljenja (DostopPravila.znakGledalca); prazen, dokler sredisce deljenja ne odpre, in po koncu. */
+        @Volatile var znakGledalca: String = ""
+            private set
         @Volatile var imeCilja: String = ""
             private set
         @Volatile var zadnjaNapaka: String = ""
@@ -230,6 +233,9 @@ class DeljenjeZaslonaStoritev : Service() {
             idDeljenja = zacetek.optString("id", "")
             val potPotiskanja = zacetek.optString("push_path", "")
             if (idDeljenja.isBlank() || potPotiskanja.isBlank()) throw IllegalStateException("Hub ni vrnil poti za deljenje")
+            // Dotik gledalca sprejmemo samo z znakom tega deljenja (pozna ga sredisce, ki deljenje gosti).
+            znakGledalca = si.safeer.tv.cast.DostopPravila.znakGledalca(
+                idDeljenja, potPotiskanja.substringAfter("?k=", "").substringBefore('&'))
 
             val url = URL(hubHttp)
             if (url.protocol != "https") throw IllegalStateException("Hub brez TLS - posodobi Safeer na gostitelju")
@@ -409,6 +415,7 @@ class DeljenjeZaslonaStoritev : Service() {
         val jeTeklo = tece
         ustavljam = true
         tece = false
+        znakGledalca = ""
         ohraniZaslon(false)
         if (napaka.isNotBlank()) { zadnjaNapaka = napaka; Log.w(TAG, "Deljenje zaslona koncano z napako: $napaka") }
         try { navidezniZaslon?.release() } catch (_: Exception) { }

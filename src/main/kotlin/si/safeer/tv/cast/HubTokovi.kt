@@ -77,6 +77,8 @@ class HubTokovi(
     }
 
     private class Zaslon(val id: String, val kljuc: String, val posiljatelj: String) {
+        /** Znak deljenja za dotike gledalca (naprava, ki deli, ga izracuna iz istega id-ja in kljuca). */
+        val znak: String = DostopPravila.znakGledalca(id, kljuc)
         @Volatile var zadnji: ByteArray? = null
         @Volatile var tece = true
         val gledalci = CopyOnWriteArrayList<Gledalec>()
@@ -294,7 +296,9 @@ class HubTokovi(
                 "key" -> "input.key" to org.json.JSONObject().put("key", o.optString("key", "").take(24))
                 else -> null to null
             }
-            if (akcija != null && parametri != null) naVnosGledalca?.invoke(z.posiljatelj, akcija, parametri.toString())
+            // Znak deljenja doloci sredisce (ne telo zahteve): gostitelj po njem ve, da dotik prihaja od tod.
+            if (akcija != null && parametri != null) naVnosGledalca?.invoke(z.posiljatelj, akcija,
+                parametri.put(DostopPravila.PARAM_ZNAK_GLEDALCA, z.znak).toString())
         } catch (_: Exception) {
             // Slabo oblikovan dotik ne sme podreti gledanja - preprosto ga izpustimo.
         }

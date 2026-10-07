@@ -95,6 +95,36 @@ fun main() {
         p.podedovani(listOf(DostopPravila.Clan("a", jaz, meja - 1), DostopPravila.Clan("b", tablica, meja)), jaz, jedroOd).isEmpty())
     preveri("meja je 6. 10. 2026 00:00:00 UTC", meja == 1_791_244_800.0)
 
+    // Dotik gledalca deljenega zaslona (posiljatelj »gledalec« ni naprava v Linku).
+    val zZaslonom = setOf(Zmoznost.ZASLON)
+    val znak = p.znakGledalca("abc12345", "0123456789abcdef")
+    preveri("znak deljenja je SHA-256 id-ja in kljuca (znan primer)",
+        znak == "178f27ae16b93fd0c6b025eaeef6c6c4b8f1f57fb6bb8ac3ee068a6e0b5dc3af")
+    preveri("drug id ali drug kljuc da drug znak; kljuca v znaku ni",
+        znak != p.znakGledalca("abc12346", "0123456789abcdef") && znak != p.znakGledalca("abc12345", "0123456789abcdee") &&
+            !znak.contains("0123456789abcdef"))
+    preveri("brez id-ja ali kljuca znaka ni",
+        p.znakGledalca("", "k") == "" && p.znakGledalca("id", "") == "" && p.znakGledalca(" ", " ") == "")
+    preveri("gledalec sme upravljati, dokler naprava deli zaslon z napravo, ki ima zaslon in upravljanje",
+        listOf("input.tap", "input.swipe", "input.key", " Input.Tap ").all { p.smeGledalec(it, true, zZaslonom, znak, znak) } &&
+            p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, znak, znak))
+    preveri("brez deljenja zaslona gledalec ne sme nicesar", !p.smeGledalec("input.tap", false, p.VSE_ZMOZNOSTI, znak, znak))
+    preveri("zaslon, deljen z napravo brez zaslona in upravljanja, se samo gleda",
+        !p.smeGledalec("input.tap", true, emptySet(), znak, znak) &&
+            !p.smeGledalec("input.tap", true, setOf(Zmoznost.DATOTEKE, Zmoznost.PROGRAMI, Zmoznost.PREDVAJALNIK), znak, znak))
+    preveri("gledalec sme samo upravljati zaslon - datotek, programov in drugih ukazov ne",
+        listOf("files.list", "apps.launch", "apps.list", "play.state", "screen.start", "key", "status", "open_url", "", "input",
+            "input.enable", "input.text", "gamepad.button").none { p.smeGledalec(it, true, p.VSE_ZMOZNOSTI, znak, znak) })
+    preveri("dotik brez znaka deljenja ali z napacnim znakom ne velja (naprava, ki se le prijavi kot »gledalec«)",
+        !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, znak, "") &&
+            !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, znak, p.znakGledalca("abc12345", "drug-kljuc")) &&
+            !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, znak, znak.uppercase()) &&
+            !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, znak, znak.dropLast(1)))
+    preveri("dokler sredisce deljenja se ni odprlo (znaka ni), dotik ne velja - tudi prazen znak ne",
+        !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, "", "") && !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, "", znak) &&
+            !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, " ", " "))
+    preveri("oznaka gledalca ni oznaka naprave", p.GLEDALEC == "gledalec" && !p.jeIdIzKljuca(p.GLEDALEC))
+
     if (napak > 0) { println("\nNAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("DostopPravilaTest: OK")
 }

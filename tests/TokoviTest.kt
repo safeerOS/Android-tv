@@ -140,6 +140,21 @@ fun main() {
     preveri("stran gledalca je HTML", String(zahteva(vrata, "GET", "/cast/screen/$id/view?k=$kljuc").second, Charsets.UTF_8).contains("object-fit:contain"))
     preveri("stran z napacnim kljucem je 404", zahteva(vrata, "GET", "/cast/screen/$id/view?k=x").first.contains("404"))
 
+    // Dotik gledalca: sredisce ga preda napravi, ki deli zaslon, z znakom deljenja (DostopPravila.znakGledalca).
+    val vnosi = java.util.concurrent.CopyOnWriteArrayList<Triple<String, String, String>>()
+    tokovi.naVnosGledalca = { komu, akcija, parametri -> vnosi.add(Triple(komu, akcija, parametri)) }
+    val dotik = zahteva(vrata, "POST", "/cast/screen/$id/input?k=$kljuc",
+        telo = "{\"vrsta\":\"tap\",\"x\":0.5,\"y\":0.25,\"_znak\":\"vsiljen\"}".toByteArray())
+    preveri("dotik gledalca je sprejet in gre napravi, ki deli zaslon",
+        dotik.first.contains("200") && vnosi.size == 1 && vnosi[0].first == "fon1" && vnosi[0].second == "input.tap")
+    preveri("dotik nosi znak deljenja, ki ga doloci sredisce (ne telo zahteve)",
+        vnosi.isNotEmpty() && DostopPravila.znakGledalca(id, kljuc).length == 64 &&
+            polje(vnosi[0].third, DostopPravila.PARAM_ZNAK_GLEDALCA) == DostopPravila.znakGledalca(id, kljuc))
+    preveri("dotik z napacnim kljucem je 404 in ne gre naprej",
+        zahteva(vrata, "POST", "/cast/screen/$id/input?k=x", telo = "{\"vrsta\":\"tap\",\"x\":0.5,\"y\":0.5}".toByteArray())
+            .first.contains("404") && vnosi.size == 1)
+    tokovi.naVnosGledalca = null
+
     // gledalec se prikljuci pred prvim okvirjem
     val gledalec = Socket("127.0.0.1", vrata).apply { soTimeout = 10_000 }
     gledalec.getOutputStream().write("GET /cast/screen/$id/stream?k=$kljuc HTTP/1.1\r\nHost: x\r\n\r\n".toByteArray()); gledalec.getOutputStream().flush()
