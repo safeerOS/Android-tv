@@ -67,6 +67,48 @@ fun main() {
             p.jedro("n-0123456789abcdef", { null }, idIzKljuca) == "n-0123456789abcdef")
     preveri("star id se prevede prek kljuca v krogu", p.jedro("tv-stari-id", { kljuci[it] }, idIzKljuca) == idIzKljuca("KLJUC-TV"))
     preveri("naprava, ki je krog ne pozna, ostane pri svojem id-ju", p.jedro("tujec", { null }, idIzKljuca) == "tujec")
+
+    // Odloca kljuc: oznaka iz kljuca, pod katero je v krogu DRUG kljuc, ni naprava, za katero se izdaja.
+    val jedroTv = idIzKljuca("KLJUC-TV")
+    val krogPodobnih = mapOf(jedroTv to "KLJUC-TV", "$jedroTv-x" to "KLJUC-GOST-B1", "$jedroTv-os" to "KLJUC-TV", "pokvarjen" to "!")
+    preveri("kljuca v preizkusu data razlicni jedri", idIzKljuca("KLJUC-GOST-B1") != jedroTv && p.jeJedro(jedroTv))
+    val idAliNapaka: (String) -> String = { k -> if (k == "!") throw IllegalArgumentException("pokvarjen kljuc") else idIzKljuca(k) }
+    preveri("oznaka druge naprave z drugim kljucem v krogu dobi prazno jedro",
+        p.jedro("$jedroTv-x", { krogPodobnih[it] }, idAliNapaka) == "" && p.jedro("$jedroTv-os", { krogPodobnih[it] }, idAliNapaka) == jedroTv &&
+            p.jedro(jedroTv, { krogPodobnih[it] }, idAliNapaka) == jedroTv)
+    preveri("pokvarjen kljuc ne odpre nicesar", p.jedro("pokvarjen", { krogPodobnih[it] }, idAliNapaka) == "")
+    preveri("jedro je natanko n- in 16 sestnajstiskih znakov",
+        p.jeJedro("n-0123456789abcdef") && !p.jeJedro("n-0123456789abcdef-os") && !p.jeJedro("n-0123456789abcdeg") && !p.jeJedro("") && !p.jeJedro("tv-stari-id"))
+
+    // Kljuc za preverbo podpisa v dogovoru zascite: po jedru, ne po vnosu oznake.
+    val vsi = { krogPodobnih.values.toList() }
+    preveri("kljuc za zascito je kljuc, ki da jedro oznake (tudi za sorodnika brez vnosa)",
+        p.kljucZaZascito(jedroTv, { krogPodobnih[it] }, vsi, idAliNapaka) == "KLJUC-TV" &&
+            p.kljucZaZascito("$jedroTv-novprogram", { krogPodobnih[it] }, vsi, idAliNapaka) == "KLJUC-TV")
+    preveri("vnos z oznako naprave in tujim kljucem pravega kljuca ne zasenci in tujega ne podtakne",
+        p.kljucZaZascito("$jedroTv-x", { krogPodobnih[it] }, vsi, idAliNapaka) == "KLJUC-TV")
+    preveri("oznaka, katere jedra ni v krogu, nima kljuca (tudi ce je pod njo vpisan tuj kljuc)",
+        p.kljucZaZascito("n-0000000000000000", { "KLJUC-GOST-B1" }, vsi, idAliNapaka) == null &&
+            p.kljucZaZascito("$jedroTv-x", { "KLJUC-GOST-B1" }, { listOf("KLJUC-GOST-B1") }, idAliNapaka) == null)
+    preveri("stara oznaka ima kljuc svojega vnosa; neznana nima kljuca",
+        p.kljucZaZascito("tv-stari-id", { kljuci[it] }, vsi, idAliNapaka) == "KLJUC-TV" && p.kljucZaZascito("tujec", { null }, vsi, idAliNapaka) == null &&
+            p.kljucZaZascito("tujec", { "" }, vsi, idAliNapaka) == null)
+
+    // Zascita: odloca jedro iz preverjenega kljuca; od naprave, ki zascito zna, nezascitenega ukaza ne sprejmemo.
+    val vse = p.VSE_ZMOZNOSTI
+    var vprasanOZasciti = false
+    preveri("zasciteno sporocilo: odloca jedro iz kljuca, ne oznaka",
+        p.smePosiljatelj(Zahteva.DATOTEKE, "n-aaaaaaaaaaaaaaaa", true, { true }, { j -> if (j == "n-aaaaaaaaaaaaaaaa") vse else nic }, { nic }) &&
+            !p.smePosiljatelj(Zahteva.DATOTEKE, "n-bbbbbbbbbbbbbbbb", true, { false }, { j -> if (j == "n-aaaaaaaaaaaaaaaa") vse else nic }, { vse }))
+    preveri("nezasciten ukaz v imenu naprave, ki zascito zna, ne velja - ceprav ima oznaka dostop",
+        !p.smePosiljatelj(Zahteva.DATOTEKE, "", true, { true }, { nic }, { vse }) &&
+            !p.smePosiljatelj(Zahteva.VSE, "", true, { true }, { nic }, { vse }))
+    preveri("naprava, ki zascite se ne zna, dela po starem (po oznaki)",
+        p.smePosiljatelj(Zahteva.DATOTEKE, "", true, { false }, { nic }, { vse }) &&
+            !p.smePosiljatelj(Zahteva.DATOTEKE, "", true, { false }, { nic }, { setOf(Zmoznost.PROGRAMI) }))
+    preveri("usklajevanje in zaslon gresta se po starem tudi od naprave z zascito",
+        p.smePosiljatelj(Zahteva.VSE, "", false, { vprasanOZasciti = true; true }, { nic }, { vse }) && !vprasanOZasciti)
+    preveri("prosto ostane prosto", p.smePosiljatelj(Zahteva.PROSTO, "", true, { true }, { nic }, { nic }))
     preveri("id, ki je le podoben id-ju iz kljuca, ni jedro",
         !p.jeIdIzKljuca("n-0123456789abcdefX") && !p.jeIdIzKljuca("n-0123456789ABCDEF") && !p.jeIdIzKljuca("n-012345") && p.jeIdIzKljuca("n-0123456789abcdef-os"))
 
@@ -124,6 +166,20 @@ fun main() {
         !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, "", "") && !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, "", znak) &&
             !p.smeGledalec("input.tap", true, p.VSE_ZMOZNOSTI, " ", " "))
     preveri("oznaka gledalca ni oznaka naprave", p.GLEDALEC == "gledalec" && !p.jeIdIzKljuca(p.GLEDALEC))
+
+    // ---- kljuc shrambe (neodvisni pregled 7. 10. 2026) ----
+    // Vnos, katerega oznaka je kar GOLO jedro druge naprave, kljuc pa tuj: jedra nima, kljuc shrambe pa ne sme biti
+    // enak jedru prave naprave (sicer bi dobil, kar je bilo izrecno poslano pravi, in bil med prejemniki njenih oddaj).
+    val goloJedro = mapOf(jedroTv to "KLJUC-GOST-B1")
+    val jedroVnosa = p.jedro(jedroTv, { goloJedro[it] }, idAliNapaka)
+    val jedroPrograma = p.jedro("$jedroTv-os", { goloJedro[it] }, idAliNapaka)
+    preveri("oznaka z golim jedrom druge naprave in tujim kljucem nima jedra", jedroVnosa == "" && jedroPrograma == jedroTv)
+    preveri("kljuc shrambe take oznake ni jedro prave naprave",
+        p.kljucShrambe(jedroTv, jedroVnosa) == p.BREZ_JEDRA + jedroTv && p.kljucShrambe(jedroTv, jedroVnosa) != jedroTv &&
+            p.kljucShrambe("$jedroTv-os", jedroPrograma) == jedroTv)
+    preveri("naprava z jedrom in naprava, ki je krog ne pozna, imata kljuc shrambe kot doslej",
+        p.kljucShrambe("tv-stari-id", idIzKljuca("KLJUC-TV")) == idIzKljuca("KLJUC-TV") && p.kljucShrambe("tujec", "tujec") == "tujec")
+    preveri("kljuc shrambe oznake brez jedra ni oblike oznake iz kljuca", !p.jeIdIzKljuca(p.kljucShrambe(jedroTv, "")))
 
     if (napak > 0) { println("\nNAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("DostopPravilaTest: OK")

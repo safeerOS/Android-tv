@@ -138,6 +138,13 @@ class LinkOdjemalec(private val context: Context) {
     private fun naslovHuba(p: Sorodnik.Poverilnice): String =
         si.safeer.tv.link.GlobalLink.naslov(context, p.hubUrl, p.hubId, prekReleja)
     private val idNaprave: String by lazy { Identiteta.id(context) }
+    /** Zascita ukazov od naprave do naprave za povezavo Safeer OS (svoja oznaka v Linku, isti kljuc kot sprejemnik). */
+    private val zascita: si.safeer.tv.cast.ZascitaLinka by lazy {
+        si.safeer.tv.cast.ZascitaLinka(context, { idNaprave }, { besedilo ->
+            val w = ws
+            w != null && povezan && try { w.send(besedilo) } catch (_: Throwable) { false }
+        }) { notranje -> obdelajSporocilo(notranje) }
+    }
     /** Sejni zeton s prijave s podpisom: z njim gredo zahteve HTTP (preimenovanje), ko zetona seznanitve ni. */
     @Volatile private var sejniZeton = ""
 
@@ -301,7 +308,7 @@ class LinkOdjemalec(private val context: Context) {
                         .put("device_id", idNaprave)
                         .put("name", "Safeer OS")
                         .put("role", "sender")
-                        .put("capabilities", JSONArray(listOf("url", "text", KlepetLinka.ZMOZNOST)))))
+                        .put("capabilities", JSONArray(listOf("url", "text", KlepetLinka.ZMOZNOST, si.safeer.tv.cast.E2e.ZMOZNOST)))))
                 webSocket.send(prijava.toString())
                 javiStanje(true, "")
             }
@@ -348,7 +355,8 @@ class LinkOdjemalec(private val context: Context) {
             .put("type", "control.command")
             .put("target", cilj)
             .put("payload", JSONObject().put("action", dejanje).put("params", parametri))
-        val poslano = try { w.send(sporocilo.toString()) } catch (_: Throwable) { false }
+        // Napravi, ki zascito zna, gre ukaz samo po preverjeni seji; odgovor velja samo iz iste seje (ZascitaLinka).
+        val poslano = try { zascita.poslji(sporocilo) } catch (_: Throwable) { false }
         if (!poslano) { cakajoci.remove(id); glavna.post { odgovor.na(null, "ni_povezave") }; return }
         glavna.postDelayed(potek, potekMs)
     }
@@ -480,7 +488,32 @@ class LinkOdjemalec(private val context: Context) {
 
     private fun obdelaj(besedilo: String) {
         val json = try { JSONObject(besedilo) } catch (_: Throwable) { return }
-        when (json.optString("type")) {
+        // Jedro iz preverjenega kljuca vpise samo ZascitaLinka: kar pride po omrezju s tem poljem, ga izgubi.
+        json.remove(si.safeer.tv.cast.ZascitaLinka.POLJE)
+        val tip = json.optString("type")
+        if (tip == "cast.devices") zascita.zapomniNaprave(json.optJSONArray("devices"))
+        else if (tip.startsWith("data.") && zascita.prejmi(json)) return
+        obdelajSporocilo(json)
+    }
+
+    /** Sporocilo sredisca ali notranje sporocilo iz preverjene seje (ZascitaLinka ga poda z `sender` in jedrom iz kljuca). */
+    private fun obdelajSporocilo(json: JSONObject) {
+        val tip = json.optString("type")
+        val zascitaJedro = json.optString(si.safeer.tv.cast.ZascitaLinka.POLJE, "")
+        if (tip in si.safeer.tv.cast.E2e.ZASCITENI_TIPI && zascitaJedro.isEmpty()) {
+            // Naprava, ki zascito zna, odgovorov in strani ne posilja nezascitenih: kar pride tako v njenem imenu, ni od nje.
+            val odKoga = json.optString("sender")
+            if (odKoga.isNotBlank() && si.safeer.tv.cast.Dostop.zahtevaZascito(context, odKoga)) {
+                Log.i(TAG, "Zavrnjeno: $tip brez zascite v imenu naprave, ki zascito zna.")
+                return
+            }
+        }
+        // Na ukaz, ki je sel zasciten, velja samo odgovor iz preverjene seje iste naprave.
+        if (tip == "control.result" && !zascita.veljaOdgovor(json)) {
+            Log.i(TAG, "Zavrnjeno: odgovor na zasciten ukaz ni prisel iz seje naprave, ki smo jo vprasali.")
+            return
+        }
+        when (tip) {
             "cast.devices" -> {
                 val seznam = ArrayList<Naprava>()
                 val polje = json.optJSONArray("devices") ?: JSONArray()
@@ -513,7 +546,7 @@ class LinkOdjemalec(private val context: Context) {
             "cast.url" -> {
                 val telo = json.optJSONObject("payload") ?: return
                 // Stran se tu odpre sama: samo od naprave, ki ji je na tej napravi odprt predvajalnik (cast/Dostop).
-                if (!si.safeer.tv.cast.Dostop.smeSporocilo(context, json.optString("sender"), "cast.url")) return
+                if (!si.safeer.tv.cast.Dostop.smeSporocilo(context, json.optString("sender"), "cast.url", zascita = zascitaJedro)) return
                 val url = telo.optString("url"); val naslov = telo.optString("title")
                 val od = json.optString("sender_name").ifBlank { json.optString("sender") }
                 potrdi(json)

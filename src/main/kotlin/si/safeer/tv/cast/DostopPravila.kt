@@ -89,14 +89,71 @@ object DostopPravila {
     class Clan(val id: String, val kljuc: String, val dodano: Double)
 
     /**
-     * Stalna oznaka naprave ne glede na to, pod katerim id-jem se javi: id iz kljuca (`n-<16 hex>`) brez pripone
-     * sorodnika (`-os`, `-control` ...). Star id (npr. po modelu naprave) se prevede prek kljuca v krogu; naprava, ki
-     * je krog ne pozna, ostane pri svojem id-ju (zanjo ni zapisa, torej nima dostopa).
+     * Stalna oznaka naprave ne glede na to, pod katerim id-jem se javi. Odloca KLJUC, pod katerim je naprava v krogu:
+     * - id iz kljuca (`n-<16 hex>`, po zelji s pripono sorodnika `-os`, `-control` ...) da svoje jedro - RAZEN ce je pod
+     *   tem id-jem v krogu vpisan drug kljuc. Tak vnos je videti kot druga naprava, a to ni (izmerjeno 7. 10. 2026 na
+     *   racunalniku: krog ga je sprejel in preverba dostopa mu je dala dostop posnemane naprave); dobi prazno jedro,
+     *   torej nic;
+     * - star id (npr. po modelu naprave) se prevede prek kljuca v krogu; naprava, ki je krog ne pozna, ostane pri
+     *   svojem id-ju (zanjo ni zapisa, torej nima dostopa). Pokvarjen kljuc ne odpre nicesar (prazno jedro).
      */
     fun jedro(id: String, kljucClana: (String) -> String?, idIzKljuca: (String) -> String): String {
-        if (jeIdIzKljuca(id)) return id.take(DOLZINA_JEDRA)
-        val kljuc = kljucClana(id)?.takeIf { it.isNotBlank() } ?: return id
-        return try { idIzKljuca(kljuc) } catch (_: Throwable) { id }
+        val jedroKljuca = try {
+            kljucClana(id)?.takeIf { it.isNotBlank() }?.let { idIzKljuca(it) } ?: ""
+        } catch (_: Throwable) { return "" }
+        if (jeIdIzKljuca(id)) {
+            if (jedroKljuca.isNotEmpty() && jedroKljuca != id.take(DOLZINA_JEDRA)) return ""
+            return id.take(DOLZINA_JEDRA)
+        }
+        return jedroKljuca.ifEmpty { id }
+    }
+
+    /** Natanko jedro iz kljuca (`n-<16 hex>`, brez pripone) - oblika zapisa naprav, ki so kljuc dokazale. */
+    fun jeJedro(s: String): Boolean = s.length == DOLZINA_JEDRA && jeIdIzKljuca(s)
+
+    /** Predpona kljuca shrambe za oznako brez jedra (glej [kljucShrambe]). */
+    const val BREZ_JEDRA = "brez-jedra:"
+
+    /**
+     * Kljuc, pod katerim shrambe (izrecno poslane datoteke, seznami prejemnikov oddaj) vodijo napravo: njeno [jedro].
+     * Oznaka, pod katero je v krogu DRUG kljuc, jedra nima. Dobi kljuc, ki ne more biti enak jedru ali oznaki nobene
+     * druge naprave - tudi kadar je taka oznaka kar golo jedro prave naprave (`n-<16 hex>`): kar je shranjeno za pravo
+     * napravo, zanjo ne velja.
+     */
+    fun kljucShrambe(id: String, jedro: String): String = jedro.ifEmpty { BREZ_JEDRA + id }
+
+    /**
+     * Javni kljuc, s katerim preverimo podpis naprave v dogovoru zascite (cast/E2e). Oznaka iz kljuca je vezana na kljuc:
+     * velja samo kljuc, ki da njeno jedro - vzamemo ga, kjerkoli v krogu je ([vsiKljuci]: vnos naprave same, sorodnika
+     * ali stare oznake). Vnos s to oznako in DRUGIM kljucem ne steje: tujega kljuca tako ne more podtakniti niti
+     * sredisce, od katerega dobivamo krog, in s takim vnosom pravi napravi zascite ne more onemogociti. Stara oznaka
+     * (ni iz kljuca) ima kljuc svojega vnosa ([kljucVnosa]); njeno jedro je potem jedro TEGA kljuca.
+     */
+    fun kljucZaZascito(
+        id: String, kljucVnosa: (String) -> String?, vsiKljuci: () -> List<String>, idIzKljuca: (String) -> String
+    ): String? {
+        if (jeIdIzKljuca(id)) {
+            val jedro = id.take(DOLZINA_JEDRA)
+            return vsiKljuci().firstOrNull { k -> k.isNotBlank() && try { idIzKljuca(k) == jedro } catch (_: Throwable) { false } }
+        }
+        return kljucVnosa(id)?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * Ali sme posiljatelj to, kar [zahteva] zahteva. [zascita] je jedro iz PREVERJENEGA kljuca, kadar je sporocilo prislo
+     * zasciteno (cast/E2e): takrat odloca kljuc ([zmoznostiJedra]), ne oznaka. Brez zascite velja oznaka, ki jo je
+     * vpisalo sredisce ([zmoznostiOznake]) - a samo za napravo, ki zascite (se) ne zna: od naprave, ki jo zna
+     * ([zahtevaZascito]), nezascitenega ne sprejmemo, kadar gre za sporocilo, ki ga naprave z zascito posiljajo
+     * zasciteno ([zascitljivo]).
+     */
+    fun smePosiljatelj(
+        zahteva: Zahteva, zascita: String, zascitljivo: Boolean, zahtevaZascito: () -> Boolean,
+        zmoznostiJedra: (String) -> Set<Zmoznost>, zmoznostiOznake: () -> Set<Zmoznost>,
+    ): Boolean {
+        if (zahteva == Zahteva.PROSTO) return true
+        if (zascita.isNotEmpty()) return sme(zmoznostiJedra(zascita), zahteva)
+        if (zascitljivo && zahtevaZascito()) return false
+        return sme(zmoznostiOznake(), zahteva)
     }
 
     const val DOLZINA_JEDRA = 18

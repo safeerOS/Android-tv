@@ -63,15 +63,23 @@ object DatotekeStreznik {
         if (idNaprave.isBlank() || oznaka.isBlank()) return
         val zdaj = zdaj()
         izrecno.entries.removeIf { it.value <= zdaj }
-        izrecno[si.safeer.tv.cast.Dostop.jedro(ctx, idNaprave) + "|" + oznaka] = zdaj + NAJDLJE_MS
+        izrecno[kljucIzrecnega(ctx, idNaprave, oznaka)] = zdaj + NAJDLJE_MS
         while (izrecno.size > 512) izrecno.entries.minByOrNull { it.value }?.let { izrecno.remove(it.key) }
     }
 
     private fun izrecnoDovoljena(ctx: Context, idNaprave: String, oznaka: String?): Boolean {
         if (oznaka.isNullOrBlank()) return false
-        val rok = izrecno[si.safeer.tv.cast.Dostop.jedro(ctx, idNaprave) + "|" + oznaka] ?: return false
+        val rok = izrecno[kljucIzrecnega(ctx, idNaprave, oznaka)] ?: return false
         return zdaj() < rok
     }
+
+    /**
+     * Kljuc shrambe izrecnih dovoljenj: jedro naprave in oznaka datoteke. Oznaka naprave, pod katero je v krogu drug
+     * kljuc (prazno jedro), dobi kljuc, ki ni enak nobenemu jedru (DostopPravila.kljucShrambe): dovoljenje prave
+     * naprave zanjo ne velja in obratno.
+     */
+    private fun kljucIzrecnega(ctx: Context, idNaprave: String, oznaka: String): String =
+        si.safeer.tv.cast.DostopPravila.kljucShrambe(idNaprave, si.safeer.tv.cast.Dostop.jedro(ctx, idNaprave)) + "|" + oznaka
     private const val ZETON_VELJA_MS = 12 * 3600_000L
     private const val NAJDLJE_MS = 7 * 24 * 3600_000L
     private fun zdaj() = android.os.SystemClock.elapsedRealtime()

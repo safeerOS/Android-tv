@@ -1920,9 +1920,14 @@ class HubUsmerjevalnik(
         return if (stevilo == 0) "" else zapis.toString()
     }
 
-    /** Stalna oznaka naprave (cast/DostopPravila.jedro) po krogu tega sredisca. */
+    /**
+     * Stalna oznaka naprave (cast/DostopPravila.jedro) po krogu tega sredisca. Oznaka, pod katero je v krogu drug kljuc
+     * (prazno jedro), dobi kljuc, ki ni enak nobenemu jedru (DostopPravila.kljucShrambe) - v nobenem seznamu
+     * prejemnikov je ni.
+     */
     private fun jedroNaprave(id: String?): String =
-        DostopPravila.jedro(id.orEmpty(), { krog.clanZaId(it)?.kljuc }, { KrogZaupanja.idIzKljuca(it) })
+        DostopPravila.kljucShrambe(id.orEmpty(),
+            DostopPravila.jedro(id.orEmpty(), { krog.clanZaId(it)?.kljuc }, { KrogZaupanja.idIzKljuca(it) }))
 
     /** Seznam `allow` izvora (jedra naprav, ki jim je pri NJEM odprto) ali null, ce ga sporocilo nima. */
     private fun navedeniPrejemniki(sporocilo: JsonLahki.Pogled): Set<String>? =

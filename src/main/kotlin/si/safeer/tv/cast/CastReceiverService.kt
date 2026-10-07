@@ -197,6 +197,19 @@ class CastReceiverService : Service() {
         si.safeer.tv.link.GlobalLink.naslov(this, hubUrl, HubKrmilnik.izvoljeniHub(this)?.id, prekReleja)
     /** Id iz kljuca naprave (HubKrmilnik.lastniId); isti, kot ga hub te naprave vpise v krog in oglasa po mDNS. */
     private val deviceId: String by lazy { HubKrmilnik.lastniId() }
+    /**
+     * Zascita ukazov od naprave do naprave (E2e) za povezavo sprejemnika. Seje prezivijo ponovno povezavo s srediscem:
+     * so med programoma, ne med programom in srediscem.
+     */
+    private val zascita: ZascitaLinka by lazy {
+        ZascitaLinka(this, { deviceId }, { besedilo ->
+            val w = webSocket
+            w != null && povezan && try { w.send(besedilo) } catch (_: Throwable) { false }
+        }) { notranje ->
+            val w = webSocket
+            if (w != null) obdelajSporocilo(w, notranje)
+        }
+    }
     private var deviceName: String = "Android TV"
     private var isRunning = false
     private var reconnectAttempts = 0
@@ -434,6 +447,8 @@ class CastReceiverService : Service() {
                         put("role", "receiver")
                         val zmoznosti = mutableListOf("url", "media", "control", "volume", "seek", "text", "file", "screen", si.safeer.tv.link.Daljinec.ZMOZNOST,
                             si.safeer.tv.link.Daljinec.ZMOZNOST_ZVOK)
+                        // Zascita od naprave do naprave: ukaze, odgovore in strani sprejemamo (in posiljamo) po preverjeni seji.
+                        zmoznosti.add(E2e.ZMOZNOST)
                         if (si.safeer.tv.link.DatotekeStreznik.vklopljeno(this@CastReceiverService)) {
                             zmoznosti.add(si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)
                         }
@@ -739,8 +754,7 @@ class CastReceiverService : Service() {
      * Vrne false, ce povezave ni; odgovor Huba (accepted/rejected) pride kot cast.ack.
      */
     fun posljiUrl(cilj: String, url: String, naslov: String?, id: String = UUID.randomUUID().toString()): Boolean {
-        val ws = webSocket ?: return false
-        if (!povezan) return false
+        if (webSocket == null || !povezan) return false
         val sporocilo = JSONObject().apply {
             put("id", id)
             put("type", "cast.url")
@@ -751,15 +765,80 @@ class CastReceiverService : Service() {
                 put("start_position", 0.0)
             })
         }
-        return try { ws.send(sporocilo.toString()) } catch (_: Throwable) { false }
+        // Napravi, ki zascito zna, gre stran samo po preverjeni seji; potrditev pride kot cast.ack (kot prej od sredisca).
+        return zascita.poslji(sporocilo)
     }
 
     private fun handleIncomingMessage(ws: WebSocket, text: String) {
         try {
             val json = JSONObject(text)
+            // Jedro iz preverjenega kljuca vpise samo ZascitaLinka (za sporocilo iz preverjene seje): kar pride po
+            // omrezju s tem poljem, ga izgubi.
+            json.remove(ZascitaLinka.POLJE)
+            val type = json.optString("type")
+            if (type == "cast.devices") zascita.zapomniNaprave(json.optJSONArray("devices"))
+            else if (type.startsWith("data.") && zascita.prejmi(json)) return
+            obdelajSporocilo(ws, json)
+        } catch (e: Exception) {
+            Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.message}", e)
+        }
+    }
+
+    /** Odgovor na ukaz: napravi, ki zascito zna, samo po preverjeni seji (ZascitaLinka); starejsi kot prej. */
+    private fun posljiIzid(posiljatelj: String, refId: String, dejanje: String, izid: si.safeer.tv.link.Daljinec.Izid) {
+        if (posiljatelj.isBlank()) return
+        val poslano = try {
+            zascita.poslji(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, refId, dejanje, izid))
+        } catch (e: Throwable) {
+            Log.w(TAG, "Odgovora na ukaz ni bilo mogoce poslati: ${e.message}"); return
+        }
+        if (!poslano) Log.w(TAG, "Odgovora na ukaz ni bilo mogoce poslati.")
+    }
+
+    /**
+     * Ukaz je prisel brez zascite v imenu naprave, ki zascito zna: ne izvedemo ga. Zavrnitev gre NEZASCITENA tistemu, ki
+     * ga je poslal (oznaka sredisca): starejsi program iste naprave (isti kljuc, se brez zascite) tako dobi sporocilo
+     * »posodobi Safeer« namesto izteka casa. Vsebine ne nosi.
+     */
+    private fun zavrniNezascitenUkaz(json: JSONObject, posiljatelj: String, msgId: String) {
+        val dejanje = (json.optJSONObject("payload") ?: JSONObject()).optString("action", "")
+        try {
+            zascita.posljiNezasciteno(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje,
+                si.safeer.tv.link.Daljinec.Izid(false, "Ukaz ni prišel zaščiten. Posodobi Safeer na napravi, ki ga pošilja.", koda = "zascita")))
+        } catch (_: Throwable) { }
+    }
+
+    /**
+     * Obdela sporocilo sredisca ali notranje sporocilo iz preverjene seje. Slednje poda ZascitaLinka z `sender` in s
+     * poljem ZascitaLinka.POLJE (jedro iz preverjenega kljuca): po njem - ne po oznaki - se odloca o dostopu.
+     */
+    private fun obdelajSporocilo(ws: WebSocket, json: JSONObject) {
+        try {
             val msgId = json.optString("id", UUID.randomUUID().toString())
             val type = json.optString("type")
+            val zascitaJedro = json.optString(ZascitaLinka.POLJE, "")
+            if (type in E2e.ZASCITENI_TIPI && zascitaJedro.isEmpty()) {
+                // Naprava, ki zascito zna (ali ta naprava sama), teh sporocil ne posilja nezascitenih. Kar pride tako v
+                // njenem imenu, ni od nje - ali pa ga je na poti kdo razgalil.
+                val odKoga = json.optString("sender", "")
+                if (odKoga.isNotBlank() && Dostop.zahtevaZascito(this, odKoga)) {
+                    Log.i(TAG, "Zavrnjeno: $type brez zascite v imenu naprave, ki zascito zna.")
+                    if (type == "control.command") zavrniNezascitenUkaz(json, odKoga, msgId)
+                    return
+                }
+            }
+            // Na ukaz, ki je sel zasciten, velja samo odgovor iz preverjene seje iste naprave.
+            if (type == "control.result" && !zascita.veljaOdgovor(json)) {
+                Log.i(TAG, "Zavrnjeno: odgovor na zasciten ukaz ni prisel iz seje naprave, ki smo jo vprasali.")
+                return
+            }
 
+            if (type == "trust.update") {
+                // Krog zaupanja s sredisca: hranimo ga sami (kot Safeer OS v os/LinkOdjemalec), da ta program kljuce
+                // naprav pozna tudi, kadar tece sam. Brez kljuca naprave v krogu z njo ni zascite od naprave do naprave.
+                json.optJSONObject("payload")?.let { KrogNaprave.sprejmi(this, it.toString()) }
+                return
+            }
             if (type.startsWith("internet.") && internetGateway?.obdelaj(json) == true) return
             // Nova naprava se pridruzuje Linku: kodo pokaze tudi ta zaslon, ceprav sredisce ni tu.
             if (type.startsWith("pair.") && HubKrmilnik.sporociloPrijave(type, json.optJSONObject("payload")) { id ->
@@ -776,7 +855,7 @@ class CastReceiverService : Service() {
             }
 
             if (type == SafeerHandoff.TYPE) {
-                if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
+                if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
                 val p = SafeerHandoff.payload(json)
                 if (p != null) {
                     // Kot cast.url: predvajalnik v ospredju nadaljuje na polozaju, sicer se odpre brskalnik.
@@ -810,7 +889,7 @@ class CastReceiverService : Service() {
                 }
 
                 "cast.url" -> {
-                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
+                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
                     val payload = json.getJSONObject("payload")
                     val url = payload.getString("url")
                     val title = payload.optString("title", "")
@@ -829,7 +908,7 @@ class CastReceiverService : Service() {
                 }
 
                 "cast.control" -> {
-                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
+                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
                     val payload = json.getJSONObject("payload")
                     val action = payload.getString("action")
                     val position = if (payload.has("position")) payload.getDouble("position") else null
@@ -869,13 +948,9 @@ class CastReceiverService : Service() {
                     val znakGledalca = parametri.optString(DostopPravila.PARAM_ZNAK_GLEDALCA, "")
                     parametri.remove(DostopPravila.PARAM_ZNAK_GLEDALCA)
                     val dovoljeno = if (gledalec) Dostop.smeGledalec(this, dejanje, znakGledalca)
-                    else Dostop.smeDejanje(this, posiljatelj, dejanje)
+                    else Dostop.smeDejanje(this, posiljatelj, dejanje, zascitaJedro)
                     if (!dovoljeno) {
-                        if (posiljatelj.isNotBlank() && !gledalec) {
-                            try { ws.send(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje,
-                                si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje)).toString()) }
-                            catch (e: Throwable) { Log.w(TAG, "Zavrnitve ni bilo mogoce poslati: ${e.message}") }
-                        }
+                        if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje))
                         return
                     }
                     if (dejanje == si.safeer.tv.os.DomPreverjanjePravila.DEJANJE && BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) {
@@ -889,10 +964,7 @@ class CastReceiverService : Service() {
                                     SafeerLog.napaka("Sprejemnik", "avail.get", e)
                                     si.safeer.tv.link.Daljinec.Izid(false, "Napaka", koda = "napaka")
                                 }
-                                if (posiljatelj.isNotBlank()) {
-                                    try { ws.send(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje, izid).toString()) }
-                                    catch (e: Throwable) { Log.w(TAG, "Odgovora na ukaz ni bilo mogoce poslati: ${e.message}") }
-                                }
+                                posljiIzid(posiljatelj, msgId, dejanje, izid)
                             }
                         } catch (_: java.util.concurrent.RejectedExecutionException) {
                             // Prevec vprasanj hkrati: brez odgovora; odjemalec po izteku casa preveri sam.
@@ -908,13 +980,7 @@ class CastReceiverService : Service() {
                             if (krmilnik != null && krmilnikVOspredju) krmilnik.onCastUrlReceived(url, naslov, 0.0)
                             else odpriVBrskalniku(url, naslov, 0.0)
                         }
-                        if (posiljatelj.isNotBlank() && !gledalec) {
-                            try {
-                                ws.send(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, msgId, dejanje, izid).toString())
-                            } catch (e: Throwable) {
-                                Log.w(TAG, "Odgovora na ukaz ni bilo mogoce poslati: ${e.message}")
-                            }
-                        }
+                        if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, izid)
                     }
                 }
 
@@ -1094,9 +1160,9 @@ class CastReceiverService : Service() {
 
     /** Poslje poljubno sporocilo sredi scu (npr. control.command s strani daljinca). */
     fun posljiSporocilo(sporocilo: JSONObject): Boolean {
-        val ws = webSocket ?: return false
-        if (!povezan) return false
-        return try { ws.send(sporocilo.toString()) } catch (_: Throwable) { false }
+        if (webSocket == null || !povezan) return false
+        // Ukaz, stran ali »nadaljuj na napravi« gre napravi, ki zascito zna, samo po preverjeni seji (ZascitaLinka).
+        return zascita.poslji(sporocilo)
     }
 
     private fun sendAck(ws: WebSocket, refId: String, status: String, error: String? = null) {

@@ -46,3 +46,12 @@ java -cp "$OUT/varovalka.jar" si.safeer.tv.cast.HubVarovalkaTestKt
     -include-runtime -d "$OUT/dostop.jar"
 
 java -cp "$OUT/dostop.jar" si.safeer.tv.cast.DostopPravilaTestKt
+
+# Zascita ukazov od naprave do naprave (E2e): dogovor, sifriranje, ponarejanje, ponovitve; iste vrednosti kot na racunalniku.
+"$KOTLINC" -J-Xmx2g \
+    "$SRC/si/safeer/tv/cast/E2e.kt" \
+    "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$TEST_DIR/E2eTest.kt" \
+    -include-runtime -d "$OUT/e2e.jar"
+
+java -cp "$OUT/e2e.jar" si.safeer.tv.cast.E2eTestKt
