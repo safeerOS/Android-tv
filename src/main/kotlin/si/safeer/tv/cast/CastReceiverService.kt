@@ -771,7 +771,11 @@ class CastReceiverService : Service() {
 
     private fun handleIncomingMessage(ws: WebSocket, text: String) {
         try {
+            if (JsonLahki.pregloboko(text)) { Log.w(TAG, "Sporocilo zavrzeno: pregloboko gnezdeno ali ni strogi JSON."); return }
             val json = JSONObject(text)
+            // Oznaka sporocila je kratka; z zelo dolgo bi odgovor ali potrditev, ki jo ponovi, polnila pomnilnik.
+            if (ZascitaLinka.neveljavnaOznaka(json)) { Log.w(TAG, "Sporocilo z neveljavno oznako zavrzeno."); return }
+            zascita.pospravi()      // kar predolgo caka na dogovor, klicatelj izve ob vsakem prejetem sporocilu
             // Jedro iz preverjenega kljuca vpise samo ZascitaLinka (za sporocilo iz preverjene seje): kar pride po
             // omrezju s tem poljem, ga izgubi.
             json.remove(ZascitaLinka.POLJE)
@@ -779,8 +783,9 @@ class CastReceiverService : Service() {
             if (type == "cast.devices") zascita.zapomniNaprave(json.optJSONArray("devices"))
             else if (type.startsWith("data.") && zascita.prejmi(json)) return
             obdelajSporocilo(ws, json)
-        } catch (e: Exception) {
-            Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.message}", e)
+        } catch (e: Throwable) {
+            // Tudi Error (npr. StackOverflowError pri razclenjevanju): eno sporocilo ne sme podreti bralne niti.
+            Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 

@@ -65,7 +65,10 @@ class ZascitaLinka(
      * pomembno, ker seznam naprav pise sredisce: s crtanjem zmoznosti nas ne sme pripraviti do nezascitenega ukaza.
      */
     fun znaZascito(cilj: String): Boolean =
-        E2e.ZMOZNOST in (zmoznosti[cilj] ?: emptySet()) || Dostop.zahtevaZascito(ctx, cilj)
+        E2e.ZMOZNOST in (zmoznosti[cilj] ?: emptySet()) || Dostop.zahtevaZascito(ctx, cilj) ||
+            // Ziva preverjena seja s to oznako: naprava zascito ocitno zna, tudi ce jo sredisce v seznamu zamolci in
+            // zapis naprav z dokazanim kljucem zanjo ne odgovori (drugi neodvisni pregled, 7. 10. 2026).
+            e2e.imaSejo(cilj)
 
     /**
      * Poslje sporocilo srediscu. Zasciten tip gre napravi, ki zascito zna, samo po preverjeni seji; false pomeni, da
@@ -82,13 +85,25 @@ class ZascitaLinka(
             val id = sporocilo.optString("id", "")
             val ukaz = id.isNotEmpty() && sporocilo.optString("type", "") == "control.command"
             if (ukaz) zapomniVprasanje(id, cilj)
-            val poslano = try { e2e.poslji(cilj, notranje.toString()) } catch (e: Throwable) {
+            val poslano = try { e2e.poslji(cilj, notranje.toString(), opisSporocila(sporocilo)) } catch (e: Throwable) {
                 Log.w(TAG, "Zascitenega sporocila ni bilo mogoce poslati: ${e.javaClass.simpleName}"); false
             }
             if (!poslano && ukaz) vprasanja.remove(id)
             return poslano
         }
         return posljiSurovo(sporocilo.toString())
+    }
+
+    /**
+     * Kar si E2e zapomni o poslanem sporocilu, da ob sprejemu ali zavrnitvi sestavimo potrditev ([potrditev]): samo tip
+     * in oznaka, in samo kratka. Celega sporocila E2e ne hrani (odgovor z velikim seznamom ali dolgo ponovljeno oznako
+     * bi sicer ostal v pomnilniku).
+     */
+    private fun opisSporocila(sporocilo: JSONObject): String {
+        val opis = JSONObject()
+        for (polje in arrayOf("id", "type"))
+            (sporocilo.opt(polje) as? String)?.takeIf { it.isNotEmpty() && it.length <= DostopPravila.NAJVEC_OZNAKE_SPOROCILA }?.let { opis.put(polje, it) }
+        return opis.toString()
     }
 
     private fun zapomniVprasanje(id: String, cilj: String) {
@@ -148,6 +163,14 @@ class ZascitaLinka(
     }
 
     /**
+     * Ob VSAKEM prejetem sporocilu sredisca: kar predolgo caka na dogovor, klicatelj izve (potrditev »rejected«) tudi,
+     * kadar program nicesar vec ne poslje - cistopis cakajocega sporocila sicer ostane v pomnilniku. Nikoli ne vrze.
+     */
+    fun pospravi() {
+        try { e2e.pospravi() } catch (_: Throwable) { }
+    }
+
+    /**
      * Nov seznam naprav sredisca: zapomnimo si zmoznosti in imena ter z napravami, ki zascito prijavijo, a z njimi (se
      * ali vec) nimamo seje, zacnemo dogovor. Program, ki se je znova zagnal, starih sej nima - z dogovorom ob prvem
      * seznamu naprav jih obnovi, se preden mu kdo poslje ukaz po seji, ki je ne pozna vec (ponovnega posiljanja po »seje
@@ -155,17 +178,20 @@ class ZascitaLinka(
      * kroga. Najvec en poskus na napravo na minuto (naprava brez nasega kljuca v krogu zavrne takoj).
      */
     fun zapomniNaprave(naprave: JSONArray?) {
-        val z = HashMap<String, Set<String>>()
+        // Po vrsti iz seznama (LinkedHashMap). Vnos z oznako, ki ne more biti oznaka naprave (krmilni znaki, predolga),
+        // se prezre - zanjo zascite ni; seznam in zmoznosti imajo mejo.
+        val z = LinkedHashMap<String, Set<String>>()
         val i = HashMap<String, String>()
         if (naprave != null) for (k in 0 until naprave.length()) {
+            if (z.size >= DostopPravila.NAJVEC_NAPRAV_V_SEZNAMU) break
             val d = naprave.optJSONObject(k) ?: continue
-            val id = d.optString("id", "")
-            if (id.isEmpty()) continue
+            val id = d.opt("id") as? String ?: continue
+            if (!E2e.veljavnaOznaka(id)) continue
             val polje = d.optJSONArray("capabilities")
             val nabor = HashSet<String>()
-            if (polje != null) for (j in 0 until polje.length()) (polje.opt(j) as? String)?.let { nabor.add(it) }
+            if (polje != null) for (j in 0 until minOf(polje.length(), 64)) (polje.opt(j) as? String)?.takeIf { it.length <= 64 }?.let { nabor.add(it) }
             z[id] = nabor
-            d.optString("name", "").takeIf { it.isNotBlank() }?.let { i[id] = it }
+            (d.opt("name") as? String)?.takeIf { it.isNotBlank() }?.let { i[id] = it.take(120) }
         }
         zmoznosti = z
         imena = i
@@ -179,14 +205,20 @@ class ZascitaLinka(
         // Zapis o zadnjem poskusu zavrzemo po casu, ne takrat, ko naprava izgine s seznama: seznam pise sredisce in z
         // izmenicnim skrivanjem naprave ne sme doseci, da se dogovor (podpis s kljucem naprave) zacenja znova in znova.
         dokazi.entries.removeAll { zdaj - it.value > 10 * DOKAZ_NAJVEC_NA_MS }
+        val kandidati = ArrayList<String>()
         for ((id, nabor) in znane) {
             if (id == moj || E2e.ZMOZNOST !in nabor) continue
+            // Seja je: zapis, da naprava zascito zna, se ob tem po potrebi obnovi (ze vpisano se samo preveri).
+            val imaSejo = try { e2e.znovaJaviSejo(id) } catch (_: Throwable) { true }
+            // Naprava, ki je ni v nasem krogu (ali z neveljavno oznako): dogovor ne more uspeti. Taka ne porabi ne
+            // dogovorov tega seznama ne zapisa o poskusih - sicer bi sredisce z izmisljenimi napravami prave odrinilo
+            // od dokaza kljuca (tretji pregled, 7. 10. 2026).
+            if (!imaSejo && e2e.poznaKljuc(id)) kandidati.add(id)
+        }
+        // Koliko dogovorov sme sproziti en seznam in ena naprava: DostopPravila.izberiZaDokaz (seznam pise sredisce).
+        for (id in DostopPravila.izberiZaDokaz(kandidati, dokazi, zdaj, DOKAZ_NAJVEC_NA_MS)) {
+            dokazi[id] = zdaj
             try {
-                // Seja je: zapis, da naprava zascito zna, se ob tem po potrebi obnovi (ze vpisano se samo preveri).
-                if (e2e.znovaJaviSejo(id)) continue
-                val zadnjic = dokazi[id]
-                if (zadnjic != null && zdaj - zadnjic < DOKAZ_NAJVEC_NA_MS) continue
-                dokazi[id] = zdaj
                 e2e.dogovoriSe(id)
             } catch (e: Throwable) {
                 Log.w(TAG, "Dogovora za dokaz kljuca ni bilo mogoce zaceti: ${e.javaClass.simpleName}")
@@ -200,6 +232,10 @@ class ZascitaLinka(
         if (json.optString("type", "") !in E2e.ZASCITENI_TIPI) {
             // Zasciteno gre samo to, kar je dogovorjeno; prenosa (data.*) ali cesa neznanega v ovojnici ne sprejmemo.
             Log.i(TAG, "Zasciteno sporocilo nedogovorjenega tipa zavrzeno.")
+            return
+        }
+        if (neveljavnaOznaka(json)) {
+            Log.i(TAG, "Zasciteno sporocilo z neveljavno oznako zavrzeno.")
             return
         }
         json.remove("target")
@@ -216,8 +252,8 @@ class ZascitaLinka(
      * dobi enako potrditev kot pri nezascitenem sporocilu (`cast.ack`, `control.ack`), da ne caka na iztek casa.
      * Odgovorov in potrditev sredisce ne potrjuje niti po nezasciteni poti.
      */
-    private fun potrditev(notranjeJson: String, stanje: String, napaka: String, koda: String) {
-        val json = try { JSONObject(notranjeJson) } catch (_: Throwable) { return }
+    private fun potrditev(opis: String, stanje: String, napaka: String, koda: String) {
+        val json = try { JSONObject(opis) } catch (_: Throwable) { return }      // opis iz opisSporocila
         val tip = json.optString("type", "")
         val id = json.optString("id", "")
         if (id.isEmpty() || !tip.contains('.') || tip.endsWith(".result") || tip.endsWith(".ack")) return
@@ -247,6 +283,13 @@ class ZascitaLinka(
          * ga je treba PRED obdelavo zbrisati (CastReceiverService.handleIncomingMessage, LinkOdjemalec.obdelaj).
          */
         const val POLJE = "_zascita"
+
+        /**
+         * Ali ima sporocilo oznako (`id`, `ref_id`), ki je ne sprejmemo (pravilo: [DostopPravila.predolgaOznaka]). JSON
+         * null in manjkajoce polje sta »brez oznake«.
+         */
+        fun neveljavnaOznaka(json: JSONObject): Boolean = DostopPravila.predolgaOznaka(
+            if (json.isNull("id")) null else json.opt("id"), if (json.isNull("ref_id")) null else json.opt("ref_id"))
 
         /** Dogovor samo za dokaz kljuca: najvec en poskus na napravo na minuto. */
         const val DOKAZ_NAJVEC_NA_MS = 60_000L

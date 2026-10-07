@@ -487,7 +487,10 @@ class LinkOdjemalec(private val context: Context) {
     }
 
     private fun obdelaj(besedilo: String) {
+        if (si.safeer.tv.cast.JsonLahki.pregloboko(besedilo)) return     // org.json gnezdenja ne omejuje (poraba sklada)
         val json = try { JSONObject(besedilo) } catch (_: Throwable) { return }
+        if (si.safeer.tv.cast.ZascitaLinka.neveljavnaOznaka(json)) return      // oznaka sporocila: kratek niz, stevilo ali nic
+        zascita.pospravi()      // kar predolgo caka na dogovor, klicatelj izve ob vsakem prejetem sporocilu
         // Jedro iz preverjenega kljuca vpise samo ZascitaLinka: kar pride po omrezju s tem poljem, ga izgubi.
         json.remove(si.safeer.tv.cast.ZascitaLinka.POLJE)
         val tip = json.optString("type")

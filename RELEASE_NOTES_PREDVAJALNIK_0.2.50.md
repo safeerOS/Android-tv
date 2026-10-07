@@ -1,3 +1,5 @@
+> **Ni objavljeno.** Predvajalnik 0.2.50 je bil 7. 10. 2026 označen, a zadržan: drugi neodvisni pregled pred izdajo je v kodi zaščite Safeer Linka našel še napake. Popravljena izdaja je 0.2.51 – glej `RELEASE_NOTES_PREDVAJALNIK_0.2.51.md`. Besedilo spodaj opisuje kodo, kakršna je bila ob oznaki `predvajalnik-v0.2.50`. *Not published: tagged on 7 October 2026 but held back after a second independent pre-release review; the fixed release is 0.2.51.*
+
 # Safeer Predvajalnik 0.2.50
 
 - **Safeer Link: ukazi med napravami so podpisani s ključem naprave in šifrirani od naprave do naprave.** Ko imata obe napravi to izdajo (Predvajalnik 0.2.50 ali Safeer OS 0.5.64 na napravi z Androidom, Safeer Control 2.1.62 na računalniku), o dostopu odloča ključ naprave, ne oznaka, ki jo v sporočilo vpiše središče; središče ukazov in odgovorov nanje ne vidi. Ko naprava ključ enkrat dokaže, ta naprava v njenem imenu ne sprejme več nezaščitenega ukaza. Starejše naprave delajo kot prej, dokler jih ne posodobiš – in so zaščitene le toliko kot prej.

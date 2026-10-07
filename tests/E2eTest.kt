@@ -49,9 +49,12 @@ private class Omrezje(var takoj: Boolean = true) {
     val videno = ArrayList<Sporocilo>()
     val cakajo = ArrayList<Sporocilo>()
     var spremeni: ((Sporocilo) -> Sporocilo?)? = null
+    /** Posiljanje ne uspe (povezave s srediscem ni vec): funkcija vrne true za sporocilo, ki ne gre. */
+    var neGre: ((Sporocilo) -> Boolean)? = null
 
     fun poslji(od: String, tip: String, cilj: String, oznaka: String, tovor: String): Boolean {
         var s: Sporocilo? = Sporocilo(tip, od, cilj, oznaka, tovor)
+        if (neGre?.invoke(s!!) == true) return false
         videno.add(s!!)
         spremeni?.let { s = it(s!!) }
         val koncno = s ?: return true
@@ -69,8 +72,9 @@ private class Omrezje(var takoj: Boolean = true) {
     fun vse(): String = videno.joinToString("\n") { it.tip + " " + it.tovor }
 }
 
-private class Naprava(val omrezje: Omrezje, pripona: String = "") {
-    private val par = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
+private class Naprava(val omrezje: Omrezje, pripona: String = "", meje: E2e.Meje = E2e.Meje(), parNaprave: java.security.KeyPair? = null) {
+    /** [parNaprave]: kljuc druge naprave v preizkusu - tako nastane drug PROGRAM iste naprave (isti kljuc, druga pripona). */
+    val par: java.security.KeyPair = parNaprave ?: KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
     val kljuc: String = Base64.getEncoder().encodeToString(par.public.encoded)
     val jedro: String = idIzKljuca(kljuc)
     var id: String = jedro + pripona
@@ -80,12 +84,16 @@ private class Naprava(val omrezje: Omrezje, pripona: String = "") {
     val zavrnjena = ArrayList<Pair<String, String>>()
     val sprejeta = ArrayList<String>()
     var zdaj = 1_000_000L
+    /** Kolikokrat je naprava kaj podpisala s kljucem naprave (dogovor ne sme podpisati nicesar za neveljavno ponudbo). */
+    var podpisov = 0
+    fun podpisi(b: ByteArray): String =
+        Base64.getEncoder().encodeToString(Signature.getInstance("SHA256withECDSA").run { initSign(par.private); update(b); sign() })
     /** Obdelava prejetega sporocila vrze izjemo (napaka v programu, ki sporocilo obdela). */
     var pade = false
     val e2e = E2e(
         mojId = { id },
         poslji = { tip, cilj, oznaka, tovor -> omrezje.poslji(id, tip, cilj, oznaka, tovor) },
-        podpisi = { b -> Base64.getEncoder().encodeToString(Signature.getInstance("SHA256withECDSA").run { initSign(par.private); update(b); sign() }) },
+        podpisi = { b -> podpisov++; podpisi(b) },
         kljucZa = { krog[it] },
         preveri = ::preveriPodpis,
         idIzKljuca = ::idIzKljuca,
@@ -94,6 +102,7 @@ private class Naprava(val omrezje: Omrezje, pripona: String = "") {
         obZavrnitvi = { s, _, koda -> zavrnjena.add(s to koda) },
         obSprejemu = { sprejeta.add(it) },
         ura = { zdaj },
+        meje = meje,
     )
 
     init { omrezje.naprave[id] = this }
@@ -106,7 +115,7 @@ private class Naprava(val omrezje: Omrezje, pripona: String = "") {
         val nonce = Base64.getEncoder().encodeToString(ByteArray(16) { 'n'.code.toByte() })
         val sig = Base64.getEncoder().encodeToString(Signature.getInstance("SHA256withECDSA").run {
             initSign(par.private); update(E2e.podatkiPonudbe(sessionId, id, za.id, nonce, epk)); sign() })
-        return """{"session_id":"$sessionId","purpose":"link","v":2,"from":"$id","to":"${za.id}","nonce":"$nonce","epk":"$epk","sig":"$sig"}"""
+        return """{"session_id":${E2e.niz(sessionId)},"purpose":"link","v":2,"from":"$id","to":"${za.id}","nonce":"$nonce","epk":"$epk","sig":"$sig"}"""
     }
 }
 
@@ -367,8 +376,12 @@ fun main() {
         val ponudba = o.cakajo.removeAt(0)
         val nase = a.e2e.prejmi("data.ack", "", potrditev(ponudba.oznaka))
         preveri("zavrnjena ponudba zavrne cakajoce ukaze", nase && a.zavrnjena == listOf(UKAZ to "ni_naprave", drugi to "ni_naprave"))
+        // Po zavrnjeni ponudbi nekaj sekund ne podpisemo nove (peti pregled: tipka daljinca ob napravi, ki je ni, je
+        // porabila mejo podpisov); naslednji ukaz po premoru zacne nov dogovor.
+        val vPremoru = !a.e2e.poslji(b.id, UKAZ) && o.cakajo.isEmpty()
+        a.zdaj += E2e.NEUSPEL_DOGOVOR_CAKA_MS + 100
         a.e2e.poslji(b.id, UKAZ)
-        preveri("naslednji ukaz zacne nov dogovor takoj", o.cakajo.map { it.tip } == listOf("data.offer"))
+        preveri("po zavrnjeni ponudbi kratek premor, potem nov dogovor", vPremoru && o.cakajo.map { it.tip } == listOf("data.offer"))
         o.dostaviVse()
         a.zavrnjena.clear()
         a.e2e.poslji(b.id, drugi)
@@ -396,7 +409,7 @@ fun main() {
             a4.e2e.dogovoriSe(b4.id) && a4.e2e.dogovoriSe(b4.id) && a4.e2e.poslji(b4.id, UKAZ) && o4.cakajo.map { it.tip } == listOf("data.offer"))
         o4.dostaviVse()
         preveri("po dogovoru ukaz pride", b4.prejeta.map { it.first } == listOf(UKAZ))
-        preveri("»nadaljuj na napravi« je zasciten tip", "handoff.request" in E2e.ZASCITENI_TIPI && E2e.ZASCITENI_TIPI.size == 5)
+        preveri("»nadaljuj na napravi« je zasciten tip", "handoff.request" in E2e.ZASCITENI_TIPI)
 
         // ---- sprejem sredisca in omejen spomin ----
         val (o2, a2, b2) = par(Omrezje(takoj = false))
@@ -414,10 +427,10 @@ fun main() {
         o2.dostaviVse()
         a2.sprejeta.clear()
         val dolgo = """{"id":"u3","type":"control.result","payload":{"data":"${"x".repeat(2 * E2e.DOLZINA_DELA + 10)}"}}"""
-        a2.e2e.poslji(b2.id, dolgo)
+        a2.e2e.poslji(b2.id, dolgo, "opis-u3")              // klicatelj dobi nazaj OPIS, ne (dolgega) sporocila
         val kosi = o2.cakajo.toList()
         for (delDolgega in kosi) a2.e2e.prejmi("data.ack", "", potrditev(delDolgega.oznaka, stanje = "accepted", koda = ""))
-        preveri("dolgo sporocilo (3 deli) javi sprejem enkrat", kosi.size == 3 && a2.sprejeta == listOf(dolgo))
+        preveri("dolgo sporocilo (3 deli) javi sprejem enkrat", kosi.size == 3 && a2.sprejeta == listOf("opis-u3"))
         o2.dostaviVse()
         a2.sprejeta.clear()
         a2.e2e.poslji(b2.id, drugi)
@@ -575,6 +588,608 @@ fun main() {
         preveri("naprava, ki nas nima v krogu, to pove takoj",
             poslano && b.prejeta.isEmpty() && tuja.zavrnjena == listOf(UKAZ to "ni_kljuca") &&
                 o.videno.map { it.tip } == listOf("data.offer", "data.error"))
+    }
+
+    // ---- drugi neodvisni pregled (7. 10. 2026, po popravkih prvega): isti primeri kot DrugiPregled na racunalniku ----
+    fun ukazZ(id: String) = """{"id":"$id","type":"control.command","payload":{}}"""
+    fun vrednost(tovor: String, ime: String) = Regex("\"$ime\":\"([^\"]*)\"").find(tovor)!!.groupValues[1]
+    fun zamenjano(tovor: String, ime: String, v: String) = tovor.replace(Regex("\"$ime\":\"[^\"]*\"")) { "\"$ime\":${E2e.niz(v)}" }
+    preveri("veljavna oznaka naprave: 1-128 vidnih znakov ASCII",
+        listOf("n-0123456789abcdef", "n-0123456789abcdef-os", "stara-naprava_1.2:3", "a".repeat(128)).all { E2e.veljavnaOznaka(it) } &&
+            listOf("", "a b", "a\nb", "a\rb", "a\tb", "a\u0000b", "a\u007fb", "a\u0085b", "a b", "č", "\ud800", "a".repeat(129))
+                .none { E2e.veljavnaOznaka(it) })
+    preveri("base64 strogo: abeceda in polnilo (kot na racunalniku)",
+        listOf("AAAA", "AA==", "AAA=").all { E2e.veljavenB64(it, 64) } &&
+            listOf("", "AAA", "AA=A", "A===", "====", "AAAA\n", " AAA", "AA-_", "AAAAA").none { E2e.veljavenB64(it, 64) } &&
+            !E2e.veljavenB64("AAAAAAAA", 4) && runCatching { E2e.izB64("AAA", "x") }.isFailure && runCatching { E2e.izB64("AAAA", "x") }.isSuccess)
+    preveri("oznaka seje: crke, stevke, vezaj in podcrtaj, najvec 64",
+        listOf("AAECAwQFBgcICQoLDA0ODw", "S-1", "a_b").all { E2e.veljavnaOznakaSeje(it) } &&
+            listOf("", "a b", "a\nb", "a+b", "a/b", "a=", "a".repeat(65)).none { E2e.veljavnaOznakaSeje(it) })
+    run {
+        // N1: sredisce M v seznam naprav vpise vnos X = »<oznaka M>\n<oznaka B>« (kljuc po jedru: M). Bajti ponudbe, ki bi jih
+        // C podpisal za X, so isti kot bajti ponudbe »od <C>\n<M> za B«. Pred popravkom je napad uspel (N1Napad.kt).
+        val o = Omrezje(takoj = false)
+        val c = Naprava(o, "-control"); val b = Naprava(o, "-os"); val m = Naprava(o, "-tv")
+        val x = m.id + "\n" + b.id
+        val f = c.id + "\n" + m.id
+        c.krog[x] = m.kljuc            // iskanje kljuca po jedru (prvih 18 znakov) je v izdelku dalo isto
+        b.krog[f] = c.kljuc
+        preveri("oznaka s prelomom vrstice: podpisani bajti bi bili dvoumni",
+            E2e.podatkiPonudbe("s", c.id, x, "n", "e").contentEquals(E2e.podatkiPonudbe("s", f, b.id, "n", "e")))
+        preveri("oznaka s prelomom vrstice: dogovor se ne zacne in sporocilo ne gre",
+            !c.e2e.dogovoriSe(x) && !c.e2e.poslji(x, UKAZ) && o.cakajo.isEmpty() && c.podpisov == 0)
+        val epk = E2e.novPar().second
+        val nonce = Base64.getEncoder().encodeToString(ByteArray(16) { 1 })
+        val sidX = "A".repeat(22)
+        val ponudba = """{"session_id":"$sidX","purpose":"link","v":2,"from":${E2e.niz(f)},"to":"${b.id}","nonce":"$nonce","epk":"$epk",""" +
+            """"sig":"${c.podpisi(E2e.podatkiPonudbe(sidX, c.id, x, nonce, epk))}"}"""
+        b.e2e.prejmi("data.offer", f, Polja(JsonLahki.objekt(ponudba)!!))
+        preveri("oznaka s prelomom vrstice: tudi podpisane ponudbe naprava ne sprejme",
+            b.seje.isEmpty() && o.cakajo.isEmpty() && !b.e2e.imaSejo(f) && b.podpisov == 0)
+    }
+    run {
+        val (o, a, b) = par(Omrezje(takoj = false))
+        // Veljavno PODPISANA ponudba z oznako seje, ki ne sme v podpisane bajte: zavrnjena, preden ta naprava kaj podpise.
+        for (slabSid in listOf("abc\ndef", "abc def", "abc+def", "a".repeat(65)))
+            b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(a.ponudba(b, slabSid))!!))
+        preveri("podpisana ponudba z oznako seje napacne oblike je zavrnjena pred podpisom",
+            b.seje.isEmpty() && o.cakajo.isEmpty() && b.podpisov == 0)
+        a.e2e.dogovoriSe(b.id)
+        val p = o.cakajo.removeAt(0)
+        var cisto = true
+        for ((ime, v) in listOf("session_id" to vrednost(p.tovor, "session_id") + "\n", "session_id" to vrednost(p.tovor, "session_id") + "+",
+            "nonce" to vrednost(p.tovor, "nonce").dropLast(2) + "\n=", "nonce" to vrednost(p.tovor, "nonce").dropLast(1),
+            "epk" to vrednost(p.tovor, "epk") + "\n", "epk" to " " + vrednost(p.tovor, "epk"), "sig" to vrednost(p.tovor, "sig") + "\n")) {
+            b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(zamenjano(p.tovor, ime, v))!!))
+            if (b.seje.isNotEmpty() || o.cakajo.isNotEmpty()) cisto = false
+        }
+        for (slabOd in listOf(a.id + "\t", a.id + " ", a.id + "č")) {
+            b.krog[slabOd] = a.kljuc      // tudi ce bi krog tako oznako poznal
+            b.e2e.prejmi("data.offer", slabOd, Polja(JsonLahki.objekt(zamenjano(p.tovor, "from", slabOd))!!))
+            if (b.seje.isNotEmpty() || o.cakajo.isNotEmpty()) cisto = false
+        }
+        o.dostavi(p)
+        preveri("polja ponudbe sprejmejo samo svojo abecedo; nespremenjena ponudba se sprejme", cisto && b.seje == listOf(a.jedro))
+        val odg = o.cakajo.removeAt(0)
+        var cistoOdg = true
+        for ((ime, v) in listOf("nonce" to vrednost(odg.tovor, "nonce") + "\n", "epk" to vrednost(odg.tovor, "epk") + " ", "sig" to "\n" + vrednost(odg.tovor, "sig"))) {
+            a.e2e.prejmi("data.answer", b.id, Polja(JsonLahki.objekt(zamenjano(odg.tovor, ime, v))!!))
+            if (a.seje.isNotEmpty()) cistoOdg = false
+        }
+        o.dostavi(odg)
+        preveri("polja odgovora sprejmejo samo svojo abecedo; nespremenjen odgovor se sprejme", cistoOdg && a.seje == listOf(b.jedro))
+    }
+    run {
+        // N4: c odpira sejo za sejo z b in vsako potrdi s sporocilom - izriva lahko samo SVOJE seje, ne seje a-b.
+        val o = Omrezje()
+        val a = Naprava(o, "-control"); val b = Naprava(o, "-os", E2e.Meje(sej = 6, sejNaNapravo = 3)); val c = Naprava(o, "-tv")
+        a.pozna(b); b.pozna(a, c); c.pozna(b)
+        a.e2e.poslji(b.id, UKAZ)
+        repeat(10) { i -> c.e2e.pozabi(b.id); c.e2e.poslji(b.id, ukazZ("c$i")) }
+        val poC = b.e2e.imaSejo(a.id) to b.e2e.stSej(c.jedro)
+        a.e2e.poslji(b.id, ukazZ("u2"))
+        preveri("ena naprava ne izrine sej drugih (meja sej na napravo)",
+            poC == (true to 3) && b.prejeta.filter { it.second == a.id }.map { it.first } == listOf(UKAZ, ukazZ("u2")) &&
+                o.videno.none { it.tip == "data.error" })
+    }
+    run {
+        val o = Omrezje()
+        val a = Naprava(o, "-control"); val b = Naprava(o, "-os", E2e.Meje(sejNaNapravo = 3))
+        a.pozna(b); b.pozna(a)
+        a.e2e.poslji(b.id, UKAZ)
+        val potrjena = a.e2e.oznakaSejeZa(b.id)
+        repeat(8) { i -> b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(a.ponudba(b, "ponovljena-$i"))!!)) }
+        preveri("ponovljene ponudbe iste naprave ne izrinejo njene potrjene seje",
+            potrjena.isNotEmpty() && b.e2e.imaSejoZOznako(potrjena) && b.e2e.stSej() == 3)
+    }
+    run {
+        val o = Omrezje(takoj = false)
+        val en = 2L * E2e.DOLZINA_DELA
+        val a = Naprava(o, "-control"); val c = Naprava(o, "-tv")
+        val b = Naprava(o, "-os", E2e.Meje(nedokoncanih = 16, rezerviranoNaNapravo = 3 * en, rezervirano = 4 * en))
+        a.pozna(b); c.pozna(b); b.pozna(a, c)
+        val dolgo = """{"type":"control.result","payload":{"data":"${"x".repeat(E2e.DOLZINA_DELA + 10)}"}}"""      // dva dela
+        fun prviDeli(od: Naprava, koliko: Int) {
+            repeat(koliko) { od.e2e.poslji(b.id, dolgo) }
+            while (o.cakajo.isNotEmpty()) {
+                val s = o.cakajo.removeAt(0)
+                if (!(s.tip == "data.chunk" && "\"n\":2," in s.tovor && "\"i\":1," in s.tovor)) o.dostavi(s)     // drugi deli ne pridejo
+            }
+        }
+        prviDeli(c, 6)                          // c: 6 nedokoncanih, a sme drzati samo 3
+        val poC = b.e2e.rezervirano(c.jedro)
+        prviDeli(a, 2)                          // a: 2 -> skupaj bi bilo 5, meja je 4: izpade najstarejse (od c)
+        preveri("pomnilnik za nedokoncana sporocila je omejen na napravo in skupaj",
+            poC == 3 * en && b.e2e.rezervirano(a.jedro) == 2 * en && b.e2e.rezervirano() == 4 * en)
+    }
+    run {
+        // N3: dogovor brez sporocila (dokaz kljuca) ne izrine dogovora, na katerega caka ukaz.
+        val o = Omrezje(takoj = false)
+        val a = Naprava(o, "-control", E2e.Meje(dogovorov = 2))
+        val d = List(6) { Naprava(o, "-n$it") }
+        a.pozna(*d.toTypedArray())
+        val k1 = a.e2e.poslji(d[0].id, ukazZ("u0")) && a.e2e.dogovoriSe(d[1].id) && a.e2e.dogovoriSe(d[2].id) &&
+            a.e2e.cakajociDogovori().toSet() == setOf(d[0].id, d[2].id)
+        val k2 = a.e2e.poslji(d[3].id, ukazZ("u3")) && a.e2e.cakajociDogovori().toSet() == setOf(d[0].id, d[3].id)
+        val k3 = !a.e2e.dogovoriSe(d[4].id) && a.zavrnjena.isEmpty()
+        val k4 = a.e2e.poslji(d[5].id, ukazZ("u5")) && a.zavrnjena == listOf(ukazZ("u0") to "cas") &&
+            a.e2e.cakajociDogovori().toSet() == setOf(d[3].id, d[5].id)
+        preveri("dokaz kljuca ne izrine dogovora, na katerega caka ukaz (1: izrine dokaz kljuca)", k1)
+        preveri("dokaz kljuca ne izrine dogovora, na katerega caka ukaz (2: ukaz izrine dokaz kljuca)", k2)
+        preveri("dokaz kljuca ne izrine dogovora, na katerega caka ukaz (3: dokaz kljuca ne izrine ukaza)", k3)
+        preveri("ukaz izrine najstarejsi dogovor in klicatelj izrinjenega ukaza to izve", k4)
+    }
+    run {
+        val (o, a, b) = par(Omrezje(takoj = false))
+        a.e2e.poslji(b.id, ukazZ("star"))
+        a.zdaj += E2e.DOGOVOR_CAKA_MS - 500
+        a.e2e.poslji(b.id, ukazZ("svez"))
+        o.cakajo.clear()                        // sredisce prve ponudbe ni dostavilo
+        a.zdaj += 1000
+        val znova = a.e2e.dogovoriSe(b.id)      // (seznam naprav) dogovor se zacne znova
+        val zavrnjenaPrej = a.zavrnjena.toList()
+        o.dostaviVse()
+        preveri("svez ukaz prezivi nov dogovor z isto napravo, star se zavrne",
+            znova && zavrnjenaPrej == listOf(ukazZ("star") to "cas") && b.prejeta.map { it.first } == listOf(ukazZ("svez")))
+    }
+    run {
+        // Na dogovor brez odgovora caka polna vrsta SVEZIH sporocil; nov dogovor z novim sporocilom jih prevzame. Kar ne
+        // gre vec v vrsto (najstarejse), klicatelj izve - ne izgine tiho.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        a.e2e.dogovoriSe(b.id)
+        o.cakajo.clear()
+        a.zdaj += E2e.DOGOVOR_CAKA_MS - 200
+        val vsa = (0 until E2e.NAJVEC_V_VRSTI).map { ukazZ("s$it") }
+        val sprejeta = vsa.all { a.e2e.poslji(b.id, it) }
+        val prevec = a.e2e.poslji(b.id, ukazZ("prevec"))
+        a.zdaj += 400
+        val novo = a.e2e.poslji(b.id, ukazZ("novo"))
+        val zavrnjenaPrej = a.zavrnjena.toList()
+        o.dostaviVse()
+        preveri("polna vrsta ob novem dogovoru: najstarejse sporocilo klicatelj izve, druga pridejo po vrsti",
+            sprejeta && !prevec && novo && zavrnjenaPrej == listOf(ukazZ("s0") to "cas") &&
+                b.prejeta.map { it.first } == vsa.drop(1) + ukazZ("novo"))
+    }
+    run {
+        // Tretji pregled (7. 10. 2026): naprava ima dva programa z istim kljucem - »control« (seja od zacetka, ziva, redko
+        // rabljena) in »os«, ki se pogosto znova zazene (vsakic nova, potrjena seja). Ko je meja sej na napravo dosezena,
+        // izpadejo stare seje programa »os«, ki jih je nadomestila novejsa - ne ziva seja programa »control«.
+        val o = Omrezje()
+        val b = Naprava(o, "-tv", E2e.Meje(sejNaNapravo = 4))
+        val control = Naprava(o, "-control")
+        val os = Naprava(o, "-os", parNaprave = control.par)
+        b.pozna(control, os); control.pozna(b); os.pozna(b)
+        control.e2e.poslji(b.id, ukazZ("c1"))
+        repeat(8) { i -> b.zdaj += 60_000; os.e2e.pozabiVse(); os.e2e.poslji(b.id, ukazZ("o$i")) }
+        val sej = b.e2e.stSej(control.jedro)
+        control.e2e.poslji(b.id, ukazZ("c2"))
+        preveri("meja na napravo najprej izrine nadomescene seje, ne zive seje drugega programa iste naprave",
+            os.jedro == control.jedro && sej == 4 && b.prejeta.filter { it.second == control.id }.map { it.first } == listOf(ukazZ("c1"), ukazZ("c2")) &&
+                b.prejeta.count { it.second == os.id } == 8 && o.videno.none { it.tip == "data.error" })
+    }
+    run {
+        // Sporocilo caka na dogovor; ko dogovor uspe, ga ni mogoce poslati (povezave s srediscem ni vec): klicatelj mora
+        // izvedeti - prej je cakal na iztek casa. (Predolgo sporocilo poslji zavrne ze prej - cetrti pregled spodaj.)
+        val (o, a, b) = par(Omrezje(takoj = false))
+        val vVrsto = a.e2e.poslji(b.id, ukazZ("prvi")) && a.e2e.poslji(b.id, ukazZ("drugi"))
+        var padlo = false
+        o.neGre = { s -> if (s.tip == "data.chunk" && s.od == a.id && !padlo) { padlo = true; true } else false }
+        o.dostaviVse()
+        preveri("sporocilo, ki po dogovoru ne gre, klicatelj izve; drugo pride",
+            vVrsto && a.zavrnjena == listOf(ukazZ("prvi") to "ni_poslano") && b.prejeta.map { it.first } == listOf(ukazZ("drugi")))
+    }
+    run {
+        val (_, a, b) = par()
+        a.krog["z\nprelomom"] = b.kljuc
+        preveri("poznaKljuc: veljavna oznaka s kljucem v krogu",
+            a.e2e.poznaKljuc(b.id) && listOf("neznana", "z\nprelomom", "", "a b").none { a.e2e.poznaKljuc(it) })
+    }
+    preveri("oznaka za dnevnik je samo vidni ASCII", E2e.zakrij("\ud800".repeat(20)).all { it in ' '..'~' } && E2e.zakrij("a\nb") == "a\\u000ab")
+    preveri("notranje sporocilo: neveljaven UTF-8 ni besedilo (brez tihega nadomescanja)",
+        E2e.utf8Strogo(byteArrayOf(0x7b, 0xC3.toByte(), 0x28)) == null && E2e.utf8Strogo("{\"č\":1}".toByteArray(Charsets.UTF_8)) == "{\"č\":1}")
+    preveri("pregloboko gnezden JSON se prepozna pred razclenjevanjem",
+        JsonLahki.pregloboko("{\"a\":" + "[".repeat(100_000)) && !JsonLahki.pregloboko("""{"a":[{"b":"[[[[{{{{"}]}""", 3) &&
+            !JsonLahki.pregloboko("{\"a\":\"\\\"[[[[\"}", 1) && JsonLahki.pregloboko("[[[]]]", 2) && !JsonLahki.pregloboko("[[[]]]", 3))
+
+    // ---- cetrti neodvisni pregled (7. 10. 2026, koncno stanje po tretjem): isti primeri kot CetrtiPregled na racunalniku.
+    // Seznanjena naprava s predelanim programom (ali sredisce) drugo napravo preobremeni - s podpisi in s pomnilnikom.
+    // Meritev na kodi pred popravki: krog120/CetrtiMeritev.kt.
+    fun potrditevSredisca(oznaka: String, stanje: String, koda: String = "naprava_ni_povezana", napaka: String = "Naprave ni.") =
+        Polja(JsonLahki.objekt("""{"id":"1","type":"data.ack","ref_id":"$oznaka","status":"$stanje","error":"$napaka","error_code":"$koda"}""")!!)
+    run {
+        // Sredisce isto (veljavno podpisano) ponudbo dostavi veckrat: b zanjo podpise EN odgovor.
+        val (o, a, b) = par()
+        val ponudba = a.ponudba(b, "ponovljena-1")
+        repeat(20) { b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(ponudba)!!)) }
+        preveri("ponovljena ponudba ne sprozi novega podpisa", b.podpisov == 1 && o.videno.count { it.tip == "data.answer" } == 1)
+    }
+    run {
+        val (_, a, b) = par()
+        repeat(E2e.NAJVEC_PODPISOV_NA_NAPRAVO + 40) { i -> b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(a.ponudba(b, "p-$i"))!!)) }
+        val vOknu = b.podpisov
+        b.zdaj += E2e.OKNO_PODPISOV_MS + 1000
+        b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(a.ponudba(b, "po-oknu"))!!))
+        preveri("ponudbe ene naprave imajo mejo podpisov; po izteku okna spet",
+            vOknu == E2e.NAJVEC_PODPISOV_NA_NAPRAVO && b.podpisov == vOknu + 1)
+    }
+    run {
+        val (o, a, b) = par()
+        val c = Naprava(o, "-tv"); b.pozna(c); c.pozna(b)
+        repeat(E2e.NAJVEC_PODPISOV_NA_NAPRAVO + 5) { i -> b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(a.ponudba(b, "p-$i"))!!)) }
+        val pred = b.podpisov
+        val poslano = c.e2e.poslji(b.id, UKAZ)
+        preveri("meja podpisov je na napravo, ne skupna",
+            poslano && b.podpisov == pred + 1 && b.prejeta.any { it.second == c.id && it.first == UKAZ })
+    }
+    run {
+        // Ukazi (ali odgovori) za veliko oznak iste naprave, ki ne odgovarja: vsak nov dogovor je podpis.
+        val o = Omrezje(takoj = false)
+        val a = Naprava(o, "-control"); val b = Naprava(o, "-os")
+        val programi = List(E2e.NAJVEC_PODPISOV_NA_NAPRAVO + 10) { Naprava(o, "-p$it", parNaprave = b.par) }
+        a.pozna(*programi.toTypedArray())
+        val izidi = programi.mapIndexed { i, p -> a.e2e.poslji(p.id, ukazZ("u$i")) }
+        preveri("meja podpisov steje vse programe iste naprave in tudi nase ponudbe",
+            a.podpisov == E2e.NAJVEC_PODPISOV_NA_NAPRAVO && izidi.count { it } == E2e.NAJVEC_PODPISOV_NA_NAPRAVO && !izidi.last() &&
+                o.cakajo.size == E2e.NAJVEC_PODPISOV_NA_NAPRAVO)
+    }
+    run {
+        val (_, a, b) = par()
+        a.e2e.poslji(b.id, UKAZ)
+        val veliko = """{"id":"r-velik","type":"control.result","ref_id":"${"x".repeat(200_000)}","payload":{"data":"${"y".repeat(400_000)}"}}"""
+        val poslano = a.e2e.poslji(b.id, veliko, """{"id":"r-velik","type":"control.result"}""")
+        preveri("poslano sporocilo se ne hrani - samo opis", poslano && b.prejeta.last().first == veliko && a.e2e.hranjenihZnakov() < 4000)
+        a.e2e.poslji(b.id, veliko)                              // brez opisa (preizkusi): dolgo sporocilo se ne hrani niti kot opis
+        val brezOpisa = a.e2e.hranjenihZnakov() < 4000
+        a.e2e.poslji(b.id, UKAZ, "o".repeat(5000))              // predolg opis se ne hrani
+        preveri("dolgo sporocilo brez opisa in predolg opis se ne hranita", brezOpisa && a.e2e.hranjenihZnakov() < 4000)
+    }
+    run {
+        val (o, a, b) = par(Omrezje(takoj = false))
+        val predolgo = """{"id":"dolg","type":"control.result","payload":{"data":"${"x".repeat(E2e.DOLZINA_DELA * E2e.NAJVEC_DELOV + 10)}"}}"""
+        preveri("predolgo sporocilo je zavrnjeno takoj, tudi brez seje, in ne zacne dogovora",
+            !a.e2e.poslji(b.id, predolgo) && o.cakajo.isEmpty() && a.podpisov == 0 && a.e2e.cakajocihBajtov() == 0L)
+    }
+    run {
+        // Cakajoca sporocila drzijo pomnilnik: meja bajtov na napravo (vsi njeni programi) in skupaj.
+        val o = Omrezje(takoj = false)
+        fun sporocilo(i: Int) = """{"id":"s$i","type":"control.result","payload":{"data":"${"x".repeat(1000)}"}}"""
+        val en = sporocilo(0).toByteArray(Charsets.UTF_8).size.toLong()
+        val a = Naprava(o, "-control", E2e.Meje(cakajocihNaNapravo = 3 * en + 10, cakajocih = 5 * en + 10))
+        val b1 = Naprava(o, "-os"); val b2 = Naprava(o, "-tv", parNaprave = b1.par)       // dva programa iste naprave
+        val c = Naprava(o, "-os"); val d = Naprava(o, "-os")
+        a.pozna(b1, b2, c, d)
+        fun poslji(komu: Naprava, i: Int) = a.e2e.poslji(komu.id, sporocilo(i), "s$i")
+        val izidi = listOf(poslji(b1, 0), poslji(b1, 1), poslji(b2, 2), poslji(b2, 3), poslji(b1, 4), poslji(c, 5), poslji(c, 6), poslji(d, 7))
+        val brezZavrnitev = a.zavrnjena.isEmpty()
+        val drzi = a.e2e.cakajocihBajtov(b1.jedro) == 3 * en && a.e2e.cakajocihBajtov() == 5 * en
+        a.zdaj += E2e.V_VRSTI_VELJA_MS + 1000                   // ko sporocila zastarajo, klicatelji izvejo in prostor je prost
+        val poCasu = poslji(d, 8)
+        preveri("cakajoca sporocila imajo mejo bajtov na napravo in skupaj",
+            izidi == listOf(true, true, true, false, false, true, true, false) && brezZavrnitev && drzi && poCasu &&
+                a.zavrnjena.sortedBy { it.first } == listOf("s0", "s1", "s2", "s5", "s6").map { it to "cas" } && a.e2e.cakajocihBajtov() == en)
+    }
+    run {
+        // Sredisce kos dostavi, potem pa ga »zavrne« s kodo, ki pri nas pomeni »ni bilo poslano«: take kode klicatelj ne dobi.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        a.e2e.poslji(b.id, UKAZ); o.dostaviVse(); a.zavrnjena.clear()
+        val kode = listOf("ni_poslano", "cas", "ni_seje", "ni_kljuca", "zascita", "naprava_ni_povezana")
+        for ((i, koda) in kode.withIndex()) {
+            a.e2e.poslji(b.id, ukazZ("k$i"))
+            val kos = o.cakajo.removeAt(0)
+            a.e2e.prejmi("data.ack", "", potrditevSredisca(kos.oznaka, "rejected", koda, "x".repeat(5000)))
+        }
+        preveri("koda zavrnitve sredisca ni nikoli nasa koda",
+            a.zavrnjena == kode.indices.map { ukazZ("k$it") to (if (it < 5) "zavrnjeno" else "naprava_ni_povezana") })
+    }
+    run {
+        // Dolgo sporocilo: sprejem sele z zadnjim kosom, zavrnitev prvega ali zadnjega - enkrat. Prej samo prvi kos.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        a.e2e.poslji(b.id, UKAZ); o.dostaviVse(); a.sprejeta.clear(); a.zavrnjena.clear()
+        fun dolgo(oznaka: String): List<Sporocilo> {
+            a.e2e.poslji(b.id, """{"id":"$oznaka","type":"control.result","payload":{"data":"${"x".repeat(2 * E2e.DOLZINA_DELA + 10)}"}}""", oznaka)
+            val kosi = o.cakajo.toList()
+            o.cakajo.clear()
+            return kosi
+        }
+        var kosiD = dolgo("d1")
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosiD[0].oznaka, "accepted")); a.e2e.prejmi("data.ack", "", potrditevSredisca(kosiD[1].oznaka, "accepted"))
+        val brezSprejema = a.sprejeta.isEmpty()                 // sprejet prvi kos se ni sprejeto sporocilo
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosiD[2].oznaka, "rejected"))
+        val prvi = kosiD.size == 3 && brezSprejema && a.sprejeta.isEmpty() && a.zavrnjena == listOf("d1" to "naprava_ni_povezana")
+        kosiD = dolgo("d2")
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosiD[0].oznaka, "rejected")); a.e2e.prejmi("data.ack", "", potrditevSredisca(kosiD[2].oznaka, "rejected"))
+        val drugi = a.zavrnjena == listOf("d1" to "naprava_ni_povezana", "d2" to "naprava_ni_povezana")
+        kosiD = dolgo("d3")
+        for (kos in kosiD) a.e2e.prejmi("data.ack", "", potrditevSredisca(kos.oznaka, "accepted"))
+        preveri("dolgo sporocilo: sprejem sele z zadnjim kosom, zavrnitev katerega koli - enkrat", prvi && drugi && a.sprejeta == listOf("d3"))
+    }
+    preveri("cast.media je med zascitenimi tipi", "cast.media" in E2e.ZASCITENI_TIPI && E2e.ZASCITENI_TIPI.size == 6)
+    run {
+        val (_, a, b) = par()
+        a.e2e.poslji(b.id, UKAZ)
+        val sidSeje = a.e2e.oznakaSejeZa(b.id)
+        b.e2e.prejmi("data.chunk", a.id, Polja(JsonLahki.objekt(
+            """{"session_id":"$sidSeje","seq":5,"m":5,"i":0,"n":1,"data":"${"A".repeat(4 * E2e.DOLZINA_DELA)}"}""")!!))
+        a.e2e.poslji(b.id, ukazZ("u2"))
+        preveri("predolg zapis kosa se zavrne (pred dekodiranjem), seja dela naprej",
+            E2e.NAJVEC_ZAPISA_KOSA == 65560 && b.prejeta.map { it.first } == listOf(UKAZ, ukazZ("u2")))
+    }
+    run {
+        // Notranje (desifrirano) sporocilo poslje naprava s kljucem v krogu - ne nujno z nasim programom.
+        val (_, a, b) = par()
+        a.e2e.poslji(b.id, UKAZ)
+        a.e2e.poslji(b.id, "{\"type\":\"control.command\",\"payload\":" + "[".repeat(5_000) + "]".repeat(5_000) + "}")
+        a.e2e.poslji(b.id, "{\"type\":\"control.command\",a\":" + "[".repeat(5_000) + "]".repeat(5_000) + "}")
+        a.e2e.poslji(b.id, ukazZ("u2"))
+        preveri("notranje sporocilo: pregloboko gnezdeno ali nestrogo ne pride do programa, seja dela naprej",
+            b.prejeta.map { it.first } == listOf(UKAZ, ukazZ("u2")))
+    }
+    preveri("pregloboko: zapis, ki ni strogi JSON, globine ne skrije (gola beseda, enojni narekovaji, komentar, seznam na vrhu)",
+        JsonLahki.pregloboko("{a\":" + "[".repeat(100_000)) && JsonLahki.pregloboko("{'a\"':" + "[".repeat(100_000)) &&
+            JsonLahki.pregloboko("{/*\"*/\"a\":" + "[".repeat(100_000)) && JsonLahki.pregloboko("[".repeat(100_000)) &&
+            JsonLahki.pregloboko("{\"a\":" + "[".repeat(65) + "]".repeat(65) + "}") &&
+            !JsonLahki.pregloboko("{\"a\":" + "[".repeat(63) + "]".repeat(63) + "}") &&
+            !JsonLahki.pregloboko("{a:1}") && !JsonLahki.pregloboko("ni json") && !JsonLahki.pregloboko(""))
+    preveri("strogObjekt: en sam objekt strogega JSON do dane globine, brez popustljivosti",
+        JsonLahki.strogObjekt("""{"a":[1,2,{"b":null}],"c":"é\n\"\\"}""", 3) && !JsonLahki.strogObjekt("""{"a":[1,2,{"b":null}]}""", 2) &&
+            JsonLahki.strogObjekt(""" {"a":-1.5e+3,"b":true,"c":{}} """) && !JsonLahki.strogObjekt("[1]") && !JsonLahki.strogObjekt("{a:1}") &&
+            !JsonLahki.strogObjekt("{'a':1}") && !JsonLahki.strogObjekt("""{"a":1} x""") && !JsonLahki.strogObjekt("""{"a":"\x"}""") &&
+            !JsonLahki.strogObjekt("""{"a":"\u12g4"}""") && !JsonLahki.strogObjekt("{\"a\":\"\t\"}") && !JsonLahki.strogObjekt("""{"a":NaN}""") &&
+            !JsonLahki.strogObjekt("""{"a":1,}""") && !JsonLahki.strogObjekt("""{"a":"x""") && !JsonLahki.strogObjekt(""))
+
+    // ---- peti neodvisni pregled (7. 10. 2026, stanje po cetrtem): isti primeri kot PetiPregled na racunalniku. Nobene
+    // najdbe, ki bi izdajo ustavila - utrditve meje podpisov, vrst in zapisov o poslanem.
+    // Meritev na kodi pred popravki: krog120/PetiMeritev.kt.
+    fun dolgoSporocilo(oznaka: String, delov: Int = 3) =
+        """{"id":"$oznaka","type":"control.result","payload":{"data":"${"x".repeat((delov - 1) * E2e.DOLZINA_DELA + 10)}"}}"""
+    /** Dogovor med a in b do konca (omrezje z rocno dostavo); vrne oznako seje na strani a. */
+    fun vzpostaviSejo(o: Omrezje, a: Naprava, b: Naprava): String {
+        a.e2e.poslji(b.id, UKAZ); o.dostaviVse(); a.sprejeta.clear(); a.zavrnjena.clear()
+        return a.e2e.oznakaSejeZa(b.id)
+    }
+    /** Poslje sporocilo v [delov] kosih in vrne kose (sredisce jih se ni dostavilo). */
+    fun kosiSporocila(o: Omrezje, a: Naprava, b: Naprava, oznaka: String, delov: Int = 3): List<Sporocilo> {
+        a.e2e.poslji(b.id, dolgoSporocilo(oznaka, delov), oznaka)
+        val kosi = o.cakajo.toList()
+        o.cakajo.clear()
+        return kosi
+    }
+    fun stevecKosa(kos: Sporocilo): Long = JsonLahki.objekt(kos.tovor)!!.stevilo("seq")!!.toLong()
+    fun sejeNi(sid: String, stevec: Long) = Polja(JsonLahki.objekt("""{"session_id":"$sid","code":"ni_seje","seq":$stevec}""")!!)
+    run {
+        // Tipka daljinca ob napravi, ki je ni v Linku: sredisce vsako ponudbo zavrne (20 s, ukaz na 0,1 s). Prej je
+        // vsak ukaz zacel nov dogovor (podpis) - po 32 ukazih je bila meja polna se minuto po vrnitvi naprave.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        repeat(200) { i ->
+            a.zdaj += 100
+            a.e2e.poslji(b.id, ukazZ("t$i"))
+            while (o.cakajo.isNotEmpty()) a.e2e.prejmi("data.ack", "", potrditevSredisca(o.cakajo.removeAt(0).oznaka, "rejected"))
+        }
+        val podpisov = a.podpisov
+        val brezDvojnih = a.zavrnjena.size == a.zavrnjena.toSet().size
+        a.zdaj += E2e.NEUSPEL_DOGOVOR_CAKA_MS + 100
+        o.takoj = true
+        val gre = a.e2e.poslji(b.id, ukazZ("po"))
+        preveri("ukazi napravi, ki je ni, ne porabijo meje podpisov; ko se vrne, ukaz gre",
+            podpisov <= 8 && brezDvojnih && gre && b.prejeta.map { it.first } == listOf(ukazZ("po")))
+    }
+    run {
+        val o = Omrezje()
+        val a = Naprava(o, "-control"); val b = Naprava(o, "-os")
+        a.pozna(b)                                              // b naprave a NIMA v krogu (»ni_kljuca«)
+        repeat(100) { i -> a.zdaj += 100; a.e2e.poslji(b.id, ukazZ("t$i")) }
+        preveri("naprava, ki nas nima v krogu, ne porabi meje podpisov", a.podpisov <= 5)
+    }
+    run {
+        // Meja je locena za dogovore, ki jih zacnemo mi, in za odgovore na ponudbe druge naprave.
+        val o = Omrezje()
+        val a = Naprava(o, "-control"); val b = Naprava(o, "-os"); val a2 = Naprava(o, "-tv", parNaprave = a.par)
+        a.pozna(b); a2.pozna(b); b.pozna(a, a2)
+        repeat(E2e.NAJVEC_PODPISOV_NA_NAPRAVO + 5) { i -> b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(a.ponudba(b, "p-$i"))!!)) }
+        val polna = b.podpisov == E2e.NAJVEC_PODPISOV_NA_NAPRAVO
+        val gre = b.e2e.poslji(a2.id, UKAZ)
+        preveri("odgovori na ponudbe ne porabijo meje za nase ponudbe", polna && gre && a2.prejeta.map { it.first } == listOf(UKAZ))
+    }
+    run {
+        // Program ob novi povezavi s srediscem naredi nov primerek E2e: meja velja za program, ne za primerek.
+        val (o, a, b) = par()
+        repeat(E2e.NAJVEC_PODPISOV_NA_NAPRAVO) { i -> b.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(a.ponudba(b, "p-$i"))!!)) }
+        val b2 = Naprava(o, "-os", parNaprave = b.par); b2.pozna(a)
+        repeat(10) { i -> b2.e2e.prejmi("data.offer", a.id, Polja(JsonLahki.objekt(a.ponudba(b2, "q-$i"))!!)) }
+        preveri("nov primerek istega programa nima nove meje podpisov",
+            b.podpisov == E2e.NAJVEC_PODPISOV_NA_NAPRAVO && b2.id == b.id && b2.podpisov == 0)
+    }
+    run {
+        // Prej smo spremljali samo prvi in zadnji kos: zavrnjen srednji je ostal neopazen, klicatelj je dobil »sprejeto«.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        vzpostaviSejo(o, a, b)
+        var kosi = kosiSporocila(o, a, b, "d1")
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[0].oznaka, "accepted"))
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[1].oznaka, "rejected"))
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[2].oznaka, "accepted"))
+        val srednji = kosi.size == 3 && a.sprejeta.isEmpty() && a.zavrnjena == listOf("d1" to "naprava_ni_povezana")
+        kosi = kosiSporocila(o, a, b, "d2")
+        var prezgodaj = false
+        for (kos in kosi) {
+            if (a.sprejeta.isNotEmpty()) prezgodaj = true
+            a.e2e.prejmi("data.ack", "", potrditevSredisca(kos.oznaka, "accepted"))
+        }
+        preveri("zavrnjen srednji kos ni sprejeto sporocilo; vsi sprejeti = en sprejem ob zadnjem",
+            srednji && !prezgodaj && a.sprejeta == listOf("d2") && a.zavrnjena == listOf("d1" to "naprava_ni_povezana"))
+    }
+    run {
+        val (o, a, b) = par(Omrezje(takoj = false))
+        val sejaPeti = vzpostaviSejo(o, a, b)
+        val kosi = kosiSporocila(o, a, b, "d1")
+        a.e2e.prejmi("data.error", b.id, sejeNi(sejaPeti, stevecKosa(kosi[1])))
+        preveri("»seje ni« sredi dolgega sporocila javi to sporocilo", a.zavrnjena == listOf("d1" to "ni_seje"))
+    }
+    run {
+        // Varovalo novega vodenja (vsak kos ima svoj zapis); na prejsnji kodi je ta preizkus uspel.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        vzpostaviSejo(o, a, b)
+        val prvo = kosiSporocila(o, a, b, "d0", E2e.NAJVEC_DELOV)
+        for (i in 1 until 20) kosiSporocila(o, a, b, "d$i", E2e.NAJVEC_DELOV)
+        for (kos in prvo) a.e2e.prejmi("data.ack", "", potrditevSredisca(kos.oznaka, "accepted"))
+        preveri("zapisov o poslanih kosih je dovolj za dolga sporocila",
+            prvo.size == E2e.NAJVEC_DELOV && a.sprejeta == listOf("d0") && a.zavrnjena.isEmpty())
+    }
+    run {
+        // Povezava pade sredi sporocila v vec delih: klicatelj dobi false; poznejsa zavrnitev ze poslanega kosa ali
+        // »seje ni« sporocila ne javi se enkrat.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        val sejaPeti = vzpostaviSejo(o, a, b)
+        var kosov = 0
+        o.neGre = { s -> s.tip == "data.chunk" && ++kosov == 2 }
+        val poslano = a.e2e.poslji(b.id, dolgoSporocilo("d1"), "d1")
+        o.neGre = null
+        val prvi = o.cakajo.first()
+        o.cakajo.clear()
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(prvi.oznaka, "rejected"))
+        val poZavrnitvi = a.zavrnjena.isEmpty()
+        a.e2e.prejmi("data.error", b.id, sejeNi(sejaPeti, stevecKosa(prvi)))
+        preveri("sporocilo, ki med posiljanjem ne gre, ne pusti zapisov", !poslano && poZavrnitvi && a.zavrnjena.isEmpty())
+    }
+    run {
+        val (o, a, b) = par(Omrezje(takoj = false))
+        val sejaPeti = vzpostaviSejo(o, a, b)
+        a.e2e.poslji(b.id, ukazZ("u2"), "u2")
+        val kos = o.cakajo.removeAt(0)
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kos.oznaka, "rejected"))
+        val enkratJavljeno = a.zavrnjena == listOf("u2" to "naprava_ni_povezana")
+        a.e2e.prejmi("data.error", b.id, sejeNi(sejaPeti, stevecKosa(kos)))
+        preveri("zavrnjeno sporocilo se ob »seje ni« ne javi se enkrat", enkratJavljeno && a.zavrnjena == listOf("u2" to "naprava_ni_povezana"))
+    }
+    run {
+        val (o, a, b) = par(Omrezje(takoj = false))
+        vzpostaviSejo(o, a, b)
+        a.e2e.poslji(b.id, ukazZ("u2"), "u2")
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(o.cakajo.removeAt(0).oznaka, "rejected", "k".repeat(5000)))
+        preveri("predolga koda sredisca postane splosna", a.zavrnjena == listOf("u2" to "zavrnjeno") && E2e.NAJVEC_KODE_SREDISCA == 64)
+    }
+    run {
+        val (_, a, b) = par(Omrezje(takoj = false))
+        a.e2e.poslji(b.id, UKAZ, "u1")                          // caka na dogovor
+        a.e2e.pozabi(b.id)
+        preveri("pozabi javi cakajoca sporocila in ne drzi pomnilnika",
+            a.zavrnjena == listOf("u1" to "cas") && a.e2e.hranjenihZnakov() == 0L && a.e2e.cakajocihBajtov() == 0L)
+    }
+    run {
+        val (o, a, b) = par(Omrezje(takoj = false))
+        a.e2e.poslji(b.id, UKAZ, "u1")
+        a.zdaj += E2e.DOGOVOR_VELJA_MS + 1000
+        o.dostaviVse()                                          // ponudba pride do b, njegov odgovor nazaj - prepozno
+        preveri("prepozen odgovor javi cakajoce sporocilo in pospravi zapis",
+            !a.e2e.imaSejo(b.id) && a.zavrnjena == listOf("u1" to "cas") && a.e2e.cakajociDogovori().isEmpty() &&
+                a.e2e.hranjenihZnakov() == 0L)
+    }
+    run {
+        // Sporocilo caka na dogovor, ki ne uspe, program pa nicesar vec ne poslje: pospravi ga ze vsako prejeto sporocilo
+        // prenosa in klic pospravi() (klicatelj ga poklice ob vsakem prejetem sporocilu sredisca).
+        val (_, a, b) = par(Omrezje(takoj = false))
+        a.e2e.poslji(b.id, UKAZ, "u1")
+        a.zdaj += E2e.V_VRSTI_VELJA_MS + 1000
+        a.e2e.prejmi("data.ack", "", potrditevSredisca("e2e-neznano", "accepted"))
+        val obPrejemu = a.zavrnjena == listOf("u1" to "cas") && a.e2e.cakajocihBajtov() == 0L
+        val drugi = a.e2e.poslji(b.id, ukazZ("u2"), "u2")
+        a.zdaj += E2e.V_VRSTI_VELJA_MS + 1000
+        a.e2e.pospravi()
+        preveri("zastarelo cakajoce sporocilo se javi tudi, ko nic ne posiljamo",
+            obPrejemu && drugi && a.zavrnjena == listOf("u1" to "cas", "u2" to "cas"))
+    }
+
+    // ---- sesti (ozki) neodvisni pregled sprememb po petem (7. 10. 2026): isti primeri kot SestiPregled na racunalniku.
+    // Nobene najdbe, ki bi izdajo ustavila. Meritev na kodi pred popravki: krog120/SestiMeritev.kt.
+    run {
+        // Prejemnik sejo izgubi; njegov »seje ni« pride PRED potrditvami sredisca za kose istega sporocila. Sporocilo je
+        // ze javljeno kot zavrnjeno - potrditve ga ne smejo javiti se kot sprejeto (ali zavrnjeno drugic).
+        val (o, a, b) = par(Omrezje(takoj = false))
+        val sejaSesti = vzpostaviSejo(o, a, b)
+        var kosi = kosiSporocila(o, a, b, "d1")
+        a.e2e.prejmi("data.error", b.id, sejeNi(sejaSesti, stevecKosa(kosi[0])))
+        val javljeno = a.zavrnjena == listOf("d1" to "ni_seje")
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[0].oznaka, "accepted"))
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[1].oznaka, "rejected"))
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[2].oznaka, "accepted"))
+        val enkrat = a.sprejeta.isEmpty() && a.zavrnjena == listOf("d1" to "ni_seje")
+        // ... in enako, kadar sredisce potrdi vse kose.
+        val (o2, a2, b2) = par(Omrezje(takoj = false))
+        val sejaDruga = vzpostaviSejo(o2, a2, b2)
+        kosi = kosiSporocila(o2, a2, b2, "d2")
+        a2.e2e.prejmi("data.error", b2.id, sejeNi(sejaDruga, stevecKosa(kosi[0])))
+        for (kos in kosi) a2.e2e.prejmi("data.ack", "", potrditevSredisca(kos.oznaka, "accepted"))
+        preveri("po »seje ni« potrditve kosov sporocila ne javijo vec",
+            javljeno && enkrat && a2.sprejeta.isEmpty() && a2.zavrnjena == listOf("d2" to "ni_seje"))
+    }
+    run {
+        // Sredisce ponudbo zavrne in prekine povezavo; program se poveze znova (nov primerek) in uporabnik takoj spet
+        // poslje ukaz. Premor velja za program, ne za primerek - sicer bi vsak tak krog pomenil nov podpis.
+        val o = Omrezje(takoj = false)
+        val a = Naprava(o, "-control"); val b = Naprava(o, "-os")
+        a.pozna(b); b.pozna(a)
+        val prvi = a.e2e.poslji(b.id, UKAZ)
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(o.cakajo.removeAt(0).oznaka, "rejected"))
+        val nov = Naprava(o, "-control", parNaprave = a.par); nov.pozna(b)      // isti program, nov primerek
+        val takoj = nov.e2e.poslji(b.id, ukazZ("u2"))
+        val brezPodpisa = nov.podpisov == 0 && o.cakajo.isEmpty()
+        nov.zdaj += E2e.NEUSPEL_DOGOVOR_CAKA_MS + 100
+        val pozneje = nov.e2e.poslji(b.id, ukazZ("u3"))
+        preveri("premor po neuspelem dogovoru velja tudi za nov primerek",
+            prvi && nov.id == a.id && !takoj && brezPodpisa && pozneje && nov.podpisov == 1)
+    }
+    run {
+        // Zapisov o poslanih kosih je omejeno stevilo. Ce izpade zapis ENEGA kosa, njegove zavrnitve ne opazimo vec -
+        // zato z njim izpadejo vsi kosi sporocila: klicatelj ne dobi izida (iztek casa), ne pa napacnega »sprejeto«.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        vzpostaviSejo(o, a, b)                                  // en zapis (kos ukaza u1)
+        val kosi = kosiSporocila(o, a, b, "d1")                 // trije zapisi
+        repeat(E2e.NAJVEC_IZHODNIH - 2) { i -> a.e2e.poslji(b.id, ukazZ("k$i"), "k$i") }    // izrine u1, nato prvi kos d1
+        o.cakajo.clear()
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[0].oznaka, "rejected"))        // kos, katerega zapis je izpadel
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[1].oznaka, "accepted"))
+        a.e2e.prejmi("data.ack", "", potrditevSredisca(kosi[2].oznaka, "accepted"))
+        preveri("izrinjen zapis kosa izrine vse kose sporocila",
+            kosi.size == 3 && "d1" !in a.sprejeta && a.zavrnjena.none { it.first == "d1" })
+    }
+    run {
+        // pospravi() klice bralna nit ob VSAKEM prejetem sporocilu sredisca: kadar v vrstah ne caka nic, ne sme cakati na
+        // nit, ki ravno podpisuje ali posilja.
+        val (o, a, b) = par(Omrezje(takoj = false))
+        vzpostaviSejo(o, a, b)
+        val drzi = java.util.concurrent.CountDownLatch(1)
+        val spusti = java.util.concurrent.CountDownLatch(1)
+        o.neGre = { s -> if (s.tip == "data.chunk") { drzi.countDown(); spusti.await(5, java.util.concurrent.TimeUnit.SECONDS) }; false }
+        val posiljatelj = kotlin.concurrent.thread(isDaemon = true) { a.e2e.poslji(b.id, ukazZ("u2"), "u2") }
+        val drzal = drzi.await(2, java.util.concurrent.TimeUnit.SECONDS)
+        val bralna = kotlin.concurrent.thread(isDaemon = true) { a.e2e.pospravi() }
+        bralna.join(1000)
+        val zastala = bralna.isAlive
+        spusti.countDown(); posiljatelj.join(2000); bralna.join(2000)
+        o.neGre = null
+        // Ko nekaj caka, pospravi() se vedno dela: sporocilo, ki caka predolgo, javi.
+        val (_, c, d) = par(Omrezje(takoj = false))
+        c.e2e.poslji(d.id, UKAZ, "u1")
+        c.zdaj += E2e.V_VRSTI_VELJA_MS + 1000
+        c.e2e.pospravi()
+        preveri("pospravi() ne caka na zaklep, kadar v vrstah ne caka nic", drzal && !zastala && c.zavrnjena == listOf("u1" to "cas"))
+    }
+    run {
+        // Tri sporocila cakajo na dogovor. Ko odgovor pride, posiljanje drugega vrze izjemo: prvo in tretje gresta, za
+        // drugo klicatelj izve. Prej sta drugo in tretje izginili brez sledu (vrsta je bila ze izpraznjena).
+        val (o, a, b) = par(Omrezje(takoj = false))
+        for (i in 1..3) a.e2e.poslji(b.id, ukazZ("u$i"), "u$i")
+        var kosov = 0
+        o.neGre = { s -> if (s.tip == "data.chunk" && ++kosov == 2) throw java.io.IOException("vticnica je padla"); false }
+        o.dostaviVse()
+        o.neGre = null
+        preveri("izjema pri posiljanju enega cakajocega sporocila ne izgubi drugih",
+            b.prejeta.map { it.first } == listOf(ukazZ("u1"), ukazZ("u3")) && a.zavrnjena == listOf("u2" to "ni_poslano"))
+    }
+    run {
+        val (_, a, b) = par(Omrezje(takoj = false))
+        a.e2e.poslji(b.id, UKAZ, "u1")
+        a.e2e.pozabiVse()
+        preveri("pozabiVse javi cakajoca sporocila", a.zavrnjena == listOf("u1" to "cas") && a.e2e.cakajocihBajtov() == 0L)
     }
 
     if (napak > 0) { println("\nNAPAK: $napak"); kotlin.system.exitProcess(1) }

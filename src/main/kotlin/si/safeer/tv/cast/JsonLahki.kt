@@ -20,6 +20,34 @@ object JsonLahki {
     /** Globlje od tega ne gremo; branje ne sme biti nacin, da nekdo porabi sklad. */
     const val NAJVECJA_GLOBINA = 12
 
+    /**
+     * Ali besedila NE smemo dati razclenjevalniku org.json, ker bi bilo lahko gnezdeno globlje od [najvec]. org.json
+     * gnezdenja ne omejuje: z zelo globokim JSON-om porabi sklad niti (StackOverflowError ni Exception - drugi neodvisni
+     * pregled, 7. 10. 2026). Sporocila Safeer Linka so gnezdena nekaj ravni.
+     *
+     * Globino potrdi STROGI bralec ([strogObjekt]). org.json je namrec popustljiv: sprejme gole besede, enojne
+     * narekovaje in komentarje, zato se z zapisom, ki ni strogi JSON, stetje oklepajev »zunaj nizov« da pretentati
+     * (`{a":[[[[...` - golo besedo `a"` org.json prebere kot kljuc; cetrti neodvisni pregled, 7. 10. 2026). Besedilo, ki
+     * ni strogi objekt JSON, sme zato naprej samo, ce v njem sploh ni vec kot [najvec] oklepajev - potem ne more biti
+     * gnezdeno globlje, kakorkoli ga kdo bere.
+     */
+    fun pregloboko(vir: String, najvec: Int = 64): Boolean {
+        if (strogObjekt(vir, najvec)) return false
+        var oklepajev = 0
+        for (c in vir) if (c == '{' || c == '[') { if (++oklepajev > najvec) return true }
+        return false
+    }
+
+    /**
+     * Ali je [vir] en sam objekt strogega JSON, gnezden najvec [najvecGlobina] ravni (objekt na vrhu je prva raven).
+     * Samo preveri - vrednosti ne odkodira in ne hrani.
+     */
+    fun strogObjekt(vir: String, najvecGlobina: Int = NAJVECJA_GLOBINA): Boolean = try {
+        Bralec(vir, najvecGlobina, samoPreverba = true).jeEnObjekt()
+    } catch (e: Exception) {
+        false
+    }
+
     enum class Vrsta { NIZ, STEVILO, LOGICNO, NIC, OBJEKT, SEZNAM }
 
     /** Prebere en sam objekt JSON. Vrne null, ce vir ni pravilen objekt ali ce kaj ostane za njim. */
@@ -103,9 +131,23 @@ object JsonLahki {
 
     // ------------------------------------------------------------------ branje
 
-    internal class Bralec(private val vir: String) {
+    internal class Bralec(
+        private val vir: String,
+        /** Globlje od tega bralec ne gre (branje ne sme biti nacin, da nekdo porabi sklad). */
+        private val najvecGlobina: Int = NAJVECJA_GLOBINA,
+        /** Samo preverba oblike: nizov ne odkodira in ne hrani (glej strogObjekt). */
+        private val samoPreverba: Boolean = false,
+    ) {
         private var i = 0
         private var zadnjiNiz: String? = null
+
+        /** Ali je ves vir en sam objekt (z dovoljenimi presledki pred njim in za njim). */
+        fun jeEnObjekt(): Boolean {
+            preskociPresledke()
+            if (!preskociObjekt(1)) return false
+            preskociPresledke()
+            return konec()
+        }
 
         fun konec(): Boolean = i >= vir.length
 
@@ -119,7 +161,7 @@ object JsonLahki {
         }
 
         fun objekt(globina: Int): Pogled? {
-            if (globina > NAJVECJA_GLOBINA) return null
+            if (globina > najvecGlobina) return null
             if (i >= vir.length || vir[i] != '{') return null
             i++
             val polja = LinkedHashMap<String, Polje>()
@@ -169,7 +211,7 @@ object JsonLahki {
         }
 
         private fun preskociObjekt(globina: Int): Boolean {
-            if (globina > NAJVECJA_GLOBINA) return false
+            if (globina > najvecGlobina) return false
             if (i >= vir.length || vir[i] != '{') return false
             i++
             preskociPresledke()
@@ -199,7 +241,7 @@ object JsonLahki {
         }
 
         private fun preskociSeznam(globina: Int): Boolean {
-            if (globina > NAJVECJA_GLOBINA) return false
+            if (globina > najvecGlobina) return false
             if (i >= vir.length || vir[i] != '[') return false
             i++
             preskociPresledke()
@@ -250,7 +292,40 @@ object JsonLahki {
             }
         }
 
+        /** Preskoci niz, ne da bi ga odkodiral; ista pravila kot [niz] (strogi JSON). */
+        private fun preskociNiz(): Boolean {
+            if (i >= vir.length || vir[i] != '"') return false
+            i++
+            val n = vir.length
+            while (i < n) {
+                val c = vir[i]
+                when {
+                    c == '"' -> { i++; return true }
+                    c == '\\' -> {
+                        i++
+                        if (i >= n) return false
+                        when (vir[i]) {
+                            '"', '\\', '/', 'b', 'f', 'n', 'r', 't' -> i++
+                            'u' -> {
+                                if (i + 4 >= n) return false
+                                for (k in 1..4) {
+                                    val h = vir[i + k]
+                                    if (!(h in '0'..'9' || h in 'a'..'f' || h in 'A'..'F')) return false
+                                }
+                                i += 5
+                            }
+                            else -> return false
+                        }
+                    }
+                    c.code < 0x20 -> return false       // neubezani nadzorni znaki niso dovoljeni
+                    else -> i++
+                }
+            }
+            return false
+        }
+
         private fun niz(): String? {
+            if (samoPreverba) return if (preskociNiz()) "" else null
             if (i >= vir.length || vir[i] != '"') return null
             i++
             // Hitra pot: niz brez ubeznih znakov (velika vecina, tudi 32 KiB kosi tokov v base64) je kar izsek

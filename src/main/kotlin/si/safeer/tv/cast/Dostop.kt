@@ -106,8 +106,13 @@ object Dostop {
         return synchronized(this) { nalozen(ctx); jedro in zascita }
     }
 
-    /** Ali od naprave s to oznako sprejmemo samo zascitena sporocila (ker vemo, da jih zna poslati). */
-    fun zahtevaZascito(ctx: Context, id: String): Boolean = id.isNotBlank() && znaZascito(ctx, jedro(ctx, id))
+    /**
+     * Ali od naprave s to oznako sprejmemo samo zascitena sporocila (ker vemo, da jih zna poslati). Pri oznaki iz kljuca
+     * odloca jedro iz OBLIKE oznake - vnos v krogu z drugim kljucem pod to oznako zahteve ne ugasne
+     * ([DostopPravila.zahtevaZascito]).
+     */
+    fun zahtevaZascito(ctx: Context, id: String): Boolean =
+        DostopPravila.zahtevaZascito(id, { j -> znaZascito(ctx, j) }, { i -> jedro(ctx, i) })
 
     /** Z napravo je vzpostavljena preverjena seja: odslej od nje (in v njenem imenu) ne sprejmemo nezascitenega. */
     fun zabeleziZascito(ctx: Context, jedro: String) {

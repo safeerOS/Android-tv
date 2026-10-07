@@ -181,6 +181,53 @@ fun main() {
         p.kljucShrambe("tv-stari-id", idIzKljuca("KLJUC-TV")) == idIzKljuca("KLJUC-TV") && p.kljucShrambe("tujec", "tujec") == "tujec")
     preveri("kljuc shrambe oznake brez jedra ni oblike oznake iz kljuca", !p.jeIdIzKljuca(p.kljucShrambe(jedroTv, "")))
 
+    // ---- drugi neodvisni pregled (7. 10. 2026) ----
+    val j = "n-0123456789abcdef"
+    preveri("oznaka iz kljuca ima samo pripono iz varne abecede (crke, stevke, pika, podcrtaj, vezaj)",
+        listOf(j, "$j-os", "$j-control", "$j-a.b_c-1", "$j-").all { p.jeIdIzKljuca(it) } &&
+            listOf("$j-x\ny", "$j-x y", "$j-č", "$j-" + "a".repeat(200), "$j\n", "${j}x", "n-0123456789ABCDEF", "n-0123456789abcde",
+                "x-0123456789abcdef", "").none { p.jeIdIzKljuca(it) })
+    preveri("veljavna oznaka naprave: 1-128 vidnih znakov ASCII",
+        listOf(j, "$j-os", "stara-naprava_1.2:3", "a".repeat(128)).all { p.veljavnaOznaka(it) } &&
+            listOf("", "a b", "a\nb", "a\rb", "a\tb", "a\u0000b", "a\u007fb", "a\u0085b", "a b", "č", "\ud800", "a".repeat(129)).none { p.veljavnaOznaka(it) })
+    preveri("kljuc za zascito: oznaka s prelomom vrstice, presledkom ali predolga kljuca ne dobi",
+        p.kljucZaZascito("$jedroTv-os", { null }, vsi, idAliNapaka) == "KLJUC-TV" &&
+            listOf("$jedroTv-tv\n$j", "$jedroTv-x y", "$jedroTv\n", "stara naprava", "a\nb", "a".repeat(200))
+                .none { p.kljucZaZascito(it, { "KLJUC-TV" }, vsi, idAliNapaka) != null })
+    // N2: pod oznako programa naprave je v krogu podtaknjen DRUG kljuc (jedro po krogu je prazno). Zahteve po zasciti to
+    // ne sme ugasniti: odloca jedro iz OBLIKE oznake.
+    val dokazani = setOf(jedroTv)
+    val jedroPoKrogu: (String) -> String = { id -> p.jedro(id, { krogPodobnih[it] }, idAliNapaka) }
+    preveri("podtaknjen vnos (oznaka naprave, drug kljuc) ne ugasne zahteve po zasciti",
+        jedroPoKrogu("$jedroTv-x") == "" && p.zahtevaZascito("$jedroTv-x", { it in dokazani }, jedroPoKrogu) &&
+            p.zahtevaZascito("$jedroTv-os", { it in dokazani }, jedroPoKrogu) && p.zahtevaZascito(jedroTv, { it in dokazani }, jedroPoKrogu))
+    preveri("brez dokazanega kljuca zascite ne zahtevamo; stara oznaka po kljucu iz kroga",
+        !p.zahtevaZascito("$jedroTv-x", { false }, jedroPoKrogu) && !p.zahtevaZascito("", { true }, jedroPoKrogu) &&
+            !p.zahtevaZascito("stara-naprava", { it in dokazani }, { it }) && p.zahtevaZascito("tv-stari-id", { it in dokazani }, { jedroTv }))
+    // N3: seznam naprav pise sredisce - koliko dogovorov za dokaz kljuca sme sproziti.
+    val veliko = List(500) { "$jedroTv-x$it" }
+    val prvi = p.izberiZaDokaz(veliko, emptyMap(), 1_000_000L, 60_000L)
+    preveri("seznam z veliko oznakami iste naprave sprozi najvec ${p.NAJVEC_DOKAZOV_NA_JEDRO} dogovore",
+        prvi == veliko.take(p.NAJVEC_DOKAZOV_NA_JEDRO))
+    val zapis = prvi.associateWith { 1_000_000L }
+    preveri("isti seznam takoj znova ne sprozi nicesar; po minuti spet najvec toliko",
+        p.izberiZaDokaz(veliko, zapis, 1_010_000L, 60_000L).isEmpty() &&
+            p.izberiZaDokaz(veliko, zapis, 1_060_000L, 60_000L).size == p.NAJVEC_DOKAZOV_NA_JEDRO)
+    val razlicne = List(100) { "n-%016x-os".format(it) }
+    preveri("dolg seznam razlicnih naprav sprozi najvec ${p.NAJVEC_DOKAZOV_NA_SEZNAM} dogovorov, po vrsti iz seznama",
+        p.izberiZaDokaz(razlicne, emptyMap(), 1_000_000L, 60_000L) == razlicne.take(p.NAJVEC_DOKAZOV_NA_SEZNAM))
+    val poln = (0 until p.NAJVEC_ZAPISOV_DOKAZOV).associate { "stara-$it" to 0L }
+    preveri("ko je zapis o poskusih poln, novih dogovorov ni (ze zapisana naprava sme znova)",
+        p.izberiZaDokaz(listOf("$j-os", "stara-7"), poln, 1_000_000L, 60_000L) == listOf("stara-7"))
+    preveri("jedro oznake za stetje: jedro oznake iz kljuca, sicer oznaka sama",
+        p.jedroOznake("$j-os") == j && p.jedroOznake("stara-naprava") == "stara-naprava" && p.jedroOznake("$j-x\ny") == "$j-x\ny")
+    // Cetrti pregled: oznaka sporocila (id, ref_id) je kratka - odgovor jo ponovi.
+    preveri("oznaka sporocila: niz do ${p.NAJVEC_OZNAKE_SPOROCILA} znakov, obicajno stevilo ali nic",
+        !p.predolgaOznaka("a".repeat(128), null, 5, 7L, 2.5) && p.predolgaOznaka("kratka", "a".repeat(129)) && !p.predolgaOznaka() &&
+            p.predolgaOznaka(listOf("x")) && p.predolgaOznaka(mapOf("a" to 1)) && p.predolgaOznaka(true) &&
+            p.predolgaOznaka(Double.POSITIVE_INFINITY) && p.predolgaOznaka(Double.NaN) && p.predolgaOznaka(1e30) &&
+            p.NAJVEC_OZNAKE_SPOROCILA == 128 && p.NAJVEC_PONOVLJENEGA_DEJANJA == 64)
+
     if (napak > 0) { println("\nNAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("DostopPravilaTest: OK")
 }

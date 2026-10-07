@@ -1,3 +1,5 @@
+> **Ni objavljeno.** Različice 2.1.188 / Safeer OS 0.5.64 / Predvajalnik 0.2.50 so bile 7. 10. 2026 označene, a zadržane: drugi neodvisni pregled pred izdajo je v kodi zaščite našel še napake. Popravljena izdaja je 2.1.189 (Safeer OS 0.5.65) – glej `RELEASE_NOTES_2.1.189.md`. Besedilo spodaj opisuje kodo, kakršna je bila ob oznaki `v2.1.188`. *Not published: tagged on 7 October 2026 but held back after a second independent pre-release review found further defects in the protection code; the fixed release is 2.1.189.*
+
 # Safeer 2.1.188 · Safeer OS 0.5.64 · Predvajalnik 0.2.50
 
 ## Varnost: ukazi med napravami so podpisani s ključem naprave in šifrirani od naprave do naprave

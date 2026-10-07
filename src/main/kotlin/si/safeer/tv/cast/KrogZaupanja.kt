@@ -401,9 +401,19 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
         /** Dolzina id-ja iz kljuca brez pripone sorodnika: "n-" + 16 znakov. */
         const val DOLZINA_ID_IZ_KLJUCA = 18
 
-        /** Ali je [id] izpeljan iz kljuca (`n-<16 hex>`, po zelji s pripono `-os`, `-control` ...). */
-        fun jeIdIzKljuca(id: String): Boolean =
-            id.length >= DOLZINA_ID_IZ_KLJUCA && id.startsWith("n-") && id.substring(2, DOLZINA_ID_IZ_KLJUCA).all { it in '0'..'9' || it in 'a'..'f' } &&
-                (id.length == DOLZINA_ID_IZ_KLJUCA || id[DOLZINA_ID_IZ_KLJUCA] == '-')
+        /**
+         * Ali je [id] izpeljan iz kljuca: `n-<16 hex>`, po zelji s pripono programa (`-os`, `-control` ...) iz crk, stevk,
+         * pike, podcrtaja in vezaja, skupaj najvec 128 znakov. Id z drugimi znaki (presledek, prelom vrstice ...) NI id iz
+         * kljuca in kljuca po jedru ne dobi: z njim je sredisce sejo zascite ene naprave prevezalo na drugo (drugi
+         * neodvisni pregled, 7. 10. 2026). Isto pravilo kot DostopPravila.jeIdIzKljuca in core/link_krog.py.
+         */
+        fun jeIdIzKljuca(id: String): Boolean {
+            if (id.length < DOLZINA_ID_IZ_KLJUCA || id.length > 128 || !id.startsWith("n-")) return false
+            if (!id.substring(2, DOLZINA_ID_IZ_KLJUCA).all { it in '0'..'9' || it in 'a'..'f' }) return false
+            if (id.length == DOLZINA_ID_IZ_KLJUCA) return true
+            return id[DOLZINA_ID_IZ_KLJUCA] == '-' && id.substring(DOLZINA_ID_IZ_KLJUCA + 1).all {
+                it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '.' || it == '_' || it == '-'
+            }
+        }
     }
 }

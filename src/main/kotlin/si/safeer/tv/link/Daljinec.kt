@@ -717,7 +717,9 @@ object Daljinec {
             put("id", java.util.UUID.randomUUID().toString())
             put("type", "control.result")
             put("target", cilj)
-            put("ref_id", refId)
-            put("payload", izid.json().put("action", dejanje))
+            // Oznaka ukaza in ime dejanja prideta od posiljatelja ukaza: ponovimo samo toliko, kolikor sta dolga v nasih
+            // programih (odgovor ne sme biti nacin, da kdo z dolgim ukazom dobi dolg odgovor).
+            put("ref_id", refId.take(si.safeer.tv.cast.DostopPravila.NAJVEC_OZNAKE_SPOROCILA))
+            put("payload", izid.json().put("action", dejanje.take(si.safeer.tv.cast.DostopPravila.NAJVEC_PONOVLJENEGA_DEJANJA)))
         }
 }

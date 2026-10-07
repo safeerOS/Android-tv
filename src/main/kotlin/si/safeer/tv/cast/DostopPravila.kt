@@ -132,6 +132,7 @@ object DostopPravila {
     fun kljucZaZascito(
         id: String, kljucVnosa: (String) -> String?, vsiKljuci: () -> List<String>, idIzKljuca: (String) -> String
     ): String? {
+        if (!veljavnaOznaka(id)) return null        // oznaka, ki ne sme v podpisane bajte dogovora: zanjo kljuca ni
         if (jeIdIzKljuca(id)) {
             val jedro = id.take(DOLZINA_JEDRA)
             return vsiKljuci().firstOrNull { k -> k.isNotBlank() && try { idIzKljuca(k) == jedro } catch (_: Throwable) { false } }
@@ -157,12 +158,110 @@ object DostopPravila {
     }
 
     const val DOLZINA_JEDRA = 18
+    /** Najdaljsa oznaka naprave. */
+    const val NAJVEC_OZNAKE = 128
 
-    /** Isto pravilo kot KrogZaupanja.jeIdIzKljuca (tu brez odvisnosti, da pravila tecejo sama). */
+    /**
+     * Oznaka iz kljuca: `n-<16 hex>`, po zelji s pripono programa (`-os`, `-control` ...) iz crk, stevk, pike, podcrtaja
+     * in vezaja. Isto pravilo kot KrogZaupanja.jeIdIzKljuca (tu brez odvisnosti, da pravila tecejo sama). Oznaka z drugimi
+     * znaki (presledek, prelom vrstice ...) NI oznaka iz kljuca in kljuca po jedru ne dobi: z njo je sredisce sejo zascite
+     * ene naprave prevezalo na drugo (drugi neodvisni pregled, 7. 10. 2026).
+     */
     fun jeIdIzKljuca(id: String): Boolean {
-        if (id.length < DOLZINA_JEDRA || !id.startsWith("n-")) return false
+        if (id.length < DOLZINA_JEDRA || id.length > NAJVEC_OZNAKE || !id.startsWith("n-")) return false
         if (!id.substring(2, DOLZINA_JEDRA).all { it in '0'..'9' || it in 'a'..'f' }) return false
-        return id.length == DOLZINA_JEDRA || id[DOLZINA_JEDRA] == '-'
+        if (id.length == DOLZINA_JEDRA) return true
+        return id[DOLZINA_JEDRA] == '-' && id.substring(DOLZINA_JEDRA + 1).all {
+            it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '.' || it == '_' || it == '-'
+        }
+    }
+
+    /**
+     * Ali sme oznaka naprave v podpisane bajte dogovora zascite: 1-128 vidnih znakov ASCII (brez presledka, krmilnih
+     * znakov in locil vrstic). Isto pravilo kot E2e.veljavnaOznaka.
+     */
+    fun veljavnaOznaka(id: String): Boolean = id.isNotEmpty() && id.length <= NAJVEC_OZNAKE && id.all { it in '!'..'~' }
+
+    /**
+     * Ali od naprave s to oznako sprejmemo samo zascitena sporocila (ker vemo, da jih zna poslati) - in ji zascitene tipe
+     * tudi posiljamo samo zasciteno. [znaZascito] pove, ali je naprava s tem jedrom kljuc ze dokazala, [jedro] da jedro
+     * oznake po krogu ([DostopPravila.jedro]).
+     *
+     * Pri oznaki iz kljuca odloca jedro iz OBLIKE oznake, ne vnos v krogu: vnos s to oznako in DRUGIM kljucem (podtakne
+     * ga lahko clan ali sredisce, novejsi vnos krog sprejme) da prazno jedro in je prej zahtevo ugasnil - odgovori taki
+     * napravi so potem sli nezasciteni (drugi neodvisni pregled, 7. 10. 2026).
+     */
+    fun zahtevaZascito(id: String, znaZascito: (String) -> Boolean, jedro: (String) -> String): Boolean {
+        if (id.isBlank()) return false
+        if (jeIdIzKljuca(id) && znaZascito(id.take(DOLZINA_JEDRA))) return true
+        return znaZascito(jedro(id))
+    }
+
+    /** Naprava, ki ji oznaka pripada, za stetje poskusov: jedro oznake iz kljuca, sicer oznaka sama. */
+    fun jedroOznake(id: String): String = if (jeIdIzKljuca(id)) id.take(DOLZINA_JEDRA) else id
+
+    /**
+     * Oznaka sporocila (`id`, `ref_id`) je kratka (nasi programi: do ~50 znakov). Daljse ne sprejmemo: odgovor ali
+     * potrditev oznako ukaza ponovi, z zelo dolgo pa je naprava brez pravic polnila pomnilnik prejemnika (cetrti
+     * neodvisni pregled, 7. 10. 2026).
+     */
+    const val NAJVEC_OZNAKE_SPOROCILA = 128
+    /** Odgovor ponovi tudi ime dejanja iz ukaza: najvec toliko znakov. */
+    const val NAJVEC_PONOVLJENEGA_DEJANJA = 64
+
+    /** Oznaka sporocila je lahko tudi stevilo (nasi programi posiljajo niz): celo ali obicajna decimalka do te velikosti. */
+    const val NAJVECJE_STEVILO_OZNAKE = 9.223372036854775807E18
+
+    /**
+     * Ali katere od oznak sporocila (vrednosti polj `id`, `ref_id`) ne sprejmemo. Oznako programi ponavljajo v odgovorih
+     * in potrditvah, zato sme biti samo: niz do NAJVEC_OZNAKE_SPOROCILA znakov, obicajno stevilo ali nic (null - klicatelj
+     * poda null tudi za JSON null). Seznam, slovar, logicna vrednost ali neskoncno stevilo na tem mestu bi se ponovilo v
+     * poljubni velikosti ali obliki (peti neodvisni pregled, 7. 10. 2026).
+     */
+    fun predolgaOznaka(vararg oznake: Any?): Boolean = oznake.any { o ->
+        when (o) {
+            null -> false
+            is String -> o.length > NAJVEC_OZNAKE_SPOROCILA
+            is Int, is Long, is Short, is Byte -> false
+            is Double -> o.isNaN() || o.isInfinite() || Math.abs(o) >= NAJVECJE_STEVILO_OZNAKE
+            is Float -> o.isNaN() || o.isInfinite()
+            else -> true
+        }
+    }
+
+    /** Toliko naprav iz seznama sredisca si zapomnimo (zmoznosti). */
+    const val NAJVEC_NAPRAV_V_SEZNAMU = 512
+    /** Najvec dogovorov zascite, ki jih sprozi en seznam naprav. */
+    const val NAJVEC_DOKAZOV_NA_SEZNAM = 16
+    /** Najvec dogovorov na minuto z oznakami ene naprave (jedra). */
+    const val NAJVEC_DOKAZOV_NA_JEDRO = 4
+    /** Zapisov o zadnjem poskusu. */
+    const val NAJVEC_ZAPISOV_DOKAZOV = 512
+
+    /**
+     * Katere naprave iz seznama sredisca smejo ZDAJ v dogovor za dokaz kljuca. [kandidati] so oznake naprav, ki zascito
+     * prijavijo in z njimi nimamo seje (po vrsti iz seznama), [zadnjic] kdaj smo z oznako nazadnje zaceli dogovor.
+     * Seznam pise sredisce: z dolgim seznamom ali z veliko oznakami iste naprave (isto jedro, izmisljene pripone) ne sme
+     * sproziti veliko podpisov s kljucem naprave na bralni niti (drugi neodvisni pregled, 7. 10. 2026). Najvec en poskus
+     * na oznako v [naMs], najvec [NAJVEC_DOKAZOV_NA_JEDRO] na napravo v tem casu in [NAJVEC_DOKAZOV_NA_SEZNAM] na
+     * seznam; ko je zapisov [NAJVEC_ZAPISOV_DOKAZOV], novih ni.
+     */
+    fun izberiZaDokaz(kandidati: List<String>, zadnjic: Map<String, Long>, zdaj: Long, naMs: Long): List<String> {
+        val nedavni = HashMap<String, Int>()
+        for ((id, kdaj) in zadnjic) if (zdaj - kdaj < naMs) { val j = jedroOznake(id); nedavni[j] = (nedavni[j] ?: 0) + 1 }
+        var zapisov = zadnjic.size
+        val izbrani = ArrayList<String>()
+        for (id in kandidati) {
+            val prej = zadnjic[id]
+            if (prej != null && zdaj - prej < naMs) continue
+            if (izbrani.size >= NAJVEC_DOKAZOV_NA_SEZNAM) break
+            val jedro = jedroOznake(id)
+            if ((nedavni[jedro] ?: 0) >= NAJVEC_DOKAZOV_NA_JEDRO || (prej == null && zapisov >= NAJVEC_ZAPISOV_DOKAZOV)) continue
+            if (prej == null) zapisov++
+            nedavni[jedro] = (nedavni[jedro] ?: 0) + 1
+            izbrani.add(id)
+        }
+        return izbrani
     }
 
     /**
