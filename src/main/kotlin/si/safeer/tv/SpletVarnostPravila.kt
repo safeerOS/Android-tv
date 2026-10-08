@@ -72,6 +72,21 @@ object SpletVarnostPravila {
         else -> false
     }
 
+    /** Kaj storiti ob neveljavnem potrdilu (ni nas Hub, ni prava banka): preklici, nadaljuj ali vprasaj uporabnika. */
+    enum class SslOdlocitev { PREKLICI, NADALJUJ, VPRASAJ }
+
+    /**
+     * Vrstni red je pomemben (zunanji pregled 8. 10. 2026, F1): trda ovira - tuj izdajatelj ali napacno ime pri
+     * javnem naslovu - velja PRED zapomnjeno izjemo te seje. Zapomnjena izjema (dovoljeniSsl) je vezana le na
+     * gostitelja:vrata, ne na vrsto napake; brez tega vrstnega reda bi uporabnikov klik »odpri« ob pretecenem
+     * potrdilu kasneje tiho spustil skozi podtaknjeno nezaupano potrdilo za istega gostitelja.
+     */
+    fun sslOdlocitev(napaka: Int, gostitelj: String, zeDovoljen: Boolean): SslOdlocitev = when {
+        !sslSmeNadaljevati(napaka, gostitelj) -> SslOdlocitev.PREKLICI
+        zeDovoljen -> SslOdlocitev.NADALJUJ
+        else -> SslOdlocitev.VPRASAJ
+    }
+
     /** Naprava v domacem omrezju: zasebni naslov IPv4/IPv6 (oktete razclenimo) ali krajevno ime (.local, ime brez pike). */
     fun jeZasebniGostitelj(gostitelj: String): Boolean {
         var h = gostitelj.trim().lowercase()

@@ -74,5 +74,23 @@ fun main() {
     check(P.sslKljuc("https://[fd12::1]:8443/") == "[fd12::1]:8443")
     check(P.sslKljuc("http://primer.si/") == "primer.si:80")
     check(P.sslKljuc("ni naslov") == "")
+    // 7. Vrstni red odlocitve o potrdilu (F1): trda ovira velja PRED zapomnjeno izjemo seje.
+    val PREKLICI = P.SslOdlocitev.PREKLICI; val NADALJUJ = P.SslOdlocitev.NADALJUJ; val VPRASAJ = P.SslOdlocitev.VPRASAJ
+    // Napad F1: uporabnik je prej ob pretecenem potrdilu potrdil izjemo (gostitelj je v dovoljenih); kasneje za
+    // istega gostitelja pride nezaupano / napacno-ime potrdilo -> kljub zapomnjeni izjemi PREKLICI.
+    check(P.sslOdlocitev(UNTRUSTED, "banka.si", zeDovoljen = true) == PREKLICI) { "nezaupano kljub zapomnjeni izjemi" }
+    check(P.sslOdlocitev(IDMISMATCH, "banka.si", zeDovoljen = true) == PREKLICI) { "napacno ime kljub zapomnjeni izjemi" }
+    check(P.sslOdlocitev(INVALID, "banka.si", zeDovoljen = true) == PREKLICI)
+    check(P.sslOdlocitev(UNTRUSTED, "banka.si", zeDovoljen = false) == PREKLICI) { "nezaupano javno brez izjeme" }
+    // Napaka casa pri javnem naslovu: brez izjeme VPRASAJ, z zapomnjeno izjemo NADALJUJ (brez ponovnega vprasanja).
+    check(P.sslOdlocitev(EXPIRED, "banka.si", zeDovoljen = false) == VPRASAJ) { "pretecen javni: vprasaj" }
+    check(P.sslOdlocitev(EXPIRED, "banka.si", zeDovoljen = true) == NADALJUJ) { "pretecen javni, ze dovoljen: nadaljuj" }
+    check(P.sslOdlocitev(DATE_INVALID, "banka.si", zeDovoljen = true) == NADALJUJ)
+    // Zasebni gostitelj (usmerjevalnik, NAS): vsaka napaka je uporabnikova odlocitev.
+    check(P.sslOdlocitev(UNTRUSTED, "192.168.1.1", zeDovoljen = false) == VPRASAJ) { "zasebni nezaupano: vprasaj" }
+    check(P.sslOdlocitev(UNTRUSTED, "192.168.1.1", zeDovoljen = true) == NADALJUJ)
+    check(P.sslOdlocitev(IDMISMATCH, "nas.local", zeDovoljen = false) == VPRASAJ)
+    // Neznana napaka: nikoli nadaljuj, niti z zapomnjeno izjemo.
+    check(P.sslOdlocitev(99, "banka.si", zeDovoljen = true) == PREKLICI) { "neznana napaka kljub izjemi" }
     println("SpletVarnostPravilaTest: OK")
 }

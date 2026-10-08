@@ -1173,17 +1173,20 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // gostitelja IN vrata do konca seje.
                 val gostitelj = (if (sslHost.isNotEmpty()) sslHost else pageHost).lowercase()
                 val kljuc = SpletVarnostPravila.sslKljuc(error?.url).ifEmpty { SpletVarnostPravila.sslKljuc(view?.url) }.ifEmpty { gostitelj }
-                if (kljuc in dovoljeniSsl) { handler?.proceed(); return }
-                if (handler == null) return
-                if (!SpletVarnostPravila.sslSmeNadaljevati(error?.primaryError ?: -1, gostitelj)) {
-                    handler.cancel()
-                    if (obvescenSsl.add(kljuc)) {
-                        try {
-                            android.widget.Toast.makeText(context, context.getString(R.string.ui_ssl_blocked, gostitelj), android.widget.Toast.LENGTH_LONG).show()
-                        } catch (_: Exception) { }
+                when (SpletVarnostPravila.sslOdlocitev(error?.primaryError ?: -1, gostitelj, kljuc in dovoljeniSsl)) {
+                    SpletVarnostPravila.SslOdlocitev.PREKLICI -> {
+                        handler?.cancel()
+                        if (obvescenSsl.add(kljuc)) {
+                            try {
+                                android.widget.Toast.makeText(context, context.getString(R.string.ui_ssl_blocked, gostitelj), android.widget.Toast.LENGTH_LONG).show()
+                            } catch (_: Exception) { }
+                        }
+                        return
                     }
-                    return
+                    SpletVarnostPravila.SslOdlocitev.NADALJUJ -> { handler?.proceed(); return }
+                    SpletVarnostPravila.SslOdlocitev.VPRASAJ -> { }
                 }
+                if (handler == null) return
                 cakajociSsl.getOrPut(kljuc) { mutableListOf() }.let { cakajo ->
                     cakajo.add(handler)
                     if (cakajo.size > 1) return

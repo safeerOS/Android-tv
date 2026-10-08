@@ -1,4 +1,4 @@
-# Safeer Predvajalnik 0.2.52
+# Safeer Predvajalnik 0.2.53
 
 - **Predvajalnik upravlja zvočnik v omrežju.** Dokler glasba igra na zvočniku (UPnP/DLNA), je naprava njegov daljinec: predvajaj/premor, drsnik in čas, ±10 s ter naslednja/prejšnja upravljajo zvočnik – v predvajalniku, v obvestilu, na zaklenjenem zaslonu in s tipkami slušalk. Gumb zvočnika je zgoraj desno; okno »Na zvočniku« kaže glasnost (Glasneje/Tišje okna ne zapreta). Nad naslovom in v mali vrstici piše, kje glasba igra; »Predvajaj tukaj« jo z enim dotikom vrne na napravo, na istem mestu.
 - **Nova izbira gre na zvočnik.** Dokler zvočnik igra, nova skladba ali radijska postaja zaigra na zvočniku in zamenja prejšnjo. Česar zvočnik ne more potegniti sam (video, posnetek s spletne strani, skladba, ki jo je treba šele poiskati), predvaja naprava, zvočnik pa se prej ustavi. Vrsta na zvočniku teče naprej.
@@ -8,7 +8,7 @@
 
 Videa, televizije v živo in posnetkov s spletnih strani zvočnik še ne predvaja (zvočnik v tem načinu zvok sliši z zamikom).
 
-**Varnost.** Pred to izdajo je neodvisni pregled kode pregledal celotno površino napada. Popravljeno (vsako s preizkusom, ki je prej padel): spletna stran ne more več zagnati notranjih zaslonov prek naslova `intent:`; most začetne strani zaupa samo začetni strani; pri tujem potrdilu na javnem naslovu ni »Odpri vseeno«; WebView ne bere »content://« kot vira strani; datoteko, ki jo predvajalnik postreže zvočniku, lahko prebere samo ta zvočnik; koda QR za prijavo nosi cel odtis potrdila. Podrobnosti so v opombah izdaje Safeer OS 0.5.66.
+**Varnost.** Pred to izdajo je neodvisni pregled kode pregledal celotno površino napada. Popravljeno (vsako s preizkusom, ki je prej padel): spletna stran ne more več zagnati notranjih zaslonov prek naslova `intent:`; most začetne strani zaupa samo začetni strani; pri tujem potrdilu na javnem naslovu ni »Odpri vseeno« (zapomnjena izjema ne spusti skozi kasnejšega nezaupanega potrdila — popravek F1); WebView ne bere »content://« kot vira strani; datoteko, ki jo predvajalnik postreže zvočniku, lahko prebere samo ta zvočnik; koda QR za prijavo nosi cel odtis potrdila. Podrobnosti so v opombah izdaje Safeer OS 0.5.67.
 
 Kaj je bilo izmerjeno in kaj ne, je v opombah izdaje Safeer OS 0.5.66 (v2.1.190). Na kratko: obnašanje zvočnika, na katerem slonijo pravila, je izmerjeno na pravem zvočniku (ukazi UPnP, mikrofon), prav tako končna gradnja Predvajalnika s pravim zvočnikom (seja, premor, naslednja, glasnost, konec skladbe, nova izbira, video, »Predvajaj tukaj«); napake (Stop, molk, tuje predvajanje, pozen konec) s preizkusnim zvočnikom; zaslon na telefonu in na tablici (pokončno). Televizor in ležeča postavitev **nista** izmerjena v živo.
 

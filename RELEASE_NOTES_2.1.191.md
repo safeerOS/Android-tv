@@ -1,4 +1,6 @@
-# Safeer 2.1.190 · Safeer OS 0.5.66 · Predvajalnik 0.2.52
+# Safeer 2.1.191 · Safeer OS 0.5.67 · Predvajalnik 0.2.53
+
+Ta izdaja je gradnja 2.1.190 / Safeer OS 0.5.66 / Predvajalnik 0.2.52 z enim dodatnim varnostnim popravkom (F1), ki ga je našel neodvisni pregled samih popravkov: pri neveljavnem potrdilu zdaj trda ovira — tuj izdajatelj ali napačno ime pri javnem naslovu — velja PRED zapomnjeno izjemo seje. Prej bi uporabnikov klik »odpri« ob npr. pretečenem potrdilu kasneje tiho spustil skozi podtaknjeno nezaupano potrdilo za istega gostitelja (zapomnjena izjema je vezana le na gostitelja in vrata, ne na vrsto napake). Popravek je ena preureditev v `ChromiumEngineView` z novim preizkusom (`SpletVarnostPravila.sslOdlocitev`); meritve v živo spodaj so narejene na gradnji 0.5.66 / 0.2.52, katere edina sprememba je ta popravek.
 
 ## Predvajalnik upravlja zvočnik v omrežju
 
@@ -72,7 +74,7 @@ Ista popravka posodobitev in dostopa (podpisan seznam različic, »Ves disk« br
 
 Preizkusi: vseh 7 sklopov preizkusov kode je brez napak, preverba prevodov brez napak, lint brez napak. Novo ali dopolnjeno: `tests/ZvocnikPravilaTest.kt` (čas, premor in njegova potrditev, preskok, konec skladbe in pozen konec, prevzem zvočnika in čigav je naslov, nedosegljiv zvočnik, budnost, glasnost, trajanje), `tests/PretokKonecTest.kt`, `tests/DlnaPravilaTest.kt`, `tests/OsPravilaTest.kt` (mreža bloka, širina kartic, vrsta in njeno okno, sklad podstrani). Pred izdajo so kodo pregledali štirje neodvisni pregledi; najdbe z oceno »popravi pred izdajo« so popravljene, manjše so zapisane za naslednjo izdajo.
 
-Safeer Browser za Android TV 2.1.190 izide skupaj s Safeer OS 0.5.66 (ista koda Safeer Linka, z ukazom `apps.close`); drugih sprememb v brskalniku ni.
+Safeer Browser za Android TV 2.1.191 izide skupaj s Safeer OS 0.5.67 (ista koda Safeer Linka, z ukazom `apps.close`); edina sprememba v brskalniku je varnostni popravek F1 (vrstni red pri neveljavnem potrdilu).
 
 ---
 
