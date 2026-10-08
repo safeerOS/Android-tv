@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="splet_nov_zavihek">New tab</string><string name="splet_link_povezano">● Connected</string><string name="splet_link_ni_povezano">○ Not connected</string>
-    <string name="splet_scit">Shield %1$d</string><string name="splet_portal_naslov">Add shortcut</string><string name="splet_portal_ime">Name</string>
+    <string name="splet_scit">Shield</string><string name="splet_portal_naslov">Add shortcut</string><string name="splet_portal_ime">Name</string>
     <string name="splet_portal_url">Address</string><string name="splet_portal_dodaj">Add</string><string name="splet_portal_neveljaven">Enter a valid http or https web address.</string><string name="splet_portal_dodan">Shortcut added.</string>
 </resources>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="splet_nov_zavihek">Nueva pestaña</string><string name="splet_link_povezano">● Conectado</string><string name="splet_link_ni_povezano">○ Sin conexión</string>
-    <string name="splet_scit">Escudo %1$d</string><string name="splet_portal_naslov">Añadir acceso directo</string><string name="splet_portal_ime">Nombre</string>
+    <string name="splet_scit">Escudo</string><string name="splet_portal_naslov">Añadir acceso directo</string><string name="splet_portal_ime">Nombre</string>
     <string name="splet_portal_url">Dirección</string><string name="splet_portal_dodaj">Añadir</string><string name="splet_portal_neveljaven">Introduce una dirección web http o https válida.</string><string name="splet_portal_dodan">Acceso directo añadido.</string>
 </resources>

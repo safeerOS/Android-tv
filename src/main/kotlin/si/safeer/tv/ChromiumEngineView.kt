@@ -543,16 +543,6 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
 
         @android.webkit.JavascriptInterface
-        fun getStats(): String {
-            // Samo resnicne stevilke; ocena prihranka enaka kot na telefonu (45 KB na oglas, 120 KB na groznjo).
-            val ads = AdBlockEngine.blockedAdsCount.get()
-            val threats = ThreatBlockEngine.totalBlockedThreats.get()
-            val dataMb = String.format(java.util.Locale.US, "%.1f", (ads * 45L + threats * 120L) / 1024.0)
-            val timeMin = String.format(java.util.Locale.US, "%.1f", (ads * 1.0 + threats * 1.5) / 60.0)
-            return "{\"ads\": $ads, \"threats\": $threats, \"dataMb\": \"$dataMb MB\", \"timeMin\": \"$timeMin min\"}"
-        }
-
-        @android.webkit.JavascriptInterface
         fun getUiLanguage(): String {
             return UiText.language
         }

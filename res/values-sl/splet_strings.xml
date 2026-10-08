@@ -3,7 +3,7 @@
     <string name="splet_nov_zavihek">Nov zavihek</string>
     <string name="splet_link_povezano">● Povezano</string>
     <string name="splet_link_ni_povezano">○ Ni povezano</string>
-    <string name="splet_scit">Ščit %1$d</string>
+    <string name="splet_scit">Ščit</string>
     <string name="splet_portal_naslov">Dodaj bližnjico</string>
     <string name="splet_portal_ime">Ime</string>
     <string name="splet_portal_url">Naslov</string>

@@ -1504,8 +1504,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private fun osveziSpletnoStanje() {
         val povezano = si.safeer.tv.cast.CastReceiverService.povezan
         spletLinkZnacka?.text = getString(if (povezano) R.string.splet_link_povezano else R.string.splet_link_ni_povezano)
-        val blokiranih = AdBlockEngine.blockedAdsCount.get() + ThreatBlockEngine.totalBlockedThreats.get()
-        spletScit?.contentDescription = getString(R.string.splet_scit, blokiranih)
+        spletScit?.contentDescription = getString(R.string.splet_scit)
     }
 
     /** Bliznjice, odstranjene z zacetne strani Spleta (kljuci naslovov). Spletna aplikacija sama ostane v Programih. */
@@ -2915,7 +2914,6 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val c2 = ThreatBlockEngine.blockedC2Count.get()
         val malware = ThreatBlockEngine.blockedMalwareCount.get()
         val phishing = ThreatBlockEngine.blockedPhishingCount.get()
-        val totalAds = AdBlockEngine.blockedAdsCount.get()
 
         AlertDialog.Builder(this)
             .setTitle("🛑 Safeer Threat Shield & AdBlock")
@@ -2927,7 +2925,6 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 • Blokiranih Malware prenosov: $malware
                 • Blokiranih Phishing strani: $phishing
                 • Skupaj preprečenih groženj: $totalThreats
-                • Blokiranih oglasov in sledilcev: $totalAds
                 
                 Viri: abuse.ch Feodo Tracker, URLhaus, ThreatFox, Phishing Army, HaGeZi TIF in Fake, SI-CERT, StevenBlack Hosts; oglasi: EasyList.
                 """.trimIndent() + "\n" + UiText.get(R.string.ui_bankguard_status) + "\n" +

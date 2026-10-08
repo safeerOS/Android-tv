@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="splet_nov_zavihek">Nouvel onglet</string><string name="splet_link_povezano">● Connecté</string><string name="splet_link_ni_povezano">○ Non connecté</string>
-    <string name="splet_scit">Bouclier %1$d</string><string name="splet_portal_naslov">Ajouter un raccourci</string><string name="splet_portal_ime">Nom</string>
+    <string name="splet_scit">Bouclier</string><string name="splet_portal_naslov">Ajouter un raccourci</string><string name="splet_portal_ime">Nom</string>
     <string name="splet_portal_url">Adresse</string><string name="splet_portal_dodaj">Ajouter</string><string name="splet_portal_neveljaven">Saisissez une adresse web http ou https valide.</string><string name="splet_portal_dodan">Raccourci ajouté.</string>
 </resources>
