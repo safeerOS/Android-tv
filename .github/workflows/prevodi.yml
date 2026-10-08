@@ -112,6 +112,12 @@ jobs:
       - name: Zascita pred zaznavanjem blokatorja
         run: node tests/protiadblock_test.js
 
+      # Cistilec sledilnih parametrov v URL-jih (tudi percent-kodirana imena).
+      - name: Cistilec sledilnih parametrov (UrlSanitizer)
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+        run: bash tests/run_urlsanitizer_tests.sh
+
       # Cistilec oglasnih prekrivk ne sme odstraniti predvajalnika (stanje oglasa je razred na njegovem vsebniku).
       - name: Cistilec oglasnih prekrivk (predvajalnik ostane)
         run: node tests/cistilec_prekrivk_test.js

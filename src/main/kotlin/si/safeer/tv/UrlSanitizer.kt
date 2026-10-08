@@ -33,7 +33,16 @@ object UrlSanitizer {
         "mc_cid", "mc_eid", "hsctstracking", "_hsenc", "_hsmi", "mkt_tok", "wickedid", "vero_id",
 
         // Partnerska in oglasna omrežja
-        "zanpid", "s_kwcid", "sc_cid", "rb_clickid"
+        "zanpid", "s_kwcid", "sc_cid", "rb_clickid",
+
+        // Instagram (novejsi parameter), Google Analytics linker
+        "igsh", "_ga", "_gl",
+
+        // Matomo / Piwik (mtm_* se brise po predponi)
+        "pk_campaign", "pk_kwd", "pk_keyword", "pk_source", "pk_medium", "pk_content",
+
+        // E-trgovina in novicarske kampanje
+        "spm", "scm", "ncid", "cmpid"
     )
 
     // Stroga bela lista nujnih parametrov aplikacij, ki se nikoli ne smejo odstraniti
@@ -68,18 +77,6 @@ object UrlSanitizer {
             return url
         }
 
-        // Hitri test prisotnosti sledilnih parametrov (optimizacija za ničelno alokacijo pomnilnika)
-        var hasTrackerCandidate = lowerUrl.contains("utm_")
-        if (!hasTrackerCandidate) {
-            for (tracker in TRACKING_PARAMS) {
-                if (lowerUrl.contains(tracker)) {
-                    hasTrackerCandidate = true
-                    break
-                }
-            }
-        }
-        if (!hasTrackerCandidate) return url
-
         return try {
             val hashIdx = url.indexOf('#')
             val fragment = if (hashIdx != -1) url.substring(hashIdx) else ""
@@ -100,11 +97,12 @@ object UrlSanitizer {
                 if (pair.isEmpty()) continue
                 val eqIdx = pair.indexOf('=')
                 val key = if (eqIdx != -1) pair.substring(0, eqIdx) else pair
-                val lowerKey = key.lowercase().trim()
+                // Ime parametra je lahko percent-kodirano (utm%5Fsource): pred primerjavo ga dekodiramo.
+                val lowerKey = decodeKey(key)
 
                 if (isEssential(lowerKey)) {
                     retainedPairs.add(pair)
-                } else if (isTrackingParam(lowerKey)) {
+                } else if (isTrackingParam(lowerKey) || (lowerKey == "si" && isYouTubeShare(base))) {
                     anyStripped = true
                 } else {
                     retainedPairs.add(pair)
@@ -124,12 +122,31 @@ object UrlSanitizer {
         }
     }
 
+    /** Ime parametra: percent-dekodirano, male crke, brez presledkov; pri neveljavni kodi ostane surovo. */
+    private fun decodeKey(raw: String): String {
+        if (raw.indexOf('%') == -1 && raw.indexOf('+') == -1) return raw.lowercase().trim()
+        return try {
+            java.net.URLDecoder.decode(raw, "UTF-8").lowercase().trim()
+        } catch (_: Exception) {
+            raw.lowercase().trim()
+        }
+    }
+
+    /** Parameter si je sledilec deljenja samo na YouTubu; drugje je lahko navadno ime parametra. */
+    private fun isYouTubeShare(base: String): Boolean {
+        val b = base.lowercase()
+        val i = b.indexOf("://")
+        if (i == -1) return false
+        val host = b.substring(i + 3).substringBefore('/').substringBefore(':')
+        return host == "youtu.be" || host == "youtube.com" || host.endsWith(".youtube.com")
+    }
+
     private fun isEssential(param: String): Boolean {
         return ESSENTIAL_WHITELIST.contains(param)
     }
 
     private fun isTrackingParam(param: String): Boolean {
-        if (param.startsWith("utm_")) return true
+        if (param.startsWith("utm_") || param.startsWith("mtm_")) return true
         return TRACKING_PARAMS.contains(param)
     }
 }
