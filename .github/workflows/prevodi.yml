@@ -96,6 +96,13 @@ jobs:
           bash tests/run_domene_tests.sh
           bash tests/run_adblock_tests.sh
 
+      # Pravila strani v brskalniku in zvocnika v omrezju (DLNA): kdaj se zvocniku sme poslati preskok, kdaj je
+      # ustavljen zvocnik konec skladbe in kdaj ga je prevzel kdo drug. Do kroga 121 so tekla samo doma.
+      - name: Most strani, ikone strani, zvocnik v omrezju
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+        run: bash tests/run_splet_tests.sh
+
       # Skripta, ki jo vgrajeni brskalnik na YouTubu zazene pred skriptami strani (posnetek brez cakanja na oglas).
       # Tece v Node (na tem poganjalcu je ze namescen) z nadomestki za okno, dokument in zgodovino.
       - name: YouTube v vgrajenem brskalniku (zacetek brez cakanja)

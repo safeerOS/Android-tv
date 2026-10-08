@@ -5,31 +5,35 @@ private fun preveri(pogoj: Boolean, sporocilo: String) = check(pogoj) { sporocil
 private const val OPIS = """<?xml version="1.0"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0"><specVersion><major>1</major></specVersion>
 <device><deviceType>urn:schemas-upnp-org:device:MediaRenderer:1</deviceType>
-<friendlyName>JBL BAR 300</friendlyName><manufacturer>Harman</manufacturer><modelName>JBL BAR 300</modelName>
+<friendlyName>Zvocnik A</friendlyName><manufacturer>Izdelovalec</manufacturer><modelName>Zvocnik A</modelName>
 <UDN>uuid:FFB8</UDN><serviceList>
 <service><serviceType>urn:schemas-upnp-org:service:AVTransport:1</serviceType><controlURL>/upnp/control/rendertransport1</controlURL></service>
-<service><serviceType>urn:schemas-upnp-org:service:RenderingControl:1</serviceType><controlURL>upnp/control/rendercontrol1</controlURL></service>
+<service><serviceType>urn:schemas-upnp-org:service:RenderingControl:1</serviceType><controlURL>upnp/control/rendercontrol1</controlURL><SCPDURL>/upnp/rendercontrolSCPD.xml</SCPDURL></service>
 </serviceList></device></root>"""
 
 fun main() {
     // SSDP: male crke glav, LOCATION samo na napravi, ki je odgovorila
-    val odg = "HTTP/1.1 200 OK\r\nlocation: http://192.168.0.229:49152/description.xml\r\nst: x\r\n\r\n"
-    preveri(DlnaPravila.lokacija(odg, "192.168.0.229") == "http://192.168.0.229:49152/description.xml", "lokacija")
-    preveri(DlnaPravila.lokacija(odg, "192.168.0.50") == null, "tuj gostitelj")
+    val odg = "HTTP/1.1 200 OK\r\nlocation: http://192.168.1.60:49152/description.xml\r\nst: x\r\n\r\n"
+    preveri(DlnaPravila.lokacija(odg, "192.168.1.60") == "http://192.168.1.60:49152/description.xml", "lokacija")
+    preveri(DlnaPravila.lokacija(odg, "192.168.1.50") == null, "tuj gostitelj")
     preveri(DlnaPravila.lokacija("HTTP/1.1 200 OK\r\nLOCATION: file:///etc/passwd\r\n", "x") == null, "shema")
 
-    val z = DlnaPravila.razcleniOpis(OPIS.toByteArray(), "http://192.168.0.229:49152/description.xml")
+    val z = DlnaPravila.razcleniOpis(OPIS.toByteArray(), "http://192.168.1.60:49152/description.xml")
     preveri(z != null, "opis")
     z!!
-    preveri(z.ime == "JBL BAR 300" && z.udn == "uuid:FFB8" && z.naslov == "192.168.0.229", "polja $z")
-    preveri(z.avUrl == "http://192.168.0.229:49152/upnp/control/rendertransport1", "av ${z.avUrl}")
-    preveri(z.rcUrl == "http://192.168.0.229:49152/upnp/control/rendercontrol1", "rc ${z.rcUrl}")
+    preveri(z.ime == "Zvocnik A" && z.udn == "uuid:FFB8" && z.naslov == "192.168.1.60", "polja $z")
+    preveri(z.avUrl == "http://192.168.1.60:49152/upnp/control/rendertransport1", "av ${z.avUrl}")
+    preveri(z.rcUrl == "http://192.168.1.60:49152/upnp/control/rendercontrol1", "rc ${z.rcUrl}")
+    preveri(z.rcOpis == "http://192.168.1.60:49152/upnp/rendercontrolSCPD.xml", "opis rc ${z.rcOpis}")
+    // opis storitve na drugem gostitelju ne velja (glasnost ostane privzeta), zvocnik pa ostane uporaben
+    val tujOpis = DlnaPravila.razcleniOpis(OPIS.replace("/upnp/rendercontrolSCPD.xml", "http://evil.example/s.xml").toByteArray(), "http://192.168.1.60:49152/description.xml")
+    preveri(tujOpis != null && tujOpis.rcOpis == "", "tuj opis storitve")
     // kontrolni naslov na drugem gostitelju zavrnemo
     val tuj = OPIS.replace("/upnp/control/rendertransport1", "http://evil.example/x")
-    preveri(DlnaPravila.razcleniOpis(tuj.toByteArray(), "http://192.168.0.229:49152/description.xml") == null, "tuj av")
+    preveri(DlnaPravila.razcleniOpis(tuj.toByteArray(), "http://192.168.1.60:49152/description.xml") == null, "tuj av")
     // DTD / entitete zavrnemo
     val dtd = "<?xml version=\"1.0\"?><!DOCTYPE r [<!ENTITY x \"y\">]>" + OPIS.substringAfter("?>")
-    preveri(DlnaPravila.razcleniOpis(dtd.toByteArray(), "http://192.168.0.229:49152/d.xml") == null, "dtd")
+    preveri(DlnaPravila.razcleniOpis(dtd.toByteArray(), "http://192.168.1.60:49152/d.xml") == null, "dtd")
 
     // SOAP in DIDL z ubezanimi znaki
     val didl = DlnaPravila.didl("http://h/a?b=1&c=2", "Čaj & <kava>", "\"Izvajalec\"", "audio/mpeg")
@@ -50,5 +54,32 @@ fun main() {
     preveri(DlnaPravila.lokalniVir("content://media/external/audio/1") && DlnaPravila.zaZvocnik("/sdcard/Music/a.mp3"), "lokalno")
     preveri(DlnaPravila.obseg("bytes=10-19", 100) == 10L..19L && DlnaPravila.obseg("bytes=-10", 100) == 90L..99L, "obseg")
     preveri(DlnaPravila.obseg("bytes=90-", 100) == 90L..99L && DlnaPravila.obseg("bytes=200-", 100) == null, "obseg2")
+
+    // Cas UPnP (H:MM:SS, tudi z delci sekunde) <-> milisekunde; »NOT_IMPLEMENTED« in prazno = neznano
+    preveri(DlnaPravila.casVMs("0:01:23") == 83_000L && DlnaPravila.casVMs("00:01:23.500") == 83_500L, "cas v ms")
+    preveri(DlnaPravila.casVMs("1:00:00") == 3_600_000L && DlnaPravila.casVMs("NOT_IMPLEMENTED") == -1L && DlnaPravila.casVMs("") == -1L, "cas neznan")
+    preveri(DlnaPravila.casVMs("0:99:00") == -1L && DlnaPravila.casVMs("-0:00:05") == -1L, "cas neveljaven")
+    preveri(DlnaPravila.casZaPreskok(83_400L) == "0:01:23" && DlnaPravila.casZaPreskok(3_661_000L) == "1:01:01", "cas za preskok")
+    preveri(DlnaPravila.casZaPreskok(-5L) == "0:00:00", "cas za preskok ni negativen")
+
+    // Vec vrednosti iz enega odgovora (GetPositionInfo): en klic zvocniku namesto treh
+    val polozaj = """<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetPositionInfoResponse xmlns:u="x"><Track>1</Track>""" +
+        """<TrackDuration>0:03:20</TrackDuration><TrackURI>http://primer.example/a.mp3?x=1&amp;y=2</TrackURI><RelTime>0:01:05</RelTime></u:GetPositionInfoResponse></s:Body></s:Envelope>"""
+    val v = DlnaPravila.vrednosti(polozaj.toByteArray(), listOf("RelTime", "TrackDuration", "TrackURI", "Manjka"))
+    preveri(v["RelTime"] == "0:01:05" && v["TrackDuration"] == "0:03:20" && v["TrackURI"] == "http://primer.example/a.mp3?x=1&y=2" && v["Manjka"] == "", "vrednosti $v")
+    val napakaVec = try { DlnaPravila.vrednosti(napaka.toByteArray(), listOf("RelTime")); "" } catch (e: IllegalStateException) { e.message ?: "" }
+    preveri(napakaVec.contains("701"), "fault pri vec vrednostih")
+
+    // Najvecja glasnost iz opisa storitve RenderingControl (zvocniki imajo razlicne lestvice); brez podatka 100
+    val scpd = """<scpd xmlns="urn:schemas-upnp-org:service-1-0"><serviceStateTable><stateVariable sendEvents="no"><name>Mute</name></stateVariable>""" +
+        """<stateVariable sendEvents="no"><name>Volume</name><dataType>ui2</dataType><allowedValueRange><minimum>0</minimum><maximum>40</maximum><step>1</step></allowedValueRange></stateVariable></serviceStateTable></scpd>"""
+    preveri(DlnaPravila.najGlasnost(scpd.toByteArray()) == 40, "najvecja glasnost")
+    preveri(DlnaPravila.najGlasnost(scpd.replace("<maximum>40</maximum>", "").toByteArray()) == 100, "brez obsega")
+    preveri(DlnaPravila.najGlasnost(scpd.replace("<maximum>40</maximum>", "<maximum>0</maximum>").toByteArray()) == 100, "nesmiseln obseg")
+    preveri(DlnaPravila.najGlasnost("ni xml".toByteArray()) == 100, "neveljaven opis")
+    // lestvica, ki je zvocnik ne pove, ni »100«: klicatelj mora vedeti, da je neznana (najmanjsi koraki, branje znova)
+    preveri(DlnaPravila.najGlasnostAliNic(scpd.toByteArray()) == 40, "znana lestvica")
+    preveri(DlnaPravila.najGlasnostAliNic(scpd.replace("<maximum>40</maximum>", "").toByteArray()) == null &&
+        DlnaPravila.najGlasnostAliNic("ni xml".toByteArray()) == null, "neznana lestvica je null")
     println("DlnaPravilaTest: OK")
 }

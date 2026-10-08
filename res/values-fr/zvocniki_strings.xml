@@ -12,4 +12,11 @@
     <string name="zvocnik_glasneje">Plus fort</string>
     <string name="zvocnik_tisje">Moins fort</string>
     <string name="zvocnik_vrni">Revenir sur cet appareil</string>
+    <string name="zvocnik_igra_na">Lecture sur : %1$s</string>
+    <string name="zvocnik_tukaj">Lire ici</string>
+    <string name="zvocnik_glasnost">Volume de l\'enceinte : %1$d</string>
+    <string name="zvocnik_konec">%1$s ne lit plus la musique de cet appareil.</string>
+    <string name="zvocnik_nedosegljiv">%1$s ne répond pas</string>
+    <string name="zvocnik_ne_ustavi">%1$s ne répond pas. S’il joue encore, arrêtez-le sur l’enceinte elle-même.</string>
+    <string name="zvocnik_ustavljen">%1$s n’a pas mis en pause ; la lecture y a été arrêtée.</string>
 </resources>

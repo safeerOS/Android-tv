@@ -34,6 +34,11 @@ import si.safeer.tv.R
  * En predvajalnik za glasbo, radio in video: zaslon [PredvajanjeActivity] mu le pripne sliko, zato
  * zvok igra naprej, ko zaslon zapustis (predvajanje v ozadju). Zasloni ga berejo neposredno
  * ([predvajalnik], [trenutna]) - isti proces.
+ *
+ * Kadar glasba igra na zvocniku v omrezju ([Zvocniki]), je ta naprava daljinec: predvajaj/premor, cas, preskok,
+ * naprej/nazaj in glasnost iz zaslonov, obvestila, seje (zaklenjeni zaslon, slusalke) gredo zvocniku. Zato vsi
+ * sprasujejo tu ([igra], [polozajMs], [preklopi], [skoci] ...), ne predvajalnika neposredno. Predvajalnik te naprave
+ * medtem stoji pri isti skladbi vrste (ne nalaga in ne igra) - vrsta, nakljucno in ponavljanje ostanejo njegovi.
  */
 class GlasbaStoritev : Service() {
 
@@ -269,17 +274,19 @@ class GlasbaStoritev : Service() {
 
         seja = MediaSession(this, "SafeerGlasba").apply {
             setCallback(object : MediaSession.Callback() {
-                // Tipke gredo predvajalniku, ki igra: nasemu ali spletnemu ([SpletniIgralec]).
-                override fun onPlay() { predvajalnik?.play() }
-                override fun onPause() { predvajalnik?.pause() }
+                // Tipke gredo predvajalniku, ki igra: nasemu, spletnemu ([SpletniIgralec]) ali zvocniku v omrezju.
+                override fun onPlay() { nadaljuj() }
+                override fun onPause() { premor() }
                 override fun onSkipToNext() { naslednja() }
                 override fun onSkipToPrevious() { prejsnja() }
                 override fun onStop() { konec() }
-                override fun onSeekTo(pos: Long) { predvajalnik?.seekTo(pos) }
+                override fun onSeekTo(pos: Long) { skoci(pos) }
             })
             isActive = true
         }
         primerek = this
+        Zvocniki.obSpremembi = { osvezi() }
+        Zvocniki.obKoncu = { dejanje, polozaj, ime, zelelIgrati -> zvocnikJavlja(dejanje, polozaj, ime, zelelIgrati) }
         zacniVOspredju()
         application.registerActivityLifecycleCallbacks(zasloni)
     }
@@ -297,7 +304,7 @@ class GlasbaStoritev : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            AKCIJA_TOGGLE -> { predvajalnik?.let { if (it.isPlaying) it.pause() else it.play() }; return START_NOT_STICKY }
+            AKCIJA_TOGGLE -> { preklopi(); return START_NOT_STICKY }
             AKCIJA_NAPREJ -> { naslednja(); return START_NOT_STICKY }
             AKCIJA_USTAVI -> { ustaviPredvajanje(); return START_NOT_STICKY }
         }
@@ -311,6 +318,8 @@ class GlasbaStoritev : Service() {
     /** Stop pomeni konec seje, ne pavze: sprostimo tudi skriti spletni predvajalnik/WebView. */
     private fun ustaviPredvajanje() {
         spletnaVrsta = emptyList(); zetonVrste++
+        izbir++
+        Zvocniki.ustavi {}
         predvajalnik?.stop()
         exo?.clearMediaItems()
         koncajSplet()
@@ -336,6 +345,14 @@ class GlasbaStoritev : Service() {
         spletniIndeks = i
         val moj = ++zetonVrste
         trenutniIdVrste = sk.id
+        // Posnetek s strani in skladba, ki jo je treba sele poiskati, ne moreta na zvocnik: igra ta naprava - zacne sele, ko
+        // zvocnik potrdi Stop (ali po kratkem roku), da hip ne igrata oba.
+        if (Zvocniki.aktivni != null && (UvozSeznama.jeIskana(sk) || SpletniVir.jeEnota(sk))) {
+            val izbrano = izbir
+            Zvocniki.ustavi { if (primerek === this && moj == zetonVrste && izbrano == izbir) zacniElement(i, preskoceni) }
+            osvezi()
+            return
+        }
         when {
             UvozSeznama.jeIskana(sk) -> {
                 // Dokler iscemo posnetek, zaslon ze kaze naslov in izvajalca.
@@ -389,6 +406,7 @@ class GlasbaStoritev : Service() {
 
     private fun nalozi(seznam: List<Jamendo.Skladba>, od: Int, s: DatotekeActivity.Streznik?) {
         val p = exo ?: return
+        val mojaIzbira = ++izbir
         koncajSplet()
         predvajalnik = p
         vrsta = seznam
@@ -440,8 +458,177 @@ class GlasbaStoritev : Service() {
             (zacetnoMesto?.takeIf { it.first == seznam.getOrNull(od)?.id }?.second ?: 0L).also { zacetekPoskusa = it })
         zacetnoMesto = null
         poskusOd = android.os.SystemClock.uptimeMillis()
+        val prva = seznam.getOrNull(od.coerceIn(0, (seznam.size - 1).coerceAtLeast(0)))
+        val zvocnik = Zvocniki.aktivni
+        val samodejno = naslednjaSamodejno
+        naslednjaSamodejno = false
+        if (zvocnik != null && prva != null && s == null && zaZvocnik(prva)) {
+            // Glasba igra na zvocniku: tudi nova izbira gre tja; ta naprava ostane daljinec (ne nalaga in ne igra).
+            // (Datoteke naprave v Linku - pripeti vir [s] - zvocnik ne more prebrati: te igra ta naprava.)
+            p.playWhenReady = false
+            posljiNaZvocnik(zvocnik, prva, zacetekPoskusa, samodejno)
+            return
+        }
+        if (zvocnik != null) {
+            // Tega zvocnik ne zmore (slika, pripeti vir, tok z glavami): igra ta naprava - razen ce je vrsta prisla do tega
+            // sama. Zacne sele, ko zvocnik potrdi Stop (ali po kratkem roku), da hip ne igrata oba.
+            p.playWhenReady = false
+            Zvocniki.ustavi {
+                if (primerek === this && mojaIzbira == izbir && exo === p && predvajalnik === p && !samodejno) { p.prepare(); p.play() }
+                osvezi()
+            }
+            osvezi()
+            return
+        }
         p.prepare()
         p.play()
+    }
+
+    /**
+     * Zaporedna stevilka izbire (nalaganje vrste, stran, konec predvajanja): zagon te naprave, ki caka na Stop zvocnika,
+     * odpade, ce je uporabnik medtem izbral kaj drugega.
+     */
+    private var izbir = 0
+
+    // ------------------------------------------------------------------ zvocnik v omrezju
+    /** Vrsta je do naslednje skladbe prisla sama (konec prejsnje na zvocniku), ne po uporabnikovi izbiri. */
+    private var naslednjaSamodejno = false
+    private var zagonSamodejen = false
+
+    /**
+     * Trenutno skladbo vrste poslje zvocniku. Ce je zvocnik ne sprejme: skladbo, ki jo je izbral uporabnik, igra ta
+     * naprava; kadar je vrsta do nje prisla sama ([samodejno] - nihce ne drzi telefona), ta naprava ostane na premoru
+     * (ne zacne igrati iz svojega zvocnika).
+     */
+    private fun posljiNaZvocnik(z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, odMs: Long = 0L, samodejno: Boolean = false, igraj: Boolean = true) {
+        val p = exo ?: return
+        p.pause(); p.stop()
+        zagonSamodejen = samodejno
+        Zvocniki.predvajaj(this, z, sk, ZvocnikPravila.odPolozaja(odMs, 0L, sk.radio), 0L, igraj) { napaka ->
+            // Zagon, ki ga je prehitela novejsa izbira, ni napaka zvocnika (novejsa izbira ze tece).
+            if (napaka != null && napaka !is Zvocniki.Prehiteno && primerek === this) {
+                obvesti(getString(R.string.zvocnik_napaka, z.ime))
+                // Ta naprava zacne sele, ko zvocnik potrdi Stop (ali po kratkem roku), in samo, ce je to se vedno izbrana skladba.
+                Zvocniki.ustavi {
+                    if (primerek === this && trenutna()?.id == sk.id) { if (samodejno || !igraj) osvezi() else naTejNapravi(odMs) }
+                }
+            }
+        }
+        osvezi()
+    }
+
+    /** Predvajanje (spet) na tej napravi. [odMs]: mesto, na katerem nadaljuje; null = kjer predvajalnik te naprave stoji. */
+    private fun naTejNapravi(odMs: Long?) {
+        val p = exo ?: return
+        if (trenutna()?.radio == true) p.seekToDefaultPosition()
+        else if (odMs != null) p.seekTo(p.currentMediaItemIndex, odMs.coerceAtLeast(0L))
+        p.prepare()
+        p.play()
+        osvezi()
+    }
+
+    /**
+     * Po premiku na drugo skladbo vrste: kadar igra zvocnik, jo dobi zvocnik (ali ta naprava, ce je zvocnik ne zmore).
+     * [igraj] = false (naprej/nazaj med premorom): skladba se zvocniku samo nalozi, kot na tej napravi ostane premor.
+     */
+    private fun poPremikuVVrsti(samodejno: Boolean = false, igraj: Boolean = true) {
+        val z = Zvocniki.aktivni ?: return
+        val sk = trenutna() ?: return
+        if (zaZvocnik(sk)) posljiNaZvocnik(z, sk, 0L, samodejno, igraj)
+        else Zvocniki.ustavi { if (primerek === this && trenutna()?.id == sk.id) { if (samodejno || !igraj) osvezi() else naTejNapravi(0L) } }
+    }
+
+    /** [Zvocniki.obKoncu]: skladba na zvocniku se je koncala, zvocnik je prevzel kdo drug ali pa skladba ni stekla. */
+    private fun zvocnikJavlja(dejanje: ZvocnikPravila.Dejanje, polozajMs: Long, ime: String, zelelIgrati: Boolean) {
+        val p = exo ?: return
+        when (dejanje) {
+            ZvocnikPravila.Dejanje.KONEC_SKLADBE -> {
+                val z = Zvocniki.aktivni ?: return
+                val naslednjaVVrsti = spletnaVrsta.getOrNull(spletniIndeks + 1)
+                when {
+                    // Ponavljanje ene skladbe ima prednost pred vrsto (kot na tej napravi).
+                    p.repeatMode == Player.REPEAT_MODE_ONE -> trenutna()?.let { posljiNaZvocnik(z, it, 0L, true) }
+                    naslednjaVVrsti != null -> {
+                        if (!zaZvocnik(naslednjaVVrsti)) {
+                            // Naslednji posnetek ne more na zvocnik. Vrsta je do njega prisla sama (nihce ne drzi naprave),
+                            // zato ta naprava ne zacne igrati iz svojega zvocnika: seja se konca, uporabnik nadaljuje z Naprej.
+                            Zvocniki.koncajSejo(); osvezi()
+                        } else { naslednjaSamodejno = true; zacniElement(spletniIndeks + 1); naslednjaSamodejno = false }
+                    }
+                    p.hasNextMediaItem() -> { p.seekToNextMediaItem(); poPremikuVVrsti(true) }
+                    // Konec vrste - kot pri predvajanju na tej napravi.
+                    else -> { Zvocniki.koncajSejo(); konec() }
+                }
+            }
+            ZvocnikPravila.Dejanje.NI_ZACELO -> {
+                // Zvocnik skladbe ne zmore (oblika, nedosegljiv naslov): skladbo, ki jo je izbral uporabnik, igra ta naprava -
+                // razen ce je vrsta do nje prisla sama ali je uporabnik medtem izbral premor.
+                obvesti(getString(R.string.zvocnik_napaka, ime))
+                // Nadaljuje na mestu, ki je cakalo na zvocnik (prenos sredi skladbe ali podkasta), ne od zacetka.
+                if (zagonSamodejen || !zelelIgrati) osvezi() else naTejNapravi(polozajMs)
+            }
+            ZvocnikPravila.Dejanje.USTAVI -> {
+                // Zvocnik premora ni izvedel niti po ponovitvah, zato je ustavljen: ta naprava ostane na premoru na istem mestu.
+                if (trenutna()?.radio != true) p.seekTo(p.currentMediaItemIndex, polozajMs.coerceAtLeast(0L))
+                obvesti(getString(R.string.zvocnik_ustavljen, ime))
+                osvezi()
+            }
+            ZvocnikPravila.Dejanje.KONEC_POZEN -> {
+                // Skladba na zvocniku se je koncala, a tega nismo videli sproti (zvocnik dolgo ni bil dosegljiv ali je naprava
+                // spala): naslednje NE posljemo - glasba ne sme zaceti sama cez ure. Seja je ze koncana. Odigrana vrsta se konca
+                // kot sicer; sicer ta naprava ostane na premoru pri koncu te skladbe (»predvajaj« nadaljuje z naslednjo tukaj).
+                if (!zvocnikImaNadaljevanje()) konec()
+                else {
+                    p.seekTo(p.currentMediaItemIndex, polozajMs.coerceAtLeast(0L))
+                    obvesti(getString(R.string.zvocnik_konec, ime))
+                    osvezi()
+                }
+            }
+            else -> {
+                // Zvocnik je prevzel kdo drug (drug vhod, druga naprava) ali ni vec dosegljiv: ta naprava ostane na premoru
+                // na istem mestu, da uporabnik lahko nadaljuje tukaj (predvajalnik se pripravi ob prvem »predvajaj«).
+                if (trenutna()?.radio != true) p.seekTo(p.currentMediaItemIndex, polozajMs.coerceAtLeast(0L))
+                obvesti(getString(R.string.zvocnik_konec, ime))
+                osvezi()
+            }
+        }
+    }
+
+    private var glasnostZvocnika: android.media.VolumeProvider? = null
+    /** UDN zvocnika, na katerega seja usmerja tipke za glasnost ("" = glasnost te naprave). */
+    private var sejaNaZvocniku = ""
+
+    /**
+     * Tipke za glasnost in drsnik sistema (tudi na zaklenjenem zaslonu in v drugih programih): med predvajanjem na
+     * zvocniku nastavljajo glasnost zvocnika, ne te naprave.
+     */
+    private fun uskladiGlasnostSeje() {
+        val s = seja ?: return
+        val z = Zvocniki.aktivni
+        if (z == null) {
+            if (sejaNaZvocniku.isNotEmpty()) {
+                sejaNaZvocniku = ""; glasnostZvocnika = null
+                s.setPlaybackToLocal(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC).build())
+            }
+            return
+        }
+        val najvec = Zvocniki.najGlasnost
+        val znana = Zvocniki.glasnost
+        val obstojeci = glasnostZvocnika
+        if (sejaNaZvocniku == z.udn && obstojeci != null && obstojeci.maxVolume == najvec) {
+            if (znana >= 0 && obstojeci.currentVolume != znana.coerceIn(0, najvec)) obstojeci.currentVolume = znana.coerceIn(0, najvec)
+            return
+        }
+        val nov = object : android.media.VolumeProvider(android.media.VolumeProvider.VOLUME_CONTROL_ABSOLUTE, najvec, znana.coerceIn(0, najvec)) {
+            override fun onAdjustVolume(direction: Int) {
+                // Samo glasneje/tisje; utisanje in drugi ukazi sistema zvocnika ne zadevajo.
+                if (direction == 1 || direction == -1) Zvocniki.glasnostZa(direction * ZvocnikPravila.korakGlasnosti(Zvocniki.najGlasnost, Zvocniki.lestvicaZnana))
+            }
+            override fun onSetVolumeTo(volume: Int) { Zvocniki.glasnostNa(volume) }
+        }
+        glasnostZvocnika = nov; sejaNaZvocniku = z.udn
+        s.setPlaybackToRemote(nov)
     }
 
     /** Kdaj se je zacel zadnji poskus predvajanja (uptimeMillis) in pri katerem mestu - za preklop na rezervni tok. */
@@ -518,6 +705,13 @@ class GlasbaStoritev : Service() {
 
     /** Druga stopnja je varcni sistemski WebView; polni brskalnik se ustvari sele po njenem neuspehu. */
     private fun zacniSplet(sk: Jamendo.Skladba, dovoliPrevzem: Boolean) {
+        if (Zvocniki.aktivni != null) {
+            // Stran igra na tej napravi: zacne sele, ko zvocnik potrdi Stop (ali po kratkem roku), da hip ne igrata oba.
+            val mojaIzbira = ++izbir
+            Zvocniki.ustavi { if (primerek === this && mojaIzbira == izbir) zacniSplet(sk, dovoliPrevzem) }
+            return
+        }
+        izbir++
         exo?.let { it.stop(); it.clearMediaItems() }
         koncajSplet()
         if (rabiPolniPogon(sk)) { zacniPolniSplet(sk); return }
@@ -608,9 +802,11 @@ class GlasbaStoritev : Service() {
             .setContentTitle(s?.naslov ?: getString(R.string.os_glasba_naslov))
             .setContentText(s?.izvajalec ?: "")
             .setContentIntent(odpri)
+            // Kje igra, kadar ne igra ta naprava: gumbi obvestila takrat upravljajo zvocnik.
+            .setSubText(Zvocniki.napis(this))
             .addAction(Notification.Action.Builder(
-                android.graphics.drawable.Icon.createWithResource(this, if (predvajalnik?.isPlaying == true) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj),
-                if (predvajalnik?.isPlaying == true) "Pavza" else "Predvajaj", dejanje(AKCIJA_TOGGLE, 11)).build())
+                android.graphics.drawable.Icon.createWithResource(this, if (igra()) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj),
+                if (igra()) "Pavza" else "Predvajaj", dejanje(AKCIJA_TOGGLE, 11)).build())
         if (imaNaslednjo()) b.addAction(Notification.Action.Builder(
             android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_naslednja), "Naprej", dejanje(AKCIJA_NAPREJ, 12)).build())
         b.addAction(Notification.Action.Builder(
@@ -619,26 +815,31 @@ class GlasbaStoritev : Service() {
     }
 
     private fun osvezi() {
-        val p = predvajalnik ?: return
+        if (predvajalnik == null) return
         val s = trenutna()
+        // Med nedavno predvajane gre skladba sele, ko res igra - tudi na zvocniku (preskocene ne).
+        if (naZvocniku() && Zvocniki.stanje.let { it.igral && it.zeliIgrati }) zapomniNedavnoEnkrat()
+        // Stanje, cas in trajanje tistega, ki igra: te naprave ali zvocnika v omrezju.
         seja?.setMetadata(MediaMetadata.Builder()
             .putString(MediaMetadata.METADATA_KEY_TITLE, s?.naslov ?: "")
             .putString(MediaMetadata.METADATA_KEY_ARTIST, s?.izvajalec ?: "")
-            .putLong(MediaMetadata.METADATA_KEY_DURATION, p.duration.takeIf { it > 0 } ?: -1L)
+            .putLong(MediaMetadata.METADATA_KEY_DURATION, trajanjeMs().takeIf { it > 0 } ?: -1L)
             .build())
         seja?.setPlaybackState(PlaybackState.Builder()
             .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
                 PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP or
                 PlaybackState.ACTION_SEEK_TO)
-            .setState(if (p.isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED,
-                p.currentPosition.coerceAtLeast(0), 1f)
+            .setState(if (igra()) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED, polozajMs(), hitrostZaSejo())
             .build())
+        uskladiGlasnostSeje()
         getSystemService(NotificationManager::class.java).notify(ID, obvestilo())
         poslusalci.toList().forEach { it() }
     }
 
     override fun onDestroy() {
         application.unregisterActivityLifecycleCallbacks(zasloni)
+        // Konec predvajanja je tudi konec na zvocniku (brez te naprave bi igral naprej brez daljinca).
+        if (primerek === this) { Zvocniki.obSpremembi = null; Zvocniki.obKoncu = null; Zvocniki.ustavi {} }
         if (primerek === this) primerek = null
         spletnaVrsta = emptyList(); zetonVrste++
         seja?.release(); seja = null
@@ -706,16 +907,127 @@ class GlasbaStoritev : Service() {
         /** Ali Naprej kam pelje: naslednja skladba navadne vrste ali naslednji posnetek seznama. */
         fun imaNaslednjo(): Boolean = spletnaVrsta.size > spletniIndeks + 1 || predvajalnik?.hasNextMediaItem() == true
 
+        // ---- Kdo igra: ta naprava ali zvocnik v omrezju ([Zvocniki]). Zasloni, seja, obvestilo in tipke sprasujejo tu.
+
+        /** Glasba igra na zvocniku v omrezju; ta naprava je daljinec. */
+        fun naZvocniku(): Boolean = predvajalnik != null && Zvocniki.aktivni != null
+
+        fun igra(): Boolean = if (naZvocniku()) Zvocniki.stanje.zeliIgrati else predvajalnik?.isPlaying == true
+
+        fun polozajMs(): Long = if (naZvocniku()) Zvocniki.polozaj() else predvajalnik?.currentPosition?.coerceAtLeast(0L) ?: 0L
+
+        fun trajanjeMs(): Long = if (naZvocniku()) Zvocniki.stanje.trajanjeMs else predvajalnik?.duration?.takeIf { it > 0 } ?: 0L
+
+        /**
+         * Po predvajanju na zvocniku predvajalnik te naprave stoji (ne nalaga), dokler ga uporabnik spet ne potrebuje:
+         * preden igra, ga pripravimo. Brez tega »predvajaj« po koncu seje na zvocniku ne bi naredil nicesar. Pri navadnem
+         * predvajanju na tej napravi to stanje (stoji, ima vrsto, ni napake) ne nastane.
+         */
+        private fun zbudiPredvajalnik() {
+            val e = primerek?.exo ?: return
+            if (predvajalnik === e && e.playbackState == Player.STATE_IDLE && e.playerError == null && e.mediaItemCount > 0) e.prepare()
+        }
+
+        fun nadaljuj() { if (naZvocniku()) Zvocniki.nadaljuj() else { zbudiPredvajalnik(); predvajalnik?.play() } }
+
+        fun premor() { if (naZvocniku()) Zvocniki.premor() else predvajalnik?.pause() }
+
+        fun preklopi() {
+            if (naZvocniku()) Zvocniki.preklopi()
+            else predvajalnik?.let { if (it.isPlaying) it.pause() else { zbudiPredvajalnik(); it.play() } }
+        }
+
+        fun skoci(ms: Long) { if (naZvocniku()) Zvocniki.skoci(ms) else predvajalnik?.seekTo(ms) }
+
+        /** Hitrost za sejo sistema: dokler zvok na zvocniku se ne tece (zagon, pristajanje po preskoku), cas stoji. */
+        private fun hitrostZaSejo(): Float {
+            if (!naZvocniku()) return 1f
+            val z = Zvocniki.stanje
+            // Kratek zamik ob nadaljevanju ne steje; pristajanje po preskoku (sekunda ali dve) pa.
+            return if (z.zeliIgrati && z.igral && z.cakajociPreskokMs < 0L && android.os.SystemClock.elapsedRealtime() + 500L >= z.veljaOd) 1f else 0f
+        }
+
+        /** Po koncu skladbe na zvocniku bo treba poslati naslednjo (vrsta ali ponavljanje): naprava mora ostati budna. */
+        fun zvocnikImaNadaljevanje(): Boolean = spletnaVrsta.size > spletniIndeks + 1 ||
+            predvajalnik?.let { it.hasNextMediaItem() || it.repeatMode != Player.REPEAT_MODE_OFF } == true
+
+        /** Skladba iz vrste (kartica »V vrsti«): na zvocniku, kadar igra zvocnik, sicer tu. */
+        fun predvajajIzVrste(indeks: Int) {
+            val p = predvajalnik ?: return
+            if (indeks !in 0 until p.mediaItemCount) return
+            p.seekTo(indeks, 0L)
+            val s = primerek
+            if (s != null && naZvocniku()) s.poPremikuVVrsti() else { zbudiPredvajalnik(); p.play() }
+        }
+
+        /**
+         * »Predvajaj na zvocniku«: kar igra tu, gre na zvocnik in nadaljuje na istem mestu; ta naprava postane daljinec
+         * (ena glasba naenkrat). Napako dobi [konec].
+         */
+        fun naZvocnik(ctx: Context, z: DlnaPravila.Zvocnik, izbrana: Jamendo.Skladba, konec: (Exception?) -> Unit) {
+            val p = predvajalnik
+            // Med izbiranjem zvocnika je lahko zacela igrati druga skladba: na zvocnik gre tista, ki igra ZDAJ. (Prej je
+            // zvocnik dobil staro, jo takoj ustavil, ta naprava pa je igrala naprej - izbira zvocnika brez ucinka.)
+            val sk = (if (p != null) trenutna() else null) ?: izbrana
+            // Nic ne igra vec (uporabnik je med iskanjem zvocnikov ustavil predvajanje) ali pa tega zvocnik ne zmore sam:
+            // zvocniku ne posljemo nicesar (prej: poslano in takoj ustavljeno).
+            if (p == null || !zaZvocnik(sk)) { konec(IllegalStateException("ni kaj poslati na zvocnik")); return }
+            val tukaj = trenutna()?.id == sk.id
+            val trajanje = if (tukaj && !sk.radio) p.duration.takeIf { it > 0 } ?: 0L else 0L
+            val od = if (tukaj) ZvocnikPravila.odPolozaja(p.currentPosition, trajanje, sk.radio) else 0L
+            primerek?.zagonSamodejen = false
+            Zvocniki.predvajaj(ctx, z, sk, od, trajanje) { napaka ->
+                if (napaka == null) {
+                    if (predvajalnik == null || trenutna()?.id != sk.id) {
+                        // Medtem je uporabnik izbral kaj drugega (ali ustavil predvajanje): zvocnik ne sme igrati stare skladbe.
+                        Zvocniki.ustavi {}
+                    } else predvajalnik?.let { it.pause(); if (it is ExoPlayer) it.stop() }
+                }
+                primerek?.osvezi()
+                konec(napaka)
+            }
+        }
+
+        /** »Predvajaj tukaj«: zvocnik se ustavi, ta naprava nadaljuje na istem mestu. */
+        fun vrniNaNapravo() {
+            if (!naZvocniku()) return
+            val polozaj = Zvocniki.polozaj()
+            val sk = trenutna()
+            val vZivo = sk?.radio == true
+            // Ta naprava zacne sele, ko zvocnik potrdi Stop (ali po kratkem roku) - prej sta ob pocasnem zvocniku hip igrala oba,
+            // ob nedosegljivem pa oba brez konca in brez sporocila.
+            Zvocniki.ustavi {
+                val s = primerek
+                if (trenutna()?.id == sk?.id) { if (s != null) s.naTejNapravi(if (vZivo) null else polozaj) else predvajalnik?.play() }
+            }
+        }
+
+        /**
+         * Ali skladbo zvocnik lahko predvaja sam: zvocni tok brez posebnih glav zahteve (te pozna samo nas predvajalnik), ne
+         * posnetek s strani in ne skladba, ki jo je treba se poiskati.
+         */
+        fun zaZvocnik(sk: Jamendo.Skladba): Boolean = !UvozSeznama.jeIskana(sk) && !SpletniVir.jeEnota(sk) &&
+            SpletniVir.glaveToka(sk.zvok).isEmpty() && ZvocnikPravila.primerna(sk.zvok, sk.video, sk.mime)
+
         fun naslednja() {
             val s = primerek
             if (s != null && spletnaVrsta.size > spletniIndeks + 1) s.zacniElement(spletniIndeks + 1)
-            else predvajalnik?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
+            // Na zvocniku: med premorom se naslednja samo nalozi (kot na tej napravi ostane premor).
+            else predvajalnik?.let { if (it.hasNextMediaItem()) { it.seekToNextMediaItem(); s?.poPremikuVVrsti(false, !naZvocniku() || Zvocniki.stanje.zeliIgrati) } }
         }
 
         /** Nazaj: po prvih sekundah na zacetek posnetka, sicer prejsnji (kot pri vsakem predvajalniku). */
         fun prejsnja() {
             val s = primerek
             val p = predvajalnik
+            if (naZvocniku()) {
+                val vVrsti = s != null && spletnaVrsta.isNotEmpty()
+                val imaPrejsnjo = if (vVrsti) spletniIndeks > 0 else p?.hasPreviousMediaItem() == true
+                if (ZvocnikPravila.nazajNaZacetek(Zvocniki.polozaj(), imaPrejsnjo)) Zvocniki.skoci(0L)
+                else if (vVrsti) s.zacniElement(spletniIndeks - 1)
+                else { p?.seekToPreviousMediaItem(); s?.poPremikuVVrsti(false, Zvocniki.stanje.zeliIgrati) }
+                return
+            }
             if (s != null && spletnaVrsta.isNotEmpty()) {
                 if ((p?.currentPosition ?: 0L) > 5000 || spletniIndeks == 0) p?.seekTo(0) else s.zacniElement(spletniIndeks - 1)
             } else p?.let { if (it.currentPosition > 5000 || !it.hasPreviousMediaItem()) it.seekTo(0) else it.seekToPreviousMediaItem() }
@@ -790,7 +1102,7 @@ class GlasbaStoritev : Service() {
             Intent(ctx, if (trenutna() != null && tece()) PredvajanjeActivity::class.java else GlasbaActivity::class.java)
 
         /** Predvajanje tece ali se nalaga po uporabnikovi zelji: ni pavze, ni napake, ni konca. */
-        fun tece(): Boolean = predvajalnik?.let {
+        fun tece(): Boolean = if (naZvocniku()) Zvocniki.stanje.zeliIgrati else predvajalnik?.let {
             it.playWhenReady && it.playerError == null && (it.playbackState == Player.STATE_READY || it.playbackState == Player.STATE_BUFFERING)
         } == true
 
@@ -802,13 +1114,15 @@ class GlasbaStoritev : Service() {
         /** Casovnik izklopa: ob izteku predvajanje ustavimo (za zaspance pred televizorjem). */
         private var izklopOb = 0L
         private val ura = android.os.Handler(android.os.Looper.getMainLooper())
-        private val izklopi = Runnable { izklopOb = 0L; predvajalnik?.pause(); poslusalci.toList().forEach { it() } }
+        private val izklopi = Runnable { izklopOb = 0L; premor(); Zvocniki.casovnikSpremenjen(); poslusalci.toList().forEach { it() } }
 
         /** Nastavi casovnik v minutah; 0 ga izklopi. */
         fun nastaviCasovnik(minut: Int) {
             ura.removeCallbacks(izklopi)
             izklopOb = if (minut > 0) System.currentTimeMillis() + minut * 60_000L else 0L
             if (minut > 0) ura.postDelayed(izklopi, minut * 60_000L)
+            // Na zvocniku ta naprava sicer lahko zaspi (ne igra sama) - casovnik pa mora docakati svoj cas.
+            Zvocniki.casovnikSpremenjen()
         }
 
         /** Preostale minute casovnika (zaokrozeno navzgor), 0 = izklopljen. */

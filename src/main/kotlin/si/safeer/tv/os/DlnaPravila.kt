@@ -6,7 +6,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Element
 
 /**
- * Zvocniki v omrezju (UPnP/DLNA MediaRenderer, npr. JBL BAR 300, Kodi, pametni TV) - cisto pravila brez
+ * Zvocniki v omrezju (UPnP/DLNA MediaRenderer, npr. zvocna letev, Kodi, pametni TV) - cisto pravila brez
  * Androida (preizkus: tests/DlnaPravilaTest.kt). Samo odprti standard UPnP AV, brez vmesnikov proizvajalcev.
  * Enaka pravila kot core/dlna_zvocniki.py v Safeer OS za Linux.
  */
@@ -19,6 +19,8 @@ object DlnaPravila {
     data class Zvocnik(
         val ime: String, val proizvajalec: String, val model: String, val udn: String,
         val naslov: String, val avUrl: String, val rcUrl: String,
+        /** Naslov opisa storitve RenderingControl (SCPD) - iz njega preberemo lestvico glasnosti; "" = ni znan. */
+        val rcOpis: String = "",
     )
 
     fun poizvedba(): ByteArray = ("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\n" +
@@ -63,19 +65,23 @@ object DlnaPravila {
         val naprava = koren.getElementsByTagNameNS("*", "device").item(0) as? Element ?: return null
         val osnova = koren.besedilo("URLBase").ifBlank { opisUrl }
         if (razresi(opisUrl, osnova) == null && osnova != opisUrl) return null
-        var av: String? = null; var rc: String? = null
+        var av: String? = null; var rc: String? = null; var rcOpis = ""
         val storitve = naprava.getElementsByTagNameNS("*", "service")
         for (i in 0 until storitve.length) {
             val s = storitve.item(i) as? Element ?: continue
             val tip = s.besedilo("serviceType"); val kontrola = s.besedilo("controlURL")
             if (kontrola.isBlank()) continue
             if (tip.startsWith("urn:schemas-upnp-org:service:AVTransport:") && av == null) av = razresi(osnova, kontrola)
-            if (tip.startsWith("urn:schemas-upnp-org:service:RenderingControl:") && rc == null) rc = razresi(osnova, kontrola)
+            if (tip.startsWith("urn:schemas-upnp-org:service:RenderingControl:") && rc == null) {
+                rc = razresi(osnova, kontrola)
+                // Opis storitve mora biti na isti napravi kot vse drugo; sicer ga ne beremo (glasnost ostane privzeta).
+                rcOpis = s.besedilo("SCPDURL").takeIf { it.isNotBlank() }?.let { razresi(osnova, it) } ?: ""
+            }
         }
         val udn = naprava.besedilo("UDN")
         if (av == null || rc == null || udn.isBlank()) return null
         return Zvocnik(naprava.besedilo("friendlyName").ifBlank { naprava.besedilo("modelName") },
-            naprava.besedilo("manufacturer"), naprava.besedilo("modelName"), udn, URI(opisUrl).host ?: "", av, rc)
+            naprava.besedilo("manufacturer"), naprava.besedilo("modelName"), udn, URI(opisUrl).host ?: "", av, rc, rcOpis)
     }
 
     fun xml(t: String): String = t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -95,15 +101,59 @@ object DlnaPravila {
             "<upnp:class>object.item.audioItem.musicTrack</upnp:class>" +
             "<res protocolInfo=\"http-get:*:${xml(mime)}:*\">${xml(url)}</res></item></DIDL-Lite>"
 
-    /** Vrednost iz odgovora SOAP; napaka UPnP (Fault) -> IllegalStateException z opisom. */
-    fun vrednost(odgovor: ByteArray, ime: String): String {
-        val doc = dokument(odgovor)
+    private fun preveriNapako(doc: org.w3c.dom.Document) {
         val napaka = doc.getElementsByTagNameNS("*", "Fault")
         if (napaka.length > 0) {
             val e = napaka.item(0) as Element
             throw IllegalStateException("UPnP ${e.besedilo("errorCode")}: ${e.besedilo("errorDescription")}".trim())
         }
+    }
+
+    /** Vrednost iz odgovora SOAP; napaka UPnP (Fault) -> IllegalStateException z opisom. */
+    fun vrednost(odgovor: ByteArray, ime: String): String {
+        val doc = dokument(odgovor)
+        preveriNapako(doc)
         return if (ime.isEmpty()) "" else doc.documentElement.besedilo(ime)
+    }
+
+    /** Vec vrednosti iz enega odgovora (manjkajoca = ""): en klic zvocniku namesto vec. Napaka UPnP kot pri [vrednost]. */
+    fun vrednosti(odgovor: ByteArray, imena: List<String>): Map<String, String> {
+        val doc = dokument(odgovor)
+        preveriNapako(doc)
+        val koren = doc.documentElement
+        return imena.associateWith { koren.besedilo(it) }
+    }
+
+    /** Cas UPnP (»H:MM:SS«, lahko z delci sekunde) v milisekundah; -1 = neznan (»NOT_IMPLEMENTED«, prazno, neveljavno). */
+    fun casVMs(cas: String): Long {
+        val m = Regex("(\\d{1,5}):(\\d{1,2}):(\\d{1,2})(?:\\.(\\d{1,6}))?").matchEntire(cas.trim()) ?: return -1L
+        val (ure, minute, sekunde, delci) = m.destructured
+        if (minute.toInt() > 59 || sekunde.toInt() > 59) return -1L
+        val ms = if (delci.isEmpty()) 0L else delci.padEnd(3, '0').take(3).toLong()
+        return ure.toLong() * 3_600_000L + minute.toLong() * 60_000L + sekunde.toLong() * 1_000L + ms
+    }
+
+    /** Milisekunde v cilj preskoka (Seek, REL_TIME): cele sekunde, »H:MM:SS«. */
+    fun casZaPreskok(ms: Long): String {
+        val s = ms.coerceAtLeast(0L) / 1000L
+        return String.format(java.util.Locale.ROOT, "%d:%02d:%02d", s / 3600L, (s % 3600L) / 60L, s % 60L)
+    }
+
+    /** Najvecja glasnost iz opisa storitve RenderingControl (obseg spremenljivke Volume); brez podatka 100. */
+    fun najGlasnost(scpd: ByteArray): Int = najGlasnostAliNic(scpd) ?: 100
+
+    /** Kot [najGlasnost], a null, kadar zvocnik lestvice ne pove ali opisa ni mogoce razcleniti - »100« bi bil ugib. */
+    fun najGlasnostAliNic(scpd: ByteArray): Int? {
+        if (scpd.size > NAJVEC_OPISA) return null
+        val doc = try { dokument(scpd) } catch (_: Exception) { return null }
+        val spremenljivke = doc.getElementsByTagNameNS("*", "stateVariable")
+        for (i in 0 until spremenljivke.length) {
+            val e = spremenljivke.item(i) as? Element ?: continue
+            if (e.besedilo("name") != "Volume") continue
+            val obseg = e.getElementsByTagNameNS("*", "allowedValueRange").item(0) as? Element ?: return null
+            return obseg.besedilo("maximum").toIntOrNull()?.takeIf { it in 1..1000 }
+        }
+        return null
     }
 
     /** Vrsta zvoka iz naslova (za protocolInfo); privzeto MP3, kar zna vsak zvocnik. */

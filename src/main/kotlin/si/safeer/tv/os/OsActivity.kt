@@ -16,8 +16,11 @@ import android.view.ViewGroup
 open class OsActivity : Activity() {
 
     /** Uporabnikova tema (Nastavitve › Videz) - nastavljena pred izrisom; celozaslonski zasloni dobijo crno razlicico. */
+    @android.annotation.SuppressLint("SourceLockedOrientationActivity")   // samo preizkusna gradnja »TV nacin«
     override fun onCreate(savedInstanceState: Bundle?) {
         Tema.uporabi(this, predvajalnik = this is PredvajanjeActivity || this is PredvajalnikActivity || this is SlikaActivity)
+        // Preizkusna gradnja »TV nacin« (glej [Naprava]): lezeci zaslon kot na televizorju. V izdajah se to ne izvede.
+        if (si.safeer.tv.BuildConfig.TV_NACIN_PREIZKUS) requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         super.onCreate(savedInstanceState)
     }
 
@@ -39,7 +42,7 @@ open class OsActivity : Activity() {
      *  (enako kot brskalnik); pri "samodejno" ostane jezik televizorja. */
     override fun attachBaseContext(newBase: android.content.Context) {
         jezikOb = si.safeer.tv.JezikVmesnika.izbrani(newBase)
-        super.attachBaseContext(si.safeer.tv.JezikVmesnika.vKontekstu(newBase))
+        super.attachBaseContext(Naprava.zaslonTelevizorja(si.safeer.tv.JezikVmesnika.vKontekstu(newBase)))
     }
 
     /**

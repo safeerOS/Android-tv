@@ -12,4 +12,11 @@
     <string name="zvocnik_glasneje">Lauter</string>
     <string name="zvocnik_tisje">Leiser</string>
     <string name="zvocnik_vrni">Zurück auf dieses Gerät</string>
+    <string name="zvocnik_igra_na">Wiedergabe auf: %1$s</string>
+    <string name="zvocnik_tukaj">Hier abspielen</string>
+    <string name="zvocnik_glasnost">Lautstärke des Lautsprechers: %1$d</string>
+    <string name="zvocnik_konec">%1$s spielt keine Musik mehr von diesem Gerät.</string>
+    <string name="zvocnik_nedosegljiv">%1$s antwortet nicht</string>
+    <string name="zvocnik_ne_ustavi">%1$s antwortet nicht. Falls er noch spielt, bitte am Lautsprecher selbst stoppen.</string>
+    <string name="zvocnik_ustavljen">%1$s hat nicht pausiert, daher wurde die Wiedergabe dort gestoppt.</string>
 </resources>

@@ -41,10 +41,12 @@ object Predaja {
             Stremio.pripravi(ctx)
             if (Stremio.jeZasebna(izvirnik) || Stremio.jeZasebna(sk)) return o.put("playing", false)
             val streznik = tok?.streznikIzvirnika ?: GlasbaStoritev.streznikTrenutni
-            val polozaj = (tok?.zamikMs ?: 0L) + p.currentPosition.coerceAtLeast(0L)
-            val trajanje = tok?.trajanjeMs?.takeIf { it > 0 } ?: p.duration.takeIf { it > 0 } ?: 0L
+            // Kadar glasba igra na zvocniku v omrezju, veljata njegov cas in stanje (predvajalnik te naprave stoji).
+            val naZvocniku = GlasbaStoritev.naZvocniku()
+            val polozaj = if (naZvocniku) GlasbaStoritev.polozajMs() else (tok?.zamikMs ?: 0L) + p.currentPosition.coerceAtLeast(0L)
+            val trajanje = if (naZvocniku) GlasbaStoritev.trajanjeMs() else tok?.trajanjeMs?.takeIf { it > 0 } ?: p.duration.takeIf { it > 0 } ?: 0L
             val vnos = zaPosiljanje(ctx, izvirnik, streznik, posiljatelj) ?: return o.put("playing", false).put("reason", "ni_deljeno")
-            o.put("playing", true).put("is_playing", p.isPlaying).put("position_ms", polozaj).put("duration_ms", trajanje)
+            o.put("playing", true).put("is_playing", GlasbaStoritev.igra()).put("position_ms", polozaj).put("duration_ms", trajanje)
             vnos.toMap().forEach { (k, v) -> o.put(k, v) }
             return o
         }
@@ -61,7 +63,8 @@ object Predaja {
     /** `play.stop`: uporabnik na cilju je izbral "nadaljuj tukaj in ustavi tam" - tu samo pavza (nic se ne izgubi). */
     fun ustavi(): JSONObject {
         val p = GlasbaStoritev.predvajalnik ?: return JSONObject().put("stopped", false)
-        android.os.Handler(android.os.Looper.getMainLooper()).post { try { p.pause() } catch (_: Throwable) { } }
+        // Premor tistega, ki igra (te naprave ali zvocnika v omrezju).
+        android.os.Handler(android.os.Looper.getMainLooper()).post { try { GlasbaStoritev.premor() } catch (_: Throwable) { } }
         return JSONObject().put("stopped", true)
     }
 
@@ -149,8 +152,9 @@ object Predaja {
         val tok = SprotnaPomoc.tokZa(sk)
         val izvirnik = tok?.izvirnik ?: sk
         val streznik = tok?.streznikIzvirnika ?: GlasbaStoritev.streznikTrenutni
-        val polozaj = (tok?.zamikMs ?: 0L) + p.currentPosition.coerceAtLeast(0L)
-        val trajanje = tok?.trajanjeMs?.takeIf { it > 0 } ?: p.duration.takeIf { it > 0 } ?: 0L
+        val naZvocniku = GlasbaStoritev.naZvocniku()
+        val polozaj = if (naZvocniku) GlasbaStoritev.polozajMs() else (tok?.zamikMs ?: 0L) + p.currentPosition.coerceAtLeast(0L)
+        val trajanje = if (naZvocniku) GlasbaStoritev.trajanjeMs() else tok?.trajanjeMs?.takeIf { it > 0 } ?: p.duration.takeIf { it > 0 } ?: 0L
         val vnos = zaPosiljanje(ctx, izvirnik, streznik, cilj) ?: return null
         val link = LinkUpravitelj.pridobi(ctx.applicationContext)
         val jaz = link.naprave.firstOrNull { it.id == Identiteta.id(ctx) }?.ime ?: android.os.Build.MODEL

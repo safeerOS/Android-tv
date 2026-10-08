@@ -127,7 +127,9 @@ mkdir -p "$DIR/.android"
 echo "☕ Gradle assembleRelease (Media3)..."
 cd "$DIR"
 python3 tests/check_public_package.py
-./gradlew --no-daemon :assembleRelease
+# Preizkusni »TV nacin« (os/Naprava.kt, -PsafeerTvNacin=true) ne sme v izdajo: tu je zastavica izrecno izklopljena -
+# ukazna vrstica ima prednost pred gradle.properties in okoljem (ORG_GRADLE_PROJECT_safeerTvNacin).
+./gradlew --no-daemon :assembleRelease -PsafeerTvNacin=false
 
 echo "✍️  Podpisujem s produkcijskim ključem za TV (keystore/safeer-tv-release.jks)..."
 # Google Android Developer Console (obvezno preverjanje razvijalcev, 2027 tudi v Sloveniji) veže ime paketa na
@@ -240,11 +242,11 @@ echo "OK: no authentication assets in APK."
 echo "🔎 Preverjam, da sta aplikaciji loceni..."
 python3 "$DIR/tests/preveri_loceni_aplikaciji.py" "$DIR/TV-Browser-2.apk" "$DIR/Safeer-OS.apk"
 
-# Kontrolne vsote: zapisemo jih tu, ob vsaki gradnji, za vse zgrajene APK-je (tudi tablico in telefon). Prej je SHA256SUMS
+# Kontrolne vsote: zapisemo jih tu, ob vsaki gradnji, za vse zgrajene APK-je (tudi tablico, telefon in predvajalnik). Prej je SHA256SUMS
 # ostajal iz stare izdaje in je za nove APK-je navajal napacno vsoto - to uporabniku sporoca, da je
 # paket spremenjen ali pokvarjen, kar ni bilo res.
 echo "🔎 Zapisujem kontrolne vsote (SHA256SUMS)..."
-( cd "$DIR" && sha256sum TV-Browser-2.apk Safeer-Browser.apk Safeer-OS.apk $(ls Safeer-OS-Tablet.apk Safeer-OS-Mobile.apk 2>/dev/null) > SHA256SUMS )
+( cd "$DIR" && sha256sum TV-Browser-2.apk Safeer-Browser.apk Safeer-OS.apk $(ls Safeer-OS-Tablet.apk Safeer-OS-Mobile.apk Safeer-Predvajalnik.apk 2>/dev/null) > SHA256SUMS )
 ( cd "$DIR" && sha256sum -c --quiet SHA256SUMS )
 echo "OK: SHA256SUMS ustreza zgrajenim APK-jem."
 

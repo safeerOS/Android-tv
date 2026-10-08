@@ -15,7 +15,6 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -34,9 +33,12 @@ import java.util.Locale
  * Zaslon predvajalniku le pripne sliko - ko ga zapustis (Nazaj, Domov), zvok igra naprej v ozadju.
  *
  * Daljinec: OK pavza/predvajaj, levo/desno 10 s, dol odpre vrsto "se za ogled" (video s tega kanala
- * in o isti temi) oziroma "v vrsti" (glasba, radio) s kartico Isci na zacetku, tipka Isci odpre
+ * in o isti temi) oziroma "v vrsti" (glasba, radio) s kartico »Vec moznosti« na zacetku, tipka Isci odpre
  * iskanje, zadrzan OK ali Stop ustavi predvajanje, Nazaj pusti predvajanje v ozadju. Pri glasbi se po 30 s brez daljinca
  * zaslon zatemni (nacin poslusanja); pri videu ne.
+ *
+ * Kadar glasba igra na zvocniku v omrezju, isti gumbi, drsnik, tipke in kretnja za glasnost upravljajo zvocnik
+ * ([GlasbaStoritev.naZvocniku]); nad naslovom je napis »Igra na: ...« in (na dotik) gumb »Predvajaj tukaj«.
  */
 class PredvajanjeActivity : OsActivity() {
 
@@ -71,6 +73,11 @@ class PredvajanjeActivity : OsActivity() {
     private var gumbPip: ImageButton? = null
     private var gumbZaklep: ImageButton? = null
 
+    /** Vrstica »Igra na: <zvocnik>« z gumbom »Predvajaj tukaj«: vidna, dokler glasba igra na zvocniku v omrezju. */
+    private var zvocnikPas: View? = null
+    private var zvocnikIme: TextView? = null
+    private var prikazanZvocnik: String? = null
+
     // ------------------------------------------------------------------ zaklep zaslona (kot VLC)
     /** Zaklenjen zaslon med videom: dotiki ne sprozijo nicesar (zep, otroci); odklep z gumbom ali tipko Nazaj. */
     private var zaklenjeno = false
@@ -99,6 +106,7 @@ class PredvajanjeActivity : OsActivity() {
         zaklenjeno = da
         prekritje.visibility = if (da) View.GONE else View.VISIBLE
         gumbNazaj?.visibility = if (da) View.GONE else View.VISIBLE
+        if (da) gumbZvocnik?.visibility = View.GONE else GlasbaStoritev.trenutna()?.let { osveziGumbZvocnika(it) }
         if (da) { android.widget.Toast.makeText(this, R.string.os_zaslon_zaklenjen, android.widget.Toast.LENGTH_SHORT).show(); pokaziOdkleni() }
         else { glavna.removeCallbacks(skrijOdkleni); gumbOdkleni.visibility = View.GONE; zbudi() }
     }
@@ -118,6 +126,25 @@ class PredvajanjeActivity : OsActivity() {
     private var zagonovObOdhodu = -1
 
     override fun onPause() { zagonovObOdhodu = GlasbaStoritev.zagonov; super.onPause() }
+
+    /** Odstevanje do zatemnitve je ustavljeno, ker je nad zaslonom pogovorno okno (ali sistemska zavesa). */
+    private var zatemnitevCaka = false
+
+    /**
+     * Pod odprtim pogovornim oknom (»Vec moznosti«, izbira zvocnika, podnapisi) se zaslon ne zatemni: tipke in dotiki gredo
+     * oknu, zato bi odstevanje steklo do konca in bi po zaprtju okna prva tipka samo zbudila prikaz (izmerjeno 8. 10. 2026:
+     * smer se ni premaknila, naslednji OK je sprozil napacno kartico). Ko zaslon fokus dobi nazaj, steje znova. Zaslon, ki
+     * je ze zatemnjen (»Zatemni zaslon«), tak ostane.
+     */
+    override fun onWindowFocusChanged(imaFokus: Boolean) {
+        super.onWindowFocusChanged(imaFokus)
+        if (!imaFokus) {
+            if (zagnan && tema.visibility != View.VISIBLE) { zatemnitevCaka = true; glavna.removeCallbacks(zatemni) }
+        } else if (zatemnitevCaka) {
+            zatemnitevCaka = false
+            if (zagnan && !zaklenjeno && !isInPictureInPictureMode) zbudi()
+        }
+    }
     private var tikov = 0
     private val tik = object : Runnable { override fun run() {
         osveziCas()
@@ -140,6 +167,7 @@ class PredvajanjeActivity : OsActivity() {
      * trajanja sam ne pozna), med cakanjem na nov tok po previjanju pa ze ciljni polozaj.
      */
     private fun polozajInTrajanje(p: Player): Pair<Long, Long> {
+        if (GlasbaStoritev.naZvocniku()) return GlasbaStoritev.polozajMs() to GlasbaStoritev.trajanjeMs()
         val t = GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) }
             ?: return p.currentPosition.coerceAtLeast(0) to (p.duration.takeIf { it > 0 } ?: 0L)
         val polozaj = if (ciljSprotnega >= 0) ciljSprotnega else t.zamikMs + p.currentPosition.coerceAtLeast(0)
@@ -171,6 +199,8 @@ class PredvajanjeActivity : OsActivity() {
     /** Skok na [ciljMs] (polozaj za uporabnika): v sprotnem toku prek pomocnika (z zamikom, da se zaporedni skoki sestejejo). */
     private fun skociNa(ciljMs: Long) {
         val p = GlasbaStoritev.predvajalnik ?: return
+        // Na zvocniku: med premorom preskok pocaka na nadaljevanje (zaslon cilj ze kaze), glej ZvocnikPravila.
+        if (GlasbaStoritev.naZvocniku()) { GlasbaStoritev.skoci(ciljMs); osveziCas(); return }
         val t = GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) }
         if (t == null) {
             if (!p.isCurrentMediaItemSeekable) return
@@ -194,7 +224,7 @@ class PredvajanjeActivity : OsActivity() {
     /** Zadnja sprememba je bila pavza: nadaljevanje skrije pas prej ([OsPravila.pasZamik]). */
     private var poPavzi = false
     private fun skrijRunnable(): Runnable = skrij
-    private val zatemni = Runnable { if (!jeVideo() && GlasbaStoritev.predvajalnik?.isPlaying == true) tema.visibility = View.VISIBLE; osveziCas() }
+    private val zatemni = Runnable { if (!jeVideo() && GlasbaStoritev.igra()) tema.visibility = View.VISIBLE; osveziCas() }
     private var nacinRazmerja = 0
     private var zadnjaVelikost: VideoSize? = null
     private val velikost = object : Player.Listener {
@@ -327,6 +357,7 @@ class PredvajanjeActivity : OsActivity() {
         } else ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000 }
         cas = besedilo(15f, osBarva(R.color.os_umirjeno))
         namig = besedilo(12f, osBarva(R.color.os_umirjeno)).apply { text = getString(R.string.os_mediji_namig_predvajanje) }
+        prekritje.addView(pasZvocnika(), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(8) })
         prekritje.addView(naslov); prekritje.addView(izvajalec); prekritje.addView(vir)
         prekritje.addView(potek, LinearLayout.LayoutParams(-1, if (dotik) -2 else dp(5)).apply { topMargin = dp(12); bottomMargin = dp(6) })
         prekritje.addView(cas); prekritje.addView(namig)
@@ -334,7 +365,10 @@ class PredvajanjeActivity : OsActivity() {
         predlogiNaslov = besedilo(17f, osBarva(R.color.os_besedilo), true).apply { setPadding(0, dp(14), 0, dp(8)) }
         predlogiNiz = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         predlogi.addView(predlogiNaslov)
-        predlogi.addView(HorizontalScrollView(this).apply { addView(predlogiNiz); isHorizontalScrollBarEnabled = false; clipToPadding = false })
+        // Vrsta je omejena na sirino zaslona - kartice si jo razdelijo, zadnja je »Pokazi vse« -, nic ne drsi v desno
+        // (dotik in daljinec; z daljincem jo uporabnik odpre s tipko dol).
+        predlogiNiz.isBaselineAligned = false
+        predlogi.addView(predlogiNiz, LinearLayout.LayoutParams(-1, -2))
         prekritje.addView(predlogi)
         koren.addView(prekritje, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
         // Podnapisi nad pasom z naslovom (ta na telefonu ostane viden), poravnani na spodnji rob slike.
@@ -345,8 +379,9 @@ class PredvajanjeActivity : OsActivity() {
         temaUra = besedilo(64f, 0x66F0F4F3).apply { gravity = Gravity.CENTER }
         temaNaslov = besedilo(22f, 0x77F0F4F3).apply { gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0) }
         stolpec.addView(temaUra); stolpec.addView(temaNaslov, LinearLayout.LayoutParams(-1, -2))
-        // Polna sirina z robom: dolg naslov se prelomi, ne odreze levo in desno (telefon pokonci).
-        tema.addView(stolpec, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { leftMargin = dp(24); rightMargin = dp(24) })
+        // Polna sirina z robom: dolg naslov se prelomi, ne odreze levo in desno (telefon pokonci). Rob je vecji od
+        // najvecjega premika stolpca ([osveziCas]: do 60 dp vodoravno) - s 24 dp je premik sirok naslov odrezal ob robu.
+        tema.addView(stolpec, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { leftMargin = dp(64); rightMargin = dp(64) })
         koren.addView(tema, FrameLayout.LayoutParams(-1, -1))
         nalaganje = ProgressBar(this).apply { isIndeterminate = true; visibility = View.GONE }
         koren.addView(nalaganje, FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER))
@@ -354,11 +389,66 @@ class PredvajanjeActivity : OsActivity() {
         if (dotik) pripraviDotik(koren)
     }
 
+    /**
+     * »Igra na: <zvocnik>« nad naslovom - uporabnik vidi, da gumbi predvajalnika zdaj upravljajo zvocnik - in ob njem
+     * (na dotik) »Predvajaj tukaj«: en dotik vrne glasbo na to napravo, na istem mestu. Na ozkem zaslonu gre gumb v
+     * svojo vrsto. Z daljincem je vrnitev pod »Vec moznosti« (prva kartica vrste).
+     */
+    private fun pasZvocnika(): View {
+        val pas = OvijalnaVrsta(this).apply { visibility = View.GONE }
+        val temno = 0xFF0B1418.toInt()
+        val oznaka = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(7), dp(14), dp(7))
+            background = GradientDrawable().apply { cornerRadius = dp(20).toFloat(); setColor(0xCC101820.toInt()); setStroke(dp(1), osBarva(R.color.os_mint)) }
+            addView(ImageView(this@PredvajanjeActivity).apply {
+                setImageResource(R.drawable.os_ikona_zvocnik)
+                imageTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_mint))
+            }, LinearLayout.LayoutParams(dp(20), dp(20)))
+            addView(besedilo(14f, osBarva(R.color.os_besedilo), true).apply { maxLines = 1; setPadding(dp(8), 0, 0, 0) }.also { zvocnikIme = it })
+        }
+        pas.addView(oznaka, android.view.ViewGroup.MarginLayoutParams(-2, -2).apply { rightMargin = dp(10); bottomMargin = dp(4) })
+        if (dotik) pas.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(7), dp(16), dp(7)); minimumHeight = dp(48)
+            isClickable = true; isFocusable = true
+            contentDescription = getString(R.string.zvocnik_tukaj)
+            background = GradientDrawable().apply { cornerRadius = dp(20).toFloat(); setColor(osBarva(R.color.os_mint)) }
+            addView(ImageView(this@PredvajanjeActivity).apply {
+                setImageResource(if (resources.configuration.smallestScreenWidthDp >= 600) R.drawable.os_ikona_tablica else R.drawable.os_ikona_telefon)
+                imageTintList = android.content.res.ColorStateList.valueOf(temno)
+            }, LinearLayout.LayoutParams(dp(20), dp(20)))
+            addView(besedilo(14f, temno, true).apply { text = getString(R.string.zvocnik_tukaj); maxLines = 1; setPadding(dp(8), 0, 0, 0) })
+            setOnClickListener { zbudi(); GlasbaStoritev.vrniNaNapravo() }
+        }, android.view.ViewGroup.MarginLayoutParams(-2, -2).apply { bottomMargin = dp(4) })
+        zvocnikPas = pas
+        return pas
+    }
+
+    /** Napis »Igra na: ...« sledi temu, kje glasba igra (izbira zvocnika z daljincem je pod »Vec moznosti«). */
+    private fun osveziZvocnik() {
+        // Napis pove tudi, kadar se zvocnik ne odziva (seja ostane, zvocnik igra naprej).
+        val ime = if (GlasbaStoritev.naZvocniku()) Zvocniki.napis(this) else null
+        if (ime == prikazanZvocnik) return
+        prikazanZvocnik = ime
+        zvocnikPas?.visibility = if (ime == null) View.GONE else View.VISIBLE
+        zvocnikIme?.text = ime.orEmpty()
+    }
+
+    /** Glasnost zvocnika za korak (tipki naprave) z izpisom nove vrednosti. */
+    private fun glasnostZvocnika(navzgor: Boolean) {
+        val korak = ZvocnikPravila.korakGlasnosti(Zvocniki.najGlasnost, Zvocniki.lestvicaZnana).let { if (navzgor) it else -it }
+        Zvocniki.glasnostZa(korak)
+        val znana = Zvocniki.glasnost
+        if (znana >= 0) pokaziKazalnik(getString(R.string.zvocnik_glasnost, ZvocnikPravila.novaGlasnost(znana, korak, Zvocniki.najGlasnost, Zvocniki.lestvicaZnana)))
+    }
+
     /** Telefon in tablica nimata daljinca: vidni gumbi (nazaj v Safeer OS, prejsnja/predvajaj/naslednja)
      *  in vedno odprta vrsta kartic namesto skritih tipk (lastnik, 29. 9. 2026: »tezava iti nazaj«). */
     private val dotik by lazy { si.safeer.tv.ChromiumEngineView.naDotik(this) }
     private var gumbPredvajaj: ImageButton? = null
     private var gumbNazaj: View? = null
+    private var gumbZvocnik: ImageButton? = null
     private var vrstaGumbov: OvijalnaVrsta? = null
     private val okrogli = mutableListOf<Pair<ImageButton, Int>>()
 
@@ -414,8 +504,36 @@ class PredvajanjeActivity : OsActivity() {
         gumbPip = okroglGumb(R.drawable.os_ikona_slika_v_sliki, R.string.os_mediji_slika_v_sliki, 52) { vSlikoVSliki() }
             .also { it.visibility = View.GONE; gumbi.addView(it) }
         gumbVec = okroglGumb(R.drawable.os_ikona_vec, R.string.os_vec_moznosti, 52) { pokaziDejanja() }.also { gumbi.addView(it) }
+        // Izbira zvocnika je viden gumb (prej vrstica pod »Vec moznosti«): pokoncno zgoraj desno, lezece v vrsti gumbov
+        // ([prilagodiZaslonu]). Ni v seznamu [okrogli]: kadar je pripet na koren, ne sme dobiti mer vrste gumbov.
+        gumbZvocnik = ImageButton(this).apply {
+            setImageResource(R.drawable.os_ikona_zvocnik); contentDescription = getString(R.string.zvocnik_predvajaj_na)
+            imageTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_besedilo))
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
+            visibility = View.GONE
+            setOnClickListener { zbudi(); izberiZvocnik() }
+        }
         prekritje.addView(gumbi, prekritje.indexOfChild(namig), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10) })
+        // Pas z naslovom in gumbi je razlicno visok (oznaka »Igra na«, naslov ali gumbi v dveh vrstah, vrsta kartic):
+        // naslovnica nad njim se mu prilagodi, da je ne prekrije.
+        prekritje.addOnLayoutChangeListener { _, _, vrh, _, _, _, prejVrh, _, _ -> if (vrh != prejVrh) prilagodiNaslovnico() }
         prilagodiZaslonu(prvic = true)
+    }
+
+    /**
+     * Pokoncni telefon: naslovnica je toliksna, kolikor je prostora med gumbom Nazaj in pasom z naslovom (najvec 280 dp).
+     * Prej je imela stalno velikost in oznaka »Igra na: …« je prekrila njen spodnji rob (izmerjeno 7. 10. 2026).
+     */
+    private fun prilagodiNaslovnico() {
+        if (!pokoncnoDotik()) return
+        val lp = naslovnica.layoutParams as? FrameLayout.LayoutParams ?: return
+        val najvec = dp(minOf(resources.configuration.screenWidthDp - 48, 280).coerceAtLeast(120))
+        val prostor = prekritje.top - lp.topMargin - dp(12)
+        if (prostor <= 0) return                                  // pred prvo postavitvijo
+        val stran = minOf(najvec, prostor).coerceAtLeast(dp(96))
+        if (kotlin.math.abs(lp.width - stran) > 2) { lp.width = stran; lp.height = stran; naslovnica.layoutParams = lp }
     }
 
     /** Safeer Predvajalnik je samostojen program: nazaj vodi v njegovo knjiznico, ne v Safeer OS. */
@@ -454,6 +572,13 @@ class PredvajanjeActivity : OsActivity() {
         okrogli.forEach { (g, vel) ->
             g.layoutParams = LinearLayout.LayoutParams((dp(vel) * faktor).toInt(), (dp(vel) * faktor).toInt()).apply { marginEnd = dp(razmik) }
         }
+        gumbZvocnik?.let { z ->
+            (z.parent as? android.view.ViewGroup)?.removeView(z)
+            if (pokoncno) koren.addView(z, koren.indexOfChild(tema).coerceAtLeast(0),
+                FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply { topMargin = dp(16); rightMargin = dp(16) })
+            else gumbi.addView(z, gumbi.indexOfChild(gumbVec).coerceAtLeast(0),
+                LinearLayout.LayoutParams((dp(52) * faktor).toInt(), (dp(52) * faktor).toInt()).apply { marginEnd = dp(razmik) })
+        }
         (gumbi.layoutParams as? LinearLayout.LayoutParams)?.gravity = if (pokoncno) Gravity.CENTER_HORIZONTAL else Gravity.START
         val strani = if (ozek) 20 else if (nizek) 32 else 56
         prekritje.setPadding(dp(strani), dp(if (nizek) 10 else 28), dp(strani), dp(if (nizek) 10 else 36))
@@ -468,8 +593,11 @@ class PredvajanjeActivity : OsActivity() {
         val drugaVelikost = velikostKartic != kartice
         velikostKartic = kartice
         gumbi.requestLayout()
+        naslovnica.post { prilagodiNaslovnico() }
         if (prvic) return
         if (drugaVelikost && predlogiOdprti()) { predlogiZa = ""; predlogi.visibility = View.GONE; odpriPredloge() }
+        else if (predlogiOdprti()) napolni(zadnjiPredlogi.first, zadnjiPredlogi.second)      // stevilo kartic sledi sirini zaslona
+        if (mrezaOdprta()) { val s = mrezaSeznam; val v = mrezaVideo; zapriMrezoVrste(); odpriMrezoVrste(s, v) }
         osvezi()
         // Po zasuku se mere zaslona spremenijo sele ob naslednji postavitvi.
         povrsina.post { prilagodi() }
@@ -513,7 +641,9 @@ class PredvajanjeActivity : OsActivity() {
         intent.removeExtra(ZATEMNI)
         // Za odprtjem vrste kartic (na dotik, glavna.post v onStart), ki zaslon zbudi - sicer bi
         // zatemnitev takoj izginila (preizkus 1. 10. 2026: "Zatemni zaslon" na telefonu ni deloval).
-        glavna.post { if (!isFinishing && !jeVideo()) { glavna.removeCallbacks(zatemni); tema.visibility = View.VISIBLE; osveziCas() } }
+        // Namerna zatemnitev velja tudi, ce je zaslon prej izgubil fokus okna (medijski center nad njim): vrnitev fokusa
+        // je ne sme razveljaviti ([onWindowFocusChanged]).
+        glavna.post { if (!isFinishing && !jeVideo()) { glavna.removeCallbacks(zatemni); zatemnitevCaka = false; tema.visibility = View.VISIBLE; osveziCas() } }
     }
 
     /**
@@ -524,6 +654,7 @@ class PredvajanjeActivity : OsActivity() {
      */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        if (mrezaOdprta()) { zapriMrezoVrste(); return }
         val vMapo = intent.getBooleanExtra(IZ_DATOTEK, false) && DatotekeActivity.odprta
         if (!vMapo && !GlasbaActivity.odprta) startActivity(android.content.Intent(this, GlasbaActivity::class.java)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
@@ -577,6 +708,8 @@ class PredvajanjeActivity : OsActivity() {
 
     companion object {
         private const val IZBERI_PODNAPISE = 7421
+        /** Razmik med karticami omejene vrste in mreze (dp). */
+        private const val RAZMIK_KARTIC = 12
         const val ZATEMNI = "zatemni"
         /** Predvajanje je odprl zaslon Datoteke: Nazaj vrne v mapo, iz katere je uporabnik prisel. */
         const val IZ_DATOTEK = "iz_datotek"
@@ -627,7 +760,17 @@ class PredvajanjeActivity : OsActivity() {
         posodobiPodnapise()
         (p as? SpletniIgralec)?.let { if (sk.video) it.pokazi(povrsina) else it.skrij() }
         naslovnica.visibility = if (sk.video || (predlogiOdprti() && !pokoncnoDotik())) View.GONE else View.VISIBLE
-        if (predlogiOdprti() && predlogiZa != sk.id) zapriPredloge()
+        // Na dotik je vrsta kartic vedno odprta: ob menjavi skladbe se osvezi na mestu. Prej se je zaprla in gumbi predvajanja
+        // so skocili za njeno visino navzdol - izpod prsta, ki je pravkar pritisnil »naslednja« (izmerjeno 7. 10. 2026).
+        // ... Enako, ce se je spremenila vrsta, skladba pa ne (dodano v vrsto od drugod).
+        // Z daljincem se vrsta ob menjavi skladbe zapre - razen pod odprto mrezo »Pokazi vse«: tam se osvezi na mestu, da se
+        // uporabnik iz mreze vrne v vrsto, iz katere jo je odprl (prej se je vrsta pod mrezo zaprla in izbira je po Nazaj
+        // pristala na nevidni kartici: OK je mrezo odprl znova namesto premora - tretji pregled, B1).
+        if (predlogiOdprti() && predlogiZa != sk.id) { if (dotik || mrezaOdprta()) osveziPredloge(sk) else zapriPredloge() }
+        else if (dotik && predlogiOdprti() && !sk.video && GlasbaStoritev.vrsta().map { it.id } != oknoZa) napolni(GlasbaStoritev.vrsta(), false)
+        if (mrezaOdprta()) osveziMrezoVrste()
+        osveziZvocnik()
+        osveziGumbZvocnika(sk)
         naslov.text = sk.naslov
         val skritiVir = SpletniVir.jeEnota(sk)
         // Koncna napaka tega posnetka ostane napisana (osvezitev je ne sme prepisati z imenom izvajalca).
@@ -671,9 +814,10 @@ class PredvajanjeActivity : OsActivity() {
         val p = GlasbaStoritev.predvajalnik ?: return
         if (GlasbaStoritev.zvocniIzhod != prikazanIzhod) nastaviVir()
         val (polozaj, trajanje) = polozajInTrajanje(p)
-        cas.text = (if (p.isPlaying) "▶  " else "❚❚  ") + if (trajanje > 0) "${oblikuj(polozaj)} / ${oblikuj(trajanje)}" else oblikuj(polozaj)
+        val igra = GlasbaStoritev.igra()          // ta naprava ali zvocnik v omrezju
+        cas.text = (if (igra) "▶  " else "❚❚  ") + if (trajanje > 0) "${oblikuj(polozaj)} / ${oblikuj(trajanje)}" else oblikuj(polozaj)
         if (!vlecenje) potek.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
-        gumbPredvajaj?.setImageResource(if (p.isPlaying) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
+        gumbPredvajaj?.setImageResource(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
         if (tema.visibility == View.VISIBLE) {
             temaUra.text = DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(Date())
             val minuta = (System.currentTimeMillis() / 60_000).toInt()
@@ -730,7 +874,7 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun predlogiOdprti() = predlogi.visibility == View.VISIBLE
 
-    /** Dol: vrsta s karticami pod posnetkom. Karta Isci je vedno prva, zato je iskanje en klik stran. */
+    /** Dol: vrsta s karticami pod posnetkom. Z daljincem je prva »Vec moznosti« (iskanje in druga dejanja). */
     private fun odpriPredloge() {
         val sk = GlasbaStoritev.trenutna() ?: return
         predlogi.visibility = View.VISIBLE
@@ -761,6 +905,26 @@ class PredvajanjeActivity : OsActivity() {
         zbudi()
     }
 
+    /**
+     * Odprta vrsta kartic za novo skladbo, ne da bi se zaprla (dotik): ista vrsta predvajanja ostane, kot je (kartice in
+     * mesto v vrsti); predlogi videa se zamenjajo, ko pridejo novi - do takrat ostanejo stari, da se zaslon ne premakne.
+     */
+    private fun osveziPredloge(sk: Jamendo.Skladba) {
+        predlogiZa = sk.id
+        if (sk.video) {
+            predlogiNaslov.text = getString(R.string.os_mediji_se_za_ogled)
+            delavec.execute {
+                val seznam = try { PeerTube.predlogi(sk) } catch (_: Exception) { emptyList() }
+                glavna.post { if (!isFinishing && predlogiZa == sk.id) napolni(seznam, true) }
+            }
+        } else {
+            predlogiNaslov.text = getString(R.string.os_mediji_v_vrsti)
+            // Omejena vrsta oznaci skladbo, ki igra, in se premakne, ko te ni vec v njej: napolnimo jo znova (slike so v
+            // predpomnilniku, visina vrste se ne spremeni).
+            napolni(GlasbaStoritev.vrsta(), false)
+        }
+    }
+
     private var zadnjiPredlogi: Pair<List<Jamendo.Skladba>, Boolean> = emptyList<Jamendo.Skladba>() to false
 
     private fun posljiNaNapravo() {
@@ -786,28 +950,31 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     /**
-     * Dejanja (Isci, Poslji na napravo, Priljubljeno, razmerje slike, hitrost ...) in za njimi predlogi. Z daljincem so
-     * dejanja kartice v vrsti, ki jo uporabnik odpre sam (dol). Na dotik je vrsta vedno odprta, zato so tam dejanja pod
-     * enim gumbom "Vec moznosti" ([pokaziDejanja]) in v vrsti ostane samo vsebina (vrsta predvajanja, predlogi) -
-     * kartice z dejanji so med gledanjem prekrivale sliko (lastnik, 3. 10. 2026).
+     * Dejanja (Isci, Poslji na napravo, Priljubljeno, razmerje slike, hitrost ...) in vrsta kartic z vsebino (vrsta
+     * predvajanja, predlogi). Dejanja so pod »Vec moznosti« ([pokaziDejanja]): na dotik je to gumb ⋮ ob gumbih predvajanja
+     * (kartice z dejanji so med gledanjem prekrivale sliko - Lastnik, 3. 10. 2026), z daljincem prva kartica vrste, ki jo
+     * uporabnik odpre sam (dol). Vrsta je omejena na sirino zaslona, zadnja kartica je »Pokazi vse« ([napolniOmejeno]) -
+     * z daljincem je bila prej polica kartic dejanj in vse vrste, ki je drsela v desno (lastnik, 7. 10. 2026: prikaz kot v
+     * medijskem centru velja za vse predvajalnike).
      */
     private fun napolni(seznam: List<Jamendo.Skladba>, video: Boolean, fokusNa: Int = -1) {
         zadnjiPredlogi = seznam to video
         val fokus = predlogiNiz.findFocus() != null
         predlogiNiz.removeAllViews()
         dejanjaMeni.clear()
-        fun dejanje(naslov: String, podnaslov: String, ikona: Int, klik: () -> Unit) {
-            if (dotik) dejanjaMeni += Triple(naslov, podnaslov, klik) else predlogiNiz.addView(kartica(naslov, podnaslov, "", ikona, video, klik))
-        }
+        @Suppress("UNUSED_PARAMETER")       // ikona: seznam dejanj je besedilen; ostane ob klicih, kjer pove, kaj dejanje je
+        fun dejanje(naslov: String, podnaslov: String, ikona: Int, klik: () -> Unit) { dejanjaMeni += Triple(naslov, podnaslov, klik) }
         dejanje(getString(R.string.os_mediji_isci_kartica), getString(R.string.os_mediji_isci_kartica_opis), R.drawable.os_ikona_isci) { odpriIskanje() }
         val vrsta = GlasbaStoritev.vrsta()
         val zdaj = GlasbaStoritev.trenutna()
         // Zvocnik v omrezju (DLNA): zvocnik vir potegne sam, ta naprava je le daljinec.
         val naZvocniku = Zvocniki.aktivni
-        if (naZvocniku != null) {
+        if (dotik) {
+            // Na dotik je izbira zvocnika viden gumb ([gumbZvocnik]), ne vrstica pod »Vec moznosti«.
+        } else if (naZvocniku != null) {
             val i = predlogiNiz.childCount
             dejanje(getString(R.string.zvocnik_na, naZvocniku.ime), Zvocniki.aktivnaSkladba?.naslov ?: "", R.drawable.os_ikona_zvocnik) { ZvocnikIzbira.upravljaj(this) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } }
-        } else if (zdaj != null && !video && DlnaPravila.zaZvocnik(zdaj.zvok)) {
+        } else if (zdaj != null && !video && GlasbaStoritev.zaZvocnik(zdaj)) {
             val i = predlogiNiz.childCount
             dejanje(getString(R.string.zvocnik_predvajaj_na), zdaj.naslov, R.drawable.os_ikona_zvocnik) { ZvocnikIzbira.izberi(this, zdaj) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } }
         }
@@ -820,7 +987,7 @@ class PredvajanjeActivity : OsActivity() {
             dejanje(getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj), zdaj.naslov, R.drawable.os_ikona_srce) {
                 val da = MedijskiViri.preklopiPriljubljeno(this, zdaj)
                 android.widget.Toast.makeText(this, if (da) R.string.os_mediji_dodano_prilj else R.string.os_mediji_odstranjeno_prilj, android.widget.Toast.LENGTH_SHORT).show()
-                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, 1)
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, 0)
             }
         }
         // Svoj seznam predvajanja nastaja med poslusanjem: trenutno skladbo dodas na obstojecega ali novega.
@@ -841,6 +1008,7 @@ class PredvajanjeActivity : OsActivity() {
             dejanje(getString(R.string.os_mediji_nakljucno),
                 getString(if (p.shuffleModeEnabled) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno), R.drawable.os_ikona_nakljucno) {
                 p.shuffleModeEnabled = !p.shuffleModeEnabled
+                povejStanje(getString(R.string.os_mediji_nakljucno), getString(if (p.shuffleModeEnabled) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno))
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             }
         }
@@ -856,6 +1024,10 @@ class PredvajanjeActivity : OsActivity() {
                     androidx.media3.common.Player.REPEAT_MODE_ALL -> androidx.media3.common.Player.REPEAT_MODE_ONE
                     else -> androidx.media3.common.Player.REPEAT_MODE_OFF
                 }
+                povejStanje(getString(R.string.os_mediji_ponavljanje), getString(when (p.repeatMode) {
+                    androidx.media3.common.Player.REPEAT_MODE_ALL -> R.string.os_mediji_ponavljaj_vse
+                    androidx.media3.common.Player.REPEAT_MODE_ONE -> R.string.os_mediji_ponavljaj_eno
+                    else -> R.string.os_mediji_izklopljeno }))
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             }
         }
@@ -869,16 +1041,23 @@ class PredvajanjeActivity : OsActivity() {
             dejanje(getString(R.string.os_media_razmerje), opis, R.drawable.os_ikona_video) {
                 nacinRazmerja = (nacinRazmerja + 1) % 3
                 prilagodi()
+                povejStanje(getString(R.string.os_media_razmerje), getString(when (nacinRazmerja) {
+                    1 -> R.string.os_media_razmerje_fill
+                    2 -> R.string.os_media_razmerje_stretch
+                    else -> R.string.os_media_razmerje_fit }))
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             }
         }
         // Hitrost, casovnik izklopa in podnapisi tudi tu, ne le na Domov (lastnik: "kot VLC").
-        if (dotik && p != null && zdaj?.radio != true) {
+        // Hitrosti zvocnik v omrezju ne zna spremeniti: med predvajanjem na njem je ne ponujamo.
+        if (dotik && p != null && zdaj?.radio != true && !GlasbaStoritev.naZvocniku()) {
             val i = predlogiNiz.childCount
             val hitrost = p.playbackParameters.speed.toString().removeSuffix(".0") + "×"
             dejanje(getString(R.string.os_kartica_hitrost), hitrost, R.drawable.os_ikona_hitrost) {
                 val h = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
-                p.setPlaybackSpeed(h.firstOrNull { it > p.playbackParameters.speed + 0.01f } ?: h.first())
+                val nova = h.firstOrNull { it > p.playbackParameters.speed + 0.01f } ?: h.first()
+                p.setPlaybackSpeed(nova)
+                povejStanje(getString(R.string.os_kartica_hitrost), nova.toString().removeSuffix(".0") + "×")
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             }
         }
@@ -888,7 +1067,9 @@ class PredvajanjeActivity : OsActivity() {
             dejanje(getString(R.string.os_kartica_casovnik),
                 if (min > 0) getString(R.string.os_casovnik_cez, min) else getString(R.string.os_mediji_izklopljeno), R.drawable.os_ikona_casovnik) {
                 val c = intArrayOf(15, 30, 60, 90)
-                GlasbaStoritev.nastaviCasovnik(c.firstOrNull { it > GlasbaStoritev.casovnikMinut() } ?: 0)
+                val nov = c.firstOrNull { it > GlasbaStoritev.casovnikMinut() } ?: 0
+                GlasbaStoritev.nastaviCasovnik(nov)
+                povejStanje(getString(R.string.os_kartica_casovnik), if (nov > 0) getString(R.string.os_casovnik_cez, nov) else getString(R.string.os_mediji_izklopljeno))
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             }
         }
@@ -899,26 +1080,24 @@ class PredvajanjeActivity : OsActivity() {
         // Na dotik je Isci zadnji v meniju (med gledanjem je najmanj pomemben).
         if (dotik && dejanjaMeni.size > 1) dejanjaMeni.add(dejanjaMeni.removeAt(0))
         gumbVec?.visibility = if (dejanjaMeni.isEmpty()) View.GONE else View.VISIBLE
-        dejanj = predlogiNiz.childCount
-        seznam.forEach { sk ->
-            predlogiNiz.addView(kartica(sk.naslov, if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec, sk.slika, if (sk.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba, video) {
-                if (video) predvajajVideo(sk) else GlasbaStoritev.predvajalnik?.let { p ->
-                    vrsta.indexOfFirst { it.id == sk.id }.takeIf { it >= 0 }?.let { p.seekTo(it, 0L); p.play() }
-                }
-            })
-        }
+        napolniOmejeno(seznam, video)
         // Brez vsebine v vrsti (film brez predlogov) ni niti njenega naslova: cez sliko ostanejo samo gumbi predvajanja.
-        predlogiNaslov.visibility = if (predlogiNiz.childCount == 0) View.GONE else View.VISIBLE
-        if (fokusNa >= 0) predlogiNiz.getChildAt(fokusNa)?.requestFocus()
+        predlogiNaslov.visibility = if (karticVsebine == 0) View.GONE else View.VISIBLE
+        if (fokusNa >= 0) { if (predlogiOdprti()) predlogiNiz.getChildAt(fokusNa)?.requestFocus() }
         else if (fokus) prvaKartica()
     }
+
+    /** Dejanje iz »Vec moznosti« okno zapre: novo stanje (nakljucno, ponavljanje, hitrost ...) pove kratko obvestilo. */
+    private fun povejStanje(dejanje: String, stanje: String) =
+        android.widget.Toast.makeText(this, "$dejanje · $stanje", android.widget.Toast.LENGTH_SHORT).show()
 
     /** Dejanja med predvajanjem na dotik (glej [napolni]). */
     private val dejanjaMeni = mutableListOf<Triple<String, String, () -> Unit>>()
     private var gumbVec: ImageButton? = null
 
     private fun pokaziDejanja() {
-        napolni(zadnjiPredlogi.first, zadnjiPredlogi.second)
+        // Seznam dejanj s svezim stanjem (nakljucno, ponavljanje ...); z daljincem fokus ostane na kartici »Vec moznosti«.
+        napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, if (dotik) -1 else 0)
         val d = dejanjaMeni.toList()
         if (d.isEmpty()) return
         // Podnaslov pove stanje (hitrost, razmerje ...); naslova posnetka, ki je ze na zaslonu, ne ponavljamo.
@@ -928,50 +1107,303 @@ class PredvajanjeActivity : OsActivity() {
             .show()
     }
 
-    /** Stevilo kartic z dejanji pred predlogi. */
-    private var dejanj = 1
+    /** Stevilo kartic pred vsebino (z daljincem »Vec moznosti«) in stevilo kartic vsebine v vrsti. */
+    private var dejanj = 0
+    private var karticVsebine = 0
 
-    /** Fokus na prvi predlog, ce ga ni, na prvo dejanje. */
-    private fun prvaKartica() = (predlogiNiz.getChildAt(dejanj) ?: predlogiNiz.getChildAt(0))?.requestFocus()
+    /** Kartica skladbe, ki igra, in kartica »Pokazi vse« v vrsti (za fokus z daljincem); null, ce ju v vrsti ni. */
+    private var karticaTekoce: View? = null
+    private var karticaVse: View? = null
 
-    private fun kartica(naslov: String, podnaslov: String, slika: String, ikona: Int, video: Boolean, klik: () -> Unit): View {
-        val sirina = dp(if (video) velikostKartic * 5 / 3 else velikostKartic)
-        return LinearLayout(this).apply {
+    /** Fokus na skladbo, ki igra; ce je ni v vrsti, na prvo kartico vsebine, sicer na prvo kartico. */
+    private fun prvaKartica() = (karticaTekoce ?: predlogiNiz.getChildAt(dejanj)?.takeIf { it.isFocusable } ?: predlogiNiz.getChildAt(0))?.requestFocus()
+
+    // ------------------------------------------------------------------ omejena vrsta in vsa vrsta kot mreza
+
+    /** Kje se zacne okno vrste, ki je zdaj v omejeni vrsti, in za kateri seznam velja. */
+    private var oknoZacetek = -1
+    private var oknoZa: List<String> = emptyList()
+
+    /** Slike kartic vrste: ob ponovni napolnitvi (nova skladba, drsenje mreze) so takoj tu, brez utripa ikone. */
+    private val slikeKartic = android.util.LruCache<String, android.graphics.Bitmap>(48)
+
+    private class DrzaloKartice(val koren: LinearLayout, val slika: ImageView, val naslov: TextView, val podnaslov: TextView)
+
+    /** Sirina, ki jo ima vrsta kartic (zaslon brez robov pasu). Iz nastavitve zaslona, zato velja takoj po zasuku. */
+    private fun sirinaVrste() = (dp(resources.configuration.screenWidthDp) - prekritje.paddingLeft - prekritje.paddingRight).coerceAtLeast(dp(120))
+
+    private fun mestVVrsti(video: Boolean, sirina: Int = sirinaVrste()) =
+        OsPravila.karticVVrsti(sirina, dp((if (video) velikostKartic * 5 / 3 else velikostKartic) + 10), dp(RAZMIK_KARTIC))
+
+    /** Mesto skladbe, ki igra, v [seznam] (vrsta predvajanja); -1, ce je v njem ni. */
+    private fun tekociVVrsti(seznam: List<Jamendo.Skladba>): Int {
+        val zdaj = GlasbaStoritev.trenutna() ?: return -1
+        val i = GlasbaStoritev.predvajalnik?.currentMediaItemIndex ?: -1
+        return if (seznam.getOrNull(i)?.id == zdaj.id) i else seznam.indexOfFirst { it.id == zdaj.id }
+    }
+
+    /** Prazna kartica, ki zapolni sirino, ki ji jo da vrsta ali mreza: slika je kvadrat (video 16:9) te sirine. */
+    private fun novaKartica(video: Boolean): DrzaloKartice {
+        val slika = SlikaKartice(this).also { it.video = video; it.setBackgroundColor(osBarva(R.color.os_kartica)) }
+        val naslov = besedilo(13f, osBarva(R.color.os_besedilo), true).apply { maxLines = 1; setPadding(dp(2), dp(6), 0, 0) }
+        val podnaslov = besedilo(11f, osBarva(R.color.os_umirjeno)).apply { maxLines = 1; setPadding(dp(2), 0, 0, 0) }
+        val koren = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(5), dp(5), dp(5), dp(6))
             setBackgroundResource(R.drawable.os_ploscica_app)
-            isFocusable = true; isClickable = true
-            setOnClickListener { klik() }
-            // Ikona je v sredini kartice v svoji velikosti (prej raztegnjena in odrezana cez vso kartico); slika jo prekrije.
-            val rob = sirina / (if (video) 6 else 4)
-            val pogled = ImageView(this@PredvajanjeActivity).apply {
-                scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(rob, rob, rob, rob)
-                setBackgroundColor(osBarva(R.color.os_kartica)); setImageResource(ikona)
+            addView(slika, LinearLayout.LayoutParams(-1, -2))
+            addView(naslov, LinearLayout.LayoutParams(-1, -2))
+            addView(podnaslov, LinearLayout.LayoutParams(-1, -2))
+        }
+        return DrzaloKartice(koren, slika, naslov, podnaslov).also { koren.tag = it }
+    }
+
+    /**
+     * Kartica dobi vsebino; [igra] oznaci skladbo, ki zdaj igra: naslov v barvi poudarka, na dotik tudi obroba (z daljincem
+     * obroba pomeni fokus, zato je tam ni).
+     */
+    private fun veziKartico(d: DrzaloKartice, naslov: String, podnaslov: String, slika: String, ikona: Int, igra: Boolean) {
+        d.naslov.text = naslov; d.podnaslov.text = podnaslov
+        d.naslov.setTextColor(osBarva(if (igra) R.color.os_mint else R.color.os_besedilo))
+        d.koren.foreground = if (igra && dotik) GradientDrawable().apply {
+            cornerRadius = resources.getDimension(R.dimen.os_kot_ploscica); setColor(Color.TRANSPARENT); setStroke(dp(2), osBarva(R.color.os_mint))
+        } else null
+        // Ista slika je ze na kartici (osvezitev mreze): nicesar ne nalagamo znova.
+        if (d.slika.tag == slika && slika.isNotEmpty() && d.slika.drawable is android.graphics.drawable.BitmapDrawable) return
+        d.slika.tag = slika
+        val znana = if (slika.startsWith("https://")) slikeKartic.get(slika) else null
+        if (znana != null) { d.slika.scaleType = ImageView.ScaleType.CENTER_CROP; d.slika.setImageBitmap(znana); return }
+        // Ikona v sredini kartice na polovici njene sirine; slika jo prekrije, ko pride.
+        d.slika.scaleType = ImageView.ScaleType.FIT_CENTER
+        d.slika.setImageDrawable(android.graphics.drawable.InsetDrawable(getDrawable(ikona), 0.25f))
+        if (!slika.startsWith("https://")) return
+        try {
+            delavec.execute {
+                if (d.slika.tag != slika) return@execute          // kartica medtem kaze drugo skladbo (mreza jih uporablja znova)
+                val b = (SpletniVir.bajtiSlike(this, slika) ?: Jamendo.bajti(slika))?.let { VarnaSlika.izBajtov(it, 320) } ?: return@execute
+                glavna.post {
+                    slikeKartic.put(slika, b)
+                    if (d.slika.tag == slika) { d.slika.scaleType = ImageView.ScaleType.CENTER_CROP; d.slika.setImageBitmap(b) }
+                }
             }
-            addView(pogled, LinearLayout.LayoutParams(sirina, if (video) sirina * 9 / 16 else sirina))
-            addView(besedilo(13f, osBarva(R.color.os_besedilo), true).apply { text = naslov; maxLines = 1; setPadding(dp(2), dp(6), 0, 0) },
-                LinearLayout.LayoutParams(sirina, -2))
-            addView(besedilo(11f, osBarva(R.color.os_umirjeno)).apply { text = podnaslov; maxLines = 1; setPadding(dp(2), 0, 0, 0) },
-                LinearLayout.LayoutParams(sirina, -2))
-            if (slika.startsWith("https://")) delavec.execute {
-                val b = (SpletniVir.bajtiSlike(this@PredvajanjeActivity, slika) ?: Jamendo.bajti(slika))?.let { VarnaSlika.izBajtov(it, 320) } ?: return@execute
-                glavna.post { pogled.setPadding(0, 0, 0, 0); pogled.scaleType = ImageView.ScaleType.CENTER_CROP; pogled.setImageBitmap(b) }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { }   // zaslon se zapira
+    }
+
+    private fun karticaSkladbe(d: DrzaloKartice, sk: Jamendo.Skladba, igra: Boolean) = veziKartico(d, sk.naslov,
+        if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec, sk.slika, if (sk.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba, igra)
+
+    /**
+     * Vrsta kartic je omejena na sirino zaslona - toliko kartic, kolikor jih gre vanjo, zadnja je »Pokazi vse«, ki odpre
+     * ves seznam kot mrezo ([odpriMrezoVrste]). Prej je bila polica, ki drsi v desno (lastnik, 7. 10. 2026: prikaz kot v
+     * medijskem centru velja za vse predvajalnike). Z daljincem je prva kartica »Vec moznosti« (dejanja). Skladba, ki igra,
+     * je oznacena; okno vrste se premakne sele, ko je v njem ni vec ([OsPravila.oknoVrste]).
+     */
+    private fun napolniOmejeno(seznam: List<Jamendo.Skladba>, video: Boolean) {
+        val mest = mestVVrsti(video)
+        val meni = !dotik && dejanjaMeni.isNotEmpty()
+        val oznake = seznam.map { it.id }
+        if (oznake != oknoZa) { oknoZa = oznake; oknoZacetek = -1 }
+        val tekoci = if (video) -1 else tekociVVrsti(seznam)
+        val okno = OsPravila.oknoVrste(seznam.size, tekoci, if (meni) mest - 1 else mest, oknoZacetek)
+        oknoZacetek = okno.zacetek
+        karticaTekoce = null; karticaVse = null
+        var mesto = 0
+        fun dodaj(v: View) {
+            predlogiNiz.addView(v, LinearLayout.LayoutParams(0, -2, 1f).apply { if (mesto < mest - 1) marginEnd = dp(RAZMIK_KARTIC) })
+            mesto++
+        }
+        fun zaVrsto(klik: () -> Unit) = novaKartica(video).also { d ->
+            d.koren.isFocusable = true; d.koren.isClickable = true
+            d.koren.setOnClickListener { zbudi(); klik() }
+        }
+        if (meni) {
+            val d = zaVrsto { pokaziDejanja() }
+            veziKartico(d, getString(R.string.os_vec_moznosti), "", "", R.drawable.os_ikona_vec, false)
+            dodaj(d.koren)
+        }
+        dejanj = mesto
+        for (j in 0 until okno.stevilo) {
+            val i = okno.zacetek + j
+            val sk = seznam[i]
+            val d = zaVrsto { izberiIzVrste(sk, i, video) }
+            karticaSkladbe(d, sk, i == tekoci)
+            if (i == tekoci) karticaTekoce = d.koren
+            dodaj(d.koren)
+        }
+        if (okno.pokaziVse) {
+            val d = zaVrsto { odpriMrezoVrste() }
+            veziKartico(d, getString(R.string.os_media_pokazi_vse),
+                resources.getQuantityString(R.plurals.os_stevilo_posnetkov, seznam.size, seznam.size), "", R.drawable.os_ikona_mreza, false)
+            karticaVse = d.koren
+            dodaj(d.koren)
+        }
+        karticVsebine = okno.stevilo
+        // Prazna mesta: kartice ostanejo enako velike, tudi ko jih je manj kot mest.
+        if (mesto > 0) while (mesto < mest) dodaj(android.widget.Space(this))
+    }
+
+    /** Dotik kartice iz vrste ali mreze: skladba iz vrste predvajanja (na zvocniku, ce igra zvocnik) ali predlagan video. */
+    private fun izberiIzVrste(sk: Jamendo.Skladba, i: Int, video: Boolean) {
+        if (video) { predvajajVideo(sk); return }
+        val vrsta = GlasbaStoritev.vrsta()
+        val cilj = if (vrsta.getOrNull(i)?.id == sk.id) i else vrsta.indexOfFirst { it.id == sk.id }
+        if (cilj >= 0) GlasbaStoritev.predvajajIzVrste(cilj)
+    }
+
+    private var mrezaVrste: View? = null
+    private var mrezaPogled: android.widget.GridView? = null
+    private var mrezaSeznam: List<Jamendo.Skladba> = emptyList()
+    private var mrezaVideo = false
+    private var mrezaTekoci = -1
+
+    private fun mrezaOdprta() = mrezaVrste != null
+
+    private inner class VrstaAdapter(val seznam: List<Jamendo.Skladba>, val video: Boolean) : android.widget.BaseAdapter() {
+        override fun getCount() = seznam.size
+        override fun getItem(i: Int): Any = seznam[i]
+        override fun getItemId(i: Int) = i.toLong()
+        override fun getView(i: Int, stari: View?, stars: android.view.ViewGroup?): View {
+            val d = (stari?.tag as? DrzaloKartice) ?: novaKartica(video)
+            karticaSkladbe(d, seznam[i], !video && i == mrezaTekoci)
+            return d.koren
+        }
+    }
+
+    /**
+     * »Pokazi vse«: vsa vrsta (ali vsi predlogi) kot mreza cez ves zaslon. Dotik kartice (z daljincem OK) jo predvaja in
+     * mrezo zapre, Nazaj jo zapre. Mreza kartice uporablja znova, zato dolg seznam ne nalozi vseh slik hkrati. Odpre se
+     * pri skladbi, ki igra.
+     */
+    private fun odpriMrezoVrste(seznam: List<Jamendo.Skladba> = zadnjiPredlogi.first, video: Boolean = zadnjiPredlogi.second) {
+        if (mrezaOdprta() || seznam.isEmpty()) return
+        val koren = prekritje.parent as? FrameLayout ?: return
+        val rob = dp(if (resources.configuration.screenWidthDp < 480) 16 else 28)
+        mrezaSeznam = seznam; mrezaVideo = video; mrezaTekoci = if (video) -1 else tekociVVrsti(seznam)
+        val mreza = android.widget.GridView(this).apply {
+            numColumns = mestVVrsti(video, dp(resources.configuration.screenWidthDp) - 2 * rob)
+            horizontalSpacing = dp(RAZMIK_KARTIC); verticalSpacing = dp(RAZMIK_KARTIC)
+            stretchMode = android.widget.GridView.STRETCH_COLUMN_WIDTH
+            // Z daljincem je izbrana kartica obrobljena (kot fokus drugod); na dotik izbire ni.
+            selector = if (dotik) android.graphics.drawable.ColorDrawable(Color.TRANSPARENT) else GradientDrawable().apply {
+                cornerRadius = resources.getDimension(R.dimen.os_kot_ploscica); setColor(Color.TRANSPARENT); setStroke(dp(3), osBarva(R.color.os_mint))
             }
-        }.also { it.layoutParams = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(12) } }
+            setDrawSelectorOnTop(true)
+            // Izbira je vidna samo, dokler ima mreza fokus (sicer bi bili oznaceni dve stvari: gumb »Nazaj« in kartica).
+            setOnFocusChangeListener { _, ima -> selector?.alpha = if (ima) 255 else 0; invalidate() }
+            isVerticalScrollBarEnabled = false
+            clipToPadding = false; setPadding(0, 0, 0, dp(24))
+            adapter = VrstaAdapter(seznam, video)
+            setOnItemClickListener { _, _, i, _ ->
+                zbudi()
+                val sk = mrezaSeznam.getOrNull(i) ?: return@setOnItemClickListener
+                val v = mrezaVideo
+                zapriMrezoVrste()
+                izberiIzVrste(sk, i, v)
+            }
+        }
+        val plosca = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(0xFF0B1418.toInt())
+            isClickable = true                                          // dotik ne pade skozi na gumbe pod mrezo
+            setPadding(rob, dp(16), rob, 0)
+        }
+        val glava = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        glava.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(6), dp(6), dp(16), dp(6))
+            background = GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
+            isClickable = true; isFocusable = true
+            contentDescription = getString(R.string.btn_back)
+            setOnClickListener { zapriMrezoVrste() }
+            // Z daljincem: fokus na gumbu je obroba v barvi poudarka (kot pri karticah).
+            val fokusGumbaNazaj = View.OnFocusChangeListener { v, ima ->
+                (v.background as? GradientDrawable)?.setStroke(dp(if (ima) 2 else 1), if (ima) osBarva(R.color.os_mint) else 0x33FFFFFF)
+            }
+            onFocusChangeListener = fokusGumbaNazaj
+            addView(ImageView(this@PredvajanjeActivity).apply {
+                setImageResource(R.drawable.ic_m_back)
+                imageTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_besedilo))
+            }, LinearLayout.LayoutParams(dp(32), dp(32)))
+            addView(besedilo(15f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.btn_back); maxLines = 1; setPadding(dp(6), 0, 0, 0) })
+        })
+        glava.addView(besedilo(20f, osBarva(R.color.os_besedilo), true).apply { text = predlogiNaslov.text; maxLines = 1; setPadding(dp(14), 0, dp(10), 0) },
+            LinearLayout.LayoutParams(0, -2, 1f))
+        glava.addView(besedilo(14f, osBarva(R.color.os_umirjeno)).apply {
+            text = resources.getQuantityString(R.plurals.os_stevilo_posnetkov, seznam.size, seznam.size); maxLines = 1 })
+        plosca.addView(glava, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) })
+        plosca.addView(mreza, LinearLayout.LayoutParams(-1, 0, 1f))
+        // Pod zatemnitvijo (kot gumb Nazaj), nad vsem drugim.
+        koren.addView(plosca, koren.indexOfChild(tema).coerceAtLeast(0), FrameLayout.LayoutParams(-1, -1))
+        mrezaVrste = plosca; mrezaPogled = mreza
+        fokusPodMrezo(false)
+        mreza.requestFocus()
+        if (mrezaTekoci > 0 || !dotik) mreza.setSelection(mrezaTekoci.coerceAtLeast(0))
+        zbudi()
+    }
+
+    private fun zapriMrezoVrste() {
+        val m = mrezaVrste ?: return
+        (m.parent as? android.view.ViewGroup)?.removeView(m)
+        mrezaVrste = null; mrezaPogled = null; mrezaSeznam = emptyList()
+        fokusPodMrezo(true)
+        // Izbira samo na vidno kartico (kartica v skriti vrsti bi tipke dobivala nevidna).
+        if (!dotik && predlogiOdprti()) (karticaVse ?: predlogiNiz.getChildAt(0))?.requestFocus()
+        zbudi()
+    }
+
+    /** Dokler je mreza odprta, tipke (tipkovnica, daljinec prek Safeer Link) in bralnik zaslona ne dosezejo gumbov pod njo. */
+    private fun fokusPodMrezo(dovoljen: Boolean) {
+        prekritje.descendantFocusability = if (dovoljen) android.view.ViewGroup.FOCUS_BEFORE_DESCENDANTS else android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        prekritje.importantForAccessibility = if (dovoljen) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        gumbNazaj?.isFocusable = dovoljen; gumbZvocnik?.isFocusable = dovoljen
+    }
+
+    /** Odprta mreza vrste sledi predvajanju: oznaka skladbe, ki igra, in spremenjena vrsta. */
+    private fun osveziMrezoVrste() {
+        val m = mrezaPogled ?: return
+        if (mrezaVideo) return                                          // predlogi se pod prstom ne menjajo
+        val vrsta = GlasbaStoritev.vrsta()
+        if (vrsta.isEmpty() || jeVideo()) { zapriMrezoVrste(); return }
+        val prej = mrezaTekoci
+        mrezaTekoci = tekociVVrsti(vrsta)
+        if (vrsta.map { it.id } != mrezaSeznam.map { it.id }) { mrezaSeznam = vrsta; m.adapter = VrstaAdapter(vrsta, false) }
+        else if (prej != mrezaTekoci) (m.adapter as? android.widget.BaseAdapter)?.notifyDataSetChanged()
+    }
+
+    // ------------------------------------------------------------------ gumb zvocnika (dotik)
+
+    /** Gumb zvocnika: viden, kadar glasba ze igra na zvocniku ali jo je nanj mogoce poslati; na zvocniku je obarvan. */
+    private fun osveziGumbZvocnika(sk: Jamendo.Skladba) {
+        val g = gumbZvocnik ?: return
+        val na = GlasbaStoritev.naZvocniku()
+        g.visibility = if (!zaklenjeno && !sk.video && (na || GlasbaStoritev.zaZvocnik(sk))) View.VISIBLE else View.GONE
+        g.imageTintList = android.content.res.ColorStateList.valueOf(osBarva(if (na) R.color.os_mint else R.color.os_besedilo))
+        g.contentDescription = (if (na) Zvocniki.napis(this) else null) ?: getString(R.string.zvocnik_predvajaj_na)
+    }
+
+    /** Glasba ze igra na zvocniku: upravljanje (glasnost, premor, nazaj na to napravo); sicer izbira zvocnika. */
+    private fun izberiZvocnik() {
+        val zdaj = GlasbaStoritev.trenutna() ?: return
+        if (Zvocniki.aktivni != null) ZvocnikIzbira.upravljaj(this) { osvezi() }
+        else if (GlasbaStoritev.zaZvocnik(zdaj)) ZvocnikIzbira.izberi(this, zdaj) { osvezi() }
     }
 
     /** Video iz predlogov: razresimo datoteko in ga predvajamo tu - zaslon ostane odprt. */
     private fun predvajajVideo(sk: Jamendo.Skladba) {
         val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
-        if (pripravaVTeKu.isNotEmpty()) return
+        // Novejsa izbira ima prednost: priprava prejsnje se po koncu zavrze. Prej se je druga izbira med pripravo tiho izgubila
+        // (na dotik vrsta med pripravo ostane odprta - cetrti pregled, R6-B3).
         pripravaVTeKu = kljuc
         android.widget.Toast.makeText(this, getString(R.string.os_media_pripravljam, sk.naslov), android.widget.Toast.LENGTH_SHORT).show()
-        zapriPredloge()
+        // Na dotik vrsta ostane odprta in se osvezi na mestu, ko novi video stece ([osvezi]). Prej se je zaprla (gumbi so
+        // skocili navzdol), ob naslednjem dotiku pa se je vrnila prazna in kartice so prisle pod prst sele z omrezja.
+        if (!dotik) zapriPredloge()
         naslov.text = sk.naslov; izvajalec.text = getString(R.string.os_glasba_nalagam)
         if (SpletniVir.jeEnota(sk)) {
             SpletniVir.razresi(this, sk) { r ->
-                if (isFinishing) { pripravaVTeKu = ""; return@razresi }
+                if (pripravaVTeKu != kljuc) return@razresi                  // prehitela jo je novejsa izbira
                 pripravaVTeKu = ""
+                if (isFinishing) return@razresi
                 if (r == null) {
                     SpletniIgralec.zadnja = java.lang.ref.WeakReference(this)
                     GlasbaStoritev.predvajajSplet(this, sk)
@@ -989,8 +1421,9 @@ class PredvajanjeActivity : OsActivity() {
                     }
                 } catch (_: Exception) { null }
                 glavna.post {
-                    if (isFinishing) { pripravaVTeKu = ""; return@post }
+                    if (pripravaVTeKu != kljuc) return@post                  // prehitela jo je novejsa izbira
                     pripravaVTeKu = ""
+                    if (isFinishing) return@post
                     if (r == null) {
                         izvajalec.text = getString(R.string.os_glasba_napaka)
                         android.widget.Toast.makeText(this, getString(R.string.os_media_priprava_napaka, sk.naslov), android.widget.Toast.LENGTH_LONG).show()
@@ -1014,6 +1447,8 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun seNalaga(): Boolean {
         val p = GlasbaStoritev.predvajalnik ?: return false
+        // Zvocnik skladbo sele nalaga (od ukaza do zvoka mine sekunda ali vec).
+        if (GlasbaStoritev.naZvocniku()) return Zvocniki.stanje.let { it.zeliIgrati && !it.igral }
         if (p.playbackState == Player.STATE_ENDED || p.playerError != null) return false
         if (p.playbackState == Player.STATE_BUFFERING) return true
         // Spletni igralec (WebView) ne javlja prve slike: zanj velja le polnjenje medpomnilnika.
@@ -1058,8 +1493,8 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     private fun preklopi() {
-        val p = GlasbaStoritev.predvajalnik ?: return
-        if (p.isPlaying) p.pause() else p.play()
+        if (GlasbaStoritev.predvajalnik == null) return
+        GlasbaStoritev.preklopi()
         osveziCas()
         glavna.postDelayed({ posodobiPip() }, 150)
     }
@@ -1118,6 +1553,7 @@ class PredvajanjeActivity : OsActivity() {
         super.onPictureInPictureModeChanged(vPip, novaKonfiguracija)
         // V majhnem oknu le slika (in podnapisi); pas z naslovom in kartice se skrijejo.
         prekritje.visibility = if (vPip) View.GONE else View.VISIBLE
+        if (vPip) zapriMrezoVrste()
         if (vPip) { prekritje.animate().cancel(); prekritje.alpha = 1f } else zbudi()
         if (vPip) {
             val filter = android.content.IntentFilter(PIP_PREKLOPI)
@@ -1132,6 +1568,12 @@ class PredvajanjeActivity : OsActivity() {
     private var kretnjaY = 0f
     private var kretnjaNacin = 0          // 0 nic, 1 svetlost, 2 glasnost, -1 dotik ni v obmocju kretenj
     private var kretnjaZacetek = 0f
+    /** Kretnja za glasnost nastavlja zvocnik v omrezju (glasba igra tam); zadnja poslana vrednost. */
+    private var kretnjaNaZvocniku = false
+    private var kretnjaZadnja = -1
+    private var kretnjaStevec = 0
+    /** Zadnji polozaj prsta med kretnjo za glasnost zvocnika (-1 = se ni premika): od tam steje, ko pride sveza glasnost. */
+    private var zadnjiY = -1f
     private var zadnjiDotikCas = 0L
     private var zadnjiDotikLevo = false
     private val kazalnik by lazy {
@@ -1154,7 +1596,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun vObmocjuKretenj(e: MotionEvent, budna: Boolean): Boolean {
         if (tema.visibility == View.VISIBLE || isInPictureInPictureMode) return false
         if (budna && e.y >= prekritje.top) return false
-        gumbNazaj?.takeIf { budna && it.isShown }?.let { g ->
+        for (g in listOfNotNull(gumbNazaj, gumbZvocnik)) if (budna && g.isShown) {
             val r = android.graphics.Rect(); g.getGlobalVisibleRect(r); if (r.contains(e.rawX.toInt(), e.rawY.toInt())) return false
         }
         return true
@@ -1179,13 +1621,35 @@ class PredvajanjeActivity : OsActivity() {
                 if (kretnjaNacin == 0) {
                     if (kotlin.math.abs(dy) < dp(24) || kotlin.math.abs(dy) < 1.5f * kotlin.math.abs(e.x - kretnjaX)) return false
                     kretnjaNacin = if (kretnjaX < (prekritje.parent as View).width / 2f) 1 else 2
-                    kretnjaZacetek = if (kretnjaNacin == 1) trenutnaSvetlost() else zvok.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / najvec
+                    kretnjaNaZvocniku = kretnjaNacin == 2 && GlasbaStoritev.naZvocniku()
+                    kretnjaZadnja = -1
+                    zadnjiY = -1f
+                    kretnjaZacetek = if (kretnjaNacin == 1) trenutnaSvetlost() else if (kretnjaNaZvocniku) -1f
+                        else zvok.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / najvec
+                    if (kretnjaNaZvocniku) {
+                        // Izhodisce je glasnost, ki jo zvocnik javi TA HIP (zadnja znana je lahko stara: kdo jo je medtem
+                        // spremenil na zvocniku samem). Do odgovora (nekaj stotink) kretnja ne nastavlja nicesar.
+                        val moja = ++kretnjaStevec
+                        val odY = e.y
+                        Zvocniki.preberiGlasnost { g -> if (moja == kretnjaStevec && kretnjaNacin == 2) { kretnjaZacetek = g.toFloat(); kretnjaY = zadnjiY.takeIf { it >= 0f } ?: odY } }
+                    }
                     kretnjaY = e.y
                     // Gumbi in kartice pod prstom ne smejo dobiti klika.
                     val preklic = MotionEvent.obtain(e).apply { action = MotionEvent.ACTION_CANCEL }
                     super.dispatchTouchEvent(preklic); preklic.recycle()
                 }
                 val visina = (prekritje.parent as View).height.coerceAtLeast(1) * 0.6f
+                if (kretnjaNacin == 2 && kretnjaNaZvocniku) {
+                    // Glasnost zvocnika: poteg jo spremeni za del lestvice, ne za vso (zvocnik je glasnejsi od telefona);
+                    // dokler njegove glasnosti ne poznamo, je ne nastavljamo na slepo.
+                    zadnjiY = e.y
+                    if (kretnjaZacetek >= 0f) {
+                        val v = ZvocnikPravila.glasnostIzKretnje(kretnjaZacetek.toInt(), -(e.y - kretnjaY) / visina, Zvocniki.najGlasnost, Zvocniki.lestvicaZnana)
+                        if (v != kretnjaZadnja) { kretnjaZadnja = v; Zvocniki.glasnostNa(v) }
+                        pokaziKazalnik(getString(R.string.zvocnik_glasnost, v))
+                    }
+                    return true
+                }
                 val vrednost = (kretnjaZacetek - (e.y - kretnjaY) / visina).coerceIn(0f, 1f)
                 if (kretnjaNacin == 1) {
                     window.attributes = window.attributes.apply { screenBrightness = vrednost.coerceAtLeast(0.01f) }
@@ -1226,6 +1690,13 @@ class PredvajanjeActivity : OsActivity() {
             if (dogodek.actionMasked == MotionEvent.ACTION_UP) pokaziOdkleni()
             return true
         }
+        if (mrezaOdprta()) {
+            // Mreza vrste je svoja stran: dotiki gredo njej (drsenje, izbira), ne kretnjam za svetlost in glasnost.
+            // Zatemnjen zaslon prvi dotik samo zbudi.
+            val temno = tema.visibility == View.VISIBLE
+            zbudi()
+            return if (temno) true else super.dispatchTouchEvent(dogodek)
+        }
         val budna = tema.visibility != View.VISIBLE && prekritje.alpha > 0.5f
         if (dotik && kretnje(dogodek, budna)) { zbudi(); return true }
         zbudi()
@@ -1244,6 +1715,11 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        // Glasba igra na zvocniku: tipki za glasnost nastavljata zvocnik (tudi med premorom, ko sistem tega ne naredi sam).
+        if ((dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP || dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) && GlasbaStoritev.naZvocniku()) {
+            if (dogodek.action == KeyEvent.ACTION_DOWN) glasnostZvocnika(dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP)
+            return true
+        }
         if (zaklenjeno) {
             // Nazaj odklene (nikoli ne ujamemo uporabnika); glasnost dela, ostale tipke ne.
             if (dogodek.keyCode == KeyEvent.KEYCODE_BACK) { if (dogodek.action == KeyEvent.ACTION_UP) zakleni(false); return true }
@@ -1253,6 +1729,12 @@ class PredvajanjeActivity : OsActivity() {
         val budna = tema.visibility != View.VISIBLE
         zbudi()
         if (!budna && dogodek.keyCode != KeyEvent.KEYCODE_BACK) return true
+        if (mrezaOdprta()) when (dogodek.keyCode) {
+            // Mreza vrste: Nazaj jo zapre (pred vrsto pod njo); smerne tipke in OK gredo mrezi, ne previjanju pod njo.
+            KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) zapriMrezoVrste(); return true }
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> return window.superDispatchKeyEvent(dogodek)
+        }
         if (predlogiOdprti() && !dotik) when (dogodek.keyCode) {
             KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) zapriPredloge(); return true }
             // V vrsti predlogov gredo tipke naravnost zaslonu (fokus, OK izbere kartico), mimo pavze in previjanja.
@@ -1271,8 +1753,8 @@ class PredvajanjeActivity : OsActivity() {
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { preklopi(); return true }
-            KeyEvent.KEYCODE_MEDIA_PLAY -> { p?.play(); return true }
-            KeyEvent.KEYCODE_MEDIA_PAUSE -> { p?.pause(); return true }
+            KeyEvent.KEYCODE_MEDIA_PLAY -> { GlasbaStoritev.nadaljuj(); return true }
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> { GlasbaStoritev.premor(); return true }
             KeyEvent.KEYCODE_MEDIA_STOP -> { GlasbaStoritev.ustavi(this); finish(); return true }
             KeyEvent.KEYCODE_MEDIA_NEXT -> { GlasbaStoritev.naslednja(); return true }
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { GlasbaStoritev.prejsnja(); return true }
@@ -1320,5 +1802,14 @@ class PredvajanjeActivity : OsActivity() {
             } else false
         }
         else -> false
+    }
+}
+
+/** Slika kartice, ki zapolni sirino, ki ji jo da postavitev: kvadrat, pri videu 16:9. */
+private class SlikaKartice(c: android.content.Context) : ImageView(c) {
+    var video = false
+    override fun onMeasure(sirinaSpec: Int, visinaSpec: Int) {
+        val s = MeasureSpec.getSize(sirinaSpec)
+        super.onMeasure(MeasureSpec.makeMeasureSpec(s, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(if (video) s * 9 / 16 else s, MeasureSpec.EXACTLY))
     }
 }

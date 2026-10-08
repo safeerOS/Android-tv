@@ -12,4 +12,11 @@
     <string name="zvocnik_glasneje">Glasneje</string>
     <string name="zvocnik_tisje">Tišje</string>
     <string name="zvocnik_vrni">Nazaj na to napravo</string>
+    <string name="zvocnik_igra_na">Igra na: %1$s</string>
+    <string name="zvocnik_tukaj">Predvajaj tukaj</string>
+    <string name="zvocnik_glasnost">Glasnost zvočnika: %1$d</string>
+    <string name="zvocnik_konec">%1$s ne igra več glasbe s te naprave.</string>
+    <string name="zvocnik_nedosegljiv">%1$s se ne odziva</string>
+    <string name="zvocnik_ne_ustavi">%1$s se ne odziva. Če še igra, ga ustavi na zvočniku samem.</string>
+    <string name="zvocnik_ustavljen">%1$s premora ni izvedel, zato je predvajanje na njem ustavljeno.</string>
 </resources>

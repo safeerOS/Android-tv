@@ -12,4 +12,11 @@
     <string name="zvocnik_glasneje">Più forte</string>
     <string name="zvocnik_tisje">Più piano</string>
     <string name="zvocnik_vrni">Torna su questo dispositivo</string>
+    <string name="zvocnik_igra_na">In riproduzione su: %1$s</string>
+    <string name="zvocnik_tukaj">Riproduci qui</string>
+    <string name="zvocnik_glasnost">Volume della cassa: %1$d</string>
+    <string name="zvocnik_konec">%1$s non riproduce più musica da questo dispositivo.</string>
+    <string name="zvocnik_nedosegljiv">%1$s non risponde</string>
+    <string name="zvocnik_ne_ustavi">%1$s non risponde. Se sta ancora suonando, fermalo direttamente dall’altoparlante.</string>
+    <string name="zvocnik_ustavljen">%1$s non è andato in pausa, quindi la riproduzione è stata fermata.</string>
 </resources>

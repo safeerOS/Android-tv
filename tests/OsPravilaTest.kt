@@ -264,8 +264,128 @@ private fun preizkusKanalov() {
     preveri("daljinec: brez napake se pas skrije kot doslej", OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = false, tece = true, napaka = false))
 }
 
+/** Mreze namesto polic (lastnik, 5. in 7. 10. 2026): blok na strani z vec bloki nima drsenja v desno. */
+private fun preizkusBlokov() {
+    println("\n== bloki kartic: mreza namesto police ==")
+    val v = OsPravila.VRSTIC_BLOKA
+    preveriEnako("blok ima najvec dve vrstici", 2, v)
+    // telefon, glasba: 2 v vrsto -> 4 mesta
+    preveriEnako("kar gre v blok, ostane vse", 4, OsPravila.vsebineVBloku(4, 0, 2, v, false))
+    preveriEnako("24 skladb, 2 v vrsto: 3 in kartica »Pokazi vse«", 3, OsPravila.vsebineVBloku(24, 0, 2, v, false))
+    // telefon, plakati: 3 v vrsto -> 6 mest
+    preveriEnako("12 videov, 3 v vrsto: 5 in »Pokazi vse«", 5, OsPravila.vsebineVBloku(12, 0, 3, v, false))
+    // Nedavno: 5 nedavnih + »Pocisti« gre natanko v dve vrstici po tri
+    preveriEnako("5 nedavnih in »Pocisti« v 3 x 2", 5, OsPravila.vsebineVBloku(5, 1, 3, v, false))
+    preveriEnako("7 kartic in dejanje v 3 x 2: 4, »Pokazi vse« in dejanje", 4, OsPravila.vsebineVBloku(7, 1, 3, v, false))
+    // blok s svojo kartico za vse (katalog »Pokazi vse«): druge ne dobi
+    preveriEnako("blok s svojo kartico za vse: 5 in ta kartica", 5, OsPravila.vsebineVBloku(60, 1, 3, v, true))
+    // televizor: 7 v vrsto
+    preveriEnako("televizor, 24 skladb, 7 v vrsto: 13 in »Pokazi vse«", 13, OsPravila.vsebineVBloku(24, 0, 7, v, false))
+    preveriEnako("televizor, 14 skladb: vse", 14, OsPravila.vsebineVBloku(14, 0, 7, v, false))
+    // robovi: vsaj ena kartica vsebine, nikoli vec kot jih je, neveljavne mere ne podrejo
+    preveriEnako("ena v vrsto: ena kartica in »Pokazi vse«", 1, OsPravila.vsebineVBloku(9, 0, 1, v, false))
+    preveriEnako("vec dejanj kot mest: vsaj ena kartica vsebine", 1, OsPravila.vsebineVBloku(9, 5, 2, v, false))
+    preveriEnako("prazen blok", 0, OsPravila.vsebineVBloku(0, 1, 3, v, false))
+    preveriEnako("nic v vrsto se steje kot ena", 1, OsPravila.vsebineVBloku(9, 0, 0, v, false))
+    for (vseh in 0..40) for (n in 1..8) for (d in 0..2) for (imaVse in listOf(false, true)) {
+        val ostane = OsPravila.vsebineVBloku(vseh, d, n, v, imaVse)
+        val kartic = ostane + d + (if (ostane < vseh && !imaVse) 1 else 0)
+        if (ostane !in 0..vseh || (vseh > 0 && ostane == 0) || (kartic > n * v && ostane > 1)) {
+            preveri("blok vseh=$vseh dejanj=$d naVrsto=$n imaVse=$imaVse -> $ostane (kartic $kartic)", false); return
+        }
+    }
+    preveri("blok nikoli ne preseze dveh vrstic (razen z eno samo kartico vsebine) in nikoli ni prazen", true)
+
+    println("\n== sirina kartic mreze ==")
+    // Predvajalnik na telefonu: vsebina 344 dp, 2 kartici po 116 dp + rob 26 = 284 dp -> 60 dp praznega na desni
+    preveriEnako("dve kartici zapolnita vrstico", 146, OsPravila.sirinaKarticeMreze(344, 2, 116, 26))
+    preveriEnako("kartice, ki vrstico ze zapolnijo, ostanejo", 116, OsPravila.sirinaKarticeMreze(284, 2, 116, 26))
+    preveriEnako("ozja vsebina kartic ne zmanjsa", 116, OsPravila.sirinaKarticeMreze(250, 2, 116, 26))
+    preveriEnako("raztegnejo se najvec za polovico", 174, OsPravila.sirinaKarticeMreze(2000, 2, 116, 26))
+    preveriEnako("tablica: pet v vrsto", 134, OsPravila.sirinaKarticeMreze(800, 5, 116, 26))
+    preveriEnako("nic v vrsto se steje kot ena (ne deli z nic)", 174, OsPravila.sirinaKarticeMreze(344, 0, 116, 26))
+}
+
+private fun preizkusPodstrani() {
+    println("\n== podstrani: Nazaj vrne na stran, s katere je bila odprta, na isto mesto ==")
+    val p = OsPravila.Podstrani<String>()
+    preveri("na zacetku ni odprta nobena", !p.odprta && p.globina == 0 && p.vrh == null && p.zapri() == null)
+    // Domov (drsnik 840, izbrana kartica seznama 2) -> seznam predvajanja
+    p.odpri("seznam:Moja vrsta", 840, "k:Seznami predvajanja#2")
+    preveri("po odpiranju je odprta", p.odprta && p.globina == 1 && p.vrh == "seznam:Moja vrsta")
+    preveriEnako("Nazaj s seznama: stran razdelka, isti polozaj in ista kartica",
+        OsPravila.Podstrani.Vrnitev<String>(null, 840, "k:Seznami predvajanja#2"), p.zapri())
+    preveri("po vrnitvi ni odprta nobena", !p.odprta)
+    // Gnezdenje: zadetki (300, podkast 5) -> »Pokazi vse« podkastov (1200, podkast 17) -> epizode
+    p.odpri("blok:Podkasti", 300, "k:Podkasti#5")
+    p.odpri("epizode:Oddaja", 1200, "k:Podkasti#17")
+    preveriEnako("globina 2", 2, p.globina)
+    preveriEnako("Nazaj z epizod: blok podkastov na istem mestu (ne stran zadetkov)",
+        OsPravila.Podstrani.Vrnitev("blok:Podkasti", 1200, "k:Podkasti#17"), p.zapri())
+    preveriEnako("Nazaj iz bloka: stran zadetkov na istem mestu",
+        OsPravila.Podstrani.Vrnitev<String>(null, 300, "k:Podkasti#5"), p.zapri())
+    // Drugi seznam iz istega bloka: blok si zapomni zadnje mesto, stran razdelka svojega
+    p.odpri("blok:Seznami", 100, null)
+    p.odpri("seznam:A", 50, "k:Seznami#1")
+    p.zapri()
+    p.odpri("seznam:B", 70, "k:Seznami#4")
+    preveriEnako("drugi seznam iz istega bloka: vrne na zadnje mesto v bloku",
+        OsPravila.Podstrani.Vrnitev("blok:Seznami", 70, "k:Seznami#4"), p.zapri())
+    preveriEnako("mesto na strani razdelka se pri tem ne spremeni", OsPravila.Podstrani.Vrnitev<String>(null, 100, null), p.zapri())
+    // Drug razdelek ali novo iskanje: podstrani ni vec
+    p.odpri("blok:X", 10, "k"); p.odpri("seznam:Y", 20, "k2")
+    p.pocisti()
+    preveri("po menjavi razdelka ni odprta nobena in Nazaj ne vraca nikamor", !p.odprta && p.zapri() == null)
+    p.odpri("blok:Z", 0, null)
+    preveriEnako("staro mesto razdelka se ne prenese", OsPravila.Podstrani.Vrnitev<String>(null, 0, null), p.zapri())
+
+    // Mesto je kartica in njen odmik od vrha vidnega dela (stran nad njo se lahko spremeni); brez kartice velja polozaj drsnika.
+    p.odpri("seznam:M", 840, "k:Seznami predvajanja#3", 212)
+    preveriEnako("odmik kartice se vrne z mestom", OsPravila.Podstrani.Vrnitev<String>(null, 840, "k:Seznami predvajanja#3", 212), p.zapri())
+    p.odpri("seznam:N", 5, null)
+    preveriEnako("brez kartice ni odmika", OsPravila.Podstrani.NI_ODMIKA, p.zapri()?.odmik)
+
+    println("\n== nedavno: brez podvojenih prikazov, a razlicne stvari ostanejo razlicne ==")
+    preveriEnako("dve razlicici istega naslova sta en vnos",
+        OsPravila.kljucNedavnega("a1", "the love hypothesis", false, false), OsPravila.kljucNedavnega("b2", "the love hypothesis", false, false))
+    preveri("dve postaji z enakim imenom sta dve postaji",
+        OsPravila.kljucNedavnega("r1", "radio 1", true, false) != OsPravila.kljucNedavnega("r2", "radio 1", true, false))
+    preveri("dve datoteki naprave z enakim imenom sta dve datoteki",
+        OsPravila.kljucNedavnega("f1", "track 01", false, true) != OsPravila.kljucNedavnega("f2", "track 01", false, true))
+    preveri("brez precisenega naslova odloca oznaka", OsPravila.kljucNedavnega("x", "", false, false) != OsPravila.kljucNedavnega("y", "", false, false))
+    preveri("postaja in skladba z enakim imenom nista isti vnos",
+        OsPravila.kljucNedavnega("r1", "energy", true, false) != OsPravila.kljucNedavnega("s1", "energy", false, false))
+}
+
+private fun preizkusVrsteKartic() {
+    println("\n== zaslon predvajanja na dotik: omejena vrsta kartic in »Pokazi vse« ==")
+    // Sirina vrste, sirina kartice in razmik v istih enotah (dp).
+    preveriEnako("ozek telefon pokonci (344, kartica 130): tri kartice", 3, OsPravila.karticVVrsti(344, 130, 12))
+    preveriEnako("tablica lezece (1168)", 8, OsPravila.karticVVrsti(1168, 130, 12))
+    preveriEnako("telefon lezece, manjse kartice (789, kartica 86)", 8, OsPravila.karticVVrsti(789, 86, 12))
+    preveriEnako("tablica pokonci (688)", 5, OsPravila.karticVVrsti(688, 130, 12))
+    preveriEnako("nikoli manj kot tri", 3, OsPravila.karticVVrsti(200, 130, 12))
+    preveriEnako("sirina 0 (pred prvo postavitvijo) racuna ne podre", 3, OsPravila.karticVVrsti(0, 130, 12))
+    preveriEnako("prazna vrsta", OsPravila.OknoVrste(0, 0, false), OsPravila.oknoVrste(0, -1, 3))
+    preveriEnako("ena skladba: sama, brez »Pokazi vse«", OsPravila.OknoVrste(0, 1, false), OsPravila.oknoVrste(1, 0, 3))
+    preveriEnako("toliko skladb kot mest: vse, brez »Pokazi vse«", OsPravila.OknoVrste(0, 3, false), OsPravila.oknoVrste(3, 2, 3))
+    preveriEnako("vec skladb kot mest: zadnje mesto je »Pokazi vse«", OsPravila.OknoVrste(0, 2, true), OsPravila.oknoVrste(4, 0, 3))
+    preveriEnako("okno se zacne pri skladbi, ki igra", OsPravila.OknoVrste(5, 3, true), OsPravila.oknoVrste(20, 5, 4))
+    preveriEnako("naslednja skladba je se v oknu: kartice ostanejo na mestu", OsPravila.OknoVrste(5, 3, true), OsPravila.oknoVrste(20, 6, 4, 5))
+    preveriEnako("... tudi zadnja v oknu", OsPravila.OknoVrste(5, 3, true), OsPravila.oknoVrste(20, 7, 4, 5))
+    preveriEnako("skladba za oknom: okno se premakne nanjo", OsPravila.OknoVrste(8, 3, true), OsPravila.oknoVrste(20, 8, 4, 5))
+    preveriEnako("skladba pred oknom (prejsnja): okno se premakne nanjo", OsPravila.OknoVrste(4, 3, true), OsPravila.oknoVrste(20, 4, 4, 5))
+    preveriEnako("konec seznama: vrsta ostane polna", OsPravila.OknoVrste(17, 3, true), OsPravila.oknoVrste(20, 19, 4))
+    preveriEnako("predlogi (iz njih nic ne igra): od zacetka", OsPravila.OknoVrste(0, 3, true), OsPravila.oknoVrste(12, -1, 4, 6))
+    preveriEnako("staro okno, ki ga krajsi seznam nima vec: znova pri skladbi, ki igra", OsPravila.OknoVrste(1, 3, true), OsPravila.oknoVrste(6, 1, 4, 9))
+    preveriEnako("manj kot dve mesti ni vrsta: racunamo z dvema", OsPravila.OknoVrste(2, 1, true), OsPravila.oknoVrste(5, 2, 1))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
+    preizkusBlokov()
+    preizkusPodstrani()
+    preizkusVrsteKartic()
     preizkusKanalov()
     preizkusLogotipa()
     preizkusStabilnegaReda()

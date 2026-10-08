@@ -303,6 +303,119 @@ object OsPravila {
         return izid
     }
 
+    // ------------------------------------------------------------------ mreza namesto polic
+
+    /** Najvec celih vrstic bloka kartic na strani z vec bloki (Domov, Moja glasba, Zate, zadetki iskanja). */
+    const val VRSTIC_BLOKA = 2
+
+    /**
+     * Blok kartic na strani z vec bloki je mreza z najvec [vrstic] vrsticami po [naVrsto] kartic - brez police, po kateri
+     * je treba drseti v desno (lastnik, 5. in 7. 10. 2026). Vrne, koliko kartic VSEBINE ostane v bloku: vse, ce gredo skupaj
+     * z [dejanj] karticami dejanj (»Pocisti«, »Pokazi vse« kataloga) v blok; sicer toliko, da ostane prostor za dejanja
+     * in - kadar blok nima svoje kartice za vse ([imaVse]) - za kartico »Pokazi vse«. Blok z vsebino ni nikoli prazen.
+     */
+    fun vsebineVBloku(vsebine: Int, dejanj: Int, naVrsto: Int, vrstic: Int, imaVse: Boolean): Int {
+        if (vsebine <= 0) return 0
+        val mest = naVrsto.coerceAtLeast(1) * vrstic.coerceAtLeast(1)
+        if (vsebine + dejanj <= mest) return vsebine
+        return (mest - dejanj - (if (imaVse) 0 else 1)).coerceIn(1, vsebine)
+    }
+
+    /**
+     * Sirina kartice mreze (dp), s katero [naVrsto] kartic zapolni vrstico: [osnova] se raztegne do sirine vsebine
+     * ([rob] dp roba na kartico), najvec za polovico - na zelo sirokem zaslonu raje ostane prazen rob kot ogromne kartice.
+     * Prej je na telefonu na desni ostal prazen pas (dve kartici po 116 dp v 344 dp siroki vsebini).
+     */
+    fun sirinaKarticeMreze(sirinaVsebineDp: Int, naVrsto: Int, osnova: Int, rob: Int): Int =
+        (sirinaVsebineDp / naVrsto.coerceAtLeast(1) - rob).coerceIn(osnova, osnova * 3 / 2)
+
+    // ------------------------------------------------------------------ podstrani (»Pokazi vse«, seznam, epizode)
+
+    /**
+     * Podstrani medijskega centra: »Pokazi vse« bloka, seznam predvajanja, epizode podkasta, skladbe izvajalca. Vsaka si
+     * zapomni, kje na strani pod njo je bil uporabnik, ko jo je odprl (polozaj drsnika in kartica z izbiro): Nazaj vrne na
+     * stran, s katere je bila odprta, na isto mesto - tudi kadar je bila odprta s podstrani (»Pokazi vse« seznamov ->
+     * seznam). Prej sta to hranila ena zastavica in en polozaj: Nazaj z vgnezdene podstrani je preskocil raven, izbira na
+     * televizorju pa je pristala na prvi kartici strani.
+     */
+    class Podstrani<T> {
+        companion object {
+            /** Kartica mesta ni znana (ali ni narisana): velja polozaj drsnika. */
+            const val NI_ODMIKA = Int.MIN_VALUE
+        }
+
+        /**
+         * Kam Nazaj: [stran] je podstran, ki pride na zaslon (null = stran razdelka). Mesto na njej je kartica [kljuc], ki
+         * naj bo [odmik] tock pod vrhom vidnega dela - tako stran pristane, kjer je bila, tudi ce se je nad kartico kaj
+         * spremenilo (plosca predvajanja, nedavno). Brez odmika velja polozaj drsnika [y].
+         */
+        data class Vrnitev<T>(val stran: T?, val y: Int, val kljuc: String?, val odmik: Int = NI_ODMIKA)
+        private class Raven<T>(val stran: T, val y: Int, val kljuc: String?, val odmik: Int)
+        private val sklad = ArrayList<Raven<T>>()
+
+        val odprta: Boolean get() = sklad.isNotEmpty()
+        val globina: Int get() = sklad.size
+        /** Podstran na zaslonu. */
+        val vrh: T? get() = sklad.lastOrNull()?.stran
+
+        /** Odpre [stran]; [y], [kljuc] in [odmik] so mesto na strani, ki je zdaj na zaslonu (tja se vrne Nazaj). */
+        fun odpri(stran: T, y: Int, kljuc: String?, odmik: Int = NI_ODMIKA) { sklad.add(Raven(stran, y.coerceAtLeast(0), kljuc, odmik)) }
+
+        /** Nazaj: zapre podstran na zaslonu; null, ce ni odprta nobena. */
+        fun zapri(): Vrnitev<T>? {
+            if (sklad.isEmpty()) return null
+            val r = sklad.removeAt(sklad.size - 1)
+            return Vrnitev(sklad.lastOrNull()?.stran, r.y, r.kljuc, r.odmik)
+        }
+
+        /** Drug razdelek, novo iskanje, stran razdelka cez podstran: podstrani ni vec. */
+        fun pocisti() { sklad.clear() }
+    }
+
+    /**
+     * Kljuc vnosa med nedavnimi: isti naslov iz dveh virov (dve razlicici filma ali skladbe) je en vnos - brez podvojenih
+     * prikazov. Postaje in kanali v zivo ter datoteke naprave se locijo po oznaki: dve postaji z enakim imenom sta dve
+     * postaji, dve datoteki »Track 01« dve datoteki. [cistNaslov] je ze preciscen naslov skupaj z izvajalcem.
+     */
+    fun kljucNedavnega(id: String, cistNaslov: String, vZivo: Boolean, krajevna: Boolean): String =
+        if (vZivo || krajevna || cistNaslov.isBlank()) "id:$id" else "n:$cistNaslov"
+
+    // ------------------------------------------------------------------ omejena vrsta kartic (zaslon predvajanja)
+
+    /**
+     * Koliko kartic gre v eno vrsto sirine [sirina], ce je kartica siroka [kartica] in je med karticami [razmik] (iste
+     * enote). Zaokrozimo na najblizje celo stevilo - kartice si potem sirino razdelijo, zato so malo vecje ali malo
+     * manjse od [kartica], vrsta pa je vedno polna do roba - in nikoli manj kot [najmanj].
+     */
+    fun karticVVrsti(sirina: Int, kartica: Int, razmik: Int, najmanj: Int = 3): Int {
+        val korak = (kartica + razmik).coerceAtLeast(1)
+        return maxOf(najmanj, (2 * (sirina + razmik) + korak) / (2 * korak))
+    }
+
+    /** Kaj kaze omejena vrsta: [stevilo] zaporednih elementov od [zacetek] in za njimi morda »Pokazi vse«. */
+    data class OknoVrste(val zacetek: Int, val stevilo: Int, val pokaziVse: Boolean)
+
+    /**
+     * Omejena vrsta z [mest] mesti nad seznamom z [vseh] elementi, v katerem igra [tekoci] (-1: nobeden, npr. predlogi).
+     * Ce gre ves seznam v vrsto, je v njej ves in gumba »Pokazi vse« ni. Sicer je zadnje mesto »Pokazi vse«, pred njim
+     * pa mest-1 zaporednih elementov. Okno ostane, kjer je bilo ([prejZacetek]), dokler je element, ki igra, v njem -
+     * kartice se uporabniku ne premikajo pod prstom ob vsaki skladbi -, sicer se zacne pri elementu, ki igra; ob koncu
+     * seznama se poravna nazaj, da je vrsta polna.
+     */
+    fun oknoVrste(vseh: Int, tekoci: Int, mest: Int, prejZacetek: Int = -1): OknoVrste {
+        if (vseh <= 0) return OknoVrste(0, 0, false)
+        val m = mest.coerceAtLeast(2)
+        if (vseh <= m) return OknoVrste(0, vseh, false)
+        val k = m - 1
+        val zadnjiZacetek = vseh - k
+        val zacetek = when {
+            tekoci !in 0 until vseh -> 0
+            prejZacetek in 0..zadnjiZacetek && tekoci in prejZacetek until prejZacetek + k -> prejZacetek
+            else -> minOf(tekoci, zadnjiZacetek)
+        }
+        return OknoVrste(zacetek, k, true)
+    }
+
     // ------------------------------------------------------------------ stranska vrstica ob vgrajenem brskalniku
 
     /** Kaj naredi tipka daljinca, ko je fokus v stranski vrstici Safeer OS in je vsebina vgrajeni brskalnik. */

@@ -25,6 +25,7 @@ class ZvocnikStreznik(ctx: Context) {
     @Volatile private var vir: String = ""
     @Volatile private var mime = "audio/mpeg"
     @Volatile private var odprt = true
+    private val odprtih = java.util.concurrent.atomic.AtomicInteger(0)
 
     init {
         Thread({ sprejemaj() }, "safeer-zvocnik-streznik").apply { isDaemon = true }.start()
@@ -45,6 +46,9 @@ class ZvocnikStreznik(ctx: Context) {
 
     fun mime(): String = mime
 
+    /** Vir ni vec v ponudbi (zvocnik zdaj igra kaj drugega): stari naslov vrne 404. */
+    fun pozabi() { pot = ""; vir = "" }
+
     fun zapri() {
         odprt = false
         try { streznik.close() } catch (_: Exception) {}
@@ -58,7 +62,9 @@ class ZvocnikStreznik(ctx: Context) {
     private fun sprejemaj() {
         while (odprt) {
             val s = try { streznik.accept() } catch (_: Exception) { if (!odprt) return else continue }
-            Thread({ try { obdelaj(s) } catch (e: Exception) { Log.d("SafeerZvocniki", "Streznik: ${e.message}") } finally { try { s.close() } catch (_: Exception) {} } },
+            // Zvocnik odpre nekaj povezav (glava, kosi z Range); vec hkratnih ne strezemo - naprava v omrezju ne sme zasesti niti.
+            if (odprtih.incrementAndGet() > NAJVEC_POVEZAV) { odprtih.decrementAndGet(); try { s.close() } catch (_: Exception) {}; continue }
+            Thread({ try { obdelaj(s) } catch (e: Exception) { Log.d("SafeerZvocniki", "Streznik: ${e.message}") } finally { odprtih.decrementAndGet(); try { s.close() } catch (_: Exception) {} } },
                 "safeer-zvocnik-odjemalec").apply { isDaemon = true }.start()
         }
     }
@@ -77,7 +83,7 @@ class ZvocnikStreznik(ctx: Context) {
         val vhod = BufferedInputStream(s.getInputStream())
         val zahteva = vrstica(vhod).split(" ")
         val glave = HashMap<String, String>()
-        while (true) {
+        for (stevilo in 0 until NAJVEC_GLAV) {
             val v = vrstica(vhod); if (v.isEmpty()) break
             val i = v.indexOf(':'); if (i > 0) glave[v.substring(0, i).trim().lowercase()] = v.substring(i + 1).trim()
         }
@@ -118,8 +124,21 @@ class ZvocnikStreznik(ctx: Context) {
 
     private fun odpri(uri: Uri): InputStream = when (uri.scheme?.lowercase()) {
         "content" -> app.contentResolver.openInputStream(uri) ?: throw IllegalStateException("ni vira")
-        "file" -> File(uri.path ?: "").inputStream()
-        else -> File(vir).inputStream()
+        "file" -> datoteka(uri.path ?: "").inputStream()
+        else -> datoteka(vir).inputStream()
+    }
+
+    /** Datoteka iz skupne shrambe naprave; zasebnih podatkov aplikacije streznik ne ponuja, tudi ce jih vrsta navede. */
+    private fun datoteka(pot: String): File {
+        val f = File(pot).canonicalFile
+        val zasebno = File(app.applicationInfo.dataDir).canonicalPath
+        if (f.path == zasebno || f.path.startsWith("$zasebno/")) throw SecurityException("zasebna datoteka")
+        return f
+    }
+
+    private companion object {
+        const val NAJVEC_POVEZAV = 8
+        const val NAJVEC_GLAV = 64
     }
 
     private fun velikost(uri: Uri): Long = try {

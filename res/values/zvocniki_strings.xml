@@ -12,4 +12,11 @@
     <string name="zvocnik_glasneje">Louder</string>
     <string name="zvocnik_tisje">Quieter</string>
     <string name="zvocnik_vrni">Back to this device</string>
+    <string name="zvocnik_igra_na">Playing on: %1$s</string>
+    <string name="zvocnik_tukaj">Play here</string>
+    <string name="zvocnik_glasnost">Speaker volume: %1$d</string>
+    <string name="zvocnik_konec">%1$s is no longer playing music from this device.</string>
+    <string name="zvocnik_nedosegljiv">%1$s is not responding</string>
+    <string name="zvocnik_ne_ustavi">%1$s is not responding. If it is still playing, stop it on the speaker itself.</string>
+    <string name="zvocnik_ustavljen">%1$s did not pause, so playback on it was stopped.</string>
 </resources>

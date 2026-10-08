@@ -36,12 +36,12 @@ class LinkMost(
         const val ZAHTEVA_DATOTEKE = 7322
 
         /** Dovoljenje je prislo, ko strani Link ni bilo vec: storitev zazenemo brez nje. */
-        fun zazeniDeljenje(context: Context, resultCode: Int, data: android.content.Intent, cilj: String, ime: String) {
+        fun zazeniDeljenje(context: Context, resultCode: Int, data: android.content.Intent, cilj: String, ime: String, odprtoTukajZa: String = "") {
             val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val hub = (p.getString("hub_url", "") ?: "").replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
                 .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws").trimEnd('/')
             DeljenjeZaslonaStoritev.zazeni(context, resultCode, data, cilj, ime, hub,
-                HubPairing.token(context) ?: "", si.safeer.tv.cast.HubKrmilnik.lastniId())
+                HubPairing.token(context) ?: "", si.safeer.tv.cast.HubKrmilnik.lastniId(), odprtoTukajZa)
         }
     }
 

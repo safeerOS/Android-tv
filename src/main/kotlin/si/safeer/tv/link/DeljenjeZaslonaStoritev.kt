@@ -89,8 +89,11 @@ class DeljenjeZaslonaStoritev : Service() {
 
         fun zazeni(
             context: Context, resultCode: Int, data: Intent, cilj: String, imeCilja: String,
-            hubHttp: String, zeton: String, idNaprave: String
+            hubHttp: String, zeton: String, idNaprave: String, odprtoTukajZa: String = ""
         ) {
+            // Novo deljenje: zapis, da je prejsnje zacel »Odpri tukaj«, ne velja vec; ce je to deljenje zacel »Odpri tukaj«
+            // naprave [odprtoTukajZa], se zapise tu, v istem klicu ([PretokKonec.Zahteve.novoDeljenje]).
+            PretokKonec.zahteve.novoDeljenje(odprtoTukajZa)
             val namera = Intent(context, DeljenjeZaslonaStoritev::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_RESULT_CODE, resultCode)
@@ -190,6 +193,8 @@ class DeljenjeZaslonaStoritev : Service() {
         }
 
         tece = true
+        // Deljenje tece: odslej ga ukaz za konec najde po cilju, oznaka zagona ni vec potrebna.
+        PretokKonec.zahteve.zagonKoncan()
         zadnjaNapaka = ""
         zadnjaKoda = ""
         zadnjaZasedenaOd = ""
@@ -412,6 +417,9 @@ class DeljenjeZaslonaStoritev : Service() {
     // ------------------------------------------------------------------ konec
 
     private fun koncaj(napaka: String) {
+        // Deljenje je koncano (ali se ni moglo zaceti): oznaka »zaganja se« ne velja vec. Pri zamenjavi deljenja (nov zagon,
+        // medtem ko staro tece) se novo zacne v istem klicu na glavni niti - ukaz za konec vmes ne more priti.
+        PretokKonec.zahteve.zagonKoncan()
         val jeTeklo = tece
         ustavljam = true
         tece = false

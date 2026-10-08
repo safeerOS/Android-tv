@@ -55,7 +55,7 @@ class ChromiumEngineView @JvmOverloads constructor(
          * vede kot mobilni - User-Agent Chroma za Android (tablicne strani), obicajna povecava, pravi
          * YouTube namesto youtube.com/tv in brez navigacije z daljincem (lastnik, 22. 9. 2026).
          */
-        fun naDotik(c: Context): Boolean = !c.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+        fun naDotik(c: Context): Boolean = !si.safeer.tv.os.Naprava.jeTelevizor(c)
 
         fun rewriteYoutubeForTv(url: String): String {
             val lower = url.lowercase()

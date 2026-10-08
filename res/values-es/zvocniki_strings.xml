@@ -12,4 +12,11 @@
     <string name="zvocnik_glasneje">Más alto</string>
     <string name="zvocnik_tisje">Más bajo</string>
     <string name="zvocnik_vrni">Volver a este dispositivo</string>
+    <string name="zvocnik_igra_na">Suena en: %1$s</string>
+    <string name="zvocnik_tukaj">Reproducir aquí</string>
+    <string name="zvocnik_glasnost">Volumen del altavoz: %1$d</string>
+    <string name="zvocnik_konec">%1$s ya no reproduce música de este dispositivo.</string>
+    <string name="zvocnik_nedosegljiv">%1$s no responde</string>
+    <string name="zvocnik_ne_ustavi">%1$s no responde. Si sigue sonando, deténlo en el propio altavoz.</string>
+    <string name="zvocnik_ustavljen">%1$s no hizo la pausa, así que se detuvo la reproducción en él.</string>
 </resources>

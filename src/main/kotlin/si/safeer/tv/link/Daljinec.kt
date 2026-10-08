@@ -38,6 +38,8 @@ object Daljinec {
         // Protocol v1: ista imena kot pri ponudniku na racunalniku (Safeer Control), da odjemalec
         // (Safeer OS, Control) aplikacije katere koli naprave nasteje in zazene na en nacin.
         "apps.list", "apps.launch",
+        // Konec »Odpri tukaj«: okno na drugi napravi se je zaprlo - nehamo deliti zaslon, aplikacijo umaknemo z zaslona.
+        "apps.close",
         // Vnos z racunalnika na zaslon, ki ga naprava deli (Safeer Vnos, storitev dostopnosti):
         // dotik in poteg v delezih zaslona, tipka (sistemska ali tipkovnice), kolesce, besedilo v polje s fokusom.
         "input.tap", "input.swipe", "input.key", "input.text", "input.enable", "input.scroll",
@@ -161,6 +163,7 @@ object Daljinec {
             }
             return zazeniAplikacijo(context, paket)
         }
+        if (d == "apps.close") return zapriPretok(context, parametri)
         // Vnos z racunalnika ne potrebuje brskalnika v ospredju: gre v aplikacijo, ki je na zaslonu.
         if (d.startsWith("input.")) return vnos(context, d, parametri)
         if (d.startsWith("gamepad.")) return igralniPloskek(context, d, parametri)
@@ -331,6 +334,43 @@ object Daljinec {
      * potrdi na tej napravi), zazene deljenje in odpre aplikacijo. Odgovor pride takoj; slika pride, ko
      * uporabnik potrdi.
      */
+    /**
+     * `apps.close`: okno »Odpri tukaj« na drugi napravi se je zaprlo. Android ne dovoli zapreti tuje aplikacije;
+     * nehamo pa deliti zaslon in aplikacijo umaknemo z zaslona (Domov prek Safeer Vnosa) - igra se v ozadju ustavi
+     * sama. Do 0.5.65 je zaprto okno na racunalniku tu pustilo vse, kot je bilo: zaslon se je delil naprej in igra
+     * je igrala naprej (izmerjeno 7. 10. 2026 na tablici). Odlocitev: PretokKonec.
+     */
+    private fun zapriPretok(context: Context, p: JSONObject): Izid {
+        // Tuje aplikacije Android ne da zapreti: ukaz poznamo samo kot konec pretoka (»Odpri tukaj«).
+        if (!p.optBoolean("stream", false)) return Izid(false, "Android ne dovoli zapreti aplikacije", koda = "ni_podprto")
+        val posiljatelj = p.optString(PARAM_POSILJATELJ, "")
+        val o = PretokKonec.odloci(true, posiljatelj, DeljenjeZaslonaStoritev.tece, DeljenjeZaslonaStoritev.cilj,
+            PretokKonec.zahteve.odprtoTukajZa(), VnosStoritev.aktivna(), PretokKonec.zahteve.cakaOd(), PretokKonec.zahteve.zacenjaZa())
+        if (o.preklici) {
+            // Zahteva, ki se caka na soglasje, je umaknjena: okno in obvestilo izgineta, pozna potrditev ne zacne deljenja.
+            PretokKonec.zahteve.umakni()
+            pospraviObvestiloZagona(context)
+            PretociActivity.zapriCakajoco()
+        }
+        if (o.ustaviDeljenje) {
+            // Zapis o »Odpri tukaj« je s tem porabljen: ponovljen ukaz (deljenje se se ustavlja) naprave ne vrze domov se enkrat.
+            PretokKonec.zahteve.novoDeljenje()
+            // Deljenje, ki se sele zaganja: ukaz za ustavitev pride v storitev za ukazom za zagon in ga konca, brz ko stece.
+            PretokKonec.zahteve.zagonKoncan()
+            DeljenjeZaslonaStoritev.ustavi(context)
+        }
+        val domov = o.domov && VnosStoritev.tipka("home")
+        Log.i(TAG, "apps.close: deljenje=${o.ustaviDeljenje} domov=$domov preklic=${o.preklici}")
+        val sporocilo = when {
+            o.ustaviDeljenje && domov -> "Deljenje se ustavlja, aplikacija je umaknjena z zaslona"
+            o.ustaviDeljenje -> "Deljenje se ustavlja"
+            o.preklici -> "Zahteva je umaknjena"
+            else -> "Zaslon se tej napravi ne deli"
+        }
+        return Izid(true, sporocilo, JSONObject()
+            .put("stream", if (o.ustaviDeljenje) "stopping" else if (o.preklici) "cancelled" else "none").put("home", domov))
+    }
+
     private fun pretociAplikacijo(context: Context, paket: String, cilj: String): Izid {
         if (!Regex("^[A-Za-z0-9_.]+$").matches(paket)) return Izid(false, "Neveljavno ime paketa")
         if (cilj.isBlank()) return Izid(false, "Ni znano, komu pretociti", koda = "ni_posiljatelja")
@@ -338,13 +378,16 @@ object Daljinec {
         val ime = try {
             context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(paket, 0)).toString()
         } catch (_: Throwable) { paket }
-        val namera = PretociActivity.namera(context, cilj, paket)
+        // Ena zahteva naenkrat: nova zamenja staro (okno stare se zapre, njena potrditev ne zacne nicesar). Zahteva velja
+        // dve minuti ([PretokKonec.CAKA_MS]): obvestilo potem izgine, pozna potrditev ne zacne deljenja.
+        PretociActivity.zapriCakajoco()
+        val namera = PretociActivity.namera(context, cilj, paket, PretokKonec.zahteve.nova(cilj))
         if (!smeZagnatiIzOzadja(context)) {
-            prebudiZNamero(context, namera, ime)
+            prebudiZNamero(context, namera, ime, velja = PretokKonec.CAKA_MS)
             return izidBrezDovoljenja(context, ime)
         }
         try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Pretakanja ni bilo mogoce zaceti: ${e.message}") }
-        prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_pretok)
+        prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_pretok, velja = PretokKonec.CAKA_MS)
         return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
             JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
     }
@@ -416,7 +459,7 @@ object Daljinec {
      * pove, kaj se bo zgodilo, ne samo ime aplikacije.
      */
     private fun prebudiZNamero(context: Context, namera: Intent, ime: String,
-                               besedilo: Int = si.safeer.tv.R.string.ui_link_zagon_odpri) {
+                               besedilo: Int = si.safeer.tv.R.string.ui_link_zagon_odpri, velja: Long = 0L) {
         try {
             val upravitelj = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             if (upravitelj.getNotificationChannel(KANAL_ZAGON) == null) {
@@ -437,6 +480,8 @@ object Daljinec {
                 .setContentIntent(cakajoca)
                 .setFullScreenIntent(cakajoca, true)
                 .setAutoCancel(true)
+                // Zahteva z rokom (»Odpri tukaj«): obvestilo izgine, ko zahteva ne velja vec.
+                .apply { if (velja > 0) setTimeoutAfter(velja) }
                 .build()
             upravitelj.notify(OBVESTILO_ZAGON, obvestilo)
         } catch (e: Throwable) {

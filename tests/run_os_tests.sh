@@ -35,6 +35,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/tv/PredajaStrani.kt" \
     "$SRC/si/safeer/tv/cast/ObvestiloZaslona.kt" \
     "$SRC/si/safeer/tv/cast/PoDeljenju.kt" \
+    "$SRC/si/safeer/tv/link/PretokKonec.kt" \
     "$SRC/si/safeer/tv/os/HlsPopravek.kt" \
     "$SRC/si/safeer/tv/os/KanaliPravila.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPovecava.kt" \
@@ -63,6 +64,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/IzvirniJezikTest.kt" \
     "$TEST_DIR/ObvestiloZaslonaTest.kt" \
     "$TEST_DIR/PoDeljenjuTest.kt" \
+    "$TEST_DIR/PretokKonecTest.kt" \
     "$TEST_DIR/HlsPopravekTest.kt" \
     "$TEST_DIR/KanaliPravilaTest.kt" \
     "$TEST_DIR/ZaslonPovecavaTest.kt" \
@@ -93,6 +95,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.ObnovaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.IzvirniJezikTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.cast.ObvestiloZaslonaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.cast.PoDeljenjuTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.link.PretokKonecTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.HlsPopravekTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KanaliPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPovecavaTestKt
