@@ -111,6 +111,8 @@ jobs:
       # Splosna zascita pred zaznavanjem blokatorja (vabni elementi, omrezne zahteve, skripte).
       - name: Zascita pred zaznavanjem blokatorja
         run: node tests/protiadblock_test.js
+      - name: Detektor blokatorja (offsetParent, slike, googletag)
+        run: node tests/protiadblock_detektor_test.js
 
       # Cistilec sledilnih parametrov v URL-jih (tudi percent-kodirana imena).
       - name: Cistilec sledilnih parametrov (UrlSanitizer)
