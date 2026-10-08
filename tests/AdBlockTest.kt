@@ -89,6 +89,16 @@ fun main() {
         )
     }
 
+    // Izjema za strezniki licenc (DRM) velja po domeni, ne po podnizu v imenu gostitelja.
+    println()
+    println("== DRM izjema po domeni ==")
+    fun blokiran(u: String) = AdBlockEngine.handleIntercept(u, null, null, false) != null
+    preveri("license.widevine.com spuščen", !blokiran("https://license.widevine.com/ads.js"))
+    preveri("poddomena drmtoday.com spuščena", !blokiran("https://lic.drmtoday.com/ads.js"))
+    preveri("widevine.napadalec.example blokiran", blokiran("https://widevine.napadalec.example/ads.js"))
+    preveri("fake-widevine-ads.com blokiran", blokiran("https://fake-widevine-ads.com/ads.js"))
+    preveri("notdrmtoday.evil blokiran", blokiran("https://notdrmtoday.evil/ads.js"))
+
     // Blokirana zahteva po podatkih propade (kot pri vsakem blokatorju); stran, slika, slog in skripta dobijo prazen odgovor.
     println()
     println("== odgovor na blokirano zahtevo ==")

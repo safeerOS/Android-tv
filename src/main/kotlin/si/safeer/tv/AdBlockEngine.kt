@@ -203,9 +203,20 @@ object AdBlockEngine {
      * filter nikoli ne ustavi - to ni izjema za doloceno stran, ampak za samo tehnologijo.
      */
     private fun jeDrmStreznik(host: String): Boolean {
-        return host.contains("widevine") || host.contains("drmtoday") ||
-            host.contains("castlabs") || host.contains("expressplay")
+        if (host.isEmpty()) return false
+        // Ujemanje po domeni (korenska domena ali poddomena), NE po podnizu: gostitelj kot
+        // widevine.napadalec.example ali fake-widevine-ads.com ne sme dobiti izjeme od filtrov.
+        for (d in DRM_DOMENE) {
+            if (host == d || host.endsWith(".$d")) return true
+        }
+        return false
     }
+
+    /** Znani ponudniki licenc za zascito vsebine (Widevine in podobni). */
+    private val DRM_DOMENE = listOf(
+        "widevine.com", "drmtoday.com", "castlabs.com", "expressplay.com",
+        "axinom.com", "axprod.net", "axtest.net", "ezdrm.com", "buydrm.com", "irdeto.com", "verimatrix.com"
+    )
 
     /**
      * Preveri, ali URL ustreza oglasu, sledilcu ali blokirani domeni.
