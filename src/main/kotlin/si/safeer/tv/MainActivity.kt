@@ -3174,6 +3174,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // Samo tipka OK sme dovoliti en sinteticni dotik (triggerNativeTap); puscice ne.
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode in TIPKE_POTRDI) ChromiumEngineView.oznaciTipko()
+        // Katerakoli tipka je vnos: stran sme nanj odgovoriti s skrivanjem vrstice (drsenje), oglas brez vnosa pa ne.
+        if (event.action == KeyEvent.ACTION_DOWN) ChromiumEngineView.oznaciVnos()
         val vrstica = osStranskaVrstica
         if (vrstica != null) {
             if (vrstica.imaFokus()) {

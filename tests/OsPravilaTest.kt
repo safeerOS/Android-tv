@@ -381,8 +381,20 @@ private fun preizkusVrsteKartic() {
     preveriEnako("manj kot dve mesti ni vrsta: racunamo z dvema", OsPravila.OknoVrste(2, 1, true), OsPravila.oknoVrste(5, 2, 1))
 }
 
+/** Imena iz kataloga glasbe pridejo HTML-kodirana (»John Dada &amp; the Weathermen«) - na kartici se kazejo kot besedilo. */
+private fun preizkusHtmlImen() {
+    preveriEnako("&amp;", "John Dada & the Weathermen", OsPravila.htmlBesedilo("John Dada &amp; the Weathermen"))
+    preveriEnako("narekovaji", "\"Hi\" 'there' <3", OsPravila.htmlBesedilo("&quot;Hi&quot; &#39;there&#039; &lt;3"))
+    preveriEnako("stevilske", "é & ÿ", OsPravila.htmlBesedilo("&#233; &#x26; &#xFF;"))
+    preveriEnako("enkrat", "&amp;", OsPravila.htmlBesedilo("&amp;amp;"))
+    preveriEnako("brez entitet", "AC/DC & Co", OsPravila.htmlBesedilo("AC/DC & Co"))
+    preveriEnako("neznana ostane", "&nbspx &foo;", OsPravila.htmlBesedilo("&nbspx &foo;"))
+    preveriEnako("neveljavna stevilka ostane", "&#0; &#xD800; &#99999999;", OsPravila.htmlBesedilo("&#0; &#xD800; &#99999999;"))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
+    preizkusHtmlImen()
     preizkusBlokov()
     preizkusPodstrani()
     preizkusVrsteKartic()

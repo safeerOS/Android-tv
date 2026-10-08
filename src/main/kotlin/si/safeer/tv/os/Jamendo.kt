@@ -103,7 +103,7 @@ object Jamendo {
         val j = zahteva("/artists/?namesearch=${kodiraj(beseda)}&order=popularity_total&limit=36")
         val r = j.optJSONArray("results") ?: return emptyList()
         return (0 until r.length()).map { r.getJSONObject(it) }.map {
-            Izvajalec(it.optString("id"), it.optString("name"), it.optString("image"))
+            Izvajalec(it.optString("id"), OsPravila.htmlBesedilo(it.optString("name")), it.optString("image"))
         }.filter { it.id.isNotBlank() && it.ime.isNotBlank() }
     }
 
@@ -111,7 +111,8 @@ object Jamendo {
         // musicinfo: jezik besedila skladbe (za filter po jeziku vsebine); instrumentalne ga nimajo.
         val r = zahteva("/tracks/?$poizvedba&audioformat=mp32&include=musicinfo").optJSONArray("results") ?: return emptyList()
         return (0 until r.length()).map { r.getJSONObject(it) }.map {
-            Skladba(it.optString("id"), it.optString("name"), it.optString("artist_name"),
+            // Katalog vrne imena HTML-kodirana (&amp;); na kartici so besedilo.
+            Skladba(it.optString("id"), OsPravila.htmlBesedilo(it.optString("name")), OsPravila.htmlBesedilo(it.optString("artist_name")),
                 it.optString("image").ifBlank { it.optString("album_image") }, it.optString("audio"),
                 it.optString("shorturl").ifBlank { it.optString("shareurl") },
                 language = it.optJSONObject("musicinfo")?.optString("lang").orEmpty().takeIf { j -> KODA_JEZIKA.matches(j) }.orEmpty())

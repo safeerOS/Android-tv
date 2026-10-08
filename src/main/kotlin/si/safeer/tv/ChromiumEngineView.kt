@@ -29,7 +29,25 @@ class ChromiumEngineView @JvmOverloads constructor(
         @Volatile private var zadnjaTipka = 0L
         private const val DOTIK_PO_TIPKI_MS = 1500L
 
-        fun oznaciTipko() { zadnjaTipka = SystemClock.uptimeMillis() }
+        fun oznaciTipko() {
+            zadnjaTipka = SystemClock.uptimeMillis()
+            zadnjeDejanje = zadnjaTipka
+        }
+
+        /**
+         * Uporabnikovo dejanje, ki je lahko klik (tipka OK, dotik): samo kratko po njem sme stran odpreti drugo aplikacijo
+         * (namera). Za razliko od [zadnjaTipka] se ne porabi. Oglas ob nalaganju strani tako ne odpre trgovine sam.
+         */
+        @Volatile private var zadnjeDejanje = 0L
+
+        /** Katerakoli tipka ali premik prsta: samo kratko po njem sme stran skriti ali pokazati vrstico brskalnika. */
+        @Volatile private var zadnjiVnos = 0L
+
+        fun oznaciVnos() { zadnjiVnos = SystemClock.uptimeMillis() }
+
+        internal fun msOdDejanja(): Long = zadnjeDejanje.let { if (it == 0L) Long.MAX_VALUE else SystemClock.uptimeMillis() - it }
+
+        internal fun msOdVnosa(): Long = maxOf(zadnjiVnos, zadnjeDejanje).let { if (it == 0L) Long.MAX_VALUE else SystemClock.uptimeMillis() - it }
 
         /** En dotik na tipko: po uporabi se dovoljenje porabi. */
         @Synchronized
@@ -347,11 +365,8 @@ class ChromiumEngineView @JvmOverloads constructor(
             removeJavascriptInterface("SafeerAndroid")
             if (SpletMostPravila.jeDovoljenIzvor(url)) addJavascriptInterface(spletMost, "SafeerAndroid")
         } catch (_: Exception) {}
-        // Most sme premikati brskalnik in brati domace ploscice samo na domacih straneh.
-        jsBridge.krajevnaStran = url.isBlank() ||
-            url.startsWith("file:///android_asset/") ||
-            url.startsWith("safeer://") ||
-            url.startsWith("about:blank")
+        // Most SafeerBridge domaco stran preveri sam, na glavni niti tik pred dejanjem (SafeerWebAppInterface.naDomaci):
+        // zastavica, postavljena tu, je veljala tudi za stari dokument in za about:blank (zunanji pregled 8. 10. 2026).
         val host = try { Uri.parse(url).host?.lowercase() ?: "" } catch (_: Exception) { "" }
         val isGoogle = UserScriptManager.isGoogleDomain(url)
         val isGoogleAuth = isGoogle && (UserScriptManager.isGoogleAuthUrl(url) ||
@@ -446,20 +461,32 @@ class ChromiumEngineView @JvmOverloads constructor(
         var onChromeHidden: ((Boolean) -> Unit)? = null
 
         /**
-         * Ali je v tem pogledu nalozena domaca stran aplikacije.
-         *
-         * Most je dosegljiv vsaki strani, zato metode, ki premikajo brskalnik ali
-         * berejo uporabnikove podatke, brez tega ne smejo delovati. Zastavico postavi
-         * applyUserAgentForUrl ob vsaki navigaciji; klici mostu pridejo z druge niti,
-         * zato je @Volatile in ne beremo webView.url.
+         * Ali je ZDAJ v pogledu domaca stran brskalnika (brave_home.html). Most je dosegljiv vsaki strani in vsakemu
+         * okvirju, klici pa pridejo z niti mostu. Zato naslov preberemo na glavni niti (WebView ga drugje ne da) - pri
+         * dejanjih v isti nalogi na glavni niti tik pred dejanjem ([naDomaciZdaj]), pri branju ([naDomaci]) s cakanjem
+         * najvec 1 s. Prej je zastavica ob zacetku navigacije veljala tudi za stari dokument in za about:blank (zunanji
+         * pregled kode 8. 10. 2026).
          */
-        @Volatile
-        var krajevnaStran: Boolean = true
+        private fun naDomaci(ime: String): Boolean {
+            val ok = try {
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) naDomaciZdaj()
+                else java.util.concurrent.FutureTask { naDomaciZdaj() }.also { webView.post(it) }
+                    .get(1, java.util.concurrent.TimeUnit.SECONDS)
+            } catch (_: Exception) {
+                false
+            }
+            if (!ok) android.util.Log.w("SafeerBridge", "Zavrnjen klic $ime() z zunanje strani.")
+            return ok
+        }
 
-        private fun samoDomaca(ime: String): Boolean {
-            if (krajevnaStran) return true
-            android.util.Log.w("SafeerBridge", "Zavrnjen klic $ime() z zunanje strani.")
-            return false
+        /** Samo na glavni niti. */
+        private fun naDomaciZdaj(): Boolean = SpletVarnostPravila.jeDomacaBrskalnika(webView.url)
+
+        /** Dejanje mostu na glavni niti, a samo ce je v pogledu se vedno domaca stran. */
+        private fun naDomaciNaGlavni(ime: String, dejanje: () -> Unit) {
+            (context as? android.app.Activity)?.runOnUiThread {
+                if (naDomaciZdaj()) dejanje() else android.util.Log.w("SafeerBridge", "Zavrnjen klic $ime() z zunanje strani.")
+            }
         }
 
         /**
@@ -485,14 +512,16 @@ class ChromiumEngineView @JvmOverloads constructor(
             }
         }
 
+        /** Skript daljinca (tv_spatial.js) sporoci drsenje; vrstico skrije/pokaze samo kratko po uporabnikovem vnosu (oglas ne). */
         @android.webkit.JavascriptInterface
         fun onScrollChanged(direction: Int, scrollY: Int) {
+            if (msOdVnosa() > SpletVarnostPravila.ZAGON_PO_DEJANJU_MS) return
             (context as? android.app.Activity)?.runOnUiThread {
                 onScrollCallback?.invoke(direction, scrollY)
             }
         }
 
-        @android.webkit.JavascriptInterface
+        /** Ni dosegljiv iz strani (brez @JavascriptInterface): oglas bi lahko skril naslovno vrstico. Nase strani ga ne klicejo. */
         fun setChromeHidden(hidden: Boolean) {
             (context as? android.app.Activity)?.runOnUiThread {
                 onChromeHidden?.invoke(hidden)
@@ -526,18 +555,14 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         @android.webkit.JavascriptInterface
         fun navigate(url: String) {
-            if (!samoDomaca("navigate")) return
-            (context as? android.app.Activity)?.runOnUiThread {
-                webView.loadUrl(url)
-            }
+            naDomaciNaGlavni("navigate") { webView.loadUrl(url) }
         }
 
         /** Polje na domaci strani: isti razresevalnik kot vrstica z naslovom (naslov ali iskanje). */
         @android.webkit.JavascriptInterface
         fun isci(vnos: String, iskalnik: String?) {
-            if (!samoDomaca("isci")) return
             val izbran = SmartOmnibox.Iskalnik.values().firstOrNull { it.oznaka == iskalnik && it != SmartOmnibox.Iskalnik.GOOGLE }
-            (context as? android.app.Activity)?.runOnUiThread {
+            naDomaciNaGlavni("isci") {
                 val ma = context as? MainActivity
                 if (ma != null) ma.performNavigation(vnos, izbran)
                 else SmartOmnibox.razresi(context, vnos, izbran ?: SmartOmnibox.iskalnik(context))?.let { webView.loadUrl(it.url) }
@@ -546,7 +571,7 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         @android.webkit.JavascriptInterface
         fun getHomeTiles(): String {
-            if (!samoDomaca("getHomeTiles")) return "[]"
+            if (!naDomaci("getHomeTiles")) return "[]"
             return try {
                 HomeTilesStore.toJson(context)
             } catch (_: Exception) {
@@ -556,18 +581,16 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         @android.webkit.JavascriptInterface
         fun openHomeTilesEditor() {
-            if (!samoDomaca("openHomeTilesEditor")) return
             val act = context as? android.app.Activity ?: return
-            act.runOnUiThread {
+            naDomaciNaGlavni("openHomeTilesEditor") {
                 HomeTilesStore.showEditor(act) { reloadHome() }
             }
         }
 
         @android.webkit.JavascriptInterface
         fun addHomeTile() {
-            if (!samoDomaca("addHomeTile")) return
             val act = context as? android.app.Activity ?: return
-            act.runOnUiThread {
+            naDomaciNaGlavni("addHomeTile") {
                 HomeTilesStore.showTileForm(act, null) { created ->
                     val tiles = HomeTilesStore.load(act)
                     tiles.add(created)
@@ -908,7 +931,8 @@ class ChromiumEngineView @JvmOverloads constructor(
                         val match = ThreatBlockEngine.checkThreat(urlStr)
                         if (match != null) {
                             val html = ThreatBlockEngine.createSecurityInterstitialHtml(urlStr, match)
-                            wv.loadDataWithBaseURL("https://$host", html, "text/html", "UTF-8", null)
+                            // Nevtralen izvor: opozorilo ne deli piskotkov in localStorage z blokirano stranjo.
+                            wv.loadDataWithBaseURL("safeer://security-interstitial", html, "text/html", "UTF-8", null)
                         }
                     }
                     return true
@@ -964,27 +988,34 @@ class ChromiumEngineView @JvmOverloads constructor(
                         return true
                     }
                 }
-                // 3. Odpri posebne sheme v ustreznih aplikacijah
+                // 3. Posebne sheme odpremo v drugi aplikaciji - varno (zunanji pregled kode 8. 10. 2026): parseUri je ohranil
+                //    komponento, izbirnik in zastavice, zato je stran lahko odprla nase skrite dejavnosti (exported=false ne
+                //    velja za lasten proces) ali dala dovoljenje za nase datoteke. Zdaj: brez komponente, izbirnika, ClipData
+                //    in tujih zastavic, kategorija BROWSABLE, samo VIEW, nikoli nas paket ali krajevne sheme, in samo po
+                //    uporabnikovem dejanju. Rezervni naslov samo http(s).
                 if (scheme != "http" && scheme != "https" && scheme != "file" && scheme != "about") {
-                    try {
-                        val intent = if (urlStr.startsWith("intent:", ignoreCase = true)) {
-                            Intent.parseUri(urlStr, Intent.URI_INTENT_SCHEME)
-                        } else {
-                            Intent(Intent.ACTION_VIEW, uri)
-                        }
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(intent)
+                    val jeIntent = urlStr.startsWith("intent:", ignoreCase = true)
+                    val namera = try {
+                        if (jeIntent) Intent.parseUri(urlStr, Intent.URI_INTENT_SCHEME) else Intent(Intent.ACTION_VIEW, uri)
                     } catch (_: Exception) {
-                        try {
-                            if (urlStr.startsWith("intent:", ignoreCase = true)) {
-                                val parsed = Intent.parseUri(urlStr, Intent.URI_INTENT_SCHEME)
-                                val fallbackUrl = parsed.getStringExtra("browser_fallback_url")
-                                if (!fallbackUrl.isNullOrEmpty()) {
-                                    view?.loadUrl(fallbackUrl)
-                                }
-                            }
-                        } catch (_: Exception) {}
+                        null
+                    } ?: return true
+                    val rezerva = if (jeIntent) try { namera.getStringExtra("browser_fallback_url") } catch (_: Exception) { null } else null
+                    namera.component = null
+                    namera.selector = null
+                    namera.clipData = null
+                    namera.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    namera.addCategory(Intent.CATEGORY_BROWSABLE)
+                    val shemaPodatkov = namera.data?.scheme ?: if (jeIntent) null else scheme
+                    val dovoljena = SpletVarnostPravila.dovoljenaNamera(namera.action, shemaPodatkov, namera.`package`, context.packageName) &&
+                        SpletVarnostPravila.dovoljenZunanjiZagon(request.hasGesture(), msOdDejanja())
+                    var odprto = false
+                    if (dovoljena) {
+                        try { context.startActivity(namera); odprto = true } catch (_: Exception) {}
+                    } else {
+                        android.util.Log.w("SafeerSecurity", "Zavrnjena namera s strani (shema ${shemaPodatkov ?: "-"}, kretnja ${request.hasGesture()}).")
                     }
+                    if (!odprto && SpletVarnostPravila.varenRezervniNaslov(rezerva)) view?.loadUrl(rezerva!!)
                     return true
                 }
 
@@ -998,6 +1029,11 @@ class ChromiumEngineView @JvmOverloads constructor(
 
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
                 val url = request?.url?.toString() ?: return null
+                // content:// (krajevne datoteke in mediji) samo kot glavni dokument, ki ga odpre uporabnik; stran ga ne sme
+                // vstaviti kot sliko, skripto ali okvir (zunanji pregled kode 8. 10. 2026).
+                if (!SpletVarnostPravila.dovoliContentZahtevo(url, request.isForMainFrame)) {
+                    return WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0)))
+                }
                 // Vgrajeni PDF pregledovalnik in dokument, ki ga bere (pdf.safeer.internal).
                 if (request.url?.host == PdfPregledovalnik.GOSTITELJ) {
                     return PdfPregledovalnik.odgovor(context, url)
@@ -1131,18 +1167,30 @@ class ChromiumEngineView @JvmOverloads constructor(
                     handler?.cancel()
                     return
                 }
-                // Neveljavno potrdilo: odloci uporabnik (kot "Nadaljuj" v Chromu). Safeer ga se naprej
-                // varuje pred znanimi groznjami; odlocitev velja za gostitelja do konca seje.
+                // Neveljavno potrdilo (zunanji pregled kode 8. 10. 2026): tuj izdajatelj ali napacno ime pri javnem naslovu je
+                // lahko napad v sredini - zavrnemo brez »Vseeno odpri«. Napako casa in naprave v domacem omrezju (usmerjevalnik,
+                // NAS) odloci uporabnik; fokus je na »Preklici« (OK na daljincu ne sme sprejeti napadalca), odlocitev velja za
+                // gostitelja IN vrata do konca seje.
                 val gostitelj = (if (sslHost.isNotEmpty()) sslHost else pageHost).lowercase()
-                if (gostitelj in dovoljeniSsl) { handler?.proceed(); return }
+                val kljuc = SpletVarnostPravila.sslKljuc(error?.url).ifEmpty { SpletVarnostPravila.sslKljuc(view?.url) }.ifEmpty { gostitelj }
+                if (kljuc in dovoljeniSsl) { handler?.proceed(); return }
                 if (handler == null) return
-                cakajociSsl.getOrPut(gostitelj) { mutableListOf() }.let { cakajo ->
+                if (!SpletVarnostPravila.sslSmeNadaljevati(error?.primaryError ?: -1, gostitelj)) {
+                    handler.cancel()
+                    if (obvescenSsl.add(kljuc)) {
+                        try {
+                            android.widget.Toast.makeText(context, context.getString(R.string.ui_ssl_blocked, gostitelj), android.widget.Toast.LENGTH_LONG).show()
+                        } catch (_: Exception) { }
+                    }
+                    return
+                }
+                cakajociSsl.getOrPut(kljuc) { mutableListOf() }.let { cakajo ->
                     cakajo.add(handler)
                     if (cakajo.size > 1) return
                 }
                 fun odloci(da: Boolean) {
-                    if (da) dovoljeniSsl.add(gostitelj)
-                    cakajociSsl.remove(gostitelj)?.forEach { if (da) it.proceed() else it.cancel() }
+                    if (da) dovoljeniSsl.add(kljuc)
+                    cakajociSsl.remove(kljuc)?.forEach { if (da) it.proceed() else it.cancel() }
                 }
                 try {
                     android.app.AlertDialog.Builder(context)
@@ -1150,7 +1198,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                         .setPositiveButton(R.string.ui_ssl_odpri) { _, _ -> odloci(true) }
                         .setNegativeButton(android.R.string.cancel) { _, _ -> odloci(false) }
                         .setOnCancelListener { odloci(false) }
-                        .show().getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.requestFocus()
+                        .show().getButton(android.content.DialogInterface.BUTTON_NEGATIVE)?.requestFocus()
                 } catch (_: Exception) {
                     odloci(false)
                     try {
@@ -1161,9 +1209,10 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
     }
 
-    /** Gostitelji z neveljavnim potrdilom, ki jih je uporabnik v tej seji odprl; in cakajoci na odlocitev. */
+    /** gostitelj:vrata z neveljavnim potrdilom, ki jih je uporabnik v tej seji odprl; cakajoci na odlocitev; ze obvesceni. */
     private val dovoljeniSsl = mutableSetOf<String>()
     private val cakajociSsl = mutableMapOf<String, MutableList<SslErrorHandler>>()
+    private val obvescenSsl = mutableSetOf<String>()
 
     // 🏦 BankGuard: preverjanje naložene strani (lokalno, po naložitvi, brez vpliva na hitrost nalaganja)
     private var bankCheckGeneration = 0
@@ -1194,7 +1243,8 @@ class ChromiumEngineView @JvmOverloads constructor(
                 ThreatBlockEngine.onThreatBlocked?.invoke(match.matchedDomain, match.category ?: "", match.sourceFeed ?: "", true)
                 val html = ThreatBlockEngine.createSecurityInterstitialHtml(url, match, afterPageLoad = true)
                 wv.stopLoading()
-                wv.loadDataWithBaseURL("https://$host", html, "text/html", "UTF-8", ThreatBlockEngine.FAKE_BANK_HISTORY_URL)
+                // Nevtralen izvor (kot pri krajevni strani spodaj): opozorilo ne deli piskotkov in localStorage z lazno banko.
+                wv.loadDataWithBaseURL("safeer://security-interstitial", html, "text/html", "UTF-8", ThreatBlockEngine.FAKE_BANK_HISTORY_URL)
             }
         }
         wv.post(check)
@@ -1231,6 +1281,14 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     private fun sameHost(current: String?, host: String): Boolean =
         try { Uri.parse(current ?: "").host.equals(host, ignoreCase = true) } catch (_: Exception) { false }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_UP -> { zadnjeDejanje = SystemClock.uptimeMillis(); zadnjiVnos = zadnjeDejanje }
+            MotionEvent.ACTION_MOVE, MotionEvent.ACTION_DOWN -> zadnjiVnos = SystemClock.uptimeMillis()
+        }
+        return super.dispatchTouchEvent(event)
+    }
 
     fun isFullscreenVideoActive(): Boolean = customView != null
 

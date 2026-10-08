@@ -96,7 +96,7 @@
         if (smer === "ArrowLeft") { if (i > 0) g[i - 1].focus(); return true; }
         if (smer === "ArrowRight") { if (i >= 0 && i < g.length - 1) g[i + 1].focus(); return true; }
         if (smer === "ArrowUp") {
-          try { if (window.SafeerPdf && window.SafeerPdf.fokusVen) { window.SafeerPdf.fokusVen("gor"); return true; } } catch (e) {}
+          try { if (window.SafeerPdf && window.SafeerPdf.fokusVen) { window.SafeerPdf.fokusVen("gor", zeton); return true; } } catch (e) {}
           return false;
         }
         return false;

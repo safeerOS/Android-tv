@@ -229,10 +229,14 @@ object PdfPregledovalnik {
         private val fokus: ((smer: String) -> Unit)? = null
     ) {
 
-        /** Orodna vrstica pregledovalnika preda fokus brskalniku ("gor" = naslovna vrstica). */
+        /**
+         * Orodna vrstica pregledovalnika preda fokus brskalniku ("gor" = naslovna vrstica). Tudi tu zeton dokumenta: brez
+         * njega je smela fokus odnesti katerakoli stran v zavihku (zunanji pregled kode 8. 10. 2026).
+         */
         @JavascriptInterface
-        fun fokusVen(smer: String) {
+        fun fokusVen(smer: String, zeton: String) {
             val f = fokus ?: return
+            if (dokumentZaZeton(zeton) == null) return
             android.os.Handler(android.os.Looper.getMainLooper()).post { try { f(smer) } catch (_: Throwable) { } }
         }
 

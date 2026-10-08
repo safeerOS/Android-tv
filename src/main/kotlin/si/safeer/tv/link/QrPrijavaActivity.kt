@@ -55,8 +55,8 @@ class QrPrijavaActivity : Activity() {
             }
         }
 
-        private fun jeZasebniNaslov(h: String?): Boolean =
-            h != null && (h.startsWith("10.") || h.startsWith("192.168.") || Regex("^172\\.(1[6-9]|2[0-9]|3[01])\\.").containsMatchIn(h))
+        /** Okteti, ne predpona niza (»10.evil.com« se zacne z »10.«) - QrPravila.jeZasebniIpv4. */
+        private fun jeZasebniNaslov(h: String?): Boolean = QrPravila.jeZasebniIpv4(h)
 
         fun razcleniPridruzitev(uri: Uri?): Pridruzitev? {
             val p = parametri(uri) ?: return null
@@ -69,7 +69,7 @@ class QrPrijavaActivity : Activity() {
             return Pridruzitev(id, skrivnost, odtis, naslov)
         }
 
-        /** (qr_id, skrivnost, odtis16) iz povezave ali null, ce povezava ni prijava s QR. */
+        /** (qr_id, skrivnost, cel odtis potrdila) iz povezave ali null, ce povezava ni prijava s QR. */
         /** Prijava s QR kodo: qr_id, skrivnost, odtis16 in naslov Huba, ki je kodo izdal (peer-to-peer -
          * naprava se poveze nanj neposredno, ne na huba, ki mu je morda ze zaupala prej). */
         data class Prijava(val id: String, val skrivnost: String, val odtis: String, val naslov: String)
@@ -90,7 +90,7 @@ class QrPrijavaActivity : Activity() {
             val odtis = parametri["f"].orEmpty().lowercase()
             val naslov = parametri["a"].orEmpty()
             if (!Regex("^[0-9a-f]{8,64}$").matches(id) || skrivnost.length !in 16..128 ||
-                !Regex("^[0-9a-f]{16,64}$").matches(odtis) ||
+                !QrPravila.veljavenOdtis(odtis) ||
                 (naslov.isNotEmpty() && !Regex("^[0-9.]{7,15}:[0-9]{2,5}$").matches(naslov))) return null
             return Prijava(id, skrivnost, odtis, naslov)
         }
@@ -112,7 +112,7 @@ class QrPrijavaActivity : Activity() {
                 if (isFinishing) return@post
                 when {
                     odgovor == null -> sporocilo(b("niHuba"))
-                    videni == null || !videni.lowercase().startsWith(koda.odtis) -> sporocilo(b("drugLink"))
+                    !QrPravila.odtisUstreza(videni, koda.odtis) -> sporocilo(b("drugLink"))
                     odgovor.optString("device_id").isBlank() -> sporocilo(napaka(odgovor))
                     else -> vprasaj(odgovor.optString("name").ifBlank { odgovor.optString("device_id") })
                 }
@@ -163,7 +163,7 @@ class QrPrijavaActivity : Activity() {
                 if (isFinishing) return@post
                 when {
                     odgovor == null -> sporocilo(b("niHuba"))
-                    videni == null || !videni.lowercase().startsWith(koda.odtis) -> sporocilo(b("drugLink"))
+                    !QrPravila.odtisUstreza(videni, koda.odtis) -> sporocilo(b("drugLink"))
                     odgovor.optBoolean("approved") -> sporocilo(b("uspeh").replace("{ime}", ime))
                     else -> sporocilo(napaka(odgovor))
                 }

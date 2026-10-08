@@ -54,6 +54,17 @@ fun main() {
     preveri(DlnaPravila.lokalniVir("content://media/external/audio/1") && DlnaPravila.zaZvocnik("/sdcard/Music/a.mp3"), "lokalno")
     preveri(DlnaPravila.obseg("bytes=10-19", 100) == 10L..19L && DlnaPravila.obseg("bytes=-10", 100) == 90L..99L, "obseg")
     preveri(DlnaPravila.obseg("bytes=90-", 100) == 90L..99L && DlnaPravila.obseg("bytes=200-", 100) == null, "obseg2")
+    // Strezniku zvocnika (pregled 8. 10. 2026): nezadovoljiv obseg -> 416 (ne cela datoteka); samo zvocnik sme brati;
+    // nasih ponudnikov vsebine (fileprovider) ne ponujamo.
+    preveri(DlnaPravila.nezadovoljivObseg("bytes=200-", 100) && DlnaPravila.nezadovoljivObseg("bytes=-0", 100), "416")
+    preveri(!DlnaPravila.nezadovoljivObseg("bytes=10-19", 100) && !DlnaPravila.nezadovoljivObseg(null, 100), "ne 416")
+    preveri(!DlnaPravila.nezadovoljivObseg("bytes=0-", -1) && !DlnaPravila.nezadovoljivObseg("items=0-1", 100), "neznana velikost ali oblika")
+    preveri(DlnaPravila.istiNaslov("192.168.1.50", "192.168.1.50") && DlnaPravila.istiNaslov("::ffff:192.168.1.50", "192.168.1.50"), "isti")
+    preveri(!DlnaPravila.istiNaslov("192.168.1.51", "192.168.1.50") && !DlnaPravila.istiNaslov(null, "192.168.1.50") &&
+        !DlnaPravila.istiNaslov("192.168.1.50", ""), "drug")
+    preveri(DlnaPravila.lastenPonudnik("si.safeer.os.fileprovider", "si.safeer.os") && DlnaPravila.lastenPonudnik("si.safeer.os", "si.safeer.os"), "lasten")
+    preveri(!DlnaPravila.lastenPonudnik("media", "si.safeer.os") && !DlnaPravila.lastenPonudnik(null, "si.safeer.os") &&
+        !DlnaPravila.lastenPonudnik("si.safeer.os2.x", "si.safeer.os"), "tuj")
 
     // Cas UPnP (H:MM:SS, tudi z delci sekunde) <-> milisekunde; »NOT_IMPLEMENTED« in prazno = neznano
     preveri(DlnaPravila.casVMs("0:01:23") == 83_000L && DlnaPravila.casVMs("00:01:23.500") == 83_500L, "cas v ms")

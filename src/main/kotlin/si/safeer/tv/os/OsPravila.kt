@@ -447,4 +447,24 @@ object OsPravila {
         }
         return zaShemo.isNotEmpty() && b.none { it.isWhitespace() }
     }
+
+    private val HTML_ENTITETA = Regex("&(amp|quot|apos|lt|gt|#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6});")
+
+    /**
+     * Ime iz kataloga (Jamendo) je HTML-kodirano (»John Dada &amp; the Weathermen«); na kartici je besedilo. Odkodiramo v
+     * enem prehodu (»&amp;amp;« ostane »&amp;«) samo osnovne in stevilske entitete; neveljavne in neznane ostanejo.
+     */
+    fun htmlBesedilo(s: String): String = HTML_ENTITETA.replace(s) { m ->
+        when (val e = m.groupValues[1]) {
+            "amp" -> "&"
+            "quot" -> "\""
+            "apos" -> "'"
+            "lt" -> "<"
+            "gt" -> ">"
+            else -> {
+                val k = if (e[1] == 'x' || e[1] == 'X') e.substring(2).toIntOrNull(16) else e.substring(1).toIntOrNull()
+                if (k == null || k == 0 || k > 0x10FFFF || k in 0xD800..0xDFFF) m.value else String(Character.toChars(k))
+            }
+        }
+    }
 }

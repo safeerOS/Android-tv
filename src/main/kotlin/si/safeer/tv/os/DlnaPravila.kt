@@ -205,4 +205,23 @@ object DlnaPravila {
         else { od = a.toLong(); doo = if (b.isEmpty()) velikost - 1 else minOf(b.toLong(), velikost - 1) }
         return if (od > doo || od >= velikost) null else od..doo
     }
+
+    /** Glava Range je veljavne oblike in velikost znana, a obsega ni mogoce postreci: odgovor 416 (ne cela datoteka). */
+    fun nezadovoljivObseg(glava: String?, velikost: Long): Boolean {
+        if (glava == null || velikost <= 0) return false
+        val m = Regex("bytes=(\\d*)-(\\d*)").matchEntire(glava.trim()) ?: return false
+        if (m.groupValues[1].isEmpty() && m.groupValues[2].isEmpty()) return false
+        return obseg(glava, velikost) == null
+    }
+
+    /** Ali je odjemalec isti naslov kot zvocnik (IPv4, tudi v obliki ::ffff:a.b.c.d). */
+    fun istiNaslov(odjemalec: String?, zvocnik: String): Boolean {
+        if (odjemalec.isNullOrBlank() || zvocnik.isBlank()) return false
+        fun cist(a: String) = a.trim().lowercase().removePrefix("::ffff:").substringBefore('%')
+        return cist(odjemalec) == cist(zvocnik)
+    }
+
+    /** Ponudnik vsebine te aplikacije (npr. <paket>.fileprovider): njegovih datotek streznik zvocniku ne ponuja. */
+    fun lastenPonudnik(avtoriteta: String?, paket: String): Boolean =
+        avtoriteta != null && (avtoriteta == paket || avtoriteta.startsWith("$paket."))
 }
