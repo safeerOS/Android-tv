@@ -47,6 +47,15 @@ object SpletVarnostPravila {
     fun dovoljenZunanjiZagon(kretnja: Boolean, msOdDejanja: Long): Boolean =
         kretnja || msOdDejanja in 0..ZAGON_PO_DEJANJU_MS
 
+    /** Cas zadnjega dejanja, ki ga lahko porabi en zunanji zagon: po uspesnem zagonu ne velja vec, dokler ni novega dejanja. */
+    class PorabljivoDejanje {
+        @Volatile private var cas = 0L
+        @Volatile private var porabljeno = 0L
+        fun oznaci(zdaj: Long) { cas = zdaj }
+        fun porabi() { porabljeno = cas }
+        fun msOd(zdaj: Long): Long = if (cas == 0L || cas <= porabljeno) Long.MAX_VALUE else zdaj - cas
+    }
+
     /** Natanko domaca stran brskalnika (poizvedba in sidro smeta biti); about:blank, prazen naslov in drugo ne. */
     fun jeDomacaBrskalnika(url: String?): Boolean {
         val cist = url?.substringBefore('#')?.substringBefore('?') ?: return false

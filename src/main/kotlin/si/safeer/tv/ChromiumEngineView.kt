@@ -32,6 +32,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         fun oznaciTipko() {
             zadnjaTipka = SystemClock.uptimeMillis()
             zadnjeDejanje = zadnjaTipka
+            zagonDejanje.oznaci(zadnjaTipka)
         }
 
         /**
@@ -40,12 +41,15 @@ class ChromiumEngineView @JvmOverloads constructor(
          */
         @Volatile private var zadnjeDejanje = 0L
 
+        /** Isto dejanje, vendar se po uspesnem zunanjem zagonu porabi (eno dejanje odpre najvec eno aplikacijo). */
+        private val zagonDejanje = SpletVarnostPravila.PorabljivoDejanje()
+
         /** Katerakoli tipka ali premik prsta: samo kratko po njem sme stran skriti ali pokazati vrstico brskalnika. */
         @Volatile private var zadnjiVnos = 0L
 
         fun oznaciVnos() { zadnjiVnos = SystemClock.uptimeMillis() }
 
-        internal fun msOdDejanja(): Long = zadnjeDejanje.let { if (it == 0L) Long.MAX_VALUE else SystemClock.uptimeMillis() - it }
+        internal fun msOdDejanja(): Long = zagonDejanje.msOd(SystemClock.uptimeMillis())
 
         internal fun msOdVnosa(): Long = maxOf(zadnjiVnos, zadnjeDejanje).let { if (it == 0L) Long.MAX_VALUE else SystemClock.uptimeMillis() - it }
 
@@ -1011,7 +1015,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                         SpletVarnostPravila.dovoljenZunanjiZagon(request.hasGesture(), msOdDejanja())
                     var odprto = false
                     if (dovoljena) {
-                        try { context.startActivity(namera); odprto = true } catch (_: Exception) {}
+                        try { context.startActivity(namera); odprto = true; zagonDejanje.porabi() } catch (_: Exception) {}
                     } else {
                         android.util.Log.w("SafeerSecurity", "Zavrnjena namera s strani (shema ${shemaPodatkov ?: "-"}, kretnja ${request.hasGesture()}).")
                     }
@@ -1287,7 +1291,7 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_UP -> { zadnjeDejanje = SystemClock.uptimeMillis(); zadnjiVnos = zadnjeDejanje }
+            MotionEvent.ACTION_UP -> { zadnjeDejanje = SystemClock.uptimeMillis(); zadnjiVnos = zadnjeDejanje; zagonDejanje.oznaci(zadnjeDejanje) }
             MotionEvent.ACTION_MOVE, MotionEvent.ACTION_DOWN -> zadnjiVnos = SystemClock.uptimeMillis()
         }
         return super.dispatchTouchEvent(event)

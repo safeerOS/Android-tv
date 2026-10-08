@@ -35,6 +35,20 @@ fun main() {
     check(!P.dovoljenZunanjiZagon(kretnja = false, msOdDejanja = P.ZAGON_PO_DEJANJU_MS + 1))
     check(!P.dovoljenZunanjiZagon(kretnja = false, msOdDejanja = Long.MAX_VALUE)) { "oglas ob nalaganju" }
     check(!P.dovoljenZunanjiZagon(kretnja = false, msOdDejanja = -5)) { "ura nazaj ne steje" }
+    // 3b. Eno dejanje odpre najvec eno zunanjo aplikacijo: po uspesnem zagonu se porabi.
+    run {
+        val d = P.PorabljivoDejanje()
+        check(d.msOd(1000) == Long.MAX_VALUE) { "brez dejanja" }
+        d.oznaci(1000)
+        check(d.msOd(1500) == 500L)
+        d.porabi()
+        check(d.msOd(1600) == Long.MAX_VALUE) { "porabljeno dejanje ne velja vec" }
+        check(!P.dovoljenZunanjiZagon(kretnja = false, msOdDejanja = d.msOd(1600))) { "drugi zagon brez novega dejanja" }
+        d.oznaci(2000)
+        check(d.msOd(2100) == 100L) { "novo dejanje spet velja" }
+        d.porabi(); d.porabi()
+        check(d.msOd(2200) == Long.MAX_VALUE)
+    }
     // 4. Domaca stran brskalnika: natanko brave_home.html (poizvedba in sidro smeta biti), nic drugega.
     check(P.jeDomacaBrskalnika("file:///android_asset/brave_home.html"))
     check(P.jeDomacaBrskalnika("file:///android_asset/brave_home.html?tv=1#x"))
