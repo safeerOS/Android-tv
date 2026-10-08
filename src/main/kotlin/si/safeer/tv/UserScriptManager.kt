@@ -139,7 +139,7 @@ object UserScriptManager {
                             // oglasa je razred na glavnem vsebniku predvajalnika, pravilo ga je ujelo in odstranilo).
                             if (el.querySelector('video, audio') || el.closest('.mgp_container')) return;
                             // Prazen vabni element (adsbox ...) ostane v strani (skrit s CSS): z njim strani preverjajo blokator.
-                            if (!el.children.length && !(el.textContent || '').trim()) return;
+                            if (!el.children.length && !(el.textContent || '').trim() && /adsbox|textads|text_ad|banner_ad|bannerad|ad-banner|pub_300x250/i.test(String(el.className || '') + ' ' + String(el.id || ''))) return;
                             el.remove();
                         } catch(e) {}
                     });
