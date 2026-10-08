@@ -242,4 +242,10 @@
         <item name="android:fontFamily">sans-serif</item>
     </style>
 
+    <!-- Izbira virov: prosojno okno, plosca na desni lezi cez to, kar je bilo na zaslonu. -->
+    <style name="Theme.SafeerOs.Viri" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.45</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

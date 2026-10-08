@@ -615,4 +615,12 @@
     <string name="os_tema_privzeta">Standard-Design von Safeer OS</string>
     <string name="os_tema_izbrana">Ausgewählt</string>
     <string name="os_ime_predvajalnik">Safeer Player</string>
+    <string name="os_viri_naslov">Quellen</string>
+    <string name="os_viri_prazno">Keine Quellen gefunden.</string>
+    <string name="os_viri_napaka">Diese Quelle konnte nicht geöffnet werden.</string>
+    <string name="os_viri_prikljuceno">Verbunden</string>
+    <string name="os_viri_preimenuj">Eingang umbenennen</string>
+    <string name="os_viri_namig">OK gedrückt halten zum Umbenennen</string>
+    <string name="os_viri_shrani">Speichern</string>
+    <string name="os_viri_privzeto">Standard</string>
 </resources>

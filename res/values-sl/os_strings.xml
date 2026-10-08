@@ -618,4 +618,12 @@
     <string name="os_tema_privzeta">Privzeta tema Safeer OS</string>
     <string name="os_tema_izbrana">Izbrano</string>
     <string name="os_krajevno_shramba">Shramba za druge naprave</string>
+    <string name="os_viri_naslov">Viri</string>
+    <string name="os_viri_prazno">Ni najdenih virov.</string>
+    <string name="os_viri_napaka">Tega vira ni mogoče odpreti.</string>
+    <string name="os_viri_prikljuceno">Priključeno</string>
+    <string name="os_viri_preimenuj">Preimenuj vhod</string>
+    <string name="os_viri_namig">Drži OK za preimenovanje</string>
+    <string name="os_viri_shrani">Shrani</string>
+    <string name="os_viri_privzeto">Privzeto</string>
 </resources>

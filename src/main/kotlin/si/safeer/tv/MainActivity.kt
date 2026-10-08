@@ -550,6 +550,16 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private val EXTRA_ZVOK_V_OZADJU = "zvok_v_ozadju"
     private val EXTRA_APLIKACIJA_IME = "aplikacija_ime"
     private val SPANJE_AKTIVNEGA_MS = 10 * 60 * 1000L
+    /** Ko drug program potrebuje pomnilnik (malo prostega RAM-a), brskalnik zaspi ze po tem casu. */
+    private val SPANJE_ZARADI_RAMA_MS = 20 * 1000L
+
+    /** Prosti pomnilnik je pod mejo, pri kateri drug program (npr. video) zacne zatikati. */
+    private fun malo_rama(): Boolean = try {
+        val am = getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val mi = android.app.ActivityManager.MemoryInfo()
+        am.getMemoryInfo(mi)
+        mi.lowMemory || mi.availMem < maxOf(700L * 1024 * 1024, mi.totalMem / 3)
+    } catch (_: Throwable) { false }
     private var naZaslonu = true
     private val spanjeAktivnega = Runnable {
         if (naZaslonu || !::tabManager.isInitialized) return@Runnable
@@ -849,7 +859,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 tabManager.uspavajVOzadju(tudiAktivni = false)
                 mainHandler.removeCallbacks(spanjeAktivnega)
                 // Stran, ki igra v ozadju, ne sme zaspati.
-                if (!zvokVOzadju) mainHandler.postDelayed(spanjeAktivnega, SPANJE_AKTIVNEGA_MS)
+                if (!zvokVOzadju) mainHandler.postDelayed(
+                    spanjeAktivnega,
+                    if (malo_rama()) SPANJE_ZARADI_RAMA_MS else SPANJE_AKTIVNEGA_MS
+                )
             } catch (_: Exception) {}
         }
         super.onStop()

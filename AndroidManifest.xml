@@ -75,6 +75,7 @@
          in aplikacije, ki znajo odpreti spletno povezavo (npr. YouTube).
          Brez tega Android 11+ seznam skrije in daljinec bi videl le sistemske aplikacije. -->
     <queries>
+        <package android:name="com.google.android.tvlauncher" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
@@ -239,6 +240,17 @@
         <activity android:name="si.safeer.tv.os.AplikacijeTvActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
             android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+        <!-- Izbira vira slike. Namero VIEW_INPUTS (tipka za vire) ponudimo SAMO, ko Googlovega
+             zaganjalnika ni ali je onemogocen (ViriActivity.uskladi): sicer bi uporabnik dobil izbirnik. -->
+        <activity android:name="si.safeer.tv.os.ViriActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Viri"
+            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
+        <activity-alias android:name="si.safeer.tv.os.ViriAlias" android:targetActivity="si.safeer.tv.os.ViriActivity"
+            android:exported="true" android:enabled="false">
+            <intent-filter>
+                <action android:name="com.android.tv.action.VIEW_INPUTS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
         <activity android:name="si.safeer.tv.os.PlosekActivity" android:exported="false"
             android:theme="@style/Theme.SafeerOs" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
         <activity android:name="si.safeer.tv.os.NapraveActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"

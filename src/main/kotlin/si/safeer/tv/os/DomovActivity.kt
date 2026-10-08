@@ -446,6 +446,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onStart() {
+        ViriActivity.uskladi(this)   // tipka za vire: ponudi se samo, ce Googlovega zaganjalnika ni
         super.onStart()
         Ozadje.uporabi(this, koren)      // ozadje po izbiri uporabnika na celotnem zaslonu
         // Gumbi plosecka v vrstici pomoci, kadar je plosek v rabi; sicer je ne kazemo.

@@ -615,4 +615,12 @@
     <string name="os_tema_privzeta">Tema predeterminado de Safeer OS</string>
     <string name="os_tema_izbrana">Seleccionado</string>
     <string name="os_ime_predvajalnik">Safeer Player</string>
+    <string name="os_viri_naslov">Fuentes</string>
+    <string name="os_viri_prazno">No se encontraron fuentes.</string>
+    <string name="os_viri_napaka">No se pudo abrir esta fuente.</string>
+    <string name="os_viri_prikljuceno">Conectado</string>
+    <string name="os_viri_preimenuj">Cambiar nombre de la entrada</string>
+    <string name="os_viri_namig">Mantén OK para cambiar el nombre</string>
+    <string name="os_viri_shrani">Guardar</string>
+    <string name="os_viri_privzeto">Predeterminado</string>
 </resources>
