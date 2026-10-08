@@ -108,6 +108,10 @@ jobs:
       - name: YouTube v vgrajenem brskalniku (zacetek brez cakanja)
         run: node tests/youtube_zacetek_test.js
 
+      # Splosna zascita pred zaznavanjem blokatorja (vabni elementi, omrezne zahteve, skripte).
+      - name: Zascita pred zaznavanjem blokatorja
+        run: node tests/protiadblock_test.js
+
       # Cistilec oglasnih prekrivk ne sme odstraniti predvajalnika (stanje oglasa je razred na njegovem vsebniku).
       - name: Cistilec oglasnih prekrivk (predvajalnik ostane)
         run: node tests/cistilec_prekrivk_test.js

@@ -309,6 +309,10 @@ class ChromiumEngineView @JvmOverloads constructor(
                         "https://*.googlevideo.com"
                     )
                 )
+                // Stran ne sme zaznati blokatorja oglasov: splosna skripta pred skriptami strani (assets/protiadblock.js).
+                UserScriptManager.protiAdblockJs(context).takeIf { it.isNotEmpty() }?.let { js ->
+                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, setOf("*"))
+                }
                 // YouTube brez cakanja na oglas: mora teci pred skriptami strani (assets/youtube_zacetek.js).
                 UserScriptManager.youtubeZacetekJs(context).takeIf { it.isNotEmpty() }?.let { js ->
                     androidx.webkit.WebViewCompat.addDocumentStartJavaScript(

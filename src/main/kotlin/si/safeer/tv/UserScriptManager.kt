@@ -138,6 +138,8 @@ object UserScriptManager {
                             // ovija), deli znotraj predvajalnika pa so njegovi - brez njih obstane (4. 10. 2026: stanje
                             // oglasa je razred na glavnem vsebniku predvajalnika, pravilo ga je ujelo in odstranilo).
                             if (el.querySelector('video, audio') || el.closest('.mgp_container')) return;
+                            // Prazen vabni element (adsbox ...) ostane v strani (skrit s CSS): z njim strani preverjajo blokator.
+                            if (!el.children.length && !(el.textContent || '').trim()) return;
                             el.remove();
                         } catch(e) {}
                     });
@@ -810,12 +812,25 @@ object UserScriptManager {
         cachedTvSpatialJs = null
         cachedSiteAgentJs = null
         cachedYoutubeZacetekJs = null
+        cachedProtiAdblockJs = null
     }
 
     /**
      * Skripta za YouTube, ki mora teci pred skriptami strani (assets/youtube_zacetek.js): odgovor predvajalnika brez
      * oglasov in prehod na drug posnetek kot nova stran. Pogled jo registrira ob zacetku dokumenta; "" = ni je.
      */
+    @Volatile private var cachedProtiAdblockJs: String? = null
+
+    /** Splosna zascita pred zaznavanjem blokatorja (assets/protiadblock.js): ob zacetku dokumenta, za vse spletne strani enako. "" = ni je. */
+    fun protiAdblockJs(context: android.content.Context): String {
+        cachedProtiAdblockJs?.let { return it }
+        val js = try {
+            context.assets.open("protiadblock.js").bufferedReader(Charsets.UTF_8).use { it.readText() }
+        } catch (_: Exception) { "" }
+        cachedProtiAdblockJs = js
+        return js
+    }
+
     fun youtubeZacetekJs(context: android.content.Context): String {
         cachedYoutubeZacetekJs?.let { return it }
         val js = try {
