@@ -89,13 +89,10 @@ class PredvajalnikActivity : OsActivity() {
         val lokalno = intent.getBooleanExtra("lokalno", false)
         val s = DatotekeActivity.Streznik.iz(intent.extras)
         if (!lokalno && s == null) { finish(); return }
-        val renderers = DefaultRenderersFactory(this).setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
         val tovarnaVira = if (lokalno) DefaultMediaSourceFactory(this) else DefaultMediaSourceFactory(PripetiVir.Tovarna(s!!.odtis, s.zeton, this, s.naprava))
-        val p = ExoPlayer.Builder(this)
-            .setRenderersFactory(renderers)
-            .setMediaSourceFactory(tovarnaVira)
-            .setTrackSelector(IzbiraZvocneSledi(this))
-            .build()
+        val p = si.safeer.tv.predvajalnik.PredvajalnikTovarna.ustvari(this,
+            if (zvok) si.safeer.tv.predvajalnik.PredvajalnikTovarna.Profil.GLASBA else si.safeer.tv.predvajalnik.PredvajalnikTovarna.Profil.FILM,
+            virMedijev = tovarnaVira, izbiraSledi = IzbiraZvocneSledi(this))
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
             .setContentType(if (zvok) C.AUDIO_CONTENT_TYPE_MUSIC else C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
         p.setWakeMode(C.WAKE_MODE_NETWORK)

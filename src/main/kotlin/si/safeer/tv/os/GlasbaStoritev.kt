@@ -150,7 +150,9 @@ class GlasbaStoritev : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val p = ExoPlayer.Builder(this).setTrackSelector(IzbiraZvocneSledi(this)).build()
+        // Tovarna: rezervni dekoder in meritve (SafeerExoMer) kot drugje; zvok in izbira sledi ostaneta tu.
+        val p = si.safeer.tv.predvajalnik.PredvajalnikTovarna.ustvari(this,
+            si.safeer.tv.predvajalnik.PredvajalnikTovarna.Profil.GLASBA, izbiraSledi = IzbiraZvocneSledi(this))
         // Vsebina "glasba" (privzeto v Media3), ne "neznano": televizor po tej oznaki izbere
         // obdelavo zvoka (npr. Philipsov nacin za govor/glasbo), ki je bila prej nedolocena.
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)

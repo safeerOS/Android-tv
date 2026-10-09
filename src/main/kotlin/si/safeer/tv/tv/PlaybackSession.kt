@@ -615,21 +615,12 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
 
     private fun ensurePlayer(): ExoPlayer {
         player?.let { return it }
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(1_500, 12_000, 800, 1_500)
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
         val sel = DefaultTrackSelector(host)
         trackSelector = sel
         applyTrackPolicy()
-        val renderers = DefaultRenderersFactory(host)
-            .setEnableDecoderFallback(true)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
-        val exo = ExoPlayer.Builder(host)
-            .setRenderersFactory(renderers)
-            .setTrackSelector(sel)
-            .setLoadControl(loadControl)
-            .build()
+        // Tovarna: kratek TV-medpomnilnik, rezervni dekoder, meritve (SafeerExoMer).
+        val exo = si.safeer.tv.predvajalnik.PredvajalnikTovarna.ustvari(host,
+            si.safeer.tv.predvajalnik.PredvajalnikTovarna.Profil.TV_V_ZIVO, izbiraSledi = sel)
         try {
             exo.setForegroundMode(true)
         } catch (_: Exception) {}
@@ -651,8 +642,10 @@ class ExoPlayerSession(private val host: MainActivity) : PlaybackSession {
         val b = sel.buildUponParameters()
             .setForceHighestSupportedBitrate(false)
             .setAllowVideoMixedMimeTypeAdaptiveness(false)
-            .setPreferredVideoMimeTypes(MimeTypes.VIDEO_H264, MimeTypes.VIDEO_H265)
-            .setMaxVideoSize(1920, 1080)
+        // Meja po izmerjeni zmogljivosti dekoderja in zaslona (vsaj 1080p kot prej; 4K le, ce ga zmoreta oba).
+        val zm = si.safeer.tv.predvajalnik.PredvajalnikTovarna.zmogljivost(host)
+        b.setPreferredVideoMimeTypes(*(if (zm.hevc) arrayOf(MimeTypes.VIDEO_H264, MimeTypes.VIDEO_H265) else arrayOf(MimeTypes.VIDEO_H264)))
+            .setMaxVideoSize(zm.sirina, zm.visina)
         if (codecRetry >= 1) {
             b.setPreferredVideoMimeTypes(MimeTypes.VIDEO_H264)
                 .setMaxVideoSize(1280, 720)
