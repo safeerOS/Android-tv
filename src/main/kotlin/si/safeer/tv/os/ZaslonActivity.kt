@@ -1451,7 +1451,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Obvestilo racunalnika (na glavni niti). Stari racunalnik jih ne posilja - takrat nic. */
     private fun obvestilo(o: JSONObject) {
         if (isFinishing) return
-        // Kazalec racunalnika (Safeer za Windows od 1.0.50): polozaj in oblika, ko se spremenita - zelo pogosto, zato
+        // Kazalec racunalnika (Safeer za Windows od 1.0.49): polozaj in oblika, ko se spremenita - zelo pogosto, zato
         // takoj in brez ostalih preverjanj.
         if (o.has("oblika")) {
             val k = o.optJSONArray("kazalec")
