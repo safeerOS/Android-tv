@@ -251,6 +251,8 @@
     <string name="os_zaslon_koncano">The computer ended the session.</string>
     <string name="os_zaslon_program_zaprt">The program on the computer has closed.</string>
     <string name="os_zaslon_ni_okna">The program did not open on the computer.</string>
+    <string name="os_zaslon_prevzeto">%1$s is now viewing the computer screen.</string>
+    <string name="os_zaslon_druga_naprava">another device</string>
     <string name="os_zaslon_na_namizju">The program is already open on the computer – showing the computer\'s desktop.</string>
     <string name="os_zaslon_na_namizju_ime">%1$s is already open on the computer – showing the computer\'s desktop.</string>
     <string name="os_zaslon_program_se_odpira">Opening the program on the computer…</string>

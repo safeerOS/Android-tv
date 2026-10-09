@@ -324,7 +324,11 @@ class ZaslonOdjemalec(
             if (vrsta == OKVIR_OBVESTILO) {
                 val obvestilo = try { JSONObject(String(telo, Charsets.UTF_8)) } catch (_: Throwable) { null }
                 val konec = obvestilo?.optString("konec").orEmpty()
-                if (konec.isNotEmpty()) { naStanje(Stanje.PRAZNO, konec); tece = false; break }
+                if (konec.isNotEmpty()) {
+                    // »prevzeto«: zaslon je odprla druga naprava (Safeer za Windows od 1.0.49) - kateri, povemo naprej.
+                    val zakaj = if (konec == "prevzeto") "prevzeto:" + obvestilo?.optString("naprava").orEmpty() else konec
+                    naStanje(Stanje.PRAZNO, zakaj); tece = false; break
+                }
                 if (obvestilo != null) try { naObvestilo(obvestilo) } catch (_: Throwable) { }
                 continue
             }

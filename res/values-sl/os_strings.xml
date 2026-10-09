@@ -250,6 +250,8 @@
     <string name="os_zaslon_koncano">Računalnik je končal sejo.</string>
     <string name="os_zaslon_program_zaprt">Program na računalniku se je zaprl.</string>
     <string name="os_zaslon_ni_okna">Program se na računalniku ni odprl.</string>
+    <string name="os_zaslon_prevzeto">Zaslon računalnika zdaj gleda %1$s.</string>
+    <string name="os_zaslon_druga_naprava">druga naprava</string>
     <string name="os_zaslon_na_namizju">Program je na računalniku že odprt – kažem namizje računalnika.</string>
     <string name="os_zaslon_na_namizju_ime">%1$s je na računalniku že odprt – kažem namizje računalnika.</string>
     <string name="os_zaslon_program_se_odpira">Program se odpira na računalniku …</string>

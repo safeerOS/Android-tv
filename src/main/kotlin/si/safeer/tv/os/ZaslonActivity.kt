@@ -603,6 +603,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         ZaslonOdjemalec.Stanje.PRAZNO -> {
                             // Program je odprt na namizju racunalnika (sme teci samo enkrat): pokazemo ga tam.
                             if (besedilo == "na_namizju" && !predano) { preklopiNaNamizje(); return@runOnUiThread }
+                            // Zaslon racunalnika je odprla druga naprava: povemo katera in se NE povezemo znova (sicer
+                            // bi jo vrgli ven in se z njo izmenjevali vsako sekundo).
+                            if (besedilo.startsWith("prevzeto:")) {
+                                val id = besedilo.removePrefix("prevzeto:")
+                                val ime = link.naprave.firstOrNull { it.id == id }?.ime?.takeIf { it.isNotBlank() }
+                                    ?: getString(R.string.os_zaslon_druga_naprava)
+                                Toast.makeText(this, getString(R.string.os_zaslon_prevzeto, ime), Toast.LENGTH_LONG).show()
+                                koncaj(); finish(); return@runOnUiThread
+                            }
                             Toast.makeText(this, getString(if (besedilo == "ni_okna") R.string.os_zaslon_ni_okna
                                 else R.string.os_zaslon_program_zaprt), Toast.LENGTH_LONG).show()
                             koncaj(); finish()

@@ -357,6 +357,8 @@
     <string name="os_datoteke_pomoc_drzi">Mantén OK · abrir en el ordenador</string>
     <string name="os_zaslon_program_zaprt">El programa del ordenador se ha cerrado.</string>
     <string name="os_zaslon_ni_okna">El programa no se abrió en el ordenador.</string>
+    <string name="os_zaslon_prevzeto">%1$s muestra ahora la pantalla del ordenador.</string>
+    <string name="os_zaslon_druga_naprava">Otro dispositivo</string>
     <string name="os_zaslon_na_namizju">El programa ya está abierto en el ordenador: se muestra el escritorio del ordenador.</string>
     <string name="os_zaslon_na_namizju_ime">%1$s ya está abierto en el ordenador: se muestra el escritorio del ordenador.</string>
     <string name="os_zaslon_program_se_odpira">Abriendo el programa en el ordenador…</string>
