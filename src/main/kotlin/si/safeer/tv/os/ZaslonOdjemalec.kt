@@ -221,17 +221,22 @@ class ZaslonOdjemalec(
 
     private fun pripraviKodek(surface: Surface, sirina: Int, visina: Int, fps: Int): MediaCodec {
         val vrsta = if (hevc) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
-        val oblika = MediaFormat.createVideoFormat(vrsta, sirina, visina)
-        oblika.setInteger(MediaFormat.KEY_FRAME_RATE, fps)
-        // Nizka zakasnitev: dekoder naj ne zbira slik vnaprej (Android 11+ zna to povedati naravnost).
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            oblika.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
+        // Obliko sestavimo vsakic znova: kopija MediaFormat(MediaFormat) je sele od Androida 10 (API 29),
+        // televizorji z Androidom 9 bi ob njej padli (NoSuchMethodError).
+        fun osnovna(): MediaFormat {
+            val oblika = MediaFormat.createVideoFormat(vrsta, sirina, visina)
+            oblika.setInteger(MediaFormat.KEY_FRAME_RATE, fps)
+            // Nizka zakasnitev: dekoder naj ne zbira slik vnaprej (Android 11+ zna to povedati naravnost).
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                oblika.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
+            }
+            oblika.setInteger(MediaFormat.KEY_PRIORITY, 0)   // v ospredju, ne v ozadju
+            // Kljucni okvir pri visoki kakovosti zlahka preseze pol megabajta. Ce dekoderju tega ne
+            // povemo, so vhodni medpomnilniki premajhni in prva taka slika vrze BufferOverflowException
+            // (v dnevniku samo "null") - seja pade takoj po prvi sliki.
+            oblika.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxOf(1 shl 20, sirina * visina))
+            return oblika
         }
-        oblika.setInteger(MediaFormat.KEY_PRIORITY, 0)   // v ospredju, ne v ozadju
-        // Kljucni okvir pri visoki kakovosti zlahka preseze pol megabajta. Ce dekoderju tega ne
-        // povemo, so vhodni medpomnilniki premajhni in prva taka slika vrze BufferOverflowException
-        // (v dnevniku samo "null") - seja pade takoj po prvi sliki.
-        oblika.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxOf(1 shl 20, sirina * visina))
         // Dekoderji Qualcomm in Samsung Exynos sliko zadrzijo, dokler ne pride naslednja (cakajo na morebitno
         // preurejanje slik, ki ga nas tok nima): izmerjeno na Tab A9+ (c2.qti.avc.decoder) ~50 ms pri mirnem
         // zaslonu. Njihove lastne nastavitve to izklopijo; drugi dekoderji neznane kljuce prezrejo.
@@ -242,7 +247,7 @@ class ZaslonOdjemalec(
         )
         var kodek = MediaCodec.createDecoderByType(vrsta)
         try {
-            val z = MediaFormat(oblika)
+            val z = osnovna()
             nizkaZakasnost.forEach { (k, v) -> z.setInteger(k, v) }
             kodek.configure(z, surface, null, 0)
         } catch (e: Exception) {
@@ -250,7 +255,7 @@ class ZaslonOdjemalec(
             Log.w(TAG, "Dekoder brez nastavitev nizke zakasnitve: ${e.message}")
             try { kodek.release() } catch (_: Throwable) { }
             kodek = MediaCodec.createDecoderByType(vrsta)
-            kodek.configure(oblika, surface, null, 0)
+            kodek.configure(osnovna(), surface, null, 0)
         }
         kodek.start()
         Log.i(TAG, "Dekoder: ${kodek.name} za ${sirina}x$visina@$fps")
