@@ -52,30 +52,42 @@
              Izjema je zaslon racunalnika: namizje je 16:9 in pokoncno bi bilo trak sredi crnine,
              zato ostane lezec (a v obe smeri, da ga lahko obrnes). -->
         <activity android:name="si.safeer.tv.os.DatotekeActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.NapraveActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.AplikacijeHostaActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.SporocilaActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.ZapiskiActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.BesediloActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.SlikaActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.PredvajalnikActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.NastavitveActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.VidezActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.AplikacijeTvActivity"
-            tools:remove="android:screenOrientation" />
+            tools:remove="android:screenOrientation,android:taskAffinity" />
         <activity android:name="si.safeer.tv.os.ZaslonActivity"
             android:screenOrientation="sensorLandscape" tools:replace="android:screenOrientation"
-            tools:ignore="DiscouragedApi" />
+            tools:ignore="DiscouragedApi" tools:remove="android:taskAffinity" />
+
+        <!-- Telefon in tablica: vsi zasloni Safeer OS tecejo v ENEM opravilu z vstopno tocko (ena kartica med
+             nedavnimi aplikacijami). Na televizorju imata brskalnik in Safeer OS vsak svoje opravilo (svoj vnos v
+             zaganjalniku); tu je vnos en sam, zato je bilo drugo opravilo (.os) le podvojena kartica (9. 10. 2026). -->
+        <!-- DomovActivity je tu le preusmeritev na DomovTabletActivity (Nazaj/Domov iz stranske vrstice); s svojim
+             opravilom bi domaci zaslon odprla v drugi kartici. -->
+        <activity android:name="si.safeer.tv.os.DomovActivity"
+            tools:remove="android:taskAffinity" />
+        <activity android:name="si.safeer.tv.os.GlasbaActivity"
+            tools:remove="android:taskAffinity" />
+        <activity android:name="si.safeer.tv.os.MagnetActivity"
+            tools:remove="android:taskAffinity" />
 
         <!-- Brskalniski pogon je tu samo notranji (spletne aplikacije), brez vnosa v zaganjalnik. -->
         <activity
