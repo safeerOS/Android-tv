@@ -232,8 +232,26 @@ class ZaslonOdjemalec(
         // povemo, so vhodni medpomnilniki premajhni in prva taka slika vrze BufferOverflowException
         // (v dnevniku samo "null") - seja pade takoj po prvi sliki.
         oblika.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxOf(1 shl 20, sirina * visina))
-        val kodek = MediaCodec.createDecoderByType(vrsta)
-        kodek.configure(oblika, surface, null, 0)
+        // Dekoderji Qualcomm in Samsung Exynos sliko zadrzijo, dokler ne pride naslednja (cakajo na morebitno
+        // preurejanje slik, ki ga nas tok nima): izmerjeno na Tab A9+ (c2.qti.avc.decoder) ~50 ms pri mirnem
+        // zaslonu. Njihove lastne nastavitve to izklopijo; drugi dekoderji neznane kljuce prezrejo.
+        val nizkaZakasnost = mapOf(
+            "vendor.qti-ext-dec-picture-order.enable" to 1,
+            "vendor.qti-ext-dec-low-latency.enable" to 1,
+            "vendor.rtc-ext-dec-low-latency.enable" to 1,
+        )
+        var kodek = MediaCodec.createDecoderByType(vrsta)
+        try {
+            val z = MediaFormat(oblika)
+            nizkaZakasnost.forEach { (k, v) -> z.setInteger(k, v) }
+            kodek.configure(z, surface, null, 0)
+        } catch (e: Exception) {
+            // Dekoder nastavitev proizvajalca ne sprejme: brez njih, kot prej.
+            Log.w(TAG, "Dekoder brez nastavitev nizke zakasnitve: ${e.message}")
+            try { kodek.release() } catch (_: Throwable) { }
+            kodek = MediaCodec.createDecoderByType(vrsta)
+            kodek.configure(oblika, surface, null, 0)
+        }
         kodek.start()
         Log.i(TAG, "Dekoder: ${kodek.name} za ${sirina}x$visina@$fps")
         return kodek
@@ -276,6 +294,14 @@ class ZaslonOdjemalec(
         var zadnjePorocilo = SystemClock.elapsedRealtime()
         var imelZvok = false
         slik = 0; zastojev = 0; zadnjaSlika = 0L; zadnjaZakasnitev = 0L; predSliko = ByteArray(0); poslanihSlik = 0
+        // Cele slike (H.264): izhod dekoderja prazni svoja nit, ki na dekoder caka - sicer slika, ki se dekodira
+        // dlje od trenutka branja, pride na zaslon sele ob naslednjem okvirju z omrezja (izmerjeno ~50 ms).
+        val izhodnaNit = if (celeSlike && !hevc) Thread({
+            try {
+                while (tece) izprazni(kodek, IZHOD_CAKAJ_US)
+            } catch (_: Throwable) { }   // dekoder je ustavljen: seja se konca drugje
+        }, "safeer-zaslon-izris").also { it.isDaemon = true; it.start() } else null
+        try {
         while (tece) {
             podatkovni.readFully(glava)
             val vrsta = glava[0].toInt() and 0xff
@@ -298,6 +324,27 @@ class ZaslonOdjemalec(
                 continue
             }
             if (vrsta != OKVIR_SLIKA) continue
+            if (celeSlike && !hevc) {
+                // Okvir je cela slika: nastavitve (SPS, PPS) posebej, vse ostalo v ENEM medpomnilniku. Enota za
+                // enoto dekoder (izmerjeno: Qualcomm na Tab A9+) sliko zadrzi, dokler ne pride naslednja - ne ve,
+                // da je slika ze cela (pri mirnem zaslonu ~50 ms, pri gibanju en interval slike).
+                var od = zacetekNal(telo, 0)
+                while (od >= 0 && (vrstaNal(telo, od) == 7 || vrstaNal(telo, od) == 8)) {
+                    val naslednji = zacetekNal(telo, od + 3)
+                    posljiNal(kodek, telo, od, if (naslednji > 0) naslednji else telo.size)
+                    od = naslednji
+                }
+                if (od >= 0) posljiNal(kodek, telo, od, telo.size)
+                // Izris vodi izhodna nit (spodaj): sliko pokaze takoj, ko jo dekoder naredi.
+                val zdajC = SystemClock.elapsedRealtime()
+                if (zdajC - zadnjePorocilo >= 1000) {
+                    val sekunde = (zdajC - zadnjePorocilo) / 1000.0
+                    naStatistiko(Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
+                        zadnjaZakasnitev, sirina, visina, imelZvok, zastojev))
+                    slik = 0; bajtov = 0; zadnjePorocilo = zdajC; imelZvok = false; zastojev = 0
+                }
+                continue
+            }
             ostanek = ostanek + telo
             var od = zacetekNal(ostanek, 0)
             if (od < 0) continue
@@ -313,9 +360,7 @@ class ZaslonOdjemalec(
             } else {
                 ostanek = ostanek.copyOfRange(od, ostanek.size)   // zacetek naslednje enote
             }
-            // Cela slika: kratko pocakamo, da jo dekoder naredi, in jo takoj izrisemo (prej sele ob naslednjem
-            // okvirju z omrezja - se en interval slike zamika).
-            izprazni(kodek, if (celeSlike) CAKAJ_IZRIS_US else 0L)
+            izprazni(kodek)
             if (ZaslonKodek.hevcBrezSlike(hevc, poslanihSlik, imaSliko)) {
                 Log.w(TAG, "HEVC: dekoder po $poslanihSlik slikah ni vrnil nobene - sejo zahtevamo znova s H.264")
                 naStanje(Stanje.KODEK, "")
@@ -330,9 +375,13 @@ class ZaslonOdjemalec(
                 slik = 0; bajtov = 0; zadnjePorocilo = zdaj; imelZvok = false; zastojev = 0
             }
         }
+        } finally {
+            izhodnaNit?.interrupt()
+        }
     }
 
     /** Vse, kar je dekoder ze naredil, takoj na zaslon. */
+    @Synchronized
     private fun izprazni(kodek: MediaCodec, prvicCakajUs: Long = 0L) {
         var cakaj = prvicCakajUs
         while (true) {
@@ -423,8 +472,8 @@ class ZaslonOdjemalec(
     }
 
     private companion object {
-        /** Najdlje cakanje na dekodirano celo sliko (mikrosekunde): pri 60 slikah/s ostane dovolj casa za branje. */
-        const val CAKAJ_IZRIS_US = 8_000L
+        /** Izhodna nit caka na dekodirano sliko najvec toliko (mikrosekunde), nato preveri, ali seja se tece. */
+        const val IZHOD_CAKAJ_US = 50_000L
         /** Najdaljsa tisina povezave, preden jo razglasimo za prekinjeno. */
         const val TISINA_MS = 10_000
         /** Presledek med zaporednima slikama, ki ga oko pri 60 slikah na sekundo ze zazna kot zatik. */
