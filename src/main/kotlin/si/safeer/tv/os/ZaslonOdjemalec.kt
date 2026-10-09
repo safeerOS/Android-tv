@@ -192,7 +192,9 @@ class ZaslonOdjemalec(
             // (izpad Wi-Fi ne zapre vticnice) - branje pade in seja se vrne sama, namesto zamrznjene slike.
             s.soTimeout = TISINA_MS
             naStanje(Stanje.TECE, "")
-            crpaj(vhod, kodek, sirina, visina)
+            // Racunalnik, ki vsak okvir poslje kot celo sliko ("au", Safeer OS za Windows 1.0.48), dovoli, da jo dekoder
+            // dobi takoj; brez tega zadnja enota slike caka na zacetek naslednje (en interval slike zamika).
+            crpaj(vhod, kodek, sirina, visina, glava.optBoolean("au", false))
             naStanje(Stanje.KONCANO, "")
         } catch (e: Throwable) {
             if (tece && hevc && !imaSliko && e !is java.io.IOException) {
@@ -266,7 +268,7 @@ class ZaslonOdjemalec(
      * razrezemo na enote NAL), zvok pa naravnost v AudioTrack. Zvok pisemo neblokirajoce: ce bi cakal,
      * bi ustavil sliko - raje izpustimo nekaj zvoka kot da slika obstane.
      */
-    private fun crpaj(vhod: InputStream, kodek: MediaCodec, sirina: Int, visina: Int) {
+    private fun crpaj(vhod: InputStream, kodek: MediaCodec, sirina: Int, visina: Int, celeSlike: Boolean = false) {
         val podatkovni = DataInputStream(vhod)
         val glava = ByteArray(5)
         var ostanek = ByteArray(0)
@@ -305,8 +307,15 @@ class ZaslonOdjemalec(
                 od = naslednji
                 naslednji = zacetekNal(ostanek, od + 3)
             }
-            ostanek = ostanek.copyOfRange(od, ostanek.size)   // zacetek naslednje enote
-            izprazni(kodek)
+            if (celeSlike) {
+                posljiNal(kodek, ostanek, od, ostanek.size)    // okvir je cela slika: zadnja enota ne caka
+                ostanek = ByteArray(0)
+            } else {
+                ostanek = ostanek.copyOfRange(od, ostanek.size)   // zacetek naslednje enote
+            }
+            // Cela slika: kratko pocakamo, da jo dekoder naredi, in jo takoj izrisemo (prej sele ob naslednjem
+            // okvirju z omrezja - se en interval slike zamika).
+            izprazni(kodek, if (celeSlike) CAKAJ_IZRIS_US else 0L)
             if (ZaslonKodek.hevcBrezSlike(hevc, poslanihSlik, imaSliko)) {
                 Log.w(TAG, "HEVC: dekoder po $poslanihSlik slikah ni vrnil nobene - sejo zahtevamo znova s H.264")
                 naStanje(Stanje.KODEK, "")
@@ -324,9 +333,11 @@ class ZaslonOdjemalec(
     }
 
     /** Vse, kar je dekoder ze naredil, takoj na zaslon. */
-    private fun izprazni(kodek: MediaCodec) {
+    private fun izprazni(kodek: MediaCodec, prvicCakajUs: Long = 0L) {
+        var cakaj = prvicCakajUs
         while (true) {
-            val i = kodek.dequeueOutputBuffer(info, 0)
+            val i = kodek.dequeueOutputBuffer(info, cakaj)
+            cakaj = 0L
             if (i < 0) break
             val zdajSlika = SystemClock.elapsedRealtime()
             zadnjaZakasnitev = zdajSlika - info.presentationTimeUs / 1000
@@ -412,6 +423,8 @@ class ZaslonOdjemalec(
     }
 
     private companion object {
+        /** Najdlje cakanje na dekodirano celo sliko (mikrosekunde): pri 60 slikah/s ostane dovolj casa za branje. */
+        const val CAKAJ_IZRIS_US = 8_000L
         /** Najdaljsa tisina povezave, preden jo razglasimo za prekinjeno. */
         const val TISINA_MS = 10_000
         /** Presledek med zaporednima slikama, ki ga oko pri 60 slikah na sekundo ze zazna kot zatik. */
