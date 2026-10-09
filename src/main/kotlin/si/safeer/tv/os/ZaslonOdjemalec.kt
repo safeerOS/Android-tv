@@ -244,6 +244,9 @@ class ZaslonOdjemalec(
             "vendor.qti-ext-dec-picture-order.enable" to 1,
             "vendor.qti-ext-dec-low-latency.enable" to 1,
             "vendor.rtc-ext-dec-low-latency.enable" to 1,
+            // MediaTek (tudi televizorji Philips, mt5895) in Amlogic: enako, njuna kljuca (Moonlight, MediaCodecHelper).
+            "vdec-lowlatency" to 1,
+            "vendor.low-latency.enable" to 1,
         )
         var kodek = MediaCodec.createDecoderByType(vrsta)
         try {

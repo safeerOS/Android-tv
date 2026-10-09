@@ -138,6 +138,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         Robovi.uporabi(this)
         zapolni = getSharedPreferences("safeer_os", MODE_PRIVATE).getBoolean("zaslon_zapolni", false)
         pogled = findViewById(R.id.povrsina)
+        // Televizor naj sliko racunalnika pokaze brez svoje obdelave (igralni nacin / ALLM prek HDMI): ostrenje,
+        // vmesne slike in izboljsave dodajo zakasnitev. Android 11+; televizor, ki tega ne zna, prosnjo prezre.
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            try {
+                if (display?.isMinimalPostProcessingSupported == true) window.setPreferMinimalPostProcessing(true)
+            } catch (_: Throwable) { }
+        }
         // Mere slike smo racunali le ob zacetku pretoka. Ko se okno spremeni (vrtenje tablice - Android
         // 16 na velikem zaslonu fiksne lege ne uposteva vec - ali deljen zaslon), bi ostale mere
         // lezecega zaslona in namizje bi bilo levo in desno odrezano. Zato ga ob vsaki spremembi
