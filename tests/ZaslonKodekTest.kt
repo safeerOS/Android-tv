@@ -37,5 +37,14 @@ fun main() {
     check(ZaslonKodek.hevcDovoljen(0L, 294L)) { "nikoli ni odpovedal" }
     check(!ZaslonKodek.hevcDovoljen(294L, 294L)) { "odpovedal v tej razlicici" }
     check(ZaslonKodek.hevcDovoljen(294L, 295L)) { "po posodobitvi znova" }
+
+    // Zmoznosti za `caps` v screen.start: vsak okus zna preklop na namizje, dolgo skupino slik in utrip (rtt). Prilagajanja
+    // kakovosti med sejo (abr) se ne ponudi nobeden - racunalnik bi sicer smel menjati kodirnik sredi toka.
+    for (okus in listOf("os", "telefon", "tablica", "brskalnik", "predvajalnik", "")) {
+        val z = ZaslonKodek.zmoznosti(okus)
+        check(z.containsAll(listOf("handoff", "gop", "rtt"))) { "zmoznosti $okus: $z" }
+        check("abr" !in z) { "abr se ni: $okus" }
+        check(z.size == z.toSet().size) { "brez podvojenih: $okus $z" }
+    }
     println("ZaslonKodekTest: OK")
 }

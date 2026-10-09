@@ -64,20 +64,31 @@ class ZaslonOdjemalec(
     data class Statistika(val slik: Int, val naSekundo: Double, val megabitov: Double,
                           val dekoderMs: Long, val sirina: Int, val visina: Int, val zvok: Boolean,
                           /** Koliko presledkov med zaporednima slikama je bilo v tem obdobju daljsih od [ZASTOJ_MS]. */
-                          val zastojev: Int = 0)
+                          val zastojev: Int = 0,
+                          /** Koliko prevelikih enot NAL smo v tem obdobju izpustili (niso sle v medpomnilnik dekoderja). */
+                          val izpusceno: Int = 0)
 
     @Volatile private var tece = false
     /** Kodek toka, kot ga pove racunalnik v glavi (`kodek`): HEVC ali (privzeto, starejsi Safeer) H.264. */
     @Volatile private var hevc = false
     /** Kvantizator toka, kot ga pove racunalnik v glavi (`qp`); 0, ce ga ne pove (starejsi Safeer). */
     @Volatile private var qp = 0
+    /** Zadnja zakasnitev tja in nazaj (ms), kot jo pove utrip racunalnika (`z`); 0, dokler je ne pove. */
+    @Volatile private var zadnjiRttMs = 0
 
-    /** Tok za »Podatke o povezavi«: kodek in kvantizator, npr. »HEVC q20«. */
-    fun opisToka(): String = (if (hevc) "HEVC" else "H.264") + (if (qp > 0) " q$qp" else "")
+    /** Tok za »Podatke o povezavi«: kodek, kvantizator in zakasnitev do racunalnika, npr. »HEVC q20 · 104 ms«. */
+    fun opisToka(): String {
+        val rtt = zadnjiRttMs
+        return (if (hevc) "HEVC" else "H.264") + (if (qp > 0) " q$qp" else "") +
+            (if (rtt > 0) " \u00b7 " + ZaslonUtrip.opisRtt(rtt) else "")
+    }
     // Stanje dekodiranja; bere in pise ga samo nit toka.
     private val info = MediaCodec.BufferInfo()
     private var slik = 0
     private var zastojev = 0
+    private var izpusceno = 0
+    /** Zadnja sekunda, kot smo jo sporocili ([naStatistiko]); gre z odgovorom na utrip racunalniku. */
+    private var zadnjaStatistika: Statistika? = null
     private var zadnjaSlika = 0L
     private var zadnjaZakasnitev = 0L
     /** Enote z nastavitvami HEVC, ki cakajo na sliko, s katero gredo skupaj v dekoder. */
@@ -162,7 +173,8 @@ class ZaslonOdjemalec(
             // Uporabnik je zaslon zapustil med povezovanjem: racunalniku se ne predstavimo vec.
             if (!tece) { naStanje(Stanje.KONCANO, ""); return }
             prekHuba = izid.pot == NeposrednaPovezava.Pot.HUB
-            Log.i(TAG, "Zaslon: povezava " + if (prekHuba) "prek Global Linka" else "neposredno")
+            Log.i(TAG, "Zaslon: povezava " + (if (prekHuba) "prek Global Linka" else "neposredno") +
+                ", rokovanje ${izid.casMs} ms")
             val izhodniTok: OutputStream = s.outputStream
             val vhod: InputStream = s.inputStream
             // Prek Huba je zeton ze v zahtevi za predajo seje; neposredno ga poslje pozdrav.
@@ -179,6 +191,9 @@ class ZaslonOdjemalec(
             val fps = glava.optInt("fps", 30)
             hevc = glava.optString("kodek") == "hevc"
             qp = glava.optInt("qp", 0)
+            // Utrip (meritev zakasnitve, ZaslonUtrip): odgovarjamo samo, ce ga racunalnik v glavi potrdi. Starejsi
+            // racunalnik kljuca nima in od nas ne dobi nicesar novega.
+            val utrip = glava.optBoolean("rtt", false)
             imaSliko = false
             kodek = try { pripraviKodek(surface, sirina, visina, fps) } catch (e: Throwable) {
                 if (!hevc) throw e
@@ -194,7 +209,7 @@ class ZaslonOdjemalec(
             naStanje(Stanje.TECE, "")
             // Racunalnik, ki vsak okvir poslje kot celo sliko ("au", Safeer OS za Windows 1.0.48), dovoli, da jo dekoder
             // dobi takoj; brez tega zadnja enota slike caka na zacetek naslednje (en interval slike zamika).
-            crpaj(vhod, kodek, sirina, visina, glava.optBoolean("au", false))
+            crpaj(vhod, kodek, sirina, visina, glava.optBoolean("au", false), utrip, izid.casMs)
             naStanje(Stanje.KONCANO, "")
         } catch (e: Throwable) {
             if (tece && hevc && !imaSliko && e !is java.io.IOException) {
@@ -293,15 +308,24 @@ class ZaslonOdjemalec(
      * Pretok so okvirji: en bajt vrste, stirje bajti dolzine, vsebina. Slika gre v dekoder (prej jo
      * razrezemo na enote NAL), zvok pa naravnost v AudioTrack. Zvok pisemo neblokirajoce: ce bi cakal,
      * bi ustavil sliko - raje izpustimo nekaj zvoka kot da slika obstane.
+     *
+     * [utrip]: racunalnik je v glavi potrdil utrip (`rtt`) - na vsakega odgovorimo po kanalu za vnos. [rokMs] je cas
+     * povezovanja (NeposrednaPovezava.Izid.casMs); racunalnik ga dobi enkrat, s prvim odgovorom.
      */
-    private fun crpaj(vhod: InputStream, kodek: MediaCodec, sirina: Int, visina: Int, celeSlike: Boolean = false) {
+    private fun crpaj(vhod: InputStream, kodek: MediaCodec, sirina: Int, visina: Int, celeSlike: Boolean = false,
+                      utrip: Boolean = false, rokMs: Long = 0L) {
         val podatkovni = DataInputStream(vhod)
         val glava = ByteArray(5)
         var ostanek = ByteArray(0)
         var bajtov = 0L
+        // Vsi prejeti bajti seje z glavami okvirjev (slika, zvok, obvestila): racunalnik iz razlik med odgovori na
+        // utrip izracuna, koliko pride do nas, neodvisno od zakasnitve odgovorov.
+        var bajtovSkupaj = 0L
+        var prviOdmev = true
         var zadnjePorocilo = SystemClock.elapsedRealtime()
         var imelZvok = false
         slik = 0; zastojev = 0; zadnjaSlika = 0L; zadnjaZakasnitev = 0L; predSliko = ByteArray(0); poslanihSlik = 0
+        izpusceno = 0; zadnjaStatistika = null; zadnjiRttMs = 0
         // Cele slike (H.264): izhod dekoderja prazni svoja nit, ki na dekoder caka - sicer slika, ki se dekodira
         // dlje od trenutka branja, pride na zaslon sele ob naslednjem okvirju z omrezja (izmerjeno ~50 ms).
         val izhodnaNit = if (celeSlike && !hevc) Thread({
@@ -319,6 +343,7 @@ class ZaslonOdjemalec(
             val telo = ByteArray(dolzina)
             podatkovni.readFully(telo)
             bajtov += dolzina + glava.size
+            bajtovSkupaj += dolzina + glava.size
             if (vrsta == OKVIR_ZVOK) {
                 imelZvok = true
                 try { zvocnik?.write(telo, 0, dolzina, AudioTrack.WRITE_NON_BLOCKING) } catch (_: Throwable) { }
@@ -331,6 +356,26 @@ class ZaslonOdjemalec(
                     // »prevzeto«: zaslon je odprla druga naprava (Safeer za Windows od 1.0.49) - kateri, povemo naprej.
                     val zakaj = if (konec == "prevzeto") "prevzeto:" + obvestilo?.optString("naprava").orEmpty() else konec
                     naStanje(Stanje.PRAZNO, zakaj); tece = false; break
+                }
+                // Utrip racunalnika ni za zaslon: ujamemo ga pred naObvestilo. Odgovor (samo ce ga je glava potrdila)
+                // gre kot vnos - ena vrstica na niti posiljalnika, za istim zaklepom kot tipke.
+                val utripRacunalnika = obvestilo?.optJSONObject("rtt")
+                if (utripRacunalnika != null) {
+                    if (utrip) {
+                        val st = zadnjaStatistika
+                        try {
+                            posljiVnos(JSONObject(ZaslonUtrip.odgovorRtt(
+                                utripRacunalnika.optLong("n"), utripRacunalnika.optLong("t"),
+                                SystemClock.elapsedRealtime(), bajtovSkupaj,
+                                st?.naSekundo ?: 0.0, st?.megabitov ?: 0.0, st?.dekoderMs ?: 0L,
+                                st?.zastojev ?: 0, st?.izpusceno ?: 0,
+                                pot = if (prviOdmev) (if (prekHuba) "hub" else "neposredno") else null,
+                                rokMs = if (prviOdmev && rokMs > 0) rokMs else null)))
+                            prviOdmev = false
+                        } catch (_: Throwable) { }   // meritev ne sme ustaviti slike
+                    }
+                    zadnjiRttMs = utripRacunalnika.optInt("z", zadnjiRttMs)
+                    continue
                 }
                 if (obvestilo != null) try { naObvestilo(obvestilo) } catch (_: Throwable) { }
                 continue
@@ -351,9 +396,11 @@ class ZaslonOdjemalec(
                 val zdajC = SystemClock.elapsedRealtime()
                 if (zdajC - zadnjePorocilo >= 1000) {
                     val sekunde = (zdajC - zadnjePorocilo) / 1000.0
-                    naStatistiko(Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
-                        zadnjaZakasnitev, sirina, visina, imelZvok, zastojev))
-                    slik = 0; bajtov = 0; zadnjePorocilo = zdajC; imelZvok = false; zastojev = 0
+                    val st = Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
+                        zadnjaZakasnitev, sirina, visina, imelZvok, zastojev, izpusceno)
+                    zadnjaStatistika = st
+                    naStatistiko(st)
+                    slik = 0; bajtov = 0; zadnjePorocilo = zdajC; imelZvok = false; zastojev = 0; izpusceno = 0
                 }
                 continue
             }
@@ -382,9 +429,11 @@ class ZaslonOdjemalec(
             val zdaj = SystemClock.elapsedRealtime()
             if (zdaj - zadnjePorocilo >= 1000) {
                 val sekunde = (zdaj - zadnjePorocilo) / 1000.0
-                naStatistiko(Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
-                    zadnjaZakasnitev, sirina, visina, imelZvok, zastojev))
-                slik = 0; bajtov = 0; zadnjePorocilo = zdaj; imelZvok = false; zastojev = 0
+                val st = Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
+                    zadnjaZakasnitev, sirina, visina, imelZvok, zastojev, izpusceno)
+                zadnjaStatistika = st
+                naStatistiko(st)
+                slik = 0; bajtov = 0; zadnjePorocilo = zdaj; imelZvok = false; zastojev = 0; izpusceno = 0
             }
         }
         } finally {
@@ -430,6 +479,7 @@ class ZaslonOdjemalec(
             // Enote NAL ni mogoce razbiti na pol, zato jo raje izpustimo kot da seja pade;
             // naslednji kljucni okvir sliko spet postavi na noge.
             Log.w(TAG, "Prevelika enota NAL ($dolzina B), izpuscena.")
+            izpusceno++
             kodek.queueInputBuffer(i, 0, 0, 0, 0)
             return
         }

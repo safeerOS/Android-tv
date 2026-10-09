@@ -369,9 +369,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (prekHuba) zahteva.put("relay", true)
         // In kaksna je povrsina, na kateri bo slika: loceni zaslon za programe naredi v tej obliki in velikosti.
         pogledZaRacunalnik()?.let { zahteva.put("view", it) }
-        // Kaj znamo: preklop na namizje racunalnika, kadar je program odprt tam (program ene same instance), in dolgo
-        // skupino slik (enot ne izpuscamo, zato kljucna slika vsako sekundo ni potrebna).
-        zahteva.put("caps", org.json.JSONArray().put("handoff").put("gop"))
+        // Kaj znamo: preklop na namizje racunalnika, kadar je program odprt tam (program ene same instance), dolgo
+        // skupino slik (enot ne izpuscamo, zato kljucna slika vsako sekundo ni potrebna) in utrip za meritev zakasnitve.
+        zahteva.put("caps", org.json.JSONArray(ZaslonKodek.zmoznosti(si.safeer.tv.BuildConfig.FLAVOR)))
         // Omrezje te naprave: racunalnik po njem in po poti (neposredno ali prek Huba) izbere kakovost.
         zahteva.put("net", omrezje)
         // Kodeki slike po prednosti: HEVC (isti videz, manj podatkov), ce ga ta naprava strojno dekodira v tej velikosti.
@@ -654,7 +654,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 // ostanejo v dnevniku, kjer jih potrebujemo, kadar iscemo vzrok tezave.
                 android.util.Log.d("SafeerZaslon",
                     "${s.sirina}x${s.visina} ${s.naSekundo} sl/s ${s.megabitov} Mb/s " +
-                    "dekoder ${s.dekoderMs} ms zvok=${s.zvok} zastojev=${s.zastojev} " +
+                    "dekoder ${s.dekoderMs} ms zvok=${s.zvok} zastojev=${s.zastojev} izpusceno=${s.izpusceno} " +
                     "pot=${if (odjemalec?.prekHuba == true) "global" else "neposredno"} " +
                     "omrezje=$omrezje tok=${odjemalec?.opisToka().orEmpty()}")
                 // Kdor jih je v meniju seje vklopil, jih vidi (iskanje vzroka, kadar slika zdoma ne tece gladko).

@@ -41,6 +41,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/ZaslonPovecava.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPogled.kt" \
     "$SRC/si/safeer/tv/os/ZaslonKodek.kt" \
+    "$SRC/si/safeer/tv/os/ZaslonUtrip.kt" \
     "$SRC/si/safeer/tv/os/OmrezjePravila.kt" \
     "$SRC/si/safeer/tv/os/PotDoNaprave.kt" \
     "$SRC/si/safeer/tv/os/ZvokPravila.kt" \
@@ -70,6 +71,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ZaslonPovecavaTest.kt" \
     "$TEST_DIR/ZaslonPogledTest.kt" \
     "$TEST_DIR/ZaslonKodekTest.kt" \
+    "$TEST_DIR/ZaslonUtripTest.kt" \
     "$TEST_DIR/OmrezjePravilaTest.kt" \
     "$TEST_DIR/PotDoNapraveTest.kt" \
     "$TEST_DIR/ZvokPravilaTest.kt" \
@@ -101,6 +103,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.KanaliPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPovecavaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPogledTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonKodekTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonUtripTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.OmrezjePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PotDoNapraveTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZvokPravilaTestKt

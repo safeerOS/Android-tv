@@ -401,6 +401,30 @@ fun main() {
             preveri("nikogar nismo poklicali", n.povezav == 0 && h.zahteve.isEmpty())
             n.zapri(); h.zapri()
         }
+        primer("tekma: cas do koncanega rokovanja zmagovalne poti (meritve)") {
+            val n = Naprava("127.0.0.1", mapa)
+            val h = Hub(mapa, "zeton")
+            val izid = NeposrednaPovezava.tekma(
+                { t -> NeposrednaPovezava.povezi(listOf("127.0.0.1"), n.vrata, n.odtis, tece = t) },
+                { t -> NeposrednaPovezava.poveziPrekHuba(h.vrata, h.odtis, "zeton", tece = t) })
+            preveri("neposredno", izid?.pot == NeposrednaPovezava.Pot.NEPOSREDNO)
+            preveri("pravo rokovanje na zanki je izmerjeno (${izid?.casMs} ms)", (izid?.casMs ?: 0L) > 0L)
+            preveri("brez meritve je cas 0", izid != null &&
+                NeposrednaPovezava.Izid(izid.vticnica, izid.pot).casMs == 0L)
+            izid?.vticnica?.close()
+            // Cas tece od zacetka tekme, ne od zacetka poti.
+            val pozna = NeposrednaPovezava.tekma(
+                { t -> Thread.sleep(250); NeposrednaPovezava.povezi(listOf("127.0.0.1"), n.vrata, n.odtis, tece = t) }, null)
+            preveri("od zacetka tekme (${pozna?.casMs} ms)", (pozna?.casMs ?: 0L) >= 250L)
+            pozna?.vticnica?.close()
+            // Prek Huba je v casu tudi odgovor Huba (predaja seje).
+            val pocasen = Hub(mapa, "zeton", zamikOdgovoraMs = 200)
+            val hub = NeposrednaPovezava.tekma(null,
+                { t -> NeposrednaPovezava.poveziPrekHuba(pocasen.vrata, pocasen.odtis, "zeton", tece = t) })
+            preveri("prek Huba", hub?.pot == NeposrednaPovezava.Pot.HUB)
+            preveri("z odgovorom Huba (${hub?.casMs} ms)", (hub?.casMs ?: 0L) >= 200L)
+            hub?.vticnica?.close(); n.zapri(); h.zapri(); pocasen.zapri()
+        }
     } finally {
         mapa.deleteRecursively()
     }
