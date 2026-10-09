@@ -610,7 +610,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                                 val ime = link.naprave.firstOrNull { it.id == id }?.ime?.takeIf { it.isNotBlank() }
                                     ?: getString(R.string.os_zaslon_druga_naprava)
                                 Toast.makeText(this, getString(R.string.os_zaslon_prevzeto, ime), Toast.LENGTH_LONG).show()
-                                koncaj(); finish(); return@runOnUiThread
+                                koncaj(ustaviNaRacunalniku = false); finish(); return@runOnUiThread
                             }
                             Toast.makeText(this, getString(if (besedilo == "ni_okna") R.string.os_zaslon_ni_okna
                                 else R.string.os_zaslon_program_zaprt), Toast.LENGTH_LONG).show()
@@ -756,13 +756,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Konec seje: ustavimo tudi zajem na racunalniku, da ne tece v prazno. */
-    private fun koncaj(zapriPrograme: Boolean = false) {
+    private fun koncaj(zapriPrograme: Boolean = false, ustaviNaRacunalniku: Boolean = true) {
         if (koncujem) return
         koncujem = true
         sprostiDrzane()
         odjemalec?.ustavi()
         odjemalec = null
         val r = racunalnik ?: return
+        if (!ustaviNaRacunalniku) return      // zaslon zdaj gleda druga naprava: njene seje ne ustavljamo
         // Konec seje programa (drzi Nazaj ali "Koncaj") zapre program tudi na racunalniku - prej
         // je tekel naprej na nevidnem zaslonu. Kdor ga hoce pustiti odprtega, pritisne Domov.
         val zahteva = JSONObject()
