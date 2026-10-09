@@ -1252,7 +1252,15 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      */
     private var sistemskoPolje: android.widget.EditText? = null
 
+    /** Tipkovnica nikoli ne sme koncati seje zaslona (S25, 9. 10. 2026: tipka »Tipkovnica« je vrgla na domaci zaslon). */
     private fun odpriTipkovnico() {
+        try { odpriTipkovnicoNotranje() } catch (e: Throwable) {
+            android.util.Log.w("SafeerZaslon", "tipkovnica: $e")
+            tipkovnica?.odpri()
+        }
+    }
+
+    private fun odpriTipkovnicoNotranje() {
         if (!naDotik()) { tipkovnica?.odpri(); return }
         val polje = sistemskoPolje ?: android.widget.EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_TEXT or
@@ -1292,14 +1300,30 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                     poslji(JSONObject().put("vrsta", "tipka").put("tipka", "vracalka")); true
                 } else false
             }
-            findViewById<android.widget.FrameLayout>(R.id.koren).addView(this,
-                android.widget.FrameLayout.LayoutParams(1, 1))
+            // Znotraj apply{} je »this« polje: golo findViewById je iskalo v polju samem in vrnilo null
+            // (NPE je koncal sejo na S25, 9. 10. 2026). Iscemo v oknu dejavnosti.
+            (this@ZaslonActivity.findViewById<View>(R.id.koren) as? android.widget.FrameLayout
+                ?: this@ZaslonActivity.findViewById<android.widget.FrameLayout>(android.R.id.content))
+                .addView(this, android.widget.FrameLayout.LayoutParams(1, 1))
             sistemskoPolje = this
         }
-        polje.requestFocus()
-        polje.setSelection(polje.text.length)
-        (getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
-            ?.showSoftInput(polje, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        // Polje je pravkar dodano in se se ni postavilo: takojsnji showSoftInput Android tiho zavrne
+        // (WP28, 9. 10. 2026: mServedView=null, tipkovnice ni). Zato po postavitvi; napaka ne sme
+        // nikoli koncati seje zaslona.
+        polje.post {
+            try {
+                polje.isFocusableInTouchMode = true
+                polje.requestFocus()
+                polje.setSelection(polje.text.length)
+                if (android.os.Build.VERSION.SDK_INT >= 30) {
+                    window.insetsController?.show(android.view.WindowInsets.Type.ime())
+                }
+                (getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+                    ?.showSoftInput(polje, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            } catch (e: Throwable) {
+                android.util.Log.w("SafeerZaslon", "tipkovnica: ${e.message}")
+            }
+        }
     }
 
     /**
