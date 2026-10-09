@@ -44,6 +44,70 @@ object ZaslonUtrip {
     /** Zakasnitev za »Podatke o povezavi«, npr. »104 ms«. */
     fun opisRtt(ms: Int): String = "$ms ms"
 
+    /** Dolzina obdobja statistike gledalca (ms). */
+    const val OBDOBJE_MS = 1000L
+
+    /** Presledek med zaporednima slikama, ki ga oko pri 60 slikah na sekundo ze zazna kot zatik (ms). */
+    const val ZASTOJ_MS = 50L
+
+    /**
+     * Rok tisine toka, kadar racunalnik poslje utrip. Pred zamrznjeno sliko varuje samo rok branja: ce 10 s ne pride
+     * noben bajt, seja pade, gledalec se poveze znova in racunalnik zazene nov zajem. Utrip pa pride vsake pol sekunde
+     * neodvisno od slike - tudi kadar zajem ali kodirnik na racunalniku obtici - in bi rok branja podaljseval v
+     * nedogled. Zato utrip ne steje: zivljenje toka je vsak drug okvir (slika, zvok, druga obvestila), natanko kot pred
+     * utripom. Ko razen utripov vec kot [rokMs] ne pride nic, [utrip] vrne true in seja pade kot ob roku branja.
+     */
+    class TisinaToka(private val rokMs: Long, zacetekMs: Long) {
+        private var zadnji = zacetekMs
+
+        /** Prisel je okvir, ki ni utrip racunalnika. */
+        fun tok(zdajMs: Long) { zadnji = zdajMs }
+
+        /** Prisel je utrip racunalnika: true, ce razen utripov ze vec kot [rokMs] ni prislo nic. */
+        fun utrip(zdajMs: Long): Boolean = zdajMs - zadnji > rokMs
+    }
+
+    /** Ena sekunda na gledalcu: za dnevnik, »Podatke o povezavi« in odgovor na utrip. */
+    data class Sekunda(val slik: Int, val naSekundo: Double, val megabitov: Double, val dekoderMs: Long,
+                       val zvok: Boolean, val zastojev: Int, val izpusceno: Int)
+
+    /**
+     * Stevci gledalca za tekoco sekundo. Obdobje zapre prvi okvir po [OBDOBJE_MS] - slika ali utrip racunalnika. Ce bi
+     * ga zapirala samo slika, bi odgovori na utrip med zastojem slike ponavljali zadnjo sekundo pred njim (60 slik/s,
+     * brez zastojev): gledalec bi bil »zdrav« ravno takrat, ko slika stoji. Tako ima zastoj 0 slik na sekundo, presledek
+     * pa steje kot zastoj v sekundi, ko pride naslednja slika.
+     */
+    class Obdobje(zacetekMs: Long) {
+        var bajtov = 0L
+        var izpusceno = 0
+        var zvok = false
+        private var slik = 0
+        private var zastojev = 0
+        private var zadnjaSlika = 0L
+        private var od = zacetekMs
+
+        /** Zadnja zaprta sekunda ali null, dokler ni minila prva: gre z odgovorom na utrip. */
+        var zadnja: Sekunda? = null
+            private set
+
+        /** Dekoder je vrnil sliko ob [zdajMs]; presledek, daljsi od [ZASTOJ_MS], je zastoj. */
+        fun slika(zdajMs: Long) {
+            slik++
+            if (zadnjaSlika != 0L && zdajMs - zadnjaSlika > ZASTOJ_MS) zastojev++
+            zadnjaSlika = zdajMs
+        }
+
+        /** Ce je od zacetka obdobja minila vsaj sekunda, jo strne, zacne novo obdobje in jo vrne; sicer null. */
+        fun zapri(zdajMs: Long, dekoderMs: Long): Sekunda? {
+            if (zdajMs - od < OBDOBJE_MS) return null
+            val sekunde = (zdajMs - od) / 1000.0
+            val s = Sekunda(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde, dekoderMs, zvok, zastojev, izpusceno)
+            slik = 0; bajtov = 0; zastojev = 0; izpusceno = 0; zvok = false; od = zdajMs
+            zadnja = s
+            return s
+        }
+    }
+
     /** Decimalno stevilo z [mest] decimalkami, vedno s piko; NaN ali neskoncno (JSON ju ne pozna) je 0. */
     private fun decimalno(x: Double, mest: Int): String =
         if (x.isNaN() || x.isInfinite()) "0" else String.format(Locale.ROOT, "%.${mest}f", x)

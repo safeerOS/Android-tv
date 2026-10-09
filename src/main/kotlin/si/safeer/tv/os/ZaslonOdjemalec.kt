@@ -63,7 +63,7 @@ class ZaslonOdjemalec(
     /** Kar lahko izmerimo na televizorju: slike, pretok in koliko casa slika stoji v dekoderju. */
     data class Statistika(val slik: Int, val naSekundo: Double, val megabitov: Double,
                           val dekoderMs: Long, val sirina: Int, val visina: Int, val zvok: Boolean,
-                          /** Koliko presledkov med zaporednima slikama je bilo v tem obdobju daljsih od [ZASTOJ_MS]. */
+                          /** Koliko presledkov med zaporednima slikama je bilo v tem obdobju daljsih od [ZaslonUtrip.ZASTOJ_MS]. */
                           val zastojev: Int = 0,
                           /** Koliko prevelikih enot NAL smo v tem obdobju izpustili (niso sle v medpomnilnik dekoderja). */
                           val izpusceno: Int = 0)
@@ -84,12 +84,8 @@ class ZaslonOdjemalec(
     }
     // Stanje dekodiranja; bere in pise ga samo nit toka.
     private val info = MediaCodec.BufferInfo()
-    private var slik = 0
-    private var zastojev = 0
-    private var izpusceno = 0
-    /** Zadnja sekunda, kot smo jo sporocili ([naStatistiko]); gre z odgovorom na utrip racunalniku. */
-    private var zadnjaStatistika: Statistika? = null
-    private var zadnjaSlika = 0L
+    /** Stevci tekoce sekunde (slike, zastoji, bajti ...); zadnja zaprta gre v [naStatistiko] in z odgovorom na utrip. */
+    private var obdobje = ZaslonUtrip.Obdobje(0L)
     private var zadnjaZakasnitev = 0L
     /** Enote z nastavitvami HEVC, ki cakajo na sliko, s katero gredo skupaj v dekoder. */
     private var predSliko = ByteArray(0)
@@ -205,6 +201,7 @@ class ZaslonOdjemalec(
             glava.optJSONObject("zvok")?.let { zvocnik = pripraviZvok(it.optInt("hz", 48000), it.optInt("kanali", 2)) }
             // Slika in zvok tecejo ves cas (tudi med pavzo). Ce 10 s ne pride nic, povezave ni vec
             // (izpad Wi-Fi ne zapre vticnice) - branje pade in seja se vrne sama, namesto zamrznjene slike.
+            // Utrip racunalnika (rtt) tega roka ne podaljsuje: crpaj ga steje posebej (ZaslonUtrip.TisinaToka).
             s.soTimeout = TISINA_MS
             naStanje(Stanje.TECE, "")
             // Racunalnik, ki vsak okvir poslje kot celo sliko ("au", Safeer OS za Windows 1.0.48), dovoli, da jo dekoder
@@ -317,15 +314,20 @@ class ZaslonOdjemalec(
         val podatkovni = DataInputStream(vhod)
         val glava = ByteArray(5)
         var ostanek = ByteArray(0)
-        var bajtov = 0L
         // Vsi prejeti bajti seje z glavami okvirjev (slika, zvok, obvestila): racunalnik iz razlik med odgovori na
         // utrip izracuna, koliko pride do nas, neodvisno od zakasnitve odgovorov.
         var bajtovSkupaj = 0L
         var prviOdmev = true
-        var zadnjePorocilo = SystemClock.elapsedRealtime()
-        var imelZvok = false
-        slik = 0; zastojev = 0; zadnjaSlika = 0L; zadnjaZakasnitev = 0L; predSliko = ByteArray(0); poslanihSlik = 0
-        izpusceno = 0; zadnjaStatistika = null; zadnjiRttMs = 0
+        zadnjaZakasnitev = 0L; predSliko = ByteArray(0); poslanihSlik = 0; zadnjiRttMs = 0
+        obdobje = ZaslonUtrip.Obdobje(SystemClock.elapsedRealtime())
+        // Rok tisine (TISINA_MS) velja kot pred utripom: utrip racunalnika ga ne podaljsuje (ZaslonUtrip.TisinaToka).
+        val tisina = ZaslonUtrip.TisinaToka(TISINA_MS.toLong(), SystemClock.elapsedRealtime())
+        /** Minila je sekunda: v dnevnik in »Podatke o povezavi«; ostane tudi za odgovor na utrip. */
+        fun sporociSekundo(zdaj: Long) {
+            val s = obdobje.zapri(zdaj, zadnjaZakasnitev) ?: return
+            naStatistiko(Statistika(s.slik, s.naSekundo, s.megabitov, s.dekoderMs, sirina, visina, s.zvok,
+                s.zastojev, s.izpusceno))
+        }
         // Cele slike (H.264): izhod dekoderja prazni svoja nit, ki na dekoder caka - sicer slika, ki se dekodira
         // dlje od trenutka branja, pride na zaslon sele ob naslednjem okvirju z omrezja (izmerjeno ~50 ms).
         val izhodnaNit = if (celeSlike && !hevc) Thread({
@@ -342,10 +344,13 @@ class ZaslonOdjemalec(
             if (dolzina <= 0 || dolzina > NAJVECJI_OKVIR) break
             val telo = ByteArray(dolzina)
             podatkovni.readFully(telo)
-            bajtov += dolzina + glava.size
+            val prispel = SystemClock.elapsedRealtime()
+            obdobje.bajtov += dolzina + glava.size
             bajtovSkupaj += dolzina + glava.size
+            // Obvestilo je zivljenje toka samo, ce ni utrip (spodaj); vse ostalo vedno.
+            if (vrsta != OKVIR_OBVESTILO) tisina.tok(prispel)
             if (vrsta == OKVIR_ZVOK) {
-                imelZvok = true
+                obdobje.zvok = true
                 try { zvocnik?.write(telo, 0, dolzina, AudioTrack.WRITE_NON_BLOCKING) } catch (_: Throwable) { }
                 continue
             }
@@ -361,8 +366,13 @@ class ZaslonOdjemalec(
                 // gre kot vnos - ena vrstica na niti posiljalnika, za istim zaklepom kot tipke.
                 val utripRacunalnika = obvestilo?.optJSONObject("rtt")
                 if (utripRacunalnika != null) {
+                    // Utrip ni zivljenje toka: ce razen utripov TISINA_MS ni prislo nic (zajem ali kodirnik racunalnika
+                    // je obtical), seja pade kot ob roku branja - gledalec se poveze znova, ne gleda zamrznjene slike.
+                    if (tisina.utrip(prispel)) throw java.net.SocketTimeoutException("Read timed out")
+                    // Med zastojem slike sekundo zapre utrip (0 slik/s), sicer bi odgovor ponavljal sekundo pred njim.
+                    sporociSekundo(prispel)
                     if (utrip) {
-                        val st = zadnjaStatistika
+                        val st = obdobje.zadnja
                         try {
                             posljiVnos(JSONObject(ZaslonUtrip.odgovorRtt(
                                 utripRacunalnika.optLong("n"), utripRacunalnika.optLong("t"),
@@ -377,6 +387,7 @@ class ZaslonOdjemalec(
                     zadnjiRttMs = utripRacunalnika.optInt("z", zadnjiRttMs)
                     continue
                 }
+                tisina.tok(prispel)
                 if (obvestilo != null) try { naObvestilo(obvestilo) } catch (_: Throwable) { }
                 continue
             }
@@ -393,15 +404,7 @@ class ZaslonOdjemalec(
                 }
                 if (od >= 0) posljiNal(kodek, telo, od, telo.size)
                 // Izris vodi izhodna nit (spodaj): sliko pokaze takoj, ko jo dekoder naredi.
-                val zdajC = SystemClock.elapsedRealtime()
-                if (zdajC - zadnjePorocilo >= 1000) {
-                    val sekunde = (zdajC - zadnjePorocilo) / 1000.0
-                    val st = Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
-                        zadnjaZakasnitev, sirina, visina, imelZvok, zastojev, izpusceno)
-                    zadnjaStatistika = st
-                    naStatistiko(st)
-                    slik = 0; bajtov = 0; zadnjePorocilo = zdajC; imelZvok = false; zastojev = 0; izpusceno = 0
-                }
+                sporociSekundo(SystemClock.elapsedRealtime())
                 continue
             }
             ostanek = ostanek + telo
@@ -426,15 +429,7 @@ class ZaslonOdjemalec(
                 tece = false
                 break
             }
-            val zdaj = SystemClock.elapsedRealtime()
-            if (zdaj - zadnjePorocilo >= 1000) {
-                val sekunde = (zdaj - zadnjePorocilo) / 1000.0
-                val st = Statistika(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde,
-                    zadnjaZakasnitev, sirina, visina, imelZvok, zastojev, izpusceno)
-                zadnjaStatistika = st
-                naStatistiko(st)
-                slik = 0; bajtov = 0; zadnjePorocilo = zdaj; imelZvok = false; zastojev = 0; izpusceno = 0
-            }
+            sporociSekundo(SystemClock.elapsedRealtime())
         }
         } finally {
             izhodnaNit?.interrupt()
@@ -452,10 +447,8 @@ class ZaslonOdjemalec(
             val zdajSlika = SystemClock.elapsedRealtime()
             zadnjaZakasnitev = zdajSlika - info.presentationTimeUs / 1000
             kodek.releaseOutputBuffer(i, true)
-            slik++
+            obdobje.slika(zdajSlika)
             imaSliko = true
-            if (zadnjaSlika != 0L && zdajSlika - zadnjaSlika > ZASTOJ_MS) zastojev++
-            zadnjaSlika = zdajSlika
         }
     }
 
@@ -479,7 +472,7 @@ class ZaslonOdjemalec(
             // Enote NAL ni mogoce razbiti na pol, zato jo raje izpustimo kot da seja pade;
             // naslednji kljucni okvir sliko spet postavi na noge.
             Log.w(TAG, "Prevelika enota NAL ($dolzina B), izpuscena.")
-            izpusceno++
+            obdobje.izpusceno++
             kodek.queueInputBuffer(i, 0, 0, 0, 0)
             return
         }
@@ -536,10 +529,8 @@ class ZaslonOdjemalec(
     private companion object {
         /** Izhodna nit caka na dekodirano sliko najvec toliko (mikrosekunde), nato preveri, ali seja se tece. */
         const val IZHOD_CAKAJ_US = 50_000L
-        /** Najdaljsa tisina povezave, preden jo razglasimo za prekinjeno. */
+        /** Najdaljsa tisina povezave, preden jo razglasimo za prekinjeno (utrip racunalnika se ne steje). */
         const val TISINA_MS = 10_000
-        /** Presledek med zaporednima slikama, ki ga oko pri 60 slikah na sekundo ze zazna kot zatik. */
-        const val ZASTOJ_MS = 50L
         const val TAG = "SafeerOsZaslon"
         /** Vrsti okvirjev; morata biti enaki kot v core/link_zaslon.py. */
         const val OKVIR_SLIKA = 1
