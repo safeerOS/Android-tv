@@ -187,7 +187,24 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             val lpGumb = android.widget.FrameLayout.LayoutParams(velikost, velikost)
             lpGumb.gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
             lpGumb.setMargins(0, 0, (14 * gostota).toInt(), (14 * gostota).toInt())
-            findViewById<android.widget.FrameLayout>(R.id.koren).addView(gumb, lpGumb)
+            // Tipke dejanj (kot Stream Deck): pas pogostih dejanj z enim dotikom; gumb ▦ ob meniju ga pokaze ali skrije.
+            val koren = findViewById<android.widget.FrameLayout>(R.id.koren)
+            tipkeDejanj = ZaslonTipkeDejanj(this, koren, { ime -> posljiTipko(ime) }, { odpriTipkovnico() })
+            koren.addView(gumb, lpGumb)
+            val gumbTipke = TextView(this).apply {
+                text = "\u25A6"
+                textSize = 20f
+                setTextColor(osBarva(R.color.os_besedilo))
+                setBackgroundResource(R.drawable.os_znacka)
+                gravity = android.view.Gravity.CENTER
+                alpha = 0.85f
+                contentDescription = getString(R.string.os_tipke_dejanj)
+                setOnClickListener { tipkeDejanj?.preklopi() }
+            }
+            koren.addView(gumbTipke, android.widget.FrameLayout.LayoutParams(velikost, velikost).apply {
+                gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
+                setMargins(0, 0, (14 * gostota).toInt() + velikost + (10 * gostota).toInt(), (14 * gostota).toInt())
+            })
             // Povecana slika: gumb nad menijem jo z enim dotikom vrne na cel zaslon racunalnika.
             val cel = TextView(this).apply {
                 text = "1\u00D7"
@@ -1295,6 +1312,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
 
     private lateinit var kazalecPogled: KazalecPogled
+    private var tipkeDejanj: ZaslonTipkeDejanj? = null
     private var kazalecX = 0
     private var kazalecY = 0
     private var kazalecViden = false

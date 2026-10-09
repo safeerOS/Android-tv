@@ -629,4 +629,11 @@
     <string name="os_viri_namig">Hold OK to rename</string>
     <string name="os_viri_shrani">Save</string>
     <string name="os_viri_privzeto">Default</string>
+    <string name="os_tipke_dejanj">Action keys</string>
+    <string name="os_tipke_okna">Windows</string>
+    <string name="os_tipke_predvajaj">Play</string>
+    <string name="os_tipke_tise">Quieter</string>
+    <string name="os_tipke_glasneje">Louder</string>
+    <string name="os_tipke_utisaj">Mute</string>
+    <string name="os_tipke_esc">Esc</string>
 </resources>

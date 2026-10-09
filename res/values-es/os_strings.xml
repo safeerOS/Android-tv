@@ -625,4 +625,11 @@
     <string name="os_viri_namig">Mantén OK para cambiar el nombre</string>
     <string name="os_viri_shrani">Guardar</string>
     <string name="os_viri_privzeto">Predeterminado</string>
+    <string name="os_tipke_dejanj">Teclas de acción</string>
+    <string name="os_tipke_okna">Ventanas</string>
+    <string name="os_tipke_predvajaj">Reproducir</string>
+    <string name="os_tipke_tise">Más bajo</string>
+    <string name="os_tipke_glasneje">Más alto</string>
+    <string name="os_tipke_utisaj">Silenciar</string>
+    <string name="os_tipke_esc">Esc</string>
 </resources>

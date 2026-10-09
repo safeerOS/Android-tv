@@ -625,4 +625,11 @@
     <string name="os_viri_namig">Tieni premuto OK per rinominare</string>
     <string name="os_viri_shrani">Salva</string>
     <string name="os_viri_privzeto">Predefinito</string>
+    <string name="os_tipke_dejanj">Tasti azione</string>
+    <string name="os_tipke_okna">Finestre</string>
+    <string name="os_tipke_predvajaj">Riproduci</string>
+    <string name="os_tipke_tise">Più basso</string>
+    <string name="os_tipke_glasneje">Più alto</string>
+    <string name="os_tipke_utisaj">Muto</string>
+    <string name="os_tipke_esc">Esc</string>
 </resources>

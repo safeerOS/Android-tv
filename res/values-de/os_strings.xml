@@ -625,4 +625,11 @@
     <string name="os_viri_namig">OK gedrückt halten zum Umbenennen</string>
     <string name="os_viri_shrani">Speichern</string>
     <string name="os_viri_privzeto">Standard</string>
+    <string name="os_tipke_dejanj">Aktionstasten</string>
+    <string name="os_tipke_okna">Fenster</string>
+    <string name="os_tipke_predvajaj">Wiedergabe</string>
+    <string name="os_tipke_tise">Leiser</string>
+    <string name="os_tipke_glasneje">Lauter</string>
+    <string name="os_tipke_utisaj">Stumm</string>
+    <string name="os_tipke_esc">Esc</string>
 </resources>

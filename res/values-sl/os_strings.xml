@@ -628,4 +628,11 @@
     <string name="os_viri_namig">Drži OK za preimenovanje</string>
     <string name="os_viri_shrani">Shrani</string>
     <string name="os_viri_privzeto">Privzeto</string>
+    <string name="os_tipke_dejanj">Tipke dejanj</string>
+    <string name="os_tipke_okna">Okna</string>
+    <string name="os_tipke_predvajaj">Predvajaj</string>
+    <string name="os_tipke_tise">Tiše</string>
+    <string name="os_tipke_glasneje">Glasneje</string>
+    <string name="os_tipke_utisaj">Utišaj</string>
+    <string name="os_tipke_esc">Esc</string>
 </resources>

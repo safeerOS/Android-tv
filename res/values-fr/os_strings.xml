@@ -625,4 +625,11 @@
     <string name="os_viri_namig">Maintenez OK pour renommer</string>
     <string name="os_viri_shrani">Enregistrer</string>
     <string name="os_viri_privzeto">Par défaut</string>
+    <string name="os_tipke_dejanj">Touches d\'action</string>
+    <string name="os_tipke_okna">Fenêtres</string>
+    <string name="os_tipke_predvajaj">Lecture</string>
+    <string name="os_tipke_tise">Moins fort</string>
+    <string name="os_tipke_glasneje">Plus fort</string>
+    <string name="os_tipke_utisaj">Muet</string>
+    <string name="os_tipke_esc">Échap</string>
 </resources>
