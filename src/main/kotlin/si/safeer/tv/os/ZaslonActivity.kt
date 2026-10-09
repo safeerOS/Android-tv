@@ -162,6 +162,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         findViewById<android.widget.FrameLayout>(R.id.koren).addView(okvir, 1,
             android.widget.FrameLayout.LayoutParams(0, 0))
+        // Kazalec racunalnika, ki ga narisemo sami (Windows ga v sliki nima); skrit, dokler racunalnik ne poslje oblike.
+        kazalecPogled = KazalecPogled(this).apply { visibility = View.GONE; isClickable = false; isFocusable = false }
+        findViewById<android.widget.FrameLayout>(R.id.koren).addView(kazalecPogled, 2,
+            android.widget.FrameLayout.LayoutParams(kazalecPogled.mera, kazalecPogled.mera).apply {
+                gravity = android.view.Gravity.TOP or android.view.Gravity.START
+            })
         predvajalnikPas = ZaslonPredvajalnik(this, findViewById(R.id.koren)) { d -> poslji(d) }
         // Tablica: prst je miska (dotik klikne tam, kamor pokaze), meni seje pa je gumb v kotu,
         // ker tablica nima tipke Meni in ne dolgega Nazaj.
@@ -514,7 +520,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             pogled.layoutParams = lp
             osnovaW = lp.width; osnovaH = lp.height
             osnovaL = (sirina - lp.width) / 2; osnovaT = (visina - lp.height) / 2
-            trenL = osnovaL; trenT = osnovaT; trenW = osnovaW; trenH = osnovaH
+            trenL = osnovaL; trenT = osnovaT; trenW = osnovaW; trenH = osnovaH; if (::kazalecPogled.isInitialized) postaviKazalec()
             // Povecava z dvema prstoma ostane (vrtenje zaslona), le lega se omeji na novo povrsino.
             pov.nastaviOsnovo(sirina, visina, osnovaL, osnovaT, osnovaW, osnovaH)
             // Izbrano »Zapolni zaslon«: nova seja in zasukan zaslon se zapolnita sama. Povecava je krajevna -
@@ -1288,6 +1294,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             (getSystemService(UI_MODE_SERVICE) as? android.app.UiModeManager)?.currentModeType !=
             android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
 
+    private lateinit var kazalecPogled: KazalecPogled
+    private var kazalecX = 0
+    private var kazalecY = 0
+    private var kazalecViden = false
+
     private var dotikX = 0f
     private var dotikY = 0f
     private var vlecemDotik = false
@@ -1334,6 +1345,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         pogled.translationY = pov.vrh - osnovaT
         gumbCelZaslon?.visibility = if (povecanoPrekOsnove()) View.VISIBLE else View.GONE
         if (pov.povecano) okvir.visibility = View.GONE
+        if (::kazalecPogled.isInitialized) postaviKazalec()
     }
 
     private fun sredinaX(e: MotionEvent, a: Int, b: Int) = (e.getX(a) + e.getX(b)) / 2f
@@ -1439,6 +1451,19 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     /** Obvestilo racunalnika (na glavni niti). Stari racunalnik jih ne posilja - takrat nic. */
     private fun obvestilo(o: JSONObject) {
         if (isFinishing) return
+        // Kazalec racunalnika (Safeer za Windows od 1.0.50): polozaj in oblika, ko se spremenita - zelo pogosto, zato
+        // takoj in brez ostalih preverjanj.
+        if (o.has("oblika")) {
+            val k = o.optJSONArray("kazalec")
+            if (k != null && k.length() == 2) {
+                kazalecX = k.optInt(0); kazalecY = k.optInt(1)
+                if (povecava) premakniPovecavo(kazalecX, kazalecY)
+            }
+            kazalecPogled.oblika = o.optString("oblika", "puscica")
+            kazalecViden = o.optBoolean("viden", true)
+            postaviKazalec()
+            return
+        }
         // Program se na locenem zaslonu se odpira: povemo to, namesto da uporabnik gleda prazen zaslon.
         if (o.has("program")) {
             o.optString("name").takeIf { it.isNotBlank() }?.let { imePrograma = it }
@@ -1490,6 +1515,19 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         glavna.postDelayed(skrijNamig, ms)
     }
 
+    /** Kazalec narisemo nad sliko na mestu, ki ga je sporocil racunalnik (isti izracun kot okvir izbire). */
+    private fun postaviKazalec() {
+        if (!kazalecViden || slikaW <= 0 || slikaH <= 0 || trenW <= 0 || trenH <= 0) {
+            kazalecPogled.visibility = View.GONE
+            return
+        }
+        val sx = trenW.toFloat() / slikaW * pogled.scaleX
+        val sy = trenH.toFloat() / slikaH * pogled.scaleY
+        kazalecPogled.translationX = trenL + pogled.translationX + kazalecX * sx - kazalecPogled.vrocaX()
+        kazalecPogled.translationY = trenT + pogled.translationY + kazalecY * sy - kazalecPogled.vrocaY()
+        kazalecPogled.visibility = View.VISIBLE
+    }
+
     /** Okvir okoli elementa (x, y, w, h v tockah drugega zaslona), poravnan s sliko in povecavo. */
     private fun pokaziOkvir(x: Int, y: Int, w: Int, h: Int) {
         if (slikaW <= 0 || slikaH <= 0 || trenW <= 0 || trenH <= 0) return
@@ -1531,7 +1569,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         lp.leftMargin = l
         lp.topMargin = t
         pogled.layoutParams = lp
-        trenL = l; trenT = t; trenW = w2; trenH = h2
+        trenL = l; trenT = t; trenW = w2; trenH = h2; if (::kazalecPogled.isInitialized) postaviKazalec()
     }
 
     private fun smernaTipka(ime: String, dol: Boolean, velja: Boolean) {
