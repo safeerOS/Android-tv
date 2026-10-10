@@ -37,5 +37,39 @@ fun main() {
     check(ZaslonKodek.hevcDovoljen(0L, 294L)) { "nikoli ni odpovedal" }
     check(!ZaslonKodek.hevcDovoljen(294L, 294L)) { "odpovedal v tej razlicici" }
     check(ZaslonKodek.hevcDovoljen(294L, 295L)) { "po posodobitvi znova" }
+
+    // Zmoznosti za `caps` v screen.start: vsak okus zna preklop na namizje, dolgo skupino slik in utrip (rtt). Prilagajanja
+    // kakovosti med sejo (abr) se ne ponudi nobeden - racunalnik bi sicer smel menjati kodirnik sredi toka.
+    for (okus in listOf("os", "telefon", "tablica", "brskalnik", "predvajalnik", "")) {
+        val z = ZaslonKodek.zmoznosti(okus)
+        check(z.containsAll(listOf("handoff", "gop", "rtt"))) { "zmoznosti $okus: $z" }
+        check("abr" !in z) { "abr se ni: $okus" }
+        check(z.size == z.toSet().size) { "brez podvojenih: $okus $z" }
+    }
+    kljucne()
     println("ZaslonKodekTest: OK")
+}
+
+/** Kljucna slika: H.264 IDR (5), HEVC IRAP (16-21); v celi sliki H.264 je pred IDR pogosto SEI ali AUD. */
+private fun kljucne() {
+    check(ZaslonKodek.jeKljucna(false, 5) && !ZaslonKodek.jeKljucna(false, 1) && !ZaslonKodek.jeKljucna(false, 6)) {
+        "H.264: samo IDR"
+    }
+    for (v in 16..21) check(ZaslonKodek.jeKljucna(true, v)) { "HEVC IRAP $v" }
+    for (v in listOf(0, 1, 15, 22, 32, 33, 39)) check(!ZaslonKodek.jeKljucna(true, v)) { "HEVC ni kljucna: $v" }
+
+    fun b(vararg x: Int) = ByteArray(x.size) { x[it].toByte() }
+    // H.264 cela slika: SEI (0x06) s stiribajtno zacetno kodo, nato IDR (0x65) s tribajtno.
+    val idr = b(0, 0, 0, 1, 0x06, 5, 4, 3, 0, 0, 1, 0x65, 0x88, 0x84)
+    check(ZaslonKodek.imaKljucno(false, idr, 0, idr.size)) { "IDR za SEI" }
+    check(!ZaslonKodek.imaKljucno(false, idr, 0, 8)) { "samo SEI ni kljucna" }
+    val p = b(0, 0, 0, 1, 0x09, 0x10, 0, 0, 1, 0x41, 0x9a)
+    check(!ZaslonKodek.imaKljucno(false, p, 0, p.size)) { "AUD + P ni kljucna" }
+    // HEVC: IDR_W_RADL (0x26 0x01) je kljucna, navadna slika (0x02 0x01) ni.
+    check(ZaslonKodek.imaKljucno(true, b(0, 0, 0, 1, 0x26, 0x01, 0xaf), 0, 7)) { "HEVC IDR" }
+    check(!ZaslonKodek.imaKljucno(true, b(0, 0, 1, 0x02, 0x01, 0xd0), 0, 6)) { "HEVC navadna" }
+    // Razpon in rob: zacetna koda brez glave na koncu ali zunaj razpona ne steje.
+    check(!ZaslonKodek.imaKljucno(false, b(0, 0, 1), 0, 3)) { "brez glave" }
+    check(!ZaslonKodek.imaKljucno(false, idr, 9, idr.size)) { "zacetek za kodo" }
+    check(ZaslonKodek.imaKljucno(false, idr, 0, 100)) { "do_ nad velikostjo je omejen" }
 }

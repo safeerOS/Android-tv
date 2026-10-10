@@ -5,6 +5,15 @@ package si.safeer.tv.os
  * Brez Androida, da se da preizkusiti na JVM.
  */
 object ZaslonKodek {
+    /**
+     * Kaj gledalec zna, za `caps` v `screen.start`: preklop na namizje racunalnika, kadar je program odprt tam
+     * (program ene same instance), dolga skupina slik (enot ne izpuscamo, zato kljucna slika vsako sekundo ni
+     * potrebna) in utrip `rtt` (odgovor na meritev zakasnitve, [ZaslonUtrip]). Racunalnik kaj novega poslje sele, ko
+     * to potrdi se v glavi toka; starejsi racunalnik seznam prezre. [okus] je za zmoznosti, ki jih ne bodo imeli vsi
+     * okusi aplikacije - zdaj jih imajo vsi enake.
+     */
+    fun zmoznosti(@Suppress("UNUSED_PARAMETER") okus: String): List<String> = listOf("handoff", "gop", "rtt")
+
     /** Kodeki slike, ki jih gledalec zna, po prednosti; HEVC samo, ce ga naprava strojno dekodira. */
     fun seznam(hevcStrojno: Boolean): List<String> = if (hevcStrojno) listOf("hevc", "h264") else listOf("h264")
 
@@ -17,6 +26,27 @@ object ZaslonKodek {
      * z njo v dekoder v enem medpomnilniku. H.264 ostane, kot je bil (vsaka enota posebej).
      */
     fun cakaNaSliko(hevc: Boolean, vrsta: Int): Boolean = hevc && vrsta >= 32
+
+    /** Kljucna slika (nanjo se dekoder lahko prikljuci): H.264 IDR (5), HEVC IRAP (BLA, IDR, CRA: 16-21). */
+    fun jeKljucna(hevc: Boolean, vrsta: Int): Boolean = if (hevc) vrsta in 16..21 else vrsta == 5
+
+    /**
+     * Ali je med [od] in [do_] (Annex-B) kaka enota kljucne slike. Pri H.264 gre cela slika v en medpomnilnik in pred
+     * IDR je pogosto SEI ali AUD, zato ne zadosca prva enota.
+     */
+    fun imaKljucno(hevc: Boolean, b: ByteArray, od: Int, do_: Int): Boolean {
+        var i = maxOf(od, 0)
+        val konec = minOf(do_, b.size)
+        while (i + 3 < konec) {
+            if (b[i] == 0.toByte() && b[i + 1] == 0.toByte() && b[i + 2] == 1.toByte()) {
+                if (jeKljucna(hevc, vrstaEnote(hevc, b[i + 3].toInt()))) return true
+                i += 3
+            } else {
+                i++
+            }
+        }
+        return false
+    }
 
     /** H.264: SPS (7) in PPS (8) gresta v dekoder oznacena kot nastavitev. Pri HEVC gredo nastavitve s sliko. */
     fun jeNastavitev(hevc: Boolean, vrsta: Int): Boolean = !hevc && (vrsta == 7 || vrsta == 8)
