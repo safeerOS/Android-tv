@@ -6480,14 +6480,19 @@ class GlasbaActivity : OsActivity() {
         val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
         // Rok veljavnosti povezave steje pri vrstnem redu (TokIzbira.veljaSe): potekla povezava je zadnja.
         val zdajS = System.currentTimeMillis() / 1000
-        val neposredni = TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }, zdajS)
-        val torrenti = TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave)
+        // Jezik zvoka (lastnik, 10. 10. 2026): film v anglescini, slovenski film v slovenscini - sinhronizacija v tujem
+        // jeziku (npr. brazilska »Dublado«) ne sme biti prva samo zato, ker je v 4K.
+        val zelen = if (sk.video) TokIzbira.zeleniJezik(sk.language) else ""
+        val neposredni = TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }, zdajS, zelen, sk.language)
+        val torrenti = TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave,
+            zelenJezik = zelen, izvirni = sk.language)
         if (!rocno) {
             // Povezave, ki je po lastnem zapisu ze potekla, sploh ne poskusamo (streznik bi odgovoril 403 in uporabnik
             // bi cakal na naslednjo) - razen ce so take vse: ura naprave je lahko napacna, zato jih takrat vseeno poskusimo.
             val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }.ifEmpty { neposredni }
             android.util.Log.i("SafeerOsMedia", "tokovi: neposredni=${neposredni.size} (poteklih ${neposredni.size - zivi.size}), torrenti=${torrenti.size}, zunanji=${tokovi.size - neposredni.size - torrenti.size}; " +
-                "izbran=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}, rok=${zivi.firstOrNull()?.let { TokIzbira.veljaSe(it.url, zdajS) }}")
+                "izbran=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}, " +
+                "zvok=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.jezikZvoka(opis(it)) }}/$zelen, rok=${zivi.firstOrNull()?.let { TokIzbira.veljaSe(it.url, zdajS) }}")
             if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return }
             if (torrenti.isNotEmpty()) { odpri(torrenti.first()); return }
             if (posnetek != null) { odpri(posnetek); return }

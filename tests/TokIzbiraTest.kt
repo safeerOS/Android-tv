@@ -92,5 +92,35 @@ fun main() {
     val remux = listOf("G 1080p [4 GB] FILM.1080p.AAC", "H 1080p [9 GB] FILM.1080p.BluRay.TrueHD.7.1.Atmos")
     check(TokIzbira.uredi(remux, { it }, zAtmosom).first().startsWith("G"))
     check(TokIzbira.uredi(remux, { it }, zAtmosom.copy(truehd = true)).first().startsWith("H"))
+    // Jezik zvoka (10. 10. 2026, »In the Grey« na TV je igral brazilsko sinhronizacijo v 4K): imena tokov dodatka.
+    val tv = TokIzbira.Zmoznosti(visina = 2160)
+    val zona = listOf("Na Zona Cinzenta - 2026 Iracemaflix 1 · 4K Servidor: cdn4k.cc",
+        "Na Zona Cinzenta - 2026 (L) Iracemaflix 1 · 4K · Legendado Servidor: cdn4k.cc",
+        "Na Zona Cinzenta (2026) Iracemaflix 1 · Auto Servidor: auth.urlsync.gy",
+        "Na Zona Cinzenta - 2026 (L) Iracemaflix 1 · Auto · Legendado Servidor: 5ce.me")
+    check(TokIzbira.jezikZvoka(zona[1]) == "izvirnik")
+    check(TokIzbira.jezikZvoka(zona[0]) == "")
+    // brez zelje po jeziku ostane staro vedenje (prvi 4K); z anglescino zmaga izvirnik s podnapisi
+    check(TokIzbira.uredi(zona, { it }, tv).first() == zona[0])
+    check(TokIzbira.uredi(zona, { it }, tv, zelenJezik = "en", izvirni = "en").first() == zona[1])
+    check(TokIzbira.uredi(zona, { it }, tv, zelenJezik = "en").first() == zona[1])
+    // izvirnik v anglescini pri 1080p premaga hindijsko sinhronizacijo v 4K; ne pa toka, ki ga naprava ne predvaja
+    val hi = listOf("Film 2160p WEB-DL Hindi Dubbed 8 GB", "Film 1080p WEB-DL ENG 3 GB")
+    check(TokIzbira.jezikZvoka(hi[0]) == "hi" && TokIzbira.jezikZvoka(hi[1]) == "en")
+    check(TokIzbira.uredi(hi, { it }, tv, zelenJezik = "en").first() == hi[1])
+    check(TokIzbira.uredi(listOf("Film 1080p ENG x265", "Film 720p Latino"), { it }, tv.copy(hevc = false), zelenJezik = "en").first() == "Film 720p Latino")
+    check(TokIzbira.jezikZvoka("Film 1080p Dual Audio ENG-HIN") == "vec")
+    check(TokIzbira.jezikZvoka("Film 1080p Dublado") == "pt")
+    check(TokIzbira.jezikZvoka("Film 1080p DUB") == "sinhronizacija")
+    check(TokIzbira.jezikZvoka("Film.2019.TRUEFRENCH.1080p") == "fr")
+    // slovenski film: zeli slovenscino; francoski film z oznako FRENCH (izvirni jezik) pri zelji en ni kaznovan
+    check(TokIzbira.zeleniJezik("sl") == "sl" && TokIzbira.zeleniJezik("fr") == "en" && TokIzbira.zeleniJezik("") == "en")
+    check(TokIzbira.tockeJezika("Film FRENCH 1080p", "en", "fr") == 0)
+    check(TokIzbira.tockeJezika("Film Hindi 1080p", "en", "fr") == -800)
+    check(TokIzbira.tockeJezika("Film Sloven 1080p", "sl", "sl") == 800)
+    // samo izvirnik »Auto« (neznana locljivost) proti neoznacenemu 4K istega dodatka: izvirnik
+    val samoAuto = listOf(zona[0], zona[3])
+    check(TokIzbira.uredi(samoAuto, { it }, tv, zelenJezik = "en", izvirni = "en").first() == zona[3])
+    check(TokIzbira.jezikiSledi("sl") == listOf("sl", "en") && TokIzbira.jezikiSledi("de") == listOf("en"))
     println("TokIzbiraTest: OK")
 }

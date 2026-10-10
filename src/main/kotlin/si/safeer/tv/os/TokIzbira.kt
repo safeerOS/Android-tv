@@ -43,6 +43,60 @@ object TokIzbira {
     private val IZTEK_ZETON = Regex("[?&](?:hdnts|hdnea|hdntl|token)=(?:[^&]*?[~_-])?exp=(\\d{10})", RegexOption.IGNORE_CASE)
     private val IZTEK_ISO = Regex("[?&]se=(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2})(?:%3A|:)(\\d{2})(?:(?:%3A|:)(\\d{2}))?Z", RegexOption.IGNORE_CASE)
 
+    // Jezik zvoka iz imena toka (lastnik, 10. 10. 2026: privzeto anglescina, pri slovenskih filmih slovenscina).
+    private val Z_VEC = Regex("dual[ .-]?(audio|áudio)|\\bdual\\b|multi[ .-]?(audio|lang)|\\bmulti\\b")
+    private val Z_IZVIRNIK = Regex("legendad|\\(l\\)|\\bleg\\b|subbed|\\bvose\\b|vostfr|\\bvo\\b|original audio|audio original|izvirn")
+    private val Z_JEZIKI = listOf(
+        "en" to Regex("\\beng(lish)?\\b|ingl[eê]s"),
+        "pt" to Regex("dublad|portugu[eê]s|\\bpt[ .-]?br\\b|\\bnacional\\b"),
+        "es" to Regex("latino|castellano|espa[ñn]ol|\\bspa\\b"),
+        "it" to Regex("\\bita\\b|italian"),
+        "fr" to Regex("\\bvff?\\b|truefrench|\\bfrench\\b|fran[cç]ais"),
+        "de" to Regex("\\bgerman\\b|deutsch|\\bger\\b"),
+        "ru" to Regex("\\brus\\b|russian|русск"),
+        "hi" to Regex("\\bhindi\\b|\\bhin\\b"),
+        "ta" to Regex("\\btamil\\b"),
+        "te" to Regex("\\btelugu\\b"),
+        "sl" to Regex("sloven|sinhroniz"),
+    )
+    private val Z_SINHRONIZACIJA = Regex("\\bdub(bed)?\\b|dublaj|doblad")
+
+    /**
+     * Jezik zvoka, kot ga navaja tok: koda ISO 639-1, "izvirnik" (izvirni zvok s podnapisi, npr. »Legendado«),
+     * "vec" (vec zvocnih sledi), "sinhronizacija" (sinhroniziran, jezik ni naveden) ali "" (tok o tem nic ne pove).
+     */
+    fun jezikZvoka(besedilo: String): String {
+        val t = besedilo.lowercase()
+        if (Z_VEC.containsMatchIn(t)) return "vec"
+        if (Z_IZVIRNIK.containsMatchIn(t)) return "izvirnik"
+        val najdeni = Z_JEZIKI.filter { it.second.containsMatchIn(t) }.map { it.first }
+        if (najdeni.size >= 2) return "vec"
+        if (najdeni.size == 1) return najdeni[0]
+        return if (Z_SINHRONIZACIJA.containsMatchIn(t)) "sinhronizacija" else ""
+    }
+
+    /** Zeleni jezik zvoka za film: slovenski film v slovenscini, vse ostalo v anglescini. [izvirni]: jezik filma. */
+    fun zeleniJezik(izvirni: String): String = if (izvirni == "sl") "sl" else "en"
+
+    /** Vrstni red jezikov zvocne sledi za predvajalnik, kadar tok nosi vec sledi (npr. »Dual Audio«). */
+    fun jezikiSledi(izvirni: String): List<String> = if (izvirni == "sl") listOf("sl", "en") else listOf("en")
+
+    /**
+     * Tocke za jezik zvoka. Razumljiv zvok je vec vreden kot visja locljivost: sinhronizacija v tujem jeziku izgubi
+     * proti izvirniku tudi pri 4K proti 1080p, ne pa proti toku, ki ga naprava sploh ne predvaja.
+     */
+    fun tockeJezika(besedilo: String, zelen: String, izvirni: String = "", neoznacenJeSinhronizacija: Boolean = false): Int {
+        if (zelen.isBlank()) return 0
+        return when (val j = jezikZvoka(besedilo)) {
+            // Dodatek, ki posebej oznaci izvirnik s podnapisi (»Legendado«), ima brez oznake sinhronizacijo.
+            "" -> if (neoznacenJeSinhronizacija) -800 else 0
+            zelen -> 800
+            "izvirnik" -> if (izvirni.isBlank() || izvirni == zelen) 800 else 0
+            "vec" -> 300
+            else -> if (j == izvirni && izvirni.isNotBlank() && zelen != "sl") 0 else -800
+        }
+    }
+
     /** Sekunde od 1. 1. 1970 (UTC) za koledarski cas - brez java.time, da pravila tecejo na vsakem Androidu in v JVM. */
     private fun epoha(leto: Int, mesec: Int, dan: Int, ura: Int, minuta: Int, sekunda: Int): Long {
         val l = if (mesec <= 2) leto - 1 else leto
@@ -103,7 +157,8 @@ object TokIzbira {
     /**
      * Vecja ocena = boljsi tok za to napravo. [veljaS]: koliko sekund je povezava se veljavna ([veljaSe]); null = brez roka.
      */
-    fun ocena(besedilo: String, z: Zmoznosti, veljaS: Long? = null): Int {
+    fun ocena(besedilo: String, z: Zmoznosti, veljaS: Long? = null, zelenJezik: String = "", izvirni: String = "",
+              neoznacenJeSinhronizacija: Boolean = false): Int {
         val o = opisi(besedilo)
         val v = if (o.visina == 0) 700 else o.visina          // neznana locljivost: med 720p in 480p
         // Do locljivosti zaslona je vec boljse; nad njo le vecja datoteka brez koristi (se vedno predvajljivo).
@@ -135,6 +190,7 @@ object TokIzbira {
         // Casovno omejena povezava: potekla ne dela (zadnja od vseh), tik pred iztekom se ustavi sredi filma (za
         // drugimi iste locljivosti); sicer ima med enakovrednima prednost trajna povezava.
         if (veljaS != null) tocke -= when { veljaS <= 60 -> 6000; veljaS < 20 * 60 -> 300; else -> 15 }
+        tocke += tockeJezika(besedilo, zelenJezik, izvirni, neoznacenJeSinhronizacija)
         return tocke
     }
 
@@ -143,7 +199,10 @@ object TokIzbira {
      * uposteva tudi rok veljavnosti povezave ([veljaSe]) ob casu [zdajS] (sekunde od 1970).
      */
     fun <T> uredi(tokovi: List<T>, besedilo: (T) -> String, z: Zmoznosti, naslov: ((T) -> String)? = null,
-                  zdajS: Long = System.currentTimeMillis() / 1000): List<T> =
-        tokovi.mapIndexed { i, t -> Triple(t, ocena(besedilo(t), z, naslov?.let { veljaSe(it(t), zdajS) }), i) }
+                  zdajS: Long = System.currentTimeMillis() / 1000, zelenJezik: String = "", izvirni: String = ""): List<T> {
+        val izvirnikOznacen = zelenJezik.isNotBlank() && tokovi.any { jezikZvoka(besedilo(it)) == "izvirnik" }
+        return tokovi.mapIndexed { i, t -> Triple(t, ocena(besedilo(t), z, naslov?.let { veljaSe(it(t), zdajS) }, zelenJezik, izvirni,
+            izvirnikOznacen), i) }
             .sortedWith(compareByDescending<Triple<T, Int, Int>> { it.second }.thenBy { it.third }).map { it.first }
+    }
 }
