@@ -461,6 +461,11 @@ class GlasbaStoritev : Service() {
         zacetnoMesto = null
         poskusOd = android.os.SystemClock.uptimeMillis()
         val prva = seznam.getOrNull(od.coerceIn(0, (seznam.size - 1).coerceAtLeast(0)))
+        // Tok z vec zvocnimi sledmi: film v anglescini, slovenski film v slovenscini (TokIzbira.jezikiSledi).
+        if (prva != null && prva.video) {
+            p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                .setPreferredAudioLanguages(*TokIzbira.jezikiSledi(prva.language).toTypedArray()).build()
+        }
         val zvocnik = Zvocniki.aktivni
         val samodejno = naslednjaSamodejno
         naslednjaSamodejno = false
