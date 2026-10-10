@@ -10,26 +10,31 @@ import java.net.URLEncoder
 object JavnaLast {
     private const val PREDPONA = "archive:"
     private const val ROK_MS = 8_000
-    private const val POIZVEDBA = "collection:feature_films AND mediatype:movies AND licenseurl:*publicdomain*"
     private val sumljivo = Regex("torrent|\\b(dvd|br|web|hd|bd)?rip\\b|\\bhdcam\\b|\\bx26[45]\\b|\\bxvid\\b|\\bcam\\b", RegexOption.IGNORE_CASE)
     private val videoFormati = setOf("h.264", "512Kb MPEG4", "MPEG4", "h.264 IA")
 
     fun jeEnota(s: Jamendo.Skladba) = s.id.startsWith(PREDPONA)
 
-    /** Najbolj priljubljeni filmi ali iskanje po naslovu; brez izrecne licence ni zadetka. */
-    fun isci(beseda: String = ""): List<Jamendo.Skladba> {
-        val cista = beseda.replace(Regex("[^\\p{L}\\p{N} ]+"), " ")
-            .replace(Regex("\\s+"), " ").trim()
-        val q = POIZVEDBA + if (cista.isNotBlank()) " AND title:($cista)" else ""
+    /**
+     * Najbolj priljubljeni filmi ali iskanje po naslovu; brez izrecne licence ni zadetka. `jezik` (ISO 639-1) in
+     * `predmeti` (imena zvrsti v anglescini) izbere ze Internet Archive ([JavnaLastPoizvedba]); zadetek brez jezika ali
+     * zvrsti v podatkih dobi izbranega, da ga mreza ne izloci.
+     */
+    fun isci(beseda: String = "", jezik: String = "", predmeti: List<String> = emptyList()): List<Jamendo.Skladba> {
+        val q = JavnaLastPoizvedba.q(beseda, jezik, predmeti)
         val parametri = listOf(
             "q" to q,
             "fl[]" to "identifier", "fl[]" to "title", "fl[]" to "year",
-            "fl[]" to "description", "fl[]" to "format", "fl[]" to "language",
+            "fl[]" to "description", "fl[]" to "format", "fl[]" to "language", "fl[]" to "subject",
             "sort[]" to "downloads desc", "rows" to "40", "output" to "json",
         ).joinToString("&") { (k, v) -> kodiraj(k) + "=" + kodiraj(v) }
         val dokumenti = JSONObject(beri("https://archive.org/advancedsearch.php?$parametri"))
             .optJSONObject("response")?.optJSONArray("docs") ?: return emptyList()
-        return (0 until dokumenti.length()).mapNotNull { i -> kartica(dokumenti.optJSONObject(i)) }
+        val izbrani = JavnaLastPoizvedba.imenaJezika(jezik).isNotEmpty()
+        return (0 until dokumenti.length()).mapNotNull { i -> kartica(dokumenti.optJSONObject(i)) }.map { k ->
+            k.copy(language = k.language.ifBlank { if (izbrani) jezik else "" },
+                   genres = k.genres.ifEmpty { predmeti })
+        }
     }
 
     private fun kartica(v: JSONObject?): Jamendo.Skladba? {
@@ -55,6 +60,11 @@ object JavnaLast {
             year = leto,
             language = besedilo(v.opt("language")).split(Regex("[,;\\s]+"))
                 .firstOrNull().orEmpty(),
+            genres = when (val p = v.opt("subject")) {
+                is JSONArray -> (0 until p.length()).map { p.optString(it).trim() }.filter { it.isNotEmpty() }.take(12)
+                null -> emptyList()
+                else -> besedilo(p).split(Regex("[,;]+")).map { it.trim() }.filter { it.isNotEmpty() }.take(12)
+            },
         )
     }
 

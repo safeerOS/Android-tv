@@ -2317,13 +2317,31 @@ class GlasbaActivity : OsActivity() {
             // nimajo. Anglescine je v katalogih dovolj; ob izbrani zvrsti ostanejo katalogi (seznam zvrsti ne pozna).
             val seznamJezika = if (jezik.isNotEmpty() && jezik != "en" && zvrst == null)
                 iskanjeDelavec.submit<Pair<List<Jamendo.Skladba>, Boolean>?> { try { naslovniJezika(jezik, tip, 0) } catch (_: Exception) { null } } else null
+            // Filmi v javni lasti v izbranem jeziku in zvrsti: izbere jih ze Internet Archive (vecina nima jezika ali zvrsti v
+            // podatkih, zato jih filter na nasi strani izloci - prazna mreza pri »Komedija · Anglescina«, lastnik 10. 10. 2026).
+            val zacetek = android.os.SystemClock.uptimeMillis()
+            val javnaIzbrana = if (tip == "movie" && (jezik.isNotEmpty() || zvrst != null) && jeVirViden(VIDEO, VIR_JAVNA_LAST))
+                iskanjeDelavec.submit<List<Jamendo.Skladba>> {
+                    val r = try { JavnaLast.isci("", jezik, zvrst?.katalog.orEmpty()) } catch (_: Exception) { emptyList() }
+                    android.util.Log.i("SafeerOsCas", "brskanje javna last: ${r.size} kartic v ${android.os.SystemClock.uptimeMillis() - zacetek} ms")
+                    // Na zaslon takoj, ko pridejo (~1-2 s) - ne cakamo na pocasne kataloge dodatkov (do 20 s).
+                    if (r.isNotEmpty()) glavna.post {
+                        if (isFinishing || odprtKatalog !== o) return@post
+                        val znani = o.vsi.mapTo(HashSet()) { it.id }
+                        val nove = r.filter { it.id !in znani }
+                        if (nove.isNotEmpty()) { o.vsi += nove; narisiKatalog(naslov) }
+                    }
+                    r
+                } else null
             val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, zvrst) } catch (_: Exception) { 0 to emptyList() } } }
                 .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { 0 to emptyList<Jamendo.Skladba>() } }
             // Jezik za vse kataloge skupaj (isti naslov je v vec katalogih): eno vprasanje namesto dvanajstih.
             val vJezikuKatalogov = vJeziku(prepleti(strani.map { it.second }), jezik)
             // Na seznam jezika cakamo kratko: pocasen odgovor (velik jezik prvic) ne sme zadrzati mreze - pride z »Naloži več«.
             val izSeznama = try { seznamJezika?.get(8, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
-            val izKatalogov = izSeznama?.first.orEmpty() + vJezikuKatalogov
+            val izJavneLasti = try { javnaIzbrana?.get(10, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
+            val izKatalogov = izSeznama?.first.orEmpty() + vJezikuKatalogov + izJavneLasti.orEmpty()
+            android.util.Log.i("SafeerOsCas", "brskanje katalogi: ${katalogi.size} katalogov, ${izKatalogov.size} kartic v ${android.os.SystemClock.uptimeMillis() - zacetek} ms")
             // 2) Kar razdelek Video pozna iz ostalih virov (splet, PeerTube, javna last ...). Ce to se ni nalozeno, mreza
             //    ne caka: katalogi so na zaslonu takoj, ostalo se doda, ko pride.
             fun osnova(police: List<Podatki>, vse: List<Jamendo.Skladba>?) = vJeziku((police.flatMap { it.skladbe } + vse.orEmpty()).distinctBy { it.id }
