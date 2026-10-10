@@ -56,6 +56,7 @@ fun main() {
 
         tisinaToka()
         obdobje()
+        trajanjeZastojev()
     } finally {
         Locale.setDefault(privzeti)
     }
@@ -137,4 +138,42 @@ private fun obdobje() {
     // Zvok v sekundi se zapise in nato pobrise.
     o.zvok = true
     check(o.zapri(8000, 15)?.zvok == true && o.zapri(9000, 15)?.zvok == false) { "zvok po sekundah" }
+}
+
+/**
+ * Trajanje in razredi zastojev: vsak presledek nad 50 ms steje enkrat (kot prej) in z vsem trajanjem; nad 100 ms in
+ * nad 250 ms posebej; zastoj, ki ga konca kljucna slika, posebej. Odgovor na utrip nosi nova polja samo, ce so podana.
+ */
+private fun trajanjeZastojev() {
+    val o = ZaslonUtrip.Obdobje(0)
+    var t = 0L
+    fun slike(n: Int) { repeat(n) { o.slika(t); t += 17 } }
+    slike(10)                                  // brez zastoja
+    t += 33; o.slika(t, kljucna = true)        // presledek 50 ms (17 + 33): ni zastoj, tudi ob kljucni sliki ne
+    t += 60; o.slika(t)                        // 60 ms: zastoj
+    t += 120; o.slika(t, kljucna = true)       // 120 ms ob kljucni sliki: zastoj nad 100
+    t += 300; o.slika(t)                       // 300 ms: nad 100 in nad 250
+    val s = o.zapri(1000, 10)!!
+    check(s.zastojev == 3) { "zastojev: $s" }
+    check(s.zastojMs == 60L + 120 + 300) { "trajanje: $s" }
+    check(s.zastojev100 == 2 && s.zastojev250 == 1) { "razredi: $s" }
+    check(s.zastojevKljucna == 1) { "ob kljucni: $s" }
+    // Nova sekunda zacne pri nic.
+    t += 17; o.slika(t)
+    val n = o.zapri(2000, 10)!!
+    check(n.zastojev == 0 && n.zastojMs == 0L && n.zastojev100 == 0 && n.zastojev250 == 0 && n.zastojevKljucna == 0) {
+        "nova sekunda: $n"
+    }
+
+    // Odgovor: nova polja za starimi, samo ce so podana (starejsi klic da natanko isto vrstico kot prej).
+    val star = ZaslonUtrip.odgovorRtt(1, 2, 3, 4, 59.8, 1.0, 12, 3, 0, null, null)
+    check(star.endsWith("\"zastoji\":3,\"izpusceno\":0}")) { "brez novih polj: $star" }
+    val nov = ZaslonUtrip.odgovorRtt(1, 2, 3, 4, 59.8, 1.0, 12, s.zastojev, 0, null, null,
+        zastojMs = s.zastojMs, zastoji100 = s.zastojev100, zastoji250 = s.zastojev250, zastojiKljucna = s.zastojevKljucna)
+    check(nov.endsWith("\"zastoji\":3,\"izpusceno\":0,\"zastoj_ms\":480,\"zastoji_100\":2,\"zastoji_250\":1," +
+        "\"zastoji_kljucna\":1}")) { "nova polja: $nov" }
+    val sPotjo = ZaslonUtrip.odgovorRtt(1, 2, 3, 4, 0.0, 0.0, 0, 0, 0, "hub", 87, zastojMs = 0, zastoji100 = 0,
+        zastoji250 = 0, zastojiKljucna = 0)
+    check(sPotjo.endsWith("\"izpusceno\":0,\"zastoj_ms\":0,\"zastoji_100\":0,\"zastoji_250\":0,\"zastoji_kljucna\":0," +
+        "\"pot\":\"hub\",\"rok\":87}")) { "s potjo: $sPotjo" }
 }

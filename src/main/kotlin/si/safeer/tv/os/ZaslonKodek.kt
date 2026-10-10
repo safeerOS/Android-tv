@@ -27,6 +27,27 @@ object ZaslonKodek {
      */
     fun cakaNaSliko(hevc: Boolean, vrsta: Int): Boolean = hevc && vrsta >= 32
 
+    /** Kljucna slika (nanjo se dekoder lahko prikljuci): H.264 IDR (5), HEVC IRAP (BLA, IDR, CRA: 16-21). */
+    fun jeKljucna(hevc: Boolean, vrsta: Int): Boolean = if (hevc) vrsta in 16..21 else vrsta == 5
+
+    /**
+     * Ali je med [od] in [do_] (Annex-B) kaka enota kljucne slike. Pri H.264 gre cela slika v en medpomnilnik in pred
+     * IDR je pogosto SEI ali AUD, zato ne zadosca prva enota.
+     */
+    fun imaKljucno(hevc: Boolean, b: ByteArray, od: Int, do_: Int): Boolean {
+        var i = maxOf(od, 0)
+        val konec = minOf(do_, b.size)
+        while (i + 3 < konec) {
+            if (b[i] == 0.toByte() && b[i + 1] == 0.toByte() && b[i + 2] == 1.toByte()) {
+                if (jeKljucna(hevc, vrstaEnote(hevc, b[i + 3].toInt()))) return true
+                i += 3
+            } else {
+                i++
+            }
+        }
+        return false
+    }
+
     /** H.264: SPS (7) in PPS (8) gresta v dekoder oznacena kot nastavitev. Pri HEVC gredo nastavitve s sliko. */
     fun jeNastavitev(hevc: Boolean, vrsta: Int): Boolean = !hevc && (vrsta == 7 || vrsta == 8)
 

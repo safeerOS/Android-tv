@@ -18,6 +18,8 @@ object ZaslonUtrip {
      * Odgovor na utrip: ena vrstica JSON brez znaka za novo vrstico (tega doda posiljanje vnosa). [n] in [t] gresta
      * nazaj nespremenjena, [r] je ura gledalca (ms), [b] vsi prejeti bajti seje skupaj z glavami okvirjev. Ostalo je
      * zadnja sekunda na gledalcu: slike na sekundo, megabiti na sekundo, cas v dekoderju, zastoji in izpuscene enote.
+     * [zastojMs], [zastoji100], [zastoji250] in [zastojiKljucna] (skupno trajanje zastojev v ms, zastoji nad 100 ms in
+     * nad 250 ms, zastoji, ki jih je koncala kljucna slika) gredo samo, ce niso null - starejsi racunalnik jih prezre.
      * Prvi odgovor seje pove se pot (`neposredno` ali `hub`) in [rokMs], koliko je trajala povezava s pripetim
      * potrdilom; v ostalih sta null in ju ni.
      *
@@ -27,6 +29,7 @@ object ZaslonUtrip {
         n: Long, t: Long, r: Long, b: Long,
         fps: Double, mbps: Double, dek: Long, zastoji: Int, izpusceno: Int,
         pot: String?, rokMs: Long?,
+        zastojMs: Long? = null, zastoji100: Int? = null, zastoji250: Int? = null, zastojiKljucna: Int? = null,
     ): String {
         val s = StringBuilder(192)
         s.append("{\"vrsta\":\"rtt\",\"n\":").append(n).append(",\"t\":").append(t)
@@ -36,6 +39,10 @@ object ZaslonUtrip {
             .append(",\"dek\":").append(dek)
             .append(",\"zastoji\":").append(zastoji)
             .append(",\"izpusceno\":").append(izpusceno)
+        if (zastojMs != null) s.append(",\"zastoj_ms\":").append(zastojMs)
+        if (zastoji100 != null) s.append(",\"zastoji_100\":").append(zastoji100)
+        if (zastoji250 != null) s.append(",\"zastoji_250\":").append(zastoji250)
+        if (zastojiKljucna != null) s.append(",\"zastoji_kljucna\":").append(zastojiKljucna)
         if (pot != null) s.append(",\"pot\":").append(niz(pot))
         if (rokMs != null) s.append(",\"rok\":").append(rokMs)
         return s.append('}').toString()
@@ -49,6 +56,10 @@ object ZaslonUtrip {
 
     /** Presledek med zaporednima slikama, ki ga oko pri 60 slikah na sekundo ze zazna kot zatik (ms). */
     const val ZASTOJ_MS = 50L
+
+    /** Meji razredov zastojev (ms): daljsi zastoji, ki jih [ZASTOJ_MS] steje enako kot kratke. */
+    const val ZASTOJ_100_MS = 100L
+    const val ZASTOJ_250_MS = 250L
 
     /**
      * Rok tisine toka, kadar racunalnik poslje utrip. Pred zamrznjeno sliko varuje samo rok branja: ce 10 s ne pride
@@ -69,7 +80,11 @@ object ZaslonUtrip {
 
     /** Ena sekunda na gledalcu: za dnevnik, »Podatke o povezavi« in odgovor na utrip. */
     data class Sekunda(val slik: Int, val naSekundo: Double, val megabitov: Double, val dekoderMs: Long,
-                       val zvok: Boolean, val zastojev: Int, val izpusceno: Int)
+                       val zvok: Boolean, val zastojev: Int, val izpusceno: Int,
+                       /** Skupno trajanje zastojev (cel presledek, ms), ki so se koncali v tej sekundi. */
+                       val zastojMs: Long = 0, val zastojev100: Int = 0, val zastojev250: Int = 0,
+                       /** Zastoji, ki jih je koncala kljucna slika. */
+                       val zastojevKljucna: Int = 0)
 
     /**
      * Stevci gledalca za tekoco sekundo. Obdobje zapre prvi okvir po [OBDOBJE_MS] - slika ali utrip racunalnika. Ce bi
@@ -83,6 +98,10 @@ object ZaslonUtrip {
         var zvok = false
         private var slik = 0
         private var zastojev = 0
+        private var zastojMs = 0L
+        private var zastojev100 = 0
+        private var zastojev250 = 0
+        private var zastojevKljucna = 0
         private var zadnjaSlika = 0L
         private var od = zacetekMs
 
@@ -90,10 +109,20 @@ object ZaslonUtrip {
         var zadnja: Sekunda? = null
             private set
 
-        /** Dekoder je vrnil sliko ob [zdajMs]; presledek, daljsi od [ZASTOJ_MS], je zastoj. */
-        fun slika(zdajMs: Long) {
+        /**
+         * Dekoder je vrnil sliko ob [zdajMs]; presledek, daljsi od [ZASTOJ_MS], je zastoj. Steje v sekundi, ko pride
+         * slika, ki ga konca, z vsem trajanjem. [kljucna]: to sliko je dekoder dobil kot kljucno.
+         */
+        fun slika(zdajMs: Long, kljucna: Boolean = false) {
             slik++
-            if (zadnjaSlika != 0L && zdajMs - zadnjaSlika > ZASTOJ_MS) zastojev++
+            val presledek = if (zadnjaSlika != 0L) zdajMs - zadnjaSlika else 0L
+            if (presledek > ZASTOJ_MS) {
+                zastojev++
+                zastojMs += presledek
+                if (presledek > ZASTOJ_100_MS) zastojev100++
+                if (presledek > ZASTOJ_250_MS) zastojev250++
+                if (kljucna) zastojevKljucna++
+            }
             zadnjaSlika = zdajMs
         }
 
@@ -101,8 +130,10 @@ object ZaslonUtrip {
         fun zapri(zdajMs: Long, dekoderMs: Long): Sekunda? {
             if (zdajMs - od < OBDOBJE_MS) return null
             val sekunde = (zdajMs - od) / 1000.0
-            val s = Sekunda(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde, dekoderMs, zvok, zastojev, izpusceno)
+            val s = Sekunda(slik, slik / sekunde, bajtov * 8 / 1e6 / sekunde, dekoderMs, zvok, zastojev, izpusceno,
+                zastojMs, zastojev100, zastojev250, zastojevKljucna)
             slik = 0; bajtov = 0; zastojev = 0; izpusceno = 0; zvok = false; od = zdajMs
+            zastojMs = 0; zastojev100 = 0; zastojev250 = 0; zastojevKljucna = 0
             zadnja = s
             return s
         }

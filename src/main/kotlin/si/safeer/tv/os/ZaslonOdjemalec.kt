@@ -86,6 +86,11 @@ class ZaslonOdjemalec(
     private val info = MediaCodec.BufferInfo()
     /** Stevci tekoce sekunde (slike, zastoji, bajti ...); zadnja zaprta gre v [naStatistiko] in z odgovorom na utrip. */
     private var obdobje = ZaslonUtrip.Obdobje(0L)
+    /**
+     * Zigi (presentationTimeUs) kljucnih slik, ki so sle v dekoder in jih se ni vrnil: dekoder zig ohrani, tako ob
+     * izhodu vemo, ali je zastoj koncala kljucna slika. Pise nit branja, bere izhod (tudi izhodna nit) - pod zaklepom.
+     */
+    private val kljucniZigi = ArrayDeque<Long>()
     private var zadnjaZakasnitev = 0L
     /** Enote z nastavitvami HEVC, ki cakajo na sliko, s katero gredo skupaj v dekoder. */
     private var predSliko = ByteArray(0)
@@ -320,6 +325,7 @@ class ZaslonOdjemalec(
         var prviOdmev = true
         zadnjaZakasnitev = 0L; predSliko = ByteArray(0); poslanihSlik = 0; zadnjiRttMs = 0
         obdobje = ZaslonUtrip.Obdobje(SystemClock.elapsedRealtime())
+        synchronized(kljucniZigi) { kljucniZigi.clear() }
         // Rok tisine (TISINA_MS) velja kot pred utripom: utrip racunalnika ga ne podaljsuje (ZaslonUtrip.TisinaToka).
         val tisina = ZaslonUtrip.TisinaToka(TISINA_MS.toLong(), SystemClock.elapsedRealtime())
         /** Minila je sekunda: v dnevnik in »Podatke o povezavi«; ostane tudi za odgovor na utrip. */
@@ -380,7 +386,9 @@ class ZaslonOdjemalec(
                                 st?.naSekundo ?: 0.0, st?.megabitov ?: 0.0, st?.dekoderMs ?: 0L,
                                 st?.zastojev ?: 0, st?.izpusceno ?: 0,
                                 pot = if (prviOdmev) (if (prekHuba) "hub" else "neposredno") else null,
-                                rokMs = if (prviOdmev && rokMs > 0) rokMs else null)))
+                                rokMs = if (prviOdmev && rokMs > 0) rokMs else null,
+                                zastojMs = st?.zastojMs ?: 0L, zastoji100 = st?.zastojev100 ?: 0,
+                                zastoji250 = st?.zastojev250 ?: 0, zastojiKljucna = st?.zastojevKljucna ?: 0)))
                             prviOdmev = false
                         } catch (_: Throwable) { }   // meritev ne sme ustaviti slike
                     }
@@ -446,8 +454,9 @@ class ZaslonOdjemalec(
             if (i < 0) break
             val zdajSlika = SystemClock.elapsedRealtime()
             zadnjaZakasnitev = zdajSlika - info.presentationTimeUs / 1000
+            val kljucna = synchronized(kljucniZigi) { kljucniZigi.remove(info.presentationTimeUs) }
             kodek.releaseOutputBuffer(i, true)
-            obdobje.slika(zdajSlika)
+            obdobje.slika(zdajSlika, kljucna)
             imaSliko = true
         }
     }
@@ -480,7 +489,12 @@ class ZaslonOdjemalec(
         medpomnilnik.put(vir, od, do_ - od)
         val zastavice = if (ZaslonKodek.jeNastavitev(hevc, vrsta)) MediaCodec.BUFFER_FLAG_CODEC_CONFIG else 0
         // Cas oddaje uporabimo kot zig: ob izhodu iz dekoderja iz njega izracunamo zakasnitev.
-        kodek.queueInputBuffer(i, 0, dolzina, SystemClock.elapsedRealtime() * 1000, zastavice)
+        val zig = SystemClock.elapsedRealtime() * 1000
+        if (ZaslonKodek.imaKljucno(hevc, vir, od, do_)) synchronized(kljucniZigi) {
+            if (kljucniZigi.size >= NAJVEC_KLJUCNIH_ZIGOV) kljucniZigi.removeFirst()
+            kljucniZigi.addLast(zig)
+        }
+        kodek.queueInputBuffer(i, 0, dolzina, zig, zastavice)
         if (hevc && !imaSliko) poslanihSlik++
     }
 
@@ -527,6 +541,8 @@ class ZaslonOdjemalec(
     }
 
     private companion object {
+        /** Toliko zigov kljucnih slik hranimo (slike, ki jih dekoder ne vrne, ne smejo rasti brez meje). */
+        const val NAJVEC_KLJUCNIH_ZIGOV = 8
         /** Izhodna nit caka na dekodirano sliko najvec toliko (mikrosekunde), nato preveri, ali seja se tece. */
         const val IZHOD_CAKAJ_US = 50_000L
         /** Najdaljsa tisina povezave, preden jo razglasimo za prekinjeno (utrip racunalnika se ne steje). */
