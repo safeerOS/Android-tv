@@ -665,4 +665,7 @@
     <string name="trg_izklopljen_opis">%1$s is disabled on this device. You can turn it on in the app info with the “Enable” button.</string>
     <string name="trg_odpri_nastavitve">Open settings</string>
     <string name="trg_ni_uradnega">%1$s is not on this device, and Google does not publish an official installation file for it. The Google Play catalogue is also available through Aurora Store.</string>
+    <string name="apk_vir_naprava">this device</string>
+    <string name="apk_podrobno">Package: %1$s · source: %2$s · %3$s MB</string>
+    <string name="apk_posodobitve">Safeer does not update this app by itself.</string>
 </resources>

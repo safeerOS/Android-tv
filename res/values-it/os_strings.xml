@@ -661,4 +661,7 @@
     <string name="trg_izklopljen_opis">%1$s è disattivata su questo dispositivo. Puoi attivarla nelle informazioni dell’app con il pulsante «Attiva».</string>
     <string name="trg_odpri_nastavitve">Apri impostazioni</string>
     <string name="trg_ni_uradnega">%1$s non è su questo dispositivo e Google non pubblica un file di installazione ufficiale. Il catalogo di Google Play è disponibile anche tramite Aurora Store.</string>
+    <string name="apk_vir_naprava">questo dispositivo</string>
+    <string name="apk_podrobno">Pacchetto: %1$s · origine: %2$s · %3$s MB</string>
+    <string name="apk_posodobitve">Safeer non aggiorna questa app da solo.</string>
 </resources>
