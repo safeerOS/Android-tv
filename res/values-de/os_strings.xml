@@ -632,4 +632,33 @@
     <string name="os_tipke_glasneje">Lauter</string>
     <string name="os_tipke_utisaj">Stumm</string>
     <string name="os_tipke_esc">Esc</string>
+    <!-- Namestitev APK brez Google Play (NamestiApk). -->
+    <string name="apk_naslov">App installieren</string>
+    <string name="apk_pripravljam">„%1$s“ wird vorbereitet …</string>
+    <string name="apk_vprasanje">„%1$s“ (Version %2$s) installieren?</string>
+    <string name="apk_vprasanje_posodobi">„%1$s“ auf Version %2$s aktualisieren? Installiert: %3$s.</string>
+    <string name="apk_opozorilo">Diese App stammt nicht aus Google Play. Installiere sie nur, wenn du der Quelle vertraust.</string>
+    <string name="apk_namesti">Installieren</string>
+    <string name="apk_ni_veljavna">Diese Datei ist keine gültige Android-App.</string>
+    <string name="apk_napaka">Die App konnte nicht zur Installation vorbereitet werden.</string>
+    <string name="apk_dovoljenje">Android muss Safeer erlauben, Apps zu installieren. Erlaube es und komm zurück – die Installation läuft von selbst weiter.</string>
+    <!-- Izbira ponudnika aplikacij (TrgovineAplikacij). -->
+    <string name="trg_gumb">Apps installieren …</string>
+    <string name="trg_naslov">Woher möchtest du Apps installieren?</string>
+    <string name="trg_namesceno">installiert</string>
+    <string name="trg_iscem">Suche die neueste Version: %1$s …</string>
+    <string name="trg_ni_vira">Die neueste Version (%1$s) ist gerade nicht verfügbar. Versuche es später erneut.</string>
+    <string name="trg_ni_zagona">%1$s lässt sich von diesem Bildschirm aus nicht öffnen.</string>
+    <string name="trg_opis_aptoide">App-Store für Fernseher.</string>
+    <string name="trg_opis_aurora">Apps aus dem Google-Play-Katalog ohne Google-Konto.</string>
+    <string name="trg_opis_droidify">F-Droid-Client.</string>
+    <string name="trg_opis_fdroid">Freie und quelloffene Software.</string>
+    <string name="trg_opis_flicky">F-Droid-Client für den Fernseher.</string>
+    <string name="trg_opis_play">Googles Store.</string>
+    <string name="trg_opis_neo">F-Droid-Client.</string>
+    <string name="trg_opis_obtainium">Apps direkt aus den Veröffentlichungen der Autoren (GitHub, GitLab …).</string>
+    <string name="trg_izklopljeno">deaktiviert</string>
+    <string name="trg_izklopljen_opis">%1$s ist auf diesem Gerät deaktiviert. In den App-Infos kannst du es mit „Aktivieren“ einschalten.</string>
+    <string name="trg_odpri_nastavitve">Einstellungen öffnen</string>
+    <string name="trg_ni_uradnega">%1$s ist auf diesem Gerät nicht vorhanden, und Google veröffentlicht dafür keine offizielle Installationsdatei. Der Google-Play-Katalog ist auch über Aurora Store erreichbar.</string>
 </resources>

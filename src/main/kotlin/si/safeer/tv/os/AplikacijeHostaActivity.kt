@@ -125,6 +125,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         skupineVrsta = findViewById(R.id.skupine)
         skupineDrsnik = findViewById(R.id.skupineDrsnik)
         prilagodiSirini()
+        // Namescanje aplikacij: uporabnik izbere ponudnika (TrgovineAplikacij) - brez lastne trgovine in brez enega monopola.
+        findViewById<LinearLayout>(R.id.orodja).addView(gumb(getString(R.string.trg_gumb), false).apply {
+            (layoutParams as LinearLayout.LayoutParams).marginStart = (14 * resources.displayMetrics.density).toInt()
+            setOnClickListener { TrgovineAplikacij.pokazi(this@AplikacijeHostaActivity) }
+        }, 1)
         when (nacin) {
             AppVir.RACUNALNIK.kljuc -> {
                 nadnaslov.text = getString(R.string.os_programi)
