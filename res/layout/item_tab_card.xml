@@ -34,7 +34,7 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:text="@string/ui_tab"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/osBesedilo"
             android:textSize="12sp"
             android:textStyle="bold" />
 
@@ -45,7 +45,7 @@
             android:background="@drawable/bg_mobile_icon_button"
             android:gravity="center"
             android:text="@string/sym_zapri"
-            android:textColor="@color/text_secondary"
+            android:textColor="?attr/osUmirjeno"
             android:textSize="12sp" />
     </LinearLayout>
 
@@ -56,7 +56,7 @@
         android:layout_height="match_parent"
         android:layout_below="@id/tabHeader"
         android:layout_marginTop="6dp"
-        android:background="@color/bg_secondary"
+        android:background="?attr/osKartica"
         android:padding="6dp">
 
         <TextView
@@ -79,7 +79,7 @@
             android:paddingHorizontal="6dp"
             android:paddingVertical="2dp"
             android:text="@string/ui_active"
-            android:textColor="@color/accent_cyan"
+            android:textColor="?attr/osMint"
             android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />

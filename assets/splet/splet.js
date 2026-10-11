@@ -302,5 +302,22 @@
   // Fokus v iskalno polje brez pomika strani (autofocus je stran pomaknil navzdol).
   setTimeout(function () { try { $("vnos").focus({ preventScroll: true }); } catch (e) {} }, 60);
   var q = new URLSearchParams(location.search);
+  // Tema Safeer OS: poudarek, ozadje, kartica, besedilo, umirjeno (sest sestnajstiskih znakov vsak).
+  (function (barve) {
+    // Zavihek, odprt pred to razlicico (naslov brez ?barve), vzame zadnje znane barve teme.
+    try { if (barve) localStorage.setItem("safeer_splet_barve", barve); else barve = localStorage.getItem("safeer_splet_barve"); } catch (e) {}
+    var b = String(barve || "").split(",");
+    if (b.length < 5 || !b.every(function (x) { return /^[0-9A-Fa-f]{6}$/.test(x); })) return;
+    function rgb(h) { return [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+    var s = document.documentElement.style, z = rgb(b[0]), k = rgb(b[2]);
+    s.setProperty("--z", "#" + b[0]);
+    s.setProperty("--z2", "rgb(" + z.map(function (c) { return Math.round(c * .82); }).join(",") + ")");
+    s.setProperty("--zr", z.join(", "));
+    s.setProperty("--bg", "#" + b[1]);
+    s.setProperty("--pr", k.join(", "));
+    s.setProperty("--plosca", "rgba(" + k.join(", ") + ", .72)");
+    s.setProperty("--b", "#" + b[3]);
+    s.setProperty("--d", "#" + b[4]);
+  })(q.get("barve"));
   init({ language: q.get("lang") || (navigator.language || "sl"), engine: q.get("engine") || undefined, tv: q.get("tv") === "1" });
 })();

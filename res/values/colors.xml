@@ -37,4 +37,7 @@
     <!-- Meni in Safeer Link: ista podoba kot na safeer.si (temna podlaga, mint zelena, crtne ikone) -->
     <color name="menu_icon">#DCE6EA</color>
     <color name="menu_icon_accent">#54D6A5</color>
+    <!-- Prej v drawable brskalnika (zdaj ?attr/osKarticaObroba in ?attr/osMeniIzbranOzadje v AppTheme). -->
+    <color name="brskalnik_obroba_naslova">#8857D6AD</color>
+    <color name="brskalnik_izbrano">#284332</color>
 </resources>

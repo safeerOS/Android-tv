@@ -18,7 +18,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/ui_bookmarks_heading"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/osBesedilo"
             android:textSize="16sp"
             android:textStyle="bold" />
 
@@ -28,7 +28,7 @@
             android:layout_height="32dp"
             android:background="@drawable/bg_mobile_icon_button"
             android:text="@string/sym_zapri"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/osBesedilo"
             android:textSize="14sp" />
     </LinearLayout>
 
@@ -36,14 +36,14 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginVertical="8dp"
-        android:background="@color/border_omnibox" />
+        android:background="?attr/osCrta" />
 
     <!-- List of Bookmarks -->
     <ListView
         android:id="@+id/bookmarksListView"
         android:layout_width="match_parent"
         android:layout_height="300dp"
-        android:divider="@color/border_omnibox"
+        android:divider="?attr/osCrta"
         android:dividerHeight="1dp" />
 
 </LinearLayout>

@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
-    android:color="@color/ripple_color">
+    android:color="?attr/osSij">
     <item>
         <selector>
             <item android:state_focused="true">
                 <shape android:shape="oval">
-                    <solid android:color="#284332" />
-                    <stroke android:width="3dp" android:color="#B5EB8D" />
+                    <solid android:color="?attr/osMeniIzbranOzadje" />
+                    <stroke android:width="3dp" android:color="?attr/osMint" />
                 </shape>
             </item>
             <item android:state_pressed="true">
                 <shape android:shape="oval">
-                    <solid android:color="@color/bg_secondary" />
+                    <solid android:color="?attr/osKartica" />
                 </shape>
             </item>
             <item>

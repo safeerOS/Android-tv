@@ -1,5 +1,6 @@
 package si.safeer.tv
 
+import si.safeer.tv.os.osBarva
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.Dialog
@@ -173,6 +174,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Safeer OS: brskalnik ima isto temo kot domaci zaslon (lastnik, 11. 10. 2026: »zdaj je videti kot 2 razlicni
+        // temi«). Barve brskalnika so atributi teme (?attr/osX); Safeer Browser ostane v svoji zeleni AppTheme.
+        if (BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) si.safeer.tv.os.Tema.uporabi(this)
         super.onCreate(savedInstanceState)
         svezaDejavnost = savedInstanceState == null
         // Aplikacijski kontekst v izbranem jeziku: nizi in glava Accept-Language
@@ -186,7 +190,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         setContentView(osStranskaVrstica ?: brskalnikVsebina)
         si.safeer.tv.os.Robovi.uporabi(this)
 
-        window.statusBarColor = Color.parseColor("#06090F")
+        window.statusBarColor = osBarva(R.color.os_ozadje)
         window.navigationBarColor = Color.parseColor("#000000")
         applySystemUi()
 
@@ -1371,13 +1375,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         mobileBottomBar = null
         mobileTopBar.removeAllViews()
         mobileTopBar.orientation = LinearLayout.VERTICAL
-        mobileTopBar.setBackgroundColor(Color.parseColor("#0A141C"))
+        mobileTopBar.setBackgroundColor(osBarva(R.color.os_ozadje))
         mobileTopBar.layoutParams = mobileTopBar.layoutParams.apply { height = ViewGroup.LayoutParams.WRAP_CONTENT }
 
         val naslovna = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(if (spletSirokiChrome) 8 else 10), dp(5), dp(if (spletSirokiChrome) 8 else 10), dp(7))
-            setBackgroundColor(Color.parseColor("#0A141C"))
+            setBackgroundColor(osBarva(R.color.os_ozadje))
         }
         fun nastaviIkono(gumb: Button, ikona: Int, opis: Int) {
             gumb.text = ""; gumb.contentDescription = getString(opis); gumb.gravity = Gravity.CENTER
@@ -1387,7 +1391,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         fun gumb(ikona: Int, opis: Int) = Button(this).apply {
             nastaviIkono(this, ikona, opis)
-            setTextColor(Color.parseColor("#F2F7F5")); setBackgroundResource(R.drawable.splet_chrome_gumb)
+            setTextColor(osBarva(R.color.os_besedilo)); setBackgroundResource(R.drawable.splet_chrome_gumb)
             isFocusable = true; minWidth = 0; minHeight = 0
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(4) }
         }
@@ -1439,14 +1443,14 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             btnTabCount.visibility = View.GONE
             val vrstica = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM
-                setPadding(dp(10), dp(5), dp(12), 0); setBackgroundColor(Color.parseColor("#0A141C"))
+                setPadding(dp(10), dp(5), dp(12), 0); setBackgroundColor(osBarva(R.color.os_ozadje))
             }
             val drsnik = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
             spletZavihki = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
             drsnik.addView(spletZavihki, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(46)))
             vrstica.addView(drsnik, LinearLayout.LayoutParams(0, dp(46), 1f))
             spletLinkZnacka = TextView(this).apply {
-                setTextColor(Color.parseColor("#F2F7F5")); textSize = 13f; gravity = Gravity.CENTER
+                setTextColor(osBarva(R.color.os_besedilo)); textSize = 13f; gravity = Gravity.CENTER
                 setBackgroundResource(R.drawable.splet_znacka); isFocusable = false
             }
             vrstica.addView(spletLinkZnacka, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)).apply {
@@ -1458,7 +1462,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             btnAddTab.visibility = View.GONE
             val spodnja = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                setPadding(dp(10), dp(6), dp(10), dp(6)); setBackgroundColor(Color.parseColor("#0A141C"))
+                setPadding(dp(10), dp(6), dp(10), dp(6)); setBackgroundColor(osBarva(R.color.os_ozadje))
                 elevation = dp(12).toFloat()
             }
             for (v in listOf(btnBack, btnForward!!, btnHome, btnReload, spletScit!!)) {
@@ -1497,12 +1501,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             val naslov = if (TvSite.isBrowserHome(tab.url)) getString(R.string.splet_nov_zavihek)
                 else tab.title.ifBlank { tab.url }.take(24)
             ovoj.addView(TextView(this).apply {
-                text = naslov; setTextColor(Color.parseColor("#F2F7F5")); textSize = 13f; maxLines = 1
+                text = naslov; setTextColor(osBarva(R.color.os_besedilo)); textSize = 13f; maxLines = 1
                 compoundDrawablePadding = dp(7)
                 setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_splet_globe, 0, 0, 0)
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             ovoj.addView(Button(this).apply {
-                text = ""; setTextColor(Color.parseColor("#C5D3CF")); contentDescription = getString(R.string.ui_close)
+                text = ""; setTextColor(osBarva(R.color.os_umirjeno)); contentDescription = getString(R.string.ui_close)
                 setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_splet_close, 0, 0, 0); gravity = Gravity.CENTER
                 setBackgroundResource(R.drawable.splet_chrome_gumb); isFocusable = true; minWidth = 0; minHeight = 0
                 setOnClickListener { tabManager.closeTab(this@MainActivity, tab.id) }
@@ -1566,7 +1570,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         tvSecurityLock.text = ""
         tvSecurityLock.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_splet_lock, 0, 0, 0)
         tvSecurityLock.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(
-            Color.parseColor(if (varno) "#57D6AD" else "#F59E0B"))
+            if (varno) osBarva(R.color.os_mint) else Color.parseColor("#F59E0B"))
     }
 
     /** Nova ikona se brez ponovnega nalaganja pokaze na vseh odprtih zacetnih straneh. */

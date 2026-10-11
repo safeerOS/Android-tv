@@ -30,7 +30,7 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:text="@string/ui_bookmark_name"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/osBesedilo"
             android:textSize="14sp"
             android:textStyle="bold" />
 

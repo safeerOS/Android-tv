@@ -10,6 +10,27 @@
         <item name="android:navigationBarColor">@color/bg_pure_black</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <!-- Barve brskalnika kot atributi teme (?attr/osX v drawable in postavitvah): Safeer Browser ostane zelen,
+             v Safeer OS pa brskalnik prevzame izbrano temo (Tema.uporabi v MainActivity) - lastnik, 11. 10. 2026:
+             »taksna tema kot je namizna naj bo vsa aplikacija«. -->
+        <item name="osOzadje">@color/bg_primary</item>
+        <item name="osKartica">@color/bg_secondary</item>
+        <item name="osKarticaDvignjena">@color/bg_card_active</item>
+        <item name="osMint">@color/accent_cyan</item>
+        <item name="osMintTemna">@color/os_mint_temna</item>
+        <item name="osBesedilo">@color/text_primary</item>
+        <item name="osUmirjeno">@color/text_secondary</item>
+        <item name="osCrta">@color/border_omnibox</item>
+        <item name="osOpozorilo">@color/os_opozorilo</item>
+        <item name="osSij">@color/ripple_color</item>
+        <item name="osKarticaSteklo">@color/os_kartica_steklo</item>
+        <item name="osKarticaStekloFokus">@color/os_kartica_steklo_fokus</item>
+        <item name="osKarticaObroba">@color/brskalnik_obroba_naslova</item>
+        <item name="osMeniOzadje">@color/os_meni_ozadje</item>
+        <item name="osMeniIzbranOzadje">@color/brskalnik_izbrano</item>
+        <item name="osMeniFokusOzadje">@color/os_meni_fokus_ozadje</item>
+        <item name="osSivaPika">@color/os_siva_pika</item>
+        <item name="osPloscicaAppOzadje">@color/os_ploscica_app_ozadje</item>
     </style>
     <!-- Brskalnik: okno je ze crno, zato ga postavitev ne rise se enkrat (Lint: Overdraw). -->
     <style name="AppTheme.Brskalnik">
