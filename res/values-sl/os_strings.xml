@@ -645,4 +645,19 @@
     <string name="apk_ni_veljavna">Datoteka ni veljavna aplikacija za Android.</string>
     <string name="apk_napaka">Aplikacije ni bilo mogoče pripraviti za namestitev.</string>
     <string name="apk_dovoljenje">Android mora Safeerju dovoliti nameščanje aplikacij. Dovoli in se vrni – namestitev se nadaljuje sama.</string>
+    <!-- Izbira ponudnika aplikacij (TrgovineAplikacij). -->
+    <string name="trg_gumb">Namesti aplikacije …</string>
+    <string name="trg_naslov">Od kod želiš nameščati aplikacije?</string>
+    <string name="trg_namesceno">nameščeno</string>
+    <string name="trg_iscem">Iščem najnovejšo različico: %1$s …</string>
+    <string name="trg_ni_vira">Najnovejše različice (%1$s) zdaj ni mogoče dobiti. Poskusi pozneje.</string>
+    <string name="trg_ni_zagona">Aplikacije %1$s ni mogoče odpreti s tega zaslona.</string>
+    <string name="trg_opis_aptoide">Trgovina z aplikacijami za televizorje.</string>
+    <string name="trg_opis_aurora">Aplikacije iz kataloga Google Play brez Googlovega računa.</string>
+    <string name="trg_opis_droidify">Odjemalec za F-Droid.</string>
+    <string name="trg_opis_fdroid">Prosta in odprtokodna programska oprema.</string>
+    <string name="trg_opis_flicky">Odjemalec za F-Droid, prilagojen televizorju.</string>
+    <string name="trg_opis_play">Googlova trgovina, nameščena na tej napravi.</string>
+    <string name="trg_opis_neo">Odjemalec za F-Droid.</string>
+    <string name="trg_opis_obtainium">Aplikacije naravnost iz izdaj avtorjev (GitHub, GitLab …).</string>
 </resources>

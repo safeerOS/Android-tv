@@ -642,4 +642,19 @@
     <string name="apk_ni_veljavna">Diese Datei ist keine gültige Android-App.</string>
     <string name="apk_napaka">Die App konnte nicht zur Installation vorbereitet werden.</string>
     <string name="apk_dovoljenje">Android muss Safeer erlauben, Apps zu installieren. Erlaube es und komm zurück – die Installation läuft von selbst weiter.</string>
+    <!-- Izbira ponudnika aplikacij (TrgovineAplikacij). -->
+    <string name="trg_gumb">Apps installieren …</string>
+    <string name="trg_naslov">Woher möchtest du Apps installieren?</string>
+    <string name="trg_namesceno">installiert</string>
+    <string name="trg_iscem">Suche die neueste Version: %1$s …</string>
+    <string name="trg_ni_vira">Die neueste Version (%1$s) ist gerade nicht verfügbar. Versuche es später erneut.</string>
+    <string name="trg_ni_zagona">%1$s lässt sich von diesem Bildschirm aus nicht öffnen.</string>
+    <string name="trg_opis_aptoide">App-Store für Fernseher.</string>
+    <string name="trg_opis_aurora">Apps aus dem Google-Play-Katalog ohne Google-Konto.</string>
+    <string name="trg_opis_droidify">F-Droid-Client.</string>
+    <string name="trg_opis_fdroid">Freie und quelloffene Software.</string>
+    <string name="trg_opis_flicky">F-Droid-Client für den Fernseher.</string>
+    <string name="trg_opis_play">Googles Store, auf diesem Gerät installiert.</string>
+    <string name="trg_opis_neo">F-Droid-Client.</string>
+    <string name="trg_opis_obtainium">Apps direkt aus den Veröffentlichungen der Autoren (GitHub, GitLab …).</string>
 </resources>

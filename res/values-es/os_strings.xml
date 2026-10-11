@@ -642,4 +642,19 @@
     <string name="apk_ni_veljavna">Este archivo no es una aplicación de Android válida.</string>
     <string name="apk_napaka">No se pudo preparar la aplicación para instalarla.</string>
     <string name="apk_dovoljenje">Android debe permitir que Safeer instale aplicaciones. Permítelo y vuelve: la instalación continuará sola.</string>
+    <!-- Izbira ponudnika aplikacij (TrgovineAplikacij). -->
+    <string name="trg_gumb">Instalar aplicaciones …</string>
+    <string name="trg_naslov">¿De dónde quieres instalar aplicaciones?</string>
+    <string name="trg_namesceno">instalada</string>
+    <string name="trg_iscem">Buscando la última versión: %1$s …</string>
+    <string name="trg_ni_vira">La última versión (%1$s) no está disponible ahora. Inténtalo más tarde.</string>
+    <string name="trg_ni_zagona">%1$s no se puede abrir desde esta pantalla.</string>
+    <string name="trg_opis_aptoide">Tienda de aplicaciones para televisores.</string>
+    <string name="trg_opis_aurora">Aplicaciones del catálogo de Google Play sin cuenta de Google.</string>
+    <string name="trg_opis_droidify">Cliente de F-Droid.</string>
+    <string name="trg_opis_fdroid">Software libre y de código abierto.</string>
+    <string name="trg_opis_flicky">Cliente de F-Droid adaptado al televisor.</string>
+    <string name="trg_opis_play">La tienda de Google, instalada en este dispositivo.</string>
+    <string name="trg_opis_neo">Cliente de F-Droid.</string>
+    <string name="trg_opis_obtainium">Aplicaciones directamente de las versiones de sus autores (GitHub, GitLab …).</string>
 </resources>
