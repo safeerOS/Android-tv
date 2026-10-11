@@ -317,4 +317,6 @@
     <string name="os_prikazi_na_odpira">Opening on %1$s: %2$s</string>
     <string name="os_prikazi_na_ne_zna">%1$s cannot do this yet – update Safeer on it.</string>
     <string name="os_prikazi_na_napaka">Could not open it on %1$s.</string>
+    <string name="os_lupa_namig">Search or say: “Sintel on TV”</string>
+    <string name="os_lupa_glas">Search by voice</string>
 </resources>

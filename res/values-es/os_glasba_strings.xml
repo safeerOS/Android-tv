@@ -318,4 +318,6 @@
     <string name="os_prikazi_na_odpira">Abriendo en %1$s: %2$s</string>
     <string name="os_prikazi_na_ne_zna">%1$s aún no puede hacerlo: actualiza Safeer allí.</string>
     <string name="os_prikazi_na_napaka">No se pudo abrir en %1$s.</string>
+    <string name="os_lupa_namig">Busca o di: «Sintel en la tele»</string>
+    <string name="os_lupa_glas">Búsqueda por voz</string>
 </resources>

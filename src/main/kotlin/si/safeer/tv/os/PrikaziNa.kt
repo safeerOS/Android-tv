@@ -12,7 +12,8 @@ import java.text.Normalizer
  * »Prikazi na TV / na racunalniku« (lastnik, 11. 10. 2026): kar uporabnik pove ali natipka v iskanju Safeer Media
  * (»Jungle Book na TV«), se odpre v Medijskem centru izbrane naprave v Safeer Linku (ukaz `media.open`: naslov, ki ga
  * tam poisce iskanje). Ce je naprav te vrste vec (npr. dva racunalnika), uporabnik izbere. Isti vzorci kot v lupi na
- * racunalniku (assets/os/delovna.js ciljMedija): slovenscina, anglescina, nemscina, spanscina, portugalscina.
+ * racunalniku (assets/os/delovna.js ciljMedija): slovenscina, anglescina, nemscina, spanscina, portugalscina,
+ * francoscina, italijanscina.
  */
 object PrikaziNa {
     data class Cilj(val naslov: String, val vrste: List<String>)
@@ -39,9 +40,18 @@ object PrikaziNa {
         Regex(" no (computador|pc|portatil)$") to PC,
         Regex(" no tablet$") to listOf("tablet"),
         Regex(" no (telemovel|celular|telefone)$") to listOf("phone"),
+        Regex(" sur (la |ma )?(tele|television|tv)$") to listOf("tv"),
+        Regex(" sur (lordinateur|mon ordinateur|le pc|mon pc)$") to PC,
+        Regex(" sur (la |ma )?tablette$") to listOf("tablet"),
+        Regex(" sur (le |mon )?(telephone|portable|mobile)$") to listOf("phone"),
+        Regex(" (sulla|in) (tv|televisione)$") to listOf("tv"),
+        Regex(" sul (computer|pc)$") to PC,
+        Regex(" sul tablet$") to listOf("tablet"),
+        Regex(" sul (telefono|cellulare)$") to listOf("phone"),
     )
     private val GLAGOLI = setOf("prikazi", "pokazi", "predvajaj", "odpri", "zavrti", "show", "play", "open", "put", "zeige",
-        "spiele", "offne", "muestra", "reproduce", "pon", "abre", "mostra", "reproduz", "toca", "passa")
+        "spiele", "offne", "muestra", "reproduce", "pon", "abre", "mostra", "reproduz", "toca", "passa",
+        "montre", "joue", "ouvre", "lance", "mostra", "riproduci", "apri", "metti")
 
     private fun kljuc(beseda: String): String =
         Normalizer.normalize(beseda.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")

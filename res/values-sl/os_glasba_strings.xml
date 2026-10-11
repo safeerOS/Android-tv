@@ -317,4 +317,6 @@
     <string name="os_prikazi_na_odpira">Odpira se na %1$s: %2$s</string>
     <string name="os_prikazi_na_ne_zna">%1$s tega še ne zna – posodobi Safeer na njej.</string>
     <string name="os_prikazi_na_napaka">Na %1$s se ni odprlo.</string>
+    <string name="os_lupa_namig">Išči ali povej: »Sintel na TV«</string>
+    <string name="os_lupa_glas">Iskanje z glasom</string>
 </resources>

@@ -318,4 +318,6 @@
     <string name="os_prikazi_na_odpira">Wird auf %1$s geöffnet: %2$s</string>
     <string name="os_prikazi_na_ne_zna">%1$s kann das noch nicht – aktualisiere dort Safeer.</string>
     <string name="os_prikazi_na_napaka">Konnte auf %1$s nicht geöffnet werden.</string>
+    <string name="os_lupa_namig">Suchen oder sagen: „Sintel auf dem Fernseher“</string>
+    <string name="os_lupa_glas">Sprachsuche</string>
 </resources>

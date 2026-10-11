@@ -55,6 +55,12 @@ import java.net.URLEncoder
  *  - Tri spodnje plošče: resnične povezane naprave (Safeer Link), hitri dostop in Ščit (DNS zaščita).
  */
 class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        if (si.safeer.tv.os.DomacaLupa.naRezultat(this, requestCode, resultCode, data)) return
+        @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+    }
+
 
     /** Domaci zaslon tablice govori jezik, ki ga je uporabnik izbral (prej je ostal v jeziku sistema). */
     override fun attachBaseContext(newBase: android.content.Context) {
@@ -175,6 +181,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     private fun nastaviPostavitev() {
         setContentView(R.layout.tablet_activity_domov)
+        // Iskalna lupa na vrhu: napises ali poves (tudi »Jungle Book na TV«) - DomacaLupa.
+        si.safeer.tv.os.DomacaLupa.vstavi(this)
         Robovi.uporabi(this)
         // Stranska vrstica: poteg proti levemu robu jo skrije, poteg z roba ali rocaj jo vrne.
         skrivanje = findViewById<View?>(R.id.stranskiMeni)?.let { si.safeer.tv.os.SkrivanjeVrstice(this, it) }

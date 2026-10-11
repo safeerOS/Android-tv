@@ -29,6 +29,12 @@ import java.util.Locale
  * (Sorodnik). Brez brskalnika lupina pove, kaj namestiti - ne vrze napake.
  */
 class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        if (DomacaLupa.naRezultat(this, requestCode, resultCode, data)) return
+        @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+    }
+
 
     private lateinit var koren: View
     private lateinit var stanjeBesedilo: TextView
@@ -98,6 +104,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return
         }
         setContentView(R.layout.os_activity_domov)
+        // Iskalna lupa na vrhu: napises ali poves (tudi »… na racunalniku«) - DomacaLupa.
+        DomacaLupa.vstavi(this)
         // Safeer Link (sredisce) naj tece, kadar ga je uporabnik vklopil - tudi ce ga je Android ali
         // uporabnik (prisilna ustavitev) medtem ustavil; do zdaj se je vrnil sele ob ponovnem zagonu naprave.
         try { si.safeer.tv.cast.HubStoritev.zagotovi(this) } catch (_: Throwable) { }
