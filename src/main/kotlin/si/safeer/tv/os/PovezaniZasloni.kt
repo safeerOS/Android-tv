@@ -12,7 +12,7 @@ import si.safeer.tv.link.Daljinec
  * slika pride sem kot share.screen in se odpre v gledalcu (CastReceiverService). Lastnik, 11. 10. 2026.
  */
 object PovezaniZasloni {
-    fun zaprosi(c: Context, link: LinkOdjemalec, r: LinkOdjemalec.Naprava) {
+    fun zaprosi(c: Context, link: LinkUpravitelj, r: LinkOdjemalec.Naprava) {
         val ime = r.ime.ifBlank { r.id }
         link.ukaz(r.id, "apps.launch", JSONObject().put("app", Daljinec.CEL_ZASLON).put("stream", true), 15_000) { izid, napaka ->
             val ok = napaka.isEmpty() && izid?.optBoolean("ok") == true
