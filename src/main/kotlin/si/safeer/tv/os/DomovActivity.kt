@@ -359,8 +359,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Kartica Povezani zasloni ze na domacem zaslonu pove, katere naprave lahko gledas. */
     private fun osveziOpisZaslona(naprave: List<LinkOdjemalec.Naprava>) {
         val t = findViewById<TextView>(R.id.karticaZaslonOpis) ?: return
-        val jaz = Identiteta.id(this)
-        val imena = naprave.filter { it.id != jaz && (it.zmoznosti.contains("desktop") ||
+        val imena = naprave.filter { !link.jeTaNaprava(it) && (it.zmoznosti.contains("desktop") ||
             it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON)) }.map { it.ime.ifBlank { it.id } }
         t.maxLines = 1
         t.ellipsize = android.text.TextUtils.TruncateAt.END
@@ -368,10 +367,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun odpriZaslon() {
-        val jaz = Identiteta.id(this)
         // Racunalniki in naprave Android, ki delijo cel zaslon (s potrditvijo na tisti napravi).
         val naprave = link.naprave.filter {
-            it.id != jaz && (it.zmoznosti.contains("desktop") || it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
+            !link.jeTaNaprava(it) && (it.zmoznosti.contains("desktop") || it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
         }
         fun odpri(r: LinkOdjemalec.Naprava?) {
             if (r != null && !r.zmoznosti.contains("desktop")) { PovezaniZasloni.zaprosi(this, link, r); return }
