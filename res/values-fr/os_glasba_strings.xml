@@ -313,4 +313,11 @@
     <string name="os_media_kanal_mrtev_streznik">« %1$s » ne fonctionne pas : serveur introuvable. Masqué jusqu\'à demain.</string>
     <string name="os_media_kanal_mrtev_neodziven">« %1$s » ne fonctionne pas : le serveur ne répond pas. Masqué jusqu\'à demain.</string>
     <string name="os_tv_brez_odgovora">Certaines chaînes des extensions ne répondent pas pour le moment ; seules celles qui fonctionnent sont affichées.</string>
+    <string name="os_prikazi_na_ni_naprave">Aucun appareil de ce type dans Safeer Link.</string>
+    <string name="os_prikazi_na_izberi">Sur quel appareil l\'afficher ?</string>
+    <string name="os_prikazi_na_odpira">Ouverture sur %1$s : %2$s</string>
+    <string name="os_prikazi_na_ne_zna">%1$s ne sait pas encore le faire – mets Safeer à jour dessus.</string>
+    <string name="os_prikazi_na_napaka">Impossible de l\'ouvrir sur %1$s.</string>
+    <string name="os_lupa_namig">Cherche ou dis : « Sintel sur la télé »</string>
+    <string name="os_lupa_glas">Recherche vocale</string>
 </resources>

@@ -313,4 +313,11 @@
     <string name="os_media_kanal_mrtev_streznik">«%1$s» non funziona: server non trovato. Nascosto fino a domani.</string>
     <string name="os_media_kanal_mrtev_neodziven">«%1$s» non funziona: il server non risponde. Nascosto fino a domani.</string>
     <string name="os_tv_brez_odgovora">Alcuni canali dei componenti ora non rispondono; sono mostrati solo quelli funzionanti.</string>
+    <string name="os_prikazi_na_ni_naprave">Nessun dispositivo di questo tipo in Safeer Link.</string>
+    <string name="os_prikazi_na_izberi">Su quale dispositivo mostrarlo?</string>
+    <string name="os_prikazi_na_odpira">Apertura su %1$s: %2$s</string>
+    <string name="os_prikazi_na_ne_zna">%1$s non può ancora farlo: aggiorna Safeer lì.</string>
+    <string name="os_prikazi_na_napaka">Impossibile aprirlo su %1$s.</string>
+    <string name="os_lupa_namig">Cerca o di\': «Sintel sulla TV»</string>
+    <string name="os_lupa_glas">Ricerca vocale</string>
 </resources>

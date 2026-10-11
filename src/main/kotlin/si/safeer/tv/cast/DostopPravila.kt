@@ -38,7 +38,7 @@ object DostopPravila {
         // Kaj naprava predvaja, nadaljevanje in ustavitev; seznami in viri Medijskega centra.
         "play.state", "play.stop", "lists.get",
         // Odpiranje vsebine na tej napravi brez vprasanja in zvok druge naprave na njenih zvocnikih.
-        "open_url", "magnet.open", "audio.play", "audio.stop",
+        "open_url", "magnet.open", "audio.play", "audio.stop", "media.open",
         // Pomoc pri predvajanju vidi, kaj druga naprava gleda, in trosi to napravo (prenos, pretvorba, dodatki).
         "magnet.stream", "magnet.list", "magnet.remove", "magnet.keep",
         "video.transcode", "video.status", "video.stream", "video.stream_stop", "video.stream_status",

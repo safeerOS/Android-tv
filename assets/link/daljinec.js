@@ -40,7 +40,7 @@
       napakaGovora: "Prepoznava ni uspela. Poskusi znova.",
       brezOdgovora: "Naprava se ni odzvala. Je Safeer na njej odprt?",
       niPovezave: "Ni povezave s Safeer Linkom.",
-      poslano: "Poslano", tipka: "Tipka {ime}", odpiram: "Odpiram {ime}", iscem: "Iščem »{kaj}«",
+      poslano: "Poslano", tipka: "Tipka {ime}", odpiram: "Odpiram {ime}", iscem: "Iščem »{kaj}«", iscemNaRacunalniku: "Iščem na računalniku: »{kaj}«",
       iscemYoutube: "YouTube: »{kaj}«", odpiramStran: "Odpiram stran", glasnostNa: "Glasnost {n} %",
       glasneje: "Glasneje", tisje: "Tišje", utisano: "Utišano", zvokNazaj: "Zvok je nazaj",
       nisemRazumel: "Nisem razumel: »{kaj}« — iščem to na napravi.",
@@ -67,7 +67,7 @@
       napakaGovora: "Recognition failed. Try again.",
       brezOdgovora: "The device did not respond. Is Safeer open on it?",
       niPovezave: "Not connected to Safeer Link.",
-      poslano: "Sent", tipka: "Key {ime}", odpiram: "Opening {ime}", iscem: "Searching “{kaj}”",
+      poslano: "Sent", tipka: "Key {ime}", odpiram: "Opening {ime}", iscem: "Searching “{kaj}”", iscemNaRacunalniku: "Searching the computer: “{kaj}”",
       iscemYoutube: "YouTube: “{kaj}”", odpiramStran: "Opening page", glasnostNa: "Volume {n} %",
       glasneje: "Louder", tisje: "Quieter", utisano: "Muted", zvokNazaj: "Sound is back",
       nisemRazumel: "Didn't understand “{kaj}” — searching for it on the device.",
@@ -94,7 +94,7 @@
       napakaGovora: "Erkennung fehlgeschlagen. Versuch es noch einmal.",
       brezOdgovora: "Das Gerät hat nicht geantwortet. Ist Safeer dort geöffnet?",
       niPovezave: "Nicht mit Safeer Link verbunden.",
-      poslano: "Gesendet", tipka: "Taste {ime}", odpiram: "Öffne {ime}", iscem: "Suche „{kaj}“",
+      poslano: "Gesendet", tipka: "Taste {ime}", odpiram: "Öffne {ime}", iscem: "Suche „{kaj}“", iscemNaRacunalniku: "Suche auf dem Computer: „{kaj}“",
       iscemYoutube: "YouTube: „{kaj}“", odpiramStran: "Öffne Seite", glasnostNa: "Lautstärke {n} %",
       glasneje: "Lauter", tisje: "Leiser", utisano: "Stumm", zvokNazaj: "Ton ist wieder da",
       nisemRazumel: "„{kaj}“ nicht verstanden — suche danach auf dem Gerät.",
@@ -121,7 +121,7 @@
       napakaGovora: "El reconocimiento falló. Inténtalo de nuevo.",
       brezOdgovora: "El dispositivo no respondió. ¿Está Safeer abierto en él?",
       niPovezave: "Sin conexión con Safeer Link.",
-      poslano: "Enviado", tipka: "Tecla {ime}", odpiram: "Abriendo {ime}", iscem: "Buscando «{kaj}»",
+      poslano: "Enviado", tipka: "Tecla {ime}", odpiram: "Abriendo {ime}", iscem: "Buscando «{kaj}»", iscemNaRacunalniku: "Buscando en el ordenador: «{kaj}»",
       iscemYoutube: "YouTube: «{kaj}»", odpiramStran: "Abriendo página", glasnostNa: "Volumen {n} %",
       glasneje: "Más alto", tisje: "Más bajo", utisano: "Silenciado", zvokNazaj: "Sonido activado",
       nisemRazumel: "No entendí «{kaj}»: lo busco en el dispositivo.",
@@ -148,7 +148,7 @@
       napakaGovora: "La reconnaissance a échoué. Réessayez.",
       brezOdgovora: "L'appareil n'a pas répondu. Safeer y est-il ouvert ?",
       niPovezave: "Pas de connexion à Safeer Link.",
-      poslano: "Envoyé", tipka: "Touche {ime}", odpiram: "J'ouvre {ime}", iscem: "Recherche « {kaj} »",
+      poslano: "Envoyé", tipka: "Touche {ime}", odpiram: "J'ouvre {ime}", iscem: "Recherche « {kaj} »", iscemNaRacunalniku: "Recherche sur l'ordinateur : « {kaj} »",
       iscemYoutube: "YouTube : « {kaj} »", odpiramStran: "J'ouvre la page", glasnostNa: "Volume {n} %",
       glasneje: "Plus fort", tisje: "Moins fort", utisano: "Muet", zvokNazaj: "Le son est revenu",
       nisemRazumel: "Je n'ai pas compris « {kaj} » — je le cherche sur l'appareil.",
@@ -175,7 +175,7 @@
       napakaGovora: "Riconoscimento non riuscito. Riprova.",
       brezOdgovora: "Il dispositivo non ha risposto. Safeer è aperto lì?",
       niPovezave: "Nessuna connessione a Safeer Link.",
-      poslano: "Inviato", tipka: "Tasto {ime}", odpiram: "Apro {ime}", iscem: "Cerco «{kaj}»",
+      poslano: "Inviato", tipka: "Tasto {ime}", odpiram: "Apro {ime}", iscem: "Cerco «{kaj}»", iscemNaRacunalniku: "Cerco sul computer: «{kaj}»",
       iscemYoutube: "YouTube: «{kaj}»", odpiramStran: "Apro la pagina", glasnostNa: "Volume {n} %",
       glasneje: "Più forte", tisje: "Più piano", utisano: "Silenziato", zvokNazaj: "Audio riattivato",
       nisemRazumel: "Non ho capito «{kaj}»: lo cerco sul dispositivo.",
@@ -791,7 +791,17 @@
     stanje.zadnjeSliseno = cisto;
     var e = el("daljinecSliseno");
     if (e) { e.textContent = "»" + cisto + "«"; e.classList.remove("namig"); }
-    izvediRazumljeno(razumi(cisto));
+    var u = razumi(cisto);
+    // Na racunalniku s Safeer OS (search.query) gre vse, kar ni ukaz daljinca (glasnost, tipke, drsenje, posnetek),
+    // v iskalno lupo racunalnika - programi, datoteke, nastavitve, mediji in splet so tam na enem mestu.
+    var ukazDaljinca = u && ["volume", "key", "scroll", "digits", "screenshot", "restart", "clear_cache"].indexOf(u.dejanje) >= 0;
+    if (stanje.isceNaRacunalniku && !ukazDaljinca) {
+      var opis = t("iscemNaRacunalniku", { kaj: cisto });
+      besedilo("daljinecOdgovor", opis);
+      ukaz("search.query", { q: cisto }, function (izid) { pokaziOdgovor(izid, opis); });
+      return;
+    }
+    izvediRazumljeno(u);
   }
 
   // ----------------------------------------------------------------
@@ -928,6 +938,8 @@
         s.classList.toggle("napaka", d.foreground === false);
         // Kar naprava ne zna, skrijemo: drsenje je le v brskalniku, aplikacije le na Androidu.
         var dejanja = d.actions || [];
+        // Racunalnik s Safeer OS: kar povem v telefon, isce lupa na racunalniku (telefon je mikrofon zanj).
+        stanje.isceNaRacunalniku = dejanja.indexOf("search.query") >= 0;
         pokazi("daljinecAplikacijePanel", dejanja.indexOf("launch_app") >= 0);
         pokazi("daljinecDrsenje", dejanja.indexOf("scroll") >= 0);
         var tipkeNaprave = d.keys || [];

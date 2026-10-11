@@ -312,4 +312,11 @@
     <string name="os_media_kanal_mrtev_streznik">»%1$s« ne dela – strežnika prenosa ni mogoče najti. Do jutri skrito.</string>
     <string name="os_media_kanal_mrtev_neodziven">»%1$s« ne dela – strežnik prenosa se ne odziva. Do jutri skrito.</string>
     <string name="os_tv_brez_odgovora">Nekateri kanali dodatkov ta čas ne odgovarjajo; prikazani so tisti, ki delajo.</string>
+    <string name="os_prikazi_na_ni_naprave">V Safeer Linku ni take naprave.</string>
+    <string name="os_prikazi_na_izberi">Na kateri napravi naj se prikaže?</string>
+    <string name="os_prikazi_na_odpira">Odpira se na %1$s: %2$s</string>
+    <string name="os_prikazi_na_ne_zna">%1$s tega še ne zna – posodobi Safeer na njej.</string>
+    <string name="os_prikazi_na_napaka">Na %1$s se ni odprlo.</string>
+    <string name="os_lupa_namig">Išči ali povej: »Sintel na TV«</string>
+    <string name="os_lupa_glas">Iskanje z glasom</string>
 </resources>
