@@ -664,4 +664,6 @@
     <string name="apk_vir_naprava">dieses Gerät</string>
     <string name="apk_podrobno">Paket: %1$s · Quelle: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer aktualisiert diese App nicht selbst.</string>
+    <string name="os_zasloni_potrdi_na">Bestätige die Bildschirmfreigabe auf %1$s.</string>
+    <string name="os_zasloni_ni_uspelo">%1$s konnte nicht um den Bildschirm gebeten werden.</string>
 </resources>

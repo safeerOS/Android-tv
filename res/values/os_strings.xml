@@ -668,4 +668,6 @@
     <string name="apk_vir_naprava">this device</string>
     <string name="apk_podrobno">Package: %1$s · source: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer does not update this app by itself.</string>
+    <string name="os_zasloni_potrdi_na">Ask %1$s to share its screen: confirm on that device.</string>
+    <string name="os_zasloni_ni_uspelo">Could not ask %1$s to share its screen.</string>
 </resources>

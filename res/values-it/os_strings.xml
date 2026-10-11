@@ -664,4 +664,6 @@
     <string name="apk_vir_naprava">questo dispositivo</string>
     <string name="apk_podrobno">Pacchetto: %1$s · origine: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer non aggiorna questa app da solo.</string>
+    <string name="os_zasloni_potrdi_na">Conferma la condivisione dello schermo su %1$s.</string>
+    <string name="os_zasloni_ni_uspelo">Impossibile chiedere lo schermo a %1$s.</string>
 </resources>

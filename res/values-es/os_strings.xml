@@ -664,4 +664,6 @@
     <string name="apk_vir_naprava">este dispositivo</string>
     <string name="apk_podrobno">Paquete: %1$s · origen: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer no actualiza esta aplicación por sí solo.</string>
+    <string name="os_zasloni_potrdi_na">Confirma compartir la pantalla en %1$s.</string>
+    <string name="os_zasloni_ni_uspelo">No se pudo pedir la pantalla a %1$s.</string>
 </resources>

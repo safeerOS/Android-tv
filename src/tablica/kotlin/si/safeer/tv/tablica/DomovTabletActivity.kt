@@ -572,8 +572,13 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
      * izbere, katero gleda na tablici.
      */
     private fun odpriZaslon() {
-        val naprave = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        // Racunalniki (zaslon racunalnika) in naprave Android, ki delijo cel zaslon (lastnik, 11. 10. 2026: »dodaj ostale«).
+        val naprave = link.naprave.filter {
+            it.id != Identiteta.id(this) && (it.zmoznosti.contains("desktop") ||
+                it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
+        }
         fun odpri(r: LinkOdjemalec.Naprava) {
+            if (!r.zmoznosti.contains("desktop")) { si.safeer.tv.os.PovezaniZasloni.zaprosi(this, link, r); return }
             odpriVarno(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id),
                 getString(R.string.tablet_zaslon))
         }

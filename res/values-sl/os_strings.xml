@@ -667,4 +667,6 @@
     <string name="apk_vir_naprava">ta naprava</string>
     <string name="apk_podrobno">Paket: %1$s · vir: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer te aplikacije ne posodablja sam.</string>
+    <string name="os_zasloni_potrdi_na">Na napravi %1$s potrdi deljenje zaslona.</string>
+    <string name="os_zasloni_ni_uspelo">Naprave %1$s ni bilo mogoče prositi za zaslon.</string>
 </resources>
