@@ -91,4 +91,23 @@
     <color name="tema_dracula_meni_fokus_ozadje">#6272A4</color>
     <color name="tema_dracula_siva_pika">#6272A4</color>
     <color name="tema_dracula_ploscica_app_ozadje">#B32F313F</color>
+    <!-- Safeer Namizje: barve namizja Safeer OS za Linux (assets/os/delovna.css), privzeta tema od 11. 10. 2026 (lastnik: »je mirnejsa«). -->
+    <color name="tema_namizje_ozadje">#0B1424</color>
+    <color name="tema_namizje_kartica">#101A2B</color>
+    <color name="tema_namizje_kartica_dvignjena">#16233A</color>
+    <color name="tema_namizje_mint">#8AC7FF</color>
+    <color name="tema_namizje_mint_temna">#0B1424</color>
+    <color name="tema_namizje_besedilo">#EAF2FF</color>
+    <color name="tema_namizje_umirjeno">#AFBED4</color>
+    <color name="tema_namizje_crta">#2A3A54</color>
+    <color name="tema_namizje_opozorilo">#FFCF8A</color>
+    <color name="tema_namizje_sij">#338AC7FF</color>
+    <color name="tema_namizje_kartica_steklo">#CC101A2B</color>
+    <color name="tema_namizje_kartica_steklo_fokus">#E6182A45</color>
+    <color name="tema_namizje_kartica_obroba">#3BD3E5FF</color>
+    <color name="tema_namizje_meni_ozadje">#E60B1424</color>
+    <color name="tema_namizje_meni_izbran_ozadje">#3368A8E5</color>
+    <color name="tema_namizje_meni_fokus_ozadje">#4D68A8E5</color>
+    <color name="tema_namizje_siva_pika">#5C6B80</color>
+    <color name="tema_namizje_ploscica_app_ozadje">#B3101A2B</color>
 </resources>
