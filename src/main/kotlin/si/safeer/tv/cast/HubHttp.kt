@@ -480,7 +480,8 @@ internal fun HubUsmerjevalnik.odgovorQr(pot: String, zahteva: HubStreznik.Zahtev
             if (deviceId.isEmpty()) return HubStreznik.Odgovor(400, napakaJson("Manjka device_id.", "manjka_device_id"))
             val ime = (telo?.niz("name") ?: "").trim().take(NAJVEC_IMENA)
             val platforma = (telo?.niz("platform") ?: "").trim()
-            val (id, n) = zacniQr(deviceId, ime, platforma, (telo?.niz("secret_sha256") ?: "").trim().lowercase(), prevzem)
+            val (id, n) = zacniQr(deviceId, ime, platforma, (telo?.niz("secret_sha256") ?: "").trim().lowercase(), prevzem,
+                (telo?.niz("code_sha256") ?: "").trim().lowercase())
             if (id == null) return napaka(n)
             return HubStreznik.Odgovor(200, JsonLahki.Zapis()
                 .niz("qr_id", id)
@@ -493,7 +494,9 @@ internal fun HubUsmerjevalnik.odgovorQr(pot: String, zahteva: HubStreznik.Zahtev
             // Samo naprava, ki je ze v Safeer Linku (telefon, tablica), vidi in dovoli prijavo.
             val odobril = napravaZeZetona(zahteva.glave["x-safeer-token"])
                 ?: return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
-            if (qrId.isEmpty() || skrivnost.isEmpty()) return napaka("qr_ne_obstaja")
+            // Brez qr_id: clan je vpisal 6-mestno kodo naprave, ki se prijavlja (HubUsmerjevalnik.qrZaSkrivnost).
+            val koda = skrivnost.length == 6 && skrivnost.all { it in '0'..'9' }
+            if (skrivnost.isEmpty() || qrId.isEmpty() && !koda) return napaka("qr_ne_obstaja")
             val (p, n) = if (pot.endsWith("/info")) qrPodatki(qrId, skrivnost) else odobriQr(qrId, skrivnost, odobril)
             if (p == null) return napaka(n)
             val z = podatki(p)

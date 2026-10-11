@@ -324,4 +324,52 @@ object HubPairing {
             }
         }.start()
     }
+
+    /**
+     * »Vpiši kodo z druge naprave« na napravi, ki je ze v Safeer Linku: dovoli napravo, ki kaze svojo 6-mestno
+     * kodo (prijava s QR, npr. Safeer Control na racunalniku). Najprej sredisce v tem procesu, nato sredisce, s
+     * katerim smo seznanjeni. [gotovo] dobi (uspelo, ime ali razlog) na glavni niti; razlog »qr_ne_obstaja«
+     * pomeni, da koda ni koda naprave - klicatelj potem poskusi pridruzitev s kodo sredisca.
+     */
+    fun odobriKodo(context: Context, koda: String, gotovo: (Boolean, String) -> Unit) {
+        val app = context.applicationContext
+        val glavna = Handler(Looper.getMainLooper())
+        Thread {
+            var izid: Pair<Boolean, String> = false to "qr_ne_obstaja"
+            try {
+                HubKrmilnik.usmerjevalnik?.let { u ->
+                    val (p, n) = u.odobriQr("", koda, HubKrmilnik.lastniId())
+                    izid = if (p != null) true to p.ime else false to (n ?: "qr_ne_obstaja")
+                }
+                if (!izid.first && izid.second == "qr_ne_obstaja") {
+                    val prefs = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    val naslov = prefs.getString("hub_url", "") ?: ""
+                    val zeton = token(app)
+                    val odtis = prefs.getString(HubTls.KEY_HUB_FP, null)
+                    val osnova = httpBase(naslov)
+                    if (osnova.startsWith("https://") && !zeton.isNullOrBlank() && !odtis.isNullOrBlank()) {
+                        val (g, _) = HubTls.okhttp(OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS)
+                            .readTimeout(8, TimeUnit.SECONDS), odtis)
+                        val telo = JSONObject().put("qr_id", "").put("secret", koda).toString()
+                            .toRequestBody("application/json".toMediaTypeOrNull())
+                        g.build().newCall(Request.Builder().url("$osnova/cast/pair/qr/approve")
+                            .addHeader("X-Safeer-Token", zeton).post(telo).build()).execute().use { r ->
+                            val o = try { JSONObject(r.body?.string().orEmpty()) } catch (_: Exception) { JSONObject() }
+                            izid = when {
+                                r.code == 200 && o.optBoolean("approved") -> true to o.optString("name")
+                                r.code == 429 -> false to "prevec_poskusov"
+                                r.code == 409 -> false to (o.optString("code").ifBlank { "ista_naprava" })
+                                r.code == 401 || r.code == 403 -> false to "ni_seznanjena"
+                                else -> false to "qr_ne_obstaja"
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Kode naprave ni bilo mogoce potrditi: ${e.message}")
+                if (!izid.first) izid = false to "ni_huba"
+            }
+            glavna.post { gotovo(izid.first, izid.second) }
+        }.start()
+    }
 }
