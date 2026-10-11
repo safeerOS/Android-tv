@@ -2122,6 +2122,7 @@ class HubUsmerjevalnik(
             .niz("path", if (d.zaGostitelja) "" else d.potPrevzema())
             .niz("sha256", d.sha256)
             .logicno("for_host", d.zaGostitelja)
+            .let { if (d.mapa.isNotEmpty()) it.niz("dir", d.mapa) else it }   // starejsi cilj polje prezre
             .toString()
         // Ce cilj ni povezan, datoteka pocaka na Hubu (eno uro); posiljatelj je dobil odgovor 200.
         posredujDeljenje("share.file", d.posiljatelj, d.cilj, tovor)

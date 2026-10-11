@@ -35,6 +35,9 @@ class CastReceiverService : Service() {
 
     companion object {
         private const val TAG = "SafeerCastReceiver"
+        /** Prekinjen prevzem datoteke poskusimo znova toliko krat (z Range od mesta, kjer je ostal). */
+        private const val POSKUSOV_PREVZEMA = 6
+        private val CAKANJE_PREVZEMA_MS = longArrayOf(2_000, 4_000, 8_000, 15_000, 30_000)
         /** Domaca stran brskalnika; tipka Domov z daljinca Safeer Controla jo odpre. */
         private const val CHANNEL_ID = "safeer_cast_channel"
         private const val NOTIFICATION_ID = 4040
@@ -1064,14 +1067,16 @@ class CastReceiverService : Service() {
                     val pot = payload.optString("path", "")
                     val odtis = payload.optString("sha256", "")
                     val zaGostitelja = payload.optBoolean("for_host", false)
+                    // Posiljanje cele mape: relativna mapa, v kateri datoteka pristane (starejsi Hub je ne poslje).
+                    val podmapa = HubTokovi.varnaMapa(payload.optString("dir", ""))
                     val od = imePosiljatelja(json)
                     sendAck(ws, msgId, "accepted")
                     if (zaGostitelja || pot.isBlank()) {
                         // Hub tece na tej napravi: datoteka je ze v mapi prenosov.
-                        val mapa = HubKrmilnik.mapaZaPrejete(applicationContext)
+                        val mapa = HubTokovi.podmapaVarno(HubKrmilnik.mapaZaPrejete(applicationContext), podmapa)
                         mainHandler.post { javiDatoteko(ime, java.io.File(mapa, ime), od) }
                     } else {
-                        prevzemiDatoteko(hubHttpOsnova() + pot, ime, od, odtis)
+                        prevzemiDatoteko(hubHttpOsnova() + pot, ime, od, odtis, podmapa)
                     }
                 }
             }
@@ -1125,20 +1130,56 @@ class CastReceiverService : Service() {
      * Datoteko, ki caka na Hubu, prenesemo v mapo prenosov. V koscih, na lastni niti; ime
      * ostane tako, kot ga je dal posiljatelj, ob trku dobi stevilko kot na namizju.
      */
-    private fun prevzemiDatoteko(url: String, ime: String, od: String, pricakovanOdtis: String) {
+    /**
+     * Prevzem datoteke s Huba. Prekinjen prevzem (izpad Wi-Fi; lastnik, 11. 10. 2026) nadaljuje, kjer je ostal (Range),
+     * do POSKUSOV_PREVZEMA krat; kar je ze prislo, je v ».safeer-delno« in dobi koncno ime sele cela s pravim odtisom.
+     */
+    private fun prevzemiDatoteko(url: String, ime: String, od: String, pricakovanOdtis: String, podmapa: String = "") {
         Thread {
-            var zaBrisanje: java.io.File? = null
+            var delno: java.io.File? = null
             try {
-                val mapa = HubKrmilnik.mapaZaPrejete(applicationContext)
-                val cilj = HubTokovi.enolicnaPot(mapa, HubTokovi.varnoIme(ime))
-                zaBrisanje = cilj
-                val zahteva = Request.Builder().url(url).get().build()
-                client.newCall(zahteva).execute().use { odgovor ->
-                    if (!odgovor.isSuccessful) throw java.io.IOException("Hub je odgovoril ${odgovor.code}")
-                    val telo = odgovor.body ?: throw java.io.IOException("prazen odgovor")
-                    val prstni = java.security.MessageDigest.getInstance("SHA-256")
+                val mapa = HubTokovi.podmapaVarno(HubKrmilnik.mapaZaPrejete(applicationContext), podmapa)
+                val varno = HubTokovi.varnoIme(ime)
+                delno = HubTokovi.enolicnaPot(mapa, "$varno.safeer-delno")
+                var razlog = ""
+                var cela = false
+                for (poskus in 0 until POSKUSOV_PREVZEMA) {
+                    if (poskus > 0) Thread.sleep(CAKANJE_PREVZEMA_MS[minOf(poskus - 1, CAKANJE_PREVZEMA_MS.size - 1)])
+                    val (izid, r) = prevzemEnkrat(url, delno!!, pricakovanOdtis)
+                    razlog = r
+                    if (izid == "ok") { cela = true; break }
+                    if (izid == "koncno") break
+                }
+                if (!cela) throw java.io.IOException(razlog)
+                val cilj = HubTokovi.enolicnaPot(mapa, varno)
+                if (!delno!!.renameTo(cilj)) { delno!!.copyTo(cilj); delno!!.delete() }
+                Log.i(TAG, "Datoteka $ime je prenesena v ${cilj.parent}")
+                mainHandler.post { javiDatoteko(cilj.name, cilj, od) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Datoteke $ime ni bilo mogoce prevzeti: ${e.message}")
+                try { delno?.delete() } catch (_: Exception) { }
+                mainHandler.post { pokaziSporocilo("📁 $od", "Datoteke $ime ni bilo mogoče prevzeti.") }
+            }
+        }.start()
+    }
+
+    /** En poskus prevzema: ("ok" | "znova" | "koncno", razlog). Nadaljuje od velikosti `delno`, ce Hub zna Range. */
+    private fun prevzemEnkrat(url: String, delno: java.io.File, pricakovanOdtis: String): Pair<String, String> {
+        val imamo = if (delno.isFile) delno.length() else 0L
+        val zahteva = Request.Builder().url(url).get().apply { if (imamo > 0) header("Range", "bytes=$imamo-") }.build()
+        return try {
+            client.newCall(zahteva).execute().use { odgovor ->
+                if (odgovor.code != 200 && odgovor.code != 206) return "koncno" to "Hub je odgovoril ${odgovor.code}"
+                val telo = odgovor.body ?: return "znova" to "prazen odgovor"
+                val prstni = java.security.MessageDigest.getInstance("SHA-256")
+                val nadaljujem = odgovor.code == 206 && imamo > 0
+                if (nadaljujem) java.io.FileInputStream(delno).use { v ->
+                    val kos = ByteArray(1024 * 1024)
+                    while (true) { val n = v.read(kos); if (n < 0) break; prstni.update(kos, 0, n) }
+                }
+                try {
                     telo.byteStream().use { vhod ->
-                        java.io.FileOutputStream(cilj).use { izhod ->
+                        java.io.FileOutputStream(delno, nadaljujem).use { izhod ->
                             val kos = ByteArray(64 * 1024)
                             while (true) {
                                 val n = vhod.read(kos)
@@ -1148,19 +1189,20 @@ class CastReceiverService : Service() {
                             }
                         }
                     }
-                    // Datoteka mora biti natanko taka, kot jo je Hub sprejel; sicer je ne obdrzimo.
-                    val dobljen = prstni.digest().joinToString("") { String.format("%02x", it.toInt() and 0xFF) }
-                    val pricakovan = pricakovanOdtis.ifBlank { odgovor.header("x-safeer-sha256") ?: "" }
-                    if (pricakovan.isNotBlank() && pricakovan != dobljen) throw java.io.IOException("prstni odtis se ne ujema")
+                } catch (e: java.io.IOException) {
+                    return "znova" to (e.message ?: "prevzem prekinjen")
                 }
-                Log.i(TAG, "Datoteka $ime je prenesena v ${cilj.parent}")
-                mainHandler.post { javiDatoteko(cilj.name, cilj, od) }
-            } catch (e: Exception) {
-                Log.w(TAG, "Datoteke $ime ni bilo mogoce prevzeti: ${e.message}")
-                try { zaBrisanje?.delete() } catch (_: Exception) { }
-                mainHandler.post { pokaziSporocilo("📁 $od", "Datoteke $ime ni bilo mogoče prevzeti.") }
+                val dolzina = odgovor.header("Content-Length")?.toLongOrNull()
+                if (dolzina != null && delno.length() < dolzina + (if (nadaljujem) imamo else 0L)) return "znova" to "prevzem prekinjen"
+                // Datoteka mora biti natanko taka, kot jo je Hub sprejel; sicer je ne obdrzimo.
+                val dobljen = prstni.digest().joinToString("") { String.format("%02x", it.toInt() and 0xFF) }
+                val pricakovan = pricakovanOdtis.ifBlank { odgovor.header("x-safeer-sha256") ?: "" }
+                if (pricakovan.isNotBlank() && pricakovan != dobljen) { delno.delete(); return "koncno" to "prstni odtis se ne ujema" }
+                "ok" to ""
             }
-        }.start()
+        } catch (e: java.io.IOException) {
+            "znova" to (e.message ?: "povezava prekinjena")
+        }
     }
 
     /** Poslje poljubno sporocilo sredi scu (npr. control.command s strani daljinca). */
