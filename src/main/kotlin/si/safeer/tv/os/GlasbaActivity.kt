@@ -137,7 +137,25 @@ class GlasbaActivity : OsActivity() {
     /** Po izbiri kartice razdelka gre fokus na prvo kartico vsebine, ko se narise. */
     private var fokusVVsebino = false
     private var videnPrej = false
-    private val poslusalec: () -> Unit = { glavna.post { osveziZdaj() } }
+    private val poslusalec: () -> Unit = { glavna.post { osveziZdaj(); narociVrnitevVidea() } }
+
+    /**
+     * Video brez slike nima smisla (lastnik, 11. 10. 2026: »zvok se predvaja, ne pa video«): ko tok sredi filma odpove
+     * in storitev preklopi na rezervnega, se je zaslon predvajanja zaprl, film pa je igral naprej samo z zvokom za
+     * Medijskim centrom. Ce video tece (ne pavza - Nazaj na predvajalniku ga ustavi) in nobenega zaslona predvajanja ni,
+     * ga odpremo sami. Preverimo dvakrat v 1,5 s, da kratek preklop med zasloni ne odpre drugega.
+     */
+    private fun videoBrezZaslona(): Boolean = vOspredju && !isFinishing && !PredvajanjeActivity.odprt &&
+        GlasbaStoritev.trenutna()?.video == true && GlasbaStoritev.tece()
+    private val vrniVideo = Runnable {
+        if (!videoBrezZaslona()) return@Runnable
+        android.util.Log.i("SafeerOsMedia", "video tece brez zaslona: odpiram zaslon predvajanja")
+        startActivity(Intent(this, PredvajanjeActivity::class.java))
+    }
+    private fun narociVrnitevVidea() {
+        glavna.removeCallbacks(vrniVideo)
+        if (videoBrezZaslona()) glavna.postDelayed(vrniVideo, 1500)
+    }
     private val tik = object : Runnable { override fun run() { osveziZdaj(); glavna.postDelayed(this, 1_000) } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -430,6 +448,7 @@ class GlasbaActivity : OsActivity() {
         // Preverjanje odprte mreze, ustavljeno ob odhodu z zaslona, se nadaljuje.
         if (odprtKatalog != null) narociUmiri()
         GlasbaStoritev.poslusalci.add(poslusalec)
+        narociVrnitevVidea()
         // Kanal, ki je odpovedal, medtem ko je bil na zaslonu predvajalnik, in postaja, ki odpove tukaj.
         MrtviKanali.poslusalci.add(obMrtvemKanalu)
         umakniMrtvega()
@@ -6480,14 +6499,19 @@ class GlasbaActivity : OsActivity() {
         val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
         // Rok veljavnosti povezave steje pri vrstnem redu (TokIzbira.veljaSe): potekla povezava je zadnja.
         val zdajS = System.currentTimeMillis() / 1000
-        val neposredni = TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }, zdajS)
-        val torrenti = TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave)
+        // Jezik zvoka (lastnik, 10. 10. 2026): film v anglescini, slovenski film v slovenscini - sinhronizacija v tujem
+        // jeziku (npr. brazilska »Dublado«) ne sme biti prva samo zato, ker je v 4K.
+        val zelen = if (sk.video) TokIzbira.zeleniJezik(sk.language) else ""
+        val neposredni = TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }, zdajS, zelen, sk.language)
+        val torrenti = TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave,
+            zelenJezik = zelen, izvirni = sk.language)
         if (!rocno) {
             // Povezave, ki je po lastnem zapisu ze potekla, sploh ne poskusamo (streznik bi odgovoril 403 in uporabnik
             // bi cakal na naslednjo) - razen ce so take vse: ura naprave je lahko napacna, zato jih takrat vseeno poskusimo.
             val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }.ifEmpty { neposredni }
             android.util.Log.i("SafeerOsMedia", "tokovi: neposredni=${neposredni.size} (poteklih ${neposredni.size - zivi.size}), torrenti=${torrenti.size}, zunanji=${tokovi.size - neposredni.size - torrenti.size}; " +
-                "izbran=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}, rok=${zivi.firstOrNull()?.let { TokIzbira.veljaSe(it.url, zdajS) }}")
+                "izbran=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}, " +
+                "zvok=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.jezikZvoka(opis(it)) }}/$zelen, rok=${zivi.firstOrNull()?.let { TokIzbira.veljaSe(it.url, zdajS) }}")
             if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return }
             if (torrenti.isNotEmpty()) { odpri(torrenti.first()); return }
             if (posnetek != null) { odpri(posnetek); return }
