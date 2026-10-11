@@ -133,6 +133,44 @@ fun main() {
     Thread.sleep(300)
     preveri("nepopolna datoteka ne ostane na disku", !File(mapaPrenosov, "x.bin").exists())
 
+    println("\n== nadaljevanje oddaje in prevzema ==")
+    val velika = ByteArray(400_000) { ((it * 7) % 253).toByte() }
+    val shaV = java.security.MessageDigest.getInstance("SHA-256").digest(velika).joinToString("") { String.format("%02x", it.toInt() and 0xFF) }
+    val poizv = "/cast/file?name=film.mkv&target=fon2&dir=Filmi/../2026/.skrito"
+    // Prvi poskus: napovedanih 400000, poslanih 150000, nato vticnica pade (izpad Wi-Fi).
+    Socket("127.0.0.1", vrata).use { sk ->
+        sk.getOutputStream().write(("PUT $poizv HTTP/1.1\r\nHost: x\r\nx-safeer-token: pravi\r\n" +
+            "x-safeer-sha256: $shaV\r\nx-safeer-size: ${velika.size}\r\nx-safeer-offset: 0\r\n" +
+            "Content-Length: ${velika.size}\r\n\r\n").toByteArray())
+        sk.getOutputStream().write(velika, 0, 150_000); sk.getOutputStream().flush()
+        Thread.sleep(300)
+    }
+    Thread.sleep(300)
+    val glava = zahteva(vrata, "HEAD", "/cast/file?target=fon2&sha256=$shaV&size=${velika.size}", mapOf("x-safeer-token" to "pravi"))
+    val imamo = glava.third["x-safeer-offset"]?.toLongOrNull() ?: -1L
+    preveri("HEAD pove, koliko ze imamo (${imamo})", glava.first.contains("200") && glava.third["x-safeer-resume"] == "1" && imamo in 1..150_000)
+    preveri("HEAD brez zetona ne pove nicesar", zahteva(vrata, "HEAD", "/cast/file?target=fon2&sha256=$shaV&size=${velika.size}").third["x-safeer-offset"] == "0")
+    val napacnoMesto = zahteva(vrata, "PUT", poizv, mapOf("x-safeer-token" to "pravi", "x-safeer-sha256" to shaV,
+        "x-safeer-size" to "${velika.size}", "x-safeer-offset" to "${imamo + 5}"), velika.copyOfRange((imamo + 5).toInt(), velika.size))
+    preveri("napacen odmik je 409 z resnicnim odmikom", napacnoMesto.first.contains("409") && polje(String(napacnoMesto.second, Charsets.UTF_8), "koda") == "napacen_odmik")
+    val ostanekV = zahteva(vrata, "PUT", poizv, mapOf("x-safeer-token" to "pravi", "x-safeer-sha256" to shaV,
+        "x-safeer-size" to "${velika.size}", "x-safeer-offset" to "$imamo"), velika.copyOfRange(imamo.toInt(), velika.size))
+    val odgV = String(ostanekV.second, Charsets.UTF_8)
+    preveri("nadaljevanje uspe in odtis se ujema", ostanekV.first.contains("200") && polje(odgV, "sha256") == shaV)
+    val idV = polje(odgV, "id"); val kV = polje(odgV, "key")
+    val delni = zahteva(vrata, "GET", "/cast/file/$idV?k=$kV", mapOf("Range" to "bytes=300000-"))
+    preveri("Range da 206 z ostankom", delni.first.contains("206") && delni.third["content-range"] == "bytes 300000-399999/400000" &&
+        delni.second.contentEquals(velika.copyOfRange(300_000, velika.size)))
+    // Ostanek do konca je dokoncan prevzem: zacasna datoteka je opravila svoje.
+    preveri("po prevzemu ostanka zacasne ni vec", zahteva(vrata, "GET", "/cast/file/$idV?k=$kV").first.contains("404"))
+    preveri("varna mapa", HubTokovi.varnaMapa("Filmi/../2026/.skrito") == "Filmi/2026/skrito" && HubTokovi.varnaMapa("") == "")
+    preveri("obseg", HubTokovi.zacetekObsega("bytes=10-", 100) == 10L && HubTokovi.zacetekObsega("bytes=0-", 100) == 0L &&
+        HubTokovi.zacetekObsega("bytes=5-9", 100) == 0L && HubTokovi.zacetekObsega("bytes=100-", 100) == 0L)
+    // Za gostitelja: mapa posiljatelja v Prenosih; nepopolne datoteke uporabnik ne vidi pod pravim imenom.
+    val zaG = zahteva(vrata, "PUT", "/cast/file?name=a.txt&target=tv-gostitelj&dir=Po%C4%8Ditnice/Dan%201", mapOf("x-safeer-token" to "pravi"), "abc".toByteArray())
+    preveri("datoteka za gostitelja v podmapi", zaG.first.contains("200") && File(mapaPrenosov, "Počitnice/Dan 1/a.txt").isFile)
+    preveri("brez ostankov .safeer-delno", mapaPrenosov.walkTopDown().none { it.name.endsWith(".safeer-delno") })
+
     println("\n== zaslon ==")
     val zacetek = tokovi.zacniZaslon("fon1")
     preveri("deljenje se zacne", zacetek != null)
