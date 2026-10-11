@@ -338,6 +338,10 @@ class HubTokovi(
             val sha = (zahteva.poizvedba["sha256"] ?: "").trim().lowercase()
             val velikost = zahteva.poizvedba["size"]?.toLongOrNull() ?: -1L
             val d = delne[kljucDelne(posiljatelj, cilj, sha, velikost)]
+            // Ob izpadu povezave Hub se nekaj casa bere, kar je ze na poti (in pise na pocasen disk): posiljatelj, ki
+            // vprasa takoj, bi dobil 0 in poslal vse znova (izmerjeno 11. 10. 2026: 302 MB presezka). Pocakamo do 10 s.
+            var cakano = 0
+            while (d != null && d.vTeku && cakano < CAKANJE_DELNE_MS) { Thread.sleep(100); cakano += 100 }
             if (d != null && !d.vTeku) odmik = d.prejeto
         }
         izhod.write(("HTTP/1.1 ${if (veljaven) "200 OK" else "401 Unauthorized"}\r\nx-safeer-offset: $odmik\r\n" +
@@ -573,6 +577,8 @@ class HubTokovi(
         const val NAJVECJA_DATOTEKA = 1024L * 1024 * 1024 * 1024
         const val REZERVA_PROSTORA = 200L * 1024 * 1024
         const val DATOTEKA_VELJA_MS = 60 * 60 * 1000L
+        /** Koliko HEAD /cast/file najvec pocaka, da prekinjena oddaja dokonca branje (potem pove pravi odmik). */
+        const val CAKANJE_DELNE_MS = 10_000
         const val KOS = 64 * 1024
         private const val MEJA = "safeerokvir"
 
