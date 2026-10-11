@@ -654,7 +654,11 @@
     <string name="trg_opis_droidify">Client F-Droid.</string>
     <string name="trg_opis_fdroid">Logiciels libres et open source.</string>
     <string name="trg_opis_flicky">Client F-Droid adapté au téléviseur.</string>
-    <string name="trg_opis_play">Le magasin de Google, installé sur cet appareil.</string>
+    <string name="trg_opis_play">Le magasin de Google.</string>
     <string name="trg_opis_neo">Client F-Droid.</string>
     <string name="trg_opis_obtainium">Applications directement depuis les versions de leurs auteurs (GitHub, GitLab …).</string>
+    <string name="trg_izklopljeno">désactivée</string>
+    <string name="trg_izklopljen_opis">%1$s est désactivée sur cet appareil. Vous pouvez l’activer dans les infos de l’application avec le bouton « Activer ».</string>
+    <string name="trg_odpri_nastavitve">Ouvrir les paramètres</string>
+    <string name="trg_ni_uradnega">%1$s n’est pas sur cet appareil et Google ne publie pas de fichier d’installation officiel. Le catalogue Google Play est aussi accessible via Aurora Store.</string>
 </resources>

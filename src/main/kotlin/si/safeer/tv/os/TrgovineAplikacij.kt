@@ -16,7 +16,9 @@ import java.net.URL
  * Izbira ponudnika aplikacij v Safeer OS (lastnik, 11. 10. 2026): Safeer nima svoje trgovine in ne
  * pristaja na monopol ene trgovine. Uporabnik izbere, od kod bo namescal aplikacije; ponudnik se namesti
  * iz uradnega vira (najnovejsa izdaja ob izbiri, ne vgrajen naslov), nato aplikacije namesca on.
- * Seznam je po abecedi in brez priporocila. Google Play je na seznamu le, ce je na napravi ze namescen.
+ * Seznam je po abecedi in brez priporocila. Google Play je na seznamu enakovredno drugim (ni privzet):
+ * ce je izklopljen, uporabnika peljemo v sistemske podatke aplikacije, kjer ga sam vklopi; ce ga ni,
+ * povemo, da Google uradne namestitvene datoteke ne objavlja.
  */
 object TrgovineAplikacij {
 
@@ -29,7 +31,7 @@ object TrgovineAplikacij {
         class FDroid(val paket: String) : Vir()
         /** Uradni vmesnik Aptoide za njihovo aplikacijo. */
         class Aptoide(val paket: String) : Vir()
-        /** Samo odpremo, ce je namescen (ne namescamo). */
+        /** Ne namescamo (ni uradnega APK): odpremo, vklopimo v nastavitvah ali razlozimo. */
         object SamoOdpri : Vir()
     }
 
@@ -49,14 +51,22 @@ object TrgovineAplikacij {
     private fun namescen(a: Activity, paket: String): Boolean =
         try { a.packageManager.getPackageInfo(paket, 0); true } catch (_: Throwable) { false }
 
+    /** Namescen, a izklopljen (npr. Google Play, ki ga je lastnik naprave izklopil). */
+    private fun izklopljen(a: Activity, paket: String): Boolean =
+        try { !a.packageManager.getApplicationInfo(paket, 0).enabled } catch (_: Throwable) { false }
+
     private fun zagon(a: Activity, paket: String): Intent? =
         a.packageManager.getLeanbackLaunchIntentForPackage(paket) ?: a.packageManager.getLaunchIntentForPackage(paket)
 
     /** Okno z izbiro: ime, kratek opis in ali je ponudnik ze na napravi. */
     fun pokazi(a: Activity) {
-        val vidni = SEZNAM.filter { it.vir !is Vir.SamoOdpri || namescen(a, it.paket) }
+        val vidni = SEZNAM
         val vrstice = vidni.map { p ->
-            val stanje = if (namescen(a, p.paket)) " · " + a.getString(R.string.trg_namesceno) else ""
+            val stanje = when {
+                izklopljen(a, p.paket) -> " · " + a.getString(R.string.trg_izklopljeno)
+                namescen(a, p.paket) -> " · " + a.getString(R.string.trg_namesceno)
+                else -> ""
+            }
             p.ime + stanje + "\n" + a.getString(p.opis)
         }.toTypedArray()
         AlertDialog.Builder(a).setTitle(R.string.trg_naslov)
@@ -65,13 +75,28 @@ object TrgovineAplikacij {
     }
 
     private fun izberi(a: Activity, p: Ponudnik) {
+        if (izklopljen(a, p.paket)) {
+            // Vklopi ga uporabnik sam v sistemskih podatkih aplikacije (gumb »Omogoci«); Safeer ga ne vklaplja.
+            AlertDialog.Builder(a).setTitle(p.ime).setMessage(a.getString(R.string.trg_izklopljen_opis, p.ime))
+                .setPositiveButton(R.string.trg_odpri_nastavitve) { _, _ ->
+                    try {
+                        a.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            android.net.Uri.parse("package:" + p.paket)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (_: Throwable) { }
+                }.setNegativeButton(android.R.string.cancel, null).show()
+            return
+        }
         if (namescen(a, p.paket)) {
             val z = zagon(a, p.paket)
             if (z != null) { try { a.startActivity(z.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return } catch (_: Throwable) { } }
             Toast.makeText(a, a.getString(R.string.trg_ni_zagona, p.ime), Toast.LENGTH_LONG).show()
             return
         }
-        if (p.vir is Vir.SamoOdpri) return
+        if (p.vir is Vir.SamoOdpri) {
+            AlertDialog.Builder(a).setTitle(p.ime).setMessage(a.getString(R.string.trg_ni_uradnega, p.ime))
+                .setPositiveButton(android.R.string.ok, null).show()
+            return
+        }
         Toast.makeText(a, a.getString(R.string.trg_iscem, p.ime), Toast.LENGTH_SHORT).show()
         val glavna = Handler(Looper.getMainLooper())
         Thread({

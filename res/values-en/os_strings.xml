@@ -662,7 +662,11 @@
     <string name="trg_opis_droidify">F-Droid client.</string>
     <string name="trg_opis_fdroid">Free and open-source software.</string>
     <string name="trg_opis_flicky">F-Droid client made for TV.</string>
-    <string name="trg_opis_play">Google’s store, installed on this device.</string>
+    <string name="trg_opis_play">Google’s store.</string>
     <string name="trg_opis_neo">F-Droid client.</string>
     <string name="trg_opis_obtainium">Apps straight from their authors’ releases (GitHub, GitLab …).</string>
+    <string name="trg_izklopljeno">disabled</string>
+    <string name="trg_izklopljen_opis">%1$s is disabled on this device. You can turn it on in the app info with the “Enable” button.</string>
+    <string name="trg_odpri_nastavitve">Open settings</string>
+    <string name="trg_ni_uradnega">%1$s is not on this device, and Google does not publish an official installation file for it. The Google Play catalogue is also available through Aurora Store.</string>
 </resources>

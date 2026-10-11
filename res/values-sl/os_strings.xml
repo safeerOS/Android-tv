@@ -657,7 +657,11 @@
     <string name="trg_opis_droidify">Odjemalec za F-Droid.</string>
     <string name="trg_opis_fdroid">Prosta in odprtokodna programska oprema.</string>
     <string name="trg_opis_flicky">Odjemalec za F-Droid, prilagojen televizorju.</string>
-    <string name="trg_opis_play">Googlova trgovina, nameščena na tej napravi.</string>
+    <string name="trg_opis_play">Googlova trgovina.</string>
     <string name="trg_opis_neo">Odjemalec za F-Droid.</string>
     <string name="trg_opis_obtainium">Aplikacije naravnost iz izdaj avtorjev (GitHub, GitLab …).</string>
+    <string name="trg_izklopljeno">izklopljeno</string>
+    <string name="trg_izklopljen_opis">%1$s je na tej napravi izklopljen. V podatkih aplikacije ga lahko vklopiš z gumbom »Omogoči«.</string>
+    <string name="trg_odpri_nastavitve">Odpri nastavitve</string>
+    <string name="trg_ni_uradnega">%1$s ni na tej napravi, Google pa zanj ne objavlja uradne namestitvene datoteke. Katalog Google Play je dostopen tudi prek Aurora Store.</string>
 </resources>
