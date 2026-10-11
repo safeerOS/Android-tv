@@ -29,7 +29,7 @@ class SkrivanjeVrstice(private val a: Activity, private val meni: View) {
     private var opravljeno = false
 
     init {
-        rocaj.background = LayerDrawable(arrayOf(GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor(0x9957D6AD.toInt()) }))
+        rocaj.background = LayerDrawable(arrayOf(GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor((a.osBarva(R.color.os_mint) and 0x00FFFFFF) or 0x99000000.toInt()) }))
             .apply { setLayerGravity(0, Gravity.CENTER); setLayerSize(0, dp(6), dp(56)) }
         rocaj.contentDescription = a.getString(R.string.os_vrstica_pokazi)
         rocaj.setOnClickListener { nastavi(false) }

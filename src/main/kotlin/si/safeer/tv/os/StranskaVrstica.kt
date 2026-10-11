@@ -116,11 +116,11 @@ class StranskaVrstica private constructor(
     fun oznaci(z: Zavihek?) {
         zavihki.forEach { (k, v) ->
             val da = k == z
-            val barva = dejavnost.getColor(if (da) R.color.os_mint else R.color.os_umirjeno)
+            val barva = context.osBarva(if (da) R.color.os_mint else R.color.os_umirjeno)
             v.isSelected = da
             (v.getChildAt(0) as? android.widget.FrameLayout)?.let { okvir ->
                 okvir.background = if (!da) null else android.graphics.drawable.GradientDrawable().apply {
-                    cornerRadius = dp(15).toFloat(); setColor((dejavnost.getColor(R.color.os_mint) and 0x00FFFFFF) or 0x33000000) }
+                    cornerRadius = dp(15).toFloat(); setColor((context.osBarva(R.color.os_mint) and 0x00FFFFFF) or 0x33000000) }
                 (okvir.getChildAt(0) as? ImageView)?.imageTintList = ColorStateList.valueOf(barva)
             }
             (v.getChildAt(1) as? TextView)?.apply {
@@ -146,7 +146,7 @@ class StranskaVrstica private constructor(
         zgradiMeni()
         // Rocaj na levem robu, ko je vrstica skrita: tanek zelen jezicek (dotik ali poteg ga odpre).
         rocaj.background = android.graphics.drawable.LayerDrawable(arrayOf(
-            android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor(0x9957D6AD.toInt()) }
+            android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor((context.osBarva(R.color.os_mint) and 0x00FFFFFF) or 0x99000000.toInt()) }
         )).apply { setLayerInset(0, dp(6), 0, dp(6), 0); setLayerGravity(0, Gravity.CENTER); setLayerSize(0, dp(6), dp(72)) }
         rocaj.contentDescription = dejavnost.getString(R.string.os_vrstica_pokazi)
         rocaj.setOnClickListener { nastaviSkrito(false) }
@@ -403,13 +403,13 @@ class StranskaVrstica private constructor(
 
     private fun ikona(vir: Int, velikost: Int, barva: Int? = null) = ImageView(context).apply {
         setImageResource(vir); scaleType = ImageView.ScaleType.FIT_CENTER
-        if (barva != null) imageTintList = ColorStateList.valueOf(dejavnost.getColor(barva))
+        if (barva != null) imageTintList = ColorStateList.valueOf(context.osBarva(barva))
         layoutParams = LayoutParams(dp(velikost), dp(velikost))
     }
 
     private fun besedilo(velikost: Float, barva: Int, krepko: Boolean = false) = TextView(context).apply {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, velikost)
-        setTextColor(dejavnost.getColor(barva))
+        setTextColor(context.osBarva(barva))
         if (krepko) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
 

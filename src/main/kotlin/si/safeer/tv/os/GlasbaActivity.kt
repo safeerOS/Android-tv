@@ -2530,7 +2530,7 @@ class GlasbaActivity : OsActivity() {
                 setPadding(dp(if (ozek) 10 else 12), dp(10), dp(if (ozek) 8 else 10), dp(10))
                 fun oblika(rob: Int, debelina: Int, polnilo: Int) = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(polnilo); setStroke(dp(debelina), rob) }
                 background = android.graphics.drawable.StateListDrawable().apply {
-                    addState(intArrayOf(android.R.attr.state_focused), oblika(osBarva(R.color.os_mint), 2, 0x3357D6AD))
+                    addState(intArrayOf(android.R.attr.state_focused), oblika(osBarva(R.color.os_mint), 2, (osBarva(R.color.os_mint) and 0x00FFFFFF) or 0x33000000))
                     addState(intArrayOf(android.R.attr.state_pressed), oblika(0x66FFFFFF, 1, 0x26FFFFFF))
                     addState(intArrayOf(), oblika(0x40FFFFFF, 1, 0x14FFFFFF))
                 }
@@ -2706,7 +2706,7 @@ class GlasbaActivity : OsActivity() {
         setPadding(dp(if (ozek) 10 else 12), dp(10), dp(if (ozek) 8 else 10), dp(10))
         fun oblika(rob: Int, debelina: Int, polnilo: Int) = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(polnilo); setStroke(dp(debelina), rob) }
         background = android.graphics.drawable.StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_focused), oblika(osBarva(R.color.os_mint), 2, 0x3357D6AD))
+            addState(intArrayOf(android.R.attr.state_focused), oblika(osBarva(R.color.os_mint), 2, (osBarva(R.color.os_mint) and 0x00FFFFFF) or 0x33000000))
             addState(intArrayOf(android.R.attr.state_pressed), oblika(0x66FFFFFF, 1, 0x26FFFFFF))
             addState(intArrayOf(), oblika(0x40FFFFFF, 1, 0x14FFFFFF))
         }
