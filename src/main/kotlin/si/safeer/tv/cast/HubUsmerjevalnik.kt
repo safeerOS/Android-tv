@@ -835,10 +835,14 @@ class HubUsmerjevalnik(
         var nastala: Long,
         var zeton: String? = null,
         var odobril: String = "",
-        var poskusov: Int = 0
+        var poskusov: Int = 0,
+        /** SHA-256 (hex) 6-mestne kode, ki jo naprava pokaze poleg QR (prazno pri starem odjemalcu). */
+        val odtisKode: String = ""
     )
 
     private val qrPrijave = LinkedHashMap<String, QrPrijava>()
+    /** Casi neuspelih vnosov kode naprave (vse naprave skupaj) - omejitev ugibanja 6 stevk. */
+    private val kodaNapake = ArrayList<Long>()
 
     /** Kar naprava, ki dovoljuje, pokaze uporabniku, preden potrdi. */
     data class QrPodatki(val deviceId: String, val ime: String, val platforma: String)
@@ -849,21 +853,40 @@ class HubUsmerjevalnik(
     }
 
     /** Odpre prijavo s QR kodo. Vrne qr_id ali napako (prevec_prijav, neveljavno). */
-    fun zacniQr(deviceId: String, ime: String, platforma: String, odtisSkrivnosti: String, prevzem: String): Pair<String?, String?> =
+    fun zacniQr(deviceId: String, ime: String, platforma: String, odtisSkrivnosti: String, prevzem: String,
+                odtisKode: String = ""): Pair<String?, String?> =
         synchronized(kljucnica) {
             if (!Regex("^[0-9a-f]{64}$").matches(odtisSkrivnosti) || prevzem.length !in 16..128) return null to "neveljavno"
+            val koda = if (Regex("^[0-9a-f]{64}$").matches(odtisKode)) odtisKode else ""
             pocistiQr()
             qrPrijave.entries.removeAll { it.value.deviceId == deviceId }
             if (qrPrijave.size >= NAJVEC_CAKAJOCIH) return null to "prevec_prijav"
             val p = QrPrijava(nakljucni(12), deviceId, if (ime.isBlank()) deviceId else ime,
-                platforma.take(16), odtisSkrivnosti, prevzem, ura())
+                platforma.take(16), odtisSkrivnosti, prevzem, ura(), odtisKode = koda)
             qrPrijave[p.qrId] = p
             return p.qrId to null
         }
 
-    /** Prijava, ce skrivnost iz QR drzi; sicer napaka (qr_ne_obstaja, prevec_poskusov). Klice se pod kljucnico. */
+    /**
+     * Prijava, ce skrivnost iz QR drzi; sicer napaka (qr_ne_obstaja, prevec_poskusov). Klice se pod kljucnico.
+     * Brez [qrId] je [skrivnost] 6-mestna koda, ki jo naprava, ki se prijavlja, pokaze poleg QR (clan Linka jo vpise
+     * v »Vpiši kodo z druge naprave«). Neuspeli vnosi kode so omejeni na NAJVEC_KODA_NAPAK na minuto.
+     */
     private fun qrZaSkrivnost(qrId: String, skrivnost: String): Pair<QrPrijava?, String?> {
         pocistiQr()
+        if (qrId.isEmpty()) {
+            if (skrivnost.length != 6 || !skrivnost.all { it in '0'..'9' }) return null to "qr_ne_obstaja"
+            val zdaj = ura()
+            kodaNapake.removeAll { zdaj - it > 60_000L }
+            if (kodaNapake.size >= NAJVEC_KODA_NAPAK) return null to "prevec_poskusov"
+            val odtis = sha256Hex(skrivnost)
+            val najdena = qrPrijave.values.firstOrNull { it.odtisKode.isNotEmpty() && enaka(it.odtisKode, odtis) }
+            if (najdena == null) {
+                kodaNapake.add(zdaj)
+                return null to "qr_ne_obstaja"
+            }
+            return najdena to null
+        }
         val p = qrPrijave[qrId] ?: return null to "qr_ne_obstaja"
         if (!enaka(sha256Hex(skrivnost), p.odtisSkrivnosti)) {
             p.poskusov += 1
@@ -2320,6 +2343,8 @@ class HubUsmerjevalnik(
 
         /** Koliko zgresenih kod prenese ena prijava, preden pade. Ugibanje s tem nima smisla. */
         const val NAJVEC_POSKUSOV = 5
+        /** Najvec neuspelih vnosov kode naprave na minuto (vse naprave skupaj), kot na Linuxu (link_hub_streznik). */
+        const val NAJVEC_KODA_NAPAK = 10
 
         /** Kodo pokaze gostitelj, naprava jo vtipka. Starejsi Hub tega nacina ne pozna. */
         const val NACIN_KODA_NA_GOSTITELJU = "koda_na_gostitelju"

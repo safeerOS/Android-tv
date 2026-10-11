@@ -40,4 +40,6 @@
     <string name="os_naprave_vrsta_tablica">Tablet</string>
     <string name="os_naprave_vrsta_telefon">Phone</string>
     <string name="os_sporocila_kopirano">Copied</string>
+    <string name="os_naprave_koda_dovoljena">Allowed: %1$s is connecting now.</string>
+    <string name="os_naprave_koda_ista">This is this device\'s own code – type it on another device.</string>
 </resources>

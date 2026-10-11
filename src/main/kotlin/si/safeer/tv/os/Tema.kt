@@ -6,14 +6,18 @@ import android.util.TypedValue
 import si.safeer.tv.R
 
 /**
- * Teme Safeer OS: privzeta Safeer + pet najbolj razsirjenih shem, ki jih uporabniki poznajo iz drugih programov
+ * Teme Safeer OS: privzeta Safeer Namizje (barve namizja Safeer OS za Linux, od 11. 10. 2026 - lastnik: »je
+ * mirnejsa«), prejsnja zelena Safeer + pet najbolj razsirjenih shem, ki jih uporabniki poznajo iz drugih programov
  * (Catppuccin Mocha, Tokyo Night, Gruvbox Dark, Nord, Dracula; uradne palete, vse MIT). Enak nabor kot Safeer OS
  * na racunalniku (Nastavitve › Videz). Barve v kodi gredo prek [osBarva] (atribut teme), v XML prek ?attr/osX.
  */
 object Tema {
     const val KLJUC = "os_tema"
     data class Vnos(val id: String, val ime: String, val stil: Int, val stilPredvajalnik: Int, val vir: String)
+    /** Privzeta tema za vse, ki teme niso izbrali sami (izbira »safeer« ostane, kdor jo je izbral). */
+    const val PRIVZETA = "namizje"
     val VSE = listOf(
+        Vnos("namizje", "Safeer Namizje", R.style.Theme_SafeerOs_Namizje, R.style.Theme_SafeerOs_Namizje_Predvajalnik, ""),
         Vnos("safeer", "Safeer", R.style.Theme_SafeerOs, R.style.Theme_SafeerOs_Predvajalnik, ""),
         Vnos("catppuccin", "Catppuccin Mocha", R.style.Theme_SafeerOs_Catppuccin, R.style.Theme_SafeerOs_Catppuccin_Predvajalnik, "catppuccin.com"),
         Vnos("tokyonight", "Tokyo Night", R.style.Theme_SafeerOs_Tokyonight, R.style.Theme_SafeerOs_Tokyonight_Predvajalnik, "tokyonight (enkia)"),
@@ -43,7 +47,7 @@ object Tema {
     )
 
     fun izbrana(c: Context): Vnos {
-        val id = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).getString(KLJUC, "safeer")
+        val id = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).getString(KLJUC, PRIVZETA)
         return VSE.firstOrNull { it.id == id } ?: VSE[0]
     }
 

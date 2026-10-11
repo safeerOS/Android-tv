@@ -125,7 +125,7 @@ class VidezActivity : OsActivity() {
                 }, android.widget.LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(8) })
                 addView(TextView(this@VidezActivity).apply { text = t.ime; textSize = 14f; setTextColor(osBarva(R.color.os_besedilo)); setTypeface(typeface, android.graphics.Typeface.BOLD) })
                 addView(TextView(this@VidezActivity).apply {
-                    text = if (t.id == "safeer") getString(R.string.os_tema_privzeta) else t.vir + (if (t.id == izbrana) "  ·  " + getString(R.string.os_tema_izbrana) else "")
+                    text = if (t.id == Tema.PRIVZETA) getString(R.string.os_tema_privzeta) else t.vir + (if (t.id == izbrana) "  ·  " + getString(R.string.os_tema_izbrana) else "")
                     textSize = 11f; setTextColor(osBarva(R.color.os_umirjeno))
                 })
                 setOnClickListener { if (t.id != izbrana) { Tema.nastavi(this@VidezActivity, t.id); recreate() } }

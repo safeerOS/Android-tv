@@ -118,6 +118,36 @@
         <item name="android:colorBackground">@android:color/black</item>
         <item name="android:windowFullscreen">true</item>
     </style>
+    <style name="Theme.SafeerOs.Namizje" parent="Theme.SafeerOs">
+        <item name="android:windowBackground">@color/tema_namizje_ozadje</item>
+        <item name="android:colorBackground">@color/tema_namizje_ozadje</item>
+        <item name="android:textColorPrimary">@color/tema_namizje_besedilo</item>
+        <item name="android:textColorSecondary">@color/tema_namizje_umirjeno</item>
+        <item name="android:colorAccent">@color/tema_namizje_mint</item>
+        <item name="osOzadje">@color/tema_namizje_ozadje</item>
+        <item name="osKartica">@color/tema_namizje_kartica</item>
+        <item name="osKarticaDvignjena">@color/tema_namizje_kartica_dvignjena</item>
+        <item name="osMint">@color/tema_namizje_mint</item>
+        <item name="osMintTemna">@color/tema_namizje_mint_temna</item>
+        <item name="osBesedilo">@color/tema_namizje_besedilo</item>
+        <item name="osUmirjeno">@color/tema_namizje_umirjeno</item>
+        <item name="osCrta">@color/tema_namizje_crta</item>
+        <item name="osOpozorilo">@color/tema_namizje_opozorilo</item>
+        <item name="osSij">@color/tema_namizje_sij</item>
+        <item name="osKarticaSteklo">@color/tema_namizje_kartica_steklo</item>
+        <item name="osKarticaStekloFokus">@color/tema_namizje_kartica_steklo_fokus</item>
+        <item name="osKarticaObroba">@color/tema_namizje_kartica_obroba</item>
+        <item name="osMeniOzadje">@color/tema_namizje_meni_ozadje</item>
+        <item name="osMeniIzbranOzadje">@color/tema_namizje_meni_izbran_ozadje</item>
+        <item name="osMeniFokusOzadje">@color/tema_namizje_meni_fokus_ozadje</item>
+        <item name="osSivaPika">@color/tema_namizje_siva_pika</item>
+        <item name="osPloscicaAppOzadje">@color/tema_namizje_ploscica_app_ozadje</item>
+    </style>
+    <style name="Theme.SafeerOs.Namizje.Predvajalnik" parent="Theme.SafeerOs.Namizje">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
     <style name="Theme.SafeerOs.Nord" parent="Theme.SafeerOs">
         <item name="android:windowBackground">@color/tema_nord_ozadje</item>
         <item name="android:colorBackground">@color/tema_nord_ozadje</item>

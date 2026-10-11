@@ -370,7 +370,7 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     vnesi6MestnoKodo()
                     return@setPositiveButton
                 }
-                izvediPovezavoSKodo(koda)
+                vnesenaKoda(koda)
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
@@ -380,6 +380,31 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         vnos.post {
             val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
             imm?.showSoftInput(vnos, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    /**
+     * Vneseno kodo kaze ena od dveh naprav (»vsaka naprava se lahko spari z vsako«, 11. 10. 2026): naprava, ki se
+     * prijavlja (svoja koda poleg QR, npr. Safeer Control) - ce smo ze v Linku, jo dovolimo; ali sredisce s
+     * povabilom - potem se mu pridruzimo kot doslej.
+     */
+    private fun vnesenaKoda(koda: String) {
+        val vLinku = !HubPairing.token(this).isNullOrBlank() || HubKrmilnik.usmerjevalnik != null
+        if (!vLinku) { izvediPovezavoSKodo(koda); return }
+        HubPairing.odobriKodo(this, koda) { uspelo, imeAliRazlog ->
+            if (isFinishing) return@odobriKodo
+            when {
+                uspelo -> {
+                    pokaziPovezano(imeAliRazlog)
+                    Toast.makeText(this, getString(R.string.os_naprave_koda_dovoljena, imeAliRazlog), Toast.LENGTH_LONG).show()
+                }
+                imeAliRazlog == "qr_ne_obstaja" -> izvediPovezavoSKodo(koda)
+                imeAliRazlog == "prevec_poskusov" ->
+                    Toast.makeText(this, getString(R.string.os_host_prevec_poskusov), Toast.LENGTH_LONG).show()
+                imeAliRazlog == "ista_naprava" ->
+                    Toast.makeText(this, getString(R.string.os_naprave_koda_ista), Toast.LENGTH_LONG).show()
+                else -> Toast.makeText(this, getString(R.string.os_host_ni_odgovora), Toast.LENGTH_LONG).show()
+            }
         }
     }
 

@@ -40,4 +40,6 @@
     <string name="os_naprave_vrsta_tablica">Tableta</string>
     <string name="os_naprave_vrsta_telefon">Móvil</string>
     <string name="os_sporocila_kopirano">Copiado</string>
+    <string name="os_naprave_koda_dovoljena">Permitido: %1$s se está conectando.</string>
+    <string name="os_naprave_koda_ista">Este es el código de este dispositivo: escríbelo en otro dispositivo.</string>
 </resources>
