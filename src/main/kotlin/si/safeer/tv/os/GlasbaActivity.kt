@@ -4653,7 +4653,7 @@ class GlasbaActivity : OsActivity() {
             val enter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP
             if (a == EditorInfo.IME_ACTION_SEARCH || a == EditorInfo.IME_ACTION_DONE || enter) {
                 val q = text.toString().trim()
-                if (q.length >= 2) isci(q)
+                if (q.length >= 2 && !prikaziNaDrugi(q)) isci(q)
                 true
             } else false
         }
@@ -4708,6 +4708,17 @@ class GlasbaActivity : OsActivity() {
     }
 
     private var glasZacetek = 0L
+
+    /** »Jungle Book na TV«: prikaz na drugi napravi v Linku (PrikaziNa); sicer obicajno iskanje. */
+    private fun prikaziNaDrugi(q: String): Boolean {
+        val cilj = PrikaziNa.razcleni(q)?.takeIf { it.naslov.isNotBlank() } ?: return false
+        PrikaziNa.izberiInPoslji(this, cilj)
+        return true
+    }
+
+    private fun iskanjeAliPrikaz(q: String) {
+        if (!prikaziNaDrugi(q)) odpriIskanje(q)
+    }
 
     private fun glasovno() {
         val namen = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -4764,7 +4775,7 @@ class GlasbaActivity : OsActivity() {
             if (System.currentTimeMillis() - glasZacetek < 1_500) Toast.makeText(this, R.string.os_mediji_ni_glasovnega, Toast.LENGTH_LONG).show()
             return
         }
-        data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { odpriIskanje(it) }
+        data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { iskanjeAliPrikaz(it) }
     }
 
     /**

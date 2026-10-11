@@ -51,6 +51,8 @@ object Daljinec {
         "gamepad.button", "gamepad.axis", "gamepad.release",
         // Magnet povezava z druge naprave: odpre se v Safeer OS predvajalniku te naprave.
         "magnet.open",
+        // »Prikazi na TV / tablici« z druge naprave: naslov poisce Medijski center te naprave (PrikaziNa).
+        "media.open",
         // Zakon solidarnosti: ta naprava torrent prenasa in pretaka napravi v Linku, ki ga sama ne zmore (MagnetPomoc).
         "magnet.stream", "magnet.list", "magnet.remove", "magnet.keep",
         // Zakon solidarnosti: koliko proste moci ima ta naprava in ali ta trenutek sme pomagati (Zmogljivost).
@@ -179,6 +181,7 @@ object Daljinec {
             return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)
         }
         if (d == "magnet.open") return odpriMagnet(context, parametri.optString("uri", ""))
+        if (d == "media.open") return odpriMedij(context, parametri)
         if (d == "magnet.stream") return MagnetPomoc.tok(context, parametri, parametri.optString(PARAM_POSILJATELJ, ""))
         if (d == "magnet.list") return MagnetPomoc.seznam(context, parametri.optString(PARAM_POSILJATELJ, ""))
         if (d == "magnet.remove") return MagnetPomoc.odstrani(context, parametri)
@@ -324,6 +327,24 @@ object Daljinec {
         try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Magnet ni odprt: ${e.message}") }
         prebudiZNamero(context, namera, ime)
         return Izid(true, "Odpiram magnet povezavo")
+    }
+
+    /** `media.open`: Safeer Media te naprave pride v ospredje in isce naslov (uporabnik je rekel »prikazi na TV«). */
+    private fun odpriMedij(context: Context, parametri: org.json.JSONObject): Izid {
+        if (si.safeer.tv.BuildConfig.FLAVOR == "brskalnik") return Izid(false, "Medijski center tu ni na voljo", koda = "ni_podprto")
+        val naslov = si.safeer.tv.os.PrikaziNa.naslovIz(parametri)
+        if (naslov.isEmpty()) return Izid(false, "Ni naslova", koda = "prazno")
+        val namera = Intent().setClassName(context, "si.safeer.tv.os.GlasbaActivity")
+            .putExtra(si.safeer.tv.os.GlasbaActivity.ISKANJE_BESEDA, naslov)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val ime = "Safeer Media"
+        if (!smeZagnatiIzOzadja(context)) {
+            prebudiZNamero(context, namera, ime)
+            return izidBrezDovoljenja(context, ime)
+        }
+        try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Safeer Media ni odprta: ${e.message}") }
+        prebudiZNamero(context, namera, ime)
+        return Izid(true, "Odpiram v Medijskem centru: $naslov")
     }
 
     /** Kljuc, pod katerim CastReceiverService doda id posiljatelja ukaza (vedno prepise, kar pride od zunaj). */

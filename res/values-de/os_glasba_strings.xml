@@ -313,4 +313,9 @@
     <string name="os_media_kanal_mrtev_streznik">„%1$s“ funktioniert nicht – Server nicht gefunden. Bis morgen ausgeblendet.</string>
     <string name="os_media_kanal_mrtev_neodziven">„%1$s“ funktioniert nicht – Server antwortet nicht. Bis morgen ausgeblendet.</string>
     <string name="os_tv_brez_odgovora">Einige Add-on-Sender antworten gerade nicht; angezeigt werden nur funktionierende.</string>
+    <string name="os_prikazi_na_ni_naprave">Kein solches Gerät in Safeer Link.</string>
+    <string name="os_prikazi_na_izberi">Auf welchem Gerät anzeigen?</string>
+    <string name="os_prikazi_na_odpira">Wird auf %1$s geöffnet: %2$s</string>
+    <string name="os_prikazi_na_ne_zna">%1$s kann das noch nicht – aktualisiere dort Safeer.</string>
+    <string name="os_prikazi_na_napaka">Konnte auf %1$s nicht geöffnet werden.</string>
 </resources>
