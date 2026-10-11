@@ -61,6 +61,13 @@ object Pretok {
     private val tokovi = ConcurrentHashMap<String, Tok>()
     private val glavna = Handler(Looper.getMainLooper())
 
+    /** audio_langs iz zahteve: najvec 4 kode ISO 639 (2-3 crke); drugo zavrzemo. */
+    internal fun jezikiZvoka(polje: org.json.JSONArray?): List<String> {
+        if (polje == null) return emptyList()
+        return (0 until minOf(polje.length(), 4)).map { polje.optString(it).trim().lowercase() }
+            .filter { it.length in 2..3 && it.all { z -> z in 'a'..'z' } }.distinct()
+    }
+
     fun zacni(context: Context, p: JSONObject, posiljatelj: String): Daljinec.Izid {
         if (Build.VERSION.SDK_INT < 29) return Daljinec.Izid(false, "Sprotno pretvarjanje potrebuje Android 10 ali novejsi", koda = "ni_podprto")
         val url = p.optString("url"); val odtis = p.optString("fp"); val zeton = p.optString("token")
@@ -69,6 +76,8 @@ object Pretok {
         if (odtis.isNotBlank() && odtis.length != 64) return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
         val mime = p.optString("mime"); val w = p.optInt("width"); val h = p.optInt("height")
         val glave = glaveZahteve(p.optJSONObject("headers"))
+        // Jezik zvocne sledi, ki ga gledalec zeli (lastnik, 11. 10. 2026: pretvorba je vzela privzeto, ne angleske).
+        val jeziki = jezikiZvoka(p.optJSONArray("audio_langs"))
         if (mime.startsWith("video/") && w > 0 && h > 0 && !znaDekodirati(MediaFormat.createVideoFormat(mime, w, h)))
             return Daljinec.Izid(false, "Naprava tega videa ne zna prebrati", koda = "ne_zna_dekodirati")
         val pomoc = Zmogljivost.porocilo(context).optJSONObject("pomoc")
@@ -98,7 +107,7 @@ object Pretok {
             val vel = if (velikost > 0 || trajanjeMs <= 0) velikost else poizvediVelikost(url, odtis, zeton, glave)
             val bitna = Pretvorba.bitnaHitrost(vel, trajanjeMs, w, h)
             Log.i(TAG, "Tok $ime: izvirnik $vel B, ${trajanjeMs} ms, ${w}x$h -> bitna hitrost $bitna b/s")
-            glavna.post { pretvarjaj(app, t, url, odtis, zeton, glave, seek, bitna, h) }
+            glavna.post { pretvarjaj(app, t, url, odtis, zeton, glave, seek, bitna, h, jeziki) }
         }, "safeer-pretok").apply { isDaemon = true; start() }
         return Daljinec.Izid(true, "Pretvarjam sproti", JSONObject().put("id", t.id)
             .put("url", streznik.optString("base_url") + "/live/" + t.id)
@@ -150,15 +159,24 @@ object Pretok {
 
     /** Transformer tece na glavni niti; vir bere naravnost z racunalnika/televizorja (pripeto) ali s spleta. */
     private fun pretvarjaj(ctx: Context, t: Tok, url: String, odtis: String, zeton: String, glave: Map<String, String>,
-                           seekMs: Long, bitna: Int, visinaVira: Int) {
+                           seekMs: Long, bitna: Int, visinaVira: Int, jeziki: List<String> = emptyList()) {
         try {
             // UA gre v tovarno (DefaultHttpDataSource z njim prepise glave zahteve), ostale glave toka na vsako zahtevo.
             val vir: DataSource.Factory = if (odtis.isNotBlank()) si.safeer.tv.os.PripetiVir.Tovarna(odtis, zeton, ctx)
                 else DefaultHttpDataSource.Factory().setUserAgent(glave.entries.firstOrNull { it.key.equals("User-Agent", true) }?.value ?: "Safeer OS")
                     .setDefaultRequestProperties(glave.filterKeys { !it.equals("User-Agent", true) })
                     .setAllowCrossProtocolRedirects(true)
+            // Izbira sledi kot privzeto v Transformerju (najvisja bitna hitrost), z zelenim jezikom zvoka - sicer bi
+            // pretvorba vzela privzeto sled vira (npr. sinhronizacijo), cetudi je gledalec izbral izvirnik.
+            val izbiraSledi = androidx.media3.exoplayer.trackselection.TrackSelector.Factory { c ->
+                androidx.media3.exoplayer.trackselection.DefaultTrackSelector(c,
+                    androidx.media3.exoplayer.trackselection.DefaultTrackSelector.Parameters.Builder(c)
+                        .setForceHighestSupportedBitrate(true)
+                        .apply { if (jeziki.isNotEmpty()) setPreferredAudioLanguages(*jeziki.toTypedArray()) }
+                        .build())
+            }
             val nalagalnik = DefaultAssetLoaderFactory(ctx, DefaultDecoderFactory.Builder(ctx).build(), Clock.DEFAULT,
-                DefaultMediaSourceFactory(vir), DataSourceBitmapLoader(ctx))
+                DefaultMediaSourceFactory(vir), DataSourceBitmapLoader(ctx), izbiraSledi)
             val kodirnik = DefaultEncoderFactory.Builder(ctx).apply {
                 if (bitna > 0) setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(bitna).build())
             }.build()
