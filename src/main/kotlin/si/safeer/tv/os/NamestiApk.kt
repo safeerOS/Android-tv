@@ -46,11 +46,11 @@ object NamestiApk {
 
     /** Datoteka na napravi (content:// ali file://). */
     fun izDatoteke(a: Activity, uri: Uri, ime: String) =
-        pripravi(a, ime, -1L) { a.contentResolver.openInputStream(uri) ?: throw IllegalStateException("ni datoteke") }
+        pripravi(a, ime, -1L, a.getString(R.string.apk_vir_naprava)) { a.contentResolver.openInputStream(uri) ?: throw IllegalStateException("ni datoteke") }
 
     /** Prenos iz brskalnika: APK prenesemo sami (z napredkom), nato ga ponudimo v namestitev. */
     fun izSpleta(a: Activity, url: String, userAgent: String?, ime: String) =
-        pripravi(a, ime, 0L) {
+        pripravi(a, ime, 0L, try { Uri.parse(url).host ?: url } catch (_: Throwable) { url }) {
             val c = URL(url).openConnection() as HttpURLConnection
             c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
             if (!userAgent.isNullOrBlank()) c.setRequestProperty("User-Agent", userAgent)
@@ -62,7 +62,7 @@ object NamestiApk {
 
     @Volatile private var velikostZadnjega = -1L
 
-    private fun pripravi(a: Activity, ime: String, znanaVelikost: Long, odpri: () -> InputStream) {
+    private fun pripravi(a: Activity, ime: String, znanaVelikost: Long, vir: String, odpri: () -> InputStream) {
         val dp = { v: Int -> (v * a.resources.displayMetrics.density).toInt() }
         val napredek = ProgressBar(a, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000; isIndeterminate = true }
         val opis = TextView(a).apply { text = a.getString(R.string.apk_pripravljam, ime) }
@@ -94,7 +94,7 @@ object NamestiApk {
                 }
                 glavna.post {
                     try { okno.dismiss() } catch (_: Throwable) { }
-                    if (!prekinjeno && !a.isFinishing) vprasaj(a, cilj)
+                    if (!prekinjeno && !a.isFinishing) vprasaj(a, cilj, vir)
                 }
             } catch (t: Throwable) {
                 cilj.delete()
@@ -116,7 +116,7 @@ object NamestiApk {
         }
     } catch (_: Throwable) { null }
 
-    private fun vprasaj(a: Activity, f: File) {
+    private fun vprasaj(a: Activity, f: File, vir: String) {
         val p = podatki(a, f)
         if (p == null) {
             f.delete()
@@ -127,7 +127,11 @@ object NamestiApk {
         val namescena = try { a.packageManager.getPackageInfo(paket, 0).versionName } catch (_: Throwable) { null }
         val sporocilo = if (namescena != null) a.getString(R.string.apk_vprasanje_posodobi, ime, razlicica.ifBlank { "?" }, namescena ?: "?")
             else a.getString(R.string.apk_vprasanje, ime, razlicica.ifBlank { "?" })
-        AlertDialog.Builder(a).setTitle(R.string.apk_naslov).setMessage(sporocilo + "\n\n" + a.getString(R.string.apk_opozorilo))
+        // Uporabnik vidi, kaj se namesti (ime, paket, razlicica), od kod in koliko - in da Safeer ne posodablja sam.
+        val mb = String.format(java.util.Locale.getDefault(), "%.1f", f.length() / 1048576.0)
+        val podrobno = a.getString(R.string.apk_podrobno, paket, vir, mb)
+        AlertDialog.Builder(a).setTitle(R.string.apk_naslov)
+            .setMessage(sporocilo + "\n\n" + podrobno + "\n\n" + a.getString(R.string.apk_opozorilo) + " " + a.getString(R.string.apk_posodobitve))
             .setPositiveButton(R.string.apk_namesti) { _, _ -> namesti(a, f) }
             .setNegativeButton(android.R.string.cancel) { _, _ -> f.delete() }.show()
     }

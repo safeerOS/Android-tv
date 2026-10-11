@@ -664,4 +664,7 @@
     <string name="trg_izklopljen_opis">%1$s je na tej napravi izklopljen. V podatkih aplikacije ga lahko vklopiš z gumbom »Omogoči«.</string>
     <string name="trg_odpri_nastavitve">Odpri nastavitve</string>
     <string name="trg_ni_uradnega">%1$s ni na tej napravi, Google pa zanj ne objavlja uradne namestitvene datoteke. Katalog Google Play je dostopen tudi prek Aurora Store.</string>
+    <string name="apk_vir_naprava">ta naprava</string>
+    <string name="apk_podrobno">Paket: %1$s · vir: %2$s · %3$s MB</string>
+    <string name="apk_posodobitve">Safeer te aplikacije ne posodablja sam.</string>
 </resources>
