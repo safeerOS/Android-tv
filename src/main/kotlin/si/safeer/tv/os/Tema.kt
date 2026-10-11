@@ -46,8 +46,18 @@ object Tema {
         R.color.os_ploscica_app_ozadje to R.attr.osPloscicaAppOzadje
     )
 
+    /** Enkraten prehod (lastnik, 11. 10. 2026: »Safeer OS TV potrebuje tako temo kot mobilna razlicica«): stara
+     *  zelena izbira »safeer« postane Safeer Namizje; kdor potem v Videzu izbere zeleno, jo obdrzi. */
+    private const val PREHOD = "os_tema_prehod_namizje"
+
     fun izbrana(c: Context): Vnos {
-        val id = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).getString(KLJUC, PRIVZETA)
+        val nastavitve = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE)
+        if (!nastavitve.getBoolean(PREHOD, false)) {
+            val urejevalnik = nastavitve.edit().putBoolean(PREHOD, true)
+            if (nastavitve.getString(KLJUC, PRIVZETA) == "safeer") urejevalnik.putString(KLJUC, PRIVZETA)
+            urejevalnik.apply()
+        }
+        val id = nastavitve.getString(KLJUC, PRIVZETA)
         return VSE.firstOrNull { it.id == id } ?: VSE[0]
     }
 
