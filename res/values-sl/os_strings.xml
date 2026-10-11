@@ -635,4 +635,14 @@
     <string name="os_tipke_glasneje">Glasneje</string>
     <string name="os_tipke_utisaj">Utišaj</string>
     <string name="os_tipke_esc">Esc</string>
+    <!-- Namestitev APK brez Google Play (NamestiApk). -->
+    <string name="apk_naslov">Namesti aplikacijo</string>
+    <string name="apk_pripravljam">Pripravljam »%1$s« …</string>
+    <string name="apk_vprasanje">Namestim »%1$s« (različica %2$s)?</string>
+    <string name="apk_vprasanje_posodobi">Posodobim »%1$s« na različico %2$s? Nameščena je %3$s.</string>
+    <string name="apk_opozorilo">Aplikacija ni iz trgovine Google Play. Namesti jo samo, če zaupaš viru, iz katerega je.</string>
+    <string name="apk_namesti">Namesti</string>
+    <string name="apk_ni_veljavna">Datoteka ni veljavna aplikacija za Android.</string>
+    <string name="apk_napaka">Aplikacije ni bilo mogoče pripraviti za namestitev.</string>
+    <string name="apk_dovoljenje">Android mora Safeerju dovoliti nameščanje aplikacij. Dovoli in se vrni – namestitev se nadaljuje sama.</string>
 </resources>

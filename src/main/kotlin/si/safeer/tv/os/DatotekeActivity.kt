@@ -229,6 +229,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onResume() {
         super.onResume()
+        NamestiApk.nadaljujCeCaka(this)
         // Pregledovalnik slik je datoteko izbrisal ali preimenoval: seznam mape osvezimo - takoj,
         // ce je Link ze povezan, sicer ko se povezava po vrnitvi vzpostavi (naStanje).
         if (osveziPoVrnitvi) { osveziPoVrnitvi = false; cakamOsvezitev = true }
@@ -794,6 +795,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (DvdVir.jeIso(v.ime)) { predvajajDvd(v); return }
         // Kar zna televizor, odpre televizor: besedilo tu, videe, glasbo in slike pa ze prej.
         if (BesediloActivity.jeBesedilo(v.ime, v.mime)) { pokaziBesedilo(v); return }
+        // APK na tej napravi ali kljucku USB: namestitev brez Google Play (z vprasanjem in imenom aplikacije).
+        if (krajevni && NamestiApk.jeApk(v.ime, v.mime)) { NamestiApk.izDatoteke(this, android.net.Uri.parse(v.id), v.ime); return }
         if (krajevni) {
             Toast.makeText(this, getString(R.string.os_datoteke_neznana_vrsta), Toast.LENGTH_SHORT).show()
             return

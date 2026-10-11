@@ -632,4 +632,14 @@
     <string name="os_tipke_glasneje">Lauter</string>
     <string name="os_tipke_utisaj">Stumm</string>
     <string name="os_tipke_esc">Esc</string>
+    <!-- Namestitev APK brez Google Play (NamestiApk). -->
+    <string name="apk_naslov">App installieren</string>
+    <string name="apk_pripravljam">„%1$s“ wird vorbereitet …</string>
+    <string name="apk_vprasanje">„%1$s“ (Version %2$s) installieren?</string>
+    <string name="apk_vprasanje_posodobi">„%1$s“ auf Version %2$s aktualisieren? Installiert: %3$s.</string>
+    <string name="apk_opozorilo">Diese App stammt nicht aus Google Play. Installiere sie nur, wenn du der Quelle vertraust.</string>
+    <string name="apk_namesti">Installieren</string>
+    <string name="apk_ni_veljavna">Diese Datei ist keine gültige Android-App.</string>
+    <string name="apk_napaka">Die App konnte nicht zur Installation vorbereitet werden.</string>
+    <string name="apk_dovoljenje">Android muss Safeer erlauben, Apps zu installieren. Erlaube es und komm zurück – die Installation läuft von selbst weiter.</string>
 </resources>

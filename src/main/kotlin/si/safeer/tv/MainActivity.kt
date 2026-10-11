@@ -827,6 +827,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onResume() {
         super.onResume()
+        si.safeer.tv.os.NamestiApk.nadaljujCeCaka(this)
         if (SpletDomaca.jeSafeerOs(this)) {
             mainHandler.removeCallbacks(spletStanje)
             mainHandler.post(spletStanje)

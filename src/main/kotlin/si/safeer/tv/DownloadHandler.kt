@@ -12,6 +12,13 @@ class DownloadHandler(private val context: Context) {
     fun startDownload(url: String, userAgent: String?, contentDisposition: String?, mimeType: String?) {
         try {
             val filename = URLUtil.guessFileName(url, contentDisposition, mimeType)
+            // APK: namestitev brez Google Play - prenesemo ga sami in ponudimo namestitev (ne v sistemski prenos,
+            // ki na televizorju nima kje odpreti datoteke).
+            val dejavnost = context as? android.app.Activity
+            if (dejavnost != null && si.safeer.tv.os.NamestiApk.jeApk(filename, mimeType)) {
+                si.safeer.tv.os.NamestiApk.izSpleta(dejavnost, url, userAgent, filename)
+                return
+            }
             val request = DownloadManager.Request(Uri.parse(url)).apply {
                 setMimeType(mimeType)
                 if (userAgent != null) {

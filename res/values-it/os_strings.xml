@@ -632,4 +632,14 @@
     <string name="os_tipke_glasneje">Più alto</string>
     <string name="os_tipke_utisaj">Muto</string>
     <string name="os_tipke_esc">Esc</string>
+    <!-- Namestitev APK brez Google Play (NamestiApk). -->
+    <string name="apk_naslov">Installa app</string>
+    <string name="apk_pripravljam">Preparazione di «%1$s» …</string>
+    <string name="apk_vprasanje">Installare «%1$s» (versione %2$s)?</string>
+    <string name="apk_vprasanje_posodobi">Aggiornare «%1$s» alla versione %2$s? Installata: %3$s.</string>
+    <string name="apk_opozorilo">Questa app non proviene da Google Play. Installala solo se ti fidi della fonte.</string>
+    <string name="apk_namesti">Installa</string>
+    <string name="apk_ni_veljavna">Questo file non è un’app Android valida.</string>
+    <string name="apk_napaka">Non è stato possibile preparare l’app per l’installazione.</string>
+    <string name="apk_dovoljenje">Android deve consentire a Safeer di installare app. Consentilo e torna indietro: l’installazione proseguirà da sola.</string>
 </resources>
