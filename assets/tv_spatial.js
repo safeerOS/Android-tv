@@ -483,8 +483,51 @@
                 if (href.indexOf('cookie') !== -1) return true;
                 var r;
                 try { r = el.getBoundingClientRect(); } catch (_) { r = null; }
-                if (r && r.top > ((window.innerHeight || 1080) - 70) && r.height < 48) return true;
+                // Nizek element cisto spodaj je skoraj vedno pasica s piskotki - razen v pritrjeni spodnji vrstici
+                // za navigacijo (rtvslo.si: MMC / Zame / RTV 365 / Radio / Televizija / mojRTV, 43 px pri dnu).
+                if (r && r.top > ((window.innerHeight || 1080) - 70) && r.height < 48 && !jeSpodnjaNavigacija(el)) return true;
                 return false;
+            }
+
+            // Pritrjena spodnja vrstica za navigacijo, ki je trenutno na zaslonu (ali null).
+            function najdiSpodnjoVrstico() {
+                try {
+                    var w = window.innerWidth || 1920, h = window.innerHeight || 1080, xs = [0.2, 0.5, 0.8];
+                    for (var i = 0; i < xs.length; i++) {
+                        var p = document.elementFromPoint(Math.round(w * xs[i]), h - 6), g = 0;
+                        while (p && p.nodeType === 1 && g < 12) {
+                            var pos = window.getComputedStyle(p).position;
+                            if (pos === 'fixed' || pos === 'sticky') break;
+                            p = p.parentElement; g++;
+                        }
+                        if (!p || p.nodeType !== 1 || g >= 12) continue;
+                        var r = p.getBoundingClientRect();
+                        if (r.bottom < h - 8 || r.height >= h * 0.3) continue;
+                        var gumb = p.querySelector('a[href], button, [role="tab"], [role="link"], [role="button"]');
+                        if (gumb && jeSpodnjaNavigacija(gumb)) return { el: p, top: r.top };
+                    }
+                } catch (_) {}
+                return null;
+            }
+
+            // Pritrjena spodnja vrstica z vsaj tremi povezavami ali gumbi in brez besedila o piskotkih/soglasju.
+            function jeSpodnjaNavigacija(el) {
+                try {
+                    var p = el, g = 0, vrstica = null;
+                    while (p && p.nodeType === 1 && g < 12) {
+                        var pos = window.getComputedStyle(p).position;
+                        if (pos === 'fixed' || pos === 'sticky') { vrstica = p; break; }
+                        p = p.parentElement; g++;
+                    }
+                    if (!vrstica) return false;
+                    var rv = vrstica.getBoundingClientRect();
+                    if (rv.height > (window.innerHeight || 1080) * 0.3) return false;
+                    var besedilo = ((vrstica.innerText || '') + '').toLowerCase();
+                    if (/pi[sš]kot|cookie|soglas|consent|zasebnost|privacy/.test(besedilo)) return false;
+                    return vrstica.querySelectorAll('a[href], button, [role="tab"], [role="link"], [role="button"]').length >= 3;
+                } catch (_) {
+                    return false;
+                }
             }
 
             function jeVsebinskaPloscica(el) {
@@ -1839,6 +1882,11 @@
                     var wrapY = 1e9;
                     var wrapX = 1e9;
                     var leviSosed = false;
+                    // Spodnja vrstica strani (rtvslo.si: MMC / Zame / RTV 365 ...) je svoje obmocje: navzdol pridemo
+                    // vanjo sele, ko je naslednja vsebina skrita pod njo; iz nje navzdol nadaljujemo z vsebino pod njo.
+                    var vrsticaSp = najdiSpodnjoVrstico();
+                    var vVrstici = !!(vrsticaSp && vrsticaSp.el.contains(current));
+                    var bestVrstica = null, bestVrsticaScore = Infinity, podVrstico = null, podScore = Infinity;
 
                     for (var j = 0; j < candidates.length; j++) {
                         var el = candidates[j];
@@ -1852,6 +1900,26 @@
 
                         var eCenterX = r.left + r.width / 2;
                         var eCenterY = r.top + r.height / 2;
+                        if (vrsticaSp) {
+                            var elVVrstici = vrsticaSp.el.contains(el);
+                            if (vVrstici) {
+                                if ((direction === 'LEFT' || direction === 'RIGHT') && !elVVrstici) continue;
+                                if (direction === 'UP' && elVVrstici) continue;
+                                if (direction === 'DOWN') {
+                                    if (!elVVrstici && r.bottom > vrsticaSp.top + 4) {
+                                        var ps = r.top + Math.abs(eCenterX - cCenterX) * 0.3;
+                                        if (ps < podScore) { podScore = ps; podVrstico = el; }
+                                    }
+                                    continue;
+                                }
+                            } else if (elVVrstici) {
+                                if (direction === 'DOWN') {
+                                    var vs = Math.abs(eCenterX - cCenterX);
+                                    if (vs < bestVrsticaScore) { bestVrsticaScore = vs; bestVrstica = el; }
+                                }
+                                continue;
+                            }
+                        }
                         var dx = eCenterX - cCenterX;
                         var dy = eCenterY - cCenterY;
                         var valid = false;
@@ -1913,6 +1981,14 @@
                     }
                     if (bestAxis) bestTarget = bestAxis;
                     else if (!bestTarget && wrapTarget) bestTarget = wrapTarget;
+                    if (vrsticaSp && direction === 'DOWN') {
+                        if (vVrstici) bestTarget = podVrstico;
+                        else if (bestVrstica) {
+                            var tr = bestTarget ? bestTarget.getBoundingClientRect() : null;
+                            // Od naslednje vsebine se nad vrstico vidi le rob (ali je ni): najprej vrstica.
+                            if (!tr || (vrsticaSp.top - tr.top) < Math.min(tr.height * 0.5, 60)) bestTarget = bestVrstica;
+                        }
+                    }
 
                     if (bestTarget) {
                         highlightElement(bestTarget);
