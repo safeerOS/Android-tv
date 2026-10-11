@@ -409,10 +409,38 @@ class GlasbaActivity : OsActivity() {
         return try { zadnji?.let { java.net.URLDecoder.decode(it, "UTF-8") } ?: uri.toString() } catch (_: Throwable) { zadnji ?: uri.toString() }
     }
 
+    /** Naslov, ki ga je druga naprava poslala z »prikazi na TV«; ko so vsi zadetki tu, se film s tem naslovom odpre. */
+    private var natancnoZa: String? = null
+
+    /**
+     * »Jungle Book na TV« (lastnik, 11. 10. 2026): TV ne pokaze splosnega iskanja, ampak odpre film ali serijo z natancno
+     * tem naslovom: pri filmu iz dodatkov izbiro tokov, pri seriji sezone, drugo kot klik kartice. Ce takega zadetka ni
+     * med predvajljivimi, ostane iskanje.
+     */
+    private fun odpriNatancnega(beseda: String, lestvica: List<Pair<Relevantnost.Zadetek<*>, Double>>) {
+        val iskani = natancnoZa ?: return
+        if (iskani != beseda.trim()) return
+        natancnoZa = null
+        val kljuc = SpletniVir.cistNaslov(iskani)
+        if (kljuc.isBlank()) return
+        val sk = lestvica.asSequence().mapNotNull { it.first.stvar as? Jamendo.Skladba }
+            .filter { it.video && !it.radio && !Stremio.jeVZivo(it) && !znanoNiNaVoljo(it) && SpletniVir.cistNaslov(it.naslov) == kljuc }
+            .firstOrNull() ?: return
+        android.util.Log.i("SafeerOsMedia", "prikazi na TV: odpiram ${sk.naslov} (${sk.id})")
+        // Film iz dodatkov: pokazemo izbiro tokov (naslov na vrhu), ne predvajamo prvega sami - prvi tok dodatka je bil
+        // pri preizkusu 11. 10. 2026 kopija z vgrajenim oglasom za stave. Uporabnik izbere z daljincem.
+        if (Stremio.jeEnota(sk)) { glavna.postDelayed({ if (!isFinishing) razresiStremio(sk, rocno = true) }, 400); return }
+        val kartica = videi(listOf(sk), beseda).firstOrNull() ?: return
+        glavna.postDelayed({ if (!isFinishing) kartica.klik(iskalnik ?: window.decorView) }, 400)
+    }
+
     /** Iskanje, odprto od drugod (zaslon predvajanja, tipka Isci): razdelek Iskanje, polje pripravljeno. */
     private fun iskanjeIzNamena() {
         val beseda = intent.getStringExtra(ISKANJE_BESEDA) ?: return
         intent.removeExtra(ISKANJE_BESEDA)
+        // »Prikazi na TV« z druge naprave (media.open): film ali serija z natancno tem naslovom se odpre sama.
+        natancnoZa = if (intent.getBooleanExtra(ISKANJE_NATANCNO, false)) beseda.trim() else null
+        intent.removeExtra(ISKANJE_NATANCNO)
         odpriIskanje(beseda)
     }
 
@@ -4964,6 +4992,7 @@ class GlasbaActivity : OsActivity() {
                 // Enaki zadetki kot ze na zaslonu (vir je odgovoril brez novega, iskanje se je koncalo): zaslona ne risemo
                 // znova, spremeni se le napis pod naslovom (izmerjeno 5. 10. 2026: sest polnih risanj v devetih sekundah).
                 val podpis = vrste.joinToString("|") { v -> v.naslov + ":" + v.kartice.joinToString(",") { k -> k.id.ifBlank { k.naslov + "/" + k.podnaslov } } }
+                if (koncno) odpriNatancnega(beseda, lestvica)
                 if (podpis == podpisZadetkov && !prvic) { stanje.text = opisZdaj; return@post }
                 podpisZadetkov = podpis
                 narisi(vrste, opisZdaj)
@@ -7029,6 +7058,8 @@ class GlasbaActivity : OsActivity() {
         private const val PRORACUN_MS = 8L
         /** Beseda za iskanje ob odprtju (prazna: samo odpri iskanje), npr. z zaslona predvajanja. */
         const val ISKANJE_BESEDA = "iskanje"
+        /** Z [ISKANJE_BESEDA]: film ali serija z natancno tem naslovom se odpre sama (media.open, PrikaziNa). */
+        const val ISKANJE_NATANCNO = "iskanje_natancno"
         /** Zavihek spodnje vrstice (StranskaVrstica.Zavihek.name), ki naj se odpre. */
         const val ZAVIHEK = "zavihek"
         /** "Poslji na napravo": uporabnik je v pasici ali obvestilu izbral Sprejmi - Medijski center ponudbo prevzame. */

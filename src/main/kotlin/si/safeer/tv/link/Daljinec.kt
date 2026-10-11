@@ -336,6 +336,7 @@ object Daljinec {
         if (naslov.isEmpty()) return Izid(false, "Ni naslova", koda = "prazno")
         val namera = Intent().setClassName(context, "si.safeer.tv.os.GlasbaActivity")
             .putExtra(si.safeer.tv.os.GlasbaActivity.ISKANJE_BESEDA, naslov)
+            .putExtra(si.safeer.tv.os.GlasbaActivity.ISKANJE_NATANCNO, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val ime = "Safeer Media"
         if (!smeZagnatiIzOzadja(context)) {
