@@ -716,6 +716,8 @@ class PredvajanjeActivity : OsActivity() {
         const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"
         /** Koliko zaslonov predvajanja je med onStart in onStop (ob zamenjavi posnetka od drugod sta kratek cas dva). */
         private var zagnanih = 0
+        /** Ali je kak zaslon predvajanja odprt (med onStart in onStop) - za GlasbaActivity.vrniZaslonVidea. */
+        val odprt: Boolean get() = zagnanih > 0
     }
 
     override fun onDestroy() { odjaviPip(); delavec.shutdownNow(); super.onDestroy() }
@@ -729,6 +731,9 @@ class PredvajanjeActivity : OsActivity() {
         // sprejeta ponudba z druge naprave) ali pa video ze kaze drug zaslon predvajanja. onStop starega zaslona pride
         // sele po zagonu novega - novega posnetka ne sme ustaviti in njegovega mesta ne zapisati kot napredek.
         val novoPredvajanje = OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu, GlasbaStoritev.zagonov, zagnanih)
+        // Zakaj je zaslon odsel (iskanje »zvok brez slike«, 11. 10. 2026).
+        android.util.Log.i("SafeerOsMedia", "zaslon predvajanja odhaja: video=${jeVideo()}, novo=$novoPredvajanje, " +
+            "konec=$isFinishing, tece=${GlasbaStoritev.tece()}")
         if (!novoPredvajanje) zapisiNapredek()
         if (jeVideo() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()
         GlasbaStoritev.poslusalci.remove(poslusalec)
