@@ -30,6 +30,10 @@ object Daljinec {
 
     /** Zmoznost, s katero se naprava prijavi sredi scu: "to napravo je mogoce upravljati". */
     const val ZMOZNOST = "remote"
+    /** Naprava zna deliti cel zaslon na zahtevo druge naprave (apps.launch app=[CEL_ZASLON], stream=true). */
+    const val ZMOZNOST_DELI_ZASLON = "zaslon.deli"
+    /** Namesto aplikacije: deli cel zaslon, nicesar ne odpri (»Povezani zasloni« na drugi napravi). */
+    const val CEL_ZASLON = "safeer.cel.zaslon"
 
     /** Vsa dejanja, ki jih ta naprava razume; Control jih dobi v odgovoru na `status`. */
     val DEJANJA = listOf(
@@ -396,8 +400,9 @@ object Daljinec {
     private fun pretociAplikacijo(context: Context, paket: String, cilj: String): Izid {
         if (!Regex("^[A-Za-z0-9_.]+$").matches(paket)) return Izid(false, "Neveljavno ime paketa")
         if (cilj.isBlank()) return Izid(false, "Ni znano, komu pretociti", koda = "ni_posiljatelja")
-        if (nameraZaZagon(context, paket) == null) return Izid(false, "Aplikacija $paket ni namescena", koda = "ni_namescena")
-        val ime = try {
+        val celZaslon = paket == CEL_ZASLON
+        if (!celZaslon && nameraZaZagon(context, paket) == null) return Izid(false, "Aplikacija $paket ni namescena", koda = "ni_namescena")
+        val ime = if (celZaslon) context.getString(si.safeer.tv.R.string.os_zaslon) else try {
             context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(paket, 0)).toString()
         } catch (_: Throwable) { paket }
         // Ena zahteva naenkrat: nova zamenja staro (okno stare se zapre, njena potrditev ne zacne nicesar). Zahteva velja
@@ -410,6 +415,8 @@ object Daljinec {
         }
         try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Pretakanja ni bilo mogoce zaceti: ${e.message}") }
         prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_pretok, velja = PretokKonec.CAKA_MS)
+        if (celZaslon) return Izid(true, "Na napravi potrdi deljenje zaslona",
+            JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
         return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
             JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
     }

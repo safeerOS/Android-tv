@@ -360,7 +360,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun osveziOpisZaslona(naprave: List<LinkOdjemalec.Naprava>) {
         val t = findViewById<TextView>(R.id.karticaZaslonOpis) ?: return
         val jaz = Identiteta.id(this)
-        val imena = naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }.map { it.ime.ifBlank { it.id } }
+        val imena = naprave.filter { it.id != jaz && (it.zmoznosti.contains("desktop") ||
+            it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON)) }.map { it.ime.ifBlank { it.id } }
         t.maxLines = 1
         t.ellipsize = android.text.TextUtils.TruncateAt.END
         t.text = if (imena.isEmpty()) getString(R.string.os_zaslon_opis) else imena.joinToString(" · ")
@@ -368,8 +369,12 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun odpriZaslon() {
         val jaz = Identiteta.id(this)
-        val naprave = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }
+        // Racunalniki in naprave Android, ki delijo cel zaslon (s potrditvijo na tisti napravi).
+        val naprave = link.naprave.filter {
+            it.id != jaz && (it.zmoznosti.contains("desktop") || it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
+        }
         fun odpri(r: LinkOdjemalec.Naprava?) {
+            if (r != null && !r.zmoznosti.contains("desktop")) { PovezaniZasloni.zaprosi(this, link, r); return }
             val namera = Intent(this, ZaslonActivity::class.java)
             r?.let { namera.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, it.id) }
             odpriVarno(namera, getString(R.string.os_zaslon))
