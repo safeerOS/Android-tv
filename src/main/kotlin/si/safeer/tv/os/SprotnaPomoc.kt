@@ -242,6 +242,8 @@ object SprotnaPomoc {
         val p = JSONObject().put("url", sk.zvok).put("name", sk.naslov.ifBlank { "video" }).put("seek_ms", pozicijaMs)
         // Trajanje pove pomocniku, koliko prostora bo tok vzel in s kaksno bitno hitrostjo naj kodira.
         if (trajanjeMs > 0) p.put("duration_ms", trajanjeMs)
+        // Zeleni jezik zvoka (film v anglescini, slovenski v slovenscini): pomocnik izbere to sled, ne privzete vira.
+        if (sk.video) p.put("audio_langs", org.json.JSONArray(TokIzbira.jezikiSledi(sk.language)))
         if (streznik != null) p.put("fp", streznik.odtis).put("token", streznik.zeton)
         // Glave toka (Stremio proxyHeaders): brez njih pomocnik izvirnika ne bi dobil (403).
         SpletniVir.glaveToka(sk.zvok).takeIf { it.isNotEmpty() }?.let { p.put("headers", JSONObject(it)) }
