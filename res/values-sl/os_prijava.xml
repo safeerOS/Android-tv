@@ -40,4 +40,6 @@
     <string name="os_naprave_vrsta_tablica">Tablica</string>
     <string name="os_naprave_vrsta_telefon">Telefon</string>
     <string name="os_sporocila_kopirano">Kopirano</string>
+    <string name="os_naprave_koda_dovoljena">Dovoljeno: %1$s se zdaj poveže.</string>
+    <string name="os_naprave_koda_ista">To je koda te naprave – vpiši jo na drugi napravi.</string>
 </resources>

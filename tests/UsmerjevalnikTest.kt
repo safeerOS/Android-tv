@@ -1331,6 +1331,43 @@ private fun preizkusQrPrijave() {
         qr("start", """{"device_id":"n-poplava-x","secret_sha256":"${sha256(skrivnost)}","poll_secret":"$prevzem"}""")?.koda)
 }
 
+private fun preizkusKodeNaprave() {
+    // 11. 10. 2026 (lastnik): »vsaka naprava se lahko spari z vsako napravo« - naprava, ki se prijavlja, pokaze
+    // poleg QR svojo 6-mestno kodo, clan Linka jo vpise (approve brez qr_id). Isto kot na Linuxu.
+    println("- koda naprave (prijava s QR, potrditev z vpisom kode)")
+    val u = usmerjevalnik(LazniPomnilnik())
+    val telefon = u.zagotoviLastniZeton("fon-lastnik", "Telefon")
+    val zTel = mapOf("x-safeer-token" to telefon)
+    val prevzem = "prevzem-samo-racunalnik-42"
+    fun qr(pot: String, telo: String, glave: Map<String, String> = emptyMap()) =
+        u.odgovori(zahteva("POST", "/cast/pair/qr/$pot", telo, "192.168.0.50", glave))
+    val start = qr("start", """{"device_id":"n-nov","name":"Nov PC","platform":"linux","secret_sha256":"${sha256("dolga-skrivnost-qr-0123")}","poll_secret":"$prevzem","code_sha256":"${sha256("123456")}"}""")
+    val qrId = polje(start?.telo.orEmpty(), "qr_id")
+    preveri("prijava s kodo se odpre", start?.koda == 200 && qrId.isNotEmpty())
+    preveriEnako("kodo potrdi samo seznanjena naprava", 401, qr("approve", """{"qr_id":"","secret":"123456"}""")?.koda)
+    preveriEnako("napacna koda je 404", 404, qr("approve", """{"qr_id":"","secret":"654321"}""", zTel)?.koda)
+    preveriEnako("prekratka koda je 404", 404, qr("approve", """{"qr_id":"","secret":"12345"}""", zTel)?.koda)
+    val info = qr("info", """{"qr_id":"","secret":"123456"}""", zTel)
+    preveri("telefon vidi ime naprave po kodi", info?.koda == 200 && polje(info.telo, "name") == "Nov PC")
+    val ok = qr("approve", """{"qr_id":"","secret":"123456"}""", zTel)
+    preveri("telefon dovoli s kodo", ok?.koda == 200 && ok.telo.contains("\"approved\":true"))
+    val prevzeto = qr("status", """{"qr_id":"$qrId","device_id":"n-nov","poll_secret":"$prevzem"}""")
+    preveri("nova naprava prevzame zeton", u.napravaZeZetona(polje(prevzeto?.telo.orEmpty(), "token")) == "n-nov")
+    // Star odjemalec brez kode: QR deluje, koda ne obstaja.
+    val star = qr("start", """{"device_id":"n-star","secret_sha256":"${sha256("dolga-skrivnost-qr-4567")}","poll_secret":"$prevzem"}""")
+    preveriEnako("star odjemalec: koda ne obstaja", 404, qr("approve", """{"qr_id":"","secret":"000000"}""", zTel)?.koda)
+    preveriEnako("star odjemalec: QR deluje", 200,
+        qr("approve", """{"qr_id":"${polje(star?.telo.orEmpty(), "qr_id")}","secret":"dolga-skrivnost-qr-4567"}""", zTel)?.koda)
+    // Ugibanje: po NAJVEC_KODA_NAPAK napacnih na minuto je 429 tudi za pravo kodo, cez minuto spet gre.
+    qr("start", """{"device_id":"n-tretji","secret_sha256":"${sha256("dolga-skrivnost-qr-8910")}","poll_secret":"$prevzem","code_sha256":"${sha256("777777")}"}""")
+    var zadnja = 0
+    repeat(HubUsmerjevalnik.NAJVEC_KODA_NAPAK - 2) { zadnja = qr("approve", """{"qr_id":"","secret":"${900000 + it}"}""", zTel)?.koda ?: 0 }
+    preveriEnako("se 404 pred mejo", 404, zadnja)
+    preveriEnako("prava koda po preveč ugibanjih je 429", 429, qr("approve", """{"qr_id":"","secret":"777777"}""", zTel)?.koda)
+    cas += 61_000L
+    preveriEnako("cez minuto prava koda gre", 200, qr("approve", """{"qr_id":"","secret":"777777"}""", zTel)?.koda)
+}
+
 private fun preizkusPridruzitve() {
     println("- pridruzitev s QR kodo sredisca")
     val u = usmerjevalnik(LazniPomnilnik())
@@ -1877,6 +1914,7 @@ fun main() {
     preizkusPodpisanegaKroga()
     preizkusPodpisaStarihVnosov()
     preizkusQrPrijave()
+    preizkusKodeNaprave()
     preizkusPridruzitve()
     preizkusVabilaInOdhoda()
     preizkusPolitikeA()

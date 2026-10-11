@@ -40,4 +40,6 @@
     <string name="os_naprave_vrsta_tablica">Tablette</string>
     <string name="os_naprave_vrsta_telefon">Téléphone</string>
     <string name="os_sporocila_kopirano">Copié</string>
+    <string name="os_naprave_koda_dovoljena">Autorisé : %1$s se connecte maintenant.</string>
+    <string name="os_naprave_koda_ista">C\'est le code de cet appareil – saisis-le sur un autre appareil.</string>
 </resources>
