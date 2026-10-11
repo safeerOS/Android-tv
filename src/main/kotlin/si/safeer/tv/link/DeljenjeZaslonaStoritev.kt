@@ -425,6 +425,7 @@ class DeljenjeZaslonaStoritev : Service() {
         tece = false
         znakGledalca = ""
         ohraniZaslon(false)
+        Obracanje.povrni(this)      // »Ležeče« z racunalnika velja samo med gledanjem
         if (napaka.isNotBlank()) { zadnjaNapaka = napaka; Log.w(TAG, "Deljenje zaslona koncano z napako: $napaka") }
         try { navidezniZaslon?.release() } catch (_: Exception) { }
         navidezniZaslon = null

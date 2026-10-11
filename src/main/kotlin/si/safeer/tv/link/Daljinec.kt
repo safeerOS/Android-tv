@@ -46,7 +46,7 @@ object Daljinec {
         "apps.close",
         // Vnos z racunalnika na zaslon, ki ga naprava deli (Safeer Vnos, storitev dostopnosti):
         // dotik in poteg v delezih zaslona, tipka (sistemska ali tipkovnice), kolesce, besedilo v polje s fokusom.
-        "input.tap", "input.swipe", "input.key", "input.text", "input.enable", "input.scroll",
+        "input.tap", "input.swipe", "input.key", "input.text", "input.enable", "input.scroll", "input.rotate",
         // Zvok racunalnika na tej napravi (Safeer OS za racunalnik: Zvok -> Predvajaj tukaj).
         "audio.play", "audio.stop",
         // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control.
@@ -602,6 +602,11 @@ object Daljinec {
             } catch (e: Throwable) {
                 Izid(false, "Nastavitev ni bilo mogoce odpreti: ${e.message}")
             }
+        }
+        if (d == "input.rotate") {
+            // Obracanje ne potrebuje Safeer Vnosa, le dovoljenje za sistemske nastavitve (Obracanje).
+            val (ok, sporocilo, koda) = Obracanje.obrni(context, p.optBoolean("lezece", true))
+            return if (ok) Izid(true, sporocilo) else Izid(false, sporocilo, koda = koda)
         }
         if (!VnosStoritev.aktivna()) {
             return Izid(false, "Na tej napravi vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
