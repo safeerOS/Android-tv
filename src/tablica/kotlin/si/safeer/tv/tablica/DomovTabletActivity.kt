@@ -574,7 +574,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun odpriZaslon() {
         // Racunalniki (zaslon racunalnika) in naprave Android, ki delijo cel zaslon (lastnik, 11. 10. 2026: »dodaj ostale«).
         val naprave = link.naprave.filter {
-            it.id != Identiteta.id(this) && (it.zmoznosti.contains("desktop") ||
+            !link.jeTaNaprava(it) && (it.zmoznosti.contains("desktop") ||
                 it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
         }
         fun odpri(r: LinkOdjemalec.Naprava) {
