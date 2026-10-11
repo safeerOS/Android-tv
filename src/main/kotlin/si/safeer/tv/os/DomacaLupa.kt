@@ -84,6 +84,42 @@ object DomacaLupa {
         return polje
     }
 
+    /**
+     * Tablica in telefon ze imata iskalno vrstico na vrhu (lastnik, 11. 10. 2026: dve lupi sta odvec).
+     * Obstojeca vrstica dobi isto vedenje kot lupa ([izvedi]) in gumb za mikrofon; druge lupe ne vstavimo.
+     * Prazen Enter pokliče [prazno] (npr. odpre brskalnik).
+     */
+    fun prevzemi(a: Activity, polje: EditText, okvir: ViewGroup, prazno: () -> Unit) {
+        val dp = { v: Int -> TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), a.resources.displayMetrics).toInt() }
+        polje.hint = a.getString(R.string.os_lupa_namig)
+        polje.setOnEditorActionListener { v, akcija, dogodek ->
+            val enter = dogodek?.keyCode == KeyEvent.KEYCODE_ENTER && dogodek.action == KeyEvent.ACTION_DOWN
+            if (akcija == EditorInfo.IME_ACTION_SEARCH || akcija == EditorInfo.IME_ACTION_DONE || enter) {
+                val niz = v.text.toString().trim()
+                (a.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0)
+                v.clearFocus()
+                if (niz.isEmpty()) prazno() else izvedi(a, niz)
+                true
+            } else false
+        }
+        if (polje.layoutParams is LinearLayout.LayoutParams) {
+            // Polje je bilo match_parent: zdaj deli vrstico z mikrofonom.
+            polje.layoutParams = (polje.layoutParams as LinearLayout.LayoutParams).apply { width = 0; weight = 1f }
+        }
+        if (okvir.findViewWithTag<View>("k:domaca_lupa_glas") != null) return
+        val mikrofon = ImageButton(a).apply {
+            setImageResource(R.drawable.os_ikona_mikrofon)
+            contentDescription = a.getString(R.string.os_lupa_glas)
+            setColorFilter(polje.currentTextColor)
+            background = null
+            setPadding(dp(10), dp(4), 0, dp(4))
+            isFocusable = true
+            tag = "k:domaca_lupa_glas"
+            setOnClickListener { glas(a) }
+        }
+        okvir.addView(mikrofon, LinearLayout.LayoutParams(dp(34), ViewGroup.LayoutParams.MATCH_PARENT))
+    }
+
     fun glas(a: Activity) {
         val namen = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)

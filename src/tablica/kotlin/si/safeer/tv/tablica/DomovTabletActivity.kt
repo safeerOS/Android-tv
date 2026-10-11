@@ -27,12 +27,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
-import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -181,8 +178,6 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     private fun nastaviPostavitev() {
         setContentView(R.layout.tablet_activity_domov)
-        // Iskalna lupa na vrhu: napises ali poves (tudi »Jungle Book na TV«) - DomacaLupa.
-        si.safeer.tv.os.DomacaLupa.vstavi(this)
         Robovi.uporabi(this)
         // Stranska vrstica: poteg proti levemu robu jo skrije, poteg z roba ali rocaj jo vrne.
         skrivanje = findViewById<View?>(R.id.stranskiMeni)?.let { si.safeer.tv.os.SkrivanjeVrstice(this, it) }
@@ -393,32 +388,14 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
     }
 
+    /**
+     * Ena iskalna lupa (lastnik, 11. 10. 2026): vrstica na vrhu napises ali poves - »Sintel na TV« prikaze na drugi
+     * napravi, spletni naslov odpre brskalnik, vse drugo isce Medijski center (z vrsto »Na spletu«). DomacaLupa.
+     */
     private fun pripraviIskanje() {
-        vnosIskanje?.setOnEditorActionListener { _, actionId, event ->
-            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
-                (event?.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)) {
-                izvediIskanje(vnosIskanje?.text?.toString().orEmpty().trim())
-                true
-            } else false
-        }
-    }
-
-    private fun izvediIskanje(niz: String) {
-        if (niz.isBlank()) {
-            odpriVBrskalniku(null)
-            return
-        }
-        val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.hideSoftInputFromWindow(vnosIskanje?.windowToken, 0)
-        vnosIskanje?.clearFocus()
-        // Isto pravilo kot vrstica brskalnika: naslov ali iskanje; neobstojeca domena gre v iskanje.
-        val odl = si.safeer.tv.SmartOmnibox.razresi(this, niz) ?: return
-        val gostitelj = odl.preveri
-        if (gostitelj == null) { odpriVBrskalniku(odl.url); return }
-        Thread {
-            val url = if (si.safeer.tv.SmartOmnibox.obstaja(gostitelj)) odl.url else si.safeer.tv.SmartOmnibox.iskanje(this, niz)
-            runOnUiThread { if (!isFinishing) odpriVBrskalniku(url) }
-        }.start()
+        val polje = vnosIskanje ?: return
+        val okvir = findViewById<android.view.ViewGroup>(R.id.iskalnaVrsticaOkvir) ?: return
+        si.safeer.tv.os.DomacaLupa.prevzemi(this, polje, okvir) { odpriVBrskalniku(null) }
     }
 
     private fun pripraviVelikeKartice() {
