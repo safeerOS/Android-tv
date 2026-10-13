@@ -38,7 +38,7 @@
       poslusam: "Poslušam …", obdelujem: "Razumem …", nicSlisano: "Nič nisem slišal. Poskusi znova.",
       dovoljenje: "Dovoli mikrofon, nato pritisni znova.", niGovora: "Glasovno upravljanje na tej napravi ni na voljo.",
       napakaGovora: "Prepoznava ni uspela. Poskusi znova.",
-      brezOdgovora: "Naprava se ni odzvala. Je Safeer na njej odprt?",
+      brezOdgovora: "Naprava se ni odzvala. Je Safeer na njej odprt?", agentRazmislja: "Agent razmišlja …",
       niPovezave: "Ni povezave s Safeer Linkom.",
       poslano: "Poslano", tipka: "Tipka {ime}", odpiram: "Odpiram {ime}", iscem: "Iščem »{kaj}«", iscemNaRacunalniku: "Iščem na računalniku: »{kaj}«",
       iscemYoutube: "YouTube: »{kaj}«", odpiramStran: "Odpiram stran", glasnostNa: "Glasnost {n} %",
@@ -65,7 +65,7 @@
       poslusam: "Listening …", obdelujem: "Got it …", nicSlisano: "I didn't hear anything. Try again.",
       dovoljenje: "Allow the microphone, then tap again.", niGovora: "Voice control is not available on this device.",
       napakaGovora: "Recognition failed. Try again.",
-      brezOdgovora: "The device did not respond. Is Safeer open on it?",
+      brezOdgovora: "The device did not respond. Is Safeer open on it?", agentRazmislja: "Agent is thinking …",
       niPovezave: "Not connected to Safeer Link.",
       poslano: "Sent", tipka: "Key {ime}", odpiram: "Opening {ime}", iscem: "Searching “{kaj}”", iscemNaRacunalniku: "Searching the computer: “{kaj}”",
       iscemYoutube: "YouTube: “{kaj}”", odpiramStran: "Opening page", glasnostNa: "Volume {n} %",
@@ -92,7 +92,7 @@
       poslusam: "Ich höre …", obdelujem: "Verstanden …", nicSlisano: "Ich habe nichts gehört. Versuch es noch einmal.",
       dovoljenje: "Mikrofon erlauben, dann erneut tippen.", niGovora: "Sprachsteuerung ist auf diesem Gerät nicht verfügbar.",
       napakaGovora: "Erkennung fehlgeschlagen. Versuch es noch einmal.",
-      brezOdgovora: "Das Gerät hat nicht geantwortet. Ist Safeer dort geöffnet?",
+      brezOdgovora: "Das Gerät hat nicht geantwortet. Ist Safeer dort geöffnet?", agentRazmislja: "Der Agent denkt nach …",
       niPovezave: "Nicht mit Safeer Link verbunden.",
       poslano: "Gesendet", tipka: "Taste {ime}", odpiram: "Öffne {ime}", iscem: "Suche „{kaj}“", iscemNaRacunalniku: "Suche auf dem Computer: „{kaj}“",
       iscemYoutube: "YouTube: „{kaj}“", odpiramStran: "Öffne Seite", glasnostNa: "Lautstärke {n} %",
@@ -119,7 +119,7 @@
       poslusam: "Escuchando …", obdelujem: "Entendido …", nicSlisano: "No he oído nada. Inténtalo de nuevo.",
       dovoljenje: "Permite el micrófono y vuelve a tocar.", niGovora: "El control por voz no está disponible en este dispositivo.",
       napakaGovora: "El reconocimiento falló. Inténtalo de nuevo.",
-      brezOdgovora: "El dispositivo no respondió. ¿Está Safeer abierto en él?",
+      brezOdgovora: "El dispositivo no respondió. ¿Está Safeer abierto en él?", agentRazmislja: "El agente está pensando …",
       niPovezave: "Sin conexión con Safeer Link.",
       poslano: "Enviado", tipka: "Tecla {ime}", odpiram: "Abriendo {ime}", iscem: "Buscando «{kaj}»", iscemNaRacunalniku: "Buscando en el ordenador: «{kaj}»",
       iscemYoutube: "YouTube: «{kaj}»", odpiramStran: "Abriendo página", glasnostNa: "Volumen {n} %",
@@ -146,7 +146,7 @@
       poslusam: "J'écoute …", obdelujem: "Compris …", nicSlisano: "Je n'ai rien entendu. Réessayez.",
       dovoljenje: "Autorisez le micro, puis touchez à nouveau.", niGovora: "La commande vocale n'est pas disponible sur cet appareil.",
       napakaGovora: "La reconnaissance a échoué. Réessayez.",
-      brezOdgovora: "L'appareil n'a pas répondu. Safeer y est-il ouvert ?",
+      brezOdgovora: "L'appareil n'a pas répondu. Safeer y est-il ouvert ?", agentRazmislja: "L'agent réfléchit …",
       niPovezave: "Pas de connexion à Safeer Link.",
       poslano: "Envoyé", tipka: "Touche {ime}", odpiram: "J'ouvre {ime}", iscem: "Recherche « {kaj} »", iscemNaRacunalniku: "Recherche sur l'ordinateur : « {kaj} »",
       iscemYoutube: "YouTube : « {kaj} »", odpiramStran: "J'ouvre la page", glasnostNa: "Volume {n} %",
@@ -173,7 +173,7 @@
       poslusam: "In ascolto …", obdelujem: "Capito …", nicSlisano: "Non ho sentito nulla. Riprova.",
       dovoljenje: "Consenti il microfono, poi tocca di nuovo.", niGovora: "Il controllo vocale non è disponibile su questo dispositivo.",
       napakaGovora: "Riconoscimento non riuscito. Riprova.",
-      brezOdgovora: "Il dispositivo non ha risposto. Safeer è aperto lì?",
+      brezOdgovora: "Il dispositivo non ha risposto. Safeer è aperto lì?", agentRazmislja: "L'agente sta pensando …",
       niPovezave: "Nessuna connessione a Safeer Link.",
       poslano: "Inviato", tipka: "Tasto {ime}", odpiram: "Apro {ime}", iscem: "Cerco «{kaj}»", iscemNaRacunalniku: "Cerco sul computer: «{kaj}»",
       iscemYoutube: "YouTube: «{kaj}»", odpiramStran: "Apro la pagina", glasnostNa: "Volume {n} %",
@@ -258,8 +258,8 @@
   // Posiljanje ukazov
   // ----------------------------------------------------------------
 
-  function ukaz(dejanje, parametri, cb, casDoOdgovora) {
-    var n = stanje.naprava;
+  function ukaz(dejanje, parametri, cb, casDoOdgovora, drugaNaprava) {
+    var n = drugaNaprava || stanje.naprava;
     if (!n || !most || !most.ukaz) {
       if (cb) cb({ ok: false, message: t("niPovezave") });
       return null;
@@ -785,6 +785,42 @@
     });
   }
 
+  /** Naprava v Linku s Safeer Agentom (racunalnik z jezikovnim modelom, zmoznost "agent") ali null. */
+  function agentNaprava() {
+    try {
+      var vse = JSON.parse(most && most.naprave ? most.naprave() : "[]") || [];
+      for (var i = 0; i < vse.length; i++) {
+        if ((vse[i].zmoznosti || []).indexOf("agent") >= 0) return vse[i];
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  /** Stavek, ki ga hitri prevajalnik ne zna (vec ukazov, druga naprava, nerazumljeno), gre agentu. */
+  function zaAgenta(cisto, u) {
+    if (!u || u.dejanje === "iskanje" || u.dejanje === "napaka") return true;
+    var s = ocisti(cisto);
+    if (/(^|\s)(in|potem|nato|pa|and|then|und|dann|y|luego|et|puis|e|poi)(\s|$)/.test(s) && s.split(/\s+/).length > 3) return true;
+    // Omenjena druga naprava (ne ta, ki jo daljinec upravlja): to zna samo agent.
+    var vrste = [["tv", /(televiz|(^|\s)tv(\s|$))/], ["tablet", /(tablic|tablet)/], ["phone", /(telefon|mobitel|phone)/],
+                 ["pc", /(racunalnik|prenosnik|computer|laptop|(^|\s)pc(\s|$))/]];
+    var ta = stanje.naprava ? String(stanje.naprava.platforma || "") : "";
+    if (ta === "linux" || ta === "windows" || ta === "macos") ta = "pc";
+    for (var i = 0; i < vrste.length; i++) {
+      if (vrste[i][1].test(s) && vrste[i][0] !== ta) return true;
+    }
+    return false;
+  }
+
+  function posljiAgentu(cisto, agent) {
+    besedilo("daljinecOdgovor", t("agentRazmislja"));
+    var o = el("daljinecOdgovor");
+    if (o) o.classList.remove("napaka");
+    ukaz("agent.ask", { text: cisto, here: stanje.naprava ? stanje.naprava.id : "" }, function (izid) {
+      pokaziOdgovor(izid, izid && izid.message);
+    }, 45000, agent);
+  }
+
   function izvediBesedilo(besedilo) {
     var cisto = String(besedilo || "").trim();
     if (!cisto) return;
@@ -792,6 +828,9 @@
     var e = el("daljinecSliseno");
     if (e) { e.textContent = "»" + cisto + "«"; e.classList.remove("namig"); }
     var u = razumi(cisto);
+    // Safeer Agent (racunalnik z lokalnim modelom): vec ukazov v enem stavku, druge naprave, naravni stavki.
+    var agent = agentNaprava();
+    if (agent && zaAgenta(cisto, u)) { posljiAgentu(cisto, agent); return; }
     // Na racunalniku s Safeer OS (search.query) gre vse, kar ni ukaz daljinca (glasnost, tipke, drsenje, posnetek),
     // v iskalno lupo racunalnika - programi, datoteke, nastavitve, mediji in splet so tam na enem mestu.
     var ukazDaljinca = u && ["volume", "key", "scroll", "digits", "screenshot", "restart", "clear_cache"].indexOf(u.dejanje) >= 0;
