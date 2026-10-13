@@ -143,14 +143,21 @@ object HubMesh {
         val jaz = u.lastniId
         val povezani = u.sosedjeIdji().toSet()
         val krog = KrogNaprave.krog(context)
+        // Isti Hub je lahko v krogu pod dvema id-jema (npr. `n-x` in `n-x-control`, isti kljuc, isti naslov).
+        // Ce smo z njim ze povezani ali ga ze klicemo pod drugim id-jem, ga ne klicemo znova: Hub bi drugo
+        // povezavo z istim kljucem zamenjal s prvo in povezava bi nihala vsakih ~10 s (meritev OnePlus, 13. 10. 2026).
+        val zasedeniKljuci = (povezani + klicem).mapNotNull { krog.clanZaId(it)?.kljuc }.toMutableSet()
         return hubi.filter { h ->
             if (h.id.isBlank() || h.id == jaz || h.mesh != HubUsmerjevalnik.MESH || h.id in povezani || h.id in klicem) return@filter false
-            if (krog.clanZaId(h.id) == null) return@filter false
+            val clan = krog.clanZaId(h.id) ?: return@filter false
+            if (clan.kljuc.isNotBlank() && clan.kljuc in zasedeniKljuci) return@filter false
             if ((zavrnjen[h.id]?.first ?: 0L) > zdaj) return@filter false
             if ((nedosegljivDo[h.id]?.first ?: 0L) > zdaj) return@filter false
             val prvic = prvicVideni.getOrPut(h.id) { zdaj }
             // Manjsi id klice prvi; pocakamo nanj - razen v prvem krogu po nasem zagonu.
-            !IzvolitevHuba.pocakamNaSoseda(h.id, jaz, zdaj - prvic, VECJI_CAKA_MS, poZagonu)
+            if (IzvolitevHuba.pocakamNaSoseda(h.id, jaz, zdaj - prvic, VECJI_CAKA_MS, poZagonu)) return@filter false
+            if (clan.kljuc.isNotBlank()) zasedeniKljuci.add(clan.kljuc)   // isti Hub pod drugim id-jem v tem krogu: enkrat
+            true
         }
     }
 
