@@ -812,11 +812,13 @@
     return false;
   }
 
-  function posljiAgentu(cisto, agent) {
+  function posljiAgentu(cisto, agent, u) {
     besedilo("daljinecOdgovor", t("agentRazmislja"));
     var o = el("daljinecOdgovor");
     if (o) o.classList.remove("napaka");
     ukaz("agent.ask", { text: cisto, here: stanje.naprava ? stanje.naprava.id : "" }, function (izid) {
+      // Agent (model) ni dosegljiv ali se ni odzval: kar zna hitri prevajalnik, naredi on.
+      if (u && izid && !izid.ok && (izid.code === "agent_ni_modela" || izid.casovna)) { izvediRazumljeno(u); return; }
       pokaziOdgovor(izid, izid && izid.message);
     }, 45000, agent);
   }
@@ -830,7 +832,7 @@
     var u = razumi(cisto);
     // Safeer Agent (racunalnik z lokalnim modelom): vec ukazov v enem stavku, druge naprave, naravni stavki.
     var agent = agentNaprava();
-    if (agent && zaAgenta(cisto, u)) { posljiAgentu(cisto, agent); return; }
+    if (agent && zaAgenta(cisto, u)) { posljiAgentu(cisto, agent, u && u.dejanje !== "napaka" ? u : null); return; }
     // Na racunalniku s Safeer OS (search.query) gre vse, kar ni ukaz daljinca (glasnost, tipke, drsenje, posnetek),
     // v iskalno lupo racunalnika - programi, datoteke, nastavitve, mediji in splet so tam na enem mestu.
     var ukazDaljinca = u && ["volume", "key", "scroll", "digits", "screenshot", "restart", "clear_cache"].indexOf(u.dejanje) >= 0;
