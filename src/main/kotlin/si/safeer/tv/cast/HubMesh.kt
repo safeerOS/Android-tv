@@ -139,18 +139,22 @@ object HubMesh {
 
     /** Iz oglasov izbere Hube, ki jih moramo zdaj poklicati. */
     fun kandidati(context: Context, u: HubUsmerjevalnik, hubi: List<HubDiscovery.NajdeniHub>, zdaj: Long = System.currentTimeMillis(),
-                  poZagonu: Set<String> = emptySet()): List<HubDiscovery.NajdeniHub> {
+                  poZagonu: Set<String> = emptySet(), videni: Set<String> = emptySet()): List<HubDiscovery.NajdeniHub> {
         val jaz = u.lastniId
         val povezani = u.sosedjeIdji().toSet()
+        // Povezan prek Global Linka, mDNS pa ga zdaj oglasa doma ([videni]): poklicemo ga neposredno (lokalno ima
+        // prednost); usmerjevalnik nato zapre pot prek releja. Zapomnjen naslov ne pove, da je naprava doma.
+        val prekReleja = u.sosedjePrekReleja()
         val krog = KrogNaprave.krog(context)
         // Isti Hub je lahko v krogu pod dvema id-jema (npr. `n-x` in `n-x-control`, isti kljuc, isti naslov).
         // Ce smo z njim ze povezani ali ga ze klicemo pod drugim id-jem, ga ne klicemo znova: Hub bi drugo
         // povezavo z istim kljucem zamenjal s prvo in povezava bi nihala vsakih ~10 s (meritev OnePlus, 13. 10. 2026).
         val zasedeniKljuci = (povezani + klicem).mapNotNull { krog.clanZaId(it)?.kljuc }.toMutableSet()
         return hubi.filter { h ->
-            if (h.id.isBlank() || h.id == jaz || h.mesh != HubUsmerjevalnik.MESH || h.id in povezani || h.id in klicem) return@filter false
+            val domov = h.id in prekReleja && h.id in videni && !jeZanka(h.naslov)
+            if (h.id.isBlank() || h.id == jaz || h.mesh != HubUsmerjevalnik.MESH || (h.id in povezani && !domov) || h.id in klicem) return@filter false
             val clan = krog.clanZaId(h.id) ?: return@filter false
-            if (clan.kljuc.isNotBlank() && clan.kljuc in zasedeniKljuci) return@filter false
+            if (clan.kljuc.isNotBlank() && clan.kljuc in zasedeniKljuci && !domov) return@filter false
             if ((zavrnjen[h.id]?.first ?: 0L) > zdaj) return@filter false
             if ((nedosegljivDo[h.id]?.first ?: 0L) > zdaj) return@filter false
             val prvic = prvicVideni.getOrPut(h.id) { zdaj }
@@ -190,7 +194,8 @@ object HubMesh {
             val prej = nedosegljivDo[h.id]?.second ?: 0L
             val premor = (if (prej == 0L) PREMOR_MS else prej * 2).coerceAtMost(NAJDALJSI_PREMOR_MS)
             nedosegljivDo[h.id] = (System.currentTimeMillis() + premor) to premor
-            if (n >= RELE_PO_NEUSPEHIH && naslovReleja(app, h0) != null) poklici(app, u, h0, prekReleja = true)
+            // Ze povezan prek releja (domov ni uspelo): rele ostane, ne klicemo ga znova.
+            if (n >= RELE_PO_NEUSPEHIH && h0.id !in u.sosedjeIdji() && naslovReleja(app, h0) != null) poklici(app, u, h0, prekReleja = true)
         }
         // Zaupanje: kljuc v potrdilu = kljuc tega clana v krogu (oglas mDNS ne velja nic).
         val (graditelj, zaupnik) = HubTls.okhttp(OkHttpClient.Builder()

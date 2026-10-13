@@ -1519,6 +1519,11 @@ class HubUsmerjevalnik(
 
     fun sosedjeIdji(): List<String> = synchronized(kljucnica) { sosedje.keys.sorted() }
 
+    /** Sosedje, s katerimi smo povezani prek Global Linka (krajevni konec releja); doma jih poklicemo neposredno. */
+    fun sosedjePrekReleja(): Set<String> = synchronized(kljucnica) {
+        sosedje.filterValues { jePrekReleja(it.naslov) }.keys.toSet()
+    }
+
     /** Sosednja povezava za id Huba (za preizkuse in stanje). */
     internal fun javi(sosedId: String): Odjemalec? = synchronized(kljucnica) { sosedje[sosedId] }
 
@@ -1621,8 +1626,13 @@ class HubUsmerjevalnik(
         val stara: Odjemalec? = synchronized(kljucnica) {
             val obstojeca = sosedje[sosedId]
             if (obstojeca != null && obstojeca !== povezava) {
+                // Domace omrezje ima prednost pred Global Linkom (lastnik, 13. 10. 2026): ko se naprava vrne domov,
+                // neposredna povezava zamenja tisto prek releja; rele domace nikoli ne zamenja.
+                val novaRele = jePrekReleja(povezava.naslov)
+                val staraRele = jePrekReleja(obstojeca.naslov)
+                if (novaRele && !staraRele) return false
                 val zacetnikStare = zacetnikSoseda[obstojeca].orEmpty()
-                if (zacetnikStare == minOf(sosedId, lastniId) && zacel != zacetnikStare) return false
+                if (novaRele == staraRele && zacetnikStare == minOf(sosedId, lastniId) && zacel != zacetnikStare) return false
             }
             if (obstojeca == null && sosedje.size >= NAJVEC_SOSEDOV) return false
             zacetnikSoseda[povezava] = zacel
@@ -2274,6 +2284,14 @@ class HubUsmerjevalnik(
         JsonLahki.Zapis().niz("detail", sporocilo).niz("code", koda).toString()
 
     companion object {
+        /** Ali je povezava prek Global Linka: naslov kaze na to napravo (krajevni konec releja). Isto kot HubMesh.jeZanka;
+         *  tu brez Androida, da ga preizkusi tudi JVM (tests/run_usmerjevalnik_tests.sh). */
+        fun jePrekReleja(naslov: String): Boolean {
+            val gostitelj = (try { java.net.URI(if (naslov.contains("://")) naslov else "wss://$naslov").host } catch (_: Throwable) { null }
+                ?: naslov).trim('[', ']')
+            return gostitelj == "localhost" || gostitelj == "::1" || gostitelj == "0:0:0:0:0:0:0:1" || gostitelj.startsWith("127.")
+        }
+
         const val RAZLICICA_PROTOKOLA = "0.2"
         const val VSEM = "all"
         /** Vrata spletnega odjemalca (goli HTTP; ce so zasedena, jih streznik izbere sam in QR koda nosi prava). */

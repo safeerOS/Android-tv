@@ -1741,6 +1741,26 @@ private fun preizkusImenaSoseda() {
     preveriEnako("drug naslov nima imena", "", u.imePoNaslovu("192.168.0.158"))
 }
 
+// ------------------------------------------------------------ lokalni Link ima prednost pred Global Linkom
+
+private fun preizkusLokalnoPrednost() {
+    println("- domace omrezje pred Global Linkom")
+    val u = usmerjevalnik()
+    val sosed = "n-zzzzzzzzzzzzzzzz"
+    val jaz = u.lastniId
+    val rele = Lazni("127.0.0.1")
+    preveri("rele sprejet, ko domace ni", u.dodajSoseda(sosed, rele, minOf(jaz, sosed)))
+    preveriEnako("sosed prek releja", setOf(sosed), u.sosedjePrekReleja())
+    val doma = Lazni("192.168.0.77")
+    preveri("domaca zamenja rele, tudi ce jo je odprl vecji id", u.dodajSoseda(sosed, doma, maxOf(jaz, sosed)))
+    preveri("rele se zapre", rele.zaprt)
+    preveriEnako("ni vec prek releja", emptySet<String>(), u.sosedjePrekReleja())
+    preveri("rele domace ne zamenja", !u.dodajSoseda(sosed, Lazni("wss://127.0.0.1:45678/cast/ws"), minOf(jaz, sosed)))
+    preveri("domaca ostane odprta", !doma.zaprt)
+    preveri("jePrekReleja: IPv6 zanka", HubUsmerjevalnik.jePrekReleja("::1"))
+    preveri("jePrekReleja: domaci naslov ni rele", !HubUsmerjevalnik.jePrekReleja("192.168.0.157"))
+}
+
 // ------------------------------------------------------------ varovalka kode
 
 /** En poskus kode, kot ga naredi naprava: zeton, "napacna" ali napaka sredisca. Napadalec po napacni kodi ne klice /finish. */
@@ -1896,6 +1916,7 @@ private fun preizkusKlepeta() {
 fun main() {
     println("Preizkus bralca JSON in usmerjevalnika Safeer Huba")
     preizkusJson()
+    preizkusLokalnoPrednost()
     preizkusRegistra()
     preizkusKlepeta()
     preizkusDaljinca()

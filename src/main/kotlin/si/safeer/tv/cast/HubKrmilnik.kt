@@ -420,7 +420,7 @@ object HubKrmilnik {
             val u = usmerjevalnik
             if (HubMesh.vklopljen(app) && u != null) {
                 // Link Mesh: nihce se ne umika - vsak Hub se poveze s sosedi (clani kroga z mesh1).
-                val kandidati = HubMesh.kandidati(app, u, HubMesh.zDopolnitvijo(app, hubi))
+                val kandidati = HubMesh.kandidati(app, u, HubMesh.zDopolnitvijo(app, hubi), videni = hubi.map { it.id }.toSet())
                 for (h in kandidati) HubMesh.poklici(app, u, h)
                 Log.i(TAG, "Mesh: sosedje ${u.sosedjeIdji()}, klicem ${kandidati.map { it.id }}")
                 pospraviKrogObCasu(app, u)
