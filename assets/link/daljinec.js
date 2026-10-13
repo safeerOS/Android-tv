@@ -38,7 +38,7 @@
       poslusam: "Poslušam …", obdelujem: "Razumem …", nicSlisano: "Nič nisem slišal. Poskusi znova.",
       dovoljenje: "Dovoli mikrofon, nato pritisni znova.", niGovora: "Glasovno upravljanje na tej napravi ni na voljo.",
       napakaGovora: "Prepoznava ni uspela. Poskusi znova.",
-      brezOdgovora: "Naprava se ni odzvala. Je Safeer na njej odprt?", agentRazmislja: "Agent razmišlja …",
+      brezOdgovora: "Naprava se ni odzvala. Je Safeer na njej odprt?", agentRazmislja: "Agent razmišlja …", agentSeja: "(agent še {min} min)",
       niPovezave: "Ni povezave s Safeer Linkom.",
       poslano: "Poslano", tipka: "Tipka {ime}", odpiram: "Odpiram {ime}", iscem: "Iščem »{kaj}«", iscemNaRacunalniku: "Iščem na računalniku: »{kaj}«",
       iscemYoutube: "YouTube: »{kaj}«", odpiramStran: "Odpiram stran", glasnostNa: "Glasnost {n} %",
@@ -65,7 +65,7 @@
       poslusam: "Listening …", obdelujem: "Got it …", nicSlisano: "I didn't hear anything. Try again.",
       dovoljenje: "Allow the microphone, then tap again.", niGovora: "Voice control is not available on this device.",
       napakaGovora: "Recognition failed. Try again.",
-      brezOdgovora: "The device did not respond. Is Safeer open on it?", agentRazmislja: "Agent is thinking …",
+      brezOdgovora: "The device did not respond. Is Safeer open on it?", agentRazmislja: "Agent is thinking …", agentSeja: "(agent for {min} more min)",
       niPovezave: "Not connected to Safeer Link.",
       poslano: "Sent", tipka: "Key {ime}", odpiram: "Opening {ime}", iscem: "Searching “{kaj}”", iscemNaRacunalniku: "Searching the computer: “{kaj}”",
       iscemYoutube: "YouTube: “{kaj}”", odpiramStran: "Opening page", glasnostNa: "Volume {n} %",
@@ -92,7 +92,7 @@
       poslusam: "Ich höre …", obdelujem: "Verstanden …", nicSlisano: "Ich habe nichts gehört. Versuch es noch einmal.",
       dovoljenje: "Mikrofon erlauben, dann erneut tippen.", niGovora: "Sprachsteuerung ist auf diesem Gerät nicht verfügbar.",
       napakaGovora: "Erkennung fehlgeschlagen. Versuch es noch einmal.",
-      brezOdgovora: "Das Gerät hat nicht geantwortet. Ist Safeer dort geöffnet?", agentRazmislja: "Der Agent denkt nach …",
+      brezOdgovora: "Das Gerät hat nicht geantwortet. Ist Safeer dort geöffnet?", agentRazmislja: "Der Agent denkt nach …", agentSeja: "(Agent noch {min} Min.)",
       niPovezave: "Nicht mit Safeer Link verbunden.",
       poslano: "Gesendet", tipka: "Taste {ime}", odpiram: "Öffne {ime}", iscem: "Suche „{kaj}“", iscemNaRacunalniku: "Suche auf dem Computer: „{kaj}“",
       iscemYoutube: "YouTube: „{kaj}“", odpiramStran: "Öffne Seite", glasnostNa: "Lautstärke {n} %",
@@ -119,7 +119,7 @@
       poslusam: "Escuchando …", obdelujem: "Entendido …", nicSlisano: "No he oído nada. Inténtalo de nuevo.",
       dovoljenje: "Permite el micrófono y vuelve a tocar.", niGovora: "El control por voz no está disponible en este dispositivo.",
       napakaGovora: "El reconocimiento falló. Inténtalo de nuevo.",
-      brezOdgovora: "El dispositivo no respondió. ¿Está Safeer abierto en él?", agentRazmislja: "El agente está pensando …",
+      brezOdgovora: "El dispositivo no respondió. ¿Está Safeer abierto en él?", agentRazmislja: "El agente está pensando …", agentSeja: "(agente {min} min más)",
       niPovezave: "Sin conexión con Safeer Link.",
       poslano: "Enviado", tipka: "Tecla {ime}", odpiram: "Abriendo {ime}", iscem: "Buscando «{kaj}»", iscemNaRacunalniku: "Buscando en el ordenador: «{kaj}»",
       iscemYoutube: "YouTube: «{kaj}»", odpiramStran: "Abriendo página", glasnostNa: "Volumen {n} %",
@@ -146,7 +146,7 @@
       poslusam: "J'écoute …", obdelujem: "Compris …", nicSlisano: "Je n'ai rien entendu. Réessayez.",
       dovoljenje: "Autorisez le micro, puis touchez à nouveau.", niGovora: "La commande vocale n'est pas disponible sur cet appareil.",
       napakaGovora: "La reconnaissance a échoué. Réessayez.",
-      brezOdgovora: "L'appareil n'a pas répondu. Safeer y est-il ouvert ?", agentRazmislja: "L'agent réfléchit …",
+      brezOdgovora: "L'appareil n'a pas répondu. Safeer y est-il ouvert ?", agentRazmislja: "L'agent réfléchit …", agentSeja: "(agent encore {min} min)",
       niPovezave: "Pas de connexion à Safeer Link.",
       poslano: "Envoyé", tipka: "Touche {ime}", odpiram: "J'ouvre {ime}", iscem: "Recherche « {kaj} »", iscemNaRacunalniku: "Recherche sur l'ordinateur : « {kaj} »",
       iscemYoutube: "YouTube : « {kaj} »", odpiramStran: "J'ouvre la page", glasnostNa: "Volume {n} %",
@@ -173,7 +173,7 @@
       poslusam: "In ascolto …", obdelujem: "Capito …", nicSlisano: "Non ho sentito nulla. Riprova.",
       dovoljenje: "Consenti il microfono, poi tocca di nuovo.", niGovora: "Il controllo vocale non è disponibile su questo dispositivo.",
       napakaGovora: "Riconoscimento non riuscito. Riprova.",
-      brezOdgovora: "Il dispositivo non ha risposto. Safeer è aperto lì?", agentRazmislja: "L'agente sta pensando …",
+      brezOdgovora: "Il dispositivo non ha risposto. Safeer è aperto lì?", agentRazmislja: "L'agente sta pensando …", agentSeja: "(agente ancora {min} min)",
       niPovezave: "Nessuna connessione a Safeer Link.",
       poslano: "Inviato", tipka: "Tasto {ime}", odpiram: "Apro {ime}", iscem: "Cerco «{kaj}»", iscemNaRacunalniku: "Cerco sul computer: «{kaj}»",
       iscemYoutube: "YouTube: «{kaj}»", odpiramStran: "Apro la pagina", glasnostNa: "Volume {n} %",
@@ -799,6 +799,9 @@
   /** Stavek, ki ga hitri prevajalnik ne zna (vec ukazov, druga naprava, nerazumljeno), gre agentu. */
   function zaAgenta(cisto, u) {
     if (!u || u.dejanje === "iskanje" || u.dejanje === "napaka") return true;
+    // Trajanje seje ("za 30 minut", "do preklica") ali "ustavi agenta" zna samo agent.
+    var tr = trajanjeAgenta(cisto);
+    if (tr.stop || tr.minute !== null) return true;
     var s = ocisti(cisto);
     if (/(^|\s)(in|potem|nato|pa|and|then|und|dann|y|luego|et|puis|e|poi)(\s|$)/.test(s) && s.split(/\s+/).length > 3) return true;
     // Omenjena druga naprava (ne ta, ki jo daljinec upravlja): to zna samo agent.
@@ -812,14 +815,55 @@
     return false;
   }
 
+  /**
+   * Trajanje seje agenta iz stavka (do minute natancno ali neomejeno): "za 30 minut", "eno uro", "1 h 15 min",
+   * "pol ure", "do preklica"/"neomejeno", "for 2 hours". Vrne {minute: N (0 = neomejeno) ali null (ni omenjeno),
+   * stop: true za "ustavi agenta", besedilo: stavek brez omembe trajanja}.
+   */
+  function trajanjeAgenta(cisto) {
+    var s = normaliziraj(cisto);
+    if (/^(ustavi agenta|stop agent|stop the agent|prekini agenta|agent stop|agent ustavi)$/.test(s)) {
+      return { minute: null, stop: true, besedilo: "" };
+    }
+    var minute = null, ostanek = s;
+    var neomejeno = /(^|\s)(do preklica|neomejeno|ves cas|brez omejitve|until (i say )?stop|indefinitely|forever|unbegrenzt|sin limite|illimite|senza limite)(\s|$)/;
+    if (neomejeno.test(s)) { minute = 0; ostanek = s.replace(neomejeno, " "); }
+    else {
+      var vzorec = /(^|\s)(za |naslednjih |for |next |fur |durante |pendant |per )?(?:(\d+)\s*(?:hours?|stunden?|horas?|heures?|ur[aeo]?|uri|ore?|h)\b\s*(?:in\s*)?)?(?:(\d+)\s*(?:min|minut[aeo]?|minuti|minutes?|minuten|minutos?|minuti)\b)?/;
+      var m = null, re = new RegExp(vzorec.source, "g"), x;
+      while ((x = re.exec(s)) !== null) {
+        if (x[3] || x[4]) { m = x; break; }
+        if (re.lastIndex === x.index) re.lastIndex++;
+      }
+      if (m) {
+        minute = (parseInt(m[3] || "0", 10) * 60) + parseInt(m[4] || "0", 10);
+        ostanek = s.slice(0, m.index) + " " + s.slice(m.index + m[0].length);
+      } else if (/(^|\s)(pol ure|half an hour|halbe stunde|media hora|demi-heure|mezz'?ora)(\s|$)/.test(s)) {
+        minute = 30; ostanek = s.replace(/(za |for )?(pol ure|half an hour|halbe stunde|media hora|demi-heure|mezz'?ora)/, " ");
+      } else if (/(^|\s)(eno uro|1 uro|an hour|one hour|eine stunde|una hora|une heure|un'?ora)(\s|$)/.test(s)) {
+        minute = 60; ostanek = s.replace(/(za |for )?(eno uro|1 uro|an hour|one hour|eine stunde|una hora|une heure|un'?ora)/, " ");
+      }
+    }
+    if (minute !== null && minute > 0) minute = Math.min(minute, 7 * 24 * 60);
+    if (minute === null) return { minute: null, stop: false, besedilo: cisto };
+    return { minute: minute, stop: false, besedilo: ostanek.replace(/\s+/g, " ").trim() || cisto };
+  }
+
   function posljiAgentu(cisto, agent, u) {
     besedilo("daljinecOdgovor", t("agentRazmislja"));
     var o = el("daljinecOdgovor");
     if (o) o.classList.remove("napaka");
-    ukaz("agent.ask", { text: cisto, here: stanje.naprava ? stanje.naprava.id : "" }, function (izid) {
+    var tr = trajanjeAgenta(cisto);
+    var parametri = { text: tr.besedilo, here: stanje.naprava ? stanje.naprava.id : "" };
+    if (tr.stop) parametri = { stop: true };
+    else if (tr.minute !== null) parametri.minutes = tr.minute;
+    ukaz("agent.ask", parametri, function (izid) {
       // Agent (model) ni dosegljiv ali se ni odzval: kar zna hitri prevajalnik, naredi on.
       if (u && izid && !izid.ok && (izid.code === "agent_ni_modela" || izid.casovna)) { izvediRazumljeno(u); return; }
-      pokaziOdgovor(izid, izid && izid.message);
+      var niz = izid && izid.message;
+      var ostane = izid && izid.ok && izid.data ? izid.data.session_left_s : null;
+      if (niz && typeof ostane === "number" && ostane > 0) niz += " " + t("agentSeja", { min: Math.max(1, Math.round(ostane / 60)) });
+      pokaziOdgovor(izid, niz);
     }, 45000, agent);
   }
 
