@@ -316,8 +316,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         val zeleni = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
         // Brez izbire ima prednost racunalnik z naslovom v nasem omrezju (neposredna pot); sicer prvi - do njega
         // pride slika prek njegovega Huba (Global Link).
-        return if (zeleni.isNullOrBlank()) vsi.firstOrNull { link.odjemalec.naslovZaPovezavo(it).isNotBlank() } ?: vsi.firstOrNull()
-        else vsi.firstOrNull { it.id == zeleni }
+        if (zeleni.isNullOrBlank()) return vsi.firstOrNull { link.odjemalec.naslovZaPovezavo(it).isNotBlank() } ?: vsi.firstOrNull()
+        // Izbran racunalnik brez deljenja zaslona (Povezani zasloni, sivo): obicajna zahteva - racunalnik pokaze prosnjo
+        // za dostop ali pove, da deljenje ni vklopljeno.
+        return vsi.firstOrNull { it.id == zeleni } ?: link.naprave.firstOrNull { n ->
+            n.id == zeleni && !link.jeTaNaprava(n) && ZasloniPravila.vrsta(ZasloniPravila.Naprava(n.id, n.ime, n.vloga, n.platforma, n.zmoznosti)) ==
+                ZasloniPravila.Vrsta.NAMIZJE_IZKLOPLJENO
+        }
     }
 
     /**
@@ -757,14 +762,22 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun ponudiDrugega(): Boolean {
         val zeleni = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
         if (zeleni.isNullOrBlank() || !link.povezan || ponujeno) return false
-        val drugi = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        // Vse naprave, katerih zaslon lahko gledas (ZasloniPravila): racunalniki, telefoni, tablice, televizorji.
+        val drugi = ZasloniIzbira.kandidati(this, link).filter { it.id != zeleni }
         if (drugi.isEmpty()) return false
         ponujeno = true
         pokazi(getString(R.string.os_zaslon_ni_vec))
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_zaslon_ni_vec))
-            .setItems(drugi.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i ->
-                intent.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, drugi[i].id)
+            .setItems(drugi.map { ZasloniIzbira.napis(this, it) }.toTypedArray()) { _, i ->
+                val k = drugi[i]
+                if (k.vrsta == ZasloniPravila.Vrsta.ANDROID) {
+                    // Telefon, tablica, televizor: zaslon pride prek sredisca, ko ga tam potrdijo - ta zaslon ni vec potreben.
+                    ZasloniIzbira.glejNapravo(this, link, k)
+                    finish()
+                    return@setItems
+                }
+                intent.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, k.id)
                 ponujeno = false
                 zahtevajSejo()
             }

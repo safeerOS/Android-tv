@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Povezani zasloni: vse naprave, katerih zaslon lahko gledas (os/ZasloniPravila, os/ZasloniIzbira). -->
+<resources>
+    <string name="ui_link_zagon_zaslon">Deli ta zaslon z napravo %1$s</string>
+    <string name="os_zasloni_izklopljeno">Deljenje zaslona ni vklopljeno na tem računalniku</string>
+    <string name="os_zasloni_potrdi">Na napravi %1$s potrdi deljenje zaslona.</string>
+    <string name="os_zasloni_posodobi">Na napravi %1$s posodobi Safeer, da bo lahko delila zaslon.</string>
+    <string name="os_zasloni_napaka">Zaslona naprave %1$s ni bilo mogoče odpreti: %2$s</string>
+</resources>

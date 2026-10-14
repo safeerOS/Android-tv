@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Povezani zasloni: vse naprave, katerih zaslon lahko gledas (os/ZasloniPravila, os/ZasloniIzbira). -->
+<resources>
+    <string name="ui_link_zagon_zaslon">Diesen Bildschirm mit %1$s teilen</string>
+    <string name="os_zasloni_izklopljeno">Bildschirmfreigabe ist auf diesem Computer nicht eingeschaltet</string>
+    <string name="os_zasloni_potrdi">Bestätige die Bildschirmfreigabe auf %1$s.</string>
+    <string name="os_zasloni_posodobi">Aktualisiere Safeer auf %1$s, damit es den Bildschirm teilen kann.</string>
+    <string name="os_zasloni_napaka">Der Bildschirm von %1$s konnte nicht geöffnet werden: %2$s</string>
+</resources>

@@ -359,27 +359,23 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Kartica Povezani zasloni ze na domacem zaslonu pove, katere naprave lahko gledas. */
     private fun osveziOpisZaslona(naprave: List<LinkOdjemalec.Naprava>) {
         val t = findViewById<TextView>(R.id.karticaZaslonOpis) ?: return
-        val jaz = Identiteta.id(this)
-        val imena = naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }.map { it.ime.ifBlank { it.id } }
+        // Isti nabor kot izbira (ZasloniIzbira): racunalniki z deljenjem, telefoni, tablice, televizorji.
+        val imena = ZasloniPravila.opis(ZasloniIzbira.kandidati(this, link))
         t.maxLines = 1
         t.ellipsize = android.text.TextUtils.TruncateAt.END
         t.text = if (imena.isEmpty()) getString(R.string.os_zaslon_opis) else imena.joinToString(" · ")
     }
 
     private fun odpriZaslon() {
-        val jaz = Identiteta.id(this)
-        val naprave = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }
-        fun odpri(r: LinkOdjemalec.Naprava?) {
+        fun odpri(id: String?) {
             val namera = Intent(this, ZaslonActivity::class.java)
-            r?.let { namera.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, it.id) }
+            id?.let { namera.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, it) }
             odpriVarno(namera, getString(R.string.os_zaslon))
         }
-        if (naprave.size < 2) { odpri(naprave.firstOrNull()); return }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(getString(R.string.os_zaslon))
-            .setItems(naprave.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i -> odpri(naprave[i]) }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .let { Kontroler.pokazi(it.show()) }
+        // Vse naprave, katerih zaslon lahko gledas (ZasloniPravila); ena se odpre takoj, sicer izbira.
+        val kandidati = ZasloniIzbira.kandidati(this, link)
+        if (!ZasloniIzbira.izberi(this, link, getString(R.string.os_zaslon), kandidati,
+                pokazi = { d -> d.show(); Kontroler.pokazi(d) }, odpriRacunalnik = { odpri(it) })) odpri(null)
     }
 
     private fun pripraviStranskiMeni() {
@@ -524,7 +520,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         osveziPloscoNaprave(naprave)
         // Racunalnik se je javil (ali odsel): vrsta Zacni dobi ali izgubi kartico s programi.
         val programi = naprave.any { it.zmoznosti.contains("apps") && it.id != Identiteta.id(this) }
-        val zaslon = naprave.any { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        val zaslon = ZasloniIzbira.kandidati(this, link).isNotEmpty()
         if (programi != imamoPrograme || zaslon != imamoZaslon) {
             imamoPrograme = programi; imamoZaslon = zaslon
             zZapomnjenimFokusom { narisiZacni() }

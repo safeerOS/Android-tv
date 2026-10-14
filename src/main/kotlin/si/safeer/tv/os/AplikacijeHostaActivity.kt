@@ -851,6 +851,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // na TO napravo, karkoli ze je (televizor, tablica, telefon); dotik na sliki gre nazaj
         // h gostitelju kot pravi dotik (Safeer Vnos, ce ga ima gostitelj vklopljenega).
         parametri.put("stream", true)
+        // Zaslon, ki ga gostitelj potem deli, je zahtevan tu: odpre se, tudi ce gostitelju tu zaslon ni odprt v Dostopu.
+        ZasloniPravila.pricakovani.pricakuj(r.id, System.currentTimeMillis())
         link.ukaz(r.id, "apps.launch", parametri, 15_000, LinkOdjemalec.Odgovor { izid, napaka ->
             if (isFinishing) return@Odgovor
             if (izid?.optBoolean("ok") != true) {

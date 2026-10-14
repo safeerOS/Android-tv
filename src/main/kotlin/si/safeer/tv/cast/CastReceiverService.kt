@@ -1046,7 +1046,9 @@ class CastReceiverService : Service() {
                     val dejanje = payload.optString("action", "")
                     val od = imePosiljatelja(json)
                     val idDeljenja = payload.optString("id", "")
-                    if (dejanje == "start" && !Dostop.smeSporocilo(this, json.optString("sender", ""), type, dejanje)) {
+                    // Izjema: zaslon, ki ga je ta naprava pravkar SAMA zahtevala (Povezani zasloni, os/ZasloniPravila.pricakovani).
+                    if (dejanje == "start" && !Dostop.smeSporocilo(this, json.optString("sender", ""), type, dejanje) &&
+                        !si.safeer.tv.os.ZasloniPravila.pricakovani.sprejmi(json.optString("sender", ""), System.currentTimeMillis())) {
                         // Zaslon druge naprave se tu ne odpre sam, ce ji tega nismo dovolili.
                         zavrniSporocilo(ws, msgId, type, dejanje, zascitaJedro)
                         return

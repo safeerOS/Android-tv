@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Povezani zasloni: vse naprave, katerih zaslon lahko gledas (os/ZasloniPravila, os/ZasloniIzbira). -->
+<resources>
+    <string name="ui_link_zagon_zaslon">Partager cet écran avec %1$s</string>
+    <string name="os_zasloni_izklopljeno">Le partage d’écran n’est pas activé sur cet ordinateur</string>
+    <string name="os_zasloni_potrdi">Confirmez le partage d’écran sur %1$s.</string>
+    <string name="os_zasloni_posodobi">Mettez à jour Safeer sur %1$s pour qu’il puisse partager son écran.</string>
+    <string name="os_zasloni_napaka">Impossible d’ouvrir l’écran de %1$s : %2$s</string>
+</resources>

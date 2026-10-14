@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Povezani zasloni: vse naprave, katerih zaslon lahko gledas (os/ZasloniPravila, os/ZasloniIzbira). -->
+<resources>
+    <string name="ui_link_zagon_zaslon">Share this screen with %1$s</string>
+    <string name="os_zasloni_izklopljeno">Screen sharing is not turned on on this computer</string>
+    <string name="os_zasloni_potrdi">Confirm screen sharing on %1$s.</string>
+    <string name="os_zasloni_posodobi">Update Safeer on %1$s so it can share its screen.</string>
+    <string name="os_zasloni_napaka">Could not open the screen of %1$s: %2$s</string>
+</resources>

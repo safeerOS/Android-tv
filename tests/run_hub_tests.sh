@@ -59,6 +59,15 @@ JSON_JAR="${JSON_JAR:-$(ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/j
 
 java -cp "$OUT/prosnje.jar:$JSON_JAR" si.safeer.tv.cast.ProsnjeDostopaTestKt
 
+# Povezani zasloni (ZasloniPravila): katere naprave lahko gledas, brez te naprave; pricakovani zaslon.
+"$KOTLINC" -J-Xmx2g \
+    "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
+    "$SRC/si/safeer/tv/os/ZasloniPravila.kt" \
+    "$TEST_DIR/ZasloniPravilaTest.kt" \
+    -include-runtime -d "$OUT/zasloni.jar"
+
+java -cp "$OUT/zasloni.jar" si.safeer.tv.os.ZasloniPravilaTestKt
+
 # Zascita ukazov od naprave do naprave (E2e): dogovor, sifriranje, ponarejanje, ponovitve; iste vrednosti kot na racunalniku.
 "$KOTLINC" -J-Xmx2g \
     "$SRC/si/safeer/tv/cast/E2e.kt" \

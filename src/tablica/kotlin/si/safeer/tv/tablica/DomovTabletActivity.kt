@@ -572,22 +572,16 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
      * izbere, katero gleda na tablici.
      */
     private fun odpriZaslon() {
-        val naprave = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
-        fun odpri(r: LinkOdjemalec.Naprava) {
-            odpriVarno(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id),
+        // Vse naprave, katerih zaslon lahko gledas (si.safeer.tv.os.ZasloniPravila): racunalniki, telefoni, tablice, televizorji.
+        val kandidati = si.safeer.tv.os.ZasloniIzbira.kandidati(this, link)
+        val odprto = si.safeer.tv.os.ZasloniIzbira.izberi(this, link, getString(R.string.tablet_zaslon), kandidati,
+            pokazi = { it.show() }) { id ->
+            odpriVarno(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, id),
                 getString(R.string.tablet_zaslon))
         }
-        when (naprave.size) {
-            // Link se pravkar povezuje (zasuk zaslona, vrnitev v aplikacijo): naprave pridejo cez trenutek. Pocakamo,
-            // namesto da uporabniku recemo, naj napravo poveze.
-            0 -> if (link.povezan) pokaziOknoNiPovezano(getString(R.string.tablet_zaslon)) else pocakajNaZaslon()
-            1 -> odpri(naprave[0])
-            else -> AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(getString(R.string.tablet_zaslon))
-                .setItems(naprave.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i -> odpri(naprave[i]) }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-        }
+        // Link se pravkar povezuje (zasuk zaslona, vrnitev v aplikacijo): naprave pridejo cez trenutek. Pocakamo,
+        // namesto da uporabniku recemo, naj napravo poveze.
+        if (!odprto) { if (link.povezan) pokaziOknoNiPovezano(getString(R.string.tablet_zaslon)) else pocakajNaZaslon() }
     }
 
     /** »Povezani zasloni« dotaknjeni, ko se Link se povezuje: cakamo na naprave (false = ne cakamo). */
@@ -612,7 +606,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun narisi() {
         imamoDatoteke = racunalnik("files") != null
         imamoPrograme = racunalnik("apps") != null
-        imamoZaslon = racunalnik("desktop") != null
+        imamoZaslon = si.safeer.tv.os.ZasloniIzbira.kandidati(this, link).isNotEmpty()
 
         narisiAplikacije()
         narisiNaprave()
@@ -937,7 +931,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         pokaziStanje()
         val datoteke = racunalnik("files") != null
         val programi = racunalnik("apps") != null
-        val zaslon = racunalnik("desktop") != null
+        val zaslon = si.safeer.tv.os.ZasloniIzbira.kandidati(this, link).isNotEmpty()
         if (datoteke != imamoDatoteke || programi != imamoPrograme || zaslon != imamoZaslon) narisi()
         else narisiNaprave()
         if (!datoteke && !programi && !zaslon) isci()

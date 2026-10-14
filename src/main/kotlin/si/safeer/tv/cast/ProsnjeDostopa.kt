@@ -88,6 +88,10 @@ object ProsnjeDostopa {
             .putString(KLJUC_ZAVRNJENO, zavrnjeno.toString()).putString(KLJUC_CAKAJOCE, cakajoce.toString()).apply()
     }
 
+    /** Ime naprave z oznako [id] iz kroga TE naprave (prazno, ce je krog ne pozna) - nikoli iz sporocila. */
+    fun imeNaprave(ctx: Context, id: String): String =
+        try { imeIzKroga(ctx.applicationContext, Dostop.jedro(ctx.applicationContext, id)).orEmpty() } catch (_: Throwable) { "" }
+
     /** Ime naprave s tem jedrom iz kroga TE naprave (null: ni clan). */
     private fun imeIzKroga(ctx: Context, jedro: String): String? = try {
         val krog = KrogNaprave.krog(ctx)

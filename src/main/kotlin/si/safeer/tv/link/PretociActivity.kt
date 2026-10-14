@@ -56,7 +56,8 @@ class PretociActivity : Activity() {
         if (savedInstanceState != null) return
         // Odprli smo se (neposredno ali s tapom na obvestilo): obvestilo za zagon ni vec potrebno.
         Daljinec.pospraviObvestiloZagona(this)
-        if (cilj.isBlank() || paket.isBlank()) { finish(); return }
+        // Brez paketa: Povezani zasloni (screen.start) - deli se ves zaslon, nobena aplikacija se ne odpre.
+        if (cilj.isBlank()) { finish(); return }
         // Zahteva je bila medtem umaknjena, zamenjana ali je pretekla (tap na staro obvestilo): ne sprasujemo.
         if (!PretokKonec.zahteve.caka(zahteva)) { Log.i(TAG, "Zahteva ne velja vec; zajema zaslona ne zahtevamo."); finish(); return }
         try {
@@ -90,7 +91,7 @@ class PretociActivity : Activity() {
                 // To deljenje je zacel »Odpri tukaj« naprave [cilj]: samo zanj sme `apps.close` te naprave umakniti aplikacijo.
                 // Zapis nastavi zacetek deljenja sam (zadnji parameter).
                 LinkMost.zazeniDeljenje(this, resultCode, data, cilj, cilj, cilj)
-                Daljinec.nameraZaZagon(this, paket)?.let { namera ->
+                if (paket.isNotBlank()) Daljinec.nameraZaZagon(this, paket)?.let { namera ->
                     try { startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Aplikacije ni bilo mogoce odpreti: ${e.message}") }
                 }
             } else {

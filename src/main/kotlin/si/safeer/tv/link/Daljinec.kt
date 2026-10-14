@@ -40,6 +40,9 @@ object Daljinec {
         "apps.list", "apps.launch",
         // Konec »Odpri tukaj«: okno na drugi napravi se je zaprlo - nehamo deliti zaslon, aplikacijo umaknemo z zaslona.
         "apps.close",
+        // Povezani zasloni: druga naprava zeli gledati in upravljati ta zaslon. Uporabnik te naprave ga deli sam
+        // (zajem zaslona potrdi ob vsaki seji); konec je isti kot pri »Odpri tukaj« (apps.close s stream).
+        "screen.start",
         // Vnos z racunalnika na zaslon, ki ga naprava deli (Safeer Vnos, storitev dostopnosti):
         // dotik in poteg v delezih zaslona, tipka (sistemska ali tipkovnice), kolesce, besedilo v polje s fokusom.
         "input.tap", "input.swipe", "input.key", "input.text", "input.enable", "input.scroll",
@@ -166,6 +169,7 @@ object Daljinec {
             return zazeniAplikacijo(context, paket)
         }
         if (d == "apps.close") return zapriPretok(context, parametri)
+        if (d == "screen.start") return pretociZaslon(context, parametri.optString(PARAM_POSILJATELJ, ""))
         // Vnos z racunalnika ne potrebuje brskalnika v ospredju: gre v aplikacijo, ki je na zaslonu.
         if (d.startsWith("input.")) return vnos(context, d, parametri)
         if (d.startsWith("gamepad.")) return igralniPloskek(context, d, parametri)
@@ -412,6 +416,25 @@ object Daljinec {
         prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_pretok, velja = PretokKonec.CAKA_MS)
         return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
             JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
+    }
+
+    /**
+     * Povezani zasloni: ves zaslon te naprave napravi [cilj], brez odpiranja aplikacije. Isto kot [pretociAplikacijo]:
+     * nevidna dejavnost vprasa za zajem zaslona (soglasje uporabnika te naprave), zahteva velja dve minuti.
+     */
+    private fun pretociZaslon(context: Context, cilj: String): Izid {
+        if (cilj.isBlank()) return Izid(false, "Ni znano, komu deliti zaslon", koda = "ni_posiljatelja")
+        // Ime naprave, ki gleda, iz kroga TE naprave (ne iz sporocila).
+        val ime = si.safeer.tv.cast.ProsnjeDostopa.imeNaprave(context, cilj).ifBlank { cilj }
+        PretociActivity.zapriCakajoco()
+        val namera = PretociActivity.namera(context, cilj, "", PretokKonec.zahteve.nova(cilj))
+        if (!smeZagnatiIzOzadja(context)) {
+            prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_zaslon, velja = PretokKonec.CAKA_MS)
+            return izidBrezDovoljenja(context, ime)
+        }
+        try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Deljenja zaslona ni bilo mogoce zaceti: ${e.message}") }
+        prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_zaslon, velja = PretokKonec.CAKA_MS)
+        return Izid(true, "Na napravi potrdi deljenje zaslona", JSONObject().put("stream", "pending"))
     }
 
     private const val KANAL_ZAGON = "safeer_link_zagon"
