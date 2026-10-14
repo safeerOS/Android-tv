@@ -40,6 +40,9 @@ fun main() {
     preveri("zaprta datoteka: ni Teamworka", !o.teamwork && o.obvestilo == "")
     preveri("varno ime", p.varnoIme("../.skrito/a") == "_._.skrito_a" && p.varnoIme("..") == "_." && p.varnoIme("  ") == "datoteka")
 
+    preveri("isto ime iz razlicnih map: razlicni podmapi", p.mapaZaId("share:0:a/zapiski.txt") != p.mapaZaId("share:0:b/zapiski.txt"))
+    preveri("podmapa je kratka in stalna", p.mapaZaId("x").length == 16 && p.mapaZaId("x") == p.mapaZaId("x"))
+
     println(if (napak == 0) "VSE OK" else "NAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

@@ -80,6 +80,13 @@ object TeamworkPravila {
         return m?.groupValues?.get(1)?.trim() ?: ime.trim()
     }
 
+    /**
+     * Podmapa za datoteko [id] z naprave: datoteki z istim imenom iz razlicnih map se ne smeta prekriti (pregled 14. 10.:
+     * sicer bi seja ene poslala vsebino druge v napacno datoteko na racunalniku).
+     */
+    fun mapaZaId(id: String): String =
+        MessageDigest.getInstance("SHA-256").digest(id.toByteArray(Charsets.UTF_8)).take(8).joinToString("") { "%02x".format(it) }
+
     /** Varno ime datoteke za mapo te aplikacije (brez locil poti in skritih imen). */
     fun varnoIme(ime: String): String {
         var s = ime.replace("/", "_").replace("\\", "_").replace("\u0000", "").trim()

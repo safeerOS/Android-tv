@@ -42,6 +42,9 @@ object TeamworkAndroid {
     private const val PING_ZAPRTO_MS = 30_000L
     private const val MIRUJE_MS = 1_500L
     private const val PO_ZAPRTJU_MS = 120_000L
+    private const val PREMOR_PO_NAPAKI_MS = 300_000L
+    /** Datoteka ob delovni kopiji: sha256 zadnje vsebine, ki je enaka razlicici na racunalniku (prenos ali poslano). */
+    private const val USKLAJENO = ".usklajeno"
 
     private class Seja(val naprava: String, val imeNaprave: String, val id: String, var s: DatotekeActivity.Streznik,
                        val datoteka: File, var sha: String) {
@@ -53,6 +56,7 @@ object TeamworkAndroid {
         var spremembaStanje: Pair<Long, Long>? = null
         var naslednjiPing = 0L
         var konecOb = Long.MAX_VALUE
+        var premorDo = 0L
     }
 
     private val seje = ConcurrentHashMap<String, Seja>()
@@ -82,12 +86,34 @@ object TeamworkAndroid {
     fun uredi(a: Activity, s: DatotekeActivity.Streznik, naprava: String, imeNaprave: String, v: DatotekeActivity.Vnos,
               naNapako: () -> Unit) {
         val c = a.applicationContext
-        val mapa = File(c.cacheDir, "teamwork/" + TeamworkPravila.varnoIme(naprava)).apply { mkdirs() }
+        val mapa = File(c.cacheDir, "teamwork/" + TeamworkPravila.varnoIme(naprava) + "/" + TeamworkPravila.mapaZaId(v.id))
+            .apply { mkdirs() }
         val cilj = File(mapa, TeamworkPravila.varnoIme(v.ime))
+        val k = kljuc(naprava, v.id)
         ozadje.execute {
+            seje[k]?.let { obstojeca ->
+                // Datoteko ta naprava ze ureja: odpremo isto delovno kopijo (prenos bi prepisal neposlane spremembe).
+                glavna.post {
+                    if (!odpriUrejevalnik(a, cilj, mime(v.ime, v.mime))) { naNapako(); return@post }
+                    obstojeca.odprto = true
+                    obstojeca.konecOb = Long.MAX_VALUE
+                }
+                return@execute
+            }
+            val usklajeno = File(mapa, USKLAJENO)
+            val znan = try { usklajeno.readText().trim() } catch (_: Throwable) { "" }
+            if (cilj.exists() && (try { TeamworkPravila.sha256(cilj) } catch (_: Throwable) { znan }) != znan) {
+                // Ostanek prejsnjega urejanja (seja je potekla ali aplikacija se je vmes ustavila): najprej ga posljemo.
+                // Brez znane osnove ga racunalnik obdrzi kot kopijo, ce se razlikuje od trenutne razlicice - nic se ne izgubi.
+                val ostanek = Seja(naprava, imeNaprave, v.id, s, cilj, "")
+                ostanek.osnova = ""
+                ostanek.poslanoStanje = 0L to -1L
+                poslji(c, ostanek)
+            }
             val ok = try { prenesi(s, v.id, cilj) } catch (t: Throwable) { Log.w(TAG, "prenos: ${t.javaClass.simpleName}"); false }
             if (!ok) { glavna.post(naNapako); return@execute }
             val seja = Seja(naprava, imeNaprave, v.id, s, cilj, TeamworkPravila.sha256(cilj))
+            zabeleziUsklajeno(cilj, seja.sha)
             glavna.post {
                 // Racunalnik mora Teamwork znati (files.session), sicer bi shranitev ostala samo tu: takrat ga odpre on.
                 val p = JSONObject().put("id", v.id).put("odprto", true).put("program", "android").put("osnova", seja.sha)
@@ -115,6 +141,10 @@ object TeamworkAndroid {
     }
 
     private fun kljuc(naprava: String, id: String) = naprava + "\n" + id
+
+    private fun zabeleziUsklajeno(datoteka: File, sha: String) {
+        try { File(datoteka.parentFile, USKLAJENO).writeText(sha) } catch (_: Throwable) { }
+    }
 
     private fun prenesi(s: DatotekeActivity.Streznik, id: String, cilj: File): Boolean {
         val k = PripetiVir.odjemalecZaStreznik(s.odtis).newBuilder().readTimeout(60, TimeUnit.SECONDS).build()
@@ -161,11 +191,15 @@ object TeamworkAndroid {
     private fun tik(c: Context) {
         val zdaj = System.currentTimeMillis()
         for ((k, seja) in seje) {
-            if (!seja.datoteka.exists() || zdaj > seja.konecOb) { seje.remove(k); continue }
+            if (!seja.datoteka.exists()) { seje.remove(k); continue }
             val stanje = seja.datoteka.lastModified() to seja.datoteka.length()
+            // Seja se konca sele, ko je vse poslano; vsaka nova shranitev (urejevalnik je lahko se odprt v ozadju)
+            // jo podaljsa (pregled 14. 10.: sicer bi se pozne shranitve izgubile).
+            if (zdaj > seja.konecOb && stanje == seja.poslanoStanje) { seje.remove(k); continue }
             if (stanje != seja.poslanoStanje) {
+                if (seja.konecOb != Long.MAX_VALUE) seja.konecOb = maxOf(seja.konecOb, zdaj + PO_ZAPRTJU_MS)
                 if (stanje != seja.spremembaStanje) { seja.spremembaStanje = stanje; seja.spremembaOd = zdaj }
-                else if (zdaj - seja.spremembaOd >= MIRUJE_MS) { seja.spremembaStanje = null; poslji(c, seja) }
+                else if (zdaj - seja.spremembaOd >= MIRUJE_MS && zdaj >= seja.premorDo) { seja.spremembaStanje = null; poslji(c, seja) }
             }
             if (zdaj >= seja.naslednjiPing) ping(c, seja)
         }
@@ -193,6 +227,7 @@ object TeamworkAndroid {
         if (o.novaRazlicica) {
             // Nova razlicica pri lastniku, tu nic neposlanega: urejevalnik jo dobi ob ponovnem odprtju.
             if (try { prenesi(seja.s, seja.id, seja.datoteka) } catch (_: Throwable) { false }) {
+                zabeleziUsklajeno(seja.datoteka, o.sha)
                 seja.sha = o.sha
                 if (!seja.odprto) seja.osnova = o.sha
                 seja.poslanoStanje = seja.datoteka.lastModified() to seja.datoteka.length()
@@ -225,16 +260,25 @@ object TeamworkAndroid {
                 .header("X-Safeer-Token", s.zeton).post(telo).build()
             k.newCall(z).execute().use { o ->
                 val j = try { JSONObject(o.body?.string().orEmpty()) } catch (_: Throwable) { JSONObject() }
-                if (!o.isSuccessful || !j.optBoolean("ok")) { Log.w(TAG, "popravek: http ${o.code} ${j.optString("koda")}"); return }
+                if (!o.isSuccessful || !j.optBoolean("ok")) {
+                    Log.w(TAG, "popravek: http ${o.code} ${j.optString("koda")}")
+                    // Trajna napaka pri racunalniku (prevelika datoteka, ni prostora, prevec kopij): ne posiljamo vsakih
+                    // nekaj sekund znova cele datoteke.
+                    if (o.code == 413 || o.code == 500 || o.code == 507 || j.optString("koda") == "prevec_kopij")
+                        seja.premorDo = System.currentTimeMillis() + PREMOR_PO_NAPAKI_MS
+                    return
+                }
                 if (j.optBoolean("spor")) {
                     obvesti(c, "spor", f.name, TeamworkPravila.kratkoIme(seja.imeNaprave), j.optString("kopija"))
                     // Tvoja razlicica je pri lastniku (kopija); glavna razlicica pride ob naslednjem javljanju.
                     seja.poslanoStanje = stanje
+                    zabeleziUsklajeno(seja.datoteka, sha)
                     return
                 }
                 seja.sha = sha
                 seja.osnova = sha
                 seja.poslanoStanje = stanje
+                zabeleziUsklajeno(seja.datoteka, sha)
             }
         } catch (t: Throwable) {
             Log.w(TAG, "popravek: ${t.javaClass.simpleName}")         // naslednji tik poskusi znova

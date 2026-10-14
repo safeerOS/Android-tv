@@ -23,4 +23,5 @@
     <string name="tablet_prikazi_vse">Alle anzeigen ›</string>
     <string name="tablet_odklopi">Trennen</string>
     <string name="tablet_povezano_z">Verbunden mit %1$s</string>
+    <string name="vnos_ime">Safeer Input</string>
 </resources>
