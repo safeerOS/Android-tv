@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Teamwork: datoteka z racunalnika, urejena na tej napravi (os/TeamworkAndroid). -->
+<resources>
+    <string name="tw_kanal">Safeer : Teamwork</string>
+    <string name="tw_zacetek_naslov">Teamwork</string>
+    <string name="tw_zacetek">« %1$s » est maintenant aussi modifié sur %2$s.</string>
+    <string name="tw_konec_naslov">Teamwork terminé</string>
+    <string name="tw_konec">Tu es maintenant seul à modifier « %1$s ».</string>
+    <string name="tw_nova_naslov">Nouvelle version</string>
+    <string name="tw_nova">%2$s a enregistré « %1$s ». Ferme puis rouvre le fichier pour voir les modifications.</string>
+    <string name="tw_spor_naslov">Teamwork : les deux versions sont conservées</string>
+    <string name="tw_spor">%2$s a enregistré « %1$s » pendant que tu le modifiais. Ta version est enregistrée sous « %3$s ».</string>
+    <string name="tw_prenasam">Téléchargement de « %1$s » …</string>
+    <string name="os_uredi_tukaj">Modifier sur cet appareil</string>
+</resources>

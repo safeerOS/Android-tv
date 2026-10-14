@@ -59,6 +59,15 @@ JSON_JAR="${JSON_JAR:-$(ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/j
 
 java -cp "$OUT/prosnje.jar:$JSON_JAR" si.safeer.tv.cast.ProsnjeDostopaTestKt
 
+# Teamwork (TeamworkPravila): popravek »celota« in odziv na files.session - isti protokol kot core/link_teamwork.py.
+"$KOTLINC" -J-Xmx2g \
+    -cp "$JSON_JAR" \
+    "$SRC/si/safeer/tv/os/TeamworkPravila.kt" \
+    "$TEST_DIR/TeamworkTest.kt" \
+    -include-runtime -d "$OUT/teamwork.jar"
+
+java -cp "$OUT/teamwork.jar:$JSON_JAR" si.safeer.tv.os.TeamworkTestKt
+
 # Povezani zasloni (ZasloniPravila): katere naprave lahko gledas, brez te naprave; pricakovani zaslon.
 "$KOTLINC" -J-Xmx2g \
     "$SRC/si/safeer/tv/cast/DostopPravila.kt" \

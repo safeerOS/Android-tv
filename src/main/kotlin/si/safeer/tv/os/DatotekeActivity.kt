@@ -230,6 +230,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onResume() {
         super.onResume()
         NamestiApk.nadaljujCeCaka(this)
+        // Vrnitev iz urejevalnika: datoteka tam ni vec odprta (Teamwork se dve minuti spremlja pozne shranitve).
+        TeamworkAndroid.vrnjen(this)
         // Pregledovalnik slik je datoteko izbrisal ali preimenoval: seznam mape osvezimo - takoj,
         // ce je Link ze povezan, sicer ko se povezava po vrnitvi vzpostavi (naStanje).
         if (osveziPoVrnitvi) { osveziPoVrnitvi = false; cakamOsvezitev = true }
@@ -667,6 +669,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // ukaza files.open nimajo, zato odpiranja pri njih sploh ne ponudimo.
         if (!mapa && !jeNaprava()) {
             dejanja.add(getString(R.string.os_odpri_na_racunalniku) to { odpriNaRacunalniku(v, false) })
+            if (TeamworkAndroid.imaProgram(this, v.ime, v.mime)) dejanja.add(getString(R.string.os_uredi_tukaj) to { urediTukaj(v, r, zaslon) })
             if (zaslon) dejanja.add(getString(R.string.os_odpri_in_poglej) to { odpriNaRacunalniku(v, true) })
         }
         if (urejanje) {
@@ -807,7 +810,16 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Brez vprasanja: datoteko odpre on, in kadar deli zaslon, jo takoj vidimo tudi tu.
         val r = racunalnik ?: return
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
+        // Teamwork: ce je na tej napravi program za ta format, datoteko uredimo tukaj - shranitve gredo racunalniku,
+        // ki jo morda ureja se kdo (TeamworkAndroid). Ce programa ni ali racunalnik Teamworka ne zna, jo odpre on.
+        if (TeamworkAndroid.imaProgram(this, v.ime, v.mime)) { urediTukaj(v, r, zaslon); return }
         odpriNaRacunalniku(v, zaslon)
+    }
+
+    private fun urediTukaj(v: Vnos, r: LinkOdjemalec.Naprava, zaslon: Boolean) {
+        val s = streznik ?: run { odpriNaRacunalniku(v, zaslon); return }
+        Toast.makeText(this, getString(R.string.tw_prenasam, v.ime), Toast.LENGTH_SHORT).show()
+        TeamworkAndroid.uredi(this, s, r.id, r.ime, v) { if (!isFinishing) odpriNaRacunalniku(v, zaslon) }
     }
 
     /** Slika ISO na tej napravi ali ključku USB: izbere jo uporabnik v sistemskem izbirniku (kot »Odpri datoteko« v VLC). */
