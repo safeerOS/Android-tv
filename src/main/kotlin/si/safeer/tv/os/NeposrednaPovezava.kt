@@ -42,8 +42,15 @@ object NeposrednaPovezava {
     /** Po kateri poti smo prisli do naprave. */
     enum class Pot { NEPOSREDNO, HUB }
 
-    /** Povezava do naprave in pot, po kateri tece. */
-    class Izid(val vticnica: SSLSocket, val pot: Pot)
+    /**
+     * Povezava do naprave in pot, po kateri tece. [casMs]: od zacetka [tekma] do koncanega rokovanja zmagovalne poti
+     * (prek Huba skupaj z odgovorom Huba), zaokrozeno navzgor - izmerjena povezava zato nikoli ni 0; 0 pomeni, da ni
+     * izmerjena. Samo za dnevnik in meritve, na izbiro poti ne vpliva.
+     */
+    class Izid(val vticnica: SSLSocket, val pot: Pot, val casMs: Long = 0)
+
+    /** Milisekunde od [zacetekNs] (System.nanoTime), zaokrozeno navzgor. */
+    private fun casOd(zacetekNs: Long): Long = (System.nanoTime() - zacetekNs + 999_999) / 1_000_000
 
     /** En naslov dobi ves cas; vec naslovov si ga razdeli, da napacen prvi ne porabi cakanja naprave. */
     fun casZa(steviloNaslovov: Int): Int = if (steviloNaslovov <= 1) CAS_ENEGA_MS else CAS_KANDIDATA_MS
@@ -159,7 +166,7 @@ object NeposrednaPovezava {
      *
      * Vsaka pot dobi svoj »tece«: ugasne, ko uporabnik zaslon zapusti ([tece]) ali ko je druga pot ze zmagala.
      * Neposredna pot zeton poslje sele klicatelj (po vrnitvi), pot prek Huba ga je poslala Hubu iste naprave -
-     * seja zato vedno dobi natanko enega gledalca.
+     * seja zato vedno dobi natanko enega gledalca. Izid pove tudi, koliko je zmagovalna pot trajala ([Izid.casMs]).
      */
     fun tekma(
         neposredno: ((() -> Boolean) -> SSLSocket?)?,
@@ -168,11 +175,12 @@ object NeposrednaPovezava {
         tece: () -> Boolean = { true },
     ): Izid? {
         if (neposredno == null && prekHuba == null) return null
+        val zacetek = System.nanoTime()
         if (prekHuba == null || neposredno == null) {
             val edina = if (neposredno != null) Pot.NEPOSREDNO else Pot.HUB
             val delo = neposredno ?: prekHuba
             val s = if (delo != null && tece()) delo(tece) else null
-            return if (s != null) Izid(s, edina) else null
+            return if (s != null) Izid(s, edina, casOd(zacetek)) else null
         }
         val zmagovalec = AtomicReference<Izid?>(null)
         val neposrednaKoncana = CountDownLatch(1)
@@ -185,7 +193,7 @@ object NeposrednaPovezava {
                     pred()
                     val s = if (se()) delo(se) else null
                     if (s != null) {
-                        if (zmagovalec.compareAndSet(null, Izid(s, vrsta))) odloceno.countDown()
+                        if (zmagovalec.compareAndSet(null, Izid(s, vrsta, casOd(zacetek)))) odloceno.countDown()
                         else try { s.close() } catch (_: Throwable) { }
                     }
                 } catch (_: Throwable) {

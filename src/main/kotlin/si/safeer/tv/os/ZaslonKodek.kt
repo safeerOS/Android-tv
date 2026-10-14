@@ -5,6 +5,15 @@ package si.safeer.tv.os
  * Brez Androida, da se da preizkusiti na JVM.
  */
 object ZaslonKodek {
+    /**
+     * Kaj gledalec zna, za `caps` v `screen.start`: preklop na namizje racunalnika, kadar je program odprt tam
+     * (program ene same instance), dolga skupina slik (enot ne izpuscamo, zato kljucna slika vsako sekundo ni
+     * potrebna) in utrip `rtt` (odgovor na meritev zakasnitve, [ZaslonUtrip]). Racunalnik kaj novega poslje sele, ko
+     * to potrdi se v glavi toka; starejsi racunalnik seznam prezre. [okus] je za zmoznosti, ki jih ne bodo imeli vsi
+     * okusi aplikacije - zdaj jih imajo vsi enake.
+     */
+    fun zmoznosti(@Suppress("UNUSED_PARAMETER") okus: String): List<String> = listOf("handoff", "gop", "rtt")
+
     /** Kodeki slike, ki jih gledalec zna, po prednosti; HEVC samo, ce ga naprava strojno dekodira. */
     fun seznam(hevcStrojno: Boolean): List<String> = if (hevcStrojno) listOf("hevc", "h264") else listOf("h264")
 
