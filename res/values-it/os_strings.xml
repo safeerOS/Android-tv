@@ -216,7 +216,7 @@
     <string name="os_dostop_kratko_predvajalnik">lettore</string>
     <string name="os_dostop_kratko_zaslon">schermo</string>
     <string name="os_dostop_moznost">Accesso di questo dispositivo</string>
-    <string name="os_dostop_naslov">Cosa può usare %1$s su questo dispositivo</string>
+    <string name="os_dostop_naslov">Cosa consenti a %1$s su questo dispositivo</string>
     <string name="os_dostop_datoteke">File</string>
     <string name="os_dostop_programi">Programmi</string>
     <string name="os_dostop_predvajalnik">Lettore (cosa è in riproduzione, continua qui, elenchi)</string>

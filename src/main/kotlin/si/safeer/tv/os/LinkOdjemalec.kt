@@ -549,7 +549,11 @@ class LinkOdjemalec(private val context: Context) {
             "cast.url" -> {
                 val telo = json.optJSONObject("payload") ?: return
                 // Stran se tu odpre sama: samo od naprave, ki ji je na tej napravi odprt predvajalnik (cast/Dostop).
-                if (!si.safeer.tv.cast.Dostop.smeSporocilo(context, json.optString("sender"), "cast.url", zascita = zascitaJedro)) return
+                if (!si.safeer.tv.cast.Dostop.smeSporocilo(context, json.optString("sender"), "cast.url", zascita = zascitaJedro)) {
+                    // Uporabnik te naprave dobi prosnjo za predvajalnik (cast/ProsnjeDostopa); odobri jo lahko samo tu.
+                    si.safeer.tv.cast.ProsnjeDostopa.obZavrnitvi(context, zascitaJedro, si.safeer.tv.cast.DostopPravila.zahtevaSporocila("cast.url"))
+                    return
+                }
                 val url = telo.optString("url"); val naslov = telo.optString("title")
                 val od = json.optString("sender_name").ifBlank { json.optString("sender") }
                 potrdi(json)

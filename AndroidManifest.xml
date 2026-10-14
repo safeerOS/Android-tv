@@ -346,6 +346,8 @@
             android:launchMode="singleTop"
             android:noHistory="true" />
         <receiver android:name="si.safeer.tv.link.InternetVprasanje$Prejemnik" android:exported="false" />
+        <!-- Gumba Dovoli / Zavrni v obvestilu o prosnji za dostop (cast/ProsnjeDostopa); ni izvozen. -->
+        <receiver android:name="si.safeer.tv.cast.ProsnjeDostopa$Prejemnik" android:exported="false" />
 
         <!-- "Poslji na napravo": Zavrni iz tihega obvestila (brez odpiranja aplikacije). -->
         <receiver android:name="si.safeer.tv.os.PredajaObvestilo$Prejemnik" android:exported="false" />

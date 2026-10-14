@@ -994,7 +994,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     }
                     if (od == 0) odziv[r.id] = zdaj() - zacetek
                     val podatki = izid.optJSONObject("data") ?: JSONObject()
-                    if (!podatki.optBoolean("enabled", false)) { konec(Surovo(ime, android, emptyList(), false), null); return@Odgovor }
+                    if (!podatki.optBoolean("enabled", false)) {
+                        // Naprava je uporabniku poslala prosnjo za dostop (cast/ProsnjeDostopa): povemo, kje jo odobri.
+                        si.safeer.tv.cast.ProsnjeDostopa.sporociloProsilcu(ctx, izid, ime)?.let {
+                            try { Toast.makeText(ctx, it, Toast.LENGTH_LONG).show() } catch (_: Throwable) { }
+                        }
+                        konec(Surovo(ime, android, emptyList(), false), null); return@Odgovor
+                    }
                     val polje = podatki.optJSONArray("items")
                     if (polje != null) for (i in 0 until polje.length()) polje.optJSONObject(i)?.let { zbrano.add(it) }
                     val skupaj = podatki.optInt("total", zbrano.size)

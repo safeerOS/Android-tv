@@ -216,7 +216,7 @@
     <string name="os_dostop_kratko_predvajalnik">lecteur</string>
     <string name="os_dostop_kratko_zaslon">écran</string>
     <string name="os_dostop_moznost">Accès de cet appareil</string>
-    <string name="os_dostop_naslov">Ce que %1$s peut utiliser sur cet appareil</string>
+    <string name="os_dostop_naslov">Ce que vous autorisez à %1$s sur cet appareil</string>
     <string name="os_dostop_datoteke">Fichiers</string>
     <string name="os_dostop_programi">Programmes</string>
     <string name="os_dostop_predvajalnik">Lecteur (ce qui est lu, continuer ici, listes)</string>

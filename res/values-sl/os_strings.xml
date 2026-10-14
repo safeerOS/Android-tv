@@ -216,7 +216,7 @@
     <string name="os_dostop_kratko_predvajalnik">predvajalnik</string>
     <string name="os_dostop_kratko_zaslon">zaslon</string>
     <string name="os_dostop_moznost">Dostop te naprave</string>
-    <string name="os_dostop_naslov">Kaj sme %1$s na tej napravi</string>
+    <string name="os_dostop_naslov">Kaj dovoliš napravi %1$s na tej napravi</string>
     <string name="os_dostop_datoteke">Datoteke</string>
     <string name="os_dostop_programi">Programi</string>
     <string name="os_dostop_predvajalnik">Predvajalnik (kaj se predvaja, nadaljevanje, seznami)</string>

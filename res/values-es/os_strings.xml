@@ -216,7 +216,7 @@
     <string name="os_dostop_kratko_predvajalnik">reproductor</string>
     <string name="os_dostop_kratko_zaslon">pantalla</string>
     <string name="os_dostop_moznost">Acceso de este dispositivo</string>
-    <string name="os_dostop_naslov">Qué puede usar %1$s en este dispositivo</string>
+    <string name="os_dostop_naslov">Qué permites a %1$s en este dispositivo</string>
     <string name="os_dostop_datoteke">Archivos</string>
     <string name="os_dostop_programi">Programas</string>
     <string name="os_dostop_predvajalnik">Reproductor (qué se reproduce, continuar aquí, listas)</string>

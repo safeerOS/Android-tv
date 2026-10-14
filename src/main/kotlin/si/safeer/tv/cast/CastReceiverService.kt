@@ -222,10 +222,14 @@ class CastReceiverService : Service() {
      * (link/InternetVprasanje): iz ozadja jih Android ne dovoli odpreti, obvestila pa so lahko izklopljena.
      */
     private val zasloniInterneta = object : android.app.Application.ActivityLifecycleCallbacks {
-        override fun onActivityResumed(a: android.app.Activity) { si.safeer.tv.link.InternetVprasanje.pokaziCakajoce(a) }
+        override fun onActivityResumed(a: android.app.Activity) {
+            si.safeer.tv.link.InternetVprasanje.pokaziCakajoce(a)
+            // Prosnje drugih naprav za dostop do te naprave (cast/ProsnjeDostopa): na televizorju obvestil pogosto ni videti.
+            ProsnjeDostopa.naZaslon(a)
+        }
         override fun onActivityCreated(a: android.app.Activity, b: android.os.Bundle?) {}
         override fun onActivityStarted(a: android.app.Activity) {}
-        override fun onActivityPaused(a: android.app.Activity) {}
+        override fun onActivityPaused(a: android.app.Activity) { ProsnjeDostopa.zaslonUmaknjen(a) }
         override fun onActivityStopped(a: android.app.Activity) {}
         override fun onActivitySaveInstanceState(a: android.app.Activity, b: android.os.Bundle) {}
         override fun onActivityDestroyed(a: android.app.Activity) {}
@@ -793,10 +797,14 @@ class CastReceiverService : Service() {
     }
 
     /** Odgovor na ukaz: napravi, ki zascito zna, samo po preverjeni seji (ZascitaLinka); starejsi kot prej. */
-    private fun posljiIzid(posiljatelj: String, refId: String, dejanje: String, izid: si.safeer.tv.link.Daljinec.Izid) {
+    private fun posljiIzid(posiljatelj: String, refId: String, dejanje: String, izid: si.safeer.tv.link.Daljinec.Izid,
+                           prosnja: ProsnjeDostopaPravila.Odlocitev? = null) {
         if (posiljatelj.isBlank()) return
         val poslano = try {
-            zascita.poslji(si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, refId, dejanje, izid))
+            val sporocilo = si.safeer.tv.link.Daljinec.sporociloIzida(posiljatelj, refId, dejanje, izid)
+            // Zavrnitev ostane v dosedanji obliki; prosnja doda samo access_request in capability.
+            if (prosnja != null) sporocilo.optJSONObject("payload")?.let { ProsnjeDostopaPravila.dopolniOdgovor(it, prosnja) }
+            zascita.poslji(sporocilo)
         } catch (e: Throwable) {
             Log.w(TAG, "Odgovora na ukaz ni bilo mogoce poslati: ${e.message}"); return
         }
@@ -863,7 +871,7 @@ class CastReceiverService : Service() {
             }
 
             if (type == SafeerHandoff.TYPE) {
-                if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
+                if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { zavrniSporocilo(ws, msgId, type, "", zascitaJedro); return }
                 val p = SafeerHandoff.payload(json)
                 if (p != null) {
                     // Kot cast.url: predvajalnik v ospredju nadaljuje na polozaju, sicer se odpre brskalnik.
@@ -897,7 +905,7 @@ class CastReceiverService : Service() {
                 }
 
                 "cast.url" -> {
-                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
+                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { zavrniSporocilo(ws, msgId, type, "", zascitaJedro); return }
                     val payload = json.getJSONObject("payload")
                     val url = payload.getString("url")
                     val title = payload.optString("title", "")
@@ -916,7 +924,7 @@ class CastReceiverService : Service() {
                 }
 
                 "cast.control" -> {
-                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { sendAck(ws, msgId, "error", "ni_dovoljeno"); return }
+                    if (!Dostop.smeSporocilo(this, json.optString("sender", ""), type, zascita = zascitaJedro)) { zavrniSporocilo(ws, msgId, type, "", zascitaJedro); return }
                     val payload = json.getJSONObject("payload")
                     val action = payload.getString("action")
                     val position = if (payload.has("position")) payload.getDouble("position") else null
@@ -958,7 +966,11 @@ class CastReceiverService : Service() {
                     val dovoljeno = if (gledalec) Dostop.smeGledalec(this, dejanje, znakGledalca)
                     else Dostop.smeDejanje(this, posiljatelj, dejanje, zascitaJedro)
                     if (!dovoljeno) {
-                        if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje))
+                        if (!gledalec) {
+                            // Prosnja za dostop: uporabnik te naprave lahko zmoznost odpre z enim dotikom (cast/ProsnjeDostopa).
+                            val prosnja = ProsnjeDostopa.obZavrnitvi(this, zascitaJedro, DostopPravila.zahtevaDejanja(dejanje))
+                            posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje), prosnja)
+                        }
                         return
                     }
                     if (dejanje == si.safeer.tv.os.DomPreverjanjePravila.DEJANJE && BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) {
@@ -1036,7 +1048,7 @@ class CastReceiverService : Service() {
                     val idDeljenja = payload.optString("id", "")
                     if (dejanje == "start" && !Dostop.smeSporocilo(this, json.optString("sender", ""), type, dejanje)) {
                         // Zaslon druge naprave se tu ne odpre sam, ce ji tega nismo dovolili.
-                        sendAck(ws, msgId, "error", "ni_dovoljeno")
+                        zavrniSporocilo(ws, msgId, type, dejanje, zascitaJedro)
                         return
                     }
                     if (dejanje == "start") {
@@ -1212,7 +1224,8 @@ class CastReceiverService : Service() {
         return zascita.poslji(sporocilo)
     }
 
-    private fun sendAck(ws: WebSocket, refId: String, status: String, error: String? = null) {
+    private fun sendAck(ws: WebSocket, refId: String, status: String, error: String? = null,
+                        prosnja: ProsnjeDostopaPravila.Odlocitev? = null) {
         val ack = JSONObject().apply {
             put("id", UUID.randomUUID().toString())
             put("type", "cast.ack")
@@ -1220,7 +1233,14 @@ class CastReceiverService : Service() {
             put("status", status)
             if (error != null) put("error", error)
         }
+        if (prosnja != null) ProsnjeDostopaPravila.dopolniOdgovor(ack, prosnja)
         ws.send(ack.toString())
+    }
+
+    /** Sporocilo (stran, predvajanje, zaslon) je zavrnjeno, ker posiljatelju manjka dostop: potrditev kot doslej + prosnja. */
+    private fun zavrniSporocilo(ws: WebSocket, msgId: String, tip: String, dejanje: String, zascitaJedro: String) {
+        val prosnja = ProsnjeDostopa.obZavrnitvi(this, zascitaJedro, DostopPravila.zahtevaSporocila(tip, dejanje))
+        sendAck(ws, msgId, "error", "ni_dovoljeno", prosnja)
     }
 
     /**

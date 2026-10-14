@@ -487,6 +487,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 // Telefon in tablica povesta, zakaj ne delita: brez dovoljenja za medije ali izklopljeno.
                 pozabi(kljuc)
                 val ime = lepoIme(r.ime).ifBlank { r.id }
+                // Naprava je uporabniku poslala prosnjo za dostop (cast/ProsnjeDostopa): povemo, kje jo odobri.
+                si.safeer.tv.cast.ProsnjeDostopa.sporociloProsilcu(this, izid, ime)?.let { pokaziSporocilo(it); return@Odgovor }
                 pokaziSporocilo(getString(when (podatki.optString("reason")) {
                     "permission" -> R.string.os_datoteke_naprava_dovoljenje
                     "off" -> R.string.os_datoteke_naprava_izklop

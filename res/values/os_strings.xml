@@ -217,7 +217,7 @@
     <string name="os_dostop_kratko_predvajalnik">player</string>
     <string name="os_dostop_kratko_zaslon">screen</string>
     <string name="os_dostop_moznost">Access for this device</string>
-    <string name="os_dostop_naslov">What %1$s may use on this device</string>
+    <string name="os_dostop_naslov">What you allow %1$s to use on this device</string>
     <string name="os_dostop_datoteke">Files</string>
     <string name="os_dostop_programi">Apps</string>
     <string name="os_dostop_predvajalnik">Player (what is playing, continue here, lists)</string>

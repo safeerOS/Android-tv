@@ -399,8 +399,9 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         Toast.makeText(this, getString(R.string.os_zaslon_program_zaprt), Toast.LENGTH_LONG).show()
                         koncaj(); finish(); return@Odgovor
                     }
-                    pokazi(if (koda == "ni_dovoljeno") getString(R.string.os_zaslon_ni_dovoljeno,
-                        r.ime.ifBlank { r.id }) else getString(R.string.os_zaslon_napaka, izid.optString("message")))
+                    pokazi(if (koda == "ni_dovoljeno") si.safeer.tv.cast.ProsnjeDostopa.sporociloProsilcu(this, izid, r.ime.ifBlank { r.id })
+                        ?: getString(R.string.os_zaslon_ni_dovoljeno, r.ime.ifBlank { r.id })
+                        else getString(R.string.os_zaslon_napaka, izid.optString("message")))
                     return@Odgovor
                 }
                 val podatki = izid.optJSONObject("data") ?: return@Odgovor

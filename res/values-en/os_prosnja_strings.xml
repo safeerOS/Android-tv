@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prosnja za dostop do te naprave (cast/ProsnjeDostopa) in odgovor prosilcu. -->
+<resources>
+    <string name="os_prosnja_kanal">Safeer: access requests</string>
+    <string name="os_prosnja_naslov">Access request</string>
+    <string name="os_prosnja_vprasanje">%1$s asks for access: %2$s on this device.</string>
+    <string name="os_prosnja_dovoli">Allow</string>
+    <string name="os_prosnja_zavrni">Deny</string>
+    <string name="os_prosnja_pozneje">Later</string>
+    <string name="os_prosnja_dovoljeno">%1$s may now use %2$s on this device.</string>
+    <string name="os_prosnja_zavrnjeno">Access request from %1$s declined.</string>
+    <string name="os_prosnja_poslana">Access request sent. Approve it on %1$s.</string>
+    <string name="os_prosnja_zavrnjena">%1$s declined access.</string>
+</resources>

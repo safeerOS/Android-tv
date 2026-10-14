@@ -47,6 +47,18 @@ java -cp "$OUT/varovalka.jar" si.safeer.tv.cast.HubVarovalkaTestKt
 
 java -cp "$OUT/dostop.jar" si.safeer.tv.cast.DostopPravilaTestKt
 
+# Prosnja za dostop (ProsnjeDostopaPravila): kdo dobi vprasanje, omejitve, zavrnitev za 24 ur, odgovor prosilcu.
+# org.json (na Androidu vgrajen): za preizkus v JVM iz predpomnilnika Gradla.
+JSON_JAR="${JSON_JAR:-$(ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar 2>/dev/null | grep -v sources | head -1)}"
+"$KOTLINC" -J-Xmx2g \
+    -cp "$JSON_JAR" \
+    "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
+    "$SRC/si/safeer/tv/cast/ProsnjeDostopaPravila.kt" \
+    "$TEST_DIR/ProsnjeDostopaTest.kt" \
+    -include-runtime -d "$OUT/prosnje.jar"
+
+java -cp "$OUT/prosnje.jar:$JSON_JAR" si.safeer.tv.cast.ProsnjeDostopaTestKt
+
 # Zascita ukazov od naprave do naprave (E2e): dogovor, sifriranje, ponarejanje, ponovitve; iste vrednosti kot na racunalniku.
 "$KOTLINC" -J-Xmx2g \
     "$SRC/si/safeer/tv/cast/E2e.kt" \
