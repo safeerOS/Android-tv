@@ -432,7 +432,9 @@ class StranskaVrstica private constructor(
 
     private fun prviFokus(pogled: View, brezPolj: Boolean = false): View? {
         if (pogled.visibility != View.VISIBLE) return null
-        if (pogled.isFocusable && pogled.isEnabled && !(brezPolj && pogled is android.widget.EditText)) return pogled
+        // Drsnik (ScrollView) je le posoda: fokus bi predal prvemu otroku, tudi iskalnemu polju.
+        val posoda = pogled is android.widget.ScrollView || pogled is android.widget.HorizontalScrollView
+        if (!posoda && pogled.isFocusable && pogled.isEnabled && !(brezPolj && pogled is android.widget.EditText)) return pogled
         val skupina = pogled as? ViewGroup ?: return null
         for (i in 0 until skupina.childCount) prviFokus(skupina.getChildAt(i), brezPolj)?.let { return it }
         return null

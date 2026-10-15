@@ -40,7 +40,7 @@ object SporocilaZnak {
             isFocusable = true; isClickable = true
             setBackgroundResource(R.drawable.os_meni_postavka)
             contentDescription = a.getString(R.string.os_meni_sporocila)
-            setOnClickListener { if (siroko()) pokaziPloscico(a) else odpriVse(a) }
+            setOnClickListener { v -> if (siroko()) { odpirac = java.lang.ref.WeakReference(v); pokaziPloscico(a) } else odpriVse(a) }
         }
         okvir.addView(ImageView(a).apply {
             setImageResource(R.drawable.os_ikona_sporocila)
@@ -87,8 +87,12 @@ object SporocilaZnak {
         val koren = a.findViewById<ViewGroup>(android.R.id.content) ?: return false
         val p = koren.findViewWithTag<View>(OZNAKA_PLOSCICE) ?: return false
         koren.removeView(p)
+        // Fokus nazaj na kuverto (daljinec): sicer pristane na zacetku stranske vrstice.
+        odpirac?.get()?.takeIf { it.isAttachedToWindow }?.requestFocus()
         return true
     }
+
+    private var odpirac: java.lang.ref.WeakReference<View>? = null
 
     private fun pokaziPloscico(a: Activity) {
         if (zapri(a)) return

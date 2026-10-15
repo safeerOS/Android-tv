@@ -99,6 +99,14 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
     }
 
+    /** Televizor: ko okno dobi fokus prvic, gre fokus na prvo ploscico priljubljenih (ne v stransko vrstico ali lupo). */
+    override fun onWindowFocusChanged(imaFokus: Boolean) {
+        super.onWindowFocusChanged(imaFokus)
+        if (!imaFokus || vnos != Vnos.DALJINEC || !fokusOb) return
+        val cilj = vsebinaOdseka(odsekPriljubljene) ?: return
+        prvaPloscica(cilj)?.let { it.requestFocus(); fokusOb = false }
+    }
+
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         // Tipka Domov na domacem zaslonu: na vrh, brez odprte tipkovnice (kot drugi zaganjalniki).
@@ -524,7 +532,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun prvaPloscica(v: View): View? {
         if (v.visibility != View.VISIBLE) return null
-        if (v.isFocusable && v !is EditText) return v
+        if (v.isFocusable && v !is EditText && v !is HorizontalScrollView && v !is ScrollView) return v
         val g = v as? ViewGroup ?: return null
         for (i in 0 until g.childCount) prvaPloscica(g.getChildAt(i))?.let { return it }
         return null
