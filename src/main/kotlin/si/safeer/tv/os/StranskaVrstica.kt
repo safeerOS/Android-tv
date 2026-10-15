@@ -388,7 +388,7 @@ class StranskaVrstica private constructor(
 
     private fun odpriRazdelek(razdelek: Razdelek) {
         val namera = when (razdelek) {
-            Razdelek.DOMOV -> Intent(dejavnost, DomovActivity::class.java)
+            Razdelek.DOMOV -> Intent(dejavnost, ZaganjalnikActivity.domov(dejavnost))
             Razdelek.MEDIJI -> GlasbaStoritev.namenKartice(dejavnost)
             Razdelek.NAPRAVE -> Intent(dejavnost, NapraveActivity::class.java)
             Razdelek.SPOROCILA -> Intent(dejavnost, SporocilaActivity::class.java)
@@ -405,7 +405,7 @@ class StranskaVrstica private constructor(
         }
         try {
             dejavnost.startActivity(namera)
-            if (dejavnost !is DomovActivity) dejavnost.finish()
+            if (!ZaganjalnikActivity.jeDomaci(dejavnost)) dejavnost.finish()
         } catch (_: Throwable) {
             Toast.makeText(dejavnost, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show()
         }

@@ -40,7 +40,6 @@
             android:launchMode="singleTask"
             android:resizeableActivity="true"
             android:stateNotNeeded="true"
-            android:clearTaskOnLaunch="true"
             android:windowSoftInputMode="adjustResize|stateHidden"
             tools:ignore="RedundantLabel"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode">

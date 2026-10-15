@@ -189,8 +189,8 @@ object Kontroler {
 
     /** Y pelje na domaci zaslon Safeer OS, kjerkoli si - kot gumb PS na ploscku. */
     private fun domov(a: Activity) {
-        if (a is DomovActivity) return
-        a.startActivity(Intent(a, DomovActivity::class.java)
+        if (ZaganjalnikActivity.jeDomaci(a)) return
+        a.startActivity(Intent(a, ZaganjalnikActivity.domov(a))
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
     }
 

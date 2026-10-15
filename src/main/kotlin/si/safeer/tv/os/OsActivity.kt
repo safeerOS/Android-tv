@@ -91,9 +91,9 @@ open class OsActivity : Activity() {
             super.onBackPressed()
             return
         }
-        if (this !is DomovActivity && stranskaVrstica() != null) {
+        if (!ZaganjalnikActivity.jeDomaci(this) && stranskaVrstica() != null) {
             try {
-                startActivity(android.content.Intent(this, DomovActivity::class.java)
+                startActivity(android.content.Intent(this, ZaganjalnikActivity.domov(this))
                     .addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
                 finish()
                 return

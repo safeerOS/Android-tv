@@ -748,6 +748,21 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     companion object {
         private const val TAG = "SafeerZaganjalnik"
+
+        @Volatile private var domacaRazred: Class<out android.app.Activity>? = null
+
+        /**
+         * Domaci zaslon Safeer OS na tej napravi: zaganjalnik (telefon, tablica) ali DomovActivity (televizor). Domov in
+         * Nazaj iz razdelkov gresta naravnost tja - brez preusmeritve prek DomovActivity.
+         */
+        fun domov(c: android.content.Context): Class<out android.app.Activity> = domacaRazred ?: run {
+            val k = try { c.packageManager.getLaunchIntentForPackage(c.packageName)?.component?.className } catch (_: Throwable) { null }
+            (if (k == ZaganjalnikActivity::class.java.name) ZaganjalnikActivity::class.java else DomovActivity::class.java)
+                .also { domacaRazred = it }
+        }
+
+        /** Ta zaslon je domaci zaslon (DomovActivity ali zaganjalnik): razdelki ga ob odhodu ne zaprejo. */
+        fun jeDomaci(a: android.app.Activity) = a is DomovActivity || a is ZaganjalnikActivity
         private const val KLJUC_PONUJENO = "zaganjalnik_ponudba_odgovorjena"
     }
 }
