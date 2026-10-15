@@ -234,6 +234,21 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val vklop = CheckBox(this).apply { text = "Dostop do mojih naprav od kjerkoli"; isChecked = si.safeer.tv.link.GlobalLink.vklopljen(this@NastavitveActivity) }
         val preizkus = CheckBox(this).apply { text = "Preizkus: tudi doma prek interneta"; isChecked = si.safeer.tv.link.GlobalLink.samoRele(this@NastavitveActivity) }
         box.addView(vklop); box.addView(preizkus)
+        // Pot do vsakega sredisca zdoma: Lokalno (v istem omrezju), Neposredno (internet) ali Prek releja, z zamikom.
+        // Neposredno je mozno, ce je na racunalniku doma vklopljena "Neposredna povezava od zunaj" (ena preusmerjena vrata).
+        val poti = si.safeer.tv.link.GlobalLink.stanjePoti()
+        val krog = try { si.safeer.tv.cast.KrogNaprave.krog(this).clani() } catch (_: Throwable) { emptyList() }
+        val vrstice = poti.map { (cilj, p) ->
+            val ime = krog.firstOrNull { runCatching { si.safeer.tv.cast.KrogZaupanja.idIzKljuca(it.kljuc) }.getOrNull() == cilj }?.ime ?: cilj
+            val pot = if (p.first == si.safeer.tv.link.NeposrednaPot.POT_NEPOSREDNO) "Neposredno (internet)" else "Prek releja"
+            "$ime: $pot" + (p.second?.let { " · $it ms" } ?: "")
+        }
+        box.addView(TextView(this).apply {
+            setPadding(0, 24, 0, 0)
+            text = if (si.safeer.tv.link.GlobalLink.zdoma || vrstice.isNotEmpty())
+                (listOf("Pot do naprav zdoma:") + vrstice.ifEmpty { listOf("prek releja") }).joinToString("\n")
+            else "Pot do naprav: Lokalno (isto omrežje)"
+        })
         android.app.AlertDialog.Builder(this).setTitle("Global Link").setView(box)
             .setPositiveButton("Shrani") { _, _ ->
                 si.safeer.tv.link.GlobalLink.nastavi(this, vklop.isChecked, preizkus.isChecked)

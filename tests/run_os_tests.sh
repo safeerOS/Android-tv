@@ -125,6 +125,13 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.ZaganjalnikPravilaTestKt
     -include-runtime -d "$OUT/povezava.jar"
 java -cp "$OUT/povezava.jar" si.safeer.tv.os.NeposrednaPovezavaTestKt
 
+# Global Link - neposredna pot od zunaj (isti protokol kot core/link_neposredno.py): oglas iz Pythona, prave vticnice.
+"$KOTLINC" -J-Xmx1g \
+    "$SRC/si/safeer/tv/link/NeposrednaPot.kt" \
+    "$TEST_DIR/NeposrednaPotTest.kt" \
+    -include-runtime -d "$OUT/neposredna.jar"
+java -cp "$OUT/neposredna.jar" si.safeer.tv.link.NeposrednaPotTestKt
+
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"
 python3 "$TEST_DIR/preveri_dostop_v_ozadju.py"
