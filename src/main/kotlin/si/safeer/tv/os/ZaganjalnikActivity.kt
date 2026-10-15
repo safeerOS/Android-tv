@@ -103,9 +103,33 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onWindowFocusChanged(imaFokus: Boolean) {
         super.onWindowFocusChanged(imaFokus)
         if (!imaFokus || vnos != Vnos.DALJINEC || !fokusOb) return
-        val cilj = vsebinaOdseka(odsekPriljubljene) ?: return
-        prvaPloscica(cilj)?.let { it.requestFocus(); fokusOb = false }
+        fokusOb = false
+        // Po izrisu (stranska vrstica si fokus vzame ob pripenjanju): na prvo ploscico priljubljenih.
+        window.decorView.post { naPrvoPloscico() }
+        window.decorView.postDelayed({ if (!isFinishing && !vVsebini(currentFocus) && findViewWithTagInPanel() == null) naPrvoPloscico() }, 400)
     }
+
+    private fun naPrvoPloscico(): Boolean {
+        val cilj = vsebinaOdseka(odsekPriljubljene) ?: return false
+        return prvaPloscica(cilj)?.requestFocus() == true
+    }
+
+    private fun vVsebini(v: View?): Boolean {
+        var t: View? = v
+        while (t != null) { if (t === drsnik) return true; t = t.parent as? View }
+        return false
+    }
+
+    /** Daljinec: Desno iz stranske vrstice gre na prvo priljubljeno aplikacijo (ne v lupo ali mikrofon). */
+    override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        if (vnos == Vnos.DALJINEC && dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT &&
+            currentFocus != null && !vVsebini(currentFocus) && findViewWithTagInPanel() == null && naPrvoPloscico()) return true
+        return super.dispatchKeyEvent(dogodek)
+    }
+
+    /** Odprta ploscica Sporocil ima svoj fokus - takrat Desno ne sme na domaci zaslon. */
+    private fun findViewWithTagInPanel(): View? =
+        findViewById<ViewGroup>(android.R.id.content)?.findViewWithTag<View>("k:sporocila_ploscica")
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
@@ -480,10 +504,6 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         o.visibility = View.VISIBLE
         // Daljinec: fokus mora biti vedno nekje viden - ob vstopu na prvi priljubljeni aplikaciji (ne v lupi, ki bi
         // odprla tipkovnico cez pol zaslona).
-        if (vnos == Vnos.DALJINEC && fokusOb) {
-            prvaPloscica(cilj)?.requestFocus()
-            if (!nalagamPriljubljene) fokusOb = false
-        }
         povezFokus()
     }
 
