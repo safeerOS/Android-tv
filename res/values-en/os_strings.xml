@@ -246,7 +246,11 @@
     <string name="os_zaslon_prosim">Asking %1$s for its screen…</string>
     <string name="os_zaslon_ni_racunalnika">No computer in Safeer Link is sharing its screen. In Safeer Control on the computer, turn on \'Screen for the TV\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link is not connected, so there is no computer to ask.</string>
-    <string name="os_zaslon_ni_dovoljeno">%1$s does not share its screen. In Safeer Control on that computer, turn on \'Screen for the TV\'.</string>
+    <string name="os_zaslon_ni_dovoljeno">%1$s does not share its screen. On the computer, turn on “Screen for the TV” (Settings → Devices and Link).</string>
+    <string name="os_prosnja_caka">On the computer %1$s, confirm access (notification “Allow”).\n\nWaiting for confirmation … %2$s</string>
+    <string name="os_prosnja_poteklo">%1$s has not confirmed access yet. Press “Allow” on the computer, then open this again.</string>
+    <string name="os_prosnja_zavrnjeno">The computer %1$s declined access.\n\nYou can allow it on the computer: Safeer Link → Connected devices → this device.</string>
+    <string name="os_prosnja_ni_dovoljeno">%1$s does not allow this device to do that.\n\nAllow it on %1$s: Safeer Link → Connected devices → this device.</string>
     <string name="os_zaslon_ni_doma">%1$s cannot be reached right now – neither on the home network nor over Global Link. Check that it is on and that Global Link is enabled on both devices.</string>
     <string name="os_zaslon_ni_dosegljiv">%1$s cannot be reached. Check that it is on and connected to the network.</string>
     <string name="os_zaslon_zdoma_posodobi">%1$s cannot be reached directly from here, and it needs a newer Safeer to show its screen over Global Link. Update Safeer on the computer.</string>

@@ -242,7 +242,11 @@
     <string name="os_zaslon_prosim">Prosim %1$s za njegov zaslon …</string>
     <string name="os_zaslon_ni_racunalnika">Noben računalnik v Safeer Linku ne deli zaslona. V Safeer Controlu na računalniku vklopi \'Zaslon za televizor\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link ni povezan, zato ni računalnika, ki bi ga vprašali.</string>
-    <string name="os_zaslon_ni_dovoljeno">%1$s zaslona ne deli. V Safeer Controlu na tem računalniku vklopi \'Zaslon za televizor\'.</string>
+    <string name="os_zaslon_ni_dovoljeno">%1$s zaslona ne deli. Na računalniku vklopi »Zaslon za televizor« (Nastavitve → Naprave in Link).</string>
+    <string name="os_prosnja_caka">Na računalniku %1$s potrdi dostop (obvestilo »Dovoli«).\n\nČakam na potrditev … %2$s</string>
+    <string name="os_prosnja_poteklo">%1$s dostopa še ni potrdil. Ko na računalniku pritisneš »Dovoli«, odpri znova.</string>
+    <string name="os_prosnja_zavrnjeno">Računalnik %1$s je dostop zavrnil.\n\nDovoliš ga lahko na računalniku: Safeer Link → Povezane naprave → ta naprava.</string>
+    <string name="os_prosnja_ni_dovoljeno">%1$s tej napravi tega ne dovoli.\n\nDostop ji dovoliš na %1$s: Safeer Link → Povezane naprave → ta naprava.</string>
     <string name="os_zaslon_ni_doma">%1$s zdaj ni dosegljiv – ne v domačem omrežju ne prek Global Linka. Preveri, ali je prižgan in ali je Global Link vklopljen na obeh napravah.</string>
     <string name="os_zaslon_ni_dosegljiv">%1$s ni dosegljiv. Preveri, ali je prižgan in povezan v omrežje.</string>
     <string name="os_zaslon_zdoma_posodobi">%1$s od tu ni dosegljiv neposredno, za sliko zaslona prek Global Linka pa potrebuje novejši Safeer. Posodobi Safeer na računalniku.</string>

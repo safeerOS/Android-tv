@@ -242,7 +242,11 @@
     <string name="os_zaslon_prosim">Frage %1$s nach seinem Bildschirm …</string>
     <string name="os_zaslon_ni_racunalnika">Kein Computer in Safeer Link teilt seinen Bildschirm. Schalte in Safeer Control auf dem Computer \'Bildschirm für den Fernseher\' ein.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link ist nicht verbunden, es gibt also keinen Computer zum Fragen.</string>
-    <string name="os_zaslon_ni_dovoljeno">%1$s teilt seinen Bildschirm nicht. Schalte in Safeer Control auf diesem Computer \'Bildschirm für den Fernseher\' ein.</string>
+    <string name="os_zaslon_ni_dovoljeno">%1$s teilt seinen Bildschirm nicht. Schalte am Computer „Bildschirm für den Fernseher“ ein (Einstellungen → Geräte und Link).</string>
+    <string name="os_prosnja_caka">Bestätige den Zugriff am Computer %1$s (Benachrichtigung „Erlauben“).\n\nWarte auf Bestätigung … %2$s</string>
+    <string name="os_prosnja_poteklo">%1$s hat den Zugriff noch nicht bestätigt. Drücke am Computer „Erlauben“ und öffne es dann erneut.</string>
+    <string name="os_prosnja_zavrnjeno">Der Computer %1$s hat den Zugriff abgelehnt.\n\nDu kannst ihn am Computer erlauben: Safeer Link → Verbundene Geräte → dieses Gerät.</string>
+    <string name="os_prosnja_ni_dovoljeno">%1$s erlaubt diesem Gerät das nicht.\n\nErlaube es auf %1$s: Safeer Link → Verbundene Geräte → dieses Gerät.</string>
     <string name="os_zaslon_ni_doma">%1$s ist gerade nicht erreichbar – weder im Heimnetz noch über Global Link. Prüfe, ob das Gerät eingeschaltet ist und Global Link auf beiden Geräten aktiviert ist.</string>
     <string name="os_zaslon_ni_dosegljiv">%1$s ist nicht erreichbar. Prüfe, ob das Gerät eingeschaltet und mit dem Netzwerk verbunden ist.</string>
     <string name="os_zaslon_zdoma_posodobi">%1$s ist von hier aus nicht direkt erreichbar und braucht für die Bildschirmansicht über Global Link ein neueres Safeer. Aktualisiere Safeer auf dem Computer.</string>

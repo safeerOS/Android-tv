@@ -242,7 +242,11 @@
     <string name="os_zaslon_prosim">Chiedo lo schermo a %1$s…</string>
     <string name="os_zaslon_ni_racunalnika">Nessun computer in Safeer Link condivide lo schermo. In Safeer Control sul computer attiva \'Schermo per il televisore\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link non è connesso, quindi non c\'è nessun computer da interrogare.</string>
-    <string name="os_zaslon_ni_dovoljeno">%1$s non condivide lo schermo. In Safeer Control su quel computer attiva \'Schermo per il televisore\'.</string>
+    <string name="os_zaslon_ni_dovoljeno">%1$s non condivide lo schermo. Sul computer attiva «Schermo per il televisore» (Impostazioni → Dispositivi e Link).</string>
+    <string name="os_prosnja_caka">Sul computer %1$s conferma l\'accesso (notifica «Consenti»).\n\nIn attesa di conferma … %2$s</string>
+    <string name="os_prosnja_poteklo">%1$s non ha ancora confermato l\'accesso. Premi «Consenti» sul computer, poi riapri.</string>
+    <string name="os_prosnja_zavrnjeno">Il computer %1$s ha rifiutato l\'accesso.\n\nPuoi consentirlo sul computer: Safeer Link → Dispositivi collegati → questo dispositivo.</string>
+    <string name="os_prosnja_ni_dovoljeno">%1$s non lo consente a questo dispositivo.\n\nConsentilo su %1$s: Safeer Link → Dispositivi collegati → questo dispositivo.</string>
     <string name="os_zaslon_ni_doma">%1$s al momento non è raggiungibile, né sulla rete di casa né tramite Global Link. Controlla che sia acceso e che Global Link sia attivo su entrambi i dispositivi.</string>
     <string name="os_zaslon_ni_dosegljiv">%1$s non è raggiungibile. Controlla che sia acceso e connesso alla rete.</string>
     <string name="os_zaslon_zdoma_posodobi">%1$s non è raggiungibile direttamente da qui e ha bisogno di una versione più recente di Safeer per mostrare lo schermo tramite Global Link. Aggiorna Safeer sul computer.</string>

@@ -130,6 +130,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var zadnjiFokusDaljinec = false
     private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
 
+    /**
+     * Racunalnik caka, da uporabnik na njem potrdi dostop te naprave (obvestilo »Dovoli«): zahtevo ponavljamo, zaslon
+     * se odpre sam, ko ga potrdi (lastnik, 15. 10. 2026 - prej je telefon rekel »vklopi Zaslon za televizor«).
+     */
+    private val dostop: DostopNaprave by lazy {
+        DostopNaprave(glavna) { if (!isFinishing && !koncujem && seja == null && !prosim) zahtevajSejo() else dostop.ustavi() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         si.safeer.tv.os.Tema.uporabi(this, predvajalnik = true)
         super.onCreate(savedInstanceState)
@@ -289,6 +297,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         // Uporabnik je odsel (Domov, klic, ugasnjen zaslon): kar je drzal, mora gor - sicer bi
         // tipka na racunalniku ostala pritisnjena.
         sprostiDrzane()
+        // Na potrditev dostopa ne cakamo v ozadju; ob vrnitvi (onStart) zaslon prosi znova.
+        dostop.ustavi()
         // Program s televizorja: kdor sejo zapusti (tudi s tipko Domov ali ko ugasne televizor),
         // ga ne zeli pustiti teci na nevidnem zaslonu racunalnika.
         if (naDrugem && !isChangingConfigurations && !isFinishing) {
@@ -363,7 +373,8 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         racunalnik = r
         prosim = true
-        pokazi(getString(R.string.os_zaslon_prosim, r.ime.ifBlank { r.id }))
+        // Med cakanjem na potrditev na racunalniku ostane na zaslonu, kje jo uporabnik potrdi.
+        if (!dostop.caka) pokazi(getString(R.string.os_zaslon_prosim, r.ime.ifBlank { r.id }))
         val zahteva = JSONObject().put("quality", kakovost).put("screen", cilj)
         // Racunalniku povemo, da znamo po sliko tudi do njegovega Huba; starejsi Safeer polje prezre.
         if (prekHuba) zahteva.put("relay", true)
@@ -390,6 +401,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             LinkOdjemalec.Odgovor { izid, napaka ->
                 prosim = false
                 if (isFinishing) return@Odgovor
+                if (izid == null) dostop.ustavi()
                 if (izid == null && ponovnoOd != 0L) { ponoviAliKoncaj(getString(R.string.os_zaslon_napaka, napaka)); return@Odgovor }
                 if (izid == null) { pokazi(getString(R.string.os_zaslon_napaka, napaka)); return@Odgovor }
                 if (!izid.optBoolean("ok")) {
@@ -399,10 +411,23 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         Toast.makeText(this, getString(R.string.os_zaslon_program_zaprt), Toast.LENGTH_LONG).show()
                         koncaj(); finish(); return@Odgovor
                     }
-                    pokazi(if (koda == "ni_dovoljeno") getString(R.string.os_zaslon_ni_dovoljeno,
-                        r.ime.ifBlank { r.id }) else getString(R.string.os_zaslon_napaka, izid.optString("message")))
+                    // "ni_dovoljeno" je lahko izklopljen »Zaslon za televizor« ali dostop te naprave, ki ga mora
+                    // uporabnik potrditi na racunalniku - locita ju polje access_request (DostopNaprave).
+                    val ime = r.ime.ifBlank { r.id }
+                    val stanje = DostopNaprave.stanje(izid)
+                    if (stanje == null) {
+                        dostop.ustavi()
+                        pokazi(getString(R.string.os_zaslon_napaka, izid.optString("message")))
+                        return@Odgovor
+                    }
+                    if (stanje == ProsnjaDostopa.Stanje.CAKA) {
+                        val preostalo = dostop.cakaj()
+                        if (preostalo != null) { pokazi(DostopNaprave.besediloCakanja(this, ime, preostalo)); return@Odgovor }
+                    } else dostop.ustavi()
+                    pokazi(DostopNaprave.besedilo(this, stanje, ime, R.string.os_zaslon_ni_dovoljeno))
                     return@Odgovor
                 }
+                dostop.ustavi()
                 val podatki = izid.optJSONObject("data") ?: return@Odgovor
                 seja = podatki
                 plosekVRacunalnik = podatki.optBoolean("gamepad", false)

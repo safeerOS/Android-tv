@@ -153,6 +153,41 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Odpiranje datoteke, ki caka na svez odgovor. */
     private var poSvezem: (() -> Unit)? = null
     private val glavna = Handler(Looper.getMainLooper())
+
+    /**
+     * Racunalnik caka, da uporabnik na njem potrdi dostop te naprave do datotek (obvestilo »Dovoli«): seznam iste mape
+     * prosimo znova, dokler ga ne potrdi - takrat se mapa pokaze sama. Velja samo, dokler je uporabnik na isti mapi.
+     */
+    private var mapaDostopa: String? = null
+    private val dostop: DostopNaprave by lazy {
+        DostopNaprave(glavna) {
+            val r = racunalnik
+            val mapa = mapaDostopa
+            if (!isFinishing && r != null && !krajevni && mapa != null && "${r.id}|${pot.lastOrNull()?.oznaka ?: ""}" == mapa) {
+                nalozi(pot.lastOrNull()?.oznaka ?: "")
+            } else {
+                dostop.ustavi()
+                mapaDostopa = null
+            }
+        }
+    }
+
+    /**
+     * Odgovor na seznam je zavrnitev dostopa (DostopNaprave): pokaze, kaj se dogaja, in med cakanjem na potrditev
+     * zahtevo ponovi. Vrne false, ce odgovor ni zavrnitev dostopa.
+     */
+    private fun obZavrnitviDostopa(izid: JSONObject, r: LinkOdjemalec.Naprava, kljuc: String): Boolean {
+        val stanje = DostopNaprave.stanje(izid) ?: run { dostop.ustavi(); mapaDostopa = null; return false }
+        val ime = lepoIme(r.ime).ifBlank { r.id }
+        if (stanje == ProsnjaDostopa.Stanje.CAKA) {
+            mapaDostopa = kljuc
+            val preostalo = dostop.cakaj()
+            if (preostalo != null) { pokaziSporocilo(DostopNaprave.besediloCakanja(this, ime, preostalo)); return true }
+        } else dostop.ustavi()
+        mapaDostopa = null
+        pokaziSporocilo(DostopNaprave.besedilo(this, stanje, ime, R.string.os_datoteke_prazno_racunalnik))
+        return true
+    }
     private val pokaziNalagam = Runnable { if (nalagam && !isFinishing) pokaziSporocilo(getString(R.string.os_datoteke_nalagam)) }
     /** Naprave, katere mapo gledamo, trenutno ni na seznamu Linka (povezava se vzpostavlja znova). */
     private var virManjka = false
@@ -244,6 +279,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onStop() {
         link.odstrani(this)
+        // Na potrditev dostopa ne cakamo v ozadju; ob vrnitvi (onResume) se mapa nalozi znova.
+        if (dostop.caka) cakamOsvezitev = true
+        dostop.ustavi()
+        mapaDostopa = null
         super.onStop()
     }
 
@@ -443,9 +482,12 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 cakamSvez = false
                 vnosi = emptyList()
                 osveziPrikaz()
-                skrijSporocilo()
-                // Napis sele, ce odgovor ne pride takoj: v domacem omrezju je seznam tu prej, kot bi ga oko prebralo.
-                glavna.postDelayed(pokaziNalagam, ZAMIK_NALAGAM_MS)
+                // Med cakanjem na potrditev dostopa ostane na zaslonu, kje jo uporabnik potrdi (brez utripanja).
+                if (!dostop.caka) {
+                    skrijSporocilo()
+                    // Napis sele, ce odgovor ne pride takoj: v domacem omrezju je seznam tu prej, kot bi ga oko prebralo.
+                    glavna.postDelayed(pokaziNalagam, ZAMIK_NALAGAM_MS)
+                }
             }
         }
         link.ukaz(r.id, "files.list", JSONObject().put("folder", oznaka), 12_000, LinkOdjemalec.Odgovor { izid, napaka ->
@@ -458,6 +500,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             poSvezem = null
             val naZaslonu = prikazan == kljuc
             if (izid == null) {
+                dostop.ustavi()
+                mapaDostopa = null
                 val besedilo = getString(if (napaka == "ni_povezave") R.string.os_datoteke_ni_povezave else R.string.os_datoteke_napaka, napaka)
                 // Znani seznam ostane na zaslonu; uporabnik izve, da ga naprava zdaj ni potrdila.
                 if (naZaslonu) Toast.makeText(this, besedilo, Toast.LENGTH_SHORT).show() else pokaziSporocilo(besedilo)
@@ -465,6 +509,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             if (!izid.optBoolean("ok")) {
                 pozabi(kljuc)
+                if (obZavrnitviDostopa(izid, r, kljuc)) return@Odgovor
                 pokaziSporocilo(getString(R.string.os_datoteke_napaka, izid.optString("message")))
                 return@Odgovor
             }
@@ -486,6 +531,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (!podatki.optBoolean("shared", true)) {
                 // Telefon in tablica povesta, zakaj ne delita: brez dovoljenja za medije ali izklopljeno.
                 pozabi(kljuc)
+                // Racunalnik ne deli zaradi dostopa te naprave (potrditev na racunalniku, zavrnjeno ...).
+                if (obZavrnitviDostopa(izid, r, kljuc)) return@Odgovor
                 val ime = lepoIme(r.ime).ifBlank { r.id }
                 pokaziSporocilo(getString(when (podatki.optString("reason")) {
                     "permission" -> R.string.os_datoteke_naprava_dovoljenje
@@ -494,6 +541,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 }, ime))
                 return@Odgovor
             }
+            dostop.ustavi()
+            mapaDostopa = null
             val polje = podatki.optJSONArray("items")
             val nov = ArrayList<Vnos>()
             if (polje != null) for (i in 0 until polje.length()) {
@@ -876,8 +925,13 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (isFinishing) return@Odgovor
             val uspeh = izid?.optBoolean("ok") == true
             if (!uspeh) {
-                Toast.makeText(this, getString(R.string.os_odpri_racunalnik_napaka,
-                    izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() }), Toast.LENGTH_LONG).show()
+                // Zavrnitev zaradi dostopa te naprave: povemo, kje se dostop potrdi ali dovoli (enkratno dejanje, brez
+                // ponavljanja - uporabnik ga po potrditvi ponovi sam).
+                val stanje = DostopNaprave.stanje(izid)
+                val besedilo = if (stanje != null && stanje != ProsnjaDostopa.Stanje.IZKLOPLJENO) DostopNaprave.besedilo(this, stanje, lepoIme(r.ime).ifBlank { r.id },
+                    R.string.os_datoteke_prazno_racunalnik)
+                else getString(R.string.os_odpri_racunalnik_napaka, izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() })
+                Toast.makeText(this, besedilo, Toast.LENGTH_LONG).show()
                 return@Odgovor
             }
             Toast.makeText(this, getString(R.string.os_odpri_poslano), Toast.LENGTH_SHORT).show()

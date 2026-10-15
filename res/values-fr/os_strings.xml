@@ -242,7 +242,11 @@
     <string name="os_zaslon_prosim">Je demande son écran à %1$s…</string>
     <string name="os_zaslon_ni_racunalnika">Aucun ordinateur dans Safeer Link ne partage son écran. Dans Safeer Control sur l\'ordinateur, active \'Écran pour le téléviseur\'.</string>
     <string name="os_zaslon_ni_povezave">Safeer Link n\'est pas connecté, il n\'y a donc aucun ordinateur à interroger.</string>
-    <string name="os_zaslon_ni_dovoljeno">%1$s ne partage pas son écran. Dans Safeer Control sur cet ordinateur, active \'Écran pour le téléviseur\'.</string>
+    <string name="os_zaslon_ni_dovoljeno">%1$s ne partage pas son écran. Sur l\'ordinateur, active « Écran pour le téléviseur » (Paramètres → Appareils et Link).</string>
+    <string name="os_prosnja_caka">Sur l\'ordinateur %1$s, confirme l\'accès (notification « Autoriser »).\n\nEn attente de confirmation … %2$s</string>
+    <string name="os_prosnja_poteklo">%1$s n\'a pas encore confirmé l\'accès. Appuie sur « Autoriser » sur l\'ordinateur, puis rouvre.</string>
+    <string name="os_prosnja_zavrnjeno">L\'ordinateur %1$s a refusé l\'accès.\n\nTu peux l\'autoriser sur l\'ordinateur : Safeer Link → Appareils connectés → cet appareil.</string>
+    <string name="os_prosnja_ni_dovoljeno">%1$s n\'autorise pas cela à cet appareil.\n\nAutorise-le sur %1$s : Safeer Link → Appareils connectés → cet appareil.</string>
     <string name="os_zaslon_ni_doma">%1$s n\'est pas joignable pour le moment, ni sur le réseau domestique ni via Global Link. Vérifiez qu\'il est allumé et que Global Link est activé sur les deux appareils.</string>
     <string name="os_zaslon_ni_dosegljiv">%1$s est injoignable. Vérifiez qu\'il est allumé et connecté au réseau.</string>
     <string name="os_zaslon_zdoma_posodobi">%1$s n\'est pas joignable directement d\'ici et a besoin d\'une version plus récente de Safeer pour afficher son écran via Global Link. Mettez à jour Safeer sur l\'ordinateur.</string>
