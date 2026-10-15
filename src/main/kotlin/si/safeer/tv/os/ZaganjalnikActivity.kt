@@ -536,6 +536,11 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 else vrste.add(mutableListOf(v))
             }
             fun najblizji(vrsta: List<View>, x: Int) = vrsta.minByOrNull { kotlin.math.abs(sredisca.getValue(it).first - x) }
+            // Desno na koncu vrste ostane na mestu (prej je skocilo v drugo vrsto, npr. iz Na tvojih napravah v Priljubljene).
+            for (vrsta in vrste) vrsta.maxByOrNull { sredisca.getValue(it).first }?.let { zadnji ->
+                if (zadnji.id == View.NO_ID) zadnji.id = View.generateViewId()
+                zadnji.nextFocusRightId = zadnji.id
+            }
             for ((i, vrsta) in vrste.withIndex()) for (v in vrsta) {
                 if (v.id == View.NO_ID) v.id = View.generateViewId()
                 val x = sredisca.getValue(v).first
