@@ -408,8 +408,19 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
             else vprasajZaNacin()
         }
-        meniSporocila.setOnClickListener {
-            odpriVarno(Intent(this, SporocilaActivity::class.java), getString(R.string.os_meni_sporocila))
+        // Sporocila niso postavka vrstice (lastnik, 12. 10. 2026 - kot na namizju): kuverta z znacko v glavi, ob
+        // stanju Safeer Linka (SporocilaZnak). Vrstica ima natanko osem postavk; fokus gre mimo skrite postavke.
+        meniSporocila.visibility = View.GONE
+        meniSporocila.isFocusable = false
+        meniNaprave.nextFocusDownId = meniAplikacije.id
+        meniAplikacije.nextFocusUpId = meniNaprave.id
+        findViewById<View?>(R.id.stanjeOkvir)?.let { stanje ->
+            val glava = stanje.parent as? LinearLayout ?: return@let
+            val k = SporocilaZnak.gumb(this, 48) { true }
+            glava.addView(k, glava.indexOfChild(stanje) + 1, LinearLayout.LayoutParams(
+                (48 * resources.displayMetrics.density).toInt(), (48 * resources.displayMetrics.density).toInt()).apply {
+                marginStart = (10 * resources.displayMetrics.density).toInt() })
+            kuverta = k
         }
         meniSplet.setOnClickListener { odpriVBrskalniku(null) }
         meniZapiski.setOnClickListener {
@@ -419,7 +430,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
         }
 
-        val menijskePostavke = listOf(meniDomov, meniGlasba, meniNaprave, meniSporocila, meniAplikacije,
+        val menijskePostavke = listOf(meniDomov, meniGlasba, meniNaprave, meniAplikacije,
             meniDatoteke, meniSplet, meniZapiski, meniNastavitve)
         for (postavka in menijskePostavke) {
             postavka.setOnKeyListener { _, keyCode, event ->
@@ -460,6 +471,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Gumbi plosecka v vrstici pomoci, kadar je plosek v rabi; sicer je ne kazemo.
         plosekZaznan()
         glavna.post(tikUre)
+        SporocilaZnak.osvezi(this, kuverta)
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiNadaljuj()
         narisiAplikacije()
@@ -485,12 +497,16 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju). */
     private val medijiPoslusalec: () -> Unit = { runOnUiThread { GlasbaStoritev.osveziKartico(this) } }
 
+    /** Kuverta Sporocil v glavi (znacka neprebranih). */
+    private var kuverta: View? = null
+
     /**
      * Kadar je Safeer OS domaci zaslon televizorja, tipka Nazaj nima kam: zapustili bi ga in
      * uporabnik bi ostal pred praznim zaslonom. Takrat je Nazaj brez ucinka, kot pri zaganjalniku.
      */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        if (SporocilaZnak.zapri(this)) return
         if (Zaganjalnik.jeIzbran(this)) return
         super.onBackPressed()
     }

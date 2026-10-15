@@ -28,4 +28,6 @@
     <string name="zg_znacke">Benachrichtigungs-Badges</string>
     <string name="zg_znacke_opis">Eine Zahl am App-Symbol nur für Nachrichten, Anrufe und Erinnerungen – nicht für Hintergrunddienste. Den Benachrichtigungszugriff schaltest du in den Android-Einstellungen ein.</string>
     <string name="zg_vrnjen">Der vorherige Launcher ist wieder der Startbildschirm.</string>
+    <string name="zg_sporocila_novo">Neue Nachricht</string>
+    <string name="zg_sporocila_vse">Vollständig öffnen</string>
 </resources>

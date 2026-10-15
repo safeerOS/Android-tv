@@ -310,7 +310,8 @@ class StranskaVrstica private constructor(
         if (!samoPredvajalnik) dodaj(Razdelek.DOMOV, R.drawable.os_ikona_domov, R.string.os_meni_domov)
         dodaj(Razdelek.MEDIJI, R.drawable.os_ikona_glasba, R.string.os_mediji_kartica)
         dodaj(Razdelek.NAPRAVE, R.drawable.os_ikona_link, R.string.os_meni_naprave)
-        if (!samoPredvajalnik) dodaj(Razdelek.SPOROCILA, R.drawable.os_ikona_sporocila, R.string.os_meni_sporocila)
+        // Sporocila niso postavka vrstice (lastnik, 12. 10. 2026 - kot na namizju): kuverta z znacko v glavi domacega
+        // zaslona (SporocilaZnak). Vrstica ima natanko osem postavk.
         if (!samoPredvajalnik) dodaj(Razdelek.PROGRAMI, R.drawable.os_ikona_aplikacije, R.string.os_meni_aplikacije)
         dodaj(Razdelek.DATOTEKE, R.drawable.os_ikona_datoteke, R.string.os_meni_datoteke)
         if (!samoPredvajalnik) dodaj(Razdelek.SPLET, R.drawable.os_ikona_splet, R.string.os_meni_splet)

@@ -28,4 +28,6 @@
     <string name="zg_znacke">Insignias de notificaciones</string>
     <string name="zg_znacke_opis">Un número en el icono solo para mensajes, llamadas y recordatorios, no para servicios en segundo plano. Activa el acceso a notificaciones en los ajustes de Android.</string>
     <string name="zg_vrnjen">Tu lanzador anterior vuelve a ser la pantalla de inicio.</string>
+    <string name="zg_sporocila_novo">Mensaje nuevo</string>
+    <string name="zg_sporocila_vse">Abrir completo</string>
 </resources>

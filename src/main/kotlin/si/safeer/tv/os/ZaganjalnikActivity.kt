@@ -105,6 +105,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) {
             Zaganjalnik.zabeleziZagonDomov(this)
             polje?.clearFocus()
+            SporocilaZnak.zapri(this)
             drsnik?.smoothScrollTo(0, 0)
         }
     }
@@ -113,6 +114,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onConfigurationChanged(nova)
         val t = SystemClock.uptimeMillis()
         val besedilo = polje?.text?.toString().orEmpty()
+        SporocilaZnak.zapri(this)
         zgradi()
         if (besedilo.isNotEmpty()) polje?.setText(besedilo)
         osveziVse()
@@ -141,12 +143,14 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onResume()
         // Iz Programov se je lahko spremenil seznam priljubljenih: preberemo znova (hitro, iz shrambe).
         naloziPriljubljene()
+        SporocilaZnak.osvezi(this, kuverta)
         NamestiApk.nadaljujCeCaka(this)
     }
 
     /** Domaci zaslon ne odide z Nazaj (kot drugi zaganjalniki); kot navadna aplikacija gre v ozadje. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        if (SporocilaZnak.zapri(this)) return
         if ((drsnik?.scrollY ?: 0) > 0) { drsnik?.smoothScrollTo(0, 0); return }
         if (Zaganjalnik.jeIzbran(this)) return
         moveTaskToBack(true)
@@ -154,6 +158,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun osveziVse() {
         pokaziStanje()
+        SporocilaZnak.osvezi(this, kuverta)
         narisiPriljubljene()
         narisiPredvajalnik()
         narisiDatoteke()
@@ -217,6 +222,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private var mrezaOdsekov: LinearLayout? = null
+    private var kuverta: View? = null
 
     private fun razporediOdseke() {
         val mreza = mrezaOdsekov ?: return
@@ -296,14 +302,27 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         stanje.addView(besedilo)
         stanjePika = pika; stanjeBesedilo = besedilo
 
+        // Sporocila kot na namizju: kuverta z znacko zgoraj desno (ne postavka stranske vrstice). Siroko okno in televizor:
+        // stranska ploscica; telefon in tablica pokonci: Sporocila cez ves zaslon.
+        val velikost = if (vnos == Vnos.DALJINEC) 52 else 44
+        val k = SporocilaZnak.gumb(this, velikost) { postavitev.sirina == ZaganjalnikPravila.Sirina.SIROKA || vnos == Vnos.DALJINEC }
+        kuverta = k
+
         if (vrsta.orientation == LinearLayout.VERTICAL) {
             vrsta.addView(iskanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            vrsta.addView(stanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(10); gravity = Gravity.START })
+            val spodaj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            spodaj.addView(stanje, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(12) })
+            spodaj.addView(k, LinearLayout.LayoutParams(dp(velikost), dp(velikost)))
+            vrsta.addView(spodaj, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(8) })
+            // Kapsula stanja ne sme biti raztegnjena cez vso vrstico: sirina po vsebini, levo.
+            stanje.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            spodaj.addView(View(this), 1, LinearLayout.LayoutParams(0, 0, 1f))
         } else {
             vrsta.addView(iskanje, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             vrsta.addView(stanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 marginStart = dp(16) })
+            vrsta.addView(k, LinearLayout.LayoutParams(dp(velikost), dp(velikost)).apply { marginStart = dp(8) })
         }
         return vrsta
     }

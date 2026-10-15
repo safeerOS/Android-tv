@@ -109,9 +109,18 @@ class SporocilaActivity : OsActivity() {
 
     /** Obvestilo o sporocilu odpre pravi pogovor. */
     private fun odpriIzNamere(namera: android.content.Intent?) {
+        // »Novo sporocilo« s ploscice domacega zaslona: izbira naprave, takoj ko Link pove, katere so.
+        if (namera?.getBooleanExtra(EXTRA_NOVO, false) == true) {
+            namera.removeExtra(EXTRA_NOVO)
+            if (napraveZaKlepet().isNotEmpty()) pisiNapravi() else cakaNovo = true
+        }
         val id = namera?.getStringExtra(EXTRA_POGOVOR) ?: return
-        shramba.pogovori().firstOrNull { it.kanalId == KlepetLinka.KANAL && it.id == id }?.let { pokaziPogovor(it) }
+        val kanal = namera.getStringExtra(EXTRA_KANAL) ?: KlepetLinka.KANAL
+        shramba.pogovori().firstOrNull { it.kanalId == kanal && it.id == id }?.let { pokaziPogovor(it) }
     }
+
+    /** »Novo sporocilo« caka na seznam naprav iz Linka. */
+    private var cakaNovo = false
 
     private val obKlepetu: () -> Unit = { glavna.post { if (!unicena) osveziPrikaz() } }
     private var napraveLinka: List<LinkOdjemalec.Naprava> = emptyList()
@@ -119,6 +128,7 @@ class SporocilaActivity : OsActivity() {
         override fun naStanje(povezan: Boolean, sporocilo: String) {}
         override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
             napraveLinka = naprave
+            if (cakaNovo && napraveZaKlepet().isNotEmpty()) glavna.post { if (cakaNovo && !unicena) { cakaNovo = false; pisiNapravi() } }
             glavna.post {
                 if (unicena) return@post
                 // Imena in id-ji pogovorov Linka sledijo seznamu naprav (preimenovanje, stari id-ji).
@@ -982,6 +992,10 @@ class SporocilaActivity : OsActivity() {
 
     companion object {
         const val EXTRA_POGOVOR = "si.safeer.tv.os.sporocila.POGOVOR"
+        /** Kanal pogovora iz EXTRA_POGOVOR (privzeto klepet Safeer Linka). */
+        const val EXTRA_KANAL = "si.safeer.tv.os.sporocila.KANAL"
+        /** Odpri izbiro naprave za novo sporocilo (ploscica Sporocil na domacem zaslonu). */
+        const val EXTRA_NOVO = "si.safeer.tv.os.sporocila.NOVO"
         private const val OSVEZI_MS = 60_000L
     }
 }

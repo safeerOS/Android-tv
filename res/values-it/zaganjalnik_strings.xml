@@ -28,4 +28,6 @@
     <string name="zg_znacke">Badge delle notifiche</string>
     <string name="zg_znacke_opis">Un numero sull\'icona solo per messaggi, chiamate e promemoria, non per i servizi in background. Attiva l\'accesso alle notifiche nelle impostazioni di Android.</string>
     <string name="zg_vrnjen">Il launcher precedente è di nuovo la schermata Home.</string>
+    <string name="zg_sporocila_novo">Nuovo messaggio</string>
+    <string name="zg_sporocila_vse">Apri per intero</string>
 </resources>

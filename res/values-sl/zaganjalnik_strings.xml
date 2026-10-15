@@ -28,4 +28,6 @@
     <string name="zg_znacke">Značke obvestil</string>
     <string name="zg_znacke_opis">Številka na ikoni samo za sporočila, klice in opomnike – ne za storitve v ozadju. Dostop do obvestil vklopiš v nastavitvah Androida.</string>
     <string name="zg_vrnjen">Prejšnji zaganjalnik je spet domači zaslon.</string>
+    <string name="zg_sporocila_novo">Novo sporočilo</string>
+    <string name="zg_sporocila_vse">Odpri v celoti</string>
 </resources>

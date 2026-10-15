@@ -28,4 +28,6 @@
     <string name="zg_znacke">Notification badges</string>
     <string name="zg_znacke_opis">A number on an app icon only for messages, calls and reminders – not for background services. Turn on notification access in Android settings.</string>
     <string name="zg_vrnjen">Your previous launcher is the home screen again.</string>
+    <string name="zg_sporocila_novo">New message</string>
+    <string name="zg_sporocila_vse">Open in full</string>
 </resources>

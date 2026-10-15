@@ -28,4 +28,6 @@
     <string name="zg_znacke">Badges de notification</string>
     <string name="zg_znacke_opis">Un nombre sur l\'icône uniquement pour les messages, appels et rappels – pas pour les services en arrière-plan. Activez l\'accès aux notifications dans les paramètres Android.</string>
     <string name="zg_vrnjen">Votre lanceur précédent est de nouveau l\'écran d\'accueil.</string>
+    <string name="zg_sporocila_novo">Nouveau message</string>
+    <string name="zg_sporocila_vse">Ouvrir en entier</string>
 </resources>
