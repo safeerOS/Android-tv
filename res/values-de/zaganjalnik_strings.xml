@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prilagodljivi zaganjalnik Safeer OS (os/ZaganjalnikActivity, os/ZnackeObvestil, Nastavitve). -->
+<resources>
+    <string name="zg_predvaja">Wird abgespielt</string>
+    <string name="zg_v_premoru">Pausiert</string>
+    <string name="zg_nedavne_datoteke">Zuletzt verwendete Dateien</string>
+    <string name="zg_na_napravah">Auf deinen Geräten</string>
+    <string name="zg_na_napravah_namig">Programme deiner Geräte heftest du unter Programme an: lange auf ein Programm drücken.</string>
+    <string name="zg_priljubljene_namig">Eine App fügst du unter Programme zu den Favoriten hinzu: lange auf die App drücken.</string>
+    <string name="zg_dodaj">Hinzufügen</string>
+    <string name="zg_znacka_opis">%1$s, Benachrichtigungen: %2$d</string>
+    <string name="zg_podatki_aplikacije">App-Info</string>
+    <string name="zg_prejsnja">Zurück</string>
+    <string name="zg_premor">Pause</string>
+    <string name="zg_predvajaj">Abspielen</string>
+    <string name="zg_naslednja">Weiter</string>
+    <string name="zg_ni_povezana">nicht in Safeer Link</string>
+    <string name="zg_ponudba_naslov">Safeer OS als Startbildschirm?</string>
+    <string name="zg_ponudba_opis">Die Home-Taste bringt dich dann hierher. Zum vorherigen Launcher kehrst du jederzeit zurück: Einstellungen → Startbildschirm. Safeer OS funktioniert auch als normale App.</string>
+    <string name="zg_ponudba_da">Einrichten</string>
+    <string name="zg_ponudba_ne">Nicht jetzt</string>
+    <string name="zg_padec_naslov">Startbildschirm wiederhergestellt</string>
+    <string name="zg_padec_opis">Safeer OS wurde als Startbildschirm zweimal hintereinander beendet, daher öffnet die Home-Taste wieder deinen vorherigen Launcher. Du kannst es jederzeit erneut einrichten.</string>
+    <string name="zg_padec_znova">Erneut einrichten</string>
+    <string name="zg_stanje_naprave">Safeer Link · Geräte: %1$d</string>
+    <string name="zg_domaci">Startbildschirm</string>
+    <string name="zg_domaci_opis">Safeer OS als Launcher: Die Home-Taste öffnet Safeer OS. Ausschalten stellt den vorherigen Launcher sofort wieder her.</string>
+    <string name="zg_znacke">Benachrichtigungs-Badges</string>
+    <string name="zg_znacke_opis">Eine Zahl am App-Symbol nur für Nachrichten, Anrufe und Erinnerungen – nicht für Hintergrunddienste. Den Benachrichtigungszugriff schaltest du in den Android-Einstellungen ein.</string>
+    <string name="zg_vrnjen">Der vorherige Launcher ist wieder der Startbildschirm.</string>
+</resources>

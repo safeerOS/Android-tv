@@ -28,6 +28,9 @@ object Aplikacije {
 
     private fun najdi(context: Context): List<Vnos> {
         val pm = context.packageManager
+        // Telefon in tablica: seznam, kot ga vidi zaganjalnik (LauncherApps) - isti vir kot sistemski zaganjalnik,
+        // tudi za aplikacije, ki jih paketni upravitelj z nevidnostjo paketov (Android 11+) ne bi pokazal.
+        if (!pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) zaganjalnikovSeznam(context)?.let { return it }
         val poizvedba = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
         val zadetki = ArrayList(try { pm.queryIntentActivities(poizvedba, 0) } catch (_: Throwable) { emptyList() })
         // Tablica (naprava brez leanbacka): aplikacije za televizor ima le redka - Safeer OS Tablet je
@@ -51,6 +54,35 @@ object Aplikacije {
         }
         // Safeer Browser je ista aplikacija kot Safeer OS in ima svojo kartico Splet, zato ga ni.
         return vnosi
+    }
+
+    private fun zaganjalnikovSeznam(context: Context): List<Vnos>? = try {
+        val la = context.getSystemService(android.content.pm.LauncherApps::class.java)
+        val videni = HashSet<String>()
+        la.getActivityList(null, android.os.Process.myUserHandle()).mapNotNull { a ->
+            val paket = a.componentName.packageName
+            if (paket == context.packageName || !videni.add(paket)) return@mapNotNull null
+            val namera = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                .setComponent(a.componentName)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+            val ikona = try { a.getIcon(0) } catch (_: Throwable) { null }
+            Vnos(paket, a.label?.toString().orEmpty().ifBlank { paket }, ikona, namera,
+                if (android.os.Build.VERSION.SDK_INT >= 31) a.activityInfo else null)
+        }
+    } catch (e: Throwable) {
+        android.util.Log.w("SafeerAplikacije", "LauncherApps ni dal seznama: ${e.message}"); null
+    }
+
+    /** Ena aplikacija (za priljubljene na domacem zaslonu): ime, ikona in zagon, brez branja vseh aplikacij. */
+    fun ena(context: Context, paket: String): Vnos? {
+        val pm = context.packageManager
+        val namera = (pm.getLeanbackLaunchIntentForPackage(paket).takeIf { pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) }
+            ?: pm.getLaunchIntentForPackage(paket) ?: return null)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        val info = try { pm.resolveActivity(namera, 0)?.activityInfo } catch (_: Throwable) { null }
+        val ime = try { (info?.loadLabel(pm) ?: pm.getApplicationLabel(pm.getApplicationInfo(paket, 0))).toString() } catch (_: Throwable) { paket }
+        val ikona = try { info?.loadIcon(pm) ?: pm.getApplicationIcon(paket) } catch (_: Throwable) { null }
+        return Vnos(paket, ime.ifBlank { paket }, ikona, namera, info)
     }
 
     /**

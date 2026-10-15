@@ -59,6 +59,16 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         link.dodaj(this)
     }
 
+    /** Okno vloge domacega zaslona: ce je uporabnik rekel ne, ostane vse kot prej (alias spet onemogocen). */
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        if (requestCode == Zaganjalnik.ZAHTEVA_VLOGE) {
+            if (!Zaganjalnik.jeIzbran(this)) Zaganjalnik.opusti(this)
+            return
+        }
+        @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+    }
+
     override fun onResume() {
         super.onResume()
         // Sistemsko okno je zaprto: nas zaslon se spet pokaze.
@@ -145,9 +155,18 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             else -> getString(R.string.os_izklopljeno)
         }
         val krajevni = link.jeKrajevni()
-        val vse = listOf(
-            Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.os_zaganjalnik),
+        val naDotik = packageName.endsWith(".tablet") || packageName.endsWith(".phone")
+        val vse = listOfNotNull(
+            if (naDotik) Vrstica(R.drawable.os_ikona_domov, getString(R.string.zg_domaci),
+                getString(R.string.zg_domaci_opis),
+                getString(if (jeDomaci) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiDomaciNaDotik(jeDomaci) }
+            else Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.os_zaganjalnik),
                 getString(R.string.os_zaganjalnik_opis), domaciStanje) { preklopiZaganjalnik(jeDomaci || ponujen) },
+            if (naDotik) Vrstica(R.drawable.os_ikona_zvonec, getString(R.string.zg_znacke),
+                getString(R.string.zg_znacke_opis),
+                getString(if (ZnackeObvestil.dovoljeno(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) {
+                sistemskoOkno { if (!ZnackeObvestil.odpriNastavitve(this)) koren.visibility = View.VISIBLE }
+            } else null,
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_zagon),
                 getString(R.string.os_zagon_opis),
                 getString(if (ZagonOb.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiZagon() },
@@ -392,6 +411,25 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /**
+     * Telefon in tablica: Safeer OS kot domaci zaslon. Vklop odpre sistemsko okno vloge (izbira je uporabnikova),
+     * izklop vrne prejsnji zaganjalnik takoj (alias onemogocimo) in odpre sistemske nastavitve, kjer ga uporabnik vidi.
+     */
+    private fun preklopiDomaciNaDotik(jeDomaci: Boolean) {
+        if (jeDomaci) {
+            Zaganjalnik.opusti(this)
+            Toast.makeText(this, getString(R.string.zg_vrnjen), Toast.LENGTH_LONG).show()
+            narisi()
+            return
+        }
+        sistemskoOkno {
+            if (!Zaganjalnik.zahtevajVlogo(this)) {
+                koren.visibility = View.VISIBLE
+                Toast.makeText(this, getString(R.string.os_zaganjalnik_ni_nastavitev), Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun preklopiNacin(krajevni: Boolean) {

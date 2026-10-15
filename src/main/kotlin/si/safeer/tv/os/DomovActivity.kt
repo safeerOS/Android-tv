@@ -92,10 +92,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         si.safeer.tv.os.Predgretje.zazeni(this)
         super.onCreate(savedInstanceState)
-        // Telefon in tablica imata svoj domaci zaslon: Nazaj, Domov v stranski vrstici in tipka Y
+        // Telefon in tablica imata svoj domaci zaslon (prilagodljivi ZaganjalnikActivity): Nazaj, Domov v stranski vrstici in tipka Y
         // odprejo DomovActivity, zato jih tu preusmerimo, sicer bi se odprl TV zaslon v lezecem nacinu.
         val zaganjalnik = packageManager.getLaunchIntentForPackage(packageName)?.component
-        if (zaganjalnik != null && zaganjalnik.className.endsWith(".DomovTabletActivity")) {
+        if (zaganjalnik != null && zaganjalnik.className == ZaganjalnikActivity::class.java.name) {
             try {
                 startActivity(Intent().setComponent(zaganjalnik)
                     .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
@@ -1098,7 +1098,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Nadaljuj.ZASLON -> odpriVarno(Intent(this, ZaslonActivity::class.java)
                 .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.racunalnik), getString(R.string.os_zaslon))
             Nadaljuj.PROGRAM -> zazeniProgram(n)
-            else -> if (n.krajevno) odpriDatoteko(n, null) else odpriZRacunalnika(n)
+            else -> NadaljujOdpri.datoteka(this, link, n) { racunalnikaNi -> niVec(n, racunalnikaNi) }
         }
     }
 
@@ -1123,39 +1123,6 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     .putExtra(ZaslonActivity.EXTRA_PROGRAM, n.program)
                     .putExtra(ZaslonActivity.EXTRA_IGRA, n.igra), getString(R.string.os_zaslon))
             })
-    }
-
-    /** Datoteka z racunalnika: najprej si od njega izprosimo svezo sejo, sele nato odpremo. */
-    private fun odpriZRacunalnika(n: Nadaljuj.Vnos) {
-        val r = racunalnikZa(n) ?: run { niVec(n, racunalnikaNi = true); return }
-        Toast.makeText(this, getString(R.string.os_nadaljuj_odpiram, n.ime), Toast.LENGTH_SHORT).show()
-        link.ukaz(r.id, "files.list", org.json.JSONObject().put("folder", ""), 12_000,
-            LinkOdjemalec.Odgovor { izid, _ ->
-                if (isFinishing) return@Odgovor
-                val streznik = izid?.optJSONObject("data")?.optJSONObject("server")
-                if (izid?.optBoolean("ok") != true || streznik == null) { niVec(n); return@Odgovor }
-                odpriDatoteko(n, DatotekeActivity.Streznik(
-                    streznik.optString("base_url").trimEnd('/'),
-                    streznik.optString("fp"), streznik.optString("token"), r.id))
-            })
-    }
-
-    private fun odpriDatoteko(n: Nadaljuj.Vnos, s: DatotekeActivity.Streznik?) {
-        val naslovDatoteke = if (s == null) n.id else s.url(n.id)
-        val namera = when (n.vrsta) {
-            Nadaljuj.SLIKA -> Intent(this, SlikaActivity::class.java)
-                .putStringArrayListExtra("urli", arrayListOf(naslovDatoteke))
-                .putStringArrayListExtra("imena", arrayListOf(n.ime))
-                .putExtra("zacetek", 0)
-            Nadaljuj.BESEDILO -> Intent(this, BesediloActivity::class.java)
-                .putExtra("url", naslovDatoteke).putExtra("ime", n.ime)
-            else -> Intent(this, PredvajalnikActivity::class.java)
-                .putExtra("url", naslovDatoteke).putExtra("ime", n.ime)
-                .putExtra("mime", n.mime).putExtra("zvok", n.vrsta == Nadaljuj.GLASBA)
-        }
-        namera.putExtra("lokalno", s == null)
-        if (s != null) { val b = Bundle(); s.vBundle(b); namera.putExtras(b) }
-        odpriVarno(namera, n.ime)
     }
 
     /** Prava ikona programa: shranjena ob zagonu, sicer tista s pripete kartice, sicer nic. */

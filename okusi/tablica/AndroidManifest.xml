@@ -29,18 +29,55 @@
         android:largeHeap="false"
         tools:replace="android:largeHeap">
 
-        <!-- Vstopna tocka: navaden vnos v predalu aplikacij, pokoncno in lezece. -->
+        <!-- Vstopna tocka: prilagodljiv zaganjalnik Safeer OS (os/ZaganjalnikActivity) - ista koda za telefon,
+             tablico in televizor, postavitev po sirini okna in nacinu upravljanja. Zasuk, razdeljen zaslon in
+             zlozljivi telefoni se prerisejo sproti (configChanges), brez novega zaslona. -->
         <activity
-            android:name="si.safeer.tv.tablica.DomovTabletActivity"
+            android:name="si.safeer.tv.os.ZaganjalnikActivity"
             android:exported="true"
             android:label="@string/tablet_ime"
+            android:theme="@style/Theme.SafeerOs"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:stateNotNeeded="true"
+            android:clearTaskOnLaunch="true"
+            android:windowSoftInputMode="adjustResize|stateHidden"
             tools:ignore="RedundantLabel"
-            android:configChanges="orientation|screenSize|keyboardHidden|navigation">
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Safeer OS kot domaci zaslon (tipka Domov). Privzeto ONEMOGOCEN: uporabnik ga izbere sam (ponudba ob prvem
+             zagonu ali Nastavitve -> Domaci zaslon; Android 10+ sistemsko okno vloge). Izklop ga spet onemogoci in
+             Android vrne prejsnji zaganjalnik; enako samodejno po dveh padcih v minuti (os/Zaganjalnik.kt). -->
+        <activity-alias
+            android:name="si.safeer.tv.os.ZaganjalnikAlias"
+            android:targetActivity="si.safeer.tv.os.ZaganjalnikActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:label="@string/tablet_ime"
+            android:icon="@mipmap/os_ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Znacke obvestil na ikonah zaganjalnika: samo obvestila, ki potrebujejo uporabnika. Dostop do obvestil
+             uporabnik vklopi sam v sistemskih nastavitvah (Nastavitve -> Znacke obvestil). -->
+        <service
+            android:name="si.safeer.tv.os.ZnackeObvestil"
+            android:label="@string/zg_znacke"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <!-- Skupni zasloni so na televizorju zaklenjeni v lezeco lego, ker je televizor vedno
              lezec. Tablico uporabnik drzi, kakor hoce: zasukati mu je ne smemo. Zato tu lego
@@ -77,7 +114,7 @@
         <!-- Telefon in tablica: vsi zasloni Safeer OS tecejo v ENEM opravilu z vstopno tocko (ena kartica med
              nedavnimi aplikacijami). Na televizorju imata brskalnik in Safeer OS vsak svoje opravilo (svoj vnos v
              zaganjalniku); tu je vnos en sam, zato je bilo drugo opravilo (.os) le podvojena kartica (9. 10. 2026). -->
-        <!-- DomovActivity je tu le preusmeritev na DomovTabletActivity (Nazaj/Domov iz stranske vrstice); s svojim
+        <!-- DomovActivity je tu le preusmeritev na ZaganjalnikActivity (Nazaj/Domov iz stranske vrstice); s svojim
              opravilom bi domaci zaslon odprla v drugi kartici. -->
         <activity android:name="si.safeer.tv.os.DomovActivity"
             tools:remove="android:taskAffinity" />

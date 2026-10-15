@@ -229,10 +229,20 @@ class StranskaVrstica private constructor(
         }
     }
 
+    /** Zasuk, razdeljen zaslon, zlozljiv telefon: vrstica se prilagodi sama, tudi v dejavnosti, ki tega ne klice. */
+    override fun onConfigurationChanged(nova: android.content.res.Configuration?) {
+        super.onConfigurationChanged(nova)
+        prilagodiSirino()
+    }
+
     /** Poklice jo Activity ob spremembi velikosti, kadar manifest zaslona ne ustvari znova. */
     fun prilagodiSirino() {
         if (spodnja) return
-        val ozek = dejavnost.resources.configuration.screenWidthDp < 600 || skrcena
+        // Imena samo v sirokem oknu (tablica lezece, televizor); tablica pokonci, telefon in razdeljen zaslon imajo
+        // tirnico z ikonami - ista pravila kot zaganjalnik (ZaganjalnikPravila), da so vsi zasloni enaki.
+        val c = dejavnost.resources.configuration
+        val ozek = skrcena || !ZaganjalnikPravila.zImeni(c.screenWidthDp, c.screenHeightDp,
+            if (dotik) ZaganjalnikPravila.Vnos.DOTIK else ZaganjalnikPravila.Vnos.DALJINEC)
         drsnik.layoutParams = (drsnik.layoutParams as? LayoutParams ?: LayoutParams(0, -1)).apply {
             width = if (ozek) dp(68) else dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina)
             height = ViewGroup.LayoutParams.MATCH_PARENT

@@ -46,6 +46,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/PotDoNaprave.kt" \
     "$SRC/si/safeer/tv/os/ZvokPravila.kt" \
     "$SRC/si/safeer/tv/os/ProsnjaDostopa.kt" \
+    "$SRC/si/safeer/tv/os/ZaganjalnikPravila.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
     "$TEST_DIR/GalerijaPravilaTest.kt" \
     "$TEST_DIR/VarnaSlikaTest.kt" \
@@ -77,6 +78,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PotDoNapraveTest.kt" \
     "$TEST_DIR/ZvokPravilaTest.kt" \
     "$TEST_DIR/ProsnjaDostopaTest.kt" \
+    "$TEST_DIR/ZaganjalnikPravilaTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -110,6 +112,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.OmrezjePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PotDoNapraveTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZvokPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ProsnjaDostopaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.ZaganjalnikPravilaTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.

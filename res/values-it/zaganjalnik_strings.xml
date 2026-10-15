@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prilagodljivi zaganjalnik Safeer OS (os/ZaganjalnikActivity, os/ZnackeObvestil, Nastavitve). -->
+<resources>
+    <string name="zg_predvaja">In riproduzione</string>
+    <string name="zg_v_premoru">In pausa</string>
+    <string name="zg_nedavne_datoteke">File recenti</string>
+    <string name="zg_na_napravah">Sui tuoi dispositivi</string>
+    <string name="zg_na_napravah_namig">Fissa i programmi dei tuoi dispositivi in Programmi: tieni premuto un programma.</string>
+    <string name="zg_priljubljene_namig">Aggiungi un\'app ai preferiti in Programmi: tieni premuta l\'app.</string>
+    <string name="zg_dodaj">Aggiungi</string>
+    <string name="zg_znacka_opis">%1$s, notifiche: %2$d</string>
+    <string name="zg_podatki_aplikacije">Info app</string>
+    <string name="zg_prejsnja">Precedente</string>
+    <string name="zg_premor">Pausa</string>
+    <string name="zg_predvajaj">Riproduci</string>
+    <string name="zg_naslednja">Successivo</string>
+    <string name="zg_ni_povezana">non in Safeer Link</string>
+    <string name="zg_ponudba_naslov">Safeer OS come schermata Home?</string>
+    <string name="zg_ponudba_opis">Il tasto Home ti porterà qui. Puoi tornare al launcher precedente in qualsiasi momento: Impostazioni → Schermata Home. Safeer OS funziona anche come app normale.</string>
+    <string name="zg_ponudba_da">Imposta</string>
+    <string name="zg_ponudba_ne">Non ora</string>
+    <string name="zg_padec_naslov">Schermata Home ripristinata</string>
+    <string name="zg_padec_opis">Safeer OS si è arrestato due volte di seguito come schermata Home, quindi il tasto Home apre di nuovo il launcher precedente. Puoi reimpostarlo quando vuoi.</string>
+    <string name="zg_padec_znova">Reimposta</string>
+    <string name="zg_stanje_naprave">Safeer Link · dispositivi: %1$d</string>
+    <string name="zg_domaci">Schermata Home</string>
+    <string name="zg_domaci_opis">Safeer OS come launcher: il tasto Home apre Safeer OS. Disattivandolo torna subito il launcher precedente.</string>
+    <string name="zg_znacke">Badge delle notifiche</string>
+    <string name="zg_znacke_opis">Un numero sull\'icona solo per messaggi, chiamate e promemoria, non per i servizi in background. Attiva l\'accesso alle notifiche nelle impostazioni di Android.</string>
+    <string name="zg_vrnjen">Il launcher precedente è di nuovo la schermata Home.</string>
+</resources>

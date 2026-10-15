@@ -44,6 +44,9 @@ object Zaganjalnik {
      * trdila, da je domaci zaslon, ceprav ga televizor pelje drugam.
      */
     fun jeIzbran(context: Context): Boolean {
+        // Tablica, telefon (Android 10+): vloga HOME je zanesljiv odgovor - tudi ko uporabnik v sistemskih
+        // nastavitvah izbere drug zaganjalnik. Televizorji vloge pogosto nimajo; tam velja dokaz iz prakse.
+        vlogaNaVoljo(context)?.let { return it }
         if (nasZagonDomov(context)) return true
         val kdo = domaciZaslon(context)
         return kdo != null && kdo == context.packageName
@@ -140,6 +143,98 @@ object Zaganjalnik {
             }
         }
         return false
+    }
+
+    // ------------------------------------------------------------------ tablica in telefon (Android 10+: vloga HOME)
+
+    /** Ali drzimo vlogo HOME; null, kadar sistem vloge nima (televizor, Android pod 10). */
+    private fun vlogaNaVoljo(context: Context): Boolean? = try {
+        if (android.os.Build.VERSION.SDK_INT < 29 || context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) null else {
+            val rm = context.getSystemService(android.app.role.RoleManager::class.java)
+            if (rm != null && rm.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME)) rm.isRoleHeld(android.app.role.RoleManager.ROLE_HOME) else null
+        }
+    } catch (_: Throwable) { null }
+
+    /** Koda zahteve za sistemsko okno vloge domacega zaslona (onActivityResult). */
+    const val ZAHTEVA_VLOGE = 7411
+
+    /**
+     * Uporabnik je izbral »Safeer OS kot domaci zaslon«: alias omogocimo in odpremo sistemsko vprasanje.
+     * Android 10+: okno vloge (en dotik »Nastavi kot privzeto«), sicer sistemske nastavitve domacega zaslona.
+     * Odlocitev je vedno uporabnikova in sistemska; nikoli je ne naredimo sami.
+     */
+    fun zahtevajVlogo(a: android.app.Activity): Boolean {
+        nastavi(a, true)
+        if (android.os.Build.VERSION.SDK_INT >= 29) try {
+            val rm = a.getSystemService(android.app.role.RoleManager::class.java)
+            if (rm != null && rm.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME)) {
+                if (rm.isRoleHeld(android.app.role.RoleManager.ROLE_HOME)) return true
+                @Suppress("DEPRECATION")
+                a.startActivityForResult(rm.createRequestRoleIntent(android.app.role.RoleManager.ROLE_HOME), ZAHTEVA_VLOGE)
+                return true
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Okna vloge ni bilo mogoce odpreti: ${e.message}")
+        }
+        return odpriSistemskoIzbiro(a)
+    }
+
+    /** Pravi zaganjalniki razen nas (brez sistemskega FallbackHome) - kam se lahko uporabnik vrne. */
+    fun drugiZaganjalniki(context: Context): List<android.content.pm.ResolveInfo> = try {
+        context.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+            .filter { r ->
+                val i = r.activityInfo ?: return@filter false
+                ZaganjalnikPravila.jePraviZaganjalnik(i.packageName, i.name, r.priority, context.packageName)
+            }
+    } catch (_: Throwable) { emptyList() }
+
+    // ------------------------------------------------------------------ zascita pred padci
+
+    private const val KLJUC_PADCI = "zaganjalnik_padci"
+    private const val KLJUC_VRNJEN = "zaganjalnik_vrnjen_po_padcu"
+    @Volatile private var zascitaNamescena = false
+
+    /**
+     * Ce Safeer OS kot domaci zaslon pade dvakrat v minuti, uporabnik ne sme ostati ujet v zanki »se je ustavil«:
+     * alias domacega zaslona onemogocimo in tipka Domov spet pripelje do prejsnjega zaganjalnika (One UI Home ...).
+     * Brez drugega zaganjalnika (televizor) ostanemo - sistem nas zazene znova. Ob naslednjem odprtju Safeer OS
+     * uporabniku povemo, kaj se je zgodilo, in ponudimo ponovno nastavitev ([vrnjenPoPadcu]).
+     */
+    fun namestiZascito(context: Context) {
+        if (zascitaNamescena) return
+        zascitaNamescena = true
+        val app = context.applicationContext
+        val prej = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { nit, napaka ->
+            try { zabeleziPadec(app) } catch (_: Throwable) { }
+            if (prej != null) prej.uncaughtException(nit, napaka) else {
+                android.os.Process.killProcess(android.os.Process.myPid()); System.exit(10)
+            }
+        }
+    }
+
+    private fun zabeleziPadec(app: Context) {
+        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val zdaj = System.currentTimeMillis()
+        val casi = ZaganjalnikPravila.svezi(
+            (prefs.getString(KLJUC_PADCI, "") ?: "").split(',').mapNotNull { it.toLongOrNull() } + zdaj, zdaj)
+        val urejanje = prefs.edit().putString(KLJUC_PADCI, casi.joinToString(","))
+        val smoDomaci = jePonujen(app)
+        if (smoDomaci && ZaganjalnikPravila.vrniPrejsnjemu(casi, zdaj, drugiZaganjalniki(app).size)) {
+            Log.w(TAG, "Domaci zaslon je padel ${casi.size}x v minuti: vracam ga prejsnjemu zaganjalniku")
+            nastavi(app, false)
+            urejanje.remove(KLJUC_DOMOV).remove(KLJUC_PADCI).putBoolean(KLJUC_VRNJEN, true)
+        }
+        // commit: proces se takoj konca, apply ne bi utegnil zapisati.
+        urejanje.commit()
+    }
+
+    /** Domaci zaslon je bil po padcih vrnjen prejsnjemu zaganjalniku (enkratno obvestilo; prebere in pocisti). */
+    fun vrnjenPoPadcu(context: Context): Boolean {
+        val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!p.getBoolean(KLJUC_VRNJEN, false)) return false
+        p.edit().remove(KLJUC_VRNJEN).apply()
+        return true
     }
 
     /** Sistemsko okno za izbiro domacega zaslona; nekateri televizorji ga nimajo. */

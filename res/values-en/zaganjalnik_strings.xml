@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prilagodljivi zaganjalnik Safeer OS (os/ZaganjalnikActivity, os/ZnackeObvestil, Nastavitve). -->
+<resources>
+    <string name="zg_predvaja">Now playing</string>
+    <string name="zg_v_premoru">Paused</string>
+    <string name="zg_nedavne_datoteke">Recent files</string>
+    <string name="zg_na_napravah">On your devices</string>
+    <string name="zg_na_napravah_namig">Pin your devices\' programs in Programs: long-press a program.</string>
+    <string name="zg_priljubljene_namig">Add an app to favourites in Programs: long-press the app.</string>
+    <string name="zg_dodaj">Add</string>
+    <string name="zg_znacka_opis">%1$s, notifications: %2$d</string>
+    <string name="zg_podatki_aplikacije">App info</string>
+    <string name="zg_prejsnja">Previous</string>
+    <string name="zg_premor">Pause</string>
+    <string name="zg_predvajaj">Play</string>
+    <string name="zg_naslednja">Next</string>
+    <string name="zg_ni_povezana">not in Safeer Link</string>
+    <string name="zg_ponudba_naslov">Safeer OS as your home screen?</string>
+    <string name="zg_ponudba_opis">The Home button will then bring you here. You can return to your previous launcher at any time: Settings → Home screen. Safeer OS also works as a normal app.</string>
+    <string name="zg_ponudba_da">Set up</string>
+    <string name="zg_ponudba_ne">Not now</string>
+    <string name="zg_padec_naslov">Home screen restored</string>
+    <string name="zg_padec_opis">Safeer OS stopped twice in a row as the home screen, so the Home button opens your previous launcher again. You can set it up again whenever you like.</string>
+    <string name="zg_padec_znova">Set up again</string>
+    <string name="zg_stanje_naprave">Safeer Link · devices: %1$d</string>
+    <string name="zg_domaci">Home screen</string>
+    <string name="zg_domaci_opis">Safeer OS as your launcher: the Home button opens Safeer OS. Turning it off restores your previous launcher immediately.</string>
+    <string name="zg_znacke">Notification badges</string>
+    <string name="zg_znacke_opis">A number on an app icon only for messages, calls and reminders – not for background services. Turn on notification access in Android settings.</string>
+    <string name="zg_vrnjen">Your previous launcher is the home screen again.</string>
+</resources>

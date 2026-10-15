@@ -39,6 +39,19 @@
             </intent-filter>
         </activity>
 
+        <!-- Prilagodljivi zaganjalnik (os/ZaganjalnikActivity, ista koda kot na telefonu in tablici) v nacinu za
+             daljinec. Na televizorju je zaenkrat le za preizkus in meritve (adb am start -n); domaci zaslon televizorja
+             ostane DomovActivity (ZaganjalnikAlias spodaj), dokler lastnik ne izbere drugace. -->
+        <activity
+            android:name="si.safeer.tv.os.ZaganjalnikActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SafeerOs"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="adjustResize|stateHidden"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode"
+            tools:ignore="DiscouragedApi" />
+
         <!-- Safeer OS kot domaci zaslon televizorja. Privzeto ONEMOGOCEN: dokler ga uporabnik
              sam ne vklopi, Android sploh ne ve, da bi Safeer OS lahko bil zaganjalnik, in tipka
              Domov dela kot prej. Vklop in izklop sta v nastavitvah (os/Zaganjalnik.kt). -->
