@@ -362,6 +362,8 @@ class StranskaVrstica private constructor(
             id = View.generateViewId(); isFocusable = true; isClickable = true
             setBackgroundResource(R.drawable.os_meni_postavka)
             setPadding(dp(12), dp(6), dp(12), dp(6))
+            // Tirnica z ikonami skrije imena: bralnik zaslona (in avtomatski preizkusi) mora postavko se vedno poimenovati.
+            contentDescription = dejavnost.getString(niz)
             addView(ikona(slika, 22, R.color.os_mint))
             addView(besedilo(14f, R.color.os_besedilo, true).apply {
                 text = dejavnost.getString(niz); maxLines = 1; setPadding(dp(12), 0, 0, 0)
