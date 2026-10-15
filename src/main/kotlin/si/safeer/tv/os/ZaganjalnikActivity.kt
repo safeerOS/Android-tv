@@ -449,6 +449,23 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }, dolgo = null))
         razporedi(cilj, ploscice, sirinaVsebineDp())
         o.visibility = View.VISIBLE
+        // Daljinec: fokus mora biti vedno nekje viden - ob vstopu na prvi priljubljeni aplikaciji (ne v lupi, ki bi
+        // odprla tipkovnico cez pol zaslona).
+        if (vnos == Vnos.DALJINEC && fokusOb && priljubljene.isNotEmpty() || vnos == Vnos.DALJINEC && currentFocus == null) {
+            prvaPloscica(cilj)?.requestFocus()
+            if (priljubljene.isNotEmpty()) fokusOb = false
+        }
+    }
+
+    /** Prvi izris na televizorju: fokus gre na prvo priljubljeno aplikacijo (samo enkrat, potem ostane, kjer je). */
+    private var fokusOb = true
+
+    private fun prvaPloscica(v: View): View? {
+        if (v.visibility != View.VISIBLE) return null
+        if (v.isFocusable && v !is EditText) return v
+        val g = v as? ViewGroup ?: return null
+        for (i in 0 until g.childCount) prvaPloscica(g.getChildAt(i))?.let { return it }
+        return null
     }
 
     private fun moznostiPriljubljene(a: Aplikacije.Vnos) {

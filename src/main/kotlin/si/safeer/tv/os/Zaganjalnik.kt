@@ -207,6 +207,13 @@ object Zaganjalnik {
         val prej = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { nit, napaka ->
             try { zabeleziPadec(app) } catch (_: Throwable) { }
+            // Izmerjeno (WP28 S, 15. 10. 2026): po padcu je proces visel minute (sistemsko javljanje padca ni vrnilo),
+            // zaslon pa je ostal zamrznjen. Domaci zaslon tega ne sme: najvec 3 s po padcu se proces konca sam, sistem
+            // pa zazene domaci zaslon znova (ali prejsnji zaganjalnik, ce smo ga zgoraj vrnili).
+            Thread({
+                try { Thread.sleep(3_000) } catch (_: Throwable) { }
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }, "SafeerPadecKonec").apply { isDaemon = true }.start()
             if (prej != null) prej.uncaughtException(nit, napaka) else {
                 android.os.Process.killProcess(android.os.Process.myPid()); System.exit(10)
             }

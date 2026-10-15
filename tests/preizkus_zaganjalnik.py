@@ -96,18 +96,26 @@ def stanje_aliasa(naprava: str, paket: str) -> str:
 
 
 def padec(naprava: str, paket: str) -> list[str]:
-    zapis = []
-    lupina(naprava, f"pm enable {paket}/{ALIAS}")
-    zapis.append("alias po omogocenju: " + stanje_aliasa(naprava, paket))
+    """Padec zaganjalnika: proces se mora koncati v nekaj sekundah (zaslon ne sme ostati zamrznjen). Ce je Safeer OS
+    domaci zaslon (alias omogocil uporabnik), mora po dveh padcih v minuti tipka Domov spet na prejsnji zaganjalnik.
+    Alias lahko omogoci samo aplikacija sama (shell ga pri aplikaciji brez razhroscevanja ne sme), zato ga tu ne
+    spreminjamo."""
+    zapis = ["alias pred padci: " + stanje_aliasa(naprava, paket)]
     for i in range(2):
+        lupina(naprava, "input keyevent KEYCODE_WAKEUP")
         lupina(naprava, f"am start -W -n {paket}/{AKT}")
         time.sleep(2)
-        zapis.append(f"padec {i + 1}: " + lupina(naprava, f"am crash {paket}").strip()[:80])
-        time.sleep(3)
+        pid = lupina(naprava, f"pidof {paket}").strip()
+        lupina(naprava, f"am crash {pid}")
+        t0 = time.time()
+        while time.time() - t0 < 30:
+            if pid not in lupina(naprava, f"pidof {paket}").split():
+                break
+            time.sleep(0.25)
+        zapis.append(f"padec {i + 1}: proces {pid} koncan v {time.time() - t0:.1f} s")
+        time.sleep(2)
     zapis.append("alias po dveh padcih: " + stanje_aliasa(naprava, paket))
-    # Pospravimo: alias nazaj na privzeto iz manifesta (onemogocen), ne glede na izid.
-    lupina(naprava, f"pm default-state {paket}/{ALIAS}")
-    zapis.append("alias po pospravljanju: " + stanje_aliasa(naprava, paket))
+    zapis.append("domaci zaslon zdaj: " + lupina(naprava, "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME").strip().splitlines()[-1])
     return zapis
 
 
