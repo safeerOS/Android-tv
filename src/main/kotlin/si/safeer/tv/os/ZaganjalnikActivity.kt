@@ -161,6 +161,13 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         narisiPonudbo()
     }
 
+    /** Odsek je postal viden ali skrit: mreza odsekov se razporedi znova (samo, ce se je vidnost res spremenila). */
+    private fun poVidnosti(o: LinearLayout, viden: Boolean) {
+        val prej = o.visibility == View.VISIBLE
+        o.visibility = if (viden) View.VISIBLE else View.GONE
+        if (prej != viden) razporediOdseke()
+    }
+
     // ------------------------------------------------------------------ postavitev
 
     private fun dp(v: Float): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics).toInt()
@@ -191,20 +198,10 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         seznam.addView(LinearLayout(this).apply { tag = "ponudba"; orientation = LinearLayout.VERTICAL })
         seznam.addView(odsekPriljubljene)
         // Mreza odsekov: telefon en stolpec, tablica pokonci dva, lezece trije (kot namizje); televizor vrste.
-        val spodnji = listOf(odsekPredvajalnik!!, odsekDatoteke!!, odsekNaprave!!)
-        val stolpci = postavitev.stolpci
-        if (stolpci <= 1) spodnji.forEach { seznam.addView(it) }
-        else spodnji.chunked(stolpci).forEach { vrsta ->
-            val v = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isBaselineAligned = false }
-            vrsta.forEachIndexed { i, o ->
-                v.addView(o, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    if (i > 0) marginStart = dp(20)
-                })
-            }
-            // Prazen prostor, da zadnja vrsta ohrani sirino stolpcev.
-            repeat(stolpci - vrsta.size) { v.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f).apply { marginStart = dp(20) }) }
-            seznam.addView(v)
-        }
+        // Razporedi se po VIDNIH odsekih (razporediOdseke), da skrit odsek ne pusti luknje ali zamika.
+        mrezaOdsekov = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        seznam.addView(mrezaOdsekov)
+        razporediOdseke()
 
         drsnik = ScrollView(this).apply {
             isFillViewport = true
@@ -217,6 +214,28 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         setContentView(StranskaVrstica.ovij(this, okvir, StranskaVrstica.Razdelek.DOMOV))
         Ozadje.uporabi(this, okvir)
+    }
+
+    private var mrezaOdsekov: LinearLayout? = null
+
+    private fun razporediOdseke() {
+        val mreza = mrezaOdsekov ?: return
+        val vsi = listOfNotNull(odsekPredvajalnik, odsekDatoteke, odsekNaprave)
+        vsi.forEach { (it.parent as? ViewGroup)?.removeView(it) }
+        mreza.removeAllViews()
+        val stolpci = postavitev.stolpci.coerceAtLeast(1)
+        val vidni = vsi.filter { it.visibility == View.VISIBLE }
+        if (stolpci == 1) { vsi.forEach { mreza.addView(it) }; return }
+        vidni.chunked(stolpci).forEach { vrsta ->
+            val v = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isBaselineAligned = false }
+            vrsta.forEachIndexed { i, o ->
+                v.addView(o, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { if (i > 0) marginStart = dp(20) })
+            }
+            repeat(stolpci - vrsta.size) { v.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f).apply { marginStart = dp(20) }) }
+            mreza.addView(v)
+        }
+        // Skriti odseki ostanejo v drevesu (za kasnejsi prikaz), a brez prostora.
+        vsi.filter { it.visibility != View.VISIBLE }.forEach { mreza.addView(it) }
     }
 
     private fun glava(): View {
@@ -472,7 +491,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val cilj = vsebinaOdseka(o) ?: return
         val skladba = try { GlasbaStoritev.trenutna() } catch (_: Throwable) { null }
         cilj.removeAllViews()
-        if (skladba == null) { o.visibility = View.GONE; return }
+        if (skladba == null) { poVidnosti(o, false); return }
         val igra = try { GlasbaStoritev.igra() } catch (_: Throwable) { false }
         (o.getChildAt(0) as? TextView)?.text = getString(if (igra) R.string.zg_predvaja else R.string.zg_v_premoru).uppercase(java.util.Locale.getDefault())
         val kartica = LinearLayout(this).apply {
@@ -510,7 +529,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (igra) R.string.zg_premor else R.string.zg_predvajaj) { GlasbaStoritev.preklopi() }, LinearLayout.LayoutParams(g, g))
         kartica.addView(gumb(R.drawable.os_ikona_naslednja, R.string.zg_naslednja) { GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
         cilj.addView(kartica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        o.visibility = View.VISIBLE
+        poVidnosti(o, true)
     }
 
     // ------------------------------------------------------------------ nedavne datoteke
@@ -520,7 +539,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val cilj = vsebinaOdseka(o) ?: return
         cilj.removeAllViews()
         val datoteke = Nadaljuj.seznam(this).filter { it.vrsta in ZaganjalnikPravila.VRSTE_DATOTEK }.take(5)
-        if (datoteke.isEmpty()) { o.visibility = View.GONE; return }
+        if (datoteke.isEmpty()) { poVidnosti(o, false); return }
         for (n in datoteke) {
             val kje = if (n.krajevno) getString(R.string.os_naprave_ta)
                 else link.naprave.firstOrNull { it.id == n.racunalnik }?.ime?.ifBlank { null } ?: getString(R.string.zg_ni_povezana)
@@ -537,7 +556,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     .let { Kontroler.pokazi(it.show()) }
             }))
         }
-        o.visibility = View.VISIBLE
+        poVidnosti(o, true)
     }
 
     private fun ikonaVrste(vrsta: String): Int = when (vrsta) {
@@ -582,12 +601,12 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (pari.isEmpty()) {
             cilj.removeAllViews()
             // Brez pripetih programov: kratka pot, kako jih dobis - samo, ce naprave s programi res so.
-            if (AplikacijeHostaActivity.napraveSProgrami(this).isEmpty()) { o.visibility = View.GONE; return }
+            if (AplikacijeHostaActivity.napraveSProgrami(this).isEmpty()) { poVidnosti(o, false); return }
             cilj.addView(TextView(this).apply {
                 text = getString(R.string.zg_na_napravah_namig)
                 setTextColor(osBarva(R.color.os_umirjeno)); setTextSize(TypedValue.COMPLEX_UNIT_SP, sp(12f))
             })
-            o.visibility = View.VISIBLE
+            poVidnosti(o, true)
             return
         }
         val ploscice = pari.map { (naprava, program) ->
@@ -613,7 +632,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         val stolpci = postavitev.stolpci.coerceAtLeast(1)
         razporedi(cilj, ploscice, sirinaVsebineDp() / stolpci)
-        o.visibility = View.VISIBLE
+        poVidnosti(o, true)
     }
 
     // ------------------------------------------------------------------ ponudba domacega zaslona
