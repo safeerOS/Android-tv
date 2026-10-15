@@ -24,4 +24,5 @@
     <string name="os_nacin_krajevni_izbran">Modalità locale: Safeer OS usa solo questo tablet. Puoi attivare Safeer Link più tardi dalla sua scheda.</string>
     <string name="scit_obvestilo_besedilo">Protegge tutto il tablet · bloccati oggi: %1$d</string>
     <string name="hub_obvestilo_besedilo">I tuoi dispositivi possono inviare pagine, video e musica a questo tablet.</string>
+    <string name="vnos_opis">Consente al computer (Safeer Control) di toccare, scorrere e premere Indietro o Home su questo tablet mentre il tablet condivide lo schermo. Safeer Input non legge lo schermo e non invia nulla da nessuna parte; esegue solo ciò che chiede un dispositivo associato in Safeer Link.</string>
 </resources>

@@ -24,4 +24,5 @@
     <string name="os_nacin_krajevni_izbran">Lokaler Modus: Safeer OS nutzt nur dieses Handy. Safeer Link kannst du später auf seiner Karte einschalten.</string>
     <string name="scit_obvestilo_besedilo">Schützt das ganze Telefon · heute blockiert: %1$d</string>
     <string name="hub_obvestilo_besedilo">Deine Geräte können Seiten, Videos und Musik an dieses Telefon senden.</string>
+    <string name="vnos_opis">Erlaubt deinem Computer (Safeer Control), auf diesem Telefon zu tippen, zu wischen und Zurück oder Home zu drücken, während das Telefon seinen Bildschirm teilt. Safeer Eingabe liest deinen Bildschirm nicht und sendet nichts irgendwohin; es führt nur aus, was ein in Safeer Link gekoppeltes Gerät verlangt.</string>
 </resources>

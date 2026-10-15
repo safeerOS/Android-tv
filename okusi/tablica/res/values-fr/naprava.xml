@@ -24,4 +24,5 @@
     <string name="os_nacin_krajevni_izbran">Mode local : Safeer OS n\'utilise que cette tablette. Vous pourrez activer Safeer Link plus tard sur sa carte.</string>
     <string name="scit_obvestilo_besedilo">Protège toute la tablette · bloqués aujourd\'hui : %1$d</string>
     <string name="hub_obvestilo_besedilo">Vos appareils peuvent envoyer des pages, des vidéos et de la musique vers cette tablette.</string>
+    <string name="vnos_opis">Permet à votre ordinateur (Safeer Control) de toucher, balayer et appuyer sur Retour ou Accueil sur cette tablette pendant qu\'elle partage son écran. Safeer Saisie ne lit pas votre écran et n\'envoie rien nulle part ; il exécute seulement ce que demande un appareil associé dans Safeer Link.</string>
 </resources>

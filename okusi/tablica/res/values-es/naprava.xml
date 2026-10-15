@@ -24,4 +24,5 @@
     <string name="os_nacin_krajevni_izbran">Modo local: Safeer OS usa solo esta tableta. Puedes activar Safeer Link más tarde en su tarjeta.</string>
     <string name="scit_obvestilo_besedilo">Protege toda la tableta · bloqueados hoy: %1$d</string>
     <string name="hub_obvestilo_besedilo">Tus dispositivos pueden enviar páginas, vídeos y música a esta tableta.</string>
+    <string name="vnos_opis">Permite que tu ordenador (Safeer Control) toque, deslice y pulse Atrás o Inicio en esta tableta mientras la tableta comparte su pantalla. Safeer Entrada no lee tu pantalla ni envía nada a ningún sitio; solo ejecuta lo que pide un dispositivo que vinculaste en Safeer Link.</string>
 </resources>

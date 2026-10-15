@@ -23,4 +23,5 @@
     <string name="tablet_prikazi_vse">Show all ›</string>
     <string name="tablet_odklopi">Disconnect</string>
     <string name="tablet_povezano_z">Connected to %1$s</string>
+    <string name="vnos_ime">Safeer Input</string>
 </resources>
