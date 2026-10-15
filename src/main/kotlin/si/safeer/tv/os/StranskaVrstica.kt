@@ -272,8 +272,9 @@ class StranskaVrstica private constructor(
     }
 
     fun fokusVsebine() {
+        // Daljinec: prvi cilj ni iskalno polje (fokus nanj bi odprl tipkovnico cez pol zaslona), ce je v vsebini kaj drugega.
         val cilj = zadnjiFokusVsebine?.takeIf { it.isShown && it.isFocusable }
-            ?: prviFokus(vsebina)
+            ?: (if (!dotik) prviFokus(vsebina, brezPolj = true) else null) ?: prviFokus(vsebina)
         cilj?.requestFocus()
     }
 
@@ -429,11 +430,11 @@ class StranskaVrstica private constructor(
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(),
         dejavnost.resources.displayMetrics).toInt()
 
-    private fun prviFokus(pogled: View): View? {
+    private fun prviFokus(pogled: View, brezPolj: Boolean = false): View? {
         if (pogled.visibility != View.VISIBLE) return null
-        if (pogled.isFocusable && pogled.isEnabled) return pogled
+        if (pogled.isFocusable && pogled.isEnabled && !(brezPolj && pogled is android.widget.EditText)) return pogled
         val skupina = pogled as? ViewGroup ?: return null
-        for (i in 0 until skupina.childCount) prviFokus(skupina.getChildAt(i))?.let { return it }
+        for (i in 0 until skupina.childCount) prviFokus(skupina.getChildAt(i), brezPolj)?.let { return it }
         return null
     }
 

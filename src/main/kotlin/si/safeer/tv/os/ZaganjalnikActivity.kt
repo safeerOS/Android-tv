@@ -164,13 +164,14 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         narisiDatoteke()
         narisiNaprave()
         narisiPonudbo()
+        povezFokus()
     }
 
     /** Odsek je postal viden ali skrit: mreza odsekov se razporedi znova (samo, ce se je vidnost res spremenila). */
     private fun poVidnosti(o: LinearLayout, viden: Boolean) {
         val prej = o.visibility == View.VISIBLE
         o.visibility = if (viden) View.VISIBLE else View.GONE
-        if (prej != viden) razporediOdseke()
+        if (prej != viden) razporediOdseke() else povezFokus()
     }
 
     // ------------------------------------------------------------------ postavitev
@@ -242,6 +243,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         // Skriti odseki ostanejo v drevesu (za kasnejsi prikaz), a brez prostora.
         vsi.filter { it.visibility != View.VISIBLE }.forEach { mreza.addView(it) }
+        povezFokus()
     }
 
     private fun glava(): View {
@@ -470,9 +472,50 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         o.visibility = View.VISIBLE
         // Daljinec: fokus mora biti vedno nekje viden - ob vstopu na prvi priljubljeni aplikaciji (ne v lupi, ki bi
         // odprla tipkovnico cez pol zaslona).
-        if (vnos == Vnos.DALJINEC && fokusOb && priljubljene.isNotEmpty() || vnos == Vnos.DALJINEC && currentFocus == null) {
+        if (vnos == Vnos.DALJINEC && fokusOb) {
             prvaPloscica(cilj)?.requestFocus()
-            if (priljubljene.isNotEmpty()) fokusOb = false
+            if (!nalagamPriljubljene) fokusOb = false
+        }
+        povezFokus()
+    }
+
+    /**
+     * Daljinec: Gor in Dol vedno v sosednjo vrsto na zaslonu (lupa, priljubljene, predvajalnik, datoteke, naprave),
+     * na ploscico, ki je vodoravno najblizje. Izmerjeno na televizorju 15. 10. 2026: brez tega je Dol iz vodoravne
+     * vrste skocil v stransko vrstico, ker sistemsko iskanje fokusa vrst, ki se drsijo, ne vidi pravilno.
+     */
+    private fun povezFokus() {
+        if (vnos != Vnos.DALJINEC) return
+        val koren = drsnik?.getChildAt(0) as? ViewGroup ?: return
+        koren.post {
+            val vsi = ArrayList<View>()
+            fun zberi(v: View) {
+                if (v.visibility != View.VISIBLE) return
+                if (v.isFocusable && v.isEnabled && v !is HorizontalScrollView && v !is ScrollView) {
+                    vsi.add(v); if (v !is ViewGroup || v is EditText) return
+                }
+                (v as? ViewGroup)?.let { g -> for (i in 0 until g.childCount) zberi(g.getChildAt(i)) }
+            }
+            zberi(koren)
+            if (vsi.isEmpty()) return@post
+            val polozaj = IntArray(2)
+            val sredisca = vsi.associateWith { v -> v.getLocationInWindow(polozaj); Pair(polozaj[0] + v.width / 2, polozaj[1] + v.height / 2) }
+            // Vrste: pogledi, katerih sredisci sta po visini blizu (pol visine najnizjega).
+            val vrste = ArrayList<MutableList<View>>()
+            for (v in vsi.sortedBy { sredisca.getValue(it).second }) {
+                val zadnja = vrste.lastOrNull()
+                if (zadnja != null && kotlin.math.abs(sredisca.getValue(zadnja[0]).second - sredisca.getValue(v).second) < dp(24)) zadnja.add(v)
+                else vrste.add(mutableListOf(v))
+            }
+            fun najblizji(vrsta: List<View>, x: Int) = vrsta.minByOrNull { kotlin.math.abs(sredisca.getValue(it).first - x) }
+            for ((i, vrsta) in vrste.withIndex()) for (v in vrsta) {
+                if (v.id == View.NO_ID) v.id = View.generateViewId()
+                val x = sredisca.getValue(v).first
+                vrste.getOrNull(i + 1)?.let { n -> najblizji(n, x)?.let { c -> if (c.id == View.NO_ID) c.id = View.generateViewId(); v.nextFocusDownId = c.id } }
+                    ?: run { v.nextFocusDownId = v.id }
+                vrste.getOrNull(i - 1)?.let { n -> najblizji(n, x)?.let { c -> if (c.id == View.NO_ID) c.id = View.generateViewId(); v.nextFocusUpId = c.id } }
+                    ?: run { v.nextFocusUpId = v.id }
+            }
         }
     }
 
