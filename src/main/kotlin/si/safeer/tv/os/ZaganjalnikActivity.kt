@@ -549,6 +549,9 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
     }
 
+    /** Prvi izris na televizorju: fokus gre na prvo priljubljeno aplikacijo (samo enkrat, potem ostane, kjer je). */
+    private var fokusOb = true
+
     private fun prvaPloscica(v: View): View? {
         if (v.visibility != View.VISIBLE) return null
         if (v.isFocusable && v !is EditText && v !is HorizontalScrollView && v !is ScrollView) return v
