@@ -41,6 +41,7 @@ def lupina(naprava: str, ukaz: str) -> str:
 def hladen_zagon(naprava: str, paket: str, n: int) -> list[int]:
     casi = []
     for _ in range(n):
+        lupina(naprava, "input keyevent KEYCODE_WAKEUP")   # zaslon mora biti prizgan, sicer meritev ne velja
         lupina(naprava, f"am force-stop {paket}")
         time.sleep(1.5)
         izpis = lupina(naprava, f"am start -W -n {paket}/{AKT}")
@@ -72,6 +73,7 @@ def zasuk(naprava: str) -> list[str]:
     try:
         lupina(naprava, "settings put system accelerometer_rotation 0")
         for lega in ("1", "0", "1", "0"):
+            lupina(naprava, "input keyevent KEYCODE_WAKEUP")
             lupina(naprava, f"settings put system user_rotation {lega}")
             time.sleep(2.5)
     finally:
@@ -123,6 +125,7 @@ def main() -> int:
     if casi:
         print(f"hladen zagon (TotalTime ms): {casi} -> mediana {statistics.median(casi):.0f} ms")
     time.sleep(10)
+    lupina(naprava, "input keyevent KEYCODE_WAKEUP")
     print("PSS v mirovanju (kB):", pss(naprava, paket))
     if "--zasuk" in sys.argv:
         for v in zasuk(naprava):
