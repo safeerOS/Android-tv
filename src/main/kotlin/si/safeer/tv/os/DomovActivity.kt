@@ -968,7 +968,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         for ((racunalnik, vnosi) in poRacunalnikih) {
             val polje = org.json.JSONArray()
             vnosi.forEach { polje.put(it.program) }
-            link.ukaz(racunalnik, "apps.running", org.json.JSONObject().put("apps", polje), 8_000,
+            // Stanje kartic v ozadju: racunalnik ob zavrnitvi ne odpre obvestila »prosi za dostop« (core/link_dostop.py).
+            link.ukaz(racunalnik, "apps.running", org.json.JSONObject().put("apps", polje).put(ProsnjaDostopa.V_OZADJU, true), 8_000,
                 LinkOdjemalec.Odgovor { izid, _ ->
                     runOnUiThread {
                         val podatki = izid?.optJSONObject("data")

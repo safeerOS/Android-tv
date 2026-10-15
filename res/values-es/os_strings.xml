@@ -191,7 +191,7 @@
     <string name="os_programi_cakam_napravo">Reconectando con %1$s…</string>
     <string name="os_programi_ni_racunalnika">Ningún ordenador en Safeer Link comparte sus programas. En Safeer Control del ordenador, activa \'Programas para el televisor\'.</string>
     <string name="os_programi_ni_povezave">Safeer Link no está conectado, así que no hay ordenador al que preguntar.</string>
-    <string name="os_programi_izklopljeno">%1$s no comparte sus programas. En Safeer Control de ese ordenador, activa \'Programas para el televisor\'.</string>
+    <string name="os_programi_izklopljeno">%1$s no comparte sus programas. En el ordenador, activa «Programas para el televisor» (Ajustes → Dispositivos y Link).</string>
     <string name="os_programi_napaka">No ha funcionado: %1$s</string>
     <string name="os_programi_zagnan">%1$s se está abriendo en %2$s: en la pantalla del ordenador, no aquí.</string>
     <!-- Videz (ozadje) in zaslon Naprave -->

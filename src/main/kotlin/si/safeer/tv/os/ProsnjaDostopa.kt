@@ -27,6 +27,13 @@ object ProsnjaDostopa {
 
     const val KODA_NI_DOVOLJENO = "ni_dovoljeno"
 
+    /**
+     * Parameter ukaza za zahteve, ki jih naprava poslje v ozadju (predpomnjenje, stanje kartic) in ne na uporabnikov
+     * ukaz: racunalnik ob zavrnitvi zanje ne odpre obvestila »prosi za dostop« (core/link_dostop.py, v_ozadju).
+     * Parameter obvestilo samo prepreci, dostopa nikoli ne odpre.
+     */
+    const val V_OZADJU = "background"
+
     /** Na toliko ponovimo zahtevo, dokler prosnja caka. */
     const val PONOVI_MS = 3_000L
 

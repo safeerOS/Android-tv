@@ -46,5 +46,7 @@ fun main() {
     check(p.preostalo(t0, t0 + 3_000L) == "1:57")
     check(p.preostalo(t0, t0 + 119_500L) == "0:01")
     check(p.preostalo(t0, t0 + 500_000L) == "0:00" && p.preostalo(t0, t0 - 5_000L) == "2:00")
+    // Dogovor z racunalnikom: zahteva v ozadju nosi params.background = true (core/safeer_link.py).
+    check(p.V_OZADJU == "background")
     println("ProsnjaDostopaTest: OK")
 }

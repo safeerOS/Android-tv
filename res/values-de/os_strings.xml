@@ -191,7 +191,7 @@
     <string name="os_programi_cakam_napravo">Verbindung zu %1$s wird wiederhergestellt …</string>
     <string name="os_programi_ni_racunalnika">Kein Computer in Safeer Link teilt seine Programme. Schalte in Safeer Control auf dem Computer \'Programme für den Fernseher\' ein.</string>
     <string name="os_programi_ni_povezave">Safeer Link ist nicht verbunden, es gibt also keinen Computer zum Fragen.</string>
-    <string name="os_programi_izklopljeno">%1$s teilt seine Programme nicht. Schalte in Safeer Control auf diesem Computer \'Programme für den Fernseher\' ein.</string>
+    <string name="os_programi_izklopljeno">%1$s teilt seine Programme nicht. Schalte am Computer „Programme für den Fernseher“ ein (Einstellungen → Geräte und Link).</string>
     <string name="os_programi_napaka">Es hat nicht geklappt: %1$s</string>
     <string name="os_programi_zagnan">%1$s startet auf %2$s - auf dem Bildschirm des Computers, nicht hier.</string>
     <!-- Videz (ozadje) in zaslon Naprave -->

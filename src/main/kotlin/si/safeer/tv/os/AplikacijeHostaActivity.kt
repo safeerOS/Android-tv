@@ -236,7 +236,23 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onStop() {
         link.odstrani(this)
+        // Na potrditev dostopa ne cakamo v ozadju; ob vrnitvi (onStart -> nalozi) se seznam zahteva znova.
+        napravaDostopa?.let { nalozene.remove(it) }
+        dostop.ustavi()
+        napravaDostopa = null
         super.onStop()
+    }
+
+    private val glavnaDostop = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** Naprava, katere potrditev dostopa cakamo (ena naenkrat); zahtevo njenega seznama ponavljamo. */
+    private var napravaDostopa: String? = null
+    private val dostop: DostopNaprave by lazy {
+        DostopNaprave(glavnaDostop) {
+            val id = napravaDostopa
+            val r = if (id == null || isFinishing) null else link.naprave.firstOrNull { it.id == id }
+            if (r != null && r.id !in nalagam) naloziStran(r) else if (r == null) { dostop.ustavi(); napravaDostopa = null }
+        }
     }
 
     /** Aplikacije televizorja in spletne aplikacije: na tej napravi, zato takoj. */
@@ -310,7 +326,28 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             nalagam.remove(r.id)
             if (isFinishing) return@prenesi
             nalozene.add(r.id)
+            if (s?.dostop == null && napravaDostopa == r.id) { dostop.ustavi(); napravaDostopa = null }
             when {
+                s != null && s.dostop != null -> {
+                    // Uporabnik je sam odprl programe racunalnika: racunalnik caka na potrditev dostopa (ali ga je
+                    // zavrnil). Med cakanjem prosimo znova - ko na racunalniku pritisne Dovoli, se programi pokazejo sami.
+                    shramba.remove(r.id)
+                    cakajoce.remove(r.id)
+                    val ime = r.ime.ifBlank { r.id }
+                    if (s.dostop == ProsnjaDostopa.Stanje.CAKA && (napravaDostopa == null || napravaDostopa == r.id)) {
+                        napravaDostopa = r.id
+                        val preostalo = dostop.cakaj()
+                        if (preostalo != null) {
+                            koncajSSporocilom(DostopNaprave.besediloCakanja(this, ime, preostalo))
+                            return@prenesi
+                        }
+                    } else if (napravaDostopa == r.id) dostop.ustavi()
+                    if (napravaDostopa == r.id) napravaDostopa = null
+                    if (oddaljeni.any { it.racunalnik == r.id }) prerisi { oddaljeni = oddaljeni.filter { it.racunalnik != r.id } }
+                    imenaNaprav.remove(r.id)
+                    koncajSSporocilom(DostopNaprave.besedilo(this, s.dostop, ime, R.string.os_programi_izklopljeno))
+                    if (nalagam.isEmpty()) izprazniCakajoce()
+                }
                 s == null -> {
                     // Napaka ene naprave ne sme prekriti ostalih.
                     if (oddaljeni.none { it.racunalnik == r.id }) {
@@ -818,8 +855,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         link.ukaz(r.id, "apps.launch", JSONObject().put("app", p.cilj), 10_000, LinkOdjemalec.Odgovor { izid, napaka ->
             if (isFinishing) return@Odgovor
             if (izid?.optBoolean("ok") != true) {
-                Toast.makeText(this, getString(R.string.os_programi_napaka,
-                    izid?.optString("message").orEmpty().ifBlank { napaka }), Toast.LENGTH_LONG).show()
+                // Zavrnitev zaradi dostopa te naprave: kje se potrdi ali dovoli (enkratno dejanje, brez ponavljanja).
+                val stanje = DostopNaprave.stanje(izid)
+                val besedilo = if (stanje != null && stanje != ProsnjaDostopa.Stanje.IZKLOPLJENO)
+                    DostopNaprave.besedilo(this, stanje, r.ime.ifBlank { r.id }, R.string.os_programi_izklopljeno)
+                else getString(R.string.os_programi_napaka, izid?.optString("message").orEmpty().ifBlank { napaka })
+                Toast.makeText(this, besedilo, Toast.LENGTH_LONG).show()
                 return@Odgovor
             }
             val vnos = Nadaljuj.Vnos(vrsta = Nadaljuj.PROGRAM, ime = p.ime,
@@ -966,7 +1007,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
         /** Seznam naprave, kot pride po Linku - ikone se niso dekodirane (to je delo zaslona). */
         class Surovo(val ime: String, val android: Boolean, val predmeti: List<JSONObject>, val omogoceno: Boolean,
-                     val cas: Long = zdaj())
+                     val cas: Long = zdaj(), val dostop: ProsnjaDostopa.Stanje? = null)
 
         /** Koliko casa je seznam naprave svez: v tem casu ga ne vprasamo znova (2 min). */
         private const val SVEZE_MS = 120_000L
@@ -979,7 +1020,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
          * [STRAN] programov naenkrat; Android vrne cel seznam naenkrat (ikone so majhne, 48 px WebP).
          * [konec] dobi seznam ali, ob napaki, null in razlog.
          */
-        fun prenesi(ctx: android.content.Context, r: LinkOdjemalec.Naprava, konec: (Surovo?, String?) -> Unit) {
+        fun prenesi(ctx: android.content.Context, r: LinkOdjemalec.Naprava, vOzadju: Boolean = false,
+                    konec: (Surovo?, String?) -> Unit) {
             val link = LinkUpravitelj.pridobi(ctx)
             val android = !r.zmoznosti.contains("apps")
             val zbrano = ArrayList<JSONObject>()
@@ -987,7 +1029,16 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val zacetek = zdaj()
             fun stran(od: Int) {
                 val zahteva = JSONObject().put("offset", od).put("limit", STRAN).put("icons", true)
+                // Predpomnjenje v ozadju (domaci zaslon): uporabnik ni nic zahteval - racunalnik zato ne odpre
+                // obvestila »prosi za dostop« (lastnik, 15. 10. 2026; core/link_dostop.py, v_ozadju).
+                if (vOzadju) zahteva.put(ProsnjaDostopa.V_OZADJU, true)
                 link.ukaz(r.id, "apps.list", zahteva, 25_000, LinkOdjemalec.Odgovor { izid, napaka ->
+                    // Zavrnitev zaradi dostopa te naprave (potrditev na racunalniku, zavrnjeno ...): zaslon pove, kaj storiti.
+                    val dostop = DostopNaprave.stanje(izid)
+                    if (dostop != null && dostop != ProsnjaDostopa.Stanje.IZKLOPLJENO) {
+                        konec(Surovo(ime, android, emptyList(), false, dostop = dostop), null)
+                        return@Odgovor
+                    }
                     if (izid == null || !izid.optBoolean("ok")) {
                         konec(null, izid?.optString("message").orEmpty().ifBlank { napaka.orEmpty() })
                         return@Odgovor
@@ -1028,7 +1079,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (prenasam.size >= HKRATI) break
                 if (r.id in prenasam || jeSvez(surovi[r.id]?.cas) || jeSvez(shramba[r.id]?.cas) || jeSvez(neuspeli[r.id])) continue
                 prenasam.add(r.id)
-                prenesi(c, r) { s, _ ->
+                prenesi(c, r, vOzadju = true) { s, _ ->
                     prenasam.remove(r.id)
                     if (s != null && s.omogoceno) surovi[r.id] = s else neuspeli[r.id] = zdaj()
                     predhodno(c)

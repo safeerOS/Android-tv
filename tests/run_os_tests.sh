@@ -124,3 +124,4 @@ java -cp "$OUT/povezava.jar" si.safeer.tv.os.NeposrednaPovezavaTestKt
 
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"
+python3 "$TEST_DIR/preveri_dostop_v_ozadju.py"
