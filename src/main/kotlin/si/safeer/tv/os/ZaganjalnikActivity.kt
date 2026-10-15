@@ -195,7 +195,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val stolpci = postavitev.stolpci
         if (stolpci <= 1) spodnji.forEach { seznam.addView(it) }
         else spodnji.chunked(stolpci).forEach { vrsta ->
-            val v = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; baselineAligned = false }
+            val v = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isBaselineAligned = false }
             vrsta.forEachIndexed { i, o ->
                 v.addView(o, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
                     if (i > 0) marginStart = dp(20)
