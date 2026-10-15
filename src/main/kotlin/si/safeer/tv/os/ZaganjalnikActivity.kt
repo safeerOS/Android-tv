@@ -124,6 +124,18 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
         if (vnos == Vnos.DALJINEC && dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT &&
             currentFocus != null && !vVsebini(currentFocus) && findViewWithTagInPanel() == null && naPrvoPloscico()) return true
+        // Rob vsebine (zadnja vrsta, konec vrste): ostanemo na mestu. Kazalec »sam nase« sistem ne uposteva in fokus je
+        // skocil v stransko vrstico (izmerjeno na TV).
+        val f = currentFocus
+        if (vnos == Vnos.DALJINEC && dogodek.action == KeyEvent.ACTION_DOWN && f != null && f.id != View.NO_ID && vVsebini(f)) {
+            val naprej = when (dogodek.keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> f.nextFocusDownId
+                KeyEvent.KEYCODE_DPAD_UP -> f.nextFocusUpId
+                KeyEvent.KEYCODE_DPAD_RIGHT -> f.nextFocusRightId
+                else -> View.NO_ID
+            }
+            if (naprej == f.id) return true
+        }
         return super.dispatchKeyEvent(dogodek)
     }
 
