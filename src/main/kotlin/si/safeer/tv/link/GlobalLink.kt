@@ -31,7 +31,9 @@ import si.safeer.tv.cast.KrogNaprave
  * prek link.safeer.si. Naprava odpre lokalna vrata 127.0.0.1; vsaka povezava nanje postane kanal releja
  * do huba. Skozi kanal tece nespremenjen TLS Safeer Linka (pripet odtis huba), zato rele vidi samo
  * sifrirane bajte. Worker spusti samo naprave iz hubovega kroga zaupanja (podpis s kljucem naprave).
- * Pot: LAN vedno prvi; rele sele, ko LAN ne odgovarja (GlobalMesh: LOCAL -> RELAY).
+ * Pot: LAN vedno prvi; ko LAN ne odgovarja, najprej neposredno na javni naslov doma, ce ga je sredisce objavilo
+ * in preverilo (NeposrednaPot, INTERNET_DIRECT), sicer rele (GlobalMesh: LOCAL -> DIRECT -> RELAY). Oboje gre skozi
+ * ista krajevna vrata [Rele], zato klicatelji (Safeer OS, Mesh, datoteke, zaslon) ne vedo, katera pot je bila.
  */
 object GlobalLink {
     const val GOSTITELJ = "link.safeer.si"
@@ -82,21 +84,93 @@ object GlobalLink {
         if (lokalno) return hubUrl
         val cilj = osnovniId(hubId) ?: return hubUrl
         // Hub se ne objavlja (npr. ugasnjen): nazaj na LAN, kjer volitve najdejo novega; brez klicev releja.
-        if (hubOdsoten(cilj) && !samoRele(c)) return hubUrl
+        // Izjema: do njega je na voljo neposredna pot od zunaj (rele ni pogoj zanjo).
+        if (hubOdsoten(cilj) && !samoRele(c) && neposredna(c, cilj).konec() == null) return hubUrl
         val r = rele(c, cilj)
         val pot = try { URI(hubUrl).rawPath.orEmpty() } catch (_: Throwable) { "" }
         return "wss://127.0.0.1:${r.vrata}$pot"
     }
 
     private fun rele(c: Context, cilj: String): Rele = synchronized(this) {
-        releji[cilj]?.takeIf { it.tece } ?: Rele(c.applicationContext, cilj).also { releji[cilj] = it }
+        releji[cilj]?.takeIf { it.tece } ?: Rele(c.applicationContext, cilj).also {
+            releji[cilj] = it
+            neposredna(c, cilj).isci()      // oglas neposredne poti iscemo takoj (v ozadju), ne sele ob prvi povezavi
+        }
+    }
+
+    // ------------------------------------------------------------------ neposredna pot od zunaj (INTERNET_DIRECT)
+
+    private val neposredne = java.util.concurrent.ConcurrentHashMap<String, NeposrednaPot.OdZunaj>()
+
+    /** Stanje neposredne poti do sredisca [cilj] (oglas, premor, zadnja pot). */
+    fun neposredna(c: Context, cilj: String): NeposrednaPot.OdZunaj = neposredne.getOrPut(cilj) {
+        val app = c.applicationContext
+        NeposrednaPot.OdZunaj(
+            cilj,
+            kljuc = { kljucClana(app, cilj) },
+            nasId = { KrogZaupanja.idIzKljuca(HubTls.javniKljucB64()) },
+            podpisi = { b -> java.util.Base64.getDecoder().decode(HubTls.podpisi(b)) },
+            poisci = { hub, kljuc -> poisciOglas(hub, kljuc) },
+            omrezje = { ip -> krajevniNaslovProti(ip) },
+        )
+    }
+
+    /** Kljuc veljavnega clana kroga, ki da id [cilj] (`n-<16 hex>`); null, ce ga v krogu ni. */
+    private fun kljucClana(c: Context, cilj: String): String? =
+        KrogNaprave.krog(c).clani().firstOrNull { runCatching { KrogZaupanja.idIzKljuca(it.kljuc) }.getOrNull() == cilj }?.kljuc
+
+    /** Prisotnost sredisca na releju (vidi jo samo clan njegovega kroga) -> preverjen oglas ali null. */
+    private fun poisciOglas(hub: String, kljuc: String): NeposrednaPot.Oglas? {
+        val pot = "/v1/presence?device_id=$hub"
+        val z = Request.Builder().url("https://$GOSTITELJ$pot").header("User-Agent", "SafeerLink/1.0")
+        podpisaneGlave("GET", pot).forEach { (k, v) -> z.header(k, v) }
+        val telo = iskanje.newCall(z.build()).execute().use { if (it.isSuccessful) it.body?.string() else null } ?: return null
+        val namigi = JSONObject(telo).optJSONObject("presence")?.optJSONArray("candidate_hints") ?: return null
+        for (i in 0 until minOf(namigi.length(), 32)) {
+            NeposrednaPot.preveriOglas(namigi.optString(i), hub, kljuc)?.let { return it }
+        }
+        return null
+    }
+
+    private val iskanje: OkHttpClient by lazy {
+        OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS).build()
+    }
+
+    /** Nas naslov na poti do [ip] (brez prometa): sprememba pomeni drugo omrezje (premor po neuspehu se izbrise). */
+    private fun krajevniNaslovProti(ip: String): String = try {
+        java.net.DatagramSocket().use { it.connect(InetAddress.getByName(ip), 9); it.localAddress?.hostAddress.orEmpty() }
+    } catch (_: Throwable) { "" }
+
+    /** Za nastavitve: zadnja pot do vsakega sredisca zunaj doma ("neposredno"/"rele") in ms do povezave. */
+    fun stanjePoti(): Map<String, Pair<String, Long?>> =
+        neposredne.mapValues { (_, o) -> o.zadnjaPot to (if (o.zadnjaPot == NeposrednaPot.POT_NEPOSREDNO) o.zadnjiMs else null) }
+            .filterValues { it.first.isNotEmpty() }
+
+    /** Bajti v obe smeri med krajevno povezavo in neposredno vticnico; konec ene smeri zapre obe. */
+    private fun cevNeposredno(t: java.net.Socket, tcp: Socket) {
+        brezZamika(tcp)
+        fun smer(iz: java.io.InputStream, v: java.io.OutputStream) {
+            val buf = ByteArray(64 * 1024)
+            try {
+                while (true) {
+                    val n = iz.read(buf)
+                    if (n < 0) break
+                    v.write(buf, 0, n)
+                    v.flush()
+                }
+            } catch (_: Throwable) { }
+            try { t.close() } catch (_: Throwable) { }
+            try { tcp.close() } catch (_: Throwable) { }
+        }
+        Thread({ smer(tcp.getInputStream(), t.getOutputStream()) }, "safeer-neposredno-tx").apply { isDaemon = true }.start()
+        smer(t.getInputStream(), tcp.getOutputStream())
     }
 
     /** Ali do naprave [hubId] vodi rele: Global Link je vklopljen, id je izpeljan iz kljuca, naprava se releju javlja. */
     fun releMogoc(c: Context, hubId: String?): Boolean {
         if (!vklopljen(c)) return false
         val cilj = osnovniId(hubId) ?: return false
-        return !hubOdsoten(cilj) || samoRele(c)
+        return !hubOdsoten(cilj) || samoRele(c) || neposredna(c, cilj).konec() != null
     }
 
     /** Krajevna vrata releja do naprave [hubId] (rele se odpre ob prvi rabi) ali null, kadar releja do nje ni. */
@@ -111,6 +185,7 @@ object GlobalLink {
         host == "127.0.0.1" && synchronized(this) { releji.values.any { it.tece && it.vrata == port } }
 
     fun izklopi() = synchronized(this) { releji.values.forEach { it.zapri() }; releji.clear() }
+    // Neposredne poti (oglas, premor) ostanejo: so samo stanje, brez odprtih vticnic.
 
     /** Ali je naslov LAN huba dosegljiv (kratek TCP poskus); za vrnitev z releja domov. */
     fun lanDosegljiv(hubUrl: String): Boolean = try {
@@ -140,13 +215,24 @@ object GlobalLink {
             Thread({
                 while (tece) {
                     val s = try { streznik.accept() } catch (_: Throwable) { break }
-                    kanal(s)
+                    // Vsaka povezava v svoji niti: neposredni poskus traja do ROK_POVEZAVE_MS (+ rokovanje), naslednja
+                    // povezava nanj ne sme cakati.
+                    Thread({ kanal(s) }, "safeer-global-link-kanal").apply { isDaemon = true }.start()
                 }
             }, "safeer-global-link").apply { isDaemon = true }.start()
             Log.i(TAG, "Rele do $cilj na 127.0.0.1:$vrata")
         }
 
         private fun kanal(tcp: Socket) {
+            // INTERNET_DIRECT: preverjen oglas sredisca in brez premora -> naravnost (TCP najvec 1,5 s), sicer rele.
+            val nep = neposredna(context, cilj)
+            val p = try { nep.odpri() } catch (_: Throwable) { null }
+            if (p != null) {
+                Log.i(TAG, "Neposredno do $cilj (${p.msTcp} ms)")
+                cevNeposredno(p.vticnica, tcp)
+                return
+            }
+            nep.prekRele()
             if (hubOdsoten(cilj)) { try { tcp.close() } catch (_: Throwable) { }; return }
             val kanal = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
             val pot = "/v1/connect?to=$cilj&kanal=$kanal"
