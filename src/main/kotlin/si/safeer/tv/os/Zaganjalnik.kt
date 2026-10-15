@@ -220,6 +220,7 @@ object Zaganjalnik {
         }
     }
 
+    @android.annotation.SuppressLint("ApplySharedPref")   // namenoma commit: proces se takoj po tem konca
     private fun zabeleziPadec(app: Context) {
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val zdaj = System.currentTimeMillis()

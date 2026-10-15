@@ -48,8 +48,9 @@ class ZnackeObvestil : NotificationListenerService() {
         for (sbn in vsa) {
             val n = sbn.notification ?: continue
             if (sbn.packageName == packageName) continue
-            val pomembnost = if (Build.VERSION.SDK_INT >= 26 && razvrstitev?.getRanking(sbn.key, r) == true) r.importance else 0
-            val dovoli = if (Build.VERSION.SDK_INT >= 26 && razvrstitev?.getRanking(sbn.key, r) == true) r.canShowBadge() else true
+            val imaRazvrstitev = razvrstitev?.getRanking(sbn.key, r) == true
+            val pomembnost = if (imaRazvrstitev) r.importance else 0
+            val dovoli = if (imaRazvrstitev) r.canShowBadge() else true
             val potrebuje = ZaganjalnikPravila.potrebujeUporabnika(
                 trajno = sbn.isOngoing || n.flags and Notification.FLAG_ONGOING_EVENT != 0,
                 storitevVOspredju = n.flags and Notification.FLAG_FOREGROUND_SERVICE != 0,
@@ -89,9 +90,7 @@ class ZnackeObvestil : NotificationListenerService() {
         /** Ali je uporabnik zaganjalniku dovolil dostop do obvestil. */
         fun dovoljeno(c: Context): Boolean = try {
             val nm = c.getSystemService(NotificationManager::class.java)
-            if (Build.VERSION.SDK_INT >= 27) nm.isNotificationListenerAccessGranted(ComponentName(c, ZnackeObvestil::class.java))
-            else (Settings.Secure.getString(c.contentResolver, "enabled_notification_listeners") ?: "")
-                .contains(ComponentName(c, ZnackeObvestil::class.java).flattenToString())
+            nm.isNotificationListenerAccessGranted(ComponentName(c, ZnackeObvestil::class.java))
         } catch (_: Throwable) { false }
 
         /** Sistemska stran, kjer uporabnik dostop vklopi (Android 11+: naravnost stran te storitve). */
