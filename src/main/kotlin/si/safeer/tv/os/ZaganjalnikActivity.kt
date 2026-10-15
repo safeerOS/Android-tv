@@ -124,17 +124,11 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
         if (vnos == Vnos.DALJINEC && dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT &&
             currentFocus != null && !vVsebini(currentFocus) && findViewWithTagInPanel() == null && naPrvoPloscico()) return true
-        // Rob vsebine (zadnja vrsta, konec vrste): ostanemo na mestu. Kazalec »sam nase« sistem ne uposteva in fokus je
-        // skocil v stransko vrstico (izmerjeno na TV).
         val f = currentFocus
-        if (vnos == Vnos.DALJINEC && dogodek.action == KeyEvent.ACTION_DOWN && f != null && f.id != View.NO_ID && vVsebini(f)) {
-            val naprej = when (dogodek.keyCode) {
-                KeyEvent.KEYCODE_DPAD_DOWN -> f.nextFocusDownId
-                KeyEvent.KEYCODE_DPAD_UP -> f.nextFocusUpId
-                KeyEvent.KEYCODE_DPAD_RIGHT -> f.nextFocusRightId
-                else -> View.NO_ID
-            }
-            if (naprej == f.id) return true
+        if (vnos == Vnos.DALJINEC && dogodek.action == KeyEvent.ACTION_DOWN && f != null && vVsebini(f) &&
+            dogodek.keyCode in setOf(KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            val cilj = ciljFokusa(f, dogodek.keyCode)
+            if (cilj != null) { if (cilj !== f) cilj.requestFocus(); return true }
         }
         return super.dispatchKeyEvent(dogodek)
     }
@@ -208,14 +202,13 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         narisiDatoteke()
         narisiNaprave()
         narisiPonudbo()
-        povezFokus()
     }
 
     /** Odsek je postal viden ali skrit: mreza odsekov se razporedi znova (samo, ce se je vidnost res spremenila). */
     private fun poVidnosti(o: LinearLayout, viden: Boolean) {
         val prej = o.visibility == View.VISIBLE
         o.visibility = if (viden) View.VISIBLE else View.GONE
-        if (prej != viden) razporediOdseke() else povezFokus()
+        if (prej != viden) razporediOdseke()
     }
 
     // ------------------------------------------------------------------ postavitev
@@ -287,7 +280,6 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         // Skriti odseki ostanejo v drevesu (za kasnejsi prikaz), a brez prostora.
         vsi.filter { it.visibility != View.VISIBLE }.forEach { mreza.addView(it) }
-        povezFokus()
     }
 
     private fun glava(): View {
@@ -516,56 +508,46 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         o.visibility = View.VISIBLE
         // Daljinec: fokus mora biti vedno nekje viden - ob vstopu na prvi priljubljeni aplikaciji (ne v lupi, ki bi
         // odprla tipkovnico cez pol zaslona).
-        povezFokus()
     }
 
     /**
-     * Daljinec: Gor in Dol vedno v sosednjo vrsto na zaslonu (lupa, priljubljene, predvajalnik, datoteke, naprave),
-     * na ploscico, ki je vodoravno najblizje. Izmerjeno na televizorju 15. 10. 2026: brez tega je Dol iz vodoravne
-     * vrste skocil v stransko vrstico, ker sistemsko iskanje fokusa vrst, ki se drsijo, ne vidi pravilno.
+     * Daljinec: Gor in Dol vedno v sosednjo vrsto na zaslonu (lupa, priljubljene, predvajalnik, datoteke, naprave), na
+     * ploscico, ki je vodoravno najblizje; na robu ostane fokus na mestu. Izracuna se ob pritisku, iz trenutnega izrisa.
+     * Izmerjeno na televizorju 15. 10. 2026: sistemsko iskanje fokusa je iz vodoravne vrste ali z roba skocilo v
+     * stransko vrstico; vnaprej nastavljeni kazalci pa so po preris vrstice kazali na ze odstranjene poglede.
+     * Vrne cilj, isti pogled (ostani) ali null (prepusti sistemu).
      */
-    private fun povezFokus() {
-        if (vnos != Vnos.DALJINEC) return
-        val koren = drsnik?.getChildAt(0) as? ViewGroup ?: return
-        koren.post {
-            val vsi = ArrayList<View>()
-            fun zberi(v: View) {
-                if (v.visibility != View.VISIBLE) return
-                if (v.isFocusable && v.isEnabled && v !is HorizontalScrollView && v !is ScrollView) {
-                    vsi.add(v); if (v !is ViewGroup || v is EditText) return
-                }
-                (v as? ViewGroup)?.let { g -> for (i in 0 until g.childCount) zberi(g.getChildAt(i)) }
+    private fun ciljFokusa(f: View, tipka: Int): View? {
+        val koren = drsnik?.getChildAt(0) as? ViewGroup ?: return null
+        val vsi = ArrayList<View>()
+        fun zberi(v: View) {
+            if (v.visibility != View.VISIBLE) return
+            if (v.isFocusable && v.isEnabled && v !is HorizontalScrollView && v !is ScrollView) {
+                vsi.add(v); if (v !is ViewGroup || v is EditText) return
             }
-            zberi(koren)
-            if (vsi.isEmpty()) return@post
-            val polozaj = IntArray(2)
-            val sredisca = vsi.associateWith { v -> v.getLocationInWindow(polozaj); Pair(polozaj[0] + v.width / 2, polozaj[1] + v.height / 2) }
-            // Vrste: pogledi, katerih sredisci sta po visini blizu (pol visine najnizjega).
-            val vrste = ArrayList<MutableList<View>>()
-            for (v in vsi.sortedBy { sredisca.getValue(it).second }) {
-                val zadnja = vrste.lastOrNull()
-                if (zadnja != null && kotlin.math.abs(sredisca.getValue(zadnja[0]).second - sredisca.getValue(v).second) < dp(24)) zadnja.add(v)
-                else vrste.add(mutableListOf(v))
-            }
-            fun najblizji(vrsta: List<View>, x: Int) = vrsta.minByOrNull { kotlin.math.abs(sredisca.getValue(it).first - x) }
-            // Desno na koncu vrste ostane na mestu (prej je skocilo v drugo vrsto, npr. iz Na tvojih napravah v Priljubljene).
-            for (vrsta in vrste) vrsta.maxByOrNull { sredisca.getValue(it).first }?.let { zadnji ->
-                if (zadnji.id == View.NO_ID) zadnji.id = View.generateViewId()
-                zadnji.nextFocusRightId = zadnji.id
-            }
-            for ((i, vrsta) in vrste.withIndex()) for (v in vrsta) {
-                if (v.id == View.NO_ID) v.id = View.generateViewId()
-                val x = sredisca.getValue(v).first
-                vrste.getOrNull(i + 1)?.let { n -> najblizji(n, x)?.let { c -> if (c.id == View.NO_ID) c.id = View.generateViewId(); v.nextFocusDownId = c.id } }
-                    ?: run { v.nextFocusDownId = v.id }
-                vrste.getOrNull(i - 1)?.let { n -> najblizji(n, x)?.let { c -> if (c.id == View.NO_ID) c.id = View.generateViewId(); v.nextFocusUpId = c.id } }
-                    ?: run { v.nextFocusUpId = v.id }
-            }
+            (v as? ViewGroup)?.let { g -> for (i in 0 until g.childCount) zberi(g.getChildAt(i)) }
+        }
+        zberi(koren)
+        if (f !in vsi) return null
+        val polozaj = IntArray(2)
+        val sredisca = vsi.associateWith { v -> v.getLocationInWindow(polozaj); Pair(polozaj[0] + v.width / 2, polozaj[1] + v.height / 2) }
+        val vrste = ArrayList<MutableList<View>>()
+        for (v in vsi.sortedBy { sredisca.getValue(it).second }) {
+            val zadnja = vrste.lastOrNull()
+            if (zadnja != null && kotlin.math.abs(sredisca.getValue(zadnja[0]).second - sredisca.getValue(v).second) < dp(24)) zadnja.add(v)
+            else vrste.add(mutableListOf(v))
+        }
+        val i = vrste.indexOfFirst { f in it }
+        if (i < 0) return null
+        val x = sredisca.getValue(f).first
+        fun najblizji(vrsta: List<View>) = vrsta.minByOrNull { kotlin.math.abs(sredisca.getValue(it).first - x) }
+        return when (tipka) {
+            KeyEvent.KEYCODE_DPAD_DOWN -> vrste.getOrNull(i + 1)?.let { najblizji(it) } ?: f
+            KeyEvent.KEYCODE_DPAD_UP -> vrste.getOrNull(i - 1)?.let { najblizji(it) } ?: f
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (vrste[i].maxByOrNull { sredisca.getValue(it).first } === f) f else null
+            else -> null
         }
     }
-
-    /** Prvi izris na televizorju: fokus gre na prvo priljubljeno aplikacijo (samo enkrat, potem ostane, kjer je). */
-    private var fokusOb = true
 
     private fun prvaPloscica(v: View): View? {
         if (v.visibility != View.VISIBLE) return null
