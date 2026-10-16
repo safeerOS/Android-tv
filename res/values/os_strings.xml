@@ -674,4 +674,16 @@
     <string name="apk_posodobitve">Safeer does not update this app by itself.</string>
     <string name="os_zasloni_potrdi_na">Ask %1$s to share its screen: confirm on that device.</string>
     <string name="os_zasloni_ni_uspelo">Could not ask %1$s to share its screen.</string>
+    <string name="os_zasloni_naslov">Connected screens</string>
+    <string name="os_zasloni_dostopno">Tap to view</string>
+    <string name="os_zasloni_preverjam">Checking permission …</string>
+    <string name="os_zasloni_ni_odgovora">No answer – tap to try</string>
+    <string name="os_zasloni_caka">Access request is waiting for approval on the device</string>
+    <string name="os_zasloni_zavrnjeno">Access was declined on the device</string>
+    <string name="os_zasloni_prosnja">No permission – tap to ask for access</string>
+    <string name="os_zasloni_brez_povezave">Offline</string>
+    <string name="os_zasloni_brez_povezave_opis">%1$s is not in Safeer Link right now. Once it connects, you can view it here.</string>
+    <string name="os_zasloni_prazno_ni_linka">Safeer Link is not connected. Once this device connects, every device that shares its screen with you is listed here.</string>
+    <string name="os_zasloni_prazno_ni_naprav">There is no other device with a screen in Safeer Link. Connect a computer (Linux or Windows), a TV, a tablet or another phone.</string>
+    <string name="os_zasloni_prazno_ni_dovoljenj">There are devices with a screen in Safeer Link, but none lets you view it yet. Its owner grants access on that device: Safeer Link → Connected devices → this device → Screen.</string>
 </resources>

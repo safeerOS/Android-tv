@@ -28,5 +28,11 @@ preveri("uporabnik sam odpre programe: brez parametra (racunalnik vprasa)", re.s
 preveri("programi med cakanjem na potrditev prosijo znova", "dostop.cakaj()" in app and "naloziStran(r)" in app)
 domov = (OS / "DomovActivity.kt").read_text(encoding="utf-8")
 preveri("stanje kartic (apps.running) je v ozadju", '"apps.running", org.json.JSONObject().put("apps", polje).put(ProsnjaDostopa.V_OZADJU, true)' in domov)
+zasloni = (OS / "PovezaniZasloni.kt").read_text(encoding="utf-8")
+preveri("Povezani zasloni: tiha preverba dovoljenja je v ozadju (brez obvestila na racunalniku)",
+        "JSONObject().put(ProsnjaDostopa.V_OZADJU, true), PREVERBA_POTEK_MS" in zasloni)
+sprejemnik = (OS.parent / "cast/CastReceiverService.kt").read_text(encoding="utf-8")
+preveri("deli cel zaslon (CEL_ZASLON) zahteva tudi dovoljenje zaslona, gledalec nikoli",
+        '(!celZaslon || (!gledalec && Dostop.smeDejanje(this, posiljatelj, "screen.start", zascitaJedro)))' in sprejemnik)
 print("VSE OK" if not napak else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

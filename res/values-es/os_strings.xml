@@ -670,4 +670,16 @@
     <string name="apk_posodobitve">Safeer no actualiza esta aplicación por sí solo.</string>
     <string name="os_zasloni_potrdi_na">Confirma compartir la pantalla en %1$s.</string>
     <string name="os_zasloni_ni_uspelo">No se pudo pedir la pantalla a %1$s.</string>
+    <string name="os_zasloni_naslov">Pantallas conectadas</string>
+    <string name="os_zasloni_dostopno">Toca para ver</string>
+    <string name="os_zasloni_preverjam">Comprobando el permiso …</string>
+    <string name="os_zasloni_ni_odgovora">Sin respuesta – toca para intentarlo</string>
+    <string name="os_zasloni_caka">La solicitud de acceso espera la confirmación en el dispositivo</string>
+    <string name="os_zasloni_zavrnjeno">El acceso se rechazó en el dispositivo</string>
+    <string name="os_zasloni_prosnja">Sin permiso – toca para pedir acceso</string>
+    <string name="os_zasloni_brez_povezave">Sin conexión</string>
+    <string name="os_zasloni_brez_povezave_opis">%1$s no está ahora en Safeer Link. Cuando se conecte, podrás verlo aquí.</string>
+    <string name="os_zasloni_prazno_ni_linka">Safeer Link no está conectado. Cuando este dispositivo se conecte, aquí estarán todos los que comparten su pantalla contigo.</string>
+    <string name="os_zasloni_prazno_ni_naprav">No hay otro dispositivo con pantalla en Safeer Link. Conecta un ordenador (Linux o Windows), un televisor, una tableta u otro teléfono.</string>
+    <string name="os_zasloni_prazno_ni_dovoljenj">Hay dispositivos con pantalla en Safeer Link, pero ninguno te permite verla todavía. Su propietario concede el acceso en ese dispositivo: Safeer Link → Dispositivos conectados → este dispositivo → Pantalla.</string>
 </resources>

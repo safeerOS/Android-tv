@@ -60,15 +60,15 @@ android {
         tablica {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.tablet'
-            versionCode = 111
-            versionName = '0.5.86'
+            versionCode = 113
+            versionName = '0.5.88'
         }
         // Safeer OS Mobile: telefonska lupina nad istim Safeer OS jedrom.
         telefon {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.phone'
-            versionCode = 111
-            versionName = '0.5.86'
+            versionCode = 113
+            versionName = '0.5.88'
         }
         // Safeer Predvajalnik: samostojna aplikacija (telefon, tablica) - Safeer Media brez zaganjalnika.
         // Ista koda kot Medijski center v Safeer OS; "Odpri z" za video in zvok, Stremio/Kodi dodatki.

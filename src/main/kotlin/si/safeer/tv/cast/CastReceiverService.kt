@@ -957,8 +957,13 @@ class CastReceiverService : Service() {
                     val gledalec = posiljatelj == DostopPravila.GLEDALEC
                     val znakGledalca = parametri.optString(DostopPravila.PARAM_ZNAK_GLEDALCA, "")
                     parametri.remove(DostopPravila.PARAM_ZNAK_GLEDALCA)
-                    val dovoljeno = if (gledalec) Dostop.smeGledalec(this, dejanje, znakGledalca)
-                    else Dostop.smeDejanje(this, posiljatelj, dejanje, zascitaJedro)
+                    // Povezani zasloni: »deli cel zaslon« (apps.launch s CEL_ZASLON) ni le zagon programa - zahteva tudi
+                    // zaslon (kot screen.start), gledalec pa ga ne sme nikoli. Potrditev Androida na tej napravi ostane.
+                    val celZaslon = dejanje.trim().lowercase() == "apps.launch" &&
+                        si.safeer.tv.link.Daljinec.CEL_ZASLON in setOf(parametri.optString("app", ""), parametri.optString("package", ""))
+                    val dovoljeno = (if (gledalec) Dostop.smeGledalec(this, dejanje, znakGledalca)
+                    else Dostop.smeDejanje(this, posiljatelj, dejanje, zascitaJedro)) &&
+                        (!celZaslon || (!gledalec && Dostop.smeDejanje(this, posiljatelj, "screen.start", zascitaJedro)))
                     if (!dovoljeno) {
                         if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje))
                         return

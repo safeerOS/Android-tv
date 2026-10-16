@@ -15,7 +15,6 @@ import si.safeer.tv.os.Robovi
 import si.safeer.tv.os.Scit
 import si.safeer.tv.os.Sosed
 import si.safeer.tv.os.SpletneAplikacije
-import si.safeer.tv.os.ZaslonActivity
 
 import android.app.Activity
 import android.app.AlertDialog
@@ -79,7 +78,6 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onPause() {
-        if (cakamZaslon) { cakamZaslon = false; glavna.removeCallbacks(zaslonNiPrisel) }
         if (si.safeer.tv.os.Predaja.prikaz != null) { si.safeer.tv.os.Predaja.prikaz = null; si.safeer.tv.os.PredajaObvestilo.umakniPasico() }
         super.onPause()
     }
@@ -568,47 +566,12 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     // ------------------------------------------------------------------ Prikaz vsebine in stanja
 
     /**
-     * Povezani zasloni: ena naprava, ki deli zaslon, se odpre takoj; kadar jih je vec, uporabnik
-     * izbere, katero gleda na tablici.
+     * Povezani zasloni: seznam vseh naprav z zaslonom, ki jih ta naprava sme gledati, s prosnjami in napravami brez
+     * povezave (os/PovezaniZasloni, pravila v os/SeznamZaslonov). Kartica je vedno na domacem zaslonu; okno se osvezuje
+     * samo, zato ne cakamo vec, da se Link poveze (prej: »Povezujem« in okno »ni povezano« po 4 s).
      */
     private fun odpriZaslon() {
-        // Racunalniki (zaslon racunalnika) in naprave Android, ki delijo cel zaslon (lastnik, 11. 10. 2026: »dodaj ostale«).
-        val naprave = link.naprave.filter {
-            !link.jeTaNaprava(it) && (it.zmoznosti.contains("desktop") ||
-                it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
-        }
-        fun odpri(r: LinkOdjemalec.Naprava) {
-            if (!r.zmoznosti.contains("desktop")) { si.safeer.tv.os.PovezaniZasloni.zaprosi(this, link, r); return }
-            odpriVarno(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id),
-                getString(R.string.tablet_zaslon))
-        }
-        when (naprave.size) {
-            // Link se pravkar povezuje (zasuk zaslona, vrnitev v aplikacijo): naprave pridejo cez trenutek. Pocakamo,
-            // namesto da uporabniku recemo, naj napravo poveze.
-            0 -> if (link.povezan) pokaziOknoNiPovezano(getString(R.string.tablet_zaslon)) else pocakajNaZaslon()
-            1 -> odpri(naprave[0])
-            else -> AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(getString(R.string.tablet_zaslon))
-                .setItems(naprave.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i -> odpri(naprave[i]) }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-        }
-    }
-
-    /** »Povezani zasloni« dotaknjeni, ko se Link se povezuje: cakamo na naprave (false = ne cakamo). */
-    private var cakamZaslon = false
-    private val cakajLinkMs = 4_000L
-    private val zaslonNiPrisel = Runnable {
-        cakamZaslon = false
-        if (!isFinishing) pokaziOknoNiPovezano(getString(R.string.tablet_zaslon))
-    }
-
-    /** Pocaka na naprave (najvec [cakajLinkMs]); [naNaprave] zaslon odpre, takoj ko racunalnik pride. */
-    private fun pocakajNaZaslon() {
-        if (cakamZaslon) return
-        cakamZaslon = true
-        Toast.makeText(this, getString(R.string.os_stanje_povezujem), Toast.LENGTH_SHORT).show()
-        glavna.postDelayed(zaslonNiPrisel, cakajLinkMs)
+        si.safeer.tv.os.PovezaniZasloni.pokaziSeznam(this, link)
     }
 
     private fun racunalnik(zmoznost: String): LinkOdjemalec.Naprava? =
@@ -946,12 +909,6 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (datoteke != imamoDatoteke || programi != imamoPrograme || zaslon != imamoZaslon) narisi()
         else narisiNaprave()
         if (!datoteke && !programi && !zaslon) isci()
-        // Uporabnik je »Povezane zaslone« dotaknil, preden se je Link povezal: racunalnik je tu, odpremo.
-        if (cakamZaslon && zaslon) {
-            cakamZaslon = false
-            glavna.removeCallbacks(zaslonNiPrisel)
-            odpriZaslon()
-        }
         si.safeer.tv.os.AplikacijeHostaActivity.predhodno(this)
     }
 
