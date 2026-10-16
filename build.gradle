@@ -67,8 +67,8 @@ android {
         telefon {
             dimension = 'aplikacija'
             applicationId = 'si.safeer.phone'
-            versionCode = 111
-            versionName = '0.5.86'
+            versionCode = 112
+            versionName = '0.5.87'
         }
         // Safeer Predvajalnik: samostojna aplikacija (telefon, tablica) - Safeer Media brez zaganjalnika.
         // Ista koda kot Medijski center v Safeer OS; "Odpri z" za video in zvok, Stremio/Kodi dodatki.
