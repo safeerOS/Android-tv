@@ -268,6 +268,14 @@ object HubMesh {
                 if (!sprejet) { sprejet = true; zavrnjen.remove(h.id) }
                 try { u.obdelaj(povezava, text) } catch (e: Throwable) { SafeerLog.napaka("Mesh", "obdelaj", e) }
             }
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                // Sosed je povezavo zaprl (npr. zamenjal z novejso): takoj jo zakljucimo tudi mi. Brez tega je ostala
+                // med zivimi in odgovori so sli v zaprto vticnico (17. 10. 2026: apps.list/files.list s tablice so se
+                // izgubili - Broken pipe -, racunalnik je po 15 s javil »Naprava ni odgovorila«).
+                povezava.zaprta = true
+                try { webSocket.close(1000, null) } catch (_: Throwable) { }
+                konec()
+            }
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 if (!povezava.zaprta && code != 1000) Log.i(TAG, "Sosed ${h.id}: povezavo je zaprl ($code ${reason.take(60)})")
                 konec()
