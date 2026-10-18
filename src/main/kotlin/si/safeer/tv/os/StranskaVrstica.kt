@@ -212,6 +212,9 @@ class StranskaVrstica private constructor(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         viewTreeObserver.addOnGlobalFocusChangeListener(this)
+        // Fokus, ki ga zaslon dobi ze v onCreate (pred pripetjem okna), poslusalec ne vidi: meni je ostal razsirjen,
+        // ceprav je bil fokus v vsebini, do prvega pritiska na daljinec (TV, Domov in Programi, 18. 10. 2026).
+        post { dejavnost.currentFocus?.let { onGlobalFocusChanged(null, it) } }
     }
 
     override fun onDetachedFromWindow() {
