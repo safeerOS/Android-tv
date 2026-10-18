@@ -39,6 +39,8 @@ class StranskaVrstica private constructor(
     private val besedila = ArrayList<View>()
     private val postavke = LinkedHashMap<Razdelek, View>()
     private var zadnjiFokusVsebine: View? = null
+    /** Zadnji fokus je bil v vsebini (ne v meniju): ce pogled s fokusom izgine, gre fokus spet v vsebino. */
+    private var fokusVVsebini = false
 
     /** Naprava z dotikom: vrstico skrije poteg proti levemu robu, prikaze poteg z roba ali rocaj.
      *  TV (daljinec): kot stranske vrstice brskalnikov - v vsebini skrcena na ikone, v meniju razsirjena. */
@@ -219,6 +221,7 @@ class StranskaVrstica private constructor(
 
     override fun onGlobalFocusChanged(stari: View?, novi: View?) {
         if (novi != null && jePotomec(vsebina, novi)) zadnjiFokusVsebine = novi
+        if (novi != null) fokusVVsebini = jePotomec(vsebina, novi)
         // TV: v vsebini skrcena na ikone (vec prostora), ob vstopu v meni razsirjena z imeni.
         if (!dotik && novi != null) {
             val vMeniju = jePotomec(meni, novi)
@@ -253,12 +256,52 @@ class StranskaVrstica private constructor(
             return true
         }
         if (dogodek.keyCode != KeyEvent.KEYCODE_DPAD_LEFT || !jePotomec(vsebina, fokus)) return false
+        // Mreza (GridView) je za iskanje fokusa en sam pogled: levo od vsake ploscice je nasla meni, zato je LEVO sredi
+        // mreze odprlo meni namesto premika na sosednjo ploscico (lastnik, 18. 10. 2026). Dokler izbrana ploscica ni v
+        // prvem stolpcu, LEVO premakne izbiro po mrezi - to naredi mreza sama.
+        if (fokus is android.widget.GridView && !naLevemRobu(fokus)) return false
         val levo = fokus.focusSearch(View.FOCUS_LEFT)
         if (levo == null || levo === fokus || jePotomec(meni, levo)) {
             aktivnaPostavka.requestFocus()
             return true
         }
         return false
+    }
+
+    /** Izbrana ploscica mreze je v prvem stolpcu (ali izbire ni): LEVO od tod vodi v meni. */
+    private fun naLevemRobu(mreza: android.widget.GridView): Boolean {
+        val stolpci = mreza.numColumns
+        val izbrana = mreza.selectedItemPosition
+        return stolpci <= 1 || izbrana < 0 || izbrana % stolpci == 0
+    }
+
+    /**
+     * GOR, DOL in DESNO iz vsebine ostanejo v vsebini. Iskanje fokusa Androida gleda le razdalje, mreza pa zanj steje
+     * samo svojo zadnjo izbrano ploscico (lahko cisto desno ali nizje): z vrstice cipov je DOL zato nasel meni
+     * (Programi) namesto mreze tik pod cipom, GOR s prve vrstice cipov pa Domov - meni se je razsiril in vsebina je
+     * skocila vstran (lastnik, 18. 10. 2026). V meni vodi samo LEVO z levega roba vsebine ([prestrezi]); kadar v
+     * vsebini v tisti smeri ni nicesar, fokus ostane, kjer je.
+     */
+    override fun focusSearch(focused: View?, direction: Int): View? {
+        val koren = vsebina as? ViewGroup
+        if (!dotik && !spodnja && koren != null && focused != null && focused !== koren && jePotomec(koren, focused) &&
+            (direction == View.FOCUS_UP || direction == View.FOCUS_DOWN || direction == View.FOCUS_RIGHT)) {
+            return android.view.FocusFinder.getInstance().findNextFocus(koren, focused, direction)
+        }
+        return super.focusSearch(focused, direction)
+    }
+
+    /**
+     * Pogled s fokusom je izginil (vsebina se je na novo izrisala): Android fokus podeli prvemu pogledu na zaslonu, to
+     * je meni na levi - meni se je razsiril in vsebina poskocila, cez hip pa se je vse vrnilo. Kadar je bil fokus
+     * nazadnje v vsebini, ga zdaj dobi spet vsebina (isti cilj kot DESNO iz menija); ob odprtju zaslona ostane, kot je bilo.
+     */
+    override fun onRequestFocusInDescendants(direction: Int, previouslyFocusedRect: android.graphics.Rect?): Boolean {
+        if (!dotik && !spodnja && fokusVVsebini && vsebina.visibility == View.VISIBLE) {
+            fokusVsebine()
+            if (vsebina.hasFocus()) return true
+        }
+        return super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
     }
 
     fun fokusVsebine() {

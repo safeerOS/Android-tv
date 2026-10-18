@@ -146,10 +146,19 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Izbrani program je bil komaj viden (bled izbor) in zgornja vrsta je pod glavo bledela, kot
         // da je odrezana. Zdaj: svetel okvir cez kartico, kartica se rahlo poveca, brez bledenja.
         val d = resources.displayMetrics.density
-        mreza.selector = android.graphics.drawable.GradientDrawable().apply {
+        // Okvir kaze SAMO pravi fokus. Mreza svoj izbirnik narise vedno, ko ima izbrano mesto, ob izgubi fokusa mu le
+        // odvzame stanje: navaden GradientDrawable stanja ne pozna, zato je okvir ostal na ploscici, ko je bil fokus ze
+        // na cipu ali v meniju (dve oznaki hkrati), po razsiritvi menija pa celo med dvema ploscicama na stari legi
+        // (lastnik, 18. 10. 2026). Zdaj je okvir viden samo s fokusom (ali ob pritisku na dotik), sicer je prozoren.
+        fun okvir() = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = 14 * d
             setColor(android.graphics.Color.parseColor("#222DD4BF"))
             setStroke((3 * d).toInt(), android.graphics.Color.parseColor("#2DD4BF"))
+        }
+        mreza.selector = android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_focused), okvir())
+            addState(intArrayOf(android.R.attr.state_pressed), okvir())
+            addState(intArrayOf(), android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
         }
         mreza.setDrawSelectorOnTop(true)
         mreza.isVerticalFadingEdgeEnabled = false
@@ -157,7 +166,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             private var prejsnji: View? = null
             override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, i: Int, id: Long) {
                 prejsnji?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(100)?.start()
-                v?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(100)?.start()
+                // Izbira se premakne tudi brez fokusa (osvezitev seznama, druga skupina): povecana je samo ploscica s fokusom.
+                if (mreza.isFocused) v?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(100)?.start()
                 prejsnji = v
             }
             override fun onNothingSelected(p: android.widget.AdapterView<*>?) {
@@ -409,7 +419,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         when {
             izbran != null -> vidni.indexOfFirst { it.kljuc == izbran }.takeIf { it >= 0 }?.let { mreza.setSelection(it) }
             vrsta != null -> vrsta.post {
-                (0 until vrsta.childCount).map { vrsta.getChildAt(it) }.firstOrNull { it.isActivated }?.requestFocus()
+                // Fokus je ostal na istem cipu (zamenjava na mestu): tam naj tudi ostane - nic ne skoci pod prstom.
+                if (!vrsta.hasFocus()) (0 until vrsta.childCount).map { vrsta.getChildAt(it) }.firstOrNull { it.isActivated }?.requestFocus()
             }
             bilPrazen && programi.isNotEmpty() && !premaknil -> { mreza.requestFocus(); mreza.setSelection(0) }
         }
@@ -493,9 +504,10 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         skupineDrsnik.visibility = if (kaziSkupine) View.VISIBLE else View.GONE
         if (!kaziSkupine) { izbranaSkupina = ""; return }
         if (izbranaSkupina.isNotEmpty() && !stevila.containsKey(izbranaSkupina)) izbranaSkupina = ""
-        skupineVrsta.removeAllViews()
-        skupineVrsta.addView(gumbSkupine("", getString(R.string.os_skupina_vse), seznam.size))
-        for ((kljuc, n) in stevila) skupineVrsta.addView(gumbSkupine(kljuc, imeSkupine(kljuc), n))
+        val cipi = ArrayList<View>()
+        cipi.add(gumbSkupine("", getString(R.string.os_skupina_vse), seznam.size))
+        for ((kljuc, n) in stevila) cipi.add(gumbSkupine(kljuc, imeSkupine(kljuc), n))
+        zamenjajCipe(skupineVrsta, cipi)
     }
 
     /**
@@ -514,12 +526,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val vrsta = findViewById<LinearLayout>(R.id.naprave)
         val drsnik = findViewById<View>(R.id.napraveDrsnik)
         viriVrsta = vrsta
-        vrsta.removeAllViews()
+        val cipi = ArrayList<View>()
         // Izbrana naprava je za hip izginila: njen cip ostane (0 programov), dokler se ne vrne ali ne potece rok.
         if ((izbraniVir to izbranaNaprava) in izbire) izbraneNiOd = 0L
         else if (izbraniVir == AppVir.RACUNALNIK && pocakajIzbrano()) izbire.add(AppVir.RACUNALNIK to izbranaNaprava)
         else { izbraniVir = null; izbranaNaprava = null; izbraneNiOd = 0L }
-        if (izbire.size < 3 && izbranaNaprava == null) { drsnik.visibility = View.GONE; izbraniVir = null; return }
+        if (izbire.size < 3 && izbranaNaprava == null) { drsnik.visibility = View.GONE; vrsta.removeAllViews(); izbraniVir = null; return }
         drsnik.visibility = View.VISIBLE
         for ((v, id) in izbire) {
             val n = when {
@@ -529,6 +541,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             val ime = if (id != null) imenaNaprav[id].orEmpty() else imeVira(v)
             val g = gumb(getString(R.string.os_skupina_s_stevilom, ime, n), v == izbraniVir && id == izbranaNaprava)
+            g.tag = "vir:" + (v?.kljuc ?: "") + ":" + (id ?: "")
             g.setOnClickListener {
                 if (izbraniVir == v && izbranaNaprava == id) return@setOnClickListener
                 izbraniVir = v
@@ -538,9 +551,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 osveziSeznam()
                 obdrziFokusNaCipu()
             }
-            g.setOnFocusChangeListener { _, ima -> if (ima) (drsnik as HorizontalScrollView).requestChildRectangleOnScreen(g, android.graphics.Rect(0, 0, g.width, g.height), false) }
-            vrsta.addView(g)
+            // Nov cip (zamenjava na mestu) se nima mer: takrat ga na zaslon pomakne drsnik sam po postavitvi.
+            g.setOnFocusChangeListener { _, ima -> if (ima && g.width > 0) (drsnik as HorizontalScrollView).requestChildRectangleOnScreen(g, android.graphics.Rect(0, 0, g.width, g.height), false) }
+            cipi.add(g)
         }
+        zamenjajCipe(vrsta, cipi)
     }
 
     /**
@@ -552,19 +567,20 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val vrsta = findViewById<LinearLayout>(R.id.naprave)
         val drsnik = findViewById<View>(R.id.napraveDrsnik)
         viriVrsta = vrsta
-        vrsta.removeAllViews()
+        val cipi = ArrayList<View>()
         // Izbrana naprava je za hip izginila: njen cip ostane (0 programov), dokler se ne vrne ali ne potece rok.
         val izbrana = izbranaNaprava
         if (izbrana == null || izbrana in prisotne) izbraneNiOd = 0L
         else if (pocakajIzbrano()) prisotne = prisotne + izbrana
         else { izbranaNaprava = null; izbraneNiOd = 0L }
-        if (prisotne.size < 2 && izbranaNaprava == null) { drsnik.visibility = View.GONE; return }
+        if (prisotne.size < 2 && izbranaNaprava == null) { drsnik.visibility = View.GONE; vrsta.removeAllViews(); return }
         znacka.visibility = View.GONE
         drsnik.visibility = View.VISIBLE
         for (id in listOf<String?>(null) + prisotne) {
             val n = if (id == null) oddaljeni.size else oddaljeni.count { it.racunalnik == id }
             val ime = if (id == null) getString(R.string.os_vir_vse) else imenaNaprav[id].orEmpty()
             val g = gumb(getString(R.string.os_skupina_s_stevilom, ime, n), id == izbranaNaprava)
+            g.tag = "naprava:" + (id ?: "")
             g.setOnClickListener {
                 if (izbranaNaprava == id) return@setOnClickListener
                 izbranaNaprava = id
@@ -573,9 +589,27 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 osveziSeznam()
                 obdrziFokusNaCipu()
             }
-            g.setOnFocusChangeListener { _, ima -> if (ima) (drsnik as HorizontalScrollView).requestChildRectangleOnScreen(g, android.graphics.Rect(0, 0, g.width, g.height), false) }
-            vrsta.addView(g)
+            // Nov cip (zamenjava na mestu) se nima mer: takrat ga na zaslon pomakne drsnik sam po postavitvi.
+            g.setOnFocusChangeListener { _, ima -> if (ima && g.width > 0) (drsnik as HorizontalScrollView).requestChildRectangleOnScreen(g, android.graphics.Rect(0, 0, g.width, g.height), false) }
+            cipi.add(g)
         }
+        zamenjajCipe(vrsta, cipi)
+    }
+
+    /**
+     * Nove cipe postavi v vrsto, ne da bi fokus izgubil tla. Prej je vrsta najprej odstranila vse cipe: cip s fokusom
+     * je izginil, Android je fokus dal prvemu pogledu na zaslonu - meniju na levi -, meni se je razsiril in mreza je
+     * skocila vstran, cez hip pa je fokus odsel nazaj na cip in meni se je skrcil (ob vsaki osvezitvi seznama po Safeer
+     * Linku; lastnik, 18. 10. 2026). Zdaj fokus najprej preide na novi cip z isto oznako (ali na izbranega), sele nato
+     * stari cipi odidejo.
+     */
+    private fun zamenjajCipe(vrsta: LinearLayout, novi: List<View>) {
+        val stari = (0 until vrsta.childCount).map { vrsta.getChildAt(it) }
+        val fokus = vrsta.focusedChild
+        novi.forEach { vrsta.addView(it) }
+        if (fokus != null) (novi.firstOrNull { it.tag != null && it.tag == fokus.tag }
+            ?: novi.firstOrNull { it.isActivated } ?: novi.firstOrNull())?.requestFocus()
+        stari.forEach { vrsta.removeView(it) }
     }
 
     private fun gumb(besedilo: String, aktiven: Boolean): TextView {
@@ -621,7 +655,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         t.tag = kljuc
         // Skupina, ki ima fokus, mora ostati vidna, tudi ko jih je vec, kot gre na zaslon.
         t.setOnFocusChangeListener { _, ima ->
-            if (ima) skupineDrsnik.post { skupineDrsnik.requestChildRectangleOnScreen(t,
+            if (ima) skupineDrsnik.post { if (t.width > 0) skupineDrsnik.requestChildRectangleOnScreen(t,
                 android.graphics.Rect(0, 0, t.width, t.height), false) }
         }
         return t
@@ -920,6 +954,10 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val v = star ?: LayoutInflater.from(this@AplikacijeHostaActivity)
                 .inflate(R.layout.os_kartica_program, roditelj, false)
             val p = vidni[i]
+            // Reciklirana kartica ne sme ostati povecana od prejsnje izbire: povecana je samo izbrana s fokusom.
+            v.animate().cancel()
+            val povecava = if (mreza.isFocused && i == mreza.selectedItemPosition) 1.05f else 1f
+            v.scaleX = povecava; v.scaleY = povecava
             val ikona = v.findViewById<ImageView>(R.id.ikona)
             if (p.ikona != null) ikona.setImageDrawable(p.ikona)
             else ikona.setImageResource(if (p.vir == AppVir.RACUNALNIK) R.drawable.os_ikona_racunalnik else R.drawable.os_ikona_mreza)
