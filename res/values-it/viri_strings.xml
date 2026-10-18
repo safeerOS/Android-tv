@@ -10,4 +10,5 @@
     <string name="link_viri_niti_naslov">Safeer Link: il sistema non consente altre attività</string>
     <string name="link_viri_niti">Il sistema non consente altre attività simultanee (thread). I nuovi dispositivi della cerchia non vengono accettati ora (rifiutati: %1$d). Chiudi un’app o riavvia Safeer.</string>
     <string name="link_viri_zaseden">Il dispositivo «%1$s» ha ora poche risorse (connessioni o memoria) per una nuova connessione. Riproverò da solo.</string>
+    <string name="link_viri_zaseden_naslov">Safeer Link: dispositivo occupato</string>
 </resources>

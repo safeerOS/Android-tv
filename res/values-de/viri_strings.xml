@@ -10,4 +10,5 @@
     <string name="link_viri_niti_naslov">Safeer Link: das System erlaubt keine weiteren Aufgaben</string>
     <string name="link_viri_niti">Das System erlaubt keine weiteren gleichzeitigen Aufgaben (Threads). Neue Geräte aus dem Kreis werden gerade nicht angenommen (abgelehnt: %1$d). Schließe eine App oder starte Safeer neu.</string>
     <string name="link_viri_zaseden">Das Gerät „%1$s“ hat gerade zu wenige Ressourcen (Verbindungen oder Arbeitsspeicher) für eine neue Verbindung. Ich versuche es selbst erneut.</string>
+    <string name="link_viri_zaseden_naslov">Safeer Link: Gerät ist ausgelastet</string>
 </resources>

@@ -65,8 +65,8 @@ class HubTokovi(
      */
     @Volatile var naVnosGledalca: ((String, String, String) -> Unit)? = null
 
-    /** Besedilo odgovora, kadar naprava nima virov za tok (ni_virov); krmilnik ga nastavi v jeziku uporabnika. */
-    @Volatile var besediloBrezVirov: () -> String = { ViriNaprave.BESEDILO_BREZ_VIROV }
+    /** Telo odgovora 503, kadar naprava nima virov za tok (ni_virov); krmilnik ga nastavi v jeziku uporabnika z imenom naprave. */
+    @Volatile var teloBrezVirov: () -> String = { "{\"napaka\":\"${ViriNaprave.BESEDILO_BREZ_VIROV}\",\"code\":\"${ViriNaprave.KODA}\"}" }
 
     // ------------------------------------------------------------------ zaslon
 
@@ -583,7 +583,7 @@ class HubTokovi(
     }
 
     private fun odgovoriBrezVirov(izhod: OutputStream) =
-        odgovori(izhod, 503, "{\"napaka\":\"${ubezi(besediloBrezVirov())}\",\"code\":\"${ViriNaprave.KODA}\"}")
+        odgovori(izhod, 503, try { teloBrezVirov() } catch (_: Throwable) { "{\"code\":\"${ViriNaprave.KODA}\"}" })
 
     private fun ubezi(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
 

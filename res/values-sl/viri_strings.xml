@@ -10,4 +10,5 @@
     <string name="link_viri_niti_naslov">Safeer Link: sistem ne dovoli več opravil</string>
     <string name="link_viri_niti">Sistem ne dovoli več hkratnih opravil (niti). Novih naprav iz kroga zdaj ne sprejme (zavrnjenih: %1$d). Zapri kakšno aplikacijo ali znova zaženi Safeer.</string>
     <string name="link_viri_zaseden">Naprava »%1$s« ima zdaj premalo virov (povezav ali pomnilnika) za novo povezavo. Poskusim znova sam.</string>
+    <string name="link_viri_zaseden_naslov">Safeer Link: naprava je zasedena</string>
 </resources>

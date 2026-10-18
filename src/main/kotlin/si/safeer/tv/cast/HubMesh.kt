@@ -219,6 +219,7 @@ object HubMesh {
             val nonce = j.optString("nonce")
             val odtis = j.optString("fp").ifBlank { zaupnik.videni.orEmpty() }
             if (koda == 0) { Log.i(TAG, "${h.id}: ni dosegljiv${if (prekReleja) " prek releja" else ""}"); nedosegljiv(zaupnik.videniKljuc); return@klic }
+            if (koda == 503) sosedBrezVirov(app, h, telo)
             if (koda != 200 || nonce.isBlank() || odtis.isBlank()) {
                 // 401 = sosed nas (se) nima v svojem krogu (npr. telefon po ponovni seznanitvi): ne trkamo vsakih 20 s,
                 // ampak s premorom, ki raste; oglas mDNS ali njegov klic k nam ga izbrise.
@@ -235,10 +236,18 @@ object HubMesh {
                 .put("platform", HubKrmilnik.platforma(app))) { koda2, telo2 ->
                 val j2 = try { JSONObject(telo2) } catch (_: Throwable) { JSONObject() }
                 val vstopnica = j2.optString("ticket")
+                if (koda2 == 503) sosedBrezVirov(app, h, telo2)
                 if (koda2 != 200 || vstopnica.isBlank()) { Log.i(TAG, "${h.id}: vstopnice ni ($koda2)"); klicem.remove(h.id); return@klic }
                 odpri(app, u, h, client, "${h.naslov}?ticket=$vstopnica")
             }
         }
+    }
+
+    /** Sosed je odgovoril ni_virov (nima virov za nas): uporabnik izve, kateri (najvec na 10 min); poskus se ponovi sam. */
+    private fun sosedBrezVirov(app: Context, h: HubDiscovery.NajdeniHub, odgovor: String?) {
+        val ime = (try { KrogNaprave.krog(app).clanZaId(h.id)?.ime } catch (_: Throwable) { null })
+            ?.takeIf { it.isNotBlank() } ?: h.ime.ifBlank { h.id }
+        HubStoritev.preveriZavrnitevVirov(app, odgovor, ime)
     }
 
     private fun odpri(app: Context, u: HubUsmerjevalnik, h: HubDiscovery.NajdeniHub, client: OkHttpClient, url: String) {
@@ -267,6 +276,7 @@ object HubMesh {
                 if (j?.niz("type") == "cast.ack" && j.niz("status") == "rejected") {
                     // Sosed nas ne sprejme (npr. ze ima povezavo, ki jo je odprl sam): vticnico zapremo takoj.
                     Log.i(TAG, "${h.id} nas ni sprejel (${j.niz("error_code").orEmpty()})")
+                    sosedBrezVirov(app, h, text)
                     val prej = zavrnjen[h.id]?.second ?: 0L
                     val premor = (if (prej == 0L) PREMOR_MS else prej * 2).coerceAtMost(NAJDALJSI_PREMOR_MS)
                     zavrnjen[h.id] = (System.currentTimeMillis() + premor) to premor
@@ -288,6 +298,7 @@ object HubMesh {
                 konec()
             }
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (response?.code == 503) sosedBrezVirov(app, h, try { response.body?.string() } catch (_: Throwable) { null })
                 // Vzrok v dnevnik: brez njega se padca sosednje povezave med prenosom ne da pojasniti.
                 if (!povezava.zaprta) Log.i(TAG, "Sosed ${h.id}: povezava prekinjena (${t.javaClass.simpleName}: ${t.message.orEmpty().take(120)})")
                 konec()
@@ -301,16 +312,32 @@ object HubMesh {
         povezava.ws = ws
     }
 
-    /** Povezava, ki smo jo odprli mi; OkHttp posilja v svoji niti, zato pocasen sosed ne ustavi Huba. */
+    /**
+     * Povezava, ki smo jo odprli mi; OkHttp posilja v svoji niti, zato pocasen sosed ne ustavi Huba. Pred OkHttp-jem je
+     * [VrstaSoseda]: cel seznam naprav starejsemu sosedu se v izhodni vrsti nadomesti po kljucu - kot na srediscu
+     * (HubStreznik) in na racunalniku (link_mesh). Do 0.5.91 je sel vsak cel seznam v OkHttp-jevo vrsto, kjer ga ni bilo
+     * mogoce zamenjati.
+     */
     private class Sosednja(override val naslov: String) : HubUsmerjevalnik.Odjemalec {
         @Volatile var ws: WebSocket? = null
         @Volatile var zaprta = false
-        override fun poslji(besedilo: String) {
+        private var vrsta: VrstaSoseda? = null
+        override fun poslji(besedilo: String) = vVrsto(besedilo, null)
+        override fun posljiNadomestljivo(besedilo: String, kljuc: String) = vVrsto(besedilo, kljuc)
+        private fun vVrsto(besedilo: String, kljuc: String?) {
             val w = ws ?: throw IllegalStateException("ni odprta")
-            if (zaprta || !w.send(besedilo)) throw IllegalStateException("sosednja povezava je zaprta")
+            if (zaprta) throw IllegalStateException("sosednja povezava je zaprta")
+            val v = synchronized(this) {
+                vrsta ?: VrstaSoseda({ w.send(it) }, { w.queueSize() }, {
+                    Log.w(TAG, "Sosed $naslov ne bere (polna izhodna vrsta) - povezavo zapiram")
+                    zapri(1008, "sosed ne bere")
+                }).also { vrsta = it }
+            }
+            if (!v.dodaj(besedilo, kljuc)) throw IllegalStateException("sosednja povezava je zaprta")
         }
         override fun zapri(koda: Int, razlog: String) {
             zaprta = true
+            synchronized(this) { vrsta }?.zapri()
             try { ws?.close(koda.coerceIn(1000, 4999).let { if (it == 1004 || it == 1005 || it == 1006) 1000 else it }, razlog.take(100)) } catch (_: Throwable) { }
         }
     }

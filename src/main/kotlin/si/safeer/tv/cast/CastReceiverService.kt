@@ -337,6 +337,21 @@ class CastReceiverService : Service() {
         }
     }
 
+    /**
+     * Sredisce je odgovorilo ni_virov (cast.ack ali HTTP 503): obvestilo z imenom naprave, ki nima virov - najvec enkrat na
+     * 10 min za isto napravo (HubStoritev.preveriZavrnitevVirov). Ponovna povezava ostane samodejna (scheduleReconnect).
+     */
+    private fun javiBrezVirov(odgovor: String?) {
+        ViriNaprave.zavrnitevIzOdgovora(odgovor) ?: return
+        val gostitelj = try { java.net.URI(aktivniUrl()).host.orEmpty().trim('[', ']') } catch (_: Throwable) { "" }
+        val lastna = try {
+            val n = java.net.InetAddress.getByName(gostitelj)
+            gostitelj.isNotEmpty() && (n.isLoopbackAddress || java.net.NetworkInterface.getByInetAddress(n) != null)
+        } catch (_: Throwable) { false }
+        val ime = HubKrmilnik.izvoljeniHub(this)?.ime?.takeIf { it.isNotBlank() } ?: gostitelj
+        HubStoritev.preveriZavrnitevVirov(this, odgovor, ime, lastna)
+    }
+
     private fun osnova(wsUrl: String): String =
         wsUrl.replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
             .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws").trimEnd('/')
@@ -347,7 +362,14 @@ class CastReceiverService : Service() {
             .post((telo?.toString() ?: "").toRequestBody("application/json".toMediaTypeOrNull()))
         client.newCall(z.build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: java.io.IOException) { naprej(0, "") }
-            override fun onResponse(call: Call, response: Response) { response.use { naprej(it.code, it.body?.string().orEmpty()) } }
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    val odgovor = it.body?.string().orEmpty()
+                    // Sredisce nima virov za to napravo (ni_virov): uporabnik izve, katera naprava; poskus se ponovi sam.
+                    if (it.code == 503) javiBrezVirov(odgovor)
+                    naprej(it.code, odgovor)
+                }
+            }
         })
     }
 
@@ -504,6 +526,7 @@ class CastReceiverService : Service() {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 if (moj != rod) return
+                if (response?.code == 503) javiBrezVirov(try { response.body?.string() } catch (_: Throwable) { null })
                 Log.w(TAG, "Povezava s hubom padla: ${t.message}. Poskus ponovne povezave...")
                 odklopljen()
                 scheduleReconnect()
@@ -893,6 +916,8 @@ class CastReceiverService : Service() {
 
             when (type) {
                 "cast.ack" -> {
+                    // Prijava ni sprejeta, ker sredisce nima virov: sredisce povezavo zapre (1013), ponovni poskus je samodejen.
+                    if (json.optString("error_code") == ViriNaprave.KODA) javiBrezVirov(json.toString())
                     if (json.optString("ref_id", "").isNotBlank()) {
                         try {
                             naPotrditev?.invoke(

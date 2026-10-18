@@ -41,6 +41,39 @@ class HubStoritev : Service() {
         private const val OBVESTILO_KODA = 4051
         private const val KANAL_VIRI = "safeer_link_viri"
         private const val OBVESTILO_VIRI = 4052
+        private const val OBVESTILO_DRUGA = 4053
+
+        /**
+         * Odjemalec (CastReceiverService, LinkOdjemalec, odhodni sosed v HubMesh): druga naprava v Linku je odgovorila
+         * ni_virov - nima virov za to napravo. Uporabnik izve v svojem jeziku, katera naprava (ime iz odgovora ali
+         * [privzetoIme]): najvec enkrat na 10 min za isto napravo (ViriNaprave.zavrnilaDruga), ne ob vsakem ponovnem
+         * poskusu; ponovna povezava ostane samodejna. [lastna]: sredisce na tej napravi - obvestilo je dalo ze samo.
+         * Vrne true, ce je bil odgovor ni_virov.
+         */
+        fun preveriZavrnitevVirov(context: Context, odgovor: String?, privzetoIme: String, lastna: Boolean = false): Boolean {
+            val ime = ViriNaprave.zavrnitevIzOdgovora(odgovor) ?: return false
+            if (lastna) return true
+            val koga = ime.ifBlank { privzetoIme }.ifBlank { "?" }.take(64)
+            if (!ViriNaprave.zavrnilaDruga(koga)) return true
+            try {
+                val upravitelj = context.getSystemService(NotificationManager::class.java) ?: return true
+                if (upravitelj.getNotificationChannel(KANAL_VIRI) == null) {
+                    upravitelj.createNotificationChannel(NotificationChannel(KANAL_VIRI, context.getString(R.string.link_viri_kanal),
+                        NotificationManager.IMPORTANCE_DEFAULT).apply { description = context.getString(R.string.link_viri_kanal_opis) })
+                }
+                val telo = context.getString(R.string.link_viri_zaseden, koga)
+                upravitelj.notify(OBVESTILO_DRUGA, Notification.Builder(context, KANAL_VIRI)
+                    .setContentTitle(context.getString(R.string.link_viri_zaseden_naslov))
+                    .setContentText(telo)
+                    .setStyle(Notification.BigTextStyle().bigText(telo))
+                    .setSmallIcon(android.R.drawable.stat_sys_warning)
+                    .setAutoCancel(true)
+                    .build())
+            } catch (e: Throwable) {
+                Log.w(TAG, "Obvestila o zasedeni napravi ni bilo mogoce prikazati: ${e.message}")
+            }
+            return true
+        }
 
         /**
          * Clan kroga ni bil sprejet, ker tej napravi zmanjkuje virov (ViriNaprave; isto kot core/link_viri.py na

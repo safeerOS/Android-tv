@@ -10,4 +10,5 @@
     <string name="link_viri_niti_naslov">Safeer Link: el sistema no permite más tareas</string>
     <string name="link_viri_niti">El sistema no permite más tareas simultáneas (hilos). Ahora no se aceptan nuevos dispositivos del círculo (rechazados: %1$d). Cierra alguna aplicación o reinicia Safeer.</string>
     <string name="link_viri_zaseden">El dispositivo «%1$s» tiene ahora pocos recursos (conexiones o memoria) para una nueva conexión. Lo volveré a intentar yo solo.</string>
+    <string name="link_viri_zaseden_naslov">Safeer Link: el dispositivo está ocupado</string>
 </resources>

@@ -226,7 +226,7 @@ internal fun HubUsmerjevalnik.odgovoriDeljenje(zahteva: HubStreznik.Zahteva, pot
         }
         zasedi(cilj, posiljatelj, "screen")?.let { kdo -> return odgovorZasedeno(cilj, kdo) }
         val (id, kljuc) = t.zacniZaslon(posiljatelj)
-            ?: run { sprosti(cilj, posiljatelj); return HubStreznik.Odgovor(503, napakaJson(besediloBrezVirovVarno(), ViriNaprave.KODA)) }
+            ?: run { sprosti(cilj, posiljatelj); return HubStreznik.Odgovor(503, odgovorBrezVirov()) }
         val potGledanja = "/cast/screen/$id/view?k=$kljuc"
         synchronized(kljucnica) {
             deljeniZasloni[id] = cilj

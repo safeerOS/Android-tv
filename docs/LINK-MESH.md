@@ -204,7 +204,16 @@ pravih članov z enega naslova, izrinjanje najstarejše bi jih večino vrglo ven
 **Izhodna vrsta:** cel seznam naprav STAREJŠEMU prejemniku (brez `devdelta1`) se v vrsti nadomesti po ključu
 (`HubStreznik.Povezava.poslji(nadomesti=)`, isto kot `link_ws` na računalniku). Prej je vrsta ugibala po vsebini (vsak
 `cast.devices`), tudi pri prejemniku, ki zna spremembe – posnetek je preskočil spremembo, ki je čakala za njim.
-Odhodna sosednja povezava (OkHttp, vrsta 16 MiB) nadomeščanja nima.
+Enako na odhodni sosednji povezavi (od 0.5.92): pred OkHttp-jem je `VrstaSoseda` – v OkHttp-jevi vrsti (iz katere
+sporočila ni mogoče zamenjati) največ 256 KiB, vse drugo čaka v vrsti z nadomeščanjem; sosed, ki ne bere, izpade pri 512
+sporočilih ali 16 MiB (prej meja OkHttp-ja 16 MiB).
+
+**Odjemalec** (od 0.5.92; `CastReceiverService`, `LinkOdjemalec`, odhodni sosed v `HubMesh`): ob odgovoru `ni_virov`
+(`cast.ack` ali HTTP 503) pokaže obvestilo »Safeer Link: naprava je zasedena – Naprava »X« ima zdaj premalo virov
+(povezav ali pomnilnika) za novo povezavo. Poskusim znova sam.« v šestih jezikih, največ enkrat na 10 min za isto
+napravo (ne ob vsakem ponovnem poskusu); ponovna povezava ostane samodejna. Ime pošlje središče v polju `name`, sicer ime
+iz kroga ali naslov. Če je središče na isti napravi, obvestilo da že središče samo. Vtičnica, ki je središče zaradi
+virov ne more streči, dobi 503 `ni_virov` z imenom (do 0.5.91 tiho zaprta).
 
 **Meritev 18. 10. 2026** (`tests/run_obremenitev.sh`, `OBREMENITEV_PONOVITEV=3` in en samostojen tek: 200 članov z ENEGA
 naslova hkrati – izziv, podpis ECDSA, vstopnica, WebSocket, prijava; pravo središče na zanki brez TLS, prenosnik z 8 jedri):

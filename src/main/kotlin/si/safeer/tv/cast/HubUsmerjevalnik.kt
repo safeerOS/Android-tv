@@ -146,6 +146,22 @@ class HubUsmerjevalnik(
 
     internal fun besediloBrezVirovVarno(): String = try { besediloBrezVirov() } catch (_: Throwable) { ViriNaprave.BESEDILO_BREZ_VIROV }
 
+    /** Ime te naprave, kot ga vidijo druge (HubKrmilnik: imeHuba): v odgovoru ni_virov odjemalec pove, katera nima virov. */
+    @Volatile var imeTeNaprave: () -> String = { "" }
+
+    private fun imeTeNapraveVarno(): String = try { imeTeNaprave() } catch (_: Throwable) { "" }
+
+    /** Telo odgovora HTTP 503, kadar ta naprava nima virov: koda ViriNaprave.KODA, besedilo in ime te naprave (`name`). */
+    fun odgovorBrezVirov(): String {
+        val besedilo = besediloBrezVirovVarno()
+        return JsonLahki.Zapis().niz("detail", besedilo).niz("napaka", besedilo).niz("code", ViriNaprave.KODA)
+            .niz("name", imeTeNapraveVarno()).toString()
+    }
+
+    /** Zavrnitev prijave (naprava, sosed) zaradi virov: kot potrditev, z imenom te naprave (`name`, od 0.5.92). */
+    private fun potrditevBrezVirov(id: String): String = ovojnica("cast.ack").niz("ref_id", id).niz("status", "rejected")
+        .niz("error", besediloBrezVirovVarno()).niz("error_code", ViriNaprave.KODA).niz("name", imeTeNapraveVarno()).toString()
+
     /** Povezave, ki jih po odgovoru zapremo (clan ni sprejet zaradi virov: ne sme drzati niti in deskriptorja). */
     private val zapriPoOdgovoru = java.util.Collections.newSetFromMap(java.util.WeakHashMap<Odjemalec, Boolean>())
 
@@ -1502,7 +1518,7 @@ class HubUsmerjevalnik(
         if (razlog.isNotEmpty()) {
             ViriNaprave.zabelezi(razlog, "naprava")
             synchronized(zapriPoOdgovoru) { zapriPoOdgovoru.add(od) }
-            return potrditev(id, "rejected", besediloBrezVirovVarno(), koda = ViriNaprave.KODA)
+            return potrditevBrezVirov(id)
         }
         // Ista naprava z novo povezavo (po izpadu, ponovnem zagonu): nova zamenja staro, stara se
         // zapre - za to poskrbi register.
@@ -1741,7 +1757,7 @@ class HubUsmerjevalnik(
         val razlog = if (novSosed) ViriNaprave.preveri(1, ViriNaprave.POMNILNIK_POVEZAVE) else ""
         if (razlog.isNotEmpty()) {
             ViriNaprave.zabelezi(razlog, "sosed")
-            return potrditev(id, "rejected", besediloBrezVirovVarno(), koda = ViriNaprave.KODA)
+            return potrditevBrezVirov(id)
         }
         // Sosed, ki zna spremembe seznama, to pove ze v prijavi; prvi seznam je vseeno posnetek.
         stanjeSeznama(od).zna = SeznamSprememb.ZMOZNOST in tovor.nizi("capabilities")

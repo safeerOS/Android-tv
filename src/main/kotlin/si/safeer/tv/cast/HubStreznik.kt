@@ -113,6 +113,14 @@ class HubStreznik(
 
     fun nadomestenih(): Long = nadomesceno.get()
 
+    /**
+     * Telo odgovora 503, kadar ta naprava nima virov za novo vticnico (koda ni_virov). Krmilnik ga nastavi z besedilom v
+     * jeziku uporabnika in imenom naprave (HubUsmerjevalnik.odgovorBrezVirov): odjemalec tako pove, katera naprava je
+     * zasedena, ne ugiba ob tiho zaprti vticnici.
+     */
+    @Volatile
+    var teloBrezVirov: () -> String = { "{\"napaka\":\"" + ViriNaprave.BESEDILO_BREZ_VIROV + "\",\"code\":\"" + ViriNaprave.KODA + "\"}" }
+
     /** Vrata, na katerih streznik dejansko poslusa (lahko se razlikujejo od zeljenih). */
     @Volatile
     var vrata: Int = 0
@@ -217,7 +225,13 @@ class HubStreznik(
             val razlog = ViriNaprave.preveri(1, 0L)
             if (razlog.isNotEmpty()) {
                 ViriNaprave.zabelezi(razlog, "sprejem")
-                zapriTiho(odjemalec)
+                // Odjemalec dobi jasen odgovor (503 ni_virov z imenom te naprave), ne tiho zaprte vticnice. Strezba je
+                // kratka ([ROK_BREZ_VIROV_MS]) in steje med nepreverjene; ce sistem niti ne da, vticnico samo zapremo.
+                for (tiha in sprejmiNepreverjeno(odjemalec, vir)) zapriTiho(tiha)
+                val zagnana = ViriNaprave.zazeniNit("safeer-hub-brez-virov", "sprejem") {
+                    try { odgovoriBrezVirov(odjemalec) } catch (_: Exception) { } finally { preverjena(odjemalec); zapriTiho(odjemalec) }
+                }
+                if (!zagnana) { preverjena(odjemalec); zapriTiho(odjemalec) }
                 continue
             }
             for (tiha in sprejmiNepreverjeno(odjemalec, vir)) zapriTiho(tiha)
@@ -282,6 +296,16 @@ class HubStreznik(
             val ms = System.currentTimeMillis() - n.ob
             if (ms > najdljeNepreverjenaMs) najdljeNepreverjenaMs = ms
         }
+    }
+
+    /** Vticnica, ki je zaradi virov ne strezemo: prebere zahtevo in odgovori 503 s [teloBrezVirov], v roku. */
+    private fun odgovoriBrezVirov(vticnica: Socket) {
+        vticnica.soTimeout = ROK_BREZ_VIROV_MS
+        if (vticnica is javax.net.ssl.SSLSocket) vticnica.startHandshake()
+        val vhod = vticnica.getInputStream().buffered()
+        preberiZahtevo(vhod, vticnica)
+        val telo = try { teloBrezVirov() } catch (_: Throwable) { "{\"code\":\"" + ViriNaprave.KODA + "\"}" }
+        posljiOdgovor(vticnica.getOutputStream(), Odgovor(503, telo))
     }
 
     private fun postrezi(vticnica: Socket) {
@@ -959,6 +983,8 @@ class HubStreznik(
         private const val SKUPNI_ZADRZEK_BREZ_MERITVE = 1L * 1024 * 1024
         /** Premor sprejemanja po napaki accept (npr. EMFILE), da zanka ne vrti procesorja. */
         private const val PREMOR_PO_NAPAKI_MS = 100L
+        /** Rok za odgovor ni_virov vticnici, ki je zaradi virov ne strezemo (rokovanje TLS in zahteva). */
+        private const val ROK_BREZ_VIROV_MS = 5_000
         private const val NAJVECJE_TELO = 64 * 1024
         private const val NAJVECJA_VRSTICA = 8 * 1024
         private const val NAJVEC_GLAV = 64

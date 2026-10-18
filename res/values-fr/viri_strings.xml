@@ -10,4 +10,5 @@
     <string name="link_viri_niti_naslov">Safeer Link : le système n’autorise plus de tâches</string>
     <string name="link_viri_niti">Le système n’autorise plus de tâches simultanées (threads). Les nouveaux appareils du cercle ne sont pas acceptés pour l’instant (refusés : %1$d). Ferme une application ou redémarre Safeer.</string>
     <string name="link_viri_zaseden">L’appareil « %1$s » manque pour l’instant de ressources (connexions ou mémoire) pour une nouvelle connexion. Je réessaierai tout seul.</string>
+    <string name="link_viri_zaseden_naslov">Safeer Link : appareil occupé</string>
 </resources>

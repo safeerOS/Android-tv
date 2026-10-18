@@ -224,6 +224,7 @@ object HubKrmilnik {
         ViriNaprave.pomnilnikNadPragom = { pomnilnikNadPragom(app) }
         ViriNaprave.naPomanjkanje = { razlog, _, zavrnjenih -> HubStoritev.obvestiOVirih(app, razlog, zavrnjenih) }
         u.besediloBrezVirov = { app.getString(si.safeer.tv.R.string.link_viri_zaseden, imeHuba(app)) }
+        u.imeTeNaprave = { imeHuba(app) }
         // Vnose, ki jih v krog doda ta hub (nova naprava s kodo), podpisemo s kljucem huba: sosedje v mesh
         // (racunalnik, tablica, telefoni) sprejmejo nov clan samo s podpisom. Brez tega je novo napravo
         // poznal samo hub, ki jo je sprejel, druge pa so jo zavracale (401), dokler se niso znova povezale.
@@ -259,7 +260,7 @@ object HubKrmilnik {
             naPrejetoDatoteko = { ime, pot -> Log.i(TAG, "Prejeta datoteka $ime -> ${pot.parent}") }
         )
         u.tokovi = t
-        t.besediloBrezVirov = { u.besediloBrezVirovVarno() }
+        t.teloBrezVirov = { u.odgovorBrezVirov() }
         // Dotik gledalca (stran /cast/screen/{id}/view) gre nazaj h gostitelju kot control.command
         // input.* - ista pot, kot bi ukaz poslala seznanjena naprava (Daljinec ga ze zna izvesti).
         t.naVnosGledalca = { posiljatelj, akcija, parametriJson ->
@@ -274,6 +275,7 @@ object HubKrmilnik {
             tlsTovarna = tls,
             obramba = obramba
         )
+        s.teloBrezVirov = { u.odgovorBrezVirov() }
         if (!s.zazeni()) {
             Log.w(TAG, "Huba ni bilo mogoce zagnati.")
             return false
@@ -313,6 +315,7 @@ object HubKrmilnik {
             tlsTovarna = null,
             obramba = obramba
         )
+        w.teloBrezVirov = { u.odgovorBrezVirov() }
         if (w.zazeni()) { spletniStreznik = w; u.spletnaVrata = w.vrata } else Log.w(TAG, "Spletnih vrat ni bilo mogoce odpreti; spletni odjemalec ni na voljo.")
 
         // Televizor, ki gosti, je hkrati zaslon: sprejemnik se priklopi na lastni Hub, da ga

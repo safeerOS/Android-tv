@@ -10,4 +10,5 @@
     <string name="link_viri_niti_naslov">Safeer Link: the system allows no more tasks</string>
     <string name="link_viri_niti">The system allows no more simultaneous tasks (threads). New devices from the circle are not accepted right now (refused: %1$d). Close an app or restart Safeer.</string>
     <string name="link_viri_zaseden">The device “%1$s” has too few resources (connections or memory) for a new connection right now. I will try again by myself.</string>
+    <string name="link_viri_zaseden_naslov">Safeer Link: device is busy</string>
 </resources>

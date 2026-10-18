@@ -368,10 +368,15 @@ fun main() {
         ViriNaprave.naPomanjkanje = { razlog, kje, _ -> synchronized(obvestila) { obvestila.add("$razlog/$kje") } }
         ViriNaprave.preizkus = { _, _ -> ViriNaprave.DESKRIPTORJI }
         try {
+            tihi.teloBrezVirov = { "{\"napaka\":\"zasedena\",\"code\":\"${ViriNaprave.KODA}\",\"name\":\"Televizor\"}" }
             val brez = TestniOdjemalec(tihi.vrata)
-            brez.vticnica.soTimeout = 2000
-            val konec = try { brez.vhod.read() } catch (_: Exception) { -1 }
-            preveriEnako("brez virov se nova vticnica zapre", -1, konec)
+            brez.vticnica.soTimeout = 3000
+            brez.posljiSurovo("GET /cast/ws?ticket=x HTTP/1.1\r\nHost: t\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n")
+            val (prva, _) = brez.preberiGlave()
+            val telo = try { brez.vhod.readBytes().toString(Charsets.UTF_8) } catch (_: Exception) { "" }
+            preveri("brez virov: jasen odgovor 503 namesto tiho zaprte vticnice: $prva", prva.contains(" 503 "))
+            preveriEnako("brez virov: odjemalec iz odgovora razbere ime naprave", "Televizor", ViriNaprave.zavrnitevIzOdgovora(telo))
             brez.zapri()
             preveri("pomanjkanje je zabelezeno za uporabnika: $obvestila", synchronized(obvestila) { obvestila.contains("deskriptorji/sprejem") })
             preveriEnako("stanje virov pove razlog", ViriNaprave.DESKRIPTORJI, ViriNaprave.stanje()?.first)
@@ -382,6 +387,29 @@ fun main() {
         }
         clan.zapri()
         tihi.ustavi()
+    }
+
+    // 10) odjemalec: druga naprava nima virov za nas - obvestilo najvec enkrat na 10 min za isto napravo
+    run {
+        ViriNaprave.ponastavi()
+        var cas = 1_000_000L
+        val prejUra = ViriNaprave.ura
+        ViriNaprave.ura = { cas }
+        try {
+            preveri("prva zavrnitev naprave obvesti", ViriNaprave.zavrnilaDruga("Televizor"))
+            cas += 60_000
+            preveri("ponovni poskus cez minuto ne obvesti znova", !ViriNaprave.zavrnilaDruga("Televizor"))
+            preveri("druga naprava obvesti posebej", ViriNaprave.zavrnilaDruga("Tablica"))
+            cas += ViriNaprave.OBVESTILO_VSAKIH_MS
+            preveri("po 10 min spet obvesti", ViriNaprave.zavrnilaDruga("Televizor"))
+            preveriEnako("seznam naprav brez virov", listOf("Tablica", "Televizor"), ViriNaprave.zavrnileDruge())
+            preveri("odgovor z drugo kodo ni zavrnitev", ViriNaprave.zavrnitevIzOdgovora("{\"code\":\"drugo\"}") == null)
+            preveriEnako("cast.ack z error_code brez imena", "",
+                ViriNaprave.zavrnitevIzOdgovora("{\"type\":\"cast.ack\",\"status\":\"rejected\",\"error_code\":\"${ViriNaprave.KODA}\"}"))
+        } finally {
+            ViriNaprave.ura = prejUra
+            ViriNaprave.ponastavi()
+        }
     }
 
     Thread.sleep(400)

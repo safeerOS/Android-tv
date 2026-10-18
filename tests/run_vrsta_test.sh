@@ -17,7 +17,10 @@ mkdir -p "$OUT"
     "$SRC/si/safeer/tv/cast/ViriNaprave.kt" \
     "$SRC/si/safeer/tv/cast/HubObramba.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$SRC/si/safeer/tv/cast/VrstaSoseda.kt" \
     "$TEST_DIR/VrstaTest.kt" \
+    "$TEST_DIR/VrstaSosedaTest.kt" \
     -include-runtime -d "$OUT/vrsta.jar"
 
 java -cp "$OUT/vrsta.jar" si.safeer.tv.cast.VrstaTest
+java -cp "$OUT/vrsta.jar" si.safeer.tv.cast.VrstaSosedaTest

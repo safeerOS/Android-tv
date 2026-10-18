@@ -637,8 +637,11 @@ private fun preizkusMeja() {
     ViriNaprave.ponastavi()
     ViriNaprave.preizkus = { _, _ -> ViriNaprave.POMNILNIK }
     try {
+        u.imeTeNaprave = { "Televizor" }
         val nova = Lazni("192.168.0.250")
         u.obdelaj(nova, registracija("nova-brez-virov", "receiver"))
+        preveriEnako("brez virov: odgovor pove, katera naprava nima virov", "Televizor", polje(nova.zadnje(), "name"))
+        preveriEnako("brez virov: telo 503 nosi kodo in ime", "Televizor", ViriNaprave.zavrnitevIzOdgovora(u.odgovorBrezVirov()))
         preveriEnako("brez virov: nova naprava je zavrnjena s kodo", ViriNaprave.KODA, polje(nova.zadnje(), "error_code"))
         preveri("brez virov: besedilo pove razlog", polje(nova.zadnje(), "error").contains("virov"))
         preveri("brez virov: povezava se po odgovoru zapre (1013)", nova.zaprt && nova.zapriKodo == 1013)

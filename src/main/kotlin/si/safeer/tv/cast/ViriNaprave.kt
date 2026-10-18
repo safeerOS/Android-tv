@@ -191,9 +191,52 @@ object ViriNaprave {
         if (razlog.isEmpty() || ura() - ob > VELJA_MS) null else Triple(razlog, kje, zavrnjenih)
     }
 
+    // ------------------------------------------------------------------ druga naprava nima virov za nas (odjemalec)
+
+    private val drugi = HashMap<String, Long>()
+    private val drugiObvesceni = HashMap<String, Long>()
+
+    /**
+     * Druga naprava v krogu (sredisce ali sosed) nas je overila, a nima virov za nas (odgovor [KODA]) - isto kot
+     * link_viri.zavrnila_druga na racunalniku. True: uporabnik naj to izve zdaj - najvec enkrat na [OBVESTILO_VSAKIH_MS]
+     * za isto napravo, ne ob vsakem ponovnem poskusu (ponovna povezava je samodejna).
+     */
+    fun zavrnilaDruga(ime: String): Boolean {
+        val i = ime.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ").take(64).ifEmpty { "?" }
+        val zdaj = ura()
+        synchronized(zaklep) {
+            drugi[i] = zdaj
+            drugi.entries.removeAll { zdaj - it.value > VELJA_MS }
+            drugiObvesceni.entries.removeAll { zdaj - it.value > VELJA_MS + OBVESTILO_VSAKIH_MS }
+            val prej = drugiObvesceni[i]
+            if (prej != null && zdaj - prej < OBVESTILO_VSAKIH_MS) return false
+            drugiObvesceni[i] = zdaj
+        }
+        android.util.Log.w("SafeerLinkViri", "naprava $i nima virov za novo povezavo (odgovor $KODA)")
+        return true
+    }
+
+    /** Imena naprav, ki so nas v zadnjih [VELJA_MS] zavrnile zaradi svojih virov. */
+    fun zavrnileDruge(): List<String> = synchronized(zaklep) {
+        val zdaj = ura()
+        drugi.filterValues { zdaj - it <= VELJA_MS }.keys.sorted()
+    }
+
+    /**
+     * Ce odgovor druge naprave (telo HTTP 503 ali cast.ack) pove [KODA], vrne ime te naprave (polje `name`, ki ga sredisce
+     * posilja od 0.5.92; prazno, ce ga ni); sicer null.
+     */
+    fun zavrnitevIzOdgovora(odgovor: String?): String? {
+        if (odgovor.isNullOrEmpty() || !odgovor.contains(KODA)) return null
+        val j = JsonLahki.objekt(odgovor) ?: return null
+        if (j.niz("code") != KODA && j.niz("error_code") != KODA) return null
+        return j.niz("name").orEmpty().trim()
+    }
+
     /** Za preizkuse: brez zapisanega pomanjkanja, obvestilo spet takoj, sveza meritev. */
     fun ponastavi() = synchronized(zaklep) {
         razlog = ""; kje = ""; ob = Long.MIN_VALUE / 2; zavrnjenih = 0; zadnjeObvestilo = Long.MIN_VALUE / 2
         zadnjaMeritev = Long.MIN_VALUE / 2; zadnjiPomnilnik = Long.MIN_VALUE / 2; zadnjiProstega = null
+        drugi.clear(); drugiObvesceni.clear()
     }
 }

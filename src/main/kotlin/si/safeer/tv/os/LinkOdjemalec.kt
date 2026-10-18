@@ -187,6 +187,23 @@ class LinkOdjemalec(private val context: Context) {
     private fun osnovaHttp(wsUrl: String): String =
         wsUrl.replace(Regex("^wss"), "https").substringBefore("/cast/ws").trimEnd('/')
 
+    /**
+     * Sredisce je odgovorilo ni_virov (cast.ack ali HTTP 503): obvestilo z imenom naprave, ki nima virov - najvec enkrat na
+     * 10 min za isto napravo (HubStoritev.preveriZavrnitevVirov). Ponovna povezava ostane samodejna (ponovno()).
+     */
+    private fun javiBrezVirov(odgovor: String?) {
+        si.safeer.tv.cast.ViriNaprave.zavrnitevIzOdgovora(odgovor) ?: return
+        val p = poverilnice
+        val gostitelj = try { java.net.URI(p?.hubUrl.orEmpty()).host.orEmpty().trim('[', ']') } catch (_: Throwable) { "" }
+        val lastna = try {
+            val n = java.net.InetAddress.getByName(gostitelj)
+            gostitelj.isNotEmpty() && (n.isLoopbackAddress || java.net.NetworkInterface.getByInetAddress(n) != null)
+        } catch (_: Throwable) { false }
+        val ime = p?.let { try { KrogNaprave.krog(context).clanZaId(it.hubId)?.ime } catch (_: Throwable) { null } }
+            ?.takeIf { it.isNotBlank() } ?: gostitelj
+        si.safeer.tv.cast.HubStoritev.preveriZavrnitevVirov(context, odgovor, ime, lastna)
+    }
+
     /** En klic HTTP na sredisce; [naprej] dobi kodo in telo (ali -1 in razlog ob napaki omrezja). */
     private fun klic(pot: String, telo: JSONObject?, zeton: String?, naprej: (Int, String) -> Unit) {
         val p = poverilnice ?: return
@@ -197,7 +214,12 @@ class LinkOdjemalec(private val context: Context) {
         k.newCall(z.build()).enqueue(object : Callback {
             override fun onFailure(call: Call, e: java.io.IOException) { naprej(-1, e.message.orEmpty()) }
             override fun onResponse(call: Call, response: Response) {
-                response.use { naprej(it.code, it.body?.string().orEmpty()) }
+                response.use {
+                    val odgovor = it.body?.string().orEmpty()
+                    // Sredisce nima virov za to napravo (ni_virov): uporabnik izve, katera naprava; poskus se ponovi sam.
+                    if (it.code == 503) javiBrezVirov(odgovor)
+                    naprej(it.code, odgovor)
+                }
             }
         })
     }
@@ -323,6 +345,7 @@ class LinkOdjemalec(private val context: Context) {
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 // Zamenjana ali ustavljena povezava: njen konec ne sme sprozit novega poskusa (sicer tecejo dve).
                 if (webSocket !== ws) return
+                if (response?.code == 503) javiBrezVirov(try { response.body?.string() } catch (_: Throwable) { null })
                 Log.w(TAG, "Povezava padla: ${t.message}")
                 povezan = false
                 // Ob dejanski izgubi povezave takoj izpraznimo seznam naprav: brez tega zasloni (Safeer Link,
@@ -504,6 +527,8 @@ class LinkOdjemalec(private val context: Context) {
         // Jedro iz preverjenega kljuca vpise samo ZascitaLinka: kar pride po omrezju s tem poljem, ga izgubi.
         json.remove(si.safeer.tv.cast.ZascitaLinka.POLJE)
         val tip = json.optString("type")
+        // Prijava ni sprejeta, ker sredisce nima virov: sredisce povezavo zapre (1013), ponovni poskus je samodejen.
+        if (tip == "cast.ack" && json.optString("error_code") == si.safeer.tv.cast.ViriNaprave.KODA) javiBrezVirov(besedilo)
         if (tip == "cast.devices") zascita.zapomniNaprave(json.optJSONArray("devices"))
         else if (tip.startsWith("data.") && zascita.prejmi(json)) return
         obdelajSporocilo(json)
