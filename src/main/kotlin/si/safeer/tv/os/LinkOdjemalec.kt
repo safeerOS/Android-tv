@@ -287,6 +287,9 @@ class LinkOdjemalec(private val context: Context) {
         odpri("${naslovHuba(p)}${locilo}ticket=$vstopnica")
     }
 
+    /** Seznam naprav iz posnetka in sprememb (cast/SeznamSprememb); nov ob vsaki povezavi - prvo je vedno posnetek. */
+    @Volatile private var seznamNaprav = si.safeer.tv.cast.SeznamSprememb.Prejemnik()
+
     private fun odpri(naslov: String) {
         val k = odjemalec ?: return
         // Ena povezava hkrati: prejsnja (npr. iz vzporednega poskusa) se zapre, preden odpremo novo.
@@ -296,6 +299,7 @@ class LinkOdjemalec(private val context: Context) {
                 if (webSocket !== ws) { webSocket.cancel(); return }
                 poskusov = 0
                 povezan = true
+                seznamNaprav = si.safeer.tv.cast.SeznamSprememb.Prejemnik()
                 val u = webSocket.request().url
                 if (prekReleja && !si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)) prekReleja = false
                 // Tudi branje datotek z drugih naprav gre odslej po poti, po kateri tece ta povezava.
@@ -308,7 +312,8 @@ class LinkOdjemalec(private val context: Context) {
                         .put("device_id", idNaprave)
                         .put("name", "Safeer OS")
                         .put("role", "sender")
-                        .put("capabilities", JSONArray(listOf("url", "text", KlepetLinka.ZMOZNOST, si.safeer.tv.cast.E2e.ZMOZNOST)))))
+                        .put("capabilities", JSONArray(listOf("url", "text", KlepetLinka.ZMOZNOST, si.safeer.tv.cast.E2e.ZMOZNOST,
+                            si.safeer.tv.cast.SeznamSprememb.ZMOZNOST)))))
                 webSocket.send(prijava.toString())
                 javiStanje(true, "")
             }
@@ -486,7 +491,12 @@ class LinkOdjemalec(private val context: Context) {
         glavna.post { poslusalec?.naStanje(povezan, sporocilo) }
     }
 
-    private fun obdelaj(besedilo: String) {
+    private fun obdelaj(surovo: String) {
+        // Seznam naprav: posnetek ali spremembe (cast/SeznamSprememb). Naprej gre vedno cel cast.devices; ob vrzeli ali
+        // dvomu zahtevamo posnetek, do takrat ostane zadnji pravi seznam.
+        val (besedilo, zahtevaj) = seznamNaprav.sprejmi(surovo)
+        if (zahtevaj) try { ws?.send(si.safeer.tv.cast.SeznamSprememb.zahteva(UUID.randomUUID().toString())) } catch (_: Throwable) { }
+        if (besedilo == null) return
         if (si.safeer.tv.cast.JsonLahki.pregloboko(besedilo)) return     // org.json gnezdenja ne omejuje (poraba sklada)
         val json = try { JSONObject(besedilo) } catch (_: Throwable) { return }
         if (si.safeer.tv.cast.ZascitaLinka.neveljavnaOznaka(json)) return      // oznaka sporocila: kratek niz, stevilo ali nic

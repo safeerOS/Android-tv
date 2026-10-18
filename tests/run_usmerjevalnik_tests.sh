@@ -26,6 +26,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
     "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
+    "$SRC/si/safeer/tv/cast/SeznamSprememb.kt" \
     "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
     "$SRC/si/safeer/tv/cast/HubHttp.kt" \
     "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
@@ -49,6 +50,7 @@ java -cp "$OUT/usmerjevalnik.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.Usmer
     "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
     "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
+    "$SRC/si/safeer/tv/cast/SeznamSprememb.kt" \
     "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
     "$SRC/si/safeer/tv/cast/HubHttp.kt" \
     "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
@@ -58,6 +60,30 @@ java -cp "$OUT/usmerjevalnik.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.Usmer
     ${JSON_JAR:+-cp "$JSON_JAR"} \
     -include-runtime -d "$OUT/mesh.jar"
 java -cp "$OUT/mesh.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.MeshTestKt
+
+# Seznam naprav kot posnetek + spremembe (SeznamSprememb): skupna pogodba z racunalnikom (tests/fixtures), sredisce,
+# sosedje, vrzel in zdruzevanje.
+"$KOTLINC" -J-Xmx2g \
+    "$TEST_DIR/stubs/Log.kt" \
+    "$TEST_DIR/stubs/DatotekeStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/HubObramba.kt" \
+    "$SRC/si/safeer/tv/cast/HubVarovalka.kt" \
+    "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
+    "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
+    "$SRC/si/safeer/tv/cast/Spake2.kt" \
+    "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
+    "$SRC/si/safeer/tv/cast/SeznamSprememb.kt" \
+    "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
+    "$SRC/si/safeer/tv/cast/HubHttp.kt" \
+    "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
+    "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
+    "$SRC/si/safeer/tv/link/PomocPravila.kt" \
+    "$TEST_DIR/SeznamSpremembTest.kt" \
+    ${JSON_JAR:+-cp "$JSON_JAR"} \
+    -include-runtime -d "$OUT/seznam.jar"
+java -cp "$OUT/seznam.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.SeznamSpremembTestKt "$TEST_DIR/fixtures/seznam_sprememb.json"
 
 # Testni vektor RFC 9382 (isti kot za spake2.py v brskalniku za Linux).
 "$KOTLINC" -J-Xmx2g \

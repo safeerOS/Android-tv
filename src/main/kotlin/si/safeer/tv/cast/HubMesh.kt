@@ -242,7 +242,7 @@ object HubMesh {
                 // Prijava gre prva: sosed mora vedeti, da smo Hub, preden dobi karkoli drugega.
                 webSocket.send(JSONObject().put("id", System.currentTimeMillis().toString()).put("type", "cast.register")
                     .put("payload", JSONObject().put("device_id", u.lastniId).put("name", HubKrmilnik.imeHuba(app))
-                        .put("role", "hub").put("capabilities", org.json.JSONArray().put(HubUsmerjevalnik.MESH))
+                        .put("role", "hub").put("capabilities", org.json.JSONArray().put(HubUsmerjevalnik.MESH).put(SeznamSprememb.ZMOZNOST))
                         .put("protocol", "1")).toString())
                 if (!u.dodajSoseda(h.id, povezava, u.lastniId)) {
                     webSocket.cancel()

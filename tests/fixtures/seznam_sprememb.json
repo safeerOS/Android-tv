@@ -1,0 +1,601 @@
+{
+ "opis": "Skupna pogodba sprememb seznama naprav (core/link_spremembe.py in Android cast/SeznamSprememb.kt). Isti primeri v obeh preizkusih: prejemnik iz posnetka in sprememb sestavi isti seznam, razlika dveh seznamov je ista sprememba.",
+ "prejemnik": [
+  {
+   "ime": "dodaj_spremeni_odstrani",
+   "posnetek": {
+    "type": "cast.devices",
+    "devices": [
+     {
+      "id": "n-aaaa",
+      "name": "Televizor",
+      "role": "receiver",
+      "capabilities": [
+       "url",
+       "media"
+      ],
+      "ip": "192.168.0.20",
+      "port": null,
+      "last_seen": 1760000000.5,
+      "platform": "tv",
+      "device": "n-aaaa"
+     }
+    ],
+    "epoch": "9f2c41aa07b3d6e1",
+    "ver": 1
+   },
+   "spremembe": [
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "9f2c41aa07b3d6e1",
+      "base": 1,
+      "ver": 2,
+      "devices": {
+       "add": [
+        {
+         "id": "n-bbbb",
+         "name": "Telefon",
+         "role": "sender",
+         "capabilities": [
+          "url",
+          "text",
+          "devdelta1"
+         ],
+         "ip": "192.168.0.31",
+         "port": null,
+         "last_seen": 1760000001.0,
+         "platform": "phone",
+         "apps": {
+          "si.safeer.os": {
+           "name": "Safeer OS"
+          }
+         }
+        },
+        {
+         "id": "n-cccc",
+         "name": "Računalnik",
+         "role": "sender",
+         "capabilities": [
+          "url",
+          "file"
+         ],
+         "ip": "192.168.0.10",
+         "port": null,
+         "last_seen": 1760000002.0,
+         "here": true
+        }
+       ]
+      }
+     },
+     "izid": "ok"
+    },
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "9f2c41aa07b3d6e1",
+      "base": 2,
+      "ver": 3,
+      "devices": {
+       "chg": [
+        {
+         "id": "n-bbbb",
+         "set": {
+          "name": "Telefon (Ana)",
+          "capabilities": [
+           "url",
+           "text"
+          ]
+         },
+         "unset": [
+          "apps"
+         ]
+        }
+       ]
+      }
+     },
+     "izid": "ok"
+    },
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "9f2c41aa07b3d6e1",
+      "base": 3,
+      "ver": 4,
+      "devices": {
+       "del": [
+        "n-aaaa"
+       ]
+      }
+     },
+     "izid": "ok"
+    },
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "9f2c41aa07b3d6e1",
+      "base": 4,
+      "ver": 5,
+      "devices": {
+       "add": [
+        {
+         "id": "n-aaaa",
+         "name": "Televizor",
+         "role": "receiver",
+         "capabilities": [
+          "url",
+          "media"
+         ],
+         "ip": "192.168.0.20",
+         "port": null,
+         "last_seen": 1760000000.5,
+         "platform": "tv",
+         "device": "n-aaaa"
+        }
+       ],
+       "chg": [
+        {
+         "id": "n-cccc",
+         "set": {},
+         "unset": [
+          "here"
+         ]
+        }
+       ]
+      }
+     },
+     "izid": "ok"
+    }
+   ],
+   "koncni": [
+    {
+     "id": "n-bbbb",
+     "name": "Telefon (Ana)",
+     "role": "sender",
+     "capabilities": [
+      "url",
+      "text"
+     ],
+     "ip": "192.168.0.31",
+     "port": null,
+     "last_seen": 1760000001.0,
+     "platform": "phone"
+    },
+    {
+     "id": "n-cccc",
+     "name": "Računalnik",
+     "role": "sender",
+     "capabilities": [
+      "url",
+      "file"
+     ],
+     "ip": "192.168.0.10",
+     "port": null,
+     "last_seen": 1760000002.0
+    },
+    {
+     "id": "n-aaaa",
+     "name": "Televizor",
+     "role": "receiver",
+     "capabilities": [
+      "url",
+      "media"
+     ],
+     "ip": "192.168.0.20",
+     "port": null,
+     "last_seen": 1760000000.5,
+     "platform": "tv",
+     "device": "n-aaaa"
+    }
+   ]
+  },
+  {
+   "ime": "vrzel_ne_spremeni_seznama",
+   "posnetek": {
+    "type": "cast.devices",
+    "devices": [
+     {
+      "id": "n-aaaa",
+      "name": "Televizor",
+      "role": "receiver",
+      "capabilities": [
+       "url",
+       "media"
+      ],
+      "ip": "192.168.0.20",
+      "port": null,
+      "last_seen": 1760000000.5,
+      "platform": "tv",
+      "device": "n-aaaa"
+     }
+    ],
+    "epoch": "e1",
+    "ver": 5
+   },
+   "spremembe": [
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "e1",
+      "base": 6,
+      "ver": 7,
+      "devices": {
+       "del": [
+        "n-aaaa"
+       ]
+      }
+     },
+     "izid": "vrzel"
+    },
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "drugo",
+      "base": 5,
+      "ver": 6,
+      "devices": {
+       "del": [
+        "n-aaaa"
+       ]
+      }
+     },
+     "izid": "vrzel"
+    },
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "e1",
+      "base": 5,
+      "ver": 6,
+      "devices": {
+       "chg": [
+        {
+         "id": "n-aaaa",
+         "set": {
+          "name": "TV"
+         }
+        }
+       ]
+      }
+     },
+     "izid": "ok"
+    }
+   ],
+   "koncni": [
+    {
+     "id": "n-aaaa",
+     "name": "TV",
+     "role": "receiver",
+     "capabilities": [
+      "url",
+      "media"
+     ],
+     "ip": "192.168.0.20",
+     "port": null,
+     "last_seen": 1760000000.5,
+     "platform": "tv",
+     "device": "n-aaaa"
+    }
+   ]
+  },
+  {
+   "ime": "dvom_zavrze_seznam",
+   "posnetek": {
+    "type": "cast.devices",
+    "devices": [
+     {
+      "id": "n-aaaa",
+      "name": "Televizor",
+      "role": "receiver",
+      "capabilities": [
+       "url",
+       "media"
+      ],
+      "ip": "192.168.0.20",
+      "port": null,
+      "last_seen": 1760000000.5,
+      "platform": "tv",
+      "device": "n-aaaa"
+     }
+    ],
+    "epoch": "e1",
+    "ver": 1
+   },
+   "spremembe": [
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "e1",
+      "base": 1,
+      "ver": 2,
+      "devices": {
+       "del": [
+        "n-zzzz"
+       ]
+      }
+     },
+     "izid": "dvom"
+    },
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "e1",
+      "base": 2,
+      "ver": 3,
+      "devices": {
+       "add": [
+        {
+         "id": "n-bbbb",
+         "name": "Telefon",
+         "role": "sender",
+         "capabilities": [
+          "url",
+          "text",
+          "devdelta1"
+         ],
+         "ip": "192.168.0.31",
+         "port": null,
+         "last_seen": 1760000001.0,
+         "platform": "phone",
+         "apps": {
+          "si.safeer.os": {
+           "name": "Safeer OS"
+          }
+         }
+        }
+       ]
+      }
+     },
+     "izid": "vrzel"
+    }
+   ],
+   "koncni": []
+  },
+  {
+   "ime": "dodajanje_obstojece_je_dvom",
+   "posnetek": {
+    "type": "cast.devices",
+    "devices": [
+     {
+      "id": "n-aaaa",
+      "name": "Televizor",
+      "role": "receiver",
+      "capabilities": [
+       "url",
+       "media"
+      ],
+      "ip": "192.168.0.20",
+      "port": null,
+      "last_seen": 1760000000.5,
+      "platform": "tv",
+      "device": "n-aaaa"
+     },
+     {
+      "id": "n-bbbb",
+      "name": "Telefon",
+      "role": "sender",
+      "capabilities": [
+       "url",
+       "text",
+       "devdelta1"
+      ],
+      "ip": "192.168.0.31",
+      "port": null,
+      "last_seen": 1760000001.0,
+      "platform": "phone",
+      "apps": {
+       "si.safeer.os": {
+        "name": "Safeer OS"
+       }
+      }
+     }
+    ],
+    "epoch": "e1",
+    "ver": 1
+   },
+   "spremembe": [
+    {
+     "sporocilo": {
+      "type": "cast.devices.delta",
+      "epoch": "e1",
+      "base": 1,
+      "ver": 2,
+      "devices": {
+       "add": [
+        {
+         "id": "n-aaaa",
+         "name": "Televizor",
+         "role": "receiver",
+         "capabilities": [
+          "url",
+          "media"
+         ],
+         "ip": "192.168.0.20",
+         "port": null,
+         "last_seen": 1760000000.5,
+         "platform": "tv",
+         "device": "n-aaaa"
+        }
+       ]
+      }
+     },
+     "izid": "dvom"
+    }
+   ],
+   "koncni": []
+  }
+ ],
+ "razlika": [
+  {
+   "ime": "vse_vrste",
+   "staro": [
+    {
+     "id": "n-aaaa",
+     "name": "Televizor",
+     "role": "receiver",
+     "capabilities": [
+      "url",
+      "media"
+     ],
+     "ip": "192.168.0.20",
+     "port": null,
+     "last_seen": 1760000000.5,
+     "platform": "tv",
+     "device": "n-aaaa"
+    },
+    {
+     "id": "n-bbbb",
+     "name": "Telefon",
+     "role": "sender",
+     "capabilities": [
+      "url",
+      "text",
+      "devdelta1"
+     ],
+     "ip": "192.168.0.31",
+     "port": null,
+     "last_seen": 1760000001.0,
+     "platform": "phone",
+     "apps": {
+      "si.safeer.os": {
+       "name": "Safeer OS"
+      }
+     }
+    },
+    {
+     "id": "n-cccc",
+     "name": "Računalnik",
+     "role": "sender",
+     "capabilities": [
+      "url",
+      "file"
+     ],
+     "ip": "192.168.0.10",
+     "port": null,
+     "last_seen": 1760000002.0,
+     "here": true
+    }
+   ],
+   "novo": [
+    {
+     "id": "n-bbbb",
+     "name": "Telefon (Ana)",
+     "role": "sender",
+     "capabilities": [
+      "url",
+      "text"
+     ],
+     "ip": "192.168.0.31",
+     "port": null,
+     "last_seen": 1760000099.0,
+     "platform": "phone"
+    },
+    {
+     "id": "n-cccc",
+     "name": "Računalnik",
+     "role": "sender",
+     "capabilities": [
+      "url",
+      "file"
+     ],
+     "ip": "192.168.0.11",
+     "port": null,
+     "last_seen": 1760000002.0,
+     "here": true
+    },
+    {
+     "id": "n-dddd",
+     "name": "Tablica",
+     "role": "receiver",
+     "capabilities": [
+      "url",
+      "media"
+     ],
+     "ip": "192.168.0.20",
+     "port": null,
+     "last_seen": 1760000000.5,
+     "platform": "tv",
+     "device": "n-aaaa"
+    }
+   ],
+   "sprememba": {
+    "add": [
+     {
+      "id": "n-dddd",
+      "name": "Tablica",
+      "role": "receiver",
+      "capabilities": [
+       "url",
+       "media"
+      ],
+      "ip": "192.168.0.20",
+      "port": null,
+      "last_seen": 1760000000.5,
+      "platform": "tv",
+      "device": "n-aaaa"
+     }
+    ],
+    "chg": [
+     {
+      "id": "n-bbbb",
+      "set": {
+       "name": "Telefon (Ana)",
+       "capabilities": [
+        "url",
+        "text"
+       ]
+      },
+      "unset": [
+       "apps"
+      ]
+     },
+     {
+      "id": "n-cccc",
+      "set": {
+       "ip": "192.168.0.11"
+      }
+     }
+    ],
+    "del": [
+     "n-aaaa"
+    ]
+   }
+  },
+  {
+   "ime": "samo_cas_ni_sprememba",
+   "staro": [
+    {
+     "id": "n-aaaa",
+     "name": "Televizor",
+     "role": "receiver",
+     "capabilities": [
+      "url",
+      "media"
+     ],
+     "ip": "192.168.0.20",
+     "port": null,
+     "last_seen": 1760000000.5,
+     "platform": "tv",
+     "device": "n-aaaa"
+    }
+   ],
+   "novo": [
+    {
+     "id": "n-aaaa",
+     "name": "Televizor",
+     "role": "receiver",
+     "capabilities": [
+      "url",
+      "media"
+     ],
+     "ip": "192.168.0.20",
+     "port": null,
+     "last_seen": 1770000000.0,
+     "platform": "tv",
+     "device": "n-aaaa"
+    }
+   ],
+   "sprememba": null
+  }
+ ]
+}

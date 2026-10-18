@@ -39,7 +39,9 @@ class HubUsmerjevalnik(
      * Ali je naprava (jedro, cast/DostopPravila.jedro) v ozjem krogu naprave, na kateri tece to sredisce, za dano
      * zahtevo. Rabi samo za zasebne oddaje starejsih naprav, ki ne povedo, komu smejo (`allow`). Privzeto nihce.
      */
-    private val ozjiKrog: (String, DostopPravila.Zahteva) -> Boolean = { _, _ -> false }
+    private val ozjiKrog: (String, DostopPravila.Zahteva) -> Boolean = { _, _ -> false },
+    /** Okno zdruzevanja sprememb seznama naprav (HubKrmilnik: SeznamSprememb.OKNO_MS); 0 = objava takoj (preizkusi). */
+    oknoSeznamaMs: Long = 0L
 ) {
 
     /** Trajna shramba za zetone seznanjenih naprav (na Androidu SharedPreferences). */
@@ -1388,6 +1390,14 @@ class HubUsmerjevalnik(
             return null
         }
 
+        if (tip == SeznamSprememb.ZAHTEVA) {
+            // Odjemalec je izgubil nit seznama naprav (vrzel ali dvom): naslednja objava mu da posnetek. Ne gre naprej.
+            if (register.najdi(idPovezave(od)) == null) return potrditev(id, "rejected", "Naprava ni prijavljena.", koda = "naprava_ni_povezana")
+            stanjeSeznama(od).poslano = null
+            objaviNaprave()
+            return null
+        }
+
         if (tip == "cast.ack") return null
 
         if (tip == "trust.names") {
@@ -1488,6 +1498,8 @@ class HubUsmerjevalnik(
         if (!izid.sprejeta) {
             return potrditev(id, "rejected", "Preveč naprav; odklopite katero od prejšnjih.", koda = izid.koda)
         }
+        // Odjemalec, ki zna (SeznamSprememb.ZMOZNOST), dobi po posnetku samo spremembe; ponovna prijava zacne s posnetkom.
+        stanjeSeznama(od).apply { zna = SeznamSprememb.ZMOZNOST in tovor.nizi("capabilities"); poslano = null }
         krog.zabeleziStik(listOf(deviceId), ura() / 1000.0)
         // Vsaka nova naprava spremeni seznam za vse: tudi posiljatelj je zdaj mozen cilj deljenja.
         objaviNaprave()
@@ -1512,7 +1524,19 @@ class HubUsmerjevalnik(
     /** Zadnji relay zemljevid vsakega soseda (naprave njegovih neposrednih sosedov): sosed -> id -> zapis. */
     private val zadnjiRelay = HashMap<String, Map<String, JsonLahki.Pogled>>()
     private val zacetnikSoseda = java.util.IdentityHashMap<Odjemalec, String>()
-    @Volatile private var zadnjiMesh = ""
+
+    // Seznam naprav (SeznamSprememb): kar je bilo objavljeno vsaki skupini prejemnikov ("c|naslov" odjemalci po nasem
+    // naslovu na poti do njih, "m|naslov" sosedje), stanje vsake povezave in zdruzevanje sprememb v oknu.
+    private val pogledi = HashMap<String, SeznamSprememb.Pogled>()
+    private val stanjaSeznama = java.util.WeakHashMap<Odjemalec, SeznamSprememb.Stanje>()
+    private val kljucObjave = Any()
+    private val dusilec = SeznamSprememb.Dusilec({ objaviZdaj() }, oknoSeznamaMs)
+    /** Znaki seznamov naprav, ki jih je to sredisce poslalo odjemalcem in sosedom (meritve). */
+    @Volatile var poslanoSeznamov = 0L
+        private set
+
+    private fun stanjeSeznama(p: Odjemalec): SeznamSprememb.Stanje =
+        synchronized(stanjaSeznama) { stanjaSeznama.getOrPut(p) { SeznamSprememb.Stanje() } }
 
     /** Sosed je prisel (id, naslov povezave) ali odsel (id, ""): krmilnik si zapomni naslov in po izgubi hitro poskusi znova. */
     @Volatile var naSosedu: ((String, String) -> Unit)? = null
@@ -1604,26 +1628,24 @@ class HubUsmerjevalnik(
             .sortedBy { it.id }.joinToString(",", "{", "}") { zapisZaSosede(it, (it.povezava as Namestnik).sosedId) }
     }
 
-    private fun sporociloNaprav(seznam: String, relay: String): String =
-        ovojnica("mesh.devices").surovo("payload", JsonLahki.Zapis().niz("hub", lastniId).surovo("devices", seznam)
-            .surovo("relay", relay).toString()).toString()
-
-    /** Sosedom poslje nase lokalne naprave - vsem samo ob spremembi, ali enemu (novemu) vedno. */
+    /** Sosedom nase lokalne naprave - vsem samo ob spremembi, novemu ([samo]) vedno posnetek. */
     private fun objaviSosedom(samo: Odjemalec?) {
-        val lokalne = lokalneZaSosede()
-        val relay = posredneZaSosede()
-        val seznam = lokalne + "|" + relay
-        val prejemniki = synchronized(kljucnica) {
-            if (samo == null && seznam == zadnjiMesh) return
-            if (samo == null) zadnjiMesh = seznam
-            if (samo != null) listOf(samo) else sosedje.values.toList()
-        }
-        // Vsak sosed dobi nas naslov, kot velja na poti do njega; prek releja (Global Link) nobenega.
-        for (p in prejemniki) {
-            val sosed = HubNaslovi.soseda(p.naslov)
-            val nas = if (sosed.isEmpty()) "" else try { nasNaslovProti(sosed) } catch (_: Throwable) { "" }
-            posljiVarno(p, sporociloNaprav(lokalneZaSosede(nas), relay))
-        }
+        if (samo != null) stanjeSeznama(samo).poslano = null
+        dusilec.sprozi()
+    }
+
+    /** Posnetek za sosede: isti mesh.devices kot doslej, z verzijo in zmoznostjo (`caps`) - starejsi sosed ju prezre. */
+    private fun meshPosnetek(pogled: SeznamSprememb.Pogled): String =
+        ovojnica(SeznamSprememb.MESH_POSNETEK).surovo("payload", JsonLahki.Zapis().niz("hub", lastniId)
+            .surovo("devices", pogled.slovarJson("devices")).surovo("relay", pogled.slovarJson("relay"))
+            .niz("epoch", pogled.epoha).stevilo("ver", pogled.ver.toDouble())
+            .seznamNizov("caps", listOf(SeznamSprememb.ZMOZNOST)).toString()).toString()
+
+    private fun meshSpremembe(pogled: SeznamSprememb.Pogled): String {
+        val tovor = JsonLahki.Zapis().niz("hub", lastniId).niz("epoch", pogled.epoha)
+            .stevilo("base", (pogled.ver - 1).toDouble()).stevilo("ver", pogled.ver.toDouble())
+        for ((ime, d) in pogled.zadnja.orEmpty()) tovor.surovo(ime, d)
+        return ovojnica(SeznamSprememb.MESH_SPREMEMBE).surovo("payload", tovor.toString()).toString()
     }
 
     private fun posljiKrogSosedom(razen: Odjemalec?) {
@@ -1691,6 +1713,8 @@ class HubUsmerjevalnik(
         if (sosedId.isBlank() || vezana != sosedId || !podpisana || !jeClan(sosedId)) {
             return potrditev(id, "rejected", "Sosed mora biti clan kroga s podpisom.", koda = "ni_sosed")
         }
+        // Sosed, ki zna spremembe seznama, to pove ze v prijavi; prvi seznam je vseeno posnetek.
+        stanjeSeznama(od).zna = SeznamSprememb.ZMOZNOST in tovor.nizi("capabilities")
         if (!dodajSoseda(sosedId, od, sosedId)) return potrditev(id, "rejected", "Sosednja povezava ze obstaja.", koda = "podvojen_sosed")
         return potrditev(id, "accepted")
     }
@@ -1823,7 +1847,33 @@ class HubUsmerjevalnik(
     private fun obdelajSoseda(sosedId: String, od: Odjemalec, sporocilo: JsonLahki.Pogled): String? {
         val tovor = sporocilo.objekt("payload")
         when (sporocilo.niz("type")) {
-            "mesh.devices" -> { sosedoveNaprave(sosedId, od, tovor?.objekt("devices"), tovor?.objekt("relay")); return null }
+            SeznamSprememb.MESH_POSNETEK -> {
+                val st = stanjeSeznama(od)
+                val zrcalo = st.zrcalo ?: SeznamSprememb.Zrcalo(mapOf("devices" to false, "relay" to false)).also { st.zrcalo = it }
+                zrcalo.posnetek(mapOf("devices" to tovor?.surovo("devices"), "relay" to tovor?.surovo("relay")),
+                    tovor?.niz("epoch"), tovor?.stevilo("ver"))
+                if (tovor?.nizi("caps")?.contains(SeznamSprememb.ZMOZNOST) == true) st.zna = true
+                sosedoveNaprave(sosedId, od, tovor?.objekt("devices"), tovor?.objekt("relay")); return null
+            }
+            SeznamSprememb.MESH_SPREMEMBE -> {
+                val st = stanjeSeznama(od)
+                val zrcalo = st.zrcalo ?: return null
+                if (tovor == null || zrcalo.uporabi(tovor) != "ok") {
+                    // Vrzel ali dvom: seznam soseda velja sele s posnetkom, do takrat ostane zadnji pravi.
+                    val zdaj = ura()
+                    val prej = st.zahtevano
+                    if (prej == null || zdaj - prej >= SeznamSprememb.ZAHTEVA_NAJPREJ_MS) {
+                        st.zahtevano = zdaj
+                        posljiVarno(od, ovojnica(SeznamSprememb.MESH_ZAHTEVA)
+                            .surovo("payload", JsonLahki.Zapis().niz("hub", lastniId).toString()).toString())
+                    }
+                    return null
+                }
+                sosedoveNaprave(sosedId, od, JsonLahki.objekt(zrcalo.slovarJson("devices")), JsonLahki.objekt(zrcalo.slovarJson("relay")))
+                return null
+            }
+            // Sosed je izgubil nit: naslednja objava mu da posnetek.
+            SeznamSprememb.MESH_ZAHTEVA -> { objaviSosedom(od); return null }
             "mesh.route" -> {
                 val cilj = tovor?.niz("to").orEmpty()
                 val msg = tovor?.niz("msg") ?: return null
@@ -2123,23 +2173,71 @@ class HubUsmerjevalnik(
 
     fun kategorijeSinhronizacije(): List<String> = synchronized(kljucnica) { sinhronizacija.keys.sorted() }
 
-    private fun objaviNaprave() {
-        // Seznam dobijo vsi povezani, ne le posiljatelji: tudi zaslon mora vedeti, komu lahko
-        // kaj poslje, ker je deljenje dvosmerno. Odjemalci s te naprave dobijo isti (surov) seznam,
-        // odjemalci od drugod svojega - gl. napravaJson.
-        val seznami = HashMap<String?, String>()
-        val nasi = HashMap<String, String>()
-        for (povezava in register.povezanePovezave()) {
-            if (povezava is Namestnik) continue
-            val odKod = HubNaslovi.soseda(povezava.naslov)            // "" = s te naprave (ali neznano)
-            val nas: String? = if (odKod.isEmpty()) null
-                else nasi.getOrPut(odKod) { try { nasNaslovProti(odKod) } catch (_: Throwable) { "" } }
-            val sporocilo = seznami.getOrPut(nas) {
-                ovojnica("cast.devices").surovo("devices", synchronized(kljucnica) { napraveJson(nas) }).toString()
+    /** Seznam naprav se je (morda) spremenil: objava odjemalcem in sosedom - takoj ali ob koncu okna zdruzevanja. */
+    private fun objaviNaprave() = dusilec.sprozi()
+
+    /** Sredisce se ustavlja: cakajoca objava ne gre nikamor vec, nit casovnika se konca. */
+    fun ustaviObjave() = dusilec.ustavi()
+
+    /**
+     * Ena objava (SeznamSprememb). Seznam dobijo vsi povezani, ne le posiljatelji: tudi zaslon mora vedeti, komu lahko
+     * kaj poslje, ker je deljenje dvosmerno. Skupine so iste kot pri celem seznamu (odjemalci s te naprave surov seznam,
+     * odjemalci od drugod svojega - gl. napravaJson -, sosedje po nasem naslovu na poti do njih), zato sprememba nikoli
+     * ne nosi naprave, ki je cel seznam ne bi. Kdor zna, dobi po posnetku samo spremembe; drugi cel seznam kot doslej.
+     */
+    private fun objaviZdaj() {
+        synchronized(kljucObjave) {
+            val novi = HashMap<String, SeznamSprememb.Pogled>()
+            var poslano = 0L
+            val skupine = LinkedHashMap<String?, MutableList<Odjemalec>>()
+            val nasi = HashMap<String, String>()
+            for (povezava in register.povezanePovezave()) {
+                if (povezava is Namestnik) continue
+                val odKod = HubNaslovi.soseda(povezava.naslov)            // "" = s te naprave (ali neznano)
+                val nas: String? = if (odKod.isEmpty()) null
+                    else nasi.getOrPut(odKod) { try { nasNaslovProti(odKod) } catch (_: Throwable) { "" } }
+                skupine.getOrPut(nas) { ArrayList() }.add(povezava)
             }
-            posljiVarno(povezava, sporocilo)
+            for ((nas, povezave) in skupine) {
+                val kljuc = "c|" + (nas ?: "\u0000")
+                val pogled = pogledi[kljuc] ?: SeznamSprememb.Pogled(mapOf("devices" to true))
+                novi[kljuc] = pogled
+                pogled.posodobi(mapOf("devices" to (SeznamSprememb.seznam(synchronized(kljucnica) { napraveJson(nas) }) ?: LinkedHashMap())))
+                poslano += SeznamSprememb.razposlji(pogled, povezave, ::stanjeSeznama, ::posljiVarno,
+                    posnetek = {
+                        ovojnica(SeznamSprememb.POSNETEK).surovo("devices", pogled.posnetekJson())
+                            .niz("epoch", pogled.epoha).stevilo("ver", pogled.ver.toDouble()).toString()
+                    },
+                    spremembe = {
+                        ovojnica(SeznamSprememb.SPREMEMBE).niz("epoch", pogled.epoha)
+                            .stevilo("base", (pogled.ver - 1).toDouble()).stevilo("ver", pogled.ver.toDouble())
+                            .surovo("devices", pogled.zadnja?.get("devices") ?: "{}").toString()
+                    })
+            }
+            val sosedjeZdaj = synchronized(kljucnica) { sosedje.values.toList() }
+            if (sosedjeZdaj.isNotEmpty()) {
+                val relay = SeznamSprememb.slovar(posredneZaSosede()) ?: LinkedHashMap()
+                val poNaslovu = LinkedHashMap<String, MutableList<Odjemalec>>()
+                for (p in sosedjeZdaj) {
+                    // Vsak sosed dobi nas naslov, kot velja na poti do njega; prek releja (Global Link) nobenega.
+                    val sosed = HubNaslovi.soseda(p.naslov)
+                    val nas = if (sosed.isEmpty()) "" else nasi.getOrPut(sosed) { try { nasNaslovProti(sosed) } catch (_: Throwable) { "" } }
+                    poNaslovu.getOrPut(nas) { ArrayList() }.add(p)
+                }
+                for ((nas, povezave) in poNaslovu) {
+                    val kljuc = "m|$nas"
+                    val pogled = pogledi[kljuc] ?: SeznamSprememb.Pogled(mapOf("devices" to false, "relay" to false))
+                    novi[kljuc] = pogled
+                    pogled.posodobi(mapOf("devices" to (SeznamSprememb.slovar(lokalneZaSosede(nas)) ?: LinkedHashMap()), "relay" to relay))
+                    poslano += SeznamSprememb.razposlji(pogled, povezave, ::stanjeSeznama, ::posljiVarno,
+                        posnetek = { meshPosnetek(pogled) }, spremembe = { meshSpremembe(pogled) })
+                }
+            }
+            // Skupina brez prejemnikov ne hrani nicesar: kdor pride pozneje, dobi posnetek z novo oznako.
+            pogledi.clear()
+            pogledi.putAll(novi)
+            poslanoSeznamov += poslano
         }
-        objaviSosedom(null)
     }
 
     private fun objaviPosiljateljem(sporocilo: String, sme: ((String?) -> Boolean)? = null) {

@@ -63,6 +63,23 @@ object JsonLahki {
         }
     }
 
+    /**
+     * Elementi seznama JSON kot izvirno besedilo (vgnezdeno preverjeno, ne razgrnjeno); null, ce vir ni pravilen seznam.
+     * Brez meje stevila elementov (seznam naprav, SeznamSprememb) - mejo postavi velikost sporocila.
+     */
+    fun elementi(vir: String): List<String>? = try {
+        Bralec(vir).elementi()
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Vrednost niza iz izvirnega besedila JSON (z narekovaji), npr. elementa seznama; null, ce to ni en niz. */
+    fun niz(surovo: String): String? = try {
+        Bralec(surovo).samoNiz()
+    } catch (e: Exception) {
+        null
+    }
+
     /** Polje objekta: vrsta, obmocje v izvirnem besedilu in, pri nizih, ze odkodirana vrednost. */
     class Polje internal constructor(
         val vrsta: Vrsta,
@@ -290,6 +307,45 @@ object JsonLahki {
                     else -> return izpis
                 }
             }
+        }
+
+        /** Seznam na vrhu vira: izvirno besedilo vsakega elementa; null, ce vir ni en pravilen seznam. */
+        fun elementi(): List<String>? {
+            preskociPresledke()
+            if (i >= vir.length || vir[i] != '[') return null
+            i++
+            val izpis = ArrayList<String>()
+            preskociPresledke()
+            if (i < vir.length && vir[i] == ']') {
+                i++
+                preskociPresledke()
+                return if (konec()) izpis else null
+            }
+            while (true) {
+                preskociPresledke()
+                val zacetek = i
+                if (vrednost(1) == null) return null
+                izpis.add(vir.substring(zacetek, i))
+                preskociPresledke()
+                if (i >= vir.length) return null
+                when (vir[i]) {
+                    ',' -> i++
+                    ']' -> {
+                        i++
+                        preskociPresledke()
+                        return if (konec()) izpis else null
+                    }
+                    else -> return null
+                }
+            }
+        }
+
+        /** Ves vir je en sam niz JSON. */
+        fun samoNiz(): String? {
+            preskociPresledke()
+            val s = niz() ?: return null
+            preskociPresledke()
+            return if (konec()) s else null
         }
 
         /** Preskoci niz, ne da bi ga odkodiral; ista pravila kot [niz] (strogi JSON). */

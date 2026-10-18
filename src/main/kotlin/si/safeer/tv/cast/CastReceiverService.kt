@@ -438,6 +438,7 @@ class CastReceiverService : Service() {
                 if (prekReleja && !si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)) prekReleja = false
                 if (prekReleja) { mainHandler.removeCallbacks(nazajVLan); mainHandler.postDelayed(nazajVLan, 300_000L) }
                 povezan = true
+                seznamNaprav = SeznamSprememb.Prejemnik()
                 try { naPovezavo?.invoke(true) } catch (e: Throwable) { SafeerLog.napaka("Sprejemnik", "naPovezavo(true)", e) }
 
                 // 1. Registracija naprave kot Receiver
@@ -452,6 +453,8 @@ class CastReceiverService : Service() {
                             si.safeer.tv.link.Daljinec.ZMOZNOST_ZVOK)
                         // Zascita od naprave do naprave: ukaze, odgovore in strani sprejemamo (in posiljamo) po preverjeni seji.
                         zmoznosti.add(E2e.ZMOZNOST)
+                        // Seznam naprav: po posnetku samo spremembe (SeznamSprememb) - manj prometa v velikem krogu.
+                        zmoznosti.add(SeznamSprememb.ZMOZNOST)
                         if (si.safeer.tv.link.DatotekeStreznik.vklopljeno(this@CastReceiverService)) {
                             zmoznosti.add(si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)
                         }
@@ -774,8 +777,16 @@ class CastReceiverService : Service() {
         return zascita.poslji(sporocilo)
     }
 
-    private fun handleIncomingMessage(ws: WebSocket, text: String) {
+    /** Seznam naprav iz posnetka in sprememb (SeznamSprememb); nov ob vsaki povezavi - prvo je vedno posnetek. */
+    @Volatile private var seznamNaprav = SeznamSprememb.Prejemnik()
+
+    private fun handleIncomingMessage(ws: WebSocket, surovo: String) {
         try {
+            // Seznam naprav: posnetek ali spremembe. Naprej gre vedno cel cast.devices; ob vrzeli ali dvomu zahtevamo
+            // posnetek, do takrat ostane zadnji pravi seznam.
+            val (text, zahtevaj) = seznamNaprav.sprejmi(surovo)
+            if (zahtevaj) try { ws.send(SeznamSprememb.zahteva(UUID.randomUUID().toString())) } catch (_: Throwable) { }
+            if (text == null) return
             if (JsonLahki.pregloboko(text)) { Log.w(TAG, "Sporocilo zavrzeno: pregloboko gnezdeno ali ni strogi JSON."); return }
             val json = JSONObject(text)
             // Oznaka sporocila je kratka; z zelo dolgo bi odgovor ali potrditev, ki jo ponovi, polnila pomnilnik.

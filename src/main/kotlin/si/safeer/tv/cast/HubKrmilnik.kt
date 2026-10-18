@@ -210,7 +210,9 @@ object HubKrmilnik {
 
         val u = HubUsmerjevalnik(NastavitveShramba(app), krogZaupanja = KrogNaprave.krog(app),
             // Zasebne oddaje starejsih naprav (brez seznama `allow`): samo znotraj ozjega kroga te naprave.
-            ozjiKrog = { jedro, zahteva -> Dostop.sme(app, jedro, zahteva) })
+            ozjiKrog = { jedro, zahteva -> Dostop.sme(app, jedro, zahteva) },
+            // Seznam naprav: spremembe v oknu gredo kot eno sporocilo (val prijav v podjetju).
+            oknoSeznamaMs = SeznamSprememb.OKNO_MS)
         // TLS: kljuc Huba iz Android KeyStore; odtis potrdila je vpleten v seznanjanje.
         val tls = try { HubTls.streznik() } catch (e: Throwable) {
             Log.w(TAG, "TLS Huba ni bilo mogoce pripraviti: ${e.message}")
@@ -538,6 +540,8 @@ object HubKrmilnik {
         streznik = null
         spletniStreznik?.ustavi()
         spletniStreznik = null
+        // Cakajoca objava seznama naprav ne gre vec v zaprte povezave; nit casovnika se konca.
+        usmerjevalnik?.ustaviObjave()
         usmerjevalnik = null
         zacetekHuba = 0L
         tokovi = null

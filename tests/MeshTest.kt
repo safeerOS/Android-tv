@@ -74,10 +74,18 @@ private fun Naprava.naslovOd(id: String): String? {
     return Regex("\\{\"id\":\"" + Regex.escape(id) + "\".*?\"ip\":\"([^\"]*)\"").find(s)?.groupValues?.get(1)
 }
 
-/** Naslov naprave [id] v zadnjem seznamu mesh.devices, ki je sel po tej sosednji povezavi. */
+/** Naslov naprave [id] v seznamu, ki ga ima sosed po tej povezavi: zadnji posnetek in spremembe za njim (SeznamSprememb). */
 private fun Cev.izvozenNaslov(id: String): String? {
-    val s = poslano.lastOrNull { JsonLahki.objekt(it)?.niz("type") == "mesh.devices" } ?: return null
-    return JsonLahki.objekt(s)?.objekt("payload")?.objekt("devices")?.objekt(id)?.niz("ip")
+    val zrcalo = SeznamSprememb.Zrcalo(mapOf("devices" to false, "relay" to false))
+    for (s in poslano) {
+        val j = JsonLahki.objekt(s) ?: continue
+        val t = j.objekt("payload") ?: continue
+        when (j.niz("type")) {
+            SeznamSprememb.MESH_POSNETEK -> zrcalo.posnetek(mapOf("devices" to t.surovo("devices"), "relay" to t.surovo("relay")), t.niz("epoch"), t.stevilo("ver"))
+            SeznamSprememb.MESH_SPREMEMBE -> zrcalo.uporabi(t)
+        }
+    }
+    return zrcalo.deli["devices"]?.get(id)?.get("ip")?.let { JsonLahki.niz(it) }
 }
 
 private fun prijava(u: HubUsmerjevalnik, id: String, naslov: String = "192.168.0.50"): Naprava {
@@ -213,7 +221,7 @@ fun main() {
         val a = hub("hub-a"); val b = hub("hub-b")
         prijava(a, "tv")
         val (ab, _) = povezi(a, b)
-        fun st() = ab.poslano.count { JsonLahki.objekt(it)?.niz("type") == "mesh.devices" }
+        fun st() = ab.poslano.count { JsonLahki.objekt(it)?.niz("type").let { t -> t == "mesh.devices" || t == "mesh.devices.delta" } }
         prijava(b, "pc")                        // sprememba pri sosedu spremeni nas relay zemljevid
         val pred = st()
         a.obdelaj(Naprava(), """{"id":"p","type":"cast.ping"}""")
@@ -297,9 +305,9 @@ fun main() {
         val (ac, _) = povezi(a, c, aVidiB = "10.0.0.7", bVidiA = "10.0.0.2")
         preveriM("sosed v domacem omrezju dobi domaci naslov", ab.izvozenNaslov("pc") == PC)
         preveriM("sosed v drugem omrezju dobi naslov tiste poti", ac.izvozenNaslov("pc") == "10.0.0.2")
-        val prej = ab.poslano.count { JsonLahki.objekt(it)?.niz("type") == "mesh.devices" }
+        val prej = ab.poslano.count { JsonLahki.objekt(it)?.niz("type").let { t -> t == "mesh.devices" || t == "mesh.devices.delta" } }
         prijava(a, "pc", "127.0.0.1")                    // ista naprava se prijavi znova: seznam je enak
-        preveriM("seznam se vedno samo ob spremembi", ab.poslano.count { JsonLahki.objekt(it)?.niz("type") == "mesh.devices" } == prej)
+        preveriM("seznam se vedno samo ob spremembi", ab.poslano.count { JsonLahki.objekt(it)?.niz("type").let { t -> t == "mesh.devices" || t == "mesh.devices.delta" } } == prej)
     }
     primer("naslov: neznan nas naslov ne poslje zanke") {
         val a = hubN("hub-a"); val b = hubN("hub-b")
