@@ -432,6 +432,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         when (n.platforma) { "phone" -> "phone"; "tablet" -> "tablet"; "tv" -> "tv"; else -> "computer" }
 
     private fun odpriRacunalnik(r: LinkOdjemalec.Naprava) {
+        if (OzjiKrog.zavrni(this, r.id, r.ime)) return          // ni_ozji_krog: tista naprava ne dobi ukaza
         izbiramRacunalnik = false
         krajevni = false
         // Datoteke racunalnika zna odpreti tudi racunalnik sam (namizje); telefon in tablica tega nimata.

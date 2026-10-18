@@ -682,4 +682,18 @@
     <string name="os_zasloni_prazno_ni_linka">Safeer Link n’est pas connecté. Dès que cet appareil se connecte, tous les appareils qui partagent leur écran avec vous apparaissent ici.</string>
     <string name="os_zasloni_prazno_ni_naprav">Aucun autre appareil avec écran dans Safeer Link. Connectez un ordinateur (Linux ou Windows), un téléviseur, une tablette ou un autre téléphone.</string>
     <string name="os_zasloni_prazno_ni_dovoljenj">Des appareils avec écran sont dans Safeer Link, mais aucun ne vous autorise encore à l’afficher. Son propriétaire accorde l’accès sur cet appareil : Safeer Link → Appareils connectés → cet appareil → Écran.</string>
+    <!-- Ozji krog zaupanja in pomoc drugim napravam pri povezavi (os/OzjiKrog, link/PomocLinka) -->
+    <string name="os_ozji_krog">Cercle de confiance proche</string>
+    <string name="os_ozji_krog_opis">Les appareils auxquels cet appareil fait confiance : eux seuls voient son contenu, et seuls leurs programmes, fichiers et écran s\'affichent ici. Les autres appareils de Safeer Link aident seulement à se connecter.</string>
+    <string name="os_ozji_krog_stevilo">Dans le cercle : %1$d</string>
+    <string name="os_ozji_krog_zavrnjeno">%1$s n\'est pas dans le cercle proche de cet appareil. Ajoute-le dans Réglages → Cercle de confiance proche.</string>
+    <string name="os_ozji_krog_ni_naprav">Il n\'y a pas d\'autres appareils dans Safeer Link. Connecte d\'abord un appareil.</string>
+    <string name="os_ozji_krog_shranjeno">Cercle proche enregistré (dans le cercle : %1$d).</string>
+    <string name="os_ozji_krog_podrobno">Détails</string>
+    <string name="os_ozji_krog_prazno">Des appareils avec écran sont dans Safeer Link, mais aucun n\'est dans le cercle proche de cet appareil. Ajoute-les dans Réglages → Cercle de confiance proche.</string>
+    <string name="os_pomoc_ime">Aider les autres appareils de Link à se connecter</string>
+    <string name="os_pomoc_vprasanje">Aider les autres appareils de Link à se connecter ?</string>
+    <string name="os_pomoc_opis">Quand deux de tes appareils ne peuvent pas se joindre directement (p. ex. l\'un est derrière un autre routeur), cet appareil les relie : il les présente l\'un à l\'autre et transmet leurs messages. Uniquement pour les appareils de ton cercle de confiance. Désactivé, ces appareils ne se voient pas par cet appareil.</string>
+    <string name="os_pomoc_da">Oui, aider</string>
+    <string name="os_pomoc_ne">Non</string>
 </resources>

@@ -17,6 +17,7 @@ object NadaljujOdpri {
     fun datoteka(a: Activity, link: LinkUpravitelj, n: Nadaljuj.Vnos, niVec: (Boolean) -> Unit) {
         if (n.krajevno) { odpri(a, n, null); return }
         val r = link.naprave.firstOrNull { it.id == n.racunalnik } ?: run { niVec(true); return }
+        if (OzjiKrog.zavrni(a, r.id, r.ime)) return              // ni_ozji_krog
         Toast.makeText(a, a.getString(R.string.os_nadaljuj_odpiram, n.ime), Toast.LENGTH_SHORT).show()
         link.ukaz(r.id, "files.list", org.json.JSONObject().put("folder", ""), 12_000,
             LinkOdjemalec.Odgovor { izid, _ ->

@@ -686,4 +686,18 @@
     <string name="os_zasloni_prazno_ni_linka">Safeer Link is not connected. Once this device connects, every device that shares its screen with you is listed here.</string>
     <string name="os_zasloni_prazno_ni_naprav">There is no other device with a screen in Safeer Link. Connect a computer (Linux or Windows), a TV, a tablet or another phone.</string>
     <string name="os_zasloni_prazno_ni_dovoljenj">There are devices with a screen in Safeer Link, but none lets you view it yet. Its owner grants access on that device: Safeer Link → Connected devices → this device → Screen.</string>
+    <!-- Ozji krog zaupanja in pomoc drugim napravam pri povezavi (os/OzjiKrog, link/PomocLinka) -->
+    <string name="os_ozji_krog">Inner circle of trust</string>
+    <string name="os_ozji_krog_opis">Devices this device trusts: only they see its content, and only their programs, files and screen are shown here. Other devices in Safeer Link only help with connecting.</string>
+    <string name="os_ozji_krog_stevilo">In circle: %1$d</string>
+    <string name="os_ozji_krog_zavrnjeno">%1$s is not in this device\'s inner circle. Add it in Settings → Inner circle of trust.</string>
+    <string name="os_ozji_krog_ni_naprav">There are no other devices in Safeer Link. Connect a device first.</string>
+    <string name="os_ozji_krog_shranjeno">Inner circle saved (in circle: %1$d).</string>
+    <string name="os_ozji_krog_podrobno">Details</string>
+    <string name="os_ozji_krog_prazno">Devices with a screen are in Safeer Link, but none is in this device\'s inner circle. Add them in Settings → Inner circle of trust.</string>
+    <string name="os_pomoc_ime">Help other devices in Link connect</string>
+    <string name="os_pomoc_vprasanje">Help other devices in Link connect?</string>
+    <string name="os_pomoc_opis">When two of your devices cannot reach each other directly (e.g. one is behind another router), this device connects them: it introduces them to each other and passes their messages on. Only for devices in your circle of trust. When off, such devices do not see each other through this device.</string>
+    <string name="os_pomoc_da">Yes, help</string>
+    <string name="os_pomoc_ne">No</string>
 </resources>

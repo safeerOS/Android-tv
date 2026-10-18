@@ -1167,7 +1167,7 @@ class HubUsmerjevalnik(
             .niz("name", vzdevek(naprava.id) ?: naprava.ime)
             .niz("own_name", naprava.ime)
             .niz("role", naprava.vloga)
-            .seznamNizov("capabilities", naprava.zmoznosti)
+            .seznamNizov("capabilities", zmoznostiZaObjavo(naprava.zmoznosti, tukaj))
             .niz("ip", if (tukaj && nasNaslov != null) nasNaslov else naprava.naslov)
             .nic("port")
             .stevilo("last_seen", naprava.zadnjic)
@@ -1517,6 +1517,35 @@ class HubUsmerjevalnik(
     /** Sosed je prisel (id, naslov povezave) ali odsel (id, ""): krmilnik si zapomni naslov in po izgubi hitro poskusi znova. */
     @Volatile var naSosedu: ((String, String) -> Unit)? = null
 
+    /**
+     * »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka, isto kot core/link_mesh.py): sosedom predstavimo
+     * naprave drugih sosedov (relay) in jim sporocila predamo naprej. Izklopljeno: ne eno ne drugo. Neberljiva
+     * nastavitev velja kot privzeto (vklopljeno).
+     */
+    @Volatile var pomaga: () -> Boolean = { true }
+
+    /**
+     * Televizor v pripravljenosti (zaslon ugasnjen, os/VklopTelevizorja): programi te naprave v Linku nosijo zmoznost
+     * [ZMOZNOST_PRIPRAVLJENOST]. Ko se televizor prizge, zmoznost izgine - racunalnik (core/zvok_na_zvocnik.py) tako
+     * ve, kdaj je televizor prizgan, tudi ce je bil ves cas v Linku.
+     */
+    @Volatile var vPripravljenosti: () -> Boolean = { false }
+
+    private fun pomagaVarno(): Boolean = try { pomaga() } catch (_: Throwable) { true }
+
+    /** Nastavitev pomoci se je spremenila: sosedje takoj dobijo nov seznam (z ali brez naprav drugih sosedov). */
+    fun osveziPomoc() = objaviSosedom(null)
+
+    /** Zaslon televizorja se je prizgal ali ugasnil: vsi (odjemalci in sosedje) takoj dobijo nov seznam naprav. */
+    fun osveziStanjeZaslona() = objaviNaprave()
+
+    /**
+     * Zmoznosti naprave, kot jih vidijo drugi: programom te naprave ([tukaj]) v pripravljenosti dodamo »standby«, sicer
+     * ga odvzamemo. Naprav z drugih naprav (namestniki sosedov) ne spreminjamo - njihovo stanje pove njihov Hub.
+     */
+    private fun zmoznostiZaObjavo(zmoznosti: List<String>, tukaj: Boolean): List<String> =
+        if (!tukaj) zmoznosti else zmoznostiObjave(zmoznosti, try { vPripravljenosti() } catch (_: Throwable) { false })
+
     fun sosedjeIdji(): List<String> = synchronized(kljucnica) { sosedje.keys.sorted() }
 
     /** Sosednja povezava za id Huba (za preizkuse in stanje). */
@@ -1538,7 +1567,8 @@ class HubUsmerjevalnik(
     private fun lokalneZaSosede(nasNaslov: String? = null): String {
         val lokalne = register.povezane().filter { it.povezava !is Namestnik && jeClan(it.id) }.sortedBy { it.id }
         return lokalne.joinToString(",", "{", "}") { n ->
-            val z = JsonLahki.Zapis().niz("name", n.ime).niz("role", n.vloga).seznamNizov("capabilities", n.zmoznosti)
+            val tukaj = n.naslov.isNotBlank() && HubNaslovi.samoTukaj(n.naslov)
+            val z = JsonLahki.Zapis().niz("name", n.ime).niz("role", n.vloga).seznamNizov("capabilities", zmoznostiZaObjavo(n.zmoznosti, tukaj))
                 .niz("ip", if (nasNaslov == null) n.naslov else HubNaslovi.zaDruge(n.naslov, nasNaslov))
             if (n.protokol.isNotBlank()) z.niz("protocol", n.protokol)
             if (n.platforma.isNotBlank()) z.niz("platform", n.platforma)
@@ -1567,9 +1597,12 @@ class HubUsmerjevalnik(
      * Naprave nasih NEPOSREDNIH sosedov (ne posrednih): sosed, ki do njih nima svoje poti, jih doseze
      * prek nas. Pot je tako najvec en vmesni Hub - brez zank.
      */
-    private fun posredneZaSosede(): String =
-        register.povezane().filter { val p = it.povezava; p is Namestnik && !p.posredno && jeClan(it.id) }
+    private fun posredneZaSosede(): String {
+        // Uporabnik pomoci drugim napravam ni dovolil (PomocLinka): naprav drugih sosedov ne predstavimo.
+        if (!pomagaVarno()) return "{}"
+        return register.povezane().filter { val p = it.povezava; p is Namestnik && !p.posredno && jeClan(it.id) }
             .sortedBy { it.id }.joinToString(",", "{", "}") { zapisZaSosede(it, (it.povezava as Namestnik).sosedId) }
+    }
 
     private fun sporociloNaprav(seznam: String, relay: String): String =
         ovojnica("mesh.devices").surovo("payload", JsonLahki.Zapis().niz("hub", lastniId).surovo("devices", seznam)
@@ -1801,6 +1834,7 @@ class HubUsmerjevalnik(
                 if (tovor?.logicno("relay") == true) {
                     // En vmesni skok: samo napravi, ki je NEPOSREDNO pri nasem drugem sosedu, in samo v imenu
                     // naprave, ki je lokalno pri sosedu, ki prosi. Nikoli se enkrat naprej.
+                    if (!pomagaVarno()) return null           // uporabnik pomoci drugim napravam ni dovolil
                     val lokalneSoseda = synchronized(kljucnica) { sosedNaprave[sosedId]?.toSet() ?: emptySet() }
                     if (prejemnik !is Namestnik || prejemnik.posredno || prejemnik.sosedId == sosedId) return null
                     if (posiljatelj.isBlank() || posiljatelj !in lokalneSoseda) return null
@@ -2313,6 +2347,14 @@ class HubUsmerjevalnik(
         private const val KLEPET_ZIVLJENJE_MS = 7L * 24 * 3600 * 1000
         private val DATA_POSREDOVANJE = setOf("data.offer", "data.answer", "data.chunk", "data.ack", "data.close", "data.error")
         const val ZMOZNOST_DALJINEC = "remote"
+        /** Televizor v pripravljenosti (zaslon ugasnjen): racunalnik ga ne steje za prizganega (core/zvok_na_zvocnik.py). */
+        const val ZMOZNOST_PRIPRAVLJENOST = "standby"
+
+        /** Zmoznosti za objavo: v pripravljenosti z »standby«, sicer brez nje (tudi ce bi jo naprava sama navedla). */
+        fun zmoznostiObjave(zmoznosti: List<String>, pripravljenost: Boolean): List<String> {
+            val brez = zmoznosti.filter { it != ZMOZNOST_PRIPRAVLJENOST }
+            return if (pripravljenost) brez + ZMOZNOST_PRIPRAVLJENOST else brez
+        }
 
         // Meje so del zasnove, ne naknadni popravek. Televizor ima malo pomnilnika in ga
         // sistem ob pomanjkanju ubije brez opozorila, zato ima vsak seznam svojo streho.

@@ -99,9 +99,12 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         if (poslusalci.isEmpty()) glavna.postDelayed(ustavitev, 6_000)
     }
 
-    /** Naprave v Linku, ki delijo datoteke (Safeer Control z mapami, telefon in tablica z mediji) - brez te naprave. */
+    /**
+     * Naprave v Linku, ki delijo datoteke (Safeer Control z mapami, telefon in tablica z mediji) - brez te naprave in
+     * samo iz ozjega kroga zaupanja te naprave (lastnik, 17. 10. 2026; os/OzjiKrog).
+     */
     fun racunalnikiZDatotekami(): List<LinkOdjemalec.Naprava> =
-        naprave.filter { it.zmoznosti.contains("files") && !jeTaNaprava(it) }
+        OzjiKrog.samoKrog(app, naprave.filter { it.zmoznosti.contains("files") && !jeTaNaprava(it) })
 
     /**
      * Ali je to odjemalec na tej napravi: mi sami, brskalnik na tem televizorju (sredisce mu pripise

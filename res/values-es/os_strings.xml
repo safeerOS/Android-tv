@@ -682,4 +682,18 @@
     <string name="os_zasloni_prazno_ni_linka">Safeer Link no está conectado. Cuando este dispositivo se conecte, aquí estarán todos los que comparten su pantalla contigo.</string>
     <string name="os_zasloni_prazno_ni_naprav">No hay otro dispositivo con pantalla en Safeer Link. Conecta un ordenador (Linux o Windows), un televisor, una tableta u otro teléfono.</string>
     <string name="os_zasloni_prazno_ni_dovoljenj">Hay dispositivos con pantalla en Safeer Link, pero ninguno te permite verla todavía. Su propietario concede el acceso en ese dispositivo: Safeer Link → Dispositivos conectados → este dispositivo → Pantalla.</string>
+    <!-- Ozji krog zaupanja in pomoc drugim napravam pri povezavi (os/OzjiKrog, link/PomocLinka) -->
+    <string name="os_ozji_krog">Círculo de confianza cercano</string>
+    <string name="os_ozji_krog_opis">Dispositivos en los que confía este dispositivo: solo ellos ven su contenido y solo sus programas, archivos y pantalla se muestran aquí. Los demás dispositivos de Safeer Link solo ayudan a conectarse.</string>
+    <string name="os_ozji_krog_stevilo">En el círculo: %1$d</string>
+    <string name="os_ozji_krog_zavrnjeno">%1$s no está en el círculo cercano de este dispositivo. Añádelo en Ajustes → Círculo de confianza cercano.</string>
+    <string name="os_ozji_krog_ni_naprav">No hay otros dispositivos en Safeer Link. Conecta primero un dispositivo.</string>
+    <string name="os_ozji_krog_shranjeno">Círculo cercano guardado (en el círculo: %1$d).</string>
+    <string name="os_ozji_krog_podrobno">Detalles</string>
+    <string name="os_ozji_krog_prazno">Hay dispositivos con pantalla en Safeer Link, pero ninguno está en el círculo cercano de este dispositivo. Añádelos en Ajustes → Círculo de confianza cercano.</string>
+    <string name="os_pomoc_ime">Ayudar a otros dispositivos de Link a conectarse</string>
+    <string name="os_pomoc_vprasanje">¿Ayudar a otros dispositivos de Link a conectarse?</string>
+    <string name="os_pomoc_opis">Cuando dos de tus dispositivos no pueden alcanzarse directamente (p. ej., uno está detrás de otro router), este dispositivo los conecta: los presenta entre sí y les pasa los mensajes. Solo para dispositivos de tu círculo de confianza. Si está desactivado, esos dispositivos no se ven a través de este.</string>
+    <string name="os_pomoc_da">Sí, ayudar</string>
+    <string name="os_pomoc_ne">No</string>
 </resources>

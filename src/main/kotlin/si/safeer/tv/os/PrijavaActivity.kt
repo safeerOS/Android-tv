@@ -256,8 +256,17 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun naZavrnitev() {}
 
     /** Nekdo se je povezal (s QR ali s 6-mestno kodo): pokazemo to in pripravimo novo kodo. */
+    /** Vprasanje »Pomagaj drugim napravam v Linku pri povezavi?« (link/PomocLinka) in ali je zaslon cakal nanj. */
+    private var vprasanjePomoci: android.app.AlertDialog? = null
+    private var zapriPoVprasanju: Boolean? = null
+
     private fun pokaziPovezano(ime: String) {
         if (konec) return
+        // Ob seznanitvi enkrat vprasamo (fokus na »Da, pomagaj«); zaslon se zapre sele po odgovoru.
+        if (vprasanjePomoci?.isShowing != true) vprasanjePomoci = si.safeer.tv.link.PomocLinka.vprasajEnkrat(this) {
+            vprasanjePomoci = null
+            zapriPoVprasanju?.let { zapriPoVprasanju = null; zapri(it) }
+        }
         stanjeQr.text = getString(R.string.os_prijava_povezano, ime.ifBlank { "Naprava" })
         if (!Nacin.jeLink(this)) link.vklopiLink()
         qrId = ""
@@ -487,6 +496,7 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun zapri(brezPovezave: Boolean) {
         if (konec) return
+        if (vprasanjePomoci?.isShowing == true) { zapriPoVprasanju = brezPovezave; return }
         konec = true
         glavna.removeCallbacksAndMessages(null)
         // Ce se je medtem kdo pridruzil, »brez povezave« ne velja vec: naprava je ze povezana.

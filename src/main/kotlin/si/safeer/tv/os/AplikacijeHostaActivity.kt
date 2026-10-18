@@ -884,6 +884,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      */
     private fun zazeniProgram(p: SafeerApp) {
         val r = link.naprave.firstOrNull { it.id == p.racunalnik } ?: racunalnik ?: return
+        if (OzjiKrog.zavrni(this, r.id, r.ime)) return          // ni_ozji_krog: tista naprava ne dobi ukaza
         if (r.id in androidNaprave) { zazeniNaNapravi(p, r); return }
         val zaslon = link.naprave.any { it.id == r.id && it.zmoznosti.contains("desktop") }
         link.ukaz(r.id, "apps.launch", JSONObject().put("app", p.cilj), 10_000, LinkOdjemalec.Odgovor { izid, napaka ->
@@ -1036,11 +1037,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             // Sredisce vsakemu odjemalcu na svoji napravi pripise 127.0.0.1: kadar sredisce tece tu, so to
             // nasi procesi (brskalnik na tem televizorju) - njegove aplikacije so ze med aplikacijami televizorja.
             val loopback = setOf("127.0.0.1", "::1", "localhost")
-            return link.naprave.filter {
+            // Samo ozji krog zaupanja (lastnik, 17. 10. 2026, kot na racunalniku): naprave zunaj kroga te naprave za
+            // ogled programov ne vidimo in je ne vprasamo za seznam.
+            return OzjiKrog.samoKrog(ctx, link.naprave.filter {
                 it.id != jaz && (it.zmoznosti.contains("apps") || it.zmoznosti.contains("remote")) &&
                     (mojNaslov == null || it.naslov.isBlank() || it.naslov != mojNaslov) &&
                     !(link.odjemalec.srediceJeTu && it.naslov in loopback) && !link.jeTaNaprava(it)
-            }
+            })
         }
 
         /** Seznam naprave, kot pride po Linku - ikone se niso dekodirane (to je delo zaslona). */

@@ -39,6 +39,7 @@ object PovezaniZasloni {
     private val stanja = HashMap<String, Pair<Dostop, Long>>()
 
     fun zaprosi(c: Context, link: LinkUpravitelj, r: LinkOdjemalec.Naprava) {
+        if (OzjiKrog.zavrni(c, r.id, r.ime)) return              // ni_ozji_krog: tista naprava ne dobi ukaza
         val ime = r.ime.ifBlank { r.id }
         link.ukaz(r.id, "apps.launch", JSONObject().put("app", Daljinec.CEL_ZASLON).put("stream", true), 15_000) { izid, napaka ->
             val ok = napaka.isEmpty() && izid?.optBoolean("ok") == true
@@ -107,6 +108,7 @@ object PovezaniZasloni {
             when {
                 v.dostop == Dostop.ZAVRNJENO -> Toast.makeText(a, a.getString(R.string.os_prosnja_zavrnjeno, v.ime), Toast.LENGTH_LONG).show()
                 // Racunalnik: zaslon racunalnika. Ta pri prosnji pokaze »Na racunalniku potrdi dostop« in pocaka na potrditev.
+                OzjiKrog.zavrni(a, v.id, v.ime) -> { }
                 v.racunalnik -> {
                     okno?.dismiss()
                     try {
@@ -119,18 +121,23 @@ object PovezaniZasloni {
 
         fun narisi() {
             if (a.isFinishing) return
-            val zive = link.naprave.map { vPravila(it) }
+            // Samo ozji krog zaupanja te naprave (lastnik, 17. 10. 2026): naprave zunaj njega tu ne vidimo.
+            val vseZive = link.naprave.map { vPravila(it) }
+            val zive = vseZive.filter { OzjiKrog.vKrogu(a, it.id) }
             val prejZnane = znane(a)
             val trenutna = trenutnaStanja()
             val nove = SeznamZaslonov.zapomni(prejZnane, zive, ::jeTa, trenutna)
             if (nove != prejZnane) a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit()
                 .putString(KLJUC_ZNANE, SeznamZaslonov.vNiz(nove)).apply()
-            val vnosi = SeznamZaslonov.seznam(zive, ::jeTa, nove, trenutna)
+            val vnosi = SeznamZaslonov.seznam(zive, ::jeTa, nove.filter { OzjiKrog.vKrogu(a, it.id) }, trenutna)
             seznam.removeAllViews()
             val prazno = SeznamZaslonov.prazno(vnosi, zive, ::jeTa, link.povezan)
+            // Naprave z zaslonom so, a nobena ni v ozjem krogu: povemo, kje jih uporabnik doda.
+            val zunajKroga = prazno != null && link.povezan &&
+                vseZive.any { SeznamZaslonov.zmoreZaslon(it.zmoznosti) && !jeTa(it) && !OzjiKrog.vKrogu(a, it.id) }
             if (prazno != null) {
                 seznam.addView(TextView(kontekst).apply {
-                    text = a.getString(when (prazno) {
+                    text = if (zunajKroga) a.getString(R.string.os_ozji_krog_prazno) else a.getString(when (prazno) {
                         SeznamZaslonov.Prazno.NI_LINKA -> R.string.os_zasloni_prazno_ni_linka
                         SeznamZaslonov.Prazno.NI_NAPRAV -> R.string.os_zasloni_prazno_ni_naprav
                         SeznamZaslonov.Prazno.NI_DOVOLJENJ -> R.string.os_zasloni_prazno_ni_dovoljenj
@@ -146,7 +153,7 @@ object PovezaniZasloni {
         val poslusalec = object : LinkOdjemalec.Poslusalec {
             override fun naStanje(povezan: Boolean, sporocilo: String) { narisi() }
             override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) {
-                naprave.filter { SeznamZaslonov.zmoreZaslon(it.zmoznosti) && !link.jeTaNaprava(it) }
+                naprave.filter { SeznamZaslonov.zmoreZaslon(it.zmoznosti) && !link.jeTaNaprava(it) && OzjiKrog.vKrogu(a, it.id) }
                     .forEach { preveri(link, it) { glavna.post { if (okno?.isShowing == true) narisi() } } }
                 narisi()
             }

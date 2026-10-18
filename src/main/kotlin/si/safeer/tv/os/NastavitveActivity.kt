@@ -198,6 +198,18 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Vrstica(R.drawable.os_ikona_link, "Global Link",
                 "Tvoje naprave se dosežejo tudi zunaj doma (link.safeer.si). Vidi jih samo tvoj krog zaupanja.",
                 getString(if (si.safeer.tv.link.GlobalLink.vklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { nastaviGlobalLink() },
+            // Ozji krog zaupanja (kot na racunalniku): samo naprave v njem vidijo vsebine te naprave in samo njihove
+            // programe, datoteke in zaslon vidis tu. Telefon zunaj kroga (npr. druzinski) ga tu ustvari in ureja.
+            Vrstica(R.drawable.os_ikona_link, getString(R.string.os_ozji_krog),
+                getString(R.string.os_ozji_krog_opis),
+                getString(R.string.os_ozji_krog_stevilo, OzjiKrog.stevilo(this, link))) { OzjiKrog.uredi(this, link) { narisi() } },
+            // »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka; isto kot na racunalniku).
+            Vrstica(R.drawable.os_ikona_link, getString(R.string.os_pomoc_ime),
+                getString(R.string.os_pomoc_opis),
+                getString(if (si.safeer.tv.link.PomocLinka.vklopljena(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) {
+                si.safeer.tv.link.PomocLinka.shrani(this, !si.safeer.tv.link.PomocLinka.vklopljena(this))
+                narisi()
+            },
             Vrstica(R.drawable.os_ikona_link, getString(R.string.os_ig_naslov),
                 getString(R.string.os_ig_opis),
                 if (getSharedPreferences(si.safeer.tv.link.AndroidApplicationGateway.PREFS, MODE_PRIVATE).getBoolean("gateway_enabled", false)) getString(R.string.os_vklopljeno) else getString(R.string.os_izklopljeno)) { nastaviInternetGateway() },

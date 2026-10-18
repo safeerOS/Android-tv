@@ -685,4 +685,18 @@
     <string name="os_zasloni_prazno_ni_linka">Safeer Link ni povezan. Ko se ta naprava poveže, so tu vse naprave, ki ti delijo zaslon.</string>
     <string name="os_zasloni_prazno_ni_naprav">V Safeer Linku ni druge naprave z zaslonom. Poveži računalnik (Linux ali Windows), televizor, tablico ali drug telefon.</string>
     <string name="os_zasloni_prazno_ni_dovoljenj">Naprave z zaslonom so v Safeer Linku, a nobena ti še ne dovoli gledanja. Dostop odpre njen uporabnik na tisti napravi: Safeer Link → Povezane naprave → ta naprava → Zaslon.</string>
+    <!-- Ozji krog zaupanja in pomoc drugim napravam pri povezavi (os/OzjiKrog, link/PomocLinka) -->
+    <string name="os_ozji_krog">Ožji krog zaupanja</string>
+    <string name="os_ozji_krog_opis">Naprave, ki jim ta naprava zaupa: samo one vidijo njene vsebine in samo njihove programe, datoteke in zaslon vidiš tu. Druge naprave v Safeer Linku pomagajo le pri povezavi.</string>
+    <string name="os_ozji_krog_stevilo">V krogu: %1$d</string>
+    <string name="os_ozji_krog_zavrnjeno">%1$s ni v ožjem krogu te naprave. Dodaš jo v Nastavitve → Ožji krog zaupanja.</string>
+    <string name="os_ozji_krog_ni_naprav">V Safeer Linku ni drugih naprav. Najprej poveži napravo.</string>
+    <string name="os_ozji_krog_shranjeno">Ožji krog je shranjen (v krogu: %1$d).</string>
+    <string name="os_ozji_krog_podrobno">Podrobno</string>
+    <string name="os_ozji_krog_prazno">Naprave z zaslonom so v Safeer Linku, a nobena ni v ožjem krogu te naprave. Dodaš jih v Nastavitve → Ožji krog zaupanja.</string>
+    <string name="os_pomoc_ime">Pomagaj drugim napravam v Linku pri povezavi</string>
+    <string name="os_pomoc_vprasanje">Pomagaj drugim napravam v Linku pri povezavi?</string>
+    <string name="os_pomoc_opis">Ko se dve tvoji napravi ne dosežeta neposredno (npr. ena je za drugim usmerjevalnikom), ju poveže ta naprava: predstavi ju drugo drugi in preda njuna sporočila naprej. Velja samo za naprave iz tvojega kroga zaupanja. Ko je izklopljeno, se taki napravi prek te naprave ne vidita.</string>
+    <string name="os_pomoc_da">Da, pomagaj</string>
+    <string name="os_pomoc_ne">Ne</string>
 </resources>

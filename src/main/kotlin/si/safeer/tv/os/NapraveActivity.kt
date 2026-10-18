@@ -67,6 +67,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         Ozadje.uporabi(this, koren)
         link.dodaj(this)
         narisi(link.naprave)
+        vprasajZaPomoc(link.naprave)
     }
 
     override fun onStop() {
@@ -340,7 +341,15 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     // ------------------------------------------------------------------ Link
 
-    override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { narisi(naprave) }
+    override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { narisi(naprave); vprasajZaPomoc(naprave) }
+
+    private var pomocOkno: android.app.AlertDialog? = null
+
+    /** Ce ta naprava ze ima druge naprave v Linku, uporabnik pa se ni povedal, ali naj jim pomaga pri povezavi. */
+    private fun vprasajZaPomoc(naprave: List<LinkOdjemalec.Naprava>) {
+        if (isFinishing || pomocOkno?.isShowing == true || naprave.none { !link.jeTaNaprava(it) }) return
+        pomocOkno = si.safeer.tv.link.PomocLinka.vprasajEnkrat(this) { pomocOkno = null }
+    }
     override fun naStanje(povezan: Boolean, sporocilo: String) { narisi(link.naprave) }
     override fun naNaslov(url: String, naslov: String, od: String) { }
     override fun naBesedilo(besedilo: String, od: String) { }

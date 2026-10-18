@@ -281,6 +281,13 @@ object HubKrmilnik {
             if (naslov.isNotBlank()) HubMesh.zapomni(app, id, naslov)
             else glavna.post { if (tece() && HubMesh.vklopljen(app)) nacrtujIzvolitev(app, 2_000L) }
         }
+        // »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka): privzeto da; izklop velja takoj.
+        u.pomaga = { si.safeer.tv.link.PomocLinka.vklopljena(app) }
+        si.safeer.tv.link.PomocLinka.naSpremembo = { usmerjevalnik?.osveziPomoc() }
+        // Televizor v pripravljenosti: njegovi programi v Linku nosijo »standby«; ob vklopu takoj nov seznam
+        // (racunalnik ve, kdaj je televizor prizgan - core/zvok_na_zvocnik.py).
+        u.vPripravljenosti = { si.safeer.tv.os.VklopTelevizorja.vPripravljenosti() }
+        si.safeer.tv.os.VklopTelevizorja.naSpremembo = { usmerjevalnik?.osveziStanjeZaslona() }
         // Naslov za QR kodo, ki jo pokaze DRUGA naprava v Linku (televizor, tablica): brez njega bi
         // naprava, ki se pridruzuje, imela le odtis in ne bi vedela, kam naj se poveze.
         u.naslovZaQr = try { krajevniNaslov()?.let { "$it:${s.vrata}" }.orEmpty() } catch (_: Throwable) { "" }

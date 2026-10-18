@@ -682,4 +682,18 @@
     <string name="os_zasloni_prazno_ni_linka">Safeer Link ist nicht verbunden. Sobald dieses Gerät verbunden ist, stehen hier alle Geräte, die ihren Bildschirm mit dir teilen.</string>
     <string name="os_zasloni_prazno_ni_naprav">In Safeer Link gibt es kein anderes Gerät mit Bildschirm. Verbinde einen Computer (Linux oder Windows), einen Fernseher, ein Tablet oder ein anderes Telefon.</string>
     <string name="os_zasloni_prazno_ni_dovoljenj">In Safeer Link gibt es Geräte mit Bildschirm, aber noch keines erlaubt dir das Ansehen. Der Besitzer erlaubt den Zugriff auf dem Gerät: Safeer Link → Verbundene Geräte → dieses Gerät → Bildschirm.</string>
+    <!-- Ozji krog zaupanja in pomoc drugim napravam pri povezavi (os/OzjiKrog, link/PomocLinka) -->
+    <string name="os_ozji_krog">Engerer Vertrauenskreis</string>
+    <string name="os_ozji_krog_opis">Geräte, denen dieses Gerät vertraut: Nur sie sehen seine Inhalte, und nur ihre Programme, Dateien und Bildschirme siehst du hier. Andere Geräte in Safeer Link helfen nur beim Verbinden.</string>
+    <string name="os_ozji_krog_stevilo">Im Kreis: %1$d</string>
+    <string name="os_ozji_krog_zavrnjeno">%1$s ist nicht im engeren Kreis dieses Geräts. Füge es unter Einstellungen → Engerer Vertrauenskreis hinzu.</string>
+    <string name="os_ozji_krog_ni_naprav">In Safeer Link gibt es keine anderen Geräte. Verbinde zuerst ein Gerät.</string>
+    <string name="os_ozji_krog_shranjeno">Engerer Kreis gespeichert (im Kreis: %1$d).</string>
+    <string name="os_ozji_krog_podrobno">Details</string>
+    <string name="os_ozji_krog_prazno">In Safeer Link gibt es Geräte mit Bildschirm, aber keines ist im engeren Kreis dieses Geräts. Füge sie unter Einstellungen → Engerer Vertrauenskreis hinzu.</string>
+    <string name="os_pomoc_ime">Anderen Geräten in Link beim Verbinden helfen</string>
+    <string name="os_pomoc_vprasanje">Anderen Geräten in Link beim Verbinden helfen?</string>
+    <string name="os_pomoc_opis">Wenn sich zwei deiner Geräte nicht direkt erreichen (z. B. eines hinter einem anderen Router), verbindet sie dieses Gerät: Es stellt sie einander vor und leitet ihre Nachrichten weiter. Nur für Geräte aus deinem Vertrauenskreis. Ausgeschaltet sehen sich solche Geräte über dieses Gerät nicht.</string>
+    <string name="os_pomoc_da">Ja, helfen</string>
+    <string name="os_pomoc_ne">Nein</string>
 </resources>

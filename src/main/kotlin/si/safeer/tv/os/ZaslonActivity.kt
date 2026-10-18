@@ -322,7 +322,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      * zasloni, Datoteke, Aplikacije), sicer prva. Prej je sel zaslon vedno k prvemu racunalniku.
      */
     private fun racunalnikZZaslonom(): LinkOdjemalec.Naprava? {
-        val vsi = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        val vsi = OzjiKrog.samoKrog(this, link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) })
         val zeleni = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
         // Brez izbire ima prednost racunalnik z naslovom v nasem omrezju (neposredna pot); sicer prvi - do njega
         // pride slika prek njegovega Huba (Global Link).
@@ -337,6 +337,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      */
     private fun zahtevajSejo() {
         if (prosim) return
+        // Ozji krog zaupanja (lastnik, 17. 10. 2026): zaslona naprave zunaj kroga te naprave ne odpremo (ni_ozji_krog);
+        // tista naprava ne dobi nobenega ukaza.
+        val izbrana = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
+        if (!izbrana.isNullOrBlank() && !OzjiKrog.vKrogu(this, izbrana)) {
+            val ime = link.naprave.firstOrNull { it.id == izbrana }?.ime.orEmpty().ifBlank { izbrana }
+            pokazi(getString(R.string.os_ozji_krog_zavrnjeno, ime))
+            return
+        }
         val r = racunalnikZZaslonom()
         // Povezava se vraca (izpad Wi-Fi): racunalnika se ni nazaj v Linku - cakamo naprej.
         if (r == null && ponovnoOd != 0L) { ponoviAliKoncaj(getString(R.string.os_zaslon_ni_povezave)); return }
@@ -781,7 +789,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun ponudiDrugega(): Boolean {
         val zeleni = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
         if (zeleni.isNullOrBlank() || !link.povezan || ponujeno) return false
-        val drugi = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) }
+        val drugi = OzjiKrog.samoKrog(this, link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != Identiteta.id(this) })
         if (drugi.isEmpty()) return false
         ponujeno = true
         pokazi(getString(R.string.os_zaslon_ni_vec))

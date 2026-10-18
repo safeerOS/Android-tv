@@ -22,6 +22,24 @@ import android.util.Log
 object VklopTelevizorja {
     private const val TAG = "SafeerOsZagon"
     @Volatile private var prijavljen = false
+    /** Zaslon televizorja je ugasnjen (pripravljenost). Na napravi brez daljinca vedno false. */
+    @Volatile private var ugasnjen = false
+
+    /**
+     * Sredisce Safeer Linka (HubKrmilnik) ob vklopu in izklopu zaslona drugim napravam takoj javi novo stanje
+     * (zmoznost »standby«). Klice se na loceni niti - posiljanje gre po omrezju.
+     */
+    @Volatile var naSpremembo: (() -> Unit)? = null
+
+    /** Televizor je v pripravljenosti (zaslon ugasnjen): racunalnik ga v Linku ne steje za prizganega. */
+    fun vPripravljenosti(): Boolean = ugasnjen
+
+    private fun javiLinku(app: Context, prizgan: Boolean) {
+        if (ugasnjen == !prizgan) return
+        ugasnjen = !prizgan
+        Log.i(TAG, if (prizgan) "Televizor se je prizgal: javljam Safeer Linku." else "Televizor v pripravljenosti: javljam Safeer Linku.")
+        naSpremembo?.let { f -> Thread { try { f() } catch (e: Throwable) { Log.w(TAG, "Linku ni bilo mogoce javiti: ${e.message}") } }.start() }
+    }
 
     /** Enkrat na proces; klice se iz storitev, ki na televizorju tecejo ves cas. */
     fun namesti(context: Context) {
@@ -31,11 +49,18 @@ object VklopTelevizorja {
         synchronized(this) {
             if (prijavljen) return
             try {
+                // Zacetno stanje: ce se storitev zazene pri ugasnjenem zaslonu (vklop iz pripravljenosti se ni bil).
+                ugasnjen = try {
+                    !(app.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive
+                } catch (_: Throwable) { false }
                 app.registerReceiver(object : BroadcastReceiver() {
                     override fun onReceive(c: Context?, i: Intent?) {
-                        if (i?.action == Intent.ACTION_SCREEN_ON) obVklopu(app)
+                        when (i?.action) {
+                            Intent.ACTION_SCREEN_ON -> { javiLinku(app, prizgan = true); obVklopu(app) }
+                            Intent.ACTION_SCREEN_OFF -> javiLinku(app, prizgan = false)
+                        }
                     }
-                }, IntentFilter(Intent.ACTION_SCREEN_ON))
+                }, IntentFilter(Intent.ACTION_SCREEN_ON).apply { addAction(Intent.ACTION_SCREEN_OFF) })
                 prijavljen = true
             } catch (e: Throwable) {
                 Log.w(TAG, "Prejemnika za vklop ni bilo mogoce prijaviti: ${e.message}")

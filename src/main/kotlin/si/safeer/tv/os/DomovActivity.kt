@@ -361,7 +361,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Kartica Povezani zasloni ze na domacem zaslonu pove, katere naprave lahko gledas. */
     private fun osveziOpisZaslona(naprave: List<LinkOdjemalec.Naprava>) {
         val t = findViewById<TextView>(R.id.karticaZaslonOpis) ?: return
-        val imena = naprave.filter { !link.jeTaNaprava(it) && (it.zmoznosti.contains("desktop") ||
+        val imena = naprave.filter { !link.jeTaNaprava(it) && OzjiKrog.vKrogu(this, it.id) && (it.zmoznosti.contains("desktop") ||
             it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON)) }.map { it.ime.ifBlank { it.id } }
         t.maxLines = 1
         t.ellipsize = android.text.TextUtils.TruncateAt.END
@@ -369,10 +369,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun odpriZaslon() {
-        // Racunalniki in naprave Android, ki delijo cel zaslon (s potrditvijo na tisti napravi).
-        val naprave = link.naprave.filter {
+        // Racunalniki in naprave Android, ki delijo cel zaslon (s potrditvijo na tisti napravi) - samo ozji krog zaupanja.
+        val naprave = OzjiKrog.samoKrog(this, link.naprave.filter {
             !link.jeTaNaprava(it) && (it.zmoznosti.contains("desktop") || it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
-        }
+        })
         fun odpri(r: LinkOdjemalec.Naprava?) {
             if (r != null && !r.zmoznosti.contains("desktop")) { PovezaniZasloni.zaprosi(this, link, r); return }
             val namera = Intent(this, ZaslonActivity::class.java)
@@ -1131,6 +1131,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun zazeniProgram(n: Nadaljuj.Vnos) {
         val r = racunalnikZa(n) ?: run { niVec(n, racunalnikaNi = true); return }
+        if (OzjiKrog.zavrni(this, r.id, r.ime)) return          // ni_ozji_krog
         Toast.makeText(this, getString(R.string.os_nadaljuj_odpiram, n.ime), Toast.LENGTH_SHORT).show()
         val zaslon = r.zmoznosti.contains("desktop")
         link.ukaz(r.id, "apps.launch", org.json.JSONObject().put("app", n.program), 10_000,

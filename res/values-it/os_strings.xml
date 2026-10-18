@@ -682,4 +682,18 @@
     <string name="os_zasloni_prazno_ni_linka">Safeer Link non è collegato. Quando questo dispositivo si collega, qui trovi tutti i dispositivi che condividono lo schermo con te.</string>
     <string name="os_zasloni_prazno_ni_naprav">In Safeer Link non c’è un altro dispositivo con schermo. Collega un computer (Linux o Windows), un televisore, un tablet o un altro telefono.</string>
     <string name="os_zasloni_prazno_ni_dovoljenj">In Safeer Link ci sono dispositivi con schermo, ma nessuno ti permette ancora di vederlo. Il proprietario concede l’accesso su quel dispositivo: Safeer Link → Dispositivi collegati → questo dispositivo → Schermo.</string>
+    <!-- Ozji krog zaupanja in pomoc drugim napravam pri povezavi (os/OzjiKrog, link/PomocLinka) -->
+    <string name="os_ozji_krog">Cerchia di fiducia ristretta</string>
+    <string name="os_ozji_krog_opis">I dispositivi di cui questo dispositivo si fida: solo loro vedono i suoi contenuti e solo i loro programmi, file e schermo sono mostrati qui. Gli altri dispositivi di Safeer Link aiutano solo a connettersi.</string>
+    <string name="os_ozji_krog_stevilo">Nella cerchia: %1$d</string>
+    <string name="os_ozji_krog_zavrnjeno">%1$s non è nella cerchia ristretta di questo dispositivo. Aggiungilo in Impostazioni → Cerchia di fiducia ristretta.</string>
+    <string name="os_ozji_krog_ni_naprav">In Safeer Link non ci sono altri dispositivi. Collega prima un dispositivo.</string>
+    <string name="os_ozji_krog_shranjeno">Cerchia ristretta salvata (nella cerchia: %1$d).</string>
+    <string name="os_ozji_krog_podrobno">Dettagli</string>
+    <string name="os_ozji_krog_prazno">In Safeer Link ci sono dispositivi con schermo, ma nessuno è nella cerchia ristretta di questo dispositivo. Aggiungili in Impostazioni → Cerchia di fiducia ristretta.</string>
+    <string name="os_pomoc_ime">Aiuta gli altri dispositivi di Link a connettersi</string>
+    <string name="os_pomoc_vprasanje">Aiutare gli altri dispositivi di Link a connettersi?</string>
+    <string name="os_pomoc_opis">Quando due tuoi dispositivi non riescono a raggiungersi direttamente (ad es. uno è dietro un altro router), questo dispositivo li collega: li presenta l\'uno all\'altro e inoltra i loro messaggi. Solo per i dispositivi della tua cerchia di fiducia. Se disattivato, questi dispositivi non si vedono tramite questo.</string>
+    <string name="os_pomoc_da">Sì, aiuta</string>
+    <string name="os_pomoc_ne">No</string>
 </resources>

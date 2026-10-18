@@ -368,6 +368,61 @@ fun main() {
         val veliko = (1..19).map { "10.0.0.$it" }
         preveriM("najvec stirje", k("192.168.0.220", veliko) == listOf("192.168.0.220", "10.0.0.1", "10.0.0.2", "10.0.0.3") && k("", veliko).size == HubNaslovi.NAJVEC_KANDIDATOV)
     }
+    // ---- »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka; isto kot tests/test_link_mesh.py na racunalniku)
+    primer("pomoc: izklopljena na b - naprav drugih sosedov ne predstavi in posredovanja ne opravi") {
+        val a = hub("hub-a"); val b = hub("hub-b"); val c = hub("hub-c")
+        b.pomaga = { false }
+        val tv = prijava(a, "tv"); prijava(b, "pc"); val tel = prijava(c, "tel")
+        povezi(a, b); povezi(b, c)                       // a in c se ne dosezeta
+        preveriM("tv vidi samo pc", tv.idji() == listOf("pc", "tv"))
+        preveriM("tel vidi samo pc", tel.idji() == listOf("pc", "tel"))
+        val izA = b.javi("hub-a")!!
+        b.obdelaj(izA, """{"type":"mesh.route","payload":{"to":"tel","relay":true,"msg":"{\"id\":\"x\",\"type\":\"share.text\",\"sender\":\"tv\",\"target\":\"tel\",\"payload\":{\"text\":\"x\"}}"}}""")
+        preveriM("b ne posreduje", tel.vrste("share.text").isEmpty())
+        // Uporabnik pomoc vklopi: velja takoj, brez ponovne povezave.
+        b.pomaga = { true }
+        b.osveziPomoc()
+        preveriM("po vklopu tv vidi tel", tv.idji() == listOf("pc", "tel", "tv"))
+        a.obdelaj(tv, """{"id":"r1","type":"share.text","target":"tel","payload":{"text":"x"}}""")
+        preveriM("po vklopu sporocilo prispe prek b", tel.vrste("share.text").size == 1)
+        // Spet izklop: posredna pot takoj izgine.
+        b.pomaga = { false }
+        b.osveziPomoc()
+        preveriM("po izklopu tv tel ne vidi vec", tv.idji() == listOf("pc", "tv"))
+    }
+    primer("pomoc: zapis - privzeto vklopljena, neberljiv zapis velja kot privzeto") {
+        val p = si.safeer.tv.link.PomocPravila
+        val prazno = p.izZapisa(null)
+        preveriM("privzeto vklopljena, se ni vprasano", prazno.vklopljeno && !prazno.vprasano)
+        val izkl = p.izZapisa(p.vZapis(false))
+        preveriM("izklop shranjen, vprasanje se ne ponovi", !izkl.vklopljeno && izkl.vprasano)
+        preveriM("vklop shranjen", p.izZapisa(p.vZapis(true)).let { it.vklopljeno && it.vprasano })
+        preveriM("pokvarjen zapis: vklopljena", p.izZapisa("{pokvarjeno").vklopljeno)
+    }
+    // ---- Televizor v pripravljenosti (os/VklopTelevizorja): racunalnik ve, kdaj je televizor prizgan (zvok_na_zvocnik)
+    primer("pripravljenost: programi televizorja nosijo standby, drugi ne; ob vklopu takoj brez") {
+        val a = hub("hub-a"); val b = hub("hub-b")
+        var ugasnjen = true
+        a.vPripravljenosti = { ugasnjen }
+        val tv = prijava(a, "tv", "127.0.0.1")            // program na televizorju (zanka)
+        prijava(a, "tel", "192.168.0.50")                  // telefon, povezan na sredisce televizorja od drugod
+        val pc = prijava(b, "pc", "127.0.0.1")
+        povezi(a, b, aVidiB = "192.168.0.135", bVidiA = "192.168.0.77")
+        fun zm(n: Naprava, id: String): List<String> {
+            val s = n.zadnje("cast.devices") ?: return emptyList()
+            val m = Regex("\\{\"id\":\"" + Regex.escape(id) + "\".*?\"capabilities\":\\[([^\\]]*)\\]").find(s) ?: return emptyList()
+            return Regex("\"([^\"]+)\"").findAll(m.groupValues[1]).map { it.groupValues[1] }.toList()
+        }
+        preveriM("racunalnik vidi televizor v pripravljenosti", "standby" in zm(pc, "tv"))
+        preveriM("telefon ni v pripravljenosti", "tel" in pc.idji() && "standby" !in zm(pc, "tel"))
+        preveriM("tudi program televizorja vidi svoje stanje", "standby" in zm(tv, "tv"))
+        ugasnjen = false
+        a.osveziStanjeZaslona()
+        preveriM("ob vklopu racunalnik takoj vidi prizgan televizor", "tv" in pc.idji() && "standby" !in zm(pc, "tv"))
+        preveriM("pravilo: standby samo enkrat in samo v pripravljenosti",
+            HubUsmerjevalnik.zmoznostiObjave(listOf("url", "standby"), true) == listOf("url", "standby") &&
+                HubUsmerjevalnik.zmoznostiObjave(listOf("url", "standby"), false) == listOf("url"))
+    }
     println()
     if (napakMesh == 0) println("Vse v redu.") else { println("Napak: $napakMesh"); kotlin.system.exitProcess(1) }
 }

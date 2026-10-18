@@ -48,6 +48,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/ProsnjaDostopa.kt" \
     "$SRC/si/safeer/tv/os/ZaganjalnikPravila.kt" \
     "$SRC/si/safeer/tv/os/SeznamZaslonov.kt" \
+    "$SRC/si/safeer/tv/link/OzjiKrogPravila.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
     "$TEST_DIR/GalerijaPravilaTest.kt" \
     "$TEST_DIR/VarnaSlikaTest.kt" \
@@ -81,6 +82,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ProsnjaDostopaTest.kt" \
     "$TEST_DIR/ZaganjalnikPravilaTest.kt" \
     "$TEST_DIR/SeznamZaslonovTest.kt" \
+    "$TEST_DIR/OzjiKrogPravilaTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -116,6 +118,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.ZvokPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ProsnjaDostopaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaganjalnikPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SeznamZaslonovTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.link.OzjiKrogPravilaTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.
