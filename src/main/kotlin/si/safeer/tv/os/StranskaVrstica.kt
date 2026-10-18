@@ -261,6 +261,12 @@ class StranskaVrstica private constructor(
     fun prestrezi(dogodek: KeyEvent): Boolean {
         if (dogodek.action != KeyEvent.ACTION_DOWN) return false
         val fokus = dejavnost.currentFocus ?: return false
+        // Fokus na pogledu, ki ga ni videti (skrit stars, velikost 0): daljinec ni nic premaknil in okvirja ni bilo nikjer
+        // (TV, 18. 10. 2026 - skrita vrsta Zacni na Domov). Puscica ga vrne na viden cilj, kot DESNO iz menija.
+        if (!dotik && jeSmerna(dogodek.keyCode) && !fokus.isShown) {
+            if (jePotomec(meni, fokus)) fokusMenija() else fokusVsebine()
+            if (dejavnost.currentFocus?.isShown == true) return true
+        }
         if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && jePotomec(meni, fokus)) {
             fokusVsebine()
             return true
@@ -277,6 +283,9 @@ class StranskaVrstica private constructor(
         }
         return false
     }
+
+    private fun jeSmerna(koda: Int): Boolean = koda == KeyEvent.KEYCODE_DPAD_UP || koda == KeyEvent.KEYCODE_DPAD_DOWN ||
+        koda == KeyEvent.KEYCODE_DPAD_LEFT || koda == KeyEvent.KEYCODE_DPAD_RIGHT || koda == KeyEvent.KEYCODE_DPAD_CENTER
 
     /** Izbrana ploscica mreze je v prvem stolpcu (ali izbire ni): LEVO od tod vodi v meni. */
     private fun naLevemRobu(mreza: android.widget.GridView): Boolean {

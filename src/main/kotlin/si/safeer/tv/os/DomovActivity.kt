@@ -592,6 +592,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun najdiPoOznaki(oznaka: String): View? {
         for (vrsta in listOf(vrstaNadaljuj, vrstaZacni, vrstaSpletne, vrstaAplikacije)) {
+            if (vrsta.visibility != View.VISIBLE) continue          // skrita vrsta: fokus tam bi bil neviden
             for (i in 0 until vrsta.childCount) {
                 val v = vrsta.getChildAt(i) ?: continue
                 if (v.tag == oznaka) return v
@@ -655,8 +656,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         uravnajVrsto(vrstaZacni, NAJMANJSA_ZACNI_DP, NAJVECJA_ZACNI_DP)
         // Fokus prevzamemo samo, kadar ga nihce nima (prvi izris). Ce uporabnik ravno izbira
         // spodaj, ga racunalnik, ki se je pravkar javil, ne sme vreci nazaj gor.
-        if (zeljeni != null) zeljeni.post { zeljeni.requestFocus() }
-        else if (currentFocus == null) vrstaZacni.getChildAt(0)?.requestFocus()
+        // Vrsta Zacni je skrita (njene poti so v stranskem meniju): fokus na njeni kartici je bil neviden in daljinec ni
+        // nic premaknil (TV, 18. 10. 2026 po namestitvi). Prvi fokus dobi prva vidna kartica vsebine (Spletni brskalnik).
+        if (zeljeni != null && vrstaZacni.visibility == View.VISIBLE) zeljeni.post { zeljeni.requestFocus() }
+        else if (currentFocus == null) fokusVsebine()
         osveziKartice()
         osveziScit()
     }
