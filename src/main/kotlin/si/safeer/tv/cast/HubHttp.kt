@@ -7,7 +7,7 @@ import si.safeer.tv.cast.HubUsmerjevalnik.Companion.IZZIV_VELJA_MS
 import si.safeer.tv.cast.HubUsmerjevalnik.Companion.NACIN_SPAKE2
 import si.safeer.tv.cast.HubUsmerjevalnik.Companion.NAJVEC_BESEDILA
 import si.safeer.tv.cast.HubUsmerjevalnik.Companion.NAJVEC_IMENA
-import si.safeer.tv.cast.HubUsmerjevalnik.Companion.NAJVEC_VSTOPNIC
+import si.safeer.tv.cast.HubUsmerjevalnik.Companion.NAJVEC_IZZIVOV
 import si.safeer.tv.cast.HubUsmerjevalnik.Companion.PIN_VELJA_MS
 import si.safeer.tv.cast.HubUsmerjevalnik.Companion.RAZLICICA_PROTOKOLA
 import si.safeer.tv.cast.HubUsmerjevalnik.Companion.VSTOPNICA_VELJA_MS
@@ -83,7 +83,6 @@ internal fun HubUsmerjevalnik.odgovoriSeznanitev(zahteva: HubStreznik.Zahteva, p
             return HubStreznik.Odgovor(403, napakaJson("Ni sorodna naprava.", "ni_sorodnik"))
         }
         val zeton = synchronized(kljucnica) {
-            if (jePolno(deviceId)) return HubStreznik.Odgovor(429, napakaJson("Preveč seznanjenih naprav.", "prevec_naprav"))
             val nov = "saf_tv_" + nakljucni(24)
             vpisiZeton(nov, SeznanjenaNaprava(deviceId, ime, ura() / 1000.0))
             shraniZetone()
@@ -227,7 +226,7 @@ internal fun HubUsmerjevalnik.odgovoriDeljenje(zahteva: HubStreznik.Zahteva, pot
         }
         zasedi(cilj, posiljatelj, "screen")?.let { kdo -> return odgovorZasedeno(cilj, kdo) }
         val (id, kljuc) = t.zacniZaslon(posiljatelj)
-            ?: run { sprosti(cilj, posiljatelj); return HubStreznik.Odgovor(503, napakaJson("Preveč deljenih zaslonov.", "prevec_zaslonov")) }
+            ?: run { sprosti(cilj, posiljatelj); return HubStreznik.Odgovor(503, napakaJson(besediloBrezVirovVarno(), ViriNaprave.KODA)) }
         val potGledanja = "/cast/screen/$id/view?k=$kljuc"
         synchronized(kljucnica) {
             deljeniZasloni[id] = cilj
@@ -383,7 +382,9 @@ internal fun HubUsmerjevalnik.odgovoriPrijava(zahteva: HubStreznik.Zahteva, pot:
         val nonce = nakljucni(24)
         synchronized(kljucnica) {
             pocistiIzzive()
-            if (izzivi.size >= NAJVEC_VSTOPNIC) izzivi.remove(izzivi.keys.first())
+            // Izziv dobi kdorkoli (se nepreverjen): fiksna meja, a poln seznam ne zavrne novega - izpade najstarejsi. Clan
+            // svojega porabi v milisekundah; prej (meja 8) je val prijav clanom izrinjal izzive pred podpisom (401).
+            while (izzivi.size >= NAJVEC_IZZIVOV) izzivi.remove(izzivi.keys.first())
             izzivi[nonce] = Pair(deviceId, ura())
         }
         return HubStreznik.Odgovor(200, JsonLahki.Zapis().niz("nonce", nonce).niz("hub_id", lastniId).niz("fp", lastniOdtis)

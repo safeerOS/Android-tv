@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Safeer Link: clan kroga ni sprejet, ker tej napravi zmanjkuje virov (cast/ViriNaprave.kt, isto kot core/link_viri.py). -->
+    <string name="link_viri_kanal">Safeer Link – ressources de l’appareil</string>
+    <string name="link_viri_kanal_opis">Quand cet appareil manque de ressources pour accepter un autre appareil du cercle.</string>
+    <string name="link_viri_deskriptorji_naslov">Safeer Link : plus de connexions libres</string>
+    <string name="link_viri_deskriptorji">Cet appareil a atteint la limite système de connexions ouvertes. Il n’accepte plus de nouveaux appareils du cercle pour l’instant (refusés : %1$d). Ferme une application ou redémarre Safeer.</string>
+    <string name="link_viri_pomnilnik_naslov">Safeer Link : mémoire insuffisante</string>
+    <string name="link_viri_pomnilnik">Cet appareil manque de mémoire. Il n’accepte plus de nouveaux appareils du cercle pour l’instant (refusés : %1$d). Ferme une application ; les appareils se connecteront seuls dès qu’il y aura de la place.</string>
+    <string name="link_viri_niti_naslov">Safeer Link : le système n’autorise plus de tâches</string>
+    <string name="link_viri_niti">Le système n’autorise plus de tâches simultanées (threads). Les nouveaux appareils du cercle ne sont pas acceptés pour l’instant (refusés : %1$d). Ferme une application ou redémarre Safeer.</string>
+    <string name="link_viri_zaseden">L’appareil « %1$s » manque pour l’instant de ressources (connexions ou mémoire) pour une nouvelle connexion. Je réessaierai tout seul.</string>
+</resources>

@@ -65,6 +65,9 @@ class HubTokovi(
      */
     @Volatile var naVnosGledalca: ((String, String, String) -> Unit)? = null
 
+    /** Besedilo odgovora, kadar naprava nima virov za tok (ni_virov); krmilnik ga nastavi v jeziku uporabnika. */
+    @Volatile var besediloBrezVirov: () -> String = { ViriNaprave.BESEDILO_BREZ_VIROV }
+
     // ------------------------------------------------------------------ zaslon
 
     private class Gledalec {
@@ -87,11 +90,18 @@ class HubTokovi(
 
     private val zasloni = ConcurrentHashMap<String, Zaslon>()
 
-    /** Deljenje se zacne z navadno zahtevo (usmerjevalnik jo poklice); vrne id in kljuc gledalca. */
+    /**
+     * Deljenje se zacne z navadno zahtevo (usmerjevalnik jo poklice); vrne id in kljuc gledalca, ali null, ce naprava
+     * nima virov ([ViriNaprave]; odgovor ni_virov). Stevilo zaslonov ni omejeno (do 0.5.90: 4) - en na posiljatelja.
+     */
     fun zacniZaslon(posiljatelj: String): Pair<String, String>? {
         // En deljen zaslon na posiljatelja: prejsnjega koncamo.
         zasloni.values.filter { it.posiljatelj == posiljatelj }.forEach { koncajZaslon(it.id) }
-        if (zasloni.size >= NAJVEC_ZASLONOV) return null
+        val razlog = ViriNaprave.preveri(1, POMNILNIK_ZASLONA)
+        if (razlog.isNotEmpty()) {
+            ViriNaprave.zabelezi(razlog, "zaslon")
+            return null
+        }
         val id = nakljucno(8)
         val kljuc = nakljucno(16)
         zasloni[id] = Zaslon(id, kljuc, posiljatelj)
@@ -239,8 +249,11 @@ class HubTokovi(
             odgovori(izhod, 404, "{\"napaka\":\"tega deljenja ni\"}")
             return
         }
-        if (z.gledalci.size >= NAJVEC_GLEDALCEV) {
-            odgovori(izhod, 503, "{\"napaka\":\"preveč gledalcev\"}")
+        // Gledalcev ni omejeno stevilo (do 0.5.90: 4), samo viri naprave: vsak drzi vrsto do VRSTA_GLEDALCA okvirjev.
+        val razlog = ViriNaprave.preveri(1, POMNILNIK_GLEDALCA)
+        if (razlog.isNotEmpty()) {
+            ViriNaprave.zabelezi(razlog, "gledalec")
+            odgovoriBrezVirov(izhod)
             return
         }
         val g = Gledalec()
@@ -379,10 +392,7 @@ class HubTokovi(
             odgovori(izhod, 413, "{\"napaka\":\"datoteka je prevelika\"}")
             return
         }
-        if (prenosovZdaj.get() >= NAJVEC_PRENOSOV) {
-            odgovori(izhod, 503, "{\"napaka\":\"preveč hkratnih prenosov\"}")
-            return
-        }
+        if (!viriZaPrenos(izhod)) return
         val zaGostitelja = cilj == lastniId()
         if (!zaGostitelja && jeCiljPovezan?.invoke(cilj) == false) {
             odgovori(izhod, 404, "{\"napaka\":\"ciljna naprava ni povezana\",\"koda\":\"naprava_ni_povezana\"}")
@@ -499,10 +509,7 @@ class HubTokovi(
             odgovori(izhod, 404, "{\"napaka\":\"te datoteke ni\"}")
             return
         }
-        if (prenosovZdaj.get() >= NAJVEC_PRENOSOV) {
-            odgovori(izhod, 503, "{\"napaka\":\"preveč hkratnih prenosov\"}")
-            return
-        }
+        if (!viriZaPrenos(izhod)) return
         val velikost = d.pot.length()
         // Cilj nadaljuje prekinjen prevzem (Range: bytes=N-): samo se manjkajoci del.
         val zacetek = zacetekObsega(zahteva.glave["range"].orEmpty(), velikost)
@@ -563,16 +570,33 @@ class HubTokovi(
         izhod.flush()
     }
 
+    /**
+     * Hkratnih prenosov ni omejeno stevilo (do 0.5.90: 3 za vse naprave skupaj), samo viri naprave: datoteka (deskriptor)
+     * in medpomnilnik [KOS] z rezervo - [POMNILNIK_PRENOSA]. Brez virov 503 s kodo ni_virov; naprava poskusi znova.
+     */
+    private fun viriZaPrenos(izhod: OutputStream): Boolean {
+        val razlog = ViriNaprave.preveri(1, POMNILNIK_PRENOSA)
+        if (razlog.isEmpty()) return true
+        ViriNaprave.zabelezi(razlog, "prenos")
+        odgovoriBrezVirov(izhod)
+        return false
+    }
+
+    private fun odgovoriBrezVirov(izhod: OutputStream) =
+        odgovori(izhod, 503, "{\"napaka\":\"${ubezi(besediloBrezVirov())}\",\"code\":\"${ViriNaprave.KODA}\"}")
+
     private fun ubezi(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
 
     companion object {
-        const val NAJVEC_ZASLONOV = 4
-        const val NAJVEC_GLEDALCEV = 4
         const val VRSTA_GLEDALCA = 2
         const val NAJVECJI_OKVIR = 2 * 1024 * 1024
+        /** Viri za eno deljenje zaslona (zadnji okvir in sprejem naslednjega) in enega gledalca (njegova vrsta okvirjev). */
+        const val POMNILNIK_ZASLONA = 2L * NAJVECJI_OKVIR
+        const val POMNILNIK_GLEDALCA = VRSTA_GLEDALCA.toLong() * NAJVECJI_OKVIR
+        /** Viri za en prenos datoteke: medpomnilnik KOS z rezervo, kot na racunalniku (link_hub_deljenje). */
+        const val POMNILNIK_PRENOSA = 1024L * 1024
         /** Telo POST .../input je majhen JSON - nekaj deset bajtov; ta meja je ze zelo velikodusna. */
         const val NAJVECJI_VNOS = 2 * 1024
-        const val NAJVEC_PRENOSOV = 3
         /** Prej 4 GB; datoteka gre na disk v koscih, meja je prostor na disku (lastnik, 11. 10. 2026). */
         const val NAJVECJA_DATOTEKA = 1024L * 1024 * 1024 * 1024
         const val REZERVA_PROSTORA = 200L * 1024 * 1024

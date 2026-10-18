@@ -99,8 +99,9 @@ object VrstaTest {
             val o = Odjemalec(vrata, sprejemniPomnilnik = 512)
             Thread.sleep(200)
             val p = povezave.last()
-            // Napolni vrsto, dokler odjemalec ne bere (nit pisanja je zaposlena s prvim okvirjem).
-            for (i in 1..30) p.poslji(seznam(i))
+            // Napolni vrsto, dokler odjemalec ne bere (nit pisanja je zaposlena s prvim okvirjem). Cel seznam starejsemu
+            // prejemniku gre s kljucem nadomescanja (SeznamSprememb.razposlji -> poslji(nadomesti=)).
+            for (i in 1..30) p.poslji(seznam(i), nadomesti = "cast.devices")
             Thread.sleep(150)
             var zadnjiSeznam = ""
             var seznamov = 0
@@ -113,6 +114,25 @@ object VrstaTest {
             println("2. zdruzevanje seznamov: poslanih 30, prejetih $seznamov, zadnji vsebuje n30: ${zadnjiSeznam.contains("n30")}")
             trdi(seznamov in 1..29, "zdruzevanja ni bilo ($seznamov seznamov)")
             trdi(zadnjiSeznam.contains("n30"), "zadnje stanje ni prislo: $zadnjiSeznam")
+            o.zapri()
+        }
+
+        // 2b. Brez kljuca se nic ne nadomesca: prejemnik, ki zna spremembe seznama (devdelta1), dobi vsako sporocilo v
+        // vrstnem redu - prej je vrsta po vsebini nadomestila vsak "cast.devices", tudi posnetek pred cakajoco spremembo.
+        run {
+            val o = Odjemalec(vrata, sprejemniPomnilnik = 512)
+            Thread.sleep(200)
+            val p = povezave.last()
+            for (i in 1..30) p.poslji(seznam(i))
+            Thread.sleep(150)
+            val prejeti = ArrayList<String>()
+            while (true) {
+                val okvir = try { o.preberiOkvir() } catch (_: Exception) { null } ?: break
+                if (okvir.second.contains("cast.devices")) prejeti.add(okvir.second)
+            }
+            println("2b. brez kljuca nadomescanja: poslanih 30, prejetih ${prejeti.size}")
+            trdi(prejeti.size == 30 && (1..30).all { prejeti[it - 1].contains("\"n$it\"") },
+                "brez kljuca se je seznam izgubil ali premesal (${prejeti.size})")
             o.zapri()
         }
 

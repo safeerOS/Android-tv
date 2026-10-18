@@ -301,9 +301,15 @@ object SeznamSprememb {
      * Vsaki povezavi skupine to, kar potrebuje: nic (ima to verzijo), spremembe (zna in ima prejsnjo) ali posnetek.
      * Stanje se zapise PRED posiljanjem: zahteva za posnetek, ki pride kot odgovor (tudi v isti niti), ga pobrise.
      * Vrne stevilo poslanih znakov.
+     *
+     * [posljiNadomestljivo] (isto kot core/link_spremembe.razposlji): STAREJSI prejemnik (brez [ZMOZNOST]) dobi samo cele
+     * sezname - novejsi nadomesti tistega, ki se caka v izhodni vrsti (HubStreznik.Povezava.poslji(nadomesti=)), sicer
+     * ob valu prijav vrsta prekipi in prejemnik izpade. Pri prejemniku, ki zna spremembe, se nic ne nadomesca - te gredo
+     * v vrstnem redu.
      */
     fun <T> razposlji(pogled: Pogled, povezave: List<T>, stanje: (T) -> Stanje, poslji: (T, String) -> Boolean,
-                      posnetek: () -> String, spremembe: () -> String): Long {
+                      posnetek: () -> String, spremembe: () -> String,
+                      posljiNadomestljivo: ((T, String) -> Boolean)? = null): Long {
         var p: String? = null
         var s: String? = null
         var poslano = 0L
@@ -315,7 +321,10 @@ object SeznamSprememb {
             val besedilo = if (st.zna && pogled.zadnja != null && st.poslano == prej) (s ?: spremembe().also { s = it })
                 else (p ?: posnetek().also { p = it })
             st.poslano = zdaj
-            val ok = try { poslji(povezava, besedilo) } catch (_: Throwable) { false }
+            val nadomesti = if (st.zna) null else posljiNadomestljivo
+            val ok = try {
+                if (nadomesti != null) nadomesti(povezava, besedilo) else poslji(povezava, besedilo)
+            } catch (_: Throwable) { false }
             if (!ok) st.poslano = null else poslano += besedilo.length
         }
         return poslano

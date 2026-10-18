@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Safeer Link: clan kroga ni sprejet, ker tej napravi zmanjkuje virov (cast/ViriNaprave.kt, isto kot core/link_viri.py). -->
+    <string name="link_viri_kanal">Safeer Link – device resources</string>
+    <string name="link_viri_kanal_opis">When this device has too few resources to accept another device from the circle.</string>
+    <string name="link_viri_deskriptorji_naslov">Safeer Link: no free connections</string>
+    <string name="link_viri_deskriptorji">This device has reached the system limit of open connections. It does not accept new devices from the circle right now (refused: %1$d). Close an app or restart Safeer.</string>
+    <string name="link_viri_pomnilnik_naslov">Safeer Link: low on memory</string>
+    <string name="link_viri_pomnilnik">This device is running out of memory. It does not accept new devices from the circle right now (refused: %1$d). Close an app; devices connect by themselves once there is room again.</string>
+    <string name="link_viri_niti_naslov">Safeer Link: the system allows no more tasks</string>
+    <string name="link_viri_niti">The system allows no more simultaneous tasks (threads). New devices from the circle are not accepted right now (refused: %1$d). Close an app or restart Safeer.</string>
+    <string name="link_viri_zaseden">The device “%1$s” has too few resources (connections or memory) for a new connection right now. I will try again by myself.</string>
+</resources>

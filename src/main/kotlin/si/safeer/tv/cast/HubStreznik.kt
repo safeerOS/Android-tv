@@ -48,7 +48,11 @@ class HubStreznik(
      * Obrambni mehanizem ([HubObramba]): steje sovrazne dogodke po viru in vir zapre. Zaprt vir ne pride niti do
      * rokovanja TLS. Brez njega (preizkusi) streznik dela kot prej.
      */
-    private val obramba: HubObramba? = null
+    private val obramba: HubObramba? = null,
+    /** Vrsta jedra za sprejem povezav (listen); zamenljiva samo za meritev v preizkusu (ObremenitevTest). */
+    private val cakalnaVrsta: Int = CAKALNA_VRSTA,
+    /** Po tolikem casu brez prebrane zahteve je nepreverjena vticnica tiha in jo nova sme izriniti ([ROK_TIHE_MS]). */
+    private val rokTiheMs: Long = ROK_TIHE_MS
 ) {
 
     data class Zahteva(
@@ -74,15 +78,40 @@ class HubStreznik(
     private val skupajZadrzano = java.util.concurrent.atomic.AtomicLong(0)
 
     /**
-     * Koliko vticnic strezemo v tem trenutku - skupaj z navadnimi zahtevami HTTP.
+     * Nepreverjene vticnice: od sprejema do prebrane zahteve (pri WebSocket do veljavne vstopnice, pri toku do predaje
+     * HubTokovi, ki preveri svoj kljuc), v vrstnem redu sprejema. Samo zanje veljata fiksni meji
+     * [NAJVEC_NEPREVERJENIH] in [NAJVEC_NEPREVERJENIH_NA_VIR] (isto kot core/link_neposredno.py na racunalniku).
      *
-     * NAJVEC_POVEZAV steje samo odprte WebSocket povezave, torej naprave, ki ostanejo
-     * povezane. Kratke zahteve HTTP (seznanitev, vstopnica, kasneje prenos datoteke) niso
-     * bile omejene z nicemer: vsaka je dobila svojo nit. Dve napravi hkrati to zdrzita brez
-     * tezav, pokvarjena ali zlonamerna naprava pa bi lahko odprla toliko vticnic, da bi
-     * sistem zaradi pomanjkanja pomnilnika ubil cel brskalnik. Zato ima tudi to svojo mejo.
+     * Do 0.5.90 je bila meja za vse: 24 hkrati strezenih vticnic (tudi clanov) in 16 povezav WebSocket - 17. naprava
+     * kroga je dobila 503, val prijav cez 24 pa »prevec hkratnih zahtev«. Clane zdaj ustavijo samo viri naprave
+     * ([ViriNaprave]; sredisce: nova naprava v HubUsmerjevalnik.registriraj), nepreverjene pa ta meja: pocasen ali tih
+     * odjemalec (odpre vticnico in molci) ne more zasesti niti in deskriptorjev, ki so za clane.
      */
-    private val strezenihZdaj = java.util.concurrent.atomic.AtomicInteger(0)
+    private val nepreverjene = LinkedHashMap<Socket, Nepreverjena>()
+
+    private class Nepreverjena(val vir: String, val ob: Long)
+
+    /** Meritev: najvec hkrati nepreverjenih vticnic od zagona (preizkusi, ObremenitevTest). */
+    @Volatile
+    var najvecNepreverjenih = 0
+        private set
+
+    /** Meritev: koliko tihih nepreverjenih je izrinila nova povezava. */
+    @Volatile
+    var izrinjenih = 0
+        private set
+
+    /** Meritev: najdaljsi cas od sprejema do prebrane zahteve (ali konca) med vticnicami, ki niso bile izrinjene. */
+    @Volatile
+    var najdljeNepreverjenaMs = 0L
+        private set
+
+    fun steviloNepreverjenih(): Int = synchronized(nepreverjene) { nepreverjene.size }
+
+    /** Meritev: koliko cakajocih sporocil je novejse nadomestilo v izhodnih vrstah (Povezava.poslji(nadomesti=)). */
+    private val nadomesceno = java.util.concurrent.atomic.AtomicLong(0)
+
+    fun nadomestenih(): Long = nadomesceno.get()
 
     /** Vrata, na katerih streznik dejansko poslusa (lahko se razlikujejo od zeljenih). */
     @Volatile
@@ -137,8 +166,8 @@ class HubStreznik(
         for (kandidat in listOf(zeljenaVrata, 0)) {
             try {
                 val naslov = InetAddress.getByName("0.0.0.0")
-                val t = tlsTovarna ?: return ServerSocket(kandidat, CAKALNA_VRSTA, naslov)
-                val v = t.createServerSocket(kandidat, CAKALNA_VRSTA, naslov) as javax.net.ssl.SSLServerSocket
+                val t = tlsTovarna ?: return ServerSocket(kandidat, cakalnaVrsta, naslov)
+                val v = t.createServerSocket(kandidat, cakalnaVrsta, naslov) as javax.net.ssl.SSLServerSocket
                 // Samo TLS 1.2/1.3; brez preverjanja odjemalskih potrdil (identiteto naprav dajo zetoni).
                 v.useClientMode = false
                 v.enabledProtocols = v.supportedProtocols.filter { it == "TLSv1.3" || it == "TLSv1.2" }.toTypedArray()
@@ -169,52 +198,89 @@ class HubStreznik(
             val odjemalec = try {
                 vt.accept()
             } catch (e: Exception) {
-                if (tece.get()) Log.w(OZNAKA, "Napaka pri sprejemanju: ${e.message}")
-                break
+                if (!tece.get() || vt.isClosed) break
+                // Brez prostega deskriptorja (EMFILE) accept pade, poslusalna vticnica pa ostane odprta. Prej se je zanka
+                // tu koncala in sredisce do ponovnega zagona ni sprejelo nikogar vec; zdaj kratek premor in naprej.
+                Log.w(OZNAKA, "Napaka pri sprejemanju: ${e.message}")
+                ViriNaprave.zabelezi(ViriNaprave.DESKRIPTORJI, "sprejem")
+                try { Thread.sleep(PREMOR_PO_NAPAKI_MS) } catch (_: InterruptedException) { break }
+                continue
             }
+            val vir = odjemalec.inetAddress?.hostAddress ?: ""
             // Zaprt vir (HubObramba) ne pride niti do rokovanja TLS: brez potrdila, brez odgovora.
-            if (obramba != null && !obramba.dovoli(odjemalec.inetAddress?.hostAddress ?: "")) {
-                try { odjemalec.close() } catch (_: Exception) { }
+            if (obramba != null && !obramba.dovoli(vir)) {
+                zapriTiho(odjemalec)
                 continue
             }
-            if (strezenihZdaj.get() >= NAJVEC_SOCASNIH) {
-                // Raje jasno povemo, da zdaj ne gre, kot da bi niti rasle brez konca.
-                // Naprava naj poskusi cez trenutek; nobena od ze odprtih pri tem ne trpi.
-                zavrniPrezasedeno(odjemalec)
+            // Viri naprave: brez deskriptorja ali pomnilnika nad rezervo nove vticnice ne strezemo (kdo je clan, se ve
+            // sele po zahtevi). Ze povezani delajo naprej; uporabnik izve razlog (ViriNaprave.zabelezi -> obvestilo).
+            val razlog = ViriNaprave.preveri(1, 0L)
+            if (razlog.isNotEmpty()) {
+                ViriNaprave.zabelezi(razlog, "sprejem")
+                zapriTiho(odjemalec)
                 continue
             }
-            strezenihZdaj.incrementAndGet()
-            zazeniNit("safeer-hub-odjemalec") {
+            for (tiha in sprejmiNepreverjeno(odjemalec, vir)) zapriTiho(tiha)
+            val zagnana = ViriNaprave.zazeniNit("safeer-hub-odjemalec", "sprejem") {
                 try {
                     postrezi(odjemalec)
                 } catch (e: Exception) {
                     Log.w(OZNAKA, "Povezava končana z napako: ${e.message}")
                 } finally {
-                    strezenihZdaj.decrementAndGet()
+                    preverjena(odjemalec)
                     try {
                         if (!odjemalec.isClosed) odjemalec.close()
                     } catch (_: Exception) {
                     }
                 }
             }
+            if (!zagnana) {
+                preverjena(odjemalec)
+                zapriTiho(odjemalec)
+            }
         }
     }
 
-    /** Kratek 503 in konec; pisanje ima svoj rok, da nas pocasen odjemalec ne zadrzi. */
-    private fun zavrniPrezasedeno(vticnica: Socket) {
-        try {
-            vticnica.soTimeout = 2_000
-            val telo = "{\"napaka\":\"preveč hkratnih zahtev\"}"
-            val glava = "HTTP/1.1 503 Service Unavailable\r\n" +
-                "Content-Type: application/json; charset=utf-8\r\n" +
-                "Content-Length: " + telo.toByteArray(Charsets.UTF_8).size + "\r\n" +
-                "Cache-Control: no-store\r\nConnection: close\r\n\r\n"
-            vticnica.getOutputStream().write((glava + telo).toByteArray(Charsets.UTF_8))
-            vticnica.getOutputStream().flush()
-        } catch (e: Exception) {
-            Log.w(OZNAKA, "Zavrnitve ni bilo mogoče sporočiti: ${e.message}")
-        } finally {
-            try { vticnica.close() } catch (_: Exception) { }
+    private fun zapriTiho(vticnica: Socket) {
+        try { vticnica.close() } catch (_: Exception) { }
+    }
+
+    /**
+     * Nova vticnica je nepreverjena. Nikoli ne caka in ni zavrnjena, ker so mesta polna: ce je nepreverjenih z istega vira
+     * vec kot [NAJVEC_NEPREVERJENIH_NA_VIR] ali vseh vec kot [NAJVEC_NEPREVERJENIH], izpade najstarejsa TIHA (dlje kot
+     * [rokTiheMs] brez prebrane zahteve) - najprej z istega vira, sicer z vira, ki ima najvec tihih. Svezih ne izrinemo:
+     * ob valu prijav (200 clanov z enega naslova, ObremenitevTest) so vse sveze in vse pridejo noter, tudi ce rokovanje TLS
+     * na pocasnem televizorju caka na procesor. Vrne vticnice, ki jih je treba zapreti (zunaj kljucavnice); izrinjena med
+     * rokovanjem steje v obrambi kot neuspelo rokovanje, kot prej tiha povezava po roku.
+     */
+    private fun sprejmiNepreverjeno(vticnica: Socket, vir: String): List<Socket> = synchronized(nepreverjene) {
+        val zdaj = System.currentTimeMillis()
+        nepreverjene[vticnica] = Nepreverjena(vir, zdaj)
+        if (nepreverjene.size > najvecNepreverjenih) najvecNepreverjenih = nepreverjene.size
+        val meja = zdaj - rokTiheMs
+        val izrinjene = ArrayList<Socket>()
+        fun izrini(odVira: String): Boolean {
+            val k = nepreverjene.entries.firstOrNull { it.value.vir == odVira && it.value.ob <= meja }?.key ?: return false
+            nepreverjene.remove(k)
+            izrinjene.add(k)
+            return true
+        }
+        while (nepreverjene.values.count { it.vir == vir } > NAJVEC_NEPREVERJENIH_NA_VIR) if (!izrini(vir)) break
+        while (nepreverjene.size > NAJVEC_NEPREVERJENIH) {
+            val vir2 = nepreverjene.values.filter { it.ob <= meja }.groupingBy { it.vir }.eachCount()
+                .maxByOrNull { it.value }?.key ?: break
+            if (!izrini(vir2)) break
+        }
+        izrinjenih += izrinjene.size
+        izrinjene
+    }
+
+    /** Vticnica ni (vec) nepreverjena: clan z veljavno vstopnico, tok, ali pa je koncana. */
+    private fun preverjena(vticnica: Socket) {
+        synchronized(nepreverjene) {
+            val n = nepreverjene.remove(vticnica) ?: return
+            val ms = System.currentTimeMillis() - n.ob
+            if (ms > najdljeNepreverjenaMs) najdljeNepreverjenaMs = ms
         }
     }
 
@@ -246,17 +312,13 @@ class HubStreznik(
                 posljiOdgovor(izhod, Odgovor(403, "{\"napaka\":\"$razlog\"}"))
                 return
             }
-            // Veljavna vstopnica: vir je clan kroga.
+            // Veljavna vstopnica: vir je clan kroga. Stevilo clanov ni omejeno (prej 16 povezav): novo napravo sprejme ali
+            // zavrne HubUsmerjevalnik.registriraj po virih naprave (ViriNaprave), z jasnim razlogom.
             obramba?.zaupaj(vir)
+            preverjena(vticnica)
             val kljuc = zahteva.glave["sec-websocket-key"]
             if (kljuc.isNullOrBlank()) {
                 posljiOdgovor(izhod, Odgovor(400, "{\"napaka\":\"manjka kljuc\"}"))
-                return
-            }
-            // Hisa ima nekaj naprav, ne nekaj sto. Odvecno povezavo raje zavrnemo, kot da
-            // bi z niti in medpomnilniki po nepotrebnem jedli pomnilnik naprave.
-            if (povezave.size >= NAJVEC_POVEZAV) {
-                posljiOdgovor(izhod, Odgovor(503, "{\"napaka\":\"preveč povezanih naprav\"}"))
                 return
             }
             rokovanje(izhod, kljuc)
@@ -272,6 +334,9 @@ class HubStreznik(
         }
 
         if (jeTokovnaPot(zahteva.pot)) {
+            // Tok (datoteka, zaslon, gledalec) preveri svoj kljuc ali zeton takoj (HubTokovi) in brez njega konca; z njim
+            // je dolg - ne sme zasedati mest nepreverjenih. Hkratne tokove omejujejo viri naprave, ne stevilka.
+            preverjena(vticnica)
             val prevzeto = try {
                 naTok?.invoke(zahteva, vhod, izhod, vticnica) ?: false
             } catch (e: Exception) {
@@ -470,8 +535,8 @@ class HubStreznik(
         return izpis.toString()
     }
 
-    /** En okvir, ki caka na pisalno nit povezave. */
-    private class Izhod(val opkoda: Int, val podatki: ByteArray, val seznamNaprav: Boolean = false)
+    /** En okvir, ki caka na pisalno nit povezave; [nadomesti]: vrsta, katere novejse sporocilo ga zamenja (ali null). */
+    private class Izhod(val opkoda: Int, val podatki: ByteArray, val nadomesti: String? = null)
 
     /** Ena odprta povezava z napravo. */
     inner class Povezava(
@@ -507,16 +572,21 @@ class HubStreznik(
 
         /**
          * Koliko bajtov ta povezava trenutno zadrzuje pri sestavljanju sporocila. Racun je
-         * tudi skupen: vse povezave skupaj ne smejo zadrzati vec, kot dovoli meja, sicer bi
-         * lahko nekaj naprav hkrati napolnilo pomnilnik naprave.
+         * tudi skupen: do [SKUPNI_ZADRZEK_BREZ_MERITVE] brez meritve, nad tem samo, ce ima naprava
+         * pomnilnik nad rezervo (ViriNaprave) - prej je bila to meja 1 MiB za vse clane skupaj
+         * (pet clanov z velikim sporocilom hkrati in sesti je dobil 1013).
          */
         private var zadrzano = 0L
 
         private fun zadrziBajte(n: Int): Boolean {
             val skupaj = skupajZadrzano.addAndGet(n.toLong())
-            if (skupaj > NAJVECJI_SKUPNI_ZADRZEK) {
-                skupajZadrzano.addAndGet(-n.toLong())
-                return false
+            if (skupaj > SKUPNI_ZADRZEK_BREZ_MERITVE) {
+                val razlog = ViriNaprave.preveri(0, n.toLong())
+                if (razlog.isNotEmpty()) {
+                    skupajZadrzano.addAndGet(-n.toLong())
+                    ViriNaprave.zabelezi(razlog, "sporocilo")
+                    return false
+                }
             }
             zadrzano += n
             return true
@@ -543,47 +613,63 @@ class HubStreznik(
         /**
          * Postavi sporocilo v vrsto te povezave. Nikoli ne caka na omrezje: ce naprava ne bere
          * in se vrsta napolni, povezavo zapremo (naprava se lahko takoj vrne z novo povezavo).
+         *
+         * [nadomesti] (isto kot link_ws.Povezava.poslji na racunalniku): sporocilo te vrste, ki se caka v vrsti, novo
+         * zamenja na istem mestu. Rabi ga samo SeznamSprememb.razposlji za cel seznam naprav STAREJSEMU prejemniku (brez
+         * devdelta1) - novejsi cel seznam starega povsem nadomesti, ob valu prijav se jih sicer nabere do meje vrste in
+         * naprava izpade. Prej je vrsta to ugibala po vsebini (vsak "cast.devices"), tudi pri prejemniku, ki zna spremembe:
+         * posnetek je tam preskocil spremembo, ki je cakala za njim, in prejemnik je moral zahtevati nov posnetek.
          */
-        fun poslji(besedilo: String) {
-            vVrsto(OPKODA_BESEDILO, besedilo.toByteArray(Charsets.UTF_8), besedilo.contains(OZNAKA_SEZNAMA))
+        fun poslji(besedilo: String, nadomesti: String? = null) {
+            vVrsto(OPKODA_BESEDILO, besedilo.toByteArray(Charsets.UTF_8), nadomesti)
         }
 
-        private fun vVrsto(opkoda: Int, podatki: ByteArray, seznamNaprav: Boolean = false) {
+        private fun vVrsto(opkoda: Int, podatki: ByteArray, nadomesti: String? = null) {
             if (!jeOdprta()) return
             var prepolna = false
+            var brezPisca = false
             synchronized(kljucnicaVrste) {
-                if (seznamNaprav) {
-                    // Seznam naprav je vedno cel: ce prejsnji se caka, ga novi nadomesti. Ob
-                    // ponovnem zagonu sredisca se tako ne nabere dvajset zastarelih seznamov.
-                    val stari = vrsta.indexOfFirst { it.seznamNaprav }
+                if (nadomesti != null) {
+                    val stari = vrsta.indexOfFirst { it.nadomesti == nadomesti }
                     if (stari >= 0) {
                         bajtovVVrsti += podatki.size - vrsta[stari].podatki.size
-                        vrsta[stari] = Izhod(opkoda, podatki, true)
+                        vrsta[stari] = Izhod(opkoda, podatki, nadomesti)
+                        nadomesceno.incrementAndGet()
                         return
                     }
                 }
                 if (vrsta.size >= NAJVEC_V_VRSTI || bajtovVVrsti + podatki.size > NAJVEC_BAJTOV_V_VRSTI) {
                     prepolna = true
+                } else if (!zagotoviPisca()) {
+                    brezPisca = true
                 } else {
-                    vrsta.addLast(Izhod(opkoda, podatki, seznamNaprav))
+                    vrsta.addLast(Izhod(opkoda, podatki, nadomesti))
                     bajtovVVrsti += podatki.size
-                    zagotoviPisca()
                     kljucnicaVrste.notifyAll()
                 }
             }
             if (prepolna) {
                 Log.w(OZNAKA, "Naprava ne bere (${imeNaprave.ifBlank { naslov }}); povezavo zapiram.")
                 zapri(1011, "naprava ne bere")
+            } else if (brezPisca) {
+                // Sistem ne da niti (ViriNaprave je zabelezil pomanjkanje): 1013 = naj poskusi pozneje.
+                zapri(1013, "ni virov")
             }
         }
 
-        /** Nit, ki edina pise na vticnico te povezave; zazene se ob prvem sporocilu. */
-        private fun zagotoviPisca() {
-            if (pisec != null) return
+        /** Nit, ki edina pise na vticnico te povezave; zazene se ob prvem sporocilu. False: sistem niti ne da. */
+        private fun zagotoviPisca(): Boolean {
+            if (pisec != null) return true
             val nit = Thread(null, { zankaPisanja() }, "safeer-hub-pisec")
             nit.isDaemon = true
+            try {
+                nit.start()
+            } catch (_: Throwable) {
+                ViriNaprave.zabelezi(ViriNaprave.NITI, "povezava")
+                return false
+            }
             pisec = nit
-            nit.start()
+            return true
         }
 
         private fun zankaPisanja() {
@@ -849,22 +935,30 @@ class HubStreznik(
         private const val OPKODA_PING = 0x9
         private const val OPKODA_PONG = 0xA
 
-        // Meje so postavljene po meritvi na televizorju: naprava ima okoli 2,7 GB, prostega
-        // pa je le nekaj sto MB, brskalnik sam pa je ze velik. Java kopica ni ozko grlo -
-        // nevarno je, da sistem zaradi pomanjkanja pomnilnika ubije cel brskalnik. Zato
-        // raje zavrnemo odvecno povezavo ali preveliko sporocilo, kot da tvegamo to.
-        // Domace omrezje ima hitro 6+ naprav (TV, telefon, tablica, racunalnik, Control, Safeer OS): 16 kot NAJVEC_NAPRAV.
-        const val NAJVEC_POVEZAV = 16
+        // Clanov kroga (povezav WebSocket z veljavno vstopnico) ne omejuje stevilka - samo viri naprave (ViriNaprave;
+        // lastnik, 18. 10. 2026: podjetje z veliko napravami za enim naslovom). Do 0.5.90: 16 povezav, 24 vticnic skupaj.
+        // Fiksne meje ostanejo za nepreverjene (spodaj) in tehnicne meje protokola (velikost sporocila, glave, vrsta).
 
         /**
-         * Zgornja meja hkrati strezenih vticnic, WebSocket in HTTP skupaj. Sest naprav ima
-         * lahko vsaka svojo trajno povezavo in ob njej se kaksno kratko zahtevo (seznanitev,
-         * vstopnica, prenos datoteke), zato je meja postavljena visje od stevila naprav -
-         * a ne v nebo.
+         * Nepreverjene vticnice (od sprejema do prebrane zahteve): najvec toliko vseh in z enega naslova, isto kot
+         * link_neposredno na racunalniku. Nova jih ne caka - izrine najstarejso TIHO ([ROK_TIHE_MS]). Meritev 18. 10. 2026
+         * (ObremenitevTest, 200 clanov z istega naslova hkrati, zanka, brez TLS): hkrati nepreverjenih do 162, najdlje
+         * 0,64 s - meja 32 na naslov bi z izrinjanjem najstarejse (kot na racunalniku, kjer se preverjanje konca ze pred
+         * TLS) izrinila vecino pravih clanov. Zato izrinjamo samo tihe; izrinjenih v vseh meritvah 0.
          */
-        const val NAJVEC_SOCASNIH = 24
+        const val NAJVEC_NEPREVERJENIH = 128
+        const val NAJVEC_NEPREVERJENIH_NA_VIR = 32
+        /**
+         * Nepreverjena vticnica brez zahteve dlje od tega je tiha in jo nova povezava sme izriniti. Ob valu 200 prijav je
+         * bila na zanki najdlje 0,64 s; na televizorju (32-bitni ARM, TLS s kljucem v KeyStore) rokovanje caka na
+         * procesor dlje - 10 s je rezerva, da izrinjamo samo tihe, ne clanov v cakanju.
+         */
+        const val ROK_TIHE_MS = 10_000L
         private const val NAJVECJE_SPOROCILO = 256L * 1024
-        private const val NAJVECJI_SKUPNI_ZADRZEK = 1L * 1024 * 1024
+        /** Do toliko skupaj zadrzanih bajtov (sestavljanje sporocil vseh povezav) brez meritve; nad tem odloca pomnilnik. */
+        private const val SKUPNI_ZADRZEK_BREZ_MERITVE = 1L * 1024 * 1024
+        /** Premor sprejemanja po napaki accept (npr. EMFILE), da zanka ne vrti procesorja. */
+        private const val PREMOR_PO_NAPAKI_MS = 100L
         private const val NAJVECJE_TELO = 64 * 1024
         private const val NAJVECJA_VRSTICA = 8 * 1024
         private const val NAJVEC_GLAV = 64
@@ -872,7 +966,13 @@ class HubStreznik(
         private const val PING_VSAKIH_MS = 25_000L
         /** Po toliko zaporednih pingih brez odziva povezavo zapremo, da se ne kopicijo. */
         private const val NAJVEC_TIHIH_KROGOV = 3
-        private const val CAKALNA_VRSTA = 16
+        /**
+         * Vrsta jedra za sprejem povezav (listen), isto kot sredisce na racunalniku (request_queue_size 512). Do 0.5.90
+         * je bila 16: ob valu prijav jedro preostale klice zavrze in naprave cakajo na ponovni SYN (1, 3, 7 s). Meritev
+         * 18. 10. 2026 (ObremenitevTest, 200 clanov z enega naslova hkrati, 4 ponovitve): z vrsto 16 so bili vsi prijavljeni
+         * v 4,1-15,6 s, z 512 v 0,6-1,9 s. Jedro jo omeji z net.core.somaxconn (televizor, Android 11: 128).
+         */
+        const val CAKALNA_VRSTA = 512
 
         /**
          * Izhodna vrsta ene povezave. Sporocila huba so majhna (seznam naprav, ukazi daljinca),
@@ -883,7 +983,5 @@ class HubStreznik(
         private const val NAJVEC_BAJTOV_V_VRSTI = 512L * 1024
         /** Koliko cakamo, da pisalna nit poslje zakljucni okvir, preden vticnico zapremo. */
         private const val ZAPIRALNI_ROK_MS = 300L
-        /** Po tem prepoznamo objavo seznama naprav, ki jo je smiselno zdruziti. */
-        const val OZNAKA_SEZNAMA = "\"type\":\"cast.devices\""
     }
 }

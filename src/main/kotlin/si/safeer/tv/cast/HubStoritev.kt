@@ -39,6 +39,38 @@ class HubStoritev : Service() {
         private const val OBVESTILO_ZAPORA = 4049
         private const val OBVESTILO_NAPAD = 4050
         private const val OBVESTILO_KODA = 4051
+        private const val KANAL_VIRI = "safeer_link_viri"
+        private const val OBVESTILO_VIRI = 4052
+
+        /**
+         * Clan kroga ni bil sprejet, ker tej napravi zmanjkuje virov (ViriNaprave; isto kot core/link_viri.py na
+         * racunalniku): uporabnik to izve v svojem jeziku, ne ugiba, zakaj se naprava ne poveze. Klice ga ViriNaprave
+         * najvec enkrat na OBVESTILO_VSAKIH_MS (10 min); deluje tudi, ko storitev ne tece.
+         */
+        fun obvestiOVirih(context: Context, razlog: String, zavrnjenih: Int) {
+            try {
+                val upravitelj = context.getSystemService(NotificationManager::class.java) ?: return
+                if (upravitelj.getNotificationChannel(KANAL_VIRI) == null) {
+                    upravitelj.createNotificationChannel(NotificationChannel(KANAL_VIRI, context.getString(R.string.link_viri_kanal),
+                        NotificationManager.IMPORTANCE_DEFAULT).apply { description = context.getString(R.string.link_viri_kanal_opis) })
+                }
+                val (naslov, besedilo) = when (razlog) {
+                    ViriNaprave.DESKRIPTORJI -> R.string.link_viri_deskriptorji_naslov to R.string.link_viri_deskriptorji
+                    ViriNaprave.NITI -> R.string.link_viri_niti_naslov to R.string.link_viri_niti
+                    else -> R.string.link_viri_pomnilnik_naslov to R.string.link_viri_pomnilnik
+                }
+                val telo = context.getString(besedilo, zavrnjenih)
+                upravitelj.notify(OBVESTILO_VIRI, Notification.Builder(context, KANAL_VIRI)
+                    .setContentTitle(context.getString(naslov))
+                    .setContentText(telo)
+                    .setStyle(Notification.BigTextStyle().bigText(telo))
+                    .setSmallIcon(android.R.drawable.stat_sys_warning)
+                    .setAutoCancel(true)
+                    .build())
+            } catch (e: Throwable) {
+                Log.w(TAG, "Obvestila o virih ni bilo mogoce prikazati: ${e.message}")
+            }
+        }
 
         const val AKCIJA_ZACNI = "si.safeer.tv.cast.HUB_ZACNI"
         const val AKCIJA_KONCAJ = "si.safeer.tv.cast.HUB_KONCAJ"

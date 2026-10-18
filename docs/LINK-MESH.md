@@ -162,6 +162,64 @@ mesh.trust     {type, id, payload: <krog json>}     (zdruzi s preverjanjem podpi
 - Klepet, ki čaka na nepovezano napravo, hrani hub pošiljatelja in ga dostavi, ko se cilj pojavi
   lokalno **ali prek soseda**.
 
+## Meje središča na Androidu: člani po virih (0.5.91, 18. 10. 2026)
+
+Lastnik, 18. 10. 2026: za ČLANE kroga v Safeer Linku ni fiksnih stropov (podjetje z veliko napravami za enim naslovom).
+Enako kot na računalniku (`core/link_viri.py`): fiksne meje veljajo samo za nepreverjene povezave, člane ustavijo samo
+pravi viri naprave (`cast/ViriNaprave.kt`) – in takrat z jasnim razlogom: odgovor s kodo `ni_virov` (besedilo z imenom
+naprave v jeziku uporabnika), obvestilo »Safeer Link: …« na tej napravi (sl, en, de, es, fr, it; največ vsakih 10 min),
+zavrnjena povezava se po odgovoru zapre (1013) in odjemalec se poveže znova sam.
+
+**Viri, merjeni sproti:** deskriptorji iz `/proc/self/fd` proti mehki meji RLIMIT_NOFILE (`/proc/self/limits`), rezerva 512
+(pri nizki meji četrtina); pomnilnik po sistemu (`ActivityManager.MemoryInfo`: `lowMemory`, `availMem − threshold`) in
+kopica Jave nad rezervo (1/8, najmanj 32 MiB); niti – če sistem niti ne da (OutOfMemoryError ob zagonu), razlog `niti`.
+Nova povezava člana = 1 deskriptor + 1 MiB (izhodna vrsta do 512 KiB z medpomnilniki), deljenje zaslona in gledalec
+po 4 MiB, prenos datoteke 1 deskriptor + 1 MiB.
+
+| Meja | Do 0.5.90 | Zdaj | Zakaj |
+|---|---|---|---|
+| Povezave WebSocket članov | 16 | viri (nova naprava) | član ima veljavno vstopnico (podpis ključa ali žeton) |
+| Hkrati streženih vtičnic | 24, tudi člani | samo nepreverjene: 128, z enega naslova 32 | tih odjemalec ne sme zasesti niti in deskriptorjev |
+| Naprav v registru | 32 | povezane brez meje; odklopljenih si zapomni 256 | odklopljeni zapis je samo ime in zmožnosti |
+| Sosednjih Hubov; naprave soseda | 16; prvih 32 | viri; vse, ki so člani kroga | |
+| Izzivi za podpis | 8 (val je članom izrinil izziv: 401) | 1024, poln seznam izrine najstarejšega | izziv dobi kdorkoli – nepreverjeno |
+| Vstopnice; seje | 8; 64 skupaj | 16 na napravo, skupne meje ni | nova prijava naprave nadomesti njene stare |
+| Seznanjenih z žetonom | 16 | brez skupne meje (en žeton na napravo) | seznanitev potrdi človek s kodo |
+| Prenosi; zasloni; gledalci | 3; 4; 4 | viri (503 `ni_virov`) | |
+| Sestavljanje sporočil vseh povezav | 1 MiB skupaj | do 1 MiB brez meritve, nad tem pomnilnik | |
+| Zapomnjeni naslovi sosedov | 32 | vsi člani kroga (ne-člani izpadejo) | |
+| Vrsta `listen` | 16 | 512 (jedro jo omeji s somaxconn; televizor: 128) | meritev spodaj |
+
+**Ostane (nepreverjeni in protokol):** čakajoče seznanitve 8, poskusi kode 5 na prijavo in 10 na minuto, zapore varovalke
+(`HubVarovalka`), obramba po naslovu (`HubObramba`), sporočilo WebSocket 256 KiB, izhodna vrsta povezave 64 okvirjev /
+512 KiB, sporočilo soseda 1 MiB, telo HTTP 64 KiB, vrstica 8 KiB, 64 glav, ime 64 znakov, katalog programov 200 vnosov /
+32 KiB, sinhronizacija 8 kategorij / 512 KiB.
+
+**Nepreverjene vtičnice** (`HubStreznik`): od sprejema TCP do prebrane zahteve (WebSocket: do veljavne vstopnice; tok: do
+predaje `HubTokovi`, ki takoj preveri svoj ključ). Nova povezava nikoli ne čaka in ni zavrnjena zaradi števila: nad 32 z
+naslova (128 skupaj) izrine najstarejšo TIHO – več kot 10 s brez zahteve. Drugače kot na računalniku, kjer se
+nepreverjenost konča že s trkom pred TLS, tu vključuje rokovanje TLS: meritev je pokazala do 162 hkrati nepreverjenih
+pravih članov z enega naslova, izrinjanje najstarejše bi jih večino vrglo ven.
+
+**Izhodna vrsta:** cel seznam naprav STAREJŠEMU prejemniku (brez `devdelta1`) se v vrsti nadomesti po ključu
+(`HubStreznik.Povezava.poslji(nadomesti=)`, isto kot `link_ws` na računalniku). Prej je vrsta ugibala po vsebini (vsak
+`cast.devices`), tudi pri prejemniku, ki zna spremembe – posnetek je preskočil spremembo, ki je čakala za njim.
+Odhodna sosednja povezava (OkHttp, vrsta 16 MiB) nadomeščanja nima.
+
+**Meritev 18. 10. 2026** (`tests/run_obremenitev.sh`, `OBREMENITEV_PONOVITEV=3` in en samostojen tek: 200 članov z ENEGA
+naslova hkrati – izziv, podpis ECDSA, vstopnica, WebSocket, prijava; pravo središče na zanki brez TLS, prenosnik z 8 jedri):
+
+| Vrsta `listen` | Odjemalci | Vsi prijavljeni | Vsi imajo cel seznam | Seznami | Napak |
+|---|---|---|---|---|---|
+| 16 (prej) | devdelta1 | 4,1–15,6 s | 4,2–15,8 s | 8,9–9,1 MB | 0 |
+| 512 | devdelta1 | 0,6–1,9 s | 0,75–2,2 s | 8,7 MB | 0 |
+| 512 | starejši (cel seznam) | 0,6–0,94 s | 0,8–1,2 s | 10,6–20,1 MB | 0 |
+
+Hkrati nepreverjenih 18–162, najdlje 0,64 s, izrinjenih 0; 200 povezav, 411 deskriptorjev procesa (središče in 200
+odjemalcev v istem procesu). Do 0.5.90 bi isti val ustavile meje 8 izzivov (401), 24 vtičnic in 16 povezav (503) ter 32
+naprav. Televizor (Android 11, 32-bitni ARM): somaxconn 128, zato je vrsta tam 128; vsaka nit ima 1 MiB sklada v
+32-bitnem naslovnem prostoru – če sistem niti ne da, središče odgovori `niti` in povezavo zapre, ne sesuje se.
+
 ## Global Link: soseda zunaj doma (narejeno 29. 9.)
 
 - Vsak Hub se objavi na `link.safeer.si` (AgentHuba: `/v1/presence` s seznamom `allow` = člani kroga,

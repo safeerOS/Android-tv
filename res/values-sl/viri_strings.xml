@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Safeer Link: clan kroga ni sprejet, ker tej napravi zmanjkuje virov (cast/ViriNaprave.kt, isto kot core/link_viri.py). -->
+    <string name="link_viri_kanal">Safeer Link – viri naprave</string>
+    <string name="link_viri_kanal_opis">Ko ta naprava nima dovolj virov za novo napravo iz kroga.</string>
+    <string name="link_viri_deskriptorji_naslov">Safeer Link: ni prostih povezav</string>
+    <string name="link_viri_deskriptorji">Ta naprava je dosegla sistemsko mejo hkrati odprtih povezav. Novih naprav iz kroga zdaj ne sprejme (zavrnjenih: %1$d). Zapri kakšno aplikacijo ali znova zaženi Safeer.</string>
+    <string name="link_viri_pomnilnik_naslov">Safeer Link: premalo pomnilnika</string>
+    <string name="link_viri_pomnilnik">Tej napravi zmanjkuje pomnilnika. Novih naprav iz kroga zdaj ne sprejme (zavrnjenih: %1$d). Zapri kakšno aplikacijo; naprave se povežejo same, ko bo spet dovolj prostora.</string>
+    <string name="link_viri_niti_naslov">Safeer Link: sistem ne dovoli več opravil</string>
+    <string name="link_viri_niti">Sistem ne dovoli več hkratnih opravil (niti). Novih naprav iz kroga zdaj ne sprejme (zavrnjenih: %1$d). Zapri kakšno aplikacijo ali znova zaženi Safeer.</string>
+    <string name="link_viri_zaseden">Naprava »%1$s« ima zdaj premalo virov (povezav ali pomnilnika) za novo povezavo. Poskusim znova sam.</string>
+</resources>

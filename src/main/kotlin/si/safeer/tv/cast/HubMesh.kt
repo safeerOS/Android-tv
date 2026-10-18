@@ -33,7 +33,6 @@ object HubMesh {
     private const val VECJI_CAKA_MS = 40_000L
     private const val KLJUC_ZNANI = "mesh_znani"
     private const val VRATA = 8990
-    private const val NAJVEC_ZNANIH = 32
 
     private val klicem: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val prvicVideni = ConcurrentHashMap<String, Long>()
@@ -89,7 +88,9 @@ object HubMesh {
         // Naslov iz odhodne povezave (z vrati) ima prednost pred samim IP iz dohodne.
         if (star == url || (!naslov.startsWith("wss://") && star.contains("//$naslov:"))) return
         znani.put(id, url)
-        while (znani.length() > NAJVEC_ZNANIH) znani.remove(znani.keys().next())
+        // Zapomni si naslove vseh clanov kroga (prej najvec 32); naslov naprave, ki ni vec v krogu, izpade.
+        val krog = KrogNaprave.krog(context)
+        for (k in znani.keys().asSequence().toList()) if (k != id && krog.clanZaId(k) == null) znani.remove(k)
         p.edit().putString(KLJUC_ZNANI, znani.toString()).apply()
     }
 
@@ -168,6 +169,12 @@ object HubMesh {
             poklici(app, u, h0, prekReleja = true); return
         }
         val h = if (prekReleja) (naslovReleja(app, h0)?.let { h0.copy(naslov = it) } ?: return) else h0
+        // Sosedov ne omejuje stevilka (prej 16), samo viri: nov sosed je povezava (deskriptor, niti OkHttp, vrsta). Brez
+        // virov ga zdaj ne klicemo - poskus se ponovi ob naslednjem iskanju, uporabnik dobi obvestilo (ViriNaprave).
+        if (h.id !in u.sosedjeIdji()) {
+            val razlog = ViriNaprave.preveri(1, ViriNaprave.POMNILNIK_POVEZAVE)
+            if (razlog.isNotEmpty()) { ViriNaprave.zabelezi(razlog, "sosed"); return }
+        }
         if (!klicem.add(h.id)) return
         val kljuc = KrogNaprave.kljucHuba(app, h.id)
         if (kljuc == null) { klicem.remove(h.id); return }

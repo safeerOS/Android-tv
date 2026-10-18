@@ -57,6 +57,11 @@ class HubUsmerjevalnik(
         val vstopnica: String? get() = null
         fun poslji(besedilo: String)
         fun zapri(koda: Int, razlog: String)
+        /**
+         * Kot [poslji], a sporocilo vrste [kljuc], ki se caka v izhodni vrsti, novo zamenja na istem mestu (cel seznam
+         * naprav starejsemu prejemniku, SeznamSprememb.razposlji). Povezava brez lastne izhodne vrste poslje navadno.
+         */
+        fun posljiNadomestljivo(besedilo: String, kljuc: String) = poslji(besedilo)
     }
 
     internal class Prijava(
@@ -120,7 +125,7 @@ class HubUsmerjevalnik(
       * je del istega stanja, le da je prijava in odklop naprav zdaj na enem mestu, ne razsuto po
       * dveh tisoc vrsticah.
       */
-    internal val register = RegisterNaprav(kljucnica, { ura() }, NAJVEC_NAPRAV, NAJVEC_IMENA)
+    internal val register = RegisterNaprav(kljucnica, { ura() }, NAJVEC_ODKLOPLJENIH, NAJVEC_IMENA)
     private val prijave = LinkedHashMap<String, Prijava>()
     private val zetoni = LinkedHashMap<String, SeznanjenaNaprava>()
     /** Vstopnica za WebSocket: kdaj je bila izdana in kateri napravi (zeton ali podpis), ce je znano. */
@@ -130,8 +135,28 @@ class HubUsmerjevalnik(
 
     /** Porabljene vstopnice, vezane na napravo: vstopnica -> device_id, dokler se povezava ne prijavi. */
     private val vezaneVstopnice = LinkedHashMap<String, String>()
-    /** Porabljene vstopnice, izdane s podpisom kljuca iz kroga (samo take smejo odpreti sosednjo povezavo). */
-    private val podpisaneVstopnice = LinkedHashSet<String>()
+    /** Porabljene vstopnice, izdane s podpisom kljuca iz kroga (samo take smejo odpreti sosednjo povezavo) -> naprava. */
+    private val podpisaneVstopnice = LinkedHashMap<String, String>()
+
+    /**
+     * Besedilo zavrnitve clana zaradi virov naprave (koda ViriNaprave.KODA); krmilnik ga nastavi v jeziku uporabnika
+     * z imenom te naprave (R.string.link_viri_zaseden).
+     */
+    @Volatile var besediloBrezVirov: () -> String = { ViriNaprave.BESEDILO_BREZ_VIROV }
+
+    internal fun besediloBrezVirovVarno(): String = try { besediloBrezVirov() } catch (_: Throwable) { ViriNaprave.BESEDILO_BREZ_VIROV }
+
+    /** Povezave, ki jih po odgovoru zapremo (clan ni sprejet zaradi virov: ne sme drzati niti in deskriptorja). */
+    private val zapriPoOdgovoru = java.util.Collections.newSetFromMap(java.util.WeakHashMap<Odjemalec, Boolean>())
+
+    /**
+     * Pred novim zapisom naprave [deviceId] izpadejo njeni najstarejsi nad [NAJVEC_NA_NAPRAVO] (zapisi so v vrstnem redu
+     * nastanka). Zapisov drugih naprav se ne dotakne - skupne meje ni (isto kot _omeji_na_napravo na racunalniku).
+     */
+    private fun <V> omejiNaNapravo(zapisi: MutableMap<String, V>, deviceId: String, naprava: (V) -> String?) {
+        val njeni = zapisi.entries.filter { naprava(it.value) == deviceId }.map { it.key }
+        for (k in njeni.take(maxOf(0, njeni.size - NAJVEC_NA_NAPRAVO + 1))) zapisi.remove(k)
+    }
     internal val sinhronizacija = LinkedHashMap<String, Kategorija>()
 
     /** Klice se, ko se seznam cakajocih prijav spremeni, da vmesnik pokaze kodo brez spraševanja. */
@@ -427,7 +452,6 @@ class HubUsmerjevalnik(
         val pogled = JsonLahki.objekt(zapis) ?: return
         var podvojenih = 0
         for (zeton in pogled.kljuci()) {
-            if (zetoni.size >= NAJVEC_SEZNANJENIH) break
             val naprava = pogled.objekt(zeton) ?: continue
             val id = naprava.niz("device_id") ?: continue
             val nova = SeznanjenaNaprava(id, naprava.nizAli("name", id), naprava.stevilo("paired_at") ?: 0.0)
@@ -443,10 +467,6 @@ class HubUsmerjevalnik(
         }
         if (podvojenih > 0) shraniZetone()
     }
-
-    /** Seznam je poln, razen ce se ista naprava le znova seznanja (njen stari vnos bo zamenjan). */
-    internal fun jePolno(deviceId: String): Boolean =
-        zetoni.size >= NAJVEC_SEZNANJENIH && zetoni.values.none { it.deviceId == deviceId }
 
     /**
      * Ponovna seznanitev iste naprave zamenja prejsnjo: stari zeton je naprava ze zavrgla,
@@ -503,7 +523,8 @@ class HubUsmerjevalnik(
      */
     fun izdajSejo(deviceId: String): String = synchronized(kljucnica) {
         pocistiSeje()
-        while (seje.size >= NAJVEC_SEJ) seje.remove(seje.keys.first())
+        // Na napravo najvec NAJVEC_NA_NAPRAVO sej; sej drugih naprav nova nikoli ne izrine (prej skupaj 64).
+        omejiNaNapravo(seje, deviceId) { it.first }
         val zeton = "saf_seja_" + nakljucni(24)
         seje[zeton] = Pair(deviceId, ura() + SEJA_VELJA_MS)
         zeton
@@ -630,10 +651,6 @@ class HubUsmerjevalnik(
     fun potrdiPrijavo(pairId: String): Boolean = synchronized(kljucnica) {
         pocistiPrijave()
         val prijava = prijave[pairId] ?: return false
-        if (jePolno(prijava.deviceId)) {
-            // Raje povemo, da ne gre, kot da bi seznam rasel v nedogled.
-            return false
-        }
         prijava.potrjena = true
         prijava.nastala = ura()
         prijava.zeton = "saf_tv_" + nakljucni(24)
@@ -680,9 +697,6 @@ class HubUsmerjevalnik(
         }
         // Koda je bila prava: ta poskus ni ugibanje, tudi ce sredisce nima vec prostora.
         varovalka.uspeh(prijava.naslov)
-        if (jePolno(prijava.deviceId)) {
-            return IzidKode(null, "preveč_naprav")
-        }
         val zeton = "saf_tv_" + nakljucni(24)
         vpisiZeton(zeton, SeznanjenaNaprava(prijava.deviceId, prijava.ime, ura() / 1000.0))
         shraniZetone()
@@ -750,7 +764,6 @@ class HubUsmerjevalnik(
         }
         // Koda je bila prava: ta poskus ni ugibanje, tudi ce sredisce nima vec prostora.
         varovalka.uspeh(prijava.naslov)
-        if (jePolno(prijava.deviceId)) return IzidKode(null, "preveč_naprav")
         val zeton = "saf_tv_" + nakljucni(24)
         vpisiZeton(zeton, SeznanjenaNaprava(prijava.deviceId, prijava.ime, ura() / 1000.0))
         shraniZetone()
@@ -918,7 +931,6 @@ class HubUsmerjevalnik(
             if (p == null) return null to napaka
             if (p.deviceId == odobril) return null to "ista_naprava"
             if (p.zeton == null) {
-                if (jePolno(p.deviceId)) return null to "prevec_naprav"
                 val zeton = "saf_tv_" + nakljucni(24)
                 vpisiZeton(zeton, SeznanjenaNaprava(p.deviceId, p.ime, ura() / 1000.0))
                 shraniZetone()
@@ -1029,7 +1041,6 @@ class HubUsmerjevalnik(
                 }
                 return null to "qr_ne_obstaja"
             }
-            if (jePolno(deviceId)) return null to "prevec_naprav"
             pridruzitve.remove(id)
             while (pridruzeni.size >= NAJVEC_CAKAJOCIH) pridruzeni.remove(pridruzeni.keys.first())
             val cistoIme = if (ime.isBlank()) deviceId else ime
@@ -1106,12 +1117,12 @@ class HubUsmerjevalnik(
      */
     fun izdajVstopnico(deviceId: String? = null, podpis: Boolean = false): String = synchronized(kljucnica) {
         pocistiVstopnice()
-        if (vstopnice.size >= NAJVEC_VSTOPNIC) {
-            // Najstarejsa pade ven; drugace bi jih nekdo lahko naracal poljubno veliko.
-            vstopnice.remove(vstopnice.keys.first())
-        }
+        // Vstopnico dobi samo clan (zeton ali podpis). Na napravo najvec NAJVEC_NA_NAPRAVO najnovejsih (odjemalec rabi
+        // zadnjo); vstopnic drugih naprav nova nikoli ne izrine - prej skupaj 8: val prijav je clanom izrinjal vstopnice.
+        val naprava = deviceId?.takeIf { it.isNotBlank() }
+        omejiNaNapravo(vstopnice, naprava.orEmpty()) { it.deviceId.orEmpty() }
         val vstopnica = nakljucni(16)
-        vstopnice[vstopnica] = Vstopnica(ura(), deviceId?.takeIf { it.isNotBlank() }, podpis)
+        vstopnice[vstopnica] = Vstopnica(ura(), naprava, podpis)
         return vstopnica
     }
 
@@ -1132,11 +1143,11 @@ class HubUsmerjevalnik(
             val najdena = vstopnice.keys.firstOrNull { enaka(it, vstopnica) } ?: return false
             val v = vstopnice.remove(najdena)
             if (v?.deviceId != null) {
-                if (vezaneVstopnice.size >= NAJVEC_VSTOPNIC) vezaneVstopnice.remove(vezaneVstopnice.keys.first())
+                omejiNaNapravo(vezaneVstopnice, v.deviceId) { it }
                 vezaneVstopnice[najdena] = v.deviceId
                 if (v.podpis) {
-                    if (podpisaneVstopnice.size >= NAJVEC_VSTOPNIC) podpisaneVstopnice.remove(podpisaneVstopnice.first())
-                    podpisaneVstopnice.add(najdena)
+                    omejiNaNapravo(podpisaneVstopnice, v.deviceId) { it }
+                    podpisaneVstopnice[najdena] = v.deviceId
                 }
             }
             return true
@@ -1212,6 +1223,11 @@ class HubUsmerjevalnik(
     fun obdelaj(od: Odjemalec, surovo: String) {
         val odgovor = odgovorNa(od, surovo)
         if (odgovor != null) od.poslji(odgovor)
+        // Clan ni bil sprejet zaradi virov te naprave: po odgovoru povezavo zapremo (1013 = poskusi pozneje), da ne drzi
+        // niti in deskriptorja, ki ju napravi zmanjkuje; odjemalec se poveze znova sam.
+        if (synchronized(zapriPoOdgovoru) { zapriPoOdgovoru.remove(od) }) {
+            try { od.zapri(1013, "ni virov") } catch (_: Throwable) { }
+        }
     }
 
     /**
@@ -1480,6 +1496,14 @@ class HubUsmerjevalnik(
 
         val vloga = tovor.niz("role") ?: "receiver"
         val zmoznosti = tovor.nizi("capabilities").ifEmpty { listOf("url", "control") }
+        // Nova naprava: odlocajo viri te naprave, ne stevilka (do 0.5.90: 32 naprav). Znana (vrnitev, nova povezava iste
+        // naprave) gre vedno. Brez virov: jasen odgovor ni_virov, obvestilo na tej napravi, povezava se po odgovoru zapre.
+        val razlog = if (register.najdi(deviceId) != null) "" else ViriNaprave.preveri(1, ViriNaprave.POMNILNIK_POVEZAVE)
+        if (razlog.isNotEmpty()) {
+            ViriNaprave.zabelezi(razlog, "naprava")
+            synchronized(zapriPoOdgovoru) { zapriPoOdgovoru.add(od) }
+            return potrditev(id, "rejected", besediloBrezVirovVarno(), koda = ViriNaprave.KODA)
+        }
         // Ista naprava z novo povezavo (po izpadu, ponovnem zagonu): nova zamenja staro, stara se
         // zapre - za to poskrbi register.
         val izid = register.registriraj(
@@ -1496,7 +1520,7 @@ class HubUsmerjevalnik(
             aplikacije = tovor.surovo("apps")?.let { preveriKatalog(it) }
         )
         if (!izid.sprejeta) {
-            return potrditev(id, "rejected", "Preveč naprav; odklopite katero od prejšnjih.", koda = izid.koda)
+            return potrditev(id, "rejected", "Prijava zavrnjena.", koda = izid.koda)
         }
         // Odjemalec, ki zna (SeznamSprememb.ZMOZNOST), dobi po posnetku samo spremembe; ponovna prijava zacne s posnetkom.
         stanjeSeznama(od).apply { zna = SeznamSprememb.ZMOZNOST in tovor.nizi("capabilities"); poslano = null }
@@ -1679,7 +1703,6 @@ class HubUsmerjevalnik(
                 val zacetnikStare = zacetnikSoseda[obstojeca].orEmpty()
                 if (zacetnikStare == minOf(sosedId, lastniId) && zacel != zacetnikStare) return false
             }
-            if (obstojeca == null && sosedje.size >= NAJVEC_SOSEDOV) return false
             zacetnikSoseda[povezava] = zacel
             sosedje[sosedId] = povezava
             obstojeca?.takeIf { it !== povezava }
@@ -1709,9 +1732,16 @@ class HubUsmerjevalnik(
         val sosedId = tovor.niz("device_id")?.trim()?.take(NAJVEC_IMENA).orEmpty()
         val vstopnica = od.vstopnica
         val vezana = napravaVstopnice(vstopnica)
-        val podpisana = vstopnica != null && synchronized(kljucnica) { podpisaneVstopnice.any { enaka(it, vstopnica) } }
+        val podpisana = vstopnica != null && synchronized(kljucnica) { podpisaneVstopnice.keys.any { enaka(it, vstopnica) } }
         if (sosedId.isBlank() || vezana != sosedId || !podpisana || !jeClan(sosedId)) {
             return potrditev(id, "rejected", "Sosed mora biti clan kroga s podpisom.", koda = "ni_sosed")
+        }
+        // Nov sosed: odlocajo viri te naprave (do 0.5.90: 16 sosedov). Brez virov jasen odgovor ni_virov in obvestilo.
+        val novSosed = synchronized(kljucnica) { sosedId !in sosedje }
+        val razlog = if (novSosed) ViriNaprave.preveri(1, ViriNaprave.POMNILNIK_POVEZAVE) else ""
+        if (razlog.isNotEmpty()) {
+            ViriNaprave.zabelezi(razlog, "sosed")
+            return potrditev(id, "rejected", besediloBrezVirovVarno(), koda = ViriNaprave.KODA)
         }
         // Sosed, ki zna spremembe seznama, to pove ze v prijavi; prvi seznam je vseeno posnetek.
         stanjeSeznama(od).zna = SeznamSprememb.ZMOZNOST in tovor.nizi("capabilities")
@@ -1797,7 +1827,8 @@ class HubUsmerjevalnik(
 
     private fun sosedoveNaprave(sosedId: String, povezava: Odjemalec, naprave: JsonLahki.Pogled?, relay: JsonLahki.Pogled?) {
         if (naprave == null) return
-        val novi = naprave.kljuci().take(NAJVEC_NAPRAV)
+        // Vse naprave soseda, ki so clani kroga (prej prvih 32): stevila ne omejujemo, zapis namestnika nima povezave.
+        val novi = naprave.kljuci()
             .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && it != lastniId && jeClan(it) }
         krog.zabeleziStik(novi, ura() / 1000.0)
         val prispeli = ArrayList<Pair<String, Odjemalec>>()
@@ -1832,7 +1863,7 @@ class HubUsmerjevalnik(
             }
             sosedNaprave[sosedId] = obdrzani
             if (relay != null) {
-                zadnjiRelay[sosedId] = relay.kljuci().take(NAJVEC_NAPRAV)
+                zadnjiRelay[sosedId] = relay.kljuci()
                     .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && jeClan(it) }
                     .mapNotNull { k -> relay.objekt(k)?.let { k to it } }.toMap()
             }
@@ -2204,6 +2235,7 @@ class HubUsmerjevalnik(
                 novi[kljuc] = pogled
                 pogled.posodobi(mapOf("devices" to (SeznamSprememb.seznam(synchronized(kljucnica) { napraveJson(nas) }) ?: LinkedHashMap())))
                 poslano += SeznamSprememb.razposlji(pogled, povezave, ::stanjeSeznama, ::posljiVarno,
+                    posljiNadomestljivo = ::posljiNadomestljivoVarno,
                     posnetek = {
                         ovojnica(SeznamSprememb.POSNETEK).surovo("devices", pogled.posnetekJson())
                             .niz("epoch", pogled.epoha).stevilo("ver", pogled.ver.toDouble()).toString()
@@ -2230,7 +2262,8 @@ class HubUsmerjevalnik(
                     novi[kljuc] = pogled
                     pogled.posodobi(mapOf("devices" to (SeznamSprememb.slovar(lokalneZaSosede(nas)) ?: LinkedHashMap()), "relay" to relay))
                     poslano += SeznamSprememb.razposlji(pogled, povezave, ::stanjeSeznama, ::posljiVarno,
-                        posnetek = { meshPosnetek(pogled) }, spremembe = { meshSpremembe(pogled) })
+                        posnetek = { meshPosnetek(pogled) }, spremembe = { meshSpremembe(pogled) },
+                        posljiNadomestljivo = ::posljiNadomestljivoVarno)
                 }
             }
             // Skupina brez prejemnikov ne hrani nicesar: kdor pride pozneje, dobi posnetek z novo oznako.
@@ -2294,6 +2327,14 @@ class HubUsmerjevalnik(
 
     private fun posljiVarno(komu: Odjemalec, besedilo: String): Boolean = try {
         komu.poslji(besedilo)
+        true
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Cel seznam naprav starejsemu prejemniku: cakajocega v izhodni vrsti nadomesti (SeznamSprememb.razposlji). */
+    private fun posljiNadomestljivoVarno(komu: Odjemalec, besedilo: String): Boolean = try {
+        komu.posljiNadomestljivo(besedilo, SeznamSprememb.POSNETEK)
         true
     } catch (e: Exception) {
         false
@@ -2454,18 +2495,28 @@ class HubUsmerjevalnik(
             return if (pripravljenost) brez + ZMOZNOST_PRIPRAVLJENOST else brez
         }
 
-        // Meje so del zasnove, ne naknadni popravek. Televizor ima malo pomnilnika in ga
-        // sistem ob pomanjkanju ubije brez opozorila, zato ima vsak seznam svojo streho.
-        const val NAJVEC_NAPRAV = 32
-        /** Link Mesh: zmoznost sosednje povezave, najvec sosedov in najvecje posredovano sporocilo. */
+        // Clanov kroga (naprav, sosedov, vstopnic, sej, zetonov) ne omejuje skupna stevilka (lastnik, 18. 10. 2026; do
+        // 0.5.90: 32 naprav, 16 sosedov, 8 vstopnic, 64 sej, 16 seznanjenih). Novo napravo ali soseda sprejmejo viri
+        // naprave (ViriNaprave: deskriptor in 1 MiB nad rezervo), sicer jasen odgovor ni_virov. Fiksne meje ostanejo za
+        // nepreverjene (izzivi, cakajoce seznanitve, poskusi kode), na napravo in tehnicne meje protokola.
+        /** Odklopljenih naprav si register zapomni najvec toliko (ime, zmoznosti); povezanih ne omejuje. */
+        const val NAJVEC_ODKLOPLJENIH = 256
+        /**
+         * Na NAPRAVO najvec toliko najnovejsih vstopnic in sej: nova prijava naprave nadomesti njene stare (odjemalec hrani
+         * zadnjo) - nikoli ne izrine zapisov drugih naprav. Isto kot NAJVEC_NA_NAPRAVO na racunalniku.
+         */
+        const val NAJVEC_NA_NAPRAVO = 16
+        /**
+         * Izziv za prijavo s podpisom dobi kdorkoli (se nepreverjen): fiksna meja, a poln seznam izrine najstarejsega -
+         * clan svojega porabi v milisekundah (isto kot NAJVEC_IZZIVOV na racunalniku; prej 8).
+         */
+        const val NAJVEC_IZZIVOV = 1024
+        /** Link Mesh: zmoznost sosednje povezave in najvecje posredovano sporocilo. */
         const val MESH = "mesh1"
         /** Lastnost oglasa mDNS, s katero Hub pove, da zna sosednje povezave. */
         const val TXT_MESH = "mesh"
-        const val NAJVEC_SOSEDOV = 16
         const val NAJVEC_MESH_SPOROCILO = 1024 * 1024
         const val NAJVEC_CAKAJOCIH = 8
-        const val NAJVEC_SEZNANJENIH = 16
-        const val NAJVEC_VSTOPNIC = 8
         const val NAJVEC_KATEGORIJ = 8
         const val NAJVECJA_KATEGORIJA = 192 * 1024
         const val NAJVEC_SKUPAJ_SYNC = 512 * 1024
@@ -2475,8 +2526,7 @@ class HubUsmerjevalnik(
         const val NAJVEC_KATALOG_BAJTOV = 32 * 1024
         /** Razlicica protokola, ki jo odjemalci v1 povedo v cast.register (`protocol`). */
         const val PROTOKOL_V1 = "1.0"
-        /** Sejni zetoni (prijava s podpisom): najvec hkrati in koliko casa veljajo. */
-        const val NAJVEC_SEJ = 64
+        /** Sejni zetoni (prijava s podpisom): koliko casa veljajo (na napravo najvec NAJVEC_NA_NAPRAVO). */
         const val SEJA_VELJA_MS = 12 * 60 * 60 * 1000L
         /** Najvec znakov besedila v enem deljenju (share.text po HTTP). */
         const val NAJVEC_BESEDILA = 20_000

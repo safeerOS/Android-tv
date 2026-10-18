@@ -308,10 +308,11 @@ fun main() {
 
     Thread.sleep(400)
 
-    // 7) stevilo hkratnih povezav je omejeno; odvecna naprava dobi vljudno zavrnitev
+    // 7) clanov (veljavna vstopnica) ne omejuje stevilka: prej 16 povezav in 24 vticnic, zdaj odlocajo viri naprave
     run {
         val odprte = ArrayList<TestniOdjemalec>()
-        for (i in 0 until HubStreznik.NAJVEC_POVEZAV) {
+        var sprejetih = 0
+        for (i in 0 until 40) {
             val o = TestniOdjemalec(vrata)
             o.posljiSurovo(
                 "GET /cast/ws?ticket=prava HTTP/1.1\r\nHost: test\r\n" +
@@ -319,19 +320,68 @@ fun main() {
                     "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
             )
             val (prva, _) = o.preberiGlave()
-            preveri("povezava ${i + 1} je sprejeta: $prva", prva.contains(" 101 "))
+            if (prva.contains(" 101 ")) sprejetih++ else preveri("povezava ${i + 1} je sprejeta: $prva", false)
             odprte.add(o)
         }
-        val cez = TestniOdjemalec(vrata)
-        cez.posljiSurovo(
-            "GET /cast/ws?ticket=prava HTTP/1.1\r\nHost: test\r\n" +
-                "Upgrade: websocket\r\nConnection: Upgrade\r\n" +
-                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
-        )
-        val (prva, _) = cez.preberiGlave()
-        preveri("povezava čez mejo je zavrnjena: $prva", prva.contains(" 503 "))
-        cez.zapri()
+        preveriEnako("40 hkratnih clanov je sprejetih (prej meja 16)", 40, sprejetih)
+        preveri("vse so odprte hkrati (${streznik.steviloPovezav()})", streznik.steviloPovezav() >= 40)
         for (o in odprte) o.zapri()
+    }
+
+    Thread.sleep(400)
+
+    // 8) nepreverjene: tihe vticnice (brez zahteve) z enega naslova nad mejo izrine nova; svezih ne izrinemo
+    run {
+        val tihi = HubStreznik(zeljenaVrata = 0, naZahtevo = { HubStreznik.Odgovor(200, "{}") },
+            preveriVstopnico = { null }, naPovezavo = { }, rokTiheMs = 300)
+        preveri("drugi streznik se zazene", tihi.zazeni())
+        val n = HubStreznik.NAJVEC_NEPREVERJENIH_NA_VIR + 8
+        val tihe = (0 until n).map { Socket("127.0.0.1", tihi.vrata) }
+        Thread.sleep(150)
+        preveriEnako("val svezih: nobena ni izrinjena", 0, tihi.izrinjenih)
+        preveriEnako("val svezih: vse so nepreverjene", n, tihi.steviloNepreverjenih())
+        Thread.sleep(400)   // zdaj so vse starejse od roka - tihe
+        val nova = TestniOdjemalec(tihi.vrata)
+        nova.posljiSurovo("GET /cast/health HTTP/1.1\r\nHost: t\r\n\r\n")
+        val (prva, _) = nova.preberiGlave()
+        preveri("nova zahteva gre skozi kljub tihim: $prva", prva.contains(" 200 "))
+        preveriEnako("izrinjene so tihe nad mejo na naslov", n + 1 - HubStreznik.NAJVEC_NEPREVERJENIH_NA_VIR, tihi.izrinjenih)
+        Thread.sleep(100)
+        preveri("nepreverjenih ni vec kot meja (${tihi.steviloNepreverjenih()})",
+            tihi.steviloNepreverjenih() <= HubStreznik.NAJVEC_NEPREVERJENIH_NA_VIR)
+        val zaprtih = tihe.count { s ->
+            try { s.soTimeout = 50; s.getInputStream().read() < 0 }
+            catch (_: java.net.SocketTimeoutException) { false }   // se odprta (streznik caka na zahtevo)
+            catch (_: Exception) { true }
+        }
+        preveriEnako("najstarejse tihe so zaprte", n + 1 - HubStreznik.NAJVEC_NEPREVERJENIH_NA_VIR, zaprtih)
+        tihe.forEach { try { it.close() } catch (_: Exception) { } }
+        nova.zapri()
+
+        // 9) viri: brez deskriptorja nad rezervo nova vticnica ni strezena; ze odprte delajo naprej
+        val clan = TestniOdjemalec(tihi.vrata)
+        clan.posljiSurovo("GET /cast/ws?ticket=x HTTP/1.1\r\nHost: t\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
+            "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n")
+        preveri("clan je povezan", clan.preberiGlave().first.contains(" 101 "))
+        ViriNaprave.ponastavi()
+        val obvestila = ArrayList<String>()
+        ViriNaprave.naPomanjkanje = { razlog, kje, _ -> synchronized(obvestila) { obvestila.add("$razlog/$kje") } }
+        ViriNaprave.preizkus = { _, _ -> ViriNaprave.DESKRIPTORJI }
+        try {
+            val brez = TestniOdjemalec(tihi.vrata)
+            brez.vticnica.soTimeout = 2000
+            val konec = try { brez.vhod.read() } catch (_: Exception) { -1 }
+            preveriEnako("brez virov se nova vticnica zapre", -1, konec)
+            brez.zapri()
+            preveri("pomanjkanje je zabelezeno za uporabnika: $obvestila", synchronized(obvestila) { obvestila.contains("deskriptorji/sprejem") })
+            preveriEnako("stanje virov pove razlog", ViriNaprave.DESKRIPTORJI, ViriNaprave.stanje()?.first)
+        } finally {
+            ViriNaprave.preizkus = null
+            ViriNaprave.naPomanjkanje = null
+            ViriNaprave.ponastavi()
+        }
+        clan.zapri()
+        tihi.ustavi()
     }
 
     Thread.sleep(400)

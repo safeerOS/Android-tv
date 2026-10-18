@@ -17,6 +17,7 @@ mkdir -p "$OUT"
     "$TEST_DIR/stubs/Log.kt" \
     "$TEST_DIR/stubs/DatotekeStreznik.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/ViriNaprave.kt" \
     "$SRC/si/safeer/tv/cast/HubObramba.kt" \
     "$SRC/si/safeer/tv/cast/HubVarovalka.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \

@@ -15,6 +15,7 @@ trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" -J-Xmx2g \
     "$TEST_DIR/stubs/Log.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/ViriNaprave.kt" \
     "$SRC/si/safeer/tv/cast/HubObramba.kt" \
     "$TEST_DIR/HubStreznikTest.kt" \
     -include-runtime -d "$OUT/hub.jar"
@@ -25,6 +26,7 @@ java -cp "$OUT/hub.jar" si.safeer.tv.cast.HubStreznikTestKt
 "$KOTLINC" -J-Xmx2g \
     "$TEST_DIR/stubs/Log.kt" \
     "$SRC/si/safeer/tv/cast/HubStreznik.kt" \
+    "$SRC/si/safeer/tv/cast/ViriNaprave.kt" \
     "$SRC/si/safeer/tv/cast/HubObramba.kt" \
     "$TEST_DIR/HubObrambaTest.kt" \
     -include-runtime -d "$OUT/obramba.jar"

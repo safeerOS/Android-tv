@@ -18,7 +18,12 @@ package si.safeer.tv.cast
 class RegisterNaprav(
     private val kljucnica: Any,
     private val ura: () -> Long,
-    private val najvecNaprav: Int,
+    /**
+     * Koliko ODKLOPLJENIH naprav si register zapomni (ime, zmoznosti, katalog za vrnitev); cez to izpade najstarejsa
+     * odklopljena. Povezanih ne omejuje nic - novo napravo sprejme ali zavrne usmerjevalnik po virih naprave
+     * (ViriNaprave). Do 0.5.90 je bila tu meja 32 naprav skupaj (33. clan kroga je dobil »prevec naprav«).
+     */
+    private val najvecOdklopljenih: Int,
     private val najvecImena: Int
 ) {
 
@@ -125,10 +130,6 @@ class RegisterNaprav(
             }
         }
         synchronized(kljucnica) {
-            if (!naprave.containsKey(deviceId) && naprave.size >= najvecNaprav) {
-                pocisti()
-                if (naprave.size >= najvecNaprav) return Izid(false, "prevec_naprav")
-            }
             val naprava = naprave.getOrPut(deviceId) {
                 Naprava(deviceId, deviceId, vloga, zmoznosti, od.naslov, ura() / 1000.0, null)
             }
@@ -159,7 +160,7 @@ class RegisterNaprav(
             naprava.povezava = null
             spremenjeno = true
             // Naprave ne pozabimo takoj: ime in zmoznosti so uporabni, ko se vrne.
-            // Ce jih je prevec, pade ven najstarejsa odklopljena.
+            // Ce je odklopljenih prevec, pade ven najstarejsa odklopljena.
             pocisti()
         }
         posiljatelji.remove(povezava)
@@ -173,12 +174,14 @@ class RegisterNaprav(
         n.povezava
     }
 
-    /** Ce je naprav prevec, gredo ven odklopljene - povezanih nikoli ne vrzemo iz registra. */
+    /** Ce je odklopljenih prevec, gredo ven najstarejse odklopljene - povezanih nikoli ne vrzemo iz registra. */
     fun pocisti() {
         synchronized(kljucnica) {
-            while (naprave.size > najvecNaprav) {
-                val odvecna = naprave.entries.firstOrNull { it.value.povezava == null } ?: break
-                naprave.remove(odvecna.key)
+            var odvec = naprave.values.count { it.povezava == null } - najvecOdklopljenih
+            if (odvec <= 0) return
+            val it = naprave.entries.iterator()
+            while (odvec > 0 && it.hasNext()) {
+                if (it.next().value.povezava == null) { it.remove(); odvec-- }
             }
         }
     }

@@ -219,6 +219,11 @@ object HubKrmilnik {
             return false
         }
         u.lastniOdtis = HubTls.lastniOdtis()
+        // Viri naprave (ViriNaprave): clane ustavijo samo ti - pomnilnik po sistemu (lowMemory, prag), ob pomanjkanju
+        // obvestilo v jeziku uporabnika; odjemalec dobi odgovor ni_virov z imenom te naprave.
+        ViriNaprave.pomnilnikNadPragom = { pomnilnikNadPragom(app) }
+        ViriNaprave.naPomanjkanje = { razlog, _, zavrnjenih -> HubStoritev.obvestiOVirih(app, razlog, zavrnjenih) }
+        u.besediloBrezVirov = { app.getString(si.safeer.tv.R.string.link_viri_zaseden, imeHuba(app)) }
         // Vnose, ki jih v krog doda ta hub (nova naprava s kodo), podpisemo s kljucem huba: sosedje v mesh
         // (racunalnik, tablica, telefoni) sprejmejo nov clan samo s podpisom. Brez tega je novo napravo
         // poznal samo hub, ki jo je sprejel, druge pa so jo zavracale (401), dokler se niso znova povezale.
@@ -254,6 +259,7 @@ object HubKrmilnik {
             naPrejetoDatoteko = { ime, pot -> Log.i(TAG, "Prejeta datoteka $ime -> ${pot.parent}") }
         )
         u.tokovi = t
+        t.besediloBrezVirov = { u.besediloBrezVirovVarno() }
         // Dotik gledalca (stran /cast/screen/{id}/view) gre nazaj h gostitelju kot control.command
         // input.* - ista pot, kot bi ukaz poslala seznanjena naprava (Daljinec ga ze zna izvesti).
         t.naVnosGledalca = { posiljatelj, akcija, parametriJson ->
@@ -614,11 +620,25 @@ object HubKrmilnik {
             override val naslov: String = povezava.naslov
             override val vstopnica: String? = povezava.zahteva.poizvedba["ticket"]
             override fun poslji(besedilo: String) = povezava.poslji(besedilo)
+            override fun posljiNadomestljivo(besedilo: String, kljuc: String) = povezava.poslji(besedilo, kljuc)
             override fun zapri(koda: Int, razlog: String) = povezava.zapri(koda, razlog)
         }
         povezava.naSporocilo = { sporocilo -> u.obdelaj(odjemalec, sporocilo) }
         povezava.naZaprtje = { u.odklopi(odjemalec) }
     }
+
+    /**
+     * Pomnilnik nad sistemskim pragom (ActivityManager.MemoryInfo): ko je sistem v »low memory«, negativno - novih clanov
+     * takrat ne sprejmemo, ker bi sistem sicer ubil Safeer OS. Null, ce sistem ne pove.
+     */
+    private fun pomnilnikNadPragom(app: Context): Long? = try {
+        val am = app.getSystemService(android.app.ActivityManager::class.java)
+        if (am == null) null else {
+            val mi = android.app.ActivityManager.MemoryInfo()
+            am.getMemoryInfo(mi)
+            if (mi.lowMemory) -1L else mi.availMem - mi.threshold
+        }
+    } catch (_: Throwable) { null }
 
     internal fun imeHuba(context: Context): String =
         context.getString(si.safeer.tv.R.string.os_ime_vrste) + " (" + android.os.Build.MODEL + ")"

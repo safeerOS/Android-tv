@@ -462,9 +462,14 @@ private fun preizkusVstopnic() {
     preveri("potekla ne velja", !u.porabiVstopnico(potekla))
     cas -= HubUsmerjevalnik.VSTOPNICA_VELJA_MS + 1000
 
-    val prva = u.izdajVstopnico()
-    for (i in 0 until HubUsmerjevalnik.NAJVEC_VSTOPNIC + 2) u.izdajVstopnico()
-    preveri("najstarejsa pade ven, ko jih je prevec", !u.porabiVstopnico(prva))
+    // Na napravo najvec NAJVEC_NA_NAPRAVO najnovejsih; vstopnic drugih naprav nova nikoli ne izrine (prej skupaj 8).
+    val prva = u.izdajVstopnico("tel-a")
+    val tuja = u.izdajVstopnico("tel-b")
+    for (i in 0 until HubUsmerjevalnik.NAJVEC_NA_NAPRAVO + 2) u.izdajVstopnico("tel-a")
+    preveri("najstarejsa iste naprave pade ven, ko jih ima prevec", !u.porabiVstopnico(prva))
+    preveri("vstopnica druge naprave ostane", u.porabiVstopnico(tuja))
+    val mnogo = (0 until 300).map { u.izdajVstopnico("clan-$it") }
+    preveri("300 naprav hkrati: vse vstopnice veljajo (ni skupne meje)", mnogo.all { u.porabiVstopnico(it) })
 
     // Nadgradnja v WebSocket
     val nova = u.izdajVstopnico()
@@ -622,12 +627,38 @@ private fun preizkusMeja() {
     println("\n== meje pomnilnika ==")
     val u = usmerjevalnik()
     val odjemalci = ArrayList<Lazni>()
-    for (i in 0 until HubUsmerjevalnik.NAJVEC_NAPRAV + 4) {
-        val o = Lazni("192.168.0.${100 + i}")
+    for (i in 0 until 200) {
+        val o = Lazni("192.168.0.${100 + i % 100}")
         odjemalci.add(o)
         u.odgovorNa(o, registracija("n$i", "receiver"))
     }
-    preveri("povezanih naprav ni vec kot dovoljeno", u.steviloNaprav() <= HubUsmerjevalnik.NAJVEC_NAPRAV)
+    // Clanov ne omejuje stevilka (prej 32 naprav): odlocajo viri naprave (ViriNaprave).
+    preveriEnako("200 naprav je povezanih", 200, u.steviloNaprav())
+    ViriNaprave.ponastavi()
+    ViriNaprave.preizkus = { _, _ -> ViriNaprave.POMNILNIK }
+    try {
+        val nova = Lazni("192.168.0.250")
+        u.obdelaj(nova, registracija("nova-brez-virov", "receiver"))
+        preveriEnako("brez virov: nova naprava je zavrnjena s kodo", ViriNaprave.KODA, polje(nova.zadnje(), "error_code"))
+        preveri("brez virov: besedilo pove razlog", polje(nova.zadnje(), "error").contains("virov"))
+        preveri("brez virov: povezava se po odgovoru zapre (1013)", nova.zaprt && nova.zapriKodo == 1013)
+        preveriEnako("brez virov: stanje virov pove razlog", ViriNaprave.POMNILNIK, ViriNaprave.stanje()?.first)
+        val znana = Lazni("192.168.0.100")
+        u.obdelaj(znana, registracija("n0", "receiver"))
+        preveriEnako("brez virov: znana naprava se vrne", "accepted", polje(znana.zadnje(), "status"))
+        preveri("znana ostane odprta", !znana.zaprt)
+        preveriEnako("stevilo naprav je enako", 200, u.steviloNaprav())
+        // Seje: na napravo najvec NAJVEC_NA_NAPRAVO, sej drugih naprav nova ne izrine (prej skupaj 64).
+        u.krog.dodaj(KrogZaupanja.Clan("clan-a", b64(parKljucev().public.encoded), "A", "phone", KrogZaupanja.zdaj(), "x"))
+        val sejaA = u.izdajSejo("clan-a")
+        repeat(100) { u.izdajSejo("drugi-$it") }
+        preveri("seja naprave ostane po 100 sejah drugih naprav", u.jeVeljavenZeton(sejaA))
+        repeat(HubUsmerjevalnik.NAJVEC_NA_NAPRAVO) { u.izdajSejo("clan-a") }
+        preveri("najstarejsa seja iste naprave izpade nad NAJVEC_NA_NAPRAVO", !u.jeVeljavenZeton(sejaA))
+    } finally {
+        ViriNaprave.preizkus = null
+        ViriNaprave.ponastavi()
+    }
 
     val dolgoIme = "I".repeat(200)
     val u2 = usmerjevalnik()

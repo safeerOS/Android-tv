@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Safeer Link: clan kroga ni sprejet, ker tej napravi zmanjkuje virov (cast/ViriNaprave.kt, isto kot core/link_viri.py). -->
+    <string name="link_viri_kanal">Safeer Link – Geräteressourcen</string>
+    <string name="link_viri_kanal_opis">Wenn dieses Gerät zu wenige Ressourcen hat, um ein weiteres Gerät aus dem Kreis anzunehmen.</string>
+    <string name="link_viri_deskriptorji_naslov">Safeer Link: keine freien Verbindungen</string>
+    <string name="link_viri_deskriptorji">Dieses Gerät hat die Systemgrenze offener Verbindungen erreicht. Es nimmt gerade keine neuen Geräte aus dem Kreis an (abgelehnt: %1$d). Schließe eine App oder starte Safeer neu.</string>
+    <string name="link_viri_pomnilnik_naslov">Safeer Link: wenig Arbeitsspeicher</string>
+    <string name="link_viri_pomnilnik">Diesem Gerät geht der Arbeitsspeicher aus. Es nimmt gerade keine neuen Geräte aus dem Kreis an (abgelehnt: %1$d). Schließe eine App; die Geräte verbinden sich von selbst, sobald wieder Platz ist.</string>
+    <string name="link_viri_niti_naslov">Safeer Link: das System erlaubt keine weiteren Aufgaben</string>
+    <string name="link_viri_niti">Das System erlaubt keine weiteren gleichzeitigen Aufgaben (Threads). Neue Geräte aus dem Kreis werden gerade nicht angenommen (abgelehnt: %1$d). Schließe eine App oder starte Safeer neu.</string>
+    <string name="link_viri_zaseden">Das Gerät „%1$s“ hat gerade zu wenige Ressourcen (Verbindungen oder Arbeitsspeicher) für eine neue Verbindung. Ich versuche es selbst erneut.</string>
+</resources>
