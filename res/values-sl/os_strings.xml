@@ -671,4 +671,18 @@
     <string name="apk_vir_naprava">ta naprava</string>
     <string name="apk_podrobno">Paket: %1$s · vir: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer te aplikacije ne posodablja sam.</string>
+    <string name="os_zasloni_potrdi_na">Na napravi %1$s potrdi deljenje zaslona.</string>
+    <string name="os_zasloni_ni_uspelo">Naprave %1$s ni bilo mogoče prositi za zaslon.</string>
+    <string name="os_zasloni_naslov">Povezani zasloni</string>
+    <string name="os_zasloni_dostopno">Dotakni se za ogled</string>
+    <string name="os_zasloni_preverjam">Preverjam dovoljenje …</string>
+    <string name="os_zasloni_ni_odgovora">Ni odgovora – dotakni se za poskus</string>
+    <string name="os_zasloni_caka">Prošnja za dostop čaka na potrditev na napravi</string>
+    <string name="os_zasloni_zavrnjeno">Dostop je bil na napravi zavrnjen</string>
+    <string name="os_zasloni_prosnja">Brez dovoljenja – dotakni se, da prosiš za dostop</string>
+    <string name="os_zasloni_brez_povezave">Brez povezave</string>
+    <string name="os_zasloni_brez_povezave_opis">%1$s trenutno ni v Safeer Linku. Ko se poveže, ga lahko gledaš tukaj.</string>
+    <string name="os_zasloni_prazno_ni_linka">Safeer Link ni povezan. Ko se ta naprava poveže, so tu vse naprave, ki ti delijo zaslon.</string>
+    <string name="os_zasloni_prazno_ni_naprav">V Safeer Linku ni druge naprave z zaslonom. Poveži računalnik (Linux ali Windows), televizor, tablico ali drug telefon.</string>
+    <string name="os_zasloni_prazno_ni_dovoljenj">Naprave z zaslonom so v Safeer Linku, a nobena ti še ne dovoli gledanja. Dostop odpre njen uporabnik na tisti napravi: Safeer Link → Povezane naprave → ta naprava → Zaslon.</string>
 </resources>

@@ -92,10 +92,12 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onCreate(savedInstanceState: Bundle?) {
         si.safeer.tv.os.Predgretje.zazeni(this)
         super.onCreate(savedInstanceState)
-        // Telefon in tablica imata svoj domaci zaslon (prilagodljivi ZaganjalnikActivity): Nazaj, Domov v stranski vrstici in tipka Y
-        // odprejo DomovActivity, zato jih tu preusmerimo, sicer bi se odprl TV zaslon v lezecem nacinu.
+        // Telefon in tablica imata svoj domaci zaslon (DomovTabletActivity; prilagodljivi ZaganjalnikActivity, ce je kdaj
+        // vstopna tocka): Nazaj, Domov v stranski vrstici in tipka Y odprejo DomovActivity, zato jih tu preusmerimo, sicer
+        // bi se odprl TV zaslon v lezecem nacinu. Domaci zaslon naprave (HOME) je samo na televizorju (lastnik, 18. 10. 2026).
         val zaganjalnik = packageManager.getLaunchIntentForPackage(packageName)?.component
-        if (zaganjalnik != null && zaganjalnik.className == ZaganjalnikActivity::class.java.name) {
+        if (zaganjalnik != null && (zaganjalnik.className == ZaganjalnikActivity::class.java.name ||
+                zaganjalnik.className.endsWith(".DomovTabletActivity"))) {
             try {
                 startActivity(Intent().setComponent(zaganjalnik)
                     .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
@@ -359,17 +361,20 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Kartica Povezani zasloni ze na domacem zaslonu pove, katere naprave lahko gledas. */
     private fun osveziOpisZaslona(naprave: List<LinkOdjemalec.Naprava>) {
         val t = findViewById<TextView>(R.id.karticaZaslonOpis) ?: return
-        val jaz = Identiteta.id(this)
-        val imena = naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }.map { it.ime.ifBlank { it.id } }
+        val imena = naprave.filter { !link.jeTaNaprava(it) && (it.zmoznosti.contains("desktop") ||
+            it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON)) }.map { it.ime.ifBlank { it.id } }
         t.maxLines = 1
         t.ellipsize = android.text.TextUtils.TruncateAt.END
         t.text = if (imena.isEmpty()) getString(R.string.os_zaslon_opis) else imena.joinToString(" · ")
     }
 
     private fun odpriZaslon() {
-        val jaz = Identiteta.id(this)
-        val naprave = link.naprave.filter { it.zmoznosti.contains("desktop") && it.id != jaz }
+        // Racunalniki in naprave Android, ki delijo cel zaslon (s potrditvijo na tisti napravi).
+        val naprave = link.naprave.filter {
+            !link.jeTaNaprava(it) && (it.zmoznosti.contains("desktop") || it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
+        }
         fun odpri(r: LinkOdjemalec.Naprava?) {
+            if (r != null && !r.zmoznosti.contains("desktop")) { PovezaniZasloni.zaprosi(this, link, r); return }
             val namera = Intent(this, ZaslonActivity::class.java)
             r?.let { namera.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, it.id) }
             odpriVarno(namera, getString(R.string.os_zaslon))

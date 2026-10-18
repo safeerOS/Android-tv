@@ -668,4 +668,18 @@
     <string name="apk_vir_naprava">cet appareil</string>
     <string name="apk_podrobno">Paquet : %1$s · source : %2$s · %3$s Mo</string>
     <string name="apk_posodobitve">Safeer ne met pas à jour cette application de lui-même.</string>
+    <string name="os_zasloni_potrdi_na">Confirme le partage d’écran sur %1$s.</string>
+    <string name="os_zasloni_ni_uspelo">Impossible de demander l’écran à %1$s.</string>
+    <string name="os_zasloni_naslov">Écrans connectés</string>
+    <string name="os_zasloni_dostopno">Touchez pour afficher</string>
+    <string name="os_zasloni_preverjam">Vérification de l’autorisation …</string>
+    <string name="os_zasloni_ni_odgovora">Pas de réponse – touchez pour réessayer</string>
+    <string name="os_zasloni_caka">La demande d’accès attend une confirmation sur l’appareil</string>
+    <string name="os_zasloni_zavrnjeno">L’accès a été refusé sur l’appareil</string>
+    <string name="os_zasloni_prosnja">Pas d’autorisation – touchez pour demander l’accès</string>
+    <string name="os_zasloni_brez_povezave">Hors ligne</string>
+    <string name="os_zasloni_brez_povezave_opis">%1$s n’est pas dans Safeer Link pour le moment. Dès qu’il se connecte, vous pouvez l’afficher ici.</string>
+    <string name="os_zasloni_prazno_ni_linka">Safeer Link n’est pas connecté. Dès que cet appareil se connecte, tous les appareils qui partagent leur écran avec vous apparaissent ici.</string>
+    <string name="os_zasloni_prazno_ni_naprav">Aucun autre appareil avec écran dans Safeer Link. Connectez un ordinateur (Linux ou Windows), un téléviseur, une tablette ou un autre téléphone.</string>
+    <string name="os_zasloni_prazno_ni_dovoljenj">Des appareils avec écran sont dans Safeer Link, mais aucun ne vous autorise encore à l’afficher. Son propriétaire accorde l’accès sur cet appareil : Safeer Link → Appareils connectés → cet appareil → Écran.</string>
 </resources>

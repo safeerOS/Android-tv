@@ -47,6 +47,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/ZvokPravila.kt" \
     "$SRC/si/safeer/tv/os/ProsnjaDostopa.kt" \
     "$SRC/si/safeer/tv/os/ZaganjalnikPravila.kt" \
+    "$SRC/si/safeer/tv/os/SeznamZaslonov.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
     "$TEST_DIR/GalerijaPravilaTest.kt" \
     "$TEST_DIR/VarnaSlikaTest.kt" \
@@ -79,6 +80,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ZvokPravilaTest.kt" \
     "$TEST_DIR/ProsnjaDostopaTest.kt" \
     "$TEST_DIR/ZaganjalnikPravilaTest.kt" \
+    "$TEST_DIR/SeznamZaslonovTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -113,6 +115,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.PotDoNapraveTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZvokPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ProsnjaDostopaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaganjalnikPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.SeznamZaslonovTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.
@@ -124,6 +127,13 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.ZaganjalnikPravilaTestKt
     "$TEST_DIR/NeposrednaPovezavaTest.kt" \
     -include-runtime -d "$OUT/povezava.jar"
 java -cp "$OUT/povezava.jar" si.safeer.tv.os.NeposrednaPovezavaTestKt
+
+# Global Link - neposredna pot od zunaj (isti protokol kot core/link_neposredno.py): oglas iz Pythona, prave vticnice.
+"$KOTLINC" -J-Xmx1g \
+    "$SRC/si/safeer/tv/link/NeposrednaPot.kt" \
+    "$TEST_DIR/NeposrednaPotTest.kt" \
+    -include-runtime -d "$OUT/neposredna.jar"
+java -cp "$OUT/neposredna.jar" si.safeer.tv.link.NeposrednaPotTestKt
 
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"

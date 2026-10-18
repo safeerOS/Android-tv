@@ -143,14 +143,21 @@ object HubMesh {
         val jaz = u.lastniId
         val povezani = u.sosedjeIdji().toSet()
         val krog = KrogNaprave.krog(context)
+        // Isti Hub je lahko v krogu pod dvema id-jema (npr. `n-x` in `n-x-control`, isti kljuc, isti naslov).
+        // Ce smo z njim ze povezani ali ga ze klicemo pod drugim id-jem, ga ne klicemo znova: Hub bi drugo
+        // povezavo z istim kljucem zamenjal s prvo in povezava bi nihala vsakih ~10 s (meritev OnePlus, 13. 10. 2026).
+        val zasedeniKljuci = (povezani + klicem).mapNotNull { krog.clanZaId(it)?.kljuc }.toMutableSet()
         return hubi.filter { h ->
             if (h.id.isBlank() || h.id == jaz || h.mesh != HubUsmerjevalnik.MESH || h.id in povezani || h.id in klicem) return@filter false
-            if (krog.clanZaId(h.id) == null) return@filter false
+            val clan = krog.clanZaId(h.id) ?: return@filter false
+            if (clan.kljuc.isNotBlank() && clan.kljuc in zasedeniKljuci) return@filter false
             if ((zavrnjen[h.id]?.first ?: 0L) > zdaj) return@filter false
             if ((nedosegljivDo[h.id]?.first ?: 0L) > zdaj) return@filter false
             val prvic = prvicVideni.getOrPut(h.id) { zdaj }
             // Manjsi id klice prvi; pocakamo nanj - razen v prvem krogu po nasem zagonu.
-            !IzvolitevHuba.pocakamNaSoseda(h.id, jaz, zdaj - prvic, VECJI_CAKA_MS, poZagonu)
+            if (IzvolitevHuba.pocakamNaSoseda(h.id, jaz, zdaj - prvic, VECJI_CAKA_MS, poZagonu)) return@filter false
+            if (clan.kljuc.isNotBlank()) zasedeniKljuci.add(clan.kljuc)   // isti Hub pod drugim id-jem v tem krogu: enkrat
+            true
         }
     }
 
@@ -260,6 +267,14 @@ object HubMesh {
                 }
                 if (!sprejet) { sprejet = true; zavrnjen.remove(h.id) }
                 try { u.obdelaj(povezava, text) } catch (e: Throwable) { SafeerLog.napaka("Mesh", "obdelaj", e) }
+            }
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                // Sosed je povezavo zaprl (npr. zamenjal z novejso): takoj jo zakljucimo tudi mi. Brez tega je ostala
+                // med zivimi in odgovori so sli v zaprto vticnico (17. 10. 2026: apps.list/files.list s tablice so se
+                // izgubili - Broken pipe -, racunalnik je po 15 s javil »Naprava ni odgovorila«).
+                povezava.zaprta = true
+                try { webSocket.close(1000, null) } catch (_: Throwable) { }
+                konec()
             }
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 if (!povezava.zaprta && code != 1000) Log.i(TAG, "Sosed ${h.id}: povezavo je zaprl ($code ${reason.take(60)})")

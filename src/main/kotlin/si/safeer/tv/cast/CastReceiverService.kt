@@ -465,6 +465,8 @@ class CastReceiverService : Service() {
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.SeznamiSink.ZMOZNOST)
                         // Preverjevalec doma: Safeer OS (televizor, tablica, telefon) zna za dom vprasati dodatke (DomPreverjanje).
                         if (BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) zmoznosti.add(si.safeer.tv.os.DomPreverjanjePravila.ZMOZNOST)
+                        // Povezani zasloni: telefon, tablica in televizor delijo cel zaslon drugi napravi (s potrditvijo na tej).
+                        if (BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) zmoznosti.add(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON)
                         put("capabilities", org.json.JSONArray(zmoznosti))
                         // Protocol v1: model naprave in katalog aplikacij, ki jih zna ta zaslon zagnati.
                         HubKrmilnik.poljaV1(this@CastReceiverService, "screen", this, HubKrmilnik.prioriteta(this@CastReceiverService))
@@ -955,8 +957,13 @@ class CastReceiverService : Service() {
                     val gledalec = posiljatelj == DostopPravila.GLEDALEC
                     val znakGledalca = parametri.optString(DostopPravila.PARAM_ZNAK_GLEDALCA, "")
                     parametri.remove(DostopPravila.PARAM_ZNAK_GLEDALCA)
-                    val dovoljeno = if (gledalec) Dostop.smeGledalec(this, dejanje, znakGledalca)
-                    else Dostop.smeDejanje(this, posiljatelj, dejanje, zascitaJedro)
+                    // Povezani zasloni: »deli cel zaslon« (apps.launch s CEL_ZASLON) ni le zagon programa - zahteva tudi
+                    // zaslon (kot screen.start), gledalec pa ga ne sme nikoli. Potrditev Androida na tej napravi ostane.
+                    val celZaslon = dejanje.trim().lowercase() == "apps.launch" &&
+                        si.safeer.tv.link.Daljinec.CEL_ZASLON in setOf(parametri.optString("app", ""), parametri.optString("package", ""))
+                    val dovoljeno = (if (gledalec) Dostop.smeGledalec(this, dejanje, znakGledalca)
+                    else Dostop.smeDejanje(this, posiljatelj, dejanje, zascitaJedro)) &&
+                        (!celZaslon || (!gledalec && Dostop.smeDejanje(this, posiljatelj, "screen.start", zascitaJedro)))
                     if (!dovoljeno) {
                         if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje))
                         return

@@ -668,4 +668,18 @@
     <string name="apk_vir_naprava">questo dispositivo</string>
     <string name="apk_podrobno">Pacchetto: %1$s · origine: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer non aggiorna questa app da solo.</string>
+    <string name="os_zasloni_potrdi_na">Conferma la condivisione dello schermo su %1$s.</string>
+    <string name="os_zasloni_ni_uspelo">Impossibile chiedere lo schermo a %1$s.</string>
+    <string name="os_zasloni_naslov">Schermi collegati</string>
+    <string name="os_zasloni_dostopno">Tocca per vedere</string>
+    <string name="os_zasloni_preverjam">Verifica dell’autorizzazione …</string>
+    <string name="os_zasloni_ni_odgovora">Nessuna risposta – tocca per riprovare</string>
+    <string name="os_zasloni_caka">La richiesta di accesso attende la conferma sul dispositivo</string>
+    <string name="os_zasloni_zavrnjeno">L’accesso è stato rifiutato sul dispositivo</string>
+    <string name="os_zasloni_prosnja">Nessuna autorizzazione – tocca per chiedere l’accesso</string>
+    <string name="os_zasloni_brez_povezave">Non in linea</string>
+    <string name="os_zasloni_brez_povezave_opis">%1$s non è in Safeer Link al momento. Quando si collega, puoi vederlo qui.</string>
+    <string name="os_zasloni_prazno_ni_linka">Safeer Link non è collegato. Quando questo dispositivo si collega, qui trovi tutti i dispositivi che condividono lo schermo con te.</string>
+    <string name="os_zasloni_prazno_ni_naprav">In Safeer Link non c’è un altro dispositivo con schermo. Collega un computer (Linux o Windows), un televisore, un tablet o un altro telefono.</string>
+    <string name="os_zasloni_prazno_ni_dovoljenj">In Safeer Link ci sono dispositivi con schermo, ma nessuno ti permette ancora di vederlo. Il proprietario concede l’accesso su quel dispositivo: Safeer Link → Dispositivi collegati → questo dispositivo → Schermo.</string>
 </resources>

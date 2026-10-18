@@ -156,17 +156,12 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         val krajevni = link.jeKrajevni()
         val naDotik = packageName.endsWith(".tablet") || packageName.endsWith(".phone")
+        // Domaci zaslon naprave (HOME) je samo na televizorju (lastnik, 18. 10. 2026): telefon in tablica ostaneta
+        // navadni aplikaciji z ikono v predalu, brez vloge zaganjalnika in brez znack obvestil zanj.
         val vse = listOfNotNull(
-            if (naDotik) Vrstica(R.drawable.os_ikona_domov, getString(R.string.zg_domaci),
-                getString(R.string.zg_domaci_opis),
-                getString(if (jeDomaci) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiDomaciNaDotik(jeDomaci) }
+            if (naDotik) null
             else Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.os_zaganjalnik),
                 getString(R.string.os_zaganjalnik_opis), domaciStanje) { preklopiZaganjalnik(jeDomaci || ponujen) },
-            if (naDotik) Vrstica(R.drawable.os_ikona_zvonec, getString(R.string.zg_znacke),
-                getString(R.string.zg_znacke_opis),
-                getString(if (ZnackeObvestil.dovoljeno(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) {
-                sistemskoOkno { if (!ZnackeObvestil.odpriNastavitve(this)) koren.visibility = View.VISIBLE }
-            } else null,
             Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_zagon),
                 getString(R.string.os_zagon_opis),
                 getString(if (ZagonOb.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiZagon() },
@@ -234,6 +229,21 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val vklop = CheckBox(this).apply { text = "Dostop do mojih naprav od kjerkoli"; isChecked = si.safeer.tv.link.GlobalLink.vklopljen(this@NastavitveActivity) }
         val preizkus = CheckBox(this).apply { text = "Preizkus: tudi doma prek interneta"; isChecked = si.safeer.tv.link.GlobalLink.samoRele(this@NastavitveActivity) }
         box.addView(vklop); box.addView(preizkus)
+        // Pot do vsakega sredisca zdoma: Lokalno (v istem omrezju), Neposredno (internet) ali Prek releja, z zamikom.
+        // Neposredno je mozno, ce je na racunalniku doma vklopljena "Neposredna povezava od zunaj" (ena preusmerjena vrata).
+        val poti = si.safeer.tv.link.GlobalLink.stanjePoti()
+        val krog = try { si.safeer.tv.cast.KrogNaprave.krog(this).clani() } catch (_: Throwable) { emptyList() }
+        val vrstice = poti.map { (cilj, p) ->
+            val ime = krog.firstOrNull { runCatching { si.safeer.tv.cast.KrogZaupanja.idIzKljuca(it.kljuc) }.getOrNull() == cilj }?.ime ?: cilj
+            val pot = if (p.first == si.safeer.tv.link.NeposrednaPot.POT_NEPOSREDNO) "Neposredno (internet)" else "Prek releja"
+            "$ime: $pot" + (p.second?.let { " · $it ms" } ?: "")
+        }
+        box.addView(TextView(this).apply {
+            setPadding(0, 24, 0, 0)
+            text = if (si.safeer.tv.link.GlobalLink.zdoma || vrstice.isNotEmpty())
+                (listOf("Pot do naprav zdoma:") + vrstice.ifEmpty { listOf("prek releja") }).joinToString("\n")
+            else "Pot do naprav: Lokalno (isto omrežje)"
+        })
         android.app.AlertDialog.Builder(this).setTitle("Global Link").setView(box)
             .setPositiveButton("Shrani") { _, _ ->
                 si.safeer.tv.link.GlobalLink.nastavi(this, vklop.isChecked, preizkus.isChecked)
@@ -411,25 +421,6 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
-    }
-
-    /**
-     * Telefon in tablica: Safeer OS kot domaci zaslon. Vklop odpre sistemsko okno vloge (izbira je uporabnikova),
-     * izklop vrne prejsnji zaganjalnik takoj (alias onemogocimo) in odpre sistemske nastavitve, kjer ga uporabnik vidi.
-     */
-    private fun preklopiDomaciNaDotik(jeDomaci: Boolean) {
-        if (jeDomaci) {
-            Zaganjalnik.opusti(this)
-            Toast.makeText(this, getString(R.string.zg_vrnjen), Toast.LENGTH_LONG).show()
-            narisi()
-            return
-        }
-        sistemskoOkno {
-            if (!Zaganjalnik.zahtevajVlogo(this)) {
-                koren.visibility = View.VISIBLE
-                Toast.makeText(this, getString(R.string.os_zaganjalnik_ni_nastavitev), Toast.LENGTH_LONG).show()
-            }
-        }
     }
 
     private fun preklopiNacin(krajevni: Boolean) {
