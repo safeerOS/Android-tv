@@ -100,6 +100,10 @@ android {
             manifest.srcFile 'okusi/telefon/AndroidManifest.xml'
             // Skupna lupina na dotik + besedila o telefonu (namesto tablice).
             res.srcDirs = ['okusi/dotik/res', 'okusi/telefon/res']
+            // Domaci zaslon telefona je DomovTabletActivity iz src/tablica (manifest okusa); brez te mape je telefon
+            // 0.5.89-0.5.92 ob zagonu padel (ClassNotFoundException, 19. 10. 2026). Preverba: tools/preveri-apk-razrede.py.
+            java.srcDirs = ['src/tablica/kotlin']
+            kotlin.srcDirs = ['src/tablica/kotlin']
         }
         main {
             manifest.srcFile 'AndroidManifest.xml'
