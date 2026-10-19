@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kljuc oznake pogleda: krmilo iskalne lupe je shranjeno na njenem polju (os/DomacaLupa). -->
+    <item type="id" name="lupa_krmilo" />
+</resources>

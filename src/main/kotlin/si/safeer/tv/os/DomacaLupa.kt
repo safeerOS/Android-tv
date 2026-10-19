@@ -43,7 +43,13 @@ object DomacaLupa {
     private const val KOMPAKTNA_TV_DP = 300
     private const val KOMPAKTNA_SIROKA_DP = 260
 
-    private val krmila = java.util.WeakHashMap<View, Krmilo>()
+    /**
+     * Krmilo lupe je shranjeno na njenem polju (oznaka s kljucem), zato zivi in umre z zaslonom. Prej ga je drzala
+     * staticna WeakHashMap: vrednost (Krmilo) mocno drzi svoj kljuc (polje), zato vnos ni nikoli izginil - vsak zasuk
+     * telefona (DomovTabletActivity zgradi postavitev znova) je v pomnilniku pustil celo staro drevo pogledov,
+     * vsaka nova dejavnost pa staro dejavnost (WP28 S, 19. 10. 2026: 12 zasukov, Views 153 -> 1917).
+     */
+    private fun krmiloPolja(v: View?): Krmilo? = v?.getTag(R.id.lupa_krmilo) as? Krmilo
 
     fun vednoOdprta(c: Context): Boolean =
         c.getSharedPreferences(StranskaVrstica.SHRAMBA, Context.MODE_PRIVATE).getBoolean(KLJUC_ODPRTA, false)
@@ -68,9 +74,18 @@ object DomacaLupa {
     ) {
         private var razprta: Boolean? = null
 
+        /** Izbira »lupa vedno odprta« v Nastavitvah velja takoj, ko se uporabnik vrne na domaci zaslon. */
+        private val naFokusOkna = android.view.ViewTreeObserver.OnWindowFocusChangeListener { ima -> if (ima) uveljavi() }
+
         init {
-            // Izbira »lupa vedno odprta« v Nastavitvah velja takoj, ko se uporabnik vrne na domaci zaslon.
-            okvir.viewTreeObserver.addOnWindowFocusChangeListener { ima -> if (ima) uveljavi() }
+            polje.setTag(R.id.lupa_krmilo, this)
+            // Poslusalec je na opazovalcu OKNA (prezivi zamenjavo postavitve): ob odpetju lupe ga odstranimo, sicer bi
+            // okno drzalo staro lupo in z njo staro drevo pogledov.
+            okvir.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) { v.viewTreeObserver.addOnWindowFocusChangeListener(naFokusOkna) }
+                override fun onViewDetachedFromWindow(v: View) { v.viewTreeObserver.removeOnWindowFocusChangeListener(naFokusOkna) }
+            })
+            if (okvir.isAttachedToWindow) okvir.viewTreeObserver.addOnWindowFocusChangeListener(naFokusOkna)
         }
 
         fun uveljavi() {
@@ -119,7 +134,7 @@ object DomacaLupa {
     }
 
     private fun krmilo(a: Activity): Krmilo? =
-        a.window?.decorView?.findViewWithTag<View>(OZNAKA_POLJA)?.let { krmila[it] }
+        krmiloPolja(a.window?.decorView?.findViewWithTag<View>(OZNAKA_POLJA))
 
     /**
      * Televizor: lupa je v glavi domacega zaslona (ob stanju Linka in uri), ne v svoji vrsti nad karticami - vsebina
@@ -148,7 +163,7 @@ object DomacaLupa {
                 val enter = dogodek?.keyCode == KeyEvent.KEYCODE_ENTER && dogodek.action == KeyEvent.ACTION_UP
                 if (akcija == EditorInfo.IME_ACTION_SEARCH || akcija == EditorInfo.IME_ACTION_DONE || enter) {
                     val niz = text.toString()
-                    if (niz.isNotBlank()) { izvedi(a, niz); krmila[v]?.zapri() }
+                    if (niz.isNotBlank()) { izvedi(a, niz); krmiloPolja(v)?.zapri() }
                     true
                 } else false
             }
@@ -188,7 +203,6 @@ object DomacaLupa {
             glava.addView(vrsta, 0, LinearLayout.LayoutParams(dp(a, KOMPAKTNA_TV_DP), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 marginEnd = dp(a, 16) })
             val k = Krmilo(a, vrsta, polje, KOMPAKTNA_TV_DP, listOfNotNull(razmik, stanje))
-            krmila[polje] = k
             k.poveziFokus(polje, mikrofon)
             k.uveljavi()
         } else {
@@ -217,7 +231,7 @@ object DomacaLupa {
                 v.clearFocus()
                 if (niz.isEmpty()) prazno() else izvedi(a, niz)
                 // Iskanje je oddano: lupa se zapre in je ob vrnitvi spet samo ikona.
-                krmila[v]?.zapri()
+                krmiloPolja(v)?.zapri()
                 true
             } else false
         }
@@ -244,7 +258,6 @@ object DomacaLupa {
         if (!kompaktno || okvir !is LinearLayout) return
         val siroko = a.resources.configuration.screenWidthDp >= VrsticaPravila.MEJA_PREDALA_DP
         val k = Krmilo(a, okvir, polje, if (siroko) KOMPAKTNA_SIROKA_DP else 0, if (siroko) emptyList() else umakni)
-        krmila[polje] = k
         // Zaprta lupa je gumb: dotik kjerkoli na njej (ikona) jo razpre in odpre tipkovnico.
         okvir.isClickable = true
         okvir.setOnClickListener { k.razpri(tipkovnica = true) }

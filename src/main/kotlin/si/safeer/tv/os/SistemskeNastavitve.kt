@@ -46,6 +46,31 @@ object SistemskeNastavitve {
         android.provider.Settings.Global.getInt(c.contentResolver, android.provider.Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) == 1
     } catch (_: Throwable) { false }
 
+    /**
+     * V napravi je kartica SIM (ali aktiven eSIM). Brez nje sistemski zaslon Mobilno omrezje (MobileNetworkActivity) ob
+     * odprtju takoj zapre sam sebe - mrtev gumb (izmerjeno na WP28 S brez kartice SIM, Android 14, 19. 10. 2026);
+     * tablica samo z Wi-Fi telefonije sploh nima. Kartice SIM (dodajanje eSIM) ostanejo.
+     */
+    private fun imaSim(c: Context): Boolean = try {
+        val tm = c.getSystemService(android.telephony.TelephonyManager::class.java)
+        if (tm == null || !c.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)) false
+        else {
+            @Suppress("DEPRECATION")
+            val reze = if (android.os.Build.VERSION.SDK_INT >= 30) tm.activeModemCount else tm.phoneCount
+            (0 until reze.coerceAtLeast(1)).any {
+                val s = tm.getSimState(it)
+                s != android.telephony.TelephonyManager.SIM_STATE_ABSENT && s != android.telephony.TelephonyManager.SIM_STATE_UNKNOWN
+            }
+        }
+    } catch (_: Throwable) { true }
+
+    /**
+     * Prikljucena je prava tipkovnica. Brez nje sistemski zaslon Fizicna tipkovnica (PhysicalKeyboardActivity) ob odprtju
+     * takoj zapre sam sebe - mrtev gumb (WP28 S, 19. 10. 2026); tudi sistemske nastavitve ga pokazejo le ob tipkovnici.
+     */
+    private fun imaTipkovnico(c: Context): Boolean =
+        c.resources.configuration.keyboard == android.content.res.Configuration.KEYBOARD_QWERTY
+
     /** Televizor s sprejemnikom (vhodi HDMI, antena): izbira vira je nasa (ViriActivity), sistem je ne ponuja povsod. */
     private fun imaVhode(c: Context): Boolean = c.packageManager.hasSystemFeature("android.software.live_tv")
 
@@ -56,7 +81,7 @@ object SistemskeNastavitve {
         Vnos("omrezje", Skupina.OMREZJE, R.string.nast_omrezje, R.string.nast_omrezje_opis, R.drawable.os_ikona_splet,
             listOf("android.settings.WIRELESS_SETTINGS")),
         Vnos("mobilno", Skupina.OMREZJE, R.string.nast_mobilno, R.string.nast_mobilno_opis, R.drawable.os_ikona_telefon,
-            listOf("android.settings.NETWORK_OPERATOR_SETTINGS", "android.settings.DATA_ROAMING_SETTINGS")),
+            listOf("android.settings.NETWORK_OPERATOR_SETTINGS", "android.settings.DATA_ROAMING_SETTINGS"), pogoj = ::imaSim),
         Vnos("sim", Skupina.OMREZJE, R.string.nast_sim, R.string.nast_sim_opis, R.drawable.os_ikona_telefon,
             listOf("android.settings.MANAGE_ALL_SIM_PROFILES_SETTINGS", "android.settings.MOBILE_NETWORK_LIST")),
         Vnos("podatki", Skupina.OMREZJE, R.string.nast_podatki, R.string.nast_podatki_opis, R.drawable.os_ikona_hitrost,
@@ -75,7 +100,7 @@ object SistemskeNastavitve {
         Vnos("nfc", Skupina.NAPRAVE, R.string.nast_nfc, R.string.nast_nfc_opis, R.drawable.os_ikona_link,
             listOf("android.settings.NFC_SETTINGS")),
         Vnos("tipkovnica_fiz", Skupina.NAPRAVE, R.string.nast_tipkovnica_fiz, R.string.nast_tipkovnica_fiz_opis, R.drawable.os_ikona_tipkovnica,
-            listOf("android.settings.HARD_KEYBOARD_SETTINGS")),
+            listOf("android.settings.HARD_KEYBOARD_SETTINGS"), pogoj = ::imaTipkovnico),
         Vnos("tiskanje", Skupina.NAPRAVE, R.string.nast_tiskanje, R.string.nast_tiskanje_opis, R.drawable.os_ikona_datoteka,
             listOf("android.settings.ACTION_PRINT_SETTINGS")),
         // Zaslon in zvok
