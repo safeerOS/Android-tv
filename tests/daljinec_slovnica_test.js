@@ -65,6 +65,12 @@ function r(d, besedilo) { return d.razumi(besedilo); }
   u = r(d, 'stran dol'); preveri('stran dol -> scroll down', u && u.dejanje === 'scroll' && u.parametri.direction === 'down');
   u = r(d, 'Nazaj.'); preveri('locilo na koncu ne moti', u && u.parametri.key === 'back');
   u = r(d, 'odpri safeer.si.'); preveri('pika za naslovom ne moti', u && u.dejanje === 'open_url' && u.parametri.url === 'https://safeer.si');
+  // Imena, ki so lastnosti prototipa objekta, niso sopomenke aplikacij (prej TypeError v najdiAplikacijo).
+  for (const ime of ['constructor', 'odpri constructor', '__proto__', 'odpri tostring']) {
+    let izjema = null;
+    try { u = r(d, ime); } catch (e) { izjema = e; }
+    preveri('»' + ime + '« brez izjeme', izjema === null && u && typeof u.dejanje === 'string');
+  }
 }
 
 // ---- slovensko, z aplikacijami naprave (shranjen seznam, ki ga odpri() prebere) ----

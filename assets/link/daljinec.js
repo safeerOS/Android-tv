@@ -460,7 +460,9 @@
     };
     // Sopomenke imajo prednost pred dobesednim imenom ("jutub" -> YouTube).
     // Kar nima sopomenk, se isce dobesedno.
-    var iskanja = (sopomenke[iskano] || [iskano]).slice();
+    // Samo lastne kljuce: "constructor" ali "__proto__" (npr. "odpri constructor") sta sicer prototip objekta in
+    // .slice() je padel s TypeError - glasovni ukaz ni naredil nicesar (pregled 19. 10. 2026).
+    var iskanja = (Object.prototype.hasOwnProperty.call(sopomenke, iskano) ? sopomenke[iskano] : [iskano]).slice();
     if (iskanja.indexOf(iskano) < 0) iskanja.push(iskano);
     // Tocke: tocno ime > ime se zacne z iskanim > iskano je beseda v imenu > del imena (>= 4 znaki)
     // > del paketa (>= 5 znakov, po segmentih, da "yt" ne najde "playtv"). Zgodnejsa sopomenka
