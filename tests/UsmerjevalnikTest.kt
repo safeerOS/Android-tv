@@ -418,7 +418,7 @@ private fun preizkusSeznanjanja() {
 private fun preizkusPreklica() {
     println("\n== preklic prijave ==")
     val u = usmerjevalnik()
-    val (pairId, _) = u.zacniSeznanitev("tab1", "Tablica", "192.168.0.87")!!
+    val (pairId, _) = u.zacniSeznanitev("tab1", "Tablica", "192.168.0.108")!!
     preveri("tuja naprava ne more preklicati", !u.prekliciPrijavo(pairId, "tuja"))
     preveriEnako("prijava po tujem preklicu ostane", 1, u.cakajocePrijave().size)
     preveri("izmisljen pair_id ne preklice nicesar", !u.prekliciPrijavo("izmisljen", "tab1"))
@@ -1730,14 +1730,14 @@ private fun preizkusImenaSoseda() {
     val telefon = parKljucev()
     val idTelefona = "n-404fedf2ed258fd9"
     u.krog.dodaj(KrogZaupanja.Clan(idTelefona, b64(telefon.public.encoded), "Telefon v kuhinji", "phone", KrogZaupanja.zdaj(), "n-aaaaaaaaaaaaaaaa"))
-    preveriEnako("brez sosednje povezave ni imena", "", u.imePoNaslovu("192.168.0.157"))
+    preveriEnako("brez sosednje povezave ni imena", "", u.imePoNaslovu("192.168.0.117"))
     val povezava = object : HubUsmerjevalnik.Odjemalec {
-        override val naslov = "192.168.0.157"
+        override val naslov = "192.168.0.117"
         override fun poslji(besedilo: String) {}
         override fun zapri(koda: Int, razlog: String) {}
     }
     preveri("sosed je sprejet", u.dodajSoseda(idTelefona, povezava, idTelefona))
-    preveriEnako("sosednje sredisce dobi ime iz kroga", "Telefon v kuhinji", u.imePoNaslovu("192.168.0.157"))
+    preveriEnako("sosednje sredisce dobi ime iz kroga", "Telefon v kuhinji", u.imePoNaslovu("192.168.0.117"))
     preveriEnako("drug naslov nima imena", "", u.imePoNaslovu("192.168.0.158"))
 }
 
