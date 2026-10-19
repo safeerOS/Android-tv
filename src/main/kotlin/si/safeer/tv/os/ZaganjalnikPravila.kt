@@ -61,10 +61,6 @@ object ZaganjalnikPravila {
         }
     }
 
-    /** Ali stranska vrstica kaze imena (sicer samo ikone). Uporablja jo [StranskaVrstica] na vseh zaslonih. */
-    fun zImeni(sirinaDp: Int, visinaDp: Int, vnos: Vnos): Boolean =
-        izberi(sirinaDp, visinaDp, vnos).vrstica == Vrstica.Z_IMENI
-
     /** Koliko ploscic gre v eno vrsto mreze sirine [sirinaDp] (najmanj 3, najvec 8). */
     fun ploscicVVrsti(sirinaDp: Int, ploscicaDp: Int, razmikDp: Int = 12): Int =
         ((sirinaDp + razmikDp) / (ploscicaDp + razmikDp).coerceAtLeast(1)).coerceIn(3, 8)

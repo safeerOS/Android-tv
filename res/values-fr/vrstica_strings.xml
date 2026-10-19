@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Stranska vrstica: gumb menija (predal na ozkem zaslonu, imena v tirnici). -->
 <resources>
-    <string name="os_vrstica_pokazi">Afficher la barre latérale</string>
-    <string name="os_vrstica_skrij">Masquer la barre latérale</string>
+    <string name="os_vrstica_pokazi">Ouvrir le menu</string>
+    <string name="os_vrstica_skrij">Fermer le menu</string>
+    <string name="os_vrstica_imena_pokazi">Afficher les noms</string>
+    <string name="os_vrstica_imena_skrij">Masquer les noms</string>
 </resources>

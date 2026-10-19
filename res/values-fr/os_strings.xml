@@ -86,7 +86,6 @@
 
     <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
     <string name="os_nastavitve">Réglages</string>
-    <string name="os_nastavitve_opomba">Tout ce qui suit peut être activé ou désactivé à tout moment.</string>
     <string name="os_jezik_opis">Safeer OS dans la langue de votre choix, quelle que soit celle du téléviseur</string>
     <string name="os_zaganjalnik">Écran d\'accueil du téléviseur</string>
     <string name="os_zaganjalnik_opis">Si Safeer OS prend la touche Accueil ou reste une application que tu ouvres pour les applications web</string>

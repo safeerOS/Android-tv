@@ -889,8 +889,10 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 .also { domacaRazred = it }
         }
 
-        /** Ta zaslon je domaci zaslon (DomovActivity ali zaganjalnik): razdelki ga ob odhodu ne zaprejo. */
-        fun jeDomaci(a: android.app.Activity) = a is DomovActivity || a is ZaganjalnikActivity
+        /** Ta zaslon je domaci zaslon (DomovActivity, zaganjalnik ali domaci zaslon telefona in tablice): razdelki ga
+         *  ob odhodu ne zaprejo. DomovTabletActivity je samo v okusih na dotik, zato po imenu razreda. */
+        fun jeDomaci(a: android.app.Activity) = a is DomovActivity || a is ZaganjalnikActivity ||
+            a.javaClass.name == "si.safeer.tv.tablica.DomovTabletActivity"
         private const val KLJUC_PONUJENO = "zaganjalnik_ponudba_odgovorjena"
     }
 }

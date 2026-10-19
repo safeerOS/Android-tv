@@ -1367,6 +1367,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
     }
 
+    /** Naslovna vrstica Spleta v Safeer OS (gumb menija stranske vrstice gre pred njen prvi pogled). */
+    private var spletNaslovna: LinearLayout? = null
+
     /** Chrome razdelka Splet: namizni dve zgornji vrstici ali telefonski naslov zgoraj in navigacija spodaj. */
     private fun pripraviSafeerSpletChrome() {
         spletSirokiChrome = resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT ||
@@ -1436,7 +1439,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             v.layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginStart = dp(3) }
             naslovna.addView(v)
         }
-        nastaviIkono(btnMenu, R.drawable.ic_splet_menu, R.string.btn_menu)
+        // Telefon pokonci: levo je gumb menija Safeer OS (tri crte), zato je meni Spleta tri pike.
+        nastaviIkono(btnMenu, if (osStranskaVrstica?.jePredal() == true) R.drawable.ic_splet_vec else R.drawable.ic_splet_menu, R.string.btn_menu)
         btnPointerToggle.visibility = View.GONE
 
         if (spletSirokiChrome) {
@@ -1477,6 +1481,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             mobileBottomBar = spodnja
         }
         mobileTopBar.addView(naslovna, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)))
+        // Telefon pokonci: stranska vrstica je skrita (predal); njen gumb menija je prvi v naslovni vrstici.
+        spletNaslovna = naslovna
+        osStranskaVrstica?.gumbPred(naslovna.getChildAt(0))
         // Na dotik prvi pritisk ne sme le premakniti fokusa (postavitev je narejena za daljinec TV).
         if (!isTelevisionDevice()) {
             listOf<View?>(btnBack, btnForward, btnReload, btnHome, btnFavorite, spletScit, btnTabCount, btnMenu, btnAddTab)
@@ -3193,6 +3200,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (event.action == KeyEvent.ACTION_DOWN) ChromiumEngineView.oznaciVnos()
         val vrstica = osStranskaVrstica
         if (vrstica != null) {
+            // Odprt predal stranske vrstice (telefon pokonci): Nazaj ga zapre, stran ostane, kjer je.
+            if ((event.keyCode == KeyEvent.KEYCODE_BACK || event.keyCode == KeyEvent.KEYCODE_ESCAPE) && vrstica.prestrezi(event)) return true
             if (vrstica.imaFokus()) {
                 // Fokus v stranski vrstici: smerne tipke, OK in Nazaj pripadajo meniju. Brskalnikov usmerjevalnik bi
                 // jih poslal strani (GOR v naslovno vrstico, NAZAJ po zgodovini strani) in meni zaprl.
@@ -3239,8 +3248,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             osStranskaVrstica = si.safeer.tv.os.StranskaVrstica.ovij(this, mainRoot,
                 si.safeer.tv.os.StranskaVrstica.Razdelek.SPLET)
             setContentView(osStranskaVrstica)
+            osStranskaVrstica?.gumbPred(spletNaslovna?.getChildAt(0))
         } else if (!prikazi && osStranskaVrstica != null) {
-            osStranskaVrstica?.removeView(mainRoot)
+            osStranskaVrstica?.odvij()
             osStranskaVrstica = null
             setContentView(mainRoot)
         } else return
@@ -3309,7 +3319,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         val curUrl = activeUrl()
         if (TvSite.isBrowserHome(curUrl)) {
-            osStranskaVrstica?.let { it.aktivnaPostavka.requestFocus(); return }
+            // Televizor: Nazaj gre v stransko vrstico. Na dotik (vrstica nima fokusa) zapusti Splet nazaj v Safeer OS -
+            // prej je fokus na dotik spodletel in Nazaj ni naredil nicesar.
+            if (osStranskaVrstica?.nazajVMeni() == true) return
             SafeerDbg.log("H220", "MainActivity.kt:back", "leave browser", JSONObject().put("url", curUrl.take(80)))
             silenceBackgroundMedia("backHome")
             koncajVrniSe()
@@ -3319,7 +3331,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val profile = SiteProfileResolver.fromUrl(curUrl)
         if (profile.handleBack(this)) return
 
-        osStranskaVrstica?.let { it.aktivnaPostavka.requestFocus(); return }
+        if (osStranskaVrstica?.nazajVMeni() == true) return
 
         super.onBackPressed()
     }

@@ -130,11 +130,17 @@ class HubStoritev : Service() {
             return uspelo
         }
 
-        /** Uporabnik je Safeer Link ugasnil: Hub ustavimo in zelje si ne zapomnimo vec. */
+        /**
+         * Uporabnik je Safeer Link ugasnil: Hub ustavimo in zelje si ne zapomnimo vec. Storitev ustavimo neposredno -
+         * zagon s startForegroundService samo zato, da se ustavi, je Safeer OS sesul (»Nadaljuj brez povezave naprav«
+         * ob prvem zagonu: ForegroundServiceDidNotStartInTimeException, 19. 10. 2026).
+         */
         fun izklopi(context: Context) {
             val app = context.applicationContext
             HubKrmilnik.ustavi(app, zapomni = true)
-            zazeniStoritev(app, AKCIJA_KONCAJ)
+            try { app.stopService(Intent(app, HubStoritev::class.java)) } catch (e: Throwable) {
+                Log.w(TAG, "Storitve ni bilo mogoce ustaviti: ${e.message}")
+            }
         }
 
         /**
@@ -171,15 +177,9 @@ class HubStoritev : Service() {
         }
         if (intent?.action == AKCIJA_KONCAJ || !si.safeer.tv.os.Sosed.vodimLink(this)) {
             HubKrmilnik.ustavi(applicationContext, zapomni = false)
-            ustaviOspredje()
-            stopSelf()
-            return START_NOT_STICKY
+            return koncajTakoj()
         }
-        if (!HubKrmilnik.jeZazelen(applicationContext)) {
-            ustaviOspredje()
-            stopSelf()
-            return START_NOT_STICKY
-        }
+        if (!HubKrmilnik.jeZazelen(applicationContext)) return koncajTakoj()
         try {
             pripraviKanal()
             startForeground(OBVESTILO, obvestilo())
@@ -197,9 +197,7 @@ class HubStoritev : Service() {
         val odjemalecIzvoljenega = HubKrmilnik.izvoljeniHub(applicationContext) != null
         if (!HubKrmilnik.tece() && !odjemalecIzvoljenega && !HubKrmilnik.zazeni(applicationContext, zapomni = false)) {
             Log.w(TAG, "Huba ni bilo mogoce zagnati; storitev koncujem.")
-            ustaviOspredje()
-            stopSelf()
-            return START_NOT_STICKY
+            return koncajTakoj()
         }
         if (odjemalecIzvoljenega) HubKrmilnik.poveziNaIzvoljeni(applicationContext)
         // START_STICKY: ce Android storitev ubije zaradi pomnilnika, naj jo po sprostitvi
@@ -345,6 +343,23 @@ class HubStoritev : Service() {
         // Hub zivi v istem procesu; ko gre storitev, gre z njo tudi vticnik.
         HubKrmilnik.ustavi(applicationContext, zapomni = false)
         super.onDestroy()
+    }
+
+    /**
+     * Storitev, zagnana s startForegroundService, mora poklicati startForeground tudi, ce se takoj ustavi - sicer
+     * Android ob ustavitvi aplikacijo sesuje (ForegroundServiceDidNotStartInTimeException; npr. telefon, na katerem
+     * Link vodi druga aplikacija Safeer). Obvestilo se pokaze le za trenutek.
+     */
+    private fun koncajTakoj(): Int {
+        try {
+            pripraviKanal()
+            startForeground(OBVESTILO, obvestilo())
+        } catch (e: Throwable) {
+            Log.w(TAG, "Obvestila ni bilo mogoce prikazati: ${e.message}")
+        }
+        ustaviOspredje()
+        stopSelf()
+        return START_NOT_STICKY
     }
 
     private fun ustaviOspredje() {

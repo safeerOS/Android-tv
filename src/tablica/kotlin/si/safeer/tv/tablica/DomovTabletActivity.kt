@@ -19,7 +19,6 @@ import si.safeer.tv.os.SpletneAplikacije
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
@@ -30,13 +29,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import android.util.TypedValue
 import java.net.URLEncoder
 
 /**
@@ -44,8 +41,9 @@ import java.net.URLEncoder
  *
  * Enaka zasnova kot na televizorju (Safeer Link, vsebina, datoteke, programi, zaslon, Ščit),
  * a prilagojena za dotik od blizu:
- *  - Stranski meni (ležeče z besedilom, pokončno kot elegantna ozka tirnica z ikonami).
- *  - Iskalna vrstica za hitro iskanje na spletu ali neposredno odpiranje naslovov.
+ *  - Ista stranska vrstica kot na vseh zaslonih Safeer OS (StranskaVrstica): telefon pokonci jo skrije (gumb
+ *    menija, poteg z roba), tablica in telefon ležeče imajo tirnico z ikonami.
+ *  - Kompaktna iskalna lupa v glavi (DomacaLupa) s kuverto Sporočil ob njej.
  *  - Tri velike primarne kartice (Spletni brskalnik, Zaslon računalnika, Programi).
  *  - Odsek Aplikacije z vodoravnim drsnikom in možnostjo dodajanja bližnjic.
  *  - Tri spodnje plošče: resnične povezane naprave (Safeer Link), hitri dostop in Ščit (DNS zaščita).
@@ -112,12 +110,6 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var scitStatusBesedilo: TextView? = null
     private var scitStevecBesedilo: TextView? = null
 
-    private var karticaPovezavaHost: View? = null
-    private var ikonaPovezavaHost: ImageView? = null
-    private var naslovPovezavaHost: TextView? = null
-    private var podnaslovPovezavaHost: TextView? = null
-    private var gumbOdklopiHost: TextView? = null
-
     private var scitStanje: Scit.Stanje? = null
     private val glavna = Handler(Looper.getMainLooper())
     private val link by lazy { LinkUpravitelj.pridobi(this) }
@@ -130,11 +122,29 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private var hubi: List<IskanjeHubov.Hub> = emptyList()
     private var iscem = false
 
-    private var skrivanje: si.safeer.tv.os.SkrivanjeVrstice? = null
+    private var vrstica: si.safeer.tv.os.StranskaVrstica? = null
+    /** Kuverta Sporocil v glavi (znacka neprebranih). */
+    private var kuverta: View? = null
 
+    /** Dotik zunaj prazne razprte lupe jo zapre (kot pri drugih iskalnih vrsticah). */
     override fun dispatchTouchEvent(dogodek: android.view.MotionEvent): Boolean {
-        if (skrivanje?.dotik(dogodek) == true) return true
+        si.safeer.tv.os.DomacaLupa.dotik(this, dogodek)
         return super.dispatchTouchEvent(dogodek)
+    }
+
+    /** Nazaj zapre odprt predal stranske vrstice; crka s tipkovnice zacne iskanje v lupi. */
+    override fun dispatchKeyEvent(dogodek: android.view.KeyEvent): Boolean {
+        if (vrstica?.prestrezi(dogodek) == true) return true
+        if (si.safeer.tv.os.DomacaLupa.tipka(this, dogodek)) return true
+        return super.dispatchKeyEvent(dogodek)
+    }
+
+    /** Nazaj: najprej zapre ploscico Sporocil in razprto lupo, sele nato zapusti domaci zaslon. */
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    override fun onBackPressed() {
+        if (si.safeer.tv.os.SporocilaZnak.zapri(this)) return
+        if (si.safeer.tv.os.DomacaLupa.nazaj(this)) return
+        super.onBackPressed()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -152,33 +162,18 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        si.safeer.tv.os.SporocilaZnak.zapri(this)
         nastaviPostavitev()
-    }
-
-    /**
-     * Telefon pokonci (ozek zaslon): iskanje dobi vso sirino, kapsula stanja gre pod njo.
-     * Sicer bi kapsula iskalno polje stisnila na nekaj crk.
-     */
-    private fun glavaZaOzekZaslon() {
-        if (resources.configuration.screenWidthDp >= 600) return
-        val iskanje = findViewById<View>(R.id.iskalnaVrsticaOkvir) ?: return
-        val stanje = stanjeOkvir ?: return
-        val glava = iskanje.parent as? android.widget.LinearLayout ?: return
-        glava.orientation = android.widget.LinearLayout.VERTICAL
-        glava.gravity = android.view.Gravity.START
-        iskanje.layoutParams = (iskanje.layoutParams as android.widget.LinearLayout.LayoutParams).apply {
-            width = android.widget.LinearLayout.LayoutParams.MATCH_PARENT; weight = 0f; marginEnd = 0
-        }
-        stanje.layoutParams = (stanje.layoutParams as android.widget.LinearLayout.LayoutParams).apply {
-            topMargin = (10 * resources.displayMetrics.density).toInt()
-        }
+        si.safeer.tv.os.SporocilaZnak.osvezi(this, kuverta)
     }
 
     private fun nastaviPostavitev() {
-        setContentView(R.layout.tablet_activity_domov)
+        // Ena stranska vrstica za vse zaslone Safeer OS (lastnik, 19. 10. 2026): skrita na ozkem zaslonu, tirnica na sirokem.
+        val v = si.safeer.tv.os.StranskaVrstica.ovij(this, R.layout.tablet_activity_domov, si.safeer.tv.os.StranskaVrstica.Razdelek.DOMOV)
+        v.naAktivno = { drsnik?.smoothScrollTo(0, 0) }
+        vrstica = v
+        setContentView(v)
         Robovi.uporabi(this)
-        // Stranska vrstica: poteg proti levemu robu jo skrije, poteg z roba ali rocaj jo vrne.
-        skrivanje = findViewById<View?>(R.id.stranskiMeni)?.let { si.safeer.tv.os.SkrivanjeVrstice(this, it) }
         val root = findViewById<View>(R.id.koren)
         koren = root
         Ozadje.uporabi(this, root)
@@ -186,7 +181,6 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         drsnik = findViewById(R.id.drsnik)
         vnosIskanje = findViewById(R.id.vnosIskanje)
         stanjeOkvir = findViewById(R.id.stanjeOkvir)
-        glavaZaOzekZaslon()
         stanjePika = findViewById(R.id.stanjePika)
         stanjeBesedilo = findViewById(R.id.stanjeBesedilo)
         naslovPozdrav = findViewById(R.id.naslovPozdrav)
@@ -212,13 +206,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         scitStatusBesedilo = findViewById(R.id.scitStatusBesedilo)
         scitStevecBesedilo = findViewById(R.id.scitStevecBesedilo)
 
-        karticaPovezavaHost = findViewById(R.id.karticaPovezavaHost)
-        ikonaPovezavaHost = findViewById(R.id.ikonaPovezavaHost)
-        naslovPovezavaHost = findViewById(R.id.naslovPovezavaHost)
-        podnaslovPovezavaHost = findViewById(R.id.podnaslovPovezavaHost)
-        gumbOdklopiHost = findViewById(R.id.gumbOdklopiHost)
-
-        pripraviStranskiMeni()
+        pripraviGlavo()
         pripraviIskanje()
         pripraviVelikeKartice()
         pripraviSpodnjePlosce()
@@ -230,6 +218,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
+        si.safeer.tv.os.SporocilaZnak.osvezi(this, kuverta)
         link.dodaj(this)
         zazeniSprejemnik(null)
         pokaziStanje()
@@ -268,124 +257,6 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         super.onStop()
     }
 
-    private fun pripraviStranskiMeni() {
-        val mDomov = findViewById<View>(R.id.meniDomov)
-        val mAplikacije = findViewById<View>(R.id.meniAplikacije)
-        val mZaslon = findViewById<View>(R.id.meniZaslon)
-        val mDatoteke = findViewById<View>(R.id.meniDatoteke)
-        val mNaprave = findViewById<View>(R.id.meniNaprave)
-        val mSplet = findViewById<View>(R.id.meniSplet)
-        val mNastavitve = findViewById<View>(R.id.meniNastavitve)
-        val stars = mDomov?.parent as? ViewGroup ?: return
-        val ozko = mDomov is FrameLayout
-        val mMediji = findViewById<View>(R.id.meniGlasba) ?: ustvariMenijskoPostavko(
-            R.id.meniGlasba, R.drawable.os_ikona_glasba, R.string.os_mediji_kartica, ozko)
-        val mSporocila = findViewById<View>(R.id.meniSporocila) ?: ustvariMenijskoPostavko(
-            R.id.meniSporocila, R.drawable.os_ikona_sporocila, R.string.os_meni_sporocila, ozko)
-        val mZapiski = findViewById<View>(R.id.meniZapiski) ?: ustvariMenijskoPostavko(
-            R.id.meniZapiski, R.drawable.os_ikona_zapiski, R.string.os_meni_zapiski, ozko)
-
-        // XML postavitvi sta razlicni (besedilo lezece, samo ikone pokoncno), vrstni red in fokus pa
-        // sta vedno ista. Stari meniZaslon ostane skrit zaradi zdruzljivosti s prejsnjo postavitvijo.
-        val vidne = listOfNotNull(mDomov, mMediji, mNaprave, mSporocila, mAplikacije, mDatoteke, mSplet, mZapiski, mNastavitve)
-        for (v in vidne + listOfNotNull(mZaslon)) (v.parent as? ViewGroup)?.removeView(v)
-        for (v in vidne) {
-            pripraviVidezMenija(v)
-            stars.addView(v)
-        }
-        mZaslon?.visibility = View.GONE
-        mZaslon?.isFocusable = false
-        mZaslon?.let { stars.addView(it) }
-        vidne.forEachIndexed { i, v ->
-            if (v.id == View.NO_ID) v.id = View.generateViewId()
-            v.nextFocusUpId = vidne[if (i == 0) 0 else i - 1].id
-            v.nextFocusDownId = vidne[if (i == vidne.lastIndex) i else i + 1].id
-            v.nextFocusLeftId = v.id
-        }
-
-        mDomov?.isActivated = true
-        mDomov?.isSelected = true
-        mDomov?.setOnClickListener {
-            drsnik?.smoothScrollTo(0, 0)
-        }
-        // En vstop do vseh aplikacij (tablice in povezanih naprav); deluje tudi brez racunalnika.
-        mAplikacije?.setOnClickListener {
-            odpriVarno(Intent(this, AplikacijeHostaActivity::class.java), getString(R.string.tablet_programi))
-        }
-        // Zaslon je namenoma skrit; Splet je poenoten v obvezni stranski vrstici.
-        mZaslon?.setOnClickListener {
-            // Ista pot kot kartica Povezani zasloni (izbira naprave, cakanje na Link).
-            odpriZaslon()
-        }
-        // Datoteke so vedno na voljo: brez racunalnika se odprejo videi, glasba in slike te naprave,
-        // s povezanim racunalnikom pa DatotekeActivity ponudi izbiro vira (ta naprava ali racunalnik).
-        mDatoteke?.setOnClickListener {
-            odpriVarno(Intent(this, DatotekeActivity::class.java), getString(R.string.tablet_datoteke))
-        }
-        // R.id.karticaMediji je bil odstranjen (kartica Mediji na TV/OS domacem zaslonu je zdaj samo
-        // se postavka v stranski vrstici, R.id.meniGlasba) - tu ostaja enako varno (?.), ce ga ta
-        // postavitev tablice se ne pozna.
-        mMediji.setOnClickListener {
-            odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
-        }
-        // Kartica "Glasba in video" na domacem zaslonu telefona/tablice je bila brez dejanja (dotik ni naredil nic).
-        findViewById<View>(R.id.karticaMediji)?.setOnClickListener {
-            odpriVarno(si.safeer.tv.os.GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica))
-        }
-        mNaprave?.setOnClickListener {
-            odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.tablet_naprave))
-        }
-        mSplet?.setOnClickListener {
-            odpriVBrskalniku(null)
-        }
-        mSporocila.setOnClickListener {
-            odpriVarno(Intent(this, si.safeer.tv.os.SporocilaActivity::class.java), getString(R.string.os_meni_sporocila))
-        }
-        mZapiski.setOnClickListener {
-            odpriVarno(Intent(this, si.safeer.tv.os.ZapiskiActivity::class.java), getString(R.string.os_meni_zapiski))
-        }
-        mNastavitve?.setOnClickListener {
-            odpriVarno(Intent(this, si.safeer.tv.os.NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
-        }
-    }
-
-    private fun ustvariMenijskoPostavko(id: Int, ikona: Int, ime: Int, ozko: Boolean): View {
-        val d = resources.displayMetrics.density
-        if (ozko) return FrameLayout(this).apply {
-            this.id = id; isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_meni_postavka)
-            addView(ImageView(this@DomovTabletActivity).apply {
-                setImageResource(ikona); imageTintList = ColorStateList.valueOf(osBarva(R.color.os_mint)); contentDescription = getString(ime)
-            }, FrameLayout.LayoutParams((24 * d).toInt(), (24 * d).toInt(), android.view.Gravity.CENTER))
-            layoutParams = LinearLayout.LayoutParams((48 * d).toInt(), (48 * d).toInt()).apply { bottomMargin = (8 * d).toInt() }
-        }
-        return LinearLayout(this).apply {
-            this.id = id; orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
-            isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_meni_postavka)
-            setPadding((12 * d).toInt(), (7 * d).toInt(), (12 * d).toInt(), (7 * d).toInt())
-            addView(ImageView(this@DomovTabletActivity).apply {
-                setImageResource(ikona); imageTintList = ColorStateList.valueOf(osBarva(R.color.os_mint))
-            }, LinearLayout.LayoutParams((22 * d).toInt(), (22 * d).toInt()))
-            addView(TextView(this@DomovTabletActivity).apply {
-                text = getString(ime); setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                maxLines = 1; setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
-                setPadding((12 * d).toInt(), 0, 0, 0)
-            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = (4 * d).toInt() }
-        }
-    }
-
-    private fun pripraviVidezMenija(v: View) {
-        if (v is ViewGroup) for (i in 0 until v.childCount) {
-            when (val otrok = v.getChildAt(i)) {
-                is ImageView -> otrok.imageTintList = ColorStateList.valueOf(osBarva(R.color.os_mint))
-                is TextView -> {
-                    otrok.setTextColor(osBarva(R.color.os_besedilo)); otrok.maxLines = 1
-                    otrok.setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
-                }
-            }
-        }
-    }
-
     /**
      * Ena iskalna lupa (lastnik, 11. 10. 2026): vrstica na vrhu napises ali poves - »Sintel na TV« prikaze na drugi
      * napravi, spletni naslov odpre brskalnik, vse drugo isce Medijski center (z vrsto »Na spletu«). DomacaLupa.
@@ -393,7 +264,21 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     private fun pripraviIskanje() {
         val polje = vnosIskanje ?: return
         val okvir = findViewById<android.view.ViewGroup>(R.id.iskalnaVrsticaOkvir) ?: return
-        si.safeer.tv.os.DomacaLupa.prevzemi(this, polje, okvir) { odpriVBrskalniku(null) }
+        // Kompaktna lupa: na ozkem zaslonu se ob razprtju umakne stanje Linka, lupa dobi celo glavo.
+        si.safeer.tv.os.DomacaLupa.prevzemi(this, polje, okvir, kompaktno = true,
+            umakni = listOfNotNull(findViewById<View>(R.id.stanjeVsebnik))) { odpriVBrskalniku(null) }
+    }
+
+    /**
+     * Glava: Sporocila kot na namizju in televizorju - kuverta z znacko zgoraj desno (ne postavka stranske vrstice).
+     * Siroko okno odpre stransko ploscico, telefon in tablica pokonci Sporocila cez ves zaslon (SporocilaZnak).
+     */
+    private fun pripraviGlavo() {
+        val glava = findViewById<LinearLayout>(R.id.glava) ?: return
+        val d = resources.displayMetrics.density
+        val k = si.safeer.tv.os.SporocilaZnak.gumb(this, 44) { resources.configuration.screenWidthDp >= 840 }
+        glava.addView(k, LinearLayout.LayoutParams((44 * d).toInt(), (44 * d).toInt()).apply { marginStart = (8 * d).toInt() })
+        kuverta = k
     }
 
     private fun pripraviVelikeKartice() {
@@ -792,30 +677,6 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
                 pika.setBackgroundResource(R.drawable.os_pika_rumena)
                 pika.alpha = 0.7f
             }
-        }
-
-        // Povezava v stranskem meniju
-        if (Host.jeOddaljen(this) && link.povezan) {
-            val ime = link.imeSredisca.ifBlank { Host.gostitelj(this) ?: getString(R.string.os_naprava_tv) }
-            naslovPovezavaHost?.text = getString(R.string.tablet_povezano_z, ime)
-            podnaslovPovezavaHost?.text = Host.gostitelj(this) ?: ""
-            gumbOdklopiHost?.visibility = View.VISIBLE
-            gumbOdklopiHost?.setOnClickListener {
-                Host.domov(this)
-                link.ponovnoPoveziSe()
-                Toast.makeText(this, getString(R.string.os_stanje_ni), Toast.LENGTH_SHORT).show()
-                pokaziStanje()
-                narisi()
-            }
-        } else if (link.povezan) {
-            val ime = link.imeSredisca.ifBlank { getString(R.string.os_naprava_tv) }
-            naslovPovezavaHost?.text = getString(R.string.os_link)
-            podnaslovPovezavaHost?.text = ime
-            gumbOdklopiHost?.visibility = View.GONE
-        } else {
-            naslovPovezavaHost?.text = getString(R.string.os_link)
-            podnaslovPovezavaHost?.text = getString(R.string.os_stanje_ni)
-            gumbOdklopiHost?.visibility = View.GONE
         }
     }
 

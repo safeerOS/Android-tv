@@ -56,6 +56,8 @@ class ZapiskiActivity : OsActivity() {
         val glava = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         glava.addView(ImageView(this).apply {
             setImageResource(R.drawable.os_ikona_zapiski)
+            // Okrasna ikona glave: na ozkem zaslonu jo nadomesti gumb menija stranske vrstice.
+            tag = StranskaVrstica.OZNAKA_SIDRO
         }, LinearLayout.LayoutParams(dp(34), dp(34)).apply { marginEnd = dp(12) })
         val naslovi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         naslovi.addView(TextView(this).apply {

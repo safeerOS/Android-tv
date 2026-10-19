@@ -106,6 +106,58 @@
         <package android:name="si.safeer.os" />
         <package android:name="si.safeer.phone" />
         <package android:name="si.safeer.tablet" />
+        <!-- Nastavitve Safeer OS odprejo sistemske nastavitve (os/SistemskeNastavitve): Android 11+ brez teh
+             vnosov skrije dejavnosti, ki jih ne vidi kot zaganjalnike (npr. posodobitev sistema, privzete aplikacije). -->
+        <intent><action android:name="android.settings.WIFI_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.WIRELESS_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.NETWORK_OPERATOR_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DATA_ROAMING_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.MANAGE_ALL_SIM_PROFILES_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.MOBILE_NETWORK_LIST" /></intent>
+        <intent><action android:name="android.settings.DATA_USAGE_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.TETHER_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.VPN_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.BLUETOOTH_SETTINGS" /></intent>
+        <intent><action android:name="com.google.android.intent.action.CONNECT_INPUT" /></intent>
+        <intent><action android:name="android.settings.CAST_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.NFC_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.HARD_KEYBOARD_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.ACTION_PRINT_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DISPLAY_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DARK_THEME_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.NIGHT_DISPLAY_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.TEXT_READING_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DREAM_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.SOUND_SETTINGS" /></intent>
+        <intent><action android:name="org.droidtv.action.AMBILIGHT_OSD" /></intent>
+        <intent><action android:name="org.droidtv.action.QUICKSETTINGSPEAKER" /></intent>
+        <intent><action android:name="android.settings.MANAGE_APPLICATIONS_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.APPLICATION_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.MANAGE_DEFAULT_APPS_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.NOTIFICATION_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.ALL_APPS_NOTIFICATION_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.ZEN_MODE_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.ZEN_MODE_PRIORITY_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.MANAGE_UNKNOWN_APP_SOURCES" /></intent>
+        <intent><action android:name="android.settings.INTERNAL_STORAGE_SETTINGS" /></intent>
+        <intent><action android:name="android.intent.action.POWER_USAGE_SUMMARY" /></intent>
+        <intent><action android:name="android.settings.BATTERY_SAVER_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.LOCATION_SOURCE_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.SECURITY_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.PRIVACY_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.SYNC_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.USER_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.LOCALE_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.INPUT_METHOD_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.VOICE_INPUT_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DATE_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.ACCESSIBILITY_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.CAPTIONING_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.APPLICATION_DEVELOPMENT_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DEVICE_INFO_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.SYSTEM_UPDATE_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.SETTINGS" /></intent>
+        <intent><action android:name="android.settings.APPLICATION_DETAILS_SETTINGS" /><data android:scheme="package" /></intent>
     </queries>
 
     <!-- Oznaka, ikona in pasica so v okusih: vsaka aplikacija ima svoje ime in svojo ikono. -->
