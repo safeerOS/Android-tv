@@ -132,3 +132,8 @@ jobs:
       # Vgrajeni brskalnik v Safeer OS: LEVO odpre stransko vrstico samo na levem robu strani (prej ob vsakem pritisku).
       - name: Levi rob strani in stranska vrstica (daljinec)
         run: node tests/tv_levi_rob_test.js
+
+      # Glasovni ukazi daljinca Safeer Linka (hitri prevajalnik, 6 jezikov): utisaj, naslov iz stavka, fraze o napravi
+      # (ukaz za drugo napravo se ne izvede na tej), pavza s predmetom; agent in iskanje na racunalniku prek mostu.
+      - name: Glasovni ukazi daljinca (hitri prevajalnik)
+        run: node tests/daljinec_slovnica_test.js

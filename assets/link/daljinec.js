@@ -50,7 +50,9 @@
       odprtaStran: "Odprto: {naslov}", naprava: "naprava", niVOspredju: "Safeer na napravi ni odprt — odpri stran ali pritisni Domov.",
       niNaRacunalniku: "Te tipke na računalniku ni — uporabi miško ali tipkovnico.",
       neMoreVOspredje: "Safeer se na napravi ne more odpreti sam: na njej odpri Safeer Link in pritisni »Dovoli«.",
-      kanal: "Program {n}", predvajanje: "Predvajanje", pavza: "Pavza"
+      kanal: "Program {n}", predvajanje: "Predvajanje", pavza: "Pavza",
+      drugaNaprava: "Ta daljinec upravlja »{ime}«. {naprava} izberi med napravami v Safeer Linku.",
+      vrstaTv: "Televizor", vrstaTablica: "Tablico", vrstaTelefon: "Telefon", vrstaRacunalnik: "Računalnik"
     },
     en: {
       upravljam: "Controlling", nazajNaLink: "Back to Safeer Link", pokaziZaslon: "Show device screen",
@@ -77,7 +79,9 @@
       odprtaStran: "Open: {naslov}", naprava: "device", niVOspredju: "Safeer is not open on the device — open a page or press Home.",
       niNaRacunalniku: "That key does not exist on a computer — use the mouse or keyboard.",
       neMoreVOspredje: "Safeer cannot open by itself on the device: open Safeer Link there and press “Allow”.",
-      kanal: "Channel {n}", predvajanje: "Playing", pavza: "Pause"
+      kanal: "Channel {n}", predvajanje: "Playing", pavza: "Pause",
+      drugaNaprava: "This remote controls “{ime}”. To control the {naprava}, pick it from your devices in Safeer Link.",
+      vrstaTv: "TV", vrstaTablica: "tablet", vrstaTelefon: "phone", vrstaRacunalnik: "computer"
     },
     de: {
       upravljam: "Steuere", nazajNaLink: "Zurück zu Safeer Link", pokaziZaslon: "Gerätebildschirm zeigen",
@@ -104,7 +108,9 @@
       odprtaStran: "Offen: {naslov}", naprava: "Gerät", niVOspredju: "Safeer ist auf dem Gerät nicht geöffnet — Seite öffnen oder Start drücken.",
       niNaRacunalniku: "Diese Taste gibt es am Computer nicht — Maus oder Tastatur benutzen.",
       neMoreVOspredje: "Safeer kann sich auf dem Gerät nicht selbst öffnen: dort Safeer Link öffnen und „Erlauben“ drücken.",
-      kanal: "Programm {n}", predvajanje: "Wiedergabe", pavza: "Pause"
+      kanal: "Programm {n}", predvajanje: "Wiedergabe", pavza: "Pause",
+      drugaNaprava: "Diese Fernbedienung steuert „{ime}“. Wähle {naprava} unter den Geräten in Safeer Link.",
+      vrstaTv: "den Fernseher", vrstaTablica: "das Tablet", vrstaTelefon: "das Handy", vrstaRacunalnik: "den Computer"
     },
     es: {
       upravljam: "Controlando", nazajNaLink: "Volver a Safeer Link", pokaziZaslon: "Mostrar pantalla del dispositivo",
@@ -131,7 +137,9 @@
       odprtaStran: "Abierto: {naslov}", naprava: "dispositivo", niVOspredju: "Safeer no está abierto en el dispositivo: abre una página o pulsa Inicio.",
       niNaRacunalniku: "Esa tecla no existe en un ordenador: usa el ratón o el teclado.",
       neMoreVOspredje: "Safeer no puede abrirse solo en el dispositivo: abre allí Safeer Link y pulsa «Permitir».",
-      kanal: "Canal {n}", predvajanje: "Reproduciendo", pavza: "Pausa"
+      kanal: "Canal {n}", predvajanje: "Reproduciendo", pavza: "Pausa",
+      drugaNaprava: "Este mando controla «{ime}». Elige {naprava} entre los dispositivos de Safeer Link.",
+      vrstaTv: "el televisor", vrstaTablica: "la tableta", vrstaTelefon: "el teléfono", vrstaRacunalnik: "el ordenador"
     },
     fr: {
       upravljam: "Je contrôle", nazajNaLink: "Retour à Safeer Link", pokaziZaslon: "Afficher l'écran de l'appareil",
@@ -158,7 +166,9 @@
       odprtaStran: "Ouvert : {naslov}", naprava: "appareil", niVOspredju: "Safeer n'est pas ouvert sur l'appareil — ouvrez une page ou appuyez sur Accueil.",
       niNaRacunalniku: "Cette touche n'existe pas sur un ordinateur — utilisez la souris ou le clavier.",
       neMoreVOspredje: "Safeer ne peut pas s'ouvrir tout seul sur l'appareil : ouvrez-y Safeer Link et appuyez sur « Autoriser ».",
-      kanal: "Chaîne {n}", predvajanje: "Lecture", pavza: "Pause"
+      kanal: "Chaîne {n}", predvajanje: "Lecture", pavza: "Pause",
+      drugaNaprava: "Cette télécommande contrôle « {ime} ». Choisissez {naprava} parmi les appareils de Safeer Link.",
+      vrstaTv: "le téléviseur", vrstaTablica: "la tablette", vrstaTelefon: "le téléphone", vrstaRacunalnik: "l'ordinateur"
     },
     it: {
       upravljam: "Controllo", nazajNaLink: "Torna a Safeer Link", pokaziZaslon: "Mostra lo schermo del dispositivo",
@@ -185,7 +195,9 @@
       odprtaStran: "Aperto: {naslov}", naprava: "dispositivo", niVOspredju: "Safeer non è aperto sul dispositivo: apri una pagina o premi Home.",
       niNaRacunalniku: "Quel tasto non esiste su un computer: usa il mouse o la tastiera.",
       neMoreVOspredje: "Safeer non può aprirsi da solo sul dispositivo: apri lì Safeer Link e premi «Consenti».",
-      kanal: "Canale {n}", predvajanje: "In riproduzione", pavza: "Pausa"
+      kanal: "Canale {n}", predvajanje: "In riproduzione", pavza: "Pausa",
+      drugaNaprava: "Questo telecomando controlla «{ime}». Scegli {naprava} tra i dispositivi di Safeer Link.",
+      vrstaTv: "il televisore", vrstaTablica: "il tablet", vrstaTelefon: "il telefono", vrstaRacunalnik: "il computer"
     }
   };
 
@@ -335,7 +347,7 @@
   }
 
   function imeTipke(ime) {
-    var imena = { home: t("domov"), back: t("nazaj"), play_pause: t("predvajaj"), menu: t("meni"),
+    var imena = { home: t("domov"), back: t("nazaj"), play_pause: t("predvajaj"), pause: t("pavza"), menu: t("meni"),
       previous: t("prejsnji"), next: t("naslednji"), up: "↑", down: "↓", left: "←", right: "→", ok: "OK" };
     return imena[ime] || ime;
   }
@@ -486,22 +498,39 @@
   // Glas: slovnica ukazov (brez oblaka)
   // ----------------------------------------------------------------
 
-  /** Besede po jezikih. Vsak vnos je seznam korenov; ujemanje je po zacetku besede. */
+  /** Glagol x predmet: "ustavi" + "glasbo" -> "ustavi glasbo" (pavza in nadaljevanje s predmetom). */
+  function kombinacije(prvi, drugi) {
+    var izid = [];
+    for (var i = 0; i < prvi.length; i++) for (var j = 0; j < drugi.length; j++) izid.push(prvi[i] + " " + drugi[j]);
+    return izid;
+  }
+
+  /**
+   * Besede po jezikih. Vsak vnos je seznam korenov; ujemanje je po celih besedah.
+   * Oznaki pri frazah za glasnost: "^fraza$" velja samo kot cel ukaz, "fraza$" samo na koncu stavka
+   * ("sound on" ne sme ujeti "turn off the sound on the phone").
+   * naprave: fraze o napravi; "na" kjerkoli v stavku, "gola" (tozilnik: "utisaj televizor") samo ob kratkem ukazu.
+   */
   var SLOVNICA = {
     sl: {
       glasneje: ["glasneje", "glasnejse", "povecaj glasnost", "zvisaj glasnost", "bolj naglas", "naglas", "glasnost gor"],
-      tisje: ["tisje", "tise", "zmanjsaj glasnost", "znizaj glasnost", "stisaj", "manj naglas", "glasnost dol"],
-      utisaj: ["utisaj", "brez zvoka", "tiho", "izklopi zvok", "ugasni zvok"],
-      zvok: ["vklopi zvok", "odkleni zvok", "zvok nazaj", "prizgi zvok"],
+      tisje: ["tisje", "tise", "zmanjsaj glasnost", "znizaj glasnost", "stisaj", "manj naglas", "glasnost dol", "bolj tiho"],
+      utisaj: ["utisaj", "brez zvoka", "tiho", "izklopi zvok", "ugasni zvok", "izkljuci zvok", "zvok izklopi", "zvok ugasni", "zvok izkljuci",
+        "izklopi ton", "ugasni ton"],
+      zvok: ["vklopi zvok", "odkleni zvok", "zvok nazaj", "prizgi zvok", "vkljuci zvok", "zvok vklopi", "zvok prizgi", "zvok vkljuci"],
       glasnostNa: ["glasnost na", "glasnost", "zvok na"],
       domov: ["domov", "domaca stran", "zacetna stran", "na zacetek"],
-      nazaj: ["nazaj", "zapri"],
+      nazaj: ["nazaj", "zapri", "pojdi nazaj"],
       meni: ["meni"],
       gor: ["gor", "navzgor"], dol: ["dol", "navzdol"], levo: ["levo"], desno: ["desno"], ok: ["potrdi", "ok", "v redu", "izberi", "klikni"],
-      predvajaj: ["predvajaj", "nadaljuj", "play"], pavza: ["pavza", "ustavi", "stop", "pocakaj", "premor"],
+      predvajaj: ["predvajaj", "nadaljuj", "play", "nadaljuj predvajanje", "nadaljuj s predvajanjem", "nadaljuj z predvajanjem"]
+        .concat(kombinacije(["nadaljuj"], ["glasbo", "video", "film", "posnetek", "pesem", "serijo", "oddajo"])),
+      // "daj na pavzo": "daj" je mesalo, ostane "na pavzo".
+      pavza: ["pavza", "ustavi", "stop", "pocakaj", "premor", "na pavzo", "pavzo", "daj na pavzo", "daj pavzo", "pavziraj", "zaustavi"]
+        .concat(kombinacije(["ustavi", "zaustavi", "pavziraj", "prekini", "pavza"], ["glasbo", "predvajanje", "video", "posnetek", "film", "pesem", "serijo", "oddajo", "to"])),
       naslednji: ["naslednji", "naprej"], prejsnji: ["prejsnji", "prejsnja"],
       stranGor: ["stran gor", "drsi gor", "pomakni gor"], stranDol: ["stran dol", "drsi dol", "pomakni dol", "listaj"],
-      odpri: ["odpri", "zazeni", "zagni", "pokazi", "vklopi", "prizgi"],
+      odpri: ["odpri", "zazeni", "zagni", "pokazi", "prikazi", "vklopi", "prizgi", "pojdi na"],
       program: ["program", "kanal", "preklopi na"],
       youtube: ["youtube", "jutub", "yutub"],
       predvajajGlasbo: ["predvajaj", "zavrti", "poslusaj", "poslusal bi", "pesem", "komad", "glasbo", "glasba"],
@@ -509,19 +538,36 @@
       posnetek: ["posnetek", "kaj je na zaslonu", "pokazi zaslon", "zaslon"],
       znovaZazeni: ["znova zazeni", "ponovno zazeni", "restart"], pocisti: ["pocisti predpomnilnik", "pocisti", "sprosti pomnilnik"],
       stran: ["stran", "povezavo", "naslov"],
-      mesalo: ["prosim", "na televizorju", "na tv", "na televiziji", "na napravi", "lahko", "mi", "daj"]
+      polnilaNaslova: ["stran", "spletno stran", "spletna stran", "spletni strani", "spletisce", "povezavo", "povezava", "naslov", "domeno"],
+      pika: ["pika"],
+      naprave: {
+        tv: { na: ["na televizorju", "na televiziji", "na tv", "na tv-ju", "na tvju", "na televizor"], gola: ["televizor", "televizijo", "tv"] },
+        tablica: { na: ["na tablici", "na tabletu", "na ipadu", "na tablico", "na tablet"], gola: ["tablico", "tablica", "tablet"] },
+        telefon: { na: ["na telefonu", "na mobitelu", "na mobiju", "na pametnem telefonu", "na telefon", "na mobitel"], gola: ["telefon", "mobitel", "mobi"] },
+        racunalnik: { na: ["na racunalniku", "na pc", "na pc-ju", "na pcju", "na prenosniku", "na prenosnem racunalniku", "na laptopu", "na racunalnik", "na prenosnik"],
+          gola: ["racunalnik", "pc", "prenosnik", "laptop"] }
+      },
+      mesalo: ["prosim", "na napravi", "lahko", "mi", "daj"]
     },
     en: {
-      glasneje: ["louder", "volume up", "turn it up", "increase volume", "raise volume"],
-      tisje: ["quieter", "volume down", "turn it down", "decrease volume", "lower volume", "softer"],
-      utisaj: ["mute", "silence", "no sound", "sound off"],
-      zvok: ["unmute", "sound on", "sound back"],
+      glasneje: ["louder", "volume up", "turn it up", "increase volume", "raise volume", "turn up the volume", "turn the volume up",
+        "turn up the sound", "turn the sound up", "raise the volume", "increase the volume", "^turn up$"],
+      tisje: ["quieter", "volume down", "turn it down", "decrease volume", "lower volume", "softer", "turn down the volume", "turn the volume down",
+        "turn down the sound", "turn the sound down", "lower the volume", "decrease the volume", "reduce the volume", "^turn down$"],
+      utisaj: ["mute", "silence", "no sound", "sound off", "turn off the sound", "turn the sound off", "switch off the sound", "switch the sound off",
+        "turn off sound", "turn sound off", "turn off the audio", "turn the audio off"],
+      zvok: ["unmute", "sound back", "sound on$", "turn on the sound", "turn the sound on$", "switch on the sound", "switch the sound on$",
+        "turn on sound", "turn sound on$", "turn on the audio", "turn the audio on$"],
       glasnostNa: ["volume to", "volume", "set volume"],
       domov: ["home", "home screen", "start page"],
       nazaj: ["back", "go back", "close"],
       meni: ["menu"],
       gor: ["up"], dol: ["down"], levo: ["left"], desno: ["right"], ok: ["ok", "select", "confirm", "enter", "click"],
-      predvajaj: ["play", "resume", "continue"], pavza: ["pause", "stop", "hold"],
+      predvajaj: ["play", "resume", "continue", "unpause", "resume playback", "continue playback", "continue playing", "keep playing"]
+        .concat(kombinacije(["resume"], ["it", "the music", "music", "the video", "the movie", "the film", "the song", "the show"])),
+      pavza: ["pause", "stop", "hold"]
+        .concat(kombinacije(["pause", "stop", "hold"], ["it", "this", "that", "the music", "music", "the video", "video", "playback", "the playback",
+          "the movie", "the film", "the song", "the show", "the stream"])),
       naslednji: ["next", "skip"], prejsnji: ["previous", "back one"],
       stranGor: ["page up", "scroll up"], stranDol: ["page down", "scroll down", "scroll"],
       odpri: ["open", "launch", "start", "show", "run", "go to"],
@@ -532,15 +578,32 @@
       posnetek: ["screenshot", "show screen", "what is on the screen", "screen"],
       znovaZazeni: ["restart", "reboot safeer"], pocisti: ["clear cache", "clean cache", "free memory"],
       stran: ["page", "link", "website", "url"],
-      mesalo: ["please", "on the tv", "on tv", "on the television", "on the device", "can you", "could you", "for me"]
+      polnilaNaslova: ["the website", "the web site", "the site", "the page", "the web page", "the webpage", "the url", "the link", "the address",
+        "website", "web site", "site", "page", "web page", "webpage", "url", "link", "address"],
+      pika: ["dot"],
+      naprave: {
+        tv: { na: ["on the tv", "on tv", "on my tv", "on the television", "on the telly", "on the tv set", "to the tv", "to my tv", "to the television"], gola: ["the tv", "my tv", "tv", "the television", "the telly"] },
+        tablica: { na: ["on the tablet", "on my tablet", "on tablet", "on the ipad", "on my ipad", "to the tablet", "to my tablet"], gola: ["the tablet", "my tablet", "tablet", "the ipad"] },
+        telefon: { na: ["on the phone", "on my phone", "on phone", "on the mobile", "on my mobile", "on the smartphone", "on my smartphone",
+          "on the cell phone", "on my cell phone", "on the iphone", "on my iphone", "to the phone", "to my phone"], gola: ["the phone", "my phone", "phone", "the mobile", "the smartphone"] },
+        racunalnik: { na: ["on the computer", "on my computer", "on computer", "on the pc", "on my pc", "on pc", "on the laptop", "on my laptop", "to the computer", "to my computer", "to the pc", "to the laptop"],
+          gola: ["the computer", "my computer", "computer", "the pc", "my pc", "pc", "the laptop", "my laptop", "laptop"] }
+      },
+      mesalo: ["please", "on the device", "can you", "could you", "for me"]
     },
     de: {
       glasneje: ["lauter", "lautstarke hoch", "lautstarke erhohen"], tisje: ["leiser", "lautstarke runter", "lautstarke verringern"],
-      utisaj: ["stumm", "ton aus", "kein ton"], zvok: ["ton an", "ton wieder", "laut schalten"],
+      utisaj: ["stumm", "ton aus", "kein ton", "ton ausschalten", "ton abschalten", "stummschalten", "stumm schalten", "mute", "ton ab$"],
+      zvok: ["ton an$", "ton wieder", "laut schalten", "ton einschalten", "ton anschalten", "ton wieder an", "stummschaltung aufheben", "stummschaltung aus", "stumm aus"],
       glasnostNa: ["lautstarke auf", "lautstarke"],
       domov: ["start", "startseite", "home", "zuhause"], nazaj: ["zuruck", "schliessen"], meni: ["menu"],
       gor: ["hoch", "nach oben", "oben"], dol: ["runter", "nach unten", "unten"], levo: ["links"], desno: ["rechts"], ok: ["ok", "auswahlen", "bestatigen", "klicken"],
-      predvajaj: ["abspielen", "weiter", "wiedergabe", "play"], pavza: ["pause", "stopp", "stop", "anhalten"],
+      predvajaj: ["abspielen", "weiter", "wiedergabe", "play", "fortsetzen", "fortfahren", "setze fort", "weiterspielen", "weiter abspielen"]
+        .concat(kombinacije(["wiedergabe", "musik", "video", "film"], ["fortsetzen"])),
+      pavza: ["pause", "stopp", "stop", "anhalten", "pausieren", "pausiere", "stoppe", "stoppen", "halt an", "halte an", "mach pause", "pause machen"]
+        .concat(kombinacije(["pausiere", "stoppe", "stopp", "stop"], ["die musik", "musik", "das video", "video", "die wiedergabe", "wiedergabe", "den film", "film", "das lied", "es"]))
+        .concat(kombinacije(["die musik", "musik", "das video", "video", "die wiedergabe", "wiedergabe", "den film", "film", "das lied"], ["pausieren", "stoppen", "anhalten"]))
+        .concat(kombinacije(["halte", "halt"], ["die musik an", "das video an", "die wiedergabe an", "den film an", "das lied an", "es an"])),
       naslednji: ["nachster", "nachste", "weiter"], prejsnji: ["vorheriger", "vorherige", "zuruck"],
       stranGor: ["seite hoch", "nach oben scrollen"], stranDol: ["seite runter", "nach unten scrollen", "scrollen"],
       odpri: ["offne", "offnen", "starte", "starten", "zeige", "zeig", "mach", "geh zu"],
@@ -549,58 +612,124 @@
       poisci: ["suche nach", "suche", "such", "finde", "google", "wer ist", "was ist", "wo ist", "wetter"],
       posnetek: ["screenshot", "bildschirm zeigen", "bildschirm"],
       znovaZazeni: ["neu starten", "neustart"], pocisti: ["cache leeren", "speicher freigeben"],
-      stran: ["seite", "link", "webseite"], mesalo: ["bitte", "auf dem fernseher", "im fernseher", "am fernseher", "kannst du", "mir"]
+      stran: ["seite", "link", "webseite"],
+      polnilaNaslova: ["die seite", "die webseite", "die website", "die internetseite", "seite", "webseite", "website", "internetseite", "den link", "link", "die adresse", "adresse"],
+      pika: ["punkt"],
+      naprave: {
+        tv: { na: ["auf dem fernseher", "am fernseher", "im fernseher", "auf dem tv", "am tv", "im tv", "auf meinem fernseher", "auf den fernseher", "an den fernseher"], gola: ["den fernseher", "fernseher", "den tv", "das tv", "tv"] },
+        tablica: { na: ["auf dem tablet", "am tablet", "auf meinem tablet", "auf dem ipad", "am ipad", "aufs tablet", "auf das tablet"], gola: ["das tablet", "tablet", "das ipad"] },
+        telefon: { na: ["auf dem handy", "am handy", "auf meinem handy", "auf dem telefon", "am telefon", "auf dem smartphone", "am smartphone", "aufs handy", "auf das handy"],
+          gola: ["das handy", "handy", "das telefon", "das smartphone"] },
+        racunalnik: { na: ["auf dem computer", "am computer", "auf meinem computer", "auf dem pc", "am pc", "auf dem laptop", "am laptop", "auf dem rechner", "am rechner", "auf den computer", "auf den pc"],
+          gola: ["den computer", "computer", "den pc", "pc", "den laptop", "laptop", "den rechner"] }
+      },
+      mesalo: ["bitte", "kannst du", "mir"]
     },
     es: {
-      glasneje: ["mas alto", "sube el volumen", "subir volumen", "mas volumen"], tisje: ["mas bajo", "baja el volumen", "bajar volumen", "menos volumen"],
-      utisaj: ["silencio", "silenciar", "sin sonido", "mute"], zvok: ["activar sonido", "sonido", "quitar silencio"],
+      glasneje: ["mas alto", "sube el volumen", "subir volumen", "mas volumen", "sube el sonido", "subir el volumen"],
+      tisje: ["mas bajo", "baja el volumen", "bajar volumen", "menos volumen", "baja el sonido", "bajar el volumen"],
+      utisaj: ["silencio", "silenciar", "silencia", "sin sonido", "mute", "quita el sonido", "quitar el sonido", "apaga el sonido", "apagar el sonido", "apaga el audio", "quita el audio", "sin audio",
+        "desactiva el sonido", "desactivar el sonido"],
+      zvok: ["activar sonido", "^sonido$", "quitar silencio", "quita el silencio", "quitar el silencio", "activa el sonido", "activar el sonido",
+        "pon el sonido", "enciende el sonido"],
       glasnostNa: ["volumen a", "volumen al", "volumen"],
       domov: ["inicio", "pantalla de inicio", "casa"], nazaj: ["atras", "volver", "cerrar"], meni: ["menu"],
       gor: ["arriba"], dol: ["abajo"], levo: ["izquierda"], desno: ["derecha"], ok: ["ok", "seleccionar", "confirmar", "aceptar", "clic"],
-      predvajaj: ["reproducir", "reproduce", "continuar", "play"], pavza: ["pausa", "pausar", "parar", "detener", "stop"],
+      predvajaj: ["reproducir", "reproduce", "continuar", "play", "reanudar", "reanuda", "quita la pausa", "quitar la pausa"]
+        .concat(kombinacije(["reanudar", "reanuda", "continuar", "continua"], ["la reproduccion", "la musica", "el video", "la pelicula"])),
+      pavza: ["pausa", "pausar", "parar", "detener", "stop", "para", "deten", "pon en pausa", "ponlo en pausa", "en pausa", "pausalo", "detenlo", "paralo"]
+        .concat(kombinacije(["pausa", "pausar", "para", "parar", "deten", "detener", "pon en pausa"], ["la musica", "musica", "el video", "video",
+          "la reproduccion", "reproduccion", "la pelicula", "pelicula", "la cancion", "esto"]))
+        .concat(kombinacije(["pon"], ["la musica en pausa", "el video en pausa", "la reproduccion en pausa", "la pelicula en pausa"])),
       naslednji: ["siguiente"], prejsnji: ["anterior"],
       stranGor: ["pagina arriba", "subir"], stranDol: ["pagina abajo", "bajar", "desplazar"],
-      odpri: ["abre", "abrir", "inicia", "iniciar", "lanza", "muestra", "ve a"],
+      odpri: ["abre", "abrir", "inicia", "iniciar", "lanza", "muestra", "muestrame", "ensename", "abreme", "ve a"],
       program: ["canal", "programa", "cambia a", "pon el"],
       youtube: ["youtube"], predvajajGlasbo: ["pon", "reproduce", "escuchar", "cancion", "musica"],
       poisci: ["busca", "buscar", "encuentra", "google", "quien es", "que es", "donde esta", "tiempo"],
       posnetek: ["captura", "muestra la pantalla", "pantalla"],
       znovaZazeni: ["reiniciar", "reinicia"], pocisti: ["borrar cache", "limpiar cache", "liberar memoria"],
-      stran: ["pagina", "enlace", "web"], mesalo: ["por favor", "en la tele", "en la television", "en el televisor", "puedes", "me"]
+      stran: ["pagina", "enlace", "web"],
+      polnilaNaslova: ["la pagina", "la pagina web", "la web", "el sitio", "el sitio web", "pagina", "pagina web", "web", "sitio", "sitio web", "el enlace", "enlace", "la direccion"],
+      pika: ["punto"],
+      naprave: {
+        tv: { na: ["en la tele", "en la television", "en el televisor", "en la tv", "en el tv", "en mi tele", "en mi televisor", "al televisor", "a la tele"], gola: ["la tele", "la television", "el televisor", "televisor", "la tv", "tv"] },
+        tablica: { na: ["en la tableta", "en la tablet", "en el tablet", "en mi tableta", "en el ipad", "a la tableta"], gola: ["la tableta", "tableta", "la tablet"] },
+        telefon: { na: ["en el telefono", "en mi telefono", "en el movil", "en mi movil", "en el celular", "en mi celular", "al movil", "al telefono"], gola: ["el telefono", "el movil", "movil", "el celular"] },
+        racunalnik: { na: ["en el ordenador", "en mi ordenador", "en el computador", "en la computadora", "en mi computadora", "en el pc", "en mi pc", "en el portatil", "al ordenador"],
+          gola: ["el ordenador", "ordenador", "la computadora", "el pc", "pc", "el portatil"] }
+      },
+      mesalo: ["por favor", "puedes", "me"]
     },
     fr: {
-      glasneje: ["plus fort", "monte le son", "augmente le volume", "monter le volume"], tisje: ["moins fort", "baisse le son", "baisser le volume", "diminue le volume"],
-      utisaj: ["muet", "coupe le son", "sans son", "silence"], zvok: ["remets le son", "son", "active le son"],
+      glasneje: ["plus fort", "monte le son", "augmente le volume", "monter le volume", "monte le volume", "augmente le son"],
+      tisje: ["moins fort", "baisse le son", "baisser le volume", "diminue le volume", "baisse le volume", "diminue le son"],
+      utisaj: ["muet", "coupe le son", "sans son", "silence", "couper le son", "eteins le son", "eteindre le son", "desactive le son", "mets en sourdine", "sourdine", "mode muet"],
+      zvok: ["remets le son", "^son$", "active le son", "activer le son", "rallume le son", "remettre le son", "retablis le son", "enleve la sourdine", "^le son$"],
       glasnostNa: ["volume a", "volume"],
       domov: ["accueil", "page d accueil", "maison"], nazaj: ["retour", "reviens", "ferme"], meni: ["menu"],
       gor: ["haut", "en haut"], dol: ["bas", "en bas"], levo: ["gauche"], desno: ["droite"], ok: ["ok", "valide", "confirme", "selectionne", "clique"],
-      predvajaj: ["lecture", "lire", "joue", "continue", "play"], pavza: ["pause", "arrete", "stop"],
+      predvajaj: ["lecture", "lire", "joue", "continue", "play", "reprendre", "reprends", "enleve la pause"]
+        .concat(kombinacije(["reprends", "reprendre", "relance"], ["la lecture", "la musique", "la video", "le film"])),
+      pavza: ["pause", "arrete", "stop", "mets en pause", "mets pause", "en pause", "stoppe"]
+        .concat(kombinacije(["pause", "mets en pause", "arrete", "stoppe", "stop", "interromps"], ["la musique", "musique", "la video", "video",
+          "la lecture", "lecture", "le film", "film", "la chanson", "ca"]))
+        .concat(kombinacije(["mets"], ["la musique en pause", "la video en pause", "la lecture en pause", "le film en pause", "ca en pause"])),
       naslednji: ["suivant", "suivante"], prejsnji: ["precedent", "precedente"],
       stranGor: ["page haut", "defiler vers le haut", "monte"], stranDol: ["page bas", "defiler vers le bas", "descends", "defile"],
-      odpri: ["ouvre", "ouvrir", "lance", "lancer", "demarre", "montre", "va sur", "va a"],
+      odpri: ["ouvre", "ouvrir", "lance", "lancer", "demarre", "montre", "montre-moi", "montre moi", "ouvre-moi", "va sur", "va a"],
       program: ["chaine", "programme", "passe sur", "mets la"],
       youtube: ["youtube"], predvajajGlasbo: ["joue", "mets", "ecouter", "ecoute", "chanson", "musique"],
       poisci: ["cherche", "recherche", "trouve", "google", "qui est", "qu est ce que", "ou est", "meteo"],
       posnetek: ["capture", "montre l ecran", "ecran"],
       znovaZazeni: ["redemarre", "redemarrer"], pocisti: ["vide le cache", "vider le cache", "libere la memoire"],
-      stran: ["page", "lien", "site"], mesalo: ["s il te plait", "s il vous plait", "sur la tele", "sur la television", "peux tu", "moi"]
+      stran: ["page", "lien", "site"],
+      polnilaNaslova: ["le site", "le site web", "la page", "la page web", "site", "site web", "page", "le lien", "lien", "l adresse", "adresse"],
+      pika: ["point"],
+      naprave: {
+        tv: { na: ["sur la tele", "sur la television", "sur le televiseur", "sur la tv", "a la tele", "a la television", "sur ma tele", "vers la tele"], gola: ["la tele", "la television", "le televiseur", "televiseur", "la tv", "tv"] },
+        tablica: { na: ["sur la tablette", "sur ma tablette", "sur l ipad", "vers la tablette"], gola: ["la tablette", "tablette", "l ipad"] },
+        telefon: { na: ["sur le telephone", "sur mon telephone", "sur le portable", "sur mon portable", "sur le mobile", "sur mon mobile", "sur le smartphone", "vers le telephone"],
+          gola: ["le telephone", "telephone", "le portable", "le mobile", "le smartphone"] },
+        racunalnik: { na: ["sur l ordinateur", "sur mon ordinateur", "sur l ordi", "sur mon ordi", "sur le pc", "sur mon pc", "vers l ordinateur"],
+          gola: ["l ordinateur", "ordinateur", "l ordi", "le pc", "pc"] }
+      },
+      mesalo: ["s il te plait", "s il vous plait", "peux tu", "moi"]
     },
     it: {
-      glasneje: ["piu forte", "alza il volume", "aumenta il volume", "piu alto"], tisje: ["piu piano", "abbassa il volume", "diminuisci il volume", "piu basso"],
-      utisaj: ["muto", "silenzio", "togli l audio", "senza audio"], zvok: ["riattiva l audio", "audio", "rimetti l audio"],
+      glasneje: ["piu forte", "alza il volume", "aumenta il volume", "piu alto", "alza l audio", "alza il suono"],
+      tisje: ["piu piano", "abbassa il volume", "diminuisci il volume", "piu basso", "abbassa l audio", "abbassa il suono"],
+      utisaj: ["muto", "silenzio", "togli l audio", "senza audio", "spegni l audio", "disattiva l audio", "togli il suono", "spegni il suono", "metti in muto", "silenzia",
+        "disattiva il suono", "spegni audio", "togli audio", "disattiva audio"],
+      zvok: ["riattiva l audio", "^audio$", "rimetti l audio", "attiva l audio", "accendi l audio", "riattiva il suono", "togli il muto", "togli muto"],
       glasnostNa: ["volume a", "volume al", "volume"],
       domov: ["home", "pagina iniziale", "inizio", "casa"], nazaj: ["indietro", "torna", "chiudi"], meni: ["menu"],
       gor: ["su", "sopra"], dol: ["giu", "sotto"], levo: ["sinistra"], desno: ["destra"], ok: ["ok", "conferma", "seleziona", "clicca", "invio"],
-      predvajaj: ["riproduci", "continua", "play"], pavza: ["pausa", "ferma", "stop"],
+      predvajaj: ["riproduci", "continua", "play", "riprendi", "togli la pausa"]
+        .concat(kombinacije(["riprendi", "continua"], ["la riproduzione", "la musica", "il video", "il film"])),
+      pavza: ["pausa", "ferma", "stop", "metti in pausa", "in pausa", "interrompi", "fermalo", "metti pausa"]
+        .concat(kombinacije(["metti in pausa", "pausa", "ferma", "stoppa", "interrompi", "blocca"], ["la musica", "musica", "il video", "video",
+          "la riproduzione", "riproduzione", "il film", "film", "la canzone"]))
+        .concat(kombinacije(["metti"], ["la musica in pausa", "il video in pausa", "la riproduzione in pausa", "il film in pausa"])),
       naslednji: ["successivo", "prossimo", "avanti"], prejsnji: ["precedente"],
       stranGor: ["pagina su", "scorri su"], stranDol: ["pagina giu", "scorri giu", "scorri"],
-      odpri: ["apri", "aprire", "avvia", "lancia", "mostra", "vai su", "vai a"],
+      odpri: ["apri", "aprire", "avvia", "lancia", "mostra", "mostrami", "fammi vedere", "aprimi", "vai su", "vai a"],
       program: ["canale", "programma", "metti il", "passa a"],
       youtube: ["youtube"], predvajajGlasbo: ["metti", "riproduci", "ascolta", "ascoltare", "canzone", "musica"],
       poisci: ["cerca", "trova", "google", "chi e", "cos e", "dov e", "meteo"],
       posnetek: ["screenshot", "mostra lo schermo", "schermo"],
       znovaZazeni: ["riavvia", "riavviare"], pocisti: ["svuota la cache", "pulisci la cache", "libera la memoria"],
-      stran: ["pagina", "link", "sito"], mesalo: ["per favore", "sulla tv", "sul televisore", "in tv", "puoi", "mi"]
+      stran: ["pagina", "link", "sito"],
+      polnilaNaslova: ["il sito", "il sito web", "la pagina", "la pagina web", "sito", "sito web", "pagina", "il link", "link", "l indirizzo", "indirizzo"],
+      pika: ["punto"],
+      naprave: {
+        tv: { na: ["sulla tv", "sul televisore", "in tv", "alla tv", "sulla televisione", "in televisione", "sulla mia tv"], gola: ["la tv", "tv", "il televisore", "televisore", "la televisione"] },
+        tablica: { na: ["sul tablet", "sul mio tablet", "sull ipad", "al tablet"], gola: ["il tablet", "tablet", "l ipad"] },
+        telefon: { na: ["sul telefono", "sul mio telefono", "sul cellulare", "sul mio cellulare", "sul telefonino", "sullo smartphone", "al telefono", "al cellulare"],
+          gola: ["il telefono", "telefono", "il cellulare", "cellulare", "il telefonino", "lo smartphone"] },
+        racunalnik: { na: ["sul computer", "sul mio computer", "sul pc", "sul mio pc", "sul portatile", "al computer"], gola: ["il computer", "computer", "il pc", "pc", "il portatile"] }
+      },
+      mesalo: ["per favore", "puoi", "mi"]
     }
   };
 
@@ -617,17 +746,92 @@
     return null;
   }
 
+  /** Ali je fraza v nizu kot cele besede; "^fraza$" samo kot cel niz, "fraza$" samo na koncu. */
+  function ujemaFrazo(niz, b) {
+    var zacetek = b.charAt(0) === "^", konec = b.charAt(b.length - 1) === "$";
+    var f = b.slice(zacetek ? 1 : 0, konec ? b.length - 1 : b.length);
+    if (niz === f) return true;
+    if (zacetek && konec) return false;
+    var naKoncu = niz.slice(-(f.length + 1)) === " " + f;
+    if (konec) return naKoncu;
+    return niz.indexOf(f + " ") === 0 || niz.indexOf(" " + f + " ") >= 0 || naKoncu;
+  }
+
   function vsebuje(niz, besede) {
-    for (var i = 0; i < besede.length; i++) {
-      var b = besede[i];
-      if (niz === b || niz.indexOf(b + " ") === 0 || niz.indexOf(" " + b + " ") >= 0 || niz.slice(-(b.length + 1)) === " " + b) return true;
-    }
+    for (var i = 0; i < besede.length; i++) if (ujemaFrazo(niz, besede[i])) return true;
     return false;
+  }
+
+  /** Dolzina najdaljse fraze iz seznama, ki je v nizu (0 = nobena). */
+  function najdaljse(niz, besede) {
+    var naj = 0;
+    for (var i = 0; i < besede.length; i++) {
+      var dolzina = besede[i].replace(/^\^|\$$/g, "").length;
+      if (dolzina > naj && ujemaFrazo(niz, besede[i])) naj = dolzina;
+    }
+    return naj;
+  }
+
+  // Koncnice domen, ki jih sprejmemo, ko naslov sestavimo iz narekovanih delov ("24 ur . com", "siol pika net")
+  // ali ga vzamemo iz stavka ("open the website 24ur.com"). En sam vpisan zeton (npr. "nekaj.xyz") velja kot doslej.
+  var ZNANE_KONCNICE = ["com", "net", "org", "si", "eu", "io", "de", "at", "hr", "it", "uk", "co", "tv", "app", "dev", "info", "me",
+    "fr", "es", "ch", "nl", "be", "pl", "cz", "sk", "hu", "rs", "ba", "mk", "us", "ca", "au", "jp", "se", "dk", "fi", "pt", "gr", "ro",
+    "bg", "ie", "lu", "gov", "edu", "xyz", "online", "site", "shop", "store", "blog", "ai", "gg", "fm", "news", "live", "cloud", "tech", "biz", "pro"];
+  var DOMENA = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)+([a-z]{2,24})(?::\d{1,5})?(?:\/\S*)?$/i;
+  // Kratke besede, ki niso del narekovanega naslova ("na siol.net" ni "nasiol.net").
+  var VEZNIKI = " na v in za pa po od do je the on of to and at in is auf am im und zu en el la de del y sur le les et du sul su e il di a o ";
+
+  function znanaKoncnica(k) { return ZNANE_KONCNICE.indexOf(String(k || "").toLowerCase()) >= 0; }
+
+  /**
+   * Naslov strani iz (ociscenega) besedila ali null. Polnila spredaj ("spletno stran", "the website") gredo stran.
+   * celota: naslov mora biti cel niz (konec razumi: "poisci novice na siol.net" je iskanje, ne stran).
+   * Izmerjeno 19. 10. 2026: prej so se zdruzili vsi presledki ("siol.netnatablici", "thewebsite24ur.com").
+   */
+  function najdiNaslov(niz, celota) {
+    var g = slovnica();
+    var s = String(niz || "").trim();
+    for (var k = 0; k < 3 && s; k++) { var o = odrezi(s, g.polnilaNaslova || g.stran || []); if (!o) break; s = o; }
+    if (!s) return null;
+    var besede = izgovorjenePike(s.split(" "), g.pika || []);
+    if (besede.length === 1) return DOMENA.test(besede[0]) ? besede[0] : null;
+    // Narekovano s presledki ("24 ur.com", "rtv slo.si"): zdruzimo kratke dele (do 3 crke ali s stevko),
+    // ce dobimo znano koncnico; "vreme arso.si" ostane "arso.si".
+    var spredaj = besede.slice(0, -1);
+    var kratki = besede.length <= 4 && spredaj.every(function (b) {
+      return (b.length <= 3 || /\d/.test(b)) && b.indexOf(".") < 0 && VEZNIKI.indexOf(" " + b + " ") < 0;
+    });
+    var skupaj = besede[0] === "www" ? "www." + besede.slice(1).join("") : besede.join(""), m = DOMENA.exec(skupaj);
+    if (kratki && m && znanaKoncnica(m[1])) return skupaj;
+    if (celota) return null;
+    for (var i = 0; i < besede.length; i++) {
+      var z = DOMENA.exec(besede[i]);
+      if (z && (znanaKoncnica(z[1]) || /^(https?:\/\/|www\.)/i.test(besede[i]))) return besede[i];
+    }
+    return null;
+  }
+
+  /**
+   * Izgovorjena pika ("siol pika net", "24ur dot com") samo na koncu kandidata za naslov in pred znano koncnico:
+   * v drugem besedilu je "point de vue" ali "en punto de la tarde" navaden stavek.
+   */
+  function izgovorjenePike(besede, pike) {
+    var n = besede.length;
+    if (n < 3 || pike.indexOf(besede[n - 2]) < 0 || !znanaKoncnica(besede[n - 1])) return besede;
+    var naslov = besede[n - 1], i = n - 2;
+    while (i >= 1 && pike.indexOf(besede[i]) >= 0 && /^[a-z0-9-]+$/.test(besede[i - 1])) { naslov = besede[i - 1] + "." + naslov; i -= 2; }
+    return besede.slice(0, i + 1).concat([naslov]);
+  }
+
+  /** Narekovana pika s presledkom pred znano koncnico ("siol . net") -> "siol.net"; drugih pik ne dotaknemo. */
+  function zdruziNarekovanNaslov(niz) {
+    var koncnice = "(" + ZNANE_KONCNICE.join("|") + ")(?=$|[\\s/,!?;:.])";
+    return String(niz || "").replace(new RegExp("([0-9a-zà-ž])\\s+\\.\\s*" + koncnice, "gi"), "$1.$2");
   }
 
   function ocisti(niz) {
     // Locila na koncu besed (nekateri prepoznavalniki jih dodajo) stran; pika v naslovu ostane.
-    var s = normaliziraj(String(niz || "").replace(/[.,!?;:]+(\s|$)/g, "$1"));
+    var s = normaliziraj(zdruziNarekovanNaslov(niz).replace(/[.,!?;:]+(\s|$)/g, "$1"));
     var g = slovnica();
     (g.mesalo || []).forEach(function (m) {
       s = (" " + s + " ").split(" " + m + " ").join(" ").trim();
@@ -635,12 +839,134 @@
     return s.replace(/\s+/g, " ").trim();
   }
 
+  // ----------------------------------------------------------------
+  // Glas: katera naprava (daljinec upravlja natanko eno)
+  // ----------------------------------------------------------------
+
+  var VRSTE_NAPRAV = ["tv", "tablica", "telefon", "racunalnik"];
+  var KLJUC_VRSTE = { tv: "vrstaTv", tablica: "vrstaTablica", telefon: "vrstaTelefon", racunalnik: "vrstaRacunalnik" };
+  // Ime naprave, kot ga je dal uporabnik ("Tablica v kuhinji", "Philips TV"), pove vrsto, ko je naprava ne pove sama.
+  var IMENA_VRST = {
+    tv: /[^a-z0-9](tv|televizor\w*|televizij\w*|television|televisor\w*|televiseur|televisione|fernseher|tele|philips|bravia)[^a-z0-9]/,
+    tablica: /[^a-z0-9](tablic\w*|tablet\w*|tableta|tablette|ipad)[^a-z0-9]/,
+    telefon: /[^a-z0-9](telefon\w*|telephone|phone|smartphone|iphone|handy|movil|mobitel\w*|cellulare)[^a-z0-9]/,
+    racunalnik: /[^a-z0-9](racunalnik\w*|computer|computadora|pc|laptop|desktop|prenosnik\w*|rechner|ordenador|ordinateur|ordi|portatil|notebook|linux|windows|mac|macbook)[^a-z0-9]/
+  };
+  var NAGLASI = { a: "aàáâäã", c: "cčć", d: "dđ", e: "eèéêë", i: "iìíîï", n: "nñ", o: "oòóôö", s: "sš", u: "uùúûü", z: "zž" };
+  var vzorciNaprav = {};
+
+  /** Vrste upravljane naprave (lahko vec, npr. "handheld" = telefon ali tablica); prazno = ne vemo. */
+  function vrsteUpravljane() {
+    var n = stanje.naprava || {};
+    var pl = String(n.platforma || ""), vr = String(n.vrsta || ""), vrste = [];
+    // Protocol v1: platforma je zanesljiva; vrsta "screen" pomeni TV le brez platforme (link.js ikonaNapraveVSeznamu).
+    if (pl === "tv" || (!pl && (vr === "tv" || vr === "screen" || n.vloga === "receiver"))) vrste.push("tv");
+    if (pl === "tablet") vrste.push("tablica");
+    if (pl === "phone") vrste.push("telefon");
+    if (!pl && vr === "handheld") vrste.push("telefon", "tablica");
+    if (pl === "linux" || pl === "windows" || pl === "macos" || (!pl && (vr === "computer" || vr === "control"))) vrste.push("racunalnik");
+    var prijazno = "";
+    try { prijazno = api().prijaznoIme ? String(api().prijaznoIme(n) || "") : ""; } catch (e) {}
+    var ime = " " + normaliziraj(prijazno + " " + (n.ime || "")) + " ";
+    for (var i = 0; i < VRSTE_NAPRAV.length; i++) {
+      if (IMENA_VRST[VRSTE_NAPRAV[i]].test(ime) && vrste.indexOf(VRSTE_NAPRAV[i]) < 0) vrste.push(VRSTE_NAPRAV[i]);
+    }
+    return vrste;
+  }
+
+  function upravljaVrsto(vrsta) {
+    var vrste = vrsteUpravljane();
+    return !vrste.length || vrste.indexOf(vrsta) >= 0;
+  }
+
+  /** Fraza (male crke, brez sumnikov) -> vzorec za izvirno besedilo: sumniki, velike crke, opuscaj, vezaj. */
+  function vzorecFraze(fraza) {
+    return fraza.split(" ").map(function (beseda) {
+      var v = "";
+      for (var i = 0; i < beseda.length; i++) {
+        var c = beseda.charAt(i);
+        v += NAGLASI[c] ? "[" + NAGLASI[c] + "]" : c === "-" ? "[\\s-]?" : c.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
+      }
+      return v;
+    }).join("[\\s'’-]+");
+  }
+
+  function vzorecNaprav(vrsta, kje) {
+    var kljuc = jezik + ":" + vrsta + ":" + kje;
+    if (vzorciNaprav[kljuc] !== undefined) return vzorciNaprav[kljuc];
+    var fraze = ((slovnica().naprave || {})[vrsta] || {})[kje] || [];
+    var urejene = fraze.slice().sort(function (a, b) { return b.length - a.length; });
+    vzorciNaprav[kljuc] = urejene.length ? new RegExp("(^|[\\s,.;:!?¡¿«»\"“”„(])(?:" + urejene.map(vzorecFraze).join("|") + ")(?=$|[\\s,.;:!?…«»\"“”)])", "gi") : null;
+    return vzorciNaprav[kljuc];
+  }
+
+  function brezFraze(niz, vzorec) {
+    var najdeno = false;
+    var ostanek = niz.replace(vzorec, function (cel, pred) { najdeno = true; return pred + " "; });
+    return najdeno ? ostanek.replace(/\s+([,.;:!?])/g, "$1").replace(/^[\s,;:]+|[\s,;:]+$/g, "").replace(/\s+/g, " ").trim() : null;
+  }
+
   /**
-   * Besedilo v ukaz: {dejanje, parametri, opis} ali null.
+   * Fraze o napravi iz izvirnega besedila. Fraza za to napravo gre ven (nikoli v iskanje ali naslov);
+   * fraza za drugo vrsto naprave vrne {druga: vrsta}, da ukaza ne izvedemo na napacni napravi.
+   * Gole (tozilnik: "utisaj televizor", "pause the TV") veljajo samo ob kratkem ukazu za glasnost ali predvajanje,
+   * da "poisci nov telefon" ostane iskanje.
+   */
+  function frazeNaprav(surovo) {
+    var besedilo = surovo, druga = null, vrsta, ostanek, i;
+    for (i = 0; i < VRSTE_NAPRAV.length; i++) {
+      vrsta = VRSTE_NAPRAV[i];
+      var vz = vzorecNaprav(vrsta, "na");
+      ostanek = vz ? brezFraze(besedilo, vz) : null;
+      if (ostanek === null) continue;
+      if (upravljaVrsto(vrsta)) besedilo = ostanek;
+      else if (!druga) druga = vrsta;
+    }
+    if (druga) return { besedilo: besedilo, druga: druga };
+    var gole = [], brezGolih = besedilo;
+    for (i = 0; i < VRSTE_NAPRAV.length; i++) {
+      var vzg = vzorecNaprav(VRSTE_NAPRAV[i], "gola");
+      ostanek = vzg ? brezFraze(brezGolih, vzg) : null;
+      if (ostanek !== null) { gole.push(VRSTE_NAPRAV[i]); brezGolih = ostanek; }
+    }
+    if (gole.length) {
+      var u = razumiUkaz(brezGolih);
+      var kratek = u && (u.dejanje === "volume" || (u.dejanje === "key" && (u.parametri.key === "pause" || u.parametri.key === "play_pause")));
+      if (kratek) {
+        for (i = 0; i < gole.length; i++) if (!upravljaVrsto(gole[i])) return { besedilo: besedilo, druga: gole[i] };
+        besedilo = brezGolih;
+      }
+    }
+    return { besedilo: besedilo, druga: null };
+  }
+
+  function drugaNaprava(vrsta) {
+    var n = stanje.naprava || {};
+    var ime = "";
+    try { ime = api().prijaznoIme ? String(api().prijaznoIme(n) || "") : ""; } catch (e) {}
+    if (!ime) ime = n.ime || t("naprava");
+    return { dejanje: "napaka", parametri: {}, drugaNaprava: vrsta, opis: t("drugaNaprava", { ime: ime, naprava: t(KLJUC_VRSTE[vrsta]) }) };
+  }
+
+  /**
+   * Besedilo v ukaz: {dejanje, parametri, opis, ocisceno} ali null. ocisceno je besedilo brez fraze o napravi
+   * (za iskanje na racunalniku). Ukaz za drugo napravo vrne napako z navodilom, katero napravo izbrati.
+   */
+  function razumi(besedilo) {
+    var surovo = String(besedilo || "").trim();
+    if (!surovo) return null;
+    var nap = frazeNaprav(surovo);
+    if (nap.druga) return drugaNaprava(nap.druga);
+    var u = razumiUkaz(nap.besedilo);
+    if (u) u.ocisceno = nap.besedilo;
+    return u;
+  }
+
+  /**
    * Vrstni red je pomemben: najprej glasnost in tipke (kratke, nedvoumne), potem programi,
    * aplikacije po imenu, YouTube, strani, iskanje. Kar ostane, je iskanje.
    */
-  function razumi(besedilo) {
+  function razumiUkaz(besedilo) {
     var surovo = String(besedilo || "").trim();
     var s = ocisti(surovo);
     if (!s) return null;
@@ -648,11 +974,15 @@
     var st = s.match(/\b(\d{1,3})\b/);
     var stevilka = st ? parseInt(st[1], 10) : null;
 
-    // Glasnost
-    if (vsebuje(s, g.utisaj)) return { dejanje: "volume", parametri: { direction: "mute" }, opis: t("utisano") };
-    if (vsebuje(s, g.zvok)) return { dejanje: "volume", parametri: { direction: "unmute" }, opis: t("zvokNazaj") };
-    if (vsebuje(s, g.glasneje)) return { dejanje: "volume", parametri: { direction: "up" }, opis: t("glasneje") };
-    if (vsebuje(s, g.tisje)) return { dejanje: "volume", parametri: { direction: "down" }, opis: t("tisje") };
+    // Glasnost: zmaga najdaljsa fraza. Izmerjeno 19. 10. 2026: "baisse le son" je bil "son" (zvok nazaj),
+    // "malo bolj tiho" je bil "tiho" (utisaj), "quitar silencio" je bil "silencio" (utisaj).
+    var smeri = [["utisaj", "mute", "utisano"], ["zvok", "unmute", "zvokNazaj"], ["glasneje", "up", "glasneje"], ["tisje", "down", "tisje"]];
+    var smer = null, najDolzina = 0;
+    for (var si = 0; si < smeri.length; si++) {
+      var dolzina = najdaljse(s, g[smeri[si][0]] || []);
+      if (dolzina > najDolzina) { najDolzina = dolzina; smer = smeri[si]; }
+    }
+    if (smer) return { dejanje: "volume", parametri: { direction: smer[1] }, opis: t(smer[2]) };
     if (vsebuje(s, g.glasnostNa) && stevilka != null && stevilka <= 100) {
       return { dejanje: "volume", parametri: { level: stevilka }, opis: t("glasnostNa", { n: stevilka }) };
     }
@@ -662,7 +992,7 @@
     if (vsebuje(s, g.znovaZazeni)) return { dejanje: "restart", parametri: {}, opis: t("znovaZazeni") };
     if (vsebuje(s, g.pocisti)) return { dejanje: "clear_cache", parametri: {}, opis: t("pocistiPredpomnilnik") };
 
-    // Tipke (samo kratki ukazi: "nazaj", "domov", "gor" ...)
+    // Tipke (samo kratki ukazi: "nazaj", "domov", "gor", "ustavi glasbo" ...)
     var tipke = [["domov", "home"], ["nazaj", "back"], ["meni", "menu"], ["gor", "up"], ["dol", "down"], ["levo", "left"], ["desno", "right"],
       ["ok", "ok"], ["pavza", "pause"], ["naslednji", "next"], ["prejsnji", "previous"]];
     for (var i = 0; i < tipke.length; i++) {
@@ -691,9 +1021,11 @@
       }
       var app = najdiAplikacijo(ostanek);
       if (app) return { dejanje: "launch_app", parametri: { package: app.package }, opis: t("odpiram", { ime: app.label }) };
-      var stranOst = odrezi(ostanek, g.stran);
-      if (stranOst) return stran(stranOst);
-      if (jeNaslov(ostanek)) return stran(ostanek);
+      var naslov = najdiNaslov(ostanek, false);
+      if (naslov) return stran(naslov);
+      // "odpri stran o vremenu": brez naslova je to iskanje (prej https://ovremenu).
+      var stranOst = odrezi(ostanek, g.polnilaNaslova || g.stran);
+      if (stranOst) return iskanje(stranOst);
       if (ostanek.length <= 24 && stanje.aplikacije.length) {
         // Kratko ime, ki ga med aplikacijami ni: povemo, ne iscemo na slepo.
         return { dejanje: "napaka", parametri: {}, opis: t("aplikacijaNiNamescena", { ime: ostanek }) };
@@ -719,8 +1051,9 @@
     var app2 = najdiAplikacijo(s);
     if (app2 && s.length <= 24) return { dejanje: "launch_app", parametri: { package: app2.package }, opis: t("odpiram", { ime: app2.label }) };
 
-    // Naslov strani
-    if (jeNaslov(s)) return stran(s);
+    // Naslov strani (cel ukaz je naslov)
+    var naslov2 = najdiNaslov(s, true);
+    if (naslov2) return stran(naslov2);
 
     // Iskanje
     var iskOst = odrezi(s, g.poisci);
@@ -728,9 +1061,6 @@
     return { dejanje: "iskanje", parametri: { q: surovo }, opis: t("nisemRazumel", { kaj: surovo }), neznano: true };
   }
 
-  function jeNaslov(s) {
-    return /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(s.replace(/\s+/g, ""));
-  }
   function stran(s) {
     var url = s.replace(/\s+/g, "");
     if (!/^https?:\/\//i.test(url)) url = "https://" + url;
@@ -807,10 +1137,11 @@
     // Omenjena druga naprava (ne ta, ki jo daljinec upravlja): to zna samo agent.
     var vrste = [["tv", /(televiz|(^|\s)tv(\s|$))/], ["tablet", /(tablic|tablet)/], ["phone", /(telefon|mobitel|phone)/],
                  ["pc", /(racunalnik|prenosnik|computer|laptop|(^|\s)pc(\s|$))/]];
-    var ta = stanje.naprava ? String(stanje.naprava.platforma || "") : "";
-    if (ta === "linux" || ta === "windows" || ta === "macos") ta = "pc";
+    // Vrste upravljane naprave kot v hitrem prevajalniku (platforma, vrsta, vloga, ime): "glasneje na televizorju"
+    // na sprejemniku brez platforme ni druga naprava (fraze o napravi niso vec med mesalom, ki jih je prej brisalo).
+    var ta = vrsteUpravljane().map(function (v) { return { tv: "tv", tablica: "tablet", telefon: "phone", racunalnik: "pc" }[v]; });
     for (var i = 0; i < vrste.length; i++) {
-      if (vrste[i][1].test(s) && vrste[i][0] !== ta) return true;
+      if (vrste[i][1].test(s) && ta.indexOf(vrste[i][0]) < 0) return true;
     }
     return false;
   }
@@ -867,8 +1198,9 @@
     }, 45000, agent);
   }
 
-  function izvediBesedilo(besedilo) {
-    var cisto = String(besedilo || "").trim();
+  function izvediBesedilo(izgovorjeno) {
+    // Parameter ne sme zakriti funkcije besedilo(): prej je iskanje na racunalniku (search.query) padlo s TypeError.
+    var cisto = String(izgovorjeno || "").trim();
     if (!cisto) return;
     stanje.zadnjeSliseno = cisto;
     var e = el("daljinecSliseno");
@@ -876,10 +1208,13 @@
     var u = razumi(cisto);
     // Safeer Agent (racunalnik z lokalnim modelom): vec ukazov v enem stavku, druge naprave, naravni stavki.
     var agent = agentNaprava();
-    if (agent && zaAgenta(cisto, u)) { posljiAgentu(cisto, agent, u && u.dejanje !== "napaka" ? u : null); return; }
+    // Ukaz za drugo napravo zna agent; ce agent ni dosegljiv, uporabnik dobi navodilo, katero napravo izbrati.
+    if (agent && zaAgenta(cisto, u)) { posljiAgentu(cisto, agent, u && (u.dejanje !== "napaka" || u.drugaNaprava) ? u : null); return; }
+    // Fraza o napravi ("na računalniku") ne gre v iskanje; ukaz za drugo napravo se ne poslje nikamor.
+    if (u && u.ocisceno) cisto = u.ocisceno;
     // Na racunalniku s Safeer OS (search.query) gre vse, kar ni ukaz daljinca (glasnost, tipke, drsenje, posnetek),
     // v iskalno lupo racunalnika - programi, datoteke, nastavitve, mediji in splet so tam na enem mestu.
-    var ukazDaljinca = u && ["volume", "key", "scroll", "digits", "screenshot", "restart", "clear_cache"].indexOf(u.dejanje) >= 0;
+    var ukazDaljinca = u && (!!u.drugaNaprava || ["volume", "key", "scroll", "digits", "screenshot", "restart", "clear_cache"].indexOf(u.dejanje) >= 0);
     if (stanje.isceNaRacunalniku && !ukazDaljinca) {
       var opis = t("iscemNaRacunalniku", { kaj: cisto });
       besedilo("daljinecOdgovor", opis);
