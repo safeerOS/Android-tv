@@ -1,0 +1,198 @@
+# Release notes · Opombe ob izdajah
+
+One file per version. Packages: [GitHub Releases](https://github.com/safeerOS/Android-tv/releases) · [safeer.si](https://safeer.si). Summary of the latest releases: [CHANGELOG.md](../../CHANGELOG.md).
+
+## Safeer TV Browser + Safeer OS (TV, tablet, phone)
+
+- [2.1.210](RELEASE_NOTES_2.1.210.md) (2026-10-11) — Safeer 2.1.210 · Safeer OS 0.5.86 · Predvajalnik 0.2.72 — Ena tema v celem Safeer OS.
+- [2.1.209](RELEASE_NOTES_2.1.209.md) (2026-10-11) — Safeer 2.1.209 · Safeer OS 0.5.85 · Predvajalnik 0.2.71 — Ena iskalna lupa na telefonu in tablici.
+- [2.1.208](RELEASE_NOTES_2.1.208.md) (2026-10-11) — Safeer 2.1.208 · Safeer OS 0.5.84 · Predvajalnik 0.2.70 — Iskalna lupa na domačem zaslonu.
+- [2.1.207](RELEASE_NOTES_2.1.207.md) (2026-10-11) — Safeer 2.1.207 · Safeer OS 0.5.83 · Predvajalnik 0.2.69 — Vedno veš, kaj se namešča.
+- [2.1.206](RELEASE_NOTES_2.1.206.md) (2026-10-11) — Safeer 2.1.206 · Safeer OS 0.5.82 · Predvajalnik 0.2.68 — Aplikacije brez Googlovega monopola.
+- [2.1.205](RELEASE_NOTES_2.1.205.md) (2026-10-11) — Safeer 2.1.205 · Safeer OS 0.5.81 · Predvajalnik 0.2.67 — Filmi v angleščini, slovenski filmi v slovenščini.
+- [2.1.204](RELEASE_NOTES_2.1.204.md) (2026-10-09) — Safeer 2.1.204 · Safeer OS 0.5.80 · Predvajalnik 0.2.66 — Telefon in tablica: Safeer OS je med odprtimi aplikacijami samo enkrat.
+- [2.1.203](RELEASE_NOTES_2.1.203.md) (2026-10-09) — Safeer 2.1.203 · Safeer OS 0.5.79 · Predvajalnik 0.2.65 — Predvajanje zanesljivejše: rezervni dekoder povsod.
+- [2.1.202](RELEASE_NOTES_2.1.202.md) (2026-10-09) — Safeer 2.1.202 · Safeer OS 0.5.78 · Predvajalnik 0.2.64 — Zaslon računalnika na televizorjih MediaTek (npr.
+- [2.1.201](RELEASE_NOTES_2.1.201.md) (2026-10-09) — Safeer 2.1.201 · Safeer OS 0.5.77 · Predvajalnik 0.2.63 — Tipke dejanj na tablici in telefonu.
+- [2.1.200](RELEASE_NOTES_2.1.200.md) (2026-10-09) — Safeer 2.1.200 · Safeer OS 0.5.76 · Predvajalnik 0.2.62 — Zaslon računalnika lahko prevzame druga naprava – brez izmenjevanja.
+- [2.1.199](RELEASE_NOTES_2.1.199.md) (2026-10-09) — Safeer 2.1.199 · Safeer OS 0.5.75 · Predvajalnik 0.2.61 — Zaslon računalnika na televizorju, tablici in telefonu brez zadrževanja.
+- [2.1.198](RELEASE_NOTES_2.1.198.md) (2026-10-08) — Safeer 2.1.198 · Safeer OS 0.5.74 · Predvajalnik 0.2.60 — Strani ne zaznajo več blokatorja, tudi ko oglasno knjižnico zamenjajo.
+- [2.1.197](RELEASE_NOTES_2.1.197.md) (2026-10-08) — Safeer 2.1.197 · Safeer OS 0.5.73 · Predvajalnik 0.2.59 — Televizor: Safeer OS kot domači zaslon, tudi brez Googlovega zaganjalnika.
+- [2.1.196](RELEASE_NOTES_2.1.196.md) (2026-10-08) — Safeer 2.1.196 · Safeer OS 0.5.72 · Predvajalnik 0.2.58 — Strani še vedno zaznajo blokator?
+- [2.1.195](RELEASE_NOTES_2.1.195.md) (2026-10-08) — Safeer 2.1.195 · Safeer OS 0.5.71 · Predvajalnik 0.2.57 — Dva popravka iz pregleda kode.
+- [2.1.194](RELEASE_NOTES_2.1.194.md) (2026-10-08) — Safeer 2.1.194 · Safeer OS 0.5.70 · Predvajalnik 0.2.56 — Spletne strani ne zaznajo več, da ima Safeer vgrajen blokator oglasov.
+- [2.1.193](RELEASE_NOTES_2.1.193.md) (2026-10-08) — Safeer 2.1.193 · Safeer OS 0.5.69 · Predvajalnik 0.2.55 — Ta izdaja je gradnja 2.1.192 / Safeer OS 0.5.68 / Predvajalnik 0.2.54 z eno spremembo: števca blokiranih oglasov ni več.
+- [2.1.189](RELEASE_NOTES_2.1.189.md) (2026-10-07) — Safeer 2.1.189 · Safeer OS 0.5.65 · Predvajalnik 0.2.51 — Izdaja 0.5.62 je uvedla, da vsaka naprava sama odloča, kaj ji druga naprava sme.
+- [2.1.188](RELEASE_NOTES_2.1.188.md) — Safeer 2.1.188 · Safeer OS 0.5.64 · Predvajalnik 0.2.50 — Izdaja 0.5.62 je uvedla, da vsaka naprava sama odloča, kaj ji druga naprava sme.
+- [2.1.187](RELEASE_NOTES_2.1.187.md) (2026-10-07) — Safeer 2.1.187 · Safeer OS 0.5.63 — V 0.5.62 (dostop po napravah) je naprava, ki deli svoj zaslon, zavrnila dotik gledalca, kadar je središče Safeer…
+- [2.1.186](RELEASE_NOTES_2.1.186.md) (2026-10-06) — Safeer 2.1.186 · Safeer OS 0.5.62 · Predvajalnik 0.2.49 — Do te izdaje je bila vsaka naprava, seznanjena v Safeer Link, enakovredna.
+- [2.1.185](RELEASE_NOTES_2.1.185.md) (2026-10-06) — Safeer 2.1.185 · Safeer OS 0.5.61 — Zaslon računalnika porabi precej manj podatkov, kakovost je odvisna od poti in omrežja, program, ki je na…
+- [2.1.184](RELEASE_NOTES_2.1.184.md) (2026-10-06) — Safeer 2.1.184 · Safeer OS 0.5.60 — Zaslon računalnika prek Global Linka (zdoma) teče bolj gladko: odpravljen je vzrok zatikanja slike na napravi.
+- [2.1.183](RELEASE_NOTES_2.1.183.md) (2026-10-06) — Safeer 2.1.183 · Safeer OS 0.5.59 — Slika oddaljenega zaslona se prilagodi zaslonu naprave, na kateri jo gledaš.
+- [2.1.182](RELEASE_NOTES_2.1.182.md) (2026-10-06) — Safeer 2.1.182 · Safeer OS 0.5.58 — Od računalnika do naprave, ki ni doma (Global Link).
+- [2.1.181](RELEASE_NOTES_2.1.181.md) (2026-10-06) — Safeer 2.1.181 · Safeer OS 0.5.57 — Zdoma kot doma (Global Link) – kar deluje v domačem omrežju, deluje tudi, ko nisi doma:
+- [2.1.180](RELEASE_NOTES_2.1.180.md) (2026-10-06) — Safeer 2.1.180 · Safeer OS 0.5.56 — Datoteke z drugih naprav – doma in zdoma (Global Link):
+- [2.1.179](RELEASE_NOTES_2.1.179.md) (2026-10-06) — Safeer 2.1.179 · Safeer OS 0.5.55 — Zaslon računalnika na telefonu in tablici:
+- [2.1.178](RELEASE_NOTES_2.1.178.md) (2026-10-06) — Safeer 2.1.178 · Safeer OS 0.5.54 — Medijski center – TV v živo:
+- [2.1.177](RELEASE_NOTES_2.1.177.md) (2026-10-05) — Safeer 2.1.177 · Safeer OS 0.5.53 — Medijski center:
+- [2.1.176](RELEASE_NOTES_2.1.176.md) (2026-10-05) — Safeer 2.1.176 · Safeer OS 0.5.52 — Safeer Link:
+- [2.1.175](RELEASE_NOTES_2.1.175.md) (2026-10-05) — Safeer 2.1.175 · Safeer OS 0.5.51 — Safeer Link:
+- [2.1.174](RELEASE_NOTES_2.1.174.md) (2026-10-04) — Safeer 2.1.174 · Safeer OS 0.5.50 — Safeer Link:
+- [2.1.173](RELEASE_NOTES_2.1.173.md) (2026-10-04) — Safeer 2.1.173 · Safeer OS 0.5.49 — Safeer Link:
+- [2.1.172](RELEASE_NOTES_2.1.172.md) (2026-10-04) — Safeer 2.1.172 · Safeer OS 0.5.48 — Vgrajeni brskalnik (Splet):
+- [2.1.171](RELEASE_NOTES_2.1.171.md) (2026-10-04) — Safeer 2.1.171 · Safeer OS 0.5.47 — Internet prek Safeer Linka (Safeer OS Mobile) – telefon posodi svojo internetno povezavo računalniku v Safeer Linku,…
+- [2.1.170](RELEASE_NOTES_2.1.170.md) (2026-10-04) — Safeer 2.1.170 · Safeer OS 0.5.46 — Vgrajeni brskalnik na telefonu in tablici:
+- [2.1.169](RELEASE_NOTES_2.1.169.md) (2026-10-03) — Safeer 2.1.169 · Safeer OS 0.5.45 — Film se začne z virom, ki dela.
+- [2.1.168](RELEASE_NOTES_2.1.168.md) (2026-10-03) — Safeer 2.1.168 · Safeer OS 0.5.44 — Obdrži. Film na polici »Na tvojih napravah« je doslej izginil 48 ur po zadnjem predvajanju.
+- [2.1.167](RELEASE_NOTES_2.1.167.md) (2026-10-03) — Safeer OS 0.5.43 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.167 — Polica »Na tvojih napravah«: kar je katera koli tvoja naprava prenesla, vidiš in predvajaš na vseh.
+- [2.1.166](RELEASE_NOTES_2.1.166.md) (2026-10-03) — Safeer OS 0.5.42 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.166 — Film, ki ga nadaljuješ, začne naravnost pri shranjenem mestu.
+- [2.1.165](RELEASE_NOTES_2.1.165.md) (2026-10-03) — Safeer OS 0.5.41 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.165 — Med gledanjem nič ne prekriva slike.
+- [2.1.164](RELEASE_NOTES_2.1.164.md) (2026-10-03) — Safeer OS 0.5.40 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.164 — Film iz torrenta se začne tudi brez računalnika.
+- [2.1.163](RELEASE_NOTES_2.1.163.md) (2026-10-03) — Safeer OS 0.5.39 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.163 — Moji viri so enaki na vseh tvojih napravah.
+- [2.1.162](RELEASE_NOTES_2.1.162.md) (2026-10-03) — Safeer OS 0.5.38 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.162 — Splet: stranska vrstica ima spet ikone.
+- [2.1.161](RELEASE_NOTES_2.1.161.md) (2026-10-03) — Safeer OS 0.5.37 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.161 — Seznami predvajanja so enaki na vseh tvojih napravah.
+- [2.1.160](RELEASE_NOTES_2.1.160.md) (2026-10-02) — Safeer OS 0.5.36 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.160 — Ponujamo samo dodatke, ki jih Safeer sam predvaja.
+- [2.1.159](RELEASE_NOTES_2.1.159.md) (2026-10-02) — Safeer OS 0.5.35 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.159 — Popravki po izdaji 0.5.34 (»samo to, kar se da predvajati«):
+- [2.1.158](RELEASE_NOTES_2.1.158.md) (2026-10-02) — Safeer OS 0.5.34 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.158 — Video se odpre naravnost v mrežo plakatov: nič več polic na prvem zaslonu.
+- [2.1.155](RELEASE_NOTES_2.1.155.md) (2026-10-02) — Safeer OS 0.5.31 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.155 — Filmi in Serije kot mreža plakatov: v Medijskem centru zavihka Filmi in Serije odpreta mrežo plakatov čez vse tvoje…
+- [2.1.154](RELEASE_NOTES_2.1.154.md) — Safeer OS 0.5.30 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.154 — Posodobitev se nadaljuje sama: ko Android prvič vpraša za dovoljenje za nameščanje, dovoliš, se vrneš – in prenos z…
+- [2.1.153](RELEASE_NOTES_2.1.153.md) (2026-10-02) — Safeer OS 0.5.29 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.153 — Posodobitve – kaj je novega: iz Nastavitev → Posodobitve se pred prenosom pokaže, kaj nova različica prinaša (ena…
+- [2.1.152](RELEASE_NOTES_2.1.152.md) (2026-10-02) — Safeer OS 0.5.28 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.152 — Posodobitve z enim dotikom: Safeer OS sam preveri safeer.si (vsakih nekaj ur, tiho) in ob novi različici pokaže…
+- [2.1.151](RELEASE_NOTES_2.1.151.md) (2026-10-02) — Safeer OS 0.5.27 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.151 — Nastavitve → Obvestila (telefon, tablica): nova vrstica pokaže, ali Safeer OS sme kazati obvestila, in z enim…
+- [2.1.150](RELEASE_NOTES_2.1.150.md) (2026-10-02) — Safeer OS 0.5.26 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.150 — Nadaljuj z druge naprave in Pošlji na napravo – tudi z računalnikom (Linux in Windows): telefon, tablica ali…
+- [2.1.149](RELEASE_NOTES_2.1.149.md) (2026-10-02) — Safeer OS 0.5.25 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.149 — Pošlji na napravo: v predvajalniku (vrsta »Še za ogled«) je nova kartica »Pošlji na napravo«.
+- [2.1.148](RELEASE_NOTES_2.1.148.md) (2026-10-02) — Safeer OS 0.5.24 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.148 — Nadaljuj z druge naprave: v Medijskem centru je nova kartica »Nadaljuj z druge naprave«.
+- [2.1.147](RELEASE_NOTES_2.1.147.md) (2026-10-02) — Safeer OS 0.5.23 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.147 — Video po vsebini, ne po virih: razdelek Video pokaže police Zate, Filmi, Serije, Video in zvrsti iz vseh tvojih…
+- [2.1.146](RELEASE_NOTES_2.1.146.md) (2026-10-02) — Safeer OS 0.5.22 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.146 — Krog zaupanja se pospravi sam: naprava, ki je ni bilo 90 dni (npr. stara identiteta telefona po ponovni namestitvi),…
+- [2.1.145](RELEASE_NOTES_2.1.145.md) (2026-10-02) — Safeer OS 0.5.21 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.145 — Safeer Link – en krog zaupanja: središče in naprava sta imela vsak svojo kopijo kroga zaupanja nad isto shrambo in…
+- [2.1.144](RELEASE_NOTES_2.1.144.md) (2026-10-02) — Safeer OS 0.5.20 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.144 — Računalnik pomaga tudi pri sprotnem pretvarjanju: ko naprava videa ne zna predvajati, ga lahko sproti pretvori tudi…
+- [2.1.143](RELEASE_NOTES_2.1.143.md) (2026-10-01) — Safeer OS 0.5.19 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.143 — Sprotno pretvarjanje (Safeer Link, solidarnost – korak 5): ko naprava videa ne zna predvajati (4K HEVC na…
+- [2.1.142](RELEASE_NOTES_2.1.142.md) (2026-10-01) — Safeer OS 0.5.18 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.142 — Pretvori za televizor (Safeer Link, grafika): naprava s strojnim kodirnikom pretvori video računalnika s šibko…
+- [2.1.141](RELEASE_NOTES_2.1.141.md) (2026-10-01) — Safeer OS 0.5.17 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.141 — Skupni prostor (Safeer Link): ko računalniku zmanjkuje prostora, lahko tablica, telefon ali TV z dovolj prostora…
+- [2.1.140](RELEASE_NOTES_2.1.140.md) (2026-10-01) — Safeer OS 0.5.16 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.140 — Brez dvojnega dela: če ima več računalnikov v Safeer Linku, torrent iz dodatka dobi tisti, ki film že ima – ista…
+- [2.1.139](RELEASE_NOTES_2.1.139.md) (2026-10-01) — Safeer OS 0.5.15 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.139 — Vsaka naprava pove, koliko lahko pomaga (Safeer Link): v Safeer Link → Povezane naprave ima vsaka naprava vrstico »✓…
+- [2.1.138](RELEASE_NOTES_2.1.138.md) (2026-10-01) — Safeer OS 0.5.14 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.138 — Dodatki Stremio: vsak katalog ima svojo polico, filmi in serije so jasno ločeni (🎬 Filmi · … / 📺 Serije · …, oznaki…
+- [2.1.137](RELEASE_NOTES_2.1.137.md) (2026-10-01) — Safeer OS 0.5.13 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.137 — Hitrost in časovnik izklopa na zaslonu predvajanja (telefon, tablica): kartici Hitrost (0,75× do 2×) in Časovnik…
+- [2.1.136](RELEASE_NOTES_2.1.136.md) (2026-10-01) — Safeer OS 0.5.12 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.136 — Nadaljuj ogled zdaj res deluje: mesto v videu se shranjuje med gledanjem (prej samo, če je bil ob tem odprt Medijski…
+- [2.1.135](RELEASE_NOTES_2.1.135.md) (2026-10-01) — Safeer OS 0.5.11 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.135 — Kretnje na zaslonu predvajanja (telefon, tablica): poteg gor/dol na levi strani slike spremeni svetlost, na desni…
+- [2.1.134](RELEASE_NOTES_2.1.134.md) (2026-10-01) — Safeer OS 0.5.10 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.134 — Zaslon predvajanja na telefonu in tablici: pokonci je naslovnica nad naslovom in vsi gumbi v eni vrsti; ležeče je…
+- [2.1.133](RELEASE_NOTES_2.1.133.md) (2026-10-01) — Safeer OS 0.5.9 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.133 — Povezovanje s 6-mestno kodo zdaj vedno uspe: ko na napravi izbereš Vpiši kodo z druge naprave, Safeer kodo pošlje…
+- [2.1.132](RELEASE_NOTES_2.1.132.md) (2026-09-30) — Safeer OS 0.5.8 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.132 — Teme na televizorju: kartice tem v Nastavitve › Videz so zdaj z daljincem jasno izbirljive – kartica s fokusom ima…
+- [2.1.131](RELEASE_NOTES_2.1.131.md) (2026-09-30) — Safeer OS 0.5.7 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.131 — Medijski center je hitrejši: na televizorju se odpre v sekundi namesto v devetih; police se rišejo po korakih,…
+- [2.1.130](RELEASE_NOTES_2.1.130.md) (2026-09-29) — Safeer OS 0.5.6 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.130 — Gladek prehod med razdelki: ob kliku na stransko vrstico se ne pomanjša in ne odrine več celo okno (tako je delal…
+- [2.1.129](RELEASE_NOTES_2.1.129.md) (2026-09-29) — Safeer OS 0.5.5 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.129 — Safeer Media
+- [2.1.128](RELEASE_NOTES_2.1.128.md) (2026-09-29) — Safeer OS 0.5.4 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.128 — Safeer Link brez enega središča
+- [2.1.127](RELEASE_NOTES_2.1.127.md) (2026-09-28) — Safeer OS 0.5.3 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.127 — Popravljeno – Sporočila: pogovori Safeer Chat z računalniki so bili vsi videti kot »Safeer Control«.
+- [2.1.126](RELEASE_NOTES_2.1.126.md) (2026-09-28) — Safeer OS 0.5.2 (TV, tablica, telefon) · Safeer Browser za Android TV 2.1.126 — Novo: Sporočila. En seznam pogovorov, en pogovor na osebo – na televizorju, tablici in telefonu.
+- [2.1.124](RELEASE_NOTES_2.1.124.md) (2026-09-21) — Safeer Browser for Android TV 2.1.124 · Safeer OS 0.4.7 · Safeer OS Tablet 0.3.7 — The remote controls a media player on the computer like a media player.
+- [2.1.123](RELEASE_NOTES_2.1.123.md) (2026-09-21) — Safeer Browser for Android TV 2.1.123 · Safeer OS 0.4.6 · Safeer OS Tablet 0.3.6 — Safeer Media: your sources work like favourite apps.
+- [2.1.122](RELEASE_NOTES_2.1.122.md) (2026-09-21) — Safeer Browser for Android TV 2.1.122 · Safeer OS 0.4.5 · Safeer OS Tablet 0.3.5 — New: Safeer Media – music, radio and video in one place, without ads.
+- [2.1.121](RELEASE_NOTES_2.1.121.md) (2026-09-21) — Safeer Browser for Android TV 2.1.121 · Safeer OS 0.4.4 · Safeer OS Tablet 0.3.4 — Fix: the TV stays in Safeer Link, so its apps show up on the tablet again.
+- [2.1.120](RELEASE_NOTES_2.1.120.md) (2026-09-21) — Safeer Browser for Android TV 2.1.120 · Safeer OS 0.4.3 · Safeer OS Tablet 0.3.3 — Safeer OS: edit your computer's files from the TV and the tablet (with Safeer Control 2.1.0 or newer on the computer).
+- [2.1.119](RELEASE_NOTES_2.1.119.md) (2026-09-20) — Safeer Browser for Android TV 2.1.119 · Safeer OS 0.4.2 · Safeer OS Tablet 0.3.2 — Fix: a device that reconnects after the hub restarts is never left invisible.
+- [2.1.118](RELEASE_NOTES_2.1.118.md) (2026-09-20) — Safeer Browser for Android TV 2.1.118 · Safeer OS 0.4.1 · Safeer OS Tablet 0.3.1 — Any phone can join – no Safeer app needed – and every device can be named.
+- [2.1.117](RELEASE_NOTES_2.1.117.md) (2026-09-19) — Safeer Browser for Android TV 2.1.117 · Safeer OS 0.4.0 · Safeer OS Tablet 0.3.0 — Safeer OS gets a new look, and Safeer Link becomes part of the system.
+- [2.1.116](RELEASE_NOTES_2.1.116.md) — Safeer Browser for Android TV 2.1.116 · Safeer OS 0.3.4 · Safeer OS Tablet 0.2.3 (beta) — A newer video player, a fallback when it cannot play, and a tablet that uses the whole screen.
+- [2.1.115](RELEASE_NOTES_2.1.115.md) — Safeer Browser for Android TV 2.1.115 · Safeer OS 0.3.3 — A clearer message when the computer is off, and a big clean-up under the hood.
+- [2.1.114](RELEASE_NOTES_2.1.114.md) — Safeer Browser for Android TV 2.1.114 · Safeer OS 0.3.2 — Safer icons and more automatic checks.
+- [2.1.113](RELEASE_NOTES_2.1.113.md) — Safeer Browser for Android TV 2.1.113 · Safeer OS 0.3.1 — Small steps that make Safeer OS 0.3 feel finished.
+- [2.1.112](RELEASE_NOTES_2.1.112.md) — Safeer Browser for Android TV 2.1.112 · Safeer OS 0.3.0 — Safeer OS 0.3: everything you can open in one place, and computer programs on their own screen.
+- [2.1.111](RELEASE_NOTES_2.1.111.md) — Safeer Browser for Android TV 2.1.111 · Safeer OS 0.2.11 — Safeer OS: computer programs get their own screen, the controller really works, and programs close from the TV.
+- [2.1.110](RELEASE_NOTES_2.1.110.md) — Safeer Browser for Android TV 2.1.110 · Safeer OS 0.2.10 — Safeer OS: computer programs get their own screen, the controller really works, and programs close from the TV.
+- [2.1.109](RELEASE_NOTES_2.1.109.md) — Safeer Browser for Android TV 2.1.109 · Safeer OS 0.2.9 — Safeer OS: computer programs get their own screen, the controller really works, and programs close from the TV.
+- [2.1.108](RELEASE_NOTES_2.1.108.md) — Safeer Browser for Android TV 2.1.108 · Safeer OS 0.2.8 — Safeer OS: computer programs get their own screen, the controller really works, and programs close from the TV.
+- [2.1.107](RELEASE_NOTES_2.1.107.md) — Safeer Browser for Android TV 2.1.107 · Safeer OS 0.2.7 — Safeer OS: computer programs get their own screen, the controller really works, and programs close from the TV.
+- [2.1.106](RELEASE_NOTES_2.1.106.md) — Safeer Browser for Android TV 2.1.106 · Safeer OS 0.2.6 — Safeer OS: computer programs get their own screen, the controller really works, and programs close from the TV.
+- [2.1.105](RELEASE_NOTES_2.1.105.md) — Safeer Browser for Android TV 2.1.105 · Safeer OS 0.2.5 — Playback survives a hiccup in the network, Safeer OS speaks your language, and signing in works again.
+- [2.1.104](RELEASE_NOTES_2.1.104.md) — Safeer Browser for Android TV 2.1.104 · Safeer OS 0.2.4 — Your computer on the television: its screen, its files and its programs — and a remote that really controls them.
+- [2.1.103](RELEASE_NOTES_2.1.103.md) — Safeer Browser for Android TV 2.1.103 · Safeer OS 0.2.3 — Safeer OS is now an app of its own.
+- [2.1.102](RELEASE_NOTES_2.1.102.md) — The Shield now answers on TCP too, keeps working when a resolver goes quiet, and says exactly what it does.
+- [2.1.101](RELEASE_NOTES_2.1.101.md) — Safeer Shield answers only its own questions, and a more careful description of what it does.
+- [2.1.100](RELEASE_NOTES_2.1.100.md) — Safeer Shield for the whole TV, and Safeer OS built in — one install, no second app.
+- [2.1.99](RELEASE_NOTES_2.1.99.md) — Lighter on memory, steadier with other devices — and the first Safeer OS.
+- [2.1.98](RELEASE_NOTES_2.1.98.md) — Remote control from your phone or computer, refined — and Safeer Control on the computer without a code.
+- [2.1.97](RELEASE_NOTES_2.1.97.md) — Safeer Link: televizor upravljaš s telefona – z glasom, tipkami ali dotikom aplikacije.
+- [2.1.96](RELEASE_NOTES_2.1.96.md) — Safeer Link: stran brez nelogičnosti, ko Safeer Link teče na tem televizorju.
+- [2.1.95](RELEASE_NOTES_2.1.95.md) — Safeer Link: plošča naprave je z daljincem dosegljiva neposredno.
+- [2.1.94](RELEASE_NOTES_2.1.94.md) — Safeer Link: naprave poimenuješ po svoje, na vsaki napravi posebej.
+- [2.1.93](RELEASE_NOTES_2.1.93.md) — Nujni popravek: domača stran in nov zavihek sta se v 2.1.92 odprla kot prazen pregledovalnik PDF.
+- [2.1.92](RELEASE_NOTES_2.1.92.md) — Pregledovalnik PDF, prilagojen daljincu; PDF z naprave; seznam naprav brez podvojenih vnosov.
+- [2.1.91](RELEASE_NOTES_2.1.91.md) — Popravek pregledovalnika PDF: daljinec in »Shrani« zdaj res delujeta.
+- [2.1.90](RELEASE_NOTES_2.1.90.md) — PDF na televizorju: odpre se v zavihku, lista se z daljincem.
+- [2.1.89](RELEASE_NOTES_2.1.89.md) — Televizor ni več samo zaslon — in ni več pogoj za Safeer Link.
+- [2.1.88](RELEASE_NOTES_2.1.88.md) — Jezik si zdaj izbereš sam, na YouTubu pa je jasno, kje si.
+- [2.1.87](RELEASE_NOTES_2.1.87.md) — Televizor kot središče doma, prijaznejši YouTube in manj porabljenega pomnilnika.
+- [2.1.86](RELEASE_NOTES_2.1.86.md) — New application id: the package is now si.safeer.tv (until 2.1.85 it was com.example.safeerbrowser from a template)…
+- [2.1.85](RELEASE_NOTES_2.1.85.md) — Update of the protection against web traps (Safeer Threat Shield):
+
+## Safeer Player (Predvajalnik)
+
+- [0.2.72](RELEASE_NOTES_PREDVAJALNIK_0.2.72.md) (2026-10-11) — Skupna koda Safeer 2.1.210: barve teme v stranski vrstici in pri izbiri v Medijskem centru.
+- [0.2.71](RELEASE_NOTES_PREDVAJALNIK_0.2.71.md) (2026-10-11) — Skupna koda Safeer 2.1.209: ena iskalna lupa na domačem zaslonu telefona in tablice.
+- [0.2.70](RELEASE_NOTES_PREDVAJALNIK_0.2.70.md) (2026-10-11) — Skupna koda Safeer 2.1.208: »… na TV« ali »… na računalniku« v iskanju odpre naslov na tej napravi; modra tema je…
+- [0.2.69](RELEASE_NOTES_PREDVAJALNIK_0.2.69.md) (2026-10-11) — Skupna koda Safeer 2.1.207: pred namestitvijo datoteke APK iz brskalnika vidiš paket, vir in velikost.
+- [0.2.68](RELEASE_NOTES_PREDVAJALNIK_0.2.68.md) (2026-10-11) — Skupna koda Safeer 2.1.206: v brskalniku daljinec doseže spodnjo vrstico strani (npr. rtvslo.si), datoteke APK iz…
+- [0.2.67](RELEASE_NOTES_PREDVAJALNIK_0.2.67.md) (2026-10-11) — Skupna koda Safeer 2.1.205: zvok filma v angleščini (pri slovenskem filmu v slovenščini), slika se vrne po preklopu…
+- [0.2.66](RELEASE_NOTES_PREDVAJALNIK_0.2.66.md) (2026-10-09) — Enaka gradnja kot 0.2.65, s skupno kodo Safeer 2.1.204.
+- [0.2.65](RELEASE_NOTES_PREDVAJALNIK_0.2.65.md) (2026-10-09) — Enaka gradnja kot 0.2.64, s skupno kodo Safeer 2.1.203.
+- [0.2.64](RELEASE_NOTES_PREDVAJALNIK_0.2.64.md) (2026-10-09) — Enaka gradnja kot 0.2.63, s skupno kodo Safeer 2.1.202.
+- [0.2.63](RELEASE_NOTES_PREDVAJALNIK_0.2.63.md) (2026-10-09) — Enaka gradnja kot 0.2.62, s skupno kodo Safeer 2.1.201.
+- [0.2.62](RELEASE_NOTES_PREDVAJALNIK_0.2.62.md) (2026-10-09) — Enaka gradnja kot 0.2.61, s skupno kodo Safeer 2.1.200.
+- [0.2.61](RELEASE_NOTES_PREDVAJALNIK_0.2.61.md) (2026-10-09) — Enaka gradnja kot 0.2.60, s skupno kodo Safeer 2.1.199.
+- [0.2.60](RELEASE_NOTES_PREDVAJALNIK_0.2.60.md) (2026-10-08) — Enaka gradnja kot 0.2.59, s skupno kodo Safeer 2.1.198 (zaščita pred zaznavanjem blokatorja).
+- [0.2.59](RELEASE_NOTES_PREDVAJALNIK_0.2.59.md) (2026-10-08) — Enaka gradnja kot 0.2.58, s skupno kodo Safeer 2.1.197.
+- [0.2.58](RELEASE_NOTES_PREDVAJALNIK_0.2.58.md) (2026-10-08) — Enaka gradnja kot 0.2.57, z izboljšano zaščito pred zaznavanjem blokatorja v skupni kodi brskalnika.
+- [0.2.57](RELEASE_NOTES_PREDVAJALNIK_0.2.57.md) (2026-10-08) — Enaka gradnja kot 0.2.56, s popravkom čiščenja sledilnih parametrov v naslovih in ožjo izjemo za strežnike licenc v…
+- [0.2.56](RELEASE_NOTES_PREDVAJALNIK_0.2.56.md) (2026-10-08) — Enaka gradnja kot 0.2.55, z dodano splosno zascito pred zaznavanjem blokatorja oglasov v skupni kodi brskalnika.
+- [0.2.55](RELEASE_NOTES_PREDVAJALNIK_0.2.55.md) (2026-10-08) — Enaka gradnja kot 0.2.54, z odstranjenim števcem blokiranih oglasov v skupni kodi brskalnika.
+- [0.2.51](RELEASE_NOTES_PREDVAJALNIK_0.2.51.md) (2026-10-07) — Safeer Link: ukazi med napravami so podpisani s ključem naprave in šifrirani od naprave do naprave.
+- [0.2.50](RELEASE_NOTES_PREDVAJALNIK_0.2.50.md) — Safeer Link: ukazi med napravami so podpisani s ključem naprave in šifrirani od naprave do naprave.
+- [0.2.49](RELEASE_NOTES_PREDVAJALNIK_0.2.49.md) (2026-10-06) — Nov video se ne začne več v premoru.
+- [0.2.48](RELEASE_NOTES_PREDVAJALNIK_0.2.48.md) (2026-10-06) — Brskanje po datotekah z drugih naprav (zavihek Brskaj) – naprava, ki ni doma:
+- [0.2.47](RELEASE_NOTES_PREDVAJALNIK_0.2.47.md) (2026-10-06) — Brskanje po datotekah z drugih naprav (zavihek Brskaj) – zdoma kot doma (Global Link):
+- [0.2.46](RELEASE_NOTES_PREDVAJALNIK_0.2.46.md) (2026-10-06) — Brskanje po datotekah z drugih naprav (zavihek Brskaj) – doma in zdoma (Global Link):
+- [0.2.45](RELEASE_NOTES_PREDVAJALNIK_0.2.45.md) (2026-10-06) — V živo: kanali ostanejo, ko katalog dodatka ne odgovori, in so po zagonu na zaslonu takoj – zadnja znana mreža vsake…
+- [0.2.44](RELEASE_NOTES_PREDVAJALNIK_0.2.44.md) (2026-10-05) — V živo: Radio in TV sta mreži z izbirami (postaje: domače ali po svetu, zvrst; kanali: zvrst, jezik).
+- [0.2.43](RELEASE_NOTES_PREDVAJALNIK_0.2.43.md) (2026-10-05) — Po zagonu je naprava hitreje povezana z drugimi v Safeer Linku.
+- [0.2.42](RELEASE_NOTES_PREDVAJALNIK_0.2.42.md) (2026-10-05) — Središče Safeer Linka drugim napravam pošlje pravi naslov naprave.
+- [0.2.41](RELEASE_NOTES_PREDVAJALNIK_0.2.41.md) (2026-10-04) — Ustavljeno napravo sprostiš kar iz obvestila.
+- [0.2.40](RELEASE_NOTES_PREDVAJALNIK_0.2.40.md) (2026-10-04) — Središče Safeer Linka se brani.
+- [0.2.39](RELEASE_NOTES_PREDVAJALNIK_0.2.39.md) (2026-10-04) — Po končani pavzi se spodnji pas skrije.
+- [0.2.38](RELEASE_NOTES_PREDVAJALNIK_0.2.38.md) (2026-10-04) — Seznami filmov in serij se ne polnijo več od začetka.
+- [0.2.37](RELEASE_NOTES_PREDVAJALNIK_0.2.37.md) (2026-10-04) — Vdelane spletne strani niso več odmaknjene od roba dvakrat (Android 15 in novejši).
+- [0.2.36](RELEASE_NOTES_PREDVAJALNIK_0.2.36.md) (2026-10-03) — Film se začne z virom, ki dela.
+- [0.2.35](RELEASE_NOTES_PREDVAJALNIK_0.2.35.md) (2026-10-03) — Okno za brisanje vira pokaže ime dodatka (prej naslov strežnika); kartica novega dodatka pokaže njegovo ime takoj,…
+- [0.2.34](RELEASE_NOTES_PREDVAJALNIK_0.2.34.md) (2026-10-03) — »Nadaljuj gledanje« in »Nazadnje predvajano« ne kažeta več naslovov dodatka, ki ga nimaš več.
+- [0.2.33](RELEASE_NOTES_PREDVAJALNIK_0.2.33.md) (2026-10-03) — Film, ki ga nadaljuješ, začne naravnost pri shranjenem mestu (brez začetka pri nič in skoka).
+- [0.2.32](RELEASE_NOTES_PREDVAJALNIK_0.2.32.md) (2026-10-03) — Med gledanjem nič ne prekriva slike.
+- [0.2.31](RELEASE_NOTES_PREDVAJALNIK_0.2.31.md) (2026-10-03) — Torrent prek katerekoli naprave v krogu.
+- [0.2.30](RELEASE_NOTES_PREDVAJALNIK_0.2.30.md) (2026-10-03) — Moji viri so enaki na vseh tvojih napravah.
+- [0.2.29](RELEASE_NOTES_PREDVAJALNIK_0.2.29.md) (2026-10-03) — Seznami predvajanja so enaki na vseh tvojih napravah.
+- [0.2.28](RELEASE_NOTES_PREDVAJALNIK_0.2.28.md) (2026-10-02) — Ponujamo samo dodatke, ki jih Predvajalnik sam predvaja.
+- [0.2.27](RELEASE_NOTES_PREDVAJALNIK_0.2.27.md) (2026-10-02) — Popravki po izdaji 0.2.26 (»samo to, kar se da predvajati«):
+- [0.2.26](RELEASE_NOTES_PREDVAJALNIK_0.2.26.md) (2026-10-02) — Video se odpre naravnost v mrežo plakatov: trije čisti plakati v vrsto, zgoraj tri izbire – Filmi / Serije,…
+- [0.2.23](RELEASE_NOTES_PREDVAJALNIK_0.2.23.md) (2026-10-02) — Filmi in Serije kot mreža plakatov z izbiro zvrsti in razvrstitvijo, čez vse tvoje vire; naslednje strani se…
+- [0.2.22](RELEASE_NOTES_PREDVAJALNIK_0.2.22.md) — Posodobitev se po dovoljenju za nameščanje nadaljuje sama in se odpre naravnost v sistemskem namestitelju (brez…
+- [0.2.21](RELEASE_NOTES_PREDVAJALNIK_0.2.21.md) (2026-10-02) — Pasica z novo različico tudi sama na domačem zaslonu; Nastavitve → Posodobitve najprej pove, kaj je novega; vrstica…
+- [0.2.20](RELEASE_NOTES_PREDVAJALNIK_0.2.20.md) (2026-10-02) — Posodobitve z enim dotikom (tiha pasica Namesti / Pozneje, vrstica Posodobitve v Nastavitvah; APK s preverjeno vsoto…
+- [0.2.19](RELEASE_NOTES_PREDVAJALNIK_0.2.19.md) (2026-10-02) — Nastavitve → Obvestila (stanje in pot do sistemskih nastavitev); pošiljatelj izve, ko obvestilo na cilju ni vidno…
+- [0.2.18](RELEASE_NOTES_PREDVAJALNIK_0.2.18.md) (2026-10-02) — Pošlji na napravo / Nadaljuj z druge naprave tudi z računalnikom (Linux, Windows); pošiljatelj izve, če so na cilju…
+- [0.2.17](RELEASE_NOTES_PREDVAJALNIK_0.2.17.md) (2026-10-02) — Pošlji na napravo (kartica v predvajalniku; na cilju tiho Sprejmi/Zavrni, nadaljuje pri isti sekundi).
+- [0.2.16](RELEASE_NOTES_PREDVAJALNIK_0.2.16.md) (2026-10-02) — Nadaljuj z druge naprave (kartica v Medijskem centru, na zahtevo); kanali v živo iz vseh dodatkov v eni polici.
+- [0.2.15](RELEASE_NOTES_PREDVAJALNIK_0.2.15.md) (2026-10-02) — Video po vsebini (Zate, Filmi, Serije, Video, zvrsti) iz vseh virov hkrati, ena kartica na naslov; previjanje v…
+- [0.2.14](RELEASE_NOTES_PREDVAJALNIK_0.2.14.md) (2026-10-02) — Krog zaupanja se pospravi sam (naprave brez stika 90 dni); kartice virov v dveh stolpcih na ozkem telefonu.
+- [0.2.13](RELEASE_NOTES_PREDVAJALNIK_0.2.13.md) (2026-10-02) — Safeer Link: en krog zaupanja (po ponovni seznanitvi naprava po ponovnem zagonu ne ostane brez kroga), mreža brez…
+- [0.2.12](RELEASE_NOTES_PREDVAJALNIK_0.2.12.md) (2026-10-02) — Dodatki Stremio kot v Stremiu: Cinemeta vedno zraven, Pokaži vse in Naloži več za kataloge, tokovi z zahtevanimi…
+- [0.2.11](RELEASE_NOTES_PREDVAJALNIK_0.2.11.md) (2026-10-01) — Sprotno pretvarjanje: video, ki ga naprava ne zna predvajati, sproti pretvori naprava v Safeer Linku z najboljšim…
+- [0.2.10](RELEASE_NOTES_PREDVAJALNIK_0.2.10.md) (2026-10-01) — Pretvori za televizor: ko je Predvajalnik v Safeer Linku edina Safeer aplikacija na napravi, lahko s strojnim…
+- [0.2.9](RELEASE_NOTES_PREDVAJALNIK_0.2.9.md) (2026-10-01) — Skupni prostor: ko je Predvajalnik v Safeer Linku edina Safeer aplikacija na napravi, lahko shrani datoteko…
+- [0.2.8](RELEASE_NOTES_PREDVAJALNIK_0.2.8.md) (2026-10-01) — Ena naprava, en pomočnik: če je na isti napravi tudi Safeer OS, pomaga Safeer OS – Predvajalnik svoje moči ne ponuja…
+- [0.2.7](RELEASE_NOTES_PREDVAJALNIK_0.2.7.md) (2026-10-01) — Naprave si pomagajo: Predvajalnik v Safeer Linku drugim napravam pove svojo prosto moč (pomnilnik, prostor,…
+- [0.2.6](RELEASE_NOTES_PREDVAJALNIK_0.2.6.md) (2026-10-01) — Dodatki Stremio: police po katalogih z ločenimi filmi in serijami, iskanje po imenu, izbira sezone in epizode; ime…
+- [0.2.5](RELEASE_NOTES_PREDVAJALNIK_0.2.5.md) (2026-10-01) — Novo
+- [0.2.4](RELEASE_NOTES_PREDVAJALNIK_0.2.4.md) (2026-10-01) — Novo
+- [0.2.3](RELEASE_NOTES_PREDVAJALNIK_0.2.3.md) (2026-10-01) — Tvoji videi in glasba na prvem mestu – kot pri VLC.
+- [0.2.2](RELEASE_NOTES_PREDVAJALNIK_0.2.2.md) (2026-10-01) — Nova postavitev, kot jo poznaš iz VLC, in vrsta popravkov s preizkusa pokonci in ležeče.
+- [0.2.1](RELEASE_NOTES_PREDVAJALNIK_0.2.1.md) (2026-09-30) — Popravek zvoka pri internetnem radiu (isti predvajalnik kot Medijski center v Safeer OS 0.5.7).
+- [0.2.0](RELEASE_NOTES_PREDVAJALNIK_0.2.0.md) (2026-09-30) — Visible controls instead of hidden gestures, plus two fixes from 0.1.0.
+- [0.1.0](RELEASE_NOTES_PREDVAJALNIK_0.1.0.md) (2026-09-30) — The Safeer media player as an app of its own for phones and tablets: the same Safeer Media as inside Safeer OS,…

@@ -114,8 +114,8 @@ function vrstice(s) {
 
 const NAPRAVE = [
   { id: JAZ, ime: 'Moja naprava', vloga: 'receiver', zmoznosti: [], platforma: '', vrsta: '' },
-  { id: 'n-linux-control', ime: 'Safeer Control (racunalnik-Extensa-215-54)', vloga: 'controller', zmoznosti: ['files'], platforma: 'linux', vrsta: 'control' },
-  { id: 'n-win-control', ime: 'Safeer Control (DESKTOP-S34LVH4)', vloga: 'controller', zmoznosti: ['files'], platforma: 'windows', vrsta: 'control' },
+  { id: 'n-linux-control', ime: 'Safeer Control (racunalnik-Prenosnik-1)', vloga: 'controller', zmoznosti: ['files'], platforma: 'linux', vrsta: 'control' },
+  { id: 'n-win-control', ime: 'Safeer Control (DESKTOP-PRIMER1)', vloga: 'controller', zmoznosti: ['files'], platforma: 'windows', vrsta: 'control' },
   { id: 'n-tel', ime: 'Safeer OS (LE2113)', vloga: 'receiver', zmoznosti: ['screen'], platforma: 'phone', vrsta: 'screen' },
   { id: 'n-tab', ime: 'Tablica lastnik', vloga: 'receiver', zmoznosti: ['screen'], platforma: 'tablet', vrsta: 'screen' },
   { id: 'n-tv', ime: 'Dnevna soba', vloga: 'receiver', zmoznosti: ['screen'], platforma: 'tv', vrsta: 'screen' },
@@ -152,8 +152,8 @@ preizkus('starejsa aplikacija brez platforma(): kot doslej', function () {
 
 preizkus('druge naprave: ikona po platformi, ne po imenu ali vlogi', function () {
   const v = vrstice(stran('phone', NAPRAVE));
-  assert.strictEqual(v['Safeer Control (racunalnik-Extensa-215-54)'], 'racunalnik', 'ime brez besede »računalnik« (prej ikona telefona)');
-  assert.strictEqual(v['Safeer Control (DESKTOP-S34LVH4)'], 'racunalnik');
+  assert.strictEqual(v['Safeer Control (racunalnik-Prenosnik-1)'], 'racunalnik', 'ime brez besede »računalnik« (prej ikona telefona)');
+  assert.strictEqual(v['Safeer Control (DESKTOP-PRIMER1)'], 'racunalnik');
   assert.strictEqual(v['Safeer OS (LE2113)'], 'telefon', 'telefon z vlogo zaslona (prej ikona televizorja)');
   assert.strictEqual(v['Tablica lastnik'], 'telefon');
   assert.strictEqual(v['Dnevna soba'], 'tv');

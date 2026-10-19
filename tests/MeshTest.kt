@@ -264,7 +264,7 @@ fun main() {
         preveriM("drugi skok zavrnjen", tab.vrste("share.text").isEmpty())
     }
     // ---- naslov naprave cez mejo Huba (5. 10. 2026: telefon se je za zaslon racunalnika povezal sam nase)
-    val PC = "192.168.0.135"; val TV = "192.168.0.77"
+    val PC = "192.168.0.135"; val TV = "192.168.0.107"
     fun hubN(id: String, nas: (String) -> String = { "" }) = hub(id).also { it.nasNaslovProti = nas }
     primer("naslov: sosedov program dobi naslov sosedove naprave, svoj ostane na zanki") {
         val a = hubN("hub-a"); val b = hubN("hub-b")
@@ -285,10 +285,10 @@ fun main() {
     }
     primer("naslov: pravi naslov ostane (naprava ni na sosedovi napravi)") {
         val a = hubN("hub-a"); val b = hubN("hub-b")
-        val pc = prijava(a, "pc", "127.0.0.1"); prijava(b, "tablica", "192.168.0.87")
+        val pc = prijava(a, "pc", "127.0.0.1"); prijava(b, "tablica", "192.168.0.108")
         val (_, ba) = povezi(a, b, aVidiB = TV, bVidiA = PC)
-        preveriM("uvoz ga ne spremeni", pc.naslovOd("tablica") == "192.168.0.87")
-        preveriM("izvoz ga ne spremeni", ba.izvozenNaslov("tablica") == "192.168.0.87")
+        preveriM("uvoz ga ne spremeni", pc.naslovOd("tablica") == "192.168.0.108")
+        preveriM("izvoz ga ne spremeni", ba.izvozenNaslov("tablica") == "192.168.0.108")
     }
     primer("naslov: prek releja naslova ni") {
         val a = hubN("hub-a") { PC }; val b = hubN("hub-b") { TV }
@@ -325,14 +325,14 @@ fun main() {
         preveriM("zanka prek dveh skokov -> prazen naslov", pc.naslovOd("tablica") == "")
     }
     primer("naslov: odjemalec od drugod dobi naslov naprave sredisca, odjemalcu s te naprave zanka ostane") {
-        val a = hubN("hub-a") { odjemalec -> if (odjemalec == "192.168.0.143") PC else "10.0.0.2" }
+        val a = hubN("hub-a") { odjemalec -> if (odjemalec == "192.168.0.113") PC else "10.0.0.2" }
         val pc = prijava(a, "pc", "127.0.0.1")
-        val tel = prijava(a, "tel", "192.168.0.143")
+        val tel = prijava(a, "tel", "192.168.0.113")
         val tab = prijava(a, "tablica", "10.0.0.7")
         fun Naprava.tukaj(id: String) = Regex("\\{\"id\":\"" + id + "\"[^{}]*\\}").find(zadnje("cast.devices").orEmpty())?.value?.contains("\"here\":true") == true
         preveriM("telefon dobi naslov racunalnika", tel.naslovOd("pc") == PC && tel.tukaj("pc"))
         preveriM("vsak odjemalec naslov svoje poti", tab.naslovOd("pc") == "10.0.0.2")
-        preveriM("svoj naslov vidi nespremenjen in brez oznake", tel.naslovOd("tel") == "192.168.0.143" && !tel.tukaj("tel"))
+        preveriM("svoj naslov vidi nespremenjen in brez oznake", tel.naslovOd("tel") == "192.168.0.113" && !tel.tukaj("tel"))
         preveriM("odjemalcu s te naprave zanka ostane, z oznako", pc.naslovOd("pc") == "127.0.0.1" && pc.tukaj("pc"))
         val b = hubN("hub-b"); prijava(b, "tv", "127.0.0.1")
         povezi(a, b, aVidiB = TV, bVidiA = PC)
@@ -341,40 +341,40 @@ fun main() {
     primer("naslov: neznan nas naslov proti odjemalcu ne poslje zanke") {
         val a = hubN("hub-a")
         prijava(a, "pc", "127.0.0.1")
-        val tel = prijava(a, "tel", "192.168.0.143")
+        val tel = prijava(a, "tel", "192.168.0.113")
         preveriM("prazen, ne 127.0.0.1", tel.naslovOd("pc") == "")
     }
     primer("naslov: odjemalceva stran (dela tudi s starejsim srediscem)") {
-        val hub = "wss://192.168.0.87:8990/cast/ws"
-        preveriM("zanka od sredisca drugje = naslov tistega sredisca", HubNaslovi.zaOdjemalca("127.0.0.1", hub, false, false) == "192.168.0.87")
+        val hub = "wss://192.168.0.108:8990/cast/ws"
+        preveriM("zanka od sredisca drugje = naslov tistega sredisca", HubNaslovi.zaOdjemalca("127.0.0.1", hub, false, false) == "192.168.0.108")
         preveriM("zanka od svojega sredisca ostane", HubNaslovi.zaOdjemalca("127.0.0.1", "wss://127.0.0.1:45735/cast/ws", true, false) == "127.0.0.1")
-        preveriM("pravi naslov ostane", HubNaslovi.zaOdjemalca("192.168.0.220", hub, false, false) == "192.168.0.220")
+        preveriM("pravi naslov ostane", HubNaslovi.zaOdjemalca("192.168.0.120", hub, false, false) == "192.168.0.120")
         preveriM("prazen ostane prazen", HubNaslovi.zaOdjemalca("", hub, false, false) == "")
-        preveriM("prek Global Linka neposredne poti ni", HubNaslovi.zaOdjemalca("192.168.0.220", hub, false, true) == "" && HubNaslovi.zaOdjemalca("127.0.0.1", hub, false, true) == "")
+        preveriM("prek Global Linka neposredne poti ni", HubNaslovi.zaOdjemalca("192.168.0.120", hub, false, true) == "" && HubNaslovi.zaOdjemalca("127.0.0.1", hub, false, true) == "")
         preveriM("zanka brez znanega naslova sredisca ni naslov", HubNaslovi.zaOdjemalca("127.0.0.1", "", false, false) == "")
     }
     primer("naslov: pomozne funkcije") {
-        preveriM("gostitelj iz wss", HubNaslovi.gostitelj("wss://192.168.0.77:8765/cast/ws") == "192.168.0.77")
-        preveriM("IPv4 v zapisu IPv6", HubNaslovi.gostitelj("::ffff:192.168.0.77") == "192.168.0.77")
+        preveriM("gostitelj iz wss", HubNaslovi.gostitelj("wss://192.168.0.107:8765/cast/ws") == "192.168.0.107")
+        preveriM("IPv4 v zapisu IPv6", HubNaslovi.gostitelj("::ffff:192.168.0.107") == "192.168.0.107")
         preveriM("obmocje vmesnika odrezano", HubNaslovi.gostitelj("fe80::1%wlan0") == "fe80::1")
         preveriM("samo tukaj", listOf("", "127.0.0.1", "127.0.1.1", "::1", "localhost", "wss://127.0.0.1:4/cast/ws", "fe80::1%wlan0", "::ffff:127.0.0.1").all { HubNaslovi.samoTukaj(it) })
-        preveriM("velja povsod", listOf("192.168.0.77", "10.0.0.2", "fd00::7", "wss://192.168.0.77:8765/cast/ws").none { HubNaslovi.samoTukaj(it) })
+        preveriM("velja povsod", listOf("192.168.0.107", "10.0.0.2", "fd00::7", "wss://192.168.0.107:8765/cast/ws").none { HubNaslovi.samoTukaj(it) })
         preveriM("ime namesto IP: brez poizvedbe DNS", HubNaslovi.nasProti("safeer-tv.local") == "")
         preveriM("pot do zanke ni nas naslov", HubNaslovi.nasProti("127.0.0.1") == "")
     }
     primer("naslov: kandidati za neposredno povezavo (pravilo 8)") {
         val k = HubNaslovi::kandidati
-        preveriM("najprej iz seznama, nato nasteti", k("192.168.0.220", listOf("192.168.0.220", "10.0.0.7")) == listOf("192.168.0.220", "10.0.0.7"))
-        preveriM("brez nastetih samo naslov iz seznama", k("192.168.0.220", null) == listOf("192.168.0.220") && k("192.168.0.220", emptyList()) == listOf("192.168.0.220"))
+        preveriM("najprej iz seznama, nato nasteti", k("192.168.0.120", listOf("192.168.0.120", "10.0.0.7")) == listOf("192.168.0.120", "10.0.0.7"))
+        preveriM("brez nastetih samo naslov iz seznama", k("192.168.0.120", null) == listOf("192.168.0.120") && k("192.168.0.120", emptyList()) == listOf("192.168.0.120"))
         preveriM("brez naslova iz seznama veljajo nasteti", k("", listOf("192.168.0.135")) == listOf("192.168.0.135") && k("  ", listOf("  ")).isEmpty() && k("", null).isEmpty())
         val slabi = listOf("127.0.0.1", "127.8.9.1", "0.0.0.0", "0.1.2.3", "224.0.0.251", "240.0.0.1", "255.255.255.255",
             "::", "::1", "ff02::1", "fe80::1", "2001:db8::5", "::ffff:192.168.0.6", "racunalnik.local", "192.168.0.300",
             "192.168.01.5", "1.2.3", "1.2.3.4.5", "192.168.0.-5", "\u0661\u0669\u0662.168.0.5", "192.168.0.5:8080",
             "http://192.168.0.5", "", "192.168.0.5 ")
-        preveriM("nasteti morajo biti naslovi IPv4, dosegljivi od drugod", k("192.168.0.220", slabi) == listOf("192.168.0.220", "192.168.0.5"))
+        preveriM("nasteti morajo biti naslovi IPv4, dosegljivi od drugod", k("192.168.0.120", slabi) == listOf("192.168.0.120", "192.168.0.5"))
         preveriM("naslov brez DHCP in naslov ponudnika veljata", k("", listOf("169.254.10.20", "100.64.0.7", "223.255.255.254")) == listOf("169.254.10.20", "100.64.0.7", "223.255.255.254"))
         val veliko = (1..19).map { "10.0.0.$it" }
-        preveriM("najvec stirje", k("192.168.0.220", veliko) == listOf("192.168.0.220", "10.0.0.1", "10.0.0.2", "10.0.0.3") && k("", veliko).size == HubNaslovi.NAJVEC_KANDIDATOV)
+        preveriM("najvec stirje", k("192.168.0.120", veliko) == listOf("192.168.0.120", "10.0.0.1", "10.0.0.2", "10.0.0.3") && k("", veliko).size == HubNaslovi.NAJVEC_KANDIDATOV)
     }
     // ---- »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka; isto kot tests/test_link_mesh.py na racunalniku)
     primer("pomoc: izklopljena na b - naprav drugih sosedov ne predstavi in posredovanja ne opravi") {

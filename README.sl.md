@@ -6,6 +6,7 @@ daljincem — poleg njega pa **Safeer OS**, domači zaslon za isti televizor, zg
 [![Licenca](https://img.shields.io/badge/Licenca-Apache_2.0-blue?style=flat-square)](LICENSE)
 [![Platforma](https://img.shields.io/badge/Platforma-Android_TV_9%2B-3ddc84?style=flat-square)](#zahteve)
 [![Prenos](https://img.shields.io/badge/Prenos-Izdaje-00e5ff?style=flat-square)](../../releases/latest)
+[![Zadnja izdaja](https://img.shields.io/github/v/release/safeerOS/Android-tv?style=flat-square&label=izdaja)](../../releases/latest)
 
 English: [README.md](README.md) · Spletna stran: [safeer.si](https://safeer.si)
 
@@ -21,6 +22,25 @@ lastni dekodirnik, namesto da bi ga stiskali skozi spletni pogled.
 Blokira oglase in sledilce, zavrne znane strežnike zlonamerne programske opreme in lažnega
 predstavljanja — vse to teče na napravi, za te odločitve se nikamor ne pošlje nič.
 
+## Trenutna različica
+
+Vse spodaj se gradi iz veje `main` tega repozitorija.
+
+| Aplikacija | Različica | Paket | Okus gradnje | Izdaja |
+|---|---|---|---|---|
+| Safeer TV Browser | **2.1.215** | `si.safeer.tv` | `brskalnik` | [`v2.1.215`](https://github.com/safeerOS/Android-tv/releases/tag/v2.1.215) |
+| Safeer OS — domači zaslon televizorja | **0.5.93** | `si.safeer.os` | `os` | ista izdaja kot brskalnik |
+| Safeer OS — tablica | **0.5.93** | `si.safeer.tablet` | `tablica` | ista izdaja kot brskalnik |
+| Safeer OS — telefon | **0.5.93** | `si.safeer.phone` | `telefon` | ista izdaja kot brskalnik |
+| Safeer Predvajalnik | **0.2.77** | `si.safeer.player` | `predvajalnik` | [`predvajalnik-v0.2.77`](https://github.com/safeerOS/Android-tv/releases/tag/predvajalnik-v0.2.77) |
+
+Kaj je novega: [CHANGELOG.md](CHANGELOG.md) · opombe vseh različic: [docs/releases/](docs/releases/) ·
+prenos: [safeer.si](https://safeer.si/#prenosi) ali [GitHub Releases](../../releases).
+Samostojni brskalnik za telefon (Safeer Browser za Android) je v
+[safeerOS/Mobile-android](https://github.com/safeerOS/Mobile-android), različici za Linux in Windows pa v
+[safeerOS/Safeer-linux](https://github.com/safeerOS/Safeer-linux) in
+[safeerOS/Safeer-windows](https://github.com/safeerOS/Safeer-windows).
+
 ## Dve aplikaciji iz ene kode
 
 | Aplikacija | Paket | Okus gradnje | Rezultat |
@@ -33,7 +53,8 @@ odstranitvijo. Podpisani morata biti z istim ključem: mostovi med njima so zaš
 dovoljenjem na ravni podpisa, zato Safeer OS bere stanje ščita in prejme spletno aplikacijo od
 brskalnika brez kakršnegakoli obhoda prek omrežja. Vsaka deluje tudi sama.
 
-`tests/preveri_loceni_aplikaciji.py` to ločitev preveri ob vsaki gradnji.
+`tests/preveri_loceni_aplikaciji.py` to ločitev preveri ob vsaki gradnji. Ista koda gradi tudi
+Safeer OS za tablice in telefone ter Safeer Predvajalnik (tabela zgoraj).
 
 ## Kaj zna
 
