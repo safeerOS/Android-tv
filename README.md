@@ -6,6 +6,7 @@ plus **Safeer OS**, a home screen for the same television, built from the same s
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android_TV_9%2B-3ddc84?style=flat-square)](#requirements)
 [![Downloads](https://img.shields.io/badge/Download-Releases-00e5ff?style=flat-square)](../../releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/safeerOS/Android-tv?style=flat-square&label=release)](../../releases/latest)
 
 Slovenian: [README.sl.md](README.sl.md) · Website: [safeer.si](https://safeer.si)
 
@@ -22,6 +23,25 @@ It blocks ads and trackers, refuses known malware and phishing hosts, and asks n
 permission to do it — everything runs on the device, and nothing is sent anywhere to make
 these decisions.
 
+## Current version
+
+Everything below is built from branch `main` of this repository.
+
+| App | Version | Package | Build flavour | Release |
+|---|---|---|---|---|
+| Safeer TV Browser | **2.1.215** | `si.safeer.tv` | `brskalnik` | [`v2.1.215`](https://github.com/safeerOS/Android-tv/releases/tag/v2.1.215) |
+| Safeer OS — television home screen | **0.5.93** | `si.safeer.os` | `os` | same release as the browser |
+| Safeer OS — tablet | **0.5.93** | `si.safeer.tablet` | `tablica` | same release as the browser |
+| Safeer OS — phone | **0.5.93** | `si.safeer.phone` | `telefon` | same release as the browser |
+| Safeer Player (Predvajalnik) | **0.2.77** | `si.safeer.player` | `predvajalnik` | [`predvajalnik-v0.2.77`](https://github.com/safeerOS/Android-tv/releases/tag/predvajalnik-v0.2.77) |
+
+What changed: [CHANGELOG.md](CHANGELOG.md) · notes for every version: [docs/releases/](docs/releases/) ·
+download: [safeer.si](https://safeer.si/#prenosi) or [GitHub Releases](../../releases).
+The standalone phone browser (Safeer Browser for Android) lives in
+[safeerOS/Mobile-android](https://github.com/safeerOS/Mobile-android); Linux and Windows in
+[safeerOS/Safeer-linux](https://github.com/safeerOS/Safeer-linux) and
+[safeerOS/Safeer-windows](https://github.com/safeerOS/Safeer-windows).
+
 ## Two apps, one source tree
 
 | App | Package | Build flavour | Artifact |
@@ -34,7 +54,8 @@ uninstall. They must be signed with the same key: the bridges between them are g
 signature-level permission, which is how Safeer OS reads the shield state and receives web
 apps from the browser without any network hop. Either app works on its own.
 
-`tests/preveri_loceni_aplikaciji.py` enforces the separation on every build.
+`tests/preveri_loceni_aplikaciji.py` enforces the separation on every build. The same tree also
+builds Safeer OS for tablets and phones and Safeer Player (table above).
 
 ## What it does
 
