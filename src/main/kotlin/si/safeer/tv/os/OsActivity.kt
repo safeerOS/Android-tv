@@ -7,7 +7,6 @@ import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 
 /**
  * Skupna osnova zaslonov Safeer OS: poskrbi, da igralni plosek dela povsod enako (glej
@@ -75,9 +74,11 @@ open class OsActivity : Activity() {
     }
 
     /** Nazaj iz glavnega zaslona razdelka vedno vrne Safeer OS Domov. V samostojnem Safeer Predvajalniku
-     *  Domov Safeer OS ni del aplikacije: Nazaj iz razdelka vrne v Medije, iz Medijev pa zapusti aplikacijo. */
+     *  Domov Safeer OS ni del aplikacije: Nazaj iz razdelka vrne v Medije, iz Medijev pa zapusti aplikacijo.
+     *  Televizor: Nazaj iz vsebine najprej v stransko vrstico (kot sistemski zaganjalnik), sele iz nje naprej. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        if (stranskaVrstica()?.nazajVMeni() == true) return
         val samoPredvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
         if (samoPredvajalnik) {
             if (this !is GlasbaActivity && stranskaVrstica() != null) {
@@ -107,15 +108,7 @@ open class OsActivity : Activity() {
         stranskaVrstica()?.prilagodiSirino()
     }
 
-    private fun stranskaVrstica(): StranskaVrstica? {
-        fun poisci(v: View): StranskaVrstica? {
-            if (v is StranskaVrstica) return v
-            val skupina = v as? ViewGroup ?: return null
-            for (i in 0 until skupina.childCount) poisci(skupina.getChildAt(i))?.let { return it }
-            return null
-        }
-        return poisci(window.decorView)
-    }
+    private fun stranskaVrstica(): StranskaVrstica? = StranskaVrstica.na(this)
 
     override fun onGenericMotionEvent(dogodek: MotionEvent): Boolean {
         if (Kontroler.jeOdklon(dogodek) &&

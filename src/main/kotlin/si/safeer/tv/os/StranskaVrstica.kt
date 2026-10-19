@@ -7,18 +7,27 @@ import android.graphics.Typeface
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import si.safeer.tv.R
+import si.safeer.tv.os.VrsticaPravila.Nacin
 
 /**
  * Enotna leva navigacija Safeer OS. Pogled ovije ze zgrajeno vsebino zaslona, zato dejavnostim ni
  * treba podvajati menija ali spreminjati njihovih obstojecih postavitev.
+ *
+ * Vrstica vsebini ne jemlje prostora, a je vedno pri roki (lastnik, 19. 10. 2026; pravila v [VrsticaPravila]):
+ *  - telefon pokonci (ozko okno): skrita; gumb menija v glavi zaslona ali poteg z levega roba jo odpre cez vsebino,
+ *    dotik vsebine, poteg v levo ali Nazaj jo zapre;
+ *  - tablica in telefon lezece: tirnica z ikonami, gumb menija na vrhu pokaze imena (izbira je zapomnjena);
+ *  - televizor: v vsebini skrcena na ikone, ob fokusu v meniju razsirjena; Nazaj iz vsebine gre v vrstico.
  */
 class StranskaVrstica private constructor(
     private val dejavnost: Activity,
@@ -42,16 +51,33 @@ class StranskaVrstica private constructor(
     /** Zadnji fokus je bil v vsebini (ne v meniju): ce pogled s fokusom izgine, gre fokus spet v vsebino. */
     private var fokusVVsebini = false
 
-    /** Naprava z dotikom: vrstico skrije poteg proti levemu robu, prikaze poteg z roba ali rocaj.
-     *  TV (daljinec): kot stranske vrstice brskalnikov - v vsebini skrcena na ikone, v meniju razsirjena. */
-    private val dotik = !dejavnost.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
-    private val shramba = dejavnost.getSharedPreferences("safeer_os_vrstica", android.content.Context.MODE_PRIVATE)
-    private var skrita = dotik && shramba.getBoolean("skrita", false)
+    /** Naprava z dotikom (telefon, tablica); sicer televizor z daljincem (tudi preizkusna gradnja »TV nacin«). */
+    private val dotik = !Naprava.jeTelevizor(dejavnost)
+    private val shramba = dejavnost.getSharedPreferences(SHRAMBA, android.content.Context.MODE_PRIVATE)
+    private var nacin = trenutniNacin()
+    /** Tirnica: uporabnik je z gumbom menija izbral imena ob ikonah (velja za vse zaslone Safeer OS). */
+    private var izbranaImena = shramba.getBoolean(KLJUC_IMENA, false)
+    private var predalOdprt = false
+    /** Televizor: fokus je v vsebini, vrstica je skrcena na ikone. */
     private var skrcena = false
-    private val rocaj = View(context)
+
+    /** Vsebina in zastor cez njo (ko je predal odprt; dotik zastora predal zapre). */
+    private val okvir = FrameLayout(context)
+    private val zastor = View(context)
+    /** Gumb menija na vrhu vrstice (dotik): v tirnici pokaze ali skrije imena, v predalu ga zapre. */
+    private lateinit var gumbVrstice: ImageView
+    /** Gumb menija v glavi vsebine (samo predal): vrstico odpre. Vedno viden, ko je vrstica skrita. */
+    private val gumbVsebine = ImageView(context)
+    /** Zaslon je sam povedal, pred kateri pogled glave sodi gumb menija ([gumbPred]). */
+    private var sidroPred: View? = null
+    /** Okrasna ikona glave, ki jo gumb menija nadomesti, dokler je vrstica predal. */
+    private var skritoSidro: View? = null
+    /** Nazaj je zaprl predal: spust iste tipke ne sme narediti se cesa. */
+    private var pogoltniNazaj = false
+
     private var zacetekX = 0f
     private var zacetekY = 0f
-    private var poteg = false
+    private var sledim = false
     private var prevzet = false
 
     /**
@@ -62,6 +88,8 @@ class StranskaVrstica private constructor(
     private val zavihki = LinkedHashMap<Zavihek, LinearLayout>()
     /** Zaslon, ki zna zavihek pokazati sam (GlasbaActivity), vrne true; sicer odpremo GlasbaActivity. */
     var naZavihek: ((Zavihek) -> Boolean)? = null
+    /** Dotik ze odprtega razdelka (npr. Domov na domacem zaslonu): zaslon se vrne na vrh; privzeto fokus v vsebino. */
+    var naAktivno: (() -> Unit)? = null
 
     val aktivnaPostavka: View get() = (postavke[aktivna] ?: postavke.values.firstOrNull() ?: zavihki.values.first())
 
@@ -70,6 +98,9 @@ class StranskaVrstica private constructor(
         setBackgroundColor(context.osBarva(R.color.os_ozadje))
         if (spodnja) zgradiSpodnjo() else zgradiNormalno()
     }
+
+    private fun trenutniNacin(): Nacin =
+        VrsticaPravila.nacin(dejavnost.resources.configuration.screenWidthDp, daljinec = !dotik)
 
     private fun zgradiSpodnjo() {
         orientation = VERTICAL
@@ -92,8 +123,8 @@ class StranskaVrstica private constructor(
                     if (dejavnost.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true)) setBackgroundResource(tv.resourceId)
                 }
                 // Izbrani zavihek: kapsula za ikono (kot pri sodobnih predvajalnikih), ne cel blok.
-                addView(android.widget.FrameLayout(context).apply {
-                    addView(ikona(slika, 24, R.color.os_umirjeno), android.widget.FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
+                addView(FrameLayout(context).apply {
+                    addView(ikona(slika, 24, R.color.os_umirjeno), FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
                 }, LayoutParams(dp(60), dp(30)))
                 addView(besedilo(12f, R.color.os_umirjeno).apply {
                     text = dejavnost.getString(niz); maxLines = 1; gravity = Gravity.CENTER
@@ -120,7 +151,7 @@ class StranskaVrstica private constructor(
             val da = k == z
             val barva = context.osBarva(if (da) R.color.os_mint else R.color.os_umirjeno)
             v.isSelected = da
-            (v.getChildAt(0) as? android.widget.FrameLayout)?.let { okvir ->
+            (v.getChildAt(0) as? FrameLayout)?.let { okvir ->
                 okvir.background = if (!da) null else android.graphics.drawable.GradientDrawable().apply {
                     cornerRadius = dp(15).toFloat(); setColor((context.osBarva(R.color.os_mint) and 0x00FFFFFF) or 0x33000000) }
                 (okvir.getChildAt(0) as? ImageView)?.imageTintList = ColorStateList.valueOf(barva)
@@ -146,68 +177,115 @@ class StranskaVrstica private constructor(
 
     private fun zgradiNormalno() {
         zgradiMeni()
-        // Rocaj na levem robu, ko je vrstica skrita: tanek zelen jezicek (dotik ali poteg ga odpre).
-        rocaj.background = android.graphics.drawable.LayerDrawable(arrayOf(
-            android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(3).toFloat(); setColor((context.osBarva(R.color.os_mint) and 0x00FFFFFF) or 0x99000000.toInt()) }
-        )).apply { setLayerInset(0, dp(6), 0, dp(6), 0); setLayerGravity(0, Gravity.CENTER); setLayerSize(0, dp(6), dp(72)) }
-        rocaj.contentDescription = dejavnost.getString(R.string.os_vrstica_pokazi)
-        rocaj.setOnClickListener { nastaviSkrito(false) }
-        addView(rocaj, LayoutParams(dp(20), ViewGroup.LayoutParams.MATCH_PARENT))
-        drsnik.addView(meni, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        drsnik.setBackgroundColor(context.osBarva(R.color.os_meni_ozadje))
+        drsnik.addView(meni, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         addView(drsnik, LayoutParams(dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina),
             ViewGroup.LayoutParams.MATCH_PARENT))
         (vsebina.parent as? ViewGroup)?.removeView(vsebina)
-        addView(vsebina, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        okvir.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        zastor.setBackgroundColor(0x8C000000.toInt())
+        zastor.visibility = View.GONE
+        zastor.isClickable = true
+        zastor.contentDescription = dejavnost.getString(R.string.os_vrstica_skrij)
+        zastor.setOnClickListener { zapriPredal() }
+        okvir.addView(zastor, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        addView(okvir, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        gumbVsebine.apply {
+            setImageResource(R.drawable.os_ikona_meni)
+            imageTintList = ColorStateList.valueOf(context.osBarva(R.color.os_besedilo))
+            scaleType = ImageView.ScaleType.CENTER
+            isFocusable = true; isClickable = true
+            contentDescription = dejavnost.getString(R.string.os_vrstica_pokazi)
+            tag = OZNAKA_GUMB
+            TypedValue().also { tv ->
+                if (dejavnost.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true)) setBackgroundResource(tv.resourceId)
+            }
+            setOnClickListener { odpriPredal() }
+        }
         prilagodiSirino()
-        uveljaviSkrito()
         nastaviPrehode(dejavnost)
-    }
-
-    private fun uveljaviSkrito() {
-        if (spodnja) return
-        drsnik.visibility = if (skrita) View.GONE else View.VISIBLE
-        rocaj.visibility = if (skrita) View.VISIBLE else View.GONE
-    }
-
-    /** Skrij ali pokazi vrstico (na dotik); izbira ostane zapomnjena za vse zaslone Safeer OS. */
-    fun nastaviSkrito(da: Boolean) {
-        if (!dotik || spodnja || skrita == da) return
-        skrita = da
-        shramba.edit().putBoolean("skrita", da).apply()
-        android.transition.TransitionManager.beginDelayedTransition(this)
-        uveljaviSkrito()
     }
 
     /** Poteg prestrezemo ze v dispatchTouchEvent: otroci (seznami, WebView) z
      *  requestDisallowInterceptTouchEvent sicer onInterceptTouchEvent izklopijo. */
-    override fun dispatchTouchEvent(e: android.view.MotionEvent): Boolean {
+    override fun dispatchTouchEvent(e: MotionEvent): Boolean {
         if (!dotik || spodnja) return super.dispatchTouchEvent(e)
+        val g = resources.displayMetrics.density
         when (e.actionMasked) {
-            android.view.MotionEvent.ACTION_DOWN -> {
+            MotionEvent.ACTION_DOWN -> {
                 zacetekX = e.x; zacetekY = e.y; prevzet = false
-                // Skrij: poteg se zacne na vrstici. Pokazi: poteg z levega roba zaslona (ali dotik rocaja).
-                poteg = if (skrita) e.x < dp(28) else e.x < drsnik.right
+                // Predal: odpre ga poteg z levega roba, zapre poteg v levo kjerkoli. Tirnica: poteg po njej pokaze ali skrije imena.
+                sledim = when (nacin) {
+                    Nacin.PREDAL -> predalOdprt || e.x / g <= VrsticaPravila.ROB_POTEGA_DP
+                    Nacin.TIRNICA -> e.x < drsnik.right
+                    Nacin.DALJINEC -> false
+                }
             }
-            android.view.MotionEvent.ACTION_MOVE, android.view.MotionEvent.ACTION_UP -> if (poteg && !prevzet) {
-                val dx = e.x - zacetekX; val dy = e.y - zacetekY
-                if (kotline(dx, dy)) {
-                    prevzet = true; poteg = false
-                    val preklic = android.view.MotionEvent.obtain(e).apply { action = android.view.MotionEvent.ACTION_CANCEL }
+            MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> if (sledim && !prevzet) {
+                val dx = (e.x - zacetekX) / g; val dy = (e.y - zacetekY) / g
+                val dejanje: (() -> Unit)? = when {
+                    nacin == Nacin.PREDAL && !predalOdprt && VrsticaPravila.potegOdpre(zacetekX / g, dx, dy) -> { { odpriPredal() } }
+                    nacin == Nacin.PREDAL && predalOdprt && VrsticaPravila.potegZapre(dx, dy) -> { { zapriPredal() } }
+                    nacin == Nacin.TIRNICA && !izbranaImena && VrsticaPravila.potegOdpre(0f, dx, dy) -> { { nastaviImena(true) } }
+                    nacin == Nacin.TIRNICA && izbranaImena && VrsticaPravila.potegZapre(dx, dy) -> { { nastaviImena(false) } }
+                    else -> null
+                }
+                if (dejanje != null) {
+                    prevzet = true; sledim = false
+                    val preklic = MotionEvent.obtain(e).apply { action = MotionEvent.ACTION_CANCEL }
                     super.dispatchTouchEvent(preklic); preklic.recycle()
-                    nastaviSkrito(dx < 0)
+                    dejanje()
                     return true
                 }
             }
         }
         if (prevzet) {
-            if (e.actionMasked == android.view.MotionEvent.ACTION_UP || e.actionMasked == android.view.MotionEvent.ACTION_CANCEL) prevzet = false
+            if (e.actionMasked == MotionEvent.ACTION_UP || e.actionMasked == MotionEvent.ACTION_CANCEL) prevzet = false
             return true
         }
         return super.dispatchTouchEvent(e)
     }
 
-    private fun kotline(dx: Float, dy: Float): Boolean =
-        kotlin.math.abs(dx) > dp(48) && kotlin.math.abs(dx) > 1.5f * kotlin.math.abs(dy) && ((dx < 0) != skrita)
+    /** Odpre predal cez vsebino (samo ozko okno na dotik). */
+    fun odpriPredal() {
+        if (spodnja || nacin != Nacin.PREDAL || predalOdprt) return
+        predalOdprt = true
+        prilagodiSirino()
+        val sirina = drsnik.layoutParams.width.toFloat()
+        drsnik.translationX = -sirina
+        drsnik.animate().translationX(0f).setDuration(TRAJANJE_MS).start()
+        zastor.alpha = 0f
+        zastor.animate().alpha(1f).setDuration(TRAJANJE_MS).start()
+        // Bralnik zaslona: povemo, da je meni odprt, in ga postavimo na trenutni razdelek.
+        aktivnaPostavka.post { aktivnaPostavka.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_FOCUSED) }
+        gumbVsebine.contentDescription = dejavnost.getString(R.string.os_vrstica_skrij)
+    }
+
+    /** Zapre odprt predal; vrne true, ce je bil odprt (Nazaj je s tem porabljen). */
+    fun zapriPredal(animacija: Boolean = true): Boolean {
+        if (!predalOdprt) return false
+        predalOdprt = false
+        gumbVsebine.contentDescription = dejavnost.getString(R.string.os_vrstica_pokazi)
+        val koncaj = { if (!predalOdprt) { drsnik.translationX = 0f; prilagodiSirino() } }
+        if (!animacija) { drsnik.animate().cancel(); koncaj(); return true }
+        drsnik.animate().translationX(-drsnik.width.toFloat()).setDuration(TRAJANJE_MS).withEndAction { koncaj() }.start()
+        zastor.animate().alpha(0f).setDuration(TRAJANJE_MS).start()
+        return true
+    }
+
+    fun jePredalOdprt(): Boolean = predalOdprt
+
+    /** Vrstica je skrit predal (ozko okno na dotik): v glavi zaslona je njen gumb menija. */
+    fun jePredal(): Boolean = !spodnja && nacin == Nacin.PREDAL
+
+    /** Tirnica: imena ob ikonah (gumb menija ali poteg); izbira velja za vse zaslone Safeer OS. */
+    fun nastaviImena(da: Boolean) {
+        if (izbranaImena == da) return
+        izbranaImena = da
+        shramba.edit().putBoolean(KLJUC_IMENA, da).apply()
+        android.transition.TransitionManager.beginDelayedTransition(this)
+        prilagodiSirino()
+    }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -215,6 +293,17 @@ class StranskaVrstica private constructor(
         // Fokus, ki ga zaslon dobi ze v onCreate (pred pripetjem okna), poslusalec ne vidi: meni je ostal razsirjen,
         // ceprav je bil fokus v vsebini, do prvega pritiska na daljinec (TV, Domov in Programi, 18. 10. 2026).
         post { dejavnost.currentFocus?.let { onGlobalFocusChanged(null, it) } }
+    }
+
+    /**
+     * Izbira imen je skupna vsem zaslonom: ce jo je uporabnik spremenil drugje (Nastavitve, drug zaslon), jo ta
+     * zaslon uveljavi, ko spet pride v ospredje - prej je ostal pri stari, dokler se ni na novo odprl.
+     */
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus || spodnja) return
+        val imena = shramba.getBoolean(KLJUC_IMENA, false)
+        if (imena != izbranaImena) { izbranaImena = imena; prilagodiSirino() }
     }
 
     override fun onDetachedFromWindow() {
@@ -244,24 +333,98 @@ class StranskaVrstica private constructor(
     /** Poklice jo Activity ob spremembi velikosti, kadar manifest zaslona ne ustvari znova. */
     fun prilagodiSirino() {
         if (spodnja) return
-        // Imena samo v sirokem oknu (tablica lezece, televizor); tablica pokonci, telefon in razdeljen zaslon imajo
-        // tirnico z ikonami - ista pravila kot zaganjalnik (ZaganjalnikPravila), da so vsi zasloni enaki.
-        val c = dejavnost.resources.configuration
-        val ozek = skrcena || !ZaganjalnikPravila.zImeni(c.screenWidthDp, c.screenHeightDp,
-            if (dotik) ZaganjalnikPravila.Vnos.DOTIK else ZaganjalnikPravila.Vnos.DALJINEC)
-        drsnik.layoutParams = (drsnik.layoutParams as? LayoutParams ?: LayoutParams(0, -1)).apply {
-            width = if (ozek) dp(68) else dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina)
-            height = ViewGroup.LayoutParams.MATCH_PARENT
+        nacin = trenutniNacin()
+        if (nacin != Nacin.PREDAL) predalOdprt = false
+        val imena = VrsticaPravila.zImeni(nacin, predalOdprt, izbranaImena, fokusVMeniju = !skrcena)
+        val lp = drsnik.layoutParams as? LayoutParams ?: LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT)
+        lp.height = ViewGroup.LayoutParams.MATCH_PARENT
+        when {
+            nacin == Nacin.PREDAL && !predalOdprt -> {
+                drsnik.visibility = View.GONE; lp.marginEnd = 0
+            }
+            nacin == Nacin.PREDAL -> {
+                // Predal lebdi cez vsebino: negativen rob mu vzame prostor v vrsti, visja os Z ga narise cez vsebino.
+                drsnik.visibility = View.VISIBLE
+                lp.width = dp(VrsticaPravila.sirinaPredalaDp(dejavnost.resources.configuration.screenWidthDp))
+                lp.marginEnd = -lp.width
+            }
+            else -> {
+                drsnik.visibility = View.VISIBLE
+                lp.width = if (imena) dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina) else dp(68)
+                lp.marginEnd = 0
+            }
         }
-        meni.setPadding(dp(if (ozek) 10 else 16), dp(24), dp(if (ozek) 10 else 12), dp(16))
-        besedila.forEach { it.visibility = if (ozek) View.GONE else View.VISIBLE }
+        drsnik.layoutParams = lp
+        drsnik.elevation = if (nacin == Nacin.PREDAL) dp(16).toFloat() else 0f
+        zastor.visibility = if (nacin == Nacin.PREDAL && predalOdprt) View.VISIBLE else View.GONE
+        if (zastor.visibility == View.GONE) zastor.alpha = 1f
+        // Bralnik zaslona: dokler je predal odprt, vsebina pod zastorom ni dosegljiva (kot pri sistemskih predalih).
+        vsebina.importantForAccessibility = if (zastor.visibility == View.VISIBLE)
+            View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        meni.setPadding(dp(if (imena) 16 else 10), dp(if (dotik) 12 else 24), dp(if (imena) 12 else 10), dp(16))
+        besedila.forEach { it.visibility = if (imena) View.VISIBLE else View.GONE }
+        if (::gumbVrstice.isInitialized) {
+            gumbVrstice.contentDescription = dejavnost.getString(when {
+                nacin == Nacin.PREDAL -> R.string.os_vrstica_skrij
+                imena -> R.string.os_vrstica_imena_skrij
+                else -> R.string.os_vrstica_imena_pokazi
+            })
+        }
+        uveljaviGumbVsebine()
     }
 
     /**
-     * LEVO na levem robu vsebine odpre aktivno postavko; DESNO iz menija se vrne na nazadnje
-     * uporabljeni element vsebine. Premikanje znotraj vrstic in mrez ostane nespremenjeno.
+     * Gumb menija v glavi zaslona, kadar je vrstica predal: ob pogledu, ki ga je zaslon izbral ([gumbPred], oznaka
+     * [OZNAKA_PRED]), ali namesto okrasne ikone glave (oznaka [OZNAKA_SIDRO]). Tako je vedno na istem mestu (zgoraj
+     * levo) in ne prekrije nicesar. Zaslon brez oznacene glave dobi lebdec gumb zgoraj levo.
+     */
+    private fun uveljaviGumbVsebine() {
+        (gumbVsebine.parent as? ViewGroup)?.removeView(gumbVsebine)
+        skritoSidro?.visibility = View.VISIBLE
+        skritoSidro = null
+        if (spodnja || nacin != Nacin.PREDAL) return
+        val pred: View? = sidroPred?.takeIf { it.parent != null } ?: vsebina.findViewWithTag<View>(OZNAKA_PRED)
+        val zamenjaj = if (pred == null) vsebina.findViewWithTag<View>(OZNAKA_SIDRO) else null
+        val cilj = pred ?: zamenjaj
+        val stars = cilj?.parent as? ViewGroup
+        if (cilj == null || stars == null) {
+            okvir.addView(gumbVsebine, 1, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.START).apply {
+                setMargins(dp(4), dp(4), 0, 0) })
+            return
+        }
+        val lp = if (stars is LinearLayout) LinearLayout.LayoutParams(dp(48), dp(48)).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            // Ikona (24 dp) je v gumbu odmaknjena 12 dp: negativni rob jo poravna z robom vsebine.
+            marginStart = -dp(10)
+            if (pred != null) marginEnd = dp(4)
+        } else ViewGroup.MarginLayoutParams(dp(48), dp(48))
+        stars.addView(gumbVsebine, stars.indexOfChild(cilj), lp)
+        if (zamenjaj != null) { zamenjaj.visibility = View.GONE; skritoSidro = zamenjaj }
+    }
+
+    /** Zaslon pove, pred kateri pogled glave sodi gumb menija (npr. pred naslovno vrstico Spleta). */
+    fun gumbPred(pogled: View?) {
+        sidroPred = pogled
+        uveljaviGumbVsebine()
+    }
+
+    /** Vsebino vzame iz vrstice (Splet brez vrstice za spletne aplikacije). */
+    fun odvij() {
+        (vsebina.parent as? ViewGroup)?.removeView(vsebina)
+    }
+
+    /**
+     * Tipke za vrstico (klici iz dispatchKeyEvent dejavnosti):
+     *  - Nazaj zapre odprt predal (dotik);
+     *  - LEVO na levem robu vsebine odpre aktivno postavko; DESNO iz menija se vrne na nazadnje
+     *    uporabljeni element vsebine. Premikanje znotraj vrstic in mrez ostane nespremenjeno.
      */
     fun prestrezi(dogodek: KeyEvent): Boolean {
+        if (dogodek.keyCode == KeyEvent.KEYCODE_BACK || dogodek.keyCode == KeyEvent.KEYCODE_ESCAPE) {
+            if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0 && zapriPredal()) { pogoltniNazaj = true; return true }
+            if (dogodek.action == KeyEvent.ACTION_UP && pogoltniNazaj) { pogoltniNazaj = false; return true }
+            return false
+        }
         if (dogodek.action != KeyEvent.ACTION_DOWN) return false
         val fokus = dejavnost.currentFocus ?: return false
         // Fokus na pogledu, ki ga ni videti (skrit stars, velikost 0): daljinec ni nic premaknil in okvirja ni bilo nikjer
@@ -281,10 +444,22 @@ class StranskaVrstica private constructor(
         if (fokus is android.widget.GridView && !naLevemRobu(fokus)) return false
         val levo = fokus.focusSearch(View.FOCUS_LEFT)
         if (levo == null || levo === fokus || jePotomec(meni, levo)) {
+            // Predal je skrit: tipkovnica ali daljinec na telefonu ga odpre, sicer bi LEVO z roba ne naredil nicesar.
+            if (nacin == Nacin.PREDAL && !predalOdprt) odpriPredal()
             aktivnaPostavka.requestFocus()
             return true
         }
         return false
+    }
+
+    /**
+     * Nazaj na televizorju: iz vsebine najprej v vrstico (kot pri sistemskem zaganjalniku), sele iz vrstice naprej.
+     * Vrne true, ce je fokus sel v vrstico. Na dotik nic (predal zapre [prestrezi]).
+     */
+    fun nazajVMeni(): Boolean {
+        if (dotik || spodnja || imaFokus()) return false
+        fokusMenija()
+        return imaFokus()
     }
 
     private fun jeSmerna(koda: Int): Boolean = koda == KeyEvent.KEYCODE_DPAD_UP || koda == KeyEvent.KEYCODE_DPAD_DOWN ||
@@ -344,19 +519,35 @@ class StranskaVrstica private constructor(
         meni.setBackgroundColor(context.osBarva(R.color.os_meni_ozadje))
 
         val znak = LinearLayout(context).apply {
-            orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), 0, 0, dp(14))
+            orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(if (dotik) 0 else dp(4), 0, 0, dp(if (dotik) 10 else 14))
         }
-        znak.addView(ikona(R.drawable.os_znak, 32))
+        if (dotik) {
+            // Na dotik je na vrhu gumb menija (tri crte) na mestu znaka: isti gumb kot v glavi zaslona, ko je vrstica skrita.
+            gumbVrstice = ImageView(context).apply {
+                setImageResource(R.drawable.os_ikona_meni)
+                imageTintList = ColorStateList.valueOf(context.osBarva(R.color.os_besedilo))
+                scaleType = ImageView.ScaleType.CENTER
+                isFocusable = true; isClickable = true
+                setBackgroundResource(R.drawable.os_meni_postavka)
+                setOnClickListener {
+                    if (nacin == Nacin.PREDAL) zapriPredal() else nastaviImena(!izbranaImena)
+                }
+            }
+            znak.addView(gumbVrstice, LayoutParams(dp(48), dp(48)))
+        } else {
+            znak.addView(ikona(R.drawable.os_znak, 32))
+        }
         val ime = LinearLayout(context).apply { orientation = VERTICAL; setPadding(dp(10), 0, 0, 0) }
         // Samostojni Safeer Predvajalnik se predstavi s svojim imenom, ne kot Safeer OS.
         val jePredvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
         ime.addView(besedilo(18f, R.color.os_besedilo, true).apply {
             text = dejavnost.getString(if (jePredvajalnik) R.string.os_ime_predvajalnik else R.string.os_app_name)
+            maxLines = 1
         })
         ime.addView(besedilo(11f, R.color.os_umirjeno).apply {
             text = dejavnost.getString(if (jePredvajalnik) R.string.os_podnaslov_predvajalnik else R.string.os_podnaslov_app); maxLines = 2
         })
-        znak.addView(ime)
+        znak.addView(ime, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         besedila.add(ime)
         meni.addView(znak)
 
@@ -382,24 +573,6 @@ class StranskaVrstica private constructor(
         }
 
         meni.addView(View(context), LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        if (dotik) {
-            val skrij = LinearLayout(context).apply {
-                orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                isFocusable = true; isClickable = true
-                setBackgroundResource(R.drawable.os_meni_postavka)
-                setPadding(dp(12), dp(8), dp(12), dp(8))
-                contentDescription = dejavnost.getString(R.string.os_vrstica_skrij)
-                addView(ikona(R.drawable.os_ikona_skrij_vrstico, 22, R.color.os_umirjeno))
-                addView(besedilo(13f, R.color.os_umirjeno).apply {
-                    text = dejavnost.getString(R.string.os_vrstica_skrij); maxLines = 1; setPadding(dp(12), 0, 0, 0)
-                    besedila.add(this)
-                }, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-                setOnClickListener { nastaviSkrito(true) }
-            }
-            meni.addView(skrij, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                bottomMargin = dp(8)
-            })
-        }
         meni.addView(besedilo(11f, R.color.os_umirjeno).apply {
             text = dejavnost.getString(R.string.os_poganja); setPadding(dp(4), 0, 0, 0); besedila.add(this)
         })
@@ -418,7 +591,8 @@ class StranskaVrstica private constructor(
             orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             id = View.generateViewId(); isFocusable = true; isClickable = true
             setBackgroundResource(R.drawable.os_meni_postavka)
-            setPadding(dp(12), dp(6), dp(12), dp(6))
+            // Na dotik je postavka visoka vsaj 48 dp (smernice za dostopnost); na televizorju ostane gosta.
+            setPadding(dp(12), dp(if (dotik) 13 else 6), dp(12), dp(if (dotik) 13 else 6))
             // Tirnica z ikonami skrije imena: bralnik zaslona (in avtomatski preizkusi) mora postavko se vedno poimenovati.
             contentDescription = dejavnost.getString(niz)
             addView(ikona(slika, 22, R.color.os_mint))
@@ -430,7 +604,10 @@ class StranskaVrstica private constructor(
             isActivated = razdelek == aktivna
             isSelected = razdelek == aktivna
             setOnClickListener {
-                if (razdelek == aktivna) fokusVsebine() else odpri(razdelek)
+                if (razdelek == aktivna) {
+                    zapriPredal()
+                    naAktivno?.invoke() ?: fokusVsebine()
+                } else odpri(razdelek)
             }
         }
         postavke[razdelek] = pogled
@@ -446,6 +623,7 @@ class StranskaVrstica private constructor(
     }
 
     private fun odpriRazdelek(razdelek: Razdelek) {
+        val domaci = ZaganjalnikActivity.jeDomaci(dejavnost)
         val namera = when (razdelek) {
             Razdelek.DOMOV -> Intent(dejavnost, ZaganjalnikActivity.domov(dejavnost))
             Razdelek.MEDIJI -> GlasbaStoritev.namenKartice(dejavnost)
@@ -460,11 +638,12 @@ class StranskaVrstica private constructor(
         }.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT).also {
             // Vgrajeni brskalnik je singleTask z drugo afiniteto; iz njega se vrnemo v obstojeco
             // nalogo Safeer OS, ne ustvarimo novega Domov ob brskalniku.
-            if (dejavnost !is OsActivity) it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (dejavnost !is OsActivity && !domaci) it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         try {
             dejavnost.startActivity(namera)
-            if (!ZaganjalnikActivity.jeDomaci(dejavnost)) dejavnost.finish()
+            // Domaci zaslon ostane odprt pod razdelkom: ob vrnitvi naj predal ne caka odprt.
+            if (!domaci) dejavnost.finish() else zapriPredal(animacija = false)
         } catch (_: Throwable) {
             Toast.makeText(dejavnost, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show()
         }
@@ -508,6 +687,19 @@ class StranskaVrstica private constructor(
         /** Oznaka dnevnika za meritve prikaza (polna risanja, dopolnjevanja mreze, stranska vrstica) - samo na zahtevo (setprop). */
         const val DNEVNIK_MREZE = "SafeerOsMreza"
 
+        /** Skupna shramba vrstice in lupe (vsi zasloni Safeer OS). */
+        const val SHRAMBA = "safeer_os_vrstica"
+        const val KLJUC_IMENA = "imena"
+
+        /** Okrasna ikona glave zaslona: na ozkem zaslonu jo nadomesti gumb menija. */
+        const val OZNAKA_SIDRO = "k:meni_sidro"
+        /** Pogled glave, pred katerega gre gumb menija (brez okrasne ikone). */
+        const val OZNAKA_PRED = "k:meni_pred"
+        /** Gumb menija v glavi (za preizkuse in iskanje po pogledih). */
+        const val OZNAKA_GUMB = "k:meni_gumb"
+
+        private const val TRAJANJE_MS = 200L
+
         /**
          * Splet (MainActivity) ima temo brskalnika, ki barv Safeer OS (?attr/osMint ...) nima: ikone menija, ki
          * barvo berejo iz teme, bi se tam narisale prozorne (prazna vrstica). Vrstica zato nastane v kontekstu
@@ -530,5 +722,16 @@ class StranskaVrstica private constructor(
 
         fun ovij(dejavnost: Activity, postavitev: Int, aktivna: Razdelek): StranskaVrstica =
             ovij(dejavnost, dejavnost.layoutInflater.inflate(postavitev, null, false), aktivna)
+
+        /** Vrstica na zaslonu dejavnosti (ali null). */
+        fun na(dejavnost: Activity): StranskaVrstica? {
+            fun poisci(v: View): StranskaVrstica? {
+                if (v is StranskaVrstica) return v
+                val skupina = v as? ViewGroup ?: return null
+                for (i in 0 until skupina.childCount) poisci(skupina.getChildAt(i))?.let { return it }
+                return null
+            }
+            return poisci(dejavnost.window.decorView)
+        }
     }
 }

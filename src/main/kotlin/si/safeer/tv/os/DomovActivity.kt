@@ -106,8 +106,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return
         }
         setContentView(R.layout.os_activity_domov)
-        // Iskalna lupa na vrhu: napises ali poves (tudi »… na racunalniku«) - DomacaLupa.
-        DomacaLupa.vstavi(this)
+        // Iskalna lupa v glavi: napises ali poves (tudi »… na racunalniku«) - DomacaLupa. Zaprta je majhno polje ob
+        // stanju Linka (vsebina dobi vrsto vec), fokus daljinca ali natipkana crka jo razpre.
+        val lupa = DomacaLupa.vstavi(this)
         // Safeer Link (sredisce) naj tece, kadar ga je uporabnik vklopil - tudi ce ga je Android ali
         // uporabnik (prisilna ustavitev) medtem ustavil; do zdaj se je vrnil sele ob ponovnem zagonu naprave.
         try { si.safeer.tv.cast.HubStoritev.zagotovi(this) } catch (_: Throwable) { }
@@ -117,7 +118,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         ura = findViewById(R.id.ura)
         datum = findViewById(R.id.datum)
         meniDomov = findViewById(R.id.meniDomov)
-        if (packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK))
+        if (Naprava.jeTelevizor(this))
             findViewById<android.view.ViewGroup?>(R.id.stranskiMeni)?.let { TvSkrcenjeVrstice(this, it) }
         meniAplikacije = findViewById(R.id.meniAplikacije)
         meniZaslon = findViewById(R.id.meniZaslon)
@@ -135,6 +136,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         karticaZaslon = findViewById(R.id.karticaZaslon)
         karticaProgrami = findViewById(R.id.karticaProgrami)
         pripraviVelikeKartice()
+        // GOR s Spletnega brskalnika gre v iskalno polje lupe (ne na mikrofon ob njem).
+        lupa?.let { if (it.id == View.NO_ID) it.id = View.generateViewId(); karticaBrskalnik.nextFocusUpId = it.id }
         ploscaNaprave = findViewById(R.id.ploscaNaprave)
         seznamPloscaNaprave = findViewById(R.id.seznamPloscaNaprave)
         hitriWeb = findViewById(R.id.hitriWeb)
@@ -512,8 +515,18 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         if (SporocilaZnak.zapri(this)) return
+        // Televizor: Nazaj iz vsebine najprej v stransko vrstico (kot sistemski zaganjalnik), sele iz nje naprej.
+        if (Naprava.jeTelevizor(this) && fokusVVsebini()) { meniDomov.requestFocus(); return }
         if (Zaganjalnik.jeIzbran(this)) return
         super.onBackPressed()
+    }
+
+    /** Fokus je na zaslonu, a ne v stranski vrstici. */
+    private fun fokusVVsebini(): Boolean {
+        val meni = findViewById<View?>(R.id.stranskiMeni) ?: return false
+        var v: View? = currentFocus ?: return false
+        while (v != null) { if (v === meni) return false; v = v.parent as? View }
+        return true
     }
 
     override fun onStop() {
@@ -1539,6 +1552,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return true
         }
         if (dogodek.action == KeyEvent.ACTION_UP && dogodek.keyCode == pogoltniGor) { pogoltniGor = -1; return true }
+        // Natipkana crka (tipkovnica daljinca) zacne iskanje v lupi, kjerkoli je fokus.
+        if (DomacaLupa.tipka(this, dogodek)) return true
         return super.dispatchKeyEvent(dogodek)
     }
 
@@ -1556,6 +1571,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun pripeljiVrsto(v: View) {
         val vrsta = v.parent as? View ?: return              // vrsta kartic
+        // Velike kartice so prva vrsta brez svojega drsnika: zaslon gre na vrh, da pozdrav ostane viden. Sicer je
+        // »stars vrste« cela vsebina in drsnik se je ob zagonu podrsal na dno (glava je zdaj nad drsnikom).
+        if (vrsta.id == R.id.vrstaVelikeKartice) { (drsnik as? android.widget.ScrollView)?.smoothScrollTo(0, 0); return }
         val drsnikVrste = vrsta.parent as? View ?: return    // vodoravni drsnik okoli nje
         val naslovVisina = (44 * resources.displayMetrics.density).toInt()   // naslov odseka nad vrsto
         val okvir = android.graphics.Rect(0, 0, drsnikVrste.width, drsnikVrste.height)

@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Stranska vrstica: gumb menija (predal na ozkem zaslonu, imena v tirnici). -->
 <resources>
-    <string name="os_vrstica_pokazi">Pokaži stransko vrstico</string>
-    <string name="os_vrstica_skrij">Skrij vrstico</string>
+    <string name="os_vrstica_pokazi">Odpri meni</string>
+    <string name="os_vrstica_skrij">Zapri meni</string>
+    <string name="os_vrstica_imena_pokazi">Pokaži imena</string>
+    <string name="os_vrstica_imena_skrij">Skrij imena</string>
 </resources>

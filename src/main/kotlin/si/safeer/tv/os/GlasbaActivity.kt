@@ -682,6 +682,8 @@ class GlasbaActivity : OsActivity() {
             })
             stanje.visibility = View.GONE
         }
+        // Telefon pokonci: gumb menija skrite stranske vrstice gre pred naslov (StranskaVrstica).
+        levo.tag = StranskaVrstica.OZNAKA_PRED
         glava.addView(levo, LinearLayout.LayoutParams(0, -2, 1f))
         geslo = TextView(this).apply {
             text = getString(R.string.os_media_geslo); setTextColor(osBarva(R.color.os_umirjeno))
