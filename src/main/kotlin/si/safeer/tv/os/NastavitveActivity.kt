@@ -5,9 +5,15 @@ import si.safeer.tv.R
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.TypedValue
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.BaseAdapter
 import android.widget.ImageView
 import android.widget.ListView
@@ -16,29 +22,52 @@ import android.widget.Toast
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.CheckBox
+import si.safeer.tv.os.SistemskeNastavitve.Skupina
 
 /**
- * Nastavitve Safeer OS: kar uporabnik lahko kadarkoli vklopi in izklopi.
+ * Nastavitve Safeer OS: kar uporabnik lahko kadarkoli vklopi in izklopi, in celotne sistemske nastavitve Androida.
  *
- *  - **Domaci zaslon televizorja**: ali Safeer OS prevzame tipko Domov ali ostane navadna
- *    aplikacija, prek katere zaganjas spletne aplikacije. Oboje je enakovredno; odloci uporabnik.
- *  - **Nacin delovanja**: Safeer Link (naprave, datoteke z racunalnika, daljinec) ali krajevno.
- *  - **Safeer Scit**: filter DNS za ves televizor.
+ *  - **Safeer OS**: domaci zaslon televizorja, nacin delovanja, Scit, Link, videz, jezik, vrstica in lupa ...
+ *  - **Sistem** (lastnik, 19. 10. 2026): Wi-Fi, mobilno omrezje, Bluetooth, zaslon, zvok, obvestila, aplikacije,
+ *    shramba, baterija, lokacija, varnost, racuni, dostopnost, jezik, datum, razvijalci, o napravi; na televizorju
+ *    se vhodi, daljinci, ohranjevalnik in meniji slike. Vsaka postavka odpre sistemski zaslon in samo, ce ga naprava
+ *    res ima ([SistemskeNastavitve]); Nazaj vrne sem.
+ *  - Iskanje najde nastavitev po imenu ali opisu v vseh jezikih aplikacije; skupine imajo naslove.
  */
 class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
-    private class Vrstica(val ikona: Int, val ime: String, val opis: String, val stanje: String, val ob: () -> Unit)
+    /**
+     * Vrstica seznama: naslov skupine ([glava]), nastavitev ali sporocilo, da ni zadetkov ([ob] == null in ne glava).
+     * [iskanje] so ime in opis v vseh jezikih aplikacije.
+     */
+    private class Vrstica(
+        val ikona: Int,
+        val ime: String,
+        val opis: String,
+        val stanje: String,
+        val skupina: Skupina,
+        val iskanje: List<String> = emptyList(),
+        val glava: Boolean = false,
+        val ob: (() -> Unit)? = null,
+    )
 
     private lateinit var koren: View
     private lateinit var seznam: ListView
-    private lateinit var opomba: TextView
+    private lateinit var iskanje: EditText
+    private lateinit var pocisti: View
     private val link by lazy { LinkUpravitelj.pridobi(this) }
-    private var vrstice: List<Vrstica> = emptyList()
+    /** Vse nastavitve (brez glav), kot jih naprava ponuja; [prikaz] je filtriran seznam z naslovi skupin. */
+    private var vse: List<Vrstica> = emptyList()
+    private var prikaz: List<Vrstica> = emptyList()
+    /** Sistemske nastavitve, ki jih ta naprava res odpre (poiscemo enkrat, v ozadju). */
+    @Volatile private var sistemske: List<Vrstica> = emptyList()
+    private val jeziki by lazy { SistemskeNastavitve.Jeziki(this) }
     private var hostVPreverjanju = false
     /** Zadnji prebrani podatki o moci; okno s podrobnostmi jih pokaze brez novega cakanja. */
     private var moc: HostPodatki.Podatki? = null
     private var mocOdprta = false
     private val prilagojevalnik = Prilagojevalnik()
+    private val tv by lazy { Naprava.jeTelevizor(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,10 +75,84 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             StranskaVrstica.Razdelek.NASTAVITVE))
         koren = findViewById(R.id.koren)
         seznam = findViewById(R.id.seznam)
-        opomba = findViewById(R.id.opomba)
-        opomba.text = getString(R.string.os_nastavitve_opomba)
+        iskanje = findViewById(R.id.iskanje)
+        pocisti = findViewById(R.id.pocisti)
         seznam.adapter = prilagojevalnik
-        seznam.setOnItemClickListener { _, _, i, _ -> vrstice.getOrNull(i)?.ob?.invoke() }
+        seznam.setOnItemClickListener { _, _, i, _ -> prikaz.getOrNull(i)?.ob?.invoke() }
+        pripraviIskanje()
+        poisciSistemske()
+    }
+
+    /**
+     * Iskalno polje: filtrira sproti. Na televizorju fokus polja ne odpre tipkovnice (bi pokrila pol zaslona), odpre jo
+     * OK; natipkana crka kjerkoli na zaslonu gre v polje ([dispatchKeyEvent]).
+     */
+    private fun pripraviIskanje() {
+        if (tv) iskanje.showSoftInputOnFocus = false
+        iskanje.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                pocisti.visibility = if (s.isNullOrEmpty()) View.GONE else View.VISIBLE
+                filtriraj()
+            }
+        })
+        iskanje.setOnEditorActionListener { v, akcija, _ ->
+            if (akcija == EditorInfo.IME_ACTION_SEARCH || akcija == EditorInfo.IME_ACTION_DONE) {
+                (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0)
+                // Prvi zadetek dobi fokus: z daljincem ali tipkovnico takoj OK.
+                if (prikaz.any { it.ob != null }) seznam.requestFocus()
+                true
+            } else false
+        }
+        if (tv) iskanje.setOnKeyListener { v, koda, d ->
+            if (d.action == KeyEvent.ACTION_DOWN && (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
+                (v as EditText).showSoftInputOnFocus = true
+                (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(v, 0)
+                true
+            } else false
+        }
+        pocisti.setOnClickListener { iskanje.setText(""); iskanje.requestFocus() }
+    }
+
+    /** Natipkana crka (tipkovnica telefona, daljinca ali TV) zacne iskanje, ne glede na to, kje je fokus. */
+    override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        if (dogodek.action == KeyEvent.ACTION_DOWN && currentFocus !is EditText &&
+            DomacaLupa.znakTipke(dogodek)) {
+            iskanje.requestFocus()
+            iskanje.append(String(Character.toChars(dogodek.unicodeChar)))
+            return true
+        }
+        return super.dispatchKeyEvent(dogodek)
+    }
+
+    /** Sistemske nastavitve: ~50 poizvedb v upravitelju paketov in prevodi - v ozadju, da se zaslon odpre takoj. */
+    private fun poisciSistemske() {
+        if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") return
+        Thread {
+            val najdene = try {
+                SistemskeNastavitve.naVoljo(this).map { (v, namera) ->
+                    Vrstica(v.ikona, getString(v.ime), getString(v.opis), "", v.skupina,
+                        jeziki.vsa(v.ime) + jeziki.vsa(v.opis)) { odpriSistemsko(namera) }
+                }
+            } catch (e: Throwable) {
+                android.util.Log.w("SafeerNastavitve", "Sistemskih nastavitev ni bilo mogoce prebrati: ${e.message}")
+                emptyList()
+            }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                sistemske = najdene
+                narisi()
+            }
+        }.apply { name = "SafeerNastavitve"; isDaemon = true }.start()
+    }
+
+    private fun odpriSistemsko(namera: Intent) {
+        try { sistemskoOkno { startActivity(namera) } }
+        catch (_: Throwable) {
+            koren.visibility = View.VISIBLE
+            Toast.makeText(this, R.string.nast_ni_odprto, Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onStart() {
@@ -73,6 +176,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onResume()
         // Sistemsko okno je zaprto: nas zaslon se spet pokaze.
         koren.visibility = View.VISIBLE
+        // Nevidna vsebina fokusa ne more imeti, zato ga je Android dal meniju (Domov): daljinec je bil po vrnitvi iz
+        // sistemske nastavitve v meniju namesto na isti vrstici (TV, 19. 10. 2026). Seznam obdrzi izbrano vrstico.
+        if (fokusNaSeznamu) { fokusNaSeznamu = false; seznam.requestFocus() }
         narisi()
         // Scit je lahko v sosednji aplikaciji: stanje preberemo prek mostu in vrstico osvezimo.
         Scit.stanje(this) { narisi() }
@@ -118,9 +224,13 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * dokler je sistemsko okno spredaj; ob vrnitvi (onResume) ga spet pokazemo.
      */
     private fun sistemskoOkno(odpri: () -> Unit) {
+        fokusNaSeznamu = seznam.hasFocus()
         koren.visibility = View.INVISIBLE
         odpri()
     }
+
+    /** Pred odprtjem sistemskega okna je bil fokus na seznamu (daljinec): ob vrnitvi gre spet tja. */
+    private var fokusNaSeznamu = false
 
     /** Posodobitve: takoj preveri safeer.si; novo razlicico prenese in preda namescanju, sicer pove, da je najnovejsa. */
     private fun posodobi() {
@@ -144,6 +254,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         try { sistemskoOkno { startActivity(i) } } catch (_: Throwable) { koren.visibility = View.VISIBLE }
     }
 
+    /** Nastavitev Safeer OS: ime in opis iz virov (za iskanje v vseh jezikih), stanje in dejanje. */
+    private fun safeer(ikona: Int, ime: Int, opis: Int, stanje: String, besedilo: String = getString(opis), ob: () -> Unit) =
+        Pair(ime, Vrstica(ikona, getString(ime), besedilo, stanje, Skupina.SAFEER, jeziki.vsa(ime) + jeziki.vsa(opis), ob = ob))
+
     private fun narisi() {
         val stanjeZaganjalnika = Zaganjalnik.stanje(this)
         val jeDomaci = stanjeZaganjalnika == Zaganjalnik.IZBRAN
@@ -154,92 +268,109 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Zaganjalnik.TELEVIZOR_OBDRZI -> getString(R.string.os_zaganjalnik_televizor_obdrzi)
             else -> getString(R.string.os_izklopljeno)
         }
+        fun vklop(da: Boolean) = getString(if (da) R.string.os_vklopljeno else R.string.os_izklopljeno)
         val krajevni = link.jeKrajevni()
         val naDotik = packageName.endsWith(".tablet") || packageName.endsWith(".phone")
+        val predvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
+        val shramba = getSharedPreferences(StranskaVrstica.SHRAMBA, MODE_PRIVATE)
         // Domaci zaslon naprave (HOME) je samo na televizorju (lastnik, 18. 10. 2026): telefon in tablica ostaneta
         // navadni aplikaciji z ikono v predalu, brez vloge zaganjalnika in brez znack obvestil zanj.
-        val vse = listOfNotNull(
+        val safeer = listOfNotNull(
             if (naDotik) null
-            else Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.os_zaganjalnik),
-                getString(R.string.os_zaganjalnik_opis), domaciStanje) { preklopiZaganjalnik(jeDomaci || ponujen) },
-            Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_zagon),
-                getString(R.string.os_zagon_opis),
-                getString(if (ZagonOb.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiZagon() },
-            Vrstica(R.drawable.os_ikona_link, getString(R.string.os_nacin),
-                getString(R.string.os_nacin_kratko),
+            else safeer(R.drawable.os_ikona_nastavitve, R.string.os_zaganjalnik, R.string.os_zaganjalnik_opis, domaciStanje) {
+                preklopiZaganjalnik(jeDomaci || ponujen) },
+            safeer(R.drawable.os_ikona_naprava, R.string.os_zagon, R.string.os_zagon_opis, vklop(ZagonOb.jeVklopljen(this))) { preklopiZagon() },
+            safeer(R.drawable.os_ikona_link, R.string.os_nacin, R.string.os_nacin_kratko,
                 getString(if (krajevni) R.string.os_stanje_nacin_krajevni else R.string.os_stanje_nacin_link)) { preklopiNacin(krajevni) },
-            Vrstica(R.drawable.os_ikona_racunalnik, getString(R.string.os_host),
-                getString(R.string.os_host_opis),
+            safeer(R.drawable.os_ikona_racunalnik, R.string.os_host, R.string.os_host_opis,
                 if (Host.jeOddaljen(this)) Host.gostitelj(this).orEmpty() else getString(R.string.os_host_doma)) { preklopiHost() },
-            Vrstica(R.drawable.os_ikona_slika, getString(R.string.os_videz),
-                getString(R.string.os_videz_opis), Ozadje.ime(this)) { odpriVidez() },
-            Vrstica(R.drawable.os_ikona_nastavitve, getString(R.string.menu_language),
-                getString(R.string.os_jezik_opis),
+            safeer(R.drawable.os_ikona_slika, R.string.os_videz, R.string.os_videz_opis, Ozadje.ime(this)) { odpriVidez() },
+            safeer(R.drawable.os_ikona_nastavitve, R.string.menu_language, R.string.os_jezik_opis,
                 si.safeer.tv.JezikVmesnika.imeIzbire(this)) { izberiJezik() },
+            // Stranska vrstica na dotik: imena ob ikonah na sirokem zaslonu (isto kot gumb menija na vrhu vrstice).
+            if (tv || predvajalnik) null
+            else safeer(R.drawable.os_ikona_meni, R.string.nast_imena, R.string.nast_imena_opis,
+                vklop(shramba.getBoolean(StranskaVrstica.KLJUC_IMENA, false))) {
+                val novo = !shramba.getBoolean(StranskaVrstica.KLJUC_IMENA, false)
+                // Vrstica tega zaslona se spremeni takoj (nastaviImena tudi shrani izbiro); drugi zasloni ob vrnitvi.
+                StranskaVrstica.na(this)?.nastaviImena(novo) ?: shramba.edit().putBoolean(StranskaVrstica.KLJUC_IMENA, novo).apply()
+                narisi()
+            },
+            // Iskalna lupa domacega zaslona: kompaktna (privzeto) ali vedno odprta.
+            if (predvajalnik) null
+            else safeer(R.drawable.os_ikona_isci, R.string.nast_lupa, R.string.nast_lupa_opis, vklop(DomacaLupa.vednoOdprta(this))) {
+                DomacaLupa.nastaviVednoOdprta(this, !DomacaLupa.vednoOdprta(this)); narisi()
+            },
             // Zmogljivost ima svojo vrstico z ikono: prej je bila ena dolga vrstica na dnu
             // zaslona, ki je sekala nastavitve nad sabo in se je odrezala sredi podatka.
-            Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_plosek_preizkus),
-                getString(R.string.os_plosek_preizkus_opis), "") {
+            safeer(R.drawable.os_ikona_naprava, R.string.os_plosek_preizkus, R.string.os_plosek_preizkus_opis, "") {
                 startActivity(android.content.Intent(this, PlosekActivity::class.java))
             },
-            Vrstica(R.drawable.os_ikona_moc, getString(R.string.os_moc),
-                getString(R.string.os_moc_opis),
+            safeer(R.drawable.os_ikona_moc, R.string.os_moc, R.string.os_moc_opis,
                 moc?.ime.orEmpty().ifBlank { getString(R.string.os_moc_berem) }) { pokaziMoc() },
-            Vrstica(R.drawable.os_ikona_scit, getString(R.string.os_scit),
-                getString(R.string.os_scit_nastavitev_opis),
-                getString(if (Scit.jeVklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { preklopiScit() },
+            safeer(R.drawable.os_ikona_scit, R.string.os_scit, R.string.os_scit_nastavitev_opis, vklop(Scit.jeVklopljen(this))) { preklopiScit() },
             // Obvestila (telefon, tablica): brez njih "Poslji na napravo" in sporocila z drugih naprav v ozadju niso vidni;
             // dovoljenje, ki ga je uporabnik enkrat zavrnil, sistem ne ponudi vec - zato pot do nastavitev aplikacije tu.
-            Vrstica(R.drawable.os_ikona_zvonec, getString(R.string.os_obvestila),
-                getString(R.string.os_obvestila_opis),
-                getString(if (si.safeer.tv.link.Obvestila.dovoljena(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { odpriObvestila() },
-            Vrstica(R.drawable.os_ikona_posodobi, getString(R.string.os_posodobitve),
-                Posodobitve.besedilo(this, R.string.os_posodobitve_opis), Posodobitve.stanje(this)) { posodobi() },
-            Vrstica(R.drawable.os_ikona_link, "Global Link",
-                "Tvoje naprave se dosežejo tudi zunaj doma (link.safeer.si). Vidi jih samo tvoj krog zaupanja.",
-                getString(if (si.safeer.tv.link.GlobalLink.vklopljen(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) { nastaviGlobalLink() },
+            safeer(R.drawable.os_ikona_zvonec, R.string.os_obvestila, R.string.os_obvestila_opis,
+                vklop(si.safeer.tv.link.Obvestila.dovoljena(this))) { odpriObvestila() },
+            safeer(R.drawable.os_ikona_posodobi, R.string.os_posodobitve, R.string.os_posodobitve_opis, Posodobitve.stanje(this),
+                Posodobitve.besedilo(this, R.string.os_posodobitve_opis)) { posodobi() },
+            safeer(R.drawable.os_ikona_link, R.string.os_gl_ime, R.string.os_gl_opis,
+                vklop(si.safeer.tv.link.GlobalLink.vklopljen(this))) { nastaviGlobalLink() },
             // Ozji krog zaupanja (kot na racunalniku): samo naprave v njem vidijo vsebine te naprave in samo njihove
             // programe, datoteke in zaslon vidis tu. Telefon zunaj kroga (npr. druzinski) ga tu ustvari in ureja.
-            Vrstica(R.drawable.os_ikona_link, getString(R.string.os_ozji_krog),
-                getString(R.string.os_ozji_krog_opis),
+            safeer(R.drawable.os_ikona_link, R.string.os_ozji_krog, R.string.os_ozji_krog_opis,
                 getString(R.string.os_ozji_krog_stevilo, OzjiKrog.stevilo(this, link))) { OzjiKrog.uredi(this, link) { narisi() } },
             // »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka; isto kot na racunalniku).
-            Vrstica(R.drawable.os_ikona_link, getString(R.string.os_pomoc_ime),
-                getString(R.string.os_pomoc_opis),
-                getString(if (si.safeer.tv.link.PomocLinka.vklopljena(this)) R.string.os_vklopljeno else R.string.os_izklopljeno)) {
+            safeer(R.drawable.os_ikona_link, R.string.os_pomoc_ime, R.string.os_pomoc_opis,
+                vklop(si.safeer.tv.link.PomocLinka.vklopljena(this))) {
                 si.safeer.tv.link.PomocLinka.shrani(this, !si.safeer.tv.link.PomocLinka.vklopljena(this))
                 narisi()
             },
-            Vrstica(R.drawable.os_ikona_link, getString(R.string.os_ig_naslov),
-                getString(R.string.os_ig_opis),
-                if (getSharedPreferences(si.safeer.tv.link.AndroidApplicationGateway.PREFS, MODE_PRIVATE).getBoolean("gateway_enabled", false)) getString(R.string.os_vklopljeno) else getString(R.string.os_izklopljeno)) { nastaviInternetGateway() },
-            Vrstica(R.drawable.os_ikona_datoteka, getString(R.string.os_pravno),
-                getString(R.string.os_pravno_opis), "") { pokaziPravno() },
-            Vrstica(R.drawable.os_ikona_naprava, getString(R.string.os_izhod),
-                getString(R.string.os_izhod_opis), "") { izhod() },
+            safeer(R.drawable.os_ikona_link, R.string.os_ig_naslov, R.string.os_ig_opis,
+                vklop(getSharedPreferences(si.safeer.tv.link.AndroidApplicationGateway.PREFS, MODE_PRIVATE).getBoolean("gateway_enabled", false))) {
+                nastaviInternetGateway() },
+            safeer(R.drawable.os_ikona_datoteka, R.string.os_pravno, R.string.os_pravno_opis, "") { pokaziPravno() },
+            safeer(R.drawable.os_ikona_naprava, R.string.os_izhod, R.string.os_izhod_opis, "") { izhod() },
         )
         // Tablica si deli te nastavitve s televizorjem, a nekatere veljajo samo za televizor:
         // domaci zaslon in zagon ob vklopu TV, preizkus igralnega ploscka (tablica ga ne podpira),
         // krajevni nacin (brez naprav tablica nima cesa pokazati) in izhod v sistem televizorja.
-        val skrij = if (packageName.endsWith(".tablet") || packageName.endsWith(".phone")) setOf(getString(R.string.os_zaganjalnik),
-            getString(R.string.os_zagon), getString(R.string.os_nacin), getString(R.string.os_plosek_preizkus),
-            getString(R.string.os_izhod)) else emptySet()
+        val skrij = HashSet<Int>()
+        if (naDotik) skrij += listOf(R.string.os_zaganjalnik, R.string.os_zagon, R.string.os_nacin, R.string.os_plosek_preizkus, R.string.os_izhod)
         // Televizor tihih obvestil aplikacij ne kaze: vrstica Obvestila le na telefonu in tablici (tudi v Predvajalniku).
-        val skrijTv = if (packageManager.hasSystemFeature("android.software.leanback")) setOf(getString(R.string.os_obvestila)) else emptySet()
+        if (packageManager.hasSystemFeature("android.software.leanback")) skrij += R.string.os_obvestila
         // Safeer Predvajalnik je samostojen program, ne domaci zaslon: brez nastavitev zaganjalnika,
         // racunalniskega hosta, igralnega ploscka, moci, Scita in izhoda v sistem (preizkus 1. 10. 2026).
-        val skrijPredvajalnik = if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") setOf(getString(R.string.os_zaganjalnik),
-            getString(R.string.os_zagon), getString(R.string.os_host), getString(R.string.os_plosek_preizkus),
-            getString(R.string.os_moc), getString(R.string.os_scit), getString(R.string.os_izhod)) else emptySet()
-        vrstice = vse.filter { it.ime !in skrij && it.ime !in skrijTv && it.ime !in skrijPredvajalnik && (packageName.endsWith(".phone") || it.ime != getString(R.string.os_ig_naslov)) }
+        if (predvajalnik) skrij += listOf(R.string.os_zaganjalnik, R.string.os_zagon, R.string.os_host, R.string.os_plosek_preizkus,
+            R.string.os_moc, R.string.os_scit, R.string.os_izhod)
+        // Internet prek Linka deli samo telefon (mobilni podatki).
+        if (!packageName.endsWith(".phone")) skrij += R.string.os_ig_naslov
+        vse = safeer.filter { it.first !in skrij }.map { it.second } + sistemske
+        filtriraj()
+    }
+
+    /** Seznam po skupinah z naslovi; ob iskanju samo ustrezne nastavitve (ime ali opis v kateremkoli jeziku). */
+    private fun filtriraj() {
+        val poizvedba = if (::iskanje.isInitialized) iskanje.text.toString() else ""
+        val zadetki = vse.filter { VrsticaPravila.ujema(poizvedba, it.iskanje + it.ime + it.opis) }
+        val nov = ArrayList<Vrstica>()
+        for (s in Skupina.values()) {
+            val v = zadetki.filter { it.skupina == s }
+            if (v.isEmpty()) continue
+            nov += Vrstica(0, getString(s.naslov), "", "", s, glava = true)
+            nov += v
+        }
+        if (nov.isEmpty()) nov += Vrstica(0, getString(R.string.nast_ni_zadetkov), "", "", Skupina.SAFEER)
+        prikaz = nov
         prilagojevalnik.notifyDataSetChanged()
-        if (seznam.selectedItemPosition < 0) seznam.requestFocus()
+        if (seznam.selectedItemPosition < 0 && !iskanje.hasFocus()) seznam.requestFocus()
     }
 
     private fun nastaviGlobalLink() {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 8) }
-        val vklop = CheckBox(this).apply { text = "Dostop do mojih naprav od kjerkoli"; isChecked = si.safeer.tv.link.GlobalLink.vklopljen(this@NastavitveActivity) }
-        val preizkus = CheckBox(this).apply { text = "Preizkus: tudi doma prek interneta"; isChecked = si.safeer.tv.link.GlobalLink.samoRele(this@NastavitveActivity) }
+        val vklop = CheckBox(this).apply { text = getString(R.string.os_gl_vklop); isChecked = si.safeer.tv.link.GlobalLink.vklopljen(this@NastavitveActivity) }
+        val preizkus = CheckBox(this).apply { text = getString(R.string.os_gl_preizkus); isChecked = si.safeer.tv.link.GlobalLink.samoRele(this@NastavitveActivity) }
         box.addView(vklop); box.addView(preizkus)
         // Pot do vsakega sredisca zdoma: Lokalno (v istem omrezju), Neposredno (internet) ali Prek releja, z zamikom.
         // Neposredno je mozno, ce je na racunalniku doma vklopljena "Neposredna povezava od zunaj" (ena preusmerjena vrata).
@@ -247,17 +378,17 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val krog = try { si.safeer.tv.cast.KrogNaprave.krog(this).clani() } catch (_: Throwable) { emptyList() }
         val vrstice = poti.map { (cilj, p) ->
             val ime = krog.firstOrNull { runCatching { si.safeer.tv.cast.KrogZaupanja.idIzKljuca(it.kljuc) }.getOrNull() == cilj }?.ime ?: cilj
-            val pot = if (p.first == si.safeer.tv.link.NeposrednaPot.POT_NEPOSREDNO) "Neposredno (internet)" else "Prek releja"
+            val pot = getString(if (p.first == si.safeer.tv.link.NeposrednaPot.POT_NEPOSREDNO) R.string.os_gl_neposredno else R.string.os_gl_rele)
             "$ime: $pot" + (p.second?.let { " · $it ms" } ?: "")
         }
         box.addView(TextView(this).apply {
             setPadding(0, 24, 0, 0)
             text = if (si.safeer.tv.link.GlobalLink.zdoma || vrstice.isNotEmpty())
-                (listOf("Pot do naprav zdoma:") + vrstice.ifEmpty { listOf("prek releja") }).joinToString("\n")
-            else "Pot do naprav: Lokalno (isto omrežje)"
+                (listOf(getString(R.string.os_gl_pot_zdoma)) + vrstice.ifEmpty { listOf(getString(R.string.os_gl_rele)) }).joinToString("\n")
+            else getString(R.string.os_gl_pot_lokalno)
         })
-        android.app.AlertDialog.Builder(this).setTitle("Global Link").setView(box)
-            .setPositiveButton("Shrani") { _, _ ->
+        android.app.AlertDialog.Builder(this).setTitle(getString(R.string.os_gl_ime)).setView(box)
+            .setPositiveButton(getString(R.string.os_ig_shrani)) { _, _ ->
                 si.safeer.tv.link.GlobalLink.nastavi(this, vklop.isChecked, preizkus.isChecked)
                 si.safeer.tv.link.GlobalLink.izklopi()
                 val i = Intent(this, si.safeer.tv.cast.CastReceiverService::class.java).apply { action = si.safeer.tv.cast.CastReceiverService.ACTION_GATEWAY_CHANGED }
@@ -608,16 +739,45 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private inner class Prilagojevalnik : BaseAdapter() {
-        override fun getCount(): Int = vrstice.size
-        override fun getItem(i: Int): Any = vrstice[i]
+        override fun getCount(): Int = prikaz.size
+        override fun getItem(i: Int): Any = prikaz[i]
         override fun getItemId(i: Int): Long = i.toLong()
+        override fun getViewTypeCount(): Int = 3
+        override fun getItemViewType(i: Int): Int = when {
+            prikaz[i].glava -> 0
+            prikaz[i].ob == null -> 1
+            else -> 2
+        }
+        /** Naslovi skupin in sporocilo »ni zadetkov« niso izbirni: daljinec jih preskoci. */
+        override fun areAllItemsEnabled(): Boolean = false
+        override fun isEnabled(i: Int): Boolean = prikaz.getOrNull(i)?.ob != null
+
+        private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
+
         override fun getView(i: Int, star: View?, roditelj: ViewGroup): View {
+            val vr = prikaz[i]
+            if (vr.glava || vr.ob == null) {
+                val t = (star as? TextView) ?: TextView(this@NastavitveActivity).apply {
+                    if (vr.glava) {
+                        setTextColor(osBarva(R.color.os_mint)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                        letterSpacing = 0.12f; isAllCaps = true
+                        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+                        setPadding(dp(18), dp(20), dp(18), dp(6))
+                        // Bralnik zaslona: naslov skupine je naslov, ne gumb.
+                        isAccessibilityHeading = true
+                    } else {
+                        setTextColor(osBarva(R.color.os_umirjeno)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                        setPadding(dp(18), dp(24), dp(18), dp(24))
+                    }
+                }
+                t.text = vr.ime
+                return t
+            }
             // Zasuk ne naredi novega zaslona (configChanges): vrstica iz druge postavitve
             // (layout-w600dp, stanje desno) se ne sme ponovno uporabiti - naslov bi se odrezal.
             val siroka = resources.configuration.screenWidthDp >= 600
             val v = star?.takeIf { it.getTag(R.id.stanje) == siroka } ?: LayoutInflater.from(this@NastavitveActivity)
                 .inflate(R.layout.os_vrstica_nastavitev, roditelj, false).also { it.setTag(R.id.stanje, siroka) }
-            val vr = vrstice[i]
             v.findViewById<ImageView>(R.id.ikona).setImageResource(vr.ikona)
             v.findViewById<TextView>(R.id.ime).text = vr.ime
             v.findViewById<TextView>(R.id.opis).text = vr.opis

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Nastavitve Safeer OS: vrstice z naslovom in trenutnim stanjem, berljive z razdalje.
-     Glava je enaka kot pri Aplikacijah, Datotekah in Napravah: ikona, nadnaslov, naslov. -->
+<!-- Nastavitve Safeer OS: lastne nastavitve in celotne sistemske nastavitve Androida, v skupinah in z iskanjem.
+     Glava je enaka kot pri Aplikacijah, Datotekah in Napravah: ikona, nadnaslov, naslov. Na ozkem zaslonu ikono
+     glave nadomesti gumb menija (k:meni_sidro, StranskaVrstica). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/koren"
     android:layout_width="match_parent"
@@ -20,6 +21,7 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:src="@drawable/os_ikona_nastavitve"
+            android:tag="k:meni_sidro"
             android:contentDescription="@null"/>
         <LinearLayout
             android:layout_width="0dp"
@@ -40,20 +42,55 @@
                 android:text="@string/os_nastavitve"/>
         </LinearLayout>
     </LinearLayout>
-    <TextView
-        android:id="@+id/opomba"
+    <!-- Iskanje po vseh nastavitvah (v vseh jezikih aplikacije). -->
+    <LinearLayout
+        android:id="@+id/iskanjeOkvir"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:textColor="?attr/osUmirjeno"
-        android:textSize="14sp"/>
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:addStatesFromChildren="true"
+        android:background="@drawable/os_iskanje"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="4dp">
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/os_ikona_isci"
+            android:contentDescription="@null"/>
+        <EditText
+            android:id="@+id/iskanje"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:background="@null"
+            android:hint="@string/nast_isci_namig"
+            android:textColor="?attr/osBesedilo"
+            android:textColorHint="?attr/osUmirjeno"
+            android:textSize="15sp"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:inputType="text"
+            android:imeOptions="actionSearch"
+            android:importantForAutofill="no"/>
+        <ImageButton
+            android:id="@+id/pocisti"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/os_meni_postavka"
+            android:src="@drawable/os_ikona_zapri"
+            android:contentDescription="@string/nast_isci_pocisti"
+            android:visibility="gone"/>
+    </LinearLayout>
 
     <ListView
         android:id="@+id/seznam"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="18dp"
+        android:layout_marginTop="8dp"
         android:divider="@null"
         android:dividerHeight="0dp"
         android:scrollbars="none"/>

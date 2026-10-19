@@ -86,7 +86,6 @@
 
     <!-- Nastavitve Safeer OS: domaci zaslon televizorja, nacin delovanja, Scit -->
     <string name="os_nastavitve">Einstellungen</string>
-    <string name="os_nastavitve_opomba">Alles hier lässt sich jederzeit ein- und ausschalten.</string>
     <string name="os_jezik_opis">Safeer OS in der Sprache Ihrer Wahl, unabhängig von der Spracheinstellung des Fernsehers</string>
     <string name="os_zaganjalnik">Startbildschirm des Fernsehers</string>
     <string name="os_zaganjalnik_opis">Ob Safeer OS die Home-Taste übernimmt oder eine App bleibt, die du für Web-Apps öffnest</string>
