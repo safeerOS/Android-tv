@@ -268,12 +268,21 @@ object DomacaLupa {
     fun znakTipke(d: KeyEvent): Boolean = VrsticaPravila.znakZaLupo(d.unicodeChar,
         polnaTipkovnica = try { d.keyCharacterMap.keyboardType == android.view.KeyCharacterMap.FULL } catch (_: Throwable) { false })
 
-    /** Nazaj ob razprti lupi na dotik (tipkovnica je ze skrita): iskanje se preklice in lupa se zapre. */
+    /**
+     * Nazaj ob razprti lupi (tipkovnica je ze skrita): iskanje se preklice in lupa se zapre. Daljinec: Nazaj izbrise
+     * natipkano (sicer je crka, ki je po nesreci odprla lupo, ostala v njej); prazna lupa Nazaj ne porabi - fokus gre v
+     * stransko vrstico kot iz drugih delov zaslona.
+     */
     fun nazaj(a: Activity): Boolean {
         val k = krmilo(a) ?: return false
-        if (!k.polje.isInTouchMode) return false
-        if (!k.okvir.hasFocus() && k.polje.text.isNullOrBlank()) return false
-        if (vednoOdprta(a) && k.polje.text.isNullOrBlank()) return false
+        val prazno = k.polje.text.isNullOrBlank()
+        if (!k.polje.isInTouchMode) {
+            if (prazno) return false
+            k.zapri()
+            return true
+        }
+        if (!k.okvir.hasFocus() && prazno) return false
+        if (vednoOdprta(a) && prazno) return false
         k.zapri()
         return true
     }

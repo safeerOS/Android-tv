@@ -136,8 +136,13 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         karticaZaslon = findViewById(R.id.karticaZaslon)
         karticaProgrami = findViewById(R.id.karticaProgrami)
         pripraviVelikeKartice()
-        // GOR s Spletnega brskalnika gre v iskalno polje lupe (ne na mikrofon ob njem).
-        lupa?.let { if (it.id == View.NO_ID) it.id = View.generateViewId(); karticaBrskalnik.nextFocusUpId = it.id }
+        // GOR s Spletnega brskalnika gre v iskalno polje lupe (ne na mikrofon ob njem), DOL iz polja nazaj nanj: iskanje
+        // fokusa je iz polja (pravokotnik kazalca) izbralo meni na levi, ne kartice pod lupo (TV, 19. 10. 2026).
+        lupa?.let {
+            if (it.id == View.NO_ID) it.id = View.generateViewId()
+            karticaBrskalnik.nextFocusUpId = it.id
+            it.nextFocusDownId = karticaBrskalnik.id
+        }
         ploscaNaprave = findViewById(R.id.ploscaNaprave)
         seznamPloscaNaprave = findViewById(R.id.seznamPloscaNaprave)
         hitriWeb = findViewById(R.id.hitriWeb)
@@ -515,6 +520,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         if (SporocilaZnak.zapri(this)) return
+        if (DomacaLupa.nazaj(this)) return
         // Televizor: Nazaj iz vsebine najprej v stransko vrstico (kot sistemski zaganjalnik), sele iz nje naprej.
         if (Naprava.jeTelevizor(this) && fokusVVsebini()) { meniDomov.requestFocus(); return }
         if (Zaganjalnik.jeIzbran(this)) return
