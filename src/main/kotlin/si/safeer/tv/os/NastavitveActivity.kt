@@ -306,6 +306,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             safeer(R.drawable.os_ikona_naprava, R.string.os_plosek_preizkus, R.string.os_plosek_preizkus_opis, "") {
                 startActivity(android.content.Intent(this, PlosekActivity::class.java))
             },
+            safeer(R.drawable.os_ikona_naprava, R.string.drm_preizkus_naslov, R.string.drm_preizkus_opis, "") {
+                si.safeer.tv.DrmPravila.prikaziDrmDiagnostiko(this, null)
+            },
             safeer(R.drawable.os_ikona_moc, R.string.os_moc, R.string.os_moc_opis,
                 moc?.ime.orEmpty().ifBlank { getString(R.string.os_moc_berem) }) { pokaziMoc() },
             safeer(R.drawable.os_ikona_scit, R.string.os_scit, R.string.os_scit_nastavitev_opis, vklop(Scit.jeVklopljen(this))) { preklopiScit() },

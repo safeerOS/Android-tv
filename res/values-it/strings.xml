@@ -52,4 +52,18 @@
     <string name="os_media_jeziki_vsebine">Lingue dei contenuti</string>
     <string name="os_media_pripravljam">Preparazione di %1$s…</string>
     <string name="os_media_priprava_napaka">Impossibile preparare %1$s.</string>
+    <string name="menu_reset_page_data">Reimposta i dati di questo sito</string>
+    <string name="toast_page_data_reset">I dati del sito sono stati reimpostati</string>
+    <string name="drm_preizkus_naslov">Diagnostica DRM</string>
+    <string name="drm_preizkus_opis">Verifica Widevine, livello MediaDrm e adattamento EME</string>
+    <string name="drm_izvid_naslov">Risultati della diagnostica DRM</string>
+    <string name="drm_gumb_zapri">Chiudi</string>
+    <string name="drm_polje_widevine">Widevine (MediaDrm):</string>
+    <string name="drm_polje_nivo">Livello di sicurezza:</string>
+    <string name="drm_polje_persistent">Stato persistente (persistentState):</string>
+    <string name="drm_polje_seje">Tipi di sessione (sessionTypes):</string>
+    <string name="drm_polje_eme_brez">EME senza shim:</string>
+    <string name="drm_polje_eme_z">EME con shim (SW_SECURE_CRYPTO):</string>
+    <string name="drm_da">SÌ</string>
+    <string name="drm_ne">NO</string>
 </resources>

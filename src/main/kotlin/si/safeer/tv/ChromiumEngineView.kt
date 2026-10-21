@@ -64,7 +64,7 @@ class ChromiumEngineView @JvmOverloads constructor(
 
 
         const val MOBILE_USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36"
-        const val DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+        const val DESKTOP_USER_AGENT = "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         const val CHROME_ANDROID_USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
         const val SMART_TV_USER_AGENT = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 7.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/8.2 Chrome/106.0.5249.126 TV Safari/537.36"
         const val GOOGLE_AUTH_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
@@ -105,10 +105,12 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
     }
 
+    fun pridobiNamizniUa(): String = DrmPravila.chromeOsUserAgent(DrmPravila.zaznajChromeRazlicico(context))
+
     var isDesktopMode: Boolean = false
         set(value) {
             field = value
-            settings.userAgentString = if (value) DESKTOP_USER_AGENT else MOBILE_USER_AGENT
+            settings.userAgentString = if (value) pridobiNamizniUa() else MOBILE_USER_AGENT
             settings.useWideViewPort = value
             settings.loadWithOverviewMode = value
         }
@@ -241,6 +243,42 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
     }
 
+    private fun nastaviUserAgentMetadata(fullVersion: String) {
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.USER_AGENT_METADATA)) {
+            try {
+                val major = fullVersion.substringBefore('.').ifBlank { "131" }
+                val brandChromium = androidx.webkit.UserAgentMetadata.BrandVersion.Builder()
+                    .setBrand("Chromium")
+                    .setMajorVersion(major)
+                    .setFullVersion(fullVersion)
+                    .build()
+                val brandChrome = androidx.webkit.UserAgentMetadata.BrandVersion.Builder()
+                    .setBrand("Google Chrome")
+                    .setMajorVersion(major)
+                    .setFullVersion(fullVersion)
+                    .build()
+                val brandNotBrand = androidx.webkit.UserAgentMetadata.BrandVersion.Builder()
+                    .setBrand("Not=A?Brand")
+                    .setMajorVersion("24")
+                    .setFullVersion("24.0.0.0")
+                    .build()
+                val metadata = androidx.webkit.UserAgentMetadata.Builder()
+                    .setPlatform("Chrome OS")
+                    .setPlatformVersion(DrmPravila.CHROME_OS_PLATFORM_VERSION)
+                    .setArchitecture("x86")
+                    .setBitness(64)
+                    .setModel("")
+                    .setMobile(false)
+                    .setFullVersion(fullVersion)
+                    .setBrandVersionList(listOf(brandChromium, brandChrome, brandNotBrand))
+                    .build()
+                androidx.webkit.WebSettingsCompat.setUserAgentMetadata(settings, metadata)
+            } catch (e: Exception) {
+                android.util.Log.w("SafeerDRM", "Ne morem nastaviti UserAgentMetadata: ${e.message}")
+            }
+        }
+    }
+
     private fun setupSettings() {
         setLayerType(View.LAYER_TYPE_HARDWARE, null)
         overScrollMode = View.OVER_SCROLL_NEVER
@@ -254,6 +292,9 @@ class ChromiumEngineView @JvmOverloads constructor(
         // Piskotki tretjih strani le tam, kjer jih potrebuje prijava ali placilo (glej applyUserAgentForUrl).
         // Soglasij (YouTube SOCS/CONSENT) ne vsiljujemo vec: format se spreminja, stran vprasa sama enkrat.
         cm.setAcceptThirdPartyCookies(this, false)
+
+        val chromeVer = DrmPravila.zaznajChromeRazlicico(context)
+        nastaviUserAgentMetadata(chromeVer)
 
         // 1. Strip X-Requested-With header to bypass Google OAuth WebView block
         try {
@@ -282,7 +323,7 @@ class ChromiumEngineView @JvmOverloads constructor(
             loadWithOverviewMode = true
             textZoom = 100
             cacheMode = WebSettings.LOAD_DEFAULT
-            userAgentString = DESKTOP_USER_AGENT
+            userAgentString = pridobiNamizniUa()
             // Televizor (2 GB): brez pripravljanja vsebine izven vidnega obmocja.
             offscreenPreRaster = BrowserMemoryPolicy.za(context).predRaster
             safeBrowsingEnabled = true
@@ -295,6 +336,12 @@ class ChromiumEngineView @JvmOverloads constructor(
 
         try {
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                // DRM zacetna skripta (ChromeOS navigacija in Widevine SW_SECURE_CRYPTO EME shim)
+                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
+                    this,
+                    DrmPravila.ustvariDrmZacetnoSkripto(chromeVer),
+                    DrmPravila.DRM_ALLOWED_ORIGINS
+                )
                 androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
                     this,
                     UserScriptManager.GPC_AND_DNT_JS,
@@ -383,9 +430,10 @@ class ChromiumEngineView @JvmOverloads constructor(
             url.contains("signin/v2", ignoreCase = true) || url.contains("signin/challenge", ignoreCase = true) ||
             url.contains("v3/signin", ignoreCase = true) || url.contains("signin/identifier", ignoreCase = true))
 
-        // Prijava, placilo in pravi bancni strezniki: piskotki tretjih strani in samodejna okna
-        // (OAuth, 3-D Secure). Drugod ne - manj sledenja in manj nezelenih oken.
-        val prijava = isGoogle || mobilniPogled || jePrijavaAliPlacilo(url) || ThreatBlockEngine.isRealBankHost(host)
+        // Prijava, placilo in pravi bancni strezniki ter DRM pretocne storitve: piskotki tretjih strani in samodejna okna
+        // (OAuth, 3-D Secure, DRM avtentikacija). Drugod ne - manj sledenja in manj nezelenih oken.
+        val isDrm = DrmPravila.jeDrmUrl(url)
+        val prijava = isGoogle || mobilniPogled || isDrm || jePrijavaAliPlacilo(url) || ThreatBlockEngine.isRealBankHost(host)
         try { CookieManager.getInstance().setAcceptThirdPartyCookies(this, prijava) } catch (_: Exception) {}
         settings.javaScriptCanOpenWindowsAutomatically = prijava
         if (isGoogle) {
@@ -419,17 +467,18 @@ class ChromiumEngineView @JvmOverloads constructor(
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
-        settings.mediaPlaybackRequiresUserGesture = dotik && !mobilniPogled && !youtubeSamodejno
+        settings.mediaPlaybackRequiresUserGesture = if (dotik) (!mobilniPogled && !youtubeSamodejno) else false
         settings.setNeedInitialFocus(false)
         // Mesane vsebine kot v Chromu: skripte in okvirji po http v strani https so prepovedani,
         // slike, zvok in video pa se nalozijo (Chromium jih po moznosti nadgradi na https).
         // NEVER_ALLOW je na televizorju pobral sicer veljavne slike (npr. sličice na YouTube TV).
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        val namizniUa = pridobiNamizniUa()
         settings.userAgentString = when {
             dotik -> CHROME_ANDROID_USER_AGENT
-            skip -> DESKTOP_USER_AGENT
+            skip -> namizniUa
             isYoutubeTv -> SMART_TV_USER_AGENT
-            else -> DESKTOP_USER_AGENT
+            else -> namizniUa
         }
         if (dotik && namiznaSirina <= 0) setInitialScale(0)
     }
@@ -1111,6 +1160,11 @@ class ChromiumEngineView @JvmOverloads constructor(
                 url?.let {
                     if (!UserScriptManager.isYouTubeUrl(it)) youtubeSamodejno = false
                     applyUserAgentForUrl(it)
+                    if (DrmPravila.jeDrmUrl(it) || !androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                        try {
+                            view?.evaluateJavascript(DrmPravila.ustvariDrmZacetnoSkripto(DrmPravila.zaznajChromeRazlicico(context)), null)
+                        } catch (_: Exception) {}
+                    }
                     onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                 }

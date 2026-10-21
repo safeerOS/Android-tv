@@ -177,6 +177,7 @@
              v Safeer OS je ta dejavnost notranji pogon za spletne aplikacije, kadar brskalnik ni namescen. -->
         <activity
             android:name="si.safeer.tv.MainActivity"
+            android:hardwareAccelerated="true"
             android:theme="@style/AppTheme.Brskalnik"
             android:label="@string/app_name"
             android:icon="@mipmap/ic_launcher"

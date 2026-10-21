@@ -52,4 +52,18 @@
     <string name="os_media_jeziki_vsebine">Content languages</string>
     <string name="os_media_pripravljam">Preparing %1$s…</string>
     <string name="os_media_priprava_napaka">Couldn’t prepare %1$s.</string>
+    <string name="menu_reset_page_data">Reset this site\'s data</string>
+    <string name="toast_page_data_reset">Site data has been reset</string>
+    <string name="drm_preizkus_naslov">DRM Diagnostics</string>
+    <string name="drm_preizkus_opis">Check Widevine, MediaDrm level and EME shim</string>
+    <string name="drm_izvid_naslov">DRM Diagnostics Results</string>
+    <string name="drm_gumb_zapri">Close</string>
+    <string name="drm_polje_widevine">Widevine (MediaDrm):</string>
+    <string name="drm_polje_nivo">Security level:</string>
+    <string name="drm_polje_persistent">Persistent state:</string>
+    <string name="drm_polje_seje">Session types:</string>
+    <string name="drm_polje_eme_brez">EME without shim:</string>
+    <string name="drm_polje_eme_z">EME with shim:</string>
+    <string name="drm_da">YES</string>
+    <string name="drm_ne">NO</string>
 </resources>

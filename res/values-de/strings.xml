@@ -52,4 +52,18 @@
     <string name="os_media_jeziki_vsebine">Inhaltssprachen</string>
     <string name="os_media_pripravljam">%1$s wird vorbereitet …</string>
     <string name="os_media_priprava_napaka">%1$s konnte nicht vorbereitet werden.</string>
+    <string name="menu_reset_page_data">Daten dieser Seite zurücksetzen</string>
+    <string name="toast_page_data_reset">Seitendaten wurden zurückgesetzt</string>
+    <string name="drm_preizkus_naslov">DRM-Diagnose</string>
+    <string name="drm_preizkus_opis">Widevine, MediaDrm-Stufe und EME-Anpassung prüfen</string>
+    <string name="drm_izvid_naslov">DRM-Diagnoseergebnisse</string>
+    <string name="drm_gumb_zapri">Schließen</string>
+    <string name="drm_polje_widevine">Widevine (MediaDrm):</string>
+    <string name="drm_polje_nivo">Sicherheitsstufe:</string>
+    <string name="drm_polje_persistent">Dauerhafter Zustand (persistentState):</string>
+    <string name="drm_polje_seje">Sitzungstypen (sessionTypes):</string>
+    <string name="drm_polje_eme_brez">EME ohne Shim:</string>
+    <string name="drm_polje_eme_z">EME mit Shim (SW_SECURE_CRYPTO):</string>
+    <string name="drm_da">JA</string>
+    <string name="drm_ne">NEIN</string>
 </resources>

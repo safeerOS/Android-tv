@@ -36,5 +36,18 @@ object R {
         const val ui_cat_phishing = 52
         const val ui_cat_adnet = 53
         const val ui_cat_fake_shop = 54
+        // DRM
+        const val drm_da = 60
+        const val drm_ne = 61
+        const val drm_polje_widevine = 62
+        const val drm_polje_nivo = 63
+        const val drm_polje_persistent = 64
+        const val drm_polje_seje = 65
+        const val drm_polje_eme_brez = 66
+        const val drm_polje_eme_z = 67
+        const val drm_izvid_naslov = 68
+        const val drm_gumb_zapri = 69
+        const val drm_preizkus_naslov = 70
+        const val drm_preizkus_opis = 71
     }
 }

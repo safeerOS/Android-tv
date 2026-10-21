@@ -52,4 +52,18 @@
     <string name="os_media_jeziki_vsebine">Jeziki vsebine</string>
     <string name="os_media_pripravljam">Pripravljam %1$s …</string>
     <string name="os_media_priprava_napaka">Vsebine %1$s ni bilo mogoče pripraviti.</string>
+    <string name="menu_reset_page_data">Ponastavi podatke te strani</string>
+    <string name="toast_page_data_reset">Podatki strani so bili ponastavljeni</string>
+    <string name="drm_preizkus_naslov">Preizkus DRM</string>
+    <string name="drm_preizkus_opis">Preveri delovanje Widevine, nivo MediaDrm in EME prilagoditev</string>
+    <string name="drm_izvid_naslov">Izvid preizkusa DRM</string>
+    <string name="drm_gumb_zapri">Zapri</string>
+    <string name="drm_polje_widevine">Widevine (MediaDrm):</string>
+    <string name="drm_polje_nivo">Varnostni nivo:</string>
+    <string name="drm_polje_persistent">Obstojne licence (persistentState):</string>
+    <string name="drm_polje_seje">Vrste sej (sessionTypes):</string>
+    <string name="drm_polje_eme_brez">EME brez shima:</string>
+    <string name="drm_polje_eme_z">EME z shimom (SW_SECURE_CRYPTO):</string>
+    <string name="drm_da">DA</string>
+    <string name="drm_ne">NE</string>
 </resources>

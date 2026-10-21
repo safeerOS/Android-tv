@@ -2912,6 +2912,26 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             dialog.dismiss()
         }
 
+        // Ponastavi DRM in podatke te strani (WebStorage.deleteOrigin za izvor + piskotki domene + clearCache)
+        dialog.findViewById<LinearLayout>(R.id.rowMenuResetOriginData)?.setOnClickListener {
+            val wv = activeWebView()
+            val curUrl = wv?.url ?: activeUrl()
+            if (wv != null && curUrl.isNotBlank()) {
+                DrmPravila.ponastaviPodatkeStrani(wv, curUrl) {
+                    wv.reload()
+                    Toast.makeText(this, UiText.get(R.string.toast_page_data_reset), Toast.LENGTH_SHORT).show()
+                }
+            }
+            dialog.dismiss()
+        }
+
+        // Diagnostika DRM (MediaDrm in EME shim)
+        dialog.findViewById<LinearLayout>(R.id.rowMenuDrmPreizkus)?.setOnClickListener {
+            val wv = activeWebView()
+            DrmPravila.prikaziDrmDiagnostiko(this, wv)
+            dialog.dismiss()
+        }
+
         // Daljinec s telefona: tipke gredo v odprti meni (svoje okno), ne v dejavnost.
         meniDaljinca = dialog
         dialog.setOnDismissListener { if (meniDaljinca === dialog) meniDaljinca = null }

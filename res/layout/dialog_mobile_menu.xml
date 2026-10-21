@@ -313,6 +313,32 @@
                 <TextView android:id="@+id/txtPrenosiMapa" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="?attr/osUmirjeno" android:textSize="13sp" />
             </LinearLayout>
 
+            <!-- Ponastavi podatke te strani -->
+            <LinearLayout
+                android:id="@+id/rowMenuResetOriginData" android:focusable="true" android:clickable="true" android:descendantFocusability="blocksDescendants"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_menu_row"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_m_reload" android:tint="?attr/osBesedilo" android:importantForAccessibility="no" />
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:text="@string/menu_reset_page_data" android:textColor="?attr/osBesedilo" android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- Preizkus DRM -->
+            <LinearLayout
+                android:id="@+id/rowMenuDrmPreizkus" android:focusable="true" android:clickable="true" android:descendantFocusability="blocksDescendants"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_menu_row"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_m_shield" android:tint="?attr/osBesedilo" android:importantForAccessibility="no" />
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:text="@string/drm_preizkus_naslov" android:textColor="?attr/osBesedilo" android:textSize="14sp" />
+            </LinearLayout>
+
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
