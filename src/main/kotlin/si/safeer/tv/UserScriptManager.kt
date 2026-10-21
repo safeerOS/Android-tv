@@ -30,45 +30,18 @@ object UserScriptManager {
      * nad videom prozoren sloj z gumbi; ta je dobil temno ozadje in prekril sliko. Pri zascitenem
      * (DRM) videu je bil to edini razlog za zvok brez slike (izmerjeno na TV 21. 10. 2026: cisti
      * WebView slika DA, z nasim slogom NE, z izjemo za predvajalnik DA). Zato vsako pravilo velja
-     * samo zunaj korena predvajalnika, ki ga oznaci MEDIJ_KOREN_JS.
+     * samo zunaj korena predvajalnika, ki ga oznaci MEDIJ_KOREN_JS (pravila: [TemniSlogPravila]).
      */
     private val TEMNI_CSS: String by lazy {
-        val brezKomentarjev = Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL).replace(DARK_MODE_AMOLED_CSS, "")
-        Regex("""([^{}]+)\{""").replace(brezKomentarjev) { m ->
-            val sel = m.groupValues[1].trim()
-            if (sel.isEmpty() || sel.startsWith("@")) m.value
-            else ":where($sel):not([data-safeer-medij] *) {"
-        }
+        TemniSlogPravila.pretvoriTemniCss(DARK_MODE_AMOLED_CSS)
     }
 
     /**
-     * Oznaci koren vsakega predvajalnika: najvisji prednik videa, ki ni bistveno vecji od videa.
-     * Ponovi se ob 'loadedmetadata'/'play' (dogodka ne mehurcita, zato poslusamo v fazi zajema),
-     * ker predvajalniki video pogosto ustvarijo sele po nalaganju strani.
+     * Oznaci koren vsakega predvajalnika in morebitne prekrivne sloje (pravila: [TemniSlogPravila]).
+     * Ponovi se ob 'loadedmetadata'/'play' (dogodka ne mehurcita, zato poslusamo v fazi zajema)
+     * ter ob MutationObserverju; oznaka se odstrani, ko videa ni vec ali je izpraznjen (emptied).
      */
-    private const val MEDIJ_KOREN_JS = """
-        (function(){try{
-          function oznaci(){
-            var vs=document.getElementsByTagName('video');
-            for(var i=0;i<vs.length;i++){
-              var v=vs[i], r=v.getBoundingClientRect(); if(r.width<50||r.height<50) continue;
-              var koren=v.parentElement, e=v.parentElement;
-              while(e&&e!==document.body&&e!==document.documentElement){
-                var b=e.getBoundingClientRect();
-                if(b.width<=r.width*1.15+4&&b.height<=r.height*1.15+4) koren=e; else break;
-                e=e.parentElement;
-              }
-              if(koren&&koren!==document.body&&!koren.hasAttribute('data-safeer-medij')) koren.setAttribute('data-safeer-medij','1');
-            }
-          }
-          oznaci();
-          if(window.__safeerMedijKoren) return;
-          window.__safeerMedijKoren=true;
-          ['loadedmetadata','play','playing','resize'].forEach(function(t){
-            document.addEventListener(t,function(){oznaci();},true);
-          });
-        }catch(e){}})();
-    """
+    private const val MEDIJ_KOREN_JS = TemniSlogPravila.MEDIJ_KOREN_JS
 
     private const val DARK_MODE_AMOLED_CSS = """
         /* 🌌 Safeer Universal Smart OLED Dark Theme */
