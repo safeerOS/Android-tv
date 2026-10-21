@@ -24,6 +24,52 @@ object UserScriptManager {
         }catch(e){}})();
     """
 
+    /**
+     * Temni slog vsili neprosojno ozadje vsem elementom z 'container', 'wrapper', 'view' ... v
+     * imenu razreda. Predvajalniki (Bitmovin 'bmpui-ui-uicontainer', video.js, Shaka ...) imajo
+     * nad videom prozoren sloj z gumbi; ta je dobil temno ozadje in prekril sliko. Pri zascitenem
+     * (DRM) videu je bil to edini razlog za zvok brez slike (izmerjeno na TV 21. 10. 2026: cisti
+     * WebView slika DA, z nasim slogom NE, z izjemo za predvajalnik DA). Zato vsako pravilo velja
+     * samo zunaj korena predvajalnika, ki ga oznaci MEDIJ_KOREN_JS.
+     */
+    private val TEMNI_CSS: String by lazy {
+        val brezKomentarjev = Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL).replace(DARK_MODE_AMOLED_CSS, "")
+        Regex("""([^{}]+)\{""").replace(brezKomentarjev) { m ->
+            val sel = m.groupValues[1].trim()
+            if (sel.isEmpty() || sel.startsWith("@")) m.value
+            else ":where($sel):not([data-safeer-medij] *) {"
+        }
+    }
+
+    /**
+     * Oznaci koren vsakega predvajalnika: najvisji prednik videa, ki ni bistveno vecji od videa.
+     * Ponovi se ob 'loadedmetadata'/'play' (dogodka ne mehurcita, zato poslusamo v fazi zajema),
+     * ker predvajalniki video pogosto ustvarijo sele po nalaganju strani.
+     */
+    private const val MEDIJ_KOREN_JS = """
+        (function(){try{
+          function oznaci(){
+            var vs=document.getElementsByTagName('video');
+            for(var i=0;i<vs.length;i++){
+              var v=vs[i], r=v.getBoundingClientRect(); if(r.width<50||r.height<50) continue;
+              var koren=v.parentElement, e=v.parentElement;
+              while(e&&e!==document.body&&e!==document.documentElement){
+                var b=e.getBoundingClientRect();
+                if(b.width<=r.width*1.15+4&&b.height<=r.height*1.15+4) koren=e; else break;
+                e=e.parentElement;
+              }
+              if(koren&&koren!==document.body&&!koren.hasAttribute('data-safeer-medij')) koren.setAttribute('data-safeer-medij','1');
+            }
+          }
+          oznaci();
+          if(window.__safeerMedijKoren) return;
+          window.__safeerMedijKoren=true;
+          ['loadedmetadata','play','playing','resize'].forEach(function(t){
+            document.addEventListener(t,function(){oznaci();},true);
+          });
+        }catch(e){}})();
+    """
+
     private const val DARK_MODE_AMOLED_CSS = """
         /* 🌌 Safeer Universal Smart OLED Dark Theme */
         :root {
@@ -1230,7 +1276,8 @@ object UserScriptManager {
             try { webView.url } catch (_: Exception) { null }
         ), "safeer-cosmetic-filter")
             if (isDarkMode) {
-                injectCss(webView, DARK_MODE_AMOLED_CSS, "safeer-dark-mode-style")
+                injectCss(webView, TEMNI_CSS, "safeer-dark-mode-style")
+                webView.evaluateJavascript(MEDIJ_KOREN_JS, null)
                 if (finished) webView.evaluateJavascript(SAM_TEMEN_JS, null)
             } else if (finished) {
                 removeCss(webView, "safeer-dark-mode-style")
@@ -1371,7 +1418,8 @@ object UserScriptManager {
 
     fun injectDarkModeToggle(webView: WebView, enable: Boolean) {
         if (enable) {
-            injectCss(webView, DARK_MODE_AMOLED_CSS, "safeer-dark-mode-style", replace = true)
+            injectCss(webView, TEMNI_CSS, "safeer-dark-mode-style", replace = true)
+            webView.evaluateJavascript(MEDIJ_KOREN_JS, null)
         } else {
             removeCss(webView, "safeer-dark-mode-style")
         }
