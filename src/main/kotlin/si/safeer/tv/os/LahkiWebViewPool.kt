@@ -64,7 +64,7 @@ object LahkiWebViewPool {
         if (spletnoPredvajanje) return
         // Pregled 70: najet pogled (nevidno branje spletnega vira, iskanje toka) pustimo - sicer bi vsaka nova skladba
         // ali nadaljevanje po pavzi prekinila branje vira. Ob vrnitvi ga poberejo PROST_MS / onTrimMemory.
-        if (lastnik != null) return
+        if (lastnik != null) { izrisovalnikPoPredvajanju = true; return }
         val w = pogled
         if (w != null) {
             pogled = null
@@ -120,7 +120,13 @@ object LahkiWebViewPool {
         if (lastnik != null) return@Runnable
         pogled = null
         unicuj(w, "lahki pool je neaktiven")
+        // Izmerjeno na TV (00:47): ob zacetku filma je bil pogled se najet (iskanje toka), zato ga obNativnemPredvajanju ni
+        // vzel; izrisovalnik (92 MB) je ostal ves film. Ko ga pool zdaj sprosti, izrisovalnik koncamo, ce predvajanje caka.
+        if (izrisovalnikPoPredvajanju) { izrisovalnikPoPredvajanju = false; koncajIzrisovalnik("nativno predvajanje, pool neaktiven") }
     }
+
+    /** Nativno predvajanje se je zacelo, ko je bil pogled najet: izrisovalnik koncamo, ko pool pogled sprosti. */
+    private var izrisovalnikPoPredvajanju = false
 
     /**
      * Vrne edini pogled procesa. Ce ga se uporablja staro nevidno opravilo, ga prekine in
