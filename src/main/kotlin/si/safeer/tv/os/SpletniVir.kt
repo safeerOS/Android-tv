@@ -366,15 +366,35 @@ object SpletniVir {
         return zvrsti.firstOrNull { it.second.containsMatchIn(t) }?.first
     }
 
+    @Volatile private var stariKatalogiPocisceni = false
+
+    /**
+     * Enkrat na proces: iz »safeer_mediji« odstrani kataloge, ki jih je tja pisala 0.5.96 in prej (»katalog<N>:« in
+     * »katalog<N>_cas:«). Android jih potem ne drzi vec v pomnilniku in ne prepisuje ob vsaki spremembi (naloga 54).
+     */
+    private fun pocistiStareKataloge(c: Context) {
+        if (stariKatalogiPocisceni) return
+        stariKatalogiPocisceni = true
+        try {
+            val nast = c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+            val stari = nast.all.keys.filter { STARI_KATALOG.containsMatchIn(it) }
+            if (stari.isNotEmpty()) {
+                nast.edit().apply { stari.forEach { remove(it) } }.apply()
+                android.util.Log.i(TAG, "iz nastavitev odstranjenih starih katalogov: ${stari.size}")
+            }
+        } catch (_: Exception) { }
+    }
+
+    private val STARI_KATALOG = Regex("^katalog\\d*(_cas)?:")
+
     @Synchronized
     private fun beriStran(a: Activity, vir: MedijskiViri.Vir, url: String, rok: Long): List<Jamendo.Skladba> {
-        val nast = a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
-        val kljuc = "katalog6:" + url
-        val casKljuc = "katalog6_cas:" + url
-        val shranjeno = nast.getString(kljuc, null)
+        pocistiStareKataloge(a)
+        val zapis = MedijskiPredpomnilnik.katalog(a, url)
+        val shranjeno = zapis?.second
         val veljavnost = if (shranjeno != null && try { JSONArray(shranjeno).length() == 0 } catch (_: Exception) { false })
             PRAZEN_KATALOG_VELJA_MS else KATALOG_VELJA_MS
-        if (shranjeno != null && System.currentTimeMillis() - nast.getLong(casKljuc, 0L) < veljavnost) {
+        if (zapis != null && shranjeno != null && System.currentTimeMillis() - zapis.first < veljavnost) {
             android.util.Log.i(TAG, "${URL(url).host}: predpomnilnik")
             return pretvori(vir, shranjeno)
         }
@@ -424,7 +444,7 @@ object SpletniVir {
         if (prekinjeno || brezPogleda.get()) return emptyList()
         val surovo = izid.get()
         val d = try { JSONArray(surovo) } catch (_: Exception) { return emptyList() }
-        nast.edit().putString(kljuc, surovo).putLong(casKljuc, System.currentTimeMillis()).apply()
+        MedijskiPredpomnilnik.shraniKatalog(a, url, surovo)
         android.util.Log.i(TAG, "${java.net.URL(url).host}: ${d.length()} zadetkov v ${System.currentTimeMillis() - zacetek} ms")
         return pretvori(vir, surovo)
     }

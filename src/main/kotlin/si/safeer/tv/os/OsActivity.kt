@@ -29,6 +29,8 @@ open class OsActivity : Activity() {
             LahkiWebViewPool.sprostiProstega()
             GlasbaActivity.sprostiSlike()
         }
+        // Vmesnik skrit (UI_HIDDEN in vec) ali malo pomnilnika (RUNNING_LOW/CRITICAL): se seznami Medijev (naloga 54).
+        if (level >= TRIM_MEMORY_RUNNING_LOW) GlasbaActivity.sprostiPodatke()
     }
 
     override fun onLowMemory() {
@@ -173,6 +175,12 @@ open class OsActivity : Activity() {
     companion object {
         /** Po odprtju zaslona OK toliko casa ne steje (odboj tipke, dvojni pritisk). */
         const val ZASCITA_MS = 500L
+    }
+
+    /** Zaslon ni vec viden: prost (neuporabljen) lahki WebView takoj unicimo - ne caka na pomnilniski pritisk. */
+    override fun onStop() {
+        super.onStop()
+        LahkiWebViewPool.sprostiProstega()
     }
 
     override fun onPause() {

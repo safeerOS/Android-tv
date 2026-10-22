@@ -213,6 +213,9 @@ open class SpletniIgralec protected constructor(
         zelja = false
         skrij()
         ura.removeCallbacksAndMessages(null)
+        // Unicen pogled ne sme ostati pripet na zaslonu Safeer (skrij() ga je prej znova pripel z gostuj()): pripet
+        // drzi zaslon ziv in WebView v kopici do konca dejavnosti (naloga 53, meminfo: WebViews 2 brez brskalnika).
+        try { (pogled.parent as? ViewGroup)?.removeView(pogled) } catch (_: Exception) { }
         try { pogled.stopLoading(); pogled.loadUrl("about:blank"); pogled.destroy() } catch (_: Exception) { }
         Log.i("SafeerRam", "unicen WebView: polni ChromiumEngineView stopnje 3")
         return Futures.immediateVoidFuture()
@@ -238,6 +241,7 @@ open class SpletniIgralec protected constructor(
         pogled.alpha = 0f
         if (Build.VERSION.SDK_INT >= 26) pogled.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
         (pogled.parent as? ViewGroup)?.removeView(pogled)
+        if (sproscen) return                 // ob sprostitvi pogleda ne pripenjamo znova
         zadnja?.get()?.let { gostuj(it) }
         if (zelja) ura.postDelayed({ ukaz("play") }, 400)
     }
@@ -247,7 +251,7 @@ open class SpletniIgralec protected constructor(
      * Safeer, ki je v ospredju (1 tocka, pod vsebino) - kot brskalnik, ki igra v ozadju.
      */
     fun gostuj(a: android.app.Activity) {
-        if (kino || a.isFinishing) return
+        if (kino || sproscen || a.isFinishing) return
         if (Build.VERSION.SDK_INT >= 26) pogled.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
         val koren = a.window.decorView as? ViewGroup ?: return
         if (pogled.parent === koren) return

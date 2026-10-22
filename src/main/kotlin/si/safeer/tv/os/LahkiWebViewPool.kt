@@ -17,7 +17,12 @@ import android.webkit.WebViewClient
 object LahkiWebViewPool {
     private const val TAG = "SafeerRam"
     private const val PRAZEN = "about:blank"
-    private const val PROST_MS = 60_000L
+    /**
+     * Prost pogled zivi samo toliko, da ga naslednji vir istega pregleda kataloga (SpletniVir.beriStran - viri gredo
+     * zaporedno) prevzame brez novega izrisovalnika. Prej 60 s: po odprtju Filmov je nevidni WebView ostal ziv
+     * minuto po koncu branja (naloga 53).
+     */
+    private const val PROST_MS = 5_000L
     private val glavna = Handler(Looper.getMainLooper())
 
     private var pogled: WebView? = null

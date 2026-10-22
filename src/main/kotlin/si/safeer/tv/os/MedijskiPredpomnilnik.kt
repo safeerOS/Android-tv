@@ -87,6 +87,42 @@ object MedijskiPredpomnilnik {
         try { File(mapaSeznamov(c), odtis(kljuc) + ".json").delete() } catch (_: Exception) {}
     }
 
+    // ---------------------------------------------------------------- katalogi spletnih virov
+
+    /*
+     * Prebrani katalog spletnega vira (SpletniVir.beriStran: priljubljeno in vsako iskanje) kot datoteka. Do 0.5.96 je
+     * bil v SharedPreferences »safeer_mediji« (»katalog6:<naslov>«): vsako iskanje v vsakem viru je dodalo kljuc, ki ni
+     * nikoli izginil, Android pa celo datoteko nastavitev drzi v Java heapu procesa in jo ob vsakem apply() zapise
+     * znova (naloga 54). Zdaj ena datoteka na naslov, najvec KATALOGOV_NAJVEC, starejse od KATALOG_HRANI_MS gredo.
+     */
+    private const val KATALOGOV_NAJVEC = 80
+    private const val KATALOG_HRANI_MS = 24L * 60 * 60 * 1000
+    private fun mapaKatalogov(c: Context) = File(c.cacheDir, "mediji-katalogi").apply { mkdirs() }
+
+    /** (cas zapisa, surovi JSON) ali null. */
+    fun katalog(c: Context, naslov: String): Pair<Long, String>? = try {
+        val f = File(mapaKatalogov(c), odtis(naslov) + ".json")
+        if (f.isFile) f.lastModified() to f.readText() else null
+    } catch (_: Exception) { null }
+
+    fun shraniKatalog(c: Context, naslov: String, surovo: String) {
+        try {
+            val mapa = mapaKatalogov(c)
+            val datoteka = File(mapa, odtis(naslov) + ".json")
+            val zacasna = File(datoteka.path + ".tmp")
+            zacasna.writeText(surovo)
+            zacasna.renameTo(datoteka)
+            val zdaj = System.currentTimeMillis()
+            val datoteke = mapa.listFiles()?.filter { it.name.endsWith(".json") } ?: return
+            datoteke.filter { zdaj - it.lastModified() > KATALOG_HRANI_MS }.forEach { it.delete() }
+            val ostale = datoteke.filter { it.exists() }
+            if (ostale.size > KATALOGOV_NAJVEC) {
+                ostale.sortedBy { it.lastModified() }.take(ostale.size - KATALOGOV_NAJVEC).forEach { it.delete() }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     // ---------------------------------------------------------------- naslovnice
 
     fun naslovnica(c: Context, naslov: String): ByteArray? = try {
