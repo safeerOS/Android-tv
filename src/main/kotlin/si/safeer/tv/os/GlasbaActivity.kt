@@ -2450,8 +2450,14 @@ class GlasbaActivity : OsActivity() {
         if (jezik.isEmpty() || kartice.isEmpty()) return kartice
         val vprasaj = kartice.filter { it.language.isBlank() && it.imdbId.isNotBlank() }.map { it.imdbId }
         val znani = if (vprasaj.isEmpty()) emptyMap() else try { IzvirniJeziki.jeziki(applicationContext, vprasaj) } catch (_: Exception) { emptyMap() }
+        // Neznan jezik (zapisi m3u ipd. brez jezika in IMDb) ostane viden: filter skrije samo naslove, za katere VEMO, da so v
+        // drugem jeziku (lastnik, 22. 10. 2026: katalog s 5000 filmi je zaradi filtra dal 102 kartici).
         return kartice.filter { s ->
-            if (s.language.isNotBlank()) JezikiVsebine.oznaka(s.language) == jezik else jezik in znani[s.imdbId].orEmpty()
+            when {
+                s.language.isNotBlank() -> JezikiVsebine.oznaka(s.language) == jezik
+                znani[s.imdbId].isNullOrEmpty() -> true
+                else -> jezik in znani[s.imdbId].orEmpty()
+            }
         }
     }
 
