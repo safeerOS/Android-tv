@@ -154,4 +154,8 @@
     <string name="ui_ssl_vprasanje">Potrdilo za %1$s ni veljavno, zato povezava morda ni zasebna. Safeer vas še vedno varuje pred znanimi grožnjami. Vseeno odprem?</string>
     <string name="ui_ssl_odpri">Vseeno odpri</string>
     <string name="ui_share_screen_notice">%1$s deli zaslon – odpri za prikaz</string>
+    <string name="ui_emudhra_title">Varnostno opozorilo: kompromitiran overitelj (eMudhra)</string>
+    <string name="ui_emudhra_msg">Potrdilo te strani je izdal overitelj, ki je bil preklican zaradi kompromitiranih ključev. Strani zato ne odpremo.</string>
+    <string name="ui_emudhra_badge">Pravilo ničelnega obvoza (Zero-Bypass)</string>
+    <string name="ui_emudhra_back">Nazaj na varno</string>
 </resources>
