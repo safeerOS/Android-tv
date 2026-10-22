@@ -165,6 +165,7 @@ class GlasbaActivity : OsActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         odprtih++
+        VrsteNaslovov.pripravi(this)     // naloga 63: znane serije med filmi (v ozadju z diska)
         // Merjenje odzivnosti (samo razvojna gradnja): vsak dostop do diska/omrezja na glavni niti gre v dnevnik
         // z skladom klicev, cas do prvega izrisa pa pod SafeerOsCas. Izdajna gradnja tega ne dela.
         if (si.safeer.tv.BuildConfig.DEBUG) {
@@ -6105,6 +6106,28 @@ class GlasbaActivity : OsActivity() {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return
         val priprava = zacniPripravo(sk) ?: return
         delavec.execute {
+            // Naloga 63 (lastnik: »preverimo, ce kliknemo na plakat in ce ima sezone in epizode«): film iz dodatka je morda
+            // serija, ki jo je dodatek navedel kot film. Metapodatke (en odgovor, 1 h v predpomnilniku; to je uporabnikov
+            // klik, ne preverjanje v ozadju) vprasamo hkrati s tokovi; z epizodami po sezonah se odpre kot serija in to si
+            // zapomnimo - iz mreze Filmi izgine. Znana serija tokov filma ne caka.
+            val znanaSerija = tip == "movie" && (VrsteNaslovov.vrsta(sk) == VrsteNaslovov.SERIJA || SpletniVir.vrstaVsebine(sk) == SpletniVir.SERIJA)
+            val meta = if (tip == "movie" && Stremio.dajeMeta(sk))
+                iskanjeDelavec.submit<Pair<String?, List<Stremio.Epizoda>>?> { try { Stremio.vrstaInPosnetki(sk) } catch (_: Exception) { null } } else null
+            fun odpriKotSerijo(cakajS: Long): Boolean {
+                val r = try { meta?.get(cakajS, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null } ?: return false
+                val ep = r.second.filter { it.sezona >= 1 && it.epizoda >= 1 }
+                if (r.first != VrsteNaslovov.SERIJA || ep.isEmpty()) return false
+                VrsteNaslovov.zapomni(sk, VrsteNaslovov.SERIJA)
+                val serija = Stremio.kotSerija(sk)
+                glavna.post {
+                    koncajPripravo(priprava)
+                    if (isFinishing) return@post
+                    izberiSezono(serija, ep, rocno)
+                    if (odprtKatalog != null) narociUmiri()      // mreza Filmi: kartica tiho izpade (drugaVrsta)
+                }
+                return true
+            }
+            if (znanaSerija && odpriKotSerijo(15)) return@execute
             val razred = Stremio.razred(tip)
             // Album, seznam, podkast ali kanal z videi ima posnetke kot serija epizode; film, TV kanal in postaja imajo tok naravnost.
             val posnetki = if (tip == "series" || razred == Stremio.GLASBA || razred == Stremio.VIDEO)
@@ -6125,6 +6148,8 @@ class GlasbaActivity : OsActivity() {
                 val t = if (enote.size == 1) (try { tokoviVzporedno(tip, id) } catch (_: Exception) { emptyList() })
                     else enote.map { (t1, i1) -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { tokoviVzporedno(t1, i1) } catch (_: Exception) { emptyList() } } }
                         .flatMap { f -> try { f.get(15, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
+                // Metapodatki so medtem navadno ze prisli: serija z epizodami se odpre kot serija (ne kot film).
+                if (odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@execute
                 glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno) }
             }
         }
@@ -6527,8 +6552,8 @@ class GlasbaActivity : OsActivity() {
         // vseh nalozenih naslovov (naloga 55: Serije 5143 naslovov, 140-235 ms na vsak izris). Ostali pridejo na vrsto,
         // ko se okno pomakne (Nalozi vec, drsenje). Na omejenem omrezju (ne strogo) mreza kaze vse, kot doslej.
         val izbor = meri("znano") {
-            if (strogo) OsPravila.prvih(urejeni, o.zelja + REZERVA_KANDIDATOV) { znanoNiNaVoljo(it) }
-            else urejeni.filterNot { znanoNiNaVoljo(it) }.let { OsPravila.Prvih(it, urejeni.size, false) }
+            if (strogo) OsPravila.prvih(urejeni, o.zelja + REZERVA_KANDIDATOV) { znanoNiNaVoljo(it) || drugaVrsta(o, it) }
+            else urejeni.filterNot { znanoNiNaVoljo(it) || drugaVrsta(o, it) }.let { OsPravila.Prvih(it, urejeni.size, false) }
         }
         val kandidati = izbor.izbrani
         o.prirezani = izbor.prirezano
@@ -6545,6 +6570,17 @@ class GlasbaActivity : OsActivity() {
                 else kandidati.filterNot { cakaNaKnjiznico(it) })
             .distinctBy { it.slika.ifBlank { "id:" + it.id } } }
         return kandidati to obdrziIzbrano(o, vidni)
+    }
+
+    /**
+     * Naloga 63: naslov druge vrste, kot je mreza - serija med Filmi (dodatek jo v katalogu filmov navede kot film) ali
+     * film med Serijami - po tem, kar Safeer o naslovu ze ve ([VrsteNaslovov], vrsta kartice). Izpade kot nepredvajljiva
+     * kartica: tiho, kartica z izbiro ostane do premika izbire ([obdrziIzbrano]). Brez omrezja.
+     */
+    private fun drugaVrsta(o: OdprtKatalog, sk: Jamendo.Skladba): Boolean = when (o.tip) {
+        "movie" -> SpletniVir.vrstaVsebine(sk) == SpletniVir.SERIJA || VrsteNaslovov.vrsta(sk) == VrsteNaslovov.SERIJA
+        "series" -> VrsteNaslovov.vrsta(sk) == VrsteNaslovov.FILM
+        else -> false
     }
 
     /**

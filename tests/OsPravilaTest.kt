@@ -178,6 +178,21 @@ private fun preizkusJezikaKataloga() {
     preveriEnako("pt katalog ustreza portugalscini", true, OsPravila.jezikKatalogaUstreza("pt", "pt"))
 }
 
+private fun preizkusVrsteIzMeta() {
+    println("\n== film ali serija iz metapodatkov (naloga 63) ==")
+    preveriEnako("ostevilcene epizode: serija, tudi ce dodatek pravi film", "series", OsPravila.vrstaIzMeta("movie", "2016", listOf(1 to 1, 1 to 2)))
+    preveriEnako("type series", "series", OsPravila.vrstaIzMeta("series", "", emptyList()))
+    preveriEnako("obdobje 2016–2021 (pomisljaj): serija", "series", OsPravila.vrstaIzMeta("movie", "2016–2021", emptyList()))
+    preveriEnako("obdobje 2016- (se tece): serija", "series", OsPravila.vrstaIzMeta("movie", "2016-", emptyList()))
+    preveriEnako("film z eno letnico", "movie", OsPravila.vrstaIzMeta("movie", "2016", emptyList()))
+    preveriEnako("film z videom brez stevilk (napovednik): film", "movie", OsPravila.vrstaIzMeta("movie", "2019", listOf(0 to 0)))
+    preveriEnako("sezona 0 ali epizoda 0 ni epizoda", "movie", OsPravila.vrstaIzMeta("movie", "", listOf(1 to 0, 0 to 3)))
+    preveriEnako("velike crke v type", "series", OsPravila.vrstaIzMeta(" Series ", "", emptyList()))
+    preveriEnako("brez podatkov: ne vemo", null, OsPravila.vrstaIzMeta("", "", emptyList()))
+    preveriEnako("drug tip (tv) brez epizod: ne vemo", null, OsPravila.vrstaIzMeta("tv", "2020", emptyList()))
+    preveriEnako("letnica z besedilom ni obdobje", "movie", OsPravila.vrstaIzMeta("movie", "2016 (remaster 2021)", emptyList()))
+}
+
 private fun preizkusTipkMenija() {
     println("\n== stranska vrstica ob brskalniku: tipke daljinca ==")
     preveriEnako("GOR gre meniju (prej v naslovno vrstico strani)", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(19, true, 0))
@@ -538,6 +553,7 @@ fun main() {
     preizkusIkonNaprav()
     preizkusOpisaNaprav()
     preizkusPovezave()
+    preizkusVrsteIzMeta()
     preizkusJezikaKataloga()
     preizkusMer()
     preizkusNadaljuj()

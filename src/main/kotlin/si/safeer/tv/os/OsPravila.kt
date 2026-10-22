@@ -680,4 +680,22 @@ object OsPravila {
     /** Ali jezik kataloga ([jezikKataloga]) ustreza izbranemu jeziku (ISO 639-1); [JEZIK_HBS] ustreza hr, sr in bs. */
     fun jezikKatalogaUstreza(jezikKataloga: String, izbrani: String): Boolean =
         jezikKataloga == izbrani || (jezikKataloga == JEZIK_HBS && izbrani in setOf("hr", "sr", "bs"))
+
+    // ------------------------------------------------------------------ film ali serija iz metapodatkov (naloga 63)
+
+    /** Obdobje predvajanja serije v `releaseInfo` (»2016–2021«, »2016-«); film ima eno letnico. */
+    private val OBDOBJE_SERIJE = Regex("^\\s*(19|20)\\d{2}\\s*[-\u2013\u2014]\\s*((19|20)\\d{2})?\\s*$")
+
+    /**
+     * Vrsta naslova iz metapodatkov dodatka (lastnik, 22. 10. 2026: »Lucifer« med Filmi - dodatek ga v katalogu filmov
+     * navede kot film): "series", "movie" ali null (ne vemo). Serija: ostevilcena epizoda v `videos` (sezona >= 1 in
+     * epizoda >= 1), `type` "series" ali obdobje v `releaseInfo`. Film: `type` "movie" brez ostevilcenih epizod in brez
+     * obdobja. [epizode] = (sezona, epizoda) vsakega vnosa v `videos`.
+     */
+    fun vrstaIzMeta(tip: String, izid: String, epizode: List<Pair<Int, Int>>): String? {
+        if (epizode.any { (sezona, epizoda) -> sezona >= 1 && epizoda >= 1 }) return "series"
+        val t = tip.trim().lowercase(java.util.Locale.ROOT)
+        if (t == "series" || OBDOBJE_SERIJE.matches(izid)) return "series"
+        return if (t == "movie") "movie" else null
+    }
 }

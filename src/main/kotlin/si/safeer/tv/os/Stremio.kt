@@ -514,13 +514,18 @@ object Stremio {
         // Glasba in radio: pod naslovom je izvajalec (kdo igra), ne letnica - uporabnik mora vedeti, koga pricakovati
         // (lastnik, 2. 10. 2026). Dodatki ga podajo razlicno, zato po vrsti: artist/author, igralci, reziser, opis.
         val podnaslov = if (r == GLASBA || r == RADIO) izvajalec(m).ifBlank { leto } else leto
+        // Naloga 63: vnos, ki se oglasa kot film, po svojih podatkih pa je serija (epizode v `videos`, obdobje »2016–2021«):
+        // na kartici in v mrezi Filmi | Serije velja za serijo. Brez nove poizvedbe - samo iz odgovora kataloga.
+        val epizodeVnosa = m.optJSONArray("videos")?.let { v -> (0 until v.length()).mapNotNull { i -> v.optJSONObject(i)?.let { x -> x.optInt("season") to x.optInt("episode") } } }.orEmpty()
+        val serijaPoPodatkih = tip == "movie" && OsPravila.vrstaIzMeta("", leto, epizodeVnosa) == "series"
+        if (serijaPoPodatkih || (tip == "series" && id.startsWith("tt"))) VrsteNaslovov.zapomni(listOf(VrsteNaslovov.kljucVnosa(osnova, id)), VrsteNaslovov.SERIJA)
         return Jamendo.Skladba(PREDPONA + tip + "|" + id + "|" + osnova, m.optString("name").ifBlank { id }, podnaslov,
             slikaVnosa(m), "", "$osnova/meta/${enc(tip)}/${enc(id)}.json",
             // Glasba in radio sta zvok (kartica in predvajalnik za zvok), vse ostalo video.
             radio = r == RADIO, video = r != GLASBA && r != RADIO,
             // FILM / SERIJA za oznako na kartici in za filter Filmi | Serije (SpletniVir.vrstaVsebine).
             // Videospot (glasbeni katalog): ne gre med filme in serije (SpletniVir.vrstaVsebine).
-            mediaType = if (glasbeno) "MusicVideo" else when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
+            mediaType = if (glasbeno) "MusicVideo" else if (serijaPoPodatkih) "tvseries" else when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
             year = leto.take(4).toIntOrNull() ?: 0,
             // Id IMDb (tt...), kot ga rabi vecina dodatkov: isti film iz vec katalogov/dodatkov je ena kartica.
             imdbId = if (id.startsWith("tt") && id.drop(2).all { it.isDigit() }) id else "",
@@ -689,18 +694,51 @@ object Stremio {
     /** Ali je naslov dodatka javni katalog Cinemeta (uporabnik ga je dodal sam). */
     fun jeCinemeta(naslov: String): Boolean = osnova(naslov) == osnova(CINEMETA)
 
-    private fun epizodeZa(osnova: String, tip: String, id: String): List<Epizoda> {
-        val m = json("$osnova/meta/${enc(tip)}/${enc(id)}.json")?.optJSONObject("meta") ?: return emptyList()
-        val v = m.optJSONArray("videos") ?: return emptyList()
+    private fun epizodeZa(osnova: String, tip: String, id: String): List<Epizoda> = metaZa(osnova, tip, id)?.second.orEmpty()
+
+    /**
+     * Metapodatki enote: (vrsta po [OsPravila.vrstaIzMeta], posnetki kot pri [epizode]); null = dodatek ni odgovoril.
+     * Naloga 63: vrsto si zapomni ([VrsteNaslovov]) - iz odgovora, ki ga preverjanje serij, preverjevalec doma
+     * ([prvaEpizoda]) ali odprt plakat ze dobijo; nove poizvedbe zaradi tega ni. Film zapomni samo, ce ga je dodatek
+     * dal kot serijo (vprasan za serijo, odgovori film brez epizod).
+     */
+    private fun metaZa(osnova: String, tip: String, id: String): Pair<String?, List<Epizoda>>? {
+        val m = json("$osnova/meta/${enc(tip)}/${enc(id)}.json")?.optJSONObject("meta") ?: return null
+        val v = m.optJSONArray("videos")
         val imeDodatka = manifesti[osnova]?.ime.orEmpty()
-        val vsi = (0 until v.length()).mapNotNull { i ->
+        val vsi = if (v == null) emptyList() else (0 until v.length()).mapNotNull { i ->
             val x = v.optJSONObject(i) ?: return@mapNotNull null
             val vid = x.optString("id").ifBlank { return@mapNotNull null }
             val tokovi = x.optJSONArray("streams")?.let { a -> (0 until a.length()).mapNotNull { j -> a.optJSONObject(j)?.let { tok(it, imeDodatka) } } }.orEmpty()
             Epizoda(vid, x.optString("title").ifBlank { x.optString("name") }, x.optInt("season"), x.optInt("episode"), tokovi)
         }
         val ostevilcene = vsi.filter { it.sezona > 0 || it.epizoda > 0 }
-        return if (tip == "series" && ostevilcene.isNotEmpty()) ostevilcene.sortedWith(compareBy({ it.sezona }, { it.epizoda })) else vsi
+        val vrsta = OsPravila.vrstaIzMeta(m.optString("type"), m.optString("releaseInfo"), vsi.map { it.sezona to it.epizoda })
+        if (vrsta == VrsteNaslovov.SERIJA || (vrsta == VrsteNaslovov.FILM && tip == "series" && ostevilcene.isEmpty()))
+            VrsteNaslovov.zapomni(listOfNotNull(VrsteNaslovov.kljucVnosa(osnova, id),
+                m.optString("imdb_id").takeIf { it.startsWith("tt") }?.let { "i:" + it.lowercase() }), vrsta)
+        val serija = tip == "series" || vrsta == VrsteNaslovov.SERIJA
+        return vrsta to (if (serija && ostevilcene.isNotEmpty()) ostevilcene.sortedWith(compareBy({ it.sezona }, { it.epizoda })) else vsi)
+    }
+
+    /** Naloga 63: ali katalogni dodatek enote daje metapodatke za njen tip in id (klik na plakat jih sme vprasati). Brez omrezja. */
+    fun dajeMeta(s: Jamendo.Skladba): Boolean {
+        val (osnova, tip, id) = razstavi(s) ?: return false
+        val m = manifesti[osnova] ?: return false
+        return "meta" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) })
+    }
+
+    /** Naloga 63: vrsta in posnetki enote iz metapodatkov njenega dodatka (predpomnilnik 1 h); null = ni odgovora. Klic iz niti. */
+    fun vrstaInPosnetki(s: Jamendo.Skladba): Pair<String?, List<Epizoda>>? {
+        val (osnova, tip, id) = razstavi(s) ?: return null
+        return metaZa(osnova, tip, id)
+    }
+
+    /** Naloga 63: ista enota kot serija (tokovi epizod gredo na /stream/series/<id epizode>, kot v Stremiu). */
+    fun kotSerija(s: Jamendo.Skladba): Jamendo.Skladba {
+        val d = s.id.removePrefix(PREDPONA).split('|', limit = 3)
+        if (!jeEnota(s) || d.size != 3) return s
+        return s.copy(id = PREDPONA + "series|" + d[1] + "|" + d[2], mediaType = "tvseries")
     }
 
     private fun tok(s: JSONObject, imeDodatka: String): Tok? {
