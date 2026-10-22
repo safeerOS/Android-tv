@@ -12,16 +12,23 @@ import org.json.JSONObject
  * Kljuca: "i:<imdb>" (isti naslov iz vec dodatkov) in "s:<osnova dodatka>|<id>" (vnos brez IMDb, npr. katalog m3u).
  * Serija je lepljiva: film je ne povozi (dodatek, ki serijo imenuje film, ne sme skriti prave serije). Najvec [NAJVEC]
  * zapisov, najstarejsi gredo; na disk (SharedPreferences) najvec enkrat na [ZAMIK_MS].
+ *
+ * Naloga 66: v isti shrambi so drzave izvora (`country` iz vnosa kataloga ali metapodatkov, npr. »South Korea«) po
+ * IMDb - za filter jezika, kadar jezika naslova ne vemo ([OsPravila.jezikPoDrzavah]). Tudi te pridejo samo z ze
+ * poslanimi vprasanji.
  */
 object VrsteNaslovov {
     const val SERIJA = "series"
     const val FILM = "movie"
     private const val NASTAVITVE = "safeer_vrste_naslovov"
     private const val KLJUC = "vrste"
+    private const val KLJUC_DRZAV = "drzave"
     private const val NAJVEC = 4000
     private const val ZAMIK_MS = 2_000L
 
     private val vrste = LinkedHashMap<String, String>()
+    /** Kljuc "i:<imdb>" -> drzave izvora (kot jih da dodatek); pod zaklepom [vrste]. */
+    private val drzave = LinkedHashMap<String, String>()
     @Volatile private var app: Context? = null
     @Volatile private var nalozeno = false
     private val pisalec = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-vrste").apply { isDaemon = true } }
@@ -36,13 +43,19 @@ object VrsteNaslovov {
     private fun nalozi() {
         if (nalozeno) return
         val c = app ?: return
-        val o = try { JSONObject(c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(KLJUC, null) ?: "{}") } catch (_: Exception) { JSONObject() }
+        val nast = c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        val o = try { JSONObject(nast.getString(KLJUC, null) ?: "{}") } catch (_: Exception) { JSONObject() }
+        val od = try { JSONObject(nast.getString(KLJUC_DRZAV, null) ?: "{}") } catch (_: Exception) { JSONObject() }
         synchronized(vrste) {
             // Kar je ta zagon ze spoznal, je novejse od diska.
             val zdaj = LinkedHashMap(vrste)
             vrste.clear()
             for (k in o.keys()) o.optString(k).takeIf { it == SERIJA || it == FILM }?.let { vrste[k] = it }
             for ((k, v) in zdaj) vpisi(k, v)
+            val zdajDrzave = LinkedHashMap(drzave)
+            drzave.clear()
+            for (k in od.keys()) od.optString(k).takeIf { it.isNotBlank() }?.let { vpisiDrzave(k, it) }
+            for ((k, v) in zdajDrzave) vpisiDrzave(k, v)
             nalozeno = true
         }
     }
@@ -73,6 +86,30 @@ object VrsteNaslovov {
 
     fun zapomni(s: Jamendo.Skladba, vrsta: String): Boolean = zapomni(kljuci(s), vrsta)
 
+    /** Naloga 66: drzave izvora naslova (po IMDb) ali null. Brez diska in omrezja. */
+    fun drzave(s: Jamendo.Skladba): String? {
+        val k = s.imdbId.takeIf { it.isNotBlank() }?.let { "i:" + it.lowercase() } ?: return null
+        return synchronized(vrste) { drzave[k] }
+    }
+
+    /** Naloga 66: zapomni drzave izvora za IMDb [imdb] (»tt...«); vrne true, ce se je kaj spremenilo. */
+    fun zapomniDrzave(imdb: String, niz: String): Boolean {
+        val d = niz.trim().take(200)
+        if (!imdb.startsWith("tt") || d.isEmpty()) return false
+        val spremenjeno = synchronized(vrste) { vpisiDrzave("i:" + imdb.lowercase(), d) }
+        if (spremenjeno) shraniKasneje()
+        return spremenjeno
+    }
+
+    /** Klic pod zaklepom [vrste]. */
+    private fun vpisiDrzave(k: String, d: String): Boolean {
+        if (drzave[k] == d) return false
+        drzave.remove(k)
+        drzave[k] = d
+        while (drzave.size > NAJVEC) drzave.remove(drzave.keys.first())
+        return true
+    }
+
     /** Klic pod zaklepom [vrste]. */
     private fun vpisi(k: String, vrsta: String): Boolean {
         val prej = vrste[k]
@@ -90,8 +127,9 @@ object VrsteNaslovov {
                 narocen.set(false)
                 val c = app ?: return@Runnable
                 if (!nalozeno) nalozi()
-                val o = synchronized(vrste) { JSONObject(vrste as Map<*, *>) }
-                c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, o.toString()).apply()
+                val (o, od) = synchronized(vrste) { JSONObject(vrste as Map<*, *>) to JSONObject(drzave as Map<*, *>) }
+                c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, o.toString())
+                    .putString(KLJUC_DRZAV, od.toString()).apply()
             }, ZAMIK_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
         } catch (_: java.util.concurrent.RejectedExecutionException) { narocen.set(false) }
     }

@@ -193,6 +193,24 @@ private fun preizkusVrsteIzMeta() {
     preveriEnako("letnica z besedilom ni obdobje", "movie", OsPravila.vrstaIzMeta("movie", "2016 (remaster 2021)", emptyList()))
 }
 
+private fun preizkusJezikaPoDrzavah() {
+    println("\n== jezik iz drzave izvora (naloga 66) ==")
+    preveriEnako("US in Juzna Koreja: anglescina ustreza", true, OsPravila.jezikPoDrzavah("United States, South Korea", "en"))
+    preveriEnako("Juzna Koreja: anglescina ne ustreza (Hope)", false, OsPravila.jezikPoDrzavah("South Korea", "en"))
+    preveriEnako("Juzna Koreja: korejscina ustreza", true, OsPravila.jezikPoDrzavah("South Korea", "ko"))
+    preveriEnako("prazno: ne vemo, naslov ostane", null, OsPravila.jezikPoDrzavah("", "en"))
+    preveriEnako("presledki in vejice: ne vemo", null, OsPravila.jezikPoDrzavah(" , ", "en"))
+    preveriEnako("vec drzav: UK, Avstralija, US", true, OsPravila.jezikPoDrzavah("United Kingdom, Australia, United States", "en"))
+    preveriEnako("Kanada je tudi francoska", true, OsPravila.jezikPoDrzavah("Canada", "fr"))
+    preveriEnako("Svica je nemska, francoska in italijanska", true, OsPravila.jezikPoDrzavah("Switzerland", "it"))
+    preveriEnako("znana in neznana drzava, ni ujemanja: ne vemo", null, OsPravila.jezikPoDrzavah("South Korea, Atlantis", "en"))
+    preveriEnako("neznana drzava: ne vemo", null, OsPravila.jezikPoDrzavah("Atlantis", "en"))
+    preveriEnako("velike crke, »the«, podpicje", true, OsPravila.jezikPoDrzavah("FRANCE; The United States", "en"))
+    preveriEnako("Jugoslavija ustreza slovenscini", true, OsPravila.jezikPoDrzavah("Yugoslavia", "sl"))
+    preveriEnako("Brazilija ni anglescina", false, OsPravila.jezikPoDrzavah("Brazil", "en"))
+    preveriEnako("brez izbranega jezika: ne vemo", null, OsPravila.jezikPoDrzavah("Brazil", ""))
+}
+
 private fun preizkusTipkMenija() {
     println("\n== stranska vrstica ob brskalniku: tipke daljinca ==")
     preveriEnako("GOR gre meniju (prej v naslovno vrstico strani)", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(19, true, 0))
@@ -553,6 +571,7 @@ fun main() {
     preizkusIkonNaprav()
     preizkusOpisaNaprav()
     preizkusPovezave()
+    preizkusJezikaPoDrzavah()
     preizkusVrsteIzMeta()
     preizkusJezikaKataloga()
     preizkusMer()

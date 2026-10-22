@@ -519,6 +519,8 @@ object Stremio {
         val epizodeVnosa = m.optJSONArray("videos")?.let { v -> (0 until v.length()).mapNotNull { i -> v.optJSONObject(i)?.let { x -> x.optInt("season") to x.optInt("episode") } } }.orEmpty()
         val serijaPoPodatkih = tip == "movie" && OsPravila.vrstaIzMeta("", leto, epizodeVnosa) == "series"
         if (serijaPoPodatkih || (tip == "series" && id.startsWith("tt"))) VrsteNaslovov.zapomni(listOf(VrsteNaslovov.kljucVnosa(osnova, id)), VrsteNaslovov.SERIJA)
+        // Naloga 66: drzave izvora iz odgovora kataloga (Cinemeta jih da pri vsakem vnosu) - za filter jezika, brez poizvedbe.
+        (m.optString("imdb_id").takeIf { it.startsWith("tt") } ?: id.takeIf { it.startsWith("tt") })?.let { VrsteNaslovov.zapomniDrzave(it, drzaveIz(m)) }
         return Jamendo.Skladba(PREDPONA + tip + "|" + id + "|" + osnova, m.optString("name").ifBlank { id }, podnaslov,
             slikaVnosa(m), "", "$osnova/meta/${enc(tip)}/${enc(id)}.json",
             // Glasba in radio sta zvok (kartica in predvajalnik za zvok), vse ostalo video.
@@ -717,9 +719,16 @@ object Stremio {
         if (vrsta == VrsteNaslovov.SERIJA || (vrsta == VrsteNaslovov.FILM && tip == "series" && ostevilcene.isEmpty()))
             VrsteNaslovov.zapomni(listOfNotNull(VrsteNaslovov.kljucVnosa(osnova, id),
                 m.optString("imdb_id").takeIf { it.startsWith("tt") }?.let { "i:" + it.lowercase() }), vrsta)
+        // Naloga 66: drzave izvora iz istega odgovora (brez nove poizvedbe).
+        (m.optString("imdb_id").takeIf { it.startsWith("tt") } ?: id.takeIf { it.startsWith("tt") })?.let { VrsteNaslovov.zapomniDrzave(it, drzaveIz(m)) }
         val serija = tip == "series" || vrsta == VrsteNaslovov.SERIJA
         return vrsta to (if (serija && ostevilcene.isNotEmpty()) ostevilcene.sortedWith(compareBy({ it.sezona }, { it.epizoda })) else vsi)
     }
+
+    /** Naloga 66: polje `country` metapodatkov - niz (»United States, United Kingdom«) ali seznam; "" = ga ni. */
+    private fun drzaveIz(m: JSONObject): String =
+        m.optJSONArray("country")?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf { s -> s.isNotBlank() } }.joinToString(", ") }
+            ?: m.optString("country")
 
     /** Naloga 63: ali katalogni dodatek enote daje metapodatke za njen tip in id (klik na plakat jih sme vprasati). Brez omrezja. */
     fun dajeMeta(s: Jamendo.Skladba): Boolean {

@@ -2478,7 +2478,10 @@ class GlasbaActivity : OsActivity() {
             when {
                 s.language.isNotBlank() -> JezikiVsebine.oznaka(s.language) == jezik
                 !znani[s.imdbId].isNullOrEmpty() -> jezik in znani[s.imdbId].orEmpty()
-                else -> katalogov[s.id]?.let { OsPravila.jezikKatalogaUstreza(it, jezik) } ?: true
+                // Naloga 66: jezika ne vemo, drzave izvora pa (Cinemeta: korejski »Hope« med »English«). Drzava, ki ne
+                // ustreza, naslov skrije; neznana ali brez drzave ostane viden kot do zdaj.
+                else -> katalogov[s.id]?.let { OsPravila.jezikKatalogaUstreza(it, jezik) }
+                    ?: VrsteNaslovov.drzave(s)?.let { OsPravila.jezikPoDrzavah(it, jezik) } ?: true
             }
         }
     }

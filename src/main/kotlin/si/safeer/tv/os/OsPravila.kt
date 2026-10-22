@@ -698,4 +698,53 @@ object OsPravila {
         if (t == "series" || OBDOBJE_SERIJE.matches(izid)) return "series"
         return if (t == "movie") "movie" else null
     }
+
+    // ------------------------------------------------------------------ jezik iz drzave izvora (naloga 66)
+
+    /**
+     * Drzave izvora (angleska imena, kot jih da Cinemeta v `country`) -> jeziki iz izbire jezika ([IzvirniJezik.KODE]).
+     * Iste drzave kot v [IzvirniJezik.JEZIKI] (Wikidata), z imeni namesto predmetov; drzava z vec jeziki ima vse.
+     */
+    private val JEZIKI_DRZAV: Map<String, Set<String>> = buildMap<String, Set<String>> {
+        fun d(jezik: String, vararg drzave: String) { for (x in drzave) put(x, (get(x) ?: emptySet()) + jezik) }
+        d("en", "united states", "united states of america", "usa", "us", "united kingdom", "uk", "england", "scotland", "wales",
+            "northern ireland", "canada", "australia", "ireland", "new zealand")
+        d("sl", "slovenia", "yugoslavia", "federal republic of yugoslavia")
+        d("de", "germany", "west germany", "east germany", "austria", "switzerland", "liechtenstein", "luxembourg")
+        d("fr", "france", "belgium", "switzerland", "canada", "luxembourg", "monaco")
+        d("es", "spain", "mexico", "argentina", "colombia", "chile", "peru", "venezuela", "cuba", "uruguay", "bolivia", "ecuador",
+            "paraguay", "guatemala", "costa rica", "panama", "dominican republic", "puerto rico", "el salvador", "honduras", "nicaragua")
+        d("it", "italy", "switzerland", "san marino")
+        d("pt", "portugal", "brazil")
+        d("hr", "croatia", "yugoslavia", "federal republic of yugoslavia")
+        d("sr", "serbia", "montenegro", "serbia and montenegro", "yugoslavia", "federal republic of yugoslavia")
+        d("bs", "bosnia and herzegovina", "yugoslavia", "federal republic of yugoslavia")
+        d("mk", "north macedonia", "macedonia", "yugoslavia", "federal republic of yugoslavia")
+        d("ru", "russia", "soviet union", "ussr")
+        d("pl", "poland"); d("cs", "czech republic", "czechia", "czechoslovakia"); d("sk", "slovakia", "czechoslovakia")
+        d("hu", "hungary"); d("nl", "netherlands", "belgium"); d("sv", "sweden"); d("da", "denmark"); d("no", "norway")
+        d("fi", "finland"); d("is", "iceland"); d("tr", "turkey", "türkiye"); d("el", "greece", "cyprus")
+        d("ro", "romania", "moldova"); d("bg", "bulgaria"); d("sq", "albania", "kosovo"); d("uk", "ukraine")
+        d("ja", "japan"); d("ko", "south korea", "korea", "republic of korea", "north korea")
+        d("zh", "china", "hong kong", "taiwan"); d("hi", "india"); d("ta", "india"); d("te", "india"); d("th", "thailand")
+        d("ar", "egypt", "saudi arabia", "lebanon", "morocco", "algeria", "tunisia", "jordan", "syria", "iraq", "united arab emirates",
+            "qatar", "kuwait", "palestine")
+        d("he", "israel"); d("fa", "iran")
+    }
+
+    /** Drzave iz polja `country` (»United States, United Kingdom«; tudi ; ali /), male crke, brez »the«. */
+    fun drzaveNaslova(niz: String): List<String> = niz.split(',', ';', '/').map { it.trim().lowercase(java.util.Locale.ROOT).removePrefix("the ").trim() }
+        .filter { it.isNotEmpty() }.distinct()
+
+    /**
+     * Naloga 66 (lastnik, 22. 10. 2026: korejski film »Hope« med »English«): ali je naslov z drzavami izvora [drzave] v
+     * jeziku [jezik] (ISO 639-1). true = katera koli drzava ustreza; false = vse drzave poznamo in nobena ne ustreza
+     * (naslov izpade); null = ne vemo (brez drzav ali katere ne poznamo) - naslov ostane viden kot do zdaj.
+     */
+    fun jezikPoDrzavah(drzave: String, jezik: String): Boolean? {
+        val d = drzaveNaslova(drzave)
+        if (d.isEmpty() || jezik.isBlank()) return null
+        if (d.any { jezik in JEZIKI_DRZAV[it].orEmpty() }) return true
+        return if (d.all { it in JEZIKI_DRZAV }) false else null
+    }
 }
