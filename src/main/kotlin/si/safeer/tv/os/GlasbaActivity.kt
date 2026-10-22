@@ -2492,8 +2492,10 @@ class GlasbaActivity : OsActivity() {
                 !znani[s.imdbId].isNullOrEmpty() -> jezik in znani[s.imdbId].orEmpty()
                 // Naloga 66: jezika ne vemo, drzave izvora pa (Cinemeta: korejski »Hope« med »English«). Drzava, ki ne
                 // ustreza, naslov skrije; neznana ali brez drzave ostane viden kot do zdaj.
-                else -> katalogov[s.id]?.let { OsPravila.jezikKatalogaUstreza(it, jezik) }
-                    ?: VrsteNaslovov.drzave(s)?.let { OsPravila.jezikPoDrzavah(it, jezik) } ?: true
+                // Drzave naslova so natancnejse od jezika kataloga: Cinemeta »top« velja po naslovih za angleski katalog,
+                // »Hope« (Juzna Koreja) pa je v njem - izmerjeno na TV 23. 10. 2026. Zato najprej drzave, nato katalog.
+                else -> VrsteNaslovov.drzave(s)?.let { OsPravila.jezikPoDrzavah(it, jezik) }
+                    ?: katalogov[s.id]?.let { OsPravila.jezikKatalogaUstreza(it, jezik) } ?: true
             }
         }
     }
