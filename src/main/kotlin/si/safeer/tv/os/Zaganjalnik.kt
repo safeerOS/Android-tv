@@ -52,6 +52,20 @@ object Zaganjalnik {
         return kdo != null && kdo == context.packageName
     }
 
+    /**
+     * Naloga 67 (izmerjeno na TV 0.5.109: DomovActivity dvakrat - v opravilu domacega zaslona in v navadnem opravilu pod
+     * ViriActivity): namera, s katero pridemo do EDINE DomovActivity, kadar je Safeer OS domaci zaslon televizorja; null,
+     * ce ni (takrat velja izrecna namera kot doslej). DomovActivity je singleTask, a Android opravila domacega zaslona
+     * (vrsta home) ne zdruzi z navadnim: izrecna namera (ikona v zaganjalniku, zagon ob vklopu, Domov v stranski
+     * vrstici, vrnitev iz brskalnika) je vedno odprla drugo instanco v novem navadnem opravilu. Namera domacega zaslona
+     * brez komponente (le paket) pa gre v opravilo domacega zaslona - tako kot tipka Domov.
+     */
+    fun nameraDomov(context: Context): Intent? {
+        if (!jePonujen(context) || !jeIzbran(context)) return null
+        val n = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(context.packageName)
+        return try { if (context.packageManager.resolveActivity(n, 0) != null) n else null } catch (_: Throwable) { null }
+    }
+
     /** Sistem nas je zagnal kot domaci zaslon: to si zapomnimo, ker je edini trden dokaz. */
     fun zabeleziZagonDomov(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

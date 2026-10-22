@@ -105,6 +105,20 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             finish()
             return
         }
+        // Naloga 67: najvec ena DomovActivity. Safeer OS je domaci zaslon, ta instanca pa ni prisla z namero domacega
+        // zaslona (izrecen zagon): namero z dodatki (os_vrni ...) predamo domaci instanci (onNewIntent) in se koncamo, da
+        // ne ostane drugi dom v navadnem opravilu. Za uporabnika je enako kot tipka Domov.
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) != true) Zaganjalnik.nameraDomov(this)?.let { dom ->
+            try {
+                intent?.extras?.let { dom.putExtras(it) }
+                startActivity(dom.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                finish()
+                @Suppress("DEPRECATION") overridePendingTransition(0, 0)
+                return
+            } catch (e: Throwable) {
+                android.util.Log.w(TAG, "Predaja domacemu zaslonu ni uspela, ostane ta instanca: ${e.message}")
+            }
+        }
         setContentView(R.layout.os_activity_domov)
         // Iskalna lupa v glavi: napises ali poves (tudi »… na racunalniku«) - DomacaLupa. Zaprta je majhno polje ob
         // stanju Linka (vsebina dobi vrsto vec), fokus daljinca ali natipkana crka jo razpre.

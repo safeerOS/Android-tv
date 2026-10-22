@@ -294,8 +294,12 @@
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
         <!-- Izbira vira slike. Namero VIEW_INPUTS (tipka za vire) ponudimo SAMO, ko Googlovega
              zaganjalnika ni ali je onemogocen (ViriActivity.uskladi): sicer bi uporabnik dobil izbirnik. -->
+        <!-- Naloga 67: lastna afiniteta (ne .os), brez zgodovine in brez vnosa v nedavnih. Prej je tipka Viri (NEW_TASK)
+             pristala v navadnem opravilu .os in ga potegnila naprej - z drugo DomovActivity pod sabo, ki je ostala ziva.
+             Prosojna plosca je zdaj nad tem, kar je bilo na zaslonu; Nazaj vrne tja. -->
         <activity android:name="si.safeer.tv.os.ViriActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Viri"
-            android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
+            android:taskAffinity="${applicationId}.viri" android:excludeFromRecents="true" android:noHistory="true"
+            android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
         <activity-alias android:name="si.safeer.tv.os.ViriAlias" android:targetActivity="si.safeer.tv.os.ViriActivity"
             android:exported="true" android:enabled="false">
             <intent-filter>
