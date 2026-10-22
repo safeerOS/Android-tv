@@ -802,6 +802,8 @@ object MedijskiViri {
         // Racunalnik ne pozna vrste, ki jo je naslovu dala ta naprava: izbris "url|<naslov>" velja za vir s tem naslovom.
         val moj = rocni(ctx).firstOrNull { kljucUskladitve(it) == kljuc }
             ?: if (odRacunalnika) rocni(ctx).firstOrNull { !it.jeStremio && !it.jePeerTube && it.naslov == kljuc.substringAfter('|') } else null
+        // Pregled 70: imenik postaj med napravami ne potuje (dodajanje ne) - tudi izbris na drugi napravi ga ne vzame.
+        if (moj?.jeImenik == true) return false
         if (moj == null) {
             val izbrisani = beriCase(ctx, VIRI_IZBRISANI)
             if ((izbrisani[kljuc] ?: 0L) < cas && (odRacunalnika || VRSTE_ZA_USKLADITEV.matches(kljuc.substringBefore('|')))) {

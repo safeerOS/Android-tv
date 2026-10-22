@@ -62,15 +62,14 @@ object LahkiWebViewPool {
             return
         }
         if (spletnoPredvajanje) return
+        // Pregled 70: najet pogled (nevidno branje spletnega vira, iskanje toka) pustimo - sicer bi vsaka nova skladba
+        // ali nadaljevanje po pavzi prekinila branje vira. Ob vrnitvi ga poberejo PROST_MS / onTrimMemory.
+        if (lastnik != null) return
         val w = pogled
         if (w != null) {
-            val klic = obOdvzemu
             pogled = null
-            lastnik = null
             obOdvzemu = null
             glavna.removeCallbacks(unicenje)
-            // Najemnik (nevidno branje vira) izve, da pogleda nima vec - kot ob smrti izrisovalnika.
-            try { klic?.invoke() } catch (_: Throwable) { }
             unicuj(w, "nativno predvajanje")
         }
         koncajIzrisovalnik("nativno predvajanje")

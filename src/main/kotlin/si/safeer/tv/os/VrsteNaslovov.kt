@@ -24,6 +24,8 @@ object VrsteNaslovov {
     private const val KLJUC = "vrste"
     private const val KLJUC_DRZAV = "drzave"
     private const val NAJVEC = 4000
+    /** Pregled 70: drzave se menjajo z vsako stranjo kataloga - manjsa shramba (SharedPreferences je cela v kopici). */
+    private const val NAJVEC_DRZAV = 1000
     private const val ZAMIK_MS = 2_000L
 
     private val vrste = LinkedHashMap<String, String>()
@@ -106,7 +108,7 @@ object VrsteNaslovov {
         if (drzave[k] == d) return false
         drzave.remove(k)
         drzave[k] = d
-        while (drzave.size > NAJVEC) drzave.remove(drzave.keys.first())
+        while (drzave.size > NAJVEC_DRZAV) drzave.remove(drzave.keys.first())
         return true
     }
 

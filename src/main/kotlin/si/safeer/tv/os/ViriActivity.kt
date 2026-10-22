@@ -225,11 +225,29 @@ class ViriActivity : android.app.Activity() {
      * zaslon in smo koren opravila, zato vrnemo na edini dom - tako kot pred nalogo 67. Iz Nastavitev (isto opravilo) le zapremo.
      */
     private fun zapri() {
-        if (isTaskRoot) Zaganjalnik.nameraDomov(this)?.let { dom ->
+        if (isTaskRoot && !opraviloDomaNaprej()) Zaganjalnik.nameraDomov(this)?.let { dom ->
             try { startActivity(dom.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) { }
         }
         finish()
     }
+
+    /**
+     * Pregled 70: namera domacega zaslona bi zaradi singleTask zaprla vse nad domom (tudi film, ki tece). Ce opravilo
+     * doma obstaja, ga raje pripeljemo naprej, kakrsno je (dom -> Media Center -> film). Svoja opravila aplikacija
+     * premika brez posebnega dovoljenja.
+     */
+    private fun opraviloDomaNaprej(): Boolean = try {
+        if (Zaganjalnik.nameraDomov(this) == null) false else {
+            val am = getSystemService(android.app.ActivityManager::class.java)
+            val dom = am?.appTasks?.firstOrNull { t ->
+                val info = try { t.taskInfo } catch (_: Throwable) { null }
+                info != null && info.id != taskId && info.baseActivity?.className.let {
+                    it == "si.safeer.tv.os.ZaganjalnikAlias" || it == "si.safeer.tv.os.DomovActivity"
+                }
+            }
+            if (dom != null) { dom.moveToFront(); true } else false
+        }
+    } catch (_: Throwable) { false }
 
     private fun odpri(v: TvInputInfo) {
         try {

@@ -62,6 +62,8 @@ object Zaganjalnik {
      */
     fun nameraDomov(context: Context): Intent? {
         if (!jePonujen(context) || !jeIzbran(context)) return null
+        // Pregled 70: sistem kaze drug zaganjalnik (uporabnik ga je izbral pozneje) - dokaz iz prakse je zastarel.
+        domaciZaslon(context)?.let { kdo -> if (kdo != "android" && kdo != context.packageName) return null }
         val n = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(context.packageName)
         return try { if (context.packageManager.resolveActivity(n, 0) != null) n else null } catch (_: Throwable) { null }
     }

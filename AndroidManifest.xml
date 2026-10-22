@@ -298,7 +298,7 @@
              pristala v navadnem opravilu .os in ga potegnila naprej - z drugo DomovActivity pod sabo, ki je ostala ziva.
              Prosojna plosca je zdaj nad tem, kar je bilo na zaslonu; Nazaj vrne tja. -->
         <activity android:name="si.safeer.tv.os.ViriActivity" android:exported="false" android:theme="@style/Theme.SafeerOs.Viri"
-            android:taskAffinity="${applicationId}.viri" android:excludeFromRecents="true" android:noHistory="true"
+            android:taskAffinity="${applicationId}.viri" android:excludeFromRecents="true" android:noHistory="true" android:launchMode="singleTop"
             android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
         <activity-alias android:name="si.safeer.tv.os.ViriAlias" android:targetActivity="si.safeer.tv.os.ViriActivity"
             android:exported="true" android:enabled="false">

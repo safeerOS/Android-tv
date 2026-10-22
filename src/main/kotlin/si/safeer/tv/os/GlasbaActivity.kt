@@ -5517,7 +5517,8 @@ class GlasbaActivity : OsActivity() {
     private fun karticaDodajVir() = Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "",
         { dodajVir() }, ikona = R.drawable.os_ikona_plus)
     /** Uporabnik nima nobenega spletnega vira (dodatka, streznika, toka, strani). */
-    private fun brezSpletnihVirov() = MedijskiViri.vsi(this).isEmpty()
+    /** Pregled 70: imenik radijskih postaj ne da filmov ali glasbe - z njim samim mreza se vedno ponudi Dodaj vir. */
+    private fun brezSpletnihVirov() = MedijskiViri.vsi(this).none { it.tip != MedijskiViri.IMENIK }
 
     private fun dodajVir() {
         val aplikacije = try { SpletneAplikacije.seznam(this) } catch (_: Throwable) { emptyList() }
