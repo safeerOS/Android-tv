@@ -156,6 +156,6 @@
     <string name="ui_share_screen_notice">%1$s condivide lo schermo: apri per vederlo</string>
     <string name="ui_emudhra_title">Avviso di sicurezza: CA compromessa (eMudhra)</string>
     <string name="ui_emudhra_msg">Il certificato di questo sito è stato emesso da un\'autorità di certificazione revocata a causa di chiavi compromesse. Perciò non apriamo il sito.</string>
-    <string name="ui_emudhra_badge">Regola di sicurezza senza eccezioni (Zero-Bypass)</string>
+    <string name="ui_emudhra_badge">Per motivi di sicurezza questa pagina non può essere aperta.</string>
     <string name="ui_emudhra_back">Torna al sicuro</string>
 </resources>

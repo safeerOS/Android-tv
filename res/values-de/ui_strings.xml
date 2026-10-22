@@ -156,6 +156,6 @@
     <string name="ui_share_screen_notice">%1$s teilt den Bildschirm – zum Anzeigen öffnen</string>
     <string name="ui_emudhra_title">Sicherheitswarnung: Kompromittierte Zertifizierungsstelle (eMudhra)</string>
     <string name="ui_emudhra_msg">Das Zertifikat dieser Website wurde von einer Zertifizierungsstelle ausgestellt, die wegen kompromittierter Schlüssel widerrufen wurde. Die Website wird deshalb nicht geöffnet.</string>
-    <string name="ui_emudhra_badge">Sicherheitsregel ohne Umgehung (Zero-Bypass)</string>
+    <string name="ui_emudhra_badge">Aus Sicherheitsgründen kann diese Seite nicht geöffnet werden.</string>
     <string name="ui_emudhra_back">Zurück zur Sicherheit</string>
 </resources>

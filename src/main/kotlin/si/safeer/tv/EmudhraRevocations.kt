@@ -335,6 +335,10 @@ object EmudhraRevocations {
     fun jeOpozorilnaStran(url: String?): Boolean =
         url?.startsWith(OPOZORILNA_STRAN_URL, ignoreCase = true) == true
 
+    /** Naslov za naslovno vrstico: pri opozorilni strani izvirni URL blokirane strani, sicer nespremenjen [url]. */
+    fun prikazniNaslov(url: String, zastavica: ZastavicaOpozorila): String =
+        if (jeOpozorilnaStran(url)) zastavica.izvirniUrl ?: url else url
+
     private fun gostiteljIz(url: String?): String? = try {
         java.net.URI(url ?: "").host?.lowercase(Locale.ROOT)
     } catch (_: Throwable) {
@@ -348,6 +352,16 @@ object EmudhraRevocations {
     class ZastavicaOpozorila {
         private var stevecNavigacije = 0
         private var zadnjiKljuc: String? = null
+
+        /** Izvirni URL blokirane strani: naslovna vrstica kaže njega, ne notranjega naslova opozorilne strani. */
+        @Volatile
+        var izvirniUrl: String? = null
+            private set
+
+        @Synchronized
+        fun zabeleziBlokiraniUrl(url: String) {
+            izvirniUrl = url
+        }
 
         @Synchronized
         fun novaNavigacija() {

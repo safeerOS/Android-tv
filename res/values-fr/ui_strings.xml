@@ -156,6 +156,6 @@
     <string name="ui_share_screen_notice">%1$s partage son écran – ouvre pour l’afficher</string>
     <string name="ui_emudhra_title">Avertissement de sécurité : AC compromise (eMudhra)</string>
     <string name="ui_emudhra_msg">Le certificat de ce site a été émis par une autorité de certification révoquée en raison de clés compromises. Nous n\'ouvrons donc pas le site.</string>
-    <string name="ui_emudhra_badge">Règle de sécurité sans contournement (Zero-Bypass)</string>
+    <string name="ui_emudhra_badge">Pour des raisons de sécurité, cette page ne peut pas être ouverte.</string>
     <string name="ui_emudhra_back">Retour en sécurité</string>
 </resources>

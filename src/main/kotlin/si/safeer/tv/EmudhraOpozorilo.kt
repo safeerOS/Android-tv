@@ -61,6 +61,7 @@ object EmudhraOpozorilo {
         if (EmudhraRevocations.jeOpozorilnaStran(safeUrl)) return true
         if (!zastavica.prviZaNavigacijo(safeUrl)) return true
 
+        zastavica.zabeleziBlokiraniUrl(safeUrl)
         android.util.Log.e("SafeerSecurity", "BLOKIRANO eMudhra: kompromitiran vmesni overitelj za $safeUrl")
         view.stopLoading()
 

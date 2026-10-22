@@ -156,6 +156,6 @@
     <string name="ui_share_screen_notice">%1$s is sharing a screen – open to view</string>
     <string name="ui_emudhra_title">Security Warning: Compromised CA (eMudhra)</string>
     <string name="ui_emudhra_msg">This site\'s certificate was issued by a certificate authority that has been revoked because of compromised keys. We therefore do not open the site.</string>
-    <string name="ui_emudhra_badge">Zero-bypass security policy</string>
+    <string name="ui_emudhra_badge">For security reasons this page cannot be opened.</string>
     <string name="ui_emudhra_back">Back to safety</string>
 </resources>

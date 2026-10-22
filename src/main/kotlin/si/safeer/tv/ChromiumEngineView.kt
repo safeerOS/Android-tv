@@ -1236,6 +1236,9 @@ class ChromiumEngineView @JvmOverloads constructor(
     // eMudhra: eno opozorilo na navigacijo (URL + števec), čeprav ga sproži več povratnih klicev
     private val emudhraZastavica = EmudhraRevocations.ZastavicaOpozorila()
 
+    /** Naslov za naslovno vrstico: med eMudhra opozorilom naslov blokirane strani, sicer [url]. */
+    fun prikazniNaslov(url: String): String = EmudhraRevocations.prikazniNaslov(url, emudhraZastavica)
+
     private fun emudhraBlokirano(view: WebView?, url: String?): Boolean {
         if (view == null || !EmudhraOpozorilo.obravnavajKompromitiranCa(view, url, emudhraZastavica)) return false
         onSecurityChanged?.invoke(false)

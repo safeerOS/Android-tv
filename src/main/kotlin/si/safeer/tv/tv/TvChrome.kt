@@ -361,8 +361,10 @@ class TvChrome(private val host: MainActivity) {
         cipPrilepi = cip
     }
 
-    fun updateOmniboxDisplay(url: String, title: String?) {
+    fun updateOmniboxDisplay(tabUrl: String, title: String?) {
         if (host.editUrl.hasFocus()) return
+        // Med eMudhra opozorilom naslovna vrstica kaze blokirano stran, ne notranjega naslova opozorilne strani.
+        val url = host.activeWebView()?.prikazniNaslov(tabUrl) ?: tabUrl
 
         // Stran z zadetki iskalnika: v vrstici je iskani niz - ne dolg naslov in ne prazno polje.
         val poizvedba = si.safeer.tv.SmartOmnibox.poizvedba(url)
