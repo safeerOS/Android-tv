@@ -251,6 +251,57 @@ private fun preizkusImenikaPostaj() {
     preveriEnako("prazno", null, OsPravila.imenikPostaj(""))
 }
 
+private data class P(val ime: String, val tok: String, val neposreden: Boolean = true)
+
+private fun preizkusPostaj() {
+    println("\n== ista postaja iz vec imenikov (naloga 71) ==")
+    preveriEnako("Radio 1 ostane radio1 (ne samo 1)", "radio1", OsPravila.kljucImenaPostaje("Radio 1"))
+    preveriEnako("frekvenca za imenom odpade", "radio1", OsPravila.kljucImenaPostaje("Radio 1 105.2"))
+    preveriEnako("frekvenca v oklepaju odpade", "val202", OsPravila.kljucImenaPostaje("Val 202 (98.9MHz)"))
+    preveriEnako("beseda radio in FM odpadeta", "center", OsPravila.kljucImenaPostaje("Radio Center 87.6 FM"))
+    preveriEnako("naglasi odpadejo", "student", OsPravila.kljucImenaPostaje("Radio Študent"))
+    preveriEnako("Rock Radio", "rock", OsPravila.kljucImenaPostaje("Rock Radio"))
+    preveriEnako("tok: shema, www, poizvedba, posevnica", "live.radio.si/radio1", OsPravila.kljucTokaPostaje("https://www.Live.radio.si/Radio1/?x=1"))
+    fun zdruzi(vse: List<P>) = OsPravila.zdruziPostaje(vse, { it.ime }, { it.tok }, { it.neposreden })
+    preveriEnako("Radio Browser in TuneIn: ena postaja, ostane Radio Browser",
+        listOf(P("Radio 1", "http://live.radio.si/Radio1")), zdruzi(listOf(P("Radio 1", "http://live.radio.si/Radio1"), P("Radio 1", "", false))))
+    preveriEnako("TuneIn prvi: postaja z neposrednim tokom stopi na njegovo mesto",
+        listOf(P("Radio 1", "http://x/r1"), P("Val 202", "http://a/val")),
+        zdruzi(listOf(P("Radio 1", "", false), P("Val 202", "http://a/val"), P("Radio 1", "http://x/r1"))))
+    preveriEnako("Val 202 in Val 202 (98.9MHz) sta ista", 1, zdruzi(listOf(P("Val 202", "http://a/val"), P("Val 202 (98.9MHz)", "", false))).size)
+    preveriEnako("Rock Radio in Rock Radio Best Ballads nista ista", 2,
+        zdruzi(listOf(P("Rock Radio", "http://r/1"), P("Rock Radio Best Ballads", "http://r/2"))).size)
+    preveriEnako("isti tok, drugo ime: ista postaja", 1, zdruzi(listOf(P("Center", "http://c.si/live"), P("Radio Center", "https://www.c.si/live/"))).size)
+    preveriEnako("brez imena in toka: nic ne zdruzimo", 2, zdruzi(listOf(P("", ""), P("", ""))).size)
+}
+
+private fun preizkusPodnapisovDodatkov() {
+    println("\n== podnapisi iz dodatkov Stremio (naloga 72) ==")
+    preveriEnako("film: movie / tt", "movie" to "tt0111161", OsPravila.idPodnapisov("tt0111161", 0, 0))
+    preveriEnako("epizoda: series / tt:S:E", "series" to "tt0944947:1:2", OsPravila.idPodnapisov("tt0944947", 1, 2))
+    preveriEnako("brez IMDb ni podnapisov iz dodatka", null, OsPravila.idPodnapisov("", 0, 0))
+    preveriEnako("id dodatka (ne IMDb) ni dovolj", null, OsPravila.idPodnapisov("kitsu:123", 0, 0))
+    preveriEnako("eng -> en", "en", OsPravila.jezikPodnapisa("eng"))
+    preveriEnako("slv -> sl", "sl", OsPravila.jezikPodnapisa("slv"))
+    preveriEnako("pob (brazilska) -> pt", "pt", OsPravila.jezikPodnapisa("pob"))
+    preveriEnako("ger -> de", "de", OsPravila.jezikPodnapisa("ger"))
+    val odgovor = OsPravila.podnapisiDodatka(listOf(
+        "https://subs5.strem.io/en/download/file/1" to "eng",
+        "https://subs5.strem.io/en/download/file/1" to "eng",          // isti naslov dvakrat
+        "https://subs5.strem.io/sl/download/file/2" to "slv",
+        "javascript:alert(1)" to "eng",                                // ni http(s)
+        "https://subs5.strem.io/x/3" to "",                            // brez jezika
+        "https://subs5.strem.io/x/4\n" to "eng"))                    // kontrolni znak
+    preveriEnako("razclenitev: dva veljavna, brez ponovitev in neveljavnih",
+        listOf(OsPravila.PodnapisDodatka("https://subs5.strem.io/en/download/file/1", "en"), OsPravila.PodnapisDodatka("https://subs5.strem.io/sl/download/file/2", "sl")),
+        odgovor)
+    preveriEnako("prazen odgovor", emptyList<OsPravila.PodnapisDodatka>(), OsPravila.podnapisiDodatka(emptyList()))
+    preveriEnako("jeziki: vmesnik, anglescina, ostali po abecedi", listOf("sl", "en", "de", "hr", "pt"),
+        OsPravila.jezikiPodnapisov(listOf("pt", "en", "hr", "sl", "de", "en"), "sl"))
+    preveriEnako("jeziki: vmesnik je anglescina", listOf("en", "de", "fr"), OsPravila.jezikiPodnapisov(listOf("fr", "de", "en"), "en"))
+    preveriEnako("jeziki: jezika vmesnika ni", listOf("en", "fr"), OsPravila.jezikiPodnapisov(listOf("fr", "en"), "sl"))
+}
+
 private fun preizkusTipkMenija() {
     println("\n== stranska vrstica ob brskalniku: tipke daljinca ==")
     preveriEnako("GOR gre meniju (prej v naslovno vrstico strani)", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(19, true, 0))
@@ -611,6 +662,8 @@ fun main() {
     preizkusIkonNaprav()
     preizkusOpisaNaprav()
     preizkusPovezave()
+    preizkusPodnapisovDodatkov()
+    preizkusPostaj()
     preizkusImenikaPostaj()
     preizkusSeznamaPostaj()
     preizkusJezikaPoDrzavah()

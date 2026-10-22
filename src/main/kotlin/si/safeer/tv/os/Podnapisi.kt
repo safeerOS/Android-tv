@@ -176,6 +176,30 @@ object Podnapisi {
             }.show()
     }
 
+    // ------------------------------------------------------------------ podnapisi iz dodatkov (naloga 72)
+
+    /** Zadnji jezik podnapisov iz dodatka (ISO 639-1); "" = izklopljeno (privzeto): ob novem filmu jih ne iscemo sami. */
+    fun jezikDodatka(ctx: Context): String = prefs(ctx).getString("dodatek_jezik", "") ?: ""
+
+    /** Podnapis iz dodatka za MediaItem: OpenSubtitles vraca SRT (naslov brez koncnice), .vtt je WebVTT. */
+    fun izDodatka(ctx: Context, p: Stremio.PodnapisDodatka): Podnapis =
+        Podnapis(p.url, listOf(imeJezika(ctx, p.jezik), p.dodatek).filter { it.isNotBlank() }.joinToString(" · "), p.jezik, "",
+            if (p.url.substringBefore('?').lowercase().endsWith(".vtt")) MimeTypes.TEXT_VTT else MimeTypes.APPLICATION_SUBRIP)
+
+    /** Podnapisi v jeziku [jezik] so dodani: vklopimo jih in jezik si zapomnimo (tudi za naslednje filme). */
+    fun vklopiJezik(ctx: Context, p: Player, jezik: String) {
+        p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).setPreferredTextLanguages(jezik, jezikNaprave(ctx)).build()
+        prefs(ctx).edit().putBoolean("izklop", false).putString("jezik", jezik).putString("dodatek_jezik", jezik).apply()
+    }
+
+    /** Izklop iz izbire podnapisov dodatka: izklopljeno ostane tudi za naslednje filme (dodatka ne sprasujemo sami). */
+    fun izklopiDodatek(ctx: Context, p: Player) {
+        p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build()
+        prefs(ctx).edit().putBoolean("izklop", true).putString("dodatek_jezik", "").apply()
+    }
+
     /** Hitri vklop/izklop (tipka CC na daljincu): izklopi, ali vklopi zadnje oziroma prve. */
     fun preklopi(a: Activity, p: Player) {
         val posnetki = posnetki(p)

@@ -494,7 +494,7 @@ class PredvajanjeActivity : OsActivity() {
             GlasbaStoritev.naslednja()
         })
         gumbPodnapisi = okroglGumb(R.drawable.os_ikona_podnapisi, R.string.podnapisi_naslov, 52) {
-            GlasbaStoritev.predvajalnik?.let { p -> Podnapisi.izberi(this, p) { posodobiPodnapise() } }
+            izbiraPodnapisov()
         }.also { it.visibility = View.GONE; gumbi.addView(it) }
         gumbZvok = okroglGumb(R.drawable.os_ikona_zvocna_sled, R.string.os_mediji_zvocna_sled, 52) {
             GlasbaStoritev.predvajalnik?.let { p -> ZvocneSledi.izberi(this, p) { posodobiPodnapise() } }
@@ -1078,6 +1078,12 @@ class PredvajanjeActivity : OsActivity() {
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             }
         }
+        // Naloga 72: podnapisi iz uporabnikovega dodatka (OpenSubtitles v3 ...) - jeziki in izklop.
+        if (video && zdaj != null && imaDodatekPodnapisov()) {
+            val jezik = Podnapisi.jezikDodatka(this)
+            dejanje(getString(R.string.podnapisi_iz_dodatka),
+                if (jezik.isEmpty()) getString(R.string.podnapisi_izklop) else Podnapisi.imeJezika(this, jezik), R.drawable.os_ikona_podnapisi) { izbiraPodnapisov() }
+        }
         if (dotik && video && zdaj != null && zdaj.id.startsWith("krajevno:")) {
             dejanje(getString(R.string.os_podnapisi_dodaj),
                 zdaj.podnapisi.firstOrNull()?.ime ?: getString(R.string.os_podnapisi_dodaj_opis), R.drawable.os_ikona_podnapisi) { izberiPodnapise() }
@@ -1467,9 +1473,100 @@ class PredvajanjeActivity : OsActivity() {
         return false
     }
 
-    /** Gumb in namig za podnapise samo, kadar jih video ima. */
+    // ------------------------------------------------------------------ podnapisi iz dodatkov (naloga 72)
+
+    /** Naslov, ki igra, za /subtitles/ dodatka: (tip, id) po IMDb; null = ni video ali ni IMDb. */
+    private fun idPodnapisov(): Pair<String, String>? {
+        val sk = GlasbaStoritev.trenutna()?.takeIf { it.video } ?: return null
+        return OsPravila.idPodnapisov(sk.imdbId, sk.season, sk.episode)
+    }
+
+    private fun dodatkiStremio() = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
+
+    /** Ali kateri dodatek uporabnika daje podnapise za ta naslov (brez omrezja; brez dodatka ni nobene zahteve). */
+    private fun imaDodatekPodnapisov(): Boolean = idPodnapisov()?.let { (tip, id) -> Stremio.imaPodnapise(dodatkiStremio(), tip, id) } == true
+
+    /** Posnetek, za katerega smo podnapise iz dodatka ze dodali ali poiskali v zapomnjenem jeziku (enkrat na posnetek). */
+    private var podnapisiDodatkaZa = ""
+
+    /** Gumb podnapisov, tipka gor in »Vec moznosti«: brez dodatka kot doslej, z dodatkom tudi jeziki iz dodatka. */
+    private fun izbiraPodnapisov() {
+        val p = GlasbaStoritev.predvajalnik ?: return
+        val id = idPodnapisov()
+        if (id == null || !imaDodatekPodnapisov()) { Podnapisi.izberi(this, p) { posodobiPodnapise() }; return }
+        android.widget.Toast.makeText(this, R.string.podnapisi_iscem, android.widget.Toast.LENGTH_SHORT).show()
+        val naslovi = dodatkiStremio()
+        delavec.execute {
+            val najdeni = try { Stremio.podnapisi(naslovi, id.first, id.second) } catch (_: Exception) { emptyList() }
+            android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov: ${najdeni.size} v ${najdeni.map { it.jezik }.distinct().size} jezikih za ${id.first}/${id.second}")
+            runOnUiThread { if (!isFinishing && idPodnapisov() == id) pokaziJezikePodnapisov(najdeni) }
+        }
+    }
+
+    /** Izklopljeno, podnapisi videa (ce jih ima) in jeziki iz dodatka: jezik vmesnika, anglescina, ostali po abecedi. */
+    private fun pokaziJezikePodnapisov(najdeni: List<Stremio.PodnapisDodatka>) {
+        val p = GlasbaStoritev.predvajalnik ?: return
+        val jeziki = OsPravila.jezikiPodnapisov(najdeni.map { it.jezik }, resources.configuration.locales[0].language)
+        val videa = Podnapisi.imaPodnapise(p)
+        if (jeziki.isEmpty() && !videa) {
+            android.widget.Toast.makeText(this, R.string.podnapisi_ni_najdenih, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        val zamik = if (videa) 2 else 1
+        val imena = listOf(getString(R.string.podnapisi_izklop)) + (if (videa) listOf(getString(R.string.podnapisi_videa)) else emptyList()) +
+            jeziki.map { Podnapisi.imeJezika(this, it).ifBlank { it } }
+        val trenutni = when {
+            !Podnapisi.vklopljeni(p) -> 0
+            else -> jeziki.indexOf(Podnapisi.jezikDodatka(this)).let { if (it >= 0) it + zamik else -1 }
+        }
+        android.app.AlertDialog.Builder(this).setTitle(R.string.podnapisi_naslov)
+            .setSingleChoiceItems(imena.toTypedArray(), trenutni) { d, k ->
+                d.dismiss()
+                when {
+                    k == 0 -> { Podnapisi.izklopiDodatek(this, p); posodobiPodnapise() }
+                    videa && k == 1 -> Podnapisi.izberi(this, p) { posodobiPodnapise() }
+                    else -> naloziPodnapis(najdeni, jeziki[k - zamik])
+                }
+            }.show()
+    }
+
+    /** Prvi (najboljsi po dodatku) podnapis v [jezik] gre v tok na istem mestu; jezik si zapomnimo. */
+    private fun naloziPodnapis(najdeni: List<Stremio.PodnapisDodatka>, jezik: String) {
+        val p = GlasbaStoritev.predvajalnik ?: return
+        val prvi = najdeni.firstOrNull { it.jezik == jezik } ?: return
+        if (!GlasbaStoritev.dodajPodnapise(listOf(Podnapisi.izDodatka(this, prvi)))) {
+            android.widget.Toast.makeText(this, R.string.podnapisi_ne_gre, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        podnapisiDodatkaZa = GlasbaStoritev.trenutna()?.id.orEmpty()
+        Podnapisi.vklopiJezik(this, p, jezik)
+        posodobiPodnapise()
+    }
+
+    /** Zapomnjen jezik (uporabnik ga je enkrat izbral): ob novem filmu z dodatkom podnapise poiscemo in vklopimo sami. */
+    private fun samodejniPodnapisi() {
+        val jezik = Podnapisi.jezikDodatka(this).ifEmpty { return }
+        val kljuc = GlasbaStoritev.trenutna()?.id ?: return
+        if (kljuc == podnapisiDodatkaZa) return
+        val id = idPodnapisov() ?: return
+        if (!imaDodatekPodnapisov()) return
+        podnapisiDodatkaZa = kljuc
+        val naslovi = dodatkiStremio()
+        delavec.execute {
+            val prvi = (try { Stremio.podnapisi(naslovi, id.first, id.second) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
+            android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov samodejno ($jezik): ${if (prvi != null) "najdeni" else "ni"} za ${id.first}/${id.second}")
+            if (prvi != null) runOnUiThread {
+                if (isFinishing || GlasbaStoritev.trenutna()?.id != kljuc) return@runOnUiThread
+                val p = GlasbaStoritev.predvajalnik ?: return@runOnUiThread
+                if (GlasbaStoritev.dodajPodnapise(listOf(Podnapisi.izDodatka(this, prvi)))) Podnapisi.vklopiJezik(this, p, jezik)
+            }
+        }
+    }
+
+    /** Gumb in namig za podnapise samo, kadar jih video ima (ali jih da dodatek uporabnika - naloga 72). */
     private fun posodobiPodnapise() {
-        val ima = jeVideo() && Podnapisi.imaPodnapise(GlasbaStoritev.predvajalnik)
+        samodejniPodnapisi()
+        val ima = jeVideo() && (Podnapisi.imaPodnapise(GlasbaStoritev.predvajalnik) || imaDodatekPodnapisov())
         GlasbaStoritev.predvajalnik?.let { p -> android.util.Log.d("SafeerPodnapisi", "Posnetki: " + Podnapisi.posnetki(p).joinToString { (g, i) -> "${g.getTrackFormat(i).sampleMimeType}/${g.getTrackFormat(i).language}/${g.isTrackSelected(i)}" }) }
         gumbPodnapisi?.visibility = if (ima) View.VISIBLE else View.GONE
         gumbZvok?.visibility = if (ZvocneSledi.imaIzbiro(GlasbaStoritev.predvajalnik)) View.VISIBLE else View.GONE
@@ -1766,7 +1863,7 @@ class PredvajanjeActivity : OsActivity() {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> { premakni(-10_000); return true }
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { premakni(10_000); return true }
             KeyEvent.KEYCODE_DPAD_DOWN -> { odpriPredloge(); return true }
-            KeyEvent.KEYCODE_DPAD_UP -> { if (jeVideo()) p?.let { Podnapisi.izberi(this, it) { posodobiPodnapise() } }; return true }
+            KeyEvent.KEYCODE_DPAD_UP -> { if (jeVideo() && p != null) izbiraPodnapisov(); return true }
             KeyEvent.KEYCODE_CAPTIONS -> { p?.let { Podnapisi.preklopi(this, it); posodobiPodnapise() }; return true }
             KeyEvent.KEYCODE_SEARCH -> { odpriIskanje(); return true }
             KeyEvent.KEYCODE_WINDOW, KeyEvent.KEYCODE_PROG_GREEN -> {

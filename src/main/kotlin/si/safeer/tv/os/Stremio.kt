@@ -160,6 +160,8 @@ object Stremio {
         "/stream/" in url -> 3 * 60_000L
         "/catalog/" in url -> 15 * 60_000L
         "/meta/" in url -> 60 * 60_000L
+        // Naloga 72: podnapisi naslova se ne spreminjajo hitro - ponovno odprta izbira ne vprasa znova.
+        "/subtitles/" in url -> 60 * 60_000L
         else -> 0L
     }
 
@@ -227,6 +229,8 @@ object Stremio {
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
         // Vsaka poizvedba po tokovih steje v urni proracun dodatka - tudi tista za predvajanje ([TempoDodatka]).
         if ("/stream/" in url) stej(url.substringBefore("/stream/"))
+        // Naloga 72: tudi poizvedbe po podnapisih stejejo v urni proracun dodatka (TempoDodatka).
+        if ("/subtitles/" in url) stej(url.substringBefore("/subtitles/"))
         return try {
             val c = URL(url).openConnection() as HttpURLConnection
             c.connectTimeout = cas; c.readTimeout = cas
@@ -1137,6 +1141,44 @@ object Stremio {
         var neznano = false
         for (t in neposredni) when (sonda(t)) { true -> return true; null -> neznano = true; false -> { } }
         return if (neznano) null else false
+    }
+
+    // ------------------------------------------------------------------ podnapisi (naloga 72)
+
+    /** Dodatek daje podnapise za ta tip in id (vir »subtitles«, tip, predpona). */
+    private fun dajePodnapise(m: Manifest, tip: String, id: String) =
+        "subtitles" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) })
+
+    /**
+     * Ali kateri od uporabnikovih dodatkov daje podnapise za ta naslov - brez omrezja, iz znanih manifestov (predvajanje
+     * filma iz dodatka jih je prebralo, [tokovi]). Brez takega dodatka Safeer podnapisov ne isce (nobene zahteve).
+     */
+    fun imaPodnapise(naslovi: List<String>, tip: String, id: String): Boolean =
+        naslovi.mapNotNull { manifesti[osnova(it)] }.any { dajePodnapise(it, tip, id) }
+
+    data class PodnapisDodatka(val url: String, val jezik: String, val dodatek: String)
+
+    /**
+     * Naloga 72: podnapisi naslova iz uporabnikovih dodatkov (OpenSubtitles v3 ...): GET {osnova}/subtitles/{tip}/{id}.json,
+     * odgovor {subtitles: [{id, url, lang}]} ([OsPravila.podnapisiDodatka]). Vsak dodatek najvec enkrat na uro (predpomnilnik),
+     * z zetonom in urnim proracunom kot preverjanje ([zeton], [TempoDodatka]); dodatek v premoru ali brez odgovora preskocimo.
+     * Klic iz niti.
+     */
+    fun podnapisi(naslovi: List<String>, tip: String, id: String): List<PodnapisDodatka> {
+        val dodatki = naslovi.mapNotNull { manifesti[osnova(it)] }.filter { dajePodnapise(it, tip, id) }
+        return dodatki.flatMap { m ->
+            val url = "${m.osnova}/subtitles/${enc(tip)}/${enc(id)}.json"
+            // Ze prebran odgovor (1 h) ne porabi zetona; nov gre skozi vljudnost do dodatka.
+            if (odgovori[url] == null && !zeton(m.osnova)) return@flatMap emptyList()
+            val d = json(url) ?: run {
+                val koda = zadnjaKoda.get() ?: 0
+                if (koda == 429 || koda == 403) zacniPremor(m.osnova)
+                return@flatMap emptyList()
+            }
+            val a = d.optJSONArray("subtitles") ?: return@flatMap emptyList()
+            val vnosi = (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { it.optString("url") to it.optString("lang") } }
+            OsPravila.podnapisiDodatka(vnosi).map { PodnapisDodatka(it.url, it.jezik, m.ime) }
+        }
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */

@@ -2067,16 +2067,19 @@ class GlasbaActivity : OsActivity() {
             // Radijske postaje iz uporabnikovih dodatkov so pred vgrajenimi.
             vrste += policeDodatkov(i, Stremio.RADIO)
             if (!radioViden && !tuneInViden) return vrste
-            val (domace, svet) = if (radioViden) Radio.postajeLocene() else emptyList<Jamendo.Skladba>() to emptyList()
+            val (domaceVse, svetVse) = if (radioViden) Radio.postajeLocene() else emptyList<Jamendo.Skladba>() to emptyList()
+            // Naloga 71: Radio Browser ima isto postajo pogosto veckrat (vec tokov); TuneIn lokalne so vecinoma iste domace postaje.
+            val domace = brezDvojnikovPostaj(domaceVse)
+            val svet = brezDvojnikovPostaj(svetVse)
             if (domace.isNotEmpty()) vrste += Podatki(getString(R.string.os_mediji_domace), domace)
-            if (tuneInViden) TuneIn.lokalne().takeIf { it.isNotEmpty() }?.let {
+            if (tuneInViden) TuneIn.lokalne().let { t -> brezDvojnikovPostaj(domace + t).filter { TuneIn.jeEnota(it) } }.takeIf { it.isNotEmpty() }?.let {
                 vrste += Podatki(getString(R.string.os_media_tunein_lokalne), it)
             }
             if (radioViden) {
                 val poZvrsteh = ZVRSTI.map { z ->
                     java.util.concurrent.CompletableFuture.supplyAsync { z.third to Radio.poZvrsti(z.second, 24) }
                 }.map { it.get() }
-                poZvrsteh.forEach { (naziv, postaje) -> if (postaje.isNotEmpty()) vrste += Podatki(getString(naziv), postaje) }
+                poZvrsteh.forEach { (naziv, postaje) -> brezDvojnikovPostaj(postaje).let { if (it.isNotEmpty()) vrste += Podatki(getString(naziv), it) } }
                 vrste += Podatki(getString(R.string.os_mediji_svet), svet)
             }
             vrste.filter { it.skladbe.isNotEmpty() }
@@ -3529,7 +3532,13 @@ class GlasbaActivity : OsActivity() {
         else "g|${glasbaSkupina()}|$glasbaZvrst|$glasbaJezik"
 
     /** Ista postaja ali skladba iz dveh virov je ena kartica: postaja po naslovu toka, ostalo po id-ju. */
-    private fun kljucVMrezi(s: Jamendo.Skladba) = if (s.radio && s.zvok.isNotBlank()) s.zvok else s.id
+    /** Naloga 71: postaja v mrezi po kljucu imena (ista postaja iz Radio Browserja in TuneIna na dveh straneh mreze), sicer po toku. */
+    private fun kljucVMrezi(s: Jamendo.Skladba) = if (s.radio) OsPravila.kljucImenaPostaje(s.naslov).ifEmpty { s.zvok.ifBlank { s.id } }.let { "p:$it" }
+        else s.id
+
+    /** Naloga 71: postaje brez dvojnikov; neposreden tok (ne TuneIn, ki ga razresi sele klik) ima prednost. */
+    private fun brezDvojnikovPostaj(postaje: List<Jamendo.Skladba>): List<Jamendo.Skladba> =
+        OsPravila.zdruziPostaje(postaje, { it.naslov }, { it.zvok }, { !TuneIn.jeEnota(it) && it.zvok.isNotBlank() })
 
     private fun odpriMrezo(i: Int) {
         // Moja glasba: priljubljene in seznami predvajanja kot bloka mreze - uporabnikove zbirke, ne katalog.
@@ -3682,7 +3691,8 @@ class GlasbaActivity : OsActivity() {
         izhod += postaje
         izhod += try { tuneIn?.get(20, java.util.concurrent.TimeUnit.SECONDS).orEmpty() } catch (_: Exception) { emptyList() }
         m.stran++
-        return izhod to (postaje.size >= RADIO_NA_STRAN / 2 || m.viri.any { !it.konec || it.vTeku != null })
+        // Naloga 71: dodatki, Radio Browser in TuneIn na isti strani brez dvojnikov (med stranmi jih ujame kljucVMrezi).
+        return brezDvojnikovPostaj(izhod) to (postaje.size >= RADIO_NA_STRAN / 2 || m.viri.any { !it.konec || it.vTeku != null })
     }
 
     /** Katalogi glasbenih dodatkov: zvocni (albumi, skladbe, seznami) ali videospoti (glasbeni katalog, ki se oglasa kot video). */
@@ -5154,14 +5164,10 @@ class GlasbaActivity : OsActivity() {
             val dTv = dodatkiPoRazredu[Stremio.TV].orEmpty()
             val dGlasba = dodatkiPoRazredu[Stremio.GLASBA].orEmpty()
             val dRadio = dodatkiPoRazredu[Stremio.RADIO].orEmpty()
-            // TuneIn toka do klika navadno se ne pozna. Takrat istoimensko postajo Radio Browserja
-            // obdrzimo kot prvi, ze razreseni zadetek; pri znanih tokovih primerjamo tudi naslov toka.
-            val tuneIn = tuneInSurovi.filterNot { t ->
-                postaje.any { r ->
-                    SpletniVir.cistNaslov(r.naslov) == SpletniVir.cistNaslov(t.naslov) &&
-                        (t.zvok.isBlank() || r.zvok.isBlank() || r.zvok == t.zvok)
-                }
-            }
+            // Naloga 71: TuneIn toka do klika ne pozna; ista postaja Radio Browserja (po kljucu imena ali toka, OsPravila) ostane,
+            // TuneIn izpade. Tudi Radio Browser sam ima isto postajo veckrat.
+            val postajeBrez = brezDvojnikovPostaj(postaje + tuneInSurovi)
+            val tuneIn = postajeBrez.filter { TuneIn.jeEnota(it) }
             // Vsi zadetki v eni skupni lestvici; prednost odloca med dvojniki (ta naprava pred racunalnikom ...).
             val vsi = ArrayList<Relevantnost.Zadetek<*>>()
             krajevno.forEach { n ->
@@ -5178,7 +5184,7 @@ class GlasbaActivity : OsActivity() {
             glasba.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Jamendo", 3)) }
             videi.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "PeerTube", 4)) }
             javnaLast.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_media_javna_last), 4)) }
-            postaje.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_glasba_radio), 5)) }
+            postajeBrez.filterNot { TuneIn.jeEnota(it) }.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_glasba_radio), 5)) }
             tuneIn.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "TuneIn", 5)) }
             izDodatkov.forEach {
                 val vrsta = getString(when (Stremio.razredEnote(it)) {
@@ -5239,7 +5245,9 @@ class GlasbaActivity : OsActivity() {
                     Vrsta(getString(R.string.os_glasba_video), videi(ostali(videi + javnaLast + spletFilmiInSerije), beseda), video = true),
                     Vrsta(getString(R.string.os_mediji_izvajalci), izvajalci.map { iz ->
                         Kartica(iz.ime, getString(R.string.os_glasba_izvajalec), iz.slika, { odpriIzvajalca(iz) }) }),
-                    Vrsta(getString(R.string.os_mediji_postaje), skladbe(ostali(poUjemanju(dRadio) + postaje + tuneIn), beseda), kanali = true),
+                    // Naloga 71: postaje dodatkov, imenikov in seznamov .m3u (zadetki seznamov so ze v lestvici zgoraj) brez dvojnikov.
+                    Vrsta(getString(R.string.os_mediji_postaje), skladbe(ostali(brezDvojnikovPostaj(poUjemanju(dRadio) + izSeznamov.map { it.second }.filter { it.radio } +
+                        postajeBrez).filterNot { p -> izSeznamov.any { it.second === p } }), beseda), kanali = true),
                     Vrsta(getString(R.string.os_media_podkasti), skladbe(podkasti, beseda), skladbe = true),
                     Vrsta("Archive.org", skladbe(ostali(arhiv), beseda), skladbe = true),
                     spletVrsta.takeIf { splet && !nicNasli && koncno },

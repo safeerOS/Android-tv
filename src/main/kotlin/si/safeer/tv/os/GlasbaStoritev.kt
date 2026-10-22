@@ -790,6 +790,38 @@ class GlasbaStoritev : Service() {
 
     private fun koncajSplet() { spletni?.release(); spletni = null }
 
+    /**
+     * Naloga 72: podnapisi iz dodatka k posnetku, ki ze igra - isti tok (z istimi glavami) z dodanimi podnapisi na istem
+     * mestu, brez ponovnega iskanja toka in brez ustavitve. Tok HLS podnapisov ob strani ne sprejme (HlsMediaSource) in
+     * tok z racunalnika gre skozi pripeti vir: takrat false.
+     */
+    private fun dodajPodnapiseVTok(novi: List<Podnapisi.Podnapis>): Boolean {
+        val p = exo ?: return false
+        if (predvajalnik !== p || streznikTrenutni != null || novi.isEmpty()) return false
+        val i = p.currentMediaItemIndex
+        val sk = vrsta.getOrNull(i) ?: return false
+        val vrstaToka = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null })
+        if (vrstaToka == C.CONTENT_TYPE_HLS) return false
+        val nov = sk.copy(podnapisi = (sk.podnapisi + novi).distinctBy { it.url })
+        if (nov.podnapisi.size == sk.podnapisi.size) return true
+        val tovarna = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, SpletniVir.glaveToka(sk.zvok))))
+            .setLoadErrorHandlingPolicy(hitraNapaka).setSubtitleParserFactory(Podnapisi.Popravljalnik())
+        val vir = tovarna.createMediaSource(MediaItem.Builder().setMediaId(nov.id).setUri(nov.zvok)
+            .apply { if (nov.mime.isNotBlank()) setMimeType(nov.mime) }
+            .setSubtitleConfigurations(Podnapisi.konfiguracije(this, nov.podnapisi))
+            .setMediaMetadata(M3Metadata.Builder().setTitle(nov.naslov).setArtist(nov.izvajalec).build())
+            .build())
+        val kje = p.currentPosition
+        // Vrsta mora ves cas ustrezati predvajalniku (trenutna() med prehodom): nov posnetek za starim, nato stari ven.
+        vrsta = vrsta.toMutableList().also { it.add(i + 1, nov) }
+        p.addMediaSource(i + 1, vir)
+        p.seekTo(i + 1, kje)
+        p.removeMediaItem(i)
+        vrsta = vrsta.toMutableList().also { it.removeAt(i) }
+        Log.i("SafeerOsMedia", "podnapisi iz dodatka dodani k toku: ${novi.size} (na ${kje / 1000} s)")
+        return true
+    }
+
     private fun zacniVOspredju() {
         val o = obvestilo()
         if (Build.VERSION.SDK_INT >= 29) startForeground(ID, o, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
@@ -1067,6 +1099,9 @@ class GlasbaStoritev : Service() {
          * zagonu novega posnetka in ga ne sme ustaviti.
          */
         val zagonov: Int get() = stevecZagonov.get()
+
+        /** Naloga 72: podnapisi iz dodatka k posnetku, ki igra (glej [dodajPodnapiseVTok]). Klic z glavne niti. */
+        fun dodajPodnapise(novi: List<Podnapisi.Podnapis>): Boolean = primerek?.dodajPodnapiseVTok(novi) ?: false
 
         /** Ves seznam, ki se predvaja (za "v vrsti" na zaslonu predvajanja). */
         fun vrsta(): List<Jamendo.Skladba> = if (predvajalnik == null) emptyList() else vrsta

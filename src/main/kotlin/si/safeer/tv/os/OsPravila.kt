@@ -801,4 +801,106 @@ object OsPravila {
             else -> null
         }
     }
+
+    // ------------------------------------------------------------------ ista postaja iz vec imenikov (naloga 71)
+
+    private val FREKVENCA_V_OKLEPAJU = Regex("\\([^)]*\\d+([.,]\\d+)?\\s*(mhz|fm)[^)]*\\)")
+    private val FREKVENCA = Regex("\\b\\d{2,3}([.,]\\d{1,2})\\s*(mhz|fm)?(?=\\W|$)|\\b(mhz|fm)\\b")
+    private val NAGLASI = Regex("\\p{Mn}+")
+    private val BESEDA_POSTAJE = Regex("[a-z0-9]+")
+    private val CRKA = Regex("[a-z]")
+
+    /**
+     * Kljuc imena postaje (lastnik, 23. 10. 2026: Radio 1, Val 202, Rock Radio dvakrat - Radio Browser in TuneIn): male crke,
+     * brez naglasov, brez frekvence (»105.2«, »(98.9MHz)«, »87.6 FM«), brez besede »radio« in brez locil in presledkov.
+     * »Radio« ostane, ce bi brez nje ostale samo stevilke (»Radio 1« -> »radio1«, ne »1«). Prazno = imena ni.
+     */
+    fun kljucImenaPostaje(ime: String): String {
+        var t = java.text.Normalizer.normalize(ime.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
+        t = NAGLASI.replace(t, "")
+        t = FREKVENCA_V_OKLEPAJU.replace(t, " ")
+        t = FREKVENCA.replace(t, " ")
+        val besede = BESEDA_POSTAJE.findAll(t).map { it.value }.toList()
+        val brez = besede.filter { it != "radio" }
+        return (if (brez.any { CRKA.containsMatchIn(it) }) brez else besede).joinToString("")
+    }
+
+    /** Kljuc naslova toka: gostitelj in pot (brez sheme, www., poizvedbe in koncne posevnice), male crke. Prazno = toka se ne vemo. */
+    fun kljucTokaPostaje(naslov: String): String {
+        var t = naslov.trim().lowercase(java.util.Locale.ROOT)
+        t = t.substringAfter("://", t).substringBefore('?').substringBefore('#').removePrefix("www.")
+        return t.trimEnd('/')
+    }
+
+    /**
+     * Naloga 71: postaje iz Radio Browserja, TuneIna, dodatkov in seznamov .m3u (naloga 68) brez dvojnikov. Ista postaja je
+     * ista po kljucu imena ([kljucImenaPostaje]) ali po kljucu toka ([kljucTokaPostaje]); razlicni imeni (»Rock Radio« in
+     * »Rock Radio Best Ballads«) nista ista. Vrstni red ostane (prva pojavitev); ce je ohranjena postaja brez neposrednega
+     * toka (TuneIn, tok se razresi ob kliku), dvojnik z neposrednim tokom ([neposreden]) stopi na njeno mesto.
+     */
+    fun <T> zdruziPostaje(postaje: List<T>, ime: (T) -> String, tok: (T) -> String, neposreden: (T) -> Boolean): List<T> {
+        val izid = ArrayList<T>(postaje.size)
+        val poImenu = HashMap<String, Int>()
+        val poToku = HashMap<String, Int>()
+        for (p in postaje) {
+            val ki = kljucImenaPostaje(ime(p))
+            val kt = kljucTokaPostaje(tok(p))
+            val j = (if (ki.isNotEmpty()) poImenu[ki] else null) ?: (if (kt.isNotEmpty()) poToku[kt] else null)
+            if (j != null) {
+                if (!neposreden(izid[j]) && neposreden(p)) {
+                    izid[j] = p
+                    if (ki.isNotEmpty()) poImenu[ki] = j
+                    if (kt.isNotEmpty()) poToku[kt] = j
+                }
+                continue
+            }
+            izid += p
+            if (ki.isNotEmpty()) poImenu[ki] = izid.size - 1
+            if (kt.isNotEmpty()) poToku[kt] = izid.size - 1
+        }
+        return izid
+    }
+
+    // ------------------------------------------------------------------ podnapisi iz dodatkov Stremio (naloga 72)
+
+    /**
+     * (tip, id) za /subtitles/{tip}/{id}.json po protokolu Stremio: film »movie« / tt..., epizoda »series« / tt...:S:E.
+     * null = naslov brez IMDb (dodatki za podnapise, npr. OpenSubtitles v3, iscejo po IMDb).
+     */
+    fun idPodnapisov(imdb: String, sezona: Int, epizoda: Int): Pair<String, String>? {
+        val i = imdb.trim()
+        if (!(i.startsWith("tt") && i.length > 2 && i.drop(2).all { it.isDigit() })) return null
+        return if (sezona > 0 && epizoda > 0) "series" to "$i:$sezona:$epizoda" else "movie" to i
+    }
+
+    /** Bibliografske in posebne kode ISO 639-2, ki jih dodatki dajejo, Java pa jih ne pozna (OpenSubtitles: pob, scc ...). */
+    private val KODE_PODNAPISOV = mapOf("ger" to "de", "fre" to "fr", "dut" to "nl", "cze" to "cs", "slo" to "sk", "chi" to "zh",
+        "zht" to "zh", "zhe" to "zh", "scc" to "sr", "scr" to "hr", "rum" to "ro", "gre" to "el", "per" to "fa", "alb" to "sq",
+        "mac" to "mk", "ice" to "is", "pob" to "pt", "pom" to "pt", "spn" to "es", "ea" to "es", "ze" to "zh")
+
+    /** Jezik podnapisa iz dodatka kot ISO 639-1, kadar ga poznamo (»eng« -> »en«, »slv« -> »sl«, »pob« -> »pt«). */
+    fun jezikPodnapisa(koda: String): String {
+        val k = koda.trim().lowercase(java.util.Locale.ROOT)
+        return KODE_PODNAPISOV[k] ?: JezikiVsebine.oznaka(k)
+    }
+
+    data class PodnapisDodatka(val url: String, val jezik: String)
+
+    /**
+     * Vnosi odgovora dodatka {subtitles: [{id, url, lang}]} kot (url, lang): samo naslovi http(s) brez kontrolnih znakov in z
+     * jezikom; jezik v ISO 639-1 ([jezikPodnapisa]); isti naslov enkrat. Vrstni red dodatka ostane (najboljsi prvi).
+     */
+    fun podnapisiDodatka(vnosi: List<Pair<String, String>>): List<PodnapisDodatka> = vnosi.mapNotNull { (url, lang) ->
+        val u = url.trim()
+        val j = jezikPodnapisa(lang)
+        if ((u.startsWith("https://") || u.startsWith("http://")) && u.length <= 2048 && url.none { it < ' ' } && j.isNotEmpty() && j.length <= 3)
+            PodnapisDodatka(u, j) else null
+    }.distinctBy { it.url }
+
+    /** Jeziki za izbiro: jezik vmesnika, nato anglescina, nato ostali po abecedi (kode); vsak enkrat. */
+    fun jezikiPodnapisov(kode: List<String>, vmesnik: String): List<String> {
+        val vse = kode.filter { it.isNotBlank() }.distinct()
+        val prvi = listOf(vmesnik, "en").distinct().filter { it in vse }
+        return prvi + vse.filter { it !in prvi }.sorted()
+    }
 }
