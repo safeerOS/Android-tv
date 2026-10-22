@@ -2198,15 +2198,19 @@ class GlasbaActivity : OsActivity() {
         val brskanje = o.tip.isNotBlank()
         // Cesar noben dodatek ne predvaja, ne kazemo; ostalo v ozadju preverimo (preveriMrezo). V strogem nacinu
         // (vidniKataloga) kartica pride na zaslon sele, ko vemo, da se da predvajati - nic se ne pokaze in spet skrije.
+        val t0 = android.os.SystemClock.uptimeMillis()
         val (kandidati, vsi) = vidniKataloga(o)
+        val t1 = android.os.SystemClock.uptimeMillis()
         val strogo = vsi.size != kandidati.size || strogaMreza(o)
         preveriMrezo(o, kandidati)
+        val t2 = android.os.SystemClock.uptimeMillis()
         o.narisani = vsi.map { it.id }
         // Ce nobenega naslova ne predvaja noben dodatek, "Nalozi vec" ne pomaga (naslednje strani bi izginile enako).
         // Vljudno preverjanje: kar je za oknom ali se ni preverjeno, caka na uporabnika (drsenje, Nalozi vec).
         val st = if (strogaMreza(o)) stanjeMreze(o, kandidati) else StanjeMreze(false, false, false)
         val seVec = o.seKaj || st.vOknu || st.naprej
         o.narisano = o.narisani to seVec
+        val t3 = android.os.SystemClock.uptimeMillis()
         val kartice = videi(vsi, naslov) + (if (seVec && (vsi.isNotEmpty() || (o.caka.get() == 0 && !o.nalagam))) listOf(Kartica(getString(R.string.os_media_nalozi_vec), "", "",
             { vecMreze(o) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
         // Pod naslovom razdelka ni stevila kartic (lastnik, 3. 10. 2026) - samo, kadar se kaj nalaga ali ni nicesar.
@@ -2221,8 +2225,13 @@ class GlasbaActivity : OsActivity() {
         }
         // Filmi | Serije: zavihki, zvrsti in razvrstitev na vrhu, pod njimi mreza plakatov (brez naslova police).
         // Ob spremembi (preverjanje v ozadju, naslednja stran) se mreza dopolni na mestu - brez utripa in skoka.
+        val t4 = android.os.SystemClock.uptimeMillis()
         pokaziMrezo(o, Vrsta("", kartice, video = true, mreza = true, cisto = true), opis,
             "${o.tip}|${o.zvrst}|${o.jezik}|${razvrstitev(VIDEO)}|${ozekZaslon()}|$vlc") { glavaBrskanja(o) }
+        val t5 = android.os.SystemClock.uptimeMillis()
+        // Meritev glavne niti (22. 10. 2026, zastoj ~3,6 s ob prvem izrisu): zapis samo, ce je izris pocasen.
+        if (t5 - t0 >= 40) android.util.Log.i("SafeerPerf", "narisiKatalog ${vsi.size} kartic: vidni=${t1 - t0} preveri=${t2 - t1} stanje=${t3 - t2} kartice=${t4 - t3} pokazi=${t5 - t4} skupaj=${t5 - t0} ms | $perf")
+        perf.setLength(0)
         // Pred prvo postavitvijo sirine se ne poznamo: ko je znana, mrezo narisemo se enkrat s pravo sirino plakatov.
         if (vsebina.width == 0) vsebina.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
@@ -6178,23 +6187,33 @@ class GlasbaActivity : OsActivity() {
     private fun strogaMreza(o: OdprtKatalog): Boolean = stremioNaslovi().isNotEmpty() && smemPreverjati()
 
     /** (kandidati = vse, cesar ne poznamo kot nepredvajljivo; vidni = kar od tega res pokazemo). */
+    /** Meritev podkorakov izrisa mreze (22. 10. 2026): zapise jo narisiKatalog, ce je izris pocasen. */
+    private val perf = StringBuilder()
+    private inline fun <T> meri(ime: String, f: () -> T): T {
+        val z = android.os.SystemClock.uptimeMillis(); val r = f()
+        val d = android.os.SystemClock.uptimeMillis() - z
+        if (d >= 5) perf.append(ime).append('=').append(d).append(' ')
+        return r
+    }
+
     private fun vidniKataloga(o: OdprtKatalog): Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>> {
-        val meja = torrentMeja()
+        val meja = meri("torrentMeja") { torrentMeja() }
         torrentPrej = nacinTorrenta(meja)
-        Razpolozljivost.pripravi(this, dodatkiZaRazpolozljivost(), meja)
-        val poVrsti = if (o.tip.isNotBlank()) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi
+        val dodatki = meri("dodatki") { dodatkiZaRazpolozljivost() }
+        meri("pripravi") { Razpolozljivost.pripravi(this, dodatki, meja) }
+        val poVrsti = meri("razvrsti") { if (o.tip.isNotBlank()) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi }
         // Kar uporabnik ze vidi, ostane na svojem mestu: sveze strani in odgovori preverjanja kartice dodajajo za zadnjo, ne
         // vrivajo jih vmes in ne premescajo (izmerjeno na televizorju 5. 10. 2026: ob prihodu svezih katalogov je mreza sedem
         // kartic umaknila in dve vrinila). Izrecna razvrstitev (po imenu, najnovejse) ostane razvrstitev.
-        val urejeni = if (o.tip.isNotBlank() && razvrstitev(VIDEO) != RAZVRSTI_PRIPOROCENO) poVrsti else OsPravila.stabilenRed(o.narisani, poVrsti) { it.id }
+        val urejeni = meri("red") { if (o.tip.isNotBlank() && razvrstitev(VIDEO) != RAZVRSTI_PRIPOROCENO) poVrsti else OsPravila.stabilenRed(o.narisani, poVrsti) { it.id } }
         o.urejeni = urejeni
-        val kandidati = urejeni.filterNot { znanoNiNaVoljo(it) }
+        val kandidati = meri("znano") { urejeni.filterNot { znanoNiNaVoljo(it) } }
         // Strogo: samo okno in v njem samo preverjeno - kartice pridejo po vrsti, nic se ne vrine vmes.
         // Ista slika dvakrat je za uporabnika podvojen prikaz (lastnik, 5. 10. 2026: razlicni vnosi z istim ovitkom):
         // v mrezi ostane prva.
         // Lastna knjiznica dodatka brez dokaza ne pride na zaslon niti na omejenem omrezju (vzorec so tri poizvedbe).
-        return kandidati to (if (strogaMreza(o)) oknoMreze(o, kandidati).naslovi.filterNot { nepreverjen(it) } else kandidati.filterNot { cakaNaKnjiznico(it) })
-            .distinctBy { it.slika.ifBlank { "id:" + it.id } }
+        return kandidati to meri("okno") { (if (strogaMreza(o)) oknoMreze(o, kandidati).naslovi.filterNot { nepreverjen(it) } else kandidati.filterNot { cakaNaKnjiznico(it) })
+            .distinctBy { it.slika.ifBlank { "id:" + it.id } } }
     }
 
     /**
@@ -6219,7 +6238,9 @@ class GlasbaActivity : OsActivity() {
 
     /** Napis pod naslovom mreze: se dela, dodatek omejuje poizvedbe, ni nicesar ali nic. */
     private fun opisMreze(o: OdprtKatalog, st: StanjeMreze, prazno: Boolean): String {
-        val dela = (strogaMreza(o) && (o.caka.get() > 0 || o.nalagam || (st.vOknu && o.proracun > 0))) || ((o.nalagam || !o.popolna) && prazno)
+        // »Nalagam« samo, dokler v mrezi ni nobenega plakata: preverjanje v ozadju (ali se da predvajati) ni nalaganje za
+        // uporabnika - napis je ostal tudi, ko so bili plakati ze na zaslonu (lastnik, 22. 10. 2026).
+        val dela = prazno && ((strogaMreza(o) && (o.caka.get() > 0 || o.nalagam || (st.vOknu && o.proracun > 0))) || o.nalagam || !o.popolna)
         return when {
             dela -> getString(R.string.os_glasba_nalagam)
             st.premor -> getString(R.string.os_media_dodatek_omejuje)
@@ -6317,9 +6338,9 @@ class GlasbaActivity : OsActivity() {
     private fun preveriMrezo(o: OdprtKatalog, vsi: List<Jamendo.Skladba>) {
         if (!vOspredju) return
         // Lastne knjiznice dodatkov: vzorec (najvec tri poizvedbe na dodatek) - iz vseh nalozenih naslovov, tudi skritih.
-        vzorciKnjiznice(o.vsi)
+        meri("vzorci") { vzorciKnjiznice(o.vsi) }
         if (!smemPreverjati()) return
-        val naslovi = stremioNaslovi()
+        val naslovi = meri("naslovi") { stremioNaslovi() }
         if (naslovi.isEmpty()) return
         // Vljudno do dodatkov (3. 10. 2026 nas je dodatek zavrnil s "Rate limit exceeded"): ne preverimo vsega kataloga,
         // ampak samo okno (prvih o.zelja kandidatov) in najvec o.proracun naslovov do naslednjega uporabnikovega dejanja.
@@ -7217,7 +7238,15 @@ class GlasbaActivity : OsActivity() {
         private val razvrstitve = HashMap<Int, Int>()
         private val zacasnoSkritiViri = HashMap<Int, MutableSet<String>>()
         private val samoTaNaprava = mutableSetOf<Int>()
-        private val SLIKE = LruCache<String, android.graphics.Bitmap>(48)
+        /**
+         * Naslovnice v pomnilniku, omejene v BAJTIH (naloga 54). Prej 48 kosov ne glede na velikost: slicice naprave
+         * (loadThumbnail 320x320 ARGB, ~400 KB) ali vecje naslovnice so lahko zasedle ~20 MB native heapa. 8 MB je
+         * ~40 plakatov 280 px - dovolj za zaslon in vrnitev nanj; ostalo pride z diska (MedijskiPredpomnilnik).
+         */
+        private const val SLIKE_BAJTOV = 8 * 1024 * 1024
+        private val SLIKE = object : LruCache<String, android.graphics.Bitmap>(SLIKE_BAJTOV) {
+            override fun sizeOf(key: String, value: android.graphics.Bitmap): Int = value.allocationByteCount
+        }
 
         /** Sprememba virov mora ob naslednjem odprtju znova sestaviti spletne police. */
         fun pocistiSpletniPredpomnilnik() {
@@ -7229,6 +7258,21 @@ class GlasbaActivity : OsActivity() {
         /** Slike so ponovljivo nalozljive; ob pomnilniskem pritisku jih ne drzimo v heapu. */
         fun sprostiSlike() {
             SLIKE.evictAll()
+        }
+
+        /**
+         * Seznami in mreze za takojsnje ponovno odprtje (SEZNAMI, BRSKANJE, VSEBINA_MREZE, KANALI_MREZE, VSE_VIDEO) rastejo
+         * ves cas procesa: vsaka zvrst, jezik in razvrstitev doda svoj seznam (naloga 54). Ko je vmesnik skrit ali sistemu
+         * zmanjkuje pomnilnika, jih spustimo - ob naslednjem odprtju pridejo s predpomnilnika na disku in iz omrezja.
+         * Zaslon, ki je odprt, ima svoje kopije (prikazanePolice, odprtKatalog). KANALI_RED ostane: vrstni red kanalov,
+         * ki ga je uporabnik videl, se ne sme spremeniti.
+         */
+        fun sprostiPodatke() {
+            SEZNAMI.clear()
+            BRSKANJE.clear()
+            VSEBINA_MREZE.clear()
+            KANALI_MREZE.clear()
+            VSE_VIDEO = null
         }
     }
 }
