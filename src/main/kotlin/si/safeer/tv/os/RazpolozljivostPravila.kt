@@ -255,10 +255,26 @@ object RazpolozljivostPravila {
     // ------------------------------------------------------------------ dodatki
 
     /** Kratek odtis naslova dodatka (v shrambi in pri delitvi ne hranimo naslovov - v njih so lahko zetoni). */
-    fun odtisNaslova(osnova: String): String = sha(osnova.trim()).take(12)
+    fun odtisNaslova(osnova: String): String {
+        val o = osnova.trim()
+        // Klice se za vsak plakat ob vsakem izrisu mreze (na glavni niti): odtis se izracuna enkrat na dodatek.
+        // ANR na TV 22. 10. 2026: String.format za vsak bajt je pri stotinah plakatov blokiral glavno nit 10 s.
+        odtisi[o]?.let { return it }
+        val r = sha(o).take(12)
+        if (odtisi.size > 256) odtisi.clear()
+        odtisi[o] = r
+        return r
+    }
 
-    private fun sha(s: String): String =
-        java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    private val odtisi = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val HEX = "0123456789abcdef".toCharArray()
+
+    private fun sha(s: String): String {
+        val d = java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
+        val c = CharArray(d.size * 2)
+        for (i in d.indices) { val v = d[i].toInt() and 0xff; c[2 * i] = HEX[v ushr 4]; c[2 * i + 1] = HEX[v and 0x0f] }
+        return String(c)
+    }
 
     class Sprememba(val zastaraj: Boolean, val dodatki: Map<String, Char>)
 
@@ -306,6 +322,9 @@ object RazpolozljivostPravila {
     fun zaDelitev(kljuc: String): Boolean {
         if (kljuc.length > 64) return false
         val tip = kljuc.substringBefore('|'); val id = kljuc.substringAfter('|', "")
-        return (tip == "movie" || tip == "series") && Regex("^tt[0-9]{5,10}(:[0-9]{1,4}:[0-9]{1,4})?$").matches(id)
+        return (tip == "movie" || tip == "series") && JAVNI_ID.matches(id)
     }
+
+    /** Preveden enkrat: zaDelitev se klice za vsak film ob vsakem izrisu mreze (ANR na TV 22. 10. 2026). */
+    private val JAVNI_ID = Regex("^tt[0-9]{5,10}(:[0-9]{1,4}:[0-9]{1,4})?$")
 }
