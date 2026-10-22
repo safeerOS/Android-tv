@@ -5668,6 +5668,9 @@ class GlasbaActivity : OsActivity() {
                     glavna.post {
                         if (isFinishing) return@post
                         if (vir == null) {
+                            // Diagnostika (TV 23. 10. 2026: tunein.com s tipkovnico ni bil prepoznan): kode znakov vnosa.
+                            android.util.Log.i("SafeerOsMedia", "vir zavrnjen: dolzina=${vnos.length} znaki=" +
+                                vnos.take(80).map { c -> if (c.code in 0x21..0x7E) c.toString() else "\\u%04x".format(c.code) }.joinToString(""))
                             // Vira, ki ga ne znamo predvajati, ne dodamo - in to uporabniku jasno povemo.
                             stanje.text = getString(R.string.os_mediji_ni_vira)
                             AlertDialog.Builder(this)
