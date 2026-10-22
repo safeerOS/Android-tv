@@ -32,6 +32,23 @@ object Stremio {
                        val strani: Boolean = false) {
         /** Ali katalog brez uporabnikovega filtra sploh vrne vsebino (vsi obvezni parametri imajo privzeto moznost). */
         val prikazen: Boolean get() = obvezni.all { o -> privzeti.any { it.first == o } }
+
+        /** Naloga 60: naslovi, iz katerih ocenimo jezik kataloga (najvec [OsPravila.VZOREC_JEZIKA], brez ponovitev). Zunaj
+         *  konstruktorja: ne vpliva na equals/hashCode (katalog je kljuc v OdprtKatalog.preneseno). */
+        private val vzorecJezika = LinkedHashSet<String>()
+        /** Ocenjen jezik kataloga ([OsPravila.jezikKataloga]); "" = neznan. Manifest (in z njim katalog) je v [manifesti]. */
+        @Volatile var jezik: String = ""
+            private set
+
+        /** Doda naslove strani v vzorec, dokler ni poln, in vrne oceno jezika kataloga. Klic iz delovne niti. */
+        fun oceniJezik(naslovi: List<String>): String = synchronized(vzorecJezika) {
+            if (vzorecJezika.size < OsPravila.VZOREC_JEZIKA) {
+                val prej = vzorecJezika.size
+                for (n in naslovi) { if (vzorecJezika.size >= OsPravila.VZOREC_JEZIKA) break; if (n.isNotBlank()) vzorecJezika += n }
+                if (vzorecJezika.size != prej) jezik = OsPravila.jezikKataloga(vzorecJezika)
+            }
+            jezik
+        }
     }
 
     data class Manifest(val osnova: String, val ime: String, val viri: Set<String>, val tipi: Set<String>,

@@ -144,6 +144,40 @@ private fun preizkusPovezave() {
     preveriEnako("prazno", false, OsPravila.jePovezava(""))
 }
 
+private fun preizkusJezikaKataloga() {
+    println("\n== jezik kataloga iz naslovov (naloga 60) ==")
+    // Naslovi iz kataloga m3u (brazilski filmi, portugalski naslovi) in angleskega kataloga.
+    val pt = listOf("Homem-Aranha", "Maçã Podre", "Maca Podre", "Cara-de-Barro", "O Auto da Compadecida", "Cidade de Deus",
+        "Central do Brasil", "Tropa de Elite", "Bacurau", "O Som ao Redor", "Minha Mãe é uma Peça", "Carandiru", "O Palhaço",
+        "Meu Nome Não é Johnny", "Homem de Ferro", "O Rei Leão", "O Poderoso Chefão", "De Volta para o Futuro", "Os Incríveis")
+    val en = listOf("The Godfather", "Pulp Fiction", "The Lord of the Rings: The Return of the King", "Fight Club", "Star Wars",
+        "Back to the Future", "Harry Potter and the Goblet of Fire", "The Silence of the Lambs", "The Lion King", "Toy Story",
+        "Night of the Living Dead", "Gone with the Wind", "Raiders of the Lost Ark", "The Dark Knight", "Spider-Man: No Way Home",
+        "Inception", "Avatar", "The Incredibles", "The Matrix", "Titanic")
+    preveriEnako("naslov: Homem-Aranha je portugalski", "pt", OsPravila.jezikNaslova("Homem-Aranha"))
+    preveriEnako("naslov: Maçã Podre je portugalski", "pt", OsPravila.jezikNaslova("Maçã Podre"))
+    preveriEnako("naslov: Maca Podre (brez diakritike) je neodlocen", "", OsPravila.jezikNaslova("Maca Podre"))
+    preveriEnako("naslov: The Dark Knight je angleski", "en", OsPravila.jezikNaslova("The Dark Knight"))
+    preveriEnako("naslov: Spider-Man: No Way Home ni portugalski (neodlocen)", "", OsPravila.jezikNaslova("Spider-Man: No Way Home"))
+    preveriEnako("naslov: ime brez besed (Avatar) je neodloceno", "", OsPravila.jezikNaslova("Avatar"))
+    preveriEnako("naslov: Das Leben der Anderen je nemski", "de", OsPravila.jezikNaslova("Das Leben der Anderen"))
+    preveriEnako("naslov: La vita è bella je italijanski", "it", OsPravila.jezikNaslova("La vita è bella"))
+    preveriEnako("naslov: francoska elizija", "fr", OsPravila.jezikNaslova("Le fabuleux destin d'Amélie Poulain"))
+    preveriEnako("naslov: El laberinto del fauno je spanski", "es", OsPravila.jezikNaslova("El laberinto del fauno"))
+    preveriEnako("naslov: Ljubezen na odoru je slovenski", "sl", OsPravila.jezikNaslova("Ljubezen na odoru"))
+    preveriEnako("naslov: Život je čudo je hr/sr/bs", OsPravila.JEZIK_HBS, OsPravila.jezikNaslova("Život je čudo"))
+    preveriEnako("katalog s portugalskimi naslovi je pt", "pt", OsPravila.jezikKataloga(pt + pt + pt))
+    preveriEnako("angleski katalog je en", "en", OsPravila.jezikKataloga(en + en + en))
+    preveriEnako("pol portugalskih, pol angleskih: neodlocen", "", OsPravila.jezikKataloga((pt.take(12) + en.take(12)).let { it + it + it }))
+    preveriEnako("premalo odlocenih naslovov: neodlocen", "", OsPravila.jezikKataloga(listOf("Homem-Aranha", "Cidade de Deus", "O Rei Leão") + List(40) { "Avatar $it" }))
+    preveriEnako("samo imena (brez besed jezika): neodlocen", "", OsPravila.jezikKataloga(List(80) { listOf("Avatar", "Titanic", "Bacurau", "Carandiru")[it % 4] }))
+    preveriEnako("prazen katalog: neodlocen", "", OsPravila.jezikKataloga(emptyList()))
+    preveri("vzorec gleda najvec ${OsPravila.VZOREC_JEZIKA} naslovov", OsPravila.jezikKataloga(List(OsPravila.VZOREC_JEZIKA) { "Avatar" } + pt + pt + pt) == "")
+    preveriEnako("hr/sr/bs katalog ustreza srbscini", true, OsPravila.jezikKatalogaUstreza(OsPravila.JEZIK_HBS, "sr"))
+    preveriEnako("pt katalog ne ustreza anglescini", false, OsPravila.jezikKatalogaUstreza("pt", "en"))
+    preveriEnako("pt katalog ustreza portugalscini", true, OsPravila.jezikKatalogaUstreza("pt", "pt"))
+}
+
 private fun preizkusTipkMenija() {
     println("\n== stranska vrstica ob brskalniku: tipke daljinca ==")
     preveriEnako("GOR gre meniju (prej v naslovno vrstico strani)", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(19, true, 0))
@@ -504,6 +538,7 @@ fun main() {
     preizkusIkonNaprav()
     preizkusOpisaNaprav()
     preizkusPovezave()
+    preizkusJezikaKataloga()
     preizkusMer()
     preizkusNadaljuj()
     preizkusIkon()

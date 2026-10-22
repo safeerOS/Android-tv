@@ -583,4 +583,101 @@ object OsPravila {
             }
         }
     }
+
+    // ------------------------------------------------------------------ jezik kataloga iz naslovov (naloga 60)
+
+    /**
+     * Katalog m3u dodatka (lastnik, 22. 10. 2026: 5000 brazilskih filmov s portugalskimi naslovi) jezika ne pove, naslovi
+     * nimajo IMDb - filter »angleščina« jih je zato pustil vidne. Jezik kataloga ocenimo iz vzorca naslovov: vsak naslov
+     * dobi tocke po znacilnih crkah, koncnicah in pogostih besedah; katalog dobi jezik, ce je v njem vecina odlocenih
+     * naslovov. Majhen in hiter (200 naslovov < 1 ms), brez slovarjev in brez omrezja.
+     */
+    const val VZOREC_JEZIKA = 200
+    /** Delez odlocenih naslovov, ki mora biti v istem jeziku, da katalog dobi ta jezik. */
+    const val VECINA_JEZIKA = 0.6
+    /** Najmanj odlocenih naslovov (in najmanj desetina vzorca), preden o katalogu sodimo: sicer ostane neznan. */
+    const val NAJMANJ_ODLOCENIH = 8
+    /** Naslov je odlocen, ce ima jezik vsaj toliko tock in 1,5-krat vec od naslednjega jezika. */
+    private const val PRAG_NASLOVA = 2.0
+    /** Hrvascina, srbscina (latinica) in bosanscina: iz naslovov jih ne locimo zanesljivo (ena skupina). */
+    const val JEZIK_HBS = "hbs"
+
+    private val ZNAKI_JEZIKA: List<Triple<Char, String, Double>> = listOf(
+        Triple('ã', "pt", 3.0), Triple('õ', "pt", 3.0), Triple('ç', "pt", 1.5), Triple('ç', "fr", 1.5),
+        Triple('â', "pt", 1.0), Triple('â', "fr", 1.0), Triple('ê', "pt", 1.0), Triple('ê', "fr", 1.0),
+        Triple('ô', "pt", 1.0), Triple('ô', "fr", 1.0), Triple('ñ', "es", 3.0), Triple('¿', "es", 3.0), Triple('¡', "es", 3.0),
+        Triple('è', "fr", 1.5), Triple('è', "it", 1.0), Triple('à', "fr", 1.0), Triple('à', "it", 1.0), Triple('à', "pt", 1.0),
+        Triple('ù', "fr", 1.0), Triple('ù', "it", 1.0), Triple('î', "fr", 2.0), Triple('û', "fr", 2.0), Triple('ë', "fr", 2.0),
+        Triple('ï', "fr", 2.0), Triple('œ', "fr", 2.0), Triple('ì', "it", 2.0), Triple('ò', "it", 2.0),
+        Triple('ä', "de", 2.5), Triple('ö', "de", 2.5), Triple('ü', "de", 2.5), Triple('ß', "de", 2.5),
+        Triple('č', "sl", 1.5), Triple('č', JEZIK_HBS, 1.5), Triple('š', "sl", 1.5), Triple('š', JEZIK_HBS, 1.5),
+        Triple('ž', "sl", 1.5), Triple('ž', JEZIK_HBS, 1.5), Triple('ć', JEZIK_HBS, 3.0), Triple('đ', JEZIK_HBS, 3.0),
+    )
+
+    private val KONCNICE_JEZIKA: List<Triple<String, String, Double>> = listOf(
+        Triple("ção", "pt", 3.0), Triple("ções", "pt", 3.0), Triple("ões", "pt", 3.0), Triple("ción", "es", 3.0),
+        Triple("ciones", "es", 3.0), Triple("zione", "it", 3.0), Triple("zioni", "it", 3.0), Triple("ung", "de", 2.0),
+        Triple("heit", "de", 2.0), Triple("keit", "de", 2.0),
+    )
+
+    private val BESEDE_JEZIKA: Map<String, Map<String, Double>> = mapOf(
+        "en" to mapOf("the" to 2.0, "of" to 1.5, "and" to 1.5, "with" to 1.5, "from" to 1.0, "my" to 1.0, "your" to 1.0, "to" to 1.0, "for" to 1.0, "is" to 1.0, "an" to 1.0, "no" to 0.5, "in" to 0.5, "on" to 0.5, "night" to 1.0, "story" to 1.0, "world" to 1.0, "dead" to 1.0, "house" to 1.0, "dark" to 1.0, "love" to 0.5, "man" to 0.5, "last" to 0.5, "life" to 0.5),
+        "pt" to mapOf("de" to 0.5, "da" to 1.5, "do" to 1.5, "dos" to 2.0, "das" to 2.0, "o" to 1.0, "os" to 1.0, "um" to 1.5, "uma" to 2.0, "e" to 0.5, "em" to 1.5, "no" to 0.5, "na" to 0.5, "para" to 1.0, "com" to 1.5, "não" to 2.0, "meu" to 1.5, "minha" to 2.0, "homem" to 2.0, "mulher" to 2.0, "morte" to 1.0, "noite" to 1.5, "cidade" to 1.5, "ao" to 1.5, "pelo" to 2.0, "pela" to 2.0, "amor" to 0.5, "vida" to 0.5, "ela" to 1.5, "ele" to 1.5, "eu" to 1.5, "você" to 2.0, "seus" to 1.5, "mais" to 1.5, "dois" to 2.0, "estou" to 2.0),
+        "es" to mapOf("de" to 0.5, "el" to 1.5, "la" to 0.5, "los" to 2.0, "las" to 2.0, "del" to 1.0, "y" to 1.5, "en" to 0.5, "una" to 1.0, "con" to 1.0, "por" to 1.0, "mi" to 1.0, "muerte" to 1.5, "noche" to 1.5, "hombre" to 2.0, "mujer" to 2.0, "ciudad" to 2.0, "al" to 1.0, "amor" to 0.5, "vida" to 0.5, "también" to 2.0, "todo" to 1.5, "sin" to 1.0),
+        "fr" to mapOf("le" to 2.0, "la" to 0.5, "les" to 2.0, "des" to 2.0, "du" to 1.5, "de" to 0.5, "et" to 2.0, "une" to 2.0, "pour" to 1.5, "avec" to 2.0, "dans" to 2.0, "sur" to 1.5, "au" to 1.0, "aux" to 2.0, "mon" to 1.0, "ma" to 1.0, "amour" to 1.5, "nuit" to 2.0, "homme" to 2.0, "femme" to 2.0, "vie" to 1.0, "mort" to 1.0, "est" to 1.0),
+        "de" to mapOf("der" to 2.0, "die" to 2.0, "das" to 1.0, "und" to 2.0, "ein" to 2.0, "eine" to 2.0, "mit" to 1.5, "für" to 2.0, "von" to 1.5, "im" to 1.0, "zu" to 1.0, "nicht" to 2.0, "ist" to 1.5, "auf" to 1.5, "dem" to 2.0, "den" to 1.5, "liebe" to 1.5, "nacht" to 2.0, "tod" to 1.5),
+        "it" to mapOf("il" to 2.0, "lo" to 1.0, "gli" to 2.0, "della" to 2.0, "delle" to 2.0, "dei" to 1.5, "di" to 1.5, "e" to 0.5, "una" to 1.0, "per" to 1.0, "che" to 1.0, "nel" to 2.0, "nella" to 2.0, "alla" to 2.0, "del" to 1.0, "la" to 0.5, "è" to 1.5, "bella" to 1.0, "amore" to 2.0, "notte" to 2.0, "uomo" to 2.0, "donna" to 2.0, "vita" to 1.0),
+        "sl" to mapOf("in" to 0.5, "na" to 0.5, "za" to 1.0, "je" to 0.5, "ki" to 2.0, "v" to 1.0, "z" to 1.0, "od" to 1.0, "pri" to 1.5, "po" to 1.0, "ljubezen" to 2.0, "noč" to 2.0, "smrt" to 1.0, "življenje" to 2.0, "človek" to 2.0, "ali" to 0.5),
+        JEZIK_HBS to mapOf("i" to 1.5, "u" to 1.5, "je" to 0.5, "na" to 0.5, "za" to 0.5, "od" to 0.5, "se" to 0.5, "sa" to 1.0, "ljubav" to 2.0, "noć" to 2.0, "život" to 2.0, "čovjek" to 2.0, "čovek" to 2.0),
+    )
+
+    /** Francoska elizija (l'amour, d'Amélie, qu'il ...): del pred opuscajem. */
+    private val ELIZIJA_FR = setOf("l", "d", "qu", "j", "n")
+    private val LOCILA_NASLOVA = Regex("[^\\p{L}\\p{M}\\p{N}']+")
+    /** Zlozenka s pomisljajem med crkama (Homem-Aranha): sibek znak portugalscine. */
+    private val ZLOZENKA = Regex("\\p{L}-\\p{L}")
+
+    /** Jezik enega naslova (en, pt, es, fr, de, it, sl, [JEZIK_HBS]) ali "" (neodlocen: imena, kratki naslovi). */
+    fun jezikNaslova(naslov: String): String {
+        val s = java.text.Normalizer.normalize(naslov, java.text.Normalizer.Form.NFC).lowercase(java.util.Locale.ROOT)
+        val tocke = HashMap<String, Double>()
+        fun dodaj(jezik: String, v: Double) { tocke[jezik] = (tocke[jezik] ?: 0.0) + v }
+        for ((znak, jezik, v) in ZNAKI_JEZIKA) if (s.indexOf(znak) >= 0) dodaj(jezik, v)
+        if (ZLOZENKA.containsMatchIn(s)) dodaj("pt", 0.5)
+        for (surova in s.split(LOCILA_NASLOVA)) {
+            val beseda = surova.trim('\'')
+            if (beseda.isEmpty() || beseda.all { it.isDigit() }) continue
+            val deli = if ('\'' in beseda) {
+                val pred = beseda.substringBefore('\''); val za = beseda.substringAfter('\'')
+                if (pred in ELIZIJA_FR) dodaj("fr", 1.5)
+                if (za == "s" || za == "t") dodaj("en", 1.0)
+                listOf(pred, za)
+            } else listOf(beseda)
+            for (d in deli) {
+                for ((jezik, besede) in BESEDE_JEZIKA) besede[d]?.let { dodaj(jezik, it) }
+                for ((koncnica, jezik, v) in KONCNICE_JEZIKA) if (d.length > koncnica.length + 1 && d.endsWith(koncnica)) dodaj(jezik, v)
+            }
+        }
+        val urejeno = tocke.entries.sortedByDescending { it.value }
+        val prvi = urejeno.firstOrNull() ?: return ""
+        val drugi = urejeno.getOrNull(1)?.value ?: 0.0
+        return if (prvi.value >= PRAG_NASLOVA && prvi.value >= drugi * 1.5 && prvi.value > drugi) prvi.key else ""
+    }
+
+    /**
+     * Jezik kataloga iz vzorca naslovov (najvec [VZOREC_JEZIKA]): jezik, v katerem je vsaj [VECINA_JEZIKA] odlocenih
+     * naslovov, ce je odlocenih vsaj [NAJMANJ_ODLOCENIH] in desetina vzorca; sicer "" (neznan - katalog ostane viden kot
+     * prej). Klic iz delovne niti.
+     */
+    fun jezikKataloga(naslovi: Collection<String>): String {
+        val vzorec = naslovi.asSequence().take(VZOREC_JEZIKA).toList()
+        val odloceni = vzorec.map { jezikNaslova(it) }.filter { it.isNotEmpty() }
+        if (odloceni.size < NAJMANJ_ODLOCENIH || odloceni.size * 10 < vzorec.size) return ""
+        val (jezik, n) = odloceni.groupingBy { it }.eachCount().maxByOrNull { it.value }?.toPair() ?: return ""
+        return if (n >= VECINA_JEZIKA * odloceni.size) jezik else ""
+    }
+
+    /** Ali jezik kataloga ([jezikKataloga]) ustreza izbranemu jeziku (ISO 639-1); [JEZIK_HBS] ustreza hr, sr in bs. */
+    fun jezikKatalogaUstreza(jezikKataloga: String, izbrani: String): Boolean =
+        jezikKataloga == izbrani || (jezikKataloga == JEZIK_HBS && izbrani in setOf("hr", "sr", "bs"))
 }

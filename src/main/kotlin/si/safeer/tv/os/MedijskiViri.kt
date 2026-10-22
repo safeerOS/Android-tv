@@ -652,14 +652,25 @@ object MedijskiViri {
         for (k in prej - zdaj) { if (!brezSledi) izbrisani[k] = if (cas != 0L) cas else SeznamiPravila.novCas(ura, casi[k] ?: 0L, 0L); casi.remove(k) }
         casi.keys.retainAll(zdaj)
         while (izbrisani.size > 300) izbrisani.remove(izbrisani.minByOrNull { it.value }!!.key)
-        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString())
-            .putString(VIRI_CASI, JSONObject(casi as Map<*, *>).toString()).putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString()).apply()
+        val urejanje = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString())
+            .putString(VIRI_CASI, JSONObject(casi as Map<*, *>).toString()).putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString())
+        // Naloga 62: vir dodan ali odstranjen - police in mreze z diska iz casa pred tem ne veljajo vec.
+        if (prej != zdaj) urejanje.putLong(VIRI_SPREMENJENI, maxOf(ura, spremenjeni(ctx) + 1))
+        urejanje.apply()
     }
+
+    /**
+     * Naloga 62: kdaj (System.currentTimeMillis te naprave) je bil vir nazadnje dodan ali odstranjen - tu ali z
+     * usklajevanjem z druge naprave. Police in mreze na disku (MedijskiPredpomnilnik), shranjene pred tem, so iz starih
+     * virov: Medijski center jih ne pokaze in ne dopolnjuje z njimi; nalaganje, ki se je zacelo prej, jih ne zapise.
+     */
+    fun spremenjeni(ctx: Context): Long = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getLong(VIRI_SPREMENJENI, 0L)
 
     // ------------------------------------------------------------------ viri so enaki na vseh napravah v Linku
 
     private const val VIRI_CASI = "viri_casi"
     private const val VIRI_IZBRISANI = "viri_izbrisani"
+    private const val VIRI_SPREMENJENI = "viri_spremenjeni"
     private val VRSTE_ZA_USKLADITEV = Regex("^(stremio|peertube|splet|api|seznam|podkast|tok(-hls)?(-video)?)$")
 
     fun kljucUskladitve(v: Vir) = v.tip + "|" + v.naslov
