@@ -160,7 +160,7 @@ object DomPreverjanje {
         if (!velja()) return konec(false, preklicano = true)
         val id = if (D.jeSerija(k)) {
             val resi = synchronized(zaklep) { resevalci[k] }
-            (try { resi?.invoke() } catch (_: Throwable) { null }) ?: Stremio.prvaEpizoda(id0) ?: return konec(false)
+            (try { resi?.invoke() } catch (_: Throwable) { null }) ?: Stremio.prvaEpizoda(id0, naslovi) ?: return konec(false)
         } else id0
         val izid = try { Stremio.razpolozljivo(naslovi, tip, id, v.meja, velja) } catch (_: Exception) { null }
         if (izid == null && !velja()) return konec(false, preklicano = true)

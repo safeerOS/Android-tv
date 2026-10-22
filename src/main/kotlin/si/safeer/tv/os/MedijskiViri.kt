@@ -81,6 +81,19 @@ object MedijskiViri {
 
     private const val ODSTRANJENI_VIRI = "odstranjeni_viri"
 
+    /**
+     * Vgrajeni spletni viri (naloga 57; lastnik, 22. 10. 2026: »Brez privzetih virov, tudi obstojecim izbrisi.« in
+     * »Uporabnik si sam doloci vire; kar ima na svojih napravah ze nalozeno, pa prikazemo.«): koda ne doda nobenega
+     * spletnega vira sama - ne Jamendo, Radio Browser, TuneIn, vgrajenih streznikov PeerTube, Archive.org (javna last,
+     * arhiv v iskanju), imenika podkastov, vgrajenih kanalov TV v zivo ne kataloga Cinemeta.
+     *
+     * Vgrajeni viri niso bili nikoli shranjeni med uporabnikovimi ([KLJUC]); koda jih je dodajala sproti. Zato jih
+     * obstojecim uporabnikom ni treba brisati iz shrambe: od te razlicice se ne uporabljajo vec, uporabnikovi viri
+     * (tudi Cinemeta ali PeerTube, ce ju je dodal sam) pa ostanejo, kot so, in se brisejo kot vsak vir ([odstrani]).
+     * Vsebina z uporabnikovih naprav (ta naprava, Safeer Link, Torrent) ni spletni vir in ostane.
+     */
+    const val VGRAJENI_SPLETNI_VIRI = false
+
     fun odstranjeni(ctx: Context): Set<String> {
         val s = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(ODSTRANJENI_VIRI, "[]") ?: "[]"
         return try {
@@ -416,6 +429,7 @@ object MedijskiViri {
      * Lastnik, 1. 10. 2026: uporabnik vire doda in pozabi - tudi vgrajenih mu ni treba trpeti.
      */
     fun vgrajeniPeerTube(ctx: Context): List<String> {
+        if (!VGRAJENI_SPLETNI_VIRI) return emptyList()
         val proc = odstranjeni(ctx)
         return PeerTube.VGRAJENI.filterNot { it in proc }
     }
@@ -440,8 +454,11 @@ object MedijskiViri {
      * "radio", "peertube") ali dodani ("u:<naslov>").
      */
     private const val PRIPETI = "pripeti_viri"
-    /** Dokler uporabnik ne izbere sam: ta naprava, naprave v Safeer Linku in radijske postaje. */
-    private val PRIVZETO_PRIPETI = listOf("tv", "link", "radio", "magnet")
+    /**
+     * Dokler uporabnik ne izbere sam: ta naprava, naprave v Safeer Linku in Torrent. Radijske postaje (vgrajen vir
+     * Radio Browser) do naloge 57 tudi.
+     */
+    private val PRIVZETO_PRIPETI = SeznamiPravila.privzetoPripeti(VGRAJENI_SPLETNI_VIRI)
 
     fun kljucPripetega(v: Vir) = "u:" + v.naslov
 

@@ -83,4 +83,6 @@
     <string name="os_media_dodatek_ne_odgovarja">L’extension ne répond pas pour le moment. Réessaie dans une minute.</string>
     <string name="os_media_ni_predvajljivih">Aucune de tes extensions ne peut lire ces titres pour le moment. Ajoute une extension avec des flux dans Mes sources.</string>
     <string name="os_media_dodatek_omejuje">Une extension limite les requêtes : les titres déjà vérifiés sont affichés.</string>
+    <string name="os_media_dodatek_omejuje_min">Une source limite les requêtes : la vérification reprend dans %1$d min.</string>
+    <string name="os_media_ni_vec_v_katalogu">Vos sources n’ont plus de titres dans ce catalogue</string>
 </resources>

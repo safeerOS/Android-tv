@@ -14,6 +14,9 @@ import java.security.MessageDigest
 object MedijskiPredpomnilnik {
     private const val NASLOVNIC_NAJVEC = 400
     private const val NASLOVNICA_VELJA_MS = 14L * 24 * 60 * 60 * 1000
+    /** Naslovnica v mrezi: najvec toliko pik po daljsi stranici (kot dekodiranje v GlasbaActivity.naloziSliko). */
+    const val NASLOVNICA_PX = 280
+    private const val NASLOVNICA_KAKOVOST = 80
 
     private fun odtis(s: String): String =
         MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -129,6 +132,31 @@ object MedijskiPredpomnilnik {
         val f = File(mapaNaslovnic(c), odtis(naslov))
         if (f.isFile && System.currentTimeMillis() - f.lastModified() < NASLOVNICA_VELJA_MS) f.readBytes() else null
     } catch (_: Exception) { null }
+
+    /**
+     * Naslovnica za mrezo (naloga 56): najvec [stranica] pik po daljsi stranici, natancno (ne le na potenco 2 kot
+     * [VarnaSlika.izBajtov]). Vrne isto sliko, ce je ze dovolj majhna; sicer novo, izvirnik pa sprosti.
+     */
+    fun pomanjsaj(b: android.graphics.Bitmap, stranica: Int = NASLOVNICA_PX): android.graphics.Bitmap {
+        val (s, v) = OsPravila.meraNaslovnice(b.width, b.height, stranica) ?: return b
+        if (s == b.width && v == b.height) return b
+        val m = try { android.graphics.Bitmap.createScaledBitmap(b, s, v, true) } catch (_: Throwable) { return b }
+        if (m !== b) b.recycle()
+        return m
+    }
+
+    /**
+     * Naslovnica za disk: WebP z izgubo (kakovost [NASLOVNICA_KAKOVOST]) iz ze pomanjsane slike - namesto izvirnih bajtov
+     * (JPEG/PNG s streznika, pogosto 100-400 KB). Starejse datoteke (izvirni bajti) ostanejo berljive: BitmapFactory
+     * prepozna obliko sam. null = stiskanje ni uspelo (takrat ne shranimo nicesar).
+     */
+    fun stisniNaslovnico(b: android.graphics.Bitmap): ByteArray? = try {
+        @Suppress("DEPRECATION")
+        val oblika = if (android.os.Build.VERSION.SDK_INT >= 30) android.graphics.Bitmap.CompressFormat.WEBP_LOSSY
+            else android.graphics.Bitmap.CompressFormat.WEBP
+        val izhod = java.io.ByteArrayOutputStream(16 * 1024)
+        if (b.compress(oblika, NASLOVNICA_KAKOVOST, izhod)) izhod.toByteArray().takeIf { it.isNotEmpty() } else null
+    } catch (_: Throwable) { null }
 
     fun shraniNaslovnico(c: Context, naslov: String, bajti: ByteArray) {
         try {

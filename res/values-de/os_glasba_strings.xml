@@ -38,6 +38,10 @@
     <string name="os_mediji_dodaj_razlaga">Gib einen PeerTube-Server, einen Radiostream oder ein Video, eine Website mit Musik und Videos oder deine eigene Such-API ein (Adresse mit {q}, optional | Header: Wert für einen Schlüssel). Safeer prüft die Adresse.</string>
     <string name="os_mediji_dodaj_gumb">Hinzufügen</string>
     <string name="os_mediji_preverjam">Quelle wird geprüft …</string>
+    <string name="os_mediji_streznik_ne_odgovarja">Der Server antwortet nicht (Code %1$d) – die Quelle wurde nicht hinzugefügt.</string>
+    <string name="os_mediji_streznik_ne_odgovarja_brez">Der Server antwortet nicht – die Quelle wurde nicht hinzugefügt.</string>
+    <string name="os_mediji_poskusi_znova">Erneut versuchen</string>
+    <string name="os_mediji_ne_odgovarja">Antwortet nicht</string>
     <string name="os_mediji_ni_vira">Unter dieser Adresse gibt es keine Musik und kein Video, das Safeer abspielen kann.</string>
     <string name="os_mediji_ni_vira_zakaj">Die Quelle wurde nicht hinzugefügt. Safeer spielt Musik, Video, Radio und TV-Streams (MP3, MP4, HLS, M3U/PLS-Listen, Podcasts, PeerTube) sowie Webseiten ab; Torrents, Archive und geschützte Streams nicht.</string>
     <string name="os_mediji_dodano">Hinzugefügt: %1$s</string>
@@ -123,6 +127,9 @@
     <string name="os_media_s_plosce">Vom Dashboard nehmen</string>
     <string name="os_media_pokazi_vse">Alle anzeigen</string>
     <string name="os_media_nalozi_vec">Mehr laden</string>
+    <string name="os_media_preverjam_se">Prüfe … noch %1$d</string>
+    <string name="os_media_brez_virov">Noch keine Quellen hinzugefügt. Füge eine Quelle hinzu, die du sehen oder hören möchtest – Inhalte deiner Geräte erscheinen hier trotzdem.</string>
+    <string name="os_media_isci_brez_virov">Keine Webquellen hinzugefügt: Es wurde nur auf deinen Geräten gesucht. Quellen fügst du unter „Meine Quellen“ hinzu.</string>
     <string name="os_media_vsi_viri">Alle Quellen</string>
     <string name="os_media_izberi_vire">Quellen wählen</string>
     <string name="os_media_izbrisi_vir">Quelle löschen</string>

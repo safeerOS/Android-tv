@@ -392,6 +392,97 @@ private fun preizkusHtmlImen() {
     preveriEnako("neveljavna stevilka ostane", "&#0; &#xD800; &#99999999;", OsPravila.htmlBesedilo("&#0; &#xD800; &#99999999;"))
 }
 
+/** Naloga 55: mreza z 5143 naslovi je ob vsakem izrisu preverila vse; zdaj le okno in rezervo, dopolni se brez utripa. */
+private fun preizkusOknaMreze() {
+    println("\n== mreza: le okno + rezerva, dopolnjevanje po straneh ==")
+    val vsi = (0 until 5143).map { "t$it" }
+    var klicev = 0
+    val p = OsPravila.prvih(vsi, 130) { klicev++; it.removePrefix("t").toInt() % 2 == 1 }
+    preveriEnako("izbranih je toliko, kot jih okno + rezerva potrebuje", 130, p.izbrani.size)
+    preveriEnako("vrstni red ostane", "t0,t2,t4", p.izbrani.take(3).joinToString(","))
+    preveri("pregledani so le naslovi do zadnjega izbranega, ne vseh 5143 (klicev=$klicev)", klicev == 259 && p.pregledanih == 259)
+    preveri("za izbranimi je se kaj", p.prirezano)
+    val vse = OsPravila.prvih(listOf("a", "b"), 10) { false }
+    preveri("kratek seznam: vse, nic prirezano", vse.izbrani == listOf("a", "b") && !vse.prirezano && vse.pregledanih == 2)
+    preveri("tocno toliko, kolikor je: ni prirezano", !OsPravila.prvih(listOf("a", "b"), 2) { false }.prirezano)
+
+    preveri("odtis: enak seznam, enak odtis", OsPravila.odtis(listOf("a", "b")) { it } == OsPravila.odtis(listOf("a", "b")) { it })
+    preveri("odtis: vrstni red steje", OsPravila.odtis(listOf("a", "b")) { it } != OsPravila.odtis(listOf("b", "a")) { it })
+    preveri("odtis: dodan naslov", OsPravila.odtis(listOf("a")) { it } != OsPravila.odtis(listOf("a", "b")) { it })
+
+    fun risi(na: String, novi: String, caka: Boolean, od: Long) =
+        OsPravila.risiMrezoZdaj(na.map { it.toString() }, novi.map { it.toString() }, 3, caka, od, 3_000)
+    preveri("enaka mreza: ne risemo", !risi("abc", "abc", true, 10_000))
+    preveri("prvi zaslon: nova kartica takoj", risi("ab", "abc", true, 10))
+    preveri("po prvem zaslonu: dodane pocakajo, dokler okno se caka", !risi("abc", "abcd", true, 1_000))
+    preveri("... najvec 3 s", risi("abc", "abcd", true, 3_000))
+    preveri("okno preverjeno: dopolnimo takoj", risi("abc", "abcd", false, 10))
+    preveri("kartica izgine: takoj (ne kazemo nepredvajljivega)", risi("abcd", "abd", true, 10))
+    preveri("kartica bi se premaknila: takoj", risi("abcd", "abdce", true, 10))
+}
+
+/** Naloga 56: naslovnica na disku najvec 280 px po daljsi stranici; plakat zunaj zaslona sprosti sliko. */
+private fun preizkusNaslovnic() {
+    println("\n== naslovnice: 280 px in samo plakati na zaslonu ==")
+    preveriEnako("pokoncen plakat 1000x1500 -> 186x280", 186 to 280, OsPravila.meraNaslovnice(1000, 1500, 280))
+    preveriEnako("lezeca 1920x1080 -> 280x157", 280 to 157, OsPravila.meraNaslovnice(1920, 1080, 280))
+    preveriEnako("majhna ostane", 200 to 300, OsPravila.meraNaslovnice(200, 300, 300))
+    preveriEnako("tocno 280 ostane", 187 to 280, OsPravila.meraNaslovnice(187, 280, 280))
+    preveriEnako("ozka ne pade na 0", 1 to 280, OsPravila.meraNaslovnice(10, 5000, 280))
+    preveri("neveljavne mere", OsPravila.meraNaslovnice(0, 100, 280) == null)
+    // Zaslon 0..1000, vrsta 300 px, rezerva ena vrsta.
+    preveri("na zaslonu", OsPravila.vVidnem(400, 300, 0, 1000, 300))
+    preveri("vrsta tik pod zaslonom (rezerva)", OsPravila.vVidnem(1200, 300, 0, 1000, 300))
+    preveri("dve vrsti pod zaslonom: sprosti", !OsPravila.vVidnem(1400, 300, 0, 1000, 300))
+    preveri("vrsta nad zaslonom v rezervi", OsPravila.vVidnem(1700, 300, 2000, 3000, 300))
+    preveri("dalec nad zaslonom: sprosti", !OsPravila.vVidnem(1000, 300, 2000, 3000, 300))
+}
+
+/** Naloga 55b: naslednje strani takoj, prva stran strogo; izbrana kartica ne izgine pod izbiro. */
+private fun preizkusNaslednjihStrani() {
+    println("\n== Nalozi vec: takoj pokazi, preveri v ozadju ==")
+    preveri("prva stran: nepreverjen se ne pokaze", !OsPravila.vOknuViden(5, 100, false, true))
+    preveri("prva stran: preverjen se pokaze", OsPravila.vOknuViden(5, 100, false, false))
+    preveri("naslednja stran: nepreverjen se pokaze takoj", OsPravila.vOknuViden(100, 100, false, true))
+    preveri("ze na zaslonu (premaknjen na prvo stran): ostane", OsPravila.vOknuViden(3, 100, true, true))
+    preveri("navaden katalog: vse strogo", !OsPravila.vOknuViden(500, Int.MAX_VALUE, false, true))
+    fun drzi(vidni: String, na: String, izbran: String?) =
+        OsPravila.obdrziIzbrano(vidni.map { it.toString() }, na.map { it.toString() }, izbran, { it }) { it }.let { (l, d) -> l.joinToString("") + "/" + d }
+    preveriEnako("izbrana izpadla kartica ostane na svojem mestu", "abcd/true", drzi("abd", "abcd", "c"))
+    preveriEnako("brez izbire izpade", "abd/false", drzi("abd", "abcd", null))
+    preveriEnako("izbrana je se vidna: nic", "abcd/false", drzi("abcd", "abcd", "c"))
+    preveriEnako("izbrana ni bila na zaslonu: nic", "ab/false", drzi("ab", "ab", "x"))
+    preveriEnako("zadnja izpadla ostane na koncu", "abc/true", drzi("ab", "abc", "c"))
+}
+
+/** Naloga 57c: naslednja stran kataloga uporabnikovega dodatka (ne samo Cinemete s 50+ vnosi na stran). */
+private fun preizkusStraniKataloga() {
+    println("\n== Nalozi vec: strani katalogov uporabnikovih dodatkov ==")
+    preveri("katalog s »skip« in majhno stranjo (12): je se stran", OsPravila.katalogImaVec(12, true, 20))
+    preveri("katalog s »skip«, prazna stran: konec", !OsPravila.katalogImaVec(0, true, 20))
+    preveri("brez oznake, polna stran: morda se kaj", OsPravila.katalogImaVec(20, false, 20))
+    preveri("brez oznake, nepolna stran: konec (kot doslej)", !OsPravila.katalogImaVec(12, false, 20))
+    preveri("izpad (-1) ni stran", !OsPravila.katalogImaVec(-1, true, 20) && !OsPravila.katalogImaVec(-1, false, 20))
+}
+
+/** Naloga 57d: dodatek, ki ne odgovarja - ob vnosu se en poskus, pozneje preskok brez brisanja. */
+private fun preizkusOdzivaDodatka() {
+    println("\n== dodatek, ki ne odgovarja ==")
+    val t = 1_800_000_000_000L
+    var o: OsPravila.Odziv? = null
+    o = OsPravila.poOdzivu(o, false, t)
+    o = OsPravila.poOdzivu(o, false, t + 60_000)
+    preveri("dva izpada: se ne preskocimo", !OsPravila.neOdgovarja(o, t + 60_000))
+    o = OsPravila.poOdzivu(o, false, t + 120_000)
+    preveri("trije izpadi v 10 min: preskok", OsPravila.neOdgovarja(o, t + 120_000))
+    preveri("... 30 min", OsPravila.neOdgovarja(o, t + 120_000 + 29 * 60_000) && !OsPravila.neOdgovarja(o, t + 120_000 + 30 * 60_000))
+    preveri("odgovor oznako takoj pobrise", !OsPravila.neOdgovarja(OsPravila.poOdzivu(o, true, t + 130_000), t + 130_000))
+    var p: OsPravila.Odziv? = null
+    p = OsPravila.poOdzivu(p, false, t); p = OsPravila.poOdzivu(p, false, t + 11 * 60_000); p = OsPravila.poOdzivu(p, false, t + 12 * 60_000)
+    preveri("izpadi, razprseni cez vec kot 10 min: ni preskoka", !OsPravila.neOdgovarja(p, t + 12 * 60_000))
+    preveri("ob vnosu: 503 in brez odgovora se enkrat, 404 ne", OsPravila.vnosZnova(503) && OsPravila.vnosZnova(0) && !OsPravila.vnosZnova(404))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
     preizkusHtmlImen()
@@ -401,6 +492,11 @@ fun main() {
     preizkusKanalov()
     preizkusLogotipa()
     preizkusStabilnegaReda()
+    preizkusOknaMreze()
+    preizkusNaslovnic()
+    preizkusNaslednjihStrani()
+    preizkusStraniKataloga()
+    preizkusOdzivaDodatka()
     preizkusStalneGlave()
     preizkusPolic()
     preizkusGlasbenegaImena()

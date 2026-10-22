@@ -83,4 +83,6 @@
     <string name="os_media_dodatek_ne_odgovarja">El complemento no responde en este momento. Inténtalo de nuevo en un minuto.</string>
     <string name="os_media_ni_predvajljivih">Ninguno de tus complementos puede reproducir estos títulos ahora. Añade un complemento con streams en Mis fuentes.</string>
     <string name="os_media_dodatek_omejuje">Un complemento limita las solicitudes: se muestran los títulos ya comprobados.</string>
+    <string name="os_media_dodatek_omejuje_min">Una fuente limita las solicitudes: la comprobación continúa en %1$d min.</string>
+    <string name="os_media_ni_vec_v_katalogu">Tus fuentes no tienen más títulos en este catálogo</string>
 </resources>

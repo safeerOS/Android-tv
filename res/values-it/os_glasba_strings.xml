@@ -38,6 +38,10 @@
     <string name="os_mediji_dodaj_razlaga">Inserisci un server PeerTube, un flusso radio o video, un sito web con musica e video, o la tua API di ricerca (indirizzo con {q}, facoltativo | Intestazione: valore per una chiave). Safeer verifica l’indirizzo.</string>
     <string name="os_mediji_dodaj_gumb">Aggiungi</string>
     <string name="os_mediji_preverjam">Verifica della fonte…</string>
+    <string name="os_mediji_streznik_ne_odgovarja">Il server non risponde (codice %1$d): la fonte non è stata aggiunta.</string>
+    <string name="os_mediji_streznik_ne_odgovarja_brez">Il server non risponde: la fonte non è stata aggiunta.</string>
+    <string name="os_mediji_poskusi_znova">Riprova</string>
+    <string name="os_mediji_ne_odgovarja">Non risponde</string>
     <string name="os_mediji_ni_vira">A questo indirizzo non c’è musica né video che Safeer possa riprodurre.</string>
     <string name="os_mediji_ni_vira_zakaj">La fonte non è stata aggiunta. Safeer riproduce musica, video, radio e TV (MP3, MP4, HLS, playlist M3U/PLS, podcast, PeerTube) e pagine web; non riproduce torrent, archivi né flussi protetti.</string>
     <string name="os_mediji_dodano">Aggiunto: %1$s</string>
@@ -123,6 +127,9 @@
     <string name="os_media_s_plosce">Togli dalla dashboard</string>
     <string name="os_media_pokazi_vse">Mostra tutto</string>
     <string name="os_media_nalozi_vec">Carica altri</string>
+    <string name="os_media_preverjam_se">Verifica… ancora %1$d</string>
+    <string name="os_media_brez_virov">Nessuna fonte aggiunta. Aggiungi una fonte che vuoi guardare o ascoltare: i contenuti dei tuoi dispositivi compaiono qui comunque.</string>
+    <string name="os_media_isci_brez_virov">Nessuna fonte web aggiunta: la ricerca è avvenuta solo sui tuoi dispositivi. Aggiungi fonti in Le mie fonti.</string>
     <string name="os_media_vsi_viri">Tutte le fonti</string>
     <string name="os_media_izberi_vire">Scegli le fonti</string>
     <string name="os_media_izbrisi_vir">Elimina fonte</string>

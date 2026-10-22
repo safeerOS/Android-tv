@@ -83,4 +83,6 @@
     <string name="os_media_dodatek_ne_odgovarja">Das Add-on antwortet gerade nicht. Versuche es in einer Minute noch einmal.</string>
     <string name="os_media_ni_predvajljivih">Keines deiner Add-ons kann diese Titel derzeit abspielen. Füge unter Meine Quellen ein Add-on mit Streams hinzu.</string>
     <string name="os_media_dodatek_omejuje">Ein Add-on begrenzt die Anfragen – angezeigt werden bereits geprüfte Titel.</string>
+    <string name="os_media_dodatek_omejuje_min">Eine Quelle begrenzt die Anfragen – die Prüfung geht in %1$d Min. weiter.</string>
+    <string name="os_media_ni_vec_v_katalogu">Deine Quellen haben keine weiteren Titel in diesem Katalog</string>
 </resources>

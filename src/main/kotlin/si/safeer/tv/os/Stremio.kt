@@ -27,7 +27,9 @@ object Stremio {
                        /** Obvezni dodatni parametri s prvo ponujeno moznostjo (genre=Action), kot jih Stremio pokaze v Discover. */
                        val privzeti: List<Pair<String, String>> = emptyList(),
                        /** Moznosti parametra `genre` (zvrsti ali leta), kot jih katalog oglasi - za filter zvrsti v mrezi Filmi | Serije. */
-                       val zvrsti: List<String> = emptyList()) {
+                       val zvrsti: List<String> = emptyList(),
+                       /** Katalog oglasi stranjenje (extra »skip«): naslednjo stran da tudi, ce je stran manjsa od obicajne (naloga 57c). */
+                       val strani: Boolean = false) {
         /** Ali katalog brez uporabnikovega filtra sploh vrne vsebino (vsi obvezni parametri imajo privzeto moznost). */
         val prikazen: Boolean get() = obvezni.all { o -> privzeti.any { it.first == o } }
     }
@@ -166,7 +168,43 @@ object Stremio {
     /** Dodatek je odgovoril, da vsebine nima (ne: napaka streznika, prijave ali omejitve - to je izpad). */
     internal fun kodaPomeniNima(koda: Int) = koda in 400..499 && koda !in setOf(401, 403, 407, 408, 425, 429)
 
-    private fun prenesiJson(url: String): JSONObject? {
+    /**
+     * Odzivnost dodatkov (osnova -> [OsPravila.Odziv], naloga 57d): dodatek, ki zaporedoma ne odgovori, v ozadju
+     * (katalogi, preverjanje) preskocimo do naslednjega preizkusa - brez porabe proracuna. Predvajanje ga vprasa vedno.
+     */
+    private val odzivi = ConcurrentHashMap<String, OsPravila.Odziv>()
+
+    private fun osnovaIzNaslova(url: String): String? =
+        listOf("/catalog/", "/stream/", "/meta/", "/manifest.json").firstNotNullOfOrNull { k -> url.indexOf(k).takeIf { it > 0 }?.let { url.substring(0, it) } }
+
+    private fun zabeleziOdziv(url: String, koda: Int) {
+        val o = osnovaIzNaslova(url) ?: return
+        val uspeh = koda in 200..499 && koda != 408 && koda != 425
+        odzivi.compute(o) { _, prej -> OsPravila.poOdzivu(prej, uspeh, System.currentTimeMillis()).takeIf { it != OsPravila.Odziv() } }
+    }
+
+    /** Dodatek zaporedoma ne odgovarja (3 izpadi v 10 min): v ozadju ga preskocimo 30 min, v Mojih virih je oznaka. */
+    fun neOdgovarja(naslov: String): Boolean = OsPravila.neOdgovarja(odzivi[osnova(naslov)], System.currentTimeMillis())
+
+    /**
+     * Preverba dodatka ob vnosu (naloga 57d): manifest mora odgovoriti z 200 in veljavnim JSON (id ali resources) v
+     * ~10 s. Spec streznik se zbuja: ob izpadu (0, 5xx) se en poskus cez 5 s. Vrne 200 ali kodo napake (0 = ni odgovora).
+     * Klic iz ozadja.
+     */
+    fun preveriObVnosu(naslov: String): Int {
+        val url = osnova(naslov) + "/manifest.json"
+        fun enkrat(): Int {
+            val j = prenesiJson(url, 10_000)
+            val koda = zadnjaKoda.get() ?: 0
+            return if (j != null && (j.has("id") || j.has("resources"))) 200 else if (koda in 200..299) 0 else koda
+        }
+        val prva = enkrat()
+        if (prva == 200 || !OsPravila.vnosZnova(prva)) return prva
+        try { Thread.sleep(5_000) } catch (_: InterruptedException) { return prva }
+        return enkrat()
+    }
+
+    private fun prenesiJson(url: String, cas: Int = CAS): JSONObject? {
         zadnjaKoda.set(0)
         zadnjeGlave.set(emptyMap())
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
@@ -174,19 +212,20 @@ object Stremio {
         if ("/stream/" in url) stej(url.substringBefore("/stream/"))
         return try {
             val c = URL(url).openConnection() as HttpURLConnection
-            c.connectTimeout = CAS; c.readTimeout = CAS
+            c.connectTimeout = cas; c.readTimeout = cas
             c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
             c.setRequestProperty("Accept", "application/json")
             try {
                 val koda = c.responseCode
                 zadnjaKoda.set(koda)
+                zabeleziOdziv(url, koda)
                 if (koda == 429 || koda == 403) zadnjeGlave.set(try {
                     c.headerFields.mapNotNull { (k, v) -> if (k == null) null else v?.firstOrNull()?.let { k.lowercase() to it } }.toMap()
                 } catch (_: Exception) { emptyMap() })
                 if (koda !in 200..299) return null
                 JSONObject(c.inputStream.use { String(it.readBytes(), Charsets.UTF_8) })
             } finally { c.disconnect() }
-        } catch (_: Exception) { null }
+        } catch (_: Exception) { if ((zadnjaKoda.get() ?: 0) == 0) zabeleziOdziv(url, 0); null }
     }
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
@@ -239,7 +278,7 @@ object Stremio {
                 } } }
             k.optJSONArray("extraSupported")?.let { e -> for (j in 0 until e.length()) podprti += e.optString(j) }
             k.optJSONArray("extraRequired")?.let { e -> for (j in 0 until e.length()) obvezni += e.optString(j) }
-            katalogi += Katalog(o, ime, tip, id, k.optString("name").ifBlank { id }, "search" in podprti, obvezni.distinct(), privzeti, zvrsti)
+            katalogi += Katalog(o, ime, tip, id, k.optString("name").ifBlank { id }, "search" in podprti, obvezni.distinct(), privzeti, zvrsti, "skip" in podprti)
         } }
         // Zaseben dodatek ([ZasebniDodatki]): tako se oznaci sam, v manifestu (uradno polje protokola).
         val zaseben = m.optJSONObject("behaviorHints")?.optBoolean("adult") == true
@@ -368,7 +407,7 @@ object Stremio {
      */
     fun vzorciKnjiznico(osnova: String, naslovi: List<Jamendo.Skladba>, torrent: Long): Boolean? {
         val m = manifesti[osnova] ?: return null
-        if ("stream" !in m.viri || vPremoru(osnova)) return null
+        if ("stream" !in m.viri || vPremoru(osnova) || neOdgovarja(osnova)) return null
         val odgovori = ArrayList<Boolean?>()
         for (i in RazpolozljivostPravila.vzorecKnjiznice(naslovi.size)) {
             val je = try { tokVzorca(m, naslovi[i], torrent) } catch (_: Exception) { null }
@@ -440,7 +479,9 @@ object Stremio {
     fun brezDodatka(s: Jamendo.Skladba, nasloviDodatkov: Collection<String>): Boolean {
         if (!jeEnota(s)) return false
         val dodatek = razstavi(s)?.first ?: return false
-        return dodatek != osnova(CINEMETA) && nasloviDodatkov.none { osnova(it) == dodatek }
+        // Cinemeta je bila do naloge 57 vedno namescena (vgrajen vir); zdaj velja kot vsak dodatek: ce je uporabnik nima,
+        // njenih kartic ne kazemo.
+        return SeznamiPravila.brezDodatka(dodatek, nasloviDodatkov.map { osnova(it) }, osnova(CINEMETA), MedijskiViri.VGRAJENI_SPLETNI_VIRI)
     }
 
     fun jeSerija(s: Jamendo.Skladba) = razstavi(s)?.second == "series"
@@ -509,6 +550,8 @@ object Stremio {
      * null. Prazna stran in »tega nimam« (404) sta odgovor - prazen seznam.
      */
     fun katalogAliIzpad(k: Katalog, iskanje: String = "", skip: Int = 0, zvrst: String = ""): List<Jamendo.Skladba>? {
+        // Dodatek, ki ne odgovarja (naloga 57d): do naslednjega preizkusa ga ne sprasujemo - to je izpad, ne prazen katalog.
+        if (neOdgovarja(k.dodatek)) { zadnjaKoda.set(0); return null }
         var pot = "${k.dodatek}/catalog/${enc(k.tip)}/${enc(k.id)}"
         val dodatno = (if (iskanje.isNotBlank()) listOf("search" to iskanje) else emptyList()) +
             // Izbrana zvrst (moznost kataloga, npr. "Comedy") nadomesti privzeto moznost parametra genre.
@@ -540,9 +583,8 @@ object Stremio {
      * 1. 10. 2026). Uporabnikovi katalogi so pred Cinemeto.
      */
     fun zKatalogom(naslovi: List<String>): List<String> {
-        if (naslovi.isEmpty()) return naslovi
-        val cinemeta = osnova(CINEMETA)
-        return if (naslovi.any { osnova(it) == cinemeta }) naslovi else naslovi + CINEMETA
+        // Naloga 57: brez vgrajenih virov katalog Cinemeta ni vec dodan sam - samo, ce ga je dodal uporabnik.
+        return SeznamiPravila.zKatalogom(naslovi, CINEMETA, MedijskiViri.VGRAJENI_SPLETNI_VIRI) { osnova(it) }
     }
 
     /** Katalogi razdelka Video (filmi, nato serije, nato drug video: kanali, anime ...); brez tistih, ki brez filtra ne vrnejo nicesar. */
@@ -615,8 +657,20 @@ object Stremio {
      * Prva epizoda serije z javnim id-jem (IMDb) po javnem katalogu: po njej preverjevalec doma preveri serijo kot
      * celoto, kadar ga vprasa druga naprava (ta poslje samo kljuc, ne svoje kartice). null = katalog serije ne pozna.
      */
-    fun prvaEpizoda(id: String): String? =
-        (try { epizodeZa(osnova(CINEMETA), "series", id) } catch (_: Exception) { emptyList() }).firstOrNull { it.sezona >= 1 }?.id
+    fun prvaEpizoda(id: String, naslovi: List<String>): String? {
+        // Naloga 57: metapodatke vprasamo uporabnikove dodatke, ki jih za serije s tem id-jem dajejo - ne Cinemete, ki je
+        // uporabnik morda nima (koda ne doda vira sama).
+        val viri = zKatalogom(naslovi).mapNotNull { n -> try { manifest(n) } catch (_: Exception) { null } }
+            .filter { m -> "meta" in m.viri && (m.tipi.isEmpty() || "series" in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
+        for (m in viri) {
+            val ep = (try { epizodeZa(m.osnova, "series", id) } catch (_: Exception) { emptyList() }).firstOrNull { it.sezona >= 1 }?.id
+            if (ep != null) return ep
+        }
+        return null
+    }
+
+    /** Ali je naslov dodatka javni katalog Cinemeta (uporabnik ga je dodal sam). */
+    fun jeCinemeta(naslov: String): Boolean = osnova(naslov) == osnova(CINEMETA)
 
     private fun epizodeZa(osnova: String, tip: String, id: String): List<Epizoda> {
         val m = json("$osnova/meta/${enc(tip)}/${enc(id)}.json")?.optJSONObject("meta") ?: return emptyList()
@@ -788,6 +842,19 @@ object Stremio {
         return ure.entries.maxByOrNull { it.value.vsota(zdaj) }?.let { "${it.value.vsota(zdaj)}/${stanjeTempa(it.key).naUro}" } ?: "0"
     }
 
+    /**
+     * Kdaj (System.currentTimeMillis) se preverjanje v ozadju nadaljuje: najzgodnejsi konec premora med dodatki [naslovi],
+     * ki dajejo tokove in so v premoru (omejitev poizvedb ali porabljen urni proracun); 0 = noben ni v premoru.
+     * Za napis »nadaljujem cez N min« (naloga 55b). Nic ne porabi.
+     */
+    fun premorKoncaOb(naslovi: List<String>): Long {
+        val zdaj = System.currentTimeMillis()
+        return naslovi.mapNotNull { n ->
+            val o = osnova(n)
+            if (manifesti[o]?.let { "stream" in it.viri } == false) null else premorDo[o]?.takeIf { it > zdaj }
+        }.minOrNull() ?: 0L
+    }
+
     /** Dodatek je odgovoril, da omejuje poizvedbe: v ozadju ga do konca premora ne sprasujemo. */
     fun vPremoru(naslov: String): Boolean = (premorDo[osnova(naslov)] ?: 0L) > System.currentTimeMillis()
 
@@ -879,6 +946,8 @@ object Stremio {
      * ne velja vec ([seVelja]: uporabnik je odsel z zaslona) - takrat zetona ne vzame.
      */
     private fun zeton(osnova: String, seVelja: () -> Boolean = { true }): Boolean {
+        // Dodatek, ki ne odgovarja (naloga 57d): v ozadju ga preskocimo, zetona ne porabimo.
+        if (neOdgovarja(osnova)) return false
         val v = vedra.getOrPut(osnova) { Vedro() }
         while (true) {
             if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis() || !seVelja()) return false
@@ -982,7 +1051,7 @@ object Stremio {
     fun imaLastenTok(s: Jamendo.Skladba, sonda: ((Tok) -> Boolean?)? = null): Boolean? {
         val (osnova, tip, id) = razstavi(s) ?: return null
         val m = manifesti[osnova] ?: return null
-        if ("stream" !in m.viri || vPremoru(osnova)) return null
+        if ("stream" !in m.viri || vPremoru(osnova) || neOdgovarja(osnova)) return null
         poizvedbVOzadju.incrementAndGet()
         val d = json("$osnova/stream/${enc(tip)}/${enc(id)}.json")
         if (d == null) {

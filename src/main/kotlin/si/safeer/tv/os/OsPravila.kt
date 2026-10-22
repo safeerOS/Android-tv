@@ -271,6 +271,122 @@ object OsPravila {
     }
 
     /**
+     * Mere naslovnice, pomanjsane na najvec [najvec] pik po daljsi stranici z ohranjenim razmerjem (naloga 56); manjsa
+     * ostane, kot je. null = neveljavne mere.
+     */
+    fun meraNaslovnice(sirina: Int, visina: Int, najvec: Int): Pair<Int, Int>? {
+        if (sirina <= 0 || visina <= 0 || najvec <= 0) return null
+        val daljsa = maxOf(sirina, visina)
+        if (daljsa <= najvec) return sirina to visina
+        val s = (sirina.toLong() * najvec / daljsa).toInt().coerceAtLeast(1)
+        val v = (visina.toLong() * najvec / daljsa).toInt().coerceAtLeast(1)
+        return s to v
+    }
+
+    /**
+     * Ali je pogled (vrh [y], visina [h] v vsebini drsnika) v vidnem delu [zgoraj]..[spodaj] ali najvec [rezerva] pik od
+     * njega - plakat zunaj tega sprosti bitno sliko (naloga 56).
+     */
+    fun vVidnem(y: Int, h: Int, zgoraj: Int, spodaj: Int, rezerva: Int): Boolean =
+        y + h >= zgoraj - rezerva && y <= spodaj + rezerva
+
+    /**
+     * Odzivnost dodatka (naloga 57d): cas zadnjih izpadov (brez odgovora ali 5xx) in do kdaj ga preskakujemo.
+     * Lastnik: »Streznike, ki ne odgovarjajo, bi morali zavracati« - a vira ne brisemo sami (odlocitev je uporabnikova).
+     */
+    data class Odziv(val izpadi: List<Long> = emptyList(), val preskociDo: Long = 0L)
+
+    /** Toliko izpadov v [IZPADI_OKNO_MS] pomeni »ne odgovarja«: dodatek preskocimo za [PRESKOK_MS]. */
+    const val IZPADOV_ZA_PRESKOK = 3
+    const val IZPADI_OKNO_MS = 10 * 60_000L
+    const val PRESKOK_MS = 30 * 60_000L
+
+    /** Nov odziv po poizvedbi: [uspeh] (odgovoril je, tudi »tega nimam«) vse pozabi; izpad se steje. */
+    fun poOdzivu(o: Odziv?, uspeh: Boolean, zdaj: Long): Odziv {
+        if (uspeh) return Odziv()
+        val izpadi = o?.izpadi.orEmpty().filter { zdaj - it in 0 until IZPADI_OKNO_MS } + zdaj
+        return if (izpadi.size >= IZPADOV_ZA_PRESKOK) Odziv(emptyList(), zdaj + PRESKOK_MS) else Odziv(izpadi, o?.preskociDo ?: 0L)
+    }
+
+    /** Ali dodatek zdaj preskocimo (v ozadju ga ne sprasujemo, oznaka »Ne odgovarja«). */
+    fun neOdgovarja(o: Odziv?, zdaj: Long): Boolean = o != null && o.preskociDo > zdaj
+
+    /** Izpad pri preverjanju ob vnosu (0 = brez odgovora ali 5xx): spec streznik (npr. brezplacno gostovanje) se zbuja - poskusimo se enkrat. */
+    fun vnosZnova(koda: Int): Boolean = koda == 0 || koda >= 500
+
+    /**
+     * Ali ima katalog dodatka za stranjo [velikost] vnosov se naslednjo stran (naloga 57c). Katalog, ki stranjenje oglasi
+     * (extra »skip«, standard Stremio), jo ima, dokler stran ni prazna - dodatki imajo razlicno velike strani (do 57 je
+     * strani dajala skoraj samo Cinemeta s 50+ vnosi, uporabnikovi dodatki pogosto manj kot [najmanj]). Katalog brez
+     * oznake: kot doslej, polna stran pomeni, da je morda se kaj. Stran -1 = dodatek ni odgovoril (izpad): to ni stran.
+     */
+    fun katalogImaVec(velikost: Int, oglasaStrani: Boolean, najmanj: Int): Boolean =
+        if (oglasaStrani) velikost > 0 else velikost >= najmanj
+
+    /**
+     * Naloga 55b: ali naslov na mestu [i] okna stroge mreze pokazemo. Prva stran ([strogoDo] mest) samo preverjena;
+     * naslednje strani in kar je ze na zaslonu takoj - preverijo se v ozadju.
+     */
+    fun vOknuViden(i: Int, strogoDo: Int, naZaslonu: Boolean, nepreverjen: Boolean): Boolean =
+        i >= strogoDo || naZaslonu || !nepreverjen
+
+    /**
+     * Naloga 55b: kartica [izbran] (ima izbiro daljinca), ki je bila na zaslonu ([naZaslonu]) in je v [vidni] ni vec,
+     * ostane na svojem mestu, dokler se izbira ne premakne. Vrne (seznam, ali je kartica obdrzana).
+     */
+    fun <T> obdrziIzbrano(vidni: List<T>, naZaslonu: List<String>, izbran: String?, id: (T) -> String, najdi: (String) -> T?): Pair<List<T>, Boolean> {
+        if (izbran == null || vidni.any { id(it) == izbran }) return vidni to false
+        val mesto = naZaslonu.indexOf(izbran)
+        if (mesto < 0) return vidni to false
+        val x = najdi(izbran) ?: return vidni to false
+        val m = mesto.coerceAtMost(vidni.size)
+        return (vidni.subList(0, m) + x + vidni.subList(m, vidni.size)) to true
+    }
+
+    /** Izid [prvih]: izbrani, koliko elementov od zacetka je bilo pregledanih in ali je za njimi se kaj nepregledanega. */
+    class Prvih<T>(val izbrani: List<T>, val pregledanih: Int, val prirezano: Boolean)
+
+    /**
+     * Prvih [koliko] elementov [vsi], ki jih [izpusti] ne izloci, po vrsti. [izpusti] se klice samo, dokler jih ni
+     * dovolj (naloga 55, 22. 10. 2026: mreza Serij je imela 5143 nalozenih naslovov in vsak izris je vsakega preveril na
+     * glavni niti, na zaslon pa gre okno 30). Ostanek seznama se pregleda, ko pride na vrsto.
+     */
+    fun <T> prvih(vsi: List<T>, koliko: Int, izpusti: (T) -> Boolean): Prvih<T> {
+        val izhod = ArrayList<T>(minOf(koliko.coerceAtLeast(0), vsi.size))
+        var i = 0
+        while (i < vsi.size && izhod.size < koliko) {
+            val x = vsi[i++]
+            if (!izpusti(x)) izhod += x
+        }
+        return Prvih(izhod, i, i < vsi.size)
+    }
+
+    /**
+     * Odtis seznama id-jev (vrstni red steje): ali se je seznam spremenil, brez primerjave vsebine. String.hashCode je v
+     * nizu shranjen, zato je to en prehod brez novih predmetov.
+     */
+    fun <T> odtis(vsi: List<T>, id: (T) -> String): Long {
+        var h = vsi.size.toLong()
+        for (x in vsi) h = h * 1_000_003L + id(x).hashCode()
+        return h
+    }
+
+    /**
+     * Ali mrezo, ki se dopolnjuje v ozadju, narisemo zdaj (naloga 55, lastnikova zasnova): prvi zaslon takoj; potem
+     * dodane kartice pocakajo, da je okno preverjeno ([oknoCaka] = false) ali da od zadnjega risanja mine [najvecMs].
+     * Kartica, ki bi izginila ali se premaknila (strogo: ne kazemo nepredvajljivega), gre z zaslona takoj.
+     */
+    fun risiMrezoZdaj(naZaslonu: List<String>, novi: List<String>, prviZaslon: Int, oknoCaka: Boolean,
+                      odZadnjegaMs: Long, najvecMs: Long): Boolean {
+        if (novi == naZaslonu) return false
+        val samoDodane = novi.size > naZaslonu.size && novi.subList(0, naZaslonu.size) == naZaslonu
+        if (!samoDodane) return true
+        if (naZaslonu.size < prviZaslon) return true
+        if (!oknoCaka) return true
+        return odZadnjegaMs !in 0 until najvecMs
+    }
+
+    /**
      * Razlicice iste vsebine, urejene od najboljse ([poOceni]): razlicica, ki je ze na zaslonu kot kartica ([naZaslonu],
      * id-ji kartic), ostane prva - kartica se ne zamenja, ko je pozneje potrjena boljsa razlicica. Ostale ostanejo za
      * njo po kakovosti. Brez spremembe vrne [poOceni] (isti seznam).

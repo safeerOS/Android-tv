@@ -702,7 +702,13 @@ class GlasbaActivity : OsActivity() {
         Stremio.pripravi(this)
         drsnik = ScrollView(this).apply { addView(vsebina); isFillViewport = true; isVerticalScrollBarEnabled = false }
         // Odprta mreza (Filmi | Serije, katalog): naslednja stran se nalozi sama, ko se uporabnik priblizuje koncu.
+        // Kartice se premaknejo tudi brez drsenja (mreza se dopolni na mestu, kartica izgine): slike uskladimo po postavitvi.
+        vsebina.viewTreeObserver.addOnGlobalLayoutListener { narociUskladiSlike() }
+        // Kartica, ki je ostala zaradi izbire (naloga 55b), gre, ko se izbira premakne.
+        vsebina.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> odprtKatalog?.takeIf { it.drzim }?.let { narociUmiri() } }
         drsnik.setOnScrollChangeListener { _, _, y, _, _ ->
+            // Plakati, ki pridejo na zaslon, dobijo sliko; tisti, ki gredo z njega, jo sprostijo (naloga 56).
+            if (kotlin.math.abs(y - uskladenPri) >= dp(48)) uskladiSlike()
             val o = odprtKatalog
             if (o != null && !o.nalagam && vsebina.height - (y + drsnik.height) < dp(700)) vecMreze(o, izDrsenja = true)
             // Mreza kanalov: naslednja stran pride sama, ko se uporabnik priblizuje koncu (najvec enkrat na dobre pol sekunde).
@@ -803,7 +809,7 @@ class GlasbaActivity : OsActivity() {
             } else {
                 val slika = ImageView(this@GlasbaActivity).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
                 addView(slika, FrameLayout.LayoutParams(-1, -1))
-                naloziSliko(k.slika, slika)
+                slikaKartice(k.slika, slika)
             }
         }
         return LinearLayout(this).apply {
@@ -932,7 +938,8 @@ class GlasbaActivity : OsActivity() {
                 setPadding(dp(2), dp(2), 0, 0)
             },
                 LinearLayout.LayoutParams(sirina, -2))
-            naloziSliko(k.slika, slika)
+            // Logotip kanala ostane, kot je bil (majhen); slika vsebine se nalozi, ko je kartica na zaslonu (naloga 56).
+            if (kanal) naloziSliko(k.slika, slika) else slikaKartice(k.slika, slika)
         }
     }
 
@@ -1611,6 +1618,61 @@ class GlasbaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ slike
 
+    /**
+     * Slike kartic na zaslonu (pogled -> naslov slike), naloga 56: v pomnilniku so samo plakati v vidnem delu drsnika in
+     * vrsta nad in pod njim. Plakat, ki gre z zaslona, sprosti bitno sliko; ko se vrne, jo spet dobi iz SLIKE ali z
+     * diska. Prej je vsaka kartica mreze drzala svojo sliko, dokler je bila mreza odprta - ne glede na stevilo strani.
+     */
+    private val slikeKartic = java.util.WeakHashMap<ImageView, String>()
+    private var uskladiNarocen = false
+    /** Polozaj drsnika ob zadnji uskladitvi in koliko zaporednih uskladitev je naletelo na se nepostavljene kartice. */
+    private var uskladenPri = Int.MIN_VALUE
+    private var nepostavljeniPoskusi = 0
+
+    /** Kartica s sliko: slika se nalozi, ko vemo, ali je kartica na zaslonu (po postavitvi, [uskladiSlike]). */
+    private fun slikaKartice(naslov: String, v: ImageView) {
+        if (naslov.isBlank()) return
+        slikeKartic[v] = naslov
+        nepostavljeniPoskusi = 0
+        narociUskladiSlike()
+    }
+
+    private fun narociUskladiSlike(cezMs: Long = 32) {
+        if (uskladiNarocen || isFinishing) return
+        uskladiNarocen = true
+        drsnik.postDelayed({ uskladiNarocen = false; uskladiSlike() }, cezMs)
+    }
+
+    /** Vrh pogleda v vsebini drsnika; null = ni v njej (npr. na podstrani ali v oknu). */
+    private fun vrhSlikeVVsebini(v: View): Int? {
+        var y = 0
+        var x: View = v
+        while (x !== vsebina) {
+            y += x.top
+            x = x.parent as? View ?: return null
+        }
+        return y
+    }
+
+    private fun uskladiSlike() {
+        if (isFinishing) return
+        val zgoraj = drsnik.scrollY
+        val spodaj = zgoraj + drsnik.height
+        uskladenPri = zgoraj
+        var nepostavljenih = 0
+        for ((v, naslov) in slikeKartic.entries.toList()) {
+            if (!v.isAttachedToWindow || !v.isLaidOut || v.height == 0) { nepostavljenih++; continue }
+            val ima = v.drawable is android.graphics.drawable.BitmapDrawable
+            // Kartica zunaj drsnika (podstran, okno): slika kot doslej, takoj.
+            val y = vrhSlikeVVsebini(v) ?: run { if (!ima && v.tag != naslov) naloziSliko(naslov, v); null } ?: continue
+            val viden = OsPravila.vVidnem(y, v.height, zgoraj, spodaj, v.height + dp(60))
+            if (viden && !ima && v.tag != naslov) naloziSliko(naslov, v)
+            else if (!viden && ima) { v.setImageDrawable(null); v.tag = null }
+        }
+        // Kartice, ki se niso postavljene (pravkar dodane): pogledamo znova, a ne v nedogled (skrite kartice).
+        if (nepostavljenih > 0 && nepostavljeniPoskusi++ < 20) narociUskladiSlike(100)
+    }
+
     private fun naloziSliko(naslov: String, v: ImageView) {
         // Krajevni medijski strezniki (NAS, Jellyfin, uporabnikova spletna aplikacija) pogosto
         // ponujajo naslovnice prek navadnega HTTP-ja. Safeer jih ze varno prenese v SpletniVir;
@@ -1628,12 +1690,17 @@ class GlasbaActivity : OsActivity() {
         slikeDelavec.execute {
             try {
                 // 280 px je dovolj za TV kartice, hkrati pa precej zmanjsa heap in GC sunke na 2 GB TV.
-                // Naslovnica z diska (brez omrezja); nove shranimo za naslednje odprtje.
-                val bajti = MedijskiPredpomnilnik.naslovnica(this, naslov)
-                    ?: (SpletniVir.bajtiSlike(this, naslov) ?: Jamendo.bajti(naslov))?.also {
-                        MedijskiPredpomnilnik.shraniNaslovnico(this, naslov, it)
-                    }
-                val b = bajti?.let { VarnaSlika.izBajtov(it, 280) } ?: return@execute
+                // Naslovnica z diska (brez omrezja; stara z izvirnimi bajti ali nova WebP); nove shranimo za naslednje
+                // odprtje - pomanjsane na 280 px in kot WebP, ne izvirnih bajtov (naloga 56).
+                val px = MedijskiPredpomnilnik.NASLOVNICA_PX
+                val zDiska = MedijskiPredpomnilnik.naslovnica(this, naslov)
+                val b = if (zDiska != null) VarnaSlika.izBajtov(zDiska, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
+                else {
+                    val surovi = SpletniVir.bajtiSlike(this, naslov) ?: Jamendo.bajti(naslov) ?: return@execute
+                    val m = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
+                    MedijskiPredpomnilnik.stisniNaslovnico(m)?.let { MedijskiPredpomnilnik.shraniNaslovnico(this, naslov, it) }
+                    m
+                }
                 SLIKE.put(naslov, b)
                 val cakajoci = cakajoceSlike.remove(naslov)
                 val pogledi = cakajoci?.let { synchronized(it) { it.toList() } }.orEmpty()
@@ -1670,6 +1737,16 @@ class GlasbaActivity : OsActivity() {
             Collections.synchronizedList(ArrayList<WeakReference<ImageView>>())
         }.add(WeakReference(v))
         TvVZivo.ikona(this, id)?.let { v.setImageDrawable(it) }
+    }
+
+    /**
+     * Logotipi vgrajenih kanalov TV v zivo (z domacih strani izdajateljev). Naloga 57b: brez vgrajenih virov jih ne
+     * nalagamo - razen za kanale, ki jih ima uporabnik med priljubljenimi. Brez virov Medijski center od zunaj ne nalaga
+     * nicesar.
+     */
+    private fun osveziIkoneVgrajenih() {
+        if (!MedijskiViri.VGRAJENI_SPLETNI_VIRI && MedijskiViri.priljubljene(this).none { it.id.startsWith("tv:") }) return
+        TvVZivo.osveziIkone(this) { osveziTvIkone() }
     }
 
     /** Posodobi samo slike kartic. Postavitev in trenutno fokusiran pogled ostaneta nedotaknjena. */
@@ -1837,7 +1914,9 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun razvrstitev(i: Int) = razvrstitve[i] ?: RAZVRSTI_PRIPOROCENO
-    private fun jeVirViden(i: Int, kljuc: String) = kljuc !in zacasnoSkritiViri[i].orEmpty()
+    /** Vgrajeni viri (»vgrajen:...«) se ne uporabljajo vec (naloga 57, [MedijskiViri.VGRAJENI_SPLETNI_VIRI]). */
+    private fun jeVirViden(i: Int, kljuc: String) = kljuc !in zacasnoSkritiViri[i].orEmpty() &&
+        (MedijskiViri.VGRAJENI_SPLETNI_VIRI || !kljuc.startsWith(PREDPONA_VGRAJENEGA))
     private fun kljucVira(v: MedijskiViri.Vir) = "vir:${v.naslov}"
 
     /** Lokalni nacin bere samo MediaStore (notranja shramba in USB) in zato ne sprozi omrezja. */
@@ -1879,8 +1958,11 @@ class GlasbaActivity : OsActivity() {
             else filtrirani.map { d -> d.copy(skladbe = d.skladbe.filterNot { it.id in zeNaStrani }) }.filter { it.skladbe.isNotEmpty() }
         val vr = vVrste(zaBloke).map { v -> if (splosniDomov) v.copy(vse = razdelekBloka(v.naslov)) else v }; val c3 = android.os.SystemClock.uptimeMillis()
         val gl = glavaRazdelka(i, podatki); val c4 = android.os.SystemClock.uptimeMillis()
-        if (i == GLASBA && glasbaJezik.isNotEmpty() && vr.isEmpty()) narisi(zg + vr, opis(i), getString(R.string.os_jezik_ni_vsebine), gl)
-        else narisi(zg + vr, opis(i), glava = gl)
+        // Naloga 57: razdelek brez vsebine iz spletnih virov (koda nobenega ne doda sama) pod vsebino z naprav ponudi Dodaj vir.
+        val dodaj = if (vr.isEmpty() && i !in samoTaNaprava && i in setOf(DOMOV, GLASBA, VIDEO, RADIO)) listOf(Vrsta("", listOf(karticaDodajVir()))) else emptyList()
+        val brezVirov = dodaj.isNotEmpty() && brezSpletnihVirov()
+        if (i == GLASBA && glasbaJezik.isNotEmpty() && vr.isEmpty()) narisi(zg + vr + dodaj, opis(i), getString(R.string.os_jezik_ni_vsebine), gl)
+        else narisi(zg + vr + dodaj, if (brezVirov) getString(R.string.os_media_brez_virov) else opis(i), glava = gl)
         if (i == VIDEO) skociNaDodatek?.let { naslov ->
             val ime = Stremio.imeIzPredpomnilnika(naslov)
             if (ime != null) {
@@ -1892,7 +1974,7 @@ class GlasbaActivity : OsActivity() {
         }
         val c5 = android.os.SystemClock.uptimeMillis()
         if (si.safeer.tv.BuildConfig.DEBUG) android.util.Log.i("SafeerOsCas", "prikazi($i): filtri=${c1 - c0} zgoraj=${c2 - c1} vVrste=${c3 - c2} glava=${c4 - c3} narisi=${c5 - c4} ms, polic=${podatki.size}, kartic=${podatki.sumOf { it.skladbe.size }}")
-        if (i == TV_V_ZIVO) TvVZivo.osveziIkone(this) { osveziTvIkone() }
+        if (i == TV_V_ZIVO) osveziIkoneVgrajenih()
     }
 
     private fun opis(i: Int) = when (i) {
@@ -2121,12 +2203,31 @@ class GlasbaActivity : OsActivity() {
         var zadnjicVec = 0L
         /** Stanje ob zadnjem risanju po koncanem preverjanju (kartice, ali je gumb Nalozi vec): da ne risemo v krogu. */
         var narisano: Pair<List<String>, Boolean>? = null
+        /** Naloga 55: kandidati so le prvih zelja + [REZERVA_KANDIDATOV] ([vidniKataloga]); prirezani = za njimi je se kaj. */
+        var prirezani = false
+        /** Koliko naslovov [urejeni] od zacetka je zadnji izris pregledal (za vzorce knjiznic). */
+        var pregledanih = 0
+        /** Zadnja ureditev (odtis vhoda -> [urejeni]): enak vhod se ne razvrsca znova ob vsakem izrisu. */
+        var ureditev: Pair<List<Any>, List<Jamendo.Skladba>>? = null
+        /** Kdaj je bila mreza nazadnje narisana (uptime): dodane kartice se dopolnijo najvec vsakih [DOPOLNI_NAJVEC_MS]. */
+        var risanoOb = 0L
+        /** Uporabnik je kliknil Nalozi vec, medtem ko se okno se preverja: kartica pove, koliko naslovov se preverjamo. */
+        var prosiVec = false
+        /**
+         * Naloga 55b (lastnik, 22. 10. 2026: »Nalozi vec: takoj pokazi, preveri v ozadju«): strogo preverjenih je le prvih
+         * toliko mest okna (prva stran Filmov | Serij); naslednje strani se pokazejo takoj in se preverjajo v ozadju.
+         * Navaden katalog (Pokazi vse) ostane ves strog.
+         */
+        val strogoDo = if (tip.isNotBlank()) ZELJA_KARTIC else Int.MAX_VALUE
+        /** Kartica, ki je ze izpadla iz mreze, a ima izbiro (daljinec): ostane do premika izbire. */
+        var drzim = false
         /** Uporabnik hoce vec: okno se podaljsa za [korak] kartic, proracun poizvedb je nov. */
         fun vec(korak: Int) { zelja += korak; proracun = PRORACUN_PREVERJANJ; preverjenih.set(0); zadetkov.set(0); samodejno = 0 }
     }
 
     /** Stanje okna stroge mreze: v oknu je se kaj nepreverjenega; nekaj naslovov caka, ker dodatek omejuje poizvedbe; za oknom so se kandidati. */
-    private class StanjeMreze(val vOknu: Boolean, val premor: Boolean, val naprej: Boolean)
+    /** [nepreverjeniNaZaslonu]: na zaslonu so naslovi naslednjih strani, ki se niso preverjeni (naloga 55b). */
+    private class StanjeMreze(val vOknu: Boolean, val premor: Boolean, val naprej: Boolean, val nepreverjeniNaZaslonu: Boolean = false)
     /** Okno stroge mreze ([oknoMreze]): naslovi v oknu, ali so za njim se kandidati, koliko naslovov caka na dodatek v premoru. */
     private class Okno(val naslovi: List<Jamendo.Skladba>, val naprej: Boolean, val vPremoru: Int)
     private var odprtKatalog: OdprtKatalog? = null
@@ -2183,7 +2284,7 @@ class GlasbaActivity : OsActivity() {
                 // Uporabnik je medtem odsel drugam (drug razdelek, podstran, Nazaj): kataloga mu ne narisemo cez to, kar gleda.
                 if (razdelek != iz || podstrani.globina != odGlobine) return@post
                 if (katalogi.isEmpty()) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
-                odprtKatalog = OdprtKatalog(katalogi, vsi, preneseno, strani.any { it.size >= STRAN_KATALOGA_MIN }, naslov = naslov)
+                odprtKatalog = OdprtKatalog(katalogi, vsi, preneseno, katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.size, k.strani, STRAN_KATALOGA_MIN) }, naslov = naslov)
                 odprtKatalogIz = iz
                 narisiKatalog(naslov)
                 fokusNaPrvo()
@@ -2191,7 +2292,8 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
-    private fun narisiKatalog(naslov: String) {
+    /** [vnaprej]: izid [vidniKataloga], ce ga je klicatelj (umiri) ravnokar izracunal - ne racunamo ga dvakrat. */
+    private fun narisiKatalog(naslov: String, vnaprej: Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>>? = null) {
         val o = odprtKatalog ?: return
         o.naslov = naslov
         if (podstrani.odprta && podPodstranjo === o) return        // katalog pod odprto podstranjo: narisan bo ob vrnitvi
@@ -2199,20 +2301,31 @@ class GlasbaActivity : OsActivity() {
         // Cesar noben dodatek ne predvaja, ne kazemo; ostalo v ozadju preverimo (preveriMrezo). V strogem nacinu
         // (vidniKataloga) kartica pride na zaslon sele, ko vemo, da se da predvajati - nic se ne pokaze in spet skrije.
         val t0 = android.os.SystemClock.uptimeMillis()
-        val (kandidati, vsi) = vidniKataloga(o)
+        val (kandidati, vsi) = vnaprej ?: vidniKataloga(o)
         val t1 = android.os.SystemClock.uptimeMillis()
         val strogo = vsi.size != kandidati.size || strogaMreza(o)
         preveriMrezo(o, kandidati)
         val t2 = android.os.SystemClock.uptimeMillis()
-        o.narisani = vsi.map { it.id }
+        val noviId = vsi.map { it.id }
+        // Nalozi vec med preverjanjem: napis velja, dokler ne pride nova kartica ali se preverjanje okna ne konca.
+        if (o.prosiVec && (o.caka.get() == 0 || noviId.size > o.narisani.size)) o.prosiVec = false
+        o.narisani = noviId
+        o.risanoOb = android.os.SystemClock.uptimeMillis()
         // Ce nobenega naslova ne predvaja noben dodatek, "Nalozi vec" ne pomaga (naslednje strani bi izginile enako).
         // Vljudno preverjanje: kar je za oknom ali se ni preverjeno, caka na uporabnika (drsenje, Nalozi vec).
         val st = if (strogaMreza(o)) stanjeMreze(o, kandidati) else StanjeMreze(false, false, false)
         val seVec = o.seKaj || st.vOknu || st.naprej
         o.narisano = o.narisani to seVec
         val t3 = android.os.SystemClock.uptimeMillis()
-        val kartice = videi(vsi, naslov) + (if (seVec && (vsi.isNotEmpty() || (o.caka.get() == 0 && !o.nalagam))) listOf(Kartica(getString(R.string.os_media_nalozi_vec), "", "",
-            { vecMreze(o) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
+        // Kartica Nalozi vec po kliku med preverjanjem pove, da delamo (dodatek 22. 10. 2026: klik prej ni naredil nic vidnega).
+        val napisVec = if (o.prosiVec) getString(R.string.os_media_preverjam_se, o.caka.get()) else getString(R.string.os_media_nalozi_vec)
+        val kartice = videi(vsi, naslov) + (if (seVec && (vsi.isNotEmpty() || (o.caka.get() == 0 && !o.nalagam))) listOf(Kartica(napisVec, "", "",
+            { vecMreze(o) }, ikona = R.drawable.os_ikona_plus)) else emptyList()) +
+            // Naloga 57: prazna mreza brez cesar koli za preverjanje ponudi Dodaj vir.
+            (if (vsi.isEmpty() && !seVec && !o.nalagam && o.caka.get() == 0 && o.popolna) listOf(karticaDodajVir()) else emptyList()) +
+            // Naloga 57c: konec kataloga - kartica Nalozi vec ne izgine brez razlage; klik ponudi Dodaj vir.
+            (if (vsi.isNotEmpty() && !seVec && !o.nalagam && o.caka.get() == 0 && o.popolna) listOf(Kartica(getString(R.string.os_media_ni_vec_v_katalogu),
+                getString(R.string.os_mediji_dodaj), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus)) else emptyList())
         // Pod naslovom razdelka ni stevila kartic (lastnik, 3. 10. 2026) - samo, kadar se kaj nalaga ali ni nicesar.
         val opis = opisMreze(o, st, vsi.isEmpty())
         if (strogo) narociUmiri()
@@ -2247,7 +2360,11 @@ class GlasbaActivity : OsActivity() {
     private fun shraniVideoNacin(n: String) = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit().putString("video_nacin", n).apply()
     /** Izbrana zvrst in jezik ostaneta, dokler je aplikacija odprta (vrnitev v Video pokaze isto mrezo). */
     private var videoZvrst = ""
-    private var videoJezik = ""
+    /** Jezik mreze Filmi | Serije: privzeto anglescina (lastnik, 22. 10. 2026: tako govori vecina uporabnikov, manj nalaganja);
+     *  izbira uporabnika ostane shranjena ("" = vsi jeziki). */
+    private var videoJezik: String
+        get() = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString("video_jezik", "en") ?: "en"
+        set(v) { getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit().putString("video_jezik", v).apply() }
     /** Glasba: izbrani jezik besedila skladb (ISO 639-1); prazno = vsi jeziki. */
     private var glasbaJezik = ""
 
@@ -2262,18 +2379,22 @@ class GlasbaActivity : OsActivity() {
         val zvrst = Zvrsti.poKljucu(o.zvrst)
         delavec.execute {
             // Naslednja stran vsakega kataloga (skip = kolikor je ta katalog ze dal), vse hkrati.
-            val katalogi = o.katalogi.filter { (o.preneseno[it] ?: 0) > 0 }
+            // Katalog, ki je dal vsaj eno stran - in katalog, katerega dodatek prvic ni odgovoril (-1, npr. 503): poskusimo
+            // ga znova od zacetka (naloga 57c; prej je za ves obisk izpadel).
+            val katalogi = o.katalogi.filter { (o.preneseno[it] ?: 0) > 0 || o.preneseno[it] == -1 }
             val seznamJezika = if (o.jezikSeKaj) iskanjeDelavec.submit<Pair<List<Jamendo.Skladba>, Boolean>?> { try { naslovniJezika(o.jezik, o.tip, o.jezikOdmik) } catch (_: Exception) { null } } else null
-            val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, zvrst, o.preneseno[k] ?: 0) } catch (_: Exception) { 0 to emptyList() } } }
+            val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, zvrst, (o.preneseno[k] ?: 0).coerceAtLeast(0)).let { (n, l) -> n to vrstaIzKataloga(k, o.tip, l) } } catch (_: Exception) { 0 to emptyList() } } }
                 .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { 0 to emptyList<Jamendo.Skladba>() } }
             // Jezik za vse kataloge skupaj (isti naslov je v vec katalogih): eno vprasanje namesto dvanajstih.
             val izKatalogov = vJeziku(prepleti(strani.map { it.second }), o.jezik)
+            android.util.Log.i("SafeerOsMedia", "brskanje vec: katalogov=${katalogi.size}, strani=${strani.map { it.first }}, po filtru=${izKatalogov.size}, " +
+                "jezik=${o.jezik.isNotEmpty()}, zvrst=${o.zvrst.isNotEmpty()}")
             val izSeznama = try { seznamJezika?.get(30, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
             val nove = izSeznama?.first.orEmpty() + izKatalogov
             glavna.post {
                 o.nalagam = false
                 if (isFinishing || odprtKatalog !== o) return@post
-                katalogi.zip(strani).forEach { (k, v) -> o.preneseno[k] = (o.preneseno[k] ?: 0) + v.first }
+                katalogi.zip(strani).forEach { (k, v) -> o.preneseno[k] = if (v.first < 0) -1 else (o.preneseno[k] ?: 0).coerceAtLeast(0) + v.first }
                 if (seznamJezika != null) {
                     // Brez odgovora (izpad) ostanemo na isti strani seznama: naslednjic poskusimo znova.
                     if (izSeznama != null) { o.jezikOdmik += IzvirniJezik.STRAN_SEZNAMA; o.jezikSeKaj = izSeznama.second }
@@ -2284,7 +2405,7 @@ class GlasbaActivity : OsActivity() {
                 vsi += sveze
                 o.prazne = if (sveze.isEmpty()) o.prazne + 1 else 0
                 // Filter na nasi strani (zvrst, jezik): stran brez ustreznih naslovov se ni konec - po treh praznih nehamo.
-                o.seKaj = o.jezikSeKaj || (strani.any { it.first >= STRAN_KATALOGA_MIN } &&
+                o.seKaj = o.jezikSeKaj || (katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.first, k.strani, STRAN_KATALOGA_MIN) } &&
                     (sveze.isNotEmpty() || ((zvrst != null || o.jezik.isNotEmpty()) && o.prazne < 3)))
                 // Mreza se narise znova: ostanemo tam, kjer smo bili (ob gumbu Nalozi vec), ne na vrhu.
                 val y = drsnik.scrollY
@@ -2303,9 +2424,20 @@ class GlasbaActivity : OsActivity() {
      * Stran kataloga za izbrano zvrst: katalog, ki zvrst ponuja kot moznost, filtrira sam (streznik); pri katalogu brez
      * zvrsti stran filtriramo tu po metapodatkih. Vrne (koliko je dal katalog - za `skip`, kaj od tega ustreza).
      */
+    /**
+     * Naloga 57c: iz splosnega video kataloga (tip ni [tip]) gredo v mrezo Filmi | Serije samo filmi oz. serije - po
+     * vrsti vsebine ([SpletniVir.vrstaVsebine]), kot v razdelku Video. Katalog tipa [tip] ostane, kot je.
+     */
+    private fun vrstaIzKataloga(k: Stremio.Katalog, tip: String, l: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
+        if (tip.isBlank() || k.tip == tip) return l
+        val vrsta = if (tip == "movie") SpletniVir.FILM else SpletniVir.SERIJA
+        return l.filter { SpletniVir.vrstaVsebine(it) == vrsta }
+    }
+
     private fun straniKataloga(k: Stremio.Katalog, zvrst: Zvrsti.Zvrst?, skip: Int = 0): Pair<Int, List<Jamendo.Skladba>> {
         val moznost = zvrst?.let { Zvrsti.moznost(it, k.zvrsti) }.orEmpty()
-        val stran = Stremio.katalog(k, skip = skip, zvrst = moznost)
+        // Izpad (dodatek ni odgovoril, 503 ...) je -1: ni konec kataloga, naslednji »Nalozi vec« ga vprasa znova (naloga 57c).
+        val stran = Stremio.katalogAliIzpad(k, skip = skip, zvrst = moznost) ?: return -1 to emptyList()
         return stran.size to (if (zvrst == null || moznost.isNotEmpty()) stran else stran.filter { zvrst.ustreza(it) })
     }
 
@@ -2370,10 +2502,14 @@ class GlasbaActivity : OsActivity() {
             // 1) Katalogi dodatkov te vrste (hitro, vsi hkrati); ob izbrani zvrsti brez katalogov, ki zvrsti ne poznajo in zahtevajo kaj drugega (npr. leto).
             val dodatki = MedijskiViri.vsi(this).filter { it.jeStremio && jeVirViden(VIDEO, kljucVira(it)) }.map { it.naslov }
             val katalogi = (if (dodatki.isEmpty()) emptyList() else try { Stremio.prikazniKatalogi(Stremio.zKatalogom(dodatki)) } catch (_: Exception) { emptyList() })
-                .filter { it.tip == tip && (zvrst == null || Zvrsti.moznost(zvrst, it.zvrsti) != null || "genre" !in it.obvezni) }.take(12)
+                // Naloga 57c: tudi splosni video katalogi uporabnikovih dodatkov (tip ni »movie«/»series«, npr. kanali, zbirke) -
+                // iz njih gredo v mrezo filmi oz. serije (po vrsti vsebine, kot v razdelku Video). Do 57 je mrezo polnila Cinemeta.
+                .filter { (it.tip == tip || Stremio.razredKataloga(it) == Stremio.VIDEO) && (zvrst == null || Zvrsti.moznost(zvrst, it.zvrsti) != null || "genre" !in it.obvezni) }
+                .sortedBy { if (it.tip == tip) 0 else 1 }.take(12)
             // Izbran jezik: naslovi v tem jeziku po prepoznavnosti (Wikidata) - splosni katalogi jih na prvih straneh skoraj
             // nimajo. Anglescine je v katalogih dovolj; ob izbrani zvrsti ostanejo katalogi (seznam zvrsti ne pozna).
-            val seznamJezika = if (jezik.isNotEmpty() && jezik != "en" && zvrst == null)
+            // Seznam naslovov jezika gre skozi katalog Cinemeta (Stremio.vnosPoImdb): samo, ce ga ima uporabnik (naloga 57).
+            val seznamJezika = if (jezik.isNotEmpty() && jezik != "en" && zvrst == null && (MedijskiViri.VGRAJENI_SPLETNI_VIRI || dodatki.any { Stremio.jeCinemeta(it) }))
                 iskanjeDelavec.submit<Pair<List<Jamendo.Skladba>, Boolean>?> { try { naslovniJezika(jezik, tip, 0) } catch (_: Exception) { null } } else null
             // Filmi v javni lasti v izbranem jeziku in zvrsti: izbere jih ze Internet Archive (vecina nima jezika ali zvrsti v
             // podatkih, zato jih filter na nasi strani izloci - prazna mreza pri »Komedija · Anglescina«, lastnik 10. 10. 2026).
@@ -2391,7 +2527,7 @@ class GlasbaActivity : OsActivity() {
                     }
                     r
                 } else null
-            val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, zvrst) } catch (_: Exception) { 0 to emptyList() } } }
+            val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, zvrst).let { (n, l) -> n to vrstaIzKataloga(k, tip, l) } } catch (_: Exception) { 0 to emptyList() } } }
                 .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { 0 to emptyList<Jamendo.Skladba>() } }
             // Jezik za vse kataloge skupaj (isti naslov je v vec katalogih): eno vprasanje namesto dvanajstih.
             val vJezikuKatalogov = vJeziku(prepleti(strani.map { it.second }), jezik)
@@ -2417,6 +2553,9 @@ class GlasbaActivity : OsActivity() {
                 try { MedijskiPredpomnilnik.shraniPolice(this, kljuc, listOf(Triple(naslov, true, vsi))) } catch (_: Exception) { }
             }
             val vsi = zdruzi(znane?.let { osnova(it, if (popolne) VSE_VIDEO else null) }.orEmpty())
+            // Naloga 57c: kje se naslovi izgubijo (TV 22. 10.: katalogi 5310 kartic, mreza 102) - po korakih.
+            android.util.Log.i("SafeerOsMedia", "brskanje mreza: katalogov=${katalogi.size} (${katalogi.count { it.tip == tip }} tipa $tip), " +
+                "strani=${strani.map { it.first }}, iz katalogov=${izKatalogov.size}, popolne=$popolne, skupaj=${vsi.size}, jezik=${jezik.isNotEmpty()}, zvrst=${zvrst != null}")
             if (popolne) shrani(vsi)
             glavna.post {
                 if (isFinishing || odprtKatalog !== o) return@post
@@ -2425,7 +2564,7 @@ class GlasbaActivity : OsActivity() {
                 // Seznam jezika: brez odgovora (izpad) ga »Naloži več« vpraša znova od zacetka.
                 o.jezikOdmik = if (izSeznama != null) IzvirniJezik.STRAN_SEZNAMA else 0
                 o.jezikSeKaj = seznamJezika != null && (izSeznama == null || izSeznama.second)
-                val seKaj = strani.any { it.first >= STRAN_KATALOGA_MIN } || o.jezikSeKaj
+                val seKaj = katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.first, k.strani, STRAN_KATALOGA_MIN) } || o.jezikSeKaj
                 // Dokler ne poznamo vseh kartic razdelka (drugi korak), ostane na zaslonu tudi, kar je mreza pokazala iz
                 // predpomnilnika (filmi javne lasti ...): sicer bi izginilo in se cez nekaj sekund spet pojavilo.
                 val nove = if (popolne) {
@@ -2484,7 +2623,7 @@ class GlasbaActivity : OsActivity() {
             o.katalogi = katalogi
             katalogi.zip(strani).forEach { (k, v) -> o.preneseno[k] = v.first }
             o.vsi.clear(); o.vsi += vsi
-            o.seKaj = strani.any { it.first >= STRAN_KATALOGA_MIN }
+            o.seKaj = katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.first, k.strani, STRAN_KATALOGA_MIN) }
             o.popolna = true
             o.nalagam = false
             narisiKatalog(naslov)
@@ -2861,7 +3000,7 @@ class GlasbaActivity : OsActivity() {
         if (odgovor == null) v.izpad = true
         val stran = odgovor.orEmpty()
         v.dal += stran.size
-        if (stran.size < STRAN_KATALOGA_MIN) v.konec = true
+        if (odgovor == null || !OsPravila.katalogImaVec(stran.size, v.katalog.strani, STRAN_KATALOGA_MIN)) v.konec = true
         // Ime brez tehnicnih pripon seznama (»(720p)«): isti kanal v dveh locljivostih je ena kartica.
         return stran.map { it.copy(naslov = KanaliPravila.imeKanala(it.naslov)) }
     }
@@ -3159,7 +3298,7 @@ class GlasbaActivity : OsActivity() {
         }
         val brezIzbire = m.zvrst.isEmpty() && m.jezik.isEmpty()
         val krajevno = resources.configuration.locales[0]
-        val vgrajeni = (try { TvVZivo.kanali() } catch (_: Exception) { emptyList() })
+        val vgrajeni = (if (!jeVirViden(TV_V_ZIVO, VIR_TV)) emptyList() else try { TvVZivo.kanali() } catch (_: Exception) { emptyList() })
             .filter { (m.zvrst.isEmpty() || it.zvrst == m.zvrst) && (m.jezik.isEmpty() || it.jezik == m.jezik) }
         // Priporoceno: priljubljeni, uradni kanali uporabnikove drzave in jezika, kanali dodatkov v njegovem jeziku, ostali uradni, nato vse ostalo.
         val (doma, drugod) = vgrajeni.partition { it.drzava == krajevno.country.uppercase(Locale.ROOT) || it.jezik == krajevno.language }
@@ -3221,6 +3360,7 @@ class GlasbaActivity : OsActivity() {
         val cakamDodatke = (m.nalagam && m.kanali.isEmpty() && m.domaci.isEmpty() && stremioNaslovi().isNotEmpty()) || caka
         val opis = when {
             cakamDodatke -> getString(R.string.os_glasba_nalagam)
+            prikaz.isEmpty() && brezSpletnihVirov() -> getString(R.string.os_media_brez_virov)
             prikaz.isEmpty() -> getString(R.string.os_tv_ni_kanalov)
             preskocenih > 0 -> getString(R.string.os_tv_brez_odgovora)
             else -> ""
@@ -3243,12 +3383,13 @@ class GlasbaActivity : OsActivity() {
         KANALI_RED["${m.kljuc}|${razvrstitev(TV_V_ZIVO)}"] = m.narisani
         // (tvIkone ne praznimo: pogledi vgrajenih kanalov ostanejo isti in morajo ostati prijavljeni za osvezitev ikon.)
         val kartice = videi(prikaz, razlicice = m.razlicice) + (if (vec) listOf(Kartica(getString(R.string.os_media_nalozi_vec), "", "",
-            { vecKanalov(m) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
+            { vecKanalov(m) }, ikona = R.drawable.os_ikona_plus)) else emptyList()) +
+            (if (prikaz.isEmpty() && !cakamDodatke && !m.nalagam) listOf(karticaDodajVir()) else emptyList())
         pokaziMrezo(m, Vrsta("", kartice, video = true, mreza = true, kanali = true), opis,
             "${m.zvrst}|${m.jezik}|${razvrstitev(TV_V_ZIVO)}|$napisi|${ozekZaslon()}") {
             (if (vlc) emptyList() else listOf(razdelkiVrstica(TV_V_ZIVO))) + listOf(kanaliIzbire(m))
         }
-        TvVZivo.osveziIkone(this) { osveziTvIkone() }
+        osveziIkoneVgrajenih()
     }
 
     /**
@@ -3265,7 +3406,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun poljaKanalov(m: MrezaKanalov): List<PoljeIzbire> {
         val f = FILTRI_KANALOV
-        val vgrajeni = try { TvVZivo.kanali() } catch (_: Exception) { emptyList() }
+        val vgrajeni = if (!jeVirViden(TV_V_ZIVO, VIR_TV)) emptyList() else try { TvVZivo.kanali() } catch (_: Exception) { emptyList() }
         // Zvrsti: znane kategorije po stalnem vrstnem redu, nato skupine kanalov z imenom, kot ga poda dodatek, na koncu »Ostalo«.
         val znane = (f?.zvrsti.orEmpty().filter { it.ime.isEmpty() }.map { it.kljuc } + vgrajeni.map { it.zvrst }).toSet()
         val zvrsti = KanaliPravila.KLJUCI_KATEGORIJ.filter { it in znane && it != "ostalo" }.map { it to imeKategorije(it) } +
@@ -3438,7 +3579,7 @@ class GlasbaActivity : OsActivity() {
             iskanjeDelavec.submit<List<Jamendo.Skladba>> {
                 val stran = try { Stremio.katalog(v.katalog, skip = v.dal) } catch (_: Exception) { emptyList() }
                 v.dal += stran.size
-                if (stran.size < STRAN_KATALOGA_MIN) v.konec = true
+                if (!OsPravila.katalogImaVec(stran.size, v.katalog.strani, STRAN_KATALOGA_MIN)) v.konec = true
                 stran
             }
         } catch (_: java.util.concurrent.RejectedExecutionException) { null }
@@ -3546,16 +3687,18 @@ class GlasbaActivity : OsActivity() {
         val opis = when {
             vsi.isEmpty() && m.nalagam -> getString(R.string.os_glasba_nalagam)
             vsi.isEmpty() && !radio && glasbaJezik.isNotEmpty() -> getString(R.string.os_jezik_ni_vsebine)
+            vsi.isEmpty() && brezSpletnihVirov() -> getString(R.string.os_media_brez_virov)
             vsi.isEmpty() -> getString(R.string.os_glasba_prazno)
             else -> ""
         }
         val vec = m.seKaj && !m.nalagam && vsi.isNotEmpty()
+        val dodaj = if (vsi.isEmpty() && !m.nalagam) listOf(karticaDodajVir()) else emptyList()
         val podpis = "${vsi.map { it.id }.hashCode()}|$vec|$opis|${razvrstitev(m.razdelek)}|${vsebina.width}"
         if (podpis == m.podpis) { if (stanje.text.toString() != opis) stanje.text = opis; return }
         m.podpis = podpis
         m.narisani = vsi.map { kljucVMrezi(it) }
         val kartice = (if (videospoti) videi(vsi) else skladbe(vsi)) + (if (vec) listOf(Kartica(getString(R.string.os_media_nalozi_vec), "", "",
-            { naloziVecMreze(m) }, ikona = R.drawable.os_ikona_plus)) else emptyList())
+            { naloziVecMreze(m) }, ikona = R.drawable.os_ikona_plus)) else emptyList()) + dodaj
         pokaziMrezo(m, Vrsta("", kartice, video = videospoti, mreza = true, kanali = radio, slicice = videospoti, skladbe = !radio && !videospoti), opis,
             "${m.kljuc}|${razvrstitev(m.razdelek)}|${ozekZaslon()}") {
             (if (vlc) emptyList() else listOf(razdelkiVrstica(m.razdelek))) + listOf(if (radio) radioIzbire() else glasbaIzbire())
@@ -3718,7 +3861,7 @@ class GlasbaActivity : OsActivity() {
             TV_V_ZIVO -> listOf(VirIzbire(VIR_TV, getString(R.string.os_mediji_tv_v_zivo))) +
                 uporabniski.filter { it.jeStremio }.map { VirIzbire(kljucVira(it), Stremio.imeIzPredpomnilnika(it.naslov) ?: it.ime) }
             else -> emptyList()
-        }.distinctBy { it.kljuc }
+        }.distinctBy { it.kljuc }.filter { MedijskiViri.VGRAJENI_SPLETNI_VIRI || !it.kljuc.startsWith(PREDPONA_VGRAJENEGA) }
     }
 
     /** Ena kartica v glavi odpre skupni dialog; povzetek pove trenutno aktivni pogled. */
@@ -4199,10 +4342,15 @@ class GlasbaActivity : OsActivity() {
             Vir("tv", if (televizor) R.drawable.os_ikona_zaslon else R.drawable.os_ikona_naprava, osBarva(R.color.os_mint),
                 getString(if (televizor) R.string.os_media_ta_tv else R.string.os_media_ta_naprava), getString(R.string.os_media_ta_tv_opis), datoteke),
             Vir("link", R.drawable.os_ikona_racunalnik, 0xFF8FA8FF.toInt(), getString(R.string.os_media_link), getString(R.string.os_media_link_opis), datoteke),
-            Vir("radio", R.drawable.os_ikona_radio, 0xFFFF9580.toInt(), getString(R.string.os_mediji_postaje),
-                getString(R.string.os_media_stevilo_prilj, MedijskiViri.priljubljene(this).count { it.radio }), razdelek(RADIO)),
-            Vir("peertube", R.drawable.os_ikona_video, 0xFFFF9580.toInt(), "PeerTube",
-                getString(R.string.os_media_stevilo_streznikov, MedijskiViri.streznikiPeerTube(this).size), razdelek(VIDEO)),
+        ) + listOfNotNull(
+            // Naloga 57: postaje in PeerTube nista vec vgrajena vira - ploscici ostaneta, ce ima uporabnik svoje postaje
+            // (priljubljene) oziroma svoje streznike PeerTube.
+            MedijskiViri.priljubljene(this).count { it.radio }.takeIf { it > 0 || MedijskiViri.VGRAJENI_SPLETNI_VIRI }?.let { n ->
+                Vir("radio", R.drawable.os_ikona_radio, 0xFFFF9580.toInt(), getString(R.string.os_mediji_postaje),
+                    getString(R.string.os_media_stevilo_prilj, n), razdelek(RADIO)) },
+            MedijskiViri.streznikiPeerTube(this).size.takeIf { it > 0 }?.let { n ->
+                Vir("peertube", R.drawable.os_ikona_video, 0xFFFF9580.toInt(), "PeerTube",
+                    getString(R.string.os_media_stevilo_streznikov, n), razdelek(VIDEO)) },
         ) + MedijskiViri.vgrajeniPeerTube(this).map { s ->
             // Vgrajeni strezniki PeerTube so viri kot vsi drugi: zadrzan OK -> Izbrisi vir (nazaj z Dodaj vir).
             val v = MedijskiViri.vgrajenPeerTubeVir(s)
@@ -4215,7 +4363,9 @@ class GlasbaActivity : OsActivity() {
                 // Dodatek: ime iz manifesta (Cinemeta, Torrentio ...) in samo streznik - naslov ima lahko kljuc storitve.
                 0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, when {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
-                    v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "")
+                    // Naloga 57d: dodatek, ki zaporedoma ne odgovarja, ima oznako (izgine sama, ko spet odgovori).
+                    v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "") +
+                        (if (Stremio.neOdgovarja(v.naslov)) " · " + getString(R.string.os_mediji_ne_odgovarja) else "")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
                 }, {
@@ -4848,18 +4998,21 @@ class GlasbaActivity : OsActivity() {
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
         val izSeznamov = MedijskiViri.iskanjeVSeznamih(this, beseda)
         val torrentZaVzorec = torrentMeja()
+        // Naloga 57: vgrajeni spletni viri (Jamendo, Radio Browser, imenik podkastov, Archive.org, TuneIn, kanali TV v zivo)
+        // ne iscejo vec - iscejo uporabnikovi viri in naprave.
+        val vg = MedijskiViri.VGRAJENI_SPLETNI_VIRI
         val opravila = listOf<() -> Any>(
-            { try { Jamendo.isciSkladbe(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!vg) emptyList<Jamendo.Skladba>() else try { Jamendo.isciSkladbe(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try { PeerTube.isci(strezniki, beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
-            { try { Radio.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
-            { try { Jamendo.isciIzvajalce(beseda) } catch (_: Exception) { emptyList<Jamendo.Izvajalec>() } },
+            { if (!vg) emptyList<Jamendo.Skladba>() else try { Radio.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!vg) emptyList<Jamendo.Izvajalec>() else try { Jamendo.isciIzvajalce(beseda) } catch (_: Exception) { emptyList<Jamendo.Izvajalec>() } },
             { try { KrajevneDatoteke.najdi(this, beseda) } catch (_: Exception) { emptyList<KrajevneDatoteke.Najdeno>() } },
             { isciNaNapravah(naprave, beseda) },
-            { try { Podkasti.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
-            { try { Arhiv.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!vg) emptyList<Jamendo.Skladba>() else try { Podkasti.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!vg) emptyList<Jamendo.Skladba>() else try { Arhiv.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { SpletniVir.isciVse(this, spletniViri, beseda) },
-            { try { JavnaLast.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
-            { try { TuneIn.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!vg) emptyList<Jamendo.Skladba>() else try { JavnaLast.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!vg) emptyList<Jamendo.Skladba>() else try { TuneIn.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try {
                 // Zasebne kategorije kanalov morajo biti znane, preden zadetki dodatkov pridejo na zaslon: iskanje po imenu v
                 // katalogu »vse« bi sicer nastelo tudi zasebne kanale (do zdaj jih je poznalo sele, ko je uporabnik v tem zagonu
@@ -4872,7 +5025,7 @@ class GlasbaActivity : OsActivity() {
                     .also { vzorciKnjizniceZdaj(it, torrentZaVzorec) }
             } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             // Vgrajeni kanali TV v zivo (seznam je v aplikaciji - brez omrezja).
-            { try { TvVZivo.poDrzavah().flatMap { it.second }.filter { Stremio.ujema(it.naslov, beseda) } } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!vg) emptyList<Jamendo.Skladba>() else try { TvVZivo.poDrzavah().flatMap { it.second }.filter { Stremio.ujema(it.naslov, beseda) } } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
         )
         // Iskanje v zasebnem dodatku vprasa samo ta dodatek (opravilo 11); ostali viri ostanejo prazni.
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = if (samoDodatek != null && i != 11) emptyList<Any>() else f() } }
@@ -5006,7 +5159,9 @@ class GlasbaActivity : OsActivity() {
                 if (koncno) odpriNatancnega(beseda, lestvica)
                 if (podpis == podpisZadetkov && !prvic) { stanje.text = opisZdaj; return@post }
                 podpisZadetkov = podpis
-                narisi(vrste, opisZdaj)
+                // Brez spletnih virov: jasno sporocilo (iskali smo le po napravah), ne »nic nisem nasel« (naloga 57).
+                val brezVirov = MedijskiViri.vsi(this).isEmpty()
+                narisi(vrste, opisZdaj, prazno = getString(if (brezVirov && koncno) R.string.os_media_isci_brez_virov else R.string.os_glasba_prazno))
                 if (prvic) fokusNaPrvo()
             }
             return true
@@ -5258,6 +5413,15 @@ class GlasbaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ viri
 
+    /**
+     * Naloga 57: koda ne doda nobenega spletnega vira sama ([MedijskiViri.VGRAJENI_SPLETNI_VIRI]), zato prazna mreza ali
+     * razdelek ponudi Dodaj vir (obstojeci tok [dodajVir]). Vsebina z naprav (ta naprava, Link) je pokazana pred tem.
+     */
+    private fun karticaDodajVir() = Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "",
+        { dodajVir() }, ikona = R.drawable.os_ikona_plus)
+    /** Uporabnik nima nobenega spletnega vira (dodatka, streznika, toka, strani). */
+    private fun brezSpletnihVirov() = MedijskiViri.vsi(this).isEmpty()
+
     private fun dodajVir() {
         val aplikacije = try { SpletneAplikacije.seznam(this) } catch (_: Throwable) { emptyList() }
             .filter { MedijskiViri.obstojeciVir(this, it.url) == null }
@@ -5484,15 +5648,40 @@ class GlasbaActivity : OsActivity() {
                 stremio.requestFocus()
                 return@setOnClickListener
             }
-            val v = MedijskiViri.dodajDodatek(this, MedijskiViri.STREMIO, naslov, "")
-            Toast.makeText(this, getString(R.string.os_mediji_dodatki_shranjen, v.ime), Toast.LENGTH_SHORT).show()
-            okno.dismiss()
-            SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); SEZNAMI.remove(TV_V_ZIVO); izberi(VIRI)
-            // Kartica dodatka pokaze ime iz manifesta (ne naslova streznika), brz ko ga preberemo.
-            if (Stremio.imeIzPredpomnilnika(v.naslov) == null) delavec.execute {
-                try { Stremio.zaseben(v.naslov) } catch (_: Exception) { }
-                glavna.post { if (!isFinishing && razdelek == VIRI && odprtKatalog == null && !podstrani.odprta && Stremio.imeIzPredpomnilnika(v.naslov) != null) izberiNaMestu(VIRI) }
+            // Naloga 57d (lastnik: »Streznike, ki ne odgovarjajo, bi morali zavracati ze pri vnosu«): pred shranitvijo
+            // mora manifest odgovoriti (200, veljaven JSON; spec streznik dobi se en poskus). Sicer vira ne shranimo.
+            val gumb = okno.getButton(AlertDialog.BUTTON_POSITIVE)
+            gumb.isEnabled = false
+            napakaVrstica.text = getString(R.string.os_mediji_preverjam)
+            napakaVrstica.visibility = View.VISIBLE
+            delavec.execute {
+                val koda = try { Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
+                glavna.post {
+                    if (isFinishing || !okno.isShowing) return@post
+                    gumb.isEnabled = true
+                    if (koda != 200) {
+                        napakaVrstica.text = if (koda > 0) getString(R.string.os_mediji_streznik_ne_odgovarja, koda) else getString(R.string.os_mediji_streznik_ne_odgovarja_brez)
+                        gumb.text = getString(R.string.os_mediji_poskusi_znova)
+                        gumb.requestFocus()
+                        return@post
+                    }
+                    napakaVrstica.visibility = View.GONE
+                    shraniDodatek(okno, naslov)
+                }
             }
+        }
+    }
+
+    /** Preverjen dodatek shrani in zapre okno (naloga 57d: samo po uspesni preverbi [Stremio.preveriObVnosu]). */
+    private fun shraniDodatek(okno: AlertDialog, naslov: String) {
+        val v = MedijskiViri.dodajDodatek(this, MedijskiViri.STREMIO, naslov, "")
+        Toast.makeText(this, getString(R.string.os_mediji_dodatki_shranjen, v.ime), Toast.LENGTH_SHORT).show()
+        okno.dismiss()
+        SEZNAMI.remove(DOMOV); SEZNAMI.remove(VIDEO); SEZNAMI.remove(TV_V_ZIVO); izberi(VIRI)
+        // Kartica dodatka pokaze ime iz manifesta (ne naslova streznika), brz ko ga preberemo.
+        if (Stremio.imeIzPredpomnilnika(v.naslov) == null) delavec.execute {
+            try { Stremio.zaseben(v.naslov) } catch (_: Exception) { }
+            glavna.post { if (!isFinishing && razdelek == VIRI && odprtKatalog == null && !podstrani.odprta && Stremio.imeIzPredpomnilnika(v.naslov) != null) izberiNaMestu(VIRI) }
         }
     }
 
@@ -5511,6 +5700,7 @@ class GlasbaActivity : OsActivity() {
             if (noviViri) {
                 videniViri = SeznamiSink.viriSpremenjeni
                 SEZNAMI.clear(); BRSKANJE.clear(); VSE_VIDEO = null
+                nasloviIzrisa = null
                 // Odprta mreza Filmi | Serije se nalozi znova z novimi dodatki.
                 odprtKatalog?.takeIf { it.tip.isNotBlank() && razdelek == VIDEO }?.let { o -> odpriBrskanje(o.tip, o.zvrst, o.jezik); return@uskladi }
             }
@@ -5737,7 +5927,7 @@ class GlasbaActivity : OsActivity() {
             if (razdelek != odRazdelka || podstrani.globina != odGlobine) return@post
             if (vsi.isEmpty() && polica.isEmpty()) { stanje.text = getString(R.string.os_glasba_prazno); return@post }
             odprtKatalogIz = razdelek
-            odprtKatalog = OdprtKatalog(katalogi, vsi, preneseno, strani.any { it.size >= STRAN_KATALOGA_MIN }, naslov = ime, dodatek = naslov)
+            odprtKatalog = OdprtKatalog(katalogi, vsi, preneseno, katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.size, k.strani, STRAN_KATALOGA_MIN) }, naslov = ime, dodatek = naslov)
                 .apply { this.prenosi = polica }
             narisiKatalog(ime)
             fokusNaPrvo()
@@ -5752,6 +5942,18 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun stremioNaslovi() = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
+
+    /**
+     * [stremioNaslovi] za izris mreze: en izracun na izris (naloga 55: ~11 ms na klic - MedijskiViri.vsi bere shranjene
+     * vire in spletne aplikacije - klican pa je bil v vsakem izrisu veckrat: strogaMreza, oknoMreze, preveriMrezo).
+     * Velja [IZRIS_VELJA_MS]; sprememba virov ga izprazni takoj.
+     */
+    @Volatile private var nasloviIzrisa: Pair<Long, List<String>>? = null
+    private fun nasloviZaIzris(): List<String> {
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        nasloviIzrisa?.let { (cas, n) -> if (zdaj - cas in 0 until IZRIS_VELJA_MS) return n }
+        return stremioNaslovi().also { nasloviIzrisa = zdaj to it }
+    }
 
     /**
      * Tokovi iz vseh dodatkov hkrati (vsak dodatek svoja nit, skupaj najvec 12 s): cakanje je toliko, kot traja
@@ -5939,13 +6141,25 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /**
+     * [torrentMeja] za izris mreze: en izracun za ves izris in nekaj sekund po njem (naloga 55: 14-34 ms na klic -
+     * prostor na disku in naprave v Linku - in klic je bil v vsakem izrisu veckrat). Sprememba v Linku gre mimo
+     * predpomnilnika ([torrentSeJeSpremenil]).
+     */
+    @Volatile private var mejaIzrisa: Pair<Long, Long>? = null
+    private fun mejaZaIzris(): Long {
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        mejaIzrisa?.let { (cas, m) -> if (zdaj - cas in 0 until IZRIS_VELJA_MS) return m }
+        return torrentMeja().also { mejaIzrisa = zdaj to it }
+    }
+
     private fun torrentSteje() = torrentMeja() > 0L
 
     /** Dodatki za [Razpolozljivost.pripravi]: naslov in ali dodatek daje tokove (null, dokler manifesta ne poznamo). */
-    private fun dodatkiZaRazpolozljivost() = stremioNaslovi().map { it to Stremio.dajeTokove(it) }
+    private fun dodatkiZaRazpolozljivost() = nasloviZaIzris().map { it to Stremio.dajeTokove(it) }
 
     /** Kaj naprava zmore s torrenti, za dnevnik in za zaznavo spremembe (zapisi razpolozljivosti veljajo za vse nacine). */
-    private fun nacinTorrenta(meja: Long = torrentMeja()) = when (meja) {
+    private fun nacinTorrenta(meja: Long = mejaZaIzris()) = when (meja) {
         Long.MAX_VALUE -> ""
         0L -> "brez"
         else -> "do" + meja / (256L * 1024 * 1024)
@@ -5962,6 +6176,7 @@ class GlasbaActivity : OsActivity() {
     /** Pomocnik je prisel v krog ali ga zapustil: kar se da predvajati, je zdaj drugo - mreza se uredi takoj, ne cez ure. */
     private fun torrentSeJeSpremenil() {
         val meja = torrentMeja()
+        mejaIzrisa = android.os.SystemClock.uptimeMillis() to meja
         val zdaj = nacinTorrenta(meja)
         val prej = torrentPrej
         torrentPrej = zdaj
@@ -6028,7 +6243,7 @@ class GlasbaActivity : OsActivity() {
         return niti
     }
 
-    private fun vzorciKnjiznice(vsi: List<Jamendo.Skladba>) { zacniVzorce(vsi, { torrentMeja() }, obvesti = true) }
+    private fun vzorciKnjiznice(vsi: List<Jamendo.Skladba>) { zacniVzorce(vsi, { mejaZaIzris() }, obvesti = true) }
 
     /** Kot [vzorciKnjiznice], a klic iz ozadja pocaka na izid (najvec [rokMs]): seznam pride na zaslon ze s pravimi karticami. */
     private fun vzorciKnjizniceZdaj(vsi: List<Jamendo.Skladba>, torrent: Long, rokMs: Long = 5_000) {
@@ -6109,13 +6324,13 @@ class GlasbaActivity : OsActivity() {
     private val obMrtvemKanalu: (String) -> Unit = { glavna.post { if (!isFinishing) umakniMrtvega() } }
 
     /** Mrezo narisemo znova brez umaknjenih kartic; drsnik in izbira (daljinec) ostaneta, kjer sta bila. */
-    private fun osveziMrezo(o: OdprtKatalog) {
+    private fun osveziMrezo(o: OdprtKatalog, vnaprej: Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>>? = null) {
         if (odprtKatalog !== o || isFinishing) return
         // Mreza se dopolni na mestu ([pokaziMrezo]): polozaj in izbira ostaneta sama od sebe. Po polnem risanju (druga
         // glava, sirina) izbiro vrne narisi po oznaki kartice, polozaj pa tukaj.
         val y = drsnik.scrollY
         val prej = narisanaMreza
-        narisiKatalog(o.naslov)
+        narisiKatalog(o.naslov, vnaprej)
         if (narisanaMreza !== prej || prej == null) drsnik.post { drsnik.scrollTo(0, y) }
     }
 
@@ -6141,20 +6356,36 @@ class GlasbaActivity : OsActivity() {
             if (o.narisani.isNotEmpty() && android.os.SystemClock.uptimeMillis() - zadnjiDotik < 2_500) { glavna.postDelayed(this, 1_000); return }
             umiriNarocen = false
             // Znova risemo samo, ce bi bila mreza drugacna (kartica, ki je ni vec mogoce predvajati, ali nova preverjena).
-            val vidni = vidniKataloga(o).second.map { it.id }
+            // vidniKataloga enkrat na krog (naloga 55: prej do stirikrat - tu, v narisiKatalog, preveriMrezo, poPreverjanju).
+            val izracun = vidniKataloga(o)
+            val vidni = izracun.second.map { it.id }
             val drugace = vidni != o.narisani
-            if (drugace || o.caka.get() == 0) android.util.Log.i("SafeerOsMedia", "mreza: vidnih=${vidni.size}, narisanih=${o.narisani.size}, vseh=${o.vsi.size}, caka=${o.caka.get()}, ozadje=${o.ozadje.get()}, " +
+            // Lastnikova zasnova (naloga 55): prvi zaslon takoj, nato se mreza dopolni enkrat, ko je okno preverjeno, ali
+            // najvec vsakih DOPOLNI_NAJVEC_MS - ne ob vsakem odgovoru dodatka. Izginula kartica gre z zaslona takoj.
+            val odRisanja = android.os.SystemClock.uptimeMillis() - o.risanoOb
+            // Napis »Preverjam ...« na kartici Nalozi vec ne sme ostati, ko je preverjanje okna koncano.
+            val risem = (drugace && OsPravila.risiMrezoZdaj(o.narisani, vidni, PRVI_ZASLON, o.caka.get() > 0, odRisanja, DOPOLNI_NAJVEC_MS)) ||
+                (o.prosiVec && o.caka.get() == 0)
+            if (drugace || o.caka.get() == 0) android.util.Log.i("SafeerOsMedia", "mreza: vidnih=${vidni.size}, narisanih=${o.narisani.size}, vseh=${o.vsi.size}, kandidatov=${izracun.first.size}, caka=${o.caka.get()}, ozadje=${o.ozadje.get()}, " +
                 "nalagam=${o.nalagam}, seKaj=${o.seKaj}, okno=${o.zelja}, proracun=${o.proracun}, preverjenih=${o.preverjenih.get()}, zadetkov=${o.zadetkov.get()}, " +
-                "samodejno=${o.samodejno}, strogo=${strogaMreza(o)}, torrent=${nacinTorrenta().ifEmpty { "vse" }}, risem=$drugace")
+                "samodejno=${o.samodejno}, strogo=${strogaMreza(o)}, torrent=${nacinTorrenta().ifEmpty { "vse" }}, risem=$risem")
             // Risanje samo nadaljuje preverjanje (narisiKatalog -> preveriMrezo); brez risanja ga nadaljujemo tu.
-            if (drugace) osveziMrezo(o) else if (strogaMreza(o)) preveriMrezo(o, vidniKataloga(o).first)
-            poPreverjanju(o)
+            if (risem) osveziMrezo(o, izracun) else {
+                if (strogaMreza(o)) preveriMrezo(o, izracun.first)
+                // Odlozeno dopolnjevanje: pogledamo znova cez dobro sekundo (okno je morda ze preverjeno), najkasneje ob roku.
+                if (drugace) { umiriNarocen = true; glavna.postDelayed(this, (DOPOLNI_NAJVEC_MS - odRisanja).coerceIn(200L, 1_200L)); return }
+            }
+            poPreverjanju(o, izracun.first)
         }
     }
 
+    /** Omrezje (neomejeno) za izris mreze: sistem vprasamo najvec enkrat na [IZRIS_VELJA_MS] (naloga 55). */
+    @Volatile private var smemIzrisa: Pair<Long, Boolean>? = null
     private fun smemPreverjati(): Boolean {
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        smemIzrisa?.let { (cas, s) -> if (zdaj - cas in 0 until IZRIS_VELJA_MS) return s }
         val omrezje = getSystemService(android.net.ConnectivityManager::class.java)
-        return omrezje != null && omrezje.activeNetwork != null && !omrezje.isActiveNetworkMetered
+        return (omrezje != null && omrezje.activeNetwork != null && !omrezje.isActiveNetworkMetered).also { smemIzrisa = zdaj to it }
     }
 
     /**
@@ -6184,7 +6415,7 @@ class GlasbaActivity : OsActivity() {
      * (neomejeno omrezje); na mobilnih podatkih ostane po starem - pokazemo vse, cesar ne poznamo kot nepredvajljivo.
      */
     @Suppress("UNUSED_PARAMETER")
-    private fun strogaMreza(o: OdprtKatalog): Boolean = stremioNaslovi().isNotEmpty() && smemPreverjati()
+    private fun strogaMreza(o: OdprtKatalog): Boolean = nasloviZaIzris().isNotEmpty() && smemPreverjati()
 
     /** (kandidati = vse, cesar ne poznamo kot nepredvajljivo; vidni = kar od tega res pokazemo). */
     /** Meritev podkorakov izrisa mreze (22. 10. 2026): zapise jo narisiKatalog, ce je izris pocasen. */
@@ -6197,23 +6428,77 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun vidniKataloga(o: OdprtKatalog): Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>> {
-        val meja = meri("torrentMeja") { torrentMeja() }
+        val meja = meri("torrentMeja") { mejaZaIzris() }
         torrentPrej = nacinTorrenta(meja)
         val dodatki = meri("dodatki") { dodatkiZaRazpolozljivost() }
         meri("pripravi") { Razpolozljivost.pripravi(this, dodatki, meja) }
-        val poVrsti = meri("razvrsti") { if (o.tip.isNotBlank()) razvrsti(VIDEO, filtrirajJezike(VIDEO, o.vsi)) else o.vsi }
-        // Kar uporabnik ze vidi, ostane na svojem mestu: sveze strani in odgovori preverjanja kartice dodajajo za zadnjo, ne
-        // vrivajo jih vmes in ne premescajo (izmerjeno na televizorju 5. 10. 2026: ob prihodu svezih katalogov je mreza sedem
-        // kartic umaknila in dve vrinila). Izrecna razvrstitev (po imenu, najnovejse) ostane razvrstitev.
-        val urejeni = meri("red") { if (o.tip.isNotBlank() && razvrstitev(VIDEO) != RAZVRSTI_PRIPOROCENO) poVrsti else OsPravila.stabilenRed(o.narisani, poVrsti) { it.id } }
+        val urejeni = meri("red") { urediMrezo(o) }
         o.urejeni = urejeni
-        val kandidati = meri("znano") { urejeni.filterNot { znanoNiNaVoljo(it) } }
+        val strogo = strogaMreza(o)
+        // Strogo: na zaslon gre samo okno (prvih o.zelja), zato preverimo le toliko kandidatov in rezervo za oknom - ne
+        // vseh nalozenih naslovov (naloga 55: Serije 5143 naslovov, 140-235 ms na vsak izris). Ostali pridejo na vrsto,
+        // ko se okno pomakne (Nalozi vec, drsenje). Na omejenem omrezju (ne strogo) mreza kaze vse, kot doslej.
+        val izbor = meri("znano") {
+            if (strogo) OsPravila.prvih(urejeni, o.zelja + REZERVA_KANDIDATOV) { znanoNiNaVoljo(it) }
+            else urejeni.filterNot { znanoNiNaVoljo(it) }.let { OsPravila.Prvih(it, urejeni.size, false) }
+        }
+        val kandidati = izbor.izbrani
+        o.prirezani = izbor.prirezano
+        o.pregledanih = izbor.pregledanih
         // Strogo: samo okno in v njem samo preverjeno - kartice pridejo po vrsti, nic se ne vrine vmes.
         // Ista slika dvakrat je za uporabnika podvojen prikaz (lastnik, 5. 10. 2026: razlicni vnosi z istim ovitkom):
         // v mrezi ostane prva.
         // Lastna knjiznica dodatka brez dokaza ne pride na zaslon niti na omejenem omrezju (vzorec so tri poizvedbe).
-        return kandidati to meri("okno") { (if (strogaMreza(o)) oknoMreze(o, kandidati).naslovi.filterNot { nepreverjen(it) } else kandidati.filterNot { cakaNaKnjiznico(it) })
+        // Naloga 55b: strogo samo prva stran (o.strogoDo mest okna); naslednje strani in kar je ze na zaslonu se pokazejo
+        // takoj, preverjanje tece v ozadju - kar se izkaze za nepredvajljivo, izpade (znanoNiNaVoljo).
+        val vidni = meri("okno") {
+            val naZaslonu = o.narisani.toHashSet()
+            (if (strogo) oknoMreze(o, kandidati).naslovi.filterIndexed { i, sk -> OsPravila.vOknuViden(i, o.strogoDo, sk.id in naZaslonu, nepreverjen(sk)) }
+                else kandidati.filterNot { cakaNaKnjiznico(it) })
             .distinctBy { it.slika.ifBlank { "id:" + it.id } } }
+        return kandidati to obdrziIzbrano(o, vidni)
+    }
+
+    /**
+     * Kartica, ki izpade iz mreze (noben vir je ne predvaja), medtem ko ima izbiro: ostane na svojem mestu, dokler se
+     * izbira ne premakne - izbira ne skoci (naloga 55b). [OdprtKatalog.drzim] pove, da je treba po premiku risati znova.
+     */
+    private fun obdrziIzbrano(o: OdprtKatalog, vidni: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
+        val (izid, drzim) = OsPravila.obdrziIzbrano(vidni, o.narisani, izbranaKarticaMreze(), { it.id }) { id -> o.vsi.firstOrNull { it.id == id } }
+        o.drzim = drzim
+        return izid
+    }
+
+    /** Kljuc kartice mreze, ki ima izbiro (daljinec); null, ce izbira ni na kartici mreze. */
+    private fun izbranaKarticaMreze(): String? {
+        val nm = narisanaMreza ?: return null
+        val f = vsebina.findFocus() ?: return null
+        for ((k, p) in nm.pogledi) {
+            var x: View? = f
+            while (x != null && x !== vsebina && x !== p) x = x.parent as? View
+            if (x === p) return k
+        }
+        return null
+    }
+
+    /**
+     * Vrstni red vseh naslovov mreze (jeziki, razvrstitev, stabilen red). Isti vhod (naslovi, razvrstitev, jeziki, kartice
+     * na zaslonu) da isti izid, zato ga ne racunamo znova ob vsakem izrisu (naloga 55: red=12-20 ms pri 5143 naslovih).
+     */
+    private fun urediMrezo(o: OdprtKatalog): List<Jamendo.Skladba> {
+        val brskanje = o.tip.isNotBlank()
+        val nacin = if (brskanje) razvrstitev(VIDEO) else RAZVRSTI_PRIPOROCENO
+        val jeziki = if (brskanje) izklopljeniJeziki(VIDEO) else emptySet()
+        val vhod = listOf<Any>(OsPravila.odtis(o.vsi) { it.id }, nacin, jeziki, o.narisani)
+        o.ureditev?.let { (prej, urejeni) -> if (prej == vhod) return urejeni }
+        val poVrsti = meri("razvrsti") { if (brskanje) razvrsti(VIDEO, JezikiVsebine.filtriraj(o.vsi, jeziki) { it.language }) else o.vsi }
+        // Kar uporabnik ze vidi, ostane na svojem mestu: sveze strani in odgovori preverjanja kartice dodajajo za zadnjo, ne
+        // vrivajo jih vmes in ne premescajo (izmerjeno na televizorju 5. 10. 2026: ob prihodu svezih katalogov je mreza sedem
+        // kartic umaknila in dve vrinila). Izrecna razvrstitev (po imenu, najnovejse) ostane razvrstitev.
+        // toList(): o.vsi je spremenljiv seznam - shranjen izid se ne sme spremeniti pod predpomnilnikom.
+        val urejeni = if (brskanje && nacin != RAZVRSTI_PRIPOROCENO) poVrsti.toList() else OsPravila.stabilenRed(o.narisani, poVrsti) { it.id }.toList()
+        o.ureditev = vhod to urejeni
+        return urejeni
     }
 
     /**
@@ -6221,19 +6506,23 @@ class GlasbaActivity : OsActivity() {
      * so v premoru, Stremio.vprasaniVPremoru), ne stejemo - sicer bi okno obstalo na njem in do ostalih ne bi prisli.
      */
     private fun oknoMreze(o: OdprtKatalog, kandidati: List<Jamendo.Skladba>): Okno {
-        val dodatki = stremioNaslovi()
+        val dodatki = nasloviZaIzris()
         val izhod = ArrayList<Jamendo.Skladba>(o.zelja)
         var premor = 0; var naprej = false
+        val naZaslonu = o.narisani.toHashSet()
         for (sk in kandidati) {
             if (izhod.size >= o.zelja) { naprej = true; break }
             val k = kljucRazpolozljivosti(sk)
-            if (k != null && Razpolozljivost.znano(this, k) == null && k !in o.neznani && !Stremio.izLastneKnjiznice(sk)) {
+            // Naslednje strani (naloga 55b) in kar je ze na zaslonu: naslov ostane v oknu, tudi ce je dodatek v premoru.
+            val strogo = izhod.size < o.strogoDo && sk.id !in naZaslonu
+            if (strogo && k != null && Razpolozljivost.znano(this, k) == null && k !in o.neznani && !Stremio.izLastneKnjiznice(sk)) {
                 val r = Stremio.razstavi(sk)
                 if (r != null && Stremio.vprasaniVPremoru(dodatki, r.second, r.third)) { premor++; continue }
             }
             izhod += sk
         }
-        return Okno(izhod, naprej, premor)
+        // Kandidati so prirezani (vidniKataloga): za njimi so se nalozeni naslovi, okno se lahko pomakne naprej.
+        return Okno(izhod, naprej || o.prirezani, premor)
     }
 
     /** Napis pod naslovom mreze: se dela, dodatek omejuje poizvedbe, ni nicesar ali nic. */
@@ -6241,8 +6530,11 @@ class GlasbaActivity : OsActivity() {
         // »Nalagam« samo, dokler v mrezi ni nobenega plakata: preverjanje v ozadju (ali se da predvajati) ni nalaganje za
         // uporabnika - napis je ostal tudi, ko so bili plakati ze na zaslonu (lastnik, 22. 10. 2026).
         val dela = prazno && ((strogaMreza(o) && (o.caka.get() > 0 || o.nalagam || (st.vOknu && o.proracun > 0))) || o.nalagam || !o.popolna)
+        // Naloga 55b: dodatek omejuje poizvedbe (premor ali porabljen urni proracun) - povemo, kdaj nadaljujemo.
+        val cez = Stremio.premorKoncaOb(nasloviZaIzris()).let { if (it > 0L) ((it - System.currentTimeMillis()) / 60_000L + 1).coerceAtLeast(1L) else 0L }
         return when {
             dela -> getString(R.string.os_glasba_nalagam)
+            cez > 0L && (st.premor || st.nepreverjeniNaZaslonu) -> getString(R.string.os_media_dodatek_omejuje_min, cez.toInt())
             st.premor -> getString(R.string.os_media_dodatek_omejuje)
             prazno -> praznaMreza(o)
             else -> ""
@@ -6251,6 +6543,7 @@ class GlasbaActivity : OsActivity() {
 
     /** Besedilo prazne mreze: katalog ima naslove, a nobenega ne predvaja noben dodatek - povemo, kaj manjka. */
     private fun praznaMreza(o: OdprtKatalog) = getString(when {
+        o.vsi.isEmpty() && brezSpletnihVirov() -> R.string.os_media_brez_virov
         o.vsi.any { znanoNiNaVoljo(it) } -> R.string.os_media_ni_predvajljivih
         o.jezik.isNotEmpty() -> R.string.os_jezik_ni_vsebine
         else -> R.string.os_glasba_prazno
@@ -6260,14 +6553,14 @@ class GlasbaActivity : OsActivity() {
      * Ko je mreza preverjena: v strogem nacinu stran, ki ni dala nobene nove kartice, ni odgovor na "Nalozi vec" -
      * sami gremo po naslednjo (najvec tri), potem gumb izgine (naslednje strani bi bile enako prazne).
      */
-    private fun poPreverjanju(o: OdprtKatalog) {
+    private fun poPreverjanju(o: OdprtKatalog, kandidati: List<Jamendo.Skladba>? = null) {
         if (odprtKatalog !== o || isFinishing || o.nalagam || o.caka.get() > 0) return
         if (!o.popolna) return
         if (!strogaMreza(o)) {
             if (stanje.text.toString() == getString(R.string.os_glasba_nalagam)) stanje.text = if (o.narisani.isEmpty()) praznaMreza(o) else ""
             return
         }
-        val st = stanjeMreze(o, vidniKataloga(o).first)
+        val st = stanjeMreze(o, kandidati ?: vidniKataloga(o).first)
         // Vse nalozene strani so razresene, okno pa se ni polno: sami gremo po naslednjo stran (najvec tri, v okviru proracuna).
         if (!st.vOknu && !st.naprej && !st.premor && o.seKaj && o.proracun > 0 && o.narisani.size < o.zelja) {
             if (o.samodejno++ < 3) { naloziVecKataloga(o.naslov, samodejno = true); return }
@@ -6282,11 +6575,13 @@ class GlasbaActivity : OsActivity() {
     private fun stanjeMreze(o: OdprtKatalog, kandidati: List<Jamendo.Skladba>): StanjeMreze {
         val okno = oknoMreze(o, kandidati)
         // Okno caka samo na naslove, ki jih se ne poznamo; zastareli odgovori se osvezijo v ozadju.
-        val vOknu = okno.naslovi.any { sk ->
+        fun caka(sk: Jamendo.Skladba) =
             if (Stremio.izLastneKnjiznice(sk)) nepreverjen(sk)       // caka na vzorec svoje knjiznice
             else kljucRazpolozljivosti(sk)?.let { Razpolozljivost.znano(this, it) == null && it !in o.neznani } == true
-        }
-        return StanjeMreze(vOknu, okno.vPremoru > 0, okno.naprej)
+        // Naloga 55b: na zaslon caka samo strogi del okna (prva stran); naslednje strani so ze na zaslonu.
+        val vOknu = okno.naslovi.take(o.strogoDo.coerceAtMost(okno.naslovi.size)).any { caka(it) }
+        val nepreverjeni = okno.naslovi.size > o.strogoDo && okno.naslovi.drop(o.strogoDo).any { nepreverjen(it) }
+        return StanjeMreze(vOknu, okno.vPremoru > 0, okno.naprej, nepreverjeni)
     }
 
     /**
@@ -6296,16 +6591,28 @@ class GlasbaActivity : OsActivity() {
     private fun vecMreze(o: OdprtKatalog, izDrsenja: Boolean = false) {
         if (odprtKatalog !== o || isFinishing || o.nalagam) return
         if (strogaMreza(o)) {
-            if (o.caka.get() > 0) return                       // preverjanje se tece: pocakamo na njegov izid
             val zdaj = android.os.SystemClock.uptimeMillis()
-            if (izDrsenja && zdaj - o.zadnjicVec < 600) return  // en korak na potezo drsenja
-            val st = stanjeMreze(o, vidniKataloga(o).first)
+            if (izDrsenja && (o.caka.get() > 0 || zdaj - o.zadnjicVec < 600)) return  // drsenje: en korak, ne pred preverjanjem
+            val kandidati = vidniKataloga(o).first
+            val st = stanjeMreze(o, kandidati)
+            // Naloga 55b (lastnik): klik Nalozi vec pokaze naslednjo stran TAKOJ, tudi ce se preverjanje se tece ali je
+            // proracun dodatka porabljen - naslovi naslednjih strani se preverijo v ozadju (ista vljudnost).
+            if (!izDrsenja && st.naprej) { o.zadnjicVec = zdaj; o.vec(KORAK_KARTIC); osveziMrezo(o); return }
+            if (o.caka.get() > 0) {
+                // Prva stran se se preverja in nalozenih naslovov za njo ni: kartica pove, koliko naslovov se preverjamo
+                // (dodatek k nalogi 55: prej je klic tu tiho odnehal).
+                if (izDrsenja || o.prosiVec) return
+                o.zadnjicVec = zdaj
+                o.prosiVec = true
+                osveziMrezo(o)
+                return
+            }
             if (st.vOknu) {
                 if (izDrsenja && o.proracun > 0) return
                 o.zadnjicVec = zdaj
                 o.vec(0)
                 stanje.text = getString(R.string.os_glasba_nalagam)
-                preveriMrezo(o, vidniKataloga(o).first)
+                preveriMrezo(o, kandidati)
                 narociUmiri()
                 return
             }
@@ -6335,12 +6642,24 @@ class GlasbaActivity : OsActivity() {
      * V ozadju preveri, katere kartice mreze se da predvajati (stiri naslove hkrati, samo na neomejenem omrezju); cesar
      * noben dodatek nima, izgine. Odgovori dodatkov ostanejo v predpomnilniku, zato preverjen film zacne takoj.
      */
+    /** Ko se premor dodatka konca, se preverjanje naslednjih strani nadaljuje samo (naloga 55b). */
+    private var poPremoruNarocen = false
+    private fun narociPoPremoru(o: OdprtKatalog, naslovi: List<String>) {
+        if (poPremoruNarocen) return
+        val ob = Stremio.premorKoncaOb(naslovi).takeIf { it > 0L } ?: return
+        poPremoruNarocen = true
+        glavna.postDelayed({ poPremoruNarocen = false; if (odprtKatalog === o && !isFinishing) narociUmiri() },
+            (ob - System.currentTimeMillis() + 1_000L).coerceIn(1_000L, 60 * 60_000L))
+    }
+
     private fun preveriMrezo(o: OdprtKatalog, vsi: List<Jamendo.Skladba>) {
         if (!vOspredju) return
-        // Lastne knjiznice dodatkov: vzorec (najvec tri poizvedbe na dodatek) - iz vseh nalozenih naslovov, tudi skritih.
-        meri("vzorci") { vzorciKnjiznice(o.vsi) }
+        // Lastne knjiznice dodatkov: vzorec (najvec tri poizvedbe na dodatek) - iz naslovov, ki jih je izris pregledal (tudi
+        // skritih), ne iz vseh nalozenih (naloga 55: 66-329 ms pri 5143 naslovih). Knjiznica dalje v seznamu pride na vrsto,
+        // ko se okno pomakne do nje - prej je tako ali tako ne bi pokazali.
+        meri("vzorci") { o.urejeni.let { u -> vzorciKnjiznice(u.subList(0, o.pregledanih.coerceIn(0, u.size))) } }
         if (!smemPreverjati()) return
-        val naslovi = meri("naslovi") { stremioNaslovi() }
+        val naslovi = meri("naslovi") { nasloviZaIzris() }
         if (naslovi.isEmpty()) return
         // Vljudno do dodatkov (3. 10. 2026 nas je dodatek zavrnil s "Rate limit exceeded"): ne preverimo vsega kataloga,
         // ampak samo okno (prvih o.zelja kandidatov) in najvec o.proracun naslovov do naslednjega uporabnikovega dejanja.
@@ -6348,11 +6667,11 @@ class GlasbaActivity : OsActivity() {
         if (o.preverjenih.get() >= 20 && o.zadetkov.get() == 0) o.proracun = 0
         var smem = minOf(o.proracun, 12 - o.caka.get() - o.ozadje.get())
         if (smem <= 0) return
-        val torrent = torrentMeja()
+        val torrent = mejaZaIzris()
         // Mreza je se odprta in Safeer je na zaslonu. Pogoj gre z vprasanjem do zadnjega koraka pred omrezjem.
         val seVelja = { odprtKatalog === o && !isFinishing && vOspredju }
         /** [caka]: na ta naslov caka okno (stevec o.caka); sicer tece v ozadju in zaslona ne zadrzuje (o.ozadje). */
-        fun vprasaj(sk: Jamendo.Skladba, k: String, stevec: java.util.concurrent.atomic.AtomicInteger, zastarel: Boolean) {
+        fun vprasaj(sk: Jamendo.Skladba, k: String, stevec: java.util.concurrent.atomic.AtomicInteger, zastarel: Boolean, blag: Boolean = false) {
             if (!vPreverjanju.add(k)) return
             smem--; o.proracun--
             stevec.incrementAndGet()
@@ -6381,7 +6700,8 @@ class GlasbaActivity : OsActivity() {
                         // Dodatek ni odgovoril (izpad, ustavljena storitev) ali odgovor za to napravo nicesar ne pove: v tej
                         // mrezi ga ne sprasujemo znova. Neznanega naslova nekaj minut ne kazemo; zastarel odgovor obvelja
                         // naprej (za ure si "ni na voljo" zapomnimo le ob pravem odgovoru).
-                        if (je == null) { o.neznani.add(k); if (!zastarel) Razpolozljivost.zacasnoNi(k) }
+                        // Naslov naslednje strani, ki je ze na zaslonu (naloga 55b): brez odgovora ostane na zaslonu.
+                        if (je == null) { o.neznani.add(k); if (!zastarel && !blag) Razpolozljivost.zacasnoNi(k) }
                     } finally {
                         vPreverjanju.remove(k)
                         stevec.decrementAndGet()
@@ -6394,12 +6714,19 @@ class GlasbaActivity : OsActivity() {
         fun vPremoru(sk: Jamendo.Skladba) = Stremio.razstavi(sk)?.let { r -> Stremio.vprasaniVPremoru(naslovi, r.second, r.third) } == true
         // 1) Okno: naslovi, ki jih se ne poznamo - samo nanje uporabnik caka (oknoMreze naslove v premoru ze izpusti).
         val okno = oknoMreze(o, vsi).naslovi
-        for (sk in okno) {
+        val naZaslonu = o.narisani.toHashSet()
+        var cakaPremor = false
+        for ((i, sk) in okno.withIndex()) {
             if (smem <= 0) return
             val k = kljucRazpolozljivosti(sk) ?: continue
             if (Razpolozljivost.znano(this, k) != null || k in vPreverjanju || k in o.neznani || Stremio.izLastneKnjiznice(sk)) continue
-            vprasaj(sk, k, o.caka, zastarel = false)
+            // Naslov naslednje strani (ze na zaslonu, naloga 55b), ki ga zdaj ne moremo preveriti (dodatek v premoru):
+            // pocaka konec premora, ne izgine in ne steje kot »dodatek ni odgovoril«.
+            val blag = i >= o.strogoDo || sk.id in naZaslonu
+            if (blag && vPremoru(sk)) { cakaPremor = true; continue }
+            vprasaj(sk, k, o.caka, zastarel = false, blag = blag)
         }
+        if (cakaPremor) narociPoPremoru(o, naslovi)
         // Delo v ozadju nikoli ne stoji pred oknom: zacne se sele, ko okno ne caka vec, in ima najvec dve poizvedbi
         // hkrati (vsaka caka na zeton dodatka - nova poizvedba okna bi sicer stala v vrsti za njimi).
         if (o.caka.get() > 0) return
@@ -7116,6 +7443,7 @@ class GlasbaActivity : OsActivity() {
         private const val RAZVRSTI_NAJSTAREJSE = 2
         private const val RAZVRSTI_IME_AZ = 3
         private const val RAZVRSTI_IME_ZA = 4
+        private const val PREDPONA_VGRAJENEGA = "vgrajen:"
         private const val VIR_JAMENDO = "vgrajen:jamendo"
         private const val VIR_RADIO = "vgrajen:radio"
         private const val VIR_TUNEIN = "vgrajen:tunein"
@@ -7137,14 +7465,28 @@ class GlasbaActivity : OsActivity() {
         /** Racunalniki v Linku, ki so odgovorili, da pretakanja torrentov ne poznajo (do konca zivljenja procesa). */
         private val NE_ZNA_TORRENTA: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
         /** Vljudno preverjanje mreze: okno ob odprtju, podaljsanje okna ob vsakem "vec", najvec poizvedb na uporabnikovo dejanje. */
-        private const val ZELJA_KARTIC = 30
+        /**
+         * Stran stroge mreze (lastnik, 22. 10. 2026: »naj se nalozi npr. 100 filmov, nato ... naslednja stran - spet 100«):
+         * okno ob odprtju, podaljsanje ob Nalozi vec in proracun poizvedb na uporabnikovo dejanje. Hitrost poizvedb do
+         * dodatka se ne spremeni (Stremio.zeton: 4 takoj, nato ena na 8 s na dodatek; urni proracun TempoDodatka).
+         * Do naloge 55: okno 30, korak 30, proracun 40.
+         */
+        private const val STRAN_MREZE = 100
+        private const val ZELJA_KARTIC = STRAN_MREZE
+        /** Naloga 55: koliko kandidatov za oknom stroge mreze pregledamo ob izrisu (ne vseh nalozenih naslovov). */
+        private const val REZERVA_KANDIDATOV = 100
+        /** Naloga 55: do toliko kartic se mreza dopolni takoj (prvi zaslon), potem najvec vsakih DOPOLNI_NAJVEC_MS. */
+        private const val PRVI_ZASLON = 21
+        private const val DOPOLNI_NAJVEC_MS = 3_000L
+        /** Naloga 55: koliko casa velja izracun za izris (meja torrenta, dodatki, omrezje). */
+        private const val IZRIS_VELJA_MS = 2_000L
         /** Mreza kanalov: okno preverjenih kanalov iz dodatkov in najvec poizvedb po toku na uporabnikovo dejanje. */
         private const val OKNO_KANALOV = 30
         private const val PRORACUN_KANALOV = 80
         /** Po toliko zaporednih vprasanjih brez odgovora dodatka nehamo preverjati kanale do uporabnikovega dejanja. */
         private const val BREZ_ODGOVORA_NAJVEC = 3
-        private const val KORAK_KARTIC = 30
-        private const val PRORACUN_PREVERJANJ = 40
+        private const val KORAK_KARTIC = STRAN_MREZE
+        private const val PRORACUN_PREVERJANJ = STRAN_MREZE
         /** Koliko zastarelih odgovorov osvezimo v ozadju ob enem klicu preverjanja in koliko poizvedb v ozadju tece hkrati. */
         private const val OSVEZI_NA_OBISK = 10
         private const val OZADJE_HKRATI = 2

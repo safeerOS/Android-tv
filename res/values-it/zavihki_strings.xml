@@ -83,4 +83,6 @@
     <string name="os_media_dodatek_ne_odgovarja">Il componente aggiuntivo non risponde in questo momento. Riprova tra un minuto.</string>
     <string name="os_media_ni_predvajljivih">Nessuno dei tuoi componenti aggiuntivi può riprodurre questi titoli ora. Aggiungi un componente con flussi in Le mie fonti.</string>
     <string name="os_media_dodatek_omejuje">Un componente limita le richieste: sono mostrati i titoli già verificati.</string>
+    <string name="os_media_dodatek_omejuje_min">Una fonte limita le richieste: la verifica riprende tra %1$d min.</string>
+    <string name="os_media_ni_vec_v_katalogu">Le tue fonti non hanno altri titoli in questo catalogo</string>
 </resources>

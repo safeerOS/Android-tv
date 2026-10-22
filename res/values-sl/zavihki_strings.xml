@@ -87,4 +87,6 @@
     <string name="os_media_dodatek_ne_odgovarja">Dodatek trenutno ne odgovarja. Poskusi znova čez minuto.</string>
     <string name="os_media_ni_predvajljivih">Teh naslovov trenutno ne predvaja noben tvoj dodatek. Dodatek s tokovi dodaš v Moji viri.</string>
     <string name="os_media_dodatek_omejuje">Dodatek omejuje poizvedbe – prikazani so že preverjeni naslovi.</string>
+    <string name="os_media_dodatek_omejuje_min">Vir začasno omejuje poizvedbe – preverjanje nadaljujem čez %1$d min.</string>
+    <string name="os_media_ni_vec_v_katalogu">Tvoji viri nimajo več naslovov v tem katalogu</string>
 </resources>

@@ -82,4 +82,24 @@ object SeznamiPravila {
         if (gostitelj != "youtu.be" && gostitelj != "youtube.com" && !gostitelj.endsWith(".youtube.com")) return ""
         return RX_POSNETEK.find(url)?.groupValues?.get(1).orEmpty()
     }
+
+    // ------------------------------------------------------------------ brez vgrajenih virov (naloga 57)
+
+    /**
+     * Dodatki, katerih kataloge kazemo: uporabnikovi; javni katalog [cinemeta] je bil do naloge 57 dodan sam (vgrajen vir)
+     * - zdaj samo, ce so vgrajeni viri vklopljeni ([vgrajeni]) ali ga je uporabnik dodal sam (je med [naslovi]).
+     */
+    fun zKatalogom(naslovi: List<String>, cinemeta: String, vgrajeni: Boolean, osnova: (String) -> String): List<String> {
+        if (naslovi.isEmpty() || !vgrajeni) return naslovi
+        val c = osnova(cinemeta)
+        return if (naslovi.any { osnova(it) == c }) naslovi else naslovi + cinemeta
+    }
+
+    /** Kartica dodatka [dodatek] (osnova), ki ga uporabnik nima (med [osnoveDodatkov] ga ni): ne kazemo je. */
+    fun brezDodatka(dodatek: String, osnoveDodatkov: Collection<String>, cinemeta: String, vgrajeni: Boolean): Boolean =
+        !(vgrajeni && dodatek == cinemeta) && dodatek !in osnoveDodatkov
+
+    /** Viri na plosci Medijev, dokler jih uporabnik ne izbere sam: ta naprava, Link, Torrent (radio le kot vgrajen vir). */
+    fun privzetoPripeti(vgrajeni: Boolean): List<String> =
+        if (vgrajeni) listOf("tv", "link", "radio", "magnet") else listOf("tv", "link", "magnet")
 }

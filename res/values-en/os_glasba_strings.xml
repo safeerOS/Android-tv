@@ -38,6 +38,10 @@
     <string name="os_mediji_dodaj_razlaga">Enter a PeerTube server, a radio stream or video, a website with music and video, or your own search API (address with {q}, optionally | Header: value for a key). Safeer checks what is at the address.</string>
     <string name="os_mediji_dodaj_gumb">Add</string>
     <string name="os_mediji_preverjam">Checking source…</string>
+    <string name="os_mediji_streznik_ne_odgovarja">The server is not responding (code %1$d) – the source was not added.</string>
+    <string name="os_mediji_streznik_ne_odgovarja_brez">The server is not responding – the source was not added.</string>
+    <string name="os_mediji_poskusi_znova">Try again</string>
+    <string name="os_mediji_ne_odgovarja">Not responding</string>
     <string name="os_mediji_ni_vira">There is no music or video at this address that Safeer can play.</string>
     <string name="os_mediji_ni_vira_zakaj">The source was not added. Safeer plays music, video, radio and TV streams (MP3, MP4, HLS, M3U/PLS playlists, podcasts, PeerTube) and web pages; it does not play torrents, archives or protected streams.</string>
     <string name="os_mediji_dodano">Added: %1$s</string>
@@ -123,6 +127,9 @@
     <string name="os_media_s_plosce">Take off the dashboard</string>
     <string name="os_media_pokazi_vse">Show all</string>
     <string name="os_media_nalozi_vec">Load more</string>
+    <string name="os_media_preverjam_se">Checking… %1$d left</string>
+    <string name="os_media_brez_virov">No sources added yet. Add a source you want to watch or listen to – content from your devices is shown here anyway.</string>
+    <string name="os_media_isci_brez_virov">No web sources added: only your devices were searched. Add a source in My sources.</string>
     <string name="os_media_vsi_viri">All sources</string>
     <string name="os_media_izberi_vire">Choose sources</string>
     <string name="os_media_izbrisi_vir">Delete source</string>

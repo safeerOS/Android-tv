@@ -5,6 +5,23 @@ import si.safeer.tv.os.SeznamiPravila.Korak
 import si.safeer.tv.os.SeznamiPravila.Zapis
 
 fun main() {
+    // Naloga 57: brez vgrajenih virov - Cinemeta ni dodana sama, njene kartice brez dodatka niso vidne, radio ni pripet.
+    run {
+        val c = "https://v3-cinemeta.strem.io/manifest.json"
+        val osnova = { n: String -> n.removeSuffix("/manifest.json") }
+        val co = osnova(c)
+        check(SeznamiPravila.zKatalogom(listOf("https://a/manifest.json"), c, false, osnova) == listOf("https://a/manifest.json"))
+        check(SeznamiPravila.zKatalogom(listOf("https://a/manifest.json", c), c, false, osnova).size == 2)   // dodal jo je uporabnik
+        check(SeznamiPravila.zKatalogom(listOf("https://a/manifest.json"), c, true, osnova).last() == c)     // vgrajeni vklopljeni
+        check(SeznamiPravila.zKatalogom(emptyList(), c, true, osnova).isEmpty())
+        check(SeznamiPravila.brezDodatka(co, emptyList(), co, false))          // Cinemeta brez dodatka: ne kazemo
+        check(!SeznamiPravila.brezDodatka(co, listOf(co), co, false))          // uporabnik jo ima
+        check(!SeznamiPravila.brezDodatka(co, emptyList(), co, true))
+        check(SeznamiPravila.brezDodatka("https://b", listOf("https://a"), co, false))
+        check("radio" !in SeznamiPravila.privzetoPripeti(false) && "tv" in SeznamiPravila.privzetoPripeti(false) &&
+            "link" in SeznamiPravila.privzetoPripeti(false))
+    }
+
     // Seznama tukaj ni: prevzamemo ga - razen ce smo ga izbrisali po njegovi zadnji spremembi.
     check(SeznamiPravila.korak(null, 0, Glava("A", 0, 5)) == Korak.PREVZEMI)          // star seznam (cas 0) z druge naprave
     check(SeznamiPravila.korak(null, 0, Glava("A", 100, 5)) == Korak.PREVZEMI)
