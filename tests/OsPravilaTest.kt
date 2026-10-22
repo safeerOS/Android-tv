@@ -261,6 +261,14 @@ private fun preizkusPostaj() {
     preveriEnako("beseda radio in FM odpadeta", "center", OsPravila.kljucImenaPostaje("Radio Center 87.6 FM"))
     preveriEnako("naglasi odpadejo", "student", OsPravila.kljucImenaPostaje("Radio Študent"))
     preveriEnako("Rock Radio", "rock", OsPravila.kljucImenaPostaje("Rock Radio"))
+    preveriEnako("drzava na koncu: Rock Radio Slovenia", "rock", OsPravila.kljucImenaPostaje("Rock Radio Slovenia"))
+    preveriEnako("drzava na koncu: ROCK RADIO SI", "rock", OsPravila.kljucImenaPostaje("ROCK RADIO SI"))
+    preveriEnako("podkanal z drzavo ostane svoj", "rockbestballads", OsPravila.kljucImenaPostaje("Rock Radio Best Ballads SLO"))
+    preveriEnako("Radio SI ostane (ne prazno)", "si", OsPravila.kljucImenaPostaje("Radio SI"))
+    preveriEnako("najboljsi tok iste postaje, mesto prve pojavitve",
+        listOf("Rock Radio SLO" to 160, "Val 202" to 128, "Rock Radio Best Ballads SLO" to 128),
+        OsPravila.najboljsiTokovi(listOf("Rock Radio Slovenia" to 128, "Val 202" to 128, "ROCK RADIO SI" to 128,
+            "Rock Radio SLO" to 160, "Rock Radio Best Ballads SLO" to 128, "Val 202" to 64), { it.first }, { it.second }))
     preveriEnako("tok: shema, www, poizvedba, posevnica", "live.radio.si/radio1", OsPravila.kljucTokaPostaje("https://www.Live.radio.si/Radio1/?x=1"))
     fun zdruzi(vse: List<P>) = OsPravila.zdruziPostaje(vse, { it.ime }, { it.tok }, { it.neposreden })
     preveriEnako("Radio Browser in TuneIn: ena postaja, ostane Radio Browser",

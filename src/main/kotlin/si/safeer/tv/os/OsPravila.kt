@@ -822,8 +822,15 @@ object OsPravila {
         t = FREKVENCA.replace(t, " ")
         val besede = BESEDA_POSTAJE.findAll(t).map { it.value }.toList()
         val brez = besede.filter { it != "radio" }
-        return (if (brez.any { CRKA.containsMatchIn(it) }) brez else besede).joinToString("")
+        val k = if (brez.any { CRKA.containsMatchIn(it) }) brez else besede
+        // Drzava na koncu imena (»Rock Radio Slovenia«, »Rock Radio SLO«, »ROCK RADIO SI« - po icy-name isti ROCK RADIO,
+        // izmerjeno 23. 10. 2026) ne loci postaj; »Rock Radio Best Ballads SLO« ostane »rockbestballads«.
+        val brezDrzave = if (k.size > 1 && k.last() in DRZAVNE_PRIPONE) k.dropLast(1) else k
+        return (if (brezDrzave.any { CRKA.containsMatchIn(it) }) brezDrzave else k).joinToString("")
     }
+
+    private val DRZAVNE_PRIPONE = setOf("si", "slo", "slovenia", "slovenija", "hr", "cro", "croatia", "hrvatska", "rs", "srb", "serbia",
+        "srbija", "ba", "bih", "at", "aut", "austria", "de", "ger", "germany", "it", "ita", "italy", "italia", "uk", "usa", "us", "fr", "france")
 
     /** Kljuc naslova toka: gostitelj in pot (brez sheme, www., poizvedbe in koncne posevnice), male crke. Prazno = toka se ne vemo. */
     fun kljucTokaPostaje(naslov: String): String {
@@ -857,6 +864,23 @@ object OsPravila {
             izid += p
             if (ki.isNotEmpty()) poImenu[ki] = izid.size - 1
             if (kt.isNotEmpty()) poToku[kt] = izid.size - 1
+        }
+        return izid
+    }
+
+    /**
+     * Lastnik, 23. 10. 2026: od iste postaje obdrzimo samo najboljsi tok. Isto ime ([kljucImenaPostaje]) -> ostane vnos z
+     * najvecjo [kakovost] (bitna hitrost); ob enaki kakovosti prvi (Radio Browser: najvec poslusan). Mesto v seznamu je
+     * mesto prve pojavitve imena. Vnosi brez imena ostanejo vsi.
+     */
+    fun <T> najboljsiTokovi(postaje: List<T>, ime: (T) -> String, kakovost: (T) -> Int): List<T> {
+        val izid = ArrayList<T>(postaje.size)
+        val mesto = HashMap<String, Int>()
+        for (p in postaje) {
+            val k = kljucImenaPostaje(ime(p))
+            val j = if (k.isEmpty()) null else mesto[k]
+            if (j == null) { if (k.isNotEmpty()) mesto[k] = izid.size; izid += p }
+            else if (kakovost(p) > kakovost(izid[j])) izid[j] = p
         }
         return izid
     }

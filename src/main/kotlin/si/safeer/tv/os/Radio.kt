@@ -62,9 +62,11 @@ object Radio {
             p.inputStream.bufferedReader().use { it.readText() }
         } finally { p.disconnect() }
         val a = JSONArray(telo)
-        return (0 until a.length()).map { a.getJSONObject(it) }
+        val vnosi = (0 until a.length()).map { a.getJSONObject(it) }
             // HLS predvajalnik zdaj zna (Media3 HLS), zato tudi te postaje.
             .filter { it.optString("url_resolved").startsWith("https://") }
+        // Ista postaja z vec tokovi (Rock Radio 128k MP3 in »HQ« 160k AAC): samo najboljsi tok (lastnik, 23. 10. 2026).
+        return OsPravila.najboljsiTokovi(vnosi, { it.optString("name").trim() }, { it.optInt("bitrate") })
             .map {
                 val opis = listOf(it.optString("country"), it.optString("tags").split(',').firstOrNull().orEmpty())
                     .filter { s -> s.isNotBlank() }.joinToString(" · ")
