@@ -3317,6 +3317,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             return
         }
 
+        // Opozorilo eMudhra: Nazaj na daljincu = gumb »Nazaj na varno« (mimo blokiranih gostiteljev)
+        if (EmudhraRevocations.jeOpozorilnaStran(activeUrl())) {
+            activeWebView()?.let { EmudhraOpozorilo.nazajNaVarno(it, this); return }
+        }
+
         val curUrl = activeUrl()
         if (TvSite.isBrowserHome(curUrl)) {
             // Televizor: Nazaj gre v stransko vrstico. Na dotik (vrstica nima fokusa) zapusti Splet nazaj v Safeer OS -

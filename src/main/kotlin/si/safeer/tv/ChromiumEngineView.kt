@@ -281,7 +281,8 @@ class ChromiumEngineView @JvmOverloads constructor(
             useWideViewPort = true
             loadWithOverviewMode = true
             textZoom = 100
-            cacheMode = WebSettings.LOAD_DEFAULT
+            // Po blokadi gostitelja eMudhra do ponovnega zagona brez predpomnilnika
+            cacheMode = if (EmudhraRevocations.imaBlokiraneGostitelje()) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
             userAgentString = DESKTOP_USER_AGENT
             // Televizor (2 GB): brez pripravljanja vsebine izven vidnega obmocja.
             offscreenPreRaster = BrowserMemoryPolicy.za(context).predRaster
@@ -873,6 +874,11 @@ class ChromiumEngineView @JvmOverloads constructor(
             private fun obravnavajNavigacijo(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
                 val urlStr = uri.toString()
+                if (urlStr.equals(EmudhraRevocations.NAZAJ_NA_VARNO_URL, ignoreCase = true)) {
+                    // Gumb na opozorilni strani; veljaven le z nje
+                    if (view != null && EmudhraRevocations.jeOpozorilnaStran(view.url)) EmudhraOpozorilo.nazajNaVarno(view, context)
+                    return true
+                }
                 // Odhod z Googla (zadetek iskanja, tudi prek preusmeritve google.com/goto): spodaj
                 // zamenjamo User-Agent in most JS - ta menjava sredi navigacije jo je tiho prekinila in
                 // noben zadetek se ni odprl (21. 9. 2026). Tako navigacijo na koncu sprozimo znova.
@@ -1093,6 +1099,8 @@ class ChromiumEngineView @JvmOverloads constructor(
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                if (!EmudhraRevocations.jeOpozorilnaStran(url)) emudhraZastavica.novaNavigacija()
+                if (emudhraBlokirano(view, url)) return
                 url?.let { interceptPageUrl = it }
                 bankCheckGeneration++ // prekliči preverjanje prejšnje strani
                 scriptNavGen++
@@ -1122,13 +1130,20 @@ class ChromiumEngineView @JvmOverloads constructor(
              */
             override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
                 super.doUpdateVisitedHistory(view, url, isReload)
+                if (emudhraBlokirano(view, url)) return
                 val naslov = url ?: return
                 if (isReload || !naslov.startsWith("http", ignoreCase = true)) return
                 onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(naslov))
             }
 
+            override fun onPageCommitVisible(view: WebView?, url: String?) {
+                super.onPageCommitVisible(view, url)
+                emudhraBlokirano(view, url)
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                if (emudhraBlokirano(view, url)) return
                 url?.let {
                     view?.let { wv -> scheduleFakeBankCheck(wv, it) }
                     onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))
@@ -1217,6 +1232,15 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     // 🏦 BankGuard: preverjanje naložene strani (lokalno, po naložitvi, brez vpliva na hitrost nalaganja)
     private var bankCheckGeneration = 0
+
+    // eMudhra: eno opozorilo na navigacijo (URL + števec), čeprav ga sproži več povratnih klicev
+    private val emudhraZastavica = EmudhraRevocations.ZastavicaOpozorila()
+
+    private fun emudhraBlokirano(view: WebView?, url: String?): Boolean {
+        if (view == null || !EmudhraOpozorilo.obravnavajKompromitiranCa(view, url, emudhraZastavica)) return false
+        onSecurityChanged?.invoke(false)
+        return true
+    }
 
     // Naslov strani za pravila EasyList (shouldInterceptRequest teče na drugi niti, WebView.url tam ni dovoljen)
     @Volatile

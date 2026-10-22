@@ -154,4 +154,8 @@
     <string name="ui_ssl_vprasanje">El certificado de %1$s no es válido, por lo que la conexión puede no ser privada. Safeer te sigue protegiendo de amenazas conocidas. ¿Abrir de todos modos?</string>
     <string name="ui_ssl_odpri">Abrir de todos modos</string>
     <string name="ui_share_screen_notice">%1$s comparte la pantalla: ábrelo para verla</string>
+    <string name="ui_emudhra_title">Aviso de seguridad: CA comprometida (eMudhra)</string>
+    <string name="ui_emudhra_msg">El certificado de este sitio fue emitido por una autoridad de certificación que ha sido revocada por claves comprometidas. Por ello no abrimos el sitio.</string>
+    <string name="ui_emudhra_badge">Regla de seguridad sin excepciones (Zero-Bypass)</string>
+    <string name="ui_emudhra_back">Volver a un lugar seguro</string>
 </resources>
