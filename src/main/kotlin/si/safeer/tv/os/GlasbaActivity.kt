@@ -1925,7 +1925,17 @@ class GlasbaActivity : OsActivity() {
     private fun razvrstitev(i: Int) = razvrstitve[i] ?: RAZVRSTI_PRIPOROCENO
     /** Vgrajeni viri (»vgrajen:...«) se ne uporabljajo vec (naloga 57, [MedijskiViri.VGRAJENI_SPLETNI_VIRI]). */
     private fun jeVirViden(i: Int, kljuc: String) = kljuc !in zacasnoSkritiViri[i].orEmpty() &&
-        (MedijskiViri.VGRAJENI_SPLETNI_VIRI || !kljuc.startsWith(PREDPONA_VGRAJENEGA))
+        (MedijskiViri.VGRAJENI_SPLETNI_VIRI || !kljuc.startsWith(PREDPONA_VGRAJENEGA) || imenikDodan(kljuc))
+
+    /**
+     * Naloga 69: Radio Browser in TuneIn nista vec vgrajena (naloga 57), uporabnik pa ju lahko doda sam kot vir (Dodaj vir:
+     * radio-browser.info, tunein.com). Takrat obstojeca koda (domace postaje, zvrsti, mreza Radia, iskanje) dela kot prej.
+     */
+    private fun imenikDodan(kljuc: String) = when (kljuc) {
+        VIR_RADIO -> MedijskiViri.imaImenik(this, OsPravila.IMENIK_RADIO_BROWSER)
+        VIR_TUNEIN -> MedijskiViri.imaImenik(this, OsPravila.IMENIK_TUNEIN)
+        else -> false
+    }
     private fun kljucVira(v: MedijskiViri.Vir) = "vir:${v.naslov}"
 
     /** Lokalni nacin bere samo MediaStore (notranja shramba in USB) in zato ne sprozi omrezja. */
@@ -2051,6 +2061,8 @@ class GlasbaActivity : OsActivity() {
         RADIO -> {
             val radioViden = jeVirViden(i, VIR_RADIO)
             val tuneInViden = jeVirViden(i, VIR_TUNEIN)
+            // Naloga 69: preverba na TV (adb logcat -s SafeerOsMedia) - imenik postaj dela samo kot dodan vir.
+            android.util.Log.i("SafeerOsMedia", "radio: imenik Radio Browser=$radioViden, TuneIn=$tuneInViden")
             val vrste = mutableListOf<Podatki>()
             // Radijske postaje iz uporabnikovih dodatkov so pred vgrajenimi.
             vrste += policeDodatkov(i, Stremio.RADIO)
@@ -3911,7 +3923,7 @@ class GlasbaActivity : OsActivity() {
             TV_V_ZIVO -> listOf(VirIzbire(VIR_TV, getString(R.string.os_mediji_tv_v_zivo))) +
                 uporabniski.filter { it.jeStremio }.map { VirIzbire(kljucVira(it), Stremio.imeIzPredpomnilnika(it.naslov) ?: it.ime) }
             else -> emptyList()
-        }.distinctBy { it.kljuc }.filter { MedijskiViri.VGRAJENI_SPLETNI_VIRI || !it.kljuc.startsWith(PREDPONA_VGRAJENEGA) }
+        }.distinctBy { it.kljuc }.filter { MedijskiViri.VGRAJENI_SPLETNI_VIRI || !it.kljuc.startsWith(PREDPONA_VGRAJENEGA) || imenikDodan(it.kljuc) }
     }
 
     /** Ena kartica v glavi odpre skupni dialog; povzetek pove trenutno aktivni pogled. */
@@ -4395,7 +4407,8 @@ class GlasbaActivity : OsActivity() {
         ) + listOfNotNull(
             // Naloga 57: postaje in PeerTube nista vec vgrajena vira - ploscici ostaneta, ce ima uporabnik svoje postaje
             // (priljubljene) oziroma svoje streznike PeerTube.
-            MedijskiViri.priljubljene(this).count { it.radio }.takeIf { it > 0 || MedijskiViri.VGRAJENI_SPLETNI_VIRI }?.let { n ->
+            MedijskiViri.priljubljene(this).count { it.radio }.takeIf { it > 0 || MedijskiViri.VGRAJENI_SPLETNI_VIRI ||
+                imenikDodan(VIR_RADIO) || imenikDodan(VIR_TUNEIN) }?.let { n ->
                 Vir("radio", R.drawable.os_ikona_radio, 0xFFFF9580.toInt(), getString(R.string.os_mediji_postaje),
                     getString(R.string.os_media_stevilo_prilj, n), razdelek(RADIO)) },
             MedijskiViri.streznikiPeerTube(this).size.takeIf { it > 0 }?.let { n ->
@@ -4409,7 +4422,8 @@ class GlasbaActivity : OsActivity() {
             Vir("magnet", R.drawable.os_ikona_link, 0xFFB69CFF.toInt(), getString(R.string.magnet_naslov), getString(R.string.magnet_vir_opis),
                 { startActivity(Intent(this, MagnetActivity::class.java)) }),
         )) + MedijskiViri.vsi(this).map { v ->
-            Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet || v.jeDodatek -> R.drawable.os_ikona_splet; else -> R.drawable.os_ikona_glasba },
+            Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet || v.jeDodatek -> R.drawable.os_ikona_splet
+                    v.jeImenik -> R.drawable.os_ikona_radio; else -> R.drawable.os_ikona_glasba },
                 // Dodatek: ime iz manifesta (Cinemeta, Torrentio ...) in samo streznik - naslov ima lahko kljuc storitve.
                 0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, when {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
@@ -4421,6 +4435,8 @@ class GlasbaActivity : OsActivity() {
                 }, {
                     when {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
+                        // Naloga 69: imenik postaj odpre Radio (domace postaje, zvrsti, iskanje).
+                        v.jeImenik -> { fokusVVsebino = true; izberi(RADIO) }
                         // Dodatek: pokazemo shranjeni naslov (predvajanje prek dodatkov je naslednji korak).
                         v.jeStremio -> odpriRazdelekDodatka(v.naslov)
                         // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
@@ -5065,7 +5081,7 @@ class GlasbaActivity : OsActivity() {
         stanje.text = getString(R.string.os_glasba_nalagam)
         val strezniki = MedijskiViri.streznikiPeerTube(this)
         val mali = beseda.lowercase()
-        val viri = MedijskiViri.vsi(this).filter { it.tip != MedijskiViri.API && !it.jeDodatek }.filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) ||
+        val viri = MedijskiViri.vsi(this).filter { it.tip != MedijskiViri.API && !it.jeDodatek && !it.jeImenik }.filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) ||
             Relevantnost.ocena(beseda, it.ime, "", it.naslov) >= Relevantnost.DOBER }
         val naprave = if (link.jeKrajevni() || !link.povezan) emptyList() else link.racunalnikiZDatotekami()
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
@@ -5079,10 +5095,13 @@ class GlasbaActivity : OsActivity() {
         // Naloga 57: vgrajeni spletni viri (Jamendo, Radio Browser, imenik podkastov, Archive.org, TuneIn, kanali TV v zivo)
         // ne iscejo vec - iscejo uporabnikovi viri in naprave.
         val vg = MedijskiViri.VGRAJENI_SPLETNI_VIRI
+        // Naloga 69: imenik postaj, ki ga je uporabnik dodal sam, isce kot prej.
+        val isciRadioBrowser = vg || imenikDodan(VIR_RADIO)
+        val isciTuneIn = vg || imenikDodan(VIR_TUNEIN)
         val opravila = listOf<() -> Any>(
             { if (!vg) emptyList<Jamendo.Skladba>() else try { Jamendo.isciSkladbe(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try { PeerTube.isci(strezniki, beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
-            { if (!vg) emptyList<Jamendo.Skladba>() else try { Radio.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!isciRadioBrowser) emptyList<Jamendo.Skladba>() else try { Radio.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { if (!vg) emptyList<Jamendo.Izvajalec>() else try { Jamendo.isciIzvajalce(beseda) } catch (_: Exception) { emptyList<Jamendo.Izvajalec>() } },
             { try { KrajevneDatoteke.najdi(this, beseda) } catch (_: Exception) { emptyList<KrajevneDatoteke.Najdeno>() } },
             { isciNaNapravah(naprave, beseda) },
@@ -5090,7 +5109,7 @@ class GlasbaActivity : OsActivity() {
             { if (!vg) emptyList<Jamendo.Skladba>() else try { Arhiv.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { SpletniVir.isciVse(this, spletniViri, beseda) },
             { if (!vg) emptyList<Jamendo.Skladba>() else try { JavnaLast.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
-            { if (!vg) emptyList<Jamendo.Skladba>() else try { TuneIn.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            { if (!isciTuneIn) emptyList<Jamendo.Skladba>() else try { TuneIn.isci(beseda) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
             { try {
                 // Zasebne kategorije kanalov morajo biti znane, preden zadetki dodatkov pridejo na zaslon: iskanje po imenu v
                 // katalogu »vse« bi sicer nastelo tudi zasebne kanale (do zdaj jih je poznalo sele, ko je uporabnik v tem zagonu

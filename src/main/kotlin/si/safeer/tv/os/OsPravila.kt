@@ -747,4 +747,57 @@ object OsPravila {
         if (d.any { jezik in JEZIKI_DRZAV[it].orEmpty() }) return true
         return if (d.all { it in JEZIKI_DRZAV }) false else null
     }
+
+    // ------------------------------------------------------------------ seznam postaj ali ena postaja (naloga 68)
+
+    /**
+     * Ali je seznam .m3u/.pls seznam vec vsebin (vir »seznam«) ali ena postaja z zrcali. [imena] = ime vsakega vnosa iz
+     * #EXTINF oziroma TitleN ("" = brez imena), [datotek] = koliko vnosov ima koncnico datoteke. Seznam je, kadar ima vsaj
+     * polovica vnosov koncnico (kot do zdaj) ali kadar imajo vnosi vsaj dve RAZLICNI imeni (lastnik, 22. 10. 2026: seznam
+     * Radio Browser s 142 slovenskimi postajami, tokovi brez koncnice, je bil ena postaja). Zrcala iste postaje (isto ime
+     * ali brez imen) ostanejo ena postaja.
+     */
+    fun jeSeznamPostaj(imena: List<String>, datotek: Int): Boolean {
+        if (imena.size <= 1) return false
+        if (datotek * 2 >= imena.size) return true
+        val razlicna = imena.map { it.trim().lowercase(java.util.Locale.ROOT).replace(PRESLEDKI, " ") }.filter { it.isNotEmpty() }.toSet()
+        return razlicna.size >= 2
+    }
+
+    private val PRESLEDKI = Regex("\\s+")
+    /** Oznake seznama IPTV (tvg-id, tvg-logo, group-title): vnos je televizijski kanal, ne radio. */
+    private val OZNAKE_IPTV = Regex("(?i)tvg-|group-title")
+
+    /**
+     * Ali je vnos seznama radijski tok: naslov brez koncnice datoteke (http://live.radio.si/Radio1) in brez oznak seznama
+     * IPTV v vrstici #EXTINF ([extinf]; "" pri .pls). Kanal TV iz seznama IPTV in datoteka (.mp3, .m3u8 ...) nista radio.
+     */
+    fun jeRadijskiVnos(imaKoncnico: Boolean, extinf: String): Boolean = !imaKoncnico && !OZNAKE_IPTV.containsMatchIn(extinf)
+
+    // ------------------------------------------------------------------ imenik radijskih postaj kot vir (naloga 69)
+
+    /** Imenik postaj, ki ga uporabnik doda sam (naslov vira vrste »imenik«): Radio Browser ali TuneIn. */
+    const val IMENIK_RADIO_BROWSER = "radio-browser"
+    const val IMENIK_TUNEIN = "tunein"
+
+    /**
+     * Ali je vnos v »Dodaj vir« imenik radijskih postaj: radio-browser.info (tudi de1.api.radio-browser.info, naslov
+     * njegovega API) ali tunein.com / radiotime.com (OPML). Seznam postaj (.m3u/.pls, pot /m3u/ ali /pls/ - naloga 68)
+     * in tok ene postaje (Tune.ashx) nista imenik: dodata se kot doslej. Vrne [IMENIK_RADIO_BROWSER], [IMENIK_TUNEIN]
+     * ali null.
+     */
+    fun imenikPostaj(vnos: String): String? {
+        val v = vnos.trim().lowercase(java.util.Locale.ROOT)
+        if (v.isEmpty() || v.contains("{q}") || v.contains(' ')) return null
+        val brezSheme = v.removePrefix("https://").removePrefix("http://")
+        val gostitelj = brezSheme.substringBefore('/').substringBefore('?').substringBefore('#').substringBefore(':').trimEnd('.')
+        val pot = brezSheme.substringAfter('/', "").substringBefore('?').substringBefore('#')
+        fun je(d: String) = gostitelj == d || gostitelj.endsWith(".$d")
+        return when {
+            je("radio-browser.info") ->
+                if (pot.startsWith("m3u/") || pot.startsWith("pls/") || pot.endsWith(".m3u") || pot.endsWith(".pls")) null else IMENIK_RADIO_BROWSER
+            je("tunein.com") || je("radiotime.com") -> if (pot.startsWith("tune.ashx")) null else IMENIK_TUNEIN
+            else -> null
+        }
+    }
 }

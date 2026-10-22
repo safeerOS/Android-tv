@@ -211,6 +211,45 @@ private fun preizkusJezikaPoDrzavah() {
     preveriEnako("brez izbranega jezika: ne vemo", null, OsPravila.jezikPoDrzavah("Brazil", ""))
 }
 
+private fun preizkusSeznamaPostaj() {
+    println("\n== seznam postaj ali ena postaja (naloga 68) ==")
+    preveriEnako("Radio Browser: razlicna imena, tokovi brez koncnice -> seznam", true,
+        OsPravila.jeSeznamPostaj(listOf("Radio 1", "Radio Aktual", "Val 202", "Radio Center"), 0))
+    preveriEnako(".pls s tremi zrcali istega imena -> ena postaja", false,
+        OsPravila.jeSeznamPostaj(listOf("Radio Paradise", "Radio Paradise", "Radio Paradise"), 0))
+    preveriEnako(".m3u brez imen in brez koncnic -> ena postaja", false, OsPravila.jeSeznamPostaj(listOf("", "", ""), 0))
+    preveriEnako("ime se razlikuje le v velikih crkah in presledkih -> ena postaja", false,
+        OsPravila.jeSeznamPostaj(listOf("Radio  1", "radio 1"), 0))
+    preveriEnako("eno ime in prazni vnosi -> ena postaja", false, OsPravila.jeSeznamPostaj(listOf("Val 202", "", ""), 0))
+    preveriEnako("polovica vnosov z koncnico -> seznam (kot do zdaj)", true, OsPravila.jeSeznamPostaj(listOf("", "", "", ""), 2))
+    preveriEnako("en sam vnos ni seznam", false, OsPravila.jeSeznamPostaj(listOf("Radio 1"), 1))
+    preveriEnako("vnos brez koncnice je radio", true, OsPravila.jeRadijskiVnos(false, "#EXTINF:-1,Radio 1"))
+    preveriEnako("vnos .pls brez koncnice je radio", true, OsPravila.jeRadijskiVnos(false, ""))
+    preveriEnako("datoteka (.mp3/.m3u8) ni radio", false, OsPravila.jeRadijskiVnos(true, "#EXTINF:-1,Radio 1"))
+    preveriEnako("kanal iz seznama IPTV ni radio", false,
+        OsPravila.jeRadijskiVnos(false, "#EXTINF:-1 tvg-id=\"cnn\" group-title=\"News\",CNN"))
+}
+
+private fun preizkusImenikaPostaj() {
+    println("\n== imenik radijskih postaj kot vir (naloga 69) ==")
+    val rb = OsPravila.IMENIK_RADIO_BROWSER; val ti = OsPravila.IMENIK_TUNEIN
+    preveriEnako("radio-browser.info", rb, OsPravila.imenikPostaj("radio-browser.info"))
+    preveriEnako("https://www.radio-browser.info/", rb, OsPravila.imenikPostaj("https://www.radio-browser.info/"))
+    preveriEnako("naslov API de1.api.radio-browser.info", rb, OsPravila.imenikPostaj("https://de1.api.radio-browser.info/json/stations/search"))
+    preveriEnako("velike crke in presledki okoli", rb, OsPravila.imenikPostaj("  Radio-Browser.INFO "))
+    preveriEnako("seznam .m3u z radio-browser (naloga 68) ni imenik", null,
+        OsPravila.imenikPostaj("https://de1.api.radio-browser.info/m3u/stations/bycountrycodeexact/SI?hidebroken=true"))
+    preveriEnako("seznam .pls z radio-browser ni imenik", null, OsPravila.imenikPostaj("https://de1.api.radio-browser.info/pls/stations/byname/val"))
+    preveriEnako("tunein.com", ti, OsPravila.imenikPostaj("tunein.com"))
+    preveriEnako("https://tunein.com/radio/home/", ti, OsPravila.imenikPostaj("https://tunein.com/radio/home/"))
+    preveriEnako("OPML opml.radiotime.com", ti, OsPravila.imenikPostaj("http://opml.radiotime.com/"))
+    preveriEnako("tok ene postaje Tune.ashx ni imenik", null, OsPravila.imenikPostaj("http://opml.radiotime.com/Tune.ashx?id=s12345"))
+    preveriEnako("podobno ime ni imenik", null, OsPravila.imenikPostaj("notradio-browser.info.example.com"))
+    preveriEnako("drug naslov ni imenik", null, OsPravila.imenikPostaj("https://live.radio.si/Radio1"))
+    preveriEnako("API z {q} ni imenik", null, OsPravila.imenikPostaj("https://de1.api.radio-browser.info/json/stations/byname/{q}"))
+    preveriEnako("prazno", null, OsPravila.imenikPostaj(""))
+}
+
 private fun preizkusTipkMenija() {
     println("\n== stranska vrstica ob brskalniku: tipke daljinca ==")
     preveriEnako("GOR gre meniju (prej v naslovno vrstico strani)", OsPravila.TipkaMenija.MENIJU, OsPravila.tipkaVMeniju(19, true, 0))
@@ -571,6 +610,8 @@ fun main() {
     preizkusIkonNaprav()
     preizkusOpisaNaprav()
     preizkusPovezave()
+    preizkusImenikaPostaj()
+    preizkusSeznamaPostaj()
     preizkusJezikaPoDrzavah()
     preizkusVrsteIzMeta()
     preizkusJezikaKataloga()

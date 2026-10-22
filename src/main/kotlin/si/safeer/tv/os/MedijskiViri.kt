@@ -27,6 +27,8 @@ object MedijskiViri {
         val jePodkast get() = tip == PODKAST
         val jeStremio get() = tip == STREMIO
         val jeDodatek get() = jeStremio
+        /** Naloga 69: imenik radijskih postaj (Radio Browser, TuneIn), ki ga je uporabnik dodal sam. */
+        val jeImenik get() = tip == IMENIK
     }
 
     /** Dodatki, ki jih uporabnik vnese SAM (Stremio: naslov manifesta). Brez prilozenih. */
@@ -78,6 +80,16 @@ object MedijskiViri {
     const val SEZNAM = "seznam"
     /** RSS podkasta: klik odpre epizode. */
     const val PODKAST = "podkast"
+    /**
+     * Naloga 69: imenik radijskih postaj kot uporabnikov vir - naslov je [OsPravila.IMENIK_RADIO_BROWSER] ali
+     * [OsPravila.IMENIK_TUNEIN]. Z njim delujeta obstojeca Radio (Radio Browser) in TuneIn: domace postaje, zvrsti,
+     * iskanje. Brez njega na ta streznika ne gre nobena zahteva. Med napravami v Linku ne potuje (ni v
+     * [VRSTE_ZA_USKLADITEV]): na drugi napravi ga uporabnik doda sam.
+     */
+    const val IMENIK = "imenik"
+
+    /** Ali je uporabnik dodal imenik postaj [kateri] (brez omrezja). */
+    fun imaImenik(ctx: Context, kateri: String): Boolean = rocni(ctx).any { it.tip == IMENIK && it.naslov == kateri }
 
     private const val ODSTRANJENI_VIRI = "odstranjeni_viri"
 
@@ -493,6 +505,15 @@ object MedijskiViri {
      * nicesar, kar bi znali predvajati.
      */
     fun dodaj(ctx: Context, vnos: String, ime: String? = null): Vir? {
+        // Naloga 69: radio-browser.info / tunein.com je imenik postaj, ne stran ali tok - brez preverjanja naslova (zahteve).
+        OsPravila.imenikPostaj(vnos)?.let { kateri ->
+            rocni(ctx).firstOrNull { it.tip == IMENIK && it.naslov == kateri }?.let { return it }
+            val imeImenika = if (kateri == OsPravila.IMENIK_TUNEIN) "TuneIn" else "Radio Browser"
+            val v = Vir(IMENIK, ime?.takeIf { it.isNotBlank() } ?: ctx.getString(si.safeer.tv.R.string.os_mediji_imenik_postaj, imeImenika), kateri)
+            shrani(ctx, rocni(ctx) + v)
+            android.util.Log.i("SafeerOsMedia", "dodan vir: imenik postaj $kateri")
+            return v
+        }
         val cisto = vnos.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
         if (PeerTube.jeBlokiran(cisto.substringBefore('|').trim())) return null
         obstojeciVir(ctx, vnos)?.let { return it }
@@ -561,31 +582,39 @@ object MedijskiViri {
         }
 
     /** Vnosi .m3u (#EXTINF: ime, nato naslov) ali .pls (FileN / TitleN); relativni naslovi glede na seznam. */
-    fun beriSeznam(telo: String, osnova: String): List<Jamendo.Skladba> {
+    fun beriSeznam(telo: String, osnova: String): List<Jamendo.Skladba> = vnosiSeznama(telo, osnova).map { it.second }
+
+    /**
+     * Naloga 68: kot [beriSeznam], z imenom vnosa, kot ga da seznam (#EXTINF / TitleN; "" = brez imena - naslov kartice
+     * je takrat del naslova toka). Vnos brez koncnice in brez oznak IPTV je radijski tok ([OsPravila.jeRadijskiVnos]).
+     */
+    private fun vnosiSeznama(telo: String, osnova: String): List<Pair<String, Jamendo.Skladba>> {
         fun polni(n: String) = try { URL(URL(osnova), n.trim()).toString() } catch (_: Exception) { "" }
-        val pari = ArrayList<Pair<String, String>>()
+        val pari = ArrayList<Triple<String, String, String>>()      // ime, naslov, vrstica #EXTINF
         if (telo.trimStart().startsWith("[playlist]", ignoreCase = true)) {
             val datoteke = HashMap<String, String>(); val imena = HashMap<String, String>()
             telo.lines().forEach { l ->
                 Regex("""(?i)^File(\d+)=(.+)$""").find(l.trim())?.let { datoteke[it.groupValues[1]] = it.groupValues[2] }
                 Regex("""(?i)^Title(\d+)=(.+)$""").find(l.trim())?.let { imena[it.groupValues[1]] = it.groupValues[2] }
             }
-            datoteke.keys.sortedBy { it.toIntOrNull() ?: 0 }.forEach { k -> pari += imena[k].orEmpty() to polni(datoteke[k]!!) }
+            datoteke.keys.sortedBy { it.toIntOrNull() ?: 0 }.forEach { k -> pari += Triple(imena[k].orEmpty().trim(), polni(datoteke[k]!!), "") }
         } else {
             var ime = ""
+            var extinf = ""
             telo.lines().map { it.trim() }.forEach { l ->
                 when {
-                    l.startsWith("#EXTINF", ignoreCase = true) -> ime = l.substringAfter(',', "").trim()
+                    l.startsWith("#EXTINF", ignoreCase = true) -> { ime = l.substringAfter(',', "").trim(); extinf = l }
                     l.isEmpty() || l.startsWith("#") -> {}
-                    else -> { pari += ime to polni(l); ime = "" }
+                    else -> { pari += Triple(ime, polni(l), extinf); ime = ""; extinf = "" }
                 }
             }
         }
-        return pari.filter { (it.second.startsWith("http://") || it.second.startsWith("https://")) && jePredvajljiv(it.second) }.map { (ime, url) ->
+        return pari.filter { (it.second.startsWith("http://") || it.second.startsWith("https://")) && jePredvajljiv(it.second) }.map { (ime, url, extinf) ->
             val (naslov, izvajalec) = Relevantnost.razdeli(ime.ifBlank { url.substringAfterLast('/').substringBefore('?') }, "")
-            Jamendo.Skladba("seznam:$url", naslov, izvajalec, "", url, osnova,
+            ime to Jamendo.Skladba("seznam:$url", naslov, izvajalec, "", url, osnova,
+                radio = OsPravila.jeRadijskiVnos(jeDatoteka(url), extinf),
                 mime = if (url.substringBefore('?').lowercase().endsWith(".m3u8")) MIME_HLS else "")
-        }.distinctBy { it.zvok }
+        }.distinctBy { it.second.zvok }
     }
 
     private val KONCNICE = listOf(".mp3", ".ogg", ".oga", ".opus", ".m4a", ".aac", ".flac", ".wav", ".mp4", ".mkv", ".webm", ".m3u8")
@@ -612,12 +641,14 @@ object MedijskiViri {
                 seznam -> {
                     val telo = p.inputStream.bufferedReader().use { it.readText().take(2_000_000) }
                     if (telo.contains("#EXT-X-")) return Vir(if (telo.contains("RESOLUTION=")) "$TOK-hls-video" else "$TOK-hls", gostitelj, naslov)
-                    val vnosi = beriSeznam(telo, naslov)
+                    val zImeni = vnosiSeznama(telo, naslov)
+                    val vnosi = zImeni.map { it.second }
                     // Radijski .pls ima pogosto vec zrcal istega toka (brez koncnice): to je ena postaja.
-                    // Seznam je, kadar so vnosi vsaj v polovici datoteke (.mp3, .m3u8 kanali ...).
+                    // Seznam je, kadar so vnosi vsaj v polovici datoteke (.mp3, .m3u8 kanali ...) ali imajo razlicna
+                    // imena (naloga 68: seznam postaj Radio Browser, tokovi brez koncnice).
                     val datotek = vnosi.count { jeDatoteka(it.zvok) }
                     when {
-                        vnosi.size > 1 && datotek * 2 >= vnosi.size -> {
+                        OsPravila.jeSeznamPostaj(zImeni.map { it.first }, datotek) -> {
                             pisi(ctx, kljucSeznama(naslov), pisiSkladbe(vnosi.take(1000)))
                             val ime = pot.substringAfterLast('/').substringBeforeLast('.').ifBlank { gostitelj }
                             Vir(SEZNAM, "$ime (${vnosi.size})", naslov)

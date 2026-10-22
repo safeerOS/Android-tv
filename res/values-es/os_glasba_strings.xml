@@ -34,7 +34,9 @@
     <string name="os_mediji_svet">Emisoras del mundo</string>
     <string name="os_mediji_dodaj">Añadir fuente</string>
     <string name="os_mediji_dodaj_opis">Servidor, emisión o sitio web</string>
-    <string name="os_mediji_dodaj_namig">p. ej. tilvids.com o https://…/stream.mp3</string>
+    <string name="os_mediji_dodaj_namig">p. ej. tilvids.com, radio-browser.info o https://…/stream.mp3</string>
+    <!-- Naloga 69: ime vira imenika postaj (Radio Browser, TuneIn), ki ga uporabnik doda sam. -->
+    <string name="os_mediji_imenik_postaj">Emisoras de radio (%1$s)</string>
     <string name="os_mediji_dodaj_razlaga">Escribe un servidor PeerTube, una emisión de radio o vídeo, un sitio web con música y vídeo, o tu propia API de búsqueda (dirección con {q}, opcionalmente | Cabecera: valor para una clave). Safeer comprueba la dirección.</string>
     <string name="os_mediji_dodaj_gumb">Añadir</string>
     <string name="os_mediji_preverjam">Comprobando la fuente…</string>
