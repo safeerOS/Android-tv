@@ -265,6 +265,10 @@ private fun preizkusPostaj() {
     preveriEnako("drzava na koncu: ROCK RADIO SI", "rock", OsPravila.kljucImenaPostaje("ROCK RADIO SI"))
     preveriEnako("podkanal z drzavo ostane svoj", "rockbestballads", OsPravila.kljucImenaPostaje("Rock Radio Best Ballads SLO"))
     preveriEnako("Radio SI ostane (ne prazno)", "si", OsPravila.kljucImenaPostaje("Radio SI"))
+    preveriEnako("TuneIn: zvrst v oklepaju in FM 87", OsPravila.kljucImenaPostaje("Radio 1 Rock"), OsPravila.kljucImenaPostaje("Radio 1 ROCK 87 (Rock)"))
+    preveriEnako("TuneIn: Rock Radio Si 103.3 (Rock)", "rock", OsPravila.kljucImenaPostaje("Rock Radio Si 103.3 (Rock)"))
+    preveriEnako("Val 202 ostane 202", "val202", OsPravila.kljucImenaPostaje("Val 202"))
+    preveriEnako("Radio 1 Maribor ni Radio 1", "1maribor", OsPravila.kljucImenaPostaje("Radio 1 Maribor"))
     preveriEnako("najboljsi tok iste postaje, mesto prve pojavitve",
         listOf("Rock Radio SLO" to 160, "Val 202" to 128, "Rock Radio Best Ballads SLO" to 128),
         OsPravila.najboljsiTokovi(listOf("Rock Radio Slovenia" to 128, "Val 202" to 128, "ROCK RADIO SI" to 128,

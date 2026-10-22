@@ -808,6 +808,10 @@ object OsPravila {
     private val FREKVENCA = Regex("\\b\\d{2,3}([.,]\\d{1,2})\\s*(mhz|fm)?(?=\\W|$)|\\b(mhz|fm)\\b")
     private val NAGLASI = Regex("\\p{Mn}+")
     private val BESEDA_POSTAJE = Regex("[a-z0-9]+")
+    private val FM_CELO = Regex("8[7-9]|9[0-9]|10[0-8]")
+    private val ZVRST_V_OKLEPAJU = Regex("\\((rock|pop|news|talk|world music|classical|classic rock|jazz|dance|electronic|country|oldies|hits|top 40|" +
+        "adult contemporary|adult hits|folk|sports|christian|alternative|metal|hip hop|r&b|reggae|latin|blues|soul|variety|public|ethnic|schlager|" +
+        "easy listening|children|community)\\)\\s*$")
     private val CRKA = Regex("[a-z]")
 
     /**
@@ -819,8 +823,12 @@ object OsPravila {
         var t = java.text.Normalizer.normalize(ime.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
         t = NAGLASI.replace(t, "")
         t = FREKVENCA_V_OKLEPAJU.replace(t, " ")
+        // TuneIn doda zvrst v oklepaju na konec (»Radio 1 ROCK 87 (Rock)«, »Rock Radio Si 103.3 (Rock)«).
+        t = ZVRST_V_OKLEPAJU.replace(t, " ")
         t = FREKVENCA.replace(t, " ")
         val besede = BESEDA_POSTAJE.findAll(t).map { it.value }.toList()
+            // Celo stevilo v obmocju FM na koncu je frekvenca (»... 87«), »Val 202« in »Radio 1« ostaneta.
+            .let { b -> if (b.size > 1 && FM_CELO.matches(b.last()) && b.dropLast(1).any { CRKA.containsMatchIn(it) }) b.dropLast(1) else b }
         val brez = besede.filter { it != "radio" }
         val k = if (brez.any { CRKA.containsMatchIn(it) }) brez else besede
         // Drzava na koncu imena (»Rock Radio Slovenia«, »Rock Radio SLO«, »ROCK RADIO SI« - po icy-name isti ROCK RADIO,
