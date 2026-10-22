@@ -119,7 +119,7 @@ class ViriActivity : android.app.Activity() {
 
         val koren = android.widget.FrameLayout(this)
         // Dotik ali klik zunaj plosce zapre izbiro, kot pri sistemski.
-        koren.setOnClickListener { finish() }
+        koren.setOnClickListener { zapri() }
         plosca.isClickable = true
         koren.addView(plosca, android.widget.FrameLayout.LayoutParams(
             (resources.displayMetrics.widthPixels * 0.36f).toInt().coerceAtLeast(dp(360)),
@@ -214,6 +214,21 @@ class ViriActivity : android.app.Activity() {
             .setNegativeButton(android.R.string.cancel, null)
             .show()
         polje.requestFocus()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() = zapri()
+
+    /**
+     * Zapri izbiro brez izbranega vira. Tipka Viri odpre ploščo v lastnem opravilu (naloga 67); ob koncu takega opravila
+     * Android preklopi na zadnje navadno opravilo (izmerjeno na TV: televizija v živo), ne na dom. Kadar je Safeer OS domači
+     * zaslon in smo koren opravila, zato vrnemo na edini dom - tako kot pred nalogo 67. Iz Nastavitev (isto opravilo) le zapremo.
+     */
+    private fun zapri() {
+        if (isTaskRoot) Zaganjalnik.nameraDomov(this)?.let { dom ->
+            try { startActivity(dom.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) { }
+        }
+        finish()
     }
 
     private fun odpri(v: TvInputInfo) {
