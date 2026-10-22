@@ -7670,7 +7670,7 @@ class GlasbaActivity : OsActivity() {
          * (loadThumbnail 320x320 ARGB, ~400 KB) ali vecje naslovnice so lahko zasedle ~20 MB native heapa. 8 MB je
          * ~40 plakatov 280 px - dovolj za zaslon in vrnitev nanj; ostalo pride z diska (MedijskiPredpomnilnik).
          */
-        private const val SLIKE_BAJTOV = 8 * 1024 * 1024
+        private const val SLIKE_BAJTOV = 24 * 1024 * 1024   // ~115 plakatov: vrnitev na vrh brez ponovnega nalaganja (lastnik 22. 10.)
         private val SLIKE = object : LruCache<String, android.graphics.Bitmap>(SLIKE_BAJTOV) {
             override fun sizeOf(key: String, value: android.graphics.Bitmap): Int = value.allocationByteCount
         }
