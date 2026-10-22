@@ -2444,8 +2444,11 @@ class GlasbaActivity : OsActivity() {
      * vrsti vsebine ([SpletniVir.vrstaVsebine]), kot v razdelku Video. Katalog tipa [tip] ostane, kot je.
      */
     private fun vrstaIzKataloga(k: Stremio.Katalog, tip: String, l: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
-        if (tip.isBlank() || k.tip == tip) return l
+        if (tip.isBlank()) return l
         val vrsta = if (tip == "movie") SpletniVir.FILM else SpletniVir.SERIJA
+        // Katalog prave vrste: izlocimo samo naslove, ki so ZAGOTOVO druge vrste (lastnik 22. 10.: serija Lucifer med Filmi);
+        // neznana vrsta ostane. Splosen katalog: samo naslovi prave vrste.
+        if (k.tip == tip) return l.filter { SpletniVir.vrstaVsebine(it).let { v -> v == null || v == vrsta } }
         return l.filter { SpletniVir.vrstaVsebine(it) == vrsta }
     }
 
