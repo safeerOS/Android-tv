@@ -237,6 +237,7 @@ private fun preizkusImenikaPostaj() {
     preveriEnako("https://www.radio-browser.info/", rb, OsPravila.imenikPostaj("https://www.radio-browser.info/"))
     preveriEnako("naslov API de1.api.radio-browser.info", rb, OsPravila.imenikPostaj("https://de1.api.radio-browser.info/json/stations/search"))
     preveriEnako("velike crke in presledki okoli", rb, OsPravila.imenikPostaj("  Radio-Browser.INFO "))
+    preveriEnako("presledek, ki ga vrine tipkovnica", rb, OsPravila.imenikPostaj("radio-browser. info"))
     preveriEnako("seznam .m3u z radio-browser (naloga 68) ni imenik", null,
         OsPravila.imenikPostaj("https://de1.api.radio-browser.info/m3u/stations/bycountrycodeexact/SI?hidebroken=true"))
     preveriEnako("seznam .pls z radio-browser ni imenik", null, OsPravila.imenikPostaj("https://de1.api.radio-browser.info/pls/stations/byname/val"))

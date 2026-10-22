@@ -5535,7 +5535,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun vpisiVir() {
         val polje = EditText(this).apply {
-            hint = getString(R.string.os_mediji_dodaj_namig); setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
+            hint = getString(R.string.os_mediji_dodaj_namig); setSingleLine(); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
         }
         AlertDialog.Builder(this)
             .setTitle(R.string.os_mediji_dodaj)
@@ -5553,7 +5553,7 @@ class GlasbaActivity : OsActivity() {
     /** Uvoz seznama predvajanja iz YouTuba ali Spotifyja: uporabnik prilepi povezavo (ali jo deli iz aplikacije). */
     private fun uvoziSeznam() {
         val polje = EditText(this).apply {
-            hint = "https://…"; setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
+            hint = "https://…"; setSingleLine(); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             // Povezava, ki jo je uporabnik pravkar kopiral, je ze v polju - ostane mu samo Uvozi.
             try {
                 val odlozisce = getSystemService(android.content.ClipboardManager::class.java)
@@ -5689,7 +5689,7 @@ class GlasbaActivity : OsActivity() {
      */
     private fun dodajDodatke() {
         val stremio = EditText(this).apply {
-            hint = getString(R.string.os_mediji_dodatki_stremio_namig); setSingleLine(); inputType = InputType.TYPE_TEXT_VARIATION_URI
+            hint = getString(R.string.os_mediji_dodatki_stremio_namig); setSingleLine(); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
         }
         val napakaVrstica = TextView(this).apply {
             setTextColor(0xFFFF8A80.toInt()); textSize = 13f; setPadding(0, dp(6), 0, 0); visibility = View.GONE

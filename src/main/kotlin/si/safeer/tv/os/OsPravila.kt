@@ -787,8 +787,9 @@ object OsPravila {
      * ali null.
      */
     fun imenikPostaj(vnos: String): String? {
-        val v = vnos.trim().lowercase(java.util.Locale.ROOT)
-        if (v.isEmpty() || v.contains("{q}") || v.contains(' ')) return null
+        // Tipkovnica na TV (samopopravki) rada vrine presledek za piko ("radio-browser. info"): naslov presledkov nima.
+        val v = vnos.trim().lowercase(java.util.Locale.ROOT).replace(Regex("\\s+"), "")
+        if (v.isEmpty() || v.contains("{q}")) return null
         val brezSheme = v.removePrefix("https://").removePrefix("http://")
         val gostitelj = brezSheme.substringBefore('/').substringBefore('?').substringBefore('#').substringBefore(':').trimEnd('.')
         val pot = brezSheme.substringAfter('/', "").substringBefore('?').substringBefore('#')
