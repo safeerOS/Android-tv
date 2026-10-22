@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
@@ -557,8 +558,11 @@ class StranskaVrstica private constructor(
         if (!samoPredvajalnik) dodaj(Razdelek.DOMOV, R.drawable.os_ikona_domov, R.string.os_meni_domov)
         dodaj(Razdelek.MEDIJI, R.drawable.os_ikona_glasba, R.string.os_mediji_kartica)
         dodaj(Razdelek.NAPRAVE, R.drawable.os_ikona_link, R.string.os_meni_naprave)
-        // Sporocila niso postavka vrstice (lastnik, 12. 10. 2026 - kot na namizju): kuverta z znacko v glavi domacega
-        // zaslona (SporocilaZnak). Vrstica ima natanko osem postavk.
+        // Sporocila: postavka vrstice IN kuverta v glavi (lastnik, 22. 10. 2026; od 12. 10. je bila le kuverta).
+        if (!samoPredvajalnik && si.safeer.tv.BuildConfig.FLAVOR != "brskalnik") {
+            dodaj(Razdelek.SPOROCILA, R.drawable.os_ikona_sporocila, R.string.os_meni_sporocila)
+            dodajZnackoSporocil()
+        }
         if (!samoPredvajalnik) dodaj(Razdelek.PROGRAMI, R.drawable.os_ikona_aplikacije, R.string.os_meni_aplikacije)
         dodaj(Razdelek.DATOTEKE, R.drawable.os_ikona_datoteke, R.string.os_meni_datoteke)
         if (!samoPredvajalnik) dodaj(Razdelek.SPLET, R.drawable.os_ikona_splet, R.string.os_meni_splet)
@@ -584,6 +588,27 @@ class StranskaVrstica private constructor(
             text = dejavnost.getString(R.string.os_link); setPadding(dp(6), 0, 0, 0); besedila.add(this)
         })
         meni.addView(link)
+    }
+
+    /** Stevilo neprebranih Sporocil se vpise v znacko postavke (prebere se v ozadju, ob gradnji vrstice). */
+    private fun dodajZnackoSporocil() {
+        val postavka = postavke[Razdelek.SPOROCILA] as? LinearLayout ?: return
+        val znacka = besedilo(10f, R.color.os_ozadje, true).apply {
+            gravity = Gravity.CENTER; visibility = View.GONE; minWidth = dp(17); setPadding(dp(4), 0, dp(4), 0)
+            background = GradientDrawable().apply { cornerRadius = dp(9).toFloat(); setColor(dejavnost.osBarva(R.color.os_mint)) }
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        postavka.addView(znacka, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(17)))
+        Thread({
+            val koliko = try { SporocilaShramba(dejavnost).use { s -> s.pogovori().sumOf { it.neprebrano } } } catch (_: Throwable) { 0 }
+            val b = ZaganjalnikPravila.besediloZnacke(koliko)
+            dejavnost.runOnUiThread {
+                if (dejavnost.isFinishing) return@runOnUiThread
+                znacka.text = b; znacka.visibility = if (b.isEmpty()) View.GONE else View.VISIBLE
+                postavka.contentDescription = if (koliko > 0) dejavnost.getString(R.string.zg_znacka_opis, dejavnost.getString(R.string.os_meni_sporocila), koliko)
+                    else dejavnost.getString(R.string.os_meni_sporocila)
+            }
+        }, "SafeerSporocilaVrstica").start()
     }
 
     private fun dodaj(razdelek: Razdelek, slika: Int, niz: Int) {

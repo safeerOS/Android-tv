@@ -421,12 +421,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (link.povezan || !link.vprasamoZaNacin()) odpriVarno(Intent(this, NapraveActivity::class.java), getString(R.string.os_meni_naprave))
             else vprasajZaNacin()
         }
-        // Sporocila niso postavka vrstice (lastnik, 12. 10. 2026 - kot na namizju): kuverta z znacko v glavi, ob
-        // stanju Safeer Linka (SporocilaZnak). Vrstica ima natanko osem postavk; fokus gre mimo skrite postavke.
-        meniSporocila.visibility = View.GONE
-        meniSporocila.isFocusable = false
-        meniNaprave.nextFocusDownId = meniAplikacije.id
-        meniAplikacije.nextFocusUpId = meniNaprave.id
+        // Sporocila: postavka vrstice IN kuverta v glavi (lastnik, 22. 10. 2026); fokusna veriga gre skoznjo (layout).
+        meniSporocila.setOnClickListener {
+            odpriVarno(Intent(this, SporocilaActivity::class.java), getString(R.string.os_meni_sporocila))
+        }
         findViewById<View?>(R.id.stanjeOkvir)?.let { stanje ->
             val glava = stanje.parent as? LinearLayout ?: return@let
             val k = SporocilaZnak.gumb(this, 48) { true }
@@ -443,7 +441,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             odpriVarno(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve))
         }
 
-        val menijskePostavke = listOf(meniDomov, meniGlasba, meniNaprave, meniAplikacije,
+        val menijskePostavke = listOf(meniDomov, meniGlasba, meniNaprave, meniSporocila, meniAplikacije,
             meniDatoteke, meniSplet, meniZapiski, meniNastavitve)
         for (postavka in menijskePostavke) {
             postavka.setOnKeyListener { _, keyCode, event ->
