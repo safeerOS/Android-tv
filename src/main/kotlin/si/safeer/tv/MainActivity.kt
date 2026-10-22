@@ -2504,6 +2504,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         try {
             val pogled = android.webkit.WebView(this)
+            si.safeer.tv.os.LahkiWebViewPool.prijavi(pogled)       // naloga 64
             pogled.settings.javaScriptEnabled = true
             pogled.settings.domStorageEnabled = true
             pogled.settings.allowFileAccess = false
@@ -2590,6 +2591,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
             okno.setOnDismissListener {
                 try { most.pospravi() } catch (_: Exception) {}
+                si.safeer.tv.os.LahkiWebViewPool.odjavi(pogled)
                 try { pogled.destroy() } catch (_: Exception) {}
                 linkOkno = null
                 if (izOs && !linkOdprlZavihek) vrniVOsPoLinku()

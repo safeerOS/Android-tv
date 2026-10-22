@@ -85,7 +85,11 @@ class TcpDns(
 
         if (s.tovor.isNotEmpty()) {
             if (s.seq == c.pricakovan) {
-                c.vhod.write(s.tovor)
+                // Naloga 65: vhod ima mejo. Vprasanje je najvec 2 + NAJVECJE_SPOROCILO bajtov; vec je pokvarjeno (ali zloraba -
+                // vsaka aplikacija na televizorju lahko sem posilja) in povezavo podremo. Po vprasanju tovora ne hranimo vec
+                // (drugega vprasanja na isti povezavi ne razresujemo): prej je vhod rasel, dokler je odjemalec posiljal.
+                if (!c.odgovorjeno && c.vhod.size() + s.tovor.size > 2 + NAJVECJE_SPOROCILO) { odbijPovezavo(kljuc, c, s); return true }
+                if (!c.odgovorjeno) c.vhod.write(s.tovor)
                 c.pricakovan = TcpPaket.naprej(c.pricakovan, s.tovor.size.toLong())
                 poslji(TcpPaket.sestavi(s, c.nasSeq, c.pricakovan, TcpPaket.ACK))
                 preveriVprasanje(kljuc, c, s)

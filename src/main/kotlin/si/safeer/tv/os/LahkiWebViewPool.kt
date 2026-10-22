@@ -3,6 +3,7 @@ package si.safeer.tv.os
 import android.content.Context
 import android.content.MutableContextWrapper
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -30,6 +31,65 @@ object LahkiWebViewPool {
     private var obOdvzemu: (() -> Unit)? = null
 
     /**
+     * Naloga 64: vsi WebView-ji procesa, ki jih se nismo unicili (destroy). Izmerjeno na TV med predvajanjem filma iz dodatka:
+     * v nasem procesu 0 WebView-jev, izrisovalnik (sandboxed_process0) pa 178 MB - Chromium ga ne konca, ko zadnji
+     * WebView izgine, ampak ga drzi do konca procesa. Koncamo ga sami ([koncajIzrisovalnik]), a samo, ko je ta mnozica
+     * prazna: vsi WebView-ji aplikacije si delijo en izrisovalnik (zavihki brskalnika, okno Linka, spletni predvajalnik).
+     * Samo glavna nit (WebView ustvarjamo in unicujemo na njej).
+     */
+    private val zivi: MutableSet<WebView> = java.util.Collections.newSetFromMap(java.util.WeakHashMap())
+    /** Zadnji znani izrisovalnik (WebViewRenderProcess, API 29+): dosegljiv je samo prek zivega WebView-ja. */
+    private var izrisovalnik: Any? = null
+
+    /** WebView je nastal (ChromiumEngineView, okno Linka, pool). */
+    fun prijavi(w: WebView) { zivi += w }
+
+    /** WebView bo unicen: zapomnimo si njegov izrisovalnik (po destroy() ga ne dobimo vec). */
+    fun odjavi(w: WebView) {
+        if (Build.VERSION.SDK_INT >= 29) try { w.webViewRenderProcess?.let { izrisovalnik = it } } catch (_: Throwable) { }
+        zivi -= w
+    }
+
+    /**
+     * Naloga 64: nas predvajalnik (Media3) je zacel igrati - tok je najden, stran ga ne rabi vec. Pogled poola (prost
+     * ali najet za nevidno branje oz. iskanje toka) unicimo takoj, ne sele cez [PROST_MS], in ce v procesu ni nobenega
+     * drugega WebView-ja, koncamo tudi izrisovalnik (~178 MB). [spletnoPredvajanje]: igra stran (stopnja 2 LahkaStran
+     * ali 3 SpletniIgralec) - takrat ostane vse.
+     */
+    fun obNativnemPredvajanju(spletnoPredvajanje: Boolean) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            glavna.post { obNativnemPredvajanju(spletnoPredvajanje) }
+            return
+        }
+        if (spletnoPredvajanje) return
+        val w = pogled
+        if (w != null) {
+            val klic = obOdvzemu
+            pogled = null
+            lastnik = null
+            obOdvzemu = null
+            glavna.removeCallbacks(unicenje)
+            // Najemnik (nevidno branje vira) izve, da pogleda nima vec - kot ob smrti izrisovalnika.
+            try { klic?.invoke() } catch (_: Throwable) { }
+            unicuj(w, "nativno predvajanje")
+        }
+        koncajIzrisovalnik("nativno predvajanje")
+    }
+
+    /**
+     * Konca izrisovalnik WebView, ce ga noben WebView procesa ne rabi. Android 9 (API 28) tega ne zna (ni
+     * WebViewRenderProcess): tam izrisovalnik ostane kot doslej.
+     */
+    private fun koncajIzrisovalnik(razlog: String) {
+        if (Build.VERSION.SDK_INT < 29) return
+        if (zivi.isNotEmpty()) { Log.i(TAG, "izrisovalnik WebView ostane: zivih WebView ${zivi.size} ($razlog)"); return }
+        val r = izrisovalnik as? android.webkit.WebViewRenderProcess ?: return
+        izrisovalnik = null
+        val koncan = try { r.terminate() } catch (_: Throwable) { false }
+        Log.i(TAG, "izrisovalnik WebView koncan=$koncan ($razlog)")
+    }
+
+    /**
      * Odjemalec pogleda, ki ta trenutek nima lastnika. Vsi WebView-ji aplikacije si delijo en izrisovalni proces: ko se
      * ta sesuje (stran v zavihku, npr. Googlov odgovor z umetno inteligenco - posnetek 3. 10. 2026) in KATERI KOLI
      * WebView vrne false, Android ubije celo aplikacijo (sistem nato ponudi "odstrani posodobitve WebView"). Privzeti
@@ -40,6 +100,7 @@ object LahkiWebViewPool {
             Log.w(TAG, "izrisovalnik je koncal (sesutje=${detail?.didCrash() == true}); lahki pogled zavrzem")
             val w = view ?: return true
             glavna.post {
+                odjavi(w)
                 if (pogled === w) {
                     pogled = null
                     val klic = obOdvzemu
@@ -79,6 +140,7 @@ object LahkiWebViewPool {
         }
         val w = pogled ?: WebView(MutableContextWrapper(context.applicationContext)).also {
             pogled = it
+            prijavi(it)
             try { it.webViewClient = MirujociKlient() } catch (_: Throwable) { }
             Log.i(TAG, "ustvarjen WebView: lahki pool")
         }
@@ -131,11 +193,15 @@ object LahkiWebViewPool {
             glavna.post(::sprostiProstega)
             return
         }
-        val w = pogled ?: return
-        if (lastnik != null) return
-        pogled = null
-        glavna.removeCallbacks(unicenje)
-        unicuj(w, "onTrimMemory")
+        val w = pogled
+        if (w != null && lastnik != null) return
+        if (w != null) {
+            pogled = null
+            glavna.removeCallbacks(unicenje)
+            unicuj(w, "onTrimMemory")
+        }
+        // Naloga 64: pomnilniski pritisk konca tudi izrisovalnik, ki je ostal brez WebView-jev.
+        koncajIzrisovalnik("onTrimMemory")
     }
 
     private fun pocisti(w: WebView, naslov: String?) {
@@ -175,6 +241,7 @@ object LahkiWebViewPool {
     }
 
     private fun unicuj(w: WebView, razlog: String) {
+        odjavi(w)
         try { (w.parent as? ViewGroup)?.removeView(w) } catch (_: Throwable) { }
         try { w.stopLoading() } catch (_: Throwable) { }
         try { w.destroy() } catch (_: Throwable) { }

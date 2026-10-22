@@ -153,6 +153,21 @@ fun tcpDnsTest() {
     preveri(dns.naPaket(syn6), "IPv6 SYN je TCP")
     preveri(poslano.size == 1 && poslano[0].razlicica == 6 && poslano[0].ima(TcpPaket.SYN), "IPv6 SYN+ACK")
 
+    // naloga 65: vhod povezave ima mejo - vec kot 2 + NAJVECJE_SPOROCILO bajtov brez celega vprasanja je RST (prej je
+    // vhod rasel brez meje, dokler je odjemalec posiljal)
+    val vrata9 = 40009
+    poslano.clear()
+    dns.naPaket(odOdjemalca(vrata9, 20000, 0, TcpPaket.SYN))
+    val sIsn9 = poslano[0].seq
+    poslano.clear()
+    val prvi = ByteArray(60_002).also { it[0] = 0xFF.toByte(); it[1] = 0xFF.toByte() }     // predpona 65535, nato 60000 bajtov
+    dns.naPaket(odOdjemalca(vrata9, 20001, sIsn9 + 1, TcpPaket.ACK, prvi))
+    preveri(poslano.none { it.ima(TcpPaket.RST) }, "60 kB nepopolnega vprasanja se ni napaka")
+    poslano.clear()
+    dns.naPaket(odOdjemalca(vrata9, 20001 + prvi.size, sIsn9 + 1, TcpPaket.ACK, ByteArray(6_000)))
+    preveri(poslano.any { it.ima(TcpPaket.RST) }, "cez najvecje sporocilo DNS je RST (vhod ne raste brez meje)")
+    poslano.clear()
+
     // cistilec pobrise mirujoce
     dns.pocisti()
     println("tcp: OK")

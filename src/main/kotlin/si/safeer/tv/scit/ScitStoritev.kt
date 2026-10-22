@@ -74,6 +74,8 @@ class ScitStoritev : VpnService() {
     }
 
     private val nakljucni = SecureRandom()
+    /** Kdaj smo nazadnje zapisali, da je [cakajoce] poln (dnevnik najvec vsakih 10 s). */
+    @Volatile private var zadnjaPolna = 0L
 
     /** DNS prek TCP: razreševalec ga uporabi, kadar odgovor po UDP ne gre v en paket. */
     private val tcp = TcpDns({ paket -> zapisi(paket) }, { vprasanje, odgovor -> razresiZaTcp(vprasanje, odgovor) })
@@ -249,6 +251,15 @@ class ScitStoritev : VpnService() {
     /** Prost nas ID za poizvedbo; nakljucen, da ga ni mogoce uganiti. Null, ce jih zmanjka. */
     private fun dodeliId(q: DnsPaket.Poizvedba, strezniki: List<InetAddress>): Int? {
         val zdaj = System.currentTimeMillis()
+        // Naloga 65: najvec NAJVEC_CAKAJOCIH hkrati (prej do 65536 - vsaka s kopijo paketa, ~0,5-1 kB). Ko strezniki
+        // molcijo ali aplikacija poplavi z vprasanji, bi se jih v POTEK_MS nabralo na desetine MB.
+        if (cakajoce.size >= NAJVEC_CAKAJOCIH) {
+            cakajoce.entries.removeIf { zdaj - it.value.cas > POTEK_MS }
+            if (cakajoce.size >= NAJVEC_CAKAJOCIH) {
+                if (zdaj - zadnjaPolna > 10_000L) { zadnjaPolna = zdaj; Log.w(TAG, "Hkratnih poizvedb DNS je ${cakajoce.size}; nove izpuscam") }
+                return null
+            }
+        }
         repeat(12) {
             val id = nakljucni.nextInt(65536)
             if (cakajoce.putIfAbsent(id, Cakajoca(q, zdaj, strezniki)) == null) return id
@@ -417,6 +428,8 @@ class ScitStoritev : VpnService() {
         /** Koliko cakamo na odgovor, preden vprasamo naslednji streznik, in kdaj odnehamo. */
         private const val PONOVITEV_MS = 1_200L
         private const val POTEK_MS = 8_000L
+        /** Naloga 65: najvec cakajocih poizvedb naenkrat (obicajno jih je nekaj deset; dnevnik »cakajocih N« vsakih 30 s). */
+        private const val NAJVEC_CAKAJOCIH = 1024
 
         fun zazeni(context: Context) = poslji(context, DEJANJE_ZAZENI)
         fun ustavi(context: Context) = poslji(context, DEJANJE_USTAVI)

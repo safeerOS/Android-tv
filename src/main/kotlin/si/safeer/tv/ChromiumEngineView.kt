@@ -218,6 +218,7 @@ class ChromiumEngineView @JvmOverloads constructor(
     init {
         setupSettings()
         setupClients()
+        si.safeer.tv.os.LahkiWebViewPool.prijavi(this)     // naloga 64: izrisovalnik koncamo samo brez zivih WebView-jev
     }
 
         fun setOnScrollChanged(callback: ((Int, Int) -> Unit)?) {
@@ -364,6 +365,7 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     override fun destroy() {
         if (!uniceno) android.util.Log.i("SafeerRam", "unicen WebView: ChromiumEngineView")
+        if (!uniceno) si.safeer.tv.os.LahkiWebViewPool.odjavi(this)
         uniceno = true
         super.destroy()
     }

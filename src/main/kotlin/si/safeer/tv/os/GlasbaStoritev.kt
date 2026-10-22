@@ -172,6 +172,9 @@ class GlasbaStoritev : Service() {
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) { zacelo = true; koncnaNapaka = null; zapomniNedavnoEnkrat() }
+                // Naloga 64: nas predvajalnik igra - WebView-ji, ki so iskali tok, in njihov izrisovalnik (~178 MB) niso vec
+                // potrebni. Spletno predvajanje (stopnja 2/3) obdrzi svojega.
+                if (isPlaying) LahkiWebViewPool.obNativnemPredvajanju(spletni != null)
                 // Merjenje cakanja pred zacetkom (torrent prek pomocnika): od dotika do prve slike.
                 if (isPlaying && merimOd != 0L) { Log.i("SafeerTorrentCas", "predvajanje tece po ${android.os.SystemClock.uptimeMillis() - merimOd} ms"); merimOd = 0L }
                 osvezi()
