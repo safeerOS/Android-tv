@@ -77,7 +77,7 @@
   <string name="ui_continue_risk">Continua a tuo rischio (consenti per questa sessione)</string>
   <string name="ui_security_threat">Minaccia di sicurezza</string>
   <string name="ui_security_shield">Protezione di sicurezza Safeer Browser</string>
-  <string name="ui_zero_bypass">Nessuna eccezione: questo sito è un server C2 di botnet o di malware confermato e non può essere sbloccato.</string>
+  <string name="ui_zero_bypass">Questo sito non può essere aperto: è un server di controllo confermato di dispositivi infetti o un server di malware.</string>
   <string name="ui_signed_intel_waiting">Safeer Threat Intelligence: in attesa della pubblicazione dell\'elenco firmato</string>
   <string name="ui_signed_intel_not_downloaded">Safeer Threat Intelligence: elenco non ancora scaricato</string>
   <string name="ui_signed_intel_rules">Safeer Threat Intelligence: %1$s regole verificate (versione %2$s)</string>
@@ -106,7 +106,7 @@
   <string name="ui_leave_page">Esci dalla pagina</string>
   <string name="ui_stay">Resta</string>
   <string name="ui_leave_page_msg">La pagina chiede se vuoi davvero uscire. I dati non salvati andranno persi.</string>
-  <string name="ui_cat_botnet">Server C2 di botnet</string>
+  <string name="ui_cat_botnet">Server di controllo di dispositivi infetti (botnet)</string>
   <string name="ui_cat_malware">Codice dannoso (malware)</string>
   <string name="ui_cat_phishing">Phishing</string>
   <string name="ui_cat_adnet">Rete pubblicitaria/di scommesse pericolosa</string>

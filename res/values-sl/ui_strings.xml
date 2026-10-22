@@ -77,7 +77,7 @@
   <string name="ui_continue_risk">Nadaljuj na lastno odgovornost (Odkleni za to sejo)</string>
   <string name="ui_security_threat">Varnostna grožnja</string>
   <string name="ui_security_shield">Varnostni ščit Safeer Browser</string>
-  <string name="ui_zero_bypass">Pravilo ničelnega obvoza: to spletno mesto je potrjen botnet C2 ali strežnik zlonamerne kode, zato ga ni mogoče odkleniti.</string>
+  <string name="ui_zero_bypass">Te strani ni mogoče odpreti: je potrjen nadzorni strežnik okuženih naprav ali strežnik zlonamerne kode.</string>
   <string name="ui_signed_intel_waiting">Safeer Threat Intelligence: čaka na objavo podpisanega seznama</string>
   <string name="ui_signed_intel_not_downloaded">Safeer Threat Intelligence: seznam še ni prenesen</string>
   <string name="ui_signed_intel_rules">Safeer Threat Intelligence: %1$s preverjenih pravil (različica %2$s)</string>
@@ -106,7 +106,7 @@
   <string name="ui_leave_page">Zapusti stran</string>
   <string name="ui_stay">Ostani</string>
   <string name="ui_leave_page_msg">Stran sprašuje, ali jo res želiš zapustiti. Neshranjeni vnosi bodo izgubljeni.</string>
-  <string name="ui_cat_botnet">Botnet C2 strežnik</string>
+  <string name="ui_cat_botnet">Nadzorni strežnik okuženih naprav (botnet)</string>
   <string name="ui_cat_malware">Zlonamerna koda (Malware)</string>
   <string name="ui_cat_phishing">Spletno ribarjenje (Phishing)</string>
   <string name="ui_cat_adnet">Nevarno oglasno/stavno omrežje</string>

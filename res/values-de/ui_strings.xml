@@ -77,7 +77,7 @@
   <string name="ui_continue_risk">Auf eigenes Risiko fortfahren (für diese Sitzung erlauben)</string>
   <string name="ui_security_threat">Sicherheitsbedrohung</string>
   <string name="ui_security_shield">Safeer Browser Sicherheitsschutz</string>
-  <string name="ui_zero_bypass">Keine Umgehung möglich: Diese Website ist ein bestätigter Botnet-C2- oder Malware-Server und kann nicht freigegeben werden.</string>
+  <string name="ui_zero_bypass">Diese Website kann nicht geöffnet werden: Sie ist ein bestätigter Steuerserver für infizierte Geräte oder ein Malware-Server.</string>
   <string name="ui_signed_intel_waiting">Safeer Threat Intelligence: wartet auf die Veröffentlichung der signierten Liste</string>
   <string name="ui_signed_intel_not_downloaded">Safeer Threat Intelligence: Liste noch nicht heruntergeladen</string>
   <string name="ui_signed_intel_rules">Safeer Threat Intelligence: %1$s geprüfte Regeln (Version %2$s)</string>
@@ -106,7 +106,7 @@
   <string name="ui_leave_page">Seite verlassen</string>
   <string name="ui_stay">Bleiben</string>
   <string name="ui_leave_page_msg">Die Seite fragt, ob Sie sie wirklich verlassen möchten. Nicht gespeicherte Eingaben gehen verloren.</string>
-  <string name="ui_cat_botnet">Botnet-C2-Server</string>
+  <string name="ui_cat_botnet">Steuerserver für infizierte Geräte (Botnet)</string>
   <string name="ui_cat_malware">Schadsoftware (Malware)</string>
   <string name="ui_cat_phishing">Phishing</string>
   <string name="ui_cat_adnet">Gefährliches Werbe-/Wettnetzwerk</string>
