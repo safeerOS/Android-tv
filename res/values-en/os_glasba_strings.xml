@@ -215,8 +215,11 @@
     <string name="os_mediji_dodatki_prilepi">Paste</string>
     <string name="os_mediji_dodatki_prilepi_prazno">Clipboard is empty – copy the address first (e.g. on the web: hold OK on a link).</string>
     <string name="os_mediji_dodatki_namig_splet">Easiest, no typing: open the add-on page on the web and press its Install button – Safeer offers to add it here.</string>
-    <string name="os_mediji_dodatek_ujet">Add this Stremio add-on to the Media Center?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Add</string>
+    <!-- Naloga 94: gumb Install na strani z dodatki v Spletu. -->
+    <string name="os_mediji_dodatek_vprasanje">Add the source %1$s to My sources?</string>
+    <string name="os_mediji_dodatek_ze">Already in your sources</string>
+    <string name="os_mediji_dodatek_dodano">Added</string>
     <string name="os_sprotno_iscem">Looking for a device in Safeer Link that can convert this video …</string>
     <string name="os_sprotno_pretvarja">%1$s is converting the video live for this device …</string>
     <string name="os_sprotno_vir">converted live by %1$s</string>

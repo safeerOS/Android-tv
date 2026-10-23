@@ -215,8 +215,11 @@
     <string name="os_mediji_dodatki_prilepi">Prilepi</string>
     <string name="os_mediji_dodatki_prilepi_prazno">Odložišče je prazno – najprej kopiraj naslov (npr. v Spletu: drži OK na povezavi).</string>
     <string name="os_mediji_dodatki_namig_splet">Najlažje brez tipkanja: v Spletu odpri stran dodatka in pritisni njegov gumb Namesti/Install – Safeer ponudi, da ga doda sem.</string>
-    <string name="os_mediji_dodatek_ujet">Dodam Stremio dodatek v Medijski center?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Dodaj</string>
+    <!-- Naloga 94: gumb Install na strani z dodatki v Spletu. -->
+    <string name="os_mediji_dodatek_vprasanje">Dodaj vir %1$s v Moje vire?</string>
+    <string name="os_mediji_dodatek_ze">Že med viri</string>
+    <string name="os_mediji_dodatek_dodano">Dodano</string>
     <string name="os_sprotno_iscem">Iščem napravo v Safeer Linku, ki zna pretvoriti ta video …</string>
     <string name="os_sprotno_pretvarja">Naprava %1$s video sproti pretvarja za to napravo …</string>
     <string name="os_sprotno_vir">sproti pretvarja: %1$s</string>

@@ -1433,4 +1433,65 @@ object OsPravila {
         }
         return izhod.toList()
     }
+
+    // ------------------------------------------------------------------ naloga 94: namestitev dodatka iz Spleta
+
+    /** Spletni Stremio (web.stremio.com, app.strem.io): stran »#/addons?addon=<naslov manifesta>« namesti dodatek. */
+    private val GOSTITELJI_SPLETNEGA_STREMIA = setOf("web.stremio.com", "app.strem.io", "web.strem.io")
+
+    /**
+     * Naloga 94: naslov manifesta dodatka Stremio iz navigacije v Spletu (gumb »Install« na straneh z dodatki, npr.
+     * stremio-addons.net): »stremio://gostitelj/.../manifest.json« -> isti naslov s https; spletni Stremio
+     * »https://web.stremio.com/#/addons?addon=<kodiran naslov>«; neposreden »http(s)://.../manifest.json«. Vrne naslov
+     * manifesta (http ali https, brez dela za »#«) ali null, ce navigacija ni namestitev dodatka.
+     */
+    fun naslovDodatka(url: String): String? {
+        val u = url.trim()
+        val malo = u.lowercase(java.util.Locale.ROOT)
+        if (malo.startsWith("stremio://")) return manifestDodatka("https://" + u.substring("stremio://".length))
+        if (!malo.startsWith("http://") && !malo.startsWith("https://")) return null
+        val gostitelj = u.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
+            .substringAfterLast('@').substringBefore(':').lowercase(java.util.Locale.ROOT)
+        if (gostitelj in GOSTITELJI_SPLETNEGA_STREMIA) {
+            val del = u.substringAfter('#', "")
+            if (!del.startsWith("/addons")) return null
+            val vrednost = del.substringAfter('?', "").split('&').firstOrNull { it.startsWith("addon=") }?.removePrefix("addon=") ?: return null
+            val naslov = try { java.net.URLDecoder.decode(vrednost, "UTF-8") } catch (_: Exception) { return null }
+            // Spletni Stremio z naslovom, ki ni dodatek (ali spet spletni Stremio), ni namestitev.
+            return naslovDodatka(naslov)?.takeIf { n -> GOSTITELJI_SPLETNEGA_STREMIA.none { n.lowercase(java.util.Locale.ROOT).contains("://$it") } }
+        }
+        return manifestDodatka(u)
+    }
+
+    /** http(s) naslov z gostiteljem, katerega pot (brez »?« in »#«) se konca z »/manifest.json«; brez dela za »#«. */
+    private fun manifestDodatka(u: String): String? {
+        val brezDela = u.substringBefore('#')
+        val malo = brezDela.lowercase(java.util.Locale.ROOT)
+        if (!malo.startsWith("http://") && !malo.startsWith("https://")) return null
+        val poGostitelju = brezDela.substringAfter("://")
+        val gostitelj = poGostitelju.substringBefore('/').substringBefore('?')
+        if (gostitelj.isBlank() || gostitelj.any { it.isWhitespace() }) return null
+        val pot = poGostitelju.removePrefix(gostitelj).substringBefore('?')
+        return brezDela.takeIf { pot.lowercase(java.util.Locale.ROOT).endsWith("/manifest.json") }
+    }
+
+    // ------------------------------------------------------------------ naloga 95: kanal v zivo, ki streznik sproti zapira
+
+    /** Najvec zaporednih ponovnih povezav kanala v zivo brez novih podatkov; potem je konec (kanal ne deluje). */
+    const val PONOVITEV_V_ZIVO_NAJVEC = 5
+    /** Ponovitev, pred katero je predvajalnik predvajal vsaj toliko, je prinesla nove podatke (stevec gre na zacetek). */
+    const val NOVI_PODATKI_V_ZIVO_MS = 2_000L
+
+    /**
+     * Naloga 95 (meritev 23. 10. 14:12: surov MPEG-TS prek http, streznik povezavo zapre po ~1 MB, VLC se poveze znova):
+     * ali kanal v zivo s progresivnim virom ([progresivno]: ne HLS ali DASH) ob koncu toka ali napaki vira med predvajanjem
+     * ([zacelo]) znova pripravimo. [prejsnjih] = zaporedne ponovitve brez novih podatkov do zdaj, [predvajanoMs] = koliko je
+     * predvajal od zadnje (ponovne) povezave. Vrne zaporedno stevilko te ponovitve brez novih podatkov (1 ..
+     * [PONOVITEV_V_ZIVO_NAJVEC]) ali 0 = ne ponovi (film, HLS, se ni zacelo ali prevec ponovitev brez podatkov).
+     */
+    fun ponovnaPovezavaVZivo(vZivo: Boolean, progresivno: Boolean, zacelo: Boolean, prejsnjih: Int, predvajanoMs: Long): Int {
+        if (!vZivo || !progresivno || !zacelo) return 0
+        val brez = if (predvajanoMs >= NOVI_PODATKI_V_ZIVO_MS) 0 else prejsnjih.coerceAtLeast(0)
+        return if (brez >= PONOVITEV_V_ZIVO_NAJVEC) 0 else brez + 1
+    }
 }

@@ -216,8 +216,11 @@
     <string name="os_mediji_dodatki_prilepi">Einfügen</string>
     <string name="os_mediji_dodatki_prilepi_prazno">Die Zwischenablage ist leer – kopiere zuerst die Adresse (z. B. im Web: OK auf einem Link gedrückt halten).</string>
     <string name="os_mediji_dodatki_namig_splet">Am einfachsten, ohne Tippen: Öffne die Seite des Add-ons im Web und drücke dort »Install« – Safeer bietet an, es hier hinzuzufügen.</string>
-    <string name="os_mediji_dodatek_ujet">Dieses Stremio-Add-on zum Mediencenter hinzufügen?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Hinzufügen</string>
+    <!-- Naloga 94: gumb Install na strani z dodatki v Spletu. -->
+    <string name="os_mediji_dodatek_vprasanje">Die Quelle %1$s zu Meine Quellen hinzufügen?</string>
+    <string name="os_mediji_dodatek_ze">Bereits in deinen Quellen</string>
+    <string name="os_mediji_dodatek_dodano">Hinzugefügt</string>
     <string name="os_sprotno_iscem">Suche ein Gerät in Safeer Link, das dieses Video umwandeln kann …</string>
     <string name="os_sprotno_pretvarja">%1$s wandelt das Video live für dieses Gerät um …</string>
     <string name="os_sprotno_vir">live umgewandelt von %1$s</string>

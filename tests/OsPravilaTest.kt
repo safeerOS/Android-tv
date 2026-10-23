@@ -1033,6 +1033,8 @@ fun main() {
     preizkusTv90b()
     preizkusGlasbe89()
     preizkusKatalogov90()
+    preizkusNamestitveDodatka94()
+    preizkusPonovnePovezave95()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }
@@ -1045,4 +1047,46 @@ private fun preizkusKatalogov90() {
     preveri("ostali ohranijo vrstni red", izbrani.drop(1) == (1..9).map { "a$it" })
     preveri("brez prednostnih: prvih deset", OsPravila.katalogiZPrednostjo(vsi.dropLast(1), 10) { false } == (1..10).map { "a$it" })
     preveri("manj kot n: vsi", OsPravila.katalogiZPrednostjo(listOf("x", "koncerti"), 10) { it == "koncerti" }.toSet() == setOf("x", "koncerti"))
+}
+
+private fun preizkusNamestitveDodatka94() {
+    println("\n== namestitev dodatka iz Spleta (naloga 94) ==")
+    val m = "https://watchio-addon.pages.dev/manifest.json"
+    preveriEnako("stremio:// -> https, ista pot", m, OsPravila.naslovDodatka("stremio://watchio-addon.pages.dev/manifest.json"))
+    preveriEnako("stremio:// s potjo nastavitev", "https://a.test/abc%7B%22x%22%7D/manifest.json",
+        OsPravila.naslovDodatka("stremio://a.test/abc%7B%22x%22%7D/manifest.json"))
+    preveriEnako("spletni Stremio, kodiran naslov", m, OsPravila.naslovDodatka("https://web.stremio.com/#/addons?addon=https%3A%2F%2Fwatchio-addon.pages.dev%2Fmanifest.json"))
+    preveriEnako("spletni Stremio, nekodiran naslov (kot stremio-addons.net)", m, OsPravila.naslovDodatka("https://web.stremio.com/#/addons?addon=$m"))
+    preveriEnako("spletni Stremio, addon ni prvi parameter", m, OsPravila.naslovDodatka("https://app.strem.io/#/addons?type=all&addon=$m"))
+    preveriEnako("spletni Stremio z naslovom stremio://", m, OsPravila.naslovDodatka("https://web.stremio.com/#/addons?addon=stremio%3A%2F%2Fwatchio-addon.pages.dev%2Fmanifest.json"))
+    preveriEnako("neposreden manifest.json", m, OsPravila.naslovDodatka(m))
+    preveriEnako("manifest.json z delom za #", m, OsPravila.naslovDodatka("$m#x"))
+    preveriEnako("manifest.json na http", "http://192.168.1.5:7000/manifest.json", OsPravila.naslovDodatka("http://192.168.1.5:7000/manifest.json"))
+    preveriEnako("MANIFEST.JSON z velikimi crkami", "https://a.test/MANIFEST.JSON", OsPravila.naslovDodatka("https://a.test/MANIFEST.JSON"))
+    preveriEnako("stran dodatka ni namestitev", null, OsPravila.naslovDodatka("https://stremio-addons.net/addons/watchio-tv"))
+    preveriEnako("spletni Stremio brez addon=", null, OsPravila.naslovDodatka("https://web.stremio.com/#/addons"))
+    preveriEnako("spletni Stremio, druga stran", null, OsPravila.naslovDodatka("https://web.stremio.com/#/discover?addon=$m"))
+    preveriEnako("spletni Stremio, addon ni manifest", null, OsPravila.naslovDodatka("https://web.stremio.com/#/addons?addon=https%3A%2F%2Fa.test%2Fstran"))
+    preveriEnako("spletni Stremio v spletnem Stremiu ni namestitev", null,
+        OsPravila.naslovDodatka("https://web.stremio.com/#/addons?addon=https%3A%2F%2Fweb.stremio.com%2Fmanifest.json"))
+    preveriEnako("stremio:// brez gostitelja (globoka povezava aplikacije)", null, OsPravila.naslovDodatka("stremio:///detail/movie/tt1"))
+    preveriEnako("stremio:// brez manifest.json", null, OsPravila.naslovDodatka("stremio://a.test/configure"))
+    preveriEnako("manifest.json samo v poizvedbi ni manifest", null, OsPravila.naslovDodatka("https://a.test/go?u=/manifest.json"))
+    preveriEnako("druga shema", null, OsPravila.naslovDodatka("intent://a.test/manifest.json#Intent;scheme=https;end"))
+    preveriEnako("prazno", null, OsPravila.naslovDodatka(""))
+}
+
+private fun preizkusPonovnePovezave95() {
+    println("\n== kanal v zivo: ponovna povezava (naloga 95) ==")
+    val n = OsPravila.PONOVITEV_V_ZIVO_NAJVEC
+    preveriEnako("v zivo, progresivno, konec po 5 s - ponovi (1)", 1, OsPravila.ponovnaPovezavaVZivo(true, true, true, 0, 5_000))
+    preveriEnako("novi podatki po prejsnjih ponovitvah - stevec znova 1", 1, OsPravila.ponovnaPovezavaVZivo(true, true, true, 3, 4_800))
+    preveriEnako("brez novih podatkov - naslednja zaporedna", 3, OsPravila.ponovnaPovezavaVZivo(true, true, true, 2, 300))
+    preveriEnako("zadnja dovoljena brez podatkov", n, OsPravila.ponovnaPovezavaVZivo(true, true, true, n - 1, 0))
+    preveriEnako("prevec ponovitev brez podatkov - konec", 0, OsPravila.ponovnaPovezavaVZivo(true, true, true, n, 0))
+    preveriEnako("prevec ponovitev, a spet podatki - ponovi", 1, OsPravila.ponovnaPovezavaVZivo(true, true, true, n, OsPravila.NOVI_PODATKI_V_ZIVO_MS))
+    preveriEnako("HLS - ne", 0, OsPravila.ponovnaPovezavaVZivo(true, false, true, 0, 5_000))
+    preveriEnako("film (ni v zivo) - ne", 0, OsPravila.ponovnaPovezavaVZivo(false, true, true, 0, 5_000))
+    preveriEnako("se ni zacelo (napaka pri prvi povezavi) - ne", 0, OsPravila.ponovnaPovezavaVZivo(true, true, false, 0, 0))
+    preveriEnako("negativen stevec je 0", 1, OsPravila.ponovnaPovezavaVZivo(true, true, true, -3, 0))
 }

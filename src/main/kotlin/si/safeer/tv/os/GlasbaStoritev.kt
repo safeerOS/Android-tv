@@ -102,6 +102,9 @@ class GlasbaStoritev : Service() {
     }
     /** Posnetek, ki smo ga po napaki »neznana oblika« ze poskusili kot seznam HLS. */
     private var kotHls = ""
+    /** Naloga 95: zaporedne ponovne povezave kanala v zivo brez novih podatkov in vse ponovne povezave tega vira. */
+    private var ponovitevVZivo = 0
+    private var ponovitevVZivoSkupaj = 0
     /** Predvaja se en sam kanal ali postaja v zivo s spleta (ne datoteka z naprave v Linku): bere ga nit nalaganja. */
     @Volatile private var enaVZivo = false
 
@@ -200,7 +203,8 @@ class GlasbaStoritev : Service() {
                 }
             }
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) poKoncu() else osvezi()
+                // Naloga 95: kanal v zivo, ki mu streznik zapre povezavo, se poveze znova (zaslon predvajanja ostane).
+                if (playbackState == Player.STATE_ENDED) { if (!ponoviVZivo(p, "konec toka")) poKoncu() } else osvezi()
             }
             override fun onPlayerError(error: PlaybackException) {
                 // Pokvarjena skladba ne sme ustaviti vsega: naprej na naslednjo, ce obstaja. Uporabnik
@@ -209,6 +213,9 @@ class GlasbaStoritev : Service() {
                 // Naloga 93: vsaka napaka predvajalnika v dnevnik (koda, ime kode, HTTP, vzrok) - brez naslova toka.
                 Log.i("SafeerOsMedia", "napaka predvajalnika: koda=${error.errorCode} (${error.errorCodeName}), http=${httpKoda(error)}, " +
                     "vzrok=${error.cause?.javaClass?.simpleName}, v zivo=$enaVZivo, zacelo=$zacelo")
+                // Naloga 95: napaka vira (vhod/izhod, kode 2xxx) med predvajanjem kanala v zivo - streznik zapre povezavo:
+                // ponovna povezava, brez sporocila.
+                if (error.errorCode / 1000 == PlaybackException.ERROR_CODE_IO_UNSPECIFIED / 1000 && ponoviVZivo(p, "napaka vira ${error.errorCode}")) return
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                     // Prenos v zivo po pavzi ali zastoju: predvajalnik je zaostal za oknom prenosa. To ni napaka kanala -
                     // nazaj na zivo. (Prej: »Predvajanje se je ustavilo zaradi napake« in crn zaslon.)
@@ -345,6 +352,31 @@ class GlasbaStoritev : Service() {
     private fun konec() { android.os.Handler(mainLooper).post { stopSelf() } }
 
     /** Posnetek je pri koncu: v vrsti posnetkov s strani (seznam predvajanja) zacne naslednji, sicer je konec. */
+    /**
+     * Naloga 95: kanal v zivo s progresivnim virom (surov MPEG-TS prek http) - streznik povezavo sproti zapre, predvajalnik
+     * pride do konca. Isti vir pripravimo znova od privzetega mesta: zaslon predvajanja ostane, zadnja slika tudi (seek ne
+     * pobrise povrsine). Odlocitev in meja: [OsPravila.ponovnaPovezavaVZivo]; po meji obstojeca pot (konec, napaka).
+     */
+    private fun ponoviVZivo(p: Player, zakaj: String): Boolean {
+        val enota = trenutna() ?: return false
+        val kanal = vrsta.size == 1 && (IptvSeznami.jeKanal(enota) || Stremio.jeVZivo(enota))
+        val progresivno = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(enota.zvok),
+            enota.mime.ifBlank { null }) == C.CONTENT_TYPE_OTHER
+        val predvajano = p.currentPosition.coerceAtLeast(0L)
+        val n = OsPravila.ponovnaPovezavaVZivo(kanal, progresivno, zacelo, ponovitevVZivo, predvajano)
+        if (n == 0) {
+            if (kanal && progresivno && zacelo) Log.i("SafeerOsMedia", "kanal v zivo: brez ponovne povezave ($zakaj) - $ponovitevVZivo zaporednih brez novih podatkov")
+            return false
+        }
+        ponovitevVZivo = n
+        ponovitevVZivoSkupaj++
+        Log.i("SafeerOsMedia", "kanal v zivo: ponovna povezava $ponovitevVZivoSkupaj ($zakaj, predvajano $predvajano ms, zaporedno brez podatkov $n)")
+        p.seekToDefaultPosition()
+        p.prepare()
+        p.play()
+        return true
+    }
+
     private fun poKoncu() {
         if (spletnaVrsta.size > spletniIndeks + 1) android.os.Handler(mainLooper).post { zacniElement(spletniIndeks + 1) }
         else konec()
@@ -426,6 +458,7 @@ class GlasbaStoritev : Service() {
         predvajalnik = p
         vrsta = seznam
         zacelo = false; koncnaNapaka = null; zapisanaNedavno = ""
+        ponovitevVZivo = 0; ponovitevVZivoSkupaj = 0
         enaVZivo = s == null && seznam.size == 1 && seznam[0].let { it.radio || it.id.startsWith("tv:") || Stremio.jeVZivo(it) || IptvSeznami.jeKanal(it) }
         streznikTrenutni = s
         // Kanal ali postaja v zivo: streznik, ki se v 5 s ne oglasi, ne dela (privzeti rok 8 s je za datoteke).

@@ -216,8 +216,11 @@
     <string name="os_mediji_dodatki_prilepi">Coller</string>
     <string name="os_mediji_dodatki_prilepi_prazno">Le presse-papiers est vide – copie d\'abord l\'adresse (p. ex. sur le web : maintiens OK sur un lien).</string>
     <string name="os_mediji_dodatki_namig_splet">Le plus simple, sans rien taper : ouvre la page du module sur le web et appuie sur son bouton Install – Safeer propose de l\'ajouter ici.</string>
-    <string name="os_mediji_dodatek_ujet">Ajouter ce module Stremio au centre multimédia ?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Ajouter</string>
+    <!-- Naloga 94: gumb Install na strani z dodatki v Spletu. -->
+    <string name="os_mediji_dodatek_vprasanje">Ajouter la source %1$s à Mes sources ?</string>
+    <string name="os_mediji_dodatek_ze">Déjà dans vos sources</string>
+    <string name="os_mediji_dodatek_dodano">Ajoutée</string>
     <string name="os_sprotno_iscem">Recherche d\'un appareil dans Safeer Link capable de convertir cette vidéo …</string>
     <string name="os_sprotno_pretvarja">%1$s convertit la vidéo en direct pour cet appareil …</string>
     <string name="os_sprotno_vir">converti en direct par %1$s</string>

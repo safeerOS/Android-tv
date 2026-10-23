@@ -21,6 +21,8 @@ class ChromiumEngineView @JvmOverloads constructor(
 ) : WebView(context, attrs, defStyleAttr) {
 
     companion object {
+        /** Naloga 94: naslov dodatka, ki ga ta hip preverjamo ali ponujamo (eno okno naenkrat za vse poglede, tudi pojavna). */
+        private val dodatekVTeku = java.util.concurrent.atomic.AtomicReference<String?>(null)
         /**
          * Cas zadnje tipke daljinca (tudi ukazov s telefona, ki gredo skozi dispatchKeyEvent). Most
          * `triggerNativeTap` je dosegljiv vsaki strani; brez te meje bi stran sama sprozila prave
@@ -360,8 +362,78 @@ class ChromiumEngineView @JvmOverloads constructor(
     /** Tece obravnava navigacije strani (shouldOverrideUrlLoading): loadUrl od tam ni naslov »od zunaj«. */
     private var vNavigacijiStrani = false
 
-    /** Odprto vprasanje "Dodam Stremio dodatek?" (samo eno naenkrat). */
-    private var stremioOkno: android.app.AlertDialog? = null
+    /**
+     * Naloga 94: ponudi dodatek Stremio z naslovom manifesta [naslov] (iz [si.safeer.tv.os.OsPravila.naslovDodatka]) v Moje vire.
+     * Ista pot kot rocno dodajanje v Mojih virih: manifest mora odgovoriti ([si.safeer.tv.os.Stremio.preveriObVnosu], naloga 57d),
+     * nato [si.safeer.tv.os.MedijskiViri.dodajDodatek] in pregled kanalov v ozadju. Nikoli brez potrditve. [sicerNalozi]: neposreden
+     * klik na .../manifest.json - ce to ni dodatek, se naslov nalozi kot doslej.
+     */
+    private fun ponudiDodatek(view: WebView?, vnos: String, sicerNalozi: String?) {
+        val ctx = context
+        val glavna = android.os.Handler(android.os.Looper.getMainLooper())
+        val naslov = si.safeer.tv.os.MedijskiViri.preveriDodatek(si.safeer.tv.os.MedijskiViri.STREMIO, vnos).first ?: return
+        // En pritisk OK na povezavi prozi navigacijo dvakrat (sinteticni Enter + tipka sama), stran pa jo lahko ponovi:
+        // za isti naslov samo eno preverjanje ali okno naenkrat (tudi ce ga je sprozilo pojavno okno, ki se zapre).
+        if (!dodatekVTeku.compareAndSet(null, naslov)) return
+        fun ze(n: String) = si.safeer.tv.os.MedijskiViri.vsi(ctx).any {
+            it.tip == si.safeer.tv.os.MedijskiViri.STREMIO && si.safeer.tv.os.Stremio.osnova(it.naslov) == si.safeer.tv.os.Stremio.osnova(n) }
+        if (ze(naslov)) {
+            dodatekVTeku.set(null)
+            android.util.Log.i("SafeerOsMedia", "Splet: dodatek ze med viri")
+            android.widget.Toast.makeText(ctx, R.string.os_mediji_dodatek_ze, android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        Thread({
+            si.safeer.tv.os.Stremio.pripravi(ctx)
+            val koda = try { si.safeer.tv.os.Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
+            val ime = if (koda == 200) (try { si.safeer.tv.os.Stremio.manifest(naslov)?.ime } catch (_: Exception) { null }) else null
+            glavna.post {
+                val dejavnost = ctx as? android.app.Activity
+                if (dejavnost == null || dejavnost.isFinishing) { dodatekVTeku.set(null); return@post }
+                android.util.Log.i("SafeerOsMedia", "Splet: dodatek, manifest koda=$koda, neposreden=${sicerNalozi != null}")
+                if (koda != 200) {
+                    dodatekVTeku.set(null)
+                    // Neposreden klik na manifest.json, ki ni dodatek (ali ne odgovori): stran se odpre kot doslej.
+                    if (sicerNalozi != null) { view?.loadUrl(sicerNalozi); return@post }
+                    android.widget.Toast.makeText(ctx, if (koda > 0) ctx.getString(R.string.os_mediji_streznik_ne_odgovarja, koda)
+                        else ctx.getString(R.string.os_mediji_streznik_ne_odgovarja_brez), android.widget.Toast.LENGTH_LONG).show()
+                    return@post
+                }
+                var dodano = false
+                fun dodaj() {
+                    if (dodano) return
+                    dodano = true
+                    if (ze(naslov)) {
+                        android.widget.Toast.makeText(ctx, R.string.os_mediji_dodatek_ze, android.widget.Toast.LENGTH_SHORT).show()
+                        return
+                    }
+                    val v = si.safeer.tv.os.MedijskiViri.dodajDodatek(ctx, si.safeer.tv.os.MedijskiViri.STREMIO, naslov, "")
+                    // Kot v Mojih virih (GlasbaActivity.shraniDodatek): kanale novega dodatka preverimo v ozadju.
+                    si.safeer.tv.os.PregledKanalov.zacni(ctx.applicationContext, v.naslov, rocno = false)
+                    android.widget.Toast.makeText(ctx, R.string.os_mediji_dodatek_dodano, android.widget.Toast.LENGTH_SHORT).show()
+                }
+                try {
+                    android.app.AlertDialog.Builder(ctx)
+                        .setTitle(ctx.getString(R.string.os_mediji_dodatek_vprasanje, ime?.takeIf { it.isNotBlank() } ?: android.net.Uri.parse(naslov).host.orEmpty()))
+                        .setMessage(naslov)
+                        .setPositiveButton(R.string.os_mediji_dodatek_ujet_dodaj) { _, _ -> dodaj() }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .create().apply {
+                            // Daljinec: OK doda (tudi ce gumb nima fokusa), Nazaj preklice.
+                            setOnShowListener { getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
+                            setOnKeyListener { d, code, ev ->
+                                if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER) {
+                                    if (ev.action == android.view.KeyEvent.ACTION_UP) { dodaj(); d.dismiss() }
+                                    true
+                                } else false
+                            }
+                            setOnDismissListener { dodatekVTeku.set(null) }
+                            show()
+                        }
+                } catch (_: Exception) { dodatekVTeku.set(null) }
+            }
+        }, "safeer-dodatek").apply { isDaemon = true }.start()
+    }
 
     override fun destroy() {
         if (!uniceno) android.util.Log.i("SafeerRam", "unicen WebView: ChromiumEngineView")
@@ -893,6 +965,20 @@ class ChromiumEngineView @JvmOverloads constructor(
                 applyUserAgentForUrl(urlStr)
                 val isMainFrame = request.isForMainFrame
 
+                // 0.a Naloga 94: gumb "Install" na strani z dodatki Stremio (stremio://, spletni Stremio v novem oknu, .../manifest.json):
+                //     v Safeer OS in Predvajalniku ponudimo vir v Moje vire - brez tipkanja naslova z daljincem. Pred vratarjem
+                //     pojavnega okna: »Install (web)« odpre novo okno, ki ga je vratar prej tiho zaprl.
+                val dodatek = if (BuildConfig.FLAVOR != "brskalnik" && (request.isForMainFrame || urlStr.startsWith("stremio:", ignoreCase = true)))
+                    si.safeer.tv.os.OsPravila.naslovDodatka(urlStr) else null
+                if (dodatek != null) {
+                    // Neposreden klik na .../manifest.json (ne stremio:// in ne spletni Stremio): naslov dodatka je naslov sam.
+                    val neposreden = dodatek == urlStr.substringBefore('#')
+                    // Pojavno okno (spletni Stremio) se tiho zapre - vratar odloci kot doslej, naslov ostane v tem oknu.
+                    vratarPojavnega?.let { v -> vratarPojavnega = null; if (v(urlStr)) return false }
+                    ponudiDodatek(view, dodatek, if (neposreden) urlStr else null)
+                    return true
+                }
+
                 // 0. Novo okno: dokler ne vemo, kam pelje, se v njem ne nalozi nic. Vratar
                 //    odgovori enkrat; ce cilj ni prijava, navigacijo tu ustavimo in zavihek
                 //    izgine, ne da bi uporabnik karkoli videl.
@@ -959,41 +1045,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                     return true
                 }
 
-                // 2.9 Gumb "Namesti" na strani Stremio dodatka (stremio://…/manifest.json): v Safeer OS in
-                //     Predvajalniku dodatek dodamo v Medijski center - brez tipkanja naslova z daljincem.
                 val scheme = uri.scheme?.lowercase() ?: ""
-                if (scheme == "stremio" && BuildConfig.FLAVOR != "brskalnik") {
-                    val (naslov, _) = si.safeer.tv.os.MedijskiViri.preveriDodatek(si.safeer.tv.os.MedijskiViri.STREMIO, urlStr)
-                    if (naslov != null) {
-                        // En pritisk OK na povezavi prozi navigacijo dvakrat (sinteticni Enter + tipka sama),
-                        // zato okno za isti naslov odpremo samo enkrat.
-                        if (stremioOkno?.isShowing == true) return true
-                        try {
-                            fun dodaj() {
-                                val v = si.safeer.tv.os.MedijskiViri.dodajDodatek(context, si.safeer.tv.os.MedijskiViri.STREMIO, naslov, "")
-                                android.widget.Toast.makeText(context, context.getString(R.string.os_mediji_dodatki_shranjen, v.ime), android.widget.Toast.LENGTH_LONG).show()
-                            }
-                            stremioOkno = android.app.AlertDialog.Builder(context)
-                                .setTitle(R.string.os_mediji_dodatek_ujet)
-                                .setMessage(naslov)
-                                .setPositiveButton(R.string.os_mediji_dodatek_ujet_dodaj) { _, _ -> dodaj() }
-                                .setNegativeButton(android.R.string.cancel, null)
-                                .create().apply {
-                                    // Daljinec: OK doda (tudi ce gumb nima fokusa), Nazaj preklice.
-                                    setOnShowListener { getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
-                                    setOnKeyListener { d, code, ev ->
-                                        if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER) {
-                                            if (ev.action == android.view.KeyEvent.ACTION_UP) { dodaj(); d.dismiss() }
-                                            true
-                                        } else false
-                                    }
-                                    setOnDismissListener { stremioOkno = null }
-                                    show()
-                                }
-                        } catch (_: Exception) {}
-                        return true
-                    }
-                }
                 // 3. Posebne sheme odpremo v drugi aplikaciji - varno (zunanji pregled kode 8. 10. 2026): parseUri je ohranil
                 //    komponento, izbirnik in zastavice, zato je stran lahko odprla nase skrite dejavnosti (exported=false ne
                 //    velja za lasten proces) ali dala dovoljenje za nase datoteke. Zdaj: brez komponente, izbirnika, ClipData

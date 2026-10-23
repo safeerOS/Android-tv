@@ -216,8 +216,11 @@
     <string name="os_mediji_dodatki_prilepi">Incolla</string>
     <string name="os_mediji_dodatki_prilepi_prazno">Gli appunti sono vuoti – copia prima l\'indirizzo (ad es. sul web: tieni premuto OK su un link).</string>
     <string name="os_mediji_dodatki_namig_splet">Il modo più semplice, senza digitare: apri la pagina del componente aggiuntivo sul web e premi il suo pulsante Install – Safeer propone di aggiungerlo qui.</string>
-    <string name="os_mediji_dodatek_ujet">Aggiungere questo componente aggiuntivo di Stremio al Media Center?</string>
     <string name="os_mediji_dodatek_ujet_dodaj">Aggiungi</string>
+    <!-- Naloga 94: gumb Install na strani z dodatki v Spletu. -->
+    <string name="os_mediji_dodatek_vprasanje">Aggiungere la fonte %1$s a Le mie fonti?</string>
+    <string name="os_mediji_dodatek_ze">Già tra le tue fonti</string>
+    <string name="os_mediji_dodatek_dodano">Aggiunta</string>
     <string name="os_sprotno_iscem">Cerco un dispositivo in Safeer Link che possa convertire questo video …</string>
     <string name="os_sprotno_pretvarja">%1$s sta convertendo il video in diretta per questo dispositivo …</string>
     <string name="os_sprotno_vir">convertito in diretta da %1$s</string>
