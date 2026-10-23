@@ -188,4 +188,61 @@ object KanaliPravila {
         val obe = z.map { katalogi[it.katalog].skupina }.toSet().intersect(j.map { katalogi[it.katalog].skupina }.toSet())
         return Izbrani(j.filter { katalogi[it.katalog].skupina in obe }, z.filter { katalogi[it.katalog].skupina in obe })
     }
+
+    // ------------------------------------------------------------------ domaci kanali in ponovni poskus (naloga 73)
+
+    /** Imena drzav v imenih katalogov (anglesko in domace) -> ISO 3166-1. Dodatki IPTV imajo katalog na drzavo. */
+    private val DRZAVE: List<Pair<Regex, String>> = listOf(
+        "slovenia|slovenija|slovenija tv" to "SI", "croatia|hrvatska" to "HR", "serbia|srbija" to "RS",
+        "bosnia|bosnia and herzegovina|bosna i hercegovina|bih" to "BA", "montenegro|crna gora" to "ME",
+        "north macedonia|macedonia|makedonija" to "MK", "kosovo" to "XK", "albania|shqiperia" to "AL",
+        "austria|osterreich" to "AT", "germany|deutschland" to "DE", "switzerland|schweiz|suisse" to "CH", "italy|italia" to "IT",
+        "hungary|magyarorszag" to "HU", "united kingdom|uk|great britain|england" to "GB", "united states|usa|us" to "US",
+        "canada" to "CA", "france" to "FR", "spain|espana" to "ES", "portugal" to "PT", "brazil|brasil" to "BR",
+        "netherlands|nederland" to "NL", "belgium|belgique|belgie" to "BE", "poland|polska" to "PL",
+        "czech republic|czechia|cesko" to "CZ", "slovakia|slovensko" to "SK", "romania" to "RO", "bulgaria" to "BG",
+        "greece" to "GR", "turkey|turkiye" to "TR", "russia" to "RU", "ukraine" to "UA",
+    ).map { (imena, koda) -> Regex("(^| )($imena)( |$)") to koda }
+
+    /** Drzave regije, ki jim dodatki namenjajo skupne kataloge (»Balkan«, »EX-YU«). */
+    private val REGIJA_BALKAN = setOf("SI", "HR", "RS", "BA", "ME", "MK", "XK")
+    private val BALKAN = Regex("(^| )(balkan|balkans|ex yu|exyu|yu|yugoslavia|jugoslavija)( |$)")
+
+    /** Drzava kataloga po imenu (»Slovenia«, »Slovenija TV«) ali null. */
+    fun drzava(oznaka: String): String? = cista(oznaka).let { c -> if (c.isEmpty()) null else DRZAVE.firstOrNull { it.first.containsMatchIn(c) }?.second }
+
+    /** Katalog regije Balkan / EX-YU. */
+    fun jeBalkan(oznaka: String): Boolean = BALKAN.containsMatchIn(cista(oznaka))
+
+    /**
+     * Naloga 73: domaci viri pogleda brez izbire - najprej katalogi drzave naprave (»Slovenia«, »Slovenija«), nato katalogi
+     * jezika vmesnika ([Filtri.jeziki]), nato regija (Balkan / EX-YU za SI, HR, RS, BA, ME, MK, XK); vsak enkrat, brez
+     * zasebnih kategorij, najvec [najvec]. Prej samo jezik: dodatek IPTV z 213 katalogi po drzavah (»Slovenia«) jezika ne
+     * pove, zato domacih kanalov ni bilo.
+     */
+    fun domaciViri(katalogi: List<Katalog>, f: Filtri, jezik: String, drzava: String, najvec: Int = 6): List<Vir> {
+        val d = drzava.uppercase(java.util.Locale.ROOT)
+        fun ujema(pogoj: (String) -> Boolean): List<Vir> = katalogi.indices.flatMap { i ->
+            val k = katalogi[i]
+            (if (pogoj(oznakaKataloga(k.dodatek, k.ime))) listOf(Vir(i)) else emptyList()) + k.moznosti.filter(pogoj).map { Vir(i, it) }
+        }
+        val poDrzavi = if (d.isEmpty()) emptyList() else ujema { drzava(it) == d }
+        val poJeziku = f.jeziki.firstOrNull { it.kljuc == jezik }?.viri.orEmpty()
+        val poRegiji = if (d in REGIJA_BALKAN) ujema { jeBalkan(it) } else emptyList()
+        return (poDrzavi + poJeziku + poRegiji).distinct().filter { it !in f.zasebni }.take(najvec)
+    }
+
+    /** Najvec kanalov iz dodatkov v pomnilniku ene mreze (ostalo pride z »Naloži več«, kot okno v mrezi Filmi). */
+    const val NAJVEC_KANALOV_V_MREZI = 600
+    private const val PONOVI_NAJMANJ_MS = 60_000L
+    private const val PONOVI_NAJVEC_MS = 15 * 60_000L
+
+    /**
+     * Naloga 73: cez koliko ms mreza sama poskusi znova, ko noben vir ni odgovoril: najmanj do konca premora dodatka
+     * ([ostanekPremoraMs], 0 = ga ni), sicer 1, 2, 4, 8 min po vrsti poskusov ([poskus] od 0), najvec 15 min.
+     */
+    fun zamikPonovitve(ostanekPremoraMs: Long, poskus: Int): Long {
+        val postopno = PONOVI_NAJMANJ_MS shl poskus.coerceIn(0, 4)
+        return maxOf(ostanekPremoraMs, postopno).coerceIn(PONOVI_NAJMANJ_MS, PONOVI_NAJVEC_MS)
+    }
 }

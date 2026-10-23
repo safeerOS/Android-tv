@@ -20,7 +20,6 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object Stremio {
     private const val PREDPONA = "stremio|"
-    private const val CAS = 15_000
 
     data class Katalog(val dodatek: String, val imeDodatka: String, val tip: String, val id: String, val ime: String,
                        val iskanje: Boolean, val obvezni: List<String>,
@@ -156,13 +155,41 @@ object Stremio {
      * tokovi 3 min (ponoven dotik istega filma, vnaprej nalozeni tokovi ob izbiri kartice z daljincem).
      */
     private val odgovori = ConcurrentHashMap<String, Pair<Long, JSONObject>>()
-    private fun veljavnost(url: String): Long = when {
-        "/stream/" in url -> 3 * 60_000L
-        "/catalog/" in url -> 15 * 60_000L
-        "/meta/" in url -> 60 * 60_000L
-        // Naloga 72: podnapisi naslova se ne spreminjajo hitro - ponovno odprta izbira ne vprasa znova.
-        "/subtitles/" in url -> 60 * 60_000L
-        else -> 0L
+    /** Naloga 73: veljavnost po vrsti zahtevka ([OsPravila.politikaZahteve]): katalog 30 min, tok 3 min, meta in podnapisi 1 h. */
+    private fun veljavnost(url: String): Long = OsPravila.politikaZahteve(url, false).veljaMs
+
+    /** Naloga 73: zahtevek tece za preverjanje v ozadju (nizja prednost, krajsi rok - [OsPravila.politikaZahteve]). */
+    private val zahtevekVOzadju = ThreadLocal<Boolean>()
+
+    /** Klic [delo] kot zahtevek v ozadju (glej [zahtevekVOzadju]). */
+    private inline fun <T> vOzadju(delo: () -> T): T {
+        val prej = zahtevekVOzadju.get()
+        zahtevekVOzadju.set(true)
+        try { return delo() } finally { zahtevekVOzadju.set(prej) }
+    }
+
+    /** Naloga 73: zahtevek tece s prednostjo niti svoje vrste (tok ob kliku pred katalogi v ozadju); prejsnja se povrne. */
+    private inline fun <T> sPrednostjo(prednost: Int, delo: () -> T): T {
+        val prej = try { android.os.Process.getThreadPriority(android.os.Process.myTid()) } catch (_: Throwable) { null }
+        val menjam = prej != null && prej != prednost
+        if (menjam) try { android.os.Process.setThreadPriority(prednost) } catch (_: Throwable) { }
+        try { return delo() } finally { if (menjam) try { android.os.Process.setThreadPriority(prej!!) } catch (_: Throwable) { } }
+    }
+
+    /**
+     * Naloga 73 (»circuit breaker« po dodatku): ali smemo dodatek zdaj vprasati v ozadju. Po [OsPravila.IZPADOV_ZA_PRESKOK]
+     * izpadih je izklopljen [OsPravila.PRESKOK_MS]; potem gre en poskusni zahtevek (polodprto), ostali cakajo na njegov izid.
+     * Predvajanje (tok ob kliku) gre mimo, kot doslej.
+     */
+    private fun smemVprasati(osnova: String): Boolean {
+        var smem = false
+        val zdaj = System.currentTimeMillis()
+        odzivi.compute(osnova) { _, prej ->
+            val novo = OsPravila.dovoliZahtevo(prej, zdaj)
+            smem = novo != null
+            (novo ?: prej)?.takeIf { it != OsPravila.Odziv() }
+        }
+        return smem
     }
 
     private fun json(url: String): JSONObject? {
@@ -223,10 +250,17 @@ object Stremio {
         return enkrat()
     }
 
-    private fun prenesiJson(url: String, cas: Int = CAS): JSONObject? {
+    private fun prenesiJson(url: String, rok: Int = 0): JSONObject? {
         zadnjaKoda.set(0)
         zadnjeGlave.set(emptyMap())
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
+        // Naloga 73: rok in prednost po vrsti zahtevka (katalog / meta / tok / podnapisi / manifest).
+        val politika = OsPravila.politikaZahteve(url, zahtevekVOzadju.get() == true)
+        val cas = if (rok > 0) rok else politika.rokMs
+        return sPrednostjo(politika.prednost) { prenesiJsonZdaj(url, cas) }
+    }
+
+    private fun prenesiJsonZdaj(url: String, cas: Int): JSONObject? {
         // Vsaka poizvedba po tokovih steje v urni proracun dodatka - tudi tista za predvajanje ([TempoDodatka]).
         if ("/stream/" in url) stej(url.substringBefore("/stream/"))
         // Naloga 72: tudi poizvedbe po podnapisih stejejo v urni proracun dodatka (TempoDodatka).
@@ -261,10 +295,29 @@ object Stremio {
     private fun manifestJson(osnova: String): JSONObject? {
         val datoteka = mapaPredpomnilnika?.let { java.io.File(it, "manifest-" + Integer.toHexString(osnova.hashCode()) + ".json") }
         val zDiska = try { datoteka?.takeIf { it.isFile }?.let { JSONObject(it.readText()) } } catch (_: Exception) { null }
-        if (zDiska != null && System.currentTimeMillis() - (datoteka?.lastModified() ?: 0L) < 24 * 3600_000L) return zDiska
+        // Naloga 73: manifest z diska je dober takoj (zagon in odprtje TV v zivo ne cakata na omrezje); star osvezimo v ozadju.
+        when (OsPravila.manifestZDiska(if (zDiska == null) -1L else System.currentTimeMillis() - (datoteka?.lastModified() ?: 0L))) {
+            "uporabi" -> return zDiska
+            "uporabi+osvezi" -> { osveziManifest(osnova, datoteka); return zDiska }
+        }
         val svez = prenesiJson("$osnova/manifest.json")
         if (svez != null) try { datoteka?.parentFile?.mkdirs(); datoteka?.writeText(svez.toString()) } catch (_: Exception) { }
         return svez ?: zDiska
+    }
+
+    /** Manifesti, ki se ta hip osvezujejo v ozadju (vsak najvec enkrat hkrati). */
+    private val osvezujem = java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+
+    /** Naloga 73: svez manifest v ozadju; nov se uporabi ob naslednjem branju ([manifesti] ga pozabi). */
+    private fun osveziManifest(osnova: String, datoteka: java.io.File?) {
+        if (!osvezujem.add(osnova)) return
+        try { bazen.execute {
+            try {
+                val svez = prenesiJson("$osnova/manifest.json") ?: return@execute
+                try { datoteka?.parentFile?.mkdirs(); datoteka?.writeText(svez.toString()) } catch (_: Exception) { }
+                manifesti.remove(osnova)
+            } finally { osvezujem.remove(osnova) }
+        } } catch (_: java.util.concurrent.RejectedExecutionException) { osvezujem.remove(osnova) }
     }
 
     fun manifest(naslov: String): Manifest? {
@@ -426,9 +479,13 @@ object Stremio {
      * zato brez cakanja na zeton; dodatka v premoru ne sprasujemo. Klic iz ozadja. true / false = dokaz, null = ne
      * vemo (dodatek ni odgovoril). [torrent]: kateri torrent steje na tej napravi ([torrentGre]).
      */
-    fun vzorciKnjiznico(osnova: String, naslovi: List<Jamendo.Skladba>, torrent: Long): Boolean? {
+    fun vzorciKnjiznico(osnova: String, naslovi: List<Jamendo.Skladba>, torrent: Long): Boolean? = vOzadju {
+        vzorciKnjiznicoZdaj(osnova, naslovi, torrent)
+    }
+
+    private fun vzorciKnjiznicoZdaj(osnova: String, naslovi: List<Jamendo.Skladba>, torrent: Long): Boolean? {
         val m = manifesti[osnova] ?: return null
-        if ("stream" !in m.viri || vPremoru(osnova) || neOdgovarja(osnova)) return null
+        if ("stream" !in m.viri || vPremoru(osnova) || !smemVprasati(osnova)) return null
         val odgovori = ArrayList<Boolean?>()
         for (i in RazpolozljivostPravila.vzorecKnjiznice(naslovi.size)) {
             val je = try { tokVzorca(m, naslovi[i], torrent) } catch (_: Exception) { null }
@@ -579,14 +636,10 @@ object Stremio {
      */
     fun katalogAliIzpad(k: Katalog, iskanje: String = "", skip: Int = 0, zvrst: String = ""): List<Jamendo.Skladba>? {
         // Dodatek, ki ne odgovarja (naloga 57d): do naslednjega preizkusa ga ne sprasujemo - to je izpad, ne prazen katalog.
-        if (neOdgovarja(k.dodatek)) { zadnjaKoda.set(0); return null }
-        var pot = "${k.dodatek}/catalog/${enc(k.tip)}/${enc(k.id)}"
-        val dodatno = (if (iskanje.isNotBlank()) listOf("search" to iskanje) else emptyList()) +
-            // Izbrana zvrst (moznost kataloga, npr. "Comedy") nadomesti privzeto moznost parametra genre.
-            (if (zvrst.isNotBlank()) listOf("genre" to zvrst) else emptyList()) +
-            k.privzeti.filter { it.first != "search" && (zvrst.isBlank() || it.first != "genre") && (iskanje.isBlank() || it.first in k.obvezni) } +
-            (if (skip > 0) listOf("skip" to skip.toString()) else emptyList())
-        if (dodatno.isNotEmpty()) pot += "/" + dodatno.joinToString("&") { enc(it.first) + "=" + enc(it.second) }
+        if (!smemVprasati(k.dodatek)) { zadnjaKoda.set(0); return null }
+        // Naloga 73: katalog kanalov (IPTV: tisoce vnosov na stran) beremo tokovno in hranimo samo kartice.
+        if (iskanje.isBlank() && razredKataloga(k) == TV) return katalogKanalov(k, skip, zvrst)
+        val pot = potKataloga(k, iskanje, skip, zvrst)
         val d = json("$pot.json") ?: return if (kodaPomeniNima(zadnjaKoda.get() ?: 0)) emptyList() else null
         val a = d.optJSONArray("metas") ?: d.optJSONArray("metasDetailed") ?: return emptyList()
         if (dnevnik() && manifesti[k.dodatek]?.zaseben != true) {
@@ -599,6 +652,106 @@ object Stremio {
         // Vnos glasbenega kataloga, ki se oglasa kot film ali drug video, je videospot (ne film).
         val glasbeno = razred(k.tip) != GLASBA && razredKataloga(k) == GLASBA
         return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { m -> vnos(m, k.dodatek, k.tip, glasbeno) } }
+    }
+
+    /** Pot strani kataloga brez ».json«: obvezni parametri s privzeto moznostjo, iskanje, zvrst in `skip`. */
+    private fun potKataloga(k: Katalog, iskanje: String, skip: Int, zvrst: String): String {
+        var pot = "${k.dodatek}/catalog/${enc(k.tip)}/${enc(k.id)}"
+        val dodatno = (if (iskanje.isNotBlank()) listOf("search" to iskanje) else emptyList()) +
+            // Izbrana zvrst (moznost kataloga, npr. "Comedy") nadomesti privzeto moznost parametra genre.
+            (if (zvrst.isNotBlank()) listOf("genre" to zvrst) else emptyList()) +
+            k.privzeti.filter { it.first != "search" && (zvrst.isBlank() || it.first != "genre") && (iskanje.isBlank() || it.first in k.obvezni) } +
+            (if (skip > 0) listOf("skip" to skip.toString()) else emptyList())
+        if (dodatno.isNotEmpty()) pot += "/" + dodatno.joinToString("&") { enc(it.first) + "=" + enc(it.second) }
+        return pot
+    }
+
+    // ------------------------------------------------------------------ katalogi kanalov: tokovno branje (naloga 73)
+
+    /**
+     * Polja vnosa, ki jih kartica kanala rabi ([vnos]); vse drugo (dolgi opisi, povezave, tokovi in videi v meta) preskocimo.
+     * Prej: cel odgovor kot niz, nato JSONObject, ta pa 15 min v predpomnilniku - pri dodatku IPTV z 213 katalogi (lastnik,
+     * 23. 10. 2026) ~55 s dodeljevanja (GC vsakih 0,6 s).
+     */
+    private val POLJA_KANALA = setOf("id", "type", "name", "poster", "logo", "background", "thumbnail", "image", "icon",
+        "genres", "genre", "releaseInfo", "year", "description", "imdbRating", "imdb_id", "country")
+    /** Najvec vnosov s strani kataloga kanalov (dodatek IPTV da lahko vse kanale drzave naenkrat). */
+    const val NAJVEC_NA_STRANI_KANALOV = 1000
+    /** Razclenjene strani katalogov kanalov (kartice, ne JSON), 15 min; najvec toliko strani. */
+    private val straniKanalov = android.util.LruCache<String, Pair<Long, List<Jamendo.Skladba>>>(48)
+
+    /** Stran kataloga kanalov kot [katalogAliIzpad]; null = izpad (tudi neveljaven ali pretrgan odgovor). */
+    private fun katalogKanalov(k: Katalog, skip: Int, zvrst: String): List<Jamendo.Skladba>? {
+        val url = potKataloga(k, "", skip, zvrst) + ".json"
+        val zdaj = System.currentTimeMillis()
+        straniKanalov.get(url)?.let { (cas, s) -> if (zdaj - cas < veljavnost(url)) return s }
+        val stran = prenesiTokovno(url) { r -> beriVnoseKataloga(r, k) }
+            ?: return if (kodaPomeniNima(zadnjaKoda.get() ?: 0)) emptyList() else null
+        straniKanalov.put(url, zdaj to stran)
+        return stran
+    }
+
+    /** {"metas": [...]} tokovno: vsak vnos samo s [POLJA_KANALA], najvec [NAJVEC_NA_STRANI_KANALOV]. */
+    private fun beriVnoseKataloga(r: android.util.JsonReader, k: Katalog): List<Jamendo.Skladba> {
+        val izid = ArrayList<Jamendo.Skladba>()
+        val glasbeno = razred(k.tip) != GLASBA && razredKataloga(k) == GLASBA
+        r.beginObject()
+        while (r.hasNext()) {
+            val ime = r.nextName()
+            if ((ime != "metas" && ime != "metasDetailed") || r.peek() != android.util.JsonToken.BEGIN_ARRAY) { r.skipValue(); continue }
+            r.beginArray()
+            while (r.hasNext()) {
+                if (r.peek() != android.util.JsonToken.BEGIN_OBJECT || izid.size >= NAJVEC_NA_STRANI_KANALOV) { r.skipValue(); continue }
+                val m = JSONObject()
+                r.beginObject()
+                while (r.hasNext()) {
+                    val polje = r.nextName()
+                    if (polje !in POLJA_KANALA) { r.skipValue(); continue }
+                    when (r.peek()) {
+                        android.util.JsonToken.STRING, android.util.JsonToken.NUMBER ->
+                            m.put(polje, r.nextString().let { if (polje == "description") it.take(200) else it })
+                        android.util.JsonToken.BEGIN_ARRAY -> {
+                            val a = org.json.JSONArray()
+                            r.beginArray()
+                            while (r.hasNext()) { if (r.peek() == android.util.JsonToken.STRING && a.length() < 8) a.put(r.nextString()) else r.skipValue() }
+                            r.endArray()
+                            m.put(polje, a)
+                        }
+                        else -> r.skipValue()
+                    }
+                }
+                r.endObject()
+                vnos(m, k.dodatek, k.tip, glasbeno)?.let { izid += it }
+            }
+            r.endArray()
+        }
+        r.endObject()
+        return izid
+    }
+
+    /** Kot [prenesiJson], le da odgovor bere tokovno ([beri]) - brez celega niza in drevesa JSON v pomnilniku. */
+    private fun <T> prenesiTokovno(url: String, beri: (android.util.JsonReader) -> T): T? {
+        zadnjaKoda.set(0)
+        zadnjeGlave.set(emptyMap())
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return null
+        val politika = OsPravila.politikaZahteve(url, true)
+        val cas = politika.rokMs
+        return sPrednostjo(politika.prednost) { try {
+            val c = URL(url).openConnection() as HttpURLConnection
+            c.connectTimeout = cas; c.readTimeout = cas
+            c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
+            c.setRequestProperty("Accept", "application/json")
+            try {
+                val koda = c.responseCode
+                zadnjaKoda.set(koda)
+                zabeleziOdziv(url, koda)
+                if (koda == 429 || koda == 403) zadnjeGlave.set(try {
+                    c.headerFields.mapNotNull { (k, v) -> if (k == null) null else v?.firstOrNull()?.let { k.lowercase() to it } }.toMap()
+                } catch (_: Exception) { emptyMap() })
+                if (koda !in 200..299) return null
+                android.util.JsonReader(java.io.InputStreamReader(java.io.BufferedInputStream(c.inputStream, 16 * 1024), Charsets.UTF_8)).use { beri(it) }
+            } finally { c.disconnect() }
+        } catch (_: Exception) { if ((zadnjaKoda.get() ?: 0) == 0) zabeleziOdziv(url, 0); null } }
     }
 
     /** Javni katalog metapodatkov Stremia (Cinemeta: filmi in serije po priljubljenosti, epizode) - samo
@@ -1015,7 +1168,7 @@ object Stremio {
      */
     private fun zeton(osnova: String, seVelja: () -> Boolean = { true }): Boolean {
         // Dodatek, ki ne odgovarja (naloga 57d): v ozadju ga preskocimo, zetona ne porabimo.
-        if (neOdgovarja(osnova)) return false
+        if (!smemVprasati(osnova)) return false
         val v = vedra.getOrPut(osnova) { Vedro() }
         while (true) {
             if ((premorDo[osnova] ?: 0L) > System.currentTimeMillis() || !seVelja()) return false
@@ -1080,7 +1233,7 @@ object Stremio {
         val niti = dodatki.map { m -> bazen.submit<List<Long>?> {
             poizvedbVOzadju.incrementAndGet()
             // Brez odgovora ne vemo nicesar; odgovor "tega nimam" (404) pa je odgovor - dodatek vsebine nima.
-            val d = json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json")
+            val d = vOzadju { json("${m.osnova}/stream/${enc(tip)}/${enc(id)}.json") }
                 ?: return@submit run {
                     val koda = zadnjaKoda.get() ?: 0
                     if (koda == 429 || koda == 403) zacniPremor(m.osnova)
@@ -1119,9 +1272,9 @@ object Stremio {
     fun imaLastenTok(s: Jamendo.Skladba, sonda: ((Tok) -> Boolean?)? = null): Boolean? {
         val (osnova, tip, id) = razstavi(s) ?: return null
         val m = manifesti[osnova] ?: return null
-        if ("stream" !in m.viri || vPremoru(osnova) || neOdgovarja(osnova)) return null
+        if ("stream" !in m.viri || vPremoru(osnova) || !smemVprasati(osnova)) return null
         poizvedbVOzadju.incrementAndGet()
-        val d = json("$osnova/stream/${enc(tip)}/${enc(id)}.json")
+        val d = vOzadju { json("$osnova/stream/${enc(tip)}/${enc(id)}.json") }
         if (d == null) {
             val koda = zadnjaKoda.get() ?: 0
             if (dnevnik()) android.util.Log.d(DNEVNIK, "${oznakaDodatka(osnova)} tok kanala: brez odgovora, koda=$koda")

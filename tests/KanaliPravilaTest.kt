@@ -110,5 +110,32 @@ fun main() {
     preveriEnako("ime s plusom in oznako kakovosti", "a+bmednarodni", KanaliPravila.kljucImena("A+B Mednarodni HD"))
 
     println()
+    // ---- naloga 73: domaci viri (drzava, jezik, regija) in ponovni poskus
+    val iptv = "https://iptv.test"; val balkan = "https://balkan.test"
+    val vsi = listOf(
+        Katalog(iptv, "All IPTV", "All IPTV Germany"),        // 0
+        Katalog(iptv, "All IPTV", "All IPTV Slovenia"),       // 1
+        Katalog(iptv, "All IPTV", "All IPTV Croatia"),        // 2
+        Katalog(iptv, "All IPTV", "All IPTV Adult"),          // 3 zasebna
+        Katalog(balkan, "Balkanio", "Balkanio EX-YU"),        // 4
+        Katalog(balkan, "Balkanio", "Balkanio Slovenija"),    // 5
+        Katalog(a, "Kanali", "Kanali Slovenian"),             // 6
+    )
+    val fv = KanaliPravila.filtri(vsi)
+    preveriEnako("drzava: Slovenia", "SI", KanaliPravila.drzava("Slovenia"))
+    preveriEnako("drzava: Slovenija (domace ime)", "SI", KanaliPravila.drzava("Slovenija"))
+    preveriEnako("drzava: neznana", null, KanaliPravila.drzava("News"))
+    preveriEnako("Balkan: EX-YU", true, KanaliPravila.jeBalkan("EX-YU"))
+    preveriEnako("domaci viri SI: drzava, jezik, regija; brez zasebnih",
+        listOf(Vir(1), Vir(5), Vir(6), Vir(4)), KanaliPravila.domaciViri(vsi, fv, "sl", "si"))
+    preveriEnako("domaci viri DE: samo drzava (Balkan ne)", listOf(Vir(0)), KanaliPravila.domaciViri(vsi, fv, "de", "DE"))
+    preveriEnako("domaci viri: najvec", 2, KanaliPravila.domaciViri(vsi, fv, "sl", "SI", najvec = 2).size)
+    preveriEnako("domaci viri brez drzave in jezika", emptyList<Vir>(), KanaliPravila.domaciViri(vsi, fv, "", ""))
+    preveriEnako("ponovi: prvic 1 min", 60_000L, KanaliPravila.zamikPonovitve(0, 0))
+    preveriEnako("ponovi: tretjic 4 min", 240_000L, KanaliPravila.zamikPonovitve(0, 2))
+    preveriEnako("ponovi: najvec 15 min", 900_000L, KanaliPravila.zamikPonovitve(0, 9))
+    preveriEnako("ponovi: premor dodatka je daljsi", 600_000L, KanaliPravila.zamikPonovitve(600_000L, 0))
+    preveriEnako("ponovi: premor nad mejo", 900_000L, KanaliPravila.zamikPonovitve(5_000_000L, 0))
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

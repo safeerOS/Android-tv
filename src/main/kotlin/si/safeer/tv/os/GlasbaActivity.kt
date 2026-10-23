@@ -102,6 +102,15 @@ class GlasbaActivity : OsActivity() {
     // Brez zgornje meje: omrezna zahteva se ob preklicu ne ustavi takoj, novo iskanje pa ne sme cakati v vrsti.
     private val iskanjeDelavec = Executors.newCachedThreadPool()
     /**
+     * Naloga 73: strani katalogov kanalov (TV v zivo) za vse dodatke skupaj najvec [KANALI_HKRATI] hkrati in z nizko
+     * prednostjo niti - prej je sel vsak vir v neomejen [iskanjeDelavec] (213 katalogov: TV je postal pocasen). Naloge te
+     * vrste ne cakajo na druge naloge iste vrste (brez zastoja).
+     */
+    private val kanaliDelavec = java.util.concurrent.ThreadPoolExecutor(KANALI_HKRATI, KANALI_HKRATI, 30, java.util.concurrent.TimeUnit.SECONDS,
+        java.util.concurrent.LinkedBlockingQueue()) { r ->
+        Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "safeer-kanali").apply { isDaemon = true }
+    }.apply { allowCoreThreadTimeOut(true) }
+    /**
      * Slike (plakati, naslovnice) imajo svoje niti: prej so si jih delile z nalaganjem razdelkov in ob pocasnem
      * strezniku slik je razdelek (npr. TV v zivo) cakal nanje - prazen zaslon "Nalagam" (lastnik, 2. 10. 2026: brez zastojev).
      */
@@ -539,6 +548,7 @@ class GlasbaActivity : OsActivity() {
         preverjanje.shutdownNow()
         preverjanjeEpizod.shutdownNow()
         preverjanjeKanalov.shutdownNow()
+        kanaliDelavec.shutdownNow()
         glavna.removeCallbacks(umiri)
         tvIkone.clear()
         super.onDestroy()
@@ -1792,6 +1802,7 @@ class GlasbaActivity : OsActivity() {
         podstrani.pocisti()
         podPodstranjo = null
         odprtKatalog = null
+        mrezaKanalov?.preklici()       // naloga 73: odhod iz TV v zivo ustavi cakajoce strani katalogov
         mrezaKanalov = null
         mrezaVsebine = null
         // Seznami in viri z drugih naprav: vprasamo tudi ob menjavi razdelka (najvec na 45 s), ne le ob odprtju.
@@ -3029,7 +3040,18 @@ class GlasbaActivity : OsActivity() {
         var cakaNaRisanje = false
         val seKaj: Boolean get() = glavni.any { !it.konec }
         val kljuc: String get() = "$zvrst|$jezik"
+        /** Naloga 73: mreza ni vec odprta (drug razdelek, druga izbira) - njene naloge nehajo in se ne zacnejo vec. */
+        @Volatile var preklicana = false
+        val naloge = java.util.concurrent.CopyOnWriteArrayList<java.util.concurrent.Future<*>>()
+        fun preklici() { preklicana = true; naloge.forEach { it.cancel(true) }; naloge.clear() }
+        /** Zasebne kategorije se niso znane (novi kanali teh dodatkov cakajo): mreza se nalozi znova, ko jih spoznamo. */
+        @Volatile var zasebniCakajo = false
+        /** Ponovni poskus, ko noben vir ni odgovoril, je ze narocen; cez koliko minut. */
+        var ponovitev = false
+        var cezMinut = 0
     }
+    /** Zaporedni ponovni poskusi mreze kanalov brez odgovora virov (za [KanaliPravila.zamikPonovitve]); 0, ko kanali pridejo. */
+    private var poskusiKanalov = 0
     private var mrezaKanalov: MrezaKanalov? = null
 
     /**
@@ -3040,6 +3062,7 @@ class GlasbaActivity : OsActivity() {
      */
     private fun odpriKanale(zvrst: String = tvZvrst, jezik: String = tvJezik) {
         tvZvrst = zvrst; tvJezik = jezik
+        mrezaKanalov?.preklici()
         val m = MrezaKanalov(zvrst, jezik)
         mrezaKanalov = m
         // Nic cakanja: zadnja znana mreza te izbire je na zaslonu takoj; sveza jo zamenja le, ce je drugacna.
@@ -3072,17 +3095,22 @@ class GlasbaActivity : OsActivity() {
         return stran.map { it.copy(naslov = KanaliPravila.imeKanala(it.naslov)) }
     }
 
-    /** Id-ji kanalov virov, po straneh do konca ali do [najvecStrani] na vir (klic iz ozadja). */
-    private fun idKanalov(viri: List<VirKanalov>, najvecStrani: Int): Set<String> {
-        val izhod: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
-        viri.map { v -> v to iskanjeDelavec.submit(Runnable {
+    /**
+     * Id-ji kanalov virov, po straneh do konca ali do [najvecStrani] na vir (klic iz ozadja). Naloga 73: vir za virom v
+     * tej niti (prej vsak vir v svoji niti neomejenega bazena - pri 30 zasebnih katalogih 30 hkratnih razclenjevanj);
+     * [velja] = false (mreza zaprta) ustavi delo, ne da bi kaj sklepali (vir velja za izpad).
+     */
+    private fun idKanalov(viri: List<VirKanalov>, najvecStrani: Int, velja: () -> Boolean = { true }): Set<String> {
+        val izhod = HashSet<String>()
+        for (v in viri) {
             var strani = 0
             while (!v.konec && strani++ < najvecStrani) {
+                if (!velja() || Thread.currentThread().isInterrupted) { v.izpad = true; return izhod }
                 val s = stranKanalov(v)
                 // Stran brez novih kanalov: katalog strani ne pozna (vraca isto) - konec.
                 if (s.isEmpty() || !izhod.addAll(s.map { it.id })) break
             }
-        }) }.forEach { (v, f) -> try { f.get(90, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { v.izpad = true } }
+        }
         return izhod
     }
 
@@ -3090,15 +3118,18 @@ class GlasbaActivity : OsActivity() {
      * Kanali kategorij, ki jih dodatek sam oznaci kot zasebne ([KanaliPravila.Filtri.zasebni]): ne gredo v noben skupni
      * seznam - tudi ne prek kataloga »vse« istega dodatka in ne med zadetke iskanja. Samo v pomnilniku.
      */
-    private fun zasebniKanali(viri: List<VirKanalov>): Set<String>? {
+    private fun zasebniKanali(viri: List<VirKanalov>, velja: () -> Boolean = { true }): Set<String>? {
         if (viri.isEmpty()) return emptySet()
         val kljuc = viri.joinToString("|") { it.katalog.dodatek + "/" + it.katalog.id + "/" + it.katalog.privzeti }
         ZASEBNI_KANALI?.takeIf { it.first == kljuc }?.let { return it.second }
-        val id = idKanalov(viri, 20)
+        val id = idKanalov(viri, 20, velja)
         // Izpad (ni odgovora ali le delen odgovor) ni odgovor: zasebnih kategorij tokrat ne poznamo (null) in naslednjic
         // vprasamo znova. Delnega seznama si ne zapomnimo - del zasebnih kanalov bi ostal v skupni mrezi.
         if (viri.any { it.izpad }) return null
-        if (id.isNotEmpty()) { ZASEBNI_KANALI = kljuc to id; Stremio.zasebniVnosi = id }
+        // Naloga 73: tudi prazen odgovor (zasebne kategorije so prazne) je odgovor - sicer bi vsako odprtje mreze znova
+        // preiskalo vse zasebne kataloge (in mreza bi se po njem nalagala znova).
+        ZASEBNI_KANALI = kljuc to id
+        if (id.isNotEmpty()) Stremio.zasebniVnosi = id
         return id
     }
 
@@ -3152,26 +3183,46 @@ class GlasbaActivity : OsActivity() {
         val filtri = KanaliPravila.filtri(opisi)
         FILTRI_KANALOV = filtri
         fun vir(v: KanaliPravila.Vir) = VirKanalov(Stremio.zMoznostjo(katalogi[v.katalog], v.moznost))
+        if (m.preklicana) return
+        val velja = { !m.preklicana }
         val izbrani = KanaliPravila.izbrani(filtri, opisi, m.zvrst, m.jezik)
-        val zasebni = iskanjeDelavec.submit<Set<String>?> { zasebniKanali(filtri.zasebni.map { vir(it) }) }
         // Zvrst in jezik hkrati: id-ji kanalov zvrsti (najvec 15 strani na katalog).
         val presekViri = izbrani.presek.map { vir(it) }
-        val dovoljeni = if (presekViri.isEmpty()) null else iskanjeDelavec.submit<Set<String>> { idKanalov(presekViri, 15) }
-        // Brez izbire: najprej kanali v jeziku naprave, ce jih kateri dodatek ponuja kot svoj katalog.
+        // Brez izbire: najprej domaci kanali - katalogi drzave naprave, jezika vmesnika in regije (naloga 73, KanaliPravila.domaciViri).
         val jezikNaprave = resources.configuration.locales[0].language
-        val domaciViri = if (m.zvrst.isEmpty() && m.jezik.isEmpty()) filtri.jeziki.firstOrNull { it.kljuc == jezikNaprave }?.viri.orEmpty().take(4).map { vir(it) } else emptyList()
+        val drzavaNaprave = resources.configuration.locales[0].country
+        val domaciViri = if (m.zvrst.isEmpty() && m.jezik.isEmpty()) KanaliPravila.domaciViri(opisi, filtri, jezikNaprave, drzavaNaprave).map { vir(it) } else emptyList()
         val glavni = izbrani.glavni.take(12).map { vir(it) }
-        val domaciStrani = domaciViri.map { v -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { stranKanalov(v) } }
+        val domaciStrani = domaciViri.map { v -> kanaliDelavec.submit<List<Jamendo.Skladba>> { if (m.preklicana) emptyList() else stranKanalov(v) }.also { m.naloge += it } }
         // Viri odgovorijo razlicno hitro (izmerjeno 5. 10. 2026: eden v 0,3 s, drugi sploh ne - 15 s do casovne omejitve).
         // Mreza zato ne caka na vse: kanali so na zaslonu s prvim odgovorom, pocasen vir se doda, ko odgovori.
-        val prihodi = java.util.concurrent.ExecutorCompletionService<List<Jamendo.Skladba>>(iskanjeDelavec)
-        glavni.forEach { v -> prihodi.submit { stranKanalov(v) } }
+        val prihodi = java.util.concurrent.ExecutorCompletionService<List<Jamendo.Skladba>>(kanaliDelavec)
+        glavni.forEach { v -> m.naloge += prihodi.submit { if (m.preklicana) emptyList() else stranKanalov(v) } }
+        // Naloga 73: dolga pregleda (zasebne kategorije, presek zvrsti) gresta v vrsto ZA prvimi stranmi - bazen ima
+        // [KANALI_HKRATI] niti in prvi kanali na zaslonu ne smejo cakati nanju.
+        val zasebni = kanaliDelavec.submit<Set<String>?> { zasebniKanali(filtri.zasebni.map { vir(it) }, velja) }.also { m.naloge += it }
+        val dovoljeni = if (presekViri.isEmpty()) null else kanaliDelavec.submit<Set<String>> { idKanalov(presekViri, 15, velja) }.also { m.naloge += it }
+        android.util.Log.i("SafeerOsMedia", "kanali: viri domaci=${domaciViri.map { it.katalog.ime }}, glavni=${glavni.map { it.katalog.ime }}, zasebnih katalogov=${filtri.zasebni.size}")
         fun <T> pocakaj(f: java.util.concurrent.Future<T>?, privzeto: T, s: Long): T =
             try { f?.get(s, java.util.concurrent.TimeUnit.SECONDS) ?: privzeto } catch (_: Exception) { privzeto }
         // Zasebne kategorije tokrat niso znane (njihov vir ni odgovoril): novih kanalov teh dodatkov ne pokazemo - med njimi
         // so lahko zasebni. Kar je mreza ze imela, je precisceno in ostane.
         val neznaniZasebni: Set<String> = if (pocakaj<Set<String>?>(zasebni, null, 20) != null) emptySet()
             else filtri.zasebni.map { katalogi[it.katalog].dodatek }.toSet()
+        // Naloga 73: zasebne kategorije se niso znane (pregled tece naprej): ko jih spozna, se mreza nalozi znova in pokaze
+        // nove kanale teh dodatkov. Prej je ostala prazna (»Nalagam ...«), pregled pa je v ozadju tekel se ~55 s.
+        if (neznaniZasebni.isNotEmpty() && !zasebni.isDone) {
+            m.zasebniCakajo = true
+            try { delavec.execute {
+                val znani = try { zasebni.get(180, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
+                android.util.Log.i("SafeerOsMedia", "kanali: zasebne kategorije ${if (znani != null) "znane (${znani.size})" else "neznane"}, mreza znova=${znani != null && !m.preklicana}")
+                glavna.post {
+                    m.zasebniCakajo = false
+                    if (isFinishing || mrezaKanalov !== m) return@post
+                    if (znani != null) odpriKanale(m.zvrst, m.jezik) else narisiKanale(m)
+                }
+            } } catch (_: java.util.concurrent.RejectedExecutionException) { m.zasebniCakajo = false }
+        }
         val smejo = dovoljeni?.let { pocakaj(it, emptySet(), 90) }
         val domaci = prepleti(domaciStrani.map { pocakaj(it, emptyList(), 6) })
         val izpadDomacih = domaciViri.any { it.izpad } || domaciStrani.any { !it.isDone }
@@ -3185,6 +3236,7 @@ class GlasbaActivity : OsActivity() {
         var nedocakani = false
         val zbrano = ArrayList<List<Jamendo.Skladba>>()
         while (true) {
+            if (m.preklicana) return
             if (ostane > 0) {
                 val f = try { prihodi.poll(if (prvic && sproti) 8L else 30L, java.util.concurrent.TimeUnit.SECONDS) } catch (_: InterruptedException) { return }
                 if (f != null) {
@@ -3251,6 +3303,8 @@ class GlasbaActivity : OsActivity() {
         val zasebni = ZASEBNI_KANALI?.second.orEmpty()
         var dodanih = 0
         for (k in novi) {
+            // Naloga 73: meja kanalov v pomnilniku mreze (ostalo z »Naloži več« ni vec potrebno - mreza jih ze ima dovolj).
+            if (m.domaci.size + m.kanali.size >= KanaliPravila.NAJVEC_KANALOV_V_MREZI) break
             if (k.id in zasebni || (m.presek && k.id !in m.dovoljeni) || !m.videni.add(k.id)) continue
             cilj += k; dodanih++
         }
@@ -3264,7 +3318,7 @@ class GlasbaActivity : OsActivity() {
         if (!samodejno) m.samodejno = 0
         stanje.text = getString(R.string.os_glasba_nalagam)
         try { delavec.execute {
-            val nove = prepleti(m.glavni.filter { !it.konec }.map { v -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { stranKanalov(v) } }
+            val nove = prepleti(m.glavni.filter { !it.konec }.map { v -> kanaliDelavec.submit<List<Jamendo.Skladba>> { if (m.preklicana) emptyList() else stranKanalov(v) }.also { m.naloge += it } }
                 .map { f -> try { f.get(25, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } })
             glavna.post {
                 m.nalagam = false
@@ -3424,9 +3478,22 @@ class GlasbaActivity : OsActivity() {
         dnevnikMreze { "kanali: vseh=${urejeni.size}, v mrezi=${prikaz.size}, iz dodatkov=$izDodatkov, caka=$caka, naprej=${m.naprej}, " +
             "v preverjanje=${zaPreverjanje.size}, v teku=${kanaliVPreverjanju.size}, brez dokaza=$preskocenih, proracun=${m.proracun}, " +
             "preverjam=$preverjam, nalagam=${m.nalagam}, se kaj=${m.seKaj}" }
-        val cakamDodatke = (m.nalagam && m.kanali.isEmpty() && m.domaci.isEmpty() && stremioNaslovi().isNotEmpty()) || caka
+        val cakamDodatke = ((m.nalagam || m.zasebniCakajo) && m.kanali.isEmpty() && m.domaci.isEmpty() && stremioNaslovi().isNotEmpty()) || caka
+        // Naloga 73: noben vir ni odgovoril in mreza je prazna - ne »Nalagam ...« za vedno: povemo in sami poskusimo znova,
+        // ko premor ali proracun dodatkov to dovoli. Kanali z diska (seme) in vgrajeni ostanejo, ce so.
+        val viriTiho = !cakamDodatke && !m.nalagam && prikaz.isEmpty() && m.glavni.isNotEmpty() && m.glavni.all { it.izpad }
+        if (viriTiho && !m.ponovitev) {
+            m.ponovitev = true
+            val premor = (Stremio.premorKoncaOb(stremioNaslovi()) - System.currentTimeMillis()).coerceAtLeast(0L)
+            val zamik = KanaliPravila.zamikPonovitve(premor, poskusiKanalov++)
+            android.util.Log.i("SafeerOsMedia", "kanali: noben vir ni odgovoril, znova cez ${zamik / 1000} s (poskus $poskusiKanalov)")
+            glavna.postDelayed({ if (mrezaKanalov === m && !isFinishing && vOspredju) odpriKanale(m.zvrst, m.jezik) }, zamik)
+            m.cezMinut = ((zamik + 59_999) / 60_000).toInt()
+        }
+        if (prikaz.isNotEmpty()) poskusiKanalov = 0
         val opis = when {
             cakamDodatke -> getString(R.string.os_glasba_nalagam)
+            viriTiho -> getString(R.string.os_tv_viri_ne_odgovarjajo, m.cezMinut.coerceAtLeast(1))
             prikaz.isEmpty() && brezSpletnihVirov() -> getString(R.string.os_media_brez_virov)
             prikaz.isEmpty() -> getString(R.string.os_tv_ni_kanalov)
             preskocenih > 0 -> getString(R.string.os_tv_brez_odgovora)
@@ -7642,6 +7709,8 @@ class GlasbaActivity : OsActivity() {
         private const val IZRIS_VELJA_MS = 2_000L
         /** Mreza kanalov: okno preverjenih kanalov iz dodatkov in najvec poizvedb po toku na uporabnikovo dejanje. */
         private const val OKNO_KANALOV = 30
+        /** Naloga 73: najvec hkratnih strani katalogov kanalov na vseh dodatkih skupaj. */
+        private const val KANALI_HKRATI = 3
         private const val PRORACUN_KANALOV = 80
         /** Po toliko zaporednih vprasanjih brez odgovora dodatka nehamo preverjati kanale do uporabnikovega dejanja. */
         private const val BREZ_ODGOVORA_NAJVEC = 3

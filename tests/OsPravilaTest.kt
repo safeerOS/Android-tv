@@ -650,6 +650,29 @@ private fun preizkusOdzivaDodatka() {
     var p: OsPravila.Odziv? = null
     p = OsPravila.poOdzivu(p, false, t); p = OsPravila.poOdzivu(p, false, t + 11 * 60_000); p = OsPravila.poOdzivu(p, false, t + 12 * 60_000)
     preveri("izpadi, razprseni cez vec kot 10 min: ni preskoka", !OsPravila.neOdgovarja(p, t + 12 * 60_000))
+    // Naloga 73: polodprto stanje - po preskoku en poskusni zahtevek; izpad spet odpre, odgovor zapre.
+    val konec = t + 120_000 + 30 * 60_000L
+    preveriEnako("odprto: zahtevek ne sme", null, OsPravila.dovoliZahtevo(o, t + 130_000))
+    val poskus = OsPravila.dovoliZahtevo(o, konec)
+    preveri("polodprto: prvi zahtevek sme (poskus)", poskus != null && poskus.poskusOd == konec)
+    preveriEnako("polodprto: drugi hkratni zahtevek ne sme", null, OsPravila.dovoliZahtevo(poskus, konec + 1_000))
+    preveri("polodprto s poskusom v teku: oznaka »ne odgovarja«", OsPravila.neOdgovarja(poskus, konec + 1_000))
+    preveri("poskus, ki visi, po 30 s spusti naslednjega", OsPravila.dovoliZahtevo(poskus, konec + OsPravila.POSKUS_MS) != null)
+    preveri("izpad poskusa: spet odprto 30 min", OsPravila.neOdgovarja(OsPravila.poOdzivu(poskus, false, konec + 2_000), konec + 29 * 60_000))
+    preveriEnako("odgovor poskusa: zaprto", OsPravila.Odziv(), OsPravila.poOdzivu(poskus, true, konec + 2_000))
+    preveri("zaprto: zahtevek sme", OsPravila.dovoliZahtevo(null, t) != null)
+    // Naloga 73: politika po vrsti zahtevka.
+    val tokKlik = OsPravila.politikaZahteve("https://d.test/stream/movie/tt1.json", false)
+    val tokOzadje = OsPravila.politikaZahteve("https://d.test/stream/movie/tt1.json", true)
+    val katalog = OsPravila.politikaZahteve("https://d.test/catalog/tv/all.json", false)
+    preveri("tok ob kliku: najvisja prednost", tokKlik.prednost < katalog.prednost && tokKlik.prednost < tokOzadje.prednost)
+    preveri("katalog: daljsa veljavnost kot tok", katalog.veljaMs > tokKlik.veljaMs)
+    preveri("tok ob kliku: daljsi rok kot katalog v ozadju", tokKlik.rokMs > katalog.rokMs)
+    preveriEnako("meta: 1 h", 60 * 60_000L, OsPravila.politikaZahteve("https://d.test/meta/movie/tt1.json", false).veljaMs)
+    preveriEnako("manifest z diska: svez", "uporabi", OsPravila.manifestZDiska(60_000L))
+    preveriEnako("manifest z diska: star 7 h - uporabi in osvezi", "uporabi+osvezi", OsPravila.manifestZDiska(7 * 3_600_000L))
+    preveriEnako("manifest z diska: prestar", "prenesi", OsPravila.manifestZDiska(8 * 24 * 3_600_000L))
+    preveriEnako("manifesta ni", "prenesi", OsPravila.manifestZDiska(-1L))
     preveri("ob vnosu: 503 in brez odgovora se enkrat, 404 ne", OsPravila.vnosZnova(503) && OsPravila.vnosZnova(0) && !OsPravila.vnosZnova(404))
 }
 

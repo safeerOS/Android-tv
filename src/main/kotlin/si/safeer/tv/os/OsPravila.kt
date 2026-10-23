@@ -294,7 +294,8 @@ object OsPravila {
      * Odzivnost dodatka (naloga 57d): cas zadnjih izpadov (brez odgovora ali 5xx) in do kdaj ga preskakujemo.
      * Lastnik: »Streznike, ki ne odgovarjajo, bi morali zavracati« - a vira ne brisemo sami (odlocitev je uporabnikova).
      */
-    data class Odziv(val izpadi: List<Long> = emptyList(), val preskociDo: Long = 0L)
+    /** [poskusOd]: naloga 73 - polodprto stanje (preskok je minil): kdaj je sel edini poskusni zahtevek (0 = se ni). */
+    data class Odziv(val izpadi: List<Long> = emptyList(), val preskociDo: Long = 0L, val poskusOd: Long = 0L)
 
     /** Toliko izpadov v [IZPADI_OKNO_MS] pomeni »ne odgovarja«: dodatek preskocimo za [PRESKOK_MS]. */
     const val IZPADOV_ZA_PRESKOK = 3
@@ -304,12 +305,64 @@ object OsPravila {
     /** Nov odziv po poizvedbi: [uspeh] (odgovoril je, tudi »tega nimam«) vse pozabi; izpad se steje. */
     fun poOdzivu(o: Odziv?, uspeh: Boolean, zdaj: Long): Odziv {
         if (uspeh) return Odziv()
+        // Naloga 73: polodprto (preskok je minil, dodatek se ni odgovoril) - izpad poskusnega zahtevka takoj spet zapre.
+        if (o != null && o.preskociDo != 0L && o.preskociDo <= zdaj) return Odziv(emptyList(), zdaj + PRESKOK_MS)
         val izpadi = o?.izpadi.orEmpty().filter { zdaj - it in 0 until IZPADI_OKNO_MS } + zdaj
         return if (izpadi.size >= IZPADOV_ZA_PRESKOK) Odziv(emptyList(), zdaj + PRESKOK_MS) else Odziv(izpadi, o?.preskociDo ?: 0L)
     }
 
     /** Ali dodatek zdaj preskocimo (v ozadju ga ne sprasujemo, oznaka »Ne odgovarja«). */
-    fun neOdgovarja(o: Odziv?, zdaj: Long): Boolean = o != null && o.preskociDo > zdaj
+    fun neOdgovarja(o: Odziv?, zdaj: Long): Boolean =
+        o != null && (o.preskociDo > zdaj || (o.preskociDo != 0L && o.poskusOd != 0L && zdaj - o.poskusOd < POSKUS_MS))
+
+    /** Naloga 73: poskusni zahtevek polodprtega stanja velja toliko; ce se ne vrne (visi), gre po tem casu naslednji. */
+    const val POSKUS_MS = 30_000L
+
+    /**
+     * Naloga 73 (»circuit breaker«): ali sme zahtevek v ozadju k dodatku s stanjem [o]. Zaprto (ni preskoka): da. Odprto
+     * ([Odziv.preskociDo] v prihodnosti): ne. Polodprto (preskok je minil): samo en poskusni zahtevek naenkrat - vrne nov
+     * odziv z [Odziv.poskusOd]; izid zapise [poOdzivu] (odgovor zapre stikalo, izpad ga spet odpre za [PRESKOK_MS]).
+     * Vrne stanje po odlocitvi ali null, ce zahtevek ne sme.
+     */
+    fun dovoliZahtevo(o: Odziv?, zdaj: Long): Odziv? {
+        if (o == null || o.preskociDo == 0L) return o ?: Odziv()
+        if (o.preskociDo > zdaj) return null
+        if (o.poskusOd != 0L && zdaj - o.poskusOd < POSKUS_MS) return null
+        return o.copy(poskusOd = zdaj)
+    }
+
+    /** Naloga 73: politika zahtevka k dodatku po vrsti (protokol Stremio): casovna meja, veljavnost v predpomnilniku, prednost niti. */
+    data class Politika(val rokMs: Int, val veljaMs: Long, val prednost: Int)
+
+    /** android.os.Process.THREAD_PRIORITY_DEFAULT / THREAD_PRIORITY_BACKGROUND (brez Androida v preizkusih). */
+    const val PREDNOST_OSPREDJE = 0
+    const val PREDNOST_OZADJE = 10
+
+    /**
+     * Politika po vrsti zahtevka ([pot] = naslov): tok ob kliku najvisja prednost in najdaljsi rok (uporabnik caka, dodatek
+     * je lahko pocasen), tok pri preverjanju v ozadju ([vOzadju]) krajsi rok in nizka prednost; metapodatki in podnapisi
+     * srednje; katalogi in manifesti v ozadju z nizko prednostjo in kratkim rokom (pocasen dodatek ne zadrzuje mreze).
+     * Veljavnost: tok 3 min (povezave potecejo), katalog 30 min, meta in podnapisi 1 h, manifest v pomnilniku ves zagon.
+     */
+    fun politikaZahteve(pot: String, vOzadju: Boolean): Politika = when {
+        "/stream/" in pot -> if (vOzadju) Politika(10_000, 3 * 60_000L, PREDNOST_OZADJE) else Politika(15_000, 3 * 60_000L, PREDNOST_OSPREDJE)
+        "/subtitles/" in pot -> Politika(10_000, 60 * 60_000L, PREDNOST_OSPREDJE)
+        "/meta/" in pot -> Politika(12_000, 60 * 60_000L, if (vOzadju) PREDNOST_OZADJE else PREDNOST_OSPREDJE)
+        "/catalog/" in pot -> Politika(10_000, 30 * 60_000L, PREDNOST_OZADJE)
+        pot.endsWith("/manifest.json") -> Politika(10_000, 0L, PREDNOST_OZADJE)
+        else -> Politika(15_000, 0L, PREDNOST_OSPREDJE)
+    }
+
+    /** Naloga 73: manifest z diska je dober takoj (zagon brez cakanja), cez [MANIFEST_OSVEZI_MS] ga osvezimo v ozadju. */
+    const val MANIFEST_OSVEZI_MS = 6 * 3_600_000L
+    const val MANIFEST_NAJVEC_MS = 7 * 24 * 3_600_000L
+
+    /** Kaj storiti z manifestom na disku starosti [starostMs]: "uporabi", "uporabi+osvezi" ali "prenesi" (prestar ali ga ni, <0). */
+    fun manifestZDiska(starostMs: Long): String = when {
+        starostMs < 0 || starostMs >= MANIFEST_NAJVEC_MS -> "prenesi"
+        starostMs >= MANIFEST_OSVEZI_MS -> "uporabi+osvezi"
+        else -> "uporabi"
+    }
 
     /** Izpad pri preverjanju ob vnosu (0 = brez odgovora ali 5xx): spec streznik (npr. brezplacno gostovanje) se zbuja - poskusimo se enkrat. */
     fun vnosZnova(koda: Int): Boolean = koda == 0 || koda >= 500
