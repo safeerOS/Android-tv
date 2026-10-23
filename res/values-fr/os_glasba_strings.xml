@@ -393,6 +393,7 @@
     <string name="os_besedila_skrij">Masquer les paroles</string>
     <string name="os_besedila_iscem">Recherche des paroles…</string>
     <string name="os_besedila_ni">Pas de paroles pour cette chanson.</string>
+    <string name="os_besedila_ni_vira">Ajoutez la source de paroles (lrclib.net) sous Ajouter une source pour voir les paroles.</string>
     <string name="os_besedila_napaka">Impossible de charger les paroles pour le moment.</string>
     <string name="os_besedila_instrumentalno">Instrumental – sans paroles.</string>
 </resources>

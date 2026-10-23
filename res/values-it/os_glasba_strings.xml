@@ -393,6 +393,7 @@
     <string name="os_besedila_skrij">Nascondi testo</string>
     <string name="os_besedila_iscem">Cerco il testo…</string>
     <string name="os_besedila_ni">Nessun testo per questo brano.</string>
+    <string name="os_besedila_ni_vira">Aggiungi la fonte dei testi (lrclib.net) in Aggiungi fonte per vedere i testi.</string>
     <string name="os_besedila_napaka">Il testo non è disponibile al momento.</string>
     <string name="os_besedila_instrumentalno">Strumentale – senza testo.</string>
 </resources>

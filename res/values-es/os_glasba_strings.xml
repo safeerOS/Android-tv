@@ -393,6 +393,7 @@
     <string name="os_besedila_skrij">Ocultar letra</string>
     <string name="os_besedila_iscem">Buscando la letra…</string>
     <string name="os_besedila_ni">No hay letra para esta canción.</string>
+    <string name="os_besedila_ni_vira">Añade la fuente de letras (lrclib.net) en Añadir fuente para ver la letra.</string>
     <string name="os_besedila_napaka">No se puede cargar la letra ahora.</string>
     <string name="os_besedila_instrumentalno">Instrumental: sin letra.</string>
 </resources>

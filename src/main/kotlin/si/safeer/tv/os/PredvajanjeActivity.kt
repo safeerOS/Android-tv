@@ -1591,8 +1591,11 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun besediloOdprto() = panelBesedila?.visibility == View.VISIBLE
 
-    /** Besedilo samo pri pesmih ([BesedilaPravila.smiselno]) in z dodanim virom LRCLIB. */
-    private fun besediloMogoce(sk: Jamendo.Skladba): Boolean = imaVirBesedil && BesedilaPravila.smiselno(
+    /**
+     * Gumb za besedilo pri vsaki pesmi ([BesedilaPravila.smiselno]). Naloga 90a: tudi brez vira LRCLIB - prej gumba sploh ni bilo
+     * in uporabnik ni vedel, zakaj; brez vira panel pove, kako ga dodati, zahteva pa ne gre nikamor ([Besedila.poisci]).
+     */
+    private fun besediloMogoce(sk: Jamendo.Skladba): Boolean = BesedilaPravila.smiselno(
         radio = sk.radio,
         vZivo = sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk),
         filmAliSerija = sk.mediaType == "movie" || sk.mediaType == "tvseries" || (Stremio.jeEnota(sk) && Stremio.razredEnote(sk) in setOf(Stremio.FILM, Stremio.SERIJA)))
@@ -1651,6 +1654,11 @@ class PredvajanjeActivity : OsActivity() {
         besediloStanje?.text = getString(R.string.os_besedila_iscem); besediloStanje?.visibility = View.VISIBLE
         besediloVrstice.forEach { it.text = "" }
         besediloNavadno?.visibility = View.GONE
+        if (!imaVirBesedil) {
+            android.util.Log.i("SafeerOsGlasba", "besedilo: \"${sk.naslov.take(40)}\" - vir LRCLIB ni dodan, zahteva ne gre nikamor")
+            besediloStanje?.setText(R.string.os_besedila_ni_vira)
+            return
+        }
         val trajanje = GlasbaStoritev.predvajalnik?.let { polozajInTrajanje(it).second } ?: 0L
         val naslov = sk.naslov; val izvajalec = sk.izvajalec; val id = sk.id
         try { delavec.execute {
@@ -1661,6 +1669,8 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun prikaziBesedilo(izid: Besedila.Izid) {
         val b = izid.besedilo
+        android.util.Log.i("SafeerOsGlasba", "besedilo: " + if (b == null) "ni najdeno (${izid.razlog})"
+            else "najdeno (sinhronizirano=${b.vrstice.isNotEmpty()}, navadno=${b.navadno.isNotBlank()}, instrumentalno=${b.instrumentalno})")
         when {
             b == null -> besediloStanje?.setText(if (izid.razlog == "napaka") R.string.os_besedila_napaka else R.string.os_besedila_ni)
             b.vrstice.isNotEmpty() -> { besediloStanje?.visibility = View.GONE; besediloVrst = b.vrstice; glavna.post(osveziBesedilo) }

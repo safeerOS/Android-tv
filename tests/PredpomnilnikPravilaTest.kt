@@ -129,6 +129,10 @@ fun main() {
     preveriEnako("cela", true, PredpomnilnikPravila.jeCelota(1000, 1000))
     preveriEnako("delna", false, PredpomnilnikPravila.jeCelota(1000, 999))
     preveriEnako("neznana dolzina ni cela", false, PredpomnilnikPravila.jeCelota(-1, 5000))
+    preveriEnako("razlog: sme = prazno", "", PredpomnilnikPravila.razlogBrezPredpomnjenja(zvok = true, vZivo = false, http = true, enodelni = true, zasebno = false))
+    preveriEnako("razlog: video", "video", PredpomnilnikPravila.razlogBrezPredpomnjenja(zvok = false, vZivo = false, http = true, enodelni = true, zasebno = false))
+    preveriEnako("razlog: HLS", "HLS ali DASH", PredpomnilnikPravila.razlogBrezPredpomnjenja(zvok = true, vZivo = false, http = true, enodelni = false, zasebno = false))
+    preveriEnako("razlog: zaseben", "zasebni dodatek", PredpomnilnikPravila.razlogBrezPredpomnjenja(zvok = true, vZivo = false, http = true, enodelni = true, zasebno = true))
     preveriEnako("TTL besedil 30 dni", 30 * dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.BESEDILA))
     preveriEnako("besedila ne gredo na napravo v Linku", false, PredpomnilnikPravila.smeNaLink(PredpomnilnikPravila.BESEDILA, 100, zasebno = false))
 

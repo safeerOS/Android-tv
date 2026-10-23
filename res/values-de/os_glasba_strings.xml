@@ -393,6 +393,7 @@
     <string name="os_besedila_skrij">Songtext ausblenden</string>
     <string name="os_besedila_iscem">Songtext wird gesucht …</string>
     <string name="os_besedila_ni">Für dieses Lied gibt es keinen Songtext.</string>
+    <string name="os_besedila_ni_vira">Füge unter „Quelle hinzufügen“ die Songtext-Quelle (lrclib.net) hinzu, um Songtexte zu sehen.</string>
     <string name="os_besedila_napaka">Der Songtext kann gerade nicht geladen werden.</string>
     <string name="os_besedila_instrumentalno">Instrumental – kein Songtext.</string>
 </resources>

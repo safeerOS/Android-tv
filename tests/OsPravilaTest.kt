@@ -24,6 +24,13 @@ private fun preizkusIskanjaYoutubio() {
     preveriEnako("12 s, YouTubio odgovoril: konec", true, OsPravila.iskanjeKoncano(false, true, 12_000))
     preveriEnako("12 s, YouTubio se isce: cakamo", false, OsPravila.iskanjeKoncano(false, false, 12_500))
     preveriEnako("16 s: konec v vsakem primeru", true, OsPravila.iskanjeKoncano(false, false, 16_000))
+    // Naloga 90c: iskanje uporabnika gre mimo varovalke odzivnosti; katalog brez iskanja ne.
+    preveriEnako("iskanje Coldplay mimo varovalke", true, OsPravila.iskanjeMimoVarovalke("Coldplay"))
+    preveriEnako("prazno iskanje (katalog v ozadju) cez varovalko", false, OsPravila.iskanjeMimoVarovalke("  "))
+    // Naloga 90c: Nazaj z iskanja gre na razdelek, iz katerega je bilo odprto.
+    preveriEnako("Nazaj z iskanja iz Glasbe: Glasba", 1, OsPravila.ciljNazajIzIskanja(1, 7, 0))
+    preveriEnako("Nazaj z iskanja, odprtega iz plosce: plosca", 0, OsPravila.ciljNazajIzIskanja(0, 7, 0))
+    preveriEnako("Nazaj z iskanja, ki je izvor sam: plosca", 0, OsPravila.ciljNazajIzIskanja(7, 7, 0))
     preveriEnako("ime izvora: YouTubio | ElfHosted", "YouTubio", OsPravila.imeIzvora("YouTubio | ElfHosted"))
     preveriEnako("ime izvora: brez pripone", "FayaTV", OsPravila.imeIzvora("FayaTV"))
     preveriEnako("ime izvora: samo pripona", "| x", OsPravila.imeIzvora("| x"))
@@ -54,6 +61,27 @@ private fun preizkusOdklepa() {
     preveriEnako("dvojnik: stari naslov istega id", listOf("https://a.test/stara"), OsPravila.stariNasloviDodatka("https://a.test/kodaXYZ", "org.iptv", dodani))
     preveriEnako("dvojnik: drug dodatek ni", emptyList<String>(), OsPravila.stariNasloviDodatka("https://b.test", "org.drug", dodani))
     preveriEnako("dvojnik: brez id ni", emptyList<String>(), OsPravila.stariNasloviDodatka("https://c.test", "", dodani))
+}
+
+/** Naloga 90b: odklep po placilu (poskus ob odprtju) in zapis cele mreze Radia na disk. */
+private fun preizkusTv90b() {
+    println("\n== naloga 90b: odklep in zapis mreze ==")
+    val naslovi = listOf("https://a.test/manifest.json", "https://a.test/x/manifest.json", "https://b.test/manifest.json", "https://c.test/manifest.json")
+    val osnova = { n: String -> n.substringBefore("/manifest.json").substringBefore("/x") }
+    preveriEnako("poskus samo za zaklenjene, dodatek enkrat", listOf(naslovi[0], naslovi[3]),
+        OsPravila.zaklenjeniZaPoskus(naslovi, osnova) { it == naslovi[0] || it == naslovi[1] || it == naslovi[3] })
+    preveriEnako("nic zaklenjenega: brez poskusa", emptyList<String>(), OsPravila.zaklenjeniZaPoskus(naslovi, osnova) { false })
+    var z = OsPravila.Zaklep()
+    repeat(5) { z = OsPravila.poOdgovoruTokov(z, 1, 0, 1000L) }
+    preveriEnako("zaklenjen pred poskusom", true, OsPravila.jeZaklenjen(z, 1001L))
+    preveriEnako("predvajljiv tok pri poskusu takoj pobrise zaklep", false, OsPravila.jeZaklenjen(OsPravila.poOdgovoruTokov(z, 3, 1, 2000L), 2001L))
+    preveriEnako("samo obvestilo pri poskusu ne odklene", true, OsPravila.jeZaklenjen(OsPravila.poOdgovoruTokov(z, 1, 0, 2000L), 2001L))
+    val postaje = (1..134).toList()
+    preveriEnako("na disk gre vseh 134 postaj, ne 60", 134, OsPravila.zapisMreze(postaje).size)
+    preveriEnako("zapis ima zgornjo mejo", OsPravila.ZAPIS_MREZE_NAJVEC, OsPravila.zapisMreze((1..1000).toList()).size)
+    preveriEnako("prva stran gre na disk, ce ni pozni virov", true, OsPravila.shraniPrvoStranMreze(false, true))
+    preveriEnako("prva stran brez predpomnilnika gre na disk", true, OsPravila.shraniPrvoStranMreze(true, false))
+    preveriEnako("prva stran ne povozi vecje mreze, dokler pozni viri tecejo", false, OsPravila.shraniPrvoStranMreze(true, true))
 }
 
 /** Naloga 79: dodatek, ki za kanale vraca samo obvestila (placljiv dostop), je »brez prostih tokov«. */
@@ -1002,7 +1030,19 @@ fun main() {
     preizkusRadia84()
     preizkusPregleda86()
     preizkusTv88()
+    preizkusTv90b()
     preizkusGlasbe89()
+    preizkusKatalogov90()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
+}
+
+private fun preizkusKatalogov90() {
+    println("\n== katalogi glasbe s prednostjo (naloga 90a) ==")
+    val vsi = (1..12).map { "a$it" } + "koncerti"
+    val izbrani = OsPravila.katalogiZPrednostjo(vsi, 10) { it == "koncerti" }
+    preveri("prednostni katalog je med desetimi", "koncerti" in izbrani && izbrani.size == 10)
+    preveri("ostali ohranijo vrstni red", izbrani.drop(1) == (1..9).map { "a$it" })
+    preveri("brez prednostnih: prvih deset", OsPravila.katalogiZPrednostjo(vsi.dropLast(1), 10) { false } == (1..10).map { "a$it" })
+    preveri("manj kot n: vsi", OsPravila.katalogiZPrednostjo(listOf("x", "koncerti"), 10) { it == "koncerti" }.toSet() == setOf("x", "koncerti"))
 }

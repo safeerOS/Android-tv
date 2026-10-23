@@ -394,6 +394,7 @@
     <string name="os_besedila_skrij">Skrij besedilo</string>
     <string name="os_besedila_iscem">Iščem besedilo …</string>
     <string name="os_besedila_ni">Za to pesem ni besedila.</string>
+    <string name="os_besedila_ni_vira">Za besedila dodaj vir besedil (lrclib.net) pri Dodaj vir.</string>
     <string name="os_besedila_napaka">Besedila ta čas ni mogoče dobiti.</string>
     <string name="os_besedila_instrumentalno">Instrumentalna skladba – brez besedila.</string>
 </resources>

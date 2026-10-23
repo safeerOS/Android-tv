@@ -659,7 +659,8 @@ object Stremio {
      */
     fun katalogAliIzpad(k: Katalog, iskanje: String = "", skip: Int = 0, zvrst: String = ""): List<Jamendo.Skladba>? {
         // Dodatek, ki ne odgovarja (naloga 57d): do naslednjega preizkusa ga ne sprasujemo - to je izpad, ne prazen katalog.
-        if (!smemVprasati(k.dodatek)) { zadnjaKoda.set(0); return null }
+        // Naloga 90c: iskanje uporabnika gre mimo (YouTubio je pocasen in bi ga varovalka po izpadih zaprla za 30 min).
+        if (!OsPravila.iskanjeMimoVarovalke(iskanje) && !smemVprasati(k.dodatek)) { zadnjaKoda.set(0); return null }
         // Naloga 73: katalog kanalov (IPTV: tisoce vnosov na stran) beremo tokovno in hranimo samo kartice.
         if (iskanje.isBlank() && razredKataloga(k) == TV) return katalogKanalov(k, skip, zvrst)
         val pot = potKataloga(k, iskanje, skip, zvrst)
@@ -1504,6 +1505,17 @@ object Stremio {
 
     /** Naloga 82: kanal je iz dodatka, ki je za mrezo zaklenjen ([zaklenjenZaMrezo]). */
     fun zaklenjenKanalZaMrezo(s: Jamendo.Skladba): Boolean = razstavi(s)?.first?.let { zaklenjenZaMrezo(it) } == true
+
+    /**
+     * Naloga 90b: en poskus prvega kanala dodatka (klic z delovne niti). Predvajljiv tok pobrise zapis »brez prostih tokov«
+     * ([zabeleziTokove] - uporabnik je dodatku placal); obvestilo (externalUrl) ga pusti. Vrne true, ce dodatek zdaj ni vec zaklenjen.
+     */
+    fun poskusiOdklep(naslov: String): Boolean {
+        val k = katalogiTv(listOf(naslov)).firstOrNull() ?: return !zaklenjenZaMrezo(naslov)
+        val (_, tip, id) = katalog(k).firstNotNullOfOrNull { razstavi(it) } ?: return !zaklenjenZaMrezo(naslov)
+        tokovi(listOf(naslov), tip, id)
+        return !zaklenjenZaMrezo(naslov)
+    }
 
     /** Naloga 79: zadnji odgovor dodatka za kanal je imel samo obvestila (tudi pred sklepom) - kanal ni mrtev. */
     fun samoObvestilaKanala(s: Jamendo.Skladba): Boolean = razstavi(s)?.first?.let { (zaklepi[it]?.zaporednih ?: 0) > 0 } == true

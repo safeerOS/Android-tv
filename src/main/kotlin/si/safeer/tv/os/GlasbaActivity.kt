@@ -586,6 +586,19 @@ class GlasbaActivity : OsActivity() {
         // Podstran (»Pokazi vse« bloka, seznam predvajanja, epizode, izvajalec): nazaj na stran, s katere je bila odprta,
         // na isto mesto - tudi kadar je bila odprta z druge podstrani ali iz mreze.
         if (podstrani.odprta) { zapriPodstran(); return }
+        // Naloga 90c: iskanje - najprej zapre tipkovnico, nato preklice iskanje in gre na zaslon, iz katerega je bilo odprto.
+        if (razdelek == ISKANJE) {
+            val polje = iskalnik
+            if (polje != null && (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(polje.windowToken, 0)) {
+                polje.showSoftInputOnFocus = false
+                return
+            }
+            ++nalaganje
+            synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
+            zadetki = null
+            izberi(OsPravila.ciljNazajIzIskanja(iskanjeIz, ISKANJE, DOMOV))
+            return
+        }
         // Mreza Filmi | Serije je domaci pogled razdelka Video: Nazaj iz nje gre na plosco, ne v isti razdelek.
         val domacaMreza = odprtKatalog?.tip?.isNotBlank() == true && videoNacin().isNotEmpty()
         if (odprtKatalog != null && !domacaMreza) { odprtKatalog = null; izberi(odprtKatalogIz); return }
@@ -3142,9 +3155,32 @@ class GlasbaActivity : OsActivity() {
         } } catch (_: java.util.concurrent.RejectedExecutionException) { }
         // Naloga 86 (M3): na lastnem izvajalniku - preklicana mreza (hitra menjava zvrsti) ne sme zasesti [delavec].
         try { nalaganjeKanalov.execute { naloziKanale(m) } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+        // Naloga 90b: zaklenjene dodatke ob vsakem odprtju poskusimo odkleniti (placilo dodatku), ne sele po 24 h.
+        poskusiOdkleniDodatke(m)
         // Naloga 82: prazna mreza se ob rokih narise znova (nadomestek po 3 s, konec »Nalagam« po 45 s), tudi brez odgovorov.
         for (rok in longArrayOf(KanaliPravila.PRAZNA_NADOMESTEK_MS, KanaliPravila.PRAZNA_KONEC_MS))
             glavna.postDelayed({ if (mrezaKanalov === m && !isFinishing && m.vidnih == 0) narisiKanale(m) }, rok + 50)
+    }
+
+    /** Naloga 90b: poskusi odklepa v ozadju ([Stremio.poskusiOdklep]); [m] = mreza, ki se po uspehu narise znova (null: brez osvezitve). */
+    private val odklepNit = Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-odklep").apply { isDaemon = true } }
+    private fun poskusiOdkleniDodatke(m: MrezaKanalov?) {
+        if (tvZaklenjeni) return
+        // Najvec en poskus na dodatek v [POSKUS_ODKLEPA_MS]: poskus prebere stran kataloga kanalov (IPTV: velik odgovor), ne ob
+        // vsakem odprtju Live TV. Shranjen dodatek ([m] == null, uporabnik je pravkar placal ali spremenil naslov) vedno.
+        val zdaj = android.os.SystemClock.elapsedRealtime()
+        val naslovi = OsPravila.zaklenjeniZaPoskus(stremioNaslovi(), { Stremio.osnova(it) }) { Stremio.zaklenjenZaMrezo(it) }
+            .filter { n -> m == null || (ZADNJI_POSKUS_ODKLEPA[Stremio.osnova(n)] ?: Long.MIN_VALUE / 2).let { zdaj - it >= POSKUS_ODKLEPA_MS } }
+        if (naslovi.isEmpty()) return
+        naslovi.forEach { ZADNJI_POSKUS_ODKLEPA[Stremio.osnova(it)] = zdaj }
+        try { odklepNit.execute {
+            var odklenjen = false
+            for (n in naslovi) if (try { Stremio.poskusiOdklep(n) } catch (_: Exception) { false }) odklenjen = true
+            if (odklenjen) {
+                android.util.Log.i("SafeerOsMedia", "dodatek je spet dal proste tokove: kanale pokazemo")
+                if (m != null) glavna.post { if (mrezaKanalov === m && !isFinishing) odpriKanale(m.zvrst, m.jezik) }
+            }
+        } } catch (_: java.util.concurrent.RejectedExecutionException) { }
     }
 
     /**
@@ -4110,10 +4146,13 @@ class GlasbaActivity : OsActivity() {
             if (prva && m.vsi.isNotEmpty()) {
                 VSEBINA_MREZE[m.kljuc] = m.vsi.toList()
                 // Naloga 78: zadnja znana prva stran izbire tudi na disk - nadomestek prazne mreze po zagonu.
-                val app = applicationContext
-                val zapis = m.vsi.take(60)
-                try { delavec.execute { MedijskiPredpomnilnik.shraniPolice(app, "mreza|" + m.kljuc, listOf(Triple("vsi", true, zapis))) } }
-                catch (_: java.util.concurrent.RejectedExecutionException) { }
+                // Naloga 90b: ne povozi vec kot 60 postaj z diska s prvo stranjo (60), ce pozni viri stran se dopolnijo.
+                if (OsPravila.shraniPrvoStranMreze(m.vTeku, m.izPredpomnilnika)) {
+                    val app = applicationContext
+                    val zapis = OsPravila.zapisMreze(m.vsi)
+                    try { delavec.execute { MedijskiPredpomnilnik.shraniPolice(app, "mreza|" + m.kljuc, listOf(Triple("vsi", true, zapis))) } }
+                    catch (_: java.util.concurrent.RejectedExecutionException) { }
+                }
             }
             for (s in prej) if (m.videni.add(kljucVMrezi(s))) m.vsi += s
             // Naloga 78: prva stran je prazna in nicesar vec ne pricakujemo - namesto »Nothing found« nadomestna vsebina.
@@ -4148,7 +4187,7 @@ class GlasbaActivity : OsActivity() {
                     VSEBINA_MREZE[m.kljuc] = m.vsi.toList()
                     // Naloga 84: prva stran je prisla sele s poznimi viri (imeniki v ozadju) - tudi ta gre na disk za naslednje odprtje.
                     val app = applicationContext
-                    val zapis = m.vsi.take(60)
+                    val zapis = OsPravila.zapisMreze(m.vsi)
                     try { delavec.execute { MedijskiPredpomnilnik.shraniPolice(app, "mreza|" + m.kljuc, listOf(Triple("vsi", true, zapis))) } }
                     catch (_: java.util.concurrent.RejectedExecutionException) { }
                 }
@@ -4229,10 +4268,14 @@ class GlasbaActivity : OsActivity() {
     private fun glasbeniKatalogi(videospoti: Boolean?): List<Stremio.Katalog> {
         val dodatki = MedijskiViri.vsi(this).filter { it.jeStremio && jeVirViden(GLASBA, kljucVira(it)) }.map { it.naslov }
         if (dodatki.isEmpty()) return emptyList()
-        return (try { Stremio.katalogiRazreda(dodatki, Stremio.GLASBA) } catch (_: Exception) { emptyList() })
+        val vsi = (try { Stremio.katalogiRazreda(dodatki, Stremio.GLASBA) } catch (_: Exception) { emptyList() })
             // Naloga 77: glasbeni katalog s posnetki z IMDb (Music Concerts, tip music) je video - sodi med videospote. Prej ga je
             // ta filter (tip music = zvok) izlocil in skupina »Music videos« je bila prazna.
-            .filter { videospoti == null || (Stremio.razred(it.tip) != Stremio.GLASBA || Stremio.jeVideoKatalog(it)) == videospoti }.take(10)
+            .filter { videospoti == null || (Stremio.razred(it.tip) != Stremio.GLASBA || Stremio.jeVideoKatalog(it)) == videospoti }
+        // Naloga 90a: koncerti (video katalogi) so pred rezom na deset katalogov - prej so ob vec glasbenih katalogih izpadli.
+        val izbrani = OsPravila.katalogiZPrednostjo(vsi, 10) { Stremio.jeVideoKatalog(it) }
+        android.util.Log.i("SafeerOsGlasba", "Music: katalogov dodatkov ${vsi.size}, izbranih ${izbrani.size}, koncertov ${izbrani.count { Stremio.jeVideoKatalog(it) }}")
+        return izbrani
     }
 
     private fun stranGlasbe(m: MrezaVsebine, prva: Boolean): Pair<List<Jamendo.Skladba>, Boolean> {
@@ -6523,6 +6566,7 @@ class GlasbaActivity : OsActivity() {
         PregledKanalov.zacni(applicationContext, v.naslov, rocno = false)
         // Naloga 79b: isti dodatek z novim naslovom (po narocnini) - stari naslov ponudimo v odstranitev.
         preveriDvojnikDodatka(v.naslov)
+        poskusiOdkleniDodatke(null)
         // Kartica dodatka pokaze ime iz manifesta (ne naslova streznika), brz ko ga preberemo.
         if (Stremio.imeIzPredpomnilnika(v.naslov) == null) delavec.execute {
             try { Stremio.zaseben(v.naslov) } catch (_: Exception) { }
@@ -7890,12 +7934,11 @@ class GlasbaActivity : OsActivity() {
         val posnetek = if (sk.mediaType.equals("MusicVideo", ignoreCase = true) || Stremio.razredEnote(sk) !in setOf(Stremio.FILM, Stremio.SERIJA))
             tokovi.firstOrNull { it.vrsta == "napovednik" } else null
         if (posnetek == null && tokovi.none { Stremio.jePredvajljiv(it) && gre(it) }) {
-            // Naloga 88 (TV 08:50: Arena Sport 1 Premium, dodatek 500 - 20 s nic, brez sporocila): kanal v zivo, za katerega
-            // noben dodatek v roku ne da toka (napaka, ni odgovora, ni toka), je ta cas nedosegljiv - jasno sporocilo in
-            // oznaka mrtev ([MrtviKanali], 24 h), mreza ga skrije. Placljiv dostop (79) ima svoje sporocilo spodaj.
+            // Naloga 90b (lastnik: sporocila za nedelujoce kanale ne rabimo): kanal v zivo, za katerega noben dodatek v roku ne
+            // da toka, se tiho oznaci mrtev ([MrtviKanali], 24 h) in izgine iz mreze. Razlicice kartice so ze v isti poizvedbi
+            // ([razresiStremio]), zato predvajanje naslednje razlicice pride samo; tu so mrtve vse. Placljiv dostop (79) ima svoje sporocilo.
             if (obNeuspehu == null && Stremio.jeVZivo(sk) && !Stremio.samoObvestilaKanala(sk)) {
                 android.util.Log.i("SafeerOsMedia", "kanal ni dosegljiv: tokov=${tokovi.size}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}")
-                Toast.makeText(this, getString(R.string.os_media_kanal_ni_dosegljiv, naslov), Toast.LENGTH_LONG).show()
                 val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
                 (razlicice - sk.id).forEach { MrtviKanali.zapomni(this, it) }
                 MrtviKanali.zapomni(this, sk.id)
@@ -7918,7 +7961,6 @@ class GlasbaActivity : OsActivity() {
                 return
             }
             if (obNeuspehu == null && (Stremio.jeVZivo(sk) || Stremio.razredEnote(sk) == Stremio.RADIO)) {
-                Toast.makeText(this, getString(R.string.os_media_kanal_brez_toka, naslov), Toast.LENGTH_LONG).show()
                 val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
                 (razlicice - sk.id).forEach { MrtviKanali.zapomni(this, it) }
                 MrtviKanali.zapomni(this, sk.id)
@@ -8704,3 +8746,7 @@ class GlasbaActivity : OsActivity() {
         }
     }
 }
+
+/** Naloga 90b: kdaj (elapsedRealtime) smo dodatek (osnova) nazadnje poskusili odkleniti; velja za ves proces. */
+private val ZADNJI_POSKUS_ODKLEPA = java.util.concurrent.ConcurrentHashMap<String, Long>()
+private const val POSKUS_ODKLEPA_MS = 10 * 60_000L

@@ -391,6 +391,10 @@ object OsPravila {
         }
     }
 
+    /** Naloga 90b: dodatki, ki jih ob odprtju Live TV poskusimo odkleniti: zaklenjeni, vsak dodatek (osnova) enkrat, v vrstnem redu seznama. */
+    fun zaklenjeniZaPoskus(naslovi: List<String>, osnova: (String) -> String, zaklenjen: (String) -> Boolean): List<String> =
+        naslovi.filter(zaklenjen).distinctBy(osnova)
+
     /** Ali sklep »samo z narocnino« zdaj velja (ura nazaj: ne velja, dokler ga nov odgovor ne obnovi). */
     fun jeZaklenjen(z: Zaklep?, zdaj: Long): Boolean = z != null && z.zaklenjenOb > 0L && zdaj - z.zaklenjenOb in 0 until ZAKLENJEN_VELJA_MS
 
@@ -439,6 +443,15 @@ object OsPravila {
      */
     fun iskanjeKoncano(vsiGotovi: Boolean, samoIskanjeGotovo: Boolean, casMs: Long): Boolean =
         vsiGotovi || (casMs >= ISKANJE_ROK_MS && (samoIskanjeGotovo || casMs >= ISKANJE_ROK_SAMO_MS))
+
+    /**
+     * Naloga 90c: iskanje, ki ga je sprozil uporabnik ([iskanje] ni prazno), gre mimo varovalke odzivnosti dodatka: YouTubio je
+     * pocasen (iskanje na YouTubu), po treh izpadih bi ga varovalka 30 min sploh ne vprasala in bi iz rezultatov izginil.
+     */
+    fun iskanjeMimoVarovalke(iskanje: String): Boolean = iskanje.isNotBlank()
+
+    /** Naloga 90c: kam gre Nazaj z iskanja: razdelek, iz katerega je bilo odprto; neznan ali isti razdelek = nadzorna plosca. */
+    fun ciljNazajIzIskanja(iskanjeIz: Int, iskanje: Int, domov: Int): Int = if (iskanjeIz == iskanje || iskanjeIz < 0) domov else iskanjeIz
 
     /** Naloga 81: ime dodatka v vrstici izvorov zadetkov (»YouTubio | ElfHosted« -> »YouTubio«). */
     fun imeIzvora(imeDodatka: String): String = imeDodatka.substringBefore(" | ").substringBefore(" - ").trim().ifEmpty { imeDodatka.trim() }
@@ -1243,6 +1256,15 @@ object OsPravila {
         return prvi + vse.filter { it !in prvi }.sorted()
     }
 
+    /**
+     * Naloga 90a: najvec [n] katalogov, a tisti, ki imajo [prednost] (video koncerti Music Concerts), so prvi - prej jih je
+     * rez na prvih desetih katalogih izpustil, ce je imel uporabnik vec glasbenih katalogov (YouTubio).
+     */
+    fun <T> katalogiZPrednostjo(vsi: List<T>, n: Int, prednost: (T) -> Boolean): List<T> {
+        val prvi = vsi.filter(prednost).take(n)
+        return prvi + vsi.filterNot(prednost).take((n - prvi.size).coerceAtLeast(0))
+    }
+
     // ------------------------------------------------------------------ naloga 83: Music (koncerti, seznami, takoj z diska)
 
     /** Vir uvozenega seznama predvajanja (UvozSeznama: »YouTube«, »Spotify«). */
@@ -1274,6 +1296,18 @@ object OsPravila {
      * ne pride, se doda na konec mreze), z mrezo z diska ali iz pomnilnika na vse (sveza stran jo zamenja enkrat).
      */
     fun rokImenikaRadia(prva: Boolean, naZaslonu: Boolean): Long = if (prva && !naZaslonu) 3_000L else 25_000L
+
+    /** Naloga 90b: najvec kartic mreze na disku (prej 60 = ena stran, zato je Radio po zagonu imel 60 postaj namesto vseh). */
+    const val ZAPIS_MREZE_NAJVEC = 300
+
+    /** Naloga 90b: kartice mreze za zapis na disk - cela mreza prve strani (z dodatki in pozni viri), ne samo prve strani. */
+    fun <T> zapisMreze(vsi: List<T>): List<T> = vsi.take(ZAPIS_MREZE_NAJVEC)
+
+    /**
+     * Naloga 90b: ali prva stran mreze ze gre na disk. Ce so pozni viri se v teku in je mreza ze z diska ali iz pomnilnika,
+     * zapis pocaka na polno mrezo (zapis le prve strani bi povozil vecjo).
+     */
+    fun shraniPrvoStranMreze(viriVTeku: Boolean, izPredpomnilnika: Boolean): Boolean = !(viriVTeku && izPredpomnilnika)
 
     /** Naloga 84: vrstni red streznikov imenika - zadnji, ki je odgovoril, najprej; ostali po vrsti (brez dvojnikov). */
     fun vrstniRedStreznikov(strezniki: List<String>, zadnjiDober: String?): List<String> =

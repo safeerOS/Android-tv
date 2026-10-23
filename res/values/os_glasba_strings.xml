@@ -392,6 +392,7 @@
     <string name="os_besedila_skrij">Hide lyrics</string>
     <string name="os_besedila_iscem">Looking for lyrics…</string>
     <string name="os_besedila_ni">No lyrics for this song.</string>
+    <string name="os_besedila_ni_vira">Add the lyrics source (lrclib.net) under Add source to see lyrics.</string>
     <string name="os_besedila_napaka">Lyrics can’t be loaded right now.</string>
     <string name="os_besedila_instrumentalno">Instrumental – no lyrics.</string>
 </resources>

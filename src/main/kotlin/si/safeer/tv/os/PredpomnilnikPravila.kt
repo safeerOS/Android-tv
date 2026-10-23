@@ -226,6 +226,19 @@ object PredpomnilnikPravila {
     fun smeVPredpomnilnikZvoka(zvok: Boolean, vZivo: Boolean, http: Boolean, enodelni: Boolean, zasebno: Boolean): Boolean =
         zvok && !vZivo && http && enodelni && !zasebno
 
+    /**
+     * Naloga 90a: zakaj tok ne sme v predpomnilnik zvoka (za dnevnik SafeerOsGlasba); prazno = sme. Isti vrstni red kot
+     * [smeVPredpomnilnikZvoka].
+     */
+    fun razlogBrezPredpomnjenja(zvok: Boolean, vZivo: Boolean, http: Boolean, enodelni: Boolean, zasebno: Boolean): String = when {
+        !zvok -> "video"
+        vZivo -> "v zivo"
+        !http -> "ni http"
+        !enodelni -> "HLS ali DASH"
+        zasebno -> "zasebni dodatek"
+        else -> ""
+    }
+
     /** Kljuc skladbe v predpomnilniku zvoka: id brez pripone toka (»#…«) - povezava toka potece, skladba ostane ista. */
     fun kljucZvoka(id: String): String = "zvok|" + id.substringBefore('#')
 

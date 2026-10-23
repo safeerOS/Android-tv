@@ -170,6 +170,8 @@ class GlasbaStoritev : Service() {
                 // Kanal ali film, ki se ni zacel, ne sodi med »nazadnje predvajano« (izmerjeno 5. 10. 2026: kanal brez
                 // streznika je bil tam z gumbom »Nadaljuj«).
                 if (p.isPlaying) zapomniNedavnoEnkrat()
+                // Naloga 90a: zasedenost predpomnilnika zvoka ob vsaki skladbi (brez diska, kazalo je v pomnilniku).
+                if (PredpomnilnikZvoka.zdaj() != null) android.util.Log.i("SafeerOsGlasba", "predpomnjenje: velikost ${PredpomnilnikZvoka.velikost() / 1024} KB")
                 osvezi()
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -460,12 +462,14 @@ class GlasbaStoritev : Service() {
         // predpomnilnika (odklop USB) predvajalnik prezre in bere z omrezja.
         val zvocni = if (s == null) PredpomnilnikZvoka.zdaj() else null
         val predpomnjeneTovarne = HashMap<Map<String, String>, androidx.media3.exoplayer.source.MediaSource.Factory>()
-        fun vPredpomnilnik(sk: Jamendo.Skladba): Boolean = zvocni != null && PredpomnilnikPravila.smeVPredpomnilnikZvoka(
+        // Naloga 90a: razlog, zakaj skladba ne gre v predpomnilnik (prazno = gre); v dnevnik SafeerOsGlasba.
+        fun razlogBrez(sk: Jamendo.Skladba): String = if (zvocni == null) "USB predpomnilnik ni v uporabi" else PredpomnilnikPravila.razlogBrezPredpomnjenja(
             zvok = !sk.video || sk.id in zvocniTokovi,
             vZivo = enaVZivo || sk.radio || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk),
             http = sk.zvok.startsWith("https://") || sk.zvok.startsWith("http://"),
             enodelni = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null }) == C.CONTENT_TYPE_OTHER,
             zasebno = Stremio.jeZasebna(sk))
+        fun vPredpomnilnik(sk: Jamendo.Skladba): Boolean = razlogBrez(sk).isEmpty()
         fun predpomnjenaTovarna(sk: Jamendo.Skladba): androidx.media3.exoplayer.source.MediaSource.Factory {
             val glave = SpletniVir.glaveToka(sk.zvok)
             return predpomnjeneTovarne.getOrPut(glave) {
@@ -478,7 +482,11 @@ class GlasbaStoritev : Service() {
         }
         p.setMediaSources(seznam.map { sk ->
             val pp = vPredpomnilnik(sk)
-            if (pp) PredpomnilnikZvoka.zapomniTok(PredpomnilnikPravila.kljucZvoka(sk.id), sk)
+            val ime = sk.naslov.take(40)
+            if (pp) {
+                PredpomnilnikZvoka.zapomniTok(PredpomnilnikPravila.kljucZvoka(sk.id), sk)
+                android.util.Log.i("SafeerOsGlasba", "predpomnjenje: zacetek \"$ime\" (v predpomnilniku ${PredpomnilnikZvoka.velikost() / 1024} KB)")
+            } else if (!sk.radio) android.util.Log.i("SafeerOsGlasba", "predpomnjenje: preskoceno \"$ime\" - ${razlogBrez(sk)}")
             (if (pp) predpomnjenaTovarna(sk) else hlsTovarnaZa(sk) ?: tovarnaZa(sk)).createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
                 .apply { if (pp) setCustomCacheKey(PredpomnilnikPravila.kljucZvoka(sk.id)) }
                 .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
@@ -787,6 +795,8 @@ class GlasbaStoritev : Service() {
             obPripravi = { pripravljen ->
                 if (spletni === pripravljen) {
                     android.util.Log.i("SafeerOsMedia", "stopnja=2 uspeh=LahkaStran")
+                    // Naloga 90a: spletna stran (YouTube) igra v WebView, tok ne gre skozi Media3 - predpomnjenje ni mogoce.
+                    android.util.Log.i("SafeerOsGlasba", "predpomnjenje: preskoceno \"${sk.naslov.take(40)}\" - igra na spletni strani (WebView), ne prek Media3")
                     osvezi()
                     // "Pripravljena" stran, ki po 8 s se vedno ne igra (zelimo pa, da igra), v varcnem pogledu ne
                     // stece: polni pogon, in za to stran si to zapomnimo.
@@ -1201,11 +1211,10 @@ class GlasbaStoritev : Service() {
         fun osveziKartico(a: android.app.Activity) { }
 
         /**
-         * Klik na kartico: med predvajanjem naravnost na predvajanje, sicer v Medije. »Med predvajanjem« pomeni, da
-         * res tece ([tece]): zaustavljen ali odpovedan kanal je prej odprl crn predvajalnik namesto Medijskega centra.
+         * Klik na kartico »Media Center« odpre Media Center, tudi med predvajanjem (naloga 90c: po Nazaj z zaslona predvajanja
+         * je prvi klik odprl zaslon predvajanja). Zaslon predvajanja je na voljo iz mini vrstice in plosce.
          */
-        fun namenKartice(ctx: Context): Intent =
-            Intent(ctx, if (trenutna() != null && tece()) PredvajanjeActivity::class.java else GlasbaActivity::class.java)
+        fun namenKartice(ctx: Context): Intent = Intent(ctx, GlasbaActivity::class.java)
 
         /** Predvajanje tece ali se nalaga po uporabnikovi zelji: ni pavze, ni napake, ni konca. */
         fun tece(): Boolean = if (naZvocniku()) Zvocniki.stanje.zeliIgrati else predvajalnik?.let {
