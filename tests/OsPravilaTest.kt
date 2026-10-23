@@ -887,6 +887,38 @@ private fun preizkusRadia84() {
     preveriEnako("84: neznan dober se ne doda", s, OsPravila.vrstniRedStreznikov(s, "x"))
 }
 
+/** Naloga 86: popravki pregleda 85 - cakanje po kosih (M3), velikost strani kanalov (M4), dnevnik zavrnjenega vira (M6). */
+private fun preizkusPregleda86() {
+    println("\n== naloga 86: popravki pregleda 85 ==")
+    var ura = 0L
+    val kosi = ArrayList<Long>()
+    val nic = OsPravila.cakajPoKoscih<String>(3_500, ura = { ura }, prekinjen = { false }) { ms -> kosi += ms; ura += ms; null }
+    preveriEnako("86 M3: brez izida do roka - null", null, nic)
+    preveriEnako("86 M3: kosi po 1 s, zadnji ostanek", listOf(1_000L, 1_000L, 1_000L, 500L), kosi)
+    ura = 0L; kosi.clear()
+    var preklic = false
+    val prekinjeno = OsPravila.cakajPoKoscih<String>(30_000, ura = { ura }, prekinjen = { preklic }) { ms -> kosi += ms; ura += ms; if (kosi.size == 2) preklic = true; null }
+    preveriEnako("86 M3: preklic konca cakanje po trenutnem kosu", null to 2, prekinjeno to kosi.size)
+    ura = 0L
+    preveriEnako("86 M3: izid takoj", "ok", OsPravila.cakajPoKoscih(30_000, ura = { ura }, prekinjen = { false }) { "ok" })
+    preveriEnako("86 M3: ze preklicano - brez poskusa", null, OsPravila.cakajPoKoscih<String>(30_000, ura = { ura }, prekinjen = { true }) { error("ne sme") })
+    preveriEnako("86 M3: rok 0 - brez poskusa", null, OsPravila.cakajPoKoscih<String>(0, ura = { ura }, prekinjen = { false }) { error("ne sme") })
+
+    preveriEnako("86 M4: stran 1000 kartic", 1001, OsPravila.velikostStraniKanalov(1000))
+    preveriEnako("86 M4: prazna stran steje 1", 1, OsPravila.velikostStraniKanalov(0))
+    preveriEnako("86 M4: 10 polnih strani je meja", true, 10 * OsPravila.velikostStraniKanalov(1000) > OsPravila.NAJVEC_KARTIC_STRANI_KANALOV)
+
+    val geslo = "http://x.tv/get.php?username=ana&password=Skrivno123"
+    val o = OsPravila.opisZavrnjenegaVnosa(geslo)
+    preveriEnako("86 M6: ni gesla ne uporabnika ne gostitelja", false, "Skrivno" in o || "ana" in o || "x.tv" in o || "get.php" in o)
+    preveriEnako("86 M6: razredi", "dolzina=${geslo.length}, crk=39, stevk=3, locil=10, presledkov=0, kontrolnih=0, ne-ASCII=0", o)
+    preveriEnako("86 M6: nevidni znak tipkovnice in nbsp", "dolzina=12, crk=10, stevk=0, locil=0, presledkov=0, kontrolnih=0, ne-ASCII=2 (FORMAT,PRESLEDEK)",
+        OsPravila.opisZavrnjenegaVnosa("tunein\u200Bcom\u00A0x"))
+    preveriEnako("86 M6: crka s kljukico je CRKA, brez kode", "dolzina=5, crk=3, stevk=0, locil=0, presledkov=0, kontrolnih=1, ne-ASCII=1 (CRKA)",
+        OsPravila.opisZavrnjenegaVnosa("abc\t\u010D"))
+    preveriEnako("86 M6: prazen", "dolzina=0, crk=0, stevk=0, locil=0, presledkov=0, kontrolnih=0, ne-ASCII=0", OsPravila.opisZavrnjenegaVnosa(""))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
     preizkusHtmlImen()
@@ -929,6 +961,7 @@ fun main() {
     preizkusIskanjaYoutubio()
     preizkusGlasbe83()
     preizkusRadia84()
+    preizkusPregleda86()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }

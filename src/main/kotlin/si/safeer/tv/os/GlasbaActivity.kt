@@ -375,6 +375,7 @@ class GlasbaActivity : OsActivity() {
         meni.menu.add(0, 3, 2, R.string.os_meni_naprave)
         meni.menu.add(0, 4, 3, R.string.os_meni_datoteke)
         meni.menu.add(0, 5, 4, R.string.os_meni_nastavitve)
+        meni.menu.add(0, 6, 5, R.string.os_predpomnilnik_naslov)
         meni.setOnMenuItemClickListener { m ->
             when (m.itemId) {
                 1 -> izberiRazvrstitevInVire(razdelek)
@@ -382,6 +383,7 @@ class GlasbaActivity : OsActivity() {
                 3 -> startActivity(Intent(this, NapraveActivity::class.java))
                 4 -> startActivity(Intent(this, DatotekeActivity::class.java))
                 5 -> startActivity(Intent(this, NastavitveActivity::class.java))
+                6 -> nastavitvePredpomnilnika()
             }
             true
         }
@@ -505,6 +507,9 @@ class GlasbaActivity : OsActivity() {
         MrtviKanali.poslusalci.add(obMrtvemKanalu)
         umakniMrtvega()
         PregledKanalov.obSpremembi = obPregleduKanalov
+        // Naloga 87: zasedenost predpomnilnika na kartici v Mojih virih (izracun v ozadju).
+        UsbPredpomnilnik.obSpremembi = obPregleduKanalov
+        UsbPredpomnilnik.osveziStanje(this)
         glavna.post(tik)
         uskladiSezname()
         // Ob vrnitvi (npr. iz predvajanja) sta se nedavno in stanje predvajanja lahko spremenila.
@@ -546,6 +551,7 @@ class GlasbaActivity : OsActivity() {
         MrtviKanali.poslusalci.remove(obMrtvemKanalu)
         if (Razpolozljivost.obSpremembi === obRazpolozljivosti) Razpolozljivost.obSpremembi = null
         if (PregledKanalov.obSpremembi === obPregleduKanalov) PregledKanalov.obSpremembi = null
+        if (UsbPredpomnilnik.obSpremembi === obPregleduKanalov) UsbPredpomnilnik.obSpremembi = null
         // Naloga 75: Safeer gre v ozadje - pregled kanalov dodatkov, ki je na vrsti (najvec enkrat na dan, ne med predvajanjem).
         if (!isFinishing) PregledKanalov.obcasno(applicationContext, stremioNaslovi() + seznamiTv())
         vOspredju = false
@@ -562,8 +568,13 @@ class GlasbaActivity : OsActivity() {
         preverjanje.shutdownNow()
         preverjanjeEpizod.shutdownNow()
         preverjanjeKanalov.shutdownNow()
+        // Naloga 86 (M2): mreza kanalov gre z zaslonom - njene naloge in poslusalec pregleda zasebnih kategorij (staticni
+        // PREGLED_ZASEBNIH) ne drzijo vec te Activity.
+        mrezaKanalov?.preklici()
         semeDelavec.shutdownNow()
         kanaliDelavec.shutdownNow()
+        nalaganjeKanalov.shutdownNow()
+        pregledZasebnihNit.shutdownNow()
         glavna.removeCallbacks(umiri)
         tvIkone.clear()
         super.onDestroy()
@@ -3124,11 +3135,20 @@ class GlasbaActivity : OsActivity() {
             if (m.kanali.isEmpty() && m.domaci.isEmpty()) naloziSeme(m)
             naloziNadomestneKanale(m)
         } } catch (_: java.util.concurrent.RejectedExecutionException) { }
-        try { delavec.execute { naloziKanale(m) } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+        // Naloga 86 (M3): na lastnem izvajalniku - preklicana mreza (hitra menjava zvrsti) ne sme zasesti [delavec].
+        try { nalaganjeKanalov.execute { naloziKanale(m) } } catch (_: java.util.concurrent.RejectedExecutionException) { }
         // Naloga 82: prazna mreza se ob rokih narise znova (nadomestek po 3 s, konec »Nalagam« po 45 s), tudi brez odgovorov.
         for (rok in longArrayOf(KanaliPravila.PRAZNA_NADOMESTEK_MS, KanaliPravila.PRAZNA_KONEC_MS))
             glavna.postDelayed({ if (mrezaKanalov === m && !isFinishing && m.vidnih == 0) narisiKanale(m) }, rok + 50)
     }
+
+    /**
+     * Naloga 86 (M3): nalaganje mreze kanalov ([naloziKanale]) - dve niti: nova izbira ne caka na prejsnjo, ki se po preklicu
+     * konca v najvec sekundi ([OsPravila.cakajPoKoscih]).
+     */
+    private val nalaganjeKanalov = Executors.newFixedThreadPool(2) { r -> Thread(r, "safeer-kanali-nal").apply { isDaemon = true } }
+    /** Naloga 86 (M3): pregled zasebnih katalogov ([pregledZasebnih]) - dolg, zato na svoji niti. */
+    private val pregledZasebnihNit = Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-zasebni").apply { isDaemon = true } }
 
     /** Naloga 80: kratka opravila zaslona, ki ne smejo cakati v vrsti za dolgimi (seme mreze kanalov z diska). */
     private val semeDelavec = Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-seme").apply { isDaemon = true } }
@@ -3195,6 +3215,15 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /**
+     * Naloga 86 (M3): [f], ko je koncan, ali null po [rokMs] ali ob preklicu ([prekinjen]); caka po kosih do 1 s. Klic iz ozadja.
+     */
+    private fun <T> dokoncan(f: java.util.concurrent.Future<T>, rokMs: Long, prekinjen: () -> Boolean): java.util.concurrent.Future<T>? =
+        OsPravila.cakajPoKoscih(rokMs, ura = { android.os.SystemClock.uptimeMillis() }, prekinjen = prekinjen) { ms ->
+            try { f.get(ms, java.util.concurrent.TimeUnit.MILLISECONDS); f } catch (_: java.util.concurrent.TimeoutException) { null }
+                catch (_: java.util.concurrent.ExecutionException) { f } catch (_: java.util.concurrent.CancellationException) { f }
+        }
+
     /** Naslednja stran vira (klic iz ozadja). Vir je pri koncu, ko stran ni polna. */
     private fun stranKanalov(v: VirKanalov): List<Jamendo.Skladba> {
         if (v.konec) return emptyList()
@@ -3254,6 +3283,8 @@ class GlasbaActivity : OsActivity() {
             tece = false
             zbudi()
             poslusalci.forEach { try { it("") } catch (_: Throwable) { } }
+            // Naloga 86 (M2): pregled je v staticnem PREGLED_ZASEBNIH - poslusalci (z Activity) ne smejo ostati v njem.
+            poslusalci.clear()
         }
         /** Pocaka, da so [d] koncani ali da pregled neha, najvec [ms]. */
         fun pocakaj(d: Set<String>, ms: Long) {
@@ -3280,7 +3311,8 @@ class GlasbaActivity : OsActivity() {
             val p = PregledZasebnih(za.keys)
             PREGLED_ZASEBNIH = p
             val app = applicationContext
-            try { delavec.execute { try { pregledZasebnih(app, p, za) } finally { p.konec() } } }
+            // Naloga 86 (M3): lastna nit - pregled traja lahko minute in ne sme zasedati [delavec] (Glasba, Radio, zapisi).
+            try { pregledZasebnihNit.execute { try { pregledZasebnih(app, p, za) } finally { p.konec() } } }
             catch (_: java.util.concurrent.RejectedExecutionException) { p.konec(); return null }
             return p
         }
@@ -3364,6 +3396,8 @@ class GlasbaActivity : OsActivity() {
         // Naloga 76: zasebne kategorije z diska, preden pride na zaslon karkoli (tudi seme spodaj gre skozi [dodajKanale]).
         ZasebniKanali.nalozi(this)
         ZasebniKanali.obdrzi(this, dodatki.map { Stremio.osnova(it) })
+        // Naloga 86 (M5): datoteke seznamov IPTV, ki jih uporabnik nima vec (odstranjen tu ali na drugi napravi v Linku).
+        IptvSeznami.obdrzi(this, MedijskiViri.vsi(this).filter { it.jeSeznam }.map { it.naslov })
         // Zadnja znana mreza z diska je ze na poti ([naloziSeme], lastna nit); tu samo kljuc za zapis svezih kanalov.
         val kljucSemena = kljucSemenaKanalov(m)
         // Naloga 80: seznami IPTV - prva stran z diska (prenos, ce ga se ni; zastarel se osvezi v ozadju), domaci najprej.
@@ -3381,8 +3415,12 @@ class GlasbaActivity : OsActivity() {
                 viri.filter { !it.domaci }.flatMap { IptvSeznami.naslednja(app, it, drzavaVmesnika, jezikVmesnika, OKNO_KANALOV) })
         }.also { m.naloge += it }
         // Manifesti vseh dodatkov hkrati (zaporedno je prvo odprtje po zagonu trajalo po sekundo na dodatek).
-        dodatki.map { n -> iskanjeDelavec.submit(Runnable { try { Stremio.manifest(n) } catch (_: Exception) { } }) }
-            .forEach { try { it.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { } }
+        // Naloga 86 (M3): skupni rok 20 s po kosih - preklic mreze cakanje konca takoj.
+        val manifesti = dodatki.map { n -> iskanjeDelavec.submit<Unit> { try { Stremio.manifest(n) } catch (_: Exception) { }; Unit } }
+        val rokManifestov = android.os.SystemClock.uptimeMillis() + 20_000
+        // Prekinitev niti (onDestroy: shutdownNow) ni napaka - brez ujetja bi podrla proces (nit izvajalnika).
+        try { for (f in manifesti) { dokoncan(f, rokManifestov - android.os.SystemClock.uptimeMillis()) { m.preklicana }; if (m.preklicana) return } }
+        catch (_: InterruptedException) { return }
         // Diagnostika na zahtevo razvijalca (Stremio.dnevnik): katalogi dodatkov; brez vklopa ne naredi nicesar.
         if (Stremio.dnevnik()) try { Stremio.dnevnikKatalogov(dodatki) } catch (_: Exception) { }
         val katalogi = if (dodatki.isEmpty()) emptyList() else try { Stremio.katalogiTv(dodatki) } catch (_: Exception) { emptyList() }
@@ -3425,8 +3463,9 @@ class GlasbaActivity : OsActivity() {
         android.util.Log.i("SafeerOsMedia", "kanali: viri domaci=${domaciViri.map { it.katalog.ime }}, glavni=${glavni.map { it.katalog.ime }}, rezerva=${rezerva.size}, " +
             "dodatkov s katalogi TV=${opisi.map { it.skupina }.distinct().size}, zasebnih katalogov=${filtri.zasebni.size}, " +
             "zasebni zapisi=${stanjaZasebnih.values.groupingBy { it }.eachCount()}")
+        // Naloga 86 (M3): po kosih do 1 s - preklicana mreza ne caka do roka (prej do 90 s).
         fun <T> pocakaj(f: java.util.concurrent.Future<T>?, privzeto: T, s: Long): T =
-            try { f?.get(s, java.util.concurrent.TimeUnit.SECONDS) ?: privzeto } catch (_: Exception) { privzeto }
+            try { f?.let { dokoncan(it, s * 1000) { m.preklicana } }?.get() ?: privzeto } catch (_: Exception) { privzeto }
         // Zasebne kategorije dodatka niso znane (zapisa ni, pregled se ni koncal): novih kanalov tega dodatka ne pokazemo - med
         // njimi so lahko zasebni. Kar je mreza ze imela, je precisceno in ostane. Kratek pregled (vecina zasebnih katalogov
         // ima eno stran) pocakamo najvec 5 s.
@@ -3475,7 +3514,10 @@ class GlasbaActivity : OsActivity() {
         while (true) {
             if (m.preklicana) return
             if (ostane > 0) {
-                val f = try { prihodi.poll(if (prvic && sproti) 8L else 30L, java.util.concurrent.TimeUnit.SECONDS) } catch (_: InterruptedException) { return }
+                // Naloga 86 (M3): po kosih do 1 s (prej en poll do 30 s) - preklic mreze nit sprosti takoj.
+                val f = try { OsPravila.cakajPoKoscih(if (prvic && sproti) 8_000L else 30_000L, ura = { android.os.SystemClock.uptimeMillis() },
+                    prekinjen = { m.preklicana }) { ms -> prihodi.poll(ms, java.util.concurrent.TimeUnit.MILLISECONDS) } } catch (_: InterruptedException) { return }
+                if (m.preklicana) return
                 if (f != null) {
                     ostane--; zbrano += try { f.get() } catch (_: Exception) { emptyList() }
                     // Kar pride skoraj hkrati, gre v isti izris.
@@ -5024,7 +5066,11 @@ class GlasbaActivity : OsActivity() {
         } + (if (si.safeer.tv.BuildConfig.FLAVOR == "brskalnik") emptyList() else listOf(
             Vir("magnet", R.drawable.os_ikona_link, 0xFFB69CFF.toInt(), getString(R.string.magnet_naslov), getString(R.string.magnet_vir_opis),
                 { startActivity(Intent(this, MagnetActivity::class.java)) }),
-        )) + MedijskiViri.vsi(this).map { v ->
+        )) + listOf(
+            // Naloga 87: predpomnilnik Media Center - mesto (ta TV, USB, naprava v Linku), velikost, zasedenost, ciscenje.
+            Vir("predpomnilnik", R.drawable.os_ikona_mreza, 0xFF9FD8C8.toInt(), getString(R.string.os_predpomnilnik_naslov), opisPredpomnilnika(),
+                { nastavitvePredpomnilnika() }),
+        ) + MedijskiViri.vsi(this).map { v ->
             Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet || v.jeDodatek -> R.drawable.os_ikona_splet
                     v.jeImenik -> R.drawable.os_ikona_radio; else -> R.drawable.os_ikona_glasba },
                 // Dodatek: ime iz manifesta (Cinemeta, Torrentio ...) in samo streznik - naslov ima lahko kljuc storitve.
@@ -6307,9 +6353,9 @@ class GlasbaActivity : OsActivity() {
                     glavna.post {
                         if (isFinishing) return@post
                         if (vir == null) {
-                            // Diagnostika (TV 23. 10. 2026: tunein.com s tipkovnico ni bil prepoznan): kode znakov vnosa.
-                            android.util.Log.i("SafeerOsMedia", "vir zavrnjen: dolzina=${vnos.length} znaki=" +
-                                vnos.take(80).map { c -> if (c.code in 0x21..0x7E) c.toString() else "\\u%04x".format(c.code) }.joinToString(""))
+                            // Diagnostika (TV 23. 10. 2026: tunein.com s tipkovnico ni bil prepoznan). Naloga 86 (M6): samo dolzina in
+                            // razredi znakov, nikoli vsebina - povezava IPTV ima lahko uporabnisko ime in geslo.
+                            android.util.Log.i("SafeerOsMedia", "vir zavrnjen: " + OsPravila.opisZavrnjenegaVnosa(vnos))
                             // Vira, ki ga ne znamo predvajati, ne dodamo - in to uporabniku jasno povemo.
                             stanje.text = getString(R.string.os_mediji_ni_vira)
                             AlertDialog.Builder(this)
@@ -6482,6 +6528,9 @@ class GlasbaActivity : OsActivity() {
                 MedijskiViri.odstrani(this, v)
                 // Naloga 76: zapis zasebnih kategorij odstranjenega dodatka gre z njim.
                 if (v.jeStremio) { val app = applicationContext; delavec.execute { ZasebniKanali.pozabi(app, Stremio.osnova(v.naslov)) } }
+                // Naloga 86 (M5): seznam IPTV - datoteki kanalov (do 20 MB) in napredek pregleda gresta z njim.
+                if (v.jeSeznam) { val app = applicationContext; val n = v.naslov
+                    try { delavec.execute { IptvSeznami.pozabi(app, n); PregledKanalov.pozabi(app, n) } } catch (_: java.util.concurrent.RejectedExecutionException) { } }
                 poSpremembiVirov()
                 izberiNaMestu(VIRI)
             }
@@ -7159,6 +7208,85 @@ class GlasbaActivity : OsActivity() {
                     .setNegativeButton(android.R.string.cancel, null).show()
             }
         } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
+    // ------------------------------------------------------------------ naloga 87: predpomnilnik (USB, naprava v Linku)
+
+    private fun velikostBesedilo(b: Long): String = android.text.format.Formatter.formatShortFileSize(this, b)
+
+    /** Opis kartice iz zadnjega izracuna ([UsbPredpomnilnik.stanje]) - brez branja diska na glavni niti. */
+    private fun opisPredpomnilnika(): String {
+        val st = UsbPredpomnilnik.stanje
+        if (!st.izracunano) return getString(R.string.os_predpomnilnik_racunam)
+        val mesto = UsbPredpomnilnik.mesto(this)
+        return when {
+            mesto.nacin == PredpomnilnikPravila.Nacin.LINK -> getString(R.string.os_predpomnilnik_opis_link, imeNapraveLinka(mesto.naprava), velikostBesedilo(st.zasedenoNotranji))
+            st.usb -> getString(R.string.os_predpomnilnik_opis_usb, velikostBesedilo(st.zasedenoUsb), velikostBesedilo(st.mejaUsb), velikostBesedilo(st.zasedenoNotranji))
+            else -> getString(R.string.os_predpomnilnik_opis_tv, velikostBesedilo(st.zasedenoNotranji))
+        }
+    }
+
+    private fun imeNapraveLinka(id: String): String = link.naprave.firstOrNull { it.id == id }?.ime?.takeIf { it.isNotBlank() } ?: id
+
+    /** Mesto, velikost na USB in »Pocisti predpomnilnik« (Moji viri -> Predpomnilnik, pri Predvajalniku tudi ⋮). */
+    private fun nastavitvePredpomnilnika() {
+        val mesto = UsbPredpomnilnik.mesto(this)
+        val imeMesta = when (mesto.nacin) {
+            PredpomnilnikPravila.Nacin.NOTRANJI -> getString(R.string.os_predpomnilnik_ta_tv)
+            PredpomnilnikPravila.Nacin.LINK -> imeNapraveLinka(mesto.naprava)
+            PredpomnilnikPravila.Nacin.SAMODEJNO -> getString(R.string.os_predpomnilnik_samodejno)
+        }
+        val dejanja = listOf<Pair<String, () -> Unit>>(
+            getString(R.string.os_predpomnilnik_mesto, imeMesta) to { izberiMestoPredpomnilnika() },
+            getString(R.string.os_predpomnilnik_velikost, UsbPredpomnilnik.velikostGb(this)) to {
+                val v = PredpomnilnikPravila.VELIKOSTI_GB
+                AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_predpomnilnik_naslov)
+                    .setSingleChoiceItems(v.map { getString(R.string.os_predpomnilnik_gb, it) }.toTypedArray(), v.indexOf(UsbPredpomnilnik.velikostGb(this))) { d, i ->
+                        d.dismiss(); UsbPredpomnilnik.nastavi(this, velikostGb = v[i])
+                    }.show()
+                Unit
+            },
+            getString(R.string.os_predpomnilnik_pocisti) to {
+                AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_predpomnilnik_pocisti)
+                    .setMessage(R.string.os_predpomnilnik_pocisti_vprasanje)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        UsbPredpomnilnik.pocisti(this) { glavna.post { if (!isFinishing) Toast.makeText(this, R.string.os_predpomnilnik_pociscen, Toast.LENGTH_SHORT).show() } }
+                    }.setNegativeButton(android.R.string.cancel, null).show()
+                Unit
+            },
+        )
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(getString(R.string.os_predpomnilnik_naslov) + " · " + opisPredpomnilnika())
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }.show()
+        UsbPredpomnilnik.osveziStanje(this)
+    }
+
+    /**
+     * Izbira mesta (57b): ta TV, samodejno USB (s prostim prostorom, ce je priklopljen) in naprave v Linku z vlogo predpomnilnik
+     * (ime in prosti prostor - vprasamo jih hkrati, najvec 1,5 s; ce ne odgovori, »ne odgovori«).
+     */
+    private fun izberiMestoPredpomnilnika() {
+        val naprave = LinkPredpomnilnik.naprave(this)
+        val prostih = HashMap<String, Long?>()
+        var prikazano = false
+        fun pokazi() {
+            if (prikazano || isFinishing) return
+            prikazano = true
+            val usb = UsbPredpomnilnik.usbPriklopljen
+            val moznosti = listOf(PredpomnilnikPravila.Mesto(PredpomnilnikPravila.Nacin.NOTRANJI) to getString(R.string.os_predpomnilnik_ta_tv),
+                PredpomnilnikPravila.Mesto(PredpomnilnikPravila.Nacin.SAMODEJNO) to (if (usb != null)
+                    getString(R.string.os_predpomnilnik_samodejno_usb, velikostBesedilo(usb.prostih)) else getString(R.string.os_predpomnilnik_samodejno))) +
+                naprave.map { (id, ime) -> PredpomnilnikPravila.Mesto(PredpomnilnikPravila.Nacin.LINK, id) to (prostih[id]?.let {
+                    getString(R.string.os_predpomnilnik_naprava, ime, velikostBesedilo(it)) } ?: getString(R.string.os_predpomnilnik_naprava_ne_odgovori, ime)) }
+            val zdaj = UsbPredpomnilnik.mesto(this)
+            AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_predpomnilnik_naslov)
+                .setSingleChoiceItems(moznosti.map { it.second }.toTypedArray(), moznosti.indexOfFirst { it.first == zdaj }) { d, i ->
+                    d.dismiss(); UsbPredpomnilnik.nastavi(this, mesto = moznosti[i].first)
+                }.show()
+        }
+        if (naprave.isEmpty()) { pokazi(); return }
+        Toast.makeText(this, R.string.os_predpomnilnik_preverjam, Toast.LENGTH_SHORT).show()
+        for ((id, _) in naprave) LinkPredpomnilnik.stat(this, id) { p -> prostih[id] = p; if (prostih.size == naprave.size) pokazi() }
+        glavna.postDelayed({ pokazi() }, 1_600)
     }
 
     /** Naloga 75: napredek pregleda kanalov na kartici dodatka - Moji viri se osvezijo na mestu, ko uporabnik miruje. */

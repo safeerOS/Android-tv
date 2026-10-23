@@ -121,6 +121,38 @@ object IptvPravila {
 
     const val NAJVEC_VNOSOV = 20_000
 
+    /** Naloga 86 (M7): najdaljsa vrstica seznama, ki jo preberemo (#EXTINF z dolgim logotipom ima nekaj sto znakov). */
+    const val NAJVEC_VRSTICA = 64 * 1024
+
+    /**
+     * Naloga 86 (M7): vrstice iz [r] brez prelomov (\n, \r\n, \r); vrstica, daljsa od [najvecZnakov], se preskoci v celoti
+     * (njeni znaki se ne hranijo), branje neha po [najvecZnakovSkupaj] znakih (nedokoncana zadnja vrstica odpade).
+     * Pomnilnik je omejen ne glede na vhod.
+     */
+    fun vrstice(r: java.io.Reader, najvecZnakov: Int, najvecZnakovSkupaj: Long, obVrstici: (String) -> Unit) {
+        val sb = StringBuilder()
+        var predolga = false
+        var skupaj = 0L
+        val buf = CharArray(8192)
+        var prejsnjiCr = false
+        fun konec() { if (!predolga) obVrstici(sb.toString()); sb.setLength(0); predolga = false }
+        while (true) {
+            val n = r.read(buf)
+            if (n < 0) break
+            for (i in 0 until n) {
+                val c = buf[i]
+                if (++skupaj > najvecZnakovSkupaj) return      // nedokoncana vrstica ne steje (kot prej: odrezan vnos ni vnos)
+                if (c == '\n') { if (!prejsnjiCr) konec(); prejsnjiCr = false; continue }
+                prejsnjiCr = false
+                if (c == '\r') { konec(); prejsnjiCr = true; continue }
+                if (predolga) continue
+                if (sb.length >= najvecZnakov) { predolga = true; sb.setLength(0); continue }
+                sb.append(c)
+            }
+        }
+        if (sb.isNotEmpty() || predolga) { if (!predolga) obVrstici(sb.toString()); sb.setLength(0) }
+    }
+
     /** Zapis vnosa v eno vrstico datoteke na disku (polja loci tabulator; tabulatorji in prelomi iz vsebine izginejo). */
     fun vVrstico(v: Vnos): String = listOf(v.ime, v.url, v.logo, v.zvrst, v.jezik, v.drzava, v.tvgId)
         .joinToString("\t") { it.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ') }

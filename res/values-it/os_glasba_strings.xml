@@ -364,4 +364,22 @@
         <item quantity="one">%1$d canale</item>
         <item quantity="other">%1$d canali</item>
     </plurals>
+    <!-- Naloga 87: predpomnilnik Media Center (ta TV, USB, naprava v Safeer Linku). -->
+    <string name="os_predpomnilnik_naslov">Cache</string>
+    <string name="os_predpomnilnik_racunam">Calcolo in corso…</string>
+    <string name="os_predpomnilnik_opis_tv">Questo televisore · %1$s</string>
+    <string name="os_predpomnilnik_opis_usb">USB · %1$s di %2$s · questo televisore %3$s</string>
+    <string name="os_predpomnilnik_opis_link">%1$s (Safeer Link) · questo televisore %2$s</string>
+    <string name="os_predpomnilnik_mesto">Posizione: %1$s</string>
+    <string name="os_predpomnilnik_ta_tv">Questo televisore</string>
+    <string name="os_predpomnilnik_samodejno">Automatico: USB quando collegata</string>
+    <string name="os_predpomnilnik_samodejno_usb">USB quando collegata · %1$s liberi</string>
+    <string name="os_predpomnilnik_naprava">%1$s · %2$s liberi</string>
+    <string name="os_predpomnilnik_naprava_ne_odgovori">%1$s · non risponde</string>
+    <string name="os_predpomnilnik_velikost">Dimensione su USB: %1$d GB</string>
+    <string name="os_predpomnilnik_gb">%1$d GB</string>
+    <string name="os_predpomnilnik_pocisti">Svuota cache</string>
+    <string name="os_predpomnilnik_pocisti_vprasanje">Eliminare locandine, cataloghi ed elenchi salvati su questo televisore e sulla USB? Verranno ricaricati da Internet.</string>
+    <string name="os_predpomnilnik_pociscen">Cache svuotata.</string>
+    <string name="os_predpomnilnik_preverjam">Verifica dei dispositivi…</string>
 </resources>

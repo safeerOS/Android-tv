@@ -364,4 +364,22 @@
         <item quantity="one">%1$d Sender</item>
         <item quantity="other">%1$d Sender</item>
     </plurals>
+    <!-- Naloga 87: predpomnilnik Media Center (ta TV, USB, naprava v Safeer Linku). -->
+    <string name="os_predpomnilnik_naslov">Zwischenspeicher</string>
+    <string name="os_predpomnilnik_racunam">Wird berechnet …</string>
+    <string name="os_predpomnilnik_opis_tv">Dieser Fernseher · %1$s</string>
+    <string name="os_predpomnilnik_opis_usb">USB · %1$s von %2$s · dieser Fernseher %3$s</string>
+    <string name="os_predpomnilnik_opis_link">%1$s (Safeer Link) · dieser Fernseher %2$s</string>
+    <string name="os_predpomnilnik_mesto">Ort: %1$s</string>
+    <string name="os_predpomnilnik_ta_tv">Dieser Fernseher</string>
+    <string name="os_predpomnilnik_samodejno">Automatisch: USB, wenn angeschlossen</string>
+    <string name="os_predpomnilnik_samodejno_usb">USB, wenn angeschlossen · %1$s frei</string>
+    <string name="os_predpomnilnik_naprava">%1$s · %2$s frei</string>
+    <string name="os_predpomnilnik_naprava_ne_odgovori">%1$s · antwortet nicht</string>
+    <string name="os_predpomnilnik_velikost">Größe auf USB: %1$d GB</string>
+    <string name="os_predpomnilnik_gb">%1$d GB</string>
+    <string name="os_predpomnilnik_pocisti">Zwischenspeicher leeren</string>
+    <string name="os_predpomnilnik_pocisti_vprasanje">Gespeicherte Poster, Kataloge und Listen auf diesem Fernseher und USB löschen? Sie werden erneut aus dem Internet geladen.</string>
+    <string name="os_predpomnilnik_pociscen">Zwischenspeicher geleert.</string>
+    <string name="os_predpomnilnik_preverjam">Geräte werden geprüft …</string>
 </resources>

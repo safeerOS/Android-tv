@@ -287,6 +287,12 @@ object PregledKanalov {
         try { app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(naslov, n.vNiz()).apply() } catch (_: Exception) { }
     }
 
+    /** Naloga 86 (M5): odstranjen vir - napredek pregleda (pomnilnik in shramba) gre z njim. */
+    fun pozabi(c: Context, naslov: String) {
+        napredek.remove(naslov)
+        try { c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(naslov).apply() } catch (_: Exception) { }
+    }
+
     /** Pomnilniski pritisk ([OsPravila.pritiskPomnilnika]) ustavi pregled tudi, ko zaslona Safeer ni. */
     private fun prijavi(app: Context) {
         if (prijavljen) return

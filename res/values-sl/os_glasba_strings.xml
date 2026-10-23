@@ -365,4 +365,22 @@
         <item quantity="few">%1$d kanali</item>
         <item quantity="other">%1$d kanalov</item>
     </plurals>
+    <!-- Naloga 87: predpomnilnik Media Center (ta TV, USB, naprava v Safeer Linku). -->
+    <string name="os_predpomnilnik_naslov">Predpomnilnik</string>
+    <string name="os_predpomnilnik_racunam">Računam …</string>
+    <string name="os_predpomnilnik_opis_tv">Ta TV · %1$s</string>
+    <string name="os_predpomnilnik_opis_usb">USB · %1$s od %2$s · ta TV %3$s</string>
+    <string name="os_predpomnilnik_opis_link">%1$s (Safeer Link) · ta TV %2$s</string>
+    <string name="os_predpomnilnik_mesto">Mesto: %1$s</string>
+    <string name="os_predpomnilnik_ta_tv">Ta TV</string>
+    <string name="os_predpomnilnik_samodejno">Samodejno: USB, ko je priključen</string>
+    <string name="os_predpomnilnik_samodejno_usb">USB, ko je priključen · prostih %1$s</string>
+    <string name="os_predpomnilnik_naprava">%1$s · prostih %2$s</string>
+    <string name="os_predpomnilnik_naprava_ne_odgovori">%1$s · ne odgovori</string>
+    <string name="os_predpomnilnik_velikost">Velikost na USB: %1$d GB</string>
+    <string name="os_predpomnilnik_gb">%1$d GB</string>
+    <string name="os_predpomnilnik_pocisti">Počisti predpomnilnik</string>
+    <string name="os_predpomnilnik_pocisti_vprasanje">Izbrišem shranjene plakate, kataloge in sezname na tem TV in USB? Znova se bodo naložili z interneta.</string>
+    <string name="os_predpomnilnik_pociscen">Predpomnilnik je počiščen.</string>
+    <string name="os_predpomnilnik_preverjam">Preverjam naprave …</string>
 </resources>

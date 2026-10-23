@@ -10,9 +10,12 @@ import java.security.MessageDigest
  * Trajni predpomnilnik medijskega centra: police (seznami skladb, postaj, videov) in naslovnice.
  * Ob odprtju se zadnji znani pogled pokaze takoj, sveze podatke pa aplikacija dobi v ozadju -
  * uporabnik ne gleda praznega zaslona in nima obcutka, da aplikacija ne deluje.
+ *
+ * Naloga 87 (+ 57b, 57c): vrstni red branja RAM (klicatelj) -> notranja baza SQLite -> stare datoteke (do 87, samo branje,
+ * pocisti jih TTL) -> baza na USB ali naprava v Safeer Linku (izbrano mesto) -> omrezje (klicatelj). Pisanje: notranja baza
+ * in izbrano mesto ([UsbPredpomnilnik], [LinkPredpomnilnik]). Vsebina zasebnih dodatkov in kategorij nikoli na drugo napravo.
  */
 object MedijskiPredpomnilnik {
-    private const val NASLOVNIC_NAJVEC = 400
     private const val NASLOVNICA_VELJA_MS = 14L * 24 * 60 * 60 * 1000
     /** Naslovnica v mrezi: najvec toliko pik po daljsi stranici (kot dekodiranje v GlasbaActivity.naloziSliko). */
     const val NASLOVNICA_PX = 280
@@ -61,10 +64,12 @@ object MedijskiPredpomnilnik {
                 a.put(JSONObject().put("naslov", naslov).put("video", video)
                     .put("skladbe", JSONArray().apply { skladbe.forEach { put(skladbaVJson(it)) } }))
             }
-            val datoteka = File(mapaSeznamov(c), odtis(kljuc) + ".json")
-            val zacasna = File(datoteka.path + ".tmp")
-            zacasna.writeText(JSONObject().put("cas", System.currentTimeMillis()).put("police", a).toString())
-            zacasna.renameTo(datoteka)
+            val zdaj = System.currentTimeMillis()
+            val bajti = JSONObject().put("cas", zdaj).put("police", a).toString().toByteArray()
+            // 57b: polica z vsebino zasebnega dodatka ali zasebne kategorije nikoli na drugo napravo.
+            val zasebno = police.any { p -> p.third.any { Stremio.jeZasebna(it) || ZasebniKanali.jeZaseben(it.id) } }
+            if (!zasebno) zapomniJavneSlike(police.flatMap { p -> p.third.map { it.slika } })
+            vOzadju { shrani(c, PredpomnilnikPravila.POLICE, odtis(kljuc), bajti, zdaj, zasebno) }
         } catch (_: Exception) {
         }
     }
@@ -74,9 +79,10 @@ object MedijskiPredpomnilnik {
 
     /** Zadnje shranjene police razdelka s casom, ko so bile shranjene (System.currentTimeMillis; 0 = neznan), ali null. */
     fun beriPoliceSCasom(c: Context, kljuc: String): Pair<Long, List<Triple<String, Boolean, List<Jamendo.Skladba>>>>? = try {
-        val datoteka = File(mapaSeznamov(c), odtis(kljuc) + ".json")
-        if (!datoteka.isFile) null else {
-            val o = JSONObject(datoteka.readText())
+        val besedilo = beri(c, PredpomnilnikPravila.POLICE, odtis(kljuc))?.second?.let { String(it) }
+            ?: File(mapaSeznamov(c), odtis(kljuc) + ".json").takeIf { it.isFile }?.readText()
+        if (besedilo == null) null else {
+            val o = JSONObject(besedilo)
             val a = o.getJSONArray("police")
             List(a.length()) { i ->
                 val p = a.getJSONObject(i)
@@ -88,6 +94,8 @@ object MedijskiPredpomnilnik {
 
     fun pozabiPolice(c: Context, kljuc: String) {
         try { File(mapaSeznamov(c), odtis(kljuc) + ".json").delete() } catch (_: Exception) {}
+        val k = PredpomnilnikPravila.kljucBaze(PredpomnilnikPravila.POLICE, odtis(kljuc))
+        vOzadju { UsbPredpomnilnik.notranja(c)?.pozabi(k); UsbPredpomnilnik.usb(c)?.pozabi(k) }
     }
 
     // ---------------------------------------------------------------- katalogi spletnih virov
@@ -96,41 +104,28 @@ object MedijskiPredpomnilnik {
      * Prebrani katalog spletnega vira (SpletniVir.beriStran: priljubljeno in vsako iskanje) kot datoteka. Do 0.5.96 je
      * bil v SharedPreferences »safeer_mediji« (»katalog6:<naslov>«): vsako iskanje v vsakem viru je dodalo kljuc, ki ni
      * nikoli izginil, Android pa celo datoteko nastavitev drzi v Java heapu procesa in jo ob vsakem apply() zapise
-     * znova (naloga 54). Zdaj ena datoteka na naslov, najvec KATALOGOV_NAJVEC, starejse od KATALOG_HRANI_MS gredo.
+     * znova (naloga 54). Do 87 ena datoteka na naslov; zdaj vnos v bazi (TTL 24 h, [PredpomnilnikPravila.ttl]).
      */
-    private const val KATALOGOV_NAJVEC = 80
-    private const val KATALOG_HRANI_MS = 24L * 60 * 60 * 1000
     private fun mapaKatalogov(c: Context) = File(c.cacheDir, "mediji-katalogi").apply { mkdirs() }
 
     /** (cas zapisa, surovi JSON) ali null. */
     fun katalog(c: Context, naslov: String): Pair<Long, String>? = try {
-        val f = File(mapaKatalogov(c), odtis(naslov) + ".json")
-        if (f.isFile) f.lastModified() to f.readText() else null
+        beri(c, PredpomnilnikPravila.KATALOGI, odtis(naslov))?.let { (cas, b) -> cas to String(b) }
+            ?: File(mapaKatalogov(c), odtis(naslov) + ".json").takeIf { it.isFile }?.let { it.lastModified() to it.readText() }
     } catch (_: Exception) { null }
 
     fun shraniKatalog(c: Context, naslov: String, surovo: String) {
-        try {
-            val mapa = mapaKatalogov(c)
-            val datoteka = File(mapa, odtis(naslov) + ".json")
-            val zacasna = File(datoteka.path + ".tmp")
-            zacasna.writeText(surovo)
-            zacasna.renameTo(datoteka)
-            val zdaj = System.currentTimeMillis()
-            val datoteke = mapa.listFiles()?.filter { it.name.endsWith(".json") } ?: return
-            datoteke.filter { zdaj - it.lastModified() > KATALOG_HRANI_MS }.forEach { it.delete() }
-            val ostale = datoteke.filter { it.exists() }
-            if (ostale.size > KATALOGOV_NAJVEC) {
-                ostale.sortedBy { it.lastModified() }.take(ostale.size - KATALOGOV_NAJVEC).forEach { it.delete() }
-            }
-        } catch (_: Exception) {
-        }
+        val bajti = surovo.toByteArray()
+        vOzadju { shrani(c, PredpomnilnikPravila.KATALOGI, odtis(naslov), bajti, System.currentTimeMillis(), zasebno = false) }
     }
 
     // ---------------------------------------------------------------- naslovnice
 
     fun naslovnica(c: Context, naslov: String): ByteArray? = try {
-        val f = File(mapaNaslovnic(c), odtis(naslov))
-        if (f.isFile && System.currentTimeMillis() - f.lastModified() < NASLOVNICA_VELJA_MS) f.readBytes() else null
+        beri(c, PredpomnilnikPravila.NASLOVNICE, odtis(naslov))?.second ?: run {
+            val f = File(mapaNaslovnic(c), odtis(naslov))
+            if (f.isFile && System.currentTimeMillis() - f.lastModified() < NASLOVNICA_VELJA_MS) f.readBytes() else null
+        }
     } catch (_: Exception) { null }
 
     /**
@@ -174,15 +169,66 @@ object MedijskiPredpomnilnik {
     } catch (_: Throwable) { null }
 
     fun shraniNaslovnico(c: Context, naslov: String, bajti: ByteArray) {
-        try {
-            if (bajti.size > 1_500_000) return
-            val mapa = mapaNaslovnic(c)
-            File(mapa, odtis(naslov)).writeBytes(bajti)
-            val datoteke = mapa.listFiles() ?: return
-            if (datoteke.size > NASLOVNIC_NAJVEC) {
-                datoteke.sortedBy { it.lastModified() }.take(datoteke.size - NASLOVNIC_NAJVEC).forEach { it.delete() }
-            }
-        } catch (_: Exception) {
-        }
+        if (bajti.size > 1_500_000) return
+        // 57b: na napravo v Linku samo naslovnice javnih polic (naslovnica zasebnega dodatka se tam nikoli ne pojavi).
+        val zasebno = !jeJavnaSlika(naslov)
+        vOzadju { shrani(c, PredpomnilnikPravila.NASLOVNICE, odtis(naslov), bajti, System.currentTimeMillis(), zasebno) }
     }
+
+    // ---------------------------------------------------------------- strani kanalov (samo USB)
+
+    /**
+     * Naloga 87: stran kataloga kanalov z USB s casom prenosa (ce velja se [veljaMs], kot v pomnilniku). Samo USB - na TV so strani velike
+     * in pogoste; po Linku ne gredo. Klic iz ozadja; null = ni ali ni USB.
+     */
+    fun stranKanalov(c: Context, url: String, veljaMs: Long): Pair<Long, List<Jamendo.Skladba>>? = try {
+        UsbPredpomnilnik.usb(c)?.daj(PredpomnilnikPravila.kljucBaze(PredpomnilnikPravila.KANALI, odtis(url)))
+            ?.takeIf { System.currentTimeMillis() - it.first in 0 until veljaMs }
+            ?.let { (cas, b) -> val a = JSONArray(String(b)); cas to List(a.length()) { skladbaIzJson(a.getJSONObject(it)) } }
+    } catch (_: Exception) { null }
+
+    /** Naloga 87: stran kataloga kanalov na USB (ce je v uporabi). Klic iz ozadja. */
+    fun shraniStranKanalov(c: Context, url: String, stran: List<Jamendo.Skladba>) {
+        try {
+            val usb = UsbPredpomnilnik.usb(c) ?: return
+            val bajti = JSONArray().apply { stran.forEach { put(skladbaVJson(it)) } }.toString().toByteArray()
+            usb.shrani(PredpomnilnikPravila.kljucBaze(PredpomnilnikPravila.KANALI, odtis(url)), PredpomnilnikPravila.KANALI, bajti) { UsbPredpomnilnik.zapisano(c, it) }
+        } catch (_: Exception) { }
+    }
+
+    // ---------------------------------------------------------------- naloga 87: nivoji
+
+    /** Pisanje in branje baze nikoli na glavni niti: klic z glavne niti gre na to nit. */
+    private val ozadje = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-predpomnilnik-z").apply { isDaemon = true } }
+
+    private fun vOzadju(delo: () -> Unit) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) { try { delo() } catch (_: Throwable) { }; return }
+        try { ozadje.execute { try { delo() } catch (_: Throwable) { } } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
+    /** Notranja baza -> USB -> naprava v Linku (veljavnost po vrsti). Na glavni niti null (klicatelj bere stare datoteke). */
+    private fun beri(c: Context, vrsta: String, odtis: String): Pair<Long, ByteArray>? {
+        val k = PredpomnilnikPravila.kljucBaze(vrsta, odtis)
+        UsbPredpomnilnik.notranja(c)?.daj(k)?.let { return it }
+        UsbPredpomnilnik.usb(c)?.daj(k)?.let { return it }
+        return LinkPredpomnilnik.beri(c, vrsta, odtis)?.takeIf { PredpomnilnikPravila.veljavenOdgovor(vrsta, it.first, System.currentTimeMillis()) }
+    }
+
+    /** Notranja baza (samo vrednosti do [PredpomnilnikPravila.BLOB_NAJVEC] - TV ostane majhen) in izbrano mesto (USB ali Link). */
+    private fun shrani(c: Context, vrsta: String, odtis: String, bajti: ByteArray, ustvarjeno: Long, zasebno: Boolean) {
+        val k = PredpomnilnikPravila.kljucBaze(vrsta, odtis)
+        if (bajti.size <= PredpomnilnikPravila.BLOB_NAJVEC) UsbPredpomnilnik.notranja(c)?.shrani(k, vrsta, bajti, ustvarjeno) { UsbPredpomnilnik.zapisano(c, it) }
+        val usb = UsbPredpomnilnik.usb(c)
+        if (usb != null) usb.shrani(k, vrsta, bajti, ustvarjeno) { UsbPredpomnilnik.zapisano(c, it) }
+        else LinkPredpomnilnik.shrani(c, vrsta, odtis, bajti, ustvarjeno, zasebno)
+    }
+
+    /** Naslovnice javnih polic (LRU, najvec 4000): samo te smejo na napravo v Linku. */
+    private val javneSlike = object : LinkedHashMap<String, Boolean>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean = size > 4000
+    }
+
+    private fun zapomniJavneSlike(slike: List<String>) = synchronized(javneSlike) { slike.filter { it.isNotBlank() }.forEach { javneSlike[it] = true } }
+
+    private fun jeJavnaSlika(naslov: String): Boolean = synchronized(javneSlike) { javneSlike[naslov] == true }
 }

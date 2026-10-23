@@ -885,6 +885,9 @@ class GlasbaStoritev : Service() {
         application.unregisterActivityLifecycleCallbacks(zasloni)
         // Konec predvajanja je tudi konec na zvocniku (brez te naprave bi igral naprej brez daljinca).
         if (primerek === this) { Zvocniki.obSpremembi = null; Zvocniki.obKoncu = null; Zvocniki.ustavi {} }
+        // Naloga 86 (M1): release() ne poklice onIsPlayingChanged(false) - stanje za klice iz ozadja (PregledKanalov) bi sicer
+        // ostalo »igra« do naslednjega predvajanja (casovnik izklopa med predvajanjem: pregled kanalov se ne bi vec zacel).
+        if (primerek === this) igraZadnje = false
         if (primerek === this) primerek = null
         spletnaVrsta = emptyList(); zetonVrste++
         seja?.release(); seja = null

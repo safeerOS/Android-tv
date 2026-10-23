@@ -364,4 +364,22 @@
         <item quantity="one">%1$d canal</item>
         <item quantity="other">%1$d canales</item>
     </plurals>
+    <!-- Naloga 87: predpomnilnik Media Center (ta TV, USB, naprava v Safeer Linku). -->
+    <string name="os_predpomnilnik_naslov">Caché</string>
+    <string name="os_predpomnilnik_racunam">Calculando…</string>
+    <string name="os_predpomnilnik_opis_tv">Este televisor · %1$s</string>
+    <string name="os_predpomnilnik_opis_usb">USB · %1$s de %2$s · este televisor %3$s</string>
+    <string name="os_predpomnilnik_opis_link">%1$s (Safeer Link) · este televisor %2$s</string>
+    <string name="os_predpomnilnik_mesto">Ubicación: %1$s</string>
+    <string name="os_predpomnilnik_ta_tv">Este televisor</string>
+    <string name="os_predpomnilnik_samodejno">Automático: USB cuando esté conectado</string>
+    <string name="os_predpomnilnik_samodejno_usb">USB cuando esté conectado · %1$s libres</string>
+    <string name="os_predpomnilnik_naprava">%1$s · %2$s libres</string>
+    <string name="os_predpomnilnik_naprava_ne_odgovori">%1$s · no responde</string>
+    <string name="os_predpomnilnik_velikost">Tamaño en USB: %1$d GB</string>
+    <string name="os_predpomnilnik_gb">%1$d GB</string>
+    <string name="os_predpomnilnik_pocisti">Borrar caché</string>
+    <string name="os_predpomnilnik_pocisti_vprasanje">¿Borrar los pósteres, catálogos y listas guardados en este televisor y en el USB? Se volverán a cargar desde Internet.</string>
+    <string name="os_predpomnilnik_pociscen">Caché borrada.</string>
+    <string name="os_predpomnilnik_preverjam">Comprobando dispositivos…</string>
 </resources>

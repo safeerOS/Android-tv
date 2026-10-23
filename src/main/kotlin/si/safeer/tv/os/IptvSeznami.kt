@@ -28,12 +28,22 @@ object IptvSeznami {
 
     private fun ime(naslov: String) = KanaliPravila.odtisDodatka(naslov)
     private fun mapa(c: Context) = File(c.applicationContext.filesDir, MAPA)
-    private fun datoteka(c: Context, naslov: String) = File(mapa(c), ime(naslov) + ".tsv")
-    private fun opis(c: Context, naslov: String) = File(mapa(c), ime(naslov) + ".info")
+    /** Naloga 87: mapa seznamov na USB, ce je predpomnilnik na USB v uporabi (iz ozadja; z glavne niti null). */
+    private fun mapaUsb(c: Context): File? = UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.IPTV)
+    /** Mapa, kjer seznam ta hip je: notranja, sicer USB; ce ga ni nikjer, notranja. */
+    private fun mapaSeznama(c: Context, naslov: String): File =
+        listOfNotNull(mapa(c), mapaUsb(c)).firstOrNull { File(it, ime(naslov) + ".tsv").exists() } ?: mapa(c)
+    private fun datoteka(c: Context, naslov: String) = File(mapaSeznama(c, naslov), ime(naslov) + ".tsv")
+    private fun opis(c: Context, naslov: String) = File(mapaSeznama(c, naslov), ime(naslov) + ".info")
 
     /** Podatki seznama z diska (brez omrezja); null = se ni prenesen. */
     fun podatki(c: Context, naslov: String): Podatki? {
-        podatki[naslov]?.let { return it }
+        podatki[naslov]?.let { p ->
+            // Naloga 87: seznam na USB, ki je bil odklopljen, ni vec na voljo - prenese se znova (na notranji). Na glavni niti
+            // (kartica v Mojih virih) diska ne preverjamo.
+            if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper() || datoteka(c, naslov).exists()) return p
+            podatki.remove(naslov)
+        }
         val f = opis(c, naslov)
         if (!f.exists() || !datoteka(c, naslov).exists()) return null
         return try {
@@ -65,18 +75,17 @@ object IptvSeznami {
             }
             try {
                 if (p.responseCode !in 200..299) return podatki(c, naslov)
-                val m = mapa(c).apply { mkdirs() }
+                // Naloga 87: z USB v uporabi gre seznam (do 20 MB) na USB - notranji pomnilnik TV ostane prost.
+                val m = (mapaUsb(c) ?: mapa(c)).apply { mkdirs() }
                 val zacasna = File(m, ime(naslov) + ".tmp")
                 val bralnik = IptvPravila.Bralnik(naslov, drzava, jezik)
                 val zvrsti = HashSet<String>(); val jeziki = HashSet<String>()
-                var bajtov = 0L
                 zacasna.bufferedWriter().use { w ->
                     p.inputStream.bufferedReader().use { r ->
-                        while (true) {
-                            val l = r.readLine() ?: break
-                            bajtov += l.length + 1
-                            if (bajtov > NAJVEC_BAJTOV) break
-                            val v = bralnik.vrstica(l) ?: continue
+                        // Naloga 86 (M7): vrstica najvec [IptvPravila.NAJVEC_VRSTICA] znakov (daljsa se preskoci, ne bere v pomnilnik),
+                        // skupaj najvec [NAJVEC_BAJTOV] - prej je readLine() prebral celo vrstico brez preloma (OOM).
+                        IptvPravila.vrstice(r, IptvPravila.NAJVEC_VRSTICA, NAJVEC_BAJTOV) { l ->
+                            val v = bralnik.vrstica(l) ?: return@vrstice
                             if (v.zvrst.isNotEmpty()) zvrsti += v.zvrst
                             if (v.jezik.isNotEmpty()) jeziki += v.jezik
                             w.write(IptvPravila.vVrstico(v)); w.newLine()
@@ -84,14 +93,25 @@ object IptvSeznami {
                     }
                 }
                 val podatkiNovi = Podatki(System.currentTimeMillis(), bralnik.kanalov, zvrsti, jeziki)
-                if (!zacasna.renameTo(datoteka(c, naslov))) { zacasna.delete(); return podatki(c, naslov) }
-                opis(c, naslov).writeText("${podatkiNovi.prenesenOb}\n${podatkiNovi.kanalov}\n${zvrsti.joinToString(",")}\n${jeziki.joinToString(",")}")
+                val cilj = File(m, ime(naslov) + ".tsv")
+                if (!zacasna.renameTo(cilj)) { cilj.delete(); if (!zacasna.renameTo(cilj)) { zacasna.delete(); return podatki(c, naslov) } }
+                File(m, ime(naslov) + ".info").writeText("${podatkiNovi.prenesenOb}\n${podatkiNovi.kanalov}\n${zvrsti.joinToString(",")}\n${jeziki.joinToString(",")}")
+                // Stara kopija na drugem mestu (notranji <-> USB) ni vec potrebna.
+                for (drug in listOfNotNull(mapa(c), mapaUsb(c)).filter { it.path != m.path })
+                    for (pr in listOf(".tsv", ".info")) try { File(drug, ime(naslov) + pr).delete() } catch (_: Throwable) { }
                 podatki[naslov] = podatkiNovi
                 android.util.Log.i("SafeerOsMedia", "seznam IPTV: kanalov=${bralnik.kanalov}, zvrsti=${zvrsti.size}, jeziki=${jeziki.size}, " +
                     "drzava seznama=${drzava.ifEmpty { "-" }}, jezik seznama=${jezik.ifEmpty { "-" }}, po ${android.os.SystemClock.uptimeMillis() - od} ms")
                 return podatkiNovi
             } finally { try { p.disconnect() } catch (_: Throwable) { } }
         } catch (_: Exception) {
+            // Naloga 87: napaka pisanja na USB (odklop, poln) - do naslednje preverbe notranji.
+            if (mapaUsb(c) != null) UsbPredpomnilnik.napaka()
+            for (m in listOfNotNull(mapa(c), mapaUsb(c))) try { File(m, ime(naslov) + ".tmp").delete() } catch (_: Throwable) { }
+            return podatki(c, naslov)
+        } catch (_: OutOfMemoryError) {
+            // Naloga 86 (M7): pomnilnika je zmanjkalo (sibak TV) - seznam ostane, kot je bil; proces ne pade.
+            for (m in listOfNotNull(mapa(c), mapaUsb(c))) try { File(m, ime(naslov) + ".tmp").delete() } catch (_: Throwable) { }
             return podatki(c, naslov)
         } finally { prenasam.remove(naslov) }
     }
@@ -117,7 +137,10 @@ object IptvSeznami {
                     izhod += skladba(x, v.naslov)
                 }
             }
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+            // Naloga 87: branje z USB ni uspelo (odklop) - do naslednje preverbe notranji; pripravi() seznam prenese znova.
+            if (!f.path.startsWith(mapa(c).path)) UsbPredpomnilnik.napaka()
+        }
         v.dal += izhod.size
         v.konec = konec
         return izhod
@@ -139,7 +162,23 @@ object IptvSeznami {
     /** Seznam je odstranjen: datoteki izgineta. */
     fun pozabi(c: Context, naslov: String) {
         podatki.remove(naslov)
-        try { datoteka(c, naslov).delete(); opis(c, naslov).delete() } catch (_: Exception) { }
+        for (m in listOfNotNull(mapa(c), mapaUsb(c))) for (pr in listOf(".tsv", ".info")) try { File(m, ime(naslov) + pr).delete() } catch (_: Exception) { }
+    }
+
+    /** Naloga 87: »Pocisti predpomnilnik« - datoteke izbrise klicatelj, tu pozabimo podatke v pomnilniku. */
+    fun pozabiVse() = podatki.clear()
+
+    /**
+     * Naloga 86 (M5): obdrzi samo datoteke seznamov [naslovi] (vsi viri SEZNAM uporabnika); ostale (.tsv, .info, .tmp) izbrise.
+     * Seznam, ki se prenasa, ostane. Klic iz ozadja.
+     */
+    fun obdrzi(c: Context, naslovi: Collection<String>) {
+        val imena = (naslovi + prenasam).map { ime(it) }.toSet()
+        for (f in listOfNotNull(mapa(c), mapaUsb(c)).flatMap { it.listFiles().orEmpty().toList() }) {
+            if (f.name.substringBefore('.') in imena) continue
+            podatki.keys.filter { ime(it) == f.name.substringBefore('.') }.forEach { podatki.remove(it) }
+            try { f.delete() } catch (_: Exception) { }
+        }
     }
 
     /** Vir seznama v mrezi TV v zivo: izbira mreze, domaci ali ostali, koliko kanalov je ze dal. */

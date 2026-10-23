@@ -81,5 +81,24 @@ fun main() {
     preveriEnako("razvrsti: kategorije, drzave, ostalo (stabilno)", listOf(1, 3, 0, 2),
         KanaliPravila.razvrstiVire(k.indices.map { KanaliPravila.Vir(it) }, k).map { it.katalog })
 
+    println()
+    // ---- naloga 86 (M7): branje vrstic z mejo dolzine
+    fun vr(vhod: String, meja: Int = 10, skupaj: Long = 1_000): List<String> =
+        ArrayList<String>().also { l -> IptvPravila.vrstice(java.io.StringReader(vhod), meja, skupaj) { l += it } }
+    preveriEnako("86 vrstice: \\n, \\r\\n in \\r", listOf("a", "b", "c", "d"), vr("a\nb\r\nc\rd"))
+    preveriEnako("86 vrstice: prazna vrstica ostane", listOf("a", "", "b"), vr("a\n\nb\n"))
+    preveriEnako("86 vrstice: predolga se preskoci, naslednja ostane", listOf("kratka", "zadnja"), vr("kratka\n" + "x".repeat(50) + "\nzadnja"))
+    preveriEnako("86 vrstice: tocno na meji ostane", listOf("x".repeat(10)), vr("x".repeat(10)))
+    preveriEnako("86 vrstice: predolga zadnja brez preloma odpade", listOf("a"), vr("a\n" + "y".repeat(11)))
+    preveriEnako("86 vrstice: skupna meja - nedokoncana vrstica odpade", listOf("aaaa"), vr("aaaa\nbbbb\ncccc", skupaj = 8))
+    // Ogromna vrstica brez preloma: pomnilnik ostane omejen (hrani se najvec meja znakov).
+    var n = 0
+    IptvPravila.vrstice(object : java.io.Reader() {
+        var ostane = 50_000_000L
+        override fun read(b: CharArray, o: Int, d: Int): Int { if (ostane <= 0) return -1; val k = minOf(d.toLong(), ostane).toInt(); java.util.Arrays.fill(b, o, o + k, 'z'); ostane -= k; return k }
+        override fun close() {}
+    }, IptvPravila.NAJVEC_VRSTICA, 100_000_000L) { n++ }
+    preveriEnako("86 vrstice: 50 M znakov brez preloma - nobene vrstice, brez OOM", 0, n)
+
     if (napak == 0) println("IptvPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

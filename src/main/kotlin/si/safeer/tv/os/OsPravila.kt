@@ -1278,4 +1278,57 @@ object OsPravila {
     /** Naloga 84: vrstni red streznikov imenika - zadnji, ki je odgovoril, najprej; ostali po vrsti (brez dvojnikov). */
     fun vrstniRedStreznikov(strezniki: List<String>, zadnjiDober: String?): List<String> =
         (listOfNotNull(zadnjiDober?.takeIf { it in strezniki }) + strezniki).distinct()
+
+    // ------------------------------------------------------------------ naloga 86: popravki pregleda 85
+
+    /**
+     * Naloga 86 (M3): cakanje z rokom [rokMs] po kosih do [kosMs]: [poskusi] dobi dovoljeni cas (ms) in vrne izid ali null
+     * (se ni). Pred vsakim kosom [prekinjen] (preklicana mreza) cakanje konca takoj z null - nit se sprosti v najvec [kosMs]
+     * namesto ob roku (prej do 30 ali 90 s). [ura] = monotona ura v ms.
+     */
+    fun <T> cakajPoKoscih(rokMs: Long, kosMs: Long = 1_000L, ura: () -> Long, prekinjen: () -> Boolean, poskusi: (Long) -> T?): T? {
+        val konec = ura() + rokMs
+        while (true) {
+            if (prekinjen()) return null
+            val ostane = konec - ura()
+            if (ostane <= 0) return null
+            poskusi(minOf(kosMs, ostane).coerceAtLeast(1))?.let { return it }
+        }
+    }
+
+    /** Naloga 86 (M4): najvec kartic v predpomnilniku strani katalogov kanalov (vse strani skupaj). */
+    const val NAJVEC_KARTIC_STRANI_KANALOV = 10_000
+
+    /** Naloga 86 (M4): »velikost« strani v predpomnilniku = stevilo kartic (prazna stran steje 1, da je meja koncna). */
+    fun velikostStraniKanalov(kartic: Int): Int = kartic.coerceAtLeast(0) + 1
+
+    /**
+     * Naloga 86 (M6): opis zavrnjenega vnosa vira za dnevnik - samo dolzina in razredi znakov, NIKOLI vsebina (povezava IPTV
+     * ima lahko uporabnisko ime in geslo, dodatek kljuc storitve). Neznani (ne-ASCII) znaki samo po vrsti Unicode (npr. FORMAT
+     * za nevidni presledek ze tipkovnice), brez kode znaka.
+     */
+    fun opisZavrnjenegaVnosa(vnos: String): String {
+        var crk = 0; var stevk = 0; var presledkov = 0; var locil = 0; var kontrolnih = 0; var neAscii = 0
+        val vrste = java.util.TreeSet<String>()
+        for (c in vnos) when {
+            c.code < 0x20 || c.code == 0x7F -> kontrolnih++
+            c.code >= 0x80 -> { neAscii++; vrste += vrstaZnaka(c) }
+            c == ' ' -> presledkov++
+            c in 'a'..'z' || c in 'A'..'Z' -> crk++
+            c in '0'..'9' -> stevk++
+            else -> locil++
+        }
+        return "dolzina=${vnos.length}, crk=$crk, stevk=$stevk, locil=$locil, presledkov=$presledkov, kontrolnih=$kontrolnih, " +
+            "ne-ASCII=$neAscii" + (if (vrste.isEmpty()) "" else " ${vrste.joinToString(",", "(", ")")}")
+    }
+
+    private fun vrstaZnaka(c: Char): String = when (Character.getType(c).toByte()) {
+        Character.FORMAT -> "FORMAT"
+        Character.SPACE_SEPARATOR -> "PRESLEDEK"
+        Character.UPPERCASE_LETTER, Character.LOWERCASE_LETTER, Character.OTHER_LETTER, Character.TITLECASE_LETTER, Character.MODIFIER_LETTER -> "CRKA"
+        Character.DECIMAL_DIGIT_NUMBER, Character.OTHER_NUMBER, Character.LETTER_NUMBER -> "STEVKA"
+        Character.SURROGATE -> "NADOMESTNI"
+        Character.CONTROL -> "KONTROLNI"
+        else -> "DRUGO"
+    }
 }

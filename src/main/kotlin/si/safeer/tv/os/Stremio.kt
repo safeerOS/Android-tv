@@ -289,6 +289,8 @@ object Stremio {
 
     /** Mapa za predpomnilnik manifestov na disku (nastavi jo aplikacija ob zagonu); brez nje le pomnilnik. */
     @Volatile var mapaPredpomnilnika: java.io.File? = null
+    /** Naloga 87: kontekst aplikacije za strani kanalov na USB ([MedijskiPredpomnilnik.stranKanalov]); nastavi [pripravi]. */
+    @Volatile private var aplikacija: Context? = null
 
     /**
      * Manifest dodatka: z diska (do 24 ur), sicer s spleta. Po hladnem zagonu so katalogi in tokovi tako na voljo
@@ -384,6 +386,7 @@ object Stremio {
             if (shrambaZasebnih != null) return
             val a = ctx.applicationContext
             if (mapaPredpomnilnika == null) mapaPredpomnilnika = java.io.File(a.cacheDir, "stremio")
+            aplikacija = a
             // Kaj vemo o lastnih knjiznicah dodatkov (katere dokazano dajo tokove) - pred prvim risanjem.
             ZaupanjeKnjiznic.pripravi(a)
             try {
@@ -694,17 +697,26 @@ object Stremio {
         "genres", "genre", "releaseInfo", "year", "description", "imdbRating", "imdb_id", "country")
     /** Najvec vnosov s strani kataloga kanalov (dodatek IPTV da lahko vse kanale drzave naenkrat). */
     const val NAJVEC_NA_STRANI_KANALOV = 1000
-    /** Razclenjene strani katalogov kanalov (kartice, ne JSON), 15 min; najvec toliko strani. */
-    private val straniKanalov = android.util.LruCache<String, Pair<Long, List<Jamendo.Skladba>>>(48)
+    /**
+     * Razclenjene strani katalogov kanalov (kartice, ne JSON), 15 min. Naloga 86 (M4): meja po STEVILU KARTIC
+     * ([OsPravila.NAJVEC_KARTIC_STRANI_KANALOV]), ne strani - prej 48 strani po do 1000 kartic (25-50 MB na sibkem TV).
+     */
+    private val straniKanalov = object : android.util.LruCache<String, Pair<Long, List<Jamendo.Skladba>>>(OsPravila.NAJVEC_KARTIC_STRANI_KANALOV) {
+        override fun sizeOf(key: String, value: Pair<Long, List<Jamendo.Skladba>>): Int = OsPravila.velikostStraniKanalov(value.second.size)
+    }
 
     /** Stran kataloga kanalov kot [katalogAliIzpad]; null = izpad (tudi neveljaven ali pretrgan odgovor). */
     private fun katalogKanalov(k: Katalog, skip: Int, zvrst: String): List<Jamendo.Skladba>? {
         val url = potKataloga(k, "", skip, zvrst) + ".json"
         val zdaj = System.currentTimeMillis()
         straniKanalov.get(url)?.let { (cas, s) -> if (zdaj - cas < veljavnost(url)) return s }
+        // Naloga 87: stran z USB (po ponovnem zagonu aplikacije, ce se velja) - pred omrezjem. Zasebne strani ostanejo na tej napravi.
+        val app = aplikacija
+        if (app != null) MedijskiPredpomnilnik.stranKanalov(app, url, veljavnost(url))?.let { z -> straniKanalov.put(url, z); return z.second }
         val stran = prenesiTokovno(url) { r -> beriVnoseKataloga(r, k) }
             ?: return if (kodaPomeniNima(zadnjaKoda.get() ?: 0)) emptyList() else null
         straniKanalov.put(url, zdaj to stran)
+        if (app != null && stran.isNotEmpty()) MedijskiPredpomnilnik.shraniStranKanalov(app, url, stran)
         return stran
     }
 
@@ -1459,7 +1471,8 @@ object Stremio {
      * Naloga 79: odgovor dodatka po tokovih za kanal ([OsPravila.poOdgovoruTokov]). Dodatek, ki za [OsPravila.ZAKLENJEN_PO]
      * zaporednih kanalov vrne samo obvestila, je »brez prostih tokov« (na disku, [OsPravila.ZAKLENJEN_VELJA_MS]).
      */
-    private fun zabeleziTokove(osnova: String, streams: JSONArray?, predvajljivih: Int) {
+    // Naloga 86 (K1): preberi-spremeni-zapisi je nedeljivo - preverjanja mreze (3) in pregled (2) tecejo hkrati.
+    @Synchronized private fun zabeleziTokove(osnova: String, streams: JSONArray?, predvajljivih: Int) {
         val vnosov = streams?.length() ?: 0
         // Naloga 79b: povezava za odklep (externalUrl obvestila) - samo varna, samo gostitelj in pot, ne v dnevnik.
         if (predvajljivih == 0 && vnosov > 0) (0 until vnosov).firstNotNullOfOrNull { i -> OsPravila.povezavaOdklepa(streams?.optJSONObject(i)?.optString("externalUrl")) }

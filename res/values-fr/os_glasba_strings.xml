@@ -364,4 +364,22 @@
         <item quantity="one">%1$d chaîne</item>
         <item quantity="other">%1$d chaînes</item>
     </plurals>
+    <!-- Naloga 87: predpomnilnik Media Center (ta TV, USB, naprava v Safeer Linku). -->
+    <string name="os_predpomnilnik_naslov">Cache</string>
+    <string name="os_predpomnilnik_racunam">Calcul en cours…</string>
+    <string name="os_predpomnilnik_opis_tv">Ce téléviseur · %1$s</string>
+    <string name="os_predpomnilnik_opis_usb">USB · %1$s sur %2$s · ce téléviseur %3$s</string>
+    <string name="os_predpomnilnik_opis_link">%1$s (Safeer Link) · ce téléviseur %2$s</string>
+    <string name="os_predpomnilnik_mesto">Emplacement : %1$s</string>
+    <string name="os_predpomnilnik_ta_tv">Ce téléviseur</string>
+    <string name="os_predpomnilnik_samodejno">Automatique : USB s’il est branché</string>
+    <string name="os_predpomnilnik_samodejno_usb">USB s’il est branché · %1$s libres</string>
+    <string name="os_predpomnilnik_naprava">%1$s · %2$s libres</string>
+    <string name="os_predpomnilnik_naprava_ne_odgovori">%1$s · ne répond pas</string>
+    <string name="os_predpomnilnik_velikost">Taille sur la clé USB : %1$d Go</string>
+    <string name="os_predpomnilnik_gb">%1$d Go</string>
+    <string name="os_predpomnilnik_pocisti">Vider le cache</string>
+    <string name="os_predpomnilnik_pocisti_vprasanje">Supprimer les affiches, catalogues et listes enregistrés sur ce téléviseur et la clé USB ? Ils seront rechargés depuis Internet.</string>
+    <string name="os_predpomnilnik_pociscen">Cache vidé.</string>
+    <string name="os_predpomnilnik_preverjam">Vérification des appareils…</string>
 </resources>
