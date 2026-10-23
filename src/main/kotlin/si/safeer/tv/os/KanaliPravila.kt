@@ -154,6 +154,17 @@ object KanaliPravila {
     fun razlicicaZaPreverjanje(imena: List<String>, stanja: List<Boolean?>): Int? =
         urediRazlicice(imena, stanja).firstOrNull()?.takeIf { stanja.getOrNull(it) == null }
 
+    /**
+     * Naloga 90d: tok, ki streznik odgovori pravilno (HTTP 200), a predvaja samo sliko »broadcast is temporarily unavailable«
+     * (izmerjeno 23. 10. 2026: TV SLO 1/2 iz iptv-org si.m3u). Sonda toka ga steje za zivega, zato ga poznamo po naslovu.
+     */
+    private val NEDELUJOCI_TOKOVI = Regex("^https?://(?:[^/@]*@)?(?:dash2\\.antik\\.sk(?::\\d+)?/live/test_|streamer03\\.xploretv\\.si(?::\\d+)?(?:/|$))")
+
+    fun znanNedelujocTok(url: String): Boolean = NEDELUJOCI_TOKOVI.containsMatchIn(url.trim().lowercase(java.util.Locale.ROOT))
+
+    /** Kljuci ([OsPravila.kljucKanala]) kartice [id] in vseh njenih razlicic [razlicice], brez dvojnikov. */
+    fun kljuciKartice(id: String, razlicice: List<String>): List<String> = (razlicice + id).map { OsPravila.kljucKanala(it) }.distinct()
+
     fun filtri(katalogi: List<Katalog>): Filtri {
         val splosni = ArrayList<Vir>()
         val zasebni = ArrayList<Vir>()

@@ -287,6 +287,7 @@
     <string name="os_media_kanal_mrtev">»%1$s« ne dela – prenosa ni mogoče prebrati. Do jutri skrito.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Viri kanalov ne odgovarjajo. Znova poskusim čez %1$d min.</string>
+    <string name="os_tv_kanal_ne_deluje_skrij">Kanal ne deluje – skrij</string>
     <string name="os_tv_ni_kanalov">V tej izbiri ni kanalov.</string>
     <string name="os_tv_nadomestek_vsi">V tej izbiri še ni kanalov – prikazani so vsi kanali.</string>
     <string name="os_kanali_novice">Novice</string>
@@ -397,4 +398,5 @@
     <string name="os_besedila_ni_vira">Za besedila dodaj vir besedil (lrclib.net) pri Dodaj vir.</string>
     <string name="os_besedila_napaka">Besedila ta čas ni mogoče dobiti.</string>
     <string name="os_besedila_instrumentalno">Instrumentalna skladba – brez besedila.</string>
+    <string name="os_tv_vrni_skrite">Pokaži skrite kanale (%1$d)</string>
 </resources>

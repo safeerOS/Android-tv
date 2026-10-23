@@ -288,6 +288,7 @@
     <string name="os_media_kanal_mrtev">« %1$s » ne fonctionne pas : flux illisible. Masqué jusqu\'à demain.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Les sources de chaînes ne répondent pas. Nouvel essai dans %1$d min.</string>
+    <string name="os_tv_kanal_ne_deluje_skrij">La chaîne ne fonctionne pas – masquer</string>
     <string name="os_tv_ni_kanalov">Aucune chaîne dans cette sélection.</string>
     <string name="os_tv_nadomestek_vsi">Aucune chaîne dans cette sélection pour l’instant – toutes les chaînes sont affichées.</string>
     <string name="os_kanali_novice">Actualités</string>
@@ -396,4 +397,5 @@
     <string name="os_besedila_ni_vira">Ajoutez la source de paroles (lrclib.net) sous Ajouter une source pour voir les paroles.</string>
     <string name="os_besedila_napaka">Impossible de charger les paroles pour le moment.</string>
     <string name="os_besedila_instrumentalno">Instrumental – sans paroles.</string>
+    <string name="os_tv_vrni_skrite">Afficher les chaînes masquées (%1$d)</string>
 </resources>

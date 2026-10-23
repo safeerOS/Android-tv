@@ -288,6 +288,7 @@
     <string name="os_media_kanal_mrtev">«%1$s» no funciona: no se puede leer la transmisión. Oculto hasta mañana.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Las fuentes de canales no responden. Lo intento de nuevo en %1$d min.</string>
+    <string name="os_tv_kanal_ne_deluje_skrij">El canal no funciona – ocultar</string>
     <string name="os_tv_ni_kanalov">No hay canales en esta selección.</string>
     <string name="os_tv_nadomestek_vsi">Aún no hay canales en esta selección: se muestran todos los canales.</string>
     <string name="os_kanali_novice">Noticias</string>
@@ -396,4 +397,5 @@
     <string name="os_besedila_ni_vira">Añade la fuente de letras (lrclib.net) en Añadir fuente para ver la letra.</string>
     <string name="os_besedila_napaka">No se puede cargar la letra ahora.</string>
     <string name="os_besedila_instrumentalno">Instrumental: sin letra.</string>
+    <string name="os_tv_vrni_skrite">Mostrar canales ocultos (%1$d)</string>
 </resources>

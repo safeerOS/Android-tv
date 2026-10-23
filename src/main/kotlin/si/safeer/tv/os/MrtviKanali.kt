@@ -17,6 +17,9 @@ object MrtviKanali {
     private const val PREFS_ZIVI = "safeer_zivi_kanali_2"
     /** Naloga 75: zaporedni negotovi izidi sonde ([OsPravila.IzidSonde.NEGOTOVO]), zapis »stevilo;cas zadnjega«. */
     private const val PREFS_NEGOTOVI = "safeer_negotovi_kanali"
+    /** Naloga 90d: kanali, ki jih je uporabnik sam oznacil kot nedelujoce - trajno, brez poteka (kljuc kartice). */
+    private const val PREFS_SKRITI = "safeer_skriti_kanali"
+    private val skriti: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val doKdaj = ConcurrentHashMap<String, Long>()
     private val zivDo = ConcurrentHashMap<String, Long>()
     private val negotovi = ConcurrentHashMap<String, Pair<Int, Long>>()
@@ -48,8 +51,31 @@ object MrtviKanali {
                 if (n != null && kdaj != null && zdaj - kdaj in 0 until OsPravila.NEGOTOV_VELJA_MS) negotovi[k] = n to kdaj else stari += k
             }
             if (stari.isNotEmpty()) pn.edit().apply { stari.forEach { remove(it) } }.apply()
+            skriti.addAll(c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).all.keys)
             nalozeno = true
         }
+    }
+
+    /**
+     * Naloga 90d: uporabnik je kartico (vse njene razlicice, [kljuci] po [KanaliPravila.kljuciKartice]) oznacil kot nedelujoco:
+     * trajno skrita, dokler je uporabnik ne vrne. Poslusalci jo umaknejo takoj.
+     */
+    /** Naloga 90d: koliko kartic je uporabnik skril sam. */
+    fun steviloSkritih(c: Context): Int { nalozi(c); return skriti.size }
+
+    /** Naloga 90d: vrne vse kanale, ki jih je uporabnik skril (izbira v mrezi TV v zivo). */
+    fun vrniSkrite(c: Context) {
+        nalozi(c)
+        skriti.clear()
+        c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).edit().clear().apply()
+    }
+
+    fun skrij(c: Context, kljuci: List<String>) {
+        nalozi(c)
+        val e = c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).edit()
+        for (k in kljuci) { skriti += k; zivDo.remove(k); e.putBoolean(k, true) }
+        e.apply()
+        for (k in kljuci) for (p in poslusalci) try { p(k) } catch (_: Throwable) { }
     }
 
     fun zapomni(c: Context, id: String) {
@@ -66,8 +92,9 @@ object MrtviKanali {
 
     fun jeMrtev(c: Context, id: String): Boolean {
         nalozi(c)
-        if (doKdaj.isEmpty()) return false
+        if (doKdaj.isEmpty() && skriti.isEmpty()) return false
         val k = OsPravila.kljucKanala(id)
+        if (k in skriti) return true
         val t = doKdaj[k] ?: return false
         if (t > System.currentTimeMillis()) return true
         doKdaj.remove(k)

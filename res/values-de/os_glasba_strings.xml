@@ -288,6 +288,7 @@
     <string name="os_media_kanal_mrtev">„%1$s“ funktioniert nicht – Stream nicht lesbar. Bis morgen ausgeblendet.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Die Kanalquellen antworten nicht. Neuer Versuch in %1$d Min.</string>
+    <string name="os_tv_kanal_ne_deluje_skrij">Sender funktioniert nicht – ausblenden</string>
     <string name="os_tv_ni_kanalov">Keine Sender in dieser Auswahl.</string>
     <string name="os_tv_nadomestek_vsi">In dieser Auswahl noch keine Sender – alle Sender werden angezeigt.</string>
     <string name="os_kanali_novice">Nachrichten</string>
@@ -396,4 +397,5 @@
     <string name="os_besedila_ni_vira">Füge unter „Quelle hinzufügen“ die Songtext-Quelle (lrclib.net) hinzu, um Songtexte zu sehen.</string>
     <string name="os_besedila_napaka">Der Songtext kann gerade nicht geladen werden.</string>
     <string name="os_besedila_instrumentalno">Instrumental – kein Songtext.</string>
+    <string name="os_tv_vrni_skrite">Ausgeblendete Sender anzeigen (%1$d)</string>
 </resources>

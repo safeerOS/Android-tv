@@ -3789,6 +3789,9 @@ class GlasbaActivity : OsActivity() {
         izbrani.forEach { id -> razlicicaZaPreverjanje(m, id).let { sk -> if (sk != null) preveriKanal(m, sk) } }
     }
 
+    /** Naloga 90d: kanal seznama IPTV, katerega tok je znano samo obvestilo ([KanaliPravila.znanNedelujocTok]). */
+    private fun znanNedelujocKanal(sk: Jamendo.Skladba) = IptvSeznami.jeKanal(sk) && KanaliPravila.znanNedelujocTok(sk.zvok)
+
     /** Razlicica kartice [id], ki jo preverimo zdaj (mrtve izpustimo, najprej HD); null, ce nobena ne potrebuje preverjanja. */
     private fun razlicicaZaPreverjanje(m: MrezaKanalov, id: String): Jamendo.Skladba? {
         val vse = m.razlicice[id].orEmpty()
@@ -3850,6 +3853,8 @@ class GlasbaActivity : OsActivity() {
             // Naloga 79b: v izbiri »Pokazi zaklenjene kanale« (privzeto izklopljeno) ostanejo; klik ponudi odklep pri dodatku.
             // Naloga 82: tudi po izteku sklepa brez zivega toka ([Stremio.zaklenjenKanalZaMrezo]).
             if (!tvZaklenjeni && Stremio.jeEnota(sk) && sk.id !in vednoId && Stremio.zaklenjenKanalZaMrezo(sk)) { brezProstih++; continue }
+            // Naloga 90d: znan tok z obvestilom namesto programa - brez sporocila ni v mrezi; druga razlicica kartice ostane.
+            if (znanNedelujocKanal(sk)) continue
             if (!preverljiv) { if (!MrtviKanali.jeMrtev(this, sk.id)) vsi += sk; continue }
             // Dokazano mrtev (preverjanje, klik, napaka predvajanja) izgine; ziv in neznan ostaneta.
             if (MrtviKanali.stanje(this, sk.id) == false) continue
@@ -3986,10 +3991,19 @@ class GlasbaActivity : OsActivity() {
                 m.razlicice.clear()
                 narisiKanale(m)
             },
-        ) + (if (!tvZaklenjeni && stremioNaslovi().none { Stremio.zaklenjenZaMrezo(it) }) emptyList() else listOf(
+        ) + run {
             // Naloga 79b: zaklenjeni kanali (dodatek daje tokove samo z narocnino) so privzeto skriti.
-            PoljeIzbire("izb:zaklenjeni", listOf(getString(R.string.os_tv_brez_zaklenjenih), getString(R.string.os_tv_pokazi_zaklenjene)),
-                if (tvZaklenjeni) 1 else 0, null) { i -> tvZaklenjeni = i == 1; odpriKanale(m.zvrst, m.jezik) }))
+            // Naloga 90d: kanale, ki jih je uporabnik skril (»Kanal ne deluje - skrij«), vrne tretja izbira.
+            val skritih = MrtviKanali.steviloSkritih(this)
+            val zaklenjeni = tvZaklenjeni || stremioNaslovi().any { Stremio.zaklenjenZaMrezo(it) }
+            if (!zaklenjeni && skritih == 0) emptyList() else listOf(
+                PoljeIzbire("izb:zaklenjeni", listOf(getString(R.string.os_tv_brez_zaklenjenih), getString(R.string.os_tv_pokazi_zaklenjene)) +
+                    (if (skritih > 0) listOf(getString(R.string.os_tv_vrni_skrite, skritih)) else emptyList()),
+                    if (tvZaklenjeni) 1 else 0, null) { i ->
+                    if (i == 2) { MrtviKanali.vrniSkrite(this) } else { tvZaklenjeni = i == 1 }
+                    odpriKanale(m.zvrst, m.jezik)
+                })
+        }
     }
 
     // ------------------------------------------------------------------ Radio in Glasba: mreza z izbirami
@@ -5465,7 +5479,7 @@ class GlasbaActivity : OsActivity() {
                       zapomnjene: ZapomnjeneKartice? = null): List<Kartica> {
         // Vsebine, za katero vemo, da je noben dodatek ne predvaja, ne kazemo nikjer (police, iskanje, mreza).
         // Enako kanal ali postaja, ki pri viru ta cas ne dela ([MrtviKanali]).
-        val v = v0.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || MrtviKanali.jeMrtev(this, it.id) }
+        val v = v0.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || MrtviKanali.jeMrtev(this, it.id) || znanNedelujocKanal(it) }
         preveriPolico(v0)
         val napredekKrajevnih = if (v.none { it.id.startsWith("krajevno:") }) emptyMap()
             else MediaNapredek.seznam(this).filter { it.skladba.id.startsWith("krajevno:") && it.polozaj > 0 }.associateBy { it.skladba.id }
@@ -5650,6 +5664,13 @@ class GlasbaActivity : OsActivity() {
             val sz = MedijskiViri.shraniSeznam(this, ime.ifBlank { sk.izvajalec.ifBlank { getString(R.string.os_mediji_moja_vrsta) } }, vrsta)
             if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
             osveziPriljubljene()
+        }
+        // Naloga 90d: kanal v zivo, ki namesto programa kaze obvestilo (strezniki odgovarjajo): uporabnik ga skrije sam, trajno.
+        // Skrijejo se vse razlicice kartice, kot jih pozna zadnje risanje mreze; kartica izgine takoj, brez ponovnega nalaganja.
+        if (Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)) dejanja += getString(R.string.os_tv_kanal_ne_deluje_skrij) to {
+            val razlicice = mrezaKanalov?.razlicice?.get(sk.id).orEmpty().map { it.id }
+            zadnjiIzbran = sk.id
+            MrtviKanali.skrij(this, KanaliPravila.kljuciKartice(sk.id, razlicice))
         }
         // Film ali serija iz dodatkov: predvajanje samo izbere najboljsi tok; tu ga uporabnik lahko izbere sam.
         if (Stremio.jeEnota(sk)) dejanja += getString(R.string.os_media_izberi_tok) to { razresiStremio(sk, rocno = true) }

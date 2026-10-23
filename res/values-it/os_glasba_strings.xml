@@ -288,6 +288,7 @@
     <string name="os_media_kanal_mrtev">«%1$s» non funziona: flusso non leggibile. Nascosto fino a domani.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Le fonti dei canali non rispondono. Riprovo tra %1$d min.</string>
+    <string name="os_tv_kanal_ne_deluje_skrij">Il canale non funziona – nascondi</string>
     <string name="os_tv_ni_kanalov">Nessun canale in questa selezione.</string>
     <string name="os_tv_nadomestek_vsi">Ancora nessun canale in questa selezione: vengono mostrati tutti i canali.</string>
     <string name="os_kanali_novice">Notizie</string>
@@ -396,4 +397,5 @@
     <string name="os_besedila_ni_vira">Aggiungi la fonte dei testi (lrclib.net) in Aggiungi fonte per vedere i testi.</string>
     <string name="os_besedila_napaka">Il testo non è disponibile al momento.</string>
     <string name="os_besedila_instrumentalno">Strumentale – senza testo.</string>
+    <string name="os_tv_vrni_skrite">Mostra canali nascosti (%1$d)</string>
 </resources>

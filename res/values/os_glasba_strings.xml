@@ -287,6 +287,7 @@
     <string name="os_media_kanal_mrtev">“%1$s” is not working – the stream cannot be read. Hidden until tomorrow.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Channel sources are not responding. Trying again in %1$d min.</string>
+    <string name="os_tv_kanal_ne_deluje_skrij">Channel not working – hide</string>
     <string name="os_tv_ni_kanalov">No channels in this selection.</string>
     <string name="os_tv_nadomestek_vsi">No channels in this selection yet – showing all channels.</string>
     <string name="os_kanali_novice">News</string>
@@ -395,4 +396,5 @@
     <string name="os_besedila_ni_vira">Add the lyrics source (lrclib.net) under Add source to see lyrics.</string>
     <string name="os_besedila_napaka">Lyrics can’t be loaded right now.</string>
     <string name="os_besedila_instrumentalno">Instrumental – no lyrics.</string>
+    <string name="os_tv_vrni_skrite">Show hidden channels (%1$d)</string>
 </resources>

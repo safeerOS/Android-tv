@@ -227,5 +227,18 @@ fun main() {
     preveriEnako("TV SLO: HD znano ziv - ni treba preverjati", null, KanaliPravila.razlicicaZaPreverjanje(sloImena, listOf(null, true)))
     preveriEnako("TV SLO: oba mrtva - ni kaj preverjati", null, KanaliPravila.razlicicaZaPreverjanje(sloImena, listOf(false, false)))
 
+    // Naloga 90d: znani nedelujoci tokovi (streznik odgovori, program je obvestilo).
+    preveri("90d: dash2.antik.sk test_slo1_tizen", KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/test_slo1_tizen/playlist.m3u8"))
+    preveri("90d: dash2.antik.sk test_slo2_tizen", KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/test_slo2_tizen/playlist.m3u8"))
+    preveri("90d: velike crke in http", KanaliPravila.znanNedelujocTok("HTTP://Dash2.Antik.SK/live/test_x/index.m3u8"))
+    preveri("90d: streamer03.xploretv.si", KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si:8443/tvslo1/index.m3u8"))
+    preveri("90d: streamer03.xploretv.si brez poti", KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si"))
+    preveri("90d: dash2.antik.sk/live brez test_ je v redu", !KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/slo1/playlist.m3u8"))
+    preveri("90d: drug streznik xploretv je v redu", !KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si.example.org/a.m3u8"))
+    preveri("90d: vzorec v poti drugega streznika je v redu", !KanaliPravila.znanNedelujocTok("https://example.org/dash2.antik.sk/live/test_a.m3u8"))
+    preveri("90d: prazen naslov", !KanaliPravila.znanNedelujocTok(""))
+    preveriEnako("90d: kljuci kartice z razlicicami", listOf("iptv:a", "iptv:b"), KanaliPravila.kljuciKartice("iptv:a", listOf("iptv:a", "iptv:b#2", "iptv:b")))
+    preveriEnako("90d: kljuci kartice brez razlicic", listOf("iptv:a"), KanaliPravila.kljuciKartice("iptv:a", emptyList()))
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
