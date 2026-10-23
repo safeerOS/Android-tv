@@ -264,7 +264,8 @@ object MedijskiViri {
     private fun zaSeznam(s: Jamendo.Skladba) = shranljiva(s) || (SpletniVir.jeEnota(s) && s.povezava.startsWith("https://"))
 
     private fun zaShranjevanje(s: Jamendo.Skladba) = when {
-        s.video && s.streznik.isNotBlank() -> s.copy(zvok = "", mime = "")
+        // Naloga 96: kanal seznama IPTV ima v [Jamendo.Skladba.streznik] seznam (ne PeerTube) - tok ostane.
+        s.video && s.streznik.isNotBlank() && !IptvSeznami.jeKanal(s) -> s.copy(zvok = "", mime = "")
         // Ujeti tok strani velja le kratek cas: shranimo stran, tok dobimo znova ob predvajanju.
         SpletniVir.jeEnota(s) -> s.copy(zvok = "", mime = "")
         else -> s

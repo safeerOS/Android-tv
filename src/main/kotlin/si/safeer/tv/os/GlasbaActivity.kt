@@ -5097,6 +5097,8 @@ class GlasbaActivity : OsActivity() {
         pVir?.text = when {
             GlasbaStoritev.naZvocniku() -> Zvocniki.napis(this).orEmpty()
             sk.radio -> getString(R.string.os_media_v_zivo)
+            // Naloga 96: kanal seznama IPTV ima v [Jamendo.Skladba.streznik] seznam, iz katerega je - ni PeerTube.
+            IptvSeznami.jeKanal(sk) -> getString(R.string.os_mediji_tv_v_zivo) + " · " + KanaliPravila.imeSeznama(sk.streznik)
             sk.video && sk.streznik.isNotBlank() -> "PeerTube · ${sk.streznik}"
             sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, sk.povezava.removePrefix("https://").removePrefix("http://"))
             else -> ""
@@ -6812,7 +6814,10 @@ class GlasbaActivity : OsActivity() {
 
     /** Glasba in radio zacneta takoj (ves seznam v vrsto, naprej/nazaj preklaplja); video najprej razresimo. */
     private fun predvajaj(seznam: List<Jamendo.Skladba>, i: Int) {
-        val sk = seznam.getOrNull(i) ?: return
+        // Naloga 96: kanal seznama IPTV, ki je bil med nedavnimi shranjen brez toka (kot PeerTube), ima tok v povezavi.
+        val sk0 = seznam.getOrNull(i) ?: return
+        val sk = if (IptvSeznami.jeKanal(sk0) && sk0.zvok.isBlank() && sk0.povezava.isNotBlank()) sk0.copy(zvok = sk0.povezava) else sk0
+        if (sk !== sk0) { predvajaj(seznam.mapIndexed { j, x -> if (j == i) sk else x }, i); return }
         if (TvVZivo.jeStran(sk)) {
             // Izdajatelj prenos ponuja samo na svoji strani (RTV SLO): odpremo jo v brskalniku.
             try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(sk.povezava))) } catch (_: Exception) { }

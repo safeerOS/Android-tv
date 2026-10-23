@@ -120,15 +120,14 @@ object PregledKanalov {
         val app = c.applicationContext
         // Naloga 80: kanal seznama IPTV nima dodatka - vprasamo samo streznik toka.
         if (IptvSeznami.jeKanal(sk)) {
-            val izidS = SondaToka.preveri(sk.zvok, emptyMap(), SpletniVir.agent(app))
+            val (izidS, razlog) = SondaToka.preveriZRazlogom(sk.zvok, emptyMap(), SpletniVir.agent(app))
+            // Naloga 93 + 96: kanal seznama, ki ga sonda skrije, v dnevnik z razlogom (ime, shema; brez naslova - ima lahko geslo).
+            fun mrtev(zakaj: String) = android.util.Log.i("SafeerOsMedia",
+                "sonda IPTV: mrtev \"${sk.naslov.take(40)}\", shema=${sk.zvok.substringBefore(':')}, razlog: $zakaj")
             val k = when (izidS) {
                 OsPravila.IzidSonde.ZIV -> { MrtviKanali.zapomniZivega(app, sk.id); true }
-                OsPravila.IzidSonde.MRTEV -> {
-                    // Naloga 93: kanal seznama, ki ga sonda skrije, v dnevnik (ime, shema; brez naslova - ima lahko geslo).
-                    android.util.Log.i("SafeerOsMedia", "sonda IPTV: mrtev \"${sk.naslov.take(40)}\", shema=${sk.zvok.substringBefore(':')}")
-                    MrtviKanali.zapomni(app, sk.id); false
-                }
-                OsPravila.IzidSonde.NEGOTOVO -> if (MrtviKanali.zapomniNegotovega(app, sk.id)) false else null
+                OsPravila.IzidSonde.MRTEV -> { mrtev(razlog); MrtviKanali.zapomni(app, sk.id); false }
+                OsPravila.IzidSonde.NEGOTOVO -> if (MrtviKanali.zapomniNegotovega(app, sk.id)) { mrtev("$razlog, ${OsPravila.NEGOTOVIH_ZA_MRTEV}x zapored negotovo"); false } else null
                 OsPravila.IzidSonde.NEZNANO -> null
             }
             return k to true

@@ -273,6 +273,14 @@ fun main() {
         KanaliPravila.mrtveObNeuspehuDodatka("stremio|tv|a|1", listOf("iptv:http://x.test/1", "stremio|tv|a|1", "stremio|tv|b|1"), jeSeznam))
     preveriEnako("93: kartica brez razlicic - samo ona", listOf("stremio|tv|a|1"), KanaliPravila.mrtveObNeuspehuDodatka("stremio|tv|a|1", emptyList(), jeSeznam))
 
+    // Naloga 96: oznaka vira kanala seznama IPTV (»Live TV · si.m3u«, ne »PeerTube · ...«).
+    preveriEnako("96: iptv-org seznam drzave", "si.m3u", KanaliPravila.imeSeznama("https://iptv-org.github.io/iptv/countries/si.m3u"))
+    preveriEnako("96: brez poizvedbe", "playlist.m3u", KanaliPravila.imeSeznama("http://a.test/get/playlist.m3u?token=x#y"))
+    preveriEnako("96: geslo v naslovu se ne pokaze", "a.test", KanaliPravila.imeSeznama("http://uporabnik:geslo@a.test/"))
+    preveriEnako("96: samo gostitelj", "a.test", KanaliPravila.imeSeznama("https://a.test"))
+    preveriEnako("96: poizvedba z geslom brez poti", "a.test", KanaliPravila.imeSeznama("http://a.test?username=u&password=p"))
+    preveriEnako("96: geslo kot zadnji del poti se ne pokaze", "a.test", KanaliPravila.imeSeznama("http://a.test/playlist/uporabnik/geslo"))
+
     // Naloga 91b: jeziki izbire takoj ob odprtju.
     preveriEnako("91b: dodatki se niso odgovorili - shranjeni in seznami", listOf("sl", "en", "hr"),
         KanaliPravila.jezikiKanalov(null, listOf("sl", "en"), listOf("hr", "sl")))

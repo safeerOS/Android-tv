@@ -170,6 +170,19 @@ object KanaliPravila {
     fun rezervaIptv(imena: List<String>, stanja: List<Boolean?>, izIptv: List<Boolean>, nedelujoc: List<Boolean>): Int? =
         urediRazlicice(imena, imena.indices.map { if (izIptv.getOrNull(it) != true || nedelujoc.getOrNull(it) == true) false else stanja.getOrNull(it) }).firstOrNull()
 
+    /**
+     * Naloga 96: kratko ime seznama IPTV za oznako vira (»Live TV · si.m3u«): zadnji del poti naslova brez poizvedbe, ce ima
+     * koncnico (».m3u«), sicer gostitelj; uporabnisko ime in geslo v naslovu (povezave ponudnikov, tudi »/uporabnik/geslo« v
+     * poti) se nikoli ne pokazeta.
+     */
+    fun imeSeznama(naslov: String): String {
+        val brez = naslov.trim().substringBefore('#').substringBefore('?').trimEnd('/')
+        val poShemi = brez.substringAfter("://", brez)
+        val gostitelj = poShemi.substringBefore('/').substringAfterLast('@')
+        val zadnji = if ('/' in poShemi) poShemi.substringAfterLast('/') else ""
+        return zadnji.takeIf { '.' in it } ?: gostitelj
+    }
+
     /** Naloga 93: odlocitev ob kliku kartice kanala - [prva] razlicica, [dodatki] (prva je ta, ki jo razresimo), [rezerva] iz seznama IPTV. */
     data class KlikKanala(val prva: Int, val dodatki: List<Int>, val rezerva: Int?)
 
