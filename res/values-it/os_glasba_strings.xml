@@ -358,4 +358,9 @@
     <string name="os_tv_brez_zaklenjenih">Nascondi i canali bloccati</string>
     <string name="os_tv_pokazi_zaklenjene">Mostra i canali bloccati</string>
     <string name="os_mediji_dvojnik_dodatka">%1$s è aggiunto due volte (indirizzo vecchio e nuovo). Rimuovere l’indirizzo vecchio?</string>
+    <!-- Naloga 80: seznam IPTV v Mojih virih. -->
+    <plurals name="os_iptv_kanalov">
+        <item quantity="one">%1$d canale</item>
+        <item quantity="other">%1$d canali</item>
+    </plurals>
 </resources>

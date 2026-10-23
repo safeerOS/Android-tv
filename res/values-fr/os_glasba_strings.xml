@@ -358,4 +358,9 @@
     <string name="os_tv_brez_zaklenjenih">Masquer les chaînes verrouillées</string>
     <string name="os_tv_pokazi_zaklenjene">Afficher les chaînes verrouillées</string>
     <string name="os_mediji_dvojnik_dodatka">%1$s est ajoutée deux fois (ancienne et nouvelle adresse). Supprimer l’ancienne adresse ?</string>
+    <!-- Naloga 80: seznam IPTV v Mojih virih. -->
+    <plurals name="os_iptv_kanalov">
+        <item quantity="one">%1$d chaîne</item>
+        <item quantity="other">%1$d chaînes</item>
+    </plurals>
 </resources>

@@ -357,4 +357,9 @@
     <string name="os_tv_brez_zaklenjenih">Hide locked channels</string>
     <string name="os_tv_pokazi_zaklenjene">Show locked channels</string>
     <string name="os_mediji_dvojnik_dodatka">%1$s is added twice (an old and a new address). Remove the old address?</string>
+    <!-- Naloga 80: seznam IPTV v Mojih virih. -->
+    <plurals name="os_iptv_kanalov">
+        <item quantity="one">%1$d channel</item>
+        <item quantity="other">%1$d channels</item>
+    </plurals>
 </resources>

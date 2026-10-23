@@ -208,6 +208,26 @@ object KanaliPravila {
     private val REGIJA_BALKAN = setOf("SI", "HR", "RS", "BA", "ME", "MK", "XK")
     private val BALKAN = Regex("(^| )(balkan|balkans|ex yu|exyu|yu|yugoslavia|jugoslavija)( |$)")
 
+    private val RX_KODA_DRZAVE = Regex("^[a-z]{2}( tv)?$")
+
+    /**
+     * Naloga 80 (lastnik: »Live TV pri All languages kaze le 2 vrstici«): vrstni red virov mreze brez izbire - katalogi
+     * kategorij (General, News, Entertainment ...) pred drzavnimi (»Slovenia«, »KR Tv«), nato ostali (»All«, jeziki).
+     * [oznaka] = razlikovalni del imena ([oznakaKataloga]).
+     */
+    fun rangVira(oznaka: String): Int {
+        val c = cista(oznaka)
+        return when {
+            kategorija(oznaka) != null && kategorija(oznaka) != "ostalo" -> 0
+            drzava(oznaka) != null || RX_KODA_DRZAVE.matches(c) -> 1
+            else -> 2
+        }
+    }
+
+    /** Viri [viri] po [rangVira] (znotraj ranga v prvotnem vrstnem redu). */
+    fun razvrstiVire(viri: List<Vir>, katalogi: List<Katalog>): List<Vir> =
+        viri.sortedBy { rangVira(oznakaKataloga(katalogi[it.katalog].dodatek, katalogi[it.katalog].ime)) }
+
     /** Drzava kataloga po imenu (»Slovenia«, »Slovenija TV«) ali null. */
     fun drzava(oznaka: String): String? = cista(oznaka).let { c -> if (c.isEmpty()) null else DRZAVE.firstOrNull { it.first.containsMatchIn(c) }?.second }
 

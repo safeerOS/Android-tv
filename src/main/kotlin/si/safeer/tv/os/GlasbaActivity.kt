@@ -539,7 +539,7 @@ class GlasbaActivity : OsActivity() {
         if (Razpolozljivost.obSpremembi === obRazpolozljivosti) Razpolozljivost.obSpremembi = null
         if (PregledKanalov.obSpremembi === obPregleduKanalov) PregledKanalov.obSpremembi = null
         // Naloga 75: Safeer gre v ozadje - pregled kanalov dodatkov, ki je na vrsti (najvec enkrat na dan, ne med predvajanjem).
-        if (!isFinishing) PregledKanalov.obcasno(applicationContext, stremioNaslovi())
+        if (!isFinishing) PregledKanalov.obcasno(applicationContext, stremioNaslovi() + seznamiTv())
         vOspredju = false
         glavna.removeCallbacks(tik)
         super.onStop()
@@ -554,6 +554,7 @@ class GlasbaActivity : OsActivity() {
         preverjanje.shutdownNow()
         preverjanjeEpizod.shutdownNow()
         preverjanjeKanalov.shutdownNow()
+        semeDelavec.shutdownNow()
         kanaliDelavec.shutdownNow()
         glavna.removeCallbacks(umiri)
         tvIkone.clear()
@@ -3052,7 +3053,16 @@ class GlasbaActivity : OsActivity() {
         var vedno: Set<String> = emptySet()
         /** Dopolnitev caka, da se prvo risanje te mreze konca ([narisiKanale]). */
         var cakaNaRisanje = false
-        val seKaj: Boolean get() = glavni.any { !it.konec }
+        val seKaj: Boolean get() = glavni.any { !it.konec } || rezerva.isNotEmpty() || seznami.any { !it.konec }
+        /** Naloga 80: viri brez izbire, ki se niso v [glavni] - samodejno dopolnijo mrezo, ko so glavni izcrpani. */
+        val rezerva = ArrayList<VirKanalov>()
+        /** Naloga 80: seznami IPTV te mreze (domaci in ostali). */
+        val seznami = ArrayList<IptvSeznami.Vir>()
+        /** Naloga 80 (53b): meritev - kdaj je bila mreza odprta, ali je prvi izris ze zapisan in od kod je bil. */
+        val odprtOb = android.os.SystemClock.uptimeMillis()
+        var izmerjeno = false
+        @Volatile var izvor = "sveze"
+        @Volatile var seme = false
         val kljuc: String get() = "$zvrst|$jezik"
         /** Naloga 73: mreza ni vec odprta (drug razdelek, druga izbira) - njene naloge nehajo in se ne zacnejo vec. */
         @Volatile var preklicana = false
@@ -3080,7 +3090,7 @@ class GlasbaActivity : OsActivity() {
         val m = MrezaKanalov(zvrst, jezik)
         mrezaKanalov = m
         // Nic cakanja: zadnja znana mreza te izbire je na zaslonu takoj; sveza jo zamenja le, ce je drugacna.
-        KANALI_MREZE[m.kljuc]?.let { (d, k) -> m.domaci += d; m.kanali += k; m.videni += (d + k).map { it.id } }
+        KANALI_MREZE[m.kljuc]?.let { (d, k) -> m.domaci += d; m.kanali += k; m.videni += (d + k).map { it.id }; m.izvor = "pomnilnik" }
         // Vrstni red, kot ga je uporabnik pri tej izbiri nazadnje videl: ob vrnitvi so kanali na istih mestih.
         KANALI_RED["${m.kljuc}|${razvrstitev(TV_V_ZIVO)}"]?.let { m.narisani = it }
         drsnik.scrollTo(0, 0)
@@ -3093,7 +3103,52 @@ class GlasbaActivity : OsActivity() {
                 if (mrezaKanalov === m && !isFinishing) { m.podpis = ""; narisiKanale(m) }
             }
         })
+        // Naloga 80 (53b): kanali z diska po zagonu na zaslonu v < 1 s - na lastni niti, ne za manifesti in zasebnimi kategorijami
+        // ([delavec] je lahko zaseden z dolgimi pregledi).
+        if (m.kanali.isEmpty() && m.domaci.isEmpty()) try { semeDelavec.execute { naloziSeme(m) } } catch (_: java.util.concurrent.RejectedExecutionException) { }
         try { delavec.execute { naloziKanale(m) } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
+    /** Naloga 80: kratka opravila zaslona, ki ne smejo cakati v vrsti za dolgimi (seme mreze kanalov z diska). */
+    private val semeDelavec = Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-seme").apply { isDaemon = true } }
+
+    private fun kljucSemenaKanalov(m: MrezaKanalov) = "kanali|${m.kljuc}|${resources.configuration.locales[0].language}"
+
+    /** Naloga 80: viri SEZNAM, ki so vidni v TV v zivo; najprej seznami drzave naprave ali jezika vmesnika (»si« pred »eng«). */
+    private fun seznamiTv(): List<String> {
+        val loc = resources.configuration.locales[0]
+        return MedijskiViri.vsi(this).filter { it.jeSeznam && jeVirViden(TV_V_ZIVO, kljucVira(it)) }.map { it.naslov }
+            .sortedBy { n -> val (d, j) = IptvPravila.izNaslovaSeznama(n); if (d.equals(loc.country, true) || j.equals(loc.language, true)) 0 else 1 }
+    }
+
+    /**
+     * Naloga 80 (53b, lastnik: »naj se Live TV nalozi hitro kot filmi«): zadnja znana mreza te izbire z diska (najvec
+     * [KANALI_SEME_MS] stara) - zasebne kategorije z diska veljajo ([ZasebniKanali]), manifestov ne cakamo. Sveza jo zamenja,
+     * ko odgovorijo vsi viri (stabilen red). Kanalov dodatka ali seznama, ki ga uporabnik nima vec, ne vracamo.
+     */
+    private fun naloziSeme(m: MrezaKanalov) {
+        if (mrezaKanalov !== m || m.preklicana) return
+        ZasebniKanali.nalozi(this)
+        val dodatki = stremioNaslovi()
+        val seznami = seznamiTv().toSet()
+        if (dodatki.isEmpty() && seznami.isEmpty()) return
+        val shranjeno = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljucSemenaKanalov(m)) } catch (_: Exception) { null } ?: return
+        if (System.currentTimeMillis() - shranjeno.first !in 0 until KANALI_SEME_MS) return
+        fun del(ime: String) = shranjeno.second.firstOrNull { it.first == ime }?.third.orEmpty()
+            .filter { !Stremio.brezDodatka(it, dodatki) && (!IptvSeznami.jeKanal(it) || it.streznik in seznami) }
+        val d = del("domaci")
+        val k = del("kanali")
+        if (d.isEmpty() && k.isEmpty()) return
+        m.seme = true
+        glavna.post {
+            if (isFinishing || mrezaKanalov !== m || m.kanali.isNotEmpty() || m.domaci.isNotEmpty()) return@post
+            // Skozi isto sito kot svezi ([dodajKanale]): zasebne kategorije, ce so znane (tudi z diska, naloga 76).
+            dodajKanale(m, d, m.domaci); dodajKanale(m, k, m.kanali)
+            KANALI_MREZE[m.kljuc] = m.domaci.toList() to m.kanali.toList()
+            m.izvor = "disk"
+            dnevnikMreze { "kanali: z diska domaci=${m.domaci.size}, kanali=${m.kanali.size}" }
+            narisiKanale(m)
+        }
     }
 
     /** Naslednja stran vira (klic iz ozadja). Vir je pri koncu, ko stran ni polna. */
@@ -3265,29 +3320,22 @@ class GlasbaActivity : OsActivity() {
         // Naloga 76: zasebne kategorije z diska, preden pride na zaslon karkoli (tudi seme spodaj gre skozi [dodajKanale]).
         ZasebniKanali.nalozi(this)
         ZasebniKanali.obdrzi(this, dodatki.map { Stremio.osnova(it) })
-        // Po zagonu aplikacije: zadnja znana mreza te izbire z diska je na zaslonu takoj (najvec [KANALI_SEME_MS] stara),
-        // sveza jo zamenja, ko odgovorijo vsi viri. Kanalov dodatka, ki ga uporabnik nima vec, ne vracamo.
-        val kljucSemena = "kanali|${m.kljuc}|${resources.configuration.locales[0].language}"
-        var seme = false
-        if (m.kanali.isEmpty() && m.domaci.isEmpty() && dodatki.isNotEmpty()) {
-            val shranjeno = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljucSemena) } catch (_: Exception) { null }
-            if (shranjeno != null && System.currentTimeMillis() - shranjeno.first in 0 until KANALI_SEME_MS) {
-                fun del(ime: String) = shranjeno.second.firstOrNull { it.first == ime }?.third.orEmpty().filter { !Stremio.brezDodatka(it, dodatki) }
-                val d = del("domaci")
-                val k = del("kanali")
-                if (d.isNotEmpty() || k.isNotEmpty()) {
-                    seme = true
-                    glavna.post {
-                        if (isFinishing || mrezaKanalov !== m || m.kanali.isNotEmpty() || m.domaci.isNotEmpty()) return@post
-                        // Skozi isto sito kot svezi ([dodajKanale]): zasebne kategorije, ce jih ta zagon ze pozna.
-                        dodajKanale(m, d, m.domaci); dodajKanale(m, k, m.kanali)
-                        KANALI_MREZE[m.kljuc] = m.domaci.toList() to m.kanali.toList()
-                        dnevnikMreze { "kanali: z diska domaci=${m.domaci.size}, kanali=${m.kanali.size}" }
-                        narisiKanale(m)
-                    }
-                }
+        // Zadnja znana mreza z diska je ze na poti ([naloziSeme], lastna nit); tu samo kljuc za zapis svezih kanalov.
+        val kljucSemena = kljucSemenaKanalov(m)
+        // Naloga 80: seznami IPTV - prva stran z diska (prenos, ce ga se ni; zastarel se osvezi v ozadju), domaci najprej.
+        val jezikVmesnika = resources.configuration.locales[0].language
+        val drzavaVmesnika = resources.configuration.locales[0].country
+        val app = applicationContext
+        val seznamiTv = seznamiTv()
+        val iptvPrva = if (seznamiTv.isEmpty()) null else kanaliDelavec.submit<Triple<List<IptvSeznami.Vir>, List<Jamendo.Skladba>, List<Jamendo.Skladba>>?> {
+            val viri = seznamiTv.flatMap { n ->
+                if (m.preklicana) return@flatMap emptyList<IptvSeznami.Vir>()
+                IptvSeznami.pripravi(app, n)
+                listOf(IptvSeznami.Vir(n, true, m.zvrst, m.jezik), IptvSeznami.Vir(n, false, m.zvrst, m.jezik))
             }
-        }
+            Triple(viri, viri.filter { it.domaci }.flatMap { IptvSeznami.naslednja(app, it, drzavaVmesnika, jezikVmesnika, OKNO_KANALOV) },
+                viri.filter { !it.domaci }.flatMap { IptvSeznami.naslednja(app, it, drzavaVmesnika, jezikVmesnika, OKNO_KANALOV) })
+        }.also { m.naloge += it }
         // Manifesti vseh dodatkov hkrati (zaporedno je prvo odprtje po zagonu trajalo po sekundo na dodatek).
         dodatki.map { n -> iskanjeDelavec.submit(Runnable { try { Stremio.manifest(n) } catch (_: Exception) { } }) }
             .forEach { try { it.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { } }
@@ -3306,8 +3354,13 @@ class GlasbaActivity : OsActivity() {
         // Brez izbire: najprej domaci kanali - katalogi drzave naprave, jezika vmesnika in regije (naloga 73, KanaliPravila.domaciViri).
         val jezikNaprave = resources.configuration.locales[0].language
         val drzavaNaprave = resources.configuration.locales[0].country
-        val domaciViri = if (m.zvrst.isEmpty() && m.jezik.isEmpty()) KanaliPravila.domaciViri(opisi, filtri, jezikNaprave, drzavaNaprave).map { vir(it) } else emptyList()
-        val glavni = izbrani.glavni.take(12).map { vir(it) }
+        // Naloga 80 (53c): dodatki brez prostih tokov (naloga 79) ne zasedejo mest virov - mreza bi imela le nekaj vrst.
+        fun delujoc(v: KanaliPravila.Vir) = tvZaklenjeni || !Stremio.brezProstihTokov(katalogi[v.katalog].dodatek)
+        val domaciViri = if (m.zvrst.isEmpty() && m.jezik.isEmpty()) KanaliPravila.domaciViri(opisi, filtri, jezikNaprave, drzavaNaprave).filter { delujoc(it) }.map { vir(it) } else emptyList()
+        // Brez izbire: katalogi kategorij (General, News ...) pred drzavnimi, nato ostali; ostali viri so rezerva za dopolnjevanje.
+        val vsiGlavni = (if (m.zvrst.isEmpty() && m.jezik.isEmpty()) KanaliPravila.razvrstiVire(izbrani.glavni, opisi) else izbrani.glavni).filter { delujoc(it) }
+        val glavni = vsiGlavni.take(12).map { vir(it) }
+        val rezerva = vsiGlavni.drop(12).take(48).map { vir(it) }
         val domaciStrani = domaciViri.map { v -> kanaliDelavec.submit<List<Jamendo.Skladba>> { if (m.preklicana) emptyList() else stranKanalov(v) }.also { m.naloge += it } }
         // Viri odgovorijo razlicno hitro (izmerjeno 5. 10. 2026: eden v 0,3 s, drugi sploh ne - 15 s do casovne omejitve).
         // Mreza zato ne caka na vse: kanali so na zaslonu s prvim odgovorom, pocasen vir se doda, ko odgovori.
@@ -3356,11 +3409,13 @@ class GlasbaActivity : OsActivity() {
         }
         val smejo = dovoljeni?.let { pocakaj(it, emptySet(), 90) }
         val domaci = prepleti(domaciStrani.map { pocakaj(it, emptyList(), 6) })
+        // Naloga 80: prvi prenos seznama (eng: ~1 MB) pocakamo najvec 15 s; potem so na disku in to je takoj.
+        val iptv = iptvPrva?.let { pocakaj(it, null, 15) }
         val izpadDomacih = domaciViri.any { it.izpad } || domaciStrani.any { !it.isDone }
         val izpadPreseka = presekViri.any { it.izpad }
         // Mreza iz predpomnilnika je ze na zaslonu: zamenjamo jo enkrat, ko odgovorijo vsi (delni odgovor bi kanale
         // pocasnega vira skril in cez nekaj sekund spet pokazal).
-        val sproti = !seme && m.kanali.isEmpty()
+        val sproti = !m.seme && m.kanali.isEmpty()
         val zacetek = android.os.SystemClock.uptimeMillis()
         var ostane = glavni.size
         var prvic = true
@@ -3402,10 +3457,15 @@ class GlasbaActivity : OsActivity() {
                     // Vir zvrsti ni odgovoril: kar je bilo nazadnje v tej izbiri, ostane dovoljeno.
                     if (izpadPreseka) m.dovoljeni += (prejDomaci + prejKanali).map { it.id }
                     m.domaci.clear(); m.kanali.clear(); m.videni.clear(); m.prejeti.clear()
+                    m.rezerva.clear(); m.rezerva += rezerva
+                    // Naloga 80: domaci kanali seznamov IPTV (drzava naprave, jezik vmesnika) so prvi, nato domaci dodatkov.
+                    m.seznami.clear(); iptv?.first?.let { m.seznami += it }
+                    iptv?.second?.let { dodajKanale(m, it, m.domaci) }
                     dodajKanale(m, domaci.filter { sme(it) }, m.domaci)
                 }
                 stran.forEach { m.prejeti += it.id }
                 dodajKanale(m, stran.filter { sme(it) }, m.kanali)
+                if (jePrvic) iptv?.third?.let { dodajKanale(m, it, m.kanali) }
                 val ostalih = dodajKanale(m, prejDomaci, m.domaci) + dodajKanale(m, prejKanali, m.kanali)
                 if (ostalih > 0) dnevnikMreze { "kanali: vir ni odgovoril, od prej ostane $ostalih kanalov" }
                 if (zadnjic) {
@@ -3435,7 +3495,8 @@ class GlasbaActivity : OsActivity() {
         for (k in novi) {
             // Naloga 73: meja kanalov v pomnilniku mreze (ostalo z »Naloži več« ni vec potrebno - mreza jih ze ima dovolj).
             if (m.domaci.size + m.kanali.size >= KanaliPravila.NAJVEC_KANALOV_V_MREZI) break
-            if (ZasebniKanali.jeZaseben(k.id) || (m.presek && k.id !in m.dovoljeni) || !m.videni.add(k.id)) continue
+            // Naloga 80: kanal seznama IPTV je ze izbran po zvrsti in jeziku (presek velja za kataloge dodatkov).
+            if (ZasebniKanali.jeZaseben(k.id) || (m.presek && !IptvSeznami.jeKanal(k) && k.id !in m.dovoljeni) || !m.videni.add(k.id)) continue
             cilj += k; dodanih++
         }
         return dodanih
@@ -3447,15 +3508,22 @@ class GlasbaActivity : OsActivity() {
         m.zadnjicVec = android.os.SystemClock.uptimeMillis()
         if (!samodejno) m.samodejno = 0
         stanje.text = getString(R.string.os_glasba_nalagam)
+        // Naloga 80 (53c): glavni viri so izcrpani - naslednji iz rezerve (po 4), da se okno napolni brez cakanja uporabnika.
+        if (m.glavni.none { !it.konec } && m.rezerva.isNotEmpty()) { val n = m.rezerva.take(4); m.rezerva.subList(0, n.size).clear(); m.glavni += n }
+        val app = applicationContext
+        val loc = resources.configuration.locales[0]
         try { delavec.execute {
             val nove = prepleti(m.glavni.filter { !it.konec }.map { v -> kanaliDelavec.submit<List<Jamendo.Skladba>> { if (m.preklicana) emptyList() else stranKanalov(v) }.also { m.naloge += it } }
                 .map { f -> try { f.get(25, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } })
+            // Naloga 80: naslednja stran seznamov IPTV z diska (domaci k domacim).
+            val seznamDomaci = m.seznami.filter { it.domaci && !it.konec }.flatMap { IptvSeznami.naslednja(app, it, loc.country, loc.language, OKNO_KANALOV) }
+            val seznamOstali = m.seznami.filter { !it.domaci && !it.konec }.flatMap { IptvSeznami.naslednja(app, it, loc.country, loc.language, OKNO_KANALOV) }
             glavna.post {
                 m.nalagam = false
                 if (isFinishing || mrezaKanalov !== m) return@post
                 // Stran brez novih kanalov: katalog strani ne pozna (vraca isto) - konec, gumb izgine.
                 if (nove.count { m.prejeti.add(it.id) } == 0) m.glavni.forEach { it.konec = true }
-                val dodanih = dodajKanale(m, nove, m.kanali)
+                val dodanih = dodajKanale(m, nove, m.kanali) + dodajKanale(m, seznamDomaci, m.domaci) + dodajKanale(m, seznamOstali, m.kanali)
                 m.zadnjicVec = android.os.SystemClock.uptimeMillis()
                 // Mreza se narise znova: ostanemo tam, kjer smo bili, ne na vrhu.
                 val y = drsnik.scrollY
@@ -3579,7 +3647,7 @@ class GlasbaActivity : OsActivity() {
         val izbrani = KanaliPravila.zaPreverjanje(nm.kljuci, vrste, nm.naVrsto, prostih) { id ->
             val sk = m.razlicice[id]?.firstOrNull()
             val kk = OsPravila.kljucKanala(id)
-            sk != null && id !in m.vedno && Stremio.jeEnota(sk) && Stremio.dajeLastneTokove(sk) && kk !in m.neznani &&
+            sk != null && id !in m.vedno && ((Stremio.jeEnota(sk) && Stremio.dajeLastneTokove(sk)) || IptvSeznami.jeKanal(sk)) && kk !in m.neznani &&
                 kk !in kanaliVPreverjanju && MrtviKanali.stanje(this, id) == null
         }
         if (izbrani.isNotEmpty()) dnevnikMreze { "kanali: preverjam vidne ${izbrani.size} (vrste ${vrste.first}..${vrste.last}, v teku ${kanaliVPreverjanju.size}, proracun ${m.proracun})" }
@@ -3624,7 +3692,8 @@ class GlasbaActivity : OsActivity() {
         for (sk in urejeni) {
             // Kanal iz dodatka, ki je samo katalog (tok da drug dodatek), pri njegovem dodatku ni preverljiv: v mrezi je
             // brez preverjanja, kot doslej.
-            val preverljiv = preverjam && Stremio.jeEnota(sk) && sk.id !in vednoId && Stremio.dajeLastneTokove(sk)
+            // Naloga 80: kanal seznama IPTV se preverja enako (sonda toka, brez dodatka).
+            val preverljiv = preverjam && sk.id !in vednoId && ((Stremio.jeEnota(sk) && Stremio.dajeLastneTokove(sk)) || IptvSeznami.jeKanal(sk))
             // Vgrajeni in priljubljeni kanali so vedno v mrezi - tudi, ko je okno kanalov dodatkov polno.
             // Naloga 79: dodatek daje tokove samo z narocnino - njegovih kanalov ne pokazemo vnaprej (prej so se pokazali in
             // po preverjanju drug za drugim izginili). Isti kanal iz drugega dodatka (po kljucu imena) je njegova kartica.
@@ -3648,6 +3717,11 @@ class GlasbaActivity : OsActivity() {
         val prikaz = if (razvrstitev(TV_V_ZIVO) == RAZVRSTI_IME_AZ) vsiPoVrsti
             else OsPravila.stabilenRed(m.narisani, vsiPoVrsti) { it.id }.let { s -> s.filter { it.id in vednoId } + s.filterNot { it.id in vednoId } }
         m.naprej = naprej
+        // Naloga 80 (53b): meritev - cas od odprtja mreze do prvega izrisa kanalov dodatkov ali seznamov (logcat SafeerOsMedia).
+        if (!m.izmerjeno && prikaz.any { Stremio.jeEnota(it) || IptvSeznami.jeKanal(it) }) {
+            m.izmerjeno = true
+            android.util.Log.i("SafeerOsMedia", "kanali: prvi izris ${prikaz.size} kanalov po ${android.os.SystemClock.uptimeMillis() - m.odprtOb} ms od odprtja (${m.izvor})")
+        }
         dnevnikMreze { "kanali: vseh=${urejeni.size}, v mrezi=${prikaz.size}, iz dodatkov=$izDodatkov, naprej=${m.naprej}, " +
             "v teku=${kanaliVPreverjanju.size}, brez odgovora=${m.neznani.size}, proracun=${m.proracun}, " +
             "preverjam=$preverjam, nalagam=${m.nalagam}, se kaj=${m.seKaj}" }
@@ -3679,7 +3753,8 @@ class GlasbaActivity : OsActivity() {
         }
         var samNalagam = false
         // Vsi nalozeni kanali so razreseni, okno pa se ni polno: sami gremo po naslednjo stran (najvec trikrat na dejanje).
-        if (!m.naprej && !m.nalagam && m.seKaj && preverjam && izDodatkov < m.okno && m.samodejno < 3) {
+        // Naloga 80 (53c): dokler okno ni polno, dopolnjujemo iz naslednjih virov sami (do 8-krat na dejanje, prej 3).
+        if (!m.naprej && !m.nalagam && m.seKaj && preverjam && izDodatkov < m.okno && m.samodejno < (if (prikaz.size < m.okno) 8 else 3)) {
             m.samodejno++
             samNalagam = true
             glavna.post { naloziVecKanalov(m, samodejno = true) }
@@ -4805,6 +4880,10 @@ class GlasbaActivity : OsActivity() {
                         // Naloga 75: napredek ali izid pregleda kanalov dodatka.
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
+                    // Naloga 80: seznam IPTV pove, koliko kanalov ima, in napredek pregleda mrtvih.
+                    v.jeSeznam && (IptvSeznami.podatki(this, v.naslov)?.kanalov ?: 0) > 0 -> v.naslov.removePrefix("https://").removePrefix("http://") +
+                        " · " + resources.getQuantityString(R.plurals.os_iptv_kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov) +
+                        (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
                 }, {
                     when {
@@ -5021,7 +5100,7 @@ class GlasbaActivity : OsActivity() {
             // Naloga 79b: zaklenjen dodatek - placilo je stvar uporabnika in dodatka; odpremo samo, ce uporabnik to izbere.
             (if (dodan.jeStremio && Stremio.povezavaOdklepa(dodan.naslov) != null) listOf(getString(R.string.os_mediji_odkleni) to {
                 odkleniPriDodatku(dodan.naslov) }) else emptyList()) +
-            (if (dodan.jeStremio) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
+            (if (dodan.jeStremio || (dodan.jeSeznam && (IptvSeznami.podatki(this, dodan.naslov)?.kanalov ?: 0) > 0)) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
                 val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true)
                 Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
             }) else emptyList()) +
@@ -5117,7 +5196,7 @@ class GlasbaActivity : OsActivity() {
             if (stalna) zap!!.kartice[sk.id]?.let { (prej, k) -> if (prej == urejene) { zdaj!![sk.id] = prej to k; zap.ponovljenih++; return@map k } }
             val tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty()
             // Kanal v zivo: uradni (tv:) ali iz dodatka Stremio tipa "tv" (stremio|tv|...): oznaka V ZIVO in ikona TV.
-            val vZivo = tvId.isNotBlank() || Stremio.jeVZivo(sk)
+            val vZivo = tvId.isNotBlank() || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)
             // Video z naprave: napredek ali trajanje (kot VLC), spletni: letnica.
             val podnaslov = if (sk.id.startsWith("krajevno:") || sk.id.startsWith(PREDPONA_PC_PRENOSA))
                 napredekKrajevnih[sk.id]?.let { n -> "${cas(n.polozaj)} / ${cas(n.trajanje)}" } ?: sk.izvajalec

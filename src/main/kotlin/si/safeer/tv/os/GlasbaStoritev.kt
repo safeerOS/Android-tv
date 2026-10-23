@@ -245,7 +245,7 @@ class GlasbaStoritev : Service() {
                     // ([MrtviKanali]); ce se sploh ni zacel, predvajanje zapremo - prej je ostal crn predvajalnik brez
                     // razlage, kanal pa v mali vrstici kot »zdaj se predvaja«.
                     val http = httpKoda(error)
-                    val vZivo = enota != null && (enota.radio || enota.id.startsWith("tv:") || Stremio.jeVZivo(enota))
+                    val vZivo = enota != null && (enota.radio || enota.id.startsWith("tv:") || Stremio.jeVZivo(enota) || IptvSeznami.jeKanal(enota))
                     // Te napake resuje zaslon predvajanja sam (stran pod nasim upravljanjem, sprotna pretvorba v Linku).
                     val resujeZaslon = enota != null && (SpletniVir.jeEnota(enota) || SprotnaPomoc.jeSprotniTok(enota) || SprotnaPomoc.jeNapakaDekodiranja(error))
                     // Streznika toka ni v imeniku (DNS): kanal je mrtev sele, ko je imenik sveze odgovoril, da imena ni, in
@@ -418,7 +418,7 @@ class GlasbaStoritev : Service() {
         predvajalnik = p
         vrsta = seznam
         zacelo = false; koncnaNapaka = null; zapisanaNedavno = ""
-        enaVZivo = s == null && seznam.size == 1 && seznam[0].let { it.radio || it.id.startsWith("tv:") || Stremio.jeVZivo(it) }
+        enaVZivo = s == null && seznam.size == 1 && seznam[0].let { it.radio || it.id.startsWith("tv:") || Stremio.jeVZivo(it) || IptvSeznami.jeKanal(it) }
         streznikTrenutni = s
         // Kanal ali postaja v zivo: streznik, ki se v 5 s ne oglasi, ne dela (privzeti rok 8 s je za datoteke).
         val rokPovezave = if (enaVZivo) OsPravila.ROK_POVEZAVE_V_ZIVO_MS else 0

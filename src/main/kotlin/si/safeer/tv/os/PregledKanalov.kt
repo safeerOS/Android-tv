@@ -45,6 +45,8 @@ object PregledKanalov {
     /** Po pomnilniskem pritisku toliko casa ne zacnemo znova. */
     private const val PO_PRITISKU_MS = 30 * 60_000L
     private const val OBVESTI_NAJVEC_MS = 5_000L
+    /** Naloga 80: seznam IPTV nima dodatkovega proracuna - najvec toliko sond na en pregled (naslednji pregled cez uro nadaljuje). */
+    private const val SEZNAM_NA_POGLED = 300
 
     private fun nitVOzadju(ime: String) = ThreadFactory { r ->
         Thread {
@@ -116,6 +118,17 @@ object PregledKanalov {
      */
     fun preveri(c: Context, sk: Jamendo.Skladba): Pair<Boolean?, Boolean> {
         val app = c.applicationContext
+        // Naloga 80: kanal seznama IPTV nima dodatka - vprasamo samo streznik toka.
+        if (IptvSeznami.jeKanal(sk)) {
+            val izidS = SondaToka.preveri(sk.zvok, emptyMap(), SpletniVir.agent(app))
+            val k = when (izidS) {
+                OsPravila.IzidSonde.ZIV -> { MrtviKanali.zapomniZivega(app, sk.id); true }
+                OsPravila.IzidSonde.MRTEV -> { MrtviKanali.zapomni(app, sk.id); false }
+                OsPravila.IzidSonde.NEGOTOVO -> if (MrtviKanali.zapomniNegotovega(app, sk.id)) false else null
+                OsPravila.IzidSonde.NEZNANO -> null
+            }
+            return k to true
+        }
         val agent = SpletniVir.agent(app)
         var dodatekOdgovoril = false
         var negotovo = false
@@ -168,9 +181,11 @@ object PregledKanalov {
     private fun prekinitev(app: Context, naslov: String): String {
         if (ustavi.isNotEmpty()) return ustavi
         if (GlasbaStoritev.igra()) return "predvajanje"
-        if (MedijskiViri.vsi(app).none { it.jeStremio && it.naslov == naslov }) return "dodatek odstranjen"
+        val vir = MedijskiViri.vsi(app).firstOrNull { (it.jeStremio || it.jeSeznam) && it.naslov == naslov } ?: return "dodatek odstranjen"
         val omrezje = app.getSystemService(android.net.ConnectivityManager::class.java)
         if (omrezje == null || omrezje.activeNetwork == null || omrezje.isActiveNetworkMetered) return "omrezje"
+        // Naloga 80: seznam IPTV - brez dodatka; proracun je lasten ([SEZNAM_NA_POGLED] preverb na pregled).
+        if (vir.jeSeznam) return ""
         // Naloga 79: dodatek daje samo obvestila o narocnini - proracuna ne trosimo na vse njegove kanale.
         if (Stremio.brezProstihTokov(naslov)) return "tokovi samo z narocnino"
         if (Stremio.vPremoru(naslov)) return "dodatek v premoru"
@@ -188,6 +203,27 @@ object PregledKanalov {
         var brezOdgovora = 0
         val videni = HashSet<String>()
         try {
+            // Naloga 80: seznam IPTV (vir SEZNAM) - kanali iz datoteke na disku, samo sonda toka.
+            if (MedijskiViri.vsi(app).any { it.jeSeznam && it.naslov == naslov }) {
+                IptvSeznami.pripravi(app, naslov)
+                var poslanih = 0
+                IptvSeznami.zaVsakega(app, naslov) { sk ->
+                    zakaj = prekinitev(app, naslov)
+                    if (zakaj.isNotEmpty()) return@zaVsakega false
+                    n = n.copy(vseh = n.vseh + 1)
+                    val znan = if (rocno) null else MrtviKanali.stanje(app, sk.id)
+                    val izid = if (znan != null) znan else {
+                        if (poslanih++ >= SEZNAM_NA_POGLED) { zakaj = "urni proracun"; return@zaVsakega false }
+                        val f = preverjalci.submit<Pair<Boolean?, Boolean>> { preveri(app, sk) }
+                        try { f.get(30, TimeUnit.SECONDS).first } catch (_: Exception) { f.cancel(true); null }
+                    }
+                    n = n.copy(preverjenih = n.preverjenih + 1, mrtvih = n.mrtvih + if (izid == false) 1 else 0)
+                    napredek[naslov] = n
+                    obvesti(false)
+                    true
+                }
+                return
+            }
             try { Stremio.manifest(naslov) } catch (_: Exception) { }
             val katalogi = try { Stremio.katalogiRazreda(listOf(naslov), Stremio.TV) } catch (_: Exception) { emptyList() }
             if (katalogi.isEmpty()) { zakaj = "brez kanalov"; return }

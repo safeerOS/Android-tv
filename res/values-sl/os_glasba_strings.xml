@@ -357,4 +357,11 @@
     <string name="os_tv_brez_zaklenjenih">Brez zaklenjenih kanalov</string>
     <string name="os_tv_pokazi_zaklenjene">Pokaži zaklenjene kanale</string>
     <string name="os_mediji_dvojnik_dodatka">%1$s je dodan dvakrat (star in nov naslov). Odstranim stari naslov?</string>
+    <!-- Naloga 80: seznam IPTV v Mojih virih. -->
+    <plurals name="os_iptv_kanalov">
+        <item quantity="one">%1$d kanal</item>
+        <item quantity="two">%1$d kanala</item>
+        <item quantity="few">%1$d kanali</item>
+        <item quantity="other">%1$d kanalov</item>
+    </plurals>
 </resources>

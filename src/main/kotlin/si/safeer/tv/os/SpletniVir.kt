@@ -159,7 +159,7 @@ object SpletniVir {
         if (a.povezava.isBlank() || b.povezava.isBlank()) a.id == b.id else a.povezava == b.povezava
 
     /** Kanal v zivo: vgrajen (tv:) ali vnos dodatka vrste TV. */
-    private fun jeKanal(s: Jamendo.Skladba) = s.id.startsWith("tv:") || Stremio.jeVZivo(s)
+    private fun jeKanal(s: Jamendo.Skladba) = s.id.startsWith("tv:") || Stremio.jeVZivo(s) || IptvSeznami.jeKanal(s)      // naloga 80: tudi kanal seznama IPTV
     private val kljuciKanalov = android.util.LruCache<String, String>(2000)
     private fun kljucKanala(ime: String): String = kljuciKanalov.get(ime) ?: KanaliPravila.kljucImena(ime).also { kljuciKanalov.put(ime, it) }
 

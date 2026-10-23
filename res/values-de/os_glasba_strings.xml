@@ -358,4 +358,9 @@
     <string name="os_tv_brez_zaklenjenih">Gesperrte Sender ausblenden</string>
     <string name="os_tv_pokazi_zaklenjene">Gesperrte Sender anzeigen</string>
     <string name="os_mediji_dvojnik_dodatka">%1$s ist doppelt hinzugefügt (alte und neue Adresse). Alte Adresse entfernen?</string>
+    <!-- Naloga 80: seznam IPTV v Mojih virih. -->
+    <plurals name="os_iptv_kanalov">
+        <item quantity="one">%1$d Sender</item>
+        <item quantity="other">%1$d Sender</item>
+    </plurals>
 </resources>
