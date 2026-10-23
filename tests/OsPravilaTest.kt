@@ -943,6 +943,21 @@ private fun preizkusTv88() {
     preveriEnako("88: res prazno", OsPravila.OpisMreze.PRAZNO, OsPravila.opisPrazneMreze(false, false, false, false, false))
 }
 
+/** Naloga 89: posnetki uvozenih seznamov vnaprej - vrstni red in ponovni poskus. */
+private fun preizkusGlasbe89() {
+    println("\n== naloga 89: posnetki seznamov vnaprej ==")
+    val dan = 24 * 3_600_000L
+    preveriEnako("89: se nikoli ni odpovedalo - iscemo", true, OsPravila.poskusiZnovaIskanje(null, 10 * dan))
+    preveriEnako("89: odpovedalo pred 3 dnevi - ne", false, OsPravila.poskusiZnovaIskanje(7 * dan, 10 * dan))
+    preveriEnako("89: po 7 dneh znova", true, OsPravila.poskusiZnovaIskanje(3 * dan, 10 * dan))
+    preveriEnako("89: ura nazaj - znova", true, OsPravila.poskusiZnovaIskanje(11 * dan, 10 * dan))
+    val seznami = listOf(listOf("a1", "a2", "a3"), listOf("b1"), listOf("c1", "c2"))
+    preveriEnako("89: izmenicno po polozaju", listOf("a1", "b1", "c1", "a2", "c2", "a3"), OsPravila.vrstniRedIskanja(seznami, 10))
+    preveriEnako("89: najvec", listOf("a1", "b1", "c1", "a2"), OsPravila.vrstniRedIskanja(seznami, 4))
+    preveriEnako("89: ista skladba v dveh seznamih enkrat", listOf("x", "y"), OsPravila.vrstniRedIskanja(listOf(listOf("x", "y"), listOf("x")), 10))
+    preveriEnako("89: brez seznamov", emptyList<String>(), OsPravila.vrstniRedIskanja(emptyList(), 10))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
     preizkusHtmlImen()
@@ -987,6 +1002,7 @@ fun main() {
     preizkusRadia84()
     preizkusPregleda86()
     preizkusTv88()
+    preizkusGlasbe89()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }

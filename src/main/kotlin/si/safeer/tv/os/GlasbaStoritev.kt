@@ -150,6 +150,8 @@ class GlasbaStoritev : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // Naloga 89: predpomnilnik predvajanih skladb na USB (ce je v uporabi) - pripravi se v ozadju.
+        PredpomnilnikZvoka.uskladi(this)
         // Tovarna: rezervni dekoder in meritve (SafeerExoMer) kot drugje; zvok in izbira sledi ostaneta tu.
         val p = si.safeer.tv.predvajalnik.PredvajalnikTovarna.ustvari(this,
             si.safeer.tv.predvajalnik.PredvajalnikTovarna.Profil.GLASBA, izbiraSledi = IzbiraZvocneSledi(this))
@@ -454,8 +456,31 @@ class GlasbaStoritev : Service() {
                     .setSubtitleParserFactory(Podnapisi.Popravljalnik())
             }
         }
+        // Naloga 89: predvajane skladbe v predpomnilnik na USB (samo zvok, enodelni tok, ne v zivo, ne zasebno). Napake
+        // predpomnilnika (odklop USB) predvajalnik prezre in bere z omrezja.
+        val zvocni = if (s == null) PredpomnilnikZvoka.zdaj() else null
+        val predpomnjeneTovarne = HashMap<Map<String, String>, androidx.media3.exoplayer.source.MediaSource.Factory>()
+        fun vPredpomnilnik(sk: Jamendo.Skladba): Boolean = zvocni != null && PredpomnilnikPravila.smeVPredpomnilnikZvoka(
+            zvok = !sk.video || sk.id in zvocniTokovi,
+            vZivo = enaVZivo || sk.radio || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk),
+            http = sk.zvok.startsWith("https://") || sk.zvok.startsWith("http://"),
+            enodelni = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null }) == C.CONTENT_TYPE_OTHER,
+            zasebno = Stremio.jeZasebna(sk))
+        fun predpomnjenaTovarna(sk: Jamendo.Skladba): androidx.media3.exoplayer.source.MediaSource.Factory {
+            val glave = SpletniVir.glaveToka(sk.zvok)
+            return predpomnjeneTovarne.getOrPut(glave) {
+                androidx.media3.exoplayer.source.DefaultMediaSourceFactory(androidx.media3.datasource.cache.CacheDataSource.Factory()
+                    .setCache(zvocni!!)
+                    .setUpstreamDataSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, glave, rokPovezave)))
+                    .setFlags(androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR))
+                    .setLoadErrorHandlingPolicy(hitraNapaka).setSubtitleParserFactory(Podnapisi.Popravljalnik())
+            }
+        }
         p.setMediaSources(seznam.map { sk ->
-            (hlsTovarnaZa(sk) ?: tovarnaZa(sk)).createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
+            val pp = vPredpomnilnik(sk)
+            if (pp) PredpomnilnikZvoka.zapomniTok(PredpomnilnikPravila.kljucZvoka(sk.id), sk)
+            (if (pp) predpomnjenaTovarna(sk) else hlsTovarnaZa(sk) ?: tovarnaZa(sk)).createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
+                .apply { if (pp) setCustomCacheKey(PredpomnilnikPravila.kljucZvoka(sk.id)) }
                 .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }
                 .apply { if (sk.podnapisi.isNotEmpty()) setSubtitleConfigurations(Podnapisi.konfiguracije(this@GlasbaStoritev, sk.podnapisi)) }
                 .setMediaMetadata(M3Metadata.Builder().setTitle(sk.naslov).setArtist(sk.izvajalec).build())
@@ -717,6 +742,17 @@ class GlasbaStoritev : Service() {
     }
 
     /** Druga stopnja je varcni sistemski WebView; polni brskalnik se ustvari sele po njenem neuspehu. */
+    /**
+     * Naloga 89: tokovi (id), katerih izvirnik je zvok - posnetek YouTube iz seznama glasbe je po razresitvi »video«
+     * ([SpletniVir.razresenaSkladba]), v predpomnilnik zvoka pa sodi. Samo glavna nit; omejeno.
+     */
+    private val zvocniTokovi = LinkedHashSet<String>()
+
+    private fun zapomniZvocniTok(id: String) {
+        zvocniTokovi.remove(id); zvocniTokovi += id
+        while (zvocniTokovi.size > 200) zvocniTokovi.remove(zvocniTokovi.first())
+    }
+
     private fun zacniSplet(sk: Jamendo.Skladba, dovoliPrevzem: Boolean) {
         if (Zvocniki.aktivni != null) {
             // Stran igra na tej napravi: zacne sele, ko zvocnik potrdi Stop (ali po kratkem roku), da hip ne igrata oba.
@@ -727,6 +763,14 @@ class GlasbaStoritev : Service() {
         izbir++
         exo?.let { it.stop(); it.clearMediaItems() }
         koncajSplet()
+        // Naloga 89: cela skladba je v predpomnilniku na USB - igra naravnost iz njega, brez iskanja toka (LahkaStran) in
+        // brez omrezja. Samo zvok (glasba, skladbe seznamov).
+        if (!sk.video && !sk.radio) PredpomnilnikZvoka.celota(sk)?.let { tok ->
+            android.util.Log.i("SafeerOsMedia", "zvok: iz predpomnilnika na USB, brez iskanja toka")
+            zapomniZvocniTok(tok.id)
+            nalozi(listOf(tok), 0, null)
+            return
+        }
         if (rabiPolniPogon(sk)) { zacniPolniSplet(sk); return }
         lateinit var lahki: LahkaStran
         lahki = LahkaStran(this, sk,
@@ -735,6 +779,8 @@ class GlasbaStoritev : Service() {
                 if (spletni === lahki) {
                     spletni = null
                     android.util.Log.i("SafeerOsMedia", "stopnja=2 uspeh=Media3")
+                    // Naloga 89: izvirnik je zvok - tok gre v predpomnilnik zvoka (ce je USB v uporabi).
+                    if (!sk.video && !sk.radio) zapomniZvocniTok(tok.id)
                     nalozi(listOf(tok), 0, null)
                 }
             },

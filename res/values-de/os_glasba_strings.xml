@@ -385,4 +385,14 @@
     <!-- Naloga 88 -->
     <string name="os_media_kanal_ni_dosegljiv">%1$s ist derzeit nicht erreichbar.</string>
     <string name="os_media_glasba_samo_seznami">Deine Wiedergabelisten sind oben. Füge eine Quelle für mehr Musik hinzu.</string>
+    <!-- Naloga 89: besedila pesmi (LRCLIB, vir, ki ga doda uporabnik). -->
+    <string name="os_besedila_vir">Songtexte (LRCLIB)</string>
+    <string name="os_besedila_vir_opis">Im Player: Weitere Optionen → Songtext</string>
+    <string name="os_besedila_naslov">Songtext</string>
+    <string name="os_besedila_opis">Von LRCLIB, synchron zum Lied</string>
+    <string name="os_besedila_skrij">Songtext ausblenden</string>
+    <string name="os_besedila_iscem">Songtext wird gesucht …</string>
+    <string name="os_besedila_ni">Für dieses Lied gibt es keinen Songtext.</string>
+    <string name="os_besedila_napaka">Der Songtext kann gerade nicht geladen werden.</string>
+    <string name="os_besedila_instrumentalno">Instrumental – kein Songtext.</string>
 </resources>

@@ -29,6 +29,8 @@ object MedijskiViri {
         val jeDodatek get() = jeStremio
         /** Naloga 69: imenik radijskih postaj (Radio Browser, TuneIn), ki ga je uporabnik dodal sam. */
         val jeImenik get() = tip == IMENIK
+        /** Naloga 89: besedila pesmi (LRCLIB), vir, ki ga je uporabnik dodal sam. */
+        val jeBesedila get() = tip == BESEDILA
     }
 
     /** Dodatki, ki jih uporabnik vnese SAM (Stremio: naslov manifesta). Brez prilozenih. */
@@ -87,6 +89,16 @@ object MedijskiViri {
      * [VRSTE_ZA_USKLADITEV]): na drugi napravi ga uporabnik doda sam.
      */
     const val IMENIK = "imenik"
+
+    /**
+     * Naloga 89: besedila pesmi iz LRCLIB (lrclib.net) kot uporabnikov vir - brez njega Safeer besedil ne isce (naslov in
+     * izvajalec bi sla tujemu strezniku). Med napravami v Linku ne potuje (kot imenik postaj).
+     */
+    const val BESEDILA = "besedila"
+    const val NASLOV_LRCLIB = "https://lrclib.net"
+
+    /** Ali je uporabnik dodal vir besedil (brez omrezja; branje nastavitev). */
+    fun imaBesedila(ctx: Context): Boolean = rocni(ctx).any { it.tip == BESEDILA }
 
     /** Ali je uporabnik dodal imenik postaj [kateri] (brez omrezja). */
     fun imaImenik(ctx: Context, kateri: String): Boolean = rocni(ctx).any { it.tip == IMENIK && it.naslov == kateri }
@@ -506,6 +518,14 @@ object MedijskiViri {
      */
     fun dodaj(ctx: Context, vnos: String, ime: String? = null): Vir? {
         // Naloga 69: radio-browser.info / tunein.com je imenik postaj, ne stran ali tok - brez preverjanja naslova (zahteve).
+        // Naloga 89: lrclib.net je vir besedil pesmi, ne stran ali tok - brez preverjanja naslova (zahteve).
+        if (BesedilaPravila.jeVirLrclib(vnos)) {
+            rocni(ctx).firstOrNull { it.tip == BESEDILA }?.let { return it }
+            val v = Vir(BESEDILA, ime?.takeIf { it.isNotBlank() } ?: ctx.getString(si.safeer.tv.R.string.os_besedila_vir), NASLOV_LRCLIB)
+            shrani(ctx, rocni(ctx) + v)
+            android.util.Log.i("SafeerOsMedia", "dodan vir: besedila pesmi (LRCLIB)")
+            return v
+        }
         OsPravila.imenikPostaj(vnos)?.let { kateri ->
             rocni(ctx).firstOrNull { it.tip == IMENIK && it.naslov == kateri }?.let { return it }
             val imeImenika = if (kateri == OsPravila.IMENIK_TUNEIN) "TuneIn" else "Radio Browser"
@@ -803,7 +823,7 @@ object MedijskiViri {
         val moj = rocni(ctx).firstOrNull { kljucUskladitve(it) == kljuc }
             ?: if (odRacunalnika) rocni(ctx).firstOrNull { !it.jeStremio && !it.jePeerTube && it.naslov == kljuc.substringAfter('|') } else null
         // Pregled 70: imenik postaj med napravami ne potuje (dodajanje ne) - tudi izbris na drugi napravi ga ne vzame.
-        if (moj?.jeImenik == true) return false
+        if (moj?.jeImenik == true || moj?.jeBesedila == true) return false   // naloga 89: tudi vir besedil je samo na tej napravi
         if (moj == null) {
             val izbrisani = beriCase(ctx, VIRI_IZBRISANI)
             if ((izbrisani[kljuc] ?: 0L) < cas && (odRacunalnika || VRSTE_ZA_USKLADITEV.matches(kljuc.substringBefore('|')))) {

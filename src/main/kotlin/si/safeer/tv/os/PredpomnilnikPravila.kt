@@ -69,6 +69,10 @@ object PredpomnilnikPravila {
     const val POLICE = "police"
     const val IPTV = "iptv"
     const val KANALI = "kanali"
+    /** Naloga 89: predvajane skladbe (Media3 SimpleCache, samo USB). */
+    const val ZVOK = "zvok"
+    /** Naloga 89: besedila pesmi (LRCLIB) v bazi; tudi zapis »ni besedila«. */
+    const val BESEDILA = "besedila"
 
     private const val URA = 3_600_000L
     private const val DAN = 24 * URA
@@ -84,6 +88,7 @@ object PredpomnilnikPravila {
         POLICE -> 7 * DAN
         IPTV -> 7 * DAN
         KANALI -> DAN
+        BESEDILA -> 30 * DAN
         else -> 7 * DAN
     }
 
@@ -200,4 +205,30 @@ object PredpomnilnikPravila {
 
     /** Ime datoteke za vrednost vecjo od [BLOB_NAJVEC] (poleg baze): kljuc brez locil. */
     fun imeVelike(kljuc: String): String = kljuc.replace('/', '_').filter { it.isLetterOrDigit() || it == '_' }
+
+    // ---------------------------------------------------------------- naloga 89: predvajane skladbe na USB
+
+    /** Delitev meje USB: (seznami IPTV, zvok, baza metapodatkov). Zvok dobi polovico - najvecji in najbolj koristen. */
+    data class Delitev(val iptv: Long, val zvok: Long, val baza: Long)
+
+    fun delitevUsb(meja: Long): Delitev {
+        val m = meja.coerceAtLeast(0L)
+        val iptv = m / 4
+        val zvok = m / 2
+        return Delitev(iptv, zvok, m - iptv - zvok)
+    }
+
+    /**
+     * Ali tok sme v predpomnilnik zvoka: samo zvok ([zvok] = izvirnik ni video; posnetek YouTube iz seznama glasbe steje kot
+     * zvok), ne v zivo (radio, TV), samo http(s), samo enodelni tok (ne HLS/DASH - deli imajo vsak svoj naslov) in nikoli
+     * vsebina zasebnega dodatka.
+     */
+    fun smeVPredpomnilnikZvoka(zvok: Boolean, vZivo: Boolean, http: Boolean, enodelni: Boolean, zasebno: Boolean): Boolean =
+        zvok && !vZivo && http && enodelni && !zasebno
+
+    /** Kljuc skladbe v predpomnilniku zvoka: id brez pripone toka (»#…«) - povezava toka potece, skladba ostane ista. */
+    fun kljucZvoka(id: String): String = "zvok|" + id.substringBefore('#')
+
+    /** Skladba je v predpomnilniku cela (znana dolzina, vse predpomnjeno): igra brez omrezja in brez iskanja toka. */
+    fun jeCelota(dolzina: Long, predpomnjeno: Long): Boolean = dolzina > 0 && predpomnjeno >= dolzina
 }

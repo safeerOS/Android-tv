@@ -41,6 +41,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/KanaliPravila.kt" \
     "$SRC/si/safeer/tv/os/IptvPravila.kt" \
     "$SRC/si/safeer/tv/os/PredpomnilnikPravila.kt" \
+    "$SRC/si/safeer/tv/os/BesedilaPravila.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPovecava.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPogled.kt" \
     "$SRC/si/safeer/tv/os/ZaslonKodek.kt" \
@@ -78,6 +79,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/KanaliPravilaTest.kt" \
     "$TEST_DIR/IptvPravilaTest.kt" \
     "$TEST_DIR/PredpomnilnikPravilaTest.kt" \
+    "$TEST_DIR/BesedilaPravilaTest.kt" \
     "$TEST_DIR/ZaslonPovecavaTest.kt" \
     "$TEST_DIR/ZaslonPogledTest.kt" \
     "$TEST_DIR/ZaslonKodekTest.kt" \
@@ -119,6 +121,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.HlsPopravekTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KanaliPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.IptvPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PredpomnilnikPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.BesedilaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPovecavaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPogledTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonKodekTestKt

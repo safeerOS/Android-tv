@@ -175,6 +175,19 @@ object MedijskiPredpomnilnik {
         vOzadju { shrani(c, PredpomnilnikPravila.NASLOVNICE, odtis(naslov), bajti, System.currentTimeMillis(), zasebno) }
     }
 
+    // ---------------------------------------------------------------- besedila pesmi (naloga 89)
+
+    /** Zapis besedila ([Besedila]) s casom zapisa ali null; notranja baza, nato USB (ne naprava v Linku). Klic iz ozadja. */
+    fun besedilo(c: Context, kljuc: String): Pair<Long, String>? = try {
+        beri(c, PredpomnilnikPravila.BESEDILA, odtis(kljuc))?.let { (cas, b) -> cas to String(b) }
+    } catch (_: Exception) { null }
+
+    /** Shrani zapis besedila (tudi »ni besedila«). Zasebno: besedila ne gredo na drugo napravo ([PredpomnilnikPravila.smeNaLink]). */
+    fun shraniBesedilo(c: Context, kljuc: String, zapis: String) {
+        val bajti = zapis.toByteArray()
+        vOzadju { shrani(c, PredpomnilnikPravila.BESEDILA, odtis(kljuc), bajti, System.currentTimeMillis(), zasebno = true) }
+    }
+
     // ---------------------------------------------------------------- strani kanalov (samo USB)
 
     /**

@@ -385,4 +385,14 @@
     <!-- Naloga 88 -->
     <string name="os_media_kanal_ni_dosegljiv">%1$s no está disponible en este momento.</string>
     <string name="os_media_glasba_samo_seznami">Tus listas de reproducción están arriba. Añade una fuente para más música.</string>
+    <!-- Naloga 89: besedila pesmi (LRCLIB, vir, ki ga doda uporabnik). -->
+    <string name="os_besedila_vir">Letras de canciones (LRCLIB)</string>
+    <string name="os_besedila_vir_opis">En el reproductor: Más opciones → Letra</string>
+    <string name="os_besedila_naslov">Letra</string>
+    <string name="os_besedila_opis">De LRCLIB, sincronizada con la canción</string>
+    <string name="os_besedila_skrij">Ocultar letra</string>
+    <string name="os_besedila_iscem">Buscando la letra…</string>
+    <string name="os_besedila_ni">No hay letra para esta canción.</string>
+    <string name="os_besedila_napaka">No se puede cargar la letra ahora.</string>
+    <string name="os_besedila_instrumentalno">Instrumental: sin letra.</string>
 </resources>

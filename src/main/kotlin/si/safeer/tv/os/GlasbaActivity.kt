@@ -4018,6 +4018,11 @@ class GlasbaActivity : OsActivity() {
         }
         val m = MrezaVsebine(i, kljucMreze(i))
         mrezaVsebine = m
+        // Naloga 89: uvozenim seznamom (Spotify) v ozadju poiscemo posnetke, ki se manjkajo - polica seznamov igra brez cakanja.
+        // Povratni klic ne drzi te Activity (tek traja minute): samo staticni SEZNAMI na glavni niti.
+        if (i == GLASBA) PredIskanjePosnetkov.zacni(this) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post { SEZNAMI.remove(DOMOV); SEZNAMI.remove(GLASBA) }
+        }
         // Nic cakanja: zadnja znana mreza te izbire je na zaslonu takoj; sveza jo zamenja, ko pride.
         VSEBINA_MREZE[m.kljuc]?.let { m.vsi += it; m.videni += it.map { s -> kljucVMrezi(s) }; m.izPredpomnilnika = it.isNotEmpty() }
         // Naloga 83: po zagonu (pomnilnik prazen) zadnja znana prva stran te izbire z diska, takoj (kot Filmi in Live TV);
@@ -5098,7 +5103,7 @@ class GlasbaActivity : OsActivity() {
                 { nastavitvePredpomnilnika() }),
         ) + MedijskiViri.vsi(this).map { v ->
             Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet || v.jeDodatek -> R.drawable.os_ikona_splet
-                    v.jeImenik -> R.drawable.os_ikona_radio; else -> R.drawable.os_ikona_glasba },
+                    v.jeImenik -> R.drawable.os_ikona_radio; v.jeBesedila -> R.drawable.os_ikona_podnapisi; else -> R.drawable.os_ikona_glasba },
                 // Dodatek: ime iz manifesta (Cinemeta, Torrentio ...) in samo streznik - naslov ima lahko kljuc storitve.
                 0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, when {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
@@ -5116,12 +5121,16 @@ class GlasbaActivity : OsActivity() {
                     v.jeSeznam && (IptvSeznami.podatki(this, v.naslov)?.kanalov ?: 0) > 0 -> v.naslov.removePrefix("https://").removePrefix("http://") +
                         " · " + resources.getQuantityString(R.plurals.os_iptv_kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov) +
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
+                    // Naloga 89: kje uporabnik besedila najde (predvajalnik), brez naslova streznika.
+                    v.jeBesedila -> getString(R.string.os_besedila_vir_opis)
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
                 }, {
                     when {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
                         // Naloga 69: imenik postaj odpre Radio (domace postaje, zvrsti, iskanje).
                         v.jeImenik -> { fokusVVsebino = true; izberi(RADIO) }
+                        // Naloga 89: besedila se odprejo v predvajalniku (Vec moznosti -> Besedilo pesmi).
+                        v.jeBesedila -> Toast.makeText(this, R.string.os_besedila_vir_opis, Toast.LENGTH_LONG).show()
                         // Dodatek: pokazemo shranjeni naslov (predvajanje prek dodatkov je naslednji korak).
                         // Naloga 77: dodatek samo za iskanje odpre iskanje (njegovi zadetki so med zadetki dodatkov).
                         v.jeStremio && Stremio.samoIskanje(v.naslov) == true -> odpriIskanje("")
@@ -5780,7 +5789,7 @@ class GlasbaActivity : OsActivity() {
         stanje.text = getString(R.string.os_glasba_nalagam)
         val strezniki = MedijskiViri.streznikiPeerTube(this)
         val mali = beseda.lowercase()
-        val viri = MedijskiViri.vsi(this).filter { it.tip != MedijskiViri.API && !it.jeDodatek && !it.jeImenik }.filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) ||
+        val viri = MedijskiViri.vsi(this).filter { it.tip != MedijskiViri.API && !it.jeDodatek && !it.jeImenik && !it.jeBesedila }.filter { it.ime.lowercase().contains(mali) || it.naslov.lowercase().contains(mali) ||
             Relevantnost.ocena(beseda, it.ime, "", it.naslov) >= Relevantnost.DOBER }
         val naprave = if (link.jeKrajevni() || !link.povezan) emptyList() else link.racunalnikiZDatotekami()
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
@@ -6231,7 +6240,8 @@ class GlasbaActivity : OsActivity() {
         { dodajVir() }, ikona = R.drawable.os_ikona_plus)
     /** Uporabnik nima nobenega spletnega vira (dodatka, streznika, toka, strani). */
     /** Pregled 70: imenik radijskih postaj ne da filmov ali glasbe - z njim samim mreza se vedno ponudi Dodaj vir. */
-    private fun brezSpletnihVirov() = MedijskiViri.vsi(this).none { it.tip != MedijskiViri.IMENIK }
+    // Naloga 89: tudi vir besedil ne da vsebine.
+    private fun brezSpletnihVirov() = MedijskiViri.vsi(this).none { it.tip != MedijskiViri.IMENIK && it.tip != MedijskiViri.BESEDILA }
 
     private fun dodajVir() {
         val aplikacije = try { SpletneAplikacije.seznam(this) } catch (_: Throwable) { emptyList() }

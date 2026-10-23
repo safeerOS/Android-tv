@@ -1374,4 +1374,29 @@ object OsPravila {
         brezVirov -> OpisMreze.BREZ_VIROV
         else -> OpisMreze.PRAZNO
     }
+
+    // ------------------------------------------------------------------ naloga 89: posnetki uvozenih seznamov vnaprej
+
+    /** Skladba, za katero iskanje posnetka ni uspelo, se isce znova sele cez toliko casa (ne ob vsakem odprtju Music). */
+    const val ISKANJE_ZNOVA_MS = 7L * 24 * 3_600_000
+
+    /** Ali skladbi znova iscemo posnetek: se nikoli ni odpovedalo, ali je minil [ISKANJE_ZNOVA_MS] (ura nazaj: da). */
+    fun poskusiZnovaIskanje(neuspehOb: Long?, zdaj: Long): Boolean =
+        neuspehOb == null || zdaj - neuspehOb !in 0 until ISKANJE_ZNOVA_MS
+
+    /**
+     * Naloga 89: vrstni red iskanja posnetkov za vec seznamov - izmenicno po polozaju (prva skladba vsakega seznama, nato
+     * druga ...), da je vsak seznam takoj predvajljiv od zacetka; brez ponovitev, najvec [najvec].
+     */
+    fun vrstniRedIskanja(seznami: List<List<String>>, najvec: Int): List<String> {
+        val izhod = LinkedHashSet<String>()
+        val najdaljsi = seznami.maxOfOrNull { it.size } ?: 0
+        for (i in 0 until najdaljsi) {
+            for (s in seznami) {
+                if (izhod.size >= najvec) return izhod.toList()
+                s.getOrNull(i)?.let { izhod += it }
+            }
+        }
+        return izhod.toList()
+    }
 }

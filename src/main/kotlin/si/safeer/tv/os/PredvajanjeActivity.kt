@@ -625,6 +625,7 @@ class PredvajanjeActivity : OsActivity() {
     override fun onStart() {
         super.onStart()
         zagnan = true; zagnanih++
+        imaVirBesedil = MedijskiViri.imaBesedila(this)
         GlasbaStoritev.poslusalci.add(poslusalec)
         if (!LinkUpravitelj.pridobi(this).jeKrajevni()) LinkUpravitelj.pridobi(this).dodaj(linkPoslusalec)
         osvezi()
@@ -654,6 +655,7 @@ class PredvajanjeActivity : OsActivity() {
      */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        if (besediloOdprto()) { skrijBesedilo(); return }
         if (mrezaOdprta()) { zapriMrezoVrste(); return }
         val vMapo = intent.getBooleanExtra(IZ_DATOTEK, false) && DatotekeActivity.odprta
         if (!vMapo && !GlasbaActivity.odprta) startActivity(android.content.Intent(this, GlasbaActivity::class.java)
@@ -1083,6 +1085,11 @@ class PredvajanjeActivity : OsActivity() {
             val jezik = Podnapisi.jezikDodatka(this)
             dejanje(getString(R.string.podnapisi_iz_dodatka),
                 if (jezik.isEmpty()) getString(R.string.podnapisi_izklop) else Podnapisi.imeJezika(this, jezik), R.drawable.os_ikona_podnapisi) { izbiraPodnapisov() }
+        }
+        // Naloga 89: besedilo pesmi (LRCLIB), ce je uporabnik dodal vir - samo pri pesmih.
+        if (zdaj != null && besediloMogoce(zdaj)) {
+            dejanje(getString(R.string.os_besedila_naslov),
+                getString(if (besediloOdprto()) R.string.os_besedila_skrij else R.string.os_besedila_opis), R.drawable.os_ikona_podnapisi) { preklopiBesedilo() }
         }
         if (dotik && video && zdaj != null && zdaj.id.startsWith("krajevno:")) {
             dejanje(getString(R.string.os_podnapisi_dodaj),
@@ -1566,6 +1573,128 @@ class PredvajanjeActivity : OsActivity() {
         }
     }
 
+    // ------------------------------------------------------------------ besedilo pesmi (naloga 89)
+
+    /** Panel besedila (cez ves zaslon, zatemnjeno ozadje); nastane ob prvem odprtju. */
+    private var panelBesedila: FrameLayout? = null
+    private var besediloNaslov: TextView? = null
+    private var besediloStanje: TextView? = null
+    private val besediloVrstice = ArrayList<TextView>()
+    private var besediloNavadno: android.widget.ScrollView? = null
+    private var besediloNavadnoBesedilo: TextView? = null
+    /** Za katero skladbo je besedilo nalozeno in katere so vrstice (prazno = navadno ali ga ni). */
+    private var besediloZa = ""
+    private var besediloVrst: List<BesedilaPravila.Vrstica> = emptyList()
+    private var besediloZadnja = Int.MIN_VALUE
+    /** Ali je vir besedil dodan - prebrano ob odprtju zaslona (branje nastavitev ne na vsako osvezitev). */
+    private var imaVirBesedil = false
+
+    private fun besediloOdprto() = panelBesedila?.visibility == View.VISIBLE
+
+    /** Besedilo samo pri pesmih ([BesedilaPravila.smiselno]) in z dodanim virom LRCLIB. */
+    private fun besediloMogoce(sk: Jamendo.Skladba): Boolean = imaVirBesedil && BesedilaPravila.smiselno(
+        radio = sk.radio,
+        vZivo = sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk),
+        filmAliSerija = sk.mediaType == "movie" || sk.mediaType == "tvseries" || (Stremio.jeEnota(sk) && Stremio.razredEnote(sk) in setOf(Stremio.FILM, Stremio.SERIJA)))
+
+    private fun preklopiBesedilo() { if (besediloOdprto()) skrijBesedilo() else pokaziBesedilo() }
+
+    private fun skrijBesedilo() {
+        panelBesedila?.visibility = View.GONE
+        glavna.removeCallbacks(osveziBesedilo)
+        gumbVec?.requestFocus()
+    }
+
+    private fun pokaziBesedilo() {
+        val sk = GlasbaStoritev.trenutna() ?: return
+        val panel = panelBesedila ?: ustvariPanelBesedila() ?: return
+        panel.visibility = View.VISIBLE
+        panel.requestFocus()
+        if (besediloZa != sk.id) naloziBesedilo(sk) else glavna.post(osveziBesedilo)
+    }
+
+    private fun ustvariPanelBesedila(): FrameLayout? {
+        val koren = prekritje.parent as? FrameLayout ?: return null
+        val velika = if (dotik) 22f else 34f
+        val mala = if (dotik) 16f else 22f
+        val panel = FrameLayout(this).apply {
+            setBackgroundColor(0xE6000000.toInt()); visibility = View.GONE; isClickable = true; isFocusable = true
+            setOnClickListener { skrijBesedilo() }
+        }
+        val stolpec = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        besediloNaslov = besedilo(mala, osBarva(R.color.os_umirjeno)).apply { gravity = Gravity.CENTER; setPadding(0, 0, 0, dp(18)) }
+        stolpec.addView(besediloNaslov, LinearLayout.LayoutParams(-1, -2))
+        besediloStanje = besedilo(mala, osBarva(R.color.os_umirjeno)).apply { gravity = Gravity.CENTER }
+        stolpec.addView(besediloStanje, LinearLayout.LayoutParams(-1, -2))
+        // Sedem vrstic: tri pred, vrstica, ki se poje (velika, svetla, na sredini), tri za njo.
+        besediloVrstice.clear()
+        for (i in 0 until 7) {
+            val t = besedilo(if (i == 3) velika else mala, if (i == 3) osBarva(R.color.os_besedilo) else 0x99F0F4F3.toInt(), krepko = i == 3)
+                .apply { gravity = Gravity.CENTER; setPadding(0, dp(6), 0, dp(6)) }
+            besediloVrstice += t
+            stolpec.addView(t, LinearLayout.LayoutParams(-1, -2))
+        }
+        panel.addView(stolpec, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { leftMargin = dp(48); rightMargin = dp(48) })
+        val navadno = besedilo(mala, osBarva(R.color.os_besedilo)).apply { gravity = Gravity.CENTER; setPadding(dp(48), dp(48), dp(48), dp(48)) }
+        besediloNavadnoBesedilo = navadno
+        besediloNavadno = android.widget.ScrollView(this).apply { visibility = View.GONE; addView(navadno) }
+        panel.addView(besediloNavadno, FrameLayout.LayoutParams(-1, -1))
+        koren.addView(panel, FrameLayout.LayoutParams(-1, -1))
+        panelBesedila = panel
+        return panel
+    }
+
+    private fun naloziBesedilo(sk: Jamendo.Skladba) {
+        besediloZa = sk.id
+        besediloVrst = emptyList(); besediloZadnja = Int.MIN_VALUE
+        besediloNaslov?.text = listOf(sk.naslov, sk.izvajalec).filter { it.isNotBlank() }.joinToString(" · ")
+        besediloStanje?.text = getString(R.string.os_besedila_iscem); besediloStanje?.visibility = View.VISIBLE
+        besediloVrstice.forEach { it.text = "" }
+        besediloNavadno?.visibility = View.GONE
+        val trajanje = GlasbaStoritev.predvajalnik?.let { polozajInTrajanje(it).second } ?: 0L
+        val naslov = sk.naslov; val izvajalec = sk.izvajalec; val id = sk.id
+        try { delavec.execute {
+            val izid = try { Besedila.poisci(this, naslov, izvajalec, trajanje) } catch (_: Exception) { Besedila.Izid(null, "napaka") }
+            runOnUiThread { if (!isFinishing && besediloZa == id) prikaziBesedilo(izid) }
+        } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
+    private fun prikaziBesedilo(izid: Besedila.Izid) {
+        val b = izid.besedilo
+        when {
+            b == null -> besediloStanje?.setText(if (izid.razlog == "napaka") R.string.os_besedila_napaka else R.string.os_besedila_ni)
+            b.vrstice.isNotEmpty() -> { besediloStanje?.visibility = View.GONE; besediloVrst = b.vrstice; glavna.post(osveziBesedilo) }
+            b.navadno.isNotBlank() -> {
+                besediloStanje?.visibility = View.GONE
+                besediloVrstice.forEach { it.text = "" }
+                besediloNavadnoBesedilo?.text = b.navadno
+                besediloNavadno?.visibility = View.VISIBLE
+                besediloNavadno?.scrollTo(0, 0)
+            }
+            b.instrumentalno -> besediloStanje?.setText(R.string.os_besedila_instrumentalno)
+            else -> besediloStanje?.setText(R.string.os_besedila_ni)
+        }
+    }
+
+    /** Vrstica, ki se poje, ostane na sredini; osvezitev na cetrt sekunde, dokler je panel odprt. */
+    private val osveziBesedilo = object : Runnable {
+        override fun run() {
+            if (!besediloOdprto() || isFinishing) return
+            val sk = GlasbaStoritev.trenutna()
+            // Nova skladba (naslednja v vrsti): besedilo zanjo.
+            if (sk != null && sk.id != besediloZa) { naloziBesedilo(sk); return }
+            val p = GlasbaStoritev.predvajalnik
+            if (p != null && besediloVrst.isNotEmpty()) {
+                val i = BesedilaPravila.trenutna(besediloVrst, polozajInTrajanje(p).first)
+                if (i != besediloZadnja) {
+                    besediloZadnja = i
+                    besediloVrstice.forEachIndexed { k, t -> t.text = besediloVrst.getOrNull(i - 3 + k)?.besedilo?.ifBlank { "♪" } ?: "" }
+                }
+            }
+            glavna.postDelayed(this, 250)
+        }
+    }
+
     /** Gumb in namig za podnapise samo, kadar jih video ima (ali jih da dodatek uporabnika - naloga 72). */
     private fun posodobiPodnapise() {
         samodejniPodnapisi()
@@ -1823,6 +1952,14 @@ class PredvajanjeActivity : OsActivity() {
         // Glasba igra na zvocniku: tipki za glasnost nastavljata zvocnik (tudi med premorom, ko sistem tega ne naredi sam).
         if ((dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP || dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) && GlasbaStoritev.naZvocniku()) {
             if (dogodek.action == KeyEvent.ACTION_DOWN) glasnostZvocnika(dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP)
+            return true
+        }
+        // Naloga 89: odprto nesinhronizirano besedilo - gor in dol ga premikata (daljinec).
+        if (besediloOdprto() && besediloNavadno?.visibility == View.VISIBLE &&
+            (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP || dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) {
+            if (dogodek.action == KeyEvent.ACTION_DOWN) besediloNavadno?.let { sv ->
+                sv.smoothScrollBy(0, (if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP) -1 else 1) * sv.height / 3)
+            }
             return true
         }
         if (zaklenjeno) {

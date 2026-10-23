@@ -96,12 +96,17 @@ object UsbPredpomnilnik {
         }
     }
 
+    /** Naloga 89: meja predpomnilnika na USB (bajti), 0 = USB ni v uporabi. */
+    fun mejaUsb(): Long = if (koren != null) meja else 0L
+
     /** Branje ali pisanje na USB ni uspelo (odklop, poln, napaka datotecnega sistema): do naslednje preverbe samo notranji. */
     fun napaka() {
         if (koren != null) android.util.Log.i("SafeerOsMedia", "predpomnilnik USB: napaka, do naslednje preverbe notranji")
         koren = null
         preverjenOb = android.os.SystemClock.uptimeMillis()
         usbBaza?.zapri()
+        // Naloga 89: predvajalnik bere skladbe naprej z omrezja (CacheDataSource prezre napake predpomnilnika).
+        PredpomnilnikZvoka.sprosti()
     }
 
     /** Zapisanih [bajtov] (notranja baza ali USB): ob dvajsetini meje ali na 10 min ciscenje v ozadju (TTL, nato LRU do meje). */
@@ -120,6 +125,8 @@ object UsbPredpomnilnik {
         try { delo.execute {
             try {
                 preveri(app)
+                // Naloga 89: predpomnilnik zvoka sledi mestu (USB priklopljen, odklopljen, druga meja).
+                PredpomnilnikZvoka.uskladi(app)
                 val k = koren
                 if (ocisti) {
                     if (k != null) pocistiStare(app, k)
@@ -139,6 +146,7 @@ object UsbPredpomnilnik {
         try { delo.execute {
             // Bazi izpraznimo (VACUUM skrci datoteko), stare datoteke in seznami IPTV gredo.
             try { usb(app)?.izprazni() } catch (_: Throwable) { napaka() }
+            PredpomnilnikZvoka.izprazni(app)
             try { notranja(app)?.izprazni() } catch (_: Throwable) { }
             try { koren?.let { k -> File(k, PredpomnilnikPravila.IPTV).deleteRecursively() } } catch (_: Throwable) { napaka() }
             for (m in stareNotranjeMape(app) + File(app.filesDir, "iptv_seznami")) try { m.listFiles().orEmpty().forEach { it.deleteRecursively() } } catch (_: Throwable) { }
@@ -191,6 +199,8 @@ object UsbPredpomnilnik {
         val nov = izbran?.let { File(it.pot, MAPA) }?.takeIf { try { it.mkdirs() || it.isDirectory } catch (_: Throwable) { false } }
         meja = izbran?.let { PredpomnilnikPravila.meja(velikostGb(app), it) } ?: 0L
         koren = nov
+        // Naloga 89: USB priklopljen ali odklopljen - predpomnilnik zvoka sledi (na svoji niti).
+        if (prej?.path != nov?.path) PredpomnilnikZvoka.uskladi(app)
         if (prej?.path != nov?.path) android.util.Log.i("SafeerOsMedia", "predpomnilnik: " +
             (if (nov != null) "USB (meja ${meja / PredpomnilnikPravila.MB} MB, prostih ${(izbran?.prostih ?: 0L) / PredpomnilnikPravila.MB} MB)" else "notranji") +
             ", mesto=${mesto(app).nacin}, odstranljivih priklopljenih=${kandidati.count { it.odstranljiv && it.priklopljen }}")
@@ -228,10 +238,13 @@ object UsbPredpomnilnik {
     private fun pocistiStare(app: Context, k: File) {
         val iptv = File(k, PredpomnilnikPravila.IPTV)
         val d = iptv.listFiles().orEmpty().filter { it.isFile }.map { PredpomnilnikPravila.Datoteka(it.path, PredpomnilnikPravila.IPTV, it.length(), it.lastModified()) }
-        val ven = PredpomnilnikPravila.zaBrisanje(d, meja / 2, System.currentTimeMillis())
+        // Naloga 89: meja USB je razdeljena (seznami IPTV, zvok, baza); zvok cisti SimpleCache sam (LRU), baza dobi ostanek.
+        val delitev = PredpomnilnikPravila.delitevUsb(meja)
+        val ven = PredpomnilnikPravila.zaBrisanje(d, delitev.iptv, System.currentTimeMillis())
         for (p in ven) try { File(p).delete() } catch (_: Throwable) { }
         if (ven.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "predpomnilnik USB: pocisceno ${ven.size} datotek seznamov od ${d.size}")
-        usb(app)?.pocisti((meja - velikost(iptv)).coerceAtLeast(0L))
+        val zvok = velikost(File(k, PredpomnilnikPravila.ZVOK))
+        usb(app)?.pocisti((meja - velikost(iptv) - zvok).coerceAtLeast(delitev.baza))
     }
 
     private fun velikost(m: File): Long = try { m.walkTopDown().filter { it.isFile }.sumOf { it.length() } } catch (_: Throwable) { 0L }

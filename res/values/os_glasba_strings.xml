@@ -384,4 +384,14 @@
     <!-- Naloga 88 -->
     <string name="os_media_kanal_ni_dosegljiv">%1$s is not available right now.</string>
     <string name="os_media_glasba_samo_seznami">Your playlists are above. Add a source for more music.</string>
+    <!-- Naloga 89: besedila pesmi (LRCLIB, vir, ki ga doda uporabnik). -->
+    <string name="os_besedila_vir">Song lyrics (LRCLIB)</string>
+    <string name="os_besedila_vir_opis">In the player: More options → Song lyrics</string>
+    <string name="os_besedila_naslov">Song lyrics</string>
+    <string name="os_besedila_opis">From LRCLIB, synced with the song</string>
+    <string name="os_besedila_skrij">Hide lyrics</string>
+    <string name="os_besedila_iscem">Looking for lyrics…</string>
+    <string name="os_besedila_ni">No lyrics for this song.</string>
+    <string name="os_besedila_napaka">Lyrics can’t be loaded right now.</string>
+    <string name="os_besedila_instrumentalno">Instrumental – no lyrics.</string>
 </resources>

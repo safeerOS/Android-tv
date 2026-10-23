@@ -112,5 +112,25 @@ fun main() {
     preveriEnako("ime velike datoteke brez locil", "kanali_abc", P.imeVelike("kanali/abc"))
     preveriEnako("ime velike: brez poti ven", "kanalietc", P.imeVelike("kanali../../etc").replace("_", ""))
 
+    println("\n== predvajane skladbe na USB (naloga 89) ==")
+    preveriEnako("delitev 2 GB: IPTV cetrtina, zvok polovica, baza ostanek", PredpomnilnikPravila.Delitev(512 * MB, 1024 * MB, 512 * MB),
+        PredpomnilnikPravila.delitevUsb(2 * GB))
+    preveriEnako("delitev: vsota je meja (liha)", 1001L, PredpomnilnikPravila.delitevUsb(1001).let { it.iptv + it.zvok + it.baza })
+    preveriEnako("delitev: negativna meja je 0", PredpomnilnikPravila.Delitev(0, 0, 0), PredpomnilnikPravila.delitevUsb(-5))
+    preveriEnako("skladba sme", true, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = true, vZivo = false, http = true, enodelni = true, zasebno = false))
+    preveriEnako("video ne", false, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = false, vZivo = false, http = true, enodelni = true, zasebno = false))
+    preveriEnako("radio v zivo ne", false, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = true, vZivo = true, http = true, enodelni = true, zasebno = false))
+    preveriEnako("datoteka na napravi (ni http) ne", false, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = true, vZivo = false, http = false, enodelni = true, zasebno = false))
+    preveriEnako("HLS ne", false, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = true, vZivo = false, http = true, enodelni = false, zasebno = false))
+    preveriEnako("zaseben dodatek nikoli", false, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = true, vZivo = false, http = true, enodelni = true, zasebno = true))
+    preveriEnako("kljuc: brez pripone toka", "zvok|stremio|music|tt1|https://a.test",
+        PredpomnilnikPravila.kljucZvoka("stremio|music|tt1|https://a.test#123456"))
+    preveriEnako("kljuc: id brez pripone", "zvok|splet:https://www.youtube.com/watch?v=x", PredpomnilnikPravila.kljucZvoka("splet:https://www.youtube.com/watch?v=x"))
+    preveriEnako("cela", true, PredpomnilnikPravila.jeCelota(1000, 1000))
+    preveriEnako("delna", false, PredpomnilnikPravila.jeCelota(1000, 999))
+    preveriEnako("neznana dolzina ni cela", false, PredpomnilnikPravila.jeCelota(-1, 5000))
+    preveriEnako("TTL besedil 30 dni", 30 * dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.BESEDILA))
+    preveriEnako("besedila ne gredo na napravo v Linku", false, PredpomnilnikPravila.smeNaLink(PredpomnilnikPravila.BESEDILA, 100, zasebno = false))
+
     if (napak == 0) println("PredpomnilnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
