@@ -145,6 +145,13 @@ object MedijskiViri {
     private fun rocni(ctx: Context): List<Vir> {
         val a = try { JSONArray(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(KLJUC, "[]")) } catch (_: Exception) { JSONArray() }
         return (0 until a.length()).map { a.getJSONObject(it) }.map { Vir(it.optString("tip"), it.optString("ime"), it.optString("naslov")) }
+            .map { v ->
+                // Prehod 0.5.108 -> 0.5.109 (izmerjeno 23. 10. 2026 na telefonu): radio-browser.info / tunein.com, dodana pred
+                // nalogo 69, sta shranjena kot spletni strani in Radio ostane prazen. Beremo ju kot imenik postaj.
+                val kateri = if (v.tip == SPLET) OsPravila.imenikPostaj(v.naslov) else null
+                if (kateri == null) v
+                else Vir(IMENIK, if (kateri == OsPravila.IMENIK_TUNEIN) "TuneIn" else "Radio Browser", kateri)
+            }.distinctBy { it.tip + "|" + it.naslov }
     }
 
     /**
