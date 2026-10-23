@@ -335,4 +335,6 @@
     <string name="os_pregled_kanalov_zdaj">Preveri kanale zdaj</string>
     <string name="os_pregled_kanalov_zacet">Kanale tega dodatka preverjam v ozadju.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Kanale preverim, ko se predvajanje ustavi.</string>
+    <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
+    <string name="os_tv_preverjam_kategorije">Preverjam kategorije dodatkov …</string>
 </resources>

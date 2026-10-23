@@ -336,4 +336,6 @@
     <string name="os_pregled_kanalov_zdaj">Comprobar canales ahora</string>
     <string name="os_pregled_kanalov_zacet">Comprobando los canales de este complemento en segundo plano.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Los canales se comprobarán cuando termine la reproducción.</string>
+    <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
+    <string name="os_tv_preverjam_kategorije">Comprobando las categorías de los complementos…</string>
 </resources>

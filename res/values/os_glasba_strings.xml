@@ -335,4 +335,6 @@
     <string name="os_pregled_kanalov_zdaj">Check channels now</string>
     <string name="os_pregled_kanalov_zacet">Checking this add-on’s channels in the background.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Channels will be checked when playback stops.</string>
+    <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
+    <string name="os_tv_preverjam_kategorije">Checking add-on categories…</string>
 </resources>

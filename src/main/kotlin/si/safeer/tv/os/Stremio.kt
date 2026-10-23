@@ -783,8 +783,6 @@ object Stremio {
 
     internal fun zasebenKatalog(k: Katalog) = KanaliPravila.jeZasebna(KanaliPravila.oznakaKataloga(k.imeDodatka, k.ime))
 
-    /** Vnosi zasebnih kategorij javnih dodatkov (id-ji), ko jih mreza kanalov spozna: ne gredo niti med zadetke iskanja. Samo v pomnilniku. */
-    @Volatile var zasebniVnosi: Set<String> = emptySet()
 
     /** Katalog z vnaprej izbrano moznostjo zvrsti: stran in `skip` gresta po obicajni poti ([katalog]). */
     fun zMoznostjo(k: Katalog, moznost: String): Katalog =
@@ -822,7 +820,7 @@ object Stremio {
         if (opravila.isEmpty()) return emptyList()
         return bazen.invokeAll(opravila, 10, java.util.concurrent.TimeUnit.SECONDS)
             .flatMap { f -> try { if (f.isCancelled) emptyList() else f.get() } catch (_: Exception) { emptyList() } }
-            .distinctBy { it.id }.filter { tudiZasebni || it.id !in zasebniVnosi }
+            .distinctBy { it.id }.filter { tudiZasebni || !ZasebniKanali.jeZaseben(it.id) }      // naloga 76: zasebne kategorije javnih dodatkov
     }
 
     /**

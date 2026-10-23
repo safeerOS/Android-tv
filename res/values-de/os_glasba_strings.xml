@@ -336,4 +336,6 @@
     <string name="os_pregled_kanalov_zdaj">Sender jetzt prüfen</string>
     <string name="os_pregled_kanalov_zacet">Die Sender dieses Add-ons werden im Hintergrund geprüft.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Die Sender werden geprüft, wenn die Wiedergabe endet.</string>
+    <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
+    <string name="os_tv_preverjam_kategorije">Kategorien der Add-ons werden geprüft …</string>
 </resources>

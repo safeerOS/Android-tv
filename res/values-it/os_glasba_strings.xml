@@ -336,4 +336,6 @@
     <string name="os_pregled_kanalov_zdaj">Controlla canali ora</string>
     <string name="os_pregled_kanalov_zacet">Controllo dei canali di questo componente in background.</string>
     <string name="os_pregled_kanalov_po_predvajanju">I canali verranno controllati al termine della riproduzione.</string>
+    <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
+    <string name="os_tv_preverjam_kategorije">Controllo delle categorie dei componenti…</string>
 </resources>

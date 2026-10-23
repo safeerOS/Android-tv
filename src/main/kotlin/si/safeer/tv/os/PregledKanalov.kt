@@ -197,8 +197,8 @@ object PregledKanalov {
                     if (stran == null) { zakaj = "katalog ni odgovoril"; break@zanka }
                     if (stran.isEmpty()) break
                     dal += stran.size
-                    // Zasebne kategorije (Stremio.zasebniVnosi) ne sprasujemo; isti kanal v vec katalogih enkrat.
-                    val novi = stran.filter { videni.add(it.id) && Stremio.jeEnota(it) && Stremio.dajeLastneTokove(it) && it.id !in Stremio.zasebniVnosi }
+                    // Zasebne kategorije ([ZasebniKanali]) ne sprasujemo; isti kanal v vec katalogih enkrat.
+                    val novi = stran.filter { videni.add(it.id) && Stremio.jeEnota(it) && Stremio.dajeLastneTokove(it) && !ZasebniKanali.jeZaseben(it.id) }
                     n = n.copy(vseh = n.vseh + novi.size); napredek[naslov] = n
                     for (par in novi.chunked(HKRATI)) {
                         zakaj = prekinitev(app, naslov)

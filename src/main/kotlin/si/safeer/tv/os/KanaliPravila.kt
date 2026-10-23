@@ -284,4 +284,66 @@ object KanaliPravila {
         }
         return izhod
     }
+
+    // ------------------------------------------------------------------ naloga 76: zasebne kategorije na disku
+
+    /**
+     * Naloga 76: stanje zapisa zasebnih kategorij dodatka. [VELJA]: isti katalogi, mlajsi od [ZASEBNI_VELJA_MS];
+     * [ZASTAREL]: isti katalogi, starejsi (velja naprej, v ozadju se osvezi); [NI]: zapisa ni ali so se katalogi spremenili.
+     */
+    enum class ZasebniZapis { VELJA, ZASTAREL, NI }
+    const val ZASEBNI_VELJA_MS = 24 * 3_600_000L
+
+    /** Stanje zapisa s kljucem [zapisKljuc] (null = ga ni) in casom [zapisCas] za trenutni [kljuc]. Ura nazaj: zastarel. */
+    fun stanjeZasebnih(zapisKljuc: String?, zapisCas: Long, kljuc: String, zdaj: Long): ZasebniZapis = when {
+        zapisKljuc == null || zapisKljuc != kljuc || zapisCas <= 0L -> ZasebniZapis.NI
+        zdaj - zapisCas in 0 until ZASEBNI_VELJA_MS -> ZasebniZapis.VELJA
+        else -> ZasebniZapis.ZASTAREL
+    }
+
+    /**
+     * Kljuc zapisa dodatka: odtis (SHA-256) opisov njegovih zasebnih katalogov (id in privzete moznosti), neodvisen od
+     * vrstnega reda in dvojnikov. Na disku tako ni berljivih imen kategorij.
+     */
+    fun kljucZasebnih(katalogi: Collection<String>): String = sha(katalogi.toSortedSet().joinToString("\n"))
+
+    /** Ime zapisa dodatka na disku (odtis osnove, brez naslova streznika). */
+    fun odtisDodatka(osnova: String): String = sha(osnova.trim()).take(16)
+
+    /** Odtis id-ja kanala: prvih 8 bajtov SHA-256 (trk pri nekaj deset tisoc id-jih je zanemarljiv). */
+    fun odtisId(id: String): Long {
+        val d = java.security.MessageDigest.getInstance("SHA-256").digest(id.toByteArray(Charsets.UTF_8))
+        var r = 0L
+        for (i in 0 until 8) r = (r shl 8) or (d[i].toLong() and 0xff)
+        return r
+    }
+
+    /** Urejeni odtisi brez dvojnikov (za [vOdtisih]): ~8 bajtov na kanal namesto niza v pomnilniku. */
+    fun odtisi(id: Collection<String>): LongArray = id.map { odtisId(it) }.toLongArray().also { it.sort() }.distinctUrejeni()
+
+    /** Ali je id med urejenimi odtisi [urejeni]. */
+    fun vOdtisih(urejeni: LongArray, id: String): Boolean = urejeni.isNotEmpty() && java.util.Arrays.binarySearch(urejeni, odtisId(id)) >= 0
+
+    private fun LongArray.distinctUrejeni(): LongArray {
+        if (size < 2) return this
+        var n = 1
+        for (i in 1 until size) if (this[i] != this[n - 1]) this[n++] = this[i]
+        return if (n == size) this else copyOf(n)
+    }
+
+    private fun sha(s: String): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+    /** Naloga 76: kaj pise nad prazno mrezo kanalov, dokler caka. */
+    enum class NapisCakanja { NIC, NALAGAM, KATEGORIJE }
+
+    /**
+     * Nad prazno mrezo: »Preverjam kategorije dodatkov ...«, kadar mreza caka samo se na zasebne kategorije ([zasebniCakajo]),
+     * sicer »Nalagam«, dokler se viri nalagajo ([nalagamNapis]); kanali na zaslonu - nic.
+     */
+    fun napisCakanja(naZaslonu: Int, nalagam: Boolean, zasebniCakajo: Boolean, imaDodatke: Boolean): NapisCakanja = when {
+        !nalagamNapis(naZaslonu, nalagam || zasebniCakajo, imaDodatke) -> NapisCakanja.NIC
+        zasebniCakajo && !nalagam -> NapisCakanja.KATEGORIJE
+        else -> NapisCakanja.NALAGAM
+    }
 }

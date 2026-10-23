@@ -164,5 +164,33 @@ fun main() {
     preveriEnako("mrtev izgine brez premescanja", listOf("a", "c", "d", "e"),
         si.safeer.tv.os.OsPravila.stabilenRed(listOf("a", "b", "c", "d"), listOf("e", "d", "c", "a")) { it })
 
+    println()
+    // ---- naloga 76: zasebne kategorije na disku
+    val Z = 3_600_000L
+    val kz = KanaliPravila.kljucZasebnih(listOf("xxx/[]", "adult/[(genre, Adult)]"))
+    preveriEnako("kljuc: neodvisen od vrstnega reda in dvojnikov", kz, KanaliPravila.kljucZasebnih(listOf("adult/[(genre, Adult)]", "xxx/[]", "xxx/[]")))
+    preveriEnako("kljuc: drug katalog -> drug kljuc", false, kz == KanaliPravila.kljucZasebnih(listOf("xxx/[]")))
+    preveriEnako("kljuc: brez berljivih imen", false, "adult" in kz || "xxx" in kz)
+    preveriEnako("kljuc: 64 znakov hex", true, kz.length == 64 && kz.all { it in "0123456789abcdef" })
+    preveriEnako("zapis: ga ni", KanaliPravila.ZasebniZapis.NI, KanaliPravila.stanjeZasebnih(null, 0, kz, 100 * Z))
+    preveriEnako("zapis: drugi katalogi", KanaliPravila.ZasebniZapis.NI, KanaliPravila.stanjeZasebnih("drug", 99 * Z, kz, 100 * Z))
+    preveriEnako("zapis: star 1 h velja", KanaliPravila.ZasebniZapis.VELJA, KanaliPravila.stanjeZasebnih(kz, 99 * Z, kz, 100 * Z))
+    preveriEnako("zapis: star 24 h zastarel", KanaliPravila.ZasebniZapis.ZASTAREL, KanaliPravila.stanjeZasebnih(kz, 76 * Z, kz, 100 * Z))
+    preveriEnako("zapis: star teden zastarel (velja do osvezitve)", KanaliPravila.ZasebniZapis.ZASTAREL, KanaliPravila.stanjeZasebnih(kz, 200 * Z - 7 * 24 * Z, kz, 200 * Z))
+    preveriEnako("zapis: ura nazaj -> zastarel", KanaliPravila.ZasebniZapis.ZASTAREL, KanaliPravila.stanjeZasebnih(kz, 101 * Z, kz, 100 * Z))
+    preveriEnako("zapis: cas 0 -> ga ni", KanaliPravila.ZasebniZapis.NI, KanaliPravila.stanjeZasebnih(kz, 0, kz, 100 * Z))
+    val od = KanaliPravila.odtisi(listOf("stremio|tv|a", "stremio|tv|b", "stremio|tv|a"))
+    preveriEnako("odtisi: brez dvojnikov", 2, od.size)
+    preveriEnako("odtisi: urejeni", true, od[0] <= od[1])
+    preveriEnako("odtisi: id je notri", true, KanaliPravila.vOdtisih(od, "stremio|tv|b"))
+    preveriEnako("odtisi: drug id ni", false, KanaliPravila.vOdtisih(od, "stremio|tv|c"))
+    preveriEnako("odtisi: prazni", false, KanaliPravila.vOdtisih(LongArray(0), "stremio|tv|a"))
+    preveriEnako("odtis id: stalen", KanaliPravila.odtisId("x"), KanaliPravila.odtisId("x"))
+    preveriEnako("odtis dodatka: 16 znakov, brez naslova", true, KanaliPravila.odtisDodatka("https://iptv.test").let { it.length == 16 && "iptv" !in it })
+    preveriEnako("napis: kategorije, ko viri ze odgovorili", KanaliPravila.NapisCakanja.KATEGORIJE, KanaliPravila.napisCakanja(0, false, true, true))
+    preveriEnako("napis: nalagam, dokler viri nalagajo", KanaliPravila.NapisCakanja.NALAGAM, KanaliPravila.napisCakanja(0, true, true, true))
+    preveriEnako("napis: kanali na zaslonu - nic", KanaliPravila.NapisCakanja.NIC, KanaliPravila.napisCakanja(5, false, true, true))
+    preveriEnako("napis: nic ne caka", KanaliPravila.NapisCakanja.NIC, KanaliPravila.napisCakanja(0, false, false, true))
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
