@@ -101,7 +101,10 @@ object UsbPredpomnilnik {
 
     /** Branje ali pisanje na USB ni uspelo (odklop, poln, napaka datotecnega sistema): do naslednje preverbe samo notranji. */
     fun napaka() {
-        if (koren != null) android.util.Log.i("SafeerOsMedia", "predpomnilnik USB: napaka, do naslednje preverbe notranji")
+        if (koren != null) {
+            android.util.Log.i("SafeerOsMedia", "predpomnilnik USB: napaka, do naslednje preverbe notranji")
+            prilagodiPomnilnik(false)
+        }
         koren = null
         preverjenOb = android.os.SystemClock.uptimeMillis()
         usbBaza?.zapri()
@@ -201,9 +204,17 @@ object UsbPredpomnilnik {
         koren = nov
         // Naloga 89: USB priklopljen ali odklopljen - predpomnilnik zvoka sledi (na svoji niti).
         if (prej?.path != nov?.path) PredpomnilnikZvoka.uskladi(app)
+        // Naloga 92: z USB manjse meje predpomnilnikov v pomnilniku; brez USB (odklop) spet kot doslej.
+        if (prej?.path != nov?.path) prilagodiPomnilnik(nov != null)
         if (prej?.path != nov?.path) android.util.Log.i("SafeerOsMedia", "predpomnilnik: " +
             (if (nov != null) "USB (meja ${meja / PredpomnilnikPravila.MB} MB, prostih ${(izbran?.prostih ?: 0L) / PredpomnilnikPravila.MB} MB)" else "notranji") +
             ", mesto=${mesto(app).nacin}, odstranljivih priklopljenih=${kandidati.count { it.odstranljiv && it.priklopljen }}")
+    }
+
+    /** Naloga 92: meje predpomnilnikov v pomnilniku po tem, ali je USB v uporabi ([PredpomnilnikPravila.mejaSlik]). */
+    private fun prilagodiPomnilnik(usb: Boolean) {
+        try { GlasbaActivity.prilagodiPomnilnik(usb); Stremio.prilagodiPomnilnik(usb) } catch (_: Throwable) { }
+        android.util.Log.i("SafeerOsMedia", "predpomnilnik: meje v pomnilniku " + if (usb) "za USB" else "kot brez USB")
     }
 
     /** Sistemska obvestila o priklopu in odklopu: naslednja [mapa] preveri takoj. */

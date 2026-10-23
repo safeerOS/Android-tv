@@ -136,5 +136,23 @@ fun main() {
     preveriEnako("TTL besedil 30 dni", 30 * dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.BESEDILA))
     preveriEnako("besedila ne gredo na napravo v Linku", false, PredpomnilnikPravila.smeNaLink(PredpomnilnikPravila.BESEDILA, 100, zasebno = false))
 
+    println("\n== meje v pomnilniku z USB (naloga 92) ==")
+    val slike18 = 18 * 1024 * 1024
+    preveriEnako("slike brez USB: kot doslej", slike18, PredpomnilnikPravila.mejaSlik(usb = false, brezUsb = slike18))
+    preveriEnako("slike z USB: 8 MB", 8 * 1024 * 1024, PredpomnilnikPravila.mejaSlik(usb = true, brezUsb = slike18))
+    preveriEnako("slike z USB: manjsa meja brez USB ostane", 4 * 1024 * 1024, PredpomnilnikPravila.mejaSlik(usb = true, brezUsb = 4 * 1024 * 1024))
+    preveriEnako("strani kanalov brez USB: kot doslej", 10_000, PredpomnilnikPravila.mejaStraniKanalov(usb = false, brezUsb = 10_000))
+    preveriEnako("strani kanalov z USB: 2500 kartic", 2_500, PredpomnilnikPravila.mejaStraniKanalov(usb = true, brezUsb = 10_000))
+    preveriEnako("strani kanalov z USB: manjsa meja ostane", 1_000, PredpomnilnikPravila.mejaStraniKanalov(usb = true, brezUsb = 1_000))
+    // Ravni onTrimMemory: RUNNING_MODERATE 5, RUNNING_LOW 10, RUNNING_CRITICAL 15, UI_HIDDEN 20, BACKGROUND 40.
+    preveriEnako("podatki brez USB: MODERATE ne", false, PredpomnilnikPravila.sprostiPodatkeOb(5, usb = false))
+    preveriEnako("podatki brez USB: LOW da", true, PredpomnilnikPravila.sprostiPodatkeOb(10, usb = false))
+    preveriEnako("podatki brez USB: UI_HIDDEN da", true, PredpomnilnikPravila.sprostiPodatkeOb(20, usb = false))
+    preveriEnako("podatki z USB: MODERATE da", true, PredpomnilnikPravila.sprostiPodatkeOb(5, usb = true))
+    preveriEnako("podatki z USB: pod MODERATE ne", false, PredpomnilnikPravila.sprostiPodatkeOb(0, usb = true))
+    preveriEnako("strani kanalov brez USB: nikoli", false, PredpomnilnikPravila.sprostiStraniKanalovOb(80, usb = false))
+    preveriEnako("strani kanalov z USB: MODERATE da", true, PredpomnilnikPravila.sprostiStraniKanalovOb(5, usb = true))
+    preveriEnako("strani kanalov z USB: pod MODERATE ne", false, PredpomnilnikPravila.sprostiStraniKanalovOb(0, usb = true))
+
     if (napak == 0) println("PredpomnilnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

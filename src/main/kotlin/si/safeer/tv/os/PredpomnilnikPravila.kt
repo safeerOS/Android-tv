@@ -244,4 +244,26 @@ object PredpomnilnikPravila {
 
     /** Skladba je v predpomnilniku cela (znana dolzina, vse predpomnjeno): igra brez omrezja in brez iskanja toka. */
     fun jeCelota(dolzina: Long, predpomnjeno: Long): Boolean = dolzina > 0 && predpomnjeno >= dolzina
+
+    // ---------------------------------------------------------------- naloga 92: manj RAM, ko je USB v uporabi
+
+    /** Naslovnice v pomnilniku z USB: ~78 plakatov RGB_565 280 px (zaslon in vrnitev nanj); ostale pridejo iz baze, ne iz omrezja. */
+    const val SLIKE_Z_USB = 8 * 1024 * 1024
+    /** Kartice strani katalogov kanalov v pomnilniku z USB: 2,5 strani po 1000; ostale strani so v bazi na USB ([KANALI]). */
+    const val KARTIC_STRANI_Z_USB = 2_500
+
+    /** Meja naslovnic v pomnilniku (bajti): brez USB [brezUsb] (kot doslej), z USB najvec [SLIKE_Z_USB]. */
+    fun mejaSlik(usb: Boolean, brezUsb: Int): Int = if (usb) minOf(brezUsb, SLIKE_Z_USB) else brezUsb
+
+    /** Meja kartic strani katalogov kanalov v pomnilniku: brez USB [brezUsb] (kot doslej), z USB najvec [KARTIC_STRANI_Z_USB]. */
+    fun mejaStraniKanalov(usb: Boolean, brezUsb: Int): Int = if (usb) minOf(brezUsb, KARTIC_STRANI_Z_USB) else brezUsb
+
+    /**
+     * onTrimMemory: ali spustimo sezname in mreze v pomnilniku (GlasbaActivity.sprostiPodatke; kopija je v bazi kot police).
+     * Brez USB kot doslej od RUNNING_LOW (10); z USB ze od RUNNING_MODERATE (5).
+     */
+    fun sprostiPodatkeOb(raven: Int, usb: Boolean): Boolean = raven >= if (usb) 5 else 10
+
+    /** onTrimMemory: strani katalogov kanalov v pomnilniku spustimo samo z USB (kopija na USB), od RUNNING_MODERATE (5). */
+    fun sprostiStraniKanalovOb(raven: Int, usb: Boolean): Boolean = usb && raven >= 5
 }

@@ -8768,6 +8768,9 @@ class GlasbaActivity : OsActivity() {
             SLIKE.evictAll()
         }
 
+        /** Naloga 92: predpomnilnik na USB v uporabi - manj naslovnic v pomnilniku ([PredpomnilnikPravila.mejaSlik]); ostale iz baze. */
+        fun prilagodiPomnilnik(usb: Boolean) = SLIKE.resize(PredpomnilnikPravila.mejaSlik(usb, SLIKE_BAJTOV))
+
         /**
          * Seznami in mreze za takojsnje ponovno odprtje (SEZNAMI, BRSKANJE, VSEBINA_MREZE, KANALI_MREZE, VSE_VIDEO) rastejo
          * ves cas procesa: vsaka zvrst, jezik in razvrstitev doda svoj seznam (naloga 54). Ko je vmesnik skrit ali sistemu

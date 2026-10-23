@@ -30,13 +30,17 @@ open class OsActivity : Activity() {
             GlasbaActivity.sprostiSlike()
         }
         // Vmesnik skrit (UI_HIDDEN in vec) ali malo pomnilnika (RUNNING_LOW/CRITICAL): se seznami Medijev (naloga 54).
-        if (level >= TRIM_MEMORY_RUNNING_LOW) GlasbaActivity.sprostiPodatke()
+        // Naloga 92: s predpomnilnikom na USB ze od RUNNING_MODERATE, tudi strani katalogov kanalov (kopija je na USB).
+        val usb = UsbPredpomnilnik.mejaUsb() > 0L
+        if (PredpomnilnikPravila.sprostiPodatkeOb(level, usb)) GlasbaActivity.sprostiPodatke()
+        if (PredpomnilnikPravila.sprostiStraniKanalovOb(level, usb)) Stremio.sprostiStraniKanalov()
     }
 
     override fun onLowMemory() {
         super.onLowMemory()
         LahkiWebViewPool.sprostiProstega()
         GlasbaActivity.sprostiSlike()
+        if (UsbPredpomnilnik.mejaUsb() > 0L) Stremio.sprostiStraniKanalov()
     }
 
     /** Vsi zasloni Safeer OS govorijo jezik, ki ga je uporabnik izbral

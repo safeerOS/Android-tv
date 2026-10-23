@@ -709,6 +709,12 @@ object Stremio {
         override fun sizeOf(key: String, value: Pair<Long, List<Jamendo.Skladba>>): Int = OsPravila.velikostStraniKanalov(value.second.size)
     }
 
+    /** Naloga 92: predpomnilnik na USB v uporabi - manj strani v pomnilniku ([PredpomnilnikPravila.mejaStraniKanalov]), ostale z USB. */
+    fun prilagodiPomnilnik(usb: Boolean) = straniKanalov.resize(PredpomnilnikPravila.mejaStraniKanalov(usb, OsPravila.NAJVEC_KARTIC_STRANI_KANALOV))
+
+    /** Naloga 92: pomnilniski pritisk z USB - strani gredo iz pomnilnika (naslednje branje z USB, [katalogKanalov]). */
+    fun sprostiStraniKanalov() = straniKanalov.evictAll()
+
     /** Stran kataloga kanalov kot [katalogAliIzpad]; null = izpad (tudi neveljaven ali pretrgan odgovor). */
     private fun katalogKanalov(k: Katalog, skip: Int, zvrst: String): List<Jamendo.Skladba>? {
         val url = potKataloga(k, "", skip, zvrst) + ".json"
