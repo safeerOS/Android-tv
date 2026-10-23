@@ -38,6 +38,12 @@ object IptvSeznami {
     private fun datoteka(c: Context, naslov: String) = File(mapaSeznama(c, naslov), ime(naslov) + ".tsv")
     private fun opis(c: Context, naslov: String) = File(mapaSeznama(c, naslov), ime(naslov) + ".info")
 
+    /**
+     * Naloga 99 (pregled 231, N5): podatki seznama samo iz pomnilnika (brez diska) - za glavno nit. Napolni jih [podatki] ali
+     * priprava seznama v ozadju ([pripravi]); prej null.
+     */
+    fun podatkiIzPomnilnika(naslov: String): Podatki? = podatki[naslov]
+
     /** Podatki seznama z diska (brez omrezja); null = se ni prenesen. */
     fun podatki(c: Context, naslov: String): Podatki? {
         podatki[naslov]?.let { p ->

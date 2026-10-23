@@ -110,12 +110,13 @@ object Aplikacije {
             override fun onReceive(c: Context, i: Intent) {
                 val paket = i.data?.schemeSpecificPart
                 if (paket == null) oblikovane.pocisti() else oblikovane.odstrani(paket)
-                if (i.action == Intent.ACTION_PACKAGE_REMOVED && paket != null && !i.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
+                // Naloga 99 (pregled 231, N1): datoteka seznama se bere in pise na niti ikon, ne v onReceive na glavni niti.
+                if (i.action == Intent.ACTION_PACKAGE_REMOVED && paket != null && !i.getBooleanExtra(Intent.EXTRA_REPLACING, false)) try { niti.execute {
                     val stari = AplikacijePredpomnilnik.razcleni(try { datoteka(app).readText() } catch (_: Throwable) { null })
                     if (stari != null) try {
                         datoteka(app).writeText(AplikacijePredpomnilnik.kodiraj(AplikacijePredpomnilnik.brez(stari, paket)))
                     } catch (_: Throwable) { }
-                }
+                } } catch (_: java.util.concurrent.RejectedExecutionException) { }
                 zadnjeOsvezevanje = 0L      // naslednje odprtje takoj prebere svez seznam
             }
         }

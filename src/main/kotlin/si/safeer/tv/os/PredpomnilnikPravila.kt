@@ -242,6 +242,15 @@ object PredpomnilnikPravila {
     /** Kljuc skladbe v predpomnilniku zvoka: id brez pripone toka (»#…«) - povezava toka potece, skladba ostane ista. */
     fun kljucZvoka(id: String): String = "zvok|" + id.substringBefore('#')
 
+    /**
+     * Naloga 99 (pregled 231, S1): ali obstojeci predpomnilnik zvoka ostane ob novi preverbi mesta. Meja USB je odvisna od
+     * prostega prostora, ki se med pisanjem spreminja - ponovno ustvarjanje sprosti predpomnilnik med predvajanjem in skladba
+     * se prekine. Ostane, ce je mapa ista in ([predvaja] ali se meja [prej] -> [zdaj] spremeni za manj kot 10 %). Druga mapa ali
+     * ni meje (USB ni vec v uporabi): ne ostane.
+     */
+    fun obdrziPredpomnilnikZvoka(istaMapa: Boolean, prej: Long, zdaj: Long, predvaja: Boolean): Boolean =
+        istaMapa && prej > 0L && zdaj > 0L && (predvaja || kotlin.math.abs(zdaj - prej) * 10 < prej)
+
     /** Skladba je v predpomnilniku cela (znana dolzina, vse predpomnjeno): igra brez omrezja in brez iskanja toka. */
     fun jeCelota(dolzina: Long, predpomnjeno: Long): Boolean = dolzina > 0 && predpomnjeno >= dolzina
 

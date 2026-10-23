@@ -575,6 +575,7 @@ class GlasbaActivity : OsActivity() {
         kanaliDelavec.shutdownNow()
         nalaganjeKanalov.shutdownNow()
         pregledZasebnihNit.shutdownNow()
+        odklepNit.shutdownNow()      // naloga 99 (pregled 231, N2)
         glavna.removeCallbacks(umiri)
         tvIkone.clear()
         super.onDestroy()
@@ -3979,7 +3980,8 @@ class GlasbaActivity : OsActivity() {
             (if ("ostalo" in znane) listOf("ostalo" to imeKategorije("ostalo")) else emptyList())
         // Naloga 91b: jeziki so takoj na voljo - zadnji znani jeziki katalogov z diska in jeziki prenesenih seznamov IPTV (.info).
         val shranjeni = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString(JEZIKI_KANALOV, "").orEmpty().split(',')
-        val izSeznamov = seznamiTv().flatMap { IptvSeznami.podatki(this, it)?.jeziki.orEmpty() }
+        // Naloga 99 (N5): samo iz pomnilnika - jezike napolni priprava seznamov v ozadju ([naloziKanale]); izbira jih bere sveze.
+        val izSeznamov = seznamiTv().flatMap { IptvSeznami.podatkiIzPomnilnika(it)?.jeziki.orEmpty() }
         val jeziki = jezikiIzbire(KanaliPravila.jezikiKanalov(f?.jeziki?.map { it.kljuc }, shranjeni, izSeznamov + vgrajeni.map { it.jezik }))
         val nacini = listOf(RAZVRSTI_PRIPOROCENO to R.string.os_media_razvrsti_priporoceno, RAZVRSTI_IME_AZ to R.string.os_media_razvrsti_ime)
         return listOf(

@@ -50,7 +50,8 @@ object PredpomnilnikZvoka {
         val mapa = UsbPredpomnilnik.mapa(app, PredpomnilnikPravila.ZVOK)
         val m = PredpomnilnikPravila.delitevUsb(UsbPredpomnilnik.mejaUsb()).zvok
         if (mapa == null || m <= 0L) { sprostiZdaj(); return }
-        if (cache != null && mapa.path == pot && m == meja) return
+        // Naloga 99: majhna sprememba meje (prosti prostor) ali predvajanje - predpomnilnik ostane, skladba se ne prekine.
+        if (cache != null && PredpomnilnikPravila.obdrziPredpomnilnikZvoka(mapa.path == pot, meja, m, GlasbaStoritev.igra())) return
         sprostiZdaj()
         val nov = SimpleCache(mapa, LeastRecentlyUsedCacheEvictor(m), androidx.media3.database.StandaloneDatabaseProvider(app))
         // Prvi klic pocaka na branje kazala (na tej niti) - potem je [zdaj] na glavni niti brez cakanja na USB.

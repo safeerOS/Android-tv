@@ -154,5 +154,16 @@ fun main() {
     preveriEnako("strani kanalov z USB: MODERATE da", true, PredpomnilnikPravila.sprostiStraniKanalovOb(5, usb = true))
     preveriEnako("strani kanalov z USB: pod MODERATE ne", false, PredpomnilnikPravila.sprostiStraniKanalovOb(0, usb = true))
 
+    println("\n== predpomnilnik zvoka ob novi meji (naloga 99, S1) ==")
+    val gb1 = 1024L * MB
+    preveriEnako("ista mapa, meja -0,5 % - ostane", true, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, gb1, gb1 - 5 * MB, predvaja = false))
+    preveriEnako("ista mapa, meja +9 % - ostane", true, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, 1000 * MB, 1090 * MB, predvaja = false))
+    preveriEnako("ista mapa, meja -50 %, ne predvaja - znova", false, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, gb1, gb1 / 2, predvaja = false))
+    preveriEnako("ista mapa, meja -50 %, predvaja - ostane", true, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, gb1, gb1 / 2, predvaja = true))
+    preveriEnako("ista meja - ostane", true, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, gb1, gb1, predvaja = false))
+    preveriEnako("druga mapa - znova, tudi med predvajanjem", false, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(false, gb1, gb1, predvaja = true))
+    preveriEnako("ni vec meje (USB ni v uporabi) - ne", false, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, gb1, 0, predvaja = true))
+    preveriEnako("prej ni bilo meje - ne", false, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, 0, gb1, predvaja = false))
+
     if (napak == 0) println("PredpomnilnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
