@@ -3743,13 +3743,21 @@ class GlasbaActivity : OsActivity() {
         if (prostih <= 0) return
         val vrste = KanaliPravila.vidneVrste(nm.vrstice.map { it.top }, drsnik.scrollY, drsnik.height)
         val izbrani = KanaliPravila.zaPreverjanje(nm.kljuci, vrste, nm.naVrsto, prostih) { id ->
-            val sk = m.razlicice[id]?.firstOrNull()
-            val kk = OsPravila.kljucKanala(id)
+            // Kartica je ziva, ce deluje katera koli razlicica: preverimo prvo se neznano ([razlicicaZaPreverjanje]).
+            val sk = razlicicaZaPreverjanje(m, id)
+            val kk = sk?.let { OsPravila.kljucKanala(it.id) }
             sk != null && id !in m.vedno && ((Stremio.jeEnota(sk) && Stremio.dajeLastneTokove(sk)) || IptvSeznami.jeKanal(sk)) && kk !in m.neznani &&
-                kk !in kanaliVPreverjanju && MrtviKanali.stanje(this, id) == null
+                kk !in kanaliVPreverjanju
         }
         if (izbrani.isNotEmpty()) dnevnikMreze { "kanali: preverjam vidne ${izbrani.size} (vrste ${vrste.first}..${vrste.last}, v teku ${kanaliVPreverjanju.size}, proracun ${m.proracun})" }
-        izbrani.forEach { id -> m.razlicice[id]?.firstOrNull()?.let { preveriKanal(m, it) } }
+        izbrani.forEach { id -> razlicicaZaPreverjanje(m, id).let { sk -> if (sk != null) preveriKanal(m, sk) } }
+    }
+
+    /** Razlicica kartice [id], ki jo preverimo zdaj (mrtve izpustimo, najprej HD); null, ce nobena ne potrebuje preverjanja. */
+    private fun razlicicaZaPreverjanje(m: MrezaKanalov, id: String): Jamendo.Skladba? {
+        val vse = m.razlicice[id].orEmpty()
+        val i = KanaliPravila.razlicicaZaPreverjanje(vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) })
+        return if (i == null) null else vse[i]
     }
 
     private fun narisiKanale(m: MrezaKanalov) {
@@ -3791,6 +3799,10 @@ class GlasbaActivity : OsActivity() {
         var naprej = false
         var brezProstih = 0
         val narisaniZdaj = m.narisani.toHashSet()
+        // Razlicica kartice, ki je ze na zaslonu, ostane (tudi izven okna): ko je glava kartice mrtva, kartico prevzame zivi
+        // SD/HD brat, kartica pa ne izgine.
+        val razliceNarisanih = HashSet<String>()
+        for (id in narisaniZdaj) m.razlicice[id]?.forEach { razliceNarisanih += it.id }
         for (sk in urejeni) {
             // Kanal iz dodatka, ki je samo katalog (tok da drug dodatek), pri njegovem dodatku ni preverljiv: v mrezi je
             // brez preverjanja, kot doslej.
@@ -3807,7 +3819,7 @@ class GlasbaActivity : OsActivity() {
             if (MrtviKanali.stanje(this, sk.id) == false) continue
             // Kar je ze narisano, ostane - ne glede na vrstni red virov in okno (izmerjeno 6. 10. 2026 na televizorju: ob
             // vrnitvi v mrezo so kanali za 15 s izginili, ker je svez seznam prednje postavil druge).
-            if (sk.id in narisaniZdaj) { vsi += sk; izDodatkov++; continue }
+            if (sk.id in narisaniZdaj || sk.id in razliceNarisanih) { vsi += sk; izDodatkov++; continue }
             if (naprej) continue
             if (izDodatkov >= m.okno) { naprej = true; continue }
             // Novi pridejo za ze narisane ([OsPravila.stabilenRed]): preverjanje jih ne more premakniti.
@@ -5469,6 +5481,11 @@ class GlasbaActivity : OsActivity() {
                     jeVrstaPosnetkov(sk, seznam) -> predvajajVrstoPosnetkov(celotaZdaj(), sk)
                     SpletniVir.jeEnota(sk) -> razresiSplet(sk, vse.drop(1))
                     Stremio.jeEnota(sk) && vse.size > 1 -> razresiStremio(sk, razlicice = vse.drop(1))
+                    // Kanal seznama IPTV z vec razlicicami (SD, HD): predvajamo prvo zivo, mrtve izpustimo.
+                    IptvSeznami.jeKanal(sk) && vse.size > 1 -> {
+                        val vrstni = KanaliPravila.urediRazlicice(vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) })
+                        predvajaj(listOf(vrstni.firstOrNull()?.let { vse[it] } ?: sk), 0)
+                    }
                     else -> predvajaj(listOf(sk), 0)
                 }
             }, { meni(sk, celotaZdaj(), vrsta, seznam) }, oznaka = tip, kakovost = kakovost,

@@ -212,5 +212,20 @@ fun main() {
     preveriEnako("82: brez nadomestka, 45 s - ni vec »Nalagam«", KanaliPravila.PraznaMreza.PRAZNO, KanaliPravila.praznaMreza(0, true, 45_000, false))
     preveriEnako("82: brez nadomestka, koncano - prazno", KanaliPravila.PraznaMreza.PRAZNO, KanaliPravila.praznaMreza(0, false, 0, false))
 
+    // TV SLO 1 in TV SLO 1 HD: dve razlicici, ena mrtva - kartica je vidna; obe mrtvi - skrita.
+    val sloImena = listOf("TV SLO 1", "TV SLO 1 HD")
+    preveriEnako("TV SLO: oba vnosa sta isti kanal", KanaliPravila.kljucImena(sloImena[0]), KanaliPravila.kljucImena(sloImena[1]))
+    preveri("TV SLO: SD mrtev, HD neznan - kartica vidna", KanaliPravila.karticaVidna(listOf(false, null)))
+    preveri("TV SLO: SD neznan, HD mrtev - kartica vidna", KanaliPravila.karticaVidna(listOf(null, false)))
+    preveri("TV SLO: oba mrtva - kartica skrita", !KanaliPravila.karticaVidna(listOf(false, false)))
+    preveriEnako("TV SLO: oba mrtva - ni razlicice za predvajanje", emptyList<Int>(), KanaliPravila.urediRazlicice(sloImena, listOf(false, false)))
+    preveriEnako("TV SLO: SD mrtev - predvaja HD", listOf(1), KanaliPravila.urediRazlicice(sloImena, listOf(false, null)))
+    preveriEnako("TV SLO: nic ne vemo - najprej HD", listOf(1, 0), KanaliPravila.urediRazlicice(sloImena, listOf(null, null)))
+    preveriEnako("TV SLO: znano ziva SD pred neznanim HD", listOf(0, 1), KanaliPravila.urediRazlicice(sloImena, listOf(true, null)))
+    preveriEnako("TV SLO: preverjanje zacne pri HD", 1, KanaliPravila.razlicicaZaPreverjanje(sloImena, listOf(null, null)))
+    preveriEnako("TV SLO: HD mrtev - preverimo SD", 0, KanaliPravila.razlicicaZaPreverjanje(sloImena, listOf(null, false)))
+    preveriEnako("TV SLO: HD znano ziv - ni treba preverjati", null, KanaliPravila.razlicicaZaPreverjanje(sloImena, listOf(null, true)))
+    preveriEnako("TV SLO: oba mrtva - ni kaj preverjati", null, KanaliPravila.razlicicaZaPreverjanje(sloImena, listOf(false, false)))
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

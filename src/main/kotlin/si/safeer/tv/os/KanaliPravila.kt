@@ -136,6 +136,24 @@ object KanaliPravila {
         return c.replace(RX_KAKOVOST, "").trim().ifEmpty { c }.replace(" ", "")
     }
 
+    private val RX_HD_V_IMENU = Regex("(?:^|[^\\p{L}\\p{N}])(?:hd|fhd|uhd|4k)(?:$|[^\\p{L}\\p{N}])", RegexOption.IGNORE_CASE)
+
+    /**
+     * Razlicice istega kanala (kartica), po vrsti poskusa: najprej tiste z znanim zivim tokom, nato se neznane; dokazano
+     * mrtve ([stanja] = false) izpadejo. Znotraj skupine gre prva tista z »HD« v imenu, nato prvotni vrstni red.
+     * Vrne indekse v [imena]; prazen seznam = mrtve so vse razlicice in kartica se skrije.
+     */
+    fun urediRazlicice(imena: List<String>, stanja: List<Boolean?>): List<Int> =
+        imena.indices.filter { stanja.getOrNull(it) != false }
+            .sortedWith(compareBy({ if (stanja.getOrNull(it) == true) 0 else 1 }, { if (RX_HD_V_IMENU.containsMatchIn(imena[it])) 0 else 1 }, { it }))
+
+    /** Kartica je vidna, ce deluje katera koli razlicica (ali ni nobene, ki bi jo skrila); mrtva razlicica je ne skrije. */
+    fun karticaVidna(stanja: List<Boolean?>): Boolean = stanja.isEmpty() || stanja.any { it != false }
+
+    /** Katero razlicico preverimo zdaj: prva po [urediRazlicice], ce se ne vemo zanjo; null, ce je prva ze znano ziva ali ni nobene. */
+    fun razlicicaZaPreverjanje(imena: List<String>, stanja: List<Boolean?>): Int? =
+        urediRazlicice(imena, stanja).firstOrNull()?.takeIf { stanja.getOrNull(it) == null }
+
     fun filtri(katalogi: List<Katalog>): Filtri {
         val splosni = ArrayList<Vir>()
         val zasebni = ArrayList<Vir>()
