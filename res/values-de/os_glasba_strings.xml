@@ -382,4 +382,7 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Gespeicherte Poster, Kataloge und Listen auf diesem Fernseher und USB löschen? Sie werden erneut aus dem Internet geladen.</string>
     <string name="os_predpomnilnik_pociscen">Zwischenspeicher geleert.</string>
     <string name="os_predpomnilnik_preverjam">Geräte werden geprüft …</string>
+    <!-- Naloga 88 -->
+    <string name="os_media_kanal_ni_dosegljiv">%1$s ist derzeit nicht erreichbar.</string>
+    <string name="os_media_glasba_samo_seznami">Deine Wiedergabelisten sind oben. Füge eine Quelle für mehr Musik hinzu.</string>
 </resources>

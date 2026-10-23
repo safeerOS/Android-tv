@@ -382,4 +382,7 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Eliminare locandine, cataloghi ed elenchi salvati su questo televisore e sulla USB? Verranno ricaricati da Internet.</string>
     <string name="os_predpomnilnik_pociscen">Cache svuotata.</string>
     <string name="os_predpomnilnik_preverjam">Verifica dei dispositivi…</string>
+    <!-- Naloga 88 -->
+    <string name="os_media_kanal_ni_dosegljiv">%1$s non è disponibile al momento.</string>
+    <string name="os_media_glasba_samo_seznami">Le tue playlist sono qui sopra. Aggiungi una fonte per altra musica.</string>
 </resources>

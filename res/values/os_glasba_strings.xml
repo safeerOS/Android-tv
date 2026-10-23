@@ -381,4 +381,7 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Delete saved posters, catalogues and lists on this TV and USB? They will load again from the internet.</string>
     <string name="os_predpomnilnik_pociscen">Cache cleared.</string>
     <string name="os_predpomnilnik_preverjam">Checking devices…</string>
+    <!-- Naloga 88 -->
+    <string name="os_media_kanal_ni_dosegljiv">%1$s is not available right now.</string>
+    <string name="os_media_glasba_samo_seznami">Your playlists are above. Add a source for more music.</string>
 </resources>

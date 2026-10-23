@@ -232,6 +232,9 @@ object Stremio {
     }
 
     /** Dodatek zaporedoma ne odgovarja (3 izpadi v 10 min): v ozadju ga preskocimo 30 min, v Mojih virih je oznaka. */
+    /** Naloga 88: koda HTTP zadnjega zahtevka te niti (0 = brez odgovora ali varovalka), za dnevnik izida kataloga. */
+    fun zadnjaKodaNiti(): Int = zadnjaKoda.get() ?: 0
+
     fun neOdgovarja(naslov: String): Boolean = OsPravila.neOdgovarja(odzivi[osnova(naslov)], System.currentTimeMillis())
 
     /**

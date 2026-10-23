@@ -382,4 +382,7 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Supprimer les affiches, catalogues et listes enregistrés sur ce téléviseur et la clé USB ? Ils seront rechargés depuis Internet.</string>
     <string name="os_predpomnilnik_pociscen">Cache vidé.</string>
     <string name="os_predpomnilnik_preverjam">Vérification des appareils…</string>
+    <!-- Naloga 88 -->
+    <string name="os_media_kanal_ni_dosegljiv">%1$s n’est pas disponible pour le moment.</string>
+    <string name="os_media_glasba_samo_seznami">Tes playlists sont au-dessus. Ajoute une source pour plus de musique.</string>
 </resources>

@@ -1331,4 +1331,47 @@ object OsPravila {
         Character.CONTROL -> "KONTROLNI"
         else -> "DRUGO"
     }
+
+    // ------------------------------------------------------------------ naloga 88: Live TV, Music, kanal ni dosegljiv
+
+    /** Najdlje dopolnitev mreze caka na prvo risanje (po korakih); potem dopolni brez cakanja (varovalka). */
+    const val ODLOZI_RISANJE_MS = 2_000L
+
+    /** Ali dopolnitev mreze se pocaka na prvo risanje, ki caka od [odMs] (uptime); ura nazaj = ne caka. */
+    fun odloziDopolnitev(odMs: Long, zdajMs: Long): Boolean = zdajMs - odMs in 0 until ODLOZI_RISANJE_MS
+
+    /**
+     * Naloga 88: rok za tokove vseh dodatkov ob kliku. Kanal v zivo 7 s (uporabnik v 8 s izve, da ni dosegljiv - prej 12 s
+     * in nato tiho); film, serija in drugo 12 s kot doslej (pocasni dodatki z vec viri).
+     */
+    fun rokTokovMs(vZivo: Boolean): Long = if (vZivo) 7_000L else 12_000L
+
+    /**
+     * Naloga 88: izid prve strani kataloga za dnevnik: [vnosov] (null = izpad), [koda] HTTP zadnjega zahtevka (0 = brez),
+     * [varovalka] = dodatek je izklopljen, ker zapored ne odgovarja.
+     */
+    fun izidKataloga(vnosov: Int?, koda: Int, varovalka: Boolean): String = when {
+        vnosov != null && vnosov > 0 -> "$vnosov vnosov"
+        vnosov != null -> "prazno (dodatek je odgovoril brez vnosov${if (koda == 404) ", 404" else ""})"
+        koda == 0 && varovalka -> "ni vprasan (varovalka: dodatek zapored ne odgovarja)"
+        koda == 0 -> "ni odgovora (cas, omrezje)"
+        koda == 429 || koda == 403 -> "omejitev dodatka (HTTP $koda)"
+        else -> "napaka (HTTP $koda)"
+    }
+
+    /** Napis nad mrezo Glasbe ali Radia. */
+    enum class OpisMreze { NIC, NALAGAM, JEZIK, BREZ_VIROV, SAMO_SEZNAMI, PRAZNO }
+
+    /**
+     * Naloga 88 (TV 08:50: »Nothing found« pod sestimi seznami predvajanja): prazna mreza s seznami predvajanja na zaslonu
+     * (polica na vrhu Music, naloga 83) ni »nic najdeno« - napis pove, da so tu seznami, ostalo pride z viri.
+     */
+    fun opisPrazneMreze(imaKartice: Boolean, nalagam: Boolean, jezikIzbran: Boolean, brezVirov: Boolean, imaSezname: Boolean): OpisMreze = when {
+        imaKartice -> OpisMreze.NIC
+        nalagam -> OpisMreze.NALAGAM
+        jezikIzbran -> OpisMreze.JEZIK
+        imaSezname -> OpisMreze.SAMO_SEZNAMI
+        brezVirov -> OpisMreze.BREZ_VIROV
+        else -> OpisMreze.PRAZNO
+    }
 }

@@ -919,6 +919,30 @@ private fun preizkusPregleda86() {
     preveriEnako("86 M6: prazen", "dolzina=0, crk=0, stevk=0, locil=0, presledkov=0, kontrolnih=0, ne-ASCII=0", OsPravila.opisZavrnjenegaVnosa(""))
 }
 
+/** Naloga 88: Live TV prvo risanje (varovalka), rok tokov kanala, dnevnik kataloga, napis prazne Glasbe. */
+private fun preizkusTv88() {
+    println("\n== naloga 88: popravki pred izdajo TV ==")
+    preveriEnako("88: dopolnitev caka na prvo risanje", true, OsPravila.odloziDopolnitev(1_000, 1_500))
+    preveriEnako("88: po 2 s ne caka vec", false, OsPravila.odloziDopolnitev(1_000, 3_000))
+    preveriEnako("88: ura nazaj ne caka", false, OsPravila.odloziDopolnitev(5_000, 1_000))
+    preveriEnako("88: kanal v zivo 7 s (sporocilo v 8 s)", 7_000L, OsPravila.rokTokovMs(true))
+    preveriEnako("88: film 12 s kot doslej", 12_000L, OsPravila.rokTokovMs(false))
+    preveriEnako("88: katalog z vnosi", "30 vnosov", OsPravila.izidKataloga(30, 200, false))
+    preveriEnako("88: katalog prazen", "prazno (dodatek je odgovoril brez vnosov)", OsPravila.izidKataloga(0, 200, false))
+    preveriEnako("88: katalog 404", "prazno (dodatek je odgovoril brez vnosov, 404)", OsPravila.izidKataloga(0, 404, false))
+    preveriEnako("88: varovalka", "ni vprasan (varovalka: dodatek zapored ne odgovarja)", OsPravila.izidKataloga(null, 0, true))
+    preveriEnako("88: ni odgovora", "ni odgovora (cas, omrezje)", OsPravila.izidKataloga(null, 0, false))
+    preveriEnako("88: omejitev", "omejitev dodatka (HTTP 429)", OsPravila.izidKataloga(null, 429, false))
+    preveriEnako("88: napaka", "napaka (HTTP 500)", OsPravila.izidKataloga(null, 500, false))
+    preveriEnako("88: kartice - brez napisa", OsPravila.OpisMreze.NIC, OsPravila.opisPrazneMreze(true, true, true, true, true))
+    preveriEnako("88: nalagam", OsPravila.OpisMreze.NALAGAM, OsPravila.opisPrazneMreze(false, true, false, false, true))
+    preveriEnako("88: seznami na zaslonu - ne »Nothing found«", OsPravila.OpisMreze.SAMO_SEZNAMI, OsPravila.opisPrazneMreze(false, false, false, false, true))
+    preveriEnako("88: seznami tudi brez virov", OsPravila.OpisMreze.SAMO_SEZNAMI, OsPravila.opisPrazneMreze(false, false, false, true, true))
+    preveriEnako("88: izbran jezik ima prednost", OsPravila.OpisMreze.JEZIK, OsPravila.opisPrazneMreze(false, false, true, false, true))
+    preveriEnako("88: brez virov", OsPravila.OpisMreze.BREZ_VIROV, OsPravila.opisPrazneMreze(false, false, false, true, false))
+    preveriEnako("88: res prazno", OsPravila.OpisMreze.PRAZNO, OsPravila.opisPrazneMreze(false, false, false, false, false))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
     preizkusHtmlImen()
@@ -962,6 +986,7 @@ fun main() {
     preizkusGlasbe83()
     preizkusRadia84()
     preizkusPregleda86()
+    preizkusTv88()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }

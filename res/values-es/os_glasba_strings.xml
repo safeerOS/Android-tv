@@ -382,4 +382,7 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">¿Borrar los pósteres, catálogos y listas guardados en este televisor y en el USB? Se volverán a cargar desde Internet.</string>
     <string name="os_predpomnilnik_pociscen">Caché borrada.</string>
     <string name="os_predpomnilnik_preverjam">Comprobando dispositivos…</string>
+    <!-- Naloga 88 -->
+    <string name="os_media_kanal_ni_dosegljiv">%1$s no está disponible en este momento.</string>
+    <string name="os_media_glasba_samo_seznami">Tus listas de reproducción están arriba. Añade una fuente para más música.</string>
 </resources>

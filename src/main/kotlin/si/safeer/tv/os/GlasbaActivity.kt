@@ -1034,7 +1034,10 @@ class GlasbaActivity : OsActivity() {
         val narocena = narocenaMreza
         narocenaMreza = null
         narisanaMreza = null
-        risemMrezo = narocena?.takeIf { vrste.size == 1 }?.first
+        // Naloga 88 (TV 08:50: Live TV ob prvem odprtju 0 kartic in »Loading« po 40 s, ceprav so bili kanali z diska v mrezi):
+        // mreza, ki je ta hip prazna (ali je pogled), se ne rise po korakih - zapis »risem« bi ostal za vedno in vsaka dopolnitev
+        // ([narisiKanale]) bi se odlagala v nedogled. Prvo prazno risanje je bilo ob vsakem prvem odprtju po zagonu.
+        risemMrezo = narocena?.takeIf { vrste.size == 1 && vrste[0].pogled == null && vrste[0].kartice.isNotEmpty() }?.first
         // Skrajsano vidno polje mreze ([brezOdrezanihVrst]) velja samo za mrezo, ki ga je nastavila.
         skrajsajDrsnik(0)
         dnevnikMreze { "polno risanje: razdelek=$razdelek, vrst=${vrste.size}, kartic=${vrste.sumOf { it.kartice.size }}, mreza=${narocena != null}, izbira v vsebini=${vsebina.hasFocus()}, drsnik=${drsnik.scrollY}" }
@@ -3073,6 +3076,8 @@ class GlasbaActivity : OsActivity() {
         var vedno: Set<String> = emptySet()
         /** Dopolnitev caka, da se prvo risanje te mreze konca ([narisiKanale]). */
         var cakaNaRisanje = false
+        /** Naloga 88: od kdaj (uptime) dopolnitev caka na prvo risanje; 0 = ne caka. */
+        var cakaRisanjeOd = 0L
         val seKaj: Boolean get() = glavni.any { !it.konec } || rezerva.isNotEmpty() || seznami.any { !it.konec }
         /** Naloga 80: viri brez izbire, ki se niso v [glavni] - samodejno dopolnijo mrezo, ko so glavni izcrpani. */
         val rezerva = ArrayList<VirKanalov>()
@@ -3751,13 +3756,17 @@ class GlasbaActivity : OsActivity() {
         if (mrezaKanalov !== m || isFinishing) return
         // Prvo risanje te mreze se tece (kartice nastajajo po korakih): dopolnitev pocaka nanj, da jo opravimo na mestu.
         // Sicer bi se mreza takoj narisala znova (izmerjeno 6. 10. 2026: kanali z diska so prisli 0,17 s po odprtju).
-        if (risemMrezo === m) {
+        // Naloga 88: varovalka - risanje, ki se ni koncalo v [OsPravila.ODLOZI_RISANJE_MS], ne zadrzuje vec dopolnitev.
+        val zdajMs = android.os.SystemClock.uptimeMillis()
+        if (risemMrezo === m && OsPravila.odloziDopolnitev(m.cakaRisanjeOd.takeIf { it > 0 } ?: zdajMs.also { m.cakaRisanjeOd = it }, zdajMs)) {
             if (!m.cakaNaRisanje) {
                 m.cakaNaRisanje = true
                 glavna.postDelayed({ m.cakaNaRisanje = false; if (mrezaKanalov === m && !isFinishing) narisiKanale(m) }, 40)
             }
             return
         }
+        if (risemMrezo === m) { android.util.Log.w("SafeerOsMedia", "kanali: prvo risanje se ni koncalo, dopolnim brez cakanja"); risemMrezo = null }
+        m.cakaRisanjeOd = 0L
         val brezIzbire = m.zvrst.isEmpty() && m.jezik.isEmpty()
         val krajevno = resources.configuration.locales[0]
         val vgrajeni = (if (!jeVirViden(TV_V_ZIVO, VIR_TV)) emptyList() else try { TvVZivo.kanali() } catch (_: Exception) { emptyList() })
@@ -3960,6 +3969,8 @@ class GlasbaActivity : OsActivity() {
         var narisani: List<String> = emptyList()
         /** Kolikokrat smo prazno prvo stran ze poskusili znova ([naloziMrezo]). */
         @Volatile var poskusov = 0
+        /** Naloga 88: zadnje zapisano stevilo skritih kartic dodatkov (mrtvi, ni na voljo, caka knjiznica). */
+        var skrite = Triple(0, 0, 0)
         /** Naloga 78: kar pokazemo namesto prazne mreze ([nadomestnaMreza]): (vrsta, naslov police, kartice). */
         var nadomestne: List<Triple<OsPravila.Nadomestek, String, List<Jamendo.Skladba>>>? = null
         var isceNadomestek = false
@@ -4139,7 +4150,13 @@ class GlasbaActivity : OsActivity() {
         val viri = m.viri.filter { it.vTeku != null || (!samoVTeku && !it.konec) }
         for (v in viri) if (v.vTeku == null) v.vTeku = try {
             iskanjeDelavec.submit<List<Jamendo.Skladba>> {
-                val stran = try { Stremio.katalog(v.katalog, skip = v.dal) } catch (_: Exception) { emptyList() }
+                val prvaStran = v.dal == 0
+                val odgovor = try { Stremio.katalogAliIzpad(v.katalog, skip = v.dal) } catch (_: Exception) { null }
+                // Naloga 88: prva stran kataloga dodatka v Glasbi in Radiu z izidom in razlogom (TV 08:50: Music Concerts
+                // ni dal kartic - ali je bil katalog prazen, napaka ali ni odgovoril?). Samo gostitelj in id kataloga.
+                if (prvaStran) android.util.Log.i("SafeerOsMedia", "mreza ${m.razdelek}: katalog ${android.net.Uri.parse(v.katalog.dodatek).host}/${v.katalog.tip}/${v.katalog.id} -> " +
+                    OsPravila.izidKataloga(odgovor?.size, Stremio.zadnjaKodaNiti(), Stremio.neOdgovarja(v.katalog.dodatek)))
+                val stran = odgovor.orEmpty()
                 v.dal += stran.size
                 if (!OsPravila.katalogImaVec(stran.size, v.katalog.strani, STRAN_KATALOGA_MIN)) v.konec = true
                 stran
@@ -4263,13 +4280,22 @@ class GlasbaActivity : OsActivity() {
             .filterNot { MrtviKanali.jeMrtev(this, it.id) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) }
         // Kar uporabnik ze vidi, ostane na svojem mestu; novo pride za tem (razen pri izrecni razvrstitvi po imenu ali letnici).
         val vsi = if (razvrstitev(m.razdelek) == RAZVRSTI_PRIPOROCENO) OsPravila.stabilenRed(m.narisani, poVrsti) { kljucVMrezi(it) } else poVrsti
-        val opis = when {
-            vsi.isEmpty() && m.nalagam -> getString(R.string.os_glasba_nalagam)
-            vsi.isEmpty() && !radio && glasbaJezik.isNotEmpty() -> getString(R.string.os_jezik_ni_vsebine)
-            vsi.isEmpty() && brezSpletnihVirov() -> getString(R.string.os_media_brez_virov)
-            vsi.isEmpty() -> getString(R.string.os_glasba_prazno)
-            else -> ""
+        // Naloga 88: na zaslonu so seznami predvajanja (polica na vrhu Music) - napis ni »Nothing found«.
+        val opis = when (OsPravila.opisPrazneMreze(vsi.isNotEmpty(), m.nalagam, !radio && glasbaJezik.isNotEmpty(), brezSpletnihVirov(),
+            !radio && seznamiZaGlasbo().isNotEmpty())) {
+            OsPravila.OpisMreze.NALAGAM -> getString(R.string.os_glasba_nalagam)
+            OsPravila.OpisMreze.JEZIK -> getString(R.string.os_jezik_ni_vsebine)
+            OsPravila.OpisMreze.BREZ_VIROV -> getString(R.string.os_media_brez_virov)
+            OsPravila.OpisMreze.SAMO_SEZNAMI -> getString(R.string.os_media_glasba_samo_seznami)
+            OsPravila.OpisMreze.PRAZNO -> getString(R.string.os_glasba_prazno)
+            OsPravila.OpisMreze.NIC -> ""
         }
+        // Naloga 88: kartice dodatkov, ki jih mreza skrije (in zakaj) - enkrat na spremembo, v dnevnik.
+        val skrite = (priljubljene + m.vsi).filter { Stremio.jeEnota(it) }.let { e ->
+            Triple(e.count { MrtviKanali.jeMrtev(this, it.id) }, e.count { znanoNiNaVoljo(it) }, e.count { cakaNaKnjiznico(it) }) }
+        if (skrite != Triple(0, 0, 0) && skrite != m.skrite) android.util.Log.i("SafeerOsMedia",
+            "mreza ${m.razdelek}: skritih kartic dodatkov mrtvih=${skrite.first}, ni na voljo=${skrite.second}, caka knjiznica=${skrite.third}")
+        m.skrite = skrite
         // Naloga 78: prazna mreza z nadomestno vsebino (zadnja znana, sorodno, brez filtra).
         val nadomestne = m.nadomestne
         // Naloga 83: tudi med ponovnimi poskusi (m.nalagam) - nadomestek je na zaslonu takoj.
@@ -6770,7 +6796,7 @@ class GlasbaActivity : OsActivity() {
      * Tokovi iz vseh dodatkov hkrati (vsak dodatek svoja nit, skupaj najvec 12 s): cakanje je toliko, kot traja
      * najpocasnejsi dodatek, ne vsota vseh (prej zaporedno).
      */
-    private fun tokoviVzporedno(tip0: String, id: String): List<Stremio.Tok> {
+    private fun tokoviVzporedno(tip0: String, id: String, rokMs: Long = OsPravila.rokTokovMs(false)): List<Stremio.Tok> {
         // Naloga 77: vnos tipa »music« z id-jem IMDb (koncert) vprasamo kot »movie«, ce noben dodatek ne da tokov za »music«.
         val tip = Stremio.tipToka(stremioNaslovi(), tip0, id)
         if (tip != tip0) android.util.Log.i("SafeerOsMedia", "tokovi: tip $tip0 -> $tip (noben dodatek ne da tokov za $tip0)")
@@ -6780,7 +6806,7 @@ class GlasbaActivity : OsActivity() {
         // Nic cakanja: ko ima prvi dodatek predvajljiv tok, pocasnim damo se 1,5 s (boljsa izbira), ne vseh 12 s.
         while (true) {
             val zdaj = android.os.SystemClock.uptimeMillis()
-            if (niti.all { it.isDone } || zdaj - zacetek > 12_000) break
+            if (niti.all { it.isDone } || zdaj - zacetek > rokMs) break
             if (prviTok == 0L && niti.any { f -> f.isDone && (try { f.get() } catch (_: Exception) { emptyList() }).any { it.vrsta == "url" } }) prviTok = zdaj
             if (prviTok != 0L && zdaj - prviTok > 1_500) break
             try { Thread.sleep(40) } catch (_: InterruptedException) { break }
@@ -6872,11 +6898,15 @@ class GlasbaActivity : OsActivity() {
                 glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno) }
             } else {
                 val enote = (listOf(tip to id) + razlicice.filter { Stremio.jeEnota(it) }.mapNotNull { r -> Stremio.razstavi(r)?.let { it.second to it.third } }).distinct().take(5)
-                val t = if (enote.size == 1) (try { tokoviVzporedno(tip, id) } catch (_: Exception) { emptyList() })
-                    else enote.map { (t1, i1) -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { tokoviVzporedno(t1, i1) } catch (_: Exception) { emptyList() } } }
-                        .flatMap { f -> try { f.get(15, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
+                // Naloga 88: kanal v zivo - najvec [OsPravila.rokTokovMs] (7 s) za vse dodatke, da je odgovor uporabniku v 8 s.
+                val vZivo = razred == Stremio.TV
+                val rokT = OsPravila.rokTokovMs(vZivo)
+                val konecT = android.os.SystemClock.uptimeMillis() + rokT + 500
+                val t = if (enote.size == 1) (try { tokoviVzporedno(tip, id, rokT) } catch (_: Exception) { emptyList() })
+                    else enote.map { (t1, i1) -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { tokoviVzporedno(t1, i1, rokT) } catch (_: Exception) { emptyList() } } }
+                        .flatMap { f -> try { f.get((konecT - android.os.SystemClock.uptimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
                 // Metapodatki so medtem navadno ze prisli: serija z epizodami se odpre kot serija (ne kot film).
-                if (odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@execute
+                if (!vZivo && odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@execute
                 glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno) }
             }
         }
@@ -7833,6 +7863,17 @@ class GlasbaActivity : OsActivity() {
         val posnetek = if (sk.mediaType.equals("MusicVideo", ignoreCase = true) || Stremio.razredEnote(sk) !in setOf(Stremio.FILM, Stremio.SERIJA))
             tokovi.firstOrNull { it.vrsta == "napovednik" } else null
         if (posnetek == null && tokovi.none { Stremio.jePredvajljiv(it) && gre(it) }) {
+            // Naloga 88 (TV 08:50: Arena Sport 1 Premium, dodatek 500 - 20 s nic, brez sporocila): kanal v zivo, za katerega
+            // noben dodatek v roku ne da toka (napaka, ni odgovora, ni toka), je ta cas nedosegljiv - jasno sporocilo in
+            // oznaka mrtev ([MrtviKanali], 24 h), mreza ga skrije. Placljiv dostop (79) ima svoje sporocilo spodaj.
+            if (obNeuspehu == null && Stremio.jeVZivo(sk) && !Stremio.samoObvestilaKanala(sk)) {
+                android.util.Log.i("SafeerOsMedia", "kanal ni dosegljiv: tokov=${tokovi.size}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}")
+                Toast.makeText(this, getString(R.string.os_media_kanal_ni_dosegljiv, naslov), Toast.LENGTH_LONG).show()
+                val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
+                (razlicice - sk.id).forEach { MrtviKanali.zapomni(this, it) }
+                MrtviKanali.zapomni(this, sk.id)
+                return
+            }
             // Dodatek ni odgovoril (omejuje poizvedbe, izpad, omrezje): to ni "ni na voljo". Naslov ostane na zaslonu,
             // uporabnik izve, da naj poskusi znova - prej je film ob vsakem izpadu dodatka "izginil".
             if (Stremio.dodatekNiOdgovoril()) {

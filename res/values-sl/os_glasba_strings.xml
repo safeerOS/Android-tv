@@ -383,4 +383,7 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Izbrišem shranjene plakate, kataloge in sezname na tem TV in USB? Znova se bodo naložili z interneta.</string>
     <string name="os_predpomnilnik_pociscen">Predpomnilnik je počiščen.</string>
     <string name="os_predpomnilnik_preverjam">Preverjam naprave …</string>
+    <!-- Naloga 88 -->
+    <string name="os_media_kanal_ni_dosegljiv">%1$s ta čas ni dosegljiv.</string>
+    <string name="os_media_glasba_samo_seznami">Tvoji seznami predvajanja so zgoraj. Za več glasbe dodaj vir.</string>
 </resources>
