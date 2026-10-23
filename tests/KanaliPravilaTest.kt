@@ -231,6 +231,8 @@ fun main() {
     preveri("90d: dash2.antik.sk test_slo1_tizen", KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/test_slo1_tizen/playlist.m3u8"))
     preveri("90d: dash2.antik.sk test_slo2_tizen", KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/test_slo2_tizen/playlist.m3u8"))
     preveri("90d: velike crke in http", KanaliPravila.znanNedelujocTok("HTTP://Dash2.Antik.SK/live/test_x/index.m3u8"))
+    preveri("Arena Sport si.m3u: telekomsrbije play", KanaliPravila.znanNedelujocTok("http://telekomsrbije.com:2095/play/abcDEF_123"))
+    preveri("telekomsrbije brez /play ni na seznamu", !KanaliPravila.znanNedelujocTok("https://telekomsrbije.com/"))
     preveri("90d: streamer03.xploretv.si", KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si:8443/tvslo1/index.m3u8"))
     preveri("90d: streamer03.xploretv.si brez poti", KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si"))
     preveri("90d: dash2.antik.sk/live brez test_ je v redu", !KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/slo1/playlist.m3u8"))

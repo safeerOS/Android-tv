@@ -156,9 +156,10 @@ object KanaliPravila {
 
     /**
      * Naloga 90d: tok, ki streznik odgovori pravilno (HTTP 200), a predvaja samo sliko »broadcast is temporarily unavailable«
-     * (izmerjeno 23. 10. 2026: TV SLO 1/2 iz iptv-org si.m3u). Sonda toka ga steje za zivega, zato ga poznamo po naslovu.
+     * (izmerjeno 23. 10. 2026: TV SLO 1/2 iz iptv-org si.m3u; Arena Sport 1 Premium iz si.m3u, telekomsrbije.com/play - vsakih 5 s
+     * slika »Domaci TV - Zabranjen vam je pristup«). Sonda toka ga steje za zivega, zato ga poznamo po naslovu.
      */
-    private val NEDELUJOCI_TOKOVI = Regex("^https?://(?:[^/@]*@)?(?:dash2\\.antik\\.sk(?::\\d+)?/live/test_|streamer03\\.xploretv\\.si(?::\\d+)?(?:/|$))")
+    private val NEDELUJOCI_TOKOVI = Regex("^https?://(?:[^/@]*@)?(?:dash2\\.antik\\.sk(?::\\d+)?/live/test_|streamer03\\.xploretv\\.si(?::\\d+)?(?:/|$)|telekomsrbije\\.com(?::\\d+)?/play/)")
 
     fun znanNedelujocTok(url: String): Boolean = NEDELUJOCI_TOKOVI.containsMatchIn(url.trim().lowercase(java.util.Locale.ROOT))
 
