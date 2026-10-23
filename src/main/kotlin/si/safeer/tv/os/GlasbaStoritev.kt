@@ -347,6 +347,7 @@ class GlasbaStoritev : Service() {
     /** Stop pomeni konec seje, ne pavze: sprostimo tudi skriti spletni predvajalnik/WebView. */
     private fun ustaviPredvajanje() {
         preklicPonovitveVZivo()
+        prekinjenaPonovitevVZivo = false      // naloga 103 (pregled 102, tocka 3)
         spletnaVrsta = emptyList(); zetonVrste++
         izbir++
         Zvocniki.ustavi {}
@@ -381,9 +382,16 @@ class GlasbaStoritev : Service() {
         val n = OsPravila.ponovnaPovezavaVZivo(kanal, progresivno, zacelo, ponovitevVZivo, predvajano, casiPonovitevVZivo, zdaj)
         if (n == 0) {
             if (!(kanal && progresivno && zacelo)) return false
+            // Naloga 103: rezervni tok (napaka) ali naslednji element vrste - obstojeca pot, ne tih konec.
+            if (!OsPravila.tihKonecPoMeji(kodaNapake != 0, rezerve.isNotEmpty(), spletnaVrsta.size > spletniIndeks + 1)) {
+                Log.i("SafeerOsMedia", "kanal v zivo: brez ponovne povezave ($zakaj) - meja ponovitev, naprej rezerva ali naslednji element")
+                return false
+            }
             // Meja ponovitev: tiho konec (brez sporocila in brez oznake mrtvega kanala), zaslon predvajanja se zapre.
             Log.i("SafeerOsMedia", "kanal v zivo: brez ponovne povezave ($zakaj) - meja ponovitev, $ponovitevVZivo zaporednih brez novih podatkov, tiho konec")
-            glavnaNit.post { ustaviPredvajanje() }
+            // Naloga 103 (pregled 102, tocka 2): medtem izbran drug vir se ne ustavi.
+            val izbranoOb = izbir
+            glavnaNit.post { if (primerek === this && izbir == izbranoOb && trenutna()?.id == enota.id) ustaviPredvajanje() }
             return true
         }
         ponovitevVZivo = n

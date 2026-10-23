@@ -1136,4 +1136,10 @@ private fun preizkusDokazaNadomestka100() {
     for (h in listOf(500, 502, 503, 509, 408, 429)) preveriEnako("101: 2004 s HTTP $h - z zamikom", z, OsPravila.zamikPonovitveVZivo(2004, h))
     preveriEnako("101: 2004 brez znane kode - brez ponovitve", null, OsPravila.zamikPonovitveVZivo(2004, 0))
     preveriEnako("101: konec toka z http ne vpliva", 0L, OsPravila.zamikPonovitveVZivo(0, 503))
+    // Naloga 103 (pregled 102, tocka 1): tih konec ob meji ponovitev samo brez druge moznosti.
+    preveriEnako("103: konec toka, nic naprej - tih konec", true, OsPravila.tihKonecPoMeji(napaka = false, imaRezervo = false, imaNaslednjega = false))
+    preveriEnako("103: napaka z rezervnim tokom - rezerva (obstojeca pot)", false, OsPravila.tihKonecPoMeji(napaka = true, imaRezervo = true, imaNaslednjega = false))
+    preveriEnako("103: konec toka z rezervo - rezerve konec toka ne uporablja, tih konec", true, OsPravila.tihKonecPoMeji(napaka = false, imaRezervo = true, imaNaslednjega = false))
+    preveriEnako("103: naslednji element vrste - naprej (obstojeca pot)", false, OsPravila.tihKonecPoMeji(napaka = false, imaRezervo = false, imaNaslednjega = true))
+    preveriEnako("103: napaka brez rezerve in brez naslednjega - tih konec", true, OsPravila.tihKonecPoMeji(napaka = true, imaRezervo = false, imaNaslednjega = false))
 }
