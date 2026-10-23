@@ -2,6 +2,7 @@ package si.safeer.tv.os
 
 import si.safeer.tv.R
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -11,6 +12,7 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.DisplayMetrics
+import java.io.File
 
 /** Aplikacije na televizorju, kot jih vidi zaganjalnik (LEANBACK_LAUNCHER), brez te aplikacije (brskalnik + Safeer OS). */
 object Aplikacije {
@@ -24,7 +26,128 @@ object Aplikacije {
      */
     fun sistemskiVrstniRed(context: Context): List<Vnos> = najdi(context)
 
-    fun seznam(context: Context): List<Vnos> = najdi(context).sortedBy { it.ime.lowercase() }
+    fun seznam(context: Context): List<Vnos> = najdi(context).also { shrani(context, it) }.sortedBy { it.ime.lowercase() }
+
+    /**
+     * Zadnji znani seznam z diska (paket, ime, razred), po abecedi in brez ikon: pokaze se takoj, ob odprtju
+     * zaslona. Ikone dobi [ikonaLeno]; svez seznam prinese [osveziVOzadju]. null = seznama se nimamo.
+     */
+    fun zadnjiZnani(context: Context): List<Vnos>? {
+        val zapisi = AplikacijePredpomnilnik.razcleni(try { datoteka(context).readText() } catch (_: Throwable) { null })
+            ?: return null
+        val tv = context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+        return zapisi.filter { it.paket != context.packageName }
+            .map { Vnos(it.paket, it.ime, null, zagonskaNamera(ComponentName(it.paket, it.razred), tv)) }
+            .sortedBy { it.ime.lowercase() }
+    }
+
+    private fun zagonskaNamera(c: ComponentName, tv: Boolean): Intent =
+        Intent(Intent.ACTION_MAIN).addCategory(if (tv) Intent.CATEGORY_LEANBACK_LAUNCHER else Intent.CATEGORY_LAUNCHER)
+            .setComponent(c).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    private fun datoteka(c: Context) = File(c.filesDir, "aplikacije_zadnji_seznam.txt")
+
+    private fun zapisi(vnosi: List<Vnos>): List<AplikacijePredpomnilnik.Zapis> = vnosi.mapNotNull { v ->
+        v.namera.component?.let { AplikacijePredpomnilnik.Zapis(v.paket, v.ime, it.className) }
+    }
+
+    @Synchronized private fun shrani(c: Context, vnosi: List<Vnos>) {
+        val novi = zapisi(vnosi)
+        if (novi.isEmpty()) return      // prazen izpad poizvedbe ne sme pobrisati dobrega seznama
+        try {
+            val stari = AplikacijePredpomnilnik.razcleni(try { datoteka(c).readText() } catch (_: Throwable) { null })
+            if (stari != null && AplikacijePredpomnilnik.enako(stari, novi)) return
+            val cilj = datoteka(c)
+            val zacasna = File(cilj.path + ".tmp")
+            zacasna.writeText(AplikacijePredpomnilnik.kodiraj(novi))
+            if (!zacasna.renameTo(cilj)) { cilj.delete(); zacasna.renameTo(cilj) }
+        } catch (e: Throwable) { android.util.Log.w("SafeerAplikacije", "Seznama ni mogoce shraniti: ${e.message}") }
+    }
+
+    @Volatile private var osvezujem = false
+    @Volatile private var zadnjeOsvezevanje = 0L
+
+    /**
+     * Svez seznam preberemo v ozadju (nizka prednost). [naSpremembo] dobi glavna nit samo, ce se seznam
+     * razlikuje od [prikazan]. Klici, ki prihajajo drug za drugim (vsak izris vrste), se zdruzijo.
+     */
+    fun osveziVOzadju(context: Context, prikazan: List<Vnos>?, naSpremembo: (List<Vnos>) -> Unit) {
+        val app = context.applicationContext
+        val zdaj = android.os.SystemClock.elapsedRealtime()
+        if (osvezujem || zdaj - zadnjeOsvezevanje < 2000L) return
+        osvezujem = true
+        prijaviSprejemnik(app)
+        val prikazanoZapisi = prikazan?.let { zapisi(it).sortedBy { z -> z.ime.lowercase() } }
+        Thread({
+            try {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+                val svez = najdi(app).sortedBy { it.ime.lowercase() }
+                shrani(app, svez)
+                if (prikazanoZapisi == null || !AplikacijePredpomnilnik.enako(prikazanoZapisi, zapisi(svez))) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).post { naSpremembo(svez) }
+                }
+            } catch (e: Throwable) {
+                android.util.Log.w("SafeerAplikacije", "Osvezitev seznama ni uspela: ${e.message}")
+            } finally {
+                zadnjeOsvezevanje = android.os.SystemClock.elapsedRealtime()
+                osvezujem = false
+            }
+        }, "SafeerAplikacijeOsvezi").start()
+    }
+
+    private var sprejemnikPrijavljen = false
+
+    /** Namestitev ali odstranitev aplikacije razveljavi ikono (in pri odstranitvi vnos) predpomnilnika. */
+    @Synchronized private fun prijaviSprejemnik(app: Context) {
+        if (sprejemnikPrijavljen) return
+        sprejemnikPrijavljen = true
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED); addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addDataScheme("package")
+        }
+        val sprejemnik = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) {
+                val paket = i.data?.schemeSpecificPart
+                if (paket == null) oblikovane.pocisti() else oblikovane.odstrani(paket)
+                if (i.action == Intent.ACTION_PACKAGE_REMOVED && paket != null && !i.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
+                    val stari = AplikacijePredpomnilnik.razcleni(try { datoteka(app).readText() } catch (_: Throwable) { null })
+                    if (stari != null) try {
+                        datoteka(app).writeText(AplikacijePredpomnilnik.kodiraj(AplikacijePredpomnilnik.brez(stari, paket)))
+                    } catch (_: Throwable) { }
+                }
+                zadnjeOsvezevanje = 0L      // naslednje odprtje takoj prebere svez seznam
+            }
+        }
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 33) app.registerReceiver(sprejemnik, filter, Context.RECEIVER_NOT_EXPORTED)
+            else @Suppress("UnspecifiedRegisterReceiverFlag") app.registerReceiver(sprejemnik, filter)
+        } catch (e: Throwable) { sprejemnikPrijavljen = false }
+    }
+
+    private val niti = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "SafeerAplikacijeIkone").apply { priority = Thread.MIN_PRIORITY; isDaemon = true }
+    }
+    private val cakajoceIkone = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Ikona, ki je ze v pomnilniku (po velikosti omejen LRU); sicer null in se ne bere nic z diska.
+     * Za izris kartice na glavni niti.
+     */
+    fun ikonaIzPomnilnika(paket: String): Drawable? = oblikovane.daj(paket)
+
+    /** Ikono naloziti v ozadju z nizko prednostjo; [naNalozeno] pride na glavno nit, ko je v predpomnilniku. */
+    fun ikonaLeno(context: Context, v: Vnos, naNalozeno: () -> Unit) {
+        if (oblikovane.daj(v.paket) != null || !cakajoceIkone.add(v.paket)) return
+        val app = context.applicationContext
+        try {
+            niti.execute {
+                try { if (ikona(app, v) != null) android.os.Handler(android.os.Looper.getMainLooper()).post(naNalozeno) }
+                catch (_: Throwable) { }
+                finally { cakajoceIkone.remove(v.paket) }
+            }
+        } catch (_: Throwable) { cakajoceIkone.remove(v.paket) }
+    }
 
     private fun najdi(context: Context): List<Vnos> {
         val pm = context.packageManager
@@ -41,11 +164,13 @@ object Aplikacije {
         }
         val videni = HashSet<String>()
         val vnosi = ArrayList<Vnos>()
+        val tv = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         for (z in zadetki) {
             val info = z.activityInfo ?: continue
             if (info.packageName == context.packageName || !videni.add(info.packageName)) continue
-            val namera = pm.getLeanbackLaunchIntentForPackage(info.packageName)
-                ?: pm.getLaunchIntentForPackage(info.packageName) ?: continue
+            // Namero sestavimo iz ze najdene dejavnosti: getLeanbackLaunchIntentForPackage je bil za vsak
+            // paket svoja poizvedba (50 aplikacij = 50 klicev paketnemu upravitelju).
+            val namera = zagonskaNamera(ComponentName(info.packageName, info.name), tv)
             // Ikona pred plakatom: plakat (banner) je sirok 320x180 in v majhni kvadratni
             // ploscici na domacem zaslonu postane neberljiv drobiz - prav to se je videlo pri
             // Safeer Browserju in SmartTubu. Kvadratna ikona aplikacije je vedno citljiva.
@@ -90,17 +215,27 @@ object Aplikacije {
      * logotip na svetli podlagi (in obratno). Brez tega se temne ikone zlijejo s temnim ozadjem.
      * Rezultat si zapomnimo, ker se seznam aplikacij med brskanjem veckrat izrise.
      */
-    private val oblikovane = HashMap<String, Drawable>()
+    private val oblikovane = AplikacijePredpomnilnik.MajhenLru<String, Drawable>(64)
 
     fun ikona(c: Context, v: Vnos): Drawable? {
-        oblikovane[v.paket]?.let { return it }
+        oblikovane.daj(v.paket)?.let { return it }
         // Najprej ostra razlicica iz iste aplikacije; sele ce je ni, tista, ki jo da loadIcon.
         val ostra = ostraIkona(c, v)
-        val vir = ostra ?: v.ikona ?: return null
+        val vir = ostra ?: v.ikona ?: izvirnaIkona(c, v) ?: return null
         val slika = vBitmap(vir) ?: return v.ikona
         val d = try { SpletneAplikacije.ikonaIzSlike(c, slika) } catch (_: Throwable) { vir }
-        oblikovane[v.paket] = d
+        oblikovane.dodaj(v.paket, d)
         return d
+    }
+
+    /** Vnos iz predpomnilnika diska nima ikone ne podatkov o dejavnosti: preberemo jih iz njegove komponente. */
+    private fun dejavnost(c: Context, v: Vnos): ActivityInfo? = v.info ?: try {
+        v.namera.component?.let { c.packageManager.getActivityInfo(it, 0) }
+    } catch (_: Throwable) { null }
+
+    private fun izvirnaIkona(c: Context, v: Vnos): Drawable? {
+        val info = dejavnost(c, v) ?: return null
+        return try { info.loadIcon(c.packageManager) ?: info.loadBanner(c.packageManager) } catch (_: Throwable) { null }
     }
 
     /**
@@ -110,7 +245,7 @@ object Aplikacije {
      * samo za oblikovanje in je ne hranimo, da velike slike ne ostanejo v pomnilniku televizorja.
      */
     private fun ostraIkona(c: Context, v: Vnos): Drawable? {
-        val info = v.info ?: return null
+        val info = dejavnost(c, v) ?: return null
         val res = info.iconResource
         if (res == 0) return null
         return try {

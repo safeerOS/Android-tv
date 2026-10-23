@@ -1421,7 +1421,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      */
     private fun narisiAplikacije(fokusPaket: String = "") {
         vrstaAplikacije.removeAllViews()
-        val vsi = Aplikacije.seznam(this)
+        // Zadnji znani seznam z diska takoj; svez seznam pride iz ozadja in vrsto prerise samo, ce se razlikuje.
+        // Samo prvic (brez datoteke) beremo seznam na glavni niti.
+        val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
+        Aplikacije.osveziVOzadju(this, vsi) { zZapomnjenimFokusom { if (!isFinishing && !isDestroyed) narisiAplikacije(fokusPaket) } }
         Priljubljene.pocistiSamodejne(this)
         val izbrani = Priljubljene.seznam(this)
         val po = izbrani.mapNotNull { paket -> vsi.firstOrNull { it.paket == paket } }
@@ -1429,7 +1432,14 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val kartice = LinkedHashMap<String, View>()
         for (a in po) {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
-            v.findViewById<ImageView>(R.id.ikona).setImageDrawable(Aplikacije.ikona(this, a))
+            val slika = v.findViewById<ImageView>(R.id.ikona)
+            val risba = Aplikacije.ikonaIzPomnilnika(a.paket)
+            if (risba != null) slika.setImageDrawable(risba)
+            else {
+                // Ikono nalozi ozadje (nizka prednost); kartica je medtem ze na zaslonu.
+                slika.setImageResource(R.drawable.os_ikona_mreza)
+                Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { slika.setImageDrawable(it) } }
+            }
             v.findViewById<TextView>(R.id.ime).text = a.ime
             v.onFocusChangeListener = fokus
             v.setOnClickListener {

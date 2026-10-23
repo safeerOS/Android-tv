@@ -92,7 +92,8 @@ object MrtviKanali {
      * Naloga 75: sonda je dala negotov izid (casovna omejitev ob delujocem omrezju, 5xx). Sam ni dokaz; po
      * [OsPravila.NEGOTOVIH_ZA_MRTEV] zaporednih (v [OsPravila.NEGOTOV_VELJA_MS]) je kanal mrtev. Vrne true, ce je zdaj mrtev.
      */
-    fun zapomniNegotovega(c: Context, id: String): Boolean {
+    // Pregled Kimi 231: beri-povecaj-zapisi mora biti nedeljivo (preverjalci tecejo vzporedno).
+    @Synchronized fun zapomniNegotovega(c: Context, id: String): Boolean {
         nalozi(c)
         val k = OsPravila.kljucKanala(id)
         val zdaj = System.currentTimeMillis()

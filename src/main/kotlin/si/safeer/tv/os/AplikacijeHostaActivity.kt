@@ -267,13 +267,25 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Aplikacije televizorja in spletne aplikacije: na tej napravi, zato takoj. */
     private fun naloziKrajevne() {
+        // Zadnji znani seznam z diska takoj (brez ikon); svez seznam in ikone pridejo iz ozadja, seznam se
+        // zamenja samo, ce se razlikuje. Prej je glavna nit ob vsakem odprtju brala vse aplikacije z ikonami.
+        val zadnji = if (zVirom(AppVir.TV)) Aplikacije.zadnjiZnani(this) else null
+        prikaziKrajevne(zadnji.orEmpty())
+        if (zVirom(AppVir.TV)) Aplikacije.osveziVOzadju(this, zadnji) { svez ->
+            if (!isFinishing && !isDestroyed) prikaziKrajevne(svez)
+        }
+    }
+
+    private val osveziIkone = Runnable { if (!isFinishing && !isDestroyed) prilagojevalnik.notifyDataSetChanged() }
+
+    private fun prikaziKrajevne(tv: List<Aplikacije.Vnos>) {
         val novi = ArrayList<SafeerApp>()
-        if (zVirom(AppVir.TV)) novi.addAll(SafeerAppi.naTelevizorju(this))
+        if (zVirom(AppVir.TV)) novi.addAll(SafeerAppi.naTelevizorju(this, tv, brezIkon = true))
         if (zVirom(AppVir.SPLET)) novi.addAll(SafeerAppi.spletne(this))
         // Na zaslonu vseh aplikacij bi aplikacije televizorja prisle prve, cez trenutek pa bi jih
         // seznami naprav po abecedi razmetali. Kadar naprave so in njihovih seznamov se nimamo,
         // pocakamo nanje (najdlje CAKAJ_DRUGE_MS) in narisemo vse naenkrat - kot na zaslonu Programi.
-        if (nacin == "vse" && oddaljeni.isEmpty() && napraveSProgrami(this).isNotEmpty()) {
+        if (nacin == "vse" && oddaljeni.isEmpty() && vidni.isEmpty() && napraveSProgrami(this).isNotEmpty()) {
             krajevni = novi
             zadrzano = true
             pokaziSporocilo(getString(R.string.os_programi_nalagam))
@@ -1001,8 +1013,17 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val povecava = if (mreza.isFocused && i == mreza.selectedItemPosition) 1.05f else 1f
             v.scaleX = povecava; v.scaleY = povecava
             val ikona = v.findViewById<ImageView>(R.id.ikona)
-            if (p.ikona != null) ikona.setImageDrawable(p.ikona)
-            else ikona.setImageResource(if (p.vir == AppVir.RACUNALNIK) R.drawable.os_ikona_racunalnik else R.drawable.os_ikona_mreza)
+            val risba = p.ikona ?: if (p.vir == AppVir.TV) Aplikacije.ikonaIzPomnilnika(p.cilj) else null
+            if (risba != null) ikona.setImageDrawable(risba)
+            else {
+                ikona.setImageResource(if (p.vir == AppVir.RACUNALNIK) R.drawable.os_ikona_racunalnik else R.drawable.os_ikona_mreza)
+                // Aplikacija televizorja brez ikone v pomnilniku: ikono naloziti v ozadju, mrezo osveziti z zamikom (en izris za vec ikon).
+                val namera = p.namera
+                if (p.vir == AppVir.TV && namera != null) Aplikacije.ikonaLeno(this@AplikacijeHostaActivity,
+                    Aplikacije.Vnos(p.cilj, p.ime, null, namera)) {
+                    mreza.removeCallbacks(osveziIkone); mreza.postDelayed(osveziIkone, 120)
+                }
+            }
             // Zvezdica pove, da je na domacem zaslonu; z dveh metrov je vidna takoj.
             v.findViewById<TextView>(R.id.ime).text =
                 if (p.vir != AppVir.SPLET && jePriljubljena(p)) "★ " + p.ime else p.ime

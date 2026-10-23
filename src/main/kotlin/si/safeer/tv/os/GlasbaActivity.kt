@@ -107,9 +107,11 @@ class GlasbaActivity : OsActivity() {
      * vrste ne cakajo na druge naloge iste vrste (brez zastoja).
      */
     private val kanaliDelavec = java.util.concurrent.ThreadPoolExecutor(KANALI_HKRATI, KANALI_HKRATI, 30, java.util.concurrent.TimeUnit.SECONDS,
-        java.util.concurrent.LinkedBlockingQueue()) { r ->
+        // Pregled Kimi 231: omejena vrsta - na sibkem TV se ob hitrem brskanju cakajoce naloge ne smejo kopiciti brez meje.
+        // Polna vrsta zavrze najstarejso cakajoco (cakalci imajo vsi casovno mejo, zato nihce ne obvisi).
+        java.util.concurrent.LinkedBlockingQueue(KANALI_VRSTA), { r: Runnable ->
         Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "safeer-kanali").apply { isDaemon = true }
-    }.apply { allowCoreThreadTimeOut(true) }
+    }, java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy()).apply { allowCoreThreadTimeOut(true) }
     /**
      * Slike (plakati, naslovnice) imajo svoje niti: prej so si jih delile z nalaganjem razdelkov in ob pocasnem
      * strezniku slik je razdelek (npr. TV v zivo) cakal nanje - prazen zaslon "Nalagam" (lastnik, 2. 10. 2026: brez zastojev).
@@ -7904,6 +7906,7 @@ class GlasbaActivity : OsActivity() {
         private const val PREDNOST_KLIKA_MS = 12_000L
         /** Naloga 73: najvec hkratnih strani katalogov kanalov na vseh dodatkih skupaj. */
         private const val KANALI_HKRATI = 3
+        private const val KANALI_VRSTA = 64
         private const val PRORACUN_KANALOV = 80
         /** Po toliko zaporednih vprasanjih brez odgovora dodatka nehamo preverjati kanale do uporabnikovega dejanja. */
         private const val BREZ_ODGOVORA_NAJVEC = 3

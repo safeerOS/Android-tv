@@ -47,10 +47,13 @@ object SafeerAppi {
     // ------------------------------------------------------------------ viri na tej napravi
 
     /** Aplikacije televizorja; skupino pove sistem sam (kategorija aplikacije, zastavica igre). */
-    fun naTelevizorju(c: Context): List<SafeerApp> = Aplikacije.seznam(c).map { v ->
-        SafeerApp("tv:" + v.paket, v.ime, "", skupinaAplikacije(c, v.paket),
-            Aplikacije.ikona(c, v), AppVir.TV, v.paket, namera = v.namera)
-    }
+    fun naTelevizorju(c: Context, vnosi: List<Aplikacije.Vnos> = Aplikacije.seznam(c), brezIkon: Boolean = false): List<SafeerApp> =
+        vnosi.map { v ->
+            // brezIkon: kartica se nariše takoj, z ikono samo, ce je ze v pomnilniku; ostale pridejo lenobno (Aplikacije.ikonaLeno).
+            SafeerApp("tv:" + v.paket, v.ime, "", skupinaAplikacije(c, v.paket),
+                if (brezIkon) Aplikacije.ikonaIzPomnilnika(v.paket) else Aplikacije.ikona(c, v),
+                AppVir.TV, v.paket, namera = v.namera)
+        }
 
     fun spletne(c: Context): List<SafeerApp> = SpletneAplikacije.seznam(c).map { a ->
         val ime = a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }
