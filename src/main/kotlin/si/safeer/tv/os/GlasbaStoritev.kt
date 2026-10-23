@@ -206,6 +206,9 @@ class GlasbaStoritev : Service() {
                 // Pokvarjena skladba ne sme ustaviti vsega: naprej na naslednjo, ce obstaja. Uporabnik
                 // izve, kaj se je zgodilo (prej je predvajanje tiho obstalo in ni bilo jasno zakaj).
                 val ime = trenutna()?.naslov.orEmpty()
+                // Naloga 93: vsaka napaka predvajalnika v dnevnik (koda, ime kode, HTTP, vzrok) - brez naslova toka.
+                Log.i("SafeerOsMedia", "napaka predvajalnika: koda=${error.errorCode} (${error.errorCodeName}), http=${httpKoda(error)}, " +
+                    "vzrok=${error.cause?.javaClass?.simpleName}, v zivo=$enaVZivo, zacelo=$zacelo")
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                     // Prenos v zivo po pavzi ali zastoju: predvajalnik je zaostal za oknom prenosa. To ni napaka kanala -
                     // nazaj na zivo. (Prej: »Predvajanje se je ustavilo zaradi napake« in crn zaslon.)
@@ -487,6 +490,14 @@ class GlasbaStoritev : Service() {
                 PredpomnilnikZvoka.zapomniTok(PredpomnilnikPravila.kljucZvoka(sk.id), sk)
                 android.util.Log.i("SafeerOsGlasba", "predpomnjenje: zacetek \"$ime\" (v predpomnilniku ${PredpomnilnikZvoka.velikost() / 1024} KB)")
             } else if (!sk.radio) android.util.Log.i("SafeerOsGlasba", "predpomnjenje: preskoceno \"$ime\" - ${razlogBrez(sk)}")
+            // Naloga 93: kanal v zivo - katera tovarna, vrsta vsebine po naslovu in mime, shema (brez naslova toka).
+            if (enaVZivo) android.util.Log.i("SafeerOsMedia", "kanal v zivo \"$ime\": tovarna=" + when {
+                    pp -> "predpomnjena"
+                    hlsTovarnaZa(sk) != null -> "HLS"
+                    SpletniVir.glaveToka(sk.zvok).isNotEmpty() -> "privzeta z glavami"
+                    else -> "privzeta"
+                } + ", vrsta=${androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null })}" +
+                ", mime=${sk.mime.ifBlank { "-" }}, shema=${sk.zvok.substringBefore(':')}")
             (if (pp) predpomnjenaTovarna(sk) else hlsTovarnaZa(sk) ?: tovarnaZa(sk)).createMediaSource(MediaItem.Builder().setMediaId(sk.id).setUri(sk.zvok)
                 .apply { if (pp) setCustomCacheKey(PredpomnilnikPravila.kljucZvoka(sk.id)) }
                 .apply { if (sk.mime.isNotBlank()) setMimeType(sk.mime) }

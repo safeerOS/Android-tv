@@ -5544,15 +5544,31 @@ class GlasbaActivity : OsActivity() {
                     jeVrstaPosnetkov(sk, seznam) -> predvajajVrstoPosnetkov(celotaZdaj(), sk)
                     SpletniVir.jeEnota(sk) -> razresiSplet(sk, vse.drop(1))
                     // Naloga 91a: ce dodatki ne dajo toka, igra prva ziva razlicica seznama IPTV (tiho).
-                    Stremio.jeEnota(sk) && vse.size > 1 -> razresiStremio(sk, razlicice = vse.drop(1), rezerva = KanaliPravila.rezervaIptv(
-                        vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) }, vse.map { IptvSeznami.jeKanal(it) },
-                        vse.map { KanaliPravila.znanNedelujocTok(it.zvok) })?.let { vse[it] })
-                    // Kanal seznama IPTV z vec razlicicami (SD, HD): predvajamo prvo zivo, mrtve izpustimo.
-                    IptvSeznami.jeKanal(sk) && vse.size > 1 -> {
-                        val vrstni = KanaliPravila.urediRazlicice(vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) })
-                        predvajaj(listOf(vrstni.firstOrNull()?.let { vse[it] } ?: sk), 0)
+                    Stremio.jeEnota(sk) && vse.size > 1 -> {
+                        val rezerva = KanaliPravila.rezervaIptv(vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) },
+                            vse.map { IptvSeznami.jeKanal(it) }, vse.map { KanaliPravila.znanNedelujocTok(it.zvok) })?.let { vse[it] }
+                        dnevnikKlikaKanala(sk, vse, "dodatek (glava)", rezerva)
+                        razresiStremio(sk, razlicice = vse.drop(1), rezerva = rezerva)
                     }
-                    else -> predvajaj(listOf(sk), 0)
+                    // Kanal seznama IPTV z vec razlicicami (SD, HD, iz dodatkov): predvajamo prvo zivo, mrtve izpustimo.
+                    // Naloga 93: ce je prva razlicica iz dodatka, jo razresi dodatek z rezervo iz seznama ([KanaliPravila.klikKanala]).
+                    IptvSeznami.jeKanal(sk) && vse.size > 1 -> {
+                        val k = KanaliPravila.klikKanala(vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) },
+                            vse.map { Stremio.jeEnota(it) }, vse.map { IptvSeznami.jeKanal(it) }, vse.map { KanaliPravila.znanNedelujocTok(it.zvok) })
+                        val prva = k?.let { vse[it.prva] } ?: sk
+                        val rezerva = k?.rezerva?.let { vse[it] }
+                        if (k != null && k.dodatki.isNotEmpty()) {
+                            dnevnikKlikaKanala(sk, vse, "dodatek (razlicica)", rezerva)
+                            razresiStremio(prva, razlicice = k.dodatki.drop(1).map { vse[it] }, rezerva = rezerva)
+                        } else {
+                            dnevnikKlikaKanala(sk, vse, if (k == null) "seznam (ni zive, glava)" else "seznam", null)
+                            predvajaj(listOf(prva), 0)
+                        }
+                    }
+                    else -> {
+                        if (vZivo) dnevnikKlikaKanala(sk, vse, if (Stremio.jeEnota(sk)) "dodatek (edina)" else "neposredno", null)
+                        predvajaj(listOf(sk), 0)
+                    }
                 }
             }, { meni(sk, celotaZdaj(), vrsta, seznam) }, oznaka = tip, kakovost = kakovost,
                 ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty(),
@@ -5576,6 +5592,17 @@ class GlasbaActivity : OsActivity() {
         var kartice = HashMap<String, Pair<List<Jamendo.Skladba>, Kartica>>()
         var novih = 0
         var ponovljenih = 0
+    }
+
+    /**
+     * Naloga 93: dnevnik klika kanala v zivo (SafeerOsMedia) - katera pot, koliko razlicic iz dodatkov in seznamov, stanja
+     * ([MrtviKanali.stanje]) in ali je rezerva. Brez naslovov tokov in id-jev (povezava IPTV ima lahko geslo).
+     */
+    private fun dnevnikKlikaKanala(sk: Jamendo.Skladba, vse: List<Jamendo.Skladba>, pot: String, rezerva: Jamendo.Skladba?) {
+        fun vrsta(x: Jamendo.Skladba) = if (Stremio.jeEnota(x)) "dodatek" else if (IptvSeznami.jeKanal(x)) "seznam" else "drugo"
+        android.util.Log.i("SafeerOsMedia", "klik kanala \"${sk.naslov.take(40)}\": pot=$pot, glava=${vrsta(sk)}, razlicice=" +
+            vse.joinToString(",") { vrsta(it) + ":" + when (MrtviKanali.stanje(this, it.id)) { true -> "ziv"; false -> "mrtev"; null -> "?" } } +
+            ", rezerva=${rezerva?.let { vrsta(it) } ?: "ni"}")
     }
 
     /** Isti naslov iz dveh virov je med nedavnimi en vnos; postaje, kanali in datoteke naprave se locijo po oznaki ([OsPravila.kljucNedavnega]). */
@@ -7010,7 +7037,10 @@ class GlasbaActivity : OsActivity() {
                         .flatMap { f -> try { f.get((konecT - android.os.SystemClock.uptimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
                 // Metapodatki so medtem navadno ze prisli: serija z epizodami se odpre kot serija (ne kot film).
                 if (!vZivo && odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@execute
+                if (vZivo) android.util.Log.i("SafeerOsMedia", "kanal dodatka: enot=${enote.size}, tokov=${t.size}, predvajljivih=${t.count { Stremio.jePredvajljiv(it) }}, " +
+                    "vrste=${t.map { it.vrsta }.distinct()}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}, rezerva=${rezerva != null}, rocno=$rocno")
                 if (vZivo && !rocno && rezerva != null && t.none { Stremio.jePredvajljiv(it) }) {
+                    android.util.Log.i("SafeerOsMedia", "kanal dodatka: ni toka - predvajam rezervo iz seznama IPTV")
                     glavna.post { koncajPripravo(priprava); if (!isFinishing) predvajaj(listOf(rezerva), 0) }
                     return@execute
                 }
@@ -7952,6 +7982,17 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
+     * Dodatki kanala v zivo niso dali toka: kartica in njene razlicice so do jutri mrtve ([MrtviKanali]). Naloga 93: razlicice
+     * seznama IPTV ne ([KanaliPravila.mrtveObNeuspehuDodatka]) - izpad dodatka jih je prej skril za 24 h.
+     */
+    private fun oznaciMrtveRazliciceDodatka(sk: Jamendo.Skladba) {
+        val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
+        val mrtve = KanaliPravila.mrtveObNeuspehuDodatka(sk.id, razlicice) { it.startsWith(IptvSeznami.PREDPONA) }
+        android.util.Log.i("SafeerOsMedia", "kanal dodatka ni dosegljiv: oznacenih mrtvih ${mrtve.size}, razlicic seznama ostane ${(razlicice + sk.id).distinct().size - mrtve.size}")
+        mrtve.forEach { MrtviKanali.zapomni(this, it) }
+    }
+
+    /**
      * Film ali epizoda se zacne TAKOJ z najboljsim tokom za to napravo (TokIzbira: zaslon, dekodirniki slike in zvoka,
      * hiter zacetek) - brez seznama in brez cakanja na izbiro (lastnik, 2. 10. 2026). Ce tok ne stece, storitev sama
      * poskusi naslednje. Seznam virov ostane rocna moznost (dolg pritisk na kartico > Izberi vir) in izhod v sili,
@@ -7972,12 +8013,10 @@ class GlasbaActivity : OsActivity() {
         if (posnetek == null && tokovi.none { Stremio.jePredvajljiv(it) && gre(it) }) {
             // Naloga 90b (lastnik: sporocila za nedelujoce kanale ne rabimo): kanal v zivo, za katerega noben dodatek v roku ne
             // da toka, se tiho oznaci mrtev ([MrtviKanali], 24 h) in izgine iz mreze. Razlicice kartice so ze v isti poizvedbi
-            // ([razresiStremio]), zato predvajanje naslednje razlicice pride samo; tu so mrtve vse. Placljiv dostop (79) ima svoje sporocilo.
+            // ([razresiStremio]), zato predvajanje naslednje razlicice pride samo; tu so mrtve vse razlicice dodatkov (93: seznama IPTV ne). Placljiv dostop (79) ima svoje sporocilo.
             if (obNeuspehu == null && Stremio.jeVZivo(sk) && !Stremio.samoObvestilaKanala(sk)) {
                 android.util.Log.i("SafeerOsMedia", "kanal ni dosegljiv: tokov=${tokovi.size}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}")
-                val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
-                (razlicice - sk.id).forEach { MrtviKanali.zapomni(this, it) }
-                MrtviKanali.zapomni(this, sk.id)
+                oznaciMrtveRazliciceDodatka(sk)
                 return
             }
             // Dodatek ni odgovoril (omejuje poizvedbe, izpad, omrezje): to ni "ni na voljo". Naslov ostane na zaslonu,
@@ -7997,9 +8036,7 @@ class GlasbaActivity : OsActivity() {
                 return
             }
             if (obNeuspehu == null && (Stremio.jeVZivo(sk) || Stremio.razredEnote(sk) == Stremio.RADIO)) {
-                val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
-                (razlicice - sk.id).forEach { MrtviKanali.zapomni(this, it) }
-                MrtviKanali.zapomni(this, sk.id)
+                oznaciMrtveRazliciceDodatka(sk)
                 return
             }
             Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()

@@ -170,6 +170,30 @@ object KanaliPravila {
     fun rezervaIptv(imena: List<String>, stanja: List<Boolean?>, izIptv: List<Boolean>, nedelujoc: List<Boolean>): Int? =
         urediRazlicice(imena, imena.indices.map { if (izIptv.getOrNull(it) != true || nedelujoc.getOrNull(it) == true) false else stanja.getOrNull(it) }).firstOrNull()
 
+    /** Naloga 93: odlocitev ob kliku kartice kanala - [prva] razlicica, [dodatki] (prva je ta, ki jo razresimo), [rezerva] iz seznama IPTV. */
+    data class KlikKanala(val prva: Int, val dodatki: List<Int>, val rezerva: Int?)
+
+    /**
+     * Naloga 93: kartica kanala z glavo iz seznama IPTV in razlicicami iz dodatkov. Prva gre razlicica po [urediRazlicice]
+     * (znano ziva razlicica dodatka je lahko pred neznano razlicico seznama). Ce je prva iz dodatka, jo razresi dodatek skupaj
+     * z ostalimi razlicicami dodatkov, rezerva je ziva razlicica seznama ([rezervaIptv]) - prej je tak klik sel k dodatku brez
+     * rezerve in ob izpadu dodatka tiho odpovedal. null = ni zive razlicice.
+     */
+    fun klikKanala(imena: List<String>, stanja: List<Boolean?>, izDodatka: List<Boolean>, izIptv: List<Boolean>, nedelujoc: List<Boolean>): KlikKanala? {
+        val prva = urediRazlicice(imena, stanja).firstOrNull() ?: return null
+        if (izDodatka.getOrNull(prva) != true) return KlikKanala(prva, emptyList(), null)
+        val dodatki = listOf(prva) + imena.indices.filter { it != prva && izDodatka.getOrNull(it) == true }
+        return KlikKanala(prva, dodatki, rezervaIptv(imena, stanja, izIptv, nedelujoc))
+    }
+
+    /**
+     * Naloga 93: katere razlicice kartice oznacimo mrtve, ko dodatki kanala v zivo ne dajo toka: kartica [id] in razlicice
+     * [razlicice], razen razlicic seznama IPTV ([izSeznama]) - te z dodatkom nimajo nic, njihov tok preveri sonda. Prej je
+     * izpad dodatka za 24 h skril tudi delujoco razlicico seznama.
+     */
+    fun mrtveObNeuspehuDodatka(id: String, razlicice: List<String>, izSeznama: (String) -> Boolean): List<String> =
+        (razlicice + id).distinct().filterNot(izSeznama)
+
     /**
      * Naloga 91b: jeziki izbire mreze kanalov takoj ob odprtju: sveze iz katalogov dodatkov ([dodatkov]; null ali prazno =
      * se niso odgovorili), sicer zadnji znani z diska ([shranjeni]); zraven jeziki seznamov IPTV in vgrajenih kanalov ([ostali]).

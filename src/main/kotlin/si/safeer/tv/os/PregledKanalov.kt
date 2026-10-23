@@ -123,7 +123,11 @@ object PregledKanalov {
             val izidS = SondaToka.preveri(sk.zvok, emptyMap(), SpletniVir.agent(app))
             val k = when (izidS) {
                 OsPravila.IzidSonde.ZIV -> { MrtviKanali.zapomniZivega(app, sk.id); true }
-                OsPravila.IzidSonde.MRTEV -> { MrtviKanali.zapomni(app, sk.id); false }
+                OsPravila.IzidSonde.MRTEV -> {
+                    // Naloga 93: kanal seznama, ki ga sonda skrije, v dnevnik (ime, shema; brez naslova - ima lahko geslo).
+                    android.util.Log.i("SafeerOsMedia", "sonda IPTV: mrtev \"${sk.naslov.take(40)}\", shema=${sk.zvok.substringBefore(':')}")
+                    MrtviKanali.zapomni(app, sk.id); false
+                }
                 OsPravila.IzidSonde.NEGOTOVO -> if (MrtviKanali.zapomniNegotovega(app, sk.id)) false else null
                 OsPravila.IzidSonde.NEZNANO -> null
             }

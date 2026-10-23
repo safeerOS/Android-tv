@@ -252,6 +252,27 @@ fun main() {
     preveriEnako("91a: vse razlicice seznama mrtve - ni rezerve", null, KanaliPravila.rezervaIptv(arena, listOf(null, false, null, false), izIptv, brez))
     preveriEnako("91a: brez razlicic seznama - ni rezerve", null, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), brez, brez))
 
+    // Naloga 93: kartica z glavo iz seznama IPTV (0) in razlicicama dodatka (1, 2) - meritev 23. 10. 13:15.
+    val arenaS = listOf("Arena Sport 1 Premium (Slovenia)", "Arena Sport 1 Premium (Slovenia)", "Arena Sport 1 Premium (Slovenia)")
+    val dod = listOf(false, true, true)
+    val sez = listOf(true, false, false)
+    val nic = listOf(false, false, false)
+    preveriEnako("93: nic ne vemo - glava iz seznama, brez dodatka", KanaliPravila.KlikKanala(0, emptyList(), null),
+        KanaliPravila.klikKanala(arenaS, listOf(null, null, null), dod, sez, nic))
+    preveriEnako("93: znano ziv dodatek gre prvi, z rezervo iz seznama", KanaliPravila.KlikKanala(1, listOf(1, 2), 0),
+        KanaliPravila.klikKanala(arenaS, listOf(null, true, null), dod, sez, nic))
+    preveriEnako("93: drugi dodatek znano ziv - prvi v poizvedbi je on", KanaliPravila.KlikKanala(2, listOf(2, 1), 0),
+        KanaliPravila.klikKanala(arenaS, listOf(null, null, true), dod, sez, nic))
+    preveriEnako("93: razlicica seznama mrtva - dodatek brez rezerve", KanaliPravila.KlikKanala(1, listOf(1, 2), null),
+        KanaliPravila.klikKanala(arenaS, listOf(false, null, null), dod, sez, nic))
+    preveriEnako("93: vse mrtve - ni klika", null, KanaliPravila.klikKanala(arenaS, listOf(false, false, false), dod, sez, nic))
+    preveriEnako("93: znan nedelujoc tok seznama ni rezerva", KanaliPravila.KlikKanala(1, listOf(1, 2), null),
+        KanaliPravila.klikKanala(arenaS, listOf(null, true, null), dod, sez, listOf(true, false, false)))
+    val jeSeznam = { id: String -> id.startsWith("iptv:") }
+    preveriEnako("93: izpad dodatka ne skrije razlicice seznama", listOf("stremio|tv|a|1", "stremio|tv|b|1"),
+        KanaliPravila.mrtveObNeuspehuDodatka("stremio|tv|a|1", listOf("iptv:http://x.test/1", "stremio|tv|a|1", "stremio|tv|b|1"), jeSeznam))
+    preveriEnako("93: kartica brez razlicic - samo ona", listOf("stremio|tv|a|1"), KanaliPravila.mrtveObNeuspehuDodatka("stremio|tv|a|1", emptyList(), jeSeznam))
+
     // Naloga 91b: jeziki izbire takoj ob odprtju.
     preveriEnako("91b: dodatki se niso odgovorili - shranjeni in seznami", listOf("sl", "en", "hr"),
         KanaliPravila.jezikiKanalov(null, listOf("sl", "en"), listOf("hr", "sl")))
