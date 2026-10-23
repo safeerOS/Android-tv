@@ -146,6 +146,21 @@ object MedijskiPredpomnilnik {
     }
 
     /**
+     * Naslovnica za pomnilnik (naloga 77): slika brez prosojnosti gre iz ARGB_8888 v RGB_565 - polovica bajtov v heapu in v
+     * GPU (z rahlim razprsevanjem, da ni pasov). Prosojna slika (logotip) ostane, kot je: 565 bi prosojnost zamenjal s crnino.
+     * Izvirnik sprosti. Klic po [stisniNaslovnico], da disk dobi sliko brez dodatne izgube.
+     */
+    fun zaPomnilnik(b: android.graphics.Bitmap): android.graphics.Bitmap {
+        if (b.hasAlpha() || b.config != android.graphics.Bitmap.Config.ARGB_8888) return b
+        return try {
+            val k = android.graphics.Bitmap.createBitmap(b.width, b.height, android.graphics.Bitmap.Config.RGB_565)
+            android.graphics.Canvas(k).drawBitmap(b, 0f, 0f, android.graphics.Paint(android.graphics.Paint.DITHER_FLAG))
+            b.recycle()
+            k
+        } catch (_: Throwable) { b }
+    }
+
+    /**
      * Naslovnica za disk: WebP z izgubo (kakovost [NASLOVNICA_KAKOVOST]) iz ze pomanjsane slike - namesto izvirnih bajtov
      * (JPEG/PNG s streznika, pogosto 100-400 KB). Starejse datoteke (izvirni bajti) ostanejo berljive: BitmapFactory
      * prepozna obliko sam. null = stiskanje ni uspelo (takrat ne shranimo nicesar).

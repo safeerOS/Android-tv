@@ -733,6 +733,36 @@ private fun preizkusNaslovnic() {
     preveri("dalec nad zaslonom: sprosti", !OsPravila.vVidnem(1000, 300, 2000, 3000, 300))
 }
 
+/** Naloga 77: naslovnice brez alfe v RGB_565, napredek najvec na 5 s, redko spreminjajoca se vrednost ne na vsak tik. */
+private fun preizkusPoraboRama() {
+    println("\n== poraba RAM in procesorja: RGB_565, razmik zapisa, obcasna vrednost ==")
+    preveriEnako("186x280 ARGB = 208.320 B", 208_320, OsPravila.bajtovNaslovnice(186, 280, true))
+    preveriEnako("186x280 RGB_565 = polovica", 104_160, OsPravila.bajtovNaslovnice(186, 280, false))
+    preveriEnako("neveljavne mere = 0", 0, OsPravila.bajtovNaslovnice(0, 280, false))
+    preveriEnako("ogromne mere ne prekoracijo Int", Int.MAX_VALUE, OsPravila.bajtovNaslovnice(100_000, 100_000, true))
+    val argb = OsPravila.naslovnicVProracunu(24 * 1024 * 1024, 186, 280, true)
+    val rgb = OsPravila.naslovnicVProracunu(18 * 1024 * 1024, 186, 280, false)
+    preveri("24 MB ARGB drzi manj kot 166 plakatov ($argb)", argb < 166)
+    preveri("18 MB RGB_565 drzi vse 166 plakatov ($rgb)", rgb >= 166)
+    preveriEnako("neveljavne mere: nic plakatov", 0, OsPravila.naslovnicVProracunu(1000, 0, 0, true))
+
+    preveri("zapis: se nikoli", OsPravila.jeCasZaZapis(-1, 1_000, 5_000))
+    preveri("zapis: prezgodaj", !OsPravila.jeCasZaZapis(10_000, 11_000, 5_000))
+    preveri("zapis: tocno po razmiku", OsPravila.jeCasZaZapis(10_000, 15_000, 5_000))
+    preveri("zapis: ura gre nazaj", OsPravila.jeCasZaZapis(10_000, 500, 5_000))
+
+    var klicev = 0
+    val o = OsPravila.Obcasna<Boolean>(15_000)
+    preveri("obcasna: prvi klic izracuna", o.daj(1_000) { klicev++; true } && klicev == 1)
+    preveri("obcasna: drugi klic znotraj veljavnosti ne izracuna", o.daj(10_000) { klicev++; false } && klicev == 1)
+    preveri("obcasna: po izteku izracuna znova", !o.daj(16_000) { klicev++; false } && klicev == 2)
+    o.pozabi()
+    preveri("obcasna: po pozabi takoj znova", o.daj(16_100) { klicev++; true } && klicev == 3)
+    preveri("obcasna: ura nazaj izracuna znova", o.daj(100) { klicev++; false }.not() && klicev == 4)
+    val prazna = OsPravila.Obcasna<List<Int>>(1_000)
+    preveriEnako("obcasna: tudi prazen seznam se pomni", 1, run { prazna.daj(0) { klicev = 0; emptyList() }; prazna.daj(10) { klicev = 99; emptyList() }; if (klicev == 0) 1 else 0 })
+}
+
 /** Naloga 55b: naslednje strani takoj, prva stran strogo; izbrana kartica ne izgine pod izbiro. */
 private fun preizkusNaslednjihStrani() {
     println("\n== Nalozi vec: takoj pokazi, preveri v ozadju ==")
@@ -812,6 +842,7 @@ fun main() {
     preizkusStabilnegaReda()
     preizkusOknaMreze()
     preizkusNaslovnic()
+    preizkusPoraboRama()
     preizkusNaslednjihStrani()
     preizkusStraniKataloga()
     preizkusOdzivaDodatka()

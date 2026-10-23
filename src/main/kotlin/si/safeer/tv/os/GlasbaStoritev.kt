@@ -171,6 +171,7 @@ class GlasbaStoritev : Service() {
                 osvezi()
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                igraZadnje = isPlaying
                 if (isPlaying) { zacelo = true; koncnaNapaka = null; zapomniNedavnoEnkrat() }
                 // Naloga 75: pregled kanalov dodatkov v ozadju ne tece med predvajanjem.
                 if (isPlaying) PregledKanalov.ustavi("predvajanje")
@@ -956,7 +957,16 @@ class GlasbaStoritev : Service() {
         /** Glasba igra na zvocniku v omrezju; ta naprava je daljinec. */
         fun naZvocniku(): Boolean = predvajalnik != null && Zvocniki.aktivni != null
 
-        fun igra(): Boolean = if (naZvocniku()) Zvocniki.stanje.zeliIgrati else predvajalnik?.isPlaying == true
+        /**
+         * Zadnje znano stanje predvajalnika za klice iz drugih niti: Media3 dovoli dostop samo z glavne niti (izmerjeno na TV
+         * 23. 10. 2026 04:02 - PregledKanalov je iz ozadja klical igra() in aplikacija se je ob zacetku predvajanja sesula).
+         */
+        @Volatile var igraZadnje = false
+        fun igra(): Boolean = when {
+            naZvocniku() -> Zvocniki.stanje.zeliIgrati
+            android.os.Looper.myLooper() != android.os.Looper.getMainLooper() -> igraZadnje
+            else -> predvajalnik?.isPlaying == true
+        }
 
         fun polozajMs(): Long = if (naZvocniku()) Zvocniki.polozaj() else predvajalnik?.currentPosition?.coerceAtLeast(0L) ?: 0L
 

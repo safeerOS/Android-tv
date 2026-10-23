@@ -172,6 +172,14 @@ class GlasbaActivity : OsActivity() {
         if (videoBrezZaslona()) glavna.postDelayed(vrniVideo, 1500)
     }
     private val tik = object : Runnable { override fun run() { osveziZdaj(); glavna.postDelayed(this, 1_000) } }
+    /**
+     * Naloga 77: ali je kaj med nedavnim. Tik ga je spraseval vsako sekundo na glavni niti (razclenitev JSON-a nedavnih,
+     * seznam virov, preverjanje mrtvih kanalov), ko nic ne igra - nic se ne spremeni, razen z dejanji spodaj in z
+     * zacetkom predvajanja (osveziZdaj), ki ga zavrzeta.
+     */
+    private val imaNedavno = OsPravila.Obcasna<Boolean>(20_000)
+    /** Kdaj je tik zadnjic zapisal napredek videa (uptimeMillis; -1 = se nikoli). */
+    private var napredekZapisanOb = -1L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -1718,12 +1726,12 @@ class GlasbaActivity : OsActivity() {
                 // odprtje - pomanjsane na 280 px in kot WebP, ne izvirnih bajtov (naloga 56).
                 val px = MedijskiPredpomnilnik.NASLOVNICA_PX
                 val zDiska = MedijskiPredpomnilnik.naslovnica(this, naslov)
-                val b = if (zDiska != null) VarnaSlika.izBajtov(zDiska, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
+                val b = if (zDiska != null) VarnaSlika.izBajtov(zDiska, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) }?.let { MedijskiPredpomnilnik.zaPomnilnik(it) } ?: return@execute
                 else {
                     val surovi = SpletniVir.bajtiSlike(this, naslov) ?: Jamendo.bajti(naslov) ?: return@execute
                     val m = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
                     MedijskiPredpomnilnik.stisniNaslovnico(m)?.let { MedijskiPredpomnilnik.shraniNaslovnico(this, naslov, it) }
-                    m
+                    MedijskiPredpomnilnik.zaPomnilnik(m)   // naloga 77: brez prosojnosti RGB_565 (pol bajtov)
                 }
                 SLIKE.put(naslov, b)
                 val cakajoci = cakajoceSlike.remove(naslov)
@@ -5265,6 +5273,7 @@ class GlasbaActivity : OsActivity() {
                 val k = kljucNedavnega(sk)
                 MedijskiViri.nedavno(this).filter { it.id != sk.id && kljucNedavnega(it) == k }.forEach { MedijskiViri.odstraniNedavno(this, it) }
                 MedijskiViri.odstraniNedavno(this, sk)
+                imaNedavno.pozabi()
                 SEZNAMI.remove(DOMOV)
                 osvezi(DOMOV)
             }.setNegativeButton(android.R.string.cancel, null))
@@ -5275,6 +5284,7 @@ class GlasbaActivity : OsActivity() {
             .setMessage(R.string.os_media_pocisti_nedavno_potrdi)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 MedijskiViri.pocistiNedavno(this)
+                imaNedavno.pozabi()
                 SEZNAMI.remove(DOMOV)
                 osvezi(DOMOV)
             }.setNegativeButton(android.R.string.cancel, null))
@@ -8033,7 +8043,9 @@ class GlasbaActivity : OsActivity() {
         val naPlosci = razdelek == DOMOV && !podstrani.odprta
         if (naPlosci) {
             // Plosca se zamenja, ko se predvajanje zacne ali konca; sicer samo osvezimo njene podatke.
-            val zeli = if (sk != null && p != null) true else if (MedijskiViri.nedavno(this).isNotEmpty()) false else null
+            if (sk != null && p != null) imaNedavno.pozabi()   // predvajanje doda med nedavno: po koncu naj se prebere znova
+            val zeli = if (sk != null && p != null) true
+                else if (imaNedavno.daj(android.os.SystemClock.uptimeMillis()) { MedijskiViri.nedavno(this).isNotEmpty() }) false else null
             // Tudi ko glasba preide na zvocnik ali z njega (dejanja ob plosci so takrat druga).
             if (zeli != pZaPredvajanje || (zeli == true && pNaZvocniku != GlasbaStoritev.naZvocniku())) {
                 // Predvajanje se je zacelo: plosca »Zdaj se predvaja« je odgovor na uporabnikovo izbiro - stran gre k njej.
@@ -8048,9 +8060,15 @@ class GlasbaActivity : OsActivity() {
         }
         vrstica.visibility = if (sk == null || p == null || naPlosci) View.GONE else View.VISIBLE
         if (sk == null || p == null) return
-        val tokPomocnika = SprotnaPomoc.tokZa(sk)
-        if (tokPomocnika != null) { if (tokPomocnika.izvirnik.video) MediaNapredek.zapisi(this, tokPomocnika.izvirnik, tokPomocnika.zamikMs + p.currentPosition.coerceAtLeast(0), tokPomocnika.trajanjeMs, tokPomocnika.streznikIzvirnika?.naprava.orEmpty()) }
-        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
+        // Naloga 77: napredek videa najvec na 5 s (kot v PredvajanjeActivity), ne vsako sekundo: vsak zapis razclenil in znova
+        // zapisal ves JSON v SharedPreferences.
+        val zdajMs = android.os.SystemClock.uptimeMillis()
+        if (OsPravila.jeCasZaZapis(napredekZapisanOb, zdajMs, 5_000)) {
+            napredekZapisanOb = zdajMs
+            val tokPomocnika = SprotnaPomoc.tokZa(sk)
+            if (tokPomocnika != null) { if (tokPomocnika.izvirnik.video) MediaNapredek.zapisi(this, tokPomocnika.izvirnik, tokPomocnika.zamikMs + p.currentPosition.coerceAtLeast(0), tokPomocnika.trajanjeMs, tokPomocnika.streznikIzvirnika?.naprava.orEmpty()) }
+            else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
+        }
         zdajNaslov.text = sk.naslov
         // Mala vrstica pove tudi, da glasba igra na zvocniku (ali da se zvocnik ne odziva) - sicer se ne vidi, da gumb upravlja zvocnik.
         // Napis zvocnika je prvi: vrstica je ena in dolgo ime izvajalca (radio javlja »izvajalec - skladba«) bi ga sicer odrezalo.
@@ -8283,7 +8301,9 @@ class GlasbaActivity : OsActivity() {
          * (loadThumbnail 320x320 ARGB, ~400 KB) ali vecje naslovnice so lahko zasedle ~20 MB native heapa. 8 MB je
          * ~40 plakatov 280 px - dovolj za zaslon in vrnitev nanj; ostalo pride z diska (MedijskiPredpomnilnik).
          */
-        private const val SLIKE_BAJTOV = 24 * 1024 * 1024   // ~115 plakatov: vrnitev na vrh brez ponovnega nalaganja (lastnik 22. 10.)
+        // Naloga 77: plakati brez prosojnosti so RGB_565 (MedijskiPredpomnilnik.zaPomnilnik), ~104 KB namesto ~208 KB; 18 MB
+        // drzi ~170 plakatov (vsa mreza 166 Filmov, vrnitev na vrh brez ponovnega nalaganja - lastnik 22. 10.) namesto ~115 pri 24 MB.
+        private const val SLIKE_BAJTOV = 18 * 1024 * 1024
         private val SLIKE = object : LruCache<String, android.graphics.Bitmap>(SLIKE_BAJTOV) {
             override fun sizeOf(key: String, value: android.graphics.Bitmap): Int = value.allocationByteCount
         }

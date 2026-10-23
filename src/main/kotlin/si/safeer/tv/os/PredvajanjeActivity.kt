@@ -1136,7 +1136,10 @@ class PredvajanjeActivity : OsActivity() {
     private var oknoZa: List<String> = emptyList()
 
     /** Slike kartic vrste: ob ponovni napolnitvi (nova skladba, drsenje mreze) so takoj tu, brez utripa ikone. */
-    private val slikeKartic = android.util.LruCache<String, android.graphics.Bitmap>(48)
+    // Naloga 77: omejeno v bajtih (prej 48 kosov do 320x320 ARGB = do ~19 MB); 6 MB je ~50 kartic 320x180 v RGB_565.
+    private val slikeKartic = object : android.util.LruCache<String, android.graphics.Bitmap>(6 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: android.graphics.Bitmap): Int = value.allocationByteCount
+    }
 
     private class DrzaloKartice(val koren: LinearLayout, val slika: ImageView, val naslov: TextView, val podnaslov: TextView)
 
@@ -1191,7 +1194,7 @@ class PredvajanjeActivity : OsActivity() {
         try {
             delavec.execute {
                 if (d.slika.tag != slika) return@execute          // kartica medtem kaze drugo skladbo (mreza jih uporablja znova)
-                val b = (SpletniVir.bajtiSlike(this, slika) ?: Jamendo.bajti(slika))?.let { VarnaSlika.izBajtov(it, 320) } ?: return@execute
+                val b = (SpletniVir.bajtiSlike(this, slika) ?: Jamendo.bajti(slika))?.let { VarnaSlika.izBajtov(it, 320) }?.let { MedijskiPredpomnilnik.zaPomnilnik(it) } ?: return@execute
                 glavna.post {
                     slikeKartic.put(slika, b)
                     if (d.slika.tag == slika) { d.slika.scaleType = ImageView.ScaleType.CENTER_CROP; d.slika.setImageBitmap(b) }

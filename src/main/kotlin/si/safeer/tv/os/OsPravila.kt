@@ -469,6 +469,46 @@ object OsPravila {
         y + h >= zgoraj - rezerva && y <= spodaj + rezerva
 
     /**
+     * Bajtov, ki jih naslovnica [sirina] x [visina] zaseda v pomnilniku (naloga 77): z alfa kanalom 4 B na piksel (ARGB_8888),
+     * brez njega 2 B (RGB_565 - plakati JPEG in WebP brez prosojnosti nimajo kaj izgubiti). Enako velja za teksturo v GPU.
+     */
+    fun bajtovNaslovnice(sirina: Int, visina: Int, imaAlfo: Boolean): Int =
+        if (sirina <= 0 || visina <= 0) 0 else (sirina.toLong() * visina * (if (imaAlfo) 4 else 2)).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+
+    /** Koliko naslovnic te velikosti gre v pomnilniski proracun [proracun] (B); 0, ce mere niso veljavne. */
+    fun naslovnicVProracunu(proracun: Int, sirina: Int, visina: Int, imaAlfo: Boolean): Int {
+        val b = bajtovNaslovnice(sirina, visina, imaAlfo)
+        return if (b <= 0) 0 else proracun / b
+    }
+
+    /**
+     * Ali je od zadnjega zapisa minilo dovolj casa za nov zapis (naloga 77): napredek videa se zapise najvec na [razmikMs],
+     * ne ob vsakem ticku. [zadnjiMs] < 0 = se nikoli; ura, ki gre nazaj (ponovni zagon), zapis dovoli.
+     */
+    fun jeCasZaZapis(zadnjiMs: Long, zdajMs: Long, razmikMs: Long): Boolean =
+        zadnjiMs < 0 || zdajMs < zadnjiMs || zdajMs - zadnjiMs >= razmikMs
+
+    /**
+     * Vrednost, ki jo drago izracunamo in ki se spreminja redko (naloga 77): [daj] jo ponovno izracuna najprej po [veljaMs].
+     * Samo za eno nit (glavno). [pozabi] jo zavrze takoj - ob dejanju, ki jo spremeni.
+     */
+    class Obcasna<T>(private val veljaMs: Long) {
+        private var vrednost: T? = null
+        private var izracunanoMs = 0L
+        private var ima = false
+
+        fun daj(zdajMs: Long, izracunaj: () -> T): T {
+            if (!ima || zdajMs < izracunanoMs || zdajMs - izracunanoMs >= veljaMs) {
+                vrednost = izracunaj(); izracunanoMs = zdajMs; ima = true
+            }
+            @Suppress("UNCHECKED_CAST")
+            return vrednost as T
+        }
+
+        fun pozabi() { ima = false; vrednost = null }
+    }
+
+    /**
      * Odzivnost dodatka (naloga 57d): cas zadnjih izpadov (brez odgovora ali 5xx) in do kdaj ga preskakujemo.
      * Lastnik: »Streznike, ki ne odgovarjajo, bi morali zavracati« - a vira ne brisemo sami (odlocitev je uporabnikova).
      */
