@@ -1488,7 +1488,8 @@ object OsPravila {
 
     /**
      * Naloga 97 (meritev 23. 10. 14:31: »Zabranjen vam je pristup« - streznik vrti 5-sekundno sliko namesto programa): kanal v
-     * zivo, kjer se tok vsakic konca po skoraj enakem casu, je SUMLJIV (naloga 100: dokaz da [nadomestekPoOdtisih]). [trajanja] = koliko je predvajal vsak dosedanji
+     * zivo, kjer se tok vsakic konca po skoraj enakem casu, je SUMLJIV (naloga 100: dokaz da [nadomestekPoOdtisih]). Naloga 102:
+     * v tej izdaji se ne klice - nadomestno sliko konca meja ponovitev ([PONOVITEV_V_ZIVO_OKNO_NAJVEC]). [trajanja] = koliko je predvajal vsak dosedanji
      * tok (ms, po vrsti). Nadomestek: zadnjih [NADOMESTEK_ZAPOREDNIH], vsak krajsi od [NADOMESTEK_NAJDLJE_MS] in razlika med
      * najdaljsim in najkrajsim manj kot 10 % najdaljsega.
      */
@@ -1512,7 +1513,7 @@ object OsPravila {
      * dovolj: pravi CBR MPEG-TS, ki mu streznik zapira povezavo, ima tudi enaka kratka trajanja) dvakrat preberemo zacetek toka
      * in primerjamo odtisa (SHA-256). Pravi prenos v zivo ima po [razmikMs] drugacen zacetek, nadomestna slika (datoteka, ki
      * se vrti) enakega. true = nadomestek, false = pravi prenos, null = ni dokaza (napaka branja, premalo podatkov, prekratek
-     * razmik) - kanala takrat ne oznacimo.
+     * razmik) - kanala takrat ne oznacimo. Naloga 102: v tej izdaji se ne klice (sonda je odstranjena iz poti predvajanja).
      */
     fun nadomestekPoOdtisih(prvi: String?, drugi: String?, bajtovPrvi: Int, bajtovDrugi: Int, razmikMs: Long): Boolean? {
         if (prvi.isNullOrEmpty() || drugi.isNullOrEmpty()) return null
