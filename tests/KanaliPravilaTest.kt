@@ -240,5 +240,34 @@ fun main() {
     preveriEnako("90d: kljuci kartice z razlicicami", listOf("iptv:a", "iptv:b"), KanaliPravila.kljuciKartice("iptv:a", listOf("iptv:a", "iptv:b#2", "iptv:b")))
     preveriEnako("90d: kljuci kartice brez razlicic", listOf("iptv:a"), KanaliPravila.kljuciKartice("iptv:a", emptyList()))
 
+    // Naloga 91a: Arena Sport 1 Premium - razlicici iz dodatka (0, 2) in iz seznama IPTV (1, 3).
+    val arena = listOf("Arena Sport 1 Premium (Slovenia)", "Arena Sport 1 Premium", "Arena Sport 1 Premium HD", "Arena Sport 1 Premium HD")
+    val izIptv = listOf(false, true, false, true)
+    val brez = listOf(false, false, false, false)
+    preveriEnako("91a: nic ne vemo - prva razlicica seznama s HD", 3, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), izIptv, brez))
+    preveriEnako("91a: znano ziva razlicica seznama gre prva", 1, KanaliPravila.rezervaIptv(arena, listOf(null, true, null, null), izIptv, brez))
+    preveriEnako("91a: mrtva razlicica seznama izpade", 1, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, false), izIptv, brez))
+    preveriEnako("91a: znan nedelujoc tok izpade", 1, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), izIptv, listOf(false, false, false, true)))
+    preveriEnako("91a: ziva razlicica dodatka ni rezerva", 1, KanaliPravila.rezervaIptv(arena, listOf(true, null, true, null), izIptv, listOf(false, false, false, true)))
+    preveriEnako("91a: vse razlicice seznama mrtve - ni rezerve", null, KanaliPravila.rezervaIptv(arena, listOf(null, false, null, false), izIptv, brez))
+    preveriEnako("91a: brez razlicic seznama - ni rezerve", null, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), brez, brez))
+
+    // Naloga 91b: jeziki izbire takoj ob odprtju.
+    preveriEnako("91b: dodatki se niso odgovorili - shranjeni in seznami", listOf("sl", "en", "hr"),
+        KanaliPravila.jezikiKanalov(null, listOf("sl", "en"), listOf("hr", "sl")))
+    preveriEnako("91b: prazni sveze jeziki - shranjeni", listOf("sl", "de"), KanaliPravila.jezikiKanalov(emptyList(), listOf("sl"), listOf("de")))
+    preveriEnako("91b: sveze jeziki imajo prednost pred shranjenimi", listOf("en", "hr"), KanaliPravila.jezikiKanalov(listOf("en"), listOf("sl"), listOf("hr")))
+    preveriEnako("91b: prazna shramba (split) brez praznega jezika", listOf("sl"), KanaliPravila.jezikiKanalov(null, "".split(','), listOf("sl", "")))
+
+    // Naloga 91c: Recent - (ime, je kanal, ne deluje).
+    val nedavni = listOf(Triple("TV SLO 1", true, true), Triple("TV SLO 1 HD", true, false), Triple("Film", false, false),
+        Triple("Radio 1", false, true), Triple("Arena Sport 1", true, false))
+    preveriEnako("91c: nedelujoc kanal in njegova razlicica izpadeta, mrtva postaja tudi", listOf("Film", "Arena Sport 1"),
+        KanaliPravila.brezNedelujocihKanalov(nedavni, { it.second }, { it.first }, { it.third }).map { it.first })
+    preveriEnako("91c: ime ne-kanala ne skrije kanala", listOf("TV SLO 1"),
+        KanaliPravila.brezNedelujocihKanalov(listOf(Triple("TV SLO 1", false, true), Triple("TV SLO 1", true, false)), { it.second }, { it.first }, { it.third }).map { it.first })
+    preveriEnako("91c: vse deluje - nic ne izpade", 5,
+        KanaliPravila.brezNedelujocihKanalov(nedavni, { it.second }, { it.first }, { false }).size)
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -3468,6 +3468,9 @@ class GlasbaActivity : OsActivity() {
         val opisi = katalogi.map { KanaliPravila.Katalog(it.dodatek, it.imeDodatka, it.ime, it.zvrsti) }
         val filtri = KanaliPravila.filtri(opisi)
         FILTRI_KANALOV = filtri
+        // Naloga 91b: jeziki katalogov ostanejo na disku - ob naslednjem odprtju so v izbiri takoj, se preden dodatki odgovorijo.
+        if (katalogi.isNotEmpty()) getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit()
+            .putString(JEZIKI_KANALOV, filtri.jeziki.joinToString(",") { it.kljuc }).apply()
         fun vir(v: KanaliPravila.Vir) = VirKanalov(Stremio.zMoznostjo(katalogi[v.katalog], v.moznost))
         if (m.preklicana) return
         val velja = { !m.preklicana }
@@ -3974,7 +3977,10 @@ class GlasbaActivity : OsActivity() {
         val zvrsti = KanaliPravila.KLJUCI_KATEGORIJ.filter { it in znane && it != "ostalo" }.map { it to imeKategorije(it) } +
             f?.zvrsti.orEmpty().filter { it.ime.isNotEmpty() }.map { it.kljuc to it.ime } +
             (if ("ostalo" in znane) listOf("ostalo" to imeKategorije("ostalo")) else emptyList())
-        val jeziki = jezikiIzbire((f?.jeziki.orEmpty().map { it.kljuc } + vgrajeni.map { it.jezik }).distinct())
+        // Naloga 91b: jeziki so takoj na voljo - zadnji znani jeziki katalogov z diska in jeziki prenesenih seznamov IPTV (.info).
+        val shranjeni = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString(JEZIKI_KANALOV, "").orEmpty().split(',')
+        val izSeznamov = seznamiTv().flatMap { IptvSeznami.podatki(this, it)?.jeziki.orEmpty() }
+        val jeziki = jezikiIzbire(KanaliPravila.jezikiKanalov(f?.jeziki?.map { it.kljuc }, shranjeni, izSeznamov + vgrajeni.map { it.jezik }))
         val nacini = listOf(RAZVRSTI_PRIPOROCENO to R.string.os_media_razvrsti_priporoceno, RAZVRSTI_IME_AZ to R.string.os_media_razvrsti_ime)
         return listOf(
             PoljeIzbire("izb:zvrst", listOf(getString(R.string.os_zvrst_vse)) + zvrsti.map { it.second }, zvrsti.indexOfFirst { it.first == m.zvrst } + 1, null) { i ->
@@ -5537,7 +5543,10 @@ class GlasbaActivity : OsActivity() {
                 when {
                     jeVrstaPosnetkov(sk, seznam) -> predvajajVrstoPosnetkov(celotaZdaj(), sk)
                     SpletniVir.jeEnota(sk) -> razresiSplet(sk, vse.drop(1))
-                    Stremio.jeEnota(sk) && vse.size > 1 -> razresiStremio(sk, razlicice = vse.drop(1))
+                    // Naloga 91a: ce dodatki ne dajo toka, igra prva ziva razlicica seznama IPTV (tiho).
+                    Stremio.jeEnota(sk) && vse.size > 1 -> razresiStremio(sk, razlicice = vse.drop(1), rezerva = KanaliPravila.rezervaIptv(
+                        vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) }, vse.map { IptvSeznami.jeKanal(it) },
+                        vse.map { KanaliPravila.znanNedelujocTok(it.zvok) })?.let { vse[it] })
                     // Kanal seznama IPTV z vec razlicicami (SD, HD): predvajamo prvo zivo, mrtve izpustimo.
                     IptvSeznami.jeKanal(sk) && vse.size > 1 -> {
                         val vrstni = KanaliPravila.urediRazlicice(vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) })
@@ -6945,7 +6954,9 @@ class GlasbaActivity : OsActivity() {
      * [razlicice]: ista vsebina iz drugih dodatkov (drug id). Tokove vprasamo za vse hkrati in izberemo najboljsega
      * izmed vseh - uporabnik vidi eno kartico in dobi najboljsi tok, ne glede na to, kateri dodatek ga ima (lastnik, 2. 10. 2026).
      */
-    private fun razresiStremio(sk: Jamendo.Skladba, rocno: Boolean = false, razlicice: List<Jamendo.Skladba> = emptyList()) {
+    private fun razresiStremio(sk: Jamendo.Skladba, rocno: Boolean = false, razlicice: List<Jamendo.Skladba> = emptyList(),
+                               /** Naloga 91a: razlicica seznama IPTV, ki igra, ce dodatki kanala v zivo ne dajo predvajljivega toka. */
+                               rezerva: Jamendo.Skladba? = null) {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return
         val priprava = zacniPripravo(sk) ?: return
         // Naloga 74: klik na kanal ima prednost pred preverjanjem mreze v ozadju ([preveriKanal] pocaka).
@@ -6999,6 +7010,10 @@ class GlasbaActivity : OsActivity() {
                         .flatMap { f -> try { f.get((konecT - android.os.SystemClock.uptimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
                 // Metapodatki so medtem navadno ze prisli: serija z epizodami se odpre kot serija (ne kot film).
                 if (!vZivo && odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@execute
+                if (vZivo && !rocno && rezerva != null && t.none { Stremio.jePredvajljiv(it) }) {
+                    glavna.post { koncajPripravo(priprava); if (!isFinishing) predvajaj(listOf(rezerva), 0) }
+                    return@execute
+                }
                 glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno) }
             }
         }
@@ -8653,6 +8668,8 @@ class GlasbaActivity : OsActivity() {
         )
         private const val KLJUC_VSI_VIRI = "k:v:vsi"
         private const val NASTAVITVE_POGLEDA = "safeer_media_pogled"
+        /** Naloga 91b: zadnji znani jeziki katalogov kanalov dodatkov (kljuci, locene z vejico). */
+        private const val JEZIKI_KANALOV = "tv_jeziki_dodatkov"
         private const val KLJUC_JEZIKOV = "izklopljeni_jeziki_"
         private val HITROSTI = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
         private val CASOVNIK = intArrayOf(15, 30, 60, 90)

@@ -162,6 +162,31 @@ object KanaliPravila {
 
     fun znanNedelujocTok(url: String): Boolean = NEDELUJOCI_TOKOVI.containsMatchIn(url.trim().lowercase(java.util.Locale.ROOT))
 
+    /**
+     * Naloga 91a: kartica ima razlicice iz dodatkov in iz seznamov IPTV; ce dodatki ne dajo predvajljivega toka, se predvaja
+     * prva ziva razlicica seznama ([urediRazlicice]). Razlicice, ki niso iz seznama ([izIptv]) ali imajo znan nedelujoc tok
+     * ([nedelujoc]), ne pridejo v postev. Vrne indeks v [imena]; null = take razlicice ni.
+     */
+    fun rezervaIptv(imena: List<String>, stanja: List<Boolean?>, izIptv: List<Boolean>, nedelujoc: List<Boolean>): Int? =
+        urediRazlicice(imena, imena.indices.map { if (izIptv.getOrNull(it) != true || nedelujoc.getOrNull(it) == true) false else stanja.getOrNull(it) }).firstOrNull()
+
+    /**
+     * Naloga 91b: jeziki izbire mreze kanalov takoj ob odprtju: sveze iz katalogov dodatkov ([dodatkov]; null ali prazno =
+     * se niso odgovorili), sicer zadnji znani z diska ([shranjeni]); zraven jeziki seznamov IPTV in vgrajenih kanalov ([ostali]).
+     */
+    fun jezikiKanalov(dodatkov: List<String>?, shranjeni: List<String>, ostali: List<String>): List<String> =
+        (dodatkov?.takeIf { it.isNotEmpty() } ?: shranjeni).plus(ostali).filter { it.isNotBlank() }.distinct()
+
+    /**
+     * Naloga 91c: nedavni vnosi (Recent) brez tistih, ki ne delujejo ([nedeluje]: skrit, mrtev, znan nedelujoc tok). Kanal je
+     * ena kartica z vec razlicicami, zato tak kanal skrije tudi ostale nedavne kanale z istim imenom ([kljucImena]).
+     */
+    fun <T> brezNedelujocihKanalov(vnosi: List<T>, jeKanal: (T) -> Boolean, ime: (T) -> String, nedeluje: (T) -> Boolean): List<T> {
+        val ne = vnosi.map { nedeluje(it) }
+        val imena = vnosi.filterIndexed { i, v -> ne[i] && jeKanal(v) }.map { kljucImena(ime(it)) }.toSet()
+        return vnosi.filterIndexed { i, v -> !ne[i] && !(jeKanal(v) && kljucImena(ime(v)) in imena) }
+    }
+
     /** Kljuci ([OsPravila.kljucKanala]) kartice [id] in vseh njenih razlicic [razlicice], brez dvojnikov. */
     fun kljuciKartice(id: String, razlicice: List<String>): List<String> = (razlicice + id).map { OsPravila.kljucKanala(it) }.distinct()
 

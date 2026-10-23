@@ -417,9 +417,13 @@ object MedijskiViri {
         // Vsebina zasebnih dodatkov ni v zgodovini (ZasebniDodatki) - tudi tista, zapisana pred tem pravilom.
         // Naslovov dodatka, ki ga uporabnik nima vec, ne kazemo (ne dajo se predvajati).
         val dodatki = vsi(ctx).filter { it.jeStremio }.map { it.naslov }
-        // Kanala ali postaje, ki ta cas pri viru ne dela ([MrtviKanali]), ne ponujamo za nadaljevanje.
-        return osveziVgrajene(beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }
-            .filterNot { Stremio.jeZasebna(it) || Stremio.brezDodatka(it, dodatki) || MrtviKanali.jeMrtev(ctx, it.id) }.take(MAX_NEDAVNO))
+        // Kanala ali postaje, ki ta cas pri viru ne dela ([MrtviKanali]), ne ponujamo za nadaljevanje. Naloga 91c: tudi ne
+        // skritega ali kanala z znanim nedelujocim tokom ([KanaliPravila.znanNedelujocTok]) - in ne njegove razlicice z istim imenom.
+        val vnosi = beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }.filterNot { Stremio.jeZasebna(it) || Stremio.brezDodatka(it, dodatki) }
+        return osveziVgrajene(KanaliPravila.brezNedelujocihKanalov(vnosi,
+            { it.id.startsWith("tv:") || Stremio.jeVZivo(it) || IptvSeznami.jeKanal(it) }, { it.naslov },
+            { MrtviKanali.jeMrtev(ctx, it.id) || IptvSeznami.jeKanal(it) && (KanaliPravila.znanNedelujocTok(it.zvok) || KanaliPravila.znanNedelujocTok(it.povezava)) })
+            .take(MAX_NEDAVNO))
     }
 
     fun odstraniNedavno(ctx: Context, s: Jamendo.Skladba) =
