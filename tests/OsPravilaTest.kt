@@ -1035,6 +1035,7 @@ fun main() {
     preizkusKatalogov90()
     preizkusNamestitveDodatka94()
     preizkusPonovnePovezave95()
+    preizkusNadomestneSlike97()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }
@@ -1089,4 +1090,24 @@ private fun preizkusPonovnePovezave95() {
     preveriEnako("film (ni v zivo) - ne", 0, OsPravila.ponovnaPovezavaVZivo(false, true, true, 0, 5_000))
     preveriEnako("se ni zacelo (napaka pri prvi povezavi) - ne", 0, OsPravila.ponovnaPovezavaVZivo(true, true, false, 0, 0))
     preveriEnako("negativen stevec je 0", 1, OsPravila.ponovnaPovezavaVZivo(true, true, true, -3, 0))
+}
+
+private fun preizkusNadomestneSlike97() {
+    println("\n== kanal v zivo: nadomestna slika in meja ponovitev (naloga 97) ==")
+    preveriEnako("5,0/5,0/5,0 s - nadomestek", true, OsPravila.nadomestnaSlikaVZivo(listOf(5_008, 5_008, 5_008)))
+    preveriEnako("5,0/5,2/4,9 s - nadomestek (razlika < 10 %)", true, OsPravila.nadomestnaSlikaVZivo(listOf(5_000, 5_200, 4_900)))
+    preveriEnako("60/45/80 s - pravi prenos", false, OsPravila.nadomestnaSlikaVZivo(listOf(60_000, 45_000, 80_000)))
+    preveriEnako("5,0/30 s - pravi prenos", false, OsPravila.nadomestnaSlikaVZivo(listOf(5_000, 30_000)))
+    preveriEnako("5,0/5,0/30 s - zadnji dolg, pravi", false, OsPravila.nadomestnaSlikaVZivo(listOf(5_000, 5_000, 30_000)))
+    preveriEnako("samo dva kratka - se ne vemo", false, OsPravila.nadomestnaSlikaVZivo(listOf(5_000, 5_000)))
+    preveriEnako("kratki, a razlicni (3/5/8 s) - ne", false, OsPravila.nadomestnaSlikaVZivo(listOf(3_000, 5_000, 8_000)))
+    preveriEnako("prej pravi, zdaj trije enaki kratki - nadomestek", true, OsPravila.nadomestnaSlikaVZivo(listOf(600_000, 5_000, 5_000, 5_000)))
+    preveriEnako("nic predvajano - ne", false, OsPravila.nadomestnaSlikaVZivo(listOf(0, 0, 0)))
+    val zdaj = 1_000_000L
+    val deset = (1..10).map { zdaj - it * 5_000L }
+    preveriEnako("10 ponovitev v 2 min - konec, ceprav so novi podatki", 0,
+        OsPravila.ponovnaPovezavaVZivo(true, true, true, 1, 5_008, deset, zdaj))
+    preveriEnako("9 ponovitev v 2 min - se ponovi", 1, OsPravila.ponovnaPovezavaVZivo(true, true, true, 1, 5_008, deset.drop(1), zdaj))
+    preveriEnako("stare ponovitve (pred 2 min) ne stejejo", 1,
+        OsPravila.ponovnaPovezavaVZivo(true, true, true, 1, 5_008, (1..10).map { zdaj - 130_000L - it }, zdaj))
 }

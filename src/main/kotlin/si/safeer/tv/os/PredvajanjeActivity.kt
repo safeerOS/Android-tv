@@ -792,6 +792,8 @@ class PredvajanjeActivity : OsActivity() {
             sk.id.startsWith("stremio|") && sk.id.contains("#tn") -> getString(R.string.os_stremio_vir_naprava)
             (sk.id.startsWith("stremio|") || sk.id.startsWith("pcprenos|")) && sk.id.contains("#t") -> getString(R.string.os_stremio_vir_racunalnik)
             sk.id.startsWith("stremio|") -> android.net.Uri.parse(sk.zvok).host.orEmpty()
+            // Naloga 97: kanal seznama IPTV - naslov toka ima lahko zeton ali geslo ponudnika (».../play/<zeton>«): samo ime seznama.
+            IptvSeznami.jeKanal(sk) -> KanaliPravila.imeSeznama(sk.streznik).ifBlank { getString(R.string.os_mediji_tv_v_zivo) }
             sk.zvok.startsWith("https://prod-1.storage.jamendo.com") || sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, stran)
             else -> stran
         }

@@ -1479,6 +1479,27 @@ object OsPravila {
 
     /** Najvec zaporednih ponovnih povezav kanala v zivo brez novih podatkov; potem je konec (kanal ne deluje). */
     const val PONOVITEV_V_ZIVO_NAJVEC = 5
+    /** Naloga 97: najvec toliko ponovnih povezav istega vira v [PONOVITEV_V_ZIVO_OKNO_MS], ne glede na nove podatke. */
+    const val PONOVITEV_V_ZIVO_OKNO_NAJVEC = 10
+    const val PONOVITEV_V_ZIVO_OKNO_MS = 120_000L
+    /** Naloga 97: nadomestna slika operaterja (prepoved, »ni na voljo«) - toliko zaporednih tokov, vsak krajsi od [NADOMESTEK_NAJDLJE_MS]. */
+    const val NADOMESTEK_ZAPOREDNIH = 3
+    const val NADOMESTEK_NAJDLJE_MS = 15_000L
+
+    /**
+     * Naloga 97 (meritev 23. 10. 14:31: »Zabranjen vam je pristup« - streznik vrti 5-sekundno sliko namesto programa): kanal v
+     * zivo, kjer se tok vsakic konca po skoraj enakem casu, ni pravi prenos. [trajanja] = koliko je predvajal vsak dosedanji
+     * tok (ms, po vrsti). Nadomestek: zadnjih [NADOMESTEK_ZAPOREDNIH], vsak krajsi od [NADOMESTEK_NAJDLJE_MS] in razlika med
+     * najdaljsim in najkrajsim manj kot 10 % najdaljsega.
+     */
+    fun nadomestnaSlikaVZivo(trajanja: List<Long>): Boolean {
+        val zadnja = trajanja.takeLast(NADOMESTEK_ZAPOREDNIH)
+        if (zadnja.size < NADOMESTEK_ZAPOREDNIH) return false
+        val najdaljse = zadnja.maxOf { it }
+        val najkrajse = zadnja.minOf { it }
+        return najkrajse > 0 && najdaljse < NADOMESTEK_NAJDLJE_MS && (najdaljse - najkrajse) * 10 < najdaljse
+    }
+
     /** Ponovitev, pred katero je predvajalnik predvajal vsaj toliko, je prinesla nove podatke (stevec gre na zacetek). */
     const val NOVI_PODATKI_V_ZIVO_MS = 2_000L
 
@@ -1489,8 +1510,12 @@ object OsPravila {
      * predvajal od zadnje (ponovne) povezave. Vrne zaporedno stevilko te ponovitve brez novih podatkov (1 ..
      * [PONOVITEV_V_ZIVO_NAJVEC]) ali 0 = ne ponovi (film, HLS, se ni zacelo ali prevec ponovitev brez podatkov).
      */
-    fun ponovnaPovezavaVZivo(vZivo: Boolean, progresivno: Boolean, zacelo: Boolean, prejsnjih: Int, predvajanoMs: Long): Int {
+    fun ponovnaPovezavaVZivo(vZivo: Boolean, progresivno: Boolean, zacelo: Boolean, prejsnjih: Int, predvajanoMs: Long,
+                             /** Naloga 97: casi prejsnjih ponovitev tega vira (elapsedRealtime) in zdaj - meja [PONOVITEV_V_ZIVO_OKNO_NAJVEC]. */
+                             casiPonovitev: List<Long> = emptyList(), zdaj: Long = 0L): Int {
         if (!vZivo || !progresivno || !zacelo) return 0
+        // Naloga 97: tok, ki se vsakic konca po 5 s, je stevec brez podatkov vedno ponastavil - zanka ni nikoli koncala.
+        if (casiPonovitev.count { zdaj - it in 0 until PONOVITEV_V_ZIVO_OKNO_MS } >= PONOVITEV_V_ZIVO_OKNO_NAJVEC) return 0
         val brez = if (predvajanoMs >= NOVI_PODATKI_V_ZIVO_MS) 0 else prejsnjih.coerceAtLeast(0)
         return if (brez >= PONOVITEV_V_ZIVO_NAJVEC) 0 else brez + 1
     }

@@ -105,6 +105,9 @@ class GlasbaStoritev : Service() {
     /** Naloga 95: zaporedne ponovne povezave kanala v zivo brez novih podatkov in vse ponovne povezave tega vira. */
     private var ponovitevVZivo = 0
     private var ponovitevVZivoSkupaj = 0
+    /** Naloga 97: koliko je predvajal vsak dosedanji tok tega kanala (ms) in kdaj so bile ponovitve (elapsedRealtime). */
+    private val trajanjaVZivo = ArrayList<Long>()
+    private val casiPonovitevVZivo = ArrayList<Long>()
     /** Predvaja se en sam kanal ali postaja v zivo s spleta (ne datoteka z naprave v Linku): bere ga nit nalaganja. */
     @Volatile private var enaVZivo = false
 
@@ -351,7 +354,6 @@ class GlasbaStoritev : Service() {
     /** Zaustavitev iz povratnega klica predvajalnika: storitev ustavimo sele po njem. */
     private fun konec() { android.os.Handler(mainLooper).post { stopSelf() } }
 
-    /** Posnetek je pri koncu: v vrsti posnetkov s strani (seznam predvajanja) zacne naslednji, sicer je konec. */
     /**
      * Naloga 95: kanal v zivo s progresivnim virom (surov MPEG-TS prek http) - streznik povezavo sproti zapre, predvajalnik
      * pride do konca. Isti vir pripravimo znova od privzetega mesta: zaslon predvajanja ostane, zadnja slika tudi (seek ne
@@ -363,13 +365,26 @@ class GlasbaStoritev : Service() {
         val progresivno = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(enota.zvok),
             enota.mime.ifBlank { null }) == C.CONTENT_TYPE_OTHER
         val predvajano = p.currentPosition.coerceAtLeast(0L)
-        val n = OsPravila.ponovnaPovezavaVZivo(kanal, progresivno, zacelo, ponovitevVZivo, predvajano)
+        val zdaj = android.os.SystemClock.elapsedRealtime()
+        if (kanal && progresivno && zacelo) {
+            trajanjaVZivo += predvajano
+            // Naloga 97: tok se vsakic konca po skoraj enakem kratkem casu - streznik vrti nadomestno sliko (prepoved, »ni na
+            // voljo«), ne programa. Tiho konec, kanal do jutri ne deluje (kot pri sondi), zaslon predvajanja se zapre.
+            if (OsPravila.nadomestnaSlikaVZivo(trajanjaVZivo)) {
+                Log.i("SafeerOsMedia", "kanal v zivo: nadomestna slika (trajanja ${trajanjaVZivo.takeLast(OsPravila.NADOMESTEK_ZAPOREDNIH)} ms) - kanal ne deluje")
+                MrtviKanali.zapomni(this, enota.id)
+                android.os.Handler(mainLooper).post { ustaviPredvajanje() }
+                return true
+            }
+        }
+        val n = OsPravila.ponovnaPovezavaVZivo(kanal, progresivno, zacelo, ponovitevVZivo, predvajano, casiPonovitevVZivo, zdaj)
         if (n == 0) {
             if (kanal && progresivno && zacelo) Log.i("SafeerOsMedia", "kanal v zivo: brez ponovne povezave ($zakaj) - $ponovitevVZivo zaporednih brez novih podatkov")
             return false
         }
         ponovitevVZivo = n
         ponovitevVZivoSkupaj++
+        casiPonovitevVZivo += zdaj
         Log.i("SafeerOsMedia", "kanal v zivo: ponovna povezava $ponovitevVZivoSkupaj ($zakaj, predvajano $predvajano ms, zaporedno brez podatkov $n)")
         p.seekToDefaultPosition()
         p.prepare()
@@ -377,6 +392,7 @@ class GlasbaStoritev : Service() {
         return true
     }
 
+    /** Posnetek je pri koncu: v vrsti posnetkov s strani (seznam predvajanja) zacne naslednji, sicer je konec. */
     private fun poKoncu() {
         if (spletnaVrsta.size > spletniIndeks + 1) android.os.Handler(mainLooper).post { zacniElement(spletniIndeks + 1) }
         else konec()
@@ -458,7 +474,7 @@ class GlasbaStoritev : Service() {
         predvajalnik = p
         vrsta = seznam
         zacelo = false; koncnaNapaka = null; zapisanaNedavno = ""
-        ponovitevVZivo = 0; ponovitevVZivoSkupaj = 0
+        ponovitevVZivo = 0; ponovitevVZivoSkupaj = 0; trajanjaVZivo.clear(); casiPonovitevVZivo.clear()
         enaVZivo = s == null && seznam.size == 1 && seznam[0].let { it.radio || it.id.startsWith("tv:") || Stremio.jeVZivo(it) || IptvSeznami.jeKanal(it) }
         streznikTrenutni = s
         // Kanal ali postaja v zivo: streznik, ki se v 5 s ne oglasi, ne dela (privzeti rok 8 s je za datoteke).
