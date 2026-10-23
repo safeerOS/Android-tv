@@ -15,7 +15,14 @@ import java.util.Locale
  * 21. 9. 2026), sifrirane povezave pa ne obidemo.
  */
 object Radio {
-    private const val OSNOVA = "https://de1.api.radio-browser.info/json/stations/search"
+    /**
+     * Naloga 84: strezniki imenika. Prej samo de1 z rokom 10 s za povezavo in 15 s za branje - ko ta ni odgovarjal, je
+     * Radio cakal 25 s. Zdaj krajsi rok in naslednje zrcalo; zadnji dober je prvi. (Ne »all.api...«: to je samo DNS, potrdilo
+     * streznika velja za njegovo ime.)
+     */
+    private val STREZNIKI = listOf("https://de1.api.radio-browser.info", "https://fi1.api.radio-browser.info", "https://de2.api.radio-browser.info")
+    private const val POT = "/json/stations/search"
+    @Volatile private var zadnjiDober: String? = null
 
     /** Domace postaje (drzava televizorja) in najbolj poslusane na svetu, brez podvojenih. */
     fun postajeLocene(): Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>> {
@@ -53,14 +60,26 @@ object Radio {
                 .filter { it.naslov.length <= 60 }.distinctBy { it.zvok }.take(stevilo)
         } catch (_: Exception) { emptyList() }
 
+    /** Odgovor imenika: prvi streznik, ki odgovori ([OsPravila.vrstniRedStreznikov]); izjema, ce noben. */
+    private fun prenesi(filter: String): String {
+        var napaka: Exception? = null
+        for (osnova in OsPravila.vrstniRedStreznikov(STREZNIKI, zadnjiDober)) {
+            if (Thread.currentThread().isInterrupted) break
+            val p = URL("$osnova$POT?order=clickcount&reverse=true&hidebroken=true&is_https=true&$filter").openConnection() as HttpURLConnection
+            p.connectTimeout = 4_000; p.readTimeout = 8_000
+            p.setRequestProperty("User-Agent", "SafeerOS/0.4 (+https://safeer.si)")
+            try {
+                if (p.responseCode != 200) throw java.io.IOException("HTTP ${p.responseCode}")
+                val telo = p.inputStream.bufferedReader().use { it.readText() }
+                zadnjiDober = osnova
+                return telo
+            } catch (e: Exception) { napaka = e } finally { p.disconnect() }
+        }
+        throw napaka ?: java.io.IOException("imenik ne odgovarja")
+    }
+
     private fun iskanje(filter: String): List<Jamendo.Skladba> {
-        val p = URL("$OSNOVA?order=clickcount&reverse=true&hidebroken=true&is_https=true&$filter").openConnection() as HttpURLConnection
-        p.connectTimeout = 10_000; p.readTimeout = 15_000
-        p.setRequestProperty("User-Agent", "SafeerOS/0.4 (+https://safeer.si)")
-        val telo = try {
-            if (p.responseCode != 200) throw java.io.IOException("HTTP ${p.responseCode}")
-            p.inputStream.bufferedReader().use { it.readText() }
-        } finally { p.disconnect() }
+        val telo = prenesi(filter)
         val a = JSONArray(telo)
         val vnosi = (0 until a.length()).map { a.getJSONObject(it) }
             // HLS predvajalnik zdaj zna (Media3 HLS), zato tudi te postaje.

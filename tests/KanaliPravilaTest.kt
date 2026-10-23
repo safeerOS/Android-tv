@@ -192,5 +192,26 @@ fun main() {
     preveriEnako("napis: kanali na zaslonu - nic", KanaliPravila.NapisCakanja.NIC, KanaliPravila.napisCakanja(5, false, true, true))
     preveriEnako("napis: nic ne caka", KanaliPravila.NapisCakanja.NIC, KanaliPravila.napisCakanja(0, false, false, true))
 
+    println()
+    // ---- naloga 82: zaklenjeni viri pri vsaki izbiri, prazna mreza nikoli »Nalagam« za vedno
+    val faya = "https://faya.test"
+    val zk = listOf(Katalog(iptv, "All IPTV", "All IPTV News"), Katalog(faya, "FayaTV", "News"), Katalog(iptv, "All IPTV", "All IPTV Sports"))
+    val fz = KanaliPravila.filtri(zk)
+    val novice = KanaliPravila.izbrani(fz, zk, "novice", "").glavni
+    preveriEnako("82: zvrst News - oba kataloga po imenu", listOf(Vir(0), Vir(1)), novice)
+    preveriEnako("82: zaklenjen dodatek izpuscen tudi pri zvrsti", listOf(Vir(1)) to listOf(Vir(0)),
+        KanaliPravila.brezZaklenjenih(novice, zk) { it == iptv })
+    preveriEnako("82: brez zaklenjenih vse ostane", novice to emptyList<Vir>(), KanaliPravila.brezZaklenjenih(novice, zk) { false })
+    preveriEnako("82: samo zaklenjeni - nic delujocega", emptyList<Vir>(),
+        KanaliPravila.brezZaklenjenih(KanaliPravila.izbrani(fz, zk, "sport", "").glavni, zk) { it == iptv }.first)
+    val P = KanaliPravila.PraznaMreza
+    preveriEnako("82: kanali na zaslonu - nic", null, KanaliPravila.praznaMreza(3, true, 60_000, true))
+    preveriEnako("82: prve sekunde nalaganja - cakaj", P.CAKAJ, KanaliPravila.praznaMreza(0, true, 1_000, true))
+    preveriEnako("82: nalaganje 3 s - nadomestek", P.NADOMESTEK, KanaliPravila.praznaMreza(0, true, 3_000, true))
+    preveriEnako("82: nic vec ne pricakujemo - nadomestek takoj", P.NADOMESTEK, KanaliPravila.praznaMreza(0, false, 100, true))
+    preveriEnako("82: brez nadomestka med nalaganjem - cakaj", P.CAKAJ, KanaliPravila.praznaMreza(0, true, 20_000, false))
+    preveriEnako("82: brez nadomestka, 45 s - ni vec »Nalagam«", P.PRAZNO, KanaliPravila.praznaMreza(0, true, 45_000, false))
+    preveriEnako("82: brez nadomestka, koncano - prazno", P.PRAZNO, KanaliPravila.praznaMreza(0, false, 0, false))
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

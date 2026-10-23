@@ -289,6 +289,7 @@
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Le fonti dei canali non rispondono. Riprovo tra %1$d min.</string>
     <string name="os_tv_ni_kanalov">Nessun canale in questa selezione.</string>
+    <string name="os_tv_nadomestek_vsi">Ancora nessun canale in questa selezione: vengono mostrati tutti i canali.</string>
     <string name="os_kanali_novice">Notizie</string>
     <string name="os_kanali_sport">Sport</string>
     <string name="os_kanali_filmi">Film</string>

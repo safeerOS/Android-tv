@@ -124,6 +124,9 @@ object TuneIn {
             predpomnilnik[kljuc]?.takeIf { zdaj - it.ob < VELJAVNOST }?.let { return it.vrednost as T }
         }
         val vrednost = nalozi()
+        // Naloga 84: izpad (null, prazen seznam) si ne zapomnimo - prej je bil Radio 30 min brez lokalnih postaj TuneIna,
+        // ce TuneIn ob prvem odprtju ni odgovoril.
+        if (vrednost == null || (vrednost as? Collection<*>)?.isEmpty() == true) return vrednost
         synchronized(predpomnilnik) {
             predpomnilnik.entries.removeAll { zdaj - it.value.ob >= VELJAVNOST }
             predpomnilnik[kljuc] = Vnos(zdaj, vrednost)

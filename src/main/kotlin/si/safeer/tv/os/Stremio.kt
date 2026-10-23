@@ -856,13 +856,16 @@ object Stremio {
      * Katalog z lastnim iskanjem vprasamo z `search=`; kataloge kanalov, postaj in glasbe, ki iskanja ne
      * podpirajo (vecina dodatkov TV v zivo), preiscemo sami po imenu (stran kataloga je v predpomnilniku).
      */
-    fun isci(naslovi: List<String>, beseda: String, tudiZasebni: Boolean = false): List<Jamendo.Skladba> {
+    fun isci(naslovi: List<String>, beseda: String, tudiZasebni: Boolean = false, samoIskanje: Boolean? = null): List<Jamendo.Skladba> {
         // Zasebni dodatki niso v skupnem iskanju (ZasebniDodatki): isce se v njih samo izrecno ([tudiZasebni]).
+        // Naloga 81: [samoIskanje] = true samo katalogi brez mreze, ki zahtevajo iskanje (YouTubio), false = brez njih, null = vsi -
+        // Media Center jih vprasa v locenem opravilu z daljsim rokom.
         val katalogi = naslovi.mapNotNull { manifest(it) }.filter { tudiZasebni || !it.zaseben }.flatMap { it.katalogi }
             .filter { tudiZasebni || !zasebenKatalog(it) }
+            .filter { k -> when (samoIskanje) { null -> true; true -> k.iskanje && !k.prikazen; false -> k.prikazen || !k.iskanje } }
         val zIskanjem = katalogi.filter { it.iskanje }.distinctBy { it.dodatek + "|" + it.tip }
         val pokriti = zIskanjem.map { it.dodatek + "|" + it.tip }.toSet()
-        val brezIskanja = katalogi.filter { !it.iskanje && it.prikazen && (it.dodatek + "|" + it.tip) !in pokriti &&
+        val brezIskanja = if (samoIskanje == true) emptyList() else katalogi.filter { !it.iskanje && it.prikazen && (it.dodatek + "|" + it.tip) !in pokriti &&
             razredKataloga(it) in setOf(TV, RADIO, GLASBA) }.take(16)
         val opravila = zIskanjem.map { k -> k to java.util.concurrent.Callable { iskanjeVKatalogu(k, beseda) } } +
             brezIskanja.map { k -> k to java.util.concurrent.Callable { katalog(k).filter { ujema(it.naslov, beseda) }.take(20) } }
@@ -877,6 +880,12 @@ object Stremio {
         }
             .distinctBy { it.id }.filter { tudiZasebni || !ZasebniKanali.jeZaseben(it.id) }      // naloga 76: zasebne kategorije javnih dodatkov
     }
+
+    /** Naloga 81: dodatek|tip, za katerega je oblika toka ze zapisana v dnevnik. */
+    private val zapisaneOblike: MutableSet<String> = java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+
+    /** Naloga 81: ime dodatka zadetka za vrstico izvorov (iz predpomnilnika manifesta). */
+    fun imeIzvora(s: Jamendo.Skladba): String? = razstavi(s)?.first?.let { o -> manifesti[o]?.ime ?: znanaImena[o] }?.let { OsPravila.imeIzvora(it) }
 
     private const val ROK_ISKANJA_MS = 10_000L
     private const val ROK_SAMO_ISKANJA_MS = 15_000L
@@ -985,6 +994,8 @@ object Stremio {
                 if (jeObvestilo(s, ime, opis)) null else Tok("url", s.optString("url"), ime, opis, imeDodatka, glave = glave)
             // `externalUrl` ni tok, ampak povezava na stran: prosnja za donacijo, vabilo v Discord, "No streams found",
             // trgovina ... Tega uporabniku nikoli ne kazemo (lastnik, 2. 10. 2026) - vnos izpustimo.
+            // Naloga 81: izjema je posnetek na YouTubu (YouTubio da posnetek kot povezavo) - vsebina, predvajamo jo kot doslej (splet).
+            OsPravila.jeYoutubePovezava(s.optString("externalUrl")) -> Tok("napovednik", s.optString("externalUrl").trim(), ime, opis, imeDodatka)
             s.optString("externalUrl").isNotBlank() -> null
             // Napovednik (YouTube) ni vsebina sama: ne steje kot predvajanje, ponudimo ga le pri rocni izbiri vira.
             s.optString("ytId").isNotBlank() -> Tok("napovednik", "https://www.youtube.com/watch?v=" + s.optString("ytId"), ime, opis, imeDodatka)
@@ -1435,6 +1446,11 @@ object Stremio {
                 android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)} tokovi $tip: odgovor=${d != null} koda=${zadnjaKoda.get() ?: 0} stevilo=${a.length()}")
                 for (i in 0 until minOf(a.length(), 8)) a.optJSONObject(i)?.let { android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)}   tok $i: ${oblikaToka(it)}") }
             }
+            // Naloga 81: oblika toka pri prvem predvajanju vsebine dodatka, ki ni film ali serija (YouTubio: url ali ytId?) - enkrat
+            // na dodatek in tip v procesu, tudi brez dnevnika razvijalca (samo oblika, brez naslova toka).
+            if (tip != "movie" && tip != "series" && a.length() > 0 && zapisaneOblike.add(m.osnova + "|" + tip)) try {
+                android.util.Log.i("SafeerStremio", "dodatek ${gostitelj(m.osnova)} tok $tip: stevilo=${a.length()}, prvi: ${a.optJSONObject(0)?.let { oblikaToka(it) } ?: "-"}")
+            } catch (_: Throwable) { }
             (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }
                 .also { t -> if (d != null && razred(tip) == TV) zabeleziTokove(m.osnova, a, t.count { jePredvajljiv(it) }) }
         }
@@ -1466,6 +1482,12 @@ object Stremio {
 
     /** Naloga 79: kanal je iz dodatka brez prostih tokov. */
     fun brezProstihTokovKanala(s: Jamendo.Skladba): Boolean = razstavi(s)?.first?.let { brezProstihTokov(it) } == true
+
+    /** Naloga 82: dodatek je za mrezo TV v zivo zaklenjen ([OsPravila.zaklenjenZaMrezo]) - tudi po izteku sklepa brez zivega toka. */
+    fun zaklenjenZaMrezo(naslov: String): Boolean = OsPravila.zaklenjenZaMrezo(zaklepi[osnova(naslov)], System.currentTimeMillis())
+
+    /** Naloga 82: kanal je iz dodatka, ki je za mrezo zaklenjen ([zaklenjenZaMrezo]). */
+    fun zaklenjenKanalZaMrezo(s: Jamendo.Skladba): Boolean = razstavi(s)?.first?.let { zaklenjenZaMrezo(it) } == true
 
     /** Naloga 79: zadnji odgovor dodatka za kanal je imel samo obvestila (tudi pred sklepom) - kanal ni mrtev. */
     fun samoObvestilaKanala(s: Jamendo.Skladba): Boolean = razstavi(s)?.first?.let { (zaklepi[it]?.zaporednih ?: 0) > 0 } == true

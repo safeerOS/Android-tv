@@ -394,6 +394,14 @@ object OsPravila {
     /** Ali sklep »samo z narocnino« zdaj velja (ura nazaj: ne velja, dokler ga nov odgovor ne obnovi). */
     fun jeZaklenjen(z: Zaklep?, zdaj: Long): Boolean = z != null && z.zaklenjenOb > 0L && zdaj - z.zaklenjenOb in 0 until ZAKLENJEN_VELJA_MS
 
+    /**
+     * Naloga 82: dodatek je za mrezo TV v zivo zaklenjen, ce sklep velja ALI je potekel brez vmesnega predvajljivega toka
+     * (stevec je se na meji). Prej je po 24 h dodatek spet zasedel vire izbire (zvrst »News« -> samo »All IPTV News«),
+     * prvo preverjanje je sklep obnovilo in vsi kanali so izginili - prazna mreza z »Nalagam«. Ponovno preverjanje po
+     * izteku je delo pregleda dodatka (75) in klika, ne uporabnikove mreze.
+     */
+    fun zaklenjenZaMrezo(z: Zaklep?, zdaj: Long): Boolean = jeZaklenjen(z, zdaj) || (z != null && z.zaporednih >= ZAKLENJEN_PO)
+
     /** Naloga 79b: najdaljsa povezava za odklep pri dodatku, ki jo sprejmemo. */
     const val ODKLEP_NAJVEC = 2048
 
@@ -417,6 +425,34 @@ object OsPravila {
      */
     fun stariNasloviDodatka(novaOsnova: String, idManifesta: String, dodani: Map<String, String>): List<String> =
         if (idManifesta.isBlank()) emptyList() else dodani.filter { (o, id) -> o != novaOsnova && id == idManifesta }.keys.sorted()
+
+    // ------------------------------------------------------------------ naloga 81: iskanje v dodatkih samo za iskanje (YouTubio)
+
+    /** Skupni rok iskanja v Media Center (vsi viri) in daljsi rok za kataloge samo za iskanje (YouTubio isce na YouTubu). */
+    const val ISKANJE_ROK_MS = 12_000L
+    const val ISKANJE_ROK_SAMO_MS = 16_000L
+
+    /**
+     * Naloga 81: ali iskanje neha cakati. Vsi viri so odgovorili; ali je mimo [ISKANJE_ROK_MS] in je odgovoril tudi vir samo
+     * za iskanje ([samoIskanjeGotovo]); ali je mimo [ISKANJE_ROK_SAMO_MS]. Prej je skupni rok 12 s preklical YouTubio, preden
+     * je ta sploh lahko odgovoril.
+     */
+    fun iskanjeKoncano(vsiGotovi: Boolean, samoIskanjeGotovo: Boolean, casMs: Long): Boolean =
+        vsiGotovi || (casMs >= ISKANJE_ROK_MS && (samoIskanjeGotovo || casMs >= ISKANJE_ROK_SAMO_MS))
+
+    /** Naloga 81: ime dodatka v vrstici izvorov zadetkov (»YouTubio | ElfHosted« -> »YouTubio«). */
+    fun imeIzvora(imeDodatka: String): String = imeDodatka.substringBefore(" | ").substringBefore(" - ").trim().ifEmpty { imeDodatka.trim() }
+
+    /**
+     * Naloga 81: povezava toka (externalUrl), ki je posnetek na YouTubu - ni placilna ali reklamna stran, ampak vsebina sama
+     * (dodatek YouTubio); predvajamo jo kot doslej posnetek YouTuba (splet). Samo https/http youtube.com, youtu.be.
+     */
+    fun jeYoutubePovezava(url: String): Boolean {
+        val u = url.trim().lowercase(java.util.Locale.ROOT)
+        val m = Regex("^https?://([^/?#@]+)(?=[/?#]|$)").find(u) ?: return false
+        val g = m.groupValues[1].substringBefore(':')
+        return g == "youtu.be" || g == "youtube.com" || g.endsWith(".youtube.com")
+    }
 
     /** Ime gostitelja iz sporocila sistema »Unable to resolve host "ime": ...« ali "". */
     fun gostiteljIzNapake(sporocilo: String?): String =
@@ -1206,4 +1242,40 @@ object OsPravila {
         val prvi = listOf(vmesnik, "en").distinct().filter { it in vse }
         return prvi + vse.filter { it !in prvi }.sorted()
     }
+
+    // ------------------------------------------------------------------ naloga 83: Music (koncerti, seznami, takoj z diska)
+
+    /** Vir uvozenega seznama predvajanja (UvozSeznama: »YouTube«, »Spotify«). */
+    fun jeUvozenSeznam(vir: String): Boolean = vir.trim().lowercase(java.util.Locale.ROOT) in setOf("youtube", "spotify")
+
+    /**
+     * Naloga 83 (lastnik: »od Music ne prikaze nic, niti nasega Spotify in YouTube«): kateri seznami predvajanja ([vir], [cas])
+     * so na polici na vrhu Music, po vrsti - najprej uvozeni (Spotify, YouTube), nato ostali, vsaka skupina od najnovejsega;
+     * najvec [najvec]. Vrne indekse v vhodnem seznamu.
+     */
+    fun seznamiNaVrhuGlasbe(seznami: List<Pair<String, Long>>, najvec: Int): List<Int> =
+        seznami.indices.sortedWith(compareBy<Int> { if (jeUvozenSeznam(seznami[it].first)) 0 else 1 }.thenByDescending { seznami[it].second })
+            .take(najvec.coerceAtLeast(0))
+
+    /** Ali gre seznam v Music: uvozen (tudi YouTube s samimi posnetki) ali ima vsaj eno skladbo, ki ni video. */
+    fun seznamZaGlasbo(vir: String, vsiVideo: Boolean): Boolean = jeUvozenSeznam(vir) || !vsiVideo
+
+    /**
+     * Naloga 83: filter jezika mreze Music. [jezikVnosa] = oznaka ([JezikiVsebine.oznaka]) ali prazno. Vnos dodatka brez
+     * oznake jezika (koncert iz Music Concerts) ostane - prej ga je izbran jezik vedno skril.
+     */
+    fun jezikGlasbeUstreza(jezikVnosa: String, izbran: String, izDodatka: Boolean): Boolean =
+        izbran.isEmpty() || jezikVnosa == izbran || (izDodatka && jezikVnosa.isEmpty())
+
+    // ------------------------------------------------------------------ naloga 84: Radio hitro
+
+    /**
+     * Naloga 84: koliko ms prva stran Radia caka na imenika (Radio Browser, TuneIn). Brez mreze na zaslonu kratko (kar
+     * ne pride, se doda na konec mreze), z mrezo z diska ali iz pomnilnika na vse (sveza stran jo zamenja enkrat).
+     */
+    fun rokImenikaRadia(prva: Boolean, naZaslonu: Boolean): Long = if (prva && !naZaslonu) 3_000L else 25_000L
+
+    /** Naloga 84: vrstni red streznikov imenika - zadnji, ki je odgovoril, najprej; ostali po vrsti (brez dvojnikov). */
+    fun vrstniRedStreznikov(strezniki: List<String>, zadnjiDober: String?): List<String> =
+        (listOfNotNull(zadnjiDober?.takeIf { it in strezniki }) + strezniki).distinct()
 }

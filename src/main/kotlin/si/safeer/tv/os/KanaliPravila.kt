@@ -366,4 +366,34 @@ object KanaliPravila {
         zasebniCakajo && !nalagam -> NapisCakanja.KATEGORIJE
         else -> NapisCakanja.NALAGAM
     }
+
+    // ------------------------------------------------------------------ naloga 82: zaklenjeni viri in prazna mreza
+
+    /**
+     * Naloga 82: viri izbire brez katalogov zaklenjenih dodatkov ([zaklenjen] po [Katalog.skupina]) - pri VSAKI izbiri
+     * (brez, zvrst, jezik, oboje). Vrne (delujoci, izpusceni); vrstni red ostane.
+     */
+    fun brezZaklenjenih(viri: List<Vir>, katalogi: List<Katalog>, zaklenjen: (String) -> Boolean): Pair<List<Vir>, List<Vir>> =
+        viri.partition { !zaklenjen(katalogi[it.katalog].skupina) }
+
+    /** Kaj pokazati, ko v mrezi kanalov ni nobenega kanala. */
+    enum class PraznaMreza { CAKAJ, NADOMESTEK, PRAZNO }
+
+    /** Po tolikem casu brez kanala na zaslonu pokazemo nadomestek (namesto »Nalagam«), tudi ce se viri se nalagajo. */
+    const val PRAZNA_NADOMESTEK_MS = 3_000L
+    /** Po tolikem casu brez kanala napisa »Nalagam« ni vec: »V tej izbiri ni kanalov« (nalaganje lahko tece naprej). */
+    const val PRAZNA_KONEC_MS = 45_000L
+
+    /**
+     * Naloga 82 (lastnik: zvrst »News« - 30 s cakanja in »Loading« za vedno): prazna mreza. [cakam] = viri se nalagajo,
+     * [odOdprtja] = ms od odprtja mreze, [imaNadomestek] = znani so kanali brez izbire. Ko ni nicesar vec pricakovati,
+     * je nadomestek takoj; med nalaganjem po [PRAZNA_NADOMESTEK_MS]; »Nalagam« nikoli dlje od [PRAZNA_KONEC_MS].
+     */
+    fun praznaMreza(naZaslonu: Int, cakam: Boolean, odOdprtja: Long, imaNadomestek: Boolean): PraznaMreza? = when {
+        naZaslonu > 0 -> null
+        cakam && odOdprtja < PRAZNA_NADOMESTEK_MS -> PraznaMreza.CAKAJ
+        imaNadomestek -> PraznaMreza.NADOMESTEK
+        cakam && odOdprtja < PRAZNA_KONEC_MS -> PraznaMreza.CAKAJ
+        else -> PraznaMreza.PRAZNO
+    }
 }

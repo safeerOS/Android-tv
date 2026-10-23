@@ -16,6 +16,26 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 private data class V(val kljuc: String, val ime: String = kljuc)
 
+/** Naloga 81: iskanje v dodatku samo za iskanje (YouTubio) - rok, ime izvora, povezava YouTube kot posnetek. */
+private fun preizkusIskanjaYoutubio() {
+    println("\n== naloga 81: YouTubio v iskanju ==")
+    preveriEnako("vsi gotovi: konec takoj", true, OsPravila.iskanjeKoncano(true, true, 500))
+    preveriEnako("11 s: se cakamo", false, OsPravila.iskanjeKoncano(false, false, 11_000))
+    preveriEnako("12 s, YouTubio odgovoril: konec", true, OsPravila.iskanjeKoncano(false, true, 12_000))
+    preveriEnako("12 s, YouTubio se isce: cakamo", false, OsPravila.iskanjeKoncano(false, false, 12_500))
+    preveriEnako("16 s: konec v vsakem primeru", true, OsPravila.iskanjeKoncano(false, false, 16_000))
+    preveriEnako("ime izvora: YouTubio | ElfHosted", "YouTubio", OsPravila.imeIzvora("YouTubio | ElfHosted"))
+    preveriEnako("ime izvora: brez pripone", "FayaTV", OsPravila.imeIzvora("FayaTV"))
+    preveriEnako("ime izvora: samo pripona", "| x", OsPravila.imeIzvora("| x"))
+    preveriEnako("youtube.com je posnetek", true, OsPravila.jeYoutubePovezava("https://www.youtube.com/watch?v=abc"))
+    preveriEnako("youtu.be je posnetek", true, OsPravila.jeYoutubePovezava("https://youtu.be/abc"))
+    preveriEnako("m.youtube.com je posnetek", true, OsPravila.jeYoutubePovezava("http://m.youtube.com/watch?v=abc"))
+    preveriEnako("lazen youtube.com.evil ni", false, OsPravila.jeYoutubePovezava("https://youtube.com.evil.test/watch"))
+    preveriEnako("uporabnik@ ni", false, OsPravila.jeYoutubePovezava("https://youtube.com@evil.test/"))
+    preveriEnako("placilna stran ni", false, OsPravila.jeYoutubePovezava("https://iptv.test/premium"))
+    preveriEnako("prazno ni", false, OsPravila.jeYoutubePovezava(""))
+}
+
 /** Naloga 79b: povezava za odklep pri dodatku (varna, brez poizvedbe) in isti dodatek pod dvema naslovoma. */
 private fun preizkusOdklepa() {
     println("\n== naloga 79b: odklep pri dodatku ==")
@@ -63,6 +83,12 @@ private fun preizkusZaklenjenegaDodatka() {
     preveriEnako("zapis: tja in nazaj", z, OsPravila.Zaklep.izNiza(z.vNiz()))
     preveriEnako("zapis: pokvarjen", null, OsPravila.Zaklep.izNiza("x;1"))
     preveriEnako("zapis: negativen", null, OsPravila.Zaklep.izNiza("-1;0"))
+    // Naloga 82: za mrezo velja sklep tudi po izteku, dokler dodatek ne da zivega toka.
+    preveriEnako("82: mreza - sklep velja", true, OsPravila.zaklenjenZaMrezo(z, zdaj + ura))
+    preveriEnako("82: mreza - po 24 h brez zivega toka se vedno zaklenjen", true, OsPravila.zaklenjenZaMrezo(z, zdaj + 30 * ura))
+    preveriEnako("82: mreza - ziv tok odklene", false, OsPravila.zaklenjenZaMrezo(OsPravila.poOdgovoruTokov(z, 2, 1, zdaj + 30 * ura), zdaj + 30 * ura))
+    preveriEnako("82: mreza - 4 obvestila se ni zaklep", false, OsPravila.zaklenjenZaMrezo(OsPravila.Zaklep(4, 0L), zdaj))
+    preveriEnako("82: mreza - brez zapisa", false, OsPravila.zaklenjenZaMrezo(null, zdaj))
 }
 
 /** Naloga 78: mreza nikoli ni prazna; prazne skupine izbire. */
@@ -831,6 +857,36 @@ private fun preizkusOdzivaDodatka() {
     preveri("ob vnosu: 503 in brez odgovora se enkrat, 404 ne", OsPravila.vnosZnova(503) && OsPravila.vnosZnova(0) && !OsPravila.vnosZnova(404))
 }
 
+/** Naloga 83: Music - seznami na vrhu, jezik koncertov. */
+private fun preizkusGlasbe83() {
+    println("\n== naloga 83: Music ==")
+    val sz = listOf("" to 5L, "Spotify" to 1L, "YouTube" to 3L, "" to 9L, "spotify" to 2L)
+    preveriEnako("83: uvozeni najprej, od najnovejsega", listOf(2, 4, 1, 3, 0), OsPravila.seznamiNaVrhuGlasbe(sz, 10))
+    preveriEnako("83: najvec", listOf(2, 4), OsPravila.seznamiNaVrhuGlasbe(sz, 2))
+    preveriEnako("83: prazno", emptyList<Int>(), OsPravila.seznamiNaVrhuGlasbe(emptyList(), 5))
+    preveriEnako("83: negativna meja", emptyList<Int>(), OsPravila.seznamiNaVrhuGlasbe(sz, -1))
+    preveriEnako("83: YouTube s samimi posnetki gre v Music", true, OsPravila.seznamZaGlasbo("YouTube", true))
+    preveriEnako("83: lasten seznam samih videov ne", false, OsPravila.seznamZaGlasbo("", true))
+    preveriEnako("83: lasten seznam s skladbami da", true, OsPravila.seznamZaGlasbo("", false))
+    preveriEnako("83: brez izbire jezika vse", true, OsPravila.jezikGlasbeUstreza("", "", false))
+    preveriEnako("83: koncert brez jezika ostane", true, OsPravila.jezikGlasbeUstreza("", "sl", true))
+    preveriEnako("83: Jamendo brez jezika ne", false, OsPravila.jezikGlasbeUstreza("", "sl", false))
+    preveriEnako("83: drug jezik ne", false, OsPravila.jezikGlasbeUstreza("en", "sl", true))
+    preveriEnako("83: isti jezik da", true, OsPravila.jezikGlasbeUstreza("sl", "sl", false))
+}
+
+/** Naloga 84: Radio - rok imenikov, vrstni red streznikov. */
+private fun preizkusRadia84() {
+    println("\n== naloga 84: Radio ==")
+    preveriEnako("84: prva stran brez mreze na zaslonu - 3 s", 3_000L, OsPravila.rokImenikaRadia(true, false))
+    preveriEnako("84: prva stran z mrezo z diska - na vse", 25_000L, OsPravila.rokImenikaRadia(true, true))
+    preveriEnako("84: naslednja stran - na vse", 25_000L, OsPravila.rokImenikaRadia(false, false))
+    val s = listOf("a", "b", "c")
+    preveriEnako("84: brez dobrega - po vrsti", s, OsPravila.vrstniRedStreznikov(s, null))
+    preveriEnako("84: zadnji dober najprej", listOf("b", "a", "c"), OsPravila.vrstniRedStreznikov(s, "b"))
+    preveriEnako("84: neznan dober se ne doda", s, OsPravila.vrstniRedStreznikov(s, "x"))
+}
+
 fun main() {
     println("Preizkus pravil Safeer OS")
     preizkusHtmlImen()
@@ -870,6 +926,9 @@ fun main() {
     preizkusNadomestneVsebine()
     preizkusZaklenjenegaDodatka()
     preizkusOdklepa()
+    preizkusIskanjaYoutubio()
+    preizkusGlasbe83()
+    preizkusRadia84()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }

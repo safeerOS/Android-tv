@@ -288,6 +288,7 @@
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Viri kanalov ne odgovarjajo. Znova poskusim čez %1$d min.</string>
     <string name="os_tv_ni_kanalov">V tej izbiri ni kanalov.</string>
+    <string name="os_tv_nadomestek_vsi">V tej izbiri še ni kanalov – prikazani so vsi kanali.</string>
     <string name="os_kanali_novice">Novice</string>
     <string name="os_kanali_sport">Šport</string>
     <string name="os_kanali_filmi">Filmi</string>
