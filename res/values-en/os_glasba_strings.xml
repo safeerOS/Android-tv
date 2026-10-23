@@ -285,6 +285,8 @@
     <string name="os_seznam_predvajaj_vse">Play all</string>
     <string name="os_media_kanal_mrtev_http">“%1$s” is not working – source error %2$d. Hidden until tomorrow.</string>
     <string name="os_media_kanal_mrtev">“%1$s” is not working – the stream cannot be read. Hidden until tomorrow.</string>
+    <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
+    <string name="os_tv_viri_ne_odgovarjajo">Channel sources are not responding. Trying again in %1$d min.</string>
     <string name="os_tv_ni_kanalov">No channels in this selection.</string>
     <string name="os_kanali_novice">News</string>
     <string name="os_kanali_sport">Sports</string>
@@ -320,7 +322,6 @@
     <string name="os_media_moja_glasba">My music</string>
     <string name="os_media_kanal_mrtev_streznik">“%1$s” is not working – its server cannot be found. Hidden until tomorrow.</string>
     <string name="os_media_kanal_mrtev_neodziven">“%1$s” is not working – its server is not responding. Hidden until tomorrow.</string>
-    <string name="os_tv_brez_odgovora">Some add-on channels are not responding right now; only working ones are shown.</string>
     <string name="os_prikazi_na_ni_naprave">No device of that kind in Safeer Link.</string>
     <string name="os_prikazi_na_izberi">Show on which device?</string>
     <string name="os_prikazi_na_odpira">Opening on %1$s: %2$s</string>
@@ -328,4 +329,10 @@
     <string name="os_prikazi_na_napaka">Could not open it on %1$s.</string>
     <string name="os_lupa_namig">Search or say: “Sintel on TV”</string>
     <string name="os_lupa_glas">Search by voice</string>
+    <!-- Naloga 75: pregled kanalov dodatka v ozadju (Moji viri). -->
+    <string name="os_pregled_kanalov_tece">Checking channels %1$d/%2$d, dead %3$d</string>
+    <string name="os_pregled_kanalov_konec">Channels checked %1$d/%2$d, dead %3$d</string>
+    <string name="os_pregled_kanalov_zdaj">Check channels now</string>
+    <string name="os_pregled_kanalov_zacet">Checking this add-on’s channels in the background.</string>
+    <string name="os_pregled_kanalov_po_predvajanju">Channels will be checked when playback stops.</string>
 </resources>

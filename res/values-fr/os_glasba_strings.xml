@@ -286,6 +286,8 @@
     <string name="os_seznam_predvajaj_vse">Tout lire</string>
     <string name="os_media_kanal_mrtev_http">« %1$s » ne fonctionne pas : erreur de la source %2$d. Masqué jusqu\'à demain.</string>
     <string name="os_media_kanal_mrtev">« %1$s » ne fonctionne pas : flux illisible. Masqué jusqu\'à demain.</string>
+    <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
+    <string name="os_tv_viri_ne_odgovarjajo">Les sources de chaînes ne répondent pas. Nouvel essai dans %1$d min.</string>
     <string name="os_tv_ni_kanalov">Aucune chaîne dans cette sélection.</string>
     <string name="os_kanali_novice">Actualités</string>
     <string name="os_kanali_sport">Sport</string>
@@ -321,7 +323,6 @@
     <string name="os_media_moja_glasba">Ma musique</string>
     <string name="os_media_kanal_mrtev_streznik">« %1$s » ne fonctionne pas : serveur introuvable. Masqué jusqu\'à demain.</string>
     <string name="os_media_kanal_mrtev_neodziven">« %1$s » ne fonctionne pas : le serveur ne répond pas. Masqué jusqu\'à demain.</string>
-    <string name="os_tv_brez_odgovora">Certaines chaînes des extensions ne répondent pas pour le moment ; seules celles qui fonctionnent sont affichées.</string>
     <string name="os_prikazi_na_ni_naprave">Aucun appareil de ce type dans Safeer Link.</string>
     <string name="os_prikazi_na_izberi">Sur quel appareil l\'afficher ?</string>
     <string name="os_prikazi_na_odpira">Ouverture sur %1$s : %2$s</string>
@@ -329,4 +330,10 @@
     <string name="os_prikazi_na_napaka">Impossible de l\'ouvrir sur %1$s.</string>
     <string name="os_lupa_namig">Cherche ou dis : « Sintel sur la télé »</string>
     <string name="os_lupa_glas">Recherche vocale</string>
+    <!-- Naloga 75: pregled kanalov dodatka v ozadju (Moji viri). -->
+    <string name="os_pregled_kanalov_tece">Vérification des chaînes %1$d/%2$d, mortes %3$d</string>
+    <string name="os_pregled_kanalov_konec">Chaînes vérifiées %1$d/%2$d, mortes %3$d</string>
+    <string name="os_pregled_kanalov_zdaj">Vérifier les chaînes</string>
+    <string name="os_pregled_kanalov_zacet">Vérification des chaînes de cette extension en arrière-plan.</string>
+    <string name="os_pregled_kanalov_po_predvajanju">Les chaînes seront vérifiées à la fin de la lecture.</string>
 </resources>

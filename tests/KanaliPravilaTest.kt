@@ -137,5 +137,32 @@ fun main() {
     preveriEnako("ponovi: premor dodatka je daljsi", 600_000L, KanaliPravila.zamikPonovitve(600_000L, 0))
     preveriEnako("ponovi: premor nad mejo", 900_000L, KanaliPravila.zamikPonovitve(5_000_000L, 0))
 
+    println()
+    // ---- naloga 74: kanali takoj, preverjanje samo vidnih
+    preveriEnako("nalagam: prazna mreza, viri se nalagajo", true, KanaliPravila.nalagamNapis(0, true, true))
+    preveriEnako("nalagam: kanali so na zaslonu - ni napisa", false, KanaliPravila.nalagamNapis(12, true, true))
+    preveriEnako("nalagam: viri so koncali", false, KanaliPravila.nalagamNapis(0, false, true))
+    preveriEnako("nalagam: brez dodatkov", false, KanaliPravila.nalagamNapis(0, true, false))
+    val vrhovi = listOf(0, 200, 400, 600, 800, 1000)
+    preveriEnako("vidne: na vrhu tri vrste + naslednja", 0..3, KanaliPravila.vidneVrste(vrhovi, 0, 550))
+    preveriEnako("vidne: zadnja vrsta zacne tik pod dnom ni vidna", 0..3, KanaliPravila.vidneVrste(vrhovi, 0, 600))
+    preveriEnako("vidne: po drsenju (delno vidna zgornja vrsta steje)", 1..4, KanaliPravila.vidneVrste(vrhovi, 250, 500))
+    preveriEnako("vidne: na koncu brez naslednje", 4..5, KanaliPravila.vidneVrste(vrhovi, 850, 500))
+    preveriEnako("vidne: se ni postavljeno", 0..2, KanaliPravila.vidneVrste(listOf(0, 0, 0, 0), 0, 0))
+    preveriEnako("vidne: ena vrsta", 0..0, KanaliPravila.vidneVrste(listOf(0), 0, 0))
+    preveriEnako("vidne: prazna mreza", true, KanaliPravila.vidneVrste(emptyList(), 0, 500).isEmpty())
+    val kartice = (0 until 20).map { "k$it" }
+    preveriEnako("preveri: samo vidne vrste, od vrha, najvec prostih", listOf("k5", "k6", "k7"),
+        KanaliPravila.zaPreverjanje(kartice, 1..2, 5, 3) { true })
+    preveriEnako("preveri: preskoci znane in v teku", listOf("k6", "k8"),
+        KanaliPravila.zaPreverjanje(kartice, 1..1, 5, 3) { it == "k6" || it == "k8" })
+    preveriEnako("preveri: zadnja vrsta ni polna", listOf("k18", "k19"),
+        KanaliPravila.zaPreverjanje(kartice, 3..4, 5, 9) { it.removePrefix("k").toInt() >= 18 })
+    preveriEnako("preveri: ni prostih niti", emptyList<String>(), KanaliPravila.zaPreverjanje(kartice, 0..3, 5, 0) { true })
+    preveriEnako("preveri: vrste za koncem mreze", emptyList<String>(), KanaliPravila.zaPreverjanje(kartice, 7..8, 5, 3) { true })
+    // Mrtev kanal izgine, ostali ostanejo na svojih mestih (OsPravila.stabilenRed).
+    preveriEnako("mrtev izgine brez premescanja", listOf("a", "c", "d", "e"),
+        si.safeer.tv.os.OsPravila.stabilenRed(listOf("a", "b", "c", "d"), listOf("e", "d", "c", "a")) { it })
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

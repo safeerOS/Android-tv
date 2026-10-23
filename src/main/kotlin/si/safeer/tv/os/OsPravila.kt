@@ -240,6 +240,58 @@ object OsPravila {
      */
     fun mrtevNeodziven(zacelo: Boolean, kontrola: Boolean?): Boolean = !zacelo && kontrola == true
 
+    // ------------------------------------------------------------------ naloga 75: zanesljivost sonde in pregled dodatka
+
+    /**
+     * Naloga 75: izid sonde toka. [ZIV] streznik je odgovoril z vsebino; [MRTEV] dokaz, da toka ni (4xx kot pri
+     * predvajanju, ni imena v imeniku, zavrnjena povezava); [NEGOTOVO] manj zanesljiv znak (casovna omejitev ob delujocem
+     * omrezju, napaka streznika 5xx) - mrtev sele po [NEGOTOVIH_ZA_MRTEV] zaporednih; [NEZNANO] nic ne vemo (omrezje te
+     * naprave, omejitev, prijava).
+     */
+    enum class IzidSonde { ZIV, MRTEV, NEGOTOVO, NEZNANO }
+
+    /** Toliko zaporednih negotovih izidov (brez vmesnega zivega) pomeni mrtev kanal. */
+    const val NEGOTOVIH_ZA_MRTEV = 2
+    /** Negotov izid velja toliko casa; starejsi se ne steje (zacasen izpad pred dnevi ni dokaz). */
+    const val NEGOTOV_VELJA_MS = 48 * 3_600_000L
+
+    /** Izid sonde po odgovoru streznika [http]: 2xx ziv, 4xx kot [mrtevKanal] mrtev, 5xx negotovo, ostalo neznano. */
+    fun izidPoOdgovoru(http: Int): IzidSonde = when {
+        http in 200..299 -> IzidSonde.ZIV
+        mrtevKanal(2004, http) -> IzidSonde.MRTEV
+        http in 500..599 -> IzidSonde.NEGOTOVO
+        else -> IzidSonde.NEZNANO
+    }
+
+    /**
+     * Streznik toka se ni odzval v roku. Ob delujocem omrezju ([kontrola] == true: imenik je isti hip odgovoril za
+     * kontrolno ime) je to negotovo - lahko je zacasno ali geografsko omejeno; brez tega dokaza ne vemo nic.
+     */
+    fun izidCasovneOmejitve(kontrola: Boolean?): IzidSonde = if (kontrola == true) IzidSonde.NEGOTOVO else IzidSonde.NEZNANO
+
+    /** Ali je [zaporednih] negotovih izidov ze dokaz, da kanal ne dela. */
+    fun mrtevPoNegotovih(zaporednih: Int): Boolean = zaporednih >= NEGOTOVIH_ZA_MRTEV
+
+    /** Pregled kanalov dodatka v ozadju: najvec enkrat na toliko casa (poln pregled). */
+    const val PREGLED_VSAKIH_MS = 24 * 3_600_000L
+    /** Prekinjen pregled (predvajanje, proracun, pomnilnik) se nadaljuje najprej cez toliko casa. */
+    const val PREGLED_PONOVI_MS = 3_600_000L
+
+    /**
+     * Ali je pregled kanalov dodatka na vrsti: zadnji poln pregled ([zadnjiPoln]) je star vsaj [PREGLED_VSAKIH_MS] in
+     * zadnji poskus ([zadnjiPoskus]) vsaj [PREGLED_PONOVI_MS]. 0 = se ga ni bilo. Ura naprave nazaj: na vrsti.
+     */
+    fun pregledJeNaVrsti(zadnjiPoln: Long, zadnjiPoskus: Long, zdaj: Long): Boolean {
+        fun starVsaj(cas: Long, ms: Long) = cas <= 0L || zdaj - cas !in 0 until ms
+        return starVsaj(zadnjiPoln, PREGLED_VSAKIH_MS) && starVsaj(zadnjiPoskus, PREGLED_PONOVI_MS)
+    }
+
+    /**
+     * Ali raven onTrimMemory pomeni pomnilniski pritisk, ob katerem delo v ozadju neha: med tekom RUNNING_LOW (10) in
+     * RUNNING_CRITICAL (15), v ozadju MODERATE (60) in COMPLETE (80). UI_HIDDEN (20) in BACKGROUND (40) nista pritisk.
+     */
+    fun pritiskPomnilnika(raven: Int): Boolean = raven == 10 || raven == 15 || raven >= 60
+
     /** Ime gostitelja iz sporocila sistema »Unable to resolve host "ime": ...« ali "". */
     fun gostiteljIzNapake(sporocilo: String?): String =
         Regex("resolve host \"([^\"]+)\"").find(sporocilo.orEmpty())?.groupValues?.get(1)?.trim()?.lowercase().orEmpty()

@@ -286,6 +286,8 @@
     <string name="os_seznam_predvajaj_vse">Alle abspielen</string>
     <string name="os_media_kanal_mrtev_http">„%1$s“ funktioniert nicht – Quellenfehler %2$d. Bis morgen ausgeblendet.</string>
     <string name="os_media_kanal_mrtev">„%1$s“ funktioniert nicht – Stream nicht lesbar. Bis morgen ausgeblendet.</string>
+    <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
+    <string name="os_tv_viri_ne_odgovarjajo">Die Kanalquellen antworten nicht. Neuer Versuch in %1$d Min.</string>
     <string name="os_tv_ni_kanalov">Keine Sender in dieser Auswahl.</string>
     <string name="os_kanali_novice">Nachrichten</string>
     <string name="os_kanali_sport">Sport</string>
@@ -321,7 +323,6 @@
     <string name="os_media_moja_glasba">Meine Musik</string>
     <string name="os_media_kanal_mrtev_streznik">„%1$s“ funktioniert nicht – Server nicht gefunden. Bis morgen ausgeblendet.</string>
     <string name="os_media_kanal_mrtev_neodziven">„%1$s“ funktioniert nicht – Server antwortet nicht. Bis morgen ausgeblendet.</string>
-    <string name="os_tv_brez_odgovora">Einige Add-on-Sender antworten gerade nicht; angezeigt werden nur funktionierende.</string>
     <string name="os_prikazi_na_ni_naprave">Kein solches Gerät in Safeer Link.</string>
     <string name="os_prikazi_na_izberi">Auf welchem Gerät anzeigen?</string>
     <string name="os_prikazi_na_odpira">Wird auf %1$s geöffnet: %2$s</string>
@@ -329,4 +330,10 @@
     <string name="os_prikazi_na_napaka">Konnte auf %1$s nicht geöffnet werden.</string>
     <string name="os_lupa_namig">Suchen oder sagen: „Sintel auf dem Fernseher“</string>
     <string name="os_lupa_glas">Sprachsuche</string>
+    <!-- Naloga 75: pregled kanalov dodatka v ozadju (Moji viri). -->
+    <string name="os_pregled_kanalov_tece">Prüfe Sender %1$d/%2$d, tot %3$d</string>
+    <string name="os_pregled_kanalov_konec">Sender geprüft %1$d/%2$d, tot %3$d</string>
+    <string name="os_pregled_kanalov_zdaj">Sender jetzt prüfen</string>
+    <string name="os_pregled_kanalov_zacet">Die Sender dieses Add-ons werden im Hintergrund geprüft.</string>
+    <string name="os_pregled_kanalov_po_predvajanju">Die Sender werden geprüft, wenn die Wiedergabe endet.</string>
 </resources>

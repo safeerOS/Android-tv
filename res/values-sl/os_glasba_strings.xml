@@ -285,6 +285,8 @@
     <string name="os_seznam_predvajaj_vse">Predvajaj vse</string>
     <string name="os_media_kanal_mrtev_http">»%1$s« ne dela – napaka vira %2$d. Do jutri skrito.</string>
     <string name="os_media_kanal_mrtev">»%1$s« ne dela – prenosa ni mogoče prebrati. Do jutri skrito.</string>
+    <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
+    <string name="os_tv_viri_ne_odgovarjajo">Viri kanalov ne odgovarjajo. Znova poskusim čez %1$d min.</string>
     <string name="os_tv_ni_kanalov">V tej izbiri ni kanalov.</string>
     <string name="os_kanali_novice">Novice</string>
     <string name="os_kanali_sport">Šport</string>
@@ -320,7 +322,6 @@
     <string name="os_media_moja_glasba">Moja glasba</string>
     <string name="os_media_kanal_mrtev_streznik">»%1$s« ne dela – strežnika prenosa ni mogoče najti. Do jutri skrito.</string>
     <string name="os_media_kanal_mrtev_neodziven">»%1$s« ne dela – strežnik prenosa se ne odziva. Do jutri skrito.</string>
-    <string name="os_tv_brez_odgovora">Nekateri kanali dodatkov ta čas ne odgovarjajo; prikazani so tisti, ki delajo.</string>
     <string name="os_prikazi_na_ni_naprave">V Safeer Linku ni take naprave.</string>
     <string name="os_prikazi_na_izberi">Na kateri napravi naj se prikaže?</string>
     <string name="os_prikazi_na_odpira">Odpira se na %1$s: %2$s</string>
@@ -328,4 +329,10 @@
     <string name="os_prikazi_na_napaka">Na %1$s se ni odprlo.</string>
     <string name="os_lupa_namig">Išči ali povej: »Sintel na TV«</string>
     <string name="os_lupa_glas">Iskanje z glasom</string>
+    <!-- Naloga 75: pregled kanalov dodatka v ozadju (Moji viri). -->
+    <string name="os_pregled_kanalov_tece">Preverjam kanale %1$d/%2$d, mrtvih %3$d</string>
+    <string name="os_pregled_kanalov_konec">Preverjeno %1$d/%2$d, mrtvih %3$d</string>
+    <string name="os_pregled_kanalov_zdaj">Preveri kanale zdaj</string>
+    <string name="os_pregled_kanalov_zacet">Kanale tega dodatka preverjam v ozadju.</string>
+    <string name="os_pregled_kanalov_po_predvajanju">Kanale preverim, ko se predvajanje ustavi.</string>
 </resources>

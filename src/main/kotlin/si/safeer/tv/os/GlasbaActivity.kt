@@ -494,6 +494,7 @@ class GlasbaActivity : OsActivity() {
         // Kanal, ki je odpovedal, medtem ko je bil na zaslonu predvajalnik, in postaja, ki odpove tukaj.
         MrtviKanali.poslusalci.add(obMrtvemKanalu)
         umakniMrtvega()
+        PregledKanalov.obSpremembi = obPregleduKanalov
         glavna.post(tik)
         uskladiSezname()
         // Ob vrnitvi (npr. iz predvajanja) sta se nedavno in stanje predvajanja lahko spremenila.
@@ -534,6 +535,9 @@ class GlasbaActivity : OsActivity() {
         GlasbaStoritev.poslusalci.remove(poslusalec)
         MrtviKanali.poslusalci.remove(obMrtvemKanalu)
         if (Razpolozljivost.obSpremembi === obRazpolozljivosti) Razpolozljivost.obSpremembi = null
+        if (PregledKanalov.obSpremembi === obPregleduKanalov) PregledKanalov.obSpremembi = null
+        // Naloga 75: Safeer gre v ozadje - pregled kanalov dodatkov, ki je na vrsti (najvec enkrat na dan, ne med predvajanjem).
+        if (!isFinishing) PregledKanalov.obcasno(applicationContext, stremioNaslovi())
         vOspredju = false
         glavna.removeCallbacks(tik)
         super.onStop()
@@ -728,8 +732,10 @@ class GlasbaActivity : OsActivity() {
             if (o != null && !o.nalagam && vsebina.height - (y + drsnik.height) < dp(700)) vecMreze(o, izDrsenja = true)
             // Mreza kanalov: naslednja stran pride sama, ko se uporabnik priblizuje koncu (najvec enkrat na dobre pol sekunde).
             val m = mrezaKanalov
-            if (m != null && !m.nalagam && !m.caka && (m.seKaj || m.naprej) && vsebina.height - (y + drsnik.height) < dp(500) &&
+            if (m != null && !m.nalagam && (m.seKaj || m.naprej) && vsebina.height - (y + drsnik.height) < dp(500) &&
                 android.os.SystemClock.uptimeMillis() - m.zadnjicVec > 700) vecKanalov(m)
+            // Naloga 74: v ozadju preverjamo samo kartice na zaslonu in naslednjo vrsto - ob drsenju nove.
+            if (m != null) narociPreverjanje(m)
             val mv = mrezaVsebine
             if (mv != null && !mv.nalagam && mv.seKaj && vsebina.height - (y + drsnik.height) < dp(500) &&
                 android.os.SystemClock.uptimeMillis() - mv.zadnjicVec > 700) naloziVecMreze(mv)
@@ -3024,18 +3030,21 @@ class GlasbaActivity : OsActivity() {
         /**
          * Preverjanje, ali dodatek za kanal res ima prenos ([preveriKanal]): [okno] = koliko kanalov iz dodatkov naj bo
          * na zaslonu, preden cakamo na uporabnika; [proracun] = koliko poizvedb smemo se poslati do njegovega naslednjega
-         * dejanja; [neznani] = kanali, za katere odgovora ni bilo - v tej mrezi jih ne kazemo (kar se ne da dokazano
-         * predvajati, ne kazemo), ob naslednjem odprtju se preverijo znova; [brezOdgovora] = zaporedna vprasanja, na
-         * katera dodatek ni odgovoril (po [BREZ_ODGOVORA_NAJVEC] nehamo sprasevati do uporabnikovega dejanja).
+         * dejanja; [neznani] = kanali, za katere odgovora ni bilo - ostanejo na zaslonu (naloga 74), v tej mrezi jih ne
+         * sprasujemo znova; [brezOdgovora] = zaporedna vprasanja, na katera dodatek ni odgovoril (po [BREZ_ODGOVORA_NAJVEC]
+         * nehamo sprasevati do uporabnikovega dejanja).
          */
         val brezOdgovora = java.util.concurrent.atomic.AtomicInteger(0)
         var okno = OKNO_KANALOV
         var proracun = PRORACUN_KANALOV
         val neznani: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
-        /** Zadnje risanje: kanali cakajo na preverjanje; za oknom je se kaj nalozenega. */
-        var caka = false
+        /** Za oknom je se kaj nalozenega. */
         var naprej = false
         var risanjeNaroceno = false
+        /** Naloga 74: preverjanje vidnih kartic je ze naroceno ([narociPreverjanje]). */
+        var preverjanjeNaroceno = false
+        /** Naloga 74: priljubljeni kanali zadnjega risanja - vedno na zaslonu, v ozadju jih ne preverjamo. */
+        var vedno: Set<String> = emptySet()
         /** Dopolnitev caka, da se prvo risanje te mreze konca ([narisiKanale]). */
         var cakaNaRisanje = false
         val seKaj: Boolean get() = glavni.any { !it.konec }
@@ -3351,13 +3360,20 @@ class GlasbaActivity : OsActivity() {
         m.proracun = PRORACUN_KANALOV
         m.samodejno = 0
         m.brezOdgovora.set(0)
-        if (m.naprej || m.caka) { m.okno += OKNO_KANALOV; narisiKanale(m); return }
+        if (m.naprej) { m.okno += OKNO_KANALOV; narisiKanale(m); return }
         if (m.seKaj) { m.okno += OKNO_KANALOV; naloziVecKanalov(m) }
     }
 
-    /** Preverjanje kanalov mreze v ozadju: tri poizvedbe hkrati, samo pri dodatku, iz katerega je kanal. */
-    private val preverjanjeKanalov = Executors.newFixedThreadPool(3)
+    /**
+     * Preverjanje kanalov mreze v ozadju: samo pri dodatku, iz katerega je kanal. Naloga 74: nizka prednost (niti v
+     * ozadju, [KANALI_PREVERJAM_HKRATI] hkrati); kanali so na zaslonu ze prej, preverjanje samo umakne dokazano mrtve.
+     */
+    private val preverjanjeKanalov = Executors.newFixedThreadPool(KANALI_PREVERJAM_HKRATI) { r ->
+        Thread { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }.apply { name = "safeer-kanali-prev"; isDaemon = true }
+    }
     private val kanaliVPreverjanju: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+    /** Naloga 74: do tega casa (uptime) ima uporabnikov klik na kanal prednost - preverjanje v ozadju pocaka. */
+    @Volatile private var prednostKlikaDo = 0L
 
     private fun preveriKanal(m: MrezaKanalov, sk: Jamendo.Skladba) {
         val k = OsPravila.kljucKanala(sk.id)
@@ -3365,35 +3381,45 @@ class GlasbaActivity : OsActivity() {
         m.proracun--
         val app = applicationContext
         try {
+            // Naloga 74: v vrsti so najvec [KANALI_PREVERJAM_HKRATI] ([preveriVidneKanale] jih da le toliko, kolikor je prostih
+            // niti); odhod iz razdelka ali druga izbira (mrezaKanalov != m, preklicana) jih ob zacetku preskoci. Ne preklicemo
+            // jih s cancel: preklicana naloga v vrsti ne pride do finally in kljuc bi ostal v kanaliVPreverjanju.
             preverjanjeKanalov.execute {
+                var odlozeno = 0L
                 try {
                     // Samo dokler uporabnik gleda to mrezo.
-                    if (mrezaKanalov !== m || isFinishing || !vOspredju) {
+                    if (mrezaKanalov !== m || m.preklicana || isFinishing || !vOspredju) {
                         dnevnikMreze { "kanal: preverjanje preskoceno (druga mreza=${mrezaKanalov !== m}, v ospredju=$vOspredju)" }
                         return@execute
                     }
-                    // Dodatek mora imeti tok IN streznik toka mora s te naprave odgovoriti ([SondaToka]).
+                    // Uporabnik je pravkar kliknil kanal: njegov tok ima omrezje zase, to preverjanje pride pozneje.
+                    odlozeno = prednostKlikaDo - android.os.SystemClock.uptimeMillis()
+                    if (odlozeno > 0) return@execute
+                    // Dodatek mora imeti tok IN streznik toka mora s te naprave odgovoriti ([SondaToka]). Naloga 75: ista preverba
+                    // kot pregled dodatka - casovna omejitev je negotova, mrtev sele po dveh zaporednih ([MrtviKanali]).
                     val od = android.os.SystemClock.uptimeMillis()
-                    val agent = SpletniVir.agent(app)
-                    var dodatekOdgovoril = false
-                    val izid = try { Stremio.imaLastenTok(sk) { t -> dodatekOdgovoril = true; SondaToka.dosegljiv(t.url, t.glave, agent) } } catch (_: Exception) { null }
-                    if (izid != null) dodatekOdgovoril = true
+                    val (izid, dodatekOdgovoril) = PregledKanalov.preveri(app, sk)
                     dnevnikMreze { "kanal preverjen: izid=$izid po ${android.os.SystemClock.uptimeMillis() - od} ms, dodatek odgovoril=$dodatekOdgovoril" }
-                    when (izid) {
-                        true -> MrtviKanali.zapomniZivega(app, sk.id)
-                        false -> MrtviKanali.zapomni(app, sk.id)
-                        null -> m.neznani += k
-                    }
+                    if (izid == null) m.neznani += k
+                    if (m.preklicana) return@execute
                     // Dodatek, ki zapored ne odgovarja (izmerjeno 5. 10. 2026: po ducatu vprasanj vsako visi 15 s), nehamo
                     // sprasevati do uporabnikovega naslednjega dejanja (»Naloži več«).
                     if (dodatekOdgovoril) m.brezOdgovora.set(0)
                     else if (m.brezOdgovora.incrementAndGet() >= BREZ_ODGOVORA_NAJVEC) glavna.post { m.proracun = 0 }
                 } finally {
                     kanaliVPreverjanju.remove(k)
-                    glavna.post { narociKanale(m) }
+                    val cez = odlozeno
+                    glavna.post {
+                        if (cez > 0) m.proracun++     // odlozeno ni porabljeno
+                        // Naloga 74: dopolnimo mrezo, ki je ZDAJ na zaslonu. Prej le mrezo, ki je preverjanje narocila: ce jo je
+                        // medtem zamenjala nova (zasebne kategorije znane -> odpriKanale), je nova cakala na kanale v teku
+                        // (kanaliVPreverjanju) in se ni nikoli vec dopolnila - mreza je ostala prazna z »Nalagam ...«.
+                        val zdaj = mrezaKanalov ?: return@post
+                        if (cez > 0) glavna.postDelayed({ narociPreverjanje(zdaj) }, cez) else narociKanale(zdaj)
+                    }
                 }
             }
-        } catch (_: java.util.concurrent.RejectedExecutionException) { kanaliVPreverjanju.remove(k) }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { kanaliVPreverjanju.remove(k); m.proracun++ }
     }
 
     /** Mrezo kanalov dopolnimo najvec enkrat na slabe pol sekunde, ne glede na to, koliko odgovorov pride vmes. */
@@ -3404,6 +3430,39 @@ class GlasbaActivity : OsActivity() {
             m.risanjeNaroceno = false
             if (mrezaKanalov === m && !isFinishing) narisiKanale(m)
         }, 400)
+    }
+
+    /** Naloga 74: preverjanje vidnih kartic najvec enkrat na cetrt sekunde (drsenje, risanje, odgovori). */
+    private fun narociPreverjanje(m: MrezaKanalov) {
+        if (m.preverjanjeNaroceno || mrezaKanalov !== m || isFinishing) return
+        m.preverjanjeNaroceno = true
+        glavna.postDelayed({ m.preverjanjeNaroceno = false; preveriVidneKanale(m) }, 250)
+    }
+
+    /**
+     * Naloga 74: v ozadju preverimo samo kanale iz dodatkov na kartah, ki so na zaslonu, in v naslednji vrsti
+     * ([KanaliPravila.vidneVrste]) - ne vseh nalozenih (TV je sibak). Kartica, ki jo preverjanje dokaze kot mrtvo, izgine
+     * ob naslednjem risanju; ostale ostanejo na svojih mestih ([OsPravila.stabilenRed]).
+     */
+    private fun preveriVidneKanale(m: MrezaKanalov) {
+        if (mrezaKanalov !== m || m.preklicana || isFinishing || !vOspredju || m.proracun <= 0 || !smemPreverjati()) return
+        val nm = narisanaMreza
+        if (nm == null || nm.lastnik !== m) {
+            // Prvo risanje te mreze se tece (po korakih): pocakamo nanj.
+            if (risemMrezo === m) glavna.postDelayed({ narociPreverjanje(m) }, 300)
+            return
+        }
+        val prostih = KANALI_PREVERJAM_HKRATI - kanaliVPreverjanju.size
+        if (prostih <= 0) return
+        val vrste = KanaliPravila.vidneVrste(nm.vrstice.map { it.top }, drsnik.scrollY, drsnik.height)
+        val izbrani = KanaliPravila.zaPreverjanje(nm.kljuci, vrste, nm.naVrsto, prostih) { id ->
+            val sk = m.razlicice[id]?.firstOrNull()
+            val kk = OsPravila.kljucKanala(id)
+            sk != null && id !in m.vedno && Stremio.jeEnota(sk) && Stremio.dajeLastneTokove(sk) && kk !in m.neznani &&
+                kk !in kanaliVPreverjanju && MrtviKanali.stanje(this, id) == null
+        }
+        if (izbrani.isNotEmpty()) dnevnikMreze { "kanali: preverjam vidne ${izbrani.size} (vrste ${vrste.first}..${vrste.last}, v teku ${kanaliVPreverjanju.size}, proracun ${m.proracun})" }
+        izbrani.forEach { id -> m.razlicice[id]?.firstOrNull()?.let { preveriKanal(m, it) } }
     }
 
     private fun narisiKanale(m: MrezaKanalov) {
@@ -3429,42 +3488,32 @@ class GlasbaActivity : OsActivity() {
             val collator = Collator.getInstance(krajevno).apply { strength = Collator.SECONDARY }
             urejeni = urejeni.sortedWith { a, b -> collator.compare(a.naslov, b.naslov) }
         }
-        // Strogo (kot mreza filmov): kanal iz dodatka pride na zaslon, ko vemo, da dodatek zanj ima prenos - po vrsti,
-        // da se nic ne pokaze in spet skrije. Izmerjeno 5. 10. 2026: dodatek nasteva tudi kanale brez prenosa.
+        // Naloga 74 (lastnik: »Takoj pokazi, preveri v ozadju/ob kliku«): kanal iz dodatka je na zaslonu takoj (prvih
+        // [MrezaKanalov.okno]); izgine samo, ce preverjanje v ozadju ([preveriVidneKanale]) ali klik dokaze, da je mrtev.
+        // Prej je cakal na dokaz prenosa: pri IPTV je veliko mrtvih tokov (casovne omejitve), mreza je bila minute prazna.
         // Vgrajeni kanali in priljubljeni so vedno na zaslonu. Na omejenem omrezju ne preverjamo (pokazemo vse).
         val preverjam = smemPreverjati()
         val vednoId = priljubljeni.map { it.id }.toSet()
+        m.vedno = vednoId
         val vsi = ArrayList<Jamendo.Skladba>(urejeni.size)
-        val zaPreverjanje = ArrayList<Jamendo.Skladba>()
         var izDodatkov = 0
-        var preskocenih = 0
-        var caka = false
         var naprej = false
         val narisaniZdaj = m.narisani.toHashSet()
         for (sk in urejeni) {
             // Kanal iz dodatka, ki je samo katalog (tok da drug dodatek), pri njegovem dodatku ni preverljiv: v mrezi je
             // brez preverjanja, kot doslej.
             val preverljiv = preverjam && Stremio.jeEnota(sk) && sk.id !in vednoId && Stremio.dajeLastneTokove(sk)
-            // Vgrajeni in priljubljeni kanali so vedno v mrezi - tudi, ko kanali dodatkov pred njimi se cakajo na
-            // preverjanje ali je okno polno (izmerjeno 5. 10. 2026: 13 kartic -> 1 -> 14 v 1,7 s, ker je cakal prvi
-            // kanal dodatka in zadrzal vse za sabo).
+            // Vgrajeni in priljubljeni kanali so vedno v mrezi - tudi, ko je okno kanalov dodatkov polno.
             if (!preverljiv) { if (!MrtviKanali.jeMrtev(this, sk.id)) vsi += sk; continue }
-            val stanjeKanala = MrtviKanali.stanje(this, sk.id)
-            // Kar je ze narisano in se velja, ostane - ne glede na vrstni red virov, okno in kanale, ki se cakajo (izmerjeno
-            // 6. 10. 2026 na televizorju: ob vrnitvi v mrezo so trije potrjeni kanali za 15 s izginili, ker je svez seznam
-            // prednje postavil nepreverjene).
-            if (stanjeKanala == true && sk.id in narisaniZdaj) { vsi += sk; izDodatkov++; continue }
+            // Dokazano mrtev (preverjanje, klik, napaka predvajanja) izgine; ziv in neznan ostaneta.
+            if (MrtviKanali.stanje(this, sk.id) == false) continue
+            // Kar je ze narisano, ostane - ne glede na vrstni red virov in okno (izmerjeno 6. 10. 2026 na televizorju: ob
+            // vrnitvi v mrezo so kanali za 15 s izginili, ker je svez seznam prednje postavil druge).
+            if (sk.id in narisaniZdaj) { vsi += sk; izDodatkov++; continue }
             if (naprej) continue
             if (izDodatkov >= m.okno) { naprej = true; continue }
-            when (stanjeKanala) {
-                // Potrjen kanal gre v mrezo takoj: novi pridejo za ze narisane ([OsPravila.stabilenRed]), zato vrstni red
-                // preverjanja ne more nicesar premakniti ali skriti.
-                true -> { vsi += sk; izDodatkov++ }
-                false -> { }
-                // Nepreverjen: v preverjanje (najvec sest hkrati); brez dokaza v tej mrezi ni prikazan.
-                null -> if (OsPravila.kljucKanala(sk.id) in m.neznani) preskocenih++
-                    else { caka = true; if (zaPreverjanje.size < 6) zaPreverjanje += sk }
-            }
+            // Novi pridejo za ze narisane ([OsPravila.stabilenRed]): preverjanje jih ne more premakniti.
+            vsi += sk; izDodatkov++
         }
         // Kar uporabnik ze vidi, ostane na svojem mestu; novo preverjeni kanali pridejo za tem (pri razvrstitvi po imenu
         // velja abeceda). Brez tega bi se kanali dodatkov vrivali med ze narisane vgrajene.
@@ -3472,13 +3521,13 @@ class GlasbaActivity : OsActivity() {
         // Priljubljeni kanali so vedno spredaj (tudi tisti, ki ga je uporabnik pravkar dodal med priljubljene).
         val prikaz = if (razvrstitev(TV_V_ZIVO) == RAZVRSTI_IME_AZ) vsiPoVrsti
             else OsPravila.stabilenRed(m.narisani, vsiPoVrsti) { it.id }.let { s -> s.filter { it.id in vednoId } + s.filterNot { it.id in vednoId } }
-        // Poizvedbe samo, dokler je proracun tega uporabnikovega dejanja; potem caka gumb »Naloži več«.
-        if (m.proracun <= 0) caka = false else zaPreverjanje.forEach { preveriKanal(m, it) }
-        m.caka = caka; m.naprej = naprej || (zaPreverjanje.isNotEmpty() && m.proracun <= 0)
-        dnevnikMreze { "kanali: vseh=${urejeni.size}, v mrezi=${prikaz.size}, iz dodatkov=$izDodatkov, caka=$caka, naprej=${m.naprej}, " +
-            "v preverjanje=${zaPreverjanje.size}, v teku=${kanaliVPreverjanju.size}, brez dokaza=$preskocenih, proracun=${m.proracun}, " +
+        m.naprej = naprej
+        dnevnikMreze { "kanali: vseh=${urejeni.size}, v mrezi=${prikaz.size}, iz dodatkov=$izDodatkov, naprej=${m.naprej}, " +
+            "v teku=${kanaliVPreverjanju.size}, brez odgovora=${m.neznani.size}, proracun=${m.proracun}, " +
             "preverjam=$preverjam, nalagam=${m.nalagam}, se kaj=${m.seKaj}" }
-        val cakamDodatke = ((m.nalagam || m.zasebniCakajo) && m.kanali.isEmpty() && m.domaci.isEmpty() && stremioNaslovi().isNotEmpty()) || caka
+        // Naloga 74: »Nalagam« samo, dokler na zaslonu ni nobenega kanala in se viri se nalagajo; preverjanje v ozadju
+        // napisa nima (prej je ostal, ceprav so bili kanali ze na zaslonu).
+        val cakamDodatke = KanaliPravila.nalagamNapis(prikaz.size, m.nalagam || m.zasebniCakajo, stremioNaslovi().isNotEmpty())
         // Naloga 73: noben vir ni odgovoril in mreza je prazna - ne »Nalagam ...« za vedno: povemo in sami poskusimo znova,
         // ko premor ali proracun dodatkov to dovoli. Kanali z diska (seme) in vgrajeni ostanejo, ce so.
         val viriTiho = !cakamDodatke && !m.nalagam && prikaz.isEmpty() && m.glavni.isNotEmpty() && m.glavni.all { it.izpad }
@@ -3496,22 +3545,21 @@ class GlasbaActivity : OsActivity() {
             viriTiho -> getString(R.string.os_tv_viri_ne_odgovarjajo, m.cezMinut.coerceAtLeast(1))
             prikaz.isEmpty() && brezSpletnihVirov() -> getString(R.string.os_media_brez_virov)
             prikaz.isEmpty() -> getString(R.string.os_tv_ni_kanalov)
-            preskocenih > 0 -> getString(R.string.os_tv_brez_odgovora)
             else -> ""
         }
         var samNalagam = false
         // Vsi nalozeni kanali so razreseni, okno pa se ni polno: sami gremo po naslednjo stran (najvec trikrat na dejanje).
-        if (!caka && !m.naprej && !m.nalagam && m.seKaj && preverjam && izDodatkov < m.okno && m.samodejno < 3) {
+        if (!m.naprej && !m.nalagam && m.seKaj && preverjam && izDodatkov < m.okno && m.samodejno < 3) {
             m.samodejno++
             samNalagam = true
             glavna.post { naloziVecKanalov(m, samodejno = true) }
         }
-        // Gumb »Naloži več« sele, ko so odgovorili vsi viri prve strani in preverjanje miruje (prej dotik ne bi naredil nicesar).
+        // Gumb »Naloži več« sele, ko so odgovorili vsi viri prve strani (prej dotik ne bi naredil nicesar).
         // Kadar gremo po naslednjo stran sami, gumba ni (prej se je za hip pokazal in izginil - izmerjeno 5. 10. 2026).
-        val vec = (m.seKaj || m.naprej) && !m.nalagam && !caka && !samNalagam && prikaz.isNotEmpty()
+        val vec = (m.seKaj || m.naprej) && !m.nalagam && !samNalagam && prikaz.isNotEmpty()
         val napisi = napisiIzbirKanalov(m)
         val podpis = "${prikaz.map { it.id }.hashCode()}|$vec|$opis|$napisi|${razvrstitev(TV_V_ZIVO)}|${vsebina.width}"
-        if (podpis == m.podpis) { if (stanje.text.toString() != opis) stanje.text = opis; return }
+        if (podpis == m.podpis) { if (stanje.text.toString() != opis) stanje.text = opis; narociPreverjanje(m); return }
         m.podpis = podpis
         m.narisani = prikaz.map { it.id }
         KANALI_RED["${m.kljuc}|${razvrstitev(TV_V_ZIVO)}"] = m.narisani
@@ -3524,6 +3572,7 @@ class GlasbaActivity : OsActivity() {
             (if (vlc) emptyList() else listOf(razdelkiVrstica(TV_V_ZIVO))) + listOf(kanaliIzbire(m))
         }
         osveziIkoneVgrajenih()
+        narociPreverjanje(m)
     }
 
     /**
@@ -4508,7 +4557,9 @@ class GlasbaActivity : OsActivity() {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
                     // Naloga 57d: dodatek, ki zaporedoma ne odgovarja, ima oznako (izgine sama, ko spet odgovori).
                     v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "") +
-                        (if (Stremio.neOdgovarja(v.naslov)) " · " + getString(R.string.os_mediji_ne_odgovarja) else "")
+                        (if (Stremio.neOdgovarja(v.naslov)) " · " + getString(R.string.os_mediji_ne_odgovarja) else "") +
+                        // Naloga 75: napredek ali izid pregleda kanalov dodatka.
+                        (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
                 }, {
@@ -4719,8 +4770,13 @@ class GlasbaActivity : OsActivity() {
         }
         val dodan = v.dodan ?: return preklopi()
         val na = v.kljuc in MedijskiViri.pripeti(this)
-        val dejanja = listOf(getString(if (na) R.string.os_media_s_plosce else R.string.os_media_na_plosco) to preklopi,
-            getString(R.string.os_media_izbrisi_vir) to { odstraniVir(dodan, v.ime) })
+        val dejanja = listOf(getString(if (na) R.string.os_media_s_plosce else R.string.os_media_na_plosco) to preklopi) +
+            // Naloga 75: rocni pregled kanalov dodatka (tudi kanalov z znanim izidom - mrtev ni za vedno).
+            (if (dodan.jeStremio) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
+                val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true)
+                Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
+            }) else emptyList()) +
+            listOf(getString(R.string.os_media_izbrisi_vir) to { odstraniVir(dodan, v.ime) })
         pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(v.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
@@ -5856,6 +5912,8 @@ class GlasbaActivity : OsActivity() {
         Toast.makeText(this, getString(R.string.os_mediji_dodatki_shranjen, v.ime), Toast.LENGTH_SHORT).show()
         okno.dismiss()
         poSpremembiVirov(); izberi(VIRI)
+        // Naloga 75: kanale novega dodatka preverimo v ozadju (dodatek brez kanalov TV pregled konca takoj).
+        PregledKanalov.zacni(applicationContext, v.naslov, rocno = false)
         // Kartica dodatka pokaze ime iz manifesta (ne naslova streznika), brz ko ga preberemo.
         if (Stremio.imeIzPredpomnilnika(v.naslov) == null) delavec.execute {
             try { Stremio.zaseben(v.naslov) } catch (_: Exception) { }
@@ -6208,6 +6266,8 @@ class GlasbaActivity : OsActivity() {
     private fun razresiStremio(sk: Jamendo.Skladba, rocno: Boolean = false, razlicice: List<Jamendo.Skladba> = emptyList()) {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return
         val priprava = zacniPripravo(sk) ?: return
+        // Naloga 74: klik na kanal ima prednost pred preverjanjem mreze v ozadju ([preveriKanal] pocaka).
+        if (Stremio.jeVZivo(sk)) prednostKlikaDo = android.os.SystemClock.uptimeMillis() + PREDNOST_KLIKA_MS
         delavec.execute {
             // Naloga 63 (lastnik: »preverimo, ce kliknemo na plakat in ce ima sezone in epizode«): film iz dodatka je morda
             // serija, ki jo je dodatek navedel kot film. Metapodatke (en odgovor, 1 h v predpomnilniku; to je uporabnikov
@@ -6538,6 +6598,14 @@ class GlasbaActivity : OsActivity() {
         if (jeTv()) naslednja?.requestFocus()
     }
     private val obMrtvemKanalu: (String) -> Unit = { glavna.post { if (!isFinishing) umakniMrtvega() } }
+
+    /** Naloga 75: napredek pregleda kanalov na kartici dodatka - Moji viri se osvezijo na mestu, ko uporabnik miruje. */
+    private val obPregleduKanalov: () -> Unit = {
+        glavna.post {
+            if (!isFinishing && vOspredju && razdelek == VIRI && odprtKatalog == null && !podstrani.odprta &&
+                android.os.SystemClock.uptimeMillis() - zadnjiDotik > 2_500) izberiNaMestu(VIRI)
+        }
+    }
 
     /** Mrezo narisemo znova brez umaknjenih kartic; drsnik in izbira (daljinec) ostaneta, kjer sta bila. */
     private fun osveziMrezo(o: OdprtKatalog, vnaprej: Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>>? = null) {
@@ -7708,7 +7776,11 @@ class GlasbaActivity : OsActivity() {
         /** Naloga 55: koliko casa velja izracun za izris (meja torrenta, dodatki, omrezje). */
         private const val IZRIS_VELJA_MS = 2_000L
         /** Mreza kanalov: okno preverjenih kanalov iz dodatkov in najvec poizvedb po toku na uporabnikovo dejanje. */
-        private const val OKNO_KANALOV = 30
+        private const val OKNO_KANALOV = 100
+        /** Naloga 74: najvec hkratnih preverjanj kanalov v ozadju (nizka prednost, samo vidne kartice). */
+        private const val KANALI_PREVERJAM_HKRATI = 3
+        /** Naloga 74: tako dolgo po kliku na kanal preverjanje v ozadju pocaka (tok klika ima omrezje zase). */
+        private const val PREDNOST_KLIKA_MS = 12_000L
         /** Naloga 73: najvec hkratnih strani katalogov kanalov na vseh dodatkih skupaj. */
         private const val KANALI_HKRATI = 3
         private const val PRORACUN_KANALOV = 80

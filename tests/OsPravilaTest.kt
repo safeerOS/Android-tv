@@ -16,6 +16,40 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 private data class V(val kljuc: String, val ime: String = kljuc)
 
+/** Naloga 75: zanesljivost izida sonde (mrtev ni za vedno), urnik pregleda dodatka, pomnilniski pritisk. */
+private fun preizkusPregledaKanalov() {
+    println("\n== naloga 75: pregled kanalov ==")
+    preveriEnako("izid: 200 ziv", OsPravila.IzidSonde.ZIV, OsPravila.izidPoOdgovoru(200))
+    preveriEnako("izid: 404 mrtev", OsPravila.IzidSonde.MRTEV, OsPravila.izidPoOdgovoru(404))
+    preveriEnako("izid: 410 mrtev", OsPravila.IzidSonde.MRTEV, OsPravila.izidPoOdgovoru(410))
+    preveriEnako("izid: 403 (geo) mrtev do izteka", OsPravila.IzidSonde.MRTEV, OsPravila.izidPoOdgovoru(403))
+    preveriEnako("izid: 401 prijava ne vemo", OsPravila.IzidSonde.NEZNANO, OsPravila.izidPoOdgovoru(401))
+    preveriEnako("izid: 429 omejitev ne vemo", OsPravila.IzidSonde.NEZNANO, OsPravila.izidPoOdgovoru(429))
+    preveriEnako("izid: 500 negotovo", OsPravila.IzidSonde.NEGOTOVO, OsPravila.izidPoOdgovoru(500))
+    preveriEnako("izid: 503 negotovo", OsPravila.IzidSonde.NEGOTOVO, OsPravila.izidPoOdgovoru(503))
+    preveriEnako("casovna omejitev ob delujocem omrezju: negotovo", OsPravila.IzidSonde.NEGOTOVO, OsPravila.izidCasovneOmejitve(true))
+    preveriEnako("casovna omejitev brez omrezja: ne vemo", OsPravila.IzidSonde.NEZNANO, OsPravila.izidCasovneOmejitve(false))
+    preveriEnako("casovna omejitev, imenik ni odgovoril: ne vemo", OsPravila.IzidSonde.NEZNANO, OsPravila.izidCasovneOmejitve(null))
+    preveriEnako("ena casovna omejitev ni mrtev", false, OsPravila.mrtevPoNegotovih(1))
+    preveriEnako("dve zaporedni sta mrtev", true, OsPravila.mrtevPoNegotovih(2))
+    preveriEnako("sonda (stara pot) ostane: 5xx ne vemo", null, OsPravila.sondaPoOdgovoru(500))
+    val dan = OsPravila.PREGLED_VSAKIH_MS
+    val ura = OsPravila.PREGLED_PONOVI_MS
+    val zdaj = 100 * dan
+    preveriEnako("pregled: se nikoli -> na vrsti", true, OsPravila.pregledJeNaVrsti(0, 0, zdaj))
+    preveriEnako("pregled: poln pred uro -> ne", false, OsPravila.pregledJeNaVrsti(zdaj - ura, zdaj - ura, zdaj))
+    preveriEnako("pregled: poln pred dnevom -> da", true, OsPravila.pregledJeNaVrsti(zdaj - dan, zdaj - dan, zdaj))
+    preveriEnako("pregled: prekinjen pred 10 min -> ne", false, OsPravila.pregledJeNaVrsti(zdaj - 2 * dan, zdaj - 600_000L, zdaj))
+    preveriEnako("pregled: prekinjen pred dvema urama -> da", true, OsPravila.pregledJeNaVrsti(zdaj - 2 * dan, zdaj - 2 * ura, zdaj))
+    preveriEnako("pregled: ura naprave nazaj -> na vrsti", true, OsPravila.pregledJeNaVrsti(zdaj + dan, zdaj + dan, zdaj))
+    preveriEnako("pomnilnik: RUNNING_LOW", true, OsPravila.pritiskPomnilnika(10))
+    preveriEnako("pomnilnik: RUNNING_CRITICAL", true, OsPravila.pritiskPomnilnika(15))
+    preveriEnako("pomnilnik: UI_HIDDEN ni pritisk", false, OsPravila.pritiskPomnilnika(20))
+    preveriEnako("pomnilnik: BACKGROUND ni pritisk", false, OsPravila.pritiskPomnilnika(40))
+    preveriEnako("pomnilnik: MODERATE", true, OsPravila.pritiskPomnilnika(60))
+    preveriEnako("pomnilnik: COMPLETE", true, OsPravila.pritiskPomnilnika(80))
+}
+
 private fun preizkusMer() {
     println("\n== mere ikon ==")
     preveriEnako("majhna ikona ostane cela", 1, OsPravila.vzorec(128, 128, 512))
@@ -709,6 +743,7 @@ fun main() {
     preizkusIkon()
     preizkusZaslona()
     pasMedVideom()
+    preizkusPregledaKanalov()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }

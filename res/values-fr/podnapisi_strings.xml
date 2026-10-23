@@ -6,4 +6,10 @@
     <string name="podnapisi_namig">haut : sous-titres</string>
     <string name="podnapisi_st">Sous-titres %d</string>
     <string name="podnapisi_prisilni">forcés</string>
+    <!-- Naloga 72: podnapisi iz dodatkov Stremio (OpenSubtitles v3 ...). -->
+    <string name="podnapisi_iz_dodatka">Sous-titres des extensions</string>
+    <string name="podnapisi_iscem">Recherche de sous-titres…</string>
+    <string name="podnapisi_ni_najdenih">Aucun sous-titre trouvé</string>
+    <string name="podnapisi_videa">Sous-titres de la vidéo…</string>
+    <string name="podnapisi_ne_gre">Impossible d’ajouter des sous-titres à ce flux</string>
 </resources>

@@ -245,4 +245,43 @@ object KanaliPravila {
         val postopno = PONOVI_NAJMANJ_MS shl poskus.coerceIn(0, 4)
         return maxOf(ostanekPremoraMs, postopno).coerceIn(PONOVI_NAJMANJ_MS, PONOVI_NAJVEC_MS)
     }
+
+    /**
+     * Naloga 74: napis »Nalagam« nad mrezo kanalov samo, dokler na zaslonu ni nobenega kanala ([naZaslonu]) in se viri
+     * dodatkov se nalagajo. Preverjanje kanalov v ozadju napisa nima.
+     */
+    fun nalagamNapis(naZaslonu: Int, nalagam: Boolean, imaDodatke: Boolean): Boolean = naZaslonu == 0 && nalagam && imaDodatke
+
+    /**
+     * Naloga 74: vrste mreze, ki so na zaslonu, in naslednja. [vrhovi] = vrh vsake vrste v pikah od vrha vsebine (po vrsti),
+     * [drsnikY] = zamik drsnika, [visina] = visina vidnega polja. Mreza se ni postavljena (visina 0, vsi vrhovi 0): prve
+     * tri vrste (prvi zaslon televizorja). Prazna mreza: prazen obseg.
+     */
+    fun vidneVrste(vrhovi: List<Int>, drsnikY: Int, visina: Int): IntRange {
+        if (vrhovi.isEmpty()) return IntRange.EMPTY
+        if (visina <= 0 || vrhovi.all { it == 0 }) return 0..minOf(2, vrhovi.size - 1)
+        val dno = drsnikY + visina
+        // Prva vidna: zadnja vrsta, ki se zacne nad vrhom vidnega polja (njen spodnji del je se viden).
+        var prva = 0
+        for (i in vrhovi.indices) if (vrhovi[i] <= drsnikY) prva = i else break
+        var zadnja = prva
+        for (i in prva until vrhovi.size) if (vrhovi[i] < dno) zadnja = i else break
+        return prva..minOf(zadnja + 1, vrhovi.size - 1)
+    }
+
+    /**
+     * Naloga 74: katere kartice mreze ([kljuci] po vrsti, [naVrsto] v vrsti) preverimo zdaj: samo v vrstah [vrste], od vrha
+     * navzdol, ki jih [potrebuje] (kanal iz dodatka, se ne vemo zanj, ni v teku), najvec [prostih].
+     */
+    fun zaPreverjanje(kljuci: List<String>, vrste: IntRange, naVrsto: Int, prostih: Int, potrebuje: (String) -> Boolean): List<String> {
+        if (prostih <= 0 || naVrsto <= 0 || vrste.isEmpty() || kljuci.isEmpty()) return emptyList()
+        val od = (vrste.first * naVrsto).coerceIn(0, kljuci.size)
+        val doK = ((vrste.last + 1) * naVrsto).coerceIn(od, kljuci.size)
+        val izhod = ArrayList<String>(prostih)
+        for (i in od until doK) {
+            if (izhod.size >= prostih) break
+            if (potrebuje(kljuci[i])) izhod += kljuci[i]
+        }
+        return izhod
+    }
 }
