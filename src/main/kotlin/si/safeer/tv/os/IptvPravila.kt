@@ -53,6 +53,28 @@ object IptvPravila {
         "lav" to "lv", "est" to "et", "isl" to "is", "ice" to "is", "gle" to "ga", "cym" to "cy", "wel" to "cy")
 
     /** Jezik iz oznake seznama: ime (»Slovenian«), dvoclenska ali troclenska koda; null = neznan. */
+    /**
+     * Glavni jezik drzave (ISO 3166 -> ISO 639-1); "" = ne vemo. Najprej izrecna preslikava (Locale ima za vecino drzav tudi
+     * en_XX, de_IT ... - izmerjeno 23. 10. 2026 v testu: SI je dal »en«), sicer jezik z enako oznako kot drzava, sicer prvi ne-angleski.
+     */
+    private val JEZIK_DRZAVE = mapOf("SI" to "sl", "HR" to "hr", "RS" to "sr", "BA" to "bs", "ME" to "sr", "MK" to "mk",
+        "XK" to "sq", "AL" to "sq", "AT" to "de", "DE" to "de", "CH" to "de", "IT" to "it", "HU" to "hu", "CZ" to "cs",
+        "SK" to "sk", "PL" to "pl", "FR" to "fr", "BE" to "nl", "NL" to "nl", "LU" to "fr", "ES" to "es", "PT" to "pt",
+        "BR" to "pt", "MX" to "es", "AR" to "es", "DK" to "da", "SE" to "sv", "FI" to "fi", "GR" to "el", "CY" to "el",
+        "TR" to "tr", "RO" to "ro", "BG" to "bg", "UA" to "uk", "RU" to "ru", "US" to "en", "GB" to "en", "CA" to "en",
+        "AU" to "en", "IE" to "en", "NZ" to "en", "IN" to "hi", "JP" to "ja", "CN" to "zh", "KR" to "ko")
+
+    fun jezikDrzave(drzava: String): String {
+        val d = drzava.trim().uppercase(java.util.Locale.ROOT)
+        if (d.length != 2) return ""
+        JEZIK_DRZAVE[d]?.let { return it }
+        val kandidati = java.util.Locale.getAvailableLocales().asSequence()
+            .filter { it.country == d && it.language.length == 2 && it.variant.isEmpty() && it.script.isEmpty() }
+            .map { it.language }.distinct().sorted().toList()
+        return kandidati.firstOrNull { it == d.lowercase(java.util.Locale.ROOT) } ?: kandidati.firstOrNull { it != "en" }
+            ?: kandidati.firstOrNull().orEmpty()
+    }
+
     fun jezik(oznaka: String): String? {
         val o = oznaka.trim()
         if (o.isEmpty()) return null
@@ -92,7 +114,9 @@ object IptvPravila {
         val tvgId = a["tvg-id"].orEmpty()
         val drzava = a["tvg-country"]?.split(';', ',')?.firstOrNull()?.trim()?.takeIf { it.length == 2 }?.uppercase(java.util.Locale.ROOT)
             ?: RX_DRZAVA_ID.find(tvgId)?.groupValues?.get(1)?.uppercase(java.util.Locale.ROOT) ?: drzavaSeznama
-        val jezik = a["tvg-language"]?.split(';', ',')?.firstNotNullOfOrNull { jezik(it) } ?: jezikSeznama
+        // Seznami drzav iptv-org (countries/si.m3u) nimajo tvg-language: brez jezika kanal ni ustrezal nobenemu filtru jezika
+        // (izmerjeno 23. 10. 2026: filter Slovenian ni pokazal TV SLO 1/2). Jezik tedaj vzamemo iz drzave kanala.
+        val jezik = a["tvg-language"]?.split(';', ',')?.firstNotNullOfOrNull { jezik(it) } ?: jezikSeznama.ifEmpty { jezikDrzave(drzava) }
         val logo = a["tvg-logo"].orEmpty().takeIf { it.startsWith("http://") || it.startsWith("https://") }.orEmpty()
         return Vnos(ime, url, logo, zvrst(a["group-title"].orEmpty()), jezik, drzava, tvgId)
     }

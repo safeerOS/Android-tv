@@ -33,6 +33,13 @@ fun main() {
     val v1 = IptvPravila.vnos(e1, "https://cdn.test/pop/index.m3u8", "", "en")
     preveriEnako("vnos: drzava iz tvg-id", "SI", v1?.drzava)
     preveriEnako("vnos: jezik seznama", "en", v1?.jezik)
+    // Seznam drzave brez tvg-language: jezik iz drzave kanala (TV SLO 1 v si.m3u -> sl).
+    val slo = "#EXTINF:-1 tvg-id=\"TVSLO1.si@HD\" tvg-logo=\"https://i.imgur.com/E3YmlxF.png\" group-title=\"Undefined\",TV SLO 1 HD"
+    preveriEnako("vnos: jezik iz drzave (si.m3u)", "sl", IptvPravila.vnos(slo, "https://dash2.antik.sk/live/test_slo1_tizen/playlist.m3u8", "SI", "")?.jezik)
+    preveriEnako("jezik drzave SI", "sl", IptvPravila.jezikDrzave("SI"))
+    preveriEnako("jezik drzave US", "en", IptvPravila.jezikDrzave("US"))
+    preveriEnako("jezik drzave HR", "hr", IptvPravila.jezikDrzave("hr"))
+    preveriEnako("jezik drzave neznana", "", IptvPravila.jezikDrzave(""))
     preveriEnako("vnos: zvrst", "splosni", v1?.zvrst)
     preveriEnako("vnos: logo", "https://i.imgur.com/pop.png", v1?.logo)
     val e2 = """#EXTINF:-1 tvg-country="GB" tvg-language="English;Welsh" group-title="Music",Hits"""
