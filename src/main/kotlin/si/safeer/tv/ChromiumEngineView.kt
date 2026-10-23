@@ -21,8 +21,24 @@ class ChromiumEngineView @JvmOverloads constructor(
 ) : WebView(context, attrs, defStyleAttr) {
 
     companion object {
-        /** Naloga 94: naslov dodatka, ki ga ta hip preverjamo ali ponujamo (eno okno naenkrat za vse poglede, tudi pojavna). */
-        private val dodatekVTeku = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        /**
+         * Naloga 94: naslov dodatka, ki ga ta hip preverjamo ali ponujamo, in kdaj (elapsedRealtime) - eno okno naenkrat za vse
+         * poglede, tudi pojavna. Naloga 100: zaklep, starejsi od [ZAKLEP_DODATKA_MS], ne velja (nit ali okno, ki ga ni sprostilo).
+         */
+        private val dodatekVTeku = java.util.concurrent.atomic.AtomicReference<Pair<String, Long>?>(null)
+        private const val ZAKLEP_DODATKA_MS = 120_000L
+        /** Naloga 100: odprto okno »Dodaj vir« in aktivnost, v kateri je - ob unicenju aktivnosti ga zapremo in zaklep sprostimo. */
+        @Volatile private var dodatekOkno: java.lang.ref.WeakReference<android.app.AlertDialog>? = null
+        @Volatile private var dodatekDejavnost: java.lang.ref.WeakReference<android.content.Context>? = null
+
+        private fun zakleniDodatek(naslov: String): Boolean {
+            val zdaj = android.os.SystemClock.elapsedRealtime()
+            val prej = dodatekVTeku.get()
+            if (prej != null && zdaj - prej.second in 0 until ZAKLEP_DODATKA_MS) return false
+            return dodatekVTeku.compareAndSet(prej, naslov to zdaj)
+        }
+
+        private fun sprostiDodatek() { dodatekVTeku.set(null); dodatekOkno = null; dodatekDejavnost = null }
         /**
          * Cas zadnje tipke daljinca (tudi ukazov s telefona, ki gredo skozi dispatchKeyEvent). Most
          * `triggerNativeTap` je dosegljiv vsaki strani; brez te meje bi stran sama sprozila prave
@@ -374,25 +390,29 @@ class ChromiumEngineView @JvmOverloads constructor(
         val naslov = si.safeer.tv.os.MedijskiViri.preveriDodatek(si.safeer.tv.os.MedijskiViri.STREMIO, vnos).first ?: return
         // En pritisk OK na povezavi prozi navigacijo dvakrat (sinteticni Enter + tipka sama), stran pa jo lahko ponovi:
         // za isti naslov samo eno preverjanje ali okno naenkrat (tudi ce ga je sprozilo pojavno okno, ki se zapre).
-        if (!dodatekVTeku.compareAndSet(null, naslov)) return
+        if (!zakleniDodatek(naslov)) return
+        dodatekDejavnost = java.lang.ref.WeakReference(ctx)
         fun ze(n: String) = si.safeer.tv.os.MedijskiViri.vsi(ctx).any {
             it.tip == si.safeer.tv.os.MedijskiViri.STREMIO && si.safeer.tv.os.Stremio.osnova(it.naslov) == si.safeer.tv.os.Stremio.osnova(n) }
         if (ze(naslov)) {
-            dodatekVTeku.set(null)
+            sprostiDodatek()
             android.util.Log.i("SafeerOsMedia", "Splet: dodatek ze med viri")
             android.widget.Toast.makeText(ctx, R.string.os_mediji_dodatek_ze, android.widget.Toast.LENGTH_SHORT).show()
             return
         }
         Thread({
-            si.safeer.tv.os.Stremio.pripravi(ctx)
-            val koda = try { si.safeer.tv.os.Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
-            val ime = if (koda == 200) (try { si.safeer.tv.os.Stremio.manifest(naslov)?.ime } catch (_: Exception) { null }) else null
-            glavna.post {
+            // Naloga 100: zaklep se sprosti tudi, ce nit pade, preden preda delo glavni niti.
+            var predano = false
+            try {
+                si.safeer.tv.os.Stremio.pripravi(ctx)
+                val koda = try { si.safeer.tv.os.Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
+                val ime = if (koda == 200) (try { si.safeer.tv.os.Stremio.manifest(naslov)?.ime } catch (_: Exception) { null }) else null
+                predano = glavna.post { try {
                 val dejavnost = ctx as? android.app.Activity
-                if (dejavnost == null || dejavnost.isFinishing) { dodatekVTeku.set(null); return@post }
+                if (dejavnost == null || dejavnost.isFinishing || dejavnost.isDestroyed) { sprostiDodatek(); return@post }
                 android.util.Log.i("SafeerOsMedia", "Splet: dodatek, manifest koda=$koda, neposreden=${sicerNalozi != null}")
                 if (koda != 200) {
-                    dodatekVTeku.set(null)
+                    sprostiDodatek()
                     // Neposreden klik na manifest.json, ki ni dodatek (ali ne odgovori): stran se odpre kot doslej.
                     if (sicerNalozi != null) { view?.loadUrl(sicerNalozi); return@post }
                     android.widget.Toast.makeText(ctx, if (koda > 0) ctx.getString(R.string.os_mediji_streznik_ne_odgovarja, koda)
@@ -419,23 +439,30 @@ class ChromiumEngineView @JvmOverloads constructor(
                         .setPositiveButton(R.string.os_mediji_dodatek_ujet_dodaj) { _, _ -> dodaj() }
                         .setNegativeButton(android.R.string.cancel, null)
                         .create().apply {
-                            // Daljinec: OK doda (tudi ce gumb nima fokusa), Nazaj preklice.
+                            // Daljinec: fokus je na Dodaj; OK sprozi gumb, ki ima fokus (naloga 100: na Preklici preklice), Nazaj
+                            // preklice. Tipk na ravni okna ne prestrezamo.
                             setOnShowListener { getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
-                            setOnKeyListener { d, code, ev ->
-                                if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER) {
-                                    if (ev.action == android.view.KeyEvent.ACTION_UP) { dodaj(); d.dismiss() }
-                                    true
-                                } else false
-                            }
-                            setOnDismissListener { dodatekVTeku.set(null) }
+                            setOnDismissListener { sprostiDodatek() }
+                            dodatekOkno = java.lang.ref.WeakReference(this)
                             show()
                         }
-                } catch (_: Exception) { dodatekVTeku.set(null) }
+                } catch (_: Exception) { sprostiDodatek() }
+            } catch (_: Throwable) { sprostiDodatek() } }
+            } catch (_: Throwable) {
+                // Napaka pred predajo (npr. Stremio.pripravi): zaklep sprosti finally.
+            } finally {
+                if (!predano) sprostiDodatek()
             }
         }, "safeer-dodatek").apply { isDaemon = true }.start()
     }
 
     override fun destroy() {
+        // Naloga 100: aktivnost odhaja (zaprtje ali sprememba nastavitev) - okno »Dodaj vir« zapremo, zaklep sprostimo.
+        val a = context as? android.app.Activity
+        if (a != null && (a.isFinishing || a.isChangingConfigurations) && dodatekDejavnost?.get() === a) {
+            try { dodatekOkno?.get()?.dismiss() } catch (_: Throwable) { }
+            sprostiDodatek()
+        }
         if (!uniceno) android.util.Log.i("SafeerRam", "unicen WebView: ChromiumEngineView")
         if (!uniceno) si.safeer.tv.os.LahkiWebViewPool.odjavi(this)
         uniceno = true

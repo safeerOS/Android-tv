@@ -3470,8 +3470,11 @@ class GlasbaActivity : OsActivity() {
         val filtri = KanaliPravila.filtri(opisi)
         FILTRI_KANALOV = filtri
         // Naloga 91b: jeziki katalogov ostanejo na disku - ob naslednjem odprtju so v izbiri takoj, se preden dodatki odgovorijo.
-        if (katalogi.isNotEmpty()) getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit()
-            .putString(JEZIKI_KANALOV, filtri.jeziki.joinToString(",") { it.kljuc }).apply()
+        if (katalogi.isNotEmpty()) {
+            SHRANJENI_JEZIKI_KANALOV = filtri.jeziki.map { it.kljuc }
+            getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit()
+                .putString(JEZIKI_KANALOV, filtri.jeziki.joinToString(",") { it.kljuc }).apply()
+        }
         fun vir(v: KanaliPravila.Vir) = VirKanalov(Stremio.zMoznostjo(katalogi[v.katalog], v.moznost))
         if (m.preklicana) return
         val velja = { !m.preklicana }
@@ -3979,7 +3982,9 @@ class GlasbaActivity : OsActivity() {
             f?.zvrsti.orEmpty().filter { it.ime.isNotEmpty() }.map { it.kljuc to it.ime } +
             (if ("ostalo" in znane) listOf("ostalo" to imeKategorije("ostalo")) else emptyList())
         // Naloga 91b: jeziki so takoj na voljo - zadnji znani jeziki katalogov z diska in jeziki prenesenih seznamov IPTV (.info).
-        val shranjeni = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString(JEZIKI_KANALOV, "").orEmpty().split(',')
+        // Naloga 100 (pregled 231, S5): nastavitve preberemo enkrat na proces, potem iz pomnilnika (polja se gradijo pogosto).
+        val shranjeni = SHRANJENI_JEZIKI_KANALOV ?: getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString(JEZIKI_KANALOV, "").orEmpty()
+            .split(',').filter { it.isNotBlank() }.also { SHRANJENI_JEZIKI_KANALOV = it }
         // Naloga 99 (N5): samo iz pomnilnika - jezike napolni priprava seznamov v ozadju ([naloziKanale]); izbira jih bere sveze.
         val izSeznamov = seznamiTv().flatMap { IptvSeznami.podatkiIzPomnilnika(it)?.jeziki.orEmpty() }
         val jeziki = jezikiIzbire(KanaliPravila.jezikiKanalov(f?.jeziki?.map { it.kljuc }, shranjeni, izSeznamov + vgrajeni.map { it.jezik }))
@@ -5564,6 +5569,9 @@ class GlasbaActivity : OsActivity() {
                         if (k != null && k.dodatki.isNotEmpty()) {
                             dnevnikKlikaKanala(sk, vse, "dodatek (razlicica)", rezerva)
                             razresiStremio(prva, razlicice = k.dodatki.drop(1).map { vse[it] }, rezerva = rezerva)
+                        } else if (k == null && KanaliPravila.znanNedelujocTok(sk.zvok)) {
+                            // Naloga 100 (N6): ni zive razlicice, glava pa je znana prazna slika - ne predvajamo.
+                            dnevnikKlikaKanala(sk, vse, "ni zive, glava znano ne deluje", null)
                         } else {
                             dnevnikKlikaKanala(sk, vse, if (k == null) "seznam (ni zive, glava)" else "seznam", null)
                             predvajaj(listOf(prva), 0)
@@ -8714,6 +8722,8 @@ class GlasbaActivity : OsActivity() {
         private const val NASTAVITVE_POGLEDA = "safeer_media_pogled"
         /** Naloga 91b: zadnji znani jeziki katalogov kanalov dodatkov (kljuci, locene z vejico). */
         private const val JEZIKI_KANALOV = "tv_jeziki_dodatkov"
+        /** Naloga 100: [JEZIKI_KANALOV] v pomnilniku (null = se ni prebrano). */
+        @Volatile private var SHRANJENI_JEZIKI_KANALOV: List<String>? = null
         private const val KLJUC_JEZIKOV = "izklopljeni_jeziki_"
         private val HITROSTI = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
         private val CASOVNIK = intArrayOf(15, 30, 60, 90)

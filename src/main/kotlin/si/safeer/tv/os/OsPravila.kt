@@ -1488,7 +1488,7 @@ object OsPravila {
 
     /**
      * Naloga 97 (meritev 23. 10. 14:31: »Zabranjen vam je pristup« - streznik vrti 5-sekundno sliko namesto programa): kanal v
-     * zivo, kjer se tok vsakic konca po skoraj enakem casu, ni pravi prenos. [trajanja] = koliko je predvajal vsak dosedanji
+     * zivo, kjer se tok vsakic konca po skoraj enakem casu, je SUMLJIV (naloga 100: dokaz da [nadomestekPoOdtisih]). [trajanja] = koliko je predvajal vsak dosedanji
      * tok (ms, po vrsti). Nadomestek: zadnjih [NADOMESTEK_ZAPOREDNIH], vsak krajsi od [NADOMESTEK_NAJDLJE_MS] in razlika med
      * najdaljsim in najkrajsim manj kot 10 % najdaljsega.
      */
@@ -1498,6 +1498,40 @@ object OsPravila {
         val najdaljse = zadnja.maxOf { it }
         val najkrajse = zadnja.minOf { it }
         return najkrajse > 0 && najdaljse < NADOMESTEK_NAJDLJE_MS && (najdaljse - najkrajse) * 10 < najdaljse
+    }
+
+    /** Naloga 100: razmik med branjema zacetka toka in najmanj prebranih bajtov, da odtisa stejeta kot dokaz. */
+    const val NADOMESTEK_RAZMIK_MS = 6_000L
+    const val NADOMESTEK_NAJMANJ_BAJTOV = 16 * 1024
+    /** Naloga 100: koliko bajtov zacetka toka preberemo za odtis in najvec preverb odtisa na vir. */
+    const val NADOMESTEK_BAJTOV = 64 * 1024
+    const val NADOMESTEK_PREVERB_NAJVEC = 2
+
+    /**
+     * Naloga 100 (pregled 231, S1): vsebinski dokaz nadomestne slike. Ob sumu ([nadomestnaSlikaVZivo] - samo trajanje ni
+     * dovolj: pravi CBR MPEG-TS, ki mu streznik zapira povezavo, ima tudi enaka kratka trajanja) dvakrat preberemo zacetek toka
+     * in primerjamo odtisa (SHA-256). Pravi prenos v zivo ima po [razmikMs] drugacen zacetek, nadomestna slika (datoteka, ki
+     * se vrti) enakega. true = nadomestek, false = pravi prenos, null = ni dokaza (napaka branja, premalo podatkov, prekratek
+     * razmik) - kanala takrat ne oznacimo.
+     */
+    fun nadomestekPoOdtisih(prvi: String?, drugi: String?, bajtovPrvi: Int, bajtovDrugi: Int, razmikMs: Long): Boolean? {
+        if (prvi.isNullOrEmpty() || drugi.isNullOrEmpty()) return null
+        if (bajtovPrvi < NADOMESTEK_NAJMANJ_BAJTOV || bajtovDrugi < NADOMESTEK_NAJMANJ_BAJTOV || razmikMs < NADOMESTEK_RAZMIK_MS) return null
+        return prvi == drugi
+    }
+
+    /** Naloga 100: zamik ponovne povezave po izpadu omrezja (rok, zavrnjena povezava). */
+    const val ZAMIK_PONOVITVE_OMREZJE_MS = 1_500L
+
+    /**
+     * Naloga 100 (pregled 231, N8): kdaj ponovimo kanal v zivo po napaki vira [koda] (Media3 PlaybackException; 0 = konec
+     * toka): null = ne ponovi, takoj obstojeca pot (2004 slab odgovor HTTP - 403/404, 2005 ni datoteke, 2006 ni dovoljenja,
+     * 2007 cleartext); po izpadu omrezja (2001 povezava ni uspela, 2002 rok) cez [ZAMIK_PONOVITVE_OMREZJE_MS]; sicer takoj (0).
+     */
+    fun zamikPonovitveVZivo(koda: Int): Long? = when (koda) {
+        2004, 2005, 2006, 2007 -> null
+        2001, 2002 -> ZAMIK_PONOVITVE_OMREZJE_MS
+        else -> 0L
     }
 
     /** Ponovitev, pred katero je predvajalnik predvajal vsaj toliko, je prinesla nove podatke (stevec gre na zacetek). */

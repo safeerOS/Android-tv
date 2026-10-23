@@ -1036,6 +1036,7 @@ fun main() {
     preizkusNamestitveDodatka94()
     preizkusPonovnePovezave95()
     preizkusNadomestneSlike97()
+    preizkusDokazaNadomestka100()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }
@@ -1110,4 +1111,23 @@ private fun preizkusNadomestneSlike97() {
     preveriEnako("9 ponovitev v 2 min - se ponovi", 1, OsPravila.ponovnaPovezavaVZivo(true, true, true, 1, 5_008, deset.drop(1), zdaj))
     preveriEnako("stare ponovitve (pred 2 min) ne stejejo", 1,
         OsPravila.ponovnaPovezavaVZivo(true, true, true, 1, 5_008, (1..10).map { zdaj - 130_000L - it }, zdaj))
+}
+
+private fun preizkusDokazaNadomestka100() {
+    println("\n== kanal v zivo: vsebinski dokaz nadomestne slike, zamik ponovitve (naloga 100) ==")
+    val kb64 = OsPravila.NADOMESTEK_BAJTOV
+    val r = OsPravila.NADOMESTEK_RAZMIK_MS
+    preveriEnako("enaka odtisa po 6 s - nadomestek", true, OsPravila.nadomestekPoOdtisih("aa11", "aa11", kb64, kb64, r))
+    preveriEnako("razlicna odtisa - pravi prenos", false, OsPravila.nadomestekPoOdtisih("aa11", "bb22", kb64, kb64, r + 500))
+    preveriEnako("prvo branje ni uspelo - ni dokaza", null, OsPravila.nadomestekPoOdtisih(null, "bb22", 0, kb64, r))
+    preveriEnako("drugo branje ni uspelo - ni dokaza", null, OsPravila.nadomestekPoOdtisih("aa11", null, kb64, 0, r))
+    preveriEnako("premalo podatkov - ni dokaza", null, OsPravila.nadomestekPoOdtisih("aa11", "aa11", 1000, 1000, r))
+    preveriEnako("prekratek razmik - ni dokaza", null, OsPravila.nadomestekPoOdtisih("aa11", "aa11", kb64, kb64, r - 1))
+    preveriEnako("prazen odtis - ni dokaza", null, OsPravila.nadomestekPoOdtisih("", "", kb64, kb64, r))
+    preveriEnako("konec toka - takoj", 0L, OsPravila.zamikPonovitveVZivo(0))
+    preveriEnako("HTTP 403/404 (2004) - brez ponovitve", null, OsPravila.zamikPonovitveVZivo(2004))
+    preveriEnako("cleartext (2007) - brez ponovitve", null, OsPravila.zamikPonovitveVZivo(2007))
+    preveriEnako("povezava ni uspela (2001) - z zamikom", OsPravila.ZAMIK_PONOVITVE_OMREZJE_MS, OsPravila.zamikPonovitveVZivo(2001))
+    preveriEnako("rok (2002) - z zamikom", OsPravila.ZAMIK_PONOVITVE_OMREZJE_MS, OsPravila.zamikPonovitveVZivo(2002))
+    preveriEnako("druga napaka vira (2000) - takoj", 0L, OsPravila.zamikPonovitveVZivo(2000))
 }

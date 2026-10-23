@@ -64,4 +64,46 @@ object SondaToka {
                 "${e.javaClass.simpleName} (kontrola=${o[0]})"
         } catch (e: Exception) { return OsPravila.IzidSonde.NEZNANO to "napaka ${e.javaClass.simpleName}" }
     }
+
+    /**
+     * Naloga 100: odtis (SHA-256, hex) prvih [bajtov] toka in koliko jih je prebranih; null = ni odgovora 2xx ali napaka.
+     * Preusmeritvam sledimo kot [preveriZRazlogom]. Klic iz ozadja (omrezje, do [OsPravila.ROK_POVEZAVE_V_ZIVO_MS] na korak).
+     */
+    fun odtisZacetka(naslov: String, glave: Map<String, String>, agent: String, bajtov: Int = OsPravila.NADOMESTEK_BAJTOV): Pair<String, Int>? {
+        var url = naslov
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return null
+        return try {
+            for (korak in 0 until 5) {
+                val p = URL(url).openConnection() as HttpURLConnection
+                try {
+                    p.connectTimeout = OsPravila.ROK_POVEZAVE_V_ZIVO_MS
+                    p.readTimeout = OsPravila.ROK_POVEZAVE_V_ZIVO_MS
+                    p.instanceFollowRedirects = false
+                    if (agent.isNotBlank()) p.setRequestProperty("User-Agent", agent)
+                    for ((k, v) in glave) p.setRequestProperty(k, v)
+                    val koda = p.responseCode
+                    if (koda in 300..399) {
+                        val naprej = p.getHeaderField("Location").orEmpty()
+                        if (naprej.isBlank()) return null
+                        url = URL(URL(url), naprej).toString()
+                    } else {
+                        if (koda !in 200..299) return null
+                        val sha = java.security.MessageDigest.getInstance("SHA-256")
+                        val kos = ByteArray(16 * 1024)
+                        var skupaj = 0
+                        p.inputStream.use { vhod ->
+                            var n = vhod.read(kos, 0, minOf(kos.size, bajtov))
+                            while (n >= 0) {
+                                sha.update(kos, 0, n)
+                                skupaj += n
+                                n = if (skupaj < bajtov) vhod.read(kos, 0, minOf(kos.size, bajtov - skupaj)) else -1
+                            }
+                        }
+                        return sha.digest().joinToString("") { "%02x".format(it) } to skupaj
+                    }
+                } finally { try { p.disconnect() } catch (_: Throwable) { } }
+            }
+            null
+        } catch (_: Exception) { null }
+    }
 }

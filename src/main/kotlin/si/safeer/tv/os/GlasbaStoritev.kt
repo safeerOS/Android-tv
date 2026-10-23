@@ -108,6 +108,10 @@ class GlasbaStoritev : Service() {
     /** Naloga 97: koliko je predvajal vsak dosedanji tok tega kanala (ms) in kdaj so bile ponovitve (elapsedRealtime). */
     private val trajanjaVZivo = ArrayList<Long>()
     private val casiPonovitevVZivo = ArrayList<Long>()
+    /** Naloga 100: preverba odtisa zacetka toka tece, koliko jih je bilo za ta vir, in ali je pravi prenos ze dokazan. */
+    private var odtisVTeku = false
+    private var preverbOdtisa = 0
+    private var zivPrenosDokazan = false
     /** Predvaja se en sam kanal ali postaja v zivo s spleta (ne datoteka z naprave v Linku): bere ga nit nalaganja. */
     @Volatile private var enaVZivo = false
 
@@ -218,7 +222,8 @@ class GlasbaStoritev : Service() {
                     "vzrok=${error.cause?.javaClass?.simpleName}, v zivo=$enaVZivo, zacelo=$zacelo")
                 // Naloga 95: napaka vira (vhod/izhod, kode 2xxx) med predvajanjem kanala v zivo - streznik zapre povezavo:
                 // ponovna povezava, brez sporocila.
-                if (error.errorCode / 1000 == PlaybackException.ERROR_CODE_IO_UNSPECIFIED / 1000 && ponoviVZivo(p, "napaka vira ${error.errorCode}")) return
+                if (error.errorCode / 1000 == PlaybackException.ERROR_CODE_IO_UNSPECIFIED / 1000 &&
+                    ponoviVZivo(p, "napaka vira ${error.errorCode}", error.errorCode)) return
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                     // Prenos v zivo po pavzi ali zastoju: predvajalnik je zaostal za oknom prenosa. To ni napaka kanala -
                     // nazaj na zivo. (Prej: »Predvajanje se je ustavilo zaradi napake« in crn zaslon.)
@@ -359,8 +364,10 @@ class GlasbaStoritev : Service() {
      * pride do konca. Isti vir pripravimo znova od privzetega mesta: zaslon predvajanja ostane, zadnja slika tudi (seek ne
      * pobrise povrsine). Odlocitev in meja: [OsPravila.ponovnaPovezavaVZivo]; po meji obstojeca pot (konec, napaka).
      */
-    private fun ponoviVZivo(p: Player, zakaj: String): Boolean {
+    private fun ponoviVZivo(p: Player, zakaj: String, kodaNapake: Int = 0): Boolean {
         val enota = trenutna() ?: return false
+        // Naloga 100 (N8): 403/404 ipd. - brez ponovitve, takoj obstojeca pot; izpad omrezja - ponovitev s kratkim zamikom.
+        val zamik = OsPravila.zamikPonovitveVZivo(kodaNapake) ?: return false
         val kanal = vrsta.size == 1 && (IptvSeznami.jeKanal(enota) || Stremio.jeVZivo(enota))
         val progresivno = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(enota.zvok),
             enota.mime.ifBlank { null }) == C.CONTENT_TYPE_OTHER
@@ -368,14 +375,10 @@ class GlasbaStoritev : Service() {
         val zdaj = android.os.SystemClock.elapsedRealtime()
         if (kanal && progresivno && zacelo) {
             trajanjaVZivo += predvajano
-            // Naloga 97: tok se vsakic konca po skoraj enakem kratkem casu - streznik vrti nadomestno sliko (prepoved, »ni na
-            // voljo«), ne programa. Tiho konec, kanal do jutri ne deluje (kot pri sondi), zaslon predvajanja se zapre.
-            if (OsPravila.nadomestnaSlikaVZivo(trajanjaVZivo)) {
-                Log.i("SafeerOsMedia", "kanal v zivo: nadomestna slika (trajanja ${trajanjaVZivo.takeLast(OsPravila.NADOMESTEK_ZAPOREDNIH)} ms) - kanal ne deluje")
-                MrtviKanali.zapomni(this, enota.id)
-                android.os.Handler(mainLooper).post { ustaviPredvajanje() }
-                return true
-            }
+            // Naloga 97 + 100: tok se vsakic konca po skoraj enakem kratkem casu - sum nadomestne slike (prepoved, »ni na voljo«).
+            // Samo trajanje ni dokaz (pravi CBR tok, ki ga streznik zapira, je enak): dokaz da vsebina ([preveriNadomestek]),
+            // ponovne povezave medtem tecejo naprej.
+            if (!zivPrenosDokazan && OsPravila.nadomestnaSlikaVZivo(trajanjaVZivo)) preveriNadomestek(enota)
         }
         val n = OsPravila.ponovnaPovezavaVZivo(kanal, progresivno, zacelo, ponovitevVZivo, predvajano, casiPonovitevVZivo, zdaj)
         if (n == 0) {
@@ -385,11 +388,51 @@ class GlasbaStoritev : Service() {
         ponovitevVZivo = n
         ponovitevVZivoSkupaj++
         casiPonovitevVZivo += zdaj
-        Log.i("SafeerOsMedia", "kanal v zivo: ponovna povezava $ponovitevVZivoSkupaj ($zakaj, predvajano $predvajano ms, zaporedno brez podatkov $n)")
-        p.seekToDefaultPosition()
-        p.prepare()
-        p.play()
+        Log.i("SafeerOsMedia", "kanal v zivo: ponovna povezava $ponovitevVZivoSkupaj ($zakaj, predvajano $predvajano ms, zaporedno brez podatkov $n" +
+            (if (zamik > 0) ", cez $zamik ms" else "") + ")")
+        fun znova() { p.seekToDefaultPosition(); p.prepare(); p.play() }
+        if (zamik <= 0L) znova()
+        else {
+            // Medtem izbran drug vir (ali ustavljeno): zamaknjena ponovitev ne velja.
+            val izbrano = izbir
+            android.os.Handler(mainLooper).postDelayed({ if (primerek === this && izbir == izbrano && trenutna()?.id == enota.id) znova() }, zamik)
+        }
         return true
+    }
+
+    /**
+     * Naloga 100 (pregled 231, S1): sum nadomestne slike preverimo z vsebino - v ozadju dvakrat (razmik
+     * [OsPravila.NADOMESTEK_RAZMIK_MS]) preberemo zacetek toka ([SondaToka.odtisZacetka]) in primerjamo odtisa
+     * ([OsPravila.nadomestekPoOdtisih]). Enaka: tiho konec, kanal do jutri ne deluje, zaslon predvajanja se zapre. Razlicna:
+     * pravi prenos, sum za ta vir ne velja vec. Brez dokaza: nic (konec da meja ponovitev iz 97, kanal ni oznacen).
+     */
+    private fun preveriNadomestek(enota: Jamendo.Skladba) {
+        if (odtisVTeku || preverbOdtisa >= OsPravila.NADOMESTEK_PREVERB_NAJVEC) return
+        odtisVTeku = true
+        preverbOdtisa++
+        val izbrano = izbir
+        val app = applicationContext
+        Thread({
+            val glave = SpletniVir.glaveToka(enota.zvok)
+            val agent = SpletniVir.agent(app)
+            val t1 = android.os.SystemClock.elapsedRealtime()
+            val prvi = SondaToka.odtisZacetka(enota.zvok, glave, agent)
+            try { Thread.sleep(OsPravila.NADOMESTEK_RAZMIK_MS) } catch (_: InterruptedException) { }
+            val t2 = android.os.SystemClock.elapsedRealtime()
+            val drugi = SondaToka.odtisZacetka(enota.zvok, glave, agent)
+            val izid = OsPravila.nadomestekPoOdtisih(prvi?.first, drugi?.first, prvi?.second ?: 0, drugi?.second ?: 0, t2 - t1)
+            android.os.Handler(mainLooper).post {
+                if (primerek !== this || izbir != izbrano || trenutna()?.id != enota.id) return@post
+                odtisVTeku = false
+                Log.i("SafeerOsMedia", "kanal v zivo: odtis zacetka ${prvi?.second ?: 0}/${drugi?.second ?: 0} B, razmik ${t2 - t1} ms - " +
+                    when (izid) { true -> "nadomestna slika, kanal ne deluje"; false -> "pravi prenos"; null -> "ni dokaza" })
+                when (izid) {
+                    true -> { MrtviKanali.zapomni(this, enota.id); ustaviPredvajanje() }
+                    false -> zivPrenosDokazan = true
+                    null -> { }
+                }
+            }
+        }, "safeer-odtis").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start()
     }
 
     /** Posnetek je pri koncu: v vrsti posnetkov s strani (seznam predvajanja) zacne naslednji, sicer je konec. */
@@ -475,6 +518,7 @@ class GlasbaStoritev : Service() {
         vrsta = seznam
         zacelo = false; koncnaNapaka = null; zapisanaNedavno = ""
         ponovitevVZivo = 0; ponovitevVZivoSkupaj = 0; trajanjaVZivo.clear(); casiPonovitevVZivo.clear()
+        odtisVTeku = false; preverbOdtisa = 0; zivPrenosDokazan = false
         enaVZivo = s == null && seznam.size == 1 && seznam[0].let { it.radio || it.id.startsWith("tv:") || Stremio.jeVZivo(it) || IptvSeznami.jeKanal(it) }
         streznikTrenutni = s
         // Kanal ali postaja v zivo: streznik, ki se v 5 s ne oglasi, ne dela (privzeti rok 8 s je za datoteke).

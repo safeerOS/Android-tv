@@ -172,8 +172,8 @@ object KanaliPravila {
         urediRazlicice(imena, imena.indices.map { if (izIptv.getOrNull(it) != true || nedelujoc.getOrNull(it) == true) false else stanja.getOrNull(it) }).firstOrNull()
 
     /**
-     * Naloga 96: kratko ime seznama IPTV za oznako vira (»Live TV · si.m3u«): zadnji del poti naslova brez poizvedbe, ce ima
-     * koncnico (».m3u«), sicer gostitelj; uporabnisko ime in geslo v naslovu (povezave ponudnikov, tudi »/uporabnik/geslo« v
+     * Naloga 96: kratko ime seznama IPTV za oznako vira (»Live TV · si.m3u«): zadnji del poti naslova brez poizvedbe, ce je
+     * ime seznama ([jeImeSeznama], naloga 100), sicer gostitelj; uporabnisko ime in geslo v naslovu (povezave ponudnikov, tudi »/uporabnik/geslo« v
      * poti) se nikoli ne pokazeta.
      */
     fun imeSeznama(naslov: String): String {
@@ -181,7 +181,24 @@ object KanaliPravila {
         val poShemi = brez.substringAfter("://", brez)
         val gostitelj = poShemi.substringBefore('/').substringAfterLast('@')
         val zadnji = if ('/' in poShemi) poShemi.substringAfterLast('/') else ""
-        return zadnji.takeIf { '.' in it } ?: gostitelj
+        return zadnji.takeIf { jeImeSeznama(it) } ?: gostitelj
+    }
+
+    /** Naloga 100 (pregled 231, S4): zeton v imenu datoteke - dolg niz crk in stevk ali vec zaporednih stevk. */
+    private val RX_ZETON = Regex("[A-Za-z0-9]{16,}|[0-9]{8,}")
+
+    /**
+     * Naloga 100: ime iz poti pokazemo samo, ce je seznam (».m3u«, ».m3u8«) in ime ni podobno zetonu (najvec 24 znakov,
+     * brez [RX_ZETON]) - »/playlist/<zeton>.m3u« in »/play/abc.def« pokazeta gostitelja.
+     */
+    private fun jeImeSeznama(ime: String): Boolean {
+        val malo = ime.lowercase(java.util.Locale.ROOT)
+        val osnova = when {
+            malo.endsWith(".m3u8") -> ime.dropLast(5)
+            malo.endsWith(".m3u") -> ime.dropLast(4)
+            else -> return false
+        }
+        return osnova.isNotBlank() && osnova.length <= 24 && !RX_ZETON.containsMatchIn(osnova)
     }
 
     /** Naloga 93: odlocitev ob kliku kartice kanala - [prva] razlicica, [dodatki] (prva je ta, ki jo razresimo), [rezerva] iz seznama IPTV. */
@@ -194,10 +211,12 @@ object KanaliPravila {
      * rezerve in ob izpadu dodatka tiho odpovedal. null = ni zive razlicice.
      */
     fun klikKanala(imena: List<String>, stanja: List<Boolean?>, izDodatka: List<Boolean>, izIptv: List<Boolean>, nedelujoc: List<Boolean>): KlikKanala? {
-        val prva = urediRazlicice(imena, stanja).firstOrNull() ?: return null
+        // Naloga 100 (pregled 231, N6): razlicica z znanim nedelujocim tokom ni prva (tudi glava ne), kot pri rezervi.
+        val st = imena.indices.map { if (nedelujoc.getOrNull(it) == true) false else stanja.getOrNull(it) }
+        val prva = urediRazlicice(imena, st).firstOrNull() ?: return null
         if (izDodatka.getOrNull(prva) != true) return KlikKanala(prva, emptyList(), null)
         val dodatki = listOf(prva) + imena.indices.filter { it != prva && izDodatka.getOrNull(it) == true }
-        return KlikKanala(prva, dodatki, rezervaIptv(imena, stanja, izIptv, nedelujoc))
+        return KlikKanala(prva, dodatki, rezervaIptv(imena, st, izIptv, nedelujoc))
     }
 
     /**

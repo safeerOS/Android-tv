@@ -270,6 +270,10 @@ fun main() {
     preveriEnako("93: vse mrtve - ni klika", null, KanaliPravila.klikKanala(arenaS, listOf(false, false, false), dod, sez, nic))
     preveriEnako("93: znan nedelujoc tok seznama ni rezerva", KanaliPravila.KlikKanala(1, listOf(1, 2), null),
         KanaliPravila.klikKanala(arenaS, listOf(null, true, null), dod, sez, listOf(true, false, false)))
+    preveriEnako("100: glava seznama z znanim nedelujocim tokom ni prva", KanaliPravila.KlikKanala(1, listOf(1, 2), null),
+        KanaliPravila.klikKanala(arenaS, listOf(null, null, null), dod, sez, listOf(true, false, false)))
+    preveriEnako("100: edina razlicica z znanim nedelujocim tokom - ni klika", null,
+        KanaliPravila.klikKanala(listOf("TV SLO 1"), listOf(null), listOf(false), listOf(true), listOf(true)))
     val jeSeznam = { id: String -> id.startsWith("iptv:") }
     preveriEnako("93: izpad dodatka ne skrije razlicice seznama", listOf("stremio|tv|a|1", "stremio|tv|b|1"),
         KanaliPravila.mrtveObNeuspehuDodatka("stremio|tv|a|1", listOf("iptv:http://x.test/1", "stremio|tv|a|1", "stremio|tv|b|1"), jeSeznam))
@@ -282,6 +286,12 @@ fun main() {
     preveriEnako("96: samo gostitelj", "a.test", KanaliPravila.imeSeznama("https://a.test"))
     preveriEnako("96: poizvedba z geslom brez poti", "a.test", KanaliPravila.imeSeznama("http://a.test?username=u&password=p"))
     preveriEnako("96: geslo kot zadnji del poti se ne pokaze", "a.test", KanaliPravila.imeSeznama("http://a.test/playlist/uporabnik/geslo"))
+    preveriEnako("100: zeton kot ime seznama se ne pokaze", "a.test", KanaliPravila.imeSeznama("http://a.test/playlist/lhpjmkfVyhON1JAiZCx7vhWLdkJ.m3u"))
+    preveriEnako("100: ne-seznam s piko se ne pokaze", "a.test", KanaliPravila.imeSeznama("http://a.test/play/abc.def"))
+    preveriEnako("100: stevilka narocnika se ne pokaze", "a.test", KanaliPravila.imeSeznama("http://a.test/get/123456789.m3u8"))
+    preveriEnako("100: m3u8 z imenom", "index.m3u8", KanaliPravila.imeSeznama("https://a.test/live/index.m3u8"))
+    preveriEnako("100: predolgo ime", "a.test", KanaliPravila.imeSeznama("https://a.test/aaaa_bbbb_cccc_dddd_eeee_ffff.m3u"))
+    preveriEnako("100: samo koncnica", "a.test", KanaliPravila.imeSeznama("https://a.test/.m3u"))
 
     // Naloga 91b: jeziki izbire takoj ob odprtju.
     preveriEnako("91b: dodatki se niso odgovorili - shranjeni in seznami", listOf("sl", "en", "hr"),
