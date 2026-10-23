@@ -292,6 +292,132 @@ object OsPravila {
      */
     fun pritiskPomnilnika(raven: Int): Boolean = raven == 10 || raven == 15 || raven >= 60
 
+    // ------------------------------------------------------------------ naloga 77: glasba z id-ji IMDb (koncerti)
+
+    /** Id IMDb: »tt« in samo stevke. */
+    fun jeImdb(id: String): Boolean = id.length > 2 && id.startsWith("tt") && id.drop(2).all { it.isDigit() }
+
+    /**
+     * Naloga 77: vnos glasbenega tipa ([glasbenTip], npr. »music« kataloga Music Concerts) z id-jem IMDb je posnetek
+     * (koncert, glasbeni film) - video, ne zvok. Tokove zanj dajo filmski dodatki po IMDb.
+     */
+    fun glasbaJeVideo(glasbenTip: Boolean, id: String): Boolean = glasbenTip && jeImdb(id)
+
+    /**
+     * Naloga 77: s katerim tipom vprasamo dodatke po tokovih (pot /stream/{tip}/{id}.json). Ce noben uporabnikov dodatek ne
+     * da toka za [tip] ([dodatekZaTip] = false) in je id IMDb, vprasamo kot »movie« (koncert je film); film in serija ostaneta.
+     */
+    fun tipToka(tip: String, id: String, dodatekZaTip: Boolean): String =
+        if (!dodatekZaTip && jeImdb(id) && tip != "movie" && tip != "series") "movie" else tip
+
+    /**
+     * Naloga 77: dodatek ima samo kataloge za iskanje (vsak katalog zahteva »search«, npr. YouTubio): mreze nima, v Mojih
+     * virih pise »samo iskanje«, dotik odpre iskanje. [katalogi]: (prikazen brez filtra, podpira iskanje) za vsak katalog.
+     */
+    fun samoIskanje(katalogi: List<Pair<Boolean, Boolean>>): Boolean =
+        katalogi.isNotEmpty() && katalogi.none { it.first } && katalogi.any { it.second }
+
+    // ------------------------------------------------------------------ naloga 78: mreza nikoli ni prazna
+
+    /**
+     * Naloga 78 (lastnik, 23. 10. 2026: »Prazni seznam ni mi vsec«): kaj pride na zaslon namesto prazne prve strani izbire.
+     * [ZADNJA_ZNANA] zadnja znana mreza te izbire (disk); [SORODNO] sorodne police iz uporabnikovih virov; [POKAZI_VSE]
+     * kartica, ki odstrani filter; [BREZ_FILTRA] kartice iste mreze brez filtra (ze v pomnilniku); [NIC] razlog in Dodaj vir.
+     */
+    enum class Nadomestek { ZADNJA_ZNANA, SORODNO, POKAZI_VSE, BREZ_FILTRA, NIC }
+
+    /**
+     * Po vrsti: zadnja znana mreza ([zadnjaZnana] kartic), sicer sorodne police ([sorodne]: stevilo kartic vsake), nato ob
+     * izbranem filtru ([filter]) »Pokazi vse« in kartice brez filtra ([brezFiltra]); [NIC] samo, ce ni res nicesar.
+     */
+    fun nadomestnaVsebina(zadnjaZnana: Int, sorodne: List<Int>, filter: Boolean, brezFiltra: Int): List<Nadomestek> {
+        val r = ArrayList<Nadomestek>()
+        if (zadnjaZnana > 0) r += Nadomestek.ZADNJA_ZNANA
+        else if (sorodne.any { it > 0 }) r += Nadomestek.SORODNO
+        if (filter) {
+            r += Nadomestek.POKAZI_VSE
+            if (brezFiltra > 0) r += Nadomestek.BREZ_FILTRA
+        }
+        if (r.isEmpty()) r += Nadomestek.NIC
+        return r
+    }
+
+    /**
+     * Naloga 78: skupine v izbiri (npr. Glasba | Videospoti | Moja glasba): prva (privzeta) vedno; ostale samo, ce imajo
+     * vir ([skupine]: kljuc, ima vir), po svojem vrstnem redu. Prazna skupina ostane samo, ce je izbrana - na koncu.
+     */
+    fun <T> skupineIzbire(skupine: List<Pair<T, Boolean>>, izbrana: T): List<T> {
+        val prva = skupine.firstOrNull() ?: return emptyList()
+        val ostale = skupine.drop(1)
+        return listOf(prva.first) + ostale.filter { it.second }.map { it.first } +
+            listOfNotNull(ostale.firstOrNull { it.first == izbrana && !it.second }?.first)
+    }
+
+    // ------------------------------------------------------------------ naloga 79: dodatek brez prostih tokov
+
+    /**
+     * Naloga 79: kar vemo o tem, ali dodatek kanalov da proste tokove. [zaporednih] = zaporedni odgovori za kanale, ki so
+     * imeli samo obvestila (externalUrl »Click to Unlock Premium Access« ...) in nobenega predvajljivega toka;
+     * [zaklenjenOb] = kdaj smo sklenili, da dodatek tokove daje samo z narocnino (0 = ne).
+     */
+    data class Zaklep(val zaporednih: Int = 0, val zaklenjenOb: Long = 0L) {
+        fun vNiz() = "$zaporednih;$zaklenjenOb"
+        companion object {
+            fun izNiza(s: String?): Zaklep? {
+                val d = s.orEmpty().split(";")
+                if (d.size != 2) return null
+                val n = d[0].toIntOrNull() ?: return null
+                val ob = d[1].toLongOrNull() ?: return null
+                return if (n < 0 || ob < 0) null else Zaklep(n, ob)
+            }
+        }
+    }
+
+    /** Po toliko zaporednih kanalih samo z obvestili je dodatek »brez prostih tokov«. */
+    const val ZAKLENJEN_PO = 5
+    /** Sklep velja toliko casa; potem prvi tak odgovor sklep obnovi, predvajljiv tok pa ga pobrise. */
+    const val ZAKLENJEN_VELJA_MS = 24 * 3_600_000L
+
+    /**
+     * Zaklep po odgovoru dodatka za en kanal: [vnosov] vnosov v `streams`, od tega [predvajljivih] predvajljivih. Predvajljiv
+     * tok pobrise vse; prazen odgovor (kanal nima toka) ne pove nic o dodatku; samo obvestila stejejo.
+     */
+    fun poOdgovoruTokov(z: Zaklep, vnosov: Int, predvajljivih: Int, zdaj: Long): Zaklep = when {
+        predvajljivih > 0 -> Zaklep()
+        vnosov <= 0 -> z
+        else -> {
+            val n = z.zaporednih + 1
+            Zaklep(n, if (n >= ZAKLENJEN_PO && !jeZaklenjen(z, zdaj)) zdaj else z.zaklenjenOb)
+        }
+    }
+
+    /** Ali sklep »samo z narocnino« zdaj velja (ura nazaj: ne velja, dokler ga nov odgovor ne obnovi). */
+    fun jeZaklenjen(z: Zaklep?, zdaj: Long): Boolean = z != null && z.zaklenjenOb > 0L && zdaj - z.zaklenjenOb in 0 until ZAKLENJEN_VELJA_MS
+
+    /** Naloga 79b: najdaljsa povezava za odklep pri dodatku, ki jo sprejmemo. */
+    const val ODKLEP_NAJVEC = 2048
+
+    /**
+     * Naloga 79b: povezava »Click to Unlock Premium Access« (externalUrl dodatka), ki jo uporabnik lahko odpre v Safeer Splet:
+     * samo http(s), z gostiteljem, brez kontrolnih znakov in presledkov, najvec [ODKLEP_NAJVEC] znakov. Vrne samo shemo,
+     * gostitelja (z vrati) in pot - brez poizvedbe in sidra (tam je lahko kljuc ali sled); null = ni varna.
+     */
+    fun povezavaOdklepa(url: String?): String? {
+        val u = url?.trim().orEmpty()
+        if (u.isEmpty() || u.length > ODKLEP_NAJVEC || u.any { it.isISOControl() || it.isWhitespace() }) return null
+        val m = Regex("^(https?)://([^/?#@]+)(?=[/?#]|$)(/[^?#]*)?", RegexOption.IGNORE_CASE).find(u) ?: return null
+        val gostitelj = m.groupValues[2]
+        if (gostitelj.isEmpty() || gostitelj.startsWith(".") || gostitelj.startsWith(":")) return null
+        return m.groupValues[1].lowercase() + "://" + gostitelj.lowercase() + m.groupValues[3].ifEmpty { "/" }
+    }
+
+    /**
+     * Naloga 79b: isti dodatek dvakrat - nov naslov ([novaOsnova]) ima isti id manifesta ([idManifesta]) kot ze dodan
+     * ([dodani]: osnova -> id manifesta). Vrne osnove starih naslovov (drugacne osnove, isti id; prazen id ne steje).
+     */
+    fun stariNasloviDodatka(novaOsnova: String, idManifesta: String, dodani: Map<String, String>): List<String> =
+        if (idManifesta.isBlank()) emptyList() else dodani.filter { (o, id) -> o != novaOsnova && id == idManifesta }.keys.sorted()
+
     /** Ime gostitelja iz sporocila sistema »Unable to resolve host "ime": ...« ali "". */
     fun gostiteljIzNapake(sporocilo: String?): String =
         Regex("resolve host \"([^\"]+)\"").find(sporocilo.orEmpty())?.groupValues?.get(1)?.trim()?.lowercase().orEmpty()

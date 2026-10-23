@@ -81,6 +81,8 @@ object PregledKanalov {
             val n = napredek[naslov]
             if (n != null && (n.tece || !OsPravila.pregledJeNaVrsti(n.poln, n.poskus, zdaj))) return false
         }
+        // Naloga 79: rocni pregled preveri dodatek znova (po ZAKLENJEN_PO kanalih samo z obvestili se spet ustavi).
+        if (rocno) Stremio.pozabiZaklep(naslov)
         synchronized(vrsta) {
             if (rocno || naslov !in vrsta) vrsta[naslov] = rocno || vrsta[naslov] == true
             if (rocno) ustavi = ""
@@ -169,6 +171,8 @@ object PregledKanalov {
         if (MedijskiViri.vsi(app).none { it.jeStremio && it.naslov == naslov }) return "dodatek odstranjen"
         val omrezje = app.getSystemService(android.net.ConnectivityManager::class.java)
         if (omrezje == null || omrezje.activeNetwork == null || omrezje.isActiveNetworkMetered) return "omrezje"
+        // Naloga 79: dodatek daje samo obvestila o narocnini - proracuna ne trosimo na vse njegove kanale.
+        if (Stremio.brezProstihTokov(naslov)) return "tokovi samo z narocnino"
         if (Stremio.vPremoru(naslov)) return "dodatek v premoru"
         if (Stremio.neOdgovarja(naslov)) return "dodatek ne odgovarja"
         if (!Stremio.smeNaZalogo(listOf(naslov))) return "urni proracun"

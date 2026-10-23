@@ -338,4 +338,24 @@
     <string name="os_pregled_kanalov_po_predvajanju">I canali verranno controllati al termine della riproduzione.</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Controllo delle categorie dei componenti…</string>
+    <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->
+    <string name="os_mediji_samo_iskanje">solo ricerca</string>
+    <!-- Naloga 78: nadomestna vsebina prazne mreze. -->
+    <string name="os_media_zadnja_znana">Ultimo noto</string>
+    <string name="os_media_brez_filtra">Senza filtro</string>
+    <string name="os_media_sorodno_koncerti">Concerti</string>
+    <string name="os_media_sorodno_kanali">Canali musicali in diretta</string>
+    <string name="os_media_sorodno_postaje">Stazioni radio</string>
+    <string name="os_media_prazna_izbira">Niente in questa selezione – contenuti simili dalle tue fonti:</string>
+    <string name="os_media_pokazi_vse_opis">Rimuovi il filtro</string>
+    <string name="os_media_poisci_v">Cerca su %1$s</string>
+    <!-- Naloga 79: dodatek kanalov brez prostih tokov. -->
+    <string name="os_mediji_tokovi_narocnina">Flussi solo con abbonamento al componente</string>
+    <!-- Naloga 79b: odklep pri dodatku, zaklenjeni kanali, dvojnik dodatka. -->
+    <string name="os_mediji_odkleni">Sblocca presso il componente</string>
+    <string name="os_mediji_odkleni_opis">Il pagamento è tra te e il componente %1$s. Dopo l’abbonamento il componente di solito fornisce un nuovo indirizzo (con il tuo codice) – aggiungilo alle Mie fonti al posto di quello vecchio.</string>
+    <string name="os_mediji_odkleni_odpri">Apri</string>
+    <string name="os_tv_brez_zaklenjenih">Nascondi i canali bloccati</string>
+    <string name="os_tv_pokazi_zaklenjene">Mostra i canali bloccati</string>
+    <string name="os_mediji_dvojnik_dodatka">%1$s è aggiunto due volte (indirizzo vecchio e nuovo). Rimuovere l’indirizzo vecchio?</string>
 </resources>

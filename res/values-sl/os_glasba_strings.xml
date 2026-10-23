@@ -337,4 +337,24 @@
     <string name="os_pregled_kanalov_po_predvajanju">Kanale preverim, ko se predvajanje ustavi.</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Preverjam kategorije dodatkov …</string>
+    <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->
+    <string name="os_mediji_samo_iskanje">samo iskanje</string>
+    <!-- Naloga 78: nadomestna vsebina prazne mreze. -->
+    <string name="os_media_zadnja_znana">Zadnje znano</string>
+    <string name="os_media_brez_filtra">Brez filtra</string>
+    <string name="os_media_sorodno_koncerti">Koncerti</string>
+    <string name="os_media_sorodno_kanali">Glasbeni kanali v živo</string>
+    <string name="os_media_sorodno_postaje">Radijske postaje</string>
+    <string name="os_media_prazna_izbira">V tej izbiri ni ničesar – sorodno iz tvojih virov:</string>
+    <string name="os_media_pokazi_vse_opis">Odstrani filter</string>
+    <string name="os_media_poisci_v">Poišči na %1$s</string>
+    <!-- Naloga 79: dodatek kanalov brez prostih tokov. -->
+    <string name="os_mediji_tokovi_narocnina">Tokovi samo z naročnino pri dodatku</string>
+    <!-- Naloga 79b: odklep pri dodatku, zaklenjeni kanali, dvojnik dodatka. -->
+    <string name="os_mediji_odkleni">Odkleni pri dodatku</string>
+    <string name="os_mediji_odkleni_opis">Plačilo je med tabo in dodatkom %1$s. Po naročnini dodatek običajno da nov naslov (z vašo kodo) – dodaj ga v Moje vire namesto starega.</string>
+    <string name="os_mediji_odkleni_odpri">Odpri</string>
+    <string name="os_tv_brez_zaklenjenih">Brez zaklenjenih kanalov</string>
+    <string name="os_tv_pokazi_zaklenjene">Pokaži zaklenjene kanale</string>
+    <string name="os_mediji_dvojnik_dodatka">%1$s je dodan dvakrat (star in nov naslov). Odstranim stari naslov?</string>
 </resources>

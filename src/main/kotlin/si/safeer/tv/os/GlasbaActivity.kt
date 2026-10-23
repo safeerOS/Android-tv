@@ -2371,6 +2371,9 @@ class GlasbaActivity : OsActivity() {
         val kartice = videi(vsi, naslov, zapomnjene = o.zapomnjene) + (if (seVec && (vsi.isNotEmpty() || (o.caka.get() == 0 && !o.nalagam))) listOf(Kartica(napisVec, "", "",
             { vecMreze(o) }, ikona = R.drawable.os_ikona_plus)) else emptyList()) +
             // Naloga 57: prazna mreza brez cesar koli za preverjanje ponudi Dodaj vir.
+            // Naloga 78: zvrst ali jezik je izpraznila mrezo Filmi | Serije - kartica, ki filter odstrani.
+            (if (vsi.isEmpty() && !seVec && !o.nalagam && o.caka.get() == 0 && o.popolna && o.tip.isNotBlank() && (o.zvrst.isNotBlank() || o.jezik.isNotBlank()))
+                listOf(Kartica(getString(R.string.os_media_pokazi_vse), getString(R.string.os_media_pokazi_vse_opis), "", { odpriBrskanje(o.tip) }, ikona = R.drawable.os_ikona_mreza)) else emptyList()) +
             (if (vsi.isEmpty() && !seVec && !o.nalagam && o.caka.get() == 0 && o.popolna) listOf(karticaDodajVir()) else emptyList()) +
             // Naloga 57c: konec kataloga - kartica Nalozi vec ne izgine brez razlage; klik ponudi Dodaj vir.
             (if (vsi.isNotEmpty() && !seVec && !o.nalagam && o.caka.get() == 0 && o.popolna) listOf(Kartica(getString(R.string.os_media_ni_vec_v_katalogu),
@@ -3616,12 +3619,17 @@ class GlasbaActivity : OsActivity() {
         val vsi = ArrayList<Jamendo.Skladba>(urejeni.size)
         var izDodatkov = 0
         var naprej = false
+        var brezProstih = 0
         val narisaniZdaj = m.narisani.toHashSet()
         for (sk in urejeni) {
             // Kanal iz dodatka, ki je samo katalog (tok da drug dodatek), pri njegovem dodatku ni preverljiv: v mrezi je
             // brez preverjanja, kot doslej.
             val preverljiv = preverjam && Stremio.jeEnota(sk) && sk.id !in vednoId && Stremio.dajeLastneTokove(sk)
             // Vgrajeni in priljubljeni kanali so vedno v mrezi - tudi, ko je okno kanalov dodatkov polno.
+            // Naloga 79: dodatek daje tokove samo z narocnino - njegovih kanalov ne pokazemo vnaprej (prej so se pokazali in
+            // po preverjanju drug za drugim izginili). Isti kanal iz drugega dodatka (po kljucu imena) je njegova kartica.
+            // Naloga 79b: v izbiri »Pokazi zaklenjene kanale« (privzeto izklopljeno) ostanejo; klik ponudi odklep pri dodatku.
+            if (!tvZaklenjeni && Stremio.jeEnota(sk) && sk.id !in vednoId && Stremio.brezProstihTokovKanala(sk)) { brezProstih++; continue }
             if (!preverljiv) { if (!MrtviKanali.jeMrtev(this, sk.id)) vsi += sk; continue }
             // Dokazano mrtev (preverjanje, klik, napaka predvajanja) izgine; ziv in neznan ostaneta.
             if (MrtviKanali.stanje(this, sk.id) == false) continue
@@ -3665,6 +3673,7 @@ class GlasbaActivity : OsActivity() {
             cakamDodatke -> getString(R.string.os_glasba_nalagam)
             viriTiho -> getString(R.string.os_tv_viri_ne_odgovarjajo, m.cezMinut.coerceAtLeast(1))
             prikaz.isEmpty() && brezSpletnihVirov() -> getString(R.string.os_media_brez_virov)
+            prikaz.isEmpty() && brezProstih > 0 -> getString(R.string.os_mediji_tokovi_narocnina)
             prikaz.isEmpty() -> getString(R.string.os_tv_ni_kanalov)
             else -> ""
         }
@@ -3687,6 +3696,9 @@ class GlasbaActivity : OsActivity() {
         // (tvIkone ne praznimo: pogledi vgrajenih kanalov ostanejo isti in morajo ostati prijavljeni za osvezitev ikon.)
         val kartice = videi(prikaz, razlicice = m.razlicice) + (if (vec) listOf(Kartica(getString(R.string.os_media_nalozi_vec), "", "",
             { vecKanalov(m) }, ikona = R.drawable.os_ikona_plus)) else emptyList()) +
+            // Naloga 78: izbrana zvrst ali jezik je izpraznila mrezo - kartica, ki filter odstrani (pred Dodaj vir).
+            (if (prikaz.isEmpty() && !cakamDodatke && !m.nalagam && (m.zvrst.isNotEmpty() || m.jezik.isNotEmpty())) listOf(Kartica(getString(R.string.os_media_pokazi_vse),
+                getString(R.string.os_media_pokazi_vse_opis), "", { odpriKanale("", "") }, ikona = R.drawable.os_ikona_mreza)) else emptyList()) +
             (if (prikaz.isEmpty() && !cakamDodatke && !m.nalagam) listOf(karticaDodajVir()) else emptyList())
         pokaziMrezo(m, Vrsta("", kartice, video = true, mreza = true, kanali = true), opis,
             "${m.zvrst}|${m.jezik}|${razvrstitev(TV_V_ZIVO)}|$napisi|${ozekZaslon()}") {
@@ -3733,7 +3745,10 @@ class GlasbaActivity : OsActivity() {
                 m.razlicice.clear()
                 narisiKanale(m)
             },
-        )
+        ) + (if (!tvZaklenjeni && stremioNaslovi().none { Stremio.brezProstihTokov(it) }) emptyList() else listOf(
+            // Naloga 79b: zaklenjeni kanali (dodatek daje tokove samo z narocnino) so privzeto skriti.
+            PoljeIzbire("izb:zaklenjeni", listOf(getString(R.string.os_tv_brez_zaklenjenih), getString(R.string.os_tv_pokazi_zaklenjene)),
+                if (tvZaklenjeni) 1 else 0, null) { i -> tvZaklenjeni = i == 1; odpriKanale(m.zvrst, m.jezik) }))
     }
 
     // ------------------------------------------------------------------ Radio in Glasba: mreza z izbirami
@@ -3755,6 +3770,9 @@ class GlasbaActivity : OsActivity() {
         var narisani: List<String> = emptyList()
         /** Kolikokrat smo prazno prvo stran ze poskusili znova ([naloziMrezo]). */
         @Volatile var poskusov = 0
+        /** Naloga 78: kar pokazemo namesto prazne mreze ([nadomestnaMreza]): (vrsta, naslov police, kartice). */
+        var nadomestne: List<Triple<OsPravila.Nadomestek, String, List<Jamendo.Skladba>>>? = null
+        var isceNadomestek = false
         var seKaj = false
         var nalagam = true
         var zadnjicVec = 0L
@@ -3846,8 +3864,17 @@ class GlasbaActivity : OsActivity() {
             // Stran brez novih enot: konec (vir strani ne pozna ali jih ni vec).
             m.seKaj = seKaj && (prva || dodanih > 0)
             m.zadnjicVec = android.os.SystemClock.uptimeMillis()
-            if (prva && m.vsi.isNotEmpty()) VSEBINA_MREZE[m.kljuc] = m.vsi.toList()
+            if (prva && m.vsi.isNotEmpty()) {
+                VSEBINA_MREZE[m.kljuc] = m.vsi.toList()
+                // Naloga 78: zadnja znana prva stran izbire tudi na disk - nadomestek prazne mreze po zagonu.
+                val app = applicationContext
+                val zapis = m.vsi.take(60)
+                try { delavec.execute { MedijskiPredpomnilnik.shraniPolice(app, "mreza|" + m.kljuc, listOf(Triple("vsi", true, zapis))) } }
+                catch (_: java.util.concurrent.RejectedExecutionException) { }
+            }
             for (s in prej) if (m.videni.add(kljucVMrezi(s))) m.vsi += s
+            // Naloga 78: prva stran je prazna in nicesar vec ne pricakujemo - namesto »Nothing found« nadomestna vsebina.
+            if (prva && m.vsi.isEmpty() && m.viri.none { it.vTeku != null } && m.spletniVTeku == null) nadomestnaMreza(m)
             val y = drsnik.scrollY
             narisiMrezo(m)
             if (!prva) drsnik.post(object : Runnable {
@@ -3869,7 +3896,8 @@ class GlasbaActivity : OsActivity() {
                 var dodanih = 0
                 for (s in pozne) if (m.videni.add(kljucVMrezi(s))) { m.vsi += s; dodanih++ }
                 android.util.Log.i("SafeerOsMedia", "mreza ${m.razdelek}: pozni dodatki so dali $dodanih novih kartic")
-                if (dodanih == 0) return@post
+                // Naloga 78: tudi pozni dodatki niso dali nicesar - nadomestna vsebina namesto prazne mreze.
+                if (dodanih == 0) { if (m.vsi.isEmpty() && !m.nalagam) nadomestnaMreza(m); return@post }
                 m.seKaj = m.seKaj || m.viri.any { !it.konec }
                 if (m.stran <= 1) VSEBINA_MREZE[m.kljuc] = m.vsi.toList()
                 narisiMrezo(m)
@@ -3937,7 +3965,9 @@ class GlasbaActivity : OsActivity() {
         val dodatki = MedijskiViri.vsi(this).filter { it.jeStremio && jeVirViden(GLASBA, kljucVira(it)) }.map { it.naslov }
         if (dodatki.isEmpty()) return emptyList()
         return (try { Stremio.katalogiRazreda(dodatki, Stremio.GLASBA) } catch (_: Exception) { emptyList() })
-            .filter { videospoti == null || (Stremio.razred(it.tip) != Stremio.GLASBA) == videospoti }.take(10)
+            // Naloga 77: glasbeni katalog s posnetki z IMDb (Music Concerts, tip music) je video - sodi med videospote. Prej ga je
+            // ta filter (tip music = zvok) izlocil in skupina »Music videos« je bila prazna.
+            .filter { videospoti == null || (Stremio.razred(it.tip) != Stremio.GLASBA || Stremio.jeVideoKatalog(it)) == videospoti }.take(10)
     }
 
     private fun stranGlasbe(m: MrezaVsebine, prva: Boolean): Pair<List<Jamendo.Skladba>, Boolean> {
@@ -4002,6 +4032,9 @@ class GlasbaActivity : OsActivity() {
             vsi.isEmpty() -> getString(R.string.os_glasba_prazno)
             else -> ""
         }
+        // Naloga 78: prazna mreza z nadomestno vsebino (zadnja znana, sorodno, brez filtra).
+        val nadomestne = m.nadomestne
+        if (vsi.isEmpty() && !m.nalagam && nadomestne != null) { narisiNadomestek(m, nadomestne, opis); return }
         val vec = m.seKaj && !m.nalagam && vsi.isNotEmpty()
         val dodaj = if (vsi.isEmpty() && !m.nalagam) listOf(karticaDodajVir()) else emptyList()
         val podpis = "${vsi.map { it.id }.hashCode()}|$vec|$opis|${razvrstitev(m.razdelek)}|${vsebina.width}"
@@ -4014,6 +4047,90 @@ class GlasbaActivity : OsActivity() {
             "${m.kljuc}|${razvrstitev(m.razdelek)}|${ozekZaslon()}") {
             (if (vlc) emptyList() else listOf(razdelkiVrstica(m.razdelek))) + listOf(if (radio) radioIzbire() else glasbaIzbire())
         }
+    }
+
+    /**
+     * Naloga 78: vsebina namesto prazne prve strani Glasbe ali Radia ([OsPravila.nadomestnaVsebina]), v ozadju: zadnja znana
+     * mreza te izbire z diska, sicer sorodne police ([sorodnePolice]); ob filtru »Pokazi vse« in kartice brez filtra iz
+     * pomnilnika. Enkrat na odprto mrezo.
+     */
+    private fun nadomestnaMreza(m: MrezaVsebine) {
+        if (m.isceNadomestek) return
+        m.isceNadomestek = true
+        val app = applicationContext
+        val radio = m.razdelek == RADIO
+        val videospoti = !radio && glasbaSkupina() == SKUPINA_VIDEOSPOTI
+        val filter = if (radio) radioZvrst.isNotEmpty() else glasbaZvrst.isNotEmpty() || glasbaJezik.isNotEmpty() || videospoti
+        val brezFiltra = if (!filter) emptyList() else VSEBINA_MREZE[if (radio) "r|$radioSkupina||${Locale.getDefault().country}" else "g|||"].orEmpty()
+        val dodatki = stremioNaslovi()
+        try { delavec.execute {
+            val disk = (try { MedijskiPredpomnilnik.beriPoliceSCasom(app, "mreza|" + m.kljuc) } catch (_: Exception) { null })
+                ?.second?.firstOrNull()?.third.orEmpty().filter { !Stremio.brezDodatka(it, dodatki) }
+            val sorodne = if (disk.isNotEmpty()) emptyList() else try { sorodnePolice(radio, videospoti) } catch (_: Exception) { emptyList() }
+            val izbira = OsPravila.nadomestnaVsebina(disk.size, sorodne.map { it.second.size }, filter, brezFiltra.size)
+            val police = izbira.flatMap { n ->
+                when (n) {
+                    OsPravila.Nadomestek.ZADNJA_ZNANA -> listOf(Triple(n, getString(R.string.os_media_zadnja_znana), disk))
+                    OsPravila.Nadomestek.SORODNO -> sorodne.filter { it.second.isNotEmpty() }.map { Triple(n, it.first, it.second) }
+                    OsPravila.Nadomestek.BREZ_FILTRA -> listOf(Triple(n, getString(R.string.os_media_brez_filtra), brezFiltra))
+                    else -> listOf(Triple(n, "", emptyList()))
+                }
+            }
+            android.util.Log.i("SafeerOsMedia", "mreza ${m.razdelek}: prazna, nadomestek=${izbira}, police=${police.map { it.second to it.third.size }}")
+            glavna.post { if (mrezaVsebine === m && !isFinishing) { m.nadomestne = police; m.podpis = ""; narisiMrezo(m) } }
+        } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
+    /**
+     * Naloga 78: sorodne police iz uporabnikovih virov (klic iz ozadja): Glasba - koncerti (glasbeni katalogi s posnetki),
+     * glasbeni kanali v zivo (katalogi TV z glasbenim imenom, npr. »All IPTV Music«), radijske postaje; Radio - glasbeni
+     * kanali v zivo. Po najvec 30 kartic, prva stran kataloga (circuit breaker in predpomnilnik katalogov veljata).
+     */
+    private fun sorodnePolice(radio: Boolean, videospoti: Boolean): List<Pair<String, List<Jamendo.Skladba>>> {
+        val vsiViri = MedijskiViri.vsi(this).filter { it.jeStremio }
+        val zaGlasbo = vsiViri.filter { jeVirViden(GLASBA, kljucVira(it)) }.map { it.naslov }
+        val zaTv = vsiViri.filter { jeVirViden(TV_V_ZIVO, kljucVira(it)) }.map { it.naslov }
+        fun prveStrani(katalogi: List<Stremio.Katalog>): List<Jamendo.Skladba> = katalogi.take(3)
+            .map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k).take(30) } catch (_: Exception) { emptyList() } } }
+            .flatMap { f -> try { f.get(10, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } }
+            .filterNot { ZasebniKanali.jeZaseben(it.id) || MrtviKanali.jeMrtev(this, it.id) || znanoNiNaVoljo(it) }
+            .distinctBy { it.id }.take(30)
+        val police = ArrayList<Pair<String, List<Jamendo.Skladba>>>()
+        if (!radio && !videospoti && zaGlasbo.isNotEmpty())
+            police += getString(R.string.os_media_sorodno_koncerti) to prveStrani(Stremio.katalogiRazreda(zaGlasbo, Stremio.GLASBA).filter { Stremio.jeVideoKatalog(it) })
+        if (zaTv.isNotEmpty())
+            police += getString(R.string.os_media_sorodno_kanali) to prveStrani(Stremio.katalogiRazreda(zaTv, Stremio.TV).filter { OsPravila.glasbenoIme(it.ime) })
+        if (!radio && jeVirViden(RADIO, VIR_RADIO))
+            police += getString(R.string.os_media_sorodno_postaje) to (try { Radio.stran(Locale.getDefault().country, "", 30, 0) } catch (_: Exception) { emptyList() })
+        return police
+    }
+
+    /** Naloga 78: prazna mreza z nadomestno vsebino - police z oznako, od kod so, in dejanja (Pokazi vse, Dodaj vir, iskanje). */
+    private fun narisiNadomestek(m: MrezaVsebine, police: List<Triple<OsPravila.Nadomestek, String, List<Jamendo.Skladba>>>, opisPrazne: String) {
+        val radio = m.razdelek == RADIO
+        val nic = police.any { it.first == OsPravila.Nadomestek.NIC }
+        val podpis = "nadomestek|${police.map { it.second to it.third.map { s -> s.id } }.hashCode()}|${vsebina.width}"
+        val opis = if (nic) opisPrazne else getString(R.string.os_media_prazna_izbira)
+        if (podpis == m.podpis) { if (stanje.text.toString() != opis) stanje.text = opis; return }
+        m.podpis = podpis
+        m.narisani = emptyList()
+        val dejanja = ArrayList<Kartica>()
+        if (police.any { it.first == OsPravila.Nadomestek.POKAZI_VSE }) dejanja += Kartica(getString(R.string.os_media_pokazi_vse),
+            getString(R.string.os_media_pokazi_vse_opis), "", {
+                if (radio) radioZvrst = "" else { glasbaZvrst = ""; glasbaJezik = ""; shraniGlasbaSkupino("") }
+                fokusVVsebino = true; odpriMrezo(m.razdelek)
+            }, ikona = R.drawable.os_ikona_mreza)
+        if (nic) {
+            dejanja += karticaDodajVir()
+            // Glasba: dodatek samo za iskanje (YouTubio) - predlog, da tam poisce.
+            if (!radio) MedijskiViri.vsi(this).firstOrNull { it.jeStremio && Stremio.samoIskanje(it.naslov) == true }?.let { v ->
+                val ime = Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime
+                dejanja += Kartica(getString(R.string.os_media_poisci_v, ime), getString(R.string.os_mediji_samo_iskanje), "", { odpriIskanje("") }, ikona = R.drawable.os_ikona_splet)
+            }
+        }
+        val vrste = (if (dejanja.isEmpty()) emptyList() else listOf(Vrsta("", dejanja, mala = true))) +
+            police.filter { it.third.isNotEmpty() }.map { (_, naslov, s) -> Vrsta(naslov, if (s.any { it.video }) videi(s) else skladbe(s)) }
+        narisi(vrste, opis, glava = (if (vlc) emptyList() else listOf(razdelkiVrstica(m.razdelek))) + listOf(if (radio) radioIzbire() else glasbaIzbire()))
     }
 
     /** Izbire mreze Radia: [Domace postaje | Postaje po svetu ▾] [Vse zvrsti ▾] [Priporoceno ▾]. */
@@ -4045,16 +4162,18 @@ class GlasbaActivity : OsActivity() {
         val viri = MedijskiViri.vsi(this)
         // Videospoti dodatka: samo, dokler ne vemo, da njegova knjiznica tokov ne daje ([ZaupanjeKnjiznic]) - izbira,
         // ki odpre prazno mrezo, ni izbira.
-        val imaVideospote = skupina == SKUPINA_VIDEOSPOTI || viri.any { it.jeSplet } ||
-            viri.any { it.jeStremio && Stremio.imeIzPredpomnilnika(it.naslov)?.let { ime -> OsPravila.glasbenoIme(ime) } == true &&
-                ZaupanjeKnjiznic.stanje(Stremio.osnova(it.naslov)) != false }
-        val imaMoje = skupina == SKUPINA_MOJE || MedijskiViri.priljubljene(this).any { !it.video && !it.radio } ||
+        // Naloga 78: skupina je v izbiri samo, ce ima vir - videospoti: spletni vir ali dodatek z glasbenimi posnetki
+        // ([Stremio.imaVideospote], tudi koncerti) in knjiznico, ki tokove daje. Prej je bila »Music videos« ponujena ze ob
+        // glasbenem imenu dodatka in je odprla prazno mrezo. Prazna izbrana skupina je na koncu ([OsPravila.skupineIzbire]).
+        val imaVideospote = viri.any { it.jeSplet } || Stremio.imaVideospote(viri.filter { it.jeStremio && jeVirViden(GLASBA, kljucVira(it)) &&
+            ZaupanjeKnjiznic.stanje(Stremio.osnova(it.naslov)) != false }.map { it.naslov })
+        val imaMoje = MedijskiViri.priljubljene(this).any { !it.video && !it.radio } ||
             MedijskiViri.seznami(this).any { sz -> sz.skladbe.isNotEmpty() && !sz.skladbe.all { it.video } }
-        val skupine = listOf("" to getString(R.string.os_mediji_glasba)) +
-            (if (imaVideospote) listOf(SKUPINA_VIDEOSPOTI to getString(R.string.os_media_videospoti)) else emptyList()) +
-            (if (imaMoje) listOf(SKUPINA_MOJE to getString(R.string.os_media_moja_glasba)) else emptyList()) +
+        val imena = mapOf("" to getString(R.string.os_mediji_glasba), SKUPINA_VIDEOSPOTI to getString(R.string.os_media_videospoti),
+            SKUPINA_MOJE to getString(R.string.os_media_moja_glasba), SKUPINA_NAPRAVA to getString(R.string.os_krajevno_koren))
+        val skupine = OsPravila.skupineIzbire(listOf("" to true, SKUPINA_VIDEOSPOTI to imaVideospote, SKUPINA_MOJE to imaMoje) +
             // Samostojni Predvajalnik: glasba iz shrambe naprave (prej polica nad spletnimi policami).
-            (if (vlc) listOf(SKUPINA_NAPRAVA to getString(R.string.os_krajevno_koren)) else emptyList())
+            (if (vlc) listOf(SKUPINA_NAPRAVA to true) else emptyList()), skupina).map { it to imena.getValue(it) }
         val polja = ArrayList<PoljeIzbire>()
         polja += PoljeIzbire("izb:skupina", skupine.map { it.second }, skupine.indexOfFirst { it.first == skupina }.coerceAtLeast(0), null) { i ->
             shraniGlasbaSkupino(skupine[i].first); fokusVVsebino = false; izberi(GLASBA)
@@ -4679,6 +4798,10 @@ class GlasbaActivity : OsActivity() {
                     // Naloga 57d: dodatek, ki zaporedoma ne odgovarja, ima oznako (izgine sama, ko spet odgovori).
                     v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "") +
                         (if (Stremio.neOdgovarja(v.naslov)) " · " + getString(R.string.os_mediji_ne_odgovarja) else "") +
+                        // Naloga 77: dodatek samo za iskanje (YouTubio) nima mreze - uporabnik mora vedeti, kje ga najde.
+                        (if (Stremio.samoIskanje(v.naslov) == true) " · " + getString(R.string.os_mediji_samo_iskanje) else "") +
+                        // Naloga 79: dodatek daje tokove samo z narocnino (povezave na placilo ne kazemo).
+                        (if (Stremio.brezProstihTokov(v.naslov)) " · " + getString(R.string.os_mediji_tokovi_narocnina) else "") +
                         // Naloga 75: napredek ali izid pregleda kanalov dodatka.
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
@@ -4689,6 +4812,8 @@ class GlasbaActivity : OsActivity() {
                         // Naloga 69: imenik postaj odpre Radio (domace postaje, zvrsti, iskanje).
                         v.jeImenik -> { fokusVVsebino = true; izberi(RADIO) }
                         // Dodatek: pokazemo shranjeni naslov (predvajanje prek dodatkov je naslednji korak).
+                        // Naloga 77: dodatek samo za iskanje odpre iskanje (njegovi zadetki so med zadetki dodatkov).
+                        v.jeStremio && Stremio.samoIskanje(v.naslov) == true -> odpriIskanje("")
                         v.jeStremio -> odpriRazdelekDodatka(v.naslov)
                         // Spletna stran: odpre jo brskalnik Safeer, ki predvaja vse (z vgrajenim Scitom).
                         v.jeSplet -> odpriStran(v.naslov, v.ime)
@@ -4893,6 +5018,9 @@ class GlasbaActivity : OsActivity() {
         val na = v.kljuc in MedijskiViri.pripeti(this)
         val dejanja = listOf(getString(if (na) R.string.os_media_s_plosce else R.string.os_media_na_plosco) to preklopi) +
             // Naloga 75: rocni pregled kanalov dodatka (tudi kanalov z znanim izidom - mrtev ni za vedno).
+            // Naloga 79b: zaklenjen dodatek - placilo je stvar uporabnika in dodatka; odpremo samo, ce uporabnik to izbere.
+            (if (dodan.jeStremio && Stremio.povezavaOdklepa(dodan.naslov) != null) listOf(getString(R.string.os_mediji_odkleni) to {
+                odkleniPriDodatku(dodan.naslov) }) else emptyList()) +
             (if (dodan.jeStremio) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
                 val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true)
                 Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
@@ -6035,6 +6163,8 @@ class GlasbaActivity : OsActivity() {
         poSpremembiVirov(); izberi(VIRI)
         // Naloga 75: kanale novega dodatka preverimo v ozadju (dodatek brez kanalov TV pregled konca takoj).
         PregledKanalov.zacni(applicationContext, v.naslov, rocno = false)
+        // Naloga 79b: isti dodatek z novim naslovom (po narocnini) - stari naslov ponudimo v odstranitev.
+        preveriDvojnikDodatka(v.naslov)
         // Kartica dodatka pokaze ime iz manifesta (ne naslova streznika), brz ko ga preberemo.
         if (Stremio.imeIzPredpomnilnika(v.naslov) == null) delavec.execute {
             try { Stremio.zaseben(v.naslov) } catch (_: Exception) { }
@@ -6332,7 +6462,10 @@ class GlasbaActivity : OsActivity() {
      * Tokovi iz vseh dodatkov hkrati (vsak dodatek svoja nit, skupaj najvec 12 s): cakanje je toliko, kot traja
      * najpocasnejsi dodatek, ne vsota vseh (prej zaporedno).
      */
-    private fun tokoviVzporedno(tip: String, id: String): List<Stremio.Tok> {
+    private fun tokoviVzporedno(tip0: String, id: String): List<Stremio.Tok> {
+        // Naloga 77: vnos tipa »music« z id-jem IMDb (koncert) vprasamo kot »movie«, ce noben dodatek ne da tokov za »music«.
+        val tip = Stremio.tipToka(stremioNaslovi(), tip0, id)
+        if (tip != tip0) android.util.Log.i("SafeerOsMedia", "tokovi: tip $tip0 -> $tip (noben dodatek ne da tokov za $tip0)")
         val niti = stremioNaslovi().map { n -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { Stremio.tokovi(listOf(n), tip, id) } catch (_: Exception) { emptyList() } } }
         val zacetek = android.os.SystemClock.uptimeMillis()
         var prviTok = 0L
@@ -6721,6 +6854,53 @@ class GlasbaActivity : OsActivity() {
         if (jeTv()) naslednja?.requestFocus()
     }
     private val obMrtvemKanalu: (String) -> Unit = { glavna.post { if (!isFinishing) umakniMrtvega() } }
+
+    /**
+     * Naloga 79b (lastnik: »Kako naj uporabnik placa dodatku ... to bi moralo biti omogoceno«): povezava za odklep pri dodatku
+     * ([Stremio.povezavaOdklepa]) v Safeer Splet (s Scitom) - samo na izrecno dejanje, s pojasnilom pred odprtjem; nikoli
+     * samodejno in nikoli v mrezi.
+     */
+    private fun odkleniPriDodatku(naslov: String) {
+        val povezava = Stremio.povezavaOdklepa(naslov) ?: return
+        val ime = Stremio.imeIzPredpomnilnika(naslov) ?: MedijskiViri.vsi(this).firstOrNull { Stremio.osnova(it.naslov) == Stremio.osnova(naslov) }?.ime.orEmpty()
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_mediji_odkleni))
+            .setMessage(getString(R.string.os_mediji_odkleni_opis, ime.ifBlank { android.net.Uri.parse(povezava).host.orEmpty() }))
+            .setPositiveButton(R.string.os_mediji_odkleni_odpri) { _, _ -> odpriStran(povezava, ime) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Naloga 79b: dodan je dodatek, ki je pod drugim naslovom ze dodan (isti id manifesta - npr. nov naslov s kodo po narocnini):
+     * sklep »brez prostih tokov« starega naslova pozabimo in ponudimo odstranitev starega. Klic z glavne niti po shranitvi.
+     */
+    private fun preveriDvojnikDodatka(naslov: String) {
+        val app = applicationContext
+        try { delavec.execute {
+            val nova = Stremio.osnova(naslov)
+            val dodani = MedijskiViri.vsi(app).filter { it.jeStremio }.associate { v ->
+                Stremio.osnova(v.naslov) to (try { Stremio.manifest(v.naslov)?.id } catch (_: Exception) { null }).orEmpty() }
+            val stari = OsPravila.stariNasloviDodatka(nova, dodani[nova].orEmpty(), dodani)
+            if (stari.isEmpty()) return@execute
+            stari.forEach { Stremio.pozabiZaklep(it) }
+            android.util.Log.i("SafeerOsMedia", "dodatek dodan dvakrat (isti id manifesta): starih naslovov ${stari.size}")
+            glavna.post {
+                if (isFinishing) return@post
+                val star = MedijskiViri.vsi(this).firstOrNull { it.jeStremio && Stremio.osnova(it.naslov) in stari } ?: return@post
+                val ime = Stremio.imeIzPredpomnilnika(naslov) ?: star.ime
+                AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(ime)
+                    .setMessage(getString(R.string.os_mediji_dvojnik_dodatka, ime))
+                    .setPositiveButton(R.string.os_mediji_odstrani) { _, _ ->
+                        MedijskiViri.odstrani(this, star)
+                        val o = Stremio.osnova(star.naslov)
+                        delavec.execute { ZasebniKanali.pozabi(app, o) }
+                        poSpremembiVirov(); izberiNaMestu(VIRI)
+                    }
+                    .setNegativeButton(android.R.string.cancel, null).show()
+            }
+        } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
 
     /** Naloga 75: napredek pregleda kanalov na kartici dodatka - Moji viri se osvezijo na mestu, ko uporabnik miruje. */
     private val obPregleduKanalov: () -> Unit = {
@@ -7274,6 +7454,14 @@ class GlasbaActivity : OsActivity() {
             }
             // Kanal ali postaja v zivo brez prenosa (dodatek ga nasteva, toka zanj nima): povemo in ga do jutri ne kazemo.
             // Prej: kratko obvestilo, ploscica je ostala in dotik ni naredil nicesar (izmerjeno 5. 10. 2026).
+            // Naloga 79: dodatek je dal samo obvestilo (placljiv dostop) - kanal ni mrtev; povemo zakaj, povezave na placilo ne.
+            if (obNeuspehu == null && Stremio.jeVZivo(sk) && Stremio.samoObvestilaKanala(sk)) {
+                // Naloga 79b: isto okno kot »Odkleni pri dodatku« v Mojih virih (ce je dodatek dal povezavo).
+                val osnova = Stremio.razstavi(sk)?.first.orEmpty()
+                if (Stremio.povezavaOdklepa(osnova) != null) odkleniPriDodatku(osnova)
+                else Toast.makeText(this, R.string.os_mediji_tokovi_narocnina, Toast.LENGTH_LONG).show()
+                return
+            }
             if (obNeuspehu == null && (Stremio.jeVZivo(sk) || Stremio.razredEnote(sk) == Stremio.RADIO)) {
                 Toast.makeText(this, getString(R.string.os_media_kanal_brez_toka, naslov), Toast.LENGTH_LONG).show()
                 val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
@@ -7960,6 +8148,8 @@ class GlasbaActivity : OsActivity() {
         /** TV v zivo: izbrana zvrst in jezik (dokler je aplikacija odprta), zadnje znane izbire in zadnja mreza vsake izbire. */
         private var tvZvrst = ""
         private var tvJezik = ""
+        /** Naloga 79b: Live TV kaze tudi kanale dodatkov, ki tokove dajejo samo z narocnino (dokler je aplikacija odprta). */
+        private var tvZaklenjeni = false
         @Volatile private var FILTRI_KANALOV: KanaliPravila.Filtri? = null
         private val KANALI_MREZE = java.util.concurrent.ConcurrentHashMap<String, Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>>>()
         /** Vrstni red kanalov (id-ji), kot ga je uporabnik pri izbiri »zvrst|jezik|razvrstitev« nazadnje videl - samo v pomnilniku. */

@@ -53,7 +53,9 @@ object Stremio {
     data class Manifest(val osnova: String, val ime: String, val viri: Set<String>, val tipi: Set<String>,
                         val predpone: List<String>, val katalogi: List<Katalog>,
                         /** Zaseben dodatek ([ZasebniDodatki]): ne gre med police, mreze, iskanje in na druge naprave. */
-                        val zaseben: Boolean = false)
+                        val zaseben: Boolean = false,
+                        /** Naloga 79b: `id` manifesta (isti dodatek pod drugim naslovom, npr. z narocnisko kodo). */
+                        val id: String = "")
 
     data class Epizoda(val id: String, val ime: String, val sezona: Int, val epizoda: Int,
                        /** Tokovi, ki jih dodatek poda ze v metapodatkih posnetka (`videos[].streams`); prazno = vprasamo /stream. */
@@ -358,7 +360,7 @@ object Stremio {
         val zaseben = m.optJSONObject("behaviorHints")?.optBoolean("adult") == true
         zapomniZasebnost(o, zaseben)
         zapomniIme(o, ime)
-        return Manifest(o, ime, viri, tipi, predpone, katalogi, zaseben).also { manifesti[o] = it }
+        return Manifest(o, ime, viri, tipi, predpone, katalogi, zaseben, m.optString("id").trim()).also { manifesti[o] = it }
     }
 
     // ------------------------------------------------------------------ zasebni dodatki (ZasebniDodatki)
@@ -367,6 +369,11 @@ object Stremio {
     /** Shrambi oznak in premorov (ne Context: predmet zivi ves cas procesa). null = [pripravi] se ni bil klican. */
     @Volatile private var shrambaZasebnih: android.content.SharedPreferences? = null
     @Volatile private var shrambaPremorov: android.content.SharedPreferences? = null
+    @Volatile private var shrambaZaklepov: android.content.SharedPreferences? = null
+    private val zaklepi = ConcurrentHashMap<String, OsPravila.Zaklep>()
+    /** Naloga 79b: osnova -> povezava za odklep (shema, gostitelj, pot). V isti shrambi s predpono [PREDPONA_ODKLEPA]. */
+    private val odklepi = ConcurrentHashMap<String, String>()
+    private const val PREDPONA_ODKLEPA = "odklep|"
     /** osnova -> ali je zaseben dodatek. Zapis prezivi ponovni zagon, da odlocitev ne caka na omrezje. */
     private val znaniZasebni = ConcurrentHashMap<String, Boolean>()
 
@@ -393,6 +400,15 @@ object Stremio {
                 p.all.forEach { (k, v) -> if (v is Long && v > zdaj && v < zdaj + PREMOR_NAJVEC_MS) premorDo.putIfAbsent(k, v) else e.remove(k) }
                 e.apply()
                 shrambaPremorov = p
+            } catch (_: Exception) { }
+            // Naloga 79: kateri dodatki kanalov dajejo tokove samo z narocnino - po zagonu njihovih kanalov ne pokazemo vnaprej.
+            try {
+                val p = a.getSharedPreferences(PREFS_ZAKLEPI, Context.MODE_PRIVATE)
+                p.all.forEach { (k, v) ->
+                    if (k.startsWith(PREDPONA_ODKLEPA)) OsPravila.povezavaOdklepa(v as? String)?.let { odklepi.putIfAbsent(k.removePrefix(PREDPONA_ODKLEPA), it) }
+                    else OsPravila.Zaklep.izNiza(v as? String)?.let { zaklepi.putIfAbsent(k, it) }
+                }
+                shrambaZaklepov = p
             } catch (_: Exception) { }
             // Poizvedbe zadnje ure in kar smo se o meji dodatkov naucili ([TempoDodatka]): ponovni zagon jih ne pozabi.
             try {
@@ -584,11 +600,12 @@ object Stremio {
         (m.optString("imdb_id").takeIf { it.startsWith("tt") } ?: id.takeIf { it.startsWith("tt") })?.let { VrsteNaslovov.zapomniDrzave(it, drzaveIz(m)) }
         return Jamendo.Skladba(PREDPONA + tip + "|" + id + "|" + osnova, m.optString("name").ifBlank { id }, podnaslov,
             slikaVnosa(m), "", "$osnova/meta/${enc(tip)}/${enc(id)}.json",
-            // Glasba in radio sta zvok (kartica in predvajalnik za zvok), vse ostalo video.
-            radio = r == RADIO, video = r != GLASBA && r != RADIO,
+            // Glasba in radio sta zvok (kartica in predvajalnik za zvok), vse ostalo video. Naloga 77: glasba z id-jem IMDb
+            // (koncert iz Music Concerts) je posnetek - video.
+            radio = r == RADIO, video = (r != GLASBA && r != RADIO) || OsPravila.glasbaJeVideo(r == GLASBA, id),
             // FILM / SERIJA za oznako na kartici in za filter Filmi | Serije (SpletniVir.vrstaVsebine).
             // Videospot (glasbeni katalog): ne gre med filme in serije (SpletniVir.vrstaVsebine).
-            mediaType = if (glasbeno) "MusicVideo" else if (serijaPoPodatkih) "tvseries" else when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
+            mediaType = if (glasbeno || OsPravila.glasbaJeVideo(r == GLASBA, id)) "MusicVideo" else if (serijaPoPodatkih) "tvseries" else when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
             year = leto.take(4).toIntOrNull() ?: 0,
             // Id IMDb (tt...), kot ga rabi vecina dodatkov: isti film iz vec katalogov/dodatkov je ena kartica.
             imdbId = if (id.startsWith("tt") && id.drop(2).all { it.isDigit() }) id else "",
@@ -781,6 +798,38 @@ object Stremio {
     fun katalogiRazreda(naslovi: List<String>, razred: String, zZasebnimi: Boolean = false): List<Katalog> = naslovi.mapNotNull { manifest(it) }.filter { !it.zaseben }
         .flatMap { m -> m.katalogi.filter { it.prikazen && razredKataloga(it) == razred && (zZasebnimi || !zasebenKatalog(it)) } }
 
+    /**
+     * Naloga 77: glasbeni katalog s posnetki (video): tip je glasba, dodatek pa vnose oznaci z id-ji IMDb (Music Concerts:
+     * tip music, predpone [tt]). Sodi v skupino videospotov, ne med zvok.
+     */
+    fun jeVideoKatalog(k: Katalog): Boolean {
+        if (razred(k.tip) != GLASBA) return false
+        val p = manifesti[k.dodatek]?.predpone.orEmpty()
+        return p.isNotEmpty() && p.all { it == "tt" }
+    }
+
+    /**
+     * Naloga 78: ali ima kateri od dodatkov [naslovi] glasbene posnetke (videospote ali koncerte, [jeVideoKatalog]). Samo
+     * iz znanih manifestov (brez omrezja - klic z glavne niti); neznan manifest steje kot ne.
+     */
+    fun imaVideospote(naslovi: List<String>): Boolean = naslovi.mapNotNull { manifesti[osnova(it)] }.filter { !it.zaseben }.any { m ->
+        m.katalogi.any { k -> k.prikazen && razredKataloga(k) == GLASBA && !zasebenKatalog(k) && (razred(k.tip) != GLASBA || jeVideoKatalog(k)) }
+    }
+
+    /** Naloga 77: dodatek ima samo kataloge za iskanje ([OsPravila.samoIskanje]); null, dokler manifesta ne poznamo. Brez omrezja. */
+    fun samoIskanje(naslov: String): Boolean? = manifesti[osnova(naslov)]?.let { m -> OsPravila.samoIskanje(m.katalogi.map { it.prikazen to it.iskanje }) }
+
+    /**
+     * Naloga 77: tip za poizvedbo po tokovih ([OsPravila.tipToka]): »music« z id-jem IMDb vprasamo kot »movie«, ce noben
+     * dodatek ne da toka za »music«. Manifeste vzame iz predpomnilnika (klic iz ozadja).
+     */
+    fun tipToka(naslovi: List<String>, tip: String, id: String): String {
+        if (!OsPravila.jeImdb(id) || tip == "movie" || tip == "series") return tip
+        val zaTip = naslovi.mapNotNull { try { manifest(it) } catch (_: Exception) { null } }
+            .any { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
+        return OsPravila.tipToka(tip, id, zaTip)
+    }
+
     internal fun zasebenKatalog(k: Katalog) = KanaliPravila.jeZasebna(KanaliPravila.oznakaKataloga(k.imeDodatka, k.ime))
 
 
@@ -815,12 +864,30 @@ object Stremio {
         val pokriti = zIskanjem.map { it.dodatek + "|" + it.tip }.toSet()
         val brezIskanja = katalogi.filter { !it.iskanje && it.prikazen && (it.dodatek + "|" + it.tip) !in pokriti &&
             razredKataloga(it) in setOf(TV, RADIO, GLASBA) }.take(16)
-        val opravila = zIskanjem.map { k -> java.util.concurrent.Callable { katalog(k, beseda).take(20) } } +
-            brezIskanja.map { k -> java.util.concurrent.Callable { katalog(k).filter { ujema(it.naslov, beseda) }.take(20) } }
+        val opravila = zIskanjem.map { k -> k to java.util.concurrent.Callable { iskanjeVKatalogu(k, beseda) } } +
+            brezIskanja.map { k -> k to java.util.concurrent.Callable { katalog(k).filter { ujema(it.naslov, beseda) }.take(20) } }
         if (opravila.isEmpty()) return emptyList()
-        return bazen.invokeAll(opravila, 10, java.util.concurrent.TimeUnit.SECONDS)
-            .flatMap { f -> try { if (f.isCancelled) emptyList() else f.get() } catch (_: Exception) { emptyList() } }
+        // Naloga 77: katalog samo za iskanje (YouTubio: iskanje na YouTubu prek streznika dodatka traja dlje) dobi daljsi rok;
+        // ostali kot doslej 10 s. Kar ne odgovori v roku, preklicemo.
+        val zacetek = System.currentTimeMillis()
+        val niti = opravila.map { (k, c) -> (if (!k.prikazen) ROK_SAMO_ISKANJA_MS else ROK_ISKANJA_MS) to bazen.submit(c) }
+        return niti.flatMap { (rok, f) ->
+            try { f.get((zacetek + rok - System.currentTimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) }
+            catch (_: Exception) { f.cancel(true); emptyList() }
+        }
             .distinctBy { it.id }.filter { tudiZasebni || !ZasebniKanali.jeZaseben(it.id) }      // naloga 76: zasebne kategorije javnih dodatkov
+    }
+
+    private const val ROK_ISKANJA_MS = 10_000L
+    private const val ROK_SAMO_ISKANJA_MS = 15_000L
+
+    /** Iskanje v katalogu z `search=`; dnevnik razvijalca pove, koliko zadetkov je dal in v kolikem casu (naloga 77). */
+    private fun iskanjeVKatalogu(k: Katalog, beseda: String): List<Jamendo.Skladba> {
+        val od = System.currentTimeMillis()
+        val r = katalogAliIzpad(k, beseda)
+        if (dnevnik() && manifesti[k.dodatek]?.zaseben != true) android.util.Log.d(DNEVNIK, "${oznakaDodatka(k.dodatek)} iskanje ${k.tip}/${k.id} " +
+            "samo iskanje=${!k.prikazen} -> ${r?.size ?: -1} zadetkov v ${System.currentTimeMillis() - od} ms")
+        return r.orEmpty().take(20)
     }
 
     /**
@@ -980,6 +1047,8 @@ object Stremio {
     private val premorDo = ConcurrentHashMap<String, Long>()
     private val premorKorak = ConcurrentHashMap<String, Int>()
     private const val PREFS_PREMOR = "safeer_stremio_premor"
+    /** Naloga 79: dodatki kanalov brez prostih tokov ([OsPravila.Zaklep]), osnova -> zapis. */
+    private const val PREFS_ZAKLEPI = "safeer_stremio_zaklepi"
 
     // Urni proracun dodatka ([TempoDodatka]): poizvedbe zadnje ure in meja za preverjanje v ozadju, oboje po dodatku.
     private const val PREFS_TEMPO = "safeer_stremio_tempo"
@@ -1193,7 +1262,10 @@ object Stremio {
      * Ali so vsi dodatki, ki bi jih za ta naslov vprasali po tokovih (tip in predpona id-ja), v premoru - naslova zdaj
      * ni mogoce preveriti. Brez omrezja: uposteva manifeste, ki jih ze poznamo.
      */
-    fun vprasaniVPremoru(naslovi: List<String>, tip: String, id: String): Boolean {
+    fun vprasaniVPremoru(naslovi: List<String>, tip0: String, id: String): Boolean {
+        // Naloga 77: isti tip kot pri predvajanju (koncert »music« kot »movie«).
+        val tip = OsPravila.tipToka(tip0, id, naslovi.mapNotNull { manifesti[osnova(it)] }
+            .any { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip0 in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) })
         val d = naslovi.mapNotNull { manifesti[osnova(it)] }
             .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
         return d.isNotEmpty() && d.all { vPremoru(it.osnova) }
@@ -1213,8 +1285,10 @@ object Stremio {
      * dodatek s tokom, ki ga ta naprava zmore, zadosca. [seVelja]: preverjanje v ozadju velja le, dokler uporabnik
      * gleda seznam - ko ne velja vec, dodatka ne vprasamo in vrnemo null (klicatelj iz tega ne sklepa nicesar).
      */
-    fun razpolozljivo(naslovi: List<String>, tip: String, id: String, torrent: Long, seVelja: () -> Boolean = { true }): RazpolozljivostPravila.Izid? {
+    fun razpolozljivo(naslovi: List<String>, tip0: String, id: String, torrent: Long, seVelja: () -> Boolean = { true }): RazpolozljivostPravila.Izid? {
         if (naslovi.isEmpty() || !seVelja()) return null
+        // Naloga 77: isti tip kot pri predvajanju (koncert »music« kot »movie«).
+        val tip = tipToka(naslovi, tip0, id)
         val manifestiDodatkov = naslovi.map { manifest(it) }
         // Dodatek, ki ga trenutno ne dosezemo (brez omrezja), bi vsebino morda imel: ne sklepamo "ni na voljo".
         var neznano = manifestiDodatkov.any { it == null }
@@ -1281,9 +1355,12 @@ object Stremio {
         }
         val a = d.optJSONArray("streams")
         val tokovi = if (a == null) emptyList() else (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.filter { jePredvajljiv(it) }
+        if (razred(tip) == TV) zabeleziTokove(osnova, a, tokovi.size)
         if (dnevnik() && tokovi.isEmpty()) android.util.Log.d(DNEVNIK, "${oznakaDodatka(osnova)} tok kanala: tokov=${a?.length() ?: -1}, predvajljivih=0, " +
             "polja odgovora=${d.keys().asSequence().toList()}, oblika prvega=${a?.optJSONObject(0)?.let { oblikaToka(it) } ?: "-"}, " +
             "besedilo prvega=${a?.optJSONObject(0)?.let { (it.optString("name") + " | " + it.optString("title").ifBlank { it.optString("description") }).replace('\n', ' ').take(160) } ?: "-"}")
+        // Naloga 79: samo obvestila (externalUrl »Unlock Premium« ...) niso dokaz, da kanala ni - zaklenjen je dodatek, ne tok.
+        if (tokovi.isEmpty() && (a?.length() ?: 0) > 0) return null
         if (tokovi.isEmpty()) return false
         // Dodatek tok nasteje, streznik toka pa s te naprave morda ne odgovori ([SondaToka]): vprasamo prva neposredna
         // tokova (tista, ki bi ju predvajali; drugi je rezerva). Eden odgovori -> kanal je; oba dokazano ne -> ni ga.
@@ -1359,7 +1436,53 @@ object Stremio {
                 for (i in 0 until minOf(a.length(), 8)) a.optJSONObject(i)?.let { android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)}   tok $i: ${oblikaToka(it)}") }
             }
             (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }
+                .also { t -> if (d != null && razred(tip) == TV) zabeleziTokove(m.osnova, a, t.count { jePredvajljiv(it) }) }
         }
+
+    /**
+     * Naloga 79: odgovor dodatka po tokovih za kanal ([OsPravila.poOdgovoruTokov]). Dodatek, ki za [OsPravila.ZAKLENJEN_PO]
+     * zaporednih kanalov vrne samo obvestila, je »brez prostih tokov« (na disku, [OsPravila.ZAKLENJEN_VELJA_MS]).
+     */
+    private fun zabeleziTokove(osnova: String, streams: JSONArray?, predvajljivih: Int) {
+        val vnosov = streams?.length() ?: 0
+        // Naloga 79b: povezava za odklep (externalUrl obvestila) - samo varna, samo gostitelj in pot, ne v dnevnik.
+        if (predvajljivih == 0 && vnosov > 0) (0 until vnosov).firstNotNullOfOrNull { i -> OsPravila.povezavaOdklepa(streams?.optJSONObject(i)?.optString("externalUrl")) }
+            ?.let { p -> if (odklepi[osnova] != p) { odklepi[osnova] = p; try { shrambaZaklepov?.edit()?.putString(PREDPONA_ODKLEPA + osnova, p)?.apply() } catch (_: Exception) { } } }
+        val zdaj = System.currentTimeMillis()
+        val prej = zaklepi[osnova]
+        val novo = OsPravila.poOdgovoruTokov(prej ?: OsPravila.Zaklep(), vnosov, predvajljivih, zdaj)
+        if (novo == (prej ?: OsPravila.Zaklep())) return
+        if (novo == OsPravila.Zaklep()) zaklepi.remove(osnova) else zaklepi[osnova] = novo
+        try {
+            shrambaZaklepov?.edit()?.apply { if (novo == OsPravila.Zaklep()) remove(osnova) else putString(osnova, novo.vNiz()) }?.apply()
+        } catch (_: Exception) { }
+        if (OsPravila.jeZaklenjen(novo, zdaj) != OsPravila.jeZaklenjen(prej, zdaj)) try {
+            android.util.Log.i("SafeerStremio", "dodatek ${gostitelj(osnova)}: ${if (OsPravila.jeZaklenjen(novo, zdaj)) "tokovi samo z narocnino (${novo.zaporednih} kanalov zapored samo obvestila)" else "spet daje tokove"}")
+        } catch (_: Throwable) { }
+    }
+
+    /** Naloga 79: dodatek kanalov ta cas daje tokove samo z narocnino (sklep velja). Brez omrezja. */
+    fun brezProstihTokov(naslov: String): Boolean = OsPravila.jeZaklenjen(zaklepi[osnova(naslov)], System.currentTimeMillis())
+
+    /** Naloga 79: kanal je iz dodatka brez prostih tokov. */
+    fun brezProstihTokovKanala(s: Jamendo.Skladba): Boolean = razstavi(s)?.first?.let { brezProstihTokov(it) } == true
+
+    /** Naloga 79: zadnji odgovor dodatka za kanal je imel samo obvestila (tudi pred sklepom) - kanal ni mrtev. */
+    fun samoObvestilaKanala(s: Jamendo.Skladba): Boolean = razstavi(s)?.first?.let { (zaklepi[it]?.zaporednih ?: 0) > 0 } == true
+
+    /** Naloga 79: rocni pregled (»Preveri kanale zdaj«) sklep pozabi - dodatek se preveri znova. */
+    fun pozabiZaklep(naslov: String) {
+        val o = osnova(naslov)
+        val bil = zaklepi.remove(o) != null
+        val povezava = odklepi.remove(o) != null
+        if (bil || povezava) try { shrambaZaklepov?.edit()?.remove(o)?.remove(PREDPONA_ODKLEPA + o)?.apply() } catch (_: Exception) { }
+    }
+
+    /** Naloga 79b: povezava za odklep pri dodatku ([OsPravila.povezavaOdklepa]); null, ce je dodatek ni dal. */
+    fun povezavaOdklepa(naslov: String): String? = odklepi[osnova(naslov)]
+
+    /** Naloga 79b: id manifesta dodatka (iz predpomnilnika); "" = neznan. */
+    fun idManifesta(naslov: String): String = manifesti[osnova(naslov)]?.id.orEmpty()
 
     /**
      * Kdaj (System.currentTimeMillis) je poizvedba po tokovih za PREDVAJANJE nazadnje ostala brez odgovora dodatka

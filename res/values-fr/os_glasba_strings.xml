@@ -338,4 +338,24 @@
     <string name="os_pregled_kanalov_po_predvajanju">Les chaînes seront vérifiées à la fin de la lecture.</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Vérification des catégories des extensions…</string>
+    <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->
+    <string name="os_mediji_samo_iskanje">recherche uniquement</string>
+    <!-- Naloga 78: nadomestna vsebina prazne mreze. -->
+    <string name="os_media_zadnja_znana">Dernier connu</string>
+    <string name="os_media_brez_filtra">Sans filtre</string>
+    <string name="os_media_sorodno_koncerti">Concerts</string>
+    <string name="os_media_sorodno_kanali">Chaînes musicales en direct</string>
+    <string name="os_media_sorodno_postaje">Stations de radio</string>
+    <string name="os_media_prazna_izbira">Rien dans cette sélection – contenu proche de vos sources :</string>
+    <string name="os_media_pokazi_vse_opis">Retirer le filtre</string>
+    <string name="os_media_poisci_v">Rechercher sur %1$s</string>
+    <!-- Naloga 79: dodatek kanalov brez prostih tokov. -->
+    <string name="os_mediji_tokovi_narocnina">Flux uniquement avec un abonnement à l’extension</string>
+    <!-- Naloga 79b: odklep pri dodatku, zaklenjeni kanali, dvojnik dodatka. -->
+    <string name="os_mediji_odkleni">Débloquer auprès de l’extension</string>
+    <string name="os_mediji_odkleni_opis">Le paiement est entre vous et l’extension %1$s. Après l’abonnement, l’extension fournit généralement une nouvelle adresse (avec votre code) – ajoutez-la à Mes sources à la place de l’ancienne.</string>
+    <string name="os_mediji_odkleni_odpri">Ouvrir</string>
+    <string name="os_tv_brez_zaklenjenih">Masquer les chaînes verrouillées</string>
+    <string name="os_tv_pokazi_zaklenjene">Afficher les chaînes verrouillées</string>
+    <string name="os_mediji_dvojnik_dodatka">%1$s est ajoutée deux fois (ancienne et nouvelle adresse). Supprimer l’ancienne adresse ?</string>
 </resources>

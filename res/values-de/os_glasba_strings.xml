@@ -338,4 +338,24 @@
     <string name="os_pregled_kanalov_po_predvajanju">Die Sender werden geprüft, wenn die Wiedergabe endet.</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Kategorien der Add-ons werden geprüft …</string>
+    <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->
+    <string name="os_mediji_samo_iskanje">nur Suche</string>
+    <!-- Naloga 78: nadomestna vsebina prazne mreze. -->
+    <string name="os_media_zadnja_znana">Zuletzt bekannt</string>
+    <string name="os_media_brez_filtra">Ohne Filter</string>
+    <string name="os_media_sorodno_koncerti">Konzerte</string>
+    <string name="os_media_sorodno_kanali">Musiksender live</string>
+    <string name="os_media_sorodno_postaje">Radiosender</string>
+    <string name="os_media_prazna_izbira">In dieser Auswahl ist nichts – Ähnliches aus deinen Quellen:</string>
+    <string name="os_media_pokazi_vse_opis">Filter entfernen</string>
+    <string name="os_media_poisci_v">Auf %1$s suchen</string>
+    <!-- Naloga 79: dodatek kanalov brez prostih tokov. -->
+    <string name="os_mediji_tokovi_narocnina">Streams nur mit Abo beim Add-on</string>
+    <!-- Naloga 79b: odklep pri dodatku, zaklenjeni kanali, dvojnik dodatka. -->
+    <string name="os_mediji_odkleni">Beim Add-on freischalten</string>
+    <string name="os_mediji_odkleni_opis">Die Zahlung ist eine Sache zwischen dir und dem Add-on %1$s. Nach dem Abo gibt das Add-on meist eine neue Adresse (mit deinem Code) – füge sie statt der alten zu Meinen Quellen hinzu.</string>
+    <string name="os_mediji_odkleni_odpri">Öffnen</string>
+    <string name="os_tv_brez_zaklenjenih">Gesperrte Sender ausblenden</string>
+    <string name="os_tv_pokazi_zaklenjene">Gesperrte Sender anzeigen</string>
+    <string name="os_mediji_dvojnik_dodatka">%1$s ist doppelt hinzugefügt (alte und neue Adresse). Alte Adresse entfernen?</string>
 </resources>

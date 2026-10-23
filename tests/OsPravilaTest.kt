@@ -16,6 +16,97 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 private data class V(val kljuc: String, val ime: String = kljuc)
 
+/** Naloga 79b: povezava za odklep pri dodatku (varna, brez poizvedbe) in isti dodatek pod dvema naslovoma. */
+private fun preizkusOdklepa() {
+    println("\n== naloga 79b: odklep pri dodatku ==")
+    preveriEnako("https: gostitelj in pot", "https://iptv.example/premium", OsPravila.povezavaOdklepa("https://IPTV.example/premium?kljuc=abc#x"))
+    preveriEnako("brez poti: /", "http://iptv.example/", OsPravila.povezavaOdklepa("http://iptv.example"))
+    preveriEnako("z vrati", "https://iptv.example:8443/unlock", OsPravila.povezavaOdklepa("https://iptv.example:8443/unlock"))
+    preveriEnako("javascript ni", null, OsPravila.povezavaOdklepa("javascript:alert(1)"))
+    preveriEnako("intent ni", null, OsPravila.povezavaOdklepa("intent://x#Intent;end"))
+    preveriEnako("kontrolni znak ni", null, OsPravila.povezavaOdklepa("https://iptv.example/a\nb"))
+    preveriEnako("presledek ni", null, OsPravila.povezavaOdklepa("https://iptv.example/a b"))
+    preveriEnako("uporabnik@gostitelj ni", null, OsPravila.povezavaOdklepa("https://user@iptv.example/"))
+    preveriEnako("predolga ni", null, OsPravila.povezavaOdklepa("https://iptv.example/" + "a".repeat(OsPravila.ODKLEP_NAJVEC)))
+    preveriEnako("prazna ni", null, OsPravila.povezavaOdklepa(""))
+    preveriEnako("null ni", null, OsPravila.povezavaOdklepa(null))
+    val dodani = mapOf("https://a.test/stara" to "org.iptv", "https://a.test/kodaXYZ" to "org.iptv", "https://b.test" to "org.drug", "https://c.test" to "")
+    preveriEnako("dvojnik: stari naslov istega id", listOf("https://a.test/stara"), OsPravila.stariNasloviDodatka("https://a.test/kodaXYZ", "org.iptv", dodani))
+    preveriEnako("dvojnik: drug dodatek ni", emptyList<String>(), OsPravila.stariNasloviDodatka("https://b.test", "org.drug", dodani))
+    preveriEnako("dvojnik: brez id ni", emptyList<String>(), OsPravila.stariNasloviDodatka("https://c.test", "", dodani))
+}
+
+/** Naloga 79: dodatek, ki za kanale vraca samo obvestila (placljiv dostop), je »brez prostih tokov«. */
+private fun preizkusZaklenjenegaDodatka() {
+    println("\n== naloga 79: dodatek brez prostih tokov ==")
+    val ura = 3_600_000L
+    val zdaj = 1000 * ura
+    var z = OsPravila.Zaklep()
+    repeat(4) { z = OsPravila.poOdgovoruTokov(z, 1, 0, zdaj) }
+    preveriEnako("4 kanali samo obvestila: se ni zaklenjen", false, OsPravila.jeZaklenjen(z, zdaj))
+    z = OsPravila.poOdgovoruTokov(z, 1, 0, zdaj)
+    preveriEnako("5. zapored: zaklenjen", true, OsPravila.jeZaklenjen(z, zdaj))
+    preveriEnako("zaklenjen ob prvem dosegu meje", zdaj, z.zaklenjenOb)
+    preveriEnako("prazen odgovor (kanal brez toka) ne spremeni nicesar", z, OsPravila.poOdgovoruTokov(z, 0, 0, zdaj + ura))
+    preveriEnako("predvajljiv tok pobrise zaklep", OsPravila.Zaklep(), OsPravila.poOdgovoruTokov(z, 2, 1, zdaj + ura))
+    var y = OsPravila.Zaklep()
+    repeat(3) { y = OsPravila.poOdgovoruTokov(y, 1, 0, zdaj) }
+    y = OsPravila.poOdgovoruTokov(y, 3, 2, zdaj)
+    repeat(4) { y = OsPravila.poOdgovoruTokov(y, 1, 0, zdaj) }
+    preveriEnako("vmesni ziv kanal steje od zacetka", false, OsPravila.jeZaklenjen(y, zdaj))
+    preveriEnako("sklep velja 23 h", true, OsPravila.jeZaklenjen(z, zdaj + 23 * ura))
+    preveriEnako("sklep po 24 h ne velja", false, OsPravila.jeZaklenjen(z, zdaj + 24 * ura))
+    val obnovljen = OsPravila.poOdgovoruTokov(z, 1, 0, zdaj + 25 * ura)
+    preveriEnako("po izteku prvo obvestilo sklep obnovi", true, OsPravila.jeZaklenjen(obnovljen, zdaj + 25 * ura))
+    preveriEnako("ura nazaj: ne velja", false, OsPravila.jeZaklenjen(z, zdaj - ura))
+    preveriEnako("brez zapisa: ne velja", false, OsPravila.jeZaklenjen(null, zdaj))
+    preveriEnako("zapis: tja in nazaj", z, OsPravila.Zaklep.izNiza(z.vNiz()))
+    preveriEnako("zapis: pokvarjen", null, OsPravila.Zaklep.izNiza("x;1"))
+    preveriEnako("zapis: negativen", null, OsPravila.Zaklep.izNiza("-1;0"))
+}
+
+/** Naloga 78: mreza nikoli ni prazna; prazne skupine izbire. */
+private fun preizkusNadomestneVsebine() {
+    println("\n== naloga 78: nadomestna vsebina ==")
+    val N = OsPravila.Nadomestek.values().associateBy { it.name }
+    fun n(vararg imena: String) = imena.map { N.getValue(it) }
+    preveriEnako("zadnja znana ima prednost", n("ZADNJA_ZNANA"), OsPravila.nadomestnaVsebina(12, listOf(5, 3), false, 0))
+    preveriEnako("brez zadnje: sorodne police", n("SORODNO"), OsPravila.nadomestnaVsebina(0, listOf(0, 3), false, 0))
+    preveriEnako("prazne sorodne ne stejejo", n("NIC"), OsPravila.nadomestnaVsebina(0, listOf(0, 0), false, 0))
+    preveriEnako("filter: sorodno + Pokazi vse + brez filtra", n("SORODNO", "POKAZI_VSE", "BREZ_FILTRA"), OsPravila.nadomestnaVsebina(0, listOf(4), true, 20))
+    preveriEnako("filter brez vsega: samo Pokazi vse", n("POKAZI_VSE"), OsPravila.nadomestnaVsebina(0, emptyList(), true, 0))
+    preveriEnako("filter z zadnjo znano", n("ZADNJA_ZNANA", "POKAZI_VSE"), OsPravila.nadomestnaVsebina(8, emptyList(), true, 0))
+    preveriEnako("res nic: NIC", n("NIC"), OsPravila.nadomestnaVsebina(0, emptyList(), false, 0))
+    val sk = listOf("" to true, "videospoti" to false, "moje" to true, "naprava" to true)
+    preveriEnako("skupine: prazna izpade", listOf("", "moje", "naprava"), OsPravila.skupineIzbire(sk, ""))
+    preveriEnako("skupine: prazna izbrana na koncu", listOf("", "moje", "naprava", "videospoti"), OsPravila.skupineIzbire(sk, "videospoti"))
+    preveriEnako("skupine: privzeta ostane tudi brez vira", listOf(""), OsPravila.skupineIzbire(listOf("" to false, "videospoti" to false), ""))
+    preveriEnako("skupine: z virom po vrsti", listOf("", "videospoti", "moje"), OsPravila.skupineIzbire(listOf("" to true, "videospoti" to true, "moje" to true), "moje"))
+    preveriEnako("skupine: prazen seznam", emptyList<String>(), OsPravila.skupineIzbire(emptyList<Pair<String, Boolean>>(), ""))
+}
+
+/** Naloga 77: koncerti z IMDb (tip music) so video, tokove zanje vprasamo kot movie; dodatek samo za iskanje. */
+private fun preizkusKoncertovInIskanja() {
+    println("\n== naloga 77: koncerti in iskanje ==")
+    preveriEnako("imdb: tt0111161", true, OsPravila.jeImdb("tt0111161"))
+    preveriEnako("imdb: tt brez stevk", false, OsPravila.jeImdb("tt"))
+    preveriEnako("imdb: yt_id ni", false, OsPravila.jeImdb("yt_id:abc"))
+    preveriEnako("imdb: tt s crko ni", false, OsPravila.jeImdb("tt12a"))
+    preveriEnako("koncert music + tt je video", true, OsPravila.glasbaJeVideo(true, "tt1234567"))
+    preveriEnako("album music brez tt ostane zvok", false, OsPravila.glasbaJeVideo(true, "jamendo:123"))
+    preveriEnako("film tt ni glasba", false, OsPravila.glasbaJeVideo(false, "tt1234567"))
+    preveriEnako("tok: music tt, nihce za music -> movie", "movie", OsPravila.tipToka("music", "tt1234567", false))
+    preveriEnako("tok: music tt, dodatek za music je -> music", "music", OsPravila.tipToka("music", "tt1234567", true))
+    preveriEnako("tok: music brez tt ostane", "music", OsPravila.tipToka("music", "abc", false))
+    preveriEnako("tok: series ostane", "series", OsPravila.tipToka("series", "tt1234567", false))
+    preveriEnako("tok: movie ostane", "movie", OsPravila.tipToka("movie", "tt1234567", false))
+    preveriEnako("tok: YouTube ostane", "YouTube", OsPravila.tipToka("YouTube", "yt_id:abc", false))
+    preveriEnako("samo iskanje: YouTubio (dva kataloga, oba samo search)", true, OsPravila.samoIskanje(listOf(false to true, false to true)))
+    preveriEnako("samo iskanje: katalog z mrezo", false, OsPravila.samoIskanje(listOf(true to true, false to true)))
+    preveriEnako("samo iskanje: brez katalogov", false, OsPravila.samoIskanje(emptyList()))
+    preveriEnako("samo iskanje: katalog z obveznim filtrom brez iskanja", false, OsPravila.samoIskanje(listOf(false to false)))
+}
+
 /** Naloga 75: zanesljivost izida sonde (mrtev ni za vedno), urnik pregleda dodatka, pomnilniski pritisk. */
 private fun preizkusPregledaKanalov() {
     println("\n== naloga 75: pregled kanalov ==")
@@ -744,6 +835,10 @@ fun main() {
     preizkusZaslona()
     pasMedVideom()
     preizkusPregledaKanalov()
+    preizkusKoncertovInIskanja()
+    preizkusNadomestneVsebine()
+    preizkusZaklenjenegaDodatka()
+    preizkusOdklepa()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }
