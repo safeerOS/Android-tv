@@ -1524,12 +1524,15 @@ object OsPravila {
     const val ZAMIK_PONOVITVE_OMREZJE_MS = 1_500L
 
     /**
-     * Naloga 100 (pregled 231, N8): kdaj ponovimo kanal v zivo po napaki vira [koda] (Media3 PlaybackException; 0 = konec
-     * toka): null = ne ponovi, takoj obstojeca pot (2004 slab odgovor HTTP - 403/404, 2005 ni datoteke, 2006 ni dovoljenja,
-     * 2007 cleartext); po izpadu omrezja (2001 povezava ni uspela, 2002 rok) cez [ZAMIK_PONOVITVE_OMREZJE_MS]; sicer takoj (0).
+     * Naloga 100 (pregled 231, N8) + 101 (pregled 100, S1): kdaj ponovimo kanal v zivo po napaki vira [koda] (Media3
+     * PlaybackException; 0 = konec toka) z odgovorom [http] (pri 2004, 0 = ne vemo). null = ne ponovi, takoj obstojeca pot:
+     * 2004 s trajnim odgovorom (401, 403, 404, 410 in drugi 4xx), 2005 ni datoteke, 2006 ni dovoljenja, 2007 cleartext.
+     * Cez [ZAMIK_PONOVITVE_OMREZJE_MS]: 2004 z zacasnim odgovorom (5xx - tudi 509 »prevec povezav« -, 408, 429) in izpad
+     * omrezja (2001 povezava ni uspela, 2002 rok). Sicer takoj (0).
      */
-    fun zamikPonovitveVZivo(koda: Int): Long? = when (koda) {
-        2004, 2005, 2006, 2007 -> null
+    fun zamikPonovitveVZivo(koda: Int, http: Int = 0): Long? = when (koda) {
+        2004 -> if (http in 500..599 || http == 408 || http == 429) ZAMIK_PONOVITVE_OMREZJE_MS else null
+        2005, 2006, 2007 -> null
         2001, 2002 -> ZAMIK_PONOVITVE_OMREZJE_MS
         else -> 0L
     }

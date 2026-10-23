@@ -1130,4 +1130,10 @@ private fun preizkusDokazaNadomestka100() {
     preveriEnako("povezava ni uspela (2001) - z zamikom", OsPravila.ZAMIK_PONOVITVE_OMREZJE_MS, OsPravila.zamikPonovitveVZivo(2001))
     preveriEnako("rok (2002) - z zamikom", OsPravila.ZAMIK_PONOVITVE_OMREZJE_MS, OsPravila.zamikPonovitveVZivo(2002))
     preveriEnako("druga napaka vira (2000) - takoj", 0L, OsPravila.zamikPonovitveVZivo(2000))
+    // Naloga 101 (pregled 100, S1): pri 2004 odloci odgovor HTTP.
+    val z = OsPravila.ZAMIK_PONOVITVE_OMREZJE_MS
+    for (h in listOf(401, 403, 404, 410, 400)) preveriEnako("101: 2004 s HTTP $h - brez ponovitve", null, OsPravila.zamikPonovitveVZivo(2004, h))
+    for (h in listOf(500, 502, 503, 509, 408, 429)) preveriEnako("101: 2004 s HTTP $h - z zamikom", z, OsPravila.zamikPonovitveVZivo(2004, h))
+    preveriEnako("101: 2004 brez znane kode - brez ponovitve", null, OsPravila.zamikPonovitveVZivo(2004, 0))
+    preveriEnako("101: konec toka z http ne vpliva", 0L, OsPravila.zamikPonovitveVZivo(0, 503))
 }
