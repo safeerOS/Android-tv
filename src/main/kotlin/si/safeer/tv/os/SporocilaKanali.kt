@@ -173,7 +173,9 @@ object SporocilaKanali {
                 val cas = cas(m.sentDate ?: m.receivedDate)
                 val prebrano = m.flags.contains(Flags.Flag.SEEN)
                 // Naloga 106: krajevno izbrisano sporocilo (ponovno prebran nabiralnik) ne vrne besedila in neprebranega v pogovor.
-                if (s.shraniSporocilo(k.id, SporocilaShramba.Sporocilo("uid:$uid", oseba, if (moje) "ven" else "noter", telo, cas)))
+                // Pregled 8: cas prejema na strezniku (INTERNALDATE) odloci, ali sporocilo vrne izbrisan pogovor.
+                val prejeto = SporocilaKanali.cas(m.receivedDate ?: m.sentDate)
+                if (s.shraniSporocilo(k.id, SporocilaShramba.Sporocilo("uid:$uid", oseba, if (moje) "ven" else "noter", telo, cas), prejeto = prejeto))
                     s.posodobiPogovor(SporocilaShramba.Pogovor(oseba, k.id, oseba, ime, zadeva, telo.replace("\n", " ").take(240),
                         if (!moje && !prebrano) 1 else 0, cas), pristej = true)
                 val nit = niti.optJSONObject(oseba) ?: JSONObject()

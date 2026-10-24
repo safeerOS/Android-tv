@@ -458,7 +458,7 @@ class GlasbaActivity : OsActivity() {
         android.util.Log.i("SafeerOsMedia", "prikazi na TV: odpiram ${sk.naslov.take(60)}")
         // Film iz dodatkov: pokazemo izbiro tokov (naslov na vrhu), ne predvajamo prvega sami - prvi tok dodatka je bil
         // pri preizkusu 11. 10. 2026 kopija z vgrajenim oglasom za stave. Uporabnik izbere z daljincem.
-        if (Stremio.jeEnota(sk)) { glavna.postDelayed({ if (!isFinishing) razresiStremio(sk, rocno = true) }, 400); return }
+        if (Stremio.jeEnota(sk)) { glavna.postDelayed({ if (!isFinishing && !isDestroyed) razresiStremio(sk, rocno = true) }, 400); return }
         val kartica = videi(listOf(sk), beseda).firstOrNull() ?: return
         glavna.postDelayed({ if (!isFinishing) kartica.klik(iskalnik ?: window.decorView) }, 400)
     }
@@ -470,7 +470,15 @@ class GlasbaActivity : OsActivity() {
     private fun preizkusIzNamena() {
         val imdb = intent.getStringExtra(PREIZKUS_IMDB) ?: return
         val naslov = intent.getStringExtra(PREIZKUS_NASLOV)
-        intent.removeExtra(PREIZKUS_IMDB); intent.removeExtra(PREIZKUS_NASLOV)
+        val zeton = intent.getStringExtra(PREIZKUS_ZETON)
+        intent.removeExtra(PREIZKUS_IMDB); intent.removeExtra(PREIZKUS_NASLOV); intent.removeExtra(PREIZKUS_ZETON)
+        // Pregled B2: GlasbaActivity (okus predvajalnik) in vzdevek UvozSeznamaVhod (telefon, tablica) sta izvozena - druga
+        // aplikacija bi sicer tiho predvajala prek uporabnikovega Useneta/TorBoxa brez sledi v zgodovini. Velja samo enkratni
+        // zeton, ki ga je v tem procesu izdala PreizkusActivity (zascitena z android.permission.DUMP).
+        if (!vzemiZetonPreizkusa(zeton)) {
+            android.util.Log.w("SafeerOsMedia", "preizkus po gradnji brez veljavnega zetona - prezrt")
+            return
+        }
         val v = PreizkusPravila.vnos(imdb, naslov) ?: return
         android.util.Log.i("SafeerOsMedia", "preizkus po gradnji: ${v.tip} ${v.imdb}" + (if (v.epizoda > 0) " S${v.sezona}E${v.epizoda}" else ""))
         val osnova = Stremio.vnosPoImdb(v.tip, v.imdb, v.naslov, 0)
@@ -517,6 +525,7 @@ class GlasbaActivity : OsActivity() {
         Ozadje.uporabi(this, koren)
         if (!link.jeKrajevni()) link.dodaj(linkPoslusalec)
         vOspredju = true
+        nadaljujDebridObVrnitvi()     // pregled 2
         torrentSeJeSpremenil()
         Razpolozljivost.obSpremembi = obRazpolozljivosti
         // Preverjanje odprte mreze, ustavljeno ob odhodu z zaslona, se nadaljuje.
@@ -567,8 +576,16 @@ class GlasbaActivity : OsActivity() {
         videnPrej = true
     }
 
+    /** Pregled 2: uporabnik zares odhaja (tipka Domov, druga aplikacija) - cakanje na debrid/Usenet se prekine. */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        prekiniDebrid()
+    }
+
     override fun onStop() {
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
+        // Pregled 2: cakanja na debrid/Usenet onStop ne prekine (ugasnjen zaslon, ohranjevalnik TV) - prekine ga odhod
+        // uporabnika (onUserLeaveHint), nova izbira, Preklici ali onDestroy; izid med ustavitvijo pocaka na onStart.
         // Mesto dotika velja za vrnitev samo, ce je ta dotik zaslon zapustil (predvajalnik se odpre v nekaj sekundah);
         // sicer je zastarelo (uporabnik je po dotiku ostal tu in odsel pozneje drugam).
         if (android.os.SystemClock.uptimeMillis() - mestoKlikaOb > 10_000L) mestoKlika = null
@@ -602,6 +619,8 @@ class GlasbaActivity : OsActivity() {
         nalaganjeKanalov.shutdownNow()
         pregledZasebnihNit.shutdownNow()
         odklepNit.shutdownNow()      // naloga 99 (pregled 231, N2)
+        prekiniDebrid()              // pregled 2
+        debridDelavec.shutdownNow()  // pregled A1
         glavna.removeCallbacks(umiri)
         tvIkone.clear()
         super.onDestroy()
@@ -2411,7 +2430,7 @@ class GlasbaActivity : OsActivity() {
             val preneseno = HashMap<Stremio.Katalog, Int>().apply { katalogi.zip(strani).forEach { (k, v) -> put(k, v.size) } }
             val vsi = SpletniVir.zdruziEnako(prvaStran + prepleti(strani)).map { it.first() }.toMutableList()
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 // Uporabnik je medtem odsel drugam (drug razdelek, podstran, Nazaj): kataloga mu ne narisemo cez to, kar gleda.
                 if (razdelek != iz || podstrani.globina != odGlobine) return@post
                 if (katalogi.isEmpty()) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
@@ -2986,7 +3005,7 @@ class GlasbaActivity : OsActivity() {
                     val kartice = n.map { sk ->
                         // Vgrajeni kanal nima slike v podatkih: njegov logotip je shranjen posebej (kot v mrezi kanalov).
                         val tv = sk.id.startsWith("tv:")
-                        Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, { meniNedavno(sk) },
+                        Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0, izNedavnih = true) }, { meniNedavno(sk) },
                             ikona = if (tv) R.drawable.os_ikona_tv else if (sk.video) R.drawable.os_ikona_video else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_glasba,
                             tvId = if (tv && sk.slika.isBlank()) sk.id.removePrefix("tv:") else "", id = sk.id)
                     }
@@ -5788,7 +5807,7 @@ class GlasbaActivity : OsActivity() {
             if (nov != null && nov.id != sk.id) { MedijskiViri.zamenjaj(this, mapOf(sk.id to nov)); NedelujoceSkladbe.pozabi(this, sk.id) }
             android.util.Log.i("SafeerOsMedia", "drug posnetek \"${sk.naslov.take(40)}\": ${if (nov != null && nov.id != sk.id) "najden" else "ni"}")
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 val najden = nov != null && nov.id != sk.id
                 Toast.makeText(this, if (najden) R.string.os_nedel_nov_posnetek else R.string.os_nedel_ni_drugega, Toast.LENGTH_SHORT).show()
                 if (najden) osveziPriljubljene()
@@ -5868,7 +5887,7 @@ class GlasbaActivity : OsActivity() {
             delavec.execute {
                 val odgovor = try { Stremio.izvediDejanje(sk, d) } catch (_: Exception) { null }
                 glavna.post {
-                    if (isFinishing) return@post
+                    if (isFinishing || isDestroyed) return@post
                     val besedilo = odgovor?.sporocilo?.za(jezikUporabnika())?.takeIf { it.isNotBlank() }
                         ?: getString(if (odgovor == null) R.string.os_dodatek_ne_odgovori else if (odgovor.ok) R.string.os_dodatek_dejanje_ok else R.string.os_dodatek_dejanje_ni)
                     Toast.makeText(app, besedilo, Toast.LENGTH_LONG).show()
@@ -5961,7 +5980,7 @@ class GlasbaActivity : OsActivity() {
         delavec.execute {
             val izid = try { Stremio.mapa(naslov, mapa, pot) } catch (_: Exception) { null }
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 if (izid == null) { Toast.makeText(this, R.string.os_dodatek_ne_odgovori, Toast.LENGTH_LONG).show(); return@post }
                 val (vsebina, kartice) = izid
                 if (vsebina.elementi.isEmpty()) { Toast.makeText(this, R.string.os_dodatek_mapa_prazna, Toast.LENGTH_SHORT).show(); return@post }
@@ -6667,7 +6686,7 @@ class GlasbaActivity : OsActivity() {
         delavec.execute {
             val s = try { nalozi() } catch (_: Exception) { emptyList() }
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 // Uporabnik je medtem odsel drugam (drug razdelek, Nazaj, druga podstran): seznama mu ne odpremo pod prsti.
                 if (razdelek != odRazdelka || podstrani.globina != odGlobine) return@post
                 if (s.isEmpty()) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
@@ -6683,7 +6702,7 @@ class GlasbaActivity : OsActivity() {
         delavec.execute {
             val s = try { Arhiv.datoteke(sk) } catch (_: Exception) { emptyList() }
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 if (s.isEmpty()) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
                 stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
                 GlasbaStoritev.predvajaj(this, s, 0)
@@ -6731,7 +6750,7 @@ class GlasbaActivity : OsActivity() {
         delavec.execute {
             val s = try { Jamendo.odIzvajalca(iz.id) } catch (_: Exception) { null }
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 if (razdelek != odRazdelka || podstrani.globina != odGlobine) return@post
                 if (s == null) { stanje.text = getString(R.string.os_glasba_napaka); return@post }
                 val p = Podstran.Seznam(iz.ime, getString(R.string.os_glasba_od_izvajalca, iz.ime), false, s)
@@ -6821,7 +6840,7 @@ class GlasbaActivity : OsActivity() {
             // Isto ime kot obstojec seznam ga zamenja (ponoven uvoz = osvezitev seznama).
             val sz = u?.let { MedijskiViri.shraniSeznam(this, it.ime.take(60), it.skladbe, it.vir) }
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 // Uporabnik je medtem odsel drugam (uvoz traja): izid povemo, strani pod njim pa ne zamenjamo - seznam najde
                 // med seznami predvajanja.
                 val tukaj = razdelek == odRazdelka && podstrani.globina == odGlobine
@@ -6861,7 +6880,7 @@ class GlasbaActivity : OsActivity() {
             del.keys.forEach { najdene.remove(it) }
             MedijskiViri.zamenjaj(aplikacija, del)
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 SEZNAMI.remove(DOMOV); SEZNAMI.remove(GLASBA)
                 stanje.text = if (konec) opis(razdelek) else getString(R.string.os_uvoz_iscem, narejenih.get(), cakajo.size)
                 // Odprt seznam osvezimo ob koncu (slike skladb), ne sproti - sproti bi uporabniku skakal pod prsti.
@@ -6898,7 +6917,7 @@ class GlasbaActivity : OsActivity() {
                 delavec.execute {
                     val vir = MedijskiViri.dodaj(this, vnos, ime)
                     glavna.post {
-                        if (isFinishing) return@post
+                        if (isFinishing || isDestroyed) return@post
                         if (vir == null) {
                             // Diagnostika (TV 23. 10. 2026: tunein.com s tipkovnico ni bil prepoznan). Naloga 86 (M6): samo dolzina in
                             // razredi znakov, nikoli vsebina - povezava IPTV ima lahko uporabnisko ime in geslo.
@@ -7040,7 +7059,7 @@ class GlasbaActivity : OsActivity() {
             val koda = try { Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
             android.util.Log.i("SafeerOsMedia", "preveri dodatek ${android.net.Uri.parse(Stremio.osnova(naslov)).host}: koda=$koda")
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 Toast.makeText(this, when {
                     koda == 200 -> getString(R.string.os_mediji_dodatek_odgovarja)
                     koda > 0 -> getString(R.string.os_mediji_dodatek_ne_odgovarja_http, koda)
@@ -7119,6 +7138,7 @@ class GlasbaActivity : OsActivity() {
     private fun zacniPripravo(sk: Jamendo.Skladba): String? {
         val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
         if (!pripraveVTeKu.add(kljuc)) return null
+        prekiniDebrid()     // pregled A1: nova izbira - prejsnje cakanje na debrid ne odpre nicesar vec
         Toast.makeText(this, getString(R.string.os_media_pripravljam, sk.naslov), Toast.LENGTH_SHORT).show()
         return kljuc
     }
@@ -7233,11 +7253,15 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Glasba in radio zacneta takoj (ves seznam v vrsto, naprej/nazaj preklaplja); video najprej razresimo. */
-    private fun predvajaj(seznam: List<Jamendo.Skladba>, i: Int) {
+    private fun predvajaj(seznam: List<Jamendo.Skladba>, i: Int,
+                          /** Pregled B-S1: klik na kartico v Nedavno (odgledana epizoda serije -> naslednja). */
+                          izNedavnih: Boolean = false) {
+        // Pregled A1: nova izbira - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
+        prekiniDebrid()
         // Naloga 96: kanal seznama IPTV, ki je bil med nedavnimi shranjen brez toka (kot PeerTube), ima tok v povezavi.
         val sk0 = seznam.getOrNull(i) ?: return
         val sk = if (IptvSeznami.jeKanal(sk0) && sk0.zvok.isBlank() && sk0.povezava.isNotBlank()) sk0.copy(zvok = sk0.povezava) else sk0
-        if (sk !== sk0) { predvajaj(seznam.mapIndexed { j, x -> if (j == i) sk else x }, i); return }
+        if (sk !== sk0) { predvajaj(seznam.mapIndexed { j, x -> if (j == i) sk else x }, i, izNedavnih); return }
         if (TvVZivo.jeStran(sk)) {
             // Izdajatelj prenos ponuja samo na svoji strani (RTV SLO): odpremo jo v brskalniku.
             try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(sk.povezava))) } catch (_: Exception) { }
@@ -7254,7 +7278,8 @@ class GlasbaActivity : OsActivity() {
         if (Stremio.jeEnota(sk)) {
             // Naloga 140: nazadnje predvajana epizoda (»Nadaljuj«) se nadaljuje, ne odpre seznama sezon serije.
             val ep = SerijePravila.epizodaZaNadaljevanje(Stremio.razstavi(sk)?.second, sk.season, sk.episode, sk.naslov)
-            if (ep != null) nadaljujEpizodo(sk, ep.first, ep.second) else razresiStremio(sk)
+            if (ep != null) nadaljujEpizodo(sk, ep.first, ep.second, naprejCeOgledano = izNedavnih && !PreizkusPravila.jePreizkus(sk.id))
+            else razresiStremio(sk)
             return
         }
         if (sk.id.startsWith(PREDPONA_PC_PRENOSA)) { meniPrenosa(sk); return }
@@ -7295,7 +7320,7 @@ class GlasbaActivity : OsActivity() {
             if ((try { Stremio.zaseben(naslov) } catch (_: Exception) { null }) == true) { odpriSamDodatek(naslov, odRazdelka, odGlobine); return@execute }
             val razred = try { Stremio.glavniRazred(naslov) } catch (_: Exception) { Stremio.VIDEO }
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 // Uporabnik je medtem odsel drugam: razdelka mu ne zamenjamo pod prsti.
                 if (razdelek != odRazdelka || podstrani.globina != odGlobine) return@post
                 val cilj = when (razred) { Stremio.TV -> TV_V_ZIVO; Stremio.GLASBA -> GLASBA; Stremio.RADIO -> RADIO; else -> VIDEO }
@@ -7317,7 +7342,7 @@ class GlasbaActivity : OsActivity() {
         val ime = Stremio.imeIzPredpomnilnika(naslov) ?: (android.net.Uri.parse(Stremio.osnova(naslov)).host ?: naslov)
         val polica = try { prenosi.get(6, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
         glavna.post {
-            if (isFinishing) return@post
+            if (isFinishing || isDestroyed) return@post
             // Uporabnik je medtem odsel drugam (katalogi pridejo po vec sekundah): strani mu ne zamenjamo pod prsti.
             if (razdelek != odRazdelka || podstrani.globina != odGlobine) return@post
             if (vsi.isEmpty() && polica.isEmpty()) { stanje.text = getString(R.string.os_glasba_prazno); return@post }
@@ -7361,27 +7386,42 @@ class GlasbaActivity : OsActivity() {
         val tip = Stremio.tipToka(stremioNaslovi(), tip0, id)
         if (tip != tip0) android.util.Log.i("SafeerOsMedia", "tokovi: tip $tip0 -> $tip (noben dodatek ne da tokov za $tip0)")
         val idji = listOfNotNull(id, dodatniId)
-        val niti = stremioNaslovi().flatMap { n -> idji.map { i -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { Stremio.tokovi(listOf(n), tip, i) } catch (_: Exception) { emptyList() } } } } +
-            // Naloga 141: Usenet pri uporabnikovem indeksatorju (po IMDb), hkrati z dodatki; samo film in serija.
-            (if (tip !in setOf("movie", "series") || !Usenet.jeNaVoljo(applicationContext)) emptyList()
-            else idji.firstOrNull { UsenetPravila.iscemo(it) }
-                ?.let { i -> listOf(iskanjeDelavec.submit<List<Stremio.Tok>> { Usenet.isci(applicationContext, i) }) }.orEmpty())
+        // Pregled B1: vsak dodatek svoja nit, placljivo pa se odloci enkrat po vseh (spodaj) - ne po zadnjem odgovoru.
+        val dodatki = stremioNaslovi().flatMap { n -> idji.map { i -> i to iskanjeDelavec.submit<Stremio.OdgovorTokov> {
+            try { Stremio.tokoviZOdzivom(listOf(n), tip, i) } catch (_: Exception) { Stremio.OdgovorTokov(emptyList(), 0, false) } } } }
+        // Naloga 141: Usenet pri uporabnikovem indeksatorju (po IMDb), hkrati z dodatki; samo film in serija.
+        val usenet = if (tip !in setOf("movie", "series") || !Usenet.jeNaVoljo(applicationContext)) null
+            else idji.firstOrNull { UsenetPravila.iscemo(it) }?.let { i -> iskanjeDelavec.submit<List<Stremio.Tok>> { Usenet.isci(applicationContext, i) } }
+        fun tokoviDodatka(f: java.util.concurrent.Future<Stremio.OdgovorTokov>): List<Stremio.Tok> = try { f.get().tokovi } catch (_: Exception) { emptyList() }
         val zacetek = android.os.SystemClock.uptimeMillis()
         var prviTok = 0L
         // Nic cakanja: ko ima prvi dodatek predvajljiv tok, pocasnim damo se 1,5 s (boljsa izbira), ne vseh 12 s.
         // Naloga 130: z aktivno debrid storitvijo steje tudi torrent in pocakamo 3 s (Torrentio odgovori pocasneje).
         val zDebridom = Debrid.aktivna(applicationContext) != null
         val cakaj = DebridPravila.cakajPoPrvemMs(zDebridom)
+        // Pregled A8: z Usenetom pocakamo na njegovo iskanje (do njegovega roka) - prej je konec 3 s po prvem toku Usenet
+        // pogosto izpustil in »Usenet prvi« ni bil zanesljiv.
+        val rok = if (usenet != null) maxOf(rokMs, UsenetPravila.ISKANJE_CAKAJ_MS) else rokMs
         while (true) {
             val zdaj = android.os.SystemClock.uptimeMillis()
-            if (niti.all { it.isDone } || zdaj - zacetek > rokMs) break
-            if (prviTok == 0L && niti.any { f -> f.isDone && (try { f.get() } catch (_: Exception) { emptyList() }).any { DebridPravila.stejeKotPrvi(it.vrsta, zDebridom) } }) prviTok = zdaj
-            if (prviTok != 0L && zdaj - prviTok > cakaj) break
+            val usenetKoncan = usenet == null || usenet.isDone
+            if ((usenetKoncan && dodatki.all { it.second.isDone }) || zdaj - zacetek > rok) break
+            if (prviTok == 0L && dodatki.any { (_, f) -> f.isDone && tokoviDodatka(f).any { DebridPravila.stejeKotPrvi(it.vrsta, zDebridom) } }) prviTok = zdaj
+            if (prviTok != 0L && zdaj - prviTok > cakaj && usenetKoncan) break
             try { Thread.sleep(40) } catch (_: InterruptedException) { break }
         }
-        val tokovi = niti.filter { it.isDone }.flatMap { f -> try { f.get() } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
+        val usenetTokovi = usenet?.takeIf { it.isDone }?.let { f -> try { f.get() } catch (_: Exception) { null } }.orEmpty()
+        val tokovi = (dodatki.filter { it.second.isDone }.flatMap { tokoviDodatka(it.second) } + usenetTokovi).distinctBy { it.url }
+        // Pregled B1: »placljivo« enkrat po vseh dodatkih; ce kateri ni odgovoril (v roku ali sploh), novega zapisa ni.
+        val predvajljivih = tokovi.count { Stremio.jePredvajljiv(it) }
+        for (i in idji) {
+            val zaId = dodatki.filter { it.first == i }.map { it.second }
+            val odgovori = zaId.filter { it.isDone }.mapNotNull { f -> try { f.get() } catch (_: Exception) { null } }
+            Stremio.zabeleziPlacljivoPoVseh(tip, i, odgovori.sumOf { it.placilnih }, predvajljivih,
+                odgovori.size == zaId.size && odgovori.all { it.odgovorili })
+        }
         // Dodatek, ki v roku ni odgovoril, bi tok morda imel: brez tokov je to izpad, ne "ni na voljo".
-        if (tokovi.isEmpty() && niti.any { !it.isDone }) Stremio.zadnjiIzpad.set(System.currentTimeMillis())
+        if (tokovi.isEmpty() && (dodatki.any { !it.second.isDone } || usenet?.isDone == false)) Stremio.zadnjiIzpad.set(System.currentTimeMillis())
         return tokovi
     }
 
@@ -7453,7 +7493,7 @@ class GlasbaActivity : OsActivity() {
                 val serija = Stremio.kotSerija(sk)
                 glavna.post {
                     koncajPripravo(priprava)
-                    if (isFinishing) return@post
+                    if (isFinishing || isDestroyed) return@post
                     izberiSezono(serija, ep, rocno)
                     if (odprtKatalog != null) narociUmiri()      // mreza Filmi: kartica tiho izpade (drugaVrsta)
                 }
@@ -7471,7 +7511,7 @@ class GlasbaActivity : OsActivity() {
             if (tip == "series" || posnetki.size > 1) {
                 glavna.post {
                     koncajPripravo(priprava)
-                    if (isFinishing) return@post
+                    if (isFinishing || isDestroyed) return@post
                     if (posnetki.isEmpty()) { Toast.makeText(this, R.string.os_stremio_ni_epizod, Toast.LENGTH_LONG).show(); return@post }
                     izberiSezono(sk, posnetki, rocno)
                 }
@@ -7479,7 +7519,7 @@ class GlasbaActivity : OsActivity() {
                 val e = posnetki.first()
                 val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id) } catch (_: Exception) { emptyList() } }
                 val pp = predpomnjeniZa(t)
-                glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno, pp) }
+                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
             } else {
                 val enote = (listOf(tip to id) + razlicice.filter { Stremio.jeEnota(it) }.mapNotNull { r -> Stremio.razstavi(r)?.let { it.second to it.third } }).distinct().take(5)
                 // Naloga 88: kanal v zivo - najvec [OsPravila.rokTokovMs] (7 s) za vse dodatke, da je odgovor uporabniku v 8 s.
@@ -7495,11 +7535,11 @@ class GlasbaActivity : OsActivity() {
                     "vrste=${t.map { it.vrsta }.distinct()}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}, rezerva=${rezerva != null}, rocno=$rocno")
                 if (vZivo && !rocno && rezerva != null && t.none { Stremio.jePredvajljiv(it) }) {
                     android.util.Log.i("SafeerOsMedia", "kanal dodatka: ni toka - predvajam rezervo iz seznama IPTV")
-                    glavna.post { koncajPripravo(priprava); if (!isFinishing) predvajaj(listOf(rezerva), 0) }
+                    glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) predvajaj(listOf(rezerva), 0) }
                     return@execute
                 }
                 val pp = if (vZivo) emptySet() else predpomnjeniZa(t)
-                glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno, pp) }
+                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
             }
         }
     }
@@ -7518,26 +7558,38 @@ class GlasbaActivity : OsActivity() {
      * debrid velja le nekaj ur), naslov ostane isti, zato predvajalnik nadaljuje pri shranjenem mestu (MediaNapredek).
      * Epizode serija ne navaja vec: seznam sezon kot prej.
      */
-    private fun nadaljujEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int) {
+    private fun nadaljujEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int,
+                                /** Pregled B-S1: iz Nedavno - epizoda brez shranjenega mesta je odgledana, odpre se naslednja. */
+                                naprejCeOgledano: Boolean = false) {
         // Oznaka preizkusa (naloga 135) ostane - sicer bi preizkusni ogled sel v zgodovino.
         val serija = sk.copy(id = sk.id.substringBefore('#') + (if (PreizkusPravila.jePreizkus(sk.id)) PreizkusPravila.OZNAKA else ""),
             season = 0, episode = 0)
         val tip = Stremio.razstavi(serija)?.second ?: return
         val priprava = zacniPripravo(sk) ?: return
         delavec.execute {
-            val e = (try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }).firstOrNull { it.sezona == sezona && it.epizoda == epizoda }
+            val vse = try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }
+            val zadnja = vse.firstOrNull { it.sezona == sezona && it.epizoda == epizoda }
+            // Pregled B-S1: odgledana epizoda (>= 95 % - MediaNapredek mesta takrat ne hrani vec) se ne zacne znova od zacetka:
+            // odpre se naslednja; po zadnji epizodi serije seznam epizod.
+            // Pregled 3: samo izrecna oznaka »odgledano« (MediaNapredek, >= 95 %) - manjkajoc zapis mesta ne pomeni nic.
+            val odgledana = zadnja != null && naprejCeOgledano && MediaNapredek.odgledano(this, sk)
+            val e = if (!odgledana) zadnja else OsPravila.naslednjaEpizoda(vse.map { it.sezona to it.epizoda }, sezona, epizoda)
+                ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
             if (e == null) {
-                glavna.post { koncajPripravo(priprava); if (!isFinishing) razresiStremio(serija) }
+                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) razresiStremio(serija) }
                 return@execute
             }
+            val naslovEp = if (!odgledana) sk.naslov else OsPravila.naslovBrezEpizode(sk.naslov) + " · S${e.sezona}E${e.epizoda}" +
+                (if (e.ime.isNotBlank()) " · " + e.ime else "")
+            if (odgledana) android.util.Log.i("SafeerOsMedia", "nadaljuj: S${sezona}E$epizoda odgledana - naslednja S${e.sezona}E${e.epizoda}")
             val dodatni = SerijePravila.idEpizodePoImdb(Stremio.imdbZa(serija), e.id, e.sezona, e.epizoda)
             val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni) } catch (_: Exception) { emptyList() } }
             val pp = predpomnjeniZa(t)
             glavna.post {
                 koncajPripravo(priprava)
                 // Brez toka: samo obvestilo - kartica serije zaradi ene epizode ne izgine.
-                if (!isFinishing) izberiTok(serija.copy(season = e.sezona, episode = e.epizoda), sk.naslov, t, false, pp) {
-                    Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, sk.naslov), Toast.LENGTH_SHORT).show()
+                if (!isFinishing && !isDestroyed) izberiTok(serija.copy(season = e.sezona, episode = e.epizoda), naslovEp, t, false, pp) {
+                    Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslovEp), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -7606,16 +7658,16 @@ class GlasbaActivity : OsActivity() {
                             SpletniVir.zapomniGlaveToka(tok.url, tok.glave)
                             vrsta += sk.copy(id = sk.id + "#" + tok.url.hashCode(), naslov = "${sk.naslov} · ${ime(naprej[j])}", zvok = tok.url, povezava = tok.url, video = false)
                         }
-                        glavna.post { if (!isFinishing) GlasbaStoritev.predvajaj(this, vrsta, 0) }
+                        glavna.post { if (!isFinishing && !isDestroyed) GlasbaStoritev.predvajaj(this, vrsta, 0) }
                         return@execute
                     }
-                    glavna.post { if (!isFinishing) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) } }
+                    glavna.post { if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) } }
                     return@execute
                 }
                 val t = tokoviZa(e)
                 val pp = predpomnjeniZa(t)
                 glavna.post {
-                    if (!isFinishing) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) }
+                    if (!isFinishing && !isDestroyed) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) }
                 }
             }
         }.show()
@@ -7867,7 +7919,7 @@ class GlasbaActivity : OsActivity() {
             stari.forEach { Stremio.pozabiZaklep(it) }
             android.util.Log.i("SafeerOsMedia", "dodatek dodan dvakrat (isti id manifesta): starih naslovov ${stari.size}")
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 val star = MedijskiViri.vsi(this).firstOrNull { it.jeStremio && Stremio.osnova(it.naslov) in stari } ?: return@post
                 val ime = Stremio.imeIzPredpomnilnika(naslov) ?: star.ime
                 AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(ime)
@@ -8523,6 +8575,8 @@ class GlasbaActivity : OsActivity() {
                           predpomnjeni: Set<String> = emptySet(),
                           /** Kaj storiti, ce se vsebine ne da predvajati (epizoda: nazaj na seznam epizod); privzeto: kartica izgine. */
                           obNeuspehu: (() -> Unit)? = null) {
+        // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
+        prekiniDebrid()
         // Brez predvajljivega toka ni okna in ni seznama povezav (prosnje za donacijo, Discord, "No streams found" so ze
         // izlocene v Stremio.tok): kratko obvestilo, vsebina pa izgine s seznama (lastnik, 2. 10. 2026).
         // Torrent steje le, ce ga ta naprava zmore: prek pomocnika v Linku ali sama, ce datoteka gre na njen prostor.
@@ -8585,7 +8639,11 @@ class GlasbaActivity : OsActivity() {
                         velikost = (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong()) }
                     // Naloga 119: s kljucem TorBox gre torrent prek TorBoxa (zasebnost, hitrejsi tok); brez kljuca obstojeca pot.
                     if (Debrid.aktivna(this) != null) prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, brez)
-                    else brez()
+                    else {
+                        // Pregled A5: kljuc je vpisan, a neberljiv (Keystore) - ne tiho na neposredni torrent (naslov IP).
+                        val neberljiva = Debrid.neberljiva(this)
+                        if (neberljiva != null) kljucNeberljiv(neberljiva, brez) else brez()
+                    }
                 }
                 // Naloga 141: Usenet - NZB od indeksatorja (naprava), prenos in tok TorBox; brez poti »brez zasebnosti«.
                 UsenetPravila.VRSTA -> prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
@@ -8640,19 +8698,37 @@ class GlasbaActivity : OsActivity() {
             // Naloga 141 (lastnik, 24. 10. 2026: »nočem izbiro virov … automacko zažene najboljši vir … v našem primeru
             // usenet«): Usenet prvi, brez okna in s cakanjem na prenos (izmerjeno: 2,2 GB v 36 s). Ce ne uspe, naslednji
             // zadetek Usenet, nato samodejno najboljsi drug vir - nikoli okno »izberi vir«.
+            // Lastnik 25. 10. 2026: uporabnik ne sme cakati na prenos, ce je kaj takoj predvajljivo (izmerjeno na TV: film
+            // je cakal na nepredpomnjen Usenet 3,6 GB, medtem ko je bilo 84 od 95 torrentov pri TorBoxu pripravljenih ⚡).
+            // Vrstni red: (1) Usenet, ki ga ima TorBox ze pripravljenega (samo preverba, brez cakanja), (2) pripravljen
+            // torrent ⚡ ali ziva neposredna povezava, (3) Usenet s cakanjem na prenos, (4) ostali viri.
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
-            fun poskusiUsenet(i: Int) {
+            fun takojPredvajljivo(): Boolean {
+                val k = DebridPravila.samodejniTorrent(Debrid.aktivna(this), hashiTorrentov, predpomnjeni)
+                if (k >= 0) { odpri(torrentiPoKakovosti[k]); return true }
+                val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }
+                if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true }
+                return false
+            }
+            fun poskusiUsenet(i: Int, takoj: Boolean) {
                 if (i >= poskusi.size) {
+                    if (takoj) {
+                        android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni pripravljen pri TorBoxu - Usenet s prenosom")
+                        if (poskusi.isNotEmpty()) { poskusiUsenet(0, false); return }
+                    }
                     if (i > 0) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
                     if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
                     return
                 }
                 val t = poskusi[i]
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ${i + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
+                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ${i + 1}/${poskusi.size} od ${usenet.size} (takoj=$takoj); izbran=${TokIzbira.opisi(opis(t))}")
                 prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
-                    samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { poskusiUsenet(i + 1) })
+                    samoTakoj = takoj, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { poskusiUsenet(i + 1, takoj) })
             }
-            if (poskusi.isNotEmpty()) { poskusiUsenet(0); return }
+            // Izmerjeno na TV 25. 10. 2026: preverba »Usenet pripravljen« traja 2-6 s na izdajo (prenos NZB z indeksatorja +
+            // TorBox), pripravljen torrent ⚡ pa zacne v ~2 s - zato gre ⚡ torrent ali ziva povezava, ce obstaja, takoj.
+            if (takojPredvajljivo()) return
+            if (poskusi.isNotEmpty()) { poskusiUsenet(0, true); return }
             if (samodejnoBrezUseneta()) return
         }
         // Rocna izbira: najboljsi na vrhu, napovednik na koncu.
@@ -8677,6 +8753,10 @@ class GlasbaActivity : OsActivity() {
      * [naprej] dobi povezavo CDN (brez kljuca), kratko sporocilo pove, prek katere storitve. Neuspeh: NIKOLI tiho na
      * neposredni torrent (to bi razkrilo naslov IP) - okno pove zakaj; uporabnik izbere »Nadaljuj brez (brez zasebnosti)«,
      * preklice, pri »ni pripravljeno« »Pocakaj na prenos« in pri zavrnjenem kljucu »Popravi kljuc«.
+     *
+     * Pregled A1: vsaka zahteva ima svoj rod ([rodDebrida]); nova izbira, »Preklici« in onStop ga povecajo in prekinejo nit
+     * (Future.cancel) - star izid ne odpre nicesar vec (prej je film A po minutah prekinil film B). Ce cakanje traja, je
+     * odprto okno z napredkom in gumbom »Preklici«.
      */
     private fun prekDebrida(magnet: String, datoteka: Int, naprej: (String) -> Unit,
                             /** null (Usenet): ni poti brez debrida - gumba »Nadaljuj brez« ni. */
@@ -8685,41 +8765,74 @@ class GlasbaActivity : OsActivity() {
                             usenetIme: String? = null,
                             /** Naloga 141: samodejna izbira - ob neuspehu brez okna naprej (naslednji vir). */
                             obNeuspehu: (() -> Unit)? = null) {
-        Toast.makeText(this, R.string.os_debrid_pripravljam, Toast.LENGTH_SHORT).show()
+        // Pregled 1: Activity, ki je ze unicena (ponovno ustvarjena ob spremembi nastavitev), ne zacne nicesar - njen bazen
+        // niti je ustavljen (prej RejectedExecutionException in sesutje).
+        if (isFinishing || isDestroyed || debridDelavec.isShutdown) return
+        prekiniDebrid()
+        val rod = rodDebrida.get()
+        fun velja() = rodDebrida.get() == rod && !isFinishing && !isDestroyed
+        if (vOspredju) Toast.makeText(this, R.string.os_debrid_pripravljam, Toast.LENGTH_SHORT).show()
+        besediloDebrida = getString(R.string.os_debrid_pripravljam)
         var zadnjiOdstotek = -1
-        Thread {
+        val delo = try { debridDelavec.submit(Runnable {
+            // Ime storitve za napredek: Usenet prenasa TorBox, torrent prednostna storitev (Debrid.tok caka samo pri njej).
+            val ime = if (usenetIme != null) DebridPravila.ime(DebridPravila.TORBOX)
+                else Debrid.vrstniRed(applicationContext).firstOrNull()?.let { DebridPravila.ime(it) } ?: getString(R.string.os_debrid)
             val napredek = { odstotek: Int ->
-                if (odstotek / 25 != zadnjiOdstotek / 25) {
+                if (odstotek != zadnjiOdstotek) {
+                    val obvestilo = zadnjiOdstotek < 0 || odstotek / 25 != zadnjiOdstotek / 25
                     zadnjiOdstotek = odstotek
-                    runOnUiThread { if (!isFinishing) Toast.makeText(this, getString(R.string.os_torbox_prenasa_odstotek, odstotek), Toast.LENGTH_SHORT).show() }
+                    runOnUiThread {
+                        if (velja()) {
+                            besediloDebrida = getString(R.string.os_torbox_prenasa_odstotek, ime, odstotek)
+                            val o = debridOkno
+                            if (o != null && o.isShowing) o.setMessage(besediloDebrida)
+                            else if (obvestilo && vOspredju) Toast.makeText(this, besediloDebrida, Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
-            val izid = if (usenetIme != null) Usenet.tok(applicationContext, magnet, usenetIme, datoteka, samoTakoj ?: Debrid.samoTakoj(applicationContext), napredek)
+            val izid = try {
+                if (usenetIme != null) Usenet.tok(applicationContext, magnet, usenetIme, datoteka, samoTakoj ?: Debrid.samoTakoj(applicationContext), napredek)
                 else Debrid.tok(applicationContext, magnet, datoteka, samoTakoj, napredek)
-            runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
+            } catch (e: Exception) {
+                android.util.Log.w("SafeerOsMedia", "debrid: ${e.javaClass.simpleName}")
+                TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK)
+            }
+            // Preklicana ali zamenjana zahteva ne naredi nicesar vec (ne odpre filma cez tistega, ki ga uporabnik gleda).
+            if (Thread.currentThread().isInterrupted || rodDebrida.get() != rod) return@Runnable
+            // Pregled 2: izid izvede samo vidna Activity; ce je ustavljena (ugasnjen zaslon, ohranjevalnik), pocaka na onStart -
+            // predvajalnika iz ozadja Android 10+ ne dovoli odpreti.
+            val obdelaj: () -> Unit = obdelaj@{
+                zapriOknoDebrida()
                 val url = izid.url
                 if (url != null) {
                     Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(izid.ponudnik)), Toast.LENGTH_SHORT).show()
-                    naprej(url); return@runOnUiThread
+                    naprej(url); return@obdelaj
                 }
                 if (obNeuspehu != null) {
                     android.util.Log.i("SafeerOsMedia", "tokovi: ${if (usenetIme != null) "Usenet" else "debrid"} ni uspel (${izid.napaka}) - naprej samodejno")
-                    obNeuspehu(); return@runOnUiThread
+                    obNeuspehu(); return@obdelaj
                 }
+                // Pregled A4: sporocilo imenuje storitev, ki je res padla (TorBox, Real-Debrid, AllDebrid, indeksator Usenet).
+                val storitev = imeStoritveNapake(izid)
                 val sporocilo = when (izid.napaka) {
-                    TorBoxPravila.NAPAKA_KLJUC -> getString(R.string.os_torbox_napaka_kljuc)
-                    TorBoxPravila.NAPAKA_MEJA -> if (izid.cakajMs > 0) getString(R.string.os_torbox_napaka_meja, ((izid.cakajMs + 59_999) / 60_000).toInt())
-                        else getString(R.string.os_torbox_napaka_meja_paket)
-                    TorBoxPravila.NAPAKA_PAKET -> getString(R.string.os_torbox_napaka_paket)
-                    TorBoxPravila.NAPAKA_NI_DATOTEKE -> getString(R.string.os_torbox_napaka_ni_datoteke)
-                    TorBoxPravila.NAPAKA_PRENASA -> getString(R.string.os_torbox_napaka_prenasa)
+                    TorBoxPravila.NAPAKA_KLJUC -> getString(R.string.os_torbox_napaka_kljuc, storitev)
+                    // Pregled 6: »60 novih na uro« je meja TorBoxa - pri drugi storitvi njeno ime in meja paketa.
+                    TorBoxPravila.NAPAKA_MEJA -> if (izid.cakajMs > 0 && izid.ponudnik == DebridPravila.TORBOX)
+                            getString(R.string.os_torbox_napaka_meja, ((izid.cakajMs + 59_999) / 60_000).toInt())
+                        else getString(R.string.os_torbox_napaka_meja_paket, storitev)
+                    TorBoxPravila.NAPAKA_PAKET -> getString(R.string.os_torbox_napaka_paket, storitev)
+                    TorBoxPravila.NAPAKA_NI_DATOTEKE -> getString(R.string.os_torbox_napaka_ni_datoteke, storitev)
+                    TorBoxPravila.NAPAKA_PRENASA -> getString(R.string.os_torbox_napaka_prenasa, storitev)
                     DebridPravila.NAPAKA_NI_PREDPOMNJENO -> getString(R.string.os_debrid_napaka_ni_predpomnjeno)
                     UsenetPravila.NAPAKA_INDEKSATOR -> getString(R.string.os_usenet_napaka_indeksator)
-                    else -> getString(R.string.os_torbox_napaka_streznik)
+                    else -> getString(R.string.os_torbox_napaka_streznik, storitev)
                 } + if (izid.opis.isNotBlank()) "\n\n" + izid.opis else ""
+                val naslovOkna = if (izid.napaka == DebridPravila.NAPAKA_NI_PREDPOMNJENO) getString(R.string.os_debrid_napaka_naslov_vse)
+                    else getString(R.string.os_torbox_napaka_naslov, storitev)
                 val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle(R.string.os_torbox_napaka_naslov).setMessage(sporocilo)
+                    .setTitle(naslovOkna).setMessage(sporocilo)
                     .setNegativeButton(R.string.os_preklici, null)
                 if (brez != null) g.setPositiveButton(R.string.os_debrid_brez) { _, _ -> brez() }
                 when (izid.napaka) {
@@ -8732,7 +8845,111 @@ class GlasbaActivity : OsActivity() {
                 okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
                 Kontroler.pokazi(okno); okno.show()
             }
-        }.start()
+            runOnUiThread {
+                if (!velja()) return@runOnUiThread
+                debridDelo = null
+                zasloniOstane(false)
+                izvediIzidDebrida(rod, obdelaj)
+            }
+        }) } catch (_: java.util.concurrent.RejectedExecutionException) { return }
+        debridDelo = delo
+        // Pregled 2: med cakanjem se zaslon ne ugasne (telefon, ohranjevalnik TV) - sicer bi onStop ustavil predvajanje izida.
+        zasloniOstane(true)
+        // Ce cakanje traja (prenos na strezniku, Usenet do 10 min): okno z napredkom in »Preklici« (tudi tipka Nazaj).
+        glavna.postDelayed({ if (velja() && !delo.isDone) pokaziOknoDebrida() }, OKNO_DEBRIDA_PO_MS)
+    }
+
+    /** Pregled 2: besedilo okna napredka (zadnji napredek) - tudi za okno, ki se odpre sele ob vrnitvi (onStart). */
+    private var besediloDebrida = ""
+    /** Pregled 2: izid, ki je prisel med ustavljeno Activity (rod, dejanje) - izvede se ob onStart, ce rod se velja. */
+    private var odlozenIzidDebrida: Pair<Int, () -> Unit>? = null
+
+    private fun pokaziOknoDebrida() {
+        if (debridOkno != null || !vOspredju || isFinishing || isDestroyed) return
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setMessage(besediloDebrida)
+            .setNegativeButton(R.string.os_preklici) { _, _ -> prekiniDebrid() }
+            .setOnCancelListener { prekiniDebrid() }
+            .create()
+        okno.setCanceledOnTouchOutside(false)
+        debridOkno = okno
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun izvediIzidDebrida(rod: Int, dejanje: () -> Unit) {
+        if (rodDebrida.get() != rod || isFinishing || isDestroyed) return
+        if (!vOspredju) { odlozenIzidDebrida = rod to dejanje; return }
+        odlozenIzidDebrida = null
+        dejanje()
+    }
+
+    /** Pregled 2: ob vrnitvi na zaslon - odlozen izid se izvede, se tekoce cakanje spet pokaze okno napredka. */
+    private fun nadaljujDebridObVrnitvi() {
+        odlozenIzidDebrida?.let { (r, d) -> odlozenIzidDebrida = null; izvediIzidDebrida(r, d); return }
+        if (debridDelo?.isDone == false) pokaziOknoDebrida()
+    }
+
+    private fun zasloniOstane(da: Boolean) {
+        try {
+            if (da) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } catch (_: Exception) { }
+    }
+
+    /** Pregled A1: rod zahteve debrid/Usenet - vsaka nova izbira, »Preklici« in onStop ga povecajo. */
+    private val rodDebrida = java.util.concurrent.atomic.AtomicInteger()
+    /** Lastne niti (ne [delavec]): blokirajoc klic stare zahteve ne zadrzi nove. */
+    private val debridDelavec = Executors.newCachedThreadPool { r -> Thread(r, "safeer-debrid").apply { isDaemon = true } }
+    @Volatile private var debridDelo: java.util.concurrent.Future<*>? = null
+    private var debridOkno: AlertDialog? = null
+
+    private fun zapriOknoDebrida() {
+        val o = debridOkno ?: return
+        debridOkno = null
+        try { if (o.isShowing) o.dismiss() } catch (_: Exception) { }
+    }
+
+    /**
+     * Pregled A1: prekine cakanje na debrid/Usenet - nova izbira, Preklici/Nazaj, odhod uporabnika (onUserLeaveHint) in
+     * onDestroy; NE ob vsakem onStop (pregled 2: ugasnjen zaslon ni odhod). Star izid ne naredi nicesar.
+     */
+    private fun prekiniDebrid() {
+        rodDebrida.incrementAndGet()
+        debridDelo?.cancel(true)
+        debridDelo = null
+        odlozenIzidDebrida = null
+        zasloniOstane(false)
+        zapriOknoDebrida()
+    }
+
+    /** Pregled A4: ime storitve za sporocilo napake. */
+    private fun imeStoritveNapake(izid: TorBox.Izid): String = when {
+        izid.napaka == UsenetPravila.NAPAKA_INDEKSATOR -> Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_ime_kratko, it) } ?: "Usenet"
+        izid.ponudnik.isNotEmpty() -> DebridPravila.ime(izid.ponudnik)
+        else -> getString(R.string.os_debrid)
+    }
+
+    /**
+     * Pregled A5: kljuc storitve [p] je shranjen, a ga ni mogoce prebrati (Keystore) - torrent NE gre tiho mimo debrida (naslov
+     * IP bi bil viden). Uporabnik kljuc vpise znova ali sam izbere »Nadaljuj brez«; privzeti gumb je Preklici.
+     */
+    private fun kljucNeberljiv(p: String, brez: () -> Unit) {
+        val ime = DebridPravila.ime(p)
+        // Pregled 10: tudi »Odstrani kljuc« - sicer bi se okno pokazalo ob vsakem torrentu. Preklic je tipka Nazaj; privzet
+        // (fokus) je varen gumb »Popravi kljuc«, ne »brez zasebnosti«.
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_torbox_napaka_naslov, ime))
+            .setMessage(getString(R.string.os_debrid_kljuc_neberljiv, ime))
+            .setNegativeButton(R.string.os_torbox_popravi) { _, _ -> kljucDebrida(p) }
+            .setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
+                Debrid.pozabiKljuc(this, p)
+                Toast.makeText(this, getString(R.string.os_debrid_odstranjeno, ime), Toast.LENGTH_SHORT).show()
+                osveziNaMestu()
+            }
+            .setPositiveButton(R.string.os_debrid_brez) { _, _ -> brez() }
+            .create()
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        Kontroler.pokazi(okno); okno.show()
     }
 
     /** Opis kartice »Debrid storitve«: katere storitve imajo kljuc in ali velja »samo takoj predvajljivo«. */
@@ -8794,8 +9011,13 @@ class GlasbaActivity : OsActivity() {
      * naprave), izid. Tam se shranijo sele, ko jih uporabnik potrdi.
      */
     private fun posljiKljuceDebrida() {
-        val cilji = Predaja.cilji(this)
-        if (cilji.isEmpty()) { Toast.makeText(this, R.string.os_predaja_ni_naprav, Toast.LENGTH_SHORT).show(); return }
+        // Pregled A2: kljuci in indeksator samo napravam v ozjem krogu te naprave (Debrid.posljiKljuce preveri se enkrat).
+        val vse = Predaja.cilji(this)
+        val cilji = OzjiKrog.samoKrog(this, vse)
+        if (cilji.isEmpty()) {
+            Toast.makeText(this, if (vse.isEmpty()) R.string.os_predaja_ni_naprav else R.string.os_debrid_poslji_ni_kroga, Toast.LENGTH_LONG).show()
+            return
+        }
         val imena = cilji.map { DatotekeActivity.lepoIme(it.ime) }
         val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_debrid_poslji)
             .setItems(imena.toTypedArray()) { _, i ->
@@ -8810,6 +9032,7 @@ class GlasbaActivity : OsActivity() {
                             if (isFinishing) return@posljiKljuce
                             Toast.makeText(this, when (koda) {
                                 "ok" -> getString(R.string.os_debrid_poslano, ime)
+                                "ni_krog" -> getString(R.string.os_ozji_krog_zavrnjeno, ime)
                                 "ni_zascite" -> getString(R.string.os_debrid_poslji_ni_zascite, ime)
                                 "ni_dovoljeno" -> getString(R.string.os_debrid_poslji_ni_dovoljeno, ime)
                                 "stara" -> getString(R.string.os_predaja_poslji_stara, ime)
@@ -8898,7 +9121,7 @@ class GlasbaActivity : OsActivity() {
                 nastavitveDebrida()
             }
             .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
-        if (Debrid.imaKljuc(this, p)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
+        if (Debrid.kljucShranjen(this, p)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
             Debrid.pozabiKljuc(this, p)
             Toast.makeText(this, getString(R.string.os_debrid_odstranjeno, ime), Toast.LENGTH_SHORT).show(); osveziNaMestu(); nastavitveDebrida()
         }
@@ -9049,7 +9272,7 @@ class GlasbaActivity : OsActivity() {
         Thread({
             val r: Any = try { MagnetMotor.pripraviTok(app, magnet, datoteka) } catch (e: Throwable) { e.message ?: "napaka" }
             glavna.post {
-                if (isFinishing) return@post
+                if (isFinishing || isDestroyed) return@post
                 if (r is MagnetMotor.Pripravljen) {
                     merim("sam pripravljen")
                     // Knjiznica kroga: druge naprave vidijo, kaj ta naprava hrani (zasebnega ne).
@@ -9404,6 +9627,26 @@ class GlasbaActivity : OsActivity() {
         const val ISKANJE_BESEDA = "iskanje"
         const val PREIZKUS_IMDB = "preizkus_imdb"
         const val PREIZKUS_NASLOV = "preizkus_naslov"
+        /** Pregled B2: enkratni zeton preizkusa ([izdajZetonPreizkusa]); brez njega [PREIZKUS_IMDB] ne velja. */
+        const val PREIZKUS_ZETON = "preizkus_zeton"
+        @Volatile private var zetonPreizkusa: Pair<String, Long>? = null
+
+        /** Pregled B2: zeton za en preizkus - klice ga SAMO PreizkusActivity (izvozena le z dovoljenjem DUMP, torej adb). */
+        fun izdajZetonPreizkusa(): String {
+            val z = java.util.UUID.randomUUID().toString()
+            zetonPreizkusa = z to android.os.SystemClock.elapsedRealtime()
+            return z
+        }
+
+        /** Pregled B2: zeton velja enkrat ([OsPravila.zetonPreizkusaVelja]); porabljen se pobrise. */
+        @Synchronized private fun vzemiZetonPreizkusa(prejet: String?): Boolean {
+            val velja = OsPravila.zetonPreizkusaVelja(zetonPreizkusa, prejet, android.os.SystemClock.elapsedRealtime())
+            if (velja) zetonPreizkusa = null
+            return velja
+        }
+
+        /** Pregled A1: po tolikem cakanju na debrid/Usenet se odpre okno z napredkom in »Preklici«. */
+        private const val OKNO_DEBRIDA_PO_MS = 1_500L
         /** Z [ISKANJE_BESEDA]: film ali serija z natancno tem naslovom se odpre sama (media.open, PrikaziNa). */
         const val ISKANJE_NATANCNO = "iskanje_natancno"
         /** Zavihek spodnje vrstice (StranskaVrstica.Zavihek.name), ki naj se odpre. */

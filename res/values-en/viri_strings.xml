@@ -23,15 +23,15 @@
     <string name="os_torbox_shranjeno">TorBox key saved</string>
     <string name="os_torbox_odstranjeno">TorBox key removed</string>
     <string name="os_torbox_pripravlja">TorBox is preparing the stream…</string>
-    <string name="os_torbox_prenasa_odstotek">TorBox is downloading: %1$d %%</string>
-    <string name="os_torbox_napaka_naslov">TorBox could not play this</string>
-    <string name="os_torbox_napaka_kljuc">TorBox rejected the API key. Check it in My sources → TorBox.</string>
+    <string name="os_torbox_prenasa_odstotek">%1$s is downloading: %2$d %%</string>
+    <string name="os_torbox_napaka_naslov">%1$s could not play this</string>
+    <string name="os_torbox_napaka_kljuc">%1$s rejected the API key. Check it in My sources → Debrid services.</string>
     <string name="os_torbox_napaka_meja">TorBox limit reached (60 new torrents per hour). Try again in %1$d min.</string>
-    <string name="os_torbox_napaka_meja_paket">Your TorBox plan’s download limit has been reached.</string>
-    <string name="os_torbox_napaka_paket">Your TorBox plan does not allow this download.</string>
-    <string name="os_torbox_napaka_ni_datoteke">TorBox found no playable file in this torrent.</string>
-    <string name="os_torbox_napaka_prenasa">TorBox is still downloading this torrent. Try again in a few minutes – then it will play right away.</string>
-    <string name="os_torbox_napaka_streznik">TorBox is not responding right now.</string>
+    <string name="os_torbox_napaka_meja_paket">Your %1$s plan’s download limit has been reached.</string>
+    <string name="os_torbox_napaka_paket">Your %1$s plan does not allow this download.</string>
+    <string name="os_torbox_napaka_ni_datoteke">%1$s found no playable file in this torrent.</string>
+    <string name="os_torbox_napaka_prenasa">%1$s is still downloading this torrent. Try again in a few minutes – then it will play right away.</string>
+    <string name="os_torbox_napaka_streznik">%1$s is not responding right now.</string>
     <string name="os_torbox_brez">Continue without TorBox (no privacy)</string>
     <string name="os_torbox_popravi">Fix key</string>
     <!-- Naloga 124: razsiritve dodatkov (protokol v1) -->
@@ -90,6 +90,10 @@
     <string name="os_debrid_napaka_ni_predpomnjeno">None of your services has this ready yet, and “Instant only” is on. Choose “Wait for download” to let the service download it first.</string>
     <string name="os_debrid_pocakaj">Wait for download</string>
     <string name="os_debrid_brez">Continue without (no privacy)</string>
+    <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
+    <string name="os_debrid_kljuc_neberljiv">The saved %1$s key can no longer be read on this device (secure storage). Enter it again.</string>
+    <string name="os_debrid_poslji_ni_kroga">None of your devices in Safeer Link is in this device’s inner circle – keys not sent. Add a device in Settings → Inner circle of trust.</string>
+    <string name="os_debrid_napaka_naslov_vse">Debrid services could not play this</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
     <string name="os_debrid_poslji">Send keys to another device</string>
     <string name="os_debrid_poslji_vprasanje">Send your keys (%1$s) to %2$s? They travel encrypted from device to device; %2$s saves them only after you confirm there.</string>

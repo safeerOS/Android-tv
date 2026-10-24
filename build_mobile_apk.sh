@@ -5,7 +5,7 @@
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS_DIR="${SAFEER_TOOLS_DIR:-$HOME/Namizje/Neimenovana mapa/streamN-TV2/android_tv/.tools}"
+TOOLS_DIR="${SAFEER_TOOLS_DIR:-$DIR/.tools}"
 KOTLINC="$TOOLS_DIR/kotlinc/bin/kotlinc"
 KOTLIN_LIB="$TOOLS_DIR/kotlinc/lib/kotlin-stdlib.jar"
 BUILD_DIR="$DIR/build"

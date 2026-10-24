@@ -8,6 +8,9 @@ import org.json.JSONObject
 object MediaNapredek {
     private const val PREF = "safeer_media_napredek"
     private const val KEY = "vnosi"
+    /** Pregled B-S1: kljuci odgledanih vsebin (>= 95 %, [OsPravila.odgledano]), najnovejsi prvi. */
+    private const val KEY_ODGLEDANO = "odgledano"
+    private const val NAJVEC_ODGLEDANIH = 300
     /** [naprava] = id naprave v Linku, s katere je datoteka (streznik datotek); prazno za splet in to napravo. */
     data class Vnos(val skladba: Jamendo.Skladba, val polozaj: Long, val trajanje: Long, val cas: Long, val naprava: String = "")
 
@@ -29,9 +32,12 @@ object MediaNapredek {
         if (!s.video || s.radio || Stremio.jeVZivo(s) || s.id.startsWith("tv:") || vrsta == SpletniVir.VIDEOSPOT || s.mediaType.equals("MusicVideo", ignoreCase = true) ||
             (!jeSerijaAliFilm && trajanje < najkrajse(s)) || polozaj < 15_000 || trajanje <= 0) return
         val k = kljuc(s)
+        // Pregled B-S1: izrecna oznaka »odgledano« (>= 95 %); ogled znova od zacetka jo pobrise. Samo po njej »Nadaljuj«
+        // odpre naslednjo epizodo - manjkajoc zapis mesta (pod 15 s, zasebni dodatek, brez trajanja) ne pomeni »odgledano«.
+        oznaciOdgledano(c, k, OsPravila.odgledano(polozaj, trajanje))
         val vsi = preberiJson(c).filter { it.optString("k") != k }.toMutableList()
         // Zadnjih ~95 % ne ponujamo kot "Nadaljuj"; ogled je prakticno koncan.
-        if (polozaj < trajanje * 95 / 100) vsi.add(0, json(s, polozaj, trajanje, naprava))
+        if (!OsPravila.odgledano(polozaj, trajanje)) vsi.add(0, json(s, polozaj, trajanje, naprava))
         shrani(c, vsi.take(30))
     }
 
@@ -65,6 +71,22 @@ object MediaNapredek {
                     (n.isNotBlank() && (n == naslovCist || n.contains(naslovCist) || naslovCist.contains(n)))
             } catch (_: Exception) { false }
         })
+    }
+
+    /** Pregled B-S1: ali je bila vsebina [s] nazadnje odgledana do konca (>= 95 %). */
+    fun odgledano(c: Context, s: Jamendo.Skladba): Boolean = kljuc(s) in odgledani(c)
+
+    private val zaklepOdgledanih = Any()
+
+    private fun odgledani(c: Context): List<String> = try {
+        val a = JSONArray(c.getSharedPreferences(PREF, 0).getString(KEY_ODGLEDANO, "[]"))
+        (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() }
+    } catch (_: Exception) { emptyList() }
+
+    private fun oznaciOdgledano(c: Context, k: String, da: Boolean) = synchronized(zaklepOdgledanih) {
+        val prej = odgledani(c)
+        val potem = if (da) (listOf(k) + prej.filter { it != k }).take(NAJVEC_ODGLEDANIH) else prej.filter { it != k }
+        if (potem != prej) c.getSharedPreferences(PREF, 0).edit().putString(KEY_ODGLEDANO, JSONArray(potem).toString()).apply()
     }
 
     fun pocisti(c: Context) {

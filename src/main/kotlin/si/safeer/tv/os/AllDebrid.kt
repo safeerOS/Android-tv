@@ -49,6 +49,8 @@ object AllDebrid {
             // Ni predpomnjen in uporabnik caka: stanje do »ready« (koda 4), koncne napake (>= 5) brez cakanja.
             var cakano = 0L
             while (!pripravljen && cakano <= TorBoxPravila.CAKAJ_NOVEGA_MS) {
+                // Pregled A1: preklic (nova izbira, Preklici) ustavi cakanje takoj.
+                if (Thread.interrupted()) throw InterruptedException()
                 Thread.sleep(TorBoxPravila.CAKAJ_KORAK_MS); cakano += TorBoxPravila.CAKAJ_KORAK_MS
                 val st = Debrid.klic("https://api.alldebrid.com/v4.1/magnet/status", kljuc, "POST", listOf("id" to id.toString()))
                 if (!uspeh(st)) return napaka(st)
@@ -74,6 +76,7 @@ object AllDebrid {
             val zamik = data?.optLong("delayed", 0L) ?: 0L
             var poskusov = 0
             while (url.isBlank() && zamik > 0 && poskusov < 30) {
+                if (Thread.interrupted()) throw InterruptedException()
                 Thread.sleep(2_000); poskusov++
                 val z = Debrid.klic("$O/link/delayed", kljuc, "POST", listOf("id" to zamik.toString()))
                 if (!uspeh(z)) return napaka(z)

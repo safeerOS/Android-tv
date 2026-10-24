@@ -50,5 +50,52 @@ fun main() {
     preveriEnako("naprave ni vec: opusti", P.BRISANJE_OPUSTI, P.izidBrisanja("ni_naprave", t0, t0 + 1))
     preveriEnako("starejse od meseca: opusti", P.BRISANJE_OPUSTI, P.izidBrisanja("ni_povezave", t0, t0 + P.BRISANJE_NAJDLJE_MS + 1))
 
+    // Pregled 25. 10. 2026 D3: cas izbrisa pogovora ni po krajevni uri - ura posiljatelja naprej ne skrije novih sporocil.
+    val zdaj = "2026-10-25T10:00:00+00:00"
+    preveriEnako("izbrisan do: ura posiljatelja naprej - omejeno na krajevni cas izbrisa", zdaj,
+        P.izbrisanDo(listOf("2026-11-30T10:00:00+00:00"), "2026-10-24T10:00:00+00:00", zdaj))
+    preveriEnako("izbrisan do: pravilna ura ostane najnovejse sporocilo", "2026-10-25T09:00:00+00:00",
+        P.izbrisanDo(listOf("2026-10-25T09:00:00+00:00"), "2026-10-24T10:00:00+00:00", zdaj))
+    preveriEnako("novo sporocilo po izbrisu z uro posiljatelja naprej vrne pogovor", true,
+        P.pogovorSeVrne("2026-10-25T10:05:00+00:00", P.izbrisanDo(listOf("2026-11-30T10:00:00+00:00"), "", zdaj)))
+
+    // D4: izbris, ki pride pred izvirnikom, pusti zapis za 7 dni (krajevna ura).
+    preveriEnako("vnaprej: znana naprava in skupni id", true, P.smeZapisatiVnaprej("n-tel", uuid))
+    preveriEnako("vnaprej: brez naprave ne", false, P.smeZapisatiVnaprej("", uuid))
+    preveriEnako("vnaprej: id, ki ni UUID, ne", false, P.smeZapisatiVnaprej("n-tel", "123456789"))
+    val t1 = 5_000_000_000L
+    val poteka = P.potekVnaprej(t1)
+    preveriEnako("vnaprej: velja 7 dni", 7L * 24 * 3600 * 1000, poteka - t1)
+    preveriEnako("vnaprej: takoj velja", true, P.vnaprejVelja(poteka, t1 + 1))
+    preveriEnako("vnaprej: tik pred potekom velja", true, P.vnaprejVelja(poteka, poteka - 1))
+    preveriEnako("vnaprej: po poteku ne velja", false, P.vnaprejVelja(poteka, poteka))
+    preveriEnako("vnaprej: ura prestavljena nazaj - zapis ne velja predolgo", false, P.vnaprejVelja(poteka, t1 - 3600_000))
+
+    // D5: »Izbrisi na vseh« samo napravi z zmoznostjo chat.delete, drugim opomba.
+    preveriEnako("na drugi: zna izbris", P.NA_DRUGI_DA, P.izbrisNaDrugi(listOf(listOf("url"), listOf("chat", P.ZMOZNOST_IZBRIS))))
+    preveriEnako("na drugi: samo chat (namizje) ne zna", P.NA_DRUGI_NE, P.izbrisNaDrugi(listOf(listOf("chat", "url"))))
+    preveriEnako("na drugi: ni v seznamu - neznano", P.NA_DRUGI_NEZNANO, P.izbrisNaDrugi(emptyList()))
+    preveriEnako("meni: izbris na drugi ni podprt - opomba", listOf(P.KOPIRAJ, P.IZBRISI, P.IZBRISI_VSE_NI),
+        P.dejanjaSporocila("zivjo", jePovezava = false, naVseh = true, naVsehPodprto = false))
+    preveriEnako("meni: tuje sporocilo brez opombe", listOf(P.KOPIRAJ, P.IZBRISI),
+        P.dejanjaSporocila("zivjo", jePovezava = false, naVseh = false, naVsehPodprto = false))
+
+    // Pregled 8: e-posta (IMAP UID) - izbrisan pogovor obudi samo sporocilo, ki ga je streznik prejel po izbrisu.
+    preveriEnako("8: uid je e-posta", true, P.jeEposta("uid:42"))
+    preveriEnako("8: Link ni e-posta", false, P.jeEposta("a1b2"))
+    preveriEnako("8: e-posta - izbris velja do zdaj", "2026-10-25T10:00:00",
+        P.izbrisanDoZaKanal(listOf("2026-10-20T10:00:00"), "2026-10-20T10:00:00", "2026-10-25T10:00:00", eposta = true))
+    preveriEnako("8: drug kanal - kot doslej", "2026-10-20T10:00:00",
+        P.izbrisanDoZaKanal(listOf("2026-10-20T10:00:00"), "2026-10-20T10:00:00", "2026-10-25T10:00:00", eposta = false))
+    preveriEnako("8: pogovor ni izbrisan - shrani", true, P.novoVIzbrisanem("2026-10-01T00:00:00", null))
+    preveriEnako("8: Link - novo sporocilo vrne pogovor ne glede na uro", true, P.novoVIzbrisanem(null, "2026-10-25T10:00:00"))
+    preveriEnako("8: e-posta prejeta pred izbrisom (nov UID) - ne obudi", false, P.novoVIzbrisanem("2026-10-20T10:05:00", "2026-10-25T10:00:00"))
+    preveriEnako("8: e-posta prejeta po izbrisu - vrne", true, P.novoVIzbrisanem("2026-10-25T10:00:01", "2026-10-25T10:00:00"))
+    // Pregled 4: naprava, ki izbrisa ne javi - izbris pocaka (ne zavrzemo ga takoj), meni ga ponudi.
+    preveriEnako("4: brez zmoznosti - pocakaj", P.BRISANJE_PONOVI, P.brisanjeBrezZmoznosti(0L, 1_000L))
+    preveriEnako("4: brez zmoznosti, prestar - opusti", P.BRISANJE_OPUSTI, P.brisanjeBrezZmoznosti(0L, P.BRISANJE_NAJDLJE_MS + 1))
+    preveriEnako("4: ne javi - meni ponudi", true, P.izbrisNaVsehPonudi(P.NA_DRUGI_NE))
+    preveriEnako("4: neznano - meni ponudi", true, P.izbrisNaVsehPonudi(P.NA_DRUGI_NEZNANO))
+
     if (napak == 0) println("SporocilaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

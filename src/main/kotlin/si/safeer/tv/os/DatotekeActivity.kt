@@ -1499,12 +1499,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return if (pika > 0) ime.substring(0, pika) to ime.substring(pika) else ime to ""
         }
 
-        /** Novo ime iz polja + stara koncnica; kdor vpise svojo (ime s piko), obdrzi svojo. */
-        fun zdruziIme(vneseno: String, koncnica: String): String {
-            val ime = vneseno.trim().trimEnd('.')
-            if (ime.isEmpty()) return ""
-            return if (koncnica.isNotEmpty() && !ime.contains('.')) ime + koncnica else ime
-        }
+        /** Novo ime iz polja + stara koncnica ([DatotekePravila.zdruziIme]). */
+        fun zdruziIme(vneseno: String, koncnica: String): String = DatotekePravila.zdruziIme(vneseno, koncnica)
 
         /** Kratka koda napake racunalnika ali naprave -> besedilo za uporabnika. */
         fun opisNapake(c: Context, koda: String): String = when (koda) {

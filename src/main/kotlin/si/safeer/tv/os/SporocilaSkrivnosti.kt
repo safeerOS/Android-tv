@@ -47,6 +47,14 @@ object SporocilaSkrivnosti {
         }
     } catch (_: Throwable) { null }
 
+    /**
+     * Pregled A5: ali je skrivnost [ime] shranjena - ne glede na to, ali jo Keystore se zna odsifrirati ([preberi] vrne
+     * null v obeh primerih). Tako locimo »ni vpisana« od »vpisana, a neberljiva«.
+     */
+    fun ima(c: Context, ime: String): Boolean = try {
+        c.applicationContext.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE).contains(ime)
+    } catch (_: Throwable) { false }
+
     fun pozabi(c: Context, ime: String) {
         c.applicationContext.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE).edit().remove(ime).apply()
     }

@@ -405,7 +405,11 @@ object Stremio {
                     c.headerFields.mapNotNull { (k, v) -> if (k == null) null else v?.firstOrNull()?.let { k.lowercase() to it } }.toMap()
                 } catch (_: Exception) { emptyMap() })
                 if (koda !in 200..299) { DodatkiRazvoj.zapisi(url, koda, 0, android.os.SystemClock.elapsedRealtime() - zacetek); return null }
-                val besedilo = c.inputStream.use { String(it.readBytes(), Charsets.UTF_8) }
+                // Pregled D7: odgovor dodatka najvec NAJVEC_ODGOVORA_DODATKA bajtov - vecjega zavrnemo, preden ga beremo v
+                // pomnilnik in razclenimo (prej readBytes() brez meje: zlonameren dodatek bi napolnil pomnilnik).
+                if (OsPravila.odgovorPrevelik(c.contentLengthLong)) { prevelik(url); return null }
+                val bajti = c.inputStream.use { beriOmejeno(it, OsPravila.NAJVEC_ODGOVORA_DODATKA) } ?: run { prevelik(url); return null }
+                val besedilo = String(bajti, Charsets.UTF_8)
                 DodatkiRazvoj.zapisi(url, koda, besedilo.length, android.os.SystemClock.elapsedRealtime() - zacetek)
                 JSONObject(besedilo)
             } finally { c.disconnect() }
@@ -413,6 +417,31 @@ object Stremio {
     }
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
+
+    /** Pregled D7: najvec [meja] bajtov; null, ce jih je vec (beremo najvec meja + 1, da to vemo). */
+    private fun beriOmejeno(vhod: java.io.InputStream, meja: Int): ByteArray? {
+        val izhod = java.io.ByteArrayOutputStream()
+        val buf = ByteArray(16 * 1024)
+        while (izhod.size() <= meja) {
+            val n = vhod.read(buf, 0, minOf(buf.size, meja + 1 - izhod.size()))
+            if (n < 0) break
+            izhod.write(buf, 0, n)
+        }
+        return if (izhod.size() > meja) null else izhod.toByteArray()
+    }
+
+    /** Pregled D7: tok, ki po [meja] bajtih vrze napako - za tokovno branje ([prenesiTokovno]) brez celega odgovora v pomnilniku. */
+    private class OmejenVhod(vhod: java.io.InputStream, private val meja: Long) : java.io.FilterInputStream(vhod) {
+        private var prebrano = 0L
+        private fun stej(n: Long) { if (n > 0) { prebrano += n; if (prebrano > meja) throw java.io.IOException("odgovor dodatka prevelik") } }
+        override fun read(): Int { val b = super.read(); if (b >= 0) stej(1); return b }
+        override fun read(b: ByteArray, off: Int, len: Int): Int { val n = super.read(b, off, len); stej(n.toLong()); return n }
+        override fun skip(n: Long): Long { val k = super.skip(n); stej(k); return k }
+    }
+
+    private fun prevelik(url: String) {
+        try { android.util.Log.w("SafeerStremio", "odgovor dodatka ${try { URL(url).host } catch (_: Exception) { "?" }} prevelik - zavrnjen") } catch (_: Throwable) { }
+    }
 
     /** Mapa za predpomnilnik manifestov na disku (nastavi jo aplikacija ob zagonu); brez nje le pomnilnik. */
     @Volatile var mapaPredpomnilnika: java.io.File? = null
@@ -928,7 +957,10 @@ object Stremio {
                 } catch (_: Exception) { emptyMap() })
                 DodatkiRazvoj.zapisi(url, koda, -1, 0L)
                 if (koda !in 200..299) return null
-                android.util.JsonReader(java.io.InputStreamReader(java.io.BufferedInputStream(c.inputStream, 16 * 1024), Charsets.UTF_8)).use { beri(it) }
+                // Pregled D7: tudi tokovno branje ima trdo mejo (napovedana dolzina in dejansko prebrani bajti).
+                if (OsPravila.odgovorPrevelik(c.contentLengthLong, 2 * OsPravila.NAJVEC_ODGOVORA_DODATKA)) { prevelik(url); return null }
+                android.util.JsonReader(java.io.InputStreamReader(java.io.BufferedInputStream(
+                    OmejenVhod(c.inputStream, 2L * OsPravila.NAJVEC_ODGOVORA_DODATKA), 16 * 1024), Charsets.UTF_8)).use { beri(it) }
             } finally { c.disconnect() }
         } catch (_: Exception) { if ((zadnjaKoda.get() ?: 0) == 0) zabeleziOdziv(url, 0); null } }
     }
@@ -1610,17 +1642,39 @@ object Stremio {
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */
-    fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> {
+    fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> = tokoviZOdzivom(naslovi, tip, id).tokovi
+
+    /**
+     * Pregled B1: tokovi in kaj so dodatki odgovorili - [placilnih] obvestil placilnega zidu, [odgovorili] = vsak dodatek je
+     * dal odgovor (tudi »tega nimam«). Placljivo NE zapise: to odloci klicatelj enkrat po vseh dodatkih ([zabeleziPlacljivoPoVseh]).
+     */
+    class OdgovorTokov(val tokovi: List<Tok>, val placilnih: Int, val odgovorili: Boolean)
+
+    fun tokoviZOdzivom(naslovi: List<String>, tip: String, id: String): OdgovorTokov {
         val placilnih = java.util.concurrent.atomic.AtomicInteger(0)
-        val vsi = tokoviDodatkov(naslovi, tip, id, placilnih)
-        zabeleziPlacljivo(tip, id, placilnih.get(), vsi.count { jePredvajljiv(it) })
-        return vsi
+        val brezOdgovora = java.util.concurrent.atomic.AtomicBoolean(false)
+        val vsi = tokoviDodatkov(naslovi, tip, id, placilnih, brezOdgovora)
+        return OdgovorTokov(vsi, placilnih.get(), !brezOdgovora.get())
     }
 
-    private fun tokoviDodatkov(naslovi: List<String>, tip: String, id: String, placilnih: java.util.concurrent.atomic.AtomicInteger): List<Tok> =
+    /**
+     * Pregled B1: placljivo za vsebino enkrat, po odgovorih VSEH dodatkov ([OsPravila.placljivoPoVsehOdgovorih]) - prej je
+     * odlocil zadnji odgovor posameznega dodatka in film s prostimi tokovi je izginil za 7 dni.
+     */
+    fun zabeleziPlacljivoPoVseh(tip: String, id: String, placilnih: Int, predvajljivih: Int, vsiOdgovorili: Boolean) {
+        val k = "$tip|$id"
+        val prej = placljivo[k]
+        val novo = OsPravila.placljivoPoVsehOdgovorih(prej, placilnih, predvajljivih, vsiOdgovorili, System.currentTimeMillis())
+        if (novo == prej) return
+        if (novo == null) placljivo.remove(k) else placljivo[k] = novo
+        try { shrambaZaklepov?.edit()?.apply { if (novo == null) remove(PREDPONA_PLACLJIVO + k) else putLong(PREDPONA_PLACLJIVO + k, novo) }?.apply() } catch (_: Exception) { }
+    }
+
+    private fun tokoviDodatkov(naslovi: List<String>, tip: String, id: String, placilnih: java.util.concurrent.atomic.AtomicInteger,
+                               brezOdgovora: java.util.concurrent.atomic.AtomicBoolean): List<Tok> =
         naslovi.also { uporabnikOb = System.currentTimeMillis() }
         // Dodatek, ki ga ne dosezemo (manifesta ni), bi vsebino morda imel: to je izpad, ne "ni na voljo".
-        .mapNotNull { manifest(it) ?: run { zadnjiIzpad.set(System.currentTimeMillis()); null } }
+        .mapNotNull { manifest(it) ?: run { zadnjiIzpad.set(System.currentTimeMillis()); brezOdgovora.set(true); null } }
         .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) &&
             (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
         .flatMap { m ->
@@ -1631,10 +1685,11 @@ object Stremio {
                 // v ozadju ustavimo (premor) in poskusimo se enkrat; ce spet nic, to zabelezimo kot izpad.
                 val koda = zadnjaKoda.get() ?: 0
                 if (koda == 429 || koda == 403) zacniPremor(m.osnova)
-                try { Thread.sleep(1_200) } catch (_: InterruptedException) { return@flatMap emptyList<Tok>() }
+                try { Thread.sleep(1_200) } catch (_: InterruptedException) { brezOdgovora.set(true); return@flatMap emptyList<Tok>() }
                 d = json(naslov)
                 if (d == null && !kodaPomeniNima(zadnjaKoda.get() ?: 0)) {
                     zadnjiIzpad.set(System.currentTimeMillis())
+                    brezOdgovora.set(true)
                     try { android.util.Log.i("SafeerStremio", "dodatek ${try { URL(m.osnova).host } catch (_: Exception) { "?" }} ni dal tokov: koda ${zadnjaKoda.get() ?: 0}") } catch (_: Throwable) { }
                 }
             }
@@ -1724,16 +1779,6 @@ object Stremio {
         if (placljivo.isEmpty()) return
         try { val e = shrambaZaklepov?.edit(); placljivo.keys.forEach { e?.remove(PREDPONA_PLACLJIVO + it) }; e?.apply() } catch (_: Exception) { }
         placljivo.clear()
-    }
-
-    /** Naloga 120: zapis po odgovoru vseh dodatkov za vsebino ([OsPravila.placljivoPoOdgovoru]); obstojen cez ponovni zagon. */
-    private fun zabeleziPlacljivo(tip: String, id: String, placilnih: Int, predvajljivih: Int) {
-        val k = "$tip|$id"
-        val prej = placljivo[k]
-        val novo = OsPravila.placljivoPoOdgovoru(prej, placilnih, predvajljivih, System.currentTimeMillis())
-        if (novo == prej) return
-        if (novo == null) placljivo.remove(k) else placljivo[k] = novo
-        try { shrambaZaklepov?.edit()?.apply { if (novo == null) remove(PREDPONA_PLACLJIVO + k) else putLong(PREDPONA_PLACLJIVO + k, novo) }?.apply() } catch (_: Exception) { }
     }
 
     /**

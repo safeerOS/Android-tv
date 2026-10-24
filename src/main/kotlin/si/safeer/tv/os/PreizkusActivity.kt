@@ -29,6 +29,8 @@ class PreizkusActivity : Activity() {
         if (v != null) startActivity(Intent(this, GlasbaActivity::class.java)
             .putExtra(GlasbaActivity.PREIZKUS_IMDB, n.getStringExtra(EXTRA_IMDB))
             .putExtra(GlasbaActivity.PREIZKUS_NASLOV, v.naslov)
+            // Enkratni zeton (pregled 25. 10. 2026): GlasbaActivity je ponekod izvozena, preizkus sprejme samo od tu.
+            .putExtra(GlasbaActivity.PREIZKUS_ZETON, GlasbaActivity.izdajZetonPreizkusa())
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
         finish()
     }

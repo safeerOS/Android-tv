@@ -123,5 +123,23 @@ fun main() {
     preveriEnako("141: paket (ni Pro) ostane paket", false, UsenetPravila.niPredpomnjeno(true, TorBoxPravila.NAPAKA_PAKET))
     preveriEnako("141: s cakanjem napaka ostane", false, UsenetPravila.niPredpomnjeno(false, TorBoxPravila.NAPAKA_STREZNIK))
 
+    // Pregled A10: http samo do pravega naslova IP v domacem omrezju, ne do imena, ki se tako zacne.
+    preveriEnako("A10: ime 10.example.com ni domace", null, UsenetPravila.osnova("http://10.example.com"))
+    preveriEnako("A10: ime 192.168.evil.example ni domace", null, UsenetPravila.osnova("http://192.168.evil.example/api"))
+    preveriEnako("A10: ime 127.0.0.1.nip.io ni domace", null, UsenetPravila.osnova("http://127.0.0.1.nip.io"))
+    preveriEnako("A10: 10.0.0.5 je domace", "http://10.0.0.5:5076", UsenetPravila.osnova("http://10.0.0.5:5076/api"))
+    preveriEnako("A10: 127.0.0.1 je domace", "http://127.0.0.1:9696", UsenetPravila.osnova("http://127.0.0.1:9696"))
+    preveriEnako("A10: neveljaven IPv4 ni domace", null, UsenetPravila.osnova("http://192.168.1.300"))
+    preveriEnako("A10: javni IPv4 ni domace", null, UsenetPravila.osnova("http://8.8.8.8"))
+    preveriEnako("A10: .local je domace", "http://nas.local:5076", UsenetPravila.osnova("http://nas.local:5076"))
+    preveriEnako("A10: localhost je domace", "http://localhost:5076", UsenetPravila.osnova("http://localhost:5076"))
+    preveriEnako("A10: https za ime vedno", "https://10.example.com", UsenetPravila.osnova("https://10.example.com"))
+    // Pregled A11: NZB nad mejo je napaka, ne odrezan.
+    preveriEnako("A11: na meji ni prevelik", false, UsenetPravila.nzbPrevelik(UsenetPravila.NAJVEC_NZB_BAJTOV.toLong()))
+    preveriEnako("A11: nad mejo prevelik", true, UsenetPravila.nzbPrevelik(UsenetPravila.NAJVEC_NZB_BAJTOV + 1L))
+    preveriEnako("A11: neznana dolzina ni prevelika", false, UsenetPravila.nzbPrevelik(-1L))
+    preveriEnako("A8: cakanje na Usenet pokrije povezavo in branje", true,
+        UsenetPravila.ISKANJE_CAKAJ_MS >= UsenetPravila.ISKANJE_POVEZAVA_MS + UsenetPravila.ISKANJE_ROK_MS)
+
     if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

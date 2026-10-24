@@ -6,7 +6,7 @@ Kaj naredi na vsaki napravi:
   2. zazene film in epizodo serije prek PreizkusActivity (izvozena samo z dovoljenjem DUMP - ima ga samo adb/sistem,
      druge aplikacije je ne morejo zagnati) - BREZ dotikov po koordinatah (ti so 24. 10. 2026 odpirali FILMBOX+),
   3. v dnevniku caka na tok in prvo sliko (SafeerTorBox / SafeerOsMedia / SafeerExoMer), ustavi predvajanje,
-  4. presteje sesutja Safeerja (logcat -b crash).
+  4. presteje sesutja Safeerja (logcat -b crash) od zacetka preizkusa - dnevnika naprave ne brise (logcat -T, ne -c).
 Dopolnjuje tests/preizkus_os_na_tv.py (domaci zaslon, ANR, pomnilnik). Naslovov naprav ni v datoteki - podas jih ob zagonu.
 
 Uporaba:
@@ -86,8 +86,19 @@ def _adb(n: str, *a: str, rok: int = 60) -> subprocess.CompletedProcess:
     return subprocess.run(["adb", "-s", n, *a], capture_output=True, text=True, timeout=rok)
 
 
-def _dnevnik(n: str, medpomnilnik: str = "main") -> list[str]:
-    return _adb(n, "logcat", "-d", "-b", medpomnilnik).stdout.splitlines()
+def _cas_naprave(n: str) -> str:
+    """Trenutni cas naprave v obliki za logcat -T (MM-DD hh:mm:ss.mmm, krajevni cas naprave kot v logcat)."""
+    return _adb(n, "shell", "date", "+%m-%d_%H:%M:%S.000", rok=15).stdout.strip().replace("_", " ")
+
+
+def _dnevnik(n: str, medpomnilnik: str = "main", od: str = "") -> list[str]:
+    # Dnevnika naprave ne brisemo (logcat -c bi izbrisal tudi zapise drugih aplikacij in prejsnjih preizkusov, ki jih
+    # lastnik morda se potrebuje) - beremo samo zapise od casa [od] naprej.
+    a = ["logcat", "-d", "-b", medpomnilnik]
+    if od:
+        # »adb logcat« (ne »adb shell«) argumente zascite sam - cas s presledkom gre brez narekovajev.
+        a += ["-T", od]
+    return _adb(n, *a).stdout.splitlines()
 
 
 def _verzija(n: str, paket: str) -> str:
@@ -99,7 +110,10 @@ def _predvajaj(n: str, paket: str, imdb: str, naslov: str, rok: float) -> dict:
     # Ugasnjen zaslon (tablica »Dozing«, 24. 10. 2026): brez povrsine ni prve slike - zaslon najprej zbudimo.
     _adb(n, "shell", "input", "keyevent", "KEYCODE_WAKEUP")
     _adb(n, "shell", "wm", "dismiss-keyguard")
-    _adb(n, "logcat", "-c")
+    od = _cas_naprave(n)
+    if not re.fullmatch(r"\d\d-\d\d \d\d:\d\d:\d\d\.000", od):
+        # Brez casa naprave bi brali tudi stare zapise (lazno OK iz prejsnjega preizkusa) - raje napaka.
+        return {"tok": False, "prva_slika_ms": None, "napaka": "cas_naprave"}
     # adb shell zdruzi argumente v en ukaz brez narekovajev: naslov s presledkom (»Preizkus film«) bi razpadel in drugi
     # del bi postal paket namena (WP28 S, 24. 10. 2026) - zato vsak argument v narekovaje.
     # -f 0x10008000 (NEW_TASK | CLEAR_TASK): vsak zagon nova aktivnost (sicer gre drugi zagon le v obstojeco nalogo -
@@ -113,7 +127,7 @@ def _predvajaj(n: str, paket: str, imdb: str, naslov: str, rok: float) -> dict:
     o = oceni([])
     while time.monotonic() < konec:
         time.sleep(2)
-        o = oceni(_dnevnik(n))
+        o = oceni(_dnevnik(n, od=od))
         if o["prva_slika_ms"] is not None or o["napaka"]:
             break
     _adb(n, "shell", "input", "keyevent", "KEYCODE_MEDIA_STOP")
@@ -131,12 +145,12 @@ def preizkusi(arg: str, apk: str, film: str, ep: str, rok: float) -> tuple[bool,
         r = _adb(n, "install", "-r", apk, rok=300)
         if "Success" not in r.stdout:
             return False, "%-7s %s %s namestitev ni uspela: %s" % ("NAPAKA", n, paket, (r.stdout + r.stderr).strip()[-120:])
-    _adb(n, "logcat", "-b", "crash", "-c")
+    od_sesutij = _cas_naprave(n)
     rezultati = [("film", _predvajaj(n, paket, film, "Preizkus film", rok))]
     e = epizoda(ep)
     if e:
         rezultati.append(("epizoda", _predvajaj(n, paket, ep, "Preizkus serija", rok)))
-    st = sesutja(_dnevnik(n, "crash"), paket)
+    st = sesutja(_dnevnik(n, "crash", od=od_sesutij), paket)
     v = vrstica(n, paket, _verzija(n, paket), rezultati, st)
     return v.startswith("OK"), v
 

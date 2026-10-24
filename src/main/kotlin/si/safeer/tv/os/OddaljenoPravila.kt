@@ -117,12 +117,18 @@ object OddaljenoPravila {
         return zacetek until zacetek + najvec
     }
 
+    /** Toliko osvezitev brez vidnega zaslona z daljincem (po skritju okna, dotiku docka ali ukazu), nato nobene vec. */
+    const val NAJVEC_OSVEZITEV_V_OZADJU = 3
+    /** Stanje, mlajse od tega, je dovolj sveze za prikaz (dock ga ne zahteva znova). */
+    const val SVEZE_MS = 10_000L
+
     /**
-     * Osvezitev stanja: okno daljinca vidno in igra - vsako sekundo; vidno v premoru - na 3 s; sicer na 10 s (tipke in
-     * obvestilo morajo vedeti, ali cilj igra - npr. ko tam sprejmejo ponudbo).
+     * Osvezitev stanja: okno daljinca vidno in igra - vsako sekundo; vidno v premoru - na 3 s. Brez vidnega okna (pregled C2,
+     * 25. 10. 2026) samo se [NAJVEC_OSVEZITEV_V_OZADJU]-krat na 10 s ([vOzadju] = ze opravljene), nato 0 = nic vec (v ozadju
+     * brez zahtev v omrezje; dock ali okno jih spet zbudi).
      */
-    fun razmikOsvezitve(vidno: Boolean, igra: Boolean): Long = when {
-        !vidno -> 10_000L
+    fun razmikOsvezitve(vidno: Boolean, igra: Boolean, vOzadju: Int = 0): Long = when {
+        !vidno -> if (vOzadju < NAJVEC_OSVEZITEV_V_OZADJU) 10_000L else 0L
         igra -> 1_000L
         else -> 3_000L
     }
@@ -134,9 +140,54 @@ object OddaljenoPravila {
     fun sejaKoncana(zaporednihNapak: Int, zadnjiOdgovorMs: Long, zdajMs: Long): Boolean =
         zaporednihNapak >= NAJVEC_NAPAK && zdajMs - zadnjiOdgovorMs >= BREZ_ODGOVORA_MS
 
+    /** Zakaj se je seja daljinca koncala (pregled C2/C7, 25. 10. 2026). */
+    const val KONEC_UPORABNIK = "uporabnik"
+    const val KONEC_NI_ODZIVA = "ni_odziva"
+    const val KONEC_NE_DELI = "ne_deli"
+    const val KONEC_STARA = "stara"
+    const val KONEC_BREZ_PREDVAJANJA = "brez_predvajanja"
+    /** Ta naprava predvaja sama ali jo upravlja druga naprava. */
+    const val KONEC_TU = "tu"
+
     /**
-     * Ali gumbi predvajalnika te naprave upravljajo cilj: seja daljinca je dejavna, cilj nekaj predvaja in ta naprava
-     * ne igra sama (ce uporabnik tu spet zacne, gumbi upravljajo to napravo - nic se ne zgodi drugje po pomoti).
+     * Konec seje po odgovoru cilja (null: seja tece): cilj ukaza ne pozna (starejsi Safeer), dostop te naprave je zaprt
+     * (koda "ni_dovoljeno") ali je cilj izklopil deljenje predvajanja (odgovor "shared": false) - takoj, ne sele po napakah.
      */
-    fun upravljaCilj(sejaDejavna: Boolean, ciljKajIgra: Boolean, tuIgra: Boolean): Boolean = sejaDejavna && ciljKajIgra && !tuIgra
+    fun konecPoOdgovoru(ok: Boolean, koda: String, deli: Boolean): String? = when {
+        koda == "neznano_dejanje" -> KONEC_STARA
+        koda == "ni_dovoljeno" -> KONEC_NE_DELI
+        ok && !deli -> KONEC_NE_DELI
+        else -> null
+    }
+
+    /** Cilj brez vsebine toliko casa (od zacetka seje ali zadnjega igranja) - seja se konca. */
+    const val BREZ_VSEBINE_MS = 3 * 60_000L
+    /** Cilj v premoru toliko casa od zadnjega igranja - seja se konca. */
+    const val V_PREMORU_MS = 60 * 60_000L
+
+    /**
+     * Pregled C2: seja se konca, ko cilj predolgo ne predvaja: nima vsebine [BREZ_VSEBINE_MS] (tam so zavrnili ponudbo ali
+     * ustavili predvajanje) ali je v premoru [V_PREMORU_MS]. [zadnjeIgranjeMs] je zacetek seje ali zadnji odgovor, ko je igralo.
+     */
+    fun brezPredvajanja(s: Stanje, zadnjeIgranjeMs: Long, zdajMs: Long): Boolean {
+        if (s.igra) return false
+        val ze = zdajMs - zadnjeIgranjeMs
+        return if (s.kajIgra) ze >= V_PREMORU_MS else ze >= BREZ_VSEBINE_MS
+    }
+
+    /** Sporocilo uporabniku samo, ce je sejo koncal cilj (ne odgovarja, ne deli vec, ne zna) - ne ob uporabnikovem koncu. */
+    fun javiKonec(razlog: String): Boolean = razlog == KONEC_NI_ODZIVA || razlog == KONEC_NE_DELI || razlog == KONEC_STARA ||
+        // Pregled 9: okno daljinca se zapre samo - uporabnik izve zakaj (na cilju ne tece nic vec).
+        razlog == KONEC_BREZ_PREDVAJANJA
+
+    /**
+     * Ali gumbi predvajalnika te naprave upravljajo cilj: seja daljinca je dejavna, cilj nekaj predvaja in tu ni nalozeno
+     * nic. Pregled C1 (25. 10. 2026): dokler je tu nalozena skladba - tudi v premoru ali med nalaganjem - gumbi (zaslon,
+     * obvestilo, dock) upravljajo to napravo; prej je »Predvajaj« po premoru tu upravljal drugo napravo in lokalne skladbe
+     * ni bilo mogoce nadaljevati. Cilj se tedaj upravlja v oknu »Upravljaj napravo«.
+     */
+    fun upravljaCilj(sejaDejavna: Boolean, ciljKajIgra: Boolean, tuNalozeno: Boolean): Boolean = sejaDejavna && ciljKajIgra && !tuNalozeno
+
+    /** Pregled C6: okno daljinca ponudi ±10 s samo, ce ima posnetek na cilju trajanje (ne v zivo). */
+    fun previjanjeNaCilju(s: Stanje): Boolean = s.kajIgra && s.trajanjeMs > 0
 }

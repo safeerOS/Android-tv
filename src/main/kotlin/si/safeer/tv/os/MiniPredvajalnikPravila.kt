@@ -62,4 +62,12 @@ object MiniPredvajalnikPravila {
 
     fun samodejnoSkrij(odprt: Boolean, imaFokus: Boolean, zadnjiDotikMs: Long, zdajMs: Long): Boolean =
         odprt && !imaFokus && zdajMs - zadnjiDotikMs >= SAMODEJNO_SKRIJ_MS
+
+    /**
+     * Pregled C4 (25. 10. 2026): dock se zgradi znova samo, ce se ni zgrajen ([zgrajenoMesto] null), ni vec na zaslonu
+     * ([priklopljen] false - nov setContentView) ali je uporabnik izbral drugo mesto; sicer osvezitev spremeni le besedilo in
+     * ikone (fokus daljinca ostane, samodejno skrivanje tece naprej).
+     */
+    fun zgradiZnova(zgrajenoMesto: String?, mesto: String, priklopljen: Boolean): Boolean =
+        !priklopljen || zgrajenoMesto == null || mesto(zgrajenoMesto) != mesto(mesto)
 }

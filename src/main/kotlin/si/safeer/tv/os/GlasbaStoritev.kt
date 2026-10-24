@@ -186,7 +186,7 @@ class GlasbaStoritev : Service() {
                 osvezi()
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                igraZadnje = isPlaying
+                igraZadnje = predvajalnik?.let { teceLokalno(it) } ?: isPlaying
                 if (isPlaying) { zacelo = true; koncnaNapaka = null; zapomniNedavnoEnkrat() }
                 // Naloga 75: pregled kanalov dodatkov v ozadju ne tece med predvajanjem.
                 if (isPlaying) PregledKanalov.ustavi("predvajanje")
@@ -197,6 +197,8 @@ class GlasbaStoritev : Service() {
                 if (isPlaying && merimOd != 0L) { Log.i("SafeerTorrentCas", "predvajanje tece po ${android.os.SystemClock.uptimeMillis() - merimOd} ms"); merimOd = 0L }
                 osvezi()
             }
+            // Pregled C1: igra() sledi playWhenReady - premor med nalaganjem mora osveziti gumb, obvestilo in sejo.
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = osvezi()
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = preveriDekoderje(p, tracks)
             override fun onMetadata(metadata: androidx.media3.common.Metadata) {
                 // Radio: naslov skladbe iz toka (ICY StreamTitle) kot "izvajalec" pod imenom postaje.
@@ -311,11 +313,12 @@ class GlasbaStoritev : Service() {
 
         seja = MediaSession(this, "SafeerGlasba").apply {
             setCallback(object : MediaSession.Callback() {
-                // Tipke gredo predvajalniku, ki igra: nasemu, spletnemu ([SpletniIgralec]) ali zvocniku v omrezju.
-                override fun onPlay() { nadaljuj() }
-                override fun onPause() { premor() }
-                override fun onSkipToNext() { naslednja() }
-                override fun onSkipToPrevious() { prejsnja() }
+                // Tipke gredo predvajalniku, ki igra: nasemu, spletnemu ([SpletniIgralec]) ali zvocniku v omrezju. Pregled C1:
+                // seja kaze stanje te naprave, zato nikoli ne upravlja druge naprave v Linku (to dela okno »Upravljaj napravo«).
+                override fun onPlay() { nadaljujTu() }
+                override fun onPause() { premorTu() }
+                override fun onSkipToNext() { naslednjaTu() }
+                override fun onSkipToPrevious() { prejsnjaTu() }
                 override fun onStop() { konec() }
                 override fun onSeekTo(pos: Long) { skoci(pos) }
             })
@@ -341,8 +344,9 @@ class GlasbaStoritev : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            AKCIJA_TOGGLE -> { preklopi(); return START_NOT_STICKY }
-            AKCIJA_NAPREJ -> { naslednja(); return START_NOT_STICKY }
+            // Obvestilo kaze to napravo - gumbi upravljajo to napravo (pregled C1).
+            AKCIJA_TOGGLE -> { preklopiTu(); return START_NOT_STICKY }
+            AKCIJA_NAPREJ -> { naslednjaTu(); return START_NOT_STICKY }
             AKCIJA_USTAVI -> { ustaviPredvajanje(); return START_NOT_STICKY }
         }
         zacniVOspredju()
@@ -944,6 +948,7 @@ class GlasbaStoritev : Service() {
                 if (isPlaying) NedelujoceSkladbe.pozabi(this@GlasbaStoritev, sk.id)
                 osvezi()
             }
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = osvezi()
             override fun onMediaMetadataChanged(mediaMetadata: M3Metadata) {
                 val t = mediaMetadata.title?.toString().orEmpty()
                 if (t.isNotBlank()) vrsta = vrsta.map { it.copy(naslov = t, izvajalec = mediaMetadata.artist?.toString()?.ifBlank { null } ?: it.izvajalec) }
@@ -1050,6 +1055,8 @@ class GlasbaStoritev : Service() {
 
     private fun osvezi() {
         if (predvajalnik == null) return
+        // Pregled 5: isto stanje kot igra() na glavni niti (playWhenReady, tudi med nalaganjem) - tudi za druge niti.
+        predvajalnik?.let { igraZadnje = teceLokalno(it) }
         val s = trenutna()
         // Med nedavno predvajane gre skladba sele, ko res igra - tudi na zvocniku (preskocene ne).
         if (naZvocniku() && Zvocniki.stanje.let { it.igral && it.zeliIgrati }) zapomniNedavnoEnkrat()
@@ -1063,7 +1070,7 @@ class GlasbaStoritev : Service() {
             .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
                 PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP or
                 PlaybackState.ACTION_SEEK_TO)
-            .setState(if (igra()) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED, polozajMs(), hitrostZaSejo())
+            .setState(stanjeSeje(), polozajMs(), if (stanjeSeje() == PlaybackState.STATE_BUFFERING) 0f else hitrostZaSejo())
             .build())
         uskladiGlasnostSeje()
         getSystemService(NotificationManager::class.java).notify(ID, obvestilo())
@@ -1155,10 +1162,25 @@ class GlasbaStoritev : Service() {
          * 23. 10. 2026 04:02 - PregledKanalov je iz ozadja klical igra() in aplikacija se je ob zacetku predvajanja sesula).
          */
         @Volatile var igraZadnje = false
+        /**
+         * Ali predvajanje tece po uporabnikovi zelji. Pregled C1 (25. 10. 2026): na glavni niti po playWhenReady (tudi med
+         * nalaganjem), ne isPlaying - prej je bil med nalaganjem prikazan »Predvajaj« in preklop ni mogel ustaviti.
+         */
         fun igra(): Boolean = when {
             naZvocniku() -> Zvocniki.stanje.zeliIgrati
             android.os.Looper.myLooper() != android.os.Looper.getMainLooper() -> igraZadnje
-            else -> predvajalnik?.isPlaying == true
+            else -> predvajalnik?.let { teceLokalno(it) } == true
+        }
+
+        /** Nas ali spletni predvajalnik tece ali se nalaga po zelji: ni pavze, ni napake, ni konca. */
+        private fun teceLokalno(p: Player): Boolean =
+            p.playWhenReady && p.playerError == null && (p.playbackState == Player.STATE_READY || p.playbackState == Player.STATE_BUFFERING)
+
+        /** Stanje za sejo sistema: med nalaganjem na tej napravi STATE_BUFFERING (cas na zaklenjenem zaslonu ne tece). */
+        private fun stanjeSeje(): Int = when {
+            !igra() -> PlaybackState.STATE_PAUSED
+            !naZvocniku() && predvajalnik?.playbackState == Player.STATE_BUFFERING -> PlaybackState.STATE_BUFFERING
+            else -> PlaybackState.STATE_PLAYING
         }
 
         fun polozajMs(): Long = if (naZvocniku()) Zvocniki.polozaj() else predvajalnik?.currentPosition?.coerceAtLeast(0L) ?: 0L
@@ -1185,19 +1207,25 @@ class GlasbaStoritev : Service() {
         }
 
         /**
-         * Naloga 117: gumbi te naprave upravljajo drugo napravo v Linku (seja daljinca po »Poslji na napravo«), dokler tu nic
-         * ne igra ([OddaljenoPravila.upravljaCilj]). Ce uporabnik tu spet predvaja, gumbi upravljajo to napravo.
+         * Naloga 117: dock, tipke Media Centra in zaganjalnik upravljajo drugo napravo v Linku (seja daljinca po »Poslji na
+         * napravo«), dokler tu ni nalozeno nic ([OddaljenoPravila.upravljaCilj], pregled C1). Zaslon predvajanja, obvestilo in
+         * seja sistema kazejo to napravo, zato klicejo ...Tu() in nikoli ne upravljajo druge.
          */
-        fun naDrugiNapravi(): Boolean = OddaljenoPredvajanje.cilj != null && OddaljenoPredvajanje.upravlja(igra())
+        fun naDrugiNapravi(): Boolean = OddaljenoPredvajanje.cilj != null &&
+            // Pregled C1: samo, ko tu ni nalozeno nic (trenutna() bere predvajalnik - samo z glavne niti).
+            android.os.Looper.myLooper() == android.os.Looper.getMainLooper() && OddaljenoPredvajanje.upravlja(trenutna() != null)
 
         fun nadaljuj() {
             if (naDrugiNapravi()) { OddaljenoPredvajanje.nadaljuj(); return }
-            if (naZvocniku()) Zvocniki.nadaljuj() else { zbudiPredvajalnik(); predvajalnik?.play() }
+            nadaljujTu()
         }
+
+        /** Ukazi TE naprave (zaslon predvajanja, obvestilo, seja, ukazi daljinca): nikoli ne gredo na drugo napravo. */
+        fun nadaljujTu() { if (naZvocniku()) Zvocniki.nadaljuj() else { zbudiPredvajalnik(); predvajalnik?.play() } }
 
         fun premor() {
             if (naDrugiNapravi()) { OddaljenoPredvajanje.premor(); return }
-            if (naZvocniku()) Zvocniki.premor() else predvajalnik?.pause()
+            premorTu()
         }
 
         /** Premor TE naprave (play.stop z druge naprave, ukazi daljinca): nikoli ne gre naprej na drugo napravo. */
@@ -1205,11 +1233,31 @@ class GlasbaStoritev : Service() {
 
         fun preklopi() {
             if (naDrugiNapravi()) { OddaljenoPredvajanje.preklopi(); return }
-            if (naZvocniku()) Zvocniki.preklopi()
-            else predvajalnik?.let { if (it.isPlaying) it.pause() else { zbudiPredvajalnik(); it.play() } }
+            preklopiTu()
         }
 
-        fun skoci(ms: Long) { if (naZvocniku()) Zvocniki.skoci(ms) else predvajalnik?.seekTo(ms) }
+        /** Preklop TE naprave po playWhenReady (pregled C1): med nalaganjem gumb ustavi, kot kaze ikona. */
+        fun preklopiTu() {
+            if (naZvocniku()) Zvocniki.preklopi()
+            else predvajalnik?.let { if (teceLokalno(it)) it.pause() else { zbudiPredvajalnik(); it.play() } }
+        }
+
+        /**
+         * Pregled C5: posnetek v zivo (radio, kanal, HLS v zivo) - kot prikaz »V zivo« na zaslonu predvajanja; previjanje
+         * tedaj ne velja. Klic z glavne niti.
+         */
+        fun vZivo(): Boolean {
+            val p = predvajalnik ?: return false
+            val sk = trenutna()
+            return OsPravila.prikazVZivo(p.isCurrentMediaItemLive, p.isCurrentMediaItemDynamic,
+                sk != null && (sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)))
+        }
+
+        /** Skok (zaslon, seja sistema, ukaz daljinca): v zivo in pri neprevijalnem posnetku ga ni (pregled C5). */
+        fun skoci(ms: Long) {
+            if (vZivo()) return
+            if (naZvocniku()) Zvocniki.skoci(ms) else predvajalnik?.let { if (it.isCurrentMediaItemSeekable) it.seekTo(ms) }
+        }
 
         /** Hitrost za sejo sistema: dokler zvok na zvocniku se ne tece (zagon, pristajanje po preskoku), cas stoji. */
         private fun hitrostZaSejo(): Float {
@@ -1283,6 +1331,10 @@ class GlasbaStoritev : Service() {
 
         fun naslednja() {
             if (naDrugiNapravi()) { OddaljenoPredvajanje.naslednja(); return }
+            naslednjaTu()
+        }
+
+        fun naslednjaTu() {
             val s = primerek
             if (s != null && spletnaVrsta.size > spletniIndeks + 1) s.zacniElement(spletniIndeks + 1)
             // Na zvocniku: med premorom se naslednja samo nalozi (kot na tej napravi ostane premor).
@@ -1292,6 +1344,10 @@ class GlasbaStoritev : Service() {
         /** Nazaj: po prvih sekundah na zacetek posnetka, sicer prejsnji (kot pri vsakem predvajalniku). */
         fun prejsnja() {
             if (naDrugiNapravi()) { OddaljenoPredvajanje.prejsnja(); return }
+            prejsnjaTu()
+        }
+
+        fun prejsnjaTu() {
             val s = primerek
             val p = predvajalnik
             if (naZvocniku()) {
@@ -1313,7 +1369,7 @@ class GlasbaStoritev : Service() {
         /** Enoto spletne aplikacije, katere toka ne moremo ujeti, predvaja stran pod nasim upravljanjem. */
         /** Naloga 117: uporabnik predvaja tu - seja daljinca se konca, gumbi spet upravljajo to napravo. */
         private fun koncajDaljinec() {
-            if (OddaljenoPredvajanje.cilj != null) android.os.Handler(android.os.Looper.getMainLooper()).post { OddaljenoPredvajanje.koncaj() }
+            if (OddaljenoPredvajanje.cilj != null) android.os.Handler(android.os.Looper.getMainLooper()).post { OddaljenoPredvajanje.koncaj(OddaljenoPravila.KONEC_TU) }
         }
 
         fun predvajajSplet(ctx: Context, sk: Jamendo.Skladba, dovoliPrevzem: Boolean = true) {
@@ -1397,7 +1453,7 @@ class GlasbaStoritev : Service() {
         /** Casovnik izklopa: ob izteku predvajanje ustavimo (za zaspance pred televizorjem). */
         private var izklopOb = 0L
         private val ura = android.os.Handler(android.os.Looper.getMainLooper())
-        private val izklopi = Runnable { izklopOb = 0L; premor(); Zvocniki.casovnikSpremenjen(); poslusalci.toList().forEach { it() } }
+        private val izklopi = Runnable { izklopOb = 0L; premorTu(); Zvocniki.casovnikSpremenjen(); poslusalci.toList().forEach { it() } }
 
         /** Nastavi casovnik v minutah; 0 ga izklopi. */
         fun nastaviCasovnik(minut: Int) {

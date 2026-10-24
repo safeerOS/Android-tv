@@ -23,15 +23,15 @@
     <string name="os_torbox_shranjeno">Clé TorBox enregistrée</string>
     <string name="os_torbox_odstranjeno">Clé TorBox supprimée</string>
     <string name="os_torbox_pripravlja">TorBox prépare le flux…</string>
-    <string name="os_torbox_prenasa_odstotek">TorBox télécharge : %1$d %%</string>
-    <string name="os_torbox_napaka_naslov">TorBox n’a pas pu lire ce contenu</string>
-    <string name="os_torbox_napaka_kljuc">TorBox a refusé la clé API. Vérifiez-la dans Mes sources → TorBox.</string>
+    <string name="os_torbox_prenasa_odstotek">%1$s télécharge : %2$d %%</string>
+    <string name="os_torbox_napaka_naslov">%1$s n’a pas pu lire ce contenu</string>
+    <string name="os_torbox_napaka_kljuc">%1$s a refusé la clé API. Vérifiez-la dans Mes sources → Services debrid.</string>
     <string name="os_torbox_napaka_meja">Limite TorBox atteinte (60 nouveaux torrents par heure). Réessayez dans %1$d min.</string>
-    <string name="os_torbox_napaka_meja_paket">La limite de téléchargement de votre offre TorBox est atteinte.</string>
-    <string name="os_torbox_napaka_paket">Votre offre TorBox n’autorise pas ce téléchargement.</string>
-    <string name="os_torbox_napaka_ni_datoteke">TorBox n’a trouvé aucun fichier lisible dans ce torrent.</string>
-    <string name="os_torbox_napaka_prenasa">TorBox télécharge encore ce torrent. Réessayez dans quelques minutes – la lecture sera alors immédiate.</string>
-    <string name="os_torbox_napaka_streznik">TorBox ne répond pas pour le moment.</string>
+    <string name="os_torbox_napaka_meja_paket">La limite de téléchargement de votre offre %1$s est atteinte.</string>
+    <string name="os_torbox_napaka_paket">Votre offre %1$s n’autorise pas ce téléchargement.</string>
+    <string name="os_torbox_napaka_ni_datoteke">%1$s n’a trouvé aucun fichier lisible dans ce torrent.</string>
+    <string name="os_torbox_napaka_prenasa">%1$s télécharge encore ce torrent. Réessayez dans quelques minutes – la lecture sera alors immédiate.</string>
+    <string name="os_torbox_napaka_streznik">%1$s ne répond pas pour le moment.</string>
     <string name="os_torbox_brez">Continuer sans TorBox (sans confidentialité)</string>
     <string name="os_torbox_popravi">Corriger la clé</string>
     <!-- Naloga 124: razsiritve dodatkov (protokol v1) -->
@@ -90,6 +90,10 @@
     <string name="os_debrid_napaka_ni_predpomnjeno">Aucun de vos services ne l’a encore prêt, et « Instantané seulement » est activé. Choisissez « Attendre le téléchargement » pour que le service le télécharge d’abord.</string>
     <string name="os_debrid_pocakaj">Attendre le téléchargement</string>
     <string name="os_debrid_brez">Continuer sans (sans confidentialité)</string>
+    <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
+    <string name="os_debrid_kljuc_neberljiv">La clé %1$s enregistrée ne peut plus être lue sur cet appareil (stockage sécurisé). Saisissez-la à nouveau.</string>
+    <string name="os_debrid_poslji_ni_kroga">Aucun appareil de Safeer Link n’est dans le cercle proche de cet appareil – clés non envoyées. Ajoutez-le dans Réglages → Cercle de confiance proche.</string>
+    <string name="os_debrid_napaka_naslov_vse">Les services debrid n’ont pas pu lire ce contenu</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
     <string name="os_debrid_poslji">Envoyer les clés à un autre appareil</string>
     <string name="os_debrid_poslji_vprasanje">Envoyer vos clés (%1$s) à %2$s ? Elles voyagent chiffrées d’appareil à appareil ; %2$s ne les enregistre qu’après votre confirmation.</string>

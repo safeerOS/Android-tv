@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sporocila: popravki po pregledu 25. 10. 2026 (D5) -->
+    <string name="os_spor_na_vseh_ni_podprto">Suppression impossible sur l\'autre appareil</string>
+    <string name="os_spor_na_vseh_ni_podprto_opis">L\'autre appareil ne prend pas en charge la suppression des messages. Ce message ne peut être supprimé qu\'ici.</string>
+</resources>

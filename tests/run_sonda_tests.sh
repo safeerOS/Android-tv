@@ -5,7 +5,7 @@ set -euo pipefail
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$TEST_DIR")"
 SRC="$PROJECT_DIR/src/main/kotlin"
-TOOLS_DIR="${SAFEER_TOOLS_DIR:-$HOME/Namizje/Neimenovana mapa/streamN-TV2/android_tv/.tools}"
+TOOLS_DIR="${SAFEER_TOOLS_DIR:-$PROJECT_DIR/.tools}"
 KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 OUT="$(mktemp -d)"

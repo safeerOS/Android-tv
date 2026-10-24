@@ -23,15 +23,15 @@
     <string name="os_torbox_shranjeno">Ključ TorBox shranjen</string>
     <string name="os_torbox_odstranjeno">Ključ TorBox odstranjen</string>
     <string name="os_torbox_pripravlja">TorBox pripravlja tok …</string>
-    <string name="os_torbox_prenasa_odstotek">TorBox prenaša: %1$d %%</string>
-    <string name="os_torbox_napaka_naslov">TorBox tega ni mogel predvajati</string>
-    <string name="os_torbox_napaka_kljuc">TorBox je zavrnil ključ API. Preveri ga v Moji viri → TorBox.</string>
+    <string name="os_torbox_prenasa_odstotek">%1$s prenaša: %2$d %%</string>
+    <string name="os_torbox_napaka_naslov">%1$s tega ni mogel predvajati</string>
+    <string name="os_torbox_napaka_kljuc">%1$s je zavrnil ključ API. Preveri ga v Moji viri → Debrid storitve.</string>
     <string name="os_torbox_napaka_meja">Dosežena meja TorBoxa (60 novih torrentov na uro). Poskusi znova čez %1$d min.</string>
-    <string name="os_torbox_napaka_meja_paket">Dosežena je meja prenosov tvojega paketa TorBox.</string>
-    <string name="os_torbox_napaka_paket">Tvoj paket TorBox tega prenosa ne dovoli.</string>
-    <string name="os_torbox_napaka_ni_datoteke">TorBox v tem torrentu ni našel datoteke za predvajanje.</string>
-    <string name="os_torbox_napaka_prenasa">TorBox ta torrent še prenaša. Poskusi znova čez nekaj minut – takrat bo predvajanje takoj.</string>
-    <string name="os_torbox_napaka_streznik">TorBox trenutno ne odgovarja.</string>
+    <string name="os_torbox_napaka_meja_paket">Dosežena je meja prenosov tvojega paketa %1$s.</string>
+    <string name="os_torbox_napaka_paket">Tvoj paket %1$s tega prenosa ne dovoli.</string>
+    <string name="os_torbox_napaka_ni_datoteke">%1$s v tem torrentu ni našel datoteke za predvajanje.</string>
+    <string name="os_torbox_napaka_prenasa">%1$s ta torrent še prenaša. Poskusi znova čez nekaj minut – takrat bo predvajanje takoj.</string>
+    <string name="os_torbox_napaka_streznik">%1$s trenutno ne odgovarja.</string>
     <string name="os_torbox_brez">Nadaljuj brez TorBoxa (brez zasebnosti)</string>
     <string name="os_torbox_popravi">Popravi ključ</string>
     <!-- Naloga 124: razsiritve dodatkov (protokol v1) -->
@@ -90,6 +90,10 @@
     <string name="os_debrid_napaka_ni_predpomnjeno">Nobena tvoja storitev tega še nima pripravljenega, vklopljeno pa je »Samo takoj predvajljivo«. Izberi »Počakaj na prenos«, da ga storitev najprej prenese.</string>
     <string name="os_debrid_pocakaj">Počakaj na prenos</string>
     <string name="os_debrid_brez">Nadaljuj brez (brez zasebnosti)</string>
+    <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
+    <string name="os_debrid_kljuc_neberljiv">Shranjenega ključa %1$s na tej napravi ni več mogoče prebrati (varna shramba). Vpiši ga znova.</string>
+    <string name="os_debrid_poslji_ni_kroga">Nobena naprava v Safeer Linku ni v ožjem krogu te naprave – ključi niso poslani. Dodaš jo v Nastavitve → Ožji krog zaupanja.</string>
+    <string name="os_debrid_napaka_naslov_vse">Debrid storitve tega niso mogle predvajati</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
     <string name="os_debrid_poslji">Pošlji ključe na drugo napravo</string>
     <string name="os_debrid_poslji_vprasanje">Pošljem tvoje ključe (%1$s) na %2$s? Potujejo šifrirano od naprave do naprave; %2$s jih shrani šele, ko tam potrdiš.</string>

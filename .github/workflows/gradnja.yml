@@ -37,15 +37,27 @@ jobs:
           echo "eb7b68e01029fa67bc8d060ee54c12018f2c60ddc438cf21db14517229aa693b  kotlinc.zip" | sha256sum -c -
           unzip -q kotlinc.zip
           curl -fsSL -o json-20240303.jar https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar
-          echo "0ebb88e8fb5122b7506d5cf1d69f1ccdb790d22a  json-20240303.jar" | sha1sum -c -
+          # SHA-256 (prej SHA-1): izracunana iz istega jar z Maven Central, katerega SHA-1 se ujema z objavljenim .sha1.
+          echo "3cf6cd6892e32e2b4c1c39e0f52f5248a2f5b37646fdfbb79a66b46b618414ed  json-20240303.jar" | sha256sum -c -
 
+      # android.jar za preizkuse, ki ga potrebujejo (run_omnibox_tests.sh ga isce v .android-sdk projekta): Android SDK
+      # je na sliki ubuntu-24.04 (ANDROID_HOME, platforme android-34 do 37).
+      - name: Android SDK za preizkuse
+        run: |
+          ln -s "$ANDROID_HOME" .android-sdk
+          ls .android-sdk/platforms/android-3*/android.jar | head -1
+
+      # STROGO=1: preskocen preizkus (manjkajoce orodje) ustavi tek - v CI so vsa orodja, tiho preskakovanje ni dovoljeno.
       - name: Vsi preizkusi (tests/vse.sh)
         env:
           KOTLINC: ${{ runner.temp }}/orodja/kotlinc/bin/kotlinc
           JSON_JAR: ${{ runner.temp }}/orodja/json-20240303.jar
+          STROGO: '1'
         run: bash tests/vse.sh
 
   apk:
+    # APK samo, ce so preizkusi uspeli.
+    needs: testi
     runs-on: ubuntu-24.04  # ubuntu-latest gre 19. 10.-19. 11. 2026 na 26.04; prehod preizkusimo posebej
     steps:
       - uses: actions/checkout@v7

@@ -39,5 +39,18 @@ fun main() {
     preveriEnako("sistemska mapa: brez ciljev", emptyList<String>(), P.ciljiPremika("video", "Android/data/x/"))
     preveriEnako("neznana vrsta: brez ciljev", emptyList<String>(), P.ciljiPremika("pdf", "Documents/"))
 
+    // Pregled 25. 10. 2026 D9: koncnica ostane tudi pri novem imenu s piko.
+    preveriEnako("preimenuj: koncnica se doda", "dopust.jpg", P.zdruziIme("dopust", ".jpg"))
+    preveriEnako("preimenuj: ime s piko obdrzi koncnico", "dopust 2026.10.jpg", P.zdruziIme("dopust 2026.10", ".jpg"))
+    preveriEnako("preimenuj: ime ze ima koncnico", "dopust.jpg", P.zdruziIme("dopust.jpg", ".jpg"))
+    preveriEnako("preimenuj: koncnica z velikimi crkami se ne podvoji", "dopust.JPG", P.zdruziIme("dopust.JPG", ".jpg"))
+    preveriEnako("preimenuj: pika na koncu odpade", "dopust.jpg", P.zdruziIme("dopust. ", ".jpg"))
+    preveriEnako("preimenuj: mapa brez koncnice", "Moja.mapa", P.zdruziIme("Moja.mapa", ""))
+    preveriEnako("preimenuj: prazno ostane prazno", "", P.zdruziIme("  ", ".jpg"))
+    preveriEnako("pregled 7: druga znana koncnica ostane", "film.mp4", P.zdruziIme("film.mp4", ".mkv"))
+    preveriEnako("pregled 7: znana koncnica z velikimi crkami ostane", "Film.MP4", P.zdruziIme("Film.MP4", ".mkv"))
+    preveriEnako("pregled 7: neznana koncnica - stara se doda", "film.v2.mkv", P.zdruziIme("film.v2", ".mkv"))
+    preveriEnako("pregled 7: brez koncnice - stara se doda", "film.mkv", P.zdruziIme("film", ".mkv"))
+
     if (napak == 0) println("DatotekePravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

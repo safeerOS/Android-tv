@@ -33,14 +33,31 @@ object UsenetPravila {
     /** NZB datoteka je nekaj sto kB do nekaj MB; vec ne sprejmemo. */
     const val NAJVEC_NZB_BAJTOV = 20 * 1024 * 1024
 
+    /** Pregled A11: NZB (ali napovedana dolzina, -1 = ni znana) nad mejo zavrnemo z napako - odrezan NZB bi bil pokvarjen. */
+    fun nzbPrevelik(bajtov: Long): Boolean = bajtov > NAJVEC_NZB_BAJTOV
+
+    /** Rok branja odgovora indeksatorja pri iskanju (vzpostavitev povezave najvec [ISKANJE_POVEZAVA_MS]). */
+    const val ISKANJE_ROK_MS = 8_000
+    const val ISKANJE_POVEZAVA_MS = 5_000
+
+    /**
+     * Pregled A8: tako dolgo pocakamo na iskanje Usenet pri izbiri toka (povezava + branje), da je »Usenet prvi« zanesljiv -
+     * tudi ce dodatki odgovorijo prej.
+     */
+    const val ISKANJE_CAKAJ_MS = (ISKANJE_POVEZAVA_MS + ISKANJE_ROK_MS + 500).toLong()
+
     /** Usenet prenos pri TorBoxu je hiter (streznik do streznika), a velik film traja - cakamo do 10 min z napredkom. */
     const val CAKAJ_PRENOSA_MS = 600_000L
 
     private fun jeLokalniGostitelj(h: String): Boolean {
-        val g = h.lowercase()
-        if (g == "localhost" || g.endsWith(".local") || g.startsWith("127.") || g.startsWith("10.") || g.startsWith("192.168.")) return true
+        val g = h.lowercase().trimEnd('.')
+        if (g == "localhost" || g.endsWith(".local")) return true
+        // Pregled A10: samo pravi naslov IPv4 (stiri stevila 0-255) - ime »10.example.com« ni domace omrezje.
         val d = g.split('.')
-        return d.size == 4 && d[0] == "172" && (d[1].toIntOrNull() ?: 0) in 16..31
+        if (d.size != 4 || d.any { it.isEmpty() || it.length > 3 || !it.all { c -> c in '0'..'9' } }) return false
+        val b = d.map { it.toInt() }
+        if (b.any { it > 255 }) return false
+        return b[0] == 127 || b[0] == 10 || (b[0] == 192 && b[1] == 168) || (b[0] == 172 && b[1] in 16..31)
     }
 
     /**

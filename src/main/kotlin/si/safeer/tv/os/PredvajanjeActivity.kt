@@ -486,15 +486,16 @@ class PredvajanjeActivity : OsActivity() {
         val gumbi = OvijalnaVrsta(this)
         vrstaGumbov = gumbi
         gumbi.addView(nazaj, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(24) })
+        // Pregled C1: zaslon kaze to napravo - gumbi upravljajo to napravo (drugo okno »Upravljaj napravo«).
         gumbi.addView(okroglGumb(R.drawable.os_ikona_prejsnja, R.string.os_mediji_prejsnja, 52) {
-            GlasbaStoritev.prejsnja()
+            GlasbaStoritev.prejsnjaTu()
         })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_nazaj10, R.string.os_mediji_nazaj_10, 52) { premakni(-10_000) }.also { gumbNazaj10 = it })
         gumbPredvajaj = okroglGumb(R.drawable.os_ikona_pavza, R.string.os_mediji_predvajaj_pavza, 64) { preklopi() }
         gumbi.addView(gumbPredvajaj)
         gumbi.addView(okroglGumb(R.drawable.os_ikona_naprej10, R.string.os_mediji_naprej_10, 52) { premakni(10_000) }.also { gumbNaprej10 = it })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_naslednja, R.string.os_mediji_naslednja, 52) {
-            GlasbaStoritev.naslednja()
+            GlasbaStoritev.naslednjaTu()
         })
         gumbPodnapisi = okroglGumb(R.drawable.os_ikona_podnapisi, R.string.podnapisi_naslov, 52) {
             izbiraPodnapisov()
@@ -1772,15 +1773,18 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun preklopi() {
         if (GlasbaStoritev.predvajalnik == null) return
-        GlasbaStoritev.preklopi()
+        GlasbaStoritev.preklopiTu()
         osveziCas()
         glavna.postDelayed({ posodobiPip() }, 150)
     }
 
-    private fun premakni(ms: Long) {
-        val p = GlasbaStoritev.predvajalnik ?: return
+    /** ±10 s (gumbi, D-pad, FF/RW, L1/R1, dvojni dotik). Pregled C5: v zivo ne previja; vrne, ali je previl. */
+    private fun premakni(ms: Long): Boolean {
+        val p = GlasbaStoritev.predvajalnik ?: return false
+        if (GlasbaStoritev.vZivo()) return false
         val (polozaj, _) = polozajInTrajanje(p)
         skociNa((polozaj + ms).coerceAtLeast(0))
+        return true
     }
 
     // ------------------------------------------------------------------ slika v sliki (telefon, tablica)
@@ -1792,7 +1796,7 @@ class PredvajanjeActivity : OsActivity() {
         // Android dovoli razmerja med 1:2,39 in 2,39:1.
         val r = razmerje.toFloat().coerceIn(0.4185f, 2.39f)
         val b = android.app.PictureInPictureParams.Builder().setAspectRatio(android.util.Rational((r * 1000).toInt(), 1000))
-        val igra = GlasbaStoritev.predvajalnik?.isPlaying == true
+        val igra = GlasbaStoritev.igra()
         val dejanje = android.app.RemoteAction(
             android.graphics.drawable.Icon.createWithResource(this, if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj),
             getString(R.string.os_mediji_predvajaj_pavza), getString(R.string.os_mediji_predvajaj_pavza),
@@ -1947,8 +1951,7 @@ class PredvajanjeActivity : OsActivity() {
                 val zdaj = android.os.SystemClock.uptimeMillis()
                 if (zdaj - zadnjiDotikCas < 320 && levo == zadnjiDotikLevo) {
                     zadnjiDotikCas = 0L
-                    premakni(if (levo) -10_000 else 10_000)
-                    pokaziKazalnik(if (levo) "− 10 s" else "+ 10 s")
+                    if (premakni(if (levo) -10_000 else 10_000)) pokaziKazalnik(if (levo) "− 10 s" else "+ 10 s")
                     return true
                 }
                 zadnjiDotikCas = zdaj; zadnjiDotikLevo = levo
@@ -2039,11 +2042,11 @@ class PredvajanjeActivity : OsActivity() {
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { preklopi(); return true }
-            KeyEvent.KEYCODE_MEDIA_PLAY -> { GlasbaStoritev.nadaljuj(); return true }
-            KeyEvent.KEYCODE_MEDIA_PAUSE -> { GlasbaStoritev.premor(); return true }
+            KeyEvent.KEYCODE_MEDIA_PLAY -> { GlasbaStoritev.nadaljujTu(); return true }
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> { GlasbaStoritev.premorTu(); return true }
             KeyEvent.KEYCODE_MEDIA_STOP -> { GlasbaStoritev.ustavi(this); finish(); return true }
-            KeyEvent.KEYCODE_MEDIA_NEXT -> { GlasbaStoritev.naslednja(); return true }
-            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { GlasbaStoritev.prejsnja(); return true }
+            KeyEvent.KEYCODE_MEDIA_NEXT -> { GlasbaStoritev.naslednjaTu(); return true }
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { GlasbaStoritev.prejsnjaTu(); return true }
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> { premakni(-10_000); return true }
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { premakni(10_000); return true }
             KeyEvent.KEYCODE_DPAD_DOWN -> { odpriPredloge(); return true }

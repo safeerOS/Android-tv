@@ -1042,8 +1042,46 @@ fun main() {
     preizkusScenarijevVZivo114()
     preizkusNarascajocegaZamika115()
     preizkusPlacljivega120()
+    preizkusPregleda251025()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
+}
+
+/** Pregled 25. 10. 2026: B1 (placljivo po vseh dodatkih), D7 (meja odgovora), B-S1 (naslednja epizoda), B2 (zeton preizkusa). */
+private fun preizkusPregleda251025() {
+    val t = 1_000_000L
+    preveriEnako("B1: vsi odgovorili, samo zid - zapis", t, OsPravila.placljivoPoVsehOdgovorih(null, 1, 0, true, t))
+    preveriEnako("B1: kdo ni odgovoril - ni novega zapisa", null, OsPravila.placljivoPoVsehOdgovorih(null, 3, 0, false, t))
+    preveriEnako("B1: kdo ni odgovoril - star zapis ostane", 5L, OsPravila.placljivoPoVsehOdgovorih(5L, 3, 0, false, t))
+    preveriEnako("B1: prost tok pobrise zapis tudi brez vseh odgovorov", null, OsPravila.placljivoPoVsehOdgovorih(5L, 3, 1, false, t))
+    preveriEnako("B1: vsi odgovorili brez zidu - zapis ostane", 5L, OsPravila.placljivoPoVsehOdgovorih(5L, 0, 0, true, t))
+    preveriEnako("D7: neznana dolzina ni prevelika", false, OsPravila.odgovorPrevelik(-1L))
+    preveriEnako("D7: na meji sprejmemo", false, OsPravila.odgovorPrevelik(OsPravila.NAJVEC_ODGOVORA_DODATKA.toLong()))
+    preveriEnako("D7: nad mejo zavrnemo", true, OsPravila.odgovorPrevelik(OsPravila.NAJVEC_ODGOVORA_DODATKA + 1L))
+    preveriEnako("D7: lastna meja", true, OsPravila.odgovorPrevelik(11L, 10))
+    val ep = listOf(1 to 1, 1 to 2, 1 to 3, 2 to 1, 2 to 2, 0 to 1, 0 to 2)
+    preveriEnako("B-S1: naslednja v sezoni", 1 to 3, OsPravila.naslednjaEpizoda(ep, 1, 2))
+    preveriEnako("B-S1: po zadnji v sezoni prva naslednje", 2 to 1, OsPravila.naslednjaEpizoda(ep, 1, 3))
+    preveriEnako("B-S1: po zadnji epizodi serije nic", null, OsPravila.naslednjaEpizoda(ep, 2, 2))
+    preveriEnako("B-S1: posebne ostanejo med sabo", 0 to 2, OsPravila.naslednjaEpizoda(ep, 0, 1))
+    preveriEnako("B-S1: zadnja posebna ne skoci v sezono 1", null, OsPravila.naslednjaEpizoda(ep, 0, 2))
+    preveriEnako("B-S1: neurejen seznam", 2 to 1, OsPravila.naslednjaEpizoda(listOf(2 to 2, 2 to 1, 1 to 9), 1, 9))
+    preveriEnako("B-S1: luknja v stevilkah", 1 to 5, OsPravila.naslednjaEpizoda(listOf(1 to 1, 1 to 5), 1, 1))
+    preveriEnako("B-S1: naslov brez epizode", "Serija", OsPravila.naslovBrezEpizode("Serija · S1E2 · Pilot"))
+    preveriEnako("B-S1: naslov brez imena epizode", "Serija", OsPravila.naslovBrezEpizode("Serija · S10E12"))
+    preveriEnako("B-S1: pika v imenu serije ostane", "A · B", OsPravila.naslovBrezEpizode("A · B · S1E1 · x · y"))
+    preveriEnako("B-S1: drug naslov ostane", "Film 2010", OsPravila.naslovBrezEpizode("Film 2010"))
+    preveriEnako("B-S1: 95 % je odgledano", true, OsPravila.odgledano(95_000L, 100_000L))
+    preveriEnako("B-S1: 94 % ni odgledano", false, OsPravila.odgledano(94_999L, 100_000L))
+    preveriEnako("B-S1: brez trajanja ni odgledano", false, OsPravila.odgledano(5_000L, 0L))
+    val z = "abc" to 100L
+    preveriEnako("B2: pravi zeton velja", true, OsPravila.zetonPreizkusaVelja(z, "abc", 200L))
+    preveriEnako("B2: napacen zeton ne", false, OsPravila.zetonPreizkusaVelja(z, "abd", 200L))
+    preveriEnako("B2: brez zetona ne", false, OsPravila.zetonPreizkusaVelja(z, null, 200L))
+    preveriEnako("B2: prazen zeton ne", false, OsPravila.zetonPreizkusaVelja("" to 100L, "", 200L))
+    preveriEnako("B2: ni izdanega ne", false, OsPravila.zetonPreizkusaVelja(null, "abc", 200L))
+    preveriEnako("B2: potekel ne", false, OsPravila.zetonPreizkusaVelja(z, "abc", 100L + OsPravila.PREIZKUS_ZETON_VELJA_MS))
+    preveriEnako("B2: ura nazaj ne", false, OsPravila.zetonPreizkusaVelja(z, "abc", 50L))
 }
 
 private fun preizkusKatalogov90() {

@@ -24,6 +24,9 @@ object TorBox {
     fun kljuc(c: Context): String? = SporocilaSkrivnosti.preberi(c, SKRIVNOST)?.let { TorBoxPravila.ocistiKljuc(it) }
     fun imaKljuc(c: Context): Boolean = kljuc(c) != null
 
+    /** Pregled A5: kljuc je shranjen (tudi ce ga Keystore ne zna vec odsifrirati) - [Debrid.neberljiva]. */
+    fun kljucShranjen(c: Context): Boolean = SporocilaSkrivnosti.ima(c, SKRIVNOST)
+
     /** Shrani ocisceni kljuc; vrne false, ce vnos ni kljuc ali shramba ni uspela. */
     fun nastaviKljuc(c: Context, vnos: String): Boolean {
         val k = TorBoxPravila.ocistiKljuc(vnos) ?: return false
@@ -145,6 +148,8 @@ object TorBox {
                 var cakano = 0L
                 var pripravljen = false
                 while (!pripravljen && cakano <= TorBoxPravila.CAKAJ_NOVEGA_MS) {
+                    // Pregled A1: preklic (nova izbira, Preklici) ustavi cakanje takoj, ne sele po 3 min.
+                    if (Thread.interrupted()) throw InterruptedException()
                     val o = klic(TorBoxPravila.naslovSeznam(id), kljuc)
                     if (!uspeh(o)) return napaka(o)
                     val t = o.json?.optJSONObject("data")
@@ -204,6 +209,8 @@ object TorBox {
             var cakano = 0L
             var pripravljen = false
             while (!pripravljen && cakano <= UsenetPravila.CAKAJ_PRENOSA_MS) {
+                // Pregled A1: preklic ustavi cakanje (do 10 min) takoj.
+                if (Thread.interrupted()) throw InterruptedException()
                 val o = klic(UsenetPravila.naslovSeznam(id), kljuc)
                 if (!uspeh(o)) return z(napaka(o))
                 val t = o.json?.optJSONObject("data")

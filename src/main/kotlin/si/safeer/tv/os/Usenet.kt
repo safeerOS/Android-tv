@@ -56,11 +56,12 @@ object Usenet {
      * Tokovi Usenet za id Stremio (film `tt…` ali epizoda `tt…:S:E`); brez indeksatorja, za drug id ali ob napaki prazno.
      * [rokMs] za odgovor indeksatorja.
      */
-    fun isci(c: Context, id: String, rokMs: Int = 8_000): List<Stremio.Tok> {
+    fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS): List<Stremio.Tok> {
         val ix = indeksator(c) ?: return emptyList()
         val naslov = UsenetPravila.naslovIskanja(ix.osnova, ix.kljuc, id) ?: return emptyList()
         return try {
             val (koda, telo) = beri(naslov, rokMs, 4 * 1024 * 1024)
+                ?: run { Log.i(TAG, "iskanje: odgovor prevelik"); return emptyList() }
             if (koda !in 200..299) { Log.i(TAG, "iskanje: HTTP $koda"); return emptyList() }
             UsenetPravila.napaka(telo)?.let { Log.i(TAG, "iskanje: napaka indeksatorja ($it)"); return emptyList() }
             val zadetki = UsenetPravila.zadetki(telo, ix.osnova)
@@ -84,7 +85,14 @@ object Usenet {
                 p.connectTimeout = 10_000; p.readTimeout = 30_000
                 p.instanceFollowRedirects = true
                 val koda = p.responseCode
-                val telo = (if (koda in 200..299) p.inputStream else p.errorStream)?.use { beriDo(it, UsenetPravila.NAJVEC_NZB_BAJTOV) } ?: ByteArray(0)
+                // Pregled A11: NZB nad mejo je napaka (prej tiho odrezan - TorBox bi dobil pokvarjeno datoteko).
+                if (koda in 200..299 && UsenetPravila.nzbPrevelik(p.contentLengthLong)) {
+                    Log.i(TAG, "nzb: prevelik (${p.contentLengthLong} B)"); return null to UsenetPravila.NAPAKA_INDEKSATOR
+                }
+                val vhod = if (koda in 200..299) p.inputStream else p.errorStream
+                val prebrano = if (vhod == null) ByteArray(0) else vhod.use { beriDo(it, UsenetPravila.NAJVEC_NZB_BAJTOV) }
+                if (prebrano == null) { Log.i(TAG, "nzb: prevelik"); return null to UsenetPravila.NAPAKA_INDEKSATOR }
+                val telo: ByteArray = prebrano
                 val zacetek = String(telo, 0, minOf(telo.size, 4_096), Charsets.UTF_8)
                 when {
                     koda in 200..299 && UsenetPravila.jeNzb(zacetek) -> telo to ""
@@ -111,25 +119,30 @@ object Usenet {
         return TorBox.usenet(c, nzb, ime, indeks, samoTakoj, napredek)
     }
 
-    private fun beri(naslov: String, rokMs: Int, najvec: Int): Pair<Int, String> {
+    /** (koda, telo) ali null, ce je odgovor vecji od [najvec] (ga ne odrezemo - zavrnemo). */
+    private fun beri(naslov: String, rokMs: Int, najvec: Int): Pair<Int, String>? {
         val p = URL(naslov).openConnection() as HttpURLConnection
         try {
-            p.connectTimeout = minOf(5_000, rokMs); p.readTimeout = rokMs
+            p.connectTimeout = minOf(UsenetPravila.ISKANJE_POVEZAVA_MS, rokMs); p.readTimeout = rokMs
             p.setRequestProperty("Accept", "application/rss+xml, application/xml, text/xml")
             val koda = p.responseCode
-            val telo = (if (koda in 200..299) p.inputStream else p.errorStream)?.use { beriDo(it, najvec) } ?: ByteArray(0)
+            if (p.contentLengthLong > najvec) return null
+            val vhod = if (koda in 200..299) p.inputStream else p.errorStream
+            val telo = (if (vhod == null) ByteArray(0) else vhod.use { beriDo(it, najvec) }) ?: return null
             return koda to String(telo, Charsets.UTF_8)
         } finally { p.disconnect() }
     }
 
-    private fun beriDo(vhod: java.io.InputStream, najvec: Int): ByteArray {
+    /** Najvec [najvec] bajtov; null, ce jih je vec (beremo najvec + 1, da to vemo). Prekinitev niti ustavi branje. */
+    private fun beriDo(vhod: java.io.InputStream, najvec: Int): ByteArray? {
         val izhod = java.io.ByteArrayOutputStream()
         val buf = ByteArray(64 * 1024)
-        while (izhod.size() < najvec) {
-            val n = vhod.read(buf, 0, minOf(buf.size, najvec - izhod.size()))
+        while (izhod.size() <= najvec) {
+            if (Thread.currentThread().isInterrupted) throw InterruptedException()
+            val n = vhod.read(buf, 0, minOf(buf.size, najvec + 1 - izhod.size()))
             if (n < 0) break
             izhod.write(buf, 0, n)
         }
-        return izhod.toByteArray()
+        return if (izhod.size() > najvec) null else izhod.toByteArray()
     }
 }

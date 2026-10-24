@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pregled C2 (25. 10. 2026): seja daljinca koncana, ker cilj ne deli vec predvajanja ali je zaprl dostop. -->
+    <string name="naprava_ne_deli">%1$s non condivide più la riproduzione con questo dispositivo – controllo terminato</string>
+    <string name="naprava_brez_predvajanja">%1$s non riproduce più nulla – controllo terminato</string>
+</resources>

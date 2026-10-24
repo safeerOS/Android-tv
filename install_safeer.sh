@@ -7,8 +7,8 @@ set -e
 # Zadnja javna izdaja Safeer za Android: naslova APK in kontrolnih vsot preberemo iz GitHuba,
 # da skripta deluje tudi po novih izdajah, ko se ime datoteke spremeni.
 IZDAJA_API="https://api.github.com/repos/safeerOS/Mobile-android/releases/latest"
-TEMP_APK="/tmp/Safeer-Browser.apk"
-TEMP_SHA="/tmp/Safeer-Browser.SHA256SUMS"
+# Samo https, tudi po preusmeritvah; -f: napaka strezenika (404, 500) je napaka, ne prenesena stran z napako.
+CURL_VARNO=(--proto '=https' --proto-redir '=https')
 # Ime paketa aplikacije iz izdaje Mobile-android (ne TV brskalnika si.safeer.tv iz tega repozitorija).
 PAKET="com.safeer.mobile.browser"
 
@@ -37,7 +37,16 @@ preveri_sha256() {
 }
 
 glavno() {
-    IZDAJA_JSON="$(curl -L -s "$IZDAJA_API")"
+    # Zacasne datoteke v svoji mapi (mktemp -d), ne na predvidljivi poti v /tmp: drug uporabnik bi jo lahko vnaprej
+    # pripravil ali zamenjal med prenosom in namestitvijo. Mapa izgine ob izhodu. (Preizkus poda svoje poti.)
+    if [ -z "${TEMP_APK:-}" ]; then
+        D="$(mktemp -d)"
+        trap 'rm -rf "$D"' EXIT
+        TEMP_APK="$D/Safeer-Browser.apk"
+        TEMP_SHA="$D/Safeer-Browser.SHA256SUMS"
+    fi
+
+    IZDAJA_JSON="$(curl "${CURL_VARNO[@]}" -fsL "$IZDAJA_API" || true)"
     APK_URL="$(printf '%s' "$IZDAJA_JSON" | grep -o '"browser_download_url": *"[^"]*\.apk"' | head -n 1 | cut -d'"' -f4)"
     SHA_URL="$(printf '%s' "$IZDAJA_JSON" | grep -o '"browser_download_url": *"[^"]*SHA256SUMS"' | head -n 1 | cut -d'"' -f4)"
     if [ -z "$APK_URL" ]; then
@@ -55,16 +64,14 @@ glavno() {
     echo "=========================================================="
 
     echo "📥 Prenašam najnovejšo različico Safeer Browser APK..."
-    curl -L -s -o "$TEMP_APK" "$APK_URL"
-
-    if [ ! -s "$TEMP_APK" ]; then
+    if ! curl "${CURL_VARNO[@]}" -fsL -o "$TEMP_APK" "$APK_URL" || [ ! -s "$TEMP_APK" ]; then
         echo "❌ Napaka pri prenosu APK paketa."
         exit 1
     fi
 
     echo "✅ APK uspešno prenesen ($(du -h "$TEMP_APK" | cut -f1))"
 
-    if ! curl -fLs -o "$TEMP_SHA" "$SHA_URL"; then
+    if ! curl "${CURL_VARNO[@]}" -fLs -o "$TEMP_SHA" "$SHA_URL"; then
         echo "❌ Napaka pri prenosu SHA256SUMS. Prekinjam namestitev."
         exit 1
     fi

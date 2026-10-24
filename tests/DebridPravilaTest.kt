@@ -172,5 +172,14 @@ fun main() {
         DebridPravila.prejetiZapomnjeni(emptyList(), (0 until 500).map { Triple(it.toString(16).padStart(40, '0'), rd, 60_000L) }, 0L).size)
     preveriEnako("136: dejanje Linka", "debrid.cached", DebridPravila.DEJANJE_PREDPOMNJENI)
 
+    // Pregled A4: sporocilo imenuje storitev, ki je res padla.
+    preveriEnako("A4: brez poskusov ni storitve", "", DebridPravila.ponudnikNapake(emptyList()))
+    preveriEnako("A4: ena storitev", rd, DebridPravila.ponudnikNapake(listOf(rd to TorBoxPravila.NAPAKA_STREZNIK)))
+    preveriEnako("A4: storitev z najpomembnejso napako", ad, DebridPravila.ponudnikNapake(listOf(
+        tb to DebridPravila.NAPAKA_NI_PREDPOMNJENO, rd to TorBoxPravila.NAPAKA_STREZNIK, ad to TorBoxPravila.NAPAKA_KLJUC)))
+    preveriEnako("A4: enaka napaka - prva po vrstnem redu", rd, DebridPravila.ponudnikNapake(listOf(
+        rd to TorBoxPravila.NAPAKA_STREZNIK, tb to TorBoxPravila.NAPAKA_STREZNIK)))
+    preveriEnako("A4: neznana napaka - prva storitev", ad, DebridPravila.ponudnikNapake(listOf(ad to "nekaj", tb to "drugo")))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

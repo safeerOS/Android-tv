@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sporocila: popravki po pregledu 25. 10. 2026 (D5) -->
+    <string name="os_spor_na_vseh_ni_podprto">Impossibile eliminare sull\'altro dispositivo</string>
+    <string name="os_spor_na_vseh_ni_podprto_opis">L\'altro dispositivo non supporta l\'eliminazione dei messaggi. Puoi eliminare questo messaggio solo qui.</string>
+</resources>

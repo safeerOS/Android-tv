@@ -221,6 +221,53 @@ object DodatkiProtokol {
             .firstOrNull { (k, _) -> u.contains(k) }?.second ?: "drugo"
     }
 
+    // ------------------------------------------------------------------ omejeno branje odgovora (pregled 25. 10. 2026)
+    /**
+     * Prebere najvec [najvec] bajtov odgovora dodatka iz [vhod]; vec (ali [dolzina] iz Content-Length nad mejo) - null,
+     * brez branja ostanka. Prej je bila meja preverjena sele po readBytes() celega odgovora: velik odgovor je na TV
+     * napolnil pomnilnik, preden ga je meja zavrnila. [dolzina] < 0 = neznana (chunked).
+     */
+    fun preberiOmejeno(vhod: java.io.InputStream, dolzina: Long, najvec: Int = NAJVEC_ODGOVOR_B): ByteArray? {
+        if (najvec < 0 || dolzina > najvec) return null
+        val izhod = java.io.ByteArrayOutputStream(if (dolzina in 0..najvec.toLong()) dolzina.toInt() else minOf(najvec, 64 * 1024))
+        val buf = ByteArray(16 * 1024)
+        var skupaj = 0L
+        while (true) {
+            // Beremo najvec do meje + 1 bajt: tako vemo, da je odgovor prevelik, ne da bi ga prebrali do konca.
+            val n = vhod.read(buf, 0, minOf(buf.size.toLong(), najvec + 1L - skupaj).toInt())
+            if (n < 0) break
+            skupaj += n
+            if (skupaj > najvec) return null
+            izhod.write(buf, 0, n)
+        }
+        return izhod.toByteArray()
+    }
+
+    /** Kot [preberiOmejeno], kot besedilo UTF-8. */
+    fun preberiOmejenoBesedilo(vhod: java.io.InputStream, dolzina: Long, najvec: Int = NAJVEC_ODGOVOR_B): String? =
+        preberiOmejeno(vhod, dolzina, najvec)?.toString(Charsets.UTF_8)
+
+    // ------------------------------------------------------------------ kljuci nastavitev na napravi (DodatkiNastavitve)
+    /**
+     * Id osnove dodatka v kljucih nastavitev in skrivnosti: SHA-256 cele osnove (hex, 64 znakov). Prej 32-bitni
+     * String.hashCode - dve osnovi z enakim hashCode (npr. namerno izracunani) sta si delili skrivnosti.
+     */
+    fun idOsnove(osnova: String): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(osnova.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+    /** Stari id osnove (do pregleda 25. 10. 2026): 32-bitni String.hashCode - samo za enkratno selitev in pozabo. */
+    fun stariIdOsnove(osnova: String): String = Integer.toHexString(osnova.hashCode())
+
+    /**
+     * Ali stari zapisi (kljuc s [stariIdOsnove]) nedvoumno pripadajo [osnova]: noben drug namescen dodatek ([vseOsnove])
+     * nima istega starega id-ja. Sicer ne vemo, cigavi so, in jih ne damo nobenemu (uporabnik vrednost vpise znova).
+     */
+    fun smeSeliti(osnova: String, vseOsnove: Collection<String>): Boolean {
+        val stari = stariIdOsnove(osnova)
+        return vseOsnove.none { it != osnova && stariIdOsnove(it) == stari }
+    }
+
     // ------------------------------------------------------------------ odgovori
 
     data class OdgovorDejanja(val ok: Boolean, val sporocilo: Besedilo?, val osvezi: Boolean)

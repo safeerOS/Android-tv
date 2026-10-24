@@ -15,6 +15,28 @@ object DatotekePravila {
     private const val NEDOVOLJENI = "/\\\u0000:*?\"<>|"
 
     /**
+     * Novo ime iz polja + stara koncnica (polje kaze ime brez nje, okno pove »Koncnica ... ostane«). Koncnica se doda tudi,
+     * ce ima novo ime piko (»dopust 2026.10« -> »dopust 2026.10.jpg«; pregled 25. 10. 2026 D9: prej se je izgubila);
+     * ne doda se le, ce se ime ze konca z njo (ne glede na velike crke).
+     */
+    fun zdruziIme(vneseno: String, koncnica: String): String {
+        val ime = vneseno.trim().trimEnd('.').trim()
+        if (ime.isEmpty()) return ""
+        if (koncnica.isEmpty() || ime.endsWith(koncnica, ignoreCase = true)) return ime
+        // Pregled 7: uporabnik je sam vpisal drugo znano koncnico (»film.mp4« za »film.mkv«) - obdrzimo njegovo, ne
+        // »film.mp4.mkv«. Neznana (»dopust 2026.10«) ali brez koncnice: stara koncnica se doda.
+        val vpisana = ime.substringAfterLast('.', "").lowercase()
+        return if (ime.contains('.') && vpisana in ZNANE_KONCNICE) ime else ime + koncnica
+    }
+
+    /** Pregled 7: znane koncnice predstavnostnih datotek in podnapisov (brez pike, male crke). */
+    val ZNANE_KONCNICE = setOf(
+        "mp4", "mkv", "avi", "mov", "webm", "m4v", "ts", "m2ts", "mts", "mpg", "mpeg", "wmv", "flv", "3gp", "ogv",
+        "mp3", "flac", "wav", "ogg", "oga", "opus", "m4a", "aac", "wma", "alac", "aiff",
+        "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "tif", "tiff", "avif",
+        "srt", "ass", "ssa", "vtt", "sub")
+
+    /**
      * Ali je [ime] (z koncnico) veljavno ime datoteke na Androidu (FAT/exFAT na USB in ext4/f2fs): null = veljavno, sicer
      * razlog. Ne sme biti prazno, imeti /, \, :, *, ?, ", <, >, | ali kontrolnih znakov, se zaceti s piko (skrita datoteka) in
      * biti daljse od 255 bajtov UTF-8.

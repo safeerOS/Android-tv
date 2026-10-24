@@ -19,6 +19,8 @@ object KlepetLinka {
     const val KANAL = "safeer-link"
     const val VRSTA = "safeer"
     const val ZMOZNOST = "chat"
+    /** Pregled D5: ta aplikacija zna zahtevo za izbris (payload.delete) - objavi jo LinkOdjemalec ob prijavi. */
+    const val ZMOZNOST_IZBRIS = SporocilaPravila.ZMOZNOST_IZBRIS
     private const val OBVESTILA = "safeer_sporocila"
     /** Skupina obvestil Sporocil in obvestilo-povzetek skupine. */
     private const val SKUPINA = "safeer_sporocila"
@@ -72,9 +74,11 @@ object KlepetLinka {
         val ime = izSeznama?.takeIf { it.isNotBlank() } ?: odHuba ?: znano?.takeIf { it.isNotBlank() } ?: od
         zagotoviKanal(s)
         val id = "chat:" + json.optString("id").ifBlank { System.nanoTime().toString() }
-        if (s.sporocila(KANAL, od).any { it.id == id }) return          // isto sporocilo dvakrat (ponovna dostava)
+        // Pregled D4: posiljatelj ga je izbrisal, se preden je prislo - ne shranimo ga.
+        if (s.porabiIzbrisVnaprej(KANAL, id, od, System.currentTimeMillis())) return
         val odprt = odprtPogovor == od
-        s.shraniSporocilo(KANAL, SporocilaShramba.Sporocilo(id, od, "noter", besedilo, cas))
+        // Pregled D2: ponovna dostava (ze shranjeno) ali krajevno izbrisano - brez predogleda, neprebranega in obvestila.
+        if (!s.shraniSporocilo(KANAL, SporocilaShramba.Sporocilo(id, od, "noter", besedilo, cas), samoNovo = true)) return
         s.posodobiPogovor(SporocilaShramba.Pogovor(od, KANAL, od, ime, "", besedilo.replace('\n', ' ').take(240),
             if (odprt) 0 else 1, cas), pristej = true)
         for (p in poslusalci) try { p() } catch (_: Throwable) { }
@@ -188,7 +192,22 @@ object KlepetLinka {
         } finally { posiljaCakajoca.set(false) }
     }
 
+    /**
+     * Pregled D5: ali naprava pogovora [pogovorId] zna izbris ([SporocilaPravila.izbrisNaDrugi]) - po vseh njenih prijavah
+     * v seznamu Linka [naprave] (pogovor je fizicna naprava, kot v [imeNaprave]).
+     */
+    fun izbrisNaDrugi(naprave: List<LinkOdjemalec.Naprava>, pogovorId: String): Int =
+        SporocilaPravila.izbrisNaDrugi(naprave.filter { it.naprava.ifBlank { it.id } == pogovorId || it.id == pogovorId }.map { it.zmoznosti })
+
     private fun posljiBrisanje(c: Context, shramba: SporocilaShramba, b: SporocilaShramba.CakajoceBrisanje): Boolean {
+        // Naprava je v seznamu, a izbrisa ne zna (npr. starejse namizje): zahteve ne posljemo - pokazala bi jo kot sporocilo.
+        val naprave = try { LinkUpravitelj.pridobi(c).naprave } catch (_: Throwable) { emptyList<LinkOdjemalec.Naprava>() }
+        // Pregled 4: naprava izbrisa (se) ne javi - zahteva ostane v cakanju (ne zavrzemo je), dokler ni prestara.
+        if (izbrisNaDrugi(naprave, b.cilj) == SporocilaPravila.NA_DRUGI_NE) {
+            if (SporocilaPravila.brisanjeBrezZmoznosti(b.zapisano, System.currentTimeMillis()) == SporocilaPravila.BRISANJE_OPUSTI)
+                shramba.odstraniCakajoceBrisanje(b.id)
+            return false
+        }
         val izid = try {
             LinkUpravitelj.pridobi(c).odjemalec.posljiKlepet(b.cilj, BESEDILO_IZBRISA, SporocilaKanali.cas(null), izbrisi = b.id)
         } catch (_: Throwable) { "napaka" }
@@ -199,13 +218,19 @@ object KlepetLinka {
 
     /**
      * Zahteva naprave [od] za izbris sporocila s skupnim id-jem [skupni]: izbrise se samo, ce ga je poslala ta naprava
-     * ([SporocilaPravila.zahtevaZaIzbrisVelja]). Neznano sporocilo (ze izbrisano) se prezre. Obvestilo o njem izgine.
+     * ([SporocilaPravila.zahtevaZaIzbrisVelja]). Ze izbrisano sporocilo se prezre; se neznano (zahteva je prisla pred njim,
+     * pregled D4) pusti zapis, da se izvirnik ob prihodu ne shrani. Obvestilo o njem izgine.
      */
     private fun izbrisiNaZahtevo(c: Context, od: String, skupni: String) {
         if (od.isBlank()) return
         val s = SporocilaShramba(c)
         val id = SporocilaPravila.prejetiId(skupni)
-        val sp = s.sporocilo(KANAL, id) ?: return
+        val sp = s.sporocilo(KANAL, id)
+        if (sp == null) {
+            if (!s.izbrisano(KANAL, id) && SporocilaPravila.smeZapisatiVnaprej(od, skupni))
+                s.dodajIzbrisVnaprej(KANAL, id, od, System.currentTimeMillis())
+            return
+        }
         if (!SporocilaPravila.zahtevaZaIzbrisVelja(sp.smer, sp.pogovorId, od)) return
         s.izbrisiSporocilo(KANAL, sp.pogovorId, id)
         umakniObvestilo(c, sp.pogovorId)

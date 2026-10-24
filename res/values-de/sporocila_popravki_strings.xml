@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sporocila: popravki po pregledu 25. 10. 2026 (D5) -->
+    <string name="os_spor_na_vseh_ni_podprto">Löschen auf dem anderen Gerät nicht möglich</string>
+    <string name="os_spor_na_vseh_ni_podprto_opis">Das andere Gerät unterstützt das Löschen von Nachrichten nicht. Du kannst diese Nachricht nur hier löschen.</string>
+</resources>

@@ -122,5 +122,39 @@ fun main(args: Array<String>) {
     preveriEnako("prva namestitev: brez sprememb", null, DodatkiProtokol.spremembeZaPrikaz(r, null, "1.2.0"))
     preveriEnako("ista verzija: brez", null, DodatkiProtokol.spremembeZaPrikaz(r, "1.2.0", "1.2.0"))
 
+    // Pregled 25. 10. 2026 (D1): kljuc nastavitev ni vec 32-bitni hashCode - osnovi z enakim hashCode imata razlicen id.
+    val a = "https://dodatek.example/Aa"; val b = "https://dodatek.example/BB"
+    preveriEnako("osnovi imata isti stari hashCode (pogoj preizkusa)", a.hashCode(), b.hashCode())
+    preveriEnako("trcenje hashCode: razlicen id osnove", false, DodatkiProtokol.idOsnove(a) == DodatkiProtokol.idOsnove(b))
+    preveriEnako("id osnove je SHA-256 hex", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", DodatkiProtokol.idOsnove(""))
+    preveriEnako("id osnove: 64 znakov", 64, DodatkiProtokol.idOsnove(a).length)
+    preveriEnako("stari id = hex hashCode", Integer.toHexString(a.hashCode()), DodatkiProtokol.stariIdOsnove(a))
+    preveriEnako("selitev: brez drugih dodatkov dovoljena", true, DodatkiProtokol.smeSeliti(a, listOf(a)))
+    preveriEnako("selitev: drug dodatek brez trcenja", true, DodatkiProtokol.smeSeliti(a, listOf(a, "https://drug.example")))
+    preveriEnako("selitev: trcenje z drugim namescenim dodatkom - ne", false, DodatkiProtokol.smeSeliti(a, listOf(a, b)))
+    preveriEnako("selitev: trcenje velja v obe smeri", false, DodatkiProtokol.smeSeliti(b, listOf(b, a)))
+
+    // D7: omejeno branje odgovora - nikoli vec kot meja + 1 bajt, Content-Length nad mejo takoj zavrnjen.
+    class Stevec(val vsebina: ByteArray, val neskoncno: Boolean = false) : java.io.InputStream() {
+        var prebrano = 0L
+        override fun read(): Int {
+            if (!neskoncno && prebrano >= vsebina.size) return -1
+            prebrano++; return 'x'.code
+        }
+    }
+    preveriEnako("omejeno: pod mejo prebrano", "xxxxx",
+        DodatkiProtokol.preberiOmejenoBesedilo(Stevec(ByteArray(5)), -1, 10))
+    preveriEnako("omejeno: tocno meja prebrano", 10, DodatkiProtokol.preberiOmejeno(Stevec(ByteArray(10)), 10, 10)?.size)
+    preveriEnako("omejeno: meja + 1 zavrnjeno", null, DodatkiProtokol.preberiOmejeno(Stevec(ByteArray(11)), -1, 10))
+    val neskoncen = Stevec(ByteArray(0), neskoncno = true)
+    preveriEnako("omejeno: neskoncen tok zavrnjen", null, DodatkiProtokol.preberiOmejeno(neskoncen, -1, 1000))
+    preveriEnako("omejeno: neskoncen tok prebran najvec do meje + 1", true, neskoncen.prebrano <= 1001)
+    val zGlavo = Stevec(ByteArray(5))
+    preveriEnako("omejeno: Content-Length nad mejo zavrnjen", null, DodatkiProtokol.preberiOmejeno(zGlavo, 2_000_000, 1000))
+    preveriEnako("omejeno: Content-Length nad mejo - nic prebrano", 0L, zGlavo.prebrano)
+    preveriEnako("omejeno: privzeta meja je 1 MB", 1024 * 1024,
+        DodatkiProtokol.preberiOmejeno(Stevec(ByteArray(1024 * 1024)), -1)?.size)
+    preveriEnako("omejeno: privzeta meja + 1 zavrnjeno", null, DodatkiProtokol.preberiOmejeno(Stevec(ByteArray(1024 * 1024 + 1)), -1))
+
     if (napak == 0) println("DodatkiProtokolTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -6,7 +6,7 @@ import android.util.Log
  * Naloga 128: Real-Debrid ([DebridPravila], dokumentacija api.real-debrid.com, prebrano 24. 10. 2026).
  * addMagnet -> torrents/info (datoteke) -> selectFiles (izbrana datoteka) -> info (»downloaded«, links) -> unrestrict/link.
  * Preverjanja predpomnjenja Real-Debrid nima vec: torrent, ki ni takoj »downloaded«, pri »samo predpomnjeno« izbrisemo
- * iz uporabnikovega racuna (ga ne pustimo za sabo).
+ * iz uporabnikovega racuna (ga ne pustimo za sabo). Pri »Pocakaj na prenos« ostane tudi po roku (pregled A3).
  */
 object RealDebrid {
     private const val TAG = "SafeerRealDebrid"
@@ -35,6 +35,7 @@ object RealDebrid {
             var poskusov = 0
             while (info.uspeh && info.json?.optJSONArray("files")?.length() ?: 0 == 0 && poskusov < 10 &&
                 !DebridPravila.rdKoncnaNapaka(info.json?.optString("status").orEmpty())) {
+                if (Thread.interrupted()) throw InterruptedException()
                 Thread.sleep(1_000); poskusov++
                 info = Debrid.klic("$O/torrents/info/$id", kljuc)
             }
@@ -53,6 +54,8 @@ object RealDebrid {
             info = Debrid.klic("$O/torrents/info/$id", kljuc)
             while (info.uspeh && !DebridPravila.rdPripravljen(info.json?.optString("status").orEmpty()) && cakano < rok) {
                 if (DebridPravila.rdKoncnaNapaka(info.json?.optString("status").orEmpty())) break
+                // Pregled A1: preklic (nova izbira, Preklici) ustavi cakanje takoj.
+                if (Thread.interrupted()) throw InterruptedException()
                 if (!samoPredpomnjeno) napredek(info.json?.optInt("progress", 0) ?: 0)
                 val korak = if (samoPredpomnjeno) 1_000L else TorBoxPravila.CAKAJ_KORAK_MS
                 Thread.sleep(korak); cakano += korak
@@ -60,7 +63,9 @@ object RealDebrid {
             }
             val status = info.json?.optString("status").orEmpty()
             if (!DebridPravila.rdPripravljen(status)) {
-                izbrisi(kljuc, id)
+                // Pregled A3: uporabnik je izbral »Pocakaj na prenos« - torrent ostane v racunu in se prenasa naprej, da
+                // naslednji poskus (kot obljubi sporocilo) predvaja takoj. Izbrisemo samo nepredpomnjenega (»samo takoj«) in pokvarjenega.
+                if (samoPredpomnjeno || DebridPravila.rdKoncnaNapaka(status)) izbrisi(kljuc, id)
                 return TorBox.Izid(napaka = when {
                     DebridPravila.rdKoncnaNapaka(status) -> TorBoxPravila.NAPAKA_NI_DATOTEKE
                     samoPredpomnjeno -> DebridPravila.NAPAKA_NI_PREDPOMNJENO
@@ -76,7 +81,10 @@ object RealDebrid {
             Log.i(TAG, "tok pripravljen: ${Zasebno.zaDnevnik(url)}")
             TorBox.Izid(url = url, ponudnik = DebridPravila.REAL_DEBRID)
         } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt(); if (id.isNotBlank()) izbrisi(kljuc, id)
+            // Preklic: nepredpomnjen poskus pospravimo (pred ponovno oznako prekinitve - sicer klic ne gre ven); torrent, na
+            // katerega je uporabnik cakal, ostane in se prenasa naprej (pregled A3).
+            if (id.isNotBlank() && samoPredpomnjeno) izbrisi(kljuc, id)
+            Thread.currentThread().interrupt()
             TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK, ponudnik = DebridPravila.REAL_DEBRID)
         } catch (e: Exception) {
             Log.w(TAG, "Real-Debrid: ${e.javaClass.simpleName}")

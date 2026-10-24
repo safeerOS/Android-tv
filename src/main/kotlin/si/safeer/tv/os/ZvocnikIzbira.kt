@@ -160,30 +160,69 @@ object ZvocnikIzbira {
             kaj.text = vrstice.joinToString("\n")
         }
         osveziGlavo()
-        val imena = arrayOf(a.getString(R.string.zvocnik_premor), a.getString(R.string.zg_prejsnja), a.getString(R.string.zg_naslednja),
-            a.getString(R.string.naprava_nazaj10), a.getString(R.string.naprava_naprej10), a.getString(R.string.zvocnik_glasneje),
-            a.getString(R.string.zvocnik_tisje), a.getString(R.string.naprava_vrsta), a.getString(R.string.naprava_prekini))
-        val okno = pokazi(a, g.setCustomTitle(glava).setItems(imena, null).setNegativeButton(a.getString(R.string.os_preklici), null))
+        // Pregled C6: »Premor« ali »Predvajaj« po stanju cilja, ±10 s samo pri posnetku s trajanjem (ne v zivo).
+        fun dejanja(): List<Pair<Int, String>> {
+            val st = OddaljenoPredvajanje.stanje
+            val d = mutableListOf(
+                0 to a.getString(if (st.igra) R.string.zg_premor else R.string.zg_predvajaj),
+                1 to a.getString(R.string.zg_prejsnja), 2 to a.getString(R.string.zg_naslednja))
+            if (OddaljenoPravila.previjanjeNaCilju(st)) { d += 3 to a.getString(R.string.naprava_nazaj10); d += 4 to a.getString(R.string.naprava_naprej10) }
+            d += 5 to a.getString(R.string.zvocnik_glasneje)
+            d += 6 to a.getString(R.string.zvocnik_tisje)
+            d += 7 to a.getString(R.string.naprava_vrsta)
+            d += 8 to a.getString(R.string.naprava_prekini)
+            return d
+        }
+        var prikazana = dejanja()
+        val seznam = android.widget.ArrayAdapter(g.context, android.R.layout.select_dialog_item, prikazana.map { it.second }.toMutableList())
+        fun osveziDejanja() {
+            val nova = dejanja()
+            if (nova == prikazana) return
+            prikazana = nova
+            seznam.setNotifyOnChange(false)
+            seznam.clear(); seznam.addAll(nova.map { it.second })
+            seznam.notifyDataSetChanged()
+        }
+        val okno = pokazi(a, g.setCustomTitle(glava).setAdapter(seznam, null).setNegativeButton(a.getString(R.string.os_preklici), null))
         val glavna = android.os.Handler(android.os.Looper.getMainLooper())
-        var uporabnikKoncal = false
-        OddaljenoPredvajanje.vidno(true)
         val sledi = object : Runnable {
             override fun run() {
                 if (!okno.isShowing || a.isFinishing || a.isDestroyed) return
-                if (OddaljenoPredvajanje.cilj?.id != n.id) {
-                    if (!uporabnikKoncal) Toast.makeText(a, a.getString(R.string.naprava_konec, ime), Toast.LENGTH_LONG).show()
-                    okno.dismiss(); spremenjeno(); return
-                }
+                // Seja koncana (sporocilo, ce jo je koncal cilj, pokaze OddaljenoPredvajanje - pregled C7).
+                if (OddaljenoPredvajanje.cilj?.id != n.id) { okno.dismiss(); spremenjeno(); return }
                 osveziGlavo()
+                osveziDejanja()
                 glavna.postDelayed(this, 400L)
             }
         }
+        // Pregled C3: vsak vidno(true) ima natanko en vidno(false) - ob zaprtju okna, ko zaslon odide v ozadje (Domov) ali
+        // se unici; okno se tedaj zapre (sicer bi stevec vidnih obvisel in stanje cilja bi se v ozadju osvezevalo vsako sekundo).
+        var vidnoJavljeno = true
+        OddaljenoPredvajanje.vidno(true)
+        lateinit var zivljenje: android.app.Application.ActivityLifecycleCallbacks
+        fun skrito() {
+            if (!vidnoJavljeno) return
+            vidnoJavljeno = false
+            glavna.removeCallbacks(sledi)
+            try { a.application.unregisterActivityLifecycleCallbacks(zivljenje) } catch (_: Throwable) { }
+            OddaljenoPredvajanje.vidno(false)
+        }
+        zivljenje = object : android.app.Application.ActivityLifecycleCallbacks {
+            override fun onActivityStopped(x: Activity) { if (x === a) { skrito(); try { okno.dismiss() } catch (_: Throwable) { } } }
+            override fun onActivityDestroyed(x: Activity) { if (x === a) skrito() }
+            override fun onActivityCreated(x: Activity, b: android.os.Bundle?) {}
+            override fun onActivityStarted(x: Activity) {}
+            override fun onActivityResumed(x: Activity) {}
+            override fun onActivityPaused(x: Activity) {}
+            override fun onActivitySaveInstanceState(x: Activity, b: android.os.Bundle) {}
+        }
+        a.application.registerActivityLifecycleCallbacks(zivljenje)
+        okno.setOnDismissListener { skrito() }
         glavna.postDelayed(sledi, 400L)
-        okno.setOnDismissListener { glavna.removeCallbacks(sledi); OddaljenoPredvajanje.vidno(false) }
         okno.listView?.setOnItemClickListener { _, _, i, _ ->
             if (OddaljenoPredvajanje.cilj?.id != n.id) { okno.dismiss(); spremenjeno(); return@setOnItemClickListener }
             val korak = OddaljenoPravila.KORAK_GLASNOSTI
-            when (i) {
+            when (prikazana.getOrNull(i)?.first ?: return@setOnItemClickListener) {
                 0 -> OddaljenoPredvajanje.preklopi()
                 1 -> OddaljenoPredvajanje.prejsnja()
                 2 -> OddaljenoPredvajanje.naslednja()
@@ -191,10 +230,11 @@ object ZvocnikIzbira {
                 4 -> OddaljenoPredvajanje.skoci(OddaljenoPredvajanje.polozajMs() + 10_000L)
                 5 -> OddaljenoPredvajanje.glasnostZa(korak)
                 6 -> OddaljenoPredvajanje.glasnostZa(-korak)
-                7 -> { okno.dismiss(); vrstaNaprave(a, spremenjeno) }
-                else -> { uporabnikKoncal = true; OddaljenoPredvajanje.koncaj(); okno.dismiss(); spremenjeno() }
+                7 -> { okno.dismiss(); vrstaNaprave(a, spremenjeno); return@setOnItemClickListener }
+                else -> { OddaljenoPredvajanje.koncaj(); okno.dismiss(); spremenjeno(); return@setOnItemClickListener }
             }
             osveziGlavo()
+            osveziDejanja()
         }
     }
 

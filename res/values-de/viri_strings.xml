@@ -23,15 +23,15 @@
     <string name="os_torbox_shranjeno">TorBox-Schlüssel gespeichert</string>
     <string name="os_torbox_odstranjeno">TorBox-Schlüssel entfernt</string>
     <string name="os_torbox_pripravlja">TorBox bereitet den Stream vor …</string>
-    <string name="os_torbox_prenasa_odstotek">TorBox lädt herunter: %1$d %%</string>
-    <string name="os_torbox_napaka_naslov">TorBox konnte das nicht abspielen</string>
-    <string name="os_torbox_napaka_kljuc">TorBox hat den API-Schlüssel abgelehnt. Prüfe ihn unter Meine Quellen → TorBox.</string>
+    <string name="os_torbox_prenasa_odstotek">%1$s lädt herunter: %2$d %%</string>
+    <string name="os_torbox_napaka_naslov">%1$s konnte das nicht abspielen</string>
+    <string name="os_torbox_napaka_kljuc">%1$s hat den API-Schlüssel abgelehnt. Prüfe ihn unter Meine Quellen → Debrid-Dienste.</string>
     <string name="os_torbox_napaka_meja">TorBox-Limit erreicht (60 neue Torrents pro Stunde). Versuche es in %1$d Min. erneut.</string>
-    <string name="os_torbox_napaka_meja_paket">Das Download-Limit deines TorBox-Tarifs ist erreicht.</string>
-    <string name="os_torbox_napaka_paket">Dein TorBox-Tarif erlaubt diesen Download nicht.</string>
-    <string name="os_torbox_napaka_ni_datoteke">TorBox hat in diesem Torrent keine abspielbare Datei gefunden.</string>
-    <string name="os_torbox_napaka_prenasa">TorBox lädt diesen Torrent noch. Versuche es in ein paar Minuten erneut – dann startet er sofort.</string>
-    <string name="os_torbox_napaka_streznik">TorBox antwortet gerade nicht.</string>
+    <string name="os_torbox_napaka_meja_paket">Das Download-Limit deines %1$s-Tarifs ist erreicht.</string>
+    <string name="os_torbox_napaka_paket">Dein %1$s-Tarif erlaubt diesen Download nicht.</string>
+    <string name="os_torbox_napaka_ni_datoteke">%1$s hat in diesem Torrent keine abspielbare Datei gefunden.</string>
+    <string name="os_torbox_napaka_prenasa">%1$s lädt diesen Torrent noch. Versuche es in ein paar Minuten erneut – dann startet er sofort.</string>
+    <string name="os_torbox_napaka_streznik">%1$s antwortet gerade nicht.</string>
     <string name="os_torbox_brez">Ohne TorBox fortfahren (ohne Privatsphäre)</string>
     <string name="os_torbox_popravi">Schlüssel korrigieren</string>
     <!-- Naloga 124: razsiritve dodatkov (protokol v1) -->
@@ -90,6 +90,10 @@
     <string name="os_debrid_napaka_ni_predpomnjeno">Keiner deiner Dienste hat das bereits bereit, und „Nur sofort“ ist an. Wähle „Auf Download warten“, damit der Dienst es zuerst herunterlädt.</string>
     <string name="os_debrid_pocakaj">Auf Download warten</string>
     <string name="os_debrid_brez">Ohne fortfahren (ohne Privatsphäre)</string>
+    <!-- Pregled 25. 10. 2026 (A2, A4, A5) -->
+    <string name="os_debrid_kljuc_neberljiv">Der gespeicherte %1$s-Schlüssel kann auf diesem Gerät nicht mehr gelesen werden (sicherer Speicher). Gib ihn erneut ein.</string>
+    <string name="os_debrid_poslji_ni_kroga">Kein Gerät in Safeer Link ist im engeren Kreis dieses Geräts – Schlüssel nicht gesendet. Füge es unter Einstellungen → Engerer Vertrauenskreis hinzu.</string>
+    <string name="os_debrid_napaka_naslov_vse">Die Debrid-Dienste konnten das nicht abspielen</string>
     <!-- Naloga 129: kljuci debrid s telefona na TV -->
     <string name="os_debrid_poslji">Schlüssel an anderes Gerät senden</string>
     <string name="os_debrid_poslji_vprasanje">Deine Schlüssel (%1$s) an %2$s senden? Sie werden verschlüsselt von Gerät zu Gerät übertragen; %2$s speichert sie erst nach deiner Bestätigung dort.</string>

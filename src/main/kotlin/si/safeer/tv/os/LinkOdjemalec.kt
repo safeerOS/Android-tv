@@ -334,7 +334,7 @@ class LinkOdjemalec(private val context: Context) {
                         .put("device_id", idNaprave)
                         .put("name", "Safeer OS")
                         .put("role", "sender")
-                        .put("capabilities", JSONArray(listOf("url", "text", KlepetLinka.ZMOZNOST, si.safeer.tv.cast.E2e.ZMOZNOST,
+                        .put("capabilities", JSONArray(listOf("url", "text", KlepetLinka.ZMOZNOST, KlepetLinka.ZMOZNOST_IZBRIS, si.safeer.tv.cast.E2e.ZMOZNOST,
                             si.safeer.tv.cast.SeznamSprememb.ZMOZNOST)))))
                 webSocket.send(prijava.toString())
                 javiStanje(true, "")

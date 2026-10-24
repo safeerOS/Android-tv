@@ -43,3 +43,6 @@ __pycache__/
 *.apk
 *.aab
 Release/
+
+# Orodja za gradnjo (kotlinc, json): SAFEER_TOOLS_DIR ali lokalna povezava .tools - ne v repozitorij
+/.tools

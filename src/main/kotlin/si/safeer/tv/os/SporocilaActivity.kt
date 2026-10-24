@@ -632,12 +632,16 @@ class SporocilaActivity : OsActivity() {
     private fun dejanjaSporocila(p: SporocilaShramba.Pogovor, s: SporocilaShramba.Sporocilo) {
         val besedilo = s.besedilo.trim()
         val naVseh = p.kanalId == KlepetLinka.KANAL && SporocilaPravila.skupniId(s.id, s.smer) != null
-        val dejanja = SporocilaPravila.dejanjaSporocila(besedilo, OsPravila.jePovezava(besedilo), naVseh)
+        // Pregled D5: »Izbrisi na vseh« samo, ce ga druga naprava zna (zmoznost chat.delete); ni je v seznamu - izbris pocaka.
+        // Pregled 4: brez izrecnega signala »izbrisa ne zna« je »ne javi« = »morda zna« - izbris pocaka v vrsti.
+        val podprto = !naVseh || SporocilaPravila.izbrisNaVsehPonudi(KlepetLinka.izbrisNaDrugi(napraveLinka, p.id))
+        val dejanja = SporocilaPravila.dejanjaSporocila(besedilo, OsPravila.jePovezava(besedilo), naVseh, podprto)
         val imena = dejanja.map {
             when (it) {
                 SporocilaPravila.ODPRI -> getString(R.string.ui_share_open_link)
                 SporocilaPravila.KOPIRAJ -> getString(R.string.os_bliznjica_kopiraj)
                 SporocilaPravila.IZBRISI_VSE -> getString(R.string.os_spor_izbrisi_na_vseh)
+                SporocilaPravila.IZBRISI_VSE_NI -> getString(R.string.os_spor_na_vseh_ni_podprto)
                 else -> getString(R.string.os_spor_izbrisi_pri_meni)
             }
         }
@@ -650,6 +654,8 @@ class SporocilaActivity : OsActivity() {
                             .setData(android.net.Uri.parse(besedilo)))
                     } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() }
                     SporocilaPravila.IZBRISI_VSE -> potrdiIzbrisNaVseh(p, s)
+                    SporocilaPravila.IZBRISI_VSE_NI ->
+                        Toast.makeText(this, R.string.os_spor_na_vseh_ni_podprto_opis, Toast.LENGTH_LONG).show()
                     else -> potrdiIzbrisSporocila(p, s)
                 }
             }

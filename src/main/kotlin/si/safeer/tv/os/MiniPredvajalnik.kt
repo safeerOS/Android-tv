@@ -64,6 +64,12 @@ class MiniPredvajalnik(
     private var rocica: View? = null
     private var kartica: LinearLayout? = null
     private var zadnjiDotik = 0L
+    // Pregled C4: dock se zgradi enkrat (in ob novem mestu); osvezitev spremeni samo te poglede.
+    private var zgrajenoMesto: String? = null
+    private var naslovPogled: TextView? = null
+    private var izvajalecPogled: TextView? = null
+    private var gumbPredvajaj: ImageButton? = null
+    private var radioIkona = false
 
     val mesto: String get() = MiniPredvajalnikPravila.mesto(nastavitve.getString(KLJUC_MESTO, null))
         .let { if (!dovoliSeznam && it == MiniPredvajalnikPravila.V_SEZNAMU) MiniPredvajalnikPravila.PRIVZETO else it }
@@ -84,13 +90,41 @@ class MiniPredvajalnik(
         val izvajalec = if (oddaljeno || tu == null) daljinsko.izvajalec else tu.izvajalec
         val igra = if (oddaljeno || tu == null) daljinsko.igra else try { GlasbaStoritev.igra() } catch (_: Throwable) { false }
         val radio = !oddaljeno && tu?.radio == true
-        zgradi(m, naslov, izvajalec, igra, radio)
+        // Dock kaze drugo napravo: njeno stanje naj bo sveze (v ozadju se sicer ne sprasuje, pregled C2).
+        if (oddaljeno || tu == null) OddaljenoPredvajanje.prikazano()
+        val k = koren
+        if (k == null || MiniPredvajalnikPravila.zgradiZnova(zgrajenoMesto, m, k.parent === okvir)) zgradi(m, naslov, izvajalec, igra, radio)
+        else {
+            k.visibility = View.VISIBLE
+            prikazi(naslov, izvajalec, igra, radio)
+        }
     }
 
-    /** Nazaj (domaci zaslon): odprt dock se skrije. Vrne true, ce je bil odprt. */
+    /**
+     * Pregled C4: osvezitev (vsaka sprememba predvajanja, odgovor druge naprave) spremeni samo besedilo in ikone - fokus
+     * daljinca ostane, kjer je, in cas samodejnega skrivanja tece naprej (prej je vsaka osvezitev dock zgradila znova,
+     * fokus je skocil na »Predvajaj« in dock se med sejo daljinca ni nikoli skril).
+     */
+    private fun prikazi(naslov: String, izvajalec: String, igra: Boolean, radio: Boolean) {
+        naslovPogled?.let { if (it.text?.toString() != naslov) it.text = naslov }
+        izvajalecPogled?.let {
+            if (it.text?.toString() != izvajalec) it.text = izvajalec
+            it.visibility = if (izvajalec.isNotBlank()) View.VISIBLE else View.GONE
+        }
+        gumbPredvajaj?.let {
+            it.setImageResource(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
+            it.contentDescription = a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj)
+        }
+        (rocica as? ImageButton)?.let {
+            if (radio != radioIkona) { radioIkona = radio; it.setImageResource(if (radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_glasba) }
+            it.contentDescription = a.getString(R.string.zg_dock_pokazi) + ": " + naslov
+        }
+    }
+
+    /** Nazaj (domaci zaslon): odprt dock se skrije. Vrne true, ce je bil odprt. Fokus gre na rocico (pregled C9). */
     fun skrijCeOdprt(): Boolean {
         if (!jeOdprt) return false
-        nastaviOdprt(false); return true
+        nastaviOdprt(false, fokus = kartica?.findFocus() != null); return true
     }
 
     fun ustavi() { glavna.removeCallbacks(samodejno) }
@@ -104,9 +138,14 @@ class MiniPredvajalnik(
         }
     }
 
+    /** Uporabnik odpre ali skrije dock (dotik, poteg, OK, Nazaj): cas samodejnega skrivanja zacne znova. */
     private fun nastaviOdprt(da: Boolean, fokus: Boolean = false) {
         odprt = da
         zadnjiDotik = SystemClock.uptimeMillis()
+        uveljaviOdprt(da, fokus)
+    }
+
+    private fun uveljaviOdprt(da: Boolean, fokus: Boolean) {
         rocica?.visibility = if (da) View.GONE else View.VISIBLE
         kartica?.visibility = if (da) View.VISIBLE else View.GONE
         glavna.removeCallbacks(samodejno)
@@ -161,7 +200,7 @@ class MiniPredvajalnik(
 
     private fun zgradi(m: String, naslov: String, izvajalec: String, igra: Boolean, radio: Boolean) {
         val fokusVDocku = koren?.findFocus() != null
-        koren?.let { okvir.removeView(it) }
+        koren?.let { (it.parent as? ViewGroup)?.removeView(it) }
         val pokoncen = MiniPredvajalnikPravila.pokoncen(m)
         val k = FrameLayout(a)
         val rob = dp(8)
@@ -197,15 +236,19 @@ class MiniPredvajalnik(
             isFocusable = true
             setOnClickListener { odpriMedije() }
         }
-        besedila.addView(TextView(a).apply {
+        val nPogled = TextView(a).apply {
             text = naslov; maxLines = if (pokoncen) 2 else 1; ellipsize = TextUtils.TruncateAt.END
             setTextColor(barva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        })
-        if (izvajalec.isNotBlank()) besedila.addView(TextView(a).apply {
+        }
+        besedila.addView(nPogled)
+        // Izvajalec je vedno v docku (skrit, ce ga ni) - osvezitev ga le pokaze ali skrije.
+        val iPogled = TextView(a).apply {
             text = izvajalec; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
             setTextColor(barva(R.color.os_umirjeno)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-        })
+            visibility = if (izvajalec.isNotBlank()) View.VISIBLE else View.GONE
+        }
+        besedila.addView(iPogled)
         if (pokoncen) c.addView(besedila, LinearLayout.LayoutParams(dp(180), ViewGroup.LayoutParams.WRAP_CONTENT))
         else c.addView(besedila, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         val g = dp(if (daljinec) 48 else 44)
@@ -222,8 +265,9 @@ class MiniPredvajalnik(
         }
         val gumbi = LinearLayout(a).apply { orientation = if (pokoncen) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         gumbi.addView(gumb(R.drawable.os_ikona_prejsnja, a.getString(R.string.zg_prejsnja), "dock:prejsnja") { GlasbaStoritev.prejsnja() }, LinearLayout.LayoutParams(g, g))
-        gumbi.addView(gumb(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj,
-            a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj), "dock:predvajaj") { GlasbaStoritev.preklopi() }, LinearLayout.LayoutParams(g, g))
+        val gPredvajaj = gumb(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj,
+            a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj), "dock:predvajaj") { GlasbaStoritev.preklopi() }
+        gumbi.addView(gPredvajaj, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_naslednja, a.getString(R.string.zg_naslednja), "dock:naslednja") { GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.zg_dock_skrij), "dock:skrij") { nastaviOdprt(false, fokus = daljinec) }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)
@@ -239,7 +283,10 @@ class MiniPredvajalnik(
         // Prazen del docka ne lovi dotikov - pod njim je domaci zaslon.
         k.isClickable = false
         koren = k; rocica = r; kartica = c
-        nastaviOdprt(odprt, fokus = fokusVDocku)
+        zgrajenoMesto = m; naslovPogled = nPogled; izvajalecPogled = iPogled; gumbPredvajaj = gPredvajaj; radioIkona = radio
+        // Nov dock (prvic ali novo mesto): odprt dock dobi poln cas do samodejnega skrivanja, osvezitve pa ga ne podaljsajo.
+        if (zadnjiDotik == 0L) zadnjiDotik = SystemClock.uptimeMillis()
+        uveljaviOdprt(odprt, fokus = fokusVDocku)
     }
 
     /** Izbira mesta (dolg pritisk na rocico ali kartico): zgoraj, spodaj, levo, desno ali v seznamu. */

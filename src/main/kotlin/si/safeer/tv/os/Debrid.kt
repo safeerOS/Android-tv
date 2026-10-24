@@ -41,6 +41,23 @@ object Debrid {
 
     fun zKljucem(c: Context): Set<String> = DebridPravila.VSI.filterTo(LinkedHashSet()) { imaKljuc(c, it) }
 
+    /** Pregled A5: kljuc storitve je shranjen - ne glede na to, ali ga Keystore se zna odsifrirati. */
+    fun kljucShranjen(c: Context, p: String): Boolean = when (p) {
+        DebridPravila.TORBOX -> TorBox.kljucShranjen(c)
+        else -> SporocilaSkrivnosti.ima(c, imeSkrivnosti(p))
+    }
+
+    /**
+     * Pregled A5: storitev, katere kljuc je shranjen, a ga ni mogoce prebrati (napaka Keystore, obnovljena varnostna kopija).
+     * Torrent takrat NE gre tiho mimo debrida (naslov IP bi bil viden) - uporabnik izve, da mora kljuc vpisati znova.
+     * null = take storitve ni ali je uporabnik sam izbral »Brez debrida«.
+     */
+    fun neberljiva(c: Context): String? {
+        if (prefs(c).getBoolean(KLJUC_IZKLOPLJENO, false)) return null
+        val neberljive = DebridPravila.VSI.filterTo(LinkedHashSet()) { kljucShranjen(c, it) && !imaKljuc(c, it) }
+        return DebridPravila.vrstniRed(neberljive, prednostna(c)).firstOrNull()
+    }
+
     /** Shrani ocisceni kljuc; false, ce vnos ni kljuc ali sifriranje ni uspelo. */
     fun nastaviKljuc(c: Context, p: String, vnos: String): Boolean = when (p) {
         DebridPravila.TORBOX -> TorBox.nastaviKljuc(c, vnos)
@@ -160,8 +177,12 @@ object Debrid {
         var cakajMs = 0L
         // Naloga 130: vec storitev s kljucem - vse vprasamo hkrati (samo predpomnjeno), med tistimi, ki imajo vsebino
         // pripravljeno, izmerimo odziv in hitrost do te naprave; predvaja najhitrejsa.
+        // Pregled A4: (storitev, napaka) - sporocilo imenuje storitev, ki je res padla, ne vedno TorBoxa.
+        val poStoritvah = ArrayList<Pair<String, String>>()
         if (red.size >= 2) {
             val izidi = vzporedno(c, red, magnet, indeks)
+            // Pregled A1: preklic (nova izbira, Preklici) - brez meritev in brez drugega kroga.
+            if (Thread.currentThread().isInterrupted) return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK, ponudnik = red.first())
             val uspesni = izidi.filter { it.second.url != null }
             if (uspesni.isNotEmpty()) {
                 val izbrana = if (uspesni.size == 1) uspesni.first() else {
@@ -175,6 +196,7 @@ object Debrid {
             }
             for ((p, iz) in izidi) {
                 napake += iz.napaka
+                poStoritvah += p to iz.napaka
                 if (iz.opis.isNotBlank()) opis = DebridPravila.ime(p) + ": " + iz.opis
                 if (iz.cakajMs > cakajMs) cakajMs = iz.cakajMs
                 Log.i(TAG, "${DebridPravila.ime(p)}: ${iz.napaka}")
@@ -185,17 +207,19 @@ object Debrid {
             val iz = poskus(c, p, magnet, indeks, true, napredek)
             if (iz.url != null) return TorBox.Izid(url = iz.url, ponudnik = p)
             napake += iz.napaka
+            poStoritvah += p to iz.napaka
             if (iz.opis.isNotBlank()) opis = DebridPravila.ime(p) + ": " + iz.opis
             if (iz.cakajMs > cakajMs) cakajMs = iz.cakajMs
             Log.i(TAG, "${DebridPravila.ime(p)}: ${iz.napaka}")
         }
         // 2. krog: nobena je nima pripravljene - prednostna jo prenese (ce uporabnik caka).
-        if (DebridPravila.poskusiSCakanjem(samoTakoj, napake)) {
+        if (DebridPravila.poskusiSCakanjem(samoTakoj, napake) && !Thread.currentThread().isInterrupted) {
             val p = red.first()
             val iz = poskus(c, p, magnet, indeks, false, napredek)
             return TorBox.Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, p)
         }
-        return TorBox.Izid(napaka = DebridPravila.razlogZaUporabnika(napake), opis = opis, cakajMs = cakajMs)
+        return TorBox.Izid(napaka = DebridPravila.razlogZaUporabnika(napake), opis = opis, cakajMs = cakajMs,
+            ponudnik = DebridPravila.ponudnikNapake(poStoritvah))
     }
 
     /** Vse storitve hkrati, samo predpomnjeno; kar v [DebridPravila.VZPOREDNO_ROK_MS] ne odgovori, je napaka streznika. */
@@ -206,6 +230,10 @@ object Debrid {
             val konec = System.currentTimeMillis() + DebridPravila.VZPOREDNO_ROK_MS
             return niti.map { (p, f) ->
                 p to (try { f.get((konec - System.currentTimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) }
+                    catch (_: InterruptedException) {
+                        // Pregled A1: preklic - oznaka prekinitve ostane, da klicatelj [tok] ne nadaljuje.
+                        Thread.currentThread().interrupt(); TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK, ponudnik = p)
+                    }
                     catch (_: Exception) { TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK, ponudnik = p) })
             }
         } finally { bazen.shutdownNow() }
@@ -245,7 +273,7 @@ object Debrid {
             ?.takeIf { DebridPravila.meritevVelja(it.second, System.currentTimeMillis()) }?.first
 
     private fun poskus(c: Context, p: String, magnet: String, indeks: Int, samoPredpomnjeno: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
-        val k = kljuc(c, p) ?: return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_KLJUC)
+        val k = kljuc(c, p) ?: return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_KLJUC, ponudnik = p)
         val iz = when (p) {
             DebridPravila.TORBOX -> TorBox.tok(c, magnet, indeks, napredek, samoPredpomnjeno)
             DebridPravila.REAL_DEBRID -> RealDebrid.tok(k, magnet, indeks, samoPredpomnjeno, napredek)
@@ -253,7 +281,8 @@ object Debrid {
         }
         // Naloga 136: oznaka ⚡ za Real-Debrid in AllDebrid iz tega, kar je storitev pravkar odgovorila.
         try { zapomniIzid(c, p, magnet, iz) } catch (e: Exception) { Log.w(TAG, "zapomni: ${e.javaClass.simpleName}") }
-        return iz
+        // Pregled A4: TorBox.tok storitve ne vpise - izid vedno nosi storitev, ki je odgovorila.
+        return if (iz.ponudnik.isNotEmpty()) iz else TorBox.Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, p)
     }
 
     // ------------------------------------------------------------------ naloga 129: kljuci s telefona na TV (Link)
@@ -302,11 +331,18 @@ object Debrid {
 
     /**
      * Poslje vse vpisane kljuce napravi [n] - samo po sifrirani poti od naprave do naprave ([DebridPravila.smePoslatiKljuc]).
-     * [nato] dobi na glavni niti: "ok" (caka na potrditev tam), "ni_zascite", "ni_dovoljeno", "stara", "ni_povezave", "napaka".
+     * [nato] dobi na glavni niti: "ok" (caka na potrditev tam), "ni_krog" (ni v ozjem krogu), "ni_zascite", "ni_dovoljeno",
+     * "stara", "ni_povezave", "napaka".
      */
     fun posljiKljuce(c: Context, n: LinkOdjemalec.Naprava, nato: (String) -> Unit) {
         val link = LinkUpravitelj.pridobi(c.applicationContext)
         val glavna = android.os.Handler(android.os.Looper.getMainLooper())
+        // Pregled A2: kljuci in indeksator gredo samo napravi v ozjem krogu TE naprave (kot [deliZapomnjen]) - preverjeno
+        // tu, na posiljatelju; naprava zunaj kroga (npr. druzinski telefon) jih ne dobi, tudi ce ima zmoznost »remote«.
+        if (link.jeTaNaprava(n) || !OzjiKrog.vKrogu(c, n.id)) {
+            Log.i(TAG, "kljuci niso poslani: naprava ni v ozjem krogu")
+            glavna.post { nato("ni_krog") }; return
+        }
         if (!DebridPravila.smePoslatiKljuc(link.odjemalec.znaZascito(n.id), link.povezan)) {
             glavna.post { nato(if (!link.povezan) "ni_povezave" else "ni_zascite") }; return
         }

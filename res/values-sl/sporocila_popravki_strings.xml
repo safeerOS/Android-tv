@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sporocila: popravki po pregledu 25. 10. 2026 (D5) -->
+    <string name="os_spor_na_vseh_ni_podprto">Izbris na drugi napravi ni mogoč</string>
+    <string name="os_spor_na_vseh_ni_podprto_opis">Druga naprava ne podpira brisanja sporočil. To sporočilo lahko izbrišeš samo pri sebi.</string>
+</resources>

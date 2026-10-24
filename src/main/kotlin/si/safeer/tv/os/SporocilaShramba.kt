@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONObject
 
 /** Krajevna hramba Sporocil (kanali, pogovori, sporocila). Brez skrivnosti - te so v SporocilaSkrivnosti. */
-class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "sporocila.db", null, 4) {
+class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "sporocila.db", null, 5) {
 
     data class Kanal(val id: String, val vrsta: String, val ime: String, val stanje: String, val nastavitve: JSONObject)
     data class Pogovor(val id: String, val kanalId: String, val oseba: String, val ime: String, val zadeva: String,
@@ -21,6 +21,7 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         osebeTabele(db)
         izbrisaneTabele(db)
         brisanjaTabela(db)
+        vnaprejTabela(db)
     }
 
     /** v2: osebe (zdruzene identitete + lastno ime) in oznake pogovorov - vse lokalno, uporabnikovo. */
@@ -42,6 +43,47 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         if (stara < 2) osebeTabele(db)
         if (stara < 3) izbrisaneTabele(db)
         if (stara < 4) brisanjaTabela(db)
+        if (stara < 5) vnaprejTabela(db)
+    }
+
+    /**
+     * v5 (pregled D4): zahteve za izbris, ki so prisle pred sporocilom - [id] je krajevni id sporocila (chat:<skupni>),
+     * [od] naprava, ki je zahtevala izbris, [poteka] krajevni cas v ms ([SporocilaPravila.VNAPREJ_VELJA_MS]).
+     */
+    private fun vnaprejTabela(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS izbrisi_vnaprej(kanal_id TEXT, id TEXT, od TEXT, poteka INTEGER, PRIMARY KEY(kanal_id, id, od))")
+    }
+
+    /** Zapis izbrisa vnaprej; potekli in odvec (najstarejsi nad [SporocilaPravila.VNAPREJ_NAJVEC]) gredo hkrati ven. */
+    fun dodajIzbrisVnaprej(kanalId: String, id: String, od: String, zdajMs: Long) {
+        val db = writableDatabase; db.beginTransaction()
+        try {
+            db.delete("izbrisi_vnaprej", "poteka<=?", arrayOf(zdajMs.toString()))
+            db.insertWithOnConflict("izbrisi_vnaprej", null, ContentValues().apply {
+                put("kanal_id", kanalId); put("id", id); put("od", od); put("poteka", SporocilaPravila.potekVnaprej(zdajMs))
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+            db.execSQL("DELETE FROM izbrisi_vnaprej WHERE rowid NOT IN (SELECT rowid FROM izbrisi_vnaprej ORDER BY poteka DESC LIMIT ${SporocilaPravila.VNAPREJ_NAJVEC})")
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    /**
+     * Ali je naprava [od] sporocilo [id] izbrisala, preden je prislo: veljaven zapis se porabi, id gre med izbrisana
+     * (ponovna dostava ga ne vrne). Potekel zapis se samo odstrani.
+     */
+    fun porabiIzbrisVnaprej(kanalId: String, id: String, od: String, zdajMs: Long): Boolean {
+        val db = writableDatabase
+        val poteka = db.rawQuery("SELECT poteka FROM izbrisi_vnaprej WHERE kanal_id=? AND id=? AND od=?", arrayOf(kanalId, id, od)).use {
+            if (it.moveToFirst()) it.getLong(0) else null
+        } ?: return false
+        db.beginTransaction()
+        try {
+            db.delete("izbrisi_vnaprej", "kanal_id=? AND id=? AND od=?", arrayOf(kanalId, id, od))
+            val velja = SporocilaPravila.vnaprejVelja(poteka, zdajMs)
+            if (velja) db.insertWithOnConflict("izbrisana", null, ContentValues().apply { put("kanal_id", kanalId); put("id", id) }, SQLiteDatabase.CONFLICT_IGNORE)
+            db.setTransactionSuccessful()
+            return velja
+        } finally { db.endTransaction() }
     }
 
     /**
@@ -107,7 +149,9 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
             for (id in SporocilaPravila.zaIzbrisPogovora(sporocila.map { it.first }))
                 db.insertWithOnConflict("izbrisana", null, ContentValues().apply { put("kanal_id", kanalId); put("id", id) }, SQLiteDatabase.CONFLICT_IGNORE)
             db.insertWithOnConflict("izbrisani_pogovori", null, ContentValues().apply {
-                put("kanal_id", kanalId); put("id", pogovorId); put("do_cas", SporocilaPravila.izbrisanDo(sporocila.map { it.second }, casPogovora))
+                put("kanal_id", kanalId); put("id", pogovorId)
+                put("do_cas", SporocilaPravila.izbrisanDoZaKanal(sporocila.map { it.second }, casPogovora, SporocilaKanali.cas(null),
+                    sporocila.any { SporocilaPravila.jeEposta(it.first) }))
             }, SQLiteDatabase.CONFLICT_REPLACE)
             db.delete("sporocila", "kanal_id=? AND pogovor_id=?", arrayOf(kanalId, pogovorId))
             db.delete("pogovori", "id=? AND kanal_id=?", arrayOf(pogovorId, kanalId))
@@ -248,15 +292,38 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
-    /** Shrani sporocilo; krajevno izbrisanega (naloga 106) ne - vrne false. */
-    fun shraniSporocilo(kanalId: String, s: Sporocilo): Boolean {
+    /**
+     * Shrani sporocilo; krajevno izbrisanega (naloga 106) ne - vrne false. [samoNovo] (Safeer Link): ze shranjeno (ponovna
+     * dostava) tudi vrne false in ostane, kot je. Novo, se neznano sporocilo vrne izbrisan pogovor (pregled D3): odloci
+     * tabela izbrisanih id-jev, ne ura posiljatelja.
+     */
+    fun shraniSporocilo(kanalId: String, s: Sporocilo, samoNovo: Boolean = false,
+                        /** Pregled 8: e-posta - cas prejema na strezniku ([SporocilaPravila.novoVIzbrisanem]); drugi kanali null. */
+                        prejeto: String? = null): Boolean {
         if (jeIzbrisano(kanalId, s.id)) return false
-        writableDatabase.insertWithOnConflict("sporocila", null, ContentValues().apply {
-            put("id", s.id); put("kanal_id", kanalId); put("pogovor_id", s.pogovorId); put("smer", s.smer)
-            put("besedilo", s.besedilo); put("cas", s.cas)
-        }, SQLiteDatabase.CONFLICT_REPLACE)
+        val db = writableDatabase; db.beginTransaction()
+        try {
+            val obstaja = db.rawQuery("SELECT 1 FROM sporocila WHERE id=? AND kanal_id=?", arrayOf(s.id, kanalId)).use { it.moveToFirst() }
+            if (obstaja && samoNovo) return false
+            if (!obstaja) {
+                val izbrisanDo = db.rawQuery("SELECT do_cas FROM izbrisani_pogovori WHERE kanal_id=? AND id=?", arrayOf(kanalId, s.pogovorId)).use {
+                    if (it.moveToFirst()) it.getString(0) ?: "" else null
+                }
+                // Pregled 8: staro sporocilo e-poste z novim UID izbrisanega pogovora ne shrani in ga ne obudi.
+                if (!SporocilaPravila.novoVIzbrisanem(prejeto, izbrisanDo)) return false
+            }
+            db.insertWithOnConflict("sporocila", null, ContentValues().apply {
+                put("id", s.id); put("kanal_id", kanalId); put("pogovor_id", s.pogovorId); put("smer", s.smer)
+                put("besedilo", s.besedilo); put("cas", s.cas)
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+            if (!obstaja) db.delete("izbrisani_pogovori", "kanal_id=? AND id=?", arrayOf(kanalId, s.pogovorId))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
         return true
     }
+
+    /** Ali je sporocilo [id] krajevno izbrisano (za zahtevo za izbris, ki pride pred izvirnikom). */
+    fun izbrisano(kanalId: String, id: String): Boolean = jeIzbrisano(kanalId, id)
 
     /**
      * Pogovor [od] se pridruzi pogovoru [v] (ista naprava pod drugim id): sporocila se preselijo,

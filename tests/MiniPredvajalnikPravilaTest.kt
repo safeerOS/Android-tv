@@ -41,5 +41,12 @@ fun main() {
     preveriEnako("fokus daljinca: ostane", false, MiniPredvajalnikPravila.samodejnoSkrij(true, true, 0L, 60_000L))
     preveriEnako("ze skrit: nic", false, MiniPredvajalnikPravila.samodejnoSkrij(false, false, 0L, 60_000L))
 
+    // Pregled C4: dock se ne gradi ob vsaki osvezitvi
+    preveriEnako("se ni zgrajen: zgradi", true, MiniPredvajalnikPravila.zgradiZnova(null, "spodaj", false))
+    preveriEnako("isto mesto, na zaslonu: samo osvezi", false, MiniPredvajalnikPravila.zgradiZnova("spodaj", "spodaj", true))
+    preveriEnako("novo mesto: zgradi", true, MiniPredvajalnikPravila.zgradiZnova("spodaj", "levo", true))
+    preveriEnako("ni vec na zaslonu: zgradi", true, MiniPredvajalnikPravila.zgradiZnova("spodaj", "spodaj", false))
+    preveriEnako("neznano shranjeno = privzeto: samo osvezi", false, MiniPredvajalnikPravila.zgradiZnova("spodaj", "sredina", true))
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

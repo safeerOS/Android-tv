@@ -6,17 +6,20 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
+import si.safeer.tv.R
 import java.util.concurrent.CopyOnWriteArraySet
 
 /**
  * Naloga 117: predvajanje na drugi napravi v Safeer Linku se upravlja kot lokalno (ideja kot Spotify Connect, koda nasa).
  *
- * Daljinec (ta naprava): po »Poslji na napravo« se zacne seja ([zacni]); dokler cilj nekaj predvaja in ta naprava sama
- * ne igra, gumbi predvajalnika (zaslon, tipke, obvestilo, zaganjalnik) prek [GlasbaStoritev] upravljajo cilj
- * ([OddaljenoPravila.upravljaCilj]). Stanje cilja se osvezuje, dokler je zaslon z daljincem viden; gumb se odzove takoj
- * ([OddaljenoPravila.poUkazu]), odgovor cilja ga nato popravi.
+ * Daljinec (ta naprava): po »Poslji na napravo« se zacne seja ([zacni]); cilj se upravlja v oknu »Upravljaj napravo«
+ * ([ZvocnikIzbira.upravljajNapravo]), dock in tipke pa ga upravljajo samo, ko tu ni nalozeno nic
+ * ([OddaljenoPravila.upravljaCilj], pregled C1). Stanje cilja se osvezuje, dokler je zaslon z daljincem viden (v ozadju le
+ * se nekajkrat); gumb se odzove takoj ([OddaljenoPravila.poUkazu]), odgovor cilja ga nato popravi (neuspel ukaz ga vrne).
+ * Seja se konca sama, ko cilj ne odgovarja, ne deli vec ali predolgo ne predvaja ([OddaljenoPravila.brezPredvajanja]).
  *
  * Cilj (druga naprava): [izvedi] je odgovor na `control.command` z dejanjem [OddaljenoPravila.DEJANJE]; dovoljen je
  * napravam, ki jim je odprt predvajalnik (cast/DostopPravila, kot play.state in play.stop).
@@ -36,10 +39,18 @@ object OddaljenoPredvajanje {
 
     /** Zasloni, ki kazejo stanje cilja (osvezijo prikaz na glavni niti). */
     val poslusalci = CopyOnWriteArraySet<() -> Unit>()
-    /** Stevilo vidnih zaslonov z daljincem: samo tedaj se stanje osvezuje (v ozadju nobenih zahtev). */
+    /** Stevilo vidnih zaslonov z daljincem: tedaj se stanje osvezuje (v ozadju le se nekajkrat, glej [vOzadju]). */
     private var vidnih = 0
     private var napak = 0
     private var zadnjiOdgovorMs = 0L
+    /** Zacetek seje ali zadnji odgovor, ko je cilj igral ([OddaljenoPravila.brezPredvajanja]). */
+    private var zadnjeIgranjeMs = 0L
+    /** Osvezitve brez vidnega okna od skritja, dotika docka ali ukaza ([OddaljenoPravila.razmikOsvezitve]). */
+    private var vOzadju = 0
+    private var zadnjaZahtevaMs = 0L
+    /** Zakaj se je zadnja seja koncala ([OddaljenoPravila.KONEC_UPORABNIK] ...); prazno, dokler seja tece. */
+    @Volatile var zadnjiKonec: String = ""
+        private set
     private var app: Context? = null
     /** Zaporedna stevilka seje: odgovor stare seje (ali odgovor, ki ga je prehitel novejsi ukaz) se ne uposteva. */
     private var seja = 0
@@ -47,8 +58,8 @@ object OddaljenoPredvajanje {
 
     private fun ura() = SystemClock.elapsedRealtime()
 
-    /** Ali gumbi predvajalnika te naprave zdaj upravljajo cilj. */
-    fun upravlja(tuIgra: Boolean): Boolean = OddaljenoPravila.upravljaCilj(cilj != null, stanje.kajIgra, tuIgra)
+    /** Ali gumbi predvajalnika te naprave zdaj upravljajo cilj ([tuNalozeno]: tu je nalozena skladba - potem ne). */
+    fun upravlja(tuNalozeno: Boolean): Boolean = OddaljenoPravila.upravljaCilj(cilj != null, stanje.kajIgra, tuNalozeno)
 
     /** Zacne sejo daljinca za [n] (prejsnja se konca). */
     fun zacni(ctx: Context, n: LinkOdjemalec.Naprava) {
@@ -58,35 +69,69 @@ object OddaljenoPredvajanje {
         stanje = OddaljenoPravila.Stanje()
         napak = 0
         zadnjiOdgovorMs = ura()
+        zadnjeIgranjeMs = ura()
+        vOzadju = 0
+        zadnjiKonec = ""
         Log.i(TAG, "seja: ${n.id}")
         javi()
         osvezi()
     }
 
-    /** Konec seje daljinca (uporabnik je izbral »Prekini upravljanje« ali je tu zacel predvajati kaj drugega). */
-    fun koncaj() {
-        if (cilj == null) return
+    /**
+     * Konec seje daljinca: uporabnik je izbral »Prekini upravljanje«, tu zacel predvajati kaj drugega ([OddaljenoPravila.KONEC_TU])
+     * ali je sejo koncal cilj ([naOdgovor]). Klic z glavne niti; sporocilo samo, ce je sejo koncal cilj (pregled C7).
+     */
+    fun koncaj(razlog: String = OddaljenoPravila.KONEC_UPORABNIK) {
+        val n = cilj ?: return
         seja++
         cilj = null
         stanje = OddaljenoPravila.Stanje()
+        zadnjiKonec = razlog
         glavna.removeCallbacks(zanka)
+        Log.i(TAG, "seja koncana: $razlog")
+        if (OddaljenoPravila.javiKonec(razlog)) sporociKonec(n, razlog)
         javi()
     }
 
-    /** Zaslon z daljincem je viden / skrit (onResume / onPause). */
+    private fun sporociKonec(n: LinkOdjemalec.Naprava, razlog: String) {
+        val ctx = app ?: return
+        val niz = when (razlog) {
+            OddaljenoPravila.KONEC_NE_DELI -> R.string.naprava_ne_deli
+            OddaljenoPravila.KONEC_STARA -> R.string.os_predaja_poslji_stara
+            OddaljenoPravila.KONEC_BREZ_PREDVAJANJA -> R.string.naprava_brez_predvajanja
+            else -> R.string.naprava_konec
+        }
+        try { Toast.makeText(ctx, ctx.getString(niz, DatotekeActivity.lepoIme(n.ime)), Toast.LENGTH_LONG).show() } catch (_: Throwable) { }
+    }
+
+    /** Zaslon z daljincem je viden / skrit (okno odprto / zaprto). Vsak true ima natanko en false. */
     fun vidno(da: Boolean) {
         vidnih = (vidnih + if (da) 1 else -1).coerceAtLeast(0)
         glavna.removeCallbacks(zanka)
         if (cilj == null) return
+        vOzadju = 0
         if (da) osvezi() else naslednjaOsvezitev()
+    }
+
+    /**
+     * Pregled C2: zaslon brez lastnega stevca vidnosti (dock na domacem zaslonu) kaze stanje cilja - ce je starejse od
+     * [OddaljenoPravila.SVEZE_MS], ga osvezi in dovoli se nekaj osvezitev v ozadju (potem spet nic).
+     */
+    fun prikazano() {
+        if (cilj == null || ura() - zadnjaZahtevaMs < OddaljenoPravila.SVEZE_MS) return
+        vOzadju = 0
+        osvezi()
     }
 
     private val zanka = Runnable { osvezi() }
 
     private fun naslednjaOsvezitev() {
         glavna.removeCallbacks(zanka)
-        val razmik = OddaljenoPravila.razmikOsvezitve(vidnih > 0, stanje.igra)
-        if (cilj != null && razmik > 0) glavna.postDelayed(zanka, razmik)
+        if (cilj == null) return
+        val razmik = OddaljenoPravila.razmikOsvezitve(vidnih > 0, stanje.igra, vOzadju)
+        if (razmik <= 0) return
+        if (vidnih == 0) vOzadju++
+        glavna.postDelayed(zanka, razmik)
     }
 
     private fun osvezi() = poslji(OddaljenoPravila.Ukaz(OddaljenoPravila.STANJE))
@@ -106,34 +151,40 @@ object OddaljenoPredvajanje {
     private fun poslji(u: OddaljenoPravila.Ukaz) {
         val n = cilj ?: return
         val ctx = app ?: return
-        if (u.vrsta != OddaljenoPravila.STANJE) { stanje = OddaljenoPravila.poUkazu(stanje, u, ura()); javi() }
+        val prej = stanje
+        if (u.vrsta != OddaljenoPravila.STANJE) { stanje = OddaljenoPravila.poUkazu(stanje, u, ura()); vOzadju = 0; javi() }
         val moja = seja
         val st = ++ukazov
+        zadnjaZahtevaMs = ura()
         val p = JSONObject().put("action", u.vrsta)
         if (u.vrsta == OddaljenoPravila.SKOCI) p.put("position_ms", u.ms)
         if (u.vrsta == OddaljenoPravila.GLASNOST) { if (u.glasnost >= 0) p.put("level", u.glasnost) else p.put("step", u.korak) }
         if (u.vrsta == OddaljenoPravila.IZ_VRSTE) p.put("index", u.indeks)
         LinkUpravitelj.pridobi(ctx).ukaz(n.id, OddaljenoPravila.DEJANJE, p, 4_000, LinkOdjemalec.Odgovor { izid, napaka ->
-            glavna.post { naOdgovor(moja, st, izid, napaka) }
+            glavna.post { naOdgovor(moja, st, u, prej, izid, napaka) }
         })
     }
 
-    private fun naOdgovor(moja: Int, st: Int, izid: JSONObject?, napaka: String) {
+    private fun naOdgovor(moja: Int, st: Int, u: OddaljenoPravila.Ukaz, prej: OddaljenoPravila.Stanje, izid: JSONObject?, napaka: String) {
         if (moja != seja) return
-        val d = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
+        val ok = izid?.optBoolean("ok") == true
+        val d = if (ok) izid?.optJSONObject("data") else null
+        // Pregled C2: dostop zaprt, deljenje izklopljeno ali cilj ukaza ne pozna - seja se konca takoj (s sporocilom).
+        OddaljenoPravila.konecPoOdgovoru(ok, izid?.optString("code").orEmpty().ifBlank { napaka }, d?.optBoolean("shared", true) ?: true)
+            ?.let { koncaj(it); return }
         if (d == null) {
             napak++
-            if (izid?.optString("code") == "neznano_dejanje" ||
-                OddaljenoPravila.sejaKoncana(napak, zadnjiOdgovorMs, ura())) {
-                Log.i(TAG, "seja koncana: ${izid?.optString("code").orEmpty().ifBlank { napaka }}")
-                koncaj(); return
-            }
+            if (OddaljenoPravila.sejaKoncana(napak, zadnjiOdgovorMs, ura())) { koncaj(OddaljenoPravila.KONEC_NI_ODZIVA); return }
+            // Pregled C8: ukaz ni prisel do cilja - gumb ne kaze vec napovedi, ki se ni zgodila (ce je ni prehitel novejsi).
+            if (u.vrsta != OddaljenoPravila.STANJE && st == ukazov) { stanje = prej; javi() }
             naslednjaOsvezitev(); return
         }
         napak = 0
         zadnjiOdgovorMs = ura()
         // Odgovor starejsega ukaza ne povozi napovedi novejsega (dva hitra dotika »Premor« / »Nadaljuj«).
         if (st == ukazov) { stanje = izJson(d, ura()); javi() }
+        if (stanje.igra) zadnjeIgranjeMs = ura()
+        if (OddaljenoPravila.brezPredvajanja(stanje, zadnjeIgranjeMs, ura())) { koncaj(OddaljenoPravila.KONEC_BREZ_PREDVAJANJA); return }
         naslednjaOsvezitev()
     }
 
@@ -171,13 +222,14 @@ object OddaljenoPredvajanje {
     private fun izvediTu(ctx: Context, u: OddaljenoPravila.Ukaz) {
         if (GlasbaStoritev.predvajalnik == null) return
         // To napravo upravlja druga: ce je ta sama upravljala tretjo, se ta seja konca - ukazi veljajo tukajsnjemu predvajanju.
-        if (u.vrsta != OddaljenoPravila.STANJE) koncaj()
+        if (u.vrsta != OddaljenoPravila.STANJE) koncaj(OddaljenoPravila.KONEC_TU)
         when (u.vrsta) {
             OddaljenoPravila.PREMOR -> GlasbaStoritev.premorTu()
-            OddaljenoPravila.NADALJUJ -> GlasbaStoritev.nadaljuj()
-            OddaljenoPravila.PREKLOPI -> GlasbaStoritev.preklopi()
-            OddaljenoPravila.NASLEDNJA -> GlasbaStoritev.naslednja()
-            OddaljenoPravila.PREJSNJA -> GlasbaStoritev.prejsnja()
+            OddaljenoPravila.NADALJUJ -> GlasbaStoritev.nadaljujTu()
+            OddaljenoPravila.PREKLOPI -> GlasbaStoritev.preklopiTu()
+            OddaljenoPravila.NASLEDNJA -> GlasbaStoritev.naslednjaTu()
+            OddaljenoPravila.PREJSNJA -> GlasbaStoritev.prejsnjaTu()
+            // Pregled C5: v zivo ali neprevijalno - skoci() ga ne izvede.
             OddaljenoPravila.SKOCI -> GlasbaStoritev.skoci(u.ms)
             OddaljenoPravila.IZ_VRSTE -> GlasbaStoritev.predvajajIzVrste(u.indeks)
             OddaljenoPravila.GLASNOST -> nastaviGlasnost(ctx, u)

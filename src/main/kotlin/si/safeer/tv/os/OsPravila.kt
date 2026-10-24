@@ -1682,4 +1682,44 @@ object OsPravila {
         if (!(kanal && progresivno && zacelo)) return OdlocitevVZivo(VZIVO_OBSTOJECA_POT)
         return if (tihKonecPoMeji(koda != 0, imaRezervo, imaNaslednjega)) OdlocitevVZivo(VZIVO_TIH_KONEC) else OdlocitevVZivo(VZIVO_OBSTOJECA_POT)
     }
+
+    // ------------------------------------------------------------------ pregled 25. 10. 2026 (B1, D7, B-S1, B2)
+
+    /**
+     * Pregled B1: placljivo se odloci ENKRAT po odgovorih vseh dodatkov za vsebino ([placljivoPoOdgovoru]). Ce kateri dodatek
+     * v roku ni odgovoril, novega zapisa ni (morda bi dal prost tok - film ne sme izginiti za 7 dni); predvajljiv tok pa
+     * zapis vedno pobrise.
+     */
+    fun placljivoPoVsehOdgovorih(prej: Long?, placilnih: Int, predvajljivih: Int, vsiOdgovorili: Boolean, zdaj: Long): Long? =
+        if (predvajljivih <= 0 && !vsiOdgovorili) prej else placljivoPoOdgovoru(prej, placilnih, predvajljivih, zdaj)
+
+    /** Pregled D7: najvec bajtov odgovora dodatka (JSON); vecjega zavrnemo, preden ga razclenimo. */
+    const val NAJVEC_ODGOVORA_DODATKA = 8 * 1024 * 1024
+
+    /** Pregled D7: napovedana dolzina odgovora ([dolzina] -1 = ni znana) je vecja od meje - odgovora sploh ne beremo. */
+    fun odgovorPrevelik(dolzina: Long, meja: Int = NAJVEC_ODGOVORA_DODATKA): Boolean = dolzina > meja
+
+    /**
+     * Pregled B-S1: epizoda, ki sledi [sezona]/[epizoda] med [epizode] (sezona, epizoda). Posebne (sezona 0) gredo samo med
+     * sabo; po zadnji epizodi sezone pride prva naslednje. null = zadnja epizoda ali je seznam ne pozna.
+     */
+    fun naslednjaEpizoda(epizode: List<Pair<Int, Int>>, sezona: Int, epizoda: Int): Pair<Int, Int>? =
+        epizode.filter { it.second >= 1 && (if (sezona == 0) it.first == 0 else it.first >= 1) }.distinct()
+            .sortedWith(compareBy({ it.first }, { it.second }))
+            .firstOrNull { it.first > sezona || (it.first == sezona && it.second > epizoda) }
+
+    private val EPIZODA_V_NASLOVU = Regex(" · S\\d+E\\d+( · .*)?$")
+
+    /** Pregled B-S1: naslov serije brez dela »· S1E2 · ime« (tako ga sestavi seznam epizod); drug naslov ostane. */
+    fun naslovBrezEpizode(naslov: String): String = naslov.replace(EPIZODA_V_NASLOVU, "").ifBlank { naslov }
+
+    /** Pregled B-S1: ogled je prakticno koncan (>= 95 % trajanja) - MediaNapredek ga oznaci kot »odgledano«. */
+    fun odgledano(polozajMs: Long, trajanjeMs: Long): Boolean = trajanjeMs > 0 && polozajMs >= trajanjeMs * 95 / 100
+
+    /** Pregled B2: enkratni zeton samodejnega preizkusa (PreizkusActivity -> GlasbaActivity) velja tako dolgo. */
+    const val PREIZKUS_ZETON_VELJA_MS = 60_000L
+
+    /** Pregled B2: preizkus sprejmemo samo z zetonom, ki ga je ta proces izdal ([izdan]: zeton, cas) in se ni potekel. */
+    fun zetonPreizkusaVelja(izdan: Pair<String, Long>?, prejet: String?, zdaj: Long): Boolean =
+        izdan != null && !prejet.isNullOrEmpty() && prejet == izdan.first && zdaj - izdan.second in 0 until PREIZKUS_ZETON_VELJA_MS
 }

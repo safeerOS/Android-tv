@@ -74,6 +74,16 @@ object DebridPravila {
      * Ali po neuspehu z vsemi predpomnjenimi poskusimo se s cakanjem (storitev torrent prenese): samo, ce filter
      * »samo takoj predvajljivo« ni vklopljen in je razlog »ni predpomnjeno« (ne kljuc ali meja).
      */
+    /**
+     * Pregled A4: storitev, ki jo sporocilo napake imenuje - prva (po vrstnem redu poskusov) z napako, ki jo uporabnik
+     * vidi ([razlogZaUporabnika]). [napake]: (storitev, napaka). Prazno = ni poskusov.
+     */
+    fun ponudnikNapake(napake: List<Pair<String, String>>): String {
+        if (napake.isEmpty()) return ""
+        val razlog = razlogZaUporabnika(napake.map { it.second })
+        return (napake.firstOrNull { it.second == razlog } ?: napake.first()).first
+    }
+
     fun poskusiSCakanjem(samoPredpomnjeno: Boolean, napake: List<String>): Boolean =
         !samoPredpomnjeno && napake.isNotEmpty() && napake.all { it == NAPAKA_NI_PREDPOMNJENO }
 

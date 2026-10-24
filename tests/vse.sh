@@ -11,7 +11,7 @@
 set -uo pipefail
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$TEST_DIR")"
-TOOLS_DIR="${SAFEER_TOOLS_DIR:-$HOME/Namizje/Neimenovana mapa/streamN-TV2/android_tv/.tools}"
+TOOLS_DIR="${SAFEER_TOOLS_DIR:-$PROJECT_DIR/.tools}"   # orodja: SAFEER_TOOLS_DIR ali .tools (lahko povezava) v projektu
 STROGO="${STROGO:-0}"
 
 # ------------------------------------------------------------------ orodja
@@ -26,7 +26,9 @@ if [ -z "${JSON_JAR:-}" ]; then
 fi
 ANDROID_JAR="$( { ls "$PROJECT_DIR"/.android-sdk/platforms/android-3*/android.jar \
     "${ANDROID_HOME:-/nonexistent}"/platforms/android-3*/android.jar "${ANDROID_SDK_ROOT:-/nonexistent}"/platforms/android-3*/android.jar 2>/dev/null || true; } | head -1)"
-export KOTLINC JSON_JAR
+# Tudi za run_*.sh, ki izpeljejo pot do orodij sami.
+SAFEER_TOOLS_DIR="$TOOLS_DIR"
+export KOTLINC JSON_JAR SAFEER_TOOLS_DIR
 
 echo "== orodja"
 echo "  kotlinc:  ${KOTLINC:-MANJKA}"
