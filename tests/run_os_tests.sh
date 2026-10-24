@@ -93,6 +93,34 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/OzjiKrogPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/AplikacijePredpomnilnik.kt" \
     "$TEST_DIR/AplikacijePredpomnilnikTest.kt" \
+    "$SRC/si/safeer/tv/os/SporocilaPravila.kt" \
+    "$TEST_DIR/SporocilaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/OddaljenoPravila.kt" \
+    "$TEST_DIR/OddaljenoPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/MiniPredvajalnikPravila.kt" \
+    "$TEST_DIR/MiniPredvajalnikPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/TorBoxPravila.kt" \
+    "$TEST_DIR/TorBoxPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/DebridPravila.kt" \
+    "$TEST_DIR/DebridPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/UsenetPravila.kt" \
+    "$TEST_DIR/UsenetPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/SerijePravila.kt" \
+    "$TEST_DIR/SerijePravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/KakovostPravila.kt" \
+    "$TEST_DIR/KakovostPravilaTest.kt" \
+    "$TEST_DIR/SkupniPrimeriTest.kt" \
+    "$SRC/si/safeer/tv/os/PreizkusPravila.kt" \
+    "$TEST_DIR/PreizkusPravilaTest.kt" \
+    "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$SRC/si/safeer/tv/os/DodatkiProtokol.kt" \
+    "$TEST_DIR/DodatkiProtokolTest.kt" \
+    "$SRC/si/safeer/tv/os/DatotekePravila.kt" \
+    "$TEST_DIR/DatotekePravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/NedelujocePravila.kt" \
+    "$TEST_DIR/NedelujocePravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/Zasebno.kt" \
+    "$TEST_DIR/ZasebnoTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -134,6 +162,20 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.VrsticaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SeznamZaslonovTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.link.OzjiKrogPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.AplikacijePredpomnilnikTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.SporocilaPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.OddaljenoPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.TorBoxPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.DebridPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.SerijePravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.PreizkusPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
+java -cp "$OUT/os.jar" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/DODATKI-PROTOKOL.md"
+java -cp "$OUT/os.jar" si.safeer.tv.os.DatotekePravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.NedelujocePravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebnoTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.
@@ -156,3 +198,4 @@ java -cp "$OUT/neposredna.jar" si.safeer.tv.link.NeposrednaPotTestKt
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"
 python3 "$TEST_DIR/preveri_dostop_v_ozadju.py"
+python3 "$TEST_DIR/preveri_preizkus_po_gradnji.py"

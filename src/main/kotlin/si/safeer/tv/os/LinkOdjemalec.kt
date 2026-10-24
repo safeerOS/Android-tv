@@ -392,15 +392,21 @@ class LinkOdjemalec(private val context: Context) {
     /**
      * Safeer Chat: poslje sporocilo napravi v Linku in pocaka na potrditev sredisca. Vrne "accepted"
      * (dostavljeno), "queued" (naprava ni povezana, dobi ga ob povezavi) ali kodo napake. Ne klici na glavni niti.
+     * [id] je id sporocila, pod katerim ga hrani tudi prejemnik (naloga 116: skupni id za izbris na vseh napravah).
+     * [izbrisi] (naloga 116): zahteva, naj prejemnik izbrise nase sporocilo s tem skupnim id-jem (polje payload.delete).
      */
-    fun posljiKlepet(cilj: String, besedilo: String, cas: String, potekMs: Long = 10_000): String {
+    /** Naloga 129: ali do naprave [cilj] obstaja sifrirana pot od naprave do naprave (E2e) - za skrivnosti. */
+    fun znaZascito(cilj: String): Boolean = try { zascita.znaZascito(cilj) } catch (_: Throwable) { false }
+
+    fun posljiKlepet(cilj: String, besedilo: String, cas: String, potekMs: Long = 10_000,
+                     id: String = UUID.randomUUID().toString(), izbrisi: String = ""): String {
         val w = ws
         if (!povezan || w == null) return "ni_povezave"
-        val id = UUID.randomUUID().toString()
         val vrsta = java.util.concurrent.ArrayBlockingQueue<String>(1)
         klepetOdgovori[id] = vrsta
-        val sporocilo = JSONObject().put("id", id).put("type", "chat.send").put("target", cilj)
-            .put("payload", JSONObject().put("text", besedilo).put("created_at", cas))
+        val tovor = JSONObject().put("text", besedilo).put("created_at", cas)
+        if (izbrisi.isNotBlank()) tovor.put("delete", izbrisi)
+        val sporocilo = JSONObject().put("id", id).put("type", "chat.send").put("target", cilj).put("payload", tovor)
         return try {
             if (!w.send(sporocilo.toString())) "ni_povezave"
             else vrsta.poll(potekMs, java.util.concurrent.TimeUnit.MILLISECONDS) ?: "potek"

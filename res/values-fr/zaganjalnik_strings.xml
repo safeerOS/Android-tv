@@ -30,4 +30,13 @@
     <string name="zg_vrnjen">Votre lanceur précédent est de nouveau l\'écran d\'accueil.</string>
     <string name="zg_sporocila_novo">Nouveau message</string>
     <string name="zg_sporocila_vse">Ouvrir en entier</string>
+    <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
+    <string name="zg_dock_pokazi">Afficher le lecteur</string>
+    <string name="zg_dock_skrij">Masquer le lecteur</string>
+    <string name="zg_dock_mesto">Position du mini-lecteur</string>
+    <string name="zg_dock_zgoraj">En haut</string>
+    <string name="zg_dock_spodaj">En bas</string>
+    <string name="zg_dock_levo">À gauche</string>
+    <string name="zg_dock_desno">À droite</string>
+    <string name="zg_dock_seznam">Dans la liste (sans dock)</string>
 </resources>

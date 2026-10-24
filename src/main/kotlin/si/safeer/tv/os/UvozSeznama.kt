@@ -193,7 +193,8 @@ object UvozSeznama {
      * Posnetek za skladbo brez toka: prvi zadetki iskanja, med njimi tisti z najblizjo dolzino (album ali
      * uradni posnetek, ne desetminutni koncert). Vrne enoto spletnega vira ali null.
      */
-    fun najdi(s: Jamendo.Skladba): Jamendo.Skladba? {
+    /** [izloci]: id-ji posnetkov, ki ne delujejo (naloga 109, »Poisci drug posnetek«) - med zadetki jih ni. */
+    fun najdi(s: Jamendo.Skladba, izloci: Set<String> = emptySet()): Jamendo.Skladba? {
         val sekund = s.id.removePrefix(PREDPONA_ISKANJA).substringBefore('|').toIntOrNull() ?: 0
         val poizvedba = "${s.izvajalec} ${s.naslov}".trim()
         // Najprej vmesnik strani (odgovor JSON, ~50 kB stisnjeno), sicer stran z zadetki (vecja) - isti podatki.
@@ -204,7 +205,7 @@ object UvozSeznama {
             ?: beri("https://www.youtube.com/results?search_query=" + URLEncoder.encode(poizvedba, "UTF-8") + "&hl=en", youtube = true)
                 ?.let { jsonZa(it, "ytInitialData") }
             ?: return null
-        val id = izberiZadetek(zadetkiIskanja(podatki), sekund) ?: return null
+        val id = izberiZadetek(NedelujocePravila.brezIzlocenih(zadetkiIskanja(podatki), izloci), sekund) ?: return null
         return SpletniVir.enota("https://www.youtube.com/watch?v=$id", s.naslov, s.izvajalec, "https://i.ytimg.com/vi/$id/mqdefault.jpg", false)
     }
 

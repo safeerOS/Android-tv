@@ -112,11 +112,31 @@ open class SpletniIgralec protected constructor(
         }
     }
 
+    /**
+     * Naloga 109: polna stran posnetka (YouTube) kaze napako predvajalnika - besedilo (`.ytp-error`, »Video unavailable«,
+     * »Private video« ...) gre poslusalcu enkrat ([NedelujocePravila.izNapakeYoutube] ga preslika v razlog).
+     */
+    var obNapakiStrani: ((String) -> Unit)? = null
+    private var napakaJavljena = false
+
+    private fun preveriNapakoStrani() {
+        if (vgradno || napakaJavljena || obNapakiStrani == null || polozaj > 0L) return
+        pogled.evaluateJavascript("(function(){return window.__safeerNapakaStrani||'';})()") { r ->
+            if (sproscen || napakaJavljena) return@evaluateJavascript
+            val besedilo = try { org.json.JSONArray("[" + (r ?: "\"\"") + "]").optString(0) } catch (_: Exception) { "" }
+            if (besedilo.isBlank()) return@evaluateJavascript
+            napakaJavljena = true
+            Log.i("SafeerOsMedia", "spletni igralec: napaka strani \"${besedilo.lineSequence().firstOrNull().orEmpty().take(60)}\"")
+            obNapakiStrani?.invoke(besedilo)
+        }
+    }
+
     private val tik = object : Runnable {
         override fun run() {
             if (sproscen) return
             if (kino) vklopiKino()
             if (vgradno && polozaj <= 0L) preveriVgradno()
+            preveriNapakoStrani()
             // Casovniki JS so skupni vsem pogledom procesa; ce jih je brskalnik ustavil, stran ne tece.
             if (zelja) pogled.resumeTimers()
             pogled.evaluateJavascript(STANJE_JS) { r ->
@@ -327,7 +347,9 @@ open class SpletniIgralec protected constructor(
             var m=glavni();if(m){try{window.top.postMessage({safeer:'stanje',
             p:!m.paused,t:m.currentTime||0,d:m.duration||0,r:m.readyState,e:!!m.ended},'*');}catch(x){}}},1000);}
           else{window.addEventListener('message',function(e){var d=e.data;if(d&&d.safeer==='stanje'){window.__safeerOkvir=d;window.__safeerOkvirCas=Date.now();}
-            if(d&&d.safeer==='napaka'){window.__safeerNapaka=Date.now();}});}
+            if(d&&d.safeer==='napaka'){window.__safeerNapaka=Date.now();}});
+            setInterval(function(){var er=document.querySelector('.ytp-error,yt-playability-error-supported-renderers,ytm-player-error-message-renderer,.player-error-message-container');
+              if(er&&er.offsetWidth>0){var t=(er.innerText||'').trim().slice(0,300);if(t){window.__safeerNapakaStrani=t;}}},1000);}
         })()"""
 
         /** Stanje: medij vrhnje strani, sicer zadnje stanje okvirja z medijem; naslov iz MediaSession strani. */

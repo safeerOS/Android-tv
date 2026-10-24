@@ -44,6 +44,13 @@
     <string name="os_mediji_streznik_ne_odgovarja_brez">Strežnik ne odgovarja – vira nisem dodal.</string>
     <string name="os_mediji_poskusi_znova">Poskusi znova</string>
     <string name="os_mediji_ne_odgovarja">Ne odgovarja</string>
+    <!-- Naloga 113: stanje dodatka v Mojih virih. -->
+    <string name="os_mediji_ne_odgovarja_od">Ne odgovarja od %1$s</string>
+    <string name="os_mediji_ne_odgovarja_od_http">Ne odgovarja od %1$s (HTTP %2$d)</string>
+    <string name="os_mediji_preveri_dodatek">Preveri dodatek zdaj</string>
+    <string name="os_mediji_dodatek_odgovarja">Dodatek odgovarja</string>
+    <string name="os_mediji_dodatek_ne_odgovarja_http">Dodatek ne odgovarja (HTTP %1$d)</string>
+    <string name="os_mediji_dodatek_ne_odgovarja_brez">Dodatek ne odgovarja</string>
     <string name="os_mediji_ni_vira">Na tem naslovu ni glasbe ali videa, ki bi ga Safeer znal predvajati.</string>
     <string name="os_mediji_ni_vira_zakaj">Vira nismo dodali. Safeer predvaja glasbo, video, radio in TV prenose (MP3, MP4, HLS, seznami M3U/PLS, podkasti, PeerTube) ter spletne strani; torrentov, arhivov in zaščitenih prenosov ne predvaja.</string>
     <string name="os_mediji_dodano">Dodano: %1$s</string>
@@ -402,4 +409,21 @@
     <string name="os_besedila_napaka">Besedila ta čas ni mogoče dobiti.</string>
     <string name="os_besedila_instrumentalno">Instrumentalna skladba – brez besedila.</string>
     <string name="os_tv_vrni_skrite">Pokaži skrite kanale (%1$d)</string>
+    <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
+    <string name="os_nedel_ni_toka">vir ne da toka</string>
+    <string name="os_nedel_streznik">strežnika ni</string>
+    <string name="os_nedel_neodziven">strežnik ne odgovarja</string>
+    <string name="os_nedel_http">napaka strežnika %1$d</string>
+    <string name="os_nedel_ni_znano">razlog ni znan</string>
+    <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->
+    <string name="os_nedel_ni_na_voljo">posnetek ni na voljo ali je odstranjen</string>
+    <string name="os_nedel_zaseben">zaseben posnetek</string>
+    <string name="os_nedel_drzava">ni na voljo v tej državi</string>
+    <string name="os_nedel_prijava">zahteva prijavo ali potrditev starosti</string>
+    <string name="os_nedel_clani">samo za člane</string>
+    <string name="os_nedel_skladba">%1$s se ne predvaja: %2$s</string>
+    <string name="os_nedel_poisci_drug">Poišči drug posnetek</string>
+    <string name="os_nedel_preveri_znova">Preveri znova</string>
+    <string name="os_nedel_ni_drugega">Drugega posnetka ni</string>
+    <string name="os_nedel_nov_posnetek">Najden drug posnetek</string>
 </resources>

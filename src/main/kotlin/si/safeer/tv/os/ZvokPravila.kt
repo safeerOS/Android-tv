@@ -138,14 +138,29 @@ object ZvokPravila {
         return k in zvocnik || (k == "atmos" && "eac3" in zvocnik)
     }
 
-    /** Vrstica v izbiri zvocne sledi: jezik ali ime sledi, kanali in zapis - brez ponavljanja, ce zapis ze pove ime. */
-    fun opisSledi(imeAliJezik: String?, kanalov: Int, mime: String?, oznaka: String?): String {
+    /**
+     * Vrstica v izbiri zvocne sledi: jezik ali ime sledi, kanali in zapis - brez ponavljanja, ce zapis ze pove ime. Naloga 104:
+     * z [bitov] na sekundo (Format.bitrate; <= 0 = ne vemo) se kakovost (»AAC 128 kb/s«) - prej »AAC, AAC, AAC«.
+     */
+    fun opisSledi(imeAliJezik: String?, kanalov: Int, mime: String?, oznaka: String?, bitov: Int = -1): String {
         val zapis = imeZapisa(mime, oznaka)
         val ime = imeAliJezik?.trim().orEmpty()
         val zeVImenu = zapis.isNotBlank() && (ime.contains(zapis, ignoreCase = true) ||
             (zapis.endsWith("Atmos") && ime.contains("atmos", ignoreCase = true)) || ime.contains(zapis.substringBefore(' ') + " ", ignoreCase = true))
         val k = kanali(kanalov)
         val kanaliVImenu = k.isNotBlank() && ime.contains(k, ignoreCase = true)
-        return listOf(ime, if (kanaliVImenu) "" else k, if (zeVImenu) "" else zapis).filter { it.isNotBlank() }.joinToString(" · ")
+        val kakovost = if (bitov > 0) "${(bitov + 500) / 1000} kb/s" else ""
+        val zapisSKakovostjo = listOf(if (zeVImenu) "" else zapis, kakovost).filter { it.isNotBlank() }.joinToString(" ")
+        return listOf(ime, if (kanaliVImenu) "" else k, zapisSKakovostjo).filter { it.isNotBlank() }.joinToString(" · ")
     }
+
+    /** Naloga 104: kljuc sledi BREZ kakovosti (ime ali jezik, kanali, zapis) - sledi z istim kljucem se locijo samo po kakovosti. */
+    fun kljucSledi(imeAliJezik: String?, kanalov: Int, mime: String?): String =
+        listOf(imeAliJezik?.trim()?.lowercase().orEmpty(), kanalov.toString(), mime?.lowercase().orEmpty()).joinToString("|")
+
+    /**
+     * Naloga 104: izbira zvocne sledi ima smisel samo, ce se sledi locijo po vec kot kakovosti (jezik, kanali, zapis) - sicer jo
+     * predvajalnik izbere sam (najboljso za napravo in povezavo) in gumba ne pokazemo.
+     */
+    fun imaIzbiroSledi(kljuci: List<String>): Boolean = kljuci.size > 1 && kljuci.distinct().size > 1
 }

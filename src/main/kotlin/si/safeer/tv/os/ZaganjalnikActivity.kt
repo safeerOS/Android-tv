@@ -165,6 +165,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onStart()
         link.dodaj(this)
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
+        OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
         ZnackeObvestil.poslusalci.add(znackePoslusalec)
         osveziVse()
         AplikacijeHostaActivity.predhodno(this)
@@ -172,6 +173,8 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onStop() {
         GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
+        OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
+        dock?.ustavi()
         ZnackeObvestil.poslusalci.remove(znackePoslusalec)
         link.odstrani(this)
         super.onStop()
@@ -189,6 +192,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         if (SporocilaZnak.zapri(this)) return
+        if (dock?.skrijCeOdprt() == true) return
         if ((drsnik?.scrollY ?: 0) > 0) { drsnik?.smoothScrollTo(0, 0); return }
         if (Zaganjalnik.jeIzbran(this)) return
         moveTaskToBack(true)
@@ -257,7 +261,14 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         setContentView(StranskaVrstica.ovij(this, okvir, StranskaVrstica.Razdelek.DOMOV))
         Ozadje.uporabi(this, okvir)
+        // Naloga 118: mini predvajalnik kot dock ob robu (nad seznamom odsekov).
+        dock?.ustavi()
+        dock = MiniPredvajalnik(this, okvir, prefs(), vnos == Vnos.DALJINEC, { osBarva(it) },
+            odpriMedije = { odpri(GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica), null) },
+            obSpremembiMesta = { narisiPredvajalnik() })
     }
+
+    private var dock: MiniPredvajalnik? = null
 
     private var mrezaOdsekov: LinearLayout? = null
     private var kuverta: View? = null
@@ -598,6 +609,10 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun narisiPredvajalnik() {
         val o = odsekPredvajalnik ?: return
         val cilj = vsebinaOdseka(o) ?: return
+        // Naloga 118: dock ob robu namesto kompaktnega predvajalnika v seznamu (razen, ce uporabnik izbere »v seznamu«).
+        val d = dock
+        d?.osvezi()
+        if (d != null && MiniPredvajalnikPravila.jeDock(d.mesto)) { cilj.removeAllViews(); poVidnosti(o, false); return }
         val skladba = try { GlasbaStoritev.trenutna() } catch (_: Throwable) { null }
         cilj.removeAllViews()
         if (skladba == null) { poVidnosti(o, false); return }

@@ -164,7 +164,8 @@ fun tcpDnsTest() {
     dns.naPaket(odOdjemalca(vrata9, 20001, sIsn9 + 1, TcpPaket.ACK, prvi))
     preveri(poslano.none { it.ima(TcpPaket.RST) }, "60 kB nepopolnega vprasanja se ni napaka")
     poslano.clear()
-    dns.naPaket(odOdjemalca(vrata9, 20001 + prvi.size, sIsn9 + 1, TcpPaket.ACK, ByteArray(6_000)))
+    // seq je Long: 20001 + prvi.size bi bil Int (prvi.size je Int) in se ne prevede.
+    dns.naPaket(odOdjemalca(vrata9, 20001L + prvi.size, sIsn9 + 1, TcpPaket.ACK, ByteArray(6_000)))
     preveri(poslano.any { it.ima(TcpPaket.RST) }, "cez najvecje sporocilo DNS je RST (vhod ne raste brez meje)")
     poslano.clear()
 

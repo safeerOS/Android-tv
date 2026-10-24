@@ -30,4 +30,13 @@
     <string name="zg_vrnjen">Il launcher precedente è di nuovo la schermata Home.</string>
     <string name="zg_sporocila_novo">Nuovo messaggio</string>
     <string name="zg_sporocila_vse">Apri per intero</string>
+    <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
+    <string name="zg_dock_pokazi">Mostra il lettore</string>
+    <string name="zg_dock_skrij">Nascondi il lettore</string>
+    <string name="zg_dock_mesto">Posizione del mini lettore</string>
+    <string name="zg_dock_zgoraj">In alto</string>
+    <string name="zg_dock_spodaj">In basso</string>
+    <string name="zg_dock_levo">A sinistra</string>
+    <string name="zg_dock_desno">A destra</string>
+    <string name="zg_dock_seznam">Nell’elenco (senza dock)</string>
 </resources>

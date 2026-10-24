@@ -17,19 +17,25 @@ object ZvocneSledi {
                 .flatMap { g -> (0 until g.length).filter { g.isTrackSupported(it) }.map { g to it } }
         } catch (_: Throwable) { emptyList() }
 
-    /** Izbira ima smisel le pri vec kot eni sledi. */
-    fun imaIzbiro(p: Player?): Boolean = p != null && posnetki(p).size > 1
+    /**
+     * Izbira ima smisel le pri vec kot eni sledi. Naloga 104: in le, ce se ne locijo samo po kakovosti
+     * ([ZvokPravila.imaIzbiroSledi]) - takrat predvajalnik izbere najboljso sam.
+     */
+    fun imaIzbiro(p: Player?): Boolean = p != null && posnetki(p).let { s ->
+        ZvokPravila.imaIzbiroSledi(s.map { (g, i) -> g.getTrackFormat(i).let { f -> ZvokPravila.kljucSledi(f.label ?: f.language, f.channelCount, f.sampleMimeType) } })
+    }
 
     fun ime(a: Activity, g: Tracks.Group, i: Int, k: Int): String {
         val f = g.getTrackFormat(i)
         // Jezik ali ime sledi, kanali in zapis (»Angleščina · 5.1 · Dolby Atmos«): uporabnik ve, katero sled izbira.
+        // Naloga 104: s kakovostjo (»AAC 128 kb/s«), da se sledi istega jezika in zapisa razlocijo.
         return ZvokPravila.opisSledi(f.label?.ifBlank { null } ?: Podnapisi.imeJezika(a, f.language.orEmpty()),
-            f.channelCount, f.sampleMimeType, f.label).ifBlank { a.getString(R.string.os_mediji_zvocna_sled_st, k + 1) }
+            f.channelCount, f.sampleMimeType, f.label, f.bitrate).ifBlank { a.getString(R.string.os_mediji_zvocna_sled_st, k + 1) }
     }
 
     fun izberi(a: Activity, p: Player, poIzbiri: () -> Unit = {}) {
         val posnetki = posnetki(p)
-        if (posnetki.size < 2) return
+        if (posnetki.size < 2 || !imaIzbiro(p)) return
         val imena = posnetki.mapIndexed { k, (g, i) -> ime(a, g, i, k) }
         val trenutni = posnetki.indexOfFirst { (g, i) -> g.isTrackSelected(i) }
         AlertDialog.Builder(a).setTitle(R.string.os_mediji_zvocna_sled)

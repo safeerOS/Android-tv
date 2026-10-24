@@ -173,6 +173,8 @@ class GlasbaStoritev : Service() {
         Podnapisi.uveljavi(this, p)
         // Kaj gre v resnici iz zvocnikov (predan tok Dolby ali dekodirano v stereo): za dnevnik in za zaslon predvajanja.
         p.addAnalyticsListener(ZvokIzhod.poslusalec(this) { oznaka -> zvocniIzhod = oznaka })
+        // Naloga 133: hitrost povezave za izbiro kakovosti (meri jo predvajalnik med nalaganjem, brez dodatnih prenosov).
+        p.addAnalyticsListener(HitrostPovezave.poslusalec(this))
         p.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 // Nedavno predvajano (plosca Safeer Media): shranljive skladbe, postaje in videi - sele, ko res tecejo.
@@ -292,7 +294,13 @@ class GlasbaStoritev : Service() {
                     val oImeniku = if (kljucImenika.isEmpty()) "" else ", imenik: ime=${imenik?.obstaja}, kontrola=${imenik?.kontrola}, neodziven=$neodziven"
                     Log.i("SafeerOsMedia", "koncna napaka: koda=${error.errorCode}, http=$http, vZivo=$vZivo, zacelo=$zacelo, mrtev=$mrtev$oImeniku")
                     koncnaNapaka = KoncnaNapaka(enota?.id.orEmpty(), error.errorCode, http, besedilo)
-                    if (mrtev && enota != null) MrtviKanali.zapomni(this@GlasbaStoritev, enota.id)
+                    // Naloga 108: z razlogom in imenom (izbira »Ne delujejo« v Live TV).
+                    if (mrtev && enota != null) MrtviKanali.zapomni(this@GlasbaStoritev, enota.id, when {
+                        brezStreznika -> NedelujocePravila.STREZNIK
+                        brezOdziva -> NedelujocePravila.NEODZIVEN
+                        http > 0 -> NedelujocePravila.http(http)
+                        else -> NedelujocePravila.NI_ZNANO
+                    }, enota.naslov)
                     obvesti(besedilo)
                     if (vZivo && !zacelo && !resujeZaslon) android.os.Handler(mainLooper).post { ustaviPredvajanje() } else osvezi()
                 }
@@ -369,24 +377,23 @@ class GlasbaStoritev : Service() {
         val enota = trenutna() ?: return false
         // Naloga 101: nov konec ali napaka nadomesti cakajoco ponovitev - nikoli dve hkrati.
         preklicPonovitveVZivo()
-        // Naloga 100 (N8) + 101 (S1): 401/403/404/410 ipd. - brez ponovitve, takoj obstojeca pot; 5xx, 408, 429 in izpad
-        // omrezja - ponovitev s kratkim zamikom.
-        val zamik = OsPravila.zamikPonovitveVZivo(kodaNapake, http) ?: return false
         val kanal = vrsta.size == 1 && (IptvSeznami.jeKanal(enota) || Stremio.jeVZivo(enota))
         val progresivno = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(enota.zvok),
             enota.mime.ifBlank { null }) == C.CONTENT_TYPE_OTHER
         val predvajano = p.currentPosition.coerceAtLeast(0L)
         val zdaj = android.os.SystemClock.elapsedRealtime()
-        // Naloga 102: sonda odtisa (naloga 100/101) je za to izdajo odstranjena iz poti predvajanja - nadomestno sliko (5-sekundna
-        // prepoved operaterja) konca meja ponovitev iz 97 (10 v 2 min), kanal se NE oznaci kot mrtev.
-        val n = OsPravila.ponovnaPovezavaVZivo(kanal, progresivno, zacelo, ponovitevVZivo, predvajano, casiPonovitevVZivo, zdaj)
-        if (n == 0) {
-            if (!(kanal && progresivno && zacelo)) return false
-            // Naloga 103: rezervni tok (napaka) ali naslednji element vrste - obstojeca pot, ne tih konec.
-            if (!OsPravila.tihKonecPoMeji(kodaNapake != 0, rezerve.isNotEmpty(), spletnaVrsta.size > spletniIndeks + 1)) {
+        // Naloga 114: odlocitev na enem mestu ([OsPravila.odlocitevVZivo] - HTTP koda 101, meja 97, tih konec 102/103;
+        // sonda odtisa 100/101 je iz poti predvajanja odstranjena, kanal se ob meji NE oznaci kot mrtev).
+        val odlocitev = OsPravila.odlocitevVZivo(kanal, progresivno, zacelo, kodaNapake, http, ponovitevVZivo, predvajano, casiPonovitevVZivo, zdaj,
+            imaRezervo = rezerve.isNotEmpty(), imaNaslednjega = spletnaVrsta.size > spletniIndeks + 1)
+        val zamik = odlocitev.zamikMs
+        val n = odlocitev.zaporedno
+        if (odlocitev.vrsta == OsPravila.VZIVO_OBSTOJECA_POT) {
+            if (kanal && progresivno && zacelo && OsPravila.zamikPonovitveVZivo(kodaNapake, http) != null)
                 Log.i("SafeerOsMedia", "kanal v zivo: brez ponovne povezave ($zakaj) - meja ponovitev, naprej rezerva ali naslednji element")
-                return false
-            }
+            return false
+        }
+        if (odlocitev.vrsta == OsPravila.VZIVO_TIH_KONEC) {
             // Meja ponovitev: tiho konec (brez sporocila in brez oznake mrtvega kanala), zaslon predvajanja se zapre.
             Log.i("SafeerOsMedia", "kanal v zivo: brez ponovne povezave ($zakaj) - meja ponovitev, $ponovitevVZivo zaporednih brez novih podatkov, tiho konec")
             // Naloga 103 (pregled 102, tocka 2): medtem izbran drug vir se ne ustavi.
@@ -434,6 +441,15 @@ class GlasbaStoritev : Service() {
      */
     private fun zacniElement(i: Int, preskoceni: Int = 0) {
         val sk = spletnaVrsta.getOrNull(i) ?: run { ustaviPredvajanje(); return }
+        // Naloga 109: skladba, ki trajno ne gre (zaseben, odstranjen, ni v tej drzavi ...), se tiho preskoci - ne ustavi vrste.
+        val znanRazlog = NedelujoceSkladbe.razlog(this, sk.id)
+        if (znanRazlog != null && NedelujocePravila.trajen(znanRazlog)) {
+            val naprej = NedelujocePravila.prviPredvajljiv(spletnaVrsta.map { NedelujoceSkladbe.razlog(this, it.id) }, i)
+            Log.i("SafeerOsMedia", "vrsta: preskok \"${sk.naslov.take(40)}\" (razlog=$znanRazlog), naprej=$naprej")
+            if (naprej < 0) { obvesti(getString(R.string.os_nedel_skladba, sk.naslov, NedelujoceSkladbe.opis(this, znanRazlog))); ustaviPredvajanje() }
+            else zacniElement(naprej, preskoceni)
+            return
+        }
         spletniIndeks = i
         val moj = ++zetonVrste
         trenutniIdVrste = sk.id
@@ -458,6 +474,8 @@ class GlasbaStoritev : Service() {
                     android.os.Handler(mainLooper).post {
                         if (moj != zetonVrste || primerek !== this) return@post
                         if (najden == null) {
+                            // Naloga 109: razlog (»vir ne da toka«, ni trajen) - seznam ga pokaze; iskanje ga ponovi po svojih pravilih.
+                            NedelujoceSkladbe.zapomni(this, sk.id, NedelujocePravila.NI_TOKA, sk.naslov)
                             obvesti(getString(R.string.os_media_napaka_naslednja, sk.naslov))
                             if (preskoceni < 2 && spletnaVrsta.size > i + 1) zacniElement(i + 1, preskoceni + 1) else ustaviPredvajanje()
                             return@post
@@ -918,8 +936,14 @@ class GlasbaStoritev : Service() {
 
     private fun priklopiSpletnega(s: SpletniIgralec, sk: Jamendo.Skladba) {
         spletni?.takeIf { it !== s }?.release()
+        // Naloga 109: napaka predvajalnika na strani (YouTube) z razlogom.
+        s.obNapakiStrani = { besedilo -> napakaSpletneStrani(s, sk, besedilo) }
         s.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) = osvezi()
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                // Naloga 109: skladba igra - star zapis, da ne deluje, ne velja vec.
+                if (isPlaying) NedelujoceSkladbe.pozabi(this@GlasbaStoritev, sk.id)
+                osvezi()
+            }
             override fun onMediaMetadataChanged(mediaMetadata: M3Metadata) {
                 val t = mediaMetadata.title?.toString().orEmpty()
                 if (t.isNotBlank()) vrsta = vrsta.map { it.copy(naslov = t, izvajalec = mediaMetadata.artist?.toString()?.ifBlank { null } ?: it.izvajalec) }
@@ -934,6 +958,26 @@ class GlasbaStoritev : Service() {
         predvajalnik = s
         MedijskiViri.zapomniNedavno(this, sk)
         osvezi()
+    }
+
+    /**
+     * Naloga 109: spletna stran posnetka kaze napako predvajalnika. Trajen razlog ([NedelujocePravila.trajen]) se zapise
+     * ([NedelujoceSkladbe]) in vrsta gre tiho naprej (naslednja predvajljiva skladba); brez naslednje kratko obvestilo z
+     * razlogom. Nepoznana napaka: nic (stran ostane, kot doslej).
+     */
+    private fun napakaSpletneStrani(s: SpletniIgralec, sk: Jamendo.Skladba, besedilo: String) {
+        if (spletni !== s) return
+        val razlog = NedelujocePravila.izNapakeYoutube(besedilo)
+        Log.i("SafeerOsMedia", "skladba ne deluje: \"${sk.naslov.take(40)}\", razlog=${razlog.ifEmpty { "ni znano" }}")
+        if (!NedelujocePravila.trajen(razlog)) return
+        NedelujoceSkladbe.zapomni(this, sk.id, razlog, sk.naslov)
+        // Ne v povratnem klicu strani: naslednja skladba sprosti ta pogled (WebView).
+        android.os.Handler(mainLooper).post {
+            if (spletni !== s || primerek !== this) return@post
+            val naprej = if (spletnaVrsta.size > 1) NedelujocePravila.prviPredvajljiv(spletnaVrsta.map { NedelujoceSkladbe.razlog(this, it.id) }, spletniIndeks + 1) else -1
+            if (naprej >= 0) zacniElement(naprej)
+            else { obvesti(getString(R.string.os_nedel_skladba, sk.naslov, NedelujoceSkladbe.opis(this, razlog))); ustaviPredvajanje() }
+        }
     }
 
     private fun koncajSplet() { spletni?.release(); spletni = null }
@@ -1140,11 +1184,27 @@ class GlasbaStoritev : Service() {
             if (predvajalnik === e && e.playbackState == Player.STATE_IDLE && e.playerError == null && e.mediaItemCount > 0) e.prepare()
         }
 
-        fun nadaljuj() { if (naZvocniku()) Zvocniki.nadaljuj() else { zbudiPredvajalnik(); predvajalnik?.play() } }
+        /**
+         * Naloga 117: gumbi te naprave upravljajo drugo napravo v Linku (seja daljinca po »Poslji na napravo«), dokler tu nic
+         * ne igra ([OddaljenoPravila.upravljaCilj]). Ce uporabnik tu spet predvaja, gumbi upravljajo to napravo.
+         */
+        fun naDrugiNapravi(): Boolean = OddaljenoPredvajanje.cilj != null && OddaljenoPredvajanje.upravlja(igra())
 
-        fun premor() { if (naZvocniku()) Zvocniki.premor() else predvajalnik?.pause() }
+        fun nadaljuj() {
+            if (naDrugiNapravi()) { OddaljenoPredvajanje.nadaljuj(); return }
+            if (naZvocniku()) Zvocniki.nadaljuj() else { zbudiPredvajalnik(); predvajalnik?.play() }
+        }
+
+        fun premor() {
+            if (naDrugiNapravi()) { OddaljenoPredvajanje.premor(); return }
+            if (naZvocniku()) Zvocniki.premor() else predvajalnik?.pause()
+        }
+
+        /** Premor TE naprave (play.stop z druge naprave, ukazi daljinca): nikoli ne gre naprej na drugo napravo. */
+        fun premorTu() { if (naZvocniku()) Zvocniki.premor() else predvajalnik?.pause() }
 
         fun preklopi() {
+            if (naDrugiNapravi()) { OddaljenoPredvajanje.preklopi(); return }
             if (naZvocniku()) Zvocniki.preklopi()
             else predvajalnik?.let { if (it.isPlaying) it.pause() else { zbudiPredvajalnik(); it.play() } }
         }
@@ -1222,6 +1282,7 @@ class GlasbaStoritev : Service() {
             SpletniVir.glaveToka(sk.zvok).isEmpty() && ZvocnikPravila.primerna(sk.zvok, sk.video, sk.mime)
 
         fun naslednja() {
+            if (naDrugiNapravi()) { OddaljenoPredvajanje.naslednja(); return }
             val s = primerek
             if (s != null && spletnaVrsta.size > spletniIndeks + 1) s.zacniElement(spletniIndeks + 1)
             // Na zvocniku: med premorom se naslednja samo nalozi (kot na tej napravi ostane premor).
@@ -1230,6 +1291,7 @@ class GlasbaStoritev : Service() {
 
         /** Nazaj: po prvih sekundah na zacetek posnetka, sicer prejsnji (kot pri vsakem predvajalniku). */
         fun prejsnja() {
+            if (naDrugiNapravi()) { OddaljenoPredvajanje.prejsnja(); return }
             val s = primerek
             val p = predvajalnik
             if (naZvocniku()) {
@@ -1249,7 +1311,13 @@ class GlasbaStoritev : Service() {
         fun mestoVVrsti(): Pair<Int, Int>? = if (spletnaVrsta.size > 1 && predvajalnik != null) spletniIndeks + 1 to spletnaVrsta.size else null
 
         /** Enoto spletne aplikacije, katere toka ne moremo ujeti, predvaja stran pod nasim upravljanjem. */
+        /** Naloga 117: uporabnik predvaja tu - seja daljinca se konca, gumbi spet upravljajo to napravo. */
+        private fun koncajDaljinec() {
+            if (OddaljenoPredvajanje.cilj != null) android.os.Handler(android.os.Looper.getMainLooper()).post { OddaljenoPredvajanje.koncaj() }
+        }
+
         fun predvajajSplet(ctx: Context, sk: Jamendo.Skladba, dovoliPrevzem: Boolean = true) {
+            koncajDaljinec()
             zapustiVrsto(sk.id)
             cakajocaVrsta = null
             cakajociSplet = sk to dovoliPrevzem
@@ -1293,6 +1361,7 @@ class GlasbaStoritev : Service() {
 
         fun predvajaj(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int, streznik: DatotekeActivity.Streznik? = null) {
             if (seznam.isEmpty()) return
+            koncajDaljinec()
             if (seznam.size == 1) zapustiVrsto(seznam[0].id) else { spletnaVrsta = emptyList(); zetonVrste++ }
             cakajocaVrsta = null
             rezerve = emptyList()

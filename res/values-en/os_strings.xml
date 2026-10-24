@@ -485,6 +485,12 @@
     <string name="os_ur_izbrisano">Deleted (in the computer\'s Trash)</string>
     <string name="os_ur_preimenovano">Renamed</string>
     <string name="os_ur_premaknjeno">Moved</string>
+    <!-- Naloga 107: urejanje datotek te naprave. -->
+    <string name="os_ur_ime_neveljavno">This name can\'t be used (empty, starts with a dot, too long or contains / \\ : * ? \" &lt; &gt; |).</string>
+    <string name="os_ur_n_sistemska">Safeer does not change system folders or other apps\' files.</string>
+    <string name="os_ur_izbrisi_opis_krajevno">On Android 11 and later the file goes to the trash on this device; on older versions it is deleted.</string>
+    <string name="os_ur_izbrisano_krajevno">Deleted from this device</string>
+    <string name="os_ur_pomoc_drzi_krajevno">Hold OK · rename, move, delete</string>
     <string name="os_ur_zavrteno">Rotated and saved on the computer</string>
     <string name="os_ur_napaka">Not done: %1$s</string>
     <string name="os_ur_n_obstaja">a file with that name already exists</string>
@@ -601,6 +607,17 @@
     <string name="os_spor_ni_zadetkov">No results.</string>
     <string name="os_spor_oseba">Person</string>
     <string name="os_spor_oznake">Labels</string>
+    <!-- Naloga 106: krajevno brisanje sporocil in pogovorov. -->
+    <string name="os_spor_izbrisi_pri_meni">Delete for me</string>
+    <string name="os_spor_izbrisi_sporocilo_vprasanje">Delete this message on this device? The other side keeps it.</string>
+    <string name="os_spor_izbrisi_pogovor">Delete conversation</string>
+    <string name="os_spor_izbrisi_pogovor_vprasanje">Delete the conversation with %1$s on this device? The other side keeps it; labels stay.</string>
+    <string name="os_spor_izbrisi">Delete</string>
+    <string name="os_spor_izbrisano">Deleted</string>
+    <string name="os_spor_izbrisi_na_vseh">Delete on all my devices</string>
+    <string name="os_spor_izbrisi_na_vseh_vprasanje">Delete this message here and on the device that received it? A device without a connection deletes it when it next connects.</string>
+    <string name="os_spor_izbrisano_na_vseh">Deleted on all devices</string>
+    <string name="os_spor_izbris_caka">Deleted here; the other device will delete it when it connects</string>
     <string name="os_spor_isci_osebo">Search this person</string>
     <string name="os_spor_isci_osebo_namig">Word in messages…</string>
     <string name="os_spor_oseba_ime">Your name for this person (optional)</string>

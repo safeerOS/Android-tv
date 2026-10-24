@@ -11,7 +11,8 @@ KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 
 # org.json je na Androidu vgrajen; na JVM ga pripnemo (JSON_JAR ali Gradlov predpomnilnik), kot run_usmerjevalnik_tests.sh.
-JSON_JAR="${JSON_JAR:-$(ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar 2>/dev/null | grep -v sources | head -1)}"
+JSON_JAR="${JSON_JAR:-$( { ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar 2>/dev/null | grep -v sources | head -1 || true; } )}"
+[ -n "$JSON_JAR" ] || { echo "Manjka org.json: nastavi JSON_JAR (json-*.jar) ali zgradi projekt z Gradlom (predpomnilnik). Glej tests/vse.sh." >&2; exit 2; }
 
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT

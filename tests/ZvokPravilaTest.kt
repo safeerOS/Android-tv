@@ -89,5 +89,16 @@ fun main() {
     // Vec boljsih: najvec kanalov; pri enakih prva v datoteki.
     check(z.boljsaSled(listOf(aac2, ac351, s("audio/vnd.dts.hd", 8), ddp51), 0, tv, 8) == 2)
     check(z.boljsaSled(listOf(aac2, ac351, ddp51), 0, tv, 8) == 1)
+    // Naloga 104: kakovost v opisu sledi; izbira samo, ce se sledi ne locijo le po kakovosti.
+    check(z.opisSledi("", 2, "audio/mp4a-latm", null, 128_000) == "stereo · AAC 128 kb/s") { z.opisSledi("", 2, "audio/mp4a-latm", null, 128_000) }
+    check(z.opisSledi("Slovenščina", 2, "audio/mp4a-latm", null, 95_800) == "Slovenščina · stereo · AAC 96 kb/s")
+    check(z.opisSledi("DDP 5.1 Atmos", 6, "audio/eac3", "DDP 5.1 Atmos", 768_000) == "DDP 5.1 Atmos · 768 kb/s") { z.opisSledi("DDP 5.1 Atmos", 6, "audio/eac3", "DDP 5.1 Atmos", 768_000) }
+    check(z.opisSledi("", 2, "audio/mp4a-latm", null, -1) == "stereo · AAC")
+    val aac = z.kljucSledi(null, 2, "audio/mp4a-latm")
+    check(!z.imaIzbiroSledi(listOf(aac, aac, aac))) { "AAC, AAC, AAC - samo kakovost, brez izbire" }
+    check(z.imaIzbiroSledi(listOf(z.kljucSledi("en", 2, "audio/mp4a-latm"), z.kljucSledi("sl", 2, "audio/mp4a-latm"))))
+    check(z.imaIzbiroSledi(listOf(aac, z.kljucSledi(null, 6, "audio/ac3"))))
+    check(!z.imaIzbiroSledi(listOf(aac)))
+    check(!z.imaIzbiroSledi(listOf(z.kljucSledi("EN", 2, "audio/mp4a-latm"), z.kljucSledi("en ", 2, "AUDIO/MP4A-LATM"))))
     println("ZvokPravilaTest: OK")
 }

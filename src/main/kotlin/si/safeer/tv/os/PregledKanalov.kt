@@ -126,8 +126,9 @@ object PregledKanalov {
                 "sonda IPTV: mrtev \"${sk.naslov.take(40)}\", shema=${sk.zvok.substringBefore(':')}, razlog: $zakaj")
             val k = when (izidS) {
                 OsPravila.IzidSonde.ZIV -> { MrtviKanali.zapomniZivega(app, sk.id); true }
-                OsPravila.IzidSonde.MRTEV -> { mrtev(razlog); MrtviKanali.zapomni(app, sk.id); false }
-                OsPravila.IzidSonde.NEGOTOVO -> if (MrtviKanali.zapomniNegotovega(app, sk.id)) { mrtev("$razlog, ${OsPravila.NEGOTOVIH_ZA_MRTEV}x zapored negotovo"); false } else null
+                // Naloga 108: razlog sonde in ime kanala za izbiro »Ne delujejo«.
+                OsPravila.IzidSonde.MRTEV -> { mrtev(razlog); MrtviKanali.zapomni(app, sk.id, NedelujocePravila.izSonde(razlog), sk.naslov); false }
+                OsPravila.IzidSonde.NEGOTOVO -> if (MrtviKanali.zapomniNegotovega(app, sk.id, NedelujocePravila.izSonde(razlog), sk.naslov)) { mrtev("$razlog, ${OsPravila.NEGOTOVIH_ZA_MRTEV}x zapored negotovo"); false } else null
                 OsPravila.IzidSonde.NEZNANO -> null
             }
             return k to true
@@ -135,10 +136,13 @@ object PregledKanalov {
         val agent = SpletniVir.agent(app)
         var dodatekOdgovoril = false
         var negotovo = false
+        var razlogSonde = ""
         val izid = try {
             Stremio.imaLastenTok(sk) { t ->
                 dodatekOdgovoril = true
-                when (SondaToka.preveri(t.url, t.glave, agent)) {
+                val (izidToka, opisSonde) = SondaToka.preveriZRazlogom(t.url, t.glave, agent)
+                razlogSonde = opisSonde
+                when (izidToka) {
                     OsPravila.IzidSonde.ZIV -> true
                     OsPravila.IzidSonde.MRTEV -> false
                     OsPravila.IzidSonde.NEGOTOVO -> { negotovo = true; null }
@@ -149,8 +153,9 @@ object PregledKanalov {
         if (izid != null) dodatekOdgovoril = true
         val koncni = when {
             izid == true -> { MrtviKanali.zapomniZivega(app, sk.id); true }
-            izid == false -> { MrtviKanali.zapomni(app, sk.id); false }
-            negotovo -> if (MrtviKanali.zapomniNegotovega(app, sk.id)) false else null
+            // Naloga 108: razlog sonde toka, sicer dodatek toka nima.
+            izid == false -> { MrtviKanali.zapomni(app, sk.id, NedelujocePravila.izSonde(razlogSonde).ifEmpty { NedelujocePravila.NI_TOKA }, sk.naslov); false }
+            negotovo -> if (MrtviKanali.zapomniNegotovega(app, sk.id, NedelujocePravila.izSonde(razlogSonde), sk.naslov)) false else null
             else -> null
         }
         return koncni to dodatekOdgovoril

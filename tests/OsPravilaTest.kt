@@ -1037,6 +1037,11 @@ fun main() {
     preizkusPonovnePovezave95()
     preizkusNadomestneSlike97()
     preizkusDokazaNadomestka100()
+    preizkusPrikazaVZivo104()
+    preizkusOdKdaj113()
+    preizkusScenarijevVZivo114()
+    preizkusNarascajocegaZamika115()
+    preizkusPlacljivega120()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }
@@ -1142,4 +1147,136 @@ private fun preizkusDokazaNadomestka100() {
     preveriEnako("103: konec toka z rezervo - rezerve konec toka ne uporablja, tih konec", true, OsPravila.tihKonecPoMeji(napaka = false, imaRezervo = true, imaNaslednjega = false))
     preveriEnako("103: naslednji element vrste - naprej (obstojeca pot)", false, OsPravila.tihKonecPoMeji(napaka = false, imaRezervo = false, imaNaslednjega = true))
     preveriEnako("pregled 103 #2: napaka brez rezerve in brez naslednjega - sporocilo z razlogom, ne tih konec", false, OsPravila.tihKonecPoMeji(napaka = true, imaRezervo = false, imaNaslednjega = false))
+}
+
+private fun preizkusPrikazaVZivo104() {
+    println("\n== zaslon predvajanja: V zivo (naloga 104) ==")
+    preveriEnako("predvajalnik pove v zivo", true, OsPravila.prikazVZivo(isLive = true, dinamicno = false, radioAliKanal = false))
+    preveriEnako("dinamicno okno (HLS v zivo)", true, OsPravila.prikazVZivo(isLive = false, dinamicno = true, radioAliKanal = false))
+    preveriEnako("radio ali kanal (surov TS prek http)", true, OsPravila.prikazVZivo(isLive = false, dinamicno = false, radioAliKanal = true))
+    preveriEnako("film - drsnik in cas", false, OsPravila.prikazVZivo(isLive = false, dinamicno = false, radioAliKanal = false))
+}
+
+private fun preizkusOdKdaj113() {
+    println("\n== dodatek ne odgovarja: od kdaj in koda (naloga 113) ==")
+    val t = 1_000_000L
+    var o = OsPravila.poOdzivu(null, false, t, 500)
+    preveriEnako("prvi izpad: od kdaj", t, o.odKdaj)
+    preveriEnako("prvi izpad: koda", 500, o.koda)
+    o = OsPravila.poOdzivu(o, false, t + 60_000, 502)
+    o = OsPravila.poOdzivu(o, false, t + 120_000, 0)
+    preveri("tretji izpad: ne odgovarja", OsPravila.neOdgovarja(o, t + 120_000))
+    preveriEnako("od kdaj ostane prvi izpad", t, o.odKdaj)
+    preveriEnako("koda je zadnja (0 = brez odgovora)", 0, o.koda)
+    val poskus = OsPravila.dovoliZahtevo(o, o.preskociDo + 1)
+    preveriEnako("polodprto: od kdaj ostane", t, poskus?.odKdaj)
+    preveriEnako("izpad poskusa: od kdaj ostane", t, OsPravila.poOdzivu(poskus, false, o.preskociDo + 2, 500).odKdaj)
+    preveriEnako("odgovor vse pobrise", OsPravila.Odziv(), OsPravila.poOdzivu(o, true, t + 130_000, 200))
+}
+
+/**
+ * Naloga 114: zaporedja dogodkov kanala v zivo skozi [OsPravila.odlocitevVZivo]. Stevce vodimo kot GlasbaStoritev.ponoviVZivo:
+ * ob VZIVO_ZNOVA se zapise zaporedna stevilka in cas ponovitve. Vrne vrste odlocitev po vrsti.
+ */
+private fun scenarij(dogodki: List<Triple<Long, Long, Int>>, http: Int = 0, kanal: Boolean = true, progresivno: Boolean = true,
+                     zacelo: Boolean = true, imaRezervo: Boolean = false, imaNaslednjega: Boolean = false): List<Int> {
+    var prejsnjih = 0
+    val casi = ArrayList<Long>()
+    val izidi = ArrayList<Int>()
+    for ((zdaj, predvajano, koda) in dogodki) {
+        val o = OsPravila.odlocitevVZivo(kanal, progresivno, zacelo, koda, http, prejsnjih, predvajano, casi, zdaj, imaRezervo, imaNaslednjega)
+        izidi += o.vrsta
+        if (o.vrsta == OsPravila.VZIVO_ZNOVA) { prejsnjih = o.zaporedno; casi += zdaj }
+    }
+    return izidi
+}
+
+private fun preizkusScenarijevVZivo114() {
+    println("\n== kanal v zivo: scenariji odlocitev (naloga 114) ==")
+    val ZN = OsPravila.VZIVO_ZNOVA
+    val TK = OsPravila.VZIVO_TIH_KONEC
+    val OP = OsPravila.VZIVO_OBSTOJECA_POT
+    val t = 10_000_000L
+    // 5-sekundna prepoved operaterja (meritev 23. 10. 14:31): konec toka vsakih ~5 s, vsakic 5008 ms predvajano.
+    val prepoved = (0 until 12).map { Triple(t + it * 5_100L, 5_008L, 0) }
+    preveriEnako("prepoved: 10 ponovitev, nato tih konec", List(10) { ZN } + listOf(TK, TK), scenarij(prepoved))
+    preveriEnako("prepoved z naslednjim elementom vrste: obstojeca pot (naslednji)", List(10) { ZN } + listOf(OP, OP), scenarij(prepoved, imaNaslednjega = true))
+    preveriEnako("prepoved, konec toka z rezervo: tih konec (rezerve konec toka ne uporablja)", List(10) { ZN } + listOf(TK, TK), scenarij(prepoved, imaRezervo = true))
+    // Napaka vira (2000) po meji z rezervnim tokom dodatka: obstojeca pot preklopi na rezervo (naloga 103).
+    val napake = (0 until 11).map { Triple(t + it * 5_100L, 5_008L, 2000) }
+    preveriEnako("napake vira z rezervo: po meji rezerva", List(10) { ZN } + listOf(OP), scenarij(napake, imaRezervo = true))
+    // Pravi CBR tok, ki ga streznik zapre vsakih 30 s: v 2 min najvec 4 ponovitve - tece naprej.
+    val cbr = (0 until 20).map { Triple(t + it * 30_000L, 30_000L, 0) }
+    preveriEnako("pravi tok, zapre vsakih 30 s: vedno znova", List(20) { ZN }, scenarij(cbr))
+    // Izpad omrezja (2001): ponovitev z zamikom; 403 (2004): takoj obstojeca pot.
+    preveriEnako("izpad omrezja: zamik", OsPravila.ZAMIK_PONOVITVE_OMREZJE_MS,
+        OsPravila.odlocitevVZivo(true, true, true, 2001, 0, 0, 3_000, emptyList(), t, false, false).zamikMs)
+    preveriEnako("403: obstojeca pot", listOf(OP), scenarij(listOf(Triple(t, 3_000L, 2004)), http = 403))
+    preveriEnako("503: znova", listOf(ZN), scenarij(listOf(Triple(t, 3_000L, 2004)), http = 503))
+    // Brez novih podatkov (vsak tok < 2 s): 5 zaporednih, nato konec.
+    val brez = (0 until 7).map { Triple(t + it * 1_000L, 500L, 0) }
+    preveriEnako("brez podatkov: 5 ponovitev, nato tih konec", List(5) { ZN } + listOf(TK, TK), scenarij(brez))
+    preveriEnako("HLS: obstojeca pot", listOf(OP), scenarij(listOf(Triple(t, 5_000L, 0)), progresivno = false))
+    preveriEnako("se ni zacelo: obstojeca pot", listOf(OP), scenarij(listOf(Triple(t, 0L, 2001)), zacelo = false))
+    preveriEnako("ni kanal (film): obstojeca pot", listOf(OP), scenarij(listOf(Triple(t, 5_000L, 0)), kanal = false))
+}
+
+private fun preizkusNarascajocegaZamika115() {
+    println("\n== kanal v zivo: narascajoc zamik ponovitve (naloga 115) ==")
+    val z = OsPravila.ZAMIK_PONOVITVE_OMREZJE_MS
+    preveriEnako("prva ponovitev: osnova", z, OsPravila.narascajocZamik(z, 1))
+    preveriEnako("druga zaporedna: dvakrat", 2 * z, OsPravila.narascajocZamik(z, 2))
+    preveriEnako("tretja: stirikrat", 4 * z, OsPravila.narascajocZamik(z, 3))
+    preveriEnako("cetrta: osemkrat (12 s)", 8 * z, OsPravila.narascajocZamik(z, 4))
+    preveriEnako("najvec 12 s", OsPravila.ZAMIK_PONOVITVE_NAJVEC_MS, OsPravila.narascajocZamik(z, 9))
+    preveriEnako("takojsnja ostane takojsnja", 0L, OsPravila.narascajocZamik(0L, 5))
+    // Izpad omrezja brez podatkov: zamiki narascajo; tok, ki spet da podatke, zacne znova pri osnovi.
+    val t = 20_000_000L
+    var prejsnjih = 0
+    val casi = ArrayList<Long>()
+    val zamiki = ArrayList<Long>()
+    for (i in 0 until 4) {
+        val o = OsPravila.odlocitevVZivo(true, true, true, 2001, 0, prejsnjih, 0L, casi, t + i * 20_000L, false, false)
+        zamiki += o.zamikMs; prejsnjih = o.zaporedno; casi += t + i * 20_000L
+    }
+    preveriEnako("izpad brez podatkov: 1,5 / 3 / 6 / 12 s", listOf(z, 2 * z, 4 * z, 8 * z), zamiki)
+    preveriEnako("po novih podatkih spet osnova", z,
+        OsPravila.odlocitevVZivo(true, true, true, 2001, 0, prejsnjih, 5_000L, casi, t + 100_000L, false, false).zamikMs)
+}
+
+private fun preizkusPlacljivega120() {
+    println("\n== neodklenjena placljiva vsebina se ne kaze (naloga 120) ==")
+    preveriEnako("Unlock Premium Access", true, OsPravila.jePlacljivoObvestilo("Click to Unlock Premium Access"))
+    preveriEnako("Subscribe", true, OsPravila.jePlacljivoObvestilo("Subscribe to watch this channel"))
+    preveriEnako("VIP", true, OsPravila.jePlacljivoObvestilo("VIP only"))
+    preveriEnako("slovensko: narocnina", true, OsPravila.jePlacljivoObvestilo("Potrebna je naročnina"))
+    preveriEnako("No streams found ni placilo", false, OsPravila.jePlacljivoObvestilo("No streams found"))
+    preveriEnako("Discord ni placilo", false, OsPravila.jePlacljivoObvestilo("Join our Discord https://discord.gg/x"))
+    preveriEnako("donacija ni placilo", false, OsPravila.jePlacljivoObvestilo("Support us with a donation"))
+    val t = 50_000_000L
+    preveriEnako("samo placilni zid: zapis zdaj", t, OsPravila.placljivoPoOdgovoru(null, 2, 0, t))
+    preveriEnako("ponovno: cas prvega zapisa ostane", t, OsPravila.placljivoPoOdgovoru(t, 1, 0, t + 9_000L))
+    preveriEnako("predvajljiv tok: odklenjeno", null, OsPravila.placljivoPoOdgovoru(t, 3, 1, t + 1L))
+    preveriEnako("prazen odgovor ne spremeni", t, OsPravila.placljivoPoOdgovoru(t, 0, 0, t + 1L))
+    preveriEnako("prazen odgovor ne zapise", null, OsPravila.placljivoPoOdgovoru(null, 0, 0, t))
+    preveriEnako("zapisano: skrito", true, OsPravila.placljivoSkrito(t, t + 1_000L, false))
+    preveriEnako("Pokazi zaklenjene: vidno", false, OsPravila.placljivoSkrito(t, t + 1_000L, true))
+    preveriEnako("po 7 dneh: preveri znova (vidno)", false, OsPravila.placljivoSkrito(t, t + OsPravila.PLACLJIVO_VELJA_MS, false))
+    preveriEnako("ura nazaj: vidno", false, OsPravila.placljivoSkrito(t, t - 1L, false))
+    preveriEnako("brez zapisa: vidno", false, OsPravila.placljivoSkrito(null, t, false))
+
+    // Naloga 143: najvec 12 katalogov, a vsak dodatek dobi svoj delez (prej je Cinemeta, dodana zadnja, izpadla - vseh 12
+    // so zapolnili drugi dodatki)
+    val k143 = (1..12).map { "A$it" } + listOf("B1", "B2", "B3") + listOf("C1", "C2")
+    preveriEnako("143: vsak dodatek ima delez", listOf("A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "A4", "A5", "A6", "A7"),
+        OsPravila.pravicnoPoDodatkih(k143, { it.take(1) }, 12))
+    preveriEnako("143: manj od meje ostane", listOf("A1", "A2"), OsPravila.pravicnoPoDodatkih(listOf("A1", "A2"), { it.take(1) }, 12))
+    preveriEnako("143: en dodatek kot prej", (1..12).map { "A$it" }, OsPravila.pravicnoPoDodatkih((1..20).map { "A$it" }, { it.take(1) }, 12))
+    preveriEnako("143: prazno", emptyList<String>(), OsPravila.pravicnoPoDodatkih(emptyList<String>(), { it }, 12))
+    preveriEnako("145: preverjanje tece - pocakaj", true, OsPravila.cakajNaPreverjanje(12, premor = false))
+    preveriEnako("145: dodatek v premoru - ne cakaj", false, OsPravila.cakajNaPreverjanje(12, premor = true))
+    preveriEnako("145: nic ne caka", false, OsPravila.cakajNaPreverjanje(0, premor = false))
+    preveriEnako("144: rezerva en zaslon", 900, OsPravila.rezervaNaslovnic(330, 900, 90))
+    preveriEnako("144: rezerva najmanj kot prej", 420, OsPravila.rezervaNaslovnic(330, 0, 90))
+    preveriEnako("143: meja 3", listOf("X1", "Y1", "X2"), OsPravila.pravicnoPoDodatkih((1..30).map { "X$it" } + "Y1", { it.take(1) }, 3))
 }

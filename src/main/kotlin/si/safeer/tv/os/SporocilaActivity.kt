@@ -413,6 +413,8 @@ class SporocilaActivity : OsActivity() {
                 isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_ploscica_app)
                 isSelected = oznacen
                 setPadding(dp(16), dp(12), dp(16), dp(12)); setOnClickListener { pokaziPogovor(p) }
+                // Naloga 106: dolg pritisk (TV: zadrzan OK) - »Izbrisi pogovor« s potrditvijo.
+                setOnLongClickListener { potrdiIzbrisPogovora(p, vrste); true }
                 val vrh = LinearLayout(this@SporocilaActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
                 vrh.addView(TextView(this@SporocilaActivity).apply {
                     text = imeOsebe(p, vrste)
@@ -598,14 +600,18 @@ class SporocilaActivity : OsActivity() {
             if (zadetek) obrobljena = vrstica
             vrstica.addView(TextView(this).apply {
                 text = s.besedilo.trim(); textSize = 15f; setTextIsSelectable(false)
-                // Dotik: dolg pritisk kopira (prejeto besedilo je navadno namenjeno drugi aplikaciji).
-                setOnLongClickListener { dejanjaSporocila(s.besedilo.trim()); true }
+                // Dolg pritisk (TV: zadrzan OK na sporocilu): kopiraj, odpri povezavo, »Izbrisi pri meni« (naloga 106).
+                setOnLongClickListener { dejanjaSporocila(p, s); true }
+                // Naloga 106: z daljincem se da priti do sporocila (obroba pokaze fokus).
+                isFocusable = true; isLongClickable = true
                 setTextColor(osBarva(if (ven) R.color.os_mint_temna else R.color.os_besedilo))
                 setPadding(dp(14), dp(9), dp(14), dp(9))
-                background = GradientDrawable().apply {
+                val ozadje = GradientDrawable().apply {
                     cornerRadius = dp(14).toFloat(); setColor(osBarva(if (ven) R.color.os_mint else R.color.os_ozadje))
                     if (zadetek) setStroke(dp(2), osBarva(R.color.os_opozorilo))
                 }
+                background = ozadje
+                setOnFocusChangeListener { _, f -> ozadje.setStroke(if (f || zadetek) dp(2) else 0, osBarva(if (f) R.color.os_mint else R.color.os_opozorilo)) }
                 maxWidth = (resources.displayMetrics.widthPixels * (if (siroko) 0.4f else 0.75f)).toInt()
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             vrstica.addView(TextView(this).apply {
@@ -619,21 +625,93 @@ class SporocilaActivity : OsActivity() {
         else sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN) }
     }
 
-    /** Dolg pritisk na sporocilo: kopiraj; ena sama povezava ponudi se »Odpri povezavo«. */
-    private fun dejanjaSporocila(besedilo: String) {
-        if (besedilo.isEmpty()) return
-        if (!OsPravila.jePovezava(besedilo)) { Odlozisce.kopiraj(this, besedilo); return }
+    /**
+     * Dolg pritisk na sporocilo: kopiraj, ena sama povezava se »Odpri povezavo«, in »Izbrisi pri meni« (naloga 106) -
+     * meni po [SporocilaPravila.dejanjaSporocila].
+     */
+    private fun dejanjaSporocila(p: SporocilaShramba.Pogovor, s: SporocilaShramba.Sporocilo) {
+        val besedilo = s.besedilo.trim()
+        val naVseh = p.kanalId == KlepetLinka.KANAL && SporocilaPravila.skupniId(s.id, s.smer) != null
+        val dejanja = SporocilaPravila.dejanjaSporocila(besedilo, OsPravila.jePovezava(besedilo), naVseh)
+        val imena = dejanja.map {
+            when (it) {
+                SporocilaPravila.ODPRI -> getString(R.string.ui_share_open_link)
+                SporocilaPravila.KOPIRAJ -> getString(R.string.os_bliznjica_kopiraj)
+                SporocilaPravila.IZBRISI_VSE -> getString(R.string.os_spor_izbrisi_na_vseh)
+                else -> getString(R.string.os_spor_izbrisi_pri_meni)
+            }
+        }
         val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setItems(arrayOf(getString(R.string.ui_share_open_link), getString(R.string.os_bliznjica_kopiraj))) { _, i ->
-                if (i == 1) Odlozisce.kopiraj(this, besedilo)
-                else try {
-                    startActivity(Brskalnik.namera(this).setAction(android.content.Intent.ACTION_VIEW)
-                        .setData(android.net.Uri.parse(besedilo)))
-                } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() }
+            .setItems(imena.toTypedArray()) { _, i ->
+                when (dejanja[i]) {
+                    SporocilaPravila.KOPIRAJ -> Odlozisce.kopiraj(this, besedilo)
+                    SporocilaPravila.ODPRI -> try {
+                        startActivity(Brskalnik.namera(this).setAction(android.content.Intent.ACTION_VIEW)
+                            .setData(android.net.Uri.parse(besedilo)))
+                    } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() }
+                    SporocilaPravila.IZBRISI_VSE -> potrdiIzbrisNaVseh(p, s)
+                    else -> potrdiIzbrisSporocila(p, s)
+                }
             }
             .create()
         Kontroler.pokazi(okno)
         okno.show()
+    }
+
+    /**
+     * Naloga 116: »Izbrisi na vseh mojih napravah« - po potrditvi sporocilo izgine tu in na napravi, ki ga je prejela.
+     * Ce sta ta ali ona naprava brez povezave, izbris pocaka do naslednje uskladitve (sporocilo o tem).
+     */
+    private fun potrdiIzbrisNaVseh(p: SporocilaShramba.Pogovor, s: SporocilaShramba.Sporocilo) {
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_spor_izbrisi_na_vseh)
+            .setMessage(R.string.os_spor_izbrisi_na_vseh_vprasanje)
+            .setPositiveButton(R.string.os_spor_izbrisi) { _, _ ->
+                delavec.execute {
+                    val sprejeto = KlepetLinka.izbrisiNaVseh(applicationContext, p.id, s)
+                    glavna.post {
+                        if (unicena) return@post
+                        Toast.makeText(this, if (sprejeto) R.string.os_spor_izbrisano_na_vseh else R.string.os_spor_izbris_caka,
+                            Toast.LENGTH_LONG).show()
+                        narisiSporocila(); narisiSeznam()
+                    }
+                }
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        // Privzeti gumb je Preklici, kot pri »Izbrisi pri meni«.
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Naloga 106: »Izbrisi pri meni« - po potrditvi sporocilo izgine iz pogovora na tej napravi. */
+    private fun potrdiIzbrisSporocila(p: SporocilaShramba.Pogovor, s: SporocilaShramba.Sporocilo) {
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_spor_izbrisi_pri_meni)
+            .setMessage(R.string.os_spor_izbrisi_sporocilo_vprasanje)
+            .setPositiveButton(R.string.os_spor_izbrisi) { _, _ ->
+                shramba.izbrisiSporocilo(p.kanalId, p.id, s.id)
+                Toast.makeText(this, R.string.os_spor_izbrisano, Toast.LENGTH_SHORT).show()
+                narisiSporocila(); narisiSeznam()
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        // Privzeti gumb je Preklici: zadrzan OK, ki je odprl meni, ne sme takoj izbrisati.
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Naloga 106: »Izbrisi pogovor« - po potrditvi vsa sporocila pogovora na tej napravi; oznake ostanejo. */
+    private fun potrdiIzbrisPogovora(p: SporocilaShramba.Pogovor, vrste: Map<String, String>) {
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_spor_izbrisi_pogovor)
+            .setMessage(getString(R.string.os_spor_izbrisi_pogovor_vprasanje, imeOsebe(p, vrste)))
+            .setPositiveButton(R.string.os_spor_izbrisi) { _, _ ->
+                shramba.izbrisiPogovor(p.kanalId, p.id)
+                Toast.makeText(this, R.string.os_spor_izbrisano, Toast.LENGTH_SHORT).show()
+                if (izbran?.id == p.id && izbran?.kanalId == p.kanalId) pokaziPogovor(null) else narisiSeznam()
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        Kontroler.pokazi(okno); okno.show()
     }
 
     private fun kratekCas(iso: String): String {

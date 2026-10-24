@@ -44,6 +44,13 @@
     <string name="os_mediji_streznik_ne_odgovarja_brez">The server is not responding – the source was not added.</string>
     <string name="os_mediji_poskusi_znova">Try again</string>
     <string name="os_mediji_ne_odgovarja">Not responding</string>
+    <!-- Naloga 113: stanje dodatka v Mojih virih. -->
+    <string name="os_mediji_ne_odgovarja_od">Not responding since %1$s</string>
+    <string name="os_mediji_ne_odgovarja_od_http">Not responding since %1$s (HTTP %2$d)</string>
+    <string name="os_mediji_preveri_dodatek">Check add-on now</string>
+    <string name="os_mediji_dodatek_odgovarja">The add-on responds</string>
+    <string name="os_mediji_dodatek_ne_odgovarja_http">The add-on does not respond (HTTP %1$d)</string>
+    <string name="os_mediji_dodatek_ne_odgovarja_brez">The add-on does not respond</string>
     <string name="os_mediji_ni_vira">There is no music or video at this address that Safeer can play.</string>
     <string name="os_mediji_ni_vira_zakaj">The source was not added. Safeer plays music, video, radio and TV streams (MP3, MP4, HLS, M3U/PLS playlists, podcasts, PeerTube) and web pages; it does not play torrents, archives or protected streams.</string>
     <string name="os_mediji_dodano">Added: %1$s</string>
@@ -400,4 +407,21 @@
     <string name="os_besedila_napaka">Lyrics can’t be loaded right now.</string>
     <string name="os_besedila_instrumentalno">Instrumental – no lyrics.</string>
     <string name="os_tv_vrni_skrite">Show hidden channels (%1$d)</string>
+    <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
+    <string name="os_nedel_ni_toka">no stream from the source</string>
+    <string name="os_nedel_streznik">server not found</string>
+    <string name="os_nedel_neodziven">server not responding</string>
+    <string name="os_nedel_http">server error %1$d</string>
+    <string name="os_nedel_ni_znano">reason unknown</string>
+    <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->
+    <string name="os_nedel_ni_na_voljo">video unavailable or removed</string>
+    <string name="os_nedel_zaseben">private video</string>
+    <string name="os_nedel_drzava">not available in this country</string>
+    <string name="os_nedel_prijava">requires sign-in or age confirmation</string>
+    <string name="os_nedel_clani">members only</string>
+    <string name="os_nedel_skladba">%1$s does not play: %2$s</string>
+    <string name="os_nedel_poisci_drug">Find another video</string>
+    <string name="os_nedel_preveri_znova">Check again</string>
+    <string name="os_nedel_ni_drugega">No other video found</string>
+    <string name="os_nedel_nov_posnetek">Another video found</string>
 </resources>

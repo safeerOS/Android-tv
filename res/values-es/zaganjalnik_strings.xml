@@ -30,4 +30,13 @@
     <string name="zg_vrnjen">Tu lanzador anterior vuelve a ser la pantalla de inicio.</string>
     <string name="zg_sporocila_novo">Mensaje nuevo</string>
     <string name="zg_sporocila_vse">Abrir completo</string>
+    <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
+    <string name="zg_dock_pokazi">Mostrar reproductor</string>
+    <string name="zg_dock_skrij">Ocultar reproductor</string>
+    <string name="zg_dock_mesto">Posición del minirreproductor</string>
+    <string name="zg_dock_zgoraj">Arriba</string>
+    <string name="zg_dock_spodaj">Abajo</string>
+    <string name="zg_dock_levo">Izquierda</string>
+    <string name="zg_dock_desno">Derecha</string>
+    <string name="zg_dock_seznam">En la lista (sin dock)</string>
 </resources>

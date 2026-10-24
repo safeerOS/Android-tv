@@ -1,0 +1,127 @@
+package si.safeer.tv.os
+
+private var napak = 0
+
+private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
+    if (pricakovano == dobljeno) println("  ok  $opis") else { napak++; println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno") }
+
+/** Naloga 141: Usenet prek TorBoxa - indeksator Newznab ([UsenetPravila]). */
+fun main() {
+    println("Preizkus pravil Usenet")
+
+    // Naslov indeksatorja
+    preveriEnako("141: osnova brez /api in poizvedbe", "https://api.indeksator.example", UsenetPravila.osnova(" https://api.indeksator.example/api?t=caps "))
+    preveriEnako("141: osnova s potjo", "https://x.example/newznab", UsenetPravila.osnova("https://x.example/newznab/api/"))
+    preveriEnako("141: velika crka sheme", "https://x.example", UsenetPravila.osnova("HTTPS://x.example"))
+    preveriEnako("141: http na internet ne (kljuc bi sel nesifriran)", null, UsenetPravila.osnova("http://api.indeksator.example"))
+    preveriEnako("141: http v domacem omrezju da (NZBHydra)", "http://192.168.1.20:5076", UsenetPravila.osnova("http://192.168.1.20:5076/api"))
+    preveriEnako("141: http 172.16-31 da", "http://172.20.0.5:9696", UsenetPravila.osnova("http://172.20.0.5:9696"))
+    preveriEnako("141: http 172.32 ne", null, UsenetPravila.osnova("http://172.32.0.5"))
+    preveriEnako("141: uporabnik v naslovu ne", null, UsenetPravila.osnova("https://jaz:geslo@x.example"))
+    preveriEnako("141: ni naslov", null, UsenetPravila.osnova("api kljuc 123"))
+    preveriEnako("141: ftp ne", null, UsenetPravila.osnova("ftp://x.example"))
+
+    // Kljuc
+    preveriEnako("141: kljuc 32 heks", "0123456789abcdef0123456789abcdef", UsenetPravila.ocistiKljuc(" 0123456789abcdef0123456789abcdef\n"))
+    preveriEnako("141: prekratek kljuc", null, UsenetPravila.ocistiKljuc("abc"))
+    preveriEnako("141: kljuc s presledkom ne", null, UsenetPravila.ocistiKljuc("abcd efgh ijkl"))
+    preveriEnako("141: kljuc z & ne (naslov)", null, UsenetPravila.ocistiKljuc("abcdefgh&t=get"))
+
+    // Iskanje
+    val o = "https://x.example"
+    preveriEnako("141: film", "$o/api?apikey=KLJUC123&imdbid=1375666&limit=100&extended=1&t=movie",
+        UsenetPravila.naslovIskanja(o, "KLJUC123", "tt1375666"))
+    preveriEnako("141: epizoda", "$o/api?apikey=KLJUC123&imdbid=0108778&limit=100&extended=1&t=tvsearch&season=1&ep=1",
+        UsenetPravila.naslovIskanja(o, "KLJUC123", "tt0108778:1:1"))
+    preveriEnako("141: tmdb ne", null, UsenetPravila.naslovIskanja(o, "KLJUC123", "tmdb:84773:1:1"))
+    preveriEnako("141: epizoda 0 ne", null, UsenetPravila.naslovIskanja(o, "KLJUC123", "tt0108778:1:0"))
+    preveriEnako("141: pokvarjen id ne", null, UsenetPravila.naslovIskanja(o, "KLJUC123", "tt12ab"))
+    preveriEnako("141: iscemo film", true, UsenetPravila.iscemo("tt1375666"))
+    preveriEnako("141: tmdb ne iscemo", false, UsenetPravila.iscemo("tmdb:1"))
+    preveriEnako("141: dve dvopicji ne", null, UsenetPravila.naslovIskanja(o, "KLJUC123", "tt0108778:1"))
+
+    // Odgovor RSS
+    val rss = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
+<channel><title>x</title>
+<item><title>Inception.2010.1080p.BluRay.x264-GRP</title>
+ <guid isPermaLink="true">https://x.example/details/aaa</guid>
+ <link>https://x.example/getnzb/aaa.nzb&amp;i=1&amp;r=KLJUC123</link>
+ <enclosure url="https://x.example/getnzb/aaa.nzb&amp;i=1&amp;r=KLJUC123" length="999" type="application/x-nzb"/>
+ <newznab:attr name="size" value="13636521984"/></item>
+<item><title>Inception 2010 2160p UHD BluRay HEVC</title>
+ <link>https://x.example/getnzb/bbb.nzb&amp;r=KLJUC123</link>
+ <enclosure url="https://x.example/getnzb/bbb.nzb&amp;r=KLJUC123" length="2147483648" type="application/x-nzb"/></item>
+<item><title>Ponovljen</title><enclosure url="https://x.example/getnzb/aaa.nzb&amp;i=1&amp;r=KLJUC123" length="1"/></item>
+<item><title>Brez povezave</title></item>
+<item><title>Nesifrirano</title><enclosure url="http://drug.example/getnzb/ccc.nzb" length="1"/></item>
+<item><title>Javascript</title><enclosure url="javascript:alert(1)" length="1"/></item>
+<item><title></title><enclosure url="https://x.example/getnzb/ddd.nzb" length="1"/></item>
+</channel></rss>"""
+    val z = UsenetPravila.zadetki(rss, o)
+    preveriEnako("141: veljavni zadetki", listOf(
+        UsenetPravila.Zadetek("Inception.2010.1080p.BluRay.x264-GRP", "https://x.example/getnzb/aaa.nzb&i=1&r=KLJUC123", 13_636_521_984L),
+        UsenetPravila.Zadetek("Inception 2010 2160p UHD BluRay HEVC", "https://x.example/getnzb/bbb.nzb&r=KLJUC123", 2_147_483_648L)), z)
+    preveriEnako("141: XXE zavrnjen", emptyList<UsenetPravila.Zadetek>(),
+        UsenetPravila.zadetki("""<?xml version="1.0"?><!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd">]><rss><channel><item><title>&x;</title><enclosure url="https://x.example/a"/></item></channel></rss>""", o))
+    preveriEnako("141: pokvarjen XML", emptyList<UsenetPravila.Zadetek>(), UsenetPravila.zadetki("<rss><item>", o))
+    preveriEnako("141: http v domacem omrezju z istega gostitelja",
+        listOf(UsenetPravila.Zadetek("Film", "http://192.168.1.20:5076/getnzb/x", 0L)),
+        UsenetPravila.zadetki("""<rss><channel><item><title>Film</title><link>http://192.168.1.20:5076/getnzb/x</link></item></channel></rss>""", "http://192.168.1.20:5076"))
+    val veliko = "<rss><channel>" + (1..60).joinToString("") { "<item><title>F$it</title><link>https://x.example/$it</link></item>" } + "</channel></rss>"
+    preveriEnako("141: najvec zadetkov", UsenetPravila.NAJVEC_ZADETKOV, UsenetPravila.zadetki(veliko, o).size)
+
+    // Napake Newznab
+    preveriEnako("141: 100 = kljuc", TorBoxPravila.NAPAKA_KLJUC, UsenetPravila.napaka("""<error code="100" description="Incorrect user credentials"/>"""))
+    preveriEnako("141: 500 = meja", TorBoxPravila.NAPAKA_MEJA, UsenetPravila.napaka("""<?xml version="1.0"?><error code="500" description="Request limit reached"/>"""))
+    preveriEnako("141: 300 = indeksator", UsenetPravila.NAPAKA_INDEKSATOR, UsenetPravila.napaka("""<error code="300" description="No such item."/>"""))
+    preveriEnako("141: brez napake", null, UsenetPravila.napaka(rss))
+
+    // Tok
+    val id = UsenetPravila.idToka("https://x.example/getnzb/aaa.nzb&i=1&r=KLJUC123")
+    preveriEnako("141: id toka brez kljuca", false, id.contains("KLJUC123"))
+    preveriEnako("141: id toka oblika", true, id.startsWith("usenet:") && id.length == "usenet:".length + 16)
+    preveriEnako("141: id je stalen", id, UsenetPravila.idToka("https://x.example/getnzb/aaa.nzb&i=1&r=KLJUC123"))
+    preveriEnako("141: jeUsenet", true, UsenetPravila.jeUsenet(id))
+    preveriEnako("141: magnet ni Usenet", false, UsenetPravila.jeUsenet("magnet:?xt=urn:btih:abc"))
+    val opis = UsenetPravila.opis(z[0])
+    preveriEnako("141: opis z velikostjo", "Inception.2010.1080p.BluRay.x264-GRP\n💾 12.7 GB", opis)
+    preveriEnako("141: TokIzbira razbere velikost", 12.7, TokIzbira.opisi(opis).gb)
+    preveriEnako("141: TokIzbira razbere locljivost", 1080, TokIzbira.opisi(opis).visina)
+    preveriEnako("141: opis brez velikosti", "Film", UsenetPravila.opis(UsenetPravila.Zadetek("Film", "https://x.example/a", 0L)))
+    preveriEnako("141: NZB prepoznan", true, UsenetPravila.jeNzb("""<?xml version="1.0"?><!DOCTYPE nzb PUBLIC "-//newzBin//DTD NZB 1.1//EN" "x"><nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">"""))
+    preveriEnako("141: stran HTML ni NZB", false, UsenetPravila.jeNzb("<html><body>Login</body></html>"))
+    preveriEnako("141: NZB z ENTITY ne", false, UsenetPravila.jeNzb("<!ENTITY x SYSTEM \"file:///\"><nzb>"))
+
+    // Ponovljena izdaja (isti naslov in velikost, druga povezava)
+    preveriEnako("141: ista izdaja enkrat", 1, UsenetPravila.zadetki("""<rss><channel>
+<item><title>Film.2008.1080p</title><link>https://x.example/a</link><newznab:attr name="size" value="5"/></item>
+<item><title>Film.2008.1080p</title><link>https://x.example/b</link><newznab:attr name="size" value="5"/></item></channel></rss>""", o).size)
+    preveriEnako("141: ista izdaja, druga velikost - dvakrat", 2, UsenetPravila.zadetki("""<rss><channel>
+<item><title>Film.2008.1080p</title><link>https://x.example/a</link><newznab:attr name="size" value="5"/></item>
+<item><title>Film.2008.1080p</title><link>https://x.example/b</link><newznab:attr name="size" value="6"/></item></channel></rss>""", o).size)
+
+    // Samodejna izbira
+    preveriEnako("141: samodejno do 15 GB, dva poskusa", listOf(1, 2), UsenetPravila.zaSamodejno(listOf(58.0, 2.2, 0.0, 12.0)))
+    preveriEnako("141: natanko 15 GB da", listOf(0), UsenetPravila.zaSamodejno(listOf(15.0)))
+    preveriEnako("141: vse prevelike - nic", emptyList<Int>(), UsenetPravila.zaSamodejno(listOf(60.0, 15.1)))
+
+    // Prejeto z druge naprave (Link)
+    preveriEnako("141: prejet indeksator", "https://x.example" to "0123456789abcdef",
+        UsenetPravila.prejetIndeksator("https://x.example/api", "0123456789abcdef"))
+    preveriEnako("141: prejet http na internet ne", null, UsenetPravila.prejetIndeksator("http://x.example", "0123456789abcdef"))
+    preveriEnako("141: prejet brez kljuca ne", null, UsenetPravila.prejetIndeksator("https://x.example", null))
+    preveriEnako("141: prejet pokvarjen kljuc ne", null, UsenetPravila.prejetIndeksator("https://x.example", "a b"))
+    preveriEnako("141: nic poslano", null, UsenetPravila.prejetIndeksator(null, null))
+
+    // TorBox
+    preveriEnako("141: requestdl", "https://api.torbox.app/v1/api/usenet/requestdl?token=a%2Bb&usenet_id=7&file_id=3",
+        UsenetPravila.naslovPrenosa("a+b", 7, 3))
+    preveriEnako("141: mylist", "https://api.torbox.app/v1/api/usenet/mylist?id=7&bypass_cache=true", UsenetPravila.naslovSeznam(7))
+    preveriEnako("141: samo takoj, ni v predpomnilniku", true, UsenetPravila.niPredpomnjeno(true, TorBoxPravila.NAPAKA_STREZNIK))
+    preveriEnako("141: zavrnjen kljuc ostane kljuc", false, UsenetPravila.niPredpomnjeno(true, TorBoxPravila.NAPAKA_KLJUC))
+    preveriEnako("141: paket (ni Pro) ostane paket", false, UsenetPravila.niPredpomnjeno(true, TorBoxPravila.NAPAKA_PAKET))
+    preveriEnako("141: s cakanjem napaka ostane", false, UsenetPravila.niPredpomnjeno(false, TorBoxPravila.NAPAKA_STREZNIK))
+
+    if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
+}

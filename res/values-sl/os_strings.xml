@@ -483,6 +483,12 @@
     <string name="os_ur_izbrisano">Izbrisano (v Smeteh računalnika)</string>
     <string name="os_ur_preimenovano">Preimenovano</string>
     <string name="os_ur_premaknjeno">Premaknjeno</string>
+    <!-- Naloga 107: urejanje datotek te naprave. -->
+    <string name="os_ur_ime_neveljavno">Tega imena ni mogoče uporabiti (prazno, začne se s piko, predolgo ali vsebuje / \\ : * ? \" &lt; &gt; |).</string>
+    <string name="os_ur_n_sistemska">Safeer ne spreminja sistemskih map in datotek drugih aplikacij.</string>
+    <string name="os_ur_izbrisi_opis_krajevno">Na Androidu 11 in novejših gre datoteka v koš te naprave, na starejših se izbriše.</string>
+    <string name="os_ur_izbrisano_krajevno">Izbrisano s te naprave</string>
+    <string name="os_ur_pomoc_drzi_krajevno">Drži OK · preimenuj, premakni, izbriši</string>
     <string name="os_ur_zavrteno">Zavrteno in shranjeno na računalniku</string>
     <string name="os_ur_napaka">Ni uspelo: %1$s</string>
     <string name="os_ur_n_obstaja">datoteka s tem imenom že obstaja</string>
@@ -599,6 +605,17 @@
     <string name="os_spor_ni_zadetkov">Ni zadetkov.</string>
     <string name="os_spor_oseba">Oseba</string>
     <string name="os_spor_oznake">Oznake</string>
+    <!-- Naloga 106: krajevno brisanje sporocil in pogovorov. -->
+    <string name="os_spor_izbrisi_pri_meni">Izbriši pri meni</string>
+    <string name="os_spor_izbrisi_sporocilo_vprasanje">Izbrišem to sporočilo na tej napravi? Druga stran ga obdrži.</string>
+    <string name="os_spor_izbrisi_pogovor">Izbriši pogovor</string>
+    <string name="os_spor_izbrisi_pogovor_vprasanje">Izbrišem pogovor z osebo %1$s na tej napravi? Druga stran ga obdrži, oznake ostanejo.</string>
+    <string name="os_spor_izbrisi">Izbriši</string>
+    <string name="os_spor_izbrisano">Izbrisano</string>
+    <string name="os_spor_izbrisi_na_vseh">Izbriši na vseh mojih napravah</string>
+    <string name="os_spor_izbrisi_na_vseh_vprasanje">Izbrišem to sporočilo tu in na napravi, ki ga je prejela? Naprava brez povezave ga izbriše, ko se naslednjič poveže.</string>
+    <string name="os_spor_izbrisano_na_vseh">Izbrisano na vseh napravah</string>
+    <string name="os_spor_izbris_caka">Izbrisano tu; druga naprava ga izbriše, ko se poveže</string>
     <string name="os_spor_isci_osebo">Išči pri tej osebi</string>
     <string name="os_spor_isci_osebo_namig">Beseda v sporočilih …</string>
     <string name="os_spor_oseba_ime">Tvoje ime za to osebo (neobvezno)</string>

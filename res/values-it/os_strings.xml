@@ -481,6 +481,12 @@
     <string name="os_ur_izbrisano">Eliminato (nel Cestino del computer)</string>
     <string name="os_ur_preimenovano">Rinominato</string>
     <string name="os_ur_premaknjeno">Spostato</string>
+    <!-- Naloga 107: urejanje datotek te naprave. -->
+    <string name="os_ur_ime_neveljavno">Questo nome non si può usare (vuoto, inizia con un punto, troppo lungo o contiene / \\ : * ? \" &lt; &gt; |).</string>
+    <string name="os_ur_n_sistemska">Safeer non modifica le cartelle di sistema né i file di altre app.</string>
+    <string name="os_ur_izbrisi_opis_krajevno">Su Android 11 e versioni successive il file va nel cestino di questo dispositivo; nelle versioni precedenti viene eliminato.</string>
+    <string name="os_ur_izbrisano_krajevno">Eliminato da questo dispositivo</string>
+    <string name="os_ur_pomoc_drzi_krajevno">Tieni premuto OK · rinomina, sposta, elimina</string>
     <string name="os_ur_zavrteno">Ruotato e salvato sul computer</string>
     <string name="os_ur_napaka">Non eseguito: %1$s</string>
     <string name="os_ur_n_obstaja">esiste già un file con questo nome</string>
@@ -596,6 +602,17 @@
     <string name="os_spor_ni_zadetkov">Nessun risultato.</string>
     <string name="os_spor_oseba">Persona</string>
     <string name="os_spor_oznake">Etichette</string>
+    <!-- Naloga 106: krajevno brisanje sporocil in pogovorov. -->
+    <string name="os_spor_izbrisi_pri_meni">Elimina per me</string>
+    <string name="os_spor_izbrisi_sporocilo_vprasanje">Eliminare questo messaggio su questo dispositivo? L’altra parte lo conserva.</string>
+    <string name="os_spor_izbrisi_pogovor">Elimina conversazione</string>
+    <string name="os_spor_izbrisi_pogovor_vprasanje">Eliminare la conversazione con %1$s su questo dispositivo? L’altra parte la conserva; le etichette restano.</string>
+    <string name="os_spor_izbrisi">Elimina</string>
+    <string name="os_spor_izbrisano">Eliminato</string>
+    <string name="os_spor_izbrisi_na_vseh">Elimina su tutti i miei dispositivi</string>
+    <string name="os_spor_izbrisi_na_vseh_vprasanje">Eliminare questo messaggio qui e sul dispositivo che lo ha ricevuto? Un dispositivo non connesso lo eliminerà alla prossima connessione.</string>
+    <string name="os_spor_izbrisano_na_vseh">Eliminato su tutti i dispositivi</string>
+    <string name="os_spor_izbris_caka">Eliminato qui; l’altro dispositivo lo eliminerà alla prossima connessione</string>
     <string name="os_spor_isci_osebo">Cerca in questa persona</string>
     <string name="os_spor_isci_osebo_namig">Parola nei messaggi…</string>
     <string name="os_spor_oseba_ime">Il tuo nome per questa persona (facoltativo)</string>

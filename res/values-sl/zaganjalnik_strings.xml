@@ -30,4 +30,13 @@
     <string name="zg_vrnjen">Prejšnji zaganjalnik je spet domači zaslon.</string>
     <string name="zg_sporocila_novo">Novo sporočilo</string>
     <string name="zg_sporocila_vse">Odpri v celoti</string>
+    <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
+    <string name="zg_dock_pokazi">Pokaži predvajalnik</string>
+    <string name="zg_dock_skrij">Skrij predvajalnik</string>
+    <string name="zg_dock_mesto">Mesto mini predvajalnika</string>
+    <string name="zg_dock_zgoraj">Zgoraj</string>
+    <string name="zg_dock_spodaj">Spodaj</string>
+    <string name="zg_dock_levo">Levo</string>
+    <string name="zg_dock_desno">Desno</string>
+    <string name="zg_dock_seznam">V seznamu (brez docka)</string>
 </resources>

@@ -19,6 +19,9 @@ object MrtviKanali {
     private const val PREFS_NEGOTOVI = "safeer_negotovi_kanali"
     /** Naloga 90d: kanali, ki jih je uporabnik sam oznacil kot nedelujoce - trajno, brez poteka (kljuc kartice). */
     private const val PREFS_SKRITI = "safeer_skriti_kanali"
+    /** Naloga 108: razlog in ime oznacenega kanala (»razlog\tIme«, [NedelujocePravila.vZapis]) - za izbiro »Ne delujejo«. */
+    private const val PREFS_OPIS = "safeer_mrtvi_kanali_opis"
+    private val opisi = ConcurrentHashMap<String, String>()
     private val skriti: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val doKdaj = ConcurrentHashMap<String, Long>()
     private val zivDo = ConcurrentHashMap<String, Long>()
@@ -52,6 +55,11 @@ object MrtviKanali {
             }
             if (stari.isNotEmpty()) pn.edit().apply { stari.forEach { remove(it) } }.apply()
             skriti.addAll(c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).all.keys)
+            // Naloga 108: opis samo za kanale, ki so se oznaceni (ostale pocistimo).
+            val po = c.applicationContext.getSharedPreferences(PREFS_OPIS, Context.MODE_PRIVATE)
+            val brezOznake = ArrayList<String>()
+            for ((k, v) in po.all) if (doKdaj.containsKey(k)) (v as? String)?.let { opisi[k] = it } else brezOznake += k
+            if (brezOznake.isNotEmpty()) po.edit().apply { brezOznake.forEach { remove(it) } }.apply()
             nalozeno = true
         }
     }
@@ -78,17 +86,27 @@ object MrtviKanali {
         for (k in kljuci) for (p in poslusalci) try { p(k) } catch (_: Throwable) { }
     }
 
-    fun zapomni(c: Context, id: String) {
+    /** Naloga 108: [razlog] ([NedelujocePravila]) in [ime] kanala za izbiro »Ne delujejo« (brez naslova toka). */
+    fun zapomni(c: Context, id: String, razlog: String = NedelujocePravila.NI_ZNANO, ime: String = "") {
         nalozi(c)
         val k = OsPravila.kljucKanala(id)
         val t = System.currentTimeMillis() + OsPravila.MRTEV_KANAL_MS
         doKdaj[k] = t
+        // Brez novega imena ostane staro (oznaka iz ozadja ime pogosto pozna, predvajalnik pa ne).
+        val ostaneIme = ime.ifBlank { NedelujocePravila.izZapisa(opisi[k]).second }
+        val zapis = NedelujocePravila.vZapis(razlog, ostaneIme)
+        opisi[k] = zapis
+        c.applicationContext.getSharedPreferences(PREFS_OPIS, Context.MODE_PRIVATE).edit().putString(k, zapis).apply()
         zivDo.remove(k)
         pozabiNegotovega(c, k)
         c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(k, t).apply()
         c.applicationContext.getSharedPreferences(PREFS_ZIVI, Context.MODE_PRIVATE).edit().remove(k).apply()
         for (p in poslusalci) try { p(k) } catch (_: Throwable) { }
     }
+
+    /** Naloga 121: vsebine ne kazemo nikjer v Medijskem centru ([KanaliPravila.skrijNedelujoc]). */
+    fun skrij(c: Context, s: Jamendo.Skladba): Boolean = KanaliPravila.skrijNedelujoc(jeMrtev(c, s.id), IptvSeznami.jeKanal(s),
+        KanaliPravila.znanNedelujocTok(s.zvok) || KanaliPravila.znanNedelujocTok(s.povezava))
 
     fun jeMrtev(c: Context, id: String): Boolean {
         nalozi(c)
@@ -112,6 +130,7 @@ object MrtviKanali {
         zivDo[k] = t
         pozabiNegotovega(c, k)
         if (doKdaj.remove(k) != null) c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(k).apply()
+        if (opisi.remove(k) != null) c.applicationContext.getSharedPreferences(PREFS_OPIS, Context.MODE_PRIVATE).edit().remove(k).apply()
         c.applicationContext.getSharedPreferences(PREFS_ZIVI, Context.MODE_PRIVATE).edit().putLong(k, t).apply()
     }
 
@@ -120,12 +139,12 @@ object MrtviKanali {
      * [OsPravila.NEGOTOVIH_ZA_MRTEV] zaporednih (v [OsPravila.NEGOTOV_VELJA_MS]) je kanal mrtev. Vrne true, ce je zdaj mrtev.
      */
     // Pregled Kimi 231: beri-povecaj-zapisi mora biti nedeljivo (preverjalci tecejo vzporedno).
-    @Synchronized fun zapomniNegotovega(c: Context, id: String): Boolean {
+    @Synchronized fun zapomniNegotovega(c: Context, id: String, razlog: String = NedelujocePravila.NI_ZNANO, ime: String = ""): Boolean {
         nalozi(c)
         val k = OsPravila.kljucKanala(id)
         val zdaj = System.currentTimeMillis()
         val prej = negotovi[k]?.takeIf { zdaj - it.second in 0 until OsPravila.NEGOTOV_VELJA_MS }?.first ?: 0
-        if (OsPravila.mrtevPoNegotovih(prej + 1)) { zapomni(c, id); return true }
+        if (OsPravila.mrtevPoNegotovih(prej + 1)) { zapomni(c, id, razlog, ime); return true }
         negotovi[k] = (prej + 1) to zdaj
         c.applicationContext.getSharedPreferences(PREFS_NEGOTOVI, Context.MODE_PRIVATE).edit().putString(k, "${prej + 1};$zdaj").apply()
         return false
@@ -133,6 +152,15 @@ object MrtviKanali {
 
     private fun pozabiNegotovega(c: Context, k: String) {
         if (negotovi.remove(k) != null) c.applicationContext.getSharedPreferences(PREFS_NEGOTOVI, Context.MODE_PRIVATE).edit().remove(k).apply()
+    }
+
+    /** Naloga 108: oznaka kanala [kljuc] izgine (»Preveri znova« pri kanalu, ki ga sonda ne zna preveriti) - preveri ga naslednji klik. */
+    fun pozabi(c: Context, kljuc: String) {
+        nalozi(c)
+        val k = OsPravila.kljucKanala(kljuc)
+        if (doKdaj.remove(k) != null) c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(k).apply()
+        if (opisi.remove(k) != null) c.applicationContext.getSharedPreferences(PREFS_OPIS, Context.MODE_PRIVATE).edit().remove(k).apply()
+        pozabiNegotovega(c, k)
     }
 
     /** true = dodatek ima prenos, false = kanal ta cas ne dela, null = se ne vemo (ali je odgovor potekel). */

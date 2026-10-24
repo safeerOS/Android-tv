@@ -30,4 +30,13 @@
     <string name="zg_vrnjen">Your previous launcher is the home screen again.</string>
     <string name="zg_sporocila_novo">New message</string>
     <string name="zg_sporocila_vse">Open in full</string>
+    <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
+    <string name="zg_dock_pokazi">Show player</string>
+    <string name="zg_dock_skrij">Hide player</string>
+    <string name="zg_dock_mesto">Mini player position</string>
+    <string name="zg_dock_zgoraj">Top</string>
+    <string name="zg_dock_spodaj">Bottom</string>
+    <string name="zg_dock_levo">Left</string>
+    <string name="zg_dock_desno">Right</string>
+    <string name="zg_dock_seznam">In the list (no dock)</string>
 </resources>

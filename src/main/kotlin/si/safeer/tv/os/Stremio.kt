@@ -55,7 +55,11 @@ object Stremio {
                         /** Zaseben dodatek ([ZasebniDodatki]): ne gre med police, mreze, iskanje in na druge naprave. */
                         val zaseben: Boolean = false,
                         /** Naloga 79b: `id` manifesta (isti dodatek pod drugim naslovom, npr. z narocnisko kodo). */
-                        val id: String = "")
+                        val id: String = "",
+                        /** Naloga 123/124: razsiritve Safeer (kljuc `safeer`, docs/DODATKI-PROTOKOL.md); null = navaden dodatek. */
+                        val razsiritev: DodatkiProtokol.Razsiritev? = null,
+                        /** `version` manifesta (za seznam sprememb enkrat po posodobitvi). */
+                        val verzija: String = "")
 
     data class Epizoda(val id: String, val ime: String, val sezona: Int, val epizoda: Int,
                        /** Tokovi, ki jih dodatek poda ze v metapodatkih posnetka (`videos[].streams`); prazno = vprasamo /stream. */
@@ -223,13 +227,127 @@ object Stremio {
     private val odzivi = ConcurrentHashMap<String, OsPravila.Odziv>()
 
     private fun osnovaIzNaslova(url: String): String? =
-        listOf("/catalog/", "/stream/", "/meta/", "/manifest.json").firstNotNullOfOrNull { k -> url.indexOf(k).takeIf { it > 0 }?.let { url.substring(0, it) } }
+        listOf("/catalog/", "/stream/", "/meta/", "/safeer/", "/manifest.json").firstNotNullOfOrNull { k -> url.indexOf(k).takeIf { it > 0 }?.let { url.substring(0, it) } }
 
     private fun zabeleziOdziv(url: String, koda: Int) {
         val o = osnovaIzNaslova(url) ?: return
         val uspeh = koda in 200..499 && koda != 408 && koda != 425
-        odzivi.compute(o) { _, prej -> OsPravila.poOdzivu(prej, uspeh, System.currentTimeMillis()).takeIf { it != OsPravila.Odziv() } }
+        odzivi.compute(o) { _, prej -> OsPravila.poOdzivu(prej, uspeh, System.currentTimeMillis(), koda).takeIf { it != OsPravila.Odziv() } }
     }
+
+    // ------------------------------------------------------------------ naloga 124: razsiritve Safeer (protokol v1)
+
+    /**
+     * Glava `X-Safeer-Config` za zahtevo na [url]: vrednosti nastavitev dodatka, ki jih je opisal sam. Skrivnosti samo po
+     * https ([DodatkiProtokol.smePoslati]); po http gredo le navadne nastavitve. Brez nastavitev ali konteksta: null.
+     */
+    private fun glavaNastavitev(url: String): String? {
+        val o = osnovaIzNaslova(url) ?: return null
+        val opis = manifesti[o]?.razsiritev?.nastavitve?.takeIf { it.isNotEmpty() } ?: return null
+        val c = aplikacija ?: return null
+        val dovoljene = DodatkiProtokol.nastavitveZaZahtevo(opis, url)
+        if (dovoljene.isEmpty()) return null
+        return DodatkiProtokol.glavaNastavitev(dovoljene, DodatkiNastavitve.vrednosti(c, o, dovoljene))
+    }
+
+    /**
+     * Naloga 127: razsiritve dodatka se na tej napravi sploh dajo uporabiti (https, ali http na krajevni naslov v razvojnem
+     * nacinu - [DodatkiProtokol.smePoslati]). Sicer kartic map, gumbov dejanj in »O vsebini« ne kazemo.
+     */
+    fun razsiritveUporabne(naslov: String): Boolean = DodatkiProtokol.smePoslati(osnova(naslov) + "/", DodatkiRazvoj.vklopljen)
+
+    /** Razsiritev brez omrezja (samo, kar je ze v pomnilniku) - za risanje na glavni niti. Novejsi protokol: null. */
+    fun razsiritevZdaj(naslov: String): DodatkiProtokol.Razsiritev? = manifesti[osnova(naslov)]?.razsiritev?.takeIf { !it.novejsi && it.protokol > 0 }
+
+    /** Dodatek zahteva novejsi protokol (posodobi Safeer) - samo iz pomnilnika. */
+    fun zahtevaNovejsiSafeer(naslov: String): Boolean = manifesti[osnova(naslov)]?.razsiritev?.novejsi == true
+
+    /** Dejanja dodatka, iz katerega je [s], za njen tip (samo iz pomnilnika). */
+    fun dejanjaZa(s: Jamendo.Skladba): List<DodatkiProtokol.Dejanje> {
+        val (osnova, tip, _) = razstavi(s) ?: return emptyList()
+        if (!razsiritveUporabne(osnova)) return emptyList()
+        val r = razsiritevZdaj(osnova) ?: return emptyList()
+        return DodatkiProtokol.dejanjaZa(r, tip)
+    }
+
+    /** Izvede dejanje [d] za [s] (delovna nit). null = dodatek ni odgovoril ali odgovor ni veljaven. */
+    fun izvediDejanje(s: Jamendo.Skladba, d: DodatkiProtokol.Dejanje): DodatkiProtokol.OdgovorDejanja? {
+        val (osnova, tip, id) = razstavi(s) ?: return null
+        val url = DodatkiProtokol.naslovDejanja(osnova, d.id, tip, id)
+        if (!DodatkiProtokol.smePoslati(url, DodatkiRazvoj.vklopljen)) return null
+        val o = prenesiJson(url) ?: return null
+        val odgovor = DodatkiProtokol.preberiDejanje(o.toString())
+        // Dodatek je nekaj spremenil: stari odgovori katalogov tega dodatka ne veljajo vec.
+        if (odgovor?.osvezi == true) pozabiOdgovore(osnova)
+        return odgovor
+    }
+
+    /** Ali dodatek vsebine [s] ponuja dopolnitev v ozadju (enrich) za njen tip. */
+    fun ponujaDopolnitev(s: Jamendo.Skladba): Boolean {
+        val (osnova, tip, _) = razstavi(s) ?: return false
+        if (!razsiritveUporabne(osnova)) return false
+        return tip.lowercase() in (razsiritevZdaj(osnova)?.dopolni ?: return false)
+    }
+
+    /** Dopolnitev v ozadju (enrich, delovna nit): objekt meta, ki ga dodatek doda k [s]; null = ni ali ni odgovoril. */
+    fun dopolni(s: Jamendo.Skladba): JSONObject? {
+        if (!ponujaDopolnitev(s)) return null
+        val (osnova, tip, id) = razstavi(s) ?: return null
+        val url = DodatkiProtokol.naslovDopolni(osnova, tip, id)
+        if (!DodatkiProtokol.smePoslati(url, DodatkiRazvoj.vklopljen)) return null
+        return prenesiJson(url)?.optJSONObject("meta")
+    }
+
+    /** Vsebina mape dodatka (delovna nit): elementi in za vsak `meta` kartica tega dodatka (predvajanje kot vedno). */
+    fun mapa(naslov: String, mapa: String, pot: String): Pair<DodatkiProtokol.VsebinaMape, List<Jamendo.Skladba?>>? {
+        val osnova = osnova(naslov)
+        val url = DodatkiProtokol.naslovMape(osnova, mapa, pot)
+        if (!DodatkiProtokol.smePoslati(url, DodatkiRazvoj.vklopljen)) return null
+        val o = prenesiJson(url) ?: return null
+        val v = DodatkiProtokol.preberiMapo(o.toString()) ?: return null
+        val kartice = v.elementi.map { e ->
+            if (e.vrsta != "meta") null
+            else vnos(JSONObject().put("id", e.id).put("type", e.tip).put("name", e.ime).put("poster", e.plakat), osnova)
+        }
+        return v to kartice
+    }
+
+    /**
+     * Naloga 125 (razvojni nacin): »Znova nalozi dodatke« - pozabi manifeste (pomnilnik in disk), predpomnjene odgovore in
+     * zaklepe vseh [naslovi]; naslednje branje vzame vse sveze z dodatka.
+     */
+    fun znovaNalozi(naslovi: List<String>) {
+        manifesti.clear()
+        odgovori.clear()
+        try { mapaPredpomnilnika?.listFiles { f -> f.name.startsWith("manifest-") && f.name.endsWith(".json") }?.forEach { it.delete() } } catch (_: Exception) { }
+        naslovi.forEach { pozabiZaklep(it) }
+    }
+
+    /** Naloga 126: ali so manifesti vseh [naslovi] ze v pomnilniku (brez omrezja). */
+    fun manifestiVPomnilniku(naslovi: List<String>): Boolean = naslovi.all { manifesti.containsKey(osnova(it)) }
+
+    /** Naloga 126: nalozi manifeste [naslovi] (disk ali splet; delovna nit) - za kartice map in nastavitev v Mojih virih. */
+    fun naloziManifeste(naslovi: List<String>) { for (n in naslovi) try { manifest(n) } catch (_: Exception) { } }
+
+    /** Pozabi predpomnjene odgovore dodatka (nove nastavitve, dejanje z `refresh`). */
+    fun pozabiOdgovore(naslov: String) {
+        val o = osnova(naslov)
+        odgovori.keys.removeAll { it.startsWith("$o/") }
+    }
+
+    /** Seznam sprememb za prikaz enkrat po posodobitvi dodatka ([DodatkiProtokol.spremembeZaPrikaz]); zapomni si verzijo. */
+    fun spremembeZaPrikaz(c: Context, naslov: String): DodatkiProtokol.Besedilo? {
+        val m = manifesti[osnova(naslov)] ?: return null
+        val r = m.razsiritev?.takeIf { !it.novejsi } ?: return null
+        if (m.verzija.isBlank()) return null
+        val prejsnja = DodatkiNastavitve.videnaVerzija(c, m.osnova)
+        if (prejsnja == m.verzija) return null
+        DodatkiNastavitve.zapomniVerzijo(c, m.osnova, m.verzija)
+        return DodatkiProtokol.spremembeZaPrikaz(r, prejsnja, m.verzija)
+    }
+
+    /** Naloga 113: stanje odzivnosti dodatka (od kdaj, koda) za oznako v Mojih virih; null = odgovarja. */
+    fun odziv(naslov: String): OsPravila.Odziv? = odzivi[osnova(naslov)]
 
     /** Dodatek zaporedoma ne odgovarja (3 izpadi v 10 min): v ozadju ga preskocimo 30 min, v Mojih virih je oznaka. */
     /** Naloga 88: koda HTTP zadnjega zahtevka te niti (0 = brez odgovora ali varovalka), za dnevnik izida kataloga. */
@@ -270,11 +388,15 @@ object Stremio {
         if ("/stream/" in url) stej(url.substringBefore("/stream/"))
         // Naloga 72: tudi poizvedbe po podnapisih stejejo v urni proracun dodatka (TempoDodatka).
         if ("/subtitles/" in url) stej(url.substringBefore("/subtitles/"))
+        val zacetek = android.os.SystemClock.elapsedRealtime()
         return try {
             val c = URL(url).openConnection() as HttpURLConnection
             c.connectTimeout = cas; c.readTimeout = cas
             c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
             c.setRequestProperty("Accept", "application/json")
+            // Naloga 124: jezik uporabnika in nastavitve dodatka (glava, nikoli v naslovu - docs/DODATKI-PROTOKOL.md 4).
+            c.setRequestProperty("Accept-Language", java.util.Locale.getDefault().toLanguageTag())
+            glavaNastavitev(url)?.let { c.setRequestProperty("X-Safeer-Config", it) }
             try {
                 val koda = c.responseCode
                 zadnjaKoda.set(koda)
@@ -282,8 +404,10 @@ object Stremio {
                 if (koda == 429 || koda == 403) zadnjeGlave.set(try {
                     c.headerFields.mapNotNull { (k, v) -> if (k == null) null else v?.firstOrNull()?.let { k.lowercase() to it } }.toMap()
                 } catch (_: Exception) { emptyMap() })
-                if (koda !in 200..299) return null
-                JSONObject(c.inputStream.use { String(it.readBytes(), Charsets.UTF_8) })
+                if (koda !in 200..299) { DodatkiRazvoj.zapisi(url, koda, 0, android.os.SystemClock.elapsedRealtime() - zacetek); return null }
+                val besedilo = c.inputStream.use { String(it.readBytes(), Charsets.UTF_8) }
+                DodatkiRazvoj.zapisi(url, koda, besedilo.length, android.os.SystemClock.elapsedRealtime() - zacetek)
+                JSONObject(besedilo)
             } finally { c.disconnect() }
         } catch (_: Exception) { if ((zadnjaKoda.get() ?: 0) == 0) zabeleziOdziv(url, 0); null }
     }
@@ -365,7 +489,13 @@ object Stremio {
         val zaseben = m.optJSONObject("behaviorHints")?.optBoolean("adult") == true
         zapomniZasebnost(o, zaseben)
         zapomniIme(o, ime)
-        return Manifest(o, ime, viri, tipi, predpone, katalogi, zaseben, m.optString("id").trim()).also { manifesti[o] = it }
+        // Naloga 124: razsiritve Safeer; pokvarjena razsiritev nikoli ne ustavi dela Stremio.
+        val razsiritev = try { DodatkiProtokol.preberi(m.toString()) } catch (_: Exception) { null }
+        if (razsiritev != null && razsiritev.opozorila.isNotEmpty()) try {
+            android.util.Log.i("SafeerDodatki", "${gostitelj(o)}: ${razsiritev.opozorila.size} opozoril (${razsiritev.opozorila.first().take(80)})")
+        } catch (_: Throwable) { }
+        return Manifest(o, ime, viri, tipi, predpone, katalogi, zaseben, m.optString("id").trim(), razsiritev, m.optString("version").trim())
+            .also { manifesti[o] = it }
     }
 
     // ------------------------------------------------------------------ zasebni dodatki (ZasebniDodatki)
@@ -379,6 +509,9 @@ object Stremio {
     /** Naloga 79b: osnova -> povezava za odklep (shema, gostitelj, pot). V isti shrambi s predpono [PREDPONA_ODKLEPA]. */
     private val odklepi = ConcurrentHashMap<String, String>()
     private const val PREDPONA_ODKLEPA = "odklep|"
+    /** Naloga 120: vsebina (tip|id), ki jo dodatki dajejo samo za placilo - cas zapisa (ms). */
+    private const val PREDPONA_PLACLJIVO = "placljivo|"
+    private val placljivo = ConcurrentHashMap<String, Long>()
     /** osnova -> ali je zaseben dodatek. Zapis prezivi ponovni zagon, da odlocitev ne caka na omrezje. */
     private val znaniZasebni = ConcurrentHashMap<String, Boolean>()
 
@@ -388,6 +521,8 @@ object Stremio {
         synchronized(znaniZasebni) {
             if (shrambaZasebnih != null) return
             val a = ctx.applicationContext
+            // Naloga 125: razvojni nacin dodatkov (privzeto izklopljen).
+            try { DodatkiRazvoj.nalozi(a) } catch (_: Exception) { }
             if (mapaPredpomnilnika == null) mapaPredpomnilnika = java.io.File(a.cacheDir, "stremio")
             aplikacija = a
             // Kaj vemo o lastnih knjiznicah dodatkov (katere dokazano dajo tokove) - pred prvim risanjem.
@@ -412,6 +547,7 @@ object Stremio {
                 val p = a.getSharedPreferences(PREFS_ZAKLEPI, Context.MODE_PRIVATE)
                 p.all.forEach { (k, v) ->
                     if (k.startsWith(PREDPONA_ODKLEPA)) OsPravila.povezavaOdklepa(v as? String)?.let { odklepi.putIfAbsent(k.removePrefix(PREDPONA_ODKLEPA), it) }
+                    else if (k.startsWith(PREDPONA_PLACLJIVO)) (v as? Long)?.let { placljivo.putIfAbsent(k.removePrefix(PREDPONA_PLACLJIVO), it) }
                     else OsPravila.Zaklep.izNiza(v as? String)?.let { zaklepi.putIfAbsent(k, it) }
                 }
                 shrambaZaklepov = p
@@ -780,6 +916,9 @@ object Stremio {
             c.connectTimeout = cas; c.readTimeout = cas
             c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
             c.setRequestProperty("Accept", "application/json")
+            // Naloga 124: jezik uporabnika in nastavitve dodatka (glava, nikoli v naslovu - docs/DODATKI-PROTOKOL.md 4).
+            c.setRequestProperty("Accept-Language", java.util.Locale.getDefault().toLanguageTag())
+            glavaNastavitev(url)?.let { c.setRequestProperty("X-Safeer-Config", it) }
             try {
                 val koda = c.responseCode
                 zadnjaKoda.set(koda)
@@ -787,6 +926,7 @@ object Stremio {
                 if (koda == 429 || koda == 403) zadnjeGlave.set(try {
                     c.headerFields.mapNotNull { (k, v) -> if (k == null) null else v?.firstOrNull()?.let { k.lowercase() to it } }.toMap()
                 } catch (_: Exception) { emptyMap() })
+                DodatkiRazvoj.zapisi(url, koda, -1, 0L)
                 if (koda !in 200..299) return null
                 android.util.JsonReader(java.io.InputStreamReader(java.io.BufferedInputStream(c.inputStream, 16 * 1024), Charsets.UTF_8)).use { beri(it) }
             } finally { c.disconnect() }
@@ -946,6 +1086,29 @@ object Stremio {
         return null
     }
 
+    /** Naloga 130: id IMDb vnosa iz metapodatkov ([metaZa]); kljuc »osnova|id«. */
+    private val imdbVnosov = ConcurrentHashMap<String, String>()
+
+    /** Id IMDb enote: s kartice, iz id-ja ali iz ze prebranih metapodatkov njenega dodatka; null = ga ne poznamo. */
+    fun imdbZa(s: Jamendo.Skladba): String? {
+        val (osnova, _, id) = razstavi(s) ?: return SerijePravila.imdbIzMeta(s.imdbId, "")
+        return SerijePravila.imdbIzMeta(s.imdbId, id) ?: imdbVnosov["$osnova|$id"]
+    }
+
+    /**
+     * Naloga 130: epizode serije po id-ju IMDb pri drugih uporabnikovih dodatkih z metapodatki (dodatek kartice jih ni dal).
+     * Kot pri [prvaEpizoda]: samo dodatki, ki jih je uporabnik dodal; [razen] = osnova dodatka kartice.
+     */
+    fun epizodePoImdb(naslovi: List<String>, imdb: String, razen: String): List<Epizoda> {
+        val viri = zKatalogom(naslovi).mapNotNull { n -> try { manifest(n) } catch (_: Exception) { null } }
+            .filter { m -> m.osnova != razen && "meta" in m.viri && (m.tipi.isEmpty() || "series" in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { imdb.startsWith(it) }) }
+        for (m in viri) {
+            val ep = (try { epizodeZa(m.osnova, "series", imdb) } catch (_: Exception) { emptyList() }).filter { it.sezona >= 1 && it.epizoda >= 1 }
+            if (ep.isNotEmpty()) return ep
+        }
+        return emptyList()
+    }
+
     /** Ali je naslov dodatka javni katalog Cinemeta (uporabnik ga je dodal sam). */
     fun jeCinemeta(naslov: String): Boolean = osnova(naslov) == osnova(CINEMETA)
 
@@ -959,6 +1122,8 @@ object Stremio {
      */
     private fun metaZa(osnova: String, tip: String, id: String): Pair<String?, List<Epizoda>>? {
         val m = json("$osnova/meta/${enc(tip)}/${enc(id)}.json")?.optJSONObject("meta") ?: return null
+        // Naloga 130: id IMDb vnosa (dodatki s torrenti, npr. Torrentio, poznajo samo tega) - za epizode z drugim id-jem.
+        SerijePravila.imdbIzMeta(m.optString("imdb_id"), id)?.let { imdbVnosov["$osnova|$id"] = it }
         val v = m.optJSONArray("videos")
         val imeDodatka = manifesti[osnova]?.ime.orEmpty()
         val vsi = if (v == null) emptyList() else (0 until v.length()).mapNotNull { i ->
@@ -1004,8 +1169,9 @@ object Stremio {
     }
 
     private fun tok(s: JSONObject, imeDodatka: String): Tok? {
-        val ime = s.optString("name").ifBlank { imeDodatka }
-        val opis = s.optString("title").ifBlank { s.optString("description") }
+        // Naloga 130: JSON null (»name": null) org.json vrne kot niz »null« - na seznamu virov je bil napis »null«.
+        val ime = SerijePravila.niz(s.optString("name")).ifBlank { imeDodatka }
+        val opis = SerijePravila.niz(s.optString("title")).ifBlank { SerijePravila.niz(s.optString("description")) }
         // proxyHeaders.request (SDK: behaviorHints): glave, brez katerih streznik toka ne odgovori.
         val glave = LinkedHashMap<String, String>()
         s.optJSONObject("behaviorHints")?.optJSONObject("proxyHeaders")?.optJSONObject("request")?.let { h ->
@@ -1054,7 +1220,8 @@ object Stremio {
     }
 
     /** Tok, ki ga ta naprava lahko predvaja kot vsebino (ne napovednik). */
-    fun jePredvajljiv(t: Tok) = t.vrsta == "url" || t.vrsta == "torrent"
+    /** Naloga 141: tudi Usenet (prek TorBoxa) - take tokove da samo iskanje pri indeksatorju (Usenet.isci). */
+    fun jePredvajljiv(t: Tok) = t.vrsta == "url" || t.vrsta == "torrent" || t.vrsta == UsenetPravila.VRSTA
 
     // ------------------------------------------------------------------ vljudnost do dodatkov (preverjanje v ozadju)
 
@@ -1443,7 +1610,15 @@ object Stremio {
     }
 
     /** Tokovi za film ali epizodo iz vseh dodatkov, ki ponujajo vir "stream" za ta tip in predpono id-ja. */
-    fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> = naslovi.also { uporabnikOb = System.currentTimeMillis() }
+    fun tokovi(naslovi: List<String>, tip: String, id: String): List<Tok> {
+        val placilnih = java.util.concurrent.atomic.AtomicInteger(0)
+        val vsi = tokoviDodatkov(naslovi, tip, id, placilnih)
+        zabeleziPlacljivo(tip, id, placilnih.get(), vsi.count { jePredvajljiv(it) })
+        return vsi
+    }
+
+    private fun tokoviDodatkov(naslovi: List<String>, tip: String, id: String, placilnih: java.util.concurrent.atomic.AtomicInteger): List<Tok> =
+        naslovi.also { uporabnikOb = System.currentTimeMillis() }
         // Dodatek, ki ga ne dosezemo (manifesta ni), bi vsebino morda imel: to je izpad, ne "ni na voljo".
         .mapNotNull { manifest(it) ?: run { zadnjiIzpad.set(System.currentTimeMillis()); null } }
         .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) &&
@@ -1464,6 +1639,12 @@ object Stremio {
                 }
             }
             val a = d?.optJSONArray("streams") ?: JSONArray()
+            // Naloga 120: vnosi, ki niso tok, ampak placilni zid (»Unlock Premium« ...).
+            for (i in 0 until a.length()) a.optJSONObject(i)?.let { o ->
+                val t = tok(o, m.ime)
+                if ((t == null || !jePredvajljiv(t)) && OsPravila.jePlacljivoObvestilo(listOf(o.optString("name"), o.optString("title"),
+                        o.optString("description"), o.optString("externalUrl")).joinToString(" "))) placilnih.incrementAndGet()
+            }
             if (dnevnik() && !m.zaseben) {
                 android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)} tokovi $tip: odgovor=${d != null} koda=${zadnjaKoda.get() ?: 0} stevilo=${a.length()}")
                 for (i in 0 until minOf(a.length(), 8)) a.optJSONObject(i)?.let { android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)}   tok $i: ${oblikaToka(it)}") }
@@ -1520,7 +1701,9 @@ object Stremio {
         val k = katalogiTv(listOf(naslov)).firstOrNull() ?: return !zaklenjenZaMrezo(naslov)
         val (_, tip, id) = katalog(k).firstNotNullOfOrNull { razstavi(it) } ?: return !zaklenjenZaMrezo(naslov)
         tokovi(listOf(naslov), tip, id)
-        return !zaklenjenZaMrezo(naslov)
+        // Naloga 120: dodatek je odklenjen (uporabnik je placal) - tudi njegova placljiva vsebina se pokaze znova.
+        if (!zaklenjenZaMrezo(naslov)) { pozabiPlacljivo(); return true }
+        return false
     }
 
     /** Naloga 79: zadnji odgovor dodatka za kanal je imel samo obvestila (tudi pred sklepom) - kanal ni mrtev. */
@@ -1531,7 +1714,38 @@ object Stremio {
         val o = osnova(naslov)
         val bil = zaklepi.remove(o) != null
         val povezava = odklepi.remove(o) != null
+        // Naloga 120: po rocnem pregledu se placljiva vsebina preveri znova (ne vemo, katera je bila tega dodatka).
+        pozabiPlacljivo()
         if (bil || povezava) try { shrambaZaklepov?.edit()?.remove(o)?.remove(PREDPONA_ODKLEPA + o)?.apply() } catch (_: Exception) { }
+    }
+
+    /** Naloga 120: vsa placljiva vsebina se pokaze in preveri znova (rocni pregled, odklenjen dodatek). */
+    private fun pozabiPlacljivo() {
+        if (placljivo.isEmpty()) return
+        try { val e = shrambaZaklepov?.edit(); placljivo.keys.forEach { e?.remove(PREDPONA_PLACLJIVO + it) }; e?.apply() } catch (_: Exception) { }
+        placljivo.clear()
+    }
+
+    /** Naloga 120: zapis po odgovoru vseh dodatkov za vsebino ([OsPravila.placljivoPoOdgovoru]); obstojen cez ponovni zagon. */
+    private fun zabeleziPlacljivo(tip: String, id: String, placilnih: Int, predvajljivih: Int) {
+        val k = "$tip|$id"
+        val prej = placljivo[k]
+        val novo = OsPravila.placljivoPoOdgovoru(prej, placilnih, predvajljivih, System.currentTimeMillis())
+        if (novo == prej) return
+        if (novo == null) placljivo.remove(k) else placljivo[k] = novo
+        try { shrambaZaklepov?.edit()?.apply { if (novo == null) remove(PREDPONA_PLACLJIVO + k) else putLong(PREDPONA_PLACLJIVO + k, novo) }?.apply() } catch (_: Exception) { }
+    }
+
+    /**
+     * Naloga 120: vsebine dodatka, ki je uporabnik nima odklenjene, ne kazemo: dodatki zanjo dajejo samo placilni zid
+     * ([OsPravila.placljivoSkrito]) ali je kanal iz dodatka, ki je za mrezo zaklenjen (79/82). [pokaziZaklenjene] je
+     * uporabnikova izbira »Pokazi zaklenjene« v TV v zivo.
+     */
+    fun neodklenjena(s: Jamendo.Skladba, pokaziZaklenjene: Boolean = false): Boolean {
+        if (pokaziZaklenjene) return false
+        val (_, tip, id) = razstavi(s) ?: return false
+        return OsPravila.placljivoSkrito(placljivo["$tip|$id"], System.currentTimeMillis(), false) ||
+            (jeVZivo(s) && zaklenjenKanalZaMrezo(s))
     }
 
     /** Naloga 79b: povezava za odklep pri dodatku ([OsPravila.povezavaOdklepa]); null, ce je dodatek ni dal. */

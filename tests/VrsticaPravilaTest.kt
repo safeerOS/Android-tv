@@ -95,8 +95,27 @@ private fun nadomestki() {
         "com.android.tv.settings.device.displaysound.DisplaySoundActivity"))
 }
 
+/** Naloga 127: tirnico se da na dotik lezece popolnoma skriti in s potegom z roba spet pokazati. */
+private fun skritaTirnica() {
+    val p = VrsticaPravila
+    enako("skrita lezece", p.TIRNICA_SKRITA, p.stanjeTirnice(skrita = true, imena = true, lezece = true))
+    enako("skrita velja samo lezece (pokonci ikone)", p.TIRNICA_IKONE, p.stanjeTirnice(skrita = true, imena = false, lezece = false))
+    enako("imena", p.TIRNICA_IMENA, p.stanjeTirnice(skrita = false, imena = true, lezece = true))
+    enako("proti sredini: skrita -> ikone", p.TIRNICA_IKONE, p.tirnicaPoPotegu(p.TIRNICA_SKRITA, protiSredini = true, lezece = true))
+    enako("proti sredini: ikone -> imena", p.TIRNICA_IMENA, p.tirnicaPoPotegu(p.TIRNICA_IKONE, protiSredini = true, lezece = true))
+    enako("proti sredini: imena ostanejo", p.TIRNICA_IMENA, p.tirnicaPoPotegu(p.TIRNICA_IMENA, protiSredini = true, lezece = true))
+    enako("proti robu: imena -> ikone", p.TIRNICA_IKONE, p.tirnicaPoPotegu(p.TIRNICA_IMENA, protiSredini = false, lezece = true))
+    enako("proti robu: ikone -> skrita (lezece)", p.TIRNICA_SKRITA, p.tirnicaPoPotegu(p.TIRNICA_IKONE, protiSredini = false, lezece = true))
+    enako("proti robu pokonci: ikone ostanejo", p.TIRNICA_IKONE, p.tirnicaPoPotegu(p.TIRNICA_IKONE, protiSredini = false, lezece = false))
+    enako("skrita ostane skrita", p.TIRNICA_SKRITA, p.tirnicaPoPotegu(p.TIRNICA_SKRITA, protiSredini = false, lezece = true))
+    enako("skrito pokaze samo poteg z roba", true, p.potegZRobaTirnice(skrita = true, zacetekXDp = 10f, sirinaTirniceDp = 0f))
+    enako("skrite ne pokaze poteg sredi zaslona", false, p.potegZRobaTirnice(skrita = true, zacetekXDp = 300f, sirinaTirniceDp = 0f))
+    enako("vidna: poteg po tirnici", true, p.potegZRobaTirnice(skrita = false, zacetekXDp = 50f, sirinaTirniceDp = 68f))
+    enako("vidna: poteg zunaj tirnice ne", false, p.potegZRobaTirnice(skrita = false, zacetekXDp = 120f, sirinaTirniceDp = 68f))
+}
+
 fun main() {
-    nacini(); imena(); potegi(); lupa(); iskanje(); nadomestki()
+    nacini(); imena(); potegi(); lupa(); iskanje(); nadomestki(); skritaTirnica()
     if (napak > 0) { println("\nVrsticaPravilaTest: $napak napak"); kotlin.system.exitProcess(1) }
     println("\nVrsticaPravilaTest: vse v redu")
 }

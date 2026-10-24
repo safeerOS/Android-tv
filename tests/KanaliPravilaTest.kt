@@ -310,5 +310,11 @@ fun main() {
     preveriEnako("91c: vse deluje - nic ne izpade", 5,
         KanaliPravila.brezNedelujocihKanalov(nedavni, { it.second }, { it.first }, { false }).size)
 
+    // Naloga 121: nedelujoc kanal se ne kaze nikjer
+    preveriEnako("121: mrtev kanal skrit", true, KanaliPravila.skrijNedelujoc(mrtev = true, jeKanalSeznama = false, nedelujocTok = false))
+    preveriEnako("121: kanal seznama z znano nedelujocim tokom skrit", true, KanaliPravila.skrijNedelujoc(mrtev = false, jeKanalSeznama = true, nedelujocTok = true))
+    preveriEnako("121: film z enakim naslovom toka ni kanal - ostane", false, KanaliPravila.skrijNedelujoc(mrtev = false, jeKanalSeznama = false, nedelujocTok = true))
+    preveriEnako("121: neznano stanje ostane", false, KanaliPravila.skrijNedelujoc(mrtev = false, jeKanalSeznama = true, nedelujocTok = false))
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

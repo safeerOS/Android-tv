@@ -481,6 +481,12 @@
     <string name="os_ur_izbrisano">Supprimé (dans la corbeille de l\'ordinateur)</string>
     <string name="os_ur_preimenovano">Renommé</string>
     <string name="os_ur_premaknjeno">Déplacé</string>
+    <!-- Naloga 107: urejanje datotek te naprave. -->
+    <string name="os_ur_ime_neveljavno">Ce nom ne peut pas être utilisé (vide, commence par un point, trop long ou contient / \\ : * ? \" &lt; &gt; |).</string>
+    <string name="os_ur_n_sistemska">Safeer ne modifie pas les dossiers système ni les fichiers des autres applications.</string>
+    <string name="os_ur_izbrisi_opis_krajevno">Sur Android 11 et versions ultérieures, le fichier va dans la corbeille de cet appareil ; sur les versions plus anciennes, il est supprimé.</string>
+    <string name="os_ur_izbrisano_krajevno">Supprimé de cet appareil</string>
+    <string name="os_ur_pomoc_drzi_krajevno">Maintenir OK · renommer, déplacer, supprimer</string>
     <string name="os_ur_zavrteno">Pivoté et enregistré sur l\'ordinateur</string>
     <string name="os_ur_napaka">Non effectué : %1$s</string>
     <string name="os_ur_n_obstaja">un fichier de ce nom existe déjà</string>
@@ -596,6 +602,17 @@
     <string name="os_spor_ni_zadetkov">Aucun résultat.</string>
     <string name="os_spor_oseba">Personne</string>
     <string name="os_spor_oznake">Étiquettes</string>
+    <!-- Naloga 106: krajevno brisanje sporocil in pogovorov. -->
+    <string name="os_spor_izbrisi_pri_meni">Supprimer pour moi</string>
+    <string name="os_spor_izbrisi_sporocilo_vprasanje">Supprimer ce message sur cet appareil ? L’autre partie le conserve.</string>
+    <string name="os_spor_izbrisi_pogovor">Supprimer la conversation</string>
+    <string name="os_spor_izbrisi_pogovor_vprasanje">Supprimer la conversation avec %1$s sur cet appareil ? L’autre partie la conserve ; les libellés restent.</string>
+    <string name="os_spor_izbrisi">Supprimer</string>
+    <string name="os_spor_izbrisano">Supprimé</string>
+    <string name="os_spor_izbrisi_na_vseh">Supprimer sur tous mes appareils</string>
+    <string name="os_spor_izbrisi_na_vseh_vprasanje">Supprimer ce message ici et sur l’appareil qui l’a reçu ? Un appareil hors connexion le supprimera à sa prochaine connexion.</string>
+    <string name="os_spor_izbrisano_na_vseh">Supprimé sur tous les appareils</string>
+    <string name="os_spor_izbris_caka">Supprimé ici ; l’autre appareil le supprimera à sa prochaine connexion</string>
     <string name="os_spor_isci_osebo">Rechercher chez cette personne</string>
     <string name="os_spor_isci_osebo_namig">Mot dans les messages…</string>
     <string name="os_spor_oseba_ime">Ton nom pour cette personne (facultatif)</string>

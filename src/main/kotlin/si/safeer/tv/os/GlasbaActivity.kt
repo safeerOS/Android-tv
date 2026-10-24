@@ -209,6 +209,7 @@ class GlasbaActivity : OsActivity() {
         iskanjeIzNamena()
         predvajajIzNamena()
         sprejmiIzNamena()
+        preizkusIzNamena()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -221,6 +222,7 @@ class GlasbaActivity : OsActivity() {
         iskanjeIzNamena()
         predvajajIzNamena()
         sprejmiIzNamena()
+        preizkusIzNamena()
     }
 
     private fun sprejmiIzNamena() {
@@ -452,12 +454,30 @@ class GlasbaActivity : OsActivity() {
         val sk = lestvica.asSequence().mapNotNull { it.first.stvar as? Jamendo.Skladba }
             .filter { it.video && !it.radio && !Stremio.jeVZivo(it) && !znanoNiNaVoljo(it) && SpletniVir.cistNaslov(it.naslov) == kljuc }
             .firstOrNull() ?: return
-        android.util.Log.i("SafeerOsMedia", "prikazi na TV: odpiram ${sk.naslov} (${sk.id})")
+        // Naloga 112: id kanala ali dodatka vsebuje naslov (lahko z zetonom) - v dnevnik samo ime.
+        android.util.Log.i("SafeerOsMedia", "prikazi na TV: odpiram ${sk.naslov.take(60)}")
         // Film iz dodatkov: pokazemo izbiro tokov (naslov na vrhu), ne predvajamo prvega sami - prvi tok dodatka je bil
         // pri preizkusu 11. 10. 2026 kopija z vgrajenim oglasom za stave. Uporabnik izbere z daljincem.
         if (Stremio.jeEnota(sk)) { glavna.postDelayed({ if (!isFinishing) razresiStremio(sk, rocno = true) }, 400); return }
         val kartica = videi(listOf(sk), beseda).firstOrNull() ?: return
         glavna.postDelayed({ if (!isFinishing) kartica.klik(iskalnik ?: window.decorView) }, 400)
+    }
+
+    /**
+     * Naloga 135: samodejni preizkus po gradnji ([PreizkusActivity], samo adb): film ali epizoda po id-ju IMDb gre po isti
+     * poti kot OK na kartici. Id nosi [PreizkusPravila.OZNAKA] - ogled ne gre v zgodovino in shranjena mesta.
+     */
+    private fun preizkusIzNamena() {
+        val imdb = intent.getStringExtra(PREIZKUS_IMDB) ?: return
+        val naslov = intent.getStringExtra(PREIZKUS_NASLOV)
+        intent.removeExtra(PREIZKUS_IMDB); intent.removeExtra(PREIZKUS_NASLOV)
+        val v = PreizkusPravila.vnos(imdb, naslov) ?: return
+        android.util.Log.i("SafeerOsMedia", "preizkus po gradnji: ${v.tip} ${v.imdb}" + (if (v.epizoda > 0) " S${v.sezona}E${v.epizoda}" else ""))
+        val osnova = Stremio.vnosPoImdb(v.tip, v.imdb, v.naslov, 0)
+        val sk = osnova.copy(id = osnova.id + PreizkusPravila.OZNAKA).let {
+            if (v.epizoda > 0) it.copy(naslov = "${v.naslov} · S${v.sezona}E${v.epizoda}", season = v.sezona, episode = v.epizoda) else it
+        }
+        predvajaj(listOf(sk), 0)
     }
 
     /** Iskanje, odprto od drugod (zaslon predvajanja, tipka Isci): razdelek Iskanje, polje pripravljeno. */
@@ -503,6 +523,11 @@ class GlasbaActivity : OsActivity() {
         if (odprtKatalog != null) narociUmiri()
         GlasbaStoritev.poslusalci.add(poslusalec)
         narociVrnitevVidea()
+        // Naloga 124: kaj je novega v posodobljenem dodatku (enkrat).
+        pokaziSpremembeDodatkov()
+        // Naloga 129: kljuci debrid z druge naprave (potrditev).
+        Debrid.poslusalciPrejetih.add(obPrejetihKljucih)
+        pokaziPrejeteKljuce()
         // Kanal, ki je odpovedal, medtem ko je bil na zaslonu predvajalnik, in postaja, ki odpove tukaj.
         MrtviKanali.poslusalci.add(obMrtvemKanalu)
         umakniMrtvega()
@@ -543,6 +568,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     override fun onStop() {
+        Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
         // Mesto dotika velja za vrnitev samo, ce je ta dotik zaslon zapustil (predvajalnik se odpre v nekaj sekundah);
         // sicer je zastarelo (uporabnik je po dotiku ostal tu in odsel pozneje drugam).
         if (android.os.SystemClock.uptimeMillis() - mestoKlikaOb > 10_000L) mestoKlika = null
@@ -1725,7 +1751,7 @@ class GlasbaActivity : OsActivity() {
             val ima = v.drawable is android.graphics.drawable.BitmapDrawable
             // Kartica zunaj drsnika (podstran, okno): slika kot doslej, takoj.
             val y = vrhSlikeVVsebini(v) ?: run { if (!ima && v.tag != naslov) naloziSliko(naslov, v); null } ?: continue
-            val viden = OsPravila.vVidnem(y, v.height, zgoraj, spodaj, v.height + dp(60))
+            val viden = OsPravila.vVidnem(y, v.height, zgoraj, spodaj, OsPravila.rezervaNaslovnic(v.height, drsnik.height, dp(60)))
             if (viden && !ima && v.tag != naslov) naloziSliko(naslov, v)
             else if (!viden && ima) { v.setImageDrawable(null); v.tag = null }
         }
@@ -1753,6 +1779,7 @@ class GlasbaActivity : OsActivity() {
                 // Naslovnica z diska (brez omrezja; stara z izvirnimi bajti ali nova WebP); nove shranimo za naslednje
                 // odprtje - pomanjsane na 280 px in kot WebP, ne izvirnih bajtov (naloga 56).
                 val px = MedijskiPredpomnilnik.NASLOVNICA_PX
+                val zacetek = android.os.SystemClock.uptimeMillis()
                 val zDiska = MedijskiPredpomnilnik.naslovnica(this, naslov)
                 val b = if (zDiska != null) VarnaSlika.izBajtov(zDiska, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) }?.let { MedijskiPredpomnilnik.zaPomnilnik(it) } ?: return@execute
                 else {
@@ -1762,6 +1789,7 @@ class GlasbaActivity : OsActivity() {
                     MedijskiPredpomnilnik.zaPomnilnik(m)   // naloga 77: brez prosojnosti RGB_565 (pol bajtov)
                 }
                 SLIKE.put(naslov, b)
+                zabeleziNaslovnico(zDiska != null, android.os.SystemClock.uptimeMillis() - zacetek)
                 val cakajoci = cakajoceSlike.remove(naslov)
                 val pogledi = cakajoci?.let { synchronized(it) { it.toList() } }.orEmpty()
                 glavna.post {
@@ -1774,6 +1802,22 @@ class GlasbaActivity : OsActivity() {
                 cakajoceSlike.remove(naslov)
             }
         }
+    }
+
+    /**
+     * Naloga 144: od kod pridejo naslovnice (disk = notranja baza ali USB, omrezje) in koliko casa traja do slike - na
+     * vsakih [NASLOVNIC_ZA_DNEVNIK] ena vrstica v dnevnik (brez naslovov).
+     */
+    private val naslovniceStevci = LongArray(4)
+    private fun zabeleziNaslovnico(zDiska: Boolean, ms: Long) {
+        val vrstica = synchronized(naslovniceStevci) {
+            val i = if (zDiska) 0 else 2
+            naslovniceStevci[i]++; naslovniceStevci[i + 1] += ms
+            if ((naslovniceStevci[0] + naslovniceStevci[2]) % NASLOVNIC_ZA_DNEVNIK != 0L) null
+            else "naslovnice: z diska ${naslovniceStevci[0]} (povp. ${naslovniceStevci[1] / maxOf(1, naslovniceStevci[0])} ms), " +
+                "iz omrezja ${naslovniceStevci[2]} (povp. ${naslovniceStevci[3] / maxOf(1, naslovniceStevci[2])} ms), v pomnilniku ${SLIKE.size() / 1024 / 1024} MB"
+        }
+        if (vrstica != null) android.util.Log.i("SafeerOsMedia", vrstica)
     }
 
     /** Slicica videa ali naslovnica albuma z naprave (MediaStore); brez nje ostane ikona. */
@@ -2147,7 +2191,9 @@ class GlasbaActivity : OsActivity() {
             // Uporabnik doda vir in nanj pozabi (lastnik, 2. 10. 2026): police so po VSEBINI (Zate, Filmi, Serije, Video,
             // zvrsti), ne po virih. Vse vire vprasamo hkrati, vsebino zdruzimo in isti film iz vec virov je ena kartica.
             val stremio = vsiViri.filter { it.jeStremio && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
-            val katalogi = if (stremio.isEmpty()) emptyList() else try { Stremio.prikazniKatalogi(Stremio.zKatalogom(stremio)) } catch (_: Exception) { emptyList() }.take(12)
+            // Naloga 143: vsak dodatek dobi svoj delez od 12 katalogov (prej so jih zapolnili prvi dodatki).
+            val katalogi = if (stremio.isEmpty()) emptyList() else OsPravila.pravicnoPoDodatkih(
+                try { Stremio.prikazniKatalogi(Stremio.zKatalogom(stremio)) } catch (_: Exception) { emptyList() }, { it.dodatek }, 12)
             // Manifesti so zdaj znani: zaseben dodatek, ki je sem prisel z usklajevanjem, tu izgine (ZasebniDodatki).
             try { MedijskiViri.odstraniPrevzeteZasebne(this) } catch (_: Exception) { }
             val izKatalogov = katalogi.map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k) } catch (_: Exception) { emptyList() } } }
@@ -2631,7 +2677,9 @@ class GlasbaActivity : OsActivity() {
                 // Naloga 57c: tudi splosni video katalogi uporabnikovih dodatkov (tip ni »movie«/»series«, npr. kanali, zbirke) -
                 // iz njih gredo v mrezo filmi oz. serije (po vrsti vsebine, kot v razdelku Video). Do 57 je mrezo polnila Cinemeta.
                 .filter { (it.tip == tip || Stremio.razredKataloga(it) == Stremio.VIDEO) && (zvrst == null || Zvrsti.moznost(zvrst, it.zvrsti) != null || "genre" !in it.obvezni) }
-                .sortedBy { if (it.tip == tip) 0 else 1 }.take(12)
+                .sortedBy { if (it.tip == tip) 0 else 1 }
+                // Naloga 143: vsak dodatek dobi svoj delez od 12 katalogov - prej je Cinemeta (dodana zadnja) izpadla.
+                .let { OsPravila.pravicnoPoDodatkih(it, { k -> k.dodatek }, 12) }
             // Izbran jezik: naslovi v tem jeziku po prepoznavnosti (Wikidata) - splosni katalogi jih na prvih straneh skoraj
             // nimajo. Anglescine je v katalogih dovolj; ob izbrani zvrsti ostanejo katalogi (seznam zvrsti ne pozna).
             // Seznam naslovov jezika gre skozi katalog Cinemeta (Stremio.vnosPoImdb): samo, ce ga ima uporabnik (naloga 57).
@@ -2740,7 +2788,8 @@ class GlasbaActivity : OsActivity() {
         val dodatki = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
             .filter { (try { Stremio.zaseben(it) } catch (_: Exception) { null }) == true }
         val katalogi = dodatki.flatMap { n -> try { Stremio.katalogiDodatka(n) } catch (_: Exception) { emptyList() } }
-            .filter { if (tip == "series") it.tip == "series" else it.tip != "series" }.take(12)
+            .filter { if (tip == "series") it.tip == "series" else it.tip != "series" }
+            .let { OsPravila.pravicnoPoDodatkih(it, { k -> k.dodatek }, 12) }
         val strani = katalogi.map { k -> iskanjeDelavec.submit<Pair<Int, List<Jamendo.Skladba>>> { try { straniKataloga(k, null) } catch (_: Exception) { 0 to emptyList() } } }
             .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { 0 to emptyList<Jamendo.Skladba>() } }
         val vsi = SpletniVir.zdruziEnako(prepleti(strani.map { it.second })).map { it.first() }
@@ -2782,8 +2831,8 @@ class GlasbaActivity : OsActivity() {
 
     /**
      * Izbire razdelka Video v eni vrstici, kot Discover v drugih predvajalnikih (lastnik, 2. 10. 2026):
-     * [Filmi ▾] [Priporoceno ▾] [Vse zvrsti ▾] [Vsi jeziki ▾]. Na telefonu sta vrstici dve (po dve enako siroki
-     * izbiri cez ves zaslon); na sirsih zaslonih so stiri enako siroke cez razpolozljivo sirino (najvec 200 dp vsaka),
+     * [Filmi ▾] [Priporoceno ▾] [Vse zvrsti ▾] [Vsi jeziki ▾] [⚡ TorBox ▾] (naloga 130). Na telefonu sta vrstici dve;
+     * na sirsih zaslonih je pet enako sirokih cez razpolozljivo sirino (najvec 200 dp vsaka),
      * da so na televizorju in tablici vse na zaslonu brez drsenja. Pri policah (Zate) je samo prva, da se uporabnik
      * vrne v mrezo.
      */
@@ -2791,18 +2840,22 @@ class GlasbaActivity : OsActivity() {
         val ozek = ozekZaslon()
         val niz = (if (!ozek && o != null) object : LinearLayout(this) {
             override fun onMeasure(sirina: Int, visina: Int) {
-                val najvec = dp(4 * 200 + 3 * 8)
+                val najvec = dp(5 * 200 + 4 * 8)
                 val omejena = View.MeasureSpec.getMode(sirina) != View.MeasureSpec.UNSPECIFIED && View.MeasureSpec.getSize(sirina) > najvec
                 super.onMeasure(if (omejena) View.MeasureSpec.makeMeasureSpec(najvec, View.MeasureSpec.EXACTLY) else sirina, visina)
             }
         } else LinearLayout(this)).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, dp(12)) }
         // Telefon: stiri izbire v eni vrstici bi bile preozke za napis - druga vrstica (zvrst, jezik) pride pod prvo.
         val druga = if (ozek && o != null) LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 0, 0, dp(12)) } else null
-        fun izbira(kljuc: String, moznosti: List<String>, izbrana: Int, naslovOkna: String?, cilj: LinearLayout = niz, obIzbiri: (Int) -> Unit) {
+        fun izbira(kljuc: String, moznosti: List<String>, izbrana: Int, naslovOkna: String?, cilj: LinearLayout = niz,
+                   /** Napis namesto izbrane moznosti (izbrana = -1: nic ni izbrano). */
+                   napis: String? = null, obIzbiri: (Int) -> Unit) {
             val prva = cilj.childCount == 0
             cilj.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                 tag = "k:$kljuc"; isFocusable = true; isClickable = true
+                // Naloga 135: stalna oznaka izbire (bralnik zaslona, uiautomator) - napis se spreminja z izbiro.
+                contentDescription = listOfNotNull(naslovOkna, napis ?: moznosti.getOrNull(izbrana)).joinToString(": ")
                 setPadding(dp(if (ozek) 10 else 12), dp(10), dp(if (ozek) 8 else 10), dp(10))
                 fun oblika(rob: Int, debelina: Int, polnilo: Int) = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(polnilo); setStroke(dp(debelina), rob) }
                 background = android.graphics.drawable.StateListDrawable().apply {
@@ -2811,7 +2864,7 @@ class GlasbaActivity : OsActivity() {
                     addState(intArrayOf(), oblika(0x40FFFFFF, 1, 0x14FFFFFF))
                 }
                 addView(besedilo(15f, osBarva(R.color.os_besedilo), true).apply {
-                    text = moznosti.getOrElse(izbrana) { moznosti.first() }; maxLines = 1; gravity = Gravity.CENTER_VERTICAL
+                    text = napis ?: moznosti.getOrElse(izbrana) { moznosti.first() }; maxLines = 1; gravity = Gravity.CENTER_VERTICAL
                     // Daljsi napis (Priporoceno, Znanstvena fantastika) se na ozkem telefonu pomanjsa, ne odreze.
                     ellipsize = null
                     setAutoSizeTextTypeUniformWithConfiguration(8, if (ozek) 14 else 15, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
@@ -2858,6 +2911,23 @@ class GlasbaActivity : OsActivity() {
             izbira("jezik", listOf(getString(R.string.os_jezik_vsi)) + jeziki.map { it.second },
                 jeziki.indexOfFirst { it.first == o.jezik } + 1, getString(R.string.os_jezik_vsebine), druga ?: niz) { i ->
                 odpriBrskanje(o.tip, o.zvrst, if (i == 0) "" else jeziki[i - 1].first)
+            }
+            // 5) Naloga 130: prek katere debrid storitve gredo torrenti; privzeto tista, za katero je vpisan kljuc.
+            val sKljucem = Debrid.vrstniRed(this)
+            val aktivna = Debrid.aktivna(this)
+            // Brez kljuca: napis »Debrid: vpisi kljuc«, izbira odpre okno »Debrid storitve«.
+            val moznosti = sKljucem.map { DebridPravila.OZNAKA_PREDPOMNJEN + " " + DebridPravila.ime(it) } +
+                (if (sKljucem.isEmpty()) emptyList() else listOf(getString(R.string.os_debrid_izbira_brez))) +
+                getString(R.string.os_debrid_izbira_nastavitve)
+            izbira("debrid", moznosti, when { sKljucem.isEmpty() -> -1; aktivna != null -> sKljucem.indexOf(aktivna); else -> sKljucem.size },
+                getString(R.string.os_debrid_izbira_naslov), druga ?: niz,
+                if (sKljucem.isEmpty()) getString(R.string.os_debrid_izbira_dodaj) else null) { i ->
+                when {
+                    i < sKljucem.size -> Debrid.nastaviAktivno(this, sKljucem[i])
+                    i == sKljucem.size && sKljucem.isNotEmpty() -> Debrid.nastaviAktivno(this, null)
+                    else -> { nastavitveDebrida(); return@izbira }
+                }
+                odpriBrskanje(o.tip, o.zvrst, o.jezik)
             }
         }
         // Vrstici sta natanko siroki kot vsebina (enake izbire, nic ne gleda cez rob); sama prva izbira: naravna sirina.
@@ -2910,7 +2980,7 @@ class GlasbaActivity : OsActivity() {
             else listOf(Vrsta(getString(R.string.os_seznami_predvajanja), l.map { karticaSeznama(it) }, skladbe = true))
         return when (i) {
             DOMOV -> predajaVrsta() + listOf(
-                Vrsta(getString(R.string.os_media_nedavno), razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this)))
+                Vrsta(getString(R.string.os_media_nedavno), razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this).filterNot { neodklenjena(it) }))
                     // Isti naslov iz dveh virov (dve razlicici) je med nedavnimi en sam - brez podvojenih prikazov.
                     .distinctBy { kljucNedavnega(it) }.take(5).let { n ->
                     val kartice = n.map { sk ->
@@ -3219,7 +3289,7 @@ class GlasbaActivity : OsActivity() {
         if (System.currentTimeMillis() - shranjeno.first !in 0 until KANALI_SEME_MS) return
         // Naloga 82: kanalov zaklenjenega dodatka ne vracamo (bili bi skriti, mreza pa bi veljala za polno).
         fun del(ime: String) = shranjeno.second.firstOrNull { it.first == ime }?.third.orEmpty()
-            .filter { !Stremio.brezDodatka(it, dodatki) && (!IptvSeznami.jeKanal(it) || it.streznik in seznami) && (tvZaklenjeni || !Stremio.zaklenjenKanalZaMrezo(it)) }
+            .filter { !Stremio.brezDodatka(it, dodatki) && (!IptvSeznami.jeKanal(it) || it.streznik in seznami) && !neodklenjena(it) }
         val d = del("domaci")
         val k = del("kanali")
         if (d.isEmpty() && k.isEmpty()) return
@@ -3799,6 +3869,12 @@ class GlasbaActivity : OsActivity() {
     /** Naloga 90d: kanal seznama IPTV, katerega tok je znano samo obvestilo ([KanaliPravila.znanNedelujocTok]). */
     private fun znanNedelujocKanal(sk: Jamendo.Skladba) = IptvSeznami.jeKanal(sk) && KanaliPravila.znanNedelujocTok(sk.zvok)
 
+    /**
+     * Naloga 120: vsebina dodatka, ki je uporabnik nima odklenjene (samo placilni zid ali zaklenjen dodatek kanalov), se ne
+     * kaze nikjer v Medijskem centru - razen ce uporabnik v TV v zivo izbere »Pokazi zaklenjene«.
+     */
+    private fun neodklenjena(sk: Jamendo.Skladba) = Stremio.neodklenjena(sk, tvZaklenjeni)
+
     /** Razlicica kartice [id], ki jo preverimo zdaj (mrtve izpustimo, najprej HD); null, ce nobena ne potrebuje preverjanja. */
     private fun razlicicaZaPreverjanje(m: MrezaKanalov, id: String): Jamendo.Skladba? {
         val vse = m.razlicice[id].orEmpty()
@@ -3859,7 +3935,7 @@ class GlasbaActivity : OsActivity() {
             // po preverjanju drug za drugim izginili). Isti kanal iz drugega dodatka (po kljucu imena) je njegova kartica.
             // Naloga 79b: v izbiri »Pokazi zaklenjene kanale« (privzeto izklopljeno) ostanejo; klik ponudi odklep pri dodatku.
             // Naloga 82: tudi po izteku sklepa brez zivega toka ([Stremio.zaklenjenKanalZaMrezo]).
-            if (!tvZaklenjeni && Stremio.jeEnota(sk) && sk.id !in vednoId && Stremio.zaklenjenKanalZaMrezo(sk)) { brezProstih++; continue }
+            if (Stremio.jeEnota(sk) && sk.id !in vednoId && neodklenjena(sk)) { brezProstih++; continue }
             // Naloga 90d: znan tok z obvestilom namesto programa - brez sporocila ni v mrezi; druga razlicica kartice ostane.
             if (znanNedelujocKanal(sk)) continue
             if (!preverljiv) { if (!MrtviKanali.jeMrtev(this, sk.id)) vsi += sk; continue }
@@ -3908,7 +3984,7 @@ class GlasbaActivity : OsActivity() {
         // Naloga 82: prazna mreza - nadomestek (kanali brez izbire) takoj, ko nic vec ne pricakujemo, med nalaganjem po 3 s;
         // »Nalagam« nikoli dlje od 45 s ([KanaliPravila.praznaMreza]).
         val nadomestni = if (m.zvrst.isEmpty() && m.jezik.isEmpty()) emptyList() else m.nadomestni.filter { sk ->
-            !MrtviKanali.jeMrtev(this, sk.id) && (tvZaklenjeni || !Stremio.zaklenjenKanalZaMrezo(sk))
+            !MrtviKanali.skrij(this, sk) && !neodklenjena(sk)
         }
         val prazna = KanaliPravila.praznaMreza(prikaz.size, cakamDodatke || m.nalagam,
             android.os.SystemClock.uptimeMillis() - m.odprtOb, nadomestni.isNotEmpty())
@@ -4008,14 +4084,16 @@ class GlasbaActivity : OsActivity() {
             // Naloga 79b: zaklenjeni kanali (dodatek daje tokove samo z narocnino) so privzeto skriti.
             // Naloga 90d: kanale, ki jih je uporabnik skril (»Kanal ne deluje - skrij«), vrne tretja izbira.
             val skritih = MrtviKanali.steviloSkritih(this)
+            // Naloga 122 (lastnik): izbire »Ne delujejo (N)« (108) ni vec - nedelujocih kanalov uporabnik ne vidi nikjer;
+            // oznaka mrtvega kanala potece sama in pregled kanalov (75) jih preverja v ozadju.
             val zaklenjeni = tvZaklenjeni || stremioNaslovi().any { Stremio.zaklenjenZaMrezo(it) }
-            if (!zaklenjeni && skritih == 0) emptyList() else listOf(
-                PoljeIzbire("izb:zaklenjeni", listOf(getString(R.string.os_tv_brez_zaklenjenih), getString(R.string.os_tv_pokazi_zaklenjene)) +
-                    (if (skritih > 0) listOf(getString(R.string.os_tv_vrni_skrite, skritih)) else emptyList()),
-                    if (tvZaklenjeni) 1 else 0, null) { i ->
-                    if (i == 2) { MrtviKanali.vrniSkrite(this) } else { tvZaklenjeni = i == 1 }
-                    odpriKanale(m.zvrst, m.jezik)
-                })
+            if (!zaklenjeni && skritih == 0) emptyList() else {
+                val moznosti = ArrayList<Pair<String, () -> Unit>>()
+                moznosti += getString(R.string.os_tv_brez_zaklenjenih) to { tvZaklenjeni = false; odpriKanale(m.zvrst, m.jezik) }
+                moznosti += getString(R.string.os_tv_pokazi_zaklenjene) to { tvZaklenjeni = true; odpriKanale(m.zvrst, m.jezik) }
+                if (skritih > 0) moznosti += getString(R.string.os_tv_vrni_skrite, skritih) to { MrtviKanali.vrniSkrite(this); odpriKanale(m.zvrst, m.jezik) }
+                listOf(PoljeIzbire("izb:zaklenjeni", moznosti.map { it.first }, if (tvZaklenjeni) 1 else 0, null) { i -> moznosti.getOrNull(i)?.second?.invoke() })
+            }
         }
     }
 
@@ -4364,7 +4442,7 @@ class GlasbaActivity : OsActivity() {
         // Kartice dodatkov: samo, kar se dokazano da predvajati (lastna knjiznica po vzorcu, [vzorciKnjiznice]).
         vzorciKnjiznice(m.vsi)
         val poVrsti = razvrsti(m.razdelek, (priljubljene + m.vsi).distinctBy { kljucVMrezi(it) })
-            .filterNot { MrtviKanali.jeMrtev(this, it.id) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) }
+            .filterNot { MrtviKanali.skrij(this, it) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || neodklenjena(it) }
         // Kar uporabnik ze vidi, ostane na svojem mestu; novo pride za tem (razen pri izrecni razvrstitvi po imenu ali letnici).
         val vsi = if (razvrstitev(m.razdelek) == RAZVRSTI_PRIPOROCENO) OsPravila.stabilenRed(m.narisani, poVrsti) { kljucVMrezi(it) } else poVrsti
         // Naloga 88: na zaslonu so seznami predvajanja (polica na vrhu Music) - napis ni »Nothing found«.
@@ -4447,7 +4525,7 @@ class GlasbaActivity : OsActivity() {
         fun prveStrani(katalogi: List<Stremio.Katalog>): List<Jamendo.Skladba> = katalogi.take(3)
             .map { k -> iskanjeDelavec.submit<List<Jamendo.Skladba>> { try { Stremio.katalog(k).take(30) } catch (_: Exception) { emptyList() } } }
             .flatMap { f -> try { f.get(10, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } }
-            .filterNot { ZasebniKanali.jeZaseben(it.id) || MrtviKanali.jeMrtev(this, it.id) || znanoNiNaVoljo(it) }
+            .filterNot { ZasebniKanali.jeZaseben(it.id) || MrtviKanali.skrij(this, it) || znanoNiNaVoljo(it) || neodklenjena(it) }
             .distinctBy { it.id }.take(30)
         val police = ArrayList<Pair<String, List<Jamendo.Skladba>>>()
         if (!radio && !videospoti && zaGlasbo.isNotEmpty())
@@ -5084,9 +5162,9 @@ class GlasbaActivity : OsActivity() {
         // Zvocnik v omrezju (DLNA): zvocnik vir potegne sam, telefon je le daljinec.
         val naZvocniku = Zvocniki.aktivni
         if (naZvocniku != null) {
-            dejanje("k:zvocnik", R.drawable.os_ikona_zvocnik, getString(R.string.zvocnik_na, naZvocniku.ime)) { upravljajZvocnik() }
+            dejanje("k:zvocnik", R.drawable.os_ikona_predvajaj_na, getString(R.string.zvocnik_na, naZvocniku.ime)) { upravljajZvocnik() }
         } else if (GlasbaStoritev.zaZvocnik(sk)) {
-            dejanje("k:zvocnik", R.drawable.os_ikona_zvocnik, getString(R.string.zvocnik_predvajaj_na)) { izberiZvocnik(sk) }
+            dejanje("k:zvocnik", R.drawable.os_ikona_predvajaj_na, getString(R.string.zvocnik_predvajaj_na)) { izberiZvocnik(sk) }
         }
         dejanje("k:ustavi", R.drawable.os_ikona_ustavi, getString(R.string.os_media_ustavi)) { GlasbaStoritev.ustavi(this); glavna.postDelayed({ if (razdelek == DOMOV && !podstrani.odprta) izberi(DOMOV) }, 300) }
         return v
@@ -5193,11 +5271,15 @@ class GlasbaActivity : OsActivity() {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
                     // Naloga 57d: dodatek, ki zaporedoma ne odgovarja, ima oznako (izgine sama, ko spet odgovori).
                     v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "") +
-                        (if (Stremio.neOdgovarja(v.naslov)) " · " + getString(R.string.os_mediji_ne_odgovarja) else "") +
+                        (if (Stremio.neOdgovarja(v.naslov)) " · " + opisNeodziva(v.naslov) else "") +
                         // Naloga 77: dodatek samo za iskanje (YouTubio) nima mreze - uporabnik mora vedeti, kje ga najde.
                         (if (Stremio.samoIskanje(v.naslov) == true) " · " + getString(R.string.os_mediji_samo_iskanje) else "") +
                         // Naloga 79: dodatek daje tokove samo z narocnino (povezave na placilo ne kazemo).
                         (if (Stremio.brezProstihTokov(v.naslov)) " · " + getString(R.string.os_mediji_tokovi_narocnina) else "") +
+                        // Naloga 124: dodatek zahteva novejsi Safeer ali manjka obvezna nastavitev.
+                        (if (Stremio.zahtevaNovejsiSafeer(v.naslov)) " · " + getString(R.string.os_dodatek_posodobi_safeer) else "") +
+                        (Stremio.razsiritevZdaj(v.naslov)?.nastavitve?.takeIf { DodatkiNastavitve.manjkaObvezna(this, Stremio.osnova(v.naslov), it) }
+                            ?.let { " · " + getString(R.string.os_dodatek_potrebuje_nastavitve) } ?: "") +
                         // Naloga 75: napredek ali izid pregleda kanalov dodatka.
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
@@ -5384,9 +5466,18 @@ class GlasbaActivity : OsActivity() {
             seznami.map { karticaSeznama(it) }, mala = true))
         return vrstaSeznamov + listOf(Vrsta("", listOf(
             Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
-            Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, ikona = R.drawable.os_ikona_plus),
-            Kartica(getString(R.string.os_uvoz_naslov), getString(R.string.os_uvoz_opis), "", { uvoziSeznam() }, ikona = R.drawable.os_ikona_plus)) +
-            vsiViri().map { v -> Kartica((if (v.kljuc in pripeti) "★ " else "") + v.ime, v.opis, "", { v.odpri() }, { dolgoNaViru(v) }, ikona = v.ikona) },
+            // Naloga 125: dolg pritisk vklopi ali izklopi razvojni nacin dodatkov.
+            Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, { preklopiRazvoj() }, ikona = R.drawable.os_ikona_plus),
+            Kartica(getString(R.string.os_uvoz_naslov), getString(R.string.os_uvoz_opis), "", { uvoziSeznam() }, ikona = R.drawable.os_ikona_plus),
+            // Naloga 119: TorBox - zasebni in hitrejsi torrenti s kljucem uporabnika.
+            // Naloga 128: TorBox, Real-Debrid in AllDebrid na enem mestu.
+            Kartica(getString(R.string.os_debrid), opisDebrida(), "", { nastavitveDebrida() }, ikona = R.drawable.os_ikona_zaklep)) +
+            vsiViri().map { v -> Kartica((if (v.kljuc in pripeti) "★ " else "") + v.ime, v.opis, "", { v.odpri() }, { dolgoNaViru(v) }, ikona = v.ikona) } +
+            // Naloga 124: mape dodatkov (protokol v1) - npr. uporabnikov racun pri storitvi.
+            karticeMapDodatkov() +
+            // Naloga 125: razvojni nacin - kartica z orodji, samo ko je vklopljen.
+            (if (DodatkiRazvoj.vklopljen) listOf(Kartica(getString(R.string.os_razvoj_naslov), getString(R.string.os_razvoj_opis_vkl), "",
+                { meniRazvoja() }, ikona = R.drawable.os_ikona_nastavitve)) else emptyList()),
             mreza = true))
     }
 
@@ -5425,6 +5516,11 @@ class GlasbaActivity : OsActivity() {
             // Naloga 79b: zaklenjen dodatek - placilo je stvar uporabnika in dodatka; odpremo samo, ce uporabnik to izbere.
             (if (dodan.jeStremio && Stremio.povezavaOdklepa(dodan.naslov) != null) listOf(getString(R.string.os_mediji_odkleni) to {
                 odkleniPriDodatku(dodan.naslov) }) else emptyList()) +
+            // Naloga 124: nastavitve, ki jih je dodatek opisal (protokol v1).
+            (if (dodan.jeStremio && Stremio.razsiritevZdaj(dodan.naslov)?.nastavitve?.isNotEmpty() == true)
+                listOf(getString(R.string.os_dodatek_nastavitve) to { nastavitveDodatka(dodan.naslov) }) else emptyList()) +
+            // Naloga 113: dodatek preverimo takoj (manifest, kot pri vnosu) - oznaka »ne odgovarja« izgine ali dobi svezo kodo.
+            (if (dodan.jeStremio) listOf(getString(R.string.os_mediji_preveri_dodatek) to { preveriDodatekZdaj(dodan.naslov) }) else emptyList()) +
             (if (dodan.jeStremio || (dodan.jeSeznam && (IptvSeznami.podatki(this, dodan.naslov)?.kanalov ?: 0) > 0)) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
                 val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true)
                 Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
@@ -5455,7 +5551,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun skladbe(s: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null,
                         celota: List<Jamendo.Skladba> = s) = s.also { vzorciKnjiznice(it) }
-        .filterNot { MrtviKanali.jeMrtev(this, it.id) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) }.map { sk ->
+        .filterNot { MrtviKanali.skrij(this, it) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || neodklenjena(it) }.map { sk ->
         if (sk.mime == MedijskiViri.STRAN) Kartica(sk.naslov, sk.izvajalec, "", { odpriStran(sk.zvok, sk.naslov) }, { meni(sk, s, vrsta, seznam) }, ikona = R.drawable.os_ikona_splet)
         else {
             val oznaka = if (sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT) "▶ Video" else ""
@@ -5494,7 +5590,7 @@ class GlasbaActivity : OsActivity() {
                       zapomnjene: ZapomnjeneKartice? = null): List<Kartica> {
         // Vsebine, za katero vemo, da je noben dodatek ne predvaja, ne kazemo nikjer (police, iskanje, mreza).
         // Enako kanal ali postaja, ki pri viru ta cas ne dela ([MrtviKanali]).
-        val v = v0.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || MrtviKanali.jeMrtev(this, it.id) || znanNedelujocKanal(it) }
+        val v = v0.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || MrtviKanali.skrij(this, it) || neodklenjena(it) }
         preveriPolico(v0)
         val napredekKrajevnih = if (v.none { it.id.startsWith("krajevno:") }) emptyMap()
             else MediaNapredek.seznam(this).filter { it.skladba.id.startsWith("krajevno:") && it.polozaj > 0 }.associateBy { it.skladba.id }
@@ -5526,6 +5622,9 @@ class GlasbaActivity : OsActivity() {
             val podnaslov = if (sk.id.startsWith("krajevno:") || sk.id.startsWith(PREDPONA_PC_PRENOSA))
                 napredekKrajevnih[sk.id]?.let { n -> "${cas(n.polozaj)} / ${cas(n.trajanje)}" } ?: sk.izvajalec
             // Posnetek s seznama predvajanja (uvozen z YouTuba): pod naslovom avtor, letnice nima.
+            // Naloga 109: skladba seznama, ki ne deluje - razlog pred avtorjem (»⚠ zaseben posnetek · Avtor«).
+            else if (seznam != null && NedelujoceSkladbe.razlog(this, sk.id) != null)
+                listOf("⚠ " + NedelujoceSkladbe.opis(this, NedelujoceSkladbe.razlog(this, sk.id).orEmpty()), sk.izvajalec).filter { it.isNotBlank() }.joinToString(" · ")
             else sk.year.takeIf { it > 0 }?.toString() ?: if (seznam != null) sk.izvajalec else ""
             val tip = if (vZivo) getString(R.string.os_media_oznaka_v_zivo) else {
                 // Posnetek z uvozenega seznama predvajanja je video, ne film (letnica v naslovu predavanja ga ne naredi filma).
@@ -5677,6 +5776,26 @@ class GlasbaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ priljubljene
 
+    /**
+     * Naloga 109: »Poisci drug posnetek« - isto iskanje kot uvoz ([UvozSeznama.najdi]) brez posnetka, ki ne deluje; najden
+     * zamenja skladbo na vseh seznamih ([MedijskiViri.zamenjaj]), zapis o nedelovanju izgine.
+     */
+    private fun poisciDrugPosnetek(sk: Jamendo.Skladba) {
+        val izloci = setOfNotNull(NedelujocePravila.idYoutube(sk.povezava))
+        Toast.makeText(this, getString(R.string.os_media_pripravljam, sk.naslov), Toast.LENGTH_SHORT).show()
+        delavec.execute {
+            val nov = try { UvozSeznama.najdi(UvozSeznama.iskana(sk.naslov, sk.izvajalec, 0, sk.slika), izloci) } catch (_: Exception) { null }
+            if (nov != null && nov.id != sk.id) { MedijskiViri.zamenjaj(this, mapOf(sk.id to nov)); NedelujoceSkladbe.pozabi(this, sk.id) }
+            android.util.Log.i("SafeerOsMedia", "drug posnetek \"${sk.naslov.take(40)}\": ${if (nov != null && nov.id != sk.id) "najden" else "ni"}")
+            glavna.post {
+                if (isFinishing) return@post
+                val najden = nov != null && nov.id != sk.id
+                Toast.makeText(this, if (najden) R.string.os_nedel_nov_posnetek else R.string.os_nedel_ni_drugega, Toast.LENGTH_SHORT).show()
+                if (najden) osveziPriljubljene()
+            }
+        }
+    }
+
     private fun meni(sk: Jamendo.Skladba, vrsta: List<Jamendo.Skladba>, ime: String, seznam: MedijskiViri.Seznam?) {
         val dejanja = mutableListOf<Pair<String, () -> Unit>>()
         if (MediaNapredek.polozaj(this, sk) > 0) {
@@ -5698,6 +5817,12 @@ class GlasbaActivity : OsActivity() {
         // Svoj seznam predvajanja: skladbo dodas na obstojecega ali novega (ne samo "shrani vso vrsto").
         // Kanal v zivo ni skladba za seznam predvajanja: zanj so priljubljeni (zgoraj).
         if (SeznamOkno.mozno(sk) && !sk.id.startsWith("tv:")) dejanja += getString(R.string.os_seznam_dodaj) to { dodajNaSeznam(sk) }
+        // Naloga 109: skladba seznama, ki ne deluje - drug posnetek iste skladbe ali preverba znova.
+        val razlogSkladbe = if (seznam != null) NedelujoceSkladbe.razlog(this, sk.id) else null
+        if (seznam != null && razlogSkladbe != null) {
+            if (NedelujocePravila.idYoutube(sk.povezava) != null) dejanja += getString(R.string.os_nedel_poisci_drug) to { poisciDrugPosnetek(sk) }
+            dejanja += getString(R.string.os_nedel_preveri_znova) to { NedelujoceSkladbe.pozabi(this, sk.id); predvajaj(listOf(sk), 0) }
+        }
         if (seznam != null) dejanja += getString(R.string.os_seznam_odstrani_skladbo) to {
             MedijskiViri.odstraniSSeznama(this, seznam.ime, sk); SEZNAMI.remove(DOMOV); osveziPriljubljene()
         }
@@ -5722,10 +5847,264 @@ class GlasbaActivity : OsActivity() {
         }
         // Film ali serija iz dodatkov: predvajanje samo izbere najboljsi tok; tu ga uporabnik lahko izbere sam.
         if (Stremio.jeEnota(sk)) dejanja += getString(R.string.os_media_izberi_tok) to { razresiStremio(sk, rocno = true) }
+        // Naloga 124: dejanja dodatka (protokol v1) in »O vsebini« (dopolnitev v ozadju).
+        for (d in Stremio.dejanjaZa(sk)) dejanja += d.naslov.za(jezikUporabnika()) to { izvediDejanjeDodatka(sk, d) }
+        if (Stremio.ponujaDopolnitev(sk)) dejanja += getString(R.string.os_dodatek_o_vsebini) to { pokaziDopolnitev(sk) }
         if (dejanja.isEmpty()) return
         pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja[k].second() }
             .setNegativeButton(android.R.string.cancel, null))
+    }
+
+    // ------------------------------------------------------------------ naloga 124: razsiritve dodatkov (protokol v1)
+
+    private fun jezikUporabnika(): String = resources.configuration.locales[0].language
+
+    /** Dejanje dodatka iz menija vsebine: po potrebi potrditev (privzeto Preklici), klic v ozadju, sporocilo dodatka. */
+    private fun izvediDejanjeDodatka(sk: Jamendo.Skladba, d: DodatkiProtokol.Dejanje) {
+        val naslov = d.naslov.za(jezikUporabnika())
+        val izvedi = {
+            val app = this
+            delavec.execute {
+                val odgovor = try { Stremio.izvediDejanje(sk, d) } catch (_: Exception) { null }
+                glavna.post {
+                    if (isFinishing) return@post
+                    val besedilo = odgovor?.sporocilo?.za(jezikUporabnika())?.takeIf { it.isNotBlank() }
+                        ?: getString(if (odgovor == null) R.string.os_dodatek_ne_odgovori else if (odgovor.ok) R.string.os_dodatek_dejanje_ok else R.string.os_dodatek_dejanje_ni)
+                    Toast.makeText(app, besedilo, Toast.LENGTH_LONG).show()
+                    if (odgovor?.osvezi == true) osveziNaMestu()
+                }
+            }
+            Unit
+        }
+        if (!d.potrdi) { izvedi(); return }
+        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(naslov).setMessage(sk.naslov)
+            .setPositiveButton(naslov) { _, _ -> izvedi() }
+            .setNegativeButton(R.string.os_preklici, null))
+    }
+
+    /**
+     * »O vsebini«: okno se odpre takoj z znanim (naslov, leto), dodatek ga dopolni v ozadju (enrich) - ocena, jezik,
+     * igralci, opis. Dodatek ne more zamenjati naslova, id-ja ali tokov.
+     */
+    private fun pokaziDopolnitev(sk: Jamendo.Skladba) {
+        val besedilo = TextView(this).apply {
+            setTextColor(osBarva(R.color.os_besedilo)); setPadding(48, 24, 48, 24)
+            text = listOf(sk.izvajalec, getString(R.string.os_dodatek_nalagam)).filter { it.isNotBlank() }.joinToString("\n\n")
+        }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sk.naslov)
+            .setView(android.widget.ScrollView(this).apply { addView(besedilo) })
+            .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+        delavec.execute {
+            val m = try { Stremio.dopolni(sk) } catch (_: Exception) { null }
+            glavna.post {
+                if (isFinishing || !okno.isShowing) return@post
+                val vrstice = ArrayList<String>()
+                if (sk.izvajalec.isNotBlank()) vrstice += sk.izvajalec
+                m?.optString("imdbRating")?.takeIf { it.isNotBlank() }?.let { vrstice += getString(R.string.os_dodatek_ocena, DodatkiProtokol.cisto(it, 10)) }
+                m?.optString("language")?.takeIf { it.isNotBlank() }?.let { vrstice += getString(R.string.os_dodatek_jezik, DodatkiProtokol.cisto(it, 40)) }
+                m?.optJSONArray("cast")?.let { a -> (0 until minOf(a.length(), 8)).mapNotNull { a.optString(it).takeIf { s -> s.isNotBlank() } } }
+                    ?.takeIf { it.isNotEmpty() }?.let { vrstice += getString(R.string.os_dodatek_igralci, DodatkiProtokol.cisto(it.joinToString(", "), 300)) }
+                m?.optString("description")?.takeIf { it.isNotBlank() }?.let { vrstice += DodatkiProtokol.cisto(it, 1500) }
+                if (m == null || vrstice.size <= (if (sk.izvajalec.isNotBlank()) 1 else 0)) vrstice += getString(R.string.os_dodatek_ni_podatkov)
+                besedilo.text = vrstice.joinToString("\n\n")
+            }
+        }
+    }
+
+    /** Naloga 126: manifesti dodatkov se nalagajo za Moje vire (enkrat hkrati). */
+    @Volatile private var nalagamManifeste = false
+
+    /**
+     * Naloga 126: manifesti, ki jih se ni v pomnilniku (zagon, »Znova nalozi dodatke«), se nalozijo v ozadju in Moji viri se
+     * narisejo znova - prej so kartice map izginile, dokler manifesta ni nalozilo nekaj drugega (katalogi).
+     */
+    private fun zagotoviManifeste(naslovi: List<String>) {
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        // Dodatek, ki ne odgovori, ne sme sprozati nalaganja ob vsakem risanju: najvec en poskus na minuto.
+        if (nalagamManifeste || zdaj - zadnjiPoskusManifestov < 60_000L || Stremio.manifestiVPomnilniku(naslovi)) return
+        nalagamManifeste = true
+        zadnjiPoskusManifestov = zdaj
+        val prej = naslovi.count { Stremio.razsiritevZdaj(it) != null }
+        delavec.execute {
+            try { Stremio.naloziManifeste(naslovi) } finally {
+                nalagamManifeste = false
+                val potem = naslovi.count { Stremio.razsiritevZdaj(it) != null }
+                // Osvezimo samo, ce je prisla nova razsiritev (kartica mape ali nastavitev).
+                if (potem != prej) glavna.post { if (!isFinishing && razdelek == VIRI) osveziNaMestu() }
+            }
+        }
+    }
+
+    private var zadnjiPoskusManifestov = 0L
+
+    /** Kartice map dodatkov za Moje vire (iz pomnilnika; manjkajoce manifeste nalozi [zagotoviManifeste]). */
+    private fun karticeMapDodatkov(): List<Kartica> = stremioNaslovi().also { zagotoviManifeste(it) }.flatMap { n ->
+        val r = Stremio.razsiritevZdaj(n) ?: return@flatMap emptyList()
+        // Naloga 127: mapo, ki je ta naprava ne more odpreti (http brez razvojnega nacina), ne kazemo.
+        if (!Stremio.razsiritveUporabne(n)) return@flatMap emptyList()
+        val ime = Stremio.imeIzPredpomnilnika(n) ?: ""
+        r.mape.map { mapa ->
+            val imeMape = mapa.ime.za(jezikUporabnika())
+            Kartica(imeMape, ime, "", { odpriMapoDodatka(n, mapa.id, "", imeMape) }, ikona = R.drawable.os_ikona_mapa)
+        }
+    }
+
+    /**
+     * Mapa dodatka: seznam (z daljincem in na dotik) - mapa odpre globlje, vsebina se predvaja kot vsaka kartica dodatka,
+     * »Vec« nalozi naslednjo stran. Vse z delovne niti; dodatek, ki ne odgovori, pove sporocilo.
+     */
+    private fun odpriMapoDodatka(naslov: String, mapa: String, pot: String, ime: String) {
+        Toast.makeText(this, getString(R.string.os_media_pripravljam, ime), Toast.LENGTH_SHORT).show()
+        delavec.execute {
+            val izid = try { Stremio.mapa(naslov, mapa, pot) } catch (_: Exception) { null }
+            glavna.post {
+                if (isFinishing) return@post
+                if (izid == null) { Toast.makeText(this, R.string.os_dodatek_ne_odgovori, Toast.LENGTH_LONG).show(); return@post }
+                val (vsebina, kartice) = izid
+                if (vsebina.elementi.isEmpty()) { Toast.makeText(this, R.string.os_dodatek_mapa_prazna, Toast.LENGTH_SHORT).show(); return@post }
+                val imena = vsebina.elementi.map { (if (it.vrsta == "folder") "📁 " else "") + it.ime } +
+                    (if (vsebina.naprej.isNotBlank()) listOf(getString(R.string.os_dodatek_vec)) else emptyList())
+                val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(ime)
+                    .setItems(imena.toTypedArray()) { _, i ->
+                        val e = vsebina.elementi.getOrNull(i)
+                        when {
+                            e == null -> odpriMapoDodatka(naslov, mapa, vsebina.naprej, ime)
+                            e.vrsta == "folder" -> odpriMapoDodatka(naslov, mapa, e.pot, e.ime)
+                            else -> kartice.getOrNull(i)?.let { sk -> zadnjiIzbran = sk.id; predvajaj(listOf(sk), 0) }
+                        }
+                    }
+                    .setNegativeButton(R.string.os_preklici, null).create()
+                Kontroler.pokazi(okno); okno.show()
+            }
+        }
+    }
+
+    /**
+     * Nastavitve dodatka (protokol v1): polja, ki jih je dodatek opisal, narisana v nasem slogu. Skrivnost se ne pokaze
+     * nazaj - prazno polje pomeni »pusti, kot je«; »Ponastavi« pobrise vse vrednosti dodatka (tudi skrivnosti).
+     */
+    private fun nastavitveDodatka(naslov: String) {
+        val r = Stremio.razsiritevZdaj(naslov) ?: return
+        val osnova = Stremio.osnova(naslov)
+        val jezik = jezikUporabnika()
+        val zdaj = DodatkiNastavitve.vrednosti(this, osnova, r.nastavitve)
+        val rob = (20 * resources.displayMetrics.density).toInt()
+        val stolpec = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(rob, rob / 2, rob, 0) }
+        val bralci = ArrayList<Pair<DodatkiProtokol.Nastavitev, () -> String>>()
+        for (n in r.nastavitve) {
+            stolpec.addView(TextView(this).apply {
+                text = n.naslov.za(jezik) + if (n.obvezna) " *" else ""
+                setTextColor(osBarva(R.color.os_besedilo)); setPadding(0, rob / 2, 0, 0)
+            })
+            when (n.vrsta) {
+                "toggle" -> {
+                    val stikalo = android.widget.Switch(this).apply { isChecked = (zdaj[n.kljuc] ?: n.privzeto) == "true" }
+                    stolpec.addView(stikalo); bralci += n to { stikalo.isChecked.toString() }
+                }
+                "choice" -> {
+                    val izbira = android.widget.Spinner(this)
+                    izbira.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, n.moznosti)
+                    izbira.setSelection(n.moznosti.indexOf(zdaj[n.kljuc] ?: n.privzeto).coerceAtLeast(0))
+                    stolpec.addView(izbira); bralci += n to { n.moznosti.getOrElse(izbira.selectedItemPosition) { n.privzeto } }
+                }
+                else -> {
+                    val polje = EditText(this).apply {
+                        isSingleLine = true
+                        if (n.skrivnost) {
+                            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                            if (DodatkiNastavitve.imaSkrivnost(this@GlasbaActivity, osnova, n)) hint = getString(R.string.os_dodatek_shranjeno_prazno)
+                        } else setText(zdaj[n.kljuc] ?: n.privzeto)
+                    }
+                    stolpec.addView(polje); bralci += n to { polje.text.toString().trim() }
+                }
+            }
+        }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_dodatek_nastavitve) + " · " + (Stremio.imeIzPredpomnilnika(naslov) ?: ""))
+            .setView(android.widget.ScrollView(this).apply { addView(stolpec) })
+            .setPositiveButton(R.string.os_dodatek_shrani) { _, _ ->
+                val vsa = bralci.all { (n, beri) -> DodatkiNastavitve.shrani(this, osnova, n, beri()) }
+                Stremio.pozabiOdgovore(naslov)
+                Toast.makeText(this, if (vsa) R.string.os_dodatek_nastavitve_shranjene else R.string.os_dodatek_nastavitve_napaka, Toast.LENGTH_SHORT).show()
+                osveziNaMestu()
+            }
+            .setNeutralButton(R.string.os_dodatek_ponastavi) { _, _ ->
+                DodatkiNastavitve.pozabiDodatek(this, osnova, r.nastavitve)
+                Stremio.pozabiOdgovore(naslov)
+                Toast.makeText(this, R.string.os_dodatek_ponastavljeno, Toast.LENGTH_SHORT).show()
+                osveziNaMestu()
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    // ------------------------------------------------------------------ naloga 125: razvojni nacin dodatkov
+
+    /** Vklop (s pojasnilom in potrditvijo) ali izklop razvojnega nacina; privzeti gumb je Preklici. */
+    private fun preklopiRazvoj() {
+        if (DodatkiRazvoj.vklopljen) {
+            DodatkiRazvoj.nastavi(this, false)
+            Toast.makeText(this, R.string.os_razvoj_izklopljen, Toast.LENGTH_SHORT).show(); osveziNaMestu(); return
+        }
+        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_razvoj_vklopi).setMessage(R.string.os_razvoj_vklopi_vprasanje)
+            .setPositiveButton(R.string.os_razvoj_vklopi) { _, _ ->
+                DodatkiRazvoj.nastavi(this, true)
+                Toast.makeText(this, R.string.os_razvoj_vklopljen, Toast.LENGTH_SHORT).show(); osveziNaMestu()
+            }
+            .setNegativeButton(R.string.os_preklici, null))
+    }
+
+    /** Orodja razvojnega nacina: znova nalozi dodatke, dnevnik odgovorov, izklop. */
+    private fun meniRazvoja() {
+        val dejanja = listOf(
+            getString(R.string.os_razvoj_znova) to {
+                val naslovi = stremioNaslovi()
+                delavec.execute {
+                    Stremio.znovaNalozi(naslovi)
+                    // Naloga 126: manifeste takoj znova, da kartice map in nastavitev ne izginejo.
+                    Stremio.naloziManifeste(naslovi)
+                    glavna.post { if (!isFinishing) { Toast.makeText(this, R.string.os_razvoj_znova_ok, Toast.LENGTH_SHORT).show(); osveziNaMestu() } }
+                }
+                Unit
+            },
+            getString(R.string.os_razvoj_dnevnik) to { pokaziDnevnikDodatkov() },
+            getString(R.string.os_razvoj_izklopi) to { preklopiRazvoj() })
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_razvoj_naslov)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Dnevnik odgovorov dodatkov (najnovejsi prvi): cas, gostitelj, vrsta zahteve, koda, velikost, trajanje. */
+    private fun pokaziDnevnikDodatkov() {
+        val ura = java.text.SimpleDateFormat("HH:mm:ss", Locale.ROOT)
+        val vrstice = DodatkiRazvoj.zapisi().map { z ->
+            "${ura.format(java.util.Date(z.cas))}  ${z.gostitelj}  ${z.vrsta}  ${z.koda}" +
+                (if (z.bajtov >= 0) "  ${z.bajtov} B" else "") + (if (z.ms > 0) "  ${z.ms} ms" else "")
+        }
+        val besedilo = TextView(this).apply {
+            setTextColor(osBarva(R.color.os_besedilo)); setPadding(48, 24, 48, 24); typeface = android.graphics.Typeface.MONOSPACE; textSize = 12f
+            text = if (vrstice.isEmpty()) getString(R.string.os_razvoj_dnevnik_prazen) else vrstice.joinToString("\n")
+        }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_razvoj_dnevnik)
+            .setView(ScrollView(this).apply { addView(besedilo) }).setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Seznam sprememb dodatka enkrat po njegovi posodobitvi (prvi tak dodatek ob vrnitvi na zaslon). */
+    private fun pokaziSpremembeDodatkov() {
+        for (n in stremioNaslovi()) {
+            val b = Stremio.spremembeZaPrikaz(this, n) ?: continue
+            val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.os_dodatek_novo, Stremio.imeIzPredpomnilnika(n) ?: ""))
+                .setMessage(b.za(jezikUporabnika())).setPositiveButton(android.R.string.ok, null).create()
+            Kontroler.pokazi(okno); okno.show()
+            return
+        }
     }
 
     /** Na TV je varen privzeti fokus vedno Preklici, nikoli dejanje, ki brise uporabnikove podatke. */
@@ -6035,7 +6414,10 @@ class GlasbaActivity : OsActivity() {
             tvKanali.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, "", getString(R.string.os_mediji_tv_v_zivo), 4)) }
             val lestvica = Relevantnost.razvrsti(beseda, vsi)
             val videniNajboljsi = mutableSetOf<String>()
-            val najboljsi = lestvica.filter { it.second >= Relevantnost.SPODNJA }.filter { z ->
+            // Naloga 120: neodklenjena placljiva vsebina tudi med najboljsimi zadetki ne.
+            val najboljsi = lestvica.filter { it.second >= Relevantnost.SPODNJA }
+                // Naloga 121: tudi nedelujoc kanal ne.
+                .filterNot { (it.first.stvar as? Jamendo.Skladba)?.let { s -> neodklenjena(s) || MrtviKanali.skrij(this, s) } == true }.filter { z ->
                 val s = z.first.stvar as? Jamendo.Skladba
                 if (s != null) {
                     val k = SpletniVir.cistNaslov(s.izvajalec + " " + s.naslov)
@@ -6643,6 +7025,32 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /** Naloga 113: »Ne odgovarja od 13:02 (HTTP 500)« - od kdaj in s katero kodo ([Stremio.odziv]); brez casa kot doslej. */
+    private fun opisNeodziva(naslov: String): String {
+        val o = Stremio.odziv(naslov) ?: return getString(R.string.os_mediji_ne_odgovarja)
+        if (o.odKdaj <= 0L) return getString(R.string.os_mediji_ne_odgovarja)
+        val cas = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT, Locale.getDefault()).format(java.util.Date(o.odKdaj))
+        return if (o.koda > 0) getString(R.string.os_mediji_ne_odgovarja_od_http, cas, o.koda) else getString(R.string.os_mediji_ne_odgovarja_od, cas)
+    }
+
+    /** Naloga 113: »Preveri dodatek zdaj« - manifest kot pri vnosu ([Stremio.preveriObVnosu]); izid in osvezitev kartice. */
+    private fun preveriDodatekZdaj(naslov: String) {
+        Toast.makeText(this, R.string.os_mediji_preverjam, Toast.LENGTH_SHORT).show()
+        delavec.execute {
+            val koda = try { Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
+            android.util.Log.i("SafeerOsMedia", "preveri dodatek ${android.net.Uri.parse(Stremio.osnova(naslov)).host}: koda=$koda")
+            glavna.post {
+                if (isFinishing) return@post
+                Toast.makeText(this, when {
+                    koda == 200 -> getString(R.string.os_mediji_dodatek_odgovarja)
+                    koda > 0 -> getString(R.string.os_mediji_dodatek_ne_odgovarja_http, koda)
+                    else -> getString(R.string.os_mediji_dodatek_ne_odgovarja_brez)
+                }, Toast.LENGTH_SHORT).show()
+                if (razdelek == VIRI && odprtKatalog == null && !podstrani.odprta) izberiNaMestu(VIRI)
+            }
+        }
+    }
+
     /**
      * Seznami predvajanja so enaki na vseh napravah v Safeer Linku: ob odprtju vprasamo ostale naprave ([SeznamiSink]).
      * Ce se kaj spremeni, zaslon osvezimo le, ko uporabnik ravno nicesar ne dela (sicer ob naslednjem risanju).
@@ -6694,6 +7102,8 @@ class GlasbaActivity : OsActivity() {
                 MedijskiViri.odstrani(this, v)
                 // Naloga 76: zapis zasebnih kategorij odstranjenega dodatka gre z njim.
                 if (v.jeStremio) { val app = applicationContext; delavec.execute { ZasebniKanali.pozabi(app, Stremio.osnova(v.naslov)) } }
+                // Naloga 124: nastavitve in skrivnosti odstranjenega dodatka gredo z njim.
+                if (v.jeStremio) Stremio.razsiritevZdaj(v.naslov)?.let { DodatkiNastavitve.pozabiDodatek(this, Stremio.osnova(v.naslov), it.nastavitve) }
                 // Naloga 86 (M5): seznam IPTV - datoteki kanalov (do 20 MB) in napredek pregleda gresta z njim.
                 if (v.jeSeznam) { val app = applicationContext; val n = v.naslov
                     try { delavec.execute { IptvSeznami.pozabi(app, n); PregledKanalov.pozabi(app, n) } } catch (_: java.util.concurrent.RejectedExecutionException) { } }
@@ -6841,7 +7251,12 @@ class GlasbaActivity : OsActivity() {
         if (TuneIn.jeEnota(sk)) { razresiTuneIn(sk); return }
         if (UvozSeznama.jeIskana(sk)) { predvajajVrstoPosnetkov(seznam, sk); return }
         if (SpletniVir.jeEnota(sk)) { razresiSplet(sk); return }
-        if (Stremio.jeEnota(sk)) { razresiStremio(sk); return }
+        if (Stremio.jeEnota(sk)) {
+            // Naloga 140: nazadnje predvajana epizoda (»Nadaljuj«) se nadaljuje, ne odpre seznama sezon serije.
+            val ep = SerijePravila.epizodaZaNadaljevanje(Stremio.razstavi(sk)?.second, sk.season, sk.episode, sk.naslov)
+            if (ep != null) nadaljujEpizodo(sk, ep.first, ep.second) else razresiStremio(sk)
+            return
+        }
         if (sk.id.startsWith(PREDPONA_PC_PRENOSA)) { meniPrenosa(sk); return }
         if (!sk.video || sk.zvok.isNotBlank()) {
             GlasbaStoritev.predvajaj(this, seznam, i)
@@ -6939,22 +7354,32 @@ class GlasbaActivity : OsActivity() {
      * Tokovi iz vseh dodatkov hkrati (vsak dodatek svoja nit, skupaj najvec 12 s): cakanje je toliko, kot traja
      * najpocasnejsi dodatek, ne vsota vseh (prej zaporedno).
      */
-    private fun tokoviVzporedno(tip0: String, id: String, rokMs: Long = OsPravila.rokTokovMs(false)): List<Stremio.Tok> {
+    private fun tokoviVzporedno(tip0: String, id: String, rokMs: Long = OsPravila.rokTokovMs(false),
+                                /** Naloga 130: se en id iste vsebine (epizoda po IMDb), vprasan hkrati pri vseh dodatkih. */
+                                dodatniId: String? = null): List<Stremio.Tok> {
         // Naloga 77: vnos tipa »music« z id-jem IMDb (koncert) vprasamo kot »movie«, ce noben dodatek ne da tokov za »music«.
         val tip = Stremio.tipToka(stremioNaslovi(), tip0, id)
         if (tip != tip0) android.util.Log.i("SafeerOsMedia", "tokovi: tip $tip0 -> $tip (noben dodatek ne da tokov za $tip0)")
-        val niti = stremioNaslovi().map { n -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { Stremio.tokovi(listOf(n), tip, id) } catch (_: Exception) { emptyList() } } }
+        val idji = listOfNotNull(id, dodatniId)
+        val niti = stremioNaslovi().flatMap { n -> idji.map { i -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { Stremio.tokovi(listOf(n), tip, i) } catch (_: Exception) { emptyList() } } } } +
+            // Naloga 141: Usenet pri uporabnikovem indeksatorju (po IMDb), hkrati z dodatki; samo film in serija.
+            (if (tip !in setOf("movie", "series") || !Usenet.jeNaVoljo(applicationContext)) emptyList()
+            else idji.firstOrNull { UsenetPravila.iscemo(it) }
+                ?.let { i -> listOf(iskanjeDelavec.submit<List<Stremio.Tok>> { Usenet.isci(applicationContext, i) }) }.orEmpty())
         val zacetek = android.os.SystemClock.uptimeMillis()
         var prviTok = 0L
         // Nic cakanja: ko ima prvi dodatek predvajljiv tok, pocasnim damo se 1,5 s (boljsa izbira), ne vseh 12 s.
+        // Naloga 130: z aktivno debrid storitvijo steje tudi torrent in pocakamo 3 s (Torrentio odgovori pocasneje).
+        val zDebridom = Debrid.aktivna(applicationContext) != null
+        val cakaj = DebridPravila.cakajPoPrvemMs(zDebridom)
         while (true) {
             val zdaj = android.os.SystemClock.uptimeMillis()
             if (niti.all { it.isDone } || zdaj - zacetek > rokMs) break
-            if (prviTok == 0L && niti.any { f -> f.isDone && (try { f.get() } catch (_: Exception) { emptyList() }).any { it.vrsta == "url" } }) prviTok = zdaj
-            if (prviTok != 0L && zdaj - prviTok > 1_500) break
+            if (prviTok == 0L && niti.any { f -> f.isDone && (try { f.get() } catch (_: Exception) { emptyList() }).any { DebridPravila.stejeKotPrvi(it.vrsta, zDebridom) } }) prviTok = zdaj
+            if (prviTok != 0L && zdaj - prviTok > cakaj) break
             try { Thread.sleep(40) } catch (_: InterruptedException) { break }
         }
-        val tokovi = niti.filter { it.isDone }.flatMap { f -> try { f.get() } catch (_: Exception) { emptyList() } }
+        val tokovi = niti.filter { it.isDone }.flatMap { f -> try { f.get() } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
         // Dodatek, ki v roku ni odgovoril, bi tok morda imel: brez tokov je to izpad, ne "ni na voljo".
         if (tokovi.isEmpty() && niti.any { !it.isDone }) Stremio.zadnjiIzpad.set(System.currentTimeMillis())
         return tokovi
@@ -6981,9 +7406,18 @@ class GlasbaActivity : OsActivity() {
         val stranica = try { zaslon.supportedModes.maxOfOrNull { minOf(it.physicalWidth, it.physicalHeight) } } catch (_: Exception) { null }
             ?: minOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
         @Suppress("DEPRECATION") val hdrTipi = try { zaslon.hdrCapabilities?.supportedHdrTypes?.toSet() } catch (_: Exception) { null } ?: emptySet()
+        // Naloga 142: zmore kateri dekoder HEVC profil Main10 (10-bitni)? SM-X210 ga nima (c2.qti.hevc.decoder:
+        // DECODING_FAILED pri »10bit HEVC«). Brez podatka velja kot doslej (da).
+        val hevc10 = try {
+            android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).codecInfos
+                .filter { !it.isEncoder && it.supportedTypes.any { t -> t.equals("video/hevc", ignoreCase = true) } }
+                .any { info -> info.getCapabilitiesForType("video/hevc").profileLevels
+                    .any { it.profile == android.media.MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 } }
+        } catch (_: Exception) { true }
+        android.util.Log.i("SafeerOsMedia", "zmoznosti: HEVC Main10=$hevc10")
         // Televizor zvok Dolby odda sam ali ga preda zvocniku (HDMI); na telefonu odloca dekodirnik.
         val tv = jeTv()
-        TokIzbira.Zmoznosti(
+        TokIzbira.Zmoznosti(hevc10 = hevc10,
             visina = when { stranica >= 2000 -> 2160; stranica >= 1300 -> 1440; stranica >= 1000 -> 1080; else -> 720 },
             hevc = "video/hevc" in kodeki, av1 = "video/av01" in kodeki, hdr = hdrTipi.isNotEmpty(),
             dolbyVision = "video/dolby-vision" in kodeki && android.view.Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION in hdrTipi,
@@ -7028,8 +7462,12 @@ class GlasbaActivity : OsActivity() {
             if (znanaSerija && odpriKotSerijo(15)) return@execute
             val razred = Stremio.razred(tip)
             // Album, seznam, podkast ali kanal z videi ima posnetke kot serija epizode; film, TV kanal in postaja imajo tok naravnost.
-            val posnetki = if (tip == "series" || razred == Stremio.GLASBA || razred == Stremio.VIDEO)
+            val posnetkiDodatka = if (tip == "series" || razred == Stremio.GLASBA || razred == Stremio.VIDEO)
                 (try { Stremio.epizode(sk) } catch (_: Exception) { emptyList() }) else emptyList()
+            // Naloga 130: dodatek kartice epizod ni dal - poiscemo jih po id-ju IMDb pri drugih uporabnikovih dodatkih.
+            val posnetki = if (tip != "series" || posnetkiDodatka.isNotEmpty()) posnetkiDodatka
+                else Stremio.imdbZa(sk)?.let { imdb -> try { Stremio.epizodePoImdb(stremioNaslovi(), imdb, Stremio.razstavi(sk)?.first.orEmpty()) } catch (_: Exception) { emptyList() } }
+                    .orEmpty().also { if (it.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "serija: epizode iz drugega dodatka po IMDb (${it.size})") }
             if (tip == "series" || posnetki.size > 1) {
                 glavna.post {
                     koncajPripravo(priprava)
@@ -7040,7 +7478,8 @@ class GlasbaActivity : OsActivity() {
             } else if (posnetki.size == 1) {
                 val e = posnetki.first()
                 val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id) } catch (_: Exception) { emptyList() } }
-                glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno) }
+                val pp = predpomnjeniZa(t)
+                glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno, pp) }
             } else {
                 val enote = (listOf(tip to id) + razlicice.filter { Stremio.jeEnota(it) }.mapNotNull { r -> Stremio.razstavi(r)?.let { it.second to it.third } }).distinct().take(5)
                 // Naloga 88: kanal v zivo - najvec [OsPravila.rokTokovMs] (7 s) za vse dodatke, da je odgovor uporabniku v 8 s.
@@ -7059,7 +7498,47 @@ class GlasbaActivity : OsActivity() {
                     glavna.post { koncajPripravo(priprava); if (!isFinishing) predvajaj(listOf(rezerva), 0) }
                     return@execute
                 }
-                glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno) }
+                val pp = if (vZivo) emptySet() else predpomnjeniZa(t)
+                glavna.post { koncajPripravo(priprava); if (!isFinishing) izberiTok(sk, sk.naslov, t, rocno, pp) }
+            }
+        }
+    }
+
+    /**
+     * Naloga 130/136: kateri torrenti so pri debrid storitvi ze pripravljeni (oznaka ⚡, samodejna izbira). Z delovne niti;
+     * TorBox en klic do 4 s, Real-Debrid in AllDebrid iz zapomnjenih (brez klica); brez aktivne storitve prazno.
+     */
+    private fun predpomnjeniZa(tokovi: List<Stremio.Tok>): Set<String> {
+        val hashi = tokovi.filter { it.vrsta == "torrent" }.mapNotNull { TorBoxPravila.hashIzMagneta(it.url) }
+        return if (hashi.isEmpty()) emptySet() else Debrid.predpomnjeni(applicationContext, hashi)
+    }
+
+    /**
+     * Naloga 140: epizoda [sezona]/[epizoda] serije iz zapisa [sk] (nazadnje predvajano) - tokove vprasamo znova (povezava
+     * debrid velja le nekaj ur), naslov ostane isti, zato predvajalnik nadaljuje pri shranjenem mestu (MediaNapredek).
+     * Epizode serija ne navaja vec: seznam sezon kot prej.
+     */
+    private fun nadaljujEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int) {
+        // Oznaka preizkusa (naloga 135) ostane - sicer bi preizkusni ogled sel v zgodovino.
+        val serija = sk.copy(id = sk.id.substringBefore('#') + (if (PreizkusPravila.jePreizkus(sk.id)) PreizkusPravila.OZNAKA else ""),
+            season = 0, episode = 0)
+        val tip = Stremio.razstavi(serija)?.second ?: return
+        val priprava = zacniPripravo(sk) ?: return
+        delavec.execute {
+            val e = (try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }).firstOrNull { it.sezona == sezona && it.epizoda == epizoda }
+            if (e == null) {
+                glavna.post { koncajPripravo(priprava); if (!isFinishing) razresiStremio(serija) }
+                return@execute
+            }
+            val dodatni = SerijePravila.idEpizodePoImdb(Stremio.imdbZa(serija), e.id, e.sezona, e.epizoda)
+            val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni) } catch (_: Exception) { emptyList() } }
+            val pp = predpomnjeniZa(t)
+            glavna.post {
+                koncajPripravo(priprava)
+                // Brez toka: samo obvestilo - kartica serije zaradi ene epizode ne izgine.
+                if (!isFinishing) izberiTok(serija.copy(season = e.sezona, episode = e.epizoda), sk.naslov, t, false, pp) {
+                    Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, sk.naslov), Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -7083,7 +7562,14 @@ class GlasbaActivity : OsActivity() {
         }.toMap()
         fun ime(e: Stremio.Epizoda) = imena[e.id].orEmpty()
         // Epizod, za katere ze vemo, da jih noben dodatek nima, ne kazemo; ce ni nobene, serija izgine s seznama.
-        val ep = vseEpizode.filter { it.tokovi.isNotEmpty() || Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, it.id)) != false }.toMutableList()
+        // Naloga 132: epizoda izgine samo, ce je ni pri id-ju dodatka IN je ni po IMDb (tt...:S:E) - Torrentio pozna samo IMDb.
+        val imdbSerije = Stremio.imdbZa(sk)
+        fun imdbEpizode(e: Stremio.Epizoda) = SerijePravila.idEpizodePoImdb(imdbSerije, e.id, e.sezona, e.epizoda)
+        val ep = vseEpizode.filter {
+            val alt = imdbEpizode(it)
+            it.tokovi.isNotEmpty() || !SerijePravila.skrijEpizodo(Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, it.id)),
+                alt?.let { a -> Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, a)) }, alt != null)
+        }.toMutableList()
         fun nicNiNaVoljo() {
             Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, sk.naslov), Toast.LENGTH_SHORT).show()
             if (edinaSezona && !imaZnanoEpizodo(sk)) oznaciNiNaVoljo(sk)
@@ -7096,7 +7582,11 @@ class GlasbaActivity : OsActivity() {
             val e = seznam.getOrNull(k) ?: return@setAdapter
             Toast.makeText(this, getString(R.string.os_media_pripravljam, ime(e)), Toast.LENGTH_SHORT).show()
             delavec.execute {
-                fun tokoviZa(x: Stremio.Epizoda) = x.tokovi.ifEmpty { try { tokoviVzporedno(tip, x.id) } catch (_: Exception) { emptyList() } }
+                // Naloga 130: poleg id-ja dodatka se id po IMDb (tt...:S:E) - dodatki s torrenti poznajo samo tega.
+                val imdb = Stremio.imdbZa(sk)
+                fun tokoviZa(x: Stremio.Epizoda) = x.tokovi.ifEmpty {
+                    try { tokoviVzporedno(tip, x.id, dodatniId = SerijePravila.idEpizodePoImdb(imdb, x.id, x.sezona, x.epizoda)) } catch (_: Exception) { emptyList() }
+                }
                 if (!sk.video && !rocno) {
                     // Zvok: tokove izbrane in naslednjih skladb vprasamo hkrati; izbrana se zacne, cim je znana,
                     // naslednjim damo se najvec 1,2 s (kar do takrat pride, gre v vrsto - album igra naprej sam).
@@ -7123,13 +7613,14 @@ class GlasbaActivity : OsActivity() {
                     return@execute
                 }
                 val t = tokoviZa(e)
+                val pp = predpomnjeniZa(t)
                 glavna.post {
-                    if (!isFinishing) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) }
+                    if (!isFinishing) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) }
                 }
             }
         }.show()
         // V ozadju preverimo, katere epizode dodatki res imajo: cesar ni, s seznama sproti izgine (in tok izbrane je ze v predpomnilniku).
-        preveriEpizode(tip, ep.toList()) { e ->
+        preveriEpizode(tip, ep.toList(), { imdbEpizode(it) }) { e ->
             val d = okno
             if (isFinishing || d == null || !d.isShowing) return@preveriEpizode
             val i = ep.indexOfFirst { it.id == e.id }
@@ -7759,13 +8250,16 @@ class GlasbaActivity : OsActivity() {
         if (odprtKatalog !== o || isFinishing || o.nalagam) return
         if (strogaMreza(o)) {
             val zdaj = android.os.SystemClock.uptimeMillis()
-            if (izDrsenja && (o.caka.get() > 0 || zdaj - o.zadnjicVec < 600)) return  // drsenje: en korak, ne pred preverjanjem
+            // Naloga 145: dodatek v premoru - na preverjanje okna ne cakamo (sicer Nalozi vec do konca premora ne naredi nic).
+            val premor = Stremio.premorKoncaOb(nasloviZaIzris()) > System.currentTimeMillis()
+            val cakaj = OsPravila.cakajNaPreverjanje(o.caka.get(), premor)
+            if (izDrsenja && (cakaj || zdaj - o.zadnjicVec < 600)) return  // drsenje: en korak, ne pred preverjanjem
             val kandidati = vidniKataloga(o).first
             val st = stanjeMreze(o, kandidati)
             // Naloga 55b (lastnik): klik Nalozi vec pokaze naslednjo stran TAKOJ, tudi ce se preverjanje se tece ali je
             // proracun dodatka porabljen - naslovi naslednjih strani se preverijo v ozadju (ista vljudnost).
             if (!izDrsenja && st.naprej) { o.zadnjicVec = zdaj; o.vec(KORAK_KARTIC); osveziMrezo(o); return }
-            if (o.caka.get() > 0) {
+            if (cakaj) {
                 // Prva stran se se preverja in nalozenih naslovov za njo ni: kartica pove, koliko naslovov se preverjamo
                 // (dodatek k nalogi 55: prej je klic tu tiho odnehal).
                 if (izDrsenja || o.prosiVec) return
@@ -7774,7 +8268,7 @@ class GlasbaActivity : OsActivity() {
                 osveziMrezo(o)
                 return
             }
-            if (st.vOknu) {
+            if (st.vOknu && !premor) {
                 if (izDrsenja && o.proracun > 0) return
                 o.zadnjicVec = zdaj
                 o.vec(0)
@@ -7970,23 +8464,34 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Epizode odprtega seznama preverimo v ozadju; [obNi] (glavna nit): epizode noben dodatek nima. */
-    private fun preveriEpizode(tip: String, ep: List<Stremio.Epizoda>, obNi: (Stremio.Epizoda) -> Unit) {
+    private fun preveriEpizode(tip: String, ep: List<Stremio.Epizoda>,
+                               /** Naloga 132: id epizode po IMDb (tt...:S:E) ali null - preverimo ga, preden epizodo skrijemo. */
+                               imdbEpizode: (Stremio.Epizoda) -> String? = { null },
+                               obNi: (Stremio.Epizoda) -> Unit) {
         val naslovi = stremioNaslovi()
         if (naslovi.isEmpty()) return
         val torrent = torrentMeja()
         for (e in ep.take(16)) {
             val k = Razpolozljivost.kljuc(tip, e.id)
-            if (e.tokovi.isNotEmpty() || Razpolozljivost.stanje(this, k) != null) continue
+            val alt = imdbEpizode(e)
+            val kAlt = alt?.let { Razpolozljivost.kljuc(tip, it) }
+            val stanjeAlt = kAlt?.let { Razpolozljivost.stanje(this, it) }
+            if (e.tokovi.isNotEmpty()) continue
+            val stanje = Razpolozljivost.stanje(this, k)
+            if (stanje != null && !SerijePravila.preveriPoImdb(stanje, stanjeAlt, alt != null)) continue
             preverjanjeEpizod.execute {
                 val seVelja = { !isFinishing && vOspredju }
-                val je: Boolean? = if (DomPreverjanjePravila.veljaven(k)) {
-                    if (DomPreverjanje.preveri(applicationContext, k, torrent, null, seVelja) == DomPreverjanje.Izid.ODGOVOR) Razpolozljivost.stanjeZa(applicationContext, k, torrent) else null
+                fun preveri(kljuc: String, id: String): Boolean? = if (DomPreverjanjePravila.veljaven(kljuc)) {
+                    if (DomPreverjanje.preveri(applicationContext, kljuc, torrent, null, seVelja) == DomPreverjanje.Izid.ODGOVOR) Razpolozljivost.stanjeZa(applicationContext, kljuc, torrent) else null
                 } else {
-                    val r = try { Stremio.razpolozljivo(naslovi, tip, e.id, torrent, seVelja) } catch (_: Exception) { null }
-                    if (r != null) Razpolozljivost.zapomni(applicationContext, k, r)
+                    val r = try { Stremio.razpolozljivo(naslovi, tip, id, torrent, seVelja) } catch (_: Exception) { null }
+                    if (r != null) Razpolozljivost.zapomni(applicationContext, kljuc, r)
                     r?.velja(torrent)
                 }
-                if (je == false) glavna.post { obNi(e) }
+                val je = stanje ?: preveri(k, e.id)
+                // Pri dodatku je ni: preden jo skrijemo, se po IMDb (dodatki s torrenti poznajo samo tega).
+                val poImdb = if (alt != null && kAlt != null && SerijePravila.preveriPoImdb(je, stanjeAlt, true)) preveri(kAlt, alt) else stanjeAlt
+                if (SerijePravila.skrijEpizodo(je, poImdb, alt != null)) glavna.post { obNi(e) }
             }
         }
     }
@@ -8004,7 +8509,7 @@ class GlasbaActivity : OsActivity() {
         val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
         val mrtve = KanaliPravila.mrtveObNeuspehuDodatka(sk.id, razlicice) { it.startsWith(IptvSeznami.PREDPONA) }
         android.util.Log.i("SafeerOsMedia", "kanal dodatka ni dosegljiv: oznacenih mrtvih ${mrtve.size}, razlicic seznama ostane ${(razlicice + sk.id).distinct().size - mrtve.size}")
-        mrtve.forEach { MrtviKanali.zapomni(this, it) }
+        mrtve.forEach { MrtviKanali.zapomni(this, it, NedelujocePravila.NI_TOKA, sk.naslov) }
     }
 
     /**
@@ -8014,6 +8519,8 @@ class GlasbaActivity : OsActivity() {
      * kadar dodatki ponudijo le zunanje povezave (napovednik ipd.).
      */
     private fun izberiTok(sk: Jamendo.Skladba, naslov: String, tokovi: List<Stremio.Tok>, rocno: Boolean = false,
+                          /** Naloga 130: hashi torrentov, ki jih ima debrid storitev pripravljene ([predpomnjeniZa]). */
+                          predpomnjeni: Set<String> = emptySet(),
                           /** Kaj storiti, ce se vsebine ne da predvajati (epizoda: nazaj na seznam epizod); privzeto: kartica izgine. */
                           obNeuspehu: (() -> Unit)? = null) {
         // Brez predvajljivega toka ni okna in ni seznama povezav (prosnje za donacijo, Discord, "No streams found" so ze
@@ -8048,6 +8555,8 @@ class GlasbaActivity : OsActivity() {
                 val osnova = Stremio.razstavi(sk)?.first.orEmpty()
                 if (Stremio.povezavaOdklepa(osnova) != null) odkleniPriDodatku(osnova)
                 else Toast.makeText(this, R.string.os_mediji_tokovi_narocnina, Toast.LENGTH_LONG).show()
+                // Naloga 120: kanal, ki ga dodatek da samo za placilo, izgine s seznama (Stremio.neodklenjena).
+                osveziNaMestu()
                 return
             }
             if (obNeuspehu == null && (Stremio.jeVZivo(sk) || Stremio.razredEnote(sk) == Stremio.RADIO)) {
@@ -8071,8 +8580,16 @@ class GlasbaActivity : OsActivity() {
                     GlasbaStoritev.predvajajZRezervami(this, r, rezerve.map { skladbaToka(it) to it.glave })
                     if (r.video) { nadaljujKoPripravljen(r); startActivity(Intent(this, PredvajanjeActivity::class.java)) }
                 }
-                "torrent" -> torrentPrekRacunalnika(sk, naslov, t.url, t.datoteka,
-                    velikost = (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong())
+                "torrent" -> {
+                    val brez = { torrentPrekRacunalnika(sk, naslov, t.url, t.datoteka,
+                        velikost = (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong()) }
+                    // Naloga 119: s kljucem TorBox gre torrent prek TorBoxa (zasebnost, hitrejsi tok); brez kljuca obstojeca pot.
+                    if (Debrid.aktivna(this) != null) prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, brez)
+                    else brez()
+                }
+                // Naloga 141: Usenet - NZB od indeksatorja (naprava), prenos in tok TorBox; brez poti »brez zasebnosti«.
+                UsenetPravila.VRSTA -> prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
+                    usenetIme = t.opis.substringBefore('\n'))
                 // Napovednik (samo pri rocni izbiri vira): igra v nasem predvajalniku, ne v brskalniku.
                 else -> razresiSplet(SpletniVir.enota(t.url, naslov, "", sk.slika, true))
             }
@@ -8083,32 +8600,310 @@ class GlasbaActivity : OsActivity() {
         // Jezik zvoka (lastnik, 10. 10. 2026): film v anglescini, slovenski film v slovenscini - sinhronizacija v tujem
         // jeziku (npr. brazilska »Dublado«) ne sme biti prva samo zato, ker je v 4K.
         val zelen = if (sk.video) TokIzbira.zeleniJezik(sk.language) else ""
-        val neposredni = TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }, zdajS, zelen, sk.language)
-        val torrenti = TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave,
-            zelenJezik = zelen, izvirni = sk.language)
-        if (!rocno) {
+        // Naloga 133: kar presega izmerjeno hitrost povezave (70 %), gre za tokove, ki tecejo - brez meritve red ostane.
+        val hitrost = HitrostPovezave.hitrost(this)
+        val minut = KakovostPravila.minut(sk.season > 0 || sk.episode > 0)
+        fun zaHitrost(l: List<Stremio.Tok>) = KakovostPravila.urediZaHitrost(l.map { TokIzbira.opisi(opis(it)).gb }, minut, hitrost).map { l[it] }
+        val neposredni = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }, zdajS, zelen, sk.language))
+        val torrentiPoKakovosti = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave,
+            zelenJezik = zelen, izvirni = sk.language))
+        if (hitrost > 0) android.util.Log.i("SafeerOsMedia", "kakovost za povezavo ${hitrost / 1_000_000} Mb/s: " +
+            "${torrentiPoKakovosti.count { KakovostPravila.ustreza(TokIzbira.opisi(opis(it)).gb, minut, hitrost) }} od ${torrentiPoKakovosti.size} torrentov ustreza")
+        // Naloga 130: torrenti, ki jih ima debrid storitev pripravljene (⚡), so prvi - znotraj obeh skupin ostane red kakovosti.
+        val hashiTorrentov = torrentiPoKakovosti.map { TorBoxPravila.hashIzMagneta(it.url) }
+        val torrenti = DebridPravila.predpomnjeniNaprej(hashiTorrentov, predpomnjeni).map { torrentiPoKakovosti[it] }
+        fun pripravljen(t: Stremio.Tok) = t.vrsta == "torrent" && TorBoxPravila.hashIzMagneta(t.url)?.lowercase() in predpomnjeni
+        // Naloga 141: Usenet (TorBox) po kakovosti.
+        val usenet = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == UsenetPravila.VRSTA }, opis, zmoznostiNaprave,
+            zelenJezik = zelen, izvirni = sk.language))
+        // Samodejna izbira brez Useneta (kot pred nalogo 141); true = nekaj se predvaja.
+        fun samodejnoBrezUseneta(): Boolean {
+            // Naloga 130: z aktivno debrid storitvijo gre najboljsi pripravljen torrent pred neposrednimi povezavami.
+            val k = DebridPravila.samodejniTorrent(Debrid.aktivna(this), hashiTorrentov, predpomnjeni)
+            if (k >= 0) {
+                android.util.Log.i("SafeerOsMedia", "tokovi: pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size} torrentov; " +
+                    "izbran=${TokIzbira.opisi(opis(torrentiPoKakovosti[k]))}")
+                odpri(torrentiPoKakovosti[k]); return true
+            }
             // Povezave, ki je po lastnem zapisu ze potekla, sploh ne poskusamo (streznik bi odgovoril 403 in uporabnik
             // bi cakal na naslednjo) - razen ce so take vse: ura naprave je lahko napacna, zato jih takrat vseeno poskusimo.
             val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }.ifEmpty { neposredni }
             android.util.Log.i("SafeerOsMedia", "tokovi: neposredni=${neposredni.size} (poteklih ${neposredni.size - zivi.size}), torrenti=${torrenti.size}, zunanji=${tokovi.size - neposredni.size - torrenti.size}; " +
                 "izbran=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}, " +
                 "zvok=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.jezikZvoka(opis(it)) }}/$zelen, rok=${zivi.firstOrNull()?.let { TokIzbira.veljaSe(it.url, zdajS) }}")
-            if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return }
-            if (torrenti.isNotEmpty()) { odpri(torrenti.first()); return }
-            if (posnetek != null) { odpri(posnetek); return }
+            if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true }
+            if (torrenti.isNotEmpty()) { odpri(torrenti.first()); return true }
+            if (posnetek != null) { odpri(posnetek); return true }
+            return false
+        }
+        if (!rocno) {
+            // Naloga 141 (lastnik, 24. 10. 2026: »nočem izbiro virov … automacko zažene najboljši vir … v našem primeru
+            // usenet«): Usenet prvi, brez okna in s cakanjem na prenos (izmerjeno: 2,2 GB v 36 s). Ce ne uspe, naslednji
+            // zadetek Usenet, nato samodejno najboljsi drug vir - nikoli okno »izberi vir«.
+            val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
+            fun poskusiUsenet(i: Int) {
+                if (i >= poskusi.size) {
+                    if (i > 0) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
+                    if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+                    return
+                }
+                val t = poskusi[i]
+                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ${i + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
+                prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
+                    samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { poskusiUsenet(i + 1) })
+            }
+            if (poskusi.isNotEmpty()) { poskusiUsenet(0); return }
+            if (samodejnoBrezUseneta()) return
         }
         // Rocna izbira: najboljsi na vrhu, napovednik na koncu.
-        val urejeni = neposredni + torrenti + tokovi.filter { it.vrsta != "url" && it.vrsta != "torrent" }
+        // Naloga 130: pripravljeni torrenti (⚡) so na vrhu seznama, pred povezavami.
+        val urejeni = torrenti.filter { pripravljen(it) } + neposredni + torrenti.filter { !pripravljen(it) } + usenet +
+            tokovi.filter { it.vrsta != "url" && it.vrsta != "torrent" && it.vrsta != UsenetPravila.VRSTA }
         if (urejeni.size == 1 && !rocno) { odpri(urejeni.first()); return }
         val imena = urejeni.map { t ->
-            val vrsta = when (t.vrsta) { "torrent" -> " · " + getString(R.string.os_stremio_torrent); "napovednik" -> " · " + getString(R.string.os_stremio_zunanji); else -> "" }
-            listOf(t.ime, t.opis.replace('\n', ' ')).filter { it.isNotBlank() }.joinToString(" · ") + vrsta
+            val vrsta = when (t.vrsta) { "torrent" -> " · " + getString(R.string.os_stremio_torrent); UsenetPravila.VRSTA -> " · Usenet"; "napovednik" -> " · " + getString(R.string.os_stremio_zunanji); else -> "" }
+            (if (pripravljen(t)) DebridPravila.OZNAKA_PREDPOMNJEN + " " else "") +
+                listOf(t.ime, t.opis.replace('\n', ' ')).filter { it.isNotBlank() }.joinToString(" · ") + vrsta
         }
         AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray()) { _, k ->
             val t = urejeni[k]
             // Tudi po rocni izbiri: ce izbrani tok ne stece, gredo za njim ostali neposredni (od najboljsega).
             odpri(t, if (t.vrsta == "url") neposredni.filter { it !== t }.take(REZERVNIH_TOKOV) else emptyList())
         }.show()
+    }
+
+    /**
+     * Naloga 119/128: torrent prek debrid storitve (TorBox, Real-Debrid, AllDebrid - [Debrid]), z delovne niti. Uspeh:
+     * [naprej] dobi povezavo CDN (brez kljuca), kratko sporocilo pove, prek katere storitve. Neuspeh: NIKOLI tiho na
+     * neposredni torrent (to bi razkrilo naslov IP) - okno pove zakaj; uporabnik izbere »Nadaljuj brez (brez zasebnosti)«,
+     * preklice, pri »ni pripravljeno« »Pocakaj na prenos« in pri zavrnjenem kljucu »Popravi kljuc«.
+     */
+    private fun prekDebrida(magnet: String, datoteka: Int, naprej: (String) -> Unit,
+                            /** null (Usenet): ni poti brez debrida - gumba »Nadaljuj brez« ni. */
+                            brez: (() -> Unit)?, samoTakoj: Boolean? = null,
+                            /** Naloga 141: [magnet] je id toka Usenet, to je ime izdaje (za TorBox). */
+                            usenetIme: String? = null,
+                            /** Naloga 141: samodejna izbira - ob neuspehu brez okna naprej (naslednji vir). */
+                            obNeuspehu: (() -> Unit)? = null) {
+        Toast.makeText(this, R.string.os_debrid_pripravljam, Toast.LENGTH_SHORT).show()
+        var zadnjiOdstotek = -1
+        Thread {
+            val napredek = { odstotek: Int ->
+                if (odstotek / 25 != zadnjiOdstotek / 25) {
+                    zadnjiOdstotek = odstotek
+                    runOnUiThread { if (!isFinishing) Toast.makeText(this, getString(R.string.os_torbox_prenasa_odstotek, odstotek), Toast.LENGTH_SHORT).show() }
+                }
+            }
+            val izid = if (usenetIme != null) Usenet.tok(applicationContext, magnet, usenetIme, datoteka, samoTakoj ?: Debrid.samoTakoj(applicationContext), napredek)
+                else Debrid.tok(applicationContext, magnet, datoteka, samoTakoj, napredek)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val url = izid.url
+                if (url != null) {
+                    Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(izid.ponudnik)), Toast.LENGTH_SHORT).show()
+                    naprej(url); return@runOnUiThread
+                }
+                if (obNeuspehu != null) {
+                    android.util.Log.i("SafeerOsMedia", "tokovi: ${if (usenetIme != null) "Usenet" else "debrid"} ni uspel (${izid.napaka}) - naprej samodejno")
+                    obNeuspehu(); return@runOnUiThread
+                }
+                val sporocilo = when (izid.napaka) {
+                    TorBoxPravila.NAPAKA_KLJUC -> getString(R.string.os_torbox_napaka_kljuc)
+                    TorBoxPravila.NAPAKA_MEJA -> if (izid.cakajMs > 0) getString(R.string.os_torbox_napaka_meja, ((izid.cakajMs + 59_999) / 60_000).toInt())
+                        else getString(R.string.os_torbox_napaka_meja_paket)
+                    TorBoxPravila.NAPAKA_PAKET -> getString(R.string.os_torbox_napaka_paket)
+                    TorBoxPravila.NAPAKA_NI_DATOTEKE -> getString(R.string.os_torbox_napaka_ni_datoteke)
+                    TorBoxPravila.NAPAKA_PRENASA -> getString(R.string.os_torbox_napaka_prenasa)
+                    DebridPravila.NAPAKA_NI_PREDPOMNJENO -> getString(R.string.os_debrid_napaka_ni_predpomnjeno)
+                    UsenetPravila.NAPAKA_INDEKSATOR -> getString(R.string.os_usenet_napaka_indeksator)
+                    else -> getString(R.string.os_torbox_napaka_streznik)
+                } + if (izid.opis.isNotBlank()) "\n\n" + izid.opis else ""
+                val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle(R.string.os_torbox_napaka_naslov).setMessage(sporocilo)
+                    .setNegativeButton(R.string.os_preklici, null)
+                if (brez != null) g.setPositiveButton(R.string.os_debrid_brez) { _, _ -> brez() }
+                when (izid.napaka) {
+                    TorBoxPravila.NAPAKA_KLJUC, UsenetPravila.NAPAKA_INDEKSATOR -> g.setNeutralButton(R.string.os_torbox_popravi) { _, _ -> nastavitveDebrida() }
+                    DebridPravila.NAPAKA_NI_PREDPOMNJENO -> g.setNeutralButton(R.string.os_debrid_pocakaj) { _, _ ->
+                        prekDebrida(magnet, datoteka, naprej, brez, samoTakoj = false, usenetIme = usenetIme) }
+                }
+                val okno = g.create()
+                // Privzeti gumb je Preklici: zadrzan OK ne sme takoj odpreti torrenta brez zasebnosti.
+                okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+                Kontroler.pokazi(okno); okno.show()
+            }
+        }.start()
+    }
+
+    /** Opis kartice »Debrid storitve«: katere storitve imajo kljuc in ali velja »samo takoj predvajljivo«. */
+    private fun opisDebrida(): String {
+        val z = Debrid.vrstniRed(this)
+        if (z.isEmpty()) return getString(R.string.os_debrid_opis_brez)
+        return getString(R.string.os_debrid_opis_vpisan, z.joinToString(", ") { DebridPravila.ime(it) },
+            getString(if (Debrid.samoTakoj(this)) R.string.os_debrid_samo_takoj_kratko else R.string.os_debrid_s_cakanjem))
+    }
+
+    /**
+     * Naloga 128: »Debrid storitve« - en pregleden seznam: vsaka storitev s stanjem kljuca (dotik: vpis/odstranitev),
+     * stikalo »Samo takoj predvajljivo« in prednostna storitev (ce sta kljuca vsaj dva). Okno se po spremembi odpre znova.
+     */
+    private fun nastavitveDebrida() {
+        val vrstice = ArrayList<Pair<String, () -> Unit>>()
+        for (p in DebridPravila.VSI) {
+            val ime = DebridPravila.ime(p)
+            // Naloga 130: zadnja meritev hitrosti do te naprave (ko jih je vec, predvaja najhitrejsa).
+            val meritev = Debrid.zadnjaMeritev(this, p)?.let { " · " + DebridPravila.opisMeritve(it) }.orEmpty()
+            vrstice += getString(if (Debrid.imaKljuc(this, p)) R.string.os_debrid_vrstica_vpisan else R.string.os_debrid_vrstica_brez, ime) + meritev to { kljucDebrida(p) }
+        }
+        // Naloga 141: Usenet indeksator (Newznab) - NZB najde indeksator, prenese in pretaka TorBox (Pro).
+        vrstice += (Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_vrstica_vpisan, it) } ?: getString(R.string.os_usenet_vrstica_brez)) to { usenetIndeksator() }
+        val takoj = Debrid.samoTakoj(this)
+        vrstice += getString(if (takoj) R.string.os_debrid_samo_takoj_vkl else R.string.os_debrid_samo_takoj_izk) to {
+            Debrid.nastaviSamoTakoj(this, !takoj); osveziNaMestu(); nastavitveDebrida()
+        }
+        // Naloga 129: kljuce, vpisane tu (npr. na telefonu), poslji na TV - tam jih ni treba tipkati z daljincem.
+        if ((Debrid.imaKateriKljuc(this) || Usenet.imaIndeksator(this)) && Predaja.cilji(this).isNotEmpty()) vrstice += getString(R.string.os_debrid_poslji) to { posljiKljuceDebrida() }
+        val red = Debrid.vrstniRed(this)
+        if (red.size >= 2) vrstice += getString(R.string.os_debrid_prednostna, DebridPravila.ime(red.first())) to {
+            val imena = red.map { DebridPravila.ime(it) }.toTypedArray()
+            val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_debrid_prednostna_naslov)
+                .setSingleChoiceItems(imena, 0) { d, i -> Debrid.nastaviPrednostno(this, red[i]); d.dismiss(); osveziNaMestu(); nastavitveDebrida() }
+                .setNegativeButton(R.string.os_preklici, null).create()
+            Kontroler.pokazi(okno); okno.show()
+        }
+        // Glava: naslov in kratko pojasnilo (seznam spodaj ostane cel - setMessage bi ga skril).
+        val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val glava = LinearLayout(g.context).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(18), dp(24), dp(6))
+            addView(TextView(g.context).apply {
+                setTextAppearance(android.R.style.TextAppearance_DeviceDefault_DialogWindowTitle); text = getString(R.string.os_debrid)
+            })
+            addView(TextView(g.context).apply {
+                text = getString(R.string.os_debrid_pojasnilo); setPadding(0, dp(6), 0, 0)
+                setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Small)
+            })
+        }
+        val okno = g.setCustomTitle(glava)
+            .setItems(vrstice.map { it.first }.toTypedArray()) { _, i -> vrstice[i].second() }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /**
+     * Naloga 129: kljuci na drugo napravo v Linku - izbira naprave, potrditev (kateri kljuci, sifrirano od naprave do
+     * naprave), izid. Tam se shranijo sele, ko jih uporabnik potrdi.
+     */
+    private fun posljiKljuceDebrida() {
+        val cilji = Predaja.cilji(this)
+        if (cilji.isEmpty()) { Toast.makeText(this, R.string.os_predaja_ni_naprav, Toast.LENGTH_SHORT).show(); return }
+        val imena = cilji.map { DatotekeActivity.lepoIme(it.ime) }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_debrid_poslji)
+            .setItems(imena.toTypedArray()) { _, i ->
+                val n = cilji[i]; val ime = imena[i]
+                val katere = (Debrid.vrstniRed(this).map { DebridPravila.ime(it) } +
+                    listOfNotNull(Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_ime_kratko, it) })).joinToString(", ")
+                pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle(R.string.os_debrid_poslji)
+                    .setMessage(getString(R.string.os_debrid_poslji_vprasanje, katere, ime))
+                    .setPositiveButton(R.string.os_debrid_poslji_gumb) { _, _ ->
+                        Debrid.posljiKljuce(this, n) { koda ->
+                            if (isFinishing) return@posljiKljuce
+                            Toast.makeText(this, when (koda) {
+                                "ok" -> getString(R.string.os_debrid_poslano, ime)
+                                "ni_zascite" -> getString(R.string.os_debrid_poslji_ni_zascite, ime)
+                                "ni_dovoljeno" -> getString(R.string.os_debrid_poslji_ni_dovoljeno, ime)
+                                "stara" -> getString(R.string.os_predaja_poslji_stara, ime)
+                                else -> getString(R.string.os_predaja_poslji_napaka, ime)
+                            }, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    .setNegativeButton(R.string.os_preklici, null))
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Naloga 129: kljuci, ki jih je poslala druga naprava, se shranijo sele po potrditvi tu. */
+    private fun pokaziPrejeteKljuce() {
+        val p = Debrid.vzemiPrejete() ?: return
+        // Naloga 141: tudi indeksator Usenet (ime gostitelja, kljuc se ne pokaze).
+        fun ime(x: String) = if (x == UsenetPravila.VRSTA) getString(R.string.os_usenet_ime_kratko,
+            p.indeksator?.first?.let { try { java.net.URL(it).host } catch (_: Exception) { it } }.orEmpty()) else DebridPravila.ime(x)
+        val katere = (p.kljuci.keys + listOfNotNull(p.indeksator?.let { UsenetPravila.VRSTA })).joinToString(", ") { ime(it) }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_debrid)
+            .setMessage(getString(R.string.os_debrid_prejeto_vprasanje, DatotekeActivity.lepoIme(p.od), katere))
+            .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
+                val shranjeni = Debrid.shraniPrejete(this, p)
+                Toast.makeText(this, getString(R.string.os_debrid_prejeto_shranjeno, shranjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
+                osveziNaMestu()
+            }
+            .setNegativeButton(R.string.os_debrid_zavrni, null).create()
+        // Privzeto Shrani: uporabnik je kljuce ravnokar poslal sam s svojega telefona.
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private val obPrejetihKljucih: () -> Unit = { if (!isFinishing) pokaziPrejeteKljuce() }
+
+    /** Vnos ali odstranitev kljuca ene storitve (polje za geslo; kljuc se ne pokaze nazaj). */
+    /** Naloga 141: vpis naslova in kljuca indeksatorja Usenet (Newznab); hrani se sifrirano na tej napravi. */
+    private fun usenetIndeksator() {
+        val rob = (20 * resources.displayMetrics.density).toInt()
+        val naslov = android.widget.EditText(this).apply {
+            hint = getString(R.string.os_usenet_naslov_namig)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+            isSingleLine = true
+        }
+        val kljuc = android.widget.EditText(this).apply {
+            hint = getString(R.string.os_usenet_kljuc_namig)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            isSingleLine = true
+        }
+        val okvir = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(rob, rob / 2, rob, 0); addView(naslov); addView(kljuc) }
+        val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_usenet_naslov)
+            .setMessage(R.string.os_usenet_pojasnilo).setView(okvir)
+            .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
+                if (Usenet.nastavi(this, naslov.text.toString(), kljuc.text.toString())) {
+                    Toast.makeText(this, R.string.os_usenet_shranjeno, Toast.LENGTH_SHORT).show(); osveziNaMestu()
+                } else Toast.makeText(this, R.string.os_usenet_neveljavno, Toast.LENGTH_LONG).show()
+                nastavitveDebrida()
+            }
+            .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
+        if (Usenet.imaIndeksator(this)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
+            Usenet.pozabi(this)
+            Toast.makeText(this, R.string.os_usenet_odstranjeno, Toast.LENGTH_SHORT).show(); osveziNaMestu(); nastavitveDebrida()
+        }
+        val okno = g.create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun kljucDebrida(p: String) {
+        val ime = DebridPravila.ime(p)
+        val rob = (20 * resources.displayMetrics.density).toInt()
+        val polje = android.widget.EditText(this).apply {
+            hint = getString(R.string.os_torbox_kljuc_namig)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            isSingleLine = true
+        }
+        val okvir = android.widget.FrameLayout(this).apply { setPadding(rob, rob / 2, rob, 0); addView(polje) }
+        val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_debrid_kljuc_naslov, ime))
+            .setMessage(getString(R.string.os_debrid_kljuc_pojasnilo, DebridPravila.kjeKljuc(p))).setView(okvir)
+            .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
+                if (Debrid.nastaviKljuc(this, p, polje.text.toString())) {
+                    Toast.makeText(this, getString(R.string.os_debrid_shranjeno, ime), Toast.LENGTH_SHORT).show(); osveziNaMestu()
+                } else Toast.makeText(this, R.string.os_torbox_neveljaven, Toast.LENGTH_LONG).show()
+                nastavitveDebrida()
+            }
+            .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
+        if (Debrid.imaKljuc(this, p)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
+            Debrid.pozabiKljuc(this, p)
+            Toast.makeText(this, getString(R.string.os_debrid_odstranjeno, ime), Toast.LENGTH_SHORT).show(); osveziNaMestu(); nastavitveDebrida()
+        }
+        val okno = g.create()
+        Kontroler.pokazi(okno); okno.show()
     }
 
     /**
@@ -8607,6 +9402,8 @@ class GlasbaActivity : OsActivity() {
         private const val PRORACUN_MS = 8L
         /** Beseda za iskanje ob odprtju (prazna: samo odpri iskanje), npr. z zaslona predvajanja. */
         const val ISKANJE_BESEDA = "iskanje"
+        const val PREIZKUS_IMDB = "preizkus_imdb"
+        const val PREIZKUS_NASLOV = "preizkus_naslov"
         /** Z [ISKANJE_BESEDA]: film ali serija z natancno tem naslovom se odpre sama (media.open, PrikaziNa). */
         const val ISKANJE_NATANCNO = "iskanje_natancno"
         /** Zavihek spodnje vrstice (StranskaVrstica.Zavihek.name), ki naj se odpre. */
@@ -8806,6 +9603,7 @@ class GlasbaActivity : OsActivity() {
         // Naloga 77: plakati brez prosojnosti so RGB_565 (MedijskiPredpomnilnik.zaPomnilnik), ~104 KB namesto ~208 KB; 18 MB
         // drzi ~170 plakatov (vsa mreza 166 Filmov, vrnitev na vrh brez ponovnega nalaganja - lastnik 22. 10.) namesto ~115 pri 24 MB.
         private const val SLIKE_BAJTOV = 18 * 1024 * 1024
+        private const val NASLOVNIC_ZA_DNEVNIK = 30L
         private val SLIKE = object : LruCache<String, android.graphics.Bitmap>(SLIKE_BAJTOV) {
             override fun sizeOf(key: String, value: android.graphics.Bitmap): Int = value.allocationByteCount
         }

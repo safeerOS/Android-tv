@@ -58,6 +58,12 @@ class StranskaVrstica private constructor(
     private var nacin = trenutniNacin()
     /** Tirnica: uporabnik je z gumbom menija izbral imena ob ikonah (velja za vse zaslone Safeer OS). */
     private var izbranaImena = shramba.getBoolean(KLJUC_IMENA, false)
+    /** Naloga 127: tirnica je na dotik lezece popolnoma skrita (poteg z levega roba jo pokaze); velja za vse zaslone. */
+    private var izbranaSkrita = shramba.getBoolean(KLJUC_SKRITA, false)
+    private fun lezece(): Boolean =
+        dejavnost.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    /** Tirnica je zdaj skrita (samo na dotik, lezece, v nacinu tirnice). */
+    private fun tirnicaSkrita(): Boolean = nacin == Nacin.TIRNICA && dotik && lezece() && izbranaSkrita
     private var predalOdprt = false
     /** Televizor: fokus je v vsebini, vrstica je skrcena na ikone. */
     private var skrcena = false
@@ -201,7 +207,7 @@ class StranskaVrstica private constructor(
             TypedValue().also { tv ->
                 if (dejavnost.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true)) setBackgroundResource(tv.resourceId)
             }
-            setOnClickListener { odpriPredal() }
+            setOnClickListener { if (tirnicaSkrita()) nastaviTirnico(VrsticaPravila.TIRNICA_IKONE) else odpriPredal() }
         }
         prilagodiSirino()
         nastaviPrehode(dejavnost)
@@ -218,7 +224,8 @@ class StranskaVrstica private constructor(
                 // Predal: odpre ga poteg z levega roba, zapre poteg v levo kjerkoli. Tirnica: poteg po njej pokaze ali skrije imena.
                 sledim = when (nacin) {
                     Nacin.PREDAL -> predalOdprt || e.x / g <= VrsticaPravila.ROB_POTEGA_DP
-                    Nacin.TIRNICA -> e.x < drsnik.right
+                    // Naloga 127: skrito tirnico pokaze poteg z levega roba.
+                    Nacin.TIRNICA -> VrsticaPravila.potegZRobaTirnice(tirnicaSkrita(), e.x / g, drsnik.right / g)
                     Nacin.DALJINEC -> false
                 }
             }
@@ -227,8 +234,11 @@ class StranskaVrstica private constructor(
                 val dejanje: (() -> Unit)? = when {
                     nacin == Nacin.PREDAL && !predalOdprt && VrsticaPravila.potegOdpre(zacetekX / g, dx, dy) -> { { odpriPredal() } }
                     nacin == Nacin.PREDAL && predalOdprt && VrsticaPravila.potegZapre(dx, dy) -> { { zapriPredal() } }
-                    nacin == Nacin.TIRNICA && !izbranaImena && VrsticaPravila.potegOdpre(0f, dx, dy) -> { { nastaviImena(true) } }
-                    nacin == Nacin.TIRNICA && izbranaImena && VrsticaPravila.potegZapre(dx, dy) -> { { nastaviImena(false) } }
+                    // Naloga 127: proti sredini za eno stanje vec (skrita -> ikone -> imena), proti robu za eno manj.
+                    nacin == Nacin.TIRNICA && VrsticaPravila.potegOdpre(if (tirnicaSkrita()) zacetekX / g else 0f, dx, dy) &&
+                        stanjeTirnice() != VrsticaPravila.TIRNICA_IMENA -> { { nastaviTirnico(VrsticaPravila.tirnicaPoPotegu(stanjeTirnice(), true, lezece())) } }
+                    nacin == Nacin.TIRNICA && VrsticaPravila.potegZapre(dx, dy) &&
+                        VrsticaPravila.tirnicaPoPotegu(stanjeTirnice(), false, lezece()) != stanjeTirnice() -> { { nastaviTirnico(VrsticaPravila.tirnicaPoPotegu(stanjeTirnice(), false, lezece())) } }
                     else -> null
                 }
                 if (dejanje != null) {
@@ -279,6 +289,20 @@ class StranskaVrstica private constructor(
     /** Vrstica je skrit predal (ozko okno na dotik): v glavi zaslona je njen gumb menija. */
     fun jePredal(): Boolean = !spodnja && nacin == Nacin.PREDAL
 
+    private fun stanjeTirnice(): Int = VrsticaPravila.stanjeTirnice(izbranaSkrita, izbranaImena, lezece())
+
+    /** Naloga 127: tirnica skrita / ikone / imena (poteg ali gumb menija); izbira velja za vse zaslone Safeer OS. */
+    fun nastaviTirnico(stanje: Int) {
+        val skrita = stanje == VrsticaPravila.TIRNICA_SKRITA
+        val imena = stanje == VrsticaPravila.TIRNICA_IMENA
+        if (skrita == izbranaSkrita && (skrita || imena == izbranaImena)) return
+        izbranaSkrita = skrita
+        if (!skrita) izbranaImena = imena
+        shramba.edit().putBoolean(KLJUC_SKRITA, izbranaSkrita).putBoolean(KLJUC_IMENA, izbranaImena).apply()
+        android.transition.TransitionManager.beginDelayedTransition(this)
+        prilagodiSirino()
+    }
+
     /** Tirnica: imena ob ikonah (gumb menija ali poteg); izbira velja za vse zaslone Safeer OS. */
     fun nastaviImena(da: Boolean) {
         if (izbranaImena == da) return
@@ -304,7 +328,8 @@ class StranskaVrstica private constructor(
         super.onWindowFocusChanged(hasWindowFocus)
         if (!hasWindowFocus || spodnja) return
         val imena = shramba.getBoolean(KLJUC_IMENA, false)
-        if (imena != izbranaImena) { izbranaImena = imena; prilagodiSirino() }
+        val skrita = shramba.getBoolean(KLJUC_SKRITA, false)
+        if (imena != izbranaImena || skrita != izbranaSkrita) { izbranaImena = imena; izbranaSkrita = skrita; prilagodiSirino() }
     }
 
     override fun onDetachedFromWindow() {
@@ -349,6 +374,8 @@ class StranskaVrstica private constructor(
                 lp.width = dp(VrsticaPravila.sirinaPredalaDp(dejavnost.resources.configuration.screenWidthDp))
                 lp.marginEnd = -lp.width
             }
+            // Naloga 127: popolnoma skrita tirnica vsebini ne vzame nic.
+            tirnicaSkrita() -> { drsnik.visibility = View.GONE; lp.marginEnd = 0 }
             else -> {
                 drsnik.visibility = View.VISIBLE
                 lp.width = if (imena) dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina) else dp(68)
@@ -357,6 +384,7 @@ class StranskaVrstica private constructor(
         }
         drsnik.layoutParams = lp
         drsnik.elevation = if (nacin == Nacin.PREDAL) dp(16).toFloat() else 0f
+        izvzemiRobOdKretenj()
         zastor.visibility = if (nacin == Nacin.PREDAL && predalOdprt) View.VISIBLE else View.GONE
         if (zastor.visibility == View.GONE) zastor.alpha = 1f
         // Bralnik zaslona: dokler je predal odprt, vsebina pod zastorom ni dosegljiva (kot pri sistemskih predalih).
@@ -383,7 +411,8 @@ class StranskaVrstica private constructor(
         (gumbVsebine.parent as? ViewGroup)?.removeView(gumbVsebine)
         skritoSidro?.visibility = View.VISIBLE
         skritoSidro = null
-        if (spodnja || nacin != Nacin.PREDAL) return
+        // Naloga 127: tudi popolnoma skrita tirnica ima gumb menija v glavi (ne samo poteg z roba).
+        if (spodnja || (nacin != Nacin.PREDAL && !tirnicaSkrita())) return
         val pred: View? = sidroPred?.takeIf { it.parent != null } ?: vsebina.findViewWithTag<View>(OZNAKA_PRED)
         val zamenjaj = if (pred == null) vsebina.findViewWithTag<View>(OZNAKA_SIDRO) else null
         val cilj = pred ?: zamenjaj
@@ -401,6 +430,21 @@ class StranskaVrstica private constructor(
         } else ViewGroup.MarginLayoutParams(dp(48), dp(48))
         stars.addView(gumbVsebine, stars.indexOfChild(cilj), lp)
         if (zamenjaj != null) { zamenjaj.visibility = View.GONE; skritoSidro = zamenjaj }
+    }
+
+    /**
+     * Naloga 127: pri sistemski navigaciji s kretnjami je poteg z levega roba »Nazaj«. Dokler je tirnica skrita (ali je
+     * vrstica predal), del levega roba sredi zaslona izvzamemo, da ga dobi nas poteg (Android dovoli najvec 200 dp visine).
+     */
+    private fun izvzemiRobOdKretenj() {
+        if (android.os.Build.VERSION.SDK_INT < 29) return
+        post {
+            val h = height
+            systemGestureExclusionRects = if (h > 0 && (tirnicaSkrita() || (nacin == Nacin.PREDAL && !predalOdprt))) {
+                val visina = minOf(dp(200), h)
+                listOf(android.graphics.Rect(0, (h - visina) / 2, dp(VrsticaPravila.ROB_POTEGA_DP.toInt()), (h + visina) / 2))
+            } else emptyList()
+        }
     }
 
     /** Zaslon pove, pred kateri pogled glave sodi gumb menija (npr. pred naslovno vrstico Spleta). */
@@ -715,6 +759,8 @@ class StranskaVrstica private constructor(
         /** Skupna shramba vrstice in lupe (vsi zasloni Safeer OS). */
         const val SHRAMBA = "safeer_os_vrstica"
         const val KLJUC_IMENA = "imena"
+        /** Naloga 127: tirnica popolnoma skrita (lezece na dotik). */
+        const val KLJUC_SKRITA = "skrita"
 
         /** Okrasna ikona glave zaslona: na ozkem zaslonu jo nadomesti gumb menija. */
         const val OZNAKA_SIDRO = "k:meni_sidro"

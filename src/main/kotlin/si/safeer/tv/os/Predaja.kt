@@ -64,7 +64,7 @@ object Predaja {
     fun ustavi(): JSONObject {
         val p = GlasbaStoritev.predvajalnik ?: return JSONObject().put("stopped", false)
         // Premor tistega, ki igra (te naprave ali zvocnika v omrezju).
-        android.os.Handler(android.os.Looper.getMainLooper()).post { try { GlasbaStoritev.premor() } catch (_: Throwable) { } }
+        android.os.Handler(android.os.Looper.getMainLooper()).post { try { GlasbaStoritev.premorTu() } catch (_: Throwable) { } }
         return JSONObject().put("stopped", true)
     }
 

@@ -256,8 +256,13 @@ object PredpomnilnikPravila {
 
     // ---------------------------------------------------------------- naloga 92: manj RAM, ko je USB v uporabi
 
-    /** Naslovnice v pomnilniku z USB: ~78 plakatov RGB_565 280 px (zaslon in vrnitev nanj); ostale pridejo iz baze, ne iz omrezja. */
-    const val SLIKE_Z_USB = 8 * 1024 * 1024
+    /**
+     * Naslovnice v pomnilniku z USB. Naloga 92 jih je zmanjsala na 8 MB (~78 plakatov); naloga 144 (lastnik, 24. 10. 2026:
+     * »plakate tv zapomni v predpomnilniku usb ključa … da se ne rabijo vedno znova nalagati«): z USB so se plakati ob
+     * vracanju v mrezi nalagali POGOSTEJE kot brez njega (prazne kartice, branje z USB in dekodiranje). USB je dodaten
+     * prostor, ne razlog za manj pomnilnika - zato enako kot brez USB (18 MB, ~170 plakatov).
+     */
+    const val SLIKE_Z_USB = 18 * 1024 * 1024
     /** Kartice strani katalogov kanalov v pomnilniku z USB: 2,5 strani po 1000; ostale strani so v bazi na USB ([KANALI]). */
     const val KARTIC_STRANI_Z_USB = 2_500
 

@@ -517,10 +517,16 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (link.vprasamoZaNacin()) glavna.postDelayed({ if (!isFinishing && link.vprasamoZaNacin()) vprasajZaNacin() }, 600)
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         GlasbaStoritev.osveziKartico(this)
+        // Naloga 127 (popravek 118): mini predvajalnik je na pravem domacem zaslonu televizorja.
+        if (dock == null) dock = MiniPredvajalnik.naOknu(this) { startActivity(GlasbaStoritev.namenKartice(this)) }
+        OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
+        dock?.osvezi()
     }
 
-    /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju). */
-    private val medijiPoslusalec: () -> Unit = { runOnUiThread { GlasbaStoritev.osveziKartico(this) } }
+    private var dock: MiniPredvajalnik? = null
+
+    /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju); mini predvajalnik tudi. */
+    private val medijiPoslusalec: () -> Unit = { runOnUiThread { GlasbaStoritev.osveziKartico(this); dock?.osvezi() } }
 
     /** Kuverta Sporocil v glavi (znacka neprebranih). */
     private var kuverta: View? = null
@@ -533,6 +539,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onBackPressed() {
         if (SporocilaZnak.zapri(this)) return
         if (DomacaLupa.nazaj(this)) return
+        if (dock?.skrijCeOdprt() == true) return
         // Televizor: Nazaj iz vsebine najprej v stransko vrstico (kot sistemski zaganjalnik), sele iz nje naprej.
         if (Naprava.jeTelevizor(this) && fokusVVsebini()) { meniDomov.requestFocus(); return }
         if (Zaganjalnik.jeIzbran(this)) return
@@ -549,6 +556,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onStop() {
         GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
+        OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
+        dock?.ustavi()
         glavna.removeCallbacks(tikUre)
         link.odstrani(this)
         super.onStop()

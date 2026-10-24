@@ -183,6 +183,8 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
         imeSredisca = odjemalec.imeSredisca
         this.naprave = naprave
         for (p in poslusalci) p.naNaprave(naprave)
+        // Naloga 116: izbrisi na vseh napravah, ki jih sredisce ob brisanju ni sprejelo (brez povezave), gredo zdaj.
+        if (naprave.isNotEmpty()) Thread { KlepetLinka.posljiCakajocaBrisanja(app) }.start()
     }
 
     override fun naNaslov(url: String, naslov: String, od: String) { for (p in poslusalci) p.naNaslov(url, naslov, od) }

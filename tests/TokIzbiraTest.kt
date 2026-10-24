@@ -122,5 +122,20 @@ fun main() {
     val samoAuto = listOf(zona[0], zona[3])
     check(TokIzbira.uredi(samoAuto, { it }, tv, zelenJezik = "en", izvirni = "en").first() == zona[3])
     check(TokIzbira.jezikiSledi("sl") == listOf("sl", "en") && TokIzbira.jezikiSledi("de") == listOf("en"))
+    // Naloga 142: 10-bitni HEVC (Main10) na napravi brez profila Main10 (SM-X210: c2.qti.hevc.decoder, DECODING_FAILED)
+    check(TokIzbira.opisi("Friends S01E01 1080p BluRay 10bit HEVC").desetbitni) { "10bit" }
+    check(TokIzbira.opisi("Film 2160p HDR x265").desetbitni) { "HDR HEVC je 10-bitni" }
+    check(TokIzbira.opisi("Film 1080p 10-bit x265").desetbitni) { "10-bit" }
+    check(TokIzbira.opisi("Film 1080p HEVC Main10").desetbitni) { "Main10" }
+    check(!TokIzbira.opisi("Film 1080p x265 2 GB").desetbitni) { "navaden HEVC ni 10-bitni" }
+    check(!TokIzbira.opisi("Film 1080p x264 10bit").desetbitni) { "10-bitni H.264 ni HEVC Main10" }
+    val tablica = TokIzbira.Zmoznosti(visina = 1200, hevc = true, hevc10 = false, ac3 = true)
+    val main10 = TokIzbira.uredi(listOf("A 1080p BluRay 10bit HEVC 0.9 GB", "B 1080p x264 1.5 GB"), { it }, tablica)
+    check(main10.first() == "B 1080p x264 1.5 GB") { "brez Main10 gre H.264 naprej: $main10" }
+    val zMain10 = TokIzbira.uredi(listOf("A 1080p BluRay 10bit HEVC 0.9 GB", "B 1080p x264 1.5 GB"), { it }, tablica.copy(hevc10 = true))
+    check(zMain10.first() == "A 1080p BluRay 10bit HEVC 0.9 GB") { "z Main10 manjsi HEVC ostane prvi: $zMain10" }
+    val navaden = TokIzbira.uredi(listOf("A 1080p x265 0.9 GB", "B 1080p x264 1.5 GB"), { it }, tablica)
+    check(navaden.first() == "A 1080p x265 0.9 GB") { "navaden (8-bitni) HEVC ostane prvi tudi brez Main10: $navaden" }
+    check(TokIzbira.Zmoznosti().hevc10) { "privzeto (brez podatka) kot doslej: Main10 velja" }
     println("TokIzbiraTest: OK")
 }

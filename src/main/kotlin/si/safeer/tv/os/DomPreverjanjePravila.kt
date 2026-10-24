@@ -77,7 +77,7 @@ object DomPreverjanjePravila {
     fun razstavi(kljuc: String): Pair<String, String> = kljuc.substringBefore('|') to kljuc.substringAfter('|', "")
 
     /** Serija kot celota (»series|tt…« brez epizode): preverimo jo po prvi epizodi. */
-    fun jeSerija(kljuc: String): Boolean = razstavi(kljuc).let { (tip, id) -> tip == "series" && ':' !in id }
+    fun jeSerija(kljuc: String): Boolean = razstavi(kljuc).let { (tip, id) -> tip == "series" && !SerijePravila.jeEpizoda(id) }
 
     /** Meja naprave iz vprasanja: »M« = vsak torrent, stevilo = bajti, 0 = samo neposredni tokovi; neveljavno = 0. */
     fun mejaIzNiza(s: String?): Long = when {

@@ -235,6 +235,13 @@ object KanaliPravila {
         (dodatkov?.takeIf { it.isNotEmpty() } ?: shranjeni).plus(ostali).filter { it.isNotBlank() }.distinct()
 
     /**
+     * Naloga 121 (lastnik: nedelujocih kanalov uporabniku ne kazemo nikjer v Medijskem centru): vnos se ne pokaze, ce je
+     * oznacen kot mrtev ali skrit ([mrtev] - MrtviKanali, velja za kanal in postajo) ali je kanal seznama IPTV z znano
+     * nedelujocim tokom ([nedelujocTok], npr. slika »kanal ni na voljo«). Neznano stanje se kaze (nic ne izgine brez dokaza).
+     */
+    fun skrijNedelujoc(mrtev: Boolean, jeKanalSeznama: Boolean, nedelujocTok: Boolean): Boolean = mrtev || (jeKanalSeznama && nedelujocTok)
+
+    /**
      * Naloga 91c: nedavni vnosi (Recent) brez tistih, ki ne delujejo ([nedeluje]: skrit, mrtev, znan nedelujoc tok). Kanal je
      * ena kartica z vec razlicicami, zato tak kanal skrije tudi ostale nedavne kanale z istim imenom ([kljucImena]).
      */

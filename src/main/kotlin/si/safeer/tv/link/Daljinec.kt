@@ -69,6 +69,12 @@ object Daljinec {
         "video.stream", "video.stream_stop",
         // "Nadaljuj na drugi napravi": kaj ta naprava predvaja (ali je nazadnje gledala) in kje; pavza, ce cilj tako izbere (Predaja).
         "play.state", "play.stop", "play.offer",
+        // Naloga 129: kljuci debrid storitev s telefona (ozji krog, potrditev na tej napravi).
+        si.safeer.tv.os.DebridPravila.DEJANJE_KLJUCI,
+        // Naloga 136: torrenti, ki jih je Real-Debrid ali AllDebrid ze vrnil kot pripravljene (⚡), z druge naprave v krogu.
+        si.safeer.tv.os.DebridPravila.DEJANJE_PREDPOMNJENI,
+        // Naloga 117: druga naprava upravlja predvajanje na tej kot lokalno (premor, naprej, cas, glasnost, vrsta).
+        si.safeer.tv.os.OddaljenoPravila.DEJANJE,
         // Seznami predvajanja so enaki na vseh napravah v Linku: druga naprava prebere sezname te naprave (SeznamiSink).
         "lists.get",
         // Preverjevalec doma: druga naprava vprasa, kaj se da predvajati; dodatke vprasa samo ta (DomPreverjanje).
@@ -102,6 +108,7 @@ object Daljinec {
             JSONObject().put("items", JSONArray()).put("enabled", false).put("reason", "access"))
         "apps" -> Izid(true, "Naprava programov ne deli", JSONObject().put("apps", JSONArray()).put("reason", "access"))
         "play.state" -> Izid(true, "Predvajanje", JSONObject().put("shared", false).put("reason", "access"))
+        si.safeer.tv.os.OddaljenoPravila.DEJANJE -> Izid(true, "Predvajanje", JSONObject().put("shared", false).put("playing", false).put("reason", "access"))
         else -> Izid(false, "Ta naprava ti tega ne dovoli. Dostop odpre njen uporabnik v Safeer Linku.", koda = KODA_NI_DOVOLJENO)
     }
 
@@ -202,8 +209,22 @@ object Daljinec {
         if (d == si.safeer.tv.os.DomPreverjanjePravila.DEJANJE) return Izid(false, "Samo prek sprejemnika", koda = "ni_na_voljo")
         if (d == "play.state") return Izid(true, "Predvajanje", si.safeer.tv.os.Predaja.stanje(context, parametri.optString(PARAM_POSILJATELJ, "")))
         if (d == "play.stop") return Izid(true, "Pavza", si.safeer.tv.os.Predaja.ustavi())
+        if (d == si.safeer.tv.os.OddaljenoPravila.DEJANJE) {
+            val podatki = si.safeer.tv.os.OddaljenoPredvajanje.izvedi(context, parametri)
+            return if (podatki.has("error")) Izid(false, "Neznan ukaz predvajanja", koda = "neveljavno") else Izid(true, "Predvajanje", podatki)
+        }
         // "Poslji na napravo": izvor ponudi, kar igra; tu le tiho obvestilo s Sprejmi/Zavrni (nic se ne zacne samo).
         if (d == "play.offer") return Izid(true, "Ponudba", si.safeer.tv.os.Predaja.prejmiPonudbo(context, parametri.optString(PARAM_POSILJATELJ, ""), parametri))
+        // Naloga 129: kljuci debrid storitev z druge naprave (ozji krog - dejanje ni v naborih DostopPravila); shranijo se
+        // sele po potrditvi na tej napravi.
+        if (d == si.safeer.tv.os.DebridPravila.DEJANJE_KLJUCI) {
+            val od = parametri.optString(PARAM_POSILJATELJ, "")
+            val ime = try { si.safeer.tv.os.LinkUpravitelj.pridobi(context).naprave.firstOrNull { it.id == od }?.ime } catch (_: Throwable) { null }
+            return Izid(true, "Kljuci prejeti", si.safeer.tv.os.Debrid.prejmiKljuce(context, parametri, ime?.takeIf { it.isNotBlank() } ?: od))
+        }
+        // Naloga 136: pripravljeni torrenti z druge naprave (ozji krog - dejanje ni v naborih DostopPravila).
+        if (d == si.safeer.tv.os.DebridPravila.DEJANJE_PREDPOMNJENI)
+            return Izid(true, "Pripravljeni torrenti", si.safeer.tv.os.Debrid.prejmiZapomnjene(context, parametri))
         try {
             // Najprej dejavnost: tipke, drsenje, posnetek in tudi status z odprto stranjo.
             if (ospredje != null) {

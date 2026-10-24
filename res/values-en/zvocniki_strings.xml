@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="zvocnik_predvajaj_na">Play on speaker</string>
+    <!-- Naloga 104: vidna oznaka gumba za izbiro zvocnika na zaslonu predvajanja. -->
+    <string name="zvocnik_oznaka">Speaker</string>
     <string name="zvocnik_na">On speaker: %1$s</string>
     <string name="zvocnik_iscem">Searching for speakers in your network…</string>
     <string name="zvocnik_ni_najdenih">No speakers found. The speaker must be switched on and in the same network (DLNA).</string>
@@ -19,4 +21,14 @@
     <string name="zvocnik_nedosegljiv">%1$s is not responding</string>
     <string name="zvocnik_ne_ustavi">%1$s is not responding. If it is still playing, stop it on the speaker itself.</string>
     <string name="zvocnik_ustavljen">%1$s did not pause, so playback on it was stopped.</string>
+    <!-- Naloga 117: upravljanje predvajanja na drugi napravi v Safeer Linku -->
+    <string name="naprava_na">Playing on %1$s</string>
+    <string name="naprava_glasnost">Volume: %1$d %%</string>
+    <string name="naprava_caka">Waiting for %1$s to start playing…</string>
+    <string name="naprava_nazaj10">Back 10 s</string>
+    <string name="naprava_naprej10">Forward 10 s</string>
+    <string name="naprava_vrsta">Queue</string>
+    <string name="naprava_prekini">Stop controlling</string>
+    <string name="naprava_konec">%1$s is not responding – control ended</string>
+    <string name="naprava_upravljaj">Control %1$s</string>
 </resources>

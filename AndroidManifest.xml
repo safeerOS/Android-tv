@@ -328,6 +328,11 @@
             android:taskAffinity="${applicationId}.os" android:launchMode="singleTop" android:windowSoftInputMode="adjustPan"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
         <!-- Magnet povezave: odpre jih tudi brskalnik ali druga aplikacija (magnet:). -->
+        <!-- Naloga 135: samodejni preizkus po gradnji (tests/preizkus_po_gradnji.py). Izvozena samo z dovoljenjem DUMP:
+             ima ga le adb (shell) in sistem, druge aplikacije je ne morejo zagnati. -->
+        <activity android:name="si.safeer.tv.os.PreizkusActivity" android:exported="true"
+            android:permission="android.permission.DUMP" android:theme="@android:style/Theme.NoDisplay" android:excludeFromRecents="true"
+            android:taskAffinity="" android:noHistory="true" />
         <activity android:name="si.safeer.tv.os.MagnetActivity" android:exported="true"
             android:theme="@style/Theme.SafeerOs" android:taskAffinity="${applicationId}.os"
             android:launchMode="singleTop"

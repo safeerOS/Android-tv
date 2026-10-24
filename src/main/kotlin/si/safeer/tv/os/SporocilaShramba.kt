@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONObject
 
 /** Krajevna hramba Sporocil (kanali, pogovori, sporocila). Brez skrivnosti - te so v SporocilaSkrivnosti. */
-class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "sporocila.db", null, 2) {
+class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "sporocila.db", null, 4) {
 
     data class Kanal(val id: String, val vrsta: String, val ime: String, val stanje: String, val nastavitve: JSONObject)
     data class Pogovor(val id: String, val kanalId: String, val oseba: String, val ime: String, val zadeva: String,
@@ -19,6 +19,8 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         db.execSQL("CREATE TABLE pogovori(id TEXT, kanal_id TEXT, oseba TEXT, ime TEXT, zadeva TEXT, zadnje TEXT, neprebrano INTEGER, cas TEXT, PRIMARY KEY(id, kanal_id))")
         db.execSQL("CREATE TABLE sporocila(id TEXT, kanal_id TEXT, pogovor_id TEXT, smer TEXT, besedilo TEXT, cas TEXT, PRIMARY KEY(id, kanal_id))")
         osebeTabele(db)
+        izbrisaneTabele(db)
+        brisanjaTabela(db)
     }
 
     /** v2: osebe (zdruzene identitete + lastno ime) in oznake pogovorov - vse lokalno, uporabnikovo. */
@@ -28,7 +30,90 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         db.execSQL("CREATE TABLE IF NOT EXISTS oznake(kanal_id TEXT, pogovor_id TEXT, oznaka TEXT, PRIMARY KEY(kanal_id, pogovor_id, oznaka))")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, stara: Int, nova: Int) { if (stara < 2) osebeTabele(db) }
+    /**
+     * v3 (naloga 106): krajevno izbrisana sporocila (id) in pogovori (do katerega casa) - kanal jih ob ponovni uskladitvi ne vrne.
+     */
+    private fun izbrisaneTabele(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS izbrisana(kanal_id TEXT, id TEXT, PRIMARY KEY(kanal_id, id))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS izbrisani_pogovori(kanal_id TEXT, id TEXT, do_cas TEXT, PRIMARY KEY(kanal_id, id))")
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, stara: Int, nova: Int) {
+        if (stara < 2) osebeTabele(db)
+        if (stara < 3) izbrisaneTabele(db)
+        if (stara < 4) brisanjaTabela(db)
+    }
+
+    /**
+     * v4 (naloga 116): izbrisi na vseh napravah, ki jih sredisce se ni sprejelo (ta naprava je bila brez povezave) - poslji
+     * ob naslednji uskladitvi. [id] je skupni id sporocila, [cilj] naprava, ki ga je prejela.
+     */
+    private fun brisanjaTabela(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS brisanja_cakajo(id TEXT PRIMARY KEY, cilj TEXT, zapisano INTEGER)")
+    }
+
+    data class CakajoceBrisanje(val id: String, val cilj: String, val zapisano: Long)
+
+    fun dodajCakajoceBrisanje(id: String, cilj: String, zapisano: Long) {
+        writableDatabase.insertWithOnConflict("brisanja_cakajo", null, ContentValues().apply {
+            put("id", id); put("cilj", cilj); put("zapisano", zapisano) }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun cakajocaBrisanja(): List<CakajoceBrisanje> = readableDatabase.rawQuery(
+        "SELECT id,cilj,zapisano FROM brisanja_cakajo ORDER BY zapisano", null).use { k ->
+        buildList { while (k.moveToNext()) add(CakajoceBrisanje(k.getString(0), k.getString(1) ?: "", k.getLong(2))) }
+    }
+
+    fun odstraniCakajoceBrisanje(id: String) { writableDatabase.delete("brisanja_cakajo", "id=?", arrayOf(id)) }
+
+    /** Eno sporocilo po id-ju (za zahtevo za izbris z druge naprave). */
+    fun sporocilo(kanalId: String, id: String): Sporocilo? = readableDatabase.rawQuery(
+        "SELECT id,pogovor_id,smer,besedilo,cas FROM sporocila WHERE kanal_id=? AND id=?", arrayOf(kanalId, id)).use { k ->
+        if (k.moveToFirst()) Sporocilo(k.getString(0), k.getString(1), k.getString(2), k.getString(3) ?: "", k.getString(4) ?: "") else null
+    }
+
+    // ------------------------------------------------------------------ krajevno brisanje (naloga 106)
+    private fun jeIzbrisano(kanalId: String, id: String): Boolean =
+        readableDatabase.rawQuery("SELECT 1 FROM izbrisana WHERE kanal_id=? AND id=?", arrayOf(kanalId, id)).use { it.moveToFirst() }
+
+    /** »Izbrisi pri meni«: sporocilo izgine iz pogovora na tej napravi; zadnje sporocilo pogovora se posodobi. */
+    fun izbrisiSporocilo(kanalId: String, pogovorId: String, id: String) {
+        val db = writableDatabase; db.beginTransaction()
+        try {
+            db.insertWithOnConflict("izbrisana", null, ContentValues().apply { put("kanal_id", kanalId); put("id", id) }, SQLiteDatabase.CONFLICT_IGNORE)
+            db.delete("sporocila", "id=? AND kanal_id=?", arrayOf(id, kanalId))
+            val casPogovora = db.rawQuery("SELECT cas FROM pogovori WHERE id=? AND kanal_id=?", arrayOf(pogovorId, kanalId)).use {
+                if (it.moveToFirst()) it.getString(0) ?: "" else ""
+            }
+            val (zadnje, cas) = SporocilaPravila.zadnjePoIzbrisu(sporocila(kanalId, pogovorId, 1).map { it.besedilo to it.cas }, casPogovora)
+            db.execSQL("UPDATE pogovori SET zadnje=?, cas=? WHERE id=? AND kanal_id=?", arrayOf(zadnje, cas, pogovorId, kanalId))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    /**
+     * »Izbrisi pogovor«: vsa sporocila pogovora in pogovor sam na tej napravi. Oznake ostanejo (v seznamu oznak, nepovezane);
+     * pogovor se vrne samo z novim sporocilom ([SporocilaPravila.pogovorSeVrne]).
+     */
+    fun izbrisiPogovor(kanalId: String, pogovorId: String) {
+        val db = writableDatabase; db.beginTransaction()
+        try {
+            val sporocila = db.rawQuery("SELECT id, cas FROM sporocila WHERE kanal_id=? AND pogovor_id=?", arrayOf(kanalId, pogovorId)).use { k ->
+                buildList { while (k.moveToNext()) add((k.getString(0) ?: "") to (k.getString(1) ?: "")) }
+            }
+            val casPogovora = db.rawQuery("SELECT cas FROM pogovori WHERE id=? AND kanal_id=?", arrayOf(pogovorId, kanalId)).use {
+                if (it.moveToFirst()) it.getString(0) ?: "" else ""
+            }
+            for (id in SporocilaPravila.zaIzbrisPogovora(sporocila.map { it.first }))
+                db.insertWithOnConflict("izbrisana", null, ContentValues().apply { put("kanal_id", kanalId); put("id", id) }, SQLiteDatabase.CONFLICT_IGNORE)
+            db.insertWithOnConflict("izbrisani_pogovori", null, ContentValues().apply {
+                put("kanal_id", kanalId); put("id", pogovorId); put("do_cas", SporocilaPravila.izbrisanDo(sporocila.map { it.second }, casPogovora))
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+            db.delete("sporocila", "kanal_id=? AND pogovor_id=?", arrayOf(kanalId, pogovorId))
+            db.delete("pogovori", "id=? AND kanal_id=?", arrayOf(pogovorId, kanalId))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
 
     // ------------------------------------------------------------------ osebe (uporabnikovo urejanje)
     /** Kljuc identitete pogovora: ista oseba na razlicnih kanalih dobi isti kljuc (e-posta ne glede na velikost crk). */
@@ -145,6 +230,14 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
     /** Nov/posodobljen pogovor: neprebrana se pristejejo, zadnje sporocilo se zamenja. */
     fun posodobiPogovor(p: Pogovor, pristej: Boolean) {
         val db = writableDatabase
+        // Naloga 106: izbrisan pogovor se vrne samo z novim sporocilom, ne s ponovno prenesenimi starimi.
+        val izbrisanDo = db.rawQuery("SELECT do_cas FROM izbrisani_pogovori WHERE kanal_id=? AND id=?", arrayOf(p.kanalId, p.id)).use {
+            if (it.moveToFirst()) it.getString(0) ?: "" else null
+        }
+        if (izbrisanDo != null) {
+            if (!SporocilaPravila.pogovorSeVrne(p.cas, izbrisanDo)) return
+            db.delete("izbrisani_pogovori", "kanal_id=? AND id=?", arrayOf(p.kanalId, p.id))
+        }
         val prej = db.rawQuery("SELECT neprebrano, ime FROM pogovori WHERE id=? AND kanal_id=?", arrayOf(p.id, p.kanalId)).use {
             if (it.moveToFirst()) it.getInt(0) to (it.getString(1) ?: "") else 0 to ""
         }
@@ -155,11 +248,14 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
-    fun shraniSporocilo(kanalId: String, s: Sporocilo) {
+    /** Shrani sporocilo; krajevno izbrisanega (naloga 106) ne - vrne false. */
+    fun shraniSporocilo(kanalId: String, s: Sporocilo): Boolean {
+        if (jeIzbrisano(kanalId, s.id)) return false
         writableDatabase.insertWithOnConflict("sporocila", null, ContentValues().apply {
             put("id", s.id); put("kanal_id", kanalId); put("pogovor_id", s.pogovorId); put("smer", s.smer)
             put("besedilo", s.besedilo); put("cas", s.cas)
         }, SQLiteDatabase.CONFLICT_REPLACE)
+        return true
     }
 
     /**

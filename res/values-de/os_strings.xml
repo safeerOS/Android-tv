@@ -481,6 +481,12 @@
     <string name="os_ur_izbrisano">Gelöscht (im Papierkorb des Computers)</string>
     <string name="os_ur_preimenovano">Umbenannt</string>
     <string name="os_ur_premaknjeno">Verschoben</string>
+    <!-- Naloga 107: urejanje datotek te naprave. -->
+    <string name="os_ur_ime_neveljavno">Dieser Name ist nicht möglich (leer, beginnt mit einem Punkt, zu lang oder enthält / \\ : * ? \" &lt; &gt; |).</string>
+    <string name="os_ur_n_sistemska">Safeer ändert keine Systemordner und keine Dateien anderer Apps.</string>
+    <string name="os_ur_izbrisi_opis_krajevno">Ab Android 11 kommt die Datei in den Papierkorb dieses Geräts, bei älteren Versionen wird sie gelöscht.</string>
+    <string name="os_ur_izbrisano_krajevno">Von diesem Gerät gelöscht</string>
+    <string name="os_ur_pomoc_drzi_krajevno">OK halten · umbenennen, verschieben, löschen</string>
     <string name="os_ur_zavrteno">Gedreht und auf dem Computer gespeichert</string>
     <string name="os_ur_napaka">Nicht ausgeführt: %1$s</string>
     <string name="os_ur_n_obstaja">eine Datei mit diesem Namen gibt es schon</string>
@@ -596,6 +602,17 @@
     <string name="os_spor_ni_zadetkov">Keine Treffer.</string>
     <string name="os_spor_oseba">Person</string>
     <string name="os_spor_oznake">Labels</string>
+    <!-- Naloga 106: krajevno brisanje sporocil in pogovorov. -->
+    <string name="os_spor_izbrisi_pri_meni">Bei mir löschen</string>
+    <string name="os_spor_izbrisi_sporocilo_vprasanje">Diese Nachricht auf diesem Gerät löschen? Die andere Seite behält sie.</string>
+    <string name="os_spor_izbrisi_pogovor">Unterhaltung löschen</string>
+    <string name="os_spor_izbrisi_pogovor_vprasanje">Die Unterhaltung mit %1$s auf diesem Gerät löschen? Die andere Seite behält sie, Labels bleiben.</string>
+    <string name="os_spor_izbrisi">Löschen</string>
+    <string name="os_spor_izbrisano">Gelöscht</string>
+    <string name="os_spor_izbrisi_na_vseh">Auf allen meinen Geräten löschen</string>
+    <string name="os_spor_izbrisi_na_vseh_vprasanje">Diese Nachricht hier und auf dem Gerät löschen, das sie empfangen hat? Ein Gerät ohne Verbindung löscht sie bei der nächsten Verbindung.</string>
+    <string name="os_spor_izbrisano_na_vseh">Auf allen Geräten gelöscht</string>
+    <string name="os_spor_izbris_caka">Hier gelöscht; das andere Gerät löscht sie bei der nächsten Verbindung</string>
     <string name="os_spor_isci_osebo">Diese Person durchsuchen</string>
     <string name="os_spor_isci_osebo_namig">Wort in Nachrichten…</string>
     <string name="os_spor_oseba_ime">Dein Name für diese Person (optional)</string>

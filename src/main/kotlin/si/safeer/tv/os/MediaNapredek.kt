@@ -21,6 +21,8 @@ object MediaNapredek {
         // Ogled vsebine zasebnega dodatka se ne zapise (ZasebniDodatki): ni v Nadaljuj, Zate in ne gre drugi napravi.
         Stremio.pripravi(c)
         if (Stremio.jeZasebna(s)) return
+        // Naloga 135: samodejni preizkus po gradnji ne zapise mesta ogleda.
+        if (PreizkusPravila.jePreizkus(s.id)) return
         val vrsta = SpletniVir.vrstaVsebine(s)
         val jeSerijaAliFilm = vrsta == SpletniVir.SERIJA || vrsta == SpletniVir.FILM || s.season > 0 || s.episode > 0
         // Kratkih glasbenih videospotov, pesmi in vsebin pod 10 min ne vnasamo med filme in serije za nadaljevanje ogleda

@@ -109,6 +109,20 @@ object KrajevneDatoteke {
         return vnosi
     }
 
+    /**
+     * Naloga 107: mapa datoteke [uri] (RELATIVE_PATH, npr. »Movies/«) - Android 10+ iz MediaStore, starejsi iz polne poti
+     * ([DatotekePravila.relativnaIzPoti]). "" = ne vemo. Klic iz ozadja.
+     */
+    @Suppress("DEPRECATION")
+    fun mapaDatoteke(context: Context, uri: Uri): String = try {
+        val stolpec = if (Build.VERSION.SDK_INT >= 29) MediaStore.MediaColumns.RELATIVE_PATH else MediaStore.MediaColumns.DATA
+        context.contentResolver.query(uri, arrayOf(stolpec), null, null, null)?.use { k ->
+            if (!k.moveToFirst()) "" else (k.getString(0) ?: "").let {
+                if (Build.VERSION.SDK_INT >= 29) DatotekePravila.normaliziraj(it) else DatotekePravila.relativnaIzPoti(it)
+            }
+        } ?: ""
+    } catch (e: Throwable) { Log.w(TAG, "Mapa datoteke ni znana: ${e.javaClass.simpleName}"); "" }
+
     /** Zadetek iskanja po zbirki naprave: [zbirka] "audio" ali "video", [vrstica] _ID v MediaStore. */
     data class Najdeno(val zbirka: String, val vrstica: Long, val naslov: String, val izvajalec: String,
                        val ime: String, val mime: String, val mapa: String) {

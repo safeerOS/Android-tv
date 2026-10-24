@@ -30,4 +30,13 @@
     <string name="zg_vrnjen">Der vorherige Launcher ist wieder der Startbildschirm.</string>
     <string name="zg_sporocila_novo">Neue Nachricht</string>
     <string name="zg_sporocila_vse">Vollständig öffnen</string>
+    <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
+    <string name="zg_dock_pokazi">Player anzeigen</string>
+    <string name="zg_dock_skrij">Player ausblenden</string>
+    <string name="zg_dock_mesto">Position des Mini-Players</string>
+    <string name="zg_dock_zgoraj">Oben</string>
+    <string name="zg_dock_spodaj">Unten</string>
+    <string name="zg_dock_levo">Links</string>
+    <string name="zg_dock_desno">Rechts</string>
+    <string name="zg_dock_seznam">In der Liste (ohne Dock)</string>
 </resources>

@@ -60,6 +60,34 @@ object VrsticaPravila {
     /** Poteg v levo (kjerkoli) zapre odprt predal ali skrije imena tirnice. */
     fun potegZapre(dx: Float, dy: Float): Boolean = dx < 0 && vodoravni(dx, dy)
 
+    // ------------------------------------------------------------------ naloga 127: tirnico se da popolnoma skriti
+
+    /** Stanja tirnice na dotik: popolnoma skrita (samo lezece), ikone, ikone z imeni. */
+    const val TIRNICA_SKRITA = 0
+    const val TIRNICA_IKONE = 1
+    const val TIRNICA_IMENA = 2
+
+    fun stanjeTirnice(skrita: Boolean, imena: Boolean, lezece: Boolean): Int = when {
+        skrita && lezece -> TIRNICA_SKRITA
+        imena -> TIRNICA_IMENA
+        else -> TIRNICA_IKONE
+    }
+
+    /**
+     * Naloga 127 (lastnik): poteg proti sredini zaslona tirnico pokaze za eno stanje (skrita -> ikone -> imena), poteg proti
+     * robu jo skrije za eno (imena -> ikone -> skrita). Popolnoma skriti jo je mogoce samo lezece; pokonci (tablica)
+     * ostanejo ikone.
+     */
+    fun tirnicaPoPotegu(stanje: Int, protiSredini: Boolean, lezece: Boolean): Int = when {
+        protiSredini -> minOf(stanje + 1, TIRNICA_IMENA)
+        stanje == TIRNICA_IKONE && !lezece -> TIRNICA_IKONE
+        else -> maxOf(stanje - 1, TIRNICA_SKRITA)
+    }
+
+    /** Skrito tirnico pokaze samo poteg z levega roba (kot predal); poteg po vidni tirnici velja, kjer se zacne na njej. */
+    fun potegZRobaTirnice(skrita: Boolean, zacetekXDp: Float, sirinaTirniceDp: Float): Boolean =
+        if (skrita) zacetekXDp <= ROB_POTEGA_DP else zacetekXDp < sirinaTirniceDp
+
     // ------------------------------------------------------------------ iskalna lupa
 
     /** Lupa je razsirjena, kadar uporabnik z njo dela (fokus, besedilo) ali jo je izbral za vedno odprto. */

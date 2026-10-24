@@ -381,6 +381,9 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 vnosi = novi
                 pripraviPogledMape()
                 novPrikaz()
+                // Naloga 107: v zbirki te naprave zadrzan OK (dolg pritisk) odpre preimenuj, premakni, izbrisi.
+                namigDrzi.text = getString(R.string.os_ur_pomoc_drzi_krajevno)
+                namigDrzi.visibility = if (zbirka.isNotEmpty() && novi.isNotEmpty() && !izbiramSliko) View.VISIBLE else View.GONE
                 if (novi.isEmpty()) pokaziSporocilo(getString(R.string.os_krajevno_prazno)) else {
                     skrijSporocilo()
                     if (polozaj != null) postavi(polozaj) else fokusNaPrviVnos()
@@ -704,6 +707,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      */
     private fun moznosti(i: Int) {
         val v = vnosi.getOrNull(i) ?: return
+        // Naloga 107: datoteke te naprave (MediaStore) - preimenuj, premakni, izbrisi.
+        if (krajevni && !izbiramSliko) { moznostiKrajevne(v); return }
         if (izbiramSliko || izbiramRacunalnik || krajevni) return
         if (v.vrsta == "computer" || v.vrsta == "phone" || v.vrsta == "tablet" || v.vrsta == "tv") return
         val r = racunalnik ?: return
@@ -736,6 +741,156 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja.getOrNull(k)?.second?.invoke() }
             .setNegativeButton(getString(R.string.os_preklici), null)
         Kontroler.pokazi(okno.show())
+    }
+
+    // ------------------------------------------------------------------ naloga 107: urejanje datotek te naprave (MediaStore)
+
+    /**
+     * Kaj narediti, ko uporabnik potrdi sistemsko okno (Android 11+: createWriteRequest / createTrashRequest; Android 10:
+     * RecoverableSecurityException). null = nic ne caka.
+     */
+    private var poSistemskiPotrditvi: (() -> Unit)? = null
+
+    private fun poPotrditviSistema(potrjeno: Boolean) {
+        val naprej = poSistemskiPotrditvi
+        poSistemskiPotrditvi = null
+        if (!potrjeno) { Toast.makeText(this, getString(R.string.os_ur_n_zavrnjeno), Toast.LENGTH_SHORT).show(); return }
+        naprej?.invoke()
+    }
+
+    /** Sistemsko okno za potrditev (uporabnik potrdi spremembo datoteke, ki je ni ustvaril Safeer). */
+    private fun sistemskaPotrditev(posiljatelj: android.content.IntentSender, potem: () -> Unit) {
+        poSistemskiPotrditvi = potem
+        try { startIntentSenderForResult(posiljatelj, ZAHTEVA_UREJANJE, null, 0, 0, 0) }
+        catch (_: Throwable) { poSistemskiPotrditvi = null; Toast.makeText(this, getString(R.string.os_ur_n_ni_na_napravi), Toast.LENGTH_SHORT).show() }
+    }
+
+    /**
+     * Zadrzan OK (dolg pritisk) na datoteki te naprave: preimenuj in premakni (Android 10+, MediaStore RELATIVE_PATH), izbrisi.
+     * Najprej v ozadju preverimo mapo - sistemskih map in datotek drugih aplikacij (Android/...) ne spreminjamo
+     * ([DatotekePravila.smeUrejati]).
+     */
+    private fun moznostiKrajevne(v: Vnos) {
+        if (!v.id.startsWith("content://")) return
+        val uri = android.net.Uri.parse(v.id)
+        Thread({
+            val mapa = KrajevneDatoteke.mapaDatoteke(this, uri)
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                if (!DatotekePravila.smeUrejati(mapa)) { Toast.makeText(this, getString(R.string.os_ur_n_sistemska), Toast.LENGTH_LONG).show(); return@runOnUiThread }
+                val dejanja = ArrayList<Pair<String, () -> Unit>>()
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    dejanja.add(getString(R.string.os_ur_preimenuj) to { preimenujKrajevno(v, uri) })
+                    val cilji = DatotekePravila.ciljiPremika(v.vrsta, mapa)
+                    if (cilji.isNotEmpty()) dejanja.add(getString(R.string.os_ur_premakni) to { premakniKrajevno(v, uri, cilji) })
+                }
+                dejanja.add(getString(R.string.os_ur_izbrisi) to { potrdiBrisanjeKrajevne(v, uri) })
+                val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle(v.ime)
+                    .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja.getOrNull(k)?.second?.invoke() }
+                    .setNegativeButton(getString(R.string.os_preklici), null)
+                Kontroler.pokazi(okno.show())
+            }
+        }, "safeer-krajevno-urejanje").start()
+    }
+
+    /**
+     * Sprememba zapisa v MediaStore ([vrednosti]) z dovoljenjem: Android 11+ najprej sistemsko okno (createWriteRequest),
+     * Android 10 ob RecoverableSecurityException sistemsko okno in ponovni poskus. V ozadju; ob uspehu [uspeh] in osvezitev.
+     */
+    private fun posodobiKrajevno(uri: android.net.Uri, vrednosti: android.content.ContentValues, uspeh: Int, zePotrjeno: Boolean = false) {
+        if (android.os.Build.VERSION.SDK_INT >= 30 && !zePotrjeno) {
+            val pi = try { android.provider.MediaStore.createWriteRequest(contentResolver, listOf(uri)) } catch (_: Throwable) { null }
+            if (pi != null) { sistemskaPotrditev(pi.intentSender) { posodobiKrajevno(uri, vrednosti, uspeh, zePotrjeno = true) }; return }
+        }
+        Thread({
+            val izid: Any? = try { contentResolver.update(uri, vrednosti, null, null) > 0 } catch (e: Throwable) { e }
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                when {
+                    izid == true -> { Toast.makeText(this, getString(uspeh), Toast.LENGTH_SHORT).show(); naloziKrajevno(krajevnaZbirka) }
+                    android.os.Build.VERSION.SDK_INT >= 29 && izid is android.app.RecoverableSecurityException && !zePotrjeno ->
+                        sistemskaPotrditev(izid.userAction.actionIntent.intentSender) { posodobiKrajevno(uri, vrednosti, uspeh, zePotrjeno = true) }
+                    else -> Toast.makeText(this, getString(R.string.os_ur_napaka, getString(R.string.os_ur_n_ni_na_napravi)), Toast.LENGTH_LONG).show()
+                }
+            }
+        }, "safeer-krajevno-urejanje").start()
+    }
+
+    private fun preimenujKrajevno(v: Vnos, uri: android.net.Uri) {
+        val (deblo, koncnica) = razdeliIme(v.ime, false)
+        val vnos = EditText(this).apply {
+            setSingleLine(); inputType = android.text.InputType.TYPE_CLASS_TEXT
+            hint = getString(R.string.os_ur_ime_namig); setText(deblo); setSelection(deblo.length); setPadding(40, 30, 40, 30)
+        }
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_ur_preimenuj))
+            .setMessage(if (koncnica.isEmpty()) null else getString(R.string.os_ur_koncnica_ostane, koncnica))
+            .setView(vnos)
+            .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
+                val ime = zdruziIme(vnos.text?.toString().orEmpty(), koncnica).trim()
+                if (ime == v.ime) return@setPositiveButton
+                if (DatotekePravila.napakaImena(ime) != null) {
+                    Toast.makeText(this, getString(R.string.os_ur_ime_neveljavno), Toast.LENGTH_LONG).show(); return@setPositiveButton
+                }
+                posodobiKrajevno(uri, android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, ime) },
+                    R.string.os_ur_preimenovano)
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Premik v standardno mapo te vrste ([DatotekePravila.ciljiPremika]); izbira je potrditev, Android 11+ potrdi se sam. */
+    private fun premakniKrajevno(v: Vnos, uri: android.net.Uri, cilji: List<String>) {
+        if (android.os.Build.VERSION.SDK_INT < 29) return
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_ur_kam, v.ime))
+            .setItems(cilji.map { it.trimEnd('/') }.toTypedArray()) { _, k ->
+                val cilj = cilji.getOrNull(k) ?: return@setItems
+                posodobiKrajevno(uri, android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, cilj) },
+                    R.string.os_ur_premaknjeno)
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /**
+     * Izbris po potrditvi: Android 11+ v kos te naprave (createTrashRequest - sistemsko okno), Android 10 izbris (ob
+     * RecoverableSecurityException sistemsko okno), Android 9 izbris (ce Safeer nima dovoljenja, obvestilo).
+     */
+    private fun potrdiBrisanjeKrajevne(v: Vnos, uri: android.net.Uri) {
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_ur_izbrisi_vprasanje, v.ime))
+            .setMessage(getString(R.string.os_ur_izbrisi_opis_krajevno))
+            .setPositiveButton(getString(R.string.os_ur_izbrisi)) { _, _ -> izbrisiKrajevno(uri) }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        // Privzeti gumb je Preklici: zadrzan OK, ki je odprl meni, ne sme takoj izbrisati.
+        okno.setOnShowListener { okno.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun izbrisiKrajevno(uri: android.net.Uri, zePotrjeno: Boolean = false) {
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            val pi = try { android.provider.MediaStore.createTrashRequest(contentResolver, listOf(uri), true) } catch (_: Throwable) { null }
+            if (pi == null) { Toast.makeText(this, getString(R.string.os_ur_napaka, getString(R.string.os_ur_n_ni_na_napravi)), Toast.LENGTH_LONG).show(); return }
+            sistemskaPotrditev(pi.intentSender) {
+                Toast.makeText(this, getString(R.string.os_ur_izbrisano_krajevno), Toast.LENGTH_SHORT).show(); naloziKrajevno(krajevnaZbirka)
+            }
+            return
+        }
+        Thread({
+            val izid: Any? = try { contentResolver.delete(uri, null, null) > 0 } catch (e: Throwable) { e }
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                when {
+                    izid == true -> { Toast.makeText(this, getString(R.string.os_ur_izbrisano_krajevno), Toast.LENGTH_SHORT).show(); naloziKrajevno(krajevnaZbirka) }
+                    android.os.Build.VERSION.SDK_INT >= 29 && izid is android.app.RecoverableSecurityException && !zePotrjeno ->
+                        sistemskaPotrditev(izid.userAction.actionIntent.intentSender) { izbrisiKrajevno(uri, zePotrjeno = true) }
+                    else -> Toast.makeText(this, getString(R.string.os_ur_napaka, getString(R.string.os_ur_n_ni_na_napravi)), Toast.LENGTH_LONG).show()
+                }
+            }
+        }, "safeer-krajevno-brisanje").start()
     }
 
     // ------------------------------------------------------------------ urejanje datotek racunalnika
@@ -869,6 +1024,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onActivityResult(zahteva: Int, izid: Int, podatki: Intent?) {
         super.onActivityResult(zahteva, izid, podatki)
+        if (zahteva == ZAHTEVA_UREJANJE) { poPotrditviSistema(izid == RESULT_OK); return }
         if (zahteva != ZAHTEVA_ISO || izid != RESULT_OK) return
         val uri = podatki?.data ?: return
         try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) { }
@@ -1314,6 +1470,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         const val EXTRA_KRAJEVNO = "krajevno"
         private const val ZAHTEVA_DOVOLJENJA = 7321
         private const val ZAHTEVA_ISO = 7322
+        /** Naloga 107: sistemska potrditev spremembe ali izbrisa datoteke te naprave. */
+        private const val ZAHTEVA_UREJANJE = 7323
         /** Pregledovalnik slik je datoteko spremenil: seznam se ob vrnitvi osvezi. */
         @Volatile var osveziPoVrnitvi = false
         /** Koliko zaslonov Datoteke je odprtih (predvajalnik po tem ve, ali se ima Nazaj kam vrniti). */

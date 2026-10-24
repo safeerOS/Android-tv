@@ -201,7 +201,7 @@ object SprotnaPomoc {
         val link = LinkUpravitelj.pridobi(app)
         if (link.jeKrajevni() || jeSprotniTok(sk) || !(sk.zvok.startsWith("http://") || sk.zvok.startsWith("https://"))
             || jeKrajevniVir(sk.zvok)) {
-            Log.i(TAG, "Pomocnika ne iscem: krajevni=${link.jeKrajevni()} sprotni=${jeSprotniTok(sk)} vir=${sk.zvok.take(40)}")
+            Log.i(TAG, "Pomocnika ne iscem: krajevni=${link.jeKrajevni()} sprotni=${jeSprotniTok(sk)} vir=${Zasebno.zaDnevnik(sk.zvok)}")
             naKonec(false); return
         }
         // Povezava s srediscem se morda ravno vzpostavlja (zaslon predvajanja jo je pravkar zahteval): pocakamo nanjo.
@@ -259,7 +259,7 @@ object SprotnaPomoc {
             val s = DatotekeActivity.Streznik(url.substringBeforeLast("/live/"), d.optString("fp"), d.optString("token"), n.id)
             val zivi = sk.copy(id = sk.id + PRIPONA, zvok = url, povezava = url, mime = "video/mp4", video = true,
                 izvajalec = app.getString(R.string.os_sprotno_vir, ime))
-            Log.i(TAG, "Sprotni tok z ${n.id} od ${pozicijaMs} ms: $url")
+            Log.i(TAG, "Sprotni tok z ${n.id} od ${pozicijaMs} ms: ${Zasebno.zaDnevnik(url)}")
             tok = Tok(sk, streznik, oblika, n.id, ime, d.optString("id"), pozicijaMs, trajanjeMs)
             GlasbaStoritev.predvajaj(app, listOf(zivi), 0, s)
             naKonec(true)

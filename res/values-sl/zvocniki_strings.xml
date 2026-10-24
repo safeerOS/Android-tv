@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="zvocnik_predvajaj_na">Predvajaj na zvočniku</string>
+    <!-- Naloga 104: vidna oznaka gumba za izbiro zvocnika na zaslonu predvajanja. -->
+    <string name="zvocnik_oznaka">Zvočnik</string>
     <string name="zvocnik_na">Na zvočniku: %1$s</string>
     <string name="zvocnik_iscem">Iščem zvočnike v omrežju …</string>
     <string name="zvocnik_ni_najdenih">Ni najdenih zvočnikov. Zvočnik mora biti prižgan in v istem omrežju (DLNA).</string>
@@ -19,4 +21,14 @@
     <string name="zvocnik_nedosegljiv">%1$s se ne odziva</string>
     <string name="zvocnik_ne_ustavi">%1$s se ne odziva. Če še igra, ga ustavi na zvočniku samem.</string>
     <string name="zvocnik_ustavljen">%1$s premora ni izvedel, zato je predvajanje na njem ustavljeno.</string>
+    <!-- Naloga 117: upravljanje predvajanja na drugi napravi v Safeer Linku -->
+    <string name="naprava_na">Predvaja na: %1$s</string>
+    <string name="naprava_glasnost">Glasnost: %1$d %%</string>
+    <string name="naprava_caka">Čakam, da %1$s začne predvajati …</string>
+    <string name="naprava_nazaj10">Nazaj 10 s</string>
+    <string name="naprava_naprej10">Naprej 10 s</string>
+    <string name="naprava_vrsta">Vrsta</string>
+    <string name="naprava_prekini">Prekini upravljanje</string>
+    <string name="naprava_konec">%1$s se ne odziva – upravljanje je končano</string>
+    <string name="naprava_upravljaj">Upravljaj: %1$s</string>
 </resources>

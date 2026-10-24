@@ -139,7 +139,7 @@ fun main() {
     println("\n== meje v pomnilniku z USB (naloga 92) ==")
     val slike18 = 18 * 1024 * 1024
     preveriEnako("slike brez USB: kot doslej", slike18, PredpomnilnikPravila.mejaSlik(usb = false, brezUsb = slike18))
-    preveriEnako("slike z USB: 8 MB", 8 * 1024 * 1024, PredpomnilnikPravila.mejaSlik(usb = true, brezUsb = slike18))
+    preveriEnako("144: slike z USB ostanejo 18 MB (ne manj kot brez USB)", slike18, PredpomnilnikPravila.mejaSlik(usb = true, brezUsb = slike18))
     preveriEnako("slike z USB: manjsa meja brez USB ostane", 4 * 1024 * 1024, PredpomnilnikPravila.mejaSlik(usb = true, brezUsb = 4 * 1024 * 1024))
     preveriEnako("strani kanalov brez USB: kot doslej", 10_000, PredpomnilnikPravila.mejaStraniKanalov(usb = false, brezUsb = 10_000))
     preveriEnako("strani kanalov z USB: 2500 kartic", 2_500, PredpomnilnikPravila.mejaStraniKanalov(usb = true, brezUsb = 10_000))

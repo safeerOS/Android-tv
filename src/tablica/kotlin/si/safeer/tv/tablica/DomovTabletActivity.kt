@@ -91,6 +91,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
     private var karticaBrskalnik: View? = null
     private var karticaZaslon: View? = null
+    /** Naloga 105: kartica »Medijski center« (postavitev jo ima od nekdaj, klika pa ni nihce povezal - »ne vodi nikamor«). */
+    private var karticaMediji: View? = null
     private var karticaProgrami: View? = null
 
     private var gumbVseAplikacije: View? = null
@@ -144,6 +146,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     override fun onBackPressed() {
         if (si.safeer.tv.os.SporocilaZnak.zapri(this)) return
         if (si.safeer.tv.os.DomacaLupa.nazaj(this)) return
+        if (dock?.skrijCeOdprt() == true) return
         super.onBackPressed()
     }
 
@@ -165,6 +168,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         si.safeer.tv.os.SporocilaZnak.zapri(this)
         nastaviPostavitev()
         si.safeer.tv.os.SporocilaZnak.osvezi(this, kuverta)
+        // Nov setContentView je dock odstranil iz okna: narise se znova (isto stanje, odprt/skrit).
+        dock?.osvezi()
     }
 
     private fun nastaviPostavitev() {
@@ -188,6 +193,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
 
         karticaBrskalnik = findViewById(R.id.karticaBrskalnik)
         karticaZaslon = findViewById(R.id.karticaZaslon)
+        karticaMediji = findViewById(R.id.karticaMediji)
         karticaProgrami = findViewById(R.id.karticaProgrami)
 
         gumbVseAplikacije = findViewById(R.id.gumbVseAplikacije)
@@ -230,7 +236,13 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         }
         si.safeer.tv.os.GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         si.safeer.tv.os.GlasbaStoritev.osveziKartico(this)
+        // Naloga 127 (popravek 118): mini predvajalnik je na pravem domacem zaslonu telefona in tablice.
+        if (dock == null) dock = si.safeer.tv.os.MiniPredvajalnik.naOknu(this) { startActivity(si.safeer.tv.os.GlasbaStoritev.namenKartice(this)) }
+        si.safeer.tv.os.OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
+        dock?.osvezi()
     }
+
+    private var dock: si.safeer.tv.os.MiniPredvajalnik? = null
 
     /**
      * Sprejemnik Safeer Linka (ukazi drugih naprav: zagon aplikacij, datoteke, deljenje zaslona). Brez
@@ -249,10 +261,12 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju). */
-    private val medijiPoslusalec: () -> Unit = { runOnUiThread { si.safeer.tv.os.GlasbaStoritev.osveziKartico(this) } }
+    private val medijiPoslusalec: () -> Unit = { runOnUiThread { si.safeer.tv.os.GlasbaStoritev.osveziKartico(this); dock?.osvezi() } }
 
     override fun onStop() {
         si.safeer.tv.os.GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
+        si.safeer.tv.os.OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
+        dock?.ustavi()
         link.odstrani(this)
         super.onStop()
     }
@@ -286,6 +300,13 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
             odpriVBrskalniku(null)
         }
         karticaZaslon?.setOnClickListener { odpriZaslon() }
+        // Naloga 105: ista namera kot kartica v Safeer OS na TV in v stranski vrstici ([si.safeer.tv.os.GlasbaStoritev.namenKartice]).
+        karticaMediji?.setOnClickListener {
+            val namera = si.safeer.tv.os.GlasbaStoritev.namenKartice(this)
+            android.util.Log.i("SafeerOsMedia", "kartica Medijski center: ${namera.component?.className ?: namera.action}")
+            odpriVarno(namera, getString(R.string.os_mediji_kartica))
+        }
+        if (karticaMediji == null) android.util.Log.w("SafeerOsMedia", "kartica Medijski center: ni je v postavitvi")
         // Hitri dostop je ponavljal kartice in stransko vrstico (Splet, Zaslon, Datoteke, Nastavitve).
         ploscaHitri?.visibility = View.GONE
         // Isto vsebino odpre Aplikacije v stranski vrstici - druga kartica ali "Prikazi vse" bi jo podvojila.
@@ -346,6 +367,7 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         try {
             startActivity(namera)
         } catch (e: Throwable) {
+            android.util.Log.w("SafeerOsMedia", "odpiranje ni uspelo ($naslov): ${e.javaClass.simpleName}")
             Toast.makeText(this, "$naslov: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }

@@ -126,4 +126,88 @@ object ZvocnikIzbira {
             }
         }
     }
+
+    /**
+     * Naloga 117: upravljanje druge naprave v Safeer Linku (seja [OddaljenoPredvajanje]) - kot okno zvocnika: glava pove
+     * napravo, kaj igra, cas in glasnost (sledi cilju vsakih 400 ms); premor, naprej/nazaj, +-10 s in glasnost okna ne
+     * zaprejo, vrsta in »Prekini upravljanje« ga. Ko cilj ne odgovarja vec, se seja konca in okno zapre s sporocilom.
+     */
+    fun upravljajNapravo(a: Activity, spremenjeno: () -> Unit) {
+        val n = OddaljenoPredvajanje.cilj ?: return
+        val ime = DatotekeActivity.lepoIme(n.ime)
+        val g = gradnik(a)
+        val rob = (24 * a.resources.displayMetrics.density).toInt()
+        val kaj = TextView(g.context).apply { setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Small) }
+        val glava = LinearLayout(g.context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(rob, rob * 3 / 4, rob, rob / 4)
+            addView(TextView(g.context).apply {
+                setTextAppearance(android.R.style.TextAppearance_DeviceDefault_DialogWindowTitle)
+                text = a.getString(R.string.naprava_na, ime)
+            })
+            addView(kaj)
+        }
+        fun cas(ms: Long): String { val s = ms / 1000; return "%d:%02d".format(s / 60, s % 60) }
+        fun osveziGlavo() {
+            val st = OddaljenoPredvajanje.stanje
+            val vrstice = mutableListOf<String>()
+            if (st.kajIgra) {
+                vrstice += listOf(st.naslov, st.izvajalec).filter { it.isNotBlank() }.joinToString(" – ")
+                vrstice += if (st.trajanjeMs > 0) cas(OddaljenoPredvajanje.polozajMs()) + " / " + cas(st.trajanjeMs) else cas(OddaljenoPredvajanje.polozajMs())
+                if (st.zvocnik.isNotBlank()) vrstice += a.getString(R.string.zvocnik_na, st.zvocnik)
+            } else vrstice += a.getString(R.string.naprava_caka, ime)
+            if (st.glasnost >= 0) vrstice += a.getString(R.string.naprava_glasnost, st.glasnost)
+            kaj.text = vrstice.joinToString("\n")
+        }
+        osveziGlavo()
+        val imena = arrayOf(a.getString(R.string.zvocnik_premor), a.getString(R.string.zg_prejsnja), a.getString(R.string.zg_naslednja),
+            a.getString(R.string.naprava_nazaj10), a.getString(R.string.naprava_naprej10), a.getString(R.string.zvocnik_glasneje),
+            a.getString(R.string.zvocnik_tisje), a.getString(R.string.naprava_vrsta), a.getString(R.string.naprava_prekini))
+        val okno = pokazi(a, g.setCustomTitle(glava).setItems(imena, null).setNegativeButton(a.getString(R.string.os_preklici), null))
+        val glavna = android.os.Handler(android.os.Looper.getMainLooper())
+        var uporabnikKoncal = false
+        OddaljenoPredvajanje.vidno(true)
+        val sledi = object : Runnable {
+            override fun run() {
+                if (!okno.isShowing || a.isFinishing || a.isDestroyed) return
+                if (OddaljenoPredvajanje.cilj?.id != n.id) {
+                    if (!uporabnikKoncal) Toast.makeText(a, a.getString(R.string.naprava_konec, ime), Toast.LENGTH_LONG).show()
+                    okno.dismiss(); spremenjeno(); return
+                }
+                osveziGlavo()
+                glavna.postDelayed(this, 400L)
+            }
+        }
+        glavna.postDelayed(sledi, 400L)
+        okno.setOnDismissListener { glavna.removeCallbacks(sledi); OddaljenoPredvajanje.vidno(false) }
+        okno.listView?.setOnItemClickListener { _, _, i, _ ->
+            if (OddaljenoPredvajanje.cilj?.id != n.id) { okno.dismiss(); spremenjeno(); return@setOnItemClickListener }
+            val korak = OddaljenoPravila.KORAK_GLASNOSTI
+            when (i) {
+                0 -> OddaljenoPredvajanje.preklopi()
+                1 -> OddaljenoPredvajanje.prejsnja()
+                2 -> OddaljenoPredvajanje.naslednja()
+                3 -> OddaljenoPredvajanje.skoci((OddaljenoPredvajanje.polozajMs() - 10_000L).coerceAtLeast(0L))
+                4 -> OddaljenoPredvajanje.skoci(OddaljenoPredvajanje.polozajMs() + 10_000L)
+                5 -> OddaljenoPredvajanje.glasnostZa(korak)
+                6 -> OddaljenoPredvajanje.glasnostZa(-korak)
+                7 -> { okno.dismiss(); vrstaNaprave(a, spremenjeno) }
+                else -> { uporabnikKoncal = true; OddaljenoPredvajanje.koncaj(); okno.dismiss(); spremenjeno() }
+            }
+            osveziGlavo()
+        }
+    }
+
+    /** Vrsta na drugi napravi (okno okoli trenutne skladbe); dotik skladbe jo predvaja tam. */
+    private fun vrstaNaprave(a: Activity, spremenjeno: () -> Unit) {
+        val st = OddaljenoPredvajanje.stanje
+        if (st.vrsta.isEmpty()) { upravljajNapravo(a, spremenjeno); return }
+        val imena = st.vrsta.mapIndexed { i, naslov ->
+            (if (st.odVrste + i == st.indeks) "▶ " else "") + naslov.ifBlank { "—" }
+        }.toTypedArray()
+        pokazi(a, gradnik(a).setTitle(R.string.naprava_vrsta).setItems(imena) { _, i ->
+            OddaljenoPredvajanje.izVrste(st.odVrste + i)
+            upravljajNapravo(a, spremenjeno)
+        }.setNegativeButton(a.getString(R.string.os_preklici)) { _, _ -> upravljajNapravo(a, spremenjeno) })
+    }
 }

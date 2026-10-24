@@ -59,6 +59,8 @@ object KlepetLinka {
         val od = niz(json, "sender_device")
             .ifBlank { naprave.firstOrNull { it.id == posiljatelj }?.naprava.orEmpty() }
             .ifBlank { LinkUpravitelj.fizicnaNaprava(posiljatelj) }
+        val izbrisi = niz(telo, "delete")
+        if (izbrisi.isNotBlank()) { izbrisiNaZahtevo(c, od, izbrisi); return }
         if (besedilo.isBlank() || od.isBlank()) return
         // Ime, kot ga uporabnik vidi v seznamu naprav (vzdevek), sicer ime, ki ga je dal hub.
         val izSeznama = imeNaprave(naprave, od) ?: naprave.firstOrNull { it.id == posiljatelj }?.ime
@@ -138,12 +140,76 @@ object KlepetLinka {
         return p
     }
 
-    /** Poslje po Linku; vrne sporocilo za lokalni zapis ali vrze izjemo (brez povezave, zavrnjeno). */
+    /**
+     * Poslje po Linku; vrne sporocilo za lokalni zapis ali vrze izjemo (brez povezave, zavrnjeno). Krajevni id nosi id
+     * sporocila chat.send, pod katerim ga hrani prejemnik (naloga 116: izbris na vseh napravah).
+     */
     fun poslji(c: Context, pogovorId: String, besedilo: String): Pair<SporocilaShramba.Sporocilo, String> {
         val cas = SporocilaKanali.cas(null)
-        val izid = LinkUpravitelj.pridobi(c).odjemalec.posljiKlepet(pogovorId, besedilo, cas)
+        val skupni = java.util.UUID.randomUUID().toString()
+        val izid = LinkUpravitelj.pridobi(c).odjemalec.posljiKlepet(pogovorId, besedilo, cas, id = skupni)
         if (izid != "accepted" && izid != "queued") throw NapakaKlepeta(izid)
-        return SporocilaShramba.Sporocilo("chat:ven:" + System.nanoTime(), pogovorId, "ven", besedilo, cas) to izid
+        return SporocilaShramba.Sporocilo(SporocilaPravila.PREDPONA_POSLANO + skupni, pogovorId, "ven", besedilo, cas) to izid
+    }
+
+    // ------------------------------------------------------------------ izbris na vseh napravah (naloga 116)
+    /**
+     * Besedilo zahteve za izbris: sredisce sprejme samo neprazen chat.send. Naprava brez 116 ga pokaze kot sporocilo s
+     * kosem - razumljivo, ne prazno.
+     */
+    const val BESEDILO_IZBRISA = "\uD83D\uDDD1"
+
+    /** Ena posiljka cakajocih izbrisov hkrati (seznam naprav pride ob vsaki spremembi). */
+    private val posiljaCakajoca = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * »Izbrisi na vseh mojih napravah« za lastno poslano sporocilo [s] v pogovoru [pogovorId]: izbrise ga tu in poslje
+     * zahtevo napravi, ki ga je prejela. Samo ta naprava ga ima (Safeer Chat je pogovor dveh naprav); drugim napravam
+     * zahteve ne posiljamo, ker bi v vrsti sredisca za napravo brez povezave izrinile prava sporocila.
+     * Vrne true, ce je sredisce zahtevo sprejelo (dostavljeno ali v vrsti do povezave naprave); false, ce caka tu
+     * (ta naprava je brez povezave) - poslje jo [posljiCakajocaBrisanja] ob naslednji uskladitvi. Ne klici na glavni niti.
+     */
+    fun izbrisiNaVseh(c: Context, pogovorId: String, s: SporocilaShramba.Sporocilo): Boolean {
+        val skupni = SporocilaPravila.skupniId(s.id, s.smer) ?: return false
+        val shramba = SporocilaShramba(c)
+        shramba.izbrisiSporocilo(KANAL, pogovorId, s.id)
+        val b = SporocilaShramba.CakajoceBrisanje(skupni, pogovorId, System.currentTimeMillis())
+        shramba.dodajCakajoceBrisanje(b.id, b.cilj, b.zapisano)
+        return posljiBrisanje(c, shramba, b)
+    }
+
+    /** Vse cakajoce izbrise poskusi poslati znova (LinkUpravitelj ob seznamu naprav). Ne klici na glavni niti. */
+    fun posljiCakajocaBrisanja(c: Context) {
+        if (!posiljaCakajoca.compareAndSet(false, true)) return
+        try {
+            val shramba = SporocilaShramba(c)
+            for (b in shramba.cakajocaBrisanja()) posljiBrisanje(c, shramba, b)
+        } catch (_: Throwable) {
+        } finally { posiljaCakajoca.set(false) }
+    }
+
+    private fun posljiBrisanje(c: Context, shramba: SporocilaShramba, b: SporocilaShramba.CakajoceBrisanje): Boolean {
+        val izid = try {
+            LinkUpravitelj.pridobi(c).odjemalec.posljiKlepet(b.cilj, BESEDILO_IZBRISA, SporocilaKanali.cas(null), izbrisi = b.id)
+        } catch (_: Throwable) { "napaka" }
+        val odlocitev = SporocilaPravila.izidBrisanja(izid, b.zapisano, System.currentTimeMillis())
+        if (odlocitev != SporocilaPravila.BRISANJE_PONOVI) shramba.odstraniCakajoceBrisanje(b.id)
+        return odlocitev == SporocilaPravila.BRISANJE_KONCANO
+    }
+
+    /**
+     * Zahteva naprave [od] za izbris sporocila s skupnim id-jem [skupni]: izbrise se samo, ce ga je poslala ta naprava
+     * ([SporocilaPravila.zahtevaZaIzbrisVelja]). Neznano sporocilo (ze izbrisano) se prezre. Obvestilo o njem izgine.
+     */
+    private fun izbrisiNaZahtevo(c: Context, od: String, skupni: String) {
+        if (od.isBlank()) return
+        val s = SporocilaShramba(c)
+        val id = SporocilaPravila.prejetiId(skupni)
+        val sp = s.sporocilo(KANAL, id) ?: return
+        if (!SporocilaPravila.zahtevaZaIzbrisVelja(sp.smer, sp.pogovorId, od)) return
+        s.izbrisiSporocilo(KANAL, sp.pogovorId, id)
+        umakniObvestilo(c, sp.pogovorId)
+        for (p in poslusalci) try { p() } catch (_: Throwable) { }
     }
 
     class NapakaKlepeta(val koda: String) : Exception(koda)

@@ -586,7 +586,7 @@ class CastReceiverService : Service() {
             val upravitelj = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             upravitelj.notify(WAKE_NOTIFICATION_ID, obvestilo)
             if (deljenjeZaslona != null) obvestiloZaslona.zaZaslon(deljenjeZaslona) else obvestiloZaslona.zaDrugo()
-            Log.i(TAG, "Objavljeno obvestilo s celozaslonsko namero za $url")
+            Log.i(TAG, "Objavljeno obvestilo s celozaslonsko namero za ${si.safeer.tv.os.Zasebno.zaDnevnik(url)}")
         } catch (e: Exception) {
             Log.w(TAG, "Obvestila s celozaslonsko namero ni bilo mogoce objaviti: ${e.message}")
         }
@@ -941,7 +941,7 @@ class CastReceiverService : Service() {
                     val title = payload.optString("title", "")
                     val startPos = payload.optDouble("start_position", 0.0)
 
-                    Log.i(TAG, "Prejet cast.url: $url ($title)")
+                    Log.i(TAG, "Prejet cast.url: ${si.safeer.tv.os.Zasebno.zaDnevnik(url)} ($title)")
                     mainHandler.post {
                         val krmilnik = mediaController
                         if (krmilnik != null && krmilnikVOspredju) {
@@ -1086,7 +1086,7 @@ class CastReceiverService : Service() {
                         val pot = payload.optString("path", "")
                         val url = if (pot.startsWith("/")) hubHttpOsnova() + pot else payload.optString("url", "")
                         if (url.isNotBlank()) {
-                            Log.i(TAG, "Deljenje zaslona od $od: $url")
+                            Log.i(TAG, "Deljenje zaslona od $od: ${si.safeer.tv.os.Zasebno.zaDnevnik(url)}")
                             mainHandler.post {
                                 val krmilnik = mediaController
                                 if (krmilnik != null && krmilnikVOspredju) krmilnik.onShareScreenStarted(url, od)

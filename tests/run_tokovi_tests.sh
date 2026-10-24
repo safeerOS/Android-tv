@@ -11,7 +11,8 @@ command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 
 OUT="$(mktemp -d)"
 # org.json (na Androidu vgrajen): za preizkus v JVM iz predpomnilnika Gradla.
-JSON_JAR="${JSON_JAR:-$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.json" -name 'json-*.jar' 2>/dev/null | sort | tail -1)}"
+JSON_JAR="${JSON_JAR:-$( { find "$HOME/.gradle/caches/modules-2/files-2.1/org.json" -name 'json-*.jar' 2>/dev/null | sort | tail -1 || true; } )}"
+[ -n "$JSON_JAR" ] || { echo "Manjka org.json: nastavi JSON_JAR (json-*.jar) ali zgradi projekt z Gradlom (predpomnilnik). Glej tests/vse.sh." >&2; exit 2; }
 trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx2g ${JSON_JAR:+-cp "$JSON_JAR"} \

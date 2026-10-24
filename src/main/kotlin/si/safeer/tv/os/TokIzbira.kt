@@ -12,11 +12,15 @@ object TokIzbira {
                          val dolbyVision: Boolean = false, val eac3: Boolean = false, val ac3: Boolean = false,
                          val dts: Boolean = false, val truehd: Boolean = false,
                          /** Dolby Atmos pride do zvocnikov: izhod ga sprejme kot tok (HDMI/eARC) ali ga naprava dekodira sama. */
-                         val atmos: Boolean = false)
+                         val atmos: Boolean = false,
+                         /** Naloga 142: dekoder HEVC zmore profil Main10 (10-bitni). Privzeto da - brez podatka kot doslej. */
+                         val hevc10: Boolean = true)
 
     /** Kar o toku pove njegovo ime in opis (tako tokove opisujejo dodatki: "2160p WEB-DL DDP5.1 Atmos DV HDR H.265 12.66 GB"). */
     data class Opis(val visina: Int, val hevc: Boolean, val av1: Boolean, val hdr: Boolean, val dv: Boolean,
-                    val zvok: String, val slabPosnetek: Boolean, val gb: Double, val atmos: Boolean = false)
+                    val zvok: String, val slabPosnetek: Boolean, val gb: Double, val atmos: Boolean = false,
+                    /** Naloga 142: 10-bitni HEVC (Main10) - »10bit«, »Main10« ali HDR/DV (HDR10 je po definiciji 10-bitni). */
+                    val desetbitni: Boolean = false)
 
     private val V2160 = Regex("2160p?|\\b4k\\b|\\buhd\\b")
     private val V1440 = Regex("1440p")
@@ -28,6 +32,7 @@ object TokIzbira {
     private val AV1 = Regex("\\bav1\\b")
     private val DV = Regex("\\bdv\\b|dolby[ .]?vision|\\bdovi\\b")
     private val HDR = Regex("hdr")
+    private val BIT10 = Regex("10[ .-]?bit|\\bmain ?10\\b")
     private val TRUEHD = Regex("true[ .-]?hd")
     private val DTS = Regex("\\bdts")
     private val EAC3 = Regex("\\bddp|dd\\+|e-?ac-?3|atmos")
@@ -150,8 +155,9 @@ object TokIzbira {
             val n = m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 0.0
             if (m.groupValues[2].startsWith("m")) n / 1024.0 else n
         } ?: 0.0
-        return Opis(visina, HEVC.containsMatchIn(t), AV1.containsMatchIn(t), HDR.containsMatchIn(t), DV.containsMatchIn(t), zvok, SLAB.containsMatchIn(t), gb,
-            ATMOS.containsMatchIn(t))
+        val hevc = HEVC.containsMatchIn(t); val hdr = HDR.containsMatchIn(t); val dv = DV.containsMatchIn(t)
+        return Opis(visina, hevc, AV1.containsMatchIn(t), hdr, dv, zvok, SLAB.containsMatchIn(t), gb,
+            ATMOS.containsMatchIn(t), desetbitni = hevc && (BIT10.containsMatchIn(t) || hdr || dv))
     }
 
     /**
@@ -164,6 +170,8 @@ object TokIzbira {
         // Do locljivosti zaslona je vec boljse; nad njo le vecja datoteka brez koristi (se vedno predvajljivo).
         var tocke = if (v <= z.visina) v else z.visina - (v - z.visina) / 4
         if (o.hevc && !z.hevc) tocke -= 3000
+        // Naloga 142: 10-bitni HEVC na dekoderju brez Main10 se ne predvaja (SM-X210: DECODING_FAILED) - kot brez HEVC.
+        else if (o.desetbitni && !z.hevc10) tocke -= 3000
         if (o.av1 && !z.av1) tocke -= 3000
         // Dolby Vision brez sloja HDR na napravi brez DV: napacne barve. Z rezervnim slojem HDR gre.
         if (o.dv && !z.dolbyVision) tocke -= if (o.hdr) 60 else 900

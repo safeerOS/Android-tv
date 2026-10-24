@@ -1,0 +1,357 @@
+package si.safeer.tv.os
+
+import android.content.Context
+import android.util.Log
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+
+/**
+ * Naloga 128: debrid storitve v Medijskem centru - TorBox, Real-Debrid, AllDebrid ([DebridPravila]).
+ *
+ * Kljuci: vsak se hrani sifriran z Android Keystore ([SporocilaSkrivnosti]); TorBox pod istim imenom kot v nalogi 119.
+ * Izbira: najprej vse storitve s kljucem po vrstnem redu (prednostna prva) SAMO s predpomnjeno vsebino - zmaga prva, ki
+ * jo ima pripravljeno (brez cakanja); ce je nima nobena in uporabnik ni vklopil »Samo takoj predvajljivo«, prednostna
+ * storitev torrent prenese (cakanje z napredkom). Klici so blokirajoci - samo z delovne niti.
+ */
+object Debrid {
+    private const val TAG = "SafeerDebrid"
+    private const val PREFS = "safeer_debrid"
+    private const val KLJUC_SAMO_TAKOJ = "samo_takoj"
+    private const val KLJUC_PREDNOSTNA = "prednostna"
+    private const val KLJUC_IZKLOPLJENO = "izklopljeno"
+    private const val KLJUC_MERITEV = "meritev_"
+    private const val KLJUC_ZAPOMNJENI = "zapomnjeni"
+
+    // ------------------------------------------------------------------ kljuci in nastavitve
+
+    private fun imeSkrivnosti(p: String) = "debrid_$p"
+
+    fun kljuc(c: Context, p: String): String? = when (p) {
+        DebridPravila.TORBOX -> TorBox.kljuc(c)
+        else -> SporocilaSkrivnosti.preberi(c, imeSkrivnosti(p))?.let { DebridPravila.ocistiKljuc(it) }
+    }
+
+    fun imaKljuc(c: Context, p: String): Boolean = kljuc(c, p) != null
+
+    /** Ali ima uporabnik vpisan kljuc vsaj ene storitve. */
+    fun imaKateriKljuc(c: Context): Boolean = DebridPravila.VSI.any { imaKljuc(c, it) }
+
+    fun zKljucem(c: Context): Set<String> = DebridPravila.VSI.filterTo(LinkedHashSet()) { imaKljuc(c, it) }
+
+    /** Shrani ocisceni kljuc; false, ce vnos ni kljuc ali sifriranje ni uspelo. */
+    fun nastaviKljuc(c: Context, p: String, vnos: String): Boolean = when (p) {
+        DebridPravila.TORBOX -> TorBox.nastaviKljuc(c, vnos)
+        else -> DebridPravila.ocistiKljuc(vnos)?.let { SporocilaSkrivnosti.shrani(c, imeSkrivnosti(p), it) } ?: false
+    }
+
+    fun pozabiKljuc(c: Context, p: String) {
+        if (p == DebridPravila.TORBOX) TorBox.pozabiKljuc(c) else SporocilaSkrivnosti.pozabi(c, imeSkrivnosti(p))
+    }
+
+    private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /** »Samo takoj predvajljivo« (predpomnjeno): privzeto vklopljeno - uporabnik ne caka na prenos na streznik. */
+    fun samoTakoj(c: Context): Boolean = prefs(c).getBoolean(KLJUC_SAMO_TAKOJ, true)
+    fun nastaviSamoTakoj(c: Context, da: Boolean) { prefs(c).edit().putBoolean(KLJUC_SAMO_TAKOJ, da).apply() }
+
+    fun prednostna(c: Context): String? = prefs(c).getString(KLJUC_PREDNOSTNA, null)?.takeIf { it in DebridPravila.VSI }
+    fun nastaviPrednostno(c: Context, p: String) { prefs(c).edit().putString(KLJUC_PREDNOSTNA, p).apply() }
+
+    fun vrstniRed(c: Context): List<String> = DebridPravila.vrstniRed(zKljucem(c), prednostna(c))
+
+    /** Naloga 130: izbira »Debrid« ob zvrsteh - storitev, prek katere gredo torrenti; null = brez debrida ali brez kljuca. */
+    fun aktivna(c: Context): String? = DebridPravila.aktivna(zKljucem(c), prednostna(c), prefs(c).getBoolean(KLJUC_IZKLOPLJENO, false))
+
+    /** [p] = storitev (postane prednostna), null = »Brez debrida«. */
+    fun nastaviAktivno(c: Context, p: String?) {
+        val e = prefs(c).edit().putBoolean(KLJUC_IZKLOPLJENO, p == null)
+        if (p != null) e.putString(KLJUC_PREDNOSTNA, p)
+        e.apply()
+    }
+
+    /**
+     * Naloga 130/136: kateri torrenti (hashi) so takoj predvajljivi - za oznako ⚡ in samodejno izbiro. TorBox: prava
+     * preverba (checkcached). Real-Debrid in AllDebrid je nimata (gl. [DebridPravila]) - zanju torrenti, ki jih je storitev
+     * ze vrnila kot pripravljene (na tej ali drugi napravi v ozjem krogu), brez dodatnih zahtev.
+     */
+    fun predpomnjeni(c: Context, hashi: List<String>): Set<String> {
+        if (aktivna(c) == null) return emptySet()
+        val sKljucem = zKljucem(c)
+        val zapomnjeni = DebridPravila.zapomnjeniZa(zapomnjeni(c), hashi, sKljucem, System.currentTimeMillis())
+        val torbox = if (DebridPravila.TORBOX in sKljucem) TorBox.predpomnjeni(c, hashi) else emptySet()
+        if (zapomnjeni.isNotEmpty()) Log.i(TAG, "zapomnjeni pripravljeni: ${zapomnjeni.size} od ${hashi.size}")
+        return torbox + zapomnjeni
+    }
+
+    // ------------------------------------------------------------------ naloga 136: zapomnjeni pripravljeni (RD, AD)
+
+    private val zaklepZapomnjenih = Any()
+
+    private fun zapomnjeni(c: Context): List<DebridPravila.Zapomnjen> =
+        synchronized(zaklepZapomnjenih) { DebridPravila.zapomnjeniIzZapisa(prefs(c).getString(KLJUC_ZAPOMNJENI, null)) }
+
+    private fun spremeniZapomnjene(c: Context, sprememba: (List<DebridPravila.Zapomnjen>) -> List<DebridPravila.Zapomnjen>) {
+        synchronized(zaklepZapomnjenih) {
+            val prej = DebridPravila.zapomnjeniIzZapisa(prefs(c).getString(KLJUC_ZAPOMNJENI, null))
+            val potem = sprememba(prej)
+            if (potem != prej) prefs(c).edit().putString(KLJUC_ZAPOMNJENI, DebridPravila.zapisZapomnjenih(potem)).apply()
+        }
+    }
+
+    /** Po poskusu pri Real-Debrid ali AllDebrid: povezava = pripravljen (zapomni, deli), »ni predpomnjeno« = pozabi. */
+    private fun zapomniIzid(c: Context, p: String, magnet: String, iz: TorBox.Izid) {
+        if (p !in DebridPravila.ZAPOMNI) return
+        val hash = TorBoxPravila.hashIzMagneta(magnet) ?: return
+        val zdaj = System.currentTimeMillis()
+        if (iz.url != null) {
+            spremeniZapomnjene(c) { DebridPravila.zapomniPripravljen(it, hash, p, zdaj) }
+            deliZapomnjen(c, DebridPravila.Zapomnjen(hash.lowercase(), p, zdaj + DebridPravila.ZAPOMNJEN_VELJA_MS))
+        } else if (iz.napaka == DebridPravila.NAPAKA_NI_PREDPOMNJENO) {
+            spremeniZapomnjene(c) { DebridPravila.pozabiPripravljen(it, hash, p) }
+        }
+    }
+
+    /**
+     * Novi pripravljeni torrent napravam v ozjem krogu - samo po sifrirani poti od naprave do naprave (seznam pove, kaj
+     * uporabnik gleda). Brez odgovora, brez ponovitve: naprava, ki ni povezana, ga ne dobi.
+     */
+    private fun deliZapomnjen(c: Context, z: DebridPravila.Zapomnjen) {
+        val (hash, ponudnik, ostane) = DebridPravila.zaPoslati(z, System.currentTimeMillis()) ?: return
+        val link = try { LinkUpravitelj.pridobi(c.applicationContext) } catch (_: Throwable) { return }
+        if (link.jeKrajevni() || !link.povezan) return
+        val cilji = link.naprave.filter { n ->
+            !link.jeTaNaprava(n) && OzjiKrog.vKrogu(c, n.id) && DebridPravila.smePoslatiKljuc(link.odjemalec.znaZascito(n.id), link.povezan)
+        }
+        if (cilji.isEmpty()) return
+        val vnos = JSONObject().put("h", hash).put("p", ponudnik).put("ms", ostane)
+        val parametri = JSONObject().put("items", JSONArray().put(vnos))
+        for (n in cilji) link.ukaz(n.id, DebridPravila.DEJANJE_PREDPOMNJENI, parametri, 8_000, LinkOdjemalec.Odgovor { _, _ -> })
+        Log.i(TAG, "pripravljen torrent deljen z ${cilji.size} napravami v ozjem krogu")
+    }
+
+    /** `debrid.cached` z druge naprave v ozjem krogu: veljavni vnosi gredo med zapomnjene (brez potrditve - ni skrivnost). */
+    fun prejmiZapomnjene(c: Context, parametri: JSONObject): JSONObject {
+        val a = parametri.optJSONArray("items") ?: JSONArray()
+        val prejeti = (0 until minOf(a.length(), DebridPravila.NAJVEC_PREJETIH)).mapNotNull { a.optJSONObject(it) }
+            .map { Triple(it.optString("h"), it.optString("p"), it.optLong("ms", 0L)) }
+        var sprejetih = 0
+        spremeniZapomnjene(c) { prej ->
+            DebridPravila.prejetiZapomnjeni(prej, prejeti, System.currentTimeMillis()).also { sprejetih = it.count { z -> z !in prej } }
+        }
+        Log.i(TAG, "prejeti pripravljeni torrenti: $sprejetih novih od ${prejeti.size}")
+        return JSONObject().put("accepted", sprejetih)
+    }
+
+    // ------------------------------------------------------------------ predvajanje
+
+    /**
+     * Povezava za [magnet] prek debrid storitev. [samoTakojPreglasi]: true/false preglasi nastavitev (gumb »Pocakaj na
+     * prenos«), null = nastavitev uporabnika. Izid nosi storitev, ki je dala povezavo.
+     */
+    fun tok(c: Context, magnet: String, indeks: Int, samoTakojPreglasi: Boolean? = null, napredek: (Int) -> Unit = {}): TorBox.Izid {
+        val red = vrstniRed(c)
+        if (red.isEmpty()) return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_KLJUC)
+        val samoTakoj = samoTakojPreglasi ?: samoTakoj(c)
+        val napake = ArrayList<String>()
+        var opis = ""
+        var cakajMs = 0L
+        // Naloga 130: vec storitev s kljucem - vse vprasamo hkrati (samo predpomnjeno), med tistimi, ki imajo vsebino
+        // pripravljeno, izmerimo odziv in hitrost do te naprave; predvaja najhitrejsa.
+        if (red.size >= 2) {
+            val izidi = vzporedno(c, red, magnet, indeks)
+            val uspesni = izidi.filter { it.second.url != null }
+            if (uspesni.isNotEmpty()) {
+                val izbrana = if (uspesni.size == 1) uspesni.first() else {
+                    val meritve = uspesni.mapNotNull { (p, iz) -> izmeri(p, iz.url!!) }
+                    meritve.forEach { prefs(c).edit().putString(KLJUC_MERITEV + it.ponudnik, DebridPravila.zapisMeritve(it, System.currentTimeMillis())).apply() }
+                    Log.i(TAG, "meritve: " + meritve.joinToString { DebridPravila.ime(it.ponudnik) + " " + DebridPravila.opisMeritve(it) })
+                    val p = DebridPravila.najhitrejsa(meritve)
+                    uspesni.firstOrNull { it.first == p } ?: uspesni.first()
+                }
+                return TorBox.Izid(url = izbrana.second.url, ponudnik = izbrana.first)
+            }
+            for ((p, iz) in izidi) {
+                napake += iz.napaka
+                if (iz.opis.isNotBlank()) opis = DebridPravila.ime(p) + ": " + iz.opis
+                if (iz.cakajMs > cakajMs) cakajMs = iz.cakajMs
+                Log.i(TAG, "${DebridPravila.ime(p)}: ${iz.napaka}")
+            }
+        }
+        // 1. krog z eno storitvijo: samo predpomnjeno.
+        if (red.size < 2) for (p in red) {
+            val iz = poskus(c, p, magnet, indeks, true, napredek)
+            if (iz.url != null) return TorBox.Izid(url = iz.url, ponudnik = p)
+            napake += iz.napaka
+            if (iz.opis.isNotBlank()) opis = DebridPravila.ime(p) + ": " + iz.opis
+            if (iz.cakajMs > cakajMs) cakajMs = iz.cakajMs
+            Log.i(TAG, "${DebridPravila.ime(p)}: ${iz.napaka}")
+        }
+        // 2. krog: nobena je nima pripravljene - prednostna jo prenese (ce uporabnik caka).
+        if (DebridPravila.poskusiSCakanjem(samoTakoj, napake)) {
+            val p = red.first()
+            val iz = poskus(c, p, magnet, indeks, false, napredek)
+            return TorBox.Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, p)
+        }
+        return TorBox.Izid(napaka = DebridPravila.razlogZaUporabnika(napake), opis = opis, cakajMs = cakajMs)
+    }
+
+    /** Vse storitve hkrati, samo predpomnjeno; kar v [DebridPravila.VZPOREDNO_ROK_MS] ne odgovori, je napaka streznika. */
+    private fun vzporedno(c: Context, red: List<String>, magnet: String, indeks: Int): List<Pair<String, TorBox.Izid>> {
+        val bazen = java.util.concurrent.Executors.newFixedThreadPool(red.size)
+        try {
+            val niti = red.map { p -> p to bazen.submit<TorBox.Izid> { poskus(c, p, magnet, indeks, true) {} } }
+            val konec = System.currentTimeMillis() + DebridPravila.VZPOREDNO_ROK_MS
+            return niti.map { (p, f) ->
+                p to (try { f.get((konec - System.currentTimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) }
+                    catch (_: Exception) { TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK, ponudnik = p) })
+            }
+        } finally { bazen.shutdownNow() }
+    }
+
+    /**
+     * Meritev povezave do CDN storitve: zahteva za prvih [DebridPravila.MERITEV_BAJTOV] (Range), cas do odgovora = ping,
+     * nato najvec [DebridPravila.MERITEV_MS] branja. Naslova ne zapisemo (vsebuje zeton storitve). null = ni uspela.
+     */
+    private fun izmeri(p: String, url: String): DebridPravila.Meritev? {
+        val zacetek = System.nanoTime()
+        val pov = try { URL(url).openConnection() as HttpURLConnection } catch (_: Exception) { return null }
+        return try {
+            pov.connectTimeout = 4_000; pov.readTimeout = 3_000
+            pov.setRequestProperty("Range", "bytes=0-${DebridPravila.MERITEV_BAJTOV - 1}")
+            val koda = pov.responseCode
+            if (koda !in 200..299) return null
+            val odziv = System.nanoTime()
+            val pingMs = (odziv - zacetek) / 1_000_000
+            var bajtov = 0L
+            val buf = ByteArray(64 * 1024)
+            pov.inputStream.use { vhod ->
+                while (bajtov < DebridPravila.MERITEV_BAJTOV && (System.nanoTime() - odziv) / 1_000_000 < DebridPravila.MERITEV_MS) {
+                    val n = vhod.read(buf); if (n < 0) break
+                    bajtov += n
+                }
+            }
+            DebridPravila.Meritev(p, pingMs, bajtov, ((System.nanoTime() - odziv) / 1_000_000).coerceAtLeast(1))
+        } catch (e: Exception) {
+            Log.w(TAG, "meritev ${DebridPravila.ime(p)}: ${e.javaClass.simpleName}"); null
+        } finally { pov.disconnect() }
+    }
+
+    /** Zadnja meritev storitve za okno »Debrid storitve« (null = je ni ali je starejsa od tedna). */
+    fun zadnjaMeritev(c: Context, p: String): DebridPravila.Meritev? =
+        DebridPravila.meritevIzZapisa(p, prefs(c).getString(KLJUC_MERITEV + p, null))
+            ?.takeIf { DebridPravila.meritevVelja(it.second, System.currentTimeMillis()) }?.first
+
+    private fun poskus(c: Context, p: String, magnet: String, indeks: Int, samoPredpomnjeno: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
+        val k = kljuc(c, p) ?: return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_KLJUC)
+        val iz = when (p) {
+            DebridPravila.TORBOX -> TorBox.tok(c, magnet, indeks, napredek, samoPredpomnjeno)
+            DebridPravila.REAL_DEBRID -> RealDebrid.tok(k, magnet, indeks, samoPredpomnjeno, napredek)
+            else -> AllDebrid.tok(k, magnet, indeks, samoPredpomnjeno, napredek)
+        }
+        // Naloga 136: oznaka ⚡ za Real-Debrid in AllDebrid iz tega, kar je storitev pravkar odgovorila.
+        try { zapomniIzid(c, p, magnet, iz) } catch (e: Exception) { Log.w(TAG, "zapomni: ${e.javaClass.simpleName}") }
+        return iz
+    }
+
+    // ------------------------------------------------------------------ naloga 129: kljuci s telefona na TV (Link)
+
+    /** Kljuci, ki jih je poslala druga naprava in cakajo na potrditev na tej (samo v pomnilniku, [DebridPravila.PREJETO_VELJA_MS]). */
+    class Prejeti(val od: String, val kljuci: Map<String, String>, val prejetoMs: Long,
+                  /** Naloga 141: indeksator Usenet (naslov, kljuc), ce ga je druga naprava poslala. */
+                  val indeksator: Pair<String, String>? = null)
+    @Volatile private var cakajoci: Prejeti? = null
+    /** Zaslon, ki zna vprasati za potrditev (GlasbaActivity), se prijavi; poklice se na glavni niti. */
+    val poslusalciPrejetih = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
+
+    /**
+     * `debrid.keys` z druge naprave (ozji krog, sifrirano od naprave do naprave): kljuci se NE shranijo sami - na tej
+     * napravi caka potrditev (zaslon Medijski center ali sporocilo, naj ga uporabnik odpre).
+     */
+    fun prejmiKljuce(c: Context, parametri: JSONObject, od: String): JSONObject {
+        val k = parametri.optJSONObject("keys")
+        val vnos = k?.keys()?.asSequence()?.associateWith { k.optString(it) }.orEmpty()
+        val veljavni = DebridPravila.prejetiKljuci(vnos)
+        val u = parametri.optJSONObject("usenet")
+        val indeksator = UsenetPravila.prejetIndeksator(u?.optString("url"), u?.optString("key"))
+        if (veljavni.isEmpty() && indeksator == null) return JSONObject().put("accepted", false).put("reason", "neveljavno")
+        cakajoci = Prejeti(od, veljavni, System.currentTimeMillis(), indeksator)
+        Log.i(TAG, "prejeti kljuci: ${veljavni.keys.joinToString(",")}${if (indeksator != null) " + indeksator Usenet" else ""} (cakajo na potrditev)")
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            if (poslusalciPrejetih.isEmpty()) try {
+                android.widget.Toast.makeText(c.applicationContext, c.getString(si.safeer.tv.R.string.os_debrid_prejeto_odpri), android.widget.Toast.LENGTH_LONG).show()
+            } catch (_: Throwable) { }
+            for (p in poslusalciPrejetih) try { p() } catch (_: Throwable) { }
+        }
+        return JSONObject().put("accepted", true).put("pending", true)
+    }
+
+    /** Cakajoci prejeti kljuci (ce se veljajo), enkrat - [vzemiPrejete] jih odstrani. */
+    fun vzemiPrejete(): Prejeti? {
+        val p = cakajoci ?: return null
+        cakajoci = null
+        return p.takeIf { DebridPravila.prejetoVelja(it.prejetoMs, System.currentTimeMillis()) }
+    }
+
+    /** Potrjeni prejeti kljuci: shranijo se kot vpisani tu. Vrne storitve, ki so bile shranjene. */
+    fun shraniPrejete(c: Context, p: Prejeti): List<String> =
+        p.kljuci.filter { (ponudnik, k) -> nastaviKljuc(c, ponudnik, k) }.keys.toList() +
+            listOfNotNull(p.indeksator?.takeIf { (n, k) -> Usenet.nastavi(c, n, k) }?.let { UsenetPravila.VRSTA })
+
+    /**
+     * Poslje vse vpisane kljuce napravi [n] - samo po sifrirani poti od naprave do naprave ([DebridPravila.smePoslatiKljuc]).
+     * [nato] dobi na glavni niti: "ok" (caka na potrditev tam), "ni_zascite", "ni_dovoljeno", "stara", "ni_povezave", "napaka".
+     */
+    fun posljiKljuce(c: Context, n: LinkOdjemalec.Naprava, nato: (String) -> Unit) {
+        val link = LinkUpravitelj.pridobi(c.applicationContext)
+        val glavna = android.os.Handler(android.os.Looper.getMainLooper())
+        if (!DebridPravila.smePoslatiKljuc(link.odjemalec.znaZascito(n.id), link.povezan)) {
+            glavna.post { nato(if (!link.povezan) "ni_povezave" else "ni_zascite") }; return
+        }
+        val k = JSONObject()
+        for (p in DebridPravila.VSI) kljuc(c, p)?.let { k.put(p, it) }
+        val parametri = JSONObject().put("keys", k)
+        // Naloga 141: tudi indeksator Usenet (isto sifrirano pot; tam se shrani sele po potrditvi).
+        Usenet.indeksator(c)?.let { parametri.put("usenet", JSONObject().put("url", it.osnova).put("key", it.kljuc)) }
+        link.ukaz(n.id, DebridPravila.DEJANJE_KLJUCI, parametri, 8_000, LinkOdjemalec.Odgovor { izid, napaka ->
+            val koda = when {
+                izid?.optBoolean("ok") == true && izid.optJSONObject("data")?.optBoolean("accepted") == true -> "ok"
+                izid?.optString("code") == si.safeer.tv.link.Daljinec.KODA_NI_DOVOLJENO -> "ni_dovoljeno"
+                izid?.optString("code") == "neznano_dejanje" -> "stara"
+                napaka == "ni_povezave" || napaka == "potek" -> "ni_povezave"
+                else -> "napaka"
+            }
+            glavna.post { nato(koda) }
+        })
+    }
+
+    // ------------------------------------------------------------------ skupni HTTP
+
+    class Odgovor(val koda: Int, val telo: String) {
+        val json: JSONObject? get() = try { JSONObject(telo) } catch (_: Exception) { null }
+        val seznam: JSONArray? get() = try { JSONArray(telo) } catch (_: Exception) { null }
+        val uspeh: Boolean get() = koda in 200..299
+    }
+
+    /** Klic s kljucem v glavi (nikoli v naslovu); [obrazec] gre kot application/x-www-form-urlencoded. */
+    fun klic(naslov: String, kljuc: String, metoda: String = "GET", obrazec: List<Pair<String, String>>? = null): Odgovor {
+        val p = URL(naslov).openConnection() as HttpURLConnection
+        try {
+            p.requestMethod = metoda
+            p.connectTimeout = 10_000; p.readTimeout = 20_000
+            p.setRequestProperty("Accept", "application/json")
+            p.setRequestProperty("Authorization", DebridPravila.glavaAvtorizacije(kljuc))
+            if (obrazec != null) {
+                p.doOutput = true
+                p.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                val telo = obrazec.joinToString("&") { (k, v) -> URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8") }
+                p.outputStream.use { it.write(telo.toByteArray(Charsets.UTF_8)) }
+            }
+            val koda = p.responseCode
+            val telo = (if (koda in 200..299) p.inputStream else p.errorStream)?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+            return Odgovor(koda, telo)
+        } finally { p.disconnect() }
+    }
+}

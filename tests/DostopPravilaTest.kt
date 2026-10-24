@@ -18,8 +18,10 @@ fun main() {
         listOf("files.list", "files.search", "files.open", "storage.put", "storage.status").all { p.zahtevaDejanja(it) == Zahteva.DATOTEKE })
     preveri("programi: seznam, zagon, zapiranje",
         listOf("apps.list", "apps.launch", "apps.close", "apps.running", "apps", "launch_app", "open_in_app").all { p.zahtevaDejanja(it) == Zahteva.PROGRAMI })
+    // Naloga 129: kljuci debrid storitev so skrivnost - samo ozji krog (naprava z vsem dostopom).
+    preveri("debrid.keys zahteva vse (ozji krog)", p.zahtevaDejanja("debrid.keys") == Zahteva.VSE)
     preveri("predvajalnik: kaj se predvaja, nadaljevanje, seznami in viri",
-        listOf("play.state", "play.stop", "lists.get").all { p.zahtevaDejanja(it) == Zahteva.PREDVAJALNIK })
+        listOf("play.state", "play.stop", "lists.get", "play.control").all { p.zahtevaDejanja(it) == Zahteva.PREDVAJALNIK })
     preveri("predvajalnik: odpiranje vsebine brez vprasanja in zvok druge naprave",
         listOf("open_url", "magnet.open", "audio.play", "audio.stop").all { p.zahtevaDejanja(it) == Zahteva.PREDVAJALNIK })
     preveri("predvajalnik: pomoc pri predvajanju (torrent, pretvorba, dodatki, zmogljivost)",

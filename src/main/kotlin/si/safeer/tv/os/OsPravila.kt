@@ -406,6 +406,36 @@ object OsPravila {
      */
     fun zaklenjenZaMrezo(z: Zaklep?, zdaj: Long): Boolean = jeZaklenjen(z, zdaj) || (z != null && z.zaporednih >= ZAKLENJEN_PO)
 
+    // ------------------------------------------------------------------ naloga 120: neodklenjena placljiva vsebina
+
+    /**
+     * Naloga 120: besedilo vnosa dodatka (ime, naslov, opis, povezava), ki NI tok, ampak placilni zid: »Unlock Premium
+     * Access«, »Subscribe«, »VIP«, »Narocnina« ... Prosnja za donacijo, »No streams found« in vabilo v Discord niso placilo.
+     */
+    private val PLACILNI_ZID = Regex(
+        "(?i)premium|unlock|subscri|paywall|purchase|\\bbuy\\b|\\bvip\\b|members?[ -]?only|upgrade|paid|" +
+            "narocn|naročn|placl|plačl|abonn|suscrip|abbonament|abonnement|kaufen|bezahl|freischalt")
+
+    fun jePlacljivoObvestilo(besedilo: String): Boolean = PLACILNI_ZID.containsMatchIn(besedilo)
+
+    /** Toliko casa je vsebina, ki jo dodatek daje samo za placilo, skrita; potem se preveri znova (morda je odklenjena). */
+    const val PLACLJIVO_VELJA_MS = 7L * 24 * 3_600_000L
+
+    /**
+     * Naloga 120: kdaj je vsebina (tip + id) zadnjic dala samo placilni zid po odgovoru vseh dodatkov: predvajljiv tok -> null
+     * (vsebina je odklenjena ali prosta); vsaj eno placilno obvestilo brez toka -> [prej] ali zdaj; sicer (prazno, napaka)
+     * ostane [prej] - odgovor brez tokov ne pove, da je placljiva.
+     */
+    fun placljivoPoOdgovoru(prej: Long?, placilnih: Int, predvajljivih: Int, zdaj: Long): Long? = when {
+        predvajljivih > 0 -> null
+        placilnih > 0 -> prej ?: zdaj
+        else -> prej
+    }
+
+    /** Vsebina je skrita, dokler zapis velja (ura nazaj: ne velja). Uporabnik jo pokaze z »Pokazi zaklenjene«. */
+    fun placljivoSkrito(ob: Long?, zdaj: Long, pokaziZaklenjene: Boolean): Boolean =
+        !pokaziZaklenjene && ob != null && zdaj - ob in 0 until PLACLJIVO_VELJA_MS
+
     /** Naloga 79b: najdaljsa povezava za odklep pri dodatku, ki jo sprejmemo. */
     const val ODKLEP_NAJVEC = 2048
 
@@ -514,6 +544,20 @@ object OsPravila {
      * Ali je pogled (vrh [y], visina [h] v vsebini drsnika) v vidnem delu [zgoraj]..[spodaj] ali najvec [rezerva] pik od
      * njega - plakat zunaj tega sprosti bitno sliko (naloga 56).
      */
+    /**
+     * Naloga 144: koliko nad in pod vidnim delom mreze nalagamo naslovnice - en zaslon (prej ena kartica + 60 dp), da je
+     * naslednja vrsta ob drsenju ze narisana (z USB ali iz pomnilnika), ne prazna. Najmanj kot prej.
+     */
+    fun rezervaNaslovnic(visinaKartice: Int, visinaDrsnika: Int, rob: Int): Int = maxOf(visinaKartice + rob, visinaDrsnika)
+
+    /**
+     * Naloga 145 (lastnik, 24. 10. 2026: »zakaj se nič ne naredi ko pridem do zadnjega kvadratka«): Nalozi vec caka na
+     * preverjanje okna samo, ce preverjanje res tece. Ko je dodatek v premoru (omejuje poizvedbe, na TV 27 min), ostanejo
+     * naslovi v [caka] do konca premora - Nalozi vec je kazal »Preverjam … se 12« in ni naredil nicesar. Takrat gremo
+     * naprej (naslednji naslovi takoj, preverjanje v ozadju kot pri naslednjih straneh, naloga 55b).
+     */
+    fun cakajNaPreverjanje(caka: Int, premor: Boolean): Boolean = caka > 0 && !premor
+
     fun vVidnem(y: Int, h: Int, zgoraj: Int, spodaj: Int, rezerva: Int): Boolean =
         y + h >= zgoraj - rezerva && y <= spodaj + rezerva
 
@@ -562,7 +606,9 @@ object OsPravila {
      * Lastnik: »Streznike, ki ne odgovarjajo, bi morali zavracati« - a vira ne brisemo sami (odlocitev je uporabnikova).
      */
     /** [poskusOd]: naloga 73 - polodprto stanje (preskok je minil): kdaj je sel edini poskusni zahtevek (0 = se ni). */
-    data class Odziv(val izpadi: List<Long> = emptyList(), val preskociDo: Long = 0L, val poskusOd: Long = 0L)
+    data class Odziv(val izpadi: List<Long> = emptyList(), val preskociDo: Long = 0L, val poskusOd: Long = 0L,
+                     /** Naloga 113: od kdaj (prvi izpad tega niza) in zadnja koda HTTP (0 = brez odgovora) - za oznako v Mojih virih. */
+                     val odKdaj: Long = 0L, val koda: Int = 0)
 
     /** Toliko izpadov v [IZPADI_OKNO_MS] pomeni »ne odgovarja«: dodatek preskocimo za [PRESKOK_MS]. */
     const val IZPADOV_ZA_PRESKOK = 3
@@ -570,12 +616,15 @@ object OsPravila {
     const val PRESKOK_MS = 30 * 60_000L
 
     /** Nov odziv po poizvedbi: [uspeh] (odgovoril je, tudi »tega nimam«) vse pozabi; izpad se steje. */
-    fun poOdzivu(o: Odziv?, uspeh: Boolean, zdaj: Long): Odziv {
+    fun poOdzivu(o: Odziv?, uspeh: Boolean, zdaj: Long, koda: Int = 0): Odziv {
         if (uspeh) return Odziv()
+        // Naloga 113: od kdaj ne odgovarja - prvi izpad niza ostane, koda je zadnja.
+        val od = o?.odKdaj?.takeIf { it > 0L } ?: zdaj
         // Naloga 73: polodprto (preskok je minil, dodatek se ni odgovoril) - izpad poskusnega zahtevka takoj spet zapre.
-        if (o != null && o.preskociDo != 0L && o.preskociDo <= zdaj) return Odziv(emptyList(), zdaj + PRESKOK_MS)
+        if (o != null && o.preskociDo != 0L && o.preskociDo <= zdaj) return Odziv(emptyList(), zdaj + PRESKOK_MS, odKdaj = od, koda = koda)
         val izpadi = o?.izpadi.orEmpty().filter { zdaj - it in 0 until IZPADI_OKNO_MS } + zdaj
-        return if (izpadi.size >= IZPADOV_ZA_PRESKOK) Odziv(emptyList(), zdaj + PRESKOK_MS) else Odziv(izpadi, o?.preskociDo ?: 0L)
+        return if (izpadi.size >= IZPADOV_ZA_PRESKOK) Odziv(emptyList(), zdaj + PRESKOK_MS, odKdaj = od, koda = koda)
+            else Odziv(izpadi, o?.preskociDo ?: 0L, odKdaj = od, koda = koda)
     }
 
     /** Ali dodatek zdaj preskocimo (v ozadju ga ne sprasujemo, oznaka »Ne odgovarja«). */
@@ -640,6 +689,24 @@ object OsPravila {
      * strani dajala skoraj samo Cinemeta s 50+ vnosi, uporabnikovi dodatki pogosto manj kot [najmanj]). Katalog brez
      * oznake: kot doslej, polna stran pomeni, da je morda se kaj. Stran -1 = dodatek ni odgovoril (izpad): to ni stran.
      */
+    /**
+     * Naloga 143: najvec [najvec] katalogov, a vsak dodatek dobi svoj delez - izmenicno po dodatkih (v vrstnem redu prvega
+     * pojava), znotraj dodatka v njegovem vrstnem redu. Prej `take(12)`: dodatki z veliko katalogi so zapolnili vseh 12 in
+     * Cinemeta (20.000+ naslovov, dodana zadnja) je izpadla - mreza Serije se je koncala pri ~550 naslovih (TV 24. 10. 2026).
+     */
+    fun <T> pravicnoPoDodatkih(seznam: List<T>, dodatek: (T) -> String, najvec: Int): List<T> {
+        val poDodatkih = LinkedHashMap<String, ArrayDeque<T>>()
+        seznam.forEach { poDodatkih.getOrPut(dodatek(it)) { ArrayDeque() }.addLast(it) }
+        val izid = ArrayList<T>()
+        while (izid.size < najvec && poDodatkih.values.any { it.isNotEmpty() }) {
+            for (vrsta in poDodatkih.values) {
+                if (izid.size >= najvec) break
+                vrsta.removeFirstOrNull()?.let { izid += it }
+            }
+        }
+        return izid
+    }
+
     fun katalogImaVec(velikost: Int, oglasaStrani: Boolean, najmanj: Int): Boolean =
         if (oglasaStrani) velikost > 0 else velikost >= najmanj
 
@@ -1566,5 +1633,53 @@ object OsPravila {
         if (casiPonovitev.count { zdaj - it in 0 until PONOVITEV_V_ZIVO_OKNO_MS } >= PONOVITEV_V_ZIVO_OKNO_NAJVEC) return 0
         val brez = if (predvajanoMs >= NOVI_PODATKI_V_ZIVO_MS) 0 else prejsnjih.coerceAtLeast(0)
         return if (brez >= PONOVITEV_V_ZIVO_NAJVEC) 0 else brez + 1
+    }
+
+    // ------------------------------------------------------------------ naloga 104: zaslon predvajanja v zivo
+
+    /**
+     * Naloga 104: zaslon predvajanja kaze »V zivo« namesto drsnika in casa (»0:10 / 0:59«) in skrije -10/+10 s, ce predvajalnik
+     * pove, da je posnetek v zivo ([isLive]) ali ima dinamicno okno (HLS v zivo, [dinamicno]), ali je to radio ali kanal v zivo
+     * ([radioAliKanal]: postaja, vgrajen kanal, kanal dodatka ali seznama IPTV).
+     */
+    fun prikazVZivo(isLive: Boolean, dinamicno: Boolean, radioAliKanal: Boolean): Boolean = isLive || dinamicno || radioAliKanal
+
+    // ------------------------------------------------------------------ naloga 114: odlocitev kanala v zivo na enem mestu
+
+    /** Naloga 115: najdaljsi zamik ponovne povezave (narascajoc zamik se tu ustavi). */
+    const val ZAMIK_PONOVITVE_NAJVEC_MS = 12_000L
+
+    /**
+     * Naloga 115 (pregled 101, #6: stalni zamik je za ponudnika z omejitvijo »blago agresiven«): zamik se ob vsaki zaporedni
+     * ponovitvi brez novih podatkov ([zaporedno] 1, 2, 3 ...) podvoji - 1,5 s, 3 s, 6 s, 12 s - najvec
+     * [ZAMIK_PONOVITVE_NAJVEC_MS]. Takojsnja ponovitev (0) ostane takojsnja; nova data stevec (in zamik) vrnejo na zacetek.
+     */
+    fun narascajocZamik(osnova: Long, zaporedno: Int): Long {
+        if (osnova <= 0L) return 0L
+        val korak = (zaporedno - 1).coerceIn(0, 3)
+        return minOf(osnova shl korak, ZAMIK_PONOVITVE_NAJVEC_MS)
+    }
+
+    /** Izid [odlocitevVZivo]: obstojeca pot (konec, napaka, rezerva), ponovna povezava (z zamikom) ali tih konec. */
+    const val VZIVO_OBSTOJECA_POT = 0
+    const val VZIVO_ZNOVA = 1
+    const val VZIVO_TIH_KONEC = 2
+
+    /** [vrsta] = VZIVO_*; pri VZIVO_ZNOVA [zamikMs] in zaporedna stevilka ponovitve brez novih podatkov [zaporedno]. */
+    data class OdlocitevVZivo(val vrsta: Int, val zamikMs: Long = 0L, val zaporedno: Int = 0)
+
+    /**
+     * Naloga 114 (pregled: ponovna povezava se je spremenila v petih nalogah 95-103): vse odlocitve ob koncu toka ali napaki vira
+     * kanala v zivo na enem mestu, v istem vrstnem redu kot GlasbaStoritev.ponoviVZivo: [koda]/[http] -> zamik ali obstojeca
+     * pot ([zamikPonovitveVZivo]), meja ponovitev ([ponovnaPovezavaVZivo]), ob meji tih konec ali rezerva / naslednji element
+     * ([tihKonecPoMeji]). [koda] 0 = konec toka.
+     */
+    fun odlocitevVZivo(kanal: Boolean, progresivno: Boolean, zacelo: Boolean, koda: Int, http: Int, prejsnjih: Int, predvajanoMs: Long,
+                       casiPonovitev: List<Long>, zdaj: Long, imaRezervo: Boolean, imaNaslednjega: Boolean): OdlocitevVZivo {
+        val zamik = zamikPonovitveVZivo(koda, http) ?: return OdlocitevVZivo(VZIVO_OBSTOJECA_POT)
+        val n = ponovnaPovezavaVZivo(kanal, progresivno, zacelo, prejsnjih, predvajanoMs, casiPonovitev, zdaj)
+        if (n > 0) return OdlocitevVZivo(VZIVO_ZNOVA, narascajocZamik(zamik, n), n)
+        if (!(kanal && progresivno && zacelo)) return OdlocitevVZivo(VZIVO_OBSTOJECA_POT)
+        return if (tihKonecPoMeji(koda != 0, imaRezervo, imaNaslednjega)) OdlocitevVZivo(VZIVO_TIH_KONEC) else OdlocitevVZivo(VZIVO_OBSTOJECA_POT)
     }
 }

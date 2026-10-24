@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="zvocnik_predvajaj_na">Lire sur une enceinte</string>
+    <!-- Naloga 104: vidna oznaka gumba za izbiro zvocnika na zaslonu predvajanja. -->
+    <string name="zvocnik_oznaka">Enceinte</string>
     <string name="zvocnik_na">Sur l\'enceinte : %1$s</string>
     <string name="zvocnik_iscem">Recherche d\'enceintes sur le réseau…</string>
     <string name="zvocnik_ni_najdenih">Aucune enceinte trouvée. Elle doit être allumée et sur le même réseau (DLNA).</string>
@@ -19,4 +21,14 @@
     <string name="zvocnik_nedosegljiv">%1$s ne répond pas</string>
     <string name="zvocnik_ne_ustavi">%1$s ne répond pas. S’il joue encore, arrêtez-le sur l’enceinte elle-même.</string>
     <string name="zvocnik_ustavljen">%1$s n’a pas mis en pause ; la lecture y a été arrêtée.</string>
+    <!-- Naloga 117: upravljanje predvajanja na drugi napravi v Safeer Linku -->
+    <string name="naprava_na">Lecture sur %1$s</string>
+    <string name="naprava_glasnost">Volume : %1$d %%</string>
+    <string name="naprava_caka">En attente du démarrage de la lecture sur %1$s…</string>
+    <string name="naprava_nazaj10">Reculer de 10 s</string>
+    <string name="naprava_naprej10">Avancer de 10 s</string>
+    <string name="naprava_vrsta">File d’attente</string>
+    <string name="naprava_prekini">Arrêter le contrôle</string>
+    <string name="naprava_konec">%1$s ne répond pas – contrôle terminé</string>
+    <string name="naprava_upravljaj">Contrôler %1$s</string>
 </resources>

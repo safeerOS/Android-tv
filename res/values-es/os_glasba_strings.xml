@@ -44,6 +44,13 @@
     <string name="os_mediji_streznik_ne_odgovarja_brez">El servidor no responde: no se ha añadido la fuente.</string>
     <string name="os_mediji_poskusi_znova">Reintentar</string>
     <string name="os_mediji_ne_odgovarja">No responde</string>
+    <!-- Naloga 113: stanje dodatka v Mojih virih. -->
+    <string name="os_mediji_ne_odgovarja_od">No responde desde las %1$s</string>
+    <string name="os_mediji_ne_odgovarja_od_http">No responde desde las %1$s (HTTP %2$d)</string>
+    <string name="os_mediji_preveri_dodatek">Comprobar complemento ahora</string>
+    <string name="os_mediji_dodatek_odgovarja">El complemento responde</string>
+    <string name="os_mediji_dodatek_ne_odgovarja_http">El complemento no responde (HTTP %1$d)</string>
+    <string name="os_mediji_dodatek_ne_odgovarja_brez">El complemento no responde</string>
     <string name="os_mediji_ni_vira">En esta dirección no hay música ni vídeo que Safeer pueda reproducir.</string>
     <string name="os_mediji_ni_vira_zakaj">La fuente no se ha añadido. Safeer reproduce música, vídeo, radio y TV (MP3, MP4, HLS, listas M3U/PLS, pódcasts, PeerTube) y páginas web; no reproduce torrents, archivos comprimidos ni emisiones protegidas.</string>
     <string name="os_mediji_dodano">Añadido: %1$s</string>
@@ -401,4 +408,21 @@
     <string name="os_besedila_napaka">No se puede cargar la letra ahora.</string>
     <string name="os_besedila_instrumentalno">Instrumental: sin letra.</string>
     <string name="os_tv_vrni_skrite">Mostrar canales ocultos (%1$d)</string>
+    <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
+    <string name="os_nedel_ni_toka">la fuente no da emisión</string>
+    <string name="os_nedel_streznik">servidor no encontrado</string>
+    <string name="os_nedel_neodziven">el servidor no responde</string>
+    <string name="os_nedel_http">error del servidor %1$d</string>
+    <string name="os_nedel_ni_znano">motivo desconocido</string>
+    <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->
+    <string name="os_nedel_ni_na_voljo">vídeo no disponible o eliminado</string>
+    <string name="os_nedel_zaseben">vídeo privado</string>
+    <string name="os_nedel_drzava">no disponible en este país</string>
+    <string name="os_nedel_prijava">requiere iniciar sesión o confirmar la edad</string>
+    <string name="os_nedel_clani">solo para miembros</string>
+    <string name="os_nedel_skladba">%1$s no se reproduce: %2$s</string>
+    <string name="os_nedel_poisci_drug">Buscar otro vídeo</string>
+    <string name="os_nedel_preveri_znova">Comprobar de nuevo</string>
+    <string name="os_nedel_ni_drugega">No se encontró otro vídeo</string>
+    <string name="os_nedel_nov_posnetek">Se encontró otro vídeo</string>
 </resources>

@@ -37,6 +37,8 @@ object DostopPravila {
     private val PREDVAJALNIK = setOf(
         // Kaj naprava predvaja, nadaljevanje in ustavitev; seznami in viri Medijskega centra.
         "play.state", "play.stop", "lists.get",
+        // Naloga 117: upravljanje predvajanja kot lokalno (si.safeer.tv.os.OddaljenoPravila.DEJANJE).
+        "play.control",
         // Odpiranje vsebine na tej napravi brez vprasanja in zvok druge naprave na njenih zvocnikih.
         "open_url", "magnet.open", "audio.play", "audio.stop", "media.open",
         // Pomoc pri predvajanju vidi, kaj druga naprava gleda, in trosi to napravo (prenos, pretvorba, dodatki).

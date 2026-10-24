@@ -44,6 +44,13 @@
     <string name="os_mediji_streznik_ne_odgovarja_brez">Der Server antwortet nicht – die Quelle wurde nicht hinzugefügt.</string>
     <string name="os_mediji_poskusi_znova">Erneut versuchen</string>
     <string name="os_mediji_ne_odgovarja">Antwortet nicht</string>
+    <!-- Naloga 113: stanje dodatka v Mojih virih. -->
+    <string name="os_mediji_ne_odgovarja_od">Antwortet nicht seit %1$s</string>
+    <string name="os_mediji_ne_odgovarja_od_http">Antwortet nicht seit %1$s (HTTP %2$d)</string>
+    <string name="os_mediji_preveri_dodatek">Add-on jetzt prüfen</string>
+    <string name="os_mediji_dodatek_odgovarja">Das Add-on antwortet</string>
+    <string name="os_mediji_dodatek_ne_odgovarja_http">Das Add-on antwortet nicht (HTTP %1$d)</string>
+    <string name="os_mediji_dodatek_ne_odgovarja_brez">Das Add-on antwortet nicht</string>
     <string name="os_mediji_ni_vira">Unter dieser Adresse gibt es keine Musik und kein Video, das Safeer abspielen kann.</string>
     <string name="os_mediji_ni_vira_zakaj">Die Quelle wurde nicht hinzugefügt. Safeer spielt Musik, Video, Radio und TV-Streams (MP3, MP4, HLS, M3U/PLS-Listen, Podcasts, PeerTube) sowie Webseiten ab; Torrents, Archive und geschützte Streams nicht.</string>
     <string name="os_mediji_dodano">Hinzugefügt: %1$s</string>
@@ -401,4 +408,21 @@
     <string name="os_besedila_napaka">Der Songtext kann gerade nicht geladen werden.</string>
     <string name="os_besedila_instrumentalno">Instrumental – kein Songtext.</string>
     <string name="os_tv_vrni_skrite">Ausgeblendete Sender anzeigen (%1$d)</string>
+    <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
+    <string name="os_nedel_ni_toka">die Quelle liefert keinen Stream</string>
+    <string name="os_nedel_streznik">Server nicht gefunden</string>
+    <string name="os_nedel_neodziven">Server antwortet nicht</string>
+    <string name="os_nedel_http">Serverfehler %1$d</string>
+    <string name="os_nedel_ni_znano">Grund unbekannt</string>
+    <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->
+    <string name="os_nedel_ni_na_voljo">Video nicht verfügbar oder entfernt</string>
+    <string name="os_nedel_zaseben">privates Video</string>
+    <string name="os_nedel_drzava">in diesem Land nicht verfügbar</string>
+    <string name="os_nedel_prijava">Anmeldung oder Altersbestätigung nötig</string>
+    <string name="os_nedel_clani">nur für Mitglieder</string>
+    <string name="os_nedel_skladba">%1$s wird nicht abgespielt: %2$s</string>
+    <string name="os_nedel_poisci_drug">Anderes Video suchen</string>
+    <string name="os_nedel_preveri_znova">Erneut prüfen</string>
+    <string name="os_nedel_ni_drugega">Kein anderes Video gefunden</string>
+    <string name="os_nedel_nov_posnetek">Anderes Video gefunden</string>
 </resources>

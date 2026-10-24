@@ -406,7 +406,9 @@ object MedijskiViri {
         val a = JSONArray()
         s.forEach { a.put(JSONObject().put("id", it.id).put("naslov", it.naslov).put("izvajalec", it.izvajalec).put("slika", it.slika)
             .put("zvok", it.zvok).put("povezava", it.povezava).put("radio", it.radio).put("video", it.video).put("mime", it.mime)
-            .put("streznik", it.streznik).put("kanal", it.kanal).put("year", it.year).put("language", it.language)) }
+            .put("streznik", it.streznik).put("kanal", it.kanal).put("year", it.year).put("language", it.language)
+            // Naloga 140: epizoda serije - »Nadaljuj« jo nadaljuje (prej je odprl seznam sezon).
+            .put("season", it.season).put("episode", it.episode).put("imdbId", it.imdbId)) }
         return a.toString()
     }
 
@@ -415,7 +417,8 @@ object MedijskiViri {
         return (0 until a.length()).map { a.getJSONObject(it) }.map {
             Jamendo.Skladba(it.optString("id"), it.optString("naslov"), it.optString("izvajalec"), it.optString("slika"), it.optString("zvok"),
                 it.optString("povezava"), it.optBoolean("radio"), it.optBoolean("video"), it.optString("mime"), it.optString("streznik"),
-                it.optString("kanal"), year = it.optInt("year"), language = it.optString("language"))
+                it.optString("kanal"), year = it.optInt("year"), language = it.optString("language"),
+                season = it.optInt("season"), episode = it.optInt("episode"), imdbId = it.optString("imdbId"))
         }.filter { it.id.isNotBlank() && PeerTube.jeDovoljen(it) }
     }
 
@@ -430,7 +433,7 @@ object MedijskiViri {
         val vnosi = beriSkladbe(beri(ctx, NEDAVNO)).distinctBy { it.id }.filterNot { Stremio.jeZasebna(it) || Stremio.brezDodatka(it, dodatki) }
         return osveziVgrajene(KanaliPravila.brezNedelujocihKanalov(vnosi,
             { it.id.startsWith("tv:") || Stremio.jeVZivo(it) || IptvSeznami.jeKanal(it) }, { it.naslov },
-            { MrtviKanali.jeMrtev(ctx, it.id) || IptvSeznami.jeKanal(it) && (KanaliPravila.znanNedelujocTok(it.zvok) || KanaliPravila.znanNedelujocTok(it.povezava)) })
+            { MrtviKanali.skrij(ctx, it) })
             .take(MAX_NEDAVNO))
     }
 
@@ -441,7 +444,8 @@ object MedijskiViri {
 
     fun zapomniNedavno(ctx: Context, s: Jamendo.Skladba) {
         Stremio.pripravi(ctx)
-        if (!shranljiva(s) || Stremio.jeZasebna(s)) return
+        // Naloga 135: samodejni preizkus po gradnji ne gre med nazadnje predvajano.
+        if (!shranljiva(s) || Stremio.jeZasebna(s) || PreizkusPravila.jePreizkus(s.id)) return
         val z = zaShranjevanje(s)
         pisi(ctx, NEDAVNO, pisiSkladbe((listOf(z) + nedavno(ctx).filterNot { it.id == z.id }).distinctBy { it.id }.take(MAX_NEDAVNO)))
     }

@@ -172,9 +172,10 @@ object SporocilaKanali {
                 val telo = try { brezCitata(besedilo(m).first).take(20000) } catch (_: Throwable) { "" }
                 val cas = cas(m.sentDate ?: m.receivedDate)
                 val prebrano = m.flags.contains(Flags.Flag.SEEN)
-                s.shraniSporocilo(k.id, SporocilaShramba.Sporocilo("uid:$uid", oseba, if (moje) "ven" else "noter", telo, cas))
-                s.posodobiPogovor(SporocilaShramba.Pogovor(oseba, k.id, oseba, ime, zadeva, telo.replace("\n", " ").take(240),
-                    if (!moje && !prebrano) 1 else 0, cas), pristej = true)
+                // Naloga 106: krajevno izbrisano sporocilo (ponovno prebran nabiralnik) ne vrne besedila in neprebranega v pogovor.
+                if (s.shraniSporocilo(k.id, SporocilaShramba.Sporocilo("uid:$uid", oseba, if (moje) "ven" else "noter", telo, cas)))
+                    s.posodobiPogovor(SporocilaShramba.Pogovor(oseba, k.id, oseba, ime, zadeva, telo.replace("\n", " ").take(240),
+                        if (!moje && !prebrano) 1 else 0, cas), pristej = true)
                 val nit = niti.optJSONObject(oseba) ?: JSONObject()
                 val uidi = nit.optJSONArray("uidi") ?: JSONArray()
                 uidi.put(uid); while (uidi.length() > 50) uidi.remove(0)

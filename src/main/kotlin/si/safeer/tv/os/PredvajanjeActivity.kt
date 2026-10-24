@@ -402,7 +402,7 @@ class PredvajanjeActivity : OsActivity() {
             setPadding(dp(12), dp(7), dp(14), dp(7))
             background = GradientDrawable().apply { cornerRadius = dp(20).toFloat(); setColor(0xCC101820.toInt()); setStroke(dp(1), osBarva(R.color.os_mint)) }
             addView(ImageView(this@PredvajanjeActivity).apply {
-                setImageResource(R.drawable.os_ikona_zvocnik)
+                setImageResource(R.drawable.os_ikona_predvajaj_na)
                 imageTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_mint))
             }, LinearLayout.LayoutParams(dp(20), dp(20)))
             addView(besedilo(14f, osBarva(R.color.os_besedilo), true).apply { maxLines = 1; setPadding(dp(8), 0, 0, 0) }.also { zvocnikIme = it })
@@ -448,7 +448,10 @@ class PredvajanjeActivity : OsActivity() {
     private val dotik by lazy { si.safeer.tv.ChromiumEngineView.naDotik(this) }
     private var gumbPredvajaj: ImageButton? = null
     private var gumbNazaj: View? = null
-    private var gumbZvocnik: ImageButton? = null
+    private var gumbZvocnik: TextView? = null
+    /** Naloga 104: -10 s in +10 s - pri prenosu v zivo skrita ([osveziCas]). */
+    private var gumbNazaj10: View? = null
+    private var gumbNaprej10: View? = null
     private var vrstaGumbov: OvijalnaVrsta? = null
     private val okrogli = mutableListOf<Pair<ImageButton, Int>>()
 
@@ -486,17 +489,18 @@ class PredvajanjeActivity : OsActivity() {
         gumbi.addView(okroglGumb(R.drawable.os_ikona_prejsnja, R.string.os_mediji_prejsnja, 52) {
             GlasbaStoritev.prejsnja()
         })
-        gumbi.addView(okroglGumb(R.drawable.os_ikona_nazaj10, R.string.os_mediji_nazaj_10, 52) { premakni(-10_000) })
+        gumbi.addView(okroglGumb(R.drawable.os_ikona_nazaj10, R.string.os_mediji_nazaj_10, 52) { premakni(-10_000) }.also { gumbNazaj10 = it })
         gumbPredvajaj = okroglGumb(R.drawable.os_ikona_pavza, R.string.os_mediji_predvajaj_pavza, 64) { preklopi() }
         gumbi.addView(gumbPredvajaj)
-        gumbi.addView(okroglGumb(R.drawable.os_ikona_naprej10, R.string.os_mediji_naprej_10, 52) { premakni(10_000) })
+        gumbi.addView(okroglGumb(R.drawable.os_ikona_naprej10, R.string.os_mediji_naprej_10, 52) { premakni(10_000) }.also { gumbNaprej10 = it })
         gumbi.addView(okroglGumb(R.drawable.os_ikona_naslednja, R.string.os_mediji_naslednja, 52) {
             GlasbaStoritev.naslednja()
         })
         gumbPodnapisi = okroglGumb(R.drawable.os_ikona_podnapisi, R.string.podnapisi_naslov, 52) {
             izbiraPodnapisov()
         }.also { it.visibility = View.GONE; gumbi.addView(it) }
-        gumbZvok = okroglGumb(R.drawable.os_ikona_zvocna_sled, R.string.os_mediji_zvocna_sled, 52) {
+        // Naloga 104: zvocne sledi imajo svojo ikono (oblacek), ne zvocnika - ta je za izbiro zvocnika.
+        gumbZvok = okroglGumb(R.drawable.os_ikona_zvocne_sledi, R.string.os_mediji_zvocna_sled, 52) {
             GlasbaStoritev.predvajalnik?.let { p -> ZvocneSledi.izberi(this, p) { posodobiPodnapise() } }
         }.also { it.visibility = View.GONE; gumbi.addView(it) }
         gumbZaklep = okroglGumb(R.drawable.os_ikona_zaklep, R.string.os_zaklep_zaslona, 52) { zakleni(true) }
@@ -504,14 +508,19 @@ class PredvajanjeActivity : OsActivity() {
         gumbPip = okroglGumb(R.drawable.os_ikona_slika_v_sliki, R.string.os_mediji_slika_v_sliki, 52) { vSlikoVSliki() }
             .also { it.visibility = View.GONE; gumbi.addView(it) }
         gumbVec = okroglGumb(R.drawable.os_ikona_vec, R.string.os_vec_moznosti, 52) { pokaziDejanja() }.also { gumbi.addView(it) }
-        // Izbira zvocnika je viden gumb (prej vrstica pod »Vec moznosti«): pokoncno zgoraj desno, lezece v vrsti gumbov
-        // ([prilagodiZaslonu]). Ni v seznamu [okrogli]: kadar je pripet na koren, ne sme dobiti mer vrste gumbov.
-        gumbZvocnik = ImageButton(this).apply {
-            setImageResource(R.drawable.os_ikona_zvocnik); contentDescription = getString(R.string.zvocnik_predvajaj_na)
-            imageTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_besedilo))
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dp(10), dp(10), dp(10), dp(10))
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
+        // Izbira zvocnika je viden gumb (prej vrstica pod »Vec moznosti«). Naloga 104 (lastnik, posnetki 16:28-16:32): ikona
+        // naprave (ne glasnosti ali utisanja) z vidno oznako »Zvocnik«, VEDNO zgoraj desno ([prilagodiZaslonu]); ista izbira je
+        // tudi v »Vec moznosti«. Ni v seznamu [okrogli]: pripet je na koren, ne dobi mer vrste gumbov.
+        gumbZvocnik = TextView(this).apply {
+            text = getString(R.string.zvocnik_oznaka); contentDescription = getString(R.string.zvocnik_predvajaj_na)
+            setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.os_ikona_predvajaj_na, 0, 0, 0)
+            compoundDrawablePadding = dp(8)
+            compoundDrawableTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_besedilo))
+            setTextColor(osBarva(R.color.os_besedilo)); textSize = 14f; maxLines = 1
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), 0, dp(16), 0)
+            background = GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(0x99101820.toInt()); setStroke(dp(1), 0x33FFFFFF) }
+            isFocusable = true; isClickable = true
             visibility = View.GONE
             setOnClickListener { zbudi(); izberiZvocnik() }
         }
@@ -572,12 +581,11 @@ class PredvajanjeActivity : OsActivity() {
         okrogli.forEach { (g, vel) ->
             g.layoutParams = LinearLayout.LayoutParams((dp(vel) * faktor).toInt(), (dp(vel) * faktor).toInt()).apply { marginEnd = dp(razmik) }
         }
+        // Naloga 104: zvocnik je pokoncno in lezece na istem mestu - zgoraj desno.
         gumbZvocnik?.let { z ->
             (z.parent as? android.view.ViewGroup)?.removeView(z)
-            if (pokoncno) koren.addView(z, koren.indexOfChild(tema).coerceAtLeast(0),
-                FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply { topMargin = dp(16); rightMargin = dp(16) })
-            else gumbi.addView(z, gumbi.indexOfChild(gumbVec).coerceAtLeast(0),
-                LinearLayout.LayoutParams((dp(52) * faktor).toInt(), (dp(52) * faktor).toInt()).apply { marginEnd = dp(razmik) })
+            koren.addView(z, koren.indexOfChild(tema).coerceAtLeast(0),
+                FrameLayout.LayoutParams(-2, dp(48), Gravity.TOP or Gravity.END).apply { topMargin = dp(16); rightMargin = dp(16) })
         }
         (gumbi.layoutParams as? LinearLayout.LayoutParams)?.gravity = if (pokoncno) Gravity.CENTER_HORIZONTAL else Gravity.START
         val strani = if (ozek) 20 else if (nizek) 32 else 56
@@ -795,7 +803,8 @@ class PredvajanjeActivity : OsActivity() {
             // Naloga 97: kanal seznama IPTV - naslov toka ima lahko zeton ali geslo ponudnika (».../play/<zeton>«): samo ime seznama.
             IptvSeznami.jeKanal(sk) -> KanaliPravila.imeSeznama(sk.streznik).ifBlank { getString(R.string.os_mediji_tv_v_zivo) }
             sk.zvok.startsWith("https://prod-1.storage.jamendo.com") || sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, stran)
-            else -> stran
+            // Naloga 112: vir toka samo z gostiteljem (pot in poizvedba imata lahko zeton); brez gostitelja kot doslej.
+            else -> Zasebno.prikaz(sk.povezava).ifBlank { stran }
         }
         nastaviVir()
         if (!sk.video && sk.slika != zadnjaSlika) {
@@ -824,8 +833,18 @@ class PredvajanjeActivity : OsActivity() {
         if (GlasbaStoritev.zvocniIzhod != prikazanIzhod) nastaviVir()
         val (polozaj, trajanje) = polozajInTrajanje(p)
         val igra = GlasbaStoritev.igra()          // ta naprava ali zvocnik v omrezju
-        cas.text = (if (igra) "▶  " else "❚❚  ") + if (trajanje > 0) "${oblikuj(polozaj)} / ${oblikuj(trajanje)}" else oblikuj(polozaj)
-        if (!vlecenje) potek.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
+        // Naloga 104: radio in kanal v zivo - »V zivo« namesto drsnika in casa, brez -10/+10 s.
+        val sk = GlasbaStoritev.trenutna()
+        val vZivo = OsPravila.prikazVZivo(p.isCurrentMediaItemLive, p.isCurrentMediaItemDynamic,
+            sk != null && (sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)))
+        val vidno = if (vZivo) View.GONE else View.VISIBLE
+        if (potek.visibility != vidno) { potek.visibility = vidno; gumbNazaj10?.visibility = vidno; gumbNaprej10?.visibility = vidno }
+        cas.text = (if (igra) "▶  " else "❚❚  ") + when {
+            vZivo -> getString(R.string.os_media_v_zivo)
+            trajanje > 0 -> "${oblikuj(polozaj)} / ${oblikuj(trajanje)}"
+            else -> oblikuj(polozaj)
+        }
+        if (!vlecenje && !vZivo) potek.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
         gumbPredvajaj?.setImageResource(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
         if (tema.visibility == View.VISIBLE) {
             temaUra.text = DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(Date())
@@ -945,6 +964,8 @@ class PredvajanjeActivity : OsActivity() {
                 val ime = DatotekeActivity.lepoIme(c.ime)
                 Predaja.poslji(this, c) { koda ->
                     if (isFinishing) return@poslji
+                    // Naloga 117: od tu naprej ta naprava upravlja predvajanje tam (ko tu nic ne igra, gumbi veljajo tam).
+                    if (koda == "ok" || koda == "ok_odpri") OddaljenoPredvajanje.zacni(this, c)
                     val b = when (koda) {
                         "ok" -> getString(R.string.os_predaja_poslano, ime)
                         "ok_odpri" -> getString(R.string.os_predaja_poslano_odpri, ime)
@@ -966,7 +987,10 @@ class PredvajanjeActivity : OsActivity() {
      * z daljincem je bila prej polica kartic dejanj in vse vrste, ki je drsela v desno (lastnik, 7. 10. 2026: prikaz kot v
      * medijskem centru velja za vse predvajalnike).
      */
-    private fun napolni(seznam: List<Jamendo.Skladba>, video: Boolean, fokusNa: Int = -1) {
+    private fun napolni(vsi: List<Jamendo.Skladba>, video: Boolean, fokusNa: Int = -1) {
+        // Naloga 121: nedelujocega kanala ali postaje ni v vrsti in predlogih (razen tistega, ki ravno igra).
+        val zdajId = GlasbaStoritev.trenutna()?.id
+        val seznam = vsi.filterNot { it.id != zdajId && MrtviKanali.skrij(this, it) }
         zadnjiPredlogi = seznam to video
         val fokus = predlogiNiz.findFocus() != null
         predlogiNiz.removeAllViews()
@@ -978,14 +1002,20 @@ class PredvajanjeActivity : OsActivity() {
         val zdaj = GlasbaStoritev.trenutna()
         // Zvocnik v omrezju (DLNA): zvocnik vir potegne sam, ta naprava je le daljinec.
         val naZvocniku = Zvocniki.aktivni
-        if (dotik) {
-            // Na dotik je izbira zvocnika viden gumb ([gumbZvocnik]), ne vrstica pod »Vec moznosti«.
-        } else if (naZvocniku != null) {
+        // Naloga 104: izbira zvocnika je v »Vec moznosti« na vseh napravah (na dotik tudi viden gumb [gumbZvocnik]), ob »Poslji na napravo«.
+        if (naZvocniku != null) {
             val i = predlogiNiz.childCount
-            dejanje(getString(R.string.zvocnik_na, naZvocniku.ime), Zvocniki.aktivnaSkladba?.naslov ?: "", R.drawable.os_ikona_zvocnik) { ZvocnikIzbira.upravljaj(this) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } }
+            dejanje(getString(R.string.zvocnik_na, naZvocniku.ime), Zvocniki.aktivnaSkladba?.naslov ?: "", R.drawable.os_ikona_predvajaj_na) { ZvocnikIzbira.upravljaj(this) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } }
         } else if (zdaj != null && !video && GlasbaStoritev.zaZvocnik(zdaj)) {
             val i = predlogiNiz.childCount
-            dejanje(getString(R.string.zvocnik_predvajaj_na), zdaj.naslov, R.drawable.os_ikona_zvocnik) { ZvocnikIzbira.izberi(this, zdaj) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } }
+            dejanje(getString(R.string.zvocnik_predvajaj_na), zdaj.naslov, R.drawable.os_ikona_predvajaj_na) { ZvocnikIzbira.izberi(this, zdaj) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } }
+        }
+        // Naloga 117: seja daljinca - upravljanje predvajanja na drugi napravi.
+        OddaljenoPredvajanje.cilj?.let { n ->
+            val i = predlogiNiz.childCount
+            dejanje(getString(R.string.naprava_upravljaj, DatotekeActivity.lepoIme(n.ime)), OddaljenoPredvajanje.stanje.naslov, R.drawable.os_ikona_link) {
+                ZvocnikIzbira.upravljajNapravo(this) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) }
+            }
         }
         // "Poslji na napravo": kar igra tu, drugi napravi v Linku - tam caka tiho Sprejmi/Zavrni, tu igra naprej (pravila 28. 9.).
         if (zdaj != null && Predaja.cilji(this).isNotEmpty()) {
@@ -1400,7 +1430,9 @@ class PredvajanjeActivity : OsActivity() {
         val g = gumbZvocnik ?: return
         val na = GlasbaStoritev.naZvocniku()
         g.visibility = if (!zaklenjeno && !sk.video && (na || GlasbaStoritev.zaZvocnik(sk))) View.VISIBLE else View.GONE
-        g.imageTintList = android.content.res.ColorStateList.valueOf(osBarva(if (na) R.color.os_mint else R.color.os_besedilo))
+        val barva = osBarva(if (na) R.color.os_mint else R.color.os_besedilo)
+        g.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(barva)
+        g.setTextColor(barva)
         g.contentDescription = (if (na) Zvocniki.napis(this) else null) ?: getString(R.string.zvocnik_predvajaj_na)
     }
 
