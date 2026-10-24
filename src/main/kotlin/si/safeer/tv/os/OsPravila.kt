@@ -1524,10 +1524,12 @@ object OsPravila {
     /**
      * Naloga 103 (pregled 102, tocka 1): ali se kanal v zivo ob meji ponovitev tiho konca. Samo, ce ni druge moznosti: pri
      * napaki vira ([napaka]) rezervni tok kanala dodatka ([imaRezervo]), sicer naslednji element vrste ([imaNaslednjega]) -
-     * takrat gre obstojeca pot (rezerva, naslednji element), kot pred nalogo 102.
+     * takrat gre obstojeca pot (rezerva, naslednji element), kot pred nalogo 102. Pregled 103, tocka 2: napaka vira brez
+     * rezerve in naslednjega NI tih konec - obstojeca pot pokaze razlog (npr. HTTP 503), uporabnik ve, zakaj se je ustavilo.
+     * Tih konec ostane samo za konec toka brez napake (nadomestna slika operaterja).
      */
     fun tihKonecPoMeji(napaka: Boolean, imaRezervo: Boolean, imaNaslednjega: Boolean): Boolean =
-        !imaNaslednjega && !(napaka && imaRezervo)
+        !imaNaslednjega && !napaka
 
     /** Naloga 100: zamik ponovne povezave po izpadu omrezja (rok, zavrnjena povezava). */
     const val ZAMIK_PONOVITVE_OMREZJE_MS = 1_500L

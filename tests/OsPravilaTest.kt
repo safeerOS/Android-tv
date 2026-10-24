@@ -1141,5 +1141,5 @@ private fun preizkusDokazaNadomestka100() {
     preveriEnako("103: napaka z rezervnim tokom - rezerva (obstojeca pot)", false, OsPravila.tihKonecPoMeji(napaka = true, imaRezervo = true, imaNaslednjega = false))
     preveriEnako("103: konec toka z rezervo - rezerve konec toka ne uporablja, tih konec", true, OsPravila.tihKonecPoMeji(napaka = false, imaRezervo = true, imaNaslednjega = false))
     preveriEnako("103: naslednji element vrste - naprej (obstojeca pot)", false, OsPravila.tihKonecPoMeji(napaka = false, imaRezervo = false, imaNaslednjega = true))
-    preveriEnako("103: napaka brez rezerve in brez naslednjega - tih konec", true, OsPravila.tihKonecPoMeji(napaka = true, imaRezervo = false, imaNaslednjega = false))
+    preveriEnako("pregled 103 #2: napaka brez rezerve in brez naslednjega - sporocilo z razlogom, ne tih konec", false, OsPravila.tihKonecPoMeji(napaka = true, imaRezervo = false, imaNaslednjega = false))
 }
