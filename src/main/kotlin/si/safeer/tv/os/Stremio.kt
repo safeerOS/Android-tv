@@ -779,7 +779,8 @@ object Stremio {
             mediaType = if (glasbeno || OsPravila.glasbaJeVideo(r == GLASBA, id)) "MusicVideo" else if (serijaPoPodatkih) "tvseries" else when (tip) { "movie" -> "movie"; "series" -> "tvseries"; else -> "" },
             year = leto.take(4).toIntOrNull() ?: 0,
             // Id IMDb (tt...), kot ga rabi vecina dodatkov: isti film iz vec katalogov/dodatkov je ena kartica.
-            imdbId = if (id.startsWith("tt") && id.drop(2).all { it.isDigit() }) id else "",
+            // Pregled Grok 6: tudi katalog z id-jem tmdb:/kitsu:, ki poda imdb_id (isti film - eno mesto v »Nadaljuj«).
+            imdbId = SerijePravila.imdbIzMeta(m.optString("imdb_id"), id).orEmpty(),
             genres = (m.optJSONArray("genres") ?: m.optJSONArray("genre"))?.let { g -> (0 until g.length()).mapNotNull { g.optString(it).takeIf { s -> s.isNotBlank() } } } ?: emptyList(),
             // Ocena (IMDb), kadar jo katalog poda: na kartici kot zvezdica, kot pri drugih virih.
             rating = m.optString("imdbRating").toDoubleOrNull() ?: 0.0)

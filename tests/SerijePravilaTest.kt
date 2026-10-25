@@ -15,6 +15,7 @@ fun main() {
     preveriEnako("imdb_id ima prednost", "tt0903747", SerijePravila.imdbIzMeta("tt0903747", "tmdb:1396"))
     preveriEnako("brez imdb_id: id sam", "tt7631058", SerijePravila.imdbIzMeta("", "tt7631058"))
     preveriEnako("brez obojega null", null, SerijePravila.imdbIzMeta("null", "tmdb:1396"))
+    preveriEnako("Grok 6: katalog kitsu z imdb_id", "tt0388629", SerijePravila.imdbIzMeta(" tt0388629 ", "kitsu:12"))
     preveriEnako("epizoda po IMDb", "tt0903747:1:2", SerijePravila.idEpizodePoImdb("tt0903747", "tmdb:1396:1:2", 1, 2))
     preveriEnako("id je ze ta - ni potreben", null, SerijePravila.idEpizodePoImdb("tt0903747", "tt0903747:1:2", 1, 2))
     preveriEnako("sezona 0 ne", null, SerijePravila.idEpizodePoImdb("tt0903747", "x", 0, 1))
