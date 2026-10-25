@@ -176,32 +176,25 @@ fun main() {
     preveriEnako("A4: brez poskusov ni storitve", "", DebridPravila.ponudnikNapake(emptyList()))
     preveriEnako("A4: ena storitev", rd, DebridPravila.ponudnikNapake(listOf(rd to TorBoxPravila.NAPAKA_STREZNIK)))
     preveriEnako("A4: storitev z najpomembnejso napako", ad, DebridPravila.ponudnikNapake(listOf(
-        tb to TorBoxPravila.NAPAKA_STREZNIK, rd to DebridPravila.NAPAKA_NI_PREDPOMNJENO, ad to TorBoxPravila.NAPAKA_KLJUC)))
-    // Pregled Grok 2: prednostna (prva) nima vsebine pripravljene - kljuc ali rok druge storitve tega ne preglasi.
-    preveriEnako("Grok 2: prednostna »ni predpomnjeno« pred kljucem druge", tb, DebridPravila.ponudnikNapake(listOf(
-        tb to DebridPravila.NAPAKA_NI_PREDPOMNJENO, rd to TorBoxPravila.NAPAKA_STREZNIK, ad to TorBoxPravila.NAPAKA_KLJUC)))
-    preveriEnako("Grok 2: razlog - prednostna ni predpomnjeno, druga zavrnjen kljuc", nip,
-        DebridPravila.razlogPoStoritvah(listOf(tb to nip, rd to TorBoxPravila.NAPAKA_KLJUC)))
-    preveriEnako("Grok 2: razlog - prednostna ni predpomnjeno, druga rok (streznik)", nip,
-        DebridPravila.razlogPoStoritvah(listOf(rd to nip, tb to TorBoxPravila.NAPAKA_STREZNIK)))
-    preveriEnako("Grok 2: razlog - kljuc prednostne ostane najpomembnejsi", TorBoxPravila.NAPAKA_KLJUC,
-        DebridPravila.razlogPoStoritvah(listOf(tb to TorBoxPravila.NAPAKA_KLJUC, rd to nip)))
-    preveriEnako("Grok 2: razlog - meja druge pred streznikom prednostne", TorBoxPravila.NAPAKA_MEJA,
-        DebridPravila.razlogPoStoritvah(listOf(tb to TorBoxPravila.NAPAKA_STREZNIK, rd to TorBoxPravila.NAPAKA_MEJA)))
-    preveriEnako("Grok 2: razlog - brez poskusov streznik", TorBoxPravila.NAPAKA_STREZNIK, DebridPravila.razlogPoStoritvah(emptyList()))
-    preveriEnako("Grok 2: cakaj - prednostna ni predpomnjeno, druga kljuc", true,
-        DebridPravila.cakajPriPrednostni(false, listOf(tb to nip, rd to TorBoxPravila.NAPAKA_KLJUC)))
-    preveriEnako("Grok 2: cakaj - prednostna ni predpomnjeno, druga meja", true,
-        DebridPravila.cakajPriPrednostni(false, listOf(tb to nip, ad to TorBoxPravila.NAPAKA_MEJA)))
-    preveriEnako("Grok 2: cakaj - prednostna ni predpomnjeno, druga rok", true,
-        DebridPravila.cakajPriPrednostni(false, listOf(tb to nip, rd to TorBoxPravila.NAPAKA_STREZNIK)))
-    preveriEnako("Grok 2: ne cakaj - filter samo takoj", false, DebridPravila.cakajPriPrednostni(true, listOf(tb to nip)))
-    preveriEnako("Grok 2: ne cakaj - prednostna zavrnjen kljuc", false,
-        DebridPravila.cakajPriPrednostni(false, listOf(tb to TorBoxPravila.NAPAKA_KLJUC, rd to nip)))
-    preveriEnako("Grok 2: ne cakaj - prednostna rok", false,
-        DebridPravila.cakajPriPrednostni(false, listOf(tb to TorBoxPravila.NAPAKA_STREZNIK, rd to nip)))
-    preveriEnako("Grok 2: ne cakaj - brez storitev", false, DebridPravila.cakajPriPrednostni(false, emptyList()))
-    preveriEnako("Grok 2: ena storitev ni predpomnjeno - cakaj", true, DebridPravila.cakajPriPrednostni(false, listOf(ad to nip)))
+        tb to TorBoxPravila.NAPAKA_STREZNIK, rd to TorBoxPravila.NAPAKA_MEJA, ad to TorBoxPravila.NAPAKA_KLJUC)))
+    // Pregled Grok 2 in neodvisni pregled 2: caka prva storitev po vrstnem redu, ki je rekla »ni predpomnjeno«; »ni
+    // predpomnjeno« (z gumbom »Pocakaj«) je razlog, kadar bi kdo res cakal - kljuc, meja ali rok drugih tega ne preglasi.
+    val kl = TorBoxPravila.NAPAKA_KLJUC; val st = TorBoxPravila.NAPAKA_STREZNIK; val me = TorBoxPravila.NAPAKA_MEJA
+    preveriEnako("cakalna: prednostna ni predpomnjeno", tb, DebridPravila.cakalnaStoritev(false, listOf(tb to nip, rd to kl)))
+    preveriEnako("cakalna: prednostna rok, druga ni predpomnjeno -> druga", rd, DebridPravila.cakalnaStoritev(false, listOf(tb to st, rd to nip)))
+    preveriEnako("cakalna: prednostna zavrnjen kljuc, druga ni predpomnjeno -> druga", ad, DebridPravila.cakalnaStoritev(false, listOf(tb to kl, rd to me, ad to nip)))
+    preveriEnako("cakalna: dve ni predpomnjeno -> prva po vrstnem redu", rd, DebridPravila.cakalnaStoritev(false, listOf(tb to st, rd to nip, ad to nip)))
+    preveriEnako("cakalna: samo takoj -> nihce", null, DebridPravila.cakalnaStoritev(true, listOf(tb to nip)))
+    preveriEnako("cakalna: nobena ni predpomnjeno -> nihce", null, DebridPravila.cakalnaStoritev(false, listOf(tb to st, rd to kl)))
+    preveriEnako("cakalna: brez storitev -> nihce", null, DebridPravila.cakalnaStoritev(false, emptyList()))
+    preveriEnako("razlog: prednostna ni predpomnjeno, druga kljuc", nip, DebridPravila.razlogPoStoritvah(listOf(tb to nip, rd to kl)))
+    preveriEnako("razlog: prednostna rok, druga ni predpomnjeno", nip, DebridPravila.razlogPoStoritvah(listOf(tb to st, rd to nip)))
+    preveriEnako("razlog: prednostna kljuc, druga ni predpomnjeno (druga bi prenesla)", nip, DebridPravila.razlogPoStoritvah(listOf(tb to kl, rd to nip)))
+    preveriEnako("razlog: brez »ni predpomnjeno« - najpomembnejsa", me, DebridPravila.razlogPoStoritvah(listOf(tb to st, rd to me)))
+    preveriEnako("razlog: brez poskusov streznik", st, DebridPravila.razlogPoStoritvah(emptyList()))
+    preveriEnako("ponudnik napake = storitev, ki bi cakala", rd, DebridPravila.ponudnikNapake(listOf(tb to st, rd to nip, ad to kl)))
+    preveriEnako("Pocakaj ponujen = nekdo bi cakal", true, DebridPravila.cakalnaStoritev(false, listOf(tb to st, rd to nip)) != null &&
+        DebridPravila.razlogPoStoritvah(listOf(tb to st, rd to nip)) == nip)
     preveriEnako("A4: enaka napaka - prva po vrstnem redu", rd, DebridPravila.ponudnikNapake(listOf(
         rd to TorBoxPravila.NAPAKA_STREZNIK, tb to TorBoxPravila.NAPAKA_STREZNIK)))
     preveriEnako("A4: neznana napaka - prva storitev", ad, DebridPravila.ponudnikNapake(listOf(ad to "nekaj", tb to "drugo")))

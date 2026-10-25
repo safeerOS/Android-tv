@@ -8775,8 +8775,9 @@ class GlasbaActivity : OsActivity() {
         besediloDebrida = getString(R.string.os_debrid_pripravljam)
         var zadnjiOdstotek = -1
         val delo = try { debridDelavec.submit(Runnable {
-            // Ime storitve za napredek: Usenet prenasa TorBox, torrent prednostna storitev (Debrid.tok caka samo pri njej).
-            val ime = if (usenetIme != null) DebridPravila.ime(DebridPravila.TORBOX)
+            // Ime storitve za napredek: Usenet prenasa TorBox, torrent storitev, ki caka (sprva prednostna).
+            // Neodvisni pregled 2: Debrid.tok pove storitev, ki res caka (obCakanju) - ni nujno prednostna.
+            var ime = if (usenetIme != null) DebridPravila.ime(DebridPravila.TORBOX)
                 else Debrid.vrstniRed(applicationContext).firstOrNull()?.let { DebridPravila.ime(it) } ?: getString(R.string.os_debrid)
             val napredek = { odstotek: Int ->
                 if (odstotek != zadnjiOdstotek) {
@@ -8794,7 +8795,7 @@ class GlasbaActivity : OsActivity() {
             }
             val izid = try {
                 if (usenetIme != null) Usenet.tok(applicationContext, magnet, usenetIme, datoteka, samoTakoj ?: Debrid.samoTakoj(applicationContext), napredek)
-                else Debrid.tok(applicationContext, magnet, datoteka, samoTakoj, napredek)
+                else Debrid.tok(applicationContext, magnet, datoteka, samoTakoj, napredek) { p -> ime = DebridPravila.ime(p) }
             } catch (e: Exception) {
                 android.util.Log.w("SafeerOsMedia", "debrid: ${e.javaClass.simpleName}")
                 TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK)

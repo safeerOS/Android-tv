@@ -84,25 +84,27 @@ object DebridPravila {
         return (napake.firstOrNull { it.second == razlog } ?: napake.first()).first
     }
 
-    /** Skupno pravilo (tests/skupni-primeri, tudi namizje): vse storitve so rekle »ni predpomnjeno«. Android: [cakajPriPrednostni]. */
+    /** Skupno pravilo (tests/skupni-primeri, tudi namizje): vse storitve so rekle »ni predpomnjeno«. Android: [cakalnaStoritev]. */
     fun poskusiSCakanjem(samoPredpomnjeno: Boolean, napake: List<String>): Boolean =
         !samoPredpomnjeno && napake.isNotEmpty() && napake.all { it == NAPAKA_NI_PREDPOMNJENO }
 
     /**
-     * Pregled Grok 2: razlog za uporabnika iz (storitev, napaka) po vrstnem redu poskusov - prva je prednostna. Ce prednostna
-     * vsebine nima pripravljene, je razlog »ni predpomnjeno«: zavrnjen kljuc, meja ali rok vzporednega klica DRUGE storitve
-     * ga ne preglasi (sicer okno ni ponudilo »Pocakaj na prenos«, ceprav bi ga prednostna prenesla). Sicer [razlogZaUporabnika].
+     * Pregled Grok 2 (in neodvisni pregled 2): razlog za uporabnika iz (storitev, napaka) po vrstnem redu poskusov (prednostna
+     * prva). Ce je katera storitev rekla »ni predpomnjeno«, je razlog to: ob »Pocakaj na prenos« bo ta storitev res prenesla
+     * ([cakalnaStoritev]); zavrnjen kljuc, meja ali rok drugih tega ne preglasi (zavrnjen kljuc okno pove v dodatnem besedilu).
+     * Sicer [razlogZaUporabnika].
      */
     fun razlogPoStoritvah(napake: List<Pair<String, String>>): String =
-        if (napake.firstOrNull()?.second == NAPAKA_NI_PREDPOMNJENO) NAPAKA_NI_PREDPOMNJENO
+        if (napake.any { it.second == NAPAKA_NI_PREDPOMNJENO }) NAPAKA_NI_PREDPOMNJENO
         else razlogZaUporabnika(napake.map { it.second })
 
     /**
-     * Pregled Grok 2: cakanje na prenos (2. krog) velja za prednostno storitev - samo, ce filter »samo takoj« ni vklopljen in je
-     * prednostna (prva v [napake]) rekla »ni predpomnjeno«; napake drugih storitev tega ne preprecijo.
+     * Neodvisni pregled 2: storitev, ki torrent prenese, ko uporabnik caka (2. krog) - prva po vrstnem redu (prednostna prva),
+     * ki je rekla »ni predpomnjeno«. Prej je cakala samo prednostna: ce je ta padla na roku ali kljucu, je okno ponudilo
+     * »Pocakaj«, ki ni cakal (zanka). null = nihce ne caka (filter »samo takoj« ali nobena storitev ni rekla »ni predpomnjeno«).
      */
-    fun cakajPriPrednostni(samoPredpomnjeno: Boolean, napake: List<Pair<String, String>>): Boolean =
-        !samoPredpomnjeno && napake.firstOrNull()?.second == NAPAKA_NI_PREDPOMNJENO
+    fun cakalnaStoritev(samoPredpomnjeno: Boolean, napake: List<Pair<String, String>>): String? =
+        if (samoPredpomnjeno) null else napake.firstOrNull { it.second == NAPAKA_NI_PREDPOMNJENO }?.first
 
     // ------------------------------------------------------------------ Real-Debrid
 

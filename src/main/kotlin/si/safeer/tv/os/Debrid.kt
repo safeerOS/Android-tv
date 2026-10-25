@@ -168,7 +168,9 @@ object Debrid {
      * Povezava za [magnet] prek debrid storitev. [samoTakojPreglasi]: true/false preglasi nastavitev (gumb »Pocakaj na
      * prenos«), null = nastavitev uporabnika. Izid nosi storitev, ki je dala povezavo.
      */
-    fun tok(c: Context, magnet: String, indeks: Int, samoTakojPreglasi: Boolean? = null, napredek: (Int) -> Unit = {}): TorBox.Izid {
+    fun tok(c: Context, magnet: String, indeks: Int, samoTakojPreglasi: Boolean? = null, napredek: (Int) -> Unit = {},
+            /** Neodvisni pregled 2: storitev, ki bo torrent prenesla (pred cakanjem) - za ime v sporocilu napredka. */
+            obCakanju: (String) -> Unit = {}): TorBox.Izid {
         val red = vrstniRed(c)
         if (red.isEmpty()) return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_KLJUC)
         val samoTakoj = samoTakojPreglasi ?: samoTakoj(c)
@@ -212,18 +214,20 @@ object Debrid {
             if (iz.cakajMs > cakajMs) cakajMs = iz.cakajMs
             Log.i(TAG, "${DebridPravila.ime(p)}: ${iz.napaka}")
         }
-        // 2. krog: nobena je nima pripravljene - prednostna jo prenese (ce uporabnik caka). Pregled Grok 2: odloci prednostna;
-        // zavrnjen kljuc, meja ali rok druge storitve cakanja ne preprecijo.
-        if (DebridPravila.cakajPriPrednostni(samoTakoj, poStoritvah) && !Thread.currentThread().isInterrupted) {
-            val p = red.first()
-            val iz = poskus(c, p, magnet, indeks, false, napredek)
-            return TorBox.Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, p)
+        // Pregled Grok 2: zavrnjen kljuc katere od storitev se ne izgubi - okno ga pove v dodatnem besedilu.
+        val opisKljuca = poStoritvah.firstOrNull { it.second == TorBoxPravila.NAPAKA_KLJUC }
+            ?.let { c.getString(si.safeer.tv.R.string.os_torbox_napaka_kljuc, DebridPravila.ime(it.first)) }
+        // 2. krog: nobena je nima pripravljene - ce uporabnik caka, jo prenese prva storitev po vrstnem redu, ki je rekla
+        // »ni predpomnjeno« (neodvisni pregled 2: tudi ce je prednostna padla na roku ali kljucu - prej »Pocakaj« brez cakanja).
+        val cakalna = DebridPravila.cakalnaStoritev(samoTakoj, poStoritvah)
+        if (cakalna != null && !Thread.currentThread().isInterrupted) {
+            obCakanju(cakalna)
+            val iz = poskus(c, cakalna, magnet, indeks, false, napredek)
+            val o = if (iz.url == null && iz.opis.isBlank()) opisKljuca.orEmpty() else iz.opis
+            return TorBox.Izid(iz.url, iz.napaka, o, iz.cakajMs, cakalna)
         }
         val razlog = DebridPravila.razlogPoStoritvah(poStoritvah)
-        // Pregled Grok 2: zavrnjen kljuc druge storitve se ne izgubi - ob »ni predpomnjeno« ga okno pove v dodatnem besedilu.
-        if (razlog == DebridPravila.NAPAKA_NI_PREDPOMNJENO) poStoritvah.drop(1).firstOrNull { it.second == TorBoxPravila.NAPAKA_KLJUC }?.let {
-            opis = c.getString(si.safeer.tv.R.string.os_torbox_napaka_kljuc, DebridPravila.ime(it.first))
-        }
+        if (razlog == DebridPravila.NAPAKA_NI_PREDPOMNJENO && opisKljuca != null) opis = opisKljuca
         return TorBox.Izid(napaka = razlog, opis = opis, cakajMs = cakajMs, ponudnik = DebridPravila.ponudnikNapake(poStoritvah))
     }
 
@@ -381,6 +385,7 @@ object Debrid {
      * ustvaril, pospravi storitev sama (RealDebrid, AllDebrid).
      */
     fun preveriPreklic() { if (Thread.currentThread().isInterrupted) throw InterruptedException() }
+
 
     class Odgovor(val koda: Int, val telo: String) {
         val json: JSONObject? get() = try { JSONObject(telo) } catch (_: Exception) { null }
