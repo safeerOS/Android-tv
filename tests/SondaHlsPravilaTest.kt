@@ -67,11 +67,21 @@ fun main() {
         P.zadnjiKos("#EXTM3U\n#EXTINF:6,\nseg1.ts\n#EXTINF:6,\nseg2.ts\n", ko, prirezano = true))
 
     // Izid razlicic: ena ziva dovolj; vse mrtve - mrtev; negotova ostane negotova.
-    preveriEnako("vse 404 - mrtev", M, P.izidRazlicic(listOf(M, M, M, M)))
-    preveriEnako("ena ziva - ziv", Z, P.izidRazlicic(listOf(M, Z)))
-    preveriEnako("mrtva in negotova - negotovo", N, P.izidRazlicic(listOf(M, N)))
-    preveriEnako("mrtva in neznana - ne vemo", X, P.izidRazlicic(listOf(M, X)))
-    preveriEnako("nic preverjenega - ne vemo", X, P.izidRazlicic(emptyList()))
+    preveriEnako("vse 404 - mrtev", M, P.izidRazlicic(listOf(M, M, M, M), 4))
+    preveriEnako("ena ziva - ziv", Z, P.izidRazlicic(listOf(M, Z), 4))
+    preveriEnako("mrtva in negotova - negotovo", N, P.izidRazlicic(listOf(M, N), 2))
+    preveriEnako("mrtva in neznana - ne vemo", X, P.izidRazlicic(listOf(M, X), 2))
+    preveriEnako("nic preverjenega - ne vemo", X, P.izidRazlicic(emptyList(), 4))
+    // S1: rok ali napaka pred zadnjo razlicico - nepreverjena je lahko ziva.
+    preveriEnako("S1: 1 od 4 preverjena (404), rok - ne vemo", X, P.izidRazlicic(listOf(M), 4))
+    preveriEnako("S1: 3 od 4 mrtve - ne vemo", X, P.izidRazlicic(listOf(M, M, M), 4))
+    preveriEnako("kos 404 - naslednja razlicica", true, P.naslednjaRazlicicaPoKosu(404))
+    preveriEnako("kos 403 (geo) - cel kanal", false, P.naslednjaRazlicicaPoKosu(403))
+    preveriEnako("N1: 403 z Range - ponovi brez", true, P.ponoviBrezRange(403))
+    preveriEnako("N1: 400 z Range - ponovi brez", true, P.ponoviBrezRange(400))
+    preveriEnako("N1: 404 - ne", false, P.ponoviBrezRange(404))
+    preveriEnako("N1: 416 - ne (ziv)", false, P.ponoviBrezRange(416))
+    preveriEnako("N1: 503 - ne", false, P.ponoviBrezRange(503))
 
     // Kos: 206 (Range) ziv, 403 (geografsko zaprt) mrtev, 416 (Range ni sprejet) ziv, 5xx negotovo.
     preveriEnako("kos 206", Z, P.izidKosa(206))

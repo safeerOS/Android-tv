@@ -97,13 +97,14 @@ object SondaHlsPravila {
     }
 
     /**
-     * Izid preverjenih razlicic: ena ziva - ziv; vse dokazano mrtve - mrtev; sicer negotovo, ce je bila katera negotova,
-     * drugace ne vemo. Prazno = ne vemo.
+     * Izid preverjenih razlicic: ena ziva - ziv; VSE razlicice ([vseh]) preverjene in dokazano mrtve - mrtev; sicer
+     * negotovo, ce je bila katera negotova, drugace ne vemo. Pregled 25. 10. (S1): ce rok sonde ali napaka prekine
+     * preverjanje pred zadnjo razlicico, mrtvih ne razglasimo - nepreverjena je lahko ziva. Prazno = ne vemo.
      */
-    fun izidRazlicic(izidi: List<OsPravila.IzidSonde>): OsPravila.IzidSonde = when {
+    fun izidRazlicic(izidi: List<OsPravila.IzidSonde>, vseh: Int): OsPravila.IzidSonde = when {
         izidi.isEmpty() -> OsPravila.IzidSonde.NEZNANO
         OsPravila.IzidSonde.ZIV in izidi -> OsPravila.IzidSonde.ZIV
-        izidi.all { it == OsPravila.IzidSonde.MRTEV } -> OsPravila.IzidSonde.MRTEV
+        izidi.size >= vseh && izidi.all { it == OsPravila.IzidSonde.MRTEV } -> OsPravila.IzidSonde.MRTEV
         OsPravila.IzidSonde.NEGOTOVO in izidi -> OsPravila.IzidSonde.NEGOTOVO
         else -> OsPravila.IzidSonde.NEZNANO
     }
@@ -113,4 +114,16 @@ object SondaHlsPravila {
      * (tudi 206 za Range) ziv, 4xx kot pri predvajanju mrtev, 416 (Range ni sprejet, kos pa obstaja) ziv.
      */
     fun izidKosa(http: Int): OsPravila.IzidSonde = if (http == 416) OsPravila.IzidSonde.ZIV else OsPravila.izidPoOdgovoru(http)
+
+    /**
+     * Pregled 25. 10. (N3): kos razlicice je 404/410 - predvajalnik (Media3, DefaultLoadErrorHandlingPolicy) tako razlicico
+     * izloci in vzame naslednjo, zato sonda preveri se naslednjo. 403 (geografsko zaprto) velja za cel kanal.
+     */
+    fun naslednjaRazlicicaPoKosu(http: Int): Boolean = http == 404 || http == 410
+
+    /**
+     * Pregled 25. 10. (N1): predvajalnik kos zahteva brez Range. Streznik, ki Range zavrne (4xx, ki ni 404/410/416), dobi
+     * se zahtevo brez Range - sicer bi bil kanal lazno mrtev.
+     */
+    fun ponoviBrezRange(http: Int): Boolean = http in 400..499 && http != 404 && http != 410 && http != 416
 }

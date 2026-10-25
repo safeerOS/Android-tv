@@ -123,6 +123,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/NedelujocePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SondaHlsPravila.kt" \
     "$TEST_DIR/SondaHlsPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/SondaVeriga.kt" \
+    "$TEST_DIR/SondaVerigaTest.kt" \
     "$SRC/si/safeer/tv/os/PriljubljeniKanaliPravila.kt" \
     "$TEST_DIR/PriljubljeniKanaliPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/DovoljenjaPravila.kt" \
@@ -185,6 +187,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/
 java -cp "$OUT/os.jar" si.safeer.tv.os.DatotekePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NedelujocePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SondaHlsPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.SondaVerigaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PriljubljeniKanaliPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.DovoljenjaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebnoTestKt
