@@ -12,7 +12,9 @@ package si.safeer.tv.os
  * vsebino z istim naslovom in isto vsebino (ali brez id-ja) - shranjeno mesto se ne izgubi.
  */
 object NapredekKljuc {
-    data class Opis(val id: String, val naslov: String, val sezona: Int = 0, val epizoda: Int = 0, val imdb: String = "")
+    /** [film] = vsebina je film (SpletniVir.FILM, mediaType »movie«) - samo takrat (ali pri znani epizodi) velja IMDb. */
+    data class Opis(val id: String, val naslov: String, val sezona: Int = 0, val epizoda: Int = 0, val imdb: String = "",
+                    val film: Boolean = false)
 
     /** Kljuc do 2.1.231: naslov brez letnice in locil (male crke). Ostane za stare oznake »odgledano« in zapise brez id-ja. */
     fun naslova(naslov: String): String = naslov.lowercase().replace(Regex("\\b(19|20)\\d{2}\\b"), "")
@@ -35,18 +37,26 @@ object NapredekKljuc {
         return i
     }
 
-    /** Vsebina opisa: IMDb, ce je znan (isti film iz dveh katalogov), sicer [vsebine] id-ja. */
-    fun vsebine(o: Opis): String = o.imdb.trim().takeIf { IMDB.matches(it) }?.let { "imdb|$it" } ?: vsebine(o.id)
+    private fun jeFilm(o: Opis) = o.film || o.id.startsWith("stremio|movie|")
+    private fun imaImdb(o: Opis) = IMDB.matches(o.imdb.trim())
+
+    /**
+     * Vsebina opisa: IMDb (isti film iz dveh katalogov), ce je znan IN gre za film ali znano epizodo - drugi pregled N1: vir
+     * lahko epizodi da IMDb serije brez sezone in epizode; takrat bi si vse epizode delile kljuc. Sicer [vsebine] id-ja.
+     */
+    fun vsebine(o: Opis): String =
+        if (imaImdb(o) && (jeFilm(o) || epizoda(o) != null)) "imdb|" + o.imdb.trim() else vsebine(o.id)
 
     /** (sezona, epizoda): iz polj, sicer iz naslova (»… · S1E2 · …«); null = ni epizoda. */
     fun epizoda(o: Opis): Pair<Int, Int>? =
         if (o.sezona > 0 || o.epizoda > 0) o.sezona to o.epizoda else SerijePravila.epizodaIzNaslova(o.naslov)
 
     /** Pregled 1: Stremio, ki ni film (kanal, serija) - brez stevilke epizode id ne loci videov, zato v kljuc gre se naslov. */
-    private fun potrebujeNaslov(o: Opis) = o.id.startsWith("stremio|") && o.id.removePrefix("stremio|").substringBefore('|') != "movie"
+    private fun potrebujeNaslov(o: Opis) = !jeFilm(o) && (o.id.startsWith("stremio|") || imaImdb(o))
 
-    fun kljuc(o: Opis): String {
-        val v = vsebine(o)
+    /** [poImdb] = false: vsebina po id-ju (za ujemanje z zapisi brez IMDb); pravilo naslova ostane po celem opisu. */
+    fun kljuc(o: Opis, poImdb: Boolean = true): String {
+        val v = if (poImdb) vsebine(o) else vsebine(o.id)
         val e = epizoda(o)?.let { (s, k) -> "|S${s}E$k" }.orEmpty()
         if (v.isEmpty()) return "n|" + naslova(o.naslov) + e
         val t = if (e.isEmpty() && potrebujeNaslov(o)) "|" + naslova(o.naslov) else ""
@@ -54,7 +64,7 @@ object NapredekKljuc {
     }
 
     /** Kljuc in kljuc po id-ju (brez IMDb) - zapis brez IMDb (do 2.1.231) se ujema z istim id-jem, ki ima IMDb. */
-    private fun kljuci(o: Opis): Set<String> = setOf(kljuc(o), kljuc(o.copy(imdb = "")))
+    private fun kljuci(o: Opis): Set<String> = setOf(kljuc(o), kljuc(o, poImdb = false))
 
     /** Ali shranjeni [zapis] velja za vsebino [s]. */
     fun ujema(zapis: Opis, s: Opis): Boolean {

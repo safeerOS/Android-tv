@@ -15,13 +15,13 @@ object MediaNapredek {
     data class Vnos(val skladba: Jamendo.Skladba, val polozaj: Long, val trajanje: Long, val cas: Long, val naprava: String = "")
 
     /** Pregled Grok 4: kljuc je vsebina + sezona + epizoda ([NapredekKljuc]), ne samo naslov brez letnice. */
-    private fun opis(s: Jamendo.Skladba) = NapredekKljuc.Opis(s.id, s.naslov, s.season, s.episode, s.imdbId)
+    private fun opis(s: Jamendo.Skladba) = NapredekKljuc.Opis(s.id, s.naslov, s.season, s.episode, s.imdbId,
+        film = s.mediaType.equals("movie", ignoreCase = true) || SpletniVir.vrstaVsebine(s) == SpletniVir.FILM)
     private fun kljuc(s: Jamendo.Skladba) = NapredekKljuc.kljuc(opis(s))
 
     /** Ali shranjeni zapis [o] velja za [s] (tudi star zapis brez sezone in epizode - [NapredekKljuc.ujema]). */
     private fun ujema(o: JSONObject, s: Jamendo.Skladba): Boolean = try {
-        val z = o.getJSONObject("s")
-        NapredekKljuc.ujema(NapredekKljuc.Opis(z.optString("id"), z.optString("n"), z.optInt("season"), z.optInt("episode"), z.optString("imdbId")), opis(s))
+        NapredekKljuc.ujema(opis(skladba(o.getJSONObject("s"))), opis(s))
     } catch (_: Exception) { false }
 
     /** Videi s te naprave (kot VLC): zapomnimo si mesto ze od 1 min dolzine naprej. */

@@ -85,6 +85,19 @@ fun main() {
         K.ujema(NapredekKljuc.Opis(ep(1, 2).id, "Prijatelji · S1E2"), ep(1, 3).copy(imdb = "tt0108778")))
     preveriEnako("neveljaven IMDb se ne uporabi", "v|stremio|movie|tt1160419", K.kljuc(dune21.copy(imdb = "nekaj")))
 
+    // Drugi pregled N1: IMDb serije pri epizodi brez sezone in epizode (spletni vir, shranjen seznam) ne zdruzi epizod
+    val splet1 = NapredekKljuc.Opis("splet:https://stran.test/serija/ep-1", "Serija - epizoda ena", imdb = "tt0903747")
+    val splet2 = NapredekKljuc.Opis("splet:https://stran.test/serija/ep-2", "Serija - epizoda dva", imdb = "tt0903747")
+    preveriEnako("N1: spletni vir, dve epizode z IMDb serije - razlicna kljuca", false, K.kljuc(splet1) == K.kljuc(splet2))
+    preveriEnako("N1: spletni vir, dve epizode se ne ujemata", false, K.ujema(splet1, splet2))
+    preveriEnako("N1: isti id strani brez stevilk, drug naslov epizode - razlicna", false,
+        K.ujema(splet1, splet1.copy(naslov = "Serija - epizoda dva")))
+    preveriEnako("N1: znana epizoda uporabi IMDb", true,
+        K.ujema(splet1.copy(sezona = 1, epizoda = 1), NapredekKljuc.Opis("stremio|series|tmdb:1396|$dodatek#4", "Breaking Bad", 1, 1, "tt0903747")))
+    preveriEnako("N1: film iz spletnega vira uporabi IMDb", true,
+        K.ujema(NapredekKljuc.Opis("splet:https://stran.test/film", "Dune", imdb = "tt1160419", film = true), dune21.copy(imdb = "tt1160419")))
+    preveriEnako("N1: ne-film z IMDb brez epizode ne uporabi IMDb", "v|splet:https://stran.test/serija/ep-1|serijaepizodaena", K.kljuc(splet1))
+
     // Pregled 7: nova oznaka odstrani staro oznako naslova te vsebine
     preveriEnako("odgledano: stara oznaka naslova se preseli", listOf(K.kljuc(dune21), "drugo"), K.oznaci(listOf("dune", "drugo"), dune21, true, 300))
 
