@@ -47,6 +47,7 @@
     <string name="magnet_p2p_naslov">Votre adresse IP sera visible</string>
     <string name="magnet_p2p_opis">Sans service debrid, Safeer se connecte directement aux autres pairs de ce torrent et tout l’essaim voit votre adresse IP. Avec TorBox (ou Real-Debrid, AllDebrid), le service télécharge le torrent et vous ne recevez que le flux : votre adresse IP reste cachée.</string>
     <string name="magnet_p2p_vseeno">Se connecter directement quand même</string>
+    <string name="os_p2p_diagnostika">Diagnostic : P2P sur cet appareil uniquement (test développeur)</string>
     <string name="magnet_p2p_dodaj">Ajouter TorBox</string>
     <string name="magnet_debrid_opis">%1$s télécharge ce torrent pour vous : votre adresse IP n’est pas visible des autres pairs.</string>
     <string name="magnet_debrid_predvajaj">Lire via %1$s</string>

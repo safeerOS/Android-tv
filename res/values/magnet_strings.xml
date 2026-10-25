@@ -47,6 +47,7 @@
     <string name="magnet_p2p_naslov">Your IP address will be visible</string>
     <string name="magnet_p2p_opis">Without a debrid service, Safeer connects directly to the other peers of this torrent, and everyone in the swarm can see your IP address. With TorBox (or Real-Debrid, AllDebrid) the service downloads the torrent and you only receive the stream, so your IP address stays hidden.</string>
     <string name="magnet_p2p_vseeno">Connect directly anyway</string>
+    <string name="os_p2p_diagnostika">Diagnostics: P2P on this device only (developer test)</string>
     <string name="magnet_p2p_dodaj">Add TorBox</string>
     <string name="magnet_debrid_opis">%1$s downloads this torrent for you, so your IP address is not visible to other peers.</string>
     <string name="magnet_debrid_predvajaj">Play via %1$s</string>
