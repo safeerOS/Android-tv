@@ -8,17 +8,20 @@ package si.safeer.tv
  * (Bitmovin bmpui-ui-uicontainer) imajo prozoren sloj z gumbi NAD videom, ki je prekril sliko (zvok brez slike).
  *
  * Izboljsave po neodvisnem pregledu (S1 + V1 + S2 + S3 + N3):
- * 1. Specificnost ostane tocno izvirna: vsak selektor dobi :where(:not([data-safeer-medij] *)).
+ * 1. Specificnost ostane tocno izvirna: vsak selektor dobi :where(:not([data-safeer-medij], [data-safeer-medij] *)).
+ *    Izvzet je tudi oznaceni element sam: prekrivni sloj ob videu (S3) bi sicer obdrzal temno ozadje in prekril sliko.
  * 2. Psevdoelementi (::...): filter gre PRED psevdoelement (npr. input:where(...)::placeholder).
  *    Globalni psevdoelementi (::-webkit-scrollbar, ::selection) in bloki @keyframes/@font-face ostanejo nedotaknjeni.
  * 3. @media/@supports: pravila znotraj se pretvorijo rekurzivno.
  * 4. Vejice v :is()/:not() ne razbijejo selektorja (razdelitev po vejicah le zunaj oklepajev).
- * 5. JS koren (MEDIJ_KOREN_JS): ustavi plezanje pri overflow auto|scroll, ne oznaci v celozaslonskem nacinu,
- *    oznaci prekrivke (position absolute|fixed > 80 % videa), pocisti ob emptied ali odstranitvi videa.
+ * 5. JS koren (MEDIJ_KOREN_JS): ustavi plezanje pri overflow auto|scroll, v celozaslonskem nacinu ne pleza (oznaci
+ *    samo celozaslonski element z videom), oznaci prekrivke (position absolute|fixed > 80 % videa; prednik videa
+ *    ni prekrivka), pocisti ob emptied ali odstranitvi videa. MutationObserver je omejen na en pregled na 250 ms
+ *    (TV ima sibak procesor, strani kot SPA spreminjajo DOM nenehno).
  */
 object TemniSlogPravila {
 
-    const val MEDIJ_FILTER = ":where(:not([data-safeer-medij] *))"
+    const val MEDIJ_FILTER = ":where(:not([data-safeer-medij], [data-safeer-medij] *))"
 
     /**
      * JavaScript za zaznavo in oznacevanje korena predvajalnika ter njegovih prekrivnih slojev.
@@ -60,6 +63,8 @@ object TemniSlogPravila {
       function dodaj(el) {
         if (!el || el === document.body || el === document.documentElement) return;
         if (koren.contains(el) || el === koren) return;
+        // Prednik videa lezi pod njim, ni prekrivka; sicer bi celozaslonski #app izvzel vso stran.
+        if (el.contains(v)) return;
         if (kandidati.indexOf(el) === -1) kandidati.push(el);
       }
       if (koren.parentElement) {
@@ -91,7 +96,16 @@ object TemniSlogPravila {
     }
 
     function oznaci() {
-      if (document.fullscreenElement || document.webkitFullscreenElement) return;
+      var fs = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fs) {
+        // V celozaslonskem nacinu ne plezamo (predniki so del strani); izvzamemo samo celozaslonski
+        // element z videom, ker so gumbi predvajalnika v njem.
+        if (fs.tagName !== 'VIDEO' && fs !== document.body && fs !== document.documentElement &&
+            fs.getElementsByTagName('video').length > 0 && !fs.hasAttribute('data-safeer-medij')) {
+          fs.setAttribute('data-safeer-medij', '1');
+        }
+        return;
+      }
       var vs = document.getElementsByTagName('video');
       for (var i = 0; i < vs.length; i++) {
         var v = vs[i];
@@ -120,9 +134,13 @@ object TemniSlogPravila {
 
     var MO = window.MutationObserver || (typeof MutationObserver !== 'undefined' ? MutationObserver : null);
     if (MO && !window.__safeerMedijObserver) {
+      var cakaMo = 0;
       var mo = new MO(function() {
-        pocisti();
-        oznaci();
+        if (cakaMo) return;
+        cakaMo = setTimeout(function() {
+          cakaMo = 0;
+          try { pocisti(); oznaci(); } catch (e) { console.warn('Safeer medij koren:', e); }
+        }, 250);
       });
       mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
       window.__safeerMedijObserver = mo;
@@ -130,7 +148,7 @@ object TemniSlogPravila {
 
     if (!window.__safeerMedijKoren) {
       window.__safeerMedijKoren = true;
-      ['loadedmetadata', 'play', 'playing', 'resize', 'emptied'].forEach(function(t) {
+      ['loadedmetadata', 'play', 'playing', 'resize', 'emptied', 'fullscreenchange', 'webkitfullscreenchange'].forEach(function(t) {
         document.addEventListener(t, function() {
           if (t === 'emptied') pocisti();
           oznaci();
@@ -232,7 +250,7 @@ object TemniSlogPravila {
      * Pretvori posamezen selektor:
      * - Ce vsebuje psevdoelement (::...): filter postavi PRED psevdoelement (npr. input:where(...)::placeholder).
      * - Ce je globalni psevdoelement brez predpone (::-webkit-scrollbar, ::selection): pusti nespremenjenega.
-     * - Sicer doda filter na konec: <selektor>:where(:not([data-safeer-medij] *)).
+     * - Sicer doda filter na konec: <selektor>[MEDIJ_FILTER].
      */
     fun pretvoriEnSelektor(selektor: String): String {
         val sel = selektor.trim()

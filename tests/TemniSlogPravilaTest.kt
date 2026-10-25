@@ -3,7 +3,7 @@ package si.safeer.tv
 fun main() {
     println("TemniSlogPravilaTest: zacetek preizkusov...")
 
-    // 1. S1 Specificnost: ohranitev izvirne specificnosti z uporabo :where(:not([data-safeer-medij] *))
+    // 1. S1 Specificnost: ohranitev izvirne specificnosti z uporabo :where(:not([data-safeer-medij], [data-safeer-medij] *))
     val osnovniCss = """
         body { background: #000; }
         #root { color: #fff; }
@@ -11,16 +11,16 @@ fun main() {
         [class*="container"] { padding: 10px; }
     """.trimIndent()
     val pretvorjenOsnovni = TemniSlogPravila.pretvoriTemniCss(osnovniCss)
-    check(pretvorjenOsnovni.contains("body:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenOsnovni.contains("body:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "body mora ohraniti izvirno specificnost brez :where(body): $pretvorjenOsnovni"
     }
-    check(pretvorjenOsnovni.contains("#root:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenOsnovni.contains("#root:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "#root mora ohraniti specificnost z ID-jem: $pretvorjenOsnovni"
     }
-    check(pretvorjenOsnovni.contains("div.card:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenOsnovni.contains("div.card:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "div.card mora ohraniti specificnost: $pretvorjenOsnovni"
     }
-    check(pretvorjenOsnovni.contains("""[class*="container"]:where(:not([data-safeer-medij] *)) {""")) {
+    check(pretvorjenOsnovni.contains("""[class*="container"]:where(:not([data-safeer-medij], [data-safeer-medij] *)) {""")) {
         "[class*=container] mora dobiti filter: $pretvorjenOsnovni"
     }
     // Brez stare oblike :where(...) zunaj, ki je vsem vsilila (0,1,0)
@@ -36,13 +36,13 @@ fun main() {
         ::selection { background: #444; }
     """.trimIndent()
     val pretvorjenPsevdo = TemniSlogPravila.pretvoriTemniCss(psevdoCss)
-    check(pretvorjenPsevdo.contains("input:where(:not([data-safeer-medij] *))::placeholder {")) {
+    check(pretvorjenPsevdo.contains("input:where(:not([data-safeer-medij], [data-safeer-medij] *))::placeholder {")) {
         "Filter mora biti pred ::placeholder: $pretvorjenPsevdo"
     }
-    check(pretvorjenPsevdo.contains("div.opis:where(:not([data-safeer-medij] *))::before {")) {
+    check(pretvorjenPsevdo.contains("div.opis:where(:not([data-safeer-medij], [data-safeer-medij] *))::before {")) {
         "Filter mora biti pred ::before: $pretvorjenPsevdo"
     }
-    check(pretvorjenPsevdo.contains("a.povezava:where(:not([data-safeer-medij] *))::after {")) {
+    check(pretvorjenPsevdo.contains("a.povezava:where(:not([data-safeer-medij], [data-safeer-medij] *))::after {")) {
         "Filter mora biti pred ::after: $pretvorjenPsevdo"
     }
     // Globalni psevdoelementi brez predhodnega elementa morajo ostati nedotaknjeni (brskalnik zavrze :where()::...)
@@ -113,19 +113,19 @@ fun main() {
     check(pretvorjenMedia.contains("@media screen and (min-width: 600px)")) {
         "@media glava mora biti ohranjena: $pretvorjenMedia"
     }
-    check(pretvorjenMedia.contains(".stranska-vrstica:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenMedia.contains(".stranska-vrstica:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "Pravilo znotraj @media mora dobiti filter: $pretvorjenMedia"
     }
-    check(pretvorjenMedia.contains("input:where(:not([data-safeer-medij] *))::placeholder {")) {
+    check(pretvorjenMedia.contains("input:where(:not([data-safeer-medij], [data-safeer-medij] *))::placeholder {")) {
         "Psevdoelement znotraj @media mora dobiti filter pred psevdoelementom: $pretvorjenMedia"
     }
-    check(pretvorjenMedia.contains(".mreza:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenMedia.contains(".mreza:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "Pravilo znotraj vdelanega @supports mora dobiti filter: $pretvorjenMedia"
     }
     check(pretvorjenMedia.contains("@container (min-width: 400px)")) {
         "@container glava mora biti ohranjena: $pretvorjenMedia"
     }
-    check(pretvorjenMedia.contains(".kartica:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenMedia.contains(".kartica:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "Pravilo znotraj @container mora dobiti filter: $pretvorjenMedia"
     }
 
@@ -138,19 +138,19 @@ fun main() {
         button:focus::after { outline: none; }
     """.trimIndent()
     val pretvorjenVejice = TemniSlogPravila.pretvoriTemniCss(vejiceCss)
-    check(pretvorjenVejice.contains(":is(div, span.alert):where(:not([data-safeer-medij] *)), .btn:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenVejice.contains(":is(div, span.alert):where(:not([data-safeer-medij], [data-safeer-medij] *)), .btn:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "Vejica v :is() ne sme razbiti selektorja: $pretvorjenVejice"
     }
-    check(pretvorjenVejice.contains(":not(.on, .active):where(:not([data-safeer-medij] *)), #glavni:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenVejice.contains(":not(.on, .active):where(:not([data-safeer-medij], [data-safeer-medij] *)), #glavni:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "Vejica v :not() ne sme razbiti selektorja: $pretvorjenVejice"
     }
-    check(pretvorjenVejice.contains("""a[data-oznake="film,serija"]:where(:not([data-safeer-medij] *)), button:where(:not([data-safeer-medij] *)) {""")) {
+    check(pretvorjenVejice.contains("""a[data-oznake="film,serija"]:where(:not([data-safeer-medij], [data-safeer-medij] *)), button:where(:not([data-safeer-medij], [data-safeer-medij] *)) {""")) {
         "Vejica v nizu atributa ne sme razbiti selektorja: $pretvorjenVejice"
     }
-    check(pretvorjenVejice.contains("input:where(:not([data-safeer-medij] *))::placeholder, textarea:where(:not([data-safeer-medij] *))::placeholder, .oznaka:where(:not([data-safeer-medij] *)) {")) {
+    check(pretvorjenVejice.contains("input:where(:not([data-safeer-medij], [data-safeer-medij] *))::placeholder, textarea:where(:not([data-safeer-medij], [data-safeer-medij] *))::placeholder, .oznaka:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         "Seznam s psevdoelementi se mora pravilno pretvoriti: $pretvorjenVejice"
     }
-    check(pretvorjenVejice.contains("button:focus:where(:not([data-safeer-medij] *))::after {")) {
+    check(pretvorjenVejice.contains("button:focus:where(:not([data-safeer-medij], [data-safeer-medij] *))::after {")) {
         "Psevdo-razred pred psevdoelementom mora ohraniti filter pred psevdoelementom: $pretvorjenVejice"
     }
 
@@ -171,22 +171,30 @@ fun main() {
     """.trimIndent()
     val dejanskiPretvorjen = TemniSlogPravila.pretvoriTemniCss(vzorecDarkMode)
     check(!dejanskiPretvorjen.contains("/*")) { "Komentarji morajo biti odstranjeni" }
-    check(dejanskiPretvorjen.contains(":root:where(:not([data-safeer-medij] *)) {")) {
+    check(dejanskiPretvorjen.contains(":root:where(:not([data-safeer-medij], [data-safeer-medij] *)) {")) {
         ":root mora dobiti filter: $dejanskiPretvorjen"
     }
-    check(dejanskiPretvorjen.contains("html:where(:not([data-safeer-medij] *))")) {
+    check(dejanskiPretvorjen.contains("html:where(:not([data-safeer-medij], [data-safeer-medij] *))")) {
         "html mora dobiti filter: $dejanskiPretvorjen"
     }
-    check(dejanskiPretvorjen.contains("body:where(:not([data-safeer-medij] *))")) {
+    check(dejanskiPretvorjen.contains("body:where(:not([data-safeer-medij], [data-safeer-medij] *))")) {
         "body mora dobiti filter: $dejanskiPretvorjen"
     }
-    check(dejanskiPretvorjen.contains("""[class*="container"]:where(:not([data-safeer-medij] *))""")) {
+    check(dejanskiPretvorjen.contains("""[class*="container"]:where(:not([data-safeer-medij], [data-safeer-medij] *))""")) {
         "[class*=container] mora dobiti filter: $dejanskiPretvorjen"
     }
 
-    // 7. JS koren preverba prisotnosti zahtevanih elementov v MEDIJ_KOREN_JS
+    // 7. Oznaceni element sam je izvzet (prekrivni sloj ob videu ne sme dobiti temnega ozadja), ne le potomci
+    check(TemniSlogPravila.MEDIJ_FILTER == ":where(:not([data-safeer-medij], [data-safeer-medij] *))") {
+        "Filter mora izvzeti oznaceni element in njegove potomce: ${'$'}{TemniSlogPravila.MEDIJ_FILTER}"
+    }
+
+    // 8. JS koren preverba prisotnosti zahtevanih elementov v MEDIJ_KOREN_JS
     val js = TemniSlogPravila.MEDIJ_KOREN_JS
     check(js.contains("document.fullscreenElement")) { "JS mora preveriti document.fullscreenElement" }
+    check(js.contains("fullscreenchange")) { "JS mora ob spremembi celozaslonskega nacina ponovno oznaciti" }
+    check(js.contains("setTimeout") && js.contains("250")) { "MutationObserver mora biti omejen (en pregled na 250 ms)" }
+    check(js.contains("el.contains(v)")) { "Prednik videa ne sme biti oznacen kot prekrivka" }
     check(js.contains("ox === 'auto' || ox === 'scroll' || oy === 'auto' || oy === 'scroll'")) {
         "JS mora ustaviti plezanje pri overflow auto|scroll"
     }

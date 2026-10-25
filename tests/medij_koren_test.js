@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Preizkus delovanja MEDIJ_KOREN_JS (TemniSlogPravila.kt / UserScriptManager.kt) brez naprave v Node.js:
-// 1. S2: koren se ne oznaci v celozaslonskem nacinu (document.fullscreenElement).
+// 1. S2: v celozaslonskem nacinu se ne pleza; oznaci se samo celozaslonski element z videom (gumbi so v njem).
 // 2. S2: plezanje se ustavi pri elementu z overflow: auto|scroll.
 // 3. S2: oznaka se odstrani, ko videa ni vec ali ob emptied.
 // 4. S3: prekrivni sloj s position absolute|fixed, ki pokriva >80 % videa in ni potomec korena, se oznaci.
 // 5. N3: catch v primeru napake izpise console.warn (brez skrivanja napak).
+// 6. Prednik videa (npr. #app s position:absolute) ni prekrivka - sicer bi izvzel vso stran iz temnega sloga.
+// 7. MutationObserver: vec sprememb DOM v 250 ms = en sam pregled (TV ima sibak procesor).
 //
 // Zagon: node tests/medij_koren_test.js
 'use strict';
@@ -126,7 +128,9 @@ function ustvariOkolje() {
     };
 
     const opozorila = [];
+    const casovniki = [];
     const sandbox = {
+        setTimeout: (fn, ms) => { casovniki.push(fn); return casovniki.length; },
         document: {
             documentElement: docEl,
             body: body,
@@ -159,6 +163,13 @@ function ustvariOkolje() {
         docEl,
         body,
         opozorila,
+        casovniki,
+        // Pozene zakasnjene preglede MutationObserverja (setTimeout 250 ms) in vrne njihovo stevilo.
+        izprazniCasovnike: () => {
+            let n = 0;
+            while (casovniki.length) { casovniki.shift()(); n++; }
+            return n;
+        },
         sproziDogodek: (tip, tarca) => {
             if (documentListeners[tip]) {
                 documentListeners[tip].forEach((fn) => fn({ target: tarca, type: tip }));
@@ -189,9 +200,11 @@ console.log('medij_koren_test: zacetek preizkusov...');
     assert.strictEqual(body.hasAttribute('data-safeer-medij'), false, 'body NE SME dobiti oznake');
 }
 
-// Preizkus 2 (S2): V celozaslonskem nacinu se koren ne oznaci
+// Preizkus 2 (S2): V celozaslonskem nacinu se ne pleza; oznaci se samo celozaslonski element z videom
 {
     const { sandbox, Node, body } = ustvariOkolje();
+    const stran = new Node('DIV', 'stran');
+    stran.rect = { left: 0, top: 0, right: 1920, bottom: 1080, width: 1920, height: 1080 };
     const ovitek = new Node('DIV', 'fs-player');
     ovitek.rect = { left: 0, top: 0, right: 1920, bottom: 1080, width: 1920, height: 1080 };
 
@@ -200,14 +213,27 @@ console.log('medij_koren_test: zacetek preizkusov...');
     video.src = 'blob:test';
     video.readyState = 4;
     ovitek.appendChild(video);
-    body.appendChild(ovitek);
+    stran.appendChild(ovitek);
+    body.appendChild(stran);
 
     // Nastavi celozaslonski nacin
     sandbox.document.fullscreenElement = ovitek;
 
     vm.runInNewContext(JS_KODA, sandbox);
 
-    assert.strictEqual(ovitek.hasAttribute('data-safeer-medij'), false, 'v celozaslonskem nacinu se koren ne oznaci');
+    assert.strictEqual(ovitek.getAttribute('data-safeer-medij'), '1', 'celozaslonski element z videom se oznaci (gumbi so v njem)');
+    assert.strictEqual(stran.hasAttribute('data-safeer-medij'), false, 'v celozaslonskem nacinu se ne pleza do prednikov');
+
+    // Celozaslonski je sam video: ni cesa izvzeti
+    const t2 = ustvariOkolje();
+    const v2 = new t2.Node('VIDEO', 'vid2');
+    v2.rect = { left: 0, top: 0, right: 1920, bottom: 1080, width: 1920, height: 1080 };
+    v2.src = 'blob:test';
+    t2.body.appendChild(v2);
+    t2.sandbox.document.fullscreenElement = v2;
+    vm.runInNewContext(JS_KODA, t2.sandbox);
+    assert.strictEqual(v2.hasAttribute('data-safeer-medij'), false, 'celozaslonski video sam ne dobi oznake');
+    assert.strictEqual(t2.body.hasAttribute('data-safeer-medij'), false, 'body ne dobi oznake');
 }
 
 // Preizkus 3 (S2): Plezanje se ustavi pri elementu z overflow: auto|scroll
@@ -237,7 +263,7 @@ console.log('medij_koren_test: zacetek preizkusov...');
 
 // Preizkus 4 (S2): Oznaka se odstrani, ko videa ni vec ali ob emptied
 {
-    const { sandbox, Node, body, sproziDogodek } = ustvariOkolje();
+    const { sandbox, Node, body, sproziDogodek, izprazniCasovnike } = ustvariOkolje();
     const ovitek = new Node('DIV', 'player-wrap');
     ovitek.rect = { left: 0, top: 0, right: 640, bottom: 360, width: 640, height: 360 };
 
@@ -254,11 +280,13 @@ console.log('medij_koren_test: zacetek preizkusov...');
 
     // Video izgine (odstranitev iz DOM)
     ovitek.removeChild(video);
+    izprazniCasovnike();
 
     assert.strictEqual(ovitek.hasAttribute('data-safeer-medij'), false, 'oznaka se mora odstraniti po odstranitvi videa');
 
     // Ponovni preizkus z emptied
     ovitek.appendChild(video);
+    izprazniCasovnike();
     assert.strictEqual(ovitek.getAttribute('data-safeer-medij'), '1', 'ovitek se ponovno oznaci ob vrnitvi videa');
 
     video.src = '';
@@ -310,6 +338,53 @@ console.log('medij_koren_test: zacetek preizkusov...');
 
     assert.ok(opozorila.length > 0, 'catch mora sproziti console.warn ob napaki (N3)');
     assert.strictEqual(opozorila[0].msg, 'Safeer medij koren:', 'pravilno sporocilo opozorila');
+}
+
+// Preizkus 7: prednik videa s position:absolute (npr. #app cez celo stran) ni prekrivka
+{
+    const { sandbox, Node, body } = ustvariOkolje();
+    const app = new Node('DIV', 'app');
+    app.rect = { left: 0, top: 0, right: 1920, bottom: 1080, width: 1920, height: 1080 };
+    app.computedStyle.position = 'absolute';
+    const vsebina = new Node('DIV', 'vsebina');
+    vsebina.rect = { left: 0, top: 0, right: 1920, bottom: 3000, width: 1920, height: 3000 };
+    const videoKoren = new Node('DIV', 'video-koren');
+    videoKoren.rect = { left: 0, top: 0, right: 1800, bottom: 1000, width: 1800, height: 1000 };
+    const video = new Node('VIDEO', 'vid');
+    video.rect = { left: 0, top: 0, right: 1800, bottom: 1000, width: 1800, height: 1000 };
+    video.src = 'blob:test';
+    videoKoren.appendChild(video);
+    vsebina.appendChild(videoKoren);
+    app.appendChild(vsebina);
+    body.appendChild(app);
+    sandbox.document.elementsFromPoint = () => [video, videoKoren, vsebina, app, body];
+
+    vm.runInNewContext(JS_KODA, sandbox);
+
+    assert.strictEqual(videoKoren.getAttribute('data-safeer-medij'), '1', 'koren predvajalnika mora biti oznacen');
+    assert.strictEqual(app.hasAttribute('data-safeer-medij'), false, 'prednik videa (#app) ne sme biti oznacen kot prekrivka');
+    assert.strictEqual(vsebina.hasAttribute('data-safeer-medij'), false, 'vecji prednik ne sme biti oznacen');
+}
+
+// Preizkus 8: MutationObserver - vec sprememb DOM = en zakasnjen pregled
+{
+    const { sandbox, Node, body, casovniki, izprazniCasovnike } = ustvariOkolje();
+    const ovitek = new Node('DIV', 'player-wrap');
+    ovitek.rect = { left: 0, top: 0, right: 640, bottom: 360, width: 640, height: 360 };
+    const video = new Node('VIDEO', 'vid');
+    video.rect = { left: 0, top: 0, right: 640, bottom: 360, width: 640, height: 360 };
+    video.src = 'https://primer.si/v.mp4';
+    ovitek.appendChild(video);
+    body.appendChild(ovitek);
+    vm.runInNewContext(JS_KODA, sandbox);
+    izprazniCasovnike();
+
+    for (let i = 0; i < 20; i++) body.appendChild(new Node('DIV', 'oglas' + i));
+    assert.strictEqual(casovniki.length, 1, '20 sprememb DOM mora sprozit en sam zakasnjen pregled');
+    assert.strictEqual(izprazniCasovnike(), 1, 'en pregled');
+    assert.strictEqual(ovitek.getAttribute('data-safeer-medij'), '1', 'oznaka ostane po pregledu');
+    body.appendChild(new Node('DIV', 'oglas-po'));
+    assert.strictEqual(casovniki.length, 1, 'po pregledu se ob novi spremembi spet nastavi en pregled');
 }
 
 console.log('medij_koren_test: VSI PREIZKUSI USPELI (OK)!');
