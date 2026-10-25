@@ -9226,7 +9226,7 @@ class GlasbaActivity : OsActivity() {
 
     /**
      * Torrent brez racunalnika v Linku (lastnik, 3. 10. 2026): naprava ga predvaja SAMA, ce datoteka gre na njen prosti
-     * prostor (zacasno - po 48 urah brez predvajanja izgine sama); sicer prosi drugo napravo s Safeer OS v krogu
+     * prostor (zacasno - po 12 urah brez predvajanja izgine sama); sicer prosi drugo napravo s Safeer OS v krogu
      * (telefon, tablico, televizor), da ga prenasa in ji ga pretaka. Brez okna in brez izbire: film se zacne ali pa
      * kratko povemo, zakaj ne.
      */
@@ -9482,7 +9482,7 @@ class GlasbaActivity : OsActivity() {
             racunalnikiZaPomoc().any { it.id == pc } -> torrentPrekRacunalnika(sk, sk.naslov, sk.povezava, datoteka, pc)
             else -> torrentBrezRacunalnika(sk, sk.naslov, sk.povezava, datoteka, 0L, "", samoNaprava = pc)
         }
-        // »Obdrži«: prenos ne potece po 48 urah. Oznako hrani naprava, ki film hrani.
+        // »Obdrži«: prenos ne potece po 12 urah. Oznako hrani naprava, ki film hrani.
         fun obdrzi(drzi: Boolean) {
             fun konec(ok: Boolean) {
                 if (isFinishing) return

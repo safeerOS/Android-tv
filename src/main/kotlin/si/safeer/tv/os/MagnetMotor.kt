@@ -653,7 +653,7 @@ object MagnetMotor {
         var krog = 0
         while (true) {
             Thread.sleep(10_000)
-            // Vsako uro: zacasni torrenti, ki jih 48 ur nihce ni predvajal, gredo (tudi med dolgim delovanjem aplikacije).
+            // Vsako uro: zacasni torrenti, ki jih 12 ur nihce ni predvajal, gredo (tudi med dolgim delovanjem aplikacije).
             if (++krog % 360 == 0) try { pocistiZacasne(app) } catch (e: Throwable) { Log.i(TAG, "Ciscenje: ${e.message}") }
             try {
                 val s = seja ?: continue
@@ -794,7 +794,7 @@ object MagnetMotor {
     }
 
     /**
-     * Odstrani zacasne torrente z datotekami: tiste, ki jih 48 ur nihce ni predvajal, in - kadar za nov film manjka
+     * Odstrani zacasne torrente z datotekami: tiste, ki jih 12 ur nihce ni predvajal ([ZacasniPravila.VELJA_MS]), in - kadar za nov film manjka
      * prostora ([potrebujem] bajtov prostega) - tudi mlajse, najdlje neuporabljene prve (ne predvajanih v zadnjih urah in
      * ne [obdrzi]). Dela tudi brez zagnane seje (ob zagonu aplikacije): zapis in datoteke odstrani naravnost.
      * Kar je uporabnik prenesel sam (Prenesi), ni zacasno in ostane. Vrne stevilo odstranjenih.
@@ -824,7 +824,7 @@ object MagnetMotor {
             izbrisiDatoteke(c, h, ime)
             z.remove(h)
             odstranjenih++
-            Log.i(TAG, "Zacasni torrent $h odstranjen (${if (pretekel) "48 h brez predvajanja" else "prostor za nov film"})")
+            Log.i(TAG, "Zacasni torrent $h odstranjen (${if (pretekel) "${velja / 3_600_000} h brez predvajanja" else "prostor za nov film"})")
         }
         if (odstranjenih > 0) { prefs(c).edit().putString("zacasni", z.toString()).apply(); prostorOb = 0L }
         return odstranjenih
@@ -900,7 +900,7 @@ object MagnetMotor {
     fun seznamZacasnihIdji(c: Context): List<Int> = try { zacasni(c).keys().asSequence().map { idZacasnega(it) }.toList() } catch (_: Throwable) { emptyList() }
 
     /**
-     * »Obdrži« (`magnet.keep` ali polica na tej napravi): zacasni torrent ne potece po 48 urah - odstrani ga samo
+     * »Obdrži« (`magnet.keep` ali polica na tej napravi): zacasni torrent ne potece po 12 urah - odstrani ga samo
      * uporabnik. [vprasa] = naprava, ki to zeli (null = ta naprava sama); zasebnega sme oznaciti le narocnik.
      */
     @Synchronized

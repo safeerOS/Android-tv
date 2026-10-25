@@ -53,10 +53,10 @@
     <string name="os_prenos_odstrani_vprasanje">Il film e tutti i suoi file verranno eliminati dal dispositivo che lo conserva. Puoi riaprirlo in qualsiasi momento dal componente.</string>
     <string name="os_prenos_odstranjen">Download rimosso</string>
     <string name="os_prenos_ta_naprava">Questo dispositivo</string>
-    <string name="os_prenos_obdrzi">Conserva (non scade dopo 48 ore)</string>
-    <string name="os_prenos_ne_obdrzi">Non conservare più (scade dopo 48 ore)</string>
+    <string name="os_prenos_obdrzi">Conserva (non scade dopo 12 ore)</string>
+    <string name="os_prenos_ne_obdrzi">Non conservare più (scade dopo 12 ore)</string>
     <string name="os_prenos_obdrzan">Conservato: questo download non scadrà</string>
-    <string name="os_prenos_ni_vec_obdrzan">Non più conservato: verrà rimosso dopo 48 ore senza riproduzione</string>
+    <string name="os_prenos_ni_vec_obdrzan">Non più conservato: verrà rimosso dopo 12 ore senza riproduzione</string>
     <string name="os_prenos_obdrzi_napaka">Impossibile conservare questo download</string>
     <string name="os_prenos_obdrzano">conservato</string>
     <string name="os_prenos_zaseben">Download privato</string>

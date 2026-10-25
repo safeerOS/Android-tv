@@ -235,7 +235,7 @@ class CastReceiverService : Service() {
         super.onCreate()
         createNotificationChannel()
         try { application.registerActivityLifecycleCallbacks(zasloniInterneta) } catch (_: Throwable) { }
-        // Zacasni torrenti (film iz kataloga, pomoc drugi napravi), ki jih 48 ur nihce ni predvajal, gredo ob zagonu.
+        // Zacasni torrenti (film iz kataloga, pomoc drugi napravi), ki jih 12 ur nihce ni predvajal, gredo ob zagonu (ZacasniPravila.VELJA_MS).
         if (si.safeer.tv.os.MagnetMotor.naVoljo) Thread({ try { si.safeer.tv.os.MagnetMotor.pocistiZacasne(applicationContext) } catch (_: Throwable) { } }, "safeer-magnet-ciscenje").apply { isDaemon = true; start() }
         // Vklop televizorja iz pripravljenosti: Safeer OS naj bo prvo, kar se vidi (os/VklopTelevizorja).
         si.safeer.tv.os.VklopTelevizorja.namesti(this)

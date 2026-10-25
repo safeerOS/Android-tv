@@ -6,8 +6,12 @@ package si.safeer.tv.os
  * ista kot na racunalniku (core/link_datoteke.py: RABA_VELJA_S, RABA_V_TEKU_S).
  */
 object ZacasniPravila {
-    /** Po toliko casu brez predvajanja torrent in njegove datoteke izginejo (film, ki ga prekines, naslednji vecer se caka). */
-    const val VELJA_MS = 48L * 3_600_000
+    /**
+     * Po toliko casu od zadnjega predvajanja torrent in njegove datoteke izginejo. Lastnik, 25. 10. 2026: kar se prek
+     * torrenta prenese neposredno na napravo, gre 12 ur po zadnjem predvajanju (prej 48 ur); izjema je, kar uporabnik
+     * izrecno shrani (»Obdrži« ali Prenesi - ta ni zacasen). Ob zagonu se pospravi vse, kar je starejse od 12 ur.
+     */
+    const val VELJA_MS = 12L * 3_600_000
     /** Ob pomanjkanju prostora gredo tudi mlajsi, a ne tisti, ki jih je kdo predvajal v zadnjih urah (film se tece). */
     const val V_TEKU_MS = 6L * 3_600_000
 
