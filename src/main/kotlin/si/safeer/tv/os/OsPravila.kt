@@ -497,6 +497,22 @@ object OsPravila {
         return g == "youtu.be" || g == "youtube.com" || g.endsWith(".youtube.com")
     }
 
+    private val RX_ID_YOUTUBE = Regex("(?:[?&]v=|youtu\\.be/|/shorts/|/embed/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])")
+
+    /**
+     * Slika zadetka iz uporabnikovega spletnega vira (SpletniVir bere stran zadetkov). YouTube slicico nalozi sele, ko je na
+     * zaslonu (lena slika): prej je bil namesto slike naslov strani zadetkov in kartica je ostala z ikono - izmerjeno
+     * 25. 10. 2026 (Chrome na WP28 S, iskanje »Murderball«): 20 od 23 zadetkov. Posnetek YouTuba brez prave slike (ali z
+     * naslovom strani youtube.com iz starega predpomnilnika) dobi standardno slicico i.ytimg.com/vi/<id>/hqdefault.jpg;
+     * drugi viri ostanejo s sliko, kot jo je dala stran.
+     */
+    fun slikaSpletnegaZadetka(slika: String, povezava: String): String {
+        val s = slika.trim()
+        val id = if (jeYoutubePovezava(povezava)) RX_ID_YOUTUBE.find(povezava)?.groupValues?.get(1) else null
+        if (id == null || (s.isNotEmpty() && !jeYoutubePovezava(s))) return s
+        return "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+    }
+
     /** Ime gostitelja iz sporocila sistema »Unable to resolve host "ime": ...« ali "". */
     fun gostiteljIzNapake(sporocilo: String?): String =
         Regex("resolve host \"([^\"]+)\"").find(sporocilo.orEmpty())?.groupValues?.get(1)?.trim()?.lowercase().orEmpty()

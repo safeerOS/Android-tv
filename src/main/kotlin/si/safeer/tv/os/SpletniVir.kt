@@ -460,7 +460,8 @@ object SpletniVir {
                 .replace(Regex("(?i)\\s+online(?:\\s+(?:HD|FHD|4K|UHD))?\\s*$"), "")
                 .trim().ifBlank { surovNaslov }
             val genres = o.optJSONArray("g")?.let { a -> (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) } } ?: emptyList()
-            val slika = o.optString("i")
+            // Lena slika (YouTube) ali naslov strani namesto slike iz starega predpomnilnika: posnetek YouTuba dobi svojo slicico.
+            val slika = OsPravila.slikaSpletnegaZadetka(o.optString("i"), o.optString("h"))
             if (slika.isNotBlank()) straniSlik[slika] = o.optString("h").ifBlank { vir.naslov }
             val sk = Jamendo.Skladba(PREDPONA + o.optString("h"), naslov, izvajalec.ifBlank { vir.ime }, slika, "",
                 o.optString("h"), video = o.optBoolean("v"), mediaType = o.optString("mt"), genres = genres,
@@ -881,13 +882,14 @@ object SpletniVir {
         if(!z.i){var k=a,img=null;for(var j=0;j<3&&k&&!img;j++){img=k.querySelector('img');k=k.parentElement;}
           if(img){var r=img.getBoundingClientRect(),set=img.getAttribute('srcset')||img.getAttribute('data-srcset')||'',
             ss=img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||img.getAttribute('data-original')||img.getAttribute('data-poster')||img.getAttribute('data-image')||'';
-            if(!ss&&set)ss=set.split(',').pop().trim().split(/\s+/)[0];if(!ss){var bg=getComputedStyle(img).backgroundImage.match(/url\(["']?([^"')]+)/);ss=(bg&&bg[1])||img.currentSrc||img.src||'';}ss=abs(ss);
-            if(r.width>=48&&r.height>=32&&/^https?:/.test(ss)){
-              z.i=ss;
+            if(!ss&&set)ss=set.split(',').pop().trim().split(/\s+/)[0];if(!ss){var bg=getComputedStyle(img).backgroundImage.match(/url\(["']?([^"')]+)/);ss=(bg&&bg[1])||img.currentSrc||img.getAttribute('src')||'';}ss=ss?abs(ss):'';if(ss===location.href.split('#')[0])ss='';
+            /* Lena slika (YouTube jo nalozi sele na zaslonu, src prazen) ni slika: abs('') je naslov strani - kartica brez slike (k). */
+            if(r.width>=48&&r.height>=32&&(!ss||/^https?:/.test(ss))){
+              if(ss)z.i=ss;else z.k=1;
               z.v=z.v||(r.width/r.height>1.2)||(card.matches&&card.matches('[class*=movie],[class*=film],[class*=series],[class*=poster],[class*=show],[class*=video],[class*=card],[class*=item]'))||/(movie|film|series|watch|show|tv|episode)/i.test(u);
               if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
       }
-      var vse=red.filter(function(z){return z.i&&(z.n||z.t);}).map(function(z){if(z.n)z.t=z.n;return z;});
+      var vse=red.filter(function(z){return (z.i||z.k)&&(z.n||z.t);}).map(function(z){if(z.n)z.t=z.n;return z;});
       function skupina(z){var p='';try{p=new URL(z.h).pathname+new URL(z.h).hostname;}catch(e){}
         if(/TVSeries|TVSeason|TVEpisode/i.test(z.mt)||/(^|\/|_|-|\.)(watch-?series|watch-?tv|tv-?series|tv-?shows?|series|serie|serije|shows?|tv|episodes?)(\/|_|-|\.|$)/i.test(p)||/watchseries/i.test(z.h))return 1;
         if(/MusicVideo/i.test(z.mt)||/(^|\/|_|-|\.)(music-video|music-videos|videospoti?)(\/|_|-|\.|$)/i.test(p))return 2;

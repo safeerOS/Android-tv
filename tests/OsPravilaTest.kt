@@ -1044,8 +1044,29 @@ fun main() {
     preizkusPlacljivega120()
     preizkusPregleda251025()
     preizkusZadetkovNaMestu()
+    preizkusSlikSpletnihZadetkov()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
+}
+
+/** Lastnik 25. 10. 2026 (»zakaj na zgornjih rezultatih ni posterjev«): slika zadetka spletnega vira (YouTube, lene slike). */
+private fun preizkusSlikSpletnihZadetkov() {
+    println("\n== 25. 10.: slike spletnih zadetkov ==")
+    val stran = "https://m.youtube.com/results?search_query=Murderball"
+    preveriEnako("YouTube brez slike: slicica po id", "https://i.ytimg.com/vi/fyLcthMA-JI/hqdefault.jpg",
+        OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/watch?v=fyLcthMA-JI&pp=ygUKTXVyZGVyYmFsbA%3D%3D"))
+    preveriEnako("YouTube z naslovom strani namesto slike (star predpomnilnik)", "https://i.ytimg.com/vi/vbiFjp0jqto/hqdefault.jpg",
+        OsPravila.slikaSpletnegaZadetka(stran, "https://m.youtube.com/watch?v=vbiFjp0jqto"))
+    preveriEnako("YouTube Shorts", "https://i.ytimg.com/vi/C6Ogww8CtfM/hqdefault.jpg",
+        OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/shorts/C6Ogww8CtfM"))
+    preveriEnako("youtu.be", "https://i.ytimg.com/vi/C6Ogww8CtfM/hqdefault.jpg", OsPravila.slikaSpletnegaZadetka(" ", "https://youtu.be/C6Ogww8CtfM"))
+    val prava = "https://i.ytimg.com/vi/rx9hOefW0Fo/hqdefault.jpg?sqp=x&rs=y"
+    preveriEnako("prava slika YouTuba ostane", prava, OsPravila.slikaSpletnegaZadetka(prava, "https://m.youtube.com/watch?v=rx9hOefW0Fo"))
+    preveriEnako("drug vir: slika ostane", "https://primer.test/p.jpg", OsPravila.slikaSpletnegaZadetka("https://primer.test/p.jpg", "https://primer.test/film/1"))
+    preveriEnako("drug vir brez slike ostane brez", "", OsPravila.slikaSpletnegaZadetka("", "https://primer.test/film/1"))
+    preveriEnako("lazen youtube.com.evil ne dobi slicice", "", OsPravila.slikaSpletnegaZadetka("", "https://youtube.com.evil.test/watch?v=fyLcthMA-JI"))
+    preveriEnako("YouTube brez id posnetka (kanal) ostane brez", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/@kanal"))
+    preveriEnako("id daljsi od 11 znakov ni posnetek", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/watch?v=fyLcthMA-JIx"))
 }
 
 /** Lastnik 25. 10. 2026: dopolnitev zadetkov iskanja ne premakne strani (drsenje po zadetkih na telefonu). */
