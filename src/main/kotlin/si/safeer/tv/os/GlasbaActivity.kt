@@ -6525,7 +6525,9 @@ class GlasbaActivity : OsActivity() {
             // Naloga 120: neodklenjena placljiva vsebina tudi med najboljsimi zadetki ne.
             val najboljsi = lestvica.filter { it.second >= Relevantnost.SPODNJA }
                 // Naloga 121: tudi nedelujoc kanal ne.
-                .filterNot { (it.first.stvar as? Jamendo.Skladba)?.let { s -> neodklenjena(s) || MrtviKanali.skrij(this, s) } == true }.filter { z ->
+                .filterNot { (it.first.stvar as? Jamendo.Skladba)?.let { s -> neodklenjena(s) || MrtviKanali.skrij(this, s) } == true }
+                // Film ali serija iz kataloga s tocnim naslovom je prvi, pred posnetki z istim imenom (lastnik 25. 10. 2026).
+                .let { l -> OsPravila.najprejDela(l, beseda, { it.first.naslov }, { jeDeloKataloga(it.first) }, { it.first.prednost <= 1 }) }.filter { z ->
                 val s = z.first.stvar as? Jamendo.Skladba
                 if (s != null) {
                     val k = SpletniVir.cistNaslov(s.izvajalec + " " + s.naslov)
@@ -6658,6 +6660,13 @@ class GlasbaActivity : OsActivity() {
 
     /** Streznik datotek naprave v Linku za zadetek (predvajanje s pripetim potrdilom). */
     private val strezniki = ConcurrentHashMap<String, DatotekeActivity.Streznik>()
+
+    /** Film ali serija iz kataloga dodatka (Cinemeta ...) ali z id-jem IMDb/TMDB - delo, ne posnetek z istim imenom. */
+    private fun jeDeloKataloga(z: Relevantnost.Zadetek<*>): Boolean {
+        val s = z.stvar as? Jamendo.Skladba ?: return false
+        if (Stremio.jeEnota(s)) return Stremio.razredEnote(s).let { it == Stremio.FILM || it == Stremio.SERIJA }
+        return (s.imdbId.isNotBlank() || s.tmdbId.isNotBlank()) && SpletniVir.vrstaVsebine(s).let { it == SpletniVir.FILM || it == SpletniVir.SERIJA }
+    }
 
     /** Kartica iskanja: spletni vir je notranja podrobnost, zato ga na kartici ne razkrivamo. */
     private fun kartica(z: Relevantnost.Zadetek<*>, imenaVirov: Collection<String>): Kartica {

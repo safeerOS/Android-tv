@@ -877,6 +877,30 @@ object OsPravila {
         return listOfNotNull(leto.takeIf { it > 0 }?.toString(), avtor).joinToString(" · ")
     }
 
+    private val RX_OKLEPAJI_NASLOVA = Regex("\\(.*?\\)|\\[.*?\\]")
+    private val RX_LETNICA_NASLOVA = Regex("\\b(19|20)\\d{2}\\b")
+    private val RX_NEALFA_NASLOVA = Regex("[^\\p{L}\\p{N}]+")
+
+    /** Naslov za primerjavo z iskanim (»Murderball (2005)« = »murderball«): male crke brez naglasov, oklepajev, letnic in locil. */
+    fun kljucNaslova(t: String): String =
+        java.text.Normalizer.normalize(t.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD).replace(RX_NAGLASI, "")
+            .replace(RX_OKLEPAJI_NASLOVA, " ").replace(RX_LETNICA_NASLOVA, " ").replace(RX_NEALFA_NASLOVA, "")
+
+    /**
+     * »Najboljsi zadetki« (lastnik 25. 10. 2026): film ali serija iz kataloga ([jeDelo]) s (skoraj) tocnim ujemanjem naslova
+     * ([kljucNaslova]) je prvi, posnetki z istim imenom za njim. Pri »Murderball« so bili trije posnetki YouTuba (enaka ocena,
+     * prej dodani) pred filmom 2005 s plakatom, ta pa sele spodaj v polici Filmi. Uporabnikove datoteke ([lastna]: ta naprava,
+     * naprave v Linku) z enakim naslovom ostanejo spredaj. Brez takega dela vrstni red ostane, kot ga da ocena.
+     */
+    fun <T> najprejDela(zadetki: List<T>, beseda: String, naslov: (T) -> String, jeDelo: (T) -> Boolean, lastna: (T) -> Boolean): List<T> {
+        val q = kljucNaslova(beseda)
+        if (q.isEmpty()) return zadetki
+        val spredaj = zadetki.indices.filter { i -> (jeDelo(zadetki[i]) || lastna(zadetki[i])) && kljucNaslova(naslov(zadetki[i])) == q }
+        if (spredaj.none { jeDelo(zadetki[it]) }) return zadetki
+        val prvi = spredaj.toHashSet()
+        return (spredaj + zadetki.indices.filterNot { it in prvi }).map { zadetki[it] }
+    }
+
     // ------------------------------------------------------------------ podstrani (»Pokazi vse«, seznam, epizode)
 
     /**

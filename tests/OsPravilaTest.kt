@@ -1046,6 +1046,7 @@ fun main() {
     preizkusZadetkovNaMestu()
     preizkusSlikSpletnihZadetkov()
     preizkusPodnaslovaSpletnihZadetkov()
+    preizkusNajprejDela()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }
@@ -1068,6 +1069,26 @@ private fun preizkusSlikSpletnihZadetkov() {
     preveriEnako("lazen youtube.com.evil ne dobi slicice", "", OsPravila.slikaSpletnegaZadetka("", "https://youtube.com.evil.test/watch?v=fyLcthMA-JI"))
     preveriEnako("YouTube brez id posnetka (kanal) ostane brez", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/@kanal"))
     preveriEnako("id daljsi od 11 znakov ni posnetek", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/watch?v=fyLcthMA-JIx"))
+}
+
+private data class Zd(val naslov: String, val delo: Boolean = false, val lastna: Boolean = false, val oznaka: String = naslov)
+
+/** Lastnik 25. 10. 2026: film s (skoraj) tocnim naslovom je prvi med »Najboljsimi zadetki«, posnetki YouTuba za njim. */
+private fun preizkusNajprejDela() {
+    println("\n== 25. 10.: film pred posnetki z istim imenom ==")
+    fun red(l: List<Zd>, q: String) = OsPravila.najprejDela(l, q, { it.naslov }, { it.delo }, { it.lastna }).joinToString(",") { it.oznaka }
+    val murderball = listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", oznaka = "yt2"), Zd("Murderball", oznaka = "yt3"),
+        Zd("Murderball", delo = true, oznaka = "film"), Zd("Murderballs", delo = true, oznaka = "film2019"), Zd("Murderball Trailer", oznaka = "trailer"))
+    preveriEnako("film pred tremi posnetki YouTuba", "film,yt1,yt2,yt3,film2019,trailer", red(murderball, "Murderball"))
+    preveriEnako("male crke, letnica in oklepaji", "film,yt1", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball (2005)", delo = true, oznaka = "film")), "murderball"))
+    preveriEnako("iskanje z letnico", "film,yt1", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", delo = true, oznaka = "film")), "Murderball 2005"))
+    preveriEnako("naglasi", "film,yt1", red(listOf(Zd("Cudez", oznaka = "yt1"), Zd("Čudež", delo = true, oznaka = "film")), "cudez"))
+    preveriEnako("lastna datoteka ostane pred filmom", "moja,film,yt1",
+        red(listOf(Zd("Murderball", lastna = true, oznaka = "moja"), Zd("Murderball", oznaka = "yt1"), Zd("Murderball", delo = true, oznaka = "film")), "Murderball"))
+    preveriEnako("brez dela: vrstni red ostane", "yt1,moja", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", lastna = true, oznaka = "moja")), "Murderball"))
+    preveriEnako("delo brez tocnega naslova ne gre naprej", "yt1,film2019", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderballs", delo = true, oznaka = "film2019")), "Murderball"))
+    preveriEnako("prazno iskanje: nic", "yt1,film", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", delo = true, oznaka = "film")), " "))
+    preveriEnako("kljuc naslova", "murderball", OsPravila.kljucNaslova("Murderball (2005) "))
 }
 
 /** Lastnik 25. 10. 2026: tri enake kartice »Murderball« - razlicni posnetki morajo biti razlocljivi, ime vira pa ne vidno. */
