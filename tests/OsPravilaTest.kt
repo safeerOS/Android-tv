@@ -1045,6 +1045,7 @@ fun main() {
     preizkusPregleda251025()
     preizkusZadetkovNaMestu()
     preizkusSlikSpletnihZadetkov()
+    preizkusPodnaslovaSpletnihZadetkov()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }
@@ -1067,6 +1068,21 @@ private fun preizkusSlikSpletnihZadetkov() {
     preveriEnako("lazen youtube.com.evil ne dobi slicice", "", OsPravila.slikaSpletnegaZadetka("", "https://youtube.com.evil.test/watch?v=fyLcthMA-JI"))
     preveriEnako("YouTube brez id posnetka (kanal) ostane brez", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/@kanal"))
     preveriEnako("id daljsi od 11 znakov ni posnetek", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/watch?v=fyLcthMA-JIx"))
+}
+
+/** Lastnik 25. 10. 2026: tri enake kartice »Murderball« - razlicni posnetki morajo biti razlocljivi, ime vira pa ne vidno. */
+private fun preizkusPodnaslovaSpletnihZadetkov() {
+    println("\n== 25. 10.: podnaslov spletnih zadetkov ==")
+    val viri = listOf("YouTube", "Moja stran")
+    preveriEnako("brez leta: avtor iz naslova", "Take us Home: Leeds United", OsPravila.podnaslovSpletnegaZadetka(0, "Take us Home: Leeds United", viri))
+    preveriEnako("ime vira se ne pokaze", "", OsPravila.podnaslovSpletnegaZadetka(0, "YouTube", viri))
+    preveriEnako("ime vira ne glede na velike crke", "2005", OsPravila.podnaslovSpletnegaZadetka(2005, "youtube ", viri))
+    preveriEnako("leto in avtor", "2005 · Think Film", OsPravila.podnaslovSpletnegaZadetka(2005, "Think Film", viri))
+    preveriEnako("samo leto", "2019", OsPravila.podnaslovSpletnegaZadetka(2019, " ", viri))
+    preveriEnako("nic", "", OsPravila.podnaslovSpletnegaZadetka(0, "", emptyList()))
+    val a = OsPravila.podnaslovSpletnegaZadetka(0, "Murderball Fan", viri)
+    val b = OsPravila.podnaslovSpletnegaZadetka(0, "Take us Home: Leeds United", viri)
+    preveri("isti naslov, razlicna avtorja: razlicna podnaslova", a != b)
 }
 
 /** Lastnik 25. 10. 2026: dopolnitev zadetkov iskanja ne premakne strani (drsenje po zadetkih na telefonu). */

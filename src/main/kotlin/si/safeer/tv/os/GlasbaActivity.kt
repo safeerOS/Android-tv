@@ -6413,6 +6413,7 @@ class GlasbaActivity : OsActivity() {
         val rezultati = arrayOfNulls<Any>(14)
         val stremioNaslovi = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
+        val imenaSpletnihVirov = spletniViri.map { it.ime }
         val izSeznamov = MedijskiViri.iskanjeVSeznamih(this, beseda)
         val torrentZaVzorec = torrentMeja()
         // Naloga 57: vgrajeni spletni viri (Jamendo, Radio Browser, imenik podkastov, Archive.org, TuneIn, kanali TV v zivo)
@@ -6550,7 +6551,7 @@ class GlasbaActivity : OsActivity() {
                     .filter { !imaDobre || it.second > 0.0 }.sortedByDescending { it.second }.map { it.first }
                 // Brez podvojenih prikazov velja za to, kar blok »Najboljsi zadetki« na strani res pokaze (dve vrstici):
                 // zadetek, ki je v njem sele za »Pokazi vse«, ostane tudi v bloku svoje vrste (prej ga na strani ni bilo nikjer).
-                val vrstaNajboljsih = Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first) })
+                val vrstaNajboljsih = Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first, imenaSpletnihVirov) })
                 val vidnih = OsPravila.vsebineVBloku(najboljsi.size, 0, mereMreze(vrstaNajboljsih.copy(mreza = true)).first, OsPravila.VRSTIC_BLOKA, false)
                 val prikazani = najboljsi.take(vidnih).map { (it.first.stvar as Jamendo.Skladba).id }.toSet()
                 fun ostali(s: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
@@ -6659,9 +6660,11 @@ class GlasbaActivity : OsActivity() {
     private val strezniki = ConcurrentHashMap<String, DatotekeActivity.Streznik>()
 
     /** Kartica iskanja: spletni vir je notranja podrobnost, zato ga na kartici ne razkrivamo. */
-    private fun kartica(z: Relevantnost.Zadetek<*>): Kartica {
+    private fun kartica(z: Relevantnost.Zadetek<*>, imenaVirov: Collection<String>): Kartica {
         val sk = z.stvar as Jamendo.Skladba
-        val podnaslov = if (SpletniVir.jeEnota(sk)) sk.year.takeIf { it > 0 }?.toString().orEmpty()
+        // Spletni zadetek pove leto in avtorja iz naslova posnetka (ime vira ne): trije zadetki »Murderball« so bili na las
+        // enake kartice, v resnici pa trije razlicni posnetki YouTuba (lastnik 25. 10. 2026; OsPravila.podnaslovSpletnegaZadetka).
+        val podnaslov = if (SpletniVir.jeEnota(sk)) OsPravila.podnaslovSpletnegaZadetka(sk.year, sk.izvajalec, imenaVirov)
             else listOf(sk.izvajalec, z.izvor).filter { it.isNotBlank() }.distinct().joinToString(" · ")
         val klik: (View) -> Unit = {
             val s = strezniki[sk.id]

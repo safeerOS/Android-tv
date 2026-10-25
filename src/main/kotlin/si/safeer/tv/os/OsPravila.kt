@@ -865,6 +865,18 @@ object OsPravila {
      */
     fun vrniIzbiroPoRisanju(naDotik: Boolean, yNaMestu: Int): Boolean = !(naDotik && yNaMestu > 0)
 
+    /**
+     * Podnaslov kartice zadetka iz spletnega vira med »Najboljsimi zadetki«: leto in avtor iz naslova posnetka (izvajalec),
+     * da so zadetki z istim naslovom razlocljivi. Prej samo leto - posnetki YouTuba ga nimajo, zato so bile tri kartice
+     * »Murderball« (»Murderball«, »Take us Home: Leeds United - Murderball« ...) brez razlike (lastnik 25. 10. 2026).
+     * Ime vira ([imenaVirov]; izvajalec ga dobi, kadar naslov nima avtorja) se ne pokaze: uporabnik vir doda in nanj
+     * pozabi (lastnik: »uporabnik ne rabi vedeti, iz kje je video«).
+     */
+    fun podnaslovSpletnegaZadetka(leto: Int, izvajalec: String, imenaVirov: Collection<String>): String {
+        val avtor = izvajalec.trim().takeIf { a -> a.isNotEmpty() && imenaVirov.none { it.trim().equals(a, ignoreCase = true) } }
+        return listOfNotNull(leto.takeIf { it > 0 }?.toString(), avtor).joinToString(" · ")
+    }
+
     // ------------------------------------------------------------------ podstrani (»Pokazi vse«, seznam, epizode)
 
     /**
