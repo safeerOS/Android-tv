@@ -185,6 +185,32 @@ object TorBox {
     }
 
     /**
+     * Webtor rezerva (25. 10. 2026): torrent, ki ga ta cas predvaja Webtor, dodamo TorBoxu brez cakanja - naslednjic je
+     * takoj predvajljiv (⚡). Steje v mejo novih na uro ([TorBoxPravila.MejaNovih]); ze dodan (DUPLICATE_ITEM) je uspeh. To
+     * je namerno predpomnjenje: torrent je oznacen kot cakan ([Debrid.oznaciCakan]), da ga pospravljanje ne izbrise.
+     * Z delovne niti; vrne true, ce je torrent pri TorBoxu.
+     */
+    fun dodajZaPozneje(c: Context, magnet: String): Boolean {
+        val kljuc = kljuc(c) ?: return false
+        val hash = TorBoxPravila.hashIzMagneta(magnet) ?: return false
+        val prefs = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val casi = prefs.getString(KLJUC_NOVI, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
+        val zdaj = System.currentTimeMillis()
+        if (!TorBoxPravila.MejaNovih.dovoli(casi, zdaj)) { Log.i(TAG, "v ozadju: meja novih na uro - ${hash.take(8)}… ni dodan"); return false }
+        prefs.edit().putString(KLJUC_NOVI, (TorBoxPravila.MejaNovih.veljavni(casi, zdaj) + zdaj).joinToString(",")).apply()
+        return try {
+            val o = klic(TorBoxPravila.naslovUstvari(), kljuc, "POST", mapOf("magnet" to magnet, "allow_zip" to "false"))
+            val id = o.json?.optJSONObject("data")?.optLong("torrent_id", -1L) ?: -1L
+            val ze = !uspeh(o) && o.json?.optString("error") == "DUPLICATE_ITEM"
+            if (id >= 0) Debrid.oznaciCakan(DebridPravila.TORBOX, id.toString())
+            Log.i(TAG, "v ozadju (Webtor): createtorrent ${hash.take(8)}… ${if (uspeh(o)) "dodan" else if (ze) "ze v racunu" else "napaka ${o.koda}"}")
+            uspeh(o) || ze
+        } catch (e: Exception) {
+            Log.w(TAG, "v ozadju: ${e.javaClass.simpleName}"); false
+        }
+    }
+
+    /**
      * Naloga 141: Usenet prek TorBoxa (paket Pro). [nzb] je datoteka, ki jo je naprava prenesla od indeksatorja ([Usenet]) -
      * TorBox kljuca indeksatorja ne vidi. [samoTakoj]: `add_only_if_cached` - nic se ne doda, ce TorBox prenosa se nima
      * (napaka »ni predpomnjeno«, uporabnik lahko izbere »Pocakaj na prenos«). Sicer cakamo do
