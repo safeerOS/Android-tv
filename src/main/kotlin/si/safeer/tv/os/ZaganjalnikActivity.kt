@@ -78,9 +78,12 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private var odsekVse: LinearLayout? = null
     private var ostalo: LinearLayout? = null
     private var vseAplikacije: List<Aplikacije.Vnos> = emptyList()
-    /** Ikone mreze, dokler je zaslon ziv (predpomnilnik Aplikacije hrani le 64 - brez tega bi se ob iskanju nalagale znova). */
+    /** Majhne ikone mreze, dokler je zaslon ziv (ob iskanju se ne nalagajo znova). */
     private val ikoneVse = HashMap<String, Drawable>()
     private var iskanje = ""
+    /** Ena nit z nizko prednostjo za majhne ikone mreze (ustvari se sele na namizju). */
+    private var nitIkon: java.util.concurrent.ExecutorService? = null
+    private val cakajoceIkone = HashSet<String>()
     private var uraBesedilo: TextView? = null
     /** Opravilna vrstica namizja (spodaj): Zacetek + pripete aplikacije - kot plosca namizja Safeer OS / Windows. */
     private var opravilnaPripete: LinearLayout? = null
@@ -385,7 +388,9 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val vnosPolje = EditText(this).apply {
             setSingleLine()
             background = null
-            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            imeOptions = EditorInfo.IME_ACTION_SEARCH or
+                // Namizje: zaslonska tipkovnica ne sme prekriti zadetkov (lezece bi sicer odprla celozaslonsko polje).
+                (if (namizje) EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN else 0)
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             setTextColor(osBarva(R.color.os_besedilo))
             setHintTextColor(osBarva(R.color.os_umirjeno))
@@ -613,24 +618,38 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return
         }
         val ploscice = zadetki.map { a ->
-            ploscica(a.ime, ikoneVse[a.paket] ?: Aplikacije.ikonaIzPomnilnika(a.paket), ZnackeObvestil.koliko(a.paket),
+            ploscica(a.ime, ikoneVse[a.paket], ZnackeObvestil.koliko(a.paket),
                 ob = { v -> odpriAplikacijo(a, v) }, dolgo = { moznostiAplikacije(a) }, oznakaIkone = OZNAKA_IKONE + a.paket)
         }
         razporedi(cilj, ploscice, sirinaVsebineDp())
         o.visibility = View.VISIBLE
-        // Ikone v ozadju (nizka prednost), vsaka se vstavi, ko je nared.
+        // Majhne ikone v ozadju (nizka prednost), vsaka se vstavi, ko je nared.
+        val px = dp(if (vnos == Vnos.DALJINEC) 52 else 44)
+        val app = applicationContext
         for (a in zadetki) {
-            if (ikoneVse.containsKey(a.paket)) continue
-            Aplikacije.ikonaIzPomnilnika(a.paket)?.let { ikoneVse[a.paket] = it; continue }
-            Aplikacije.ikonaLeno(this, a) { vstaviIkono(a.paket) }
+            if (ikoneVse.containsKey(a.paket) || !cakajoceIkone.add(a.paket)) continue
+            val nit = nitIkon ?: java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+                Thread(r, "SafeerNamizjeIkone").apply { priority = Thread.MIN_PRIORITY; isDaemon = true }
+            }.also { nitIkon = it }
+            try {
+                nit.execute {
+                    val d = try { Aplikacije.ikonaMala(app, a, px) } catch (_: Throwable) { null }
+                    glavna.post { cakajoceIkone.remove(a.paket); if (d != null) vstaviIkono(a.paket, d) }
+                }
+            } catch (_: java.util.concurrent.RejectedExecutionException) { cakajoceIkone.remove(a.paket) }
         }
     }
 
-    private fun vstaviIkono(paket: String) {
+    private fun vstaviIkono(paket: String, d: Drawable) {
         if (isFinishing || isDestroyed || !namizje) return
-        val d = Aplikacije.ikonaIzPomnilnika(paket) ?: return
         ikoneVse[paket] = d
         odsekVse?.findViewWithTag<ImageView>(OZNAKA_IKONE + paket)?.setImageDrawable(d)
+    }
+
+    override fun onDestroy() {
+        nitIkon?.shutdownNow()
+        nitIkon = null
+        super.onDestroy()
     }
 
     /** Desni klik ali dolg pritisk na aplikaciji v mrezi: Odpri, Pripni / Odpni, Informacije o aplikaciji. */

@@ -18,17 +18,15 @@ import si.safeer.tv.R
  * uporabnik vklopi sam. Safeer razvijalskih nastavitev NIKOLI ne spreminja: stanje samo prebere, za vklop odpre
  * sistemsko stran Moznosti za razvijalce.
  *
- * Kdaj se aplikacija z namizja odpre v oknu: Android meje okna ([ActivityOptions.setLaunchBounds]) uposteva na zaslonu
- * v namiznem nacinu (zunanji zaslon v namiznem nacinu, Samsung DeX). Na zaslonu same tablice (Samsung ima okna kot
- * »pojavni pogled«) je za okno potreben se nacin okna, ki nima javnega API - poskusimo ga; ce ga sistem ne sprejme, se
- * aplikacija odpre cez cel zaslon kot doslej (izmerjeno na tablici: glej porocilo zaganjalnika).
+ * Kdaj se aplikacija z namizja odpre v oknu: samo z javnim [ActivityOptions.setLaunchBounds], brez skritih sistemskih
+ * klicev. Izmerjeno 25. 10. 2026 na testni tablici (Samsung, Android 16, okna vgrajena): Moje datoteke so se odprle v
+ * oknu (mode=freeform, meje 744 x 1382 px = 62 % x 72 %). Skriti setLaunchWindowingMode je za aplikacije zaprt
+ * (NoSuchMethodException) in ni potreben. Kjer naprava oken ne zmore, Android meje prezre - cel zaslon kot doslej.
  */
 object NamizniNacin {
     private const val TAG = "SafeerNamizniNacin"
     private const val PREFS = "safeer_os"
     private const val KLJUC_OKNA = "namizje_okna"
-    /** WindowConfiguration.WINDOWING_MODE_FREEFORM (sistemska vrednost, nespremenjena od Androida 7). */
-    private const val NACIN_OKNO = 5
 
     data class Stanje(
         /** Sistem podpira okna (sistemska funkcija freeform_window_management - npr. Samsung tablice). */
@@ -72,20 +70,9 @@ object NamizniNacin {
             val meje = if (android.os.Build.VERSION.SDK_INT >= 30) a.windowManager.currentWindowMetrics.bounds
                 else Rect(0, 0, a.resources.displayMetrics.widthPixels, a.resources.displayMetrics.heightPixels)
             val r = ZaganjalnikPravila.oknoAplikacije(meje.width(), meje.height(), zaporedje++)
-            val o = ActivityOptions.makeBasic().setLaunchBounds(Rect(meje.left + r[0], meje.top + r[1], meje.left + r[2], meje.top + r[3]))
-            nastaviNacinOkna(o)
-            o.toBundle()
+            ActivityOptions.makeBasic().setLaunchBounds(Rect(meje.left + r[0], meje.top + r[1], meje.left + r[2], meje.top + r[3])).toBundle()
         } catch (e: Throwable) {
             Log.w(TAG, "Okna ni bilo mogoce pripraviti: ${e.message}"); osnova
-        }
-    }
-
-    /** Nacin okna (WINDOWING_MODE_FREEFORM): sistemska moznost brez javnega API; ce je sistem ne pozna, ostane cel zaslon. */
-    private fun nastaviNacinOkna(o: ActivityOptions) {
-        try {
-            ActivityOptions::class.java.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType).invoke(o, NACIN_OKNO)
-        } catch (e: Throwable) {
-            Log.i(TAG, "Nacin okna ni na voljo (${e.javaClass.simpleName}); meje okna veljajo le na zaslonu v namiznem nacinu")
         }
     }
 

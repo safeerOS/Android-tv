@@ -90,6 +90,8 @@ class VarnostnaVrataPloscica : TileService() {
         t.updateTile()
     }
 
+    // Android 13 in starejsi imajo samo razlicico z Intent (PendingIntent je od API 34, uporabimo jo tam).
+    @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated")
     override fun onClick() {
         super.onClick()
         val dejanje = if (Zaganjalnik.jeIzbran(this)) VarnostnaVrata.DEJANJE_VRNI else VarnostnaVrata.DEJANJE_SAFEER

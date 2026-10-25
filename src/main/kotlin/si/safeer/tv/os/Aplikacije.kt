@@ -269,6 +269,22 @@ object Aplikacije {
         } catch (_: Throwable) { null }
     }
 
+    /**
+     * Majhna ikona za mrezo vseh aplikacij na namizju zaganjalnika: ikona v gostoti naprave, narisana v [px] x [px], brez
+     * velike xxxhdpi slike in brez skupnega predpomnilnika. Izmerjeno 25. 10. 2026 (testni telefon, 3 ponovitve): mreza
+     * z velikimi ikonami ([ikona]) je dodala 12-40 MB PSS.
+     */
+    fun ikonaMala(c: Context, v: Vnos, px: Int): Drawable? {
+        val vir = v.ikona ?: izvirnaIkona(c, v) ?: return null
+        return try {
+            val b = Bitmap.createBitmap(px.coerceIn(16, 256), px.coerceIn(16, 256), Bitmap.Config.ARGB_8888)
+            val platno = Canvas(b)
+            vir.setBounds(0, 0, platno.width, platno.height)
+            vir.draw(platno)
+            BitmapDrawable(c.resources, b)
+        } catch (_: Throwable) { null }
+    }
+
     fun jeNamescena(context: Context, paket: String): Boolean = try {
         context.packageManager.getPackageInfo(paket, 0); true
     } catch (_: PackageManager.NameNotFoundException) { false }
