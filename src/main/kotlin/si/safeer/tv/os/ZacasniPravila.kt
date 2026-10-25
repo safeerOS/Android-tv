@@ -30,13 +30,65 @@ object ZacasniPravila {
      */
     const val PO_OGLEDU_MS = 5_000L
     const val ZACETEK_MS = 30_000L
+    /**
+     * Grok 27, Q1: odprta povezava toka, po kateri toliko casa ni sel noben bajt (premor predvajanja s polnim medpomnilnikom,
+     * odjemalec ne bere, naprava v Linku brez povezave), ne drzi torrenta v roju. Vec kot najdaljse cakanje na kos
+     * (MagnetMotor.CAKAJ_KOS_MS = 90 s), med katerim se branje steje. Ko odjemalec spet bere, ga povezava zazene.
+     */
+    const val ZASTOJ_MS = 120_000L
 
     /**
      * Ali naj se zacasen torrent ustavi: [obdrzan] (»Obdrži« - uporabnik hoce film, kot pri Prenesi) in [deliNaprej] tečeta
-     * naprej; sicer ustavi, ko ni odprte povezave toka ([odprtihTokov]) in od zadnjega branja mine [prag] ms ([msOdBranja]).
+     * naprej; sicer ustavi, ko od zadnjega branja mine [prag] ms ([msOdBranja]) in ni odprte povezave toka ([odprtihTokov])
+     * ali pa odprte povezave ze [ZASTOJ_MS] nihce ne bere (Grok 27, Q1).
      */
     fun ustaviPoOgledu(obdrzan: Boolean, deliNaprej: Boolean, odprtihTokov: Int, msOdBranja: Long, prag: Long = PO_OGLEDU_MS): Boolean =
-        !obdrzan && !deliNaprej && odprtihTokov <= 0 && msOdBranja >= prag
+        !obdrzan && !deliNaprej && msOdBranja >= prag && (odprtihTokov <= 0 || msOdBranja >= ZASTOJ_MS)
+
+    /** Grok 27, Q5: en zapis hasha za vse mape in mnozice toka (male crke, brez presledkov). */
+    fun kanon(hash: String): String = hash.trim().lowercase()
+
+    /**
+     * Grok 27, Q2: stevci odprtih povezav toka po torrentu. Povezava zmanjsa PRAV stevec, ki ga je povecala (ne tistega, ki je
+     * pod hashem zdaj): po odstranitvi in ponovnem dodajanju med odprtim tokom stara povezava ne zmanjsa novega stevca
+     * (ustavitev med ogledom) in stevec ne pade pod nic.
+     */
+    class StevciTokov {
+        private val stevci = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger>()
+
+        /** Nova povezava toka; vrnjeni stevec preda [zapri]. */
+        fun odpri(hash: String): java.util.concurrent.atomic.AtomicInteger =
+            stevci.compute(kanon(hash)) { _, s -> (s ?: java.util.concurrent.atomic.AtomicInteger()).also { it.incrementAndGet() } }!!
+
+        /** Povezava je zaprta; vrne, koliko povezav istega stevca je se odprtih (nikoli pod nic). */
+        fun zapri(stevec: java.util.concurrent.atomic.AtomicInteger): Int =
+            stevec.updateAndGet { if (it > 0) it - 1 else 0 }
+
+        fun odprtih(hash: String): Int = stevci[kanon(hash)]?.get() ?: 0
+
+        /** Torrent je odstranjen: odprte povezave starega stevca ne stejejo vec za nov torrent z istim hashem. */
+        fun pozabi(hash: String) { stevci.remove(kanon(hash)) }
+    }
+
+    /**
+     * Grok 27, Q1: ali je odjemalec lokalnega toka se povezan, ne da bi mu kaj pisali (med cakanjem na kos). Odjemalec po
+     * zahtevi ne posilja nic vec: branje z rokom 1 ms vrne -1 (zaprl) ali poteče (se tam). Prejeti bajt (nepricakovan) se
+     * zavrze, povezava velja za zivo.
+     */
+    fun odjemalecZiv(s: java.net.Socket): Boolean {
+        if (s.isClosed || s.isInputShutdown) return false
+        val rok = try { s.soTimeout } catch (_: Exception) { return false }
+        return try {
+            s.soTimeout = 1
+            s.getInputStream().read() >= 0
+        } catch (_: java.net.SocketTimeoutException) {
+            true
+        } catch (_: Exception) {
+            false
+        } finally {
+            try { s.soTimeout = rok } catch (_: Exception) { }
+        }
+    }
 
     /** Grok 9, Z12: cas zadnje rabe v prihodnosti (napacna ura ob zagonu) se steje od zdaj, da zapis vseeno potece. */
     fun popraviCas(cas: Long, zdaj: Long): Long = if (cas > zdaj) zdaj else cas
