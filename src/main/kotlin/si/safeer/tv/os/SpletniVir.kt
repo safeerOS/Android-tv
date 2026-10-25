@@ -752,7 +752,9 @@ object SpletniVir {
             val glave = HashMap<String, String>()
             if (ua.isNotBlank()) glave["User-Agent"] = ua
             glaveDomene[domena(url)]?.let { glave.putAll(it) }
-            try { CookieManager.getInstance().getCookie(url) } catch (_: Exception) { null }?.let { glave["Cookie"] = it }
+            // Pregled N1: zahtevi iz nadomestka (dodatek s poverilnico, npr. Webtor) piskotkov spleta ne dodamo - Media3 bi jih
+            // poslal tudi cilju preusmeritve (gostitelj toka); zeton v poti zadosca.
+            if (spec === izvirna) try { CookieManager.getInstance().getCookie(url) } catch (_: Exception) { null }?.let { glave["Cookie"] = it }
             // Glave toka (proxyHeaders) imajo zadnjo besedo - tudi nad UA brskalnika in piskotki.
             glaveGostitelja[gostitelj(url)]?.let { glave.putAll(it) }
             // Glave, ki spremljajo ta tok, gredo na vsak njegov del - tudi na segmente HLS/DASH na drugem gostitelju.

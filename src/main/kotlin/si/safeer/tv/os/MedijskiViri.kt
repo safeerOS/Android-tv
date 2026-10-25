@@ -68,13 +68,15 @@ object MedijskiViri {
      * ([SkrivniDodatki]); null = sifriranje ni uspelo - pravega naslova ne shranimo.
      */
     fun dodajDodatek(ctx: Context, tip: String, naslovVnosa: String, ime: String): Vir? {
-        val naslov = if (tip == STREMIO && SkrivnostiPravila.jeSkrivenNaslov(naslovVnosa))
+        val naslov = if (tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null)
             SkrivniDodatki.zavaruj(ctx, naslovVnosa) ?: return null else naslovVnosa
         val obstojeci = vsi(ctx).firstOrNull { it.tip == tip && it.naslov == naslov }
         if (obstojeci != null) return obstojeci
         val v = Vir(tip, ime.ifBlank { android.net.Uri.parse(naslov).host ?: naslov }, naslov)
         // Samo rocno dodani: viri iz spletnih aplikacij te naprave nastanejo sproti (vsi) in se ne shranjujejo.
         shrani(ctx, rocni(ctx) + v)
+        // Dodatek s poverilnico gre sam na naprave v ozjem krogu (UskladitevKljucev).
+        if (SkrivnostiPravila.jeNadomestek(naslov)) UskladitevKljucev.sprozi(ctx)
         return v
     }
 
@@ -280,8 +282,11 @@ object MedijskiViri {
     private fun zaShranjevanje(s: Jamendo.Skladba) = when {
         // Webtor rezerva: tok dodatka s poverilnico v poti (ce ga ni bilo mogoce zakriti z nadomestkom) se ne shrani -
         // kartico dodatka ob predvajanju razresimo znova (Stremio: tokove vprasamo vedno na novo).
-        Stremio.jeEnota(s) && (SkrivnostiPravila.jeSkrivenNaslov(s.zvok) || SkrivnostiPravila.jeSkrivenNaslov(s.povezava)) ->
-            s.copy(zvok = "", mime = "", povezava = if (SkrivnostiPravila.jeSkrivenNaslov(s.povezava)) "" else s.povezava)
+        // Pregled S3: samo kartice dodatka s poverilnico - navadnim dodatkom (CDN z dolgim id-jem) tok ostane.
+        Stremio.jeEnota(s) && Stremio.razstavi(s)?.first.orEmpty().let { o ->
+            SkrivnostiPravila.odstraniTokObShranjevanju(o, s.zvok) || SkrivnostiPravila.odstraniTokObShranjevanju(o, s.povezava) } ->
+            s.copy(zvok = "", mime = "",
+                povezava = if (SkrivnostiPravila.odstraniTokObShranjevanju(Stremio.razstavi(s)?.first.orEmpty(), s.povezava)) "" else s.povezava)
         // Naloga 96: kanal seznama IPTV ima v [Jamendo.Skladba.streznik] seznam (ne PeerTube) - tok ostane.
         s.video && s.streznik.isNotBlank() && !IptvSeznami.jeKanal(s) -> s.copy(zvok = "", mime = "")
         // Ujeti tok strani velja le kratek cas: shranimo stran, tok dobimo znova ob predvajanju.
@@ -498,6 +503,8 @@ object MedijskiViri {
         // Webtor rezerva: odstranjen dodatek s poverilnico - skrivnost izgine iz sifrirane shrambe (ce je ne rabi drug vir).
         SkrivnostiPravila.nadomestnaOsnova(vir.naslov)?.let { n ->
             if (rocni(ctx).none { SkrivnostiPravila.nadomestnaOsnova(it.naslov) == n }) SkrivniDodatki.pozabi(ctx, vir.naslov)
+            // Izbris gre sam na naprave v ozjem krogu (grob s casom - UskladitevKljucev).
+            UskladitevKljucev.sprozi(ctx)
         }
     }
 
@@ -508,62 +515,97 @@ object MedijskiViri {
     fun skrivniDodatki(ctx: Context): List<String> {
         SkrivniDodatki.nalozi(ctx)
         return rocni(ctx).filter { it.jeStremio && SkrivnostiPravila.jeNadomestek(it.naslov) }
-            .map { SkrivniDodatki.dejanski(it.naslov) }.filter { SkrivnostiPravila.jeSkrivenNaslov(it) }.distinct()
+            .map { SkrivniDodatki.dejanski(it.naslov) }.filter { SkrivnostiPravila.veljavenSkrivniDodatek(it) }.distinct()
     }
 
+    /** Usklajevanje: dodatek s poverilnico z odtisom [odtis] je bil izbrisan na drugi napravi v ozjem krogu. */
+    fun odstraniSkrivniDodatek(ctx: Context, odtis: String) {
+        val v = rocni(ctx).firstOrNull { it.jeStremio && SkrivnostiPravila.nadomestnaOsnova(it.naslov)?.endsWith(SkrivnostiPravila.OZNAKA + odtis) == true }
+            ?: return
+        odstrani(ctx, v)
+    }
+
+    private val zaklepPrehoda = Any()
     @Volatile private var preseljeno = false
 
+    /** Nastavitve, ki se ne preseljujejo: sifrirane skrivnosti (vrednosti so sifrirane, ne vsebujejo naslova). */
+    private val IZVZETE_NASTAVITVE = setOf("safeer_sporocila_skrivnosti", "safeer_skrivni_dodatki")
+
     /**
-     * Webtor rezerva - prehod z razlicice pred 25. 10. 2026: dodatki s poverilnico so bili shranjeni s pravim naslovom (in
-     * usklajeni kot navaden vir). Skrivnost gre v sifrirano shrambo, pravi del naslova se v Mojih virih, zgodovini,
-     * priljubljenih, seznamih, pripetih virih in napredku ogleda zamenja z nadomestkom - dodatek in kartice ostanejo,
-     * brez sledi izbrisa za druge naprave. Ce sifriranje ne uspe, vir ostane, kot je (ne izgubi se), a ne gre vec med
-     * naprave ([uskladljiv]). Enkrat na proces.
+     * Webtor rezerva - prehod z razlicice pred 25. 10. 2026 (pregled S1/N2): dodatki s poverilnico so bili shranjeni s pravim
+     * naslovom (in usklajeni kot navaden vir). Skrivnost gre v sifrirano shrambo, pravi del naslova se v VSEH datotekah
+     * nastavitev aplikacije (kljuci in vrednosti: Moji viri, zgodovina, priljubljene, seznami, napredek, zasebni dodatki,
+     * premori, kanali ...) zamenja z nadomestkom, predpomnilnik manifestov z njim se izbrise - dodatek in kartice ostanejo,
+     * brez sledi izbrisa za druge naprave. Ce sifriranje ne uspe, vir ostane, kot je (ne izgubi se), a ne gre vec med naprave
+     * ([uskladljiv]). Zastavica se postavi sele po koncanem delu (pod zaklepom); v ozadju se nato enkrat na proces pregledajo
+     * se vse nastavitve za znane prave naslove (kar je morda zapisala nit, ki je brala pred prehodom) in pospravijo
+     * zapuscene skrivnosti. Klice se iz [rocni] in pred branjem nastavitev v Stremio.pripravi.
      */
-    private fun preseliSkrivne(ctx: Context) {
+    fun preseliSkrivne(ctx: Context) {
         if (preseljeno) return
-        synchronized(this) {
+        val a = ctx.applicationContext
+        synchronized(zaklepPrehoda) {
             if (preseljeno) return
+            try { preseli(a) } catch (e: Exception) { android.util.Log.w("SafeerOsMedia", "skrivni dodatki, prehod: ${e.javaClass.simpleName}") }
             preseljeno = true
-            val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
-            val a = try { JSONArray(p.getString(KLJUC, "[]")) } catch (_: Exception) { return }
-            val zamenjave = LinkedHashMap<String, String>()
-            for (i in 0 until a.length()) {
-                val o = a.optJSONObject(i) ?: continue
-                if (o.optString("tip") != STREMIO) continue
-                val n = o.optString("naslov")
-                val predpona = SkrivnostiPravila.skrivnaPredpona(n) ?: continue
-                if (SkrivniDodatki.zavaruj(ctx, n) == null) continue
-                zamenjave[predpona] = SkrivnostiPravila.nadomestek(predpona) ?: continue
+        }
+        Thread({ try { pocisti(a) } catch (e: Exception) { android.util.Log.w("SafeerOsMedia", "skrivni dodatki, pospravljanje: ${e.javaClass.simpleName}") } },
+            "safeer-skrivni-prehod").apply { isDaemon = true }.start()
+    }
+
+    private fun preseli(a: Context) {
+        val p = a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        val viri = try { JSONArray(p.getString(KLJUC, "[]")) } catch (_: Exception) { return }
+        val zamenjave = LinkedHashMap<String, String>()
+        for (i in 0 until viri.length()) {
+            val o = viri.optJSONObject(i) ?: continue
+            if (o.optString("tip") != STREMIO) continue
+            val n = o.optString("naslov")
+            val predpona = SkrivnostiPravila.skrivnaPredponaDodatka(n) ?: continue
+            if (SkrivniDodatki.zavaruj(a, n) == null) continue
+            zamenjave[predpona] = SkrivnostiPravila.nadomestek(predpona) ?: continue
+        }
+        if (zamenjave.isEmpty()) return
+        val n = zamenjajVNastavitvah(a, zamenjave)
+        android.util.Log.i("SafeerOsMedia", "skrivni dodatki: ${zamenjave.size} preseljenih na nadomestek (datotek nastavitev $n)")
+    }
+
+    /** Vse datoteke nastavitev (razen [IZVZETE_NASTAVITVE]) in predpomnilnik dodatkov: pravi del -> nadomestek. */
+    private fun zamenjajVNastavitvah(a: Context, zamenjave: Map<String, String>): Int {
+        var spremenjenih = 0
+        val imena = java.io.File(a.applicationInfo.dataDir, "shared_prefs").listFiles()
+            ?.mapNotNull { f -> f.name.takeIf { it.endsWith(".xml") }?.removeSuffix(".xml") }.orEmpty()
+        for (ime in imena) {
+            if (ime in IZVZETE_NASTAVITVE) continue
+            val sp = a.getSharedPreferences(ime, Context.MODE_PRIVATE)
+            val novo = SkrivnostiPravila.preseliVnose(sp.all, zamenjave) ?: continue
+            val e = sp.edit().clear()
+            for ((k, v) in novo) when (v) {
+                is String -> e.putString(k, v)
+                is Long -> e.putLong(k, v)
+                is Int -> e.putInt(k, v)
+                is Boolean -> e.putBoolean(k, v)
+                is Float -> e.putFloat(k, v)
+                is Set<*> -> e.putStringSet(k, v.filterIsInstance<String>().toSet())
             }
-            if (zamenjave.isEmpty()) return
-            // Najprej daljse (dve skrivnosti z isto zacetno potjo); org.json pise »/« tudi kot »\/«.
-            val red = zamenjave.entries.sortedByDescending { it.key.length }
-            fun zamenjaj(s: String): String {
-                var r = s
-                for ((k, v) in red) r = r.replace(k, v).replace(k.replace("/", "\\/"), v.replace("/", "\\/"))
-                return r
-            }
-            for (ime in listOf(NASTAVITVE, "safeer_media_napredek")) {
-                val sp = ctx.getSharedPreferences(ime, Context.MODE_PRIVATE)
-                val e = sp.edit()
-                for ((k, v) in sp.all) {
-                    val nk = zamenjaj(k)
-                    val nv: Any? = if (v is String) zamenjaj(v) else v
-                    if (nk == k && nv == v) continue
-                    if (nk != k) e.remove(k)
-                    when (nv) {
-                        is String -> e.putString(nk, nv)
-                        is Long -> e.putLong(nk, nv)
-                        is Int -> e.putInt(nk, nv)
-                        is Boolean -> e.putBoolean(nk, nv)
-                        is Float -> e.putFloat(nk, nv)
-                        is Set<*> -> e.putStringSet(nk, nv.filterIsInstance<String>().map { zamenjaj(it) }.toSet())
-                    }
-                }
-                e.commit()
-            }
-            android.util.Log.i("SafeerOsMedia", "skrivni dodatki: ${zamenjave.size} preseljenih na nadomestek")
+            e.commit()
+            spremenjenih++
+        }
+        // Predpomnjeni manifesti in odgovori dodatkov s pravim naslovom: izbrisemo jih (predpomnilnik se napolni znova).
+        java.io.File(a.cacheDir, "stremio").listFiles()?.forEach { f ->
+            try { if (f.isFile && f.length() < 16L * 1024 * 1024 && SkrivnostiPravila.vsebujeKatero(f.readText(), zamenjave.keys)) f.delete() } catch (_: Exception) { }
+        }
+        return spremenjenih
+    }
+
+    /** Enkrat na proces v ozadju: ostanki pravih naslovov v nastavitvah (N2) in zapuscene skrivnosti (S4). */
+    private fun pocisti(a: Context) {
+        synchronized(zaklepPrehoda) {
+            val pravi = SkrivniDodatki.pravePredpone(a)
+            if (pravi.isEmpty()) return
+            val n = zamenjajVNastavitvah(a, pravi)
+            if (n > 0) android.util.Log.i("SafeerOsMedia", "skrivni dodatki: pravi naslov odstranjen se iz $n datotek nastavitev")
+            SkrivniDodatki.pocisti(a, rocni(a).mapNotNull { SkrivnostiPravila.nadomestnaOsnova(it.naslov) }.toSet())
         }
     }
 
@@ -791,7 +833,7 @@ object MedijskiViri {
     @Synchronized private fun shrani(ctx: Context, viriVnosa: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false) {
         // Webtor rezerva: dodatek s poverilnico nikoli kot pravi naslov v nastavitvah (varovalka za vse poti dodajanja).
         val viri = viriVnosa.map { v ->
-            if (v.jeStremio && SkrivnostiPravila.jeSkrivenNaslov(v.naslov)) SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) } ?: v else v
+            if (v.jeStremio && SkrivnostiPravila.skrivnaPredponaDodatka(v.naslov) != null) SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) } ?: v else v
         }
         val prej = rocni(ctx).map { kljucUskladitve(it) }.toSet()
         val zdaj = viri.map { kljucUskladitve(it) }.toSet()

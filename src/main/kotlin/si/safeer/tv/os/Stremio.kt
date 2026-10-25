@@ -75,7 +75,9 @@ object Stremio {
                    /** Webtor rezerva: [WebtorPravila.VIR] za tokove dodatka Webtor, sicer prazno. */
                    val vir: String = "",
                    /** Webtor rezerva: [WebtorPravila.Vrsta.name] iz predpone imena toka. */
-                   val oznakaVira: String = "")
+                   val oznakaVira: String = "",
+                   /** Webtor rezerva: sledilniki toka (`sources` »tracker:...«) za magnet, ce torrent dodamo TorBoxu v ozadju. */
+                   val sledilniki: List<String> = emptyList())
 
     private val manifesti = ConcurrentHashMap<String, Manifest>()
 
@@ -383,6 +385,8 @@ object Stremio {
         zadnjaKoda.set(0)
         zadnjeGlave.set(emptyMap())
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
+        // Pregled S5: nadomestek, katerega skrivnosti ta naprava ne pozna (Keystore) - nobene zahteve na nadomestni naslov.
+        if (!SkrivniDodatki.pozna(aplikacija, url)) return null
         // Naloga 73: rok in prednost po vrsti zahtevka (katalog / meta / tok / podnapisi / manifest).
         val politika = OsPravila.politikaZahteve(url, zahtevekVOzadju.get() == true)
         val cas = if (rok > 0) rok else politika.rokMs
@@ -559,6 +563,9 @@ object Stremio {
             val a = ctx.applicationContext
             // Naloga 125: razvojni nacin dodatkov (privzeto izklopljen).
             try { DodatkiRazvoj.nalozi(a) } catch (_: Exception) { }
+            // Pregled S1: dodatki s poverilnico iz prejsnje razlicice dobijo nadomestek, PREDEN se tu preberejo nastavitve
+            // (zasebni, premori, zaklepi, tempo) - sicer bi jih pomnilnik zapisal nazaj s pravim naslovom.
+            try { MedijskiViri.preseliSkrivne(a) } catch (_: Throwable) { }
             if (mapaPredpomnilnika == null) mapaPredpomnilnika = java.io.File(a.cacheDir, "stremio")
             aplikacija = a
             // Webtor rezerva: skrivni deli naslovov dodatkov (nadomestek -> pravi naslov tik pred klicem).
@@ -949,6 +956,8 @@ object Stremio {
         zadnjaKoda.set(0)
         zadnjeGlave.set(emptyMap())
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
+        // Pregled S5: nadomestek, katerega skrivnosti ta naprava ne pozna (Keystore) - nobene zahteve na nadomestni naslov.
+        if (!SkrivniDodatki.pozna(aplikacija, url)) return null
         val politika = OsPravila.politikaZahteve(url, true)
         val cas = politika.rokMs
         return sPrednostjo(politika.prednost) { try {
@@ -1246,24 +1255,28 @@ object Stremio {
     }
 
     /**
-     * Webtor rezerva (25. 10. 2026): tok dodatka s poverilnico v naslovu (osebni zeton Webtorja) dobi nadomestek brez
-     * skrivnosti - tak gre v predvajalnik, zgodovino, Link; pravi naslov vstavi sele [SkrivniDodatki.dejanski]. Tok dodatka
-     * Webtor ([WebtorPravila.jeWebtor]): ime brez predpone `[⚡WT]`/`[WT]`/`[⚡TB]`, vrsta predpone, izdaja (infoHash in
-     * fileIdx, sicer iz JWT) za ujemanje z nasimi torrenti.
+     * Webtor rezerva (25. 10. 2026): tok dodatka s poverilnico dobi nadomestek brez skrivnosti - tak gre v predvajalnik,
+     * zgodovino, Link; pravi naslov vstavi sele [SkrivniDodatki.dejanski]. Pregled S2/S4: tok, ki se zacne z osnovo dodatka
+     * (Webtor `.../resolve/<JWT>`), dobi nadomestek dodatka (velja tudi drugim napravam v ozjem krogu); tok s svojo
+     * skrivnostjo (kljuc v poti, zeton v poizvedbi) nadomestek samo v pomnilniku.
+     * Tok dodatka Webtor (pregled V1: `id` Webtorja IN dodatek na https://webtor.io - [WebtorPravila.jeWebtorDodatek]): ime
+     * brez predpone `[⚡WT]`/`[WT]`/`[⚡TB]`, vrsta predpone, izdaja (infoHash in fileIdx, sicer iz JWT) za ujemanje z nasimi
+     * torrenti in sledilniki za magnet.
      */
     private fun prilagodi(t: Tok, o: JSONObject, osnova: String, idManifesta: String): Tok {
         var x = t
-        val app = aplikacija
-        if (x.vrsta == "url" && app != null && (SkrivnostiPravila.jeNadomestek(osnova) || SkrivnostiPravila.jeSkrivenNaslov(osnova)) &&
-            SkrivnostiPravila.jeSkrivenNaslov(x.url)) SkrivniDodatki.zavaruj(app, x.url)?.let { x = x.copy(url = it) }
-        if (x.vrsta == "url" && WebtorPravila.jeWebtor(idManifesta)) {
+        if (x.vrsta == "url" && (SkrivnostiPravila.jeNadomestek(osnova) || SkrivnostiPravila.skrivnaPredponaDodatka(osnova) != null))
+            x = x.copy(url = SkrivniDodatki.zakrijTok(x.url, osnova))
+        if (x.vrsta == "url" && WebtorPravila.jeWebtorDodatek(idManifesta, osnova)) {
             val oznaka = WebtorPravila.razcleni(x.ime)
             val hashToka = SerijePravila.niz(o.optString("infoHash"))
             // Izdaja kot pri nasih dodatkih: infoHash in fileIdx toka (Webtor posreduje tok istega dodatka; brez fileIdx = -1,
             // tako kot pri nas). Samo tok brez infoHash dobi izdajo iz JWT.
             val k = WebtorPravila.kljuc(hashToka, if (o.has("fileIdx")) o.optInt("fileIdx", -1) else -1) ?: WebtorPravila.izJwt(x.url)
+            val viri = o.optJSONArray("sources")
+            val sledilniki = (0 until minOf(viri?.length() ?: 0, 30)).mapNotNull { viri?.optString(it) }.filter { it.startsWith("tracker:") }
             x = x.copy(ime = oznaka.ime.ifBlank { WebtorPravila.IME }, vir = WebtorPravila.VIR, oznakaVira = oznaka.vrsta.name,
-                hash = k?.hash.orEmpty(), datoteka = k?.idx ?: -1)
+                hash = k?.hash.orEmpty(), datoteka = k?.idx ?: -1, sledilniki = sledilniki)
         }
         return x
     }
@@ -1709,6 +1722,8 @@ object Stremio {
     private fun tokoviDodatkov(naslovi: List<String>, tip: String, id: String, placilnih: java.util.concurrent.atomic.AtomicInteger,
                                brezOdgovora: java.util.concurrent.atomic.AtomicBoolean): List<Tok> =
         naslovi.also { uporabnikOb = System.currentTimeMillis() }
+        // Pregled S5: dodatek s poverilnico, ki ga ta naprava ne zna odkleniti, ni »izpad« - samo ga ne vprasamo.
+        .filter { SkrivniDodatki.pozna(aplikacija, it) }
         // Dodatek, ki ga ne dosezemo (manifesta ni), bi vsebino morda imel: to je izpad, ne "ni na voljo".
         .mapNotNull { manifest(it) ?: run { zadnjiIzpad.set(System.currentTimeMillis()); brezOdgovora.set(true); null } }
         .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) &&

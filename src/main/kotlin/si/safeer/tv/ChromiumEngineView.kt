@@ -407,8 +407,12 @@ class ChromiumEngineView @JvmOverloads constructor(
             var predano = false
             try {
                 si.safeer.tv.os.Stremio.pripravi(ctx)
-                val koda = try { si.safeer.tv.os.Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
-                val ime = if (koda == 200) (try { si.safeer.tv.os.Stremio.manifest(naslov)?.ime } catch (_: Exception) { null }) else null
+                // Pregled S1: dodatek s poverilnico se preveri z nadomestkom - pravi naslov ne gre v nobeno datoteko nastavitev
+                // (ime in zasebnost manifesta se zapiseta pod nadomestkom). Ce sifriranje ne uspe, ga ne preverimo (in ne shranimo).
+                val preverjen = if (si.safeer.tv.os.SkrivnostiPravila.skrivnaPredponaDodatka(naslov) != null)
+                    si.safeer.tv.os.SkrivniDodatki.zavaruj(ctx, naslov) else naslov
+                val koda = if (preverjen == null) 0 else try { si.safeer.tv.os.Stremio.preveriObVnosu(preverjen) } catch (_: Exception) { 0 }
+                val ime = if (koda == 200 && preverjen != null) (try { si.safeer.tv.os.Stremio.manifest(preverjen)?.ime } catch (_: Exception) { null }) else null
                 predano = glavna.post { try {
                 val dejavnost = ctx as? android.app.Activity
                 if (dejavnost == null || dejavnost.isFinishing || dejavnost.isDestroyed) { sprostiDodatek(); return@post }
