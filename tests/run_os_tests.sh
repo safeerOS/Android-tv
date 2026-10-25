@@ -233,6 +233,14 @@ java -cp "$OUT/povezava.jar" si.safeer.tv.os.NeposrednaPovezavaTestKt
     -include-runtime -d "$OUT/neposredna.jar"
 java -cp "$OUT/neposredna.jar" si.safeer.tv.link.NeposrednaPotTestKt
 
+# Datoteke telefona v Linku (LinkDatotekePravila): deli velike galerije, datum posnetka, raven dostopa (delni dostop
+# Androida 14), navidezne mape, poti fs: (Android/data, skrite, povezave ven) in slicice (rob, ETag, predpomnilnik).
+"$KOTLINC" -J-Xmx1g \
+    "$SRC/si/safeer/tv/link/LinkDatotekePravila.kt" \
+    "$TEST_DIR/LinkDatotekePravilaTest.kt" \
+    -include-runtime -d "$OUT/linkdatoteke.jar"
+java -cp "$OUT/linkdatoteke.jar" si.safeer.tv.link.LinkDatotekePravilaTestKt
+
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"
 python3 "$TEST_DIR/preveri_dostop_v_ozadju.py"

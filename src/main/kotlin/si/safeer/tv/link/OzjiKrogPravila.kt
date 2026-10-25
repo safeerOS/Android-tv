@@ -38,4 +38,12 @@ object OzjiKrogPravila {
         }
         return izid
     }
+
+    /**
+     * Ali je katera naprava v [potem] (izid [spremembe] ali nov zapis dostopa) na novo dobila zmoznost [z]. Ob tem ta
+     * naprava takoj vprasa za dovoljenja Androida, ki jih zmoznost potrebuje (lastnik 25. 10. 2026: ena privolitev v
+     * Linku, brez locenih stikal). Odstranitev ali ze prej odprta zmoznost ne vprasa nicesar.
+     */
+    fun <Z> novaZmoznost(prej: Map<String, Set<Z>>, potem: Map<String, Set<Z>>, z: Z): Boolean =
+        potem.any { (id, dano) -> z in dano && z !in prej[id].orEmpty() }
 }

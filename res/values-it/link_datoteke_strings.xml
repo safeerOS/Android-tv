@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Datoteke te naprave v Safeer Linku: mape za druge naprave in prosnja za vec datotek
+     (link/DatotekeStreznik.kt, link/DostopDatotekActivity.kt). -->
+<resources>
+    <string name="link_datoteke_kamera">Fotocamera</string>
+    <string name="link_datoteke_posnetki">Screenshot</string>
+    <string name="link_datoteke_albumi">Album</string>
+    <string name="link_datoteke_vse">Tutti i file</string>
+    <string name="link_datoteke_koren">Memoria interna</string>
+    <string name="link_datoteke_naprava">Un dispositivo di Safeer Link</string>
+    <string name="link_datoteke_kanal">Richieste di accesso ai file</string>
+    <string name="link_datoteke_prosnja_naslov">Safeer Link: condividere più file?</string>
+    <string name="link_datoteke_prosnja_fotografije">%1$s vorrebbe vedere foto e video di questo dispositivo. Tocca per scegliere cosa condividere.</string>
+    <string name="link_datoteke_prosnja_vse">%1$s vorrebbe vedere tutti i file di questo dispositivo. Tocca e attiva l’accesso a tutti i file per Safeer.</string>
+</resources>

@@ -386,6 +386,14 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true"
             android:noHistory="true" />
+        <!-- Prosnja druge naprave za vec datotek (files.request_access): sistemsko okno dovoljenja sele ob dotiku
+             obvestila. Brez svojega vmesnika in v svojem opravilu: po odgovoru je uporabnik tam, kjer je bil. -->
+        <activity
+            android:name="si.safeer.tv.link.DostopDatotekActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity
             android:name="si.safeer.tv.scit.ScitActivity"
             android:exported="true"

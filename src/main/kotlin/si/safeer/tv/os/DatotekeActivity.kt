@@ -451,6 +451,45 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /**
+     * `files.list` po delih (25. 10. 2026, telefon z veliko galerijo): naprava vrne najvec 500 vnosov in `next_offset`;
+     * prej je odjemalec videl samo 500 najnovejsih. Nova mapa: prvi del je na zaslonu takoj, ostale [odgovor] dobi
+     * enkrat, kot cel seznam (dopolni se na mestu, uporabnik ostane, kjer je). Znana mapa ([znana]): en odgovor s celim
+     * seznamom, da se znani seznam med osvezitvijo ne skrci na prvi del. Najvec 20 delov (pomnilnik
+     * televizorja). Starejsa naprava `next_offset` ne poslje - en del kot prej. [velja]: zahteva je se aktualna.
+     */
+    private fun seznamPoDelih(cilj: String, oznaka: String, znana: Boolean, velja: () -> Boolean, odgovor: LinkOdjemalec.Odgovor) {
+        val zbrani = org.json.JSONArray()
+        var poslanih = 0
+        val najvecDelov = 20     // po 500: 10 000 vnosov
+        fun poslji(izid: JSONObject, podatki: JSONObject) {
+            // Kopija: handler bere seznam takoj, zbrani pa raste naprej.
+            podatki.put("items", org.json.JSONArray().also { k -> for (i in 0 until zbrani.length()) k.put(zbrani.opt(i)) })
+            poslanih = zbrani.length()
+            odgovor.na(izid, "")
+        }
+        fun del(odmik: Int, st: Int, zadnji: JSONObject?) {
+            val p = JSONObject().put("folder", oznaka)
+            if (odmik > 0) p.put("offset", odmik)
+            link.ukaz(cilj, "files.list", p, 12_000, LinkOdjemalec.Odgovor { izid, napaka ->
+                val podatki = izid?.optJSONObject("data")
+                val dober = izid != null && izid.optBoolean("ok") && podatki != null && podatki.optBoolean("shared", true)
+                if (!dober) {
+                    // Prvi del: napaka gre naprej kot prej. Kasnejsi: ostane, kar je ze zbrano (pokazemo, ce se ni).
+                    if (st == 0) odgovor.na(izid, napaka)
+                    else if (zadnji != null && zbrani.length() > poslanih && velja()) poslji(zadnji, zadnji.getJSONObject("data"))
+                    return@Odgovor
+                }
+                podatki!!.optJSONArray("items")?.let { for (i in 0 until it.length()) zbrani.put(it.opt(i)) }
+                val naslednji = podatki.optInt("next_offset", 0)
+                val se = naslednji > odmik && st + 1 < najvecDelov
+                if (!se || (st == 0 && !znana)) poslji(izid!!, podatki)
+                if (se && velja()) del(naslednji, st + 1, izid)
+            })
+        }
+        del(0, 0, null)
+    }
+
+    /**
      * Seznam mape na napravi. Mapa, ki smo jo v tej seji ze videli, je na zaslonu takoj (Nazaj, ponoven
      * vstop); svez seznam pride v ozadju: ce se ni nic spremenilo, uporabnik osvezitve ne opazi, sicer se
      * seznam dopolni na mestu. [polozaj]: kam v seznamu postaviti uporabnika (vrnitev v nadrejeno mapo).
@@ -494,7 +533,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 }
             }
         }
-        link.ukaz(r.id, "files.list", JSONObject().put("folder", oznaka), 12_000, LinkOdjemalec.Odgovor { izid, napaka ->
+        seznamPoDelih(r.id, oznaka, znan != null, { !isFinishing && racunalnik?.id == r.id && st == zahteva }, LinkOdjemalec.Odgovor { izid, napaka ->
             // Velja samo odgovor na zadnjo zahtevo: hiter Nazaj ne sme mape prepisati s seznamom prejsnje.
             if (isFinishing || racunalnik?.id != r.id || st != zahteva) return@Odgovor
             glavna.removeCallbacks(pokaziNalagam)
@@ -557,9 +596,15 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     "media:video" -> getString(R.string.os_krajevno_videi)
                     "media:audio" -> getString(R.string.os_krajevno_glasba)
                     "media:image" -> getString(R.string.os_krajevno_slike)
+                    "media:camera" -> getString(R.string.link_datoteke_kamera)
+                    "media:screenshots" -> getString(R.string.link_datoteke_posnetki)
+                    "media:albums" -> getString(R.string.link_datoteke_albumi)
+                    "fs:" -> getString(R.string.link_datoteke_vse)
                     else -> v.optString("name")
                 }
+                // Datum posnetka (telefon, ms) ima prednost: galerija po dnevih kot na telefonu, ne po casu kopiranja.
                 val surovCas = when {
+                    v.optLong("date_taken", 0L) > 0L -> v.optLong("date_taken")
                     v.has("modified") -> v.optLong("modified")
                     v.has("mtime") -> v.optLong("mtime")
                     else -> v.optLong("date_modified")

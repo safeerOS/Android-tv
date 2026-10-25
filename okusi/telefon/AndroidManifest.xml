@@ -25,6 +25,11 @@
          njega ostane voden korak na stran Safeer Vnosa. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
+    <!-- Vse datoteke za racunalnike v ozjem krogu (Safeer Link, link/DatotekeStreznik): posebni dostop »vse datoteke«,
+         ki ga uporabnik vklopi sam v sistemskih nastavitvah za Safeer in ga tam tudi umakne. Safeer ni v Trgovini Play,
+         zato njen pravilnik za to dovoljenje ne velja. Brez njega naprava deli samo medije (READ_MEDIA_*). -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
+
     <queries>
         <package android:name="si.safeer.tv" />
         <package android:name="com.safeer.mobile.browser" />
