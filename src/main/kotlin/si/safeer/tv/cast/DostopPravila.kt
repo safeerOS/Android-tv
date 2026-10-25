@@ -87,6 +87,12 @@ object DostopPravila {
         Zahteva.VSE -> dano.containsAll(VSE_ZMOZNOSTI)
     }
 
+    /**
+     * Kar velja od zapisanih zmoznosti: nic za napravo, ki je umaknjena iz kroga (umik takoj preklice dostop, lastnik
+     * 25. 10. 2026), sicer zapisano.
+     */
+    fun veljavne(dano: Set<Zmoznost>, umaknjena: Boolean): Set<Zmoznost> = if (umaknjena) emptySet() else dano
+
     /** Clan kroga, kolikor ga pravila potrebujejo. */
     class Clan(val id: String, val kljuc: String, val dodano: Double)
 

@@ -759,7 +759,9 @@ object Daljinec {
         // A4: deljenje caka na odklep - dotik ali tipka z racunalnika bi sla na zaklepni zaslon.
         if (!DeljenjePravila.vnosDovoljen(DeljenjeZaslonaStoritev.cakaNaOdklep)) return izidZaklenjeno()
         if (!VnosStoritev.aktivna()) {
-            return Izid(false, "Na tej napravi vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
+            // Storitve, ki je ta gradnja nima, ne obljubljamo (lastnikov TV 25. 10. 2026: navodilo za stikalo, ki ga ni bilo).
+            if (!VnosVklop.vGradnji(context)) return Izid(false, "Ta aplikacija nima Safeer Vnosa.", koda = KODA_NI_NA_VOLJO)
+            return Izid(false, "Na tej napravi vklopi Safeer Vnos (Nastavitve → Ožji krog zaupanja).", koda = "vnos_ni_vklopljen")
         }
         val uspelo = when (d) {
             "input.tap" -> VnosStoritev.dotik(p.optDouble("x", -1.0), p.optDouble("y", -1.0), p.optLong("ms", 60))
@@ -781,62 +783,70 @@ object Daljinec {
      * naravnost na podrobnosti Safeer Vnosa (ACTION_ACCESSIBILITY_DETAILS_SETTINGS), da je stikalo takoj vidno.
      */
     private fun vklopiVnos(context: Context): Izid {
-        if (VnosStoritev.aktivna()) return Izid(true, "Safeer Vnos je že vklopljen.")
-        val zaklenjeno = omejenoZaklenjeno(context)
-        val poskusil = jeZePoskusilVnos(context)
-        beleziPoskusVnosa(context)
         val sl = try { context.resources.configuration.locales[0].language == "sl" } catch (_: Throwable) { false }
         return try {
-            when (OmejenoNastavitvePravila.korak(false, zaklenjeno, poskusil)) {
-                OmejenoNastavitvePravila.Korak.ODKLENI_OMEJENE -> {
-                    // Tap na stikalo je »Prepovedana nastavitev« zavrnila. Odklep je odvisen od proizvajalca: AOSP/WP28 ima
-                    // na strani aplikacije meni »⋮ → Dovoli omejene nastavitve«, OnePlus (izmerjeno 25. 10. 2026) ga NIMA -
-                    // zato ne obljubimo poti, ki je naprava morda nima; odpremo podatke aplikacije (veljavno povsod) in
-                    // povemo oba primera.
-                    context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        android.net.Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    val pot = if (sl) "Android je vklop zavrnil (omejena nastavitev). Če je zgoraj desno meni »⋮«, tapni »⋮« → »Dovoli omejene nastavitve« → potrdi s PIN-om, nato znova vklopi Safeer Vnos. Če menija ni, te omejitve na tej napravi ni mogoče odkleniti brez računalnika – javi Safeer."
-                        else "Android blocked it (restricted setting). If there is a “⋮” menu top right, tap “⋮” → “Allow restricted settings” → confirm with your PIN, then enable Safeer Vnos again. If there is no such menu, this restriction can’t be lifted on this device without a computer – tell Safeer."
-                    toast(context, pot)
-                    Izid(true, pot, koda = KODA_OMEJENE_NASTAVITVE)
+            when (VnosVklop.pot(context)) {
+                VnosVklopPravila.Pot.NI_STORITVE -> Izid(false,
+                    if (sl) "Ta aplikacija nima Safeer Vnosa." else "This app has no Safeer Vnos.", koda = KODA_NI_NA_VOLJO)
+                VnosVklopPravila.Pot.ZE_VKLOPLJENO -> Izid(true, "Safeer Vnos je že vklopljen.")
+                // input.enable sme poslati samo naprava z odprtim zaslonom (DostopPravila: input.* = ZASLON): privolitev v
+                // ozjem krogu je dana. Z WRITE_SECURE_SETTINGS Vnos vklopimo brez Nastavitev (link/VnosVklop).
+                VnosVklopPravila.Pot.SAMODEJNO -> {
+                    VnosVklop.vklopi(context) { izid -> if (!izid.aktivna) vodeniVklop(context, sl) }
+                    Izid(true, if (sl) "Safeer Vnos se vklaplja – vnos pošlji znova čez nekaj sekund."
+                        else "Safeer Vnos is turning on – send input again in a few seconds.", koda = KODA_VKLAPLJA)
                 }
-                else -> {
-                    odpriPodrobnostiVnosa(context)
-                    val pot = if (sl) "Vklopi stikalo prav pri »Safeer Vnos« (ne pri sistemskem »Meniju za dostopnost«). Če Android pokaže »Prepovedana nastavitev«, najprej odkleni omejene nastavitve."
-                        else "Turn on the switch for “Safeer Vnos” (not the system “Accessibility Menu”). If Android shows “Restricted setting”, allow restricted settings first."
-                    toast(context, pot)
-                    Izid(true, if (sl) "Na napravi se odpira Safeer Vnos: $pot" else "Opening Safeer Vnos on the device: $pot")
-                }
+                else -> vodeniVklop(context, sl)
             }
         } catch (e: Throwable) {
             Izid(false, "Nastavitev ni bilo mogoče odpreti: ${e.message}")
         }
     }
 
-    const val KODA_OMEJENE_NASTAVITVE = "omejene_nastavitve"
-    private const val PREFS_VNOS = "safeer_vnos_tok"
-
     /**
-     * Od API 31 naravnost na podrobnosti Safeer Vnosa (ACTION_ACCESSIBILITY_DETAILS_SETTINGS - stikalo je takoj vidno,
-     * brez iskanja po seznamu); nizje seznam dostopnosti z oznaceno postavko. Oboje uporabi isti `fragment_args`
-     * mehanizem Nastavitev (brez skritih konstant). Ob napaki rezervno odpre navaden seznam dostopnosti.
+     * Voden tok brez WRITE_SECURE_SETTINGS ali z zaklenjenimi omejenimi nastavitvami ([OmejenoNastavitvePravila]).
+     * Omejene nastavitve (Android 13+, lokalna namestitev) najprej zahtevajo »⋮ → Dovoli omejene nastavitve → PIN« na
+     * strani aplikacije, sele potem se stikalo da vklopiti; od API 31 pridemo naravnost na podrobnosti Safeer Vnosa.
+     * Na televizorju besedilo za daljinec (»izberi«), ne za dotik.
      */
-    private fun odpriPodrobnostiVnosa(context: Context) {
-        val komponenta = android.content.ComponentName(context, VnosStoritev::class.java).flattenToString()
-        val oznaci = android.os.Bundle().apply { putString(":settings:fragment_args_key", komponenta) }
-        val akcija = if (Build.VERSION.SDK_INT >= 31) "android.settings.ACCESSIBILITY_DETAILS_SETTINGS"
-            else android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS
-        val namera = Intent(akcija).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            .putExtra(":settings:fragment_args_key", komponenta)
-            .putExtra(":settings:show_fragment_args", oznaci)
-        try {
-            if (context.packageManager.resolveActivity(namera, 0) != null) { context.startActivity(namera); return }
-        } catch (_: Throwable) { }
-        context.startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            .putExtra(":settings:fragment_args_key", komponenta)
-            .putExtra(":settings:show_fragment_args", oznaci))
+    private fun vodeniVklop(context: Context, sl: Boolean): Izid {
+        val tv = si.safeer.tv.os.Naprava.jeTelevizor(context)
+        val ime = VnosVklop.ime(context)
+        val zaklenjeno = omejenoZaklenjeno(context)
+        val poskusil = jeZePoskusilVnos(context)
+        beleziPoskusVnosa(context)
+        return when (OmejenoNastavitvePravila.korak(false, zaklenjeno, poskusil)) {
+            OmejenoNastavitvePravila.Korak.ODKLENI_OMEJENE -> {
+                // Tap na stikalo je »Prepovedana nastavitev« zavrnila. Odklep je odvisen od proizvajalca: AOSP/WP28 ima
+                // na strani aplikacije meni »⋮ → Dovoli omejene nastavitve«, OnePlus (izmerjeno 25. 10. 2026) ga NIMA -
+                // zato ne obljubimo poti, ki je naprava morda nima; odpremo podatke aplikacije (veljavno povsod) in
+                // povemo oba primera. Namestitev z racunalnika: adb shell appops set <paket> ACCESS_RESTRICTED_SETTINGS allow.
+                VnosVklop.odpriPodatkeAplikacije(context)
+                val pot = if (sl) "Android je vklop zavrnil (omejena nastavitev). Če je zgoraj desno meni »⋮«, tapni »⋮« → »Dovoli omejene nastavitve« → potrdi s PIN-om, nato znova vklopi $ime. Če menija ni, omejitev odpravi namestitev z računalnika (adb)."
+                    else "Android blocked it (restricted setting). If there is a “⋮” menu top right, tap “⋮” → “Allow restricted settings” → confirm with your PIN, then enable $ime again. If there is no such menu, installing from a computer (adb) lifts the restriction."
+                toast(context, pot)
+                Izid(true, pot, koda = KODA_OMEJENE_NASTAVITVE)
+            }
+            else -> {
+                if (!VnosVklop.odpriPodrobnosti(context)) return Izid(false, "Ta aplikacija nima Safeer Vnosa.", koda = KODA_NI_NA_VOLJO)
+                val pot = when {
+                    tv && sl -> "Z daljincem izberi stikalo pri »$ime« in pritisni OK."
+                    tv -> "With the remote, select the switch for “$ime” and press OK."
+                    sl -> "Vklopi stikalo prav pri »$ime« (ne pri sistemskem »Meniju za dostopnost«). Če Android pokaže »Prepovedana nastavitev«, najprej odkleni omejene nastavitve."
+                    else -> "Turn on the switch for “$ime” (not the system “Accessibility Menu”). If Android shows “Restricted setting”, allow restricted settings first."
+                }
+                toast(context, pot)
+                Izid(true, if (sl) "Na napravi se odpira $ime: $pot" else "Opening $ime on the device: $pot")
+            }
+        }
     }
+
+    const val KODA_OMEJENE_NASTAVITVE = "omejene_nastavitve"
+    /** Ta gradnja nima storitve Safeer Vnos (npr. brskalnik): racunalnik ne sme ponujati vklopa. */
+    const val KODA_NI_NA_VOLJO = "vnos_ni_na_voljo"
+    /** Vnos se vklaplja z WRITE_SECURE_SETTINGS (link/VnosVklop): racunalnik vnos ponovi cez nekaj sekund. */
+    const val KODA_VKLAPLJA = "vnos_vklaplja"
+    private const val PREFS_VNOS = "safeer_vnos_tok"
 
     private fun toast(context: Context, besedilo: String) {
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -848,14 +858,7 @@ object Daljinec {
      * Ali so omejene nastavitve za Safeer se zaklenjene: AppOps `android:access_restricted_settings` ni `allow`
      * (po odklepu »Dovoli omejene nastavitve« postane `allow`). Na Androidu < 13 omejitve ni.
      */
-    private fun omejenoZaklenjeno(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < 33) return false
-        return try {
-            val ao = context.getSystemService(android.app.AppOpsManager::class.java) ?: return false
-            ao.unsafeCheckOpNoThrow("android:access_restricted_settings", android.os.Process.myUid(), context.packageName) !=
-                android.app.AppOpsManager.MODE_ALLOWED
-        } catch (_: Throwable) { false }   // operacije ne poznamo: ne zavajamo z odklepom, ki ga morda ni treba
-    }
+    private fun omejenoZaklenjeno(context: Context): Boolean = VnosVklop.omejenoZaklenjeno(context)
 
     private fun jeZePoskusilVnos(context: Context): Boolean =
         try { context.getSharedPreferences(PREFS_VNOS, Context.MODE_PRIVATE).getBoolean("poskusil", false) } catch (_: Throwable) { false }

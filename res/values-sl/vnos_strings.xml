@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos z eno privolitvijo (link/VnosVklop, lastnik 25. 10. 2026): okno ozjega kroga in voden korak. -->
+<resources>
+    <string name="vnos_privolitev">Računalniki iz tvojega ožjega kroga bodo lahko upravljali to napravo z miško in tipkovnico (Safeer Vnos). Ko napravo umakneš iz kroga, to takoj preneha.</string>
+    <string name="vnos_vklopljen">Safeer Vnos je vklopljen: računalniki iz ožjega kroga lahko upravljajo to napravo z miško in tipkovnico.</string>
+    <string name="vnos_korak_naslov">Še en korak: Safeer Vnos</string>
+    <string name="vnos_korak_tv">Android dovoli vklop Safeer Vnosa samo tebi. Odprla se bo stran Safeer Vnos: z daljincem izberi stikalo in pritisni OK.</string>
+    <string name="vnos_korak_dotik">Android dovoli vklop Safeer Vnosa samo tebi. Odprla se bo stran Safeer Vnos: tapni stikalo in potrdi.</string>
+    <string name="vnos_korak_odklep">Android je vklop Safeer Vnosa omejil (omejene nastavitve). Na strani aplikacije odpri meni »⋮« → »Dovoli omejene nastavitve«, nato vklopi Safeer Vnos. Če menija ni, omejitev odpravi namestitev z računalnika (adb).</string>
+    <string name="vnos_odpri">Odpri nastavitve</string>
+</resources>

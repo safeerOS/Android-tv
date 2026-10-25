@@ -30,6 +30,9 @@ object KrogNaprave {
             // preverijo tudi, kadar krog ne pride od huba (naprava, rele, internet).
             k.lastniKljuc = try { HubTls.javniKljucB64() } catch (_: Throwable) { null }
             k.podpisnik = { podatki -> try { HubTls.podpisi(podatki) } catch (_: Throwable) { null } }
+            // Umik naprave iz kroga ali nova naprava: Safeer Vnos sledi ozjemu krogu (link/VnosVklop).
+            val app = context.applicationContext
+            k.obSpremembi = { si.safeer.tv.link.VnosVklop.uskladi(app, "krog") }
             krog = k
         }
 

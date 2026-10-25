@@ -58,6 +58,18 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
     @Volatile
     var naSpremembo: (() -> Unit)? = null
 
+    /**
+     * Lasten odziv te naprave na spremembo kroga, neodvisen od huba ([naSpremembo] je njegov): umik naprave iz kroga
+     * takoj izklopi Safeer Vnos, ce v krogu ni vec naprave z upravljanjem (link/VnosVklop, lastnik 25. 10. 2026).
+     */
+    @Volatile
+    var obSpremembi: (() -> Unit)? = null
+
+    private fun javiSpremembo() {
+        naSpremembo?.invoke()
+        try { obSpremembi?.invoke() } catch (_: Throwable) { }
+    }
+
     init {
         shramba?.beri(KLJUC_SHRAMBE)?.let { zdruzi(it, obvesti = false) }
         shramba?.beri(KLJUC_STIKOV)?.let { json ->
@@ -165,7 +177,7 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
             umiki[clan.id]?.let { if (clan.dodano > it.umaknjeno) umiki.remove(clan.id) }
             true
         }
-        if (spremenjeno) { shrani(); naSpremembo?.invoke() }
+        if (spremenjeno) { shrani(); javiSpremembo() }
         return spremenjeno
     }
 
@@ -179,7 +191,7 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
             umiki[id] = Umik(id, ob, kdo, podpis)
             true
         }
-        if (spremenjeno) { shrani(); naSpremembo?.invoke() }
+        if (spremenjeno) { shrani(); javiSpremembo() }
         return spremenjeno
     }
 
@@ -220,7 +232,7 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
             }
             sp
         }
-        if (spremenjeno) { shrani(); naSpremembo?.invoke() }
+        if (spremenjeno) { shrani(); javiSpremembo() }
         return spremenjeno
     }
 
@@ -273,7 +285,7 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
                 if (c.dodano > u.umaknjeno) { umiki.remove(id); spremenjeno = true }
             }
         }
-        if (spremenjeno) { shrani(); if (obvesti) naSpremembo?.invoke() }
+        if (spremenjeno) { shrani(); if (obvesti) javiSpremembo() }
         return spremenjeno
     }
 
@@ -291,7 +303,7 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
             clani[id] = c.copy(ime = cisto, imenovano = ob)
             true
         }
-        if (spremenjeno) { shrani(); naSpremembo?.invoke() }
+        if (spremenjeno) { shrani(); javiSpremembo() }
         return spremenjeno
     }
 
@@ -315,7 +327,7 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
                 spremenjeno = true
             }
         }
-        if (spremenjeno) { shrani(); naSpremembo?.invoke() }
+        if (spremenjeno) { shrani(); javiSpremembo() }
         return spremenjeno
     }
 

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos z eno privolitvijo (link/VnosVklop, lastnik 25. 10. 2026): okno ozjega kroga in voden korak. -->
+<resources>
+    <string name="vnos_privolitev">Les ordinateurs de votre cercle de confiance proche pourront contrôler cet appareil avec la souris et le clavier (Safeer Saisie). Retirer un appareil du cercle y met fin immédiatement.</string>
+    <string name="vnos_vklopljen">Safeer Saisie est activé : les ordinateurs de votre cercle proche peuvent contrôler cet appareil avec la souris et le clavier.</string>
+    <string name="vnos_korak_naslov">Encore une étape : Safeer Saisie</string>
+    <string name="vnos_korak_tv">Android ne permet qu’à vous d’activer Safeer Saisie. La page Safeer Saisie va s’ouvrir : sélectionnez l’interrupteur avec la télécommande et appuyez sur OK.</string>
+    <string name="vnos_korak_dotik">Android ne permet qu’à vous d’activer Safeer Saisie. La page Safeer Saisie va s’ouvrir : touchez l’interrupteur et confirmez.</string>
+    <string name="vnos_korak_odklep">Android a restreint Safeer Saisie (paramètres restreints). Sur la page de l’appli, ouvrez le menu « ⋮ » → « Autoriser les paramètres restreints », puis activez Safeer Saisie. Sans ce menu, une installation depuis un ordinateur (adb) lève la restriction.</string>
+    <string name="vnos_odpri">Ouvrir les paramètres</string>
+</resources>

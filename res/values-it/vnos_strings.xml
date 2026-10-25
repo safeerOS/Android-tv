@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos z eno privolitvijo (link/VnosVklop, lastnik 25. 10. 2026): okno ozjega kroga in voden korak. -->
+<resources>
+    <string name="vnos_privolitev">I computer della tua cerchia di fiducia ristretta potranno controllare questo dispositivo con mouse e tastiera (Safeer Input). Se rimuovi un dispositivo dalla cerchia, smette subito.</string>
+    <string name="vnos_vklopljen">Safeer Input è attivo: i computer della tua cerchia ristretta possono controllare questo dispositivo con mouse e tastiera.</string>
+    <string name="vnos_korak_naslov">Ancora un passo: Safeer Input</string>
+    <string name="vnos_korak_tv">Android consente solo a te di attivare Safeer Input. Si aprirà la pagina di Safeer Input: seleziona l’interruttore con il telecomando e premi OK.</string>
+    <string name="vnos_korak_dotik">Android consente solo a te di attivare Safeer Input. Si aprirà la pagina di Safeer Input: tocca l’interruttore e conferma.</string>
+    <string name="vnos_korak_odklep">Android ha limitato Safeer Input (impostazioni con limitazioni). Nella pagina dell’app apri il menu «⋮» → «Consenti impostazioni con limitazioni», poi attiva Safeer Input. Se il menu non c’è, l’installazione da un computer (adb) toglie la limitazione.</string>
+    <string name="vnos_odpri">Apri impostazioni</string>
+</resources>

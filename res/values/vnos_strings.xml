@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos z eno privolitvijo (link/VnosVklop, lastnik 25. 10. 2026): okno ozjega kroga in voden korak. -->
+<resources>
+    <string name="vnos_privolitev">Computers in your inner circle will be able to control this device with mouse and keyboard (Safeer Input). Removing a device from the circle stops this at once.</string>
+    <string name="vnos_vklopljen">Safeer Input is on: computers in your inner circle can control this device with mouse and keyboard.</string>
+    <string name="vnos_korak_naslov">One more step: Safeer Input</string>
+    <string name="vnos_korak_tv">Android lets only you turn on Safeer Input. The Safeer Input page will open: select the switch with the remote and press OK.</string>
+    <string name="vnos_korak_dotik">Android lets only you turn on Safeer Input. The Safeer Input page will open: tap the switch and confirm.</string>
+    <string name="vnos_korak_odklep">Android restricted Safeer Input (restricted settings). On the app page open the “⋮” menu → “Allow restricted settings”, then turn on Safeer Input. If there is no such menu, installing from a computer (adb) lifts the restriction.</string>
+    <string name="vnos_odpri">Open settings</string>
+</resources>
