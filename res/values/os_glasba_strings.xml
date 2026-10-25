@@ -213,7 +213,7 @@
     <string name="os_mediji_dodatki_opis">Enter the addresses of your own add-ons</string>
     <string name="os_mediji_dodatki_stremio">Stremio add-on — enter the add-on address here (ends with /manifest.json)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json or stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer ships no add-ons. You enter your own; an add-on you add here also reaches your other devices in Safeer Link – directly between devices, nothing goes to a cloud. Movies and series come from the public Cinemeta catalogue, streams from your add-ons.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ships no add-ons. You enter your own; an add-on you add here also reaches your other devices in Safeer Link – directly between devices, nothing goes to a cloud. Movies and series come from the public Cinemeta catalogue, streams from your add-ons. An add-on with a personal token or key (e.g. Webtor) stays encrypted on this device and goes only to devices in your inner circle: Debrid services → Send keys to another device.</string>
     <string name="os_mediji_dodatki_shranjen">Add-on saved: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">A Stremio add-on address must end with /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">The address must start with http:// or https://.</string>

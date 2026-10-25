@@ -213,7 +213,7 @@
     <string name="os_mediji_dodatki_opis">Vnesi naslove svojih dodatkov</string>
     <string name="os_mediji_dodatki_stremio">Stremio dodatek — naslov dodatka (manifest.json ali stran »configure«; stremio:// je v redu)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json ali stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer ne prilaga dodatkov. Vneseš svoje; dodatek, ki ga dodaš tukaj, dobijo tudi tvoje druge naprave v Safeer Linku – neposredno med napravami, nič ne gre v oblak. Filme in serije pokaže javni katalog Cinemeta, tokove dajo tvoji dodatki.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ne prilaga dodatkov. Vneseš svoje; dodatek, ki ga dodaš tukaj, dobijo tudi tvoje druge naprave v Safeer Linku – neposredno med napravami, nič ne gre v oblak. Filme in serije pokaže javni katalog Cinemeta, tokove dajo tvoji dodatki. Dodatek z osebnim žetonom ali ključem (npr. Webtor) ostane šifriran na tej napravi in gre samo napravam v ožjem krogu: Debrid storitve → Pošlji ključe na drugo napravo.</string>
     <string name="os_mediji_dodatki_shranjen">Dodatek shranjen: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">Naslov Stremio dodatka ni veljaven (pričakujem …/manifest.json ali stremio://…).</string>
     <string name="os_mediji_dodatki_napaka_naslov">Naslov se mora začeti s http:// ali https://.</string>

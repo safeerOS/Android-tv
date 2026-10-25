@@ -213,7 +213,7 @@
     <string name="os_mediji_dodatki_opis">Inserisci gli indirizzi dei tuoi componenti aggiuntivi</string>
     <string name="os_mediji_dodatki_stremio">Componente Stremio — inserisci qui l’indirizzo del componente (termina con /manifest.json)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json o stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer non include componenti aggiuntivi. Inserisci i tuoi; un componente aggiunto qui arriva anche agli altri tuoi dispositivi in Safeer Link – direttamente tra i dispositivi, niente passa dal cloud. Film e serie arrivano dal catalogo pubblico Cinemeta, gli stream dai tuoi componenti.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer non include componenti aggiuntivi. Inserisci i tuoi; un componente aggiunto qui arriva anche agli altri tuoi dispositivi in Safeer Link – direttamente tra i dispositivi, niente passa dal cloud. Film e serie arrivano dal catalogo pubblico Cinemeta, gli stream dai tuoi componenti. Un componente con token o chiave personale (ad es. Webtor) resta cifrato su questo dispositivo e va solo ai dispositivi della tua cerchia ristretta: Servizi debrid → Invia le chiavi a un altro dispositivo.</string>
     <string name="os_mediji_dodatki_shranjen">Componente salvato: %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">L’indirizzo di un componente Stremio deve terminare con /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">L’indirizzo deve iniziare con http:// o https://.</string>
