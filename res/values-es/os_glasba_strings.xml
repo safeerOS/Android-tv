@@ -412,6 +412,7 @@
     <string name="os_nedel_ni_toka">la fuente no da emisión</string>
     <string name="os_nedel_streznik">servidor no encontrado</string>
     <string name="os_nedel_neodziven">el servidor no responde</string>
+    <string name="os_nedel_drm">transmisión protegida (DRM)</string>
     <string name="os_nedel_http">error del servidor %1$d</string>
     <string name="os_nedel_ni_znano">motivo desconocido</string>
     <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->

@@ -412,6 +412,7 @@
     <string name="os_nedel_ni_toka">die Quelle liefert keinen Stream</string>
     <string name="os_nedel_streznik">Server nicht gefunden</string>
     <string name="os_nedel_neodziven">Server antwortet nicht</string>
+    <string name="os_nedel_drm">geschützter Stream (DRM)</string>
     <string name="os_nedel_http">Serverfehler %1$d</string>
     <string name="os_nedel_ni_znano">Grund unbekannt</string>
     <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->

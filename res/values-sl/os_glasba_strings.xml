@@ -413,6 +413,7 @@
     <string name="os_nedel_ni_toka">vir ne da toka</string>
     <string name="os_nedel_streznik">strežnika ni</string>
     <string name="os_nedel_neodziven">strežnik ne odgovarja</string>
+    <string name="os_nedel_drm">zaščiten tok (DRM)</string>
     <string name="os_nedel_http">napaka strežnika %1$d</string>
     <string name="os_nedel_ni_znano">razlog ni znan</string>
     <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->

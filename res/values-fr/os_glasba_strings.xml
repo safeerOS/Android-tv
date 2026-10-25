@@ -412,6 +412,7 @@
     <string name="os_nedel_ni_toka">la source ne fournit pas de flux</string>
     <string name="os_nedel_streznik">serveur introuvable</string>
     <string name="os_nedel_neodziven">le serveur ne répond pas</string>
+    <string name="os_nedel_drm">flux protégé (DRM)</string>
     <string name="os_nedel_http">erreur du serveur %1$d</string>
     <string name="os_nedel_ni_znano">raison inconnue</string>
     <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->
