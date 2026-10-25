@@ -1043,8 +1043,78 @@ fun main() {
     preizkusNarascajocegaZamika115()
     preizkusPlacljivega120()
     preizkusPregleda251025()
+    preizkusZadetkovNaMestu()
+    preizkusSlikSpletnihZadetkov()
+    preizkusPodnaslovaSpletnihZadetkov()
+    preizkusNajprejDela()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
+}
+
+/** Lastnik 25. 10. 2026 (»zakaj na zgornjih rezultatih ni posterjev«): slika zadetka spletnega vira (YouTube, lene slike). */
+private fun preizkusSlikSpletnihZadetkov() {
+    println("\n== 25. 10.: slike spletnih zadetkov ==")
+    val stran = "https://m.youtube.com/results?search_query=Murderball"
+    preveriEnako("YouTube brez slike: slicica po id", "https://i.ytimg.com/vi/fyLcthMA-JI/hqdefault.jpg",
+        OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/watch?v=fyLcthMA-JI&pp=ygUKTXVyZGVyYmFsbA%3D%3D"))
+    preveriEnako("YouTube z naslovom strani namesto slike (star predpomnilnik)", "https://i.ytimg.com/vi/vbiFjp0jqto/hqdefault.jpg",
+        OsPravila.slikaSpletnegaZadetka(stran, "https://m.youtube.com/watch?v=vbiFjp0jqto"))
+    preveriEnako("YouTube Shorts", "https://i.ytimg.com/vi/C6Ogww8CtfM/hqdefault.jpg",
+        OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/shorts/C6Ogww8CtfM"))
+    preveriEnako("youtu.be", "https://i.ytimg.com/vi/C6Ogww8CtfM/hqdefault.jpg", OsPravila.slikaSpletnegaZadetka(" ", "https://youtu.be/C6Ogww8CtfM"))
+    val prava = "https://i.ytimg.com/vi/rx9hOefW0Fo/hqdefault.jpg?sqp=x&rs=y"
+    preveriEnako("prava slika YouTuba ostane", prava, OsPravila.slikaSpletnegaZadetka(prava, "https://m.youtube.com/watch?v=rx9hOefW0Fo"))
+    preveriEnako("drug vir: slika ostane", "https://primer.test/p.jpg", OsPravila.slikaSpletnegaZadetka("https://primer.test/p.jpg", "https://primer.test/film/1"))
+    preveriEnako("drug vir brez slike ostane brez", "", OsPravila.slikaSpletnegaZadetka("", "https://primer.test/film/1"))
+    preveriEnako("lazen youtube.com.evil ne dobi slicice", "", OsPravila.slikaSpletnegaZadetka("", "https://youtube.com.evil.test/watch?v=fyLcthMA-JI"))
+    preveriEnako("YouTube brez id posnetka (kanal) ostane brez", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/@kanal"))
+    preveriEnako("id daljsi od 11 znakov ni posnetek", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/watch?v=fyLcthMA-JIx"))
+}
+
+private data class Zd(val naslov: String, val delo: Boolean = false, val lastna: Boolean = false, val oznaka: String = naslov)
+
+/** Lastnik 25. 10. 2026: film s (skoraj) tocnim naslovom je prvi med »Najboljsimi zadetki«, posnetki YouTuba za njim. */
+private fun preizkusNajprejDela() {
+    println("\n== 25. 10.: film pred posnetki z istim imenom ==")
+    fun red(l: List<Zd>, q: String) = OsPravila.najprejDela(l, q, { it.naslov }, { it.delo }, { it.lastna }).joinToString(",") { it.oznaka }
+    val murderball = listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", oznaka = "yt2"), Zd("Murderball", oznaka = "yt3"),
+        Zd("Murderball", delo = true, oznaka = "film"), Zd("Murderballs", delo = true, oznaka = "film2019"), Zd("Murderball Trailer", oznaka = "trailer"))
+    preveriEnako("film pred tremi posnetki YouTuba", "film,yt1,yt2,yt3,film2019,trailer", red(murderball, "Murderball"))
+    preveriEnako("male crke, letnica in oklepaji", "film,yt1", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball (2005)", delo = true, oznaka = "film")), "murderball"))
+    preveriEnako("iskanje z letnico", "film,yt1", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", delo = true, oznaka = "film")), "Murderball 2005"))
+    preveriEnako("naglasi", "film,yt1", red(listOf(Zd("Cudez", oznaka = "yt1"), Zd("Čudež", delo = true, oznaka = "film")), "cudez"))
+    preveriEnako("lastna datoteka ostane pred filmom", "moja,film,yt1",
+        red(listOf(Zd("Murderball", lastna = true, oznaka = "moja"), Zd("Murderball", oznaka = "yt1"), Zd("Murderball", delo = true, oznaka = "film")), "Murderball"))
+    preveriEnako("brez dela: vrstni red ostane", "yt1,moja", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", lastna = true, oznaka = "moja")), "Murderball"))
+    preveriEnako("delo brez tocnega naslova ne gre naprej", "yt1,film2019", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderballs", delo = true, oznaka = "film2019")), "Murderball"))
+    preveriEnako("prazno iskanje: nic", "yt1,film", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", delo = true, oznaka = "film")), " "))
+    preveriEnako("kljuc naslova", "murderball", OsPravila.kljucNaslova("Murderball (2005) "))
+}
+
+/** Lastnik 25. 10. 2026: tri enake kartice »Murderball« - razlicni posnetki morajo biti razlocljivi, ime vira pa ne vidno. */
+private fun preizkusPodnaslovaSpletnihZadetkov() {
+    println("\n== 25. 10.: podnaslov spletnih zadetkov ==")
+    val viri = listOf("YouTube", "Moja stran")
+    preveriEnako("brez leta: avtor iz naslova", "Take us Home: Leeds United", OsPravila.podnaslovSpletnegaZadetka(0, "Take us Home: Leeds United", viri))
+    preveriEnako("ime vira se ne pokaze", "", OsPravila.podnaslovSpletnegaZadetka(0, "YouTube", viri))
+    preveriEnako("ime vira ne glede na velike crke", "2005", OsPravila.podnaslovSpletnegaZadetka(2005, "youtube ", viri))
+    preveriEnako("leto in avtor", "2005 · Think Film", OsPravila.podnaslovSpletnegaZadetka(2005, "Think Film", viri))
+    preveriEnako("samo leto", "2019", OsPravila.podnaslovSpletnegaZadetka(2019, " ", viri))
+    preveriEnako("nic", "", OsPravila.podnaslovSpletnegaZadetka(0, "", emptyList()))
+    val a = OsPravila.podnaslovSpletnegaZadetka(0, "Murderball Fan", viri)
+    val b = OsPravila.podnaslovSpletnegaZadetka(0, "Take us Home: Leeds United", viri)
+    preveri("isti naslov, razlicna avtorja: razlicna podnaslova", a != b)
+}
+
+/** Lastnik 25. 10. 2026: dopolnitev zadetkov iskanja ne premakne strani (drsenje po zadetkih na telefonu). */
+private fun preizkusZadetkovNaMestu() {
+    println("\n== 25. 10.: zadetki iskanja na mestu ==")
+    preveriEnako("dopolnitev na mestu: vsebina drzi staro visino", 2400, OsPravila.visinaMedRisanjem(2400, 145))
+    preveriEnako("stran na vrhu: visina se ne drzi", 0, OsPravila.visinaMedRisanjem(2400, 0))
+    preveriEnako("neznana visina ni negativna", 0, OsPravila.visinaMedRisanjem(-1, 145))
+    preveriEnako("dotik, stran na mestu: izbira se ne vrne na iskalno polje", false, OsPravila.vrniIzbiroPoRisanju(true, 145))
+    preveriEnako("dotik, stran na vrhu: izbira se vrne", true, OsPravila.vrniIzbiroPoRisanju(true, 0))
+    preveriEnako("daljinec, stran na mestu: izbira se vrne na kartico", true, OsPravila.vrniIzbiroPoRisanju(false, 145))
 }
 
 /** Pregled 25. 10. 2026: B1 (placljivo po vseh dodatkih), D7 (meja odgovora), B-S1 (naslednja epizoda), B2 (zeton preizkusa). */

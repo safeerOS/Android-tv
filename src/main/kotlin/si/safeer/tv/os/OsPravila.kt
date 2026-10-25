@@ -497,6 +497,22 @@ object OsPravila {
         return g == "youtu.be" || g == "youtube.com" || g.endsWith(".youtube.com")
     }
 
+    private val RX_ID_YOUTUBE = Regex("(?:[?&]v=|youtu\\.be/|/shorts/|/embed/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])")
+
+    /**
+     * Slika zadetka iz uporabnikovega spletnega vira (SpletniVir bere stran zadetkov). YouTube slicico nalozi sele, ko je na
+     * zaslonu (lena slika): prej je bil namesto slike naslov strani zadetkov in kartica je ostala z ikono - izmerjeno
+     * 25. 10. 2026 (Chrome na WP28 S, iskanje »Murderball«): 20 od 23 zadetkov. Posnetek YouTuba brez prave slike (ali z
+     * naslovom strani youtube.com iz starega predpomnilnika) dobi standardno slicico i.ytimg.com/vi/<id>/hqdefault.jpg;
+     * drugi viri ostanejo s sliko, kot jo je dala stran.
+     */
+    fun slikaSpletnegaZadetka(slika: String, povezava: String): String {
+        val s = slika.trim()
+        val id = if (jeYoutubePovezava(povezava)) RX_ID_YOUTUBE.find(povezava)?.groupValues?.get(1) else null
+        if (id == null || (s.isNotEmpty() && !jeYoutubePovezava(s))) return s
+        return "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+    }
+
     /** Ime gostitelja iz sporocila sistema »Unable to resolve host "ime": ...« ali "". */
     fun gostiteljIzNapake(sporocilo: String?): String =
         Regex("resolve host \"([^\"]+)\"").find(sporocilo.orEmpty())?.groupValues?.get(1)?.trim()?.lowercase().orEmpty()
@@ -831,6 +847,59 @@ object OsPravila {
      */
     fun sirinaKarticeMreze(sirinaVsebineDp: Int, naVrsto: Int, osnova: Int, rob: Int): Int =
         (sirinaVsebineDp / naVrsto.coerceAtLeast(1) - rob).coerceIn(osnova, osnova * 3 / 2)
+
+    // ------------------------------------------------------------------ zadetki iskanja: dopolnitev na mestu (lastnik, 25. 10. 2026)
+
+    /**
+     * Najmanjsa visina vsebine med ponovnim risanjem strani, ki ostane na mestu [ostaneY] > 0 (zadetki iskanja, ki jih
+     * dopolni vir, ki je odgovoril pozneje): stara visina. Risanje po korakih vsebino najprej izprazni in ScrollView bi
+     * polozaj obrezal - izmerjeno 25. 10. 2026 na WP28 S: drsnik 145 -> 0 ob dopolnitvi, uporabnik ni mogel do zadetkov
+     * spodaj. Stran z vrha visine ne drzi (0).
+     */
+    fun visinaMedRisanjem(staraVisina: Int, ostaneY: Int): Int = if (ostaneY > 0) staraVisina.coerceAtLeast(0) else 0
+
+    /**
+     * Ali se izbira po ponovnem risanju vrne tja, kjer je bila. Na dotik ne, kadar stran ostane na mestu [yNaMestu] > 0:
+     * izbiro ima tam kvecjemu iskalno polje na vrhu in vrnitev nanj bi stran pomaknila na vrh. Z daljincem vedno - izbira
+     * je uporabnikovo mesto na strani.
+     */
+    fun vrniIzbiroPoRisanju(naDotik: Boolean, yNaMestu: Int): Boolean = !(naDotik && yNaMestu > 0)
+
+    /**
+     * Podnaslov kartice zadetka iz spletnega vira med »Najboljsimi zadetki«: leto in avtor iz naslova posnetka (izvajalec),
+     * da so zadetki z istim naslovom razlocljivi. Prej samo leto - posnetki YouTuba ga nimajo, zato so bile tri kartice
+     * »Murderball« (»Murderball«, »Take us Home: Leeds United - Murderball« ...) brez razlike (lastnik 25. 10. 2026).
+     * Ime vira ([imenaVirov]; izvajalec ga dobi, kadar naslov nima avtorja) se ne pokaze: uporabnik vir doda in nanj
+     * pozabi (lastnik: »uporabnik ne rabi vedeti, iz kje je video«).
+     */
+    fun podnaslovSpletnegaZadetka(leto: Int, izvajalec: String, imenaVirov: Collection<String>): String {
+        val avtor = izvajalec.trim().takeIf { a -> a.isNotEmpty() && imenaVirov.none { it.trim().equals(a, ignoreCase = true) } }
+        return listOfNotNull(leto.takeIf { it > 0 }?.toString(), avtor).joinToString(" · ")
+    }
+
+    private val RX_OKLEPAJI_NASLOVA = Regex("\\(.*?\\)|\\[.*?\\]")
+    private val RX_LETNICA_NASLOVA = Regex("\\b(19|20)\\d{2}\\b")
+    private val RX_NEALFA_NASLOVA = Regex("[^\\p{L}\\p{N}]+")
+
+    /** Naslov za primerjavo z iskanim (»Murderball (2005)« = »murderball«): male crke brez naglasov, oklepajev, letnic in locil. */
+    fun kljucNaslova(t: String): String =
+        java.text.Normalizer.normalize(t.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD).replace(RX_NAGLASI, "")
+            .replace(RX_OKLEPAJI_NASLOVA, " ").replace(RX_LETNICA_NASLOVA, " ").replace(RX_NEALFA_NASLOVA, "")
+
+    /**
+     * »Najboljsi zadetki« (lastnik 25. 10. 2026): film ali serija iz kataloga ([jeDelo]) s (skoraj) tocnim ujemanjem naslova
+     * ([kljucNaslova]) je prvi, posnetki z istim imenom za njim. Pri »Murderball« so bili trije posnetki YouTuba (enaka ocena,
+     * prej dodani) pred filmom 2005 s plakatom, ta pa sele spodaj v polici Filmi. Uporabnikove datoteke ([lastna]: ta naprava,
+     * naprave v Linku) z enakim naslovom ostanejo spredaj. Brez takega dela vrstni red ostane, kot ga da ocena.
+     */
+    fun <T> najprejDela(zadetki: List<T>, beseda: String, naslov: (T) -> String, jeDelo: (T) -> Boolean, lastna: (T) -> Boolean): List<T> {
+        val q = kljucNaslova(beseda)
+        if (q.isEmpty()) return zadetki
+        val spredaj = zadetki.indices.filter { i -> (jeDelo(zadetki[i]) || lastna(zadetki[i])) && kljucNaslova(naslov(zadetki[i])) == q }
+        if (spredaj.none { jeDelo(zadetki[it]) }) return zadetki
+        val prvi = spredaj.toHashSet()
+        return (spredaj + zadetki.indices.filterNot { it in prvi }).map { zadetki[it] }
+    }
 
     // ------------------------------------------------------------------ podstrani (»Pokazi vse«, seznam, epizode)
 

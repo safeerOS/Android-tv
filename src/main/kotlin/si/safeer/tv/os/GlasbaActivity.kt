@@ -1090,9 +1090,10 @@ class GlasbaActivity : OsActivity() {
     /**
      * [podstran]: risemo podstran na vrhu sklada ([podstrani]); vsako drugo risanje pomeni, da podstrani ni vec na zaslonu.
      * [odVrha]: pravkar odprta stran - zacne se na vrhu, izbira (daljinec) gre na prvo kartico.
+     * [naMestu]: ista stran z dopolnjeno vsebino (zadetki iskanja, ki pridejo pozneje) - ostane, kjer jo ima uporabnik.
      */
     private fun narisi(vrste: List<Vrsta>, opis: String, prazno: String = getString(R.string.os_glasba_prazno), glava: List<View> = emptyList(),
-                       podstran: Boolean = false, odVrha: Boolean = false) {
+                       podstran: Boolean = false, odVrha: Boolean = false, naMestu: Boolean = false) {
         val moje = ++risanje
         // Stran razdelka, mreza ali katalog cez odprto podstran: podstrani ni vec na zaslonu - stanje sledi zaslonu.
         if (!podstran && podstrani.odprta) { podstrani.pocisti(); podPodstranjo = null; odprtSeznam = "" }
@@ -1122,6 +1123,12 @@ class GlasbaActivity : OsActivity() {
         // Izbira iz vsebine, ki jo bomo zamenjali, pocaka na nevidnem sidru v vsebini. Prej je sla v meni: stranska vrstica
         // se je za hip razsirila in zaslon je utripnil, ceprav uporabnik ni naredil nicesar (lastnikov posnetek, 5. 10. 2026).
         if (vsebina.hasFocus()) zasidrajIzbiro()
+        // Ista stran z dopolnjeno vsebino ostane, kjer jo ima uporabnik (lastnik 25. 10. 2026, posnetek telefona: med drsenjem
+        // po zadetkih iskanja je stran ob vsaki dopolnitvi skocila na vrh). Izmerjeno na WP28 S: drsnik 145 -> 0 ob polnem
+        // risanju - vsebina se izprazni in ScrollView polozaj obreze, izbira pa se vrne na iskalno polje na vrhu. Zato vsebina
+        // do konca risanja obdrzi visino, polozaj ostane brez scrollTo, izbira se na dotik ne vrne ([OsPravila.vrniIzbiroPoRisanju]).
+        val ostaneY = if (naMestu && !odVrha) drsnik.scrollY else 0
+        vsebina.minimumHeight = OsPravila.visinaMedRisanjem(vsebina.height, ostaneY)
         vsebina.removeAllViews()
         stanje.text = if (glava.isEmpty() && vrste.all { it.kartice.isEmpty() && it.pogled == null }) prazno else opis
         iskalnik?.let { vsebina.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
@@ -1173,13 +1180,13 @@ class GlasbaActivity : OsActivity() {
                 override fun onGlobalLayout() {
                     if (vsebina.width <= 0) return
                     vsebina.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                    if (moje == risanje && !isFinishing) narisi(vrste, opis, prazno, glava, podstran, odVrha)
+                    if (moje == risanje && !isFinishing) narisi(vrste, opis, prazno, glava, podstran, odVrha, naMestu)
                 }
             })
         }
         // Po dejanju na mestu (izbris vira ali seznama, priljubljena, usklajeni seznami) in po vrnitvi s podstrani ostanemo
         // tam, kjer smo bili. Na dotik izbira ni mesto na strani (fokus ima kvecjemu iskalno polje): polozaj se vrne vseeno.
-        val yNaMestu = if (!odVrha && razdelek == naMestuRazdelek && zdaj < naMestuDo) naMestuY else 0
+        val yNaMestu = if (naMestu) ostaneY else if (!odVrha && razdelek == naMestuRazdelek && zdaj < naMestuDo) naMestuY else 0
         // Kartica, s katere je bila podstran odprta: stran se vrne tako, da je kartica tam, kjer je bila - tudi ce se je nad
         // njo medtem kaj spremenilo (plosca predvajanja, nedavno). Brez nje velja shranjeni polozaj drsnika.
         val imaSidro = vrnjen != null && odmikVrnjenega != OsPravila.Podstrani.NI_ODMIKA
@@ -1190,7 +1197,8 @@ class GlasbaActivity : OsActivity() {
         var karticaVrnjena = false
         var zasidrano = !imaSidro
         fun porabiKljuc() { if (karticaVrnjena && zasidrano && vrnjen != null && vrniKljuc == vrnjen) vrniKljuc = null }
-        if (kljuc == null || vrnjen != null || (naDotik && yNaMestu > 0)) {
+        // Na mestu brez vrnitve na kartico: polozaj drzi visina vsebine - scrollTo bi stran med vlecenjem prsta vrnil za korak.
+        if (!(naMestu && !imaSidro) && (kljuc == null || vrnjen != null || (naDotik && yNaMestu > 0))) {
             val y = yNaMestu
             if (y <= 0 && !imaSidro) drsnik.scrollTo(0, 0) else drsnik.post(object : Runnable {
                 var poskusi = 0
@@ -1214,6 +1222,8 @@ class GlasbaActivity : OsActivity() {
         }
         fun koncano() {
             narisanoDoKonca = true
+            // Vsa vsebina je na strani: visina je spet njena (krajsi seznam se po potrebi obreze sele zdaj).
+            vsebina.minimumHeight = 0
             brezOdrezanihVrst()
             drsnik.post {
                 if (moje != risanje) return@post
@@ -1226,7 +1236,7 @@ class GlasbaActivity : OsActivity() {
                     // Odprt razdelek: izbira gre na prvo kartico; ce kartic se ni (mreza se nalaga), poskusimo ob naslednjem risanju.
                     fokusVVsebino -> { if (fokusNaPrvo()) fokusVVsebino = false }
                     // Na dotik iskalnega polja ne izberemo znova, kadar se stran vraca na svoje mesto: izbira bi jo pomaknila na vrh.
-                    nazaj != null && !(naDotik && yNaMestu > 0) -> nazaj.requestFocus()
+                    nazaj != null && OsPravila.vrniIzbiroPoRisanju(naDotik, yNaMestu) -> nazaj.requestFocus()
                     // Pravkar odprta podstran: izbira na prvo kartico (prej je ostala pri stevilki kartice »Pokazi vse«).
                     odVrha -> fokusNaPrvo()
                     // Po zaprtem oknu (Dodaj vir, Odstrani) fokus ne sme ostati nikjer.
@@ -6404,6 +6414,7 @@ class GlasbaActivity : OsActivity() {
         val rezultati = arrayOfNulls<Any>(14)
         val stremioNaslovi = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
+        val imenaSpletnihVirov = spletniViri.map { it.ime }
         val izSeznamov = MedijskiViri.iskanjeVSeznamih(this, beseda)
         val torrentZaVzorec = torrentMeja()
         // Naloga 57: vgrajeni spletni viri (Jamendo, Radio Browser, imenik podkastov, Archive.org, TuneIn, kanali TV v zivo)
@@ -6515,7 +6526,9 @@ class GlasbaActivity : OsActivity() {
             // Naloga 120: neodklenjena placljiva vsebina tudi med najboljsimi zadetki ne.
             val najboljsi = lestvica.filter { it.second >= Relevantnost.SPODNJA }
                 // Naloga 121: tudi nedelujoc kanal ne.
-                .filterNot { (it.first.stvar as? Jamendo.Skladba)?.let { s -> neodklenjena(s) || MrtviKanali.skrij(this, s) } == true }.filter { z ->
+                .filterNot { (it.first.stvar as? Jamendo.Skladba)?.let { s -> neodklenjena(s) || MrtviKanali.skrij(this, s) } == true }
+                // Film ali serija iz kataloga s tocnim naslovom je prvi, pred posnetki z istim imenom (lastnik 25. 10. 2026).
+                .let { l -> OsPravila.najprejDela(l, beseda, { it.first.naslov }, { jeDeloKataloga(it.first) }, { it.first.prednost <= 1 }) }.filter { z ->
                 val s = z.first.stvar as? Jamendo.Skladba
                 if (s != null) {
                     val k = SpletniVir.cistNaslov(s.izvajalec + " " + s.naslov)
@@ -6541,7 +6554,7 @@ class GlasbaActivity : OsActivity() {
                     .filter { !imaDobre || it.second > 0.0 }.sortedByDescending { it.second }.map { it.first }
                 // Brez podvojenih prikazov velja za to, kar blok »Najboljsi zadetki« na strani res pokaze (dve vrstici):
                 // zadetek, ki je v njem sele za »Pokazi vse«, ostane tudi v bloku svoje vrste (prej ga na strani ni bilo nikjer).
-                val vrstaNajboljsih = Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first) })
+                val vrstaNajboljsih = Vrsta(getString(R.string.os_media_najboljsi), najboljsi.map { p -> kartica(p.first, imenaSpletnihVirov) })
                 val vidnih = OsPravila.vsebineVBloku(najboljsi.size, 0, mereMreze(vrstaNajboljsih.copy(mreza = true)).first, OsPravila.VRSTIC_BLOKA, false)
                 val prikazani = najboljsi.take(vidnih).map { (it.first.stvar as Jamendo.Skladba).id }.toSet()
                 fun ostali(s: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
@@ -6588,7 +6601,11 @@ class GlasbaActivity : OsActivity() {
                 podpisZadetkov = podpis
                 // Brez spletnih virov: jasno sporocilo (iskali smo le po napravah), ne »nic nisem nasel« (naloga 57).
                 val brezVirov = MedijskiViri.vsi(this).isEmpty()
-                narisi(vrste, opisZdaj, prazno = getString(if (brezVirov && koncno) R.string.os_media_isci_brez_virov else R.string.os_glasba_prazno))
+                // Dopolnitev istega iskanja (vir je odgovoril pozneje, preverjanje razpolozljivosti) ostane na mestu, tudi med
+                // drsenjem; na vrh gre samo novo iskanje (tudi mimo mesta zadnjega dejanja na strani).
+                if (prvic) naMestuDo = 0L
+                narisi(vrste, opisZdaj, prazno = getString(if (brezVirov && koncno) R.string.os_media_isci_brez_virov else R.string.os_glasba_prazno),
+                    naMestu = !prvic)
                 if (prvic) fokusNaPrvo()
             }
             return true
@@ -6645,10 +6662,19 @@ class GlasbaActivity : OsActivity() {
     /** Streznik datotek naprave v Linku za zadetek (predvajanje s pripetim potrdilom). */
     private val strezniki = ConcurrentHashMap<String, DatotekeActivity.Streznik>()
 
+    /** Film ali serija iz kataloga dodatka (Cinemeta ...) ali z id-jem IMDb/TMDB - delo, ne posnetek z istim imenom. */
+    private fun jeDeloKataloga(z: Relevantnost.Zadetek<*>): Boolean {
+        val s = z.stvar as? Jamendo.Skladba ?: return false
+        if (Stremio.jeEnota(s)) return Stremio.razredEnote(s).let { it == Stremio.FILM || it == Stremio.SERIJA }
+        return (s.imdbId.isNotBlank() || s.tmdbId.isNotBlank()) && SpletniVir.vrstaVsebine(s).let { it == SpletniVir.FILM || it == SpletniVir.SERIJA }
+    }
+
     /** Kartica iskanja: spletni vir je notranja podrobnost, zato ga na kartici ne razkrivamo. */
-    private fun kartica(z: Relevantnost.Zadetek<*>): Kartica {
+    private fun kartica(z: Relevantnost.Zadetek<*>, imenaVirov: Collection<String>): Kartica {
         val sk = z.stvar as Jamendo.Skladba
-        val podnaslov = if (SpletniVir.jeEnota(sk)) sk.year.takeIf { it > 0 }?.toString().orEmpty()
+        // Spletni zadetek pove leto in avtorja iz naslova posnetka (ime vira ne): trije zadetki »Murderball« so bili na las
+        // enake kartice, v resnici pa trije razlicni posnetki YouTuba (lastnik 25. 10. 2026; OsPravila.podnaslovSpletnegaZadetka).
+        val podnaslov = if (SpletniVir.jeEnota(sk)) OsPravila.podnaslovSpletnegaZadetka(sk.year, sk.izvajalec, imenaVirov)
             else listOf(sk.izvajalec, z.izvor).filter { it.isNotBlank() }.distinct().joinToString(" · ")
         val klik: (View) -> Unit = {
             val s = strezniki[sk.id]
