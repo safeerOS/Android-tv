@@ -1281,7 +1281,9 @@ object Stremio {
             val k = WebtorPravila.kljucWebtor(hashToka, t.url)
             if ((k == null || k.idx == WebtorPravila.IDX_NEZNAN) && !oblikaJwtZapisana) {
                 oblikaJwtZapisana = true
-                android.util.Log.w("SafeerWebtor", "tok brez JWT: ${WebtorPravila.oblikaJwt(t.url)}")
+                // Samo oblika (deli, dolzina, imena polj) - brez zetona, JWT in hasha (preizkus WebtorPravilaTest).
+                val oblika = WebtorPravila.oblikaJwt(t.url)
+                android.util.Log.w("SafeerWebtor", "tok brez JWT: $oblika")
             }
             val viri = o.optJSONArray("sources")
             val sledilniki = (0 until minOf(viri?.length() ?: 0, 30)).mapNotNull { viri?.optString(it) }.filter { it.startsWith("tracker:") }
