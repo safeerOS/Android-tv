@@ -59,8 +59,14 @@ glavno() {
     IZDAJA_JSON="$(curl "${CURL_VARNO[@]}" -fsL "$IZDAJA_API" || true)"
     APK_URL="$(naslov_iz_izdaje "$IZDAJA_JSON" "$VZOREC_APK")"
     SHA_URL="$(naslov_iz_izdaje "$IZDAJA_JSON" "$VZOREC_SHA")"
+    if [ -z "$IZDAJA_JSON" ]; then
+        echo "❌ Ne najdem zadnje izdaje (GitHub ni odgovoril). Prenesi APK s https://safeer.si/browser/android/"
+        exit 1
+    fi
+    # Neodvisni pregled 9: izdaja je, a brez APK s pricakovanim imenom (npr. preimenovan) - povemo, kaj manjka.
     if [ -z "$APK_URL" ]; then
-        echo "❌ Ne najdem zadnje izdaje. Prenesi APK s https://safeer.si/browser/android/"
+        echo "❌ Zadnja izdaja nima APK z imenom safeer-browser-android-<verzija>.apk na github.com/safeerOS/Mobile-android."
+        echo "👉 Prenesi APK s https://safeer.si/browser/android/"
         exit 1
     fi
     # Brez kontrolnih vsot APK ne namestimo (prej je bilo to samo opozorilo).

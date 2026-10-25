@@ -47,6 +47,10 @@ PODOBEN='{"browser_download_url": "'"$GH"'/safeer-browser-android-1.0.37-debug.a
 preveri "razlicica s pripono: ni APK" "" "$(naslov_iz_izdaje "$PODOBEN" "$VZOREC_APK")"
 ( curl() { printf '%s' "$TUJ"; }; TEMP_APK="$D/t.apk"; TEMP_SHA="$D/ts"; glavno ) > "$D/izpis" 2>&1
 preveri "tuj gostitelj -> 1" 1 $?
+grep -q "nima APK z imenom safeer-browser-android" "$D/izpis"; preveri "tuj gostitelj: sporocilo o imenu APK" 0 $?
+( curl() { return 22; }; TEMP_APK="$D/n.apk"; TEMP_SHA="$D/ns"; glavno ) > "$D/izpis" 2>&1
+preveri "brez odgovora GitHuba -> 1" 1 $?
+grep -q "GitHub ni odgovoril" "$D/izpis"; preveri "brez odgovora: sporocilo" 0 $?
 [ ! -e "$D/t.apk" ]; preveri "tuj gostitelj: APK se ne prenese" 0 $?
 
 # glavno() z nadomestnim curl: izdaja brez SHA256SUMS -> ustavi pred prenosom APK.
