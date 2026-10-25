@@ -1043,8 +1043,20 @@ fun main() {
     preizkusNarascajocegaZamika115()
     preizkusPlacljivega120()
     preizkusPregleda251025()
+    preizkusZadetkovNaMestu()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
+}
+
+/** Lastnik 25. 10. 2026: dopolnitev zadetkov iskanja ne premakne strani (drsenje po zadetkih na telefonu). */
+private fun preizkusZadetkovNaMestu() {
+    println("\n== 25. 10.: zadetki iskanja na mestu ==")
+    preveriEnako("dopolnitev na mestu: vsebina drzi staro visino", 2400, OsPravila.visinaMedRisanjem(2400, 145))
+    preveriEnako("stran na vrhu: visina se ne drzi", 0, OsPravila.visinaMedRisanjem(2400, 0))
+    preveriEnako("neznana visina ni negativna", 0, OsPravila.visinaMedRisanjem(-1, 145))
+    preveriEnako("dotik, stran na mestu: izbira se ne vrne na iskalno polje", false, OsPravila.vrniIzbiroPoRisanju(true, 145))
+    preveriEnako("dotik, stran na vrhu: izbira se vrne", true, OsPravila.vrniIzbiroPoRisanju(true, 0))
+    preveriEnako("daljinec, stran na mestu: izbira se vrne na kartico", true, OsPravila.vrniIzbiroPoRisanju(false, 145))
 }
 
 /** Pregled 25. 10. 2026: B1 (placljivo po vseh dodatkih), D7 (meja odgovora), B-S1 (naslednja epizoda), B2 (zeton preizkusa). */

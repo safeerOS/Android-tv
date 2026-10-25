@@ -1089,9 +1089,10 @@ class GlasbaActivity : OsActivity() {
     /**
      * [podstran]: risemo podstran na vrhu sklada ([podstrani]); vsako drugo risanje pomeni, da podstrani ni vec na zaslonu.
      * [odVrha]: pravkar odprta stran - zacne se na vrhu, izbira (daljinec) gre na prvo kartico.
+     * [naMestu]: ista stran z dopolnjeno vsebino (zadetki iskanja, ki pridejo pozneje) - ostane, kjer jo ima uporabnik.
      */
     private fun narisi(vrste: List<Vrsta>, opis: String, prazno: String = getString(R.string.os_glasba_prazno), glava: List<View> = emptyList(),
-                       podstran: Boolean = false, odVrha: Boolean = false) {
+                       podstran: Boolean = false, odVrha: Boolean = false, naMestu: Boolean = false) {
         val moje = ++risanje
         // Stran razdelka, mreza ali katalog cez odprto podstran: podstrani ni vec na zaslonu - stanje sledi zaslonu.
         if (!podstran && podstrani.odprta) { podstrani.pocisti(); podPodstranjo = null; odprtSeznam = "" }
@@ -1121,6 +1122,12 @@ class GlasbaActivity : OsActivity() {
         // Izbira iz vsebine, ki jo bomo zamenjali, pocaka na nevidnem sidru v vsebini. Prej je sla v meni: stranska vrstica
         // se je za hip razsirila in zaslon je utripnil, ceprav uporabnik ni naredil nicesar (lastnikov posnetek, 5. 10. 2026).
         if (vsebina.hasFocus()) zasidrajIzbiro()
+        // Ista stran z dopolnjeno vsebino ostane, kjer jo ima uporabnik (lastnik 25. 10. 2026, posnetek telefona: med drsenjem
+        // po zadetkih iskanja je stran ob vsaki dopolnitvi skocila na vrh). Izmerjeno na WP28 S: drsnik 145 -> 0 ob polnem
+        // risanju - vsebina se izprazni in ScrollView polozaj obreze, izbira pa se vrne na iskalno polje na vrhu. Zato vsebina
+        // do konca risanja obdrzi visino, polozaj ostane brez scrollTo, izbira se na dotik ne vrne ([OsPravila.vrniIzbiroPoRisanju]).
+        val ostaneY = if (naMestu && !odVrha) drsnik.scrollY else 0
+        vsebina.minimumHeight = OsPravila.visinaMedRisanjem(vsebina.height, ostaneY)
         vsebina.removeAllViews()
         stanje.text = if (glava.isEmpty() && vrste.all { it.kartice.isEmpty() && it.pogled == null }) prazno else opis
         iskalnik?.let { vsebina.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
@@ -1172,13 +1179,13 @@ class GlasbaActivity : OsActivity() {
                 override fun onGlobalLayout() {
                     if (vsebina.width <= 0) return
                     vsebina.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                    if (moje == risanje && !isFinishing) narisi(vrste, opis, prazno, glava, podstran, odVrha)
+                    if (moje == risanje && !isFinishing) narisi(vrste, opis, prazno, glava, podstran, odVrha, naMestu)
                 }
             })
         }
         // Po dejanju na mestu (izbris vira ali seznama, priljubljena, usklajeni seznami) in po vrnitvi s podstrani ostanemo
         // tam, kjer smo bili. Na dotik izbira ni mesto na strani (fokus ima kvecjemu iskalno polje): polozaj se vrne vseeno.
-        val yNaMestu = if (!odVrha && razdelek == naMestuRazdelek && zdaj < naMestuDo) naMestuY else 0
+        val yNaMestu = if (naMestu) ostaneY else if (!odVrha && razdelek == naMestuRazdelek && zdaj < naMestuDo) naMestuY else 0
         // Kartica, s katere je bila podstran odprta: stran se vrne tako, da je kartica tam, kjer je bila - tudi ce se je nad
         // njo medtem kaj spremenilo (plosca predvajanja, nedavno). Brez nje velja shranjeni polozaj drsnika.
         val imaSidro = vrnjen != null && odmikVrnjenega != OsPravila.Podstrani.NI_ODMIKA
@@ -1189,7 +1196,8 @@ class GlasbaActivity : OsActivity() {
         var karticaVrnjena = false
         var zasidrano = !imaSidro
         fun porabiKljuc() { if (karticaVrnjena && zasidrano && vrnjen != null && vrniKljuc == vrnjen) vrniKljuc = null }
-        if (kljuc == null || vrnjen != null || (naDotik && yNaMestu > 0)) {
+        // Na mestu brez vrnitve na kartico: polozaj drzi visina vsebine - scrollTo bi stran med vlecenjem prsta vrnil za korak.
+        if (!(naMestu && !imaSidro) && (kljuc == null || vrnjen != null || (naDotik && yNaMestu > 0))) {
             val y = yNaMestu
             if (y <= 0 && !imaSidro) drsnik.scrollTo(0, 0) else drsnik.post(object : Runnable {
                 var poskusi = 0
@@ -1213,6 +1221,8 @@ class GlasbaActivity : OsActivity() {
         }
         fun koncano() {
             narisanoDoKonca = true
+            // Vsa vsebina je na strani: visina je spet njena (krajsi seznam se po potrebi obreze sele zdaj).
+            vsebina.minimumHeight = 0
             brezOdrezanihVrst()
             drsnik.post {
                 if (moje != risanje) return@post
@@ -1225,7 +1235,7 @@ class GlasbaActivity : OsActivity() {
                     // Odprt razdelek: izbira gre na prvo kartico; ce kartic se ni (mreza se nalaga), poskusimo ob naslednjem risanju.
                     fokusVVsebino -> { if (fokusNaPrvo()) fokusVVsebino = false }
                     // Na dotik iskalnega polja ne izberemo znova, kadar se stran vraca na svoje mesto: izbira bi jo pomaknila na vrh.
-                    nazaj != null && !(naDotik && yNaMestu > 0) -> nazaj.requestFocus()
+                    nazaj != null && OsPravila.vrniIzbiroPoRisanju(naDotik, yNaMestu) -> nazaj.requestFocus()
                     // Pravkar odprta podstran: izbira na prvo kartico (prej je ostala pri stevilki kartice »Pokazi vse«).
                     odVrha -> fokusNaPrvo()
                     // Po zaprtem oknu (Dodaj vir, Odstrani) fokus ne sme ostati nikjer.
@@ -6587,7 +6597,11 @@ class GlasbaActivity : OsActivity() {
                 podpisZadetkov = podpis
                 // Brez spletnih virov: jasno sporocilo (iskali smo le po napravah), ne »nic nisem nasel« (naloga 57).
                 val brezVirov = MedijskiViri.vsi(this).isEmpty()
-                narisi(vrste, opisZdaj, prazno = getString(if (brezVirov && koncno) R.string.os_media_isci_brez_virov else R.string.os_glasba_prazno))
+                // Dopolnitev istega iskanja (vir je odgovoril pozneje, preverjanje razpolozljivosti) ostane na mestu, tudi med
+                // drsenjem; na vrh gre samo novo iskanje (tudi mimo mesta zadnjega dejanja na strani).
+                if (prvic) naMestuDo = 0L
+                narisi(vrste, opisZdaj, prazno = getString(if (brezVirov && koncno) R.string.os_media_isci_brez_virov else R.string.os_glasba_prazno),
+                    naMestu = !prvic)
                 if (prvic) fokusNaPrvo()
             }
             return true

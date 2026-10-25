@@ -832,6 +832,23 @@ object OsPravila {
     fun sirinaKarticeMreze(sirinaVsebineDp: Int, naVrsto: Int, osnova: Int, rob: Int): Int =
         (sirinaVsebineDp / naVrsto.coerceAtLeast(1) - rob).coerceIn(osnova, osnova * 3 / 2)
 
+    // ------------------------------------------------------------------ zadetki iskanja: dopolnitev na mestu (lastnik, 25. 10. 2026)
+
+    /**
+     * Najmanjsa visina vsebine med ponovnim risanjem strani, ki ostane na mestu [ostaneY] > 0 (zadetki iskanja, ki jih
+     * dopolni vir, ki je odgovoril pozneje): stara visina. Risanje po korakih vsebino najprej izprazni in ScrollView bi
+     * polozaj obrezal - izmerjeno 25. 10. 2026 na WP28 S: drsnik 145 -> 0 ob dopolnitvi, uporabnik ni mogel do zadetkov
+     * spodaj. Stran z vrha visine ne drzi (0).
+     */
+    fun visinaMedRisanjem(staraVisina: Int, ostaneY: Int): Int = if (ostaneY > 0) staraVisina.coerceAtLeast(0) else 0
+
+    /**
+     * Ali se izbira po ponovnem risanju vrne tja, kjer je bila. Na dotik ne, kadar stran ostane na mestu [yNaMestu] > 0:
+     * izbiro ima tam kvecjemu iskalno polje na vrhu in vrnitev nanj bi stran pomaknila na vrh. Z daljincem vedno - izbira
+     * je uporabnikovo mesto na strani.
+     */
+    fun vrniIzbiroPoRisanju(naDotik: Boolean, yNaMestu: Int): Boolean = !(naDotik && yNaMestu > 0)
+
     // ------------------------------------------------------------------ podstrani (»Pokazi vse«, seznam, epizode)
 
     /**
