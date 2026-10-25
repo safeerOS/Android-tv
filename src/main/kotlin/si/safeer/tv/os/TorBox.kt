@@ -71,7 +71,11 @@ object TorBox {
                 }
             }
             val koda = p.responseCode
-            val telo = (if (koda in 200..299) p.inputStream else p.errorStream)?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+            // Pregled Grok 8: odgovor najvec DebridPravila.NAJVEC_ODGOVORA bajtov (prej readBytes() brez meje) - vecji je napaka.
+            if (p.contentLengthLong > DebridPravila.NAJVEC_ODGOVORA) throw java.io.IOException("odgovor prevelik")
+            val telo = (if (koda in 200..299) p.inputStream else p.errorStream)?.use {
+                (DebridPravila.beriOmejeno(it) ?: throw java.io.IOException("odgovor prevelik")).toString(Charsets.UTF_8)
+            }.orEmpty()
             return Odgovor(koda, try { JSONObject(telo) } catch (_: Throwable) { null })
         } finally { p.disconnect() }
     }

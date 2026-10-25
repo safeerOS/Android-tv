@@ -223,6 +223,23 @@ object DebridPravila {
     /** Ali steje tok kot »prvi predvajljiv« za [cakajPoPrvemMs]: povezava vedno, torrent samo z aktivno storitvijo. */
     fun stejeKotPrvi(vrsta: String, aktivna: Boolean): Boolean = vrsta == "url" || (aktivna && vrsta == "torrent")
 
+    // ------------------------------------------------------------------ pregled Grok 8: meja odgovora API
+
+    /** Najvec bajtov odgovora API debrid storitve (JSON) - ista meja kot pri dodatkih (OsPravila.NAJVEC_ODGOVORA_DODATKA). */
+    const val NAJVEC_ODGOVORA = 8 * 1024 * 1024
+
+    /** Najvec [meja] bajtov iz [vhod]; null, ce jih je vec (beremo najvec meja + 1, da to vemo) - vecjega ne odrezemo, zavrnemo. */
+    fun beriOmejeno(vhod: java.io.InputStream, meja: Int = NAJVEC_ODGOVORA): ByteArray? {
+        val izhod = java.io.ByteArrayOutputStream()
+        val buf = ByteArray(16 * 1024)
+        while (izhod.size() <= meja) {
+            val n = vhod.read(buf, 0, minOf(buf.size, meja + 1 - izhod.size()))
+            if (n < 0) break
+            izhod.write(buf, 0, n)
+        }
+        return if (izhod.size() > meja) null else izhod.toByteArray()
+    }
+
     // ------------------------------------------------------------------ naloga 130: najhitrejsa storitev
 
     /**

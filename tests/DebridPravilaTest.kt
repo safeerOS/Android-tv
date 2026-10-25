@@ -206,5 +206,12 @@ fun main() {
         rd to TorBoxPravila.NAPAKA_STREZNIK, tb to TorBoxPravila.NAPAKA_STREZNIK)))
     preveriEnako("A4: neznana napaka - prva storitev", ad, DebridPravila.ponudnikNapake(listOf(ad to "nekaj", tb to "drugo")))
 
+    // Pregled Grok 8: odgovor API z mejo.
+    preveriEnako("Grok 8: meja 8 MiB", 8 * 1024 * 1024, DebridPravila.NAJVEC_ODGOVORA)
+    preveriEnako("Grok 8: pod mejo cel", 100, DebridPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(100)), 100)?.size)
+    preveriEnako("Grok 8: nad mejo zavrnjen", null, DebridPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(101)), 100))
+    preveriEnako("Grok 8: prazno", 0, DebridPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(0)))?.size)
+    preveriEnako("Grok 8: vec kosov (40 KiB)", 40_000, DebridPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(40_000)))?.size)
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
