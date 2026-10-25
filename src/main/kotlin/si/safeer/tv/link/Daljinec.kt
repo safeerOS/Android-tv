@@ -71,6 +71,8 @@ object Daljinec {
         "play.state", "play.stop", "play.offer",
         // Naloga 129: kljuci debrid storitev s telefona (ozji krog, potrditev na tej napravi).
         si.safeer.tv.os.DebridPravila.DEJANJE_KLJUCI,
+        // Samodejno usklajevanje kljucev in dodatkov v ozjem krogu (UskladitevKljucev; enkratna potrditev nove naprave).
+        si.safeer.tv.os.UskladitevKljucevPravila.DEJANJE,
         // Naloga 136: torrenti, ki jih je Real-Debrid ali AllDebrid ze vrnil kot pripravljene (⚡), z druge naprave v krogu.
         si.safeer.tv.os.DebridPravila.DEJANJE_PREDPOMNJENI,
         // Naloga 117: druga naprava upravlja predvajanje na tej kot lokalno (premor, naprej, cas, glasnost, vrsta).
@@ -221,6 +223,13 @@ object Daljinec {
             val od = parametri.optString(PARAM_POSILJATELJ, "")
             val ime = try { si.safeer.tv.os.LinkUpravitelj.pridobi(context).naprave.firstOrNull { it.id == od }?.ime } catch (_: Throwable) { null }
             return Izid(true, "Kljuci prejeti", si.safeer.tv.os.Debrid.prejmiKljuce(context, parametri, ime?.takeIf { it.isNotBlank() } ?: od))
+        }
+        // Samodejno usklajevanje kljucev in dodatkov (ozji krog - dejanje ni v naborih DostopPravila; prejemnik krog preveri
+        // se sam). Vrednosti se nikoli ne izpisejo.
+        if (d == si.safeer.tv.os.UskladitevKljucevPravila.DEJANJE) {
+            val od = parametri.optString(PARAM_POSILJATELJ, "")
+            val ime = try { si.safeer.tv.os.LinkUpravitelj.pridobi(context).naprave.firstOrNull { it.id == od }?.ime } catch (_: Throwable) { null }
+            return Izid(true, "Uskladitev kljucev", si.safeer.tv.os.UskladitevKljucev.prejmi(context, od, ime?.takeIf { it.isNotBlank() } ?: od, parametri))
         }
         // Naloga 136: pripravljeni torrenti z druge naprave (ozji krog - dejanje ni v naborih DostopPravila).
         if (d == si.safeer.tv.os.DebridPravila.DEJANJE_PREDPOMNJENI)

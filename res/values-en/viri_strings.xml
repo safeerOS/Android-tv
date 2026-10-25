@@ -121,5 +121,27 @@
     <string name="os_usenet_neveljavno">Check the address (https://…) and the API key.</string>
     <string name="os_usenet_ime_kratko">Usenet indexer %1$s</string>
     <string name="os_usenet_rezerva">Usenet did not work – playing another source</string>
+    <!-- Webtor rezerva (25. 10. 2026): lastnikov dodatek Webtor kot rezerva za torrente, ki jih TorBox nima. -->
+    <string name="os_webtor_rezerva">Webtor did not work – playing another source</string>
+    <string name="os_webtor_pripravljam">Preparing via Webtor …</string>
+    <string name="os_skrivni_dodatek_ime">add-on %1$s</string>
+    <string name="os_mediji_dodatek_ni_shranjen">The add-on could not be saved securely (encryption failed). Try again.</string>
+    <string name="os_mediji_dodatek_dodaj_znova">cannot be unlocked on this device – the add-on has to be added again (%1$s)</string>
+    <string name="os_debrid_poslji_stara_dodatki">Keys sent – confirm on %1$s. Add-ons with a personal token were not sent: update Safeer on %1$s first.</string>
+    <string name="os_sinh_vkl">Sync keys and add-ons in the inner circle automatically: on</string>
+    <string name="os_sinh_izk">Sync keys and add-ons in the inner circle automatically: off</string>
+    <string name="os_sinh_naprave">Devices with keys (%1$d)</string>
+    <string name="os_sinh_naprave_naslov">Key and add-on sync</string>
+    <string name="os_sinh_naprave_prazno">No device in your inner circle of trust syncs keys and add-ons yet.</string>
+    <string name="os_sinh_stanje_potrjena">%1$s – synced (last %2$s)</string>
+    <string name="os_sinh_stanje_povabljena">%1$s – waiting for confirmation on that device</string>
+    <string name="os_sinh_stanje_caka">%1$s – wants to sync: confirm here</string>
+    <string name="os_sinh_stanje_zavrnjena">%1$s – declined (select to ask again)</string>
+    <string name="os_sinh_stanje_stara">%1$s – older Safeer: update it there (keys can still be sent manually)</string>
+    <string name="os_sinh_vprasanje">%1$s (inner circle of trust) wants to sync keys and add-ons with this device: %2$s. Accept once – later changes and deletions on either device apply automatically.</string>
+    <string name="os_sinh_sprejmi">Accept</string>
+    <string name="os_sinh_zavrni">Decline</string>
+    <string name="os_sinh_prejeto_odpri">%1$s wants to sync keys and add-ons – open Media Center to confirm</string>
+    <string name="os_sinh_ponovno">%1$s: confirmation will be shown again at the next sync</string>
     <string name="os_usenet_napaka_indeksator">The Usenet indexer did not return the NZB file. Check its API key and daily limit.</string>
 </resources>

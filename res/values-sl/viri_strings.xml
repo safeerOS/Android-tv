@@ -121,5 +121,27 @@
     <string name="os_usenet_neveljavno">Preveri naslov (https://…) in ključ API.</string>
     <string name="os_usenet_ime_kratko">Usenet indeksator %1$s</string>
     <string name="os_usenet_rezerva">Usenet ni uspel – predvajam drug vir</string>
+    <!-- Webtor rezerva (25. 10. 2026): lastnikov dodatek Webtor kot rezerva za torrente, ki jih TorBox nima. -->
+    <string name="os_webtor_rezerva">Webtor ni uspel – predvajam drug vir</string>
+    <string name="os_webtor_pripravljam">Pripravljam prek Webtorja …</string>
+    <string name="os_skrivni_dodatek_ime">dodatek %1$s</string>
+    <string name="os_mediji_dodatek_ni_shranjen">Dodatka ni bilo mogoče varno shraniti (šifriranje ni uspelo). Poskusi znova.</string>
+    <string name="os_mediji_dodatek_dodaj_znova">na tej napravi ga ni mogoče odkleniti – dodatek je treba dodati znova (%1$s)</string>
+    <string name="os_debrid_poslji_stara_dodatki">Ključi poslani – potrdi na %1$s. Dodatki z osebnim žetonom niso bili poslani: najprej posodobi Safeer na %1$s.</string>
+    <string name="os_sinh_vkl">Samodejno usklajuj ključe in dodatke v ožjem krogu: vklopljeno</string>
+    <string name="os_sinh_izk">Samodejno usklajuj ključe in dodatke v ožjem krogu: izklopljeno</string>
+    <string name="os_sinh_naprave">Naprave s ključi (%1$d)</string>
+    <string name="os_sinh_naprave_naslov">Usklajevanje ključev in dodatkov</string>
+    <string name="os_sinh_naprave_prazno">Nobena naprava v ožjem krogu zaupanja še ne usklajuje ključev in dodatkov.</string>
+    <string name="os_sinh_stanje_potrjena">%1$s – usklajeno (nazadnje %2$s)</string>
+    <string name="os_sinh_stanje_povabljena">%1$s – čaka na potrditev na tisti napravi</string>
+    <string name="os_sinh_stanje_caka">%1$s – želi usklajevati: potrdi tukaj</string>
+    <string name="os_sinh_stanje_zavrnjena">%1$s – zavrnjeno (izberi, da te znova vpraša)</string>
+    <string name="os_sinh_stanje_stara">%1$s – starejši Safeer: posodobi ga tam (ključe lahko še pošlješ ročno)</string>
+    <string name="os_sinh_vprasanje">%1$s (ožji krog zaupanja) želi s to napravo usklajevati ključe in dodatke: %2$s. Sprejmi enkrat – poznejše spremembe in izbrisi na kateri koli napravi veljajo samodejno.</string>
+    <string name="os_sinh_sprejmi">Sprejmi</string>
+    <string name="os_sinh_zavrni">Zavrni</string>
+    <string name="os_sinh_prejeto_odpri">%1$s želi usklajevati ključe in dodatke – za potrditev odpri Medijski center</string>
+    <string name="os_sinh_ponovno">%1$s: ob naslednji uskladitvi se potrditev pokaže znova</string>
     <string name="os_usenet_napaka_indeksator">Usenet indeksator ni vrnil datoteke NZB. Preveri njegov ključ API in dnevno omejitev.</string>
 </resources>

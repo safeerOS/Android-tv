@@ -115,6 +115,23 @@ object TorBox {
         }
     }
 
+    private val zaklepNovih = Any()
+
+    /**
+     * Pregled N4: meja novih torrentov na uro pod zaklepom (predvajanje in TorBox v ozadju iz dveh niti ne preskocita stetja).
+     * null = sme (zabelezeno), sicer koliko ms je treba pocakati.
+     */
+    private fun zabeleziNovega(c: Context): Long? = synchronized(zaklepNovih) {
+        val prefs = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val casi = prefs.getString(KLJUC_NOVI, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
+        val zdaj = System.currentTimeMillis()
+        if (!TorBoxPravila.MejaNovih.dovoli(casi, zdaj)) TorBoxPravila.MejaNovih.cakajMs(casi, zdaj)
+        else {
+            prefs.edit().putString(KLJUC_NOVI, (TorBoxPravila.MejaNovih.veljavni(casi, zdaj) + zdaj).joinToString(",")).commit()
+            null
+        }
+    }
+
     /**
      * Povezava za predvajanje za [magnet] (datoteka [indeks] po dodatku, -1 = najvecja). [napredek] dobi sporocila o
      * cakanju (z delovne niti). Predpomnjen torrent: takoj. Nov: steje v mejo 60/uro; cakamo do 3 min, da ga TorBox prenese.
@@ -133,14 +150,7 @@ object TorBox {
             if (!predpomnjen && samoPredpomnjeno) return Izid(napaka = DebridPravila.NAPAKA_NI_PREDPOMNJENO)
             // Pregled Grok 2: preklican poskus ne doda torrenta (in ne steje v mejo 60/uro) - klic HTTP prekinitve ne vidi.
             Debrid.preveriPreklic()
-            if (!predpomnjen) {
-                val prefs = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                val casi = prefs.getString(KLJUC_NOVI, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
-                val zdaj = System.currentTimeMillis()
-                if (!TorBoxPravila.MejaNovih.dovoli(casi, zdaj))
-                    return Izid(napaka = TorBoxPravila.NAPAKA_MEJA, cakajMs = TorBoxPravila.MejaNovih.cakajMs(casi, zdaj))
-                prefs.edit().putString(KLJUC_NOVI, (TorBoxPravila.MejaNovih.veljavni(casi, zdaj) + zdaj).joinToString(",")).apply()
-            }
+            if (!predpomnjen) zabeleziNovega(c)?.let { return Izid(napaka = TorBoxPravila.NAPAKA_MEJA, cakajMs = it) }
             Log.i(TAG, "createtorrent ${hash.take(8)}… predpomnjen=$predpomnjen")
             val ustvari = klic(TorBoxPravila.naslovUstvari(), kljuc, "POST", mapOf("magnet" to magnet, "allow_zip" to "false"))
             var id = ustvari.json?.optJSONObject("data")?.optLong("torrent_id", -1L) ?: -1L
@@ -181,6 +191,28 @@ object TorBox {
         } catch (e: Exception) {
             Log.w(TAG, "TorBox: ${e.javaClass.simpleName}")
             Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK)
+        }
+    }
+
+    /**
+     * Webtor rezerva (25. 10. 2026): torrent, ki ga ta cas predvaja Webtor, dodamo TorBoxu brez cakanja - naslednjic je
+     * takoj predvajljiv (⚡). Steje v mejo novih na uro ([TorBoxPravila.MejaNovih]); ze dodan (DUPLICATE_ITEM) je uspeh. To
+     * je namerno predpomnjenje. TorBox nima pospravljanja (»samo takoj« pri TorBoxu nicesar ne brise), zato oznaka »cakan« ni
+     * potrebna (pregled N4). Tudi ob »Samo takoj predvajljivo«: ta nastavitev pove, da uporabnik ne zeli CAKATI na prenos -
+     * na ta prenos ne caka nihce.
+     * Z delovne niti; vrne true, ce je torrent pri TorBoxu.
+     */
+    fun dodajZaPozneje(c: Context, magnet: String): Boolean {
+        val kljuc = kljuc(c) ?: return false
+        val hash = TorBoxPravila.hashIzMagneta(magnet) ?: return false
+        if (zabeleziNovega(c) != null) { Log.i(TAG, "v ozadju: meja novih na uro - ${hash.take(8)}… ni dodan"); return false }
+        return try {
+            val o = klic(TorBoxPravila.naslovUstvari(), kljuc, "POST", mapOf("magnet" to magnet, "allow_zip" to "false"))
+            val ze = !uspeh(o) && o.json?.optString("error") == "DUPLICATE_ITEM"
+            Log.i(TAG, "v ozadju (Webtor): createtorrent ${hash.take(8)}… ${if (uspeh(o)) "dodan" else if (ze) "ze v racunu" else "napaka ${o.koda}"}")
+            uspeh(o) || ze
+        } catch (e: Exception) {
+            Log.w(TAG, "v ozadju: ${e.javaClass.simpleName}"); false
         }
     }
 

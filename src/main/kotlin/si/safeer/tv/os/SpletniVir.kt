@@ -742,10 +742,16 @@ object SpletniVir {
         val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
         // Kanal ali postaja v zivo: krajsi rok povezave ([OsPravila.ROK_POVEZAVE_V_ZIVO_MS]); 0 = privzeti rok predvajalnika.
         if (rokPovezaveMs > 0) http.setConnectTimeoutMs(rokPovezaveMs)
-        return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { spec ->
+        val app = c.applicationContext
+        return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
+            // Webtor rezerva: tok dodatka s poverilnico ima v aplikaciji nadomestek brez zetona - pravi naslov samo za zahtevo.
+            val pravi = SkrivniDodatki.dejanski(app, izvirna.uri.toString())
+            val spec = if (pravi == izvirna.uri.toString()) izvirna else izvirna.withUri(android.net.Uri.parse(pravi))
             val url = spec.uri.toString()
             if (!url.startsWith("http://") && !url.startsWith("https://")) return@Factory spec
-            spec.withAdditionalHeaders(glaveZa(url, glaveVsem))
+            // Pregled N1: zahtevi iz nadomestka (dodatek s poverilnico, npr. Webtor) piskotkov spleta ne dodamo - Media3 bi jih
+            // poslal tudi cilju preusmeritve (gostitelj toka); zeton v poti zadosca.
+            spec.withAdditionalHeaders(glaveZa(url, glaveVsem, piskotki = spec === izvirna))
         }
     }
 
@@ -754,11 +760,11 @@ object SpletniVir {
      * gostitelja (proxyHeaders) in glave toka [glaveVsem] (zadnja beseda). Pregled 25. 10. (N4): enake uporablja sonda
      * toka za vsako zahtevo verige (seznam, razlicica, kljuc, kos), da ne dobi 403, ki ga predvajalnik ne bi.
      */
-    fun glaveZa(url: String, glaveVsem: Map<String, String> = emptyMap()): Map<String, String> {
+    fun glaveZa(url: String, glaveVsem: Map<String, String> = emptyMap(), piskotki: Boolean = true): Map<String, String> {
         val glave = HashMap<String, String>()
         if (ua.isNotBlank()) glave["User-Agent"] = ua
         glaveDomene[domena(url)]?.let { glave.putAll(it) }
-        try { CookieManager.getInstance().getCookie(url) } catch (_: Throwable) { null }?.let { glave["Cookie"] = it }
+        if (piskotki) try { CookieManager.getInstance().getCookie(url) } catch (_: Throwable) { null }?.let { glave["Cookie"] = it }
         // Glave toka (proxyHeaders) imajo zadnjo besedo - tudi nad UA brskalnika in piskotki.
         glaveGostitelja[gostitelj(url)]?.let { glave.putAll(it) }
         // Glave, ki spremljajo ta tok, gredo na vsak njegov del - tudi na segmente HLS/DASH na drugem gostitelju.

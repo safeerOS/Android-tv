@@ -32,10 +32,14 @@ object Usenet {
     fun nastavi(c: Context, naslov: String, kljuc: String): Boolean {
         val o = UsenetPravila.osnova(naslov) ?: return false
         val k = UsenetPravila.ocistiKljuc(kljuc) ?: return false
-        return SporocilaSkrivnosti.shrani(c, SKRIVNOST, JSONObject().put("url", o).put("key", k).toString())
+        // Sprememba gre sama na naprave v ozjem krogu (UskladitevKljucev).
+        return SporocilaSkrivnosti.shrani(c, SKRIVNOST, JSONObject().put("url", o).put("key", k).toString()).also { if (it) UskladitevKljucev.sprozi(c) }
     }
 
-    fun pozabi(c: Context) { SporocilaSkrivnosti.pozabi(c, SKRIVNOST) }
+    fun pozabi(c: Context) { SporocilaSkrivnosti.pozabi(c, SKRIVNOST); UskladitevKljucev.sprozi(c) }
+
+    /** Indeksator je shranjen (tudi ce ga Keystore ta trenutek ne zna prebrati) - usklajevanje ga takrat ne izbrise. */
+    fun shranjen(c: Context): Boolean = SporocilaSkrivnosti.ima(c, SKRIVNOST)
 
     /** Gostitelj indeksatorja za prikaz v oknu (brez kljuca). */
     fun gostitelj(c: Context): String? = indeksator(c)?.let { try { URL(it.osnova).host } catch (_: Exception) { null } }

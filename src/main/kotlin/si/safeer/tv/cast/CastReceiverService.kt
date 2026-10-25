@@ -488,6 +488,8 @@ class CastReceiverService : Service() {
                         if (si.safeer.tv.os.MagnetMotor.naVoljo) zmoznosti.add(si.safeer.tv.link.MagnetPomoc.ZMOZNOST)
                         // Seznami predvajanja Medijskega centra so enaki na vseh napravah v Linku (SeznamiSink).
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.SeznamiSink.ZMOZNOST)
+                        // Kljuci in dodatki se sami usklajujejo v ozjem krogu (UskladitevKljucev, dejanje secrets.sync).
+                        if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.UskladitevKljucevPravila.ZMOZNOST)
                         // Preverjevalec doma: Safeer OS (televizor, tablica, telefon) zna za dom vprasati dodatke (DomPreverjanje).
                         if (BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) zmoznosti.add(si.safeer.tv.os.DomPreverjanjePravila.ZMOZNOST)
                         // Povezani zasloni: telefon, tablica in televizor delijo cel zaslon drugi napravi (s potrditvijo na tej).

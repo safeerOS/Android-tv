@@ -96,6 +96,27 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "je_epizoda" -> SerijePravila.jeEpizoda(v.niz("id")!!)
     "id_epizode_imdb" -> SerijePravila.idEpizodePoImdb(v.niz("imdb"), v.niz("id_epizode")!!, v.cel("sezona")!!, v.cel("epizoda")!!)
     "imdb_iz_meta" -> SerijePravila.imdbIzMeta(v.niz("imdb_polje"), v.niz("id")!!)
+    // Webtor rezerva in usklajevanje kljucev (tests/skupni-primeri/webtor-rezerva.json).
+    "skrivna_predpona_dodatka" -> SkrivnostiPravila.skrivnaPredponaDodatka(v.niz("naslov")!!)
+    "skrivna_predpona_toka" -> SkrivnostiPravila.skrivnaPredponaToka(v.niz("naslov")!!)
+    "v_nadomestek" -> SkrivnostiPravila.vNadomestek(v.niz("naslov")!!)
+    "za_prikaz" -> SkrivnostiPravila.zaPrikaz(v.niz("naslov")!!)
+    "odstrani_tok_ob_shranjevanju" -> SkrivnostiPravila.odstraniTokObShranjevanju(v.niz("osnova")!!, v.niz("tok")!!)
+    "webtor_oznaka" -> WebtorPravila.razcleni(v.niz("ime")!!).let { listOf(it.vrsta.name, it.ime) }
+    "je_webtor_dodatek" -> WebtorPravila.jeWebtorDodatek(v.niz("id"), v.niz("osnova")!!)
+    "webtor_nauceni_gostitelj" -> WebtorPravila.naucenGostitelj(v.niz("zacetni")!!, v.niz("koncni")!!, v.cel("koda")!!)
+    "webtor_odlocitev" -> WebtorPravila.odlocitev(v.cel("koda")!!, v["prvi_bajt_ms"] as Long?, v["potekel"] as Boolean).name
+    "webtor_vrstni_red" -> WebtorPravila.vrstniRed(
+        (v["nasi"] as List<List<Any?>?>).map { k -> k?.let { WebtorPravila.kljuc(it[0] as String?, (it[1] as Long).toInt()) } },
+        (v["webtor"] as List<List<Any?>>).map { WebtorPravila.kljuc(it[0] as String?, (it[1] as Long).toInt()) to WebtorPravila.vrstaIz(it[2] as String) },
+        v["imamo_torbox"] as Boolean, v["samo_takoj"] as Boolean? ?: false).map { it.toLong() }
+    "webtor_rok_sonde" -> WebtorPravila.rokSonde(v["zacetek_prve"] as Long?, v["zdaj"] as Long, v.cel("poskusov")!!)
+    "vrstni_red_korakov" -> WebtorPravila.koraki(v["ima_usenet"] as Boolean).map { it.name }
+    "izberi_usenet" -> WebtorPravila.izberiUsenet(v["izidi"] as List<Boolean?>, v["rok_potekel"] as Boolean).toLong()
+    "scit_dovoljena" -> si.safeer.tv.scit.ScitIzjeme.dovoljena(v.niz("ime")!!, (v["naucene"] as Map<String, Any?>).mapValues { it.value as Long }, v["zdaj"] as Long)
+    "scit_primeren_za_ucenje" -> si.safeer.tv.scit.ScitIzjeme.primerenZaUcenje(v.niz("gostitelj")!!)
+    "uskladitev_novejsi" -> UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
+        (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })
     else -> error("neznano pravilo: $f")
 }
 

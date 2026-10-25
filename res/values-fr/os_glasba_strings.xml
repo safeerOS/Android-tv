@@ -213,7 +213,7 @@
     <string name="os_mediji_dodatki_opis">Saisis les adresses de tes propres extensions</string>
     <string name="os_mediji_dodatki_stremio">Extension Stremio — saisis ici l’adresse de l’extension (se termine par /manifest.json)</string>
     <string name="os_mediji_dodatki_stremio_namig">https://…/manifest.json ou stremio://…</string>
-    <string name="os_mediji_dodatki_razlaga">Safeer ne fournit aucune extension. Tu saisis les tiennes ; une extension ajoutée ici arrive aussi sur tes autres appareils dans Safeer Link – directement entre appareils, rien ne passe par le cloud. Les films et séries viennent du catalogue public Cinemeta, les flux de tes extensions.</string>
+    <string name="os_mediji_dodatki_razlaga">Safeer ne fournit aucune extension. Tu saisis les tiennes ; une extension ajoutée ici arrive aussi sur tes autres appareils dans Safeer Link – directement entre appareils, rien ne passe par le cloud. Les films et séries viennent du catalogue public Cinemeta, les flux de tes extensions. Une extension avec un jeton ou une clé personnelle (p. ex. Webtor) reste chiffrée sur cet appareil et ne va qu’aux appareils de ton cercle proche : Services debrid → Envoyer les clés à un autre appareil.</string>
     <string name="os_mediji_dodatki_shranjen">Extension enregistrée : %1$s</string>
     <string name="os_mediji_dodatki_napaka_stremio">L’adresse d’une extension Stremio doit se terminer par /manifest.json.</string>
     <string name="os_mediji_dodatki_napaka_naslov">L’adresse doit commencer par http:// ou https://.</string>

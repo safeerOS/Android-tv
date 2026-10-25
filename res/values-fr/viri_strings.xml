@@ -121,5 +121,27 @@
     <string name="os_usenet_neveljavno">Vérifie l’adresse (https://…) et la clé API.</string>
     <string name="os_usenet_ime_kratko">indexeur Usenet %1$s</string>
     <string name="os_usenet_rezerva">Usenet n’a pas fonctionné – lecture d’une autre source</string>
+    <!-- Webtor rezerva (25. 10. 2026): lastnikov dodatek Webtor kot rezerva za torrente, ki jih TorBox nima. -->
+    <string name="os_webtor_rezerva">Webtor n’a pas fonctionné – lecture d’une autre source</string>
+    <string name="os_webtor_pripravljam">Préparation via Webtor…</string>
+    <string name="os_skrivni_dodatek_ime">extension %1$s</string>
+    <string name="os_mediji_dodatek_ni_shranjen">L’extension n’a pas pu être enregistrée de façon sécurisée (échec du chiffrement). Réessayez.</string>
+    <string name="os_mediji_dodatek_dodaj_znova">impossible à déverrouiller sur cet appareil – l’extension doit être ajoutée à nouveau (%1$s)</string>
+    <string name="os_debrid_poslji_stara_dodatki">Clés envoyées – confirmez sur %1$s. Les extensions avec un jeton personnel n’ont pas été envoyées : mettez d’abord Safeer à jour sur %1$s.</string>
+    <string name="os_sinh_vkl">Synchroniser automatiquement les clés et extensions dans le cercle proche : activé</string>
+    <string name="os_sinh_izk">Synchroniser automatiquement les clés et extensions dans le cercle proche : désactivé</string>
+    <string name="os_sinh_naprave">Appareils avec les clés (%1$d)</string>
+    <string name="os_sinh_naprave_naslov">Synchronisation des clés et extensions</string>
+    <string name="os_sinh_naprave_prazno">Aucun appareil de votre cercle de confiance proche ne synchronise encore les clés et extensions.</string>
+    <string name="os_sinh_stanje_potrjena">%1$s – synchronisé (dernière fois %2$s)</string>
+    <string name="os_sinh_stanje_povabljena">%1$s – en attente de confirmation sur cet appareil-là</string>
+    <string name="os_sinh_stanje_caka">%1$s – souhaite synchroniser : confirmez ici</string>
+    <string name="os_sinh_stanje_zavrnjena">%1$s – refusé (sélectionnez pour être à nouveau sollicité)</string>
+    <string name="os_sinh_stanje_stara">%1$s – ancienne version de Safeer : mettez-la à jour (les clés peuvent toujours être envoyées manuellement)</string>
+    <string name="os_sinh_vprasanje">%1$s (cercle de confiance proche) souhaite synchroniser les clés et extensions avec cet appareil : %2$s. Acceptez une fois – les modifications et suppressions ultérieures sur l’un ou l’autre appareil s’appliquent automatiquement.</string>
+    <string name="os_sinh_sprejmi">Accepter</string>
+    <string name="os_sinh_zavrni">Refuser</string>
+    <string name="os_sinh_prejeto_odpri">%1$s souhaite synchroniser les clés et extensions – ouvrez le Centre multimédia pour confirmer</string>
+    <string name="os_sinh_ponovno">%1$s : la confirmation s’affichera de nouveau à la prochaine synchronisation</string>
     <string name="os_usenet_napaka_indeksator">L’indexeur Usenet n’a pas renvoyé le fichier NZB. Vérifie sa clé API et sa limite quotidienne.</string>
 </resources>
