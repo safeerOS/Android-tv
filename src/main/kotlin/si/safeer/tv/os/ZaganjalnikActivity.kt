@@ -109,13 +109,14 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         zacetek = SystemClock.uptimeMillis()
+        // Varnostna vrata kot PRVO dejanje (pred vsem, kar bi lahko padlo): po prevec padcih od vklopa (tudi ANR in padci
+        // v kodi C, ki jih vidi le sistemski zapis) gre domaci zaslon nazaj prejsnjemu zaganjalniku, ta se takoj odpre.
+        val vrnjen = intent?.hasCategory(Intent.CATEGORY_HOME) == true && Zaganjalnik.preveriObZagonu(this)
         Zaganjalnik.namestiZascito(this)
-        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
-        Predgretje.zazeni(this)
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && !vrnjen) Zaganjalnik.zabeleziZagonDomov(this)
+        if (!vrnjen) Predgretje.zazeni(this)
         super.onCreate(savedInstanceState)
-        // Varnostna vrata, preden se karkoli narise: po prevec padcih od vklopa (tudi ANR in padci v kodi C, ki jih vidi
-        // le sistemski zapis) gre domaci zaslon nazaj prejsnjemu zaganjalniku, ta pa se takoj odpre.
-        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && Zaganjalnik.preveriObZagonu(this)) { finish(); return }
+        if (vrnjen) { finish(); return }
         zgradi()
         // Safeer Link (sredisce in sprejemnik ukazov drugih naprav) naj tece, kadar ga je uporabnik vklopil.
         try { si.safeer.tv.cast.HubStoritev.zagotovi(this) } catch (_: Throwable) { }
@@ -575,11 +576,12 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun naloziVse() {
         if (!namizje) return
         if (vseAplikacije.isEmpty()) Aplikacije.zadnjiZnani(this)?.let { vseAplikacije = it; narisiVse() }
-        Aplikacije.osveziVOzadju(this, vseAplikacije.ifEmpty { null }) { svez ->
+        // Brez velikih ikon iz LauncherApps (vsaka aplikacija svojo): mreza ima svoje majhne (ikonaMala). Izmerjeno
+        // 25. 10. 2026 na tablici (~70 aplikacij): seznam z ikonami je namizju dodal ~25 MB PSS - tudi, ce smo ikone
+        // takoj zavrgli (domorodni pomnilnik slik ostane do zbiranja smeti), zato se sploh ne nalozijo.
+        Aplikacije.osveziVOzadju(this, vseAplikacije.ifEmpty { null }, brezIkon = true) { svez ->
             if (isFinishing || isDestroyed) return@osveziVOzadju
-            // Brez velikih ikon iz LauncherApps (vsaka aplikacija svojo): mreza ima svoje majhne (ikonaMala). Izmerjeno
-            // 25. 10. 2026 na tablici (~70 aplikacij): seznam z ikonami je namizju dodal ~25 MB PSS.
-            vseAplikacije = svez.map { if (it.ikona == null) it else it.copy(ikona = null) }
+            vseAplikacije = svez
             narisiVse()
         }
     }
