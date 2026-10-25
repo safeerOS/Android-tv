@@ -163,6 +163,14 @@ object DatotekeStreznik {
     fun vseDatotekeDeljene(context: Context): Boolean = vklopljeno(context) && vseDatoteke(context)
 
     /**
+     * Ali naprava [idNaprave] sme `fs:` (pregled link-datoteke, tocka 2): vse datoteke so deljene, uporabnik je tej napravi
+     * datoteke odprl s privolitvijo po uvedbi (cast/Dostop.privolitevVsehDatotek) in datoteke so ji se odprte.
+     */
+    fun smeVseDatoteke(context: Context, idNaprave: String): Boolean = idNaprave.isNotBlank() &&
+        P.smeVseDatoteke(vseDatotekeDeljene(context), si.safeer.tv.cast.Dostop.privolitevVsehDatotek(context, idNaprave),
+            si.safeer.tv.cast.Dostop.sme(context, idNaprave, si.safeer.tv.cast.DostopPravila.Zmoznost.DATOTEKE))
+
+    /**
      * Namera za sistemsko stran »dostop do vseh datotek« prav za Safeer (Android 11+); null, kjer je ni. Odpre jo samo
      * dotik uporabnika (privolitev v Linku, obvestilo prosnje druge naprave) - telefon je nikoli ne odpre sam.
      */
@@ -239,6 +247,9 @@ object DatotekeStreznik {
         appContext = context.applicationContext
         val o = JSONObject().put("folder", if (mapa == P.KOREN) "" else mapa)
         if (!vklopljeno(context)) return o.put("items", JSONArray()).put("shared", false).put("reason", "off")
+        // Umaknjena naprava ne dobi niti seznama (pregled link-datoteke, tocka 3; Dostop.smeDejanje ga ze zavrne).
+        if (idNaprave.isNotBlank() && umaknjena(context, idNaprave))
+            return o.put("items", JSONArray()).put("shared", false).put("reason", "revoked")
         val dostop = dostop(context)
         o.put("access", dostop.oznaka)
         if (dostop == P.Dostop.BREZ) return o.put("items", JSONArray()).put("shared", false).put("reason", "permission")
@@ -247,13 +258,13 @@ object DatotekeStreznik {
         val obdobje = P.obdobje(stevilo(parametri, "from"), stevilo(parametri, "to"))
         val del = if (m == null || obdobje?.prazno() == true) PRAZNO else try {
             when (m) {
-                P.Mapa.Koren -> koren(context)
+                P.Mapa.Koren -> koren(context, idNaprave)
                 is P.Mapa.Zbirka -> zbirka(context, m.ime, stran, obdobje)
                 P.Mapa.Kamera -> kamera(context, stran, obdobje)
                 P.Mapa.Posnetki -> slikeVidei(context, izborMape(POSNETKI_ZASLONA), stran, obdobje)
                 P.Mapa.Albumi -> albumi(context, stran, obdobje)
                 is P.Mapa.Album -> slikeVidei(context, "bucket_id = ${m.id}" to null, stran, obdobje)
-                is P.Mapa.Pot -> mapaFs(context, m.rel, stran, obdobje)
+                is P.Mapa.Pot -> mapaFs(context, m.rel, stran, obdobje, idNaprave)
             }
         } catch (e: Throwable) {
             Log.w(TAG, "Branje mape ni uspelo: ${e.message}")
@@ -298,7 +309,7 @@ object DatotekeStreznik {
      * Koren: najprej fotografije s kamere (odjemalec prvo mapo fotografij odpre kot »Fotografije«), posnetki zaslona in
      * albumi - kadar jih naprava ima -, nato zbirke kot prej in, ce jih uporabnik deli, vse datoteke.
      */
-    private fun koren(context: Context): Del {
+    private fun koren(context: Context, idNaprave: String): Del {
         val v = JSONArray()
         fun mapa(id: String, ime: String) { v.put(JSONObject().put("id", id).put("name", ime).put("type", "folder")) }
         val datoteke = datotekeUri()
@@ -308,7 +319,7 @@ object DatotekeStreznik {
         // Shramba: datoteke, ki jih je ta naprava shranila za druge naprave (skupni prostor, Shramba.kt).
         val zbirke = listOf("video", "audio", "image") + (if (Build.VERSION.SDK_INT >= 29) listOf("shramba") else emptyList())
         for (z in zbirke) mapa(PREDPONA + z, imeZbirke(context, z))
-        if (vseDatotekeDeljene(context)) mapa(P.FS, context.getString(R.string.link_datoteke_vse))
+        if (smeVseDatoteke(context, idNaprave)) mapa(P.FS, context.getString(R.string.link_datoteke_vse))
         return Del(v, v.length(), 0, false)
     }
 
@@ -494,8 +505,11 @@ object DatotekeStreznik {
     }
     private const val MAPA_VELJA_MS = 60_000L
 
-    /** Vnosi mape brez simbolnih povezav; datum posnetka iz MediaStore, kjer ga ima ([posneti]). */
-    private fun beriMapo(mapa: File, posneti: Map<String, Long>): List<P.Vnos> {
+    /**
+     * Vnosi mape brez simbolnih povezav; datum posnetka iz MediaStore, kjer ga ima ([posneti] - poizvedba samo, ko mape ni
+     * v predpomnilniku; pregled link-datoteke, tocka 5).
+     */
+    private fun beriMapo(mapa: File, posneti: () -> Map<String, Long>): List<P.Vnos> {
         val kljuc = mapa.path
         val spremenjena = mapa.lastModified()
         synchronized(mape) {
@@ -503,6 +517,7 @@ object DatotekeStreznik {
         }
         val vnosi = ArrayList<P.Vnos>()
         val imena = mapa.list() ?: emptyArray()
+        val datumi = posneti()
         for (ime in imena) {
             if (!P.dovoljenDel(ime)) continue
             val a = try {
@@ -510,7 +525,7 @@ object DatotekeStreznik {
                     java.nio.file.LinkOption.NOFOLLOW_LINKS)
             } catch (_: Throwable) { continue }
             if (a.isSymbolicLink || !(a.isDirectory || a.isRegularFile)) continue
-            vnosi.add(P.Vnos(ime, a.isDirectory, if (a.isDirectory) 0L else a.size(), a.lastModifiedTime().toMillis(), posneti[ime] ?: 0L))
+            vnosi.add(P.Vnos(ime, a.isDirectory, if (a.isDirectory) 0L else a.size(), a.lastModifiedTime().toMillis(), datumi[ime] ?: 0L))
         }
         synchronized(mape) { mape[kljuc] = SeznamMape(spremenjena, zdaj(), vnosi) }
         return vnosi
@@ -532,10 +547,10 @@ object DatotekeStreznik {
     }
 
     /** Mapa notranjega pomnilnika: mape po imenu, nato datoteke od najnovejse (datum posnetka, ce ga ima). Samo branje. */
-    private fun mapaFs(context: Context, rel: String, stran: P.Stran, obdobje: P.Obdobje?): Del {
-        if (!vseDatotekeDeljene(context)) return PRAZNO
+    private fun mapaFs(context: Context, rel: String, stran: P.Stran, obdobje: P.Obdobje?, idNaprave: String): Del {
+        if (!smeVseDatoteke(context, idNaprave)) return PRAZNO
         val mapa = datotekaFs(P.oznakaFs(rel))?.takeIf { it.isDirectory } ?: return PRAZNO
-        val urejeni = P.uredi(rel, beriMapo(mapa, posnetiVMapi(context, rel)), obdobje)
+        val urejeni = P.uredi(rel, beriMapo(mapa) { posnetiVMapi(context, rel) }, obdobje)
         val okno = urejeni.drop(stran.odmik).take(stran.meja)
         val v = JSONArray()
         var datotek = false
@@ -622,11 +637,15 @@ object DatotekeStreznik {
         val vd = vseDatoteke(context)
         val o = JSONObject().put("access", d.oznaka).put("all_files", vd)
         if (!vklopljeno(context)) return o.put("shown", false).put("reason", "off")
-        val prosnja = P.prosnja(d, vd, vseMogoce(context))
+        // Vse datoteke so ze odobrene, ta naprava pa zanje se nima privolitve (pregled link-datoteke, 2): uporabnik jo da z
+        // dotikom obvestila, ki pove, katera naprava prosi.
+        val sme = smeVseDatoteke(context, idNaprave)
+        o.put("all_files_allowed", sme)
+        val prosnja = if (vd && !sme && vseMogoce(context)) P.Prosnja.VSE_DATOTEKE else P.prosnja(d, vd, vseMogoce(context))
         if (prosnja == P.Prosnja.NIC) return o.put("shown", false)
         val privzeto = try { si.safeer.tv.cast.KrogNaprave.krog(context).clanZaId(idNaprave)?.ime } catch (_: Throwable) { null }
         val ime = LinkVzdevki.ime(context, idNaprave, privzeto?.takeIf { it.isNotBlank() } ?: context.getString(R.string.link_datoteke_naprava))
-        val prikazano = DostopDatotekActivity.obvesti(context, ime, prosnja)
+        val prikazano = DostopDatotekActivity.obvesti(context, ime, prosnja, idNaprave)
         return if (prikazano) o.put("shown", true) else o.put("shown", false).put("reason", "notifications")
     }
 
@@ -684,8 +703,16 @@ object DatotekeStreznik {
         return true
     }
 
+    /** Naprava, ki ji je bil izdan zivi zeton [z] (dostop preveri [zetonVelja]); null, ce takega zetona ni. */
+    private fun napravaZetona(z: String?, zdaj: Long = zdaj()): String? {
+        if (z.isNullOrBlank()) return null
+        val zb = z.toByteArray()
+        return zetoni.entries.firstOrNull { it.value.zivi(zdaj) && MessageDigest.isEqual(it.value.vrednost.toByteArray(), zb) }
+            ?.key?.substringBefore('#')
+    }
+
     private fun umaknjena(ctx: Context, idNaprave: String): Boolean =
-        try { si.safeer.tv.cast.KrogNaprave.krog(ctx).jeUmaknjen(idNaprave) } catch (_: Throwable) { false }
+        P.umaknjenaVarno { si.safeer.tv.cast.KrogNaprave.krog(ctx).jeUmaknjen(idNaprave) }
 
     // ------------------------------------------------------------------ streznik
 
@@ -828,22 +855,27 @@ object DatotekeStreznik {
             val ctx = appContext ?: run { napaka(izhod, 503, "ni pripravljeno"); return }
             if (oznaka == null) { napaka(izhod, 404, "datoteke ni"); return }
             if (oznaka.startsWith(P.FS)) {
-                // Vse datoteke: samo, dokler jih uporabnik deli (stikalo in dostop do vseh datotek), in samo branje.
-                val f = if (vseDatotekeDeljene(ctx)) datotekaFs(oznaka)?.takeIf { it.isFile } else null
+                // Vse datoteke: samo, dokler jih uporabnik deli (stikalo in dostop do vseh datotek), samo napravi s
+                // privolitvijo za vse datoteke (pregled link-datoteke, 2), samo branje in brez lokacije posnetkov (1).
+                val f = if (smeVseDatoteke(ctx, napravaZetona(zeton).orEmpty())) datotekaFs(oznaka)?.takeIf { it.isFile } else null
                 if (f == null) { napaka(izhod, 404, "datoteke ni"); return }
                 if (metoda == "POST") { napaka(izhod, 405, "samo branje"); return }
                 if (palec) { posljiSlicico(ctx, oznaka, null, f, metoda, glave, poizvedba, izhod); return }
-                val opis = try { AssetFileDescriptor(ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY), 0, f.length()) }
-                    catch (_: Throwable) { null } ?: run { napaka(izhod, 404, "datoteke ni"); return }
-                posljiVsebino(opis, mimeIzImena(f.name), metoda, glave, izhod)
+                posljiFsBrezLokacije(ctx, f, metoda, glave, izhod)
                 return
             }
             val uri = uriIz(oznaka) ?: run { napaka(izhod, 404, "datoteke ni"); return }
             if (palec) { posljiSlicico(ctx, oznaka, uri, null, metoda, glave, poizvedba, izhod); return }
             if (metoda == "POST") { uredi(ctx, uri, glave, vhod, izhod); return }
+            val vrsta = ctx.contentResolver.getType(uri) ?: "application/octet-stream"
+            // Android 9 lokacije v MediaStore ne zakrije: JPEG kot kopija brez lokacije (specifikacija 3.7).
+            if (P.potVsebineMedija(vrsta, Build.VERSION.SDK_INT) == P.PotVsebine.KOPIJA_BREZ_LOKACIJE) {
+                posljiKopijo(ctx, { ctx.contentResolver.openInputStream(uri) }, vrsta, metoda, glave, izhod)
+                return
+            }
             val opis = try { ctx.contentResolver.openAssetFileDescriptor(uri, "r") } catch (_: Throwable) { null }
                 ?: run { napaka(izhod, 404, "datoteke ni"); return }
-            posljiVsebino(opis, ctx.contentResolver.getType(uri) ?: "application/octet-stream", metoda, glave, izhod)
+            posljiVsebino(opis, vrsta, metoda, glave, izhod)
         }
     }
 
@@ -907,6 +939,84 @@ object DatotekeStreznik {
     // ------------------------------------------------------------------ slicice
 
     /** Najvec dve hkratni dekodiranji slicic (pomnilnik telefona); ostale cakajo do 30 s, nato 503. */
+    /**
+     * Vsebina datoteke iz `fs:` brez lokacije posnetka (specifikacija 3.7; pregled link-datoteke, tocka 1): vrsta po prvih
+     * bajtih (ime lahko lazje), slika ali video prek MediaStore (Android 10+ lokacijo zakrije sam), sicer kopija brez EXIF
+     * GPS in XMP; kar ne gre, ne posljemo (403).
+     */
+    private fun posljiFsBrezLokacije(ctx: Context, f: File, metoda: String, glave: Map<String, String>, izhod: OutputStream) {
+        val glava = ByteArray(16)
+        val n = try { f.inputStream().use { it.read(glava) } } catch (_: Throwable) { -1 }
+        val mime = (if (n > 0) P.vrstaPoGlavi(glava.copyOf(n)) else null) ?: mimeIzImena(f.name)
+        val uri = if (P.nosiLokacijo(mime) && Build.VERSION.SDK_INT >= 29) uriMedija(ctx, f, mime) else null
+        when (P.potVsebineFs(mime, Build.VERSION.SDK_INT, uri != null)) {
+            P.PotVsebine.NEPOSREDNO -> {
+                val opis = try { AssetFileDescriptor(ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY), 0, f.length()) }
+                    catch (_: Throwable) { null } ?: run { napaka(izhod, 404, "datoteke ni"); return }
+                posljiVsebino(opis, mimeIzImena(f.name), metoda, glave, izhod)
+            }
+            P.PotVsebine.MEDIASTORE -> {
+                val opis = try { uri?.let { ctx.contentResolver.openAssetFileDescriptor(it, "r") } } catch (_: Throwable) { null }
+                    ?: run { napaka(izhod, 404, "datoteke ni"); return }
+                posljiVsebino(opis, mime, metoda, glave, izhod)
+            }
+            P.PotVsebine.KOPIJA_BREZ_LOKACIJE -> posljiKopijo(ctx, { f.inputStream() }, mime, metoda, glave, izhod)
+            P.PotVsebine.ZAVRNI -> napaka(izhod, 403, "lokacije posnetka ni mogoce odstraniti")
+        }
+    }
+
+    /** MediaStore naslov slike ali videa [f] (Android 10+), ce ga MediaStore pozna (po poti); sicer null. */
+    private fun uriMedija(ctx: Context, f: File, mime: String): Uri? {
+        val zbirka = if (mime.startsWith("video/")) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        @Suppress("DEPRECATION")
+        val k = poizvedi(ctx, zbirka, arrayOf(MediaStore.MediaColumns._ID), "${MediaStore.MediaColumns.DATA} = ?",
+            arrayOf(f.path), MediaStore.MediaColumns._ID) ?: return null
+        k.use { if (it.moveToFirst()) return ContentUris.withAppendedId(zbirka, it.getLong(0)) }
+        return null
+    }
+
+    /** Poslje kopijo vsebine brez lokacije ([kopijaBrezLokacije]); ce je ni mogoce narediti, 403. Kopija se izbrise. */
+    private fun posljiKopijo(ctx: Context, vir: () -> InputStream?, mime: String, metoda: String, glave: Map<String, String>,
+                             izhod: OutputStream) {
+        val kopija = kopijaBrezLokacije(ctx, vir) ?: run { napaka(izhod, 403, "lokacije posnetka ni mogoce odstraniti"); return }
+        try {
+            val opis = try { AssetFileDescriptor(ParcelFileDescriptor.open(kopija, ParcelFileDescriptor.MODE_READ_ONLY), 0, kopija.length()) }
+                catch (_: Throwable) { null } ?: run { napaka(izhod, 404, "datoteke ni"); return }
+            posljiVsebino(opis, mime, metoda, glave, izhod)
+        } finally { kopija.delete() }
+    }
+
+    /**
+     * Kopija slike v predpomnilniku aplikacije brez EXIF GPS in XMP (android.media.ExifInterface); null, ce je prevelika
+     * ([P.NAJVEC_KOPIJE]), ce zapis ne uspe ali ce ima kopija po zapisu se vedno lokacijo (preverba na novo prebrane kopije).
+     */
+    private fun kopijaBrezLokacije(ctx: Context, vir: () -> InputStream?): File? {
+        val mapa = File(ctx.cacheDir, "link-brez-lokacije").apply { mkdirs() }
+        val t = try { File.createTempFile("k", ".tmp", mapa) } catch (_: Throwable) { return null }
+        try {
+            var skupaj = 0L
+            val vhod = vir() ?: run { t.delete(); return null }
+            vhod.use { i ->
+                t.outputStream().use { o ->
+                    val b = ByteArray(64 * 1024)
+                    while (true) {
+                        val n = i.read(b)
+                        if (n < 0) break
+                        skupaj += n
+                        if (skupaj > P.NAJVEC_KOPIJE) throw IllegalStateException("prevelika")
+                        o.write(b, 0, n)
+                    }
+                }
+            }
+            val e = android.media.ExifInterface(t.path)
+            for (z in P.ZNACKE_LOKACIJE) e.setAttribute(z, null)
+            e.saveAttributes()
+            val p = android.media.ExifInterface(t.path)
+            if (p.getLatLong(FloatArray(2)) || P.ZNACKE_LOKACIJE.any { p.getAttribute(it) != null }) { t.delete(); return null }
+            return t
+        } catch (_: Throwable) { t.delete(); return null }
+    }
+
     private val dekodiranja = java.util.concurrent.Semaphore(2)
     private val slicice = P.PredpomnilnikSlicic(6 * 1024 * 1024)
 

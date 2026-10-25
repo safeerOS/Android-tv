@@ -32,6 +32,7 @@ class DostopDatotekActivity : Activity() {
         private const val ZAHTEVA_STRAN = 7343
         private const val VRSTA = "vrsta"
         private const val CAKA_STRAN = "caka_stran"
+        private const val NAPRAVA = "naprava"
 
         /**
          * Privolitev v Linku: okno dovoljenja takoj (uporabnik je pravkar potrdil v Nastavitvah ali Safeer Linku).
@@ -47,15 +48,18 @@ class DostopDatotekActivity : Activity() {
             } catch (_: Throwable) { false }
         }
 
-        /** Obvestilo o prosnji naprave [ime]; false, ce ga ni mogoce pokazati (obvestila izklopljena). */
-        fun obvesti(context: Context, ime: String, prosnja: LinkDatotekePravila.Prosnja): Boolean {
+        /**
+         * Obvestilo o prosnji naprave [ime] ([idNaprave]); false, ce ga ni mogoce pokazati (obvestila izklopljena). Dotik
+         * obvestila za vse datoteke je privolitev uporabnika prav za to napravo (pregled link-datoteke, tocka 2).
+         */
+        fun obvesti(context: Context, ime: String, prosnja: LinkDatotekePravila.Prosnja, idNaprave: String = ""): Boolean {
             val upravitelj = context.getSystemService(NotificationManager::class.java) ?: return false
             if (!upravitelj.areNotificationsEnabled()) return false
             return try {
                 upravitelj.createNotificationChannel(NotificationChannel(KANAL, context.getString(R.string.link_datoteke_kanal),
                     NotificationManager.IMPORTANCE_DEFAULT))
                 val namera = Intent(context, DostopDatotekActivity::class.java).putExtra(VRSTA, prosnja.name)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .putExtra(NAPRAVA, idNaprave).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 val cakajoca = PendingIntent.getActivity(context, OBVESTILO, namera,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 val besedilo = context.getString(if (prosnja == LinkDatotekePravila.Prosnja.VSE_DATOTEKE)
@@ -82,6 +86,11 @@ class DostopDatotekActivity : Activity() {
         try { getSystemService(NotificationManager::class.java)?.cancel(OBVESTILO) } catch (_: Throwable) { }
         // Po zasuku zaslona okno dovoljenja ali sistemska stran ze caka na odgovor.
         if (savedInstanceState != null) { cakaStran = savedInstanceState.getBoolean(CAKA_STRAN, false); return }
+        // Dotik obvestila »naprava X prosi za vse datoteke«: privolitev za X (dejavnost ni izvozena - namero da le Safeer).
+        if (intent?.getStringExtra(VRSTA) == LinkDatotekePravila.Prosnja.VSE_DATOTEKE.name)
+            intent?.getStringExtra(NAPRAVA)?.takeIf { it.isNotBlank() }?.let {
+                try { si.safeer.tv.cast.Dostop.zabeleziPrivolitevVsehDatotek(this, it) } catch (_: Throwable) { }
+            }
         if (intent?.getStringExtra(VRSTA) == LinkDatotekePravila.Prosnja.VSE_DATOTEKE.name && !DatotekeStreznik.vseDatoteke(this)) {
             if (DatotekeStreznik.zahtevajVseDatoteke(this, ZAHTEVA, ZAHTEVA_STRAN)) {
                 // Android 11+: odgovor pride v onActivityResult. Android 9: okno za shrambo (onRequestPermissionsResult),

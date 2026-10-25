@@ -27,6 +27,8 @@ object Dostop {
     private const val KLJUC_ZASCITA = "zascita"
     /** Jedra naprav, ki jim je uporabnik zaslon odprl s privolitvijo (DostopPravila.zaslonSPrivolitvijo). */
     private const val KLJUC_PRIVOLITEV_ZASLONA = "privolitev_zaslona"
+    /** Jedra naprav s privolitvijo za datoteke po uvedbi `fs:` (link/DatotekeStreznik.smeVseDatoteke). */
+    private const val KLJUC_PRIVOLITEV_DATOTEK = "privolitev_datotek"
 
     private var zapis: HashMap<String, Set<Zmoznost>>? = null
     private var zascita: HashSet<String> = HashSet()
@@ -212,18 +214,41 @@ object Dostop {
             val m = nalozen(ctx)
             m[j] = novo
             val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val zabelezene = DostopPravila.privolitvePo(privolitve(prefs), j, novo)
+            val zaslon = DostopPravila.privolitvePo(privolitve(prefs), j, novo)
+            val datoteke = DostopPravila.privolitvePo(privolitve(prefs, KLJUC_PRIVOLITEV_DATOTEK), j, novo, Zmoznost.DATOTEKE)
             prefs.edit().putString(KLJUC_NAPRAVE, vJson(m))
-                .putString(KLJUC_PRIVOLITEV_ZASLONA, JSONArray(zabelezene.sorted()).toString()).apply()
+                .putString(KLJUC_PRIVOLITEV_ZASLONA, JSONArray(zaslon.sorted()).toString())
+                .putString(KLJUC_PRIVOLITEV_DATOTEK, JSONArray(datoteke.sorted()).toString()).apply()
         }
         Log.i(TAG, "Dostop naprave $j: ${DostopPravila.vNiz(novo).ifEmpty { "brez" }}")
         try { naSpremembo?.invoke() } catch (_: Throwable) { }
     }
 
-    private fun privolitve(prefs: android.content.SharedPreferences): Set<String> = try {
-        val a = JSONArray(prefs.getString(KLJUC_PRIVOLITEV_ZASLONA, "[]") ?: "[]")
+    private fun privolitve(prefs: android.content.SharedPreferences, kljuc: String = KLJUC_PRIVOLITEV_ZASLONA): Set<String> = try {
+        val a = JSONArray(prefs.getString(kljuc, "[]") ?: "[]")
         (0 until a.length()).mapNotNull { (a.opt(it) as? String)?.takeIf { s -> DostopPravila.jeJedro(s) } }.toSet()
     } catch (_: Throwable) { emptySet() }
+
+    /** Ali je uporabnik napravi [id] datoteke odprl s privolitvijo po uvedbi `fs:` in naprava ni umaknjena. Napaka = ne. */
+    fun privolitevVsehDatotek(ctx: Context, id: String): Boolean = try {
+        val j = jedro(ctx, id)
+        j.isNotBlank() && j in synchronized(this) {
+            privolitve(ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE), KLJUC_PRIVOLITEV_DATOTEK)
+        } && !umaknjena(ctx, j)
+    } catch (_: Throwable) { false }
+
+    /** Uporabnik se je dotaknil obvestila »naprava [id] prosi za vse datoteke« (link/DostopDatotekActivity). */
+    fun zabeleziPrivolitevVsehDatotek(ctx: Context, id: String) {
+        if (id.isBlank() || jeTaNaprava(ctx, id)) return
+        val j = jedro(ctx, id)
+        if (j.isBlank()) return
+        synchronized(this) {
+            val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val nove = privolitve(prefs, KLJUC_PRIVOLITEV_DATOTEK) + j
+            prefs.edit().putString(KLJUC_PRIVOLITEV_DATOTEK, JSONArray(nove.sorted()).toString()).apply()
+        }
+        Log.i(TAG, "Vse datoteke: privolitev za napravo $j")
+    }
 
     /**
      * Jedra naprav, ki jim je zaslon odprt s privolitvijo uporabnika in niso umaknjene - samo te sprozijo samodejni vklop
@@ -231,7 +256,7 @@ object Dostop {
      */
     fun napraveSPrivolitvijoZaslona(ctx: Context): Set<String> {
         val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return synchronized(this) { DostopPravila.zaslonSPrivolitvijo(nalozen(ctx), privolitve(prefs)) }
+        return synchronized(this) { DostopPravila.zaslonSPrivolitvijo(nalozen(ctx), privolitve(prefs, KLJUC_PRIVOLITEV_ZASLONA)) }
             .filterNot { umaknjena(ctx, it) }.toSet()
     }
 

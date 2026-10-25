@@ -107,6 +107,13 @@ object DostopPravila {
     fun clanKroga(jedro: String, taNaprava: (String) -> Boolean, clan: (String) -> Boolean, umaknjen: (String) -> Boolean): Boolean =
         jedro.isNotBlank() && try { taNaprava(jedro) || (clan(jedro) && !umaknjen(jedro)) } catch (_: Throwable) { false }
 
+    /**
+     * Ukaz, ki ga sprejmemo samo po preverjeni seji od naprave do naprave (pregled Webtor rezerve V1/U1): pri nezasciteni
+     * poti oznako posiljatelja vpise sredisce - to je lahko katerakoli naprava v Linku. Samodejno usklajevanje kljucev
+     * (os/UskladitevKljucevPravila.DEJANJE) posilja samo naprava, ki zascito zna.
+     */
+    fun samoZasciteno(dejanje: String): Boolean = dejanje.trim().lowercase() == "secrets.sync"
+
     /** Ukaz [dejanje]: dostop po zmoznostih ([smeZmoznosti], [smePosiljatelj]), za vnos se clanstvo v krogu ([clanKroga]). */
     fun smeUkaz(dejanje: String, smeZmoznosti: Boolean, clanKroga: () -> Boolean): Boolean =
         smeZmoznosti && (!zahtevaClanstvo(dejanje) || clanKroga())
@@ -129,9 +136,12 @@ object DostopPravila {
     fun zaslonSPrivolitvijo(zapis: Map<String, Set<Zmoznost>>, privolitve: Set<String>): Set<String> =
         zapis.filter { (j, z) -> Zmoznost.ZASLON in z && j in privolitve }.keys
 
-    /** Privolitve po shranjenem dostopu naprave [jedro]: z zaslonom je privolitev zabelezena, brez njega umaknjena. */
-    fun privolitvePo(privolitve: Set<String>, jedro: String, dano: Set<Zmoznost>): Set<String> =
-        if (Zmoznost.ZASLON in dano) privolitve + jedro else privolitve - jedro
+    /**
+     * Privolitve po shranjenem dostopu naprave [jedro]: z zmoznostjo [z] (zaslon za Safeer Vnos, datoteke za vse datoteke
+     * `fs:`) je privolitev zabelezena, brez nje umaknjena.
+     */
+    fun privolitvePo(privolitve: Set<String>, jedro: String, dano: Set<Zmoznost>, z: Zmoznost = Zmoznost.ZASLON): Set<String> =
+        if (z in dano) privolitve + jedro else privolitve - jedro
 
     /** Clan kroga, kolikor ga pravila potrebujejo. */
     class Clan(val id: String, val kljuc: String, val dodano: Double)

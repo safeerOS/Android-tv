@@ -218,6 +218,43 @@ fun main() {
     preveriEnako("PNG 50 MP ne (pomnilnik)", false, P.smeDekodirati("image/png", 8000, 6250))
     preveriEnako("video ne", false, P.smeDekodirati("video/mp4", 1920, 1080))
     preveriEnako("brez mer ne", false, P.smeDekodirati("image/jpeg", 0, 0))
+    // Pregled link-datoteke 6: tudi vzorceni formati imajo zgornjo mejo (JPEG 60 000 x 60 000 ne).
+    preveriEnako("JPEG 60000 x 60000 ne (vzorci le do 1/8)", false, P.smeDekodirati("image/jpeg", 60_000, 60_000))
+    preveriEnako("HEIC 200 MP se da", true, P.smeDekodirati("image/heic", 20_000, 10_000))
+
+    // --- pregled link-datoteke 2: fs: samo naprava s privolitvijo (ne vse z »datoteke«)
+    preveriEnako("fs: deljeno, privolitev, datoteke -> da", true, P.smeVseDatoteke(true, true, true))
+    preveriEnako("fs: naprava brez privolitve (stara z »datoteke«) -> ne", false, P.smeVseDatoteke(true, false, true))
+    preveriEnako("fs: privolitev, a datoteke odvzete -> ne", false, P.smeVseDatoteke(true, true, false))
+    preveriEnako("fs: vse datoteke niso deljene -> ne", false, P.smeVseDatoteke(false, true, true))
+    // --- pregled link-datoteke 4: napaka pri branju kroga = umaknjena
+    preveriEnako("umik: napaka -> umaknjena", true, P.umaknjenaVarno { throw IllegalStateException("pokvarjen zapis") })
+    preveriEnako("umik: ni umaknjena", false, P.umaknjenaVarno { false })
+    preveriEnako("umik: umaknjena", true, P.umaknjenaVarno { true })
+
+    // --- pregled link-datoteke 1 (specifikacija 3.7): lokacija posnetka ne gre ven niti v vsebini
+    fun glava(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
+    fun ascii(s: String) = s.toByteArray(Charsets.ISO_8859_1)
+    preveriEnako("glava JPEG", "image/jpeg", P.vrstaPoGlavi(glava(0xFF, 0xD8, 0xFF, 0xE1, 0, 0)))
+    preveriEnako("glava PNG", "image/png", P.vrstaPoGlavi(glava(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)))
+    preveriEnako("glava WebP", "image/webp", P.vrstaPoGlavi(ascii("RIFF\u0000\u0000\u0000\u0000WEBPVP8 ")))
+    preveriEnako("glava HEIC", "image/heic", P.vrstaPoGlavi(ascii("\u0000\u0000\u0000\u0018ftypheic")))
+    preveriEnako("glava MP4", "video/mp4", P.vrstaPoGlavi(ascii("\u0000\u0000\u0000\u0018ftypisom")))
+    preveriEnako("glava PDF ni medij", null, P.vrstaPoGlavi(ascii("%PDF-1.7")))
+    preveriEnako("prekratka glava", null, P.vrstaPoGlavi(glava(0xFF)))
+    preveriEnako("znacke: GPS sirina, dolzina in XMP", true,
+        listOf("GPSLatitude", "GPSLongitude", "GPSAltitude", "GPSDateStamp", "Xmp").all { it in P.ZNACKE_LOKACIJE })
+    preveriEnako("fs: JPEG v MediaStore (Android 14) -> MediaStore", LinkDatotekePravila.PotVsebine.MEDIASTORE, P.potVsebineFs("image/jpeg", 34, true))
+    preveriEnako("fs: JPEG brez MediaStore -> kopija brez lokacije", LinkDatotekePravila.PotVsebine.KOPIJA_BREZ_LOKACIJE, P.potVsebineFs("image/jpeg", 34, false))
+    preveriEnako("fs: video v MediaStore -> MediaStore", LinkDatotekePravila.PotVsebine.MEDIASTORE, P.potVsebineFs("video/mp4", 34, true))
+    preveriEnako("fs: video brez MediaStore -> ne posljemo", LinkDatotekePravila.PotVsebine.ZAVRNI, P.potVsebineFs("video/mp4", 34, false))
+    preveriEnako("fs: Android 9 JPEG -> kopija", LinkDatotekePravila.PotVsebine.KOPIJA_BREZ_LOKACIJE, P.potVsebineFs("image/jpeg", 28, true))
+    preveriEnako("fs: Android 9 video -> ne posljemo", LinkDatotekePravila.PotVsebine.ZAVRNI, P.potVsebineFs("video/mp4", 28, true))
+    preveriEnako("fs: Android 9 PNG (ExifInterface ga ne zapise) -> ne posljemo", LinkDatotekePravila.PotVsebine.ZAVRNI, P.potVsebineFs("image/png", 28, false))
+    preveriEnako("fs: PDF neposredno", LinkDatotekePravila.PotVsebine.NEPOSREDNO, P.potVsebineFs("application/pdf", 34, false))
+    preveriEnako("fs: GIF nima lokacije -> neposredno", LinkDatotekePravila.PotVsebine.NEPOSREDNO, P.potVsebineFs("image/gif", 34, false))
+    preveriEnako("media: Android 14 -> MediaStore (zakrije sam)", LinkDatotekePravila.PotVsebine.MEDIASTORE, P.potVsebineMedija("image/jpeg", 34))
+    preveriEnako("media: Android 9 JPEG -> kopija", LinkDatotekePravila.PotVsebine.KOPIJA_BREZ_LOKACIJE, P.potVsebineMedija("image/jpeg", 28))
 
     println(if (napak == 0) "Vse ok." else "NAPAK: $napak")
     if (napak > 0) exitProcess(1)

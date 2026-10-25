@@ -263,9 +263,20 @@ fun main() {
     preveri("samodejni Vnos samo za zaslon s privolitvijo (podedovani ne)",
         p.zaslonSPrivolitvijo(zapisDostopa, setOf("n-bbbbbbbbbbbbbbbb", "n-cccccccccccccccc")) == setOf("n-bbbbbbbbbbbbbbbb") &&
             p.zaslonSPrivolitvijo(zapisDostopa, emptySet()).isEmpty())
+    // Pregled link-datoteke 3: umaknjena naprava ne dobi files.list (po zdruzitvi s tv-vnos: veljavne v zmoznostiJedra).
+    preveri("umaknjena naprava ne dobi seznama datotek",
+        !p.sme(p.veljavne(p.VSE_ZMOZNOSTI, umaknjena = true), p.zahtevaDejanja("files.list")) &&
+            p.sme(p.veljavne(setOf(Zmoznost.DATOTEKE), umaknjena = false), p.zahtevaDejanja("files.list")))
+    preveri("privolitev datotek (fs:): shranjene datoteke jo zabelezijo, odvzem umakne",
+        p.privolitvePo(emptySet(), "n-aaaaaaaaaaaaaaaa", setOf(Zmoznost.DATOTEKE), Zmoznost.DATOTEKE) == setOf("n-aaaaaaaaaaaaaaaa") &&
+            p.privolitvePo(setOf("n-aaaaaaaaaaaaaaaa"), "n-aaaaaaaaaaaaaaaa", setOf(Zmoznost.ZASLON), Zmoznost.DATOTEKE).isEmpty())
     preveri("privolitev: shranjen zaslon jo zabelezi, odvzem jo umakne",
         p.privolitvePo(emptySet(), "n-aaaaaaaaaaaaaaaa", setOf(Zmoznost.ZASLON)) == setOf("n-aaaaaaaaaaaaaaaa") &&
             p.privolitvePo(setOf("n-aaaaaaaaaaaaaaaa"), "n-aaaaaaaaaaaaaaaa", emptySet()).isEmpty())
+
+    // Pregled Webtor rezerve V1/U1: usklajevanje kljucev samo po preverjeni seji (oznako na nezasciteni poti vpise sredisce).
+    preveri("secrets.sync samo zasciteno, drugi ukazi ne", p.samoZasciteno("secrets.sync") && p.samoZasciteno(" Secrets.Sync ") &&
+        !p.samoZasciteno("debrid.keys") && !p.samoZasciteno("files.list"))
 
     if (napak > 0) { println("\nNAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("DostopPravilaTest: OK")

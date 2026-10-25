@@ -315,10 +315,95 @@ object LinkDatotekePravila {
      */
     fun smeDekodirati(mime: String, sirina: Int, visina: Int): Boolean {
         if (sirina <= 0 || visina <= 0) return false
+        // Pregled link-datoteke (6): JPEG ImageDecoder vzorci le do 1/8 - 60 000 x 60 000 bi bilo ~225 MB.
+        if (sirina.toLong() * visina > NAJVEC_TOCK_Z_VZORCENJEM) return false
         val m = mime.lowercase()
         if (m == "image/jpeg" || m == "image/webp" || m == "image/heic" || m == "image/heif" || m == "image/avif") return true
         return m.startsWith("image/") && sirina.toLong() * visina <= NAJVEC_TOCK_BREZ_VZORCENJA
     }
+
+    /** Najvec slikovnih tock tudi pri formatih z vzorcenjem (pregled link-datoteke, tocka 6): 200 MP. */
+    const val NAJVEC_TOCK_Z_VZORCENJEM = 200_000_000L
+
+    // ------------------------------------------------------------------ vse datoteke (fs:) na napravo
+
+    /**
+     * Pregled link-datoteke (25. 10. 2026, tocka 2): `fs:` (ves notranji pomnilnik) dobi samo naprava, ki ji je uporabnik
+     * datoteke odprl s privolitvijo po uvedbi te funkcije ([privolitev]) - ne vse naprave z »datoteke« naenkrat, ko ena
+     * privolitev odobri dostop do vseh datotek.
+     */
+    fun smeVseDatoteke(deljeno: Boolean, privolitev: Boolean, smeDatoteke: Boolean): Boolean = deljeno && privolitev && smeDatoteke
+
+    /** Preverba umika naprave (pregled link-datoteke, tocka 4): napaka pri branju kroga = umaknjena (»ne vem« ni »da«). */
+    fun umaknjenaVarno(preveri: () -> Boolean): Boolean = try { preveri() } catch (_: Throwable) { true }
+
+    // ------------------------------------------------------------------ lokacija v vsebini (specifikacija 3.7)
+
+    /** Kako poslati vsebino, da lokacija posnetka (EXIF GPS, XMP, ©xyz) ne gre ven (pregled link-datoteke, tocka 1). */
+    enum class PotVsebine { NEPOSREDNO, MEDIASTORE, KOPIJA_BREZ_LOKACIJE, ZAVRNI }
+
+    /** EXIF in XMP znacke z lokacijo (imena kot android.media.ExifInterface.TAG_GPS_* in TAG_XMP). */
+    val ZNACKE_LOKACIJE = listOf(
+        "GPSVersionID", "GPSLatitudeRef", "GPSLatitude", "GPSLongitudeRef", "GPSLongitude", "GPSAltitudeRef", "GPSAltitude",
+        "GPSTimeStamp", "GPSSatellites", "GPSStatus", "GPSMeasureMode", "GPSDOP", "GPSSpeedRef", "GPSSpeed", "GPSTrackRef",
+        "GPSTrack", "GPSImgDirectionRef", "GPSImgDirection", "GPSMapDatum", "GPSDestLatitudeRef", "GPSDestLatitude",
+        "GPSDestLongitudeRef", "GPSDestLongitude", "GPSDestBearingRef", "GPSDestBearing", "GPSDestDistanceRef",
+        "GPSDestDistance", "GPSProcessingMethod", "GPSAreaInformation", "GPSDateStamp", "GPSDifferential",
+        "GPSHPositioningError", "Xmp")
+
+    /** Vrste slik, ki lahko nosijo lokacijo (EXIF, XMP); GIF, BMP in podobne je nimajo. Vsi videi jo lahko. */
+    private val SLIKE_Z_LOKACIJO = setOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/avif",
+        "image/tiff", "image/x-adobe-dng", "image/dng")
+
+    fun nosiLokacijo(mime: String): Boolean { val m = mime.lowercase(); return m.startsWith("video/") || m in SLIKE_Z_LOKACIJO }
+
+    /** Vrsta po prvih bajtih - ime lahko lazje (IMG.jpg.bak je se vedno JPEG z GPS): MIME ali null. */
+    fun vrstaPoGlavi(g: ByteArray): String? {
+        fun b(i: Int) = if (i < g.size) g[i].toInt() and 0xFF else -1
+        fun niz(od: Int, n: Int) = if (g.size >= od + n) String(g, od, n, Charsets.ISO_8859_1) else ""
+        return when {
+            b(0) == 0xFF && b(1) == 0xD8 && b(2) == 0xFF -> "image/jpeg"
+            b(0) == 0x89 && niz(1, 3) == "PNG" -> "image/png"
+            niz(0, 4) == "RIFF" && niz(8, 4) == "WEBP" -> "image/webp"
+            niz(4, 4) == "ftyp" -> when (niz(8, 4)) {
+                "heic", "heix", "hevc", "heim", "heis", "mif1", "msf1" -> "image/heic"
+                "avif", "avis" -> "image/avif"
+                else -> "video/mp4"
+            }
+            else -> null
+        }
+    }
+
+    /** Ali zna android.media.ExifInterface to vrsto zapisati: JPEG povsod, PNG in WebP od API 30. */
+    fun kopijaMogoca(mime: String, sdk: Int): Boolean {
+        val m = mime.lowercase()
+        return m == "image/jpeg" || (sdk >= 30 && (m == "image/png" || m == "image/webp"))
+    }
+
+    /**
+     * `fs:` (surova datoteka): slika ali video z lokacijo prek MediaStore, ce ga ima (Android 10+ brez ACCESS_MEDIA_LOCATION
+     * lokacijo zakrije sam); sicer kopija brez EXIF GPS in XMP; kar tako ne gre (video ali HEIC brez MediaStore, Android 9)
+     * - ne posljemo. Druge datoteke (dokumenti, GIF) neposredno.
+     */
+    fun potVsebineFs(mime: String, sdk: Int, vMediaStore: Boolean): PotVsebine = when {
+        !nosiLokacijo(mime) -> PotVsebine.NEPOSREDNO
+        sdk >= 29 && vMediaStore -> PotVsebine.MEDIASTORE
+        kopijaMogoca(mime, sdk) -> PotVsebine.KOPIJA_BREZ_LOKACIJE
+        else -> PotVsebine.ZAVRNI
+    }
+
+    /**
+     * `media:*` (MediaStore): Android 10+ lokacijo zakrije sam. Android 9 je ne: JPEG gre kot kopija brez lokacije; video in
+     * HEIC na Androidu 9 ostaneta neposredno (odprto - porocilo android-232).
+     */
+    fun potVsebineMedija(mime: String, sdk: Int): PotVsebine = when {
+        sdk >= 29 || !nosiLokacijo(mime) -> PotVsebine.MEDIASTORE
+        kopijaMogoca(mime, sdk) -> PotVsebine.KOPIJA_BREZ_LOKACIJE
+        else -> PotVsebine.MEDIASTORE
+    }
+
+    /** Najvecja datoteka, ki jo za kopijo brez lokacije prekopiramo (vecja = ne posljemo). */
+    const val NAJVEC_KOPIJE = 64L * 1024 * 1024
 
     /** Rob slicice iz `?s=`: 128..512, privzeto 256 (kot prej, ko parametra ni bilo). */
     fun rob(s: String?): Int = s?.trim()?.toIntOrNull()?.coerceIn(ROB_NAJMANJ, ROB_NAJVEC) ?: ROB_PRIVZETO
