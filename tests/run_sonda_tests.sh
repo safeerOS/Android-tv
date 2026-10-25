@@ -18,6 +18,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
     "$SRC/si/safeer/tv/os/NedelujocePravila.kt" \
     "$SRC/si/safeer/tv/os/JezikiVsebine.kt" \
+    "$SRC/si/safeer/tv/os/SkrivnostiPravila.kt" \
     "$TEST_DIR/stubs/Imenik.kt" \
     "$TEST_DIR/SondaTokaTest.kt" \
     -include-runtime -d "$OUT/sonda.jar"
