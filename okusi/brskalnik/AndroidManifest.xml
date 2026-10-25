@@ -76,6 +76,7 @@
              teh zaslonov nima, tudi skritih ne. -->
         <activity android:name="si.safeer.tv.os.DomovActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.NastavitveActivity" tools:node="remove" />
+        <activity android:name="si.safeer.tv.os.DovoljenjaActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.DatotekeActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.MagnetActivity" tools:node="remove" />
         <activity android:name="si.safeer.tv.os.ZaslonActivity" tools:node="remove" />

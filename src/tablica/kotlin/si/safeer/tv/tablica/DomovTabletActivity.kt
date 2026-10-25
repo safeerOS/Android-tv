@@ -73,6 +73,8 @@ class DomovTabletActivity : Activity(), LinkOdjemalec.Poslusalec {
         si.safeer.tv.os.Predaja.prikaz = { po -> if (!isFinishing) si.safeer.tv.os.PredajaObvestilo.pasica(this, po) }
         si.safeer.tv.os.Predaja.cakajoca?.takeIf { it.velja() }?.let { si.safeer.tv.os.PredajaObvestilo.umakni(this); si.safeer.tv.os.PredajaObvestilo.pasica(this, it) }
         si.safeer.tv.os.Posodobitve.ponudiCeJeCas(this)   // nova razlicica s safeer.si: tiha pasica, najvec enkrat na dan
+        // Enkrat, ce manjka pomembno dovoljenje (prikaz cez druge aplikacije, obvestila) - stran Dovoljenja.
+        si.safeer.tv.os.DovoljenjaActivity.ponudiObZagonu(this)
     }
 
     override fun onPause() {

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stran Dovoljenja (DovoljenjaActivity, DovoljenjaPravila) in obvestilo Safeer Linka za prikaz cez druge aplikacije. -->
+<resources>
+    <string name="dov_naslov">Berechtigungen</string>
+    <string name="dov_opis_vrstice">Was Safeer braucht und warum – mit einem Tipp einschalten</string>
+    <string name="dov_uvod">Safeer fragt nur, was es wirklich nutzt. Die Schaltfläche öffnet genau die richtige Seite – dort Safeer einschalten und zurückkehren. Du kannst alles jederzeit widerrufen.</string>
+    <string name="dov_ob_zagonu">Etwas Wichtiges fehlt noch, deshalb kann Safeer Link auf diesem Gerät nicht alles. Tippe bei den markierten Zeilen auf „Erlauben“.</string>
+    <!-- Ime posebnega dostopa v cistem Androidu (Pixel in vecina drugih). -->
+    <string name="dov_prikaz">Über anderen Apps einblenden</string>
+    <!-- Ime na Samsungu (One UI): sl in en preverjeno; v ostalih jezikih Samsungovo ime ni preverjeno - zato splosno. -->
+    <string name="dov_prikaz_samsung">Über anderen Apps einblenden</string>
+    <string name="dov_prikaz_opis">Damit Safeer Link auf diesem Gerät eine App oder Seite öffnen kann, die du vom Computer oder Handy sendest.</string>
+    <string name="dov_obvestila">Benachrichtigungen</string>
+    <string name="dov_obvestila_opis">Anfragen und Nachrichten anderer Geräte im Link (z. B. „Diesem Gerät Internet erlauben?“) und Bestätigungen.</string>
+    <string name="dov_celozaslonska">Vollbildbenachrichtigungen</string>
+    <string name="dov_celozaslonska_opis">Damit eine Bestätigungsanfrage (neues Gerät, Foto löschen) über dem Bildschirm erscheint, auch wenn das Gerät gesperrt ist.</string>
+    <string name="dov_slike">Fotos und Videos</string>
+    <string name="dov_slike_opis">Damit du sie in Dateien und im Mediencenter siehst und mit anderen Geräten im Link teilen kannst.</string>
+    <string name="dov_glasba">Musik und Audio</string>
+    <string name="dov_glasba_opis">Damit das Mediencenter Musik von diesem Gerät abspielt und mit anderen Geräten teilt.</string>
+    <string name="dov_vnos_opis">Damit Maus und Tastatur des Computers dieses Gerät über Safeer Link steuern (Bedienungshilfen).</string>
+    <string name="dov_namescanje">Updates installieren</string>
+    <string name="dov_namescanje_opis">Damit Safeer seine neuen Versionen installieren kann (Android fragt dich vor jeder Installation).</string>
+    <string name="dov_da">✓ Erlaubt</string>
+    <string name="dov_ne">✗ Nicht erlaubt</string>
+    <string name="dov_delno">◐ Nur ausgewählte</string>
+    <string name="dov_gumb_dovoli">Erlauben</string>
+    <string name="dov_gumb_nastavitev">Einstellung</string>
+    <string name="dov_namig_naslov">Ist der Schalter grau oder lässt er sich nicht bewegen?</string>
+    <string name="dov_namig_1">1. Auf der Systemseite einmal auf den grauen Schalter von Safeer tippen – Android meldet, dass die Einstellung eingeschränkt ist. Meldung schließen.</string>
+    <string name="dov_namig_2">2. Unten auf die Schaltfläche tippen, dann oben rechts auf ⋮ und „Eingeschränkte Einstellungen zulassen“ wählen (bei Samsung evtl. direkt auf der Seite). Hierher zurückkehren und erneut auf „Erlauben“ tippen.</string>
+    <string name="dov_namig_zakaj">Android verlangt das für Apps, die nicht aus einem Store installiert wurden. Safeer kann den Schalter nicht selbst einschalten.</string>
+    <string name="dov_namig_gumb">„App-Info“ öffnen</string>
+    <string name="dov_stanje_vse">Alles erlaubt</string>
+    <string name="dov_stanje_manjka">Fehlt: %1$d</string>
+    <string name="dov_obvestilo_naslov">Safeer Link: Öffnen von Apps erlauben</string>
+    <string name="dov_obvestilo_besedilo">Ein gekoppeltes Gerät wollte %1$s öffnen. Tippe auf „Erlauben“, schalte auf der geöffneten Seite „%2$s“ für Safeer ein und sende den Befehl erneut. Einmal genügt.</string>
+    <string name="dov_izid_brez">Erlaube auf diesem Gerät einmal „%1$s“ für Safeer (die Benachrichtigung ist schon da, oder Safeer › Einstellungen › Berechtigungen) und starte %2$s erneut.</string>
+</resources>

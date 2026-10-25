@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stran Dovoljenja (DovoljenjaActivity, DovoljenjaPravila) in obvestilo Safeer Linka za prikaz cez druge aplikacije. -->
+<resources>
+    <string name="dov_naslov">Autorisations</string>
+    <string name="dov_opis_vrstice">Ce dont Safeer a besoin et pourquoi – activez-le d\'un geste</string>
+    <string name="dov_uvod">Safeer ne demande que ce qu\'il utilise vraiment. Le bouton ouvre exactement la bonne page : activez Safeer puis revenez. Vous pouvez tout révoquer à tout moment.</string>
+    <string name="dov_ob_zagonu">Il manque encore quelque chose d\'important : Safeer Link ne peut pas tout faire sur cet appareil. Touchez « Autoriser » sur les lignes marquées.</string>
+    <!-- Ime posebnega dostopa v cistem Androidu (Pixel in vecina drugih). -->
+    <string name="dov_prikaz">Afficher par-dessus les autres applis</string>
+    <!-- Ime na Samsungu (One UI): sl in en preverjeno; v ostalih jezikih Samsungovo ime ni preverjeno - zato splosno. -->
+    <string name="dov_prikaz_samsung">Afficher par-dessus les autres applis</string>
+    <string name="dov_prikaz_opis">Pour que Safeer Link ouvre sur cet appareil une appli ou une page envoyée depuis votre ordinateur ou téléphone.</string>
+    <string name="dov_obvestila">Notifications</string>
+    <string name="dov_obvestila_opis">Demandes et messages des autres appareils du Link (p. ex. « Autoriser Internet pour cet appareil ? ») et confirmations.</string>
+    <string name="dov_celozaslonska">Notifications plein écran</string>
+    <string name="dov_celozaslonska_opis">Pour qu\'une demande de confirmation (nouvel appareil, suppression d\'une photo) s\'affiche par-dessus l\'écran, même appareil verrouillé.</string>
+    <string name="dov_slike">Photos et vidéos</string>
+    <string name="dov_slike_opis">Pour les voir dans Fichiers et le Centre multimédia et les partager avec les autres appareils du Link.</string>
+    <string name="dov_glasba">Musique et audio</string>
+    <string name="dov_glasba_opis">Pour que le Centre multimédia lise la musique de cet appareil et la partage avec les autres.</string>
+    <string name="dov_vnos_opis">Pour que la souris et le clavier de l\'ordinateur pilotent cet appareil via Safeer Link (accessibilité).</string>
+    <string name="dov_namescanje">Installer les mises à jour</string>
+    <string name="dov_namescanje_opis">Pour que Safeer installe ses nouvelles versions (Android vous demande avant chaque installation).</string>
+    <string name="dov_da">✓ Autorisé</string>
+    <string name="dov_ne">✗ Non autorisé</string>
+    <string name="dov_delno">◐ Sélection seulement</string>
+    <string name="dov_gumb_dovoli">Autoriser</string>
+    <string name="dov_gumb_nastavitev">Réglage</string>
+    <string name="dov_namig_naslov">L\'interrupteur est grisé ou ne bouge pas ?</string>
+    <string name="dov_namig_1">1. Sur la page système, touchez une fois l\'interrupteur grisé de Safeer : Android indique que le paramètre est restreint. Fermez ce message.</string>
+    <string name="dov_namig_2">2. Touchez le bouton ci-dessous, puis ⋮ en haut à droite et choisissez « Autoriser les paramètres restreints » (sur Samsung, l\'option peut être directement sur la page). Revenez ici et touchez à nouveau « Autoriser ».</string>
+    <string name="dov_namig_zakaj">Android l\'exige pour les applis installées hors d\'une boutique. Safeer ne peut pas l\'activer lui-même.</string>
+    <string name="dov_namig_gumb">Ouvrir « Infos sur l\'appli »</string>
+    <string name="dov_stanje_vse">Tout autorisé</string>
+    <string name="dov_stanje_manjka">Manquant : %1$d</string>
+    <string name="dov_obvestilo_naslov">Safeer Link : autoriser l\'ouverture d\'applis</string>
+    <string name="dov_obvestilo_besedilo">Un appareil associé voulait ouvrir %1$s. Touchez « Autoriser », activez « %2$s » pour Safeer sur la page qui s\'ouvre, puis renvoyez la commande. Une fois suffit.</string>
+    <string name="dov_izid_brez">Sur cet appareil, autorisez une fois « %1$s » pour Safeer (la notification est déjà affichée, ou Safeer › Paramètres › Autorisations), puis relancez %2$s.</string>
+</resources>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stran Dovoljenja (DovoljenjaActivity, DovoljenjaPravila) in obvestilo Safeer Linka za prikaz cez druge aplikacije. -->
+<resources>
+    <string name="dov_naslov">Permisos</string>
+    <string name="dov_opis_vrstice">Qué necesita Safeer y por qué: actívalo con un toque</string>
+    <string name="dov_uvod">Safeer solo pide lo que realmente usa. El botón abre exactamente la página correcta: activa Safeer allí y vuelve. Puedes revocarlo todo en cualquier momento.</string>
+    <string name="dov_ob_zagonu">Aún falta algo importante, por eso Safeer Link no puede hacerlo todo en este dispositivo. Toca «Permitir» en las filas marcadas.</string>
+    <!-- Ime posebnega dostopa v cistem Androidu (Pixel in vecina drugih). -->
+    <string name="dov_prikaz">Mostrar sobre otras aplicaciones</string>
+    <!-- Ime na Samsungu (One UI): sl in en preverjeno; v ostalih jezikih Samsungovo ime ni preverjeno - zato splosno. -->
+    <string name="dov_prikaz_samsung">Mostrar sobre otras aplicaciones</string>
+    <string name="dov_prikaz_opis">Para que Safeer Link abra en este dispositivo una app o página que envías desde el ordenador o el móvil.</string>
+    <string name="dov_obvestila">Notificaciones</string>
+    <string name="dov_obvestila_opis">Solicitudes y mensajes de otros dispositivos de Link (p. ej. «¿Permitir internet a este dispositivo?») y confirmaciones.</string>
+    <string name="dov_celozaslonska">Notificaciones a pantalla completa</string>
+    <string name="dov_celozaslonska_opis">Para que una solicitud de confirmación (nuevo dispositivo, borrar una foto) aparezca sobre la pantalla, aunque el dispositivo esté bloqueado.</string>
+    <string name="dov_slike">Fotos y vídeos</string>
+    <string name="dov_slike_opis">Para verlas en Archivos y en el Centro multimedia y compartirlas con otros dispositivos de Link.</string>
+    <string name="dov_glasba">Música y audio</string>
+    <string name="dov_glasba_opis">Para que el Centro multimedia reproduzca la música de este dispositivo y la comparta con otros.</string>
+    <string name="dov_vnos_opis">Para que el ratón y el teclado del ordenador controlen este dispositivo con Safeer Link (accesibilidad).</string>
+    <string name="dov_namescanje">Instalar actualizaciones</string>
+    <string name="dov_namescanje_opis">Para que Safeer instale sus nuevas versiones (Android te pregunta antes de cada instalación).</string>
+    <string name="dov_da">✓ Permitido</string>
+    <string name="dov_ne">✗ No permitido</string>
+    <string name="dov_delno">◐ Solo seleccionadas</string>
+    <string name="dov_gumb_dovoli">Permitir</string>
+    <string name="dov_gumb_nastavitev">Ajuste</string>
+    <string name="dov_namig_naslov">¿El interruptor está gris o no se mueve?</string>
+    <string name="dov_namig_1">1. En la página del sistema, toca una vez el interruptor gris de Safeer: Android avisa de que el ajuste está restringido. Cierra el aviso.</string>
+    <string name="dov_namig_2">2. Toca el botón de abajo, luego ⋮ arriba a la derecha y elige «Permitir ajustes restringidos» (en Samsung puede estar en la misma página). Vuelve aquí y toca «Permitir» otra vez.</string>
+    <string name="dov_namig_zakaj">Android lo exige para las apps instaladas fuera de una tienda. Safeer no puede activarlo por sí mismo.</string>
+    <string name="dov_namig_gumb">Abrir «Información de la aplicación»</string>
+    <string name="dov_stanje_vse">Todo permitido</string>
+    <string name="dov_stanje_manjka">Faltan: %1$d</string>
+    <string name="dov_obvestilo_naslov">Safeer Link: permitir abrir apps</string>
+    <string name="dov_obvestilo_besedilo">Un dispositivo vinculado quería abrir %1$s. Toca «Permitir», activa «%2$s» para Safeer en la página que se abre y vuelve a enviar la orden. Basta una vez.</string>
+    <string name="dov_izid_brez">En este dispositivo, permite una vez «%1$s» para Safeer (la notificación ya está en pantalla, o Safeer › Ajustes › Permisos) y vuelve a abrir %2$s.</string>
+</resources>
