@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer zaganjalnik na telefonu in tablici: namizje, varnostna vrata, namizni nacin (os/ZaganjalnikActivity, os/VarnostnaVrata, os/NamizniNacin). -->
+<resources>
+    <string name="nz_vse_aplikacije">Todas las aplicaciones</string>
+    <string name="nz_zadetki">Resultados: %1$d</string>
+    <string name="nz_ni_zadetkov">Ninguna aplicación coincide con «%1$s». Intro busca en el Centro multimedia (una dirección web abre Web).</string>
+    <string name="nz_odpri">Abrir</string>
+    <string name="nz_vrata_vrni">Volver al launcher de fábrica</string>
+    <string name="nz_vrata_vrni_kratko">Launcher de fábrica</string>
+    <string name="nz_vrata_safeer">Safeer como pantalla de inicio</string>
+    <string name="nz_vrata_safeer_kratko">Safeer como inicio</string>
+    <string name="nz_vrata_vrnjeno">Safeer ya no es la pantalla de inicio. El botón Inicio vuelve a abrir el launcher de fábrica.</string>
+    <string name="nz_ploscica">Pantalla de inicio Safeer</string>
+    <string name="nz_ploscica_tovarniski">De fábrica</string>
+    <string name="nz_nacin">Modo escritorio</string>
+    <string name="nz_nacin_opis">Aplicaciones en ventanas en la tableta, una pantalla externa y en DeX</string>
+    <string name="nz_okna_ni">No disponible</string>
+    <string name="nz_okna_vklopljena">Ventanas</string>
+    <string name="nz_okna_izklopljena">Pantalla completa</string>
+    <string name="nz_okna_da">Ventanas de aplicaciones: este dispositivo las admite.</string>
+    <string name="nz_okna_ne">Ventanas de aplicaciones: este dispositivo no las ofrece ahora.</string>
+    <string name="nz_zunanji_da">Pantalla externa como escritorio: activada.</string>
+    <string name="nz_zunanji_ne">Pantalla externa como escritorio: desactivada (o no visible para las aplicaciones).</string>
+    <string name="nz_vodic">Las activas tú en las Opciones para desarrolladores: Safeer nunca cambia los ajustes del sistema. Busca las opciones de ventanas de forma libre (freeform), de tamaño ajustable para todas las aplicaciones y del modo escritorio en pantallas externas, y reinicia el dispositivo. Los nombres cambian según el fabricante, por eso no los citamos literalmente.</string>
+    <string name="nz_vodic_razvijalske">Las Opciones para desarrolladores aún no están activadas: en los ajustes del sistema abre la información del dispositivo (Acerca del teléfono / de la tableta) y toca siete veces el número de compilación.</string>
+    <string name="nz_okna_vklopi">Abrir en ventanas</string>
+    <string name="nz_okna_izklopi">Abrir a pantalla completa</string>
+    <string name="nz_odpri_razvijalske">Opciones para desarrolladores</string>
+    <string name="nz_ni_sistemske">Este dispositivo no ofrece este ajuste del sistema.</string>
+    <string name="nz_padec_opis">Safeer se detuvo varias veces seguidas como pantalla de inicio, así que el botón Inicio vuelve a abrir tu launcher anterior. Puedes configurarlo de nuevo cuando quieras.</string>
+    <string name="nz_zacetek">Inicio</string>
+    <string name="nz_vodic_aosp"></string>
+</resources>

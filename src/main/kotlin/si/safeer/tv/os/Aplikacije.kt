@@ -71,7 +71,8 @@ object Aplikacije {
      * Svez seznam preberemo v ozadju (nizka prednost). [naSpremembo] dobi glavna nit samo, ce se seznam
      * razlikuje od [prikazan]. Klici, ki prihajajo drug za drugim (vsak izris vrste), se zdruzijo.
      */
-    fun osveziVOzadju(context: Context, prikazan: List<Vnos>?, naSpremembo: (List<Vnos>) -> Unit) {
+    /** [brezIkon]: seznam brez ikon (namizje zaganjalnika ima svoje majhne - velike ikone vseh aplikacij so desetine MB). */
+    fun osveziVOzadju(context: Context, prikazan: List<Vnos>?, brezIkon: Boolean = false, naSpremembo: (List<Vnos>) -> Unit) {
         val app = context.applicationContext
         val zdaj = android.os.SystemClock.elapsedRealtime()
         if (osvezujem || zdaj - zadnjeOsvezevanje < 2000L) return
@@ -81,7 +82,7 @@ object Aplikacije {
         Thread({
             try {
                 android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
-                val svez = najdi(app).sortedBy { it.ime.lowercase() }
+                val svez = najdi(app, brezIkon).sortedBy { it.ime.lowercase() }
                 shrani(app, svez)
                 if (prikazanoZapisi == null || !AplikacijePredpomnilnik.enako(prikazanoZapisi, zapisi(svez))) {
                     android.os.Handler(android.os.Looper.getMainLooper()).post { naSpremembo(svez) }
@@ -150,11 +151,11 @@ object Aplikacije {
         } catch (_: Throwable) { cakajoceIkone.remove(v.paket) }
     }
 
-    private fun najdi(context: Context): List<Vnos> {
+    private fun najdi(context: Context, brezIkon: Boolean = false): List<Vnos> {
         val pm = context.packageManager
         // Telefon in tablica: seznam, kot ga vidi zaganjalnik (LauncherApps) - isti vir kot sistemski zaganjalnik,
         // tudi za aplikacije, ki jih paketni upravitelj z nevidnostjo paketov (Android 11+) ne bi pokazal.
-        if (!pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) zaganjalnikovSeznam(context)?.let { return it }
+        if (!pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) zaganjalnikovSeznam(context, brezIkon)?.let { return it }
         val poizvedba = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
         val zadetki = ArrayList(try { pm.queryIntentActivities(poizvedba, 0) } catch (_: Throwable) { emptyList() })
         // Tablica (naprava brez leanbacka): aplikacije za televizor ima le redka - Safeer OS Tablet je
@@ -175,14 +176,14 @@ object Aplikacije {
             // Ikona pred plakatom: plakat (banner) je sirok 320x180 in v majhni kvadratni
             // ploscici na domacem zaslonu postane neberljiv drobiz - prav to se je videlo pri
             // Safeer Browserju in SmartTubu. Kvadratna ikona aplikacije je vedno citljiva.
-            val ikona = try { info.loadIcon(pm) ?: info.loadBanner(pm) } catch (_: Throwable) { null }
+            val ikona = if (brezIkon) null else try { info.loadIcon(pm) ?: info.loadBanner(pm) } catch (_: Throwable) { null }
             vnosi.add(Vnos(info.packageName, z.loadLabel(pm).toString().ifBlank { info.packageName }, ikona, namera, info))
         }
         // Safeer Browser je ista aplikacija kot Safeer OS in ima svojo kartico Splet, zato ga ni.
         return vnosi
     }
 
-    private fun zaganjalnikovSeznam(context: Context): List<Vnos>? = try {
+    private fun zaganjalnikovSeznam(context: Context, brezIkon: Boolean = false): List<Vnos>? = try {
         val la = context.getSystemService(android.content.pm.LauncherApps::class.java)
         val videni = HashSet<String>()
         la.getActivityList(null, android.os.Process.myUserHandle()).mapNotNull { a ->
@@ -191,7 +192,7 @@ object Aplikacije {
             val namera = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
                 .setComponent(a.componentName)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-            val ikona = try { a.getIcon(0) } catch (_: Throwable) { null }
+            val ikona = if (brezIkon) null else try { a.getIcon(0) } catch (_: Throwable) { null }
             Vnos(paket, a.label?.toString().orEmpty().ifBlank { paket }, ikona, namera,
                 if (android.os.Build.VERSION.SDK_INT >= 31) a.activityInfo else null)
         }
@@ -266,6 +267,36 @@ object Aplikacije {
             d.setBounds(0, 0, platno.width, platno.height)
             d.draw(platno)
             b
+        } catch (_: Throwable) { null }
+    }
+
+    /**
+     * Majhna ikona za mrezo vseh aplikacij na namizju zaganjalnika: ikona v gostoti naprave, narisana v [px] x [px], brez
+     * velike xxxhdpi slike in brez skupnega predpomnilnika; shrani se kot majhen PNG v predpomnilnik aplikacije. Izmerjeno 25. 10. 2026 (testni telefon, 3 ponovitve): mreza
+     * z velikimi ikonami ([ikona]) je dodala 12-40 MB PSS.
+     */
+    fun ikonaMala(c: Context, v: Vnos, px: Int): Drawable? {
+        val mera = px.coerceIn(16, 256)
+        // Najprej majhna slika z diska: brez odpiranja virov tuje aplikacije (ta je drag del - izmerjeno na tablici
+        // ~10 MB domorodnega pomnilnika za ~70 aplikacij). Velja, dokler aplikacija ni posodobljena.
+        val posodobljena = try { c.packageManager.getPackageInfo(v.paket, 0).lastUpdateTime } catch (_: Throwable) { 0L }
+        val datoteka = File(File(c.cacheDir, "namizje-ikone"), "${v.paket}-$mera.png")
+        if (posodobljena > 0 && datoteka.isFile && datoteka.lastModified() >= posodobljena) {
+            try { android.graphics.BitmapFactory.decodeFile(datoteka.path)?.let { return BitmapDrawable(c.resources, it) } } catch (_: Throwable) { }
+        }
+        val vir = v.ikona ?: izvirnaIkona(c, v) ?: return null
+        return try {
+            val b = Bitmap.createBitmap(mera, mera, Bitmap.Config.ARGB_8888)
+            val platno = Canvas(b)
+            vir.setBounds(0, 0, platno.width, platno.height)
+            vir.draw(platno)
+            try {
+                datoteka.parentFile?.mkdirs()
+                val zacasna = File(datoteka.path + ".tmp")
+                zacasna.outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                if (!zacasna.renameTo(datoteka)) zacasna.delete()
+            } catch (_: Throwable) { }
+            BitmapDrawable(c.resources, b)
         } catch (_: Throwable) { null }
     }
 

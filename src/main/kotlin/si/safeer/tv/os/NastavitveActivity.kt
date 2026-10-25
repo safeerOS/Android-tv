@@ -166,7 +166,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
         if (requestCode == Zaganjalnik.ZAHTEVA_VLOGE) {
-            if (!Zaganjalnik.jeIzbran(this)) Zaganjalnik.opusti(this)
+            if (!Zaganjalnik.jeIzbran(this)) Zaganjalnik.opusti(this) else VarnostnaVrata.ponudiPloscico(this)
+            narisi()
             return
         }
         @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
@@ -273,12 +274,16 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val naDotik = packageName.endsWith(".tablet") || packageName.endsWith(".phone")
         val predvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
         val shramba = getSharedPreferences(StranskaVrstica.SHRAMBA, MODE_PRIVATE)
-        // Domaci zaslon naprave (HOME) je samo na televizorju (lastnik, 18. 10. 2026): telefon in tablica ostaneta
-        // navadni aplikaciji z ikono v predalu, brez vloge zaganjalnika in brez znack obvestil zanj.
+        // Telefon in tablica: Safeer zaganjalnik je IZBIRA (lastnik, 25. 10. 2026; prej 18. 10. samo televizor) - privzeto
+        // ostaneta navadni aplikaciji z ikono v predalu; vklop prek sistemskega okna vloge, izklop z enim dotikom
+        // (varnostna vrata). Namizni nacin: okna aplikacij, ce jih naprava zmore, sicer navodila za vklop.
         val safeer = listOfNotNull(
-            if (naDotik) null
+            if (naDotik) safeer(R.drawable.os_ikona_domov, R.string.zg_domaci, R.string.zg_domaci_opis,
+                getString(if (jeDomaci) R.string.os_zaganjalnik_izbran else R.string.os_izklopljeno)) { preklopiDomaciDotik(jeDomaci || ponujen) }
             else safeer(R.drawable.os_ikona_nastavitve, R.string.os_zaganjalnik, R.string.os_zaganjalnik_opis, domaciStanje) {
                 preklopiZaganjalnik(jeDomaci || ponujen) },
+            if (naDotik) safeer(R.drawable.os_ikona_racunalnik, R.string.nz_nacin, R.string.nz_nacin_opis, NamizniNacin.kratko(this)) {
+                NamizniNacin.pokazi(this) { narisi() } } else null,
             safeer(R.drawable.os_ikona_naprava, R.string.os_zagon, R.string.os_zagon_opis, vklop(ZagonOb.jeVklopljen(this))) { preklopiZagon() },
             safeer(R.drawable.os_ikona_link, R.string.os_nacin, R.string.os_nacin_kratko,
                 getString(if (krajevni) R.string.os_stanje_nacin_krajevni else R.string.os_stanje_nacin_link)) { preklopiNacin(krajevni) },
@@ -568,6 +573,17 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Telefon in tablica: vklop prek sistemskega okna vloge (odlocitev je uporabnikova), izklop takoj - varnostna vrata. */
+    private fun preklopiDomaciDotik(vklopljen: Boolean) {
+        if (vklopljen) { VarnostnaVrata.vrni(this); narisi(); return }
+        sistemskoOkno {
+            if (!Zaganjalnik.zahtevajVlogo(this)) {
+                koren.visibility = View.VISIBLE
+                Toast.makeText(this, getString(R.string.nz_ni_sistemske), Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun preklopiNacin(krajevni: Boolean) {

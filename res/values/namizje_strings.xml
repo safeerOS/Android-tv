@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer zaganjalnik na telefonu in tablici: namizje, varnostna vrata, namizni nacin (os/ZaganjalnikActivity, os/VarnostnaVrata, os/NamizniNacin). -->
+<resources>
+    <string name="nz_vse_aplikacije">All apps</string>
+    <string name="nz_zadetki">Results: %1$d</string>
+    <string name="nz_ni_zadetkov">No app matches “%1$s”. Enter searches the Media Center (a web address opens Web).</string>
+    <string name="nz_odpri">Open</string>
+    <string name="nz_vrata_vrni">Back to factory launcher</string>
+    <string name="nz_vrata_vrni_kratko">Factory launcher</string>
+    <string name="nz_vrata_safeer">Safeer as home screen</string>
+    <string name="nz_vrata_safeer_kratko">Safeer as home</string>
+    <string name="nz_vrata_vrnjeno">Safeer is no longer the home screen. The Home button opens the factory launcher again.</string>
+    <string name="nz_ploscica">Safeer home screen</string>
+    <string name="nz_ploscica_tovarniski">Factory</string>
+    <string name="nz_nacin">Desktop mode</string>
+    <string name="nz_nacin_opis">Apps in windows on a tablet, an external display and in DeX</string>
+    <string name="nz_okna_ni">Not available</string>
+    <string name="nz_okna_vklopljena">Windows</string>
+    <string name="nz_okna_izklopljena">Full screen</string>
+    <string name="nz_okna_da">App windows: this device supports them.</string>
+    <string name="nz_okna_ne">App windows: this device does not offer them right now.</string>
+    <string name="nz_zunanji_da">External display as desktop: on.</string>
+    <string name="nz_zunanji_ne">External display as desktop: off (or not visible to apps).</string>
+    <string name="nz_vodic">You turn them on yourself in Developer options – Safeer never changes system settings. Look for the options for freeform windows, making all apps resizable and desktop mode on external displays, then restart the device. The names of these options differ between manufacturers, so we don’t quote them word for word.</string>
+    <string name="nz_vodic_razvijalske">Developer options are not on yet: in system settings open the device information (About phone / About tablet) and tap the build number seven times.</string>
+    <string name="nz_okna_vklopi">Open in windows</string>
+    <string name="nz_okna_izklopi">Open full screen</string>
+    <string name="nz_odpri_razvijalske">Developer options</string>
+    <string name="nz_ni_sistemske">This device doesn’t offer this system setting.</string>
+    <string name="nz_padec_opis">Safeer stopped several times in a row as the home screen, so the Home button opens your previous launcher again. You can set it up again whenever you like.</string>
+    <string name="nz_zacetek">Start</string>
+    <string name="nz_vodic_aosp">On stock Android these options are called “Enable freeform windows” and “Force desktop mode”.</string>
+</resources>

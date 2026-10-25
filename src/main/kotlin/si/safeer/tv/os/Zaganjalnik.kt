@@ -24,6 +24,11 @@ import android.util.Log
 object Zaganjalnik {
     private const val TAG = "SafeerOsZaganjalnik"
     private const val ALIAS = "si.safeer.tv.os.ZaganjalnikAlias"
+    /**
+     * Namizje na zunanjem zaslonu (SECONDARY_HOME, samo telefon in tablica): Android ga vzame iz paketa domacega zaslona,
+     * zato je vklopljeno in izklopljeno skupaj z [ALIAS]. Na televizorju ga ni (nastavitev se tiho preskoci).
+     */
+    private const val ALIAS_NAMIZJE = "si.safeer.tv.os.NamizjeAlias"
 
     private fun komponenta(context: Context) = ComponentName(context.packageName, ALIAS)
 
@@ -131,6 +136,12 @@ object Zaganjalnik {
         } catch (e: Throwable) {
             Log.w(TAG, "Nastavitve ni bilo mogoce spremeniti: ${e.message}")
         }
+        // Namizje na zunanjem zaslonu: le v okusih na dotik (na televizorju komponente ni - to ni napaka).
+        try {
+            context.packageManager.setComponentEnabledSetting(ComponentName(context.packageName, ALIAS_NAMIZJE), stanje, PackageManager.DONT_KILL_APP)
+        } catch (_: Throwable) { }
+        // Varnostna vrata: padci pred tem trenutkom ne stejejo vec (ob vklopu in ob vrnitvi zacnemo znova).
+        vrata(context).edit().putLong(KLJUC_OD, System.currentTimeMillis()).remove(KLJUC_PADCI).apply()
     }
 
     /**
@@ -180,6 +191,8 @@ object Zaganjalnik {
      * Odlocitev je vedno uporabnikova in sistemska; nikoli je ne naredimo sami.
      */
     fun zahtevajVlogo(a: android.app.Activity): Boolean {
+        // Varnostna vrata: zapomnimo si, kateri zaganjalnik je bil domaci zaslon pred nami - vanj se vrnemo z enim dotikom.
+        domaciZaslon(a)?.takeIf { it != a.packageName && it != "android" }?.let { vrata(a).edit().putString(KLJUC_PREJSNJI, it).apply() }
         nastavi(a, true)
         if (android.os.Build.VERSION.SDK_INT >= 29) try {
             val rm = a.getSystemService(android.app.role.RoleManager::class.java)
@@ -208,6 +221,14 @@ object Zaganjalnik {
 
     private const val KLJUC_PADCI = "zaganjalnik_padci"
     private const val KLJUC_VRNJEN = "zaganjalnik_vrnjen_po_padcu"
+    private const val KLJUC_OD = "padci_stejejo_od"
+    private const val KLJUC_PREJSNJI = "prejsnji_zaganjalnik"
+
+    /**
+     * Varnostna vrata imajo svoje nastavitve (lastnik, 25. 10. 2026): zapis padcev ni v isti datoteki kot vse drugo, kar
+     * domaci zaslon med delom pise - pokvarjena ali prevelika glavna datoteka ne sme onemogociti vrnitve.
+     */
+    private fun vrata(c: Context) = c.applicationContext.getSharedPreferences("safeer_varnostna_vrata", Context.MODE_PRIVATE)
     @Volatile private var zascitaNamescena = false
 
     /**
@@ -238,19 +259,85 @@ object Zaganjalnik {
 
     @android.annotation.SuppressLint("ApplySharedPref")   // namenoma commit: proces se takoj po tem konca
     private fun zabeleziPadec(app: Context) {
-        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val v = vrata(app)
         val zdaj = System.currentTimeMillis()
-        val casi = ZaganjalnikPravila.svezi(
-            (prefs.getString(KLJUC_PADCI, "") ?: "").split(',').mapNotNull { it.toLongOrNull() } + zdaj, zdaj)
-        val urejanje = prefs.edit().putString(KLJUC_PADCI, casi.joinToString(","))
-        val smoDomaci = jePonujen(app)
-        if (smoDomaci && ZaganjalnikPravila.vrniPrejsnjemu(casi, zdaj, drugiZaganjalniki(app).size)) {
-            Log.w(TAG, "Domaci zaslon je padel ${casi.size}x v minuti: vracam ga prejsnjemu zaganjalniku")
-            nastavi(app, false)
-            urejanje.remove(KLJUC_DOMOV).remove(KLJUC_PADCI).putBoolean(KLJUC_VRNJEN, true)
-        }
+        val casi = ZaganjalnikPravila.svezi(lastniPadci(app) + zdaj, zdaj)
         // commit: proces se takoj konca, apply ne bi utegnil zapisati.
-        urejanje.commit()
+        v.edit().putString(KLJUC_PADCI, casi.joinToString(",")).commit()
+        val smoDomaci = jePonujen(app)
+        val stejejo = ZaganjalnikPravila.padciPo(casi, v.getLong(KLJUC_OD, 0L))
+        if (smoDomaci && ZaganjalnikPravila.vrniPrejsnjemu(stejejo, zdaj, drugiZaganjalniki(app).size)) {
+            Log.w(TAG, "Domaci zaslon je padel ${stejejo.size}x v kratkem: vracam ga prejsnjemu zaganjalniku")
+            vrniPoPadcih(app)
+        }
+    }
+
+    private fun lastniPadci(c: Context): List<Long> =
+        (vrata(c).getString(KLJUC_PADCI, "") ?: "").split(',').mapNotNull { it.toLongOrNull() }
+
+    @android.annotation.SuppressLint("ApplySharedPref")   // namenoma commit: lahko se proces takoj konca
+    private fun vrniPoPadcih(app: Context) {
+        nastavi(app, false)
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KLJUC_DOMOV).putBoolean(KLJUC_VRNJEN, true).commit()
+        vrata(app).edit().remove(KLJUC_PADCI).putLong(KLJUC_OD, System.currentTimeMillis()).commit()
+    }
+
+    /**
+     * Padci glavnega procesa iz sistemskega zapisa izhodov (Android 11+). Ta zapis je zunaj nasega procesa, zato vidi
+     * tudi, cesar nas lovilec ne more: padec v kodi C/C++, ANR (zamrznjen zaslon, ki ga sistem ubije) in padec, preden
+     * se zaganjalnik sploh zazene. Uporabnikov izhod ali posodobitev se ne steje.
+     */
+    private fun sistemskiPadci(c: Context): List<Long> {
+        if (android.os.Build.VERSION.SDK_INT < 30) return emptyList()
+        return try {
+            val am = c.getSystemService(android.app.ActivityManager::class.java) ?: return emptyList()
+            val razlogi = setOf(android.app.ApplicationExitInfo.REASON_CRASH, android.app.ApplicationExitInfo.REASON_CRASH_NATIVE,
+                android.app.ApplicationExitInfo.REASON_ANR, android.app.ApplicationExitInfo.REASON_INITIALIZATION_FAILURE)
+            am.getHistoricalProcessExitReasons(c.packageName, 0, 16)
+                .filter { it.reason in razlogi && it.processName == c.packageName }
+                .map { it.timestamp }
+        } catch (e: Throwable) { Log.w(TAG, "Zapisa izhodov ni bilo mogoce prebrati: ${e.message}"); emptyList() }
+    }
+
+    /**
+     * Varnostna vrata ob vsakem zagonu domacega zaslona: ce je bilo od zadnjega vklopa padcev prevec (lasten zapis +
+     * sistemski zapis izhodov), domaci zaslon vrnemo prejsnjemu zaganjalniku in ga takoj odpremo. Vrne true, ce je bil
+     * vrnjen - klicatelj naj se konca.
+     */
+    fun preveriObZagonu(context: Context): Boolean {
+        if (!jePonujen(context)) return false
+        val zdaj = System.currentTimeMillis()
+        val vsi = ZaganjalnikPravila.padciPo(
+            ZaganjalnikPravila.zdruziPadce(lastniPadci(context), sistemskiPadci(context)), vrata(context).getLong(KLJUC_OD, 0L))
+        if (!ZaganjalnikPravila.vrniPrejsnjemu(vsi, zdaj, drugiZaganjalniki(context).size)) return false
+        Log.w(TAG, "Varnostna vrata: ${vsi.size} padcev od vklopa - domaci zaslon gre nazaj prejsnjemu zaganjalniku")
+        vrniPoPadcih(context.applicationContext)
+        odpriTovarniskega(context)
+        return true
+    }
+
+    /**
+     * Varnostna vrata, en dotik (Nastavitve, dolg pritisk na namizje, bliznjica ikone, ploscica hitrih nastavitev):
+     * Safeer ni vec domaci zaslon in prejsnji zaganjalnik se takoj odpre.
+     */
+    fun vrniTovarniskega(context: Context): Boolean {
+        opusti(context)
+        return odpriTovarniskega(context)
+    }
+
+    /** Odpre zaganjalnik, ki je bil domaci zaslon pred Safeerjem (sicer prvi pravi zaganjalnik naprave). */
+    fun odpriTovarniskega(context: Context): Boolean {
+        val prejsnji = vrata(context).getString(KLJUC_PREJSNJI, null)
+        val drugi = drugiZaganjalniki(context).sortedBy { if (it.activityInfo?.packageName == prejsnji) 0 else 1 }
+        for (r in drugi) {
+            val info = r.activityInfo ?: continue
+            try {
+                context.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                    .setComponent(ComponentName(info.packageName, info.name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return true
+            } catch (e: Throwable) { Log.w(TAG, "Zaganjalnika ${info.packageName} ni bilo mogoce odpreti: ${e.message}") }
+        }
+        return izhodVAndroid(context)
     }
 
     /** Domaci zaslon je bil po padcih vrnjen prejsnjemu zaganjalniku (enkratno obvestilo; prebere in pocisti). */

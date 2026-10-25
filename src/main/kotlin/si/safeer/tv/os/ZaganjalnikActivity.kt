@@ -45,8 +45,17 @@ import si.safeer.tv.os.ZaganjalnikPravila.Vnos
  * Domaci zaslon (HOME) je izbira uporabnika: alias [Zaganjalnik] je privzeto onemogocen, ob prvem zagonu
  * ponudimo sistemsko okno vloge, pot nazaj je v Nastavitvah. Ce zaganjalnik pade dvakrat v minuti, se domaci
  * zaslon vrne prejsnjemu zaganjalniku ([Zaganjalnik.namestiZascito]).
+ *
+ * Namizna razporeditev (lastnik, 25. 10. 2026 - telefon in tablica dobita zaganjalnik, PODOBEN namizju Safeer OS za
+ * Linux in Windows): tablica lezece, zunanji zaslon in Samsung DeX imajo pozdrav, uro, mrezo vseh aplikacij z iskanjem
+ * v lupi (tipkas kar tako, Enter odpre prvi zadetek, Esc pocisti), desni klik / dolg pritisk na aplikaciji (Odpri,
+ * Pripni, Informacije) in tipkovnico (Ctrl+K, puscice, Tab). Majhen zaslon telefona ostane razporeditev za dotik,
+ * televizor (daljinec) ostane, kot je. Varnostna vrata: dolg pritisk na prazno namizje -> Vrni tovarniski zaganjalnik.
  */
-class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
+open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
+
+    /** Namizje na zunanjem zaslonu ([NamizjeActivity]): vedno namizna razporeditev. */
+    protected open val vsiljenoNamizje: Boolean get() = false
 
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private val glavna = Handler(Looper.getMainLooper())
@@ -63,6 +72,23 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private var odsekNaprave: LinearLayout? = null
     private var ponudba: View? = null
 
+    /** Namizna razporeditev (tablica lezece, zunanji zaslon, DeX) - [ZaganjalnikPravila.namizje]. */
+    private var namizje = false
+    /** Odsek »Vse aplikacije« (samo namizje) in vse nad njim, kar se ob iskanju umakne zadetkom. */
+    private var odsekVse: LinearLayout? = null
+    private var ostalo: LinearLayout? = null
+    private var vseAplikacije: List<Aplikacije.Vnos> = emptyList()
+    /** Majhne ikone mreze, dokler je zaslon ziv (ob iskanju se ne nalagajo znova). */
+    private val ikoneVse = HashMap<String, Drawable>()
+    private var iskanje = ""
+    /** Ena nit z nizko prednostjo za majhne ikone mreze (ustvari se sele na namizju). */
+    private var nitIkon: java.util.concurrent.ExecutorService? = null
+    private val cakajoceIkone = HashSet<String>()
+    private var uraBesedilo: TextView? = null
+    /** Opravilna vrstica namizja (spodaj): Zacetek + pripete aplikacije - kot plosca namizja Safeer OS / Windows. */
+    private var opravilnaPripete: LinearLayout? = null
+    private var datumBesedilo: TextView? = null
+
     /** Priljubljene aplikacije te naprave, nalozene v ozadju (ime, ikona, zagon). */
     private var priljubljene: List<Aplikacije.Vnos> = emptyList()
     private var nalagamPriljubljene = false
@@ -73,7 +99,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (DomacaLupa.naRezultat(this, requestCode, resultCode, data)) return
         if (requestCode == Zaganjalnik.ZAHTEVA_VLOGE) {
             // Uporabnik je v sistemskem oknu rekel ne: alias spet onemogocimo, da Android Safeer OS ne ponuja sam.
-            if (!Zaganjalnik.jeIzbran(this)) Zaganjalnik.opusti(this)
+            if (!Zaganjalnik.jeIzbran(this)) Zaganjalnik.opusti(this) else VarnostnaVrata.ponudiPloscico(this)
             prefs().edit().putBoolean(KLJUC_PONUJENO, true).apply()
             narisiPonudbo()
             return
@@ -83,10 +109,14 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         zacetek = SystemClock.uptimeMillis()
+        // Varnostna vrata kot PRVO dejanje (pred vsem, kar bi lahko padlo): po prevec padcih od vklopa (tudi ANR in padci
+        // v kodi C, ki jih vidi le sistemski zapis) gre domaci zaslon nazaj prejsnjemu zaganjalniku, ta se takoj odpre.
+        val vrnjen = intent?.hasCategory(Intent.CATEGORY_HOME) == true && Zaganjalnik.preveriObZagonu(this)
         Zaganjalnik.namestiZascito(this)
-        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
-        Predgretje.zazeni(this)
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && !vrnjen) Zaganjalnik.zabeleziZagonDomov(this)
+        if (!vrnjen) Predgretje.zazeni(this)
         super.onCreate(savedInstanceState)
+        if (vrnjen) { finish(); return }
         zgradi()
         // Safeer Link (sredisce in sprejemnik ukazov drugih naprav) naj tece, kadar ga je uporabnik vklopil.
         try { si.safeer.tv.cast.HubStoritev.zagotovi(this) } catch (_: Throwable) { }
@@ -122,6 +152,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Daljinec: Desno iz stranske vrstice gre na prvo priljubljeno aplikacijo (ne v lupo ali mikrofon). */
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        if (namizje && tipkaNamizja(dogodek)) return true
         if (vnos == Vnos.DALJINEC && dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT &&
             currentFocus != null && !vVsebini(currentFocus) && findViewWithTagInPanel() == null && naPrvoPloscico()) return true
         val f = currentFocus
@@ -163,6 +194,8 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onStart() {
         super.onStart()
+        if (namizje) { glavna.removeCallbacks(uraTek); glavna.post(uraTek) }
+        naloziVse()
         link.dodaj(this)
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
@@ -172,6 +205,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onStop() {
+        glavna.removeCallbacks(uraTek)
         GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
         dock?.ustavi()
@@ -191,6 +225,8 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Domaci zaslon ne odide z Nazaj (kot drugi zaganjalniki); kot navadna aplikacija gre v ozadje. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        // Namizje: Nazaj (tudi Esc v DeX) najprej pocisti iskanje.
+        if (namizje && !polje?.text.isNullOrEmpty()) { polje?.setText(""); return }
         if (SporocilaZnak.zapri(this)) return
         if (dock?.skrijCeOdprt() == true) return
         if ((drsnik?.scrollY ?: 0) > 0) { drsnik?.smoothScrollTo(0, 0); return }
@@ -221,20 +257,43 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun dp(v: Int) = dp(v.toFloat())
     private fun sp(v: Float) = v * postavitev.merilo
 
-    private fun zaznajVnos(): Vnos {
-        val c = resources.configuration
-        return if (Naprava.jeTelevizor(this) || c.touchscreen == Configuration.TOUCHSCREEN_NOTOUCH) Vnos.DALJINEC else Vnos.DOTIK
+    private fun zaznajVnos(): Vnos = ZaganjalnikPravila.vnos(Naprava.jeTelevizor(this),
+        resources.configuration.touchscreen == Configuration.TOUCHSCREEN_NOTOUCH, namizniZaslon())
+
+    /**
+     * Zaslon je namizni: zunanji zaslon (okno ni na glavnem zaslonu naprave - Android 15+/16 namizni nacin, SECONDARY_HOME)
+     * ali Samsung DeX. Tablica lezece je namizje ze po sirini okna ([ZaganjalnikPravila.namizje]).
+     */
+    private fun namizniZaslon(): Boolean {
+        if (vsiljenoNamizje) return true
+        val zaslon = try {
+            if (android.os.Build.VERSION.SDK_INT >= 30) display else @Suppress("DEPRECATION") windowManager.defaultDisplay
+        } catch (_: Throwable) { null }
+        if (zaslon != null && zaslon.displayId != android.view.Display.DEFAULT_DISPLAY) return true
+        return jeDex(resources.configuration)
     }
+
+    /** Samsung DeX: Samsungov dokumentiran nacin (polje konfiguracije semDesktopModeEnabled); drugje ga ni -> false. */
+    private fun jeDex(c: Configuration): Boolean = try {
+        val razred = c.javaClass
+        razred.getField("SEM_DESKTOP_MODE_ENABLED").getInt(razred) == razred.getField("semDesktopModeEnabled").getInt(c)
+    } catch (_: Throwable) { false }
 
     private fun zgradi() {
         vnos = zaznajVnos()
         val c = resources.configuration
         postavitev = ZaganjalnikPravila.izberi(c.screenWidthDp, c.screenHeightDp, vnos)
+        namizje = ZaganjalnikPravila.namizje(c.screenWidthDp, c.screenHeightDp, vnos, namizniZaslon())
         val rob = dp(if (postavitev.sirina == ZaganjalnikPravila.Sirina.OZKA) 16 else 28)
 
         val seznam = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(rob, dp(20), rob, dp(32))
+        }
+        // Varnostna vrata in videz: dolg pritisk (desni klik) na prazno namizje - kot pri drugih zaganjalnikih.
+        if (vnos == Vnos.DOTIK) {
+            seznam.setOnLongClickListener { meniNamizja(); true }
+            seznam.setOnContextClickListener { meniNamizja(); true }
         }
         seznam.addView(glava())
         ponudba = null
@@ -242,13 +301,22 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         odsekPredvajalnik = odsek(getString(R.string.zg_predvaja))
         odsekDatoteke = odsek(getString(R.string.zg_nedavne_datoteke))
         odsekNaprave = odsek(getString(R.string.zg_na_napravah))
-        seznam.addView(LinearLayout(this).apply { tag = "ponudba"; orientation = LinearLayout.VERTICAL })
-        seznam.addView(odsekPriljubljene)
+        val nad = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        if (namizje) nad.addView(pozdrav())
+        nad.addView(LinearLayout(this).apply { tag = "ponudba"; orientation = LinearLayout.VERTICAL })
+        nad.addView(odsekPriljubljene)
         // Mreza odsekov: telefon en stolpec, tablica pokonci dva, lezece trije (kot namizje); televizor vrste.
         // Razporedi se po VIDNIH odsekih (razporediOdseke), da skrit odsek ne pusti luknje ali zamika.
         mrezaOdsekov = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        seznam.addView(mrezaOdsekov)
+        nad.addView(mrezaOdsekov)
+        seznam.addView(nad)
+        ostalo = nad
         razporediOdseke()
+        // Namizje: mreza vseh aplikacij te naprave (kot Programi na namizju Safeer OS), iskanje jo filtrira.
+        odsekVse = if (namizje) odsek(getString(R.string.nz_vse_aplikacije)).also { seznam.addView(it) } else null
+        // Iskanje se ob prerisu (zasuk, nov zaslon) nastavi znova iz besedila polja (onConfigurationChanged).
+        iskanje = ""
+        if (!namizje) ikoneVse.clear()
 
         drsnik = ScrollView(this).apply {
             isFillViewport = true
@@ -259,13 +327,21 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             id = R.id.koren
             addView(drsnik, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
-        setContentView(StranskaVrstica.ovij(this, okvir, StranskaVrstica.Razdelek.DOMOV))
-        Ozadje.uporabi(this, okvir)
+        // Namizje: opravilna vrstica spodaj, POD vsebino (mini predvajalnik ob spodnjem robu je nad njo, ne cez njo).
+        val vsebina: ViewGroup = if (namizje) LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(okvir, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(opravilnaVrstica(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        } else okvir.also { opravilnaPripete = null }
+        setContentView(StranskaVrstica.ovij(this, vsebina, StranskaVrstica.Razdelek.DOMOV))
+        Ozadje.uporabi(this, vsebina)
         // Naloga 118: mini predvajalnik kot dock ob robu (nad seznamom odsekov).
         dock?.ustavi()
         dock = MiniPredvajalnik(this, okvir, prefs(), vnos == Vnos.DALJINEC, { osBarva(it) },
             odpriMedije = { odpri(GlasbaStoritev.namenKartice(this), getString(R.string.os_mediji_kartica), null) },
             obSpremembiMesta = { narisiPredvajalnik() })
+        glavna.removeCallbacks(uraTek)
+        if (namizje) { glavna.post(uraTek); narisiVse() }
     }
 
     private var dock: MiniPredvajalnik? = null
@@ -313,7 +389,9 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val vnosPolje = EditText(this).apply {
             setSingleLine()
             background = null
-            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            imeOptions = EditorInfo.IME_ACTION_SEARCH or
+                // Namizje: zaslonska tipkovnica ne sme prekriti zadetkov (lezece bi sicer odprla celozaslonsko polje).
+                (if (namizje) EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN else 0)
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             setTextColor(osBarva(R.color.os_besedilo))
             setHintTextColor(osBarva(R.color.os_umirjeno))
@@ -332,7 +410,13 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
         }
         iskanje.addView(vnosPolje, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        DomacaLupa.prevzemi(this, vnosPolje, iskanje) { odpriSplet() }
+        // Namizje: Enter odpre prvo aplikacijo, ki ustreza (sicer kot doslej: naslov v Splet, drugo v Medijski center).
+        DomacaLupa.prevzemi(this, vnosPolje, iskanje, prednost = if (namizje) { q -> odpriPrviZadetek(q) } else null) { odpriSplet() }
+        if (namizje) vnosPolje.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
+            override fun afterTextChanged(s: android.text.Editable?) { iscem(s?.toString().orEmpty()) }
+        })
         polje = vnosPolje
 
         // Stanje Safeer Linka: samo prikaz (vstop v Safeer Link je v stranski vrstici - en vstop na vsebino).
@@ -357,8 +441,13 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val k = SporocilaZnak.gumb(this, velikost) { postavitev.sirina == ZaganjalnikPravila.Sirina.SIROKA || vnos == Vnos.DALJINEC }
         kuverta = k
 
+        // Gumb menija stranske vrstice (kadar je predal - telefon pokonci) gre v isto vrsto PRED lupo, ne cez njo
+        // (izmerjeno 25. 10. 2026 na testnem telefonu: lebdec gumb je prekril zacetek lupe).
+        iskanje.tag = StranskaVrstica.OZNAKA_PRED
         if (vrsta.orientation == LinearLayout.VERTICAL) {
-            vrsta.addView(iskanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            val zgoraj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            zgoraj.addView(iskanje, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            vrsta.addView(zgoraj, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             val spodaj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             spodaj.addView(stanje, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(12) })
             spodaj.addView(k, LinearLayout.LayoutParams(dp(velikost), dp(velikost)))
@@ -372,8 +461,257 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             vrsta.addView(stanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 marginStart = dp(16) })
             vrsta.addView(k, LinearLayout.LayoutParams(dp(velikost), dp(velikost)).apply { marginStart = dp(8) })
+            if (namizje) vrsta.addView(ura(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                marginStart = dp(20) })
         }
+        if (!namizje) { uraBesedilo = null; datumBesedilo = null }
         return vrsta
+    }
+
+    // ------------------------------------------------------------------ namizje: opravilna vrstica, ura, pozdrav, vse aplikacije
+
+    /**
+     * Opravilna vrstica (lastnik, 25. 10. 2026; zamisel po Taskbar/Smart Dock/HyperDroid, koda nasa): gumb Zacetek (znak
+     * Safeer - lupa in mreza vseh aplikacij) in pripete aplikacije; klik odpre (v oknu, kjer jih naprava zmore), desni
+     * klik ali dolg pritisk odpre meni. Pripenjanje: desni klik na aplikaciji v mrezi.
+     */
+    private fun opravilnaVrstica(): View {
+        val vrsta = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            setBackgroundColor(osBarva(R.color.os_meni_ozadje))
+        }
+        vrsta.addView(gumbOpravilne(getDrawable(R.drawable.os_znak), getString(R.string.nz_zacetek), ob = { zacetek() }, meni = null))
+        vrsta.addView(View(this).apply { setBackgroundColor(osBarva(R.color.os_crta)) },
+            LinearLayout.LayoutParams(dp(1), dp(28)).apply { marginStart = dp(6); marginEnd = dp(6) })
+        val pripete = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        vrsta.addView(HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(pripete)
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        opravilnaPripete = pripete
+        return vrsta
+    }
+
+    private fun gumbOpravilne(ikona: Drawable?, ime: String, ob: (View) -> Unit, meni: (() -> Unit)?): View =
+        FrameLayout(this).apply {
+            isFocusable = true; isClickable = true
+            setBackgroundResource(R.drawable.os_meni_postavka)
+            contentDescription = ime
+            tooltipText = ime
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            addView(ImageView(this@ZaganjalnikActivity).apply {
+                setImageDrawable(ikona ?: getDrawable(R.drawable.os_ikona_aplikacije)); scaleType = ImageView.ScaleType.FIT_CENTER
+            }, FrameLayout.LayoutParams(dp(32), dp(32)))
+            setOnClickListener { ob(it) }
+            if (meni != null) { setOnLongClickListener { meni(); true }; setOnContextClickListener { meni(); true } }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(4) }
+        }
+
+    private fun narisiOpravilno() {
+        val cilj = opravilnaPripete ?: return
+        cilj.removeAllViews()
+        for (a in priljubljene) cilj.addView(gumbOpravilne(Aplikacije.ikona(this, a), a.ime,
+            ob = { v -> odpri(a.namera, a.ime, v, okno = true) }, meni = { moznostiPriljubljene(a) }))
+        for (sa in SpletneAplikacije.seznam(this)) {
+            val ime = sa.ime.ifBlank { SpletneAplikacije.gostitelj(sa.url) }
+            cilj.addView(gumbOpravilne(SpletneAplikacije.ikona(this, sa), ime, ob = { v ->
+                Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = ime, url = sa.url))
+                odpri(Brskalnik.spletnaAplikacija(this, sa.url, ime), ime, v)
+            }, meni = { moznostiSpletne(sa) }))
+        }
+    }
+
+    /**
+     * Zacetek: mreza vseh aplikacij in lupa. S fizicno tipkovnico gre fokus v lupo (takoj tipkas); na dotik ne, da
+     * zaslonska tipkovnica ne prekrije polovice namizja.
+     */
+    private fun zacetek() {
+        polje?.setText("")
+        odsekVse?.let { o -> drsnik?.smoothScrollTo(0, (o.top - dp(8)).coerceAtLeast(0)) }
+        if (resources.configuration.keyboard == Configuration.KEYBOARD_QWERTY) polje?.requestFocus()
+    }
+
+    /** Ura in datum desno zgoraj, kot na namizju Safeer OS (24-urni ali 12-urni zapis po nastavitvi naprave). */
+    private fun ura(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL; gravity = Gravity.END
+        uraBesedilo = TextView(this@ZaganjalnikActivity).apply {
+            setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); gravity = Gravity.END
+        }.also { addView(it) }
+        datumBesedilo = TextView(this@ZaganjalnikActivity).apply {
+            setTextColor(osBarva(R.color.os_umirjeno)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f); gravity = Gravity.END
+        }.also { addView(it) }
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+    }
+
+    private val uraTek = object : Runnable {
+        override fun run() {
+            val zdaj = java.util.Date()
+            uraBesedilo?.text = android.text.format.DateFormat.getTimeFormat(this@ZaganjalnikActivity).format(zdaj)
+            datumBesedilo?.text = android.text.format.DateFormat.format(
+                android.text.format.DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "EEEdMMM"), zdaj)
+            // Do naslednje polne minute (ura ne zamuja do 30 s).
+            glavna.postDelayed(this, 60_000L - System.currentTimeMillis() % 60_000L + 200L)
+        }
+    }
+
+    /** Pozdrav na namizju (isto besedilo kot domaci zaslon tablice). */
+    private fun pozdrav(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(2), dp(24), 0, 0)
+        addView(TextView(this@ZaganjalnikActivity).apply {
+            text = getString(R.string.os_pozdrav_naslov)
+            setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        })
+        addView(TextView(this@ZaganjalnikActivity).apply {
+            text = getString(R.string.os_pozdrav_podnaslov)
+            setTextColor(osBarva(R.color.os_umirjeno)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setPadding(0, dp(4), 0, 0)
+        })
+    }
+
+    /** Seznam aplikacij: takoj zadnji znani (z diska, brez ikon), svez pride iz ozadja le, ce se je kaj spremenilo. */
+    private fun naloziVse() {
+        if (!namizje) return
+        if (vseAplikacije.isEmpty()) Aplikacije.zadnjiZnani(this)?.let { vseAplikacije = it; narisiVse() }
+        // Brez velikih ikon iz LauncherApps (vsaka aplikacija svojo): mreza ima svoje majhne (ikonaMala). Izmerjeno
+        // 25. 10. 2026 na tablici (~70 aplikacij): seznam z ikonami je namizju dodal ~25 MB PSS - tudi, ce smo ikone
+        // takoj zavrgli (domorodni pomnilnik slik ostane do zbiranja smeti), zato se sploh ne nalozijo.
+        Aplikacije.osveziVOzadju(this, vseAplikacije.ifEmpty { null }, brezIkon = true) { svez ->
+            if (isFinishing || isDestroyed) return@osveziVOzadju
+            vseAplikacije = svez
+            narisiVse()
+        }
+    }
+
+    private fun zadetki(): List<Aplikacije.Vnos> = ZaganjalnikPravila.poisci(vseAplikacije, iskanje, { it.ime }, { it.paket })
+
+    /** Lupa namizja: vsak natipkan znak filtrira mrezo; med iskanjem se umakne vse drugo (zadetki so takoj pod lupo). */
+    private fun iscem(besedilo: String) {
+        val novo = besedilo.trim()
+        if (novo == iskanje) return
+        iskanje = novo
+        ostalo?.visibility = if (iskanje.isEmpty()) View.VISIBLE else View.GONE
+        narisiVse()
+        if (iskanje.isNotEmpty()) drsnik?.scrollTo(0, 0)
+    }
+
+    private fun odpriPrviZadetek(q: String): Boolean {
+        iscem(q)
+        val prvi = zadetki().firstOrNull() ?: return false
+        odpriAplikacijo(prvi, null)
+        return true
+    }
+
+    private fun odpriAplikacijo(a: Aplikacije.Vnos, izvor: View?) {
+        odpri(a.namera, a.ime, izvor, okno = true)
+        // Po zagonu iz iskanja je namizje ob vrnitvi spet celo (kot na namizju Safeer OS).
+        if (iskanje.isNotEmpty()) glavna.postDelayed({ polje?.setText("") }, 400)
+    }
+
+    private fun narisiVse() {
+        val o = odsekVse ?: return
+        val cilj = vsebinaOdseka(o) ?: return
+        val zadetki = zadetki()
+        val naslov = if (iskanje.isEmpty()) getString(R.string.nz_vse_aplikacije) else getString(R.string.nz_zadetki, zadetki.size)
+        (o.getChildAt(0) as? TextView)?.text = naslov.uppercase(java.util.Locale.getDefault())
+        cilj.removeAllViews()
+        if (zadetki.isEmpty()) {
+            if (iskanje.isNotEmpty()) cilj.addView(TextView(this).apply {
+                text = getString(R.string.nz_ni_zadetkov, iskanje)
+                setTextColor(osBarva(R.color.os_umirjeno)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            })
+            o.visibility = if (iskanje.isEmpty()) View.GONE else View.VISIBLE
+            return
+        }
+        val ploscice = zadetki.map { a ->
+            ploscica(a.ime, ikoneVse[a.paket], ZnackeObvestil.koliko(a.paket),
+                ob = { v -> odpriAplikacijo(a, v) }, dolgo = { moznostiAplikacije(a) }, oznakaIkone = OZNAKA_IKONE + a.paket)
+        }
+        razporedi(cilj, ploscice, sirinaVsebineDp())
+        o.visibility = View.VISIBLE
+        // Majhne ikone v ozadju (nizka prednost), vsaka se vstavi, ko je nared.
+        val px = dp(if (vnos == Vnos.DALJINEC) 52 else 44)
+        val app = applicationContext
+        for (a in zadetki) {
+            if (ikoneVse.containsKey(a.paket) || !cakajoceIkone.add(a.paket)) continue
+            val nit = nitIkon ?: java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+                Thread(r, "SafeerNamizjeIkone").apply { priority = Thread.MIN_PRIORITY; isDaemon = true }
+            }.also { nitIkon = it }
+            try {
+                nit.execute {
+                    val d = try { Aplikacije.ikonaMala(app, a, px) } catch (_: Throwable) { null }
+                    glavna.post { cakajoceIkone.remove(a.paket); if (d != null) vstaviIkono(a.paket, d) }
+                }
+            } catch (_: java.util.concurrent.RejectedExecutionException) { cakajoceIkone.remove(a.paket) }
+        }
+    }
+
+    private fun vstaviIkono(paket: String, d: Drawable) {
+        if (isFinishing || isDestroyed || !namizje) return
+        ikoneVse[paket] = d
+        odsekVse?.findViewWithTag<ImageView>(OZNAKA_IKONE + paket)?.setImageDrawable(d)
+    }
+
+    override fun onDestroy() {
+        nitIkon?.shutdownNow()
+        nitIkon = null
+        super.onDestroy()
+    }
+
+    /** Desni klik ali dolg pritisk na aplikaciji v mrezi: Odpri, Pripni / Odpni, Informacije o aplikaciji. */
+    private fun moznostiAplikacije(a: Aplikacije.Vnos) {
+        val pripeta = Priljubljene.je(this, a.paket)
+        val dejanja = listOf(
+            getString(R.string.nz_odpri) to { odpriAplikacijo(a, null) },
+            getString(if (pripeta) R.string.os_priljubljen_odstrani else R.string.os_priljubljen_dodaj) to {
+                if (pripeta) Priljubljene.odstrani(this, a.paket) else Priljubljene.dodaj(this, a.paket)
+                naloziPriljubljene()
+            },
+            getString(R.string.zg_podatki_aplikacije) to {
+                odpri(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.paket)), a.ime, null)
+            },
+        )
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(a.ime)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Tipkovnica na namizju: Ctrl+K v lupo, Esc pocisti iskanje, natipkan znak gre naravnost v lupo. */
+    private fun tipkaNamizja(d: KeyEvent): Boolean {
+        if (d.action != KeyEvent.ACTION_DOWN) return false
+        val p = polje ?: return false
+        if (d.isCtrlPressed && d.keyCode == KeyEvent.KEYCODE_K) { p.requestFocus(); p.selectAll(); return true }
+        if (d.keyCode == KeyEvent.KEYCODE_ESCAPE && !p.text.isNullOrEmpty()) { p.setText(""); return true }
+        if (currentFocus !is EditText && !d.isCtrlPressed && !d.isAltPressed && !d.isMetaPressed && DomacaLupa.znakTipke(d)) {
+            p.requestFocus()
+            p.append(String(Character.toChars(d.unicodeChar)))
+            p.setSelection(p.text.length)
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Dolg pritisk ali desni klik na prazno namizje: Videz (ozadje, tema), Nastavitve in - ko je Safeer domaci zaslon -
+     * varnostna vrata »Vrni tovarniski zaganjalnik« (en dotik, lastnik 25. 10. 2026).
+     */
+    private fun meniNamizja() {
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        dejanja.add(getString(R.string.os_videz) to { odpri(Intent(this, VidezActivity::class.java), getString(R.string.os_videz), null) })
+        dejanja.add(getString(R.string.os_meni_nastavitve) to {
+            odpri(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve), null) })
+        if (!Naprava.jeTelevizor(this)) dejanja.add(getString(R.string.nz_nacin) to { NamizniNacin.pokazi(this) { } })
+        if (Zaganjalnik.jePonujen(this) || Zaganjalnik.jeIzbran(this)) dejanja.add(getString(R.string.nz_vrata_vrni) to {
+            VarnostnaVrata.vrni(this) })
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     /** Odsek: naslov + vsebina (otrok 1). Prazen odsek je skrit (nimamo praznih ikon in praznih kartic). */
@@ -404,7 +742,8 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     // ------------------------------------------------------------------ ploscice
 
-    private fun ploscica(ime: String, ikona: Drawable?, znacka: Int, opis: String? = null, ob: (View) -> Unit, dolgo: (() -> Unit)?): View {
+    private fun ploscica(ime: String, ikona: Drawable?, znacka: Int, opis: String? = null, ob: (View) -> Unit, dolgo: (() -> Unit)?,
+                         oznakaIkone: String? = null): View {
         val sirina = dp(postavitev.ploscicaDp)
         val okvir = FrameLayout(this).apply {
             isFocusable = true; isClickable = true
@@ -412,6 +751,8 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             contentDescription = if (znacka > 0) getString(R.string.zg_znacka_opis, ime, znacka) else ime
             setOnClickListener { ob(it) }
             if (dolgo != null) setOnLongClickListener { dolgo(); true }
+            // Miska (namizje, DeX, zunanji zaslon): desni klik odpre isti meni kot dolg pritisk.
+            if (dolgo != null) setOnContextClickListener { dolgo(); true }
         }
         val stolpec = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
@@ -421,6 +762,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         stolpec.addView(ImageView(this).apply {
             setImageDrawable(ikona ?: getDrawable(R.drawable.os_ikona_aplikacije))
             scaleType = ImageView.ScaleType.FIT_CENTER
+            if (oznakaIkone != null) tag = oznakaIkone
         }, LinearLayout.LayoutParams(velikost, velikost))
         stolpec.addView(TextView(this).apply {
             text = ime; gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
@@ -496,11 +838,13 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun narisiPriljubljene() {
         val o = odsekPriljubljene ?: return
+        // Namizje: pripete so v opravilni vrstici (ena vsebina - en vnos), odsek na namizju se umakne.
+        if (namizje) { o.visibility = View.GONE; narisiOpravilno(); return }
         val cilj = vsebinaOdseka(o) ?: return
         val ploscice = ArrayList<View>()
         for (a in priljubljene) {
             ploscice.add(ploscica(a.ime, Aplikacije.ikona(this, a), ZnackeObvestil.koliko(a.paket),
-                ob = { v -> odpri(a.namera, a.ime, v) }, dolgo = { moznostiPriljubljene(a) }))
+                ob = { v -> odpri(a.namera, a.ime, v, okno = true) }, dolgo = { moznostiPriljubljene(a) }))
         }
         for (s in SpletneAplikacije.seznam(this)) {
             val ime = s.ime.ifBlank { SpletneAplikacije.gostitelj(s.url) }
@@ -573,6 +917,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun moznostiPriljubljene(a: Aplikacije.Vnos) {
         val dejanja = listOf(
+            getString(R.string.nz_odpri) to { odpri(a.namera, a.ime, null) },
             getString(R.string.os_spletne_levo) to { if (Priljubljene.premakni(this, a.paket, -1)) naloziPriljubljene() },
             getString(R.string.os_spletne_desno) to { if (Priljubljene.premakni(this, a.paket, 1)) naloziPriljubljene() },
             getString(R.string.os_priljubljen_odstrani) to { Priljubljene.odstrani(this, a.paket); naloziPriljubljene() },
@@ -809,7 +1154,7 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun pokaziVrnjenPoPadcu() {
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(R.string.zg_padec_naslov)
-            .setMessage(R.string.zg_padec_opis)
+            .setMessage(R.string.nz_padec_opis)
             .setPositiveButton(R.string.zg_padec_znova) { _, _ -> Zaganjalnik.zahtevajVlogo(this) }
             .setNegativeButton(android.R.string.ok, null)
             .let { Kontroler.pokazi(it.show()) }
@@ -881,9 +1226,11 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun odpriSplet() = odpri(Brskalnik.namera(this), getString(R.string.os_splet), null)
 
-    private fun odpri(namera: Intent, ime: String, izvor: View?) {
+    /** [okno]: tuja aplikacija - na namizju z okni se odpre v oknu ([NamizniNacin.moznosti]). */
+    private fun odpri(namera: Intent, ime: String, izvor: View?, okno: Boolean = false) {
         try {
-            startActivity(namera, izPloscice(izvor))
+            if (okno && namizje) startActivity(Intent(namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), NamizniNacin.moznosti(this, izPloscice(izvor)))
+            else startActivity(namera, izPloscice(izvor))
         } catch (e: Throwable) {
             Toast.makeText(this, getString(R.string.os_odpri_napaka, e.message ?: e.javaClass.simpleName) + " (" + ime + ")", Toast.LENGTH_LONG).show()
         }
@@ -909,5 +1256,6 @@ class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         fun jeDomaci(a: android.app.Activity) = a is DomovActivity || a is ZaganjalnikActivity ||
             a.javaClass.name == "si.safeer.tv.tablica.DomovTabletActivity"
         private const val KLJUC_PONUJENO = "zaganjalnik_ponudba_odgovorjena"
+        private const val OZNAKA_IKONE = "ikona:"
     }
 }

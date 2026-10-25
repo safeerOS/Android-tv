@@ -694,7 +694,10 @@ class StranskaVrstica private constructor(
     private fun odpriRazdelek(razdelek: Razdelek) {
         val domaci = ZaganjalnikActivity.jeDomaci(dejavnost)
         val namera = when (razdelek) {
-            Razdelek.DOMOV -> Intent(dejavnost, ZaganjalnikActivity.domov(dejavnost))
+            // Telefon, tablica: ce je Safeer zaganjalnik domaci zaslon, Domov vodi tja (namera domacega zaslona - ena sama
+            // instanca v opravilu domacega zaslona, kot tipka Domov); sicer kot doslej. Televizor nespremenjen.
+            Razdelek.DOMOV -> (if (Naprava.jeTelevizor(dejavnost)) null else Zaganjalnik.nameraDomov(dejavnost)
+                ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) ?: Intent(dejavnost, ZaganjalnikActivity.domov(dejavnost))
             Razdelek.MEDIJI -> GlasbaStoritev.namenKartice(dejavnost)
             Razdelek.NAPRAVE -> Intent(dejavnost, NapraveActivity::class.java)
             Razdelek.SPOROCILA -> Intent(dejavnost, SporocilaActivity::class.java)

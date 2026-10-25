@@ -219,7 +219,12 @@ object DomacaLupa {
      * Prazen Enter pokliče [prazno] (npr. odpre brskalnik). [kompaktno]: zaprta lupa (glej [Krmilo]); [umakni] se
      * skrije, ko je razprta na ozkem zaslonu.
      */
-    fun prevzemi(a: Activity, polje: EditText, okvir: ViewGroup, kompaktno: Boolean = false, umakni: List<View> = emptyList(), prazno: () -> Unit) {
+    /**
+     * [prednost]: zaslon lahko oddano iskanje prevzame prvi (namizje zaganjalnika odpre aplikacijo, ki ustreza); ce vrne
+     * false, gre iskanje naprej kot doslej (naslov v Splet, drugo v Medijski center).
+     */
+    fun prevzemi(a: Activity, polje: EditText, okvir: ViewGroup, kompaktno: Boolean = false, umakni: List<View> = emptyList(),
+                 prednost: ((String) -> Boolean)? = null, prazno: () -> Unit) {
         val dp = { v: Int -> dp(a, v) }
         polje.hint = a.getString(R.string.os_lupa_namig)
         polje.tag = OZNAKA_POLJA
@@ -229,7 +234,7 @@ object DomacaLupa {
                 val niz = v.text.toString().trim()
                 (a.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0)
                 v.clearFocus()
-                if (niz.isEmpty()) prazno() else izvedi(a, niz)
+                if (niz.isEmpty()) prazno() else if (prednost?.invoke(niz) != true) izvedi(a, niz)
                 // Iskanje je oddano: lupa se zapre in je ob vrnitvi spet samo ikona.
                 krmiloPolja(v)?.zapri()
                 true

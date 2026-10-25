@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer zaganjalnik na telefonu in tablici: namizje, varnostna vrata, namizni nacin (os/ZaganjalnikActivity, os/VarnostnaVrata, os/NamizniNacin). -->
+<resources>
+    <string name="nz_vse_aplikacije">Tutte le app</string>
+    <string name="nz_zadetki">Risultati: %1$d</string>
+    <string name="nz_ni_zadetkov">Nessuna app corrisponde a «%1$s». Invio cerca nel Centro multimediale (un indirizzo web apre Web).</string>
+    <string name="nz_odpri">Apri</string>
+    <string name="nz_vrata_vrni">Torna al launcher di fabbrica</string>
+    <string name="nz_vrata_vrni_kratko">Launcher di fabbrica</string>
+    <string name="nz_vrata_safeer">Safeer come schermata Home</string>
+    <string name="nz_vrata_safeer_kratko">Safeer come Home</string>
+    <string name="nz_vrata_vrnjeno">Safeer non è più la schermata Home. Il tasto Home riapre il launcher di fabbrica.</string>
+    <string name="nz_ploscica">Home Safeer</string>
+    <string name="nz_ploscica_tovarniski">Di fabbrica</string>
+    <string name="nz_nacin">Modalità desktop</string>
+    <string name="nz_nacin_opis">App in finestre sul tablet, su uno schermo esterno e in DeX</string>
+    <string name="nz_okna_ni">Non disponibile</string>
+    <string name="nz_okna_vklopljena">Finestre</string>
+    <string name="nz_okna_izklopljena">Schermo intero</string>
+    <string name="nz_okna_da">Finestre delle app: questo dispositivo le supporta.</string>
+    <string name="nz_okna_ne">Finestre delle app: questo dispositivo al momento non le offre.</string>
+    <string name="nz_zunanji_da">Schermo esterno come desktop: attivo.</string>
+    <string name="nz_zunanji_ne">Schermo esterno come desktop: non attivo (o non visibile alle app).</string>
+    <string name="nz_vodic">Le attivi tu nelle Opzioni sviluppatore: Safeer non modifica mai le impostazioni di sistema. Cerca le opzioni per le finestre a forma libera (freeform), per il ridimensionamento di tutte le app e per la modalità desktop sugli schermi esterni, poi riavvia il dispositivo. I nomi variano a seconda del produttore, perciò non li citiamo alla lettera.</string>
+    <string name="nz_vodic_razvijalske">Le Opzioni sviluppatore non sono ancora attive: nelle impostazioni di sistema apri le informazioni sul dispositivo (Info telefono / tablet) e tocca sette volte il numero build.</string>
+    <string name="nz_okna_vklopi">Apri in finestre</string>
+    <string name="nz_okna_izklopi">Apri a schermo intero</string>
+    <string name="nz_odpri_razvijalske">Opzioni sviluppatore</string>
+    <string name="nz_ni_sistemske">Questo dispositivo non offre questa impostazione di sistema.</string>
+    <string name="nz_padec_opis">Safeer si è arrestato più volte di seguito come schermata Home, quindi il tasto Home riapre il launcher precedente. Puoi configurarlo di nuovo quando vuoi.</string>
+    <string name="nz_zacetek">Start</string>
+    <string name="nz_vodic_aosp"></string>
+</resources>
