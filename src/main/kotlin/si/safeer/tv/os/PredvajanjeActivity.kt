@@ -196,20 +196,24 @@ class PredvajanjeActivity : OsActivity() {
             } })
     }
 
-    /** Skok na [ciljMs] (polozaj za uporabnika): v sprotnem toku prek pomocnika (z zamikom, da se zaporedni skoki sestejejo). */
-    private fun skociNa(ciljMs: Long) {
-        val p = GlasbaStoritev.predvajalnik ?: return
+    /**
+     * Skok na [ciljMs] (polozaj za uporabnika): v sprotnem toku prek pomocnika (z zamikom, da se zaporedni skoki sestejejo).
+     * Pregled Grok 6: vrne, ali je skok res bil (posnetka, ki ga ni mogoce previjati, ne premakne).
+     */
+    private fun skociNa(ciljMs: Long): Boolean {
+        val p = GlasbaStoritev.predvajalnik ?: return false
         // Na zvocniku: med premorom preskok pocaka na nadaljevanje (zaslon cilj ze kaze), glej ZvocnikPravila.
-        if (GlasbaStoritev.naZvocniku()) { GlasbaStoritev.skoci(ciljMs); osveziCas(); return }
+        if (GlasbaStoritev.naZvocniku()) { GlasbaStoritev.skoci(ciljMs); osveziCas(); return true }
         val t = GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) }
         if (t == null) {
-            if (!p.isCurrentMediaItemSeekable) return
+            if (!p.isCurrentMediaItemSeekable) return false
             p.seekTo(if (p.duration > 0) minOf(ciljMs, p.duration - 500).coerceAtLeast(0) else ciljMs.coerceAtLeast(0))
-            osveziCas(); return
+            osveziCas(); return true
         }
         ciljSprotnega = ciljMs.coerceAtLeast(0).let { if (t.trajanjeMs > 0) minOf(it, (t.trajanjeMs - 2_000).coerceAtLeast(0)) else it }
         osveziCas()
         glavna.removeCallbacks(previjZdaj); glavna.postDelayed(previjZdaj, 700)
+        return true
     }
     private val skrij = Runnable {
         // Dokler se video ne zacne, pas z naslovom ostane: uporabnik vidi, kaj se nalaga.
@@ -1778,13 +1782,15 @@ class PredvajanjeActivity : OsActivity() {
         glavna.postDelayed({ posodobiPip() }, 150)
     }
 
-    /** ±10 s (gumbi, D-pad, FF/RW, L1/R1, dvojni dotik). Pregled C5: v zivo ne previja; vrne, ali je previl. */
+    /**
+     * ±10 s (gumbi, D-pad, FF/RW, L1/R1, dvojni dotik). Pregled C5: v zivo ne previja; vrne, ali je previl. Pregled Grok 6:
+     * tudi posnetek, ki ga ni mogoce previjati, vrne false (prej true - dvojni dotik je kazal »± 10 s«, ceprav se ni premaknil).
+     */
     private fun premakni(ms: Long): Boolean {
         val p = GlasbaStoritev.predvajalnik ?: return false
         if (GlasbaStoritev.vZivo()) return false
         val (polozaj, _) = polozajInTrajanje(p)
-        skociNa((polozaj + ms).coerceAtLeast(0))
-        return true
+        return skociNa((polozaj + ms).coerceAtLeast(0))
     }
 
     // ------------------------------------------------------------------ slika v sliki (telefon, tablica)
@@ -2047,8 +2053,12 @@ class PredvajanjeActivity : OsActivity() {
             KeyEvent.KEYCODE_MEDIA_STOP -> { GlasbaStoritev.ustavi(this); finish(); return true }
             KeyEvent.KEYCODE_MEDIA_NEXT -> { GlasbaStoritev.naslednjaTu(); return true }
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { GlasbaStoritev.prejsnjaTu(); return true }
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> { premakni(-10_000); return true }
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { premakni(10_000); return true }
+            // Pregled Grok 6: smerna tipka, ki ne previje (v zivo, posnetek brez previjanja), gre naprej - fokus se premakne na
+            // gumbe (prej jo je zaslon pojedel in do ostalih gumbov z daljincem ni bilo mogoce).
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (premakni(-10_000)) return true
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (premakni(10_000)) return true
+            KeyEvent.KEYCODE_MEDIA_REWIND -> { premakni(-10_000); return true }
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { premakni(10_000); return true }
             KeyEvent.KEYCODE_DPAD_DOWN -> { odpriPredloge(); return true }
             KeyEvent.KEYCODE_DPAD_UP -> { if (jeVideo() && p != null) izbiraPodnapisov(); return true }
             KeyEvent.KEYCODE_CAPTIONS -> { p?.let { Podnapisi.preklopi(this, it); posodobiPodnapise() }; return true }
