@@ -408,6 +408,9 @@
     <string name="os_besedila_napaka">Impossible de charger les paroles pour le moment.</string>
     <string name="os_besedila_instrumentalno">Instrumental – sans paroles.</string>
     <string name="os_tv_vrni_skrite">Afficher les chaînes masquées (%1$d)</string>
+    <string name="os_tv_vsi_kanali">Toutes les chaînes</string>
+    <string name="os_tv_priljubljeni_n">Favoris (%1$d)</string>
+    <string name="os_premakni_na_zacetek">Déplacer au début</string>
     <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
     <string name="os_nedel_ni_toka">la source ne fournit pas de flux</string>
     <string name="os_nedel_streznik">serveur introuvable</string>

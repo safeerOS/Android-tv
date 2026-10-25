@@ -409,6 +409,9 @@
     <string name="os_besedila_napaka">Besedila ta čas ni mogoče dobiti.</string>
     <string name="os_besedila_instrumentalno">Instrumentalna skladba – brez besedila.</string>
     <string name="os_tv_vrni_skrite">Pokaži skrite kanale (%1$d)</string>
+    <string name="os_tv_vsi_kanali">Vsi kanali</string>
+    <string name="os_tv_priljubljeni_n">Priljubljeni (%1$d)</string>
+    <string name="os_premakni_na_zacetek">Premakni na začetek</string>
     <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
     <string name="os_nedel_ni_toka">vir ne da toka</string>
     <string name="os_nedel_streznik">strežnika ni</string>

@@ -3885,6 +3885,10 @@ class GlasbaActivity : OsActivity() {
         izbrani.forEach { id -> razlicicaZaPreverjanje(m, id).let { sk -> if (sk != null) preveriKanal(m, sk) } }
     }
 
+    /** Priljubljeni kanali v zivo (vgrajeni, seznamov IPTV, dodatkov) po uporabnikovem vrstnem redu ([PriljubljeniKanaliPravila]). */
+    private fun priljubljeniKanali(): List<Jamendo.Skladba> =
+        MedijskiViri.priljubljene(this).filter { PriljubljeniKanaliPravila.jeKanal(it.id, Stremio.jeVZivo(it)) }
+
     /** Naloga 90d: kanal seznama IPTV, katerega tok je znano samo obvestilo ([KanaliPravila.znanNedelujocTok]). */
     private fun znanNedelujocKanal(sk: Jamendo.Skladba) = IptvSeznami.jeKanal(sk) && KanaliPravila.znanNedelujocTok(sk.zvok)
 
@@ -3922,7 +3926,8 @@ class GlasbaActivity : OsActivity() {
             .filter { (m.zvrst.isEmpty() || it.zvrst == m.zvrst) && (m.jezik.isEmpty() || it.jezik == m.jezik) }
         // Priporoceno: priljubljeni, uradni kanali uporabnikove drzave in jezika, kanali dodatkov v njegovem jeziku, ostali uradni, nato vse ostalo.
         val (doma, drugod) = vgrajeni.partition { it.drzava == krajevno.country.uppercase(Locale.ROOT) || it.jezik == krajevno.language }
-        val priljubljeni = if (brezIzbire) MedijskiViri.priljubljene(this).filter { it.id.startsWith("tv:") || Stremio.jeVZivo(it) } else emptyList()
+        // 25. 10. 2026: tudi priljubljeni kanali seznamov IPTV (prej samo vgrajeni in dodatkov) - po uporabnikovem redu.
+        val priljubljeni = if (brezIzbire || tvSamoPriljubljeni) priljubljeniKanali() else emptyList()
         var urejeni = (priljubljeni + doma.map { it.skladba } + m.domaci + drugod.map { it.skladba } + m.kanali).distinctBy { it.id }
         if (razvrstitev(TV_V_ZIVO) == RAZVRSTI_IME_AZ) {
             val collator = Collator.getInstance(krajevno).apply { strength = Collator.SECONDARY }
@@ -3971,9 +3976,14 @@ class GlasbaActivity : OsActivity() {
         // Kar uporabnik ze vidi, ostane na svojem mestu; novo preverjeni kanali pridejo za tem (pri razvrstitvi po imenu
         // velja abeceda). Brez tega bi se kanali dodatkov vrivali med ze narisane vgrajene.
         val vsiPoVrsti: List<Jamendo.Skladba> = vsi
-        // Priljubljeni kanali so vedno spredaj (tudi tisti, ki ga je uporabnik pravkar dodal med priljubljene).
-        val prikaz = if (razvrstitev(TV_V_ZIVO) == RAZVRSTI_IME_AZ) vsiPoVrsti
-            else OsPravila.stabilenRed(m.narisani, vsiPoVrsti) { it.id }.let { s -> s.filter { it.id in vednoId } + s.filterNot { it.id in vednoId } }
+        // Priljubljeni kanali so vedno spredaj (tudi tisti, ki ga je uporabnik pravkar dodal med priljubljene), po vrstnem redu,
+        // ki ga uporabnik doloci s »Premakni« ([PriljubljeniKanaliPravila]) - tudi pri razvrstitvi po imenu. Izbira
+        // »Priljubljeni« pokaze samo njih.
+        val ostali = vsiPoVrsti.filterNot { it.id in vednoId }
+        val ostaliPoVrsti = if (razvrstitev(TV_V_ZIVO) == RAZVRSTI_IME_AZ) ostali else OsPravila.stabilenRed(m.narisani, ostali) { it.id }
+        val poId = vsiPoVrsti.associateBy { it.id }
+        val prikaz = PriljubljeniKanaliPravila.prikaz(priljubljeni.map { it.id }, vsiPoVrsti.filter { it.id in vednoId }.map { it.id } + ostaliPoVrsti.map { it.id },
+            tvSamoPriljubljeni).mapNotNull { poId[it] }
         m.naprej = naprej
         // Naloga 80 (53b): meritev - cas od odprtja mreze do prvega izrisa kanalov dodatkov ali seznamov (logcat SafeerOsMedia).
         if (!m.izmerjeno && prikaz.any { Stremio.jeEnota(it) || IptvSeznami.jeKanal(it) }) {
@@ -4022,14 +4032,14 @@ class GlasbaActivity : OsActivity() {
         var samNalagam = false
         // Vsi nalozeni kanali so razreseni, okno pa se ni polno: sami gremo po naslednjo stran (najvec trikrat na dejanje).
         // Naloga 80 (53c): dokler okno ni polno, dopolnjujemo iz naslednjih virov sami (do 8-krat na dejanje, prej 3).
-        if (!m.naprej && !m.nalagam && m.seKaj && preverjam && izDodatkov < m.okno && m.samodejno < (if (prikaz.size < m.okno) 8 else 3)) {
+        if (!tvSamoPriljubljeni && !m.naprej && !m.nalagam && m.seKaj && preverjam && izDodatkov < m.okno && m.samodejno < (if (prikaz.size < m.okno) 8 else 3)) {
             m.samodejno++
             samNalagam = true
             glavna.post { naloziVecKanalov(m, samodejno = true) }
         }
         // Gumb »Naloži več« sele, ko so odgovorili vsi viri prve strani (prej dotik ne bi naredil nicesar).
         // Kadar gremo po naslednjo stran sami, gumba ni (prej se je za hip pokazal in izginil - izmerjeno 5. 10. 2026).
-        val vec = (m.seKaj || m.naprej) && !m.nalagam && !samNalagam && prikaz.isNotEmpty()
+        val vec = !tvSamoPriljubljeni && (m.seKaj || m.naprej) && !m.nalagam && !samNalagam && prikaz.isNotEmpty()
         val napisi = napisiIzbirKanalov(m)
         val kazemNadomestek = prazna == KanaliPravila.PraznaMreza.NADOMESTEK
         val podpis = "${prikaz.map { it.id }.hashCode()}|$vec|$opis|$napisi|${razvrstitev(TV_V_ZIVO)}|${vsebina.width}|" +
@@ -4100,6 +4110,17 @@ class GlasbaActivity : OsActivity() {
                 narisiKanale(m)
             },
         ) + run {
+            // 25. 10. 2026 (lastnik): izbira »Priljubljeni (N)« - samo priljubljeni kanali; ko jih ni, izbire ni.
+            val priljubljenih = priljubljeniKanali().size
+            if (priljubljenih == 0 && !tvSamoPriljubljeni) emptyList() else listOf(PoljeIzbire("izb:prilj",
+                listOf(getString(R.string.os_tv_vsi_kanali), getString(R.string.os_tv_priljubljeni_n, priljubljenih)), if (tvSamoPriljubljeni) 1 else 0, null) { i ->
+                if (tvSamoPriljubljeni != (i == 1)) {
+                    tvSamoPriljubljeni = i == 1
+                    m.narisani = emptyList()
+                    narisiKanale(m)
+                }
+            })
+        } + run {
             // Naloga 79b: zaklenjeni kanali (dodatek daje tokove samo z narocnino) so privzeto skriti.
             // Naloga 90d: kanale, ki jih je uporabnik skril (»Kanal ne deluje - skrij«), vrne tretja izbira.
             val skritih = MrtviKanali.steviloSkritih(this)
@@ -5815,6 +5836,37 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /**
+     * Premik priljubljenega kanala med priljubljenimi kanali (levo, desno, na zacetek); vrstni red je shranjen v priljubljenih
+     * ([MedijskiViri.urediPriljubljene]), mreza ga pokaze takoj. Ni kanal ali je edini: prazno.
+     */
+    private fun moznostiPremikaKanala(sk: Jamendo.Skladba): List<Pair<String, () -> Unit>> {
+        val vse = MedijskiViri.priljubljene(this)
+        val kanali = vse.filter { PriljubljeniKanaliPravila.jeKanal(it.id, Stremio.jeVZivo(it)) }.map { it.id }.toHashSet()
+        val jeK: (String) -> Boolean = { it in kanali }
+        val ids = vse.map { it.id }
+        val (mesto, stevilo) = PriljubljeniKanaliPravila.mesto(ids, jeK, sk.id)
+        val (levo, desno, naZacetek) = PriljubljeniKanaliPravila.moznostiPremika(mesto, stevilo)
+        fun premik(zamik: Int, zacetek: Boolean): () -> Unit = {
+            val nov = PriljubljeniKanaliPravila.premakni(MedijskiViri.priljubljene(this).map { it.id }, jeK, sk.id, zamik, zacetek)
+            if (nov != null && MedijskiViri.urediPriljubljene(this, nov)) {
+                android.util.Log.i("SafeerOsMedia", "priljubljeni kanal premaknjen: \"${sk.naslov.take(40)}\" ${if (zacetek) "na zacetek" else if (zamik < 0) "levo" else "desno"}")
+                // Izbira gre s premaknjenim kanalom (izmerjeno na TV: brez tega je ostala na starem mestu, na sosedu). Priljubljeni
+                // so v mrezi spredaj po svojem redu: novo mesto je mesto med priljubljenimi kanali, ki so v mrezi. Risanje vrne
+                // izbiro na kartico vrnitve ([mestoVrnitve]), tudi ce se mreza rise po korakih.
+                val vMrezi = mrezaKanalov?.narisani?.toHashSet()
+                val novoMesto = nov.filter { jeK(it) && (vMrezi == null || it in vMrezi) }.indexOf(sk.id)
+                if (novoMesto >= 0) mestoVrnitve(drsnik.scrollY, "k:#$novoMesto", OsPravila.Podstrani.NI_ODMIKA)
+                osveziPriljubljene()
+            }
+        }
+        val izhod = ArrayList<Pair<String, () -> Unit>>()
+        if (levo) izhod += getString(R.string.os_spletne_levo) to premik(-1, false)
+        if (desno) izhod += getString(R.string.os_spletne_desno) to premik(1, false)
+        if (naZacetek) izhod += getString(R.string.os_premakni_na_zacetek) to premik(0, true)
+        return izhod
+    }
+
     private fun meni(sk: Jamendo.Skladba, vrsta: List<Jamendo.Skladba>, ime: String, seznam: MedijskiViri.Seznam?) {
         val dejanja = mutableListOf<Pair<String, () -> Unit>>()
         if (MediaNapredek.polozaj(this, sk) > 0) {
@@ -5830,8 +5882,12 @@ class GlasbaActivity : OsActivity() {
             dejanja += getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj) to {
                 val zdaj = MedijskiViri.preklopiPriljubljeno(this, sk)
                 Toast.makeText(this, if (zdaj) R.string.os_mediji_dodano_prilj else R.string.os_mediji_odstranjeno_prilj, Toast.LENGTH_SHORT).show()
+                // Zadnji priljubljeni kanal odstranjen: izbira »Priljubljeni« nima vec cesa pokazati.
+                if (!zdaj && tvSamoPriljubljeni && priljubljeniKanali().isEmpty()) tvSamoPriljubljeni = false
                 osveziPriljubljene()
             }
+            // 25. 10. 2026 (lastnik): priljubljeni kanal se z daljincem premakne levo, desno ali na zacetek mreze TV v zivo.
+            if (je) dejanja += moznostiPremikaKanala(sk)
         }
         // Svoj seznam predvajanja: skladbo dodas na obstojecega ali novega (ne samo "shrani vso vrsto").
         // Kanal v zivo ni skladba za seznam predvajanja: zanj so priljubljeni (zgoraj).
@@ -9791,6 +9847,8 @@ class GlasbaActivity : OsActivity() {
         private var tvJezik = ""
         /** Naloga 79b: Live TV kaze tudi kanale dodatkov, ki tokove dajejo samo z narocnino (dokler je aplikacija odprta). */
         private var tvZaklenjeni = false
+        /** 25. 10. 2026: izbira »Priljubljeni« v TV v zivo - samo priljubljeni kanali (do konca procesa, kot [tvZaklenjeni]). */
+        private var tvSamoPriljubljeni = false
         @Volatile private var FILTRI_KANALOV: KanaliPravila.Filtri? = null
         private val KANALI_MREZE = java.util.concurrent.ConcurrentHashMap<String, Pair<List<Jamendo.Skladba>, List<Jamendo.Skladba>>>()
         /** Vrstni red kanalov (id-ji), kot ga je uporabnik pri izbiri »zvrst|jezik|razvrstitev« nazadnje videl - samo v pomnilniku. */

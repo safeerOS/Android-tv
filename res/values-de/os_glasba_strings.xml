@@ -408,6 +408,9 @@
     <string name="os_besedila_napaka">Der Songtext kann gerade nicht geladen werden.</string>
     <string name="os_besedila_instrumentalno">Instrumental – kein Songtext.</string>
     <string name="os_tv_vrni_skrite">Ausgeblendete Sender anzeigen (%1$d)</string>
+    <string name="os_tv_vsi_kanali">Alle Sender</string>
+    <string name="os_tv_priljubljeni_n">Favoriten (%1$d)</string>
+    <string name="os_premakni_na_zacetek">An den Anfang</string>
     <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
     <string name="os_nedel_ni_toka">die Quelle liefert keinen Stream</string>
     <string name="os_nedel_streznik">Server nicht gefunden</string>

@@ -408,6 +408,9 @@
     <string name="os_besedila_napaka">Il testo non è disponibile al momento.</string>
     <string name="os_besedila_instrumentalno">Strumentale – senza testo.</string>
     <string name="os_tv_vrni_skrite">Mostra canali nascosti (%1$d)</string>
+    <string name="os_tv_vsi_kanali">Tutti i canali</string>
+    <string name="os_tv_priljubljeni_n">Preferiti (%1$d)</string>
+    <string name="os_premakni_na_zacetek">Sposta all\'inizio</string>
     <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
     <string name="os_nedel_ni_toka">la fonte non fornisce lo stream</string>
     <string name="os_nedel_streznik">server non trovato</string>
