@@ -74,6 +74,11 @@ private fun Map<String, Any?>.nizi(k: String) = this[k] as List<String?>
 /** Bajti iz zapisa hex (prvi bajti toka v skupnih primerih). */
 private fun hex(h: String) = ByteArray(h.length / 2) { h.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
+/** Izid ali stanje kljuca v skupnih primerih: ime z malimi crkami (»ne_velja«, »nepreverjen«). */
+private fun imeIzida(e: Enum<*>) = e.name.lowercase(java.util.Locale.ROOT)
+private fun preverbaIz(s: String) = DebridPravila.Preverba.valueOf(s.uppercase(java.util.Locale.ROOT))
+private fun stanjeIz(s: String) = DebridPravila.StanjeKljuca.valueOf(s.uppercase(java.util.Locale.ROOT))
+
 private fun meritev(m: Map<String, Any?>) =
     DebridPravila.Meritev(m.niz("ponudnik")!!, m["ping_ms"] as Long, m["bajtov"] as Long, m["cas_ms"] as Long)
 
@@ -131,6 +136,27 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "scit_primeren_za_ucenje" -> si.safeer.tv.scit.ScitIzjeme.primerenZaUcenje(v.niz("gostitelj")!!)
     "uskladitev_novejsi" -> UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
         (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })
+    // Preverba kljucev debrid in indeksatorja (tests/skupni-primeri/kljuci-preverba.json, 25. 10. 2026). Telo odgovora pride
+    // kot Map iz bralnika - iste funkcije polj kot v aplikaciji (TorBox.preveri, Debrid.preveriKljuc), izidi z malimi crkami.
+    "kljuc_iz_vnosa" -> if (v.niz("ponudnik") == UsenetPravila.VRSTA) UsenetPravila.kljucIzVnosa(v.niz("vnos")!!)
+        else DebridPravila.kljucIzVnosa(v.niz("vnos")!!, v.niz("ponudnik")!!)
+    "je_vzorec_kljuca" -> DebridPravila.jeVzorecKljuca(v.niz("kljuc")!!)
+    "preverba_torbox" -> (v["telo"] as Map<String, Any?>?).let { t ->
+        val d = t?.get("data") as? Map<String, Any?>
+        DebridPravila.preverbaTorBoxOdgovor(v.cel("http")!!, t?.get("success"), t?.get("error"), d != null, d?.get("plan"))
+            .let { listOf(imeIzida(it.first), it.second?.toLong()) }
+    }
+    "preverba_rd" -> imeIzida(DebridPravila.preverbaRdOdgovor(v.cel("http")!!, (v["telo"] as Map<String, Any?>?)?.get("error_code")))
+    "preverba_ad" -> (v["telo"] as Map<String, Any?>?).let { t ->
+        imeIzida(DebridPravila.preverbaAdOdgovor(v.cel("http")!!, t?.get("status"), (t?.get("error") as? Map<String, Any?>)?.get("code")))
+    }
+    "preverba_indeksatorja" -> imeIzida(UsenetPravila.preverbaIndeksatorja(v.cel("http")!!, v.niz("telo")!!))
+    "naslov_preverbe_indeksatorja" -> UsenetPravila.naslovPreverbe(v.niz("osnova")!!, v.niz("kljuc")!!)
+    "preverba_iz_napake" -> imeIzida(DebridPravila.preverbaIzNapake(v.niz("vrsta")!!))
+    "stanje_po_preverbi" -> DebridPravila.stanjePoPreverbi(preverbaIz(v.niz("preverba")!!))?.let { imeIzida(it) }
+    "za_uskladitev" -> DebridPravila.zaUskladitev(v.niz("stanje")?.let { stanjeIz(it) })
+    "sprejmi_prejetega" -> DebridPravila.sprejmiPrejetega(preverbaIz(v.niz("preverba")!!))
+    "preveri_zdaj" -> DebridPravila.preveriZdaj(v.niz("stanje")?.let { stanjeIz(it) }, v["zadnjic_ms"] as Long, v["zdaj_ms"] as Long)
     else -> error("neznano pravilo: $f")
 }
 

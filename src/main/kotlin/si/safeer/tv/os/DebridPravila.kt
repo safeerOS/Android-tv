@@ -521,6 +521,28 @@ object DebridPravila {
         else -> preverbaIzNapake(adVrstaNapake(http, koda))
     }
 
+    // Polja odgovora, kot jih da bralnik JSON (org.json v aplikaciji, bralnik v skupnih primerih - isti primeri kot namizje,
+    // tests/skupni-primeri/kljuci-preverba.json). Strogo kot namizje: `success` mora biti true (ne niz »true«), paket in
+    // koda Real-Debrid samo celo stevilo, status in koda AllDebrid samo niz; JSON null ni vrednost.
+
+    private fun celo(x: Any?): Int? = when (x) {
+        is Int -> x
+        is Long -> x.takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt()
+        else -> null
+    }
+
+    /** TorBox user/me: (izid, paket). [imaData] = polje `data` je objekt; paket je `plan` (celo stevilo >= 0) samo pri veljavnem. */
+    fun preverbaTorBoxOdgovor(http: Int, success: Any?, error: Any?, imaData: Boolean, plan: Any?): Pair<Preverba, Int?> {
+        val izid = preverbaTorBox(http, success == true && imaData, error?.toString()?.takeIf { it.isNotBlank() && it != "null" })
+        return izid to (if (izid == Preverba.VELJA) celo(plan)?.takeIf { it >= 0 } else null)
+    }
+
+    /** Real-Debrid /user: [errorCode] = polje `error_code`. */
+    fun preverbaRdOdgovor(http: Int, errorCode: Any?): Preverba = preverbaRd(http, celo(errorCode))
+
+    /** AllDebrid /user: [status] = polje `status`, [koda] = `error.code`. */
+    fun preverbaAdOdgovor(http: Int, status: Any?, koda: Any?): Preverba = preverbaAd(http, status as? String, koda as? String)
+
     /** Ali kljuc shranimo in s katerim stanjem: zavrnjen ali vzorec ne (null); izpad storitve kljuca ne zavrne (nepreverjen). */
     fun stanjePoPreverbi(p: Preverba): StanjeKljuca? = when (p) {
         Preverba.VELJA -> StanjeKljuca.VELJA

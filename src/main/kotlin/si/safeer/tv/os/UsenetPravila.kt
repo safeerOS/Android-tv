@@ -96,6 +96,36 @@ object UsenetPravila {
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
+    // ------------------------------------------------------------------ preverba kljuca indeksatorja (25. 10. 2026)
+    // Kot namizje (core/usenet_pravila.py, 2b05609) in kljuci debrid (DebridPravila.Preverba): isti primeri v
+    // tests/skupni-primeri/kljuci-preverba.json.
+
+    /** Kljuc indeksatorja iz vnosa ali z druge naprave: oblika in ne vzorec (»your-indexer-api-key«); null = ni kljuc. */
+    fun kljucIzVnosa(vnos: String): String? = ocistiKljuc(vnos)?.takeUnless { DebridPravila.jeVzorecKljuca(it) }
+
+    /**
+     * Preverba ob vnosu: eno iskanje z enim zadetkom (izmerjeno 25. 10. 2026 na nzbfinder.ws: napacen kljuc -> HTTP 401 in
+     * `<error code="100">`; `t=caps` kljuca ne preveri). POZOR: vsebuje kljuc - samo za klic, nikoli v dnevnik.
+     */
+    fun naslovPreverbe(osnova: String, kljuc: String): String = "$osnova/api?t=search&q=safeer&limit=1&apikey=${enc(kljuc)}"
+
+    /**
+     * Odgovor [naslovPreverbe] -> izid. Zavrnjen kljuc je samo 401 ali napaka Newznab 100-102; 403 brez napake Newznab je
+     * lahko Cloudflare (lastnik 25. 10. 2026: nzbfinder.ws streznike zavrne s 403) - kljuca zaradi tega ne zavrnemo.
+     * Meja (429, Newznab 500/501) in vse drugo (5xx, stran HTML, preusmeritev, brez povezave) kljuca ne zavrne.
+     */
+    fun preverbaIndeksatorja(http: Int, zacetek: String): DebridPravila.Preverba {
+        val n = napaka(zacetek)
+        return when {
+            n == TorBoxPravila.NAPAKA_KLJUC || http == 401 -> DebridPravila.Preverba.NE_VELJA
+            n == TorBoxPravila.NAPAKA_MEJA || http == 429 -> DebridPravila.Preverba.MEJA
+            http in 200..299 && n == null && RX_RSS.containsMatchIn(zacetek) -> DebridPravila.Preverba.VELJA
+            else -> DebridPravila.Preverba.NI_ODGOVORA
+        }
+    }
+
+    private val RX_RSS = Regex("<(rss|channel)\\b", RegexOption.IGNORE_CASE)
+
     /**
      * Naslov iskanja za id Stremio: film `tt1375666` -> t=movie, epizoda `tt0108778:1:1` -> t=tvsearch s sezono in epizodo.
      * Drugi id-ji (tmdb:, kitsu: ...) -> null: indeksatorji iscejo po IMDb.

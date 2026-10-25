@@ -205,6 +205,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
 java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
+java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/kljuci-preverba.json"
 java -cp "$OUT/os.jar" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/DODATKI-PROTOKOL.md"
 java -cp "$OUT/os.jar" si.safeer.tv.os.DatotekePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NedelujocePravilaTestKt

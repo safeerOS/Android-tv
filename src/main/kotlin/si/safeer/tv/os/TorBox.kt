@@ -41,9 +41,10 @@ object TorBox {
      */
     fun preveri(kljuc: String): Pair<DebridPravila.Preverba, Int?> = try {
         val o = klic(DebridPravila.TORBOX_UPORABNIK, kljuc, rokMs = 8_000)
-        val data = o.json?.optJSONObject("data")
-        val izid = DebridPravila.preverbaTorBox(o.koda, uspeh(o) && data != null, o.json?.optString("error")?.takeIf { it.isNotBlank() && it != "null" })
-        izid to (if (izid == DebridPravila.Preverba.VELJA && data?.has("plan") == true) data.optInt("plan", -1).takeIf { it >= 0 } else null)
+        val j = o.json
+        val data = j?.optJSONObject("data")
+        // Skupni primeri z namizjem (kljuci-preverba.json): polja strogo, kot jih prebere namizje.
+        DebridPravila.preverbaTorBoxOdgovor(o.koda, j?.opt("success"), j?.opt("error"), data != null, data?.opt("plan"))
     } catch (e: Exception) {
         Log.i(TAG, "preverba: ${e.javaClass.simpleName}"); DebridPravila.Preverba.NI_ODGOVORA to null
     }
