@@ -5229,7 +5229,7 @@ class GlasbaActivity : OsActivity() {
         val naZvocniku = Zvocniki.aktivni
         if (naZvocniku != null) {
             dejanje("k:zvocnik", R.drawable.os_ikona_predvajaj_na, getString(R.string.zvocnik_na, naZvocniku.ime)) { upravljajZvocnik() }
-        } else if (GlasbaStoritev.zaZvocnik(sk)) {
+        } else if (GlasbaStoritev.zaZvocnikPonudba(this, sk) { if (!isFinishing) osvezi(razdelek) }) {
             dejanje("k:zvocnik", R.drawable.os_ikona_predvajaj_na, getString(R.string.zvocnik_predvajaj_na)) { izberiZvocnik(sk) }
         }
         dejanje("k:ustavi", R.drawable.os_ikona_ustavi, getString(R.string.os_media_ustavi)) { GlasbaStoritev.ustavi(this); glavna.postDelayed({ if (razdelek == DOMOV && !podstrani.odprta) izberi(DOMOV) }, 300) }

@@ -31,4 +31,7 @@
     <string name="naprava_prekini">Dejar de controlar</string>
     <string name="naprava_konec">%1$s no responde – control finalizado</string>
     <string name="naprava_upravljaj">Controlar %1$s</string>
+    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave. -->
+    <string name="zvocnik_yt_ni">Este vídeo no se puede reproducir en el altavoz.</string>
+    <string name="zvocnik_cast_preverba">%1$s no superó la comprobación de autenticidad de Google Cast: se reproduce por DLNA.</string>
 </resources>

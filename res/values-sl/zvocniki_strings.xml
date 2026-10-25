@@ -31,4 +31,7 @@
     <string name="naprava_prekini">Prekini upravljanje</string>
     <string name="naprava_konec">%1$s se ne odziva – upravljanje je končano</string>
     <string name="naprava_upravljaj">Upravljaj: %1$s</string>
+    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave. -->
+    <string name="zvocnik_yt_ni">Tega posnetka ni mogoče predvajati na zvočniku.</string>
+    <string name="zvocnik_cast_preverba">%1$s ni opravil preverbe pristnosti Google Cast – predvajam prek DLNA.</string>
 </resources>

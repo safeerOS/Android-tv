@@ -25,6 +25,12 @@ import java.util.concurrent.Executors
  * [glasnost]) in ukazi ([premor], [nadaljuj], [skoci], [glasnostZa]); kdaj se kateri ukaz sme poslati, dolocajo
  * [ZvocnikPravila] (izmerjeno na pravem zvocniku). Vrsto skladb vodi [GlasbaStoritev].
  *
+ * Od 25. 10. 2026 gre na zvocnik tudi zvok posnetkov YouTube ([YoutubeZvok]). Pot do zvocnika je [Prenos]: zvocnik z
+ * Google Cast (preverjena pristnost, [CastSeja]) dobi tok YouTube prek Default Media Receiver - izmerjeno na JBL BAR 300:
+ * zvok po 0,6 s (DLNA 3,1 s) in naslednja skladba brez ponovnega zagona sprejemnika; ce ga Cast ne more prebrati sam,
+ * ga dobi prek posrednika te naprave ([ZvocnikStreznik]). Zvocnik brez Casta (ali brez preverjene pristnosti) dobi isti
+ * tok po DLNA. Vsi drugi viri ostanejo na DLNA kot doslej.
+ *
  * Niti: stanje spreminja samo glavna nit; vsi klici zvocniku tecejo po vrsti na enem delavcu. Zaporedne stevilke
  * ([zagon], [zadnjiPreskok], [zadnjiPrenos], [ukazov]) povedo delavcu in odcitkom, da jih je prehitel novejsi ukaz.
  */
@@ -39,6 +45,8 @@ object Zvocniki {
     private const val BUDNOST_MS = 10 * 60_000L
     /** Po toliko casa brez odgovora zvocnika je seja zastarela: pred prvim Stop preverimo, ali zvocnik se igra nase. */
     private const val ZASTAREL_PO_MS = 15_000L
+    /** Zvocnik brez Casta ali brez preverjene pristnosti toliko casa ne sprasujemo znova (samo delavec). */
+    private const val CAST_NE_MS = 10 * 60_000L
     private val delavec = Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-zvocniki").apply { isDaemon = true } }
     private val glavna = Handler(Looper.getMainLooper())
 
@@ -61,6 +69,14 @@ object Zvocniki {
     @Volatile private var poslanZa = ""
     @Volatile private var streznik: ZvocnikStreznik? = null
     private var straza: Runnable? = null
+    /** Pot do zvocnika aktivne seje (DLNA ali Cast); zapise jo glavna nit ob uspelem zagonu. */
+    @Volatile private var prenosSeje: Prenos? = null
+    /** Pot, po kateri gre prvi zagon, ki se ni potrjen ([cakaZagon]) - da ga [ustavi] ustavi po pravi poti. */
+    @Volatile private var cakaPrenos: Prenos? = null
+    /** Zvocnik aktivne seje bere tok prek nasega streznika: naprava mora ostati budna (posrednik tece na njej). */
+    @Volatile private var prekoStreznika = false
+    private val castSeje = HashMap<String, CastSeja>()      // samo delavec: naslov zvocnika -> povezava Cast
+    private val castNe = HashMap<String, Long>()            // samo delavec: naslov -> do kdaj Casta ne poskusamo
 
     /** Stanje predvajanja na zvocniku, kot ga vidi uporabnik. Spreminja ga samo glavna nit. */
     @Volatile var stanje = ZvocnikPravila.Stanje(zeliIgrati = false)
@@ -212,27 +228,201 @@ object Zvocniki {
         }
     }
 
+    // ------------------------------------------------------------------ pot do zvocnika (DLNA ali Cast)
+    /** Odcitek stanja zvocnika v besedisu DLNA ([ZvocnikPravila.poOdcitku]): stanje, polozaj, trajanje, naslov skladbe. */
+    private class Odcitek(val st: String, val relMs: Long, val trajMs: Long, val uri: String)
+
+    /**
+     * Pot ukazov do zvocnika. Klice jo SAMO delavec. Zavrnjen ukaz vrze IllegalStateException (smemo ga ponoviti), napaka
+     * omrezja IOException.
+     */
+    private interface Prenos {
+        val z: DlnaPravila.Zvocnik
+        val cast: Boolean
+        /** Naslov na zvocnik; [sprejeto] takoj, ko ga je zvocnik sprejel (Play/autoplay je lahko se na poti). */
+        fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, sprejeto: () -> Unit)
+        fun ukaz(dejanje: String)                       // "Play" ali "Pause"
+        fun preskoci(ciljMs: Long)
+        fun ustavi(rokMs: Int)
+        fun odcitek(rokMs: Int): Odcitek
+        fun stanjePrenosa(rokMs: Int): String
+        fun naslovZdaj(rokMs: Int): String
+        fun glasnost(rokMs: Int): Int
+        fun nastaviGlasnost(v: Int, rokMs: Int)
+        fun lestvica(): Int?
+    }
+
+    private class DlnaPrenos(override val z: DlnaPravila.Zvocnik) : Prenos {
+        override val cast = false
+        override fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, sprejeto: () -> Unit) {
+            val meta = DlnaPravila.didl(url, sk.naslov, sk.izvajalec, mime)
+            Zvocniki.soap(z.avUrl, DlnaPravila.AV, "SetAVTransportURI", listOf("CurrentURI" to url, "CurrentURIMetaData" to meta))
+            sprejeto()
+            if (igraj) Zvocniki.soap(z.avUrl, DlnaPravila.AV, "Play", listOf("Speed" to "1"))
+        }
+        override fun ukaz(dejanje: String) {
+            Zvocniki.soap(z.avUrl, DlnaPravila.AV, dejanje, if (dejanje == "Play") listOf("Speed" to "1") else emptyList())
+        }
+        override fun preskoci(ciljMs: Long) {
+            Zvocniki.soap(z.avUrl, DlnaPravila.AV, "Seek", listOf("Unit" to "REL_TIME", "Target" to DlnaPravila.casZaPreskok(ciljMs)))
+        }
+        override fun ustavi(rokMs: Int) { Zvocniki.soap(z.avUrl, DlnaPravila.AV, "Stop", emptyList(), "", rokMs) }
+        override fun odcitek(rokMs: Int): Odcitek {
+            val st = Zvocniki.soap(z.avUrl, DlnaPravila.AV, "GetTransportInfo", emptyList(), "CurrentTransportState", rokMs)
+            val v = DlnaPravila.vrednosti(Zvocniki.klic(z.avUrl, DlnaPravila.AV, "GetPositionInfo", emptyList(), rokMs), listOf("RelTime", "TrackDuration", "TrackURI"))
+            return Odcitek(st, DlnaPravila.casVMs(v["RelTime"].orEmpty()), DlnaPravila.casVMs(v["TrackDuration"].orEmpty()), v["TrackURI"].orEmpty())
+        }
+        override fun stanjePrenosa(rokMs: Int): String = Zvocniki.soap(z.avUrl, DlnaPravila.AV, "GetTransportInfo", emptyList(), "CurrentTransportState", rokMs)
+        override fun naslovZdaj(rokMs: Int): String = Zvocniki.soap(z.avUrl, DlnaPravila.AV, "GetPositionInfo", emptyList(), "TrackURI", rokMs)
+        override fun glasnost(rokMs: Int): Int =
+            Zvocniki.soap(z.rcUrl, DlnaPravila.RC, "GetVolume", listOf("Channel" to "Master"), "CurrentVolume", rokMs).toIntOrNull() ?: -1
+        override fun nastaviGlasnost(v: Int, rokMs: Int) {
+            Zvocniki.soap(z.rcUrl, DlnaPravila.RC, "SetVolume", listOf("Channel" to "Master", "DesiredVolume" to v.toString()), "", rokMs)
+        }
+        // Lestvico si zapomnimo samo, ce jo zvocnik pove: neuspelo branje poskusimo ob naslednji skladbi znova (prej je en
+        // sam neuspeh za ves cas zapisal »100«), do takrat gredo spremembe po najmanjsih korakih.
+        override fun lestvica(): Int? = Zvocniki.najGlasnosti[z.udn] ?: (try { if (z.rcOpis.isBlank()) null else DlnaPravila.najGlasnostAliNic(Zvocniki.prenesi(z.rcOpis, DlnaPravila.NAJVEC_OPISA)) }
+            catch (_: Exception) { null })?.also { Zvocniki.najGlasnosti[z.udn] = it }
+    }
+
+    /**
+     * Isti fizicni zvocnik prek Google Cast (Default Media Receiver). Stanje Cast preslikamo v besedisce DLNA
+     * ([CastPravila.vDlna]), da veljajo ista, na zvocniku izmerjena pravila ([ZvocnikPravila]).
+     */
+    private class CastPrenos(override val z: DlnaPravila.Zvocnik, val seja: CastSeja) : Prenos {
+        override val cast = true
+        override fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, sprejeto: () -> Unit) {
+            seja.nalozi(url, mime, sk.naslov, sk.izvajalec, sk.slika, igraj)
+            sprejeto()
+        }
+        override fun ukaz(dejanje: String) = seja.ukaz(if (dejanje == "Play") "PLAY" else "PAUSE")
+        override fun preskoci(ciljMs: Long) = seja.preskoci(ciljMs)
+        /**
+         * Konec seje na zvocniku: ustavimo nas sprejemnik (zvocnik je spet prost za TV, Bluetooth ...) in zapremo povezavo -
+         * brez utripa bi jo sprejemnik tako ali tako zaprl, vticnica pa bi ostala odprta do naslednje uporabe.
+         */
+        override fun ustavi(rokMs: Int) { try { seja.ustaviAplikacijo() } finally { seja.zapri() } }
+        override fun odcitek(rokMs: Int): Odcitek {
+            val s = seja.stanjeMedija(rokMs.toLong())
+            // Sprejemnik je zamenjala druga aplikacija: zvocnik je prevzel kdo drug (naslov ni nas).
+            if (seja.tujaAplikacija) return Odcitek("STOPPED", 0L, 0L, "cast:tuja-aplikacija")
+            return Odcitek(CastPravila.vDlna(s), s?.casMs ?: 0L, s?.trajanjeMs ?: 0L, s?.naslov.orEmpty())
+        }
+        override fun stanjePrenosa(rokMs: Int): String =
+            if (seja.tujaAplikacija) "STOPPED" else CastPravila.vDlna(seja.stanjeMedija(rokMs.toLong()))
+        override fun naslovZdaj(rokMs: Int): String {
+            val s = seja.stanjeMedija(rokMs.toLong())
+            return if (seja.tujaAplikacija) "cast:tuja-aplikacija" else s?.naslov.orEmpty()
+        }
+        override fun glasnost(rokMs: Int): Int = seja.beriGlasnost()
+        override fun nastaviGlasnost(v: Int, rokMs: Int) = seja.nastaviGlasnost(v)
+        override fun lestvica(): Int = 100
+    }
+
+    /**
+     * Povezava Cast na zvocnik [z], ce ga ima in je dokazal pristnost (sicer null - DLNA). Samo delavec. Neuspeh si
+     * zapomnimo za [CAST_NE_MS]; o neuspeli preverbi pristnosti uporabnik izve (pot ostane DLNA).
+     */
+    private fun castZa(z: DlnaPravila.Zvocnik): CastSeja? {
+        val zdaj = SystemClock.elapsedRealtime()
+        if ((castNe[z.naslov] ?: 0L) > zdaj) return null
+        val seja = castSeje.getOrPut(z.naslov) { CastSeja(z.naslov) }
+        return try {
+            if (seja.zagotoviDmr(true)) seja else { castNe[z.naslov] = zdaj + CAST_NE_MS; null }
+        } catch (e: CastSeja.Preverba) {
+            Log.w(TAG, "Cast: ${z.ime} ni opravil preverbe pristnosti (${e.razlog}) - DLNA")
+            castNe[z.naslov] = zdaj + CAST_NE_MS
+            seja.zapri()
+            val ctx = app
+            if (ctx != null) glavna.post {
+                try { android.widget.Toast.makeText(ctx, ctx.getString(si.safeer.tv.R.string.zvocnik_cast_preverba, z.ime), android.widget.Toast.LENGTH_LONG).show() }
+                catch (x: Exception) { Log.w(TAG, "Obvestilo: ${x.message}") }
+            }
+            null
+        } catch (e: Exception) {
+            // Ni Casta (vrata 8009 zaprta), ni Default Media Receiver ali se ne odziva: DLNA.
+            Log.i(TAG, "Cast: ${z.ime} - ${e.javaClass.simpleName}, DLNA")
+            castNe[z.naslov] = zdaj + CAST_NE_MS
+            seja.zapri()
+            null
+        }
+    }
+
+    /** Zvocnik dobi tok YouTube prek nasega streznika (rezerva: naslov je vezan na IP te naprave). Samo delavec. */
+    private fun posrednik(app: Context, tok: YoutubeZvokPravila.Tok, z: DlnaPravila.Zvocnik): String {
+        val s = streznik ?: ZvocnikStreznik(app).also { streznik = it }
+        prekoStreznika = true
+        return s.ponudiOddaljeno(tok.url, YoutubeZvokPravila.UA, tok.mime, z.naslov)
+    }
+
+    /**
+     * Naslov skladbe [sk] na zvocnik [z] po najboljsi poti; vrne uporabljeno pot, naslov in trajanje (0 = ni znano).
+     * YouTube: Cast neposredno -> Cast prek posrednika -> DLNA (lastnik, 25. 10. 2026). Ostalo: DLNA kot doslej.
+     * Samo delavec. [poslan] tik pred posiljanjem naslova (zanj velja [poslanUrl]); [sprejeto], ko ga je zvocnik sprejel.
+     */
+    private fun zacniNaPrenosu(app: Context, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, igraj: Boolean,
+                               poslan: (Prenos, String) -> Unit, sprejeto: () -> Unit): Triple<Prenos, String, Long> {
+        val prejsnji = prenosSeje?.takeIf { it.z.udn == z.udn }
+        prekoStreznika = false
+        if (YoutubeZvok.jeYoutube(sk)) {
+            val tok = YoutubeZvok.razresi(app, sk)                // NiToka: DRM, brez naslova, YouTube ga ne da
+            val cast = castZa(z)
+            if (cast != null) {
+                val p = CastPrenos(z, cast)
+                if (prejsnji != null && !prejsnji.cast) try { prejsnji.ustavi(2_000) } catch (_: Exception) {}
+                if (!tok.ipV6) {
+                    try {
+                        streznik?.pozabi()
+                        poslan(p, tok.url); p.nalozi(tok.url, tok.mime, sk, igraj, sprejeto)
+                        return Triple(p, tok.url, tok.trajanjeMs)
+                    } catch (e: CastSeja.NalaganjeNiUspelo) { Log.i(TAG, "Cast: neposredno ni slo (${e.tip}), posrednik na LAN") }
+                }
+                val url = posrednik(app, tok, z)
+                poslan(p, url); p.nalozi(url, tok.mime, sk, igraj, sprejeto)
+                return Triple(p, url, tok.trajanjeMs)
+            }
+            // Brez Casta: DLNA - JBL BAR 300 tok googlevideo prebere sam (izmerjeno 25. 10. 2026, zvok po 3,1 s).
+            val p = DlnaPrenos(z)
+            if (prejsnji != null && prejsnji.cast) try { prejsnji.ustavi(2_000) } catch (_: Exception) {}
+            val url = if (tok.ipV6) posrednik(app, tok, z) else { streznik?.pozabi(); tok.url }
+            poslan(p, url); p.nalozi(url, tok.mime, sk, igraj, sprejeto)
+            return Triple(p, url, tok.trajanjeMs)
+        }
+        val p = DlnaPrenos(z)
+        if (prejsnji != null && prejsnji.cast) try { prejsnji.ustavi(2_000) } catch (_: Exception) {}
+        var url = sk.zvok
+        var mime = DlnaPravila.mime(sk.zvok, sk.mime)
+        if (DlnaPravila.lokalniVir(sk.zvok)) {
+            // Datoteka te naprave: ponudi jo nas majhen streznik (samo ta datoteka, pod zetonom).
+            val s = streznik ?: ZvocnikStreznik(app).also { streznik = it }
+            url = s.ponudi(sk.zvok, sk.mime, z.naslov)
+            mime = s.mime()
+        } else streznik?.pozabi()          // ta skladba ni datoteka te naprave: prejsnje datoteke streznik ne ponuja vec
+        poslan(p, url); p.nalozi(url, mime, sk, igraj, sprejeto)
+        return Triple(p, url, 0L)
+    }
+
     /**
      * Ukaz prenosa (Play, Pause). Zvocnik ga med nalaganjem skladbe zavrne (UPnP 701, izmerjeno): ponovimo ga nekajkrat,
      * dokler ga uporabnik se hoce - torej dokler ga ni prehitel novejsi ukaz ([zadnjiPrenos]) ali konec seje. Enako,
      * kadar ukaz do zvocnika ni prisel (napaka omrezja: Wi-Fi telefona se prebuja, izgubljen paket) - ukazi prenosa se
      * smejo ponoviti (isti ukaz dvakrat da isto stanje).
      */
-    private fun ukazPrenosa(z: DlnaPravila.Zvocnik, dejanje: String, arg: List<Pair<String, String>>, moj: Int) {
-        if (moj != zadnjiPrenos || aktivni !== z) return          // prehitel novejsi ukaz prenosa (hitro preklapljanje)
+    private fun ukazPrenosa(p: Prenos, dejanje: String, moj: Int) {
+        if (moj != zadnjiPrenos || aktivni !== p.z) return          // prehitel novejsi ukaz prenosa (hitro preklapljanje)
         var zavrnitev = 0
         var napakOmrezja = 0
         while (true) {
-            try { soap(z.avUrl, DlnaPravila.AV, dejanje, arg); return }
+            try { p.ukaz(dejanje); return }
             catch (e: IllegalStateException) {
-                if (++zavrnitev >= 4 || moj != zadnjiPrenos || aktivni !== z) throw e
+                if (++zavrnitev >= 4 || moj != zadnjiPrenos || aktivni !== p.z) throw e
                 Thread.sleep(600)
             }
             catch (e: java.io.IOException) {
-                if (++napakOmrezja >= 3 || moj != zadnjiPrenos || aktivni !== z) throw e
+                if (++napakOmrezja >= 3 || moj != zadnjiPrenos || aktivni !== p.z) throw e
                 Thread.sleep(400)
             }
-            if (moj != zadnjiPrenos || aktivni !== z) return
+            if (moj != zadnjiPrenos || aktivni !== p.z) return
         }
     }
 
@@ -259,11 +449,14 @@ object Zvocniki {
         val app = ctx.applicationContext
         // Seja na drugem zvocniku se s tem konca (ena glasba naenkrat): stari zvocnik dobi Stop.
         aktivni?.takeIf { it.udn != z.udn }?.let { stari ->
-            val nasi = nasiNaslovi(); val zastarelo = zastarelaSeja(); pocisti(); ustaviZanesljivo(stari, nasi, zastarelo) {}
+            val p = prenosSeje ?: DlnaPrenos(stari)
+            val nasi = nasiNaslovi(); val zastarelo = zastarelaSeja(); pocisti(); ustaviZanesljivo(p, nasi, zastarelo) {}
         }
         // Prvi zagon na drugem zvocniku je se v teku: tudi ta dobi Stop (za zagonom, z enakim delavcem) - prej je zacel
         // igrati brez seje in brez daljinca. Pred Stop preverimo, da igra nase.
-        cakaZagon?.takeIf { aktivni == null && it.udn != z.udn }?.let { prejsnji -> ustaviZanesljivo(prejsnji, emptySet(), true) {} }
+        cakaZagon?.takeIf { aktivni == null && it.udn != z.udn }?.let { prejsnji ->
+            ustaviZanesljivo(cakaPrenos?.takeIf { it.z.udn == prejsnji.udn } ?: DlnaPrenos(prejsnji), emptySet(), true) {}
+        }
         val moj = ++zagon
         ukazov++; zadnjiPreskok++; zadnjiPrenos++; nacrtovan = -1L
         val istaSeja = aktivni?.udn == z.udn
@@ -273,16 +466,18 @@ object Zvocniki {
             potrjenUrl = ""
             straza?.let { glavna.removeCallbacks(it) }; straza = null
             javi()
-        } else cakaZagon = z
+        } else { cakaZagon = z; cakaPrenos = null }
         var url = ""
-        var nalozeno = false                 // zvocnik je naslov sprejel (SetAVTransportURI je uspel)
+        var nalozeno = false                 // zvocnik je naslov sprejel (SetAVTransportURI ali LOAD je uspel)
         var prebranaGlasnost = -1
         var najvec: Int? = null
+        var uporabljen: Prenos? = null
+        var znanoTrajanje = 0L
         this.app = app
         naDelavcu({ e ->
             // Medtem je bila izbrana ze druga skladba ali je seje konec: to ni ne uspeh ne napaka zvocnika.
             if (moj != zagon) { konec(Prehiteno()); return@naDelavcu }
-            cakaZagon = null
+            cakaZagon = null; cakaPrenos = null
             if (e != null) {
                 if (aktivni == null) {
                     // Seja se ni zacela: streznik, ki je zvocniku ponudil datoteko te naprave, ne ostane odprt.
@@ -290,16 +485,20 @@ object Zvocniki {
                     // Zvocnik je naslov ze sprejel, odgovor na Play pa se je izgubil ali zamudil: skladba bi lahko stekla
                     // pozneje sama - brez seje in brez daljinca, hkrati s to napravo. Ustavimo jo; pred Stop preverimo, da
                     // zvocnik res drzi NAS naslov (tretji pregled, A2).
-                    if (nalozeno) ustaviZanesljivo(z, setOf(url), true) {}
+                    val p = uporabljen
+                    if (nalozeno && p != null) ustaviZanesljivo(p, setOf(url), true) {}
                 }
                 konec(e); return@naDelavcu
             }
             val zdaj = ura()
+            val trajanje = if (trajanjeMs > 0L) trajanjeMs else znanoTrajanje
             // Menjava skladbe med sejo: kar je uporabnik izbral, medtem ko je ukaz potoval (premor, novo mesto), ostane.
             stanje = if (istaSeja && aktivni?.udn == z.udn) stanje.copy(veljaOd = zdaj, mirDoMs = zdaj + ZvocnikPravila.MIR_PO_UKAZU_MS, zacetekMs = zdaj,
                     slisanMs = zdaj, playOdMs = if (igraj) zdaj else stanje.playOdMs)
-                else ZvocnikPravila.zacetek(zdaj, odMs, trajanjeMs, igraj)
+                else ZvocnikPravila.zacetek(zdaj, odMs, trajanje, igraj)
+            if (trajanje > 0L && !sk.radio) stanje = ZvocnikPravila.sTrajanjem(stanje, trajanje, false)
             aktivni = z; aktivnaSkladba = sk; aktivniUrl = url; potrjenUrl = ""
+            prenosSeje = uporabljen
             if (prebranaGlasnost >= 0) glasnost = prebranaGlasnost
             najGlasnost = najvec ?: 100
             lestvicaZnana = najvec != null
@@ -307,32 +506,18 @@ object Zvocniki {
             zazeniStrazo()
             uskladiBudnost()
             javi()
-            if (trajanjeMs <= 0L && !sk.radio) poizvediTrajanje(app, sk, moj)
+            if (trajanje <= 0L && !sk.radio && !YoutubeZvok.jeYoutube(sk)) poizvediTrajanje(app, sk, moj)
             konec(null)
         }) {
             if (moj != zagon) return@naDelavcu
-            url = sk.zvok
-            var mime = DlnaPravila.mime(sk.zvok, sk.mime)
-            if (DlnaPravila.lokalniVir(sk.zvok)) {
-                // Datoteka te naprave: ponudi jo nas majhen streznik (samo ta datoteka, pod zetonom).
-                val s = streznik ?: ZvocnikStreznik(app).also { streznik = it }
-                url = s.ponudi(sk.zvok, sk.mime, z.naslov)
-                mime = s.mime()
-            } else streznik?.pozabi()          // ta skladba ni datoteka te naprave: prejsnje datoteke streznik ne ponuja vec
-            val meta = DlnaPravila.didl(url, sk.naslov, sk.izvajalec, mime)
-            poslanUrl = url; poslanZa = z.udn
-            soap(z.avUrl, DlnaPravila.AV, "SetAVTransportURI", listOf("CurrentURI" to url, "CurrentURIMetaData" to meta))
-            nalozeno = true
-            if (igraj) {
-                soap(z.avUrl, DlnaPravila.AV, "Play", listOf("Speed" to "1"))
-                preskokNePred = ura() + ZvocnikPravila.PREMOR_PRED_PRESKOKOM_MS
-            }
+            val (p, poslano, traj) = zacniNaPrenosu(app, z, sk, igraj,
+                poslan = { pot, naslov -> url = naslov; poslanUrl = naslov; poslanZa = z.udn; uporabljen = pot; if (!istaSeja) cakaPrenos = pot },
+                sprejeto = { nalozeno = true })
+            url = poslano; uporabljen = p; znanoTrajanje = traj
+            if (igraj) preskokNePred = ura() + ZvocnikPravila.PREMOR_PRED_PRESKOKOM_MS
             // Glasnost in njena lestvica (za tipke glasnosti in drsnik sistema). Napaka tu predvajanja ne ustavi.
-            try { prebranaGlasnost = soap(z.rcUrl, DlnaPravila.RC, "GetVolume", listOf("Channel" to "Master"), "CurrentVolume").toIntOrNull() ?: -1 } catch (_: Exception) {}
-            // Lestvico si zapomnimo samo, ce jo zvocnik pove: neuspelo branje poskusimo ob naslednji skladbi znova (prej je en
-            // sam neuspeh za ves cas zapisal »100«), do takrat gredo spremembe po najmanjsih korakih.
-            najvec = najGlasnosti[z.udn] ?: (try { if (z.rcOpis.isBlank()) null else DlnaPravila.najGlasnostAliNic(prenesi(z.rcOpis, DlnaPravila.NAJVEC_OPISA)) }
-                catch (_: Exception) { null })?.also { najGlasnosti[z.udn] = it }
+            try { prebranaGlasnost = p.glasnost(3000) } catch (_: Exception) {}
+            najvec = try { p.lestvica() } catch (_: Exception) { null }
         }
     }
 
@@ -385,7 +570,8 @@ object Zvocniki {
 
     /** Premor: zaslon ga pokaze takoj, zvocnik dobi ukaz v ozadju. */
     fun premor() {
-        val z = aktivni ?: return
+        val p = prenosSeje ?: return
+        if (aktivni == null) return
         if (!stanje.zeliIgrati) return
         ukazov++
         val moj = ++zadnjiPrenos
@@ -395,13 +581,14 @@ object Zvocniki {
         stanje = s
         uskladiBudnost()
         javi()
-        delavec.execute { try { ukazPrenosa(z, "Pause", emptyList(), moj) } catch (e: Exception) { Log.w(TAG, "Premor: ${e.message}") } }
+        delavec.execute { try { ukazPrenosa(p, "Pause", moj) } catch (e: Exception) { Log.w(TAG, "Premor: ${e.message}") } }
         kmaluOdcitaj()
     }
 
     /** Nadaljevanje; preskok, izbran med premorom, gre zvocniku sele zdaj (Play, kratek premor, preskok). */
     fun nadaljuj() {
-        val z = aktivni ?: return
+        val p = prenosSeje ?: return
+        if (aktivni == null) return
         if (stanje.zeliIgrati) return
         ukazov++
         val moj = ++zadnjiPrenos
@@ -409,7 +596,7 @@ object Zvocniki {
         stanje = o.stanje
         delavec.execute {
             try {
-                ukazPrenosa(z, "Play", listOf("Speed" to "1"), moj)
+                ukazPrenosa(p, "Play", moj)
                 preskokNePred = ura() + ZvocnikPravila.PREMOR_PRED_PRESKOKOM_MS
             } catch (e: Exception) { Log.w(TAG, "Nadaljevanje: ${e.message}") }
         }
@@ -435,13 +622,14 @@ object Zvocniki {
     /** Delavec poslje samo zadnji naroceni preskok, in ne prej kot [preskokNePred]. */
     private fun posljiPreskok(ciljMs: Long) {
         val z = aktivni ?: return
+        val p = prenosSeje ?: return
         val moj = ++zadnjiPreskok
         nacrtovan = ciljMs
         delavec.execute {
             val caka = preskokNePred - ura()
             if (caka > 0L) try { Thread.sleep(caka.coerceAtMost(1_000L)) } catch (_: InterruptedException) {}
             if (moj != zadnjiPreskok) return@execute            // prehitel ga je novejsi preskok, premor ali nova skladba
-            try { soap(z.avUrl, DlnaPravila.AV, "Seek", listOf("Unit" to "REL_TIME", "Target" to DlnaPravila.casZaPreskok(ciljMs))) }
+            try { p.preskoci(ciljMs) }
             catch (e: Exception) { Log.w(TAG, "Preskok: ${e.message}") }
             glavna.post { if (moj == zadnjiPreskok) nacrtovan = -1L }
         }
@@ -473,8 +661,9 @@ object Zvocniki {
     /** Glasnost, ki jo zvocnik javi ta hip (kretnja jo vzame za izhodisce). [rezultat] na glavni niti, samo ob uspehu. */
     fun preberiGlasnost(rezultat: (Int) -> Unit) {
         val z = aktivni ?: return
+        val p = prenosSeje ?: return
         delavec.execute {
-            val v = try { soap(z.rcUrl, DlnaPravila.RC, "GetVolume", listOf("Channel" to "Master"), "CurrentVolume", 3000).toIntOrNull() ?: -1 } catch (_: Exception) { -1 }
+            val v = try { p.glasnost(3000) } catch (_: Exception) { -1 }
             glavna.post {
                 if (aktivni !== z || v < 0) return@post
                 if (v != glasnost && !glasnostVTeku) { glasnost = v; javi() }
@@ -491,19 +680,20 @@ object Zvocniki {
 
     private fun korakGlasnosti(zadnjaPoslana: Int) {
         val z = aktivni
-        if (z == null) { glasnostVTeku = false; return }
+        val p = prenosSeje
+        if (z == null || p == null) { glasnostVTeku = false; return }
         delavec.execute {
             var nova = -1
             var dvig = false
             try {
                 val (sprememba, cilj) = cakaGlasnost.vzemi()
                 if ((sprememba != 0 || cilj >= 0) && aktivni === z) {
-                    val zdaj = soap(z.rcUrl, DlnaPravila.RC, "GetVolume", listOf("Channel" to "Master"), "CurrentVolume", 3000).toIntOrNull()
+                    val zdaj = p.glasnost(3000).takeIf { it >= 0 }
                     if (zdaj != null) {
                         val najvec = najGlasnost
                         val znana = lestvicaZnana
                         val zelena = if (cilj >= 0) ZvocnikPravila.korakProtiCilju(zdaj, cilj, najvec, znana) else ZvocnikPravila.novaGlasnost(zdaj, sprememba, najvec, znana)
-                        if (zelena != zdaj) soap(z.rcUrl, DlnaPravila.RC, "SetVolume", listOf("Channel" to "Master", "DesiredVolume" to zelena.toString()), "", 3000)
+                        if (zelena != zdaj) p.nastaviGlasnost(zelena, 3000)
                         nova = zelena
                         dvig = zelena > zdaj
                         // Izbrana glasnost je se visje: naprej po korakih, dokler uporabnik ne izbere druge. Ce zvocnik koraka
@@ -535,10 +725,11 @@ object Zvocniki {
      */
     fun ustavi(konec: (Exception?) -> Unit) {
         val z = aktivni ?: cakaZagon ?: return konec(null)
+        val p = (if (aktivni != null) prenosSeje else cakaPrenos)?.takeIf { it.z.udn == z.udn } ?: DlnaPrenos(z)
         val nasi = nasiNaslovi()
         val zastarelo = zastarelaSeja()
         pocisti()
-        ustaviZanesljivo(z, nasi, zastarelo, konec)
+        ustaviZanesljivo(p, nasi, zastarelo, konec)
     }
 
     /**
@@ -554,7 +745,8 @@ object Zvocniki {
      * Stop z vztrajanjem. [preveriPrvi]: ze pred prvim Stop preveri, ali zvocnik igra nase (zastarela seja, neuspel zagon);
      * sicer to velja sele za ponovitve - pri zivi seji prvi Stop ne caka na dodatno poizvedbo.
      */
-    private fun ustaviZanesljivo(z: DlnaPravila.Zvocnik, nasi: Set<String>, preveriPrvi: Boolean = false, konec: (Exception?) -> Unit) {
+    private fun ustaviZanesljivo(p: Prenos, nasi: Set<String>, preveriPrvi: Boolean = false, konec: (Exception?) -> Unit) {
+        val z = p.z
         var javljeno = false
         fun povej(e: Exception?) {
             if (javljeno) return
@@ -583,12 +775,12 @@ object Zvocniki {
                     // Ponovitev pride pozneje: ce zvocnik medtem igra nekaj tujega (drug vhod, druga naprava), ga pustimo.
                     // Nasi naslovi: tisti ob koncu seje in zadnji, ki ga je delavec res poslal (menjava skladbe, ki je bila na poti).
                     val znani = poslanUrl.let { if (it.isBlank() || poslanZa != z.udn) nasi else nasi + it }
-                    val tuje = (!prvi || preveriPrvi) && znani.isNotEmpty() && (try { soap(z.avUrl, DlnaPravila.AV, "GetPositionInfo", emptyList(), "TrackURI", 2_000) }
+                    val tuje = (!prvi || preveriPrvi) && znani.isNotEmpty() && (try { p.naslovZdaj(2_000) }
                         catch (_: Exception) { "" }).let { it.isNotBlank() && it !in znani }
-                    if (tuje) odnehaj = true else soap(z.avUrl, DlnaPravila.AV, "Stop", emptyList(), "", 2_000)
+                    if (tuje) odnehaj = true else p.ustavi(2_000)
                 } catch (e: IllegalStateException) {
                     // Zvocnik je odgovoril, a ukaza ni izvedel (ze stoji, se nalaga): velja, ce res ne igra.
-                    val st = try { soap(z.avUrl, DlnaPravila.AV, "GetTransportInfo", emptyList(), "CurrentTransportState", 2_000) } catch (_: Exception) { "" }
+                    val st = try { p.stanjePrenosa(2_000) } catch (_: Exception) { "" }
                     if (st != "STOPPED" && st != "NO_MEDIA_PRESENT") napaka = e
                 } catch (e: Exception) { napaka = e }
                 val n = napaka
@@ -614,6 +806,7 @@ object Zvocniki {
 
     private fun zapriStreznik() {
         val s = streznik; streznik = null
+        prekoStreznika = false
         if (s != null) delavec.execute { s.zapri() }
     }
 
@@ -621,7 +814,8 @@ object Zvocniki {
     fun koncajSejo() { if (aktivni != null) pocisti() }
 
     private fun pocisti() {
-        aktivni = null; aktivnaSkladba = null; aktivniUrl = ""; potrjenUrl = ""; cakaZagon = null
+        aktivni = null; aktivnaSkladba = null; aktivniUrl = ""; potrjenUrl = ""; cakaZagon = null; cakaPrenos = null
+        prenosSeje = null
         stanje = ZvocnikPravila.Stanje(zeliIgrati = false); glasnost = -1
         zagon++; ukazov++; zadnjiPreskok++; zadnjiPrenos++; nacrtovan = -1L
         cakaGlasnost.pocisti()
@@ -635,6 +829,7 @@ object Zvocniki {
     /** Seja se je koncala sama (zvocnik prevzet, skladba ni stekla, premora ni izvedel ali je konec skladbe prepozen). */
     private fun konecSeje(dejanje: ZvocnikPravila.Dejanje) {
         val z = aktivni
+        val p = prenosSeje
         val polozaj = polozaj()
         val zelel = stanje.zeliIgrati
         val k = obKoncu
@@ -643,7 +838,8 @@ object Zvocniki {
         val povej = { try { k?.invoke(dejanje, polozaj, z?.ime.orEmpty(), zelel) } catch (e: Exception) { Log.w(TAG, "Konec seje: ${e.message}") }; Unit }
         // Skladba, ki ni stekla, naj ne stece pozneje sama (ta naprava jo morda ze igra); zvocnik, ki premora ne izvede,
         // ustavimo. Ta naprava izve sele, ko je Stop potrjen (ali po hitrem roku). Prevzetemu zvocniku ne posljemo nicesar.
-        if ((dejanje == ZvocnikPravila.Dejanje.NI_ZACELO || dejanje == ZvocnikPravila.Dejanje.USTAVI) && z != null) ustaviZanesljivo(z, nasi) { povej() }
+        if ((dejanje == ZvocnikPravila.Dejanje.NI_ZACELO || dejanje == ZvocnikPravila.Dejanje.USTAVI) && z != null)
+            ustaviZanesljivo(p?.takeIf { it.z.udn == z.udn } ?: DlnaPrenos(z), nasi) { povej() }
         else povej()
     }
 
@@ -657,24 +853,21 @@ object Zvocniki {
         val r = object : Runnable {
             override fun run() {
                 val z = aktivni ?: return
+                val p = prenosSeje ?: return
                 val sk = aktivnaSkladba ?: return
                 val naroceno = ukazov
                 val jaz = this
                 delavec.execute {
                     var ok = true
-                    var st = ""
-                    var v: Map<String, String> = emptyMap()
+                    var o = Odcitek("", 0L, 0L, "")
                     var gl = -1
                     var kdaj = 0L
                     try {
-                        st = soap(z.avUrl, DlnaPravila.AV, "GetTransportInfo", emptyList(), "CurrentTransportState", 3000)
-                        v = DlnaPravila.vrednosti(klic(z.avUrl, DlnaPravila.AV, "GetPositionInfo", emptyList(), 3000), listOf("RelTime", "TrackDuration", "TrackURI"))
+                        o = p.odcitek(3000)
                         kdaj = ura()                                // polozaj velja za ta trenutek, ne za cas obdelave
                     } catch (_: Exception) { ok = false }
-                    if (ok) try {
-                        gl = soap(z.rcUrl, DlnaPravila.RC, "GetVolume", listOf("Channel" to "Master"), "CurrentVolume", 3000).toIntOrNull() ?: -1
-                    } catch (_: Exception) {}
-                    glavna.post { obdelajOdcitek(jaz, z, sk, naroceno, ok, st, v, gl, kdaj) }
+                    if (ok) try { gl = p.glasnost(3000) } catch (_: Exception) {}
+                    glavna.post { obdelajOdcitek(jaz, z, sk, naroceno, ok, o, gl, kdaj) }
                 }
             }
         }
@@ -682,9 +875,10 @@ object Zvocniki {
         glavna.postDelayed(r, ZvocnikPravila.INTERVAL_ZAGON_MS)
     }
 
-    private fun obdelajOdcitek(r: Runnable, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, naroceno: Int, ok: Boolean, st: String,
-                               v: Map<String, String>, gl: Int, kdaj: Long) {
+    private fun obdelajOdcitek(r: Runnable, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, naroceno: Int, ok: Boolean, od: Odcitek,
+                               gl: Int, kdaj: Long) {
         if (aktivni !== z || straza !== r) return
+        val p = prenosSeje ?: return
         if (!ok) {
             // Zvocnik se ne odziva (omrezje, doseg): seja OSTANE - zvocnik igra naprej in ko se spet oglasi, ga upravljamo
             // naprej ([ZvocnikPravila.poNeuspehu]). Zaslon, obvestilo in seja povedo, da ni dosegljiv.
@@ -704,7 +898,8 @@ object Zvocniki {
         val bilNedosegljiv = stanje.nedosegljiv
         if (bilNedosegljiv) stanje = ZvocnikPravila.poUspehu(stanje)
         val svez = naroceno == ukazov
-        val uri = v["TrackURI"].orEmpty()
+        val st = od.st
+        val uri = od.uri
         // Zvocnik predvaja nekaj drugega (drug vhod, druga naprava ali program): odnehamo, ne da bi mu kaj poslali. Nas
         // naslov je tisti, ki smo ga poslali, ali tisti, ki ga je zvocnik javil, ko je nasa skladba stekla po nasem Play
         // ([ZvocnikPravila.cigavNaslov]).
@@ -716,8 +911,7 @@ object Zvocniki {
             }
         }
         val prej = stanje
-        val o = ZvocnikPravila.poOdcitku(prej, st, DlnaPravila.casVMs(v["RelTime"].orEmpty()), DlnaPravila.casVMs(v["TrackDuration"].orEmpty()),
-            kdaj, svez, sk.radio)
+        val o = ZvocnikPravila.poOdcitku(prej, st, od.relMs, od.trajMs, kdaj, svez, sk.radio)
         stanje = o.stanje
         val zdaj = ura()
         when (o.dejanje) {
@@ -727,7 +921,7 @@ object Zvocniki {
             }
             ZvocnikPravila.Dejanje.PREMOR -> {
                 val moj = zadnjiPrenos
-                delavec.execute { try { ukazPrenosa(z, "Pause", emptyList(), moj) } catch (e: Exception) { Log.w(TAG, "Premor ob zagonu: ${e.message}") } }
+                delavec.execute { try { ukazPrenosa(p, "Pause", moj) } catch (e: Exception) { Log.w(TAG, "Premor ob zagonu: ${e.message}") } }
             }
             ZvocnikPravila.Dejanje.KONEC_SKLADBE -> {
                 // Seja traja: naslednjo skladbo vrste poslje GlasbaStoritev (ali sejo konca, ce je vrsta odigrana).
@@ -754,12 +948,12 @@ object Zvocniki {
     /**
      * Naprava med predvajanjem na zvocniku ne spi samo, kadar ima se delo ([ZvocnikPravila.potrebujeBudnost]): sicer
      * po koncu skladbe ne bi poslala naslednje in ob casovniku izklopa ne bi ustavila predvajanja (casovniki med spanjem
-     * stojijo), zvocnik pa ne bi dobil datoteke te naprave.
+     * stojijo), zvocnik pa ne bi dobil datoteke te naprave (ali toka YouTube prek posrednika).
      */
     private fun uskladiBudnost() {
         val ctx = app ?: return
         val sk = aktivnaSkladba
-        val treba = aktivni != null && sk != null && ZvocnikPravila.potrebujeBudnost(stanje, DlnaPravila.lokalniVir(sk.zvok),
+        val treba = aktivni != null && sk != null && ZvocnikPravila.potrebujeBudnost(stanje, DlnaPravila.lokalniVir(sk.zvok) || prekoStreznika,
             GlasbaStoritev.zvocnikImaNadaljevanje(), sk.radio, GlasbaStoritev.casovnikMinut() > 0, ura())
         try {
             if (treba) {

@@ -1011,7 +1011,7 @@ class PredvajanjeActivity : OsActivity() {
         if (naZvocniku != null) {
             val i = predlogiNiz.childCount
             dejanje(getString(R.string.zvocnik_na, naZvocniku.ime), Zvocniki.aktivnaSkladba?.naslov ?: "", R.drawable.os_ikona_predvajaj_na) { ZvocnikIzbira.upravljaj(this) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } }
-        } else if (zdaj != null && !video && GlasbaStoritev.zaZvocnik(zdaj)) {
+        } else if (zdaj != null && (!video || GlasbaStoritev.zvokIzVidea(zdaj)) && GlasbaStoritev.zaZvocnikPonudba(this, zdaj) { if (!isFinishing) napolni(zadnjiPredlogi.first, zadnjiPredlogi.second) }) {
             val i = predlogiNiz.childCount
             dejanje(getString(R.string.zvocnik_predvajaj_na), zdaj.naslov, R.drawable.os_ikona_predvajaj_na) { ZvocnikIzbira.izberi(this, zdaj) { napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i) } }
         }
@@ -1434,7 +1434,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun osveziGumbZvocnika(sk: Jamendo.Skladba) {
         val g = gumbZvocnik ?: return
         val na = GlasbaStoritev.naZvocniku()
-        g.visibility = if (!zaklenjeno && !sk.video && (na || GlasbaStoritev.zaZvocnik(sk))) View.VISIBLE else View.GONE
+        g.visibility = if (!zaklenjeno && (!sk.video || GlasbaStoritev.zvokIzVidea(sk)) && (na || GlasbaStoritev.zaZvocnikPonudba(this, sk) { if (!isFinishing) osveziGumbZvocnika(sk) })) View.VISIBLE else View.GONE
         val barva = osBarva(if (na) R.color.os_mint else R.color.os_besedilo)
         g.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(barva)
         g.setTextColor(barva)
@@ -1445,7 +1445,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun izberiZvocnik() {
         val zdaj = GlasbaStoritev.trenutna() ?: return
         if (Zvocniki.aktivni != null) ZvocnikIzbira.upravljaj(this) { osvezi() }
-        else if (GlasbaStoritev.zaZvocnik(zdaj)) ZvocnikIzbira.izberi(this, zdaj) { osvezi() }
+        else if (GlasbaStoritev.zaZvocnikPonudba(this, zdaj) {}) ZvocnikIzbira.izberi(this, zdaj) { osvezi() }
     }
 
     /** Video iz predlogov: razresimo datoteko in ga predvajamo tu - zaslon ostane odprt. */

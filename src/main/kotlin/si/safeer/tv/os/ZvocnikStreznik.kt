@@ -18,6 +18,10 @@ import java.security.SecureRandom
  * na domacem naslovu - samo EN vir naenkrat, samo pod nakljucnim zetonom, samo branje, z Range (premik).
  * Tece le, dokler zvocnik igra nase; drugi naslovi vrnejo 404.
  *
+ * Rezerva za tok YouTube ([ponudiOddaljeno], 25. 10. 2026): naslov googlevideo je vezan na IP te naprave (pri IPv6 ga
+ * zvocnik sam ne more brati) - ta naprava ga vlece in podaja zvocniku. Samo https na googlevideo.com; izmerjeno na JBL
+ * BAR 300 prek Casta: PLAYING po ~2,2 s (neposredno 0,6 s), zato je to samo rezerva.
+ *
  * Bere lahko SAMO zvocnik, ki mu je vir ponujen (pregled kode 8. 10. 2026): naslov vira lahko od zvocnika izve vsak v
  * omrezju (GetPositionInfo nima prijave), zato zeton sam ni dovolj. Nasih ponudnikov vsebine in zasebnih map ne ponujamo.
  */
@@ -27,6 +31,8 @@ class ZvocnikStreznik(ctx: Context) {
     @Volatile private var pot = ""
     @Volatile private var vir: String = ""
     @Volatile private var mime = "audio/mpeg"
+    /** User-Agent zahteve za oddaljen vir (tok YouTube); "" = vir je datoteka te naprave. */
+    @Volatile private var agent = ""
     @Volatile private var odprt = true
     /** Naslov zvocnika, ki sme brati ponujeni vir. */
     @Volatile private var dovoljen = ""
@@ -45,6 +51,7 @@ class ZvocnikStreznik(ctx: Context) {
             ?.takeIf { it.isNotBlank() } ?: "zvok"
         zapriOdjemalce()
         vir = url
+        agent = ""
         dovoljen = zvocnikIp
         mime = if (znanMime.startsWith("audio/")) znanMime else (app.contentResolver.getType(Uri.parse(url))
             ?.takeIf { it.startsWith("audio/") } ?: DlnaPravila.mime(ime))
@@ -52,10 +59,26 @@ class ZvocnikStreznik(ctx: Context) {
         return "http://${lokalniNaslov(zvocnikIp)}:${streznik.localPort}$pot"
     }
 
+    /**
+     * Rezerva za tok YouTube: zvocnik dobi naslov tega streznika, ta naprava pa tok vlece z googlevideo (samo https na
+     * googlevideo.com - [YoutubeZvokPravila.jeGooglevideo]) z istim User-Agent, s katerim je naslov dobila.
+     */
+    fun ponudiOddaljeno(url: String, ua: String, znanMime: String, zvocnikIp: String): String {
+        require(YoutubeZvokPravila.jeGooglevideo(url)) { "posredujemo samo tok YouTuba" }
+        val zeton = ByteArray(18).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+        zapriOdjemalce()
+        vir = url
+        agent = ua.ifBlank { YoutubeZvokPravila.UA }
+        dovoljen = zvocnikIp
+        mime = if (znanMime.startsWith("audio/")) znanMime else "audio/mp4"
+        pot = "/$zeton/" + (if (mime == "audio/webm") "zvok.webm" else "zvok.m4a")
+        return "http://${lokalniNaslov(zvocnikIp)}:${streznik.localPort}$pot"
+    }
+
     fun mime(): String = mime
 
     /** Vir ni vec v ponudbi (zvocnik zdaj igra kaj drugega): stari naslov vrne 404. */
-    fun pozabi() { pot = ""; vir = ""; zapriOdjemalce() }
+    fun pozabi() { pot = ""; vir = ""; agent = ""; zapriOdjemalce() }
 
     fun zapri() {
         odprt = false
@@ -119,6 +142,8 @@ class ZvocnikStreznik(ctx: Context) {
         val metoda = zahteva.getOrNull(0).orEmpty()
         val zahtevanaPot = zahteva.getOrNull(1).orEmpty().substringBefore('?')
         if ((metoda != "GET" && metoda != "HEAD") || pot.isEmpty() || zahtevanaPot != pot) { odgovor("404 Not Found", listOf("Content-Length: 0")); return }
+        val ua = agent
+        if (ua.isNotEmpty()) { posreduj(metoda == "HEAD", glave["range"], vir, ua, izhod) { koda, dodatno -> odgovor(koda, dodatno) }; return }
         val uri = Uri.parse(vir)
         // Zasebnega vira ne ponudimo in o njem ne povemo nicesar (niti velikosti).
         if (!dovoljenVir(uri)) { odgovor("404 Not Found", listOf("Content-Length: 0")); return }
@@ -147,6 +172,55 @@ class ZvocnikStreznik(ctx: Context) {
             }
         }
         izhod.flush()
+    }
+
+    /**
+     * Tok YouTube za zvocnik: ta naprava ga vlece z googlevideo in podaja naprej, z obsegom (Range), ki ga je zvocnik
+     * zahteval. Preusmeritve samo na https googlevideo.com (najvec 3); drugam ne gremo (SSRF v domace omrezje).
+     */
+    private fun posreduj(head: Boolean, range: String?, url: String, ua: String, izhod: java.io.OutputStream,
+                         odgovor: (String, List<String>) -> Unit) {
+        val obseg = range?.trim()?.takeIf { Regex("bytes=\\d*-\\d*").matches(it) && it != "bytes=-" }
+        var naslov = url
+        var k: java.net.HttpURLConnection? = null
+        try {
+            for (skok in 0..3) {
+                if (!YoutubeZvokPravila.jeGooglevideo(naslov)) break
+                val c = java.net.URL(naslov).openConnection() as java.net.HttpURLConnection
+                c.instanceFollowRedirects = false
+                c.connectTimeout = 8_000; c.readTimeout = 15_000
+                c.setRequestProperty("User-Agent", ua)
+                c.setRequestProperty("Range", if (head) "bytes=0-0" else obseg ?: "bytes=0-")
+                val koda = c.responseCode
+                if (koda in 300..399) {
+                    naslov = try { java.net.URL(java.net.URL(naslov), c.getHeaderField("Location").orEmpty()).toString() } catch (_: Exception) { "" }
+                    c.disconnect()
+                    continue
+                }
+                k = c
+                break
+            }
+            val c = k
+            if (c == null || (c.responseCode != 200 && c.responseCode != 206)) {
+                Log.w("SafeerZvocniki", "Streznik: tok YouTube ni dosegljiv (${c?.responseCode ?: "preusmeritev"})")
+                odgovor("502 Bad Gateway", listOf("Content-Length: 0"))
+                return
+            }
+            val tip = "Content-Type: $mime"
+            val obsegVira = c.getHeaderField("Content-Range")
+            if (head) {
+                val vse = obsegVira?.substringAfter('/')?.toLongOrNull() ?: c.contentLengthLong
+                odgovor("200 OK", listOf(tip) + (if (vse > 0) listOf("Content-Length: $vse") else emptyList()))
+                izhod.flush()
+                return
+            }
+            val dodatno = mutableListOf(tip)
+            c.getHeaderField("Content-Length")?.let { dodatno += "Content-Length: $it" }
+            if (obseg != null && obsegVira != null) { dodatno += "Content-Range: $obsegVira"; odgovor("206 Partial Content", dodatno) }
+            else odgovor("200 OK", dodatno)
+            c.inputStream.use { it.copyTo(izhod, 64 * 1024) }
+            izhod.flush()
+        } finally { k?.disconnect() }
     }
 
     /** Vir, ki ga zvocnik sme dobiti: ne nas ponudnik vsebine, ne zasebna mapa aplikacije. */

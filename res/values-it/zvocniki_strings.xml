@@ -31,4 +31,7 @@
     <string name="naprava_prekini">Interrompi il controllo</string>
     <string name="naprava_konec">%1$s non risponde – controllo terminato</string>
     <string name="naprava_upravljaj">Controlla %1$s</string>
+    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave. -->
+    <string name="zvocnik_yt_ni">Questo video non può essere riprodotto sull’altoparlante.</string>
+    <string name="zvocnik_cast_preverba">%1$s non ha superato la verifica di autenticità di Google Cast: riproduzione tramite DLNA.</string>
 </resources>

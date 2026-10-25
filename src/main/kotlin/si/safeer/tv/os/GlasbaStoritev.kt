@@ -457,9 +457,11 @@ class GlasbaStoritev : Service() {
         spletniIndeks = i
         val moj = ++zetonVrste
         trenutniIdVrste = sk.id
-        // Posnetek s strani in skladba, ki jo je treba sele poiskati, ne moreta na zvocnik: igra ta naprava - zacne sele, ko
-        // zvocnik potrdi Stop (ali po kratkem roku), da hip ne igrata oba.
+        // Glasba igra na zvocniku: posnetek YouTube (in uvozena skladba, ko dobi posnetek) gre tja kot zvocni tok (lastnik,
+        // 25. 10. 2026). Drug posnetek s strani zvocnik ne more: igra ta naprava - zacne sele, ko zvocnik potrdi Stop (ali po
+        // kratkem roku), da hip ne igrata oba.
         if (Zvocniki.aktivni != null && (UvozSeznama.jeIskana(sk) || SpletniVir.jeEnota(sk))) {
+            if (UvozSeznama.jeIskana(sk) || zaZvocnik(sk)) { naZvocnikVVrsti(i, sk, moj, preskoceni); return }
             val izbrano = izbir
             Zvocniki.ustavi { if (primerek === this && moj == zetonVrste && izbrano == izbir) zacniElement(i, preskoceni) }
             osvezi()
@@ -496,8 +498,61 @@ class GlasbaStoritev : Service() {
         }
     }
 
+    /**
+     * Posnetek YouTube iz vrste, medtem ko glasba igra na zvocniku (lastnik, 25. 10. 2026): zvocnik dobi zvocni tok
+     * ([YoutubeZvok]), ta naprava ostane daljinec in strani ne nalaga. Uvozena skladba najprej dobi posnetek
+     * ([UvozSeznama.najdi]). Ce ne gre (DRM, brez toka), uporabnik izve; vrsta, ki je prisla do tu sama, ostane na
+     * premoru - kot doslej pri skladbi, ki je zvocnik ne zmore.
+     */
+    private fun naZvocnikVVrsti(i: Int, sk: Jamendo.Skladba, moj: Int, preskoceni: Int) {
+        val z = Zvocniki.aktivni ?: return zacniElement(i, preskoceni)
+        val samodejno = naslednjaSamodejno
+        val igraj = samodejno || Zvocniki.stanje.zeliIgrati
+        val izbrano = izbir
+        // Ta naprava je daljinec: zaslon pokaze skladbo takoj ([trenutna]), igra jo zvocnik.
+        exo?.let { it.stop(); it.clearMediaItems() }
+        koncajSplet()
+        exo?.let { predvajalnik = it }
+        vrsta = listOf(sk)
+        osvezi()
+        fun poslji(cilj: Jamendo.Skladba) {
+            zagonSamodejen = samodejno
+            Zvocniki.predvajaj(this, z, cilj, 0L, 0L, igraj) { napaka ->
+                if (napaka == null || napaka is Zvocniki.Prehiteno || primerek !== this || moj != zetonVrste) return@predvajaj
+                obvesti(if (napaka is YoutubeZvok.NiToka) getString(R.string.zvocnik_yt_ni) else getString(R.string.zvocnik_napaka, z.ime))
+                Zvocniki.ustavi {
+                    if (primerek !== this || moj != zetonVrste || izbrano != izbir) return@ustavi
+                    if (samodejno || !igraj) osvezi() else zacniSplet(cilj.copy(zvok = "", mime = ""), true)
+                }
+            }
+            osvezi()
+        }
+        if (UvozSeznama.jeIskana(sk)) {
+            Thread {
+                val najden = try { UvozSeznama.najdi(sk) } catch (_: Exception) { null }
+                if (najden != null) MedijskiViri.zamenjaj(this, mapOf(sk.id to najden))
+                android.os.Handler(mainLooper).post {
+                    if (moj != zetonVrste || primerek !== this) return@post
+                    if (najden == null) {
+                        NedelujoceSkladbe.zapomni(this, sk.id, NedelujocePravila.NI_TOKA, sk.naslov)
+                        obvesti(getString(R.string.os_media_napaka_naslednja, sk.naslov))
+                        if (preskoceni < 2 && spletnaVrsta.size > i + 1) zacniElement(i + 1, preskoceni + 1) else ustaviPredvajanje()
+                        return@post
+                    }
+                    spletnaVrsta = spletnaVrsta.mapIndexed { j, x -> if (j == i) najden else x }
+                    trenutniIdVrste = najden.id
+                    vrsta = listOf(najden)
+                    if (zaZvocnik(najden)) poslji(najden) else zacniElement(i, preskoceni)
+                }
+            }.apply { name = "Safeer-uvoz-najdi-zvocnik"; start() }
+        } else poslji(sk)
+        pripraviNaslednjo(i + 1)
+    }
+
     /** Naslednji uvozeni skladbi poiscemo posnetek ze med predvajanjem trenutne: prehod je potem brez cakanja. */
     private fun pripraviNaslednjo(i: Int) {
+        // Na zvocniku: tok YouTube naslednjega posnetka razresimo vnaprej - naslednja skladba stece brez cakanja na YouTube.
+        spletnaVrsta.getOrNull(i)?.takeIf { Zvocniki.aktivni != null && YoutubeZvok.jeYoutube(it) }?.let { YoutubeZvok.pripravi(this, it) {} }
         val sk = spletnaVrsta.getOrNull(i)?.takeIf { UvozSeznama.jeIskana(it) } ?: return
         Thread {
             val najden = try { UvozSeznama.najdi(sk) } catch (_: Exception) { null } ?: return@Thread
@@ -664,7 +719,7 @@ class GlasbaStoritev : Service() {
         Zvocniki.predvajaj(this, z, sk, ZvocnikPravila.odPolozaja(odMs, 0L, sk.radio), 0L, igraj) { napaka ->
             // Zagon, ki ga je prehitela novejsa izbira, ni napaka zvocnika (novejsa izbira ze tece).
             if (napaka != null && napaka !is Zvocniki.Prehiteno && primerek === this) {
-                obvesti(getString(R.string.zvocnik_napaka, z.ime))
+                obvesti(if (napaka is YoutubeZvok.NiToka) getString(R.string.zvocnik_yt_ni) else getString(R.string.zvocnik_napaka, z.ime))
                 // Ta naprava zacne sele, ko zvocnik potrdi Stop (ali po kratkem roku), in samo, ce je to se vedno izbrana skladba.
                 Zvocniki.ustavi {
                     if (primerek === this && trenutna()?.id == sk.id) { if (samodejno || !igraj) osvezi() else naTejNapravi(odMs) }
@@ -676,12 +731,28 @@ class GlasbaStoritev : Service() {
 
     /** Predvajanje (spet) na tej napravi. [odMs]: mesto, na katerem nadaljuje; null = kjer predvajalnik te naprave stoji. */
     private fun naTejNapravi(odMs: Long?) {
+        // Posnetek s strani (YouTube), ki je igral na zvocniku: ta naprava nadaljuje v spletnem predvajalniku na istem mestu.
+        val sk = trenutna()
+        if (sk != null && SpletniVir.jeEnota(sk)) { nadaljujSplet(sk, odMs); return }
         val p = exo ?: return
         if (trenutna()?.radio == true) p.seekToDefaultPosition()
         else if (odMs != null) p.seekTo(p.currentMediaItemIndex, odMs.coerceAtLeast(0L))
         p.prepare()
         p.play()
         osvezi()
+    }
+
+    /** Spletni posnetek spet na tej napravi (po zvocniku): isti predvajalnik, ce ga se imamo, sicer nov - na mestu [odMs]. */
+    private fun nadaljujSplet(sk: Jamendo.Skladba, odMs: Long?) {
+        val s = spletni
+        if (s != null && predvajalnik === s && spletniId == sk.id) {
+            if (odMs != null) s.seekTo(odMs.coerceAtLeast(0L))
+            s.play()
+            osvezi()
+            return
+        }
+        zacetekSpleta = if (odMs != null && odMs > 0L) sk.id to odMs else null
+        zacniSplet(sk.copy(zvok = "", mime = ""), true)
     }
 
     /**
@@ -706,7 +777,7 @@ class GlasbaStoritev : Service() {
                     // Ponavljanje ene skladbe ima prednost pred vrsto (kot na tej napravi).
                     p.repeatMode == Player.REPEAT_MODE_ONE -> trenutna()?.let { posljiNaZvocnik(z, it, 0L, true) }
                     naslednjaVVrsti != null -> {
-                        if (!zaZvocnik(naslednjaVVrsti)) {
+                        if (!zaZvocnik(naslednjaVVrsti) && !UvozSeznama.jeIskana(naslednjaVVrsti)) {
                             // Naslednji posnetek ne more na zvocnik. Vrsta je do njega prisla sama (nihce ne drzi naprave),
                             // zato ta naprava ne zacne igrati iz svojega zvocnika: seja se konca, uporabnik nadaljuje z Naprej.
                             Zvocniki.koncajSejo(); osvezi()
@@ -840,6 +911,10 @@ class GlasbaStoritev : Service() {
 
     private var exo: ExoPlayer? = null
     private var spletni: SpletniIgralec? = null
+    /** Skladba, ki jo kaze [spletni]. */
+    private var spletniId = ""
+    /** (id, ms): posnetek s strani, ki se vraca z zvocnika, ob prvem predvajanju skoci na to mesto. */
+    private var zacetekSpleta: Pair<String, Long>? = null
 
     /** Gostitelj strani brez www./m. - kljuc za "ta stran rabi polni pogon". */
     private fun gostiteljStrani(sk: Jamendo.Skladba): String = try {
@@ -946,6 +1021,9 @@ class GlasbaStoritev : Service() {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 // Naloga 109: skladba igra - star zapis, da ne deluje, ne velja vec.
                 if (isPlaying) NedelujoceSkladbe.pozabi(this@GlasbaStoritev, sk.id)
+                // Nadaljevanje po zvocniku: na mesto, kjer je zvocnik nehal - ko stran zares igra (prej bi skok izgubila).
+                val zacetek = zacetekSpleta
+                if (isPlaying && zacetek != null && zacetek.first == sk.id) { zacetekSpleta = null; s.seekTo(zacetek.second) }
                 osvezi()
             }
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = osvezi()
@@ -957,6 +1035,7 @@ class GlasbaStoritev : Service() {
             override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_ENDED) poKoncu() else osvezi() }
         })
         spletni = s
+        spletniId = sk.id
         s.vVrsti = spletnaVrsta.size > 1
         SpletniIgralec.zadnja?.get()?.let { s.gostuj(it) }
         vrsta = listOf(sk)
@@ -1323,11 +1402,35 @@ class GlasbaStoritev : Service() {
         }
 
         /**
-         * Ali skladbo zvocnik lahko predvaja sam: zvocni tok brez posebnih glav zahteve (te pozna samo nas predvajalnik), ne
-         * posnetek s strani in ne skladba, ki jo je treba se poiskati.
+         * Ali skladbo zvocnik lahko predvaja: zvocni tok brez posebnih glav zahteve (te pozna samo nas predvajalnik - tudi
+         * glave po domeni, npr. kljuc vira API: zvocnik bi tok dobil brez njih), ne skladba, ki jo je treba se poiskati, od
+         * posnetkov s strani pa samo YouTube (zvocni tok neposredno od YouTuba, lastnik 25. 10. 2026), ki ni film ali serija
+         * ([zvokIzVidea]) - razen ce ze vemo, da toka ni (DRM, brez naslova).
          */
-        fun zaZvocnik(sk: Jamendo.Skladba): Boolean = !UvozSeznama.jeIskana(sk) && !SpletniVir.jeEnota(sk) &&
-            SpletniVir.glaveToka(sk.zvok).isEmpty() && ZvocnikPravila.primerna(sk.zvok, sk.video, sk.mime)
+        fun zaZvocnik(sk: Jamendo.Skladba): Boolean {
+            if (YoutubeZvok.jeYoutube(sk)) return !YoutubeZvok.znanoNe(sk) && (!sk.video || zvokIzVidea(sk))
+            return !UvozSeznama.jeIskana(sk) && !SpletniVir.jeEnota(sk) &&
+                ZvocnikPravila.primerna(sk.zvok, sk.video, sk.mime, SpletniVir.imaGlave(sk.zvok))
+        }
+
+        /**
+         * Posnetek s sliko, ki sme na zvocnik kot zvok: YouTube, ki ni film ali serija (videospot, koncert - glasba z YouTuba
+         * je pogosto videospot; lastnik 25. 10. 2026: »Predvajaj na zvocniku« za skladbe z YouTuba). Film na zvocnik ne gre
+         * (usklajenost slike in zvoka je posebna naloga).
+         */
+        fun zvokIzVidea(sk: Jamendo.Skladba): Boolean = YoutubeZvok.jeYoutube(sk) &&
+            SpletniVir.vrstaVsebine(sk).let { it != SpletniVir.FILM && it != SpletniVir.SERIJA }
+
+        /**
+         * Gumb »Predvajaj na zvocniku«: pri YouTubu samo, ko je tok ze razresen - posnetek z DRM ali brez naslova gumba nima
+         * (lastnik: kar ne moremo predvajati, ne ponujamo). Nerazresen posnetek se razresi v ozadju, [osvezi] nato gumb pokaze.
+         */
+        fun zaZvocnikPonudba(ctx: Context, sk: Jamendo.Skladba, osvezi: () -> Unit): Boolean {
+            if (!zaZvocnik(sk)) return false
+            if (!YoutubeZvok.jeYoutube(sk) || YoutubeZvok.znanTok(sk) != null) return true
+            YoutubeZvok.pripravi(ctx, sk, osvezi)
+            return false
+        }
 
         fun naslednja() {
             if (naDrugiNapravi()) { OddaljenoPredvajanje.naslednja(); return }
