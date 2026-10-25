@@ -8744,11 +8744,15 @@ class GlasbaActivity : OsActivity() {
                           obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
-        // Diagnostika razvijalca ([Webtor.samoWebtor], samo prek adb): pot, kjer debrid toka nima - brez ⚡ pri debridu,
-        // neposrednih povezav in Useneta; torrenti ostanejo za ujemanje izdaje Webtor. Izmerjeno 25. 10. 2026: Sintel in
-        // Tears of Steel imata neposredno povezavo, zato rezerve Webtor brez tega ni mogoce izmeriti.
+        // Diagnostika razvijalca ([Webtor.samoWebtor], samo prek adb, z rokom): pot, kjer debrid toka nima - brez ⚡ pri
+        // debridu, neposrednih povezav in Useneta; torrenti ostanejo za ujemanje izdaje Webtor. Izmerjeno 25. 10. 2026: Sintel in
+        // Tears of Steel imata neposredno povezavo, zato rezerve Webtor brez tega ni mogoce izmeriti. Pregled 26, T3: viden znak,
+        // brez TorBoxa v ozadju in brez poti mimo Webtorja (ce Webtor ne predvaja, se izbira konca).
         val samoWebtor = Webtor.samoWebtor()
-        if (samoWebtor) android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor")
+        if (samoWebtor) {
+            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor")
+            Toast.makeText(this, R.string.os_webtor_diagnostika, Toast.LENGTH_LONG).show()
+        }
         val predpomnjeni = if (samoWebtor) emptySet<String>() else pripravljeno.predpomnjeni
         // Webtor rezerva (25. 10. 2026): tokovi Webtor [⚡TB] (podvajajo nas TorBox) in [P2P] (posnetek z oglasom za paket)
         // izpadejo takoj ([WebtorPravila.skrij]).
@@ -8821,7 +8825,9 @@ class GlasbaActivity : OsActivity() {
             novi.forEach { poskuseniWebtor.add(it.url) }
             if (webtorZacetek == null) webtorZacetek = android.os.SystemClock.elapsedRealtime()
             webtorPoskusov++
-            predvajajWebtor(novi, rok, novi.map { "datoteka=${datotekaWebtorZa(it)} h=${it.hash.take(10)} idx=${it.datoteka}" }, predvajaj, naprej)
+            predvajajWebtor(novi, rok, novi.map { "datoteka=${datotekaWebtorZa(it)} h=${it.hash.take(10)} idx=${it.datoteka}" }, predvajaj, naprej,
+                // Skupno pravilo v4 (naloga 21 B1): krog, ki je vsebino le hitro zavrnil (.srt pri YTS), ni poskus.
+                neStejeKotPoskus = { webtorPoskusov-- })
             return true
         }
         fun odpri(t: Stremio.Tok, rezerve: List<Stremio.Tok> = emptyList()) {
@@ -8928,7 +8934,7 @@ class GlasbaActivity : OsActivity() {
                 val k = kljucWebtor(w)
                 val nas = if (k == null) null else torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == k }
                 odpri(w)
-                if (k != null) webtorVTorBox(nas?.url ?: WebtorPravila.magnet(k.hash, w.sledilniki), k.hash in predpomnjeni)
+                if (k != null && !samoWebtor) webtorVTorBox(nas?.url ?: WebtorPravila.magnet(k.hash, w.sledilniki), k.hash in predpomnjeni)
             }, naprej)
             if (!zacel) naprej()
         }
@@ -8982,7 +8988,11 @@ class GlasbaActivity : OsActivity() {
                 android.util.Log.i("SafeerOsMedia", "tokovi: takoj nic (pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}, neposrednih 0)")
                 return false
             }
-            fun naKonec() { if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show() }
+            fun naKonec() {
+                // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
+                if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
+                if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+            }
             // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 kroga sond in 15 s ([webtorRok]).
             fun poskusiWebtor(samoTakoj: Boolean, potem: () -> Unit) {
                 // Izmerjeno 25. 10. 2026: vsak cetrti kandidat je vrnil napacno datoteko - krog preveri VZPOREDNO hkrati.
@@ -9012,6 +9022,7 @@ class GlasbaActivity : OsActivity() {
                 poskusiWebtor(true) { if (poskusi.isNotEmpty()) poskusiUsenetSCakanjem(0) else poskusiWebtor(false) { naKonec() } }
                 return
             }
+            if (samoWebtor) { naKonec(); return }
             if (samodejnoBrezUseneta()) return
         }
         // Rocna izbira: najboljsi na vrhu, napovednik na koncu.
@@ -9053,7 +9064,9 @@ class GlasbaActivity : OsActivity() {
      * noben -> [naprej] (naslednji vir), sicer [predvajaj] z izbranim (predvajalnik dobi nadomestek `/resolve/`, vir podatkov
      * pa koncni naslov, ki ga je sonda preverila - [Webtor.zaPredvajalnik]). Preklic kot pri debridu ([rodDebrida]).
      */
-    private fun predvajajWebtor(kandidati: List<Stremio.Tok>, rokMs: Long, opisi: List<String>, predvajaj: (Stremio.Tok) -> Unit, naprej: () -> Unit) {
+    private fun predvajajWebtor(kandidati: List<Stremio.Tok>, rokMs: Long, opisi: List<String>, predvajaj: (Stremio.Tok) -> Unit, naprej: () -> Unit,
+                                /** Krog ni stel kot poskus ([WebtorPravila.stejeKotPoskus]: vse sonde hitro zavrnjene po vsebini). */
+                                neStejeKotPoskus: () -> Unit = {}) {
         if (isFinishing || isDestroyed || debridDelavec.isShutdown) return
         prekiniDebrid()
         val rod = rodDebrida.get()
@@ -9062,8 +9075,11 @@ class GlasbaActivity : OsActivity() {
         val delo = try { debridDelavec.submit(Runnable {
             // Izmerjeno 25. 10. 2026: 206 ni dovolj (naslovnica, BMP, besedilo, vzorec, AVI brez podprtega videa) - krog sond
             // pregleda prve bajte vseh kandidatov hkrati ([Webtor.krog]).
+            val zacetekKroga = android.os.SystemClock.elapsedRealtime()
             val krog = try { Webtor.krog(applicationContext, kandidati.map { it.url to TokIzbira.opisi(it.ime + " " + it.opis).gb }, rokMs) }
                 catch (e: Exception) { Webtor.Krog(-1, kandidati.map { null }, kandidati.map { null }, kandidati.map { null }) }
+            val trajanjeKroga = android.os.SystemClock.elapsedRealtime() - zacetekKroga
+            val steje = krog.izidi.any { it == null || WebtorPravila.stejeKotPoskus(it, trajanjeKroga) }
             for (i in kandidati.indices) android.util.Log.i("SafeerOsMedia", "tokovi: Webtor sonda ${i + 1}/${kandidati.size} " +
                 (krog.sonde[i]?.let { Webtor.opis(it, krog.pregledi[i]) } ?: "brez odgovora") + ", ${opisi.getOrElse(i) { "" }} -> ${krog.izidi[i] ?: "-"}")
             if (Thread.currentThread().isInterrupted || rodDebrida.get() != rod) return@Runnable
@@ -9079,7 +9095,13 @@ class GlasbaActivity : OsActivity() {
                     if (w != null) {
                         Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, WebtorPravila.IME), Toast.LENGTH_SHORT).show()
                         predvajaj(w)
-                    } else naprej()
+                    } else {
+                        if (!steje) {
+                            android.util.Log.i("SafeerOsMedia", "tokovi: Webtor krog hitro zavrnjen po vsebini ($trajanjeKroga ms) - ni poskus")
+                            neStejeKotPoskus()
+                        }
+                        naprej()
+                    }
                 }
             }
         }) } catch (_: java.util.concurrent.RejectedExecutionException) { return }

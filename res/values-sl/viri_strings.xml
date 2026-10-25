@@ -124,6 +124,7 @@
     <!-- Webtor rezerva (25. 10. 2026): lastnikov dodatek Webtor kot rezerva za torrente, ki jih TorBox nima. -->
     <string name="os_webtor_rezerva">Webtor ni uspel – predvajam drug vir</string>
     <string name="os_webtor_pripravljam">Pripravljam prek Webtorja …</string>
+    <string name="os_webtor_diagnostika">Diagnostika: samo Webtor (razvijalski preizkus)</string>
     <string name="os_skrivni_dodatek_ime">dodatek %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">Dodatka ni bilo mogoče varno shraniti (šifriranje ni uspelo). Poskusi znova.</string>
     <string name="os_mediji_dodatek_dodaj_znova">na tej napravi ga ni mogoče odkleniti – dodatek je treba dodati znova (%1$s)</string>

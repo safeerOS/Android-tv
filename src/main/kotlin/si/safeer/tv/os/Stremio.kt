@@ -1256,6 +1256,9 @@ object Stremio {
         }
     }
 
+    /** Oblika naslova toka Webtor brez JWT se zapise enkrat (brez vrednosti - [WebtorPravila.oblikaJwt]). */
+    @Volatile private var oblikaJwtZapisana = false
+
     /**
      * Webtor rezerva (25. 10. 2026): tok dodatka s poverilnico dobi nadomestek brez skrivnosti - tak gre v predvajalnik,
      * zgodovino, Link; pravi naslov vstavi sele [SkrivniDodatki.dejanski]. Pregled S2/S4: tok, ki se zacne z osnovo dodatka
@@ -1265,9 +1268,6 @@ object Stremio {
      * brez predpone `[⚡WT]`/`[WT]`/`[⚡TB]`, vrsta predpone, izdaja (infoHash in fileIdx, sicer iz JWT) za ujemanje z nasimi
      * torrenti in sledilniki za magnet.
      */
-    /** Oblika naslova toka Webtor brez JWT se zapise enkrat (brez vrednosti - [WebtorPravila.oblikaJwt]). */
-    @Volatile private var oblikaJwtZapisana = false
-
     private fun prilagodi(t: Tok, o: JSONObject, osnova: String, idManifesta: String): Tok {
         var x = t
         if (x.vrsta == "url" && (SkrivnostiPravila.jeNadomestek(osnova) || SkrivnostiPravila.skrivnaPredponaDodatka(osnova) != null))

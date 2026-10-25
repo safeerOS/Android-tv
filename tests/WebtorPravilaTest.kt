@@ -295,5 +295,28 @@ fun main() {
     preveriEnako("::ffff:192.168.0.1 zaseben", true, W.zasebenNaslov(ip(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 168, 0, 1)))
     preveriEnako("2606:4700::1111 javen", false, W.zasebenNaslov(ip(0x26, 0x06, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11)))
 
+    // Pregled 26, T1: pot predvajalnika - tok na webtor.io gre samo prek sonde (WEBTOR) ali se ne odpre (ZAVRNI), nikoli po
+    // stari poti, kjer bi predvajalnik sledil preusmeritvam sam.
+    val res = "https://webtor.io/token/Ab12Cd34/stremio/resolve/" + jwt("{\"hash\":\"${"a".repeat(40)}\",\"idx\":0}")
+    val nad = "https://webtor.io/safeer-skrito-0123456789abcdef/stremio/resolve/" + jwt("{\"hash\":\"${"a".repeat(40)}\"}")
+    preveriEnako("pot: pravi /resolve/", WebtorPravila.Pot.WEBTOR, W.potPredvajalnika(nad, res, false))
+    preveriEnako("pot: nadomestek z /resolve/, pravi enak", WebtorPravila.Pot.WEBTOR, W.potPredvajalnika(res, res, false))
+    preveriEnako("pot: neznan nadomestek", WebtorPravila.Pot.ZAVRNI, W.potPredvajalnika(nad, nad, true))
+    preveriEnako("pot: webtor.io brez /resolve/", WebtorPravila.Pot.ZAVRNI, W.potPredvajalnika("https://webtor.io/token/x/stremio/stream/movie/tt1.json", "https://webtor.io/token/x/stremio/stream/movie/tt1.json", false))
+    preveriEnako("pot: /resolve/ po http", WebtorPravila.Pot.ZAVRNI, W.potPredvajalnika("http://webtor.io/x/resolve/a.b.c", "http://webtor.io/x/resolve/a.b.c", false))
+    preveriEnako("pot: poddomena webtor.io", WebtorPravila.Pot.ZAVRNI, W.potPredvajalnika("https://api.webtor.io/f.mkv", "https://api.webtor.io/f.mkv", false))
+    preveriEnako("pot: lazni webtor.io.zlo.com je navaden", WebtorPravila.Pot.NAVADNA, W.potPredvajalnika("https://webtor.io.zlo.com/f.mkv", "https://webtor.io.zlo.com/f.mkv", false))
+    preveriEnako("pot: navaden CDN", WebtorPravila.Pot.NAVADNA, W.potPredvajalnika("https://cdn.example/film.mkv", "https://cdn.example/film.mkv", false))
+    preveriEnako("pot: lokalna datoteka", WebtorPravila.Pot.NAVADNA, W.potPredvajalnika("file:///sdcard/film.mkv", "file:///sdcard/film.mkv", false))
+
+    // Pregled 26, T3: diagnostika samo z rokom (najvec 6 h naprej), pozabljena lastnost se izklopi sama.
+    val zdajS = 1_793_000_000L
+    preveriEnako("diagnostika: ura v prihodnosti", true, W.diagnostikaVelja("${zdajS + 3600}", zdajS))
+    preveriEnako("diagnostika: potekla", false, W.diagnostikaVelja("${zdajS - 1}", zdajS))
+    preveriEnako("diagnostika: predalec naprej", false, W.diagnostikaVelja("${zdajS + W.DIAGNOSTIKA_NAJVEC_S + 1}", zdajS))
+    preveriEnako("diagnostika: stara oblika DEBUG", false, W.diagnostikaVelja("DEBUG", zdajS))
+    preveriEnako("diagnostika: prazno", false, W.diagnostikaVelja("", zdajS))
+    preveriEnako("diagnostika: ni lastnosti", false, W.diagnostikaVelja(null, zdajS))
+
     if (napak == 0) println("WebtorPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

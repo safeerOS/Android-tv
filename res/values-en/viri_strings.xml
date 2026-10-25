@@ -124,6 +124,7 @@
     <!-- Webtor rezerva (25. 10. 2026): lastnikov dodatek Webtor kot rezerva za torrente, ki jih TorBox nima. -->
     <string name="os_webtor_rezerva">Webtor did not work – playing another source</string>
     <string name="os_webtor_pripravljam">Preparing via Webtor …</string>
+    <string name="os_webtor_diagnostika">Diagnostics: Webtor only (developer test)</string>
     <string name="os_skrivni_dodatek_ime">add-on %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">The add-on could not be saved securely (encryption failed). Try again.</string>
     <string name="os_mediji_dodatek_dodaj_znova">cannot be unlocked on this device – the add-on has to be added again (%1$s)</string>

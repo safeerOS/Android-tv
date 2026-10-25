@@ -748,12 +748,9 @@ object SpletniVir {
         if (rokPovezaveMs > 0) { odprto.setConnectTimeoutMs(rokPovezaveMs); varno.setConnectTimeoutMs(rokPovezaveMs) }
         val http = DataSource.Factory { PoProtokolu(varno.createDataSource(), odprto.createDataSource()) }
         val app = c.applicationContext
-        return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
-            // Webtor (izmerjeno 25. 10. 2026, pregled U4): predvajalnik odpre KONCNI naslov, ki ga je sonda preverila (glavni
-            // video, https, ne v domace omrezje) - ne nove verige preusmeritev od /resolve (lahko bi vodila drugam).
-            Webtor.zaPredvajalnik(app, izvirna.uri.toString())?.let { koncni ->
-                return@Factory izvirna.withUri(android.net.Uri.parse(koncni)).withAdditionalHeaders(glaveZa(koncni, glaveVsem, piskotki = false))
-            }
+        val osnovna = ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
+            // Tok Webtor sem ne pride: odpre ga [IzbirniVir] prek [WebtorVir] (preverjen koncni naslov, brez preusmeritev,
+            // pripeti naslovi IP - pregled 26, T1); neprepoznan tok na webtor.io se ne odpre (fail-closed).
             // Webtor rezerva: tok dodatka s poverilnico ima v aplikaciji nadomestek brez zetona - pravi naslov samo za zahtevo.
             val pravi = SkrivniDodatki.dejanski(app, izvirna.uri.toString())
             val spec = if (pravi == izvirna.uri.toString()) izvirna else izvirna.withUri(android.net.Uri.parse(pravi))
@@ -763,6 +760,7 @@ object SpletniVir {
             // poslal tudi cilju preusmeritve (gostitelj toka); zeton v poti zadosca.
             spec.withAdditionalHeaders(glaveZa(url, glaveVsem, piskotki = spec === izvirna))
         }
+        return DataSource.Factory { IzbirniVir(app, osnovna.createDataSource()) { url -> glaveZa(url, glaveVsem, piskotki = false) } }
     }
 
     /**

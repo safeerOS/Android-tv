@@ -124,6 +124,7 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
         (v["pricakovano_gb"] as Number).toDouble(), { it in v.nizi("podprti") }).let { listOf(it.vsebina.name, it.posoda.name, it.kodek) }
     "webtor_skupna_velikost" -> WebtorPravila.skupnaVelikost(v.cel("koda")!!, v.niz("content_range"), v["content_length"] as Long)
     "webtor_rok_sonde" -> WebtorPravila.rokSonde(v["zacetek_prve"] as Long?, v["zdaj"] as Long, v.cel("poskusov")!!)
+    "webtor_steje_kot_poskus" -> WebtorPravila.stejeKotPoskus(WebtorPravila.Izid.valueOf(v.niz("izid")!!), v["trajanje_ms"] as Long)
     "vrstni_red_korakov" -> WebtorPravila.koraki(v["ima_usenet"] as Boolean).map { it.name }
     "izberi_usenet" -> WebtorPravila.izberiUsenet(v["izidi"] as List<Boolean?>, v["rok_potekel"] as Boolean).toLong()
     "scit_dovoljena" -> si.safeer.tv.scit.ScitIzjeme.dovoljena(v.niz("ime")!!, (v["naucene"] as Map<String, Any?>).mapValues { it.value as Long }, v["zdaj"] as Long)

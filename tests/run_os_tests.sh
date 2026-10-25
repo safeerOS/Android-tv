@@ -247,6 +247,16 @@ java -cp "$OUT/neposredna.jar" si.safeer.tv.link.NeposrednaPotTestKt
     -include-runtime -d "$OUT/linkdatoteke.jar"
 java -cp "$OUT/linkdatoteke.jar" si.safeer.tv.link.LinkDatotekePravilaTestKt
 
+# Pregled 26 (T1): zahteve toka Webtor prek OkHttp - brez preusmeritev, samo preverjeni javni naslovi IP (brez DNS
+# rebindinga), pripet DNS za predvajalnik; lokalni streznik HTTP iz JDK.
+WEBTOR_LIBS="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"
+"$KOTLINC" -J-Xmx1g -cp "$WEBTOR_LIBS" \
+    "$SRC/si/safeer/tv/os/WebtorPravila.kt" \
+    "$SRC/si/safeer/tv/os/WebtorHttp.kt" \
+    "$TEST_DIR/WebtorHttpTest.kt" \
+    -include-runtime -d "$OUT/webtorhttp.jar"
+java -cp "$OUT/webtorhttp.jar:$WEBTOR_LIBS" si.safeer.tv.os.WebtorHttpTestKt
+
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"
 python3 "$TEST_DIR/preveri_dostop_v_ozadju.py"

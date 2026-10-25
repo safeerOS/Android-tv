@@ -3,8 +3,8 @@ package si.safeer.tv.os
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
-import java.net.HttpURLConnection
-import java.net.URL
+import java.net.InetAddress
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -21,25 +21,29 @@ import java.util.concurrent.TimeUnit
  */
 object Webtor {
     private const val TAG = "SafeerWebtor"
-    /** Diagnostika: `adb shell setprop log.tag.SafeerWebtorMeri DEBUG` - meritev vseh kandidatov (brez predvajanja). */
+    /** Oznaka dnevnika diagnostike [meri] (vklop: [meritev]). */
     private const val MERI = "SafeerWebtorMeri"
 
     /**
      * Izid sonde: [koda] HTTP (0 = ni odgovora), [prviBajtMs] (null = ga ni bilo), [potekel] rok, [gostitelj] toka,
      * [vrstaVsebine] (Content-Type), [skupaj] velikost datoteke (-1 = neznana), [glava] prvi bajti, [preusmeritev] stevilo
-     * preusmeritev; [koncni] = naslov po preusmeritvah (vsebuje zeton ponudnika - nikoli v dnevnik ali na drugo napravo);
-     * [preusmeritevMs] = cas do prve preusmeritve (302 od /resolve; null = je ni bilo) - loci pocasen Webtor od pocasnega roja.
+     * preusmeritev, [preusmeritevMs] cas do prvega odgovora 3xx (null = ga ni bilo) - loci pocasen /resolve od pocasnega
+     * roja, [razlog] zavrnitve brez naslova (ROK, PREKLIC, NI_HTTPS, ZASEBNO, DNS, BREZ_LOCATION, PREVEC_PREUSMERITEV, KODA,
+     * NAPAKA). [koncni] = naslov po preusmeritvah (vsebuje zeton ponudnika - nikoli v dnevnik ali na drugo napravo) in
+     * [naslovi] njegovega gostitelja, ki jih je sonda preverila (predvajalnik se poveze samo nanje, pregled 26 T1); [naucen] =
+     * gostitelj za Scit ([WebtorPravila.naucenGostitelj]) - uci ga klicatelj sele po preverjeni vsebini ([uci], pregled 26 T8).
      */
     class Sonda(val koda: Int, val prviBajtMs: Long?, val potekel: Boolean, val gostitelj: String,
                 val vrstaVsebine: String = "", val skupaj: Long = -1L, val glava: ByteArray = ByteArray(0),
-                val preusmeritev: Int = 0, internal val koncni: String = "", val preusmeritevMs: Long? = null)
+                val preusmeritev: Int = 0, internal val koncni: String = "", val preusmeritevMs: Long? = null,
+                val razlog: String = "", internal val naslovi: List<InetAddress> = emptyList(), val naucen: String? = null)
 
-    /** Preklic sonde od zunaj: zapre trenutno povezavo (branja HttpURLConnection prekinitev niti ne ustavi). */
+    /** Preklic sonde od zunaj: prekine tekoci klic OkHttp (DNS, povezava, branje). */
     class Preklic {
         @Volatile var preklican = false
             private set
-        @Volatile internal var povezava: HttpURLConnection? = null
-        fun preklici() { preklican = true; try { povezava?.disconnect() } catch (_: Throwable) { } }
+        @Volatile internal var klic: okhttp3.Call? = null
+        fun preklici() { preklican = true; try { klic?.cancel() } catch (_: Throwable) { } }
     }
 
     /** Izid kroga sond: [izbran] kandidat (-1 = noben), po kandidatih sonda, pregled vsebine in izid (null = brez odgovora). */
@@ -66,6 +70,8 @@ object Webtor {
                     val p = if (s.koda in 200..299 && s.prviBajtMs != null) pregled(s, gb) else null
                     sonde[i] = s; pregledi[i] = p
                     izidi[i] = WebtorPravila.odlocitev(s.koda, s.prviBajtMs, s.potekel, p?.vsebina)
+                    // Pregled 26, T8: Scit se gostitelja nauci samo pri preverjenem glavnem videu.
+                    if (izidi[i] == WebtorPravila.Izid.PREDVAJAJ) uci(c, s)
                 } finally { koncane.add(i) }
             }, "safeer-webtor-sonda").apply { isDaemon = true }.start()
         }
@@ -114,55 +120,91 @@ object Webtor {
     /** Opis sonde za dnevnik - brez naslova (samo gostitelj). */
     fun opis(s: Sonda, p: WebtorPravila.Pregled?): String =
         "koda=${s.koda}, 302=${s.preusmeritevMs ?: "-"} ms, prvi bajt=${s.prviBajtMs ?: "-"} ms, rok=${s.potekel}, " +
-            "gostitelj=${s.gostitelj.ifBlank { "-" }}, preusmeritev=${s.preusmeritev}, vrsta=${s.vrstaVsebine.substringBefore(';').ifBlank { "-" }}, " +
+            "gostitelj=${s.gostitelj.ifBlank { "-" }}, preusmeritev=${s.preusmeritev}" +
+            (if (s.razlog.isNotEmpty()) ", razlog=${s.razlog}" else "") + ", vrsta=${s.vrstaVsebine.substringBefore(';').ifBlank { "-" }}, " +
             "MB=${if (s.skupaj >= 0) s.skupaj / 1_000_000 else "-"}" + (p?.let { ", posoda=${it.posoda}" +
             (if (it.kodek.isNotEmpty()) ", kodek=${it.kodek}" else "") + ", vsebina=${it.vsebina}" } ?: "")
 
     // ------------------------------------------------------------------ preverjeni koncni naslovi (pregled U4)
 
-    private class Preverjen(val koncni: String, val cas: Long)
+    /** Koncni naslov, ki ga je sonda preverila, in naslovi IP njegovega gostitelja (predvajalnik se poveze samo nanje). */
+    class Preverjen internal constructor(internal val koncni: String, internal val naslovi: List<InetAddress>, val cas: Long)
     /** Kljuc: naslov toka v aplikaciji (nadomestek `/resolve/`); vrednost: koncni naslov, ki ga je sonda preverila. */
-    private val preverjeni = java.util.concurrent.ConcurrentHashMap<String, Preverjen>()
+    private val preverjeni = ConcurrentHashMap<String, Preverjen>()
     /** Koncni naslov Webtorja/TorBoxa velja ure; po pol ure ga za novo odprtje (previjanje po premoru) preverimo znova. */
     private const val VELJA_PREVERJEN_MS = 30 * 60_000L
     /** Rok sonde, ko predvajalnik odpre tok brez sveze preverbe (Nadaljuj, tok z druge naprave). */
     private const val ROK_PREDVAJALNIKA_MS = 20_000L
+    /** Pregled 26, T4: neuspela preverba velja toliko - ponovitve nalaganja Media3 ne sprozijo vsakic nove sonde do 20 s. */
+    private const val NEUSPEH_VELJA_MS = 60_000L
+    private val neuspehi = ConcurrentHashMap<String, Long>()
 
-    /** Sonda je tok [url] preverila (glavni video): predvajalnik dobi njen koncni naslov. */
+    /** Pregled 26, T8: Scit se gostitelja toka nauci sele, ko je vsebina preverjena (glavni video). */
+    fun uci(c: Context, s: Sonda) {
+        s.naucen?.let { g -> try { si.safeer.tv.scit.Scit.dovoliGostitelja(c, g) } catch (_: Throwable) { } }
+    }
+
+    /** Sonda je tok [url] preverila (glavni video): predvajalnik dobi njen koncni naslov in preverjene naslove IP. */
     fun zapomni(url: String, s: Sonda) {
-        if (!s.koncni.startsWith("https://")) return
-        if (preverjeni.size >= 20) preverjeni.clear()
-        preverjeni[url.trim()] = Preverjen(s.koncni, SystemClock.elapsedRealtime())
+        if (!s.koncni.startsWith("https://") || s.naslovi.isEmpty()) return
+        // Pregled 26, T8: ob polnem seznamu gre najstarejsi vnos, ne vsi (tok, ki se pravkar odpira, ostane).
+        if (preverjeni.size >= 20) preverjeni.entries.minByOrNull { it.value.cas }?.key?.let { preverjeni.remove(it) }
+        preverjeni[url.trim()] = Preverjen(s.koncni, s.naslovi, SystemClock.elapsedRealtime())
+        neuspehi.remove(url.trim())
     }
 
     /**
-     * Za vir podatkov predvajalnika ([SpletniVir.virPodatkov], nit nalaganja): tok Webtor `/resolve/` -> preverjeni koncni
-     * naslov (sonda pred predvajanjem ali nova sonda tu); null = ni tok Webtor. Tok, ki ni preverjen glavni video, se ne
-     * odpre (IOException) - predvajalnik ne sledi preusmeritvam, ki jih nismo preverili.
+     * Za vir podatkov predvajalnika ([IzbirniVir], nit nalaganja): tok Webtor `/resolve/` -> preverjeni koncni naslov in
+     * njegovi naslovi IP (sonda pred predvajanjem ali nova sonda tu); null = ni tok Webtor (navadna pot). Pregled 26, T1:
+     * predvajalnik ga odpre z [WebtorVir] - brez preusmeritev, samo na preverjene naslove. Tok, ki ni preverjen glavni video,
+     * in tok na webtor.io, ki ni preverljiv ([WebtorPravila.potPredvajalnika]), se ne odpreta (IOException, fail-closed).
      */
-    fun zaPredvajalnik(c: Context, naslov: String): String? {
+    fun zaPredvajalnik(c: Context, naslov: String, preklic: Preklic? = null): Preverjen? {
         val k = naslov.trim()
-        // Naslov toka je nadomestek (skrivni dodatek) - pravi pove, ali je to Webtor /resolve/ (nadomestek lahko skrije pot).
-        if (!k.startsWith("https://")) return null
-        preverjeni[k]?.let { if (SystemClock.elapsedRealtime() - it.cas < VELJA_PREVERJEN_MS) return it.koncni }
-        if (!WebtorPravila.jeResolveNaslov(k) && !(SkrivnostiPravila.jeNadomestek(k) && WebtorPravila.jeResolveNaslov(SkrivniDodatki.dejanski(c, k))))
-            return null
-        val s = sonda(c, k, ROK_PREDVAJALNIKA_MS)
+        val nadomestek = SkrivnostiPravila.jeNadomestek(k)
+        val pravi = SkrivniDodatki.dejanski(c, k)
+        when (WebtorPravila.potPredvajalnika(k, pravi, nadomestek && !SkrivniDodatki.pozna(c, k))) {
+            WebtorPravila.Pot.NAVADNA -> return null
+            WebtorPravila.Pot.ZAVRNI -> throw java.io.IOException("Webtor: tok ni preverljiv")
+            WebtorPravila.Pot.WEBTOR -> { }
+        }
+        val zdaj = SystemClock.elapsedRealtime()
+        preverjeni[k]?.let { if (zdaj - it.cas < VELJA_PREVERJEN_MS) return it }
+        neuspehi[k]?.let { if (zdaj - it < NEUSPEH_VELJA_MS) throw java.io.IOException("Webtor: tok ni preverjen (nedavna sonda)") }
+        val s = sonda(c, k, ROK_PREDVAJALNIKA_MS, preklic)
         val p = pregled(s, 0.0)
         Log.i(TAG, "predvajalnik: ${opis(s, p)}")
-        if (s.koda !in 200..299 || s.prviBajtMs == null || p.vsebina != WebtorPravila.Vsebina.VIDEO || !s.koncni.startsWith("https://"))
+        if (s.koda !in 200..299 || s.prviBajtMs == null || p.vsebina != WebtorPravila.Vsebina.VIDEO || !s.koncni.startsWith("https://") ||
+            s.naslovi.isEmpty()) {
+            if (preklic?.preklican != true) {
+                if (neuspehi.size >= 50) neuspehi.clear()
+                neuspehi[k] = SystemClock.elapsedRealtime()
+            }
             throw java.io.IOException("Webtor: tok ni preverjen (koda ${s.koda}, ${p.vsebina})")
+        }
+        uci(c, s)
         zapomni(k, s)
-        return s.koncni
+        return preverjeni[k] ?: Preverjen(s.koncni, s.naslovi, SystemClock.elapsedRealtime())
     }
 
     // ------------------------------------------------------------------ meritev (diagnostika na zahtevo razvijalca)
 
-    fun meritev(): Boolean = try { Log.isLoggable(MERI, Log.DEBUG) } catch (_: Throwable) { false }
+    /**
+     * Pregled 26, T3: diagnostika samo prek lastnosti `debug.safeer.webtor_meri` in `debug.safeer.webtor_samo` z vrednostjo
+     * = cas izteka v sekundah od 1970 (najvec [WebtorPravila.DIAGNOSTIKA_NAJVEC_S] naprej). `debug.*` nastavi samo lupina
+     * adb, ne ostane po ponovnem zagonu (ni persist) in je ne vklopi globalna raven dnevnika (prej log.tag.* - tudi
+     * persist in globalno). Primer: `adb shell setprop debug.safeer.webtor_samo $(( $(date +%s) + 3600 ))`.
+     */
+    private fun diagnostika(lastnost: String): Boolean = try {
+        val p = Runtime.getRuntime().exec(arrayOf("getprop", lastnost))
+        val v = p.inputStream.bufferedReader().use { it.readLine() }
+        WebtorPravila.diagnostikaVelja(v, System.currentTimeMillis() / 1000)
+    } catch (_: Throwable) { false }
 
-    /** Diagnostika: `adb shell setprop log.tag.SafeerWebtorSamo DEBUG` - izbira toka gre po poti rezerve Webtor (meritev). */
-    private const val SAMO = "SafeerWebtorSamo"
-    fun samoWebtor(): Boolean = try { Log.isLoggable(SAMO, Log.DEBUG) } catch (_: Throwable) { false }
+    fun meritev(): Boolean = diagnostika("debug.safeer.webtor_meri")
+
+    /** Izbira toka gre po poti rezerve Webtor (meritev, glej [diagnostika]). */
+    fun samoWebtor(): Boolean = diagnostika("debug.safeer.webtor_samo")
 
     /**
      * Meritev za odlocitve po podatkih (rok sonde, izbira datoteke): vsak kandidat ([oznaka] brez naslova, nadomestek
@@ -170,25 +212,28 @@ object Webtor {
      */
     fun meri(c: Context, kandidati: List<Triple<String, String, Double>>, rokMs: Long = 90_000L) {
         val app = c.applicationContext
+        // Pregled 26, T3: najvec 2 sondi hkrati (Webtor omejuje socasne zahteve na sejo - prave sonde ne smejo dobiti 429).
         for ((i, k) in kandidati.withIndex()) {
-            Thread(Runnable {
-                val s = try { sonda(app, k.second, rokMs, uciScit = false) } catch (e: Exception) { Sonda(0, null, false, "") }
-                Log.d(MERI, "meritev ${i + 1}/${kandidati.size} ${k.first}: ${opis(s, pregled(s, k.third))}")
-            }, "safeer-webtor-meri").apply { isDaemon = true }.start()
+            try {
+                merilnik.execute {
+                    val s = try { sonda(app, k.second, rokMs) } catch (e: Exception) { Sonda(0, null, false, "") }
+                    Log.d(MERI, "meritev ${i + 1}/${kandidati.size} ${k.first}: ${opis(s, pregled(s, k.third))}")
+                }
+            } catch (_: java.util.concurrent.RejectedExecutionException) { }
         }
     }
 
-    /** Pregled N3: straza prekine zahtevo ob izteku skupnega roka (connect + read sta sicer vsak svoj rok). */
-    private val straza = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-webtor-straza").apply { isDaemon = true } }
+    private val merilnik = Executors.newFixedThreadPool(2) { r -> Thread(r, "safeer-webtor-meri").apply { isDaemon = true } }
 
     /**
-     * Prvi bajti toka [url] (Range 0-65535, [WebtorPravila.GLAVA_BAJTOV]) v najvec [rokMs] skupaj. Preusmeritvam sledimo
-     * sami (najvec 5), samo po https in ne v domace omrezje. Pregled V1: gostitelja toka Scit dobi med izjeme samo, ce se je
-     * zahteva zacela na `https://webtor.io/.../resolve/`, in samo KONCNEGA gostitelja po odgovoru 2xx
-     * ([WebtorPravila.naucenGostitelj], [si.safeer.tv.scit.Scit.dovoliGostitelja]). Blokira - z delovne niti; preklic
-     * (prekinitev niti) jo konca.
+     * Prvi bajti toka [url] (Range 0-65535, [WebtorPravila.GLAVA_BAJTOV]) v najvec [rokMs] skupaj (vsi skoki, tudi DNS).
+     * Preusmeritvam sledimo sami (najvec 5), samo po https. Pregled 26, T1: vsako ime se razresi enkrat in povezava gre samo
+     * na preverjene javne naslove ([WebtorHttp.Preverjeni] - zasebni ali lokalni naslov = ZASEBNO, brez povezave), zato DNS
+     * rebinding med preverbo in povezavo ni mogoc; koncni naslov in njegovi naslovi gredo v [Sonda] za predvajalnik.
+     * Gostitelja za Scit ([Sonda.naucen]) uci klicatelj po preverjeni vsebini ([uci]). Blokira - z delovne niti; [preklic] ali
+     * prekinitev niti jo konca.
      */
-    fun sonda(c: Context, url: String, rokMs: Long = WebtorPravila.PRVI_BAJT_MS, uciScit: Boolean = true, preklic: Preklic? = null): Sonda {
+    fun sonda(c: Context, url: String, rokMs: Long = WebtorPravila.PRVI_BAJT_MS, preklic: Preklic? = null): Sonda {
         val zacetek = SystemClock.elapsedRealtime()
         fun ostane() = rokMs - (SystemClock.elapsedRealtime() - zacetek)
         val zacetni = SkrivniDodatki.dejanski(c, url)
@@ -196,72 +241,84 @@ object Webtor {
         var gostitelj = Zasebno.gostitelj(naslov)
         var preusmeritev = 0
         var preusmeritevMs: Long? = null
+        val dns = WebtorHttp.Preverjeni()
+        val klient = WebtorHttp.klient(dns, rokMs)
+        // Pregled 26, T9: vsaka zavrnitev nosi stevilo in cas preusmeritev ter razlog (brez naslova).
+        fun konec(koda: Int, potekel: Boolean, razlog: String) =
+            Sonda(koda, null, potekel, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs, razlog = razlog)
+        // Isti UA kot predvajalnik ([SpletniVir.agent]) - streznik toka vidi isto napravo.
+        val ua = try { SpletniVir.agent(c) } catch (_: Throwable) { "" }
         while (true) {
-            if (Thread.currentThread().isInterrupted || preklic?.preklican == true) return Sonda(0, null, false, gostitelj)
+            if (Thread.currentThread().isInterrupted || preklic?.preklican == true) return konec(0, false, "PREKLIC")
             val rok = ostane()
-            if (rok <= 0) return Sonda(0, null, true, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
-            if (!naslov.startsWith("https://")) return Sonda(0, null, false, gostitelj)
-            // Pregled U4: cilj (tudi po preusmeritvi) ne sme biti v domacem omrezju ali na tej napravi - po razresitvi DNS.
-            val naslovi = try { java.net.InetAddress.getAllByName(URL(naslov).host) } catch (_: Exception) { return Sonda(0, null, false, gostitelj) }
-            if (naslovi.isEmpty() || naslovi.any { WebtorPravila.zasebenNaslov(it.address) }) {
+            if (rok <= 0) return konec(0, true, "ROK")
+            if (!naslov.startsWith("https://")) return konec(0, false, "NI_HTTPS")
+            val zahteva = try {
+                val g = okhttp3.Request.Builder().url(naslov)
+                    .header("Range", "bytes=0-${WebtorPravila.GLAVA_BAJTOV - 1}")
+                    .header("Accept-Encoding", "identity")
+                if (ua.isNotBlank()) g.header("User-Agent", ua)
+                g.build()
+            } catch (_: IllegalArgumentException) { return konec(0, false, "NAPAKA") }
+            // Gostitelj kot naslov IP gre mimo DNS: preveri ga enako (zaseben = brez povezave).
+            try { dns.preveriIp(zahteva.url.host) } catch (_: WebtorHttp.ZasebenNaslov) {
                 Log.w(TAG, "sonda: cilj v zasebnem omrezju zavrnjen ($gostitelj)")
-                return Sonda(0, null, false, gostitelj)
+                return konec(0, false, "ZASEBNO")
             }
-            val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return Sonda(0, null, false, gostitelj) }
-            preklic?.povezava = p
-            if (preklic?.preklican == true) { p.disconnect(); return Sonda(0, null, false, gostitelj) }
-            val prekini = try { straza.schedule({ try { p.disconnect() } catch (_: Throwable) { } }, rok, TimeUnit.MILLISECONDS) } catch (_: Exception) { null }
+            val klic = klient.newCall(zahteva)
+            // Skupni rok vseh skokov: klic dobi preostanek (DNS, povezava, glave in prvi bajti).
+            klic.timeout().timeout(rok, TimeUnit.MILLISECONDS)
+            preklic?.klic = klic
+            if (preklic?.preklican == true) { klic.cancel(); return konec(0, false, "PREKLIC") }
+            var odgovor: okhttp3.Response? = null
             try {
-                p.instanceFollowRedirects = false
-                p.connectTimeout = rok.toInt().coerceAtLeast(1); p.readTimeout = rok.toInt().coerceAtLeast(1)
-                p.setRequestProperty("Range", "bytes=0-${WebtorPravila.GLAVA_BAJTOV - 1}")
-                p.setRequestProperty("Accept-Encoding", "identity")
-                // Isti UA kot predvajalnik ([SpletniVir.agent]) - streznik toka vidi isto napravo.
-                SpletniVir.agent(c).takeIf { it.isNotBlank() }?.let { p.setRequestProperty("User-Agent", it) }
-                val koda = p.responseCode
+                val r = klic.execute()
+                odgovor = r
+                val koda = r.code
                 if (koda in 300..399) {
                     if (preusmeritevMs == null) preusmeritevMs = SystemClock.elapsedRealtime() - zacetek
-                    val kam = p.getHeaderField("Location") ?: return Sonda(koda, null, false, gostitelj, preusmeritev = preusmeritev)
-                    if (++preusmeritev > 5) return Sonda(koda, null, false, gostitelj, preusmeritev = preusmeritev)
-                    naslov = URL(URL(naslov), kam).toString()
+                    val kam = r.header("Location") ?: return konec(koda, false, "BREZ_LOCATION")
+                    if (++preusmeritev > 5) return konec(koda, false, "PREVEC_PREUSMERITEV")
+                    naslov = r.request.url.resolve(kam)?.toString() ?: return konec(koda, false, "BREZ_LOCATION")
                     gostitelj = Zasebno.gostitelj(naslov)
                     continue
                 }
-                if (koda !in 200..299) return Sonda(koda, null, false, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
-                val vrsta = p.contentType.orEmpty()
-                val skupaj = WebtorPravila.skupnaVelikost(koda, p.getHeaderField("Content-Range"), p.contentLengthLong)
+                if (koda !in 200..299) return konec(koda, false, "KODA")
+                val telo = r.body ?: return konec(koda, false, "NAPAKA")
+                val vrsta = r.header("Content-Type").orEmpty()
+                val skupaj = WebtorPravila.skupnaVelikost(koda, r.header("Content-Range"), telo.contentLength())
                 // Prvi bajti (do GLAVA_BAJTOV): cas do PRVEGA bajta, nato preostanek glave (posoda, glava AVI, sledi MKV).
                 val glava = java.io.ByteArrayOutputStream(WebtorPravila.GLAVA_BAJTOV)
                 var ms: Long? = null
                 try {
-                    p.inputStream.use { vhod ->
-                        val buf = ByteArray(WebtorPravila.GLAVA_BAJTOV)
-                        while (glava.size() < WebtorPravila.GLAVA_BAJTOV) {
-                            val n = vhod.read(buf, 0, WebtorPravila.GLAVA_BAJTOV - glava.size())
-                            if (n < 0) break
-                            if (n > 0 && ms == null) ms = SystemClock.elapsedRealtime() - zacetek
-                            glava.write(buf, 0, n)
-                        }
+                    val vhod = telo.byteStream()
+                    val buf = ByteArray(WebtorPravila.GLAVA_BAJTOV)
+                    while (glava.size() < WebtorPravila.GLAVA_BAJTOV) {
+                        val n = vhod.read(buf, 0, WebtorPravila.GLAVA_BAJTOV - glava.size())
+                        if (n < 0) break
+                        if (n > 0 && ms == null) ms = SystemClock.elapsedRealtime() - zacetek
+                        glava.write(buf, 0, n)
                     }
                 } catch (e: java.io.IOException) {
                     // Rok ali prekinitev po prvih bajtih: velja, kar je prislo (posoda je v prvih bajtih).
                     if (glava.size() == 0) throw e
                 }
-                if (ms != null && uciScit) WebtorPravila.naucenGostitelj(zacetni, naslov, koda)?.let { g ->
-                    try { si.safeer.tv.scit.Scit.dovoliGostitelja(c, g) } catch (_: Throwable) { }
-                }
-                return Sonda(koda, ms, false, gostitelj, vrsta, skupaj, glava.toByteArray(), preusmeritev, naslov, preusmeritevMs)
-            } catch (_: java.net.SocketTimeoutException) {
-                return Sonda(0, null, true, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
-            } catch (e: Exception) {
-                // Straza je prekinila zahtevo (iztek skupnega roka), krog jo je preklical ali napaka omrezja.
-                if (preklic?.preklican == true) return Sonda(0, null, false, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
-                if (ostane() <= 0) return Sonda(0, null, true, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
+                val naucen = if (ms != null) WebtorPravila.naucenGostitelj(zacetni, naslov, koda) else null
+                return Sonda(koda, ms, false, gostitelj, vrsta, skupaj, glava.toByteArray(), preusmeritev, naslov, preusmeritevMs,
+                    naslovi = dns.za(r.request.url.host), naucen = naucen)
+            } catch (_: WebtorHttp.ZasebenNaslov) {
+                Log.w(TAG, "sonda: cilj v zasebnem omrezju zavrnjen ($gostitelj)")
+                return konec(0, false, "ZASEBNO")
+            } catch (_: java.net.UnknownHostException) {
+                return konec(0, false, "DNS")
+            } catch (e: java.io.IOException) {
+                // Preklic kroga, iztek roka klica (InterruptedIOException) ali napaka omrezja.
+                if (preklic?.preklican == true) return konec(0, false, "PREKLIC")
+                if (e is java.io.InterruptedIOException || ostane() <= 0) return konec(0, true, "ROK")
                 Log.w(TAG, "sonda: ${e.javaClass.simpleName}")
-                return Sonda(0, null, false, gostitelj)
+                return konec(0, false, "NAPAKA")
             } finally {
-                prekini?.cancel(false)
-                p.disconnect()
+                try { odgovor?.close() } catch (_: Throwable) { }
             }
         }
     }

@@ -75,6 +75,34 @@ object WebtorPravila {
     fun jeResolveNaslov(url: String): Boolean =
         url.trim().lowercase().startsWith("https://") && gostitelj(url) == GOSTITELJ && "/resolve/" in url.substringBefore('?')
 
+    /** Pot predvajalnika ([potPredvajalnika]). */
+    enum class Pot { WEBTOR, NAVADNA, ZAVRNI }
+
+    /**
+     * Pregled 26, T1 (fail-closed): kako predvajalnik odpre tok. [izvirni] = naslov v aplikaciji (lahko nadomestek), [pravi]
+     * = po SkrivniDodatki.dejanski, [neznan] = nadomestek, ki ga ta naprava ne zna razresiti. WEBTOR = samo prek sonde in
+     * preverjenega koncnega naslova (brez preusmeritev); ZAVRNI = neznan nadomestek ali tok na webtor.io (in poddomenah),
+     * ki ni `/resolve/` po https - nikoli stara pot, kjer bi predvajalnik sledil preusmeritvam sam; NAVADNA = vse drugo.
+     */
+    fun potPredvajalnika(izvirni: String, pravi: String, neznan: Boolean): Pot {
+        if (neznan) return Pot.ZAVRNI
+        if (jeResolveNaslov(pravi) || jeResolveNaslov(izvirni)) return Pot.WEBTOR
+        fun webtorGostitelj(n: String) = gostitelj(n).let { it == GOSTITELJ || it.endsWith(".$GOSTITELJ") }
+        return if (webtorGostitelj(pravi) || webtorGostitelj(izvirni)) Pot.ZAVRNI else Pot.NAVADNA
+    }
+
+    /** Pregled 26, T3: diagnostika velja najvec toliko sekund naprej (vrednost lastnosti = cas izteka). */
+    const val DIAGNOSTIKA_NAJVEC_S = 6L * 3600
+
+    /**
+     * Pregled 26, T3: vrednost lastnosti diagnostike (`debug.safeer.webtor_*`) = cas izteka v sekundah od 1970; velja samo,
+     * ce je v prihodnosti in najvec [DIAGNOSTIKA_NAJVEC_S] naprej (pozabljena lastnost se sama izklopi). [zdajS] = ura naprave.
+     */
+    fun diagnostikaVelja(vrednost: String?, zdajS: Long): Boolean {
+        val doS = vrednost?.trim()?.toLongOrNull() ?: return false
+        return doS > zdajS && doS - zdajS <= DIAGNOSTIKA_NAJVEC_S
+    }
+
     /**
      * Pregled V1: gostitelja toka se Scit nauci samo iz zahteve, ki se je ZACELA na `https://webtor.io/.../resolve/`, samo
      * KONCNEGA gostitelja (po vseh preusmeritvah, https) in sele po odgovoru 2xx. null = nicesar se ne naucimo. Nadaljnje
@@ -462,6 +490,18 @@ object WebtorPravila {
         }
         else -> Izid.NAPAKA
     }
+
+    /**
+     * Hitra zavrnitev vsebine ne steje kot poskus (skupno pravilo v4, pomocnik Windows 25. 10. 2026, naloga 21 B1): pri
+     * torrentih YTS CDN TorBox za idx filma vrne .srt; sonda ga zavrne v ~0,3-0,7 s, a je porabila enega od 2 poskusov.
+     */
+    const val HITRA_ZAVRNITEV_MS = 3_000L
+
+    /**
+     * Ali sonda steje med [NAJVEC_POSKUSOV]: [Izid.NAPACNA_VSEBINA] v manj kot [HITRA_ZAVRNITEV_MS] ne (skupni rok 15 s velja
+     * naprej - naslednji tok dobi preostanek). Vse drugo (tudi hitra 404/402/429) steje. Enako namizje (webtor.steje_kot_poskus).
+     */
+    fun stejeKotPoskus(izid: Izid, trajanjeMs: Long): Boolean = !(izid == Izid.NAPACNA_VSEBINA && trajanjeMs in 0 until HITRA_ZAVRNITEV_MS)
 
     /**
      * Pregled N3: koliko ms ima naslednja sonda Webtor v eni izbiri toka: skupaj najvec [PRVI_BAJT_MS] za vse sonde in
