@@ -1,6 +1,5 @@
 package si.safeer.tv.os
 
-import java.net.URI
 
 /**
  * Sonda kanala HLS do konca verige (lastnik, 25. 10. 2026: »kanali, ki ne delujejo, niso skriti - na primer vsi ABC
@@ -41,12 +40,114 @@ object SondaHlsPravila {
 
     /**
      * Relativna pot [pot] glede na naslov seznama [osnova] - naslov PO preusmeritvah (kot predvajalnik; s prvotnim naslovom
-     * je bil 25. 10. 2026 HTTP 414/404). Absolutna pot ostane; null = ni http(s) ali ni veljaven naslov.
+     * je bil 25. 10. 2026 HTTP 414/404). Absolutna pot ostane; null = ni http(s).
+     *
+     * Pregled 25. 10. (N2): razresimo tocno kot predvajalnik (Media3 UriUtil.resolve, RFC 3986), ne z java.net.URI (RFC
+     * 2396): ta je »?t=1« razresil v mapo namesto v isti seznam, »../« nad korenom pustil v naslovu in pri »|{}« vrgel izjemo
+     * - razlicica je dobila lazen 404 ali bila preskocena.
      */
-    fun razresi(osnova: String, pot: String): String? = try {
-        val r = URI(osnova).resolve(URI(pot.replace(" ", "%20"))).toString()
-        if (r.startsWith("http://") || r.startsWith("https://")) r else null
-    } catch (_: Exception) { null }
+    fun razresi(osnova: String, pot: String): String? {
+        val r = razresiUri(osnova, pot.trim())
+        return if (r.startsWith("http://") || r.startsWith("https://")) r else null
+    }
+
+    private const val SHEMA = 0
+    private const val POT = 1
+    private const val POIZVEDBA = 2
+    private const val DELCEK = 3
+
+    /** RFC 3986 razresitev [ref] glede na [osnova], prenesena iz Media3 UriUtil.resolve (brez Androida). */
+    fun razresiUri(osnova: String, ref: String): String {
+        val uri = StringBuilder()
+        val r = indeksi(ref)
+        // Absoluten naslov: to je cilj (pike v poti se pocistijo).
+        if (r[SHEMA] != -1) { uri.append(ref); return odstraniPike(uri, r[POT], r[POIZVEDBA]) }
+        val b = indeksi(osnova)
+        // Prazno ali samo delcek: osnova brez delcka + ref.
+        if (r[DELCEK] == 0) return uri.append(osnova, 0, b[DELCEK]).append(ref).toString()
+        // Samo poizvedba: osnova do poizvedbe + ref (isti seznam, nova poizvedba).
+        if (r[POIZVEDBA] == 0) return uri.append(osnova, 0, b[POIZVEDBA]).append(ref).toString()
+        // Ima avtoriteto (//gostitelj): shema osnove + ref.
+        if (r[POT] != 0) {
+            val meja = b[SHEMA] + 1
+            uri.append(osnova, 0, meja).append(ref)
+            return odstraniPike(uri, meja + r[POT], meja + r[POIZVEDBA])
+        }
+        // Pot od korena: shema in avtoriteta osnove + ref.
+        if (ref[r[POT]] == '/') {
+            uri.append(osnova, 0, b[POT]).append(ref)
+            return odstraniPike(uri, b[POT], b[POT] + r[POIZVEDBA])
+        }
+        // Osnova je samo avtoriteta brez poti: dodamo '/'.
+        if (b[SHEMA] + 2 < b[POT] && b[POT] == b[POIZVEDBA]) {
+            uri.append(osnova, 0, b[POT]).append('/').append(ref)
+            return odstraniPike(uri, b[POT], b[POT] + r[POIZVEDBA] + 1)
+        }
+        // Osnova do zadnjega '/' + ref.
+        val zadnja = osnova.lastIndexOf('/', b[POIZVEDBA] - 1)
+        val meja = if (zadnja == -1) b[POT] else zadnja + 1
+        uri.append(osnova, 0, meja).append(ref)
+        return odstraniPike(uri, b[POT], meja + r[POIZVEDBA])
+    }
+
+    /** Odstrani segmenta ».« in »..« v poti med [od] in [do_] (nad koren ne gre). */
+    private fun odstraniPike(uri: StringBuilder, od: Int, do_: Int): String {
+        var odmik = od
+        var meja = do_
+        if (odmik >= meja) return uri.toString()
+        if (uri[odmik] == '/') odmik++
+        var zacetek = odmik
+        var i = odmik
+        while (i <= meja) {
+            val naslednji: Int
+            if (i == meja) naslednji = i
+            else if (uri[i] == '/') naslednji = i + 1
+            else { i++; continue }
+            if (i == zacetek + 1 && uri[zacetek] == '.') {
+                uri.delete(zacetek, naslednji)
+                meja -= naslednji - zacetek
+                i = zacetek
+            } else if (i == zacetek + 2 && uri[zacetek] == '.' && uri[zacetek + 1] == '.') {
+                val prejsnji = uri.lastIndexOf("/", zacetek - 2) + 1
+                val odkod = if (prejsnji > odmik) prejsnji else odmik
+                uri.delete(odkod, naslednji)
+                meja -= naslednji - odkod
+                zacetek = prejsnji
+                i = prejsnji
+            } else {
+                i++
+                zacetek = i
+            }
+        }
+        return uri.toString()
+    }
+
+    /** Indeksi delov naslova: dvopicje sheme (-1 = je ni), zacetek poti, poizvedbe in delcka. */
+    private fun indeksi(s: String): IntArray {
+        val ind = IntArray(4)
+        if (s.isEmpty()) { ind[SHEMA] = -1; return ind }
+        val dolzina = s.length
+        var delcek = s.indexOf('#')
+        if (delcek == -1) delcek = dolzina
+        var poizvedba = s.indexOf('?')
+        if (poizvedba == -1 || poizvedba > delcek) poizvedba = delcek
+        var mejaSheme = s.indexOf('/')
+        if (mejaSheme == -1 || mejaSheme > poizvedba) mejaSheme = poizvedba
+        var shema = s.indexOf(':')
+        if (shema > mejaSheme) shema = -1
+        val avtoriteta = shema + 2 < poizvedba && s[shema + 1] == '/' && s[shema + 2] == '/'
+        val pot: Int
+        if (avtoriteta) {
+            var p = s.indexOf('/', shema + 3)
+            if (p == -1 || p > poizvedba) p = poizvedba
+            pot = p
+        } else pot = shema + 1
+        ind[SHEMA] = shema
+        ind[POT] = pot
+        ind[POIZVEDBA] = poizvedba
+        ind[DELCEK] = delcek
+        return ind
+    }
 
     /** Pasovna sirina iz #EXT-X-STREAM-INF (0, ce je ni). */
     private fun pasovna(vrstica: String): Long =
@@ -66,8 +167,9 @@ object SondaHlsPravila {
             vse += pasovna(v[i]) to url
         }
         if (vse.isEmpty()) return emptyList()
+        // Pregled 25. 10. (N3): Media3 zacne s PRVO nasteto razlicico - ta je prva; nato najvisja in najnizja, nato ostale.
         val poSirini = vse.sortedByDescending { it.first }
-        val red = (listOf(poSirini.first(), poSirini.last()) + poSirini).map { it.second }.distinct()
+        val red = (listOf(vse.first(), poSirini.first(), poSirini.last()) + vse).map { it.second }.distinct()
         return red.take(NAJVEC_RAZLICIC)
     }
 

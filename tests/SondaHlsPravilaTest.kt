@@ -29,8 +29,10 @@ fun main() {
     preveriEnako("seznam kosov ni glavni", false, P.jeGlavni("#EXTM3U\n#EXTINF:6,\na.ts\n"))
     val r = P.razlicice(abc, osnova)
     preveriEnako("najvec razlicic", P.NAJVEC_RAZLICIC, r.size)
-    preveriEnako("prva: najvisja pasovna sirina", "https://abcnews-streams.akamaized.net/hls/live/2023563/abcnewshudson4/index_5.m3u8", r[0])
-    preveriEnako("druga: najnizja", "https://abcnews-streams.akamaized.net/hls/live/2023563/abcnewshudson4/index_1.m3u8", r[1])
+    // N3: Media3 zacne s prvo nasteto razlicico - sonda tudi; nato najvisja in najnizja, nato ostale po vrsti.
+    preveriEnako("prva: prva nasteta (kot Media3)", "https://abcnews-streams.akamaized.net/hls/live/2023563/abcnewshudson4/index_1.m3u8", r[0])
+    preveriEnako("druga: najvisja pasovna sirina", "https://abcnews-streams.akamaized.net/hls/live/2023563/abcnewshudson4/index_5.m3u8", r[1])
+    preveriEnako("tretja: naslednja nasteta (najnizja je ze prva)", "https://abcnews-streams.akamaized.net/hls/live/2023563/abcnewshudson4/index_3.m3u8", r[2])
     preveriEnako("brez podvojenih", r.size, r.distinct().size)
 
     // Preusmeritev: relativna pot se razresi pri naslovu PO preusmeritvah (jmp2.uk -> Pluto; prej 414 pri jmp2.uk).
@@ -43,7 +45,26 @@ fun main() {
     preveriEnako("brez sirine: po vrsti", listOf("https://a.b/1.m3u8", "https://a.b/2.m3u8"),
         P.razlicice("#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=1x1\n1.m3u8\n#EXT-X-STREAM-INF:RESOLUTION=2x2\n2.m3u8\n", "https://a.b/m.m3u8"))
     preveriEnako("AVERAGE-BANDWIDTH ni BANDWIDTH", "https://a.b/hi.m3u8",
-        P.razlicice("#EXTM3U\n#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=9000000,BANDWIDTH=100\nlo.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=5000\nhi.m3u8\n", "https://a.b/m.m3u8").first())
+        P.razlicice("#EXTM3U\n#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=9000000,BANDWIDTH=100\nlo.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=5000\nhi.m3u8\n", "https://a.b/m.m3u8")[1])
+
+    // N2: razresitev kot Media3 UriUtil (RFC 3986), ne java.net.URI. Primeri iz pregleda:
+    preveriEnako("N2: samo poizvedba - isti seznam", "http://h/a/b.m3u8?t=1", P.razresi("http://h/a/b.m3u8", "?t=1"))
+    preveriEnako("N2: ../ nad korenom", "http://h/x.m3u8", P.razresi("http://h/a/b.m3u8", "../../../x.m3u8"))
+    preveriEnako("N2: | { } brez izjeme", "http://h/a/k|1{2}.ts", P.razresi("http://h/a/b.m3u8", "k|1{2}.ts"))
+    preveriEnako("N2: poizvedba osnove se ne prenese", "https://c/p/v.m3u8", P.razresi("https://c/p/m.m3u8?hdnea=st~exp", "v.m3u8"))
+    preveriEnako("N2: osnova brez poti", "http://h/v.m3u8", P.razresi("http://h", "v.m3u8"))
+    // RFC 3986, 5.4.1 (obicajni) in 5.4.2 (nenavadni) primeri z osnovo http://a/b/c/d;p?q
+    val b = "http://a/b/c/d;p?q"
+    val rfc = listOf("g:h" to "g:h", "g" to "http://a/b/c/g", "./g" to "http://a/b/c/g", "g/" to "http://a/b/c/g/",
+        "/g" to "http://a/g", "//g" to "http://g", "?y" to "http://a/b/c/d;p?y", "g?y" to "http://a/b/c/g?y",
+        "#s" to "http://a/b/c/d;p?q#s", "g#s" to "http://a/b/c/g#s", "g?y#s" to "http://a/b/c/g?y#s", ";x" to "http://a/b/c/;x",
+        "g;x" to "http://a/b/c/g;x", "g;x?y#s" to "http://a/b/c/g;x?y#s", "" to "http://a/b/c/d;p?q", "." to "http://a/b/c/",
+        "./" to "http://a/b/c/", ".." to "http://a/b/", "../" to "http://a/b/", "../g" to "http://a/b/g", "../.." to "http://a/",
+        "../../" to "http://a/", "../../g" to "http://a/g", "../../../g" to "http://a/g", "../../../../g" to "http://a/g",
+        "/./g" to "http://a/g", "/../g" to "http://a/g", "g." to "http://a/b/c/g.", ".g" to "http://a/b/c/.g", "g.." to "http://a/b/c/g..",
+        "..g" to "http://a/b/c/..g", "./../g" to "http://a/b/g", "./g/." to "http://a/b/c/g/", "g/./h" to "http://a/b/c/g/h",
+        "g/../h" to "http://a/b/c/h", "g;x=1/./y" to "http://a/b/c/g;x=1/y", "g;x=1/../y" to "http://a/b/c/y")
+    for ((ref, cilj) in rfc) preveriEnako("RFC 3986: »$ref«", cilj, P.razresiUri(b, ref))
     preveriEnako("glavni brez poti", emptyList<String>(), P.razlicice("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\n", "https://a.b/m.m3u8"))
 
     // Seznam kosov: zadnji kos (v zivo najnovejsi), kljuc AES, DRM.
