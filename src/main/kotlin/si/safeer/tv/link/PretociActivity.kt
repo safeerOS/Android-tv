@@ -21,16 +21,26 @@ class PretociActivity : Activity() {
         const val EXTRA_CILJ = "si.safeer.tv.link.PRETOCI_CILJ"
         const val EXTRA_PAKET = "si.safeer.tv.link.PRETOCI_PAKET"
         const val EXTRA_ZAHTEVA = "si.safeer.tv.link.PRETOCI_ZAHTEVA"
+        const val EXTRA_ODPRTO_TUKAJ = "si.safeer.tv.link.PRETOCI_ODPRTO_TUKAJ"
 
         /** Okno, ki caka na soglasje (najvec eno). */
         @Volatile private var odprta: java.lang.ref.WeakReference<PretociActivity>? = null
 
-        /** [zahteva]: zeton zahteve ([PretokKonec.Zahteve.nova]) - umaknjena ali pretecena zahteva ne zacne deljenja. */
-        fun namera(context: Context, cilj: String, paket: String, zahteva: Int): Intent =
+        /** Zeton zahteve, za katero se je to okno nazadnje odprlo (A2: ali je neposredni zagon uspel). */
+        @Volatile var odprtaZahteva: Int = 0
+            private set
+
+        /**
+         * [zahteva]: zeton zahteve ([PretokKonec.Zahteve.nova]) - umaknjena ali pretecena zahteva ne zacne deljenja.
+         * [odprtoTukaj]: deljenje zacenja »Odpri tukaj« naprave [cilj] (njen `apps.close` sme aplikacijo umakniti z
+         * zaslona); false, ce deljenja ni zacel »Odpri tukaj«.
+         */
+        fun namera(context: Context, cilj: String, paket: String, zahteva: Int, odprtoTukaj: Boolean = true): Intent =
             Intent(context, PretociActivity::class.java)
                 .putExtra(EXTRA_CILJ, cilj)
                 .putExtra(EXTRA_PAKET, paket)
                 .putExtra(EXTRA_ZAHTEVA, zahteva)
+                .putExtra(EXTRA_ODPRTO_TUKAJ, odprtoTukaj)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
 
         /** Zahteva je umaknjena ali zamenjana: okno za soglasje se zapre (skupaj s sistemskim vprasanjem za zajem zaslona). */
@@ -46,13 +56,16 @@ class PretociActivity : Activity() {
     private var cilj = ""
     private var paket = ""
     private var zahteva = 0
+    private var odprtoTukaj = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         cilj = intent?.getStringExtra(EXTRA_CILJ).orEmpty()
         paket = intent?.getStringExtra(EXTRA_PAKET).orEmpty()
         zahteva = intent?.getIntExtra(EXTRA_ZAHTEVA, 0) ?: 0
+        odprtoTukaj = intent?.getBooleanExtra(EXTRA_ODPRTO_TUKAJ, true) ?: true
         odprta = java.lang.ref.WeakReference(this)
+        odprtaZahteva = zahteva
         if (savedInstanceState != null) return
         // Odprli smo se (neposredno ali s tapom na obvestilo): obvestilo za zagon ni vec potrebno.
         Daljinec.pospraviObvestiloZagona(this)
@@ -89,7 +102,7 @@ class PretociActivity : Activity() {
             if (PretokKonec.zahteve.potrdi(zahteva)) {
                 // To deljenje je zacel »Odpri tukaj« naprave [cilj]: samo zanj sme `apps.close` te naprave umakniti aplikacijo.
                 // Zapis nastavi zacetek deljenja sam (zadnji parameter).
-                LinkMost.zazeniDeljenje(this, resultCode, data, cilj, cilj, cilj)
+                LinkMost.zazeniDeljenje(this, resultCode, data, cilj, cilj, if (odprtoTukaj) cilj else "")
                 Daljinec.nameraZaZagon(this, paket)?.let { namera ->
                     try { startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Aplikacije ni bilo mogoce odpreti: ${e.message}") }
                 }

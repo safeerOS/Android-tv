@@ -327,13 +327,35 @@ object Daljinec {
             prebudiZNamero(context, namera, ime)
             return izidBrezDovoljenja(context, ime)
         }
-        try {
-            context.startActivity(namera)
-        } catch (e: Throwable) {
-            Log.w(TAG, "Neposredni zagon $paket ni uspel: ${e.message}")
-        }
-        prebudiZNamero(context, namera, ime)
+        val neposredno = zazeniDejavnost(context, namera)
+        // S Safeer Vnosom vidimo, ali je aplikacija na zaslonu: obvestilo samo, ce se ni odprla (prej vedno).
+        namigPoZagonu(context, neposredno, VnosStoritev.aktivna(), { VnosStoritev.paketNaVrhu()?.let { it == paket } }, namera, ime)
         return Izid(true, "Odpiram $ime", JSONObject().put("package", paket).put("label", ime))
+    }
+
+    /** Zagon dejavnosti: prek Safeer Vnosa, ce je vklopljen (zagon iz ozadja je dovoljen, A2), sicer navadno. */
+    private fun zazeniDejavnost(context: Context, namera: Intent): Boolean {
+        if (VnosStoritev.zazeni(namera)) return true
+        return try { context.startActivity(namera); true } catch (e: Throwable) {
+            Log.w(TAG, "Neposredni zagon ni uspel: ${e.message}"); false
+        }
+    }
+
+    /**
+     * Rezervno obvestilo »tapni za nadaljevanje« po neposrednem zagonu (A2): takoj, ce zagon ni uspel ali tega ne moremo
+     * preveriti ([preverljivo]); sicer sele po [DeljenjePravila.NAMIG_PO_MS], ce [odprlo] pove, da okna ni na zaslonu.
+     */
+    private fun namigPoZagonu(context: Context, neposredno: Boolean, preverljivo: Boolean, odprlo: () -> Boolean?,
+                              namera: Intent, ime: String, besedilo: Int = si.safeer.tv.R.string.ui_link_zagon_odpri, velja: Long = 0L) {
+        if (DeljenjePravila.namigTakoj(neposredno, preverljivo)) { prebudiZNamero(context, namera, ime, besedilo, velja); return }
+        val app = context.applicationContext
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            val je = try { odprlo() } catch (_: Throwable) { null }
+            if (DeljenjePravila.namigPozneje(je)) {
+                Log.i(TAG, "Okno se po neposrednem zagonu ni odprlo ($je): rezervno obvestilo")
+                prebudiZNamero(app, namera, ime, besedilo, velja)
+            }
+        }, DeljenjePravila.NAMIG_PO_MS)
     }
 
     /** Odpre magnet povezavo v Safeer OS (MagnetActivity); brskalnik je nima. Povezavo najprej preverimo. */
@@ -426,20 +448,54 @@ object Daljinec {
         val ime = if (celZaslon) context.getString(si.safeer.tv.R.string.os_zaslon) else try {
             context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(paket, 0)).toString()
         } catch (_: Throwable) { paket }
-        // Ena zahteva naenkrat: nova zamenja staro (okno stare se zapre, njena potrditev ne zacne nicesar). Zahteva velja
-        // dve minuti ([PretokKonec.CAKA_MS]): obvestilo potem izgine, pozna potrditev ne zacne deljenja.
-        PretociActivity.zapriCakajoco()
-        val namera = PretociActivity.namera(context, cilj, paket, PretokKonec.zahteve.nova(cilj))
-        if (!smeZagnatiIzOzadja(context)) {
-            prebudiZNamero(context, namera, ime, velja = PretokKonec.CAKA_MS)
-            return izidBrezDovoljenja(context, ime)
+        // A1 (nacrt »dex-upravljanje«): ena potrditev na ogled, ne na aplikacijo. Ko zaslon tej napravi ze delimo, aplikacijo
+        // samo odpremo - slika gre v okno, ki je na racunalniku ze odprto. »stream: pending« ostane zaradi starejsega
+        // racunalnika (brez njega pove »posodobi Safeer«); »session: running« pove, da novega okna ne bo.
+        when (DeljenjePravila.pot(cilj, celZaslon, DeljenjeZaslonaStoritev.tece, DeljenjeZaslonaStoritev.cilj,
+                PretokKonec.zahteve.zacenjaZa(), false)) {
+            DeljenjePravila.Pot.ZE_DELIM -> return Izid(true, "Zaslon se tej napravi že deli",
+                JSONObject().put("package", paket).put("label", ime).put("stream", "pending").put("session", "running"))
+            DeljenjePravila.Pot.ODPRI_V_SEJI -> {
+                val izid = zazeniAplikacijo(context, paket)
+                if (!izid.ok) return izid
+                Log.i(TAG, "Odpri tukaj: aplikacija v tekocem deljenju, brez novega soglasja")
+                return Izid(true, "Odpiram $ime v oknu, ki je že odprto",
+                    (izid.podatki ?: JSONObject()).put("stream", "pending").put("session", "running"))
+            }
+            DeljenjePravila.Pot.NOVA_SEJA -> { }
         }
-        try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Pretakanja ni bilo mogoce zaceti: ${e.message}") }
-        prebudiZNamero(context, namera, ime, si.safeer.tv.R.string.ui_link_zagon_pretok, velja = PretokKonec.CAKA_MS)
+        if (!zahtevajDeljenje(context, cilj, paket, ime, odprtoTukaj = true, samodejno = true, besedilo = si.safeer.tv.R.string.ui_link_zagon_pretok))
+            return izidBrezDovoljenja(context, ime)
         if (celZaslon) return Izid(true, "Na napravi potrdi deljenje zaslona",
             JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
         return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
             JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
+    }
+
+    /**
+     * Nova zahteva za deljenje zaslona napravi [cilj]: nevidna [PretociActivity] vprasa za soglasje. Ena zahteva naenkrat:
+     * nova zamenja staro (okno stare se zapre, njena potrditev ne zacne nicesar). Zahteva velja dve minuti
+     * ([PretokKonec.CAKA_MS]): obvestilo potem izgine, pozna potrditev ne zacne deljenja.
+     *
+     * [samodejno]: okno za soglasje odpremo takoj, kadar Android zagon iz ozadja dovoli (A2: tudi s Safeer Vnosom);
+     * obvestilo je potem samo rezerva, ce se okno ni odprlo. Sicer (in brez dovoljenja) samo obvestilo, ki ga uporabnik
+     * tapne. Vrne false, ce je bil zahtevan takojsnji zagon, a ga Android ne bi dovolil (objavljeno je samo obvestilo).
+     */
+    private fun zahtevajDeljenje(context: Context, cilj: String, paket: String, ime: String, odprtoTukaj: Boolean,
+                                 samodejno: Boolean, besedilo: Int): Boolean {
+        PretociActivity.zapriCakajoco()
+        val zeton = PretokKonec.zahteve.nova(cilj)
+        val namera = PretociActivity.namera(context, cilj, paket, zeton, odprtoTukaj)
+        if (!samodejno || !smeZagnatiIzOzadja(context)) {
+            prebudiZNamero(context, namera, ime, besedilo, velja = PretokKonec.CAKA_MS)
+            return !samodejno
+        }
+        val neposredno = zazeniDejavnost(context, namera)
+        Log.i(TAG, "Okno za soglasje: neposredni zagon=${neposredno} (Safeer Vnos=${VnosStoritev.aktivna()})")
+        // Zahteva, ki ne caka vec (potrjena, zavrnjena, umaknjena), obvestila ne potrebuje.
+        namigPoZagonu(context, neposredno, true, { PretociActivity.odprtaZahteva == zeton || !PretokKonec.zahteve.caka(zeton) },
+            namera, ime, besedilo, PretokKonec.CAKA_MS)
+        return true
     }
 
     private const val KANAL_ZAGON = "safeer_link_zagon"
@@ -456,12 +512,13 @@ object Daljinec {
     private const val OBVESTILO_DOVOLJENJE = 4047
     const val KODA_DOVOLJENJE_PRIKAZ = "potrebno_dovoljenje_prikaz"
 
-    /** Ali sme Safeer odpreti program, ko ni v ospredju (Android 10+: "Prikaz cez druge aplikacije"). */
-    private fun smeZagnatiIzOzadja(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true
-        if (android.provider.Settings.canDrawOverlays(context)) return true
-        return jeVOspredju(context)
-    }
+    /**
+     * Ali sme Safeer odpreti program, ko ni v ospredju (Android 10+: "Prikaz cez druge aplikacije"). A2: tudi z vklopljenim
+     * Safeer Vnosom - sistem ga veze z BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS ([VnosStoritev.zazeni]).
+     */
+    fun smeZagnatiIzOzadja(context: Context): Boolean = DeljenjePravila.smeIzOzadja(Build.VERSION.SDK_INT,
+        try { android.provider.Settings.canDrawOverlays(context) } catch (_: Throwable) { false },
+        VnosStoritev.aktivna(), jeVOspredju(context))
 
     private fun jeVOspredju(context: Context): Boolean = try {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager

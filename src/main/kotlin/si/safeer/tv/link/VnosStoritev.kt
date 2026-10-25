@@ -42,6 +42,25 @@ class VnosStoritev : AccessibilityService() {
         /** Ali je uporabnik Safeer Vnos vklopil (in ga sistem tece). */
         fun aktivna(): Boolean = instanca != null
 
+        /**
+         * Odpre dejavnost iz konteksta Safeer Vnosa (nacrt »dex-upravljanje« A2). Sistem storitev dostopnosti veze z
+         * BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS (AOSP AccessibilityServiceConnection), zato Android zagona iz ozadja ne
+         * zavrne - okno za soglasje se odpre takoj, brez tapa na obvestilo. False: Vnos ni vklopljen ali zagon ni uspel.
+         */
+        fun zazeni(namera: android.content.Intent): Boolean {
+            val s = instanca ?: return false
+            return try { s.startActivity(namera); true } catch (e: Throwable) {
+                Log.w(TAG, "Zagona iz Safeer Vnosa ni bilo mogoce izvesti: ${e.message}"); false
+            }
+        }
+
+        /**
+         * Paket aktivnega okna - samo za preverbo, ali se je aplikacija po zagonu res odprla (nic ne gre z naprave).
+         * Null: Vnos ni vklopljen ali okna ni mogoce prebrati.
+         */
+        fun paketNaVrhu(): String? =
+            try { instanca?.rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }
+
         /** Dotik na delezu zaslona (0..1). */
         fun dotik(x: Double, y: Double, trajanjeMs: Long = 60): Boolean =
             instanca?.poteza(x, y, x, y, trajanjeMs) ?: false
