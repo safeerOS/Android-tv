@@ -159,6 +159,10 @@ object Webtor {
 
     fun meritev(): Boolean = try { Log.isLoggable(MERI, Log.DEBUG) } catch (_: Throwable) { false }
 
+    /** Diagnostika: `adb shell setprop log.tag.SafeerWebtorSamo DEBUG` - izbira toka gre po poti rezerve Webtor (meritev). */
+    private const val SAMO = "SafeerWebtorSamo"
+    fun samoWebtor(): Boolean = try { Log.isLoggable(SAMO, Log.DEBUG) } catch (_: Throwable) { false }
+
     /**
      * Meritev za odlocitve po podatkih (rok sonde, izbira datoteke): vsak kandidat ([oznaka] brez naslova, nadomestek
      * [url], pricakovana velikost) v svoji niti z rokom [rokMs]; izpis v dnevnik [MERI]. Ne predvaja in ne uci Scita.

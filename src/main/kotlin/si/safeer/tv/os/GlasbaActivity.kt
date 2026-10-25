@@ -8744,11 +8744,17 @@ class GlasbaActivity : OsActivity() {
                           obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
-        val predpomnjeni = pripravljeno.predpomnjeni
+        // Diagnostika razvijalca ([Webtor.samoWebtor], samo prek adb): pot, kjer debrid toka nima - brez ⚡ pri debridu,
+        // neposrednih povezav in Useneta; torrenti ostanejo za ujemanje izdaje Webtor. Izmerjeno 25. 10. 2026: Sintel in
+        // Tears of Steel imata neposredno povezavo, zato rezerve Webtor brez tega ni mogoce izmeriti.
+        val samoWebtor = Webtor.samoWebtor()
+        if (samoWebtor) android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor")
+        val predpomnjeni = if (samoWebtor) emptySet<String>() else pripravljeno.predpomnjeni
         // Webtor rezerva (25. 10. 2026): tokovi Webtor [⚡TB] (podvajajo nas TorBox) in [P2P] (posnetek z oglasom za paket)
         // izpadejo takoj ([WebtorPravila.skrij]).
         val imamoTorBox = Debrid.aktivna(this) != null && DebridPravila.TORBOX in Debrid.zKljucem(this)
         val tokovi = vsiTokovi.filterNot { it.vir == WebtorPravila.VIR && WebtorPravila.skrij(WebtorPravila.vrstaIz(it.oznakaVira), imamoTorBox) }
+            .filter { !samoWebtor || it.vir == WebtorPravila.VIR || it.vrsta == "torrent" }
         // Brez predvajljivega toka ni okna in ni seznama povezav (prosnje za donacijo, Discord, "No streams found" so ze
         // izlocene v Stremio.tok): kratko obvestilo, vsebina pa izgine s seznama (lastnik, 2. 10. 2026).
         // Torrent steje le, ce ga ta naprava zmore: prek pomocnika v Linku ali sama, ce datoteka gre na njen prostor.
@@ -8953,7 +8959,7 @@ class GlasbaActivity : OsActivity() {
             // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
             // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
-            pripravljeno.usenet?.let { (t, cdn) ->
+            pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn) ->
                 android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen pri TorBoxu; izbran=${TokIzbira.opisi(opis(t))}")
                 Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(DebridPravila.TORBOX)), Toast.LENGTH_SHORT).show()
                 odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
