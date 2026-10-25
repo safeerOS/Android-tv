@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos na televizorju (okus os): ime in opis storitve dostopnosti. -->
+<resources>
+    <string name="vnos_ime">Safeer Input</string>
+    <string name="vnos_opis">Un computer della tua cerchia ristretta in Safeer Link (Safeer Control) può spostare la selezione, confermare e premere Indietro o Home su questo televisore, come con il telecomando. Safeer Input non invia nulla dallo schermo da nessuna parte; esegue solo ciò che chiede un dispositivo a cui questo televisore ha concesso «Schermo e controllo».</string>
+</resources>

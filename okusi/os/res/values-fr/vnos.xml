@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos na televizorju (okus os): ime in opis storitve dostopnosti. -->
+<resources>
+    <string name="vnos_ime">Safeer Saisie</string>
+    <string name="vnos_opis">Un ordinateur de votre cercle proche dans Safeer Link (Safeer Control) peut déplacer la sélection, valider et appuyer sur Retour ou Accueil sur ce téléviseur, comme avec la télécommande. Safeer Saisie n’envoie rien de votre écran nulle part ; il exécute seulement ce que demande un appareil auquel ce téléviseur a accordé « Écran et contrôle ».</string>
+</resources>

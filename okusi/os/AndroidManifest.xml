@@ -13,6 +13,11 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
+    <!-- Safeer Vnos z ENO privolitvijo (lastnik 25. 10. 2026): ko uporabnik napravi v ozjem krogu odpre »Zaslon in
+         upravljanje«, aplikacija sama vpise SVOJO storitev dostopnosti (link/VnosVklop). Dovoljenja uporabnik ne vidi in
+         ga aplikacija ne more dobiti sama: podeli ga samo namestitev prek adb (install_safeer.sh, korak »upravljanje«). Brez
+         njega ostane voden korak na stran Safeer Vnosa. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <!-- SYSTEM_ALERT_WINDOW ostane (iz skupnega manifesta): Safeer OS sprejema ukaze Safeer Linka in
          odpre program, ki ga izbere seznanjena naprava (racunalnik, telefon). Android 10+ zagona iz ozadja
          brez tega dovoljenja ne dovoli ("Abort background activity starts"). Ne zahtevamo ga ob
@@ -100,6 +105,20 @@
             android:authorities="${applicationId}.spletne"
             android:exported="true"
             android:permission="si.safeer.tv.permission.LINK" />
+
+        <!-- Safeer Vnos: misko in tipkovnico z racunalnika v ozjem krogu (Safeer Control) prevede v izbiro, OK, Nazaj in
+             Domov na televizorju. Do 25. 10. 2026 je bil samo na telefonu in tablici - televizor ga ni imel (izmerjeno
+             10:44, si.safeer.os 0.5.110). Vklopi se z eno privolitvijo v Safeer Linku (link/VnosVklop). -->
+        <service
+            android:name="si.safeer.tv.link.VnosStoritev"
+            android:label="@string/vnos_ime"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/safeer_vnos" />
+        </service>
 
     </application>
 </manifest>

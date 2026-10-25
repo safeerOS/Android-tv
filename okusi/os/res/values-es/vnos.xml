@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos na televizorju (okus os): ime in opis storitve dostopnosti. -->
+<resources>
+    <string name="vnos_ime">Safeer Entrada</string>
+    <string name="vnos_opis">Un ordenador de tu círculo cercano en Safeer Link (Safeer Control) puede mover la selección, confirmar y pulsar Atrás o Inicio en este televisor, como con el mando. Safeer Entrada no envía nada de tu pantalla a ningún sitio; solo ejecuta lo que pide un dispositivo al que este televisor dio «Pantalla y control».</string>
+</resources>
