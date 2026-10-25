@@ -577,7 +577,9 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (vseAplikacije.isEmpty()) Aplikacije.zadnjiZnani(this)?.let { vseAplikacije = it; narisiVse() }
         Aplikacije.osveziVOzadju(this, vseAplikacije.ifEmpty { null }) { svez ->
             if (isFinishing || isDestroyed) return@osveziVOzadju
-            vseAplikacije = svez
+            // Brez velikih ikon iz LauncherApps (vsaka aplikacija svojo): mreza ima svoje majhne (ikonaMala). Izmerjeno
+            // 25. 10. 2026 na tablici (~70 aplikacij): seznam z ikonami je namizju dodal ~25 MB PSS.
+            vseAplikacije = svez.map { if (it.ikona == null) it else it.copy(ikona = null) }
             narisiVse()
         }
     }
