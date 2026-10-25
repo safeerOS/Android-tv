@@ -162,11 +162,19 @@ object UskladitevKljucev {
             val kljuc = Debrid.kljuc(c, p)
             // Lastnik 25. 10. 2026: med naprave gre samo kljuc, ki ga je storitev potrdila; nepreverjen ali zavrnjen ni ne
             // vrednost ne izbris (neznan) - drugim napravam ne povozi in ne izbrise veljavnega.
-            if (kljuc != null && Debrid.kljucVelja(c, p)) v[k] = kljuc else if (Debrid.kljucShranjen(c, p)) neznani += k
+            when (P.oddaja(kljuc != null, Debrid.kljucShranjen(c, p), Debrid.kljucVelja(c, p))) {
+                UskladitevKljucevPravila.Oddaja.VREDNOST -> if (kljuc != null) v[k] = kljuc
+                UskladitevKljucevPravila.Oddaja.NEZNAN -> neznani += k
+                UskladitevKljucevPravila.Oddaja.BREZ -> Unit
+            }
         }
+        // Enako indeksator Usenet: samo potrjen (Usenet.vpisi / preveriNepreverjenega) gre z vrednostjo.
         val u = Usenet.indeksator(c)
-        if (u != null) v[P.KLJUC_USENET] = JSONObject().put("url", u.osnova).put("key", u.kljuc).toString()
-        else if (Usenet.shranjen(c)) neznani += P.KLJUC_USENET
+        when (P.oddaja(u != null, Usenet.shranjen(c), Usenet.velja(c))) {
+            UskladitevKljucevPravila.Oddaja.VREDNOST -> if (u != null) v[P.KLJUC_USENET] = JSONObject().put("url", u.osnova).put("key", u.kljuc).toString()
+            UskladitevKljucevPravila.Oddaja.NEZNAN -> neznani += P.KLJUC_USENET
+            UskladitevKljucevPravila.Oddaja.BREZ -> Unit
+        }
         SkrivniDodatki.nalozi(c)
         for (vir in MedijskiViri.vsi(c)) {
             if (!vir.jeStremio) continue
@@ -217,8 +225,9 @@ object UskladitevKljucev {
                 if (z.izbrisan) { Debrid.pozabiKljuc(c, p); true } else Debrid.sprejmiKljuc(c, p, z.vrednost)
             }
             z.kljuc == P.KLJUC_USENET ->
+                // Lastnik 25. 10. 2026: prejeti indeksator se pred uporabo preveri s te naprave (zavrnjen ne prepise veljavnega).
                 if (z.izbrisan) { Usenet.pozabi(c); true }
-                else JSONObject(z.vrednost).let { Usenet.nastavi(c, it.optString("url"), it.optString("key")) }
+                else JSONObject(z.vrednost).let { Usenet.sprejmi(c, it.optString("url"), it.optString("key")) }
             z.kljuc.startsWith(P.PREDPONA_DODATKA) -> {
                 val odtis = z.kljuc.removePrefix(P.PREDPONA_DODATKA)
                 if (z.izbrisan) { MedijskiViri.odstraniSkrivniDodatek(c, odtis); true }

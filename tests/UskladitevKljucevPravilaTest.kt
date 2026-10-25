@@ -163,5 +163,14 @@ fun main() {
     preveriEnako("za poslati: samo lastni zapisi (U2)", listOf(Zapis(tb, 2, "a", false, "v")),
         P.zaPoslati(mapOf(tb to Meta(2, "a", false, "h"), "usenet" to Meta(3, "b", false, "h")), mapOf(tb to "v", "usenet" to "u"), "a"))
 
+    // Lastnik 25. 10. 2026: z vrednostjo gre samo potrjen kljuc (debrid in indeksator); nepreverjen ali zavrnjen je neznan.
+    preveriEnako("oddaja: potrjen gre z vrednostjo", UskladitevKljucevPravila.Oddaja.VREDNOST, P.oddaja(prebran = true, shranjen = true, velja = true))
+    preveriEnako("oddaja: nepreverjen ali zavrnjen je neznan", UskladitevKljucevPravila.Oddaja.NEZNAN, P.oddaja(prebran = true, shranjen = true, velja = false))
+    preveriEnako("oddaja: neberljiv (Keystore) je neznan", UskladitevKljucevPravila.Oddaja.NEZNAN, P.oddaja(prebran = false, shranjen = true, velja = false))
+    preveriEnako("oddaja: ni kljuca -> izbris", UskladitevKljucevPravila.Oddaja.BREZ, P.oddaja(prebran = false, shranjen = false, velja = false))
+    // Nepreverjen indeksator (neznan) na drugih napravah ne povozi in ne izbrise ze poslanega veljavnega.
+    preveriEnako("oddaja: neznan indeksator ne izbrise poslanega", emptyMap<String, Meta>(),
+        P.lokalneSpremembe(mapOf("usenet" to Meta(5, "a", false, "h")), emptyMap(), setOf("usenet"), "a", 10, false))
+
     if (napak == 0) println("UskladitevKljucevPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

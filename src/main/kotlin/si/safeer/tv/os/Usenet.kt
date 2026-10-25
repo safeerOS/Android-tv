@@ -28,14 +28,6 @@ object Usenet {
 
     fun imaIndeksator(c: Context): Boolean = indeksator(c) != null
 
-    /** Shrani indeksator; false, ce naslov ali kljuc nista veljavna ali shramba ni uspela. */
-    fun nastavi(c: Context, naslov: String, kljuc: String): Boolean {
-        val o = UsenetPravila.osnova(naslov) ?: return false
-        val k = UsenetPravila.ocistiKljuc(kljuc) ?: return false
-        // Sprememba gre sama na naprave v ozjem krogu (UskladitevKljucev).
-        return SporocilaSkrivnosti.shrani(c, SKRIVNOST, JSONObject().put("url", o).put("key", k).toString()).also { if (it) UskladitevKljucev.sprozi(c) }
-    }
-
     fun pozabi(c: Context) {
         SporocilaSkrivnosti.pozabi(c, SKRIVNOST); prefs(c).edit().remove(KLJUC_STANJE).apply(); UskladitevKljucev.sprozi(c)
     }
@@ -56,6 +48,30 @@ object Usenet {
     fun stanje(c: Context): DebridPravila.StanjeKljuca? {
         val ix = indeksator(c) ?: return null
         return DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), odtis(ix.osnova, ix.kljuc))?.first
+    }
+
+    /** Indeksator, ki ga je indeksator potrdil - samo tak gre med naprave v ozjem krogu (UskladitevKljucevPravila.oddaja). */
+    fun velja(c: Context): Boolean = DebridPravila.zaUskladitev(stanje(c))
+
+    /**
+     * Indeksator z druge naprave (usklajevanje, »Poslji kljuce«) - delovna nit. Uporabi se samo, ce ga indeksator potrdi tudi
+     * s te naprave ([UsenetPravila.sprejem]); zavrnjen nikoli ne prepise shranjenega, brez odgovora pocaka na naslednjo
+     * uskladitev. false = ni uporabljen.
+     */
+    fun sprejmi(c: Context, naslov: String, kljuc: String): Boolean {
+        val prejet = UsenetPravila.prejetIndeksator(naslov, kljuc)
+        val shranjen = indeksator(c)?.let { it.osnova to it.kljuc }
+        return when (UsenetPravila.sprejem(prejet, shranjen, velja(c)) { o, k -> preveri(o, k) }) {
+            UsenetPravila.Sprejem.ENAK -> true
+            UsenetPravila.Sprejem.ZAVRNI -> { Log.i(TAG, "prejeti indeksator: ni potrjen - ni uporabljen"); false }
+            UsenetPravila.Sprejem.SHRANI -> {
+                val ix = prejet ?: return false
+                if (!shrani(c, ix.first, ix.second)) return false
+                zapisiStanje(c, ix.first, ix.second, DebridPravila.StanjeKljuca.VELJA)
+                zadnjaPreverba = System.currentTimeMillis()
+                true
+            }
+        }
     }
 
     private fun zapisiStanje(c: Context, osnova: String, kljuc: String, s: DebridPravila.StanjeKljuca) {

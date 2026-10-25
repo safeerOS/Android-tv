@@ -453,7 +453,7 @@ object Debrid {
     fun shraniPrejete(c: Context, p: Prejeti): List<String> =
         // Lastnik 25. 10. 2026: prejeti kljuc se pred shranjevanjem preveri pri storitvi ([sprejmiKljuc]) - delovna nit.
         p.kljuci.filter { (ponudnik, k) -> sprejmiKljuc(c, ponudnik, k) }.keys.toList() +
-            listOfNotNull(p.indeksator?.takeIf { (n, k) -> Usenet.nastavi(c, n, k) }?.let { UsenetPravila.VRSTA }) +
+            listOfNotNull(p.indeksator?.takeIf { (n, k) -> Usenet.sprejmi(c, n, k) }?.let { UsenetPravila.VRSTA }) +
             // Webtor rezerva: dodatki s poverilnico - sifrirano kot nadomestek ([MedijskiViri.dodajDodatek]).
             p.dodatki.mapNotNull { n -> MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, n, "")?.let { PREDPONA_DODATKA + Zasebno.gostitelj(n) } }
 

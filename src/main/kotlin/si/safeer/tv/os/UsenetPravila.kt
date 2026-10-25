@@ -82,11 +82,9 @@ object UsenetPravila {
      * Indeksator, ki ga je poslala druga naprava v ozjem krogu (skupaj s kljuci debrid, naloga 129): velja samo, ce sta
      * naslov in kljuc veljavna po istih pravilih kot vnos na tej napravi. null = ni poslan ali ni veljaven.
      */
-    fun prejetIndeksator(naslov: String?, kljuc: String?): Pair<String, String>? {
-        val o = naslov?.let { osnova(it) } ?: return null
-        val k = kljuc?.let { ocistiKljuc(it) } ?: return null
-        return o to k
-    }
+    fun prejetIndeksator(naslov: String?, kljuc: String?): Pair<String, String>? =
+        // Lastnik 25. 10. 2026: tudi vzorec kljuca (kot pri vnosu) ni indeksator.
+        if (naslov == null || kljuc == null) null else izVnosa(naslov, kljuc)
 
     /** Kljuc API indeksatorja: 8-128 znakov, crke, stevke, '-', '_' (Newznab: obicajno 32 heks). */
     fun ocistiKljuc(vnos: String): String? {
@@ -145,6 +143,21 @@ object UsenetPravila {
         val izid = preveri(ix.first, ix.second)
         val s = DebridPravila.stanjePoPreverbi(izid)
         return Vpis(izid, if (s != null) ix else null, s)
+    }
+
+    /** Odlocitev za prejeti indeksator: [ENAK] = ze shranjen in potrjen, [SHRANI] = potrjen s te naprave, [ZAVRNI] = nic. */
+    enum class Sprejem { ENAK, SHRANI, ZAVRNI }
+
+    /**
+     * Prejeti indeksator (usklajevanje v ozjem krogu ali »Poslji kljuce«; [prejet] iz [prejetIndeksator]). Lastnik 25. 10.
+     * 2026: uporabi se samo, ce ga [preveri] potrdi tudi s te naprave (DebridPravila.sprejmiPrejetega) - zavrnjen ali
+     * nepreverjen nikoli ne prepise shranjenega. Enak shranjenemu, ki je ze potrjen ([shranjenVelja]), se ne preverja znova.
+     */
+    fun sprejem(prejet: Pair<String, String>?, shranjen: Pair<String, String>?, shranjenVelja: Boolean,
+                preveri: (String, String) -> DebridPravila.Preverba): Sprejem {
+        val p = prejet ?: return Sprejem.ZAVRNI
+        if (p == shranjen && shranjenVelja) return Sprejem.ENAK
+        return if (DebridPravila.sprejmiPrejetega(preveri(p.first, p.second))) Sprejem.SHRANI else Sprejem.ZAVRNI
     }
 
     /**

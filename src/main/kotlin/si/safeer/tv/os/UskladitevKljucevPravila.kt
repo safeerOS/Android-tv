@@ -97,6 +97,20 @@ object UskladitevKljucevPravila {
         return izid
     }
 
+    /** Kaj gre za en kljuc (debrid ali indeksator) v [lokalneSpremembe]: vrednost, neznan ali nic (izbris). */
+    enum class Oddaja { VREDNOST, NEZNAN, BREZ }
+
+    /**
+     * Lastnik 25. 10. 2026 (v polje TorBox vpisan vzorec se je raznesel po ozjem krogu): z vrednostjo gre samo kljuc, ki ga je
+     * storitev ali indeksator potrdil ([velja]). Shranjen, a nepreverjen, zavrnjen ali ta hip neberljiv ([prebran] false)
+     * kljuc je neznan - drugim napravam ne povozi in ne izbrise veljavnega. Kljuca, ki ga ni, ni (izbris).
+     */
+    fun oddaja(prebran: Boolean, shranjen: Boolean, velja: Boolean): Oddaja = when {
+        prebran && velja -> Oddaja.VREDNOST
+        prebran || shranjen -> Oddaja.NEZNAN
+        else -> Oddaja.BREZ
+    }
+
     /**
      * Prejeti zapisi -> tisti, ki jih je treba uporabiti tu (novejsi od lokalnih), z veljavnim kljucem in vrednostjo
      * ([veljavnaVrednost]). Najvec [NAJVEC_ZAPISOV]; za isti kljuc velja najnovejsi; cas iz dalnje prihodnosti zavrnemo.

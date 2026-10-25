@@ -190,5 +190,27 @@ fun main() {
         UsenetPravila.preverbaIndeksatorja(403, "<!DOCTYPE html><title>Just a moment...</title>"))
     preveriEnako("preverba: preusmeritev ni potrditev", DebridPravila.Preverba.NI_ODGOVORA, UsenetPravila.preverbaIndeksatorja(302, ""))
 
+    // Lastnik 25. 10. 2026: prejeti indeksator (usklajevanje, »Poslji kljuce«) se pred uporabo preveri na tej napravi.
+    preveriEnako("prejem: vzorec kljuca ni indeksator", null, UsenetPravila.prejetIndeksator("https://nzbfinder.ws", "your-indexer-api-key"))
+    preveriEnako("prejem: veljaven zapis", "https://nzbfinder.ws" to ix, UsenetPravila.prejetIndeksator("https://nzbfinder.ws/api", ix))
+    val nas = "https://nzbfinder.ws" to ix
+    val drug = "https://nzbfinder.ws" to "0a1b2c3d4e5f60718293a4b5c6d7e8f9"
+    klicev = 0
+    preveriEnako("prejem: nic prejeto -> zavrni brez klica", listOf(UsenetPravila.Sprejem.ZAVRNI, 0),
+        listOf(UsenetPravila.sprejem(null, nas, true, preverba(DebridPravila.Preverba.VELJA)), klicev))
+    preveriEnako("prejem: enak potrjenemu -> brez klica", listOf(UsenetPravila.Sprejem.ENAK, 0),
+        listOf(UsenetPravila.sprejem(nas, nas, true, preverba(DebridPravila.Preverba.NE_VELJA)), klicev))
+    preveriEnako("prejem: zavrnjen ne prepise veljavnega", listOf(UsenetPravila.Sprejem.ZAVRNI, 1),
+        listOf(UsenetPravila.sprejem(drug, nas, true, preverba(DebridPravila.Preverba.NE_VELJA)), klicev))
+    preveriEnako("prejem: brez odgovora ne prepise", UsenetPravila.Sprejem.ZAVRNI,
+        UsenetPravila.sprejem(drug, nas, true, preverba(DebridPravila.Preverba.NI_ODGOVORA)))
+    preveriEnako("prejem: meja ne prepise", UsenetPravila.Sprejem.ZAVRNI,
+        UsenetPravila.sprejem(drug, nas, true, preverba(DebridPravila.Preverba.MEJA)))
+    preveriEnako("prejem: potrjen s te naprave se shrani", UsenetPravila.Sprejem.SHRANI,
+        UsenetPravila.sprejem(drug, nas, true, preverba(DebridPravila.Preverba.VELJA)))
+    klicev = 0
+    preveriEnako("prejem: enak, a tu nepreverjen -> preveri", listOf(UsenetPravila.Sprejem.SHRANI, 1),
+        listOf(UsenetPravila.sprejem(nas, nas, false, preverba(DebridPravila.Preverba.VELJA)), klicev))
+
     if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
