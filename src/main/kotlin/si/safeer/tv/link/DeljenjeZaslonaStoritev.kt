@@ -175,10 +175,13 @@ class DeljenjeZaslonaStoritev : Service() {
             return START_NOT_STICKY
         }
         if (intent.action == ACTION_ZAUPAJ || intent.action == ACTION_NE_ZAUPAJ) {
-            if (tece && cilj.isNotBlank()) {
-                ZaupanjeZaslona.nastavi(this, cilj, intent.action == ACTION_ZAUPAJ)
+            val zaupaj = intent.action == ACTION_ZAUPAJ
+            // Pregled dex-a U5: velja samo za napravo iz obvestila, ne med cakanjem na odklep, ponudba se preveri znova.
+            if (DeljenjePravila.zaupajIzObvestila(zaupaj, tece, cilj, intent.getStringExtra(EXTRA_CILJ).orEmpty(), cakaNaOdklep,
+                    ZaupanjeZaslona.ponudi(this, cilj))) {
+                ZaupanjeZaslona.nastavi(this, cilj, zaupaj)
                 posodobiObvestilo()
-            } else stopSelf(startId)   // staro obvestilo, deljenja ni vec: storitev ne ostane prizgana
+            } else if (!tece) stopSelf(startId)   // staro obvestilo, deljenja ni vec: storitev ne ostane prizgana
             return START_NOT_STICKY
         }
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
@@ -238,6 +241,12 @@ class DeljenjeZaslonaStoritev : Service() {
         // Deljenje tece: odslej ga ukaz za konec najde po cilju, oznaka zagona ni vec potrebna.
         PretokKonec.zahteve.zagonKoncan()
         pokaziZnak()
+        // Pregled dex-a U3: brez okna za soglasje mora biti znak res viden - obvestilo ali gumb, ki se je pokazal.
+        if (!DeljenjePravila.znakZagotovljen(ZaupanjeZaslona.projekcijaDovoljena(this), Daljinec.obvestilaVklopljena(this, KANAL), znak != null)) {
+            Log.w(TAG, "Deljenje ustavljeno: znak deljenja se ni pokazal in obvestil ni")
+            koncaj("Deljenja ne nadaljujem: naprava ne kaže, da se zaslon deli. Vklopi obvestila za Safeer.")
+            return START_NOT_STICKY
+        }
         zadnjaNapaka = ""
         zadnjaKoda = ""
         zadnjaZasedenaOd = ""
@@ -780,14 +789,17 @@ class DeljenjeZaslonaStoritev : Service() {
         // A3: »Vedno dovoli temu racunalniku« za napravo iz ozjega kroga (ali preklic) - en tap, brez dodatnega okna.
         try {
             val vedno = cilj.isNotBlank() && ZaupanjeZaslona.vedno(this, cilj) && ZaupanjeZaslona.vKrogu(this, cilj)
-            val ponudi = cilj.isNotBlank() && !vedno && ZaupanjeZaslona.ponudi(this, cilj)
+            // Pregled dex-a U5: »Vedno dovoli« ne med cakanjem na odklep; namera nosi napravo; od API 31 samo odklenjeno.
+            val ponudi = cilj.isNotBlank() && !vedno && !cakaNaOdklep && ZaupanjeZaslona.ponudi(this, cilj)
             if (vedno || ponudi) {
                 val dejanje = if (vedno) ACTION_NE_ZAUPAJ else ACTION_ZAUPAJ
                 val cakajoca = PendingIntent.getService(this, if (vedno) 3 else 2,
-                    Intent(this, DeljenjeZaslonaStoritev::class.java).apply { action = dejanje }, zastavice)
+                    Intent(this, DeljenjeZaslonaStoritev::class.java).apply { action = dejanje; putExtra(EXTRA_CILJ, cilj) }, zastavice)
                 val oznaka = if (vedno) getString(si.safeer.tv.R.string.deljenje_ne_vec) else Daljinec.oznakaVednoDovoli(this, cilj)
                 val kljucavnica = android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_lock_idle_lock)
-                gradnik.addAction(Notification.Action.Builder(kljucavnica, oznaka, cakajoca).build())
+                val akcija = Notification.Action.Builder(kljucavnica, oznaka, cakajoca)
+                if (!vedno && Build.VERSION.SDK_INT >= 31) akcija.setAuthenticationRequired(true)
+                gradnik.addAction(akcija.build())
             }
         } catch (e: Throwable) {
             Log.w(TAG, "Gumba »Vedno dovoli« ni bilo mogoce dodati: ${e.message}")

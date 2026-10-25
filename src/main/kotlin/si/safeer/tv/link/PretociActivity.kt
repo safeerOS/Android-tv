@@ -30,6 +30,12 @@ class PretociActivity : Activity() {
         /** Okno, ki caka na soglasje (najvec eno). */
         @Volatile private var odprta: java.lang.ref.WeakReference<PretociActivity>? = null
 
+        /**
+         * Pregled dex-a U2: ali je odprto okno za soglasje (Safeerjevo vprasanje ali sistemsko okno Androida nad njim) - takrat
+         * Daljinec zavrne vnos vseh naprav (naprava, ki zahteva zaslon, bi sicer sama tapnila »Dovoli«).
+         */
+        fun vprasanjeOdprto(): Boolean = odprta?.get()?.let { !it.isFinishing && !it.isDestroyed } == true
+
         /** Zeton zahteve, za katero se je to okno nazadnje odprlo (A2: ali je neposredni zagon uspel). */
         @Volatile var odprtaZahteva: Int = 0
             private set
@@ -115,14 +121,16 @@ class PretociActivity : Activity() {
     private fun vprasajSafeer() {
         val ime = Daljinec.imeNaprave(this, cilj)
         try {
-            vprasanje = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            val graditelj = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(getString(si.safeer.tv.R.string.deljenje_potrditev_naslov))
                 .setMessage(getString(si.safeer.tv.R.string.deljenje_potrditev_besedilo, ime))
                 .setPositiveButton(getString(si.safeer.tv.R.string.deljenje_dovoli)) { _, _ -> zahtevajZajem() }
-                .setNeutralButton(Daljinec.oznakaVednoDovoli(this, cilj)) { _, _ ->
-                    ZaupanjeZaslona.nastavi(this, cilj, true)
-                    zahtevajZajem()
-                }
+            // Pregled dex-a U4: »Vedno dovoli« samo napravi iz ozjega kroga, ki se ni zaupana (kot v obvestilu).
+            if (ZaupanjeZaslona.ponudi(this, cilj)) graditelj.setNeutralButton(Daljinec.oznakaVednoDovoli(this, cilj)) { _, _ ->
+                ZaupanjeZaslona.nastavi(this, cilj, true)
+                zahtevajZajem()
+            }
+            vprasanje = graditelj
                 .setNegativeButton(getString(si.safeer.tv.R.string.deljenje_zavrni)) { _, _ -> zavrnjeno() }
                 .setOnCancelListener { zavrnjeno() }
                 .show()

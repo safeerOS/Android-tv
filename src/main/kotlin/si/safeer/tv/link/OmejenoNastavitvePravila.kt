@@ -45,6 +45,18 @@ object OmejenoNastavitvePravila {
      * ([PACKAGE_SOURCE_LOCAL_FILE] = 3) in prenesena datoteka ([PACKAGE_SOURCE_DOWNLOADED_FILE] = 4) sta. Izmerjeno
      * 25. 10. 2026: omejitev velja za 3 in 4 (prej je tu veljala samo 3).
      */
+    /**
+     * Pregled dex-a U12: uporabnik je stikalo »poskusil«, ce je od prvega vodenega odprtja Safeer Vnosa ([odprtoMs]) minilo
+     * vsaj [POSKUS_PO_MS] (imel je cas tapniti) in najvec [CIKEL_MS] - prej je ze drugi klic pomenil »poskusil«.
+     */
+    fun poskusil(odprtoMs: Long, zdajMs: Long): Boolean = odprtoMs > 0 && zdajMs - odprtoMs in POSKUS_PO_MS..CIKEL_MS
+
+    /** Cas prvega odprtja v tem ciklu: obdrzi prejsnjega, dokler cikel velja; sicer zdaj. */
+    fun casOdprtja(prejMs: Long, zdajMs: Long): Long = if (prejMs > 0 && zdajMs - prejMs in 0..CIKEL_MS) prejMs else zdajMs
+
+    const val POSKUS_PO_MS = 15_000L
+    const val CIKEL_MS = 10L * 60 * 1000
+
     const val PACKAGE_SOURCE_LOCAL_FILE = 3
     const val PACKAGE_SOURCE_DOWNLOADED_FILE = 4
 

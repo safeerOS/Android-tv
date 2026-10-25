@@ -32,7 +32,11 @@ object KrogNaprave {
             k.podpisnik = { podatki -> try { HubTls.podpisi(podatki) } catch (_: Throwable) { null } }
             // Umik naprave iz kroga ali nova naprava: Safeer Vnos sledi ozjemu krogu (link/VnosVklop).
             val app = context.applicationContext
-            k.obSpremembi = { si.safeer.tv.link.VnosVklop.uskladi(app, "krog") }
+            k.obSpremembi = {
+                si.safeer.tv.link.VnosVklop.uskladi(app, "krog")
+                // Pregled dex-a U7: umik iz kroga izbrise »Vedno dovoli« za deljenje zaslona.
+                try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(app) } catch (_: Throwable) { }
+            }
             krog = k
         }
 

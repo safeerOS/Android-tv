@@ -53,7 +53,7 @@ class VnosStoritev : AccessibilityService() {
         fun zazeni(namera: android.content.Intent): Boolean {
             val s = instanca ?: return false
             return try { s.startActivity(namera); true } catch (e: Throwable) {
-                Log.w(TAG, "Zagona iz Safeer Vnosa ni bilo mogoce izvesti: ${e.message}"); false
+                Log.w(TAG, "Zagona iz Safeer Vnosa ni bilo mogoce izvesti: ${e.javaClass.simpleName}"); false
             }
         }
 

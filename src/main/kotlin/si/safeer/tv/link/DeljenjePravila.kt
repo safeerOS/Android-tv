@@ -95,6 +95,31 @@ object DeljenjePravila {
     /** Ali gumb »Vedno dovoli« ponudimo: samo napravi iz ozjega kroga, ki se ni zaupana (in nikoli tej napravi sami). */
     fun ponudiZaupanje(vKrogu: Boolean, vednoDovoli: Boolean, taNaprava: Boolean): Boolean = vKrogu && !vednoDovoli && !taNaprava
 
+    /** Pregled dex-a (Grok, 25. 10. 2026) U4: »Vedno dovoli« se zapise samo za napravo iz ozjega kroga, nikoli za to napravo. */
+    fun smeZaupati(vKrogu: Boolean, taNaprava: Boolean): Boolean = vKrogu && !taNaprava
+
+    /**
+     * Pregled dex-a U5: dejanje »Vedno dovoli« iz obvestila velja samo za napravo, za katero je bilo obvestilo ([ciljNamere]
+     * = [cilj] tekocega deljenja), samo med tekocim deljenjem (ne med cakanjem na odklep) in samo, ce jo je se smiselno
+     * ponuditi ([ponudi]). Preklic (»ne vec«) velja vedno za tekoci cilj.
+     */
+    fun zaupajIzObvestila(zaupaj: Boolean, tece: Boolean, cilj: String, ciljNamere: String, cakaNaOdklep: Boolean, ponudi: Boolean): Boolean =
+        tece && cilj.isNotBlank() && ciljNamere == cilj && (!zaupaj || (!cakaNaOdklep && ponudi))
+
+    /** Pregled dex-a U7: zaupanje ostane samo napravam, ki so se v ozjem krogu (umik ga izbrise; ponovna vkljucitev ga ne obudi). */
+    fun zaupanjaVKrogu(zapis: Set<String>, vKrogu: (String) -> Boolean): Set<String> =
+        zapis.filter { j -> try { vKrogu(j) } catch (_: Throwable) { false } }.toSet()
+
+    /**
+     * Pregled dex-a U1: nacin AppOps PROJECT_MEDIA -> ali ima Safeer trajno dovoljenje. Ce nacina ni bilo mogoce prebrati
+     * ([nacin] null), velja, kot da ga ima (»ne vem« ni »ne«): takrat Safeer sam vprasa in zahteva viden znak - prej je
+     * napaka pomenila »Android bo vprasal sam«, in obe varovalki sta se izklopili.
+     */
+    fun projekcijaPoNacinu(nacin: Int?): Boolean = nacin == null || nacin == MODE_ALLOWED
+
+    /** AppOpsManager.MODE_ALLOWED. */
+    const val MODE_ALLOWED = 0
+
     // ------------------------------------------------------------------ A4
 
     /** Najdlje toliko deljenje caka na odklep; potem se konca kot vsako drugo (racunalnik zapre okno). */
@@ -142,6 +167,21 @@ object DeljenjePravila {
     /** Med cakanjem na odklep vnosa z racunalnika ne izvedemo: tipke in dotiki bi sli na zaklepni zaslon. */
     fun vnosDovoljen(cakaNaOdklep: Boolean): Boolean = !cakaNaOdklep
 
+    enum class ZavrnitevVnosa { NI, VPRASANJE, CAKA_NA_ODKLEP, ZAKLENJENO }
+
+    /**
+     * Pregled dex-a U2 in U6: vnos z druge naprave (dotik, tipka, besedilo, igralni plosek) zavrnemo, dokler je odprto
+     * vprasanje za deljenje zaslona (Safeerjevo ali sistemsko - naprava, ki zaslon zahteva, bi sama tapnila »Dovoli«), dokler
+     * deljenje caka na odklep in dokler je naprava zaklenjena (po stanju zaklepa, ne po ustavitvi projekcije - pred Androidom
+     * 15 QPR1 projekcija ob zaklepu tece naprej).
+     */
+    fun zavrnitevVnosa(cakaNaOdklep: Boolean, zaklenjeno: Boolean, vprasanjeOdprto: Boolean): ZavrnitevVnosa = when {
+        vprasanjeOdprto -> ZavrnitevVnosa.VPRASANJE
+        cakaNaOdklep -> ZavrnitevVnosa.CAKA_NA_ODKLEP
+        zaklenjeno -> ZavrnitevVnosa.ZAKLENJENO
+        else -> ZavrnitevVnosa.NI
+    }
+
     /**
      * Ali nov zagon storitve deljenja nadaljuje deljenje, ki caka na odklep (isti tok do istega racunalnika, isto okno
      * na njem), namesto da bi zacel novega.
@@ -159,6 +199,13 @@ object DeljenjePravila {
      */
     fun smeZacetiBrezOkna(projekcijaDovoljena: Boolean, obvestila: Boolean, prekrivanje: Boolean): Boolean =
         !projekcijaDovoljena || obvestila || prekrivanje
+
+    /**
+     * Pregled dex-a U3: po zacetku deljenja brez okna za soglasje mora biti znak RES viden - obvestilo ali gumb, ki se je
+     * pokazal ([gumbPrikazan]); ce addView ne uspe in obvestil ni, se deljenje konca (prej je teklo naprej brez znaka).
+     */
+    fun znakZagotovljen(projekcijaDovoljena: Boolean, obvestila: Boolean, gumbPrikazan: Boolean): Boolean =
+        !projekcijaDovoljena || obvestila || gumbPrikazan
 
     /** Odgovor na »Odpri tukaj« brez vprasanja pocaka, da deljenje res stece - najvec toliko (racunalnik caka 8 s). */
     const val CAKA_ZACETEK_MS = 4_000L

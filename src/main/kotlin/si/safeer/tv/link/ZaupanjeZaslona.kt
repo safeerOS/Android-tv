@@ -35,6 +35,8 @@ object ZaupanjeZaslona {
     fun nastavi(ctx: Context, id: String, da: Boolean) {
         val j = jedro(ctx, id)
         if (j.isEmpty()) return
+        // Pregled dex-a U4: »Vedno dovoli« samo napravi iz ozjega kroga, nikoli tej napravi.
+        if (da && !DeljenjePravila.smeZaupati(vKrogu(ctx, id), try { si.safeer.tv.cast.Dostop.jeTaNaprava(ctx, id) } catch (_: Throwable) { true })) return
         synchronized(this) {
             val novo = HashSet(zapis(ctx))
             val spremenjeno = if (da) novo.add(j) else novo.remove(j)
@@ -60,11 +62,29 @@ object ZaupanjeZaslona {
      * hasProjectionPermission). Samo branje (checkOp, ne noteOp) - nic se ne zapise v zgodovino dostopov.
      */
     fun projekcijaDovoljena(ctx: Context): Boolean {
-        if (Build.VERSION.SDK_INT < 29) return false
-        return try {
-            val ao = ctx.getSystemService(android.app.AppOpsManager::class.java) ?: return false
-            ao.unsafeCheckOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName) ==
-                android.app.AppOpsManager.MODE_ALLOWED
-        } catch (_: Throwable) { false }
+        // Pregled dex-a U1: napaka ali neznan nacin = kot da trajno dovoljenje je (Safeer vprasa sam in zahteva viden znak);
+        // pod API 29 checkOpNoThrow (od API 19), ne vec takojsnji »ne«.
+        val nacin: Int? = try {
+            val ao = ctx.getSystemService(android.app.AppOpsManager::class.java)
+            if (ao == null) null
+            else if (Build.VERSION.SDK_INT >= 29) ao.unsafeCheckOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName)
+            else @Suppress("DEPRECATION") ao.checkOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName)
+        } catch (_: Throwable) { null }
+        return DeljenjePravila.projekcijaPoNacinu(nacin)
+    }
+
+    /** Pregled dex-a U7: zaupanje napravam, ki niso vec v ozjem krogu, se izbrise (po spremembi kroga ali dostopa). */
+    fun pocisti(ctx: Context) {
+        val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        synchronized(this) {
+            val prej = zapis(ctx)
+            if (prej.isEmpty()) return
+            val ostane = DeljenjePravila.zaupanjaVKrogu(prej) { j ->
+                OzjiKrogPravila.vKrogu(si.safeer.tv.cast.Dostop.zmoznostiJedra(ctx, j), false)
+            }
+            if (ostane == prej) return
+            prefs.edit().putStringSet(KLJUC, HashSet(ostane)).apply()
+        }
+        Log.i(TAG, "Zaupanje za deljenje zaslona izbrisano napravam zunaj ozjega kroga.")
     }
 }

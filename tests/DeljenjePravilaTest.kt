@@ -129,5 +129,34 @@ fun main() {
     check(DeljenjePravila.brezZagona(obvestila = true) == DeljenjePravila.BrezZagona.OBVESTILO)
     check(DeljenjePravila.brezZagona(obvestila = false) == DeljenjePravila.BrezZagona.NASTAVITVE)
 
+    // --- pregled dex-a (Grok, 25. 10. 2026)
+    // U2: med vprasanjem za deljenje zaslona noben vnos (naprava bi sama tapnila »Dovoli«).
+    check(DeljenjePravila.zavrnitevVnosa(cakaNaOdklep = false, zaklenjeno = false, vprasanjeOdprto = true) == DeljenjePravila.ZavrnitevVnosa.VPRASANJE)
+    // U6: zaklenjena naprava zavrne vnos tudi, ko projekcija tece naprej (Android pred 15 QPR1).
+    check(DeljenjePravila.zavrnitevVnosa(cakaNaOdklep = false, zaklenjeno = true, vprasanjeOdprto = false) == DeljenjePravila.ZavrnitevVnosa.ZAKLENJENO)
+    check(DeljenjePravila.zavrnitevVnosa(cakaNaOdklep = true, zaklenjeno = false, vprasanjeOdprto = false) == DeljenjePravila.ZavrnitevVnosa.CAKA_NA_ODKLEP)
+    check(DeljenjePravila.zavrnitevVnosa(cakaNaOdklep = false, zaklenjeno = false, vprasanjeOdprto = false) == DeljenjePravila.ZavrnitevVnosa.NI)
+    // U1: neznan nacin PROJECT_MEDIA velja kot trajno dovoljenje (Safeer vprasa sam, zahteva znak).
+    check(DeljenjePravila.projekcijaPoNacinu(null))
+    check(DeljenjePravila.projekcijaPoNacinu(0) && !DeljenjePravila.projekcijaPoNacinu(1) && !DeljenjePravila.projekcijaPoNacinu(3))
+    check(DeljenjePravila.potrditev(DeljenjePravila.projekcijaPoNacinu(null), zaupano = false) == DeljenjePravila.Potrditev.NASA)
+    // U3: znak mora biti res viden: brez obvestil in brez prikazanega gumba se deljenje konca.
+    check(!DeljenjePravila.znakZagotovljen(projekcijaDovoljena = true, obvestila = false, gumbPrikazan = false))
+    check(DeljenjePravila.znakZagotovljen(true, false, true) && DeljenjePravila.znakZagotovljen(true, true, false))
+    check(DeljenjePravila.znakZagotovljen(false, false, false))       // sistemsko okno je bilo pokazano
+    // U4: »Vedno dovoli« samo napravi iz ozjega kroga, nikoli tej napravi.
+    check(DeljenjePravila.smeZaupati(vKrogu = true, taNaprava = false))
+    check(!DeljenjePravila.smeZaupati(vKrogu = false, taNaprava = false) && !DeljenjePravila.smeZaupati(true, true))
+    // U5: dejanje iz obvestila samo za napravo iz obvestila, ne med cakanjem na odklep, s ponovno preverbo ponudbe.
+    check(DeljenjePravila.zaupajIzObvestila(true, tece = true, cilj = "n-a", ciljNamere = "n-a", cakaNaOdklep = false, ponudi = true))
+    check(!DeljenjePravila.zaupajIzObvestila(true, true, "n-a", "n-b", false, true))     // zamenjan cilj
+    check(!DeljenjePravila.zaupajIzObvestila(true, true, "n-a", "n-a", true, true))      // caka na odklep
+    check(!DeljenjePravila.zaupajIzObvestila(true, true, "n-a", "n-a", false, false))    // ni vec v krogu
+    check(!DeljenjePravila.zaupajIzObvestila(true, false, "n-a", "n-a", false, true))    // deljenje ne tece
+    check(DeljenjePravila.zaupajIzObvestila(false, true, "n-a", "n-a", true, false))     // preklic vedno
+    // U7: umik iz ozjega kroga izbrise zaupanje.
+    check(DeljenjePravila.zaupanjaVKrogu(setOf("n-a", "n-b")) { it == "n-a" } == setOf("n-a"))
+    check(DeljenjePravila.zaupanjaVKrogu(setOf("n-a")) { throw IllegalStateException() }.isEmpty())
+
     println("DeljenjePravilaTest: OK")
 }

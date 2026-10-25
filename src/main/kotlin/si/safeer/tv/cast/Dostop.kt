@@ -221,6 +221,8 @@ object Dostop {
                 .putString(KLJUC_PRIVOLITEV_DATOTEK, JSONArray(datoteke.sorted()).toString()).apply()
         }
         Log.i(TAG, "Dostop naprave $j: ${DostopPravila.vNiz(novo).ifEmpty { "brez" }}")
+        // Pregled dex-a U7: brez zaslona (umik iz ozjega kroga) zaupanje za deljenje zaslona ne ostane.
+        if (Zmoznost.ZASLON !in novo) try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(ctx) } catch (_: Throwable) { }
         try { naSpremembo?.invoke() } catch (_: Throwable) { }
     }
 

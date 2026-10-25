@@ -363,7 +363,7 @@ object Daljinec {
     private fun zazeniDejavnost(context: Context, namera: Intent): Boolean {
         if (VnosStoritev.zazeni(namera)) return true
         return try { context.startActivity(namera); true } catch (e: Throwable) {
-            Log.w(TAG, "Neposredni zagon ni uspel: ${e.message}"); false
+            Log.w(TAG, "Neposredni zagon ni uspel: ${e.javaClass.simpleName}"); false    // pregled dex-a U11: brez imena paketa
         }
     }
 
@@ -788,8 +788,8 @@ object Daljinec {
      */
     private fun vnos(context: Context, d: String, p: JSONObject): Izid {
         if (d == "input.enable") return vklopiVnos(context)
-        // A4: deljenje caka na odklep - dotik ali tipka z racunalnika bi sla na zaklepni zaslon.
-        if (!DeljenjePravila.vnosDovoljen(DeljenjeZaslonaStoritev.cakaNaOdklep)) return izidZaklenjeno()
+        // A4: deljenje caka na odklep - dotik ali tipka z racunalnika bi sla na zaklepni zaslon; pregled dex-a U2/U6.
+        izidBrezVnosa(context)?.let { return it }
         if (!VnosStoritev.aktivna()) {
             // Storitve, ki je ta gradnja nima, ne obljubljamo (lastnikov TV 25. 10. 2026: navodilo za stikalo, ki ga ni bilo).
             if (!VnosVklop.vGradnji(context)) return Izid(false, "Ta aplikacija nima Safeer Vnosa.", koda = KODA_NI_NA_VOLJO)
@@ -893,16 +893,43 @@ object Daljinec {
      */
     private fun omejenoZaklenjeno(context: Context): Boolean = VnosVklop.omejenoZaklenjeno(context)
 
-    private fun jeZePoskusilVnos(context: Context): Boolean =
-        try { context.getSharedPreferences(PREFS_VNOS, Context.MODE_PRIVATE).getBoolean("poskusil", false) } catch (_: Throwable) { false }
+    /**
+     * Pregled dex-a U12: »poskusil« sele, ko je uporabnik po prvem vodenem odprtju imel cas tapniti stikalo
+     * (OmejenoNastavitvePravila.poskusil) - prej je ze drugi input.enable (tudi z druge naprave) svetoval odklep s PIN-om.
+     */
+    private fun jeZePoskusilVnos(context: Context): Boolean = try {
+        OmejenoNastavitvePravila.poskusil(context.getSharedPreferences(PREFS_VNOS, Context.MODE_PRIVATE).getLong("odprto_ms", 0L),
+            System.currentTimeMillis())
+    } catch (_: Throwable) { false }
 
     private fun beleziPoskusVnosa(context: Context) {
-        try { context.getSharedPreferences(PREFS_VNOS, Context.MODE_PRIVATE).edit().putBoolean("poskusil", true).apply() } catch (_: Throwable) { }
+        try {
+            val p = context.getSharedPreferences(PREFS_VNOS, Context.MODE_PRIVATE)
+            p.edit().putLong("odprto_ms", OmejenoNastavitvePravila.casOdprtja(p.getLong("odprto_ms", 0L), System.currentTimeMillis())).apply()
+        } catch (_: Throwable) { }
     }
 
-    /** Odgovor racunalniku na vnos, medtem ko deljenje caka na odklep (A4). */
+    /** Odgovor racunalniku na vnos, medtem ko deljenje caka na odklep (A4) ali je naprava zaklenjena. */
     private fun izidZaklenjeno(): Izid =
         Izid(false, "Naprava je zaklenjena – odkleni jo za nadaljevanje.", koda = KODA_ZAKLENJENO)
+
+    /**
+     * Pregled dex-a (Grok, 25. 10. 2026) U2 in U6: vnos z druge naprave zavrnemo med vprasanjem za deljenje zaslona, med
+     * cakanjem na odklep in ko je naprava zaklenjena (KeyguardManager ob vsakem ukazu; napaka = zaklenjeno). Null = sme.
+     */
+    private fun izidBrezVnosa(context: Context): Izid? {
+        val zaklenjeno = try {
+            (context.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isKeyguardLocked
+        } catch (_: Throwable) { true }
+        return when (DeljenjePravila.zavrnitevVnosa(DeljenjeZaslonaStoritev.cakaNaOdklep, zaklenjeno, PretociActivity.vprasanjeOdprto())) {
+            DeljenjePravila.ZavrnitevVnosa.NI -> null
+            DeljenjePravila.ZavrnitevVnosa.VPRASANJE -> Izid(false,
+                "Na napravi je odprto vprašanje za deljenje zaslona – odgovori na napravi sami.", koda = KODA_CAKA_POTRDITEV)
+            else -> izidZaklenjeno()
+        }
+    }
+
+    const val KODA_CAKA_POTRDITEV = "caka_potrditev"
 
     const val KODA_ZAKLENJENO = "zaklenjeno"
 
@@ -913,7 +940,7 @@ object Daljinec {
      * naprava ne sme poslati poljubnih koordinat. Tako telefon ne dobi splosnega dostopa do zaslona.
      */
     private fun igralniPloskek(context: Context, d: String, p: JSONObject): Izid {
-        if (!DeljenjePravila.vnosDovoljen(DeljenjeZaslonaStoritev.cakaNaOdklep)) return izidZaklenjeno()
+        izidBrezVnosa(context)?.let { return it }
         if (!VnosStoritev.aktivna()) return Izid(false,
             "Na napravi z igro vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
         val ok = when (d) {

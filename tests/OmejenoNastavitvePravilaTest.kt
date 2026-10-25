@@ -25,6 +25,14 @@ fun main() {
     check(OmejenoNastavitvePravila.omejenoVelja(34, OmejenoNastavitvePravila.PACKAGE_SOURCE_LOCAL_FILE))
     check(OmejenoNastavitvePravila.omejenoVelja(33, 3))
     check(!OmejenoNastavitvePravila.omejenoVelja(32, 3))        // Android 12: omejitve ni
+    // Pregled dex-a U12: drugi klic takoj za prvim ni »poskusil«; po 15 s (cas za tap) da; po 10 min nov cikel.
+    check(!OmejenoNastavitvePravila.poskusil(0L, 1_000_000L))
+    check(!OmejenoNastavitvePravila.poskusil(1_000_000L, 1_002_000L))
+    check(OmejenoNastavitvePravila.poskusil(1_000_000L, 1_020_000L))
+    check(!OmejenoNastavitvePravila.poskusil(1_000_000L, 1_000_000L + 11 * 60_000L))
+    check(OmejenoNastavitvePravila.casOdprtja(1_000_000L, 1_002_000L) == 1_000_000L)
+    check(OmejenoNastavitvePravila.casOdprtja(0L, 5L) == 5L)
+    check(OmejenoNastavitvePravila.casOdprtja(1_000_000L, 1_000_000L + 11 * 60_000L) == 1_000_000L + 11 * 60_000L)
     // Izmerjeno 25. 10. 2026: omejitev velja tudi za DOWNLOADED_FILE (4), ne samo za LOCAL_FILE (3).
     check(OmejenoNastavitvePravila.omejenoVelja(34, OmejenoNastavitvePravila.PACKAGE_SOURCE_DOWNLOADED_FILE))
     check(OmejenoNastavitvePravila.omejenoVelja(33, 4))
