@@ -32,7 +32,7 @@ object DostopPravila {
 
     fun vNiz(z: Set<Zmoznost>): String = Zmoznost.values().filter { it in z }.joinToString("") { it.crka.toString() }
 
-    private val DATOTEKE = setOf("files.list", "files.search", "files.open", "storage.put", "storage.status")
+    private val DATOTEKE = setOf("files.list", "files.search", "files.open", "files.request_access", "storage.put", "storage.status")
     private val PROGRAMI = setOf("apps.list", "apps.launch", "apps.close", "apps.running", "apps", "launch_app", "open_in_app")
     private val PREDVAJALNIK = setOf(
         // Kaj naprava predvaja, nadaljevanje in ustavitev; seznami in viri Medijskega centra.

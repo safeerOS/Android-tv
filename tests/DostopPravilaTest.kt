@@ -14,8 +14,8 @@ fun main() {
     println("== dostop naprav do vsebin (seznanitev ni dovoljenje) ==")
 
     // Kaj zahteva katero dejanje.
-    preveri("datoteke: seznam, iskanje, odpiranje, shramba",
-        listOf("files.list", "files.search", "files.open", "storage.put", "storage.status").all { p.zahtevaDejanja(it) == Zahteva.DATOTEKE })
+    preveri("datoteke: seznam, iskanje, odpiranje, prosnja za dostop, shramba",
+        listOf("files.list", "files.search", "files.open", "files.request_access", "storage.put", "storage.status").all { p.zahtevaDejanja(it) == Zahteva.DATOTEKE })
     preveri("programi: seznam, zagon, zapiranje",
         listOf("apps.list", "apps.launch", "apps.close", "apps.running", "apps", "launch_app", "open_in_app").all { p.zahtevaDejanja(it) == Zahteva.PROGRAMI })
     // Naloga 129: kljuci debrid storitev so skrivnost - samo ozji krog (naprava z vsem dostopom).

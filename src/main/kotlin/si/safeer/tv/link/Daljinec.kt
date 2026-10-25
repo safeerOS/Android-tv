@@ -49,8 +49,9 @@ object Daljinec {
         "input.tap", "input.swipe", "input.key", "input.text", "input.enable", "input.scroll",
         // Zvok racunalnika na tej napravi (Safeer OS za racunalnik: Zvok -> Predvajaj tukaj).
         "audio.play", "audio.stop",
-        // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control.
-        "files.list", "files.search",
+        // Datoteke te naprave (videi, glasba, slike) za druge naprave - kot jih deli Safeer Control; prosnja za vec
+        // datotek pokaze obvestilo na tej napravi (sistemsko okno sele ob dotiku uporabnika).
+        "files.list", "files.search", "files.request_access",
         // Opcijski telefonski gamepad za Android aplikacijo, ki tece na tej napravi.
         "gamepad.button", "gamepad.axis", "gamepad.release",
         // Magnet povezava z druge naprave: odpre se v Safeer OS predvajalniku te naprave.
@@ -110,6 +111,15 @@ object Daljinec {
         "play.state" -> Izid(true, "Predvajanje", JSONObject().put("shared", false).put("reason", "access"))
         si.safeer.tv.os.OddaljenoPravila.DEJANJE -> Izid(true, "Predvajanje", JSONObject().put("shared", false).put("playing", false).put("reason", "access"))
         else -> Izid(false, "Ta naprava ti tega ne dovoli. Dostop odpre njen uporabnik v Safeer Linku.", koda = KODA_NI_DOVOLJENO)
+    }
+
+    /**
+     * `files.list`: mapa, del velike galerije (`offset`, `limit`) in obdobje datuma nastanka (`from`, `to`) -
+     * DatotekeStreznik.seznam. CastReceiverService ga klice v ozadju (velika galerija ne zadrzi glavne niti).
+     */
+    fun seznamDatotek(context: Context, parametri: JSONObject): Izid {
+        val podatki = DatotekeStreznik.seznam(context, parametri.optString("folder", ""), parametri.optString(PARAM_POSILJATELJ, ""), parametri)
+        return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)
     }
 
     /** Kar zna izvesti samo odprti brskalnik. Vrne null, ce dejanja ne pozna. */
@@ -187,10 +197,9 @@ object Daljinec {
             val podatki = DatotekeStreznik.isci(context, parametri.optString("q", ""), parametri.optString(PARAM_POSILJATELJ, ""))
             return Izid(true, "${podatki.optJSONArray("items")?.length() ?: 0} zadetkov", podatki)
         }
-        if (d == "files.list") {
-            val podatki = DatotekeStreznik.seznam(context, parametri.optString("folder", ""), parametri.optString(PARAM_POSILJATELJ, ""))
-            return Izid(true, if (podatki.optBoolean("shared")) "Datoteke" else "Naprava datotek ne deli", podatki)
-        }
+        if (d == "files.list") return seznamDatotek(context, parametri)
+        if (d == "files.request_access") return Izid(true, "Prosnja za datoteke",
+            DatotekeStreznik.prosiZaDostop(context, parametri.optString(PARAM_POSILJATELJ, "")))
         if (d == "magnet.open") return odpriMagnet(context, parametri.optString("uri", ""))
         if (d == "media.open") return odpriMedij(context, parametri)
         if (d == "magnet.stream") return MagnetPomoc.tok(context, parametri, parametri.optString(PARAM_POSILJATELJ, ""))

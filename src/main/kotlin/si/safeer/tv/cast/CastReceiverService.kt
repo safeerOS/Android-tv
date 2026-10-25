@@ -1022,6 +1022,20 @@ class CastReceiverService : Service() {
                         }
                         return
                     }
+                    if (dejanje.trim().lowercase() == "files.list") {
+                        // Datoteke te naprave: velika galerija (MediaStore, mape) se bere v ozadju, ne na glavni niti.
+                        // Ce je vrsta polna, gre ukaz po stari poti (glavna nit) - odgovor pride v vsakem primeru.
+                        val vOzadju = si.safeer.tv.link.DatotekeStreznik.vOzadju {
+                            val izid = try {
+                                si.safeer.tv.link.Daljinec.seznamDatotek(this@CastReceiverService, parametri)
+                            } catch (e: Throwable) {
+                                SafeerLog.napaka("Sprejemnik", "files.list", e)
+                                si.safeer.tv.link.Daljinec.Izid(false, "Napaka", koda = "napaka")
+                            }
+                            if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, izid)
+                        }
+                        if (vOzadju) return
+                    }
                     Log.i(TAG, "Prejet control.command od $posiljatelj: $dejanje")
                     mainHandler.post {
                         val krmilnik = mediaController
