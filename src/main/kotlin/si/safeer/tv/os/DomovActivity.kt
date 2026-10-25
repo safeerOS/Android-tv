@@ -94,12 +94,13 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onCreate(savedInstanceState)
         // Telefon in tablica imata svoj domaci zaslon (DomovTabletActivity; prilagodljivi ZaganjalnikActivity, ce je kdaj
         // vstopna tocka): Nazaj, Domov v stranski vrstici in tipka Y odprejo DomovActivity, zato jih tu preusmerimo, sicer
-        // bi se odprl TV zaslon v lezecem nacinu. Domaci zaslon naprave (HOME) je samo na televizorju (lastnik, 18. 10. 2026).
+        // bi se odprl TV zaslon v lezecem nacinu. Ce je Safeer zaganjalnik izbran domaci zaslon telefona/tablice (lastnik,
+        // 25. 10. 2026: izbira), gre Domov tja - namera domacega zaslona, kot tipka Domov.
         val zaganjalnik = packageManager.getLaunchIntentForPackage(packageName)?.component
         if (zaganjalnik != null && (zaganjalnik.className == ZaganjalnikActivity::class.java.name ||
                 zaganjalnik.className.endsWith(".DomovTabletActivity"))) {
             try {
-                startActivity(Intent().setComponent(zaganjalnik)
+                startActivity(Zaganjalnik.nameraDomov(this)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) ?: Intent().setComponent(zaganjalnik)
                     .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
             } catch (_: Throwable) { }
             finish()

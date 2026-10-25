@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer zaganjalnik na telefonu in tablici: namizje, varnostna vrata, namizni nacin (os/ZaganjalnikActivity, os/VarnostnaVrata, os/NamizniNacin). -->
+<resources>
+    <string name="nz_vse_aplikacije">Toutes les applications</string>
+    <string name="nz_zadetki">Résultats : %1$d</string>
+    <string name="nz_ni_zadetkov">Aucune application ne correspond à « %1$s ». Entrée recherche dans le Centre multimédia (une adresse web ouvre Web).</string>
+    <string name="nz_odpri">Ouvrir</string>
+    <string name="nz_vrata_vrni">Revenir au lanceur d’origine</string>
+    <string name="nz_vrata_vrni_kratko">Lanceur d’origine</string>
+    <string name="nz_vrata_safeer">Safeer comme écran d’accueil</string>
+    <string name="nz_vrata_safeer_kratko">Safeer en accueil</string>
+    <string name="nz_vrata_vrnjeno">Safeer n’est plus l’écran d’accueil. Le bouton Accueil ouvre à nouveau le lanceur d’origine.</string>
+    <string name="nz_ploscica">Écran d’accueil Safeer</string>
+    <string name="nz_ploscica_tovarniski">D’origine</string>
+    <string name="nz_nacin">Mode bureau</string>
+    <string name="nz_nacin_opis">Applications en fenêtres sur la tablette, un écran externe et dans DeX</string>
+    <string name="nz_okna_ni">Non disponible</string>
+    <string name="nz_okna_vklopljena">Fenêtres</string>
+    <string name="nz_okna_izklopljena">Plein écran</string>
+    <string name="nz_okna_da">Fenêtres d’applications : cet appareil les prend en charge.</string>
+    <string name="nz_okna_ne">Fenêtres d’applications : cet appareil ne les propose pas pour le moment.</string>
+    <string name="nz_zunanji_da">Écran externe comme bureau : activé.</string>
+    <string name="nz_zunanji_ne">Écran externe comme bureau : désactivé (ou non visible pour les applications).</string>
+    <string name="nz_vodic">Vous les activez vous-même dans les Options pour les développeurs : Safeer ne modifie jamais les paramètres système. Cherchez les options des fenêtres de forme libre (freeform), du redimensionnement de toutes les applications et du mode bureau sur écrans externes, puis redémarrez l’appareil. Leurs noms varient selon le fabricant, c’est pourquoi nous ne les citons pas mot pour mot.</string>
+    <string name="nz_vodic_razvijalske">Les Options pour les développeurs ne sont pas encore activées : dans les paramètres système, ouvrez les informations de l’appareil (À propos du téléphone / de la tablette) et touchez sept fois le numéro de build.</string>
+    <string name="nz_okna_vklopi">Ouvrir en fenêtres</string>
+    <string name="nz_okna_izklopi">Ouvrir en plein écran</string>
+    <string name="nz_odpri_razvijalske">Options pour les développeurs</string>
+    <string name="nz_ni_sistemske">Cet appareil ne propose pas ce paramètre système.</string>
+    <string name="nz_padec_opis">Safeer s’est arrêté plusieurs fois de suite en tant qu’écran d’accueil ; le bouton Accueil ouvre donc à nouveau votre lanceur précédent. Vous pouvez le reconfigurer quand vous le souhaitez.</string>
+</resources>

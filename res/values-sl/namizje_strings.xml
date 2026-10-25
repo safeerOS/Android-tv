@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer zaganjalnik na telefonu in tablici: namizje, varnostna vrata, namizni nacin (os/ZaganjalnikActivity, os/VarnostnaVrata, os/NamizniNacin). -->
+<resources>
+    <string name="nz_vse_aplikacije">Vse aplikacije</string>
+    <string name="nz_zadetki">Zadetki: %1$d</string>
+    <string name="nz_ni_zadetkov">Nobena aplikacija ne ustreza »%1$s«. Enter išče v Medijskem centru (spletni naslov odpre Splet).</string>
+    <string name="nz_odpri">Odpri</string>
+    <string name="nz_vrata_vrni">Vrni tovarniški zaganjalnik</string>
+    <string name="nz_vrata_vrni_kratko">Tovarniški zaganjalnik</string>
+    <string name="nz_vrata_safeer">Safeer kot domači zaslon</string>
+    <string name="nz_vrata_safeer_kratko">Safeer kot domači</string>
+    <string name="nz_vrata_vrnjeno">Safeer ni več domači zaslon. Tipka Domov spet odpre tovarniški zaganjalnik.</string>
+    <string name="nz_ploscica">Safeer domači zaslon</string>
+    <string name="nz_ploscica_tovarniski">Tovarniški</string>
+    <string name="nz_nacin">Namizni način</string>
+    <string name="nz_nacin_opis">Aplikacije v oknih na tablici, zunanjem zaslonu in v DeX</string>
+    <string name="nz_okna_ni">Ni na voljo</string>
+    <string name="nz_okna_vklopljena">Okna</string>
+    <string name="nz_okna_izklopljena">Cel zaslon</string>
+    <string name="nz_okna_da">Okna aplikacij: ta naprava jih podpira.</string>
+    <string name="nz_okna_ne">Okna aplikacij: ta naprava jih zdaj ne ponuja.</string>
+    <string name="nz_zunanji_da">Zunanji zaslon kot namizje: vklopljeno.</string>
+    <string name="nz_zunanji_ne">Zunanji zaslon kot namizje: ni vklopljeno (ali ga naprava aplikacijam ne pokaže).</string>
+    <string name="nz_vodic">Vklopiš jih sam v Možnostih za razvijalce – Safeer sistemskih nastavitev nikoli ne spreminja. Poišči možnosti za okna proste oblike (freeform), spremenljivo velikost vseh aplikacij in namizni način na zunanjih zaslonih, nato napravo znova zaženi. Imena teh možnosti se med proizvajalci razlikujejo, zato jih tu ne navajamo dobesedno.</string>
+    <string name="nz_vodic_razvijalske">Možnosti za razvijalce še niso vklopljene: v sistemskih nastavitvah odpri podatke o napravi (O telefonu / O tablici) in sedemkrat tapni številko gradnje.</string>
+    <string name="nz_okna_vklopi">Odpiraj v oknih</string>
+    <string name="nz_okna_izklopi">Odpiraj čez cel zaslon</string>
+    <string name="nz_odpri_razvijalske">Možnosti za razvijalce</string>
+    <string name="nz_ni_sistemske">Naprava te sistemske nastavitve ne ponuja.</string>
+    <string name="nz_padec_opis">Safeer se je kot domači zaslon večkrat zapored ustavil, zato tipka Domov spet odpre prejšnji zaganjalnik. Ko želiš, ga nastaviš znova.</string>
+</resources>

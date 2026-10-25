@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Varnostna vrata zaganjalnika na ikoni Safeer (dolg pritisk v katerem koli zaganjalniku), os/VarnostnaVrata.kt.
+     targetPackage mora biti dobesedno ime paketa (telefon). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="vrni_zaganjalnik"
+        android:enabled="true"
+        android:icon="@drawable/os_ikona_domov"
+        android:shortcutShortLabel="@string/nz_vrata_vrni_kratko"
+        android:shortcutLongLabel="@string/nz_vrata_vrni">
+        <intent
+            android:action="si.safeer.tv.os.VRNI_ZAGANJALNIK"
+            android:targetPackage="si.safeer.phone"
+            android:targetClass="si.safeer.tv.os.VarnostnaVrataActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="safeer_zaganjalnik"
+        android:enabled="true"
+        android:icon="@drawable/os_znak"
+        android:shortcutShortLabel="@string/nz_vrata_safeer_kratko"
+        android:shortcutLongLabel="@string/nz_vrata_safeer">
+        <intent
+            android:action="si.safeer.tv.os.SAFEER_ZAGANJALNIK"
+            android:targetPackage="si.safeer.phone"
+            android:targetClass="si.safeer.tv.os.VarnostnaVrataActivity" />
+    </shortcut>
+</shortcuts>

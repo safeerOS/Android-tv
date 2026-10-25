@@ -40,7 +40,87 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Varnostna vrata na ikoni (dolg pritisk v katerem koli zaganjalniku): nazaj na tovarniski zaganjalnik / Safeer. -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/zaganjalnik_bliznjice" />
         </activity>
+
+        <!-- Safeer zaganjalnik (lastnik, 25. 10. 2026): prilagodljiv domaci zaslon os/ZaganjalnikActivity - na majhnem zaslonu
+             razporeditev za dotik, na tablici lezece, na zunanjem zaslonu in v DeX namizje kot Safeer OS na racunalniku.
+             IZBIRA: vstopna tocka ostane DomovTabletActivity zgoraj; zaganjalnik je domaci zaslon sele, ko ga uporabnik izbere
+             (Nastavitve - Domaci zaslon, sistemsko okno vloge). Varnostna vrata: os/VarnostnaVrata.kt. -->
+        <activity
+            android:name="si.safeer.tv.os.ZaganjalnikActivity"
+            android:exported="true"
+            android:label="@string/tablet_ime"
+            android:theme="@style/Theme.SafeerOs"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:stateNotNeeded="true"
+            android:windowSoftInputMode="adjustResize|stateHidden"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode"
+            tools:ignore="RedundantLabel" />
+
+        <!-- Domaci zaslon (tipka Domov). Privzeto ONEMOGOCEN: Android Safeerja sploh ne ponudi, dokler ga uporabnik ne izbere;
+             izklop ga spet onemogoci in Android vrne prejsnji zaganjalnik (tudi samodejno po padcih, os/Zaganjalnik.kt). -->
+        <activity-alias
+            android:name="si.safeer.tv.os.ZaganjalnikAlias"
+            android:targetActivity="si.safeer.tv.os.ZaganjalnikActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:label="@string/tablet_ime"
+            android:icon="@mipmap/os_ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Namizje na zunanjem zaslonu (SECONDARY_HOME): Android ga vzame iz paketa izbranega domacega zaslona. Svoja
+             dejavnost singleTop, ker sistem domacega zaslona drugega zaslona ne odpre iz singleTask. Vklop skupaj z aliasom zgoraj. -->
+        <activity
+            android:name="si.safeer.tv.os.NamizjeActivity"
+            android:exported="true"
+            android:label="@string/tablet_ime"
+            android:theme="@style/Theme.SafeerOs"
+            android:launchMode="singleTop"
+            android:resizeableActivity="true"
+            android:stateNotNeeded="true"
+            android:windowSoftInputMode="adjustResize|stateHidden"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode"
+            tools:ignore="RedundantLabel" />
+        <activity-alias
+            android:name="si.safeer.tv.os.NamizjeAlias"
+            android:targetActivity="si.safeer.tv.os.NamizjeActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:label="@string/tablet_ime"
+            android:icon="@mipmap/os_ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.SECONDARY_HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Varnostna vrata brez vmesnika (bliznjica ikone, ploscica): nicesar ne risa, zato dela tudi, ko se Safeer ne narise. -->
+        <activity
+            android:name="si.safeer.tv.os.VarnostnaVrataActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <service
+            android:name="si.safeer.tv.os.VarnostnaVrataPloscica"
+            android:exported="true"
+            android:label="@string/nz_ploscica"
+            android:icon="@drawable/os_ikona_domov"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
+        </service>
 
         <!-- Skupni zasloni so na televizorju zaklenjeni v lezeco lego, ker je televizor vedno
              lezec. Tablico uporabnik drzi, kakor hoce: zasukati mu je ne smemo. Zato tu lego
