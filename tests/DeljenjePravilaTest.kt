@@ -163,5 +163,20 @@ fun main() {
     check(DeljenjePravila.zaupanjaVKrogu(setOf("n-a", "n-b")) { it == "n-a" } == setOf("n-a"))
     check(DeljenjePravila.zaupanjaVKrogu(setOf("n-a")) { throw IllegalStateException() }.isEmpty())
 
+    // Grok 15, N1: sprememba dostopa druge naprave seje ne konca; umik iz kroga in odvzem zaslona tej napravi jo.
+    check(!DeljenjePravila.ustaviZaradiDostopa(true, false, "n-a", smeZaslon = false, vKrogu = true, spremenjenaJeCilj = false)) { "N1: druga naprava" }
+    check(DeljenjePravila.ustaviZaradiDostopa(true, false, "n-a", smeZaslon = false, vKrogu = false, spremenjenaJeCilj = false)) { "N1: umik iz kroga" }
+    check(DeljenjePravila.ustaviZaradiDostopa(true, false, "n-a", smeZaslon = false, vKrogu = true, spremenjenaJeCilj = true)) { "N1: odvzem zaslona" }
+    check(!DeljenjePravila.ustaviZaradiDostopa(true, false, "n-a", smeZaslon = true, vKrogu = true, spremenjenaJeCilj = true)) { "N1: zaslon ostal" }
+    // Grok 15, N2: med vprasanjem je dovoljen samo »Nazaj« (vprasanje zavrne).
+    check(DeljenjePravila.zavrnitevVnosa(false, false, vprasanjeOdprto = true, samoNazaj = true) == DeljenjePravila.ZavrnitevVnosa.NI) { "N2: Nazaj" }
+    check(DeljenjePravila.zavrnitevVnosa(false, false, vprasanjeOdprto = true, samoNazaj = false) == DeljenjePravila.ZavrnitevVnosa.VPRASANJE) { "N2: drug vnos" }
+    check(DeljenjePravila.samoNazaj("input.key", " Back ") && DeljenjePravila.samoNazaj("input.key", "nazaj")) { "N2: tipka nazaj" }
+    check(!DeljenjePravila.samoNazaj("input.key", "enter") && !DeljenjePravila.samoNazaj("input.tap", "back")) { "N2: druge tipke" }
+    check(DeljenjePravila.ROK_VPRASANJA_MS in 1..120_000L) { "N2: rok vprasanja" }
+    // Grok 15, N11: »Vedno dovoli« iz obvestila ne na zaklenjeni napravi; »Ne vec« vedno.
+    check(!DeljenjePravila.zaupajIzObvestila(true, true, "n-a", "n-a", false, true, zaklenjeno = true)) { "N11: zaklenjeno" }
+    check(DeljenjePravila.zaupajIzObvestila(false, true, "n-a", "n-a", false, true, zaklenjeno = true)) { "N11: preklic" }
+
     println("DeljenjePravilaTest: OK")
 }

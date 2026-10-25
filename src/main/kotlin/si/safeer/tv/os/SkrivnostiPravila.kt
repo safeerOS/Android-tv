@@ -223,6 +223,12 @@ object SkrivnostiPravila {
     /** Nadomestna osnova v naslovu (»https://h/safeer-skrito-<odtis>«) ali null. */
     fun nadomestnaOsnova(naslov: String): String? = RX_NADOMESTEK.find(naslov.trim())?.groupValues?.get(1)
 
+    /** Grok 15, N18: naslov s poverilnico samo po https - http (ze shranjen pred prehodom ali vpisan) poskusimo kot https. */
+    fun nadgradiNaHttps(naslov: String): String {
+        val u = naslov.trim()
+        return if (u.startsWith("http://", ignoreCase = true)) "https://" + u.substring(7) else u
+    }
+
     fun jeNadomestek(naslov: String): Boolean = nadomestnaOsnova(naslov) != null
 
     /** Vir sme z navadnim usklajevanjem virov na vse naprave v Linku: ne nosi skrivnosti in ni nadomestek. */

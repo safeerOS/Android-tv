@@ -131,7 +131,8 @@ object SkrivniDodatki {
     fun dejanski(naslov: String): String {
         val n = SkrivnostiPravila.nadomestnaOsnova(naslov) ?: return naslov
         val p = pravaZa(n) ?: return naslov
-        return p + naslov.trim().substring(n.length)
+        // Grok 15, N18: tudi skrivnost, shranjena po http pred prehodom, gre po https (zeton ne potuje necifriran).
+        return SkrivnostiPravila.nadgradiNaHttps(p + naslov.trim().substring(n.length))
     }
 
     fun dejanski(c: Context?, naslov: String): String {

@@ -103,8 +103,10 @@ object DeljenjePravila {
      * = [cilj] tekocega deljenja), samo med tekocim deljenjem (ne med cakanjem na odklep) in samo, ce jo je se smiselno
      * ponuditi ([ponudi]). Preklic (»ne vec«) velja vedno za tekoci cilj.
      */
-    fun zaupajIzObvestila(zaupaj: Boolean, tece: Boolean, cilj: String, ciljNamere: String, cakaNaOdklep: Boolean, ponudi: Boolean): Boolean =
-        tece && cilj.isNotBlank() && ciljNamere == cilj && (!zaupaj || (!cakaNaOdklep && ponudi))
+    fun zaupajIzObvestila(zaupaj: Boolean, tece: Boolean, cilj: String, ciljNamere: String, cakaNaOdklep: Boolean, ponudi: Boolean,
+                          /** Grok 15, N11: Android 10-11 (brez setAuthenticationRequired) - »Vedno dovoli« ne na zaklenjeni napravi. */
+                          zaklenjeno: Boolean = false): Boolean =
+        tece && cilj.isNotBlank() && ciljNamere == cilj && (!zaupaj || (!cakaNaOdklep && ponudi && !zaklenjeno))
 
     /** Pregled dex-a U7: zaupanje ostane samo napravam, ki so se v ozjem krogu (umik ga izbrise; ponovna vkljucitev ga ne obudi). */
     fun zaupanjaVKrogu(zapis: Set<String>, vKrogu: (String) -> Boolean): Set<String> =
@@ -170,16 +172,33 @@ object DeljenjePravila {
     enum class ZavrnitevVnosa { NI, VPRASANJE, CAKA_NA_ODKLEP, ZAKLENJENO }
 
     /**
+     * Tece (ali caka na odklep) deljenje napravi [cilj], ki ji zaslon ni vec odprt - konec takoj (pravilo 25. 10. 2026).
+     * Grok 15, N1: umik iz ozjega kroga ([vKrogu] = false: prazen nabor ali umaknjena naprava) konca vsako sejo z njo;
+     * odvzem zaslona konca sejo samo, ce se je spremenil dostop prav te naprave ([spremenjenaJeCilj]) - sprememba dostopa
+     * druge naprave ali kroga zakonite seje ne konca.
+     */
+    fun ustaviZaradiDostopa(tece: Boolean, cakaNaOdklep: Boolean, cilj: String, smeZaslon: Boolean,
+                            vKrogu: Boolean = smeZaslon, spremenjenaJeCilj: Boolean = true): Boolean =
+        (tece || cakaNaOdklep) && cilj.isNotBlank() && (!vKrogu || (spremenjenaJeCilj && !smeZaslon))
+
+    /** Tipke Safeer Vnosa, ki pomenijo »Nazaj« (VnosStoritev.tipka: GLOBAL_ACTION_BACK). */
+    val TIPKE_NAZAJ = setOf("back", "nazaj")
+
+    /** Grok 15, N2: ukaz Safeer Vnosa je samo »Nazaj« (vprasanje za deljenje zaslona ga samo zavrne). */
+    fun samoNazaj(dejanje: String, tipka: String): Boolean = dejanje == "input.key" && tipka.trim().lowercase() in TIPKE_NAZAJ
+
+    /** Grok 15, N2: vprasanje za deljenje zaslona brez odgovora se po tem casu zavrne samo - vnos drugih naprav ni blokiran dlje. */
+    const val ROK_VPRASANJA_MS = 60_000L
+
+    /**
      * Pregled dex-a U2 in U6: vnos z druge naprave (dotik, tipka, besedilo, igralni plosek) zavrnemo, dokler je odprto
      * vprasanje za deljenje zaslona (Safeerjevo ali sistemsko - naprava, ki zaslon zahteva, bi sama tapnila »Dovoli«), dokler
      * deljenje caka na odklep in dokler je naprava zaklenjena (po stanju zaklepa, ne po ustavitvi projekcije - pred Androidom
-     * 15 QPR1 projekcija ob zaklepu tece naprej).
+     * 15 QPR1 projekcija ob zaklepu tece naprej). Grok 15, N2: »Nazaj« ([samoNazaj]) vprasanje samo zavrne - TV, ki ga
+     * upravljas samo s telefonom, med vprasanjem ne obtici.
      */
-    /** Tece (ali caka na odklep) deljenje napravi [cilj], ki ji zaslon ni vec odprt - konec takoj (pravilo 25. 10. 2026). */
-    fun ustaviZaradiDostopa(tece: Boolean, cakaNaOdklep: Boolean, cilj: String, smeZaslon: Boolean): Boolean =
-        (tece || cakaNaOdklep) && cilj.isNotBlank() && !smeZaslon
-
-    fun zavrnitevVnosa(cakaNaOdklep: Boolean, zaklenjeno: Boolean, vprasanjeOdprto: Boolean): ZavrnitevVnosa = when {
+    fun zavrnitevVnosa(cakaNaOdklep: Boolean, zaklenjeno: Boolean, vprasanjeOdprto: Boolean, samoNazaj: Boolean = false): ZavrnitevVnosa = when {
+        vprasanjeOdprto && samoNazaj -> ZavrnitevVnosa.NI
         vprasanjeOdprto -> ZavrnitevVnosa.VPRASANJE
         cakaNaOdklep -> ZavrnitevVnosa.CAKA_NA_ODKLEP
         zaklenjeno -> ZavrnitevVnosa.ZAKLENJENO

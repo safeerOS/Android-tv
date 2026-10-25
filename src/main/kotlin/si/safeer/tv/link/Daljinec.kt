@@ -794,7 +794,8 @@ object Daljinec {
     private fun vnos(context: Context, d: String, p: JSONObject): Izid {
         if (d == "input.enable") return vklopiVnos(context)
         // A4: deljenje caka na odklep - dotik ali tipka z racunalnika bi sla na zaklepni zaslon; pregled dex-a U2/U6.
-        izidBrezVnosa(context)?.let { return it }
+        // Grok 15, N2: »Nazaj« med vprasanjem za deljenje zaslona sme (vprasanje samo zavrne).
+        izidBrezVnosa(context, DeljenjePravila.samoNazaj(d, p.optString("key", "")))?.let { return it }
         if (!VnosStoritev.aktivna()) {
             // Storitve, ki je ta gradnja nima, ne obljubljamo (lastnikov TV 25. 10. 2026: navodilo za stikalo, ki ga ni bilo).
             if (!VnosVklop.vGradnji(context)) return Izid(false, "Ta aplikacija nima Safeer Vnosa.", koda = KODA_NI_NA_VOLJO)
@@ -922,11 +923,13 @@ object Daljinec {
      * Pregled dex-a (Grok, 25. 10. 2026) U2 in U6: vnos z druge naprave zavrnemo med vprasanjem za deljenje zaslona, med
      * cakanjem na odklep in ko je naprava zaklenjena (KeyguardManager ob vsakem ukazu; napaka = zaklenjeno). Null = sme.
      */
-    private fun izidBrezVnosa(context: Context): Izid? {
+    private fun izidBrezVnosa(context: Context, samoNazaj: Boolean = false): Izid? {
+        // Grok 15, N12: zaklenjena je naprava, ki za odklep zahteva overitev (PIN, vzorec, prstni odtis) - drsni zaklep brez
+        // zascite ni ovira (prej isKeyguardLocked: napravo, ki jo Safeer zbudi, z daljinca ni bilo mogoce odkleniti s potegom).
         val zaklenjeno = try {
-            (context.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isKeyguardLocked
+            (context.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isDeviceLocked
         } catch (_: Throwable) { true }
-        return when (DeljenjePravila.zavrnitevVnosa(DeljenjeZaslonaStoritev.cakaNaOdklep, zaklenjeno, PretociActivity.vprasanjeOdprto())) {
+        return when (DeljenjePravila.zavrnitevVnosa(DeljenjeZaslonaStoritev.cakaNaOdklep, zaklenjeno, PretociActivity.vprasanjeOdprto(), samoNazaj)) {
             DeljenjePravila.ZavrnitevVnosa.NI -> null
             DeljenjePravila.ZavrnitevVnosa.VPRASANJE -> Izid(false,
                 "Na napravi je odprto vprašanje za deljenje zaslona – odgovori na napravi sami.", koda = KODA_CAKA_POTRDITEV)

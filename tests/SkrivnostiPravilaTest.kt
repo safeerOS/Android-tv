@@ -133,5 +133,9 @@ fun main() {
     // Pregled U12: zapisejo se samo spremenjeni vnosi.
     preveriEnako("spremenjeni vnosi", mapOf("b" to "2x", "c" to 3), S.spremenjeniVnosi(mapOf("a" to "1", "b" to "2"), mapOf("a" to "1", "b" to "2x", "c" to 3)))
 
+    // Grok 15, N18: poverilnica nikoli po http.
+    preveriEnako("N18: http -> https", "https://dodatek.test/zeton/manifest.json", S.nadgradiNaHttps(" http://dodatek.test/zeton/manifest.json"))
+    preveriEnako("N18: https ostane", "https://dodatek.test/z/manifest.json", S.nadgradiNaHttps("https://dodatek.test/z/manifest.json"))
+
     if (napak == 0) println("SkrivnostiPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -520,6 +520,13 @@ object OsPravila {
     private val RX_VRHNJA_DOMENA = Regex("^(?:[a-z][a-z0-9-]*|xn--[a-z0-9-]+)$")
     private val ZASEBNE_KONCNICE = listOf(".local", ".lan", ".home", ".internal", ".localhost", ".localdomain", ".arpa")
 
+    /**
+     * Grok 15, N6: preusmeritev https -> http je dovoljena samo za postajo ali kanal v zivo brez poverilnice - izmerjeno
+     * 25. 10. 2026: 2 od 87 postaj iz kataloga (Radio Browser) preusmeri https na http in brez tega ne igrata. Posnetek
+     * (povezava debrida z zetonom) in tok s poverilnico ostaneta brez.
+     */
+    fun dovoliHttpPreusmeritev(vZivo: Boolean, sPoverilnico: Boolean): Boolean = vZivo && !sPoverilnico
+
     /** Slika iz uporabnikovega spletnega vira sme le na javno ime gostitelja po https (Grok 10, M6). */
     fun varnaSlikaVira(url: String): Boolean {
         val g = RX_SLIKA_GOSTITELJ.find(url.trim())?.groupValues?.get(1)?.lowercase(java.util.Locale.ROOT)?.trimEnd('.') ?: return false

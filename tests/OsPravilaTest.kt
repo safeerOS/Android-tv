@@ -1080,6 +1080,10 @@ private fun preizkusSlikSpletnihZadetkov() {
     preveriEnako("M16: povezava zadetka ni slika", "", OsPravila.slikaSpletnegaZadetka("https://primer.test/film/1", "https://primer.test/film/1"))
     preveriEnako("M6: omejeno branje v meji", 3, OsPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(3)), 3)?.size)
     preveriEnako("M6: omejeno branje cez mejo", null, OsPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(4)), 3))
+    // Grok 15, N6: https -> http samo v zivo in brez poverilnice.
+    preveriEnako("N6: postaja v zivo sme na http", true, OsPravila.dovoliHttpPreusmeritev(vZivo = true, sPoverilnico = false))
+    preveriEnako("N6: posnetek ne", false, OsPravila.dovoliHttpPreusmeritev(vZivo = false, sPoverilnico = false))
+    preveriEnako("N6: tok s poverilnico ne, tudi v zivo", false, OsPravila.dovoliHttpPreusmeritev(vZivo = true, sPoverilnico = true))
 }
 
 private data class Zd(val naslov: String, val delo: Boolean = false, val lastna: Boolean = false, val oznaka: String = naslov, val zvok: Boolean = false)

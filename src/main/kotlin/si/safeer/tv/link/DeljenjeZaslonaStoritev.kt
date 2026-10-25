@@ -133,14 +133,24 @@ class DeljenjeZaslonaStoritev : Service() {
          * Pravilo lastnika 25. 10. 2026 (kot core/link_dostop na racunalniku): umik iz ozjega kroga ali odvzem zaslona takoj
          * konca deljenje zaslona tej napravi (tudi med cakanjem na odklep). Klice se ob spremembi dostopa in kroga.
          */
-        fun ustaviBrezDostopa(context: Context) {
+        fun ustaviBrezDostopa(context: Context, spremenjenoJedro: String? = null) {
             val c = cilj
-            val sme = try {
-                si.safeer.tv.cast.DostopPravila.Zmoznost.ZASLON in si.safeer.tv.cast.Dostop.zmoznosti(context, c)
-            } catch (_: Throwable) { false }
-            if (DeljenjePravila.ustaviZaradiDostopa(tece, cakaNaOdklep, c, sme)) {
+            // Napaka pri branju dostopa = brez dostopa (fail-closed).
+            val zmoznosti = try { si.safeer.tv.cast.Dostop.zmoznosti(context, c) } catch (_: Throwable) { emptySet() }
+            val sme = si.safeer.tv.cast.DostopPravila.Zmoznost.ZASLON in zmoznosti
+            // Grok 15, N1: sprememba kroga (null) ali dostopa DRUGE naprave seje ne konca, razen ce cilj ni vec v ozjem krogu.
+            val jeCilj = spremenjenoJedro != null && try { si.safeer.tv.cast.Dostop.jedro(context, c) == spremenjenoJedro } catch (_: Throwable) { true }
+            if (DeljenjePravila.ustaviZaradiDostopa(tece, cakaNaOdklep, c, sme, zmoznosti.isNotEmpty(), jeCilj)) {
                 Log.i(TAG, "Deljenje zaslona ustavljeno: naprava nima vec dostopa do zaslona (umik iz ozjega kroga).")
                 ustavi(context)
+            }
+            // Grok 15, N17: odprto vprasanje za napravo, ki ni vec v ozjem krogu, se zapre - zahteva je umaknjena.
+            val vprasanZa = PretociActivity.odprtCilj
+            if (vprasanZa.isNotBlank() && PretociActivity.vprasanjeOdprto() &&
+                (try { si.safeer.tv.cast.Dostop.zmoznosti(context, vprasanZa).isEmpty() } catch (_: Throwable) { true })) {
+                Log.i(TAG, "Vprasanje za deljenje zaslona zaprto: naprava ni vec v ozjem krogu.")
+                if (PretokKonec.zahteve.caka(PretociActivity.odprtaZahteva)) PretokKonec.zahteve.umakni()
+                PretociActivity.zapriCakajoco()
             }
         }
 
@@ -192,8 +202,10 @@ class DeljenjeZaslonaStoritev : Service() {
         if (intent.action == ACTION_ZAUPAJ || intent.action == ACTION_NE_ZAUPAJ) {
             val zaupaj = intent.action == ACTION_ZAUPAJ
             // Pregled dex-a U5: velja samo za napravo iz obvestila, ne med cakanjem na odklep, ponudba se preveri znova.
+            // Grok 15, N11: na Androidu 10-11 dejanje v obvestilu ne zahteva odklepa - preverimo zaklep sami (napaka = zaklenjeno).
+            val zaklenjeno = try { (getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isDeviceLocked } catch (_: Throwable) { true }
             if (DeljenjePravila.zaupajIzObvestila(zaupaj, tece, cilj, intent.getStringExtra(EXTRA_CILJ).orEmpty(), cakaNaOdklep,
-                    ZaupanjeZaslona.ponudi(this, cilj))) {
+                    ZaupanjeZaslona.ponudi(this, cilj), zaklenjeno)) {
                 ZaupanjeZaslona.nastavi(this, cilj, zaupaj)
                 posodobiObvestilo()
             } else if (!tece) stopSelf(startId)   // staro obvestilo, deljenja ni vec: storitev ne ostane prizgana

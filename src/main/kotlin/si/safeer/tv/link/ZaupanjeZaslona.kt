@@ -69,6 +69,9 @@ object ZaupanjeZaslona {
             if (ao == null) null
             else if (Build.VERSION.SDK_INT >= 29) ao.unsafeCheckOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName)
             else @Suppress("DEPRECATION") ao.checkOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName)
+        } catch (e: IllegalArgumentException) {
+            // Grok 15, N14: pod API 29 sistem, ki opa ne pozna, trajnega dovoljenja nima - sistemsko okno pride vedno (ne dve okni).
+            if (Build.VERSION.SDK_INT < 29) android.app.AppOpsManager.MODE_DEFAULT else null
         } catch (_: Throwable) { null }
         return DeljenjePravila.projekcijaPoNacinu(nacin)
     }

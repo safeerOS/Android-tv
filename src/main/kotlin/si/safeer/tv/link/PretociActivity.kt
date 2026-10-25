@@ -36,6 +36,10 @@ class PretociActivity : Activity() {
          */
         fun vprasanjeOdprto(): Boolean = odprta?.get()?.let { !it.isFinishing && !it.isDestroyed } == true
 
+        /** Naprava, za katero je vprasanje odprto (Grok 15, N17: umik iz kroga ga zapre). */
+        @Volatile var odprtCilj: String = ""
+            private set
+
         /** Zeton zahteve, za katero se je to okno nazadnje odprlo (A2: ali je neposredni zagon uspel). */
         @Volatile var odprtaZahteva: Int = 0
             private set
@@ -68,6 +72,15 @@ class PretociActivity : Activity() {
     private var zahteva = 0
     private var odprtoTukaj = true
     private var vprasanje: android.app.AlertDialog? = null
+    private val glavna = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** Grok 15, N2: brez odgovora v [DeljenjePravila.ROK_VPRASANJA_MS] je odgovor »ne« - vnos drugih naprav ni blokiran dlje. */
+    private val potekel = Runnable {
+        if (isFinishing || isDestroyed) return@Runnable
+        Log.i(TAG, "Vprasanje za deljenje zaslona je poteklo brez odgovora - zavrnjeno.")
+        try { @Suppress("DEPRECATION") finishActivity(ZAHTEVA) } catch (_: Throwable) { }
+        zavrnjeno()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,6 +90,8 @@ class PretociActivity : Activity() {
         odprtoTukaj = intent?.getBooleanExtra(EXTRA_ODPRTO_TUKAJ, true) ?: true
         odprta = java.lang.ref.WeakReference(this)
         odprtaZahteva = zahteva
+        odprtCilj = cilj
+        glavna.postDelayed(potekel, DeljenjePravila.ROK_VPRASANJA_MS)
         if (savedInstanceState != null) {
             // Obrat zaslona med nasim vprasanjem: vprasanje pokazemo znova (sistemsko okno vrne izid samo).
             if (savedInstanceState.getBoolean(STANJE_VPRASANJE, false) && PretokKonec.zahteve.caka(zahteva)) vprasajSafeer()
@@ -189,7 +204,8 @@ class PretociActivity : Activity() {
         // Okno se zapira (zamenjana zahteva, obrat): nase vprasanje gre z njim, brez odgovora v imenu uporabnika.
         try { vprasanje?.setOnCancelListener(null); vprasanje?.dismiss() } catch (_: Throwable) { }
         vprasanje = null
-        if (odprta?.get() === this) odprta = null
+        glavna.removeCallbacks(potekel)
+        if (odprta?.get() === this) { odprta = null; odprtCilj = "" }
         super.onDestroy()
     }
 }

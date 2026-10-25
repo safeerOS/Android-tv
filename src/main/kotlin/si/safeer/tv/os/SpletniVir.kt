@@ -746,12 +746,15 @@ object SpletniVir {
         val varno = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(false)
         // Kanal ali postaja v zivo: krajsi rok povezave ([OsPravila.ROK_POVEZAVE_V_ZIVO_MS]); 0 = privzeti rok predvajalnika.
         if (rokPovezaveMs > 0) { odprto.setConnectTimeoutMs(rokPovezaveMs); varno.setConnectTimeoutMs(rokPovezaveMs) }
-        val http = DataSource.Factory { PoProtokolu(varno.createDataSource(), odprto.createDataSource()) }
+        // Grok 15, N6: kanal ali postaja v zivo sme https -> http (2 od 87 postaj iz kataloga, izmerjeno 25. 10. 2026).
+        val http = DataSource.Factory { PoProtokolu(varno.createDataSource(), odprto.createDataSource(), vZivo = rokPovezaveMs > 0) }
         val app = c.applicationContext
         return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
             // Webtor rezerva: tok dodatka s poverilnico ima v aplikaciji nadomestek brez zetona - pravi naslov samo za zahtevo.
             val pravi = SkrivniDodatki.dejanski(app, izvirna.uri.toString())
-            val spec = if (pravi == izvirna.uri.toString()) izvirna else izvirna.withUri(android.net.Uri.parse(pravi))
+            // Tok s poverilnico je oznacen ([TOK_S_POVERILNICO]): nikoli https -> http, tudi v zivo (Grok 15, N6).
+            val spec = if (pravi == izvirna.uri.toString()) izvirna
+                else izvirna.buildUpon().setUri(android.net.Uri.parse(pravi)).setCustomData(TOK_S_POVERILNICO).build()
             val url = spec.uri.toString()
             if (!url.startsWith("http://") && !url.startsWith("https://")) return@Factory spec
             // Pregled N1: zahtevi iz nadomestka (dodatek s poverilnico, npr. Webtor) piskotkov spleta ne dodamo - Media3 bi jih
@@ -778,13 +781,18 @@ object SpletniVir {
     }
 
     /** Vir HTTP po protokolu naslova ob odprtju: https brez menjave protokola ([varno]), http z dovoljeno preusmeritvijo na https. */
-    private class PoProtokolu(private val varno: DataSource, private val odprto: DataSource) : DataSource {
+    /** Oznaka v DataSpec.customData: naslov je razresen iz dodatka s poverilnico (zeton v poti). */
+    private val TOK_S_POVERILNICO = Any()
+
+    private class PoProtokolu(private val varno: DataSource, private val odprto: DataSource, private val vZivo: Boolean = false) : DataSource {
         private var zdaj: DataSource? = null
         override fun addTransferListener(poslusalec: androidx.media3.datasource.TransferListener) {
             varno.addTransferListener(poslusalec); odprto.addTransferListener(poslusalec)
         }
         override fun open(dataSpec: androidx.media3.datasource.DataSpec): Long {
-            val d = if (dataSpec.uri.scheme.equals("https", ignoreCase = true)) varno else odprto
+            // Grok 15, N6: postaja ali kanal v zivo brez poverilnice sme https -> http; posnetek in tok s poverilnico nikoli.
+            val d = if (dataSpec.uri.scheme.equals("https", ignoreCase = true) &&
+                !OsPravila.dovoliHttpPreusmeritev(vZivo, dataSpec.customData === TOK_S_POVERILNICO)) varno else odprto
             zdaj = d
             return d.open(dataSpec)
         }
@@ -795,9 +803,9 @@ object SpletniVir {
         override fun close() { try { zdaj?.close() } finally { zdaj = null } }
     }
 
-    /** Slika spletnega vira z enakim kontekstom kot stran (Referer, piskotki, brskalniski UA). */
     private const val NAJVEC_SLIKA = 16L * 1024 * 1024
 
+    /** Slika spletnega vira z enakim kontekstom kot stran (Referer, piskotki, brskalniski UA). */
     fun bajtiSlike(c: Context, naslov: String): ByteArray? = try {
         val p = URL(naslov).openConnection() as HttpURLConnection
         p.connectTimeout = 8_000; p.readTimeout = 10_000

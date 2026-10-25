@@ -27,8 +27,12 @@ object ScitIzjeme {
      * Ali Scit domeno blokira (pregled U10): na seznamu in ni izjema; na seznamu grozenj vedno; dokler nabor grozenj ni
      * nalozen (pred prvo osvezitvijo seznamov po nadgradnji), izjeme ne veljajo - »ne vem« ni »da« (prej: stalne so).
      */
-    fun blokirana(naSeznamu: Boolean, grozneNalozene: Boolean, naGroznih: Boolean, izjema: Boolean): Boolean =
-        naSeznamu && (!grozneNalozene || naGroznih || !izjema)
+    fun blokirana(naSeznamu: Boolean, grozneNalozene: Boolean, naGroznih: Boolean, izjema: Boolean,
+                  /** Grok 15, N8: domena s pregledanega seznama stalnih izjem ([jeStalna]). */
+                  stalna: Boolean = false): Boolean =
+        // Grok 15, N8: dokler nabor grozenj ni nalozen (po nadgradnji do prve osvezitve seznamov), veljajo samo STALNE
+        // izjeme (pregledan seznam) - Webtor dela; naucene izjeme sele z naborom grozenj.
+        naSeznamu && (naGroznih || !(if (grozneNalozene) izjema else stalna))
     const val NAJVEC = 20
     const val VELJA_MS = 30L * 24 * 3600 * 1000
 

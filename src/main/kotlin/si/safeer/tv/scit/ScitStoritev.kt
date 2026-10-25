@@ -54,6 +54,8 @@ class ScitStoritev : VpnService() {
     @Volatile private var izjeme: Map<String, Long> = emptyMap()
     /** Pregled V1: samo seznami grozenj (scit/grozne.bin) - izjema jih nikoli ne umakne. */
     @Volatile private var grozne: DomenskiNabor.Poizvedba? = null
+    /** Grok 15, N8: gradnja seznamov (in nabora grozenj) je ze zahtevana v tem procesu. */
+    @Volatile private var zahtevaniSeznami = false
     @Volatile private var upstream: List<InetAddress> = emptyList()
     private var vticnica4: DatagramSocket? = null
     private var vticnica6: DatagramSocket? = null
@@ -355,6 +357,12 @@ class ScitStoritev : VpnService() {
             val gd = Scit.grozneDatoteka(this)
             val g = grozne
             if (n == null || datoteka.lastModified() != n.spremenjena || (gd.isFile && (g == null || gd.lastModified() != g.spremenjena))) naloziNabor()
+            // Grok 15, N8: nabor domen je, nabora grozenj pa se ni (prvi zagon po nadgradnji) - seznami naj se zgradijo zdaj, ne
+            // sele ob odprtju brskalnika (ThreatFeedsUpdater.start je enkraten na proces).
+            if (n != null && !gd.isFile && !zahtevaniSeznami) {
+                zahtevaniSeznami = true
+                try { si.safeer.tv.ThreatFeedsUpdater.start(applicationContext) } catch (e: Throwable) { Log.w(TAG, "Seznami: ${e.javaClass.simpleName}") }
+            }
             osveziUpstream()
             shraniStatistiko("tece")
             val b = blokiranih.get()
@@ -388,7 +396,7 @@ class ScitStoritev : VpnService() {
         if (!nab.jeBlokirana(ime)) return false
         val g = grozne
         return ScitIzjeme.blokirana(true, g != null, g?.jeBlokirana(ime) == true,
-            g != null && ScitIzjeme.dovoljena(ime, izjeme, System.currentTimeMillis()))
+            g != null && ScitIzjeme.dovoljena(ime, izjeme, System.currentTimeMillis()), ScitIzjeme.jeStalna(ime))
     }
 
     /** Pravi strezniki DNS omrezja (ne nasi): iz vseh omrezij, ki niso VPN in imajo internet. */

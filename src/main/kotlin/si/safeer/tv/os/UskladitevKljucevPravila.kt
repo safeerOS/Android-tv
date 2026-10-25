@@ -146,6 +146,38 @@ object UskladitevKljucevPravila {
     fun cakaVelja(prejeto: Long, zdaj: Long): Boolean = zdaj - prejeto in 0 until CAKA_VELJA_MS
 
     /**
+     * Grok 15, N3: zapisi za kljuce, ki jih ta naprava ta hip ne more prebrati (Keystore), se ne uporabijo - razveljavitev
+     * jih ne bi mogla vrniti (izbrisala bi jih, tudi na drugi napravi). Pridejo znova ob naslednji uskladitvi.
+     */
+    fun brezNeberljivih(zapisi: List<Zapis>, neberljivi: Set<String>): List<Zapis> = zapisi.filterNot { it.kljuc in neberljivi }
+
+    /**
+     * Grok 15, N4: druga sprememba iste naprave se zdruzi s prvo - kljuci obeh, za vsak kljuc vrednost PRED prvo spremembo
+     * (razveljavitev sicer vrne vmesno vrednost, npr. napadalcevo prvo).
+     */
+    fun zdruziSpremembi(stariKljuci: List<String>, starePrejsnje: Map<String, String?>, noviKljuci: List<String>,
+                        novePrejsnje: Map<String, String?>): Pair<List<String>, Map<String, String?>> {
+        val kljuci = (stariKljuci + noviKljuci).distinct()
+        val vrednosti = LinkedHashMap<String, String?>()
+        for (k in kljuci) vrednosti[k] = if (k in stariKljuci) starePrejsnje[k] else novePrejsnje[k]
+        return kljuci to vrednosti
+    }
+
+    /** Grok 15, N9: prehod odtisov je koncan, ko med obstojecimi kljuci ni nobenega neberljivega (sicer ga ponovimo). */
+    fun prehodKoncan(obstojeci: Set<String>, neberljivi: Set<String>): Boolean = obstojeci.none { it in neberljivi }
+
+    /**
+     * Grok 15, N10: gostitelj dodatka za prikaz - z vrednostjo velja gostitelj iz nje ([izVrednosti]); trditev posiljatelja
+     * ([trditev], polje g) samo brez vrednosti in samo kot ime gostitelja (brez znakov za smer besedila in nevidnih znakov).
+     */
+    fun prikazGostitelja(vrednost: String, trditev: String, izVrednosti: String): String =
+        if (vrednost.isNotBlank() && izVrednosti.isNotBlank()) izVrednosti else samoImeGostitelja(trditev)
+
+    /** Ime gostitelja: samo [a-z0-9.-] (IDN je v punycode). */
+    fun samoImeGostitelja(g: String): String =
+        g.lowercase(java.util.Locale.ROOT).filter { it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '-' }.take(253)
+
+    /**
      * Pregled U1: kateri uporabljeni zapisi so ZAMENJALI ali IZBRISALI kljuc, ki je tu ze obstajal - te uporabniku pokazemo z
      * moznostjo razveljavitve. Nov kljuc (ga tu ni bilo) ali grob na grob nista zamenjava.
      */

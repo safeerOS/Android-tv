@@ -40,12 +40,6 @@ object OmejenoNastavitvePravila {
     }
 
     /**
-     * Ali omejene nastavitve veljajo za to namestitev. Android 13+ (API 33); odvisno od vira namestitve
-     * (PackageInstaller.SessionParams): trgovina (STORE = 2) in drugo (OTHER = 1) nista omejena, lokalna datoteka
-     * ([PACKAGE_SOURCE_LOCAL_FILE] = 3) in prenesena datoteka ([PACKAGE_SOURCE_DOWNLOADED_FILE] = 4) sta. Izmerjeno
-     * 25. 10. 2026: omejitev velja za 3 in 4 (prej je tu veljala samo 3).
-     */
-    /**
      * Pregled dex-a U12: uporabnik je stikalo »poskusil«, ce je od prvega vodenega odprtja Safeer Vnosa ([odprtoMs]) minilo
      * vsaj [POSKUS_PO_MS] (imel je cas tapniti) in najvec [CIKEL_MS] - prej je ze drugi klic pomenil »poskusil«.
      */
@@ -57,6 +51,12 @@ object OmejenoNastavitvePravila {
     const val POSKUS_PO_MS = 15_000L
     const val CIKEL_MS = 10L * 60 * 1000
 
+    /**
+     * Ali omejene nastavitve veljajo za to namestitev. Android 13+ (API 33); odvisno od vira namestitve
+     * (PackageInstaller.SessionParams): trgovina (STORE = 2) in drugo (OTHER = 1) nista omejena, lokalna datoteka
+     * ([PACKAGE_SOURCE_LOCAL_FILE] = 3) in prenesena datoteka ([PACKAGE_SOURCE_DOWNLOADED_FILE] = 4) sta. Izmerjeno
+     * 25. 10. 2026: omejitev velja za 3 in 4 (prej je tu veljala samo 3).
+     */
     const val PACKAGE_SOURCE_LOCAL_FILE = 3
     const val PACKAGE_SOURCE_DOWNLOADED_FILE = 4
 

@@ -225,7 +225,7 @@ object Dostop {
         if (Zmoznost.ZASLON !in novo) {
             try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(ctx) } catch (_: Throwable) { }
             // Kot na racunalniku: umik iz ozjega kroga takoj konca deljenje zaslona tej napravi.
-            try { si.safeer.tv.link.DeljenjeZaslonaStoritev.ustaviBrezDostopa(ctx) } catch (_: Throwable) { }
+            try { si.safeer.tv.link.DeljenjeZaslonaStoritev.ustaviBrezDostopa(ctx, j) } catch (_: Throwable) { }
         }
         try { naSpremembo?.invoke() } catch (_: Throwable) { }
     }

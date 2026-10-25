@@ -114,7 +114,8 @@ object UskladitevKljucev {
         synchronized(zaklep) {
             val vse = beriNaprave(c)
             val zunaj = vse.values.filter { it.stanje != UskladitevKljucevPravila.Stanje.ZAVRNJENA &&
-                !(try { OzjiKrog.vKrogu(c, it.id) } catch (_: Throwable) { false }) }.map { it.kljuc }
+                // Grok 15, N16: napaka pri preverbi ni »zunaj« - potrditve zaradi zacasne napake ne pozabimo.
+                !(try { OzjiKrog.vKrogu(c, it.id) } catch (_: Throwable) { true }) }.map { it.kljuc }
             if (zunaj.isEmpty()) return
             for (k in zunaj) { vse.remove(k); cakajoce.remove(k); spremembe.remove(k) }
             pisiNaprave(c, vse)
@@ -189,7 +190,9 @@ object UskladitevKljucev {
                 if (!m.izbrisan && m.odtis == SkrivnostiPravila.odtis("safeer-sinh|$v")) meta[k] = m.copy(odtis = odtisi.getValue(k))
             }
             pisiMeta(c, meta)
-            prefs(c).edit().putBoolean("odtisi_s_kljucem", true).apply()
+            // Grok 15, N9: zastavica sele, ko so pretvorjeni vsi zapisi - neberljiv kljuc pride na vrsto ob naslednji preverbi
+            // (sicer bi kasneje veljal za lastno spremembo te naprave).
+            if (P.prehodKoncan(meta.filterValues { !it.izbrisan }.keys, neznani)) prefs(c).edit().putBoolean("odtisi_s_kljucem", true).apply()
         }
         val uvoz = !prefs(c).getBoolean(K_UVOZ, false)
         val spr = P.lokalneSpremembe(meta, odtisi, neznani, jaz(c), System.currentTimeMillis(), uvoz)
@@ -244,7 +247,7 @@ object UskladitevKljucev {
     private fun izJson(a: JSONArray?): List<UskladitevKljucevPravila.Zapis> = if (a == null) emptyList() else
         (0 until minOf(a.length(), P.NAJVEC_ZAPISOV)).mapNotNull { a.optJSONObject(it) }.map {
             UskladitevKljucevPravila.Zapis(it.optString("k"), it.optLong("c"), it.optString("i"), it.optBoolean("d"),
-                if (it.optBoolean("d")) "" else it.optString("v"), it.optString("g").take(253).filter { ch -> ch >= ' ' })
+                if (it.optBoolean("d")) "" else it.optString("v"), P.samoImeGostitelja(it.optString("g")))
         }
 
     /**
@@ -261,11 +264,15 @@ object UskladitevKljucev {
             // Najprej lastne neusklajene spremembe dobijo cas - sicer bi jih starejsi zapis z druge naprave povozil.
             posodobi(c)
             val meta = beriMeta(c)
-            val zaUporabo = P.zaUporabo(meta, zapisi, System.currentTimeMillis(), DebridPravila.VSI.toSet(), ::veljavnaVrednost) { izvor ->
+            val vsiZaUporabo = P.zaUporabo(meta, zapisi, System.currentTimeMillis(), DebridPravila.VSI.toSet(), ::veljavnaVrednost) { izvor ->
                 izvor != jaz && P.izvorPosiljatelja(kljucNaprave(c, izvor), odNaprava)
             }
+            // Grok 15, N3: kljuca, ki ga ta hip ni mogoce prebrati (Keystore), ne zamenjamo - razveljavitev ga ne bi mogla
+            // vrniti. Zapis pride znova ob naslednji uskladitvi.
+            val (vr, neberljivi) = if (vsiZaUporabo.isEmpty()) emptyMap<String, String>() to emptySet<String>() else trenutne(c)
+            val zaUporabo = P.brezNeberljivih(vsiZaUporabo, neberljivi)
             val zam = P.zamenjave(meta, zaUporabo)
-            if (zam.isNotEmpty()) { val vr = trenutne(c).first; prejsnje = zam.associate { it.kljuc to vr[it.kljuc] } }
+            if (zam.isNotEmpty()) prejsnje = zam.associate { it.kljuc to vr[it.kljuc] }
             var n = 0
             val uspeli = ArrayList<String>()
             for (z in zaUporabo) {
@@ -281,7 +288,14 @@ object UskladitevKljucev {
         if (uporabljenih > 0) {
             Log.i(TAG, "prejetih sprememb: $uporabljenih")
             if (zamenjani.isNotEmpty()) {
-                spremembe[odNaprava] = Sprememba(odNaprava, od, ime, zamenjani, prejsnje.filterKeys { it in zamenjani }, System.currentTimeMillis())
+                // Grok 15, N4: druga sprememba iste naprave se zdruzi s prvo (ki se velja) - razveljavitev vrne vrednost pred prvo.
+                val zdaj = System.currentTimeMillis()
+                spremembe.compute(odNaprava) { _, prej ->
+                    val stara = prej?.takeIf { P.cakaVelja(it.ob, zdaj) }
+                    val (kljuci, vrednosti) = P.zdruziSpremembi(stara?.kljuci.orEmpty(), stara?.prejsnje.orEmpty(), zamenjani,
+                        prejsnje.filterKeys { it in zamenjani })
+                    Sprememba(odNaprava, od, ime, kljuci, vrednosti, zdaj)
+                }
                 Handler(Looper.getMainLooper()).post {
                     if (poslusalci.isEmpty()) try {
                         android.widget.Toast.makeText(c.applicationContext, c.getString(si.safeer.tv.R.string.os_sinh_spremenjeno,
@@ -421,7 +435,8 @@ object UskladitevKljucev {
     private fun imeKljuca(kljuc: String, vrednost: String?, gostitelj: String = ""): String = when {
         kljuc.startsWith(P.PREDPONA_DEBRID) -> DebridPravila.ime(kljuc.removePrefix(P.PREDPONA_DEBRID))
         kljuc == P.KLJUC_USENET -> "Usenet"
-        else -> Debrid.PREDPONA_DODATKA + gostitelj.ifBlank { Zasebno.gostitelj(vrednost.orEmpty()) }
+        // Grok 15, N10: z vrednostjo velja gostitelj iz nje; trditev posiljatelja (g) samo brez vrednosti in samo kot ime.
+        else -> Debrid.PREDPONA_DODATKA + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, Zasebno.gostitelj(vrednost.orEmpty()))
     }
 
     private fun opisKljucev(kljuci: List<String>, vrednosti: Map<String, String?>): List<String> =

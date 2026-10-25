@@ -64,5 +64,10 @@ fun main() {
     preveriEnako("ni na seznamu -> ni blokirano", false, I.blokirana(false, false, false, false))
     preveriEnako("na seznamu, ni izjema -> blokirano", true, I.blokirana(true, true, false, false))
 
+    // Grok 15, N8: brez nabora grozenj velja samo stalna izjema (Webtor dela), naucena ne.
+    preveriEnako("N8: brez grozenj stalna izjema -> ni blokirano", false, I.blokirana(true, false, false, true, stalna = true))
+    preveriEnako("N8: brez grozenj naucena izjema -> blokirano", true, I.blokirana(true, false, false, true, stalna = false))
+    preveriEnako("N8: na seznamu grozenj stalna -> blokirano", true, I.blokirana(true, true, true, true, stalna = true))
+
     if (napak == 0) println("ScitIzjemeTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

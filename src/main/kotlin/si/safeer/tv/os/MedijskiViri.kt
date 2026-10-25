@@ -68,10 +68,10 @@ object MedijskiViri {
      * ([SkrivniDodatki]); null = sifriranje ni uspelo - pravega naslova ne shranimo.
      */
     fun dodajDodatek(ctx: Context, tip: String, naslovVnosa: String, ime: String): Vir? {
-        // Pregled U5: dodatek s poverilnico samo po https (zeton v naslovu po http potuje necifriran).
-        if (tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null && !naslovVnosa.trim().startsWith("https://")) return null
-        val naslov = if (tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null)
-            SkrivniDodatki.zavaruj(ctx, naslovVnosa) ?: return null else naslovVnosa
+        // Pregled U5 + Grok 15, N18: dodatek s poverilnico samo po https - vpisan http naslov poskusimo kot https (zeton ne
+        // potuje necifriran); null pomeni samo, da sifriranje ni uspelo.
+        val skrivni = tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null
+        val naslov = if (skrivni) SkrivniDodatki.zavaruj(ctx, SkrivnostiPravila.nadgradiNaHttps(naslovVnosa)) ?: return null else naslovVnosa
         val obstojeci = vsi(ctx).firstOrNull { it.tip == tip && it.naslov == naslov }
         if (obstojeci != null) return obstojeci
         val v = Vir(tip, ime.ifBlank { android.net.Uri.parse(naslov).host ?: naslov }, naslov)
@@ -874,7 +874,9 @@ object MedijskiViri {
         val prejsnji = rocni(ctx).map { it.naslov }.toSet()
         val viri = viriVnosa.mapNotNull { v ->
             if (!(v.jeStremio && SkrivnostiPravila.skrivnaPredponaDodatka(v.naslov) != null)) v
-            else if (v.naslov in prejsnji) SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) } ?: v
+            // Grok 15, N18: ze shranjen po http gre odslej po https.
+            else if (v.naslov in prejsnji) SkrivniDodatki.zavaruj(ctx, SkrivnostiPravila.nadgradiNaHttps(v.naslov))?.let { v.copy(naslov = it) }
+                ?: v.copy(naslov = SkrivnostiPravila.nadgradiNaHttps(v.naslov))
             else if (!v.naslov.trim().startsWith("https://")) null.also { android.util.Log.w("SafeerOsMedia", "dodatek s poverilnico po http ni shranjen") }
             else SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) }
                 .also { if (it == null) android.util.Log.w("SafeerOsMedia", "dodatka s poverilnico ni bilo mogoce zavarovati - ni shranjen") }

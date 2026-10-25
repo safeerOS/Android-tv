@@ -33,11 +33,13 @@ object KrogNaprave {
             // Umik naprave iz kroga ali nova naprava: Safeer Vnos sledi ozjemu krogu (link/VnosVklop).
             val app = context.applicationContext
             k.obSpremembi = {
-                si.safeer.tv.link.VnosVklop.uskladi(app, "krog")
-                // Pregled dex-a U7: umik iz kroga izbrise »Vedno dovoli« za deljenje zaslona.
-                try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(app) } catch (_: Throwable) { }
+                // Grok 15, N17: najprej varnost (konec deljenja, zaupanje), nato Safeer Vnos - vsak korak posebej, napaka enega
+                // ne ustavi drugih.
                 // Umik iz kroga takoj konca deljenje zaslona umaknjeni napravi (kot na racunalniku).
                 try { si.safeer.tv.link.DeljenjeZaslonaStoritev.ustaviBrezDostopa(app) } catch (_: Throwable) { }
+                // Pregled dex-a U7: umik iz kroga izbrise »Vedno dovoli« za deljenje zaslona.
+                try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(app) } catch (_: Throwable) { }
+                try { si.safeer.tv.link.VnosVklop.uskladi(app, "krog") } catch (_: Throwable) { }
             }
             krog = k
         }

@@ -163,5 +163,21 @@ fun main() {
     preveriEnako("za poslati: samo lastni zapisi (U2)", listOf(Zapis(tb, 2, "a", false, "v")),
         P.zaPoslati(mapOf(tb to Meta(2, "a", false, "h"), "usenet" to Meta(3, "b", false, "h")), mapOf(tb to "v", "usenet" to "u"), "a"))
 
+    // Grok 15, N3: neberljiv kljuc se ne zamenja (razveljavitev bi ga izbrisala).
+    preveriEnako("N3: neberljiv kljuc izpade", listOf(Zapis("usenet", 2, "b", false, "u")),
+        P.brezNeberljivih(listOf(Zapis(tb, 2, "b", false, "v"), Zapis("usenet", 2, "b", false, "u")), setOf(tb)))
+    // Grok 15, N4: dve zaporedni spremembi iste naprave - razveljavitev vrne vrednost pred prvo.
+    preveriEnako("N4: prva vrednost ostane", listOf(tb) to mapOf<String, String?>(tb to "moj"),
+        P.zdruziSpremembi(listOf(tb), mapOf(tb to "moj"), listOf(tb), mapOf(tb to "zlo1")))
+    preveriEnako("N4: kljuci obeh", listOf(tb, "usenet") to mapOf<String, String?>(tb to "moj", "usenet" to "u0"),
+        P.zdruziSpremembi(listOf(tb), mapOf(tb to "moj"), listOf("usenet", tb), mapOf("usenet" to "u0", tb to "zlo1")))
+    // Grok 15, N9: prehod odtisov ni koncan, dokler je kak obstojeci kljuc neberljiv.
+    preveriEnako("N9: neberljiv - ni koncan", false, P.prehodKoncan(setOf(tb, "usenet"), setOf(tb)))
+    preveriEnako("N9: vsi berljivi - koncan", true, P.prehodKoncan(setOf(tb, "usenet"), emptySet()))
+    // Grok 15, N10: z vrednostjo velja gostitelj iz nje; trditev samo kot ime gostitelja.
+    preveriEnako("N10: vrednost ima prednost", "pravi.test", P.prikazGostitelja("https://pravi.test/x/manifest.json", "torrentio.strem.fun", "pravi.test"))
+    preveriEnako("N10: brez vrednosti - trditev ocisceno", "torrentio.strem.fun", P.prikazGostitelja("", "Torrentio.Strem.Fun‮", ""))
+    preveriEnako("N10: brez nevidnih znakov", "evilmoc.test", P.samoImeGostitelja("evil​moc.test"))
+
     if (napak == 0) println("UskladitevKljucevPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
