@@ -180,7 +180,14 @@ object DvdVir {
             return n
         }
 
-        override fun getUri(): Uri? = uri
+        /**
+         * Naslov, s katerega ta hip beremo: pri posredovanem viru je to naslov PO preusmeritvah (pravi vir ga ve). ExoPlayer
+         * po njem razresi relativne poti v seznamu HLS (ParsingLoadable: dataSource.getUri()). Prej je bil tu vedno prvotni
+         * naslov - kanal s preusmeritvijo (iptv-org: jmp2.uk -> Pluto, c.mjh.nz -> ABC iview) je relativne razlicice iskal
+         * na prvotnem strezniku: izmerjeno 25. 10. 2026 jmp2.uk/<razlicica> HTTP 414, c.mjh.nz/<razlicica> HTTP 404 - na
+         * TV koncna napaka in kanal oznacen kot mrtev, ceprav tok dela.
+         */
+        override fun getUri(): Uri? = naprej?.uri ?: uri
 
         /**
          * Glave odgovora gredo naprej od pravega vira. Brez tega ExoPlayer ne vidi "icy-metaint" (sam zahteva
