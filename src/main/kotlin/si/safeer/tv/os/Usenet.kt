@@ -50,6 +50,13 @@ object Usenet {
      */
     fun jeNaVoljo(c: Context): Boolean = imaIndeksator(c) && TorBox.imaKljuc(c) && Debrid.aktivna(c) != null
 
+    /**
+     * Diagnostika razvijalca (lastnik 25. 10. 2026: Usenet merimo samo po samodejni poti, brez rocne izbire vira):
+     * `debug.safeer.usenet_samo` = cas izteka v sekundah (najvec 6 h, samo adb, ne ostane po ponovnem zagonu - kot
+     * [Webtor.samoWebtor]). Samodejna izbira takrat vzame samo Usenet: pripravljen pri TorBoxu, nato s cakanjem na prenos.
+     */
+    fun samoUsenet(): Boolean = Webtor.diagnostika("debug.safeer.usenet_samo")
+
     /** Povezave NZB po id-ju toka (najvec [NAJVEC_POVEZAV], najstarejse odpadejo). */
     private const val NAJVEC_POVEZAV = 500
     private val povezave = object : LinkedHashMap<String, String>(64, 0.75f, true) {

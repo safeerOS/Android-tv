@@ -125,6 +125,7 @@
     <string name="os_webtor_rezerva">Webtor hat nicht funktioniert – andere Quelle wird abgespielt</string>
     <string name="os_webtor_pripravljam">Wird über Webtor vorbereitet …</string>
     <string name="os_webtor_diagnostika">Diagnose: nur Webtor (Entwicklertest)</string>
+    <string name="os_usenet_diagnostika">Diagnose: nur Usenet (Entwicklertest)</string>
     <string name="os_skrivni_dodatek_ime">Add-on %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">Das Add-on konnte nicht sicher gespeichert werden (Verschlüsselung fehlgeschlagen). Bitte erneut versuchen.</string>
     <string name="os_mediji_dodatek_dodaj_znova">kann auf diesem Gerät nicht entsperrt werden – das Add-on muss erneut hinzugefügt werden (%1$s)</string>

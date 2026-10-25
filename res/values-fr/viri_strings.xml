@@ -125,6 +125,7 @@
     <string name="os_webtor_rezerva">Webtor n’a pas fonctionné – lecture d’une autre source</string>
     <string name="os_webtor_pripravljam">Préparation via Webtor…</string>
     <string name="os_webtor_diagnostika">Diagnostic : Webtor uniquement (test développeur)</string>
+    <string name="os_usenet_diagnostika">Diagnostic : Usenet uniquement (test développeur)</string>
     <string name="os_skrivni_dodatek_ime">extension %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">L’extension n’a pas pu être enregistrée de façon sécurisée (échec du chiffrement). Réessayez.</string>
     <string name="os_mediji_dodatek_dodaj_znova">impossible à déverrouiller sur cet appareil – l’extension doit être ajoutée à nouveau (%1$s)</string>

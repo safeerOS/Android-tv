@@ -195,7 +195,7 @@ object Webtor {
      * adb, ne ostane po ponovnem zagonu (ni persist) in je ne vklopi globalna raven dnevnika (prej log.tag.* - tudi
      * persist in globalno). Primer: `adb shell setprop debug.safeer.webtor_samo $(( $(date +%s) + 3600 ))`.
      */
-    private fun diagnostika(lastnost: String): Boolean = try {
+    internal fun diagnostika(lastnost: String): Boolean = try {
         val p = Runtime.getRuntime().exec(arrayOf("getprop", lastnost))
         val v = p.inputStream.bufferedReader().use { it.readLine() }
         WebtorPravila.diagnostikaVelja(v, System.currentTimeMillis() / 1000)

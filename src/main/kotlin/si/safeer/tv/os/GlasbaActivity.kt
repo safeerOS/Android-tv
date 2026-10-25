@@ -8753,12 +8753,26 @@ class GlasbaActivity : OsActivity() {
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor")
             Toast.makeText(this, R.string.os_webtor_diagnostika, Toast.LENGTH_LONG).show()
         }
-        val predpomnjeni = if (samoWebtor) emptySet<String>() else pripravljeno.predpomnjeni
+        // Diagnostika razvijalca ([Usenet.samoUsenet], samo prek adb, z rokom; lastnik 25. 10. 2026: meritev Useneta samo po
+        // samodejni poti): samodejna izbira vzame samo Usenet - brez ⚡ torrentov, neposrednih povezav in Webtorja; ce Usenet
+        // ne predvaja, se izbira konca (brez poti mimo). Viden znak kot pri Webtorju.
+        val samoUsenet = !samoWebtor && !rocno && Usenet.samoUsenet()
+        if (samoUsenet) {
+            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet")
+            Toast.makeText(this, R.string.os_usenet_diagnostika, Toast.LENGTH_LONG).show()
+        }
+        val predpomnjeni = if (samoWebtor || samoUsenet) emptySet<String>() else pripravljeno.predpomnjeni
         // Webtor rezerva (25. 10. 2026): tokovi Webtor [⚡TB] (podvajajo nas TorBox) in [P2P] (posnetek z oglasom za paket)
         // izpadejo takoj ([WebtorPravila.skrij]).
         val imamoTorBox = Debrid.aktivna(this) != null && DebridPravila.TORBOX in Debrid.zKljucem(this)
         val tokovi = vsiTokovi.filterNot { it.vir == WebtorPravila.VIR && WebtorPravila.skrij(WebtorPravila.vrstaIz(it.oznakaVira), imamoTorBox) }
             .filter { !samoWebtor || it.vir == WebtorPravila.VIR || it.vrsta == "torrent" }
+            .filter { !samoUsenet || it.vrsta == UsenetPravila.VRSTA }
+        if (samoUsenet && tokovi.isEmpty()) {
+            // Brez izdaj Usenet (indeksator jih nima) se diagnostika konca tu - vsebina ne izgine s seznama.
+            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - indeksator ni dal izdaj")
+            return
+        }
         // Brez predvajljivega toka ni okna in ni seznama povezav (prosnje za donacijo, Discord, "No streams found" so ze
         // izlocene v Stremio.tok): kratko obvestilo, vsebina pa izgine s seznama (lastnik, 2. 10. 2026).
         // Torrent steje le, ce ga ta naprava zmore: prek pomocnika v Linku ali sama, ce datoteka gre na njen prostor.
@@ -8991,6 +9005,7 @@ class GlasbaActivity : OsActivity() {
             fun naKonec() {
                 // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
                 if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
+                if (samoUsenet) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal"); return }
                 if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
             }
             // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 kroga sond in 15 s ([webtorRok]).
@@ -9022,7 +9037,7 @@ class GlasbaActivity : OsActivity() {
                 poskusiWebtor(true) { if (poskusi.isNotEmpty()) poskusiUsenetSCakanjem(0) else poskusiWebtor(false) { naKonec() } }
                 return
             }
-            if (samoWebtor) { naKonec(); return }
+            if (samoWebtor || samoUsenet) { naKonec(); return }
             if (samodejnoBrezUseneta()) return
         }
         // Rocna izbira: najboljsi na vrhu, napovednik na koncu.

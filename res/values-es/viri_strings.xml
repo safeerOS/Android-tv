@@ -125,6 +125,7 @@
     <string name="os_webtor_rezerva">Webtor no funcionó: reproduciendo otra fuente</string>
     <string name="os_webtor_pripravljam">Preparando a través de Webtor…</string>
     <string name="os_webtor_diagnostika">Diagnóstico: solo Webtor (prueba de desarrollo)</string>
+    <string name="os_usenet_diagnostika">Diagnóstico: solo Usenet (prueba de desarrollo)</string>
     <string name="os_skrivni_dodatek_ime">complemento %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">No se pudo guardar el complemento de forma segura (falló el cifrado). Inténtalo de nuevo.</string>
     <string name="os_mediji_dodatek_dodaj_znova">no se puede desbloquear en este dispositivo: hay que volver a añadir el complemento (%1$s)</string>
