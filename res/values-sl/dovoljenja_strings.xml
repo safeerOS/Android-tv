@@ -5,8 +5,8 @@
     <string name="dov_opis_vrstice">Kaj Safeer potrebuje in zakaj – vklop z enim dotikom</string>
     <string name="dov_uvod">Safeer zahteva samo, kar res uporablja. Gumb odpre točno pravo stran – tam vklopi stikalo za Safeer in se vrni. Vse lahko kadarkoli prekličeš.</string>
     <string name="dov_ob_zagonu">Nekaj pomembnega še manjka, zato Safeer Link na tej napravi ne more vsega. Tapni »Dovoli« pri označenih vrsticah.</string>
-    <!-- Ime posebnega dostopa v cistem Androidu (Pixel in vecina drugih). -->
-    <string name="dov_prikaz">Prikaz čez druge aplikacije</string>
+    <!-- Ime posebnega dostopa v cistem Androidu (OnePlus, WP28 S in vecina drugih; sl preverjeno na napravah lastnika 25. 10. 2026). -->
+    <string name="dov_prikaz">Prekrivanje drugih aplikacij</string>
     <!-- Ime na Samsungu (One UI): sl in en preverjeno; v ostalih jezikih Samsungovo ime ni preverjeno - zato splosno. -->
     <string name="dov_prikaz_samsung">Pojavitev na vrhu</string>
     <string name="dov_prikaz_opis">Da Safeer Link na tej napravi sam odpre program ali stran, ki jo pošlješ z računalnika ali telefona.</string>

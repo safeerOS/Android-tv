@@ -5,7 +5,7 @@
     <string name="dov_opis_vrstice">What Safeer needs and why – switch on with one tap</string>
     <string name="dov_uvod">Safeer only asks for what it really uses. The button opens exactly the right page – switch Safeer on there and come back. You can revoke anything at any time.</string>
     <string name="dov_ob_zagonu">Something important is still missing, so Safeer Link can\'t do everything on this device. Tap “Allow” on the marked rows.</string>
-    <!-- Ime posebnega dostopa v cistem Androidu (Pixel in vecina drugih). -->
+    <!-- Ime posebnega dostopa v cistem Androidu (OnePlus, WP28 S in vecina drugih; sl preverjeno na napravah lastnika 25. 10. 2026). -->
     <string name="dov_prikaz">Display over other apps</string>
     <!-- Ime na Samsungu (One UI): sl in en preverjeno; v ostalih jezikih Samsungovo ime ni preverjeno - zato splosno. -->
     <string name="dov_prikaz_samsung">Appear on top</string>

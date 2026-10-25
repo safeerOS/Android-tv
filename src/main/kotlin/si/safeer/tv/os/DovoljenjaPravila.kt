@@ -134,13 +134,15 @@ object DovoljenjaPravila {
     /**
      * Ime posebnega dostopa »prikaz cez druge aplikacije«, kot ga uporabnik VIDI na svoji napravi (samo za prepoznavo -
      * gumb odpre tocno pravo stikalo): Samsung (One UI) ga imenuje drugace (sl »Pojavitev na vrhu«, en »Appear on top«),
-     * ostali (cisti Android, Pixel) »Prikaz cez druge aplikacije«. Drugih proizvajalcev (npr. Xiaomi) nismo preverili -
-     * zanje splosno ime.
+     * ostali (cisti Android, OnePlus/OxygenOS, WP28 S) sl »Prekrivanje drugih aplikacij« (preverjeno na napravah lastnika
+     * 25. 10. 2026), en »Display over other apps«. Drugih proizvajalcev (npr. Xiaomi) nismo preverili - zanje splosno
+     * ime; nov proizvajalec se doda v [IMENA_PRIKAZA] (in nizi v values*).
      */
     enum class ImePrikaza { SPLOSNO, SAMSUNG }
 
-    fun imePrikaza(proizvajalec: String?): ImePrikaza =
-        if (proizvajalec.orEmpty().trim().equals("samsung", ignoreCase = true)) ImePrikaza.SAMSUNG else ImePrikaza.SPLOSNO
+    private val IMENA_PRIKAZA = mapOf("samsung" to ImePrikaza.SAMSUNG)
+
+    fun imePrikaza(proizvajalec: String?): ImePrikaza = IMENA_PRIKAZA[proizvajalec.orEmpty().trim().lowercase()] ?: ImePrikaza.SPLOSNO
 
     /** Zapis mnozice postavk v nastavitve (imena, locena z vejico) in nazaj; neznana imena se izpustijo. */
     fun vNiz(v: Set<Vrsta>): String = v.map { it.name }.sorted().joinToString(",")

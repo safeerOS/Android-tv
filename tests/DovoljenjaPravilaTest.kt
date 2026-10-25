@@ -91,6 +91,8 @@ fun main() {
     preveriEnako("Samsung", DovoljenjaPravila.ImePrikaza.SAMSUNG, P.imePrikaza("samsung"))
     preveriEnako("Samsung velike crke", DovoljenjaPravila.ImePrikaza.SAMSUNG, P.imePrikaza(" Samsung "))
     preveriEnako("OUKITEL (WP28 S)", DovoljenjaPravila.ImePrikaza.SPLOSNO, P.imePrikaza("OUKITEL"))
+    preveriEnako("OnePlus (OxygenOS)", DovoljenjaPravila.ImePrikaza.SPLOSNO, P.imePrikaza("OnePlus"))
+    preveriEnako("SAMSUNG (velike)", DovoljenjaPravila.ImePrikaza.SAMSUNG, P.imePrikaza("SAMSUNG"))
     preveriEnako("Xiaomi (ni preverjeno - splosno)", DovoljenjaPravila.ImePrikaza.SPLOSNO, P.imePrikaza("Xiaomi"))
     preveriEnako("neznan", DovoljenjaPravila.ImePrikaza.SPLOSNO, P.imePrikaza(null))
 
