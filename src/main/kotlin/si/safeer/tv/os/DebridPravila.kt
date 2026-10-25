@@ -225,6 +225,30 @@ object DebridPravila {
     /** Ali steje tok kot »prvi predvajljiv« za [cakajPoPrvemMs]: povezava vedno, torrent samo z aktivno storitvijo. */
     fun stejeKotPrvi(vrsta: String, aktivna: Boolean): Boolean = vrsta == "url" || (aktivna && vrsta == "torrent")
 
+    // ------------------------------------------------------------------ neodvisni pregled 5: brisemo samo svoje
+
+    /** Rezerva za razliko ure naprave in streznika: torrent, dodan najvec toliko pred zacetkom poskusa, se steje za nasega. */
+    const val DODANO_REZERVA_MS = 120_000L
+
+    /** Real-Debrid »added« (torrents/info, ISO 8601 UTC, npr. 2026-10-25T01:02:03.000Z) v ms; null = ga ni ali ni berljiv. */
+    fun rdDodanoMs(added: String?): Long? {
+        val t = added?.trim()?.take(19) ?: return null
+        if (!Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$").matches(t)) return null
+        return try {
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.ROOT)
+                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC"); isLenient = false }.parse(t)?.time
+        } catch (_: Exception) { null }
+    }
+
+    /** AllDebrid »uploadDate« (magnet/status, sekunde Unix) v ms; null = ga ni. */
+    fun adDodanoMs(uploadDate: Long?): Long? = uploadDate?.takeIf { it > 0 }?.times(1000)
+
+    /**
+     * Ali je torrent dodal poskus, zacet ob [zacetekMs] (smemo ga izbrisati): cas dodajanja je znan in ni starejsi od zacetka
+     * (z rezervo [DODANO_REZERVA_MS]). Neznan cas = ne - torrenta, ki je bil v racunu ze prej, ne izbrisemo.
+     */
+    fun dodalSmoMi(dodanoMs: Long?, zacetekMs: Long): Boolean = dodanoMs != null && dodanoMs >= zacetekMs - DODANO_REZERVA_MS
+
     // ------------------------------------------------------------------ pregled Grok 8: meja odgovora API
 
     /** Najvec bajtov odgovora API debrid storitve (JSON) - ista meja kot pri dodatkih (OsPravila.NAJVEC_ODGOVORA_DODATKA). */

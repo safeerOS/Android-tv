@@ -206,5 +206,19 @@ fun main() {
     preveriEnako("Grok 8: prazno", 0, DebridPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(0)))?.size)
     preveriEnako("Grok 8: vec kosov (40 KiB)", 40_000, DebridPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(40_000)))?.size)
 
+    // Neodvisni pregled 5: brisemo samo torrent, ki ga je dodal ta poskus.
+    val t0 = 1_793_000_000_000L
+    preveriEnako("RD added ISO", 1_000L, DebridPravila.rdDodanoMs("1970-01-01T00:00:01.000Z"))
+    preveriEnako("RD added brez ms", 0L, DebridPravila.rdDodanoMs("1970-01-01T00:00:00Z"))
+    preveriEnako("RD added prazen", null, DebridPravila.rdDodanoMs(""))
+    preveriEnako("RD added null", null, DebridPravila.rdDodanoMs(null))
+    preveriEnako("RD added neberljiv", null, DebridPravila.rdDodanoMs("vceraj"))
+    preveriEnako("AD uploadDate", 5_000L, DebridPravila.adDodanoMs(5L))
+    preveriEnako("AD uploadDate 0", null, DebridPravila.adDodanoMs(0L))
+    preveriEnako("nas: dodan po zacetku", true, DebridPravila.dodalSmoMi(t0 + 3_000, t0))
+    preveriEnako("nas: ura streznika malo zadaj", true, DebridPravila.dodalSmoMi(t0 - 60_000, t0))
+    preveriEnako("ni nas: dodan uro prej", false, DebridPravila.dodalSmoMi(t0 - 3_600_000, t0))
+    preveriEnako("neznano: ne brisi", false, DebridPravila.dodalSmoMi(null, t0))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

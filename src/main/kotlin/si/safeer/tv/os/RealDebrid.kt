@@ -21,18 +21,29 @@ object RealDebrid {
             ponudnik = DebridPravila.REAL_DEBRID)
     }
 
-    /** Brisanje gre ven tudi po preklicu: oznako prekinitve za cas klica odstranimo in jo nato vrnemo. */
-    private fun izbrisi(kljuc: String, id: String) {
-        val prekinjen = Thread.interrupted()
-        try { Debrid.klic("$O/torrents/delete/$id", kljuc, "DELETE") } catch (_: Exception) { }
-        finally { if (prekinjen) Thread.currentThread().interrupt() }
+    /**
+     * Pospravi torrent [id], ki ga je dodal ta poskus (zacet ob [zacetekMs]). Brisanje gre ven tudi po preklicu (oznako
+     * prekinitve za cas klica odstranimo in jo nato vrnemo), s kratkimi roki (neodvisni pregled 4 - okno z napako ne caka).
+     * Neodvisni pregled 5: ne izbrisemo torrenta, ki je bil v racunu ze prej (addMagnet za isti hash morda vrne obstojeci id -
+     * od tod ni preverjeno): izbrisemo samo, ce je »added« iz torrents/info po zacetku poskusa ([DebridPravila.dodalSmoMi]) in
+     * pri »samo takoj« ga ne caka drug poskus na tej napravi ([Debrid.cakan]). Neznano = ne izbrisemo.
+     */
+    private fun izbrisi(kljuc: String, id: String, zacetekMs: Long, samoPredpomnjeno: Boolean) {
+        if (samoPredpomnjeno && Debrid.cakan(DebridPravila.REAL_DEBRID, id)) { Log.i(TAG, "torrent ni izbrisan: nanj caka drug poskus"); return }
+        Debrid.brezPrekinitve {
+            val info = Debrid.klic("$O/torrents/info/$id", kljuc, povezavaMs = Debrid.POSPRAVI_POVEZAVA_MS, branjeMs = Debrid.POSPRAVI_BRANJE_MS)
+            val dodano = DebridPravila.rdDodanoMs(info.json?.optString("added"))
+            if (!DebridPravila.dodalSmoMi(dodano, zacetekMs)) Log.i(TAG, "torrent ni izbrisan: ni dokaza, da ga je dodal ta poskus")
+            else Debrid.klic("$O/torrents/delete/$id", kljuc, "DELETE", povezavaMs = Debrid.POSPRAVI_POVEZAVA_MS, branjeMs = Debrid.POSPRAVI_BRANJE_MS)
+        }
     }
 
     fun tok(kljuc: String, magnet: String, indeks: Int, samoPredpomnjeno: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
         var id = ""
         // Grok 1: torrent je pripravljen (»downloaded« s povezavo) - ostane v racunu (predpomnjen, ne zaseda aktivnega mesta).
         var pripravljen = false
-        fun pospravi() { if (id.isNotBlank()) { izbrisi(kljuc, id); id = "" } }
+        val zacetekMs = System.currentTimeMillis()
+        fun pospravi() { if (id.isNotBlank()) { izbrisi(kljuc, id, zacetekMs, samoPredpomnjeno); id = "" } }
         return try {
             // Pregled Grok 2: preklican poskus ne doda in ne izbere nicesar vec (klic HTTP prekinitve ne vidi).
             Debrid.preveriPreklic()
@@ -40,6 +51,8 @@ object RealDebrid {
             if (!dodaj.uspeh) return napaka(dodaj)
             id = dodaj.json?.optString("id").orEmpty()
             if (id.isBlank()) return napaka(dodaj)
+            // Neodvisni pregled 5: na ta torrent uporabnik caka - poskus »samo takoj« (vzporedni krog, druga izbira) ga ne izbrise.
+            if (!samoPredpomnjeno) Debrid.oznaciCakan(DebridPravila.REAL_DEBRID, id)
             // Datoteke torrenta (pretvorba magneta traja nekaj sekund).
             var info = Debrid.klic("$O/torrents/info/$id", kljuc)
             var poskusov = 0

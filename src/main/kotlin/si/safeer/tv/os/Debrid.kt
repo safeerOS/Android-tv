@@ -386,6 +386,23 @@ object Debrid {
      */
     fun preveriPreklic() { if (Thread.currentThread().isInterrupted) throw InterruptedException() }
 
+    /** Neodvisni pregled 4: kratki roki za pospravljanje (brisanje po neuspehu) - okno z napako ne caka 10 + 20 s. */
+    const val POSPRAVI_POVEZAVA_MS = 3_000
+    const val POSPRAVI_BRANJE_MS = 5_000
+
+    /** [delo] (pospravljanje) gre ven tudi po preklicu: oznako prekinitve za cas dela odstranimo in jo nato vrnemo; napake pogoltne. */
+    fun brezPrekinitve(delo: () -> Unit) {
+        val prekinjen = Thread.interrupted()
+        try { delo() } catch (_: Exception) { } finally { if (prekinjen) Thread.currentThread().interrupt() }
+    }
+
+    /**
+     * Neodvisni pregled 5: torrenti (storitev:id), na katere uporabnik na tej napravi caka (»Pocakaj na prenos«) - poskus
+     * »samo takoj« (tudi zapuscena nit preklicanega poskusa) jih ne izbrise. Samo v pomnilniku procesa, nekaj vnosov.
+     */
+    private val cakani = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    fun oznaciCakan(p: String, id: String) { if (cakani.size < 500) cakani += "$p:$id" }
+    fun cakan(p: String, id: String): Boolean = "$p:$id" in cakani
 
     class Odgovor(val koda: Int, val telo: String) {
         val json: JSONObject? get() = try { JSONObject(telo) } catch (_: Exception) { null }
@@ -394,11 +411,12 @@ object Debrid {
     }
 
     /** Klic s kljucem v glavi (nikoli v naslovu); [obrazec] gre kot application/x-www-form-urlencoded. */
-    fun klic(naslov: String, kljuc: String, metoda: String = "GET", obrazec: List<Pair<String, String>>? = null): Odgovor {
+    fun klic(naslov: String, kljuc: String, metoda: String = "GET", obrazec: List<Pair<String, String>>? = null,
+             povezavaMs: Int = 10_000, branjeMs: Int = 20_000): Odgovor {
         val p = URL(naslov).openConnection() as HttpURLConnection
         try {
             p.requestMethod = metoda
-            p.connectTimeout = 10_000; p.readTimeout = 20_000
+            p.connectTimeout = povezavaMs; p.readTimeout = branjeMs
             p.setRequestProperty("Accept", "application/json")
             p.setRequestProperty("Authorization", DebridPravila.glavaAvtorizacije(kljuc))
             if (obrazec != null) {
