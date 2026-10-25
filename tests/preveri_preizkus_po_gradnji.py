@@ -66,6 +66,53 @@ enako("vrstica: napaka predvajalnika se pokaze",
 enako("vrstica: tok brez slike", "NAPAKA  x p v | film: tok, brez slike | sesutij: 1",
       P.vrstica("x", "p", "v", [("film", {"tok": True, "prva_slika_ms": None, "napaka": ""})], 1))
 
+# Dovoljenja prezivijo posodobitev (lastnik 25. 10. 2026). Oblika izpisa: Android 14 (WP28 S, OnePlus 9).
+DUMPSYS = """Packages:
+  Package [si.safeer.phone] (1a2b3c):
+    requested permissions:
+      android.permission.POST_NOTIFICATIONS
+      android.permission.RECORD_AUDIO
+    install permissions:
+      android.permission.INTERNET: granted=true
+      android.permission.SYSTEM_ALERT_WINDOW: granted=true
+    User 0: ceDataInode=123 deDataInode=0 installed=true hidden=false suspended=false distractionFlags=0 stopped=false
+      gids=[3003]
+      runtime permissions:
+        android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED]
+        android.permission.READ_MEDIA_VIDEO: granted=false, flags=[ USER_SET]
+        android.permission.READ_MEDIA_IMAGES: granted=true, flags=[ USER_SET]
+      disabledComponents:
+        si.safeer.tv.Neki
+"""
+enako("izvajalna: samo podeljena iz runtime permissions (ne install, ne requested)",
+      {"android.permission.POST_NOTIFICATIONS", "android.permission.READ_MEDIA_IMAGES"}, P.izvajalna(DUMPSYS))
+enako("izvajalna: prazno", set(), P.izvajalna(""))
+enako("appop paket", "allow", P.appop("PROJECT_MEDIA: allow; time=+3m2s ago"))
+enako("appop paket pred uid", "ignore", P.appop("Uid mode: ACCESS_RESTRICTED_SETTINGS: allow\nACCESS_RESTRICTED_SETTINGS: ignore; rejectTime=+1h ago"))
+enako("appop samo uid", "deny", P.appop("Uid mode: ACCESS_RESTRICTED_SETTINGS: deny"))
+enako("appop brez zapisa", "default", P.appop("No operations."))
+enako("storitve paketa", {"si.safeer.phone/si.safeer.tv.link.VnosStoritev"},
+      P.storitve("com.tuja/x.Y:si.safeer.phone/si.safeer.tv.link.VnosStoritev\n", "si.safeer.phone"))
+enako("storitve null", set(), P.storitve("null\n", "si.safeer.phone"))
+enako("storitve: paket z isto predpono ne steje", set(), P.storitve("si.safeer.phone2/a.B", "si.safeer.phone"))
+
+PREJ = {"izvajalna": {"android.permission.POST_NOTIFICATIONS", "android.permission.RECORD_AUDIO"},
+        "appops": {"PROJECT_MEDIA": "allow", "SYSTEM_ALERT_WINDOW": "allow", "ACCESS_RESTRICTED_SETTINGS": "allow"},
+        "dostopnost": {"si.safeer.phone/si.safeer.tv.link.VnosStoritev"}, "obvestila": set()}
+enako("nic izgubljeno", [], P.izgube(PREJ, PREJ))
+enako("vec po posodobitvi ni izguba", [], P.izgube(PREJ, dict(PREJ, izvajalna=PREJ["izvajalna"] | {"android.permission.CAMERA"})))
+enako("izguba izvajalnega dovoljenja", ["dovoljenje android.permission.RECORD_AUDIO"],
+      P.izgube(PREJ, dict(PREJ, izvajalna={"android.permission.POST_NOTIFICATIONS"})))
+enako("omejene nastavitve znova zaklenjene (stara pot LOCAL_FILE)", ["ACCESS_RESTRICTED_SETTINGS allow -> deny"],
+      P.izgube(PREJ, dict(PREJ, appops=dict(PREJ["appops"], ACCESS_RESTRICTED_SETTINGS="deny"))))
+enako("PROJECT_MEDIA izgubljen", ["PROJECT_MEDIA allow -> default"],
+      P.izgube(PREJ, dict(PREJ, appops=dict(PREJ["appops"], PROJECT_MEDIA="default"))))
+enako("ignore -> deny ni izguba (ni bilo dovoljeno)", [],
+      P.izgube(dict(PREJ, appops=dict(PREJ["appops"], ACCESS_RESTRICTED_SETTINGS="ignore")),
+               dict(PREJ, appops=dict(PREJ["appops"], ACCESS_RESTRICTED_SETTINGS="deny"))))
+enako("dostopnost izklopljena", ["dostopnost si.safeer.phone/si.safeer.tv.link.VnosStoritev"],
+      P.izgube(PREJ, dict(PREJ, dostopnost=set())))
+
 if napak:
     print("preveri_preizkus_po_gradnji: %d napak" % napak)
     sys.exit(1)
