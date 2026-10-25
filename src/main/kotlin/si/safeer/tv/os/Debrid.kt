@@ -212,14 +212,19 @@ object Debrid {
             if (iz.cakajMs > cakajMs) cakajMs = iz.cakajMs
             Log.i(TAG, "${DebridPravila.ime(p)}: ${iz.napaka}")
         }
-        // 2. krog: nobena je nima pripravljene - prednostna jo prenese (ce uporabnik caka).
-        if (DebridPravila.poskusiSCakanjem(samoTakoj, napake) && !Thread.currentThread().isInterrupted) {
+        // 2. krog: nobena je nima pripravljene - prednostna jo prenese (ce uporabnik caka). Pregled Grok 2: odloci prednostna;
+        // zavrnjen kljuc, meja ali rok druge storitve cakanja ne preprecijo.
+        if (DebridPravila.cakajPriPrednostni(samoTakoj, poStoritvah) && !Thread.currentThread().isInterrupted) {
             val p = red.first()
             val iz = poskus(c, p, magnet, indeks, false, napredek)
             return TorBox.Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, p)
         }
-        return TorBox.Izid(napaka = DebridPravila.razlogZaUporabnika(napake), opis = opis, cakajMs = cakajMs,
-            ponudnik = DebridPravila.ponudnikNapake(poStoritvah))
+        val razlog = DebridPravila.razlogPoStoritvah(poStoritvah)
+        // Pregled Grok 2: zavrnjen kljuc druge storitve se ne izgubi - ob »ni predpomnjeno« ga okno pove v dodatnem besedilu.
+        if (razlog == DebridPravila.NAPAKA_NI_PREDPOMNJENO) poStoritvah.drop(1).firstOrNull { it.second == TorBoxPravila.NAPAKA_KLJUC }?.let {
+            opis = c.getString(si.safeer.tv.R.string.os_torbox_napaka_kljuc, DebridPravila.ime(it.first))
+        }
+        return TorBox.Izid(napaka = razlog, opis = opis, cakajMs = cakajMs, ponudnik = DebridPravila.ponudnikNapake(poStoritvah))
     }
 
     /** Vse storitve hkrati, samo predpomnjeno; kar v [DebridPravila.VZPOREDNO_ROK_MS] ne odgovori, je napaka streznika. */
@@ -236,7 +241,11 @@ object Debrid {
                     }
                     catch (_: Exception) { TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK, ponudnik = p) })
             }
-        } finally { bazen.shutdownNow() }
+        } finally {
+            // Pregled Grok 2: niti, ki se cakajo na odgovor, so prekinjene - po odgovoru ne naredijo nobenega koraka vec v
+            // racunu ([preveriPreklic]) in pospravijo, kar so ustvarile. Ne cakamo nanje (preklic mora biti takojsen).
+            bazen.shutdownNow()
+        }
     }
 
     /**
@@ -364,6 +373,14 @@ object Debrid {
     }
 
     // ------------------------------------------------------------------ skupni HTTP
+
+    /**
+     * Pregled Grok 2: preklicani poskus (nova izbira, »Preklici«, onStop - nit je prekinjena) ne sme vec nicesar ustvariti v
+     * uporabnikovem racunu (addMagnet, selectFiles, magnet/upload, createtorrent): blokirajoc klic HTTP prekinitve ne vidi,
+     * zato to preverimo pred vsakim takim korakom. Oznaka prekinitve ostane (klicatelj [tok] ne nadaljuje); kar je poskus ze
+     * ustvaril, pospravi storitev sama (RealDebrid, AllDebrid).
+     */
+    fun preveriPreklic() { if (Thread.currentThread().isInterrupted) throw InterruptedException() }
 
     class Odgovor(val koda: Int, val telo: String) {
         val json: JSONObject? get() = try { JSONObject(telo) } catch (_: Exception) { null }

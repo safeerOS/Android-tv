@@ -19,8 +19,11 @@ object AllDebrid {
 
     private fun uspeh(o: Debrid.Odgovor) = o.uspeh && o.json?.optString("status") == "success"
 
+    /** Brisanje gre ven tudi po preklicu: oznako prekinitve za cas klica odstranimo in jo nato vrnemo. */
     private fun izbrisi(kljuc: String, id: Long) {
+        val prekinjen = Thread.interrupted()
         try { Debrid.klic("$O/magnet/delete", kljuc, "POST", listOf("id" to id.toString())) } catch (_: Exception) { }
+        finally { if (prekinjen) Thread.currentThread().interrupt() }
     }
 
     /** Datoteke iz drevesa magnet/files: (datoteka, povezava) - mape (e) se razvijejo. */
@@ -38,6 +41,8 @@ object AllDebrid {
     fun tok(kljuc: String, magnet: String, indeks: Int, samoPredpomnjeno: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
         var id = -1L
         return try {
+            // Pregled Grok 2: preklican poskus ne doda nicesar vec (klic HTTP prekinitve ne vidi).
+            Debrid.preveriPreklic()
             val nalozi = Debrid.klic("$O/magnet/upload", kljuc, "POST", listOf("magnets[]" to DebridPravila.magnetAliHash(magnet)))
             if (!uspeh(nalozi)) return napaka(nalozi)
             val m = nalozi.json?.optJSONObject("data")?.optJSONArray("magnets")?.optJSONObject(0) ?: return napaka(nalozi)
@@ -69,6 +74,7 @@ object AllDebrid {
             val d = TorBoxPravila.izberiDatoteko(seznam.map { it.first }, indeks)
                 ?: return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_NI_DATOTEKE, ponudnik = DebridPravila.ALLDEBRID)
             val povezava = seznam[d.id.toInt()].second
+            Debrid.preveriPreklic()
             val odklep = Debrid.klic("$O/link/unlock", kljuc, "POST", listOf("link" to povezava))
             if (!uspeh(odklep)) return napaka(odklep)
             val data = odklep.json?.optJSONObject("data")

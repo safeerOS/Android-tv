@@ -80,12 +80,29 @@ object DebridPravila {
      */
     fun ponudnikNapake(napake: List<Pair<String, String>>): String {
         if (napake.isEmpty()) return ""
-        val razlog = razlogZaUporabnika(napake.map { it.second })
+        val razlog = razlogPoStoritvah(napake)
         return (napake.firstOrNull { it.second == razlog } ?: napake.first()).first
     }
 
+    /** Skupno pravilo (tests/skupni-primeri, tudi namizje): vse storitve so rekle »ni predpomnjeno«. Android: [cakajPriPrednostni]. */
     fun poskusiSCakanjem(samoPredpomnjeno: Boolean, napake: List<String>): Boolean =
         !samoPredpomnjeno && napake.isNotEmpty() && napake.all { it == NAPAKA_NI_PREDPOMNJENO }
+
+    /**
+     * Pregled Grok 2: razlog za uporabnika iz (storitev, napaka) po vrstnem redu poskusov - prva je prednostna. Ce prednostna
+     * vsebine nima pripravljene, je razlog »ni predpomnjeno«: zavrnjen kljuc, meja ali rok vzporednega klica DRUGE storitve
+     * ga ne preglasi (sicer okno ni ponudilo »Pocakaj na prenos«, ceprav bi ga prednostna prenesla). Sicer [razlogZaUporabnika].
+     */
+    fun razlogPoStoritvah(napake: List<Pair<String, String>>): String =
+        if (napake.firstOrNull()?.second == NAPAKA_NI_PREDPOMNJENO) NAPAKA_NI_PREDPOMNJENO
+        else razlogZaUporabnika(napake.map { it.second })
+
+    /**
+     * Pregled Grok 2: cakanje na prenos (2. krog) velja za prednostno storitev - samo, ce filter »samo takoj« ni vklopljen in je
+     * prednostna (prva v [napake]) rekla »ni predpomnjeno«; napake drugih storitev tega ne preprecijo.
+     */
+    fun cakajPriPrednostni(samoPredpomnjeno: Boolean, napake: List<Pair<String, String>>): Boolean =
+        !samoPredpomnjeno && napake.firstOrNull()?.second == NAPAKA_NI_PREDPOMNJENO
 
     // ------------------------------------------------------------------ Real-Debrid
 

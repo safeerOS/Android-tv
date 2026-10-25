@@ -127,6 +127,8 @@ object TorBox {
             val vnos = pred.json?.optJSONObject("data")?.optJSONObject(hash)
             val predpomnjen = vnos != null
             if (!predpomnjen && samoPredpomnjeno) return Izid(napaka = DebridPravila.NAPAKA_NI_PREDPOMNJENO)
+            // Pregled Grok 2: preklican poskus ne doda torrenta (in ne steje v mejo 60/uro) - klic HTTP prekinitve ne vidi.
+            Debrid.preveriPreklic()
             if (!predpomnjen) {
                 val prefs = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 val casi = prefs.getString(KLJUC_NOVI, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
@@ -188,6 +190,7 @@ object TorBox {
         val kljuc = kljuc(c) ?: return Izid(napaka = TorBoxPravila.NAPAKA_KLJUC, ponudnik = DebridPravila.TORBOX)
         fun z(iz: Izid) = Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, DebridPravila.TORBOX)
         return try {
+            Debrid.preveriPreklic()
             val ustvari = klic(UsenetPravila.naslovUstvari(), kljuc, "POST",
                 mapOf("name" to ime.take(120), "add_only_if_cached" to samoTakoj.toString(), "post_processing" to "-1"),
                 rokMs = 60_000, datoteka = "safeer.nzb" to nzb)

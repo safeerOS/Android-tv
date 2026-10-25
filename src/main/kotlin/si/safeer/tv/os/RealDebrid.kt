@@ -34,6 +34,8 @@ object RealDebrid {
         var pripravljen = false
         fun pospravi() { if (id.isNotBlank()) { izbrisi(kljuc, id); id = "" } }
         return try {
+            // Pregled Grok 2: preklican poskus ne doda in ne izbere nicesar vec (klic HTTP prekinitve ne vidi).
+            Debrid.preveriPreklic()
             val dodaj = Debrid.klic("$O/torrents/addMagnet", kljuc, "POST", listOf("magnet" to magnet))
             if (!dodaj.uspeh) return napaka(dodaj)
             id = dodaj.json?.optString("id").orEmpty()
@@ -54,6 +56,7 @@ object RealDebrid {
             }
             val d = TorBoxPravila.izberiDatoteko(datoteke, indeks)
                 ?: run { pospravi(); return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_NI_DATOTEKE, ponudnik = DebridPravila.REAL_DEBRID) }
+            Debrid.preveriPreklic()
             val izberi = Debrid.klic("$O/torrents/selectFiles/$id", kljuc, "POST", listOf("files" to d.id.toString()))
             if (!izberi.uspeh) { pospravi(); return napaka(izberi) }
             // Predpomnjen torrent je »downloaded« takoj (nekaj sekund); sicer ga storitev sele prenasa.
@@ -83,6 +86,7 @@ object RealDebrid {
             val povezava = info.json?.optJSONArray("links")?.optString(0).orEmpty()
             if (povezava.isBlank()) return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_NI_DATOTEKE, ponudnik = DebridPravila.REAL_DEBRID)
             pripravljen = true
+            Debrid.preveriPreklic()
             val odklep = Debrid.klic("$O/unrestrict/link", kljuc, "POST", listOf("link" to povezava))
             if (!odklep.uspeh) return napaka(odklep)
             val url = odklep.json?.optString("download").orEmpty()
