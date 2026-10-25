@@ -25,8 +25,12 @@ fun main() {
     check(OmejenoNastavitvePravila.omejenoVelja(34, OmejenoNastavitvePravila.PACKAGE_SOURCE_LOCAL_FILE))
     check(OmejenoNastavitvePravila.omejenoVelja(33, 3))
     check(!OmejenoNastavitvePravila.omejenoVelja(32, 3))        // Android 12: omejitve ni
-    check(!OmejenoNastavitvePravila.omejenoVelja(34, 2))        // seja/trgovina (DOWNLOADED_FILE)
-    check(!OmejenoNastavitvePravila.omejenoVelja(34, 1))        // STORE
+    // Izmerjeno 25. 10. 2026: omejitev velja tudi za DOWNLOADED_FILE (4), ne samo za LOCAL_FILE (3).
+    check(OmejenoNastavitvePravila.omejenoVelja(34, OmejenoNastavitvePravila.PACKAGE_SOURCE_DOWNLOADED_FILE))
+    check(OmejenoNastavitvePravila.omejenoVelja(33, 4))
+    check(!OmejenoNastavitvePravila.omejenoVelja(32, 4))        // Android 12: omejitve ni
+    check(!OmejenoNastavitvePravila.omejenoVelja(34, 2))        // STORE
+    check(!OmejenoNastavitvePravila.omejenoVelja(34, 1))        // OTHER
     check(!OmejenoNastavitvePravila.omejenoVelja(34, 0))        // UNSPECIFIED
 
     println("OmejenoNastavitvePravilaTest: OK")

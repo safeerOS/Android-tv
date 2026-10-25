@@ -40,11 +40,14 @@ object OmejenoNastavitvePravila {
     }
 
     /**
-     * Ali omejene nastavitve veljajo za to namestitev. Android 13+ (API 33); odvisno od vira namestitve - seja
-     * PackageInstaller (trgovina, [PACKAGE_SOURCE_STORE]/[..._DOWNLOADED_FILE]) ni omejena, lokalna datoteka
-     * ([PACKAGE_SOURCE_LOCAL_FILE] = 3) je. Vrednosti so iz PackageInstaller.SessionParams.
+     * Ali omejene nastavitve veljajo za to namestitev. Android 13+ (API 33); odvisno od vira namestitve
+     * (PackageInstaller.SessionParams): trgovina (STORE = 2) in drugo (OTHER = 1) nista omejena, lokalna datoteka
+     * ([PACKAGE_SOURCE_LOCAL_FILE] = 3) in prenesena datoteka ([PACKAGE_SOURCE_DOWNLOADED_FILE] = 4) sta. Izmerjeno
+     * 25. 10. 2026: omejitev velja za 3 in 4 (prej je tu veljala samo 3).
      */
     const val PACKAGE_SOURCE_LOCAL_FILE = 3
+    const val PACKAGE_SOURCE_DOWNLOADED_FILE = 4
 
-    fun omejenoVelja(sdk: Int, packageSource: Int): Boolean = sdk >= 33 && packageSource == PACKAGE_SOURCE_LOCAL_FILE
+    fun omejenoVelja(sdk: Int, packageSource: Int): Boolean =
+        sdk >= 33 && (packageSource == PACKAGE_SOURCE_LOCAL_FILE || packageSource == PACKAGE_SOURCE_DOWNLOADED_FILE)
 }
