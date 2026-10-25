@@ -230,13 +230,18 @@ object DebridPravila {
     /** Rezerva za razliko ure naprave in streznika: torrent, dodan najvec toliko pred zacetkom poskusa, se steje za nasega. */
     const val DODANO_REZERVA_MS = 120_000L
 
-    /** Real-Debrid »added« (torrents/info, ISO 8601 UTC, npr. 2026-10-25T01:02:03.000Z) v ms; null = ga ni ali ni berljiv. */
+    private val ISO_CAS = Regex("^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})?$")
+
+    /**
+     * Real-Debrid »added« (torrents/info, ISO 8601, npr. 2026-10-25T01:02:03.000Z ali z zamikom +01:00) v ms; brez oznake
+     * pasu = UTC. null = ga ni ali ni berljiv.
+     */
     fun rdDodanoMs(added: String?): Long? {
-        val t = added?.trim()?.take(19) ?: return null
-        if (!Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$").matches(t)) return null
+        val m = ISO_CAS.find(added?.trim() ?: return null) ?: return null
+        val pas = m.groupValues[2].let { if (it.isEmpty() || it == "Z") "UTC" else "GMT" + it }
         return try {
             java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.ROOT)
-                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC"); isLenient = false }.parse(t)?.time
+                .apply { timeZone = java.util.TimeZone.getTimeZone(pas); isLenient = false }.parse(m.groupValues[1])?.time
         } catch (_: Exception) { null }
     }
 

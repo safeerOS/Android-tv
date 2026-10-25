@@ -210,6 +210,8 @@ fun main() {
     val t0 = 1_793_000_000_000L
     preveriEnako("RD added ISO", 1_000L, DebridPravila.rdDodanoMs("1970-01-01T00:00:01.000Z"))
     preveriEnako("RD added brez ms", 0L, DebridPravila.rdDodanoMs("1970-01-01T00:00:00Z"))
+    preveriEnako("RD added z zamikom +01:00", 1_000L, DebridPravila.rdDodanoMs("1970-01-01T01:00:01.000+01:00"))
+    preveriEnako("RD added z zamikom -0230", 1_000L, DebridPravila.rdDodanoMs("1969-12-31T21:30:01-0230"))
     preveriEnako("RD added prazen", null, DebridPravila.rdDodanoMs(""))
     preveriEnako("RD added null", null, DebridPravila.rdDodanoMs(null))
     preveriEnako("RD added neberljiv", null, DebridPravila.rdDodanoMs("vceraj"))
