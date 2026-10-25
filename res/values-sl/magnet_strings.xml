@@ -3,7 +3,7 @@
 <resources>
     <string name="magnet_naslov">Magnet povezave</string>
     <string name="magnet_odpri">Odpri</string>
-    <string name="magnet_opomba">Predvajamo samo video in glasbo. Datotek, ki so videti kot programi, ne prenesemo, razen če jih potrdiš. Prenašaj in deli samo vsebino, za katero imaš pravice; drugi soudeleženci vidijo tvoj naslov IP.</string>
+    <string name="magnet_opomba">Predvajamo samo video in glasbo. Datotek, ki so videti kot programi, ne prenesemo, razen če jih potrdiš. Prenašaj in deli samo vsebino, za katero imaš pravice; brez storitve debrid (npr. TorBox) drugi soudeleženci vidijo tvoj naslov IP.</string>
     <string name="magnet_napaka_ni_magnet">To ni veljavna magnet povezava.</string>
     <string name="magnet_napaka_ni_izbranih">Izberi vsaj eno datoteko.</string>
     <string name="magnet_napaka_ni_metapodatkov">Podatkov o torrentu ni bilo mogoče prebrati. Poskusi pozneje.</string>
@@ -44,4 +44,11 @@
     <string name="magnet_nevarno_opis">Samodejno preverjanje meni, da je »%s« morda program. Preverjanje se lahko zmoti. Prenesi jo samo, če zaupaš viru; Safeer je nikoli ne zažene ali predvaja.</string>
     <string name="magnet_vseeno">Vseeno nadaljuj</string>
     <string name="magnet_pritisni_odpri">Preveri povezavo in pritisni Odpri.</string>
+    <string name="magnet_p2p_naslov">Tvoj naslov IP bo viden</string>
+    <string name="magnet_p2p_opis">Brez storitve debrid se Safeer poveže neposredno z drugimi soudeleženci tega torrenta in vsi v roju vidijo tvoj naslov IP. S TorBoxom (ali Real-Debrid, AllDebrid) torrent prenese storitev, ti dobiš samo tok – tvoj naslov IP ostane skrit.</string>
+    <string name="magnet_p2p_vseeno">Vseeno poveži neposredno</string>
+    <string name="magnet_p2p_dodaj">Dodaj TorBox</string>
+    <string name="magnet_debrid_opis">Ta torrent namesto tebe prenese %1$s – tvoj naslov IP drugim soudeležencem ni viden.</string>
+    <string name="magnet_debrid_predvajaj">Predvajaj prek %1$s</string>
+    <string name="magnet_neposredno">Odpri neposredno (P2P)</string>
 </resources>

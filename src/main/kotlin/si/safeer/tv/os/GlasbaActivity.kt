@@ -227,6 +227,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun sprejmiIzNamena() {
         val n = intent ?: return
+        if (n.getBooleanExtra(EXTRA_DEBRID, false)) { n.removeExtra(EXTRA_DEBRID); window.decorView.post { if (!isFinishing) nastavitveDebrida() } }
         if (!n.getBooleanExtra(EXTRA_PREDAJA_SPREJMI, false)) return
         n.removeExtra(EXTRA_PREDAJA_SPREJMI)
         sprejmiPonudbo()
@@ -8886,21 +8887,8 @@ class GlasbaActivity : OsActivity() {
                 }
                 // Pregled A4: sporocilo imenuje storitev, ki je res padla (TorBox, Real-Debrid, AllDebrid, indeksator Usenet).
                 val storitev = imeStoritveNapake(izid)
-                val sporocilo = when (izid.napaka) {
-                    TorBoxPravila.NAPAKA_KLJUC -> getString(R.string.os_torbox_napaka_kljuc, storitev)
-                    // Pregled 6: »60 novih na uro« je meja TorBoxa - pri drugi storitvi njeno ime in meja paketa.
-                    TorBoxPravila.NAPAKA_MEJA -> if (izid.cakajMs > 0 && izid.ponudnik == DebridPravila.TORBOX)
-                            getString(R.string.os_torbox_napaka_meja, ((izid.cakajMs + 59_999) / 60_000).toInt())
-                        else getString(R.string.os_torbox_napaka_meja_paket, storitev)
-                    TorBoxPravila.NAPAKA_PAKET -> getString(R.string.os_torbox_napaka_paket, storitev)
-                    TorBoxPravila.NAPAKA_NI_DATOTEKE -> getString(R.string.os_torbox_napaka_ni_datoteke, storitev)
-                    TorBoxPravila.NAPAKA_PRENASA -> getString(R.string.os_torbox_napaka_prenasa, storitev)
-                    DebridPravila.NAPAKA_NI_PREDPOMNJENO -> getString(R.string.os_debrid_napaka_ni_predpomnjeno)
-                    UsenetPravila.NAPAKA_INDEKSATOR -> getString(R.string.os_usenet_napaka_indeksator)
-                    else -> getString(R.string.os_torbox_napaka_streznik, storitev)
-                } + if (izid.opis.isNotBlank()) "\n\n" + izid.opis else ""
-                val naslovOkna = if (izid.napaka == DebridPravila.NAPAKA_NI_PREDPOMNJENO) getString(R.string.os_debrid_napaka_naslov_vse)
-                    else getString(R.string.os_torbox_napaka_naslov, storitev)
+                val sporocilo = DebridBesedila.sporocilo(this, izid, storitev)
+                val naslovOkna = DebridBesedila.naslov(this, izid, storitev)
                 val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                     .setTitle(naslovOkna).setMessage(sporocilo)
                     .setNegativeButton(R.string.os_preklici, null)
@@ -9295,7 +9283,7 @@ class GlasbaActivity : OsActivity() {
 
     /**
      * Torrent brez racunalnika v Linku (lastnik, 3. 10. 2026): naprava ga predvaja SAMA, ce datoteka gre na njen prosti
-     * prostor (zacasno - po 48 urah brez predvajanja izgine sama); sicer prosi drugo napravo s Safeer OS v krogu
+     * prostor (zacasno - po 12 urah brez predvajanja izgine sama); sicer prosi drugo napravo s Safeer OS v krogu
      * (telefon, tablico, televizor), da ga prenasa in ji ga pretaka. Brez okna in brez izbire: film se zacne ali pa
      * kratko povemo, zakaj ne.
      */
@@ -9551,7 +9539,7 @@ class GlasbaActivity : OsActivity() {
             racunalnikiZaPomoc().any { it.id == pc } -> torrentPrekRacunalnika(sk, sk.naslov, sk.povezava, datoteka, pc)
             else -> torrentBrezRacunalnika(sk, sk.naslov, sk.povezava, datoteka, 0L, "", samoNaprava = pc)
         }
-        // »Obdrži«: prenos ne potece po 48 urah. Oznako hrani naprava, ki film hrani.
+        // »Obdrži«: prenos ne potece po 12 urah. Oznako hrani naprava, ki film hrani.
         fun obdrzi(drzi: Boolean) {
             fun konec(ok: Boolean) {
                 if (isFinishing) return
@@ -9724,6 +9712,8 @@ class GlasbaActivity : OsActivity() {
         const val ZAVIHEK = "zavihek"
         /** "Poslji na napravo": uporabnik je v pasici ali obvestilu izbral Sprejmi - Medijski center ponudbo prevzame. */
         const val EXTRA_PREDAJA_SPREJMI = "predaja_sprejmi"
+        /** Magnet povezave: »Dodaj TorBox« v opozorilu pred P2P odpre okno »Debrid storitve« (MagnetActivity). */
+        const val EXTRA_DEBRID = "odpri_debrid"
         private const val ZAHTEVA_PREDSTAVNOST = 7413
 
         /** Safeer Media je odprt (pod predvajalnikom); sicer ga Nazaj v predvajalniku odpre. */

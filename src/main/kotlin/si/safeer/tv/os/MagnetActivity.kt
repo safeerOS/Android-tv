@@ -38,12 +38,17 @@ class MagnetActivity : OsActivity() {
         const val EXTRA_SAMODEJNO = "magnet_samodejno"
         val ZETON: String = java.util.UUID.randomUUID().toString()
         private const val IZBERI_DATOTEKO = 7401
+        /** Torrenti (hash), za katere je uporabnik v tem zagonu potrdil opozorilo, da bo njegov IP viden v roju. */
+        private val potrjenP2p: MutableSet<String> = java.util.Collections.synchronizedSet(HashSet())
     }
 
     private lateinit var polje: EditText
     private lateinit var sporocilo: TextView
     private lateinit var seznam: LinearLayout
     private val ozadje = Executors.newSingleThreadExecutor()
+    /** Debrid (TorBox ...) lahko caka minute (prenos na strezniku) - svoja nit, preklic ob zaprtju zaslona. */
+    private val debridDelavec = Executors.newSingleThreadExecutor()
+    private var debridDelo: java.util.concurrent.Future<*>? = null
     private val glavna = Handler(Looper.getMainLooper())
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private var opis: MagnetMotor.Opis? = null
@@ -70,7 +75,7 @@ class MagnetActivity : OsActivity() {
 
     override fun onResume() { super.onResume(); glavna.post(osvezi) }
     override fun onPause() { super.onPause(); glavna.removeCallbacks(osvezi) }
-    override fun onDestroy() { super.onDestroy(); ozadje.shutdown() }
+    override fun onDestroy() { super.onDestroy(); ozadje.shutdown(); debridDelavec.shutdownNow() }
 
     private fun obdelajNamero(i: Intent?) {
         val uri = i?.getStringExtra(EXTRA_URI) ?: i?.data?.takeIf { it.scheme.equals("magnet", true) }?.toString() ?: ""
@@ -102,8 +107,19 @@ class MagnetActivity : OsActivity() {
 
     // ------------------------------------------------------------------ vsebina povezave
 
-    private fun preberi(uri: String, samodejno: Boolean) {
-        if (MagnetMotor.hash(uri) == null) { pokazi(napaka("ni_magnet")); return }
+    /**
+     * Lastnik 23. 10. 2026: z debrid storitvijo (TorBox ...) gre magnet prek nje - torrent prenese storitev, IP uporabnika
+     * ni v roju. Brez nje (ali ce uporabnik izbere »Odpri neposredno«) najprej opozorilo, PREDEN se naprava poveze z rojem:
+     * ze branje podatkov torrenta ([MagnetMotor.preberi]) pokaze IP drugim v roju. Velja tudi za zahtevo z druge naprave.
+     */
+    private fun preberi(uri: String, samodejno: Boolean, neposredno: Boolean = false) {
+        val hash = MagnetMotor.hash(uri)
+        if (hash == null) { pokazi(napaka("ni_magnet")); return }
+        when (DebridPravila.potMagneta(Debrid.aktivna(this), neposredno, hash in potrjenP2p)) {
+            DebridPravila.MAGNET_DEBRID -> { narisiDebrid(uri, samodejno); return }
+            DebridPravila.MAGNET_OPOZORI -> { opozoriP2p(hash) { preberi(uri, samodejno, neposredno = true) }; return }
+        }
+        debridDelo?.cancel(true)
         pokazi(getString(R.string.magnet_berem))
         vOzadju {
             val o = MagnetMotor.preberi(this, uri)
@@ -207,11 +223,105 @@ class MagnetActivity : OsActivity() {
             d.addView(gumb(getString(R.string.magnet_deli)) { deliZDrugimi(o.uri) })
             seznam.addView(d)
         }
+        narisiPrenose()
+    }
+
+    /** Seznam prenosov in »Deli datoteko« pod vsebino povezave (navadna in debrid pot). */
+    private fun narisiPrenose() {
         seznam.addView(besedilo(getString(R.string.magnet_prenosi), 16f).apply { setPadding(0, (18 * resources.displayMetrics.density).toInt(), 0, 0) })
         prenosi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         seznam.addView(prenosi)
         seznam.addView(dejanja().apply { addView(gumb(getString(R.string.magnet_deli_datoteko)) { izberiDatoteko() }) })
         osveziPrenose()
+    }
+
+    // ------------------------------------------------------------------ debrid (IP ni v roju) in opozorilo pred P2P
+
+    /** Magnet prek debrid storitve, brez roja: ime iz povezave, predvajanje prek storitve, neposredno samo po opozorilu. */
+    private fun narisiDebrid(uri: String, samodejno: Boolean) {
+        val aktivna = Debrid.aktivna(this) ?: return preberi(uri, samodejno, neposredno = true)
+        opis = null
+        pokazi("")
+        seznam.removeAllViews()
+        val storitev = DebridPravila.ime(aktivna)
+        val ime = DebridPravila.imeMagneta(uri).ifBlank { MagnetMotor.hash(uri).orEmpty().take(12) }
+        seznam.addView(besedilo(ime, 18f))
+        seznam.addView(besedilo(getString(R.string.magnet_debrid_opis, storitev), 14f, true))
+        val d = dejanja()
+        val predvajaj = gumb("▶ " + getString(R.string.magnet_debrid_predvajaj, storitev)) { predvajajDebrid(uri, ime, null) }
+        d.addView(predvajaj)
+        d.addView(gumb(getString(R.string.magnet_poslji)) { posljiNaNapravo(uri) })
+        d.addView(gumb(getString(R.string.magnet_deli)) { deliZDrugimi(uri) })
+        d.addView(gumb(getString(R.string.magnet_neposredno)) { preberi(uri, false, neposredno = true) })
+        seznam.addView(d)
+        narisiPrenose()
+        predvajaj.requestFocus()
+        if (samodejno) predvajajDebrid(uri, ime, null)
+    }
+
+    /** Pred vsako neposredno povezavo z rojem: IP bo viden. Privzeto Preklici; »Dodaj TorBox« odpre Debrid storitve. */
+    private fun opozoriP2p(hash: String, naprej: () -> Unit) {
+        pokazi("")
+        val okno = AlertDialog.Builder(this).setTitle(R.string.magnet_p2p_naslov)
+            .setMessage(R.string.magnet_p2p_opis)
+            .setPositiveButton(R.string.magnet_p2p_vseeno) { _, _ -> potrjenP2p.add(hash); naprej() }
+            .setNeutralButton(R.string.magnet_p2p_dodaj) { _, _ -> odpriNastavitveDebrida() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        // Zadrzan OK na daljincu ne sme sam odpreti roja.
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        okno.show()
+    }
+
+    /** Povezava prek [Debrid.tok] (ista pot kot Medijski center); [samoTakoj] = false: pocakaj na prenos na strezniku. */
+    private fun predvajajDebrid(uri: String, ime: String, samoTakoj: Boolean?) {
+        val hash = MagnetMotor.hash(uri) ?: return
+        debridDelo?.cancel(true)
+        pokazi(getString(R.string.os_debrid_pripravljam))
+        debridDelo = try { debridDelavec.submit(Runnable {
+            var storitev = Debrid.aktivna(applicationContext)?.let { DebridPravila.ime(it) } ?: getString(R.string.os_debrid)
+            val izid = try {
+                Debrid.tok(applicationContext, uri, -1, samoTakoj, { odst ->
+                    glavna.post { if (!isFinishing) pokazi(getString(R.string.os_torbox_prenasa_odstotek, storitev, odst)) }
+                }) { p -> storitev = DebridPravila.ime(p) }
+            } catch (_: InterruptedException) { return@Runnable
+            } catch (e: Exception) {
+                android.util.Log.w("SafeerMagnet", "debrid: ${e.javaClass.simpleName}")
+                TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK)
+            }
+            if (Thread.currentThread().isInterrupted) return@Runnable
+            glavna.post {
+                if (isFinishing || isDestroyed) return@post
+                pokazi("")
+                val url = izid.url ?: return@post napakaDebrida(uri, ime, izid)
+                toast(getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(izid.ponudnik)))
+                // Isti predvajalnik kot tok iz roja; datoteko (najvecjo predvajljivo) izbere storitev ([TorBoxPravila.izberiDatoteko]).
+                val sk = Jamendo.Skladba("magnet:$hash:debrid", ime, "Magnet", "", url, "", video = true)
+                GlasbaStoritev.predvajaj(this, listOf(sk), 0, null)
+                startActivity(Intent(this, PredvajanjeActivity::class.java))
+            }
+        }) } catch (_: java.util.concurrent.RejectedExecutionException) { null }
+    }
+
+    private fun napakaDebrida(uri: String, ime: String, izid: TorBox.Izid) {
+        val storitev = if (izid.ponudnik.isNotEmpty()) DebridPravila.ime(izid.ponudnik) else getString(R.string.os_debrid)
+        val g = AlertDialog.Builder(this).setTitle(DebridBesedila.naslov(this, izid, storitev))
+            .setMessage(DebridBesedila.sporocilo(this, izid, storitev))
+            .setNegativeButton(android.R.string.cancel, null)
+            // Neposredno samo prek opozorila (preberi -> opozoriP2p).
+            .setNeutralButton(R.string.magnet_neposredno) { _, _ -> preberi(uri, false, neposredno = true) }
+        when (izid.napaka) {
+            DebridPravila.NAPAKA_NI_PREDPOMNJENO -> g.setPositiveButton(R.string.os_debrid_pocakaj) { _, _ -> predvajajDebrid(uri, ime, false) }
+            TorBoxPravila.NAPAKA_KLJUC -> g.setPositiveButton(R.string.os_torbox_popravi) { _, _ -> odpriNastavitveDebrida() }
+        }
+        val okno = g.create()
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        okno.show()
+    }
+
+    private fun odpriNastavitveDebrida() {
+        try { startActivity(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.EXTRA_DEBRID, true)) }
+        catch (_: Throwable) { toast(getString(R.string.magnet_napaka)) }
     }
 
     // ------------------------------------------------------------------ dejanja

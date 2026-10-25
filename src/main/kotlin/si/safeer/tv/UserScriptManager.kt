@@ -24,6 +24,25 @@ object UserScriptManager {
         }catch(e){}})();
     """
 
+    /**
+     * Temni slog vsili neprosojno ozadje vsem elementom z 'container', 'wrapper', 'view' ... v
+     * imenu razreda. Predvajalniki (Bitmovin 'bmpui-ui-uicontainer', video.js, Shaka ...) imajo
+     * nad videom prozoren sloj z gumbi; ta je dobil temno ozadje in prekril sliko. Pri zascitenem
+     * (DRM) videu je bil to edini razlog za zvok brez slike (izmerjeno na TV 21. 10. 2026: cisti
+     * WebView slika DA, z nasim slogom NE, z izjemo za predvajalnik DA). Zato vsako pravilo velja
+     * samo zunaj korena predvajalnika, ki ga oznaci MEDIJ_KOREN_JS (pravila: [TemniSlogPravila]).
+     */
+    private val TEMNI_CSS: String by lazy {
+        TemniSlogPravila.pretvoriTemniCss(DARK_MODE_AMOLED_CSS)
+    }
+
+    /**
+     * Oznaci koren vsakega predvajalnika in morebitne prekrivne sloje (pravila: [TemniSlogPravila]).
+     * Ponovi se ob 'loadedmetadata'/'play' (dogodka ne mehurcita, zato poslusamo v fazi zajema)
+     * ter ob MutationObserverju; oznaka se odstrani, ko videa ni vec ali je izpraznjen (emptied).
+     */
+    private const val MEDIJ_KOREN_JS = TemniSlogPravila.MEDIJ_KOREN_JS
+
     private const val DARK_MODE_AMOLED_CSS = """
         /* 🌌 Safeer Universal Smart OLED Dark Theme */
         :root {
@@ -1230,7 +1249,8 @@ object UserScriptManager {
             try { webView.url } catch (_: Exception) { null }
         ), "safeer-cosmetic-filter")
             if (isDarkMode) {
-                injectCss(webView, DARK_MODE_AMOLED_CSS, "safeer-dark-mode-style")
+                injectCss(webView, TEMNI_CSS, "safeer-dark-mode-style")
+                webView.evaluateJavascript(MEDIJ_KOREN_JS, null)
                 if (finished) webView.evaluateJavascript(SAM_TEMEN_JS, null)
             } else if (finished) {
                 removeCss(webView, "safeer-dark-mode-style")
@@ -1371,7 +1391,8 @@ object UserScriptManager {
 
     fun injectDarkModeToggle(webView: WebView, enable: Boolean) {
         if (enable) {
-            injectCss(webView, DARK_MODE_AMOLED_CSS, "safeer-dark-mode-style", replace = true)
+            injectCss(webView, TEMNI_CSS, "safeer-dark-mode-style", replace = true)
+            webView.evaluateJavascript(MEDIJ_KOREN_JS, null)
         } else {
             removeCss(webView, "safeer-dark-mode-style")
         }

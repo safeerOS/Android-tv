@@ -3,7 +3,7 @@
 <resources>
     <string name="magnet_naslov">Magnet-Links</string>
     <string name="magnet_odpri">Öffnen</string>
-    <string name="magnet_opomba">Es werden nur Video und Musik abgespielt. Dateien, die wie Programme aussehen, werden nur nach deiner Bestätigung heruntergeladen. Lade und teile nur Inhalte, für die du die Rechte hast; andere Teilnehmer sehen deine IP-Adresse.</string>
+    <string name="magnet_opomba">Es werden nur Video und Musik abgespielt. Dateien, die wie Programme aussehen, werden nur nach deiner Bestätigung heruntergeladen. Lade und teile nur Inhalte, für die du die Rechte hast; ohne Debrid-Dienst (z. B. TorBox) sehen andere Teilnehmer deine IP-Adresse.</string>
     <string name="magnet_napaka_ni_magnet">Das ist kein gültiger Magnet-Link.</string>
     <string name="magnet_napaka_ni_izbranih">Wähle mindestens eine Datei.</string>
     <string name="magnet_napaka_ni_metapodatkov">Die Torrent-Details konnten nicht gelesen werden. Versuche es später erneut.</string>
@@ -44,4 +44,11 @@
     <string name="magnet_nevarno_opis">Die automatische Prüfung hält „%s“ für ein mögliches Programm. Die Prüfung kann sich irren. Lade sie nur herunter, wenn du der Quelle vertraust; Safeer führt sie nie aus und spielt sie nie ab.</string>
     <string name="magnet_vseeno">Trotzdem fortfahren</string>
     <string name="magnet_pritisni_odpri">Prüfe den Link und drücke Öffnen.</string>
+    <string name="magnet_p2p_naslov">Deine IP-Adresse wird sichtbar</string>
+    <string name="magnet_p2p_opis">Ohne Debrid-Dienst verbindet sich Safeer direkt mit den anderen Teilnehmern dieses Torrents, und alle im Schwarm sehen deine IP-Adresse. Mit TorBox (oder Real-Debrid, AllDebrid) lädt der Dienst den Torrent, du erhältst nur den Stream – deine IP-Adresse bleibt verborgen.</string>
+    <string name="magnet_p2p_vseeno">Trotzdem direkt verbinden</string>
+    <string name="magnet_p2p_dodaj">TorBox hinzufügen</string>
+    <string name="magnet_debrid_opis">%1$s lädt diesen Torrent für dich – deine IP-Adresse ist für andere Teilnehmer nicht sichtbar.</string>
+    <string name="magnet_debrid_predvajaj">Über %1$s abspielen</string>
+    <string name="magnet_neposredno">Direkt öffnen (P2P)</string>
 </resources>

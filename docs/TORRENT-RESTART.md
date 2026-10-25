@@ -1,7 +1,7 @@
 # Torrent engine: restart without re-reading what is already downloaded
 
 Safeer OS plays and downloads torrents with libtorrent (`os/MagnetMotor.kt`). A film that was watched stays on the
-device for a while (48 hours, or until removed when the user chose "Keep"), so the engine has to pick its torrents
+device for a while (12 hours after the last playback, or until removed when the user chose "Keep"), so the engine has to pick its torrents
 up again every time it starts.
 
 ## What went wrong

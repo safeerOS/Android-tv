@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Ukazi daljinca tecejo na glavni niti, branje metapodatkov torrenta pa traja do minute. Zato prvi `magnet.stream`
  * delo le zacne in odgovori `{pending: true}`; naprava vprasa znova cez dve sekundi in dobi `{server, path, name, file,
  * size}` (kot od racunalnika) ali napako. Kar naprava tako prenese, je zacasno: [MagnetMotor.pocistiZacasne] ga odstrani,
- * ko ga 48 ur nihce ne predvaja.
+ * ko ga 12 ur nihce ne predvaja.
  */
 object MagnetPomoc {
     /** Zmoznost v prijavi v Link: naprava zna torrent pretakati drugim. */
@@ -95,7 +95,7 @@ object MagnetPomoc {
         return Daljinec.Izid(true, "${a.length()} prenosov", JSONObject().put("items", a))
     }
 
-    /** `magnet.keep {id, keep}`: prenos ne potece po 48 urah (»Obdrži« na polici druge naprave). */
+    /** `magnet.keep {id, keep}`: prenos ne potece po 12 urah (»Obdrži« na polici druge naprave). */
     fun obdrzi(context: Context, p: JSONObject, posiljatelj: String): Daljinec.Izid {
         if (!p.has("id") || p.opt("keep") !is Boolean) return Daljinec.Izid(false, "Manjka prenos", koda = "ni_prenosa")
         val drzi = p.optBoolean("keep")

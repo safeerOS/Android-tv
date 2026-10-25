@@ -3,10 +3,15 @@ package si.safeer.tv.os
 fun main() {
     val ura = 3_600_000L
     val zdaj = 1_000 * ura
-    // 48 ur brez predvajanja: torrent gre. Film, ki ga prekines zvecer, naslednji vecer se caka.
-    check(!ZacasniPravila.odstrani(zdaj - 26 * ura, zdaj, false))
-    check(!ZacasniPravila.odstrani(zdaj - 48 * ura, zdaj, false))
-    check(ZacasniPravila.odstrani(zdaj - 49 * ura, zdaj, false))
+    // Lastnik 25. 10. 2026: 12 ur po zadnjem predvajanju torrent gre (prej 48 ur).
+    check(ZacasniPravila.VELJA_MS == 12 * ura)
+    check(!ZacasniPravila.odstrani(zdaj - 11 * ura, zdaj, false))
+    check(!ZacasniPravila.odstrani(zdaj - 12 * ura, zdaj, false))
+    check(ZacasniPravila.odstrani(zdaj - 12 * ura - 1, zdaj, false))
+    check(ZacasniPravila.odstrani(zdaj - 13 * ura, zdaj, false))
+    check(ZacasniPravila.odstrani(zdaj - 26 * ura, zdaj, false))
+    // Izrecno shranjeno (»Obdrži«) ostane tudi po 12 urah.
+    check(!ZacasniPravila.odstrani(zdaj - 13 * ura, zdaj, false, obdrzan = true))
     // Za nov film manjka prostora: gredo tudi mlajsi, a ne tisti, ki ga je kdo predvajal v zadnjih urah.
     check(ZacasniPravila.odstrani(zdaj - 7 * ura, zdaj, true))
     check(!ZacasniPravila.odstrani(zdaj - 5 * ura, zdaj, true))

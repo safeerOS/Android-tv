@@ -3,7 +3,7 @@
 <resources>
     <string name="magnet_naslov">Link magnet</string>
     <string name="magnet_odpri">Apri</string>
-    <string name="magnet_opomba">Vengono riprodotti solo video e musica. I file che sembrano programmi non vengono scaricati senza la tua conferma. Scarica e condividi solo contenuti di cui hai i diritti; gli altri peer vedono il tuo indirizzo IP.</string>
+    <string name="magnet_opomba">Vengono riprodotti solo video e musica. I file che sembrano programmi non vengono scaricati senza la tua conferma. Scarica e condividi solo contenuti di cui hai i diritti; senza un servizio debrid (ad es. TorBox) gli altri peer vedono il tuo indirizzo IP.</string>
     <string name="magnet_napaka_ni_magnet">Non è un link magnet valido.</string>
     <string name="magnet_napaka_ni_izbranih">Seleziona almeno un file.</string>
     <string name="magnet_napaka_ni_metapodatkov">Impossibile leggere i dettagli del torrent. Riprova più tardi.</string>
@@ -44,4 +44,11 @@
     <string name="magnet_nevarno_opis">Il controllo automatico indica che «%s» potrebbe essere un programma. Il controllo può sbagliare. Scaricalo solo se ti fidi della fonte; Safeer non lo esegue né lo riproduce mai.</string>
     <string name="magnet_vseeno">Continua comunque</string>
     <string name="magnet_pritisni_odpri">Controlla il link e premi Apri.</string>
+    <string name="magnet_p2p_naslov">Il tuo indirizzo IP sarà visibile</string>
+    <string name="magnet_p2p_opis">Senza un servizio debrid, Safeer si collega direttamente agli altri peer di questo torrent e tutti nello sciame vedono il tuo indirizzo IP. Con TorBox (o Real-Debrid, AllDebrid) il servizio scarica il torrent e tu ricevi solo lo stream: il tuo indirizzo IP resta nascosto.</string>
+    <string name="magnet_p2p_vseeno">Collegati direttamente comunque</string>
+    <string name="magnet_p2p_dodaj">Aggiungi TorBox</string>
+    <string name="magnet_debrid_opis">%1$s scarica questo torrent per te: il tuo indirizzo IP non è visibile agli altri peer.</string>
+    <string name="magnet_debrid_predvajaj">Riproduci tramite %1$s</string>
+    <string name="magnet_neposredno">Apri direttamente (P2P)</string>
 </resources>
