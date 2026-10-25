@@ -64,9 +64,12 @@ object UsenetPravila {
      * Naslov indeksatorja, kot ga uporabnik vpise (»https://api.indeksator.example/api?«): osnova brez `/api`, poizvedbe in
      * koncne posevnice. Samo https - kljuc gre v naslovu; http samo do naprave v domacem omrezju (NZBHydra, Prowlarr).
      * Brez uporabniskega imena v naslovu. null = ni veljaven.
+     * Lastnik, 25. 10. 2026: uporabnik vpise kar ime (»nzbfinder.ws«) - gola domena brez sheme dobi https:// sama
+     * (http:// za internet ostane zavrnjen, ker gre kljuc API v naslovu).
      */
     fun osnova(vnos: String): String? {
-        val v = vnos.trim().substringBefore('?').substringBefore('#').trimEnd('/')
+        val v0 = vnos.trim().substringBefore('?').substringBefore('#').trimEnd('/')
+        val v = if (v0.isNotEmpty() && "://" !in v0) "https://$v0" else v0
         val u = try { URI(v) } catch (_: Exception) { return null }
         val gost = u.host ?: return null
         if (u.rawUserInfo != null) return null

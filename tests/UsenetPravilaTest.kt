@@ -20,6 +20,13 @@ fun main() {
     preveriEnako("141: uporabnik v naslovu ne", null, UsenetPravila.osnova("https://jaz:geslo@x.example"))
     preveriEnako("141: ni naslov", null, UsenetPravila.osnova("api kljuc 123"))
     preveriEnako("141: ftp ne", null, UsenetPravila.osnova("ftp://x.example"))
+    // Lastnik 25. 10. 2026: gola domena (kot jo uporabnik vpise) dobi https:// sama.
+    preveriEnako("gola domena -> https", "https://nzbfinder.ws", UsenetPravila.osnova("nzbfinder.ws"))
+    preveriEnako("gola domena z /api/ -> https", "https://nzbfinder.ws", UsenetPravila.osnova(" nzbfinder.ws/api/ "))
+    preveriEnako("gola domena s potjo", "https://x.example/newznab", UsenetPravila.osnova("x.example/newznab/api"))
+    preveriEnako("gola domena z uporabnikom ne", null, UsenetPravila.osnova("jaz:geslo@x.example"))
+    preveriEnako("prazno ne", null, UsenetPravila.osnova("   "))
+    preveriEnako("http na internet se vedno ne", null, UsenetPravila.osnova("http://nzbfinder.ws"))
 
     // Kljuc
     preveriEnako("141: kljuc 32 heks", "0123456789abcdef0123456789abcdef", UsenetPravila.ocistiKljuc(" 0123456789abcdef0123456789abcdef\n"))
