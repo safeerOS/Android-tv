@@ -126,6 +126,27 @@ object UsenetPravila {
 
     private val RX_RSS = Regex("<(rss|channel)\\b", RegexOption.IGNORE_CASE)
 
+    /** Vnos indeksatorja: (osnova, kljuc) ali null - naslov ni https (ali domace omrezje) ali kljuc ni kljuc oz. je vzorec. */
+    fun izVnosa(naslov: String, kljuc: String): Pair<String, String>? {
+        val o = osnova(naslov) ?: return null
+        val k = kljucIzVnosa(kljuc) ?: return null
+        return o to k
+    }
+
+    /** Odlocitev ob vpisu: [shrani] = (osnova, kljuc), ki ju shranimo s stanjem [stanje]; null = nic se ne shrani. */
+    class Vpis(val izid: DebridPravila.Preverba, val shrani: Pair<String, String>?, val stanje: DebridPravila.StanjeKljuca?)
+
+    /**
+     * Vpis indeksatorja (lastnik 25. 10. 2026, kot kljuci debrid): ne-kljuc ali vzorec se zavrne brez klica; [preveri] vprasa
+     * indeksator s te naprave; zavrnjen kljuc se ne shrani, izpad ali meja ga shrani kot nepreverjenega (ne gre na druge naprave).
+     */
+    fun vpis(naslov: String, kljuc: String, preveri: (String, String) -> DebridPravila.Preverba): Vpis {
+        val ix = izVnosa(naslov, kljuc) ?: return Vpis(DebridPravila.Preverba.OBLIKA, null, null)
+        val izid = preveri(ix.first, ix.second)
+        val s = DebridPravila.stanjePoPreverbi(izid)
+        return Vpis(izid, if (s != null) ix else null, s)
+    }
+
     /**
      * Naslov iskanja za id Stremio: film `tt1375666` -> t=movie, epizoda `tt0108778:1:1` -> t=tvsearch s sezono in epizodo.
      * Drugi id-ji (tmdb:, kitsu: ...) -> null: indeksatorji iscejo po IMDb.

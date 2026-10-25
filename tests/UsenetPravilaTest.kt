@@ -162,5 +162,33 @@ fun main() {
     preveriEnako("Grok 3: 200 brez NZB = indeksator", UsenetPravila.NAPAKA_INDEKSATOR, UsenetPravila.napakaNzb(200, "<html></html>"))
     preveriEnako("Grok 3: ponudnik izida = Usenet", UsenetPravila.VRSTA, UsenetPravila.PONUDNIK)
 
+    // Lastnik 25. 10. 2026: kljuc indeksatorja se ob vpisu preveri (kot kljuci debrid in namizje) - zavrnjen se ne shrani.
+    val ix = "9b1f4c7e2a8d6053f1e9c4b7a2d8e6f0"
+    var klicev = 0
+    fun preverba(izid: DebridPravila.Preverba): (String, String) -> DebridPravila.Preverba = { _, _ -> klicev++; izid }
+    val vzorec = UsenetPravila.vpis("nzbfinder.ws", "your-indexer-api-key", preverba(DebridPravila.Preverba.VELJA))
+    preveriEnako("vpis: vzorec kljuca brez klica indeksatorja", listOf(DebridPravila.Preverba.OBLIKA, null, 0),
+        listOf(vzorec.izid, vzorec.shrani, klicev))
+    val http = UsenetPravila.vpis("http://nzbfinder.ws", ix, preverba(DebridPravila.Preverba.VELJA))
+    preveriEnako("vpis: http na internet brez klica", listOf(DebridPravila.Preverba.OBLIKA, null, 0), listOf(http.izid, http.shrani, klicev))
+    val zavrnjen = UsenetPravila.vpis("nzbfinder.ws", ix, preverba(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("vpis: zavrnjen kljuc se ne shrani", listOf(DebridPravila.Preverba.NE_VELJA, null, null, 1),
+        listOf(zavrnjen.izid, zavrnjen.shrani, zavrnjen.stanje, klicev))
+    val izpad = UsenetPravila.vpis(" nzbfinder.ws/api ", " $ix ", preverba(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("vpis: brez odgovora shrani kot nepreverjen", listOf("https://nzbfinder.ws" to ix, DebridPravila.StanjeKljuca.NEPREVERJEN),
+        listOf(izpad.shrani, izpad.stanje))
+    val meja = UsenetPravila.vpis("nzbfinder.ws", ix, preverba(DebridPravila.Preverba.MEJA))
+    preveriEnako("vpis: meja shrani kot nepreverjen", DebridPravila.StanjeKljuca.NEPREVERJEN, meja.stanje)
+    val velja = UsenetPravila.vpis("nzbfinder.ws", ix, preverba(DebridPravila.Preverba.VELJA))
+    preveriEnako("vpis: potrjen se shrani kot veljaven", listOf("https://nzbfinder.ws" to ix, DebridPravila.StanjeKljuca.VELJA),
+        listOf(velja.shrani, velja.stanje))
+    var naslovPreverbe = ""
+    UsenetPravila.vpis("nzbfinder.ws", ix) { o, k -> naslovPreverbe = UsenetPravila.naslovPreverbe(o, k); DebridPravila.Preverba.VELJA }
+    preveriEnako("vpis: preverba z enim iskanjem na https", "https://nzbfinder.ws/api?t=search&q=safeer&limit=1&apikey=$ix", naslovPreverbe)
+    preveriEnako("preverba: 401 = zavrnjen", DebridPravila.Preverba.NE_VELJA, UsenetPravila.preverbaIndeksatorja(401, ""))
+    preveriEnako("preverba: Cloudflare 403 ne zavrne kljuca", DebridPravila.Preverba.NI_ODGOVORA,
+        UsenetPravila.preverbaIndeksatorja(403, "<!DOCTYPE html><title>Just a moment...</title>"))
+    preveriEnako("preverba: preusmeritev ni potrditev", DebridPravila.Preverba.NI_ODGOVORA, UsenetPravila.preverbaIndeksatorja(302, ""))
+
     if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

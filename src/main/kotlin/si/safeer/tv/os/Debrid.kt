@@ -147,6 +147,8 @@ object Debrid {
             val s = DebridPravila.stanjePoPreverbi(izid) ?: DebridPravila.StanjeKljuca.NE_VELJA
             if (s != prej?.first || paket != prej.second) { zapisiStanje(c, p, k, s, paket ?: prej?.second); spremenjeno = true }
         }
+        // Indeksator Usenet enako (kljuc indeksatorja gre z istimi kljuci v ozji krog).
+        if (try { Usenet.preveriNepreverjenega(c) } catch (_: Exception) { false }) spremenjeno = true
         return spremenjeno
     }
 
