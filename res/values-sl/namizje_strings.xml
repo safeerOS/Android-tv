@@ -21,7 +21,7 @@
     <string name="nz_okna_ne">Okna aplikacij: ta naprava jih zdaj ne ponuja.</string>
     <string name="nz_zunanji_da">Zunanji zaslon kot namizje: vklopljeno.</string>
     <string name="nz_zunanji_ne">Zunanji zaslon kot namizje: ni vklopljeno (ali ga naprava aplikacijam ne pokaže).</string>
-    <string name="nz_vodic">Vklopiš jih sam v Možnostih za razvijalce – Safeer sistemskih nastavitev nikoli ne spreminja. Poišči možnosti za okna proste oblike (freeform), spremenljivo velikost vseh aplikacij in namizni način na zunanjih zaslonih, nato napravo znova zaženi. Imena teh možnosti se med proizvajalci razlikujejo, zato jih tu ne navajamo dobesedno.</string>
+    <string name="nz_vodic">Vklopiš jih sam v Možnostih za razvijalce – Safeer sistemskih nastavitev nikoli ne spreminja. Poišči možnosti za okna svobodne oblike (freeform), spremenljivo velikost vseh aplikacij in namizni način na zunanjih zaslonih, nato napravo znova zaženi. Imena teh možnosti se med proizvajalci razlikujejo, zato jih tu ne navajamo dobesedno.</string>
     <string name="nz_vodic_razvijalske">Možnosti za razvijalce še niso vklopljene: v sistemskih nastavitvah odpri podatke o napravi (O telefonu / O tablici) in sedemkrat tapni številko gradnje.</string>
     <string name="nz_okna_vklopi">Odpiraj v oknih</string>
     <string name="nz_okna_izklopi">Odpiraj čez cel zaslon</string>

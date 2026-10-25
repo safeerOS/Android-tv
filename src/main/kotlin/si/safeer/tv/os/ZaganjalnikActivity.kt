@@ -440,8 +440,13 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val k = SporocilaZnak.gumb(this, velikost) { postavitev.sirina == ZaganjalnikPravila.Sirina.SIROKA || vnos == Vnos.DALJINEC }
         kuverta = k
 
+        // Gumb menija stranske vrstice (kadar je predal - telefon pokonci) gre v isto vrsto PRED lupo, ne cez njo
+        // (izmerjeno 25. 10. 2026 na testnem telefonu: lebdec gumb je prekril zacetek lupe).
+        iskanje.tag = StranskaVrstica.OZNAKA_PRED
         if (vrsta.orientation == LinearLayout.VERTICAL) {
-            vrsta.addView(iskanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            val zgoraj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            zgoraj.addView(iskanje, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            vrsta.addView(zgoraj, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             val spodaj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             spodaj.addView(stanje, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(12) })
             spodaj.addView(k, LinearLayout.LayoutParams(dp(velikost), dp(velikost)))

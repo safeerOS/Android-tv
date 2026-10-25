@@ -271,16 +271,30 @@ object Aplikacije {
 
     /**
      * Majhna ikona za mrezo vseh aplikacij na namizju zaganjalnika: ikona v gostoti naprave, narisana v [px] x [px], brez
-     * velike xxxhdpi slike in brez skupnega predpomnilnika. Izmerjeno 25. 10. 2026 (testni telefon, 3 ponovitve): mreza
+     * velike xxxhdpi slike in brez skupnega predpomnilnika; shrani se kot majhen PNG v predpomnilnik aplikacije. Izmerjeno 25. 10. 2026 (testni telefon, 3 ponovitve): mreza
      * z velikimi ikonami ([ikona]) je dodala 12-40 MB PSS.
      */
     fun ikonaMala(c: Context, v: Vnos, px: Int): Drawable? {
+        val mera = px.coerceIn(16, 256)
+        // Najprej majhna slika z diska: brez odpiranja virov tuje aplikacije (ta je drag del - izmerjeno na tablici
+        // ~10 MB domorodnega pomnilnika za ~70 aplikacij). Velja, dokler aplikacija ni posodobljena.
+        val posodobljena = try { c.packageManager.getPackageInfo(v.paket, 0).lastUpdateTime } catch (_: Throwable) { 0L }
+        val datoteka = File(File(c.cacheDir, "namizje-ikone"), "${v.paket}-$mera.png")
+        if (posodobljena > 0 && datoteka.isFile && datoteka.lastModified() >= posodobljena) {
+            try { android.graphics.BitmapFactory.decodeFile(datoteka.path)?.let { return BitmapDrawable(c.resources, it) } } catch (_: Throwable) { }
+        }
         val vir = v.ikona ?: izvirnaIkona(c, v) ?: return null
         return try {
-            val b = Bitmap.createBitmap(px.coerceIn(16, 256), px.coerceIn(16, 256), Bitmap.Config.ARGB_8888)
+            val b = Bitmap.createBitmap(mera, mera, Bitmap.Config.ARGB_8888)
             val platno = Canvas(b)
             vir.setBounds(0, 0, platno.width, platno.height)
             vir.draw(platno)
+            try {
+                datoteka.parentFile?.mkdirs()
+                val zacasna = File(datoteka.path + ".tmp")
+                zacasna.outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                if (!zacasna.renameTo(datoteka)) zacasna.delete()
+            } catch (_: Throwable) { }
             BitmapDrawable(c.resources, b)
         } catch (_: Throwable) { null }
     }
