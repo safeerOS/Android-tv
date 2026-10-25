@@ -50,8 +50,10 @@ class ScitStoritev : VpnService() {
     private var nitOdgovorov: Thread? = null
     @Volatile private var tece = false
     @Volatile private var nabor: DomenskiNabor.Poizvedba? = null
-    /** Webtor rezerva: dodatne izjeme iz scit/izjeme.txt ([ScitIzjeme]); stalne so v kodi. */
-    @Volatile private var izjeme: Set<String> = emptySet()
+    /** Webtor rezerva: naucene izjeme iz scit/izjeme.txt (domena -> velja do; [ScitIzjeme]); stalne so v kodi. */
+    @Volatile private var izjeme: Map<String, Long> = emptyMap()
+    /** Pregled V1: samo seznami grozenj (scit/grozne.bin) - izjema jih nikoli ne umakne. */
+    @Volatile private var grozne: DomenskiNabor.Poizvedba? = null
     @Volatile private var upstream: List<InetAddress> = emptyList()
     private var vticnica4: DatagramSocket? = null
     private var vticnica6: DatagramSocket? = null
@@ -179,7 +181,7 @@ class ScitStoritev : VpnService() {
             if (q == null) { tcp.naPaket(buf, n); continue }   // ni UDP: morda DNS prek TCP
             poizvedb.incrementAndGet()
             val nab = nabor
-            if (q.ime.isNotEmpty() && nab != null && nab.jeBlokirana(q.ime) && !ScitIzjeme.dovoljena(q.ime, izjeme)) {
+            if (q.ime.isNotEmpty() && nab != null && blokirana(nab, q.ime)) {
                 blokiranih.incrementAndGet()
                 zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q)))
                 continue
@@ -208,7 +210,7 @@ class ScitStoritev : VpnService() {
         val ime = DnsPaket.vprasanje(vprasanje)?.ime.orEmpty()
         Log.i(TAG, "DNS po TCP: $ime")   // redko; v dnevniku je dokaz, da ta pot res tece
         val nab = nabor
-        if (ime.isNotEmpty() && nab != null && nab.jeBlokirana(ime) && !ScitIzjeme.dovoljena(ime, izjeme)) {
+        if (ime.isNotEmpty() && nab != null && blokirana(nab, ime)) {
             blokiranih.incrementAndGet()
             odgovor(DnsPaket.odgovorBlokiranoZa(vprasanje))
             return
@@ -350,7 +352,9 @@ class ScitStoritev : VpnService() {
             if (d != dan) { dan = d; blokiranih.set(0); poizvedb.set(0) }
             val datoteka = Scit.naborDatoteka(this)
             val n = nabor
-            if (n == null || datoteka.lastModified() != n.spremenjena) naloziNabor()
+            val gd = Scit.grozneDatoteka(this)
+            val g = grozne
+            if (n == null || datoteka.lastModified() != n.spremenjena || (gd.isFile && (g == null || gd.lastModified() != g.spremenjena))) naloziNabor()
             osveziUpstream()
             shraniStatistiko("tece")
             val b = blokiranih.get()
@@ -369,9 +373,23 @@ class ScitStoritev : VpnService() {
     private fun naloziNabor() {
         val nov = try { DomenskiNabor.Poizvedba.odpri(Scit.naborDatoteka(this)) } catch (e: Throwable) { Log.w(TAG, "Nabor: ${e.message}"); null }
         if (nov != null) { nabor = nov; Log.i(TAG, "Nabor domen nalozen: ${nov.stevilo}") }
+        grozne = try { DomenskiNabor.Poizvedba.odpri(Scit.grozneDatoteka(this)) } catch (_: Throwable) { null }
         izjeme = try {
-            Scit.izjemeDatoteka(this).takeIf { it.isFile }?.readText()?.let { ScitIzjeme.preberi(it, System.currentTimeMillis()).keys } ?: emptySet()
-        } catch (_: Throwable) { emptySet() }
+            Scit.izjemeDatoteka(this).takeIf { it.isFile }?.readText()?.let { ScitIzjeme.preberi(it, System.currentTimeMillis()) } ?: emptyMap()
+        } catch (_: Throwable) { emptyMap() }
+    }
+
+    /**
+     * Webtor rezerva (pregled V1/N5): domena je blokirana, ce je na seznamu grozenj (izjema tega nikoli ne umakne) ali na
+     * seznamu in ni izjema (stalna ali naucena, se veljavna OB PREVERBI). Brez nabora grozenj (pred prvo osvezitvijo seznamov
+     * po nadgradnji) veljajo samo stalne izjeme.
+     */
+    private fun blokirana(nab: DomenskiNabor.Poizvedba, ime: String): Boolean {
+        if (!nab.jeBlokirana(ime)) return false
+        val zdaj = System.currentTimeMillis()
+        val g = grozne ?: return !ScitIzjeme.dovoljena(ime, emptyMap(), zdaj)
+        if (g.jeBlokirana(ime)) return true
+        return !ScitIzjeme.dovoljena(ime, izjeme, zdaj)
     }
 
     /** Pravi strezniki DNS omrezja (ne nasi): iz vseh omrezij, ki niso VPN in imajo internet. */

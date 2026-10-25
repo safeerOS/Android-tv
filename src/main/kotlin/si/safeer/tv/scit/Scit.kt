@@ -22,6 +22,7 @@ import java.util.Properties
  *  - domene.bin       nabor blokiranih domen (DomenskiNabor), zgrajen iz seznamov brskalnika
  *  - statistika.properties  blokiranih/poizvedb danes, dan, stanje storitve
  *  - izjeme.txt       Webtor rezerva: gostitelji tokov, ki jih Scit ne blokira ([ScitIzjeme]; stalne izjeme so v kodi)
+ *  - grozne.bin       samo seznami grozenj (ne oglasov): izjema jih nikoli ne umakne (pregled V1)
  */
 object Scit {
     private const val TAG = "SafeerScit"
@@ -36,17 +37,21 @@ object Scit {
     fun jeVklopljen(context: Context): Boolean = zastavica(context).exists()
 
     fun izjemeDatoteka(context: Context): File = File(mapa(context), "izjeme.txt")
+    fun grozneDatoteka(context: Context): File = File(mapa(context), "grozne.bin")
 
     /**
-     * Webtor rezerva: gostitelj, na katerega je preusmeril tok Webtor (`/resolve/` -> 302), gre med izjeme Scita
-     * ([ScitIzjeme.dodaj], najvec 20, 30 dni) - gostitelj toka se lahko spremeni, seznami pa pogosto blokirajo cele vrhnje
-     * domene. Vrne true, ce je bil dodan na novo (proces Scita izjeme prebere znova). Z delovne niti.
+     * Webtor rezerva (pregled V1): koncni gostitelj toka Webtor (zahteva se je zacela na https://webtor.io/.../resolve/,
+     * odgovor 2xx - [si.safeer.tv.os.WebtorPravila.naucenGostitelj]) gre NATANKO med izjeme Scita ([ScitIzjeme.dodaj]: ni
+     * javna pripona, ni na nasih seznamih grozenj in oglasov, najvec 20, 30 dni). Vrne true, ce je bil dodan na novo (proces
+     * Scita izjeme prebere znova). Z delovne niti.
      */
     @Synchronized fun dovoliGostitelja(context: Context, gostitelj: String): Boolean {
         val f = izjemeDatoteka(context)
         val zdaj = System.currentTimeMillis()
         val prej = ScitIzjeme.preberi(try { if (f.isFile) f.readText() else null } catch (_: Throwable) { null }, zdaj)
-        val novo = ScitIzjeme.dodaj(prej, gostitelj, zdaj) ?: return false
+        // Domene z nasih seznamov (oglasi in grozenje) nikoli ne umaknemo: preverimo oba nabora (mapirana, brez kopice).
+        val nabori = listOf(naborDatoteka(context), grozneDatoteka(context)).mapNotNull { try { DomenskiNabor.Poizvedba.odpri(it) } catch (_: Throwable) { null } }
+        val novo = ScitIzjeme.dodaj(prej, gostitelj, zdaj) { g -> nabori.any { it.jeBlokirana(g) } } ?: return false
         try {
             val zacasna = File(f.parentFile, f.name + ".tmp")
             zacasna.writeText(ScitIzjeme.zapis(novo))
@@ -90,6 +95,9 @@ object Scit {
         } catch (e: Throwable) {
             Log.w(TAG, "Nabora ni bilo mogoce zgraditi: ${e.message}"); return 0
         }
+        // Pregled V1: seznami grozenj (ne oglasov) posebej - izjema Scita jih nikoli ne umakne.
+        try { DomenskiNabor.zapisi(grozneDatoteka(context), dns.asSequence().filter { !it.source.dnsOnly }.map { it.entries.asSequence() }) }
+        catch (e: Throwable) { Log.w(TAG, "Nabora grozenj ni bilo mogoce zgraditi: ${e.javaClass.simpleName}") }
         Log.i(TAG, "Nabor domen: $n domen iz ${dns.size} seznamov (${cilj.length() / 1024} KiB)")
         if (jeVklopljen(context) && jePripravljen(context)) ScitStoritev.osvezi(context)
         return n
