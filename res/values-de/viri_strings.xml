@@ -126,5 +126,22 @@
     <string name="os_webtor_pripravljam">Wird über Webtor vorbereitet …</string>
     <string name="os_skrivni_dodatek_ime">Add-on %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">Das Add-on konnte nicht sicher gespeichert werden (Verschlüsselung fehlgeschlagen). Bitte erneut versuchen.</string>
+    <string name="os_mediji_dodatek_dodaj_znova">kann auf diesem Gerät nicht entsperrt werden – das Add-on muss erneut hinzugefügt werden (%1$s)</string>
+    <string name="os_debrid_poslji_stara_dodatki">Schlüssel gesendet – auf %1$s bestätigen. Add-ons mit persönlichem Token wurden nicht gesendet: zuerst Safeer auf %1$s aktualisieren.</string>
+    <string name="os_sinh_vkl">Schlüssel und Add-ons im engeren Kreis automatisch abgleichen: an</string>
+    <string name="os_sinh_izk">Schlüssel und Add-ons im engeren Kreis automatisch abgleichen: aus</string>
+    <string name="os_sinh_naprave">Geräte mit Schlüsseln (%1$d)</string>
+    <string name="os_sinh_naprave_naslov">Abgleich von Schlüsseln und Add-ons</string>
+    <string name="os_sinh_naprave_prazno">Noch kein Gerät im engeren Vertrauenskreis gleicht Schlüssel und Add-ons ab.</string>
+    <string name="os_sinh_stanje_potrjena">%1$s – abgeglichen (zuletzt %2$s)</string>
+    <string name="os_sinh_stanje_povabljena">%1$s – wartet auf Bestätigung auf jenem Gerät</string>
+    <string name="os_sinh_stanje_caka">%1$s – möchte abgleichen: hier bestätigen</string>
+    <string name="os_sinh_stanje_zavrnjena">%1$s – abgelehnt (auswählen, um erneut zu fragen)</string>
+    <string name="os_sinh_stanje_stara">%1$s – älteres Safeer: dort aktualisieren (Schlüssel können weiterhin manuell gesendet werden)</string>
+    <string name="os_sinh_vprasanje">%1$s (engerer Vertrauenskreis) möchte Schlüssel und Add-ons mit diesem Gerät abgleichen: %2$s. Einmal annehmen – spätere Änderungen und Löschungen auf einem der Geräte gelten automatisch.</string>
+    <string name="os_sinh_sprejmi">Annehmen</string>
+    <string name="os_sinh_zavrni">Ablehnen</string>
+    <string name="os_sinh_prejeto_odpri">%1$s möchte Schlüssel und Add-ons abgleichen – zum Bestätigen das Mediencenter öffnen</string>
+    <string name="os_sinh_ponovno">%1$s: Die Bestätigung erscheint beim nächsten Abgleich erneut</string>
     <string name="os_usenet_napaka_indeksator">Der Usenet-Indexer hat keine NZB-Datei geliefert. Prüfe seinen API-Schlüssel und das Tageslimit.</string>
 </resources>

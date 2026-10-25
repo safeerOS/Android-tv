@@ -126,5 +126,22 @@
     <string name="os_webtor_pripravljam">Preparazione tramite Webtor…</string>
     <string name="os_skrivni_dodatek_ime">componente aggiuntivo %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">Impossibile salvare il componente aggiuntivo in modo sicuro (crittografia non riuscita). Riprova.</string>
+    <string name="os_mediji_dodatek_dodaj_znova">non può essere sbloccato su questo dispositivo – il componente aggiuntivo va aggiunto di nuovo (%1$s)</string>
+    <string name="os_debrid_poslji_stara_dodatki">Chiavi inviate – conferma su %1$s. I componenti aggiuntivi con token personale non sono stati inviati: aggiorna prima Safeer su %1$s.</string>
+    <string name="os_sinh_vkl">Sincronizza automaticamente chiavi e componenti aggiuntivi nella cerchia ristretta: attivo</string>
+    <string name="os_sinh_izk">Sincronizza automaticamente chiavi e componenti aggiuntivi nella cerchia ristretta: disattivo</string>
+    <string name="os_sinh_naprave">Dispositivi con le chiavi (%1$d)</string>
+    <string name="os_sinh_naprave_naslov">Sincronizzazione di chiavi e componenti aggiuntivi</string>
+    <string name="os_sinh_naprave_prazno">Nessun dispositivo della tua cerchia di fiducia ristretta sincronizza ancora chiavi e componenti aggiuntivi.</string>
+    <string name="os_sinh_stanje_potrjena">%1$s – sincronizzato (ultima volta %2$s)</string>
+    <string name="os_sinh_stanje_povabljena">%1$s – in attesa di conferma su quel dispositivo</string>
+    <string name="os_sinh_stanje_caka">%1$s – vuole sincronizzare: conferma qui</string>
+    <string name="os_sinh_stanje_zavrnjena">%1$s – rifiutato (seleziona per chiedere di nuovo)</string>
+    <string name="os_sinh_stanje_stara">%1$s – Safeer non aggiornato: aggiornalo lì (le chiavi si possono ancora inviare manualmente)</string>
+    <string name="os_sinh_vprasanje">%1$s (cerchia di fiducia ristretta) vuole sincronizzare chiavi e componenti aggiuntivi con questo dispositivo: %2$s. Accetta una volta – le modifiche e le eliminazioni successive su uno qualsiasi dei dispositivi si applicano automaticamente.</string>
+    <string name="os_sinh_sprejmi">Accetta</string>
+    <string name="os_sinh_zavrni">Rifiuta</string>
+    <string name="os_sinh_prejeto_odpri">%1$s vuole sincronizzare chiavi e componenti aggiuntivi – apri il Centro multimediale per confermare</string>
+    <string name="os_sinh_ponovno">%1$s: la conferma verrà mostrata di nuovo alla prossima sincronizzazione</string>
     <string name="os_usenet_napaka_indeksator">L’indicizzatore Usenet non ha restituito il file NZB. Controlla la sua chiave API e il limite giornaliero.</string>
 </resources>

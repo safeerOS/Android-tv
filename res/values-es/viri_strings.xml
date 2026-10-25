@@ -126,5 +126,22 @@
     <string name="os_webtor_pripravljam">Preparando a través de Webtor…</string>
     <string name="os_skrivni_dodatek_ime">complemento %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">No se pudo guardar el complemento de forma segura (falló el cifrado). Inténtalo de nuevo.</string>
+    <string name="os_mediji_dodatek_dodaj_znova">no se puede desbloquear en este dispositivo: hay que volver a añadir el complemento (%1$s)</string>
+    <string name="os_debrid_poslji_stara_dodatki">Claves enviadas – confirma en %1$s. Los complementos con token personal no se enviaron: actualiza primero Safeer en %1$s.</string>
+    <string name="os_sinh_vkl">Sincronizar claves y complementos en el círculo cercano automáticamente: activado</string>
+    <string name="os_sinh_izk">Sincronizar claves y complementos en el círculo cercano automáticamente: desactivado</string>
+    <string name="os_sinh_naprave">Dispositivos con claves (%1$d)</string>
+    <string name="os_sinh_naprave_naslov">Sincronización de claves y complementos</string>
+    <string name="os_sinh_naprave_prazno">Ningún dispositivo de tu círculo de confianza cercano sincroniza todavía claves y complementos.</string>
+    <string name="os_sinh_stanje_potrjena">%1$s – sincronizado (última vez %2$s)</string>
+    <string name="os_sinh_stanje_povabljena">%1$s – esperando confirmación en ese dispositivo</string>
+    <string name="os_sinh_stanje_caka">%1$s – quiere sincronizar: confirma aquí</string>
+    <string name="os_sinh_stanje_zavrnjena">%1$s – rechazado (selecciona para que vuelva a preguntar)</string>
+    <string name="os_sinh_stanje_stara">%1$s – Safeer antiguo: actualízalo allí (las claves aún se pueden enviar manualmente)</string>
+    <string name="os_sinh_vprasanje">%1$s (círculo de confianza cercano) quiere sincronizar claves y complementos con este dispositivo: %2$s. Acepta una vez: los cambios y eliminaciones posteriores en cualquiera de los dispositivos se aplican automáticamente.</string>
+    <string name="os_sinh_sprejmi">Aceptar</string>
+    <string name="os_sinh_zavrni">Rechazar</string>
+    <string name="os_sinh_prejeto_odpri">%1$s quiere sincronizar claves y complementos: abre el Centro multimedia para confirmar</string>
+    <string name="os_sinh_ponovno">%1$s: la confirmación se mostrará de nuevo en la próxima sincronización</string>
     <string name="os_usenet_napaka_indeksator">El indexador Usenet no devolvió el archivo NZB. Comprueba su clave API y su límite diario.</string>
 </resources>

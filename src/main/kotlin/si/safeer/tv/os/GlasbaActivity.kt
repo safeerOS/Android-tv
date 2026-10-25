@@ -537,6 +537,10 @@ class GlasbaActivity : OsActivity() {
         // Naloga 129: kljuci debrid z druge naprave (potrditev).
         Debrid.poslusalciPrejetih.add(obPrejetihKljucih)
         pokaziPrejeteKljuce()
+        // Samodejno usklajevanje kljucev in dodatkov v ozjem krogu: potrditev nove naprave (enkrat) in uskladitev ob odprtju.
+        UskladitevKljucev.poslusalci.add(obUskladitvi)
+        pokaziCakajoceUskladitve()
+        UskladitevKljucev.sprozi(this, 1_500)
         // Kanal, ki je odpovedal, medtem ko je bil na zaslonu predvajalnik, in postaja, ki odpove tukaj.
         MrtviKanali.poslusalci.add(obMrtvemKanalu)
         umakniMrtvega()
@@ -584,6 +588,7 @@ class GlasbaActivity : OsActivity() {
 
     override fun onStop() {
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
+        UskladitevKljucev.poslusalci.remove(obUskladitvi)
         // Pregled 2: cakanja na debrid/Usenet onStop ne prekine (ugasnjen zaslon, ohranjevalnik TV) - prekine ga odhod
         // uporabnika (onUserLeaveHint), nova izbira, Preklici ali onDestroy; izid med ustavitvijo pocaka na onStart.
         // Mesto dotika velja za vrnitev samo, ce je ta dotik zaslon zapustil (predvajalnik se odpre v nekaj sekundah);
@@ -5290,6 +5295,9 @@ class GlasbaActivity : OsActivity() {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
                     // Naloga 57d: dodatek, ki zaporedoma ne odgovarja, ima oznako (izgine sama, ko spet odgovori).
                     v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "") +
+                        // Pregled S5: skrivnosti dodatka ta naprava ne zna prebrati (Keystore) - uporabnik izve, kaj storiti.
+                        (if (!SkrivniDodatki.pozna(this, v.naslov)) " · " + getString(R.string.os_mediji_dodatek_dodaj_znova,
+                            getString(R.string.os_glasba_naslov) + " → " + getString(R.string.os_mediji_viri) + " → " + getString(R.string.os_mediji_dodatki)) else "") +
                         (if (Stremio.neOdgovarja(v.naslov)) " · " + opisNeodziva(v.naslov) else "") +
                         // Naloga 77: dodatek samo za iskanje (YouTubio) nima mreze - uporabnik mora vedeti, kje ga najde.
                         (if (Stremio.samoIskanje(v.naslov) == true) " · " + getString(R.string.os_mediji_samo_iskanje) else "") +
@@ -7004,12 +7012,20 @@ class GlasbaActivity : OsActivity() {
             }
             // Naloga 57d (lastnik: »Streznike, ki ne odgovarjajo, bi morali zavracati ze pri vnosu«): pred shranitvijo
             // mora manifest odgovoriti (200, veljaven JSON; spec streznik dobi se en poskus). Sicer vira ne shranimo.
+            // Pregled S1: dodatek s poverilnico (zeton, kljuc) dobi nadomestek ze PRED preverbo - pravi naslov ne gre v nobeno
+            // datoteko nastavitev (ime in zasebnost manifesta se zapiseta pod nadomestkom).
+            val zaPreverbo = if (SkrivnostiPravila.skrivnaPredponaDodatka(naslov) != null) SkrivniDodatki.zavaruj(this, naslov) else naslov
+            if (zaPreverbo == null) {
+                napakaVrstica.text = getString(R.string.os_mediji_dodatek_ni_shranjen)
+                napakaVrstica.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
             val gumb = okno.getButton(AlertDialog.BUTTON_POSITIVE)
             gumb.isEnabled = false
             napakaVrstica.text = getString(R.string.os_mediji_preverjam)
             napakaVrstica.visibility = View.VISIBLE
             delavec.execute {
-                val koda = try { Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
+                val koda = try { Stremio.preveriObVnosu(zaPreverbo) } catch (_: Exception) { 0 }
                 glavna.post {
                     if (isFinishing || !okno.isShowing) return@post
                     gumb.isEnabled = true
@@ -7020,7 +7036,7 @@ class GlasbaActivity : OsActivity() {
                         return@post
                     }
                     napakaVrstica.visibility = View.GONE
-                    shraniDodatek(okno, naslov)
+                    shraniDodatek(okno, zaPreverbo)
                 }
             }
         }
@@ -7520,7 +7536,7 @@ class GlasbaActivity : OsActivity() {
             } else if (posnetki.size == 1) {
                 val e = posnetki.first()
                 val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id) } catch (_: Exception) { emptyList() } }
-                val pp = predpomnjeniZa(t)
+                val pp = predpomnjeniZa(t, sk, rocno)
                 glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
             } else {
                 val enote = (listOf(tip to id) + razlicice.filter { Stremio.jeEnota(it) }.mapNotNull { r -> Stremio.razstavi(r)?.let { it.second to it.third } }).distinct().take(5)
@@ -7540,7 +7556,7 @@ class GlasbaActivity : OsActivity() {
                     glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) predvajaj(listOf(rezerva), 0) }
                     return@execute
                 }
-                val pp = if (vZivo) emptySet() else predpomnjeniZa(t)
+                val pp = if (vZivo) Pripravljeno() else predpomnjeniZa(t, sk, rocno)
                 glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
             }
         }
@@ -7550,9 +7566,61 @@ class GlasbaActivity : OsActivity() {
      * Naloga 130/136: kateri torrenti so pri debrid storitvi ze pripravljeni (oznaka ⚡, samodejna izbira). Z delovne niti;
      * TorBox en klic do 4 s, Real-Debrid in AllDebrid iz zapomnjenih (brez klica); brez aktivne storitve prazno.
      */
-    private fun predpomnjeniZa(tokovi: List<Stremio.Tok>): Set<String> {
+    private fun predpomnjeniZa(tokovi: List<Stremio.Tok>, sk: Jamendo.Skladba? = null, rocno: Boolean = true): Pripravljeno {
+        // Lastnik 25. 10. 2026 07:25: Usenet, ki ga ima TorBox ze pripravljenega, je prvi - preverimo ga HKRATI s ⚡ (samo pri
+        // samodejni izbiri; prve izdaje vzporedno, najvec 6 s), da se zacetek ne podaljsa.
+        val usenet = if (!rocno && sk != null && tokovi.any { it.vrsta == UsenetPravila.VRSTA } && Usenet.jeNaVoljo(applicationContext))
+            zacniUsenetPripravljen(usenetKandidati(sk, tokovi)) else null
         val hashi = tokovi.filter { it.vrsta == "torrent" }.mapNotNull { TorBoxPravila.hashIzMagneta(it.url) }
-        return if (hashi.isEmpty()) emptySet() else Debrid.predpomnjeni(applicationContext, hashi)
+        val pp = if (hashi.isEmpty()) emptySet() else Debrid.predpomnjeni(applicationContext, hashi)
+        return Pripravljeno(pp, usenet?.invoke())
+    }
+
+    /** Kaj je takoj predvajljivo za izbiro toka: ⚡ torrenti pri debridu in (samodejno) Usenet, ki ga ima TorBox pripravljenega. */
+    class Pripravljeno(val predpomnjeni: Set<String> = emptySet(), val usenet: Pair<Stremio.Tok, String>? = null)
+
+    /** Lastne niti za vzporedno preverbo »Usenet pripravljen« (blokirajoci klici indeksatorja in TorBoxa). */
+    private val usenetDelavec = Executors.newCachedThreadPool { r -> Thread(r, "safeer-usenet").apply { isDaemon = true } }
+
+    /**
+     * Prvih [WebtorPravila.USENET_VZPOREDNO] izdaj Usenet hkrati, samo ce jih ima TorBox ze pripravljene (add_only_if_cached -
+     * nic se ne prenasa). Vrne cakalnik: najboljsa pripravljena izdaja in njena povezava ([WebtorPravila.izberiUsenet]) ali
+     * null; skupni rok [WebtorPravila.USENET_ROK_MS] od zacetka (preverba ⚡ tece medtem).
+     */
+    private fun zacniUsenetPripravljen(kandidati: List<Stremio.Tok>): (() -> Pair<Stremio.Tok, String>?)? {
+        val prvi = kandidati.take(WebtorPravila.USENET_VZPOREDNO)
+        if (prvi.isEmpty()) return null
+        val app = applicationContext
+        val zacetek = android.os.SystemClock.elapsedRealtime()
+        val niti = try {
+            prvi.map { t -> usenetDelavec.submit<TorBox.Izid> { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, true) {} } }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { return null }
+        return {
+            var izbran: Pair<Stremio.Tok, String>? = null
+            while (true) {
+                val potekel = android.os.SystemClock.elapsedRealtime() - zacetek >= WebtorPravila.USENET_ROK_MS
+                val izidi = niti.map { f -> if (!f.isDone) null else (try { f.get().url != null } catch (_: Exception) { false }) }
+                val i = WebtorPravila.izberiUsenet(izidi, potekel)
+                if (i >= 0) { niti[i].get().url?.let { izbran = prvi[i] to it }; break }
+                if (i == WebtorPravila.NOBENA) break
+                try { Thread.sleep(100) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); break }
+            }
+            niti.forEach { if (!it.isDone) it.cancel(true) }
+            android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen (vzporedno ${prvi.size}, " +
+                "${android.os.SystemClock.elapsedRealtime() - zacetek} ms): ${if (izbran != null) "da" else "ne"}")
+            izbran
+        }
+    }
+
+    /** Izdaje Usenet v vrstnem redu samodejne izbire (kakovost za to napravo, hitrost povezave, [UsenetPravila.zaSamodejno]). */
+    private fun usenetKandidati(sk: Jamendo.Skladba, tokovi: List<Stremio.Tok>): List<Stremio.Tok> {
+        val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
+        val zelen = if (sk.video) TokIzbira.zeleniJezik(sk.language) else ""
+        val hitrost = HitrostPovezave.hitrost(this)
+        val minut = KakovostPravila.minut(sk.season > 0 || sk.episode > 0)
+        val urejeni = TokIzbira.uredi(tokovi.filter { it.vrsta == UsenetPravila.VRSTA }, opis, zmoznostiNaprave, zelenJezik = zelen, izvirni = sk.language)
+        val poHitrosti = KakovostPravila.urediZaHitrost(urejeni.map { TokIzbira.opisi(opis(it)).gb }, minut, hitrost).map { urejeni[it] }
+        return UsenetPravila.zaSamodejno(poHitrosti.map { TokIzbira.opisi(opis(it)).gb }).map { poHitrosti[it] }
     }
 
     /**
@@ -7586,7 +7654,7 @@ class GlasbaActivity : OsActivity() {
             if (odgledana) android.util.Log.i("SafeerOsMedia", "nadaljuj: S${sezona}E$epizoda odgledana - naslednja S${e.sezona}E${e.epizoda}")
             val dodatni = SerijePravila.idEpizodePoImdb(Stremio.imdbZa(serija), e.id, e.sezona, e.epizoda)
             val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni) } catch (_: Exception) { emptyList() } }
-            val pp = predpomnjeniZa(t)
+            val pp = predpomnjeniZa(t, serija.copy(season = e.sezona, episode = e.epizoda), false)
             glavna.post {
                 koncajPripravo(priprava)
                 // Brez toka: samo obvestilo - kartica serije zaradi ene epizode ne izgine.
@@ -7667,7 +7735,7 @@ class GlasbaActivity : OsActivity() {
                     return@execute
                 }
                 val t = tokoviZa(e)
-                val pp = predpomnjeniZa(t)
+                val pp = predpomnjeniZa(t, sk.copy(season = e.sezona, episode = e.epizoda), rocno)
                 glavna.post {
                     if (!isFinishing && !isDestroyed) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) }
                 }
@@ -8573,12 +8641,13 @@ class GlasbaActivity : OsActivity() {
      * kadar dodatki ponudijo le zunanje povezave (napovednik ipd.).
      */
     private fun izberiTok(sk: Jamendo.Skladba, naslov: String, vsiTokovi: List<Stremio.Tok>, rocno: Boolean = false,
-                          /** Naloga 130: hashi torrentov, ki jih ima debrid storitev pripravljene ([predpomnjeniZa]). */
-                          predpomnjeni: Set<String> = emptySet(),
+                          /** Naloga 130 + lastnik 25. 10.: kaj je takoj predvajljivo ([predpomnjeniZa]): ⚡ torrenti, pripravljen Usenet. */
+                          pripravljeno: Pripravljeno = Pripravljeno(),
                           /** Kaj storiti, ce se vsebine ne da predvajati (epizoda: nazaj na seznam epizod); privzeto: kartica izgine. */
                           obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
+        val predpomnjeni = pripravljeno.predpomnjeni
         // Webtor rezerva (25. 10. 2026): tokovi Webtor [⚡TB] (podvajajo nas TorBox) in [P2P] (posnetek z oglasom za paket)
         // izpadejo takoj ([WebtorPravila.skrij]).
         val imamoTorBox = Debrid.aktivna(this) != null && DebridPravila.TORBOX in Debrid.zKljucem(this)
@@ -8634,6 +8703,19 @@ class GlasbaActivity : OsActivity() {
         // Webtor rezerva: tok Webtor za isto izdajo kot torrent (dolocen spodaj, ko so tokovi urejeni) in ze poskuseni.
         var webtorZa: (Stremio.Tok) -> Stremio.Tok? = { null }
         val poskuseniWebtor = HashSet<String>()
+        // Pregled N3: vse sonde Webtor te izbire skupaj najvec 15 s in najvec 2 ([WebtorPravila.rokSonde]).
+        var webtorZacetek: Long? = null
+        var webtorPoskusov = 0
+        fun webtorRok() = WebtorPravila.rokSonde(webtorZacetek, android.os.SystemClock.elapsedRealtime(), webtorPoskusov)
+        // Sonda enega toka Webtor v skupnem roku; false = ne poskusimo (rok porabljen ali tok ze poskusen).
+        fun sondaWebtor(w: Stremio.Tok, predvajaj: () -> Unit, naprej: () -> Unit): Boolean {
+            val rok = webtorRok()
+            if (rok <= 0L || !poskuseniWebtor.add(w.url)) return false
+            if (webtorZacetek == null) webtorZacetek = android.os.SystemClock.elapsedRealtime()
+            webtorPoskusov++
+            predvajajWebtor(w, rok, predvajaj, naprej)
+            return true
+        }
         fun odpri(t: Stremio.Tok, rezerve: List<Stremio.Tok> = emptyList()) {
             when (t.vrsta) {
                 "url" -> {
@@ -8659,9 +8741,10 @@ class GlasbaActivity : OsActivity() {
                     // infoHash + fileIdx) - brez cakanja na prenos; ce Webtor ne da toka (402/404/429, prvi bajt po 15 s), kot
                     // doslej (TorBox s cakanjem). Ob zacetku toka Webtor gre torrent v ozadju v TorBox (naslednjic ⚡).
                     val w = if (TorBoxPravila.hashIzMagneta(t.url)?.lowercase() in predpomnjeni) null else webtorZa(t)
-                    if (w != null && poskuseniWebtor.add(w.url)) predvajajWebtor(w, { odpri(w); webtorVTorBox(t.url, false) }) {
+                    val zacel = w != null && sondaWebtor(w, { odpri(w); webtorVTorBox(t.url, false) }, {
                         Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show(); prekTorrenta()
-                    } else prekTorrenta()
+                    })
+                    if (!zacel) prekTorrenta()
                 }
                 // Naloga 141: Usenet - NZB od indeksatorja (naprava), prenos in tok TorBox; brez poti »brez zasebnosti«.
                 UsenetPravila.VRSTA -> prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
@@ -8704,11 +8787,17 @@ class GlasbaActivity : OsActivity() {
         webtorZa = { t -> WebtorPravila.zaIzdajo(kljucTorrenta(t), parWebtor, imamoTorBox).takeIf { it >= 0 }?.let { webtorPoKakovosti[it] } }
         if (webtor.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "tokovi: Webtor ${webtor.size}, ista izdaja kot nas torrent: " +
             "${webtor.count { w -> kljucWebtor(w) != null && torrentiPoKakovosti.any { kljucTorrenta(it) == kljucWebtor(w) } }}")
+        // [⚡WT] (Webtor ga ima pripravljenega) sodi med »takoj predvajljivo« (lastnik: najhitrejsi zacetek najprej).
+        val webtorTakoj = WebtorPravila.vrstniRed(torrentiPoKakovosti.map { kljucTorrenta(it) }, parWebtor, imamoTorBox, samoTakoj = true)
+            .map { webtorPoKakovosti[it] }
         fun odpriWebtor(w: Stremio.Tok, naprej: () -> Unit) {
-            poskuseniWebtor += w.url
             val k = kljucWebtor(w)
             val nas = if (k == null) null else torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == k }
-            predvajajWebtor(w, { odpri(w); if (k != null) webtorVTorBox(nas?.url ?: WebtorPravila.magnet(k.hash), k.hash in predpomnjeni) }, naprej)
+            val zacel = sondaWebtor(w, {
+                odpri(w)
+                if (k != null) webtorVTorBox(nas?.url ?: WebtorPravila.magnet(k.hash, w.sledilniki), k.hash in predpomnjeni)
+            }, naprej)
+            if (!zacel) naprej()
         }
         // Samodejna izbira brez Useneta (kot pred nalogo 141); true = nekaj se predvaja.
         fun samodejnoBrezUseneta(): Boolean {
@@ -8731,61 +8820,60 @@ class GlasbaActivity : OsActivity() {
             return false
         }
         if (!rocno) {
-            // Naloga 141 (lastnik, 24. 10. 2026: »nočem izbiro virov … automacko zažene najboljši vir … v našem primeru
-            // usenet«): Usenet prvi, brez okna in s cakanjem na prenos (izmerjeno: 2,2 GB v 36 s). Ce ne uspe, naslednji
-            // zadetek Usenet, nato samodejno najboljsi drug vir - nikoli okno »izberi vir«.
-            // Lastnik 25. 10. 2026: uporabnik ne sme cakati na prenos, ce je kaj takoj predvajljivo (izmerjeno na TV: film
-            // je cakal na nepredpomnjen Usenet 3,6 GB, medtem ko je bilo 84 od 95 torrentov pri TorBoxu pripravljenih ⚡).
-            // Vrstni red: (1) Usenet, ki ga ima TorBox ze pripravljenega (samo preverba, brez cakanja), (2) pripravljen
-            // torrent ⚡ ali ziva neposredna povezava, (3) Usenet s cakanjem na prenos, (4) ostali viri.
+            // Naloga 141 + lastnik 24.-25. 10. 2026 (07:25): Usenet je prvi, ce ga uporabnik ima (najboljsa kakovost in hitrost,
+            // placa ga), a uporabnik ne caka na prenos, ce je kaj takoj predvajljivo. Koraki ([WebtorPravila.koraki]):
+            // (1) Usenet, ki ga ima TorBox ze pripravljenega - prve izdaje preverjene HKRATI s preverbo ⚡ ([predpomnjeniZa],
+            // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
+            // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
-            fun takojPredvajljivo(): Boolean {
+            pripravljeno.usenet?.let { (t, cdn) ->
+                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen pri TorBoxu; izbran=${TokIzbira.opisi(opis(t))}")
+                Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(DebridPravila.TORBOX)), Toast.LENGTH_SHORT).show()
+                odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
+                return
+            }
+            fun takojBrezWebtorja(): Boolean {
                 val k = DebridPravila.samodejniTorrent(Debrid.aktivna(this), hashiTorrentov, predpomnjeni)
                 if (k >= 0) { odpri(torrentiPoKakovosti[k]); return true }
                 val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }
                 if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true }
                 return false
             }
-            // Webtor rezerva: po Usenetu (pripravljen, nato s cakanjem) tokovi Webtor - najvec WebtorPravila.NAJVEC_POSKUSOV,
-            // nato kot doslej (najboljsi drug vir: TorBox s cakanjem, neposredno ...).
-            fun poskusiWebtor(i: Int) {
-                val w = webtor.firstOrNull { it.url !in poskuseniWebtor }
-                if (i >= WebtorPravila.NAJVEC_POSKUSOV || w == null) {
-                    if (i > 0) Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
-                    if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
-                    return
+            fun naKonec() { if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show() }
+            // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 sondi in 15 s ([webtorRok]).
+            fun poskusiWebtor(samoTakoj: Boolean, potem: () -> Unit) {
+                val w = (if (samoTakoj) webtorTakoj else webtor).firstOrNull { it.url !in poskuseniWebtor }
+                if (w == null || webtorRok() <= 0L) { potem(); return }
+                android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""}; izbran=${TokIzbira.opisi(opis(w))}, vrsta=${w.oznakaVira}")
+                odpriWebtor(w) {
+                    Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
+                    poskusiWebtor(samoTakoj, potem)
                 }
-                android.util.Log.i("SafeerOsMedia", "tokovi: Webtor ${i + 1}/${minOf(webtor.size, WebtorPravila.NAJVEC_POSKUSOV)}; " +
-                    "izbran=${TokIzbira.opisi(opis(w))}, vrsta=${w.oznakaVira}")
-                odpriWebtor(w) { poskusiWebtor(i + 1) }
             }
-            fun poskusiUsenet(i: Int, takoj: Boolean) {
+            fun poskusiUsenetSCakanjem(i: Int) {
                 if (i >= poskusi.size) {
-                    if (takoj) {
-                        android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni pripravljen pri TorBoxu - Usenet s prenosom")
-                        if (poskusi.isNotEmpty()) { poskusiUsenet(0, false); return }
-                    }
                     if (i > 0) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
-                    poskusiWebtor(0)
+                    poskusiWebtor(false) { naKonec() }
                     return
                 }
                 val t = poskusi[i]
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ${i + 1}/${poskusi.size} od ${usenet.size} (takoj=$takoj); izbran=${TokIzbira.opisi(opis(t))}")
+                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${i + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
                 prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
-                    samoTakoj = takoj, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { poskusiUsenet(i + 1, takoj) })
+                    samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { poskusiUsenetSCakanjem(i + 1) })
             }
-            // Izmerjeno na TV 25. 10. 2026: preverba »Usenet pripravljen« traja 2-6 s na izdajo (prenos NZB z indeksatorja +
-            // TorBox), pripravljen torrent ⚡ pa zacne v ~2 s - zato gre ⚡ torrent ali ziva povezava, ce obstaja, takoj.
-            if (takojPredvajljivo()) return
-            if (poskusi.isNotEmpty()) { poskusiUsenet(0, true); return }
-            // Webtor rezerva: brez Useneta takoj Webtor (pred TorBoxom s cakanjem).
-            if (webtor.isNotEmpty()) { poskusiWebtor(0); return }
+            if (takojBrezWebtorja()) return
+            if (poskusi.isNotEmpty() || webtor.isNotEmpty()) {
+                poskusiWebtor(true) { if (poskusi.isNotEmpty()) poskusiUsenetSCakanjem(0) else poskusiWebtor(false) { naKonec() } }
+                return
+            }
             if (samodejnoBrezUseneta()) return
         }
         // Rocna izbira: najboljsi na vrhu, napovednik na koncu.
         // Naloga 130: pripravljeni torrenti (⚡) so na vrhu seznama, pred povezavami.
-        // Webtor rezerva: isti vrstni red kot samodejno - Usenet in Webtor pred nepripravljenimi torrenti.
-        val urejeni = torrenti.filter { pripravljen(it) } + neposredni + usenet + webtor + torrenti.filter { !pripravljen(it) } +
+        // Takoj predvajljivo na vrhu (⚡ torrenti, povezave, [⚡WT]), nato Usenet (najboljsa kakovost), Webtor [WT] in
+        // nepripravljeni torrenti - kot pri samodejni izbiri.
+        val urejeni = torrenti.filter { pripravljen(it) } + neposredni + webtorTakoj + usenet + webtor.filter { it !in webtorTakoj } +
+            torrenti.filter { !pripravljen(it) } +
             tokovi.filter { it.vrsta != "url" && it.vrsta != "torrent" && it.vrsta != UsenetPravila.VRSTA }
         if (urejeni.size == 1 && !rocno) { odpri(urejeni.first()); return }
         val imena = urejeni.map { t ->
@@ -8817,14 +8905,14 @@ class GlasbaActivity : OsActivity() {
      * 402/404/429 ali prvi bajt po vec kot 15 s -> [naprej] (naslednji vir), sicer [predvajaj] (nas predvajalnik dobi naslov
      * `/resolve/` - nadomestek brez zetona - in preusmeritvi sledi sam). Preklic kot pri debridu ([rodDebrida]).
      */
-    private fun predvajajWebtor(w: Stremio.Tok, predvajaj: () -> Unit, naprej: () -> Unit) {
+    private fun predvajajWebtor(w: Stremio.Tok, rokMs: Long, predvajaj: () -> Unit, naprej: () -> Unit) {
         if (isFinishing || isDestroyed || debridDelavec.isShutdown) return
         prekiniDebrid()
         val rod = rodDebrida.get()
         fun velja() = rodDebrida.get() == rod && !isFinishing && !isDestroyed
         if (vOspredju) Toast.makeText(this, R.string.os_webtor_pripravljam, Toast.LENGTH_SHORT).show()
         val delo = try { debridDelavec.submit(Runnable {
-            val s = try { Webtor.sonda(applicationContext, w.url) } catch (e: Exception) { Webtor.Sonda(0, null, false, "") }
+            val s = try { Webtor.sonda(applicationContext, w.url, rokMs) } catch (e: Exception) { Webtor.Sonda(0, null, false, "") }
             if (Thread.currentThread().isInterrupted || rodDebrida.get() != rod) return@Runnable
             val izid = WebtorPravila.odlocitev(s.koda, s.prviBajtMs, s.potekel)
             android.util.Log.i("SafeerOsMedia", "tokovi: Webtor sonda koda=${s.koda}, prvi bajt=${s.prviBajtMs ?: "-"} ms, " +
@@ -9087,6 +9175,12 @@ class GlasbaActivity : OsActivity() {
         // Naloga 129: kljuce, vpisane tu (npr. na telefonu), poslji na TV - tam jih ni treba tipkati z daljincem.
         if ((Debrid.imaKateriKljuc(this) || Usenet.imaIndeksator(this) || MedijskiViri.skrivniDodatki(this).isNotEmpty()) && Predaja.cilji(this).isNotEmpty())
             vrstice += getString(R.string.os_debrid_poslji) to { posljiKljuceDebrida() }
+        // Samodejno usklajevanje (lastnik, 25. 10. 2026): kljuce in dodatke vneses enkrat, veljajo na vseh napravah ozjega kroga.
+        val sinh = UskladitevKljucev.vklopljeno(this)
+        vrstice += getString(if (sinh) R.string.os_sinh_vkl else R.string.os_sinh_izk) to {
+            UskladitevKljucev.nastaviVklopljeno(this, !sinh); osveziNaMestu(); nastavitveDebrida()
+        }
+        vrstice += getString(R.string.os_sinh_naprave, UskladitevKljucev.naprave(this).size) to { napraveUskladitve() }
         val red = Debrid.vrstniRed(this)
         if (red.size >= 2) vrstice += getString(R.string.os_debrid_prednostna, DebridPravila.ime(red.first())) to {
             val imena = red.map { DebridPravila.ime(it) }.toTypedArray()
@@ -9141,6 +9235,7 @@ class GlasbaActivity : OsActivity() {
                             if (isFinishing) return@posljiKljuce
                             Toast.makeText(this, when (koda) {
                                 "ok" -> getString(R.string.os_debrid_poslano, ime)
+                                "stara_dodatki" -> getString(R.string.os_debrid_poslji_stara_dodatki, ime)
                                 "ni_krog" -> getString(R.string.os_ozji_krog_zavrnjeno, ime)
                                 "ni_zascite" -> getString(R.string.os_debrid_poslji_ni_zascite, ime)
                                 "ni_dovoljeno" -> getString(R.string.os_debrid_poslji_ni_dovoljeno, ime)
@@ -9152,6 +9247,66 @@ class GlasbaActivity : OsActivity() {
                     .setNegativeButton(R.string.os_preklici, null))
             }
             .setNegativeButton(R.string.os_preklici, null).create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    // ------------------------------------------------------------------ samodejno usklajevanje kljucev (ozji krog)
+
+    private var uskladitevOkno: AlertDialog? = null
+    private val obUskladitvi: () -> Unit = { if (!isFinishing && !isDestroyed) pokaziCakajoceUskladitve() }
+
+    /**
+     * Nova naprava v ozjem krogu zeli usklajevati kljuce in dodatke ([UskladitevKljucev]): enkratna potrditev - velja tudi za
+     * vse prihodnje spremembe in izbrise z nje. Okno, zaprto brez odlocitve, se pokaze znova ob naslednjem odprtju.
+     */
+    private fun pokaziCakajoceUskladitve() {
+        if (uskladitevOkno?.isShowing == true || isFinishing) return
+        val z = UskladitevKljucev.cakajoca() ?: return
+        fun ime(x: String) = if (x.startsWith(Debrid.PREDPONA_DODATKA)) getString(R.string.os_skrivni_dodatek_ime, x.removePrefix(Debrid.PREDPONA_DODATKA)) else x
+        val katere = UskladitevKljucev.opisZapisov(z).joinToString(", ") { ime(it) }.ifBlank { "–" }
+        val naprava = DatotekeActivity.lepoIme(z.ime).ifBlank { z.ime.ifBlank { z.id } }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_sinh_naprave_naslov)
+            .setMessage(getString(R.string.os_sinh_vprasanje, naprava, katere))
+            .setPositiveButton(R.string.os_sinh_sprejmi) { _, _ -> UskladitevKljucev.potrdi(this, z.kljuc, true) }
+            .setNegativeButton(R.string.os_sinh_zavrni) { _, _ -> UskladitevKljucev.potrdi(this, z.kljuc, false) }
+            .create()
+        okno.setOnDismissListener { if (uskladitevOkno === okno) uskladitevOkno = null }
+        // Privzeto Sprejmi: uporabnik je napravo sam dodal v ozji krog.
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
+        uskladitevOkno = okno
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** »Naprave s kljuci«: s katerimi napravami ozjega kroga se ta naprava usklajuje, v kaksnem stanju in kdaj nazadnje. */
+    private fun napraveUskladitve() {
+        val naprave = UskladitevKljucev.naprave(this)
+        val oblika = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT, Locale.getDefault())
+        val vrstice = naprave.map { n ->
+            val ime = DatotekeActivity.lepoIme(n.ime).ifBlank { n.ime.ifBlank { n.id } }
+            when (n.stanje) {
+                UskladitevKljucevPravila.Stanje.POTRJENA -> getString(R.string.os_sinh_stanje_potrjena, ime,
+                    if (n.zadnjic > 0) oblika.format(java.util.Date(n.zadnjic)) else "–")
+                UskladitevKljucevPravila.Stanje.POVABLJENA -> getString(R.string.os_sinh_stanje_povabljena, ime)
+                UskladitevKljucevPravila.Stanje.CAKA -> getString(R.string.os_sinh_stanje_caka, ime)
+                UskladitevKljucevPravila.Stanje.ZAVRNJENA -> getString(R.string.os_sinh_stanje_zavrnjena, ime)
+                UskladitevKljucevPravila.Stanje.STARA -> getString(R.string.os_sinh_stanje_stara, ime)
+            }
+        }
+        val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_sinh_naprave_naslov)
+        if (naprave.isEmpty()) g.setMessage(R.string.os_sinh_naprave_prazno)
+        else g.setItems(vrstice.toTypedArray()) { _, i ->
+            val n = naprave[i]
+            when (n.stanje) {
+                UskladitevKljucevPravila.Stanje.ZAVRNJENA -> {
+                    UskladitevKljucev.dovoliZnova(this, n.kljuc)
+                    Toast.makeText(this, getString(R.string.os_sinh_ponovno, DatotekeActivity.lepoIme(n.ime).ifBlank { n.ime }), Toast.LENGTH_SHORT).show()
+                }
+                UskladitevKljucevPravila.Stanje.CAKA -> pokaziCakajoceUskladitve()
+                else -> UskladitevKljucev.sprozi(this, 200)
+            }
+        }
+        val okno = g.setNegativeButton(R.string.os_preklici, null).create()
         Kontroler.pokazi(okno); okno.show()
     }
 
